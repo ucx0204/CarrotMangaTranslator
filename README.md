@@ -34,13 +34,69 @@
 1. 앱을 실행합니다.
 2. 오른쪽 위 설정을 엽니다.
 3. `번역 엔진`에서 원하는 엔진을 고릅니다.
-4. `OpenAI Codex`를 고른 경우, 먼저 터미널에서 `codex login` 또는 `npx @openai/codex login`으로 OpenAI 로그인을 해둡니다.
+4. `OpenAI Codex`를 고른 경우, 먼저 Windows PowerShell에서 Codex CLI 로그인을 해둡니다. 아래 `OpenAI Codex 연결 방법`을 참고하세요.
 5. 앱에서 `이미지 열기`, `폴더 열기`, `압축파일 열기`, `작품 일괄 번역` 중 하나를 선택합니다.
 6. 새 작품을 만들지, 기존 작품에 추가할지 선택합니다.
 7. 화 제목을 확인한 뒤 보관함에 추가합니다.
 8. 번역이 끝나면 페이지를 열어 필요한 부분만 직접 수정합니다.
 
-터미널이 익숙하지 않다면 Windows 시작 메뉴에서 `PowerShell`을 검색해 실행한 뒤, 위 로그인 명령어를 그대로 붙여 넣으면 됩니다.
+터미널이 익숙하지 않다면 Windows 시작 메뉴에서 `PowerShell`을 검색해 실행한 뒤, 아래 명령어를 그대로 붙여 넣으면 됩니다.
+
+## OpenAI Codex 연결 방법
+
+`OpenAI Codex` 엔진은 내 PC의 그래픽카드 대신 OpenAI 계정으로 번역을 요청합니다. 앱 안에 OpenAI API 키를 직접 붙여 넣는 방식이 아니라, Windows에 로그인해 둔 Codex CLI 인증 정보를 `openai-oauth`가 읽어서 사용합니다.
+
+설치형 앱 v0.1.7부터는 `openai-oauth` 패키지가 앱에 포함되어 있으므로, 앱 폴더에서 따로 `npm install`을 할 필요가 없습니다. 다만 OpenAI 계정 연결을 위해 Codex CLI 로그인은 한 번 필요합니다.
+
+OpenAI 공식 Codex CLI 로그인 도움말: https://help.openai.com/en/articles/11381614-api-codex-cli-and-sign-in-with-chatgpt
+
+### Windows에서 처음 연결하기
+
+1. Node.js가 없다면 먼저 Node.js LTS 버전을 설치합니다.
+   - 다운로드: https://nodejs.org/
+   - 설치 후 PowerShell을 새로 열어야 `npm` 명령이 잡히는 경우가 있습니다.
+2. Windows 시작 메뉴에서 `PowerShell`을 검색해 실행합니다.
+3. Codex CLI를 설치합니다.
+
+```powershell
+npm i -g @openai/codex
+```
+
+4. Codex CLI 로그인을 실행합니다.
+
+```powershell
+codex --login
+```
+
+5. 브라우저가 열리면 OpenAI/ChatGPT 계정으로 로그인합니다.
+6. PowerShell에서 로그인이 끝난 것을 확인한 뒤, 망가번역기를 실행합니다.
+7. 앱 오른쪽 위 `설정`을 열고 `번역 엔진`을 `OpenAI Codex`로 바꿉니다.
+8. `Codex 모델`은 기본값 `gpt-5.5`를 그대로 두고, 필요하면 `생각` 수준을 조절합니다.
+9. `잘 작동되나 확인`을 눌러 연결이 되는지 확인한 뒤 저장합니다.
+
+전역 설치가 싫다면 아래처럼 한 번만 실행할 수도 있습니다.
+
+```powershell
+npx @openai/codex --login
+```
+
+그래도 이후 앱에서 계속 쓰려면 `codex` 로그인이 Windows 사용자 계정에 저장되어 있어야 합니다.
+
+### 연결이 안 될 때
+
+- `codex` 명령을 찾을 수 없다고 나오면 Node.js 설치 후 PowerShell을 새로 열고 `npm i -g @openai/codex`를 다시 실행하세요.
+- 예전에 API 키 방식으로 Codex CLI를 쓴 적이 있다면 아래처럼 다시 로그인하세요.
+
+```powershell
+codex logout
+codex --login
+```
+
+- 회사/학교 계정, Enterprise/Edu/Team 환경에서는 계정 정책에 따라 Codex CLI 로그인이나 사용이 제한될 수 있습니다.
+- 앱의 `openai-oauth 포트`가 다른 프로그램과 겹치면 설정에서 포트를 다른 값으로 바꿔 저장하세요. 예: `10533`, `10534`, `10535`
+- Windows 방화벽이나 백신이 로컬 연결을 물어보면 허용하세요. 앱은 `127.0.0.1` 로컬 주소로만 `openai-oauth`에 연결합니다.
+- 번역 중 `Codex 로그인이 필요할 수 있습니다` 또는 모델 목록 확인 실패가 나오면 PowerShell에서 `codex --login`을 다시 실행한 뒤 앱에서 `잘 작동되나 확인`을 눌러보세요.
+- 오류 원문은 앱 설정의 `로그 폴더 열기`에서 확인할 수 있습니다.
 
 ## 할 수 있는 일
 
@@ -77,7 +133,7 @@
 - `GPU layers`: Gemma 4에서 GPU를 얼마나 사용할지 정하는 값
 - `NSFW 모드`: 성인향 이미지 번역을 허용하는 설정
 
-`OpenAI Codex` 엔진은 `openai-oauth`가 Codex 로그인 정보를 사용합니다. 처음 사용할 때는 먼저 `codex login` 또는 `npx @openai/codex login`으로 로그인해두세요.
+`OpenAI Codex` 엔진은 `openai-oauth`가 Codex CLI 로그인 정보를 사용합니다. 처음 사용할 때는 먼저 Windows PowerShell에서 `codex --login`으로 로그인해두세요. 자세한 절차는 위 `OpenAI Codex 연결 방법`을 참고하세요.
 
 ## 저장 위치
 
@@ -92,7 +148,7 @@
 
 번역이 안 되면 먼저 설정에서 어떤 엔진을 선택했는지 확인하세요.
 
-- `OpenAI Codex`를 쓰는 경우: OpenAI 로그인이 되어 있는지 확인합니다.
+- `OpenAI Codex`를 쓰는 경우: PowerShell에서 `codex --login`을 다시 실행한 뒤, 앱 설정에서 `잘 작동되나 확인`을 눌러봅니다.
 - `Gemma 4`를 쓰는 경우: NVIDIA RTX GPU와 충분한 VRAM이 있는지 확인합니다.
 - 앱이 멈춘 것처럼 보이는 경우: 큰 ZIP 파일이나 고해상도 이미지는 시간이 오래 걸릴 수 있습니다.
 - 오류 내용을 확인하고 싶은 경우: 앱의 로그 폴더 열기 기능을 사용합니다.
