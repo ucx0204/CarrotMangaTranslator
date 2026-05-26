@@ -8,7 +8,6 @@ import {
   DEFAULT_GEMMA_MODEL_FILE,
   DEFAULT_GEMMA_MODEL_FILE_Q3,
   DEFAULT_GEMMA_MODEL_FILE_Q6,
-  DEFAULT_TRANSLATION_MODE,
   parseStoredAppSettings,
   resolveRecommendedModelFile,
   resolveDefaultAppSettings
@@ -24,7 +23,6 @@ describe("app settings helpers", () => {
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
     expect(defaults.codex.reasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(defaults.codex.oauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
-    expect(defaults.translationMode).toBe(DEFAULT_TRANSLATION_MODE);
   });
 
   it("recommends model files from detected VRAM tiers", () => {
@@ -59,7 +57,6 @@ describe("app settings helpers", () => {
         gpuLayers: 12
       },
       codex: defaults.codex,
-      translationMode: "fast",
       nsfwMode: false
     });
   });
@@ -76,7 +73,6 @@ describe("app settings helpers", () => {
         gpuLayers: 30
       },
       codex: defaults.codex,
-      translationMode: "fast",
       nsfwMode: false
     });
 
@@ -89,7 +85,6 @@ describe("app settings helpers", () => {
         gpuLayers: 30
       },
       codex: defaults.codex,
-      translationMode: "fast",
       nsfwMode: false
     });
 
@@ -102,7 +97,6 @@ describe("app settings helpers", () => {
         gpuLayers: 0
       },
       codex: defaults.codex,
-      translationMode: "fast",
       nsfwMode: false
     });
 
@@ -115,7 +109,6 @@ describe("app settings helpers", () => {
         gpuLayers: DEFAULT_GEMMA_GPU_LAYERS
       },
       codex: defaults.codex,
-      translationMode: "fast",
       nsfwMode: false
     });
   });
@@ -127,7 +120,6 @@ describe("app settings helpers", () => {
       modelProvider: defaults.modelProvider,
       gemma: defaults.gemma,
       codex: defaults.codex,
-      translationMode: "fast",
       nsfwMode: true
     });
 
@@ -135,19 +127,17 @@ describe("app settings helpers", () => {
       modelProvider: defaults.modelProvider,
       gemma: defaults.gemma,
       codex: defaults.codex,
-      translationMode: "fast",
       nsfwMode: false
     });
   });
 
-  it("fills invalid or missing translation mode with the default", () => {
+  it("ignores legacy stored translation mode values", () => {
     const defaults = resolveDefaultAppSettings();
 
     expect(parseStoredAppSettings("{\"translationMode\":\"accuracy\"}", defaults)).toEqual({
       modelProvider: defaults.modelProvider,
       gemma: defaults.gemma,
       codex: defaults.codex,
-      translationMode: "accuracy",
       nsfwMode: false
     });
 
@@ -155,12 +145,11 @@ describe("app settings helpers", () => {
       modelProvider: defaults.modelProvider,
       gemma: defaults.gemma,
       codex: defaults.codex,
-      translationMode: "fast",
       nsfwMode: false
     });
   });
 
-  it("builds fast mode translation options from saved model settings while preserving other defaults", () => {
+  it("builds translation options from saved model settings while preserving other defaults", () => {
     const settings: AppSettings = {
       modelProvider: "gemma",
       gemma: {
@@ -174,7 +163,6 @@ describe("app settings helpers", () => {
         reasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
         oauthPort: DEFAULT_CODEX_OAUTH_PORT
       },
-      translationMode: "fast",
       nsfwMode: true
     };
 
@@ -217,41 +205,6 @@ describe("app settings helpers", () => {
     expect(options.label).toBe("app-job-1");
   });
 
-  it("builds accuracy mode translation options with the previous larger image budget", () => {
-    const settings: AppSettings = {
-      modelProvider: "gemma",
-      gemma: {
-        modelSource: "huggingface",
-        modelRepo: "saved/repo",
-        modelFile: "saved-model.gguf",
-        gpuLayers: 24
-      },
-      codex: {
-        model: DEFAULT_CODEX_MODEL,
-        reasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
-        oauthPort: DEFAULT_CODEX_OAUTH_PORT
-      },
-      translationMode: "accuracy",
-      nsfwMode: false
-    };
-
-    const options = buildBaseTranslationOptions({
-      jobId: "job-2",
-      runDir: "C:/runs/job-2",
-      paths: {
-        dataRoot: "C:/app-data",
-        toolsDir: "C:/tools",
-        llamaServerPath: "C:/tools/llama-server.exe"
-      },
-      settings
-    });
-
-    expect(options.maxTokens).toBe(1400);
-    expect(options.imageMinTokens).toBe(1120);
-    expect(options.imageMaxTokens).toBe(1120);
-    expect(options.includeEnhancedVariant).toBe(true);
-  });
-
   it("keeps local model settings when the source is local", () => {
     const defaults = resolveDefaultAppSettings();
 
@@ -277,7 +230,6 @@ describe("app settings helpers", () => {
         gpuLayers: defaults.gemma.gpuLayers
       },
       codex: defaults.codex,
-      translationMode: "fast",
       nsfwMode: false
     });
   });
@@ -305,7 +257,6 @@ describe("app settings helpers", () => {
         reasoningEffort: "xhigh",
         oauthPort: 10532
       },
-      translationMode: "fast",
       nsfwMode: false
     });
   });

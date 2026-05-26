@@ -1,4 +1,4 @@
-import type { AppSettings, CodexReasoningEffort, ModelProvider, ModelSource, TranslationMode } from "../shared/types";
+import type { AppSettings, CodexReasoningEffort, ModelProvider, ModelSource } from "../shared/types";
 
 export const DEFAULT_GEMMA_MODEL_REPO = "unsloth/gemma-4-26B-A4B-it-GGUF";
 export const DEFAULT_GEMMA_MODEL_FILE_Q3 = "gemma-4-26B-A4B-it-UD-Q3_K_XL.gguf";
@@ -10,30 +10,10 @@ export const DEFAULT_MODEL_PROVIDER: ModelProvider = "gemma";
 export const DEFAULT_CODEX_MODEL = "gpt-5.5";
 export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = "medium";
 export const DEFAULT_CODEX_OAUTH_PORT = 10531;
-export const DEFAULT_TRANSLATION_MODE: TranslationMode = "fast";
 export const DEFAULT_MODEL_SOURCE: ModelSource = "huggingface";
 
-type TranslationModeDefaults = {
-  maxTokens: number;
-  imageMinTokens: number;
-  imageMaxTokens: number;
-  includeEnhancedVariant: boolean;
-};
-
-const TRANSLATION_MODE_DEFAULTS: Record<TranslationMode, TranslationModeDefaults> = {
-  fast: {
-    maxTokens: 900,
-    imageMinTokens: 640,
-    imageMaxTokens: 640,
-    includeEnhancedVariant: false
-  },
-  accuracy: {
-    maxTokens: 1400,
-    imageMinTokens: 1120,
-    imageMaxTokens: 1120,
-    includeEnhancedVariant: true
-  }
-};
+const DEFAULT_MAX_TOKENS = 900;
+const DEFAULT_IMAGE_TOKENS = 640;
 
 export type TranslationOptions = {
   imagePath: string;
@@ -101,7 +81,6 @@ export function resolveDefaultAppSettings(env: NodeJS.ProcessEnv = process.env, 
       ),
       oauthPort: resolvePortNumber(env.MANGA_TRANSLATOR_CODEX_OAUTH_PORT, DEFAULT_CODEX_OAUTH_PORT)
     },
-    translationMode: DEFAULT_TRANSLATION_MODE,
     nsfwMode: false
   };
 }
@@ -127,7 +106,6 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
       reasoningEffort: resolveCodexReasoningEffort(asRecord(codex)?.reasoningEffort, defaults.codex.reasoningEffort),
       oauthPort: resolvePortNumber(asRecord(codex)?.oauthPort, defaults.codex.oauthPort)
     },
-    translationMode: resolveTranslationMode(record?.translationMode, defaults.translationMode),
     nsfwMode: resolveBoolean(record?.nsfwMode, defaults.nsfwMode)
   };
 }
@@ -157,7 +135,6 @@ export function buildBaseTranslationOptions({
   settings: AppSettings;
   env?: NodeJS.ProcessEnv;
 }): TranslationOptions {
-  const modeDefaults = resolveTranslationModeDefaults(settings.translationMode);
   return {
     imagePath: "",
     outputDir: runDir,
@@ -168,15 +145,15 @@ export function buildBaseTranslationOptions({
     temperature: readNumberEnv(env, "MANGA_TRANSLATOR_TEMPERATURE", 0),
     topP: readNumberEnv(env, "MANGA_TRANSLATOR_TOP_P", 0.85),
     topK: readNumberEnv(env, "MANGA_TRANSLATOR_TOP_K", 40),
-    maxTokens: readNumberEnv(env, "MANGA_TRANSLATOR_MAX_TOKENS", modeDefaults.maxTokens),
+    maxTokens: readNumberEnv(env, "MANGA_TRANSLATOR_MAX_TOKENS", DEFAULT_MAX_TOKENS),
     ctx: readNumberEnv(env, "MANGA_TRANSLATOR_CTX", 16384),
     batch: readNumberEnv(env, "MANGA_TRANSLATOR_BATCH", 32),
     ubatch: readNumberEnv(env, "MANGA_TRANSLATOR_UBATCH", 32),
     gpuLayers: settings.gemma.gpuLayers,
     fitTargetMb: readNumberEnv(env, "MANGA_TRANSLATOR_FIT_TARGET_MB", 4096),
-    imageMinTokens: readNumberEnv(env, "MANGA_TRANSLATOR_IMAGE_MIN_TOKENS", modeDefaults.imageMinTokens),
-    imageMaxTokens: readNumberEnv(env, "MANGA_TRANSLATOR_IMAGE_MAX_TOKENS", modeDefaults.imageMaxTokens),
-    includeEnhancedVariant: modeDefaults.includeEnhancedVariant,
+    imageMinTokens: readNumberEnv(env, "MANGA_TRANSLATOR_IMAGE_MIN_TOKENS", DEFAULT_IMAGE_TOKENS),
+    imageMaxTokens: readNumberEnv(env, "MANGA_TRANSLATOR_IMAGE_MAX_TOKENS", DEFAULT_IMAGE_TOKENS),
+    includeEnhancedVariant: false,
     enhancedMaxLongSide: 1900,
     enhancedContrast: 1.35,
     imageFirst: true,
@@ -203,10 +180,6 @@ function readNumberEnv(env: NodeJS.ProcessEnv, name: string, fallback: number): 
   return Number.isFinite(value) ? value : fallback;
 }
 
-function resolveTranslationMode(value: unknown, fallback: TranslationMode): TranslationMode {
-  return value === "fast" || value === "accuracy" ? value : fallback;
-}
-
 function resolveModelProvider(value: unknown, fallback: ModelProvider): ModelProvider {
   return value === "openai-codex" || value === "gemma" ? value : fallback;
 }
@@ -222,10 +195,6 @@ function resolveCodexReasoningEffort(value: unknown, fallback: CodexReasoningEff
   return value === "none" || value === "low" || value === "medium" || value === "high" || value === "xhigh"
     ? value
     : fallback;
-}
-
-function resolveTranslationModeDefaults(mode: TranslationMode): TranslationModeDefaults {
-  return TRANSLATION_MODE_DEFAULTS[mode];
 }
 
 function resolveNonEmptyString(value: unknown, fallback: string): string {

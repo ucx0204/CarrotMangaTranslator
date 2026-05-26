@@ -23,13 +23,10 @@ export type CodexSettings = {
   oauthPort: number;
 };
 
-export type TranslationMode = "fast" | "accuracy";
-
 export type AppSettings = {
   modelProvider: ModelProvider;
   gemma: GemmaSettings;
   codex: CodexSettings;
-  translationMode: TranslationMode;
   nsfwMode: boolean;
 };
 

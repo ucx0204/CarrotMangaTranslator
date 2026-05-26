@@ -23,7 +23,7 @@ import { ShareExportModal } from "./components/ShareExportModal";
 import { ShareImportModal, type ShareImportModalSubmit } from "./components/ShareImportModal";
 import { TranslateSourceModal, type TranslateSourceMode } from "./components/TranslateSourceModal";
 import { useStageSize } from "./hooks/useStageSize";
-import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyCompletedPages, resolveSelectionAfterChapterSync } from "./lib/chapterSync";
+import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyPages, resolveSelectionAfterChapterSync } from "./lib/chapterSync";
 import { formatJobEventLine, formatJobLabel, resolveProgressSnapshot, summarizeWarnings } from "./lib/jobProgress";
 import { resolveAdjacentPageId, resolveKeyboardPageNavigation, resolveWheelPageNavigation } from "./lib/pageNavigation";
 import "./styles.css";
@@ -144,7 +144,7 @@ export default function App(): React.JSX.Element {
       return;
     }
 
-    const mergeResult = mergeLiveChapterPreservingDirtyCompletedPages(chapter, current, dirtyPageIdsRef.current);
+    const mergeResult = mergeLiveChapterPreservingDirtyPages(chapter, current, dirtyPageIdsRef.current);
     dirtyPageIdsRef.current = new Set(mergeResult.preservedDirtyPageIds);
     currentChapterRef.current = mergeResult.chapter;
 
@@ -470,7 +470,7 @@ export default function App(): React.JSX.Element {
 
       const result = await window.mangaApi.startAnalysis({ chapterId: currentChapter.id, runMode, pageId });
       if (result.chapter) {
-        applyChapter(result.chapter);
+        mergeLiveChapter(result.chapter);
       }
       await refreshLibrary();
 
@@ -486,7 +486,7 @@ export default function App(): React.JSX.Element {
         pushStatus(result.error);
       }
     },
-    [applyChapter, currentChapter, jobActive, pushStatus, refreshLibrary, saveNow]
+    [currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow]
   );
 
   const submitImport = useCallback(
@@ -511,7 +511,7 @@ export default function App(): React.JSX.Element {
             await openChapter(chapterId);
             const runResult = await window.mangaApi.startAnalysis({ chapterId, runMode: "pending" });
             if (runResult.chapter) {
-              applyChapter(runResult.chapter);
+              mergeLiveChapter(runResult.chapter);
             }
             await refreshLibrary();
             if (runResult.status !== "completed") {
@@ -523,7 +523,7 @@ export default function App(): React.JSX.Element {
         setImportBusy(false);
       }
     },
-    [applyChapter, importPreview, openChapter, refreshLibrary]
+    [applyChapter, importPreview, mergeLiveChapter, openChapter, refreshLibrary]
   );
 
   const updateCurrentChapter = useCallback((pageId: string, updater: (chapter: ChapterSnapshot) => ChapterSnapshot) => {

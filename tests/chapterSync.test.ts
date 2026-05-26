@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChapterSnapshot } from "../src/shared/types";
-import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyCompletedPages, resolveSelectionAfterChapterSync } from "../src/renderer/src/lib/chapterSync";
+import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyPages, resolveSelectionAfterChapterSync } from "../src/renderer/src/lib/chapterSync";
 
 function makeChapter(): ChapterSnapshot {
   return {
@@ -130,7 +130,7 @@ describe("chapter sync helpers", () => {
       ]
     };
 
-    const merged = mergeLiveChapterPreservingDirtyCompletedPages(live, local, ["page-1"]);
+    const merged = mergeLiveChapterPreservingDirtyPages(live, local, ["page-1"]);
 
     expect(merged.preservedDirtyPageIds).toEqual(["page-1"]);
     expect(merged.chapter.pages[0]?.blocks[0]?.translatedText).toBe("수정된 번역문");
@@ -138,10 +138,11 @@ describe("chapter sync helpers", () => {
     expect(merged.chapter.pages[1]?.blocks[0]?.translatedText).toBe("KO2");
   });
 
-  it("does not preserve dirty pages once they are no longer completed", () => {
+  it("preserves local block edits made while a translated page is running and adopts live status", () => {
     const local = makeChapter();
     local.pages[0] = {
       ...local.pages[0],
+      analysisStatus: "running",
       blocks: [
         {
           ...local.pages[0].blocks[0],
@@ -153,14 +154,21 @@ describe("chapter sync helpers", () => {
     const live = makeChapter();
     live.pages[0] = {
       ...live.pages[0],
-      analysisStatus: "running",
-      blocks: []
+      analysisStatus: "completed",
+      updatedAt: "2026-04-19T00:01:00.000Z",
+      blocks: [
+        {
+          ...live.pages[0].blocks[0],
+          translatedText: "새 번역 결과"
+        }
+      ]
     };
 
-    const merged = mergeLiveChapterPreservingDirtyCompletedPages(live, local, ["page-1"]);
+    const merged = mergeLiveChapterPreservingDirtyPages(live, local, ["page-1"]);
 
-    expect(merged.preservedDirtyPageIds).toEqual([]);
-    expect(merged.chapter.pages[0]?.analysisStatus).toBe("running");
-    expect(merged.chapter.pages[0]?.blocks).toEqual([]);
+    expect(merged.preservedDirtyPageIds).toEqual(["page-1"]);
+    expect(merged.chapter.pages[0]?.analysisStatus).toBe("completed");
+    expect(merged.chapter.pages[0]?.updatedAt).toBe("2026-04-19T00:01:00.000Z");
+    expect(merged.chapter.pages[0]?.blocks[0]?.translatedText).toBe("수정된 번역문");
   });
 });

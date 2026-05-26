@@ -26,7 +26,7 @@ export function resolveSelectionAfterChapterSync(
   };
 }
 
-export function mergeLiveChapterPreservingDirtyCompletedPages(
+export function mergeLiveChapterPreservingDirtyPages(
   liveChapter: ChapterSnapshot,
   localChapter: ChapterSnapshot | null,
   dirtyPageIds: Iterable<string>
@@ -57,14 +57,13 @@ export function mergeLiveChapterPreservingDirtyCompletedPages(
         if (!localPage || !dirtyPageIdSet.has(page.id)) {
           return page;
         }
-        if (page.analysisStatus !== "completed" || localPage.analysisStatus !== "completed") {
-          return page;
-        }
 
         preservedDirtyPageIds.push(page.id);
         return {
           ...localPage,
-          lastError: page.lastError
+          analysisStatus: page.analysisStatus,
+          lastError: page.lastError,
+          updatedAt: page.updatedAt
         };
       })
     },

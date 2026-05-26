@@ -3,8 +3,7 @@ import type {
   AppSettings,
   CodexReasoningEffort,
   ModelProvider,
-  ModelSource,
-  TranslationMode
+  ModelSource
 } from "../../../shared/types";
 
 const MAX_GPU_LAYERS = 30;
@@ -28,12 +27,6 @@ const MODEL_PRESETS = {
 } as const;
 
 type ModelPresetId = keyof typeof MODEL_PRESETS | "custom";
-type TranslationModeOption = {
-  id: TranslationMode;
-  label: string;
-  description: string;
-};
-
 type ModelSourceOption = {
   id: ModelSource;
   label: string;
@@ -63,19 +56,6 @@ type TestState =
       message: string;
       detail: string | null;
     };
-
-const TRANSLATION_MODE_OPTIONS: TranslationModeOption[] = [
-  {
-    id: "fast",
-    label: "빠름",
-    description: "원본 이미지만 보내고 토큰 예산을 줄여 더 빠르게 처리합니다."
-  },
-  {
-    id: "accuracy",
-    label: "정확성",
-    description: "고대비 보조 이미지를 함께 보내고 더 넉넉한 토큰 예산을 사용합니다."
-  }
-];
 
 const MODEL_SOURCE_OPTIONS: ModelSourceOption[] = [
   {
@@ -165,7 +145,6 @@ export function SettingsModal({
     initialSettings.codex.reasoningEffort
   );
   const [codexOauthPort, setCodexOauthPort] = React.useState(String(initialSettings.codex.oauthPort));
-  const [translationMode, setTranslationMode] = React.useState<TranslationMode>(initialSettings.translationMode);
   const [nsfwMode, setNsfwMode] = React.useState(initialSettings.nsfwMode);
   const [localActionBusy, setLocalActionBusy] = React.useState(false);
   const [testState, setTestState] = React.useState<TestState>({ status: "idle", message: null, detail: null });
@@ -185,7 +164,6 @@ export function SettingsModal({
     setCodexModel(initialSettings.codex.model);
     setCodexReasoningEffort(initialSettings.codex.reasoningEffort);
     setCodexOauthPort(String(initialSettings.codex.oauthPort));
-    setTranslationMode(initialSettings.translationMode);
     setNsfwMode(initialSettings.nsfwMode);
     setTestState({ status: "idle", message: null, detail: null });
   }, [initialSettings]);
@@ -249,7 +227,6 @@ export function SettingsModal({
           reasoningEffort: codexReasoningEffort,
           oauthPort: parsedCodexOauthPort
         },
-        translationMode,
         nsfwMode
       };
     }
@@ -273,7 +250,6 @@ export function SettingsModal({
         reasoningEffort: codexReasoningEffort,
         oauthPort: codexOauthPortValid ? parsedCodexOauthPort : initialSettings.codex.oauthPort
       },
-      translationMode,
       nsfwMode
     };
   }, [
@@ -292,7 +268,6 @@ export function SettingsModal({
     initialSettings.gemma.gpuLayers,
     initialSettings.codex.model,
     initialSettings.codex.oauthPort,
-    translationMode,
     nsfwMode
   ]);
 
@@ -405,30 +380,6 @@ export function SettingsModal({
 
         <section className="modal-section">
           <p className="muted-line modal-note">다음 번 번역 실행부터 적용됩니다.</p>
-          <div className="settings-field-stack">
-            <span>번역 모드</span>
-            <div className="settings-mode-group" role="tablist" aria-label="번역 모드">
-              {TRANSLATION_MODE_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`settings-preset-button ${translationMode === option.id ? "active" : ""}`}
-                  onClick={() => {
-                    clearTestState();
-                    setTranslationMode(option.id);
-                  }}
-                  disabled={controlsBusy}
-                  aria-pressed={translationMode === option.id}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <p className="muted-line modal-note">
-              {TRANSLATION_MODE_OPTIONS.find((option) => option.id === translationMode)?.description}
-            </p>
-          </div>
-
           <div className="settings-field-stack">
             <span>번역 엔진</span>
             <div className="settings-mode-group" role="tablist" aria-label="번역 엔진">
