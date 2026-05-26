@@ -20,7 +20,12 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        shell: pwsh
+        run: |
+          git init .
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git -c credential.helper= -c http.extraheader= fetch --no-tags --depth=1 origin "+${{ github.ref }}:${{ github.ref }}"
+          git checkout --detach "${{ github.sha }}"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -58,11 +63,12 @@ jobs:
           }
           "target=${{ github.sha }}" >> $env:GITHUB_OUTPUT
 
-      - name: Remove existing Windows installer assets
+      - name: Publish GitHub release assets
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+          RELEASE_TARGET: ${{ steps.release_meta.outputs.target }}
         run: |
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
@@ -72,18 +78,38 @@ jobs:
           $owner = "${{ github.repository_owner }}"
           $repo = "${{ github.event.repository.name }}"
           $encodedTag = [uri]::EscapeDataString($env:RELEASE_TAG)
+          $releaseBody = @{
+            tag_name = $env:RELEASE_TAG
+            target_commitish = $env:RELEASE_TARGET
+            name = $env:RELEASE_TAG
+            draft = $false
+            prerelease = $false
+            generate_release_notes = $true
+          } | ConvertTo-Json
+          $releaseUpdateBody = @{
+            tag_name = $env:RELEASE_TAG
+            target_commitish = $env:RELEASE_TARGET
+            name = $env:RELEASE_TAG
+            draft = $false
+            prerelease = $false
+          } | ConvertTo-Json
 
           try {
             $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repo/releases/tags/$encodedTag" -Headers $headers
           } catch {
             $statusCode = $_.Exception.Response.StatusCode.value__
-            if ($statusCode -eq 404) {
-              Write-Host "Release $env:RELEASE_TAG does not exist yet."
-              exit 0
+            if ($statusCode -ne 404) {
+              throw
             }
-            throw
+            $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$owner/$repo/releases" -Headers $headers -Body $releaseBody -ContentType "application/json"
           }
 
+          $files = Get-ChildItem -Path "dist" -Filter "망가번역기 Setup *.exe"
+          if (-not $files) {
+            throw "No Windows installer matched dist/망가번역기 Setup *.exe"
+          }
+
+          $release = Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/$owner/$repo/releases/$($release.id)" -Headers $headers -Body $releaseUpdateBody -ContentType "application/json"
           foreach ($asset in $release.assets) {
             if ($asset.name -like "*.exe") {
               Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/$owner/$repo/releases/assets/$($asset.id)" -Headers $headers
@@ -91,12 +117,16 @@ jobs:
             }
           }
 
-      - name: Publish GitHub release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release_meta.outputs.tag }}
-          target_commitish: ${{ steps.release_meta.outputs.target }}
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-          files: |
-            dist/망가번역기 Setup *.exe
+          $uploadUrl = $release.upload_url -replace "\{\?name,label\}", ""
+          foreach ($file in $files) {
+            $encodedName = [uri]::EscapeDataString($file.Name)
+            $assetUploadUri = "$($uploadUrl)?name=$encodedName"
+            Invoke-RestMethod `
+              -Method Post `
+              -Uri $assetUploadUri `
+              -Headers $headers `
+              -ContentType "application/octet-stream" `
+              -InFile $file.FullName `
+              -TimeoutSec 3600
+            Write-Host "Uploaded $($file.Name)"
+          }
