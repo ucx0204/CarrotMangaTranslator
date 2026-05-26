@@ -5,7 +5,7 @@ export function useStageSize(
   imageRef: RefObject<HTMLImageElement | null>,
   fallback: ViewportSize | null
 ): ViewportSize | null {
-  const [stageSize, setStageSize] = useState<ViewportSize | null>(fallback);
+  const [stageSize, setStageSize] = useState<ViewportSize | null>(null);
 
   useLayoutEffect(() => {
     let frameId = 0;
@@ -17,10 +17,12 @@ export function useStageSize(
       }
 
       const rect = image.getBoundingClientRect();
-      return {
-        width: rect.width || image.clientWidth || fallback?.width || 0,
-        height: rect.height || image.clientHeight || fallback?.height || 0
-      };
+      const width = rect.width || image.clientWidth || 0;
+      const height = rect.height || image.clientHeight || 0;
+      if (width > 0 && height > 0) {
+        return { width, height };
+      }
+      return image.complete ? fallback : null;
     };
 
     const syncStageSize = () => {
@@ -50,7 +52,7 @@ export function useStageSize(
 
     const image = imageRef.current;
     if (!image) {
-      setStageSize(fallback);
+      setStageSize(null);
       return;
     }
 

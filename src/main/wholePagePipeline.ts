@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { buildBaseTranslationOptions, type TranslationOptions } from "./appSettings";
 import { logError, logInfo, logWarn } from "./logger";
 import { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint, type OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
-import { estimateBlockFontSizePx, clampBbox, normalizeBlockType } from "../shared/geometry";
+import { estimateBlockFontSizePx, clampBbox, normalizeBlockType, pixelsToBbox } from "../shared/geometry";
 import type { AppSettings, BBox, BlockType, JobEvent, MangaPage, TranslationBlock } from "../shared/types";
 import { getAppPaths } from "./appPaths";
 import type { ChapterRunPaths } from "./library";
@@ -41,6 +41,8 @@ type OverlayItem = {
   jp: string;
   ko: string;
 };
+
+type DetectedBboxSpace = "normalized_1000" | "pixels";
 
 type RuntimeModules = {
   simplePage: {
@@ -216,14 +218,15 @@ export async function runWholePagePipeline({
           await mkdir(pageOptions.outputDir, { recursive: true });
           await writeFile(overlayItemsPath, `${JSON.stringify({ items }, null, 2)}\n`, "utf8");
 
+          const normalizedItems = normalizeOverlayItemBboxes(items, page);
           successPage = {
             ...page,
-            blocks: items.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex)),
+            blocks: normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex)),
             analysisStatus: "completed",
             lastError: undefined,
             updatedAt: new Date().toISOString()
           };
-          warnings.push(...buildPageWarnings(page.name, items));
+          warnings.push(...buildPageWarnings(page.name, normalizedItems));
           await onPageComplete?.(successPage);
           emit({
             id: jobId,
@@ -386,9 +389,52 @@ function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: number): 
     textAlign: "center",
     textColor: DEFAULT_TEXT_COLOR,
     backgroundColor: type === "sfx" ? "#fff4ea" : DEFAULT_BACKGROUND_COLOR,
-    opacity: type === "sfx" ? 0.7 : 0.88,
+    opacity: type === "sfx" ? 0.5 : 0.88,
     autoFitText: true
   };
+}
+
+function normalizeOverlayItemBboxes(items: OverlayItem[], page: MangaPage): OverlayItem[] {
+  const bboxSpace = inferDetectedBboxSpace(items, page);
+  return items.map((item) => ({
+    ...item,
+    bbox: bboxSpace === "pixels" ? pixelsToBbox(item.bbox, page.width, page.height) : clampBbox(item.bbox)
+  }));
+}
+
+function inferDetectedBboxSpace(items: OverlayItem[], page: Pick<MangaPage, "width" | "height">): DetectedBboxSpace {
+  const coordinatePixelEvidence = items.filter((item) => hasPixelCoordinateEvidence(item.bbox, page)).length;
+  if (coordinatePixelEvidence > 0) {
+    return "pixels";
+  }
+
+  const overflowPixelEvidence = items.filter((item) => hasPixelOverflowEvidence(item.bbox, page)).length;
+  return overflowPixelEvidence >= Math.max(2, Math.ceil(items.length * 0.2)) ? "pixels" : "normalized_1000";
+}
+
+function hasPixelCoordinateEvidence(bbox: BBox, page: Pick<MangaPage, "width" | "height">): boolean {
+  return fitsPagePixels(bbox, page) && (bbox.x > 1000 || bbox.y > 1000 || bbox.w > 1000 || bbox.h > 1000);
+}
+
+function hasPixelOverflowEvidence(bbox: BBox, page: Pick<MangaPage, "width" | "height">): boolean {
+  const right = bbox.x + bbox.w;
+  const bottom = bbox.y + bbox.h;
+  const normalizedTolerance = 80;
+  return fitsPagePixels(bbox, page) && (right > 1000 + normalizedTolerance || bottom > 1000 + normalizedTolerance);
+}
+
+function fitsPagePixels(bbox: BBox, page: Pick<MangaPage, "width" | "height">): boolean {
+  const right = bbox.x + bbox.w;
+  const bottom = bbox.y + bbox.h;
+  const pixelBoundsTolerance = 1.06;
+  return (
+    bbox.x >= 0 &&
+    bbox.y >= 0 &&
+    bbox.w > 0 &&
+    bbox.h > 0 &&
+    right <= page.width * pixelBoundsTolerance &&
+    bottom <= page.height * pixelBoundsTolerance
+  );
 }
 
 function mapOverlayType(value: string): BlockType {

@@ -1,5 +1,12 @@
 import type { BBox, BlockType, RenderTextDirection, SourceTextDirection, TranslationBlock } from "./types";
 
+type PageSize = {
+  width: number;
+  height: number;
+};
+
+type BBoxSpace = NonNullable<TranslationBlock["bboxSpace"]>;
+
 export function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) {
     return min;
@@ -33,36 +40,61 @@ export function pixelsToBbox(bbox: BBox, width: number, height: number): BBox {
   });
 }
 
-export function resolveBlockRenderBbox(block: Pick<TranslationBlock, "bbox" | "renderBbox">): BBox {
-  return clampBbox(block.renderBbox ?? block.bbox);
+export function normalizeBboxTo1000(bbox: BBox, pageSize?: PageSize | null, bboxSpace?: BBoxSpace): BBox {
+  if (bboxSpace === "pixels" && pageSize) {
+    return pixelsToBbox(bbox, pageSize.width, pageSize.height);
+  }
+
+  return clampBbox(bbox);
+}
+
+export function resolveBlockRenderBbox(
+  block: Pick<TranslationBlock, "bbox" | "renderBbox"> & Partial<Pick<TranslationBlock, "bboxSpace" | "renderBboxSpace">>,
+  pageSize?: PageSize | null
+): BBox {
+  if (block.renderBbox) {
+    return normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace);
+  }
+
+  return normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace);
 }
 
 export function estimateBlockFontSizePx(
   text: string,
-  block: Pick<TranslationBlock, "bbox" | "renderBbox">,
-  pageSize: { width: number; height: number }
+  block: Pick<TranslationBlock, "bbox" | "renderBbox"> & Partial<Pick<TranslationBlock, "bboxSpace" | "renderBboxSpace">>,
+  pageSize: PageSize
 ): number {
-  return estimateFontSizePx(text, resolveBlockRenderBbox(block), pageSize);
+  return estimateFontSizePx(text, resolveBlockRenderBbox(block, pageSize), pageSize);
 }
 
-export function resolveEditableBlockBbox(block: Pick<TranslationBlock, "bbox" | "renderBbox">): { key: "bbox" | "renderBbox"; bbox: BBox } {
+export function resolveEditableBlockBbox(
+  block: Pick<TranslationBlock, "bbox" | "renderBbox"> & Partial<Pick<TranslationBlock, "bboxSpace" | "renderBboxSpace">>,
+  pageSize?: PageSize | null
+): { key: "bbox" | "renderBbox"; bbox: BBox } {
   if (block.renderBbox) {
-    return { key: "renderBbox", bbox: clampBbox(block.renderBbox) };
+    return { key: "renderBbox", bbox: normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace) };
   }
-  return { key: "bbox", bbox: clampBbox(block.bbox) };
+  return { key: "bbox", bbox: normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace) };
 }
 
 export function applyEditableBlockBbox(block: TranslationBlock, nextBbox: BBox): TranslationBlock {
   const target = resolveEditableBlockBbox(block);
   const clamped = clampBbox(nextBbox);
-  return target.key === "renderBbox" ? { ...block, renderBbox: clamped } : { ...block, bbox: clamped };
+  return target.key === "renderBbox"
+    ? { ...block, renderBbox: clamped, renderBboxSpace: "normalized_1000" }
+    : { ...block, bbox: clamped, bboxSpace: "normalized_1000" };
 }
 
-export function offsetBlockBboxes(block: TranslationBlock, dx: number, dy: number): TranslationBlock {
+export function offsetBlockBboxes(block: TranslationBlock, dx: number, dy: number, pageSize?: PageSize | null): TranslationBlock {
+  const bbox = normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace);
+  const renderBbox = block.renderBbox ? normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace) : undefined;
+
   return {
     ...block,
-    bbox: offsetBbox(block.bbox, dx, dy),
-    renderBbox: block.renderBbox ? offsetBbox(block.renderBbox, dx, dy) : undefined
+    bbox: offsetBbox(bbox, dx, dy),
+    bboxSpace: "normalized_1000",
+    renderBbox: renderBbox ? offsetBbox(renderBbox, dx, dy) : undefined,
+    renderBboxSpace: renderBbox ? "normalized_1000" : undefined
   };
 }
 

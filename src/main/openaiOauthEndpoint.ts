@@ -1,3 +1,7 @@
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import { sep } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { TranslationOptions } from "./appSettings";
 import { logInfo, logWarn } from "./logger";
 
@@ -28,15 +32,16 @@ export type OpenAIOAuthEndpoint = {
 const dynamicImport = new Function("specifier", "return import(specifier)") as (
   specifier: string
 ) => Promise<OpenAIOAuthModule>;
+const requireFromHere = createRequire(__filename);
 
 export async function startOpenAIOAuthEndpoint(options: TranslationOptions): Promise<OpenAIOAuthEndpoint> {
   let module: OpenAIOAuthModule;
   try {
-    module = await dynamicImport("openai-oauth");
+    module = await importOpenAIOAuthModule();
   } catch (error) {
     throw createDetailedError(
-      "openai-oauth 패키지를 불러오지 못했습니다. npm install 후 다시 시도하세요.",
-      { packageName: "openai-oauth" },
+      "openai-oauth 패키지를 불러오지 못했습니다. 설치 파일을 다시 설치하거나 최신 버전으로 업데이트하세요.",
+      { packageName: "openai-oauth", importCandidates: resolveOpenAIOAuthImportCandidates() },
       error
     );
   }
@@ -87,6 +92,52 @@ export async function stopOpenAIOAuthEndpoint(endpoint: OpenAIOAuthEndpoint | nu
     }
     throw error;
   }
+}
+
+async function importOpenAIOAuthModule(): Promise<OpenAIOAuthModule> {
+  let lastError: unknown;
+  for (const specifier of resolveOpenAIOAuthImportCandidates()) {
+    try {
+      return await dynamicImport(specifier);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error("openai-oauth import candidate list was empty.");
+}
+
+function resolveOpenAIOAuthImportCandidates(): string[] {
+  const candidates = new Set<string>();
+  const resolvedPath = resolveOpenAIOAuthEntryPath();
+  const unpackedPath = resolvedPath ? resolveAsarUnpackedPath(resolvedPath) : null;
+
+  if (unpackedPath && existsSync(unpackedPath)) {
+    candidates.add(pathToFileURL(unpackedPath).href);
+  }
+  if (resolvedPath) {
+    candidates.add(pathToFileURL(resolvedPath).href);
+  }
+  candidates.add("openai-oauth");
+
+  return [...candidates];
+}
+
+function resolveOpenAIOAuthEntryPath(): string | null {
+  try {
+    return requireFromHere.resolve("openai-oauth");
+  } catch {
+    return null;
+  }
+}
+
+function resolveAsarUnpackedPath(resolvedPath: string): string | null {
+  const asarSegment = `${sep}app.asar${sep}`;
+  if (!resolvedPath.includes(asarSegment)) {
+    return null;
+  }
+
+  return resolvedPath.replace(asarSegment, `${sep}app.asar.unpacked${sep}`);
 }
 
 async function verifyEndpoint(baseUrl: string, options: TranslationOptions): Promise<void> {

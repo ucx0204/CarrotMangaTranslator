@@ -489,7 +489,9 @@ export default function App(): React.JSX.Element {
                   type: nextType,
                   renderDirection: enforceRenderDirection(nextType, patch.renderDirection ?? block.renderDirection),
                   bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
-                  renderBbox: patch.renderBbox ? clampBbox(patch.renderBbox) : block.renderBbox
+                  bboxSpace: patch.bbox ? "normalized_1000" : block.bboxSpace,
+                  renderBbox: patch.renderBbox ? clampBbox(patch.renderBbox) : block.renderBbox,
+                  renderBboxSpace: patch.renderBbox ? "normalized_1000" : block.renderBboxSpace
                 };
               })
             }
@@ -521,7 +523,7 @@ export default function App(): React.JSX.Element {
       return;
     }
     const copy = {
-      ...offsetBlockBboxes(selectedBlock, 16, 16),
+      ...offsetBlockBboxes(selectedBlock, 16, 16, { width: selectedPage.width, height: selectedPage.height }),
       id: `${selectedBlock.id}-copy-${Date.now()}`
     };
     updateCurrentChapter(selectedPage.id, (current) => ({
@@ -546,7 +548,8 @@ export default function App(): React.JSX.Element {
     event.preventDefault();
     event.stopPropagation();
     setSelectedBlockId(block.id);
-    const target = resolveEditableBlockBbox(block);
+    const pageSize = selectedPage ? { width: selectedPage.width, height: selectedPage.height } : null;
+    const target = resolveEditableBlockBbox(block, pageSize);
     dragRef.current = {
       mode,
       blockId: block.id,
@@ -564,7 +567,7 @@ export default function App(): React.JSX.Element {
     if (!drag || !page || !stage || !currentChapter || selectedPageEditLocked) {
       return;
     }
-    const rect = stage.getBoundingClientRect();
+    const rect = imageRef.current?.getBoundingClientRect() ?? stage.getBoundingClientRect();
     const dx = ((event.clientX - drag.startX) / Math.max(1, rect.width)) * 1000;
     const dy = ((event.clientY - drag.startY) / Math.max(1, rect.height)) * 1000;
     const next =

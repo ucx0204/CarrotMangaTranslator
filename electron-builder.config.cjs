@@ -17,6 +17,9 @@ module.exports = {
     "!README.md",
     "!out/app-runtime{,/**/*}"
   ],
+  asarUnpack: [
+    "node_modules/openai-oauth/**/*"
+  ],
   extraResources: [
     {
       from: "out/app-runtime",

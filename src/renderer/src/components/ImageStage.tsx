@@ -37,17 +37,19 @@ export function ImageStage({
         onPointerDown={onStagePointerDown}
       >
         <img ref={imageRef} className="page-image" src={page.dataUrl} alt={page.name} draggable={false} />
-        {page.blocks.map((block) => (
-          <OverlayBlock
-            key={block.id}
-            block={block}
-            pageSize={{ width: page.width, height: page.height }}
-            stageSize={stageSize ?? { width: page.width, height: page.height }}
-            selected={block.id === selectedBlockId}
-            onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
-            onResizePointerDown={(event) => onBlockPointerDown(event, block, "resize")}
-          />
-        ))}
+        {stageSize
+          ? page.blocks.map((block) => (
+              <OverlayBlock
+                key={block.id}
+                block={block}
+                pageSize={{ width: page.width, height: page.height }}
+                stageSize={stageSize}
+                selected={block.id === selectedBlockId}
+                onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
+                onResizePointerDown={(event) => onBlockPointerDown(event, block, "resize")}
+              />
+            ))
+          : null}
       </div>
     </div>
   );

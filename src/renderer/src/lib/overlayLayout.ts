@@ -85,7 +85,7 @@ export function resolveBlockTextLayout(
 }
 
 export function resolveBlockRectPx(block: TranslationBlock, pageSize: ViewportSize, stageSize: ViewportSize): PixelRect {
-  const pixelRect = bboxToPixels(resolveBlockRenderBbox(block), pageSize.width, pageSize.height);
+  const pixelRect = bboxToPixels(resolveBlockRenderBbox(block, pageSize), pageSize.width, pageSize.height);
   const scaleX = stageSize.width / Math.max(1, pageSize.width);
   const scaleY = stageSize.height / Math.max(1, pageSize.height);
 

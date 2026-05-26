@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveBlockPaddingPx, resolveBlockTextLayout } from "../src/renderer/src/lib/overlayLayout";
+import { resolveBlockPaddingPx, resolveBlockRectPx, resolveBlockTextLayout } from "../src/renderer/src/lib/overlayLayout";
 import type { TranslationBlock } from "../src/shared/types";
 
 const originalDocument = globalThis.document;
@@ -45,6 +45,33 @@ describe("render layout padding", () => {
 
     expect(layout.fontSizePx).toBeLessThanOrEqual(18);
     expect(layout.overflow).toBe(false);
+  });
+
+  it("places pixel-space blocks on the same scaled image plane", () => {
+    const block: TranslationBlock = {
+      id: "block-1",
+      type: "speech",
+      bbox: { x: 200, y: 300, w: 100, h: 150 },
+      bboxSpace: "pixels",
+      sourceText: "",
+      translatedText: "",
+      confidence: 1,
+      sourceDirection: "vertical",
+      renderDirection: "horizontal",
+      fontSizePx: 24,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1
+    };
+
+    expect(resolveBlockRectPx(block, { width: 1000, height: 1500 }, { width: 500, height: 750 })).toEqual({
+      left: 100,
+      top: 150,
+      width: 50,
+      height: 75
+    });
   });
 });
 

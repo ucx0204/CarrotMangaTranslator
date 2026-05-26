@@ -28,6 +28,18 @@ describe("geometry helpers", () => {
     ).toEqual({ x: 80, y: 100, w: 240, h: 280 });
   });
 
+  it("converts pixel-space boxes into normalized page coordinates", () => {
+    expect(
+      resolveBlockRenderBbox(
+        {
+          bbox: { x: 240, y: 360, w: 120, h: 180 },
+          bboxSpace: "pixels"
+        },
+        { width: 1200, height: 1800 }
+      )
+    ).toEqual({ x: 200, y: 200, w: 100, h: 100 });
+  });
+
   it("estimates a larger font size for a larger render box", () => {
     const bboxOnly = estimateBlockFontSizePx(
       "한국어 번역문",

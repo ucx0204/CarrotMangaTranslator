@@ -492,12 +492,15 @@ textarea {
   position: relative;
   display: inline-block;
   max-width: 100%;
+  line-height: 0;
   user-select: none;
   touch-action: none;
 }
 
 .page-image {
   display: block;
+  width: auto;
+  height: auto;
   max-width: min(100%, 1040px);
   max-height: calc(100vh - 48px);
   object-fit: contain;

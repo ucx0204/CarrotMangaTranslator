@@ -25,6 +25,7 @@ export function OverlayBlock({
 
   const displayText = block.translatedText || block.sourceText || "...";
   const layout = resolveBlockTextLayout(block, displayText, pageSize, stageSize);
+  const sfxTextOutlinePx = block.type === "sfx" ? resolveSfxTextOutlinePx(layout.fontSizePx) : 0;
   const style: React.CSSProperties = {
     left: layout.rect.left,
     top: layout.rect.top,
@@ -56,7 +57,8 @@ export function OverlayBlock({
     width: `${layout.fitInnerWidth}px`,
     height: block.renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
     maxWidth: "100%",
-    maxHeight: "100%"
+    maxHeight: "100%",
+    WebkitTextStroke: sfxTextOutlinePx ? `${sfxTextOutlinePx}px rgba(255, 255, 255, 0.95)` : undefined
   };
 
   return (
@@ -74,4 +76,8 @@ export function OverlayBlock({
       {selected ? <button className="resize-handle" onPointerDown={onResizePointerDown} aria-label="Resize" /> : null}
     </div>
   );
+}
+
+function resolveSfxTextOutlinePx(fontSizePx: number): number {
+  return Math.round(Math.min(4, Math.max(0.35, fontSizePx * 0.055)) * 10) / 10;
 }
