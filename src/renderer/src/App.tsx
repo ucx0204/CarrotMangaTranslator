@@ -20,7 +20,7 @@ import { SettingsModal } from "./components/SettingsModal";
 import { useStageSize } from "./hooks/useStageSize";
 import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyCompletedPages, resolveSelectionAfterChapterSync } from "./lib/chapterSync";
 import { formatJobEventLine, formatJobLabel, resolveProgressSnapshot, summarizeWarnings } from "./lib/jobProgress";
-import { resolveAdjacentPageId, resolveKeyboardPageNavigation } from "./lib/pageNavigation";
+import { resolveAdjacentPageId, resolveKeyboardPageNavigation, resolveWheelPageNavigation } from "./lib/pageNavigation";
 import "./styles.css";
 
 const EMPTY_JOB: JobState = {
@@ -72,6 +72,7 @@ export default function App(): React.JSX.Element {
   const imageRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const saveTimerRef = useRef<number | null>(null);
+  const lastWheelNavigationAtRef = useRef(0);
   const dirtyVersionRef = useRef(0);
   const dirtyPageIdsRef = useRef<Set<string>>(new Set());
   const currentChapterRef = useRef<ChapterSnapshot | null>(null);
@@ -312,6 +313,21 @@ export default function App(): React.JSX.Element {
     setSelectedPageId(pageId);
     setSelectedBlockId(null);
   }, []);
+
+  const selectAdjacentPageForReading = useCallback(
+    (direction: "previous" | "next") => {
+      const chapter = currentChapterRef.current;
+      const pageIds = chapter?.pages.map((page) => page.id) ?? [];
+      const nextPageId = resolveAdjacentPageId(pageIds, selectedPageIdRef.current, direction);
+      if (!nextPageId) {
+        return false;
+      }
+
+      selectPageForReading(nextPageId);
+      return true;
+    },
+    [selectPageForReading]
+  );
 
   const openImportPreview = useCallback(async (mode: "images" | "folder" | "zip" | "zip-folder") => {
     const preview =
@@ -611,8 +627,7 @@ export default function App(): React.JSX.Element {
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const chapter = currentChapterRef.current;
-      const pageIds = chapter?.pages.map((page) => page.id) ?? [];
+      const pageIds = currentChapterRef.current?.pages.map((page) => page.id) ?? [];
       const activeElement = typeof document !== "undefined" ? document.activeElement : null;
       const navigation = resolveKeyboardPageNavigation({
         key: event.key,
@@ -626,23 +641,52 @@ export default function App(): React.JSX.Element {
         return;
       }
 
-      const nextPageId = resolveAdjacentPageId(pageIds, selectedPageIdRef.current, navigation.direction);
-      if (!nextPageId) {
+      if (!selectAdjacentPageForReading(navigation.direction)) {
         return;
       }
 
       if (navigation.preventDefault) {
         event.preventDefault();
       }
-
-      selectPageForReading(nextPageId);
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [importPreview, renameTarget, selectPageForReading, settingsOpen]);
+  }, [importPreview, renameTarget, selectAdjacentPageForReading, settingsOpen]);
+
+  const onWorkspaceWheel = useCallback(
+    (event: React.WheelEvent<HTMLElement>) => {
+      const pageIds = currentChapterRef.current?.pages.map((page) => page.id) ?? [];
+      const direction = resolveWheelPageNavigation({
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+        hasPages: pageIds.length > 0,
+        modalOpen: Boolean(importPreview || renameTarget || settingsOpen),
+        editableTarget: isEditableTarget(event.target)
+      });
+
+      if (!direction) {
+        return;
+      }
+
+      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+      if (now - lastWheelNavigationAtRef.current < 320) {
+        event.preventDefault();
+        return;
+      }
+
+      if (!selectAdjacentPageForReading(direction)) {
+        return;
+      }
+
+      lastWheelNavigationAtRef.current = now;
+      workspacePanelRef.current?.focus();
+      event.preventDefault();
+    },
+    [importPreview, renameTarget, selectAdjacentPageForReading, settingsOpen]
+  );
 
   const renameWork = useCallback((workId: string) => {
     const work = library.works.find((candidate) => candidate.id === workId);
@@ -845,6 +889,7 @@ export default function App(): React.JSX.Element {
         tabIndex={0}
         aria-label="읽기 영역"
         onMouseDown={() => workspacePanelRef.current?.focus()}
+        onWheel={onWorkspaceWheel}
       >
         {selectedPage ? (
           <div className="workspace-pane">

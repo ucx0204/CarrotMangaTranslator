@@ -13,6 +13,16 @@ type KeyboardPageNavigation = {
   preventDefault: boolean;
 };
 
+type WheelPageNavigationOptions = {
+  deltaX: number;
+  deltaY: number;
+  hasPages: boolean;
+  modalOpen: boolean;
+  editableTarget: boolean;
+};
+
+const MIN_WHEEL_PAGE_DELTA = 18;
+
 export function resolveAdjacentPageId(
   pageIds: string[],
   selectedPageId: string | null,
@@ -55,4 +65,22 @@ export function resolveKeyboardPageNavigation({
     default:
       return null;
   }
+}
+
+export function resolveWheelPageNavigation({
+  deltaX,
+  deltaY,
+  hasPages,
+  modalOpen,
+  editableTarget
+}: WheelPageNavigationOptions): PageNavigationDirection | null {
+  if (!hasPages || modalOpen || editableTarget) {
+    return null;
+  }
+
+  if (Math.abs(deltaY) < MIN_WHEEL_PAGE_DELTA || Math.abs(deltaY) < Math.abs(deltaX)) {
+    return null;
+  }
+
+  return deltaY > 0 ? "next" : "previous";
 }

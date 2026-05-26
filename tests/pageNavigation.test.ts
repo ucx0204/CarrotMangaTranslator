@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveAdjacentPageId, resolveKeyboardPageNavigation } from "../src/renderer/src/lib/pageNavigation";
+import { resolveAdjacentPageId, resolveKeyboardPageNavigation, resolveWheelPageNavigation } from "../src/renderer/src/lib/pageNavigation";
 
 describe("page navigation helpers", () => {
   const pageIds = ["page-1", "page-2", "page-3"];
@@ -110,5 +110,37 @@ describe("page navigation helpers", () => {
       editableTarget: true,
       centerPanelFocused: true
     })).toBeNull();
+  });
+
+  it("maps vertical mouse wheel movement to previous and next pages", () => {
+    expect(resolveWheelPageNavigation({
+      deltaX: 0,
+      deltaY: -80,
+      hasPages: true,
+      modalOpen: false,
+      editableTarget: false
+    })).toBe("previous");
+
+    expect(resolveWheelPageNavigation({
+      deltaX: 0,
+      deltaY: 80,
+      hasPages: true,
+      modalOpen: false,
+      editableTarget: false
+    })).toBe("next");
+  });
+
+  it("ignores tiny, horizontal, modal, editable, and empty wheel navigation", () => {
+    const base = {
+      hasPages: true,
+      modalOpen: false,
+      editableTarget: false
+    };
+
+    expect(resolveWheelPageNavigation({ ...base, deltaX: 0, deltaY: 4 })).toBeNull();
+    expect(resolveWheelPageNavigation({ ...base, deltaX: 80, deltaY: 40 })).toBeNull();
+    expect(resolveWheelPageNavigation({ ...base, deltaX: 0, deltaY: 80, modalOpen: true })).toBeNull();
+    expect(resolveWheelPageNavigation({ ...base, deltaX: 0, deltaY: 80, editableTarget: true })).toBeNull();
+    expect(resolveWheelPageNavigation({ ...base, deltaX: 0, deltaY: 80, hasPages: false })).toBeNull();
   });
 });
