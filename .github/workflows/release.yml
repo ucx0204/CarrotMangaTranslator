@@ -85,7 +85,7 @@ jobs:
           }
 
           foreach ($asset in $release.assets) {
-            if ($asset.name -like "망가번역기 Setup *") {
+            if ($asset.name -like "*.exe") {
               Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/$owner/$repo/releases/assets/$($asset.id)" -Headers $headers
               Write-Host "Deleted existing asset $($asset.name)"
             }
