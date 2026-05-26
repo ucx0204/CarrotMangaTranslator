@@ -10,7 +10,12 @@ import type {
   LocalModelPickResult,
   ModelTestResult,
   StartAnalysisRequest,
-  StartAnalysisResult
+  StartAnalysisResult,
+  WorkShareExportRequest,
+  WorkShareExportResult,
+  WorkShareImportPreview,
+  WorkShareImportRequest,
+  WorkShareImportResult
 } from "../shared/types";
 
 const api = {
@@ -19,6 +24,9 @@ const api = {
   previewZipImport: (): Promise<ImportPreviewResult | null> => ipcRenderer.invoke("import:preview-zip"),
   previewZipFolderImport: (): Promise<ImportPreviewResult | null> => ipcRenderer.invoke("import:preview-zip-folder"),
   createImport: (request: CreateImportRequest): Promise<CreateImportResult> => ipcRenderer.invoke("import:create", request),
+  exportWorkShare: (request: WorkShareExportRequest): Promise<WorkShareExportResult | null> => ipcRenderer.invoke("share:export-work", request),
+  previewWorkShareImport: (): Promise<WorkShareImportPreview | null> => ipcRenderer.invoke("share:preview-import"),
+  importWorkShare: (request: WorkShareImportRequest): Promise<WorkShareImportResult> => ipcRenderer.invoke("share:import", request),
   getLibrary: (): Promise<LibraryIndex> => ipcRenderer.invoke("library:get-index"),
   openLibraryFolder: () => ipcRenderer.invoke("library:open-folder"),
   openChapter: (chapterId: string): Promise<ChapterSnapshot> => ipcRenderer.invoke("library:open-chapter", chapterId),

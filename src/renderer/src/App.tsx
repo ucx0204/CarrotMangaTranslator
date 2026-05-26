@@ -7,7 +7,9 @@ import type {
   JobState,
   LibraryIndex,
   MangaPage,
-  TranslationBlock
+  TranslationBlock,
+  WorkShareExportRequest,
+  WorkShareImportPreview
 } from "../../shared/types";
 import { applyEditableBlockBbox, clampBbox, enforceRenderDirection, offsetBlockBboxes, resolveEditableBlockBbox } from "../../shared/geometry";
 import { EditorPanel } from "./components/EditorPanel";
@@ -17,6 +19,9 @@ import { LibraryTree } from "./components/LibraryTree";
 import { PageList } from "./components/PageList";
 import { RenameModal } from "./components/RenameModal";
 import { SettingsModal } from "./components/SettingsModal";
+import { ShareExportModal } from "./components/ShareExportModal";
+import { ShareImportModal, type ShareImportModalSubmit } from "./components/ShareImportModal";
+import { TranslateSourceModal, type TranslateSourceMode } from "./components/TranslateSourceModal";
 import { useStageSize } from "./hooks/useStageSize";
 import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyCompletedPages, resolveSelectionAfterChapterSync } from "./lib/chapterSync";
 import { formatJobEventLine, formatJobLabel, resolveProgressSnapshot, summarizeWarnings } from "./lib/jobProgress";
@@ -59,8 +64,13 @@ export default function App(): React.JSX.Element {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [jobState, setJobState] = useState<JobState>(EMPTY_JOB);
   const [statusLines, setStatusLines] = useState<string[]>([]);
+  const [translationSourceOpen, setTranslationSourceOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportPreviewResult | null>(null);
   const [importBusy, setImportBusy] = useState(false);
+  const [shareExportOpen, setShareExportOpen] = useState(false);
+  const [shareExportBusy, setShareExportBusy] = useState(false);
+  const [shareImportPreview, setShareImportPreview] = useState<WorkShareImportPreview | null>(null);
+  const [shareImportBusy, setShareImportBusy] = useState(false);
   const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
   const [renameBusy, setRenameBusy] = useState(false);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -85,6 +95,7 @@ export default function App(): React.JSX.Element {
   );
   const selectedBlock = selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
   const jobActive = ["starting", "running", "cancelling"].includes(jobState.status);
+  const modalOpen = Boolean(translationSourceOpen || importPreview || shareExportOpen || shareImportPreview || renameTarget || settingsOpen);
   const selectedPageEditLocked = Boolean(jobActive && selectedPage && selectedPage.analysisStatus !== "completed");
   const selectedPageSize = useMemo(
     () => (selectedPage ? { width: selectedPage.width, height: selectedPage.height } : null),
@@ -343,6 +354,102 @@ export default function App(): React.JSX.Element {
     }
     setImportPreview(preview);
   }, []);
+
+  const selectTranslateSource = useCallback(
+    async (mode: TranslateSourceMode) => {
+      setTranslationSourceOpen(false);
+      await openImportPreview(mode);
+    },
+    [openImportPreview]
+  );
+
+  const submitShareExport = useCallback(
+    async (request: WorkShareExportRequest) => {
+      setShareExportBusy(true);
+      try {
+        if (dirty) {
+          await saveNow();
+        }
+        const result = await window.mangaApi.exportWorkShare(request);
+        if (result) {
+          pushStatus(`${result.workTitle} 공유 파일을 저장했습니다. ${result.chapterCount}개 화, ${result.pageCount}페이지`);
+          setShareExportOpen(false);
+        }
+      } catch (error) {
+        console.error(error);
+        pushStatus(formatErrorMessage(error, "공유 파일을 저장하지 못했습니다."));
+      } finally {
+        setShareExportBusy(false);
+      }
+    },
+    [dirty, pushStatus, saveNow]
+  );
+
+  const openShareImportPreview = useCallback(async () => {
+    try {
+      if (dirty) {
+        await saveNow();
+      }
+      const preview = await window.mangaApi.previewWorkShareImport();
+      if (preview) {
+        setShareImportPreview(preview);
+      }
+    } catch (error) {
+      console.error(error);
+      pushStatus(formatErrorMessage(error, "공유 파일을 읽지 못했습니다."));
+    }
+  }, [dirty, pushStatus, saveNow]);
+
+  const submitShareImport = useCallback(
+    async (payload: ShareImportModalSubmit) => {
+      if (!shareImportPreview) {
+        return;
+      }
+
+      if (payload.remainingPackageChapters.length > 0) {
+        const confirmed = await window.mangaApi.confirm(
+          "가져오지 않는 화가 있습니다",
+          "오른쪽에 남은 공유 화는 적용되지 않습니다.",
+          payload.remainingPackageChapters.map((chapter) => chapter.title).join("\n")
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      if (payload.deletedExistingChapters.length > 0) {
+        const confirmed = await window.mangaApi.confirm(
+          "기존 화 삭제",
+          "왼쪽 최종 목록에서 빠진 기존 화가 보관함에서 삭제됩니다.",
+          payload.deletedExistingChapters.map((chapter) => chapter.title).join("\n")
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      setShareImportBusy(true);
+      try {
+        if (dirty) {
+          await saveNow();
+        }
+        const result = await window.mangaApi.importWorkShare({
+          packagePath: shareImportPreview.packagePath,
+          target: payload.target,
+          entries: payload.entries
+        });
+        await refreshLibrary();
+        applyChapter(result.openedChapter, `${result.chapterIds.length}개 화를 보관함에 적용했습니다.`);
+        setShareImportPreview(null);
+      } catch (error) {
+        console.error(error);
+        pushStatus(formatErrorMessage(error, "공유 파일을 가져오지 못했습니다."));
+      } finally {
+        setShareImportBusy(false);
+      }
+    },
+    [applyChapter, dirty, pushStatus, refreshLibrary, saveNow, shareImportPreview]
+  );
 
   const runAnalysis = useCallback(
     async (runMode: "pending" | "all" | "single-page", pageId?: string) => {
@@ -632,7 +739,7 @@ export default function App(): React.JSX.Element {
       const navigation = resolveKeyboardPageNavigation({
         key: event.key,
         hasPages: pageIds.length > 0,
-        modalOpen: Boolean(importPreview || renameTarget || settingsOpen),
+        modalOpen,
         editableTarget: isEditableTarget(event.target),
         centerPanelFocused: Boolean(workspacePanelRef.current && activeElement && workspacePanelRef.current.contains(activeElement))
       });
@@ -654,7 +761,7 @@ export default function App(): React.JSX.Element {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [importPreview, renameTarget, selectAdjacentPageForReading, settingsOpen]);
+  }, [modalOpen, selectAdjacentPageForReading]);
 
   const onWorkspaceWheel = useCallback(
     (event: React.WheelEvent<HTMLElement>) => {
@@ -663,7 +770,7 @@ export default function App(): React.JSX.Element {
         deltaX: event.deltaX,
         deltaY: event.deltaY,
         hasPages: pageIds.length > 0,
-        modalOpen: Boolean(importPreview || renameTarget || settingsOpen),
+        modalOpen,
         editableTarget: isEditableTarget(event.target)
       });
 
@@ -685,7 +792,7 @@ export default function App(): React.JSX.Element {
       workspacePanelRef.current?.focus();
       event.preventDefault();
     },
-    [importPreview, renameTarget, selectAdjacentPageForReading, settingsOpen]
+    [modalOpen, selectAdjacentPageForReading]
   );
 
   const renameWork = useCallback((workId: string) => {
@@ -828,14 +935,8 @@ export default function App(): React.JSX.Element {
     <main className="app-shell">
       <aside className="sidebar">
         <section className="toolbar">
-          <button onClick={() => void openImportPreview("images")} disabled={jobActive}>
-            이미지 열기
-          </button>
-          <button onClick={() => void openImportPreview("folder")} disabled={jobActive}>
-            폴더 열기
-          </button>
-          <button onClick={() => void openImportPreview("zip")} disabled={jobActive}>
-            압축파일 열기
+          <button className="primary" onClick={() => setTranslationSourceOpen(true)} disabled={jobActive}>
+            번역
           </button>
           <button onClick={() => void openImportPreview("zip-folder")} disabled={jobActive}>
             작품 일괄 번역
@@ -844,6 +945,12 @@ export default function App(): React.JSX.Element {
             설정
           </button>
           <button onClick={() => void window.mangaApi.openLibraryFolder()}>보관함 폴더</button>
+          <button className="share-button" onClick={() => setShareExportOpen(true)} disabled={jobActive || library.works.length === 0}>
+            공유하기
+          </button>
+          <button className="import-button" onClick={() => void openShareImportPreview()} disabled={jobActive}>
+            가져오기
+          </button>
         </section>
 
         <LibraryTree
@@ -910,10 +1017,9 @@ export default function App(): React.JSX.Element {
             <h2>보관함에서 화를 열거나 새로 가져오세요.</h2>
             <p>작품과 화 단위로 저장해두고, 이어서 번역하거나 페이지별로 다시 번역할 수 있습니다.</p>
             <div className="empty-actions">
-              <button onClick={() => void openImportPreview("images")}>이미지 열기</button>
-              <button onClick={() => void openImportPreview("folder")}>폴더 열기</button>
-              <button onClick={() => void openImportPreview("zip")}>압축파일 열기</button>
+              <button className="primary" onClick={() => setTranslationSourceOpen(true)}>번역</button>
               <button onClick={() => void openImportPreview("zip-folder")}>작품 일괄 번역</button>
+              <button className="import-button" onClick={() => void openShareImportPreview()}>가져오기</button>
             </div>
           </div>
         )}
@@ -987,8 +1093,40 @@ export default function App(): React.JSX.Element {
         />
       </aside>
 
+      {translationSourceOpen ? (
+        <TranslateSourceModal busy={importBusy} onCancel={() => setTranslationSourceOpen(false)} onSelect={(mode) => void selectTranslateSource(mode)} />
+      ) : null}
+
       {importPreview ? (
         <ImportModal library={library} preview={importPreview} busy={importBusy} onCancel={() => setImportPreview(null)} onSubmit={(payload) => void submitImport(payload)} />
+      ) : null}
+
+      {shareExportOpen ? (
+        <ShareExportModal
+          library={library}
+          currentWorkId={currentChapter?.workId ?? null}
+          busy={shareExportBusy}
+          onCancel={() => {
+            if (!shareExportBusy) {
+              setShareExportOpen(false);
+            }
+          }}
+          onSubmit={(request) => void submitShareExport(request)}
+        />
+      ) : null}
+
+      {shareImportPreview ? (
+        <ShareImportModal
+          library={library}
+          preview={shareImportPreview}
+          busy={shareImportBusy}
+          onCancel={() => {
+            if (!shareImportBusy) {
+              setShareImportPreview(null);
+            }
+          }}
+          onSubmit={(payload) => void submitShareImport(payload)}
+        />
       ) : null}
 
       {renameTarget ? (
@@ -1049,4 +1187,8 @@ function isEditableTarget(target: EventTarget | null): boolean {
   }
 
   return Boolean(target.closest("input, textarea, select, [contenteditable=''], [contenteditable='true'], [contenteditable='plaintext-only']"));
+}
+
+function formatErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message.trim() ? error.message : fallback;
 }

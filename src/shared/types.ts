@@ -238,3 +238,59 @@ export type StartAnalysisResult = {
   warnings?: string[];
   error?: string;
 };
+
+export type WorkShareExportRequest = {
+  workId: string;
+  chapterIds: string[];
+};
+
+export type WorkShareExportResult = {
+  filePath: string;
+  workTitle: string;
+  chapterCount: number;
+  pageCount: number;
+};
+
+export type WorkSharePreviewChapter = {
+  packageChapterId: string;
+  title: string;
+  pageCount: number;
+};
+
+export type WorkShareImportPreview = {
+  packagePath: string;
+  workTitle: string;
+  chapters: WorkSharePreviewChapter[];
+};
+
+export type WorkShareImportEntry =
+  | {
+      source: "existing";
+      chapterId: string;
+      title: string;
+    }
+  | {
+      source: "package";
+      packageChapterId: string;
+      title: string;
+    };
+
+export type WorkShareImportRequest = {
+  packagePath: string;
+  target:
+    | {
+        mode: "new";
+        title: string;
+      }
+    | {
+        mode: "existing";
+        workId: string;
+      };
+  entries: WorkShareImportEntry[];
+};
+
+export type WorkShareImportResult = {
+  workId: string;
+  chapterIds: string[];
+  openedChapter?: ChapterSnapshot;
+};

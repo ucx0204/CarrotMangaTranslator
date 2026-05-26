@@ -11,14 +11,17 @@ import {
   deleteWork,
   createImport,
   deletePage,
+  exportWorkShareToFile,
   finalizeRunningPages,
   getLibraryRoot,
   getRunPaths,
+  importWorkShare,
   listLibrary,
   markChapterPagesRunning,
   openChapter,
   previewFolder,
   previewImages,
+  previewWorkShareImport,
   previewZip,
   previewZipFolder,
   renameChapter,
@@ -41,7 +44,12 @@ import type {
   LocalModelPickResult,
   ModelTestResult,
   StartAnalysisRequest,
-  StartAnalysisResult
+  StartAnalysisResult,
+  WorkShareExportRequest,
+  WorkShareExportResult,
+  WorkShareImportRequest,
+  WorkShareImportResult,
+  WorkShareImportPreview
 } from "../shared/types";
 
 const appPaths = ensureWritableAppDirectories();
@@ -336,6 +344,40 @@ function registerIpc(): void {
 
   ipcMain.handle("import:create", async (_event, request: CreateImportRequest) => createImport(request));
 
+  ipcMain.handle("share:export-work", async (_event, request: WorkShareExportRequest): Promise<WorkShareExportResult | null> => {
+    const library = await listLibrary();
+    const work = library.works.find((candidate) => candidate.id === request.workId);
+    const defaultName = `${sanitizeShareFileName(work?.title ?? "manga-share")}.mgtshare`;
+    const options = {
+      title: "공유 파일 저장",
+      defaultPath: defaultName,
+      filters: [{ name: "Manga Gemma Share", extensions: ["mgtshare"] }]
+    } satisfies Electron.SaveDialogOptions;
+    const result = mainWindow ? await dialog.showSaveDialog(mainWindow, options) : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) {
+      return null;
+    }
+    return exportWorkShareToFile({
+      ...request,
+      outputPath: result.filePath.toLowerCase().endsWith(".mgtshare") ? result.filePath : `${result.filePath}.mgtshare`
+    });
+  });
+
+  ipcMain.handle("share:preview-import", async (): Promise<WorkShareImportPreview | null> => {
+    const options = {
+      title: "공유 파일 가져오기",
+      properties: ["openFile"],
+      filters: [{ name: "Manga Gemma Share", extensions: ["mgtshare"] }]
+    } satisfies Electron.OpenDialogOptions;
+    const result = mainWindow ? await dialog.showOpenDialog(mainWindow, options) : await dialog.showOpenDialog(options);
+    if (result.canceled || !result.filePaths[0]) {
+      return null;
+    }
+    return previewWorkShareImport(result.filePaths[0]);
+  });
+
+  ipcMain.handle("share:import", async (_event, request: WorkShareImportRequest): Promise<WorkShareImportResult> => importWorkShare(request));
+
   ipcMain.handle("job:start-analysis", async (_event, request: StartAnalysisRequest): Promise<StartAnalysisResult> => {
     if (activeJob) {
       return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
@@ -541,6 +583,11 @@ function resolveSettingsLaunchMode(settings: AppSettings): ModelTestResult["laun
     return "openai-codex";
   }
   return settings.gemma.modelSource === "local" ? "local" : "huggingface";
+}
+
+function sanitizeShareFileName(value: string): string {
+  const cleaned = value.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").trim();
+  return cleaned || "manga-share";
 }
 
 function isOpenAIOAuthEndpoint(server: Awaited<ReturnType<SimplePageRuntime["startServer"]>> | OpenAIOAuthEndpoint | null): server is OpenAIOAuthEndpoint {

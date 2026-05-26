@@ -26,7 +26,13 @@ import type {
   LibraryPageRecord,
   LibraryWork,
   LibraryWorkSummary,
-  MangaPage
+  MangaPage,
+  WorkShareExportRequest,
+  WorkShareExportResult,
+  WorkShareImportEntry,
+  WorkShareImportPreview,
+  WorkShareImportRequest,
+  WorkShareImportResult
 } from "../shared/types";
 import { getAppPaths } from "./appPaths";
 
@@ -38,15 +44,19 @@ type ZipEntryLike = {
 
 type AdmZipLike = {
   getEntries: () => ZipEntryLike[];
+  addFile: (entryName: string, content: Buffer | string) => void;
+  writeZip: (targetPath: string) => void;
 };
 
 const LIBRARY_ROOT = getAppPaths().libraryDir;
 const INDEX_PATH = join(LIBRARY_ROOT, "index.json");
 const WORKS_ROOT = join(LIBRARY_ROOT, "works");
 const DEFAULT_WORK_TITLE = "미정 작품";
+const SHARE_FORMAT = "manga-gemma-translator-share";
+const SHARE_VERSION = 1;
 
 const AdmZip = require("adm-zip") as {
-  new (archivePath: string): AdmZipLike;
+  new (archivePath?: string): AdmZipLike;
 };
 
 type StoredIndexFile = {
@@ -56,6 +66,26 @@ type StoredIndexFile = {
 type WorkFile = LibraryWork;
 
 type ChapterFile = LibraryChapter;
+
+type ShareManifest = {
+  format: string;
+  version: number;
+  exportedAt: string;
+  work: {
+    id: string;
+    title: string;
+  };
+  chapterOrder: string[];
+};
+
+type SharePackage = {
+  entries: Map<string, ZipEntryLike>;
+  manifest: ShareManifest;
+  chapters: Array<{
+    packageChapterId: string;
+    chapter: ChapterFile;
+  }>;
+};
 
 export type ChapterRunPaths = {
   chapterDir: string;
@@ -386,6 +416,101 @@ export async function createImport(request: CreateImportRequest): Promise<Create
   };
 }
 
+export async function exportWorkShareToFile(
+  request: WorkShareExportRequest & { outputPath: string }
+): Promise<WorkShareExportResult> {
+  const work = await ensureExistingWork(request.workId);
+  const requestedIds = new Set(request.chapterIds);
+  const chapterIds = work.chapterOrder.filter((chapterId) => requestedIds.has(chapterId));
+  if (chapterIds.length === 0) {
+    throw new Error("공유할 화를 선택해 주세요.");
+  }
+
+  const zip = new AdmZip();
+  const manifest: ShareManifest = {
+    format: SHARE_FORMAT,
+    version: SHARE_VERSION,
+    exportedAt: new Date().toISOString(),
+    work: {
+      id: work.id,
+      title: work.title
+    },
+    chapterOrder: chapterIds
+  };
+
+  zip.addFile("manifest.json", Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8"));
+
+  let pageCount = 0;
+  for (const chapterId of chapterIds) {
+    const chapter = await readChapterFile(work.id, chapterId);
+    if (!chapter) {
+      throw new Error("공유할 화를 찾지 못했습니다.");
+    }
+
+    const packagePages: LibraryPageRecord[] = [];
+    const orderedPages = reorderRecords(chapter.pages, chapter.pageOrder);
+    for (const [pageIndex, page] of orderedPages.entries()) {
+      if (!existsSync(page.imagePath)) {
+        throw new Error(`원본 이미지를 찾지 못했습니다: ${page.name}`);
+      }
+      const imageExt = extname(page.imagePath).toLowerCase() || ".png";
+      if (!isSupportedImagePath(page.imagePath)) {
+        throw new Error(`지원하지 않는 이미지 형식입니다: ${page.name}`);
+      }
+      const packageImagePath = `chapters/${chapter.id}/pages/${String(pageIndex + 1).padStart(3, "0")}-${page.id}${imageExt}`;
+      zip.addFile(packageImagePath, await readFile(page.imagePath));
+      packagePages.push({
+        ...page,
+        imagePath: packageImagePath
+      });
+      pageCount += 1;
+    }
+
+    const packageChapter: ChapterFile = {
+      ...chapter,
+      pageOrder: orderedPages.map((page) => page.id),
+      pages: packagePages
+    };
+    zip.addFile(`chapters/${chapter.id}/chapter.json`, Buffer.from(`${JSON.stringify(packageChapter, null, 2)}\n`, "utf8"));
+  }
+
+  await mkdir(dirname(request.outputPath), { recursive: true });
+  zip.writeZip(request.outputPath);
+
+  return {
+    filePath: request.outputPath,
+    workTitle: work.title,
+    chapterCount: chapterIds.length,
+    pageCount
+  };
+}
+
+export async function previewWorkShareImport(packagePath: string): Promise<WorkShareImportPreview> {
+  const sharePackage = readSharePackage(packagePath);
+  return {
+    packagePath,
+    workTitle: sharePackage.manifest.work.title,
+    chapters: sharePackage.chapters.map(({ packageChapterId, chapter }) => ({
+      packageChapterId,
+      title: chapter.title,
+      pageCount: chapter.pages.length
+    }))
+  };
+}
+
+export async function importWorkShare(request: WorkShareImportRequest): Promise<WorkShareImportResult> {
+  const sharePackage = readSharePackage(request.packagePath);
+  if (request.entries.length === 0) {
+    throw new Error("가져올 화가 없습니다.");
+  }
+
+  if (request.target.mode === "new") {
+    return importWorkShareAsNewWork(sharePackage, request);
+  }
+
+  return importWorkShareIntoExistingWork(sharePackage, request);
+}
+
 export async function markChapterPagesRunning(chapterId: string, pageIds: string[]): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
@@ -627,6 +752,193 @@ async function materializePageRecord(pageDraft: ImportPageDraft, pagesDir: strin
   };
 }
 
+async function importWorkShareAsNewWork(sharePackage: SharePackage, request: WorkShareImportRequest): Promise<WorkShareImportResult> {
+  if (request.target.mode !== "new") {
+    throw new Error("새 작품 가져오기 요청이 아닙니다.");
+  }
+  assertPackageOnlyEntries(request.entries);
+
+  const work = await createWork(request.target.title || sharePackage.manifest.work.title);
+  const chapterByPackageId = new Map(sharePackage.chapters.map((item) => [item.packageChapterId, item.chapter]));
+  const usedTitles = new Set<string>();
+  const chapterIds: string[] = [];
+
+  for (const entry of request.entries) {
+    const packageChapter = chapterByPackageId.get(entry.packageChapterId);
+    if (!packageChapter) {
+      throw new Error("공유 파일에서 가져올 화를 찾지 못했습니다.");
+    }
+    const title = makeUniqueTitleInList(sanitizeTitle(entry.title || packageChapter.title, "제목없음"), usedTitles);
+    const chapter = await materializeSharedChapter({
+      workId: work.id,
+      packageChapter,
+      entries: sharePackage.entries,
+      requestedTitle: title
+    });
+    chapterIds.push(chapter.id);
+  }
+
+  if (chapterIds.length === 0) {
+    throw new Error("가져올 화가 없습니다.");
+  }
+
+  work.chapterOrder = chapterIds;
+  work.updatedAt = new Date().toISOString();
+  await writeWorkFile(work);
+
+  return {
+    workId: work.id,
+    chapterIds,
+    openedChapter: await openChapter(chapterIds[0]!)
+  };
+}
+
+async function importWorkShareIntoExistingWork(sharePackage: SharePackage, request: WorkShareImportRequest): Promise<WorkShareImportResult> {
+  if (request.target.mode !== "existing") {
+    throw new Error("기존 작품 가져오기 요청이 아닙니다.");
+  }
+
+  const work = await ensureExistingWork(request.target.workId);
+  const currentChapters = new Map<string, ChapterFile>();
+  for (const chapterId of work.chapterOrder) {
+    const chapter = await readChapterFile(work.id, chapterId);
+    if (chapter) {
+      currentChapters.set(chapterId, chapter);
+    }
+  }
+
+  const chapterByPackageId = new Map(sharePackage.chapters.map((item) => [item.packageChapterId, item.chapter]));
+  const usedTitles = new Set<string>();
+  const usedExistingIds = new Set<string>();
+  const usedPackageIds = new Set<string>();
+  const finalChapterIds: string[] = [];
+  const now = new Date().toISOString();
+
+  for (const entry of request.entries) {
+    if (entry.source === "existing") {
+      if (usedExistingIds.has(entry.chapterId)) {
+        throw new Error("같은 기존 화가 두 번 포함되어 있습니다.");
+      }
+      const chapter = currentChapters.get(entry.chapterId);
+      if (!chapter) {
+        throw new Error("기존 작품에서 적용할 화를 찾지 못했습니다.");
+      }
+      chapter.title = makeUniqueTitleInList(sanitizeTitle(entry.title || chapter.title, "제목없음"), usedTitles);
+      chapter.updatedAt = now;
+      await writeChapterFile(chapter);
+      usedExistingIds.add(chapter.id);
+      finalChapterIds.push(chapter.id);
+      continue;
+    }
+
+    if (usedPackageIds.has(entry.packageChapterId)) {
+      throw new Error("같은 공유 화가 두 번 포함되어 있습니다.");
+    }
+    const packageChapter = chapterByPackageId.get(entry.packageChapterId);
+    if (!packageChapter) {
+      throw new Error("공유 파일에서 가져올 화를 찾지 못했습니다.");
+    }
+    const title = makeUniqueTitleInList(sanitizeTitle(entry.title || packageChapter.title, "제목없음"), usedTitles);
+    const chapter = await materializeSharedChapter({
+      workId: work.id,
+      packageChapter,
+      entries: sharePackage.entries,
+      requestedTitle: title
+    });
+    usedPackageIds.add(entry.packageChapterId);
+    finalChapterIds.push(chapter.id);
+  }
+
+  if (finalChapterIds.length === 0) {
+    throw new Error("적용할 화가 없습니다.");
+  }
+
+  for (const chapterId of work.chapterOrder) {
+    if (finalChapterIds.includes(chapterId)) {
+      continue;
+    }
+    const chapterDir = join(WORKS_ROOT, work.id, "chapters", chapterId);
+    if (existsSync(chapterDir)) {
+      await rm(chapterDir, { recursive: true, force: true });
+    }
+  }
+
+  work.chapterOrder = finalChapterIds;
+  work.updatedAt = now;
+  await writeWorkFile(work);
+
+  return {
+    workId: work.id,
+    chapterIds: finalChapterIds,
+    openedChapter: await openChapter(finalChapterIds[0]!)
+  };
+}
+
+async function materializeSharedChapter({
+  workId,
+  packageChapter,
+  entries,
+  requestedTitle
+}: {
+  workId: string;
+  packageChapter: ChapterFile;
+  entries: Map<string, ZipEntryLike>;
+  requestedTitle: string;
+}): Promise<ChapterFile> {
+  const now = new Date().toISOString();
+  const chapterId = randomUUID();
+  const chapterDir = join(WORKS_ROOT, workId, "chapters", chapterId);
+  const pagesDir = join(chapterDir, "pages");
+  await mkdir(pagesDir, { recursive: true });
+
+  const pages: LibraryPageRecord[] = [];
+  for (const [index, packagePage] of reorderRecords(packageChapter.pages, packageChapter.pageOrder).entries()) {
+    const packageImagePath = normalizeShareRelativePath(packagePage.imagePath, "페이지 이미지 경로가 올바르지 않습니다.");
+    const entry = entries.get(packageImagePath);
+    if (!entry) {
+      throw new Error(`공유 파일에 이미지가 없습니다: ${packagePage.name}`);
+    }
+
+    const pageId = randomUUID();
+    const targetExt = extname(packageImagePath).toLowerCase() || ".png";
+    if (!isSupportedImagePath(packageImagePath)) {
+      throw new Error(`지원하지 않는 이미지 형식입니다: ${packagePage.name}`);
+    }
+    const outputPath = join(pagesDir, `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`);
+    await writeFile(outputPath, entry.getData());
+
+    const image = nativeImage.createFromPath(outputPath);
+    const size = image.getSize();
+    pages.push({
+      ...packagePage,
+      id: pageId,
+      imagePath: outputPath,
+      width: size.width || packagePage.width || 1000,
+      height: size.height || packagePage.height || 1400,
+      blocks: packagePage.blocks.map((block, blockIndex) => ({
+        ...block,
+        id: `${pageId}-block-${blockIndex + 1}`
+      })),
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+
+  const chapter: ChapterFile = {
+    ...packageChapter,
+    id: chapterId,
+    workId,
+    title: requestedTitle,
+    status: resolveChapterStatus(pages),
+    pageOrder: pages.map((page) => page.id),
+    pages,
+    createdAt: now,
+    updatedAt: now
+  };
+  await writeChapterFile(chapter);
+  return chapter;
+}
+
 async function hydrateChapter(chapter: ChapterFile): Promise<ChapterSnapshot> {
   const pages = await Promise.all(
     reorderRecords(chapter.pages, chapter.pageOrder).map(async (page) => ({
@@ -777,6 +1089,143 @@ function listImageEntriesInZip(zipPath: string): ZipEntryLike[] {
     .getEntries()
     .filter((entry) => !entry.isDirectory && isSupportedImagePath(entry.entryName))
     .sort((left, right) => left.entryName.localeCompare(right.entryName, undefined, { numeric: true, sensitivity: "base" }));
+}
+
+function readSharePackage(packagePath: string): SharePackage {
+  const zip = new AdmZip(packagePath);
+  const entries = buildSafeShareEntryMap(zip.getEntries());
+  const manifest = readRequiredShareJson<ShareManifest>(entries, "manifest.json");
+  validateShareManifest(manifest);
+
+  const chapters = manifest.chapterOrder.map((packageChapterId) => {
+    const safeChapterId = normalizeSharePathSegment(packageChapterId, "공유 파일의 화 ID가 올바르지 않습니다.");
+    const chapter = readRequiredShareJson<ChapterFile>(entries, `chapters/${safeChapterId}/chapter.json`);
+    validateShareChapter(chapter, safeChapterId, entries);
+    return {
+      packageChapterId: safeChapterId,
+      chapter
+    };
+  });
+
+  return {
+    entries,
+    manifest: {
+      ...manifest,
+      chapterOrder: chapters.map((chapter) => chapter.packageChapterId)
+    },
+    chapters
+  };
+}
+
+function buildSafeShareEntryMap(zipEntries: ZipEntryLike[]): Map<string, ZipEntryLike> {
+  const entries = new Map<string, ZipEntryLike>();
+  for (const entry of zipEntries) {
+    const normalized = normalizeShareEntryName(entry.entryName, entry.isDirectory);
+    if (!normalized || entry.isDirectory) {
+      continue;
+    }
+    if (entries.has(normalized)) {
+      throw new Error(`공유 파일에 중복 항목이 있습니다: ${normalized}`);
+    }
+    entries.set(normalized, entry);
+  }
+  return entries;
+}
+
+function readRequiredShareJson<T>(entries: Map<string, ZipEntryLike>, path: string): T {
+  const entry = entries.get(path);
+  if (!entry) {
+    throw new Error(`공유 파일에 필요한 정보가 없습니다: ${path}`);
+  }
+  try {
+    return JSON.parse(entry.getData().toString("utf8")) as T;
+  } catch {
+    throw new Error(`공유 파일의 JSON을 읽지 못했습니다: ${path}`);
+  }
+}
+
+function validateShareManifest(manifest: ShareManifest): void {
+  if (manifest.format !== SHARE_FORMAT || manifest.version !== SHARE_VERSION) {
+    throw new Error("지원하지 않는 공유 파일 버전입니다.");
+  }
+  if (!manifest.work || typeof manifest.work.title !== "string") {
+    throw new Error("공유 파일의 작품 정보가 올바르지 않습니다.");
+  }
+  if (!Array.isArray(manifest.chapterOrder) || manifest.chapterOrder.length === 0) {
+    throw new Error("공유 파일에 화 정보가 없습니다.");
+  }
+}
+
+function validateShareChapter(chapter: ChapterFile, packageChapterId: string, entries: Map<string, ZipEntryLike>): void {
+  if (chapter.id !== packageChapterId || !Array.isArray(chapter.pages) || !Array.isArray(chapter.pageOrder)) {
+    throw new Error("공유 파일의 화 정보가 올바르지 않습니다.");
+  }
+  const pageIds = new Set(chapter.pages.map((page) => page.id));
+  for (const pageId of chapter.pageOrder) {
+    if (!pageIds.has(pageId)) {
+      throw new Error("공유 파일의 페이지 순서가 올바르지 않습니다.");
+    }
+  }
+  for (const page of chapter.pages) {
+    const imagePath = normalizeShareRelativePath(page.imagePath, "공유 파일의 이미지 경로가 올바르지 않습니다.");
+    if (!imagePath.startsWith(`chapters/${packageChapterId}/pages/`)) {
+      throw new Error("공유 파일의 이미지 위치가 올바르지 않습니다.");
+    }
+    if (!isSupportedImagePath(imagePath)) {
+      throw new Error(`지원하지 않는 이미지 형식입니다: ${page.name}`);
+    }
+    if (!entries.has(imagePath)) {
+      throw new Error(`공유 파일에 이미지가 없습니다: ${page.name}`);
+    }
+  }
+}
+
+function normalizeShareEntryName(entryName: string, isDirectory: boolean): string | null {
+  const raw = entryName.replace(/\\/g, "/").replace(/\/+$/g, "");
+  if (!raw && isDirectory) {
+    return null;
+  }
+  return normalizeShareRelativePath(raw, "공유 파일에 안전하지 않은 경로가 있습니다.");
+}
+
+function normalizeShareRelativePath(path: string, message: string): string {
+  const normalized = path.replace(/\\/g, "/");
+  if (!normalized || normalized.includes("\0") || normalized.startsWith("/") || /^[A-Za-z]:/.test(normalized)) {
+    throw new Error(message);
+  }
+  const parts = normalized.split("/");
+  if (parts.some((part) => !part || part === "." || part === "..")) {
+    throw new Error(message);
+  }
+  return parts.join("/");
+}
+
+function normalizeSharePathSegment(value: string, message: string): string {
+  if (!value || value.includes("\0") || value.includes("/") || value.includes("\\") || value === "." || value === "..") {
+    throw new Error(message);
+  }
+  return value;
+}
+
+function assertPackageOnlyEntries(entries: WorkShareImportEntry[]): asserts entries is Array<Extract<WorkShareImportEntry, { source: "package" }>> {
+  if (entries.some((entry) => entry.source !== "package")) {
+    throw new Error("새 작품으로 가져올 때는 공유 파일의 화만 선택할 수 있습니다.");
+  }
+}
+
+function makeUniqueTitleInList(desired: string, used: Set<string>): string {
+  if (!used.has(desired)) {
+    used.add(desired);
+    return desired;
+  }
+
+  let index = 1;
+  while (used.has(`${desired} (${index})`)) {
+    index += 1;
+  }
+  const next = `${desired} (${index})`;
+  used.add(next);
+  return next;
 }
 
 function normalizeImportPageName(entryName: string): string {
