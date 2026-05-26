@@ -18,16 +18,12 @@ module.exports = {
     "!out/app-runtime{,/**/*}"
   ],
   asarUnpack: [
-    "node_modules/openai-oauth/**/*"
+    "node_modules/**/*"
   ],
   extraResources: [
     {
       from: "out/app-runtime",
       to: "app-runtime"
-    },
-    {
-      from: "node_modules/openai-oauth",
-      to: "openai-oauth"
     },
     {
       from: "tools/llama-b8833-cuda12.4",
