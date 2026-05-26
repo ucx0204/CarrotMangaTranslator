@@ -26,6 +26,10 @@ module.exports = {
       to: "app-runtime"
     },
     {
+      from: "node_modules/openai-oauth",
+      to: "openai-oauth"
+    },
+    {
       from: "tools/llama-b8833-cuda12.4",
       to: "tools/llama-b8833-cuda12.4"
     }

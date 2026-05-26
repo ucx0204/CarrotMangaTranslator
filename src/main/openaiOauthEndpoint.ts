@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { sep } from "node:path";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { TranslationOptions } from "./appSettings";
 import { logInfo, logWarn } from "./logger";
@@ -33,6 +33,7 @@ const dynamicImport = new Function("specifier", "return import(specifier)") as (
   specifier: string
 ) => Promise<OpenAIOAuthModule>;
 const requireFromHere = createRequire(__filename);
+const OPENAI_OAUTH_RESOURCE_ENTRY = join("openai-oauth", "dist", "index.js");
 
 export async function startOpenAIOAuthEndpoint(options: TranslationOptions): Promise<OpenAIOAuthEndpoint> {
   let module: OpenAIOAuthModule;
@@ -96,22 +97,28 @@ export async function stopOpenAIOAuthEndpoint(endpoint: OpenAIOAuthEndpoint | nu
 
 async function importOpenAIOAuthModule(): Promise<OpenAIOAuthModule> {
   let lastError: unknown;
+  const failures: Array<Record<string, unknown>> = [];
   for (const specifier of resolveOpenAIOAuthImportCandidates()) {
     try {
       return await dynamicImport(specifier);
     } catch (error) {
       lastError = error;
+      failures.push(summarizeImportFailure(specifier, error));
     }
   }
 
-  throw lastError ?? new Error("openai-oauth import candidate list was empty.");
+  throw createDetailedError("No openai-oauth import candidate loaded.", { importFailures: failures }, lastError);
 }
 
 function resolveOpenAIOAuthImportCandidates(): string[] {
   const candidates = new Set<string>();
+  const resourcePath = resolveResourceOpenAIOAuthEntryPath();
   const resolvedPath = resolveOpenAIOAuthEntryPath();
   const unpackedPath = resolvedPath ? resolveAsarUnpackedPath(resolvedPath) : null;
 
+  if (resourcePath && existsSync(resourcePath)) {
+    candidates.add(pathToFileURL(resourcePath).href);
+  }
   if (unpackedPath && existsSync(unpackedPath)) {
     candidates.add(pathToFileURL(unpackedPath).href);
   }
@@ -123,6 +130,15 @@ function resolveOpenAIOAuthImportCandidates(): string[] {
   return [...candidates];
 }
 
+function resolveResourceOpenAIOAuthEntryPath(): string | null {
+  const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
+  if (!resourcesPath) {
+    return null;
+  }
+
+  return join(resourcesPath, OPENAI_OAUTH_RESOURCE_ENTRY);
+}
+
 function resolveOpenAIOAuthEntryPath(): string | null {
   try {
     return requireFromHere.resolve("openai-oauth");
@@ -132,12 +148,28 @@ function resolveOpenAIOAuthEntryPath(): string | null {
 }
 
 function resolveAsarUnpackedPath(resolvedPath: string): string | null {
-  const asarSegment = `${sep}app.asar${sep}`;
-  if (!resolvedPath.includes(asarSegment)) {
+  if (!/[\\/]app\.asar[\\/]/.test(resolvedPath)) {
     return null;
   }
 
-  return resolvedPath.replace(asarSegment, `${sep}app.asar.unpacked${sep}`);
+  return resolvedPath.replace(/([\\/])app\.asar([\\/])/, "$1app.asar.unpacked$2");
+}
+
+function summarizeImportFailure(specifier: string, error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return {
+      specifier,
+      name: error.name,
+      message: error.message,
+      code: "code" in error ? error.code : undefined,
+      cause: "cause" in error ? error.cause : undefined
+    };
+  }
+
+  return {
+    specifier,
+    message: String(error)
+  };
 }
 
 async function verifyEndpoint(baseUrl: string, options: TranslationOptions): Promise<void> {
