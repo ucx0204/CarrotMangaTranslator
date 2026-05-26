@@ -461,7 +461,7 @@ function isModelCached(options = {}) {
 const PROMPT_KO_BBOX_LINES_MULTIVIEW = [
   "You are given the same Japanese manga page in multiple full-page renderings.",
   "Image 1 is the original full page. Another image is a grayscale/high-contrast assist view of the exact same page.",
-  "Task: detect each speech bubble, narration box, name call, or sound-effect block that contains visible Japanese text and return a Korean replacement text with one bounding box per item.",
+  "Task: detect each visible Japanese text group and return a Korean replacement text with one bounding box per item.",
   "Use coordinates for the ORIGINAL page only.",
   "Return only plain text records in this exact field format:",
   "id: 1",
@@ -487,8 +487,13 @@ const PROMPT_KO_BBOX_LINES_MULTIVIEW = [
   "- Put one blank line between items.",
   "- Do not output JSON, braces, bullets, markdown fences, or commentary.",
   "- x, y, w, h must be integers in a 0..1000 coordinate space relative to the original page size.",
-  "- Make each box large enough to cover the original Japanese text region and to fit the Korean replacement.",
-  "- Merge multiple vertical lines that belong to the same speech bubble into one item.",
+  "- bbox means the tight rectangle around the visible Japanese glyphs only.",
+  "- Do not box the whole speech bubble, panel, caption plate, background shape, or blank margin.",
+  "- Do not enlarge or move a bbox to make the Korean replacement easier to fit.",
+  "- For dialogue inside a speech bubble, box only the Japanese text glyph group, not the bubble.",
+  "- Merge multiple vertical lines that belong to the same sentence or speech bubble into one item, but keep the bbox tight around those glyphs.",
+  "- For narration/caption text, box only the printed Japanese glyphs, not the surrounding caption background.",
+  "- For sfx, box only the visible sound-effect glyph strokes; ignore motion lines, impact lines, and surrounding art.",
   "- Keep Korean concise, natural, and short enough to fit as an on-image overlay.",
   "- Include short interjections, names, and visible sound effects when meaningful.",
   "- Use type values such as dialogue, narration, name, or sfx.",
@@ -527,7 +532,10 @@ function buildSystemPrompt(options = {}) {
     "You generate machine-readable overlay blocks for a downstream parser.",
     "Follow the requested field names and output format exactly.",
     "Never add prose, notes, markdown fences, or explanations.",
-    "If some text is uncertain, still emit the best approximate block instead of skipping the item."
+    "If some text is uncertain, still emit the best approximate block instead of skipping the item.",
+    "Every bbox is the tight rectangle around visible Japanese glyphs only, never the whole speech bubble, panel, caption plate, background shape, or empty margin.",
+    "Use original-page coordinates in a 0..1000 space with the top-left as origin, even when an assist image is provided.",
+    "Do not enlarge or move a bbox to fit the Korean replacement text."
   ];
 
   if (options.nsfwMode) {

@@ -6,6 +6,8 @@ import {
   estimateBlockFontSizePx,
   normalizeRenderDirection,
   offsetBlockBboxes,
+  resolveEditableBlockBbox,
+  resolveEffectiveRenderBbox,
   resolveBlockRenderBbox
 } from "../src/shared/geometry";
 
@@ -38,6 +40,34 @@ describe("geometry helpers", () => {
         { width: 1200, height: 1800 }
       )
     ).toEqual({ x: 200, y: 200, w: 100, h: 100 });
+  });
+
+  it("expands an effective render box for tiny source boxes without changing the source bbox", () => {
+    const block = {
+      bbox: { x: 100, y: 100, w: 4, h: 4 },
+      bboxSpace: "normalized_1000" as const,
+      renderDirection: "horizontal" as const,
+      lineHeight: 1.18,
+      autoFitText: true
+    };
+    const effective = resolveEffectiveRenderBbox(block, { width: 1000, height: 1000 }, "가나다");
+
+    expect(block.bbox).toEqual({ x: 100, y: 100, w: 4, h: 4 });
+    expect(effective.w).toBeGreaterThan(block.bbox.w);
+    expect(effective.h).toBeGreaterThan(block.bbox.h);
+    expect(resolveEditableBlockBbox(block, { width: 1000, height: 1000 }, "가나다").key).toBe("renderBbox");
+  });
+
+  it("respects an explicit renderBbox as a manual layout box", () => {
+    const block = {
+      bbox: { x: 100, y: 100, w: 4, h: 4 },
+      renderBbox: { x: 80, y: 90, w: 8, h: 8 },
+      renderBboxSpace: "normalized_1000" as const,
+      renderDirection: "horizontal" as const,
+      lineHeight: 1.18
+    };
+
+    expect(resolveEffectiveRenderBbox(block, { width: 1000, height: 1000 }, "가나다라마바사")).toEqual(block.renderBbox);
   });
 
   it("estimates a larger font size for a larger render box", () => {
@@ -84,6 +114,31 @@ describe("geometry helpers", () => {
 
     expect(next.bbox).toEqual({ x: 100, y: 100, w: 80, h: 120 });
     expect(next.renderBbox).toEqual({ x: 120, y: 140, w: 240, h: 280 });
+  });
+
+  it("stores a temporary readable render box when dragging a tiny source-only block", () => {
+    const block = {
+      id: "block-1",
+      type: "speech" as const,
+      bbox: { x: 100, y: 100, w: 4, h: 4 },
+      sourceText: "",
+      translatedText: "가나다",
+      confidence: 1,
+      sourceDirection: "vertical" as const,
+      renderDirection: "horizontal" as const,
+      fontSizePx: 12,
+      lineHeight: 1.18,
+      textAlign: "center" as const,
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 0.8,
+      autoFitText: true
+    };
+
+    const next = applyEditableBlockBbox(block, { x: 120, y: 120, w: 80, h: 60 }, { width: 1000, height: 1000 }, block.translatedText);
+
+    expect(next.bbox).toEqual(block.bbox);
+    expect(next.renderBbox).toEqual({ x: 120, y: 120, w: 80, h: 60 });
   });
 
   it("offsets both source and render boxes when duplicating a block", () => {

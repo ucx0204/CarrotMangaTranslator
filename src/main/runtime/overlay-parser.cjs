@@ -186,6 +186,25 @@ function toNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function roundCoordinate(value) {
+  return Math.round(value);
+}
+
+function clampCoordinate(value, min, max) {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  return Math.min(max, Math.max(min, value));
+}
+
+function clampBbox(bbox) {
+  const x = clampCoordinate(bbox.x, 0, 1000);
+  const y = clampCoordinate(bbox.y, 0, 1000);
+  const w = clampCoordinate(bbox.w, 1, 1000 - x);
+  const h = clampCoordinate(bbox.h, 1, 1000 - y);
+  return { x, y, w, h };
+}
+
 function normalizeBBox(item) {
   const box = item?.bbox ?? item?.box ?? item?.rect ?? item?.region ?? item;
   if (!box || typeof box !== "object") {
@@ -202,7 +221,12 @@ function normalizeBBox(item) {
     return null;
   }
 
-  return { x, y, w, h };
+  return clampBbox({
+    x: roundCoordinate(x),
+    y: roundCoordinate(y),
+    w: roundCoordinate(w),
+    h: roundCoordinate(h)
+  });
 }
 
 function normalizeItem(item, index) {

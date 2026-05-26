@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { buildBaseTranslationOptions, type TranslationOptions } from "./appSettings";
 import { logError, logInfo, logWarn } from "./logger";
 import { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint, type OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
-import { estimateBlockFontSizePx, clampBbox, normalizeBlockType, pixelsToBbox } from "../shared/geometry";
+import { estimateBlockFontSizePx, clampBbox, normalizeBlockType, pixelsToBbox, resolveEffectiveRenderBbox } from "../shared/geometry";
 import type { AppSettings, BBox, BlockType, JobEvent, MangaPage, TranslationBlock } from "../shared/types";
 import { getAppPaths } from "./appPaths";
 import type { ChapterRunPaths } from "./library";
@@ -373,25 +373,49 @@ function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: number): 
   const bbox = clampBbox(item.bbox);
   const translatedText = item.ko.trim();
   const sourceText = item.jp.trim();
+  const textForSizing = translatedText || sourceText || "...";
+  const lineHeight = 1.18;
+  const renderDirection = "horizontal" as const;
+  const renderBbox = resolveEffectiveRenderBbox(
+    {
+      bbox,
+      bboxSpace: "normalized_1000",
+      renderDirection,
+      lineHeight,
+      autoFitText: true
+    },
+    { width: page.width, height: page.height },
+    textForSizing
+  );
+  const needsRenderBbox = !hasSameBbox(renderBbox, bbox);
 
   return {
     id: `${page.id}-block-${index + 1}`,
     type,
     bbox,
     bboxSpace: "normalized_1000",
+    ...(needsRenderBbox ? { renderBbox, renderBboxSpace: "normalized_1000" as const } : {}),
     sourceText,
     translatedText,
     confidence: sourceText ? 0.92 : 0.75,
     sourceDirection: "vertical",
-    renderDirection: "horizontal",
-    fontSizePx: estimateBlockFontSizePx(translatedText || sourceText || "...", { bbox }, { width: page.width, height: page.height }),
-    lineHeight: 1.18,
+    renderDirection,
+    fontSizePx: estimateBlockFontSizePx(
+      textForSizing,
+      needsRenderBbox ? { bbox, renderBbox, renderBboxSpace: "normalized_1000" } : { bbox },
+      { width: page.width, height: page.height }
+    ),
+    lineHeight,
     textAlign: "center",
     textColor: DEFAULT_TEXT_COLOR,
     backgroundColor: type === "sfx" ? "#fff4ea" : DEFAULT_BACKGROUND_COLOR,
     opacity: type === "sfx" ? 0.5 : 0.88,
     autoFitText: true
   };
+}
+
+function hasSameBbox(a: BBox, b: BBox): boolean {
+  return Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01 && Math.abs(a.w - b.w) < 0.01 && Math.abs(a.h - b.h) < 0.01;
 }
 
 function normalizeOverlayItemBboxes(items: OverlayItem[], page: MangaPage): OverlayItem[] {
@@ -578,7 +602,8 @@ function classifyFailure(error: unknown): string {
 function buildRetryPrompt(): string {
   return [
     "You are given the same Japanese manga page in multiple full-page renderings.",
-    "Return only plain text records for a downstream parser.",
+    "Detect each visible Japanese text group and return only plain text records for a downstream parser.",
+    "Use coordinates for the ORIGINAL page only.",
     "Use this exact field format and nothing else:",
     "id: 1",
     "type: dialogue",
@@ -594,7 +619,14 @@ function buildRetryPrompt(): string {
     "- One blank line between items.",
     "- No JSON, no braces, no bullets, no markdown fences, no commentary.",
     "- Use only keys: id, type, x, y, w, h, jp, ko.",
-    "- x, y, w, h must be integers in 0..1000 coordinates.",
+    "- x, y, w, h must be integers in 0..1000 coordinates with top-left origin.",
+    "- bbox means the tight rectangle around the visible Japanese glyphs only.",
+    "- Do not box the whole speech bubble, panel, caption plate, background shape, or blank margin.",
+    "- Do not enlarge or move a bbox to make the Korean replacement easier to fit.",
+    "- For dialogue inside a speech bubble, box only the Japanese text glyph group, not the bubble.",
+    "- Merge multiple vertical lines that belong to the same sentence or speech bubble into one item, but keep the bbox tight around those glyphs.",
+    "- For narration/caption text, box only the printed Japanese glyphs, not the surrounding caption background.",
+    "- For sfx, box only the visible sound-effect glyph strokes; ignore motion lines, impact lines, and surrounding art.",
     "- Keep jp and ko on one line each.",
     "- If uncertain, still output the best approximate item instead of skipping it."
   ].join("\n");

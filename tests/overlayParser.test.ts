@@ -120,4 +120,24 @@ ko: 리드
     expect(items[1].type).toBe("name");
     expect(items[1].ko).toBe("리드");
   });
+
+  it("rounds and clamps decimal bbox values while preserving the current field format", () => {
+    const parsed = parseJsonLenient(String.raw`
+{
+  "items": [
+    {
+      "id": 1,
+      "type": "sfx",
+      "bbox": { "x": -20.4, "y": 80.5, "w": 1100.49, "h": 240.51 },
+      "jp": "ドン",
+      "ko": "쾅"
+    }
+  ]
+}
+`);
+    const items = normalizeItems(parsed);
+
+    expect(items).toHaveLength(1);
+    expect(items[0].bbox).toEqual({ x: 0, y: 81, w: 1000, h: 241 });
+  });
 });

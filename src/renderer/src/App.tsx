@@ -549,7 +549,8 @@ export default function App(): React.JSX.Element {
     event.stopPropagation();
     setSelectedBlockId(block.id);
     const pageSize = selectedPage ? { width: selectedPage.width, height: selectedPage.height } : null;
-    const target = resolveEditableBlockBbox(block, pageSize);
+    const displayText = block.translatedText || block.sourceText || "...";
+    const target = resolveEditableBlockBbox(block, pageSize, displayText);
     dragRef.current = {
       mode,
       blockId: block.id,
@@ -591,7 +592,11 @@ export default function App(): React.JSX.Element {
           : {
               ...candidate,
               updatedAt: new Date().toISOString(),
-              blocks: candidate.blocks.map((block) => (block.id === drag.blockId ? applyEditableBlockBbox(block, next) : block))
+              blocks: candidate.blocks.map((block) =>
+                block.id === drag.blockId
+                  ? applyEditableBlockBbox(block, next, { width: page.width, height: page.height }, block.translatedText || block.sourceText || "...")
+                  : block
+              )
             }
       )
     }));

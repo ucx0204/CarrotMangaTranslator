@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { MIN_READABLE_FONT_SIZE_PX } from "../src/shared/geometry";
 import { resolveBlockPaddingPx, resolveBlockRectPx, resolveBlockTextLayout } from "../src/renderer/src/lib/overlayLayout";
 import type { TranslationBlock } from "../src/shared/types";
 
@@ -20,7 +21,7 @@ describe("render layout padding", () => {
     expect(resolveBlockPaddingPx({ left: 0, top: 0, width: 240, height: 240 })).toBe(14);
   });
 
-  it("shrinks horizontal single-character text to fit narrow block width", () => {
+  it("keeps horizontal text readable while fitting a narrow block", () => {
     installCanvasMeasureMock();
 
     const block: TranslationBlock = {
@@ -43,8 +44,93 @@ describe("render layout padding", () => {
 
     const layout = resolveBlockTextLayout(block, block.translatedText, { width: 1000, height: 1000 }, { width: 1000, height: 1000 });
 
-    expect(layout.fontSizePx).toBeLessThanOrEqual(18);
+    expect(layout.fontSizePx).toBeGreaterThanOrEqual(MIN_READABLE_FONT_SIZE_PX);
     expect(layout.overflow).toBe(false);
+  });
+
+  it("uses dynamic guard space so tiny blocks keep a usable fit area", () => {
+    installCanvasMeasureMock();
+
+    const block: TranslationBlock = {
+      id: "block-1",
+      type: "speech",
+      bbox: { x: 0, y: 0, w: 25, h: 44 },
+      sourceText: "응",
+      translatedText: "응",
+      confidence: 1,
+      sourceDirection: "vertical",
+      renderDirection: "horizontal",
+      fontSizePx: 12,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true
+    };
+
+    const layout = resolveBlockTextLayout(block, block.translatedText, { width: 1000, height: 1000 }, { width: 1000, height: 1000 });
+
+    expect(layout.fitInnerWidth).toBeGreaterThan(10);
+    expect(layout.fontSizePx).toBeGreaterThanOrEqual(MIN_READABLE_FONT_SIZE_PX);
+    expect(layout.overflow).toBe(false);
+  });
+
+  it("temporarily grows source-only boxes when 10px text would otherwise overflow", () => {
+    installCanvasMeasureMock();
+
+    const block: TranslationBlock = {
+      id: "block-1",
+      type: "speech",
+      bbox: { x: 100, y: 100, w: 4, h: 4 },
+      sourceText: "",
+      translatedText: "가나다",
+      confidence: 1,
+      sourceDirection: "vertical",
+      renderDirection: "horizontal",
+      fontSizePx: 12,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true
+    };
+
+    const layout = resolveBlockTextLayout(block, block.translatedText, { width: 1000, height: 1000 }, { width: 1000, height: 1000 });
+
+    expect(layout.rect.width).toBeGreaterThan(4);
+    expect(layout.rect.height).toBeGreaterThan(4);
+    expect(layout.fontSizePx).toBeGreaterThanOrEqual(MIN_READABLE_FONT_SIZE_PX);
+  });
+
+  it("keeps explicit render boxes manual and marks overflow instead of auto-growing them", () => {
+    installCanvasMeasureMock();
+
+    const block: TranslationBlock = {
+      id: "block-1",
+      type: "speech",
+      bbox: { x: 100, y: 100, w: 4, h: 4 },
+      renderBbox: { x: 100, y: 100, w: 4, h: 4 },
+      sourceText: "",
+      translatedText: "가나다",
+      confidence: 1,
+      sourceDirection: "vertical",
+      renderDirection: "horizontal",
+      fontSizePx: 12,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true
+    };
+
+    const layout = resolveBlockTextLayout(block, block.translatedText, { width: 1000, height: 1000 }, { width: 1000, height: 1000 });
+
+    expect(layout.rect.width).toBe(4);
+    expect(layout.fontSizePx).toBe(MIN_READABLE_FONT_SIZE_PX);
+    expect(layout.overflow).toBe(true);
   });
 
   it("places pixel-space blocks on the same scaled image plane", () => {

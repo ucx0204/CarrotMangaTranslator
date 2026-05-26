@@ -5,6 +5,13 @@ import { tmpdir } from "node:os";
 
 const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") as {
   buildLaunchArgs: (options: { [key: string]: unknown }) => string[];
+  buildMessages: (
+    options: { [key: string]: unknown },
+    imageVariants: Array<{ role: string; dataUrl: string }>
+  ) => Array<{
+    role: string;
+    content: Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  }>;
   buildResponsesRequestBody: (options: { [key: string]: unknown }, imageVariants: Array<{ role: string; dataUrl: string }>) => {
     model: string;
     instructions: string;
@@ -20,6 +27,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
 };
 const {
   buildLaunchArgs,
+  buildMessages,
   buildResponsesRequestBody,
   extractModelOutputText,
   inspectModelLaunch,
@@ -95,6 +103,41 @@ describe("runtime model launch helpers", () => {
     expect(requestBody.stream).toBe(true);
     expect(requestBody.store).toBe(false);
     expect(requestBody.input[0]?.content.some((part) => part.type === "input_image" && part.image_url === "data:image/png;base64,abc123")).toBe(true);
+  });
+
+  it("uses tight Japanese glyph bbox instructions for Codex Responses requests", () => {
+    const requestBody = buildResponsesRequestBody(
+      {
+        modelProvider: "openai-codex",
+        codexModel: "gpt-5.5",
+        codexReasoningEffort: "medium"
+      },
+      [{ role: "original", dataUrl: "data:image/png;base64,abc123" }]
+    );
+    const promptText = requestBody.input[0]?.content.find((part) => part.type === "input_text" && part.text?.includes("Task:"))?.text ?? "";
+
+    expect(requestBody.instructions).toContain("tight rectangle around visible Japanese glyphs only");
+    expect(requestBody.instructions).toContain("Do not enlarge or move a bbox to fit the Korean replacement text.");
+    expect(promptText).toContain("detect each visible Japanese text group");
+    expect(promptText).toContain("bbox means the tight rectangle around the visible Japanese glyphs only.");
+    expect(promptText).toContain("Do not enlarge or move a bbox to make the Korean replacement easier to fit.");
+    expect(promptText).not.toContain("fit the Korean replacement");
+  });
+
+  it("uses the same tight Japanese glyph bbox prompt for Gemma chat requests", () => {
+    const messages = buildMessages(
+      {
+        modelProvider: "gemma"
+      },
+      [{ role: "original", dataUrl: "data:image/png;base64,abc123" }]
+    );
+    const systemText = messages[0]?.content.find((part) => part.type === "text")?.text ?? "";
+    const userPrompt = messages[1]?.content.find((part) => part.type === "text" && part.text?.includes("Task:"))?.text ?? "";
+
+    expect(systemText).toContain("tight rectangle around visible Japanese glyphs only");
+    expect(userPrompt).toContain("detect each visible Japanese text group");
+    expect(userPrompt).toContain("For sfx, box only the visible sound-effect glyph strokes");
+    expect(userPrompt).not.toContain("speech bubble, narration box, name call, or sound-effect block");
   });
 
   it("extracts text from Responses API output payloads", () => {

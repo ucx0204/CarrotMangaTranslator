@@ -1,14 +1,14 @@
 import type { TranslationBlock } from "../../../shared/types";
-import { bboxToPixels, clamp, resolveBlockRenderBbox } from "../../../shared/geometry";
+import { bboxToPixels, clamp, MIN_READABLE_FONT_SIZE_PX, resolveBlockRenderBbox, resolveEffectiveRenderBbox } from "../../../shared/geometry";
 
-const MIN_FONT_SIZE_PX = 2;
+const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
 const MAX_AUTOFIT_FONT_SIZE_PX = 256;
 const MIN_BLOCK_PADDING_PX = 0;
 const MAX_BLOCK_PADDING_PX = 14;
 const MIN_INNER_SIZE_PX = 1;
 const BLOCK_BORDER_PX = 1;
-const TEXT_FIT_SAFETY_PX = 6;
-const TEXT_MEASURE_GUARD_PX = TEXT_FIT_SAFETY_PX + 4;
+const MAX_TEXT_MEASURE_GUARD_PX = 10;
+const TEXT_MEASURE_GUARD_RATIO_PER_SIDE = 0.06;
 
 let measureCanvas: HTMLCanvasElement | null = null;
 
@@ -60,13 +60,14 @@ export function resolveBlockTextLayout(
   pageSize: ViewportSize,
   stageSize: ViewportSize
 ): BlockTextLayout {
-  const rect = resolveBlockRectPx(block, pageSize, stageSize);
+  const rect = resolveBlockRectPx(block, pageSize, stageSize, text);
   const paddingPx = resolveBlockPaddingPx(rect);
   const borderInsetPx = BLOCK_BORDER_PX * 2;
   const innerWidth = Math.max(MIN_INNER_SIZE_PX, rect.width - paddingPx * 2 - borderInsetPx);
   const innerHeight = Math.max(MIN_INNER_SIZE_PX, rect.height - paddingPx * 2 - borderInsetPx);
-  const fitInnerWidth = Math.max(MIN_INNER_SIZE_PX, innerWidth - TEXT_MEASURE_GUARD_PX * 2);
-  const fitInnerHeight = Math.max(MIN_INNER_SIZE_PX, innerHeight - TEXT_MEASURE_GUARD_PX * 2);
+  const textMeasureGuardPx = resolveTextMeasureGuardPx(innerWidth, innerHeight);
+  const fitInnerWidth = Math.max(MIN_INNER_SIZE_PX, innerWidth - textMeasureGuardPx * 2);
+  const fitInnerHeight = Math.max(MIN_INNER_SIZE_PX, innerHeight - textMeasureGuardPx * 2);
   const scale = Math.min(stageSize.width / Math.max(1, pageSize.width), stageSize.height / Math.max(1, pageSize.height));
   const preferredFontSize = Math.max(MIN_FONT_SIZE_PX, Math.floor(block.fontSizePx * scale));
   const maxFontSize = resolveAutoFitUpperBound(block, preferredFontSize, fitInnerWidth, fitInnerHeight);
@@ -84,8 +85,9 @@ export function resolveBlockTextLayout(
   };
 }
 
-export function resolveBlockRectPx(block: TranslationBlock, pageSize: ViewportSize, stageSize: ViewportSize): PixelRect {
-  const pixelRect = bboxToPixels(resolveBlockRenderBbox(block, pageSize), pageSize.width, pageSize.height);
+export function resolveBlockRectPx(block: TranslationBlock, pageSize: ViewportSize, stageSize: ViewportSize, text = ""): PixelRect {
+  const renderBbox = text.trim() ? resolveEffectiveRenderBbox(block, pageSize, text) : resolveBlockRenderBbox(block, pageSize);
+  const pixelRect = bboxToPixels(renderBbox, pageSize.width, pageSize.height);
   const scaleX = stageSize.width / Math.max(1, pageSize.width);
   const scaleY = stageSize.height / Math.max(1, pageSize.height);
 
@@ -194,6 +196,11 @@ function resolveAutoFitUpperBound(block: TranslationBlock, preferredFontSize: nu
   }
 
   return clamp(Math.max(preferredFontSize, innerWidth, innerHeight), MIN_FONT_SIZE_PX, MAX_AUTOFIT_FONT_SIZE_PX);
+}
+
+function resolveTextMeasureGuardPx(innerWidth: number, innerHeight: number): number {
+  const shortestSide = Math.min(innerWidth, innerHeight);
+  return Math.floor(clamp(shortestSide * TEXT_MEASURE_GUARD_RATIO_PER_SIDE, 0, MAX_TEXT_MEASURE_GUARD_PX));
 }
 
 function measureVerticalText(
