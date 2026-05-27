@@ -7,13 +7,13 @@ type PageSize = {
 
 type BBoxSpace = NonNullable<TranslationBlock["bboxSpace"]>;
 type RenderBboxBlock = Pick<TranslationBlock, "bbox" | "renderBbox"> &
-  Partial<Pick<TranslationBlock, "bboxSpace" | "renderBboxSpace" | "renderDirection" | "lineHeight" | "autoFitText">>;
+  Partial<Pick<TranslationBlock, "bboxSpace" | "renderBboxSpace" | "renderDirection" | "lineHeight" | "fontSizePx" | "autoFitText">>;
 
 export const MIN_READABLE_FONT_SIZE_PX = 10;
 
-const READABLE_AVERAGE_CHAR_WIDTH_PX = MIN_READABLE_FONT_SIZE_PX * 0.95;
-const READABLE_VERTICAL_COLUMN_WIDTH_PX = MIN_READABLE_FONT_SIZE_PX * 1.15;
-const READABLE_BOX_CHROME_PX = 6;
+const READABLE_AVERAGE_CHAR_WIDTH_RATIO = 0.95;
+const READABLE_VERTICAL_COLUMN_WIDTH_RATIO = 1.15;
+const READABLE_MAX_VERTICAL_COLUMNS = 2;
 
 export function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) {
@@ -134,8 +134,18 @@ export function offsetBlockBboxes(block: TranslationBlock, dx: number, dy: numbe
   };
 }
 
-export function enforceRenderDirection(_type: BlockType, direction: RenderTextDirection): RenderTextDirection {
+export function enforceRenderDirection(type: BlockType, direction: RenderTextDirection): RenderTextDirection {
+  if (type === "speech" || type === "caption") {
+    return direction === "hidden" ? "hidden" : "horizontal";
+  }
   return direction === "vertical" || direction === "rotated" || direction === "hidden" ? direction : "horizontal";
+}
+
+export function enforceRotationDeg(type: BlockType, value: unknown): number {
+  if (type === "speech" || type === "caption") {
+    return 0;
+  }
+  return clamp(Math.round(Number(value) || 0), -30, 30);
 }
 
 export function normalizeBlockType(value: unknown): BlockType {
@@ -192,25 +202,41 @@ function offsetBbox(bbox: BBox, dx: number, dy: number): BBox {
 
 function estimateReadableTextBoxSizePx(text: string, block: RenderBboxBlock, basePx: BBox): { width: number; height: number } {
   const compactLength = Math.max(1, [...text.replace(/\s+/g, "")].length);
-  const lineHeightPx = MIN_READABLE_FONT_SIZE_PX * Math.max(1, block.lineHeight ?? 1.18);
+  const fontSizePx = MIN_READABLE_FONT_SIZE_PX;
+  const lineHeightPx = fontSizePx * Math.max(1, block.lineHeight ?? 1.18);
 
   if (block.renderDirection === "vertical") {
-    const availableHeight = Math.max(1, basePx.h - READABLE_BOX_CHROME_PX);
+    const availableHeight = Math.max(1, basePx.h);
     const charsPerColumn = Math.max(1, Math.floor(availableHeight / lineHeightPx));
-    const columnCount = Math.max(1, Math.ceil(compactLength / charsPerColumn));
+    const columnCount = Math.min(READABLE_MAX_VERTICAL_COLUMNS, Math.max(1, Math.ceil(compactLength / charsPerColumn)));
     return {
-      width: columnCount * READABLE_VERTICAL_COLUMN_WIDTH_PX + READABLE_BOX_CHROME_PX,
-      height: lineHeightPx + READABLE_BOX_CHROME_PX
+      width: columnCount * fontSizePx * READABLE_VERTICAL_COLUMN_WIDTH_RATIO,
+      height: Math.min(compactLength, charsPerColumn) * lineHeightPx
     };
   }
 
-  const availableWidth = Math.max(1, basePx.w - READABLE_BOX_CHROME_PX);
-  const charsPerLine = Math.max(1, Math.min(compactLength, Math.floor(availableWidth / READABLE_AVERAGE_CHAR_WIDTH_PX)));
+  const availableWidth = Math.max(1, basePx.w);
+  const naturalCharsPerLine = resolveNaturalHorizontalCharsPerLine(compactLength);
+  const widthLimitedCharsPerLine = Math.max(1, Math.floor(availableWidth / (fontSizePx * READABLE_AVERAGE_CHAR_WIDTH_RATIO)));
+  const charsPerLine = Math.max(
+    Math.min(compactLength, naturalCharsPerLine),
+    Math.min(compactLength, widthLimitedCharsPerLine)
+  );
   const lineCount = Math.max(1, Math.ceil(compactLength / charsPerLine));
   return {
-    width: charsPerLine * READABLE_AVERAGE_CHAR_WIDTH_PX + READABLE_BOX_CHROME_PX,
-    height: lineCount * lineHeightPx + READABLE_BOX_CHROME_PX
+    width: charsPerLine * fontSizePx * READABLE_AVERAGE_CHAR_WIDTH_RATIO,
+    height: lineCount * lineHeightPx
   };
+}
+
+function resolveNaturalHorizontalCharsPerLine(compactLength: number): number {
+  if (compactLength <= 4) {
+    return compactLength;
+  }
+  if (compactLength <= 10) {
+    return Math.min(compactLength, 5);
+  }
+  return Math.min(compactLength, Math.max(6, Math.min(14, Math.ceil(Math.sqrt(compactLength * 5)))));
 }
 
 function expandBboxAroundCenter(bbox: BBox, pageSize: PageSize, targetWidthPx: number, targetHeightPx: number): BBox {

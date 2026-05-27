@@ -2,7 +2,18 @@ import type { JobEvent, JobState } from "../../../shared/types";
 
 type JobWithProgress = Pick<
   JobState,
-  "status" | "phase" | "progressCurrent" | "progressTotal" | "pageIndex" | "pageTotal" | "attempt" | "attemptTotal"
+  | "status"
+  | "phase"
+  | "progressCurrent"
+  | "progressTotal"
+  | "progressPercent"
+  | "progressBytes"
+  | "progressTotalBytes"
+  | "progressBytesPerSecond"
+  | "pageIndex"
+  | "pageTotal"
+  | "attempt"
+  | "attemptTotal"
 >;
 
 export type ProgressSnapshot =
@@ -22,6 +33,14 @@ export function formatJobLabel(job: JobWithProgress): string {
       return "모델 준비 중";
     case "model_downloading":
       return "모델 다운로드/서버 준비 중";
+    case "ocr_preparing":
+      return formatPageLabel(job, "Paddle OCR 준비 중");
+    case "ocr_downloading":
+      return "Paddle OCR 다운로드/설치 중";
+    case "ocr_running":
+      return formatPageLabel(job, "Paddle OCR 분석 중");
+    case "model_requesting":
+      return formatPageLabel(job, "AI 번역 요청 중");
     case "ready":
       return "모델 준비 완료";
     case "page_running":
@@ -50,6 +69,16 @@ export function formatJobEventLine(event: JobEvent): string {
 }
 
 export function resolveProgressSnapshot(job: JobWithProgress): ProgressSnapshot | null {
+  if (Number.isFinite(job.progressPercent)) {
+    const ratio = Math.max(0, Math.min(1, Number(job.progressPercent)));
+    return {
+      mode: "determinate",
+      current: Math.round(ratio * 100),
+      total: 100,
+      ratio
+    };
+  }
+
   if (job.phase === "booting" || job.phase === "model_downloading") {
     return { mode: "indeterminate" };
   }
@@ -66,6 +95,21 @@ export function resolveProgressSnapshot(job: JobWithProgress): ProgressSnapshot 
     total,
     ratio: current / total
   };
+}
+
+export function formatBytes(bytes: number | null | undefined): string | null {
+  if (!Number.isFinite(bytes) || (bytes ?? 0) < 0) {
+    return null;
+  }
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes ?? 0;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const digits = unitIndex === 0 ? 0 : value >= 100 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(digits)} ${units[unitIndex]}`;
 }
 
 export function summarizeWarnings(warnings: string[]): string | null {

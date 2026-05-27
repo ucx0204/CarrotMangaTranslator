@@ -3,10 +3,13 @@ import type {
   AppSettings,
   CodexReasoningEffort,
   ModelProvider,
-  ModelSource
+  ModelSource,
+  OcrDevice
 } from "../../../shared/types";
 
 const MAX_GPU_LAYERS = 30;
+const MIN_MAX_TOKENS = 300;
+const MAX_MAX_TOKENS = 12000;
 const DEFAULT_GEMMA_MODEL_REPO = "unsloth/gemma-4-26B-A4B-it-GGUF";
 const MODEL_PRESETS = {
   q3: {
@@ -41,6 +44,12 @@ type ModelProviderOption = {
 
 type CodexReasoningOption = {
   id: CodexReasoningEffort;
+  label: string;
+  description: string;
+};
+
+type OcrDeviceOption = {
+  id: OcrDevice;
   label: string;
   description: string;
 };
@@ -111,6 +120,19 @@ const CODEX_REASONING_OPTIONS: CodexReasoningOption[] = [
   }
 ];
 
+const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [
+  {
+    id: "cpu",
+    label: "CPU",
+    description: "기본값입니다. 느리지만 별도 GPU Paddle 런타임 없이 가장 안정적으로 동작합니다."
+  },
+  {
+    id: "gpu",
+    label: "GPU",
+    description: "PaddleOCR를 GPU로 실행합니다. GPU용 Paddle 런타임/CUDA가 맞지 않으면 OCR 단계가 실패할 수 있습니다."
+  }
+];
+
 type SettingsModalProps = {
   initialSettings: AppSettings;
   busy: boolean;
@@ -145,7 +167,9 @@ export function SettingsModal({
     initialSettings.codex.reasoningEffort
   );
   const [codexOauthPort, setCodexOauthPort] = React.useState(String(initialSettings.codex.oauthPort));
+  const [ocrDevice, setOcrDevice] = React.useState<OcrDevice>(initialSettings.ocr.device);
   const [nsfwMode, setNsfwMode] = React.useState(initialSettings.nsfwMode);
+  const [maxTokens, setMaxTokens] = React.useState(String(initialSettings.maxTokens));
   const [localActionBusy, setLocalActionBusy] = React.useState(false);
   const [testState, setTestState] = React.useState<TestState>({ status: "idle", message: null, detail: null });
   const modelRepoInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -164,7 +188,9 @@ export function SettingsModal({
     setCodexModel(initialSettings.codex.model);
     setCodexReasoningEffort(initialSettings.codex.reasoningEffort);
     setCodexOauthPort(String(initialSettings.codex.oauthPort));
+    setOcrDevice(initialSettings.ocr.device);
     setNsfwMode(initialSettings.nsfwMode);
+    setMaxTokens(String(initialSettings.maxTokens));
     setTestState({ status: "idle", message: null, detail: null });
   }, [initialSettings]);
 
@@ -194,19 +220,27 @@ export function SettingsModal({
   const trimmedCodexModel = codexModel.trim();
   const parsedGpuLayers = Number(gpuLayers);
   const parsedCodexOauthPort = Number(codexOauthPort);
+  const parsedMaxTokens = Number(maxTokens);
   const gpuLayersValid =
     Number.isInteger(parsedGpuLayers) && parsedGpuLayers >= 0 && parsedGpuLayers <= MAX_GPU_LAYERS;
   const codexOauthPortValid =
     Number.isInteger(parsedCodexOauthPort) && parsedCodexOauthPort >= 0 && parsedCodexOauthPort <= 65535;
+  const maxTokensValid =
+    Number.isInteger(parsedMaxTokens) && parsedMaxTokens >= MIN_MAX_TOKENS && parsedMaxTokens <= MAX_MAX_TOKENS;
   const canSubmit = Boolean(
-    modelProvider === "openai-codex"
-      ? trimmedCodexModel && codexOauthPortValid
-      : gpuLayersValid && (modelSource === "local" ? trimmedLocalModelPath : trimmedModelRepo && trimmedModelFile)
+    maxTokensValid &&
+      (modelProvider === "openai-codex"
+        ? trimmedCodexModel && codexOauthPortValid
+        : gpuLayersValid && (modelSource === "local" ? trimmedLocalModelPath : trimmedModelRepo && trimmedModelFile))
   );
   const sliderValue =
     Number.isFinite(parsedGpuLayers) ? clampGpuLayers(Math.trunc(parsedGpuLayers)) : 0;
 
   const buildSettings = React.useCallback((): AppSettings | null => {
+    if (!maxTokensValid) {
+      return null;
+    }
+
     if (modelProvider === "openai-codex") {
       if (!trimmedCodexModel || !codexOauthPortValid) {
         return null;
@@ -227,7 +261,11 @@ export function SettingsModal({
           reasoningEffort: codexReasoningEffort,
           oauthPort: parsedCodexOauthPort
         },
-        nsfwMode
+        ocr: {
+          device: ocrDevice
+        },
+        nsfwMode,
+        maxTokens: parsedMaxTokens
       };
     }
 
@@ -250,7 +288,11 @@ export function SettingsModal({
         reasoningEffort: codexReasoningEffort,
         oauthPort: codexOauthPortValid ? parsedCodexOauthPort : initialSettings.codex.oauthPort
       },
-      nsfwMode
+      ocr: {
+        device: ocrDevice
+      },
+      nsfwMode,
+      maxTokens: parsedMaxTokens
     };
   }, [
     modelProvider,
@@ -264,11 +306,14 @@ export function SettingsModal({
     trimmedCodexModel,
     parsedGpuLayers,
     parsedCodexOauthPort,
+    parsedMaxTokens,
     codexReasoningEffort,
+    ocrDevice,
     initialSettings.gemma.gpuLayers,
     initialSettings.codex.model,
     initialSettings.codex.oauthPort,
-    nsfwMode
+    nsfwMode,
+    maxTokensValid
   ]);
 
   const clearTestState = React.useCallback(() => {
@@ -420,6 +465,54 @@ export function SettingsModal({
             </button>
           </label>
           <p className="muted-line">켜두면 시스템 프롬프트에 NSFW 허용 지시문을 추가합니다.</p>
+
+          <label>
+            최대 출력 토큰
+            <input
+              type="number"
+              min={MIN_MAX_TOKENS}
+              max={MAX_MAX_TOKENS}
+              step={100}
+              value={maxTokens}
+              disabled={controlsBusy}
+              onChange={(event) => {
+                clearTestState();
+                setMaxTokens(event.target.value);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  submit();
+                }
+              }}
+            />
+          </label>
+          <p className="muted-line modal-note">
+            출력이 길어지는 페이지에서 말풍선 누락을 줄입니다. 기본값은 12000입니다.
+          </p>
+
+          <div className="settings-field-stack">
+            <span>Paddle OCR 장치</span>
+            <div className="settings-mode-group" role="tablist" aria-label="Paddle OCR 장치">
+              {OCR_DEVICE_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`settings-preset-button ${ocrDevice === option.id ? "active" : ""}`}
+                  onClick={() => {
+                    clearTestState();
+                    setOcrDevice(option.id);
+                  }}
+                  disabled={controlsBusy}
+                  aria-pressed={ocrDevice === option.id}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="muted-line modal-note">
+              {OCR_DEVICE_OPTIONS.find((option) => option.id === ocrDevice)?.description}
+            </p>
+          </div>
 
           {modelProvider === "gemma" ? (
             <>
@@ -693,6 +786,9 @@ export function SettingsModal({
           ) : null}
           {modelProvider === "openai-codex" && !codexOauthPortValid ? (
             <p className="muted-line">openai-oauth 포트는 0 이상 65535 이하의 정수여야 합니다.</p>
+          ) : null}
+          {!maxTokensValid ? (
+            <p className="muted-line">최대 출력 토큰은 {MIN_MAX_TOKENS} 이상 {MAX_MAX_TOKENS} 이하의 정수여야 합니다.</p>
           ) : null}
         </section>
 

@@ -8,6 +8,8 @@ import {
   DEFAULT_GEMMA_MODEL_FILE,
   DEFAULT_GEMMA_MODEL_FILE_Q3,
   DEFAULT_GEMMA_MODEL_FILE_Q6,
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_OCR_DEVICE,
   parseStoredAppSettings,
   resolveRecommendedModelFile,
   resolveDefaultAppSettings
@@ -23,6 +25,8 @@ describe("app settings helpers", () => {
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
     expect(defaults.codex.reasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(defaults.codex.oauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
+    expect(defaults.ocr.device).toBe(DEFAULT_OCR_DEVICE);
+    expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
   });
 
   it("recommends model files from detected VRAM tiers", () => {
@@ -57,7 +61,9 @@ describe("app settings helpers", () => {
         gpuLayers: 12
       },
       codex: defaults.codex,
-      nsfwMode: false
+      ocr: defaults.ocr,
+      nsfwMode: false,
+      maxTokens: defaults.maxTokens
     });
   });
 
@@ -73,7 +79,9 @@ describe("app settings helpers", () => {
         gpuLayers: 30
       },
       codex: defaults.codex,
-      nsfwMode: false
+      ocr: defaults.ocr,
+      nsfwMode: false,
+      maxTokens: defaults.maxTokens
     });
 
     expect(parseStoredAppSettings("{\"gemma\":{\"modelRepo\":\"repo\",\"modelFile\":\"file.gguf\",\"gpuLayers\":99}}", defaults)).toEqual({
@@ -85,7 +93,9 @@ describe("app settings helpers", () => {
         gpuLayers: 30
       },
       codex: defaults.codex,
-      nsfwMode: false
+      ocr: defaults.ocr,
+      nsfwMode: false,
+      maxTokens: defaults.maxTokens
     });
 
     expect(parseStoredAppSettings("{\"gemma\":{\"modelRepo\":\"repo\",\"modelFile\":\"file.gguf\",\"gpuLayers\":-1}}", defaults)).toEqual({
@@ -97,7 +107,9 @@ describe("app settings helpers", () => {
         gpuLayers: 0
       },
       codex: defaults.codex,
-      nsfwMode: false
+      ocr: defaults.ocr,
+      nsfwMode: false,
+      maxTokens: defaults.maxTokens
     });
 
     expect(parseStoredAppSettings("{\"gemma\":{\"gpuLayers\":\"abc\"}}", defaults)).toEqual({
@@ -109,7 +121,9 @@ describe("app settings helpers", () => {
         gpuLayers: DEFAULT_GEMMA_GPU_LAYERS
       },
       codex: defaults.codex,
-      nsfwMode: false
+      ocr: defaults.ocr,
+      nsfwMode: false,
+      maxTokens: defaults.maxTokens
     });
   });
 
@@ -120,14 +134,18 @@ describe("app settings helpers", () => {
       modelProvider: defaults.modelProvider,
       gemma: defaults.gemma,
       codex: defaults.codex,
-      nsfwMode: true
+      ocr: defaults.ocr,
+      nsfwMode: true,
+      maxTokens: defaults.maxTokens
     });
 
     expect(parseStoredAppSettings("{\"nsfwMode\":\"off\"}", defaults)).toEqual({
       modelProvider: defaults.modelProvider,
       gemma: defaults.gemma,
       codex: defaults.codex,
-      nsfwMode: false
+      ocr: defaults.ocr,
+      nsfwMode: false,
+      maxTokens: defaults.maxTokens
     });
   });
 
@@ -138,14 +156,18 @@ describe("app settings helpers", () => {
       modelProvider: defaults.modelProvider,
       gemma: defaults.gemma,
       codex: defaults.codex,
-      nsfwMode: false
+      ocr: defaults.ocr,
+      nsfwMode: false,
+      maxTokens: defaults.maxTokens
     });
 
     expect(parseStoredAppSettings("{\"translationMode\":\"turbo\"}", defaults)).toEqual({
       modelProvider: defaults.modelProvider,
       gemma: defaults.gemma,
       codex: defaults.codex,
-      nsfwMode: false
+      ocr: defaults.ocr,
+      nsfwMode: false,
+      maxTokens: defaults.maxTokens
     });
   });
 
@@ -163,7 +185,11 @@ describe("app settings helpers", () => {
         reasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
         oauthPort: DEFAULT_CODEX_OAUTH_PORT
       },
-      nsfwMode: true
+      ocr: {
+        device: "gpu"
+      },
+      nsfwMode: true,
+      maxTokens: DEFAULT_MAX_TOKENS
     };
 
     const options = buildBaseTranslationOptions({
@@ -190,11 +216,12 @@ describe("app settings helpers", () => {
     expect(options.codexModel).toBe(DEFAULT_CODEX_MODEL);
     expect(options.codexReasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(options.codexOauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
+    expect(options.ocrDevice).toBe("gpu");
     expect(options.gpuLayers).toBe(24);
     expect(options.nsfwMode).toBe(true);
     expect(options.temperature).toBe(0.2);
     expect(options.ctx).toBe(8192);
-    expect(options.maxTokens).toBe(900);
+    expect(options.maxTokens).toBe(DEFAULT_MAX_TOKENS);
     expect(options.imageMinTokens).toBe(640);
     expect(options.imageMaxTokens).toBe(640);
     expect(options.includeEnhancedVariant).toBe(false);
@@ -230,7 +257,9 @@ describe("app settings helpers", () => {
         gpuLayers: defaults.gemma.gpuLayers
       },
       codex: defaults.codex,
-      nsfwMode: false
+      ocr: defaults.ocr,
+      nsfwMode: false,
+      maxTokens: defaults.maxTokens
     });
   });
 
@@ -257,8 +286,28 @@ describe("app settings helpers", () => {
         reasoningEffort: "xhigh",
         oauthPort: 10532
       },
-      nsfwMode: false
+      ocr: defaults.ocr,
+      nsfwMode: false,
+      maxTokens: defaults.maxTokens
     });
+  });
+
+  it("normalizes OCR device settings", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(parseStoredAppSettings("{\"ocr\":{\"device\":\"gpu\"}}", defaults).ocr.device).toBe("gpu");
+    expect(parseStoredAppSettings("{\"ocr\":{\"device\":\"tpu\"}}", defaults).ocr.device).toBe(defaults.ocr.device);
+    expect(resolveDefaultAppSettings({ MANGA_TRANSLATOR_OCR_DEVICE: "gpu" }).ocr.device).toBe("gpu");
+  });
+
+  it("normalizes max token settings", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(parseStoredAppSettings("{\"maxTokens\":1200}", defaults).maxTokens).toBe(1200);
+    expect(parseStoredAppSettings("{\"maxTokens\":100}", defaults).maxTokens).toBe(300);
+    expect(parseStoredAppSettings("{\"maxTokens\":9000}", defaults).maxTokens).toBe(9000);
+    expect(parseStoredAppSettings("{\"maxTokens\":16000}", defaults).maxTokens).toBe(12000);
+    expect(parseStoredAppSettings("{\"maxTokens\":\"bad\"}", defaults).maxTokens).toBe(defaults.maxTokens);
   });
 
   it("maps the old Codex minimal value to low", () => {

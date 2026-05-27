@@ -61,8 +61,8 @@ function parseJsonLenient(rawText) {
 function repairBrokenJson(candidate) {
   let repaired = candidate.trim();
   repaired = repaired.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-  repaired = repaired.replace(/"?(id|type|bbox|jp|ko)(?::|\s*:)/gi, (_, key) => `"${key.toLowerCase()}":`);
-  repaired = repaired.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, (_, prefix, key) => `${prefix}"${key === "a" ? "x" : key}":`);
+  repaired = repaired.replace(/"?(id|type|bbox|jp|ko|direction|angle|fontSize|x1|y1|x2|y2)(?::|\s*:)/gi, (_, key) => `"${key === "fontSize" ? "fontSize" : key.toLowerCase()}":`);
+  repaired = repaired.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, (_, prefix, key) => `${prefix}"${key}":`);
   repaired = repaired.replace(/:\s*'([^']*)'/g, ': "$1"');
   repaired = repaired.replace(/("id"\s*:\s*)([A-Za-z]+)(\s*[,\n}])/g, '$1"$2"$3');
   repaired = repaired.replace(/("(?:jp|ko|type)"\s*:\s*)([^"{\[\n][^,\n}]*)/g, (_match, prefix, value) => {
@@ -72,21 +72,39 @@ function repairBrokenJson(candidate) {
     }
     return `${prefix}"${trimmed.replace(/^['"]|['"]$/g, "")}"`;
   });
-  repaired = repaired.replace(/"([xywh])\s*:/g, "\"$1\":");
-  repaired = repaired.replace(/([{\s,])([xywh])\s*:/g, "$1\"$2\":");
+  repaired = repaired.replace(/"(x1|y1|x2|y2)\s*:/g, "\"$1\":");
+  repaired = repaired.replace(/([{\s,])(x1|y1|x2|y2)\s*:/g, "$1\"$2\":");
   repaired = repaired.replace(/"ko\s*:/g, "\"ko\":");
-  repaired = repaired.replace(/(^|\n)(\s*)\{\s*"x":\s*([^,]+)\s*,\s*"y":\s*([^,]+)\s*,\s*"w":\s*([^,]+)\s*,\s*"h":\s*([^}\n]+)\s*\},/g, "$1$2\"bbox\": { \"x\": $3, \"y\": $4, \"w\": $5, \"h\": $6 },");
-  repaired = repaired.replace(/(^|\n)(\s*)"x":\s*([^,]+)\s*,\s*"y":\s*([^,]+)\s*,\s*"w":\s*([^,]+)\s*,\s*"h":\s*([^}\n]+)\s*\},/g, "$1$2\"bbox\": { \"x\": $3, \"y\": $4, \"w\": $5, \"h\": $6 },");
   repaired = repaired.replace(/,\s*([}\]])/g, "$1");
   return repaired;
 }
 
 function normalizeLooseLine(line) {
   return line
-    .replace(/\ba\s*:/g, "x:")
-    .replace(/"([xywh])\s*:/g, "\"$1\":")
+    .replace(/"(x1|y1|x2|y2)\s*:/g, "\"$1\":")
     .replace(/"ko\s*:/g, "\"ko\":")
-    .replace(/"y\s*:/g, "\"y\":");
+    .trim();
+}
+
+function bboxFromPartial(partialBbox) {
+  if (!partialBbox) {
+    return null;
+  }
+
+  if (!["x1", "y1", "x2", "y2"].every((key) => Number.isFinite(partialBbox[key]))) {
+    return null;
+  }
+
+  const left = Math.min(partialBbox.x1, partialBbox.x2);
+  const top = Math.min(partialBbox.y1, partialBbox.y2);
+  const right = Math.max(partialBbox.x1, partialBbox.x2);
+  const bottom = Math.max(partialBbox.y1, partialBbox.y2);
+  return {
+    x: left,
+    y: top,
+    w: right - left,
+    h: bottom - top
+  };
 }
 
 function parseLooseItemList(rawText) {
@@ -102,21 +120,22 @@ function parseLooseItemList(rawText) {
     if (!current) {
       return;
     }
-    if (!current.bbox && current.partialBbox && ["x", "y", "w", "h"].every((key) => Number.isFinite(current.partialBbox[key]))) {
-      current.bbox = {
-        x: current.partialBbox.x,
-        y: current.partialBbox.y,
-        w: current.partialBbox.w,
-        h: current.partialBbox.h
-      };
+    if (!current.bbox && current.partialBbox) {
+      current.bbox = bboxFromPartial(current.partialBbox);
     }
     if (current.bbox && typeof current.ko === "string" && current.ko.trim()) {
       items.push({
         id: current.id ?? items.length + 1,
         type: current.type || "dialogue",
-        bbox: current.bbox,
+        x1: current.bbox.x,
+        y1: current.bbox.y,
+        x2: current.bbox.x + current.bbox.w,
+        y2: current.bbox.y + current.bbox.h,
         jp: current.jp || "",
-        ko: current.ko.trim()
+        ko: current.ko.trim(),
+        ...(current.direction ? { direction: current.direction } : {}),
+        ...(Number.isFinite(current.angle) ? { angle: current.angle } : {}),
+        ...(Number.isFinite(current.fontSize) ? { fontSize: current.fontSize } : {})
       });
     }
     current = null;
@@ -129,7 +148,7 @@ function parseLooseItemList(rawText) {
       continue;
     }
 
-    const idMatch = line.match(/^(?:\{?\s*)?(?:"?id[^:"]*"?|a)\s*:\s*["']?([A-Za-z0-9_-]+)["']?/i);
+    const idMatch = line.match(/^(?:\{?\s*)?"?id"?\s*:\s*["']?([A-Za-z0-9_-]+)["']?/i);
     if (idMatch) {
       pushCurrent();
       const parsedId = Number(idMatch[1]);
@@ -141,36 +160,47 @@ function parseLooseItemList(rawText) {
       current = {};
     }
 
-    const typeMatch = line.match(/^"?(?:type)[^:"]*"?\s*:\s*["']?([^"',}]+)["']?/i);
+    const typeMatch = line.match(/^"?type"?\s*:\s*["']?([^"',}]+)["']?/i);
     if (typeMatch) {
       current.type = typeMatch[1];
       continue;
     }
 
-    const coordMatches = [...line.matchAll(/["']?([xywh])["']?\s*:\s*([0-9.]+)/g)];
+    const directionMatch = line.match(/^"?direction"?\s*:\s*["']?([^"',}]+)["']?/i);
+    if (directionMatch) {
+      current.direction = directionMatch[1];
+      continue;
+    }
+
+    const angleMatch = line.match(/^"?angle"?\s*:\s*["']?(-?[0-9.]+)["']?/i);
+    if (angleMatch) {
+      current.angle = Number(angleMatch[1]);
+      continue;
+    }
+
+    const fontSizeMatch = line.match(/^"?(?:fontSize|font_size|font)"?\s*:\s*["']?([0-9.]+)["']?/i);
+    if (fontSizeMatch) {
+      current.fontSize = Number(fontSizeMatch[1]);
+      continue;
+    }
+
+    const coordMatches = [...line.matchAll(/["']?(x1|y1|x2|y2)["']?\s*:\s*(-?[0-9.]+)/g)];
     if (coordMatches.length > 0) {
       current.partialBbox = current.partialBbox || {};
       for (const match of coordMatches) {
         current.partialBbox[match[1]] = Number(match[2]);
       }
-      if (["x", "y", "w", "h"].every((key) => Number.isFinite(current.partialBbox[key]))) {
-        current.bbox = {
-          x: current.partialBbox.x,
-          y: current.partialBbox.y,
-          w: current.partialBbox.w,
-          h: current.partialBbox.h
-        };
-      }
+      current.bbox = bboxFromPartial(current.partialBbox) || current.bbox;
       continue;
     }
 
-    const jpMatch = line.match(/^"?(?:jp)[^:"]*"?\s*:\s*["']?(.+?)["']?[,]?$/i);
+    const jpMatch = line.match(/^"?jp"?\s*:\s*["']?(.+?)["']?[,]?$/i);
     if (jpMatch) {
       current.jp = jpMatch[1];
       continue;
     }
 
-    const koMatch = line.match(/^"?(?:ko)[^:"]*"?\s*:\s*["']?(.+?)["']?[,]?$/i);
+    const koMatch = line.match(/^"?ko"?\s*:\s*["']?(.+?)["']?[,]?$/i);
     if (koMatch) {
       current.ko = koMatch[1];
       continue;
@@ -190,7 +220,7 @@ function roundCoordinate(value) {
   return Math.round(value);
 }
 
-function clampCoordinate(value, min, max) {
+function clampCoordinate(value, min, max = Number.POSITIVE_INFINITY) {
   if (!Number.isFinite(value)) {
     return min;
   }
@@ -198,24 +228,50 @@ function clampCoordinate(value, min, max) {
 }
 
 function clampBbox(bbox) {
-  const x = clampCoordinate(bbox.x, 0, 1000);
-  const y = clampCoordinate(bbox.y, 0, 1000);
-  const w = clampCoordinate(bbox.w, 1, 1000 - x);
-  const h = clampCoordinate(bbox.h, 1, 1000 - y);
+  const x = clampCoordinate(bbox.x, 0);
+  const y = clampCoordinate(bbox.y, 0);
+  const w = clampCoordinate(bbox.w, 1);
+  const h = clampCoordinate(bbox.h, 1);
   return { x, y, w, h };
 }
 
+function normalizeDirection(value) {
+  const text = String(value ?? "").trim().toLowerCase();
+  return text === "vertical" ? "vertical" : "horizontal";
+}
+
+function normalizeAngle(value) {
+  const parsed = toNumber(value);
+  if (parsed === null) {
+    return 0;
+  }
+  return Math.min(30, Math.max(-30, Math.round(parsed)));
+}
+
+function normalizeFontSize(value) {
+  const parsed = toNumber(value);
+  if (parsed === null) {
+    return null;
+  }
+  return Math.min(160, Math.max(6, Math.round(parsed)));
+}
+
 function normalizeBBox(item) {
-  const box = item?.bbox ?? item?.box ?? item?.rect ?? item?.region ?? item;
+  const box = item;
   if (!box || typeof box !== "object") {
     return null;
   }
 
-  const hasCorners = ["x1", "y1", "x2", "y2"].every((key) => box[key] !== undefined);
-  const x = toNumber(hasCorners ? box.x1 : box.x ?? box.left);
-  const y = toNumber(hasCorners ? box.y1 : box.y ?? box.top);
-  const w = toNumber(hasCorners ? box.x2 - box.x1 : box.w ?? box.width);
-  const h = toNumber(hasCorners ? box.y2 - box.y1 : box.h ?? box.height);
+  const cornerBbox = bboxFromPartial({
+    x1: toNumber(box.x1),
+    y1: toNumber(box.y1),
+    x2: toNumber(box.x2),
+    y2: toNumber(box.y2)
+  });
+  const x = toNumber(cornerBbox?.x);
+  const y = toNumber(cornerBbox?.y);
+  const w = toNumber(cornerBbox?.w);
+  const h = toNumber(cornerBbox?.h);
 
   if (![x, y, w, h].every((value) => value !== null)) {
     return null;
@@ -243,7 +299,10 @@ function normalizeItem(item, index) {
     type: typeof item?.type === "string" && item.type.trim() ? item.type.trim() : "dialogue",
     bbox,
     jp: jp.trim(),
-    ko: ko.trim()
+    ko: ko.trim(),
+    direction: normalizeDirection(item?.direction ?? item?.sourceDirection ?? item?.writingDirection),
+    angle: normalizeAngle(item?.angle ?? item?.rotation ?? item?.rotationDeg),
+    fontSize: normalizeFontSize(item?.fontSize ?? item?.font_size ?? item?.font)
   };
 }
 
@@ -258,11 +317,7 @@ function normalizeItems(parsed) {
 
   return items
     .map((item, index) => normalizeItem(item, index))
-    .filter(Boolean)
-    .map((item, index) => ({
-      ...item,
-      id: index + 1
-    }));
+    .filter(Boolean);
 }
 
 module.exports = {

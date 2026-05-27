@@ -7,6 +7,7 @@ export type JobKind = "gemma-analysis";
 export type ModelProvider = "gemma" | "openai-codex";
 export type ModelSource = "huggingface" | "local";
 export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
+export type OcrDevice = "cpu" | "gpu";
 
 export type GemmaSettings = {
   modelSource: ModelSource;
@@ -23,11 +24,17 @@ export type CodexSettings = {
   oauthPort: number;
 };
 
+export type OcrSettings = {
+  device: OcrDevice;
+};
+
 export type AppSettings = {
   modelProvider: ModelProvider;
   gemma: GemmaSettings;
   codex: CodexSettings;
+  ocr: OcrSettings;
   nsfwMode: boolean;
+  maxTokens: number;
 };
 
 export type JobStatus =
@@ -42,6 +49,10 @@ export type JobStatus =
 export type JobPhase =
   | "booting"
   | "model_downloading"
+  | "ocr_preparing"
+  | "ocr_downloading"
+  | "ocr_running"
+  | "model_requesting"
   | "ready"
   | "page_running"
   | "page_retry"
@@ -79,6 +90,7 @@ export type TranslationBlock = {
   confidence: number;
   sourceDirection: SourceTextDirection;
   renderDirection: RenderTextDirection;
+  rotationDeg?: number;
   fontSizePx: number;
   lineHeight: number;
   textAlign: "left" | "center" | "right";
@@ -197,6 +209,12 @@ export type JobState = {
   progressText: string;
   detail?: string;
   phase?: JobPhase;
+  progressPercent?: number;
+  progressBytes?: number;
+  progressTotalBytes?: number;
+  progressBytesPerSecond?: number;
+  installLogLine?: string;
+  installLogLines?: string[];
   progressCurrent?: number;
   progressTotal?: number;
   pageIndex?: number;

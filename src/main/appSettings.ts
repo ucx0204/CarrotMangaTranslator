@@ -1,4 +1,4 @@
-import type { AppSettings, CodexReasoningEffort, ModelProvider, ModelSource } from "../shared/types";
+import type { AppSettings, CodexReasoningEffort, JobPhase, ModelProvider, ModelSource, OcrDevice } from "../shared/types";
 
 export const DEFAULT_GEMMA_MODEL_REPO = "unsloth/gemma-4-26B-A4B-it-GGUF";
 export const DEFAULT_GEMMA_MODEL_FILE_Q3 = "gemma-4-26B-A4B-it-UD-Q3_K_XL.gguf";
@@ -8,15 +8,20 @@ export const MAX_GEMMA_GPU_LAYERS = 30;
 export const DEFAULT_GEMMA_GPU_LAYERS = 30;
 export const DEFAULT_MODEL_PROVIDER: ModelProvider = "gemma";
 export const DEFAULT_CODEX_MODEL = "gpt-5.5";
-export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = "medium";
+export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = "low";
 export const DEFAULT_CODEX_OAUTH_PORT = 10531;
 export const DEFAULT_MODEL_SOURCE: ModelSource = "huggingface";
+export const DEFAULT_MAX_TOKENS = 12000;
+export const MIN_MAX_TOKENS = 300;
+export const MAX_MAX_TOKENS = 12000;
+export const DEFAULT_OCR_DEVICE: OcrDevice = "cpu";
 
-const DEFAULT_MAX_TOKENS = 900;
 const DEFAULT_IMAGE_TOKENS = 640;
 
 export type TranslationOptions = {
   imagePath: string;
+  imageWidth?: number;
+  imageHeight?: number;
   outputDir: string;
   modelProvider: ModelProvider;
   port: number;
@@ -41,6 +46,7 @@ export type TranslationOptions = {
   reuseServer: boolean;
   workingDir: string;
   toolsDir: string;
+  ocrRuntimeDir?: string;
   serverPath: string;
   modelSource: ModelSource;
   modelRepo: string;
@@ -50,6 +56,21 @@ export type TranslationOptions = {
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   codexOauthPort: number;
+  ocrDevice: OcrDevice;
+  ocrBboxProvider?: string;
+  ocrBboxCommand?: string;
+  ocrBboxHintsPath?: string;
+  ocrBboxHints?: unknown;
+  onProgress?: (event: {
+    phase: JobPhase;
+    progressText: string;
+    detail?: string;
+    progressPercent?: number;
+    progressBytes?: number;
+    progressTotalBytes?: number;
+    progressBytesPerSecond?: number;
+    installLogLine?: string;
+  }) => void;
   hfHomeDir?: string;
   hfHubCacheDir?: string;
   label: string;
@@ -59,6 +80,7 @@ export type TranslationOptions = {
 export type TranslationOptionPaths = {
   dataRoot: string;
   toolsDir: string;
+  ocrRuntimeDir?: string;
   llamaServerPath: string;
   hfHomeDir?: string;
   hfHubCacheDir?: string;
@@ -81,7 +103,11 @@ export function resolveDefaultAppSettings(env: NodeJS.ProcessEnv = process.env, 
       ),
       oauthPort: resolvePortNumber(env.MANGA_TRANSLATOR_CODEX_OAUTH_PORT, DEFAULT_CODEX_OAUTH_PORT)
     },
-    nsfwMode: false
+    ocr: {
+      device: resolveOcrDevice(env.MANGA_TRANSLATOR_OCR_DEVICE, DEFAULT_OCR_DEVICE)
+    },
+    nsfwMode: false,
+    maxTokens: resolveMaxTokens(env.MANGA_TRANSLATOR_MAX_TOKENS, DEFAULT_MAX_TOKENS)
   };
 }
 
@@ -89,6 +115,7 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
   const record = asRecord(raw);
   const gemma = record?.gemma;
   const codex = record?.codex;
+  const ocr = record?.ocr;
   const localModelPath = resolveOptionalString(asRecord(gemma)?.localModelPath);
   const localMmprojPath = resolveOptionalString(asRecord(gemma)?.localMmprojPath);
   return {
@@ -106,7 +133,11 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
       reasoningEffort: resolveCodexReasoningEffort(asRecord(codex)?.reasoningEffort, defaults.codex.reasoningEffort),
       oauthPort: resolvePortNumber(asRecord(codex)?.oauthPort, defaults.codex.oauthPort)
     },
-    nsfwMode: resolveBoolean(record?.nsfwMode, defaults.nsfwMode)
+    ocr: {
+      device: resolveOcrDevice(asRecord(ocr)?.device, defaults.ocr.device)
+    },
+    nsfwMode: resolveBoolean(record?.nsfwMode, defaults.nsfwMode),
+    maxTokens: resolveMaxTokens(record?.maxTokens, defaults.maxTokens)
   };
 }
 
@@ -145,7 +176,7 @@ export function buildBaseTranslationOptions({
     temperature: readNumberEnv(env, "MANGA_TRANSLATOR_TEMPERATURE", 0),
     topP: readNumberEnv(env, "MANGA_TRANSLATOR_TOP_P", 0.85),
     topK: readNumberEnv(env, "MANGA_TRANSLATOR_TOP_K", 40),
-    maxTokens: readNumberEnv(env, "MANGA_TRANSLATOR_MAX_TOKENS", DEFAULT_MAX_TOKENS),
+    maxTokens: resolveMaxTokens(env.MANGA_TRANSLATOR_MAX_TOKENS, settings.maxTokens),
     ctx: readNumberEnv(env, "MANGA_TRANSLATOR_CTX", 16384),
     batch: readNumberEnv(env, "MANGA_TRANSLATOR_BATCH", 32),
     ubatch: readNumberEnv(env, "MANGA_TRANSLATOR_UBATCH", 32),
@@ -167,8 +198,13 @@ export function buildBaseTranslationOptions({
     localModelPath: settings.gemma.localModelPath,
     localMmprojPath: settings.gemma.localMmprojPath,
     codexModel: settings.codex.model,
-    codexReasoningEffort: settings.codex.reasoningEffort,
+    codexReasoningEffort: resolveCodexReasoningEffort(env.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT, settings.codex.reasoningEffort),
     codexOauthPort: settings.codex.oauthPort,
+    ocrDevice: resolveOcrDevice(env.MANGA_TRANSLATOR_OCR_DEVICE, settings.ocr.device),
+    ocrBboxProvider: resolveOptionalString(env.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER),
+    ocrBboxCommand: resolveOptionalString(env.MANGA_TRANSLATOR_OCR_BBOX_CMD),
+    ocrBboxHintsPath: resolveOptionalString(env.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH),
+    ocrRuntimeDir: paths.ocrRuntimeDir,
     hfHomeDir: paths.hfHomeDir,
     hfHubCacheDir: paths.hfHubCacheDir,
     label: `app-${jobId}`
@@ -186,6 +222,10 @@ function resolveModelProvider(value: unknown, fallback: ModelProvider): ModelPro
 
 function resolveModelSource(value: unknown, fallback: ModelSource): ModelSource {
   return value === "local" || value === "huggingface" ? value : fallback;
+}
+
+function resolveOcrDevice(value: unknown, fallback: OcrDevice): OcrDevice {
+  return value === "gpu" || value === "cpu" ? value : fallback;
 }
 
 function resolveCodexReasoningEffort(value: unknown, fallback: CodexReasoningEffort): CodexReasoningEffort {
@@ -219,6 +259,14 @@ function resolvePortNumber(value: unknown, fallback: number): number {
     return fallback;
   }
   return clampInteger(parsed, 0, 65535);
+}
+
+function resolveMaxTokens(value: unknown, fallback: number): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed)) {
+    return fallback;
+  }
+  return clampInteger(parsed, MIN_MAX_TOKENS, MAX_MAX_TOKENS);
 }
 
 function clampInteger(value: number, min: number, max: number): number {

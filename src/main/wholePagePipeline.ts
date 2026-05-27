@@ -1,10 +1,10 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { buildBaseTranslationOptions, type TranslationOptions } from "./appSettings";
 import { logError, logInfo, logWarn } from "./logger";
 import { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint, type OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
-import { estimateBlockFontSizePx, clampBbox, normalizeBlockType, pixelsToBbox, resolveEffectiveRenderBbox } from "../shared/geometry";
-import type { AppSettings, BBox, BlockType, JobEvent, MangaPage, TranslationBlock } from "../shared/types";
+import { estimateBlockFontSizePx, clamp, clampBbox, enforceRenderDirection, enforceRotationDeg, normalizeBlockType, pixelsToBbox } from "../shared/geometry";
+import type { AppSettings, BBox, BlockType, JobEvent, MangaPage, RenderTextDirection, SourceTextDirection, TranslationBlock } from "../shared/types";
 import { getAppPaths } from "./appPaths";
 import type { ChapterRunPaths } from "./library";
 import { getAppSettings } from "./settingsStore";
@@ -31,7 +31,12 @@ type ModelEndpointHandle = ServerHandle | OpenAIOAuthEndpoint;
 type TranslationResult = {
   outputText: string;
   rawResponse: unknown;
-  requestBody: unknown;
+  requestBody: RequestSummary | unknown;
+};
+
+type OcrBboxResult = {
+  hints: unknown[];
+  diagnostics: unknown[];
 };
 
 type OverlayItem = {
@@ -40,12 +45,38 @@ type OverlayItem = {
   bbox: BBox;
   jp: string;
   ko: string;
+  direction?: SourceTextDirection;
+  angle?: number;
+  fontSize?: number | null;
 };
 
 type DetectedBboxSpace = "normalized_1000" | "pixels";
 
+type RequestSummary = {
+  bboxCoordinateSpace?: DetectedBboxSpace;
+  bboxCoordinateFrame?: {
+    width?: number;
+    height?: number;
+  };
+  ocrBboxHints?: Array<{
+    id?: number;
+    label?: string;
+    x1?: number;
+    y1?: number;
+    x2?: number;
+    y2?: number;
+  }>;
+};
+
+type BboxNormalizationOptions = {
+  coordinateSpace?: DetectedBboxSpace;
+  pixelWidth?: number;
+  pixelHeight?: number;
+};
+
 type RuntimeModules = {
   simplePage: {
+    collectOcrBboxHints: (options: TranslationOptions) => Promise<OcrBboxResult>;
     requestTranslation: (server: ServerHandle, options: TranslationOptions) => Promise<TranslationResult>;
     saveArtifacts: (options: TranslationOptions, result: TranslationResult) => Promise<void>;
     startServer: (options: TranslationOptions) => Promise<ServerHandle>;
@@ -115,6 +146,50 @@ export async function runWholePagePipeline({
     id: jobId,
     kind: "gemma-analysis",
     status: "starting",
+    progressText: "Paddle OCR 선분석 준비 중",
+    phase: "ocr_preparing",
+    progressCurrent: 0,
+    progressTotal,
+    pageTotal: pages.length,
+    detail: "대상 페이지의 OCR 후보 좌표를 먼저 준비합니다."
+  });
+
+  baseOptions.onProgress = (progress) => {
+    emit({
+      id: jobId,
+      kind: "gemma-analysis",
+      status: "starting",
+      progressText: progress.progressText,
+      phase: progress.phase,
+      progressCurrent: 0,
+      progressTotal,
+      pageTotal: pages.length,
+      detail: progress.detail,
+      progressPercent: progress.progressPercent,
+      progressBytes: progress.progressBytes,
+      progressTotalBytes: progress.progressTotalBytes,
+      progressBytesPerSecond: progress.progressBytesPerSecond,
+      installLogLine: progress.installLogLine
+    });
+  };
+  baseOptions.abortSignal = signal;
+
+  const ocrHintsByPageId = await prepareOcrHintsForPages({
+    runtime,
+    baseOptions,
+    pages,
+    runPaths,
+    emit,
+    jobId,
+    signal
+  });
+
+  throwIfAborted(signal);
+
+  emit({
+    id: jobId,
+    kind: "gemma-analysis",
+    status: "starting",
     progressText: localModelSelected
       ? "로컬 모델/서버 준비 중"
       : codexSelected
@@ -166,8 +241,30 @@ export async function runWholePagePipeline({
         throwIfAborted(signal);
 
         const pageOptions = buildPageOptions(baseOptions, page, index, attempt);
+        pageOptions.ocrBboxHints = ocrHintsByPageId.get(page.id)?.hints ?? [];
         lastPageOptions = pageOptions;
         pageOptions.abortSignal = signal;
+        pageOptions.onProgress = (progress) => {
+          emit({
+            id: jobId,
+            kind: "gemma-analysis",
+            status: "running",
+            progressText: progress.progressText,
+            phase: progress.phase,
+            progressCurrent: index + 1,
+            progressTotal,
+            pageIndex: index + 1,
+            pageTotal: pages.length,
+            attempt,
+            attemptTotal: maxAttempts,
+            detail: progress.detail,
+            progressPercent: progress.progressPercent,
+            progressBytes: progress.progressBytes,
+            progressTotalBytes: progress.progressTotalBytes,
+            progressBytesPerSecond: progress.progressBytesPerSecond,
+            installLogLine: progress.installLogLine
+          });
+        };
         emit({
           id: jobId,
           kind: "gemma-analysis",
@@ -218,7 +315,11 @@ export async function runWholePagePipeline({
           await mkdir(pageOptions.outputDir, { recursive: true });
           await writeFile(overlayItemsPath, `${JSON.stringify({ items }, null, 2)}\n`, "utf8");
 
-          const normalizedItems = normalizeOverlayItemBboxes(items, page);
+          const normalizedItems = applyOcrCandidateGeometryLocks(
+            normalizeOverlayItemBboxes(items, page, getBboxNormalizationOptions(result.requestBody)),
+            page,
+            getOcrBboxHints(result.requestBody)
+          );
           successPage = {
             ...page,
             blocks: normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex)),
@@ -243,6 +344,9 @@ export async function runWholePagePipeline({
           break;
         } catch (error) {
           if (isAbortErrorLike(error)) {
+            throw error;
+          }
+          if (isNonRetriableRuntimeError(error)) {
             throw error;
           }
 
@@ -342,6 +446,171 @@ export async function runWholePagePipeline({
   }
 }
 
+async function prepareOcrHintsForPages({
+  runtime,
+  baseOptions,
+  pages,
+  runPaths,
+  emit,
+  jobId,
+  signal
+}: {
+  runtime: RuntimeModules;
+  baseOptions: TranslationOptions;
+  pages: MangaPage[];
+  runPaths: ChapterRunPaths;
+  emit: (event: JobEvent) => void;
+  jobId: string;
+  signal: AbortSignal;
+}): Promise<Map<string, OcrBboxResult>> {
+  const results = new Map<string, OcrBboxResult>();
+  const total = pages.length;
+
+  for (const [index, page] of pages.entries()) {
+    throwIfAborted(signal);
+    const cachePath = getOcrHintsCachePath(runPaths, page);
+    const cached = await readCachedOcrHints(cachePath, page);
+    if (cached) {
+      results.set(page.id, cached);
+      emit({
+        id: jobId,
+        kind: "gemma-analysis",
+        status: "running",
+        progressText: `${page.name} OCR 재사용`,
+        phase: "ocr_running",
+        progressCurrent: index + 1,
+        progressTotal: total,
+        pageIndex: index + 1,
+        pageTotal: total,
+        detail: `${cached.hints.length}개 후보`
+      });
+      continue;
+    }
+
+    emit({
+      id: jobId,
+      kind: "gemma-analysis",
+      status: "running",
+      progressText: `${page.name} OCR 선분석 중`,
+      phase: "ocr_running",
+      progressCurrent: index + 1,
+      progressTotal: total,
+      pageIndex: index + 1,
+      pageTotal: total,
+      detail: `${index + 1}/${total}`
+    });
+
+    const ocrOptions = buildOcrPageOptions(baseOptions, page, runPaths, index);
+    ocrOptions.abortSignal = signal;
+    ocrOptions.onProgress = (progress) => {
+      emit({
+        id: jobId,
+        kind: "gemma-analysis",
+        status: "running",
+        progressText: progress.progressText,
+        phase: progress.phase,
+        progressCurrent: index + 1,
+        progressTotal: total,
+        pageIndex: index + 1,
+        pageTotal: total,
+        detail: progress.detail,
+        progressPercent: progress.progressPercent,
+        progressBytes: progress.progressBytes,
+        progressTotalBytes: progress.progressTotalBytes,
+        progressBytesPerSecond: progress.progressBytesPerSecond,
+        installLogLine: progress.installLogLine
+      });
+    };
+
+    const result = await runtime.simplePage.collectOcrBboxHints(ocrOptions);
+    await writeCachedOcrHints(cachePath, page, result);
+    results.set(page.id, result);
+    emit({
+      id: jobId,
+      kind: "gemma-analysis",
+      status: "running",
+      progressText: `${page.name} OCR 완료`,
+      phase: "ocr_running",
+      progressCurrent: index + 1,
+      progressTotal: total,
+      pageIndex: index + 1,
+      pageTotal: total,
+      detail: `${result.hints.length}개 후보`
+    });
+  }
+
+  emit({
+    id: jobId,
+    kind: "gemma-analysis",
+    status: "running",
+    progressText: "Paddle OCR 선분석 완료",
+    phase: "ocr_running",
+    progressCurrent: total,
+    progressTotal: total,
+    pageTotal: total,
+    detail: "OCR 프로세스를 종료하고 AI 번역 단계로 넘어갑니다."
+  });
+
+  return results;
+}
+
+function buildOcrPageOptions(baseOptions: TranslationOptions, page: MangaPage, runPaths: ChapterRunPaths, index: number): TranslationOptions {
+  const outputDir = getOcrHintsOutputDir(runPaths, page);
+  return {
+    ...baseOptions,
+    imagePath: page.imagePath,
+    imageWidth: page.width,
+    imageHeight: page.height,
+    outputDir,
+    label: `ocr-page-${index + 1}`
+  };
+}
+
+function getOcrHintsOutputDir(runPaths: ChapterRunPaths, page: MangaPage): string {
+  return join(runPaths.chapterDir, "ocr-hints", page.id);
+}
+
+function getOcrHintsCachePath(runPaths: ChapterRunPaths, page: MangaPage): string {
+  return join(getOcrHintsOutputDir(runPaths, page), "result.json");
+}
+
+async function readCachedOcrHints(cachePath: string, page: MangaPage): Promise<OcrBboxResult | null> {
+  try {
+    const raw = JSON.parse(await readFile(cachePath, "utf8")) as {
+      imagePath?: string;
+      width?: number;
+      height?: number;
+      hints?: unknown[];
+      diagnostics?: unknown[];
+    };
+    if (raw.imagePath !== page.imagePath || raw.width !== page.width || raw.height !== page.height || !Array.isArray(raw.hints)) {
+      return null;
+    }
+    return {
+      hints: raw.hints,
+      diagnostics: Array.isArray(raw.diagnostics) ? raw.diagnostics : []
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function writeCachedOcrHints(cachePath: string, page: MangaPage, result: OcrBboxResult): Promise<void> {
+  await mkdir(dirname(cachePath), { recursive: true });
+  await writeFile(
+    cachePath,
+    `${JSON.stringify({
+      imagePath: page.imagePath,
+      width: page.width,
+      height: page.height,
+      hints: result.hints,
+      diagnostics: result.diagnostics,
+      updatedAt: new Date().toISOString()
+    }, null, 2)}\n`,
+    "utf8"
+  );
+}
+
 export function buildBaseOptions(
   jobId: string,
   runDir: string,
@@ -362,68 +631,242 @@ function buildPageOptions(baseOptions: TranslationOptions, page: MangaPage, inde
   return {
     ...baseOptions,
     imagePath: page.imagePath,
-    promptOverrideText: attempt > 1 ? buildRetryPrompt() : undefined,
+    imageWidth: page.width,
+    imageHeight: page.height,
     outputDir: join(baseOptions.outputDir, "pages", page.id, `attempt-${attempt}`),
     label: `page-${index + 1}-attempt-${attempt}`
   };
 }
 
-function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: number): TranslationBlock {
+export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: number): TranslationBlock {
   const type = mapOverlayType(item.type);
-  const bbox = clampBbox(item.bbox);
+  const rawBbox = clampBbox(item.bbox);
   const translatedText = item.ko.trim();
   const sourceText = item.jp.trim();
   const textForSizing = translatedText || sourceText || "...";
   const lineHeight = 1.18;
-  const renderDirection = "horizontal" as const;
-  const renderBbox = resolveEffectiveRenderBbox(
-    {
-      bbox,
-      bboxSpace: "normalized_1000",
-      renderDirection,
-      lineHeight,
-      autoFitText: true
-    },
-    { width: page.width, height: page.height },
-    textForSizing
-  );
-  const needsRenderBbox = !hasSameBbox(renderBbox, bbox);
-
+  const fontSizePx = resolveOverlayFontSizePx(item, rawBbox, page, textForSizing);
+  const sourceDirection = item.direction === "vertical" ? "vertical" : "horizontal";
+  const bbox = rawBbox;
+  const renderDirection = resolveInitialRenderDirection(type, sourceDirection, item, bbox, page, fontSizePx);
+  const rotationDeg = enforceRotationDeg(type, item.angle ?? 0);
   return {
     id: `${page.id}-block-${index + 1}`,
     type,
     bbox,
     bboxSpace: "normalized_1000",
-    ...(needsRenderBbox ? { renderBbox, renderBboxSpace: "normalized_1000" as const } : {}),
     sourceText,
     translatedText,
     confidence: sourceText ? 0.92 : 0.75,
-    sourceDirection: "vertical",
+    sourceDirection,
     renderDirection,
-    fontSizePx: estimateBlockFontSizePx(
-      textForSizing,
-      needsRenderBbox ? { bbox, renderBbox, renderBboxSpace: "normalized_1000" } : { bbox },
-      { width: page.width, height: page.height }
-    ),
+    rotationDeg,
+    fontSizePx,
     lineHeight,
     textAlign: "center",
     textColor: DEFAULT_TEXT_COLOR,
-    backgroundColor: type === "sfx" ? "#fff4ea" : DEFAULT_BACKGROUND_COLOR,
-    opacity: type === "sfx" ? 0.5 : 0.88,
+    backgroundColor: type === "sfx" || type === "caption" ? "#fff4ea" : DEFAULT_BACKGROUND_COLOR,
+    opacity: type === "caption" ? 0.7 : type === "sfx" ? 0.5 : 1,
     autoFitText: true
   };
 }
 
-function hasSameBbox(a: BBox, b: BBox): boolean {
-  return Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01 && Math.abs(a.w - b.w) < 0.01 && Math.abs(a.h - b.h) < 0.01;
+function resolveOverlayFontSizePx(item: OverlayItem, bbox: BBox, page: MangaPage, textForSizing: string): number {
+  if (typeof item.fontSize === "number" && Number.isFinite(item.fontSize)) {
+    return Math.round(clamp(item.fontSize, 6, 160));
+  }
+
+  return estimateBlockFontSizePx(textForSizing, { bbox }, { width: page.width, height: page.height });
 }
 
-function normalizeOverlayItemBboxes(items: OverlayItem[], page: MangaPage): OverlayItem[] {
-  const bboxSpace = inferDetectedBboxSpace(items, page);
+function resolveInitialRenderDirection(
+  type: BlockType,
+  sourceDirection: SourceTextDirection,
+  item: OverlayItem,
+  bbox: BBox,
+  page: MangaPage,
+  fontSizePx: number
+): RenderTextDirection {
+  if (type === "speech" || type === "caption") {
+    return "horizontal";
+  }
+
+  if (type === "sfx" && sourceDirection === "vertical" && shouldKeepVerticalRendering(bbox, page, fontSizePx)) {
+    return "vertical";
+  }
+
+  if (Math.abs(enforceRotationDeg(type, item.angle ?? 0)) > 0) {
+    return "rotated";
+  }
+
+  return enforceRenderDirection(type, "horizontal");
+}
+
+function shouldKeepVerticalRendering(bbox: BBox, page: MangaPage, fontSizePx: number): boolean {
+  const widthPx = (bbox.w / 1000) * page.width;
+  const estimatedColumns = Math.max(1, Math.round(widthPx / Math.max(1, fontSizePx * 1.15)));
+  return estimatedColumns <= 2;
+}
+
+export function normalizeOverlayItemBboxes(items: OverlayItem[], page: MangaPage, options: BboxNormalizationOptions = {}): OverlayItem[] {
+  const bboxSpace = options.coordinateSpace ?? inferDetectedBboxSpace(items, page);
+  const pixelWidth = options.pixelWidth && options.pixelWidth > 0 ? options.pixelWidth : page.width;
+  const pixelHeight = options.pixelHeight && options.pixelHeight > 0 ? options.pixelHeight : page.height;
+  const fontSizeScale = bboxSpace === "pixels" ? Math.max(page.width / pixelWidth, page.height / pixelHeight) : 1;
   return items.map((item) => ({
     ...item,
-    bbox: bboxSpace === "pixels" ? pixelsToBbox(item.bbox, page.width, page.height) : clampBbox(item.bbox)
+    bbox: bboxSpace === "pixels" ? pixelsToBbox(item.bbox, pixelWidth, pixelHeight) : clampBbox(item.bbox),
+    fontSize:
+      bboxSpace === "pixels" && typeof item.fontSize === "number" && Number.isFinite(item.fontSize)
+        ? Math.max(1, Math.round(item.fontSize * fontSizeScale))
+        : item.fontSize
   }));
+}
+
+function getBboxNormalizationOptions(requestBody: TranslationResult["requestBody"]): BboxNormalizationOptions {
+  if (!requestBody || typeof requestBody !== "object") {
+    return {};
+  }
+
+  const summary = requestBody as RequestSummary;
+  if (summary.bboxCoordinateSpace !== "pixels") {
+    return {};
+  }
+
+  return {
+    coordinateSpace: "pixels",
+    pixelWidth: Number(summary.bboxCoordinateFrame?.width),
+    pixelHeight: Number(summary.bboxCoordinateFrame?.height)
+  };
+}
+
+function getOcrBboxHints(requestBody: TranslationResult["requestBody"]): NonNullable<RequestSummary["ocrBboxHints"]> {
+  if (!requestBody || typeof requestBody !== "object") {
+    return [];
+  }
+  const hints = (requestBody as RequestSummary).ocrBboxHints;
+  return Array.isArray(hints) ? hints : [];
+}
+
+export function applyOcrCandidateGeometryLocks(items: OverlayItem[], page: MangaPage, hints: NonNullable<RequestSummary["ocrBboxHints"]>): OverlayItem[] {
+  if (hints.length === 0) {
+    return items;
+  }
+
+  const hintMap = new Map<number, { bbox: BBox; label: string }>();
+  for (const hint of hints) {
+    const id = Number(hint.id);
+    const x1 = Number(hint.x1);
+    const y1 = Number(hint.y1);
+    const x2 = Number(hint.x2);
+    const y2 = Number(hint.y2);
+    if (!Number.isInteger(id) || id <= 0 || ![x1, y1, x2, y2].every(Number.isFinite)) {
+      continue;
+    }
+    hintMap.set(id, {
+      bbox: pixelsToBbox({
+        x: Math.min(x1, x2),
+        y: Math.min(y1, y2),
+        w: Math.abs(x2 - x1),
+        h: Math.abs(y2 - y1)
+      }, page.width, page.height),
+      label: String(hint.label ?? "")
+    });
+  }
+
+  if (hintMap.size === 0) {
+    return items;
+  }
+
+  const usedHintIds = new Set<number>();
+  const firstPass = items.map((item) => {
+    const lockedHint = hintMap.get(item.id);
+    if (!lockedHint || !isNearOcrHint(item.bbox, lockedHint.bbox, page)) {
+      return item;
+    }
+    usedHintIds.add(item.id);
+    return {
+      ...item,
+      bbox: lockedHint.bbox
+    };
+  });
+
+  return firstPass.map((item) => {
+    if (usedHintIds.has(item.id) || normalizeBlockType(item.type) === "sfx") {
+      return item;
+    }
+    const nearest = findNearestUnusedLayoutHint(item.bbox, page, hintMap, usedHintIds);
+    if (!nearest) {
+      return item;
+    }
+    usedHintIds.add(nearest.id);
+    return {
+      ...item,
+      bbox: nearest.bbox
+    };
+  });
+}
+
+function findNearestUnusedLayoutHint(
+  bbox: BBox,
+  page: MangaPage,
+  hints: Map<number, { bbox: BBox; label: string }>,
+  usedHintIds: Set<number>
+): { id: number; bbox: BBox } | null {
+  let best: { id: number; bbox: BBox; distance: number } | null = null;
+  for (const [id, hint] of hints) {
+    if (usedHintIds.has(id) || hint.label === "ocr_textline") {
+      continue;
+    }
+    if (!isNearOcrHint(bbox, hint.bbox, page)) {
+      continue;
+    }
+    const distance = bboxCenterDistancePx(bbox, hint.bbox, page);
+    if (!best || distance < best.distance) {
+      best = { id, bbox: hint.bbox, distance };
+    }
+  }
+  return best;
+}
+
+function isNearOcrHint(modelBbox: BBox, hintBbox: BBox, page: MangaPage): boolean {
+  const modelPx = normalizedBboxToPixels(modelBbox, page);
+  const hintPx = normalizedBboxToPixels(hintBbox, page);
+  const modelCenterX = modelPx.x + modelPx.w / 2;
+  const modelCenterY = modelPx.y + modelPx.h / 2;
+  const hintCenterX = hintPx.x + hintPx.w / 2;
+  const hintCenterY = hintPx.y + hintPx.h / 2;
+  const distance = Math.hypot(modelCenterX - hintCenterX, modelCenterY - hintCenterY);
+  const tolerance = Math.max(150, Math.max(hintPx.w, hintPx.h) * 1.35);
+  return distance <= tolerance || bboxOverlapRatio(modelPx, hintPx) > 0.1;
+}
+
+function bboxCenterDistancePx(a: BBox, b: BBox, page: MangaPage): number {
+  const aPx = normalizedBboxToPixels(a, page);
+  const bPx = normalizedBboxToPixels(b, page);
+  return Math.hypot(
+    aPx.x + aPx.w / 2 - (bPx.x + bPx.w / 2),
+    aPx.y + aPx.h / 2 - (bPx.y + bPx.h / 2)
+  );
+}
+
+function normalizedBboxToPixels(bbox: BBox, page: MangaPage): BBox {
+  return {
+    x: (bbox.x / 1000) * page.width,
+    y: (bbox.y / 1000) * page.height,
+    w: (bbox.w / 1000) * page.width,
+    h: (bbox.h / 1000) * page.height
+  };
+}
+
+function bboxOverlapRatio(a: BBox, b: BBox): number {
+  const left = Math.max(a.x, b.x);
+  const top = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.w, b.x + b.w);
+  const bottom = Math.min(a.y + a.h, b.y + b.h);
+  const overlap = Math.max(0, right - left) * Math.max(0, bottom - top);
+  const minArea = Math.max(1, Math.min(a.w * a.h, b.w * b.h));
+  return overlap / minArea;
 }
 
 function inferDetectedBboxSpace(items: OverlayItem[], page: Pick<MangaPage, "width" | "height">): DetectedBboxSpace {
@@ -532,6 +975,7 @@ function summarizeTranslationOptions(options: TranslationOptions): Record<string
     codexModel: options.codexModel,
     codexReasoningEffort: options.codexReasoningEffort,
     codexOauthPort: options.codexOauthPort,
+    ocrDevice: options.ocrDevice,
     hfHomeDir: options.hfHomeDir ?? null,
     hfHubCacheDir: options.hfHubCacheDir ?? null
   };
@@ -568,6 +1012,9 @@ function summarizePage(page: MangaPage): Record<string, unknown> {
 }
 
 function classifyFailure(error: unknown): string {
+  if (isNonRetriableRuntimeError(error)) {
+    return "runtime";
+  }
   const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
 
   if (message.includes("build-page-variant")) {
@@ -599,37 +1046,8 @@ function classifyFailure(error: unknown): string {
   return "unknown";
 }
 
-function buildRetryPrompt(): string {
-  return [
-    "You are given the same Japanese manga page in multiple full-page renderings.",
-    "Detect each visible Japanese text group and return only plain text records for a downstream parser.",
-    "Use coordinates for the ORIGINAL page only.",
-    "Use this exact field format and nothing else:",
-    "id: 1",
-    "type: dialogue",
-    "x: 120",
-    "y: 80",
-    "w: 160",
-    "h: 240",
-    "jp: 馬鹿者… 無理をするな",
-    "ko: 바보 같은 녀석… 무리하지 마라.",
-    "",
-    "Rules:",
-    "- One field per line.",
-    "- One blank line between items.",
-    "- No JSON, no braces, no bullets, no markdown fences, no commentary.",
-    "- Use only keys: id, type, x, y, w, h, jp, ko.",
-    "- x, y, w, h must be integers in 0..1000 coordinates with top-left origin.",
-    "- bbox means the tight rectangle around the visible Japanese glyphs only.",
-    "- Do not box the whole speech bubble, panel, caption plate, background shape, or blank margin.",
-    "- Do not enlarge or move a bbox to make the Korean replacement easier to fit.",
-    "- For dialogue inside a speech bubble, box only the Japanese text glyph group, not the bubble.",
-    "- Merge multiple vertical lines that belong to the same sentence or speech bubble into one item, but keep the bbox tight around those glyphs.",
-    "- For narration/caption text, box only the printed Japanese glyphs, not the surrounding caption background.",
-    "- For sfx, box only the visible sound-effect glyph strokes; ignore motion lines, impact lines, and surrounding art.",
-    "- Keep jp and ko on one line each.",
-    "- If uncertain, still output the best approximate item instead of skipping it."
-  ].join("\n");
+function isNonRetriableRuntimeError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "nonRetriable" in error && (error as { nonRetriable?: unknown }).nonRetriable);
 }
 
 function isAbortErrorLike(error: unknown): boolean {

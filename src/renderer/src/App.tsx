@@ -11,9 +11,10 @@ import type {
   WorkShareExportRequest,
   WorkShareImportPreview
 } from "../../shared/types";
-import { applyEditableBlockBbox, clampBbox, enforceRenderDirection, offsetBlockBboxes, resolveEditableBlockBbox } from "../../shared/geometry";
+import { applyEditableBlockBbox, clampBbox, enforceRenderDirection, enforceRotationDeg, offsetBlockBboxes, resolveEditableBlockBbox } from "../../shared/geometry";
 import { EditorPanel } from "./components/EditorPanel";
 import { ImageStage } from "./components/ImageStage";
+import { InstallProgressOverlay } from "./components/InstallProgressOverlay";
 import { ImportModal, type ImportModalSubmit } from "./components/ImportModal";
 import { LibraryTree } from "./components/LibraryTree";
 import { PageList } from "./components/PageList";
@@ -184,6 +185,16 @@ export default function App(): React.JSX.Element {
         progressText: friendlyText,
         detail: event.detail ?? current.detail,
         phase: event.phase ?? current.phase,
+        progressPercent: event.progressPercent ?? (event.installLogLine && current.id === event.id ? current.progressPercent : undefined),
+        progressBytes: event.progressBytes ?? (event.installLogLine && current.id === event.id ? current.progressBytes : undefined),
+        progressTotalBytes: event.progressTotalBytes ?? (event.installLogLine && current.id === event.id ? current.progressTotalBytes : undefined),
+        progressBytesPerSecond: event.progressBytesPerSecond ?? (event.installLogLine && current.id === event.id ? current.progressBytesPerSecond : undefined),
+        installLogLine: event.installLogLine,
+        installLogLines: event.installLogLine
+          ? [...(current.id === event.id ? current.installLogLines ?? [] : []), event.installLogLine].slice(-80)
+          : current.id === event.id
+            ? current.installLogLines
+            : undefined,
         progressCurrent: event.progressCurrent ?? current.progressCurrent,
         progressTotal: event.progressTotal ?? current.progressTotal,
         pageIndex: event.pageIndex ?? current.pageIndex,
@@ -606,11 +617,13 @@ export default function App(): React.JSX.Element {
                 }
 
                 const nextType = patch.type ?? block.type;
+                const nextRenderDirection = enforceRenderDirection(nextType, patch.renderDirection ?? block.renderDirection);
                 return {
                   ...block,
                   ...patch,
                   type: nextType,
-                  renderDirection: enforceRenderDirection(nextType, patch.renderDirection ?? block.renderDirection),
+                  renderDirection: nextRenderDirection,
+                  rotationDeg: enforceRotationDeg(nextType, patch.rotationDeg ?? block.rotationDeg ?? 0),
                   bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
                   bboxSpace: patch.bbox ? "normalized_1000" : block.bboxSpace,
                   renderBbox: patch.renderBbox ? clampBbox(patch.renderBbox) : block.renderBbox,
@@ -1023,6 +1036,7 @@ export default function App(): React.JSX.Element {
             </div>
           </div>
         )}
+        <InstallProgressOverlay job={jobState} snapshot={progressSnapshot} />
       </section>
 
       <aside className="right-rail">

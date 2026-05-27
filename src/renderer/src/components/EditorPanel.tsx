@@ -43,7 +43,7 @@ export function EditorPanel({ block, disabled, onUpdate, onDelete, onDuplicate }
         방향
         <select
           value={block.renderDirection}
-          disabled={disabled}
+          disabled={disabled || block.type === "speech"}
           onChange={(event) => onUpdate({ renderDirection: event.target.value as RenderTextDirection })}
         >
           <option value="horizontal">horizontal</option>
@@ -51,6 +51,18 @@ export function EditorPanel({ block, disabled, onUpdate, onDelete, onDuplicate }
           <option value="rotated">rotated</option>
           <option value="hidden">hidden</option>
         </select>
+      </label>
+      <label>
+        기울기 {block.rotationDeg ?? 0}°
+        <input
+          type="range"
+          min={-30}
+          max={30}
+          step={1}
+          value={block.rotationDeg ?? 0}
+          disabled={disabled || block.type === "speech"}
+          onChange={(event) => onUpdate({ rotationDeg: Number(event.target.value) })}
+        />
       </label>
       <label>
         투명도 {Math.round(block.opacity * 100)}%

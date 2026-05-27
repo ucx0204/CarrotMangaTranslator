@@ -27,6 +27,24 @@ describe("job progress helpers", () => {
         attemptTotal: 5
       })
     ).toBe("3 / 20 페이지 재시도 2 / 5");
+
+    expect(
+      formatJobLabel({
+        status: "running",
+        phase: "ocr_running",
+        pageIndex: 3,
+        pageTotal: 20
+      })
+    ).toBe("3 / 20 페이지 Paddle OCR 분석 중");
+
+    expect(
+      formatJobLabel({
+        status: "running",
+        phase: "model_requesting",
+        pageIndex: 3,
+        pageTotal: 20
+      })
+    ).toBe("3 / 20 페이지 AI 번역 요청 중");
   });
 
   it("returns a clamped determinate progress snapshot", () => {

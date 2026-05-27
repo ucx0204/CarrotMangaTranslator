@@ -4,11 +4,9 @@ import { bboxToPixels, clamp, MIN_READABLE_FONT_SIZE_PX, resolveBlockRenderBbox,
 const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
 const MAX_AUTOFIT_FONT_SIZE_PX = 256;
 const MIN_BLOCK_PADDING_PX = 0;
-const MAX_BLOCK_PADDING_PX = 14;
 const MIN_INNER_SIZE_PX = 1;
 const BLOCK_BORDER_PX = 1;
-const MAX_TEXT_MEASURE_GUARD_PX = 10;
-const TEXT_MEASURE_GUARD_RATIO_PER_SIDE = 0.06;
+const MAX_VERTICAL_COLUMNS = 2;
 
 let measureCanvas: HTMLCanvasElement | null = null;
 
@@ -40,18 +38,8 @@ export function resolveOverlayFontSizePx(block: TranslationBlock, text: string, 
 }
 
 export function resolveBlockPaddingPx(rect: PixelRect): number {
-  const shortestSide = Math.min(rect.width, rect.height);
-  if (shortestSide <= 48) {
-    return 0;
-  }
-  if (shortestSide <= 72) {
-    return 1;
-  }
-  if (shortestSide <= 96) {
-    return 2;
-  }
-
-  return Math.round(clamp(shortestSide * 0.06, 3, MAX_BLOCK_PADDING_PX));
+  void rect;
+  return 0;
 }
 
 export function resolveBlockTextLayout(
@@ -65,9 +53,8 @@ export function resolveBlockTextLayout(
   const borderInsetPx = BLOCK_BORDER_PX * 2;
   const innerWidth = Math.max(MIN_INNER_SIZE_PX, rect.width - paddingPx * 2 - borderInsetPx);
   const innerHeight = Math.max(MIN_INNER_SIZE_PX, rect.height - paddingPx * 2 - borderInsetPx);
-  const textMeasureGuardPx = resolveTextMeasureGuardPx(innerWidth, innerHeight);
-  const fitInnerWidth = Math.max(MIN_INNER_SIZE_PX, innerWidth - textMeasureGuardPx * 2);
-  const fitInnerHeight = Math.max(MIN_INNER_SIZE_PX, innerHeight - textMeasureGuardPx * 2);
+  const fitInnerWidth = innerWidth;
+  const fitInnerHeight = innerHeight;
   const scale = Math.min(stageSize.width / Math.max(1, pageSize.width), stageSize.height / Math.max(1, pageSize.height));
   const preferredFontSize = Math.max(MIN_FONT_SIZE_PX, Math.floor(block.fontSizePx * scale));
   const maxFontSize = resolveAutoFitUpperBound(block, preferredFontSize, fitInnerWidth, fitInnerHeight);
@@ -191,16 +178,13 @@ function measureWrappedText(
 }
 
 function resolveAutoFitUpperBound(block: TranslationBlock, preferredFontSize: number, innerWidth: number, innerHeight: number): number {
+  void innerWidth;
+  void innerHeight;
   if (!(block.autoFitText ?? true)) {
     return preferredFontSize;
   }
 
-  return clamp(Math.max(preferredFontSize, innerWidth, innerHeight), MIN_FONT_SIZE_PX, MAX_AUTOFIT_FONT_SIZE_PX);
-}
-
-function resolveTextMeasureGuardPx(innerWidth: number, innerHeight: number): number {
-  const shortestSide = Math.min(innerWidth, innerHeight);
-  return Math.floor(clamp(shortestSide * TEXT_MEASURE_GUARD_RATIO_PER_SIDE, 0, MAX_TEXT_MEASURE_GUARD_PX));
+  return clamp(preferredFontSize, MIN_FONT_SIZE_PX, MAX_AUTOFIT_FONT_SIZE_PX);
 }
 
 function measureVerticalText(
@@ -220,7 +204,7 @@ function measureVerticalText(
   const estimatedColumnWidth = fontSize * 1.15;
   return {
     columnCount,
-    fits: columnCount * estimatedColumnWidth <= maxWidth
+    fits: columnCount <= MAX_VERTICAL_COLUMNS && columnCount * estimatedColumnWidth <= maxWidth
   };
 }
 

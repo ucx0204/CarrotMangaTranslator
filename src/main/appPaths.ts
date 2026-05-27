@@ -14,6 +14,7 @@ export type AppPaths = {
   logFile: string;
   runtimeDir: string;
   toolsDir: string;
+  ocrRuntimeDir: string;
   llamaRuntimeDir: string;
   llamaServerPath: string;
   hfHomeDir?: string;
@@ -34,6 +35,12 @@ export function getAppPaths(): AppPaths {
   const logsDir = isPackaged ? join(dataRoot, "logs") : join(repoRoot, "logs");
   const runtimeDir = isPackaged ? join(resourcesDir, "app-runtime") : join(repoRoot, "out", "app-runtime");
   const toolsDir = isPackaged ? join(resourcesDir, "tools") : join(repoRoot, "tools");
+  const explicitOcrRuntimeDir = process.env.MANGA_TRANSLATOR_OCR_RUNTIME_DIR?.trim();
+  const ocrRuntimeDir = explicitOcrRuntimeDir || (
+    process.platform === "win32"
+      ? join(process.env.LOCALAPPDATA || dataRoot, "manga-gemma-translator", "ocr-runtime")
+      : join(dataRoot, "ocr-runtime")
+  );
   const llamaRuntimeDir = join(toolsDir, "llama-b8833-cuda12.4");
   const llamaServerBinary = process.platform === "win32" ? "llama-server.exe" : "llama-server";
   const explicitHfHome = process.env.MANGA_TRANSLATOR_HF_HOME?.trim();
@@ -53,6 +60,7 @@ export function getAppPaths(): AppPaths {
     logFile: join(logsDir, "app.log"),
     runtimeDir,
     toolsDir,
+    ocrRuntimeDir,
     llamaRuntimeDir,
     llamaServerPath: join(llamaRuntimeDir, llamaServerBinary),
     hfHomeDir,
@@ -70,5 +78,6 @@ export function ensureWritableAppDirectories(): AppPaths {
   if (paths.hfHubCacheDir) {
     mkdirSync(paths.hfHubCacheDir, { recursive: true });
   }
+  mkdirSync(paths.ocrRuntimeDir, { recursive: true });
   return paths;
 }

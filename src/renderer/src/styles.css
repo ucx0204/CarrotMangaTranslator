@@ -113,6 +113,7 @@ textarea {
 }
 
 .workspace {
+  position: relative;
   display: grid;
   place-items: center;
   overflow: auto;
@@ -138,6 +139,7 @@ textarea {
   border: 1px solid #333841;
   border-radius: 10px;
   background: #1c1f25;
+  min-width: 0;
 }
 
 .library-panel,
@@ -491,6 +493,8 @@ textarea {
   border-radius: 8px;
   background: #15181d;
   border: 1px solid #2d333b;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .progress-meta {
@@ -500,16 +504,31 @@ textarea {
   gap: 12px;
   color: #ddd5ca;
   font-size: 13px;
+  min-width: 0;
+}
+
+.progress-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+  line-height: 1.35;
 }
 
 .progress-meta strong {
+  flex: 0 0 auto;
   color: #f6efe4;
   font-size: 12px;
 }
 
 .progress-detail {
+  display: block;
+  max-width: 100%;
   color: #b8b1a6;
   font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .progress-track {
@@ -577,6 +596,7 @@ textarea {
 }
 
 .workspace-pane {
+  position: relative;
   width: min(100%, 1040px);
 }
 
@@ -657,9 +677,133 @@ textarea {
 }
 
 .empty-state {
+  position: relative;
   max-width: 560px;
   text-align: center;
   color: #d8d0c3;
+}
+
+.install-progress-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(16, 17, 20, 0.12), rgba(16, 17, 20, 0.5));
+  backdrop-filter: blur(2px);
+}
+
+.install-progress-card {
+  width: min(680px, calc(100vw - 96px));
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 14px;
+  border: 1px solid rgba(111, 168, 255, 0.35);
+  background: linear-gradient(180deg, rgba(29, 34, 42, 0.98), rgba(18, 21, 27, 0.98));
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: #f5efe6;
+}
+
+.install-progress-header {
+  display: grid;
+  gap: 6px;
+}
+
+.install-progress-kicker {
+  color: #78c7b2;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.install-progress-header strong {
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.install-progress-root {
+  position: relative;
+  height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid #364454;
+  background: #0d1015;
+}
+
+.install-progress-indicator {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f7d6d 0%, #5fc8ad 52%, #9bd7ff 100%);
+  transition: transform 420ms ease;
+}
+
+.install-progress-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #d9d1c6;
+  font-size: 13px;
+}
+
+.install-progress-stats span {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #121720;
+  border: 1px solid #303844;
+}
+
+.install-progress-card p {
+  margin: 0;
+  color: #bdb5aa;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.install-progress-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 128px;
+  max-height: 180px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #303844;
+  background: rgba(5, 8, 12, 0.62);
+  scrollbar-color: #4a5667 rgba(8, 12, 18, 0.8);
+  scrollbar-width: thin;
+}
+
+.install-progress-log::-webkit-scrollbar {
+  width: 10px;
+}
+
+.install-progress-log::-webkit-scrollbar-track {
+  background: rgba(8, 12, 18, 0.8);
+  border-radius: 999px;
+}
+
+.install-progress-log::-webkit-scrollbar-thumb {
+  background: #4a5667;
+  border: 2px solid rgba(8, 12, 18, 0.8);
+  border-radius: 999px;
+}
+
+.install-progress-log code {
+  display: block;
+  color: #aab7c8;
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .empty-state h2 {

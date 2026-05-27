@@ -1,5 +1,5 @@
 const { spawn } = require("node:child_process");
-const { existsSync, readdirSync, statSync } = require("node:fs");
+const { existsSync, readFileSync, readdirSync, statSync, writeFileSync } = require("node:fs");
 const { mkdir, readFile, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
@@ -9,8 +9,20 @@ const { resolveBundledServerPath } = require("./resolve-llama-runtime.cjs");
 const DEFAULT_MODEL_HF = "unsloth/gemma-4-26B-A4B-it-GGUF";
 const DEFAULT_HF_FILE = "gemma-4-26B-A4B-it-UD-Q6_K_XL.gguf";
 const DEFAULT_CODEX_MODEL = "gpt-5.5";
-const DEFAULT_CODEX_REASONING_EFFORT = "medium";
+const DEFAULT_CODEX_REASONING_EFFORT = "low";
 const DEFAULT_API_KEY = "local-llama-server";
+const DEFAULT_OCR_CPU_PIP_PACKAGES = ["paddlepaddle==3.3.1", "paddleocr==3.5.0", "paddlex[ocr]==3.5.2"];
+const DEFAULT_OCR_GPU_PADDLE_PACKAGE = "paddlepaddle-gpu==3.3.1";
+const DEFAULT_OCR_GPU_EXTRA_PACKAGES = ["paddleocr==3.5.0", "paddlex[ocr]==3.5.2"];
+const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
+const OCR_INSTALL_MARKER_FILE = "install-complete.json";
+const OCR_CPU_RUNTIME_ESTIMATE_BYTES = 2.2 * 1024 * 1024 * 1024;
+const OCR_GPU_RUNTIME_ESTIMATE_BYTES = 4.3 * 1024 * 1024 * 1024;
+const GEMMA_MODEL_ESTIMATE_BYTES = {
+  "gemma-4-26B-A4B-it-UD-Q3_K_XL.gguf": 16 * 1024 * 1024 * 1024,
+  "gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf": 24 * 1024 * 1024 * 1024,
+  "gemma-4-26B-A4B-it-UD-Q6_K_XL.gguf": 32 * 1024 * 1024 * 1024
+};
 const MAX_LOG_PREVIEW_LENGTH = 8000;
 const MM_PROJ_CANDIDATE_NAMES = ["mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-F32.gguf", "mmproj.gguf"];
 
@@ -68,6 +80,9 @@ function buildOptionSummary(options = {}) {
     codexModel: resolveConfiguredCodexModel(options),
     codexReasoningEffort: resolveConfiguredCodexReasoningEffort(options),
     codexOauthPort: options.codexOauthPort,
+    ocrBboxProvider: resolveOcrBboxProvider(options),
+    ocrDevice: resolveOcrDevice(options),
+    ocrRuntimeDir: resolveOcrRuntimeDir(options),
     launchMode: launchTarget.launchMode,
     hfHomeDir: resolveHfHomeDir(options),
     hfHubCacheDir: resolveHubCacheDir(options)
@@ -79,11 +94,17 @@ function summarizeImageVariants(imageVariants) {
     role: variant.role,
     path: variant.path,
     mime: variant.mime || mimeFromPath(variant.path),
-    convertedFromMime: variant.convertedFromMime || null
+    convertedFromMime: variant.convertedFromMime || null,
+    width: variant.width || null,
+    height: variant.height || null,
+    originalWidth: variant.originalWidth || null,
+    originalHeight: variant.originalHeight || null
   }));
 }
 
 function buildRequestSummary(server, options, imageVariants, promptText, systemPrompt) {
+  const coordinateFrame = resolvePromptCoordinateFrame(options, imageVariants);
+  const ocrBboxHints = Array.isArray(options.ocrBboxHints) ? options.ocrBboxHints : [];
   return {
     endpoint: `${server.baseUrl}/${isOpenAICodexProvider(options) ? "responses" : "chat/completions"}`,
     model: resolveRequestModelName(options),
@@ -92,6 +113,27 @@ function buildRequestSummary(server, options, imageVariants, promptText, systemP
     promptPreview: truncateText(promptText, 2400),
     systemPromptPreview: truncateText(systemPrompt, 2400),
     imageVariants: summarizeImageVariants(imageVariants),
+    bboxCoordinateSpace: coordinateFrame.space,
+    bboxCoordinateFrame: coordinateFrame.frame,
+    ocrBboxHintCount: ocrBboxHints.length,
+    ocrBboxHints: ocrBboxHints.slice(0, 80).map((hint) => ({
+      id: hint.id,
+      label: hint.label,
+      x1: hint.x1,
+      y1: hint.y1,
+      x2: hint.x2,
+      y2: hint.y2,
+      score: hint.score ?? null
+    })),
+    ocrBboxHintsPreview: ocrBboxHints.slice(0, 24).map((hint) => ({
+      id: hint.id,
+      label: hint.label,
+      x1: hint.x1,
+      y1: hint.y1,
+      x2: hint.x2,
+      y2: hint.y2,
+      score: hint.score ?? null
+    })),
     options: buildOptionSummary(options)
   };
 }
@@ -330,7 +372,7 @@ function resolveConfiguredCodexModel(options = {}) {
 }
 
 function resolveConfiguredCodexReasoningEffort(options = {}) {
-  const value = String(options.codexReasoningEffort ?? process.env.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT ?? "").trim();
+  const value = String(process.env.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT ?? options.codexReasoningEffort ?? "").trim();
   if (value === "minimal") {
     return "low";
   }
@@ -458,49 +500,88 @@ function isModelCached(options = {}) {
   return launchTarget.launchMode === "cached-hf";
 }
 
-const PROMPT_KO_BBOX_LINES_MULTIVIEW = [
-  "You are given the same Japanese manga page in multiple full-page renderings.",
-  "Image 1 is the original full page. Another image is a grayscale/high-contrast assist view of the exact same page.",
-  "Task: detect each visible Japanese text group and return a Korean replacement text with one bounding box per item.",
-  "Use coordinates for the ORIGINAL page only.",
-  "Return only plain text records in this exact field format:",
+const OVERLAY_OUTPUT_SCHEMA = [
   "id: 1",
   "type: dialogue",
-  "x: 120",
-  "y: 80",
-  "w: 160",
-  "h: 240",
+  "x1: 120",
+  "y1: 80",
+  "x2: 280",
+  "y2: 320",
+  "direction: horizontal",
+  "angle: 0",
+  "fontSize: 24",
   "jp: 馬鹿者… 無理をするな",
-  "ko: 바보 같은 녀석… 무리하지 마라.",
-  "",
-  "id: 2",
-  "type: dialogue",
-  "x: 300",
-  "y: 120",
-  "w: 140",
-  "h: 220",
-  "jp: ...",
-  "ko: ...",
-  "Rules:",
-  "- Use only these keys: id, type, x, y, w, h, jp, ko.",
-  "- Put exactly one field on each line.",
-  "- Put one blank line between items.",
-  "- Do not output JSON, braces, bullets, markdown fences, or commentary.",
-  "- x, y, w, h must be integers in a 0..1000 coordinate space relative to the original page size.",
-  "- bbox means the tight rectangle around the visible Japanese glyphs only.",
-  "- Do not box the whole speech bubble, panel, caption plate, background shape, or blank margin.",
-  "- Do not enlarge or move a bbox to make the Korean replacement easier to fit.",
-  "- For dialogue inside a speech bubble, box only the Japanese text glyph group, not the bubble.",
-  "- Merge multiple vertical lines that belong to the same sentence or speech bubble into one item, but keep the bbox tight around those glyphs.",
-  "- For narration/caption text, box only the printed Japanese glyphs, not the surrounding caption background.",
-  "- For sfx, box only the visible sound-effect glyph strokes; ignore motion lines, impact lines, and surrounding art.",
-  "- Keep Korean concise, natural, and short enough to fit as an on-image overlay.",
-  "- Include short interjections, names, and visible sound effects when meaningful.",
-  "- Use type values such as dialogue, narration, name, or sfx.",
-  "- Prefer 4 to 12 items for one manga page unless the page clearly has more.",
-  "- Keep jp and ko on a single line each. Replace internal newlines with spaces.",
-  "- If OCR is uncertain, keep only the uncertain fragment as [?] and still give the best short Korean translation."
+  "ko: 바보 같은 녀석… 무리하지 마라."
 ].join("\n");
+
+const OVERLAY_PROMPT_SECTIONS = [
+  [
+    "Task",
+    "You are given the same Japanese manga page in multiple full-page renderings.",
+    "Image 1 is the coordinate-authority full page. Assist images are only for reading the same page.",
+    "Detect every visible Japanese text group and translate it into concise Korean.",
+    "Scan the entire page before writing records; do not stop after the first obvious text.",
+    "First identify the exact Japanese glyph strokes for each item, then write the record. Do not estimate from the speech bubble or panel shape.",
+    "Before reading dialogue text, segment the visible speech balloons themselves. Each distinct balloon lobe and each separated dialogue text cluster becomes a separate dialogue record.",
+    "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text."
+  ],
+  [
+    "Output",
+    "Return plain text records only. Do not output JSON, markdown, bullets, commentary, or code fences.",
+    "Use exactly these keys, one per line: id, type, x1, y1, x2, y2, direction, angle, fontSize, jp, ko.",
+    "Put one blank line between records.",
+    "Example:",
+    OVERLAY_OUTPUT_SCHEMA
+  ],
+  [
+    "Geometry",
+    "Coordinates are integers in the coordinate frame described above, with top-left origin.",
+    "x1, y1, x2, y2 describe the tight rectangle corners of the visible Japanese glyph ink and its outline.",
+    "For each item, first find the four extremes of the complete jp text: leftmost visible glyph/outline pixel, topmost pixel, rightmost pixel, and bottommost pixel. Then output x1 = left, y1 = top, x2 = right, y2 = bottom.",
+    "The rectangle must cover every visible stroke, outline, dakuten mark, punctuation mark, small kana, long vowel mark, and trailing kana belonging to jp.",
+    "A tight rectangle may still have a tiny 1-3 px safety margin around glyph ink; missing any stroke outside the box is worse than including a hair of surrounding paper.",
+    "For vertical Japanese text, the rectangle should cover the union of all vertical glyph columns, from the rightmost visible stroke to the leftmost visible stroke and from the topmost glyph to the bottommost punctuation.",
+    "For multi-column vertical text, do not box only the first column, center column, or top half. The bbox is invalid if any character from jp would remain outside x1..x2 or y1..y2.",
+    "For one or two vertical text columns, keep w close to the actual glyph-column width, but never make it narrower than the full visible strokes.",
+    "Never include the whole speech bubble, caption plate, panel, background art, motion lines, or blank margin.",
+    "Never enlarge, shift, or reshape the rectangle to make Korean easier to fit.",
+    "fontSize is the apparent Japanese glyph size in Image 1 pixels.",
+    "direction is the original Japanese glyph writing direction: horizontal or vertical. This is about the Japanese source text, not the Korean rendering.",
+    "angle is the visible glyph slant in degrees from -30 to 30. Use 0 for upright text.",
+    "Before final output, mentally fill each bbox with translucent color: no Japanese glyph from jp should remain visible outside that filled area.",
+    "Then check tightness: if the filled area covers large blank bubble paper or caption-box padding on any side, redraw the bbox tighter around the glyph ink.",
+    "Then check placement: the center of the bbox must lie on or very near the jp glyph ink cluster, not on adjacent background art or empty panel space.",
+    "Decorative hearts, bubble tails, panel borders, box borders, background textures, and motion effects are not Japanese glyph ink."
+  ],
+  [
+    "Segmentation",
+    "Each speech bubble is one dialogue item. Adjacent or touching speech bubbles must stay separate.",
+    "If two white balloon lobes touch, overlap, stack vertically, or connect through a narrow neck, still treat them as separate dialogue items.",
+    "If one visible outline contains upper and lower lobes with a narrow waist, large blank gap, or two separate text clusters, split it into one record per lobe/text cluster.",
+    "Do not create one tall dialogue bbox spanning stacked upper/lower bubbles.",
+    "Do not merge two speech bubbles just because the sentence continues across them; split jp and ko by the visible balloon/lobe that contains each text group.",
+    "Inside one speech bubble, group all Japanese glyph lines from that same bubble into one item.",
+    "Process panels and bubbles exhaustively from top to bottom and right to left.",
+    "For captions and narration boxes, box only the printed glyphs, not the surrounding box.",
+    "For SFX, box only the sound-effect glyph strokes and their visible outline, not speed lines or impact effects.",
+    "For long horizontal SFX, include the entire sound from first glyph through final kana, including stretched lines, detached outline tips, and the last small/isolated character.",
+    "For outlined SFX, the bbox follows the outermost visible contour of the outline, not only the dark center stroke.",
+    "Do not invent SFX from vertical panel trim, furniture lines, wall patterns, or isolated non-character strokes.",
+    "Include meaningful short interjections, names, captions, and SFX."
+  ],
+  [
+    "Rendering hints",
+    "type is one of dialogue, narration, name, or sfx.",
+    "Use type dialogue for text inside speech bubbles, including vertical Japanese dialogue.",
+    "Use type narration or name for ordinary labels, handwritten explanations, search words, and diagram annotations outside speech bubbles.",
+    "Use type sfx only for sound-effect lettering or reaction lettering.",
+    "Use angle 0 for ordinary upright speech and captions; use a nonzero angle only when the source glyphs are visibly slanted.",
+    "Keep Korean short enough for an on-image overlay while preserving meaning.",
+    "If OCR is uncertain, write [?] only for the uncertain fragment and still output the item."
+  ]
+];
+
+const PROMPT_KO_BBOX_LINES_MULTIVIEW = buildOverlayPrompt();
 
 const NSFW_SYSTEM_PROMPT = [
   "You are Gemma, a large language model.",
@@ -529,13 +610,10 @@ const NSFW_SYSTEM_PROMPT = [
 
 function buildSystemPrompt(options = {}) {
   const parts = [
-    "You generate machine-readable overlay blocks for a downstream parser.",
-    "Follow the requested field names and output format exactly.",
-    "Never add prose, notes, markdown fences, or explanations.",
-    "If some text is uncertain, still emit the best approximate block instead of skipping the item.",
-    "Every bbox is the tight rectangle around visible Japanese glyphs only, never the whole speech bubble, panel, caption plate, background shape, or empty margin.",
-    "Use original-page coordinates in a 0..1000 space with the top-left as origin, even when an assist image is provided.",
-    "Do not enlarge or move a bbox to fit the Korean replacement text."
+    "You are an OCR and manga-translation engine.",
+    "Return only the machine-readable record format requested by the user prompt.",
+    "Geometry accuracy comes before Korean text fit: preserve the original Japanese glyph position and apparent size.",
+    "Never merge separate speech bubbles, including touching or stacked balloon lobes."
   ];
 
   if (options.nsfwMode) {
@@ -543,6 +621,200 @@ function buildSystemPrompt(options = {}) {
   }
 
   return parts.join("\n\n");
+}
+
+function buildOverlayPrompt(options = {}, imageVariants = []) {
+  const sections = OVERLAY_PROMPT_SECTIONS.map(([title, ...lines]) => [title, ...lines]);
+  sections[0] = buildTaskSection(imageVariants);
+  const coordinateSection = buildCoordinateCalibrationSection(options, imageVariants);
+  if (coordinateSection.length > 1) {
+    sections.splice(2, 0, coordinateSection);
+  }
+  const ocrHintSection = buildOcrBboxHintSection(options, imageVariants);
+  if (ocrHintSection.length > 1) {
+    const coordinateIndex = sections.findIndex((section) => section[0] === "Coordinate calibration");
+    sections.splice(coordinateIndex === -1 ? 2 : coordinateIndex + 1, 0, ocrHintSection);
+  }
+
+  return sections
+    .map(([title, ...lines]) => [`# ${title}`, ...lines].join("\n"))
+    .join("\n\n");
+}
+
+function getOverlayPrompt(options = {}, imageVariants = []) {
+  return buildOverlayPrompt(options, imageVariants);
+}
+
+function buildTaskSection(imageVariants = []) {
+  const hasAssistImages = imageVariants.length > 1;
+  return [
+    "Task",
+    hasAssistImages
+      ? "You are given the same Japanese manga page in multiple full-page renderings."
+      : "You are given one full-page Japanese manga image.",
+    hasAssistImages
+      ? "Image 1 is the coordinate-authority full page. Assist images are only for reading the same page."
+      : "Image 1 is the coordinate-authority full page.",
+    "Detect every visible Japanese text group and translate it into concise Korean.",
+    "Scan the entire page before writing records; do not stop after the first obvious text.",
+    "First identify the exact Japanese glyph strokes for each item, then write the record. Do not estimate from the speech bubble or panel shape.",
+    "Before reading dialogue text, segment the visible speech balloons themselves. Each distinct balloon lobe and each separated dialogue text cluster becomes a separate dialogue record.",
+    "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text."
+  ];
+}
+
+function buildCoordinateCalibrationSection(options = {}, imageVariants = []) {
+  const originalWidth = readPositiveInteger(options.imageWidth);
+  const originalHeight = readPositiveInteger(options.imageHeight);
+  const geometryVariant = imageVariants.find((variant) => variant.role === "openai-vision") || imageVariants[0];
+  const sentWidth = readPositiveInteger(geometryVariant?.width);
+  const sentHeight = readPositiveInteger(geometryVariant?.height);
+  const coordinateFrame = resolvePromptCoordinateFrame(options, imageVariants);
+  if (!originalWidth || !originalHeight) {
+    return [];
+  }
+
+  const lines = ["Coordinate calibration", `The original page is ${originalWidth}x${originalHeight} px.`];
+
+  if (coordinateFrame.space === "pixels") {
+    lines.push(
+      `Image 1 was prepared before the API call to match the OpenAI detail: original vision frame, so the model sees Image 1 as ${coordinateFrame.frame.width}x${coordinateFrame.frame.height} px.`,
+      `Return x1, y1, x2, y2 as integer pixel coordinates in that ${coordinateFrame.frame.width}x${coordinateFrame.frame.height} Image 1 frame.`,
+      "Do not return width/height, original-page pixels, normalized 0..1000 coordinates, viewport coordinates, crop coordinates, tile coordinates, or model-internal coordinates.",
+      `Use the full visible Image 1 frame as the coordinate frame: left edge 0, top edge 0, right edge ${coordinateFrame.frame.width}, bottom edge ${coordinateFrame.frame.height}.`,
+      "The app will map these sent-image pixels back to the original page after the model response."
+    );
+    return lines;
+  }
+
+  lines.push(
+    "Return x1, y1, x2, y2 as normalized 0..1000 corner coordinates over Image 1, not viewport, crop, tile, or model-internal coordinates.",
+    "Use the full visible Image 1 frame as the coordinate frame: left edge 0, top edge 0, right edge 1000, bottom edge 1000.",
+    "Because Image 1 preserves the original aspect ratio, these normalized coordinates map directly back to the original page."
+  );
+
+  if (sentWidth && sentHeight && (sentWidth !== originalWidth || sentHeight !== originalHeight)) {
+    lines.push(
+      `For OpenAI vision, Image 1 was pre-scaled to ${sentWidth}x${sentHeight} px for detail: original before sending so the coordinate frame matches what the model sees.`,
+      `If measuring in sent pixels, convert directly with x1 = round(left * 1000 / ${sentWidth}), y1 = round(top * 1000 / ${sentHeight}), x2 = round(right * 1000 / ${sentWidth}), y2 = round(bottom * 1000 / ${sentHeight}).`
+    );
+  }
+
+  return lines;
+}
+
+function buildOcrBboxHintSection(options = {}, imageVariants = []) {
+  const hints = Array.isArray(options.ocrBboxHints) ? options.ocrBboxHints : [];
+  if (hints.length === 0) {
+    return [];
+  }
+
+  const frame = resolvePromptCoordinateFrame(options, imageVariants);
+  const originalWidth = readPositiveInteger(options.imageWidth);
+  const originalHeight = readPositiveInteger(options.imageHeight);
+  const formattedHints = hints
+    .slice(0, 80)
+    .map((hint, index) => formatOcrBboxHintForPrompt(hint, index + 1, frame, originalWidth, originalHeight))
+    .filter(Boolean);
+  const candidateIds = hints
+    .slice(0, formattedHints.length)
+    .map((hint, index) => readPositiveInteger(hint.id) || index + 1);
+  const maxCandidateId = Math.max(...candidateIds, 0);
+
+  if (formattedHints.length === 0) {
+    return [];
+  }
+
+  return [
+    "OCR bbox candidates",
+    "An external OCR geometry detector has already proposed bbox candidates. Text content is intentionally omitted; use Image 1 to read and translate.",
+    "Treat each candidate as a locked geometry slot. For every candidate that contains Japanese glyphs, output one record with that same id and the exact x1, y1, x2, y2 numbers shown below.",
+    `Required candidate ids: ${candidateIds.join(", ")}.`,
+    "Read and translate only the text inside that candidate rectangle plus a tiny visual margin; do not move the rectangle to a different nearby text group.",
+    "For ocr_textline and ocr_textgroup candidates, classify ordinary handwritten notes, diagram labels, search terms, captions, and explanatory text as narration/name, not sfx.",
+    "Use sfx only for actual sound-effect or reaction lettering, not for labels or explanatory handwriting.",
+    "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes or includes non-text art; then change the minimum amount needed.",
+    "Do not merge two candidates into one record, even when the sentence continues across them. Candidate rectangles are separate output records.",
+    "If two candidates are stacked or touching speech bubbles, output two separate dialogue records with their original ids.",
+    `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle.`,
+    "New records are allowed only for clear Japanese glyphs that are not covered by any candidate.",
+    "For new missing SFX records, the bbox must visibly cover kana/SFX glyph strokes. Never add SFX on panel trim, furniture lines, wall patterns, or isolated vertical strokes.",
+    "The candidate coordinates below are already converted into the same coordinate frame required for your output.",
+    "",
+    ...formattedHints
+  ];
+}
+
+function formatOcrBboxHintForPrompt(hint, fallbackId, frame, originalWidth, originalHeight) {
+  const x1 = Number(hint?.x1);
+  const y1 = Number(hint?.y1);
+  const x2 = Number(hint?.x2);
+  const y2 = Number(hint?.y2);
+  if (![x1, y1, x2, y2].every(Number.isFinite)) {
+    return "";
+  }
+
+  const id = readPositiveInteger(hint.id) || fallbackId;
+  const label = sanitizeHintLabel(hint.label);
+  const converted = convertOriginalPixelBoxToPromptFrame({ x1, y1, x2, y2 }, frame, originalWidth, originalHeight);
+  const score = Number.isFinite(hint.score) ? ` score:${Math.round(hint.score * 100) / 100}` : "";
+  return `candidate ${id}: label:${label} x1:${converted.x1} y1:${converted.y1} x2:${converted.x2} y2:${converted.y2}${score}`;
+}
+
+function convertOriginalPixelBoxToPromptFrame(box, frame, originalWidth, originalHeight) {
+  if (frame.space === "pixels" && originalWidth && originalHeight) {
+    const xScale = frame.frame.width / originalWidth;
+    const yScale = frame.frame.height / originalHeight;
+    return {
+      x1: Math.round(Math.min(box.x1, box.x2) * xScale),
+      y1: Math.round(Math.min(box.y1, box.y2) * yScale),
+      x2: Math.round(Math.max(box.x1, box.x2) * xScale),
+      y2: Math.round(Math.max(box.y1, box.y2) * yScale)
+    };
+  }
+
+  if (originalWidth && originalHeight) {
+    return {
+      x1: Math.round((Math.min(box.x1, box.x2) / originalWidth) * 1000),
+      y1: Math.round((Math.min(box.y1, box.y2) / originalHeight) * 1000),
+      x2: Math.round((Math.max(box.x1, box.x2) / originalWidth) * 1000),
+      y2: Math.round((Math.max(box.y1, box.y2) / originalHeight) * 1000)
+    };
+  }
+
+  return {
+    x1: Math.round(Math.min(box.x1, box.x2)),
+    y1: Math.round(Math.min(box.y1, box.y2)),
+    x2: Math.round(Math.max(box.x1, box.x2)),
+    y2: Math.round(Math.max(box.y1, box.y2))
+  };
+}
+
+function sanitizeHintLabel(value) {
+  const text = String(value ?? "text").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
+  return text || "text";
+}
+
+function resolvePromptCoordinateFrame(options = {}, imageVariants = []) {
+  if (isOpenAICodexProvider(options)) {
+    const geometryVariant = imageVariants.find((variant) => variant.role === "openai-vision") || imageVariants[0];
+    const width = readPositiveInteger(geometryVariant?.width) || readPositiveInteger(options.imageWidth) || 1000;
+    const height = readPositiveInteger(geometryVariant?.height) || readPositiveInteger(options.imageHeight) || 1000;
+    return {
+      space: "pixels",
+      frame: { width, height }
+    };
+  }
+
+  return {
+    space: "normalized_1000",
+    frame: { width: 1000, height: 1000 }
+  };
+}
+
+function readPositiveInteger(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;
 }
 
 function mimeFromPath(filePath) {
@@ -685,6 +957,107 @@ async function buildEnhancedVariant(options) {
       error
     );
   }
+}
+
+const OPENAI_ORIGINAL_DETAIL_PATCH_SIZE = 32;
+const OPENAI_ORIGINAL_DETAIL_PATCH_BUDGET = 10000;
+const OPENAI_ORIGINAL_DETAIL_MAX_DIMENSION = 6000;
+
+function calculateOpenAIOriginalDetailSize(width, height) {
+  if (!width || !height) {
+    return { width, height };
+  }
+
+  const patchCount = (imageWidth, imageHeight) =>
+    Math.ceil(imageWidth / OPENAI_ORIGINAL_DETAIL_PATCH_SIZE) * Math.ceil(imageHeight / OPENAI_ORIGINAL_DETAIL_PATCH_SIZE);
+
+  const maxDimensionScale = Math.min(
+    1,
+    OPENAI_ORIGINAL_DETAIL_MAX_DIMENSION / width,
+    OPENAI_ORIGINAL_DETAIL_MAX_DIMENSION / height
+  );
+  const patchBudgetScale = Math.sqrt(
+    (OPENAI_ORIGINAL_DETAIL_PATCH_BUDGET * OPENAI_ORIGINAL_DETAIL_PATCH_SIZE * OPENAI_ORIGINAL_DETAIL_PATCH_SIZE) /
+      (width * height)
+  );
+  let scale = Math.min(maxDimensionScale, patchBudgetScale, 1);
+  let targetWidth = Math.max(1, Math.floor(width * scale));
+  let targetHeight = Math.max(1, Math.floor(height * scale));
+
+  while (
+    targetWidth > OPENAI_ORIGINAL_DETAIL_MAX_DIMENSION ||
+    targetHeight > OPENAI_ORIGINAL_DETAIL_MAX_DIMENSION ||
+    patchCount(targetWidth, targetHeight) > OPENAI_ORIGINAL_DETAIL_PATCH_BUDGET
+  ) {
+    scale *= 0.999;
+    targetWidth = Math.max(1, Math.floor(width * scale));
+    targetHeight = Math.max(1, Math.floor(height * scale));
+  }
+
+  return {
+    width: targetWidth,
+    height: targetHeight
+  };
+}
+
+function resolveImageSize(options = {}) {
+  const configuredWidth = readPositiveInteger(options.imageWidth);
+  const configuredHeight = readPositiveInteger(options.imageHeight);
+  if (configuredWidth && configuredHeight) {
+    return { width: configuredWidth, height: configuredHeight };
+  }
+
+  const nativeImage = resolveElectronNativeImage();
+  if (!nativeImage || !options.imagePath) {
+    return { width: 0, height: 0 };
+  }
+
+  const image = nativeImage.createFromPath(options.imagePath);
+  const size = image?.getSize?.() || { width: 0, height: 0 };
+  return {
+    width: readPositiveInteger(size.width) || 0,
+    height: readPositiveInteger(size.height) || 0
+  };
+}
+
+async function buildOpenAIVisionVariant(options) {
+  const sourceSize = resolveImageSize(options);
+  const targetSize = calculateOpenAIOriginalDetailSize(sourceSize.width, sourceSize.height);
+  const base = {
+    role: "openai-vision",
+    originalWidth: sourceSize.width,
+    originalHeight: sourceSize.height,
+    width: targetSize.width || sourceSize.width,
+    height: targetSize.height || sourceSize.height
+  };
+
+  if (!sourceSize.width || !sourceSize.height || !targetSize.width || !targetSize.height) {
+    return { ...base, role: "original", path: options.imagePath, width: sourceSize.width, height: sourceSize.height };
+  }
+
+  if (targetSize.width === sourceSize.width && targetSize.height === sourceSize.height) {
+    return { ...base, path: options.imagePath };
+  }
+
+  const nativeImage = resolveElectronNativeImage();
+  if (!nativeImage) {
+    return { ...base, role: "original", path: options.imagePath, width: sourceSize.width, height: sourceSize.height };
+  }
+
+  const image = nativeImage.createFromPath(options.imagePath);
+  if (!image || image.isEmpty()) {
+    return { ...base, role: "original", path: options.imagePath, width: sourceSize.width, height: sourceSize.height };
+  }
+
+  const outputPath = path.join(options.outputDir, "input-openai-vision.png");
+  const resized = image.resize({
+    width: targetSize.width,
+    height: targetSize.height,
+    quality: "best"
+  });
+  await mkdir(options.outputDir, { recursive: true });
+  await writeFile(outputPath, resized.toPNG());
+  return { ...base, path: outputPath };
 }
 
 async function buildEnhancedVariantWithElectron(options, nativeImage) {
@@ -843,11 +1216,14 @@ async function buildEnhancedVariantWithPowerShell(options) {
 }
 
 async function prepareImageVariants(options) {
-  const variants = [{ role: "original", path: options.imagePath }];
+  const sourceSize = resolveImageSize(options);
+  const variants = isOpenAICodexProvider(options)
+    ? [await buildOpenAIVisionVariant({ ...options, imageWidth: sourceSize.width, imageHeight: sourceSize.height })]
+    : [{ role: "original", path: options.imagePath, width: sourceSize.width, height: sourceSize.height }];
   let diagnostics = [];
   if (options.includeEnhancedVariant) {
     try {
-      variants.push({ role: "enhanced", path: await buildEnhancedVariant(options) });
+      variants.push({ role: "enhanced", path: await buildEnhancedVariant(options), originalWidth: sourceSize.width, originalHeight: sourceSize.height });
     } catch (error) {
       diagnostics = [buildEnhancedVariantFailureDetail(error, options)];
       process.stderr.write(
@@ -868,22 +1244,19 @@ async function prepareImageVariants(options) {
 }
 
 function buildMessages(options, imageVariants) {
+  const promptText = options.promptOverrideText || getOverlayPrompt(options, imageVariants);
   const imageParts = imageVariants.flatMap((variant, index) => ([
-    {
-      type: "text",
-      text: variant.role === "enhanced"
-        ? `Image ${index + 1}: the same full manga page rendered as grayscale/high-contrast assist view.`
-        : `Image ${index + 1}: the original full manga page.`
-    },
     {
       type: "image_url",
       image_url: {
         url: variant.dataUrl
       }
+    },
+    {
+      type: "text",
+      text: describeImageVariant(variant, index, options)
     }
   ]));
-
-  const promptText = options.promptOverrideText || PROMPT_KO_BBOX_LINES_MULTIVIEW;
 
   return [
     {
@@ -897,18 +1270,16 @@ function buildMessages(options, imageVariants) {
   ];
 }
 
-function buildResponsesInput(options, imageVariants) {
-  const promptText = options.promptOverrideText || PROMPT_KO_BBOX_LINES_MULTIVIEW;
+function buildResponsesInput(options, imageVariants, promptText = options.promptOverrideText || getOverlayPrompt(options, imageVariants)) {
   const content = imageVariants.flatMap((variant, index) => ([
     {
-      type: "input_text",
-      text: variant.role === "enhanced"
-        ? `Image ${index + 1}: the same full manga page rendered as grayscale/high-contrast assist view.`
-        : `Image ${index + 1}: the original full manga page.`
+      type: "input_image",
+      image_url: variant.dataUrl,
+      detail: "original"
     },
     {
-      type: "input_image",
-      image_url: variant.dataUrl
+      type: "input_text",
+      text: describeImageVariant(variant, index, options)
     }
   ]));
 
@@ -918,6 +1289,25 @@ function buildResponsesInput(options, imageVariants) {
       content: [...content, { type: "input_text", text: promptText }]
     }
   ];
+}
+
+function describeImageVariant(variant, index, options = {}) {
+  const originalWidth = readPositiveInteger(options.imageWidth) || readPositiveInteger(variant.originalWidth);
+  const originalHeight = readPositiveInteger(options.imageHeight) || readPositiveInteger(variant.originalHeight);
+  const width = readPositiveInteger(variant.width);
+  const height = readPositiveInteger(variant.height);
+  const sizeText = width && height ? ` It is ${width}x${height} px.` : "";
+  const originalSizeText = originalWidth && originalHeight ? ` Original page size is ${originalWidth}x${originalHeight} px.` : "";
+
+  if (variant.role === "openai-vision") {
+    return `Image ${index + 1}: the full manga page prepared for OpenAI detail: original vision. Use it as the geometry authority.${sizeText}${originalSizeText}`;
+  }
+
+  if (variant.role === "enhanced") {
+    return `Image ${index + 1}: the same full manga page rendered as grayscale/high-contrast assist view. Use it only for OCR help, never as the coordinate authority.${sizeText}${originalSizeText}`;
+  }
+
+  return `Image ${index + 1}: the original full manga page. Use it as the geometry authority.${sizeText}${originalSizeText}`;
 }
 
 function resolveConfiguredModelRepo(options = {}) {
@@ -973,17 +1363,1192 @@ function buildChatRequestBody(options, messages, maxTokens = options.maxTokens) 
   };
 }
 
-function buildResponsesRequestBody(options, imageVariants) {
+function buildResponsesRequestBody(options, imageVariants, promptText, systemPrompt) {
   return {
     model: resolveRequestModelName(options),
-    instructions: buildSystemPrompt(options),
-    input: buildResponsesInput(options, imageVariants),
+    instructions: systemPrompt || buildSystemPrompt(options),
+    input: buildResponsesInput(options, imageVariants, promptText),
+    max_output_tokens: options.maxTokens,
     reasoning: {
       effort: resolveConfiguredCodexReasoningEffort(options)
     },
     stream: true,
     store: false
   };
+}
+
+function resolveOcrBboxProvider(options = {}) {
+  const explicit = String(options.ocrBboxProvider ?? process.env.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER ?? "").trim();
+  if (explicit) {
+    return explicit;
+  }
+  if (isTruthy(process.env.MANGA_TRANSLATOR_DISABLE_OCR_BBOX)) {
+    return "none";
+  }
+  if (isTruthy(process.env.MANGA_TRANSLATOR_PADDLEOCR_VL)) {
+    return "paddleocr-vl";
+  }
+  if (String(process.env.MANGA_TRANSLATOR_OCR_BBOX_CMD ?? "").trim()) {
+    return "external-command";
+  }
+  if (String(process.env.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH ?? "").trim()) {
+    return "json-file";
+  }
+  return "paddleocr-vl";
+}
+
+function isTruthy(value) {
+  const text = String(value ?? "").trim().toLowerCase();
+  return ["1", "true", "yes", "y", "on"].includes(text);
+}
+
+async function collectOcrBboxHints(options = {}) {
+  const diagnostics = [];
+  const inlineHints = normalizeOcrBboxHintPayload(options.ocrBboxHints, options);
+  if (inlineHints.length > 0) {
+    emitRuntimeProgress(options, "ocr_running", "OCR 후보 사용 중", `${inlineHints.length}개 후보`);
+    return { hints: inlineHints, diagnostics };
+  }
+
+  const hintsPath = String(options.ocrBboxHintsPath ?? process.env.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH ?? "").trim();
+  if (hintsPath) {
+    try {
+      const rawText = await readFile(hintsPath, "utf8");
+      return {
+        hints: normalizeOcrBboxHintPayload(JSON.parse(rawText), options),
+        diagnostics: [{ provider: "json-file", path: hintsPath }]
+      };
+    } catch (error) {
+      diagnostics.push(buildOcrBboxDiagnostic("json-file", error, { path: hintsPath }));
+    }
+  }
+
+  const provider = resolveOcrBboxProvider(options);
+  if (provider === "none" || provider === "json-file") {
+    return { hints: [], diagnostics };
+  }
+
+  try {
+    emitRuntimeProgress(options, "ocr_preparing", "Paddle OCR 준비 중", `장치: ${resolveOcrDeviceLabel(options)}`);
+    const commandResult = await runOcrBboxCommand(options, provider);
+    const hints = normalizeOcrBboxHintPayload(commandResult.payload, options);
+    emitRuntimeProgress(options, "ocr_running", `Paddle OCR 후보 ${hints.length}개 감지`, `장치: ${resolveOcrDeviceLabel(options)}`);
+    return {
+      hints,
+      diagnostics: [{
+        provider,
+        command: commandResult.command,
+        outputPath: commandResult.outputPath,
+        runtimeDir: commandResult.runtimeDir || null,
+        runtimeVariant: commandResult.runtimeVariant || null,
+        packageDir: commandResult.packageDir || null,
+        pythonPath: commandResult.pythonPath || null,
+        runtimePrepared: commandResult.runtimePrepared || false,
+        hintCount: hints.length,
+        stdoutPreview: truncateText(commandResult.stdout.trim(), 1200),
+        stderrPreview: truncateText(commandResult.stderr.trim(), 1200),
+        runtimeDiagnostics: commandResult.runtimeDiagnostics || []
+      }]
+    };
+  } catch (error) {
+    const diagnostic = buildOcrBboxDiagnostic(provider, error);
+    diagnostics.push(diagnostic);
+    if (provider === "paddleocr-vl" && isOcrGpuRequested(options)) {
+      emitRuntimeProgress(options, "ocr_running", "Paddle OCR GPU 실행 실패", diagnostic.message);
+      throw createOcrRuntimeError(
+        "Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 GPU Paddle 런타임이 필요합니다. CPU로 바꾸면 계속 진행할 수 있습니다.",
+        { diagnostics },
+        error
+      );
+    }
+    return { hints: [], diagnostics };
+  }
+}
+
+function buildOcrBboxDiagnostic(provider, error, extra = {}) {
+  return {
+    provider,
+    reason: "ocr-bbox-unavailable",
+    message: error instanceof Error ? error.message : String(error),
+    ...extra
+  };
+}
+
+async function runOcrBboxCommand(options = {}, provider = "external-command") {
+  await mkdir(options.outputDir, { recursive: true });
+  const outputPath = path.join(options.outputDir, "ocr-bbox-hints.json");
+  const runtime = provider === "paddleocr-vl" ? await ensurePaddleOcrRuntime(options) : null;
+  const command = buildOcrBboxCommand(options, provider, outputPath, runtime);
+  emitRuntimeProgress(options, "ocr_running", "Paddle OCR 모델 다운로드/위치 분석 중", `장치: ${resolveOcrDeviceLabel(options)}`);
+  const { stdout, stderr } = await runShellCommand(command, {
+    timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS) || 600000,
+    env: buildOcrRuntimeEnv(options, runtime),
+    signal: options.abortSignal
+  });
+
+  let rawText = "";
+  if (existsSync(outputPath)) {
+    rawText = await readFile(outputPath, "utf8");
+  } else {
+    rawText = extractJsonText(stdout);
+  }
+
+  if (!rawText.trim()) {
+    throw createDetailedError("OCR bbox command did not produce JSON.", {
+      command,
+      outputPath,
+      stdoutPreview: truncateText(stdout, 2000),
+      stderrPreview: truncateText(stderr, 2000)
+    });
+  }
+
+  return {
+    command,
+    outputPath,
+    runtimeDir: runtime?.runtimeDir || null,
+    runtimeVariant: runtime?.runtimeVariant || null,
+    packageDir: runtime?.packageDir || null,
+    pythonPath: runtime?.pythonPath || null,
+    runtimePrepared: Boolean(runtime?.prepared),
+    runtimeDiagnostics: runtime?.diagnostics || [],
+    stdout,
+    stderr,
+    payload: JSON.parse(rawText)
+  };
+}
+
+async function ensurePaddleOcrRuntime(options = {}) {
+  const diagnostics = [];
+  const runtimeDir = resolveOcrRuntimeDir(options);
+  const runtimeVariant = resolveOcrRuntimeVariant(options);
+  const venvDir = path.join(runtimeDir, `.venv-${runtimeVariant}`);
+  const venvPython = resolveVenvPythonPath(venvDir);
+  const packageDir = resolveOcrPythonPackageDir(runtimeDir, options);
+  await mkdir(runtimeDir, { recursive: true });
+  await mkdir(path.join(runtimeDir, "pip-cache"), { recursive: true });
+  await mkdir(path.join(runtimeDir, "tmp"), { recursive: true });
+
+  emitRuntimeProgress(options, "ocr_preparing", "Paddle OCR 런타임 확인 중", `${resolveOcrDeviceLabel(options)}, ${runtimeVariant}`);
+  let importCheck = existsSync(venvPython) ? await checkPaddleOcrImport(venvPython, options) : { ok: false, message: "venv python is missing" };
+  if (existsSync(venvPython) && importCheck.ok) {
+    return { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, diagnostics };
+  }
+
+  const bootstrapPython = resolveBootstrapPython(options);
+  if (!bootstrapPython) {
+    throw new Error("PaddleOCR-VL bbox provider needs Python. Bundle tools/python/python.exe or set MANGA_TRANSLATOR_OCR_PYTHON.");
+  }
+  ensureEmbeddedPythonPackagePath(bootstrapPython, packageDir, runtimeDir);
+  importCheck = !existsSync(venvPython) ? await checkPaddleOcrImport(bootstrapPython, options) : importCheck;
+  if (!existsSync(venvPython) && importCheck.ok) {
+    return { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] };
+  }
+
+  if (hasOcrInstallMarker(packageDir, runtimeVariant) && hasExpectedOcrPackages(packageDir, options)) {
+    throw createOcrRuntimeError(
+      buildPaddleOcrImportFailureMessage(importCheck.message, options),
+      {
+        step: "installed-runtime-verification-failed",
+        runtimeDir,
+        runtimeVariant,
+        packageDir,
+        pythonPath: existsSync(venvPython) ? venvPython : bootstrapPython,
+        importError: importCheck.message
+      },
+      importCheck.error
+    );
+  }
+
+  if (!isTruthy(process.env.MANGA_TRANSLATOR_OCR_AUTO_INSTALL ?? "true")) {
+    throw new Error("PaddleOCR-VL runtime is not installed and automatic installation is disabled.");
+  }
+
+  diagnostics.push({ step: "bootstrap-python", pythonPath: bootstrapPython });
+  if (!existsSync(venvPython)) {
+    try {
+      emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR Python 환경 생성 중", runtimeDir);
+      await runShellCommand(`${quoteCommandArg(bootstrapPython)} -m venv ${quoteCommandArg(venvDir)}`, {
+        timeoutMs: 180000,
+        env: buildOcrRuntimeEnv(options, { runtimeDir }),
+        signal: options.abortSignal
+      });
+      diagnostics.push({ step: "venv-created", venvDir });
+    } catch (error) {
+      diagnostics.push({
+        step: "venv-create-failed",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  const installBatches = resolveOcrPipInstallBatches(options);
+  const packageSummary = summarizeOcrInstallBatches(installBatches, options);
+  let installPython = existsSync(venvPython) ? venvPython : bootstrapPython;
+  let targetDir = existsSync(venvPython) ? null : packageDir;
+  try {
+    emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 패키지 다운로드/설치 중", packageSummary, {
+      progressPercent: 0.08,
+      installLogLine: "Paddle OCR 패키지 설치를 시작합니다."
+    });
+    await installOcrPythonPackages(installPython, installBatches, targetDir, options, runtimeDir);
+  } catch (error) {
+    if (installPython === bootstrapPython) {
+      throw error;
+    }
+    diagnostics.push({
+      step: "venv-pip-install-failed",
+      message: error instanceof Error ? error.message : String(error)
+    });
+    installPython = bootstrapPython;
+    targetDir = packageDir;
+    ensureEmbeddedPythonPackagePath(installPython, packageDir, runtimeDir);
+    emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 패키지 재설치 중", packageSummary, {
+      progressPercent: 0.08,
+      installLogLine: "가상환경 설치에 실패해 내장 Python 경로로 다시 설치합니다."
+    });
+    await installOcrPythonPackages(installPython, installBatches, targetDir, options, runtimeDir);
+  }
+  diagnostics.push({ step: "pip-installed", installBatches, targetDir, runtimeVariant });
+  await writeOcrInstallMarker(packageDir, {
+    runtimeVariant,
+    installBatches,
+    targetDir,
+    installedAt: new Date().toISOString()
+  });
+
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 설치 검증 중", packageSummary, {
+    progressPercent: 0.94,
+    installLogLine: "Paddle OCR import와 장치 상태를 확인합니다."
+  });
+  importCheck = await checkPaddleOcrImport(installPython, options);
+  if (!importCheck.ok) {
+    throw createOcrRuntimeError(
+      buildPaddleOcrImportFailureMessage(importCheck.message, options),
+      {
+        step: "post-install-verification-failed",
+        runtimeDir,
+        runtimeVariant,
+        packageDir,
+        pythonPath: installPython,
+        importError: importCheck.message
+      },
+      importCheck.error
+    );
+  }
+
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 설치 완료", packageSummary, {
+    progressPercent: 1,
+    installLogLine: "Paddle OCR 설치가 완료되었습니다."
+  });
+
+  return { runtimeDir, runtimeVariant, packageDir, pythonPath: installPython, prepared: true, diagnostics };
+}
+
+function ensureEmbeddedPythonPackagePath(pythonPath, packageDir, runtimeDir = null) {
+  if (!pythonPath || path.basename(pythonPath).toLowerCase() !== "python.exe") {
+    return;
+  }
+  const pythonDir = path.dirname(path.resolve(pythonPath));
+  let pthName = "";
+  try {
+    pthName = readdirSync(pythonDir).find((name) => /^python\d+._pth$/i.test(name)) || "";
+  } catch {
+    return;
+  }
+  if (!pthName) {
+    return;
+  }
+  const pthPath = path.join(pythonDir, pthName);
+  const normalizedPackageDir = path.resolve(packageDir);
+  try {
+    const text = readFileSync(pthPath, "utf8");
+    const normalizedRuntimeDir = runtimeDir ? path.resolve(runtimeDir) : "";
+    const lines = text.split(/\r?\n/);
+    const nextLines = lines
+      .filter((line) => !isManagedOcrPackagePathLine(line, pythonDir, normalizedRuntimeDir))
+      .map((line) => line.trim() === "#import site" ? "import site" : line);
+    const importSiteIndex = nextLines.findIndex((line) => line.trim() === "import site");
+    if (importSiteIndex === -1) {
+      nextLines.push(normalizedPackageDir, "import site");
+    } else {
+      nextLines.splice(importSiteIndex, 0, normalizedPackageDir);
+    }
+    const nextText = `${nextLines.filter((line, index, array) => index < array.length - 1 || line.trim()).join("\n")}\n`;
+    if (nextText !== text) {
+      writeFileSync(pthPath, nextText, "utf8");
+    }
+  } catch {
+    // If the packaged Python directory is not writable, installation may still
+    // work when packages are installed directly into its site-packages.
+  }
+}
+
+function isManagedOcrPackagePathLine(line, pythonDir, runtimeDir) {
+  const raw = String(line ?? "").trim();
+  if (!raw || raw.startsWith("#")) {
+    return false;
+  }
+  let resolved = raw;
+  try {
+    resolved = path.resolve(pythonDir, raw);
+  } catch {
+    return false;
+  }
+  const base = path.basename(resolved);
+  if (!base.startsWith("python-packages")) {
+    return false;
+  }
+  const normalized = resolved.replace(/\\/g, "/").toLowerCase();
+  const normalizedRuntimeDir = runtimeDir ? path.resolve(runtimeDir).replace(/\\/g, "/").toLowerCase() : "";
+  return (
+    (normalizedRuntimeDir && normalized.startsWith(normalizedRuntimeDir)) ||
+    normalized.includes("/manga-gemma-translator/ocr-runtime/") ||
+    normalized.includes("/mgt-ocr-runtime/") ||
+    normalized.includes("/.tmp/ocr-runtime/")
+  );
+}
+
+async function installOcrPythonPackages(pythonPath, installBatches, targetDir, options, runtimeDir) {
+  const progressDir = runtimeDir || targetDir || resolveInstallProgressDir(pythonPath);
+  const pipCacheDir = path.join(progressDir, "pip-cache");
+  await mkdir(pipCacheDir, { recursive: true });
+  await mkdir(path.join(progressDir, "tmp"), { recursive: true });
+  const monitor = startTaskProgressMonitor(options, {
+    phase: "ocr_downloading",
+    progressText: "Paddle OCR 패키지 다운로드/설치 중",
+    detailPrefix: summarizeOcrInstallBatches(installBatches, options),
+    startPercent: 0.08,
+    endPercent: 0.9
+  });
+  try {
+    const pipProgressArgs = `--cache-dir ${quoteCommandArg(pipCacheDir)} --progress-bar raw`;
+    monitor.setStep("pip 업데이트", 0.08, 0.18);
+    await runShellCommand(`${quoteCommandArg(pythonPath)} -m pip install --upgrade ${pipProgressArgs} pip`, {
+      timeoutMs: 300000,
+      env: buildOcrRuntimeEnv(options, { runtimeDir }),
+      signal: options.abortSignal,
+      onOutput: (line) => monitor.log(line)
+    });
+    for (const packages of installBatches) {
+      const index = installBatches.indexOf(packages);
+      const start = 0.18 + (index / installBatches.length) * 0.68;
+      const end = 0.18 + ((index + 1) / installBatches.length) * 0.68;
+      monitor.setStep(`패키지 설치 ${index + 1}/${installBatches.length}`, start, end);
+      await runShellCommand(`${quoteCommandArg(pythonPath)} -m pip install --upgrade ${pipProgressArgs} ${targetDir ? `--target ${quoteCommandArg(targetDir)} ` : ""}${packages.map(quoteCommandArg).join(" ")}`, {
+        timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_PIP_TIMEOUT_MS) || 1800000,
+        env: buildOcrRuntimeEnv(options, { runtimeDir }),
+        signal: options.abortSignal,
+        onOutput: (line) => monitor.log(line)
+      });
+    }
+  } finally {
+    monitor.stop();
+  }
+}
+
+function resolveInstallProgressDir(pythonPath) {
+  const resolved = path.resolve(String(pythonPath || ""));
+  if (resolved.toLowerCase().endsWith(`${path.sep}scripts${path.sep}python.exe`)) {
+    return path.dirname(path.dirname(resolved));
+  }
+  return path.dirname(resolved);
+}
+
+function resolveOcrRuntimeDir(options = {}) {
+  return path.resolve(
+    String(
+      process.env.MANGA_TRANSLATOR_OCR_RUNTIME_DIR
+        ?? options.ocrRuntimeDir
+        ?? path.join(options.workingDir || process.cwd(), "ocr-runtime")
+    )
+  );
+}
+
+function resolveVenvPythonPath(venvDir) {
+  return process.platform === "win32"
+    ? path.join(venvDir, "Scripts", "python.exe")
+    : path.join(venvDir, "bin", "python");
+}
+
+function resolveBootstrapPython(options = {}) {
+  const candidates = [
+    process.env.MANGA_TRANSLATOR_OCR_PYTHON,
+    process.env.MANGA_TRANSLATOR_PYTHON,
+    path.join(options.toolsDir || "", "python", "python.exe"),
+    path.join(options.toolsDir || "", "python", "python-embed", "python.exe"),
+    path.join(options.toolsDir || "", "python.exe"),
+    "python"
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (candidate === "python" || existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function resolveOcrPipInstallBatches(options = {}) {
+  const explicit = splitShellLikeEnv(process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES);
+  if (explicit.length > 0) {
+    return [explicit];
+  }
+
+  if (!isOcrGpuRequested(options)) {
+    const cpuPackages = splitShellLikeEnv(process.env.MANGA_TRANSLATOR_OCR_CPU_PIP_PACKAGES);
+    return [cpuPackages.length > 0 ? cpuPackages : DEFAULT_OCR_CPU_PIP_PACKAGES];
+  }
+
+  const gpuPackages = splitShellLikeEnv(process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES);
+  if (gpuPackages.length > 0) {
+    return [gpuPackages];
+  }
+
+  return [
+    [
+      process.env.MANGA_TRANSLATOR_OCR_GPU_PADDLE_PACKAGE || DEFAULT_OCR_GPU_PADDLE_PACKAGE,
+      "--extra-index-url",
+      resolveOcrGpuPackageIndexUrl(options)
+    ],
+    DEFAULT_OCR_GPU_EXTRA_PACKAGES
+  ];
+}
+
+function splitShellLikeEnv(value) {
+  const raw = String(value ?? "").trim();
+  return raw ? raw.split(/\s+/).filter(Boolean) : [];
+}
+
+function summarizeOcrInstallBatches(installBatches, options = {}) {
+  const packageNames = installBatches
+    .flat()
+    .filter((part) => !part.startsWith("-") && !/^https?:\/\//i.test(part));
+  const suffix = isOcrGpuRequested(options) ? ` (${resolveOcrGpuCudaTag()})` : "";
+  return `${packageNames.join(", ")}${suffix}`;
+}
+
+function isOcrGpuRequested(options = {}) {
+  return resolveOcrDevice(options).startsWith("gpu");
+}
+
+function resolveOcrGpuCudaTag() {
+  const raw = String(
+    process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG
+      ?? process.env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG
+      ?? process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA
+      ?? DEFAULT_OCR_GPU_CUDA_TAG
+  ).trim().toLowerCase();
+  if (/^cu\d+$/.test(raw)) {
+    return raw;
+  }
+  const digits = raw.replace(/\D/g, "");
+  return digits ? `cu${digits}` : DEFAULT_OCR_GPU_CUDA_TAG;
+}
+
+function resolveOcrGpuPackageIndexUrl() {
+  return String(
+    process.env.MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL
+      ?? process.env.MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL
+      ?? `https://www.paddlepaddle.org.cn/packages/stable/${resolveOcrGpuCudaTag()}/`
+  ).trim();
+}
+
+function resolveOcrRuntimeVariant(options = {}) {
+  if (!isOcrGpuRequested(options)) {
+    return "cpu";
+  }
+  return `gpu-${resolveOcrGpuCudaTag()}`.replace(/[^a-z0-9._-]+/gi, "-").toLowerCase();
+}
+
+function resolveOcrPythonPackageDir(runtimeDir, options = {}) {
+  return path.join(runtimeDir, `python-packages-${resolveOcrRuntimeVariant(options)}`);
+}
+
+function resolveOcrDevice(options = {}) {
+  const explicitDevice = String(process.env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE ?? "").trim();
+  if (explicitDevice) {
+    return explicitDevice;
+  }
+  const value = String(process.env.MANGA_TRANSLATOR_OCR_DEVICE ?? options.ocrDevice ?? "cpu").trim().toLowerCase();
+  if (value === "gpu" || value === "cuda") {
+    return "gpu:0";
+  }
+  if (value.startsWith("gpu")) {
+    return value;
+  }
+  return "cpu";
+}
+
+function resolveOcrDeviceLabel(options = {}) {
+  const device = resolveOcrDevice(options);
+  return device === "cpu" ? "CPU" : device.toUpperCase();
+}
+
+function emitRuntimeProgress(options = {}, phase, progressText, detail, progress = {}) {
+  if (typeof options.onProgress !== "function") {
+    return;
+  }
+  try {
+    options.onProgress({ phase, progressText, detail, ...progress });
+  } catch {
+    // Progress reporting must never interrupt translation.
+  }
+}
+
+async function canImportPaddleOcr(pythonPath, options = {}) {
+  return (await checkPaddleOcrImport(pythonPath, options)).ok;
+}
+
+async function checkPaddleOcrImport(pythonPath, options = {}) {
+  try {
+    await runShellCommand(`${quoteCommandArg(pythonPath)} -c ${quoteCommandArg(buildPaddleOcrImportCheckScript(options))}`, {
+      timeoutMs: 60000,
+      env: buildOcrRuntimeEnv(options, { runtimeDir: resolveOcrRuntimeDir(options) }),
+      signal: options.abortSignal
+    });
+    return { ok: true, message: "" };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+      error
+    };
+  }
+}
+
+function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
+  const suffix = isOcrGpuRequested(options)
+    ? " GPU를 선택했지만 GPU Paddle/CUDA 검증에 실패했습니다. CPU로 바꾸거나 CUDA 드라이버와 GPU Paddle wheel을 확인하세요."
+    : "";
+  const detail = importMessage ? ` detail=${truncateText(importMessage, 1200)}` : "";
+  return `PaddleOCR-VL runtime was installed but paddleocr/paddlex/paddle imports still fail.${suffix}${detail}`;
+}
+
+function createOcrRuntimeError(message, detail = {}, cause) {
+  return createDetailedError(
+    message,
+    {
+      ...detail,
+      nonRetriable: true,
+      failureCategory: "ocr-runtime"
+    },
+    cause
+  );
+}
+
+function hasOcrInstallMarker(packageDir, runtimeVariant) {
+  try {
+    const marker = JSON.parse(readFileSync(path.join(packageDir, OCR_INSTALL_MARKER_FILE), "utf8"));
+    return marker?.runtimeVariant === runtimeVariant;
+  } catch {
+    return false;
+  }
+}
+
+async function writeOcrInstallMarker(packageDir, payload) {
+  await mkdir(packageDir, { recursive: true });
+  await writeFile(path.join(packageDir, OCR_INSTALL_MARKER_FILE), `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
+function hasExpectedOcrPackages(packageDir, options = {}) {
+  if (!packageDir || !existsSync(packageDir)) {
+    return false;
+  }
+  const required = ["paddle", "paddleocr", "paddlex"];
+  if (isOcrGpuRequested(options)) {
+    required.push("nvidia");
+  }
+  return required.every((name) => existsSync(path.join(packageDir, name)));
+}
+
+function estimateOcrRuntimeBytes(options = {}) {
+  return isOcrGpuRequested(options)
+    ? OCR_GPU_RUNTIME_ESTIMATE_BYTES
+    : OCR_CPU_RUNTIME_ESTIMATE_BYTES;
+}
+
+function startTaskProgressMonitor(options = {}, config = {}) {
+  const phase = config.phase || "ocr_downloading";
+  const progressText = config.progressText || "설치 중";
+  const detailPrefix = config.detailPrefix || "";
+  let stepText = "";
+  let stepStart = Number(config.startPercent) || 0.01;
+  let stepEnd = Number(config.endPercent) || 0.95;
+  let stepStartedAt = Date.now();
+  let lastRatio = Math.max(0, Math.min(0.99, stepStart));
+  let stopped = false;
+
+  const currentRatio = () => {
+    const elapsed = Date.now() - stepStartedAt;
+    const drift = Math.min(0.92, elapsed / Math.max(1, Number(config.stepDurationMs) || 90000));
+    const ratio = stepStart + (stepEnd - stepStart) * drift;
+    lastRatio = Math.max(lastRatio, Math.min(stepEnd, ratio));
+    return Math.max(0, Math.min(0.99, lastRatio));
+  };
+
+  const emit = (extra = {}) => {
+    if (stopped) {
+      return;
+    }
+    const detail = [detailPrefix, stepText].filter(Boolean).join(" · ");
+    emitRuntimeProgress(options, phase, progressText, detail, {
+      progressPercent: currentRatio(),
+      ...extra
+    });
+  };
+
+  emit();
+  const interval = setInterval(emit, 1500);
+  return {
+    setStep(text, startPercent, endPercent) {
+      stepText = text;
+      stepStart = Math.max(lastRatio, Math.max(0, Math.min(0.99, Number(startPercent) || 0)));
+      stepEnd = Math.max(stepStart, Math.max(0, Math.min(0.99, Number(endPercent) || stepStart)));
+      stepStartedAt = Date.now();
+      emit({ installLogLine: text });
+    },
+    log(line) {
+      const logLine = sanitizeInstallLogLine(line);
+      if (!logLine) {
+        return;
+      }
+      emit({ installLogLine: logLine });
+    },
+    stop(finalProgress = null) {
+      stopped = true;
+      clearInterval(interval);
+      if (finalProgress) {
+        emitRuntimeProgress(options, phase, progressText, finalProgress.detail, finalProgress);
+      }
+    }
+  };
+}
+
+function sanitizeInstallLogLine(line) {
+  const text = String(line ?? "")
+    .replace(/\u001b\[[0-9;]*m/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return truncateText(text, 220);
+}
+
+function startDirectoryProgressMonitor(options = {}, config = {}) {
+  const directory = config.directory ? path.resolve(config.directory) : "";
+  const estimateBytes = Math.max(1, Number(config.estimateBytes) || 1);
+  const startedAt = Date.now();
+  const initialBytes = safeDirectorySizeBytes(directory);
+  const progressBaseBytes = config.countExistingBytes === false ? initialBytes : 0;
+  let lastBytes = safeDirectorySizeBytes(directory);
+  let lastAt = startedAt;
+  let stopped = false;
+
+  const emit = () => {
+    if (stopped) {
+      return;
+    }
+    const now = Date.now();
+    const bytes = safeDirectorySizeBytes(directory);
+    const elapsedSeconds = Math.max(0.001, (now - lastAt) / 1000);
+    const speed = Math.max(0, (bytes - lastBytes) / elapsedSeconds);
+    lastBytes = bytes;
+    lastAt = now;
+    const progressBytes = Math.max(0, bytes - progressBaseBytes);
+    const hasByteProgress = progressBytes > 0;
+    const zeroByteMaxRatio = Number(config.zeroByteMaxRatio) || 0.08;
+    const elapsedRatio = Math.max(
+      0.01,
+      Math.min(
+        zeroByteMaxRatio,
+        ((now - startedAt) / Math.max(1, Number(config.zeroByteWarmupMs) || 90000)) * zeroByteMaxRatio
+      )
+    );
+    const ratio = hasByteProgress
+      ? Math.max(elapsedRatio, Math.min(0.99, progressBytes / estimateBytes))
+      : elapsedRatio;
+    const detail = hasByteProgress
+      ? [
+          config.detailPrefix,
+          `처리된 파일 ${formatBytes(progressBytes)}`
+        ].filter(Boolean).join(" · ")
+      : [
+          config.detailPrefix,
+          config.zeroByteDetail || "파일 준비 중입니다. 실제 바이트가 생기면 용량과 속도가 표시됩니다."
+        ].filter(Boolean).join(" · ");
+    emitRuntimeProgress(options, config.phase, config.progressText, detail, {
+      progressPercent: ratio,
+      progressBytes: hasByteProgress ? progressBytes : undefined,
+      progressTotalBytes: hasByteProgress ? estimateBytes : undefined
+    });
+  };
+
+  emit();
+  const interval = setInterval(emit, 1500);
+  return {
+    stop(finalProgress = null) {
+      stopped = true;
+      clearInterval(interval);
+      if (finalProgress) {
+        emitRuntimeProgress(options, config.phase, config.progressText, finalProgress.detail, finalProgress);
+      }
+    }
+  };
+}
+
+function safeDirectorySizeBytes(directory) {
+  if (!directory || !existsSync(directory)) {
+    return 0;
+  }
+  try {
+    return directorySizeBytes(directory);
+  } catch {
+    return 0;
+  }
+}
+
+function directorySizeBytes(directory) {
+  let total = 0;
+  const entries = readdirSync(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      total += directorySizeBytes(fullPath);
+    } else if (entry.isFile()) {
+      total += statSync(fullPath).size;
+    }
+  }
+  return total;
+}
+
+function formatBytes(bytes) {
+  const value = Math.max(0, Number(bytes) || 0);
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = value;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  const digits = unitIndex === 0 ? 0 : size >= 100 ? 0 : size >= 10 ? 1 : 2;
+  return `${size.toFixed(digits)} ${units[unitIndex]}`;
+}
+
+function buildPaddleOcrImportCheckScript(options = {}) {
+  const device = resolveOcrDevice(options);
+  const lines = [
+    "import paddle, paddlex, paddleocr"
+  ];
+  if (device.startsWith("gpu")) {
+    lines.push("assert paddle.device.is_compiled_with_cuda(), 'PaddlePaddle is not compiled with CUDA'");
+    lines.push("count = paddle.device.cuda.device_count()");
+    lines.push("assert count > 0, 'No CUDA device is visible to PaddlePaddle'");
+    lines.push(`paddle.set_device(${JSON.stringify(device)})`);
+  }
+  return lines.join("; ");
+}
+
+function buildOcrRuntimeEnv(options = {}, runtime = null) {
+  const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);
+  const hfHomeDir = options.hfHomeDir || process.env.HF_HOME || path.join(runtimeDir, "hf-cache");
+  const hfHubCacheDir = options.hfHubCacheDir || process.env.HF_HUB_CACHE || process.env.HUGGINGFACE_HUB_CACHE || path.join(hfHomeDir, "hub");
+  const packageDir = runtime?.packageDir || resolveOcrPythonPackageDir(runtimeDir, options);
+  const pythonPath = [packageDir, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+  const ocrDevice = resolveOcrDevice(options);
+  const pipCacheDir = path.join(runtimeDir, "pip-cache");
+  const tempDir = path.join(runtimeDir, "tmp");
+  return {
+    ...process.env,
+    HF_HOME: hfHomeDir,
+    HF_HUB_CACHE: hfHubCacheDir,
+    HUGGINGFACE_HUB_CACHE: hfHubCacheDir,
+    MANGA_TRANSLATOR_OCR_DEVICE: options.ocrDevice || process.env.MANGA_TRANSLATOR_OCR_DEVICE || "cpu",
+    MANGA_TRANSLATOR_PADDLEOCR_DEVICE: ocrDevice,
+    PYTHONPATH: pythonPath,
+    PIP_CACHE_DIR: pipCacheDir,
+    PADDLE_PDX_MODEL_SOURCE: process.env.PADDLE_PDX_MODEL_SOURCE || "huggingface",
+    PADDLE_PDX_CACHE_HOME: process.env.PADDLE_PDX_CACHE_HOME || path.join(runtimeDir, "paddlex-cache"),
+    PADDLE_PDX_HUGGING_FACE_ENDPOINT: process.env.PADDLE_PDX_HUGGING_FACE_ENDPOINT || "https://huggingface.co",
+    PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT: process.env.PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT || "0",
+    PIP_DISABLE_PIP_VERSION_CHECK: process.env.PIP_DISABLE_PIP_VERSION_CHECK || "1",
+    TMP: tempDir,
+    TEMP: tempDir,
+    PYTHONUTF8: "1"
+  };
+}
+
+function buildOcrBboxCommand(options = {}, provider, outputPath, runtime = null) {
+  const template = String(options.ocrBboxCommand ?? process.env.MANGA_TRANSLATOR_OCR_BBOX_CMD ?? "").trim();
+  const image = options.imagePath;
+  const replacements = {
+    image: quoteCommandArg(image),
+    output: quoteCommandArg(outputPath)
+  };
+
+  if (template) {
+    return renderCommandTemplate(template, replacements);
+  }
+
+  if (provider === "paddleocr-vl") {
+    const python = quoteCommandArg(runtime?.pythonPath || process.env.MANGA_TRANSLATOR_PYTHON || "python");
+    const scriptPath = quoteCommandArg(path.join(__dirname, "paddleocr-vl-bboxes.py"));
+    return `${python} ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveOcrDevice(options))}`;
+  }
+
+  throw new Error("OCR bbox provider requires MANGA_TRANSLATOR_OCR_BBOX_CMD.");
+}
+
+function renderCommandTemplate(template, replacements) {
+  let rendered = template;
+  for (const [key, value] of Object.entries(replacements)) {
+    rendered = rendered.replaceAll(`{${key}}`, value);
+  }
+  return rendered;
+}
+
+function quoteCommandArg(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '\\"')}"`;
+}
+
+function runShellCommand(command, { timeoutMs, env, signal, onOutput } = {}) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createAbortError());
+      return;
+    }
+
+    const child = spawn(command, {
+      shell: true,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: env || process.env
+    });
+    let stdout = "";
+    let stderr = "";
+    let timeout = null;
+    let settled = false;
+
+    const cleanup = () => {
+      if (timeout) clearTimeout(timeout);
+      signal?.removeEventListener?.("abort", onAbort);
+    };
+
+    const settleReject = (error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    const settleResolve = (result) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      resolve(result);
+    };
+
+    const onAbort = () => {
+      terminateChildProcessTree(child);
+      settleReject(createAbortError());
+    };
+    signal?.addEventListener?.("abort", onAbort, { once: true });
+
+    if (timeoutMs > 0) {
+      timeout = setTimeout(() => {
+        terminateChildProcessTree(child);
+        settleReject(createDetailedError("OCR bbox command timed out.", { command, timeoutMs, stdoutPreview: truncateText(stdout), stderrPreview: truncateText(stderr) }));
+      }, timeoutMs);
+    }
+
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk) => {
+      stdout = shrinkBuffer(stdout, chunk, 30000);
+      emitCommandOutputLines(onOutput, chunk);
+    });
+    child.stderr?.on("data", (chunk) => {
+      stderr = shrinkBuffer(stderr, chunk, 30000);
+      emitCommandOutputLines(onOutput, chunk);
+    });
+    child.on("error", (error) => {
+      settleReject(error);
+    });
+    child.on("exit", (code) => {
+      if (settled) {
+        return;
+      }
+      if (code === 0) {
+        settleResolve({ stdout, stderr });
+        return;
+      }
+      settleReject(createDetailedError(`OCR bbox command failed (${code ?? "null"}).`, {
+        command,
+        stdoutPreview: truncateText(stdout),
+        stderrPreview: truncateText(stderr)
+      }));
+    });
+  });
+}
+
+function emitCommandOutputLines(onOutput, chunk) {
+  if (typeof onOutput !== "function") {
+    return;
+  }
+  const text = String(chunk ?? "").replace(/\u001b\[[0-9;]*m/g, "");
+  for (const part of text.split(/[\r\n]+/)) {
+    const line = sanitizeInstallLogLine(part);
+    if (line) {
+      onOutput(line);
+    }
+  }
+}
+
+function createAbortError() {
+  if (typeof DOMException === "function") {
+    return new DOMException("Aborted", "AbortError");
+  }
+  const error = new Error("Aborted");
+  error.name = "AbortError";
+  return error;
+}
+
+function terminateChildProcessTree(child) {
+  if (!child || child.killed || child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+
+  if (process.platform === "win32" && child.pid) {
+    const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true
+    });
+    killer.on("error", () => {
+      child.kill("SIGKILL");
+    });
+    killer.on("close", (code) => {
+      if (code !== 0 && child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+      }
+    });
+    return;
+  }
+
+  child.kill("SIGKILL");
+}
+
+function extractJsonText(rawText) {
+  const text = String(rawText ?? "").trim();
+  if (text.startsWith("{") || text.startsWith("[")) {
+    return text;
+  }
+
+  const firstObject = text.indexOf("{");
+  const lastObject = text.lastIndexOf("}");
+  const firstArray = text.indexOf("[");
+  const lastArray = text.lastIndexOf("]");
+  if (firstObject !== -1 && lastObject > firstObject && (firstArray === -1 || firstObject < firstArray)) {
+    return text.slice(firstObject, lastObject + 1);
+  }
+  if (firstArray !== -1 && lastArray > firstArray) {
+    return text.slice(firstArray, lastArray + 1);
+  }
+  return "";
+}
+
+function normalizeOcrBboxHintPayload(payload, options = {}) {
+  const originalWidth = readPositiveInteger(options.imageWidth);
+  const originalHeight = readPositiveInteger(options.imageHeight);
+  const candidates = collectOcrBboxCandidates(payload);
+  const hints = [];
+
+  for (const candidate of candidates) {
+    const box = normalizeOcrBboxCandidate(candidate, originalWidth, originalHeight, payload);
+    if (!box) {
+      continue;
+    }
+    const label = candidate.label ?? candidate.type ?? candidate.category ?? candidate.class ?? candidate.class_name ?? "text";
+    if (isIgnoredOcrLabel(label)) {
+      continue;
+    }
+    hints.push({
+      id: hints.length + 1,
+      label: sanitizeHintLabel(label),
+      ...box,
+      ...(Number.isFinite(Number(candidate.score ?? candidate.confidence)) ? { score: Number(candidate.score ?? candidate.confidence) } : {})
+    });
+  }
+
+  return hints.slice(0, 80);
+}
+
+function collectOcrBboxCandidates(payload) {
+  if (!payload) {
+    return [];
+  }
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (Array.isArray(payload.items)) return payload.items;
+  if (Array.isArray(payload.blocks)) return payload.blocks;
+  if (Array.isArray(payload.parsing_res_list)) return payload.parsing_res_list;
+  if (Array.isArray(payload.layout_det_res?.boxes)) return payload.layout_det_res.boxes;
+  if (Array.isArray(payload.pages)) return payload.pages.flatMap(collectOcrBboxCandidates);
+  if (Array.isArray(payload.results)) return payload.results.flatMap(collectOcrBboxCandidates);
+  if (payload.result && typeof payload.result === "object") return collectOcrBboxCandidates(payload.result);
+  if (payload.data && typeof payload.data === "object") return collectOcrBboxCandidates(payload.data);
+  return [];
+}
+
+function normalizeOcrBboxCandidate(candidate, originalWidth, originalHeight, payload) {
+  const rawBox = readRawOcrBox(candidate);
+  if (!rawBox) {
+    return null;
+  }
+
+  const payloadSpace = String(payload?.coordinateSpace ?? payload?.bboxCoordinateSpace ?? candidate.coordinateSpace ?? "").toLowerCase();
+  const sourceWidth = readPositiveInteger(payload?.width ?? payload?.imageWidth ?? candidate.imageWidth) || originalWidth;
+  const sourceHeight = readPositiveInteger(payload?.height ?? payload?.imageHeight ?? candidate.imageHeight) || originalHeight;
+  let { x1, y1, x2, y2 } = rawBox;
+
+  if (payloadSpace.includes("1000") && originalWidth && originalHeight) {
+    x1 = (x1 / 1000) * originalWidth;
+    x2 = (x2 / 1000) * originalWidth;
+    y1 = (y1 / 1000) * originalHeight;
+    y2 = (y2 / 1000) * originalHeight;
+  } else if (sourceWidth && sourceHeight && originalWidth && originalHeight && (sourceWidth !== originalWidth || sourceHeight !== originalHeight)) {
+    x1 = (x1 / sourceWidth) * originalWidth;
+    x2 = (x2 / sourceWidth) * originalWidth;
+    y1 = (y1 / sourceHeight) * originalHeight;
+    y2 = (y2 / sourceHeight) * originalHeight;
+  }
+
+  const left = Math.max(0, Math.round(Math.min(x1, x2)));
+  const top = Math.max(0, Math.round(Math.min(y1, y2)));
+  const right = originalWidth ? Math.min(originalWidth, Math.round(Math.max(x1, x2))) : Math.round(Math.max(x1, x2));
+  const bottom = originalHeight ? Math.min(originalHeight, Math.round(Math.max(y1, y2))) : Math.round(Math.max(y1, y2));
+  if (right - left < 2 || bottom - top < 2) {
+    return null;
+  }
+  return { x1: left, y1: top, x2: right, y2: bottom };
+}
+
+function readRawOcrBox(candidate) {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+
+  const direct = boxFromNumericFields(candidate);
+  if (direct) {
+    return direct;
+  }
+
+  for (const key of ["bbox", "box", "rect", "rectangle", "position"]) {
+    const box = boxFromArrayOrObject(candidate[key]);
+    if (box) {
+      return box;
+    }
+  }
+
+  for (const key of ["polygon", "poly", "points", "polygon_points", "rec_poly", "det_poly"]) {
+    const box = boxFromPolygon(candidate[key]);
+    if (box) {
+      return box;
+    }
+  }
+
+  return null;
+}
+
+function boxFromNumericFields(value) {
+  const x1 = Number(value.x1 ?? value.left);
+  const y1 = Number(value.y1 ?? value.top);
+  const x2 = Number(value.x2 ?? value.right);
+  const y2 = Number(value.y2 ?? value.bottom);
+  if ([x1, y1, x2, y2].every(Number.isFinite)) {
+    return { x1, y1, x2, y2 };
+  }
+
+  const x = Number(value.x);
+  const y = Number(value.y);
+  const w = Number(value.w ?? value.width);
+  const h = Number(value.h ?? value.height);
+  if ([x, y, w, h].every(Number.isFinite)) {
+    return { x1: x, y1: y, x2: x + w, y2: y + h };
+  }
+
+  return null;
+}
+
+function boxFromArrayOrObject(value) {
+  if (!value) {
+    return null;
+  }
+  if (Array.isArray(value)) {
+    if (value.length >= 4 && value.every((item) => typeof item === "number" || typeof item === "string")) {
+      const numbers = value.slice(0, 4).map(Number);
+      if (numbers.every(Number.isFinite)) {
+        return { x1: numbers[0], y1: numbers[1], x2: numbers[2], y2: numbers[3] };
+      }
+    }
+    return boxFromPolygon(value);
+  }
+  if (typeof value === "object") {
+    return boxFromNumericFields(value);
+  }
+  return null;
+}
+
+function boxFromPolygon(value) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const points = [];
+  for (const point of value) {
+    if (Array.isArray(point) && point.length >= 2) {
+      const x = Number(point[0]);
+      const y = Number(point[1]);
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        points.push({ x, y });
+      }
+    } else if (point && typeof point === "object") {
+      const x = Number(point.x);
+      const y = Number(point.y);
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        points.push({ x, y });
+      }
+    }
+  }
+  if (points.length === 0) {
+    return null;
+  }
+  return {
+    x1: Math.min(...points.map((point) => point.x)),
+    y1: Math.min(...points.map((point) => point.y)),
+    x2: Math.max(...points.map((point) => point.x)),
+    y2: Math.max(...points.map((point) => point.y))
+  };
+}
+
+function isIgnoredOcrLabel(label) {
+  const normalized = sanitizeHintLabel(label);
+  return [
+    "image",
+    "header_image",
+    "footer_image",
+    "chart",
+    "table",
+    "figure",
+    "seal",
+    "formula",
+    "display_formula",
+    "inline_formula",
+    "number",
+    "footer",
+    "header"
+  ].includes(normalized);
 }
 
 function buildLaunchArgs(options) {
@@ -1073,9 +2638,12 @@ async function isReachable(baseUrl) {
   }
 }
 
-async function waitForReadyOrExit(baseUrl, child, timeoutMs = 1800000) {
+async function waitForReadyOrExit(baseUrl, child, timeoutMs = 1800000, signal = null) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
+    if (signal?.aborted) {
+      throw createAbortError();
+    }
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error(`llama-server exited before becoming ready (code=${child.exitCode ?? "null"}, signal=${child.signalCode ?? "null"})`);
     }
@@ -1121,7 +2689,18 @@ async function startServer(options) {
     childEnv.HUGGINGFACE_HUB_CACHE = hfHubCacheDir;
   }
 
+  const launchTarget = inspectModelLaunch(options);
   const launchArgs = buildLaunchArgs(options);
+  const modelMonitor = launchTarget.requiresDownload
+    ? startTaskProgressMonitor(options, {
+        phase: "model_downloading",
+        progressText: "Gemma 4 모델 다운로드/서버 준비 중",
+        detailPrefix: `${resolveConfiguredModelRepo(options)} / ${resolveConfiguredModelFile(options)}`,
+        startPercent: 0.03,
+        endPercent: 0.95,
+        stepDurationMs: 240000
+      })
+    : null;
   let recentStdout = "";
   let recentStderr = "";
   const child = spawn(serverPath, launchArgs, {
@@ -1130,21 +2709,27 @@ async function startServer(options) {
     shell: false,
     env: childEnv
   });
+  const abortSignal = options.abortSignal;
+  const onAbort = () => terminateChildProcessTree(child);
+  abortSignal?.addEventListener?.("abort", onAbort, { once: true });
 
   child.stdout?.setEncoding("utf8");
   child.stderr?.setEncoding("utf8");
+  modelMonitor?.setStep("llama-server 시작", 0.03, 0.95);
   child.stdout?.on("data", (chunk) => {
     recentStdout = shrinkBuffer(recentStdout, chunk);
+    modelMonitor?.log(chunk);
     process.stdout.write(`[llama:${options.label}:stdout] ${chunk}`);
   });
   child.stderr?.on("data", (chunk) => {
     recentStderr = shrinkBuffer(recentStderr, chunk);
+    modelMonitor?.log(chunk);
     process.stderr.write(`[llama:${options.label}:stderr] ${chunk}`);
   });
 
   try {
     await Promise.race([
-      waitForReadyOrExit(baseUrl, child),
+      waitForReadyOrExit(baseUrl, child, 1800000, abortSignal),
       new Promise((_, reject) => {
         child.once("error", (error) => {
           reject(
@@ -1164,7 +2749,17 @@ async function startServer(options) {
         });
       })
     ]);
+    modelMonitor?.stop({
+      progressPercent: 1,
+      installLogLine: "Gemma 4 서버 준비가 완료되었습니다.",
+      detail: `${resolveConfiguredModelFile(options)} 준비 완료`
+    });
   } catch (error) {
+    terminateChildProcessTree(child);
+    modelMonitor?.stop();
+    if (error?.name === "AbortError" || abortSignal?.aborted) {
+      throw createAbortError();
+    }
     if (error instanceof Error && (error.serverPath || error.baseUrl || error.optionSummary)) {
       throw error;
     }
@@ -1181,9 +2776,16 @@ async function startServer(options) {
       },
       error
     );
+  } finally {
+    abortSignal?.removeEventListener?.("abort", onAbort);
   }
 
   return { baseUrl, child, startedByScript: true };
+}
+
+function estimateGemmaModelBytes(options = {}) {
+  const modelFile = resolveConfiguredModelFile(options);
+  return GEMMA_MODEL_ESTIMATE_BYTES[modelFile] || 24 * 1024 * 1024 * 1024;
 }
 
 async function stopServer(server) {
@@ -1195,32 +2797,55 @@ async function stopServer(server) {
   child.once("exit", () => {
     exited = true;
   });
-  child.kill("SIGTERM");
+  if (process.platform === "win32") {
+    terminateChildProcessTree(child);
+  } else {
+    child.kill("SIGTERM");
+  }
   await Promise.race([
     new Promise((resolve) => child.once("exit", resolve)),
     delay(5000)
   ]);
   if (!exited) {
-    child.kill("SIGKILL");
+    terminateChildProcessTree(child);
   }
 }
 
 async function requestTranslation(server, options) {
   const preparedVariants = await prepareImageVariants(options);
   const imageVariants = preparedVariants.imageVariants;
-  const promptText = options.promptOverrideText || PROMPT_KO_BBOX_LINES_MULTIVIEW;
-  const systemPrompt = buildSystemPrompt(options);
+  const ocrBboxResult = await collectOcrBboxHints(options);
+  const promptOptions = {
+    ...options,
+    ocrBboxHints: ocrBboxResult.hints
+  };
+  const promptText = promptOptions.promptOverrideText || getOverlayPrompt(promptOptions, imageVariants);
+  const systemPrompt = buildSystemPrompt(promptOptions);
   const requestBody = isOpenAICodexProvider(options)
-    ? buildResponsesRequestBody(options, imageVariants)
-    : buildChatRequestBody(options, buildMessages(options, imageVariants));
-  const requestSummary = buildRequestSummary(server, options, imageVariants, promptText, systemPrompt);
+    ? buildResponsesRequestBody(promptOptions, imageVariants, promptText, systemPrompt)
+    : buildChatRequestBody(promptOptions, buildMessages(promptOptions, imageVariants));
+  const requestSummary = buildRequestSummary(server, promptOptions, imageVariants, promptText, systemPrompt);
   if (preparedVariants.diagnostics.length > 0) {
     requestSummary.imageVariantDiagnostics = preparedVariants.diagnostics;
+  }
+  if (ocrBboxResult.diagnostics.length > 0) {
+    requestSummary.ocrBboxDiagnostics = ocrBboxResult.diagnostics;
+  }
+
+  if (isOpenAICodexProvider(options)) {
+    emitRuntimeProgress(promptOptions, "model_requesting", "OpenAI Codex 번역 요청 중", `${resolveConfiguredCodexModel(promptOptions)}, thinking ${resolveConfiguredCodexReasoningEffort(promptOptions)}`);
+    const finalResult = await requestCodexResponsesText(server, promptOptions, requestBody, requestSummary);
+    return {
+      requestBody: requestSummary,
+      rawResponse: finalResult.rawResponse,
+      outputText: finalResult.outputText
+    };
   }
 
   let response;
   try {
-    response = await fetch(`${server.baseUrl}/${isOpenAICodexProvider(options) ? "responses" : "chat/completions"}`, {
+    emitRuntimeProgress(promptOptions, "model_requesting", "Gemma 4 번역 요청 중", resolveRequestModelName(promptOptions));
+    response = await fetch(`${server.baseUrl}/chat/completions`, {
       method: "POST",
       headers: buildChatRequestHeaders(options),
       body: JSON.stringify(requestBody),
@@ -1228,25 +2853,6 @@ async function requestTranslation(server, options) {
     });
   } catch (error) {
     throw createDetailedError(`${resolveProviderDisplayName(options)} request transport failed.`, { requestSummary }, error);
-  }
-
-  if (isOpenAICodexProvider(options)) {
-    if (!response.ok) {
-      const rawText = await readResponseText(response, requestSummary, options);
-      throw createDetailedError(`${resolveProviderDisplayName(options)} request failed (${response.status}).`, {
-        requestSummary,
-        status: response.status,
-        statusText: response.statusText,
-        rawTextPreview: truncateText(rawText, 4000)
-      });
-    }
-
-    const streamResult = await readCodexResponsesStream(response, requestSummary, options);
-    return {
-      requestBody: requestSummary,
-      rawResponse: streamResult.rawResponse,
-      outputText: streamResult.outputText
-    };
   }
 
   let rawText = "";
@@ -1289,6 +2895,40 @@ async function requestTranslation(server, options) {
     rawResponse: parsed,
     outputText
   };
+}
+
+async function requestCodexResponsesText(server, options, requestBody, requestSummary) {
+  let response;
+  try {
+    response = await fetch(`${server.baseUrl}/responses`, {
+      method: "POST",
+      headers: buildChatRequestHeaders(options),
+      body: JSON.stringify(requestBody),
+      signal: options.abortSignal
+    });
+  } catch (error) {
+    throw createDetailedError(`${resolveProviderDisplayName(options)} request transport failed.`, { requestSummary }, error);
+  }
+
+  if (!response.ok) {
+    const rawText = await readResponseText(response, requestSummary, options);
+    throw createDetailedError(`${resolveProviderDisplayName(options)} request failed (${response.status}).`, {
+      requestSummary,
+      status: response.status,
+      statusText: response.statusText,
+      rawTextPreview: truncateText(rawText, 4000)
+    });
+  }
+
+  const streamResult = await readCodexResponsesStream(response, requestSummary, options);
+  if (!streamResult.outputText.trim()) {
+    throw createDetailedError("Model returned an empty response.", {
+      requestSummary,
+      rawResponse: streamResult.rawResponse
+    });
+  }
+
+  return streamResult;
 }
 
 async function readResponseText(response, requestSummary, options) {
@@ -1539,6 +3179,8 @@ async function testCodexResponsesReply(server, options) {
 async function saveArtifacts(options, result) {
   await mkdir(options.outputDir, { recursive: true });
   const systemPrompt = buildSystemPrompt(options);
+  const imageVariants = result.requestBody?.imageVariants || [];
+  const prompt = options.promptOverrideText || getOverlayPrompt(options, imageVariants);
   const payload = {
     label: options.label,
     imagePath: options.imagePath,
@@ -1574,7 +3216,7 @@ async function saveArtifacts(options, result) {
     },
     requestSummary: result.requestBody,
     systemPrompt,
-    prompt: options.promptOverrideText || PROMPT_KO_BBOX_LINES_MULTIVIEW,
+    prompt,
     outputText: result.outputText,
     rawResponse: result.rawResponse
   };
@@ -1587,8 +3229,10 @@ module.exports = {
   buildMessages,
   buildLaunchArgs,
   buildResponsesRequestBody,
+  collectOcrBboxHints,
   enhanceBitmapBuffer,
   extractModelOutputText,
+  getOverlayPrompt,
   getScaledSize,
   inspectModelLaunch,
   isModelCached,

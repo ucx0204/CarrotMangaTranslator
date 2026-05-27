@@ -25,7 +25,7 @@ export function OverlayBlock({
 
   const displayText = block.translatedText || block.sourceText || "...";
   const layout = resolveBlockTextLayout(block, displayText, pageSize, stageSize);
-  const sfxTextOutlinePx = block.type === "sfx" ? resolveSfxTextOutlinePx(layout.fontSizePx) : 0;
+  const textOutlineShadow = block.type === "sfx" || block.type === "caption" ? resolveTextOutlineShadow(layout.fontSizePx) : undefined;
   const style: React.CSSProperties = {
     left: layout.rect.left,
     top: layout.rect.top,
@@ -52,13 +52,13 @@ export function OverlayBlock({
     boxSizing: "border-box",
     writingMode: block.renderDirection === "vertical" ? "vertical-rl" : "horizontal-tb",
     textOrientation: block.renderDirection === "vertical" ? "upright" : undefined,
-    transform: block.renderDirection === "rotated" ? "rotate(-8deg)" : undefined,
+    transform: block.rotationDeg ? `rotate(${block.rotationDeg}deg)` : undefined,
     transformOrigin: "center center",
     width: `${layout.fitInnerWidth}px`,
     height: block.renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
     maxWidth: "100%",
     maxHeight: "100%",
-    WebkitTextStroke: sfxTextOutlinePx ? `${sfxTextOutlinePx}px rgba(255, 255, 255, 0.95)` : undefined
+    textShadow: textOutlineShadow
   };
 
   return (
@@ -78,6 +78,27 @@ export function OverlayBlock({
   );
 }
 
-function resolveSfxTextOutlinePx(fontSizePx: number): number {
+function resolveTextOutlineShadow(fontSizePx: number): string {
+  const radius = resolveTextOutlinePx(fontSizePx);
+  const halfRadius = Math.round(radius * 0.55 * 10) / 10;
+  const color = "rgba(255, 255, 255, 0.95)";
+  const offsets = [
+    [0, -radius],
+    [radius, 0],
+    [0, radius],
+    [-radius, 0],
+    [radius, -radius],
+    [radius, radius],
+    [-radius, radius],
+    [-radius, -radius],
+    [halfRadius, -halfRadius],
+    [halfRadius, halfRadius],
+    [-halfRadius, halfRadius],
+    [-halfRadius, -halfRadius]
+  ];
+  return offsets.map(([x, y]) => `${x}px ${y}px 0 ${color}`).join(", ");
+}
+
+function resolveTextOutlinePx(fontSizePx: number): number {
   return Math.round(Math.min(4, Math.max(0.35, fontSizePx * 0.055)) * 10) / 10;
 }
