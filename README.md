@@ -193,3 +193,7 @@ npm run dist:win
 npm run typecheck
 npm test
 ```
+
+## 라이선스
+
+MIT License입니다. 자세한 내용은 [LICENSE](LICENSE)를 확인하세요.
