@@ -1,7 +1,7 @@
 import React from "react";
 import * as Progress from "@radix-ui/react-progress";
 import type { JobState } from "../../../shared/types";
-import type { ProgressSnapshot } from "../lib/jobProgress";
+import { formatBytes, type ProgressSnapshot } from "../lib/jobProgress";
 
 type InstallProgressOverlayProps = {
   job: JobState;
@@ -22,10 +22,13 @@ export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlay
     return null;
   }
 
-  const ratio = snapshot?.mode === "determinate" ? snapshot.ratio : null;
+  const mode = snapshot?.mode ?? "log-only";
+  const isDeterminate = snapshot?.mode === "determinate";
+  const ratio = isDeterminate ? snapshot.ratio : null;
   const percent = ratio === null ? null : Math.round(ratio * 100);
-  const value = percent ?? undefined;
+  const value = mode === "determinate" ? percent ?? 0 : undefined;
   const logLines = job.installLogLines ?? [];
+  const byteStats = formatByteStats(job);
 
   return (
     <div className="install-progress-overlay" role="status" aria-live="polite">
@@ -35,15 +38,16 @@ export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlay
           <strong>{job.progressText}</strong>
         </div>
 
-        <Progress.Root className="install-progress-root" value={value} max={100}>
+        <Progress.Root className={`install-progress-root is-${mode}`} value={value} max={100}>
           <Progress.Indicator
             className="install-progress-indicator"
-            style={{ transform: `translateX(-${100 - (percent ?? 36)}%)` }}
+            style={mode === "determinate" ? { transform: `translateX(-${100 - (percent ?? 0)}%)` } : undefined}
           />
         </Progress.Root>
 
         <div className="install-progress-stats">
-          <span>{percent === null ? "진행률 계산 중" : `${percent}%`}</span>
+          <span>{resolveProgressLabel(mode, percent)}</span>
+          {byteStats ? <span>{byteStats}</span> : null}
         </div>
 
         {job.detail ? <p>{job.detail}</p> : null}
@@ -58,6 +62,28 @@ export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlay
       </div>
     </div>
   );
+}
+
+function resolveProgressLabel(mode: ProgressSnapshot["mode"] | "log-only", percent: number | null): string {
+  if (mode === "determinate" && percent !== null) {
+    return `${percent}%`;
+  }
+  if (mode === "indeterminate") {
+    return "진행 중";
+  }
+  return "로그 확인 중";
+}
+
+function formatByteStats(job: JobState): string | null {
+  const current = formatBytes(job.progressBytes);
+  const total = formatBytes(job.progressTotalBytes);
+  if (current && total) {
+    return `${current} / ${total}`;
+  }
+  if (current) {
+    return current;
+  }
+  return null;
 }
 
 function isInstallPhase(phase: JobState["phase"]): boolean {

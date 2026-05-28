@@ -268,6 +268,7 @@ function registerIpc(): void {
           phase: "model_downloading",
           progressText: "Gemma 모델 다운로드/서버 준비 중",
           detail: `${options.modelRepo} / ${options.modelFile}`,
+          progressMode: "log-only",
           installLogLine: "캐시된 모델이 없어서 다운로드 또는 갱신을 시작합니다."
         });
       }
@@ -465,6 +466,7 @@ function registerIpc(): void {
         phase: event.phase,
         progressCurrent: event.progressCurrent,
         progressTotal: event.progressTotal,
+        progressMode: event.progressMode,
         progressPercent: event.progressPercent,
         progressBytes: event.progressBytes,
         progressTotalBytes: event.progressTotalBytes,

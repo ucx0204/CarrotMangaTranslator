@@ -180,30 +180,35 @@ export default function App(): React.JSX.Element {
   React.useEffect(() => {
     const unsubscribe = window.mangaApi.onJobEvent((event) => {
       const friendlyText = formatJobLabel(event);
-      setJobState((current) => ({
-        id: event.id,
-        kind: event.kind,
-        status: event.status,
-        progressText: friendlyText,
-        detail: event.detail ?? current.detail,
-        phase: event.phase ?? current.phase,
-        progressPercent: event.progressPercent ?? (event.installLogLine && current.id === event.id ? current.progressPercent : undefined),
-        progressBytes: event.progressBytes ?? (event.installLogLine && current.id === event.id ? current.progressBytes : undefined),
-        progressTotalBytes: event.progressTotalBytes ?? (event.installLogLine && current.id === event.id ? current.progressTotalBytes : undefined),
-        progressBytesPerSecond: event.progressBytesPerSecond ?? (event.installLogLine && current.id === event.id ? current.progressBytesPerSecond : undefined),
-        installLogLine: event.installLogLine,
-        installLogLines: event.installLogLine
-          ? [...(current.id === event.id ? current.installLogLines ?? [] : []), event.installLogLine].slice(-80)
-          : current.id === event.id
-            ? current.installLogLines
-            : undefined,
-        progressCurrent: event.progressCurrent ?? current.progressCurrent,
-        progressTotal: event.progressTotal ?? current.progressTotal,
-        pageIndex: event.pageIndex ?? current.pageIndex,
-        pageTotal: event.pageTotal ?? current.pageTotal,
-        attempt: event.attempt ?? current.attempt,
-        attemptTotal: event.attemptTotal ?? current.attemptTotal
-      }));
+      setJobState((current) => {
+        const sameJob = current.id === event.id;
+        const preserveExactProgress = Boolean(event.installLogLine && sameJob && event.progressMode !== "log-only");
+        return {
+          id: event.id,
+          kind: event.kind,
+          status: event.status,
+          progressText: friendlyText,
+          detail: event.detail ?? current.detail,
+          phase: event.phase ?? current.phase,
+          progressMode: event.progressMode ?? (event.installLogLine && sameJob ? current.progressMode : undefined),
+          progressPercent: event.progressPercent ?? (preserveExactProgress ? current.progressPercent : undefined),
+          progressBytes: event.progressBytes ?? (preserveExactProgress ? current.progressBytes : undefined),
+          progressTotalBytes: event.progressTotalBytes ?? (preserveExactProgress ? current.progressTotalBytes : undefined),
+          progressBytesPerSecond: event.progressBytesPerSecond ?? (preserveExactProgress ? current.progressBytesPerSecond : undefined),
+          installLogLine: event.installLogLine,
+          installLogLines: event.installLogLine
+            ? [...(sameJob ? current.installLogLines ?? [] : []), event.installLogLine].slice(-80)
+            : sameJob
+              ? current.installLogLines
+              : undefined,
+          progressCurrent: event.progressCurrent ?? current.progressCurrent,
+          progressTotal: event.progressTotal ?? current.progressTotal,
+          pageIndex: event.pageIndex ?? current.pageIndex,
+          pageTotal: event.pageTotal ?? current.pageTotal,
+          attempt: event.attempt ?? current.attempt,
+          attemptTotal: event.attemptTotal ?? current.attemptTotal
+        };
+      });
       appendStatusLine(formatJobEventLine(event), resolveStatusLineReplacement(event));
 
       if (event.phase === "page_done" || event.phase === "page_skipped") {

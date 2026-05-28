@@ -28,20 +28,26 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
     imageVariants: Array<{ role: string; dataUrl?: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number }>
   ) => string;
   collectOcrBboxHints: (options: { [key: string]: unknown }) => Promise<{ hints: Array<{ x1: number; y1: number; x2: number; y2: number }>; diagnostics: unknown[] }>;
+  collectRequiredHfDownloads: (options: { [key: string]: unknown }) => Array<{ kind: string; file: string; destination: string }>;
   extractModelOutputText: (parsed: unknown) => string;
   inspectModelLaunch: (options: { [key: string]: unknown }) => { launchMode: string; model?: string; reasoningEffort?: string };
   isModelCached: (options: { [key: string]: unknown }) => boolean;
+  parsePipRawProgress: (line: string) => { current: number; total: number } | null;
   parseResponsesSseText: (rawText: string) => { outputText: string; eventCount: number; rawResponse: unknown };
+  resolveManagedHfFilePath: (options: { [key: string]: unknown }, repo: string, file: string) => string | null;
 };
 const {
   buildLaunchArgs,
   buildMessages,
   buildResponsesRequestBody,
   collectOcrBboxHints,
+  collectRequiredHfDownloads,
   getOverlayPrompt,
   extractModelOutputText,
   inspectModelLaunch,
   isModelCached,
+  parsePipRawProgress,
+  resolveManagedHfFilePath,
   parseResponsesSseText
 } = runtimeHelpers;
 
@@ -88,6 +94,14 @@ function writeCachedAssets({
 }
 
 describe("runtime model launch helpers", () => {
+  it("parses pip raw progress without inventing elapsed-time progress", () => {
+    expect(parsePipRawProgress("Progress 32768 of 1048576")).toEqual({
+      current: 32768,
+      total: 1048576
+    });
+    expect(parsePipRawProgress("Collecting paddleocr")).toBeNull();
+  });
+
   it("treats OpenAI Codex as a remote OAuth-backed endpoint", () => {
     const launch = inspectModelLaunch({
       modelProvider: "openai-codex",
@@ -436,6 +450,75 @@ describe("runtime model launch helpers", () => {
     expect(args).toContain("--no-host");
     expect(args).not.toContain("--n-cpu-moe");
     expect(args).not.toContain("--chat-template-kwargs");
+  });
+
+  it("launches from app-managed HF cache files after direct download", () => {
+    const hubCacheDir = createTempDir("hf-managed-cache-");
+    const options = {
+      port: 18180,
+      fitTargetMb: 4096,
+      gpuLayers: 30,
+      ctx: 16384,
+      batch: 2048,
+      ubatch: 1536,
+      useDraft: true,
+      modelRepo: DEFAULT_31B_REPO,
+      modelFile: DEFAULT_31B_FILE,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE,
+      draftModelRepo: DEFAULT_DRAFT_REPO,
+      draftModelFile: DEFAULT_DRAFT_FILE,
+      hfHubCacheDir: hubCacheDir
+    };
+    const modelPath = resolveManagedHfFilePath(options, DEFAULT_31B_REPO, DEFAULT_31B_FILE);
+    const mmprojPath = resolveManagedHfFilePath(options, DEFAULT_MMPROJ_REPO, DEFAULT_MMPROJ_FILE);
+    const draftPath = resolveManagedHfFilePath(options, DEFAULT_DRAFT_REPO, DEFAULT_DRAFT_FILE);
+    for (const filePath of [modelPath, mmprojPath, draftPath]) {
+      if (!filePath) {
+        throw new Error("managed path not resolved");
+      }
+      mkdirSync(join(filePath, ".."), { recursive: true });
+      writeFileSync(filePath, "cached");
+    }
+
+    const args = buildLaunchArgs(options);
+
+    expect(args).toContain("-m");
+    expect(args).toContain(modelPath);
+    expect(args).toContain("--mmproj");
+    expect(args).toContain(mmprojPath);
+    expect(args).toContain("--spec-draft-model");
+    expect(args).toContain(draftPath);
+    expect(args).not.toContain("-hf");
+    expect(args).not.toContain("-hff");
+    expect(args).not.toContain("--mmproj-url");
+    expect(args).not.toContain("--spec-draft-hf");
+    expect(isModelCached(options)).toBe(true);
+  });
+
+  it("collects only the HF files needed by the selected VRAM mode", () => {
+    const hubCacheDir = createTempDir("hf-download-plan-");
+    const llamaCacheDir = createTempDir("llama-download-plan-");
+    const baseOptions = {
+      modelRepo: DEFAULT_31B_REPO,
+      modelFile: DEFAULT_31B_FILE,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE,
+      draftModelRepo: DEFAULT_DRAFT_REPO,
+      draftModelFile: DEFAULT_DRAFT_FILE,
+      hfHubCacheDir: hubCacheDir,
+      llamaCacheDir
+    };
+
+    expect(collectRequiredHfDownloads({ ...baseOptions, useDraft: false }).map((task) => task.kind)).toEqual([
+      "model",
+      "mmproj"
+    ]);
+    expect(collectRequiredHfDownloads({ ...baseOptions, useDraft: true }).map((task) => task.kind)).toEqual([
+      "model",
+      "mmproj",
+      "draft"
+    ]);
   });
 
   it("can explicitly offload the multimodal projector to GPU for diagnostics", () => {

@@ -940,7 +940,7 @@ function buildTestDetail(
 
 function formatModelTestProgressLine(event: ModelTestProgressEvent): string {
   const percent =
-    typeof event.progressPercent === "number" && Number.isFinite(event.progressPercent)
+    event.progressMode !== "log-only" && typeof event.progressPercent === "number" && Number.isFinite(event.progressPercent)
       ? `${Math.round(event.progressPercent * 100)}% `
       : "";
   if (event.installLogLine?.trim()) {

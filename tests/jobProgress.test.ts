@@ -62,6 +62,13 @@ describe("job progress helpers", () => {
       total: 20,
       ratio: 1
     });
+
+    expect(resolveProgressSnapshot({ status: "running", progressMode: "determinate", progressPercent: 0.42 })).toEqual({
+      mode: "determinate",
+      current: 42,
+      total: 100,
+      ratio: 0.42
+    });
   });
 
   it("uses an indeterminate snapshot while the model is booting or downloading", () => {
@@ -71,6 +78,12 @@ describe("job progress helpers", () => {
 
     expect(resolveProgressSnapshot({ status: "starting", phase: "model_downloading" })).toEqual({
       mode: "indeterminate"
+    });
+  });
+
+  it("keeps explicit log-only install progress out of fake percent mode", () => {
+    expect(resolveProgressSnapshot({ status: "running", phase: "ocr_downloading", progressMode: "log-only", progressPercent: 0.5 })).toEqual({
+      mode: "log-only"
     });
   });
 

@@ -4,6 +4,7 @@ type JobWithProgress = Pick<
   JobState,
   | "status"
   | "phase"
+  | "progressMode"
   | "progressCurrent"
   | "progressTotal"
   | "progressPercent"
@@ -21,6 +22,9 @@ type JobWithProgress = Pick<
 export type ProgressSnapshot =
   | {
       mode: "indeterminate";
+    }
+  | {
+      mode: "log-only";
     }
   | {
       mode: "determinate";
@@ -74,7 +78,15 @@ export function formatJobEventLine(event: JobEvent): string {
 }
 
 export function resolveProgressSnapshot(job: JobWithProgress): ProgressSnapshot | null {
-  if (Number.isFinite(job.progressPercent)) {
+  if (job.progressMode === "log-only") {
+    return { mode: "log-only" };
+  }
+
+  if (job.progressMode === "indeterminate") {
+    return { mode: "indeterminate" };
+  }
+
+  if ((job.progressMode === "determinate" || job.progressMode === undefined) && Number.isFinite(job.progressPercent)) {
     const ratio = Math.max(0, Math.min(1, Number(job.progressPercent)));
     return {
       mode: "determinate",
@@ -82,6 +94,10 @@ export function resolveProgressSnapshot(job: JobWithProgress): ProgressSnapshot 
       total: 100,
       ratio
     };
+  }
+
+  if (job.progressMode === "determinate") {
+    return null;
   }
 
   if (job.phase === "booting" || job.phase === "model_downloading") {

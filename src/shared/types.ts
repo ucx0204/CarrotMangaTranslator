@@ -212,6 +212,7 @@ export type JobState = {
   progressText: string;
   detail?: string;
   phase?: JobPhase;
+  progressMode?: "determinate" | "indeterminate" | "log-only";
   progressPercent?: number;
   progressBytes?: number;
   progressTotalBytes?: number;
@@ -249,6 +250,7 @@ export type ModelTestProgressEvent = {
   phase?: JobPhase;
   progressText: string;
   detail?: string;
+  progressMode?: "determinate" | "indeterminate" | "log-only";
   progressPercent?: number;
   progressBytes?: number;
   progressTotalBytes?: number;

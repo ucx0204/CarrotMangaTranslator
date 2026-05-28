@@ -740,6 +740,26 @@ textarea {
   transition: transform 420ms ease;
 }
 
+.install-progress-root.is-indeterminate .install-progress-indicator,
+.install-progress-root.is-log-only .install-progress-indicator {
+  width: 42%;
+  transform: translateX(-110%);
+  animation: install-progress-sweep 1.4s ease-in-out infinite;
+}
+
+.install-progress-root.is-log-only .install-progress-indicator {
+  opacity: 0.58;
+}
+
+@keyframes install-progress-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
 .install-progress-stats {
   display: flex;
   flex-wrap: wrap;

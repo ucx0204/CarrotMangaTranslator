@@ -135,6 +135,7 @@ export type TranslationOptions = {
     phase: JobPhase;
     progressText: string;
     detail?: string;
+    progressMode?: "determinate" | "indeterminate" | "log-only";
     progressPercent?: number;
     progressBytes?: number;
     progressTotalBytes?: number;

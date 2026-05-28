@@ -1,6 +1,6 @@
 const { spawn } = require("node:child_process");
-const { existsSync, readFileSync, readdirSync, statSync, writeFileSync } = require("node:fs");
-const { mkdir, readFile, writeFile } = require("node:fs/promises");
+const { createWriteStream, existsSync, readFileSync, readdirSync, statSync, writeFileSync } = require("node:fs");
+const { mkdir, readFile, rename, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
 
@@ -18,11 +18,6 @@ const DEFAULT_OCR_GPU_PADDLE_PACKAGE = "paddlepaddle-gpu==3.3.1";
 const DEFAULT_OCR_GPU_EXTRA_PACKAGES = ["paddleocr==3.5.0", "paddlex[ocr]==3.5.2"];
 const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
 const OCR_INSTALL_MARKER_FILE = "install-complete.json";
-const OCR_CPU_RUNTIME_ESTIMATE_BYTES = 2.2 * 1024 * 1024 * 1024;
-const OCR_GPU_RUNTIME_ESTIMATE_BYTES = 4.3 * 1024 * 1024 * 1024;
-const GEMMA_MODEL_ESTIMATE_BYTES = {
-  "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf": 15 * 1024 * 1024 * 1024
-};
 const MAX_LOG_PREVIEW_LENGTH = 8000;
 const MM_PROJ_CANDIDATE_NAMES = ["mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-F32.gguf", "mmproj.gguf"];
 
@@ -461,6 +456,259 @@ function resolveConfiguredDraftModelUrl(options = {}) {
     return null;
   }
   return `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(file)}`;
+}
+
+function resolveManagedHfFilePath(options = {}, repo, file) {
+  const hubCacheDir = resolveHubCacheDir(options);
+  if (!hubCacheDir || !repo || !file) {
+    return null;
+  }
+  return path.join(repoCacheDir(repo, hubCacheDir), "snapshots", "mgt-managed", safeHfRelativePath(file));
+}
+
+function safeHfRelativePath(file) {
+  const normalized = String(file ?? "").replace(/\\/g, "/").trim();
+  if (!normalized || path.isAbsolute(normalized) || normalized.split("/").some((part) => !part || part === "." || part === "..")) {
+    throw new Error(`Invalid Hugging Face file path: ${file}`);
+  }
+  return normalized.split("/").join(path.sep);
+}
+
+function collectRequiredHfDownloads(options = {}, launchTarget = inspectModelLaunch(options)) {
+  if (launchTarget.launchMode === "openai-codex") {
+    return [];
+  }
+
+  const tasks = [];
+  if (launchTarget.launchMode !== "local" && !launchTarget.modelPath) {
+    const repo = resolveConfiguredModelRepo(options);
+    const file = resolveConfiguredModelFile(options);
+    const url = `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(file)}`;
+    const destination = resolveManagedHfFilePath(options, repo, file);
+    if (repo && file && destination) {
+      tasks.push({ kind: "model", label: "Gemma 모델", repo, file, url, destination });
+    }
+  }
+
+  if (launchTarget.mmprojUrl && !launchTarget.mmprojPath) {
+    const repo = resolveConfiguredMmprojRepo(options);
+    const file = resolveConfiguredMmprojFile(options);
+    const destination = resolveManagedHfFilePath(options, repo, file);
+    if (repo && file && destination) {
+      tasks.push({ kind: "mmproj", label: "Gemma vision mmproj", repo, file, url: launchTarget.mmprojUrl, destination });
+    }
+  }
+
+  if (options.useDraft && launchTarget.draftModelUrl && !launchTarget.draftModelPath) {
+    const repo = resolveConfiguredDraftModelRepo(options);
+    const file = resolveConfiguredDraftModelFile(options);
+    const destination = resolveManagedHfFilePath(options, repo, file);
+    if (repo && file && destination) {
+      tasks.push({ kind: "draft", label: "Gemma draft 모델", repo, file, url: launchTarget.draftModelUrl, destination });
+    }
+  }
+
+  return tasks;
+}
+
+async function ensureHfModelAssetsDownloaded(options = {}, launchTarget = inspectModelLaunch(options)) {
+  const tasks = collectRequiredHfDownloads(options, launchTarget).filter((task) => !isUsableFile(task.destination));
+  if (tasks.length === 0) {
+    return;
+  }
+
+  let knownTotalBytes = 0;
+  const totals = new Map();
+  for (const task of tasks) {
+    const totalBytes = await probeContentLength(task.url, options.abortSignal);
+    if (Number.isFinite(totalBytes) && totalBytes > 0) {
+      totals.set(task.destination, totalBytes);
+      knownTotalBytes += totalBytes;
+    }
+  }
+
+  const hasKnownAggregate = knownTotalBytes > 0 && totals.size === tasks.length;
+  let completedBytes = 0;
+  emitRuntimeProgress(options, "model_downloading", "Gemma 모델 다운로드 중", `${tasks.length}개 파일 준비`, {
+    progressMode: hasKnownAggregate ? "determinate" : "log-only",
+    progressPercent: hasKnownAggregate ? 0 : undefined,
+    progressBytes: 0,
+    progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+    installLogLine: `다운로드 대상 ${tasks.length}개 파일을 확인했습니다.`
+  });
+
+  for (const task of tasks) {
+    const totalBytes = totals.get(task.destination) || 0;
+    await downloadHfFileWithProgress(task, options, {
+      totalBytes,
+      knownAggregateBytes: hasKnownAggregate ? knownTotalBytes : 0,
+      completedBytes,
+      onComplete: (bytesWritten) => {
+        completedBytes += hasKnownAggregate ? totalBytes : bytesWritten;
+      }
+    });
+  }
+
+  emitRuntimeProgress(options, "model_downloading", "Gemma 모델 다운로드 완료", "모든 모델 파일을 로컬 캐시에 저장했습니다.", {
+    progressMode: hasKnownAggregate ? "determinate" : "log-only",
+    progressPercent: hasKnownAggregate ? 1 : undefined,
+    progressBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+    progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+    installLogLine: "Gemma 모델 파일 다운로드가 완료되었습니다."
+  });
+}
+
+function isUsableFile(filePath) {
+  try {
+    return Boolean(filePath) && statSync(filePath).isFile() && statSync(filePath).size > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function probeContentLength(url, signal) {
+  try {
+    const response = await fetch(url, { method: "HEAD", signal });
+    if (!response.ok) {
+      return 0;
+    }
+    return readContentLength(response);
+  } catch {
+    return 0;
+  }
+}
+
+async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
+  const partPath = `${task.destination}.part`;
+  await mkdir(path.dirname(task.destination), { recursive: true });
+  await rm(partPath, { force: true });
+
+  emitRuntimeProgress(options, "model_downloading", "Gemma 모델 다운로드 중", `${task.label}: ${task.file}`, {
+    progressMode: progress.knownAggregateBytes || progress.totalBytes ? "determinate" : "log-only",
+    progressPercent: progress.knownAggregateBytes ? progress.completedBytes / progress.knownAggregateBytes : progress.totalBytes ? 0 : undefined,
+    progressBytes: progress.knownAggregateBytes ? progress.completedBytes : progress.totalBytes ? 0 : undefined,
+    progressTotalBytes: progress.knownAggregateBytes || progress.totalBytes || undefined,
+    installLogLine: `${task.label} 다운로드 시작: ${task.file}`
+  });
+
+  const response = await fetch(task.url, { signal: options.abortSignal });
+  if (!response.ok || !response.body) {
+    throw createDetailedError(`${task.label} 다운로드에 실패했습니다 (${response.status}).`, {
+      status: response.status,
+      statusText: response.statusText,
+      url: task.url,
+      file: task.file
+    });
+  }
+
+  const totalBytes = progress.totalBytes || readContentLength(response);
+  const knownAggregateBytes = progress.knownAggregateBytes || 0;
+  const reader = response.body.getReader();
+  const writer = createWriteStream(partPath, { flags: "wx" });
+  let receivedBytes = 0;
+  let lastEmitAt = 0;
+  const startedAt = Date.now();
+
+  try {
+    while (true) {
+      if (options.abortSignal?.aborted) {
+        throw createAbortError();
+      }
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      await writeStreamChunk(writer, Buffer.from(value));
+      receivedBytes += value.byteLength;
+      const now = Date.now();
+      if (now - lastEmitAt > 500) {
+        lastEmitAt = now;
+        emitHfDownloadProgress(options, task, {
+          receivedBytes,
+          totalBytes,
+          knownAggregateBytes,
+          aggregateCompletedBytes: progress.completedBytes || 0,
+          startedAt
+        });
+      }
+    }
+    await finishWriteStream(writer);
+    await rm(task.destination, { force: true });
+    await rename(partPath, task.destination);
+    progress.onComplete?.(receivedBytes);
+    emitHfDownloadProgress(options, task, {
+      receivedBytes,
+      totalBytes,
+      knownAggregateBytes,
+      aggregateCompletedBytes: progress.completedBytes || 0,
+      startedAt,
+      completed: true
+    });
+  } catch (error) {
+    writer.destroy();
+    await rm(partPath, { force: true }).catch(() => {});
+    throw error;
+  }
+}
+
+function emitHfDownloadProgress(options, task, state) {
+  const knownAggregateBytes = state.knownAggregateBytes || 0;
+  const aggregateBytes = knownAggregateBytes
+    ? Math.min(knownAggregateBytes, (state.aggregateCompletedBytes || 0) + state.receivedBytes)
+    : undefined;
+  const fileBytes = state.totalBytes ? Math.min(state.receivedBytes, state.totalBytes) : undefined;
+  const progressPercent = knownAggregateBytes
+    ? aggregateBytes / knownAggregateBytes
+    : state.totalBytes
+      ? fileBytes / state.totalBytes
+      : undefined;
+  const elapsedSeconds = Math.max(0.001, (Date.now() - state.startedAt) / 1000);
+  const speed = Math.max(0, state.receivedBytes / elapsedSeconds);
+  const fileProgress = state.totalBytes
+    ? `${formatBytes(state.receivedBytes)} / ${formatBytes(state.totalBytes)}`
+    : `${formatBytes(state.receivedBytes)} 받음`;
+  emitRuntimeProgress(options, "model_downloading", state.completed ? "Gemma 모델 다운로드 완료" : "Gemma 모델 다운로드 중", `${task.label}: ${task.file}`, {
+    progressMode: knownAggregateBytes || state.totalBytes ? "determinate" : "log-only",
+    progressPercent,
+    progressBytes: aggregateBytes ?? fileBytes,
+    progressTotalBytes: knownAggregateBytes || state.totalBytes || undefined,
+    progressBytesPerSecond: speed,
+    installLogLine: state.completed
+      ? `${task.label} 다운로드 완료: ${task.file} (${fileProgress})`
+      : `${task.label} 다운로드 중: ${task.file} (${fileProgress})`
+  });
+}
+
+function readContentLength(response) {
+  const value = Number(response.headers?.get?.("content-length"));
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function writeStreamChunk(writer, chunk) {
+  return new Promise((resolve, reject) => {
+    const onError = (error) => {
+      writer.off("drain", onDrain);
+      reject(error);
+    };
+    const onDrain = () => {
+      writer.off("error", onError);
+      resolve();
+    };
+    writer.once("error", onError);
+    if (writer.write(chunk)) {
+      writer.off("error", onError);
+      resolve();
+      return;
+    }
+    writer.once("drain", onDrain);
+  });
+}
+
+function finishWriteStream(writer) {
+  return new Promise((resolve, reject) => {
+    writer.once("error", reject);
+    writer.end(resolve);
+  });
 }
 
 function resolveCachedConfiguredDraftModelPath(options = {}) {
@@ -1804,7 +2052,10 @@ async function ensurePaddleOcrRuntime(options = {}) {
   diagnostics.push({ step: "bootstrap-python", pythonPath: bootstrapPython });
   if (!existsSync(venvPython)) {
     try {
-      emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR Python 환경 생성 중", runtimeDir);
+      emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR Python 환경 생성 중", runtimeDir, {
+        progressMode: "log-only",
+        installLogLine: "Python 가상환경을 생성합니다."
+      });
       await runShellCommand(`${quoteCommandArg(bootstrapPython)} -m venv ${quoteCommandArg(venvDir)}`, {
         timeoutMs: 180000,
         env: buildOcrRuntimeEnv(options, { runtimeDir }),
@@ -1825,7 +2076,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
   let targetDir = existsSync(venvPython) ? null : packageDir;
   try {
     emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 패키지 다운로드/설치 중", packageSummary, {
-      progressPercent: 0.08,
+      progressMode: "log-only",
       installLogLine: "Paddle OCR 패키지 설치를 시작합니다."
     });
     await installOcrPythonPackages(installPython, installBatches, targetDir, options, runtimeDir);
@@ -1841,7 +2092,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
     targetDir = packageDir;
     ensureEmbeddedPythonPackagePath(installPython, packageDir, runtimeDir);
     emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 패키지 재설치 중", packageSummary, {
-      progressPercent: 0.08,
+      progressMode: "log-only",
       installLogLine: "가상환경 설치에 실패해 내장 Python 경로로 다시 설치합니다."
     });
     await installOcrPythonPackages(installPython, installBatches, targetDir, options, runtimeDir);
@@ -1855,6 +2106,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
   });
 
   emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 설치 검증 중", packageSummary, {
+    progressMode: "determinate",
     progressPercent: 0.94,
     installLogLine: "Paddle OCR import와 장치 상태를 확인합니다."
   });
@@ -1875,6 +2127,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
   }
 
   emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 설치 완료", packageSummary, {
+    progressMode: "determinate",
     progressPercent: 1,
     installLogLine: "Paddle OCR 설치가 완료되었습니다."
   });
@@ -1967,6 +2220,7 @@ async function installOcrPythonPackages(pythonPath, installBatches, targetDir, o
       signal: options.abortSignal,
       onOutput: (line) => monitor.log(line)
     });
+    monitor.completeStep("pip 업데이트 완료");
     for (const packages of installBatches) {
       const index = installBatches.indexOf(packages);
       const start = 0.18 + (index / installBatches.length) * 0.68;
@@ -1978,6 +2232,7 @@ async function installOcrPythonPackages(pythonPath, installBatches, targetDir, o
         signal: options.abortSignal,
         onOutput: (line) => monitor.log(line)
       });
+      monitor.completeStep(`패키지 설치 ${index + 1}/${installBatches.length} 완료`);
     }
   } finally {
     monitor.stop();
@@ -2199,30 +2454,15 @@ function hasExpectedOcrPackages(packageDir, options = {}) {
   return required.every((name) => existsSync(path.join(packageDir, name)));
 }
 
-function estimateOcrRuntimeBytes(options = {}) {
-  return isOcrGpuRequested(options)
-    ? OCR_GPU_RUNTIME_ESTIMATE_BYTES
-    : OCR_CPU_RUNTIME_ESTIMATE_BYTES;
-}
-
 function startTaskProgressMonitor(options = {}, config = {}) {
   const phase = config.phase || "ocr_downloading";
   const progressText = config.progressText || "설치 중";
   const detailPrefix = config.detailPrefix || "";
   let stepText = "";
-  let stepStart = Number(config.startPercent) || 0.01;
-  let stepEnd = Number(config.endPercent) || 0.95;
-  let stepStartedAt = Date.now();
-  let lastRatio = Math.max(0, Math.min(0.99, stepStart));
+  let stepStart = clampProgressRatio(config.startPercent, 0);
+  let stepEnd = clampProgressRatio(config.endPercent, 0.95);
+  let lastRatio = stepStart;
   let stopped = false;
-
-  const currentRatio = () => {
-    const elapsed = Date.now() - stepStartedAt;
-    const drift = Math.min(0.92, elapsed / Math.max(1, Number(config.stepDurationMs) || 90000));
-    const ratio = stepStart + (stepEnd - stepStart) * drift;
-    lastRatio = Math.max(lastRatio, Math.min(stepEnd, ratio));
-    return Math.max(0, Math.min(0.99, lastRatio));
-  };
 
   const emit = (extra = {}) => {
     if (stopped) {
@@ -2230,36 +2470,76 @@ function startTaskProgressMonitor(options = {}, config = {}) {
     }
     const detail = [detailPrefix, stepText].filter(Boolean).join(" · ");
     emitRuntimeProgress(options, phase, progressText, detail, {
-      progressPercent: currentRatio(),
+      progressMode: "log-only",
       ...extra
     });
   };
 
-  emit();
-  const interval = setInterval(emit, 1500);
+  emit({ installLogLine: "설치 작업을 시작합니다." });
   return {
     setStep(text, startPercent, endPercent) {
       stepText = text;
-      stepStart = Math.max(lastRatio, Math.max(0, Math.min(0.99, Number(startPercent) || 0)));
-      stepEnd = Math.max(stepStart, Math.max(0, Math.min(0.99, Number(endPercent) || stepStart)));
-      stepStartedAt = Date.now();
+      stepStart = Math.max(lastRatio, clampProgressRatio(startPercent, lastRatio));
+      stepEnd = Math.max(stepStart, clampProgressRatio(endPercent, stepStart));
       emit({ installLogLine: text });
+    },
+    completeStep(text = "") {
+      lastRatio = Math.max(lastRatio, stepEnd);
+      emit({
+        progressMode: "determinate",
+        progressPercent: lastRatio,
+        installLogLine: text || `${stepText} 완료`
+      });
     },
     log(line) {
       const logLine = sanitizeInstallLogLine(line);
       if (!logLine) {
         return;
       }
-      emit({ installLogLine: logLine });
+      const pipProgress = parsePipRawProgress(logLine);
+      if (pipProgress) {
+        const stepRatio = pipProgress.total > 0 ? pipProgress.current / pipProgress.total : 0;
+        const ratio = stepStart + (stepEnd - stepStart) * Math.max(0, Math.min(1, stepRatio));
+        lastRatio = Math.max(lastRatio, Math.min(stepEnd, ratio));
+        emit({
+          progressMode: "determinate",
+          progressPercent: lastRatio,
+          progressBytes: pipProgress.current,
+          progressTotalBytes: pipProgress.total,
+          installLogLine: `${stepText}: ${formatBytes(pipProgress.current)} / ${formatBytes(pipProgress.total)}`
+        });
+        return;
+      }
+      emit({ progressMode: "log-only", installLogLine: logLine });
     },
     stop(finalProgress = null) {
       stopped = true;
-      clearInterval(interval);
       if (finalProgress) {
         emitRuntimeProgress(options, phase, progressText, finalProgress.detail, finalProgress);
       }
     }
   };
+}
+
+function clampProgressRatio(value, fallback = 0) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return Math.max(0, Math.min(1, Number(fallback) || 0));
+  }
+  return Math.max(0, Math.min(1, number));
+}
+
+function parsePipRawProgress(line) {
+  const text = String(line ?? "");
+  const progressMatch = text.match(/\bProgress\s+(\d+)\s+of\s+(\d+)\b/i);
+  if (progressMatch) {
+    const current = Number(progressMatch[1]);
+    const total = Number(progressMatch[2]);
+    if (Number.isFinite(current) && Number.isFinite(total) && total > 0) {
+      return { current: Math.max(0, Math.min(current, total)), total };
+    }
+  }
+  return null;
 }
 
 function sanitizeInstallLogLine(line) {
@@ -2268,93 +2548,6 @@ function sanitizeInstallLogLine(line) {
     .replace(/\s+/g, " ")
     .trim();
   return truncateText(text, 220);
-}
-
-function startDirectoryProgressMonitor(options = {}, config = {}) {
-  const directory = config.directory ? path.resolve(config.directory) : "";
-  const estimateBytes = Math.max(1, Number(config.estimateBytes) || 1);
-  const startedAt = Date.now();
-  const initialBytes = safeDirectorySizeBytes(directory);
-  const progressBaseBytes = config.countExistingBytes === false ? initialBytes : 0;
-  let lastBytes = safeDirectorySizeBytes(directory);
-  let lastAt = startedAt;
-  let stopped = false;
-
-  const emit = () => {
-    if (stopped) {
-      return;
-    }
-    const now = Date.now();
-    const bytes = safeDirectorySizeBytes(directory);
-    const elapsedSeconds = Math.max(0.001, (now - lastAt) / 1000);
-    const speed = Math.max(0, (bytes - lastBytes) / elapsedSeconds);
-    lastBytes = bytes;
-    lastAt = now;
-    const progressBytes = Math.max(0, bytes - progressBaseBytes);
-    const hasByteProgress = progressBytes > 0;
-    const zeroByteMaxRatio = Number(config.zeroByteMaxRatio) || 0.08;
-    const elapsedRatio = Math.max(
-      0.01,
-      Math.min(
-        zeroByteMaxRatio,
-        ((now - startedAt) / Math.max(1, Number(config.zeroByteWarmupMs) || 90000)) * zeroByteMaxRatio
-      )
-    );
-    const ratio = hasByteProgress
-      ? Math.max(elapsedRatio, Math.min(0.99, progressBytes / estimateBytes))
-      : elapsedRatio;
-    const detail = hasByteProgress
-      ? [
-          config.detailPrefix,
-          `처리된 파일 ${formatBytes(progressBytes)}`
-        ].filter(Boolean).join(" · ")
-      : [
-          config.detailPrefix,
-          config.zeroByteDetail || "파일 준비 중입니다. 실제 바이트가 생기면 용량과 속도가 표시됩니다."
-        ].filter(Boolean).join(" · ");
-    emitRuntimeProgress(options, config.phase, config.progressText, detail, {
-      progressPercent: ratio,
-      progressBytes: hasByteProgress ? progressBytes : undefined,
-      progressTotalBytes: hasByteProgress ? estimateBytes : undefined
-    });
-  };
-
-  emit();
-  const interval = setInterval(emit, 1500);
-  return {
-    stop(finalProgress = null) {
-      stopped = true;
-      clearInterval(interval);
-      if (finalProgress) {
-        emitRuntimeProgress(options, config.phase, config.progressText, finalProgress.detail, finalProgress);
-      }
-    }
-  };
-}
-
-function safeDirectorySizeBytes(directory) {
-  if (!directory || !existsSync(directory)) {
-    return 0;
-  }
-  try {
-    return directorySizeBytes(directory);
-  } catch {
-    return 0;
-  }
-}
-
-function directorySizeBytes(directory) {
-  let total = 0;
-  const entries = readdirSync(directory, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      total += directorySizeBytes(fullPath);
-    } else if (entry.isFile()) {
-      total += statSync(fullPath).size;
-    }
-  }
-  return total;
 }
 
 function formatBytes(bytes) {
@@ -3012,18 +3205,16 @@ async function startServer(options) {
     childEnv.HUGGINGFACE_HUB_CACHE = hfHubCacheDir;
   }
 
-  const launchTarget = inspectModelLaunch(options);
+  let launchTarget = inspectModelLaunch(options);
+  if (launchTarget.requiresDownload) {
+    await ensureHfModelAssetsDownloaded(options, launchTarget);
+    launchTarget = inspectModelLaunch(options);
+  }
   const launchArgs = buildLaunchArgs(options);
-  const modelMonitor = launchTarget.requiresDownload
-    ? startTaskProgressMonitor(options, {
-        phase: "model_downloading",
-        progressText: "Gemma 4 모델 다운로드/서버 준비 중",
-        detailPrefix: `${resolveConfiguredModelRepo(options)} / ${resolveConfiguredModelFile(options)}`,
-        startPercent: 0.03,
-        endPercent: 0.95,
-        stepDurationMs: 240000
-      })
-    : null;
+  emitRuntimeProgress(options, "booting", "Gemma 서버 시작 중", `${resolveConfiguredModelFile(options)} 로드 중`, {
+    progressMode: "indeterminate",
+    installLogLine: "llama-server를 시작합니다."
+  });
   let recentStdout = "";
   let recentStderr = "";
   const child = spawn(serverPath, launchArgs, {
@@ -3038,15 +3229,14 @@ async function startServer(options) {
 
   child.stdout?.setEncoding("utf8");
   child.stderr?.setEncoding("utf8");
-  modelMonitor?.setStep("llama-server 시작", 0.03, 0.95);
   child.stdout?.on("data", (chunk) => {
     recentStdout = shrinkBuffer(recentStdout, chunk);
-    modelMonitor?.log(chunk);
+    emitServerInstallLog(options, chunk);
     process.stdout.write(`[llama:${options.label}:stdout] ${chunk}`);
   });
   child.stderr?.on("data", (chunk) => {
     recentStderr = shrinkBuffer(recentStderr, chunk);
-    modelMonitor?.log(chunk);
+    emitServerInstallLog(options, chunk);
     process.stderr.write(`[llama:${options.label}:stderr] ${chunk}`);
   });
 
@@ -3072,14 +3262,13 @@ async function startServer(options) {
         });
       })
     ]);
-    modelMonitor?.stop({
+    emitRuntimeProgress(options, "booting", "Gemma 서버 준비 완료", `${resolveConfiguredModelFile(options)} 준비 완료`, {
+      progressMode: "determinate",
       progressPercent: 1,
-      installLogLine: "Gemma 4 서버 준비가 완료되었습니다.",
-      detail: `${resolveConfiguredModelFile(options)} 준비 완료`
+      installLogLine: "Gemma 서버 준비가 완료되었습니다."
     });
   } catch (error) {
     terminateChildProcessTree(child);
-    modelMonitor?.stop();
     if (error?.name === "AbortError" || abortSignal?.aborted) {
       throw createAbortError();
     }
@@ -3106,9 +3295,17 @@ async function startServer(options) {
   return { baseUrl, child, startedByScript: true };
 }
 
-function estimateGemmaModelBytes(options = {}) {
-  const modelFile = resolveConfiguredModelFile(options);
-  return GEMMA_MODEL_ESTIMATE_BYTES[modelFile] || 24 * 1024 * 1024 * 1024;
+function emitServerInstallLog(options = {}, chunk) {
+  for (const part of String(chunk ?? "").split(/[\r\n]+/)) {
+    const line = sanitizeInstallLogLine(part);
+    if (!line) {
+      continue;
+    }
+    emitRuntimeProgress(options, "booting", "Gemma 서버 시작 중", `${resolveConfiguredModelFile(options)} 로드 중`, {
+      progressMode: "indeterminate",
+      installLogLine: line
+    });
+  }
 }
 
 async function stopServer(server) {
@@ -3560,12 +3757,15 @@ module.exports = {
   buildMessages,
   buildLaunchArgs,
   buildResponsesRequestBody,
+  collectRequiredHfDownloads,
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
   enhanceBitmapBuffer,
   extractModelOutputText,
   getOverlayPrompt,
   getScaledSize,
+  parsePipRawProgress,
+  resolveManagedHfFilePath,
   inspectModelLaunch,
   isModelCached,
   parseResponsesSseText,
