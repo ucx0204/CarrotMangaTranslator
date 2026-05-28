@@ -8,6 +8,7 @@ import type {
   JobEvent,
   LibraryIndex,
   LocalModelPickResult,
+  ModelTestProgressEvent,
   ModelTestResult,
   StartAnalysisRequest,
   StartAnalysisResult,
@@ -43,7 +44,8 @@ const api = {
   resetSettings: (): Promise<AppSettings> => ipcRenderer.invoke("settings:reset"),
   pickLocalModelFile: (): Promise<LocalModelPickResult | null> => ipcRenderer.invoke("settings:pick-local-model"),
   pickLocalMmprojFile: (): Promise<string | null> => ipcRenderer.invoke("settings:pick-local-mmproj"),
-  testModelSettings: (settings: AppSettings): Promise<ModelTestResult> => ipcRenderer.invoke("settings:test-model", settings),
+  testModelSettings: (settings: AppSettings, testId?: string): Promise<ModelTestResult> =>
+    ipcRenderer.invoke("settings:test-model", settings, testId),
   confirm: (title: string, message: string, detail?: string): Promise<boolean> => ipcRenderer.invoke("dialogs:confirm", title, message, detail),
   getLogPath: (): Promise<string> => ipcRenderer.invoke("logs:get-path"),
   openLogFolder: () => ipcRenderer.invoke("logs:open-folder"),
@@ -56,6 +58,13 @@ const api = {
     ipcRenderer.on("job:event", listener);
     return () => {
       ipcRenderer.removeListener("job:event", listener);
+    };
+  },
+  onModelTestEvent: (callback: (event: ModelTestProgressEvent) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: ModelTestProgressEvent) => callback(payload);
+    ipcRenderer.on("settings:model-test-progress", listener);
+    return () => {
+      ipcRenderer.removeListener("settings:model-test-progress", listener);
     };
   }
 };

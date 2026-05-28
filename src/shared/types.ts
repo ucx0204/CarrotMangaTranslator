@@ -6,6 +6,7 @@ export type RenderTextDirection = "horizontal" | "vertical" | "rotated" | "hidde
 export type JobKind = "gemma-analysis";
 export type ModelProvider = "gemma" | "openai-codex";
 export type ModelSource = "huggingface" | "local";
+export type GemmaVramMode = "full" | "economy";
 export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
 
@@ -13,9 +14,12 @@ export type GemmaSettings = {
   modelSource: ModelSource;
   modelRepo: string;
   modelFile: string;
+  mmprojRepo?: string;
+  mmprojFile?: string;
   localModelPath?: string;
   localMmprojPath?: string;
   gpuLayers: number;
+  vramMode: GemmaVramMode;
 };
 
 export type CodexSettings = {
@@ -33,7 +37,6 @@ export type AppSettings = {
   gemma: GemmaSettings;
   codex: CodexSettings;
   ocr: OcrSettings;
-  nsfwMode: boolean;
   maxTokens: number;
 };
 
@@ -239,6 +242,18 @@ export type ModelTestResult = {
   resolvedModelPath?: string | null;
   resolvedMmprojPath?: string | null;
   resolvedEndpoint?: string | null;
+};
+
+export type ModelTestProgressEvent = {
+  id: string;
+  phase?: JobPhase;
+  progressText: string;
+  detail?: string;
+  progressPercent?: number;
+  progressBytes?: number;
+  progressTotalBytes?: number;
+  progressBytesPerSecond?: number;
+  installLogLine?: string;
 };
 
 export type StartAnalysisRequest = {

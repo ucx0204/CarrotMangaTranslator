@@ -46,6 +46,12 @@ const {
 } = runtimeHelpers;
 
 const tempDirs: string[] = [];
+const DEFAULT_31B_REPO = "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
+const DEFAULT_31B_FILE = "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf";
+const DEFAULT_MMPROJ_REPO = "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF";
+const DEFAULT_MMPROJ_FILE = "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
+const DEFAULT_DRAFT_REPO = "Anbeeld/gemma-4-31B-it-DFlash-GGUF";
+const DEFAULT_DRAFT_FILE = "gemma4-31b-it-dflash-IQ4_XS.gguf";
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
@@ -266,7 +272,7 @@ describe("runtime model launch helpers", () => {
 
   it("launches an explicitly configured local GGUF without Hugging Face flags", () => {
     const localDir = createTempDir("local-model-");
-    const modelPath = join(localDir, "supergemma-q4.gguf");
+    const modelPath = join(localDir, "custom-vision-model.gguf");
     const mmprojPath = join(localDir, "mmproj-BF16.gguf");
     writeFileSync(modelPath, "model");
     writeFileSync(mmprojPath, "mmproj");
@@ -287,15 +293,174 @@ describe("runtime model launch helpers", () => {
     expect(args).toContain(modelPath);
     expect(args).toContain("--mmproj");
     expect(args).toContain(mmprojPath);
+    expect(args).toContain("--no-mmproj-offload");
+    expect(args).not.toContain("--mmproj-offload");
+    expect(args).toContain("--no-warmup");
+    expect(args).not.toContain("--n-cpu-moe");
+    expect(args).not.toContain("--chat-template-kwargs");
+    expect(args.slice(args.indexOf("--repeat-penalty"), args.indexOf("--repeat-penalty") + 2)).toEqual([
+      "--repeat-penalty",
+      "1.08"
+    ]);
     expect(args).not.toContain("-hf");
     expect(args).not.toContain("-hff");
     expect(isModelCached({ modelSource: "local", localModelPath: modelPath })).toBe(true);
   });
 
-  it("prefers cached local model and mmproj paths when both exist", () => {
+  it("passes VRAM economy cache options to llama-server without clipping image tokens", () => {
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 1024,
+      gpuLayers: 30,
+      ctx: 8192,
+      batch: 1024,
+      ubatch: 1024,
+      cacheTypeK: "q4_0",
+      cacheTypeV: "q4_0",
+      ctxCheckpoints: 0,
+      mmprojOffload: false,
+      imageMinTokens: 1024,
+      imageMaxTokens: 1024,
+      modelRepo: DEFAULT_31B_REPO,
+      modelFile: DEFAULT_31B_FILE,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE
+    });
+
+    expect(args.slice(args.indexOf("--cache-type-k"), args.indexOf("--cache-type-k") + 2)).toEqual([
+      "--cache-type-k",
+      "q4_0"
+    ]);
+    expect(args.slice(args.indexOf("--cache-type-v"), args.indexOf("--cache-type-v") + 2)).toEqual([
+      "--cache-type-v",
+      "q4_0"
+    ]);
+    expect(args.slice(args.indexOf("--ctx-checkpoints"), args.indexOf("--ctx-checkpoints") + 2)).toEqual([
+      "--ctx-checkpoints",
+      "0"
+    ]);
+    expect(args).toContain("--no-mmproj-offload");
+    expect(args).toContain("--kv-unified");
+    expect(args).toContain("--jinja");
+    expect(args).toContain("--no-mmap");
+    expect(args).toContain("--mlock");
+    expect(args).toContain("--no-host");
+    expect(args).not.toContain("--no-kv-offload");
+    expect(args).not.toContain("--fit");
+    expect(args).not.toContain("--no-cache-prompt");
+    expect(args).not.toContain("--no-warmup");
+    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
+      "-ngl",
+      "all"
+    ]);
+    expect(args.slice(args.indexOf("-b"), args.indexOf("-b") + 2)).toEqual([
+      "-b",
+      "1024"
+    ]);
+    expect(args.slice(args.indexOf("-ub"), args.indexOf("-ub") + 2)).toEqual([
+      "-ub",
+      "1024"
+    ]);
+    expect(args.slice(args.indexOf("--image-min-tokens"), args.indexOf("--image-min-tokens") + 2)).toEqual([
+      "--image-min-tokens",
+      "1024"
+    ]);
+    expect(args.slice(args.indexOf("--image-max-tokens"), args.indexOf("--image-max-tokens") + 2)).toEqual([
+      "--image-max-tokens",
+      "1024"
+    ]);
+    expect(args.slice(args.indexOf("--temp"), args.indexOf("--temp") + 2)).toEqual(["--temp", "0.2"]);
+    expect(args.slice(args.indexOf("--top-k"), args.indexOf("--top-k") + 2)).toEqual(["--top-k", "64"]);
+    expect(args.slice(args.indexOf("--top-p"), args.indexOf("--top-p") + 2)).toEqual(["--top-p", "0.95"]);
+    expect(args.slice(args.indexOf("--min-p"), args.indexOf("--min-p") + 2)).toEqual(["--min-p", "0.0"]);
+  });
+
+  it("passes the full VRAM smoke DFlash draft options to llama-server", () => {
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 4096,
+      gpuLayers: 30,
+      ctx: 16384,
+      batch: 2048,
+      ubatch: 1536,
+      cacheTypeK: "q4_0",
+      cacheTypeV: "q4_0",
+      ctxCheckpoints: 0,
+      mmprojOffload: false,
+      useDraft: true,
+      draftModelRepo: DEFAULT_DRAFT_REPO,
+      draftModelFile: DEFAULT_DRAFT_FILE,
+      imageMinTokens: 1024,
+      imageMaxTokens: 1024,
+      modelRepo: DEFAULT_31B_REPO,
+      modelFile: DEFAULT_31B_FILE,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE
+    });
+
+    expect(args).toContain("--no-mmproj-offload");
+    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
+      "-ngl",
+      "all"
+    ]);
+    expect(args.slice(args.indexOf("-b"), args.indexOf("-b") + 2)).toEqual([
+      "-b",
+      "2048"
+    ]);
+    expect(args.slice(args.indexOf("-ub"), args.indexOf("-ub") + 2)).toEqual([
+      "-ub",
+      "1536"
+    ]);
+    expect(args.slice(args.indexOf("--ctx-checkpoints"), args.indexOf("--ctx-checkpoints") + 2)).toEqual([
+      "--ctx-checkpoints",
+      "0"
+    ]);
+    const draftFlagIndex = args.findIndex((arg) => arg === "--spec-draft-hf" || arg === "--spec-draft-model");
+    expect(draftFlagIndex).toBeGreaterThanOrEqual(0);
+    expect(args[draftFlagIndex + 1]).toSatisfy((value: string) =>
+      value === `${DEFAULT_DRAFT_REPO}:IQ4_XS` || value.endsWith(DEFAULT_DRAFT_FILE)
+    );
+    expect(args).toContain("--spec-type");
+    expect(args).toContain("dflash");
+    expect(args).toContain("--spec-dflash-cross-ctx");
+    expect(args).toContain("--spec-draft-ngl");
+    expect(args).toContain("all");
+    expect(args).toContain("--spec-draft-n-max");
+    expect(args).toContain("16");
+    expect(args).toContain("--spec-branch-budget");
+    expect(args).toContain("0");
+    expect(args).toContain("--kv-unified");
+    expect(args).toContain("--jinja");
+    expect(args).toContain("--no-mmap");
+    expect(args).toContain("--mlock");
+    expect(args).toContain("--no-host");
+    expect(args).not.toContain("--n-cpu-moe");
+    expect(args).not.toContain("--chat-template-kwargs");
+  });
+
+  it("can explicitly offload the multimodal projector to GPU for diagnostics", () => {
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 1024,
+      gpuLayers: 30,
+      ctx: 8192,
+      batch: 512,
+      ubatch: 512,
+      mmprojOffload: true,
+      modelRepo: DEFAULT_31B_REPO,
+      modelFile: DEFAULT_31B_FILE,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE
+    });
+
+    expect(args).toContain("--mmproj-offload");
+    expect(args).not.toContain("--no-mmproj-offload");
+  });
+
+  it("prefers sibling cached mmproj paths for custom cached HF models", () => {
     const hubCacheDir = createTempDir("hf-cache-");
-    const modelFile = "gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf";
-    const repoId = "unsloth/gemma-4-26B-A4B-it-GGUF";
+    const modelFile = "custom-vision-model.gguf";
+    const repoId = "custom/vision-model";
     const snapshotDir = writeCachedAssets({
       hubCacheDir,
       repoId,
@@ -324,10 +489,128 @@ describe("runtime model launch helpers", () => {
     expect(isModelCached({ modelRepo: repoId, modelFile, hfHubCacheDir: hubCacheDir })).toBe(true);
   });
 
-  it("falls back to Hugging Face repo launch when mmproj is missing", () => {
+  it("uses a cached HF model with mmproj-url when the separate mmproj is not cached yet", () => {
     const hubCacheDir = createTempDir("hf-cache-");
-    const modelFile = "gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf";
-    const repoId = "unsloth/gemma-4-26B-A4B-it-GGUF";
+    const llamaCacheDir = createTempDir("llama-cache-empty-");
+    const modelFile = DEFAULT_31B_FILE;
+    const repoId = DEFAULT_31B_REPO;
+    const snapshotDir = writeCachedAssets({
+      hubCacheDir,
+      repoId,
+      snapshot: "snapshot-model-only",
+      modelFile,
+      includeMmproj: false
+    });
+
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 4096,
+      gpuLayers: 30,
+      ctx: 16384,
+      batch: 32,
+      ubatch: 32,
+      modelRepo: repoId,
+      modelFile,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE,
+      hfHubCacheDir: hubCacheDir,
+      llamaCacheDir
+    });
+
+    expect(args).toContain("-m");
+    expect(args).toContain(join(snapshotDir, modelFile));
+    expect(args).toContain("--mmproj-url");
+    expect(args).toContain(
+      `https://huggingface.co/${DEFAULT_MMPROJ_REPO}/resolve/main/${encodeURIComponent(DEFAULT_MMPROJ_FILE)}`
+    );
+    expect(args).not.toContain("-hf");
+    expect(args).not.toContain("-hff");
+    expect(isModelCached({ modelRepo: repoId, modelFile, mmprojRepo: DEFAULT_MMPROJ_REPO, mmprojFile: DEFAULT_MMPROJ_FILE, hfHubCacheDir: hubCacheDir, llamaCacheDir })).toBe(false);
+  });
+
+  it("treats beellama's llama.cpp mmproj cache as already downloaded", () => {
+    const hubCacheDir = createTempDir("hf-cache-");
+    const llamaCacheDir = createTempDir("llama-cache-");
+    const modelFile = DEFAULT_31B_FILE;
+    const repoId = DEFAULT_31B_REPO;
+    const snapshotDir = writeCachedAssets({
+      hubCacheDir,
+      repoId,
+      snapshot: "snapshot-model-only",
+      modelFile,
+      includeMmproj: false
+    });
+    const mmprojPath = join(llamaCacheDir, DEFAULT_MMPROJ_FILE);
+    writeFileSync(mmprojPath, "mmproj");
+
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 4096,
+      gpuLayers: 30,
+      ctx: 16384,
+      batch: 32,
+      ubatch: 32,
+      modelRepo: repoId,
+      modelFile,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE,
+      hfHubCacheDir: hubCacheDir,
+      llamaCacheDir
+    });
+
+    expect(args).toContain("-m");
+    expect(args).toContain(join(snapshotDir, modelFile));
+    expect(args).toContain("--mmproj");
+    expect(args).toContain(mmprojPath);
+    expect(args).not.toContain("--mmproj-url");
+    expect(isModelCached({ modelRepo: repoId, modelFile, mmprojRepo: DEFAULT_MMPROJ_REPO, mmprojFile: DEFAULT_MMPROJ_FILE, hfHubCacheDir: hubCacheDir, llamaCacheDir })).toBe(true);
+  });
+
+  it("uses separate cached mmproj repo assets with cached HF model assets", () => {
+    const hubCacheDir = createTempDir("hf-cache-");
+    const modelFile = DEFAULT_31B_FILE;
+    const repoId = DEFAULT_31B_REPO;
+    const snapshotDir = writeCachedAssets({
+      hubCacheDir,
+      repoId,
+      snapshot: "snapshot-model",
+      modelFile,
+      includeMmproj: false
+    });
+    const mmprojSnapshotDir = writeCachedAssets({
+      hubCacheDir,
+      repoId: DEFAULT_MMPROJ_REPO,
+      snapshot: "snapshot-mmproj",
+      modelFile: DEFAULT_MMPROJ_FILE,
+      includeMmproj: false
+    });
+
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 4096,
+      gpuLayers: 30,
+      ctx: 16384,
+      batch: 32,
+      ubatch: 32,
+      modelRepo: repoId,
+      modelFile,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE,
+      hfHubCacheDir: hubCacheDir
+    });
+
+    expect(args).toContain("-m");
+    expect(args).toContain(join(snapshotDir, modelFile));
+    expect(args).toContain("--mmproj");
+    expect(args).toContain(join(mmprojSnapshotDir, DEFAULT_MMPROJ_FILE));
+    expect(args).not.toContain("--mmproj-url");
+    expect(isModelCached({ modelRepo: repoId, modelFile, mmprojRepo: DEFAULT_MMPROJ_REPO, mmprojFile: DEFAULT_MMPROJ_FILE, hfHubCacheDir: hubCacheDir })).toBe(true);
+  });
+
+  it("keeps generic custom HF repo launch when a custom mmproj is not configured", () => {
+    const hubCacheDir = createTempDir("hf-cache-");
+    const modelFile = "custom-q4.gguf";
+    const repoId = "custom/gemma-vision";
     writeCachedAssets({
       hubCacheDir,
       repoId,
@@ -348,12 +631,10 @@ describe("runtime model launch helpers", () => {
       hfHubCacheDir: hubCacheDir
     });
 
-    expect(args).toContain("-hf");
-    expect(args).toContain(repoId);
-    expect(args).toContain("-hff");
-    expect(args).toContain(modelFile);
+    expect(args).toContain("-m");
     expect(args).not.toContain("--mmproj");
-    expect(isModelCached({ modelRepo: repoId, modelFile, hfHubCacheDir: hubCacheDir })).toBe(false);
+    expect(args).not.toContain("--mmproj-url");
+    expect(isModelCached({ modelRepo: repoId, modelFile, hfHubCacheDir: hubCacheDir })).toBe(true);
   });
 
   it("detects cached assets from HF_HOME when HF_HUB_CACHE is unset", () => {
@@ -365,8 +646,8 @@ describe("runtime model launch helpers", () => {
     delete process.env.HUGGINGFACE_HUB_CACHE;
     process.env.HF_HOME = hfHomeDir;
 
-    const modelFile = "gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf";
-    const repoId = "unsloth/gemma-4-26B-A4B-it-GGUF";
+    const modelFile = DEFAULT_31B_FILE;
+    const repoId = DEFAULT_31B_REPO;
     writeCachedAssets({
       hubCacheDir: join(hfHomeDir, "hub"),
       repoId,

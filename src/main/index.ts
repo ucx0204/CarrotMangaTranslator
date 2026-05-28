@@ -42,6 +42,7 @@ import type {
   ImportPreviewResult,
   JobEvent,
   LocalModelPickResult,
+  ModelTestProgressEvent,
   ModelTestResult,
   StartAnalysisRequest,
   StartAnalysisResult,
@@ -88,6 +89,7 @@ let activeJob: {
 type SimplePageRuntime = {
   startServer: (options: Record<string, unknown>) => Promise<{ baseUrl: string; child: unknown; startedByScript: boolean }>;
   stopServer: (server: { child: unknown } | null | undefined) => Promise<void>;
+  isModelCached: (options: Record<string, unknown>) => boolean;
   testModelReply: (server: { baseUrl: string }, options: Record<string, unknown>) => Promise<{
     outputText: string;
     launchTarget: { launchMode: "huggingface" | "cached-hf" | "local" | "openai-codex"; modelPath?: string | null; mmprojPath?: string | null };
@@ -207,7 +209,7 @@ function registerIpc(): void {
     }
     return result.filePaths[0];
   });
-  ipcMain.handle("settings:test-model", async (_event, settings: AppSettings): Promise<ModelTestResult> => {
+  ipcMain.handle("settings:test-model", async (event, settings: AppSettings, providedTestId?: string): Promise<ModelTestResult> => {
     if (activeJob) {
       return {
         ok: false,
@@ -217,7 +219,13 @@ function registerIpc(): void {
     }
 
     const runtime = loadSimplePageRuntime();
-    const testId = randomUUID();
+    const testId = typeof providedTestId === "string" && providedTestId.trim() ? providedTestId.trim() : randomUUID();
+    const sendProgress = (progress: Omit<ModelTestProgressEvent, "id">) => {
+      event.sender.send("settings:model-test-progress", {
+        id: testId,
+        ...progress
+      } satisfies ModelTestProgressEvent);
+    };
     const port = await reserveFreePort();
     const options = {
       ...buildBaseTranslationOptions({
@@ -226,6 +234,9 @@ function registerIpc(): void {
         paths: appPaths,
         settings
       }),
+      onProgress: (progress: Omit<ModelTestProgressEvent, "id">) => {
+        sendProgress(progress);
+      },
       reuseServer: false,
       port,
       label: `settings-test-${testId}`
@@ -233,8 +244,47 @@ function registerIpc(): void {
 
     let server: Awaited<ReturnType<SimplePageRuntime["startServer"]>> | OpenAIOAuthEndpoint | null = null;
     try {
+      sendProgress({
+        phase: "booting",
+        progressText: "모델 테스트 준비 중",
+        installLogLine: "모델 테스트를 시작합니다."
+      });
+      if (options.modelProvider === "openai-codex") {
+        sendProgress({
+          phase: "booting",
+          progressText: "OpenAI Codex 엔드포인트 준비 중",
+          detail: `${options.codexModel}, port ${options.codexOauthPort}`,
+          installLogLine: "openai-oauth 엔드포인트를 시작합니다."
+        });
+      } else if (runtime.isModelCached(options)) {
+        sendProgress({
+          phase: "booting",
+          progressText: "캐시된 Gemma 모델 확인됨",
+          detail: options.modelFile,
+          installLogLine: "캐시된 모델 파일을 사용합니다."
+        });
+      } else {
+        sendProgress({
+          phase: "model_downloading",
+          progressText: "Gemma 모델 다운로드/서버 준비 중",
+          detail: `${options.modelRepo} / ${options.modelFile}`,
+          installLogLine: "캐시된 모델이 없어서 다운로드 또는 갱신을 시작합니다."
+        });
+      }
       server = options.modelProvider === "openai-codex" ? await startOpenAIOAuthEndpoint(options) : await runtime.startServer(options);
+      sendProgress({
+        phase: "ready",
+        progressText: "서버 준비 완료",
+        detail: server.baseUrl,
+        installLogLine: `서버가 준비되었습니다: ${server.baseUrl}`
+      });
       const result = await runtime.testModelReply(server, options);
+      sendProgress({
+        phase: "done",
+        progressText: "모델 테스트 완료",
+        detail: result.outputText,
+        installLogLine: `응답 확인 완료: ${result.outputText}`
+      });
       return {
         ok: true,
         message: `모델 로드 및 텍스트 응답 확인 완료: ${result.outputText}`,
@@ -244,6 +294,12 @@ function registerIpc(): void {
         resolvedEndpoint: options.modelProvider === "openai-codex" ? server.baseUrl : null
       };
     } catch (error) {
+      sendProgress({
+        phase: "failed",
+        progressText: "모델 테스트 실패",
+        detail: formatModelTestError(error),
+        installLogLine: "모델 테스트가 실패했습니다."
+      });
       return {
         ok: false,
         message: formatModelTestError(error),

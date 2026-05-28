@@ -7,8 +7,8 @@ const extraResources = [
     to: "app-runtime"
   },
   {
-    from: "tools/llama-b8833-cuda12.4",
-    to: "tools/llama-b8833-cuda12.4"
+    from: "tools/beellama-v0.2.0-cuda12.4",
+    to: "tools/beellama-v0.2.0-cuda12.4"
   }
 ];
 
@@ -33,8 +33,10 @@ module.exports = {
     "!tools{,/**/*}",
     "!models{,/**/*}",
     "!library{,/**/*}",
+    "!.tmp{,/**/*}",
     "!.venv-glmocr{,/**/*}",
     "!logs{,/**/*}",
+    "!settings.json",
     "!README.md",
     "!out/app-runtime{,/**/*}"
   ],

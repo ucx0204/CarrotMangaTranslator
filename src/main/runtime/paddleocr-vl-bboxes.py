@@ -34,8 +34,9 @@ IGNORED_LABELS = {
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run PaddleOCR-VL and write bbox-only JSON.")
-    parser.add_argument("--image", required=True, help="Input image path.")
-    parser.add_argument("--output", required=True, help="Output JSON path.")
+    parser.add_argument("--image", default=None, help="Input image path.")
+    parser.add_argument("--output", default=None, help="Output JSON path.")
+    parser.add_argument("--batch", default=None, help="JSON batch manifest with image/output items.")
     parser.add_argument("--pipeline-version", default="v1.5", choices=["v1", "v1.5"])
     parser.add_argument("--device", default=None, help="Optional Paddle device, e.g. gpu:0 or cpu.")
     args = parser.parse_args()
@@ -51,15 +52,65 @@ def main() -> int:
           "or provide MANGA_TRANSLATOR_OCR_BBOX_CMD."
       ) from exc
 
-    image_path = Path(args.image)
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with Image.open(image_path) as image:
-      width, height = image.size
+    batch_items = load_batch_items(args)
+    if not batch_items:
+      raise RuntimeError("Provide --image/--output or --batch with at least one item.")
 
     ensure_requested_device(args.device)
 
+    pipeline = PaddleOCRVL(**build_pipeline_kwargs(args))
+    textline_detector = create_textline_detector()
+    try:
+      summaries = []
+      total = len(batch_items)
+      for index, item in enumerate(batch_items, start=1):
+        summary = write_page_bboxes(
+            image_path=Path(item["image"]),
+            output_path=Path(item["output"]),
+            pipeline=pipeline,
+            textline_detector=textline_detector,
+        )
+        summaries.append(summary)
+        print(
+            json.dumps(
+                {
+                    "index": index,
+                    "total": total,
+                    "output": summary["output"],
+                    "count": summary["count"],
+                },
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
+    finally:
+      close = getattr(pipeline, "close", None)
+      if callable(close):
+        close()
+      close_textline_detector(textline_detector)
+
+    print(json.dumps({"items": summaries, "count": len(summaries)}, ensure_ascii=False))
+    return 0
+
+
+def load_batch_items(args: argparse.Namespace) -> list[dict]:
+    if args.batch:
+      raw = json.loads(Path(args.batch).read_text(encoding="utf-8"))
+      items = raw.get("items") if isinstance(raw, dict) else raw
+      if not isinstance(items, list):
+        raise RuntimeError("--batch must contain a list or an object with items.")
+      result = []
+      for item in items:
+        if not isinstance(item, dict) or not item.get("image") or not item.get("output"):
+          raise RuntimeError("Each batch item needs image and output.")
+        result.append({"image": str(item["image"]), "output": str(item["output"])})
+      return result
+    if args.image and args.output:
+      return [{"image": args.image, "output": args.output}]
+    return []
+
+
+def build_pipeline_kwargs(args: argparse.Namespace) -> dict:
     pipeline_kwargs = {
         "pipeline_version": args.pipeline_version,
         "use_doc_orientation_classify": False,
@@ -73,46 +124,48 @@ def main() -> int:
     }
     if args.device:
       pipeline_kwargs["device"] = args.device
+    return pipeline_kwargs
 
-    pipeline = PaddleOCRVL(**pipeline_kwargs)
-    try:
-      results = pipeline.predict(
-          str(image_path),
-          use_doc_orientation_classify=False,
-          use_doc_unwarping=False,
-          use_layout_detection=True,
-          use_chart_recognition=False,
-          use_seal_recognition=False,
-          use_ocr_for_image_block=False,
-          format_block_content=False,
-          merge_layout_blocks=False,
-      )
-      items = []
-      for result in results:
-        for block in result.get("parsing_res_list", []) or []:
-          label = normalize_label(getattr(block, "label", None))
-          if label in IGNORED_LABELS:
-            continue
-          bbox = getattr(block, "bbox", None)
-          if not bbox or len(bbox) < 4:
-            continue
-          x1, y1, x2, y2 = [int(round(float(value))) for value in bbox[:4]]
-          if x2 <= x1 or y2 <= y1:
-            continue
-          items.append(
-              {
-                  "id": len(items) + 1,
-                  "label": label or "text",
-                  "x1": clamp(x1, 0, width),
-                  "y1": clamp(y1, 0, height),
-                  "x2": clamp(x2, 0, width),
-                  "y2": clamp(y2, 0, height),
-              }
-          )
-    finally:
-      close = getattr(pipeline, "close", None)
-      if callable(close):
-        close()
+
+def write_page_bboxes(image_path: Path, output_path: Path, pipeline: object, textline_detector: object) -> dict:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with Image.open(image_path) as image:
+      width, height = image.size
+
+    results = pipeline.predict(
+        str(image_path),
+        use_doc_orientation_classify=False,
+        use_doc_unwarping=False,
+        use_layout_detection=True,
+        use_chart_recognition=False,
+        use_seal_recognition=False,
+        use_ocr_for_image_block=False,
+        format_block_content=False,
+        merge_layout_blocks=False,
+    )
+    items = []
+    for result in results:
+      for block in result.get("parsing_res_list", []) or []:
+        label = normalize_label(getattr(block, "label", None))
+        if label in IGNORED_LABELS:
+          continue
+        bbox = getattr(block, "bbox", None)
+        if not bbox or len(bbox) < 4:
+          continue
+        x1, y1, x2, y2 = [int(round(float(value))) for value in bbox[:4]]
+        if x2 <= x1 or y2 <= y1:
+          continue
+        items.append(
+            {
+                "id": len(items) + 1,
+                "label": label or "text",
+                "x1": clamp(x1, 0, width),
+                "y1": clamp(y1, 0, height),
+                "x2": clamp(x2, 0, width),
+                "y2": clamp(y2, 0, height),
+            }
+        )
 
     items.extend(
         collect_textline_candidates(
@@ -120,6 +173,7 @@ def main() -> int:
             existing_items=items,
             width=width,
             height=height,
+            ocr=textline_detector,
         )
     )
     renumber_items(items)
@@ -132,8 +186,7 @@ def main() -> int:
         "items": items,
     }
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"output": str(output_path), "count": len(items)}, ensure_ascii=False))
-    return 0
+    return {"output": str(output_path), "count": len(items)}
 
 
 def ensure_requested_device(device: str | None) -> None:
@@ -170,17 +223,9 @@ def clamp(value: int, lower: int, upper: int) -> int:
     return max(lower, min(upper, value))
 
 
-def collect_textline_candidates(image_path: Path, existing_items: list[dict], width: int, height: int) -> list[dict]:
-    """Add ordinary OCR detection boxes that are not covered by VL layout.
-
-    PaddleOCR-VL is good at grouping dialogue/caption text, but it can miss
-    small manga SFX. PP-OCR text detection tends to catch those strokes. We
-    only add boxes whose center is outside existing VL candidates so normal
-    dialogue columns do not explode into one record per line.
-    """
-
+def create_textline_detector() -> object:
     if os.environ.get("MANGA_TRANSLATOR_DISABLE_PADDLEOCR_LINES", "").lower() in {"1", "true", "yes", "on"}:
-      return []
+      return None
 
     try:
       from paddleocr import PaddleOCR
@@ -195,9 +240,28 @@ def collect_textline_candidates(image_path: Path, existing_items: list[dict], wi
       }
       if os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_DEVICE"):
         ocr_kwargs["device"] = os.environ["MANGA_TRANSLATOR_PADDLEOCR_DEVICE"]
-      ocr = PaddleOCR(**ocr_kwargs)
+      return PaddleOCR(**ocr_kwargs)
     except Exception as exc:
       print(f"[paddleocr-vl-bboxes] textline detector unavailable: {exc}", file=sys.stderr)
+      return None
+
+
+def close_textline_detector(ocr: object) -> None:
+    close = getattr(ocr, "close", None)
+    if callable(close):
+      close()
+
+
+def collect_textline_candidates(image_path: Path, existing_items: list[dict], width: int, height: int, ocr: object = None) -> list[dict]:
+    """Add ordinary OCR detection boxes that are not covered by VL layout.
+
+    PaddleOCR-VL is good at grouping dialogue/caption text, but it can miss
+    small manga SFX. PP-OCR text detection tends to catch those strokes. We
+    only add boxes whose center is outside existing VL candidates so normal
+    dialogue columns do not explode into one record per line.
+    """
+
+    if ocr is None:
       return []
 
     raw_candidates: list[dict] = []
@@ -238,10 +302,6 @@ def collect_textline_candidates(image_path: Path, existing_items: list[dict], wi
           )
     except Exception as exc:
       print(f"[paddleocr-vl-bboxes] textline detector failed: {exc}", file=sys.stderr)
-    finally:
-      close = getattr(ocr, "close", None)
-      if callable(close):
-        close()
 
     grouped = merge_textline_candidates(raw_candidates, width, height)
     for index, item in enumerate(grouped):

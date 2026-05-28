@@ -14,7 +14,9 @@ type JobWithProgress = Pick<
   | "pageTotal"
   | "attempt"
   | "attemptTotal"
->;
+> & {
+  progressText?: string;
+};
 
 export type ProgressSnapshot =
   | {
@@ -38,6 +40,9 @@ export function formatJobLabel(job: JobWithProgress): string {
     case "ocr_downloading":
       return "Paddle OCR 다운로드/설치 중";
     case "ocr_running":
+      if (!hasPageIndex(job)) {
+        return job.progressText?.trim() || "Paddle OCR 분석 중";
+      }
       return formatPageLabel(job, "Paddle OCR 분석 중");
     case "model_requesting":
       return formatPageLabel(job, "AI 번역 요청 중");
@@ -132,10 +137,14 @@ export function summarizeWarnings(warnings: string[]): string | null {
 }
 
 function formatPageLabel(job: JobWithProgress, suffix: string): string {
-  if (Number.isFinite(job.pageIndex) && Number.isFinite(job.pageTotal) && (job.pageTotal ?? 0) > 0) {
+  if (hasPageIndex(job)) {
     return `${job.pageIndex} / ${job.pageTotal} 페이지 ${suffix}`;
   }
   return `페이지 ${suffix}`;
+}
+
+function hasPageIndex(job: JobWithProgress): boolean {
+  return Number.isFinite(job.pageIndex) && Number.isFinite(job.pageTotal) && (job.pageTotal ?? 0) > 0;
 }
 
 function formatRetryLabel(job: JobWithProgress): string {

@@ -2,6 +2,8 @@ import React from "react";
 import type {
   AppSettings,
   CodexReasoningEffort,
+  GemmaVramMode,
+  ModelTestProgressEvent,
   ModelProvider,
   ModelSource,
   OcrDevice
@@ -10,22 +12,19 @@ import type {
 const MAX_GPU_LAYERS = 30;
 const MIN_MAX_TOKENS = 300;
 const MAX_MAX_TOKENS = 12000;
-const DEFAULT_GEMMA_MODEL_REPO = "unsloth/gemma-4-26B-A4B-it-GGUF";
+const DEFAULT_GEMMA_MODEL_REPO =
+  "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
+const DEFAULT_GEMMA_MMPROJ_REPO =
+  "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF";
+const DEFAULT_GEMMA_MMPROJ_FILE =
+  "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
 const MODEL_PRESETS = {
-  q3: {
-    label: "Q3_K_XL",
+  iq3s: {
+    label: "IQ3_S",
     modelRepo: DEFAULT_GEMMA_MODEL_REPO,
-    modelFile: "gemma-4-26B-A4B-it-UD-Q3_K_XL.gguf"
-  },
-  q4: {
-    label: "Q4_K_XL",
-    modelRepo: DEFAULT_GEMMA_MODEL_REPO,
-    modelFile: "gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf"
-  },
-  q6: {
-    label: "Q6_K_XL",
-    modelRepo: DEFAULT_GEMMA_MODEL_REPO,
-    modelFile: "gemma-4-26B-A4B-it-UD-Q6_K_XL.gguf"
+    modelFile: "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf",
+    mmprojRepo: DEFAULT_GEMMA_MMPROJ_REPO,
+    mmprojFile: DEFAULT_GEMMA_MMPROJ_FILE
   }
 } as const;
 
@@ -50,6 +49,12 @@ type CodexReasoningOption = {
 
 type OcrDeviceOption = {
   id: OcrDevice;
+  label: string;
+  description: string;
+};
+
+type GemmaVramModeOption = {
+  id: GemmaVramMode;
   label: string;
   description: string;
 };
@@ -133,6 +138,19 @@ const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [
   }
 ];
 
+const GEMMA_VRAM_MODE_OPTIONS: GemmaVramModeOption[] = [
+  {
+    id: "full",
+    label: "풀로드",
+    description: "현재 품질 기준입니다. 이미지 토큰은 그대로 쓰고, 넉넉한 VRAM에서 가장 여유 있게 실행합니다."
+  },
+  {
+    id: "economy",
+    label: "절약",
+    description: "이미지 토큰 1024는 유지하고 batch/ubatch와 KV GPU 사용을 줄입니다. 16GB급 VRAM에서 더 안전하지만 조금 느릴 수 있습니다."
+  }
+];
+
 type SettingsModalProps = {
   initialSettings: AppSettings;
   busy: boolean;
@@ -162,19 +180,21 @@ export function SettingsModal({
   const [localModelPath, setLocalModelPath] = React.useState(initialSettings.gemma.localModelPath ?? "");
   const [localMmprojPath, setLocalMmprojPath] = React.useState(initialSettings.gemma.localMmprojPath ?? "");
   const [gpuLayers, setGpuLayers] = React.useState(String(clampGpuLayers(initialSettings.gemma.gpuLayers)));
+  const [vramMode, setVramMode] = React.useState<GemmaVramMode>(initialSettings.gemma.vramMode);
   const [codexModel, setCodexModel] = React.useState(initialSettings.codex.model);
   const [codexReasoningEffort, setCodexReasoningEffort] = React.useState<CodexReasoningEffort>(
     initialSettings.codex.reasoningEffort
   );
   const [codexOauthPort, setCodexOauthPort] = React.useState(String(initialSettings.codex.oauthPort));
   const [ocrDevice, setOcrDevice] = React.useState<OcrDevice>(initialSettings.ocr.device);
-  const [nsfwMode, setNsfwMode] = React.useState(initialSettings.nsfwMode);
   const [maxTokens, setMaxTokens] = React.useState(String(initialSettings.maxTokens));
   const [localActionBusy, setLocalActionBusy] = React.useState(false);
   const [testState, setTestState] = React.useState<TestState>({ status: "idle", message: null, detail: null });
+  const [testLogLines, setTestLogLines] = React.useState<string[]>([]);
   const modelRepoInputRef = React.useRef<HTMLInputElement | null>(null);
   const localModelInputRef = React.useRef<HTMLInputElement | null>(null);
   const gpuSliderRef = React.useRef<HTMLInputElement | null>(null);
+  const testLogRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     setModelProvider(initialSettings.modelProvider);
@@ -185,14 +205,22 @@ export function SettingsModal({
     setLocalModelPath(initialSettings.gemma.localModelPath ?? "");
     setLocalMmprojPath(initialSettings.gemma.localMmprojPath ?? "");
     setGpuLayers(String(clampGpuLayers(initialSettings.gemma.gpuLayers)));
+    setVramMode(initialSettings.gemma.vramMode);
     setCodexModel(initialSettings.codex.model);
     setCodexReasoningEffort(initialSettings.codex.reasoningEffort);
     setCodexOauthPort(String(initialSettings.codex.oauthPort));
     setOcrDevice(initialSettings.ocr.device);
-    setNsfwMode(initialSettings.nsfwMode);
     setMaxTokens(String(initialSettings.maxTokens));
     setTestState({ status: "idle", message: null, detail: null });
+    setTestLogLines([]);
   }, [initialSettings]);
+
+  React.useEffect(() => {
+    if (!testLogRef.current) {
+      return;
+    }
+    testLogRef.current.scrollTop = testLogRef.current.scrollHeight;
+  }, [testLogLines]);
 
   React.useEffect(() => {
     if (modelProvider === "openai-codex") {
@@ -215,6 +243,8 @@ export function SettingsModal({
   const activePreset = modelSource === "huggingface" && selectedPreset !== "custom" ? MODEL_PRESETS[selectedPreset] : null;
   const trimmedModelRepo = (activePreset?.modelRepo ?? customModelRepo).trim();
   const trimmedModelFile = (activePreset?.modelFile ?? customModelFile).trim();
+  const trimmedMmprojRepo = activePreset?.mmprojRepo;
+  const trimmedMmprojFile = activePreset?.mmprojFile;
   const trimmedLocalModelPath = localModelPath.trim();
   const trimmedLocalMmprojPath = localMmprojPath.trim();
   const trimmedCodexModel = codexModel.trim();
@@ -251,10 +281,13 @@ export function SettingsModal({
         gemma: {
           modelSource,
           modelRepo: trimmedModelRepo || DEFAULT_GEMMA_MODEL_REPO,
-          modelFile: trimmedModelFile || MODEL_PRESETS.q4.modelFile,
+          modelFile: trimmedModelFile || MODEL_PRESETS.iq3s.modelFile,
+          ...(trimmedMmprojRepo ? { mmprojRepo: trimmedMmprojRepo } : {}),
+          ...(trimmedMmprojFile ? { mmprojFile: trimmedMmprojFile } : {}),
           ...(trimmedLocalModelPath ? { localModelPath: trimmedLocalModelPath } : {}),
           ...(trimmedLocalMmprojPath ? { localMmprojPath: trimmedLocalMmprojPath } : {}),
-          gpuLayers: gpuLayersValid ? parsedGpuLayers : initialSettings.gemma.gpuLayers
+          gpuLayers: gpuLayersValid ? parsedGpuLayers : initialSettings.gemma.gpuLayers,
+          vramMode
         },
         codex: {
           model: trimmedCodexModel,
@@ -264,7 +297,6 @@ export function SettingsModal({
         ocr: {
           device: ocrDevice
         },
-        nsfwMode,
         maxTokens: parsedMaxTokens
       };
     }
@@ -278,10 +310,13 @@ export function SettingsModal({
       gemma: {
         modelSource,
         modelRepo: trimmedModelRepo || DEFAULT_GEMMA_MODEL_REPO,
-        modelFile: trimmedModelFile || MODEL_PRESETS.q4.modelFile,
+        modelFile: trimmedModelFile || MODEL_PRESETS.iq3s.modelFile,
+        ...(trimmedMmprojRepo ? { mmprojRepo: trimmedMmprojRepo } : {}),
+        ...(trimmedMmprojFile ? { mmprojFile: trimmedMmprojFile } : {}),
         ...(trimmedLocalModelPath ? { localModelPath: trimmedLocalModelPath } : {}),
         ...(trimmedLocalMmprojPath ? { localMmprojPath: trimmedLocalMmprojPath } : {}),
-        gpuLayers: parsedGpuLayers
+        gpuLayers: parsedGpuLayers,
+        vramMode
       },
       codex: {
         model: trimmedCodexModel || initialSettings.codex.model,
@@ -291,7 +326,6 @@ export function SettingsModal({
       ocr: {
         device: ocrDevice
       },
-      nsfwMode,
       maxTokens: parsedMaxTokens
     };
   }, [
@@ -301,23 +335,39 @@ export function SettingsModal({
     modelSource,
     trimmedModelRepo,
     trimmedModelFile,
+    trimmedMmprojRepo,
+    trimmedMmprojFile,
     trimmedLocalModelPath,
     trimmedLocalMmprojPath,
     trimmedCodexModel,
     parsedGpuLayers,
     parsedCodexOauthPort,
     parsedMaxTokens,
+    vramMode,
     codexReasoningEffort,
     ocrDevice,
     initialSettings.gemma.gpuLayers,
     initialSettings.codex.model,
     initialSettings.codex.oauthPort,
-    nsfwMode,
     maxTokensValid
   ]);
 
   const clearTestState = React.useCallback(() => {
     setTestState({ status: "idle", message: null, detail: null });
+    setTestLogLines([]);
+  }, []);
+
+  const appendTestLogLine = React.useCallback((line: string) => {
+    const normalized = line.trim();
+    if (!normalized) {
+      return;
+    }
+    setTestLogLines((current) => {
+      if (current[current.length - 1] === normalized) {
+        return current;
+      }
+      return [...current, normalized].slice(-180);
+    });
   }, []);
 
   const submit = () => {
@@ -392,24 +442,45 @@ export function SettingsModal({
       return;
     }
 
+    const testId = `settings-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setTestLogLines(["모델 테스트를 시작합니다."]);
     setTestState({
       status: "running",
       message: "모델을 불러오고 간단한 텍스트 응답을 확인하는 중입니다...",
       detail: "이 테스트는 모델 로드와 텍스트 응답만 확인합니다."
     });
+    const unsubscribe = window.mangaApi.onModelTestEvent((event) => {
+      if (event.id !== testId) {
+        return;
+      }
+      appendTestLogLine(formatModelTestProgressLine(event));
+      setTestState((current) =>
+        current.status === "running"
+          ? {
+              status: "running",
+              message: event.progressText,
+              detail: event.detail ?? current.detail
+            }
+          : current
+      );
+    });
     try {
-      const result = await window.mangaApi.testModelSettings(nextSettings);
+      const result = await window.mangaApi.testModelSettings(nextSettings, testId);
+      appendTestLogLine(result.ok ? "모델 테스트가 완료되었습니다." : "모델 테스트가 실패했습니다.");
       setTestState({
         status: result.ok ? "success" : "error",
         message: result.message,
         detail: buildTestDetail(result.resolvedModelPath, result.resolvedMmprojPath, result.resolvedEndpoint)
       });
     } catch (error) {
+      appendTestLogLine("모델 테스트 요청 중 오류가 발생했습니다.");
       setTestState({
         status: "error",
         message: error instanceof Error ? error.message : String(error),
         detail: null
       });
+    } finally {
+      unsubscribe();
     }
   };
 
@@ -448,23 +519,6 @@ export function SettingsModal({
               {MODEL_PROVIDER_OPTIONS.find((option) => option.id === modelProvider)?.description}
             </p>
           </div>
-
-          <label className="settings-toggle-row">
-            NSFW 모드
-            <button
-              type="button"
-              className={`settings-toggle-button ${nsfwMode ? "active" : ""}`}
-              onClick={() => {
-                clearTestState();
-                setNsfwMode((current) => !current);
-              }}
-              disabled={controlsBusy}
-              aria-pressed={nsfwMode}
-            >
-              {nsfwMode ? "켜짐" : "꺼짐"}
-            </button>
-          </label>
-          <p className="muted-line">켜두면 시스템 프롬프트에 NSFW 허용 지시문을 추가합니다.</p>
 
           <label>
             최대 출력 토큰
@@ -545,7 +599,7 @@ export function SettingsModal({
               <div className="settings-field-stack">
                 <span>모델</span>
                 <div className="settings-preset-group" role="tablist" aria-label="모델 프리셋">
-                  {(["q3", "q4", "q6", "custom"] as const).map((presetId) => (
+                  {(["iq3s", "custom"] as const).map((presetId) => (
                     <button
                       key={presetId}
                       type="button"
@@ -561,7 +615,9 @@ export function SettingsModal({
                     </button>
                   ))}
                 </div>
-                <p className="muted-line modal-note">대략 권장 VRAM: Q3 약 16GB, Q4 약 24GB, Q6 약 32GB</p>
+                <p className="muted-line modal-note">
+                  기본값은 IQ3_S입니다. mmproj는 별도 Hugging Face repo에서 자동으로 받아옵니다.
+                </p>
               </div>
               {selectedPreset === "custom" ? (
                 <>
@@ -656,6 +712,30 @@ export function SettingsModal({
           )}
 
           <div className="settings-field-stack">
+            <span>VRAM 모드</span>
+            <div className="settings-mode-group" role="tablist" aria-label="Gemma VRAM 모드">
+              {GEMMA_VRAM_MODE_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`settings-preset-button ${vramMode === option.id ? "active" : ""}`}
+                  onClick={() => {
+                    clearTestState();
+                    setVramMode(option.id);
+                  }}
+                  disabled={controlsBusy}
+                  aria-pressed={vramMode === option.id}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="muted-line modal-note">
+              {GEMMA_VRAM_MODE_OPTIONS.find((option) => option.id === vramMode)?.description}
+            </p>
+          </div>
+
+          <div className="settings-field-stack">
             <span>GPU layers</span>
             <div className="settings-gpu-row">
               <input
@@ -688,7 +768,10 @@ export function SettingsModal({
                 }}
               />
             </div>
-            <p className="muted-line modal-note">0부터 30까지 설정할 수 있습니다.</p>
+            <p className="muted-line modal-note">
+              기본 Gemma 4 31B 모델은 beellama 스모크 테스트와 같은 안정 설정으로 전체 GPU 로드를 사용합니다.
+              이 값은 커스텀 로컬 모델이나 진단 환경에서만 직접 반영될 수 있으며, VRAM 절약은 위의 절약 모드를 사용하세요.
+            </p>
           </div>
             </>
           ) : (
@@ -779,6 +862,13 @@ export function SettingsModal({
                 {testState.detail ? <p>{testState.detail}</p> : null}
               </div>
             ) : null}
+            {testLogLines.length > 0 ? (
+              <div className="settings-test-log" ref={testLogRef} aria-label="모델 테스트 로그">
+                {testLogLines.map((line, index) => (
+                  <code key={`${index}-${line}`}>{line}</code>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {modelProvider === "gemma" && !gpuLayersValid ? (
@@ -815,16 +905,8 @@ function resolveModelPreset(modelRepo: string, modelFile: string): ModelPresetId
   const trimmedModelRepo = modelRepo.trim();
   const trimmedModelFile = modelFile.trim();
 
-  if (matchesPreset(MODEL_PRESETS.q4, trimmedModelRepo, trimmedModelFile)) {
-    return "q4";
-  }
-
-  if (matchesPreset(MODEL_PRESETS.q3, trimmedModelRepo, trimmedModelFile)) {
-    return "q3";
-  }
-
-  if (matchesPreset(MODEL_PRESETS.q6, trimmedModelRepo, trimmedModelFile)) {
-    return "q6";
+  if (matchesPreset(MODEL_PRESETS.iq3s, trimmedModelRepo, trimmedModelFile)) {
+    return "iq3s";
   }
 
   return "custom";
@@ -854,4 +936,16 @@ function buildTestDetail(
   ].filter(Boolean);
 
   return lines.length > 0 ? lines.join("\n") : null;
+}
+
+function formatModelTestProgressLine(event: ModelTestProgressEvent): string {
+  const percent =
+    typeof event.progressPercent === "number" && Number.isFinite(event.progressPercent)
+      ? `${Math.round(event.progressPercent * 100)}% `
+      : "";
+  if (event.installLogLine?.trim()) {
+    return `${percent}${event.installLogLine.trim()}`;
+  }
+  const detail = event.detail?.trim();
+  return detail ? `${percent}${event.progressText} - ${detail}` : `${percent}${event.progressText}`;
 }

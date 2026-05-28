@@ -4,6 +4,7 @@ import type {
   BBox,
   ChapterSnapshot,
   ImportPreviewResult,
+  JobEvent,
   JobState,
   LibraryIndex,
   MangaPage,
@@ -162,7 +163,7 @@ export default function App(): React.JSX.Element {
     setDirty(mergeResult.preservedDirtyPageIds.length > 0);
   }, []);
 
-  const appendStatusLine = useCallback((line: string) => {
+  const appendStatusLine = useCallback((line: string, replaceExisting?: (line: string) => boolean) => {
     const next = line.trim();
     if (!next) {
       return;
@@ -171,7 +172,8 @@ export default function App(): React.JSX.Element {
       if (lines[0] === next) {
         return lines;
       }
-      return [next, ...lines].slice(0, 16);
+      const remaining = replaceExisting ? lines.filter((line) => !replaceExisting(line)) : lines;
+      return [next, ...remaining].slice(0, 16);
     });
   }, []);
 
@@ -202,7 +204,7 @@ export default function App(): React.JSX.Element {
         attempt: event.attempt ?? current.attempt,
         attemptTotal: event.attemptTotal ?? current.attemptTotal
       }));
-      appendStatusLine(formatJobEventLine(event));
+      appendStatusLine(formatJobEventLine(event), resolveStatusLineReplacement(event));
 
       if (event.phase === "page_done" || event.phase === "page_skipped") {
         const chapterId = currentChapterRef.current?.id;
@@ -1205,4 +1207,16 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 function formatErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.trim() ? error.message : fallback;
+}
+
+function resolveStatusLineReplacement(event: JobEvent): ((line: string) => boolean) | undefined {
+  if (
+    event.phase === "ocr_running" &&
+    Number.isFinite(event.pageIndex) &&
+    Number.isFinite(event.pageTotal) &&
+    (event.pageTotal ?? 0) > 0
+  ) {
+    return (line) => /^\d+ \/ \d+ 페이지 Paddle OCR 분석 중$/.test(line) || line === "페이지 Paddle OCR 분석 중";
+  }
+  return undefined;
 }

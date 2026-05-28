@@ -8,7 +8,7 @@ function binaryName() {
 function bundledServerCandidates(toolsDir) {
   const serverBinary = binaryName();
   return [
-    join(toolsDir, "llama-b8833-cuda12.4", serverBinary)
+    join(toolsDir, "beellama-v0.2.0-cuda12.4", serverBinary)
   ];
 }
 

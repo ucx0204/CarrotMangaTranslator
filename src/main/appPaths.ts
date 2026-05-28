@@ -41,7 +41,7 @@ export function getAppPaths(): AppPaths {
       ? join(process.env.LOCALAPPDATA || dataRoot, "manga-gemma-translator", "ocr-runtime")
       : join(dataRoot, "ocr-runtime")
   );
-  const llamaRuntimeDir = join(toolsDir, "llama-b8833-cuda12.4");
+  const llamaRuntimeDir = join(toolsDir, "beellama-v0.2.0-cuda12.4");
   const llamaServerBinary = process.platform === "win32" ? "llama-server.exe" : "llama-server";
   const explicitHfHome = process.env.MANGA_TRANSLATOR_HF_HOME?.trim();
   const explicitHubCache = process.env.HF_HUB_CACHE?.trim() || process.env.HUGGINGFACE_HUB_CACHE?.trim();

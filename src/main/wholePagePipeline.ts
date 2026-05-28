@@ -77,6 +77,7 @@ type BboxNormalizationOptions = {
 type RuntimeModules = {
   simplePage: {
     collectOcrBboxHints: (options: TranslationOptions) => Promise<OcrBboxResult>;
+    collectOcrBboxHintsBatch?: (options: TranslationOptions[]) => Promise<OcrBboxResult[]>;
     requestTranslation: (server: ServerHandle, options: TranslationOptions) => Promise<TranslationResult>;
     saveArtifacts: (options: TranslationOptions, result: TranslationResult) => Promise<void>;
     startServer: (options: TranslationOptions) => Promise<ServerHandle>;
@@ -206,7 +207,7 @@ export async function runWholePagePipeline({
       : codexSelected
         ? `${baseOptions.codexModel}, thinking ${baseOptions.codexReasoningEffort}`
         : modelCached
-          ? `gpu layers ${baseOptions.gpuLayers}, ${baseOptions.modelFile}`
+          ? `${formatGemmaVramMode(baseOptions.gemmaVramMode)}, gpu layers ${baseOptions.gpuLayers}, ${baseOptions.modelFile}`
           : "로컬 모델 자산이 없거나 부족해 다운로드/갱신이 필요할 수 있습니다."
   });
 
@@ -465,6 +466,7 @@ async function prepareOcrHintsForPages({
 }): Promise<Map<string, OcrBboxResult>> {
   const results = new Map<string, OcrBboxResult>();
   const total = pages.length;
+  const pendingPages: Array<{ page: MangaPage; index: number; options: TranslationOptions; cachePath: string }> = [];
 
   for (const [index, page] of pages.entries()) {
     throwIfAborted(signal);
@@ -487,19 +489,6 @@ async function prepareOcrHintsForPages({
       continue;
     }
 
-    emit({
-      id: jobId,
-      kind: "gemma-analysis",
-      status: "running",
-      progressText: `${page.name} OCR 선분석 중`,
-      phase: "ocr_running",
-      progressCurrent: index + 1,
-      progressTotal: total,
-      pageIndex: index + 1,
-      pageTotal: total,
-      detail: `${index + 1}/${total}`
-    });
-
     const ocrOptions = buildOcrPageOptions(baseOptions, page, runPaths, index);
     ocrOptions.abortSignal = signal;
     ocrOptions.onProgress = (progress) => {
@@ -521,22 +510,47 @@ async function prepareOcrHintsForPages({
         installLogLine: progress.installLogLine
       });
     };
+    pendingPages.push({ page, index, options: ocrOptions, cachePath });
+  }
 
-    const result = await runtime.simplePage.collectOcrBboxHints(ocrOptions);
-    await writeCachedOcrHints(cachePath, page, result);
-    results.set(page.id, result);
+  if (pendingPages.length > 0) {
     emit({
       id: jobId,
       kind: "gemma-analysis",
       status: "running",
-      progressText: `${page.name} OCR 완료`,
+      progressText: "Paddle OCR 배치 선분석 중",
       phase: "ocr_running",
-      progressCurrent: index + 1,
-      progressTotal: total,
-      pageIndex: index + 1,
+      progressCurrent: 0,
+      progressTotal: pendingPages.length,
       pageTotal: total,
-      detail: `${result.hints.length}개 후보`
+      detail: `${pendingPages.length}페이지를 한 번에 처리합니다. OCR 프로세스는 이 구간 끝에서 종료됩니다.`
     });
+
+    const batchResults = runtime.simplePage.collectOcrBboxHintsBatch
+      ? await runtime.simplePage.collectOcrBboxHintsBatch(pendingPages.map((entry) => entry.options))
+      : await collectOcrHintsSequentially(runtime, pendingPages);
+
+    for (const [batchIndex, result] of batchResults.entries()) {
+      throwIfAborted(signal);
+      const entry = pendingPages[batchIndex];
+      if (!entry) {
+        continue;
+      }
+      await writeCachedOcrHints(entry.cachePath, entry.page, result);
+      results.set(entry.page.id, result);
+      emit({
+        id: jobId,
+        kind: "gemma-analysis",
+        status: "running",
+        progressText: `${entry.page.name} OCR 완료`,
+        phase: "ocr_running",
+        progressCurrent: batchIndex + 1,
+        progressTotal: pendingPages.length,
+        pageIndex: entry.index + 1,
+        pageTotal: total,
+        detail: `${result.hints.length}개 후보`
+      });
+    }
   }
 
   emit({
@@ -551,6 +565,17 @@ async function prepareOcrHintsForPages({
     detail: "OCR 프로세스를 종료하고 AI 번역 단계로 넘어갑니다."
   });
 
+  return results;
+}
+
+async function collectOcrHintsSequentially(
+  runtime: RuntimeModules,
+  entries: Array<{ options: TranslationOptions }>
+): Promise<OcrBboxResult[]> {
+  const results: OcrBboxResult[] = [];
+  for (const entry of entries) {
+    results.push(await runtime.simplePage.collectOcrBboxHints(entry.options));
+  }
   return results;
 }
 
@@ -950,7 +975,6 @@ function summarizeTranslationOptions(options: TranslationOptions): Record<string
     port: options.port,
     promptMode: options.promptMode,
     promptOverrideText: options.promptOverrideText ? summarizePreview(options.promptOverrideText, 600) : undefined,
-    nsfwMode: options.nsfwMode,
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
@@ -959,7 +983,16 @@ function summarizeTranslationOptions(options: TranslationOptions): Record<string
     batch: options.batch,
     ubatch: options.ubatch,
     gpuLayers: options.gpuLayers,
+    gemmaVramMode: options.gemmaVramMode,
     fitTargetMb: options.fitTargetMb,
+    cacheTypeK: options.cacheTypeK,
+    cacheTypeV: options.cacheTypeV,
+    ctxCheckpoints: options.ctxCheckpoints,
+    kvOffload: options.kvOffload,
+    mmprojOffload: options.mmprojOffload,
+    useDraft: options.useDraft,
+    draftModelRepo: options.draftModelRepo,
+    draftModelFile: options.draftModelFile,
     imageMinTokens: options.imageMinTokens,
     imageMaxTokens: options.imageMaxTokens,
     includeEnhancedVariant: options.includeEnhancedVariant,
@@ -972,6 +1005,8 @@ function summarizeTranslationOptions(options: TranslationOptions): Record<string
     serverPath: options.serverPath,
     modelRepo: options.modelRepo,
     modelFile: options.modelFile,
+    mmprojRepo: options.mmprojRepo,
+    mmprojFile: options.mmprojFile,
     codexModel: options.codexModel,
     codexReasoningEffort: options.codexReasoningEffort,
     codexOauthPort: options.codexOauthPort,
@@ -979,6 +1014,10 @@ function summarizeTranslationOptions(options: TranslationOptions): Record<string
     hfHomeDir: options.hfHomeDir ?? null,
     hfHubCacheDir: options.hfHubCacheDir ?? null
   };
+}
+
+function formatGemmaVramMode(mode: TranslationOptions["gemmaVramMode"]): string {
+  return mode === "economy" ? "VRAM 절약 모드" : "VRAM 풀로드 모드";
 }
 
 async function startModelEndpoint(runtime: RuntimeModules, options: TranslationOptions): Promise<ModelEndpointHandle> {

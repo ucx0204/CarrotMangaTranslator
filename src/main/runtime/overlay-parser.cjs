@@ -44,18 +44,30 @@ function parseJsonLenient(rawText) {
 
   for (const attempt of attempts) {
     try {
-      return JSON.parse(attempt);
+      const parsed = JSON.parse(attempt);
+      if (hasStructuredItems(parsed)) {
+        return parsed;
+      }
     } catch {
       // Try the next cleanup step.
     }
   }
 
-  const looseItems = parseLooseItemList(candidate);
+  const looseItems = parseLooseItemList(rawText);
   if (looseItems.length > 0) {
     return { items: looseItems };
   }
 
+  const candidateLooseItems = parseLooseItemList(candidate);
+  if (candidateLooseItems.length > 0) {
+    return { items: candidateLooseItems };
+  }
+
   throw new Error("Failed to parse model output as JSON.");
+}
+
+function hasStructuredItems(parsed) {
+  return Array.isArray(parsed) || Array.isArray(parsed?.items) || Array.isArray(parsed?.blocks);
 }
 
 function repairBrokenJson(candidate) {
@@ -115,6 +127,7 @@ function parseLooseItemList(rawText) {
   const lines = cleaned.split(/\r?\n/);
   const items = [];
   let current = null;
+  let currentTextKey = null;
 
   function pushCurrent() {
     if (!current) {
@@ -145,12 +158,14 @@ function parseLooseItemList(rawText) {
     const line = normalizeLooseLine(rawLine.trim());
     if (!line) {
       pushCurrent();
+      currentTextKey = null;
       continue;
     }
 
     const idMatch = line.match(/^(?:\{?\s*)?"?id"?\s*:\s*["']?([A-Za-z0-9_-]+)["']?/i);
     if (idMatch) {
       pushCurrent();
+      currentTextKey = null;
       const parsedId = Number(idMatch[1]);
       current = Number.isFinite(parsedId) ? { id: parsedId } : {};
       continue;
@@ -162,30 +177,35 @@ function parseLooseItemList(rawText) {
 
     const typeMatch = line.match(/^"?type"?\s*:\s*["']?([^"',}]+)["']?/i);
     if (typeMatch) {
+      currentTextKey = null;
       current.type = typeMatch[1];
       continue;
     }
 
     const directionMatch = line.match(/^"?direction"?\s*:\s*["']?([^"',}]+)["']?/i);
     if (directionMatch) {
+      currentTextKey = null;
       current.direction = directionMatch[1];
       continue;
     }
 
     const angleMatch = line.match(/^"?angle"?\s*:\s*["']?(-?[0-9.]+)["']?/i);
     if (angleMatch) {
+      currentTextKey = null;
       current.angle = Number(angleMatch[1]);
       continue;
     }
 
     const fontSizeMatch = line.match(/^"?(?:fontSize|font_size|font)"?\s*:\s*["']?([0-9.]+)["']?/i);
     if (fontSizeMatch) {
+      currentTextKey = null;
       current.fontSize = Number(fontSizeMatch[1]);
       continue;
     }
 
     const coordMatches = [...line.matchAll(/["']?(x1|y1|x2|y2)["']?\s*:\s*(-?[0-9.]+)/g)];
     if (coordMatches.length > 0) {
+      currentTextKey = null;
       current.partialBbox = current.partialBbox || {};
       for (const match of coordMatches) {
         current.partialBbox[match[1]] = Number(match[2]);
@@ -197,13 +217,24 @@ function parseLooseItemList(rawText) {
     const jpMatch = line.match(/^"?jp"?\s*:\s*["']?(.+?)["']?[,]?$/i);
     if (jpMatch) {
       current.jp = jpMatch[1];
+      currentTextKey = "jp";
       continue;
     }
 
     const koMatch = line.match(/^"?ko"?\s*:\s*["']?(.+?)["']?[,]?$/i);
     if (koMatch) {
       current.ko = koMatch[1];
+      currentTextKey = "ko";
       continue;
+    }
+
+    if (currentTextKey && current) {
+      const continuation = line.replace(/[,]$/, "").trim();
+      if (continuation) {
+        current[currentTextKey] = current[currentTextKey]
+          ? `${current[currentTextKey]}\n${continuation}`
+          : continuation;
+      }
     }
   }
 
@@ -289,8 +320,14 @@ function normalizeItem(item, index) {
   const ko = [item?.ko, item?.korean, item?.translation, item?.translated, item?.text_ko].find((value) => typeof value === "string" && value.trim());
   const jp = [item?.jp, item?.japanese, item?.source, item?.ocr, item?.text_jp].find((value) => typeof value === "string" && value.trim()) || "";
   const bbox = normalizeBBox(item);
+  const normalizedKo = normalizeTextField(ko);
+  const normalizedJp = normalizeTextField(jp);
 
-  if (!ko || !bbox) {
+  if (!normalizedKo || !bbox) {
+    return null;
+  }
+
+  if (isPlaceholderOnly(normalizedKo) && (!normalizedJp || isPlaceholderOnly(normalizedJp))) {
     return null;
   }
 
@@ -298,12 +335,23 @@ function normalizeItem(item, index) {
     id: toNumber(item?.id) ?? index + 1,
     type: typeof item?.type === "string" && item.type.trim() ? item.type.trim() : "dialogue",
     bbox,
-    jp: jp.trim(),
-    ko: ko.trim(),
+    jp: normalizedJp,
+    ko: normalizedKo,
     direction: normalizeDirection(item?.direction ?? item?.sourceDirection ?? item?.writingDirection),
     angle: normalizeAngle(item?.angle ?? item?.rotation ?? item?.rotationDeg),
     fontSize: normalizeFontSize(item?.fontSize ?? item?.font_size ?? item?.font)
   };
+}
+
+function normalizeTextField(value) {
+  return String(value ?? "")
+    .replace(/\\n/g, "\n")
+    .trim();
+}
+
+function isPlaceholderOnly(value) {
+  const compact = String(value ?? "").replace(/\s+/g, "");
+  return compact === "[?]" || compact === "？" || compact === "?";
 }
 
 function normalizeItems(parsed) {

@@ -1357,6 +1357,11 @@ textarea {
   margin: 0;
 }
 
+.settings-test-result p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .settings-test-result.success {
   border-color: #2f6f61;
   background: rgba(47, 111, 97, 0.18);
@@ -1365,6 +1370,48 @@ textarea {
 .settings-test-result.error {
   border-color: #8d4949;
   background: rgba(119, 52, 52, 0.18);
+}
+
+.settings-test-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 96px;
+  max-height: 180px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #303844;
+  background: #0f1217;
+  scrollbar-color: #4a5667 rgba(8, 12, 18, 0.8);
+  scrollbar-width: thin;
+}
+
+.settings-test-log::-webkit-scrollbar {
+  width: 10px;
+}
+
+.settings-test-log::-webkit-scrollbar-track {
+  background: rgba(8, 12, 18, 0.8);
+  border-radius: 999px;
+}
+
+.settings-test-log::-webkit-scrollbar-thumb {
+  background: #4a5667;
+  border: 2px solid rgba(8, 12, 18, 0.8);
+  border-radius: 999px;
+}
+
+.settings-test-log code {
+  display: block;
+  color: #aab7c8;
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .radio-row,

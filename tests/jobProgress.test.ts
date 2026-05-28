@@ -40,6 +40,14 @@ describe("job progress helpers", () => {
     expect(
       formatJobLabel({
         status: "running",
+        phase: "ocr_running",
+        progressText: "Paddle OCR 선분석 완료"
+      })
+    ).toBe("Paddle OCR 선분석 완료");
+
+    expect(
+      formatJobLabel({
+        status: "running",
         phase: "model_requesting",
         pageIndex: 3,
         pageTotal: 20

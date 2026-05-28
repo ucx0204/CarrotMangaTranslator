@@ -7,12 +7,14 @@ dist/
 .env
 .env.local
 scripts/__pycache__/
+__pycache__/
 tmp-tiles/
 tmp-*.png
 tmp/
 tools/llama-b8808-cuda12/
 tools/llama-b8833-cuda12.4/
 tools/llama-b8833-cuda13.1/
+tools/beellama*/
 tools/python/
 models/
 testProject1/
