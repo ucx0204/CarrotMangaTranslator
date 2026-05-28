@@ -21,7 +21,7 @@
 일반 사용자는 GitHub Releases에서 Windows 설치 파일을 받아 실행하면 됩니다.
 
 - Releases: https://github.com/ucx0204/Gemma4MangaTranslatorForKorean/releases
-- 설치 파일 이름 예시: `Setup.0.2.0.exe`
+- 설치 파일 이름 예시: `Setup.0.2.2.exe`
 
 개발 실행과 빌드 방법은 README 아래쪽의 [개발](#개발) 섹션에 따로 정리했습니다.
 
