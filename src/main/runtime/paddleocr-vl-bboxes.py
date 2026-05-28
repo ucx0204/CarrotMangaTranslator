@@ -14,6 +14,11 @@ import os
 import sys
 from pathlib import Path
 
+try:
+  from PIL import Image
+except Exception:  # pragma: no cover - reported with the PaddleOCR install error path.
+  Image = None
+
 
 IGNORED_LABELS = {
     "image",
@@ -45,12 +50,13 @@ def main() -> int:
 
     try:
       from paddleocr import PaddleOCRVL
-      from PIL import Image
     except Exception as exc:  # pragma: no cover - depends on optional local install.
       raise RuntimeError(
           "PaddleOCR-VL is not installed. Install paddleocr/paddlex and PaddlePaddle, "
           "or provide MANGA_TRANSLATOR_OCR_BBOX_CMD."
       ) from exc
+    if Image is None:
+      raise RuntimeError("Pillow is not installed, so image dimensions cannot be read.")
 
     batch_items = load_batch_items(args)
     if not batch_items:

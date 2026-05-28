@@ -31,7 +31,13 @@ export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlay
   const byteStats = formatByteStats(job);
 
   return (
-    <div className="install-progress-overlay" role="status" aria-live="polite">
+    <div
+      className="install-progress-overlay"
+      role="status"
+      aria-live="polite"
+      onPointerDown={(event) => event.stopPropagation()}
+      onWheel={(event) => event.stopPropagation()}
+    >
       <div className="install-progress-card">
         <div className="install-progress-header">
           <span className="install-progress-kicker">{resolveKicker(job.phase)}</span>

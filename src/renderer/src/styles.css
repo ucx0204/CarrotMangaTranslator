@@ -690,7 +690,8 @@ textarea {
   display: grid;
   place-items: center;
   padding: 24px;
-  pointer-events: none;
+  pointer-events: auto;
+  overflow: hidden;
   background: radial-gradient(circle at center, rgba(16, 17, 20, 0.12), rgba(16, 17, 20, 0.5));
   backdrop-filter: blur(2px);
 }
@@ -705,6 +706,7 @@ textarea {
   background: linear-gradient(180deg, rgba(29, 34, 42, 0.98), rgba(18, 21, 27, 0.98));
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   color: #f5efe6;
+  pointer-events: auto;
 }
 
 .install-progress-header {
