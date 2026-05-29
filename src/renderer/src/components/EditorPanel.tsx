@@ -19,16 +19,18 @@ export function EditorPanel({ block, disabled, onUpdate, onDelete, onDuplicate }
     );
   }
 
+  const blockType = block.type === "other" ? "caption" : block.type;
+  const outlineColor = resolveColor(block.outlineColor, "#ffffff");
+
   return (
-    <section className="editor-panel">
+    <section className="editor-panel has-block">
       <h2>블록</h2>
       <label>
         종류
-        <select value={block.type} disabled={disabled} onChange={(event) => onUpdate({ type: event.target.value as TranslationBlock["type"] })}>
+        <select value={blockType} disabled={disabled} onChange={(event) => onUpdate({ type: event.target.value as TranslationBlock["type"] })}>
           <option value="speech">speech</option>
           <option value="sfx">sfx</option>
           <option value="caption">caption</option>
-          <option value="other">other</option>
         </select>
       </label>
       <label>
@@ -43,7 +45,7 @@ export function EditorPanel({ block, disabled, onUpdate, onDelete, onDuplicate }
         방향
         <select
           value={block.renderDirection}
-          disabled={disabled || block.type === "speech"}
+          disabled={disabled}
           onChange={(event) => onUpdate({ renderDirection: event.target.value as RenderTextDirection })}
         >
           <option value="horizontal">horizontal</option>
@@ -60,7 +62,7 @@ export function EditorPanel({ block, disabled, onUpdate, onDelete, onDuplicate }
           max={30}
           step={1}
           value={block.rotationDeg ?? 0}
-          disabled={disabled || block.type === "speech"}
+          disabled={disabled}
           onChange={(event) => onUpdate({ rotationDeg: Number(event.target.value) })}
         />
       </label>
@@ -76,20 +78,15 @@ export function EditorPanel({ block, disabled, onUpdate, onDelete, onDuplicate }
           onChange={(event) => onUpdate({ opacity: Number(event.target.value) })}
         />
       </label>
-      <div className="color-row">
-        <label>
-          글자색
-          <input type="color" value={block.textColor} disabled={disabled} onChange={(event) => onUpdate({ textColor: event.target.value })} />
-        </label>
-        <label>
-          배경색
-          <input
-            type="color"
-            value={block.backgroundColor}
-            disabled={disabled}
-            onChange={(event) => onUpdate({ backgroundColor: event.target.value })}
-          />
-        </label>
+      <div className="color-stack" aria-label="블록 색상">
+        <ColorField label="글자색" value={resolveColor(block.textColor, "#111111")} disabled={disabled} onChange={(textColor) => onUpdate({ textColor })} />
+        <ColorField label="외곽선" value={outlineColor} disabled={disabled} onChange={(nextOutlineColor) => onUpdate({ outlineColor: nextOutlineColor })} />
+        <ColorField
+          label="배경색"
+          value={resolveColor(block.backgroundColor, "#fffdf5")}
+          disabled={disabled}
+          onChange={(backgroundColor) => onUpdate({ backgroundColor })}
+        />
       </div>
       <div className="block-actions">
         <button onClick={onDuplicate} disabled={disabled}>복제</button>
@@ -97,4 +94,29 @@ export function EditorPanel({ block, disabled, onUpdate, onDelete, onDuplicate }
       </div>
     </section>
   );
+}
+
+type ColorFieldProps = {
+  label: string;
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+};
+
+function ColorField({ label, value, disabled, onChange }: ColorFieldProps): React.JSX.Element {
+  return (
+    <label className="color-field">
+      <span className="color-field-label">{label}</span>
+      <span className="color-picker-button">
+        <span className="color-swatch" style={{ backgroundColor: value }} aria-hidden="true" />
+        <code>{value.toUpperCase()}</code>
+        <input type="color" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} aria-label={label} />
+      </span>
+    </label>
+  );
+}
+
+function resolveColor(value: string | undefined, fallback: string): string {
+  const text = String(value ?? "").trim();
+  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
 }

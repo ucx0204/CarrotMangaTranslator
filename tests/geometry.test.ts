@@ -168,9 +168,9 @@ describe("geometry helpers", () => {
     expect(duplicated.renderBbox).toEqual({ x: 96, y: 106, w: 220, h: 260 });
   });
 
-  it("keeps speech and caption horizontal while allowing vertical sfx blocks", () => {
+  it("keeps generated speech horizontal while allowing vertical caption and sfx blocks", () => {
     expect(enforceRenderDirection("speech", "vertical")).toBe("horizontal");
-    expect(enforceRenderDirection("caption", "vertical")).toBe("horizontal");
+    expect(enforceRenderDirection("caption", "vertical")).toBe("vertical");
     expect(enforceRenderDirection("sfx", "vertical")).toBe("vertical");
     expect(normalizeRenderDirection("vertical", "horizontal")).toBe("vertical");
   });

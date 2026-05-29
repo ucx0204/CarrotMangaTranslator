@@ -116,6 +116,7 @@ function loadRuntimeModules(): RuntimeModules {
 }
 
 const DEFAULT_TEXT_COLOR = "#111111";
+const DEFAULT_OUTLINE_COLOR = "#ffffff";
 const DEFAULT_BACKGROUND_COLOR = "#fffdf5";
 
 export async function runWholePagePipeline({
@@ -826,8 +827,9 @@ export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: nu
     lineHeight,
     textAlign: "center",
     textColor: DEFAULT_TEXT_COLOR,
+    outlineColor: DEFAULT_OUTLINE_COLOR,
     backgroundColor: type === "sfx" || type === "caption" ? "#fff4ea" : DEFAULT_BACKGROUND_COLOR,
-    opacity: type === "caption" ? 0.7 : type === "sfx" ? 0.5 : 1,
+    opacity: type === "caption" ? 0.7 : type === "sfx" ? 0.5 : 0.9,
     autoFitText: true
   };
 }
@@ -1022,21 +1024,7 @@ function fitsPagePixels(bbox: BBox, page: Pick<MangaPage, "width" | "height">): 
 }
 
 function mapOverlayType(value: string): BlockType {
-  const normalized = normalizeBlockType(value);
-  if (normalized !== "other") {
-    return normalized;
-  }
-  const text = value.trim().toLowerCase();
-  if (text === "dialogue" || text === "dialog") {
-    return "speech";
-  }
-  if (text === "narration" || text === "caption") {
-    return "caption";
-  }
-  if (text === "name") {
-    return "caption";
-  }
-  return "other";
+  return normalizeBlockType(value);
 }
 
 function buildPageWarnings(pageName: string, items: OverlayItem[]): string[] {

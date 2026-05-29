@@ -98,6 +98,7 @@ export type TranslationBlock = {
   lineHeight: number;
   textAlign: "left" | "center" | "right";
   textColor: string;
+  outlineColor?: string;
   backgroundColor: string;
   opacity: number;
   autoFitText?: boolean;

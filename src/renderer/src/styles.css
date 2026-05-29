@@ -165,6 +165,16 @@ textarea {
 
 .editor-panel {
   align-content: start;
+  min-height: 0;
+}
+
+.editor-panel.has-block {
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 10px;
+  scrollbar-color: #4a5667 rgba(8, 12, 18, 0.8);
+  scrollbar-width: thin;
 }
 
 .panel-header,
@@ -272,6 +282,13 @@ textarea {
   align-content: start;
   gap: 10px;
   padding-right: 4px;
+}
+
+.library-scroll,
+.page-list-scroll,
+.status-log-scroll {
+  scrollbar-color: #4a5667 rgba(8, 12, 18, 0.8);
+  scrollbar-width: thin;
 }
 
 .work-group {
@@ -468,6 +485,30 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.library-scroll::-webkit-scrollbar,
+.page-list-scroll::-webkit-scrollbar,
+.editor-panel.has-block::-webkit-scrollbar,
+.status-log-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.library-scroll::-webkit-scrollbar-track,
+.page-list-scroll::-webkit-scrollbar-track,
+.editor-panel.has-block::-webkit-scrollbar-track,
+.status-log-scroll::-webkit-scrollbar-track {
+  background: rgba(8, 12, 18, 0.8);
+  border-radius: 999px;
+}
+
+.library-scroll::-webkit-scrollbar-thumb,
+.page-list-scroll::-webkit-scrollbar-thumb,
+.editor-panel.has-block::-webkit-scrollbar-thumb,
+.status-log-scroll::-webkit-scrollbar-thumb {
+  background: #4a5667;
+  border: 2px solid rgba(8, 12, 18, 0.8);
+  border-radius: 999px;
+}
+
 .panel-empty,
 .muted-line {
   margin: 0;
@@ -479,11 +520,79 @@ textarea {
   color: #b8b1a6;
 }
 
-.color-row,
 .block-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.color-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.color-field {
+  display: grid;
+  gap: 6px;
+}
+
+.color-field-label {
+  color: #e6ddcf;
+}
+
+.color-picker-button {
+  position: relative;
+  min-width: 0;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid #3d4147;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #171b21 0%, #111419 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+}
+
+.color-picker-button:hover {
+  border-color: #536274;
+  background: linear-gradient(180deg, #1b2028 0%, #13171d 100%);
+}
+
+.color-picker-button:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.color-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.26),
+    0 4px 10px rgba(0, 0, 0, 0.24);
+}
+
+.color-picker-button code {
+  min-width: 0;
+  color: #d9e0ea;
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.color-picker-button input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .progress-card {

@@ -12,7 +12,15 @@ import type {
   WorkShareExportRequest,
   WorkShareImportPreview
 } from "../../shared/types";
-import { applyEditableBlockBbox, clampBbox, enforceRenderDirection, enforceRotationDeg, offsetBlockBboxes, resolveEditableBlockBbox } from "../../shared/geometry";
+import {
+  applyEditableBlockBbox,
+  clampBbox,
+  normalizeBlockType,
+  normalizeRenderDirection,
+  normalizeRotationDeg,
+  offsetBlockBboxes,
+  resolveEditableBlockBbox
+} from "../../shared/geometry";
 import { EditorPanel } from "./components/EditorPanel";
 import { ImageStage } from "./components/ImageStage";
 import { InstallProgressOverlay } from "./components/InstallProgressOverlay";
@@ -682,14 +690,14 @@ export default function App(): React.JSX.Element {
                   return block;
                 }
 
-                const nextType = patch.type ?? block.type;
-                const nextRenderDirection = enforceRenderDirection(nextType, patch.renderDirection ?? block.renderDirection);
+                const nextType = normalizeBlockType(patch.type ?? block.type);
+                const nextRenderDirection = normalizeRenderDirection(patch.renderDirection ?? block.renderDirection, block.renderDirection);
                 return {
                   ...block,
                   ...patch,
                   type: nextType,
                   renderDirection: nextRenderDirection,
-                  rotationDeg: enforceRotationDeg(nextType, patch.rotationDeg ?? block.rotationDeg ?? 0),
+                  rotationDeg: normalizeRotationDeg(patch.rotationDeg ?? block.rotationDeg ?? 0),
                   bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
                   bboxSpace: patch.bbox ? "normalized_1000" : block.bboxSpace,
                   renderBbox: patch.renderBbox ? clampBbox(patch.renderBbox) : block.renderBbox,
@@ -1045,6 +1053,18 @@ export default function App(): React.JSX.Element {
               return;
             }
             const nextOrder = reorderByTarget(work.chapterOrder, sourceChapterId, targetChapterId);
+            setLibrary((current) => ({
+              ...current,
+              works: current.works.map((candidate) =>
+                candidate.id === workId
+                  ? {
+                      ...candidate,
+                      chapterOrder: nextOrder,
+                      chapters: reorderRecordsByIdOrder(candidate.chapters, nextOrder)
+                    }
+                  : candidate
+              )
+            }));
             void window.mangaApi.reorderChapters(workId, nextOrder).then(setLibrary);
           }}
         />
@@ -1061,6 +1081,18 @@ export default function App(): React.JSX.Element {
               return;
             }
             const nextOrder = reorderByTarget(currentChapter.pageOrder, sourcePageId, targetPageId);
+            setCurrentChapter((chapter) => {
+              if (!chapter || chapter.id !== currentChapter.id) {
+                return chapter;
+              }
+              const nextChapter = {
+                ...chapter,
+                pageOrder: nextOrder,
+                pages: reorderRecordsByIdOrder(chapter.pages, nextOrder)
+              };
+              currentChapterRef.current = nextChapter;
+              return nextChapter;
+            });
             void window.mangaApi.reorderPages(currentChapter.id, nextOrder).then((chapter) => {
               applyChapter(chapter);
               void refreshLibrary();
@@ -1153,17 +1185,19 @@ export default function App(): React.JSX.Element {
           ) : null}
         </section>
 
-        <section className="status-panel">
-          <h2>상태</h2>
-          <div className={`job-pill ${jobState.status}`}>{jobState.progressText}</div>
-          <div className="status-log-scroll">
-            {statusLines.length ? (
-              statusLines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)
-            ) : (
-              <p className="muted-line">아직 표시할 상태가 없습니다.</p>
-            )}
-          </div>
-        </section>
+        {!selectedBlock ? (
+          <section className="status-panel">
+            <h2>상태</h2>
+            <div className={`job-pill ${jobState.status}`}>{jobState.progressText}</div>
+            <div className="status-log-scroll">
+              {statusLines.length ? (
+                statusLines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)
+              ) : (
+                <p className="muted-line">아직 표시할 상태가 없습니다.</p>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         <EditorPanel
           block={selectedBlock}
@@ -1256,6 +1290,16 @@ function reorderByTarget(currentOrder: string[], sourceId: string, targetId: str
   const [item] = next.splice(sourceIndex, 1);
   next.splice(targetIndex, 0, item);
   return next;
+}
+
+function reorderRecordsByIdOrder<T extends { id: string }>(records: T[], order: string[]): T[] {
+  const recordMap = new Map(records.map((record) => [record.id, record]));
+  const ordered = order.flatMap((id) => {
+    const record = recordMap.get(id);
+    return record ? [record] : [];
+  });
+  const orderedIds = new Set(ordered.map((record) => record.id));
+  return [...ordered, ...records.filter((record) => !orderedIds.has(record.id))];
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {

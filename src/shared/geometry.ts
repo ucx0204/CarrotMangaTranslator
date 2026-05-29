@@ -135,16 +135,18 @@ export function offsetBlockBboxes(block: TranslationBlock, dx: number, dy: numbe
 }
 
 export function enforceRenderDirection(type: BlockType, direction: RenderTextDirection): RenderTextDirection {
-  if (type === "speech" || type === "caption") {
+  if (type === "speech") {
     return direction === "hidden" ? "hidden" : "horizontal";
   }
   return direction === "vertical" || direction === "rotated" || direction === "hidden" ? direction : "horizontal";
 }
 
 export function enforceRotationDeg(type: BlockType, value: unknown): number {
-  if (type === "speech" || type === "caption") {
-    return 0;
-  }
+  void type;
+  return normalizeRotationDeg(value);
+}
+
+export function normalizeRotationDeg(value: unknown): number {
   return clamp(Math.round(Number(value) || 0), -30, 30);
 }
 
@@ -159,7 +161,7 @@ export function normalizeBlockType(value: unknown): BlockType {
   if (["caption", "narration", "name"].includes(text)) {
     return "caption";
   }
-  return "other";
+  return "caption";
 }
 
 export function normalizeSourceDirection(value: unknown, fallback: SourceTextDirection): SourceTextDirection {
