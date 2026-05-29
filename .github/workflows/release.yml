@@ -49,6 +49,9 @@ jobs:
           Expand-Archive -Path $binZip -DestinationPath $runtimeDir -Force
           Expand-Archive -Path $cudaZip -DestinationPath $runtimeDir -Force
 
+      - name: Prepare bundled Python runtime
+        run: node scripts/prepare-ocr-python.cjs
+
       - name: Build Windows release
         run: npm run build && npx electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never
 

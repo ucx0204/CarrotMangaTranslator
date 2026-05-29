@@ -2144,9 +2144,11 @@ async function ensurePaddleOcrRuntime(options = {}) {
   await mkdir(path.join(runtimeDir, "tmp"), { recursive: true });
 
   emitRuntimeProgress(options, "ocr_preparing", "Paddle OCR 런타임 확인 중", `${resolveOcrDeviceLabel(options)}, ${runtimeVariant}`);
-  let importCheck = existsSync(venvPython) ? await checkPaddleOcrImport(venvPython, options) : { ok: false, message: "venv python is missing" };
+  let importCheck = existsSync(venvPython)
+    ? await checkPaddleOcrImport(venvPython, options, { runtimeDir, includePackageDir: false })
+    : { ok: false, message: "venv python is missing" };
   if (existsSync(venvPython) && importCheck.ok) {
-    return { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, diagnostics };
+    return { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, usesTargetPackageDir: false, diagnostics };
   }
 
   const bootstrapPython = resolveBootstrapPython(options);
@@ -2154,24 +2156,25 @@ async function ensurePaddleOcrRuntime(options = {}) {
     throw new Error("PaddleOCR-VL bbox provider needs Python. Bundle tools/python/python.exe or set MANGA_TRANSLATOR_OCR_PYTHON.");
   }
   ensureEmbeddedPythonPackagePath(bootstrapPython, packageDir, runtimeDir);
-  importCheck = !existsSync(venvPython) ? await checkPaddleOcrImport(bootstrapPython, options) : importCheck;
+  importCheck = !existsSync(venvPython)
+    ? await checkPaddleOcrImport(bootstrapPython, options, { runtimeDir, packageDir, includePackageDir: true })
+    : importCheck;
   if (!existsSync(venvPython) && importCheck.ok) {
-    return { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] };
+    return { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, usesTargetPackageDir: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] };
   }
 
-  if (hasOcrInstallMarker(packageDir, runtimeVariant) && hasExpectedOcrPackages(packageDir, options)) {
-    throw createOcrRuntimeError(
-      buildPaddleOcrImportFailureMessage(importCheck.message, options),
-      {
-        step: "installed-runtime-verification-failed",
-        runtimeDir,
-        runtimeVariant,
-        packageDir,
-        pythonPath: existsSync(venvPython) ? venvPython : bootstrapPython,
-        importError: importCheck.message
-      },
-      importCheck.error
-    );
+  const targetInstallLooksBroken = hasOcrInstallMarker(packageDir, runtimeVariant) || hasExpectedOcrPackages(packageDir, options);
+  if (targetInstallLooksBroken && !importCheck.ok) {
+    diagnostics.push({
+      step: "installed-runtime-verification-failed",
+      runtimeDir,
+      runtimeVariant,
+      packageDir,
+      pythonPath: existsSync(venvPython) ? venvPython : bootstrapPython,
+      importError: importCheck.message
+    });
+    await rm(packageDir, { recursive: true, force: true });
+    ensureEmbeddedPythonPackagePath(bootstrapPython, packageDir, runtimeDir);
   }
 
   if (!isTruthy(process.env.MANGA_TRANSLATOR_OCR_AUTO_INSTALL ?? "true")) {
@@ -2187,7 +2190,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
       });
       await runShellCommand(`${quoteCommandArg(bootstrapPython)} -m venv ${quoteCommandArg(venvDir)}`, {
         timeoutMs: 180000,
-        env: buildOcrRuntimeEnv(options, { runtimeDir }),
+        env: buildOcrRuntimeEnv(options, { runtimeDir, includePackageDir: false }),
         signal: options.abortSignal
       });
       diagnostics.push({ step: "venv-created", venvDir });
@@ -2238,7 +2241,11 @@ async function ensurePaddleOcrRuntime(options = {}) {
     progressMode: "indeterminate",
     installLogLine: "Paddle OCR import와 장치 상태를 확인합니다."
   });
-  importCheck = await checkPaddleOcrImport(installPython, options);
+  importCheck = await checkPaddleOcrImport(installPython, options, {
+    runtimeDir,
+    packageDir,
+    includePackageDir: Boolean(targetDir)
+  });
   if (!importCheck.ok) {
     throw createOcrRuntimeError(
       buildPaddleOcrImportFailureMessage(importCheck.message, options),
@@ -2260,7 +2267,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
     installLogLine: "Paddle OCR 설치가 완료되었습니다."
   });
 
-  return { runtimeDir, runtimeVariant, packageDir, pythonPath: installPython, prepared: true, diagnostics };
+  return { runtimeDir, runtimeVariant, packageDir, pythonPath: installPython, prepared: true, usesTargetPackageDir: Boolean(targetDir), diagnostics };
 }
 
 function ensureEmbeddedPythonPackagePath(pythonPath, packageDir, runtimeDir = null) {
@@ -2344,7 +2351,7 @@ async function installOcrPythonPackages(pythonPath, installBatches, targetDir, o
     monitor.setStep("pip 업데이트", 0.04, 0.1);
     await runShellCommand(`${quoteCommandArg(pythonPath)} -m pip install --upgrade ${pipProgressArgs} pip`, {
       timeoutMs: 300000,
-      env: buildOcrRuntimeEnv(options, { runtimeDir }),
+      env: buildOcrRuntimeEnv(options, { runtimeDir, includePackageDir: false }),
       signal: options.abortSignal,
       onOutput: (line) => monitor.log(line)
     });
@@ -2358,7 +2365,7 @@ async function installOcrPythonPackages(pythonPath, installBatches, targetDir, o
       monitor.setStep(`패키지 설치 ${index + 1}/${installBatches.length}`, start, end);
       await runShellCommand(`${quoteCommandArg(pythonPath)} -m pip install --upgrade ${pipProgressArgs} ${targetDir ? `--target ${quoteCommandArg(targetDir)} ` : ""}${packages.map(quoteCommandArg).join(" ")}`, {
         timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_PIP_TIMEOUT_MS) || 1800000,
-        env: buildOcrRuntimeEnv(options, { runtimeDir }),
+        env: buildOcrRuntimeEnv(options, { runtimeDir, includePackageDir: false }),
         signal: options.abortSignal,
         onOutput: (line) => monitor.log(line)
       });
@@ -2423,21 +2430,52 @@ function resolveVenvPythonPath(venvDir) {
 }
 
 function resolveBootstrapPython(options = {}) {
-  const candidates = [
+  const explicitCandidates = [
     process.env.MANGA_TRANSLATOR_OCR_PYTHON,
-    process.env.MANGA_TRANSLATOR_PYTHON,
-    path.join(options.toolsDir || "", "python", "python.exe"),
-    path.join(options.toolsDir || "", "python", "python-embed", "python.exe"),
-    path.join(options.toolsDir || "", "python.exe"),
-    "python"
-  ].filter(Boolean);
+    process.env.MANGA_TRANSLATOR_PYTHON
+  ]
+    .map((candidate) => String(candidate ?? "").trim())
+    .filter(Boolean);
 
-  for (const candidate of candidates) {
+  for (const candidate of explicitCandidates) {
     if (candidate === "python" || existsSync(candidate)) {
       return candidate;
     }
   }
+
+  const bundledCandidates = [
+    path.join(options.toolsDir || "", "python", "python.exe"),
+    path.join(options.toolsDir || "", "python", "python-embed", "python.exe"),
+    path.join(options.toolsDir || "", "python.exe")
+  ];
+
+  for (const candidate of bundledCandidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (shouldAllowSystemPythonFallback(options)) {
+    return "python";
+  }
   return null;
+}
+
+function shouldAllowSystemPythonFallback(options = {}) {
+  const explicit = process.env.MANGA_TRANSLATOR_OCR_ALLOW_SYSTEM_PYTHON ?? process.env.MANGA_TRANSLATOR_ALLOW_SYSTEM_PYTHON;
+  if (explicit !== undefined) {
+    return isTruthy(explicit);
+  }
+  return !isLikelyPackagedToolsDir(options.toolsDir);
+}
+
+function isLikelyPackagedToolsDir(toolsDir) {
+  const text = String(toolsDir ?? "").trim();
+  if (!text) {
+    return false;
+  }
+  const normalized = path.resolve(text).replace(/\\/g, "/").toLowerCase();
+  return normalized.endsWith("/resources/tools") || normalized.includes("/resources/tools/");
 }
 
 function resolveOcrPipInstallBatches(options = {}) {
@@ -2551,11 +2589,15 @@ async function canImportPaddleOcr(pythonPath, options = {}) {
   return (await checkPaddleOcrImport(pythonPath, options)).ok;
 }
 
-async function checkPaddleOcrImport(pythonPath, options = {}) {
+async function checkPaddleOcrImport(pythonPath, options = {}, runtime = null) {
   try {
     await runShellCommand(`${quoteCommandArg(pythonPath)} -c ${quoteCommandArg(buildPaddleOcrImportCheckScript(options))}`, {
       timeoutMs: 60000,
-      env: buildOcrRuntimeEnv(options, { runtimeDir: resolveOcrRuntimeDir(options) }),
+      env: buildOcrRuntimeEnv(options, {
+        runtimeDir: runtime?.runtimeDir || resolveOcrRuntimeDir(options),
+        packageDir: runtime?.packageDir,
+        includePackageDir: runtime?.includePackageDir
+      }),
       signal: options.abortSignal
     });
     return { ok: true, message: "" };
@@ -2804,18 +2846,25 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
   const hfHomeDir = options.hfHomeDir || process.env.HF_HOME || path.join(runtimeDir, "hf-cache");
   const hfHubCacheDir = options.hfHubCacheDir || process.env.HF_HUB_CACHE || process.env.HUGGINGFACE_HUB_CACHE || path.join(hfHomeDir, "hub");
   const packageDir = runtime?.packageDir || resolveOcrPythonPackageDir(runtimeDir, options);
-  const pythonPath = [packageDir, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+  const includePackageDir = runtime?.includePackageDir ?? runtime?.usesTargetPackageDir ?? true;
+  const pythonPath = includePackageDir ? packageDir : "";
   const ocrDevice = resolveOcrDevice(options);
   const pipCacheDir = path.join(runtimeDir, "pip-cache");
   const tempDir = path.join(runtimeDir, "tmp");
+  const env = { ...process.env };
+  delete env.PYTHONHOME;
+  delete env.PYTHONPATH;
+  delete env.PYTHONUSERBASE;
   return {
-    ...process.env,
+    ...env,
     HF_HOME: hfHomeDir,
     HF_HUB_CACHE: hfHubCacheDir,
     HUGGINGFACE_HUB_CACHE: hfHubCacheDir,
     MANGA_TRANSLATOR_OCR_DEVICE: options.ocrDevice || process.env.MANGA_TRANSLATOR_OCR_DEVICE || "cpu",
     MANGA_TRANSLATOR_PADDLEOCR_DEVICE: ocrDevice,
     PYTHONPATH: pythonPath,
+    PYTHONNOUSERSITE: "1",
+    PYTHONUSERBASE: path.join(runtimeDir, "python-user-base"),
     PIP_CACHE_DIR: pipCacheDir,
     PADDLE_PDX_MODEL_SOURCE: process.env.PADDLE_PDX_MODEL_SOURCE || "huggingface",
     PADDLE_PDX_CACHE_HOME: process.env.PADDLE_PDX_CACHE_HOME || path.join(runtimeDir, "paddlex-cache"),
@@ -2842,7 +2891,7 @@ function buildOcrBboxCommand(options = {}, provider, outputPath, runtime = null)
   }
 
   if (provider === "paddleocr-vl") {
-    const python = quoteCommandArg(runtime?.pythonPath || process.env.MANGA_TRANSLATOR_PYTHON || "python");
+    const python = quoteCommandArg(resolveOcrRuntimePythonPath(runtime, options));
     const scriptPath = quoteCommandArg(path.join(__dirname, "paddleocr-vl-bboxes.py"));
     return `${python} -u ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveOcrDevice(options))}`;
   }
@@ -2851,10 +2900,21 @@ function buildOcrBboxCommand(options = {}, provider, outputPath, runtime = null)
 }
 
 function buildOcrBboxBatchCommand(options = {}, batchPath, runtime = null, progressPath = null) {
-  const python = quoteCommandArg(runtime?.pythonPath || process.env.MANGA_TRANSLATOR_PYTHON || "python");
+  const python = quoteCommandArg(resolveOcrRuntimePythonPath(runtime, options));
   const scriptPath = quoteCommandArg(path.join(__dirname, "paddleocr-vl-bboxes.py"));
   const progressArg = progressPath ? ` --progress ${quoteCommandArg(progressPath)}` : "";
   return `${python} -u ${scriptPath} --batch ${quoteCommandArg(batchPath)}${progressArg} --device ${quoteCommandArg(resolveOcrDevice(options))}`;
+}
+
+function resolveOcrRuntimePythonPath(runtime = null, options = {}) {
+  if (runtime?.pythonPath) {
+    return runtime.pythonPath;
+  }
+  const pythonPath = resolveBootstrapPython(options);
+  if (pythonPath) {
+    return pythonPath;
+  }
+  throw new Error("PaddleOCR-VL bbox provider needs an isolated Python runtime.");
 }
 
 function renderCommandTemplate(template, replacements) {

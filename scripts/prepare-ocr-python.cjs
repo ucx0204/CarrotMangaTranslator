@@ -131,8 +131,18 @@ function isManagedOcrPackagePath(line) {
 
 function run(command, args) {
   console.log(`> ${command} ${args.join(" ")}`);
+  const env = { ...process.env };
+  delete env.PYTHONHOME;
+  delete env.PYTHONPATH;
+  delete env.PYTHONUSERBASE;
   const result = spawnSync(command, args, {
     cwd: root,
+    env: {
+      ...env,
+      PYTHONNOUSERSITE: "1",
+      PYTHONUTF8: "1",
+      PYTHONUNBUFFERED: "1"
+    },
     stdio: "inherit",
     shell: false
   });
