@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -27,7 +27,12 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
     options: { [key: string]: unknown },
     imageVariants: Array<{ role: string; dataUrl?: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number }>
   ) => string;
-  collectOcrBboxHints: (options: { [key: string]: unknown }) => Promise<{ hints: Array<{ x1: number; y1: number; x2: number; y2: number }>; diagnostics: unknown[] }>;
+  collectOcrBboxHints: (options: { [key: string]: unknown }) => Promise<{
+    hints: Array<{ x1: number; y1: number; x2: number; y2: number; ocrText?: string }>;
+    diagnostics: unknown[];
+    noTextDetected: boolean;
+    textEvidenceCount: number;
+  }>;
   collectRequiredHfDownloads: (options: { [key: string]: unknown }) => Array<{ kind: string; file: string; destination: string }>;
   extractModelOutputText: (parsed: unknown) => string;
   inspectModelLaunch: (options: { [key: string]: unknown }) => { launchMode: string; model?: string; reasoningEffort?: string };
@@ -35,6 +40,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   parseOcrBatchProgressLine: (line: string) => { index: number; total: number; count: number } | null;
   parsePipRawProgress: (line: string) => { current: number; total: number } | null;
   parseResponsesSseText: (rawText: string) => { outputText: string; eventCount: number; rawResponse: unknown };
+  requestTranslation: (server: { baseUrl: string }, options: { [key: string]: unknown }) => Promise<{ outputText: string; rawResponse: unknown; requestBody: Record<string, unknown> }>;
   resolveOcrInstallBatchProgressRanges: (batches: string[][], start: number, end: number) => Array<{ start: number; end: number }>;
   resolveManagedHfFilePath: (options: { [key: string]: unknown }, repo: string, file: string) => string | null;
 };
@@ -52,7 +58,8 @@ const {
   parsePipRawProgress,
   resolveOcrInstallBatchProgressRanges,
   resolveManagedHfFilePath,
-  parseResponsesSseText
+  parseResponsesSseText,
+  requestTranslation
 } = runtimeHelpers;
 
 const tempDirs: string[] = [];
@@ -108,12 +115,31 @@ describe("runtime model launch helpers", () => {
 
   it("parses OCR batch progress JSON lines", () => {
     expect(parseOcrBatchProgressLine('{"index":2,"total":65,"output":"page.json","count":14}')).toEqual({
+      phase: "done",
       index: 2,
       total: 65,
       count: 14
     });
+    expect(parseOcrBatchProgressLine('{"phase":"start","index":3,"total":65,"output":"page.json","count":0}')).toEqual({
+      phase: "start",
+      index: 3,
+      total: 65,
+      count: 0
+    });
     expect(parseOcrBatchProgressLine('{"items":[],"count":65}')).toBeNull();
     expect(parseOcrBatchProgressLine("[paddleocr] warmup")).toBeNull();
+  });
+
+  it("streams OCR batch progress without inheriting the first page index during runtime setup", () => {
+    const runtimeSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-translate.cjs"), "utf8");
+    const paddleSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "paddleocr-vl-bboxes.py"), "utf8");
+
+    expect(runtimeSource).toContain("const batchOptions = withoutPageProgressOptions(firstOptions)");
+    expect(runtimeSource).toContain("await ensurePaddleOcrRuntime(batchOptions)");
+    expect(runtimeSource).toContain("emitRuntimeProgress(batchOptions, \"ocr_running\"");
+    expect(runtimeSource).toContain("createCommandOutputLineEmitter(onOutput)");
+    expect(runtimeSource).toContain("stdoutLines.write(chunk)");
+    expect(paddleSource).toContain("flush=True");
   });
 
   it("treats an explicitly empty OCR hint array as a completed OCR pass", async () => {
@@ -122,10 +148,41 @@ describe("runtime model launch helpers", () => {
       ocrBboxProvider: "none"
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       hints: [],
-      diagnostics: [{ provider: "inline", hintCount: 0 }]
+      diagnostics: [{ provider: "inline", hintCount: 0 }],
+      noTextDetected: true,
+      textEvidenceCount: 0
     });
+  });
+
+  it("uses OCR text evidence to identify no-text pages", async () => {
+    const noEvidence = await collectOcrBboxHints({
+      ocrBboxHints: [{ id: 1, label: "text", x1: 10, y1: 20, x2: 80, y2: 90 }]
+    });
+    const hasEvidence = await collectOcrBboxHints({
+      ocrBboxHints: [{ id: 1, label: "text", x1: 10, y1: 20, x2: 80, y2: 90, ocrText: "1998年1月" }]
+    });
+
+    expect(noEvidence).toMatchObject({ noTextDetected: true, textEvidenceCount: 0 });
+    expect(hasEvidence).toMatchObject({ noTextDetected: false, textEvidenceCount: 1 });
+  });
+
+  it("returns a synthetic empty overlay instead of calling a model for no-text OCR pages", async () => {
+    const result = await requestTranslation(
+      { baseUrl: "http://127.0.0.1:1" },
+      {
+        label: "blank-page",
+        modelProvider: "gemma",
+        imageWidth: 1000,
+        imageHeight: 1000,
+        ocrBboxHints: []
+      }
+    );
+
+    expect(JSON.parse(result.outputText)).toEqual({ items: [] });
+    expect(result.rawResponse).toMatchObject({ skipped: true, reason: "ocr-no-text" });
+    expect(result.requestBody).toMatchObject({ noTextDetected: true, ocrTextEvidenceCount: 0 });
   });
 
   it("weights OCR GPU install batches so one completed download does not imply half the install is done", () => {
@@ -221,25 +278,26 @@ describe("runtime model launch helpers", () => {
       imageWidth: 836,
       imageHeight: 1188,
       ocrBboxHints: [
-        { id: 1, label: "text", x1: 67, y1: 589, x2: 267, y2: 760 },
-        { id: 2, label: "text", x1: 83, y1: 767, x2: 239, y2: 1029 }
+        { id: 1, label: "text", x1: 67, y1: 589, x2: 267, y2: 760, ocrText: "いえ…資金はこちらも" },
+        { id: 2, label: "text", x1: 83, y1: 767, x2: 239, y2: 1029, ocrText: "モリーダ村に支店を置く" }
       ]
     };
     const variants = [{ role: "openai-vision", dataUrl: "data:image/png;base64,abc123", width: 836, height: 1188, originalWidth: 836, originalHeight: 1188 }];
     const prompt = getOverlayPrompt(options, variants);
 
     expect(prompt).toContain("# OCR bbox candidates");
-    expect(prompt).toContain("Text content is intentionally omitted");
+    expect(prompt).toContain("low-trust OCR text hints for slot matching only");
+    expect(prompt).toContain("Use Image 1 as the authority");
     expect(prompt).toContain("Treat each candidate as a locked geometry slot.");
     expect(prompt).toContain("Required candidate ids: 1, 2.");
-    expect(prompt).toContain("candidate 1: label:text x1:67 y1:589 x2:267 y2:760");
-    expect(prompt).toContain("candidate 2: label:text x1:83 y1:767 x2:239 y2:1029");
+    expect(prompt).toContain('candidate 1: label:text x1:67 y1:589 x2:267 y2:760 ocrText:"いえ…資金はこちらも"');
+    expect(prompt).toContain('candidate 2: label:text x1:83 y1:767 x2:239 y2:1029 ocrText:"モリーダ村に支店を置く"');
     expect(prompt).toContain("Do not merge two candidates into one record");
     expect(prompt).toContain("add a new record with id greater than 2");
     expect(prompt).not.toContain("Find one anchor point");
   });
 
-  it("normalizes bbox hint JSON without passing OCR text into the prompt contract", async () => {
+  it("normalizes bbox hint JSON with low-trust OCR text", async () => {
     const dir = createTempDir("ocr-hints-");
     const hintPath = join(dir, "hints.json");
     writeFileSync(
@@ -264,7 +322,7 @@ describe("runtime model launch helpers", () => {
     });
 
     expect(result.hints).toHaveLength(1);
-    expect(result.hints[0]).toMatchObject({ x1: 67, y1: 589, x2: 267, y2: 760 });
+    expect(result.hints[0]).toMatchObject({ x1: 67, y1: 589, x2: 267, y2: 760, ocrText: "いえ…" });
   });
 
   it("uses the same tight Japanese glyph bbox prompt for Gemma chat requests", () => {
@@ -469,6 +527,7 @@ describe("runtime model launch helpers", () => {
       "-ub",
       "1536"
     ]);
+    expect(args.slice(args.indexOf("-np"), args.indexOf("-np") + 2)).toEqual(["-np", "1"]);
     expect(args.slice(args.indexOf("--ctx-checkpoints"), args.indexOf("--ctx-checkpoints") + 2)).toEqual([
       "--ctx-checkpoints",
       "0"

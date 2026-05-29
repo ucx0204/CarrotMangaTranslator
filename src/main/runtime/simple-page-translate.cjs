@@ -131,7 +131,8 @@ function buildRequestSummary(server, options, imageVariants, promptText, systemP
       y1: hint.y1,
       x2: hint.x2,
       y2: hint.y2,
-      score: hint.score ?? null
+      score: hint.score ?? null,
+      ocrText: truncateText(readOcrCandidateText(hint), 160) || null
     })),
     ocrBboxHintsPreview: ocrBboxHints.slice(0, 24).map((hint) => ({
       id: hint.id,
@@ -140,7 +141,8 @@ function buildRequestSummary(server, options, imageVariants, promptText, systemP
       y1: hint.y1,
       x2: hint.x2,
       y2: hint.y2,
-      score: hint.score ?? null
+      score: hint.score ?? null,
+      ocrText: truncateText(readOcrCandidateText(hint), 160) || null
     })),
     options: buildOptionSummary(options)
   };
@@ -1135,7 +1137,9 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
 
   return [
     "OCR bbox candidates",
-    "An external OCR geometry detector has already proposed bbox candidates. Text content is intentionally omitted; use Image 1 to read and translate.",
+    "An external OCR geometry detector has already proposed bbox candidates. Some candidates include low-trust OCR text hints for slot matching only.",
+    "OCR text hints may be wrong, incomplete, or split strangely. Use Image 1 as the authority for the actual Japanese text and Korean translation.",
+    "Use the OCR text hint to keep each translated record attached to the correct candidate id, especially when speech, caption, and SFX candidates are close together.",
     "Treat each candidate as a locked geometry slot. For every candidate that contains Japanese glyphs, output one record with that same id and the exact x1, y1, x2, y2 numbers shown below.",
     `Required candidate ids: ${candidateIds.join(", ")}.`,
     "Read and translate only the text inside that candidate rectangle plus a tiny visual margin; do not move the rectangle to a different nearby text group.",
@@ -1170,7 +1174,9 @@ function formatOcrBboxHintForPrompt(hint, fallbackId, frame, originalWidth, orig
   const label = sanitizeHintLabel(hint.label);
   const converted = convertOriginalPixelBoxToPromptFrame({ x1, y1, x2, y2 }, frame, originalWidth, originalHeight);
   const score = Number.isFinite(hint.score) ? ` score:${Math.round(hint.score * 100) / 100}` : "";
-  return `candidate ${id}: label:${label} x1:${converted.x1} y1:${converted.y1} x2:${converted.x2} y2:${converted.y2}${score}`;
+  const ocrText = sanitizeOcrTextForPrompt(readOcrCandidateText(hint));
+  const textHint = ocrText ? ` ocrText:${JSON.stringify(ocrText)}` : "";
+  return `candidate ${id}: label:${label} x1:${converted.x1} y1:${converted.y1} x2:${converted.x2} y2:${converted.y2}${score}${textHint}`;
 }
 
 function convertOriginalPixelBoxToPromptFrame(box, frame, originalWidth, originalHeight) {
@@ -1205,6 +1211,41 @@ function convertOriginalPixelBoxToPromptFrame(box, frame, originalWidth, origina
 function sanitizeHintLabel(value) {
   const text = String(value ?? "text").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
   return text || "text";
+}
+
+function readOcrCandidateText(candidate) {
+  if (!candidate || typeof candidate !== "object") {
+    return "";
+  }
+  for (const key of ["ocrText", "ocr_text", "text", "content", "block_content", "rec_text", "transcription"]) {
+    const text = normalizeOcrTextValue(candidate[key]);
+    if (text) {
+      return text;
+    }
+  }
+  return "";
+}
+
+function normalizeOcrTextValue(value) {
+  if (typeof value === "string") {
+    return value.replace(/\s+/g, " ").trim();
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizeOcrTextValue).filter(Boolean).join(" ").trim();
+  }
+  if (value && typeof value === "object") {
+    for (const key of ["text", "content", "value", "rec_text", "transcription"]) {
+      const text = normalizeOcrTextValue(value[key]);
+      if (text) {
+        return text;
+      }
+    }
+  }
+  return "";
+}
+
+function sanitizeOcrTextForPrompt(value) {
+  return truncateText(normalizeOcrTextValue(value).replace(/[\u0000-\u001F\u007F]+/g, " ").replace(/\s+/g, " ").trim(), 160);
 }
 
 function resolvePromptCoordinateFrame(options = {}, imageVariants = []) {
@@ -1818,24 +1859,18 @@ async function collectOcrBboxHints(options = {}) {
   const diagnostics = [];
   const inlineHints = normalizeOcrBboxHintPayload(options.ocrBboxHints, options);
   if (Object.prototype.hasOwnProperty.call(options, "ocrBboxHints")) {
-    emitRuntimeProgress(options, "ocr_running", "OCR 후보 사용 중", `${inlineHints.length}개 후보`);
-    return {
-      hints: inlineHints,
-      diagnostics: [{
+    return buildOcrBboxResult(inlineHints, [{
         provider: "inline",
         hintCount: inlineHints.length
-      }]
-    };
+      }]);
   }
 
   const hintsPath = String(options.ocrBboxHintsPath ?? process.env.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH ?? "").trim();
   if (hintsPath) {
     try {
       const rawText = await readFile(hintsPath, "utf8");
-      return {
-        hints: normalizeOcrBboxHintPayload(JSON.parse(rawText), options),
-        diagnostics: [{ provider: "json-file", path: hintsPath }]
-      };
+      const hints = normalizeOcrBboxHintPayload(JSON.parse(rawText), options);
+      return buildOcrBboxResult(hints, [{ provider: "json-file", path: hintsPath }]);
     } catch (error) {
       diagnostics.push(buildOcrBboxDiagnostic("json-file", error, { path: hintsPath }));
     }
@@ -1843,17 +1878,14 @@ async function collectOcrBboxHints(options = {}) {
 
   const provider = resolveOcrBboxProvider(options);
   if (provider === "none" || provider === "json-file") {
-    return { hints: [], diagnostics };
+    return buildOcrBboxResult([], diagnostics, { noTextDetected: false });
   }
 
   try {
     emitRuntimeProgress(options, "ocr_preparing", "Paddle OCR 준비 중", `장치: ${resolveOcrDeviceLabel(options)}`);
     const commandResult = await runOcrBboxCommand(options, provider);
     const hints = normalizeOcrBboxHintPayload(commandResult.payload, options);
-    emitRuntimeProgress(options, "ocr_running", `Paddle OCR 후보 ${hints.length}개 감지`, `장치: ${resolveOcrDeviceLabel(options)}`);
-    return {
-      hints,
-      diagnostics: [{
+    const result = buildOcrBboxResult(hints, [{
         provider,
         command: commandResult.command,
         outputPath: commandResult.outputPath,
@@ -1866,8 +1898,14 @@ async function collectOcrBboxHints(options = {}) {
         stdoutPreview: truncateText(commandResult.stdout.trim(), 1200),
         stderrPreview: truncateText(commandResult.stderr.trim(), 1200),
         runtimeDiagnostics: commandResult.runtimeDiagnostics || []
-      }]
-    };
+      }]);
+    emitRuntimeProgress(
+      options,
+      "ocr_running",
+      result.noTextDetected ? "Paddle OCR 텍스트 없음" : `Paddle OCR 후보 ${hints.length}개 감지`,
+      result.noTextDetected ? `장치: ${resolveOcrDeviceLabel(options)}, 텍스트 근거 없음` : `장치: ${resolveOcrDeviceLabel(options)}`
+    );
+    return result;
   } catch (error) {
     const diagnostic = buildOcrBboxDiagnostic(provider, error);
     diagnostics.push(diagnostic);
@@ -1879,8 +1917,46 @@ async function collectOcrBboxHints(options = {}) {
         error
       );
     }
-    return { hints: [], diagnostics };
+    return buildOcrBboxResult([], diagnostics, { noTextDetected: false });
   }
+}
+
+function buildOcrBboxResult(hints = [], diagnostics = [], options = {}) {
+  const normalizedHints = Array.isArray(hints) ? hints : [];
+  const textEvidenceCount = countOcrTextEvidence(normalizedHints);
+  const noTextDetected =
+    typeof options.noTextDetected === "boolean"
+      ? options.noTextDetected
+      : normalizedHints.length === 0 || textEvidenceCount === 0;
+  return {
+    hints: normalizedHints,
+    diagnostics: Array.isArray(diagnostics) ? diagnostics : [],
+    noTextDetected,
+    textEvidenceCount
+  };
+}
+
+function countOcrTextEvidence(hints = []) {
+  return hints.reduce((count, hint) => count + (hasJapaneseTextEvidence(readOcrCandidateText(hint)) ? 1 : 0), 0);
+}
+
+function hasJapaneseTextEvidence(value) {
+  const text = String(value ?? "");
+  for (const char of text) {
+    const code = char.codePointAt(0);
+    if (
+      (code >= 0x3040 && code <= 0x30ff) ||
+      (code >= 0x31f0 && code <= 0x31ff) ||
+      (code >= 0x3400 && code <= 0x4dbf) ||
+      (code >= 0x4e00 && code <= 0x9fff) ||
+      (code >= 0xf900 && code <= 0xfaff) ||
+      code === 0x3005 ||
+      code === 0x30fc
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function buildOcrBboxDiagnostic(provider, error, extra = {}) {
@@ -1942,6 +2018,7 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   }
 
   const firstOptions = normalizedOptions[0] || {};
+  const batchOptions = withoutPageProgressOptions(firstOptions);
   const provider = resolveOcrBboxProvider(firstOptions);
   if (provider !== "paddleocr-vl") {
     const results = [];
@@ -1951,8 +2028,9 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
     return results;
   }
 
-  const runtime = await ensurePaddleOcrRuntime(firstOptions);
+  const runtime = await ensurePaddleOcrRuntime(batchOptions);
   const batchPath = path.join(firstOptions.outputDir || process.cwd(), `ocr-batch-${Date.now()}-${process.pid}.json`);
+  const progressPath = path.join(firstOptions.outputDir || process.cwd(), `ocr-batch-progress-${Date.now()}-${process.pid}.jsonl`);
   const items = normalizedOptions.map((options, index) => {
     const outputDir = options.outputDir || path.join(firstOptions.outputDir || process.cwd(), `page-${index + 1}`);
     return {
@@ -1965,37 +2043,62 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
     await mkdir(path.dirname(item.output), { recursive: true });
   }
   await writeFile(batchPath, `${JSON.stringify({ items }, null, 2)}\n`, "utf8");
+  await writeFile(progressPath, "", "utf8");
 
-  const command = buildOcrBboxBatchCommand(firstOptions, batchPath, runtime);
-  emitRuntimeProgress(firstOptions, "ocr_running", "Paddle OCR 배치 위치 분석 중", `${items.length}페이지, 장치: ${resolveOcrDeviceLabel(firstOptions)}`);
-  const { stdout, stderr } = await runShellCommand(command, {
-    timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS) || Math.max(600000, items.length * 300000),
-    env: buildOcrRuntimeEnv(firstOptions, runtime),
-    signal: firstOptions.abortSignal,
-    onOutput: (line) => {
+  const command = buildOcrBboxBatchCommand(batchOptions, batchPath, runtime, progressPath);
+  emitRuntimeProgress(batchOptions, "ocr_running", "Paddle OCR 배치 위치 분석 중", `${items.length}페이지, 장치: ${resolveOcrDeviceLabel(batchOptions)}`, {
+    pageIndex: null,
+    pageTotal: null,
+    progressCurrent: readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0,
+    progressTotal: readPositiveInteger(firstOptions.ocrBatchTotal) || items.length
+  });
+  const seenProgressEvents = new Set();
+  const handleProgressLine = (line) => {
       const progress = parseOcrBatchProgressLine(line);
       if (!progress) {
         return;
       }
+      const phase = progress.phase || "done";
+      const eventKey = `${phase}:${progress.index}:${progress.total}`;
+      if (seenProgressEvents.has(eventKey)) {
+        return;
+      }
+      seenProgressEvents.add(eventKey);
       const pageOptions = normalizedOptions[progress.index - 1] || firstOptions;
       const completedBefore = readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0;
       const batchTotal = readPositiveInteger(firstOptions.ocrBatchTotal) || progress.total;
       const pageIndex = readPositiveInteger(pageOptions.ocrPageIndex) || completedBefore + progress.index;
       const pageTotal = readPositiveInteger(pageOptions.ocrPageTotal) || batchTotal;
+      const completedCount = phase === "start"
+        ? Math.max(0, completedBefore + progress.index - 1)
+        : completedBefore + progress.index;
       emitRuntimeProgress(
-        firstOptions,
+        batchOptions,
         "ocr_running",
         `${pageIndex} / ${pageTotal} 페이지 Paddle OCR 분석 중`,
-        `${progress.count}개 후보`,
+        phase === "start" ? "페이지 처리 시작" : `${progress.count}개 후보`,
         {
-          progressCurrent: Math.min(pageTotal, completedBefore + progress.index),
+          progressCurrent: Math.min(pageTotal, completedCount),
           progressTotal: pageTotal,
           pageIndex,
           pageTotal
         }
       );
-    }
-  });
+  };
+  const progressPoller = createOcrBatchProgressFilePoller(progressPath, handleProgressLine);
+  let stdout = "";
+  let stderr = "";
+  try {
+    progressPoller.start();
+    ({ stdout, stderr } = await runShellCommand(command, {
+      timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS) || Math.max(600000, items.length * 300000),
+      env: buildOcrRuntimeEnv(batchOptions, runtime),
+      signal: batchOptions.abortSignal,
+      onOutput: handleProgressLine
+    }));
+  } finally {
+    progressPoller.stop();
+  }
 
   return normalizedOptions.map((options, index) => {
     const outputPath = items[index].output;
@@ -2012,9 +2115,7 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
       });
     }
     const hints = normalizeOcrBboxHintPayload(payload, options);
-    return {
-      hints,
-      diagnostics: [{
+    return buildOcrBboxResult(hints, [{
         provider,
         command,
         outputPath,
@@ -2027,8 +2128,7 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
         stdoutPreview: truncateText(stdout.trim(), 1200),
         stderrPreview: truncateText(stderr.trim(), 1200),
         runtimeDiagnostics: runtime?.diagnostics || []
-      }]
-    };
+      }]);
   });
 }
 
@@ -2609,7 +2709,10 @@ function parseOcrBatchProgressLine(line) {
     if (!Number.isFinite(index) || !Number.isFinite(total) || index <= 0 || total <= 0) {
       return null;
     }
+    const rawPhase = String(payload?.phase ?? "done").trim().toLowerCase();
+    const phase = rawPhase === "start" ? "start" : "done";
     return {
+      phase,
       index: Math.max(1, Math.min(Math.floor(index), Math.floor(total))),
       total: Math.floor(total),
       count: Number.isFinite(Number(payload?.count)) ? Math.max(0, Math.floor(Number(payload.count))) : 0
@@ -2617,6 +2720,48 @@ function parseOcrBatchProgressLine(line) {
   } catch {
     return null;
   }
+}
+
+function createOcrBatchProgressFilePoller(progressPath, onLine) {
+  let timer = null;
+  let consumedLines = 0;
+  const readProgressFile = () => {
+    if (!progressPath || !existsSync(progressPath)) {
+      return;
+    }
+    let raw = "";
+    try {
+      raw = readFileSync(progressPath, "utf8");
+    } catch {
+      return;
+    }
+    if (!raw) {
+      return;
+    }
+    const completeText = raw.endsWith("\n") || raw.endsWith("\r") ? raw : raw.replace(/[^\r\n]*$/, "");
+    if (!completeText) {
+      return;
+    }
+    const lines = completeText.split(/\r?\n/).filter(Boolean);
+    for (let index = consumedLines; index < lines.length; index += 1) {
+      onLine(lines[index]);
+    }
+    consumedLines = lines.length;
+  };
+
+  return {
+    start() {
+      readProgressFile();
+      timer = setInterval(readProgressFile, 500);
+    },
+    stop() {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      readProgressFile();
+    }
+  };
 }
 
 function sanitizeInstallLogLine(line) {
@@ -2679,7 +2824,8 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
     PIP_DISABLE_PIP_VERSION_CHECK: process.env.PIP_DISABLE_PIP_VERSION_CHECK || "1",
     TMP: tempDir,
     TEMP: tempDir,
-    PYTHONUTF8: "1"
+    PYTHONUTF8: "1",
+    PYTHONUNBUFFERED: "1"
   };
 }
 
@@ -2698,16 +2844,17 @@ function buildOcrBboxCommand(options = {}, provider, outputPath, runtime = null)
   if (provider === "paddleocr-vl") {
     const python = quoteCommandArg(runtime?.pythonPath || process.env.MANGA_TRANSLATOR_PYTHON || "python");
     const scriptPath = quoteCommandArg(path.join(__dirname, "paddleocr-vl-bboxes.py"));
-    return `${python} ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveOcrDevice(options))}`;
+    return `${python} -u ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveOcrDevice(options))}`;
   }
 
   throw new Error("OCR bbox provider requires MANGA_TRANSLATOR_OCR_BBOX_CMD.");
 }
 
-function buildOcrBboxBatchCommand(options = {}, batchPath, runtime = null) {
+function buildOcrBboxBatchCommand(options = {}, batchPath, runtime = null, progressPath = null) {
   const python = quoteCommandArg(runtime?.pythonPath || process.env.MANGA_TRANSLATOR_PYTHON || "python");
   const scriptPath = quoteCommandArg(path.join(__dirname, "paddleocr-vl-bboxes.py"));
-  return `${python} ${scriptPath} --batch ${quoteCommandArg(batchPath)} --device ${quoteCommandArg(resolveOcrDevice(options))}`;
+  const progressArg = progressPath ? ` --progress ${quoteCommandArg(progressPath)}` : "";
+  return `${python} -u ${scriptPath} --batch ${quoteCommandArg(batchPath)}${progressArg} --device ${quoteCommandArg(resolveOcrDevice(options))}`;
 }
 
 function renderCommandTemplate(template, replacements) {
@@ -2721,6 +2868,16 @@ function renderCommandTemplate(template, replacements) {
 function quoteCommandArg(value) {
   const text = String(value ?? "");
   return `"${text.replace(/"/g, '\\"')}"`;
+}
+
+function withoutPageProgressOptions(options = {}) {
+  const next = { ...options };
+  delete next.ocrPageIndex;
+  delete next.ocrPageTotal;
+  delete next.ocrProgressDefaultToPage;
+  delete next.pageIndex;
+  delete next.pageTotal;
+  return next;
 }
 
 function runShellCommand(command, { timeoutMs, env, signal, onOutput } = {}) {
@@ -2740,6 +2897,8 @@ function runShellCommand(command, { timeoutMs, env, signal, onOutput } = {}) {
     let stderr = "";
     let timeout = null;
     let settled = false;
+    const stdoutLines = createCommandOutputLineEmitter(onOutput);
+    const stderrLines = createCommandOutputLineEmitter(onOutput);
 
     const cleanup = () => {
       if (timeout) clearTimeout(timeout);
@@ -2781,19 +2940,23 @@ function runShellCommand(command, { timeoutMs, env, signal, onOutput } = {}) {
     child.stderr?.setEncoding("utf8");
     child.stdout?.on("data", (chunk) => {
       stdout = shrinkBuffer(stdout, chunk, 30000);
-      emitCommandOutputLines(onOutput, chunk);
+      stdoutLines.write(chunk);
     });
     child.stderr?.on("data", (chunk) => {
       stderr = shrinkBuffer(stderr, chunk, 30000);
-      emitCommandOutputLines(onOutput, chunk);
+      stderrLines.write(chunk);
     });
     child.on("error", (error) => {
+      stdoutLines.flush();
+      stderrLines.flush();
       settleReject(error);
     });
     child.on("exit", (code) => {
       if (settled) {
         return;
       }
+      stdoutLines.flush();
+      stderrLines.flush();
       if (code === 0) {
         settleResolve({ stdout, stderr });
         return;
@@ -2807,17 +2970,51 @@ function runShellCommand(command, { timeoutMs, env, signal, onOutput } = {}) {
   });
 }
 
-function emitCommandOutputLines(onOutput, chunk) {
-  if (typeof onOutput !== "function") {
-    return;
-  }
-  const text = String(chunk ?? "").replace(/\u001b\[[0-9;]*m/g, "");
-  for (const part of text.split(/[\r\n]+/)) {
-    const line = sanitizeInstallLogLine(part);
-    if (line) {
-      onOutput(line);
+function createCommandOutputLineEmitter(onOutput) {
+  let pending = "";
+  const emitLine = (line) => {
+    if (typeof onOutput !== "function") {
+      return;
     }
-  }
+    const sanitized = sanitizeInstallLogLine(line);
+    if (sanitized) {
+      onOutput(sanitized);
+    }
+  };
+
+  return {
+    write(chunk) {
+      if (typeof onOutput !== "function") {
+        return;
+      }
+      pending += String(chunk ?? "").replace(/\u001b\[[0-9;]*m/g, "");
+      while (pending.length > 0) {
+        const newlineIndex = pending.search(/[\r\n]/);
+        if (newlineIndex < 0) {
+          if (pending.length > 8192) {
+            emitLine(pending.slice(0, 8192));
+            pending = pending.slice(8192);
+          }
+          return;
+        }
+
+        const line = pending.slice(0, newlineIndex);
+        let nextIndex = newlineIndex + 1;
+        if (pending[newlineIndex] === "\r" && pending[nextIndex] === "\n") {
+          nextIndex += 1;
+        }
+        pending = pending.slice(nextIndex);
+        emitLine(line);
+      }
+    },
+    flush() {
+      if (!pending) {
+        return;
+      }
+      emitLine(pending);
+      pending = "";
+    }
+  };
 }
 
 function createAbortError() {
@@ -2887,11 +3084,13 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
     if (isIgnoredOcrLabel(label)) {
       continue;
     }
+    const ocrText = sanitizeOcrTextForPrompt(readOcrCandidateText(candidate));
     hints.push({
       id: hints.length + 1,
       label: sanitizeHintLabel(label),
       ...box,
-      ...(Number.isFinite(Number(candidate.score ?? candidate.confidence)) ? { score: Number(candidate.score ?? candidate.confidence) } : {})
+      ...(Number.isFinite(Number(candidate.score ?? candidate.confidence)) ? { score: Number(candidate.score ?? candidate.confidence) } : {}),
+      ...(ocrText ? { ocrText } : {})
     });
   }
 
@@ -3378,8 +3577,8 @@ function emitServerInstallLog(options = {}, chunk) {
     if (!line) {
       continue;
     }
-    emitRuntimeProgress(options, "booting", "Gemma 서버 시작 중", `${resolveConfiguredModelFile(options)} 로드 중`, {
-      progressMode: "indeterminate",
+    emitRuntimeProgress(options, "booting", "Gemma 서버 로그", `${resolveConfiguredModelFile(options)} 실행 중`, {
+      progressMode: "log-only",
       installLogLine: line
     });
   }
@@ -3409,19 +3608,43 @@ async function stopServer(server) {
 }
 
 async function requestTranslation(server, options) {
-  const preparedVariants = await prepareImageVariants(options);
-  const imageVariants = preparedVariants.imageVariants;
   const ocrBboxResult = await collectOcrBboxHints(options);
   const promptOptions = {
     ...options,
     ocrBboxHints: ocrBboxResult.hints
   };
+
+  if (ocrBboxResult.noTextDetected) {
+    const systemPrompt = buildSystemPrompt(promptOptions);
+    const requestSummary = buildRequestSummary(server, promptOptions, [], "", systemPrompt);
+    requestSummary.noTextDetected = true;
+    requestSummary.ocrTextEvidenceCount = ocrBboxResult.textEvidenceCount;
+    if (ocrBboxResult.diagnostics.length > 0) {
+      requestSummary.ocrBboxDiagnostics = ocrBboxResult.diagnostics;
+    }
+    emitRuntimeProgress(promptOptions, "page_done", "페이지 텍스트 없음", "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다.");
+    return {
+      requestBody: requestSummary,
+      rawResponse: {
+        skipped: true,
+        reason: "ocr-no-text",
+        noTextDetected: true,
+        textEvidenceCount: ocrBboxResult.textEvidenceCount
+      },
+      outputText: "{\"items\":[]}"
+    };
+  }
+
+  const preparedVariants = await prepareImageVariants(options);
+  const imageVariants = preparedVariants.imageVariants;
   const promptText = promptOptions.promptOverrideText || getOverlayPrompt(promptOptions, imageVariants);
   const systemPrompt = buildSystemPrompt(promptOptions);
   const requestBody = isOpenAICodexProvider(options)
     ? buildResponsesRequestBody(promptOptions, imageVariants, promptText, systemPrompt)
     : buildChatRequestBody(promptOptions, buildMessages(promptOptions, imageVariants));
   const requestSummary = buildRequestSummary(server, promptOptions, imageVariants, promptText, systemPrompt);
+  requestSummary.noTextDetected = false;
+  requestSummary.ocrTextEvidenceCount = ocrBboxResult.textEvidenceCount;
   if (preparedVariants.diagnostics.length > 0) {
     requestSummary.imageVariantDiagnostics = preparedVariants.diagnostics;
   }
@@ -3444,19 +3667,19 @@ async function requestTranslation(server, options) {
     emitRuntimeProgress(promptOptions, "model_requesting", "Gemma 4 번역 요청 중", resolveRequestModelName(promptOptions));
     response = await fetch(`${server.baseUrl}/chat/completions`, {
       method: "POST",
-      headers: buildChatRequestHeaders(options),
+      headers: buildChatRequestHeaders(promptOptions),
       body: JSON.stringify(requestBody),
-      signal: options.abortSignal
+      signal: promptOptions.abortSignal
     });
   } catch (error) {
-    throw createDetailedError(`${resolveProviderDisplayName(options)} request transport failed.`, { requestSummary }, error);
+    throw createDetailedError(`${resolveProviderDisplayName(promptOptions)} request transport failed.`, { requestSummary }, error);
   }
 
   let rawText = "";
-  rawText = await readResponseText(response, requestSummary, options);
+  rawText = await readResponseText(response, requestSummary, promptOptions);
 
   if (!response.ok) {
-    throw createDetailedError(`${resolveProviderDisplayName(options)} request failed (${response.status}).`, {
+    throw createDetailedError(`${resolveProviderDisplayName(promptOptions)} request failed (${response.status}).`, {
       requestSummary,
       status: response.status,
       statusText: response.statusText,
@@ -3469,7 +3692,7 @@ async function requestTranslation(server, options) {
     parsed = JSON.parse(rawText);
   } catch (error) {
     throw createDetailedError(
-      `${resolveProviderDisplayName(options)} response JSON parse failed.`,
+      `${resolveProviderDisplayName(promptOptions)} response JSON parse failed.`,
       {
         requestSummary,
         rawTextPreview: truncateText(rawText, 4000)

@@ -1,5 +1,5 @@
 import { app } from "electron";
-import { mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 export type AppPaths = {
@@ -30,7 +30,7 @@ export function getAppPaths(): AppPaths {
   const repoRoot = resolve(__dirname, "../..");
   const executableDir = dirname(process.execPath);
   const resourcesDir = process.resourcesPath;
-  const dataRoot = isPackaged ? join(executableDir, "data") : repoRoot;
+  const dataRoot = isPackaged ? resolvePackagedDataRoot(executableDir) : repoRoot;
   const libraryDir = isPackaged ? join(dataRoot, "library") : join(repoRoot, "library");
   const logsDir = isPackaged ? join(dataRoot, "logs") : join(repoRoot, "logs");
   const runtimeDir = isPackaged ? join(resourcesDir, "app-runtime") : join(repoRoot, "out", "app-runtime");
@@ -70,6 +70,7 @@ export function getAppPaths(): AppPaths {
 
 export function ensureWritableAppDirectories(): AppPaths {
   const paths = getAppPaths();
+  migrateLegacyPackagedData(paths);
   mkdirSync(paths.libraryDir, { recursive: true });
   mkdirSync(paths.logsDir, { recursive: true });
   if (paths.hfHomeDir) {
@@ -80,4 +81,59 @@ export function ensureWritableAppDirectories(): AppPaths {
   }
   mkdirSync(paths.ocrRuntimeDir, { recursive: true });
   return paths;
+}
+
+function resolvePackagedDataRoot(executableDir: string): string {
+  if (process.platform === "win32") {
+    const localAppData = process.env.LOCALAPPDATA?.trim();
+    if (localAppData) {
+      return join(localAppData, "manga-gemma-translator");
+    }
+  }
+
+  try {
+    return app.getPath("userData");
+  } catch {
+    return join(executableDir, "data");
+  }
+}
+
+function migrateLegacyPackagedData(paths: AppPaths): void {
+  if (!paths.isPackaged) {
+    return;
+  }
+
+  const legacyDataRoot = join(paths.executableDir, "data");
+  if (resolve(legacyDataRoot) === resolve(paths.dataRoot) || !existsSync(legacyDataRoot)) {
+    return;
+  }
+
+  copyDirectoryContentsIfMissing(legacyDataRoot, paths.dataRoot);
+}
+
+function copyDirectoryContentsIfMissing(sourceDir: string, targetDir: string): void {
+  if (!existsSync(sourceDir)) {
+    return;
+  }
+
+  mkdirSync(targetDir, { recursive: true });
+  for (const entry of readdirSync(sourceDir, { withFileTypes: true })) {
+    const sourcePath = join(sourceDir, entry.name);
+    const targetPath = join(targetDir, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirectoryContentsIfMissing(sourcePath, targetPath);
+      continue;
+    }
+
+    if (!entry.isFile() || existsSync(targetPath)) {
+      continue;
+    }
+
+    const parentDir = dirname(targetPath);
+    mkdirSync(parentDir, { recursive: true });
+    if (statSync(sourcePath).isFile()) {
+      copyFileSync(sourcePath, targetPath);
+    }
+  }
 }

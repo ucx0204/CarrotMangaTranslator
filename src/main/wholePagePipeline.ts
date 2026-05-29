@@ -37,7 +37,11 @@ type TranslationResult = {
 type OcrBboxResult = {
   hints: unknown[];
   diagnostics: unknown[];
+  noTextDetected?: boolean;
+  textEvidenceCount?: number;
 };
+
+const OCR_HINT_CACHE_SCHEMA_VERSION = 2;
 
 type OverlayItem = {
   id: number;
@@ -65,7 +69,11 @@ type RequestSummary = {
     y1?: number;
     x2?: number;
     y2?: number;
+    ocrText?: string;
+    score?: number | null;
   }>;
+  noTextDetected?: boolean;
+  ocrTextEvidenceCount?: number;
 };
 
 type BboxNormalizationOptions = {
@@ -134,6 +142,7 @@ export async function runWholePagePipeline({
   const codexSelected = baseOptions.modelProvider === "openai-codex";
   const modelCached = codexSelected || runtime.simplePage.isModelCached(baseOptions);
   const localModelSelected = !codexSelected && baseOptions.modelSource === "local";
+  const warnings: string[] = [];
 
   logInfo("Analysis pipeline initialized", {
     jobId,
@@ -188,6 +197,54 @@ export async function runWholePagePipeline({
 
   throwIfAborted(signal);
 
+  const pageIndexById = new Map(pages.map((page, index) => [page.id, index]));
+  const completedPagesById = new Map<string, MangaPage>();
+  const pagesToTranslate: MangaPage[] = [];
+
+  for (const page of pages) {
+    const ocrResult = ocrHintsByPageId.get(page.id);
+    if (!isOcrResultNoTextDetected(ocrResult)) {
+      pagesToTranslate.push(page);
+      continue;
+    }
+
+    const pageIndex = (pageIndexById.get(page.id) ?? 0) + 1;
+    const noTextPage = buildNoTextCompletedPage(page);
+    completedPagesById.set(page.id, noTextPage);
+    await onPageComplete?.(noTextPage);
+    emit({
+      id: jobId,
+      kind: "gemma-analysis",
+      status: "running",
+      progressText: `${page.name} 텍스트 없음`,
+      phase: "page_done",
+      progressCurrent: pageIndex,
+      progressTotal,
+      pageIndex,
+      pageTotal: pages.length,
+      detail: "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다."
+    });
+  }
+
+  if (pagesToTranslate.length === 0) {
+    emit({
+      id: jobId,
+      kind: "gemma-analysis",
+      status: "running",
+      progressText: "결과 정리 중",
+      phase: "finalizing",
+      progressCurrent: progressTotal,
+      progressTotal,
+      pageTotal: pages.length,
+      detail: `${pages.length} pages ready, 모델 호출 없음`
+    });
+
+    return {
+      pages: pages.map((page) => completedPagesById.get(page.id) ?? page),
+      warnings
+    };
+  }
+
   emit({
     id: jobId,
     kind: "gemma-analysis",
@@ -214,7 +271,6 @@ export async function runWholePagePipeline({
 
   const server = await startModelEndpoint(runtime, baseOptions);
   onCleanupReady?.(() => stopModelEndpoint(runtime, server));
-  const warnings: string[] = [];
   const maxAttempts = Math.max(1, readNumberEnv("MANGA_TRANSLATOR_PAGE_RETRIES", 5));
 
   emit({
@@ -229,10 +285,39 @@ export async function runWholePagePipeline({
     detail: codexSelected ? `openai-oauth ready at ${server.baseUrl}` : `server ready on port ${baseOptions.port}`
   });
 
-  try {
-    const nextPages: MangaPage[] = [];
+  const buildRequestPageOptions = (page: MangaPage, pageIndex: number, attempt: number): TranslationOptions => {
+    const pageOptions = buildPageOptions(baseOptions, page, pageIndex, attempt);
+    pageOptions.ocrBboxHints = ocrHintsByPageId.get(page.id)?.hints ?? [];
+    pageOptions.abortSignal = signal;
+    pageOptions.onProgress = (progress) => {
+      emit({
+        id: jobId,
+        kind: "gemma-analysis",
+        status: "running",
+        progressText: progress.progressText,
+        phase: progress.phase,
+        progressCurrent: pageIndex + 1,
+        progressTotal,
+        pageIndex: pageIndex + 1,
+        pageTotal: pages.length,
+        attempt,
+        attemptTotal: maxAttempts,
+        detail: progress.detail,
+        progressMode: progress.progressMode,
+        progressPercent: progress.progressPercent,
+        progressBytes: progress.progressBytes,
+        progressTotalBytes: progress.progressTotalBytes,
+        progressBytesPerSecond: progress.progressBytesPerSecond,
+        installLogLine: progress.installLogLine
+      });
+    };
+    return pageOptions;
+  };
 
-    for (const [index, page] of pages.entries()) {
+  try {
+    for (let translateIndex = 0; translateIndex < pagesToTranslate.length; translateIndex += 1) {
+      const page = pagesToTranslate[translateIndex];
+      const index = pageIndexById.get(page.id) ?? 0;
       throwIfAborted(signal);
       let successPage: MangaPage | null = null;
       let lastErrorMessage = "";
@@ -242,32 +327,8 @@ export async function runWholePagePipeline({
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         throwIfAborted(signal);
 
-        const pageOptions = buildPageOptions(baseOptions, page, index, attempt);
-        pageOptions.ocrBboxHints = ocrHintsByPageId.get(page.id)?.hints ?? [];
+        const pageOptions = buildRequestPageOptions(page, index, attempt);
         lastPageOptions = pageOptions;
-        pageOptions.abortSignal = signal;
-        pageOptions.onProgress = (progress) => {
-          emit({
-            id: jobId,
-            kind: "gemma-analysis",
-            status: "running",
-            progressText: progress.progressText,
-            phase: progress.phase,
-            progressCurrent: index + 1,
-            progressTotal,
-            pageIndex: index + 1,
-            pageTotal: pages.length,
-            attempt,
-            attemptTotal: maxAttempts,
-            detail: progress.detail,
-            progressMode: progress.progressMode,
-            progressPercent: progress.progressPercent,
-            progressBytes: progress.progressBytes,
-            progressTotalBytes: progress.progressTotalBytes,
-            progressBytesPerSecond: progress.progressBytesPerSecond,
-            installLogLine: progress.installLogLine
-          });
-        };
         emit({
           id: jobId,
           kind: "gemma-analysis",
@@ -305,6 +366,23 @@ export async function runWholePagePipeline({
           }
 
           const items = runtime.overlayTools.normalizeItems(parsed);
+          if (items.length === 0 && isRequestNoTextDetected(result.requestBody)) {
+            successPage = buildNoTextCompletedPage(page);
+            await onPageComplete?.(successPage);
+            emit({
+              id: jobId,
+              kind: "gemma-analysis",
+              status: "running",
+              progressText: `${page.name} 텍스트 없음`,
+              phase: "page_done",
+              progressCurrent: index + 1,
+              progressTotal,
+              pageIndex: index + 1,
+              pageTotal: pages.length,
+              detail: "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다."
+            });
+            break;
+          }
           if (items.length === 0) {
             const bboxError = new Error(`${page.name}: bbox 결과를 만들지 못했습니다.`);
             Object.assign(bboxError, {
@@ -391,7 +469,7 @@ export async function runWholePagePipeline({
       }
 
       if (successPage) {
-        nextPages.push(successPage);
+        completedPagesById.set(page.id, successPage);
         continue;
       }
 
@@ -415,7 +493,7 @@ export async function runWholePagePipeline({
         lastError: lastErrorMessage,
         updatedAt: new Date().toISOString()
       };
-      nextPages.push(failedPage);
+      completedPagesById.set(page.id, failedPage);
       await onPageFailed?.(failedPage, lastErrorMessage);
       emit({
         id: jobId,
@@ -440,13 +518,44 @@ export async function runWholePagePipeline({
       progressCurrent: progressTotal,
       progressTotal,
       pageTotal: pages.length,
-      detail: `${nextPages.length} pages ready`
+      detail: `${pages.length} pages ready`
     });
 
-    return { pages: nextPages, warnings };
+    return {
+      pages: pages.map((page) => completedPagesById.get(page.id) ?? page),
+      warnings
+    };
   } finally {
     await stopModelEndpoint(runtime, server);
   }
+}
+
+export function isOcrResultNoTextDetected(result: OcrBboxResult | null | undefined): boolean {
+  return Boolean(result?.noTextDetected);
+}
+
+function isRequestNoTextDetected(requestBody: TranslationResult["requestBody"]): boolean {
+  return Boolean(requestBody && typeof requestBody === "object" && (requestBody as RequestSummary).noTextDetected);
+}
+
+function buildNoTextCompletedPage(page: MangaPage): MangaPage {
+  return {
+    ...page,
+    blocks: [],
+    analysisStatus: "completed",
+    lastError: undefined,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function formatOcrHintDetail(result: OcrBboxResult): string {
+  if (isOcrResultNoTextDetected(result)) {
+    return `${result.hints.length}개 후보, 텍스트 근거 없음`;
+  }
+  if (Number.isFinite(result.textEvidenceCount)) {
+    return `${result.hints.length}개 후보, 텍스트 근거 ${result.textEvidenceCount}개`;
+  }
+  return `${result.hints.length}개 후보`;
 }
 
 async function prepareOcrHintsForPages({
@@ -486,7 +595,7 @@ async function prepareOcrHintsForPages({
         progressTotal: total,
         pageIndex: index + 1,
         pageTotal: total,
-        detail: `${cached.hints.length}개 후보`
+        detail: formatOcrHintDetail(cached)
       });
       continue;
     }
@@ -494,16 +603,19 @@ async function prepareOcrHintsForPages({
     const ocrOptions = buildOcrPageOptions(baseOptions, page, runPaths, index, total);
     ocrOptions.abortSignal = signal;
     ocrOptions.onProgress = (progress) => {
+      const hasExplicitPageProgress = Number.isFinite(progress.pageIndex) && Number.isFinite(progress.pageTotal);
+      const suppressDefaultPageProgress = progress.pageIndex === null || progress.pageTotal === null;
+      const shouldDefaultToPage = Boolean(ocrOptions.ocrProgressDefaultToPage) && !suppressDefaultPageProgress;
       emit({
         id: jobId,
         kind: "gemma-analysis",
         status: "running",
         progressText: progress.progressText,
         phase: progress.phase,
-        progressCurrent: progress.progressCurrent ?? index + 1,
+        progressCurrent: progress.progressCurrent ?? (shouldDefaultToPage ? index + 1 : results.size),
         progressTotal: progress.progressTotal ?? total,
-        pageIndex: progress.pageIndex ?? index + 1,
-        pageTotal: progress.pageTotal ?? total,
+        pageIndex: hasExplicitPageProgress ? Number(progress.pageIndex) : shouldDefaultToPage ? index + 1 : undefined,
+        pageTotal: hasExplicitPageProgress ? Number(progress.pageTotal) : shouldDefaultToPage ? total : undefined,
         detail: progress.detail,
         progressMode: progress.progressMode,
         progressPercent: progress.progressPercent,
@@ -555,7 +667,7 @@ async function prepareOcrHintsForPages({
         progressTotal: pendingPages.length,
         pageIndex: entry.index + 1,
         pageTotal: total,
-        detail: `${result.hints.length}개 후보`
+        detail: formatOcrHintDetail(result)
       });
     }
   }
@@ -596,7 +708,8 @@ function buildOcrPageOptions(baseOptions: TranslationOptions, page: MangaPage, r
     outputDir,
     label: `ocr-page-${index + 1}`,
     ocrPageIndex: index + 1,
-    ocrPageTotal: total
+    ocrPageTotal: total,
+    ocrProgressDefaultToPage: true
   };
 }
 
@@ -611,18 +724,29 @@ function getOcrHintsCachePath(runPaths: ChapterRunPaths, page: MangaPage): strin
 async function readCachedOcrHints(cachePath: string, page: MangaPage): Promise<OcrBboxResult | null> {
   try {
     const raw = JSON.parse(await readFile(cachePath, "utf8")) as {
+      schemaVersion?: number;
       imagePath?: string;
       width?: number;
       height?: number;
       hints?: unknown[];
       diagnostics?: unknown[];
+      noTextDetected?: boolean;
+      textEvidenceCount?: number;
     };
-    if (raw.imagePath !== page.imagePath || raw.width !== page.width || raw.height !== page.height || !Array.isArray(raw.hints)) {
+    if (
+      raw.schemaVersion !== OCR_HINT_CACHE_SCHEMA_VERSION ||
+      raw.imagePath !== page.imagePath ||
+      raw.width !== page.width ||
+      raw.height !== page.height ||
+      !Array.isArray(raw.hints)
+    ) {
       return null;
     }
     return {
       hints: raw.hints,
-      diagnostics: Array.isArray(raw.diagnostics) ? raw.diagnostics : []
+      diagnostics: Array.isArray(raw.diagnostics) ? raw.diagnostics : [],
+      noTextDetected: Boolean(raw.noTextDetected),
+      textEvidenceCount: Number.isFinite(raw.textEvidenceCount) ? Number(raw.textEvidenceCount) : undefined
     };
   } catch {
     return null;
@@ -637,8 +761,11 @@ async function writeCachedOcrHints(cachePath: string, page: MangaPage, result: O
       imagePath: page.imagePath,
       width: page.width,
       height: page.height,
+      schemaVersion: OCR_HINT_CACHE_SCHEMA_VERSION,
       hints: result.hints,
       diagnostics: result.diagnostics,
+      noTextDetected: Boolean(result.noTextDetected),
+      textEvidenceCount: Number.isFinite(result.textEvidenceCount) ? result.textEvidenceCount : undefined,
       updatedAt: new Date().toISOString()
     }, null, 2)}\n`,
     "utf8"
@@ -825,42 +952,7 @@ export function applyOcrCandidateGeometryLocks(items: OverlayItem[], page: Manga
     };
   });
 
-  return firstPass.map((item) => {
-    if (usedHintIds.has(item.id) || normalizeBlockType(item.type) === "sfx") {
-      return item;
-    }
-    const nearest = findNearestUnusedLayoutHint(item.bbox, page, hintMap, usedHintIds);
-    if (!nearest) {
-      return item;
-    }
-    usedHintIds.add(nearest.id);
-    return {
-      ...item,
-      bbox: nearest.bbox
-    };
-  });
-}
-
-function findNearestUnusedLayoutHint(
-  bbox: BBox,
-  page: MangaPage,
-  hints: Map<number, { bbox: BBox; label: string }>,
-  usedHintIds: Set<number>
-): { id: number; bbox: BBox } | null {
-  let best: { id: number; bbox: BBox; distance: number } | null = null;
-  for (const [id, hint] of hints) {
-    if (usedHintIds.has(id) || hint.label === "ocr_textline") {
-      continue;
-    }
-    if (!isNearOcrHint(bbox, hint.bbox, page)) {
-      continue;
-    }
-    const distance = bboxCenterDistancePx(bbox, hint.bbox, page);
-    if (!best || distance < best.distance) {
-      best = { id, bbox: hint.bbox, distance };
-    }
-  }
-  return best;
+  return firstPass;
 }
 
 function isNearOcrHint(modelBbox: BBox, hintBbox: BBox, page: MangaPage): boolean {
@@ -873,15 +965,6 @@ function isNearOcrHint(modelBbox: BBox, hintBbox: BBox, page: MangaPage): boolea
   const distance = Math.hypot(modelCenterX - hintCenterX, modelCenterY - hintCenterY);
   const tolerance = Math.max(150, Math.max(hintPx.w, hintPx.h) * 1.35);
   return distance <= tolerance || bboxOverlapRatio(modelPx, hintPx) > 0.1;
-}
-
-function bboxCenterDistancePx(a: BBox, b: BBox, page: MangaPage): number {
-  const aPx = normalizedBboxToPixels(a, page);
-  const bPx = normalizedBboxToPixels(b, page);
-  return Math.hypot(
-    aPx.x + aPx.w / 2 - (bPx.x + bPx.w / 2),
-    aPx.y + aPx.h / 2 - (bPx.y + bPx.h / 2)
-  );
 }
 
 function normalizedBboxToPixels(bbox: BBox, page: MangaPage): BBox {

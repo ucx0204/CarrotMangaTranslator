@@ -72,6 +72,9 @@ describe("job progress helpers", () => {
   });
 
   it("uses an indeterminate snapshot while the model is booting or downloading", () => {
+    expect(formatJobLabel({ status: "starting", phase: "booting", progressText: "Gemma 4 서버 시작 중" })).toBe("Gemma 4 서버 시작 중");
+    expect(formatJobLabel({ status: "starting", phase: "model_downloading", progressText: "모델 파일 다운로드 중" })).toBe("모델 파일 다운로드 중");
+
     expect(resolveProgressSnapshot({ status: "starting", phase: "booting" })).toEqual({
       mode: "indeterminate"
     });

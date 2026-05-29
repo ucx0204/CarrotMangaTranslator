@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Export bbox-only PaddleOCR-VL candidates for manga translation.
+"""Export PaddleOCR-VL geometry candidates for manga translation.
 
-The app intentionally passes only geometry hints to GPT. Source text is read
-from the image by the translation model so a bad OCR transcript cannot poison
-the translation pass.
+OCR transcripts are included only as low-trust alignment hints. The
+translation model still reads the source image as the authority.
 """
 
 from __future__ import annotations
@@ -38,10 +37,11 @@ IGNORED_LABELS = {
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run PaddleOCR-VL and write bbox-only JSON.")
+    parser = argparse.ArgumentParser(description="Run PaddleOCR-VL and write geometry hint JSON.")
     parser.add_argument("--image", default=None, help="Input image path.")
     parser.add_argument("--output", default=None, help="Output JSON path.")
     parser.add_argument("--batch", default=None, help="JSON batch manifest with image/output items.")
+    parser.add_argument("--progress", default=None, help="Optional JSONL progress output path.")
     parser.add_argument("--pipeline-version", default="v1.5", choices=["v1", "v1.5"])
     parser.add_argument("--device", default=None, help="Optional Paddle device, e.g. gpu:0 or cpu.")
     args = parser.parse_args()
@@ -70,6 +70,16 @@ def main() -> int:
       summaries = []
       total = len(batch_items)
       for index, item in enumerate(batch_items, start=1):
+        emit_progress(
+            args.progress,
+            {
+                "phase": "start",
+                "index": index,
+                "total": total,
+                "output": str(item["output"]),
+                "count": 0,
+            },
+        )
         summary = write_page_bboxes(
             image_path=Path(item["image"]),
             output_path=Path(item["output"]),
@@ -77,17 +87,15 @@ def main() -> int:
             textline_detector=textline_detector,
         )
         summaries.append(summary)
-        print(
-            json.dumps(
-                {
-                    "index": index,
-                    "total": total,
-                    "output": summary["output"],
-                    "count": summary["count"],
-                },
-                ensure_ascii=False,
-            ),
-            flush=True,
+        emit_progress(
+            args.progress,
+            {
+                "phase": "done",
+                "index": index,
+                "total": total,
+                "output": summary["output"],
+                "count": summary["count"],
+            },
         )
     finally:
       close = getattr(pipeline, "close", None)
@@ -95,8 +103,22 @@ def main() -> int:
         close()
       close_textline_detector(textline_detector)
 
-    print(json.dumps({"items": summaries, "count": len(summaries)}, ensure_ascii=False))
+    print(json.dumps({"items": summaries, "count": len(summaries)}, ensure_ascii=False), flush=True)
     return 0
+
+
+def emit_progress(progress_path: str | None, payload: dict) -> None:
+    line = json.dumps(payload, ensure_ascii=False)
+    print(line, flush=True)
+    if not progress_path:
+      return
+
+    target = Path(progress_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a", encoding="utf-8") as file:
+      file.write(line)
+      file.write("\n")
+      file.flush()
 
 
 def load_batch_items(args: argparse.Namespace) -> list[dict]:
@@ -162,16 +184,18 @@ def write_page_bboxes(image_path: Path, output_path: Path, pipeline: object, tex
         x1, y1, x2, y2 = [int(round(float(value))) for value in bbox[:4]]
         if x2 <= x1 or y2 <= y1:
           continue
-        items.append(
-            {
-                "id": len(items) + 1,
-                "label": label or "text",
-                "x1": clamp(x1, 0, width),
-                "y1": clamp(y1, 0, height),
-                "x2": clamp(x2, 0, width),
-                "y2": clamp(y2, 0, height),
-            }
-        )
+        item = {
+            "id": len(items) + 1,
+            "label": label or "text",
+            "x1": clamp(x1, 0, width),
+            "y1": clamp(y1, 0, height),
+            "x2": clamp(x2, 0, width),
+            "y2": clamp(y2, 0, height),
+        }
+        ocr_text = clean_ocr_text(extract_block_text(block))
+        if ocr_text:
+          item["ocrText"] = ocr_text
+        items.append(item)
 
     items.extend(
         collect_textline_candidates(
@@ -182,6 +206,7 @@ def write_page_bboxes(image_path: Path, output_path: Path, pipeline: object, tex
             ocr=textline_detector,
         )
     )
+    finalize_ocr_text_fields(items)
     renumber_items(items)
 
     payload = {
@@ -289,7 +314,10 @@ def collect_textline_candidates(image_path: Path, existing_items: list[dict], wi
           box_height = y2 - y1
           if box_width < 6 or box_height < 6 or box_width * box_height < 200:
             continue
-          if is_covered_by_existing_box(box, existing_items):
+          covering_item = find_covering_existing_item(box, existing_items)
+          if covering_item is not None:
+            if text:
+              covering_item.setdefault("_texts", []).append(text)
             continue
           score = None
           try:
@@ -304,6 +332,7 @@ def collect_textline_candidates(image_path: Path, existing_items: list[dict], wi
                   "x2": x2,
                   "y2": y2,
                   "_score": score,
+                  "_text": text,
               }
           )
     except Exception as exc:
@@ -313,9 +342,74 @@ def collect_textline_candidates(image_path: Path, existing_items: list[dict], wi
     for index, item in enumerate(grouped):
       item["id"] = len(existing_items) + index + 1
       score = item.pop("_score", None)
+      single_text = item.pop("_text", "")
+      grouped_texts = item.pop("_texts", [])
+      ocr_text = clean_ocr_text(single_text or merge_ocr_texts(grouped_texts))
+      if ocr_text:
+        item["ocrText"] = ocr_text
       if isinstance(score, float):
         item["score"] = round(score, 4)
     return grouped
+
+
+def finalize_ocr_text_fields(items: list[dict]) -> None:
+    for item in items:
+      grouped_text = merge_ocr_texts(item.pop("_texts", []))
+      if grouped_text and not item.get("ocrText"):
+        item["ocrText"] = grouped_text
+
+
+def extract_block_text(block: object) -> str:
+    for key in (
+        "ocrText",
+        "text",
+        "content",
+        "block_content",
+        "rec_text",
+        "transcription",
+        "markdown",
+    ):
+      value = read_object_value(block, key)
+      text = flatten_text_value(value)
+      if text:
+        return text
+    return ""
+
+
+def read_object_value(value: object, key: str) -> object:
+    if isinstance(value, dict):
+      return value.get(key)
+    return getattr(value, key, None)
+
+
+def flatten_text_value(value: object) -> str:
+    if value is None:
+      return ""
+    if isinstance(value, str):
+      return value
+    if isinstance(value, (list, tuple)):
+      return " ".join(flatten_text_value(item) for item in value)
+    if isinstance(value, dict):
+      for key in ("text", "content", "value", "rec_text", "transcription"):
+        text = flatten_text_value(value.get(key))
+        if text:
+          return text
+      return ""
+    return str(value)
+
+
+def clean_ocr_text(text: str) -> str:
+    cleaned = " ".join(str(text or "").replace("\r", "\n").split())
+    return cleaned[:160]
+
+
+def merge_ocr_texts(texts: list[object]) -> str:
+    cleaned: list[str] = []
+    for text in texts:
+      value = clean_ocr_text(str(text))
+      if value:
+        cleaned.append(value)
+    return " ".join(cleaned)
 
 
 def renumber_items(items: list[dict]) -> None:
@@ -397,6 +491,7 @@ def merge_textline_candidates(candidates: list[dict], width: int, height: int) -
       x2 = max(int(item["x2"]) for item in group)
       y2 = max(int(item["y2"]) for item in group)
       scores = [item.get("_score") for item in group if isinstance(item.get("_score"), float)]
+      texts = [item.get("_text") for item in group if item.get("_text")]
       merged.append(
           {
               "label": "ocr_textgroup",
@@ -405,6 +500,7 @@ def merge_textline_candidates(candidates: list[dict], width: int, height: int) -
               "x2": clamp(x2, 0, width),
               "y2": clamp(y2, 0, height),
               "_score": sum(scores) / len(scores) if scores else None,
+              "_texts": texts,
           }
       )
 
@@ -502,20 +598,28 @@ def bbox_from_poly(poly: object, width: int, height: int) -> tuple[int, int, int
     return (x1, y1, x2, y2)
 
 
-def is_covered_by_existing_box(box: tuple[int, int, int, int], existing_items: list[dict]) -> bool:
+def find_covering_existing_item(box: tuple[int, int, int, int], existing_items: list[dict]) -> dict | None:
     x1, y1, x2, y2 = box
     center_x = (x1 + x2) / 2
     center_y = (y1 + y2) / 2
+    best_item = None
+    best_overlap = 0.0
     for item in existing_items:
       item_x1 = float(item.get("x1", 0))
       item_y1 = float(item.get("y1", 0))
       item_x2 = float(item.get("x2", 0))
       item_y2 = float(item.get("y2", 0))
       if item_x1 <= center_x <= item_x2 and item_y1 <= center_y <= item_y2:
-        return True
-      if overlap_ratio(box, (item_x1, item_y1, item_x2, item_y2)) > 0.35:
-        return True
-    return False
+        overlap = overlap_ratio(box, (item_x1, item_y1, item_x2, item_y2))
+        if best_item is None or overlap > best_overlap:
+          best_item = item
+          best_overlap = overlap
+        continue
+      overlap = overlap_ratio(box, (item_x1, item_y1, item_x2, item_y2))
+      if overlap > 0.35 and overlap > best_overlap:
+        best_item = item
+        best_overlap = overlap
+    return best_item
 
 
 def overlap_ratio(a: tuple[float, float, float, float], b: tuple[float, float, float, float]) -> float:

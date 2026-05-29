@@ -133,6 +133,7 @@ export type TranslationOptions = {
   ocrBboxHints?: unknown;
   ocrPageIndex?: number;
   ocrPageTotal?: number;
+  ocrProgressDefaultToPage?: boolean;
   ocrBatchCompletedBefore?: number;
   ocrBatchTotal?: number;
   onProgress?: (event: {
@@ -141,8 +142,8 @@ export type TranslationOptions = {
     detail?: string;
     progressCurrent?: number;
     progressTotal?: number;
-    pageIndex?: number;
-    pageTotal?: number;
+    pageIndex?: number | null;
+    pageTotal?: number | null;
     progressMode?: "determinate" | "indeterminate" | "log-only";
     progressPercent?: number;
     progressBytes?: number;

@@ -232,37 +232,43 @@ export default function App(): React.JSX.Element {
 
   React.useEffect(() => {
     const unsubscribe = window.mangaApi.onJobEvent((event) => {
-      const friendlyText = formatJobLabel(event);
       setJobState((current) => {
         const sameJob = current.id === event.id;
+        const logOnlyEvent = Boolean(event.installLogLine && event.progressMode === "log-only");
+        const preserveCurrentStatus = sameJob && logOnlyEvent;
+        const friendlyText = preserveCurrentStatus ? current.progressText : formatJobLabel(event);
         const preserveExactProgress = Boolean(event.installLogLine && sameJob && event.progressMode !== "log-only");
         return {
           id: event.id,
-          kind: event.kind,
-          status: event.status,
+          kind: preserveCurrentStatus ? current.kind : event.kind,
+          status: preserveCurrentStatus ? current.status : event.status,
           progressText: friendlyText,
-          detail: event.detail ?? current.detail,
-          phase: event.phase ?? current.phase,
-          progressMode: event.progressMode ?? (event.installLogLine && sameJob ? current.progressMode : undefined),
-          progressPercent: event.progressPercent ?? (preserveExactProgress ? current.progressPercent : undefined),
-          progressBytes: event.progressBytes ?? (preserveExactProgress ? current.progressBytes : undefined),
-          progressTotalBytes: event.progressTotalBytes ?? (preserveExactProgress ? current.progressTotalBytes : undefined),
-          progressBytesPerSecond: event.progressBytesPerSecond ?? (preserveExactProgress ? current.progressBytesPerSecond : undefined),
+          detail: preserveCurrentStatus ? current.detail : event.detail ?? current.detail,
+          phase: preserveCurrentStatus ? current.phase : event.phase ?? current.phase,
+          progressMode: preserveCurrentStatus ? current.progressMode : event.progressMode ?? (event.installLogLine && sameJob ? current.progressMode : undefined),
+          progressPercent: preserveCurrentStatus ? current.progressPercent : event.progressPercent ?? (preserveExactProgress ? current.progressPercent : undefined),
+          progressBytes: preserveCurrentStatus ? current.progressBytes : event.progressBytes ?? (preserveExactProgress ? current.progressBytes : undefined),
+          progressTotalBytes: preserveCurrentStatus ? current.progressTotalBytes : event.progressTotalBytes ?? (preserveExactProgress ? current.progressTotalBytes : undefined),
+          progressBytesPerSecond: preserveCurrentStatus
+            ? current.progressBytesPerSecond
+            : event.progressBytesPerSecond ?? (preserveExactProgress ? current.progressBytesPerSecond : undefined),
           installLogLine: event.installLogLine,
           installLogLines: event.installLogLine
             ? [...(sameJob ? current.installLogLines ?? [] : []), event.installLogLine].slice(-80)
             : sameJob
               ? current.installLogLines
               : undefined,
-          progressCurrent: event.progressCurrent ?? current.progressCurrent,
-          progressTotal: event.progressTotal ?? current.progressTotal,
-          pageIndex: event.pageIndex ?? current.pageIndex,
-          pageTotal: event.pageTotal ?? current.pageTotal,
-          attempt: event.attempt ?? current.attempt,
-          attemptTotal: event.attemptTotal ?? current.attemptTotal
+          progressCurrent: preserveCurrentStatus ? current.progressCurrent : event.progressCurrent ?? current.progressCurrent,
+          progressTotal: preserveCurrentStatus ? current.progressTotal : event.progressTotal ?? current.progressTotal,
+          pageIndex: preserveCurrentStatus ? current.pageIndex : event.pageIndex ?? current.pageIndex,
+          pageTotal: preserveCurrentStatus ? current.pageTotal : event.pageTotal ?? current.pageTotal,
+          attempt: preserveCurrentStatus ? current.attempt : event.attempt ?? current.attempt,
+          attemptTotal: preserveCurrentStatus ? current.attemptTotal : event.attemptTotal ?? current.attemptTotal
         };
       });
-      appendStatusLine(formatJobEventLine(event), resolveStatusLineReplacement(event));
+      if (!(event.installLogLine && event.progressMode === "log-only")) {
+        appendStatusLine(formatJobEventLine(event), resolveStatusLineReplacement(event));
+      }
 
       if (event.phase === "page_done" || event.phase === "page_skipped") {
         const chapterId = currentChapterRef.current?.id;
@@ -1276,6 +1282,22 @@ function resolveStatusLineReplacement(event: JobEvent): ((line: string) => boole
     (event.pageTotal ?? 0) > 0
   ) {
     return (line) => /^\d+ \/ \d+ 페이지 Paddle OCR 분석 중$/.test(line) || line === "페이지 Paddle OCR 분석 중";
+  }
+  if (event.phase === "model_requesting" || event.phase === "page_running" || event.phase === "page_retry") {
+    return (line) =>
+      /^\d+ \/ \d+ 페이지 (AI 번역 요청 중|번역 중|재시도 \d+ \/ \d+)$/.test(line) ||
+      /^페이지 (AI 번역 요청 중|번역 중|재시도 중)$/.test(line);
+  }
+  if (event.phase === "booting" || event.phase === "model_downloading" || event.phase === "ready") {
+    return (line) =>
+      line === "모델 준비 중" ||
+      line === "모델 준비 완료" ||
+      line === "모델 다운로드/서버 준비 중" ||
+      line === "Gemma 4 서버 시작 중" ||
+      line === "Gemma 서버 시작 중" ||
+      line === "Gemma 서버 준비 완료" ||
+      line === "OpenAI Codex 엔드포인트 준비 중" ||
+      line === "로컬 모델/서버 준비 중";
   }
   return undefined;
 }

@@ -21,7 +21,7 @@
 일반 사용자는 GitHub Releases에서 Windows 설치 파일을 받아 실행하면 됩니다.
 
 - Releases: https://github.com/ucx0204/Gemma4MangaTranslatorForKorean/releases
-- 설치 파일 이름 예시: `Setup.0.2.2.exe`
+- 설치 파일 이름 예시: `Setup.0.2.3.exe`
 
 개발 실행과 빌드 방법은 README 아래쪽의 [개발](#개발) 섹션에 따로 정리했습니다.
 
@@ -137,12 +137,15 @@ npx @openai/codex --login
 
 개발 실행에서는 프로젝트 폴더의 `library/`, `logs/`, `settings.json`을 사용합니다.
 
-설치형 앱은 실행 파일 옆 `data/` 폴더를 사용합니다.
+설치형 앱은 Windows 사용자 데이터 폴더를 사용합니다. 앱을 지웠다가 다시 설치해도 기본적으로 보관함과 모델 캐시가 남도록 하기 위해서입니다.
 
-- 보관함: `data/library`
-- 로그: `data/logs`
-- 설정: `data/settings.json`
-- 모델 캐시: `data/hf-cache`
+- 보관함: `%LOCALAPPDATA%\manga-gemma-translator\library`
+- 로그: `%LOCALAPPDATA%\manga-gemma-translator\logs`
+- 설정: `%LOCALAPPDATA%\manga-gemma-translator\settings.json`
+- Gemma 모델 캐시: `%LOCALAPPDATA%\manga-gemma-translator\hf-cache`
+- Paddle OCR 런타임: `%LOCALAPPDATA%\manga-gemma-translator\ocr-runtime`
+
+예전 설치에서 실행 파일 옆 `data/` 폴더를 쓰고 있었다면, 새 버전 첫 실행 때 위 위치로 빠진 파일만 복사합니다. 이미 새 위치에 있는 파일은 덮어쓰지 않습니다.
 
 앱을 제거할 때 언인스톨러의 `앱 데이터/모델/OCR 캐시까지 삭제` 옵션을 켜면 보관함, 설정, Gemma 모델 캐시, Paddle OCR 런타임 캐시까지 함께 삭제합니다. 보관함까지 지워지는 옵션이므로 기본값은 꺼져 있습니다.
 

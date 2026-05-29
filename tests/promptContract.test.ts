@@ -20,7 +20,8 @@ describe("prompt contracts", () => {
     expect(runtimeSource).toContain("bboxCoordinateSpace");
     expect(runtimeSource).toContain("Use exactly these keys, one per line: id, type, x1, y1, x2, y2, direction, angle, fontSize, jp, ko.");
     expect(runtimeSource).toContain("OCR bbox candidates");
-    expect(runtimeSource).toContain("Text content is intentionally omitted");
+    expect(runtimeSource).toContain("low-trust OCR text hints for slot matching only");
+    expect(runtimeSource).toContain("Use Image 1 as the authority");
     expect(runtimeSource).toContain("Treat each candidate as a locked geometry slot.");
     expect(runtimeSource).toContain("Do not merge two candidates into one record");
     expect(runtimeSource).toContain("classify ordinary handwritten notes, diagram labels, search terms, captions, and explanatory text as narration/name, not sfx");

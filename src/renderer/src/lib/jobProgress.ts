@@ -36,9 +36,9 @@ export type ProgressSnapshot =
 export function formatJobLabel(job: JobWithProgress): string {
   switch (job.phase) {
     case "booting":
-      return "모델 준비 중";
+      return job.progressText?.trim() || "모델 준비 중";
     case "model_downloading":
-      return "모델 다운로드/서버 준비 중";
+      return job.progressText?.trim() || "모델 다운로드/서버 준비 중";
     case "ocr_preparing":
       return formatPageLabel(job, "Paddle OCR 준비 중");
     case "ocr_downloading":
