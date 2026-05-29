@@ -1,5 +1,6 @@
 import type { TranslationBlock } from "../../../shared/types";
 import { bboxToPixels, clamp, MIN_READABLE_FONT_SIZE_PX, resolveBlockRenderBbox, resolveEffectiveRenderBbox } from "../../../shared/geometry";
+import { resolveBlockFontFamily } from "./fonts";
 
 const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
 const MAX_AUTOFIT_FONT_SIZE_PX = 256;
@@ -127,7 +128,7 @@ function doesTextFit(block: TranslationBlock, text: string, fontSize: number, in
   }
 
   const context = getMeasureContext();
-  context.font = buildFont(fontSize);
+  context.font = buildFont(fontSize, block.fontFamily);
   const measured = measureWrappedText(context, text, innerWidth, fontSize * block.lineHeight);
   return measured.totalHeight <= innerHeight && measured.maxLineWidth <= innerWidth;
 }
@@ -178,13 +179,13 @@ function measureWrappedText(
 }
 
 function resolveAutoFitUpperBound(block: TranslationBlock, preferredFontSize: number, innerWidth: number, innerHeight: number): number {
-  void innerWidth;
-  void innerHeight;
   if (!(block.autoFitText ?? true)) {
     return preferredFontSize;
   }
 
-  return clamp(preferredFontSize, MIN_FONT_SIZE_PX, MAX_AUTOFIT_FONT_SIZE_PX);
+  const heightBound = Math.floor(innerHeight / Math.max(1, block.lineHeight || 1));
+  const widthBound = block.renderDirection === "vertical" ? Math.floor(innerWidth / 1.15) : MAX_AUTOFIT_FONT_SIZE_PX;
+  return clamp(Math.max(MIN_FONT_SIZE_PX, heightBound, widthBound), MIN_FONT_SIZE_PX, MAX_AUTOFIT_FONT_SIZE_PX);
 }
 
 function measureVerticalText(
@@ -221,6 +222,6 @@ function getMeasureContext(): CanvasRenderingContext2D {
   return context;
 }
 
-function buildFont(fontSize: number): string {
-  return `600 ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
+function buildFont(fontSize: number, fontFamily: string | undefined): string {
+  return `600 ${fontSize}px ${resolveBlockFontFamily(fontFamily)}`;
 }

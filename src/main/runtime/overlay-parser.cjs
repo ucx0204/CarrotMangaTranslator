@@ -73,7 +73,7 @@ function hasStructuredItems(parsed) {
 function repairBrokenJson(candidate) {
   let repaired = candidate.trim();
   repaired = repaired.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-  repaired = repaired.replace(/"?(id|type|bbox|jp|ko|direction|angle|fontSize|x1|y1|x2|y2)(?::|\s*:)/gi, (_, key) => `"${key === "fontSize" ? "fontSize" : key.toLowerCase()}":`);
+  repaired = repaired.replace(/"?(id|type|bbox|jp|ko|direction|angle|fontSize|confidence|x1|y1|x2|y2)(?::|\s*:)/gi, (_, key) => `"${key === "fontSize" ? "fontSize" : key.toLowerCase()}":`);
   repaired = repaired.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, (_, prefix, key) => `${prefix}"${key}":`);
   repaired = repaired.replace(/:\s*'([^']*)'/g, ': "$1"');
   repaired = repaired.replace(/("id"\s*:\s*)([A-Za-z]+)(\s*[,\n}])/g, '$1"$2"$3');
@@ -119,7 +119,8 @@ function bboxFromPartial(partialBbox) {
   };
 }
 
-function parseLooseItemList(rawText) {
+function parseLooseItemList(rawText, options = {}) {
+  const requireBbox = options.requireBbox !== false;
   const cleaned = rawText
     .replace(/```(?:json)?/gi, "")
     .replace(/```/g, "")
@@ -136,19 +137,25 @@ function parseLooseItemList(rawText) {
     if (!current.bbox && current.partialBbox) {
       current.bbox = bboxFromPartial(current.partialBbox);
     }
-    if (current.bbox && typeof current.ko === "string" && current.ko.trim()) {
+    if ((!requireBbox || current.bbox) && typeof current.ko === "string" && current.ko.trim()) {
+      const bboxFields = current.bbox
+        ? {
+            x1: current.bbox.x,
+            y1: current.bbox.y,
+            x2: current.bbox.x + current.bbox.w,
+            y2: current.bbox.y + current.bbox.h
+          }
+        : {};
       items.push({
         id: current.id ?? items.length + 1,
         type: current.type || "dialogue",
-        x1: current.bbox.x,
-        y1: current.bbox.y,
-        x2: current.bbox.x + current.bbox.w,
-        y2: current.bbox.y + current.bbox.h,
+        ...bboxFields,
         jp: current.jp || "",
         ko: current.ko.trim(),
         ...(current.direction ? { direction: current.direction } : {}),
         ...(Number.isFinite(current.angle) ? { angle: current.angle } : {}),
-        ...(Number.isFinite(current.fontSize) ? { fontSize: current.fontSize } : {})
+        ...(Number.isFinite(current.fontSize) ? { fontSize: current.fontSize } : {}),
+        ...(Number.isFinite(current.confidence) ? { confidence: current.confidence } : {})
       });
     }
     current = null;
@@ -200,6 +207,13 @@ function parseLooseItemList(rawText) {
     if (fontSizeMatch) {
       currentTextKey = null;
       current.fontSize = Number(fontSizeMatch[1]);
+      continue;
+    }
+
+    const confidenceMatch = line.match(/^"?confidence"?\s*:\s*["']?([0-9.]+)%?["']?/i);
+    if (confidenceMatch) {
+      currentTextKey = null;
+      current.confidence = Number(confidenceMatch[1]);
       continue;
     }
 
@@ -287,6 +301,18 @@ function normalizeFontSize(value) {
   return Math.min(160, Math.max(6, Math.round(parsed)));
 }
 
+function normalizeConfidence(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const parsed = toNumber(value);
+  if (parsed === null) {
+    return null;
+  }
+  const normalized = parsed > 1 && parsed <= 100 ? parsed / 100 : parsed;
+  return Math.min(1, Math.max(0, Math.round(normalized * 100) / 100));
+}
+
 function normalizeBBox(item) {
   const box = item;
   if (!box || typeof box !== "object") {
@@ -339,7 +365,30 @@ function normalizeItem(item, index) {
     ko: normalizedKo,
     direction: normalizeDirection(item?.direction ?? item?.sourceDirection ?? item?.writingDirection),
     angle: normalizeAngle(item?.angle ?? item?.rotation ?? item?.rotationDeg),
-    fontSize: normalizeFontSize(item?.fontSize ?? item?.font_size ?? item?.font)
+    fontSize: normalizeFontSize(item?.fontSize ?? item?.font_size ?? item?.font),
+    confidence: normalizeConfidence(item?.confidence ?? item?.score)
+  };
+}
+
+function normalizeRetryItem(item, index) {
+  const ko = [item?.ko, item?.korean, item?.translation, item?.translated, item?.text_ko].find((value) => typeof value === "string" && value.trim());
+  const jp = [item?.jp, item?.japanese, item?.source, item?.ocr, item?.text_jp].find((value) => typeof value === "string" && value.trim()) || "";
+  const normalizedKo = normalizeTextField(ko);
+  const normalizedJp = normalizeTextField(jp);
+
+  if (!normalizedKo) {
+    return null;
+  }
+
+  return {
+    id: toNumber(item?.id) ?? index + 1,
+    type: typeof item?.type === "string" && item.type.trim() ? item.type.trim() : "dialogue",
+    jp: normalizedJp,
+    ko: normalizedKo,
+    direction: normalizeDirection(item?.direction ?? item?.sourceDirection ?? item?.writingDirection),
+    angle: normalizeAngle(item?.angle ?? item?.rotation ?? item?.rotationDeg),
+    fontSize: normalizeFontSize(item?.fontSize ?? item?.font_size ?? item?.font),
+    confidence: normalizeConfidence(item?.confidence ?? item?.score)
   };
 }
 
@@ -368,9 +417,33 @@ function normalizeItems(parsed) {
     .filter(Boolean);
 }
 
+function normalizeRetryItems(parsed) {
+  const items = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.items)
+      ? parsed.items
+      : Array.isArray(parsed?.blocks)
+        ? parsed.blocks
+        : [];
+
+  return items
+    .map((item, index) => normalizeRetryItem(item, index))
+    .filter(Boolean);
+}
+
+function parseRetryItems(rawText) {
+  try {
+    return normalizeRetryItems(parseJsonLenient(rawText));
+  } catch {
+    return normalizeRetryItems({ items: parseLooseItemList(rawText, { requireBbox: false }) });
+  }
+}
+
 module.exports = {
   extractJsonCandidate,
   normalizeItems,
+  normalizeRetryItems,
+  parseRetryItems,
   parseJsonLenient,
   repairBrokenJson
 };

@@ -52,6 +52,20 @@ type OverlayItem = {
   direction?: SourceTextDirection;
   angle?: number;
   fontSize?: number | null;
+  confidence?: number | null;
+};
+
+type CropRetryTarget = {
+  id: number;
+  type: string;
+  bbox: BBox;
+  cropBox: BBox;
+  jp: string;
+  ko: string;
+  direction?: SourceTextDirection;
+  angle?: number;
+  fontSize?: number | null;
+  confidence?: number | null;
 };
 
 type DetectedBboxSpace = "normalized_1000" | "pixels";
@@ -87,6 +101,7 @@ type RuntimeModules = {
     collectOcrBboxHints: (options: TranslationOptions) => Promise<OcrBboxResult>;
     collectOcrBboxHintsBatch?: (options: TranslationOptions[]) => Promise<OcrBboxResult[]>;
     requestTranslation: (server: ServerHandle, options: TranslationOptions) => Promise<TranslationResult>;
+    requestCropRetryTranslation?: (server: ServerHandle, options: TranslationOptions, targets: CropRetryTarget[]) => Promise<TranslationResult>;
     saveArtifacts: (options: TranslationOptions, result: TranslationResult) => Promise<void>;
     startServer: (options: TranslationOptions) => Promise<ServerHandle>;
     stopServer: (server: ServerHandle | null | undefined) => Promise<void>;
@@ -94,6 +109,7 @@ type RuntimeModules = {
   };
   overlayTools: {
     normalizeItems: (parsed: unknown) => OverlayItem[];
+    parseRetryItems?: (rawText: string) => Array<Omit<OverlayItem, "bbox">>;
     parseJsonLenient: (rawText: string) => unknown;
   };
 };
@@ -118,6 +134,12 @@ function loadRuntimeModules(): RuntimeModules {
 const DEFAULT_TEXT_COLOR = "#111111";
 const DEFAULT_OUTLINE_COLOR = "#ffffff";
 const DEFAULT_BACKGROUND_COLOR = "#fffdf5";
+const CROP_RETRY_CONFIDENCE_THRESHOLD = 0.72;
+const CROP_RETRY_OCR_SCORE_THRESHOLD = 0.6;
+const CROP_RETRY_MAX_ITEMS_PER_PAGE = 8;
+const CROP_RETRY_MIN_SIDE_PX = 192;
+const CROP_RETRY_MIN_MARGIN_PX = 64;
+const CROP_RETRY_MARGIN_RATIO = 0.5;
 
 export async function runWholePagePipeline({
   jobId,
@@ -397,11 +419,24 @@ export async function runWholePagePipeline({
           await mkdir(pageOptions.outputDir, { recursive: true });
           await writeFile(overlayItemsPath, `${JSON.stringify({ items }, null, 2)}\n`, "utf8");
 
-          const normalizedItems = applyOcrCandidateGeometryLocks(
+          let normalizedItems = applyOcrCandidateGeometryLocks(
             normalizeOverlayItemBboxes(items, page, getBboxNormalizationOptions(result.requestBody)),
             page,
             getOcrBboxHints(result.requestBody)
           );
+          normalizedItems = await maybeRetryLowConfidenceItems({
+            runtime,
+            server,
+            pageOptions,
+            page,
+            items: normalizedItems,
+            ocrHints: getOcrBboxHints(result.requestBody),
+            emit,
+            jobId,
+            pageIndex: index + 1,
+            pageTotal: pages.length,
+            progressTotal
+          });
           successPage = {
             ...page,
             blocks: normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex)),
@@ -800,6 +835,226 @@ function buildPageOptions(baseOptions: TranslationOptions, page: MangaPage, inde
   };
 }
 
+type CropRetryContext = {
+  runtime: RuntimeModules;
+  server: ModelEndpointHandle;
+  pageOptions: TranslationOptions;
+  page: MangaPage;
+  items: OverlayItem[];
+  ocrHints: NonNullable<RequestSummary["ocrBboxHints"]>;
+  emit: PipelineOptions["emit"];
+  jobId: string;
+  pageIndex: number;
+  pageTotal: number;
+  progressTotal: number;
+};
+
+async function maybeRetryLowConfidenceItems({
+  runtime,
+  server,
+  pageOptions,
+  page,
+  items,
+  ocrHints,
+  emit,
+  jobId,
+  pageIndex,
+  pageTotal,
+  progressTotal
+}: CropRetryContext): Promise<OverlayItem[]> {
+  if (!runtime.simplePage.requestCropRetryTranslation || !runtime.overlayTools.parseRetryItems) {
+    return items;
+  }
+
+  const targets = selectCropRetryTargets(items, page, ocrHints);
+  if (targets.length === 0) {
+    return items;
+  }
+
+  const retryOptions = {
+    ...pageOptions,
+    label: `${pageOptions.label}-crop-retry`,
+    outputDir: join(pageOptions.outputDir, "crop-retry")
+  };
+
+  emit({
+    id: jobId,
+    kind: "gemma-analysis",
+    status: "running",
+    progressText: `${page.name} 낮은 신뢰도 crop 재확인 중`,
+    phase: "model_requesting",
+    progressCurrent: pageIndex,
+    progressTotal,
+    pageIndex,
+    pageTotal,
+    detail: `${targets.length}개 항목`
+  });
+
+  try {
+    const result = await runtime.simplePage.requestCropRetryTranslation(server as ServerHandle, retryOptions, targets);
+    if (!result.outputText.trim()) {
+      return items;
+    }
+
+    await runtime.simplePage.saveArtifacts(retryOptions, result);
+    const retryItems = runtime.overlayTools.parseRetryItems(result.outputText);
+    await mkdir(retryOptions.outputDir, { recursive: true });
+    await writeFile(join(retryOptions.outputDir, "crop-retry-items.json"), `${JSON.stringify({ items: retryItems }, null, 2)}\n`, "utf8");
+    return mergeCropRetryItems(items, retryItems, ocrHints);
+  } catch (error) {
+    logWarn("Crop retry failed; keeping first-pass overlay items", {
+      pageId: page.id,
+      pageName: page.name,
+      targetCount: targets.length,
+      errorMessage: error instanceof Error ? error.message : String(error)
+    });
+    return items;
+  }
+}
+
+function selectCropRetryTargets(
+  items: OverlayItem[],
+  page: MangaPage,
+  ocrHints: NonNullable<RequestSummary["ocrBboxHints"]>
+): CropRetryTarget[] {
+  const hintById = new Map<number, NonNullable<RequestSummary["ocrBboxHints"]>[number]>();
+  for (const hint of ocrHints) {
+    const id = Number(hint.id);
+    if (Number.isFinite(id)) {
+      hintById.set(id, hint);
+    }
+  }
+
+  return items
+    .filter((item) => shouldRetryCropItem(item, hintById.get(item.id)))
+    .slice(0, CROP_RETRY_MAX_ITEMS_PER_PAGE)
+    .map((item) => ({
+      id: item.id,
+      type: item.type,
+      bbox: item.bbox,
+      cropBox: buildExpandedCropBox(item.bbox, page),
+      jp: item.jp,
+      ko: item.ko,
+      direction: item.direction,
+      angle: item.angle,
+      fontSize: item.fontSize,
+      confidence: item.confidence
+    }));
+}
+
+function shouldRetryCropItem(item: OverlayItem, hint?: NonNullable<RequestSummary["ocrBboxHints"]>[number]): boolean {
+  const confidence = normalizeConfidence(item.confidence, Number.NaN);
+  if (Number.isFinite(confidence) && confidence < CROP_RETRY_CONFIDENCE_THRESHOLD) {
+    return true;
+  }
+
+  if (hasUncertaintyMarker(item.jp) || hasUncertaintyMarker(item.ko) || containsJapaneseKana(item.ko)) {
+    return true;
+  }
+
+  const ocrScore = normalizeConfidence(hint?.score, Number.NaN);
+  return Number.isFinite(ocrScore) && ocrScore < CROP_RETRY_OCR_SCORE_THRESHOLD;
+}
+
+function buildExpandedCropBox(bbox: BBox, page: MangaPage): BBox {
+  const pageWidth = Math.max(1, page.width);
+  const pageHeight = Math.max(1, page.height);
+  const left = (bbox.x / 1000) * pageWidth;
+  const top = (bbox.y / 1000) * pageHeight;
+  const width = Math.max(1, (bbox.w / 1000) * pageWidth);
+  const height = Math.max(1, (bbox.h / 1000) * pageHeight);
+  const marginX = Math.max(CROP_RETRY_MIN_MARGIN_PX, width * CROP_RETRY_MARGIN_RATIO);
+  const marginY = Math.max(CROP_RETRY_MIN_MARGIN_PX, height * CROP_RETRY_MARGIN_RATIO);
+  const centerX = left + width / 2;
+  const centerY = top + height / 2;
+  const expandedWidth = Math.max(CROP_RETRY_MIN_SIDE_PX, width + marginX * 2);
+  const expandedHeight = Math.max(CROP_RETRY_MIN_SIDE_PX, height + marginY * 2);
+  const cropLeft = clamp(centerX - expandedWidth / 2, 0, Math.max(0, pageWidth - 1));
+  const cropTop = clamp(centerY - expandedHeight / 2, 0, Math.max(0, pageHeight - 1));
+  const cropRight = clamp(centerX + expandedWidth / 2, cropLeft + 1, pageWidth);
+  const cropBottom = clamp(centerY + expandedHeight / 2, cropTop + 1, pageHeight);
+  return {
+    x: Math.round(cropLeft),
+    y: Math.round(cropTop),
+    w: Math.round(cropRight - cropLeft),
+    h: Math.round(cropBottom - cropTop)
+  };
+}
+
+function mergeCropRetryItems(
+  items: OverlayItem[],
+  retryItems: Array<Omit<OverlayItem, "bbox">>,
+  ocrHints: NonNullable<RequestSummary["ocrBboxHints"]>
+): OverlayItem[] {
+  const retryById = new Map(retryItems.map((item) => [item.id, item]));
+  const hintById = new Map<number, NonNullable<RequestSummary["ocrBboxHints"]>[number]>();
+  for (const hint of ocrHints) {
+    const id = Number(hint.id);
+    if (Number.isFinite(id)) {
+      hintById.set(id, hint);
+    }
+  }
+
+  const merged: OverlayItem[] = [];
+  for (const item of items) {
+    const retry = retryById.get(item.id);
+    if (!retry) {
+      merged.push(item);
+      continue;
+    }
+
+    if (isRejectRetryItem(retry)) {
+      continue;
+    }
+
+    if (!isUsableRetryItem(retry)) {
+      merged.push(item);
+      continue;
+    }
+
+    const baseHadProblem = shouldRetryCropItem(item, hintById.get(item.id));
+    const retryConfidence = normalizeConfidence(retry.confidence, Number.NaN);
+    const baseConfidence = normalizeConfidence(item.confidence, Number.NaN);
+    if (!baseHadProblem && Number.isFinite(retryConfidence) && Number.isFinite(baseConfidence) && retryConfidence + 0.02 < baseConfidence) {
+      merged.push(item);
+      continue;
+    }
+
+    merged.push({
+      ...item,
+      type: retry.type || item.type,
+      jp: retry.jp || item.jp,
+      ko: retry.ko || item.ko,
+      direction: retry.direction ?? item.direction,
+      angle: retry.angle ?? item.angle,
+      fontSize: retry.fontSize ?? item.fontSize,
+      confidence: Number.isFinite(retryConfidence) ? retryConfidence : item.confidence
+    });
+  }
+  return merged;
+}
+
+function isRejectRetryItem(item: Omit<OverlayItem, "bbox">): boolean {
+  const type = String(item.type ?? "").trim().toLowerCase();
+  return type === "reject" || isNonTextMarker(item.jp) || isNonTextMarker(item.ko);
+}
+
+function isUsableRetryItem(item: Omit<OverlayItem, "bbox">): boolean {
+  return Boolean(String(item.ko ?? "").trim()) && !hasUncertaintyMarker(item.ko);
+}
+
+function isNonTextMarker(value: string | undefined): boolean {
+  return /^\s*\[(?:non-?text|not text|reject)\]\s*$/i.test(String(value ?? ""));
+}
+
+function hasUncertaintyMarker(value: string | undefined): boolean {
+  return String(value ?? "").includes("[?]");
+}
+
+function containsJapaneseKana(value: string | undefined): boolean {
+  return /[\u3040-\u30ff]/u.test(String(value ?? ""));
+}
+
 export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: number): TranslationBlock {
   const type = mapOverlayType(item.type);
   const rawBbox = clampBbox(item.bbox);
@@ -819,7 +1074,7 @@ export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: nu
     bboxSpace: "normalized_1000",
     sourceText,
     translatedText,
-    confidence: sourceText ? 0.92 : 0.75,
+    confidence: normalizeConfidence(item.confidence, sourceText ? 0.92 : 0.75),
     sourceDirection,
     renderDirection,
     rotationDeg,
@@ -832,6 +1087,18 @@ export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: nu
     opacity: type === "caption" ? 0.7 : type === "sfx" ? 0.5 : 0.9,
     autoFitText: true
   };
+}
+
+function normalizeConfidence(value: unknown, fallback: number): number {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  const normalized = parsed > 1 && parsed <= 100 ? parsed / 100 : parsed;
+  return clamp(normalized, 0, 1);
 }
 
 function resolveOverlayFontSizePx(item: OverlayItem, bbox: BBox, page: MangaPage, textForSizing: string): number {

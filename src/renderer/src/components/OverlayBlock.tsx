@@ -1,5 +1,6 @@
 import React from "react";
 import type { TranslationBlock } from "../../../shared/types";
+import { resolveBlockFontFamily } from "../lib/fonts";
 import { hexToRgba, resolveBlockTextLayout, type ViewportSize } from "../lib/overlayLayout";
 
 type OverlayBlockProps = {
@@ -36,6 +37,7 @@ export function OverlayBlock({
     overflow: "hidden",
     color: block.textColor,
     backgroundColor: hexToRgba(block.backgroundColor, block.opacity),
+    fontFamily: resolveBlockFontFamily(block.fontFamily),
     fontSize: `${layout.fontSizePx}px`,
     lineHeight: block.lineHeight,
     textAlign: block.textAlign,

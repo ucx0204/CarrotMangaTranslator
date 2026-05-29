@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-const { normalizeItems, parseJsonLenient } = require("../src/main/runtime/overlay-parser.cjs");
+const { normalizeItems, parseJsonLenient, parseRetryItems } = require("../src/main/runtime/overlay-parser.cjs");
 
 describe("overlay parser", () => {
   it("parses strict line records with corner coordinates", () => {
@@ -14,6 +14,7 @@ y2: 320
 direction: vertical
 angle: 0
 fontSize: 24
+confidence: 0.83
 jp: 馬鹿者… 無理をするな
 ko: 바보 같은 녀석… 무리하지 마라.
 
@@ -34,6 +35,7 @@ ko: 리드
     expect(items[0].bbox).toEqual({ x: 120, y: 80, w: 160, h: 240 });
     expect(items[0].direction).toBe("vertical");
     expect(items[0].fontSize).toBe(24);
+    expect(items[0].confidence).toBe(0.83);
     expect(items[1].type).toBe("name");
     expect(items[1].bbox).toEqual({ x: 720, y: 700, w: 90, h: 120 });
   });
@@ -153,5 +155,40 @@ ko: 생긋
 `));
 
     expect(items.map((item: { id: number }) => item.id)).toEqual([6, 10]);
+  });
+
+  it("parses crop retry records without bbox", () => {
+    const items = parseRetryItems(String.raw`
+id: 6
+type: dialogue
+direction: horizontal
+angle: 0
+fontSize: 22
+confidence: 92
+jp: ありがとう
+ko: 고마워.
+
+id: 9
+type: reject
+direction: horizontal
+angle: 0
+fontSize: 10
+confidence: 1
+jp: [non-text]
+ko: [non-text]
+`);
+
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      id: 6,
+      type: "dialogue",
+      direction: "horizontal",
+      angle: 0,
+      fontSize: 22,
+      confidence: 0.92,
+      jp: "ありがとう",
+      ko: "고마워."
+    });
+    expect(items[1].type).toBe("reject");
   });
 });

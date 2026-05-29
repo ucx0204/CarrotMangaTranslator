@@ -76,6 +76,59 @@ describe("render layout padding", () => {
     expect(layout.overflow).toBe(false);
   });
 
+  it("grows auto-fit text to use the available render box", () => {
+    installCanvasMeasureMock();
+
+    const block: TranslationBlock = {
+      id: "block-1",
+      type: "speech",
+      bbox: { x: 0, y: 0, w: 260, h: 160 },
+      sourceText: "가",
+      translatedText: "가",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 12,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true
+    };
+
+    const layout = resolveBlockTextLayout(block, block.translatedText, { width: 1000, height: 1000 }, { width: 1000, height: 1000 });
+
+    expect(layout.fontSizePx).toBeGreaterThan(12);
+    expect(layout.overflow).toBe(false);
+  });
+
+  it("keeps manual font size when auto-fit is disabled", () => {
+    installCanvasMeasureMock();
+
+    const block: TranslationBlock = {
+      id: "block-1",
+      type: "speech",
+      bbox: { x: 0, y: 0, w: 260, h: 160 },
+      sourceText: "가",
+      translatedText: "가",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 18,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: false
+    };
+
+    const layout = resolveBlockTextLayout(block, block.translatedText, { width: 1000, height: 1000 }, { width: 1000, height: 1000 });
+
+    expect(layout.fontSizePx).toBe(18);
+  });
+
   it("temporarily grows source-only boxes when 10px text would otherwise overflow", () => {
     installCanvasMeasureMock();
 

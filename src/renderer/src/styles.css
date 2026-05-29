@@ -1,3 +1,179 @@
+@font-face {
+  font-family: "MGT Mongtori";
+  src: url("./assets/fonts/mongtori.ttf") format("truetype");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Ongle Park Dahyun";
+  src: url("./assets/fonts/ongle-park-dahyun.ttf") format("truetype");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Gothic";
+  src: url("./assets/fonts/nanum-gothic-light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Gothic";
+  src: url("./assets/fonts/nanum-gothic-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Gothic";
+  src: url("./assets/fonts/nanum-gothic-bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Gothic";
+  src: url("./assets/fonts/nanum-gothic-extra-bold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Myeongjo";
+  src: url("./assets/fonts/nanum-myeongjo-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Myeongjo";
+  src: url("./assets/fonts/nanum-myeongjo-bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Myeongjo";
+  src: url("./assets/fonts/nanum-myeongjo-extra-bold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Barun Gothic";
+  src: url("./assets/fonts/nanum-barun-gothic-ultra-light.ttf") format("truetype");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Barun Gothic";
+  src: url("./assets/fonts/nanum-barun-gothic-light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Barun Gothic";
+  src: url("./assets/fonts/nanum-barun-gothic-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Barun Gothic";
+  src: url("./assets/fonts/nanum-barun-gothic-bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Seoul Namsan";
+  src: url("./assets/fonts/seoul-namsan-light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Seoul Namsan";
+  src: url("./assets/fonts/seoul-namsan-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Seoul Namsan";
+  src: url("./assets/fonts/seoul-namsan-bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Seoul Namsan";
+  src: url("./assets/fonts/seoul-namsan-extra-bold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Seoul Namsan Vertical";
+  src: url("./assets/fonts/seoul-namsan-vertical.ttf") format("truetype");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Seoul Hangang";
+  src: url("./assets/fonts/seoul-hangang-light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Seoul Hangang";
+  src: url("./assets/fonts/seoul-hangang-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Seoul Hangang";
+  src: url("./assets/fonts/seoul-hangang-bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Seoul Hangang";
+  src: url("./assets/fonts/seoul-hangang-extra-bold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color: #ece7dc;
   background: #101114;
@@ -524,6 +700,98 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.font-field {
+  display: grid;
+  gap: 6px;
+}
+
+.font-field-label {
+  color: #e6ddcf;
+}
+
+.font-select-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #343b45;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #171b21 0%, #111419 100%);
+}
+
+.font-select-wrap select {
+  min-height: 40px;
+  background: #101318;
+}
+
+.font-preview {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid rgba(91, 105, 124, 0.65);
+  border-radius: 7px;
+  background: rgba(255, 253, 245, 0.06);
+  color: #f7f1e8;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.font-size-field {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #343b45;
+  border-radius: 8px;
+  background: #15191f;
+}
+
+.font-size-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #e6ddcf;
+}
+
+.inline-toggle {
+  display: inline-flex;
+  width: auto;
+  align-items: center;
+  gap: 6px;
+  color: #cfc7bb;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.inline-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.font-size-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 10px;
+}
+
+.font-size-row input[type="range"] {
+  min-width: 0;
+  padding: 0;
+}
+
+.font-size-number {
+  min-height: 38px;
+  text-align: center;
 }
 
 .color-stack {

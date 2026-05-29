@@ -1,5 +1,6 @@
 import React from "react";
 import type { RenderTextDirection, TranslationBlock } from "../../../shared/types";
+import { BLOCK_FONT_OPTIONS, normalizeBlockFontFamily, resolveBlockFontFamily, resolveBlockFontOption } from "../lib/fonts";
 
 type EditorPanelProps = {
   block: TranslationBlock | null;
@@ -21,6 +22,9 @@ export function EditorPanel({ block, disabled, onUpdate, onDelete, onDuplicate }
 
   const blockType = block.type === "other" ? "caption" : block.type;
   const outlineColor = resolveColor(block.outlineColor, "#ffffff");
+  const selectedFont = resolveBlockFontOption(block.fontFamily);
+  const autoFitText = block.autoFitText ?? true;
+  const fontSizePx = clampFontSize(block.fontSizePx);
 
   return (
     <section className="editor-panel has-block">
@@ -78,6 +82,60 @@ export function EditorPanel({ block, disabled, onUpdate, onDelete, onDuplicate }
           onChange={(event) => onUpdate({ opacity: Number(event.target.value) })}
         />
       </label>
+      <label className="font-field">
+        <span className="font-field-label">폰트</span>
+        <span className="font-select-wrap">
+          <select
+            value={selectedFont.id}
+            disabled={disabled}
+            onChange={(event) => onUpdate({ fontFamily: normalizeBlockFontFamily(event.target.value) })}
+          >
+            {BLOCK_FONT_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <span className="font-preview" style={{ fontFamily: resolveBlockFontFamily(selectedFont.id) }}>
+            {selectedFont.sample}
+          </span>
+        </span>
+      </label>
+      <div className="font-size-field">
+        <div className="font-size-header">
+          <span>글자 크기</span>
+          <label className="inline-toggle">
+            <input
+              type="checkbox"
+              checked={autoFitText}
+              disabled={disabled}
+              onChange={(event) => onUpdate({ autoFitText: event.target.checked })}
+            />
+            자동 맞춤
+          </label>
+        </div>
+        <div className="font-size-row">
+          <input
+            type="range"
+            min={10}
+            max={160}
+            step={1}
+            value={fontSizePx}
+            disabled={disabled || autoFitText}
+            onChange={(event) => onUpdate({ fontSizePx: clampFontSize(Number(event.target.value)), autoFitText: false })}
+          />
+          <input
+            className="font-size-number"
+            type="number"
+            min={10}
+            max={160}
+            step={1}
+            value={fontSizePx}
+            disabled={disabled || autoFitText}
+            onChange={(event) => onUpdate({ fontSizePx: clampFontSize(Number(event.target.value)), autoFitText: false })}
+          />
+        </div>
+      </div>
       <div className="color-stack" aria-label="블록 색상">
         <ColorField label="글자색" value={resolveColor(block.textColor, "#111111")} disabled={disabled} onChange={(textColor) => onUpdate({ textColor })} />
         <ColorField label="외곽선" value={outlineColor} disabled={disabled} onChange={(nextOutlineColor) => onUpdate({ outlineColor: nextOutlineColor })} />
@@ -119,4 +177,11 @@ function ColorField({ label, value, disabled, onChange }: ColorFieldProps): Reac
 function resolveColor(value: string | undefined, fallback: string): string {
   const text = String(value ?? "").trim();
   return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
+}
+
+function clampFontSize(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 24;
+  }
+  return Math.max(10, Math.min(160, Math.round(value)));
 }

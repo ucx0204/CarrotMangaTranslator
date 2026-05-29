@@ -20,6 +20,9 @@ const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
 const OCR_INSTALL_MARKER_FILE = "install-complete.json";
 const MAX_LOG_PREVIEW_LENGTH = 8000;
 const MM_PROJ_CANDIDATE_NAMES = ["mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-F32.gguf", "mmproj.gguf"];
+const CROP_RETRY_MIN_SIDE_PX = 192;
+const CROP_RETRY_MIN_MARGIN_PX = 64;
+const CROP_RETRY_MARGIN_RATIO = 0.5;
 
 function truncateText(value, maxLength = MAX_LOG_PREVIEW_LENGTH) {
   const text = String(value ?? "");
@@ -943,6 +946,7 @@ const OVERLAY_OUTPUT_SCHEMA = [
   "direction: horizontal",
   "angle: 0",
   "fontSize: 28",
+  "confidence: 0.86",
   "jp: 馬鹿者… 無理をするな",
   "ko: 바보 같은 녀석… 무리하지 마라."
 ].join("\n");
@@ -961,8 +965,10 @@ const OVERLAY_PROMPT_SECTIONS = [
   [
     "Output",
     "Return plain text records only. Do not output JSON, markdown, bullets, commentary, or code fences.",
-    "Use exactly these keys, one per line: id, type, x1, y1, x2, y2, direction, angle, fontSize, jp, ko.",
+    "Use exactly these keys, one per line: id, type, x1, y1, x2, y2, direction, angle, fontSize, confidence, jp, ko.",
     "Do not blindly copy the example values. Estimate fontSize and direction from the actual glyphs in Image 1.",
+    "confidence is your confidence from 0.00 to 1.00 that the item is real Japanese text, correctly read, correctly typed, and correctly translated.",
+    "Use confidence below 0.72 when the crop is hard to read, partly clipped, possibly decorative, or the translation may be uncertain.",
     "If jp has multiple visible source lines, put every readable source line in jp. Continuation lines after jp: belong to jp until the ko: key.",
     "Write ko as natural Korean for horizontal reading. Do not mirror Japanese vertical line breaks; use commas or short Korean phrases unless a real list or dialogue pause needs a line break.",
     "If the entire jp or ko would be only [?], skip that record instead of outputting an unreadable placeholder.",
@@ -1015,6 +1021,8 @@ const OVERLAY_PROMPT_SECTIONS = [
     "Use type dialogue for text inside speech bubbles, including vertical Japanese dialogue.",
     "Use type narration or name for ordinary labels, handwritten explanations, search words, and diagram annotations outside speech bubbles.",
     "Use type sfx only for sound-effect lettering or reaction lettering.",
+    "For type sfx, ko must be bare Korean sound-effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
+    "For type sfx, translate the visual sound/reaction text itself, not the character's motion or the scene description.",
     "Use angle 0 for ordinary upright speech and captions; use a nonzero angle only when the source glyphs are visibly slanted.",
     "Keep Korean short enough for an on-image overlay while preserving meaning.",
     "For handwritten diagrams and search-word lists, translate the whole note as one compact Korean phrase or comma-separated list when possible.",
@@ -1029,7 +1037,8 @@ function buildSystemPrompt() {
     "You are an OCR and manga-translation engine.",
     "Return only the machine-readable record format requested by the user prompt.",
     "Geometry accuracy comes before Korean text fit: preserve the original Japanese glyph position and apparent size.",
-    "Never merge separate speech bubbles, including touching or stacked balloon lobes."
+    "Never merge separate speech bubbles, including touching or stacked balloon lobes.",
+    "For SFX records, output bare Korean effect lettering only; do not wrap it in parentheses/brackets/quotes or turn it into a stage direction."
   ].join("\n\n");
 }
 
@@ -1760,7 +1769,136 @@ function describeImageVariant(variant, index, options = {}) {
     return `Image ${index + 1}: the same full manga page rendered as grayscale/high-contrast assist view. Use it only for OCR help, never as the coordinate authority.${sizeText}${originalSizeText}`;
   }
 
+  if (variant.role === "crop-retry") {
+    const idText = Number.isFinite(Number(variant.itemId)) ? ` item id ${variant.itemId}` : " one low-confidence item";
+    const box = variant.cropBox
+      ? ` Crop on original page: x=${variant.cropBox.x}, y=${variant.cropBox.y}, w=${variant.cropBox.w}, h=${variant.cropBox.h}.`
+      : "";
+    return `Image ${index + 1}: expanded crop for${idText}. Use it only to re-read that same id; do not create new ids or change geometry.${sizeText}${originalSizeText}${box}`;
+  }
+
   return `Image ${index + 1}: the original full manga page. Use it as the geometry authority.${sizeText}${originalSizeText}`;
+}
+
+function buildCropRetryPrompt(targets = []) {
+  const targetLines = targets.map((target, index) => {
+    const cropImageIndex = index + 2;
+    const confidence = Number.isFinite(Number(target.confidence)) ? Number(target.confidence).toFixed(2) : "unknown";
+    const bbox = target.bbox
+      ? `bbox x=${target.bbox.x} y=${target.bbox.y} w=${target.bbox.w} h=${target.bbox.h}`
+      : "bbox unchanged";
+    return [
+      `target ${target.id}: cropImage:${cropImageIndex}`,
+      `type:${target.type || "dialogue"} direction:${target.direction || "horizontal"} angle:${Number.isFinite(Number(target.angle)) ? target.angle : 0} fontSize:${Number.isFinite(Number(target.fontSize)) ? target.fontSize : ""} confidence:${confidence}`,
+      bbox,
+      `jp:${String(target.jp || "").replace(/\s+/g, " ").trim()}`,
+      `ko:${String(target.ko || "").replace(/\s+/g, " ").trim()}`
+    ].join(" ");
+  });
+
+  return [
+    "# Task",
+    "You are re-reading only the low-confidence manga translation items listed below.",
+    "Image 1 is the full page for context only. Each following image is an expanded crop for exactly one target id.",
+    "Do not detect new text, do not output extra ids, and do not change any bbox geometry.",
+    "For each target, use its crop image to correct only that same id's source OCR and Korean translation.",
+    "",
+    "# Output",
+    "Return plain text records only. Do not output JSON, markdown, bullets, commentary, or code fences.",
+    "Output exactly one record for each target id, using exactly these keys: id, type, direction, angle, fontSize, confidence, jp, ko.",
+    "Do not output x1, y1, x2, y2, bbox, width, or height.",
+    "confidence is 0.00 to 1.00 for the corrected OCR+translation.",
+    "If the crop is decoration, panel trim, texture, non-Japanese art, or otherwise not real Japanese text, output type: reject, confidence: 1, jp: [non-text], ko: [non-text].",
+    "If the crop still has readable Japanese, never output only [?]; give the best OCR and concise natural Korean.",
+    "Keep speech/caption Korean horizontal and natural unless the source is actual SFX/reaction lettering.",
+    "For type sfx, ko must be bare Korean sound-effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
+    "",
+    "# Targets",
+    ...targetLines
+  ].join("\n");
+}
+
+async function prepareCropRetryImageVariants(options, targets = []) {
+  const sourceSize = resolveImageSize(options);
+  const fullPageVariant = isOpenAICodexProvider(options)
+    ? await buildOpenAIVisionVariant({ ...options, imageWidth: sourceSize.width, imageHeight: sourceSize.height })
+    : { role: "original", path: options.imagePath, width: sourceSize.width, height: sourceSize.height };
+  const cropVariants = await buildCropRetryVariants(options, targets, sourceSize);
+  const variants = [fullPageVariant, ...cropVariants];
+
+  return {
+    imageVariants: await Promise.all(
+      variants.map(async (variant) => ({
+        ...variant,
+        ...(await fileToModelAsset(variant.path))
+      }))
+    )
+  };
+}
+
+async function buildCropRetryVariants(options, targets = [], sourceSize = {}) {
+  const nativeImage = resolveElectronNativeImage();
+  if (!nativeImage) {
+    throw createDetailedError("Electron nativeImage is required for crop retry images.", {
+      imagePath: options.imagePath,
+      targetCount: targets.length
+    });
+  }
+
+  const image = nativeImage.createFromPath(options.imagePath);
+  if (!image || image.isEmpty()) {
+    throw createDetailedError("Electron nativeImage could not decode source image for crop retry.", {
+      imagePath: options.imagePath,
+      targetCount: targets.length
+    });
+  }
+
+  const imageSize = image.getSize();
+  const pageWidth = readPositiveInteger(sourceSize.width) || readPositiveInteger(imageSize.width);
+  const pageHeight = readPositiveInteger(sourceSize.height) || readPositiveInteger(imageSize.height);
+  const outputDir = path.join(options.outputDir, "crop-retry-inputs");
+  await mkdir(outputDir, { recursive: true });
+
+  const variants = [];
+  for (const target of targets) {
+    const cropBox = normalizeCropBox(target.cropBox, pageWidth, pageHeight);
+    if (!cropBox) {
+      continue;
+    }
+    const cropped = image.crop(cropBox);
+    if (!cropped || cropped.isEmpty()) {
+      continue;
+    }
+    const outputPath = path.join(outputDir, `item-${target.id}.png`);
+    await writeFile(outputPath, cropped.toPNG());
+    variants.push({
+      role: "crop-retry",
+      itemId: target.id,
+      cropBox,
+      path: outputPath,
+      width: cropBox.width,
+      height: cropBox.height,
+      originalWidth: pageWidth,
+      originalHeight: pageHeight
+    });
+  }
+  return variants;
+}
+
+function normalizeCropBox(box, pageWidth, pageHeight) {
+  if (!box || !pageWidth || !pageHeight) {
+    return null;
+  }
+  const x = Math.max(0, Math.min(pageWidth - 1, Math.round(Number(box.x))));
+  const y = Math.max(0, Math.min(pageHeight - 1, Math.round(Number(box.y))));
+  const right = Math.max(x + 1, Math.min(pageWidth, Math.round(Number(box.x) + Number(box.w))));
+  const bottom = Math.max(y + 1, Math.min(pageHeight, Math.round(Number(box.y) + Number(box.h))));
+  return {
+    x,
+    y,
+    width: right - x,
+    height: bottom - y
+  };
 }
 
 function resolveConfiguredModelRepo(options = {}) {
@@ -3777,6 +3915,101 @@ async function requestTranslation(server, options) {
   };
 }
 
+async function requestCropRetryTranslation(server, options, targets = []) {
+  const retryTargets = Array.isArray(targets) ? targets.filter((target) => Number.isFinite(Number(target?.id))) : [];
+  if (retryTargets.length === 0) {
+    return {
+      requestBody: { cropRetryTargets: [] },
+      rawResponse: { skipped: true, reason: "no-crop-retry-targets" },
+      outputText: ""
+    };
+  }
+
+  const preparedVariants = await prepareCropRetryImageVariants(options, retryTargets);
+  const imageVariants = preparedVariants.imageVariants;
+  if (imageVariants.length <= 1) {
+    return {
+      requestBody: { cropRetryTargets: retryTargets, imageVariants: summarizeImageVariants(imageVariants), skipped: true },
+      rawResponse: { skipped: true, reason: "no-crop-retry-images" },
+      outputText: ""
+    };
+  }
+
+  const promptText = options.promptOverrideText || buildCropRetryPrompt(retryTargets);
+  const promptOptions = {
+    ...options,
+    promptOverrideText: promptText,
+    ocrBboxHints: []
+  };
+  const systemPrompt = buildSystemPrompt(promptOptions);
+  const requestBody = isOpenAICodexProvider(promptOptions)
+    ? buildResponsesRequestBody(promptOptions, imageVariants, promptText, systemPrompt)
+    : buildChatRequestBody(promptOptions, buildMessages(promptOptions, imageVariants));
+  const requestSummary = buildRequestSummary(server, promptOptions, imageVariants, promptText, systemPrompt);
+  requestSummary.promptText = promptText;
+  requestSummary.cropRetryTargets = retryTargets.map((target) => ({
+    id: target.id,
+    type: target.type,
+    bbox: target.bbox,
+    cropBox: target.cropBox,
+    confidence: target.confidence ?? null
+  }));
+
+  if (isOpenAICodexProvider(promptOptions)) {
+    emitRuntimeProgress(promptOptions, "model_requesting", "낮은 신뢰도 crop 재번역 중", `${retryTargets.length}개 항목`);
+    const finalResult = await requestCodexResponsesText(server, promptOptions, requestBody, requestSummary);
+    return {
+      requestBody: requestSummary,
+      rawResponse: finalResult.rawResponse,
+      outputText: finalResult.outputText
+    };
+  }
+
+  let response;
+  try {
+    emitRuntimeProgress(promptOptions, "model_requesting", "낮은 신뢰도 crop 재번역 중", `${retryTargets.length}개 항목`);
+    response = await fetch(`${server.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: buildChatRequestHeaders(promptOptions),
+      body: JSON.stringify(requestBody),
+      signal: promptOptions.abortSignal
+    });
+  } catch (error) {
+    throw createDetailedError(`${resolveProviderDisplayName(promptOptions)} crop retry request transport failed.`, { requestSummary }, error);
+  }
+
+  const rawText = await readResponseText(response, requestSummary, promptOptions);
+  if (!response.ok) {
+    throw createDetailedError(`${resolveProviderDisplayName(promptOptions)} crop retry request failed (${response.status}).`, {
+      requestSummary,
+      status: response.status,
+      statusText: response.statusText,
+      rawTextPreview: truncateText(rawText, 4000)
+    });
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch (error) {
+    throw createDetailedError(
+      `${resolveProviderDisplayName(promptOptions)} crop retry response JSON parse failed.`,
+      {
+        requestSummary,
+        rawTextPreview: truncateText(rawText, 4000)
+      },
+      error
+    );
+  }
+
+  const outputText = extractModelOutputText(parsed);
+  return {
+    requestBody: requestSummary,
+    rawResponse: parsed,
+    outputText
+  };
+}
+
 async function requestCodexResponsesText(server, options, requestBody, requestSummary) {
   let response;
   try {
@@ -4060,7 +4293,7 @@ async function saveArtifacts(options, result) {
   await mkdir(options.outputDir, { recursive: true });
   const systemPrompt = buildSystemPrompt(options);
   const imageVariants = result.requestBody?.imageVariants || [];
-  const prompt = options.promptOverrideText || getOverlayPrompt(options, imageVariants);
+  const prompt = result.requestBody?.promptText || options.promptOverrideText || getOverlayPrompt(options, imageVariants);
   const payload = {
     label: options.label,
     imagePath: options.imagePath,
@@ -4133,6 +4366,7 @@ module.exports = {
   parseResponsesSseText,
   prepareImageVariants,
   requestTranslation,
+  requestCropRetryTranslation,
   saveArtifacts,
   startServer,
   stopServer,

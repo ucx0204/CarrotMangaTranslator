@@ -94,6 +94,7 @@ export type TranslationBlock = {
   sourceDirection: SourceTextDirection;
   renderDirection: RenderTextDirection;
   rotationDeg?: number;
+  fontFamily?: string;
   fontSizePx: number;
   lineHeight: number;
   textAlign: "left" | "center" | "right";

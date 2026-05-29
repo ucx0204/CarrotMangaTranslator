@@ -14,11 +14,15 @@ describe("prompt contracts", () => {
     expect(runtimeSource).toContain("Each speech bubble is one dialogue item.");
     expect(runtimeSource).toContain("If two white balloon lobes touch, overlap, stack vertically, or connect through a narrow neck");
     expect(runtimeSource).toContain("For SFX, box only the sound-effect glyph strokes");
+    expect(runtimeSource).toContain("For type sfx, ko must be bare Korean sound-effect lettering only");
+    expect(runtimeSource).toContain("do not wrap it in parentheses/brackets/quotes");
     expect(runtimeSource).toContain("Coordinate calibration");
     expect(runtimeSource).toContain("Use the full visible Image 1 frame as the coordinate frame");
     expect(runtimeSource).toContain("detail: \"original\"");
     expect(runtimeSource).toContain("bboxCoordinateSpace");
-    expect(runtimeSource).toContain("Use exactly these keys, one per line: id, type, x1, y1, x2, y2, direction, angle, fontSize, jp, ko.");
+    expect(runtimeSource).toContain("Use exactly these keys, one per line: id, type, x1, y1, x2, y2, direction, angle, fontSize, confidence, jp, ko.");
+    expect(runtimeSource).toContain("confidence is your confidence from 0.00 to 1.00");
+    expect(runtimeSource).toContain("You are re-reading only the low-confidence manga translation items listed below.");
     expect(runtimeSource).toContain("OCR bbox candidates");
     expect(runtimeSource).toContain("low-trust OCR text hints for slot matching only");
     expect(runtimeSource).toContain("Use Image 1 as the authority");
