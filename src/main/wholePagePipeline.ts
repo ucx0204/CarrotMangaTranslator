@@ -491,7 +491,7 @@ async function prepareOcrHintsForPages({
       continue;
     }
 
-    const ocrOptions = buildOcrPageOptions(baseOptions, page, runPaths, index);
+    const ocrOptions = buildOcrPageOptions(baseOptions, page, runPaths, index, total);
     ocrOptions.abortSignal = signal;
     ocrOptions.onProgress = (progress) => {
       emit({
@@ -500,10 +500,10 @@ async function prepareOcrHintsForPages({
         status: "running",
         progressText: progress.progressText,
         phase: progress.phase,
-        progressCurrent: index + 1,
-        progressTotal: total,
-        pageIndex: index + 1,
-        pageTotal: total,
+        progressCurrent: progress.progressCurrent ?? index + 1,
+        progressTotal: progress.progressTotal ?? total,
+        pageIndex: progress.pageIndex ?? index + 1,
+        pageTotal: progress.pageTotal ?? total,
         detail: progress.detail,
         progressMode: progress.progressMode,
         progressPercent: progress.progressPercent,
@@ -517,6 +517,10 @@ async function prepareOcrHintsForPages({
   }
 
   if (pendingPages.length > 0) {
+    pendingPages.forEach((entry) => {
+      entry.options.ocrBatchCompletedBefore = results.size;
+      entry.options.ocrBatchTotal = total;
+    });
     emit({
       id: jobId,
       kind: "gemma-analysis",
@@ -582,7 +586,7 @@ async function collectOcrHintsSequentially(
   return results;
 }
 
-function buildOcrPageOptions(baseOptions: TranslationOptions, page: MangaPage, runPaths: ChapterRunPaths, index: number): TranslationOptions {
+function buildOcrPageOptions(baseOptions: TranslationOptions, page: MangaPage, runPaths: ChapterRunPaths, index: number, total: number): TranslationOptions {
   const outputDir = getOcrHintsOutputDir(runPaths, page);
   return {
     ...baseOptions,
@@ -590,7 +594,9 @@ function buildOcrPageOptions(baseOptions: TranslationOptions, page: MangaPage, r
     imageWidth: page.width,
     imageHeight: page.height,
     outputDir,
-    label: `ocr-page-${index + 1}`
+    label: `ocr-page-${index + 1}`,
+    ocrPageIndex: index + 1,
+    ocrPageTotal: total
   };
 }
 

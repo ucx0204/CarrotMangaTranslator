@@ -619,6 +619,20 @@ textarea {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
 }
 
+.page-image-placeholder {
+  width: min(100%, 720px);
+  max-width: min(100%, 1040px);
+  max-height: calc(100vh - 48px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border: 1px solid #2f3540;
+  background: #12151a;
+  color: #9ca6b5;
+  line-height: 1.4;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
 .overlay-block {
   position: absolute;
   display: grid;

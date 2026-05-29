@@ -10,7 +10,7 @@ import {
   writeFile
 } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { basename, dirname, extname, join, relative, resolve } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { nativeImage } from "electron";
 import type {
   ChapterSnapshot,
@@ -132,6 +132,21 @@ export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
     throw new Error("열려는 화를 찾지 못했습니다.");
   }
   return hydrateChapter(chapter);
+}
+
+export async function readLibraryPageImageDataUrl(imagePath: string): Promise<string> {
+  const resolvedRoot = resolve(LIBRARY_ROOT);
+  const resolvedImagePath = resolve(imagePath);
+  if (!isPathInside(resolvedRoot, resolvedImagePath)) {
+    throw new Error("보관함 밖의 이미지는 열 수 없습니다.");
+  }
+  if (!isSupportedImagePath(resolvedImagePath)) {
+    throw new Error("지원하지 않는 이미지 형식입니다.");
+  }
+  if (!existsSync(resolvedImagePath)) {
+    throw new Error("페이지 이미지 파일을 찾지 못했습니다.");
+  }
+  return fileToDataUrl(resolvedImagePath);
 }
 
 export async function saveChapterSnapshot(snapshot: ChapterSnapshot): Promise<ChapterSnapshot> {
@@ -940,12 +955,10 @@ async function materializeSharedChapter({
 }
 
 async function hydrateChapter(chapter: ChapterFile): Promise<ChapterSnapshot> {
-  const pages = await Promise.all(
-    reorderRecords(chapter.pages, chapter.pageOrder).map(async (page) => ({
-      ...page,
-      dataUrl: await fileToDataUrl(page.imagePath)
-    }))
-  );
+  const pages = reorderRecords(chapter.pages, chapter.pageOrder).map((page) => ({
+    ...page,
+    dataUrl: ""
+  }));
 
   return {
     ...chapter,
@@ -1234,6 +1247,11 @@ function normalizeImportPageName(entryName: string): string {
 
 function isSupportedImagePath(filePath: string): boolean {
   return [".png", ".jpg", ".jpeg", ".webp"].includes(extname(filePath).toLowerCase());
+}
+
+function isPathInside(rootPath: string, targetPath: string): boolean {
+  const child = relative(rootPath, targetPath);
+  return child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child));
 }
 
 async function fileToDataUrl(filePath: string): Promise<string> {

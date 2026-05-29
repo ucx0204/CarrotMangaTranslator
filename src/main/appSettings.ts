@@ -131,10 +131,18 @@ export type TranslationOptions = {
   ocrBboxCommand?: string;
   ocrBboxHintsPath?: string;
   ocrBboxHints?: unknown;
+  ocrPageIndex?: number;
+  ocrPageTotal?: number;
+  ocrBatchCompletedBefore?: number;
+  ocrBatchTotal?: number;
   onProgress?: (event: {
     phase: JobPhase;
     progressText: string;
     detail?: string;
+    progressCurrent?: number;
+    progressTotal?: number;
+    pageIndex?: number;
+    pageTotal?: number;
     progressMode?: "determinate" | "indeterminate" | "log-only";
     progressPercent?: number;
     progressBytes?: number;

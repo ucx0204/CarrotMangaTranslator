@@ -24,6 +24,7 @@ import {
   previewWorkShareImport,
   previewZip,
   previewZipFolder,
+  readLibraryPageImageDataUrl,
   renameChapter,
   renameWork,
   reorderChapters,
@@ -79,12 +80,14 @@ process.on("unhandledRejection", (reason) => {
 });
 
 let mainWindow: BrowserWindow | null = null;
-let activeJob: {
+type ActiveJob = {
   id: string;
   abortController: AbortController;
   cleanup?: () => Promise<void>;
   lastEvent?: JobEvent;
-} | null = null;
+};
+
+let activeJob: ActiveJob | null = null;
 
 type SimplePageRuntime = {
   startServer: (options: Record<string, unknown>) => Promise<{ baseUrl: string; child: unknown; startedByScript: boolean }>;
@@ -159,9 +162,23 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   if (activeJob) {
     activeJob.abortController.abort();
-    void activeJob.cleanup?.();
+    void runJobCleanup(activeJob, "before-quit");
   }
 });
+
+async function runJobCleanup(job: ActiveJob, reason: string): Promise<void> {
+  const cleanup = job.cleanup;
+  if (!cleanup) {
+    return;
+  }
+  job.cleanup = undefined;
+  try {
+    await cleanup();
+    logInfo("Analysis runtime cleanup completed", { jobId: job.id, reason });
+  } catch (error) {
+    logError("Analysis runtime cleanup failed", { jobId: job.id, reason, error });
+  }
+}
 
 function registerIpc(): void {
   ipcMain.handle("logs:get-path", () => getLogPath());
@@ -336,6 +353,7 @@ function registerIpc(): void {
     return { opened: true, libraryPath: getLibraryRoot() };
   });
   ipcMain.handle("library:open-chapter", async (_event, chapterId: string) => openChapter(chapterId));
+  ipcMain.handle("library:get-page-image-data-url", async (_event, imagePath: string) => readLibraryPageImageDataUrl(imagePath));
   ipcMain.handle("library:save-chapter", async (_event, chapter) => saveChapterSnapshot(chapter));
   ipcMain.handle("library:rename-work", async (_event, workId: string, title: string) => renameWork(workId, title));
   ipcMain.handle("library:rename-chapter", async (_event, chapterId: string, title: string) => renameChapter(chapterId, title));
@@ -576,7 +594,10 @@ function registerIpc(): void {
         chapter: await openChapter(request.chapterId)
       };
     } finally {
-      activeJob = null;
+      if (activeJob?.id === id) {
+        await runJobCleanup(activeJob, "job-finished");
+        activeJob = null;
+      }
     }
   });
 
@@ -599,7 +620,7 @@ function registerIpc(): void {
       attemptTotal: job.lastEvent?.attemptTotal
     } satisfies JobEvent);
     job.abortController.abort();
-    await job.cleanup?.();
+    await runJobCleanup(job, "cancel");
     return { cancelled: true };
   });
 }

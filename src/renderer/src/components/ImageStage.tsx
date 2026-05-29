@@ -5,6 +5,7 @@ import { OverlayBlock } from "./OverlayBlock";
 
 type ImageStageProps = {
   page: MangaPage;
+  imageDataUrl: string;
   imageRef: React.RefObject<HTMLImageElement | null>;
   stageRef: React.RefObject<HTMLDivElement | null>;
   stageSize: ViewportSize | null;
@@ -17,6 +18,7 @@ type ImageStageProps = {
 
 export function ImageStage({
   page,
+  imageDataUrl,
   imageRef,
   stageRef,
   stageSize,
@@ -36,8 +38,14 @@ export function ImageStage({
         onPointerCancel={onStagePointerUp}
         onPointerDown={onStagePointerDown}
       >
-        <img ref={imageRef} className="page-image" src={page.dataUrl} alt={page.name} draggable={false} />
-        {stageSize
+        {imageDataUrl ? (
+          <img ref={imageRef} className="page-image" src={imageDataUrl} alt={page.name} draggable={false} />
+        ) : (
+          <div className="page-image-placeholder" style={{ aspectRatio: `${page.width} / ${page.height}` }}>
+            이미지 불러오는 중
+          </div>
+        )}
+        {imageDataUrl && stageSize
           ? page.blocks.map((block) => (
               <OverlayBlock
                 key={block.id}

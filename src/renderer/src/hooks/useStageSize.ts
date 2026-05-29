@@ -3,7 +3,8 @@ import type { ViewportSize } from "../lib/overlayLayout";
 
 export function useStageSize(
   imageRef: RefObject<HTMLImageElement | null>,
-  fallback: ViewportSize | null
+  fallback: ViewportSize | null,
+  revision?: string | null
 ): ViewportSize | null {
   const [stageSize, setStageSize] = useState<ViewportSize | null>(null);
 
@@ -73,7 +74,7 @@ export function useStageSize(
       image.removeEventListener("load", scheduleSync);
       window.removeEventListener("resize", scheduleSync);
     };
-  }, [fallback?.height, fallback?.width, imageRef]);
+  }, [fallback?.height, fallback?.width, imageRef, revision]);
 
   return stageSize;
 }

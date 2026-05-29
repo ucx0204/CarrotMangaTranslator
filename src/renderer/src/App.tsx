@@ -37,6 +37,8 @@ const EMPTY_JOB: JobState = {
   progressText: "대기 중"
 };
 
+const PAGE_IMAGE_CACHE_LIMIT = 3;
+
 type DragMode = "move" | "resize";
 
 type DragState = {
@@ -63,6 +65,7 @@ export default function App(): React.JSX.Element {
   const [library, setLibrary] = useState<LibraryIndex>({ workOrder: [], works: [] });
   const [currentChapter, setCurrentChapter] = useState<ChapterSnapshot | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const [selectedPageImageDataUrl, setSelectedPageImageDataUrl] = useState("");
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [jobState, setJobState] = useState<JobState>(EMPTY_JOB);
   const [statusLines, setStatusLines] = useState<string[]>([]);
@@ -90,6 +93,7 @@ export default function App(): React.JSX.Element {
   const currentChapterRef = useRef<ChapterSnapshot | null>(null);
   const selectedPageIdRef = useRef<string | null>(null);
   const selectedBlockIdRef = useRef<string | null>(null);
+  const pageImageCacheRef = useRef<Map<string, string>>(new Map());
 
   const selectedPage = useMemo(
     () => currentChapter?.pages.find((page) => page.id === selectedPageId) ?? currentChapter?.pages[0] ?? null,
@@ -103,7 +107,7 @@ export default function App(): React.JSX.Element {
     () => (selectedPage ? { width: selectedPage.width, height: selectedPage.height } : null),
     [selectedPage?.height, selectedPage?.width]
   );
-  const stageSize = useStageSize(imageRef, selectedPageSize);
+  const stageSize = useStageSize(imageRef, selectedPageSize, selectedPageImageDataUrl);
   const progressSnapshot = useMemo(() => resolveProgressSnapshot(jobState), [jobState]);
   const showProgressBar = jobState.status !== "idle" && !!progressSnapshot;
 
@@ -139,6 +143,55 @@ export default function App(): React.JSX.Element {
   React.useEffect(() => {
     selectedBlockIdRef.current = selectedBlockId;
   }, [selectedBlockId]);
+
+  React.useEffect(() => {
+    pageImageCacheRef.current.clear();
+    setSelectedPageImageDataUrl("");
+  }, [currentChapter?.id]);
+
+  React.useEffect(() => {
+    if (!selectedPage) {
+      setSelectedPageImageDataUrl("");
+      return;
+    }
+
+    const cached = pageImageCacheRef.current.get(selectedPage.id);
+    if (cached) {
+      setSelectedPageImageDataUrl(cached);
+      return;
+    }
+
+    let cancelled = false;
+    setSelectedPageImageDataUrl("");
+    void window.mangaApi
+      .getPageImageDataUrl(selectedPage.imagePath)
+      .then((dataUrl) => {
+        if (cancelled) {
+          return;
+        }
+        const cache = pageImageCacheRef.current;
+        cache.delete(selectedPage.id);
+        cache.set(selectedPage.id, dataUrl);
+        while (cache.size > PAGE_IMAGE_CACHE_LIMIT) {
+          const oldestPageId = cache.keys().next().value;
+          if (!oldestPageId) {
+            break;
+          }
+          cache.delete(oldestPageId);
+        }
+        setSelectedPageImageDataUrl(dataUrl);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error(error);
+          setSelectedPageImageDataUrl("");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPage?.id, selectedPage?.imagePath]);
 
   const mergeLiveChapter = useCallback((chapter: ChapterSnapshot) => {
     const current = currentChapterRef.current;
@@ -1022,6 +1075,7 @@ export default function App(): React.JSX.Element {
           <div className="workspace-pane">
             <ImageStage
               page={selectedPage}
+              imageDataUrl={selectedPageImageDataUrl}
               imageRef={imageRef}
               stageRef={stageRef}
               stageSize={stageSize}

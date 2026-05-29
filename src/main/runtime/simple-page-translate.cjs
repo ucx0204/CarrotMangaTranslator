@@ -1817,9 +1817,15 @@ function isTruthy(value) {
 async function collectOcrBboxHints(options = {}) {
   const diagnostics = [];
   const inlineHints = normalizeOcrBboxHintPayload(options.ocrBboxHints, options);
-  if (inlineHints.length > 0) {
+  if (Object.prototype.hasOwnProperty.call(options, "ocrBboxHints")) {
     emitRuntimeProgress(options, "ocr_running", "OCR 후보 사용 중", `${inlineHints.length}개 후보`);
-    return { hints: inlineHints, diagnostics };
+    return {
+      hints: inlineHints,
+      diagnostics: [{
+        provider: "inline",
+        hintCount: inlineHints.length
+      }]
+    };
   }
 
   const hintsPath = String(options.ocrBboxHintsPath ?? process.env.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH ?? "").trim();
@@ -1965,7 +1971,30 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   const { stdout, stderr } = await runShellCommand(command, {
     timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS) || Math.max(600000, items.length * 300000),
     env: buildOcrRuntimeEnv(firstOptions, runtime),
-    signal: firstOptions.abortSignal
+    signal: firstOptions.abortSignal,
+    onOutput: (line) => {
+      const progress = parseOcrBatchProgressLine(line);
+      if (!progress) {
+        return;
+      }
+      const pageOptions = normalizedOptions[progress.index - 1] || firstOptions;
+      const completedBefore = readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0;
+      const batchTotal = readPositiveInteger(firstOptions.ocrBatchTotal) || progress.total;
+      const pageIndex = readPositiveInteger(pageOptions.ocrPageIndex) || completedBefore + progress.index;
+      const pageTotal = readPositiveInteger(pageOptions.ocrPageTotal) || batchTotal;
+      emitRuntimeProgress(
+        firstOptions,
+        "ocr_running",
+        `${pageIndex} / ${pageTotal} 페이지 Paddle OCR 분석 중`,
+        `${progress.count}개 후보`,
+        {
+          progressCurrent: Math.min(pageTotal, completedBefore + progress.index),
+          progressTotal: pageTotal,
+          pageIndex,
+          pageTotal
+        }
+      );
+    }
   });
 
   return normalizedOptions.map((options, index) => {
@@ -2106,8 +2135,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
   });
 
   emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 설치 검증 중", packageSummary, {
-    progressMode: "determinate",
-    progressPercent: 0.94,
+    progressMode: "indeterminate",
     installLogLine: "Paddle OCR import와 장치 상태를 확인합니다."
   });
   importCheck = await checkPaddleOcrImport(installPython, options);
@@ -2208,12 +2236,12 @@ async function installOcrPythonPackages(pythonPath, installBatches, targetDir, o
     phase: "ocr_downloading",
     progressText: "Paddle OCR 패키지 다운로드/설치 중",
     detailPrefix: summarizeOcrInstallBatches(installBatches, options),
-    startPercent: 0.08,
-    endPercent: 0.9
+    startPercent: 0.04,
+    endPercent: 0.86
   });
   try {
     const pipProgressArgs = `--cache-dir ${quoteCommandArg(pipCacheDir)} --progress-bar raw`;
-    monitor.setStep("pip 업데이트", 0.08, 0.18);
+    monitor.setStep("pip 업데이트", 0.04, 0.1);
     await runShellCommand(`${quoteCommandArg(pythonPath)} -m pip install --upgrade ${pipProgressArgs} pip`, {
       timeoutMs: 300000,
       env: buildOcrRuntimeEnv(options, { runtimeDir }),
@@ -2221,10 +2249,12 @@ async function installOcrPythonPackages(pythonPath, installBatches, targetDir, o
       onOutput: (line) => monitor.log(line)
     });
     monitor.completeStep("pip 업데이트 완료");
-    for (const packages of installBatches) {
-      const index = installBatches.indexOf(packages);
-      const start = 0.18 + (index / installBatches.length) * 0.68;
-      const end = 0.18 + ((index + 1) / installBatches.length) * 0.68;
+    const batchRanges = resolveOcrInstallBatchProgressRanges(installBatches, 0.1, 0.86);
+    for (let index = 0; index < installBatches.length; index += 1) {
+      const packages = installBatches[index];
+      const range = batchRanges[index] || { start: 0.1, end: 0.86 };
+      const start = range.start;
+      const end = range.end;
       monitor.setStep(`패키지 설치 ${index + 1}/${installBatches.length}`, start, end);
       await runShellCommand(`${quoteCommandArg(pythonPath)} -m pip install --upgrade ${pipProgressArgs} ${targetDir ? `--target ${quoteCommandArg(targetDir)} ` : ""}${packages.map(quoteCommandArg).join(" ")}`, {
         timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_PIP_TIMEOUT_MS) || 1800000,
@@ -2237,6 +2267,35 @@ async function installOcrPythonPackages(pythonPath, installBatches, targetDir, o
   } finally {
     monitor.stop();
   }
+}
+
+function resolveOcrInstallBatchProgressRanges(installBatches, startPercent, endPercent) {
+  const start = clampProgressRatio(startPercent, 0);
+  const end = Math.max(start, clampProgressRatio(endPercent, start));
+  const batches = Array.isArray(installBatches) ? installBatches : [];
+  if (batches.length === 0) {
+    return [];
+  }
+
+  const weights = batches.map((packages, index) => {
+    const packageText = Array.isArray(packages) ? packages.join(" ").toLowerCase() : "";
+    if (packageText.includes("paddlepaddle")) {
+      return batches.length > 1 ? 0.36 : 1;
+    }
+    if (packageText.includes("paddleocr") || packageText.includes("paddlex")) {
+      return batches.length > 1 ? 0.64 : 1;
+    }
+    return 1 + index * 0;
+  });
+  const totalWeight = weights.reduce((sum, value) => sum + Math.max(0.01, value), 0) || 1;
+  let cursor = start;
+  return batches.map((_packages, index) => {
+    const isLast = index === batches.length - 1;
+    const next = isLast ? end : cursor + (end - start) * (Math.max(0.01, weights[index]) / totalWeight);
+    const range = { start: cursor, end: next };
+    cursor = next;
+    return range;
+  });
 }
 
 function resolveInstallProgressDir(pythonPath) {
@@ -2481,7 +2540,7 @@ function startTaskProgressMonitor(options = {}, config = {}) {
       stepText = text;
       stepStart = Math.max(lastRatio, clampProgressRatio(startPercent, lastRatio));
       stepEnd = Math.max(stepStart, clampProgressRatio(endPercent, stepStart));
-      emit({ installLogLine: text });
+      emit({ progressMode: "indeterminate", installLogLine: text });
     },
     completeStep(text = "") {
       lastRatio = Math.max(lastRatio, stepEnd);
@@ -2498,19 +2557,15 @@ function startTaskProgressMonitor(options = {}, config = {}) {
       }
       const pipProgress = parsePipRawProgress(logLine);
       if (pipProgress) {
-        const stepRatio = pipProgress.total > 0 ? pipProgress.current / pipProgress.total : 0;
-        const ratio = stepStart + (stepEnd - stepStart) * Math.max(0, Math.min(1, stepRatio));
-        lastRatio = Math.max(lastRatio, Math.min(stepEnd, ratio));
         emit({
-          progressMode: "determinate",
-          progressPercent: lastRatio,
+          progressMode: "indeterminate",
           progressBytes: pipProgress.current,
           progressTotalBytes: pipProgress.total,
-          installLogLine: `${stepText}: ${formatBytes(pipProgress.current)} / ${formatBytes(pipProgress.total)}`
+          installLogLine: `${stepText}: 현재 다운로드 ${formatBytes(pipProgress.current)} / ${formatBytes(pipProgress.total)}`
         });
         return;
       }
-      emit({ progressMode: "log-only", installLogLine: logLine });
+      emit({ progressMode: "indeterminate", installLogLine: logLine });
     },
     stop(finalProgress = null) {
       stopped = true;
@@ -2540,6 +2595,28 @@ function parsePipRawProgress(line) {
     }
   }
   return null;
+}
+
+function parseOcrBatchProgressLine(line) {
+  const text = String(line ?? "").trim();
+  if (!text.startsWith("{") || !text.endsWith("}")) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(text);
+    const index = Number(payload?.index);
+    const total = Number(payload?.total);
+    if (!Number.isFinite(index) || !Number.isFinite(total) || index <= 0 || total <= 0) {
+      return null;
+    }
+    return {
+      index: Math.max(1, Math.min(Math.floor(index), Math.floor(total))),
+      total: Math.floor(total),
+      count: Number.isFinite(Number(payload?.count)) ? Math.max(0, Math.floor(Number(payload.count))) : 0
+    };
+  } catch {
+    return null;
+  }
 }
 
 function sanitizeInstallLogLine(line) {
@@ -3764,7 +3841,9 @@ module.exports = {
   extractModelOutputText,
   getOverlayPrompt,
   getScaledSize,
+  parseOcrBatchProgressLine,
   parsePipRawProgress,
+  resolveOcrInstallBatchProgressRanges,
   resolveManagedHfFilePath,
   inspectModelLaunch,
   isModelCached,

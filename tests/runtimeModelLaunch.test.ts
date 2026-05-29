@@ -32,8 +32,10 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   extractModelOutputText: (parsed: unknown) => string;
   inspectModelLaunch: (options: { [key: string]: unknown }) => { launchMode: string; model?: string; reasoningEffort?: string };
   isModelCached: (options: { [key: string]: unknown }) => boolean;
+  parseOcrBatchProgressLine: (line: string) => { index: number; total: number; count: number } | null;
   parsePipRawProgress: (line: string) => { current: number; total: number } | null;
   parseResponsesSseText: (rawText: string) => { outputText: string; eventCount: number; rawResponse: unknown };
+  resolveOcrInstallBatchProgressRanges: (batches: string[][], start: number, end: number) => Array<{ start: number; end: number }>;
   resolveManagedHfFilePath: (options: { [key: string]: unknown }, repo: string, file: string) => string | null;
 };
 const {
@@ -46,7 +48,9 @@ const {
   extractModelOutputText,
   inspectModelLaunch,
   isModelCached,
+  parseOcrBatchProgressLine,
   parsePipRawProgress,
+  resolveOcrInstallBatchProgressRanges,
   resolveManagedHfFilePath,
   parseResponsesSseText
 } = runtimeHelpers;
@@ -100,6 +104,46 @@ describe("runtime model launch helpers", () => {
       total: 1048576
     });
     expect(parsePipRawProgress("Collecting paddleocr")).toBeNull();
+  });
+
+  it("parses OCR batch progress JSON lines", () => {
+    expect(parseOcrBatchProgressLine('{"index":2,"total":65,"output":"page.json","count":14}')).toEqual({
+      index: 2,
+      total: 65,
+      count: 14
+    });
+    expect(parseOcrBatchProgressLine('{"items":[],"count":65}')).toBeNull();
+    expect(parseOcrBatchProgressLine("[paddleocr] warmup")).toBeNull();
+  });
+
+  it("treats an explicitly empty OCR hint array as a completed OCR pass", async () => {
+    const result = await collectOcrBboxHints({
+      ocrBboxHints: [],
+      ocrBboxProvider: "none"
+    });
+
+    expect(result).toEqual({
+      hints: [],
+      diagnostics: [{ provider: "inline", hintCount: 0 }]
+    });
+  });
+
+  it("weights OCR GPU install batches so one completed download does not imply half the install is done", () => {
+    const ranges = resolveOcrInstallBatchProgressRanges(
+      [
+        ["paddlepaddle-gpu==3.3.1", "--extra-index-url", "https://www.paddlepaddle.org.cn/packages/stable/cu126/"],
+        ["paddleocr==3.5.0", "paddlex[ocr]==3.5.2"]
+      ],
+      0.1,
+      0.86
+    );
+
+    expect(ranges).toHaveLength(2);
+    expect(ranges[0].start).toBeCloseTo(0.1);
+    expect(ranges[0].end).toBeGreaterThan(0.36);
+    expect(ranges[0].end).toBeLessThan(0.39);
+    expect(ranges[1].start).toBeCloseTo(ranges[0].end);
+    expect(ranges[1].end).toBeCloseTo(0.86);
   });
 
   it("treats OpenAI Codex as a remote OAuth-backed endpoint", () => {
