@@ -9,6 +9,8 @@ describe("Windows installer clean uninstall option", () => {
     const config = readFileSync(join(repoRoot, "electron-builder.config.cjs"), "utf8");
 
     expect(config).toContain('include: "build/installer.nsh"');
+    expect(config).toContain('from: "tools/ffmpeg"');
+    expect(config).toContain('to: "tools/ffmpeg"');
   });
 
   it("offers an optional clean uninstall section for app data and OCR cache", () => {
