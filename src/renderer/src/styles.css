@@ -342,7 +342,7 @@ textarea {
 }
 
 .app-shell.inpainting-mode {
-  grid-template-columns: 300px minmax(0, 1fr) 360px;
+  grid-template-columns: 400px minmax(0, 1fr) 360px;
 }
 
 .sidebar,
@@ -388,7 +388,10 @@ textarea {
 .status-panel,
 .display-panel,
 .inpainting-panel,
-.inpainting-exit-panel {
+.inpainting-exit-panel,
+.inpainting-flow-panel,
+.inpainting-back-panel,
+.inpainting-next-panel {
   display: grid;
   gap: 10px;
   padding: 12px;
@@ -818,9 +821,91 @@ textarea {
   align-content: start;
 }
 
-.inpainting-exit-panel small,
-.inpainting-summary span,
-.inpainting-summary small {
+.inpainting-exit-panel .danger {
+  min-height: 40px;
+  font-weight: 800;
+}
+
+.inpainting-flow-panel {
+  gap: 8px;
+  padding: 10px;
+}
+
+.flow-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid #343b45;
+  border-radius: 8px;
+  background: #15191f;
+  color: #aeb8c4;
+}
+
+.flow-step-index {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid #3a4654;
+  background: #10141a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.flow-step-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.flow-step.active {
+  color: #fff7ec;
+}
+
+.flow-step.solid.active {
+  border-color: #35d17a;
+  background: linear-gradient(180deg, rgba(28, 73, 53, 0.88), rgba(25, 49, 42, 0.92));
+  box-shadow: 0 0 0 1px rgba(53, 209, 122, 0.12);
+}
+
+.flow-step.pattern.active {
+  border-color: #f59e0b;
+  background: linear-gradient(180deg, rgba(91, 62, 20, 0.88), rgba(58, 43, 24, 0.92));
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.14);
+}
+
+.flow-step.review.active {
+  border-color: #6aa9ff;
+  background: linear-gradient(180deg, rgba(38, 58, 86, 0.88), rgba(27, 41, 61, 0.92));
+}
+
+.flow-step.done {
+  color: #d9eadd;
+  border-color: #375949;
+  background: #17231f;
+}
+
+.inpainting-back-panel {
+  align-content: start;
+  padding: 10px;
+}
+
+.solid-back-button {
+  min-height: 40px;
+  border-color: #40d083;
+  background: #1f5a43;
+  color: #f2fff8;
+  font-weight: 800;
+}
+
+.inpainting-exit-panel small {
   min-width: 0;
   color: #b8b1a6;
   overflow-wrap: anywhere;
@@ -828,6 +913,10 @@ textarea {
 
 .inpainting-panel {
   align-content: start;
+}
+
+.stage-panel {
+  gap: 12px;
 }
 
 .inpainting-panel .display-panel {
@@ -873,23 +962,291 @@ textarea {
   white-space: nowrap;
 }
 
-.inpainting-summary {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.inpainting-summary strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .inpainting-counts {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.inpainting-block-type-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #33404c;
+  border-radius: 9px;
+  background: #151a20;
+}
+
+.inpainting-block-type-card strong {
+  color: #f5eee3;
+  font-size: 13px;
+}
+
+.inpainting-block-type-card span {
+  color: #b8b1a6;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.inpainting-type-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.inpainting-type-switch button {
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 8px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.inpainting-type-switch button.solid.active {
+  border-color: #35d17a;
+  background: #1f5a43;
+  color: #f2fff8;
+}
+
+.inpainting-type-switch button.nonsolid.active {
+  border-color: #f59e0b;
+  background: #7a4d17;
+  color: #fff7df;
+}
+
+.inpainting-run-card {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #33404c;
+  border-radius: 9px;
+  background: #151a20;
+}
+
+.inpainting-run-card > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.inpainting-run-card strong {
+  color: #f5eee3;
+  font-size: 14px;
+}
+
+.inpainting-run-card span {
+  color: #b8b1a6;
+  font-size: 12px;
+}
+
+.inpainting-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.inpainting-action-grid button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.inpainting-progress-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #33404c;
+  border-radius: 10px;
+  background: #14181e;
+}
+
+.inpainting-progress-card.completed {
+  border-color: #4fb99b;
+  background: linear-gradient(180deg, rgba(25, 64, 54, 0.9), rgba(20, 28, 26, 0.94));
+}
+
+.inpainting-progress-card small {
+  color: #d2cabe;
+  overflow-wrap: anywhere;
+}
+
+.pending-stage-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #3a4654;
+  border-radius: 9px;
+  background: #15191f;
+}
+
+.pending-stage-card strong {
+  color: #f5eee3;
+}
+
+.pending-stage-card span {
+  color: #bbb4aa;
+  line-height: 1.4;
+}
+
+.pending-stage-card.pattern {
+  border-color: rgba(245, 158, 11, 0.55);
+  background: rgba(70, 45, 15, 0.22);
+}
+
+.pending-stage-card.review {
+  border-color: rgba(106, 169, 255, 0.5);
+  background: rgba(32, 48, 70, 0.3);
+}
+
+.mask-tool-panel {
+  gap: 8px;
+}
+
+.retouch-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.retouch-toolbar button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.retouch-toolbar button.active {
+  border-color: #70dcc9;
+  background: #24483f;
+  color: #f1fff8;
+}
+
+.retouch-toolbar svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: 0 0 auto;
+}
+
+.brush-swatch {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+.retouch-control-strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.brush-color-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #333b45;
+  border-radius: 8px;
+  background: #171b21;
+}
+
+.brush-color-control input {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.brush-size-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  color: #d8d0c3;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.brush-size-control input {
+  min-width: 0;
+}
+
+.brush-size-control strong {
+  min-width: 34px;
+  text-align: right;
+  color: #f6efe4;
+}
+
+.brush-size-control.compact strong {
+  min-width: 34px;
+}
+
+.retouch-control-strip .icon-button {
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.retouch-revert-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.retouch-revert-row button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.compact {
+  white-space: nowrap;
+}
+
+.inpainting-next-panel {
+  margin-top: auto;
+  padding: 10px;
+}
+
+.inpainting-next-panel button {
+  width: 100%;
+  min-height: 44px;
+  font-weight: 900;
+}
+
+.pattern-next-button {
+  border-color: #f59e0b;
+  background: #7a4d17;
+  color: #fff7df;
+}
+
+.pattern-next-button:hover:not(:disabled) {
+  border-color: #fbbf24;
+  background: #8d5b1d;
 }
 
 .type-stat {
@@ -917,22 +1274,19 @@ textarea {
   color: #fde68a;
 }
 
-.inpainting-steps {
+.inpainting-actions {
   display: grid;
   gap: 8px;
-  padding: 0;
-  margin: 0;
-  list-style: none;
 }
 
-.inpainting-steps button {
+.inpainting-actions button {
   width: 100%;
-  text-align: left;
+  text-align: center;
   background: #171b21;
   border-color: #333b45;
 }
 
-.inpainting-steps button.active {
+.inpainting-actions button.active {
   border-color: #6aa9ff;
   background: #24354a;
 }
@@ -1267,6 +1621,72 @@ textarea {
   cursor: crosshair;
 }
 
+.image-stage.editing-mask {
+  cursor: crosshair;
+}
+
+.image-stage.retouch-tool-enabled,
+.image-stage.retouch-cursor-active {
+  cursor: none;
+}
+
+.retouch-cursor {
+  position: absolute;
+  z-index: 22;
+  pointer-events: none;
+  border: 2px solid var(--retouch-cursor-color, #111);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--retouch-cursor-color, #111) 14%, transparent);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.95),
+    0 0 0 3px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  mix-blend-mode: normal;
+}
+
+.retouch-preview-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 21;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.retouch-preview-brush path {
+  opacity: 0.92;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.65)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.55));
+}
+
+.retouch-preview-outline {
+  fill: none;
+  stroke: rgba(112, 183, 255, 0.9);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 8 5;
+  opacity: 0.78;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.75));
+}
+
+.retouch-cursor span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+.retouch-cursor-eraser {
+  background: rgba(112, 183, 255, 0.16);
+  border-style: dashed;
+}
+
 .page-image {
   display: block;
   width: auto;
@@ -1295,7 +1715,7 @@ textarea {
   position: absolute;
   display: grid;
   place-items: center;
-  overflow: hidden;
+  overflow: visible;
   border: 2px solid rgba(50, 50, 50, 0.32);
   border-radius: 4px;
   font-weight: 700;
@@ -1321,7 +1741,7 @@ textarea {
 }
 
 .overlay-block.highlight-dimmed {
-  opacity: 0.2;
+  opacity: 1;
 }
 
 .overlay-block.selected {
@@ -1329,9 +1749,62 @@ textarea {
   outline-offset: 2px;
 }
 
-.overlay-block.overflowing {
-  outline: 2px dashed #ff9b5d;
-  outline-offset: 2px;
+.overlay-block.pattern-pending {
+  border-color: #ef4444 !important;
+  overflow: visible;
+}
+
+.pattern-pending-marker {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.pattern-pending-marker::before,
+.pattern-pending-marker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 140%;
+  height: 2px;
+  background: rgba(239, 68, 68, 0.92);
+  transform-origin: center;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+
+.pattern-pending-marker::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.pattern-pending-marker::after {
+  width: 140%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.pattern-pending-marker span {
+  position: absolute;
+  left: 50%;
+  top: -7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ff7777;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  text-shadow:
+    0 -1px 0 #fff,
+    1px 0 0 #fff,
+    0 1px 0 #fff,
+    -1px 0 0 #fff,
+    1px 1px 0 #fff,
+    -1px 1px 0 #fff,
+    1px -1px 0 #fff,
+    -1px -1px 0 #fff;
 }
 
 .region-selection-box {
@@ -1350,7 +1823,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
   text-align: inherit;
 }
 
@@ -1361,6 +1834,7 @@ textarea {
   white-space: pre-wrap;
   text-align: inherit;
   line-height: inherit;
+  overflow: visible;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -1584,9 +2058,9 @@ textarea {
 }
 
 .inpainting-guide-modal {
-  width: min(520px, calc(100vw - 40px));
-  gap: 12px;
-  padding: 12px;
+  width: min(760px, calc(100vw - 56px));
+  gap: 14px;
+  padding: 14px;
   overflow: hidden;
   border-color: rgba(111, 168, 255, 0.42);
   background: linear-gradient(180deg, rgba(24, 28, 36, 0.98), rgba(13, 16, 22, 0.98));
@@ -1595,7 +2069,7 @@ textarea {
 .inpainting-guide-modal img {
   display: block;
   width: 100%;
-  max-height: min(78vh, 860px);
+  max-height: min(76vh, 780px);
   object-fit: contain;
   border-radius: 11px;
   background: #0f1218;
@@ -1603,11 +2077,27 @@ textarea {
 }
 
 .guide-actions {
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
 }
 
 .guide-actions button {
   min-width: 120px;
+}
+
+.guide-hide-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #d8d0c3;
+  font-size: 13px;
+  user-select: none;
+}
+
+.guide-hide-check input {
+  width: 16px;
+  height: 16px;
 }
 
 .confirm-modal .modal-header {

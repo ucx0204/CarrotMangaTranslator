@@ -3,7 +3,7 @@ export type BlockType = "solid" | "nonsolid";
 export type SourceTextDirection = "horizontal" | "vertical";
 export type RenderTextDirection = "horizontal" | "vertical" | "rotated" | "hidden";
 
-export type JobKind = "gemma-analysis";
+export type JobKind = "gemma-analysis" | "inpainting";
 export type ModelProvider = "gemma" | "openai-codex";
 export type ModelSource = "huggingface" | "local";
 export type GemmaVramMode = "full" | "economy";
@@ -60,6 +60,9 @@ export type JobPhase =
   | "page_retry"
   | "page_done"
   | "page_skipped"
+  | "inpainting_preparing"
+  | "inpainting_running"
+  | "inpainting_done"
   | "finalizing"
   | "done"
   | "cancelled"
@@ -108,6 +111,7 @@ export type MangaPage = {
   id: string;
   name: string;
   imagePath: string;
+  inpaintedImagePath?: string;
   dataUrl: string;
   width: number;
   height: number;
@@ -281,6 +285,70 @@ export type RegionAnalysisRequest = {
 export type RegionAnalysisResult = StartAnalysisResult & {
   pageId?: string;
   blockIds?: string[];
+};
+
+export type StartInpaintingRequest =
+  | {
+      chapterId: string;
+      mode: "chapter-solid";
+    }
+  | {
+      chapterId: string;
+      mode: "page-solid";
+      pageId: string;
+    };
+
+export type StartInpaintingResult = {
+  status: "completed" | "cancelled" | "failed";
+  chapter?: ChapterSnapshot;
+  pagesChanged?: number;
+  blocksErased?: number;
+  error?: string;
+};
+
+export type InpaintingPoint = {
+  x: number;
+  y: number;
+};
+
+export type InpaintingRetouchRequest = {
+  chapterId: string;
+  pageId: string;
+  mode: "paint" | "restore";
+  points: InpaintingPoint[];
+  radiusPx: number;
+  color?: string;
+};
+
+export type InpaintingRetouchResult = {
+  chapter: ChapterSnapshot;
+  pageId: string;
+};
+
+export type InpaintingRevertRequest =
+  | {
+      chapterId: string;
+      scope: "chapter";
+    }
+  | {
+      chapterId: string;
+      scope: "page";
+      pageId: string;
+    };
+
+export type InpaintingRevertResult = {
+  chapter: ChapterSnapshot;
+  pagesChanged: number;
+};
+
+export type InpaintingColorSampleRequest = {
+  imagePath: string;
+  x: number;
+  y: number;
+};
+
+export type InpaintingColorSampleResult = {
+  color: string;
 };
 
 export type WorkShareExportRequest = {

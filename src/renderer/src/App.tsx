@@ -37,7 +37,7 @@ import { ShareImportModal, type ShareImportModalSubmit } from "./components/Shar
 import { TranslateSourceModal, type TranslateSourceMode } from "./components/TranslateSourceModal";
 import { useStageSize } from "./hooks/useStageSize";
 import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyPages, resolveSelectionAfterChapterSync } from "./lib/chapterSync";
-import { formatJobEventLine, formatJobLabel, resolveProgressSnapshot, summarizeWarnings } from "./lib/jobProgress";
+import { formatJobEventLine, formatJobLabel, resolveProgressSnapshot, summarizeWarnings, type ProgressSnapshot } from "./lib/jobProgress";
 import inpaintingGuideImage from "./assets/images/inpainting-guide.png";
 import { resolveAdjacentPageId, resolveKeyboardPageNavigation, resolveWheelPageNavigation } from "./lib/pageNavigation";
 import "./styles.css";
@@ -50,6 +50,7 @@ const EMPTY_JOB: JobState = {
 };
 
 const PAGE_IMAGE_CACHE_LIMIT = 3;
+const INPAINTING_GUIDE_HIDDEN_KEY = "mgt.inpaintingGuide.hidden";
 
 type DragMode = "move" | "resize";
 
@@ -74,7 +75,19 @@ type RegionSelectionState = {
   };
 };
 
-type InpaintingStep = "classify" | "solid-review" | "nonsolid-review" | "ready" | "running";
+type InpaintingStage = "solid" | "pattern" | "review";
+type InpaintingTool = "none" | "brush" | "eraser" | "picker";
+type RetouchPreviewState = {
+  mode: "brush" | "eraser";
+  points: Array<{ x: number; y: number }>;
+  radiusPx: number;
+  color: string;
+};
+type RetouchHistoryEntry = {
+  pageId: string;
+  beforePath?: string;
+  afterPath?: string;
+};
 
 type RenameTarget =
   | {
@@ -99,6 +112,7 @@ export default function App(): React.JSX.Element {
   const [currentChapter, setCurrentChapter] = useState<ChapterSnapshot | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedPageImageDataUrl, setSelectedPageImageDataUrl] = useState("");
+  const [selectedPageOriginalImageDataUrl, setSelectedPageOriginalImageDataUrl] = useState("");
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [regionSelection, setRegionSelection] = useState<RegionSelectionState | null>(null);
   const [jobState, setJobState] = useState<JobState>(EMPTY_JOB);
@@ -118,8 +132,20 @@ export default function App(): React.JSX.Element {
   const [dirty, setDirty] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [inpaintingMode, setInpaintingMode] = useState(false);
-  const [inpaintingStep, setInpaintingStep] = useState<InpaintingStep>("classify");
+  const [inpaintingStage, setInpaintingStage] = useState<InpaintingStage>("solid");
+  const [inpaintingHighlightType, setInpaintingHighlightType] = useState<BlockType | null>(null);
   const [inpaintingGuideOpen, setInpaintingGuideOpen] = useState(false);
+  const [hideInpaintingGuide, setHideInpaintingGuide] = useState(() =>
+    typeof window === "undefined" ? false : window.localStorage.getItem(INPAINTING_GUIDE_HIDDEN_KEY) === "1"
+  );
+  const [solidInpaintingTouched, setSolidInpaintingTouched] = useState(false);
+  const [inpaintingTool, setInpaintingTool] = useState<InpaintingTool>("none");
+  const [inpaintingBrushRadius, setInpaintingBrushRadius] = useState(28);
+  const [inpaintingPaintColor, setInpaintingPaintColor] = useState("#ffffff");
+  const [retouchCursorPoint, setRetouchCursorPoint] = useState<{ x: number; y: number } | null>(null);
+  const [retouchPreview, setRetouchPreview] = useState<RetouchPreviewState | null>(null);
+  const [retouchUndoStack, setRetouchUndoStack] = useState<RetouchHistoryEntry[]>([]);
+  const [retouchRedoStack, setRetouchRedoStack] = useState<RetouchHistoryEntry[]>([]);
   const [showBlockChrome, setShowBlockChrome] = useState(true);
   const [showTextBlocks, setShowTextBlocks] = useState(true);
   const workspacePanelRef = useRef<HTMLElement | null>(null);
@@ -135,11 +161,17 @@ export default function App(): React.JSX.Element {
   const selectedBlockIdRef = useRef<string | null>(null);
   const confirmResolverRef = useRef<((confirmed: boolean) => void) | null>(null);
   const pageImageCacheRef = useRef<Map<string, string>>(new Map());
+  const inpaintingRetouchDrawingRef = useRef(false);
+  const inpaintingRetouchPointsRef = useRef<Array<{ x: number; y: number }>>([]);
+  const lastInpaintingRetouchPointRef = useRef<{ x: number; y: number } | null>(null);
+  const retouchUndoStackRef = useRef<RetouchHistoryEntry[]>([]);
+  const retouchRedoStackRef = useRef<RetouchHistoryEntry[]>([]);
 
   const selectedPage = useMemo(
     () => currentChapter?.pages.find((page) => page.id === selectedPageId) ?? currentChapter?.pages[0] ?? null,
     [currentChapter?.pages, selectedPageId]
   );
+  const selectedPageImagePath = selectedPage?.inpaintedImagePath ?? selectedPage?.imagePath ?? null;
   const selectedBlock = selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
   const jobActive = ["starting", "running", "cancelling"].includes(jobState.status);
   const modalOpen = Boolean(
@@ -155,13 +187,28 @@ export default function App(): React.JSX.Element {
   const showProgressBar = jobState.status !== "idle" && !!progressSnapshot;
   const regionSelectionRect = useMemo(() => (regionSelection ? regionSelectionToBbox(regionSelection) : null), [regionSelection]);
   const blockCounts = useMemo(() => countChapterBlocks(currentChapter), [currentChapter]);
-  const inpaintingHighlightType: BlockType | null =
-    inpaintingMode && inpaintingStep === "solid-review"
-      ? "solid"
-      : inpaintingMode && inpaintingStep === "nonsolid-review"
-        ? "nonsolid"
-        : null;
-
+  const inpaintedPageCount = useMemo(
+    () => currentChapter?.pages.filter((page) => Boolean(page.inpaintedImagePath)).length ?? 0,
+    [currentChapter?.pages]
+  );
+  const solidStageHasRun = solidInpaintingTouched || inpaintedPageCount > 0 || blockCounts.solid === 0;
+  const inpaintingToolActive = inpaintingMode && inpaintingStage === "solid" && inpaintingTool !== "none";
+  const retouchCursor =
+    inpaintingTool === "brush" || inpaintingTool === "eraser"
+      ? {
+          point: retouchCursorPoint,
+          radiusPx: inpaintingBrushRadius,
+          mode: inpaintingTool,
+          color: inpaintingTool === "brush" ? inpaintingPaintColor : "#70b7ff"
+        }
+      : null;
+  const retouchPreviewLayer =
+    retouchPreview && retouchPreview.points.length > 0
+      ? {
+          ...retouchPreview,
+          originalImageDataUrl: retouchPreview.mode === "eraser" ? selectedPageOriginalImageDataUrl : ""
+        }
+      : null;
   const refreshLibrary = useCallback(async () => {
     const next = await window.mangaApi.getLibrary();
     setLibrary(next);
@@ -196,29 +243,46 @@ export default function App(): React.JSX.Element {
   }, [selectedBlockId]);
 
   React.useEffect(() => {
+    retouchUndoStackRef.current = retouchUndoStack;
+  }, [retouchUndoStack]);
+
+  React.useEffect(() => {
+    retouchRedoStackRef.current = retouchRedoStack;
+  }, [retouchRedoStack]);
+
+  React.useEffect(() => {
     setRegionSelection(null);
   }, [selectedPage?.id]);
 
   React.useEffect(() => {
     if (!currentChapter) {
       setInpaintingMode(false);
-      setInpaintingStep("classify");
+      setInpaintingStage("solid");
+      setInpaintingHighlightType(null);
       setInpaintingGuideOpen(false);
+      setSolidInpaintingTouched(false);
     }
   }, [currentChapter]);
 
   React.useEffect(() => {
     pageImageCacheRef.current.clear();
     setSelectedPageImageDataUrl("");
+    setRetouchUndoStack([]);
+    setRetouchRedoStack([]);
   }, [currentChapter?.id]);
 
   React.useEffect(() => {
     if (!selectedPage) {
       setSelectedPageImageDataUrl("");
+      setSelectedPageOriginalImageDataUrl("");
+      setRetouchCursorPoint(null);
+      setRetouchPreview(null);
       return;
     }
 
-    const cached = pageImageCacheRef.current.get(selectedPage.id);
+    const imagePath = selectedPageImagePath ?? selectedPage.imagePath;
+    const cacheKey = `${selectedPage.id}:${imagePath}`;
+    const cached = pageImageCacheRef.current.get(cacheKey);
     if (cached) {
       setSelectedPageImageDataUrl(cached);
       return;
@@ -227,14 +291,14 @@ export default function App(): React.JSX.Element {
     let cancelled = false;
     setSelectedPageImageDataUrl("");
     void window.mangaApi
-      .getPageImageDataUrl(selectedPage.imagePath)
+      .getPageImageDataUrl(imagePath)
       .then((dataUrl) => {
         if (cancelled) {
           return;
         }
         const cache = pageImageCacheRef.current;
-        cache.delete(selectedPage.id);
-        cache.set(selectedPage.id, dataUrl);
+        cache.delete(cacheKey);
+        cache.set(cacheKey, dataUrl);
         while (cache.size > PAGE_IMAGE_CACHE_LIMIT) {
           const oldestPageId = cache.keys().next().value;
           if (!oldestPageId) {
@@ -254,7 +318,64 @@ export default function App(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [selectedPage?.id, selectedPage?.imagePath]);
+  }, [selectedPage?.id, selectedPageImagePath]);
+
+  React.useEffect(() => {
+    if (!selectedPage) {
+      setSelectedPageOriginalImageDataUrl("");
+      return;
+    }
+    if (selectedPageImagePath === selectedPage.imagePath && selectedPageImageDataUrl) {
+      setSelectedPageOriginalImageDataUrl(selectedPageImageDataUrl);
+      return;
+    }
+
+    const imagePath = selectedPage.imagePath;
+    const cacheKey = `${selectedPage.id}:original:${imagePath}`;
+    const cached = pageImageCacheRef.current.get(cacheKey);
+    if (cached) {
+      setSelectedPageOriginalImageDataUrl(cached);
+      return;
+    }
+
+    let cancelled = false;
+    setSelectedPageOriginalImageDataUrl("");
+    void window.mangaApi
+      .getPageImageDataUrl(imagePath)
+      .then((dataUrl) => {
+        if (cancelled) {
+          return;
+        }
+        const cache = pageImageCacheRef.current;
+        cache.delete(cacheKey);
+        cache.set(cacheKey, dataUrl);
+        while (cache.size > PAGE_IMAGE_CACHE_LIMIT) {
+          const oldestPageId = cache.keys().next().value;
+          if (!oldestPageId) {
+            break;
+          }
+          cache.delete(oldestPageId);
+        }
+        setSelectedPageOriginalImageDataUrl(dataUrl);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error(error);
+          setSelectedPageOriginalImageDataUrl("");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPage?.id, selectedPage?.imagePath, selectedPageImageDataUrl, selectedPageImagePath]);
+
+  React.useEffect(() => {
+    if (!inpaintingToolActive) {
+      setRetouchCursorPoint(null);
+      setRetouchPreview(null);
+    }
+  }, [inpaintingToolActive]);
 
   const mergeLiveChapter = useCallback((chapter: ChapterSnapshot) => {
     const current = currentChapterRef.current;
@@ -652,56 +773,140 @@ export default function App(): React.JSX.Element {
       await saveNow();
     }
     setInpaintingMode(true);
-    setInpaintingStep("classify");
+    setInpaintingStage("solid");
+    setInpaintingTool("none");
+    setInpaintingHighlightType("solid");
+    setSolidInpaintingTouched(false);
     setSelectedBlockId(null);
     setRegionSelection(null);
     setShowBlockChrome(true);
     setShowTextBlocks(true);
-    setInpaintingGuideOpen(true);
-    pushStatus("인페인팅 모드로 전환했습니다. 먼저 배경 종류와 영역을 확인하세요.");
-  }, [currentChapter, dirty, jobActive, pushStatus, saveNow]);
+    if (!hideInpaintingGuide) {
+      setInpaintingGuideOpen(true);
+    }
+    pushStatus("인페인팅 모드로 전환했습니다. 단색 배경 블록을 먼저 확인하세요.");
+  }, [currentChapter, dirty, hideInpaintingGuide, jobActive, pushStatus, saveNow]);
 
   const exitInpaintingMode = useCallback(() => {
     if (jobActive) {
       return;
     }
     setInpaintingMode(false);
-    setInpaintingStep("classify");
+    setInpaintingStage("solid");
+    setInpaintingTool("none");
+    setInpaintingHighlightType(null);
     setInpaintingGuideOpen(false);
     setSelectedBlockId(null);
     setRegionSelection(null);
     pushStatus("인페인팅 모드를 종료했습니다.");
   }, [jobActive, pushStatus]);
 
-  const advanceInpaintingStep = useCallback(
-    async (step: InpaintingStep) => {
-      if (step === "running") {
+  const runSolidInpainting = useCallback(
+    async (scope: "page" | "chapter") => {
+      if (!currentChapter || jobActive) {
+        return;
+      }
+      if (scope === "page" && !selectedPage) {
+        return;
+      }
+      if (dirty) {
+        await saveNow();
+      }
+      const targetLabel = scope === "page" ? "이 페이지" : "전체 페이지";
+      const confirmed = await askConfirm(
+        "단색 배경 원문 지우기",
+        `${targetLabel}의 단색 배경 블록을 가볍게 지웁니다.`,
+        "말풍선처럼 배경이 거의 한 색인 블록만 처리합니다. 원본 이미지는 유지하고, 결과 이미지는 별도로 저장합니다."
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      setJobState({
+        id: "pending-inpainting",
+        kind: "inpainting",
+        status: "starting",
+        progressText: "단색 배경 지우기 준비 중",
+        phase: "inpainting_preparing"
+      });
+
+      const result = await window.mangaApi.startInpainting(
+        scope === "page"
+          ? {
+              chapterId: currentChapter.id,
+              mode: "page-solid",
+              pageId: selectedPage!.id
+            }
+          : {
+              chapterId: currentChapter.id,
+              mode: "chapter-solid"
+            }
+      );
+      if (result.chapter) {
+        pageImageCacheRef.current.clear();
+        mergeLiveChapter(result.chapter);
+      }
+      await refreshLibrary();
+
+      if (result.status === "completed") {
+        setSolidInpaintingTouched(true);
+        pushStatus(`단색 배경 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}블록`);
+      } else if (result.status === "failed" && result.error) {
+        pushStatus(result.error);
+      }
+    },
+    [askConfirm, currentChapter, dirty, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage]
+  );
+
+  const goToNextInpaintingStage = useCallback(async () => {
+    if (jobActive) {
+      return;
+    }
+    if (inpaintingStage === "solid") {
+      if (!solidStageHasRun && blockCounts.solid > 0) {
         const confirmed = await askConfirm(
-          "인페인팅 작업 시작",
-          "현재 화의 선택된 대상에 긴 작업을 실행합니다.",
-          "실행 전 단색/무늬 배경 분류와 영역을 확인하세요."
+          "단색 배경 지우기 건너뛰기",
+          "아직 단색 배경 지우기를 실행하지 않았습니다.",
+          "말풍선처럼 배경이 단순한 부분을 먼저 지워두면 다음 무늬 배경 단계에서 건드릴 영역이 줄어듭니다. 그래도 다음 단계로 넘어갈까요?"
         );
         if (!confirmed) {
           return;
         }
       }
-      setInpaintingStep(step);
-      if (step === "solid-review") {
-        setShowTextBlocks(true);
-        setShowBlockChrome(true);
-        pushStatus("단색 배경 블록 확인 단계입니다.");
-      } else if (step === "nonsolid-review") {
-        setShowTextBlocks(true);
-        setShowBlockChrome(true);
-        pushStatus("무늬 배경 블록 편집 단계입니다.");
-      } else if (step === "ready") {
-        pushStatus("인페인팅 실행 전 확인 단계입니다.");
-      } else if (step === "running") {
-        pushStatus("인페인팅 엔진 연결 전입니다. UI 단계만 준비되었습니다.");
-      }
-    },
-    [askConfirm, pushStatus]
-  );
+      setInpaintingStage("pattern");
+      setInpaintingHighlightType("nonsolid");
+      setShowTextBlocks(true);
+      setShowBlockChrome(true);
+      pushStatus("무늬 배경 단계로 이동했습니다.");
+      return;
+    }
+    if (inpaintingStage === "pattern") {
+      setInpaintingStage("review");
+      setInpaintingHighlightType(null);
+      pushStatus("결과 확인 단계로 이동했습니다.");
+    }
+  }, [askConfirm, blockCounts.solid, inpaintingStage, jobActive, pushStatus, solidStageHasRun]);
+
+  const goToPreviousInpaintingStage = useCallback(() => {
+    if (jobActive) {
+      return;
+    }
+    if (inpaintingStage === "pattern") {
+      setInpaintingStage("solid");
+      setInpaintingHighlightType("solid");
+      setShowTextBlocks(true);
+      setShowBlockChrome(true);
+      pushStatus("단색 배경 단계로 돌아왔습니다.");
+      return;
+    }
+    if (inpaintingStage === "review") {
+      setInpaintingStage("pattern");
+      setInpaintingHighlightType("nonsolid");
+      setShowTextBlocks(true);
+      setShowBlockChrome(true);
+      pushStatus("무늬 배경 단계로 돌아왔습니다.");
+    }
+  }, [inpaintingStage, jobActive, pushStatus]);
 
   const startRegionTranslationSelection = useCallback(() => {
     if (!selectedPage || !selectedPageImageDataUrl || jobActive) {
@@ -969,8 +1174,177 @@ export default function App(): React.JSX.Element {
     };
   }, []);
 
+  const getImagePixelPoint = useCallback(
+    (event: React.PointerEvent): { x: number; y: number } | null => {
+      const stage = stageRef.current;
+      const page = selectedPage;
+      if (!stage || !page) {
+        return null;
+      }
+      const rect = imageRef.current?.getBoundingClientRect() ?? stage.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) {
+        return null;
+      }
+      return {
+        x: Math.max(0, Math.min(page.width - 1, ((event.clientX - rect.left) / rect.width) * page.width)),
+        y: Math.max(0, Math.min(page.height - 1, ((event.clientY - rect.top) / rect.height) * page.height))
+      };
+    },
+    [selectedPage]
+  );
+
+  const appendRetouchPoint = useCallback(
+    (point: { x: number; y: number }, tool?: Extract<InpaintingTool, "brush" | "eraser">) => {
+      const last = lastInpaintingRetouchPointRef.current;
+      const minDistance = Math.max(2, inpaintingBrushRadius * 0.2);
+      if (last) {
+        const dx = point.x - last.x;
+        const dy = point.y - last.y;
+        if (Math.sqrt(dx * dx + dy * dy) < minDistance) {
+          return;
+        }
+      }
+      lastInpaintingRetouchPointRef.current = point;
+      inpaintingRetouchPointsRef.current.push({
+        x: Math.round(point.x),
+        y: Math.round(point.y)
+      });
+      if (tool) {
+        const nextPoint = { x: Math.round(point.x), y: Math.round(point.y) };
+        setRetouchPreview((current) => {
+          if (!current || current.mode !== tool) {
+            return {
+              mode: tool,
+              points: [nextPoint],
+              radiusPx: inpaintingBrushRadius,
+              color: inpaintingPaintColor
+            };
+          }
+          return {
+            ...current,
+            radiusPx: inpaintingBrushRadius,
+            color: inpaintingPaintColor,
+            points: [...current.points, nextPoint].slice(-1200)
+          };
+        });
+      }
+    },
+    [inpaintingBrushRadius, inpaintingPaintColor]
+  );
+
+  const saveChapterWithInpaintPath = useCallback(
+    async (pageId: string, inpaintedImagePath?: string) => {
+      const chapter = currentChapterRef.current;
+      if (!chapter) {
+        return null;
+      }
+      const nextChapter: ChapterSnapshot = {
+        ...chapter,
+        pages: chapter.pages.map((page) =>
+          page.id === pageId
+            ? {
+                ...page,
+                inpaintedImagePath,
+                updatedAt: new Date().toISOString()
+              }
+            : page
+        )
+      };
+      pageImageCacheRef.current.clear();
+      setCurrentChapter(nextChapter);
+      currentChapterRef.current = nextChapter;
+      const saved = await window.mangaApi.saveChapter(nextChapter);
+      mergeLiveChapter(saved);
+      return saved;
+    },
+    [mergeLiveChapter]
+  );
+
+  const applyRetouchPoints = useCallback(
+    async (tool: Extract<InpaintingTool, "brush" | "eraser">, points: Array<{ x: number; y: number }>) => {
+      if (!currentChapter || !selectedPage || points.length === 0 || jobActive) {
+        return;
+      }
+      const beforePath = selectedPage.inpaintedImagePath;
+      try {
+        const result = await window.mangaApi.applyInpaintingRetouch({
+          chapterId: currentChapter.id,
+          pageId: selectedPage.id,
+          mode: tool === "brush" ? "paint" : "restore",
+          points,
+          radiusPx: inpaintingBrushRadius,
+          color: inpaintingPaintColor
+        });
+        const afterPage = result.chapter.pages.find((page) => page.id === selectedPage.id);
+        pageImageCacheRef.current.clear();
+        mergeLiveChapter(result.chapter);
+        const afterPath = afterPage?.inpaintedImagePath;
+        if (afterPath !== beforePath) {
+          setRetouchUndoStack((stack) => [...stack, { pageId: selectedPage.id, beforePath, afterPath }].slice(-60));
+          setRetouchRedoStack([]);
+        }
+      } catch (error) {
+        console.error(error);
+        pushStatus("리터치 적용에 실패했습니다.");
+      }
+    },
+    [currentChapter, inpaintingBrushRadius, inpaintingPaintColor, jobActive, mergeLiveChapter, pushStatus, selectedPage]
+  );
+
+  const undoRetouch = useCallback(async () => {
+    const entry = retouchUndoStackRef.current[retouchUndoStackRef.current.length - 1];
+    if (!entry || jobActive) {
+      return;
+    }
+    setRetouchUndoStack((stack) => stack.slice(0, -1));
+    await saveChapterWithInpaintPath(entry.pageId, entry.beforePath);
+    setRetouchRedoStack((stack) => [...stack, entry].slice(-60));
+    pushStatus("리터치를 되돌렸습니다.");
+  }, [jobActive, pushStatus, saveChapterWithInpaintPath]);
+
+  const redoRetouch = useCallback(async () => {
+    const entry = retouchRedoStackRef.current[retouchRedoStackRef.current.length - 1];
+    if (!entry || jobActive) {
+      return;
+    }
+    setRetouchRedoStack((stack) => stack.slice(0, -1));
+    await saveChapterWithInpaintPath(entry.pageId, entry.afterPath);
+    setRetouchUndoStack((stack) => [...stack, entry].slice(-60));
+    pushStatus("리터치를 다시 적용했습니다.");
+  }, [jobActive, pushStatus, saveChapterWithInpaintPath]);
+
+  const revertInpainting = useCallback(
+    async (scope: "page" | "chapter") => {
+      if (!currentChapter || jobActive) {
+        return;
+      }
+      if (scope === "page" && !selectedPage) {
+        return;
+      }
+      const confirmed = await askConfirm(
+        scope === "page" ? "이 페이지 원본으로 되돌리기" : "전체 페이지 원본으로 되돌리기",
+        scope === "page" ? "현재 페이지의 인페인팅 결과를 원본 이미지로 되돌립니다." : "현재 화의 인페인팅 결과를 원본 이미지로 되돌립니다.",
+        "번역 블록과 좌표는 유지하고, 지워진 이미지 결과만 해제합니다."
+      );
+      if (!confirmed) {
+        return;
+      }
+      const result = await window.mangaApi.revertInpainting(
+        scope === "page"
+          ? { chapterId: currentChapter.id, scope: "page", pageId: selectedPage!.id }
+          : { chapterId: currentChapter.id, scope: "chapter" }
+      );
+      pageImageCacheRef.current.clear();
+      mergeLiveChapter(result.chapter);
+      setRetouchUndoStack([]);
+      setRetouchRedoStack([]);
+      pushStatus(`인페인팅 되돌리기 완료: ${result.pagesChanged}페이지`);
+    },
+    [askConfirm, currentChapter, jobActive, mergeLiveChapter, pushStatus, selectedPage]
+  );
+
   const onBlockPointerDown = (event: React.PointerEvent, block: TranslationBlock, mode: DragMode) => {
-    if (!stageRef.current || selectedPageEditLocked || regionSelection?.active) {
+    if (!stageRef.current || selectedPageEditLocked || regionSelection?.active || inpaintingToolActive) {
       return;
     }
     event.preventDefault();
@@ -990,6 +1364,43 @@ export default function App(): React.JSX.Element {
   };
 
   const onStagePointerDown = (event: React.PointerEvent) => {
+    if (inpaintingToolActive) {
+      const point = getImagePixelPoint(event);
+      if (!point || !stageRef.current) {
+        return;
+      }
+      if (inpaintingTool === "brush" || inpaintingTool === "eraser") {
+        setRetouchCursorPoint(point);
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      setSelectedBlockId(null);
+      if (inpaintingTool === "picker") {
+        const imagePath = selectedPageImagePath ?? selectedPage?.imagePath;
+        if (imagePath) {
+          void window.mangaApi
+            .sampleInpaintingColor({ imagePath, x: point.x, y: point.y })
+            .then((result) => {
+              setInpaintingPaintColor(result.color);
+              setInpaintingTool("brush");
+              pushStatus(`붓 색상을 ${result.color}로 선택했습니다.`);
+            })
+            .catch((error) => {
+              console.error(error);
+              pushStatus("색상을 가져오지 못했습니다.");
+            });
+        }
+        return;
+      }
+      inpaintingRetouchDrawingRef.current = true;
+      inpaintingRetouchPointsRef.current = [];
+      lastInpaintingRetouchPointRef.current = null;
+      setRetouchPreview(null);
+      appendRetouchPoint(point, inpaintingTool);
+      stageRef.current.setPointerCapture(event.pointerId);
+      return;
+    }
+
     if (!regionSelection?.active) {
       setSelectedBlockId(null);
       return;
@@ -1013,6 +1424,17 @@ export default function App(): React.JSX.Element {
   };
 
   const onStagePointerMove = (event: React.PointerEvent) => {
+    if (inpaintingToolActive) {
+      const point = getImagePixelPoint(event);
+      if (point && (inpaintingTool === "brush" || inpaintingTool === "eraser")) {
+        setRetouchCursorPoint(point);
+      }
+      if (point && inpaintingRetouchDrawingRef.current && (inpaintingTool === "brush" || inpaintingTool === "eraser")) {
+        appendRetouchPoint(point, inpaintingTool);
+      }
+      return;
+    }
+
     if (regionSelection?.active && regionSelection.dragging) {
       const point = getNormalizedImagePoint(event);
       if (point) {
@@ -1062,6 +1484,21 @@ export default function App(): React.JSX.Element {
   };
 
   const onStagePointerUp = (event: React.PointerEvent) => {
+    if (inpaintingRetouchDrawingRef.current) {
+      if (stageRef.current) {
+        stageRef.current.releasePointerCapture(event.pointerId);
+      }
+      inpaintingRetouchDrawingRef.current = false;
+      lastInpaintingRetouchPointRef.current = null;
+      const points = inpaintingRetouchPointsRef.current;
+      inpaintingRetouchPointsRef.current = [];
+      if (inpaintingTool === "brush" || inpaintingTool === "eraser") {
+        void applyRetouchPoints(inpaintingTool, points);
+      }
+      window.setTimeout(() => setRetouchPreview(null), 180);
+      return;
+    }
+
     if (regionSelection?.active && regionSelection.dragging) {
       if (stageRef.current) {
         stageRef.current.releasePointerCapture(event.pointerId);
@@ -1082,15 +1519,35 @@ export default function App(): React.JSX.Element {
     dragRef.current = null;
   };
 
+  const onStagePointerLeave = () => {
+    if (!inpaintingRetouchDrawingRef.current) {
+      setRetouchCursorPoint(null);
+    }
+  };
+
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const pageIds = currentChapterRef.current?.pages.map((page) => page.id) ?? [];
       const activeElement = typeof document !== "undefined" ? document.activeElement : null;
+      const editableTarget = isEditableTarget(event.target);
+      if (inpaintingMode && !modalOpen && !editableTarget && (event.ctrlKey || event.metaKey)) {
+        const key = event.key.toLowerCase();
+        if (key === "z" && !event.shiftKey) {
+          event.preventDefault();
+          void undoRetouch();
+          return;
+        }
+        if (key === "y" || (key === "z" && event.shiftKey)) {
+          event.preventDefault();
+          void redoRetouch();
+          return;
+        }
+      }
       const navigation = resolveKeyboardPageNavigation({
         key: event.key,
         hasPages: pageIds.length > 0,
         modalOpen,
-        editableTarget: isEditableTarget(event.target),
+        editableTarget,
         centerPanelFocused: Boolean(workspacePanelRef.current && activeElement && workspacePanelRef.current.contains(activeElement))
       });
 
@@ -1111,7 +1568,7 @@ export default function App(): React.JSX.Element {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [modalOpen, selectAdjacentPageForReading]);
+  }, [inpaintingMode, modalOpen, redoRetouch, selectAdjacentPageForReading, undoRetouch]);
 
   const onWorkspaceWheel = useCallback(
     (event: React.WheelEvent<HTMLElement>) => {
@@ -1293,6 +1750,8 @@ export default function App(): React.JSX.Element {
               <small>{currentChapter ? currentChapter.title : "현재 화 없음"}</small>
             </section>
 
+            <InpaintingWorkflowPanel stage={inpaintingStage} />
+
             <PageList
               pages={currentChapter?.pages ?? []}
               selectedPageId={selectedPage?.id ?? null}
@@ -1302,6 +1761,14 @@ export default function App(): React.JSX.Element {
               onRemove={(pageId) => void removePage(pageId)}
               onReorder={() => undefined}
             />
+
+            {inpaintingStage !== "solid" ? (
+              <section className="inpainting-back-panel">
+                <button className="solid-back-button" onClick={goToPreviousInpaintingStage} disabled={jobActive}>
+                  이전 단계로 돌아가기
+                </button>
+              </section>
+            ) : null}
           </>
         ) : (
           <>
@@ -1407,11 +1874,15 @@ export default function App(): React.JSX.Element {
               showTextBlocks={showTextBlocks}
               showBlockChrome={showBlockChrome}
               highlightBlockType={inpaintingHighlightType}
+              blockPointerDisabled={inpaintingToolActive}
+              retouchCursor={retouchCursor}
+              retouchPreview={retouchPreviewLayer}
               regionSelectionActive={Boolean(regionSelection?.active)}
               regionSelectionRect={regionSelectionRect}
               onStagePointerMove={onStagePointerMove}
               onStagePointerUp={onStagePointerUp}
               onStagePointerDown={onStagePointerDown}
+              onStagePointerLeave={onStagePointerLeave}
               onBlockPointerDown={onBlockPointerDown}
             />
           </div>
@@ -1433,26 +1904,45 @@ export default function App(): React.JSX.Element {
         {inpaintingMode ? (
           <>
             <InpaintingControlPanel
-              step={inpaintingStep}
+              stage={inpaintingStage}
               currentChapter={currentChapter}
               selectedPage={selectedPage}
+              selectedBlock={selectedBlock}
               blockCounts={blockCounts}
+              inpaintedPageCount={inpaintedPageCount}
+              tool={inpaintingTool}
+              brushRadius={inpaintingBrushRadius}
+              brushColor={inpaintingPaintColor}
+              canUndo={retouchUndoStack.length > 0}
+              canRedo={retouchRedoStack.length > 0}
+              jobState={jobState}
+              progressSnapshot={progressSnapshot}
               showBlockChrome={showBlockChrome}
               showTextBlocks={showTextBlocks}
               jobActive={jobActive}
-              onStepChange={(step) => void advanceInpaintingStep(step)}
+              onSelectTool={setInpaintingTool}
+              onBrushRadiusChange={setInpaintingBrushRadius}
+              onBrushColorChange={setInpaintingPaintColor}
+              onUndoRetouch={() => void undoRetouch()}
+              onRedoRetouch={() => void redoRetouch()}
+              onRevertPage={() => void revertInpainting("page")}
+              onRevertChapter={() => void revertInpainting("chapter")}
+              onRunPage={() => void runSolidInpainting("page")}
+              onRunChapter={() => void runSolidInpainting("chapter")}
+              onSetSelectedBlockType={(type) => updateSelectedBlock({ type })}
               onShowGuide={() => setInpaintingGuideOpen(true)}
               onToggleChrome={() => setShowBlockChrome((value) => !value)}
               onToggleBlocks={() => setShowTextBlocks((value) => !value)}
             />
-            <EditorPanel
-              block={selectedBlock}
-              disabled={selectedPageEditLocked || jobActive}
-              areaTranslateAvailable={false}
-              onUpdate={updateSelectedBlock}
-              onDelete={deleteSelectedBlock}
-              onDuplicate={duplicateSelectedBlock}
-            />
+            <section className="inpainting-next-panel">
+              <button
+                className={inpaintingStage === "solid" ? "pattern-next-button" : "primary"}
+                onClick={() => void goToNextInpaintingStage()}
+                disabled={jobActive || inpaintingStage === "review"}
+              >
+                {inpaintingStage === "solid" ? "다음 단계로 넘어가기" : inpaintingStage === "pattern" ? "결과 확인" : "완료"}
+              </button>
+            </section>
           </>
         ) : (
           <>
@@ -1619,18 +2109,33 @@ export default function App(): React.JSX.Element {
         />
       ) : null}
 
-      {inpaintingGuideOpen ? <InpaintingGuideModal onClose={() => setInpaintingGuideOpen(false)} /> : null}
+      {inpaintingGuideOpen ? (
+        <InpaintingGuideModal
+          onClose={(hideNextTime) => {
+            if (hideNextTime) {
+              window.localStorage.setItem(INPAINTING_GUIDE_HIDDEN_KEY, "1");
+              setHideInpaintingGuide(true);
+            }
+            setInpaintingGuideOpen(false);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
 
-function InpaintingGuideModal({ onClose }: { onClose: () => void }): React.JSX.Element {
+function InpaintingGuideModal({ onClose }: { onClose: (hideNextTime: boolean) => void }): React.JSX.Element {
+  const [hideNextTime, setHideNextTime] = useState(false);
   return (
     <div className="modal-backdrop guide-backdrop" role="presentation">
       <div className="modal-card inpainting-guide-modal" role="dialog" aria-modal="true" aria-label="인페인팅 안내" onMouseDown={(event) => event.stopPropagation()}>
         <img src={inpaintingGuideImage} alt="인페인팅 전 단색 배경과 무늬 배경을 확인하는 방법 안내" />
         <div className="modal-actions guide-actions">
-          <button className="primary" onClick={onClose}>
+          <label className="guide-hide-check">
+            <input type="checkbox" checked={hideNextTime} onChange={(event) => setHideNextTime(event.target.checked)} />
+            <span>다시는 보지 않기</span>
+          </label>
+          <button className="primary" onClick={() => onClose(hideNextTime)}>
             확인
           </button>
         </div>
@@ -1682,68 +2187,246 @@ type BlockCounts = {
   nonsolid: number;
 };
 
+function InpaintingWorkflowPanel({ stage }: { stage: InpaintingStage }): React.JSX.Element {
+  const steps: Array<{ id: InpaintingStage; label: string; tone: "solid" | "pattern" | "review" }> = [
+    { id: "solid", label: "단색 배경", tone: "solid" },
+    { id: "pattern", label: "무늬 배경", tone: "pattern" },
+    { id: "review", label: "결과 확인", tone: "review" }
+  ];
+  const activeIndex = steps.findIndex((step) => step.id === stage);
+  return (
+    <section className="inpainting-flow-panel" aria-label="인페인팅 단계">
+      {steps.map((step, index) => {
+        const state = index < activeIndex ? "done" : index === activeIndex ? "active" : "pending";
+        return (
+          <div className={`flow-step ${step.tone} ${state}`} key={step.id}>
+            <span className="flow-step-index">{index + 1}</span>
+            <span className="flow-step-label">{step.label}</span>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function PaintIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 16.5c2.6-.3 4.4.2 5.6 1.4 1.2 1.2 1.7 3 1.4 5.6-2.7.2-5-.4-6.3-1.8-1.1-1.2-1.4-3-.7-5.2Z" />
+      <path d="M10.4 16.1 20.7 5.8c.8-.8.8-2 0-2.8-.8-.8-2-.8-2.8 0L7.6 13.3" />
+    </svg>
+  );
+}
+
+function RestoreIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M7 7h7.5a5.5 5.5 0 1 1-4.7 8.3" />
+      <path d="M7 7v5H2" />
+      <path d="m6.8 7.2 4.5 4.5" />
+    </svg>
+  );
+}
+
+function PickerIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="m14.5 4.5 5 5" />
+      <path d="m5 19 4.4-1.1 8.9-8.9-3.3-3.3-8.9 8.9L5 19Z" />
+      <path d="M7.2 14.8 9.2 16.8" />
+    </svg>
+  );
+}
+
 function InpaintingControlPanel({
-  step,
+  stage,
   currentChapter,
   selectedPage,
+  selectedBlock,
   blockCounts,
+  inpaintedPageCount,
+  tool,
+  brushRadius,
+  brushColor,
+  canUndo,
+  canRedo,
+  jobState,
+  progressSnapshot,
   showBlockChrome,
   showTextBlocks,
   jobActive,
-  onStepChange,
+  onSelectTool,
+  onBrushRadiusChange,
+  onBrushColorChange,
+  onUndoRetouch,
+  onRedoRetouch,
+  onRevertPage,
+  onRevertChapter,
+  onRunPage,
+  onRunChapter,
+  onSetSelectedBlockType,
   onShowGuide,
   onToggleChrome,
   onToggleBlocks
 }: {
-  step: InpaintingStep;
+  stage: InpaintingStage;
   currentChapter: ChapterSnapshot | null;
   selectedPage: MangaPage | null;
+  selectedBlock: TranslationBlock | null;
   blockCounts: BlockCounts;
+  inpaintedPageCount: number;
+  tool: InpaintingTool;
+  brushRadius: number;
+  brushColor: string;
+  canUndo: boolean;
+  canRedo: boolean;
+  jobState: JobState;
+  progressSnapshot: ProgressSnapshot | null;
   showBlockChrome: boolean;
   showTextBlocks: boolean;
   jobActive: boolean;
-  onStepChange: (step: InpaintingStep) => void;
+  onSelectTool: (tool: InpaintingTool) => void;
+  onBrushRadiusChange: (radius: number) => void;
+  onBrushColorChange: (color: string) => void;
+  onUndoRetouch: () => void;
+  onRedoRetouch: () => void;
+  onRevertPage: () => void;
+  onRevertChapter: () => void;
+  onRunPage: () => void;
+  onRunChapter: () => void;
+  onSetSelectedBlockType: (type: BlockType) => void;
   onShowGuide: () => void;
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
 }): React.JSX.Element {
+  const activeInpaintingJob = jobState.kind === "inpainting" && jobState.status !== "idle";
+  const totalPages = currentChapter?.pages.length ?? 0;
+  const stageTitle = stage === "solid" ? "단색 배경 지우기" : stage === "pattern" ? "무늬 배경 지우기" : "결과 확인";
+
   return (
-    <section className="inpainting-panel">
-      <div className="panel-header">
-        <h2>인페인팅</h2>
-        <div className="inpainting-header-actions">
+    <>
+      <section className="inpainting-panel stage-panel">
+        <div className="panel-header">
+          <h2>{stageTitle}</h2>
           <button className="inpainting-guide-button" onClick={onShowGuide}>
             안내
           </button>
-          <span className="inpainting-step-badge">{resolveInpaintingStepLabel(step)}</span>
         </div>
-      </div>
 
-      <div className="inpainting-summary">
-        <strong>{currentChapter?.title ?? "현재 화 없음"}</strong>
-        <span>{currentChapter ? `${currentChapter.pages.length}페이지 · ${blockCounts.total}블록` : "화가 열려 있지 않습니다."}</span>
-        {selectedPage ? <small>현재 페이지: {selectedPage.name}</small> : null}
-      </div>
+        <div className="inpainting-counts">
+          <span className="type-stat solid">단색 배경 {blockCounts.solid}</span>
+          <span className="type-stat nonsolid">무늬 배경 {blockCounts.nonsolid}</span>
+        </div>
 
-      <div className="inpainting-counts">
-        <span className="type-stat solid">단색 배경 {blockCounts.solid}</span>
-        <span className="type-stat nonsolid">무늬 배경 {blockCounts.nonsolid}</span>
-      </div>
+        <div className="inpainting-block-type-card">
+          <strong>선택한 블록 배경</strong>
+          {selectedBlock ? (
+            <div className="inpainting-type-switch">
+              <button
+                className={selectedBlock.type === "solid" ? "solid active" : "solid"}
+                disabled={jobActive}
+                onClick={() => onSetSelectedBlockType("solid")}
+              >
+                단색 배경
+              </button>
+              <button
+                className={selectedBlock.type === "nonsolid" ? "nonsolid active" : "nonsolid"}
+                disabled={jobActive}
+                onClick={() => onSetSelectedBlockType("nonsolid")}
+              >
+                무늬 배경
+              </button>
+            </div>
+          ) : (
+            <span>캔버스에서 블록을 선택하면 배경 종류를 바꿀 수 있습니다.</span>
+          )}
+        </div>
 
-      <ol className="inpainting-steps">
-        <InpaintingStepButton active={step === "classify"} disabled={jobActive} onClick={() => onStepChange("classify")}>
-          1. 영역 재설정
-        </InpaintingStepButton>
-        <InpaintingStepButton active={step === "solid-review"} disabled={jobActive} onClick={() => onStepChange("solid-review")}>
-          2. 단색 배경 확인
-        </InpaintingStepButton>
-        <InpaintingStepButton active={step === "nonsolid-review"} disabled={jobActive} onClick={() => onStepChange("nonsolid-review")}>
-          3. 무늬 배경 편집
-        </InpaintingStepButton>
-        <InpaintingStepButton active={step === "ready"} disabled={jobActive} onClick={() => onStepChange("ready")}>
-          4. 실행 준비
-        </InpaintingStepButton>
-      </ol>
+        {activeInpaintingJob ? <InpaintingProgressCard jobState={jobState} progressSnapshot={progressSnapshot} /> : null}
+
+        {stage === "solid" ? (
+          <>
+            <div className="inpainting-run-card">
+              <div>
+                <strong>지우기 실행</strong>
+                <span>{currentChapter ? `${totalPages}페이지 · ${blockCounts.solid}개 단색 블록` : "화가 열려 있지 않습니다."}</span>
+              </div>
+              <div className="inpainting-action-grid">
+                <button className="primary compact" disabled={!selectedPage || jobActive || blockCounts.solid === 0} onClick={onRunPage}>
+                  이 페이지
+                </button>
+                <button className="primary compact" disabled={!currentChapter || jobActive || blockCounts.solid === 0} onClick={onRunChapter}>
+                  전체 페이지
+                </button>
+              </div>
+            </div>
+          </>
+        ) : stage === "pattern" ? (
+          <div className="pending-stage-card pattern">
+            <strong>무늬 배경 단계</strong>
+            <span>복잡한 배경 위 글자는 다음 인페인팅 작업에서 처리합니다.</span>
+          </div>
+        ) : (
+          <div className="pending-stage-card review">
+            <strong>결과 확인</strong>
+            <span>{inpaintedPageCount}페이지에 인페인팅 결과가 저장되어 있습니다.</span>
+          </div>
+        )}
+      </section>
+
+      {stage === "solid" ? (
+        <section className="inpainting-panel mask-tool-panel">
+          <div className="panel-header">
+            <h2>수동 보정</h2>
+            <small>Ctrl+Z / Ctrl+Y</small>
+          </div>
+          <div className="retouch-toolbar">
+            <button className={tool === "brush" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "brush" ? "none" : "brush")}>
+              <PaintIcon />
+              <span>붓</span>
+              <i className="brush-swatch" style={{ backgroundColor: brushColor }} aria-hidden="true" />
+            </button>
+            <button className={tool === "eraser" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "eraser" ? "none" : "eraser")}>
+              <RestoreIcon />
+              <span>복원 붓</span>
+            </button>
+            <button className={tool === "picker" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "picker" ? "none" : "picker")}>
+              <PickerIcon />
+              <span>색 뽑기</span>
+            </button>
+          </div>
+          <div className="retouch-control-strip">
+            <label className="brush-color-control" title="붓 색상">
+              <input type="color" value={brushColor} disabled={jobActive} onChange={(event) => onBrushColorChange(event.target.value)} />
+            </label>
+            <label className="brush-size-control compact">
+              <input
+                type="range"
+                min={4}
+                max={90}
+                value={brushRadius}
+                disabled={jobActive}
+                onChange={(event) => onBrushRadiusChange(Number(event.target.value))}
+              />
+              <strong>{brushRadius}px</strong>
+            </label>
+            <button className="icon-button" disabled={!canUndo || jobActive} onClick={onUndoRetouch} title="되돌리기 (Ctrl+Z)">
+              ↶
+            </button>
+            <button className="icon-button" disabled={!canRedo || jobActive} onClick={onRedoRetouch} title="다시 실행 (Ctrl+Y / Ctrl+Shift+Z)">
+              ↷
+            </button>
+          </div>
+          <div className="retouch-revert-row">
+            <button className="secondary compact" disabled={!selectedPage?.inpaintedImagePath || jobActive} onClick={onRevertPage}>
+              페이지 되돌리기
+            </button>
+            <button className="secondary compact" disabled={!inpaintedPageCount || jobActive} onClick={onRevertChapter}>
+              전체 되돌리기
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <DisplayControlPanel
         showBlockChrome={showBlockChrome}
@@ -1751,31 +2434,40 @@ function InpaintingControlPanel({
         onToggleChrome={onToggleChrome}
         onToggleBlocks={onToggleBlocks}
       />
-
-      <button className="primary" disabled={!currentChapter || jobActive} onClick={() => onStepChange("running")}>
-        현재 단계 적용
-      </button>
-    </section>
+    </>
   );
 }
 
-function InpaintingStepButton({
-  active,
-  disabled,
-  children,
-  onClick
-}: {
-  active: boolean;
-  disabled: boolean;
-  children: React.ReactNode;
-  onClick: () => void;
-}): React.JSX.Element {
+function InpaintingProgressCard({ jobState, progressSnapshot }: { jobState: JobState; progressSnapshot: ProgressSnapshot | null }): React.JSX.Element {
+  const current = progressSnapshot?.mode === "determinate" ? progressSnapshot.current : jobState.progressCurrent;
+  const total = progressSnapshot?.mode === "determinate" ? progressSnapshot.total : jobState.progressTotal;
+  const ratio =
+    progressSnapshot?.mode === "determinate"
+      ? progressSnapshot.ratio
+      : Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0
+        ? Math.min(1, Math.max(0, (current ?? 0) / (total ?? 1)))
+        : 0;
+  const detail =
+    jobState.status === "completed" && jobState.detail
+      ? jobState.detail
+      : jobState.detail || (Number.isFinite(jobState.pageTotal) ? `${jobState.pageTotal}페이지 처리 중` : "인페인팅 작업 진행 중");
   return (
-    <li>
-      <button className={active ? "active" : ""} disabled={disabled} onClick={onClick}>
-        {children}
-      </button>
-    </li>
+    <div className={`inpainting-progress-card ${jobState.status}`}>
+      <div className="progress-meta">
+        <span>{jobState.progressText}</span>
+        {Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0 ? (
+          <strong>
+            {current} / {total}
+          </strong>
+        ) : (
+          <strong>진행 중</strong>
+        )}
+      </div>
+      <small>{detail}</small>
+      <div className="progress-track" aria-hidden="true">
+        <div className="progress-fill" style={{ width: `${Math.round(ratio * 100)}%` }} />
+      </div>
+    </div>
   );
 }
 
@@ -1803,21 +2495,6 @@ function DisplayControlPanel({
       </div>
     </section>
   );
-}
-
-function resolveInpaintingStepLabel(step: InpaintingStep): string {
-  switch (step) {
-    case "solid-review":
-      return "단색 확인";
-    case "nonsolid-review":
-      return "무늬 편집";
-    case "ready":
-      return "실행 준비";
-    case "running":
-      return "작업 중";
-    default:
-      return "영역 재설정";
-  }
 }
 
 function countChapterBlocks(chapter: ChapterSnapshot | null): BlockCounts {

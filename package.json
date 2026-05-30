@@ -24,6 +24,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@radix-ui/react-progress": "^1.1.8",
     "adm-zip": "^0.5.17",
+    "onnxruntime-node": "^1.26.0",
     "openai-oauth": "^1.0.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

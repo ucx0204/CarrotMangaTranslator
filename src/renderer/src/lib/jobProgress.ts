@@ -60,10 +60,16 @@ export function formatJobLabel(job: JobWithProgress): string {
       return formatPageLabel(job, "완료");
     case "page_skipped":
       return formatPageLabel(job, "건너뜀");
+    case "inpainting_preparing":
+      return job.progressText?.trim() || "인페인팅 준비 중";
+    case "inpainting_running":
+      return job.progressText?.trim() || formatPageLabel(job, "단색 배경 지우는 중");
+    case "inpainting_done":
+      return job.progressText?.trim() || formatPageLabel(job, "단색 배경 완료");
     case "finalizing":
       return "결과 정리 중";
     case "done":
-      return "번역 완료";
+      return job.progressText?.trim() || "작업 완료";
     case "cancelled":
       return "작업이 취소됨";
     case "failed":

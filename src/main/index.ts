@@ -32,8 +32,10 @@ import {
   reorderPages,
   resolvePagesForRun,
   saveChapterSnapshot,
-  updatePageAfterAnalysis
+  updatePageAfterAnalysis,
+  updatePagesAfterInpainting
 } from "./library";
+import { applyInpaintingRetouch, inpaintSolidPage, prepareLamaInpaintingEngine, sampleImageColor, type LamaInpaintingEngine } from "./inpainting";
 import { getLogPath, logError, logInfo, resetAppLog, writeLog } from "./logger";
 import { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint, type OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
 import { getAppSettings, resetAppSettings, saveAppSettings } from "./settingsStore";
@@ -41,6 +43,12 @@ import { runWholePagePipeline } from "./wholePagePipeline";
 import type {
   AppSettings,
   CreateImportRequest,
+  InpaintingColorSampleRequest,
+  InpaintingColorSampleResult,
+  InpaintingRetouchRequest,
+  InpaintingRetouchResult,
+  InpaintingRevertRequest,
+  InpaintingRevertResult,
   ImportPreviewResult,
   JobEvent,
   LocalModelPickResult,
@@ -49,6 +57,8 @@ import type {
   ModelTestResult,
   RegionAnalysisRequest,
   RegionAnalysisResult,
+  StartInpaintingRequest,
+  StartInpaintingResult,
   StartAnalysisRequest,
   StartAnalysisResult,
   TranslationBlock,
@@ -88,6 +98,7 @@ process.on("unhandledRejection", (reason) => {
 let mainWindow: BrowserWindow | null = null;
 type ActiveJob = {
   id: string;
+  kind: JobEvent["kind"];
   abortController: AbortController;
   cleanup?: () => Promise<void>;
   lastEvent?: JobEvent;
@@ -544,7 +555,7 @@ function registerIpc(): void {
     const pageIds = resolved.pages.map((page) => page.id);
     let runPaths: Awaited<ReturnType<typeof getRunPaths>> | null = null;
     await markChapterPagesRunning(request.chapterId, pageIds);
-    activeJob = { id, abortController };
+    activeJob = { id, kind: "gemma-analysis", abortController };
 
     const emit = (event: JobEvent) => {
       if (activeJob?.id === id) {
@@ -687,7 +698,7 @@ function registerIpc(): void {
     const id = randomUUID();
     const abortController = new AbortController();
     let runPaths: Awaited<ReturnType<typeof getRunPaths>> | null = null;
-    activeJob = { id, abortController };
+    activeJob = { id, kind: "gemma-analysis", abortController };
 
     const emit = (event: JobEvent) => {
       if (activeJob?.id === id) {
@@ -842,6 +853,239 @@ function registerIpc(): void {
     }
   });
 
+  ipcMain.handle("job:start-inpainting", async (_event, request: StartInpaintingRequest): Promise<StartInpaintingResult> => {
+    if (activeJob) {
+      return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
+    }
+
+    const chapter = await openChapter(request.chapterId);
+    const pages =
+      request.mode === "page-solid"
+        ? chapter.pages.filter((page) => page.id === request.pageId)
+        : chapter.pages;
+
+    if (pages.length === 0) {
+      return { status: "failed", chapter, error: "인페인팅할 페이지를 찾지 못했습니다." };
+    }
+
+    const id = randomUUID();
+    const abortController = new AbortController();
+    activeJob = { id, kind: "inpainting", abortController };
+    let lamaEngine: LamaInpaintingEngine | null = null;
+
+    const emit = (event: JobEvent) => {
+      if (activeJob?.id === id) {
+        activeJob.lastEvent = event;
+      }
+      writeLog(event.status === "failed" ? "error" : event.status === "cancelled" ? "warn" : "info", `job:${event.kind}:${event.status}`, {
+        id: event.id,
+        progressText: event.progressText,
+        phase: event.phase,
+        progressCurrent: event.progressCurrent,
+        progressTotal: event.progressTotal,
+        pageIndex: event.pageIndex,
+        pageTotal: event.pageTotal,
+        detail: event.detail
+      });
+      mainWindow?.webContents.send("job:event", event);
+    };
+
+    try {
+      const totalSolidBlocks = pages.reduce((count, page) => count + page.blocks.filter((block) => block.type === "solid").length, 0);
+      emit({
+        id,
+        kind: "inpainting",
+        status: "starting",
+        progressText: "단색 배경 지우기 준비 중",
+        phase: "inpainting_preparing",
+        progressCurrent: 0,
+        progressTotal: pages.length,
+        pageTotal: pages.length,
+        detail: `${pages.length}페이지, ${totalSolidBlocks}개 블록`
+      });
+
+      let blocksErased = 0;
+      const changedPages: MangaPage[] = [];
+      if (totalSolidBlocks > 0) {
+        lamaEngine = await prepareLamaInpaintingEngine({
+          modelDir: join(appPaths.dataRoot, "models", "inpainting", "lama-manga-onnx"),
+          signal: abortController.signal,
+          onProgress: (progress) =>
+            emit({
+              id,
+              kind: "inpainting",
+              status: "starting",
+              progressText: progress.progressText,
+              phase: "model_downloading",
+              progressCurrent: 0,
+              progressTotal: pages.length,
+              pageTotal: pages.length,
+              detail: progress.detail,
+              progressMode: progress.progressMode,
+              progressPercent: progress.progressPercent,
+              progressBytes: progress.progressBytes,
+              progressTotalBytes: progress.progressTotalBytes,
+              installLogLine: progress.installLogLine
+            })
+        });
+      }
+      for (const [pageIndex, page] of pages.entries()) {
+        if (abortController.signal.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+
+        emit({
+          id,
+          kind: "inpainting",
+          status: "running",
+          progressText: `${pageIndex + 1} / ${pages.length} 페이지 단색 배경 지우는 중`,
+          phase: "inpainting_running",
+          progressCurrent: pageIndex + 1,
+          progressTotal: pages.length,
+          pageIndex: pageIndex + 1,
+          pageTotal: pages.length,
+          detail: `${page.name} · ${page.blocks.filter((block) => block.type === "solid").length}개 블록`
+        });
+
+        const result = await inpaintSolidPage(page, {
+          signal: abortController.signal,
+          decodeFallback: decodeImageThroughRuntime,
+          lamaEngine: lamaEngine ?? undefined
+        });
+        if (result.blocksErased > 0) {
+          changedPages.push(result.page);
+          blocksErased += result.blocksErased;
+        }
+
+        emit({
+          id,
+          kind: "inpainting",
+          status: "running",
+          progressText: `${pageIndex + 1} / ${pages.length} 페이지 단색 배경 완료`,
+          phase: "inpainting_done",
+          progressCurrent: pageIndex + 1,
+          progressTotal: pages.length,
+          pageIndex: pageIndex + 1,
+          pageTotal: pages.length,
+          detail: `${result.blocksErased}개 블록`
+        });
+      }
+
+      const saved = changedPages.length > 0 ? await updatePagesAfterInpainting(request.chapterId, changedPages) : await openChapter(request.chapterId);
+      emit({
+        id,
+        kind: "inpainting",
+        status: "completed",
+        progressText: "단색 배경 지우기 완료",
+        phase: "done",
+        progressCurrent: pages.length,
+        progressTotal: pages.length,
+        pageTotal: pages.length,
+        detail: `${pages.length}페이지, ${blocksErased}개 블록`
+      });
+
+      return {
+        status: "completed",
+        chapter: saved,
+        pagesChanged: changedPages.length,
+        blocksErased
+      };
+    } catch (error) {
+      const lastEvent = activeJob?.id === id ? activeJob.lastEvent : undefined;
+      if (isAbortError(error) || abortController.signal.aborted) {
+        emit({
+          id,
+          kind: "inpainting",
+          status: "cancelled",
+          progressText: "인페인팅 작업이 취소되었습니다.",
+          phase: "cancelled",
+          progressCurrent: lastEvent?.progressCurrent,
+          progressTotal: lastEvent?.progressTotal,
+          pageIndex: lastEvent?.pageIndex,
+          pageTotal: lastEvent?.pageTotal
+        });
+        return { status: "cancelled", chapter: await openChapter(request.chapterId) };
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      logError("Inpainting job failed", { jobId: id, request, lastEvent, error });
+      emit({
+        id,
+        kind: "inpainting",
+        status: "failed",
+        progressText: "인페인팅 작업 실패",
+        phase: "failed",
+        progressCurrent: lastEvent?.progressCurrent,
+        progressTotal: lastEvent?.progressTotal,
+        pageIndex: lastEvent?.pageIndex,
+        pageTotal: lastEvent?.pageTotal,
+        detail: message
+      });
+      return {
+        status: "failed",
+        error: message,
+        chapter: await openChapter(request.chapterId)
+      };
+    } finally {
+      if (lamaEngine) {
+        await lamaEngine.dispose().catch((error) => logError("Failed to dispose LaMA inpainting session", { error }));
+      }
+      if (activeJob?.id === id) {
+        activeJob = null;
+      }
+    }
+  });
+
+  ipcMain.handle("inpainting:apply-retouch", async (_event, request: InpaintingRetouchRequest): Promise<InpaintingRetouchResult> => {
+    const chapter = await openChapter(request.chapterId);
+    const page = chapter.pages.find((candidate) => candidate.id === request.pageId);
+    if (!page) {
+      throw new Error("리터치할 페이지를 찾지 못했습니다.");
+    }
+    const nextPage = await applyInpaintingRetouch(page, {
+      mode: request.mode,
+      points: request.points,
+      radiusPx: request.radiusPx,
+      color: request.color,
+      decodeFallback: decodeImageThroughRuntime
+    });
+    const saved = await updatePagesAfterInpainting(request.chapterId, [nextPage]);
+    return {
+      chapter: saved,
+      pageId: request.pageId
+    };
+  });
+
+  ipcMain.handle("inpainting:revert", async (_event, request: InpaintingRevertRequest): Promise<InpaintingRevertResult> => {
+    const chapter = await openChapter(request.chapterId);
+    const pages =
+      request.scope === "page"
+        ? chapter.pages.filter((page) => page.id === request.pageId && page.inpaintedImagePath)
+        : chapter.pages.filter((page) => page.inpaintedImagePath);
+    if (pages.length === 0) {
+      return {
+        chapter,
+        pagesChanged: 0
+      };
+    }
+    const reverted = pages.map((page) => ({
+      ...page,
+      inpaintedImagePath: undefined,
+      updatedAt: new Date().toISOString()
+    }));
+    const saved = await updatePagesAfterInpainting(request.chapterId, reverted);
+    return {
+      chapter: saved,
+      pagesChanged: reverted.length
+    };
+  });
+
+  ipcMain.handle("inpainting:sample-color", async (_event, request: InpaintingColorSampleRequest): Promise<InpaintingColorSampleResult> => {
+    return {
+      color: await sampleImageColor(request.imagePath, request.x, request.y, decodeImageThroughRuntime)
+    };
+  });
+
   ipcMain.handle("job:cancel", async () => {
     if (!activeJob) {
       return { cancelled: false };
@@ -850,7 +1094,7 @@ function registerIpc(): void {
     const job = activeJob;
     mainWindow?.webContents.send("job:event", {
       id: job.id,
-      kind: "gemma-analysis",
+      kind: job.kind,
       status: "cancelling",
       progressText: "작업 취소 중",
       progressCurrent: job.lastEvent?.progressCurrent,
@@ -881,6 +1125,14 @@ function loadSimplePageRuntime(): SimplePageRuntime {
 
   cachedSimplePageRuntime = require(join(appPaths.runtimeDir, "simple-page-translate.cjs")) as SimplePageRuntime;
   return cachedSimplePageRuntime;
+}
+
+async function decodeImageThroughRuntime(filePath: string): Promise<Buffer | null> {
+  const runtime = loadSimplePageRuntime();
+  if (!runtime.convertImageToPngBufferWithFfmpeg) {
+    return null;
+  }
+  return runtime.convertImageToPngBufferWithFfmpeg(filePath);
 }
 
 function detectSiblingMmprojPath(modelPath: string): string | null {

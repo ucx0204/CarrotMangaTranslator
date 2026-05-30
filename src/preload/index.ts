@@ -5,6 +5,12 @@ import type {
   CreateImportRequest,
   CreateImportResult,
   ImportPreviewResult,
+  InpaintingColorSampleRequest,
+  InpaintingColorSampleResult,
+  InpaintingRetouchRequest,
+  InpaintingRetouchResult,
+  InpaintingRevertRequest,
+  InpaintingRevertResult,
   JobEvent,
   LibraryIndex,
   LocalModelPickResult,
@@ -12,6 +18,8 @@ import type {
   ModelTestResult,
   RegionAnalysisRequest,
   RegionAnalysisResult,
+  StartInpaintingRequest,
+  StartInpaintingResult,
   StartAnalysisRequest,
   StartAnalysisResult,
   WorkShareExportRequest,
@@ -55,6 +63,12 @@ const api = {
     ipcRenderer.invoke("logs:write", level, message, detail),
   startAnalysis: (request: StartAnalysisRequest): Promise<StartAnalysisResult> => ipcRenderer.invoke("job:start-analysis", request),
   translateRegion: (request: RegionAnalysisRequest): Promise<RegionAnalysisResult> => ipcRenderer.invoke("job:translate-region", request),
+  startInpainting: (request: StartInpaintingRequest): Promise<StartInpaintingResult> => ipcRenderer.invoke("job:start-inpainting", request),
+  applyInpaintingRetouch: (request: InpaintingRetouchRequest): Promise<InpaintingRetouchResult> =>
+    ipcRenderer.invoke("inpainting:apply-retouch", request),
+  revertInpainting: (request: InpaintingRevertRequest): Promise<InpaintingRevertResult> => ipcRenderer.invoke("inpainting:revert", request),
+  sampleInpaintingColor: (request: InpaintingColorSampleRequest): Promise<InpaintingColorSampleResult> =>
+    ipcRenderer.invoke("inpainting:sample-color", request),
   cancelJob: () => ipcRenderer.invoke("job:cancel"),
   onJobEvent: (callback: (event: JobEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: JobEvent) => callback(payload);

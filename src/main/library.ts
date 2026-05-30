@@ -282,6 +282,9 @@ export async function deletePage(chapterId: string, pageId: string): Promise<Cha
   await touchWork(locator.workId, chapter.updatedAt);
 
   await safeUnlink(target.imagePath);
+  if (target.inpaintedImagePath) {
+    await safeUnlink(target.inpaintedImagePath);
+  }
   await removePageArtifacts(locator.workId, locator.chapterId, pageId);
 
   return hydrateChapter(chapter);
@@ -477,7 +480,8 @@ export async function exportWorkShareToFile(
       zip.addFile(packageImagePath, await readFile(page.imagePath));
       packagePages.push({
         ...page,
-        imagePath: packageImagePath
+        imagePath: packageImagePath,
+        inpaintedImagePath: undefined
       });
       pageCount += 1;
     }
@@ -642,6 +646,35 @@ export async function updatePagesAfterAnalysis(chapterId: string, pages: MangaPa
   });
   chapter.updatedAt = now;
   chapter.status = resolveChapterStatus(chapter.pages);
+  await writeChapterFile(chapter);
+  await touchWork(locator.workId, now);
+  return hydrateChapter(chapter);
+}
+
+export async function updatePagesAfterInpainting(chapterId: string, pages: MangaPage[]): Promise<ChapterSnapshot> {
+  const locator = await findChapterLocation(chapterId);
+  if (!locator) {
+    throw new Error("화를 찾지 못했습니다.");
+  }
+  const chapter = await readChapterFile(locator.workId, locator.chapterId);
+  if (!chapter) {
+    throw new Error("화를 찾지 못했습니다.");
+  }
+
+  const pageMap = new Map(pages.map((page) => [page.id, page]));
+  const now = new Date().toISOString();
+  chapter.pages = chapter.pages.map((record) => {
+    const next = pageMap.get(record.id);
+    if (!next) {
+      return record;
+    }
+    return {
+      ...record,
+      inpaintedImagePath: next.inpaintedImagePath,
+      updatedAt: now
+    };
+  });
+  chapter.updatedAt = now;
   await writeChapterFile(chapter);
   await touchWork(locator.workId, now);
   return hydrateChapter(chapter);
@@ -929,6 +962,7 @@ async function materializeSharedChapter({
       ...packagePage,
       id: pageId,
       imagePath: outputPath,
+      inpaintedImagePath: undefined,
       width: size.width || packagePage.width || 1000,
       height: size.height || packagePage.height || 1400,
       blocks: packagePage.blocks.map((block, blockIndex) => ({

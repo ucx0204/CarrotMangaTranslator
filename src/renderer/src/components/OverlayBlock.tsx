@@ -11,6 +11,7 @@ type OverlayBlockProps = {
   selected: boolean;
   showChrome: boolean;
   highlightType: TranslationBlock["type"] | null;
+  pointerDisabled?: boolean;
   onPointerDown: (event: React.PointerEvent) => void;
   onResizePointerDown: (event: React.PointerEvent) => void;
 };
@@ -22,6 +23,7 @@ export function OverlayBlock({
   selected,
   showChrome,
   highlightType,
+  pointerDisabled = false,
   onPointerDown,
   onResizePointerDown
 }: OverlayBlockProps): React.JSX.Element | null {
@@ -33,6 +35,7 @@ export function OverlayBlock({
   const layout = resolveBlockTextLayout(block, displayText, pageSize, stageSize);
   const textOutlineShadow = resolveTextOutlineShadow(layout.fontSizePx, resolveCssColor(block.outlineColor, "#ffffff"));
   const visualStyle = resolveBlockVisualStyle(block.type);
+  const pendingPattern = showChrome && highlightType === "solid" && block.type === "nonsolid";
   const style: React.CSSProperties = {
     left: layout.rect.left,
     top: layout.rect.top,
@@ -40,8 +43,9 @@ export function OverlayBlock({
     height: layout.rect.height,
     boxSizing: "border-box",
     padding: layout.paddingPx,
-    overflow: "hidden",
+    overflow: "visible",
     color: block.textColor,
+    borderWidth: showChrome ? 2 : 0,
     borderColor: showChrome ? visualStyle.borderColor : "transparent",
     backgroundColor: showChrome ? hexToRgba(visualStyle.backgroundColor, block.opacity) : "transparent",
     fontFamily: resolveBlockFontFamily(block.fontFamily),
@@ -49,7 +53,8 @@ export function OverlayBlock({
     lineHeight: block.lineHeight,
     textAlign: block.textAlign,
     transform: block.rotationDeg ? `rotate(${block.rotationDeg}deg)` : undefined,
-    transformOrigin: "center center"
+    transformOrigin: "center center",
+    pointerEvents: pointerDisabled ? "none" : undefined
   };
   const textWrapStyle: React.CSSProperties = {
     boxSizing: "border-box",
@@ -58,7 +63,7 @@ export function OverlayBlock({
     height: layout.innerHeight,
     maxHeight: "100%",
     justifyContent: "center",
-    overflow: "hidden"
+    overflow: "visible"
   };
   const contentStyle: React.CSSProperties = {
     boxSizing: "border-box",
@@ -68,6 +73,7 @@ export function OverlayBlock({
     height: block.renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
     maxWidth: "100%",
     maxHeight: "100%",
+    overflow: "visible",
     textShadow: textOutlineShadow
   };
 
@@ -78,22 +84,26 @@ export function OverlayBlock({
         `block-${block.type}`,
         selected ? "selected" : "",
         showChrome ? "" : "chrome-hidden",
-        highlightType && block.type === highlightType ? "highlight-target" : "",
-        highlightType && block.type !== highlightType ? "highlight-dimmed" : "",
-        layout.overflow ? "overflowing" : ""
+        showChrome && highlightType && block.type === highlightType ? "highlight-target" : "",
+        showChrome && highlightType && block.type !== highlightType ? "highlight-dimmed" : "",
+        pendingPattern ? "pattern-pending" : ""
       ]
         .filter(Boolean)
         .join(" ")}
       style={style}
-      title={layout.overflow ? "현재 render box보다 번역문이 길어서 넘칩니다." : undefined}
-      onPointerDown={onPointerDown}
+      onPointerDown={pointerDisabled ? undefined : onPointerDown}
     >
       <div className="overlay-text" style={textWrapStyle}>
         <span className="overlay-text-content" style={contentStyle}>
           {displayText}
         </span>
       </div>
-      {selected ? <button className="resize-handle" onPointerDown={onResizePointerDown} aria-label="Resize" /> : null}
+      {selected && !pointerDisabled ? <button className="resize-handle" onPointerDown={onResizePointerDown} aria-label="Resize" /> : null}
+      {pendingPattern ? (
+        <div className="pattern-pending-marker" aria-hidden="true">
+          <span>다음 단계에서 처리</span>
+        </div>
+      ) : null}
     </div>
   );
 }
