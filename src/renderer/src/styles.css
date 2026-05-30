@@ -15,6 +15,14 @@
 }
 
 @font-face {
+  font-family: "MGT Chosun Gungseo";
+  src: url("./assets/fonts/chosun-gungseo.ttf") format("truetype");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: "MGT Nanum Gothic";
   src: url("./assets/fonts/nanum-gothic-light.ttf") format("truetype");
   font-weight: 300;
@@ -696,6 +704,19 @@ textarea {
   color: #b8b1a6;
 }
 
+.area-translate-button {
+  min-height: 44px;
+  border-color: #4b8d7d;
+  background: #275f54;
+  color: #fbf5eb;
+  font-weight: 800;
+}
+
+.area-translate-button.active {
+  border-color: #d49a5c;
+  background: #6f4b27;
+}
+
 .block-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -986,6 +1007,10 @@ textarea {
   touch-action: none;
 }
 
+.image-stage.selecting-region {
+  cursor: crosshair;
+}
+
 .page-image {
   display: block;
   width: auto;
@@ -1031,6 +1056,16 @@ textarea {
 .overlay-block.overflowing {
   outline: 2px dashed #ff9b5d;
   outline-offset: 2px;
+}
+
+.region-selection-box {
+  position: absolute;
+  z-index: 12;
+  pointer-events: none;
+  border: 2px solid #70dcc9;
+  border-radius: 3px;
+  background: rgba(95, 200, 173, 0.16);
+  box-shadow: 0 0 0 1px rgba(9, 15, 22, 0.72), 0 0 0 9999px rgba(5, 7, 10, 0.18);
 }
 
 .overlay-text {

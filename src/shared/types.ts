@@ -273,6 +273,17 @@ export type StartAnalysisResult = {
   error?: string;
 };
 
+export type RegionAnalysisRequest = {
+  chapterId: string;
+  pageId: string;
+  bbox: BBox;
+};
+
+export type RegionAnalysisResult = StartAnalysisResult & {
+  pageId?: string;
+  blockIds?: string[];
+};
+
 export type WorkShareExportRequest = {
   workId: string;
   chapterIds: string[];

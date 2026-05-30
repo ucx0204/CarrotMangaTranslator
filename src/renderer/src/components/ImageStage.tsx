@@ -1,5 +1,5 @@
 import React from "react";
-import type { MangaPage, TranslationBlock } from "../../../shared/types";
+import type { BBox, MangaPage, TranslationBlock } from "../../../shared/types";
 import type { ViewportSize } from "../lib/overlayLayout";
 import { OverlayBlock } from "./OverlayBlock";
 
@@ -10,9 +10,11 @@ type ImageStageProps = {
   stageRef: React.RefObject<HTMLDivElement | null>;
   stageSize: ViewportSize | null;
   selectedBlockId: string | null;
+  regionSelectionActive: boolean;
+  regionSelectionRect: BBox | null;
   onStagePointerMove: (event: React.PointerEvent) => void;
   onStagePointerUp: (event: React.PointerEvent) => void;
-  onStagePointerDown: () => void;
+  onStagePointerDown: (event: React.PointerEvent) => void;
   onBlockPointerDown: (event: React.PointerEvent, block: TranslationBlock, mode: "move" | "resize") => void;
 };
 
@@ -23,6 +25,8 @@ export function ImageStage({
   stageRef,
   stageSize,
   selectedBlockId,
+  regionSelectionActive,
+  regionSelectionRect,
   onStagePointerMove,
   onStagePointerUp,
   onStagePointerDown,
@@ -32,7 +36,7 @@ export function ImageStage({
     <div className="stage-wrap">
       <div
         ref={stageRef}
-        className="image-stage"
+        className={`image-stage ${regionSelectionActive ? "selecting-region" : ""}`}
         onPointerMove={onStagePointerMove}
         onPointerUp={onStagePointerUp}
         onPointerCancel={onStagePointerUp}
@@ -58,6 +62,17 @@ export function ImageStage({
               />
             ))
           : null}
+        {imageDataUrl && stageSize && regionSelectionActive && regionSelectionRect ? (
+          <div
+            className="region-selection-box"
+            style={{
+              left: `${(regionSelectionRect.x / 1000) * stageSize.width}px`,
+              top: `${(regionSelectionRect.y / 1000) * stageSize.height}px`,
+              width: `${(regionSelectionRect.w / 1000) * stageSize.width}px`,
+              height: `${(regionSelectionRect.h / 1000) * stageSize.height}px`
+            }}
+          />
+        ) : null}
       </div>
     </div>
   );

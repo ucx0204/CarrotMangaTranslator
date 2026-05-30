@@ -15,6 +15,7 @@ type PipelineOptions = {
   runPaths: ChapterRunPaths;
   emit: (event: JobEvent) => void;
   signal: AbortSignal;
+  skipOcrPrepass?: boolean;
   onCleanupReady?: (cleanup: () => Promise<void>) => void;
   onPageComplete?: (page: MangaPage) => Promise<void>;
   onPageFailed?: (page: MangaPage, errorMessage: string) => Promise<void>;
@@ -135,7 +136,6 @@ const DEFAULT_TEXT_COLOR = "#111111";
 const DEFAULT_OUTLINE_COLOR = "#ffffff";
 const DEFAULT_BACKGROUND_COLOR = "#fffdf5";
 const CROP_RETRY_CONFIDENCE_THRESHOLD = 0.72;
-const CROP_RETRY_OCR_SCORE_THRESHOLD = 0.6;
 const CROP_RETRY_MAX_ITEMS_PER_PAGE = 8;
 const CROP_RETRY_MIN_SIDE_PX = 192;
 const CROP_RETRY_MIN_MARGIN_PX = 64;
@@ -149,7 +149,8 @@ export async function runWholePagePipeline({
   onPageFailed,
   pages,
   runPaths,
-  signal
+  signal,
+  skipOcrPrepass = false
 }: PipelineOptions): Promise<{ pages: MangaPage[]; warnings: string[] }> {
   if (pages.length === 0) {
     return { pages: [], warnings: [] };
@@ -175,17 +176,31 @@ export async function runWholePagePipeline({
     settings: summarizeTranslationOptions(baseOptions)
   });
 
-  emit({
-    id: jobId,
-    kind: "gemma-analysis",
-    status: "starting",
-    progressText: "Paddle OCR 선분석 준비 중",
-    phase: "ocr_preparing",
-    progressCurrent: 0,
-    progressTotal,
-    pageTotal: pages.length,
-    detail: "대상 페이지의 OCR 후보 좌표를 먼저 준비합니다."
-  });
+  if (skipOcrPrepass) {
+    emit({
+      id: jobId,
+      kind: "gemma-analysis",
+      status: "starting",
+      progressText: "AI 직접 분석 준비 중",
+      phase: "booting",
+      progressCurrent: 0,
+      progressTotal,
+      pageTotal: pages.length,
+      detail: "선택 영역은 Paddle OCR 선분석 없이 모델이 직접 텍스트 그룹을 찾습니다."
+    });
+  } else {
+    emit({
+      id: jobId,
+      kind: "gemma-analysis",
+      status: "starting",
+      progressText: "Paddle OCR 선분석 준비 중",
+      phase: "ocr_preparing",
+      progressCurrent: 0,
+      progressTotal,
+      pageTotal: pages.length,
+      detail: "대상 페이지의 OCR 후보 좌표를 먼저 준비합니다."
+    });
+  }
 
   baseOptions.onProgress = (progress) => {
     emit({
@@ -208,15 +223,24 @@ export async function runWholePagePipeline({
   };
   baseOptions.abortSignal = signal;
 
-  const ocrHintsByPageId = await prepareOcrHintsForPages({
-    runtime,
-    baseOptions,
-    pages,
-    runPaths,
-    emit,
-    jobId,
-    signal
-  });
+  const ocrHintsByPageId = skipOcrPrepass
+    ? new Map<string, OcrBboxResult>()
+    : await prepareOcrHintsForPages({
+        runtime,
+        baseOptions,
+        pages,
+        runPaths,
+        emit,
+        jobId,
+        signal
+      });
+
+  if (skipOcrPrepass) {
+    logInfo("OCR prepass skipped for analysis pipeline", {
+      jobId,
+      pageCount: pages.length
+    });
+  }
 
   throwIfAborted(signal);
 
@@ -310,7 +334,14 @@ export async function runWholePagePipeline({
 
   const buildRequestPageOptions = (page: MangaPage, pageIndex: number, attempt: number): TranslationOptions => {
     const pageOptions = buildPageOptions(baseOptions, page, pageIndex, attempt);
-    pageOptions.ocrBboxHints = ocrHintsByPageId.get(page.id)?.hints ?? [];
+    if (skipOcrPrepass) {
+      pageOptions.skipOcrBboxHints = true;
+      pageOptions.regionCropMode = true;
+      pageOptions.ocrBboxProvider = "none";
+      delete pageOptions.ocrBboxHints;
+    } else {
+      pageOptions.ocrBboxHints = ocrHintsByPageId.get(page.id)?.hints ?? [];
+    }
     pageOptions.abortSignal = signal;
     pageOptions.onProgress = (progress) => {
       emit({
@@ -430,7 +461,6 @@ export async function runWholePagePipeline({
             pageOptions,
             page,
             items: normalizedItems,
-            ocrHints: getOcrBboxHints(result.requestBody),
             emit,
             jobId,
             pageIndex: index + 1,
@@ -841,7 +871,6 @@ type CropRetryContext = {
   pageOptions: TranslationOptions;
   page: MangaPage;
   items: OverlayItem[];
-  ocrHints: NonNullable<RequestSummary["ocrBboxHints"]>;
   emit: PipelineOptions["emit"];
   jobId: string;
   pageIndex: number;
@@ -855,7 +884,6 @@ async function maybeRetryLowConfidenceItems({
   pageOptions,
   page,
   items,
-  ocrHints,
   emit,
   jobId,
   pageIndex,
@@ -866,7 +894,7 @@ async function maybeRetryLowConfidenceItems({
     return items;
   }
 
-  const targets = selectCropRetryTargets(items, page, ocrHints);
+  const targets = selectCropRetryTargets(items, page);
   if (targets.length === 0) {
     return items;
   }
@@ -900,7 +928,7 @@ async function maybeRetryLowConfidenceItems({
     const retryItems = runtime.overlayTools.parseRetryItems(result.outputText);
     await mkdir(retryOptions.outputDir, { recursive: true });
     await writeFile(join(retryOptions.outputDir, "crop-retry-items.json"), `${JSON.stringify({ items: retryItems }, null, 2)}\n`, "utf8");
-    return mergeCropRetryItems(items, retryItems, ocrHints);
+    return mergeCropRetryItems(items, retryItems);
   } catch (error) {
     logWarn("Crop retry failed; keeping first-pass overlay items", {
       pageId: page.id,
@@ -914,19 +942,10 @@ async function maybeRetryLowConfidenceItems({
 
 function selectCropRetryTargets(
   items: OverlayItem[],
-  page: MangaPage,
-  ocrHints: NonNullable<RequestSummary["ocrBboxHints"]>
+  page: MangaPage
 ): CropRetryTarget[] {
-  const hintById = new Map<number, NonNullable<RequestSummary["ocrBboxHints"]>[number]>();
-  for (const hint of ocrHints) {
-    const id = Number(hint.id);
-    if (Number.isFinite(id)) {
-      hintById.set(id, hint);
-    }
-  }
-
   return items
-    .filter((item) => shouldRetryCropItem(item, hintById.get(item.id)))
+    .filter((item) => shouldRetryCropItem(item))
     .slice(0, CROP_RETRY_MAX_ITEMS_PER_PAGE)
     .map((item) => ({
       id: item.id,
@@ -942,7 +961,7 @@ function selectCropRetryTargets(
     }));
 }
 
-function shouldRetryCropItem(item: OverlayItem, hint?: NonNullable<RequestSummary["ocrBboxHints"]>[number]): boolean {
+function shouldRetryCropItem(item: OverlayItem): boolean {
   const confidence = normalizeConfidence(item.confidence, Number.NaN);
   if (Number.isFinite(confidence) && confidence < CROP_RETRY_CONFIDENCE_THRESHOLD) {
     return true;
@@ -952,8 +971,7 @@ function shouldRetryCropItem(item: OverlayItem, hint?: NonNullable<RequestSummar
     return true;
   }
 
-  const ocrScore = normalizeConfidence(hint?.score, Number.NaN);
-  return Number.isFinite(ocrScore) && ocrScore < CROP_RETRY_OCR_SCORE_THRESHOLD;
+  return false;
 }
 
 function buildExpandedCropBox(bbox: BBox, page: MangaPage): BBox {
@@ -983,17 +1001,9 @@ function buildExpandedCropBox(bbox: BBox, page: MangaPage): BBox {
 
 function mergeCropRetryItems(
   items: OverlayItem[],
-  retryItems: Array<Omit<OverlayItem, "bbox">>,
-  ocrHints: NonNullable<RequestSummary["ocrBboxHints"]>
+  retryItems: Array<Omit<OverlayItem, "bbox">>
 ): OverlayItem[] {
   const retryById = new Map(retryItems.map((item) => [item.id, item]));
-  const hintById = new Map<number, NonNullable<RequestSummary["ocrBboxHints"]>[number]>();
-  for (const hint of ocrHints) {
-    const id = Number(hint.id);
-    if (Number.isFinite(id)) {
-      hintById.set(id, hint);
-    }
-  }
 
   const merged: OverlayItem[] = [];
   for (const item of items) {
@@ -1012,7 +1022,7 @@ function mergeCropRetryItems(
       continue;
     }
 
-    const baseHadProblem = shouldRetryCropItem(item, hintById.get(item.id));
+    const baseHadProblem = shouldRetryCropItem(item);
     const retryConfidence = normalizeConfidence(retry.confidence, Number.NaN);
     const baseConfidence = normalizeConfidence(item.confidence, Number.NaN);
     if (!baseHadProblem && Number.isFinite(retryConfidence) && Number.isFinite(baseConfidence) && retryConfidence + 0.02 < baseConfidence) {

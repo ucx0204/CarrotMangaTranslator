@@ -5,17 +5,35 @@ import { BLOCK_FONT_OPTIONS, normalizeBlockFontFamily, resolveBlockFontFamily, r
 type EditorPanelProps = {
   block: TranslationBlock | null;
   disabled: boolean;
+  areaTranslateAvailable?: boolean;
+  areaTranslateSelecting?: boolean;
+  onStartAreaTranslate?: () => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
 };
 
-export function EditorPanel({ block, disabled, onUpdate, onDelete, onDuplicate }: EditorPanelProps): React.JSX.Element {
+export function EditorPanel({
+  block,
+  disabled,
+  areaTranslateAvailable = false,
+  areaTranslateSelecting = false,
+  onStartAreaTranslate,
+  onUpdate,
+  onDelete,
+  onDuplicate
+}: EditorPanelProps): React.JSX.Element {
   if (!block) {
     return (
       <section className="editor-panel muted">
         <h2>블록</h2>
-        <p>블록을 선택하면 문구와 배치 방향을 바로 조정할 수 있습니다.</p>
+        <button
+          className={`area-translate-button ${areaTranslateSelecting ? "active" : ""}`}
+          disabled={disabled || !areaTranslateAvailable}
+          onClick={onStartAreaTranslate}
+        >
+          {areaTranslateSelecting ? "선택 취소" : "영역 번역"}
+        </button>
       </section>
     );
   }

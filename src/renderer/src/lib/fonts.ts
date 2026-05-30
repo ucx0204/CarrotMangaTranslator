@@ -29,6 +29,12 @@ export const BLOCK_FONT_OPTIONS: BlockFontOption[] = [
     sample: "온글잎 박다현"
   },
   {
+    id: "chosun-gungseo",
+    label: "조선궁서체",
+    cssFamily: '"MGT Chosun Gungseo", "Malgun Gothic", serif',
+    sample: "조선궁서체"
+  },
+  {
     id: "nanum-gothic",
     label: "나눔고딕",
     cssFamily: '"MGT Nanum Gothic", "Malgun Gothic", sans-serif',

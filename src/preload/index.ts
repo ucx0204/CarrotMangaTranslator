@@ -10,6 +10,8 @@ import type {
   LocalModelPickResult,
   ModelTestProgressEvent,
   ModelTestResult,
+  RegionAnalysisRequest,
+  RegionAnalysisResult,
   StartAnalysisRequest,
   StartAnalysisResult,
   WorkShareExportRequest,
@@ -53,6 +55,7 @@ const api = {
   writeLog: (level: "debug" | "info" | "warn" | "error", message: string, detail?: unknown) =>
     ipcRenderer.invoke("logs:write", level, message, detail),
   startAnalysis: (request: StartAnalysisRequest): Promise<StartAnalysisResult> => ipcRenderer.invoke("job:start-analysis", request),
+  translateRegion: (request: RegionAnalysisRequest): Promise<RegionAnalysisResult> => ipcRenderer.invoke("job:translate-region", request),
   cancelJob: () => ipcRenderer.invoke("job:cancel"),
   onJobEvent: (callback: (event: JobEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: JobEvent) => callback(payload);

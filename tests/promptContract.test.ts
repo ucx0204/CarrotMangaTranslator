@@ -22,7 +22,8 @@ describe("prompt contracts", () => {
     expect(runtimeSource).toContain("bboxCoordinateSpace");
     expect(runtimeSource).toContain("Use exactly these keys, one per line: id, type, x1, y1, x2, y2, direction, angle, fontSize, confidence, jp, ko.");
     expect(runtimeSource).toContain("confidence is your confidence from 0.00 to 1.00");
-    expect(runtimeSource).toContain("You are re-reading only the low-confidence manga translation items listed below.");
+    expect(runtimeSource).toContain("You are directly OCR-reading and translating only the low-confidence manga crop images listed below.");
+    expect(runtimeSource).toContain("The crop image itself is the authority.");
     expect(runtimeSource).toContain("OCR bbox candidates");
     expect(runtimeSource).toContain("low-trust OCR text hints for slot matching only");
     expect(runtimeSource).toContain("Use Image 1 as the authority");

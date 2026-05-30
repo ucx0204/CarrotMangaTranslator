@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "preview": "npm run build && node scripts/preview.cjs",
-    "smoke:overlay": "npm run build && node scripts/run-smoke-overlay.cjs"
+    "smoke:overlay": "npm run build && node scripts/run-smoke-overlay.cjs",
+    "perf:gemma-economy": "npm run build && node scripts/run-gemma-economy-benchmark.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

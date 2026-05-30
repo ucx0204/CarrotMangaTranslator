@@ -202,8 +202,10 @@ describe("app settings helpers", () => {
     expect(options.cacheTypeK).toBe("q4_0");
     expect(options.cacheTypeV).toBe("q4_0");
     expect(options.ctxCheckpoints).toBe(0);
-    expect(options.kvOffload).toBe(false);
+    expect(options.kvOffload).toBe(true);
     expect(options.mmprojOffload).toBe(false);
+    expect(options.enableMetrics).toBe(true);
+    expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(false);
     expect(options.mmprojRepo).toBeUndefined();
     expect(options.mmprojFile).toBeUndefined();
@@ -252,8 +254,10 @@ describe("app settings helpers", () => {
     expect(options.cacheTypeK).toBe("q4_0");
     expect(options.cacheTypeV).toBe("q4_0");
     expect(options.ctxCheckpoints).toBe(0);
-    expect(options.kvOffload).toBe(false);
+    expect(options.kvOffload).toBe(true);
     expect(options.mmprojOffload).toBe(false);
+    expect(options.enableMetrics).toBe(true);
+    expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(false);
     expect(options.fitTargetMb).toBe(1024);
     expect(options.imageMinTokens).toBe(1024);
@@ -284,6 +288,8 @@ describe("app settings helpers", () => {
     expect(options.cacheTypeV).toBe("q4_0");
     expect(options.ctxCheckpoints).toBe(0);
     expect(options.mmprojOffload).toBe(false);
+    expect(options.enableMetrics).toBe(true);
+    expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(true);
     expect(options.draftModelRepo).toBeTruthy();
     expect(options.draftModelFile).toBeTruthy();

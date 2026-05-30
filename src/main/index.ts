@@ -1,6 +1,7 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, shell } from "electron";
 import { randomUUID } from "node:crypto";
 import { existsSync, readdirSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { dirname, extname, join } from "node:path";
 import { ensureWritableAppDirectories } from "./appPaths";
@@ -43,16 +44,21 @@ import type {
   ImportPreviewResult,
   JobEvent,
   LocalModelPickResult,
+  MangaPage,
   ModelTestProgressEvent,
   ModelTestResult,
+  RegionAnalysisRequest,
+  RegionAnalysisResult,
   StartAnalysisRequest,
   StartAnalysisResult,
+  TranslationBlock,
   WorkShareExportRequest,
   WorkShareExportResult,
   WorkShareImportRequest,
   WorkShareImportResult,
   WorkShareImportPreview
 } from "../shared/types";
+import { isUsableRegionBbox, mapCropNormalizedBboxToPageBbox, normalizedRegionToPixelRect, type PixelRect } from "../shared/region";
 
 const appPaths = ensureWritableAppDirectories();
 resetAppLog();
@@ -93,6 +99,7 @@ type SimplePageRuntime = {
   startServer: (options: Record<string, unknown>) => Promise<{ baseUrl: string; child: unknown; startedByScript: boolean }>;
   stopServer: (server: { child: unknown } | null | undefined) => Promise<void>;
   isModelCached: (options: Record<string, unknown>) => boolean;
+  convertImageToPngBufferWithFfmpeg?: (filePath: string) => Promise<Buffer>;
   testModelReply: (server: { baseUrl: string }, options: Record<string, unknown>) => Promise<{
     outputText: string;
     launchTarget: { launchMode: "huggingface" | "cached-hf" | "local" | "openai-codex"; modelPath?: string | null; mmprojPath?: string | null };
@@ -178,6 +185,86 @@ async function runJobCleanup(job: ActiveJob, reason: string): Promise<void> {
   } catch (error) {
     logError("Analysis runtime cleanup failed", { jobId: job.id, reason, error });
   }
+}
+
+async function createRegionCropPage(page: MangaPage, bbox: RegionAnalysisRequest["bbox"], jobId: string, runDir: string): Promise<{
+  cropPage: MangaPage;
+  cropRect: PixelRect;
+}> {
+  if (!isUsableRegionBbox(bbox)) {
+    throw new Error("번역할 영역이 너무 작습니다.");
+  }
+
+  const source = await loadImageForRegionCrop(page.imagePath);
+
+  const cropRect = normalizedRegionToPixelRect(bbox, { width: page.width, height: page.height }, 8);
+  const crop = source.crop({
+    x: cropRect.x,
+    y: cropRect.y,
+    width: cropRect.w,
+    height: cropRect.h
+  });
+  if (crop.isEmpty()) {
+    throw new Error("선택 영역 이미지를 만들지 못했습니다.");
+  }
+
+  const cropDir = join(runDir, "region-crops");
+  await mkdir(cropDir, { recursive: true });
+  const cropPath = join(cropDir, `${page.id}-${jobId}.png`);
+  await writeFile(cropPath, crop.toPNG());
+
+  return {
+    cropRect,
+    cropPage: {
+      ...page,
+      id: `${page.id}-region-${jobId}`,
+      name: `${page.name} 선택 영역`,
+      imagePath: cropPath,
+      dataUrl: "",
+      width: cropRect.w,
+      height: cropRect.h,
+      blocks: [],
+      analysisStatus: "idle",
+      lastError: undefined
+    }
+  };
+}
+
+async function loadImageForRegionCrop(imagePath: string): Promise<Electron.NativeImage> {
+  if (extname(imagePath).toLowerCase() === ".webp") {
+    const runtime = loadSimplePageRuntime();
+    if (runtime.convertImageToPngBufferWithFfmpeg) {
+      const pngBuffer = await runtime.convertImageToPngBufferWithFfmpeg(imagePath);
+      const converted = nativeImage.createFromBuffer(pngBuffer);
+      if (!converted.isEmpty()) {
+        logInfo("Region crop decoded webp through png conversion", { imagePath });
+        return converted;
+      }
+    }
+    throw new Error("WEBP 이미지를 PNG로 변환하지 못했습니다.");
+  }
+
+  const direct = nativeImage.createFromPath(imagePath);
+  if (!direct.isEmpty()) {
+    return direct;
+  }
+
+  throw new Error("선택한 페이지 이미지를 읽지 못했습니다.");
+}
+
+function mapRegionBlocksToPageBlocks(blocks: TranslationBlock[], page: MangaPage, cropRect: PixelRect): TranslationBlock[] {
+  const pageSize = { width: page.width, height: page.height };
+  return blocks.map((block) => {
+    const id = `${page.id}-region-block-${randomUUID()}`;
+    return {
+      ...block,
+      id,
+      bbox: mapCropNormalizedBboxToPageBbox(cropRect, pageSize, block.bbox),
+      renderBbox: block.renderBbox ? mapCropNormalizedBboxToPageBbox(cropRect, pageSize, block.renderBbox) : undefined,
+      bboxSpace: "normalized_1000",
+      renderBboxSpace: block.renderBbox ? "normalized_1000" : undefined
+    };
+  });
 }
 
 function registerIpc(): void {
@@ -596,6 +683,175 @@ function registerIpc(): void {
     } finally {
       if (activeJob?.id === id) {
         await runJobCleanup(activeJob, "job-finished");
+        activeJob = null;
+      }
+    }
+  });
+
+  ipcMain.handle("job:translate-region", async (_event, request: RegionAnalysisRequest): Promise<RegionAnalysisResult> => {
+    if (activeJob) {
+      return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
+    }
+
+    const chapter = await openChapter(request.chapterId);
+    const page = chapter.pages.find((candidate) => candidate.id === request.pageId);
+    if (!page) {
+      return { status: "failed", chapter, error: "선택한 페이지를 찾지 못했습니다." };
+    }
+
+    const id = randomUUID();
+    const abortController = new AbortController();
+    let runPaths: Awaited<ReturnType<typeof getRunPaths>> | null = null;
+    activeJob = { id, abortController };
+
+    const emit = (event: JobEvent) => {
+      if (activeJob?.id === id) {
+        activeJob.lastEvent = event;
+      }
+      writeLog(event.status === "failed" ? "error" : event.status === "cancelled" ? "warn" : "info", `job:${event.kind}:${event.status}`, {
+        id: event.id,
+        progressText: event.progressText,
+        phase: event.phase,
+        progressCurrent: event.progressCurrent,
+        progressTotal: event.progressTotal,
+        progressMode: event.progressMode,
+        progressPercent: event.progressPercent,
+        progressBytes: event.progressBytes,
+        progressTotalBytes: event.progressTotalBytes,
+        progressBytesPerSecond: event.progressBytesPerSecond,
+        installLogLine: event.installLogLine,
+        pageIndex: event.pageIndex,
+        pageTotal: event.pageTotal,
+        attempt: event.attempt,
+        attemptTotal: event.attemptTotal,
+        detail: event.detail
+      });
+      mainWindow?.webContents.send("job:event", event);
+    };
+
+    try {
+      runPaths = await getRunPaths(request.chapterId, id);
+      const { cropPage, cropRect } = await createRegionCropPage(page, request.bbox, id, runPaths.runDir);
+      emit({
+        id,
+        kind: "gemma-analysis",
+        status: "starting",
+        progressText: "선택 영역 번역 준비 중",
+        phase: "booting",
+        progressCurrent: 0,
+        progressTotal: 1,
+        pageTotal: 1,
+        detail: `${Math.round(cropRect.w)} x ${Math.round(cropRect.h)} px`
+      });
+
+      const result = await runWholePagePipeline({
+        jobId: id,
+        emit,
+        onCleanupReady: (cleanup) => {
+          if (activeJob?.id === id) {
+            activeJob.cleanup = cleanup;
+          }
+        },
+        pages: [cropPage],
+        runPaths,
+        signal: abortController.signal,
+        skipOcrPrepass: true
+      });
+
+      if (abortController.signal.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+
+      const analyzedCrop = result.pages[0];
+      const mappedBlocks = analyzedCrop ? mapRegionBlocksToPageBlocks(analyzedCrop.blocks, page, cropRect) : [];
+      const latest = await openChapter(request.chapterId);
+      const now = new Date().toISOString();
+      const nextChapter: typeof latest = {
+        ...latest,
+        pages: latest.pages.map((candidate) =>
+          candidate.id === request.pageId
+            ? {
+                ...candidate,
+                blocks: [...candidate.blocks, ...mappedBlocks],
+                analysisStatus: "completed",
+                lastError: undefined,
+                updatedAt: now
+              }
+            : candidate
+        ),
+        updatedAt: now
+      };
+      const saved = await saveChapterSnapshot(nextChapter);
+
+      emit({
+        id,
+        kind: "gemma-analysis",
+        status: "completed",
+        progressText: "선택 영역 번역 완료",
+        phase: "done",
+        progressCurrent: 1,
+        progressTotal: 1,
+        pageTotal: 1,
+        detail: `${mappedBlocks.length}개 블록`
+      });
+
+      return {
+        status: "completed",
+        chapter: saved,
+        warnings: result.warnings,
+        pageId: request.pageId,
+        blockIds: mappedBlocks.map((block) => block.id)
+      };
+    } catch (error) {
+      const lastEvent = activeJob?.id === id ? activeJob.lastEvent : undefined;
+      if (isAbortError(error) || abortController.signal.aborted) {
+        emit({
+          id,
+          kind: "gemma-analysis",
+          status: "cancelled",
+          progressText: "작업이 취소되었습니다.",
+          phase: "cancelled",
+          progressCurrent: lastEvent?.progressCurrent,
+          progressTotal: lastEvent?.progressTotal,
+          pageIndex: lastEvent?.pageIndex,
+          pageTotal: lastEvent?.pageTotal,
+          attempt: lastEvent?.attempt,
+          attemptTotal: lastEvent?.attemptTotal
+        });
+        return { status: "cancelled", chapter: await openChapter(request.chapterId), pageId: request.pageId };
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      logError("Region translation job failed", {
+        jobId: id,
+        request,
+        runPaths,
+        lastEvent,
+        error
+      });
+      emit({
+        id,
+        kind: "gemma-analysis",
+        status: "failed",
+        progressText: "작업 실패",
+        phase: "failed",
+        progressCurrent: lastEvent?.progressCurrent,
+        progressTotal: lastEvent?.progressTotal,
+        pageIndex: lastEvent?.pageIndex,
+        pageTotal: lastEvent?.pageTotal,
+        attempt: lastEvent?.attempt,
+        attemptTotal: lastEvent?.attemptTotal,
+        detail: message
+      });
+      return {
+        status: "failed",
+        error: message,
+        chapter: await openChapter(request.chapterId),
+        pageId: request.pageId
+      };
+    } finally {
+      if (activeJob?.id === id) {
+        await runJobCleanup(activeJob, "region-job-finished");
         activeJob = null;
       }
     }

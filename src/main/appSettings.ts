@@ -45,6 +45,15 @@ type GemmaRuntimePreset = {
   ctxCheckpoints?: number;
   kvOffload?: boolean;
   mmprojOffload?: boolean;
+  threads?: number;
+  threadsBatch?: number;
+  poll?: number;
+  pollBatch?: boolean;
+  prioBatch?: number;
+  cacheIdleSlots?: boolean;
+  cacheReuse?: number;
+  enableMetrics?: boolean;
+  enablePerf?: boolean;
   draftModelRepo?: string;
   draftModelFile?: string;
   useDraft?: boolean;
@@ -60,6 +69,8 @@ const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> = {
     cacheTypeV: "q4_0",
     ctxCheckpoints: 0,
     mmprojOffload: false,
+    enableMetrics: true,
+    enablePerf: true,
     draftModelRepo: DEFAULT_GEMMA_DRAFT_MODEL_REPO,
     draftModelFile: DEFAULT_GEMMA_DRAFT_MODEL_FILE,
     useDraft: true
@@ -72,8 +83,10 @@ const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> = {
     cacheTypeK: "q4_0",
     cacheTypeV: "q4_0",
     ctxCheckpoints: 0,
-    kvOffload: false,
+    kvOffload: true,
     mmprojOffload: false,
+    enableMetrics: true,
+    enablePerf: true,
     useDraft: false
   }
 };
@@ -102,6 +115,15 @@ export type TranslationOptions = {
   ctxCheckpoints?: number;
   kvOffload?: boolean;
   mmprojOffload?: boolean;
+  threads?: number;
+  threadsBatch?: number;
+  poll?: number;
+  pollBatch?: boolean;
+  prioBatch?: number;
+  cacheIdleSlots?: boolean;
+  cacheReuse?: number;
+  enableMetrics?: boolean;
+  enablePerf?: boolean;
   draftModelRepo?: string;
   draftModelFile?: string;
   useDraft?: boolean;
@@ -131,6 +153,8 @@ export type TranslationOptions = {
   ocrBboxCommand?: string;
   ocrBboxHintsPath?: string;
   ocrBboxHints?: unknown;
+  skipOcrBboxHints?: boolean;
+  regionCropMode?: boolean;
   ocrPageIndex?: number;
   ocrPageTotal?: number;
   ocrProgressDefaultToPage?: boolean;
@@ -323,6 +347,42 @@ export function buildBaseTranslationOptions({
     kvOffload: readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_KV_OFFLOAD") ?? gemmaRuntimePreset.kvOffload,
     mmprojOffload:
       readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_MMPROJ_OFFLOAD") ?? gemmaRuntimePreset.mmprojOffload,
+    threads:
+      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_THREADS") ??
+      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_THREADS") ??
+      gemmaRuntimePreset.threads,
+    threadsBatch:
+      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_THREADS_BATCH") ??
+      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_THREADS_BATCH") ??
+      gemmaRuntimePreset.threadsBatch,
+    poll:
+      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_POLL") ??
+      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_POLL") ??
+      gemmaRuntimePreset.poll,
+    pollBatch:
+      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_GEMMA_POLL_BATCH") ??
+      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_POLL_BATCH") ??
+      gemmaRuntimePreset.pollBatch,
+    prioBatch:
+      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_PRIO_BATCH") ??
+      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_PRIO_BATCH") ??
+      gemmaRuntimePreset.prioBatch,
+    cacheIdleSlots:
+      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_GEMMA_CACHE_IDLE_SLOTS") ??
+      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_CACHE_IDLE_SLOTS") ??
+      gemmaRuntimePreset.cacheIdleSlots,
+    cacheReuse:
+      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_CACHE_REUSE") ??
+      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_CACHE_REUSE") ??
+      gemmaRuntimePreset.cacheReuse,
+    enableMetrics:
+      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_GEMMA_METRICS") ??
+      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_METRICS") ??
+      gemmaRuntimePreset.enableMetrics,
+    enablePerf:
+      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_GEMMA_PERF") ??
+      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_PERF") ??
+      gemmaRuntimePreset.enablePerf,
     draftModelRepo:
       resolveOptionalString(env.MANGA_TRANSLATOR_DRAFT_MODEL_HF) ?? gemmaRuntimePreset.draftModelRepo,
     draftModelFile:

@@ -1,5 +1,5 @@
 const { spawn } = require("node:child_process");
-const { createWriteStream, existsSync, readFileSync, readdirSync, statSync, writeFileSync } = require("node:fs");
+const { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } = require("node:fs");
 const { mkdir, readFile, rename, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
@@ -23,6 +23,10 @@ const MM_PROJ_CANDIDATE_NAMES = ["mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-
 const CROP_RETRY_MIN_SIDE_PX = 192;
 const CROP_RETRY_MIN_MARGIN_PX = 64;
 const CROP_RETRY_MARGIN_RATIO = 0.5;
+
+function nowMs() {
+  return typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+}
 
 function truncateText(value, maxLength = MAX_LOG_PREVIEW_LENGTH) {
   const text = String(value ?? "");
@@ -65,6 +69,15 @@ function buildOptionSummary(options = {}) {
     ctxCheckpoints: options.ctxCheckpoints,
     kvOffload: options.kvOffload,
     mmprojOffload: options.mmprojOffload,
+    threads: options.threads,
+    threadsBatch: options.threadsBatch,
+    poll: options.poll,
+    pollBatch: options.pollBatch,
+    prioBatch: options.prioBatch,
+    cacheIdleSlots: options.cacheIdleSlots,
+    cacheReuse: options.cacheReuse,
+    enableMetrics: options.enableMetrics,
+    enablePerf: options.enablePerf,
     useDraft: Boolean(options.useDraft),
     draftModelRepo: resolveConfiguredDraftModelRepo(options),
     draftModelFile: resolveConfiguredDraftModelFile(options),
@@ -1032,19 +1045,31 @@ const OVERLAY_PROMPT_SECTIONS = [
 
 const PROMPT_KO_BBOX_LINES_MULTIVIEW = buildOverlayPrompt();
 
-function buildSystemPrompt() {
-  return [
+function buildSystemPrompt(options = {}) {
+  const lines = [
     "You are an OCR and manga-translation engine.",
     "Return only the machine-readable record format requested by the user prompt.",
     "Geometry accuracy comes before Korean text fit: preserve the original Japanese glyph position and apparent size.",
     "Never merge separate speech bubbles, including touching or stacked balloon lobes.",
     "For SFX records, output bare Korean effect lettering only; do not wrap it in parentheses/brackets/quotes or turn it into a stage direction."
-  ].join("\n\n");
+  ];
+
+  if (options.regionCropMode) {
+    lines.push(
+      "Selected-region mode: group by visual text container, not by line or column. One speech bubble or one caption plate is one item even when the Japanese is split across multiple vertical columns or lines."
+    );
+  }
+
+  return lines.join("\n\n");
 }
 
 function buildOverlayPrompt(options = {}, imageVariants = []) {
   const sections = OVERLAY_PROMPT_SECTIONS.map(([title, ...lines]) => [title, ...lines]);
-  sections[0] = buildTaskSection(imageVariants);
+  sections[0] = buildTaskSection(options, imageVariants);
+  const regionCropSection = buildRegionCropSection(options);
+  if (regionCropSection.length > 1) {
+    sections.splice(1, 0, regionCropSection);
+  }
   const coordinateSection = buildCoordinateCalibrationSection(options, imageVariants);
   if (coordinateSection.length > 1) {
     sections.splice(2, 0, coordinateSection);
@@ -1064,21 +1089,43 @@ function getOverlayPrompt(options = {}, imageVariants = []) {
   return buildOverlayPrompt(options, imageVariants);
 }
 
-function buildTaskSection(imageVariants = []) {
+function buildTaskSection(options = {}, imageVariants = []) {
   const hasAssistImages = imageVariants.length > 1;
+  const regionCropMode = Boolean(options.regionCropMode);
   return [
     "Task",
     hasAssistImages
       ? "You are given the same Japanese manga page in multiple full-page renderings."
-      : "You are given one full-page Japanese manga image.",
+      : regionCropMode
+        ? "You are given one user-selected crop from a Japanese manga page."
+        : "You are given one full-page Japanese manga image.",
     hasAssistImages
       ? "Image 1 is the coordinate-authority full page. Assist images are only for reading the same page."
-      : "Image 1 is the coordinate-authority full page.",
+      : regionCropMode
+        ? "Image 1 is the coordinate-authority selected crop."
+        : "Image 1 is the coordinate-authority full page.",
     "Detect every visible Japanese text group and translate it into concise Korean.",
     "Scan the entire page before writing records; do not stop after the first obvious text.",
     "First identify the exact Japanese glyph strokes for each item, then write the record. Do not estimate from the speech bubble or panel shape.",
     "Before reading dialogue text, segment the visible speech balloons themselves. Each distinct balloon lobe and each separated dialogue text cluster becomes a separate dialogue record.",
     "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text."
+  ];
+}
+
+function buildRegionCropSection(options = {}) {
+  if (!options.regionCropMode) {
+    return [];
+  }
+
+  return [
+    "Selected region grouping",
+    "This image is a crop selected by the user, so there may be one speech bubble, part of one bubble, multiple bubbles, captions, or SFX inside it.",
+    "Do not treat the whole crop as one text item. Create multiple records only for multiple visually separate containers: separate speech bubbles/lobes, separate caption plates, or separate SFX glyph groups.",
+    "If the crop contains one speech bubble or one caption plate, output exactly one record for all readable Japanese in that container.",
+    "Inside one speech bubble, never split by Japanese vertical column, text line, word, sentence fragment, punctuation gap, or line break.",
+    "For vertical dialogue in one bubble, jp must include all columns in natural Japanese reading order, and ko must be one coherent Korean translation for that bubble.",
+    "Only split a dialogue item when there is a visible separate speech bubble/lobe or clearly separate dialogue container, not merely because columns are separated by blank paper.",
+    "The bbox for that one record should tightly cover the union of all visible Japanese glyph ink belonging to the same bubble/caption, not the whole bubble paper."
   ];
 }
 
@@ -1790,18 +1837,17 @@ function buildCropRetryPrompt(targets = []) {
     return [
       `target ${target.id}: cropImage:${cropImageIndex}`,
       `type:${target.type || "dialogue"} direction:${target.direction || "horizontal"} angle:${Number.isFinite(Number(target.angle)) ? target.angle : 0} fontSize:${Number.isFinite(Number(target.fontSize)) ? target.fontSize : ""} confidence:${confidence}`,
-      bbox,
-      `jp:${String(target.jp || "").replace(/\s+/g, " ").trim()}`,
-      `ko:${String(target.ko || "").replace(/\s+/g, " ").trim()}`
+      bbox
     ].join(" ");
   });
 
   return [
     "# Task",
-    "You are re-reading only the low-confidence manga translation items listed below.",
+    "You are directly OCR-reading and translating only the low-confidence manga crop images listed below.",
     "Image 1 is the full page for context only. Each following image is an expanded crop for exactly one target id.",
     "Do not detect new text, do not output extra ids, and do not change any bbox geometry.",
-    "For each target, use its crop image to correct only that same id's source OCR and Korean translation.",
+    "For each target, ignore any previous model OCR/translation. The crop image itself is the authority.",
+    "Read all real Japanese text inside that crop for the same target id, then translate it naturally into Korean.",
     "",
     "# Output",
     "Return plain text records only. Do not output JSON, markdown, bullets, commentary, or code fences.",
@@ -1845,7 +1891,7 @@ async function buildCropRetryVariants(options, targets = [], sourceSize = {}) {
     });
   }
 
-  const image = nativeImage.createFromPath(options.imagePath);
+  const image = await loadNativeImageForCropping(nativeImage, options.imagePath);
   if (!image || image.isEmpty()) {
     throw createDetailedError("Electron nativeImage could not decode source image for crop retry.", {
       imagePath: options.imagePath,
@@ -1883,6 +1929,15 @@ async function buildCropRetryVariants(options, targets = [], sourceSize = {}) {
     });
   }
   return variants;
+}
+
+async function loadNativeImageForCropping(nativeImage, filePath) {
+  if (mimeFromPath(filePath) === "image/webp") {
+    const pngBuffer = await convertImageToPngBufferWithFfmpeg(filePath);
+    return nativeImage.createFromBuffer(pngBuffer);
+  }
+
+  return nativeImage.createFromPath(filePath);
 }
 
 function normalizeCropBox(box, pageWidth, pageHeight) {
@@ -1995,6 +2050,10 @@ function isTruthy(value) {
 
 async function collectOcrBboxHints(options = {}) {
   const diagnostics = [];
+  if (options.skipOcrBboxHints) {
+    return buildOcrBboxResult([], [{ provider: "disabled", reason: "skipOcrBboxHints" }], { noTextDetected: false });
+  }
+
   const inlineHints = normalizeOcrBboxHintPayload(options.ocrBboxHints, options);
   if (Object.prototype.hasOwnProperty.call(options, "ocrBboxHints")) {
     return buildOcrBboxResult(inlineHints, [{
@@ -3568,6 +3627,33 @@ function buildLaunchArgs(options) {
   if (useBeellamaGemmaLaunch) {
     args.push("--kv-unified", "--jinja", "--no-mmap", "--mlock", "--no-host");
   }
+  if (typeof options.threads === "number" && Number.isFinite(options.threads) && options.threads > 0) {
+    args.push("--threads", String(Math.round(options.threads)));
+  }
+  if (typeof options.threadsBatch === "number" && Number.isFinite(options.threadsBatch) && options.threadsBatch > 0) {
+    args.push("--threads-batch", String(Math.round(options.threadsBatch)));
+  }
+  if (typeof options.poll === "number" && Number.isFinite(options.poll)) {
+    args.push("--poll", String(Math.max(0, Math.min(100, Math.round(options.poll)))));
+  }
+  if (typeof options.pollBatch === "boolean") {
+    args.push("--poll-batch", options.pollBatch ? "1" : "0");
+  }
+  if (typeof options.prioBatch === "number" && Number.isFinite(options.prioBatch)) {
+    args.push("--prio-batch", String(Math.max(0, Math.min(3, Math.round(options.prioBatch)))));
+  }
+  if (typeof options.cacheIdleSlots === "boolean") {
+    args.push(options.cacheIdleSlots ? "--cache-idle-slots" : "--no-cache-idle-slots");
+  }
+  if (typeof options.cacheReuse === "number" && Number.isFinite(options.cacheReuse) && options.cacheReuse >= 0) {
+    args.push("--cache-reuse", String(Math.round(options.cacheReuse)));
+  }
+  if (options.enableMetrics === true) {
+    args.push("--metrics");
+  }
+  if (typeof options.enablePerf === "boolean") {
+    args.push(options.enablePerf ? "--perf" : "--no-perf");
+  }
 
   if (options.cacheTypeK) {
     args.push("--cache-type-k", String(options.cacheTypeK));
@@ -3590,6 +3676,13 @@ function buildLaunchArgs(options) {
   if (typeof options.imageMaxTokens === "number" && Number.isFinite(options.imageMaxTokens)) {
     args.push("--image-max-tokens", String(options.imageMaxTokens));
   }
+  if (Array.isArray(options.extraArgs)) {
+    for (const arg of options.extraArgs) {
+      if (typeof arg === "string" && arg.trim()) {
+        args.push(arg.trim());
+      }
+    }
+  }
   args.push("--log-timestamps", "--log-prefix", "--log-colors", "off");
 
   return args;
@@ -3603,6 +3696,9 @@ function resolveDraftModelRepoArg(options = {}) {
 }
 
 function resolveGpuLayersArg(options = {}) {
+  if (options.forceGpuLayersArg !== undefined && options.forceGpuLayersArg !== null) {
+    return String(options.forceGpuLayersArg);
+  }
   if (options.gpuLayers === "all") {
     return "all";
   }
@@ -3685,6 +3781,7 @@ async function startServer(options) {
     launchTarget = inspectModelLaunch(options);
   }
   const launchArgs = buildLaunchArgs(options);
+  const serverLogStream = createServerLogStream(options, serverPath, launchArgs);
   emitRuntimeProgress(options, "booting", "Gemma 서버 시작 중", `${resolveConfiguredModelFile(options)} 로드 중`, {
     progressMode: "indeterminate",
     installLogLine: "llama-server를 시작합니다."
@@ -3705,14 +3802,18 @@ async function startServer(options) {
   child.stderr?.setEncoding("utf8");
   child.stdout?.on("data", (chunk) => {
     recentStdout = shrinkBuffer(recentStdout, chunk);
+    serverLogStream?.write(`[stdout] ${chunk}`);
     emitServerInstallLog(options, chunk);
     process.stdout.write(`[llama:${options.label}:stdout] ${chunk}`);
   });
   child.stderr?.on("data", (chunk) => {
     recentStderr = shrinkBuffer(recentStderr, chunk);
+    serverLogStream?.write(`[stderr] ${chunk}`);
     emitServerInstallLog(options, chunk);
     process.stderr.write(`[llama:${options.label}:stderr] ${chunk}`);
   });
+  child.once("exit", () => serverLogStream?.end());
+  child.once("error", () => serverLogStream?.end());
 
   try {
     await Promise.race([
@@ -3766,7 +3867,24 @@ async function startServer(options) {
     abortSignal?.removeEventListener?.("abort", onAbort);
   }
 
-  return { baseUrl, child, startedByScript: true };
+  return { baseUrl, child, startedByScript: true, serverLogPath: options.serverLogPath };
+}
+
+function createServerLogStream(options, serverPath, launchArgs) {
+  const logPath = String(options.serverLogPath ?? "").trim();
+  if (!logPath) {
+    return null;
+  }
+  try {
+    mkdirSync(path.dirname(logPath), { recursive: true });
+    const stream = createWriteStream(logPath, { flags: "a" });
+    stream.write(`# ${new Date().toISOString()}\n`);
+    stream.write(`# serverPath=${serverPath}\n`);
+    stream.write(`# launchArgs=${launchArgs.join(" ")}\n`);
+    return stream;
+  } catch {
+    return null;
+  }
 }
 
 function emitServerInstallLog(options = {}, chunk) {
@@ -3806,6 +3924,7 @@ async function stopServer(server) {
 }
 
 async function requestTranslation(server, options) {
+  const requestStartedAt = nowMs();
   const ocrBboxResult = await collectOcrBboxHints(options);
   const promptOptions = {
     ...options,
@@ -3875,6 +3994,11 @@ async function requestTranslation(server, options) {
 
   let rawText = "";
   rawText = await readResponseText(response, requestSummary, promptOptions);
+  requestSummary.performance = {
+    wallMs: Math.round(nowMs() - requestStartedAt),
+    provider: resolveProviderDisplayName(promptOptions),
+    measuredAt: new Date().toISOString()
+  };
 
   if (!response.ok) {
     throw createDetailedError(`${resolveProviderDisplayName(promptOptions)} request failed (${response.status}).`, {
@@ -4314,6 +4438,15 @@ async function saveArtifacts(options, result) {
       ctxCheckpoints: options.ctxCheckpoints,
       kvOffload: options.kvOffload,
       mmprojOffload: options.mmprojOffload,
+      threads: options.threads,
+      threadsBatch: options.threadsBatch,
+      poll: options.poll,
+      pollBatch: options.pollBatch,
+      prioBatch: options.prioBatch,
+      cacheIdleSlots: options.cacheIdleSlots,
+      cacheReuse: options.cacheReuse,
+      enableMetrics: options.enableMetrics,
+      enablePerf: options.enablePerf,
       modelProvider: resolveModelProvider(options),
       modelSource: resolveConfiguredModelSource(options),
       modelRepo: resolveConfiguredModelRepo(options),
@@ -4353,6 +4486,7 @@ module.exports = {
   collectRequiredHfDownloads,
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
+  convertImageToPngBufferWithFfmpeg,
   enhanceBitmapBuffer,
   extractModelOutputText,
   getOverlayPrompt,

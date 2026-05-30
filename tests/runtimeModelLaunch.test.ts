@@ -297,6 +297,25 @@ describe("runtime model launch helpers", () => {
     expect(prompt).not.toContain("Find one anchor point");
   });
 
+  it("uses container-level grouping for selected-region crop translation", () => {
+    const prompt = getOverlayPrompt(
+      {
+        regionCropMode: true,
+        skipOcrBboxHints: true,
+        imageWidth: 420,
+        imageHeight: 320
+      },
+      [{ role: "original", dataUrl: "data:image/png;base64,abc123", width: 420, height: 320, originalWidth: 420, originalHeight: 320 }]
+    );
+
+    expect(prompt).toContain("You are given one user-selected crop from a Japanese manga page.");
+    expect(prompt).toContain("# Selected region grouping");
+    expect(prompt).toContain("Do not treat the whole crop as one text item.");
+    expect(prompt).toContain("If the crop contains one speech bubble or one caption plate, output exactly one record");
+    expect(prompt).toContain("Inside one speech bubble, never split by Japanese vertical column, text line, word, sentence fragment, punctuation gap, or line break.");
+    expect(prompt).toContain("jp must include all columns in natural Japanese reading order");
+  });
+
   it("normalizes bbox hint JSON with low-trust OCR text", async () => {
     const dir = createTempDir("ocr-hints-");
     const hintPath = join(dir, "hints.json");
@@ -434,7 +453,10 @@ describe("runtime model launch helpers", () => {
       cacheTypeK: "q4_0",
       cacheTypeV: "q4_0",
       ctxCheckpoints: 0,
+      kvOffload: true,
       mmprojOffload: false,
+      enableMetrics: true,
+      enablePerf: true,
       imageMinTokens: 1024,
       imageMaxTokens: 1024,
       modelRepo: DEFAULT_31B_REPO,
@@ -456,6 +478,9 @@ describe("runtime model launch helpers", () => {
       "0"
     ]);
     expect(args).toContain("--no-mmproj-offload");
+    expect(args).toContain("--metrics");
+    expect(args).toContain("--perf");
+    expect(args).toContain("--kv-offload");
     expect(args).toContain("--kv-unified");
     expect(args).toContain("--jinja");
     expect(args).toContain("--no-mmap");
@@ -491,6 +516,46 @@ describe("runtime model launch helpers", () => {
     expect(args.slice(args.indexOf("--min-p"), args.indexOf("--min-p") + 2)).toEqual(["--min-p", "0.0"]);
   });
 
+  it("passes economy performance tuning launch options when explicitly configured", () => {
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 1024,
+      gpuLayers: 30,
+      ctx: 8192,
+      batch: 1024,
+      ubatch: 1024,
+      cacheTypeK: "q4_0",
+      cacheTypeV: "q4_0",
+      threadsBatch: 16,
+      poll: 100,
+      pollBatch: true,
+      prioBatch: 2,
+      cacheIdleSlots: false,
+      cacheReuse: 128,
+      enableMetrics: true,
+      enablePerf: false,
+      modelRepo: DEFAULT_31B_REPO,
+      modelFile: DEFAULT_31B_FILE,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE
+    });
+
+    expect(args.slice(args.indexOf("--threads-batch"), args.indexOf("--threads-batch") + 2)).toEqual([
+      "--threads-batch",
+      "16"
+    ]);
+    expect(args.slice(args.indexOf("--poll"), args.indexOf("--poll") + 2)).toEqual(["--poll", "100"]);
+    expect(args.slice(args.indexOf("--poll-batch"), args.indexOf("--poll-batch") + 2)).toEqual(["--poll-batch", "1"]);
+    expect(args.slice(args.indexOf("--prio-batch"), args.indexOf("--prio-batch") + 2)).toEqual(["--prio-batch", "2"]);
+    expect(args).toContain("--no-cache-idle-slots");
+    expect(args.slice(args.indexOf("--cache-reuse"), args.indexOf("--cache-reuse") + 2)).toEqual([
+      "--cache-reuse",
+      "128"
+    ]);
+    expect(args).toContain("--metrics");
+    expect(args).toContain("--no-perf");
+  });
+
   it("passes the full VRAM smoke DFlash draft options to llama-server", () => {
     const args = buildLaunchArgs({
       port: 18180,
@@ -503,6 +568,8 @@ describe("runtime model launch helpers", () => {
       cacheTypeV: "q4_0",
       ctxCheckpoints: 0,
       mmprojOffload: false,
+      enableMetrics: true,
+      enablePerf: true,
       useDraft: true,
       draftModelRepo: DEFAULT_DRAFT_REPO,
       draftModelFile: DEFAULT_DRAFT_FILE,
@@ -515,6 +582,8 @@ describe("runtime model launch helpers", () => {
     });
 
     expect(args).toContain("--no-mmproj-offload");
+    expect(args).toContain("--metrics");
+    expect(args).toContain("--perf");
     expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
       "-ngl",
       "all"

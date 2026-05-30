@@ -21,6 +21,7 @@ import {
   offsetBlockBboxes,
   resolveEditableBlockBbox
 } from "../../shared/geometry";
+import { isUsableRegionBbox } from "../../shared/region";
 import { EditorPanel } from "./components/EditorPanel";
 import { ImageStage } from "./components/ImageStage";
 import { InstallProgressOverlay } from "./components/InstallProgressOverlay";
@@ -57,6 +58,19 @@ type DragState = {
   startBbox: BBox;
 };
 
+type RegionSelectionState = {
+  active: boolean;
+  dragging: boolean;
+  start: {
+    x: number;
+    y: number;
+  };
+  current: {
+    x: number;
+    y: number;
+  };
+};
+
 type RenameTarget =
   | {
       kind: "work";
@@ -75,6 +89,7 @@ export default function App(): React.JSX.Element {
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedPageImageDataUrl, setSelectedPageImageDataUrl] = useState("");
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [regionSelection, setRegionSelection] = useState<RegionSelectionState | null>(null);
   const [jobState, setJobState] = useState<JobState>(EMPTY_JOB);
   const [statusLines, setStatusLines] = useState<string[]>([]);
   const [translationSourceOpen, setTranslationSourceOpen] = useState(false);
@@ -118,6 +133,7 @@ export default function App(): React.JSX.Element {
   const stageSize = useStageSize(imageRef, selectedPageSize, selectedPageImageDataUrl);
   const progressSnapshot = useMemo(() => resolveProgressSnapshot(jobState), [jobState]);
   const showProgressBar = jobState.status !== "idle" && !!progressSnapshot;
+  const regionSelectionRect = useMemo(() => (regionSelection ? regionSelectionToBbox(regionSelection) : null), [regionSelection]);
 
   const refreshLibrary = useCallback(async () => {
     const next = await window.mangaApi.getLibrary();
@@ -151,6 +167,10 @@ export default function App(): React.JSX.Element {
   React.useEffect(() => {
     selectedBlockIdRef.current = selectedBlockId;
   }, [selectedBlockId]);
+
+  React.useEffect(() => {
+    setRegionSelection(null);
+  }, [selectedPage?.id]);
 
   React.useEffect(() => {
     pageImageCacheRef.current.clear();
@@ -574,6 +594,77 @@ export default function App(): React.JSX.Element {
     [currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow]
   );
 
+  const startRegionTranslationSelection = useCallback(() => {
+    if (!selectedPage || !selectedPageImageDataUrl || jobActive) {
+      return;
+    }
+
+    if (regionSelection?.active) {
+      setRegionSelection(null);
+      pushStatus("영역 번역 선택을 취소했습니다.");
+      return;
+    }
+
+    setSelectedBlockId(null);
+    setRegionSelection({
+      active: true,
+      dragging: false,
+      start: { x: 0, y: 0 },
+      current: { x: 0, y: 0 }
+    });
+    pushStatus("번역할 영역을 드래그하세요.");
+  }, [jobActive, pushStatus, regionSelection?.active, selectedPage, selectedPageImageDataUrl]);
+
+  const translateSelectedRegion = useCallback(
+    async (bbox: BBox) => {
+      if (!currentChapter || !selectedPage || jobActive) {
+        return;
+      }
+      if (!isUsableRegionBbox(bbox, 10)) {
+        pushStatus("선택 영역이 너무 작습니다.");
+        return;
+      }
+
+      await saveNow();
+      setStatusLines([]);
+      setJobState({
+        id: "pending",
+        kind: "gemma-analysis",
+        status: "starting",
+        progressText: "선택 영역 번역 준비 중",
+        phase: "booting",
+        progressCurrent: 0,
+        progressTotal: 1,
+        pageIndex: 1,
+        pageTotal: 1
+      });
+
+      const result = await window.mangaApi.translateRegion({
+        chapterId: currentChapter.id,
+        pageId: selectedPage.id,
+        bbox
+      });
+      if (result.chapter) {
+        mergeLiveChapter(result.chapter);
+      }
+      await refreshLibrary();
+
+      if (result.status === "completed") {
+        if (result.blockIds?.[0]) {
+          setSelectedBlockId(result.blockIds[0]);
+        }
+        const warningSummary = summarizeWarnings(result.warnings ?? []);
+        pushStatus(warningSummary || `선택 영역에서 ${result.blockIds?.length ?? 0}개 블록을 만들었습니다.`);
+        return;
+      }
+
+      if (result.status === "failed" && result.error) {
+        pushStatus(result.error);
+      }
+    },
+    [currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage]
+  );
+
   const submitImport = useCallback(
     async ({ target, selections }: ImportModalSubmit) => {
       if (!importPreview) {
@@ -751,8 +842,23 @@ export default function App(): React.JSX.Element {
     setSelectedBlockId(copy.id);
   };
 
+  const getNormalizedImagePoint = useCallback((event: React.PointerEvent): { x: number; y: number } | null => {
+    const stage = stageRef.current;
+    if (!stage) {
+      return null;
+    }
+    const rect = imageRef.current?.getBoundingClientRect() ?? stage.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return null;
+    }
+    return {
+      x: Math.max(0, Math.min(1000, ((event.clientX - rect.left) / rect.width) * 1000)),
+      y: Math.max(0, Math.min(1000, ((event.clientY - rect.top) / rect.height) * 1000))
+    };
+  }, []);
+
   const onBlockPointerDown = (event: React.PointerEvent, block: TranslationBlock, mode: DragMode) => {
-    if (!stageRef.current || selectedPageEditLocked) {
+    if (!stageRef.current || selectedPageEditLocked || regionSelection?.active) {
       return;
     }
     event.preventDefault();
@@ -771,7 +877,38 @@ export default function App(): React.JSX.Element {
     stageRef.current.setPointerCapture(event.pointerId);
   };
 
+  const onStagePointerDown = (event: React.PointerEvent) => {
+    if (!regionSelection?.active) {
+      setSelectedBlockId(null);
+      return;
+    }
+
+    const point = getNormalizedImagePoint(event);
+    if (!point || !stageRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedBlockId(null);
+    setRegionSelection({
+      active: true,
+      dragging: true,
+      start: point,
+      current: point
+    });
+    stageRef.current.setPointerCapture(event.pointerId);
+  };
+
   const onStagePointerMove = (event: React.PointerEvent) => {
+    if (regionSelection?.active && regionSelection.dragging) {
+      const point = getNormalizedImagePoint(event);
+      if (point) {
+        setRegionSelection((current) => (current?.active ? { ...current, current: point } : current));
+      }
+      return;
+    }
+
     const drag = dragRef.current;
     const page = selectedPage;
     const stage = stageRef.current;
@@ -813,6 +950,20 @@ export default function App(): React.JSX.Element {
   };
 
   const onStagePointerUp = (event: React.PointerEvent) => {
+    if (regionSelection?.active && regionSelection.dragging) {
+      if (stageRef.current) {
+        stageRef.current.releasePointerCapture(event.pointerId);
+      }
+      const bbox = regionSelectionToBbox(regionSelection);
+      setRegionSelection(null);
+      if (!isUsableRegionBbox(bbox, 10)) {
+        pushStatus("선택 영역이 너무 작습니다.");
+        return;
+      }
+      void translateSelectedRegion(bbox);
+      return;
+    }
+
     if (dragRef.current && stageRef.current) {
       stageRef.current.releasePointerCapture(event.pointerId);
     }
@@ -1118,9 +1269,11 @@ export default function App(): React.JSX.Element {
               stageRef={stageRef}
               stageSize={stageSize}
               selectedBlockId={selectedBlockId}
+              regionSelectionActive={Boolean(regionSelection?.active)}
+              regionSelectionRect={regionSelectionRect}
               onStagePointerMove={onStagePointerMove}
               onStagePointerUp={onStagePointerUp}
-              onStagePointerDown={() => setSelectedBlockId(null)}
+              onStagePointerDown={onStagePointerDown}
               onBlockPointerDown={onBlockPointerDown}
             />
           </div>
@@ -1201,7 +1354,10 @@ export default function App(): React.JSX.Element {
 
         <EditorPanel
           block={selectedBlock}
-          disabled={selectedPageEditLocked}
+          disabled={selectedPageEditLocked || jobActive}
+          areaTranslateAvailable={Boolean(selectedPage && selectedPageImageDataUrl && !jobActive)}
+          areaTranslateSelecting={Boolean(regionSelection?.active)}
+          onStartAreaTranslate={startRegionTranslationSelection}
           onUpdate={updateSelectedBlock}
           onDelete={deleteSelectedBlock}
           onDuplicate={duplicateSelectedBlock}
@@ -1278,6 +1434,19 @@ export default function App(): React.JSX.Element {
       ) : null}
     </main>
   );
+}
+
+function regionSelectionToBbox(selection: RegionSelectionState): BBox {
+  const x1 = Math.min(selection.start.x, selection.current.x);
+  const y1 = Math.min(selection.start.y, selection.current.y);
+  const x2 = Math.max(selection.start.x, selection.current.x);
+  const y2 = Math.max(selection.start.y, selection.current.y);
+  return clampBbox({
+    x: Math.round(x1),
+    y: Math.round(y1),
+    w: Math.round(x2 - x1),
+    h: Math.round(y2 - y1)
+  });
 }
 
 function reorderByTarget(currentOrder: string[], sourceId: string, targetId: string): string[] {
