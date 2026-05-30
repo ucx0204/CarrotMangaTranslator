@@ -9,7 +9,6 @@ import type {
   OcrDevice
 } from "../../../shared/types";
 
-const MAX_GPU_LAYERS = 30;
 const MIN_MAX_TOKENS = 300;
 const MAX_MAX_TOKENS = 12000;
 const DEFAULT_GEMMA_MODEL_REPO =
@@ -179,7 +178,6 @@ export function SettingsModal({
   const [customModelFile, setCustomModelFile] = React.useState(initialSettings.gemma.modelFile);
   const [localModelPath, setLocalModelPath] = React.useState(initialSettings.gemma.localModelPath ?? "");
   const [localMmprojPath, setLocalMmprojPath] = React.useState(initialSettings.gemma.localMmprojPath ?? "");
-  const [gpuLayers, setGpuLayers] = React.useState(String(clampGpuLayers(initialSettings.gemma.gpuLayers)));
   const [vramMode, setVramMode] = React.useState<GemmaVramMode>(initialSettings.gemma.vramMode);
   const [codexModel, setCodexModel] = React.useState(initialSettings.codex.model);
   const [codexReasoningEffort, setCodexReasoningEffort] = React.useState<CodexReasoningEffort>(
@@ -193,7 +191,6 @@ export function SettingsModal({
   const [testLogLines, setTestLogLines] = React.useState<string[]>([]);
   const modelRepoInputRef = React.useRef<HTMLInputElement | null>(null);
   const localModelInputRef = React.useRef<HTMLInputElement | null>(null);
-  const gpuSliderRef = React.useRef<HTMLInputElement | null>(null);
   const testLogRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -204,7 +201,6 @@ export function SettingsModal({
     setCustomModelFile(initialSettings.gemma.modelFile);
     setLocalModelPath(initialSettings.gemma.localModelPath ?? "");
     setLocalMmprojPath(initialSettings.gemma.localMmprojPath ?? "");
-    setGpuLayers(String(clampGpuLayers(initialSettings.gemma.gpuLayers)));
     setVramMode(initialSettings.gemma.vramMode);
     setCodexModel(initialSettings.codex.model);
     setCodexReasoningEffort(initialSettings.codex.reasoningEffort);
@@ -234,9 +230,7 @@ export function SettingsModal({
     if (selectedPreset === "custom") {
       modelRepoInputRef.current?.focus();
       modelRepoInputRef.current?.select();
-      return;
     }
-    gpuSliderRef.current?.focus();
   }, [modelProvider, modelSource, selectedPreset]);
 
   const controlsBusy = busy || localActionBusy || testState.status === "running";
@@ -248,23 +242,17 @@ export function SettingsModal({
   const trimmedLocalModelPath = localModelPath.trim();
   const trimmedLocalMmprojPath = localMmprojPath.trim();
   const trimmedCodexModel = codexModel.trim();
-  const parsedGpuLayers = Number(gpuLayers);
   const parsedCodexOauthPort = Number(codexOauthPort);
   const parsedMaxTokens = Number(maxTokens);
-  const gpuLayersValid =
-    Number.isInteger(parsedGpuLayers) && parsedGpuLayers >= 0 && parsedGpuLayers <= MAX_GPU_LAYERS;
   const codexOauthPortValid =
     Number.isInteger(parsedCodexOauthPort) && parsedCodexOauthPort >= 0 && parsedCodexOauthPort <= 65535;
   const maxTokensValid =
     Number.isInteger(parsedMaxTokens) && parsedMaxTokens >= MIN_MAX_TOKENS && parsedMaxTokens <= MAX_MAX_TOKENS;
+  const gemmaSettingsReady = modelSource === "local" ? Boolean(trimmedLocalModelPath) : Boolean(trimmedModelRepo && trimmedModelFile);
   const canSubmit = Boolean(
     maxTokensValid &&
-      (modelProvider === "openai-codex"
-        ? trimmedCodexModel && codexOauthPortValid
-        : gpuLayersValid && (modelSource === "local" ? trimmedLocalModelPath : trimmedModelRepo && trimmedModelFile))
+      (modelProvider === "openai-codex" ? trimmedCodexModel && codexOauthPortValid : gemmaSettingsReady)
   );
-  const sliderValue =
-    Number.isFinite(parsedGpuLayers) ? clampGpuLayers(Math.trunc(parsedGpuLayers)) : 0;
 
   const buildSettings = React.useCallback((): AppSettings | null => {
     if (!maxTokensValid) {
@@ -286,7 +274,6 @@ export function SettingsModal({
           ...(trimmedMmprojFile ? { mmprojFile: trimmedMmprojFile } : {}),
           ...(trimmedLocalModelPath ? { localModelPath: trimmedLocalModelPath } : {}),
           ...(trimmedLocalMmprojPath ? { localMmprojPath: trimmedLocalMmprojPath } : {}),
-          gpuLayers: gpuLayersValid ? parsedGpuLayers : initialSettings.gemma.gpuLayers,
           vramMode
         },
         codex: {
@@ -301,10 +288,6 @@ export function SettingsModal({
       };
     }
 
-    if (!gpuLayersValid) {
-      return null;
-    }
-
     return {
       modelProvider,
       gemma: {
@@ -315,7 +298,6 @@ export function SettingsModal({
         ...(trimmedMmprojFile ? { mmprojFile: trimmedMmprojFile } : {}),
         ...(trimmedLocalModelPath ? { localModelPath: trimmedLocalModelPath } : {}),
         ...(trimmedLocalMmprojPath ? { localMmprojPath: trimmedLocalMmprojPath } : {}),
-        gpuLayers: parsedGpuLayers,
         vramMode
       },
       codex: {
@@ -330,7 +312,6 @@ export function SettingsModal({
     };
   }, [
     modelProvider,
-    gpuLayersValid,
     codexOauthPortValid,
     modelSource,
     trimmedModelRepo,
@@ -340,13 +321,11 @@ export function SettingsModal({
     trimmedLocalModelPath,
     trimmedLocalMmprojPath,
     trimmedCodexModel,
-    parsedGpuLayers,
     parsedCodexOauthPort,
     parsedMaxTokens,
     vramMode,
     codexReasoningEffort,
     ocrDevice,
-    initialSettings.gemma.gpuLayers,
     initialSettings.codex.model,
     initialSettings.codex.oauthPort,
     maxTokensValid
@@ -376,33 +355,6 @@ export function SettingsModal({
       return;
     }
     onSubmit(nextSettings);
-  };
-
-  const handleGpuLayersInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    clearTestState();
-    const nextValue = event.target.value;
-    if (!nextValue) {
-      setGpuLayers("");
-      return;
-    }
-
-    const parsed = Number(nextValue);
-    if (!Number.isFinite(parsed)) {
-      setGpuLayers(nextValue);
-      return;
-    }
-
-    if (parsed < 0) {
-      setGpuLayers("0");
-      return;
-    }
-
-    if (parsed > MAX_GPU_LAYERS) {
-      setGpuLayers(String(MAX_GPU_LAYERS));
-      return;
-    }
-
-    setGpuLayers(nextValue);
   };
 
   const pickLocalModelFile = async () => {
@@ -735,44 +687,6 @@ export function SettingsModal({
             </p>
           </div>
 
-          <div className="settings-field-stack">
-            <span>GPU layers</span>
-            <div className="settings-gpu-row">
-              <input
-                ref={gpuSliderRef}
-                className="settings-gpu-slider"
-                type="range"
-                min={0}
-                max={MAX_GPU_LAYERS}
-                step={1}
-                value={sliderValue}
-                disabled={controlsBusy}
-                onChange={(event) => {
-                  clearTestState();
-                  setGpuLayers(String(clampGpuLayers(Number(event.target.value))));
-                }}
-              />
-              <input
-                className="settings-gpu-input"
-                type="number"
-                min={0}
-                max={MAX_GPU_LAYERS}
-                step={1}
-                value={gpuLayers}
-                disabled={controlsBusy}
-                onChange={handleGpuLayersInputChange}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    submit();
-                  }
-                }}
-              />
-            </div>
-            <p className="muted-line modal-note">
-              기본 Gemma 4 31B 모델은 beellama 스모크 테스트와 같은 안정 설정으로 전체 GPU 로드를 사용합니다.
-              이 값은 커스텀 로컬 모델이나 진단 환경에서만 직접 반영될 수 있으며, VRAM 절약은 위의 절약 모드를 사용하세요.
-            </p>
-          </div>
             </>
           ) : (
             <>
@@ -871,9 +785,6 @@ export function SettingsModal({
             ) : null}
           </div>
 
-          {modelProvider === "gemma" && !gpuLayersValid ? (
-            <p className="muted-line">GPU layers는 0 이상 30 이하의 정수여야 합니다.</p>
-          ) : null}
           {modelProvider === "openai-codex" && !codexOauthPortValid ? (
             <p className="muted-line">openai-oauth 포트는 0 이상 65535 이하의 정수여야 합니다.</p>
           ) : null}
@@ -918,10 +829,6 @@ function matchesPreset(
   modelFile: string
 ): boolean {
   return preset.modelRepo === modelRepo && preset.modelFile === modelFile;
-}
-
-function clampGpuLayers(value: number): number {
-  return Math.min(MAX_GPU_LAYERS, Math.max(0, value));
 }
 
 function buildTestDetail(

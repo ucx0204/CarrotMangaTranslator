@@ -20,8 +20,6 @@ export const DEFAULT_GEMMA_MMPROJ_FILE =
   "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
 export const DEFAULT_GEMMA_DRAFT_MODEL_REPO = "Anbeeld/gemma-4-31B-it-DFlash-GGUF";
 export const DEFAULT_GEMMA_DRAFT_MODEL_FILE = "gemma4-31b-it-dflash-IQ4_XS.gguf";
-export const MAX_GEMMA_GPU_LAYERS = 30;
-export const DEFAULT_GEMMA_GPU_LAYERS = 30;
 export const DEFAULT_GEMMA_VRAM_MODE: GemmaVramMode = "full";
 export const DEFAULT_MODEL_PROVIDER: ModelProvider = "gemma";
 export const DEFAULT_CODEX_MODEL = "gpt-5.5";
@@ -107,7 +105,6 @@ export type TranslationOptions = {
   ctx: number;
   batch: number;
   ubatch: number;
-  gpuLayers: number;
   gemmaVramMode: GemmaVramMode;
   fitTargetMb: number;
   cacheTypeK?: string;
@@ -203,7 +200,6 @@ export function resolveDefaultAppSettings(
       modelFile: resolveNonEmptyString(env.LLAMA_ARG_HF_FILE, DEFAULT_GEMMA_MODEL_FILE),
       mmprojRepo: resolveOptionalString(env.MANGA_TRANSLATOR_MMPROJ_HF) ?? DEFAULT_GEMMA_MMPROJ_REPO,
       mmprojFile: resolveOptionalString(env.LLAMA_ARG_MMPROJ_FILE) ?? DEFAULT_GEMMA_MMPROJ_FILE,
-      gpuLayers: resolveGpuLayerCount(env.MANGA_TRANSLATOR_GPU_LAYERS, DEFAULT_GEMMA_GPU_LAYERS),
       vramMode: resolveGemmaVramMode(env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE, hardwareDefaults.gemmaVramMode)
     },
     codex: {
@@ -276,7 +272,6 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
       ...(resolvedMmproj.mmprojFile ? { mmprojFile: resolvedMmproj.mmprojFile } : {}),
       ...(localModelPath ? { localModelPath } : {}),
       ...(localMmprojPath ? { localMmprojPath } : {}),
-      gpuLayers: resolveGpuLayerCount(asRecord(gemma)?.gpuLayers, defaults.gemma.gpuLayers),
       vramMode: resolveGemmaVramMode(asRecord(gemma)?.vramMode, defaults.gemma.vramMode)
     },
     codex: {
@@ -331,7 +326,6 @@ export function buildBaseTranslationOptions({
     ctx: readNumberEnv(env, "MANGA_TRANSLATOR_CTX", gemmaRuntimePreset.ctx),
     batch: readNumberEnv(env, "MANGA_TRANSLATOR_BATCH", gemmaRuntimePreset.batch),
     ubatch: readNumberEnv(env, "MANGA_TRANSLATOR_UBATCH", gemmaRuntimePreset.ubatch),
-    gpuLayers: settings.gemma.gpuLayers,
     gemmaVramMode,
     fitTargetMb: readNumberEnv(env, "MANGA_TRANSLATOR_FIT_TARGET_MB", gemmaRuntimePreset.fitTargetMb),
     cacheTypeK:
@@ -487,14 +481,6 @@ function resolveNonEmptyString(value: unknown, fallback: string): string {
 
 function resolveOptionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function resolveGpuLayerCount(value: unknown, fallback: number): number {
-  const parsed = typeof value === "number" ? value : Number(value);
-  if (!Number.isInteger(parsed)) {
-    return fallback;
-  }
-  return clampInteger(parsed, 0, MAX_GEMMA_GPU_LAYERS);
 }
 
 function resolvePortNumber(value: unknown, fallback: number): number {

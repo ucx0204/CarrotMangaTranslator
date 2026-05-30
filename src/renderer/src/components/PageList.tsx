@@ -134,7 +134,7 @@ function SortablePageItem({
       >
         <span className="drag-grip" aria-hidden="true" />
       </button>
-      <button className="page-select" onClick={() => onSelect(page.id)}>
+      <button className="page-select" onClick={() => onSelect(page.id)} title={page.name}>
         <span>{page.name}</span>
       </button>
       <div className="page-side">
@@ -161,7 +161,7 @@ function PageDragPreview({ page, selected }: { page: MangaPage; selected: boolea
       <span className="drag-handle compact preview-handle">
         <span className="drag-grip" aria-hidden="true" />
       </span>
-      <div className="page-select preview-select">
+      <div className="page-select preview-select" title={page.name}>
         <span>{page.name}</span>
       </div>
       <span className="page-status-badge">{resolveStatusLabel(page)}</span>

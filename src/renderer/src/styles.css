@@ -192,6 +192,71 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-color: #536174 #0a0f16;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+  background: #0a0f16;
+}
+
+*::-webkit-scrollbar-track {
+  background: #0a0f16;
+  border: 1px solid #131a24;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 42px;
+  min-width: 42px;
+  background: #536174;
+  border: 4px solid #0a0f16;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #657489;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: #7b8aa0;
+}
+
+*::-webkit-scrollbar-corner {
+  background: #0a0f16;
+}
+
+*::-webkit-scrollbar-button:single-button {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background-color: #0a0f16;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 8px 8px;
+  border: 1px solid #131a24;
+}
+
+*::-webkit-scrollbar-button:vertical:decrement {
+  background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 1 7 6H1L4 1Z' fill='%237c8797'/%3E%3C/svg%3E");
+}
+
+*::-webkit-scrollbar-button:vertical:increment {
+  background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 7 1 2h6L4 7Z' fill='%237c8797'/%3E%3C/svg%3E");
+}
+
+*::-webkit-scrollbar-button:horizontal:decrement {
+  background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4 6 1v6L1 4Z' fill='%237c8797'/%3E%3C/svg%3E");
+}
+
+*::-webkit-scrollbar-button:horizontal:increment {
+  background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 4 2 7V1l5 3Z' fill='%237c8797'/%3E%3C/svg%3E");
+}
+
+*::-webkit-scrollbar-button:single-button:hover {
+  background-color: #101722;
 }
 
 body {
@@ -357,8 +422,6 @@ textarea {
   overflow-x: hidden;
   overflow-y: auto;
   padding-right: 10px;
-  scrollbar-color: #4a5667 rgba(8, 12, 18, 0.8);
-  scrollbar-width: thin;
 }
 
 .panel-header,
@@ -468,13 +531,6 @@ textarea {
   padding-right: 4px;
 }
 
-.library-scroll,
-.page-list-scroll,
-.status-log-scroll {
-  scrollbar-color: #4a5667 rgba(8, 12, 18, 0.8);
-  scrollbar-width: thin;
-}
-
 .work-group {
   display: grid;
   gap: 10px;
@@ -489,6 +545,14 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-width: 0;
+}
+
+.work-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chapter-list {
@@ -580,12 +644,25 @@ textarea {
 
 .chapter-select,
 .page-select {
+  min-width: 0;
+  min-height: 42px;
+  height: 42px;
+  max-height: 42px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.chapter-select {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-select {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
-  min-width: 0;
-  text-align: left;
 }
 
 .preview-select {
@@ -598,9 +675,18 @@ textarea {
 
 .chapter-item span,
 .page-item span {
+  display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.chapter-select small {
+  justify-self: end;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .chapter-item.active .chapter-select,
@@ -667,30 +753,6 @@ textarea {
   border: 1px solid #2b3138;
   font-size: 13px;
   overflow-wrap: anywhere;
-}
-
-.library-scroll::-webkit-scrollbar,
-.page-list-scroll::-webkit-scrollbar,
-.editor-panel.has-block::-webkit-scrollbar,
-.status-log-scroll::-webkit-scrollbar {
-  width: 10px;
-}
-
-.library-scroll::-webkit-scrollbar-track,
-.page-list-scroll::-webkit-scrollbar-track,
-.editor-panel.has-block::-webkit-scrollbar-track,
-.status-log-scroll::-webkit-scrollbar-track {
-  background: rgba(8, 12, 18, 0.8);
-  border-radius: 999px;
-}
-
-.library-scroll::-webkit-scrollbar-thumb,
-.page-list-scroll::-webkit-scrollbar-thumb,
-.editor-panel.has-block::-webkit-scrollbar-thumb,
-.status-log-scroll::-webkit-scrollbar-thumb {
-  background: #4a5667;
-  border: 2px solid rgba(8, 12, 18, 0.8);
-  border-radius: 999px;
 }
 
 .panel-empty,
@@ -1224,23 +1286,6 @@ textarea {
   border-radius: 8px;
   border: 1px solid #303844;
   background: rgba(5, 8, 12, 0.62);
-  scrollbar-color: #4a5667 rgba(8, 12, 18, 0.8);
-  scrollbar-width: thin;
-}
-
-.install-progress-log::-webkit-scrollbar {
-  width: 10px;
-}
-
-.install-progress-log::-webkit-scrollbar-track {
-  background: rgba(8, 12, 18, 0.8);
-  border-radius: 999px;
-}
-
-.install-progress-log::-webkit-scrollbar-thumb {
-  background: #4a5667;
-  border: 2px solid rgba(8, 12, 18, 0.8);
-  border-radius: 999px;
 }
 
 .install-progress-log code {
@@ -1759,25 +1804,6 @@ textarea {
   border-color: #4aa58f;
 }
 
-.settings-gpu-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px;
-  gap: 12px;
-  align-items: center;
-}
-
-.settings-gpu-slider {
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  accent-color: #4aa58f;
-}
-
-.settings-gpu-input {
-  text-align: center;
-}
-
 .settings-file-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1832,23 +1858,6 @@ textarea {
   border-radius: 10px;
   border: 1px solid #303844;
   background: #0f1217;
-  scrollbar-color: #4a5667 rgba(8, 12, 18, 0.8);
-  scrollbar-width: thin;
-}
-
-.settings-test-log::-webkit-scrollbar {
-  width: 10px;
-}
-
-.settings-test-log::-webkit-scrollbar-track {
-  background: rgba(8, 12, 18, 0.8);
-  border-radius: 999px;
-}
-
-.settings-test-log::-webkit-scrollbar-thumb {
-  background: #4a5667;
-  border: 2px solid rgba(8, 12, 18, 0.8);
-  border-radius: 999px;
 }
 
 .settings-test-log code {
@@ -1949,7 +1958,6 @@ textarea {
 
   .settings-mode-group,
   .settings-preset-group,
-  .settings-gpu-row,
   .settings-file-row,
   .source-choice-grid,
   .share-target-grid,

@@ -312,7 +312,7 @@ export async function runWholePagePipeline({
       : codexSelected
         ? `${baseOptions.codexModel}, thinking ${baseOptions.codexReasoningEffort}`
         : modelCached
-          ? `${formatGemmaVramMode(baseOptions.gemmaVramMode)}, gpu layers ${baseOptions.gpuLayers}, ${baseOptions.modelFile}`
+          ? `${formatGemmaVramMode(baseOptions.gemmaVramMode)}, ${baseOptions.modelFile}`
           : "로컬 모델 자산이 없거나 부족해 다운로드/갱신이 필요할 수 있습니다."
   });
 
@@ -1339,7 +1339,6 @@ function summarizeTranslationOptions(options: TranslationOptions): Record<string
     ctx: options.ctx,
     batch: options.batch,
     ubatch: options.ubatch,
-    gpuLayers: options.gpuLayers,
     gemmaVramMode: options.gemmaVramMode,
     fitTargetMb: options.fitTargetMb,
     cacheTypeK: options.cacheTypeK,

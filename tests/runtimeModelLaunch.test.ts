@@ -415,7 +415,6 @@ describe("runtime model launch helpers", () => {
     const args = buildLaunchArgs({
       port: 18180,
       fitTargetMb: 4096,
-      gpuLayers: 30,
       ctx: 16384,
       batch: 32,
       ubatch: 32,
@@ -446,7 +445,6 @@ describe("runtime model launch helpers", () => {
     const args = buildLaunchArgs({
       port: 18180,
       fitTargetMb: 1024,
-      gpuLayers: 30,
       ctx: 8192,
       batch: 1024,
       ubatch: 1024,
@@ -520,7 +518,6 @@ describe("runtime model launch helpers", () => {
     const args = buildLaunchArgs({
       port: 18180,
       fitTargetMb: 1024,
-      gpuLayers: 30,
       ctx: 8192,
       batch: 1024,
       ubatch: 1024,
@@ -560,7 +557,6 @@ describe("runtime model launch helpers", () => {
     const args = buildLaunchArgs({
       port: 18180,
       fitTargetMb: 4096,
-      gpuLayers: 30,
       ctx: 16384,
       batch: 2048,
       ubatch: 1536,
@@ -629,7 +625,6 @@ describe("runtime model launch helpers", () => {
     const options = {
       port: 18180,
       fitTargetMb: 4096,
-      gpuLayers: 30,
       ctx: 16384,
       batch: 2048,
       ubatch: 1536,
@@ -697,7 +692,6 @@ describe("runtime model launch helpers", () => {
     const args = buildLaunchArgs({
       port: 18180,
       fitTargetMb: 1024,
-      gpuLayers: 30,
       ctx: 8192,
       batch: 512,
       ubatch: 512,
@@ -726,7 +720,6 @@ describe("runtime model launch helpers", () => {
     const args = buildLaunchArgs({
       port: 18180,
       fitTargetMb: 4096,
-      gpuLayers: 30,
       ctx: 16384,
       batch: 32,
       ubatch: 32,
@@ -760,7 +753,6 @@ describe("runtime model launch helpers", () => {
     const args = buildLaunchArgs({
       port: 18180,
       fitTargetMb: 4096,
-      gpuLayers: 30,
       ctx: 16384,
       batch: 32,
       ubatch: 32,
@@ -801,7 +793,6 @@ describe("runtime model launch helpers", () => {
     const args = buildLaunchArgs({
       port: 18180,
       fitTargetMb: 4096,
-      gpuLayers: 30,
       ctx: 16384,
       batch: 32,
       ubatch: 32,
@@ -843,7 +834,6 @@ describe("runtime model launch helpers", () => {
     const args = buildLaunchArgs({
       port: 18180,
       fitTargetMb: 4096,
-      gpuLayers: 30,
       ctx: 16384,
       batch: 32,
       ubatch: 32,
@@ -877,7 +867,6 @@ describe("runtime model launch helpers", () => {
     const args = buildLaunchArgs({
       port: 18180,
       fitTargetMb: 4096,
-      gpuLayers: 30,
       ctx: 16384,
       batch: 32,
       ubatch: 32,

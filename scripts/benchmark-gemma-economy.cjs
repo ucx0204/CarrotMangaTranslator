@@ -75,12 +75,6 @@ const CANDIDATES = [
     kvOffload: true,
     extraArgs: ["--override-kv", "gemma4.attention.sliding_window=int:512"]
   },
-  { name: "gpu-kv-ngl58", batch: 1024, ubatch: 1024, kvOffload: true, forceGpuLayersArg: 58 },
-  { name: "gpu-kv-ngl57", batch: 1024, ubatch: 1024, kvOffload: true, forceGpuLayersArg: 57 },
-  { name: "gpu-kv-ngl56", batch: 1024, ubatch: 1024, kvOffload: true, forceGpuLayersArg: 56 },
-  { name: "gpu-kv-ngl54", batch: 1024, ubatch: 1024, kvOffload: true, forceGpuLayersArg: 54 },
-  { name: "gpu-kv-ngl58-ctx4096", batch: 1024, ubatch: 1024, ctx: 4096, kvOffload: true, forceGpuLayersArg: 58 },
-  { name: "gpu-kv-ngl58-ctx6144", batch: 1024, ubatch: 1024, ctx: 6144, kvOffload: true, forceGpuLayersArg: 58 },
   { name: "gpu-kv-no-repack", batch: 1024, ubatch: 1024, kvOffload: true, extraArgs: ["--no-repack"] },
   { name: "gpu-kv-no-op-offload", batch: 1024, ubatch: 1024, kvOffload: true, extraArgs: ["--no-op-offload"] },
   {
@@ -212,7 +206,6 @@ async function runCandidate({ candidate, candidateIndex, baseOptions, simplePage
     ctx: candidate.ctx ?? baseOptions.ctx,
     batch: candidate.batch,
     ubatch: candidate.ubatch,
-    forceGpuLayersArg: candidate.forceGpuLayersArg,
     extraArgs: candidate.extraArgs,
     threads: candidate.threads,
     threadsBatch: candidate.threadsBatch,

@@ -18,7 +18,6 @@ export type GemmaSettings = {
   mmprojFile?: string;
   localModelPath?: string;
   localMmprojPath?: string;
-  gpuLayers: number;
   vramMode: GemmaVramMode;
 };
 

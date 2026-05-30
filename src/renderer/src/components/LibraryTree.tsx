@@ -90,7 +90,7 @@ export function LibraryTree({
             filteredLibrary.works.map((work) => (
               <div key={work.id} className="work-group">
                 <div className="work-row">
-                  <strong>{work.title}</strong>
+                  <strong title={work.title}>{work.title}</strong>
                   <button
                     className="ghost-button library-icon-button"
                     onClick={() => onRenameWork(work.id)}
@@ -174,7 +174,7 @@ function SortableChapterItem({
       >
         <span className="drag-grip" aria-hidden="true" />
       </button>
-      <button className="chapter-select" onClick={() => onOpenChapter(chapter.id)}>
+      <button className="chapter-select" onClick={() => onOpenChapter(chapter.id)} title={chapter.title}>
         <span>{chapter.title}</span>
         <small>
           {chapter.pageCount}페이지 · {resolveChapterStatusLabel(chapter.status)}
@@ -199,7 +199,7 @@ function ChapterDragPreview({ chapter, active }: { chapter: LibraryChapterSummar
       <span className="drag-handle compact preview-handle">
         <span className="drag-grip" aria-hidden="true" />
       </span>
-      <div className="chapter-select preview-select">
+      <div className="chapter-select preview-select" title={chapter.title}>
         <span>{chapter.title}</span>
         <small>
           {chapter.pageCount}페이지 · {resolveChapterStatusLabel(chapter.status)}

@@ -61,7 +61,6 @@ function buildOptionSummary(options = {}) {
     ctx: options.ctx,
     batch: options.batch,
     ubatch: options.ubatch,
-    gpuLayers: options.gpuLayers,
     gemmaVramMode: options.gemmaVramMode,
     fitTargetMb: options.fitTargetMb,
     cacheTypeK: options.cacheTypeK,
@@ -3595,7 +3594,7 @@ function buildLaunchArgs(options) {
     "0",
     ...(useBeellamaGemmaLaunch ? [] : ["--fit", "on", "--fit-target", String(options.fitTargetMb)]),
     "-ngl",
-    resolveGpuLayersArg(options),
+    "all",
     "-fa",
     "on",
     "--temp",
@@ -3693,16 +3692,6 @@ function resolveDraftModelRepoArg(options = {}) {
   const file = resolveConfiguredDraftModelFile(options);
   const quant = file.match(/-([A-Za-z0-9_]+)\.gguf$/)?.[1];
   return quant ? `${repo}:${quant}` : repo;
-}
-
-function resolveGpuLayersArg(options = {}) {
-  if (options.forceGpuLayersArg !== undefined && options.forceGpuLayersArg !== null) {
-    return String(options.forceGpuLayersArg);
-  }
-  if (options.gpuLayers === "all") {
-    return "all";
-  }
-  return shouldUseBeellamaGemmaLaunch(options) ? "all" : String(options.gpuLayers);
 }
 
 function shouldUseBeellamaGemmaLaunch(options = {}) {
@@ -4431,7 +4420,6 @@ async function saveArtifacts(options, result) {
       ctx: options.ctx,
       batch: options.batch,
       ubatch: options.ubatch,
-      gpuLayers: options.gpuLayers,
       gemmaVramMode: options.gemmaVramMode,
       cacheTypeK: options.cacheTypeK,
       cacheTypeV: options.cacheTypeV,

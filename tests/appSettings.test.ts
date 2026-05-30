@@ -4,7 +4,6 @@ import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_OAUTH_PORT,
   DEFAULT_CODEX_REASONING_EFFORT,
-  DEFAULT_GEMMA_GPU_LAYERS,
   DEFAULT_GEMMA_MMPROJ_FILE,
   DEFAULT_GEMMA_MMPROJ_REPO,
   DEFAULT_GEMMA_MODEL_FILE,
@@ -25,7 +24,6 @@ describe("app settings helpers", () => {
     expect(defaults.gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
     expect(defaults.gemma.mmprojRepo).toBe(DEFAULT_GEMMA_MMPROJ_REPO);
     expect(defaults.gemma.mmprojFile).toBe(DEFAULT_GEMMA_MMPROJ_FILE);
-    expect(defaults.gemma.gpuLayers).toBe(DEFAULT_GEMMA_GPU_LAYERS);
     expect(defaults.modelProvider).toBe("openai-codex");
     expect(defaults.gemma.vramMode).toBe("economy");
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
@@ -48,8 +46,7 @@ describe("app settings helpers", () => {
   it("fills missing or partial stored settings from environment-based defaults", () => {
     const env = {
       MANGA_TRANSLATOR_MODEL_HF: "env/default-repo",
-      LLAMA_ARG_HF_FILE: "env-default.gguf",
-      MANGA_TRANSLATOR_GPU_LAYERS: "12"
+      LLAMA_ARG_HF_FILE: "env-default.gguf"
     } satisfies NodeJS.ProcessEnv;
     const defaults = resolveDefaultAppSettings(env);
 
@@ -60,69 +57,6 @@ describe("app settings helpers", () => {
         modelSource: "huggingface",
         modelRepo: "custom/repo",
         modelFile: "env-default.gguf",
-        gpuLayers: 12,
-        vramMode: defaults.gemma.vramMode
-      },
-      codex: defaults.codex,
-      ocr: defaults.ocr,
-      maxTokens: defaults.maxTokens
-    });
-  });
-
-  it("clamps out-of-range stored gpu layers and falls back on invalid values", () => {
-    const defaults = resolveDefaultAppSettings();
-
-    expect(parseStoredAppSettings("{\"gemma\":{\"modelRepo\":\"repo\",\"modelFile\":\"file.gguf\",\"gpuLayers\":31}}", defaults)).toEqual({
-      modelProvider: defaults.modelProvider,
-      gemma: {
-        modelSource: "huggingface",
-        modelRepo: "repo",
-        modelFile: "file.gguf",
-        gpuLayers: 30,
-        vramMode: defaults.gemma.vramMode
-      },
-      codex: defaults.codex,
-      ocr: defaults.ocr,
-      maxTokens: defaults.maxTokens
-    });
-
-    expect(parseStoredAppSettings("{\"gemma\":{\"modelRepo\":\"repo\",\"modelFile\":\"file.gguf\",\"gpuLayers\":99}}", defaults)).toEqual({
-      modelProvider: defaults.modelProvider,
-      gemma: {
-        modelSource: "huggingface",
-        modelRepo: "repo",
-        modelFile: "file.gguf",
-        gpuLayers: 30,
-        vramMode: defaults.gemma.vramMode
-      },
-      codex: defaults.codex,
-      ocr: defaults.ocr,
-      maxTokens: defaults.maxTokens
-    });
-
-    expect(parseStoredAppSettings("{\"gemma\":{\"modelRepo\":\"repo\",\"modelFile\":\"file.gguf\",\"gpuLayers\":-1}}", defaults)).toEqual({
-      modelProvider: defaults.modelProvider,
-      gemma: {
-        modelSource: "huggingface",
-        modelRepo: "repo",
-        modelFile: "file.gguf",
-        gpuLayers: 0,
-        vramMode: defaults.gemma.vramMode
-      },
-      codex: defaults.codex,
-      ocr: defaults.ocr,
-      maxTokens: defaults.maxTokens
-    });
-
-    expect(parseStoredAppSettings("{\"gemma\":{\"gpuLayers\":\"abc\"}}", defaults)).toEqual({
-      modelProvider: defaults.modelProvider,
-      gemma: {
-        modelSource: "huggingface",
-        modelRepo: defaults.gemma.modelRepo,
-        modelFile: defaults.gemma.modelFile,
-        mmprojRepo: defaults.gemma.mmprojRepo,
-        mmprojFile: defaults.gemma.mmprojFile,
-        gpuLayers: DEFAULT_GEMMA_GPU_LAYERS,
         vramMode: defaults.gemma.vramMode
       },
       codex: defaults.codex,
@@ -158,7 +92,6 @@ describe("app settings helpers", () => {
         modelSource: "huggingface",
         modelRepo: "saved/repo",
         modelFile: "saved-model.gguf",
-        gpuLayers: 24,
         vramMode: "economy"
       },
       codex: {
@@ -185,8 +118,7 @@ describe("app settings helpers", () => {
       settings,
       env: {
         MANGA_TRANSLATOR_TEMPERATURE: "0.2",
-        MANGA_TRANSLATOR_CTX: "8192",
-        MANGA_TRANSLATOR_GPU_LAYERS: "4"
+        MANGA_TRANSLATOR_CTX: "8192"
       } satisfies NodeJS.ProcessEnv
     });
 
@@ -197,7 +129,6 @@ describe("app settings helpers", () => {
     expect(options.codexReasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(options.codexOauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
     expect(options.ocrDevice).toBe("gpu");
-    expect(options.gpuLayers).toBe(24);
     expect(options.gemmaVramMode).toBe("economy");
     expect(options.cacheTypeK).toBe("q4_0");
     expect(options.cacheTypeV).toBe("q4_0");
@@ -317,7 +248,6 @@ describe("app settings helpers", () => {
         modelFile: defaults.gemma.modelFile,
         localModelPath: "D:/models/custom-vision-model.gguf",
         localMmprojPath: "D:/models/mmproj.gguf",
-        gpuLayers: defaults.gemma.gpuLayers,
         vramMode: defaults.gemma.vramMode
       },
       codex: defaults.codex,
