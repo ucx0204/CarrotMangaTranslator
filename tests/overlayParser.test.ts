@@ -6,7 +6,7 @@ describe("overlay parser", () => {
   it("parses strict line records with corner coordinates", () => {
     const raw = String.raw`
 id: 1
-type: dialogue
+type: solid
 x1: 120
 y1: 80
 x2: 280
@@ -19,7 +19,7 @@ jp: 馬鹿者… 無理をするな
 ko: 바보 같은 녀석… 무리하지 마라.
 
 id: 2
-type: name
+type: nonsolid
 x1: 720
 y1: 700
 x2: 810
@@ -36,14 +36,14 @@ ko: 리드
     expect(items[0].direction).toBe("vertical");
     expect(items[0].fontSize).toBe(24);
     expect(items[0].confidence).toBe(0.83);
-    expect(items[1].type).toBe("name");
+    expect(items[1].type).toBe("nonsolid");
     expect(items[1].bbox).toEqual({ x: 720, y: 700, w: 90, h: 120 });
   });
 
   it("normalizes reversed corner order and decimal coordinates", () => {
     const raw = String.raw`
 id: 1
-type: sfx
+type: nonsolid
 x1: 300.4
 y1: 220.4
 x2: 260.2
@@ -65,7 +65,7 @@ ko: 쾅
   "items": [
     {
       "id": 1,
-      "type": "dialogue",
+      "type": "solid",
       "x1": 10,
       "y1": 20,
       "x2": 110,
@@ -88,14 +88,14 @@ ko: 쾅
   "items": [
     {
       "id": 1,
-      "type": "dialogue",
+      "type": "solid",
       "bbox": { "x": 420, "y": 600, "w": 160, "h": 150 },
       "jp": "違和感はないか？",
       "ko": "위화감은 없고?"
     },
     {
       "id": 2,
-      "type": "dialogue",
+      "type": "solid",
       "x": 120,
       "y": 80,
       "w": 160,
@@ -114,7 +114,7 @@ ko: 쾅
   it("normalizes direction, angle, and source font size fields", () => {
     const parsed = parseJsonLenient(String.raw`
 id: 1
-type: sfx
+type: nonsolid
 x1: 120
 y1: 80
 x2: 280
@@ -136,7 +136,7 @@ ko: 삭
   it("preserves sparse model ids so OCR candidate geometry can stay locked", () => {
     const items = normalizeItems(parseJsonLenient(String.raw`
 id: 6
-type: dialogue
+type: solid
 x1: 320
 y1: 572
 x2: 368
@@ -145,7 +145,7 @@ jp: 喜んで
 ko: 기꺼이
 
 id: 10
-type: sfx
+type: nonsolid
 x1: 367
 y1: 748
 x2: 416
@@ -160,7 +160,7 @@ ko: 생긋
   it("parses crop retry records without bbox", () => {
     const items = parseRetryItems(String.raw`
 id: 6
-type: dialogue
+type: solid
 direction: horizontal
 angle: 0
 fontSize: 22
@@ -181,7 +181,7 @@ ko: [non-text]
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({
       id: 6,
-      type: "dialogue",
+      type: "solid",
       direction: "horizontal",
       angle: 0,
       fontSize: 22,

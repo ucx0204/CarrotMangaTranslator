@@ -148,7 +148,7 @@ function parseLooseItemList(rawText, options = {}) {
         : {};
       items.push({
         id: current.id ?? items.length + 1,
-        type: current.type || "dialogue",
+        type: current.type || "nonsolid",
         ...bboxFields,
         jp: current.jp || "",
         ko: current.ko.trim(),
@@ -359,7 +359,7 @@ function normalizeItem(item, index) {
 
   return {
     id: toNumber(item?.id) ?? index + 1,
-    type: typeof item?.type === "string" && item.type.trim() ? item.type.trim() : "dialogue",
+    type: typeof item?.type === "string" && item.type.trim() ? item.type.trim() : "nonsolid",
     bbox,
     jp: normalizedJp,
     ko: normalizedKo,
@@ -382,7 +382,7 @@ function normalizeRetryItem(item, index) {
 
   return {
     id: toNumber(item?.id) ?? index + 1,
-    type: typeof item?.type === "string" && item.type.trim() ? item.type.trim() : "dialogue",
+    type: typeof item?.type === "string" && item.type.trim() ? item.type.trim() : "nonsolid",
     jp: normalizedJp,
     ko: normalizedKo,
     direction: normalizeDirection(item?.direction ?? item?.sourceDirection ?? item?.writingDirection),

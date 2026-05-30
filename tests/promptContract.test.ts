@@ -14,7 +14,10 @@ describe("prompt contracts", () => {
     expect(runtimeSource).toContain("Each speech bubble is one dialogue item.");
     expect(runtimeSource).toContain("If two white balloon lobes touch, overlap, stack vertically, or connect through a narrow neck");
     expect(runtimeSource).toContain("For SFX, box only the sound-effect glyph strokes");
-    expect(runtimeSource).toContain("For type sfx, ko must be bare Korean sound-effect lettering only");
+    expect(runtimeSource).toContain("type is one of solid or nonsolid.");
+    expect(runtimeSource).toContain("Use type solid only when the Japanese glyphs sit on a plain, flat, single-color speech-bubble or caption background");
+    expect(runtimeSource).toContain("Use type nonsolid when the Japanese glyphs sit on artwork, screentone, gradient, texture");
+    expect(runtimeSource).toContain("For sound-effect or reaction lettering, ko must be bare Korean effect lettering only");
     expect(runtimeSource).toContain("do not wrap it in parentheses/brackets/quotes");
     expect(runtimeSource).toContain("Coordinate calibration");
     expect(runtimeSource).toContain("Use the full visible Image 1 frame as the coordinate frame");
@@ -29,7 +32,7 @@ describe("prompt contracts", () => {
     expect(runtimeSource).toContain("Use Image 1 as the authority");
     expect(runtimeSource).toContain("Treat each candidate as a locked geometry slot.");
     expect(runtimeSource).toContain("Do not merge two candidates into one record");
-    expect(runtimeSource).toContain("classify ordinary handwritten notes, diagram labels, search terms, captions, and explanatory text as narration/name, not sfx");
+    expect(runtimeSource).toContain("For ocr_textline and ocr_textgroup candidates, use type nonsolid unless the text is clearly on a flat single-color bubble or caption background.");
     expect(runtimeSource).not.toContain("buildPointDetectionPrompt");
     expect(runtimeSource).not.toContain("buildPointExpansionPrompt");
     expect(pipelineSource).not.toContain("function buildRetryPrompt");

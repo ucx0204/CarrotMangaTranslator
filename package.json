@@ -15,6 +15,7 @@
     "test": "vitest run",
     "preview": "npm run build && node scripts/preview.cjs",
     "smoke:overlay": "npm run build && node scripts/run-smoke-overlay.cjs",
+    "smoke:gemma-solid": "npm run build && node scripts/run-gemma-solid-smoke.cjs",
     "perf:gemma-economy": "npm run build && node scripts/run-gemma-economy-benchmark.cjs"
   },
   "dependencies": {

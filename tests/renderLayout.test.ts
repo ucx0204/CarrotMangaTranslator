@@ -26,7 +26,7 @@ describe("render layout padding", () => {
 
     const block: TranslationBlock = {
       id: "block-1",
-      type: "speech",
+      type: "solid",
       bbox: { x: 0, y: 0, w: 40, h: 300 },
       sourceText: "가",
       translatedText: "가",
@@ -53,7 +53,7 @@ describe("render layout padding", () => {
 
     const block: TranslationBlock = {
       id: "block-1",
-      type: "speech",
+      type: "solid",
       bbox: { x: 0, y: 0, w: 25, h: 44 },
       sourceText: "응",
       translatedText: "응",
@@ -81,7 +81,7 @@ describe("render layout padding", () => {
 
     const block: TranslationBlock = {
       id: "block-1",
-      type: "speech",
+      type: "solid",
       bbox: { x: 0, y: 0, w: 260, h: 160 },
       sourceText: "가",
       translatedText: "가",
@@ -108,7 +108,7 @@ describe("render layout padding", () => {
 
     const block: TranslationBlock = {
       id: "block-1",
-      type: "speech",
+      type: "solid",
       bbox: { x: 0, y: 0, w: 260, h: 160 },
       sourceText: "가",
       translatedText: "가",
@@ -134,7 +134,7 @@ describe("render layout padding", () => {
 
     const block: TranslationBlock = {
       id: "block-1",
-      type: "speech",
+      type: "solid",
       bbox: { x: 100, y: 100, w: 4, h: 4 },
       sourceText: "",
       translatedText: "가나다",
@@ -162,7 +162,7 @@ describe("render layout padding", () => {
 
     const block: TranslationBlock = {
       id: "block-1",
-      type: "speech",
+      type: "solid",
       bbox: { x: 100, y: 100, w: 4, h: 4 },
       renderBbox: { x: 100, y: 100, w: 4, h: 4 },
       sourceText: "",
@@ -189,7 +189,7 @@ describe("render layout padding", () => {
   it("places pixel-space blocks on the same scaled image plane", () => {
     const block: TranslationBlock = {
       id: "block-1",
-      type: "speech",
+      type: "solid",
       bbox: { x: 200, y: 300, w: 100, h: 150 },
       bboxSpace: "pixels",
       sourceText: "",

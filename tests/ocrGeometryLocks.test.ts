@@ -20,7 +20,7 @@ describe("OCR candidate geometry locks", () => {
       [
         {
           id: 1,
-          type: "speech",
+          type: "solid",
           bbox: { x: 104, y: 106, w: 88, h: 86 },
           jp: "jp",
           ko: "ko"
@@ -39,7 +39,7 @@ describe("OCR candidate geometry locks", () => {
       [
         {
           id: 9,
-          type: "speech",
+          type: "solid",
           bbox: originalBbox,
           jp: "jp",
           ko: "ko"

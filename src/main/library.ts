@@ -34,6 +34,7 @@ import type {
   WorkShareImportRequest,
   WorkShareImportResult
 } from "../shared/types";
+import { normalizeBlockType } from "../shared/geometry";
 import { getAppPaths } from "./appPaths";
 
 type ZipEntryLike = {
@@ -957,6 +958,10 @@ async function materializeSharedChapter({
 async function hydrateChapter(chapter: ChapterFile): Promise<ChapterSnapshot> {
   const pages = reorderRecords(chapter.pages, chapter.pageOrder).map((page) => ({
     ...page,
+    blocks: page.blocks.map((block) => ({
+      ...block,
+      type: normalizeBlockType(block.type)
+    })),
     dataUrl: ""
   }));
 

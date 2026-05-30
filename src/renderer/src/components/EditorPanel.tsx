@@ -1,5 +1,6 @@
 import React from "react";
 import type { RenderTextDirection, TranslationBlock } from "../../../shared/types";
+import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
 import { BLOCK_FONT_OPTIONS, normalizeBlockFontFamily, resolveBlockFontFamily, resolveBlockFontOption } from "../lib/fonts";
 
 type EditorPanelProps = {
@@ -38,22 +39,28 @@ export function EditorPanel({
     );
   }
 
-  const blockType = block.type === "other" ? "caption" : block.type;
+  const blockType = block.type;
   const outlineColor = resolveColor(block.outlineColor, "#ffffff");
   const selectedFont = resolveBlockFontOption(block.fontFamily);
   const autoFitText = block.autoFitText ?? true;
   const fontSizePx = clampFontSize(block.fontSizePx);
+  const visualStyle = resolveBlockVisualStyle(blockType);
 
   return (
     <section className="editor-panel has-block">
       <h2>블록</h2>
-      <label>
-        종류
-        <select value={blockType} disabled={disabled} onChange={(event) => onUpdate({ type: event.target.value as TranslationBlock["type"] })}>
-          <option value="speech">speech</option>
-          <option value="sfx">sfx</option>
-          <option value="caption">caption</option>
-        </select>
+      <label className="block-type-field">
+        <span>종류</span>
+        <span className="block-type-row">
+          <select value={blockType} disabled={disabled} onChange={(event) => onUpdate({ type: event.target.value as TranslationBlock["type"] })}>
+            <option value="solid">단색 배경</option>
+            <option value="nonsolid">무늬 배경</option>
+          </select>
+          <span className="block-type-preview" aria-label="블록 표시 색상">
+            <span className="block-type-swatch" style={{ borderColor: visualStyle.borderColor, backgroundColor: visualStyle.backgroundColor }} />
+            <span>{blockType === "solid" ? "단색" : "무늬"}</span>
+          </span>
+        </span>
       </label>
       <label>
         한국어
@@ -157,12 +164,6 @@ export function EditorPanel({
       <div className="color-stack" aria-label="블록 색상">
         <ColorField label="글자색" value={resolveColor(block.textColor, "#111111")} disabled={disabled} onChange={(textColor) => onUpdate({ textColor })} />
         <ColorField label="외곽선" value={outlineColor} disabled={disabled} onChange={(nextOutlineColor) => onUpdate({ outlineColor: nextOutlineColor })} />
-        <ColorField
-          label="배경색"
-          value={resolveColor(block.backgroundColor, "#fffdf5")}
-          disabled={disabled}
-          onChange={(backgroundColor) => onUpdate({ backgroundColor })}
-        />
       </div>
       <div className="block-actions">
         <button onClick={onDuplicate} disabled={disabled}>복제</button>

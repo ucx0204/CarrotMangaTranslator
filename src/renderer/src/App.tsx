@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import type {
   AppSettings,
   BBox,
+  BlockType,
   ChapterSnapshot,
   ImportPreviewResult,
   JobEvent,
@@ -12,6 +13,7 @@ import type {
   WorkShareExportRequest,
   WorkShareImportPreview
 } from "../../shared/types";
+import { resolveBlockVisualStyle } from "../../shared/blockVisuals";
 import {
   applyEditableBlockBbox,
   clampBbox,
@@ -36,6 +38,7 @@ import { TranslateSourceModal, type TranslateSourceMode } from "./components/Tra
 import { useStageSize } from "./hooks/useStageSize";
 import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyPages, resolveSelectionAfterChapterSync } from "./lib/chapterSync";
 import { formatJobEventLine, formatJobLabel, resolveProgressSnapshot, summarizeWarnings } from "./lib/jobProgress";
+import inpaintingGuideImage from "./assets/images/inpainting-guide.png";
 import { resolveAdjacentPageId, resolveKeyboardPageNavigation, resolveWheelPageNavigation } from "./lib/pageNavigation";
 import "./styles.css";
 
@@ -71,6 +74,8 @@ type RegionSelectionState = {
   };
 };
 
+type InpaintingStep = "classify" | "solid-review" | "nonsolid-review" | "ready" | "running";
+
 type RenameTarget =
   | {
       kind: "work";
@@ -82,6 +87,12 @@ type RenameTarget =
       id: string;
       title: string;
     };
+
+type ConfirmDialogState = {
+  title: string;
+  message: string;
+  detail?: string;
+};
 
 export default function App(): React.JSX.Element {
   const [library, setLibrary] = useState<LibraryIndex>({ workOrder: [], works: [] });
@@ -105,6 +116,12 @@ export default function App(): React.JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+  const [inpaintingMode, setInpaintingMode] = useState(false);
+  const [inpaintingStep, setInpaintingStep] = useState<InpaintingStep>("classify");
+  const [inpaintingGuideOpen, setInpaintingGuideOpen] = useState(false);
+  const [showBlockChrome, setShowBlockChrome] = useState(true);
+  const [showTextBlocks, setShowTextBlocks] = useState(true);
   const workspacePanelRef = useRef<HTMLElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -116,6 +133,7 @@ export default function App(): React.JSX.Element {
   const currentChapterRef = useRef<ChapterSnapshot | null>(null);
   const selectedPageIdRef = useRef<string | null>(null);
   const selectedBlockIdRef = useRef<string | null>(null);
+  const confirmResolverRef = useRef<((confirmed: boolean) => void) | null>(null);
   const pageImageCacheRef = useRef<Map<string, string>>(new Map());
 
   const selectedPage = useMemo(
@@ -124,7 +142,9 @@ export default function App(): React.JSX.Element {
   );
   const selectedBlock = selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
   const jobActive = ["starting", "running", "cancelling"].includes(jobState.status);
-  const modalOpen = Boolean(translationSourceOpen || importPreview || shareExportOpen || shareImportPreview || renameTarget || settingsOpen);
+  const modalOpen = Boolean(
+    translationSourceOpen || importPreview || shareExportOpen || shareImportPreview || renameTarget || settingsOpen || confirmDialog || inpaintingGuideOpen
+  );
   const selectedPageEditLocked = Boolean(jobActive && selectedPage && selectedPage.analysisStatus !== "completed");
   const selectedPageSize = useMemo(
     () => (selectedPage ? { width: selectedPage.width, height: selectedPage.height } : null),
@@ -134,6 +154,13 @@ export default function App(): React.JSX.Element {
   const progressSnapshot = useMemo(() => resolveProgressSnapshot(jobState), [jobState]);
   const showProgressBar = jobState.status !== "idle" && !!progressSnapshot;
   const regionSelectionRect = useMemo(() => (regionSelection ? regionSelectionToBbox(regionSelection) : null), [regionSelection]);
+  const blockCounts = useMemo(() => countChapterBlocks(currentChapter), [currentChapter]);
+  const inpaintingHighlightType: BlockType | null =
+    inpaintingMode && inpaintingStep === "solid-review"
+      ? "solid"
+      : inpaintingMode && inpaintingStep === "nonsolid-review"
+        ? "nonsolid"
+        : null;
 
   const refreshLibrary = useCallback(async () => {
     const next = await window.mangaApi.getLibrary();
@@ -171,6 +198,14 @@ export default function App(): React.JSX.Element {
   React.useEffect(() => {
     setRegionSelection(null);
   }, [selectedPage?.id]);
+
+  React.useEffect(() => {
+    if (!currentChapter) {
+      setInpaintingMode(false);
+      setInpaintingStep("classify");
+      setInpaintingGuideOpen(false);
+    }
+  }, [currentChapter]);
 
   React.useEffect(() => {
     pageImageCacheRef.current.clear();
@@ -355,6 +390,21 @@ export default function App(): React.JSX.Element {
     [appendStatusLine]
   );
 
+  const resolveConfirmDialog = useCallback((confirmed: boolean) => {
+    const resolver = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    setConfirmDialog(null);
+    resolver?.(confirmed);
+  }, []);
+
+  const askConfirm = useCallback((title: string, message: string, detail?: string) => {
+    confirmResolverRef.current?.(false);
+    return new Promise<boolean>((resolve) => {
+      confirmResolverRef.current = resolve;
+      setConfirmDialog({ title, message, detail });
+    });
+  }, []);
+
   const markDirty = useCallback((pageId?: string) => {
     dirtyVersionRef.current += 1;
     if (pageId) {
@@ -512,7 +562,7 @@ export default function App(): React.JSX.Element {
       }
 
       if (payload.remainingPackageChapters.length > 0) {
-        const confirmed = await window.mangaApi.confirm(
+        const confirmed = await askConfirm(
           "가져오지 않는 화가 있습니다",
           "오른쪽에 남은 공유 화는 적용되지 않습니다.",
           payload.remainingPackageChapters.map((chapter) => chapter.title).join("\n")
@@ -523,7 +573,7 @@ export default function App(): React.JSX.Element {
       }
 
       if (payload.deletedExistingChapters.length > 0) {
-        const confirmed = await window.mangaApi.confirm(
+        const confirmed = await askConfirm(
           "기존 화 삭제",
           "왼쪽 최종 목록에서 빠진 기존 화가 보관함에서 삭제됩니다.",
           payload.deletedExistingChapters.map((chapter) => chapter.title).join("\n")
@@ -553,7 +603,7 @@ export default function App(): React.JSX.Element {
         setShareImportBusy(false);
       }
     },
-    [applyChapter, dirty, pushStatus, refreshLibrary, saveNow, shareImportPreview]
+    [applyChapter, askConfirm, dirty, pushStatus, refreshLibrary, saveNow, shareImportPreview]
   );
 
   const runAnalysis = useCallback(
@@ -592,6 +642,65 @@ export default function App(): React.JSX.Element {
       }
     },
     [currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow]
+  );
+
+  const enterInpaintingMode = useCallback(async () => {
+    if (!currentChapter || jobActive) {
+      return;
+    }
+    if (dirty) {
+      await saveNow();
+    }
+    setInpaintingMode(true);
+    setInpaintingStep("classify");
+    setSelectedBlockId(null);
+    setRegionSelection(null);
+    setShowBlockChrome(true);
+    setShowTextBlocks(true);
+    setInpaintingGuideOpen(true);
+    pushStatus("인페인팅 모드로 전환했습니다. 먼저 배경 종류와 영역을 확인하세요.");
+  }, [currentChapter, dirty, jobActive, pushStatus, saveNow]);
+
+  const exitInpaintingMode = useCallback(() => {
+    if (jobActive) {
+      return;
+    }
+    setInpaintingMode(false);
+    setInpaintingStep("classify");
+    setInpaintingGuideOpen(false);
+    setSelectedBlockId(null);
+    setRegionSelection(null);
+    pushStatus("인페인팅 모드를 종료했습니다.");
+  }, [jobActive, pushStatus]);
+
+  const advanceInpaintingStep = useCallback(
+    async (step: InpaintingStep) => {
+      if (step === "running") {
+        const confirmed = await askConfirm(
+          "인페인팅 작업 시작",
+          "현재 화의 선택된 대상에 긴 작업을 실행합니다.",
+          "실행 전 단색/무늬 배경 분류와 영역을 확인하세요."
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+      setInpaintingStep(step);
+      if (step === "solid-review") {
+        setShowTextBlocks(true);
+        setShowBlockChrome(true);
+        pushStatus("단색 배경 블록 확인 단계입니다.");
+      } else if (step === "nonsolid-review") {
+        setShowTextBlocks(true);
+        setShowBlockChrome(true);
+        pushStatus("무늬 배경 블록 편집 단계입니다.");
+      } else if (step === "ready") {
+        pushStatus("인페인팅 실행 전 확인 단계입니다.");
+      } else if (step === "running") {
+        pushStatus("인페인팅 엔진 연결 전입니다. UI 단계만 준비되었습니다.");
+      }
+    },
+    [askConfirm, pushStatus]
   );
 
   const startRegionTranslationSelection = useCallback(() => {
@@ -723,7 +832,7 @@ export default function App(): React.JSX.Element {
       if (!page) {
         return;
       }
-      const confirmed = await window.mangaApi.confirm(
+      const confirmed = await askConfirm(
         "페이지 삭제",
         "정말 삭제하시겠습니까?",
         "이 페이지와 해당 번역 결과가 보관함에서 삭제됩니다."
@@ -741,7 +850,7 @@ export default function App(): React.JSX.Element {
       pushStatus(`${page.name} 페이지를 삭제했습니다.`);
       await refreshLibrary();
     },
-    [applyChapter, currentChapter, pushStatus, refreshLibrary]
+    [applyChapter, askConfirm, currentChapter, pushStatus, refreshLibrary]
   );
 
   const retranslatePage = useCallback(
@@ -750,7 +859,7 @@ export default function App(): React.JSX.Element {
       if (!page || !currentChapter) {
         return;
       }
-      const confirmed = await window.mangaApi.confirm(
+      const confirmed = await askConfirm(
         "페이지 재번역",
         "정말 재번역 하시겠습니까?",
         "기존 번역 결과와 수정 내용이 이 페이지에서 덮어써집니다."
@@ -760,7 +869,7 @@ export default function App(): React.JSX.Element {
       }
       await runAnalysis("single-page", pageId);
     },
-    [currentChapter, runAnalysis]
+    [askConfirm, currentChapter, runAnalysis]
   );
 
   const updateSelectedBlock = (patch: Partial<TranslationBlock>) => {
@@ -783,12 +892,15 @@ export default function App(): React.JSX.Element {
 
                 const nextType = normalizeBlockType(patch.type ?? block.type);
                 const nextRenderDirection = normalizeRenderDirection(patch.renderDirection ?? block.renderDirection, block.renderDirection);
+                const nextVisualStyle = resolveBlockVisualStyle(nextType);
                 return {
                   ...block,
                   ...patch,
                   type: nextType,
                   renderDirection: nextRenderDirection,
                   rotationDeg: normalizeRotationDeg(patch.rotationDeg ?? block.rotationDeg ?? 0),
+                  backgroundColor: patch.type ? nextVisualStyle.backgroundColor : patch.backgroundColor ?? block.backgroundColor,
+                  opacity: patch.type ? nextVisualStyle.defaultOpacity : patch.opacity ?? block.opacity,
                   bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
                   bboxSpace: patch.bbox ? "normalized_1000" : block.bboxSpace,
                   renderBbox: patch.renderBbox ? clampBbox(patch.renderBbox) : block.renderBbox,
@@ -1082,7 +1194,7 @@ export default function App(): React.JSX.Element {
 
     const isCurrentChapter = currentChapter?.id === renameTarget.id;
     const isCurrentWork = renameTarget.kind === "work" && currentChapter?.workId === renameTarget.id;
-    const confirmed = await window.mangaApi.confirm(
+    const confirmed = await askConfirm(
       renameTarget.kind === "work" ? "작품 삭제" : "화 삭제",
       "정말 삭제하시겠습니까?",
       renameTarget.kind === "work"
@@ -1120,7 +1232,7 @@ export default function App(): React.JSX.Element {
     } finally {
       setRenameBusy(false);
     }
-  }, [clearCurrentChapter, currentChapter?.id, currentChapter?.workId, dirty, pushStatus, renameTarget, saveNow]);
+  }, [askConfirm, clearCurrentChapter, currentChapter?.id, currentChapter?.workId, dirty, pushStatus, renameTarget, saveNow]);
 
   const openSettings = useCallback(async () => {
     if (settings) {
@@ -1170,86 +1282,109 @@ export default function App(): React.JSX.Element {
   }, [pushStatus]);
 
   return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <section className="toolbar">
-          <button className="primary" onClick={() => setTranslationSourceOpen(true)} disabled={jobActive}>
-            번역
-          </button>
-          <button onClick={() => void openImportPreview("zip-folder")} disabled={jobActive}>
-            작품 일괄 번역
-          </button>
-          <button onClick={() => void openSettings()} disabled={settingsBusy && !settingsOpen}>
-            설정
-          </button>
-          <button onClick={() => void window.mangaApi.openLibraryFolder()}>보관함 폴더</button>
-          <button className="share-button" onClick={() => setShareExportOpen(true)} disabled={jobActive || library.works.length === 0}>
-            공유하기
-          </button>
-          <button className="import-button" onClick={() => void openShareImportPreview()} disabled={jobActive}>
-            가져오기
-          </button>
-        </section>
+    <main className={`app-shell ${inpaintingMode ? "inpainting-mode" : ""}`}>
+      <aside className={`sidebar ${inpaintingMode ? "inpainting-sidebar" : ""}`}>
+        {inpaintingMode ? (
+          <>
+            <section className="inpainting-exit-panel">
+              <button className="danger" onClick={exitInpaintingMode} disabled={jobActive}>
+                인페인팅 나가기
+              </button>
+              <small>{currentChapter ? currentChapter.title : "현재 화 없음"}</small>
+            </section>
 
-        <LibraryTree
-          library={library}
-          currentChapterId={currentChapter?.id ?? null}
-          jobActive={jobActive}
-          onOpenChapter={(chapterId) => void openChapter(chapterId)}
-          onRenameWork={(workId) => void renameWork(workId)}
-          onRenameChapter={(chapterId) => void renameChapter(chapterId)}
-          onReorderChapter={(workId, sourceChapterId, targetChapterId) => {
-            const work = library.works.find((candidate) => candidate.id === workId);
-            if (!work) {
-              return;
-            }
-            const nextOrder = reorderByTarget(work.chapterOrder, sourceChapterId, targetChapterId);
-            setLibrary((current) => ({
-              ...current,
-              works: current.works.map((candidate) =>
-                candidate.id === workId
-                  ? {
-                      ...candidate,
-                      chapterOrder: nextOrder,
-                      chapters: reorderRecordsByIdOrder(candidate.chapters, nextOrder)
-                    }
-                  : candidate
-              )
-            }));
-            void window.mangaApi.reorderChapters(workId, nextOrder).then(setLibrary);
-          }}
-        />
+            <PageList
+              pages={currentChapter?.pages ?? []}
+              selectedPageId={selectedPage?.id ?? null}
+              jobActive={true}
+              onSelect={selectPageForReading}
+              onRetranslate={(pageId) => void retranslatePage(pageId)}
+              onRemove={(pageId) => void removePage(pageId)}
+              onReorder={() => undefined}
+            />
+          </>
+        ) : (
+          <>
+            <section className="toolbar">
+              <button className="primary" onClick={() => setTranslationSourceOpen(true)} disabled={jobActive}>
+                번역
+              </button>
+              <button onClick={() => void openImportPreview("zip-folder")} disabled={jobActive}>
+                작품 일괄 번역
+              </button>
+              <button onClick={() => void openSettings()} disabled={settingsBusy && !settingsOpen}>
+                설정
+              </button>
+              <button onClick={() => void window.mangaApi.openLibraryFolder()}>보관함 폴더</button>
+              <button className="share-button" onClick={() => setShareExportOpen(true)} disabled={jobActive || library.works.length === 0}>
+                공유하기
+              </button>
+              <button className="import-button" onClick={() => void openShareImportPreview()} disabled={jobActive}>
+                가져오기
+              </button>
+            </section>
 
-        <PageList
-          pages={currentChapter?.pages ?? []}
-          selectedPageId={selectedPage?.id ?? null}
-          jobActive={jobActive}
-          onSelect={selectPageForReading}
-          onRetranslate={(pageId) => void retranslatePage(pageId)}
-          onRemove={(pageId) => void removePage(pageId)}
-          onReorder={(sourcePageId, targetPageId) => {
-            if (!currentChapter) {
-              return;
-            }
-            const nextOrder = reorderByTarget(currentChapter.pageOrder, sourcePageId, targetPageId);
-            setCurrentChapter((chapter) => {
-              if (!chapter || chapter.id !== currentChapter.id) {
-                return chapter;
-              }
-              const nextChapter = {
-                ...chapter,
-                pageOrder: nextOrder,
-                pages: reorderRecordsByIdOrder(chapter.pages, nextOrder)
-              };
-              currentChapterRef.current = nextChapter;
-              return nextChapter;
-            });
-            void window.mangaApi.reorderPages(currentChapter.id, nextOrder).then((chapter) => {
-              applyChapter(chapter);
-              void refreshLibrary();
-            });
-          }}
-        />
+            <LibraryTree
+              library={library}
+              currentChapterId={currentChapter?.id ?? null}
+              jobActive={jobActive}
+              onOpenChapter={(chapterId) => void openChapter(chapterId)}
+              onRenameWork={(workId) => void renameWork(workId)}
+              onRenameChapter={(chapterId) => void renameChapter(chapterId)}
+              onReorderChapter={(workId, sourceChapterId, targetChapterId) => {
+                const work = library.works.find((candidate) => candidate.id === workId);
+                if (!work) {
+                  return;
+                }
+                const nextOrder = reorderByTarget(work.chapterOrder, sourceChapterId, targetChapterId);
+                setLibrary((current) => ({
+                  ...current,
+                  works: current.works.map((candidate) =>
+                    candidate.id === workId
+                      ? {
+                          ...candidate,
+                          chapterOrder: nextOrder,
+                          chapters: reorderRecordsByIdOrder(candidate.chapters, nextOrder)
+                        }
+                      : candidate
+                  )
+                }));
+                void window.mangaApi.reorderChapters(workId, nextOrder).then(setLibrary);
+              }}
+            />
+
+            <PageList
+              pages={currentChapter?.pages ?? []}
+              selectedPageId={selectedPage?.id ?? null}
+              jobActive={jobActive}
+              onSelect={selectPageForReading}
+              onRetranslate={(pageId) => void retranslatePage(pageId)}
+              onRemove={(pageId) => void removePage(pageId)}
+              onReorder={(sourcePageId, targetPageId) => {
+                if (!currentChapter) {
+                  return;
+                }
+                const nextOrder = reorderByTarget(currentChapter.pageOrder, sourcePageId, targetPageId);
+                setCurrentChapter((chapter) => {
+                  if (!chapter || chapter.id !== currentChapter.id) {
+                    return chapter;
+                  }
+                  const nextChapter = {
+                    ...chapter,
+                    pageOrder: nextOrder,
+                    pages: reorderRecordsByIdOrder(chapter.pages, nextOrder)
+                  };
+                  currentChapterRef.current = nextChapter;
+                  return nextChapter;
+                });
+                void window.mangaApi.reorderPages(currentChapter.id, nextOrder).then((chapter) => {
+                  applyChapter(chapter);
+                  void refreshLibrary();
+                });
+              }}
+            />
+          </>
+        )}
       </aside>
 
       <section
@@ -1269,6 +1404,9 @@ export default function App(): React.JSX.Element {
               stageRef={stageRef}
               stageSize={stageSize}
               selectedBlockId={selectedBlockId}
+              showTextBlocks={showTextBlocks}
+              showBlockChrome={showBlockChrome}
+              highlightBlockType={inpaintingHighlightType}
               regionSelectionActive={Boolean(regionSelection?.active)}
               regionSelectionRect={regionSelectionRect}
               onStagePointerMove={onStagePointerMove}
@@ -1291,77 +1429,115 @@ export default function App(): React.JSX.Element {
         <InstallProgressOverlay job={jobState} snapshot={progressSnapshot} />
       </section>
 
-      <aside className="right-rail">
-        <section className="run-panel">
-          <div className="run-title">
-            <h2>{currentChapter?.title ?? "현재 화 없음"}</h2>
-            <small>{currentChapter ? `${currentChapter.pages.length}페이지` : "보관함에서 화를 열어 주세요."}</small>
-          </div>
-          <button className="primary" onClick={() => void runAnalysis("pending")} disabled={!currentChapter || jobActive}>
-            이어서 번역
-          </button>
-          <button onClick={() => void runAnalysis("all")} disabled={!currentChapter || jobActive}>
-            전체 다시 번역
-          </button>
-          {jobActive ? (
-            <button className="danger" onClick={() => void window.mangaApi.cancelJob()}>
-              취소
-            </button>
-          ) : null}
-          {showProgressBar && progressSnapshot ? (
-            <div className="progress-card">
-              <div className="progress-meta">
-                <span>{jobState.progressText}</span>
-                {progressSnapshot.mode === "determinate" ? (
-                  <strong>
-                    {progressSnapshot.current} / {progressSnapshot.total}
-                  </strong>
-                ) : (
-                  <strong>준비 중</strong>
-                )}
+      <aside className={`right-rail ${inpaintingMode ? "inpainting-rail" : ""}`}>
+        {inpaintingMode ? (
+          <>
+            <InpaintingControlPanel
+              step={inpaintingStep}
+              currentChapter={currentChapter}
+              selectedPage={selectedPage}
+              blockCounts={blockCounts}
+              showBlockChrome={showBlockChrome}
+              showTextBlocks={showTextBlocks}
+              jobActive={jobActive}
+              onStepChange={(step) => void advanceInpaintingStep(step)}
+              onShowGuide={() => setInpaintingGuideOpen(true)}
+              onToggleChrome={() => setShowBlockChrome((value) => !value)}
+              onToggleBlocks={() => setShowTextBlocks((value) => !value)}
+            />
+            <EditorPanel
+              block={selectedBlock}
+              disabled={selectedPageEditLocked || jobActive}
+              areaTranslateAvailable={false}
+              onUpdate={updateSelectedBlock}
+              onDelete={deleteSelectedBlock}
+              onDuplicate={duplicateSelectedBlock}
+            />
+          </>
+        ) : (
+          <>
+            <section className="run-panel">
+              <div className="run-title">
+                <h2>{currentChapter?.title ?? "현재 화 없음"}</h2>
+                <small>{currentChapter ? `${currentChapter.pages.length}페이지` : "보관함에서 화를 열어 주세요."}</small>
               </div>
-              {jobState.detail ? <small className="progress-detail">{jobState.detail}</small> : null}
-              <div
-                className={`progress-track ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
-                aria-hidden="true"
-              >
-                <div
-                  className={`progress-fill ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
-                  style={
-                    progressSnapshot.mode === "determinate"
-                      ? { width: `${Math.round(progressSnapshot.ratio * 100)}%` }
-                      : undefined
-                  }
-                />
-              </div>
-            </div>
-          ) : null}
-        </section>
+              <button className="primary" onClick={() => void runAnalysis("pending")} disabled={!currentChapter || jobActive}>
+                이어서 번역
+              </button>
+              <button onClick={() => void runAnalysis("all")} disabled={!currentChapter || jobActive}>
+                전체 다시 번역
+              </button>
+              <button onClick={() => void enterInpaintingMode()} disabled={!currentChapter || jobActive}>
+                인페인팅
+              </button>
+              {jobActive ? (
+                <button className="danger" onClick={() => void window.mangaApi.cancelJob()}>
+                  취소
+                </button>
+              ) : null}
+              {showProgressBar && progressSnapshot ? (
+                <div className="progress-card">
+                  <div className="progress-meta">
+                    <span>{jobState.progressText}</span>
+                    {progressSnapshot.mode === "determinate" ? (
+                      <strong>
+                        {progressSnapshot.current} / {progressSnapshot.total}
+                      </strong>
+                    ) : (
+                      <strong>준비 중</strong>
+                    )}
+                  </div>
+                  {jobState.detail ? <small className="progress-detail">{jobState.detail}</small> : null}
+                  <div
+                    className={`progress-track ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
+                    aria-hidden="true"
+                  >
+                    <div
+                      className={`progress-fill ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
+                      style={
+                        progressSnapshot.mode === "determinate"
+                          ? { width: `${Math.round(progressSnapshot.ratio * 100)}%` }
+                          : undefined
+                      }
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </section>
 
-        {!selectedBlock ? (
-          <section className="status-panel">
-            <h2>상태</h2>
-            <div className={`job-pill ${jobState.status}`}>{jobState.progressText}</div>
-            <div className="status-log-scroll">
-              {statusLines.length ? (
-                statusLines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)
-              ) : (
-                <p className="muted-line">아직 표시할 상태가 없습니다.</p>
-              )}
-            </div>
-          </section>
-        ) : null}
+            <DisplayControlPanel
+              showBlockChrome={showBlockChrome}
+              showTextBlocks={showTextBlocks}
+              onToggleChrome={() => setShowBlockChrome((value) => !value)}
+              onToggleBlocks={() => setShowTextBlocks((value) => !value)}
+            />
 
-        <EditorPanel
-          block={selectedBlock}
-          disabled={selectedPageEditLocked || jobActive}
-          areaTranslateAvailable={Boolean(selectedPage && selectedPageImageDataUrl && !jobActive)}
-          areaTranslateSelecting={Boolean(regionSelection?.active)}
-          onStartAreaTranslate={startRegionTranslationSelection}
-          onUpdate={updateSelectedBlock}
-          onDelete={deleteSelectedBlock}
-          onDuplicate={duplicateSelectedBlock}
-        />
+            {!selectedBlock ? (
+              <section className="status-panel">
+                <h2>상태</h2>
+                <div className={`job-pill ${jobState.status}`}>{jobState.progressText}</div>
+                <div className="status-log-scroll">
+                  {statusLines.length ? (
+                    statusLines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)
+                  ) : (
+                    <p className="muted-line">아직 표시할 상태가 없습니다.</p>
+                  )}
+                </div>
+              </section>
+            ) : null}
+
+            <EditorPanel
+              block={selectedBlock}
+              disabled={selectedPageEditLocked || jobActive}
+              areaTranslateAvailable={Boolean(selectedPage && selectedPageImageDataUrl && !jobActive)}
+              areaTranslateSelecting={Boolean(regionSelection?.active)}
+              onStartAreaTranslate={startRegionTranslationSelection}
+              onUpdate={updateSelectedBlock}
+              onDelete={deleteSelectedBlock}
+              onDuplicate={duplicateSelectedBlock}
+            />
+          </>
+        )}
       </aside>
 
       {translationSourceOpen ? (
@@ -1432,7 +1608,235 @@ export default function App(): React.JSX.Element {
           onSubmit={(nextSettings) => void submitSettings(nextSettings)}
         />
       ) : null}
+
+      {confirmDialog ? (
+        <ConfirmModal
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          detail={confirmDialog.detail}
+          onConfirm={() => resolveConfirmDialog(true)}
+          onCancel={() => resolveConfirmDialog(false)}
+        />
+      ) : null}
+
+      {inpaintingGuideOpen ? <InpaintingGuideModal onClose={() => setInpaintingGuideOpen(false)} /> : null}
     </main>
+  );
+}
+
+function InpaintingGuideModal({ onClose }: { onClose: () => void }): React.JSX.Element {
+  return (
+    <div className="modal-backdrop guide-backdrop" role="presentation">
+      <div className="modal-card inpainting-guide-modal" role="dialog" aria-modal="true" aria-label="인페인팅 안내" onMouseDown={(event) => event.stopPropagation()}>
+        <img src={inpaintingGuideImage} alt="인페인팅 전 단색 배경과 무늬 배경을 확인하는 방법 안내" />
+        <div className="modal-actions guide-actions">
+          <button className="primary" onClick={onClose}>
+            확인
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmModal({
+  title,
+  message,
+  detail,
+  onConfirm,
+  onCancel
+}: {
+  title: string;
+  message: string;
+  detail?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}): React.JSX.Element {
+  return (
+    <div className="modal-backdrop confirm-backdrop" role="presentation">
+      <div className="modal-card confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <div className="confirm-title-row">
+            <span className="confirm-warning-icon" aria-hidden="true">!</span>
+            <h2 id="confirm-title">{title}</h2>
+          </div>
+        </div>
+        <section className="modal-section confirm-body">
+          <strong>{message}</strong>
+          {detail ? <p>{detail}</p> : null}
+        </section>
+        <div className="modal-actions">
+          <button onClick={onCancel}>취소</button>
+          <button className="primary" onClick={onConfirm}>
+            확인
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type BlockCounts = {
+  total: number;
+  solid: number;
+  nonsolid: number;
+};
+
+function InpaintingControlPanel({
+  step,
+  currentChapter,
+  selectedPage,
+  blockCounts,
+  showBlockChrome,
+  showTextBlocks,
+  jobActive,
+  onStepChange,
+  onShowGuide,
+  onToggleChrome,
+  onToggleBlocks
+}: {
+  step: InpaintingStep;
+  currentChapter: ChapterSnapshot | null;
+  selectedPage: MangaPage | null;
+  blockCounts: BlockCounts;
+  showBlockChrome: boolean;
+  showTextBlocks: boolean;
+  jobActive: boolean;
+  onStepChange: (step: InpaintingStep) => void;
+  onShowGuide: () => void;
+  onToggleChrome: () => void;
+  onToggleBlocks: () => void;
+}): React.JSX.Element {
+  return (
+    <section className="inpainting-panel">
+      <div className="panel-header">
+        <h2>인페인팅</h2>
+        <div className="inpainting-header-actions">
+          <button className="inpainting-guide-button" onClick={onShowGuide}>
+            안내
+          </button>
+          <span className="inpainting-step-badge">{resolveInpaintingStepLabel(step)}</span>
+        </div>
+      </div>
+
+      <div className="inpainting-summary">
+        <strong>{currentChapter?.title ?? "현재 화 없음"}</strong>
+        <span>{currentChapter ? `${currentChapter.pages.length}페이지 · ${blockCounts.total}블록` : "화가 열려 있지 않습니다."}</span>
+        {selectedPage ? <small>현재 페이지: {selectedPage.name}</small> : null}
+      </div>
+
+      <div className="inpainting-counts">
+        <span className="type-stat solid">단색 배경 {blockCounts.solid}</span>
+        <span className="type-stat nonsolid">무늬 배경 {blockCounts.nonsolid}</span>
+      </div>
+
+      <ol className="inpainting-steps">
+        <InpaintingStepButton active={step === "classify"} disabled={jobActive} onClick={() => onStepChange("classify")}>
+          1. 영역 재설정
+        </InpaintingStepButton>
+        <InpaintingStepButton active={step === "solid-review"} disabled={jobActive} onClick={() => onStepChange("solid-review")}>
+          2. 단색 배경 확인
+        </InpaintingStepButton>
+        <InpaintingStepButton active={step === "nonsolid-review"} disabled={jobActive} onClick={() => onStepChange("nonsolid-review")}>
+          3. 무늬 배경 편집
+        </InpaintingStepButton>
+        <InpaintingStepButton active={step === "ready"} disabled={jobActive} onClick={() => onStepChange("ready")}>
+          4. 실행 준비
+        </InpaintingStepButton>
+      </ol>
+
+      <DisplayControlPanel
+        showBlockChrome={showBlockChrome}
+        showTextBlocks={showTextBlocks}
+        onToggleChrome={onToggleChrome}
+        onToggleBlocks={onToggleBlocks}
+      />
+
+      <button className="primary" disabled={!currentChapter || jobActive} onClick={() => onStepChange("running")}>
+        현재 단계 적용
+      </button>
+    </section>
+  );
+}
+
+function InpaintingStepButton({
+  active,
+  disabled,
+  children,
+  onClick
+}: {
+  active: boolean;
+  disabled: boolean;
+  children: React.ReactNode;
+  onClick: () => void;
+}): React.JSX.Element {
+  return (
+    <li>
+      <button className={active ? "active" : ""} disabled={disabled} onClick={onClick}>
+        {children}
+      </button>
+    </li>
+  );
+}
+
+function DisplayControlPanel({
+  showBlockChrome,
+  showTextBlocks,
+  onToggleChrome,
+  onToggleBlocks
+}: {
+  showBlockChrome: boolean;
+  showTextBlocks: boolean;
+  onToggleChrome: () => void;
+  onToggleBlocks: () => void;
+}): React.JSX.Element {
+  return (
+    <section className="display-panel">
+      <h2>표시</h2>
+      <div className="display-toggle-row">
+        <button className={showBlockChrome ? "active" : ""} onClick={onToggleChrome}>
+          배경/테두리
+        </button>
+        <button className={showTextBlocks ? "active" : ""} onClick={onToggleBlocks}>
+          블록 표시
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function resolveInpaintingStepLabel(step: InpaintingStep): string {
+  switch (step) {
+    case "solid-review":
+      return "단색 확인";
+    case "nonsolid-review":
+      return "무늬 편집";
+    case "ready":
+      return "실행 준비";
+    case "running":
+      return "작업 중";
+    default:
+      return "영역 재설정";
+  }
+}
+
+function countChapterBlocks(chapter: ChapterSnapshot | null): BlockCounts {
+  if (!chapter) {
+    return { total: 0, solid: 0, nonsolid: 0 };
+  }
+  return chapter.pages.reduce<BlockCounts>(
+    (counts, page) => {
+      for (const block of page.blocks) {
+        counts.total += 1;
+        if (block.type === "solid") {
+          counts.solid += 1;
+        } else {
+          counts.nonsolid += 1;
+        }
+      }
+      return counts;
+    },
+    { total: 0, solid: 0, nonsolid: 0 }
   );
 }
 

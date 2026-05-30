@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { buildBaseTranslationOptions, type TranslationOptions } from "./appSettings";
 import { logError, logInfo, logWarn } from "./logger";
 import { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint, type OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
+import { resolveBlockVisualStyle } from "../shared/blockVisuals";
 import { estimateBlockFontSizePx, clamp, clampBbox, enforceRenderDirection, enforceRotationDeg, normalizeBlockType, pixelsToBbox } from "../shared/geometry";
 import type { AppSettings, BBox, BlockType, JobEvent, MangaPage, RenderTextDirection, SourceTextDirection, TranslationBlock } from "../shared/types";
 import { getAppPaths } from "./appPaths";
@@ -134,7 +135,6 @@ function loadRuntimeModules(): RuntimeModules {
 
 const DEFAULT_TEXT_COLOR = "#111111";
 const DEFAULT_OUTLINE_COLOR = "#ffffff";
-const DEFAULT_BACKGROUND_COLOR = "#fffdf5";
 const CROP_RETRY_CONFIDENCE_THRESHOLD = 0.72;
 const CROP_RETRY_MAX_ITEMS_PER_PAGE = 8;
 const CROP_RETRY_MIN_SIDE_PX = 192;
@@ -1077,6 +1077,7 @@ export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: nu
   const bbox = rawBbox;
   const renderDirection = resolveInitialRenderDirection(type, sourceDirection, item, bbox, page, fontSizePx);
   const rotationDeg = enforceRotationDeg(type, item.angle ?? 0);
+  const visualStyle = resolveBlockVisualStyle(type);
   return {
     id: `${page.id}-block-${index + 1}`,
     type,
@@ -1093,8 +1094,8 @@ export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: nu
     textAlign: "center",
     textColor: DEFAULT_TEXT_COLOR,
     outlineColor: DEFAULT_OUTLINE_COLOR,
-    backgroundColor: type === "sfx" || type === "caption" ? "#fff4ea" : DEFAULT_BACKGROUND_COLOR,
-    opacity: type === "caption" ? 0.7 : type === "sfx" ? 0.5 : 0.9,
+    backgroundColor: visualStyle.backgroundColor,
+    opacity: visualStyle.defaultOpacity,
     autoFitText: true
   };
 }
@@ -1127,11 +1128,11 @@ function resolveInitialRenderDirection(
   page: MangaPage,
   fontSizePx: number
 ): RenderTextDirection {
-  if (type === "speech" || type === "caption") {
+  if (type === "solid") {
     return "horizontal";
   }
 
-  if (type === "sfx" && sourceDirection === "vertical" && shouldKeepVerticalRendering(bbox, page, fontSizePx)) {
+  if (type === "nonsolid" && sourceDirection === "vertical" && shouldKeepVerticalRendering(bbox, page, fontSizePx)) {
     return "vertical";
   }
 

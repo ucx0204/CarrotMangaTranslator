@@ -228,7 +228,7 @@ function makeChapter(rootDir: string, chapterId: string, title: string, pageId: 
         blocks: [
           {
             id: blockId,
-            type: "speech",
+            type: "solid",
             bbox: { x: 10, y: 10, w: 100, h: 100 },
             bboxSpace: "normalized_1000",
             sourceText: "こんにちは",

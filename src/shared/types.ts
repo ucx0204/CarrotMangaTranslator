@@ -1,4 +1,4 @@
-export type BlockType = "speech" | "sfx" | "caption" | "other";
+export type BlockType = "solid" | "nonsolid";
 
 export type SourceTextDirection = "horizontal" | "vertical";
 export type RenderTextDirection = "horizontal" | "vertical" | "rotated" | "hidden";

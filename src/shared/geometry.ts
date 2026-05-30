@@ -135,9 +135,7 @@ export function offsetBlockBboxes(block: TranslationBlock, dx: number, dy: numbe
 }
 
 export function enforceRenderDirection(type: BlockType, direction: RenderTextDirection): RenderTextDirection {
-  if (type === "speech") {
-    return direction === "hidden" ? "hidden" : "horizontal";
-  }
+  void type;
   return direction === "vertical" || direction === "rotated" || direction === "hidden" ? direction : "horizontal";
 }
 
@@ -152,16 +150,22 @@ export function normalizeRotationDeg(value: unknown): number {
 
 export function normalizeBlockType(value: unknown): BlockType {
   const text = String(value ?? "").trim().toLowerCase();
+  if (["solid", "flat", "plain", "monochrome", "single_color", "single-color", "단색", "단색배경"].includes(text)) {
+    return "solid";
+  }
+  if (["nonsolid", "non-solid", "non_solid", "complex", "complex_bg", "complex-background", "비단색", "복잡", "복잡배경"].includes(text)) {
+    return "nonsolid";
+  }
   if (["speech", "dialogue", "dialog", "balloon", "bubble"].includes(text)) {
-    return "speech";
+    return "solid";
   }
   if (["sfx", "sound", "effect", "onomatopoeia"].includes(text)) {
-    return "sfx";
+    return "nonsolid";
   }
   if (["caption", "narration", "name"].includes(text)) {
-    return "caption";
+    return "nonsolid";
   }
-  return "caption";
+  return "nonsolid";
 }
 
 export function normalizeSourceDirection(value: unknown, fallback: SourceTextDirection): SourceTextDirection {

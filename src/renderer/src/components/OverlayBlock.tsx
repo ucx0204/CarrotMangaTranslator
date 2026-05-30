@@ -1,5 +1,6 @@
 import React from "react";
 import type { TranslationBlock } from "../../../shared/types";
+import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
 import { resolveBlockFontFamily } from "../lib/fonts";
 import { hexToRgba, resolveBlockTextLayout, type ViewportSize } from "../lib/overlayLayout";
 
@@ -8,6 +9,8 @@ type OverlayBlockProps = {
   pageSize: ViewportSize;
   stageSize: ViewportSize;
   selected: boolean;
+  showChrome: boolean;
+  highlightType: TranslationBlock["type"] | null;
   onPointerDown: (event: React.PointerEvent) => void;
   onResizePointerDown: (event: React.PointerEvent) => void;
 };
@@ -17,6 +20,8 @@ export function OverlayBlock({
   pageSize,
   stageSize,
   selected,
+  showChrome,
+  highlightType,
   onPointerDown,
   onResizePointerDown
 }: OverlayBlockProps): React.JSX.Element | null {
@@ -27,6 +32,7 @@ export function OverlayBlock({
   const displayText = block.translatedText || block.sourceText || "...";
   const layout = resolveBlockTextLayout(block, displayText, pageSize, stageSize);
   const textOutlineShadow = resolveTextOutlineShadow(layout.fontSizePx, resolveCssColor(block.outlineColor, "#ffffff"));
+  const visualStyle = resolveBlockVisualStyle(block.type);
   const style: React.CSSProperties = {
     left: layout.rect.left,
     top: layout.rect.top,
@@ -36,7 +42,8 @@ export function OverlayBlock({
     padding: layout.paddingPx,
     overflow: "hidden",
     color: block.textColor,
-    backgroundColor: hexToRgba(block.backgroundColor, block.opacity),
+    borderColor: showChrome ? visualStyle.borderColor : "transparent",
+    backgroundColor: showChrome ? hexToRgba(visualStyle.backgroundColor, block.opacity) : "transparent",
     fontFamily: resolveBlockFontFamily(block.fontFamily),
     fontSize: `${layout.fontSizePx}px`,
     lineHeight: block.lineHeight,
@@ -50,13 +57,14 @@ export function OverlayBlock({
     maxWidth: "100%",
     height: layout.innerHeight,
     maxHeight: "100%",
+    justifyContent: "center",
     overflow: "hidden"
   };
   const contentStyle: React.CSSProperties = {
     boxSizing: "border-box",
     writingMode: block.renderDirection === "vertical" ? "vertical-rl" : "horizontal-tb",
     textOrientation: block.renderDirection === "vertical" ? "upright" : undefined,
-    width: `${layout.fitInnerWidth}px`,
+    width: block.renderDirection === "vertical" ? "max-content" : `${layout.fitInnerWidth}px`,
     height: block.renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
     maxWidth: "100%",
     maxHeight: "100%",
@@ -65,7 +73,17 @@ export function OverlayBlock({
 
   return (
     <div
-      className={`${selected ? "overlay-block selected" : "overlay-block"}${layout.overflow ? " overflowing" : ""}`}
+      className={[
+        "overlay-block",
+        `block-${block.type}`,
+        selected ? "selected" : "",
+        showChrome ? "" : "chrome-hidden",
+        highlightType && block.type === highlightType ? "highlight-target" : "",
+        highlightType && block.type !== highlightType ? "highlight-dimmed" : "",
+        layout.overflow ? "overflowing" : ""
+      ]
+        .filter(Boolean)
+        .join(" ")}
       style={style}
       title={layout.overflow ? "현재 render box보다 번역문이 길어서 넘칩니다." : undefined}
       onPointerDown={onPointerDown}

@@ -8,6 +8,7 @@ const DEFAULT_MANGA_ROOT = "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloa
 const SAMPLE_COUNT = readIntEnv("MANGA_SMOKE_COUNT", 30);
 const MANGA_ROOT = process.env.MANGA_SMOKE_MANGA_ROOT || DEFAULT_MANGA_ROOT;
 const TARGET_IMAGE_PATH = process.env.MANGA_SMOKE_IMAGE_PATH || "";
+const SMOKE_PROVIDER = normalizeSmokeProvider(process.env.MANGA_SMOKE_PROVIDER);
 const SAMPLE_OFFSET = readIntEnv("MANGA_SMOKE_SAMPLE_OFFSET", 0);
 const MAX_CAPTURE_LONG_SIDE = readIntEnv("MANGA_SMOKE_MAX_LONG_SIDE", 1400);
 const PAGE_TIMEOUT_MS = readIntEnv("MANGA_SMOKE_PAGE_TIMEOUT_MS", 120000);
@@ -38,21 +39,35 @@ async function main() {
 
   const paths = getAppPaths();
   const settings = normalizeAppSettings(await readJsonIfExists(paths.settingsPath));
-  const baseOptions = buildBaseTranslationOptions({
+  const configuredBaseOptions = buildBaseTranslationOptions({
     jobId: "smoke-overlay",
     runDir: path.join(outDir, "runs"),
     paths,
     settings
   });
-
-  if (baseOptions.modelProvider !== "openai-codex") {
-    throw new Error(`Smoke test expects OpenAI Codex first. Current modelProvider=${baseOptions.modelProvider}`);
-  }
+  const baseOptions = {
+    ...configuredBaseOptions,
+    ...(SMOKE_PROVIDER ? { modelProvider: SMOKE_PROVIDER } : {}),
+    serverLogPath: path.join(outDir, "server.log"),
+    label: "smoke-overlay"
+  };
 
   const samples = await selectSmokeSamples(MANGA_ROOT, SAMPLE_COUNT * 4);
   await writeFile(path.join(outDir, "samples.json"), `${JSON.stringify(samples, null, 2)}\n`, "utf8");
+  await writeFile(path.join(outDir, "settings-summary.json"), `${JSON.stringify({
+    modelProvider: baseOptions.modelProvider,
+    gemmaVramMode: baseOptions.gemmaVramMode,
+    modelRepo: baseOptions.modelRepo,
+    modelFile: baseOptions.modelFile,
+    mmprojRepo: baseOptions.mmprojRepo,
+    mmprojFile: baseOptions.mmprojFile,
+    codexModel: baseOptions.codexModel,
+    codexReasoningEffort: baseOptions.codexReasoningEffort
+  }, null, 2)}\n`, "utf8");
 
-  const server = await startOpenAIOAuthEndpoint(baseOptions);
+  const server = baseOptions.modelProvider === "openai-codex"
+    ? await startOpenAIOAuthEndpoint(baseOptions)
+    : await simplePage.startServer(baseOptions);
   const rendered = [];
   const skipped = [];
   try {
@@ -95,6 +110,7 @@ async function main() {
           Array.isArray(result.requestBody?.ocrBboxHints) ? result.requestBody.ocrBboxHints : []
         );
         const blocks = normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex));
+        const typeCounts = countBlockTypes(blocks);
         const analyzedPage = {
           ...page,
           blocks,
@@ -109,7 +125,7 @@ async function main() {
         await writeFile(pageJsonPath, `${JSON.stringify({ sample, items: normalizedItems, page: analyzedPage }, null, 2)}\n`, "utf8");
         await renderGeometryPng(analyzedPage, analyzedPage.blocks, geometryPath);
         await renderOverlayPng(analyzedPage, overlayPath);
-        rendered.push({ index: index + 1, sample, geometryPath, overlayPath, blockCount: blocks.length });
+        rendered.push({ index: index + 1, sample, geometryPath, overlayPath, blockCount: blocks.length, typeCounts });
       } catch (error) {
         const failure = {
           sample,
@@ -125,7 +141,11 @@ async function main() {
       }
     }
   } finally {
-    await stopOpenAIOAuthEndpoint(server);
+    if (baseOptions.modelProvider === "openai-codex") {
+      await stopOpenAIOAuthEndpoint(server);
+    } else {
+      await simplePage.stopServer(server);
+    }
   }
 
   await writeFile(path.join(outDir, "skipped.json"), `${JSON.stringify(skipped, null, 2)}\n`, "utf8");
@@ -136,9 +156,25 @@ async function main() {
     await renderContactSheet(rendered, geometrySheetPath, "geometryPath");
     await renderContactSheet(rendered, overlaySheetPath, "overlayPath");
   }
-  await writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath);
+  await writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath, baseOptions);
   console.log(`[smoke] wrote ${outDir}`);
   app.quit();
+}
+
+function countBlockTypes(blocks) {
+  return blocks.reduce(
+    (counts, block) => {
+      if (block.type === "solid") {
+        counts.solid += 1;
+      } else if (block.type === "nonsolid") {
+        counts.nonsolid += 1;
+      } else {
+        counts.other += 1;
+      }
+      return counts;
+    },
+    { solid: 0, nonsolid: 0, other: 0 }
+  );
 }
 
 function getBboxNormalizationOptions(requestBody) {
@@ -334,7 +370,7 @@ function buildGeometryHtml(page, items, scale, imageDataUrl) {
     const top = (item.bbox.y / 1000) * page.height * scale;
     const width = (item.bbox.w / 1000) * page.width * scale;
     const height = (item.bbox.h / 1000) * page.height * scale;
-    const color = item.type === "sfx" ? "#f59e0b" : item.type === "narration" || item.type === "caption" ? "#38bdf8" : "#22c55e";
+    const color = item.type === "nonsolid" ? "#f59e0b" : "#22c55e";
     const direction = item.direction || item.sourceDirection || "horizontal";
     const angle = item.angle ?? item.rotationDeg ?? 0;
     const fontSize = item.fontSize ?? item.fontSizePx ?? "?";
@@ -461,7 +497,7 @@ function renderBlockHtml(block) {
   const writing = block.renderDirection === "vertical"
     ? "writing-mode: vertical-rl; text-orientation: upright;"
     : "writing-mode: horizontal-tb;";
-  const shadow = block.type === "sfx" || block.type === "caption" ? `text-shadow: ${buildTextOutlineShadow(block.fontSize)};` : "";
+  const shadow = `text-shadow: ${buildTextOutlineShadow(block.fontSize)};`;
   return `<div class="block" data-font-size="${block.fontSize}" data-line-height="${block.lineHeight}" style="left:${block.rect.left}px;top:${block.rect.top}px;width:${block.rect.width}px;height:${block.rect.height}px;background:${bg};color:${color};${transform}"><span class="text" style="${writing}${shadow}">${escapeHtml(block.text)}</span></div>`;
 }
 
@@ -517,17 +553,28 @@ body { margin: 0; background: #101114; color: #f3efe7; font-family: "Malgun Goth
 .label { height: 42px; font-size: 12px; line-height: 1.3; color: #d8d2c5; overflow: hidden; }
 img { width: 100%; max-height: 390px; object-fit: contain; background: #050607; }
 </style></head><body><div class="grid">
-${items.map((item) => `<div class="cell"><div class="label">${item.index}. ${escapeHtml(item.sample.filePath)}<br />blocks: ${item.blockCount}</div><img src="${escapeHtml(item.imageSrc)}" /></div>`).join("")}
+${items.map((item) => `<div class="cell"><div class="label">${item.index}. ${escapeHtml(item.sample.filePath)}<br />blocks: ${item.blockCount} / solid:${item.typeCounts?.solid ?? 0} nonsolid:${item.typeCounts?.nonsolid ?? 0}</div><img src="${escapeHtml(item.imageSrc)}" /></div>`).join("")}
 </div><script>window.addEventListener("load", () => setTimeout(() => document.body.dataset.ready = "1", 200));</script></body></html>`;
 }
 
-async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath) {
+async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath, baseOptions) {
+  const totalTypeCounts = rendered.reduce(
+    (counts, item) => {
+      counts.solid += item.typeCounts?.solid ?? 0;
+      counts.nonsolid += item.typeCounts?.nonsolid ?? 0;
+      counts.other += item.typeCounts?.other ?? 0;
+      return counts;
+    },
+    { solid: 0, nonsolid: 0, other: 0 }
+  );
   const lines = [
     "# Overlay Smoke Test",
     "",
     `- Generated: ${new Date().toISOString()}`,
+    `- Provider: ${baseOptions.modelProvider}`,
     `- Samples: ${rendered.length}`,
     `- Skipped candidates: ${skipped.length}`,
+    `- Type counts: solid ${totalTypeCounts.solid}, nonsolid ${totalTypeCounts.nonsolid}, other ${totalTypeCounts.other}`,
     ...(geometrySheetPath ? [`- Geometry sheet: ${geometrySheetPath}`] : []),
     ...(overlaySheetPath ? [`- Overlay sheet: ${overlaySheetPath}`] : []),
     "- Source filter: original jpg/jpeg/png pages only; translated_images, mask, inpainted, translated outputs are excluded.",
@@ -543,7 +590,7 @@ async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlay
     "## Samples",
     "",
     ...rendered.flatMap((item) => [
-      `- ${item.index}. blocks=${item.blockCount} ${item.sample.filePath}`,
+      `- ${item.index}. blocks=${item.blockCount} solid=${item.typeCounts?.solid ?? 0} nonsolid=${item.typeCounts?.nonsolid ?? 0} ${item.sample.filePath}`,
       `  - geometry: ${item.geometryPath}`,
       `  - overlay: ${item.overlayPath}`
     ])
@@ -629,6 +676,17 @@ function escapeHtml(value) {
 function readIntEnv(name, fallback) {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? Math.round(value) : fallback;
+}
+
+function normalizeSmokeProvider(value) {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (text === "gemma" || text === "openai-codex") {
+    return text;
+  }
+  if (text === "codex" || text === "openai") {
+    return "openai-codex";
+  }
+  return "";
 }
 
 main().catch((error) => {

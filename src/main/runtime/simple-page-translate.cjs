@@ -950,7 +950,7 @@ function isModelCached(options = {}) {
 
 const OVERLAY_OUTPUT_SCHEMA = [
   "id: 1",
-  "type: dialogue",
+  "type: solid",
   "x1: 120",
   "y1: 80",
   "x2: 280",
@@ -1029,12 +1029,12 @@ const OVERLAY_PROMPT_SECTIONS = [
   ],
   [
     "Rendering hints",
-    "type is one of dialogue, narration, name, or sfx.",
-    "Use type dialogue for text inside speech bubbles, including vertical Japanese dialogue.",
-    "Use type narration or name for ordinary labels, handwritten explanations, search words, and diagram annotations outside speech bubbles.",
-    "Use type sfx only for sound-effect lettering or reaction lettering.",
-    "For type sfx, ko must be bare Korean sound-effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
-    "For type sfx, translate the visual sound/reaction text itself, not the character's motion or the scene description.",
+    "type is one of solid or nonsolid.",
+    "Use type solid only when the Japanese glyphs sit on a plain, flat, single-color speech-bubble or caption background where an opaque Korean text box is appropriate.",
+    "Use type nonsolid when the Japanese glyphs sit on artwork, screentone, gradient, texture, transparent or gray bubble fill, SFX lettering, labels, handwriting, or any uncertain/mixed background.",
+    "If unsure whether the background is truly flat and single-color, choose nonsolid.",
+    "For sound-effect or reaction lettering, ko must be bare Korean effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
+    "For sound-effect or reaction lettering, translate the visual sound/reaction text itself, not the character's motion or the scene description.",
     "Use angle 0 for ordinary upright speech and captions; use a nonzero angle only when the source glyphs are visibly slanted.",
     "Keep Korean short enough for an on-image overlay while preserving meaning.",
     "For handwritten diagrams and search-word lists, translate the whole note as one compact Korean phrase or comma-separated list when possible.",
@@ -1194,14 +1194,14 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
     "OCR bbox candidates",
     "An external OCR geometry detector has already proposed bbox candidates. Some candidates include low-trust OCR text hints for slot matching only.",
     "OCR text hints may be wrong, incomplete, or split strangely. Use Image 1 as the authority for the actual Japanese text and Korean translation.",
-    "Use the OCR text hint to keep each translated record attached to the correct candidate id, especially when speech, caption, and SFX candidates are close together.",
+    "Use the OCR text hint to keep each translated record attached to the correct candidate id, especially when solid-background and nonsolid-background candidates are close together.",
     "Treat each candidate as a locked geometry slot. For every candidate that contains Japanese glyphs, output one record with that same id and the exact x1, y1, x2, y2 numbers shown below.",
     `Required candidate ids: ${candidateIds.join(", ")}.`,
     "Read and translate only the text inside that candidate rectangle plus a tiny visual margin; do not move the rectangle to a different nearby text group.",
     "For each candidate, read every visible Japanese line inside the rectangle. A candidate record is incomplete if jp or ko contains only the first line while lower or side lines remain readable.",
     "If a candidate is a handwritten note or diagram label, preserve all readable words, but translate ko compactly for horizontal Korean reading rather than copying the Japanese vertical line breaks.",
-    "For ocr_textline and ocr_textgroup candidates, classify ordinary handwritten notes, diagram labels, search terms, captions, and explanatory text as narration/name, not sfx.",
-    "Use sfx only for actual sound-effect or reaction lettering, not for labels or explanatory handwriting.",
+    "For ocr_textline and ocr_textgroup candidates, use type nonsolid unless the text is clearly on a flat single-color bubble or caption background.",
+    "Labels, handwriting, captions on texture, diagram text, search terms, and sound-effect lettering are nonsolid.",
     "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes or includes non-text art; then change the minimum amount needed.",
     "Do not merge two candidates into one record, even when the sentence continues across them. Candidate rectangles are separate output records.",
     "If two candidates are stacked or touching speech bubbles, output two separate dialogue records with their original ids.",
@@ -1835,7 +1835,7 @@ function buildCropRetryPrompt(targets = []) {
       : "bbox unchanged";
     return [
       `target ${target.id}: cropImage:${cropImageIndex}`,
-      `type:${target.type || "dialogue"} direction:${target.direction || "horizontal"} angle:${Number.isFinite(Number(target.angle)) ? target.angle : 0} fontSize:${Number.isFinite(Number(target.fontSize)) ? target.fontSize : ""} confidence:${confidence}`,
+      `type:${target.type || "nonsolid"} direction:${target.direction || "horizontal"} angle:${Number.isFinite(Number(target.angle)) ? target.angle : 0} fontSize:${Number.isFinite(Number(target.fontSize)) ? target.fontSize : ""} confidence:${confidence}`,
       bbox
     ].join(" ");
   });
@@ -1855,8 +1855,9 @@ function buildCropRetryPrompt(targets = []) {
     "confidence is 0.00 to 1.00 for the corrected OCR+translation.",
     "If the crop is decoration, panel trim, texture, non-Japanese art, or otherwise not real Japanese text, output type: reject, confidence: 1, jp: [non-text], ko: [non-text].",
     "If the crop still has readable Japanese, never output only [?]; give the best OCR and concise natural Korean.",
-    "Keep speech/caption Korean horizontal and natural unless the source is actual SFX/reaction lettering.",
-    "For type sfx, ko must be bare Korean sound-effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
+    "Use type solid only for flat single-color bubble/caption backgrounds; use type nonsolid for artwork, screentone, texture, handwriting, labels, SFX, or uncertainty.",
+    "Keep ordinary dialogue and caption Korean horizontal and natural unless the source is actual SFX/reaction lettering.",
+    "For sound-effect or reaction lettering, ko must be bare Korean effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
     "",
     "# Targets",
     ...targetLines

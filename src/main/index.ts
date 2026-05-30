@@ -419,21 +419,6 @@ function registerIpc(): void {
     }
   });
 
-  ipcMain.handle("dialogs:confirm", async (_event, title: string, message: string, detail?: string) => {
-    const options = {
-      type: "warning",
-      buttons: ["확인", "취소"],
-      defaultId: 1,
-      cancelId: 1,
-      title,
-      message,
-      detail,
-      noLink: true
-    } satisfies Electron.MessageBoxOptions;
-    const result = mainWindow ? await dialog.showMessageBox(mainWindow, options) : await dialog.showMessageBox(options);
-    return result.response === 0;
-  });
-
   ipcMain.handle("library:get-index", async () => listLibrary());
   ipcMain.handle("library:open-folder", async () => {
     await shell.openPath(getLibraryRoot());

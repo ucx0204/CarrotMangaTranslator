@@ -49,7 +49,6 @@ const api = {
   pickLocalMmprojFile: (): Promise<string | null> => ipcRenderer.invoke("settings:pick-local-mmproj"),
   testModelSettings: (settings: AppSettings, testId?: string): Promise<ModelTestResult> =>
     ipcRenderer.invoke("settings:test-model", settings, testId),
-  confirm: (title: string, message: string, detail?: string): Promise<boolean> => ipcRenderer.invoke("dialogs:confirm", title, message, detail),
   getLogPath: (): Promise<string> => ipcRenderer.invoke("logs:get-path"),
   openLogFolder: () => ipcRenderer.invoke("logs:open-folder"),
   writeLog: (level: "debug" | "info" | "warn" | "error", message: string, detail?: unknown) =>

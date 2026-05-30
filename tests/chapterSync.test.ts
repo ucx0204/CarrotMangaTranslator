@@ -23,7 +23,7 @@ function makeChapter(): ChapterSnapshot {
         blocks: [
           {
             id: "block-1",
-            type: "speech",
+            type: "solid",
             bbox: { x: 100, y: 100, w: 300, h: 240 },
             sourceText: "JP",
             translatedText: "KO",
@@ -113,7 +113,7 @@ describe("chapter sync helpers", () => {
       blocks: [
         {
           id: "block-2",
-          type: "caption",
+          type: "nonsolid",
           bbox: { x: 10, y: 20, w: 30, h: 40 },
           sourceText: "JP2",
           translatedText: "KO2",

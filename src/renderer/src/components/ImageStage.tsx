@@ -10,6 +10,9 @@ type ImageStageProps = {
   stageRef: React.RefObject<HTMLDivElement | null>;
   stageSize: ViewportSize | null;
   selectedBlockId: string | null;
+  showTextBlocks: boolean;
+  showBlockChrome: boolean;
+  highlightBlockType: TranslationBlock["type"] | null;
   regionSelectionActive: boolean;
   regionSelectionRect: BBox | null;
   onStagePointerMove: (event: React.PointerEvent) => void;
@@ -25,6 +28,9 @@ export function ImageStage({
   stageRef,
   stageSize,
   selectedBlockId,
+  showTextBlocks,
+  showBlockChrome,
+  highlightBlockType,
   regionSelectionActive,
   regionSelectionRect,
   onStagePointerMove,
@@ -49,7 +55,7 @@ export function ImageStage({
             이미지 불러오는 중
           </div>
         )}
-        {imageDataUrl && stageSize
+        {imageDataUrl && stageSize && showTextBlocks
           ? page.blocks.map((block) => (
               <OverlayBlock
                 key={block.id}
@@ -57,6 +63,8 @@ export function ImageStage({
                 pageSize={{ width: page.width, height: page.height }}
                 stageSize={stageSize}
                 selected={block.id === selectedBlockId}
+                showChrome={showBlockChrome}
+                highlightType={highlightBlockType}
                 onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
                 onResizePointerDown={(event) => onBlockPointerDown(event, block, "resize")}
               />
