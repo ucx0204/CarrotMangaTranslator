@@ -51,6 +51,7 @@ const EMPTY_JOB: JobState = {
 
 const PAGE_IMAGE_CACHE_LIMIT = 3;
 const INPAINTING_GUIDE_HIDDEN_KEY = "mgt.inpaintingGuide.hidden";
+const SHOW_INPAINTING_ENTRY = false;
 
 type DragMode = "move" | "resize";
 
@@ -1957,9 +1958,11 @@ export default function App(): React.JSX.Element {
               <button onClick={() => void runAnalysis("all")} disabled={!currentChapter || jobActive}>
                 전체 다시 번역
               </button>
-              <button onClick={() => void enterInpaintingMode()} disabled={!currentChapter || jobActive}>
-                인페인팅
-              </button>
+              {SHOW_INPAINTING_ENTRY ? (
+                <button onClick={() => void enterInpaintingMode()} disabled={!currentChapter || jobActive}>
+                  인페인팅
+                </button>
+              ) : null}
               {jobActive ? (
                 <button className="danger" onClick={() => void window.mangaApi.cancelJob()}>
                   취소
