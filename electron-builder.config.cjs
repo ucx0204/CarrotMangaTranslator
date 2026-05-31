@@ -19,6 +19,13 @@ if (existsSync(join(__dirname, "tools", "python"))) {
   });
 }
 
+if (existsSync(join(__dirname, "tools", "ffmpeg", "ffmpeg.exe"))) {
+  extraResources.push({
+    from: "tools/ffmpeg",
+    to: "tools/ffmpeg"
+  });
+}
+
 module.exports = {
   appId: "com.sam40.mangagemma.translator",
   productName: "망가번역기",

@@ -260,6 +260,43 @@ function defaultServerPath(options = {}) {
   return resolveBundledServerPath(resolveToolsDir(options));
 }
 
+function bundledFfmpegCandidates(toolsDir) {
+  const binaryName = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
+  return [
+    path.join(toolsDir || "", "ffmpeg", binaryName),
+    path.join(toolsDir || "", "ffmpeg", "bin", binaryName),
+    path.join(toolsDir || "", binaryName)
+  ];
+}
+
+function resolveFfmpegPath(options = {}) {
+  const toolsDir = resolveToolsDir(options);
+  const bundledCandidates = bundledFfmpegCandidates(toolsDir);
+  const bundledPath = bundledCandidates.find((candidate) => existsSync(candidate));
+  if (bundledPath) {
+    return bundledPath;
+  }
+
+  if (isLikelyPackagedToolsDir(toolsDir)) {
+    throw createDetailedError("Bundled ffmpeg is missing from the packaged tools directory.", {
+      toolsDir,
+      candidatePaths: bundledCandidates,
+      command: "ffmpeg"
+    });
+  }
+
+  const explicitCandidates = [
+    options.ffmpegPath,
+    process.env.MANGA_TRANSLATOR_FFMPEG_PATH
+  ].filter(Boolean);
+  const explicitPath = explicitCandidates.find((candidate) => existsSync(candidate));
+  if (explicitPath) {
+    return explicitPath;
+  }
+
+  return process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
+}
+
 function resolveWorkingDir(options = {}) {
   return options.workingDir || process.cwd();
 }
@@ -1332,12 +1369,13 @@ function mimeFromPath(filePath) {
   return "image/png";
 }
 
-async function convertImageToPngBufferWithFfmpeg(filePath) {
+async function convertImageToPngBufferWithFfmpeg(filePath, options = {}) {
+  const ffmpegPath = resolveFfmpegPath(options);
   return new Promise((resolve, reject) => {
     const stdoutChunks = [];
     const stderrChunks = [];
     const child = spawn(
-      "ffmpeg",
+      ffmpegPath,
       [
         "-hide_banner",
         "-loglevel",
@@ -1374,7 +1412,7 @@ async function convertImageToPngBufferWithFfmpeg(filePath) {
           {
             filePath,
             targetMime: "image/png",
-            command: "ffmpeg"
+            command: ffmpegPath
           },
           error
         )
@@ -1390,7 +1428,7 @@ async function convertImageToPngBufferWithFfmpeg(filePath) {
           createDetailedError("ffmpeg image conversion failed.", {
             filePath,
             targetMime: "image/png",
-            command: "ffmpeg",
+            command: ffmpegPath,
             exitCode: code,
             stderr
           })
@@ -1403,7 +1441,7 @@ async function convertImageToPngBufferWithFfmpeg(filePath) {
           createDetailedError("ffmpeg image conversion produced no output.", {
             filePath,
             targetMime: "image/png",
-            command: "ffmpeg",
+            command: ffmpegPath,
             exitCode: code,
             stderr
           })
@@ -1416,11 +1454,11 @@ async function convertImageToPngBufferWithFfmpeg(filePath) {
   });
 }
 
-async function fileToModelAsset(filePath) {
+async function fileToModelAsset(filePath, options = {}) {
   const sourceMime = mimeFromPath(filePath);
 
   if (sourceMime === "image/webp") {
-    const convertedBuffer = await convertImageToPngBufferWithFfmpeg(filePath);
+    const convertedBuffer = await convertImageToPngBufferWithFfmpeg(filePath, options);
     return {
       mime: "image/png",
       convertedFromMime: sourceMime,
@@ -1744,7 +1782,7 @@ async function prepareImageVariants(options) {
     imageVariants: await Promise.all(
       variants.map(async (variant) => ({
         ...variant,
-        ...(await fileToModelAsset(variant.path))
+        ...(await fileToModelAsset(variant.path, options))
       }))
     ),
     diagnostics
@@ -4483,6 +4521,7 @@ module.exports = {
   parseOcrBatchProgressLine,
   parsePipRawProgress,
   resolveOcrInstallBatchProgressRanges,
+  resolveFfmpegPath,
   resolveManagedHfFilePath,
   inspectModelLaunch,
   isModelCached,

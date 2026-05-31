@@ -41,6 +41,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   parsePipRawProgress: (line: string) => { current: number; total: number } | null;
   parseResponsesSseText: (rawText: string) => { outputText: string; eventCount: number; rawResponse: unknown };
   requestTranslation: (server: { baseUrl: string }, options: { [key: string]: unknown }) => Promise<{ outputText: string; rawResponse: unknown; requestBody: Record<string, unknown> }>;
+  resolveFfmpegPath: (options: { [key: string]: unknown }) => string;
   resolveOcrInstallBatchProgressRanges: (batches: string[][], start: number, end: number) => Array<{ start: number; end: number }>;
   resolveManagedHfFilePath: (options: { [key: string]: unknown }, repo: string, file: string) => string | null;
 };
@@ -58,6 +59,7 @@ const {
   parsePipRawProgress,
   resolveOcrInstallBatchProgressRanges,
   resolveManagedHfFilePath,
+  resolveFfmpegPath,
   parseResponsesSseText,
   requestTranslation
 } = runtimeHelpers;
@@ -128,6 +130,24 @@ describe("runtime model launch helpers", () => {
     });
     expect(parseOcrBatchProgressLine('{"items":[],"count":65}')).toBeNull();
     expect(parseOcrBatchProgressLine("[paddleocr] warmup")).toBeNull();
+  });
+
+  it("prefers the bundled ffmpeg from the tools directory", () => {
+    const toolsDir = createTempDir("tools-");
+    const binaryName = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
+    const ffmpegPath = join(toolsDir, "ffmpeg", binaryName);
+    mkdirSync(join(toolsDir, "ffmpeg"), { recursive: true });
+    writeFileSync(ffmpegPath, "binary");
+
+    expect(resolveFfmpegPath({ toolsDir })).toBe(ffmpegPath);
+  });
+
+  it("does not fall back to system ffmpeg from a packaged tools directory", () => {
+    const packagedRoot = createTempDir("packaged-");
+    const toolsDir = join(packagedRoot, "resources", "tools");
+    mkdirSync(toolsDir, { recursive: true });
+
+    expect(() => resolveFfmpegPath({ toolsDir })).toThrow("Bundled ffmpeg is missing");
   });
 
   it("streams OCR batch progress without inheriting the first page index during runtime setup", () => {
