@@ -1,4 +1,4 @@
-export type BlockType = "solid" | "nonsolid";
+export type BlockType = "nonsolid";
 
 export type SourceTextDirection = "horizontal" | "vertical";
 export type RenderTextDirection = "horizontal" | "vertical" | "rotated" | "hidden";
@@ -290,12 +290,19 @@ export type RegionAnalysisResult = StartAnalysisResult & {
 export type StartInpaintingRequest =
   | {
       chapterId: string;
-      mode: "chapter-solid";
+      mode: "chapter-pattern";
     }
   | {
       chapterId: string;
-      mode: "page-solid";
+      mode: "page-pattern";
       pageId: string;
+    }
+  | {
+      chapterId: string;
+      mode: "page-pattern-drawn";
+      pageId: string;
+      strokes: InpaintingMaskStroke[];
+      featherPx?: number;
     };
 
 export type StartInpaintingResult = {
@@ -306,9 +313,23 @@ export type StartInpaintingResult = {
   error?: string;
 };
 
+export type InpaintingExportRequest = {
+  chapterId: string;
+};
+
+export type InpaintingExportResult = {
+  outputDir: string;
+  pageCount: number;
+};
+
 export type InpaintingPoint = {
   x: number;
   y: number;
+};
+
+export type InpaintingMaskStroke = {
+  points: InpaintingPoint[];
+  radiusPx: number;
 };
 
 export type InpaintingRetouchRequest = {

@@ -35,7 +35,6 @@ export function OverlayBlock({
   const layout = resolveBlockTextLayout(block, displayText, pageSize, stageSize);
   const textOutlineShadow = resolveTextOutlineShadow(layout.fontSizePx, resolveCssColor(block.outlineColor, "#ffffff"));
   const visualStyle = resolveBlockVisualStyle(block.type);
-  const pendingPattern = showChrome && highlightType === "solid" && block.type === "nonsolid";
   const style: React.CSSProperties = {
     left: layout.rect.left,
     top: layout.rect.top,
@@ -85,8 +84,7 @@ export function OverlayBlock({
         selected ? "selected" : "",
         showChrome ? "" : "chrome-hidden",
         showChrome && highlightType && block.type === highlightType ? "highlight-target" : "",
-        showChrome && highlightType && block.type !== highlightType ? "highlight-dimmed" : "",
-        pendingPattern ? "pattern-pending" : ""
+        showChrome && highlightType && block.type !== highlightType ? "highlight-dimmed" : ""
       ]
         .filter(Boolean)
         .join(" ")}
@@ -99,11 +97,6 @@ export function OverlayBlock({
         </span>
       </div>
       {selected && !pointerDisabled ? <button className="resize-handle" onPointerDown={onResizePointerDown} aria-label="Resize" /> : null}
-      {pendingPattern ? (
-        <div className="pattern-pending-marker" aria-hidden="true">
-          <span>다음 단계에서 처리</span>
-        </div>
-      ) : null}
     </div>
   );
 }

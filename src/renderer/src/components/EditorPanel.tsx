@@ -1,6 +1,5 @@
 import React from "react";
 import type { RenderTextDirection, TranslationBlock } from "../../../shared/types";
-import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
 import { BLOCK_FONT_OPTIONS, normalizeBlockFontFamily, resolveBlockFontFamily, resolveBlockFontOption } from "../lib/fonts";
 
 type EditorPanelProps = {
@@ -39,29 +38,14 @@ export function EditorPanel({
     );
   }
 
-  const blockType = block.type;
   const outlineColor = resolveColor(block.outlineColor, "#ffffff");
   const selectedFont = resolveBlockFontOption(block.fontFamily);
   const autoFitText = block.autoFitText ?? true;
   const fontSizePx = clampFontSize(block.fontSizePx);
-  const visualStyle = resolveBlockVisualStyle(blockType);
 
   return (
     <section className="editor-panel has-block">
       <h2>블록</h2>
-      <label className="block-type-field">
-        <span>종류</span>
-        <span className="block-type-row">
-          <select value={blockType} disabled={disabled} onChange={(event) => onUpdate({ type: event.target.value as TranslationBlock["type"] })}>
-            <option value="solid">단색 배경</option>
-            <option value="nonsolid">무늬 배경</option>
-          </select>
-          <span className="block-type-preview" aria-label="블록 표시 색상">
-            <span className="block-type-swatch" style={{ borderColor: visualStyle.borderColor, backgroundColor: visualStyle.backgroundColor }} />
-            <span>{blockType === "solid" ? "단색" : "무늬"}</span>
-          </span>
-        </span>
-      </label>
       <label>
         한국어
         <textarea value={block.translatedText} disabled={disabled} onChange={(event) => onUpdate({ translatedText: event.target.value })} />

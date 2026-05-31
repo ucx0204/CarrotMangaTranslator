@@ -63,9 +63,9 @@ export function formatJobLabel(job: JobWithProgress): string {
     case "inpainting_preparing":
       return job.progressText?.trim() || "인페인팅 준비 중";
     case "inpainting_running":
-      return job.progressText?.trim() || formatPageLabel(job, "단색 배경 지우는 중");
+      return job.progressText?.trim() || formatPageLabel(job, "무늬 배경 지우는 중");
     case "inpainting_done":
-      return job.progressText?.trim() || formatPageLabel(job, "단색 배경 완료");
+      return job.progressText?.trim() || formatPageLabel(job, "무늬 배경 완료");
     case "finalizing":
       return "결과 정리 중";
     case "done":

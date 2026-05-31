@@ -161,6 +161,11 @@ ko: 생긋
     const items = parseRetryItems(String.raw`
 id: 6
 type: solid
+textRole: sound
+x1: 12
+y1: 18
+x2: 88
+y2: 96
 direction: horizontal
 angle: 0
 fontSize: 22
@@ -181,7 +186,14 @@ ko: [non-text]
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({
       id: 6,
-      type: "solid",
+      type: "nonsolid",
+      textRole: "sound",
+      bbox: {
+        x: 12,
+        y: 18,
+        w: 76,
+        h: 78
+      },
       direction: "horizontal",
       angle: 0,
       fontSize: 22,

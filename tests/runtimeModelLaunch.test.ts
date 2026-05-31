@@ -38,10 +38,12 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   inspectModelLaunch: (options: { [key: string]: unknown }) => { launchMode: string; model?: string; reasoningEffort?: string };
   isModelCached: (options: { [key: string]: unknown }) => boolean;
   parseOcrBatchProgressLine: (line: string) => { index: number; total: number; count: number } | null;
+  parsePaddleModelFetchProgress: (line: string) => { totalFiles: number; currentFiles: number | null; percent: number | null } | null;
   parsePipRawProgress: (line: string) => { current: number; total: number } | null;
   parseResponsesSseText: (rawText: string) => { outputText: string; eventCount: number; rawResponse: unknown };
   requestTranslation: (server: { baseUrl: string }, options: { [key: string]: unknown }) => Promise<{ outputText: string; rawResponse: unknown; requestBody: Record<string, unknown> }>;
   resolveFfmpegPath: (options: { [key: string]: unknown }) => string;
+  resolveOcrBboxTimeoutMs: (pageCount?: number) => number;
   resolveOcrInstallBatchProgressRanges: (batches: string[][], start: number, end: number) => Array<{ start: number; end: number }>;
   resolveManagedHfFilePath: (options: { [key: string]: unknown }, repo: string, file: string) => string | null;
 };
@@ -56,9 +58,11 @@ const {
   inspectModelLaunch,
   isModelCached,
   parseOcrBatchProgressLine,
+  parsePaddleModelFetchProgress,
   parsePipRawProgress,
   resolveOcrInstallBatchProgressRanges,
   resolveManagedHfFilePath,
+  resolveOcrBboxTimeoutMs,
   resolveFfmpegPath,
   parseResponsesSseText,
   requestTranslation
@@ -130,6 +134,30 @@ describe("runtime model launch helpers", () => {
     });
     expect(parseOcrBatchProgressLine('{"items":[],"count":65}')).toBeNull();
     expect(parseOcrBatchProgressLine("[paddleocr] warmup")).toBeNull();
+  });
+
+  it("parses Paddle model fetch progress lines", () => {
+    expect(parsePaddleModelFetchProgress("Fetching 19 files: 11%|█ | 2/19 [00:00<00:07, 2.14it/s]")).toEqual({
+      totalFiles: 19,
+      currentFiles: 2,
+      percent: 11
+    });
+    expect(parsePaddleModelFetchProgress("Creating model: ('PaddleOCR-VL-1.5-0.9B', None, None)")).toBeNull();
+  });
+
+  it("allows slow first-run Paddle model downloads before timing out OCR bbox analysis", () => {
+    const previous = process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS;
+    delete process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS;
+    try {
+      expect(resolveOcrBboxTimeoutMs(1)).toBeGreaterThanOrEqual(60 * 60 * 1000);
+      expect(resolveOcrBboxTimeoutMs(20)).toBeGreaterThanOrEqual(60 * 60 * 1000);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS;
+      } else {
+        process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS = previous;
+      }
+    }
   });
 
   it("prefers the bundled ffmpeg from the tools directory", () => {

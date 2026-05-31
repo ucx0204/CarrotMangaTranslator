@@ -20,6 +20,8 @@ const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
 const OCR_INSTALL_MARKER_FILE = "install-complete.json";
 const MAX_LOG_PREVIEW_LENGTH = 8000;
 const MM_PROJ_CANDIDATE_NAMES = ["mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-F32.gguf", "mmproj.gguf"];
+const DEFAULT_OCR_BBOX_TIMEOUT_MS = 60 * 60 * 1000;
+const DEFAULT_OCR_BBOX_PAGE_TIMEOUT_MS = 5 * 60 * 1000;
 const CROP_RETRY_MIN_SIDE_PX = 192;
 const CROP_RETRY_MIN_MARGIN_PX = 64;
 const CROP_RETRY_MARGIN_RATIO = 0.5;
@@ -986,18 +988,18 @@ function isModelCached(options = {}) {
 }
 
 const OVERLAY_OUTPUT_SCHEMA = [
-  "id: 1",
-  "type: solid",
-  "x1: 120",
-  "y1: 80",
-  "x2: 280",
-  "y2: 320",
-  "direction: horizontal",
-  "angle: 0",
-  "fontSize: 28",
-  "confidence: 0.86",
-  "jp: 馬鹿者… 無理をするな",
-  "ko: 바보 같은 녀석… 무리하지 마라."
+  "id: <integer>",
+  "type: nonsolid",
+  "x1: <integer>",
+  "y1: <integer>",
+  "x2: <integer>",
+  "y2: <integer>",
+  "direction: <horizontal|vertical>",
+  "angle: <integer>",
+  "fontSize: <integer>",
+  "confidence: <0.00-1.00>",
+  "jp: <visible Japanese source text>",
+  "ko: <concise Korean translation>"
 ].join("\n");
 
 const OVERLAY_PROMPT_SECTIONS = [
@@ -1015,14 +1017,16 @@ const OVERLAY_PROMPT_SECTIONS = [
     "Output",
     "Return plain text records only. Do not output JSON, markdown, bullets, commentary, or code fences.",
     "Use exactly these keys, one per line: id, type, x1, y1, x2, y2, direction, angle, fontSize, confidence, jp, ko.",
-    "Do not blindly copy the example values. Estimate fontSize and direction from the actual glyphs in Image 1.",
+    "Do not copy placeholder text. Estimate every value from the actual glyphs in Image 1.",
     "confidence is your confidence from 0.00 to 1.00 that the item is real Japanese text, correctly read, correctly typed, and correctly translated.",
     "Use confidence below 0.72 when the crop is hard to read, partly clipped, possibly decorative, or the translation may be uncertain.",
     "If jp has multiple visible source lines, put every readable source line in jp. Continuation lines after jp: belong to jp until the ko: key.",
     "Write ko as natural Korean for horizontal reading. Do not mirror Japanese vertical line breaks; use commas or short Korean phrases unless a real list or dialogue pause needs a line break.",
     "If the entire jp or ko would be only [?], skip that record instead of outputting an unreadable placeholder.",
+    "Skip records whose jp is only punctuation, decorative marks, page numbers, a lone Latin letter, or a clipped one-character fragment. Do not output such scraps as standalone records.",
+    "If a stylized SFX looks like a Latin letter but is probably Japanese kana, re-read it as kana. If you still cannot read it as Japanese, skip it rather than translating the Latin letter.",
     "Put one blank line between records.",
-    "Example:",
+    "Record template:",
     OVERLAY_OUTPUT_SCHEMA
   ],
   [
@@ -1038,7 +1042,7 @@ const OVERLAY_PROMPT_SECTIONS = [
     "Never include the whole speech bubble, caption plate, panel, background art, motion lines, or blank margin.",
     "Never enlarge, shift, or reshape the rectangle to make Korean easier to fit.",
     "fontSize is the apparent Japanese glyph size in Image 1 pixels.",
-    "fontSize is the height of one normal full-size source character, not the Korean overlay size and not the example default.",
+    "fontSize is the height of one normal full-size source character, not the Korean overlay size and not a template default.",
     "For mixed handwriting, use the main readable glyph size; do not reduce fontSize because small furigana, punctuation, or thin strokes are present.",
     "direction is the original Japanese glyph writing direction: horizontal or vertical. This is about the Japanese source text, not the Korean rendering.",
     "angle is the visible glyph slant in degrees from -30 to 30. Use 0 for upright text.",
@@ -1062,16 +1066,28 @@ const OVERLAY_PROMPT_SECTIONS = [
     "For outlined SFX, the bbox follows the outermost visible contour of the outline, not only the dark center stroke.",
     "SFX is often gray, slanted, outlined, partly behind characters, or outside OCR candidates. Do a separate SFX pass after dialogue/captions and add every clear kana sound effect.",
     "Do not invent SFX from vertical panel trim, furniture lines, wall patterns, or isolated non-character strokes.",
+    "Do not add records for isolated symbol fragments, stray decorative marks, page numbers, or clipped scraps that are not complete Japanese text.",
     "Include meaningful short interjections, names, captions, and SFX."
   ],
   [
     "Rendering hints",
-    "type is one of solid or nonsolid.",
-    "Use type solid only when the Japanese glyphs sit on a plain, flat, single-color speech-bubble or caption background where an opaque Korean text box is appropriate.",
-    "Use type nonsolid when the Japanese glyphs sit on artwork, screentone, gradient, texture, transparent or gray bubble fill, SFX lettering, labels, handwriting, or any uncertain/mixed background.",
-    "If unsure whether the background is truly flat and single-color, choose nonsolid.",
+    "type must always be nonsolid. The app uses one Flux-based inpainting path for every text block, including speech bubbles, captions, labels, handwriting, and SFX.",
     "For sound-effect or reaction lettering, ko must be bare Korean effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
     "For sound-effect or reaction lettering, translate the visual sound/reaction text itself, not the character's motion or the scene description.",
+    "First decide whether the source is ordinary language or printed sound/reaction lettering. Ordinary language can be translated as Korean text; printed sound/reaction lettering must stay as sound lettering.",
+    "SFX translation priority: preserve the original visible sound texture first. The default is short Korean phonetic rendering of the Japanese sound. Use a localized Korean onomatopoeia only when it keeps the same consonant/vowel texture and visual feel.",
+    "Do not force every SFX into semantic Korean. If a Japanese SFX is stylized, iconic, or has no clean Korean equivalent, keep the source sound feel in Korean pronunciation instead of inventing an action verb.",
+    "Do not translate ambient SFX as spoken dialogue. Treat it as printed sound/reaction lettering unless the visible text is clearly an actual spoken line.",
+    "For motion, impact, cutting, texture, and ambient SFX, infer the sound class from image context and lettering shape. If the scene is unclear, keep the sound texture instead of choosing an unrelated meaning.",
+    "For repeated or lengthened SFX, preserve the visible rhythm and duration in compact Korean instead of collapsing it into a generic word.",
+    "For printed sound/reaction lettering, ko should be readable aloud as a sound printed on the page. It must not be an adverbial phrase, narration, action description, emotion description, or sentence.",
+    "For printed sound/reaction lettering, avoid Korean grammar endings, particles, connective endings, and explanatory spacing. Prefer one compact sound string over a phrase.",
+    "If the source lettering includes a grammatical connector after a sound, translate only the sound value unless the entire visible source is ordinary language.",
+    "Do not translate a single SFX by describing the surrounding action, emotion, or speaker. The overlay text should read like a sound printed on the page.",
+    "Do not output isolated fragments as separate records. Skip punctuation, decorative marks, digits, page numbers, lone Latin letters, isolated small kana/sokuon, or clipped single-character scraps unless they are clearly a complete visible text item.",
+    "Prefer dropping a doubtful decorative or fragmentary mark over producing a confident but meaningless translation.",
+    "Do not translate partial SFX strokes or decorative fragments as dictionary words. Attach incomplete strokes to their neighboring glyphs or skip them if they are not a complete readable item.",
+    "Keep SFX ko very short, usually one compact sound phrase. Avoid explaining who moved, what happened, or why.",
     "Use angle 0 for ordinary upright speech and captions; use a nonzero angle only when the source glyphs are visibly slanted.",
     "Keep Korean short enough for an on-image overlay while preserving meaning.",
     "For handwritten diagrams and search-word lists, translate the whole note as one compact Korean phrase or comma-separated list when possible.",
@@ -1087,7 +1103,8 @@ function buildSystemPrompt(options = {}) {
     "Return only the machine-readable record format requested by the user prompt.",
     "Geometry accuracy comes before Korean text fit: preserve the original Japanese glyph position and apparent size.",
     "Never merge separate speech bubbles, including touching or stacked balloon lobes.",
-    "For SFX records, output bare Korean effect lettering only; do not wrap it in parentheses/brackets/quotes or turn it into a stage direction."
+    "For SFX records, output bare Korean effect lettering only; do not wrap it in parentheses/brackets/quotes or turn it into a stage direction.",
+    "For SFX records, preserve the original visible sound texture first: default to short Korean phonetic rendering. Use localized Korean onomatopoeia only when it keeps the same consonant/vowel texture. Do not force ambient sounds into dialogue words or action descriptions."
   ];
 
   if (options.regionCropMode) {
@@ -1231,14 +1248,13 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
     "OCR bbox candidates",
     "An external OCR geometry detector has already proposed bbox candidates. Some candidates include low-trust OCR text hints for slot matching only.",
     "OCR text hints may be wrong, incomplete, or split strangely. Use Image 1 as the authority for the actual Japanese text and Korean translation.",
-    "Use the OCR text hint to keep each translated record attached to the correct candidate id, especially when solid-background and nonsolid-background candidates are close together.",
+    "Use the OCR text hint to keep each translated record attached to the correct candidate id, especially when nearby candidates are close together.",
     "Treat each candidate as a locked geometry slot. For every candidate that contains Japanese glyphs, output one record with that same id and the exact x1, y1, x2, y2 numbers shown below.",
     `Required candidate ids: ${candidateIds.join(", ")}.`,
     "Read and translate only the text inside that candidate rectangle plus a tiny visual margin; do not move the rectangle to a different nearby text group.",
     "For each candidate, read every visible Japanese line inside the rectangle. A candidate record is incomplete if jp or ko contains only the first line while lower or side lines remain readable.",
     "If a candidate is a handwritten note or diagram label, preserve all readable words, but translate ko compactly for horizontal Korean reading rather than copying the Japanese vertical line breaks.",
-    "For ocr_textline and ocr_textgroup candidates, use type nonsolid unless the text is clearly on a flat single-color bubble or caption background.",
-    "Labels, handwriting, captions on texture, diagram text, search terms, and sound-effect lettering are nonsolid.",
+    "For every accepted candidate, output type nonsolid.",
     "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes or includes non-text art; then change the minimum amount needed.",
     "Do not merge two candidates into one record, even when the sentence continues across them. Candidate rectangles are separate output records.",
     "If two candidates are stacked or touching speech bubbles, output two separate dialogue records with their original ids.",
@@ -1854,7 +1870,11 @@ function describeImageVariant(variant, index, options = {}) {
   }
 
   if (variant.role === "crop-retry") {
-    const idText = Number.isFinite(Number(variant.itemId)) ? ` item id ${variant.itemId}` : " one low-confidence item";
+    const idText = Array.isArray(variant.itemIds) && variant.itemIds.length > 0
+      ? ` item ids ${variant.itemIds.join(", ")}`
+      : Number.isFinite(Number(variant.itemId))
+        ? ` item id ${variant.itemId}`
+        : " one low-confidence item";
     const box = variant.cropBox
       ? ` Crop on original page: x=${variant.cropBox.x}, y=${variant.cropBox.y}, w=${variant.cropBox.w}, h=${variant.cropBox.h}.`
       : "";
@@ -1866,36 +1886,50 @@ function describeImageVariant(variant, index, options = {}) {
 
 function buildCropRetryPrompt(targets = []) {
   const targetLines = targets.map((target, index) => {
-    const cropImageIndex = index + 2;
+    const cropImageIndex = Number.isFinite(Number(target.cropImageIndex)) ? Number(target.cropImageIndex) : index + 2;
     const confidence = Number.isFinite(Number(target.confidence)) ? Number(target.confidence).toFixed(2) : "unknown";
     const bbox = target.bbox
       ? `bbox x=${target.bbox.x} y=${target.bbox.y} w=${target.bbox.w} h=${target.bbox.h}`
       : "bbox unchanged";
+    const cropSize = target.cropBox
+      ? `cropSize:${Math.round(Number(target.cropBox.w) || 0)}x${Math.round(Number(target.cropBox.h) || 0)}`
+      : "cropSize:unknown";
     return [
       `target ${target.id}: cropImage:${cropImageIndex}`,
+      `reason:${target.reason || "low-confidence"}`,
+      target.cropGroupId ? `cropGroup:${target.cropGroupId}` : "",
+      cropSize,
       `type:${target.type || "nonsolid"} direction:${target.direction || "horizontal"} angle:${Number.isFinite(Number(target.angle)) ? target.angle : 0} fontSize:${Number.isFinite(Number(target.fontSize)) ? target.fontSize : ""} confidence:${confidence}`,
       bbox
-    ].join(" ");
+    ].filter(Boolean).join(" ");
   });
 
   return [
     "# Task",
-    "You are directly OCR-reading and translating only the low-confidence manga crop images listed below.",
+    "You are directly OCR-reading and translating only the listed manga crop images.",
     "Image 1 is the full page for context only. Each following image is an expanded crop for exactly one target id.",
-    "Do not detect new text, do not output extra ids, and do not change any bbox geometry.",
+    "Do not detect new ids or output extra ids.",
     "For each target, ignore any previous model OCR/translation. The crop image itself is the authority.",
-    "Read all real Japanese text inside that crop for the same target id, then translate it naturally into Korean.",
+    "Read the real Japanese text inside that crop for the same target id. If the crop contains the target text, return the tight crop-coordinate bbox for the visible Japanese glyphs.",
+    "Several target ids may point to the same crop image. In that case, use the larger crop as context and return separate records for the separate visible Japanese lettering groups represented by those target ids.",
+    "If a large sound effect was split into nearby target ids, keep those ids separate when the visible lettering groups are separate. Do not create one giant combined translation over the whole crop.",
+    "For sound-check targets, decide whether the crop is printed sound/reaction lettering, ordinary language, or non-text. Sound/reaction lettering should preserve the original visible sound texture in Korean pronunciation instead of being converted into a scene description.",
     "",
     "# Output",
     "Return plain text records only. Do not output JSON, markdown, bullets, commentary, or code fences.",
-    "Output exactly one record for each target id, using exactly these keys: id, type, direction, angle, fontSize, confidence, jp, ko.",
-    "Do not output x1, y1, x2, y2, bbox, width, or height.",
+    "Output exactly one record for each target id, using exactly these keys: id, type, textRole, x1, y1, x2, y2, direction, angle, fontSize, confidence, jp, ko.",
+    "x1, y1, x2, y2 are integer crop image pixel coordinates around the visible Japanese glyph ink for that target, not full-page coordinates.",
+    "Crop coordinates start at 0,0 in the top-left corner of the crop image. x1 and x2 must be within the crop image width; y1 and y2 must be within the crop image height.",
+    "Never copy the target bbox or crop origin numbers into x1/y1/x2/y2; those are page coordinates, not crop coordinates.",
+    "textRole is one of sound, ordinary, or nontext.",
     "confidence is 0.00 to 1.00 for the corrected OCR+translation.",
-    "If the crop is decoration, panel trim, texture, non-Japanese art, or otherwise not real Japanese text, output type: reject, confidence: 1, jp: [non-text], ko: [non-text].",
+    "If the crop is decoration, panel trim, texture, non-Japanese art, or otherwise not real Japanese text, output type: reject, textRole: nontext, confidence: 1, jp: [non-text], ko: [non-text].",
     "If the crop still has readable Japanese, never output only [?]; give the best OCR and concise natural Korean.",
-    "Use type solid only for flat single-color bubble/caption backgrounds; use type nonsolid for artwork, screentone, texture, handwriting, labels, SFX, or uncertainty.",
-    "Keep ordinary dialogue and caption Korean horizontal and natural unless the source is actual SFX/reaction lettering.",
+    "Use type nonsolid for every accepted text target.",
+    "If textRole is ordinary, keep dialogue/caption/label Korean natural and do not apply sound-effect rules.",
     "For sound-effect or reaction lettering, ko must be bare Korean effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
+    "If textRole is sound, preserve the original visible sound texture first. Prefer a short Korean phonetic rendering unless a natural Korean onomatopoeia clearly keeps the same sound texture and scene fit.",
+    "If textRole is sound, avoid Korean grammar endings, particles, connective endings, explanatory spacing, adverbs, and action descriptions.",
     "",
     "# Targets",
     ...targetLines
@@ -1944,8 +1978,8 @@ async function buildCropRetryVariants(options, targets = [], sourceSize = {}) {
   await mkdir(outputDir, { recursive: true });
 
   const variants = [];
-  for (const target of targets) {
-    const cropBox = normalizeCropBox(target.cropBox, pageWidth, pageHeight);
+  for (const group of groupCropRetryTargets(targets)) {
+    const cropBox = normalizeCropBox(group.cropBox, pageWidth, pageHeight);
     if (!cropBox) {
       continue;
     }
@@ -1953,11 +1987,17 @@ async function buildCropRetryVariants(options, targets = [], sourceSize = {}) {
     if (!cropped || cropped.isEmpty()) {
       continue;
     }
-    const outputPath = path.join(outputDir, `item-${target.id}.png`);
+    const imageIndex = variants.length + 2;
+    for (const target of group.targets) {
+      target.cropImageIndex = imageIndex;
+    }
+
+    const outputPath = path.join(outputDir, `${group.id}.png`);
     await writeFile(outputPath, cropped.toPNG());
     variants.push({
       role: "crop-retry",
-      itemId: target.id,
+      itemId: group.id,
+      itemIds: group.targets.map((target) => target.id),
       cropBox,
       path: outputPath,
       width: cropBox.width,
@@ -1967,6 +2007,24 @@ async function buildCropRetryVariants(options, targets = [], sourceSize = {}) {
     });
   }
   return variants;
+}
+
+function groupCropRetryTargets(targets = []) {
+  const groups = new Map();
+  for (const target of targets) {
+    const key = target.cropGroupId || `item-${target.id}`;
+    const previous = groups.get(key);
+    if (previous) {
+      previous.targets.push(target);
+      continue;
+    }
+    groups.set(key, {
+      id: key.replace(/[^A-Za-z0-9_.-]+/g, "-"),
+      cropBox: target.cropBox,
+      targets: [target]
+    });
+  }
+  return [...groups.values()];
 }
 
 async function loadNativeImageForCropping(nativeImage, filePath) {
@@ -2209,10 +2267,14 @@ async function runOcrBboxCommand(options = {}, provider = "external-command") {
   const runtime = provider === "paddleocr-vl" ? await ensurePaddleOcrRuntime(options) : null;
   const command = buildOcrBboxCommand(options, provider, outputPath, runtime);
   emitRuntimeProgress(options, "ocr_running", "Paddle OCR 모델 다운로드/위치 분석 중", `장치: ${resolveOcrDeviceLabel(options)}`);
+  const handleOcrOutput = createOcrCommandProgressHandler(options, {
+    progressText: "Paddle OCR 모델 다운로드/위치 분석 중"
+  });
   const { stdout, stderr } = await runShellCommand(command, {
-    timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS) || 600000,
+    timeoutMs: resolveOcrBboxTimeoutMs(1),
     env: buildOcrRuntimeEnv(options, runtime),
-    signal: options.abortSignal
+    signal: options.abortSignal,
+    onOutput: handleOcrOutput
   });
 
   let rawText = "";
@@ -2288,9 +2350,15 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
     progressTotal: readPositiveInteger(firstOptions.ocrBatchTotal) || items.length
   });
   const seenProgressEvents = new Set();
+  const handleCommandOutput = createOcrCommandProgressHandler(batchOptions, {
+    progressText: "Paddle OCR 배치 위치 분석 중",
+    progressCurrent: readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0,
+    progressTotal: readPositiveInteger(firstOptions.ocrBatchTotal) || items.length
+  });
   const handleProgressLine = (line) => {
       const progress = parseOcrBatchProgressLine(line);
       if (!progress) {
+        handleCommandOutput(line);
         return;
       }
       const phase = progress.phase || "done";
@@ -2326,7 +2394,7 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   try {
     progressPoller.start();
     ({ stdout, stderr } = await runShellCommand(command, {
-      timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS) || Math.max(600000, items.length * 300000),
+      timeoutMs: resolveOcrBboxTimeoutMs(items.length),
       env: buildOcrRuntimeEnv(batchOptions, runtime),
       signal: batchOptions.abortSignal,
       onOutput: handleProgressLine
@@ -2999,6 +3067,77 @@ function parseOcrBatchProgressLine(line) {
   }
 }
 
+function parsePaddleModelFetchProgress(line) {
+  const text = String(line ?? "");
+  const fetchMatch = text.match(/\bFetching\s+(\d+)\s+files:\s+(\d+)%/i);
+  if (!fetchMatch) {
+    return null;
+  }
+
+  const totalFiles = Number(fetchMatch[1]);
+  const percent = Number(fetchMatch[2]);
+  const fractionMatch = text.match(/\b(\d+)\s*\/\s*(\d+)\b/);
+  const currentFiles = fractionMatch && Number(fractionMatch[2]) === totalFiles ? Number(fractionMatch[1]) : null;
+
+  return {
+    totalFiles,
+    currentFiles: Number.isFinite(currentFiles) ? Math.max(0, Math.min(currentFiles, totalFiles)) : null,
+    percent: Number.isFinite(percent) ? Math.max(0, Math.min(percent, 100)) : null
+  };
+}
+
+function createOcrCommandProgressHandler(options = {}, config = {}) {
+  let lastDetail = "";
+  let lastAt = 0;
+  return (line) => {
+    const logLine = sanitizeInstallLogLine(line);
+    if (!logLine || parseOcrBatchProgressLine(logLine)) {
+      return;
+    }
+
+    const fetchProgress = parsePaddleModelFetchProgress(logLine);
+    const isModelStatusLine = Boolean(fetchProgress) ||
+      /^(Creating model:|Checking connectivity|Using official model|Fetching \d+ files:)/i.test(logLine);
+    if (!isModelStatusLine) {
+      return;
+    }
+
+    const detail = fetchProgress
+      ? formatPaddleModelFetchProgress(fetchProgress)
+      : logLine;
+    const now = Date.now();
+    if (detail === lastDetail && now - lastAt < 2000) {
+      return;
+    }
+    lastDetail = detail;
+    lastAt = now;
+
+    emitRuntimeProgress(options, "ocr_running", config.progressText || "Paddle OCR 모델 다운로드/위치 분석 중", detail, {
+      progressMode: "log-only",
+      progressCurrent: config.progressCurrent,
+      progressTotal: config.progressTotal,
+      installLogLine: logLine
+    });
+  };
+}
+
+function formatPaddleModelFetchProgress(progress) {
+  const countText = Number.isFinite(progress.currentFiles)
+    ? `${progress.currentFiles} / ${progress.totalFiles}개`
+    : `${progress.totalFiles}개`;
+  const percentText = Number.isFinite(progress.percent) ? ` (${progress.percent}%)` : "";
+  return `Paddle OCR 모델 파일 다운로드 중: ${countText}${percentText}`;
+}
+
+function resolveOcrBboxTimeoutMs(pageCount = 1) {
+  const explicit = readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS);
+  if (explicit) {
+    return explicit;
+  }
+  const pages = Math.max(1, readPositiveInteger(pageCount) || 1);
+  return Math.max(DEFAULT_OCR_BBOX_TIMEOUT_MS, pages * DEFAULT_OCR_BBOX_PAGE_TIMEOUT_MS);
+}
+
 function createOcrBatchProgressFilePoller(progressPath, onLine) {
   let timer = null;
   let consumedLines = 0;
@@ -3104,6 +3243,7 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
     PADDLE_PDX_MODEL_SOURCE: process.env.PADDLE_PDX_MODEL_SOURCE || "huggingface",
     PADDLE_PDX_CACHE_HOME: process.env.PADDLE_PDX_CACHE_HOME || path.join(runtimeDir, "paddlex-cache"),
     PADDLE_PDX_HUGGING_FACE_ENDPOINT: process.env.PADDLE_PDX_HUGGING_FACE_ENDPOINT || "https://huggingface.co",
+    PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: process.env.PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK || "True",
     PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT: process.env.PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT || "0",
     PIP_DISABLE_PIP_VERSION_CHECK: process.env.PIP_DISABLE_PIP_VERSION_CHECK || "1",
     TMP: tempDir,
@@ -4519,7 +4659,9 @@ module.exports = {
   getOverlayPrompt,
   getScaledSize,
   parseOcrBatchProgressLine,
+  parsePaddleModelFetchProgress,
   parsePipRawProgress,
+  resolveOcrBboxTimeoutMs,
   resolveOcrInstallBatchProgressRanges,
   resolveFfmpegPath,
   resolveManagedHfFilePath,

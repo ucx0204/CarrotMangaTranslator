@@ -8,6 +8,8 @@ const DEFAULT_MANGA_ROOT = "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloa
 const SAMPLE_COUNT = readIntEnv("MANGA_SMOKE_COUNT", 30);
 const MANGA_ROOT = process.env.MANGA_SMOKE_MANGA_ROOT || DEFAULT_MANGA_ROOT;
 const TARGET_IMAGE_PATH = process.env.MANGA_SMOKE_IMAGE_PATH || "";
+const TARGET_IMAGE_LIST = process.env.MANGA_SMOKE_IMAGE_LIST || "";
+const TARGET_IMAGE_LIST_FILE = process.env.MANGA_SMOKE_IMAGE_LIST_FILE || "";
 const SMOKE_PROVIDER = normalizeSmokeProvider(process.env.MANGA_SMOKE_PROVIDER);
 const SAMPLE_OFFSET = readIntEnv("MANGA_SMOKE_SAMPLE_OFFSET", 0);
 const MAX_CAPTURE_LONG_SIDE = readIntEnv("MANGA_SMOKE_MAX_LONG_SIDE", 1400);
@@ -32,7 +34,13 @@ async function main() {
   const { getAppPaths } = require("../out/main/appPaths.js");
   const { normalizeAppSettings, buildBaseTranslationOptions } = require("../out/main/appSettings.js");
   const { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint } = require("../out/main/openaiOauthEndpoint.js");
-  const { applyOcrCandidateGeometryLocks, overlayItemToBlock, normalizeOverlayItemBboxes } = require("../out/main/wholePagePipeline.js");
+  const {
+    applyOcrCandidateGeometryLocks,
+    overlayItemToBlock,
+    normalizeOverlayItemBboxes,
+    selectCropRetryTargets,
+    mergeCropRetryItems
+  } = require("../out/main/wholePagePipeline.js");
   sharedGeometry = require("../out/shared/geometry.js");
   const simplePage = require("../out/app-runtime/simple-page-translate.cjs");
   const overlayTools = require("../out/app-runtime/overlay-parser.cjs");
@@ -104,11 +112,33 @@ async function main() {
         if (items.length === 0) {
           throw new Error("No overlay items parsed.");
         }
-        const normalizedItems = applyOcrCandidateGeometryLocks(
+        let normalizedItems = applyOcrCandidateGeometryLocks(
           normalizeOverlayItemBboxes(items, page, getBboxNormalizationOptions(result.requestBody)),
           page,
           Array.isArray(result.requestBody?.ocrBboxHints) ? result.requestBody.ocrBboxHints : []
         );
+        if (typeof simplePage.requestCropRetryTranslation === "function" && typeof overlayTools.parseRetryItems === "function") {
+          const retryTargets = selectCropRetryTargets(normalizedItems, page);
+          if (retryTargets.length > 0) {
+            const retryOptions = {
+              ...pageOptions,
+              label: `${pageOptions.label}-crop-retry`,
+              outputDir: path.join(pageOptions.outputDir, "crop-retry")
+            };
+            const retryResult = await withTimeout(
+              simplePage.requestCropRetryTranslation(server, retryOptions, retryTargets),
+              PAGE_TIMEOUT_MS,
+              `crop retry timed out after ${PAGE_TIMEOUT_MS}ms`,
+              abortController
+            );
+            await simplePage.saveArtifacts(retryOptions, retryResult);
+            const retryItems = overlayTools.parseRetryItems(retryResult.outputText);
+            await mkdir(retryOptions.outputDir, { recursive: true });
+            await writeFile(path.join(retryOptions.outputDir, "crop-retry-targets.json"), `${JSON.stringify({ targets: retryTargets }, null, 2)}\n`, "utf8");
+            await writeFile(path.join(retryOptions.outputDir, "crop-retry-items.json"), `${JSON.stringify({ items: retryItems }, null, 2)}\n`, "utf8");
+            normalizedItems = mergeCropRetryItems(normalizedItems, retryItems, retryTargets, page);
+          }
+        }
         const blocks = normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex));
         const typeCounts = countBlockTypes(blocks);
         const analyzedPage = {
@@ -164,16 +194,14 @@ async function main() {
 function countBlockTypes(blocks) {
   return blocks.reduce(
     (counts, block) => {
-      if (block.type === "solid") {
-        counts.solid += 1;
-      } else if (block.type === "nonsolid") {
-        counts.nonsolid += 1;
+      if (block.type === "nonsolid") {
+        counts.pattern += 1;
       } else {
         counts.other += 1;
       }
       return counts;
     },
-    { solid: 0, nonsolid: 0, other: 0 }
+    { pattern: 0, other: 0 }
   );
 }
 
@@ -211,6 +239,16 @@ function createPageRecord(imagePath, index) {
 }
 
 async function selectSmokeSamples(root, count) {
+  const targetListText = TARGET_IMAGE_LIST || (TARGET_IMAGE_LIST_FILE ? await readTextIfExists(TARGET_IMAGE_LIST_FILE) : "");
+  const targetList = parseTargetImageList(targetListText);
+  if (targetList.length > 0) {
+    return targetList.map((filePath) => ({
+      filePath,
+      groupKey: resolveGroupKey(root, filePath),
+      hash: stableHash(filePath)
+    }));
+  }
+
   if (TARGET_IMAGE_PATH) {
     return [{
       filePath: TARGET_IMAGE_PATH,
@@ -247,6 +285,37 @@ async function selectSmokeSamples(root, count) {
   }
 
   return selected.slice(0, count);
+}
+
+function parseTargetImageList(value) {
+  const text = String(value || "").replace(/^\uFEFF/, "").trim();
+  if (!text) {
+    return [];
+  }
+
+  if (text.startsWith("[") && text.endsWith("]")) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed.map((entry) => String(entry || "").trim()).filter(Boolean);
+      }
+    } catch {
+      // Fall through to the simple list parser.
+    }
+  }
+
+  return text
+    .split(/\r?\n|;/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+async function readTextIfExists(filePath) {
+  try {
+    return await readFile(filePath, "utf8");
+  } catch {
+    return "";
+  }
 }
 
 function rotateItems(items, offset) {
@@ -370,7 +439,7 @@ function buildGeometryHtml(page, items, scale, imageDataUrl) {
     const top = (item.bbox.y / 1000) * page.height * scale;
     const width = (item.bbox.w / 1000) * page.width * scale;
     const height = (item.bbox.h / 1000) * page.height * scale;
-    const color = item.type === "nonsolid" ? "#f59e0b" : "#22c55e";
+    const color = "#f59e0b";
     const direction = item.direction || item.sourceDirection || "horizontal";
     const angle = item.angle ?? item.rotationDeg ?? 0;
     const fontSize = item.fontSize ?? item.fontSizePx ?? "?";
@@ -553,19 +622,18 @@ body { margin: 0; background: #101114; color: #f3efe7; font-family: "Malgun Goth
 .label { height: 42px; font-size: 12px; line-height: 1.3; color: #d8d2c5; overflow: hidden; }
 img { width: 100%; max-height: 390px; object-fit: contain; background: #050607; }
 </style></head><body><div class="grid">
-${items.map((item) => `<div class="cell"><div class="label">${item.index}. ${escapeHtml(item.sample.filePath)}<br />blocks: ${item.blockCount} / solid:${item.typeCounts?.solid ?? 0} nonsolid:${item.typeCounts?.nonsolid ?? 0}</div><img src="${escapeHtml(item.imageSrc)}" /></div>`).join("")}
+${items.map((item) => `<div class="cell"><div class="label">${item.index}. ${escapeHtml(item.sample.filePath)}<br />blocks: ${item.blockCount} / pattern:${item.typeCounts?.pattern ?? 0}</div><img src="${escapeHtml(item.imageSrc)}" /></div>`).join("")}
 </div><script>window.addEventListener("load", () => setTimeout(() => document.body.dataset.ready = "1", 200));</script></body></html>`;
 }
 
 async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath, baseOptions) {
   const totalTypeCounts = rendered.reduce(
     (counts, item) => {
-      counts.solid += item.typeCounts?.solid ?? 0;
-      counts.nonsolid += item.typeCounts?.nonsolid ?? 0;
+      counts.pattern += item.typeCounts?.pattern ?? 0;
       counts.other += item.typeCounts?.other ?? 0;
       return counts;
     },
-    { solid: 0, nonsolid: 0, other: 0 }
+    { pattern: 0, other: 0 }
   );
   const lines = [
     "# Overlay Smoke Test",
@@ -574,7 +642,7 @@ async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlay
     `- Provider: ${baseOptions.modelProvider}`,
     `- Samples: ${rendered.length}`,
     `- Skipped candidates: ${skipped.length}`,
-    `- Type counts: solid ${totalTypeCounts.solid}, nonsolid ${totalTypeCounts.nonsolid}, other ${totalTypeCounts.other}`,
+    `- Type counts: pattern ${totalTypeCounts.pattern}, other ${totalTypeCounts.other}`,
     ...(geometrySheetPath ? [`- Geometry sheet: ${geometrySheetPath}`] : []),
     ...(overlaySheetPath ? [`- Overlay sheet: ${overlaySheetPath}`] : []),
     "- Source filter: original jpg/jpeg/png pages only; translated_images, mask, inpainted, translated outputs are excluded.",
@@ -590,7 +658,7 @@ async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlay
     "## Samples",
     "",
     ...rendered.flatMap((item) => [
-      `- ${item.index}. blocks=${item.blockCount} solid=${item.typeCounts?.solid ?? 0} nonsolid=${item.typeCounts?.nonsolid ?? 0} ${item.sample.filePath}`,
+      `- ${item.index}. blocks=${item.blockCount} pattern=${item.typeCounts?.pattern ?? 0} ${item.sample.filePath}`,
       `  - geometry: ${item.geometryPath}`,
       `  - overlay: ${item.overlayPath}`
     ])

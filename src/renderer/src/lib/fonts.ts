@@ -23,16 +23,16 @@ export const BLOCK_FONT_OPTIONS: BlockFontOption[] = [
     sample: "그리운 몽토리"
   },
   {
-    id: "ongle-park-dahyun",
-    label: "온글잎 박다현체",
-    cssFamily: '"MGT Ongle Park Dahyun", "Malgun Gothic", sans-serif',
-    sample: "온글잎 박다현"
-  },
-  {
     id: "chosun-gungseo",
     label: "조선궁서체",
     cssFamily: '"MGT Chosun Gungseo", "Malgun Gothic", serif',
     sample: "조선궁서체"
+  },
+  {
+    id: "griun-pol-sensibility",
+    label: "그리운 경찰감성체",
+    cssFamily: '"MGT Griun Pol Sensibility", "Malgun Gothic", sans-serif',
+    sample: "경찰감성체"
   },
   {
     id: "nanum-gothic",

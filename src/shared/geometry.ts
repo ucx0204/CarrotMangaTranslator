@@ -149,22 +149,7 @@ export function normalizeRotationDeg(value: unknown): number {
 }
 
 export function normalizeBlockType(value: unknown): BlockType {
-  const text = String(value ?? "").trim().toLowerCase();
-  if (["solid", "flat", "plain", "monochrome", "single_color", "single-color", "단색", "단색배경"].includes(text)) {
-    return "solid";
-  }
-  if (["nonsolid", "non-solid", "non_solid", "complex", "complex_bg", "complex-background", "비단색", "복잡", "복잡배경"].includes(text)) {
-    return "nonsolid";
-  }
-  if (["speech", "dialogue", "dialog", "balloon", "bubble"].includes(text)) {
-    return "solid";
-  }
-  if (["sfx", "sound", "effect", "onomatopoeia"].includes(text)) {
-    return "nonsolid";
-  }
-  if (["caption", "narration", "name"].includes(text)) {
-    return "nonsolid";
-  }
+  void value;
   return "nonsolid";
 }
 

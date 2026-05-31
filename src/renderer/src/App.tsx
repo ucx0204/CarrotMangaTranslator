@@ -5,6 +5,7 @@ import type {
   BlockType,
   ChapterSnapshot,
   ImportPreviewResult,
+  InpaintingMaskStroke,
   JobEvent,
   JobState,
   LibraryIndex,
@@ -13,7 +14,6 @@ import type {
   WorkShareExportRequest,
   WorkShareImportPreview
 } from "../../shared/types";
-import { resolveBlockVisualStyle } from "../../shared/blockVisuals";
 import {
   applyEditableBlockBbox,
   clampBbox,
@@ -38,7 +38,6 @@ import { TranslateSourceModal, type TranslateSourceMode } from "./components/Tra
 import { useStageSize } from "./hooks/useStageSize";
 import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyPages, resolveSelectionAfterChapterSync } from "./lib/chapterSync";
 import { formatJobEventLine, formatJobLabel, resolveProgressSnapshot, summarizeWarnings, type ProgressSnapshot } from "./lib/jobProgress";
-import inpaintingGuideImage from "./assets/images/inpainting-guide.png";
 import { resolveAdjacentPageId, resolveKeyboardPageNavigation, resolveWheelPageNavigation } from "./lib/pageNavigation";
 import "./styles.css";
 
@@ -75,10 +74,10 @@ type RegionSelectionState = {
   };
 };
 
-type InpaintingStage = "solid" | "pattern" | "review";
-type InpaintingTool = "none" | "brush" | "eraser" | "picker";
+type InpaintingStage = "pattern" | "finalize" | "review";
+type InpaintingTool = "none" | "brush" | "eraser" | "picker" | "mask";
 type RetouchPreviewState = {
-  mode: "brush" | "eraser";
+  mode: "brush" | "eraser" | "mask";
   points: Array<{ x: number; y: number }>;
   radiusPx: number;
   color: string;
@@ -132,18 +131,18 @@ export default function App(): React.JSX.Element {
   const [dirty, setDirty] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [inpaintingMode, setInpaintingMode] = useState(false);
-  const [inpaintingStage, setInpaintingStage] = useState<InpaintingStage>("solid");
+  const [inpaintingStage, setInpaintingStage] = useState<InpaintingStage>("pattern");
   const [inpaintingHighlightType, setInpaintingHighlightType] = useState<BlockType | null>(null);
   const [inpaintingGuideOpen, setInpaintingGuideOpen] = useState(false);
   const [hideInpaintingGuide, setHideInpaintingGuide] = useState(() =>
     typeof window === "undefined" ? false : window.localStorage.getItem(INPAINTING_GUIDE_HIDDEN_KEY) === "1"
   );
-  const [solidInpaintingTouched, setSolidInpaintingTouched] = useState(false);
   const [inpaintingTool, setInpaintingTool] = useState<InpaintingTool>("none");
   const [inpaintingBrushRadius, setInpaintingBrushRadius] = useState(28);
   const [inpaintingPaintColor, setInpaintingPaintColor] = useState("#ffffff");
   const [retouchCursorPoint, setRetouchCursorPoint] = useState<{ x: number; y: number } | null>(null);
   const [retouchPreview, setRetouchPreview] = useState<RetouchPreviewState | null>(null);
+  const [patternMaskStrokes, setPatternMaskStrokes] = useState<InpaintingMaskStroke[]>([]);
   const [retouchUndoStack, setRetouchUndoStack] = useState<RetouchHistoryEntry[]>([]);
   const [retouchRedoStack, setRetouchRedoStack] = useState<RetouchHistoryEntry[]>([]);
   const [showBlockChrome, setShowBlockChrome] = useState(true);
@@ -164,6 +163,7 @@ export default function App(): React.JSX.Element {
   const inpaintingRetouchDrawingRef = useRef(false);
   const inpaintingRetouchPointsRef = useRef<Array<{ x: number; y: number }>>([]);
   const lastInpaintingRetouchPointRef = useRef<{ x: number; y: number } | null>(null);
+  const patternMaskStrokesRef = useRef<InpaintingMaskStroke[]>([]);
   const retouchUndoStackRef = useRef<RetouchHistoryEntry[]>([]);
   const retouchRedoStackRef = useRef<RetouchHistoryEntry[]>([]);
 
@@ -191,15 +191,14 @@ export default function App(): React.JSX.Element {
     () => currentChapter?.pages.filter((page) => Boolean(page.inpaintedImagePath)).length ?? 0,
     [currentChapter?.pages]
   );
-  const solidStageHasRun = solidInpaintingTouched || inpaintedPageCount > 0 || blockCounts.solid === 0;
-  const inpaintingToolActive = inpaintingMode && inpaintingStage === "solid" && inpaintingTool !== "none";
+  const inpaintingToolActive = inpaintingMode && inpaintingStage !== "review" && inpaintingTool !== "none";
   const retouchCursor =
-    inpaintingTool === "brush" || inpaintingTool === "eraser"
+    inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask"
       ? {
           point: retouchCursorPoint,
           radiusPx: inpaintingBrushRadius,
           mode: inpaintingTool,
-          color: inpaintingTool === "brush" ? inpaintingPaintColor : "#70b7ff"
+          color: inpaintingTool === "brush" ? inpaintingPaintColor : inpaintingTool === "mask" ? "#ff9f1c" : "#70b7ff"
         }
       : null;
   const retouchPreviewLayer =
@@ -251,16 +250,21 @@ export default function App(): React.JSX.Element {
   }, [retouchRedoStack]);
 
   React.useEffect(() => {
+    patternMaskStrokesRef.current = patternMaskStrokes;
+  }, [patternMaskStrokes]);
+
+  React.useEffect(() => {
     setRegionSelection(null);
+    setPatternMaskStrokes([]);
   }, [selectedPage?.id]);
 
   React.useEffect(() => {
     if (!currentChapter) {
       setInpaintingMode(false);
-      setInpaintingStage("solid");
+      setInpaintingStage("pattern");
       setInpaintingHighlightType(null);
       setInpaintingGuideOpen(false);
-      setSolidInpaintingTouched(false);
+      setPatternMaskStrokes([]);
     }
   }, [currentChapter]);
 
@@ -773,10 +777,9 @@ export default function App(): React.JSX.Element {
       await saveNow();
     }
     setInpaintingMode(true);
-    setInpaintingStage("solid");
+    setInpaintingStage("pattern");
     setInpaintingTool("none");
-    setInpaintingHighlightType("solid");
-    setSolidInpaintingTouched(false);
+    setInpaintingHighlightType(null);
     setSelectedBlockId(null);
     setRegionSelection(null);
     setShowBlockChrome(true);
@@ -784,7 +787,7 @@ export default function App(): React.JSX.Element {
     if (!hideInpaintingGuide) {
       setInpaintingGuideOpen(true);
     }
-    pushStatus("인페인팅 모드로 전환했습니다. 단색 배경 블록을 먼저 확인하세요.");
+    pushStatus("인페인팅 모드로 전환했습니다. 무늬 배경 지우기부터 시작하세요.");
   }, [currentChapter, dirty, hideInpaintingGuide, jobActive, pushStatus, saveNow]);
 
   const exitInpaintingMode = useCallback(() => {
@@ -792,18 +795,19 @@ export default function App(): React.JSX.Element {
       return;
     }
     setInpaintingMode(false);
-    setInpaintingStage("solid");
+    setInpaintingStage("pattern");
     setInpaintingTool("none");
     setInpaintingHighlightType(null);
     setInpaintingGuideOpen(false);
+    setPatternMaskStrokes([]);
     setSelectedBlockId(null);
     setRegionSelection(null);
     pushStatus("인페인팅 모드를 종료했습니다.");
   }, [jobActive, pushStatus]);
 
-  const runSolidInpainting = useCallback(
+  const runInpainting = useCallback(
     async (scope: "page" | "chapter") => {
-      if (!currentChapter || jobActive) {
+      if (!currentChapter || jobActive || inpaintingStage === "review") {
         return;
       }
       if (scope === "page" && !selectedPage) {
@@ -812,11 +816,12 @@ export default function App(): React.JSX.Element {
       if (dirty) {
         await saveNow();
       }
-      const targetLabel = scope === "page" ? "이 페이지" : "전체 페이지";
+      const targetLabel = "무늬 배경";
+      const scopeLabel = scope === "page" ? "현재 페이지" : "전체 페이지";
       const confirmed = await askConfirm(
-        "단색 배경 원문 지우기",
-        `${targetLabel}의 단색 배경 블록을 가볍게 지웁니다.`,
-        "말풍선처럼 배경이 거의 한 색인 블록만 처리합니다. 원본 이미지는 유지하고, 결과 이미지는 별도로 저장합니다."
+        `${targetLabel} 원문 지우기`,
+        `${scopeLabel}의 ${targetLabel} 블록을 지웁니다.`,
+        "말풍선, 톤, 배경 그림, 효과음 위 글자까지 모두 Flux 인페인팅으로 지웁니다. 원본 이미지는 유지하고 결과 이미지는 별도로 저장합니다."
       );
       if (!confirmed) {
         return;
@@ -826,7 +831,7 @@ export default function App(): React.JSX.Element {
         id: "pending-inpainting",
         kind: "inpainting",
         status: "starting",
-        progressText: "단색 배경 지우기 준비 중",
+        progressText: `${targetLabel} 지우기 준비 중`,
         phase: "inpainting_preparing"
       });
 
@@ -834,12 +839,12 @@ export default function App(): React.JSX.Element {
         scope === "page"
           ? {
               chapterId: currentChapter.id,
-              mode: "page-solid",
+              mode: "page-pattern",
               pageId: selectedPage!.id
             }
           : {
               chapterId: currentChapter.id,
-              mode: "chapter-solid"
+              mode: "chapter-pattern"
             }
       );
       if (result.chapter) {
@@ -849,62 +854,133 @@ export default function App(): React.JSX.Element {
       await refreshLibrary();
 
       if (result.status === "completed") {
-        setSolidInpaintingTouched(true);
-        pushStatus(`단색 배경 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}블록`);
+        pushStatus(`${targetLabel} 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}블록`);
       } else if (result.status === "failed" && result.error) {
         pushStatus(result.error);
       }
     },
-    [askConfirm, currentChapter, dirty, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage]
+    [askConfirm, currentChapter, dirty, inpaintingStage, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage]
   );
+
+  const runDrawnPatternInpainting = useCallback(async () => {
+    if (!currentChapter || !selectedPage || jobActive || patternMaskStrokes.length === 0) {
+      return;
+    }
+    if (dirty) {
+      await saveNow();
+    }
+    const confirmed = await askConfirm(
+      "그린 영역 지우기",
+      "주황색으로 그린 마스크 영역만 Flux로 지웁니다.",
+      "글자 위를 넉넉히 문질러 둔 영역을 crop으로 잘라 무늬 배경을 복원합니다. 결과는 별도 이미지로 저장되며 원본 페이지는 유지됩니다."
+    );
+    if (!confirmed) {
+      return;
+    }
+    setJobState({
+      id: "pending-inpainting",
+      kind: "inpainting",
+      status: "starting",
+      progressText: "그린 영역 지우기 준비 중",
+      phase: "inpainting_preparing",
+      progressCurrent: 0,
+      progressTotal: 1
+    });
+    const result = await window.mangaApi.startInpainting({
+      chapterId: currentChapter.id,
+      mode: "page-pattern-drawn",
+      pageId: selectedPage.id,
+      strokes: patternMaskStrokes,
+      featherPx: 8
+    });
+    if (result.chapter) {
+      pageImageCacheRef.current.clear();
+      mergeLiveChapter(result.chapter);
+    }
+    await refreshLibrary();
+    if (result.status === "completed") {
+      setPatternMaskStrokes([]);
+      pushStatus(`그린 영역 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}영역`);
+    } else if (result.status === "failed" && result.error) {
+      pushStatus(result.error);
+    }
+  }, [
+    askConfirm,
+    currentChapter,
+    dirty,
+    jobActive,
+    mergeLiveChapter,
+    patternMaskStrokes,
+    pushStatus,
+    refreshLibrary,
+    saveNow,
+    selectedPage
+  ]);
+
+  const exportInpaintingResults = useCallback(async () => {
+    if (!currentChapter || jobActive) {
+      return;
+    }
+    if (dirty) {
+      await saveNow();
+    }
+    try {
+      const result = await window.mangaApi.exportInpaintingResults({ chapterId: currentChapter.id });
+      pushStatus(`인페인팅 결과를 PNG로 출력했습니다: ${result.pageCount}페이지`);
+    } catch (error) {
+      console.error(error);
+      pushStatus(formatErrorMessage(error, "인페인팅 결과를 출력하지 못했습니다."));
+    }
+  }, [currentChapter, dirty, jobActive, pushStatus, saveNow]);
 
   const goToNextInpaintingStage = useCallback(async () => {
     if (jobActive) {
       return;
     }
-    if (inpaintingStage === "solid") {
-      if (!solidStageHasRun && blockCounts.solid > 0) {
+    if (inpaintingStage === "pattern") {
+      if (inpaintedPageCount === 0 && blockCounts.total > 0) {
         const confirmed = await askConfirm(
-          "단색 배경 지우기 건너뛰기",
-          "아직 단색 배경 지우기를 실행하지 않았습니다.",
-          "말풍선처럼 배경이 단순한 부분을 먼저 지워두면 다음 무늬 배경 단계에서 건드릴 영역이 줄어듭니다. 그래도 다음 단계로 넘어갈까요?"
+          "원문 지우기 건너뛰기",
+          "아직 인페인팅을 실행하지 않았습니다.",
+          "지우기 없이 최종 처리 단계로 넘어가면 원문이 남아 있을 수 있습니다. 그래도 넘어갈까요?"
         );
         if (!confirmed) {
           return;
         }
       }
-      setInpaintingStage("pattern");
-      setInpaintingHighlightType("nonsolid");
+      setInpaintingStage("finalize");
+      setInpaintingHighlightType(null);
       setShowTextBlocks(true);
       setShowBlockChrome(true);
-      pushStatus("무늬 배경 단계로 이동했습니다.");
+      setPatternMaskStrokes([]);
+      pushStatus("최종 처리 단계로 이동했습니다.");
       return;
     }
-    if (inpaintingStage === "pattern") {
+    if (inpaintingStage === "finalize") {
       setInpaintingStage("review");
       setInpaintingHighlightType(null);
       pushStatus("결과 확인 단계로 이동했습니다.");
     }
-  }, [askConfirm, blockCounts.solid, inpaintingStage, jobActive, pushStatus, solidStageHasRun]);
+  }, [askConfirm, blockCounts.total, inpaintedPageCount, inpaintingStage, jobActive, pushStatus]);
 
   const goToPreviousInpaintingStage = useCallback(() => {
     if (jobActive) {
       return;
     }
-    if (inpaintingStage === "pattern") {
-      setInpaintingStage("solid");
-      setInpaintingHighlightType("solid");
-      setShowTextBlocks(true);
-      setShowBlockChrome(true);
-      pushStatus("단색 배경 단계로 돌아왔습니다.");
-      return;
-    }
-    if (inpaintingStage === "review") {
+    if (inpaintingStage === "finalize") {
       setInpaintingStage("pattern");
-      setInpaintingHighlightType("nonsolid");
+      setInpaintingHighlightType(null);
       setShowTextBlocks(true);
       setShowBlockChrome(true);
       pushStatus("무늬 배경 단계로 돌아왔습니다.");
+      return;
+    }
+    if (inpaintingStage === "review") {
+      setInpaintingStage("finalize");
+      setInpaintingHighlightType(null);
+      setShowTextBlocks(true);
+      setShowBlockChrome(true);
+      pushStatus("최종 처리 단계로 돌아왔습니다.");
     }
   }, [inpaintingStage, jobActive, pushStatus]);
 
@@ -1097,15 +1173,14 @@ export default function App(): React.JSX.Element {
 
                 const nextType = normalizeBlockType(patch.type ?? block.type);
                 const nextRenderDirection = normalizeRenderDirection(patch.renderDirection ?? block.renderDirection, block.renderDirection);
-                const nextVisualStyle = resolveBlockVisualStyle(nextType);
                 return {
                   ...block,
                   ...patch,
                   type: nextType,
                   renderDirection: nextRenderDirection,
                   rotationDeg: normalizeRotationDeg(patch.rotationDeg ?? block.rotationDeg ?? 0),
-                  backgroundColor: patch.type ? nextVisualStyle.backgroundColor : patch.backgroundColor ?? block.backgroundColor,
-                  opacity: patch.type ? nextVisualStyle.defaultOpacity : patch.opacity ?? block.opacity,
+                  backgroundColor: patch.backgroundColor ?? block.backgroundColor,
+                  opacity: patch.opacity ?? block.opacity,
                   bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
                   bboxSpace: patch.bbox ? "normalized_1000" : block.bboxSpace,
                   renderBbox: patch.renderBbox ? clampBbox(patch.renderBbox) : block.renderBbox,
@@ -1194,7 +1269,7 @@ export default function App(): React.JSX.Element {
   );
 
   const appendRetouchPoint = useCallback(
-    (point: { x: number; y: number }, tool?: Extract<InpaintingTool, "brush" | "eraser">) => {
+    (point: { x: number; y: number }, tool?: Extract<InpaintingTool, "brush" | "eraser" | "mask">) => {
       const last = lastInpaintingRetouchPointRef.current;
       const minDistance = Math.max(2, inpaintingBrushRadius * 0.2);
       if (last) {
@@ -1217,13 +1292,13 @@ export default function App(): React.JSX.Element {
               mode: tool,
               points: [nextPoint],
               radiusPx: inpaintingBrushRadius,
-              color: inpaintingPaintColor
+              color: tool === "mask" ? "#ff9f1c" : inpaintingPaintColor
             };
           }
           return {
             ...current,
             radiusPx: inpaintingBrushRadius,
-            color: inpaintingPaintColor,
+            color: tool === "mask" ? "#ff9f1c" : inpaintingPaintColor,
             points: [...current.points, nextPoint].slice(-1200)
           };
         });
@@ -1369,7 +1444,7 @@ export default function App(): React.JSX.Element {
       if (!point || !stageRef.current) {
         return;
       }
-      if (inpaintingTool === "brush" || inpaintingTool === "eraser") {
+      if (inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask") {
         setRetouchCursorPoint(point);
       }
       event.preventDefault();
@@ -1426,10 +1501,10 @@ export default function App(): React.JSX.Element {
   const onStagePointerMove = (event: React.PointerEvent) => {
     if (inpaintingToolActive) {
       const point = getImagePixelPoint(event);
-      if (point && (inpaintingTool === "brush" || inpaintingTool === "eraser")) {
+      if (point && (inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask")) {
         setRetouchCursorPoint(point);
       }
-      if (point && inpaintingRetouchDrawingRef.current && (inpaintingTool === "brush" || inpaintingTool === "eraser")) {
+      if (point && inpaintingRetouchDrawingRef.current && (inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask")) {
         appendRetouchPoint(point, inpaintingTool);
       }
       return;
@@ -1494,6 +1569,8 @@ export default function App(): React.JSX.Element {
       inpaintingRetouchPointsRef.current = [];
       if (inpaintingTool === "brush" || inpaintingTool === "eraser") {
         void applyRetouchPoints(inpaintingTool, points);
+      } else if (inpaintingTool === "mask" && points.length > 0) {
+        setPatternMaskStrokes((strokes) => [...strokes, { points, radiusPx: inpaintingBrushRadius }].slice(-200));
       }
       window.setTimeout(() => setRetouchPreview(null), 180);
       return;
@@ -1762,9 +1839,9 @@ export default function App(): React.JSX.Element {
               onReorder={() => undefined}
             />
 
-            {inpaintingStage !== "solid" ? (
+            {inpaintingStage !== "pattern" ? (
               <section className="inpainting-back-panel">
-                <button className="solid-back-button" onClick={goToPreviousInpaintingStage} disabled={jobActive}>
+                <button className="inpainting-back-button" onClick={goToPreviousInpaintingStage} disabled={jobActive}>
                   이전 단계로 돌아가기
                 </button>
               </section>
@@ -1872,11 +1949,12 @@ export default function App(): React.JSX.Element {
               stageSize={stageSize}
               selectedBlockId={selectedBlockId}
               showTextBlocks={showTextBlocks}
-              showBlockChrome={showBlockChrome}
+              showBlockChrome={showBlockChrome && !inpaintingToolActive}
               highlightBlockType={inpaintingHighlightType}
               blockPointerDisabled={inpaintingToolActive}
               retouchCursor={retouchCursor}
               retouchPreview={retouchPreviewLayer}
+              maskStrokes={inpaintingMode && inpaintingStage === "pattern" ? patternMaskStrokes : []}
               regionSelectionActive={Boolean(regionSelection?.active)}
               regionSelectionRect={regionSelectionRect}
               onStagePointerMove={onStagePointerMove}
@@ -1913,6 +1991,7 @@ export default function App(): React.JSX.Element {
               tool={inpaintingTool}
               brushRadius={inpaintingBrushRadius}
               brushColor={inpaintingPaintColor}
+              maskStrokeCount={patternMaskStrokes.length}
               canUndo={retouchUndoStack.length > 0}
               canRedo={retouchRedoStack.length > 0}
               jobState={jobState}
@@ -1927,20 +2006,31 @@ export default function App(): React.JSX.Element {
               onRedoRetouch={() => void redoRetouch()}
               onRevertPage={() => void revertInpainting("page")}
               onRevertChapter={() => void revertInpainting("chapter")}
-              onRunPage={() => void runSolidInpainting("page")}
-              onRunChapter={() => void runSolidInpainting("chapter")}
-              onSetSelectedBlockType={(type) => updateSelectedBlock({ type })}
+              onRunPage={() => void runInpainting("page")}
+              onRunChapter={() => void runInpainting("chapter")}
+              onRunDrawnPattern={() => void runDrawnPatternInpainting()}
+              onClearPatternMask={() => setPatternMaskStrokes([])}
               onShowGuide={() => setInpaintingGuideOpen(true)}
               onToggleChrome={() => setShowBlockChrome((value) => !value)}
               onToggleBlocks={() => setShowTextBlocks((value) => !value)}
+              onExportResults={() => void exportInpaintingResults()}
             />
+            {inpaintingStage === "finalize" ? (
+              <EditorPanel
+                block={selectedBlock}
+                disabled={selectedPageEditLocked || jobActive}
+                onUpdate={updateSelectedBlock}
+                onDelete={deleteSelectedBlock}
+                onDuplicate={duplicateSelectedBlock}
+              />
+            ) : null}
             <section className="inpainting-next-panel">
               <button
-                className={inpaintingStage === "solid" ? "pattern-next-button" : "primary"}
+                className={inpaintingStage === "pattern" ? "pattern-next-button" : "primary"}
                 onClick={() => void goToNextInpaintingStage()}
                 disabled={jobActive || inpaintingStage === "review"}
               >
-                {inpaintingStage === "solid" ? "다음 단계로 넘어가기" : inpaintingStage === "pattern" ? "결과 확인" : "완료"}
+                {inpaintingStage === "pattern" ? "최종 처리로 넘어가기" : inpaintingStage === "finalize" ? "결과 확인" : "완료"}
               </button>
             </section>
           </>
@@ -2129,7 +2219,15 @@ function InpaintingGuideModal({ onClose }: { onClose: (hideNextTime: boolean) =>
   return (
     <div className="modal-backdrop guide-backdrop" role="presentation">
       <div className="modal-card inpainting-guide-modal" role="dialog" aria-modal="true" aria-label="인페인팅 안내" onMouseDown={(event) => event.stopPropagation()}>
-        <img src={inpaintingGuideImage} alt="인페인팅 전 단색 배경과 무늬 배경을 확인하는 방법 안내" />
+        <div className="inpainting-guide-content">
+          <h2>인페인팅 흐름</h2>
+          <p>이제 모든 원문 지우기는 Flux 무늬 배경 처리로 통일됩니다.</p>
+          <ol>
+            <li>무늬 배경 단계에서 이 페이지 또는 전체 페이지의 원문을 지웁니다.</li>
+            <li>최종 처리 단계에서 블록을 눌러 폰트, 색상, 위치를 정리합니다.</li>
+            <li>결과 확인 단계에서 PNG로 출력하고 폴더를 열어 확인합니다.</li>
+          </ol>
+        </div>
         <div className="modal-actions guide-actions">
           <label className="guide-hide-check">
             <input type="checkbox" checked={hideNextTime} onChange={(event) => setHideNextTime(event.target.checked)} />
@@ -2183,14 +2281,12 @@ function ConfirmModal({
 
 type BlockCounts = {
   total: number;
-  solid: number;
-  nonsolid: number;
 };
 
 function InpaintingWorkflowPanel({ stage }: { stage: InpaintingStage }): React.JSX.Element {
-  const steps: Array<{ id: InpaintingStage; label: string; tone: "solid" | "pattern" | "review" }> = [
-    { id: "solid", label: "단색 배경", tone: "solid" },
+  const steps: Array<{ id: InpaintingStage; label: string; tone: "pattern" | "finalize" | "review" }> = [
     { id: "pattern", label: "무늬 배경", tone: "pattern" },
+    { id: "finalize", label: "최종 처리", tone: "finalize" },
     { id: "review", label: "결과 확인", tone: "review" }
   ];
   const activeIndex = steps.findIndex((step) => step.id === stage);
@@ -2214,6 +2310,17 @@ function PaintIcon(): React.JSX.Element {
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M4 16.5c2.6-.3 4.4.2 5.6 1.4 1.2 1.2 1.7 3 1.4 5.6-2.7.2-5-.4-6.3-1.8-1.1-1.2-1.4-3-.7-5.2Z" />
       <path d="M10.4 16.1 20.7 5.8c.8-.8.8-2 0-2.8-.8-.8-2-.8-2.8 0L7.6 13.3" />
+    </svg>
+  );
+}
+
+function MaskIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 18c3.4-6.4 7.1-10.7 11-13" />
+      <path d="M9 19c2.9-4.3 6.1-7.2 9.5-8.8" />
+      <path d="M5.5 13.5c3.8.4 7.6 1.8 11.4 4.3" />
+      <path d="M4 20h16" />
     </svg>
   );
 }
@@ -2248,6 +2355,7 @@ function InpaintingControlPanel({
   tool,
   brushRadius,
   brushColor,
+  maskStrokeCount,
   canUndo,
   canRedo,
   jobState,
@@ -2264,10 +2372,12 @@ function InpaintingControlPanel({
   onRevertChapter,
   onRunPage,
   onRunChapter,
-  onSetSelectedBlockType,
+  onRunDrawnPattern,
+  onClearPatternMask,
   onShowGuide,
   onToggleChrome,
-  onToggleBlocks
+  onToggleBlocks,
+  onExportResults
 }: {
   stage: InpaintingStage;
   currentChapter: ChapterSnapshot | null;
@@ -2278,6 +2388,7 @@ function InpaintingControlPanel({
   tool: InpaintingTool;
   brushRadius: number;
   brushColor: string;
+  maskStrokeCount: number;
   canUndo: boolean;
   canRedo: boolean;
   jobState: JobState;
@@ -2294,14 +2405,18 @@ function InpaintingControlPanel({
   onRevertChapter: () => void;
   onRunPage: () => void;
   onRunChapter: () => void;
-  onSetSelectedBlockType: (type: BlockType) => void;
+  onRunDrawnPattern: () => void;
+  onClearPatternMask: () => void;
   onShowGuide: () => void;
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
+  onExportResults: () => void;
 }): React.JSX.Element {
   const activeInpaintingJob = jobState.kind === "inpainting" && jobState.status !== "idle";
   const totalPages = currentChapter?.pages.length ?? 0;
-  const stageTitle = stage === "solid" ? "단색 배경 지우기" : stage === "pattern" ? "무늬 배경 지우기" : "결과 확인";
+  const stageTitle = stage === "pattern" ? "무늬 배경 지우기" : stage === "finalize" ? "최종 처리" : "결과 확인";
+  const targetLabel = "무늬 배경";
+  const targetCount = blockCounts.total;
 
   return (
     <>
@@ -2314,67 +2429,67 @@ function InpaintingControlPanel({
         </div>
 
         <div className="inpainting-counts">
-          <span className="type-stat solid">단색 배경 {blockCounts.solid}</span>
-          <span className="type-stat nonsolid">무늬 배경 {blockCounts.nonsolid}</span>
-        </div>
-
-        <div className="inpainting-block-type-card">
-          <strong>선택한 블록 배경</strong>
-          {selectedBlock ? (
-            <div className="inpainting-type-switch">
-              <button
-                className={selectedBlock.type === "solid" ? "solid active" : "solid"}
-                disabled={jobActive}
-                onClick={() => onSetSelectedBlockType("solid")}
-              >
-                단색 배경
-              </button>
-              <button
-                className={selectedBlock.type === "nonsolid" ? "nonsolid active" : "nonsolid"}
-                disabled={jobActive}
-                onClick={() => onSetSelectedBlockType("nonsolid")}
-              >
-                무늬 배경
-              </button>
-            </div>
-          ) : (
-            <span>캔버스에서 블록을 선택하면 배경 종류를 바꿀 수 있습니다.</span>
-          )}
+          <span className="type-stat nonsolid">지울 블록 {blockCounts.total}</span>
+          <span className="type-stat review">처리된 페이지 {inpaintedPageCount}</span>
         </div>
 
         {activeInpaintingJob ? <InpaintingProgressCard jobState={jobState} progressSnapshot={progressSnapshot} /> : null}
 
-        {stage === "solid" ? (
-          <>
-            <div className="inpainting-run-card">
-              <div>
-                <strong>지우기 실행</strong>
-                <span>{currentChapter ? `${totalPages}페이지 · ${blockCounts.solid}개 단색 블록` : "화가 열려 있지 않습니다."}</span>
-              </div>
-              <div className="inpainting-action-grid">
-                <button className="primary compact" disabled={!selectedPage || jobActive || blockCounts.solid === 0} onClick={onRunPage}>
-                  이 페이지
-                </button>
-                <button className="primary compact" disabled={!currentChapter || jobActive || blockCounts.solid === 0} onClick={onRunChapter}>
-                  전체 페이지
-                </button>
-              </div>
+        {stage === "pattern" ? (
+          <div className={`inpainting-run-card ${stage}`}>
+            <div>
+              <strong>{targetLabel} 실행</strong>
+              <span>{currentChapter ? `${totalPages}페이지 · ${targetCount}개 ${targetLabel} 블록` : "화가 열려 있지 않습니다."}</span>
             </div>
-          </>
-        ) : stage === "pattern" ? (
-          <div className="pending-stage-card pattern">
-            <strong>무늬 배경 단계</strong>
-            <span>복잡한 배경 위 글자는 다음 인페인팅 작업에서 처리합니다.</span>
+            <div className="inpainting-action-grid">
+              <button className="pattern compact" disabled={!selectedPage || jobActive || targetCount === 0} onClick={onRunPage}>
+                이 페이지 지우기
+              </button>
+              <button className="pattern compact" disabled={!currentChapter || jobActive || targetCount === 0} onClick={onRunChapter}>
+                전체 페이지 지우기
+              </button>
+            </div>
+          </div>
+        ) : stage === "finalize" ? (
+          <div className="pending-stage-card finalize">
+            <strong>블록 최종 처리</strong>
+            <span>{selectedBlock ? "선택한 블록의 폰트, 색상, 위치를 조정하세요." : "캔버스에서 블록을 선택하면 편집 패널이 열립니다."}</span>
           </div>
         ) : (
           <div className="pending-stage-card review">
             <strong>결과 확인</strong>
             <span>{inpaintedPageCount}페이지에 인페인팅 결과가 저장되어 있습니다.</span>
+            <button className="primary compact" disabled={!currentChapter || jobActive} onClick={onExportResults}>
+              PNG 출력
+            </button>
           </div>
         )}
       </section>
 
-      {stage === "solid" ? (
+      {stage === "pattern" ? (
+        <section className="inpainting-panel drawn-mask-panel">
+          <div className="panel-header">
+            <h2>그려서 지우기</h2>
+            <small>{maskStrokeCount > 0 ? `그린 영역 ${maskStrokeCount}개` : "효과음 보정"}</small>
+          </div>
+          <div className="retouch-toolbar compact-toolbar">
+            <button className={tool === "mask" ? "active mask-tool" : "mask-tool"} disabled={jobActive} onClick={() => onSelectTool(tool === "mask" ? "none" : "mask")}>
+              <MaskIcon />
+              <span>마스크 붓</span>
+            </button>
+            <button className="secondary compact" disabled={jobActive || maskStrokeCount === 0} onClick={onClearPatternMask}>
+              마스크 비우기
+            </button>
+          </div>
+          <div className="drawn-mask-actions">
+            <button className="pattern compact" disabled={jobActive || !selectedPage || maskStrokeCount === 0} onClick={onRunDrawnPattern}>
+              그린 영역 지우기
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {stage !== "review" ? (
         <section className="inpainting-panel mask-tool-panel">
           <div className="panel-header">
             <h2>수동 보정</h2>
@@ -2499,21 +2614,14 @@ function DisplayControlPanel({
 
 function countChapterBlocks(chapter: ChapterSnapshot | null): BlockCounts {
   if (!chapter) {
-    return { total: 0, solid: 0, nonsolid: 0 };
+    return { total: 0 };
   }
   return chapter.pages.reduce<BlockCounts>(
     (counts, page) => {
-      for (const block of page.blocks) {
-        counts.total += 1;
-        if (block.type === "solid") {
-          counts.solid += 1;
-        } else {
-          counts.nonsolid += 1;
-        }
-      }
+      counts.total += page.blocks.length;
       return counts;
     },
-    { total: 0, solid: 0, nonsolid: 0 }
+    { total: 0 }
   );
 }
 

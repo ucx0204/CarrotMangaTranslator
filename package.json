@@ -8,14 +8,13 @@
   "scripts": {
     "dev": "node scripts/dev.cjs",
     "build": "node scripts/build.cjs",
-    "dist:win": "node scripts/prepare-ocr-python.cjs && npm run build && electron-builder --config electron-builder.config.cjs --win nsis --x64",
+    "dist:win": "node scripts/prepare-ocr-python.cjs && node scripts/prepare-flux-klein-runner.cjs && npm run build && electron-builder --config electron-builder.config.cjs --win nsis --x64",
     "compile:electron": "tsc -p tsconfig.electron.json",
     "logs": "node scripts/tail-log.cjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "preview": "npm run build && node scripts/preview.cjs",
     "smoke:overlay": "npm run build && node scripts/run-smoke-overlay.cjs",
-    "smoke:gemma-solid": "npm run build && node scripts/run-gemma-solid-smoke.cjs",
     "perf:gemma-economy": "npm run build && node scripts/run-gemma-economy-benchmark.cjs"
   },
   "dependencies": {
@@ -24,7 +23,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@radix-ui/react-progress": "^1.1.8",
     "adm-zip": "^0.5.17",
-    "onnxruntime-node": "^1.26.0",
     "openai-oauth": "^1.0.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

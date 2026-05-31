@@ -26,6 +26,13 @@ if (existsSync(join(__dirname, "tools", "ffmpeg", "ffmpeg.exe"))) {
   });
 }
 
+if (existsSync(join(__dirname, "tools", "mgt-flux-klein", "mgt-flux-klein.exe"))) {
+  extraResources.push({
+    from: "tools/mgt-flux-klein",
+    to: "tools/mgt-flux-klein"
+  });
+}
+
 module.exports = {
   appId: "com.sam40.mangagemma.translator",
   productName: "망가번역기",

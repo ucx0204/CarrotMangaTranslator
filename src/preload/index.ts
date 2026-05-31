@@ -7,6 +7,8 @@ import type {
   ImportPreviewResult,
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
+  InpaintingExportRequest,
+  InpaintingExportResult,
   InpaintingRetouchRequest,
   InpaintingRetouchResult,
   InpaintingRevertRequest,
@@ -69,6 +71,8 @@ const api = {
   revertInpainting: (request: InpaintingRevertRequest): Promise<InpaintingRevertResult> => ipcRenderer.invoke("inpainting:revert", request),
   sampleInpaintingColor: (request: InpaintingColorSampleRequest): Promise<InpaintingColorSampleResult> =>
     ipcRenderer.invoke("inpainting:sample-color", request),
+  exportInpaintingResults: (request: InpaintingExportRequest): Promise<InpaintingExportResult> =>
+    ipcRenderer.invoke("inpainting:export-results", request),
   cancelJob: () => ipcRenderer.invoke("job:cancel"),
   onJobEvent: (callback: (event: JobEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: JobEvent) => callback(payload);

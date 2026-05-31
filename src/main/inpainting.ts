@@ -1,18 +1,22 @@
 import { nativeImage } from "electron";
+import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { once } from "node:events";
-import { createWriteStream, existsSync, statSync } from "node:fs";
-import { mkdir, rename, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, join } from "node:path";
+import { createWriteStream, existsSync, readdirSync, statSync } from "node:fs";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { basename, delimiter, dirname, extname, join } from "node:path";
 import { bboxToPixels, clamp } from "../shared/geometry";
-import type { BBox, InpaintingPoint, MangaPage, TranslationBlock } from "../shared/types";
+import type { BBox, InpaintingMaskStroke, InpaintingPoint, MangaPage, TranslationBlock } from "../shared/types";
 
-type OrtModule = typeof import("onnxruntime-node");
-type OrtSession = import("onnxruntime-node").InferenceSession;
-
-const LAMA_MODEL_REPO = "mayocream/lama-manga-onnx";
-const LAMA_MODEL_FILE = "lama-manga.onnx";
-const LAMA_MODEL_URL = `https://huggingface.co/${LAMA_MODEL_REPO}/resolve/main/${LAMA_MODEL_FILE}`;
-const LAMA_INPUT_SIZE = 512;
+const FLUX_RUNTIME_EXECUTABLE = "mgt-flux-klein.exe";
+const FLUX_MODEL_REPO = "unsloth/FLUX.2-klein-4B-GGUF";
+const FLUX_MODEL_FILE = "flux-2-klein-4b-Q4_K_M.gguf";
+const FLUX_VAE_REPO = "black-forest-labs/FLUX.2-small-decoder";
+const FLUX_VAE_FILE = "diffusion_pytorch_model.safetensors";
+const FLUX_INPAINT_CONTEXT_PX = 160;
+const FLUX_INPAINT_MASK_PADDING_PX = 16;
+const FLUX_INPAINT_FEATHER_PX = 8;
+const FLUX_INPAINT_MAX_PIXELS = 1024 * 1024;
+const FLUX_INPAINT_MULTIPLE = 16;
 
 type Rgb = {
   r: number;
@@ -37,29 +41,44 @@ export type InpaintingRuntimeProgress = {
   installLogLine?: string;
 };
 
-export type LamaInpaintingEngine = {
+export type FluxInpaintingEngine = {
+  runtimePath: string;
   modelPath: string;
-  inpaint: (bitmap: Buffer, width: number, height: number, mask: Uint8Array, windows: PixelRect[], signal?: AbortSignal) => Promise<void>;
+  vaePath: string;
+  inpaint: (
+    bitmap: Buffer,
+    width: number,
+    height: number,
+    mask: Uint8Array,
+    windows: PixelRect[],
+    options?: {
+      signal?: AbortSignal;
+      featherPx?: number;
+      contextPx?: number;
+      maskPaddingPx?: number;
+      maxPixels?: number;
+    }
+  ) => Promise<void>;
   dispose: () => Promise<void>;
 };
 
-export type SolidPageInpaintingResult = {
+export type PatternPageInpaintingResult = {
   page: MangaPage;
   blocksErased: number;
 };
 
 export type ImageDecodeFallback = (filePath: string) => Promise<Buffer | null>;
 
-export async function inpaintSolidPage(
+export async function inpaintPatternPage(
   page: MangaPage,
   options: {
     signal?: AbortSignal;
     decodeFallback?: ImageDecodeFallback;
-    lamaEngine?: LamaInpaintingEngine;
+    fluxEngine?: FluxInpaintingEngine;
   } = {}
-): Promise<SolidPageInpaintingResult> {
-  const solidBlocks = page.blocks.filter((block) => block.type === "solid" && hasUsableBbox(block.bbox));
-  if (solidBlocks.length === 0) {
+): Promise<PatternPageInpaintingResult> {
+  const patternBlocks = page.blocks.filter((block) => hasUsableBbox(block.bbox));
+  if (patternBlocks.length === 0) {
     return { page, blocksErased: 0 };
   }
 
@@ -73,29 +92,44 @@ export async function inpaintSolidPage(
   if (bitmap.length < size.width * size.height * 4) {
     throw new Error(`페이지 이미지 비트맵을 만들지 못했습니다: ${page.name}`);
   }
+
   const pageMask = new Uint8Array(size.width * size.height);
   const inpaintWindows: PixelRect[] = [];
   let blocksErased = 0;
-  for (const block of solidBlocks) {
+
+  for (const block of patternBlocks) {
     throwIfAborted(options.signal);
-    const rect = expandRect(bboxToPixelRect(block.bbox, page), size.width, size.height, resolveBlockMarginPx(block, page));
-    const blockMask = buildTextLikeMask(bitmap, size.width, size.height, rect, resolveDilationRadius(block));
-    if (blockMask.count > 0) {
-      mergeMaskIntoPage(pageMask, size.width, rect, blockMask.mask);
-      inpaintWindows.push(expandRect(rect, size.width, size.height, 128));
-      blocksErased += 1;
+    const sourceRect = bboxToPixelRect(block.bbox, page);
+    const supportRect = expandRect(sourceRect, size.width, size.height, resolvePatternRegionPaddingPx(block, page));
+    const detectRect = expandRect(sourceRect, size.width, size.height, resolvePatternBlockMarginPx(block, page));
+    const detectedMask = buildPatternTextMask(bitmap, size.width, size.height, detectRect, resolvePatternDilationRadius(block));
+
+    // Koharu's Flux path intentionally widens a detected text mask to the whole
+    // text-region support. Thin glyph-only masks tend to leave residue on tones
+    // and SFX, so pattern cleanup uses the block region as the inference mask.
+    mergeFilledRectIntoPage(pageMask, size.width, supportRect);
+    if (detectedMask.count > 0) {
+      mergeMaskIntoPage(pageMask, size.width, detectRect, detectedMask.mask);
     }
+    inpaintWindows.push(expandRect(supportRect, size.width, size.height, resolvePatternWindowMarginPx(block, page)));
+    blocksErased += 1;
   }
 
   if (blocksErased === 0) {
     return { page, blocksErased: 0 };
   }
 
-  if (!options.lamaEngine) {
-    throw new Error("LaMA 인페인팅 모델이 준비되지 않았습니다.");
+  if (!options.fluxEngine) {
+    throw new Error("Flux 무늬 배경 인페인팅 엔진이 준비되지 않았습니다.");
   }
 
-  await options.lamaEngine.inpaint(bitmap, size.width, size.height, pageMask, mergeRects(inpaintWindows), options.signal);
+  await options.fluxEngine.inpaint(bitmap, size.width, size.height, pageMask, mergeRects(inpaintWindows), {
+    signal: options.signal,
+    featherPx: FLUX_INPAINT_FEATHER_PX,
+    contextPx: FLUX_INPAINT_CONTEXT_PX,
+    maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
+    maxPixels: FLUX_INPAINT_MAX_PIXELS
+  });
 
   const outputImage = nativeImage.createFromBitmap(bitmap, {
     width: size.width,
@@ -105,7 +139,7 @@ export async function inpaintSolidPage(
     throw new Error(`인페인팅 결과 이미지를 만들지 못했습니다: ${page.name}`);
   }
 
-  const outputPath = resolveInpaintedImagePath(page.imagePath);
+  const outputPath = resolveInpaintedImagePath(page.imagePath, "pattern");
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, outputImage.toPNG());
 
@@ -119,27 +153,108 @@ export async function inpaintSolidPage(
   };
 }
 
-export async function prepareLamaInpaintingEngine(options: {
+export async function inpaintDrawnPatternPage(
+  page: MangaPage,
+  options: {
+    strokes: InpaintingMaskStroke[];
+    signal?: AbortSignal;
+    decodeFallback?: ImageDecodeFallback;
+    fluxEngine?: FluxInpaintingEngine;
+    featherPx?: number;
+  }
+): Promise<PatternPageInpaintingResult> {
+  const strokes = sanitizeMaskStrokes(options.strokes, page.width, page.height);
+  if (strokes.length === 0) {
+    return { page, blocksErased: 0 };
+  }
+
+  const image = await loadPageImage(page.inpaintedImagePath ?? page.imagePath, options.decodeFallback);
+  const size = image.getSize();
+  if (!size.width || !size.height) {
+    throw new Error(`페이지 이미지를 읽지 못했습니다: ${page.name}`);
+  }
+
+  const bitmap = Buffer.from(image.toBitmap());
+  if (bitmap.length < size.width * size.height * 4) {
+    throw new Error(`페이지 이미지 비트맵을 만들지 못했습니다: ${page.name}`);
+  }
+
+  const pageMask = buildMaskFromStrokes(strokes, size.width, size.height);
+  const components = maskComponents(pageMask, size.width, size.height, 12)
+    .map((component) => expandRect(component.rect, size.width, size.height, FLUX_INPAINT_CONTEXT_PX))
+    .filter((rect) => rectHasMask(pageMask, size.width, rect));
+  if (components.length === 0) {
+    return { page, blocksErased: 0 };
+  }
+
+  if (!options.fluxEngine) {
+    throw new Error("Flux 무늬 배경 인페인팅 엔진이 준비되지 않았습니다.");
+  }
+
+  await options.fluxEngine.inpaint(bitmap, size.width, size.height, pageMask, mergeRects(components), {
+    signal: options.signal,
+    featherPx: options.featherPx ?? FLUX_INPAINT_FEATHER_PX,
+    contextPx: FLUX_INPAINT_CONTEXT_PX,
+    maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
+    maxPixels: FLUX_INPAINT_MAX_PIXELS
+  });
+
+  const outputImage = nativeImage.createFromBitmap(bitmap, {
+    width: size.width,
+    height: size.height
+  });
+  if (outputImage.isEmpty()) {
+    throw new Error(`인페인팅 결과 이미지를 만들지 못했습니다: ${page.name}`);
+  }
+
+  const outputPath = resolveInpaintedImagePath(page.imagePath, "pattern-drawn");
+  await mkdir(dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, outputImage.toPNG());
+
+  return {
+    blocksErased: components.length,
+    page: {
+      ...page,
+      inpaintedImagePath: outputPath,
+      updatedAt: new Date().toISOString()
+    }
+  };
+}
+
+export async function prepareFluxInpaintingEngine(options: {
+  runtimeDir: string;
   modelDir: string;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
-}): Promise<LamaInpaintingEngine> {
-  const modelPath = await ensureLamaModelFile(options);
+}): Promise<FluxInpaintingEngine> {
+  const runtimePath = await ensureMgtFluxKleinRuntime(options);
+  const [modelPath, vaePath] = await Promise.all([
+    ensureRemoteFile({
+      ...options,
+      fileName: FLUX_MODEL_FILE,
+      label: "Flux Klein 4B",
+      url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE)
+    }),
+    ensureRemoteFile({
+      ...options,
+      fileName: FLUX_VAE_FILE,
+      label: "Flux small decoder",
+      url: hfResolveUrl(FLUX_VAE_REPO, FLUX_VAE_FILE)
+    })
+  ]);
+
   options.onProgress?.({
-    progressText: "LaMA 인페인팅 모델 로드 중",
-    detail: LAMA_MODEL_FILE,
-    progressMode: "indeterminate",
-    installLogLine: "LaMA 인페인팅 모델을 메모리에 로드합니다."
-  });
-  const ort = await loadOnnxRuntime();
-  const session = await ort.InferenceSession.create(modelPath);
-  options.onProgress?.({
-    progressText: "LaMA 인페인팅 모델 준비 완료",
-    detail: LAMA_MODEL_FILE,
+    progressText: "Flux 인페인팅 준비 완료",
+    detail: "FLUX.2 Klein 4B",
     progressMode: "log-only",
-    installLogLine: "LaMA 인페인팅 모델 준비가 완료되었습니다."
+    installLogLine: "Flux 무늬 배경 인페인팅 엔진 준비가 완료되었습니다."
   });
-  return createLamaEngine(ort, session, modelPath);
+
+  return createFluxEngine({
+    runtimePath,
+    modelPath,
+    vaePath
+  });
 }
 
 export async function applyInpaintingRetouch(
@@ -210,39 +325,114 @@ export async function sampleImageColor(
   return rgbToHex(readRgb(bitmap, size.width, px, py));
 }
 
-async function ensureLamaModelFile(options: {
-  modelDir: string;
+async function ensureMgtFluxKleinRuntime(options: {
+  runtimeDir: string;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
 }): Promise<string> {
-  const modelPath = join(options.modelDir, LAMA_MODEL_FILE);
-  if (isUsableFile(modelPath)) {
+  const existing = findFirstExecutable([
+    process.env.MGT_FLUX_KLEIN_EXE,
+    findExecutable(options.runtimeDir, [FLUX_RUNTIME_EXECUTABLE]),
+    process.resourcesPath ? join(process.resourcesPath, "tools", "mgt-flux-klein", FLUX_RUNTIME_EXECUTABLE) : undefined,
+    join(process.cwd(), "tools", "mgt-flux-klein", FLUX_RUNTIME_EXECUTABLE)
+  ]);
+  if (existing) {
     options.onProgress?.({
-      progressText: "LaMA 인페인팅 모델 캐시 사용",
-      detail: LAMA_MODEL_FILE,
+      progressText: "Flux 런타임 캐시 사용",
+      detail: basename(existing),
       progressMode: "log-only",
-      installLogLine: `캐시된 LaMA 모델을 사용합니다: ${LAMA_MODEL_FILE}`
+      installLogLine: `MGT Flux Klein 런타임을 사용합니다: ${basename(existing)}`
     });
-    return modelPath;
+    return existing;
   }
 
+  await mkdir(options.runtimeDir, { recursive: true });
+  throw new Error(
+    `${FLUX_RUNTIME_EXECUTABLE}를 찾지 못했습니다. 무늬 배경 인페인팅은 앱 전용 Flux Klein 런타임을 사용합니다. ` +
+      `node scripts/prepare-flux-klein-runner.cjs를 실행하거나 MGT_FLUX_KLEIN_EXE로 경로를 지정해야 합니다.`
+  );
+}
+
+function findFirstExecutable(candidates: Array<string | null | undefined>): string | null {
+  for (const candidate of candidates) {
+    if (candidate && isExecutableFile(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function hfResolveUrl(repo: string, fileName: string): string {
+  return `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(fileName)}`;
+}
+
+async function ensureRemoteFile(options: {
+  modelDir: string;
+  url: string;
+  fileName: string;
+  label: string;
+  signal?: AbortSignal;
+  onProgress?: (progress: InpaintingRuntimeProgress) => void;
+}): Promise<string> {
+  const filePath = join(options.modelDir, options.fileName);
+  if (isUsableFile(filePath)) {
+    options.onProgress?.({
+      progressText: `${options.label} 캐시 사용`,
+      detail: options.fileName,
+      progressMode: "log-only",
+      installLogLine: `캐시된 ${options.label} 파일을 사용합니다: ${options.fileName}`
+    });
+    return filePath;
+  }
   await mkdir(options.modelDir, { recursive: true });
-  const partPath = `${modelPath}.part`;
+  await downloadToFile({
+    url: options.url,
+    outputPath: filePath,
+    signal: options.signal,
+    progressText: `${options.label} 다운로드 중`,
+    label: options.fileName,
+    onProgress: options.onProgress
+  });
+  return filePath;
+}
+
+async function downloadToFile(options: {
+  url: string;
+  outputPath: string;
+  signal?: AbortSignal;
+  progressText: string;
+  label: string;
+  onProgress?: (progress: InpaintingRuntimeProgress) => void;
+}): Promise<void> {
+  if (isUsableFile(options.outputPath)) {
+    options.onProgress?.({
+      progressText: `${options.label} 캐시 사용`,
+      detail: options.label,
+      progressMode: "log-only",
+      installLogLine: `캐시된 파일을 사용합니다: ${options.label}`
+    });
+    return;
+  }
+  await mkdir(dirname(options.outputPath), { recursive: true });
+  const partPath = `${options.outputPath}.part`;
   await rm(partPath, { force: true });
-  const totalBytes = await probeContentLength(LAMA_MODEL_URL, options.signal);
+  const totalBytes = await probeContentLength(options.url, options.signal);
   options.onProgress?.({
-    progressText: "LaMA 인페인팅 모델 다운로드 중",
-    detail: LAMA_MODEL_FILE,
+    progressText: options.progressText,
+    detail: options.label,
     progressMode: totalBytes > 0 ? "determinate" : "log-only",
     progressPercent: totalBytes > 0 ? 0 : undefined,
     progressBytes: totalBytes > 0 ? 0 : undefined,
     progressTotalBytes: totalBytes > 0 ? totalBytes : undefined,
-    installLogLine: `LaMA 모델 다운로드 시작: ${LAMA_MODEL_FILE}`
+    installLogLine: `${options.label} 다운로드 시작`
   });
 
-  const response = await fetch(LAMA_MODEL_URL, { signal: options.signal });
+  const response = await fetch(options.url, {
+    signal: options.signal,
+    headers: { "User-Agent": "manga-gemma-translator" }
+  });
   if (!response.ok || !response.body) {
-    throw new Error(`LaMA 인페인팅 모델 다운로드에 실패했습니다 (${response.status}).`);
+    throw new Error(`${options.label} 다운로드에 실패했습니다 (${response.status}).`);
   }
 
   const responseTotalBytes = totalBytes || readContentLength(response);
@@ -263,33 +453,13 @@ async function ensureLamaModelFile(options: {
       const now = Date.now();
       if (now - lastEmitAt > 500) {
         lastEmitAt = now;
-        options.onProgress?.({
-          progressText: "LaMA 인페인팅 모델 다운로드 중",
-          detail: responseTotalBytes > 0 ? `${formatBytes(receivedBytes)} / ${formatBytes(responseTotalBytes)}` : `${formatBytes(receivedBytes)} 받음`,
-          progressMode: responseTotalBytes > 0 ? "determinate" : "log-only",
-          progressPercent: responseTotalBytes > 0 ? Math.min(1, receivedBytes / responseTotalBytes) : undefined,
-          progressBytes: responseTotalBytes > 0 ? receivedBytes : undefined,
-          progressTotalBytes: responseTotalBytes > 0 ? responseTotalBytes : undefined,
-          installLogLine:
-            responseTotalBytes > 0
-              ? `LaMA 모델 다운로드 중: ${formatBytes(receivedBytes)} / ${formatBytes(responseTotalBytes)}`
-              : `LaMA 모델 다운로드 중: ${formatBytes(receivedBytes)}`
-        });
+        emitDownloadProgress(options, receivedBytes, responseTotalBytes);
       }
     }
     await finishWriteStream(writer);
-    await rm(modelPath, { force: true });
-    await rename(partPath, modelPath);
-    options.onProgress?.({
-      progressText: "LaMA 인페인팅 모델 다운로드 완료",
-      detail: `${LAMA_MODEL_FILE} · ${formatBytes(receivedBytes)}`,
-      progressMode: responseTotalBytes > 0 ? "determinate" : "log-only",
-      progressPercent: responseTotalBytes > 0 ? 1 : undefined,
-      progressBytes: responseTotalBytes > 0 ? responseTotalBytes : undefined,
-      progressTotalBytes: responseTotalBytes > 0 ? responseTotalBytes : undefined,
-      installLogLine: `LaMA 모델 다운로드 완료: ${LAMA_MODEL_FILE} (${formatBytes(receivedBytes)})`
-    });
-    return modelPath;
+    await rm(options.outputPath, { force: true });
+    await rename(partPath, options.outputPath);
+    emitDownloadProgress(options, responseTotalBytes > 0 ? responseTotalBytes : receivedBytes, responseTotalBytes || receivedBytes, true);
   } catch (error) {
     writer.destroy();
     await rm(partPath, { force: true }).catch(() => {});
@@ -297,48 +467,334 @@ async function ensureLamaModelFile(options: {
   }
 }
 
-function createLamaEngine(ort: OrtModule, session: OrtSession, modelPath: string): LamaInpaintingEngine {
-  return {
-    modelPath,
-    async inpaint(bitmap, width, height, mask, windows, signal) {
-      const imageInputName = session.inputNames.find((name) => /image|img/i.test(name)) ?? session.inputNames[0];
-      const maskInputName = session.inputNames.find((name) => /mask/i.test(name)) ?? session.inputNames[1];
-      if (!imageInputName || !maskInputName) {
-        throw new Error("LaMA 모델 입력 이름을 확인하지 못했습니다.");
+function emitDownloadProgress(
+  options: {
+    progressText: string;
+    label: string;
+    onProgress?: (progress: InpaintingRuntimeProgress) => void;
+  },
+  receivedBytes: number,
+  totalBytes: number,
+  done = false
+): void {
+  options.onProgress?.({
+    progressText: done ? `${options.label} 다운로드 완료` : options.progressText,
+    detail: totalBytes > 0 ? `${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}` : `${formatBytes(receivedBytes)} 받음`,
+    progressMode: totalBytes > 0 ? "determinate" : "log-only",
+    progressPercent: totalBytes > 0 ? Math.min(1, receivedBytes / totalBytes) : undefined,
+    progressBytes: totalBytes > 0 ? receivedBytes : undefined,
+    progressTotalBytes: totalBytes > 0 ? totalBytes : undefined,
+    installLogLine:
+      totalBytes > 0
+        ? `${options.label}: ${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}`
+        : `${options.label}: ${formatBytes(receivedBytes)}`
+  });
+}
+
+function findExecutable(rootDir: string, executableNames: string[]): string | null {
+  if (!existsSync(rootDir)) {
+    return null;
+  }
+  const stack = [rootDir];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
+    let entries: string[];
+    try {
+      entries = readdirSync(current);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const path = join(current, entry);
+      let stat;
+      try {
+        stat = statSync(path);
+      } catch {
+        continue;
       }
-      for (const window of windows) {
-        throwIfAborted(signal);
-        if (!rectHasMask(mask, width, window)) {
-          continue;
+      if (stat.isDirectory()) {
+        stack.push(path);
+      } else if (stat.isFile() && executableNames.some((name) => entry.toLowerCase() === name.toLowerCase())) {
+        return path;
+      }
+    }
+  }
+  return null;
+}
+
+function createFluxEngine(options: {
+  runtimePath: string;
+  modelPath: string;
+  vaePath: string;
+}): FluxInpaintingEngine {
+  let worker: FluxWorker | null = null;
+  const getWorker = () => {
+    worker ??= new FluxWorker(options.runtimePath, options.modelPath, options.vaePath);
+    return worker;
+  };
+  return {
+    runtimePath: options.runtimePath,
+    modelPath: options.modelPath,
+    vaePath: options.vaePath,
+    async inpaint(bitmap, width, height, mask, windows, runOptions = {}) {
+      const featherPx = clamp(Math.round(runOptions.featherPx ?? FLUX_INPAINT_FEATHER_PX), 0, 48);
+      const contextPx = clamp(Math.round(runOptions.contextPx ?? FLUX_INPAINT_CONTEXT_PX), 16, 256);
+      const maskPaddingPx = clamp(Math.round(runOptions.maskPaddingPx ?? FLUX_INPAINT_MASK_PADDING_PX), 0, 64);
+      const maxPixels = clamp(Math.round(runOptions.maxPixels ?? FLUX_INPAINT_MAX_PIXELS), 256 * 256, 1536 * 1536);
+      const runDir = join(dirname(options.modelPath), "runs", `flux-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+      await mkdir(runDir, { recursive: true });
+      try {
+        for (const [index, window] of windows.entries()) {
+          throwIfAborted(runOptions.signal);
+          if (!rectHasMask(mask, width, window)) {
+            continue;
+          }
+
+          const maskBounds = maskBoundsInRect(mask, width, window);
+          if (!maskBounds) {
+            continue;
+          }
+          const paddedBounds = alignRectToMultiple(
+            expandRect(maskBounds, width, height, contextPx + maskPaddingPx),
+            width,
+            height,
+            FLUX_INPAINT_MULTIPLE
+          );
+          const localMask = buildLocalMask(mask, width, paddedBounds, 0);
+          if (!localMask.some((value) => value > 0)) {
+            continue;
+          }
+
+          const processSize = resolveFluxProcessSize(paddedBounds.w, paddedBounds.h, maxPixels, FLUX_INPAINT_MULTIPLE);
+          const inputPath = join(runDir, `input-${index}.png`);
+          const maskPath = join(runDir, `mask-${index}.png`);
+          const outputPath = join(runDir, `output-${index}.png`);
+          const cropBitmap = cropBitmapFromPage(bitmap, width, paddedBounds);
+          await writePngFromBitmap(inputPath, cropBitmap, paddedBounds.w, paddedBounds.h, processSize);
+          await writePngFromMask(maskPath, localMask, paddedBounds.w, paddedBounds.h, processSize);
+
+          await getWorker().inpaint(
+            {
+              input: inputPath,
+              mask: maskPath,
+              output: outputPath,
+              steps: 4,
+              strength: 1,
+              maxPixels,
+              maskPadding: maskPaddingPx
+            },
+            runOptions.signal
+          );
+          const generated = await readGeneratedBitmap(outputPath, paddedBounds.w, paddedBounds.h);
+          compositeFluxOutput(bitmap, generated, mask, width, paddedBounds, featherPx);
         }
-        const input = buildLamaInput(bitmap, mask, width, height, window);
-        const outputs = await session.run({
-          [imageInputName]: new ort.Tensor("float32", input.image, [1, 3, LAMA_INPUT_SIZE, LAMA_INPUT_SIZE]),
-          [maskInputName]: new ort.Tensor("float32", input.mask, [1, 1, LAMA_INPUT_SIZE, LAMA_INPUT_SIZE])
-        });
-        const output = outputs[session.outputNames[0]] ?? Object.values(outputs)[0];
-        if (!output) {
-          throw new Error("LaMA 인페인팅 출력이 비어 있습니다.");
+      } finally {
+        if (process.env.MGT_KEEP_FLUX_DEBUG !== "1") {
+          await rm(runDir, { recursive: true, force: true }).catch(() => {});
         }
-        compositeLamaOutput(bitmap, mask, width, window, output.data as Float32Array | number[], output.dims.map(Number));
       }
     },
     async dispose() {
-      await session.release();
+      await worker?.dispose();
+      worker = null;
     }
   };
 }
 
-let ortModulePromise: Promise<OrtModule> | null = null;
+type FluxWorkerRequest = {
+  input: string;
+  mask: string;
+  output: string;
+  steps: number;
+  strength: number;
+  maxPixels: number;
+  maskPadding: number;
+};
 
-function loadOnnxRuntime(): Promise<OrtModule> {
-  ortModulePromise ??= import("onnxruntime-node");
-  return ortModulePromise;
+type FluxWorkerPending = {
+  resolve: () => void;
+  reject: (error: Error) => void;
+};
+
+class FluxWorker {
+  private child: ChildProcessWithoutNullStreams;
+  private nextId = 1;
+  private stdoutBuffer = "";
+  private stderrTail: string[] = [];
+  private pending = new Map<string, FluxWorkerPending>();
+  private closed = false;
+
+  constructor(runtimePath: string, modelPath: string, vaePath: string) {
+    this.child = spawn(
+      runtimePath,
+      ["--transformer-path", modelPath, "--vae-path", vaePath, "--steps", "4", "--strength", "1", "--mask-padding", String(FLUX_INPAINT_MASK_PADDING_PX)],
+      {
+        windowsHide: true,
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          PATH: buildRuntimePathEnv(runtimePath)
+        }
+      }
+    );
+    this.child.stdout.on("data", (chunk: Buffer) => this.handleStdout(chunk));
+    this.child.stderr.on("data", (chunk: Buffer) => this.rememberStderr(chunk.toString("utf8")));
+    this.child.on("error", (error) => this.rejectAll(error));
+    this.child.on("exit", (code) => {
+      this.closed = true;
+      if (this.pending.size > 0) {
+        this.rejectAll(new Error(`Flux 인페인팅 런타임이 종료되었습니다 (${code}). ${this.stderrTail.join("").slice(-1600)}`));
+      }
+    });
+  }
+
+  async inpaint(request: FluxWorkerRequest, signal?: AbortSignal): Promise<void> {
+    throwIfAborted(signal);
+    if (this.closed || !this.child.stdin.writable) {
+      throw new Error(`Flux 인페인팅 런타임이 실행 중이 아닙니다. ${this.stderrTail.join("").slice(-1600)}`);
+    }
+    const id = String(this.nextId++);
+    const payload = JSON.stringify({
+      type: "inpaint",
+      id,
+      input: request.input,
+      mask: request.mask,
+      output: request.output,
+      steps: request.steps,
+      strength: request.strength,
+      max_pixels: request.maxPixels,
+      mask_padding: request.maskPadding
+    });
+    await new Promise<void>((resolve, reject) => {
+      const onAbort = () => {
+        this.child.kill("SIGTERM");
+        this.pending.delete(id);
+        reject(new DOMException("Aborted", "AbortError") as Error);
+      };
+      const finish = (error?: Error) => {
+        signal?.removeEventListener("abort", onAbort);
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      };
+      this.pending.set(id, { resolve: () => finish(), reject: finish });
+      signal?.addEventListener("abort", onAbort, { once: true });
+      const ok = this.child.stdin.write(`${payload}\n`, "utf8", (error) => {
+        if (error) {
+          this.pending.delete(id);
+          finish(error);
+        }
+      });
+      if (!ok) {
+        this.child.stdin.once("drain", () => {});
+      }
+    });
+  }
+
+  async dispose(): Promise<void> {
+    if (this.closed) {
+      return;
+    }
+    try {
+      if (this.child.stdin.writable) {
+        this.child.stdin.write(`${JSON.stringify({ type: "shutdown" })}\n`);
+        this.child.stdin.end();
+      }
+      await Promise.race([
+        once(this.child, "exit"),
+        new Promise((resolve) => setTimeout(resolve, 1500))
+      ]);
+    } finally {
+      if (!this.closed) {
+        this.child.kill("SIGTERM");
+      }
+      this.closed = true;
+    }
+  }
+
+  private handleStdout(chunk: Buffer): void {
+    this.stdoutBuffer += chunk.toString("utf8");
+    while (true) {
+      const newlineIndex = this.stdoutBuffer.indexOf("\n");
+      if (newlineIndex < 0) {
+        break;
+      }
+      const line = this.stdoutBuffer.slice(0, newlineIndex).trim();
+      this.stdoutBuffer = this.stdoutBuffer.slice(newlineIndex + 1);
+      if (line.length === 0) {
+        continue;
+      }
+      let response: { id?: string; ok?: boolean; error?: string };
+      try {
+        response = JSON.parse(line);
+      } catch {
+        this.rememberStderr(`Unexpected Flux worker stdout: ${line}\n`);
+        continue;
+      }
+      const id = response.id;
+      if (!id) {
+        continue;
+      }
+      const pending = this.pending.get(id);
+      if (!pending) {
+        continue;
+      }
+      this.pending.delete(id);
+      if (response.ok) {
+        pending.resolve();
+      } else {
+        pending.reject(new Error(`Flux 인페인팅 실패: ${response.error ?? "알 수 없는 오류"}`));
+      }
+    }
+  }
+
+  private rememberStderr(text: string): void {
+    this.stderrTail.push(text);
+    if (this.stderrTail.length > 80) {
+      this.stderrTail.splice(0, this.stderrTail.length - 80);
+    }
+  }
+
+  private rejectAll(error: Error): void {
+    for (const pending of this.pending.values()) {
+      pending.reject(error);
+    }
+    this.pending.clear();
+  }
+}
+
+function buildRuntimePathEnv(command: string): string {
+  const dirs: string[] = [];
+  let current = dirname(command);
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (!dirs.includes(current)) {
+      dirs.push(current);
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+  return [...dirs, process.env.PATH ?? ""].join(delimiter);
 }
 
 function isUsableFile(filePath: string): boolean {
   try {
     return existsSync(filePath) && statSync(filePath).isFile() && statSync(filePath).size > 1024 * 1024;
+  } catch {
+    return false;
+  }
+}
+
+function isExecutableFile(filePath: string): boolean {
+  try {
+    return existsSync(filePath) && statSync(filePath).isFile();
   } catch {
     return false;
   }
@@ -392,6 +848,13 @@ function mergeMaskIntoPage(pageMask: Uint8Array, pageWidth: number, rect: PixelR
   }
 }
 
+function mergeFilledRectIntoPage(pageMask: Uint8Array, pageWidth: number, rect: PixelRect): void {
+  for (let y = rect.y; y < rect.y + rect.h; y += 1) {
+    const start = y * pageWidth + rect.x;
+    pageMask.fill(1, start, start + rect.w);
+  }
+}
+
 function mergeRects(rects: PixelRect[]): PixelRect[] {
   const sorted = [...rects].sort((left, right) => left.y - right.y || left.x - right.x);
   const merged: PixelRect[] = [];
@@ -426,93 +889,6 @@ function rectHasMask(mask: Uint8Array, pageWidth: number, rect: PixelRect): bool
     }
   }
   return false;
-}
-
-function buildLamaInput(
-  bitmap: Buffer,
-  pageMask: Uint8Array,
-  pageWidth: number,
-  _pageHeight: number,
-  rect: PixelRect
-): { image: Float32Array; mask: Float32Array } {
-  const pixelCount = LAMA_INPUT_SIZE * LAMA_INPUT_SIZE;
-  const image = new Float32Array(pixelCount * 3);
-  const mask = new Float32Array(pixelCount);
-
-  for (let y = 0; y < LAMA_INPUT_SIZE; y += 1) {
-    const sourceY = clamp(Math.floor(((y + 0.5) * rect.h) / LAMA_INPUT_SIZE), 0, rect.h - 1);
-    for (let x = 0; x < LAMA_INPUT_SIZE; x += 1) {
-      const sourceX = clamp(Math.floor(((x + 0.5) * rect.w) / LAMA_INPUT_SIZE), 0, rect.w - 1);
-      const targetIndex = y * LAMA_INPUT_SIZE + x;
-      const pageX = rect.x + sourceX;
-      const pageY = rect.y + sourceY;
-      const source = readRgb(bitmap, pageWidth, pageX, pageY);
-      image[targetIndex] = source.r / 255;
-      image[pixelCount + targetIndex] = source.g / 255;
-      image[pixelCount * 2 + targetIndex] = source.b / 255;
-      mask[targetIndex] = pageMask[pageY * pageWidth + pageX] ? 1 : 0;
-    }
-  }
-
-  return { image, mask };
-}
-
-function compositeLamaOutput(
-  bitmap: Buffer,
-  pageMask: Uint8Array,
-  pageWidth: number,
-  rect: PixelRect,
-  data: Float32Array | number[],
-  dims: number[]
-): void {
-  const nchw = dims.length === 4 && dims[1] === 3;
-  const nhwc = dims.length === 4 && dims[3] === 3;
-  if (!nchw && !nhwc) {
-    throw new Error(`지원하지 않는 LaMA 출력 형식입니다: ${dims.join("x")}`);
-  }
-  const minusOneToOne = outputLooksMinusOneToOne(data);
-  const pixelCount = LAMA_INPUT_SIZE * LAMA_INPUT_SIZE;
-  for (let y = 0; y < rect.h; y += 1) {
-    for (let x = 0; x < rect.w; x += 1) {
-      const pageX = rect.x + x;
-      const pageY = rect.y + y;
-      if (!pageMask[pageY * pageWidth + pageX]) {
-        continue;
-      }
-      const outputX = clamp(Math.floor(((x + 0.5) * LAMA_INPUT_SIZE) / rect.w), 0, LAMA_INPUT_SIZE - 1);
-      const outputY = clamp(Math.floor(((y + 0.5) * LAMA_INPUT_SIZE) / rect.h), 0, LAMA_INPUT_SIZE - 1);
-      const sourceIndex = outputY * LAMA_INPUT_SIZE + outputX;
-      const color = nchw
-        ? {
-            r: outputToByte(data[sourceIndex] ?? 0, minusOneToOne),
-            g: outputToByte(data[pixelCount + sourceIndex] ?? 0, minusOneToOne),
-            b: outputToByte(data[pixelCount * 2 + sourceIndex] ?? 0, minusOneToOne)
-          }
-        : {
-            r: outputToByte(data[sourceIndex * 3] ?? 0, minusOneToOne),
-            g: outputToByte(data[sourceIndex * 3 + 1] ?? 0, minusOneToOne),
-            b: outputToByte(data[sourceIndex * 3 + 2] ?? 0, minusOneToOne)
-          };
-      writeRgb(bitmap, pageWidth, pageX, pageY, color);
-    }
-  }
-}
-
-function outputLooksMinusOneToOne(data: Float32Array | number[]): boolean {
-  const sampleCount = Math.min(data.length, 512);
-  for (let index = 0; index < sampleCount; index += 1) {
-    if ((data[index] ?? 0) < -0.01) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function outputToByte(value: number, minusOneToOne: boolean): number {
-  if (minusOneToOne) {
-    return clamp(Math.round((value + 1) * 127.5), 0, 255);
-  }
-  return clamp(Math.round(value <= 1.5 ? value * 255 : value), 0, 255);
 }
 
 function hasUsableBbox(bbox: BBox): boolean {
@@ -550,15 +926,29 @@ function bboxToPixelRect(bbox: BBox, page: MangaPage): PixelRect {
   };
 }
 
-function resolveBlockMarginPx(block: TranslationBlock, page: MangaPage): number {
+function resolvePatternBlockMarginPx(block: TranslationBlock, page: MangaPage): number {
   const rect = bboxToPixelRect(block.bbox, page);
-  const byBox = Math.round(Math.max(rect.w, rect.h) * 0.08);
-  const byFont = Math.round((block.fontSizePx || 18) * 0.22);
-  return clamp(Math.max(3, byBox, byFont), 3, 18);
+  const byBox = Math.round(Math.max(rect.w, rect.h) * 0.12);
+  const byFont = Math.round((block.fontSizePx || 20) * 0.45);
+  return clamp(Math.max(8, byBox, byFont), 8, 42);
 }
 
-function resolveDilationRadius(block: TranslationBlock): number {
-  return clamp(Math.round((block.fontSizePx || 18) / 9), 1, 5);
+function resolvePatternRegionPaddingPx(block: TranslationBlock, page: MangaPage): number {
+  const rect = bboxToPixelRect(block.bbox, page);
+  const byBox = Math.round(Math.max(rect.w, rect.h) * 0.04);
+  const byFont = Math.round((block.fontSizePx || 20) * 0.18);
+  return clamp(Math.max(2, byBox, byFont), 2, 14);
+}
+
+function resolvePatternWindowMarginPx(block: TranslationBlock, page: MangaPage): number {
+  const rect = bboxToPixelRect(block.bbox, page);
+  const byBox = Math.round(Math.max(rect.w, rect.h) * 0.32);
+  const byFont = Math.round((block.fontSizePx || 20) * 2.8);
+  return clamp(Math.max(96, byBox, byFont), 96, 240);
+}
+
+function resolvePatternDilationRadius(block: TranslationBlock): number {
+  return clamp(Math.round((block.fontSizePx || 20) / 7), 2, 9);
 }
 
 function expandRect(rect: PixelRect, imageWidth: number, imageHeight: number, margin: number): PixelRect {
@@ -574,107 +964,406 @@ function expandRect(rect: PixelRect, imageWidth: number, imageHeight: number, ma
   };
 }
 
-function estimateDominantBackgroundColor(bitmap: Buffer, width: number, height: number, rect: PixelRect): Rgb {
-  const samples: Rgb[] = [];
-  const step = Math.max(1, Math.floor(Math.max(rect.w, rect.h) / 110));
-
-  for (let y = rect.y; y < rect.y + rect.h; y += step) {
-    for (let x = rect.x; x < rect.x + rect.w; x += step) {
-      samples.push(readRgb(bitmap, width, x, y));
-    }
-  }
-
-  if (samples.length < 8) {
-    const fallbackX = clamp(rect.x + Math.floor(rect.w / 2), 0, width - 1);
-    const fallbackY = clamp(rect.y + Math.floor(rect.h / 2), 0, height - 1);
-    return readRgb(bitmap, width, fallbackX, fallbackY);
-  }
-
-  const buckets = new Map<string, Rgb[]>();
-  for (const sample of samples) {
-    const key = `${Math.round(sample.r / 24)},${Math.round(sample.g / 24)},${Math.round(sample.b / 24)}`;
-    const bucket = buckets.get(key);
-    if (bucket) {
-      bucket.push(sample);
-    } else {
-      buckets.set(key, [sample]);
-    }
-  }
-
-  const dominant = [...buckets.values()].sort((left, right) => right.length - left.length)[0] ?? samples;
+function alignRectToMultiple(rect: PixelRect, imageWidth: number, imageHeight: number, multiple: number): PixelRect {
+  const targetW = Math.min(imageWidth, Math.max(multiple, Math.ceil(rect.w / multiple) * multiple));
+  const targetH = Math.min(imageHeight, Math.max(multiple, Math.ceil(rect.h / multiple) * multiple));
+  const centerX = rect.x + rect.w / 2;
+  const centerY = rect.y + rect.h / 2;
+  const x = clamp(Math.round(centerX - targetW / 2), 0, Math.max(0, imageWidth - targetW));
+  const y = clamp(Math.round(centerY - targetH / 2), 0, Math.max(0, imageHeight - targetH));
   return {
-    r: median(dominant.map((sample) => sample.r)),
-    g: median(dominant.map((sample) => sample.g)),
-    b: median(dominant.map((sample) => sample.b))
+    x,
+    y,
+    w: targetW,
+    h: targetH
   };
 }
 
-function buildTextLikeMask(
+function resolveFluxProcessSize(width: number, height: number, maxPixels: number, multiple: number): { width: number; height: number } {
+  let scale = 1;
+  if (width * height > maxPixels) {
+    scale = Math.sqrt(maxPixels / Math.max(1, width * height));
+  }
+  const scaledWidth = Math.max(multiple, Math.round((width * scale) / multiple) * multiple);
+  const scaledHeight = Math.max(multiple, Math.round((height * scale) / multiple) * multiple);
+  return {
+    width: scaledWidth,
+    height: scaledHeight
+  };
+}
+
+function cropBitmapFromPage(bitmap: Buffer, pageWidth: number, rect: PixelRect): Buffer {
+  const output = Buffer.alloc(rect.w * rect.h * 4);
+  for (let y = 0; y < rect.h; y += 1) {
+    const sourceStart = ((rect.y + y) * pageWidth + rect.x) * 4;
+    const sourceEnd = sourceStart + rect.w * 4;
+    bitmap.copy(output, y * rect.w * 4, sourceStart, sourceEnd);
+  }
+  return output;
+}
+
+async function writePngFromBitmap(filePath: string, bitmap: Buffer, width: number, height: number, processSize: { width: number; height: number }): Promise<void> {
+  let image = nativeImage.createFromBitmap(bitmap, { width, height });
+  if (processSize.width !== width || processSize.height !== height) {
+    image = image.resize({ width: processSize.width, height: processSize.height, quality: "best" });
+  }
+  if (image.isEmpty()) {
+    throw new Error("Flux 입력 crop 이미지를 만들지 못했습니다.");
+  }
+  await writeFile(filePath, image.toPNG());
+}
+
+async function writePngFromMask(filePath: string, mask: Uint8Array, width: number, height: number, processSize: { width: number; height: number }): Promise<void> {
+  const bitmap = Buffer.alloc(processSize.width * processSize.height * 4);
+  for (let y = 0; y < processSize.height; y += 1) {
+    const sourceY = clamp(Math.floor(((y + 0.5) * height) / processSize.height), 0, height - 1);
+    for (let x = 0; x < processSize.width; x += 1) {
+      const sourceX = clamp(Math.floor(((x + 0.5) * width) / processSize.width), 0, width - 1);
+      const value = mask[sourceY * width + sourceX] ? 255 : 0;
+      const offset = (y * processSize.width + x) * 4;
+      bitmap[offset] = value;
+      bitmap[offset + 1] = value;
+      bitmap[offset + 2] = value;
+      bitmap[offset + 3] = 255;
+    }
+  }
+  const image = nativeImage.createFromBitmap(bitmap, { width: processSize.width, height: processSize.height });
+  if (image.isEmpty()) {
+    throw new Error("Flux 마스크 이미지를 만들지 못했습니다.");
+  }
+  await writeFile(filePath, image.toPNG());
+}
+
+async function readGeneratedBitmap(filePath: string, targetWidth: number, targetHeight: number): Promise<Buffer> {
+  const buffer = await readFile(filePath);
+  let image = nativeImage.createFromBuffer(buffer);
+  if (image.isEmpty()) {
+    image = nativeImage.createFromPath(filePath);
+  }
+  if (image.isEmpty()) {
+    throw new Error("Flux 결과 이미지를 읽지 못했습니다.");
+  }
+  const size = image.getSize();
+  if (size.width !== targetWidth || size.height !== targetHeight) {
+    image = image.resize({ width: targetWidth, height: targetHeight, quality: "best" });
+  }
+  return Buffer.from(image.toBitmap());
+}
+
+function compositeFluxOutput(bitmap: Buffer, generated: Buffer, pageMask: Uint8Array, pageWidth: number, rect: PixelRect, featherPx: number): void {
+  for (let y = 0; y < rect.h; y += 1) {
+    for (let x = 0; x < rect.w; x += 1) {
+      const pageX = rect.x + x;
+      const pageY = rect.y + y;
+      const alpha = maskSoftAlphaAt(pageMask, pageWidth, pageX, pageY, featherPx);
+      if (alpha <= 0) {
+        continue;
+      }
+      const targetOffset = (pageY * pageWidth + pageX) * 4;
+      const sourceOffset = (y * rect.w + x) * 4;
+      bitmap[targetOffset] = blendByte(bitmap[targetOffset] ?? 0, generated[sourceOffset] ?? 0, alpha);
+      bitmap[targetOffset + 1] = blendByte(bitmap[targetOffset + 1] ?? 0, generated[sourceOffset + 1] ?? 0, alpha);
+      bitmap[targetOffset + 2] = blendByte(bitmap[targetOffset + 2] ?? 0, generated[sourceOffset + 2] ?? 0, alpha);
+      bitmap[targetOffset + 3] = 255;
+    }
+  }
+}
+
+function blendByte(base: number, next: number, alpha: number): number {
+  return clamp(Math.round(base * (1 - alpha) + next * alpha), 0, 255);
+}
+
+function maskSoftAlphaAt(mask: Uint8Array, width: number, x: number, y: number, featherPx: number): number {
+  if (mask[y * width + x]) {
+    return 1;
+  }
+  if (featherPx <= 0) {
+    return 0;
+  }
+  let bestDistanceSq = Number.POSITIVE_INFINITY;
+  const radius = Math.max(1, featherPx);
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      const distanceSq = dx * dx + dy * dy;
+      if (distanceSq > radius * radius || distanceSq >= bestDistanceSq) {
+        continue;
+      }
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0) {
+        continue;
+      }
+      const index = ny * width + nx;
+      if (index >= 0 && index < mask.length && mask[index]) {
+        bestDistanceSq = distanceSq;
+      }
+    }
+  }
+  if (!Number.isFinite(bestDistanceSq)) {
+    return 0;
+  }
+  return clamp(1 - Math.sqrt(bestDistanceSq) / Math.max(1, featherPx), 0, 1);
+}
+
+function maskBoundsInRect(mask: Uint8Array, pageWidth: number, rect: PixelRect): PixelRect | null {
+  let x1 = Number.POSITIVE_INFINITY;
+  let y1 = Number.POSITIVE_INFINITY;
+  let x2 = -1;
+  let y2 = -1;
+  for (let y = rect.y; y < rect.y + rect.h; y += 1) {
+    for (let x = rect.x; x < rect.x + rect.w; x += 1) {
+      if (!mask[y * pageWidth + x]) {
+        continue;
+      }
+      x1 = Math.min(x1, x);
+      y1 = Math.min(y1, y);
+      x2 = Math.max(x2, x + 1);
+      y2 = Math.max(y2, y + 1);
+    }
+  }
+  if (!Number.isFinite(x1) || x2 <= x1 || y2 <= y1) {
+    return null;
+  }
+  return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+}
+
+function buildLocalMask(pageMask: Uint8Array, pageWidth: number, rect: PixelRect, paddingPx: number): Uint8Array {
+  const output = new Uint8Array(rect.w * rect.h);
+  for (let y = 0; y < rect.h; y += 1) {
+    for (let x = 0; x < rect.w; x += 1) {
+      if (pageMask[(rect.y + y) * pageWidth + rect.x + x]) {
+        output[y * rect.w + x] = 1;
+      }
+    }
+  }
+  return paddingPx > 0 ? dilateMaskSquare(output, rect.w, rect.h, paddingPx) : output;
+}
+
+function dilateMaskSquare(mask: Uint8Array, width: number, height: number, radius: number): Uint8Array {
+  if (radius <= 0) {
+    return mask;
+  }
+  const horizontal = new Uint8Array(mask.length);
+  for (let y = 0; y < height; y += 1) {
+    let count = 0;
+    for (let x = -radius; x <= radius; x += 1) {
+      if (x >= 0 && x < width && mask[y * width + x]) {
+        count += 1;
+      }
+    }
+    for (let x = 0; x < width; x += 1) {
+      if (count > 0) {
+        horizontal[y * width + x] = 1;
+      }
+      const removeX = x - radius;
+      const addX = x + radius + 1;
+      if (removeX >= 0 && removeX < width && mask[y * width + removeX]) {
+        count -= 1;
+      }
+      if (addX >= 0 && addX < width && mask[y * width + addX]) {
+        count += 1;
+      }
+    }
+  }
+  const output = new Uint8Array(mask.length);
+  for (let x = 0; x < width; x += 1) {
+    let count = 0;
+    for (let y = -radius; y <= radius; y += 1) {
+      if (y >= 0 && y < height && horizontal[y * width + x]) {
+        count += 1;
+      }
+    }
+    for (let y = 0; y < height; y += 1) {
+      if (count > 0) {
+        output[y * width + x] = 1;
+      }
+      const removeY = y - radius;
+      const addY = y + radius + 1;
+      if (removeY >= 0 && removeY < height && horizontal[removeY * width + x]) {
+        count -= 1;
+      }
+      if (addY >= 0 && addY < height && horizontal[addY * width + x]) {
+        count += 1;
+      }
+    }
+  }
+  return output;
+}
+
+function sanitizeMaskStrokes(strokes: InpaintingMaskStroke[], width: number, height: number): InpaintingMaskStroke[] {
+  return strokes
+    .map((stroke) => ({
+      radiusPx: clamp(Math.round(stroke.radiusPx), 2, 180),
+      points: sanitizePoints(stroke.points, width, height)
+    }))
+    .filter((stroke) => stroke.points.length > 0)
+    .slice(0, 200);
+}
+
+function buildMaskFromStrokes(strokes: InpaintingMaskStroke[], width: number, height: number): Uint8Array {
+  const mask = new Uint8Array(width * height);
+  for (const stroke of strokes) {
+    for (let index = 0; index < stroke.points.length; index += 1) {
+      const previous = stroke.points[index - 1] ?? stroke.points[index];
+      const current = stroke.points[index];
+      for (const point of interpolatePoints(previous, current, Math.max(1, stroke.radiusPx * 0.35))) {
+        drawMaskCircle(mask, width, height, point, stroke.radiusPx);
+      }
+    }
+  }
+  return mask;
+}
+
+function drawMaskCircle(mask: Uint8Array, width: number, height: number, point: InpaintingPoint, radius: number): void {
+  const cx = clamp(Math.round(point.x), 0, Math.max(0, width - 1));
+  const cy = clamp(Math.round(point.y), 0, Math.max(0, height - 1));
+  const x1 = clamp(cx - radius, 0, Math.max(0, width - 1));
+  const y1 = clamp(cy - radius, 0, Math.max(0, height - 1));
+  const x2 = clamp(cx + radius, x1, Math.max(0, width - 1));
+  const y2 = clamp(cy + radius, y1, Math.max(0, height - 1));
+  for (let y = y1; y <= y2; y += 1) {
+    for (let x = x1; x <= x2; x += 1) {
+      const dx = x - cx;
+      const dy = y - cy;
+      if (dx * dx + dy * dy <= radius * radius) {
+        mask[y * width + x] = 1;
+      }
+    }
+  }
+}
+
+function maskComponents(mask: Uint8Array, width: number, height: number, minArea: number): Array<{ rect: PixelRect; area: number }> {
+  const visited = new Uint8Array(mask.length);
+  const queue: number[] = [];
+  const components: Array<{ rect: PixelRect; area: number }> = [];
+  for (let index = 0; index < mask.length; index += 1) {
+    if (!mask[index] || visited[index]) {
+      continue;
+    }
+    queue.length = 0;
+    visited[index] = 1;
+    queue.push(index);
+    let area = 0;
+    let x1 = width;
+    let y1 = height;
+    let x2 = 0;
+    let y2 = 0;
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const current = queue[cursor];
+      const x = current % width;
+      const y = Math.floor(current / width);
+      area += 1;
+      x1 = Math.min(x1, x);
+      y1 = Math.min(y1, y);
+      x2 = Math.max(x2, x + 1);
+      y2 = Math.max(y2, y + 1);
+      for (const neighbor of maskNeighbors(x, y, width, height)) {
+        if (mask[neighbor] && !visited[neighbor]) {
+          visited[neighbor] = 1;
+          queue.push(neighbor);
+        }
+      }
+    }
+    if (area >= minArea) {
+      components.push({
+        area,
+        rect: {
+          x: x1,
+          y: y1,
+          w: Math.max(1, x2 - x1),
+          h: Math.max(1, y2 - y1)
+        }
+      });
+    }
+  }
+  return components.sort((left, right) => right.area - left.area);
+}
+
+function buildPatternTextMask(
   bitmap: Buffer,
   width: number,
-  height: number,
+  _height: number,
   rect: PixelRect,
   dilationRadius: number
 ): { mask: Uint8Array; count: number } {
-  const background = estimateDominantBackgroundColor(bitmap, width, height, rect);
-  const mask = new Uint8Array(rect.w * rect.h);
-  const threshold = resolveMaskThreshold(bitmap, width, rect, background);
-  let initialCount = 0;
-  const backgroundSamples: Rgb[] = [];
+  const pixelCount = rect.w * rect.h;
+  const luminances = new Float32Array(pixelCount);
+  const luminanceSamples: number[] = [];
+  const redSamples: number[] = [];
+  const greenSamples: number[] = [];
+  const blueSamples: number[] = [];
+  const sampleStep = Math.max(1, Math.floor(Math.max(rect.w, rect.h) / 140));
 
   for (let y = 0; y < rect.h; y += 1) {
     for (let x = 0; x < rect.w; x += 1) {
-      const source = readRgb(bitmap, width, rect.x + x, rect.y + y);
-      if (isTextLikePixel(source, background, threshold)) {
-        mask[y * rect.w + x] = 1;
-        initialCount += 1;
-      } else if (colorDistance(source, background) <= Math.max(12, threshold * 0.65)) {
-        backgroundSamples.push(source);
+      const color = readRgb(bitmap, width, rect.x + x, rect.y + y);
+      const lum = luminance(color);
+      luminances[y * rect.w + x] = lum;
+      if (x % sampleStep === 0 && y % sampleStep === 0) {
+        luminanceSamples.push(lum);
+        redSamples.push(color.r);
+        greenSamples.push(color.g);
+        blueSamples.push(color.b);
       }
     }
   }
 
-  const coverage = initialCount / Math.max(1, rect.w * rect.h);
-  if (initialCount === 0 || coverage > 0.68 || !looksLikeFlatBackground(backgroundSamples, background)) {
-    return { mask: new Uint8Array(rect.w * rect.h), count: 0 };
+  if (luminanceSamples.length < 8) {
+    return { mask: new Uint8Array(pixelCount), count: 0 };
   }
 
-  const dilated = dilateMask(mask, rect.w, rect.h, dilationRadius);
+  const sortedLum = luminanceSamples.sort((left, right) => left - right);
+  const p12 = percentile(sortedLum, 0.12);
+  const p25 = percentile(sortedLum, 0.25);
+  const p50 = percentile(sortedLum, 0.5);
+  const p75 = percentile(sortedLum, 0.75);
+  const p88 = percentile(sortedLum, 0.88);
+  const medianColor = {
+    r: median(redSamples),
+    g: median(greenSamples),
+    b: median(blueSamples)
+  };
+  const darkCutoff = Math.min(p50 - 18, p25 + 10);
+  const brightCutoff = Math.max(p50 + 24, p75 - 6);
+  const edgeThreshold = Math.max(18, Math.min(38, (p88 - p12) * 0.2));
+  const mask = new Uint8Array(pixelCount);
+  let initialCount = 0;
+
+  for (let y = 0; y < rect.h; y += 1) {
+    for (let x = 0; x < rect.w; x += 1) {
+      const index = y * rect.w + x;
+      const lum = luminances[index] ?? 0;
+      const color = readRgb(bitmap, width, rect.x + x, rect.y + y);
+      const localEdge = localLuminanceEdge(luminances, rect.w, rect.h, x, y);
+      const colorOutlier = colorDistance(color, medianColor) >= 34;
+      const darkStroke = lum <= darkCutoff;
+      const brightStroke = lum >= brightCutoff && localEdge >= edgeThreshold;
+      if ((darkStroke || brightStroke) && (localEdge >= edgeThreshold || colorOutlier)) {
+        mask[index] = 1;
+        initialCount += 1;
+      }
+    }
+  }
+
+  const coverage = initialCount / Math.max(1, pixelCount);
+  if (initialCount === 0 || coverage < 0.0015 || coverage > 0.42) {
+    return { mask: new Uint8Array(pixelCount), count: 0 };
+  }
+
+  const connected = removeTinyMaskComponents(mask, rect.w, rect.h, Math.max(4, Math.round(pixelCount * 0.00035)));
+  const dilated = dilateMask(connected.mask, rect.w, rect.h, dilationRadius);
   let count = 0;
   for (const value of dilated) {
     if (value) {
       count += 1;
     }
   }
+
+  const finalCoverage = count / Math.max(1, pixelCount);
+  if (connected.count === 0 || finalCoverage > 0.52) {
+    return { mask: new Uint8Array(pixelCount), count: 0 };
+  }
   return { mask: dilated, count };
-}
-
-function looksLikeFlatBackground(samples: Rgb[], background: Rgb): boolean {
-  if (samples.length < 12) {
-    return true;
-  }
-  const std = colorStddev(samples, background);
-  return Math.max(std.r, std.g, std.b) < 18;
-}
-
-function resolveMaskThreshold(bitmap: Buffer, width: number, rect: PixelRect, background: Rgb): number {
-  const distances: number[] = [];
-  const step = Math.max(1, Math.floor(Math.max(rect.w, rect.h) / 80));
-  for (let y = rect.y; y < rect.y + rect.h; y += step) {
-    for (let x = rect.x; x < rect.x + rect.w; x += step) {
-      distances.push(colorDistance(readRgb(bitmap, width, x, y), background));
-    }
-  }
-  const sorted = distances.sort((left, right) => left - right);
-  const p35 = sorted[Math.floor(sorted.length * 0.35)] ?? 24;
-  const p70 = sorted[Math.floor(sorted.length * 0.7)] ?? 42;
-  return clamp(Math.max(24, p35 + (p70 - p35) * 0.45), 24, 74);
-}
-
-function isTextLikePixel(source: Rgb, background: Rgb, threshold: number): boolean {
-  const distance = colorDistance(source, background);
-  const luminanceDiff = Math.abs(luminance(source) - luminance(background));
-  return distance >= threshold && luminanceDiff >= 16;
 }
 
 function dilateMask(mask: Uint8Array, width: number, height: number, radius: number): Uint8Array {
@@ -702,6 +1391,82 @@ function dilateMask(mask: Uint8Array, width: number, height: number, radius: num
     }
   }
   return output;
+}
+
+function removeTinyMaskComponents(mask: Uint8Array, width: number, height: number, minArea: number): { mask: Uint8Array; count: number } {
+  const output = new Uint8Array(mask.length);
+  const visited = new Uint8Array(mask.length);
+  const queue: number[] = [];
+  let keptCount = 0;
+
+  for (let index = 0; index < mask.length; index += 1) {
+    if (!mask[index] || visited[index]) {
+      continue;
+    }
+
+    queue.length = 0;
+    const component: number[] = [];
+    visited[index] = 1;
+    queue.push(index);
+
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const current = queue[cursor];
+      component.push(current);
+      const x = current % width;
+      const y = Math.floor(current / width);
+      for (const neighbor of maskNeighbors(x, y, width, height)) {
+        if (mask[neighbor] && !visited[neighbor]) {
+          visited[neighbor] = 1;
+          queue.push(neighbor);
+        }
+      }
+    }
+
+    if (component.length >= minArea) {
+      for (const pixel of component) {
+        output[pixel] = 1;
+      }
+      keptCount += component.length;
+    }
+  }
+
+  return { mask: output, count: keptCount };
+}
+
+function maskNeighbors(x: number, y: number, width: number, height: number): number[] {
+  const neighbors: number[] = [];
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      if (dx === 0 && dy === 0) {
+        continue;
+      }
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+        neighbors.push(ny * width + nx);
+      }
+    }
+  }
+  return neighbors;
+}
+
+function localLuminanceEdge(luminances: Float32Array, width: number, height: number, x: number, y: number): number {
+  const center = luminances[y * width + x] ?? 0;
+  let maxDiff = 0;
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      if (dx === 0 && dy === 0) {
+        continue;
+      }
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
+        continue;
+      }
+      maxDiff = Math.max(maxDiff, Math.abs(center - (luminances[ny * width + nx] ?? center)));
+    }
+  }
+  return maxDiff;
 }
 
 function readRgb(bitmap: Buffer, width: number, x: number, y: number): Rgb {
@@ -791,23 +1556,6 @@ function toHex(value: number): string {
   return clamp(Math.round(value), 0, 255).toString(16).padStart(2, "0");
 }
 
-function colorStddev(samples: Rgb[], center: Rgb): Rgb {
-  const sum = samples.reduce(
-    (acc, sample) => ({
-      r: acc.r + (sample.r - center.r) ** 2,
-      g: acc.g + (sample.g - center.g) ** 2,
-      b: acc.b + (sample.b - center.b) ** 2
-    }),
-    { r: 0, g: 0, b: 0 }
-  );
-  const count = Math.max(1, samples.length);
-  return {
-    r: Math.sqrt(sum.r / count),
-    g: Math.sqrt(sum.g / count),
-    b: Math.sqrt(sum.b / count)
-  };
-}
-
 function writeRgb(bitmap: Buffer, width: number, x: number, y: number, color: Rgb): void {
   const offset = (y * width + x) * 4;
   bitmap[offset] = color.b;
@@ -829,6 +1577,14 @@ function median(values: number[]): number {
   return Math.round(sorted[Math.floor(sorted.length / 2)] ?? 0);
 }
 
+function percentile(sortedValues: number[], ratio: number): number {
+  if (sortedValues.length === 0) {
+    return 0;
+  }
+  const index = clamp(Math.round((sortedValues.length - 1) * ratio), 0, sortedValues.length - 1);
+  return sortedValues[index] ?? 0;
+}
+
 function colorDistance(left: Rgb, right: Rgb): number {
   const dr = left.r - right.r;
   const dg = left.g - right.g;
@@ -840,7 +1596,7 @@ function luminance(color: Rgb): number {
   return color.r * 0.299 + color.g * 0.587 + color.b * 0.114;
 }
 
-function resolveInpaintedImagePath(imagePath: string, suffix = "solid"): string {
+function resolveInpaintedImagePath(imagePath: string, suffix = "pattern"): string {
   const imageDir = dirname(imagePath);
   const chapterDir = dirname(imageDir);
   const name = basename(imagePath, extname(imagePath));

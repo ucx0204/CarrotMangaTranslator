@@ -1,5 +1,5 @@
 import React from "react";
-import type { BBox, MangaPage, TranslationBlock } from "../../../shared/types";
+import type { BBox, InpaintingMaskStroke, MangaPage, TranslationBlock } from "../../../shared/types";
 import type { ViewportSize } from "../lib/overlayLayout";
 import { OverlayBlock } from "./OverlayBlock";
 
@@ -17,16 +17,17 @@ type ImageStageProps = {
   retouchCursor?: {
     point: { x: number; y: number } | null;
     radiusPx: number;
-    mode: "brush" | "eraser";
+    mode: "brush" | "eraser" | "mask";
     color: string;
   } | null;
   retouchPreview?: {
-    mode: "brush" | "eraser";
+    mode: "brush" | "eraser" | "mask";
     points: Array<{ x: number; y: number }>;
     radiusPx: number;
     color: string;
     originalImageDataUrl: string;
   } | null;
+  maskStrokes?: InpaintingMaskStroke[];
   regionSelectionActive: boolean;
   regionSelectionRect: BBox | null;
   onStagePointerMove: (event: React.PointerEvent) => void;
@@ -49,6 +50,7 @@ export function ImageStage({
   blockPointerDisabled = false,
   retouchCursor = null,
   retouchPreview = null,
+  maskStrokes = [],
   regionSelectionActive,
   regionSelectionRect,
   onStagePointerMove,
@@ -64,6 +66,12 @@ export function ImageStage({
   const cursorRadius = retouchCursor ? Math.max(3, retouchCursor.radiusPx * Math.min(cursorScaleX, cursorScaleY)) : 0;
   const previewPath = retouchPreview?.points.length ? pointsToPath(retouchPreview.points) : "";
   const previewStrokeWidth = retouchPreview ? Math.max(1, retouchPreview.radiusPx * 2) : 0;
+  const maskStrokePaths = maskStrokes
+    .map((stroke) => ({
+      path: pointsToPath(stroke.points),
+      width: Math.max(1, stroke.radiusPx * 2)
+    }))
+    .filter((stroke) => stroke.path);
 
   return (
     <div className="stage-wrap">
@@ -107,6 +115,19 @@ export function ImageStage({
               />
             ))
           : null}
+        {imageDataUrl && stageSize && maskStrokePaths.length > 0 ? (
+          <svg
+            className="retouch-preview-layer retouch-preview-mask retouch-preview-committed-mask"
+            viewBox={`0 0 ${page.width} ${page.height}`}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            {maskStrokePaths.map((stroke, index) => (
+              <path key={index} d={stroke.path} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            ))}
+          </svg>
+        ) : null}
         {imageDataUrl && stageSize && retouchPreview && previewPath ? (
           <svg
             className={`retouch-preview-layer retouch-preview-${retouchPreview.mode}`}

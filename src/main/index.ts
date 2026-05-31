@@ -1,9 +1,11 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, shell } from "electron";
 import { randomUUID } from "node:crypto";
-import { existsSync, readdirSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
-import { dirname, extname, join } from "node:path";
+import { basename, dirname, extname, join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { bboxToPixels, clamp, resolveEffectiveRenderBbox } from "../shared/geometry";
 import { ensureWritableAppDirectories } from "./appPaths";
 import { buildBaseTranslationOptions } from "./appSettings";
 import {
@@ -35,7 +37,14 @@ import {
   updatePageAfterAnalysis,
   updatePagesAfterInpainting
 } from "./library";
-import { applyInpaintingRetouch, inpaintSolidPage, prepareLamaInpaintingEngine, sampleImageColor, type LamaInpaintingEngine } from "./inpainting";
+import {
+  applyInpaintingRetouch,
+  inpaintDrawnPatternPage,
+  inpaintPatternPage,
+  prepareFluxInpaintingEngine,
+  sampleImageColor,
+  type FluxInpaintingEngine
+} from "./inpainting";
 import { getLogPath, logError, logInfo, resetAppLog, writeLog } from "./logger";
 import { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint, type OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
 import { getAppSettings, resetAppSettings, saveAppSettings } from "./settingsStore";
@@ -50,6 +59,8 @@ import type {
   InpaintingRevertRequest,
   InpaintingRevertResult,
   ImportPreviewResult,
+  InpaintingExportRequest,
+  InpaintingExportResult,
   JobEvent,
   LocalModelPickResult,
   MangaPage,
@@ -261,6 +272,458 @@ async function loadImageForRegionCrop(imagePath: string): Promise<Electron.Nativ
   }
 
   throw new Error("선택한 페이지 이미지를 읽지 못했습니다.");
+}
+
+async function loadImageForPngExport(imagePath: string): Promise<Electron.NativeImage> {
+  const direct = nativeImage.createFromPath(imagePath);
+  if (!direct.isEmpty()) {
+    return direct;
+  }
+
+  const pngBuffer = await decodeImageThroughRuntime(imagePath);
+  if (pngBuffer) {
+    const converted = nativeImage.createFromBuffer(pngBuffer);
+    if (!converted.isEmpty()) {
+      return converted;
+    }
+  }
+
+  throw new Error(`출력할 이미지를 읽지 못했습니다: ${imagePath}`);
+}
+
+function sanitizeOutputBaseName(value: string): string {
+  const raw = basename(value, extname(value)) || "page";
+  const cleaned = raw.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").trim();
+  return (cleaned || "page").slice(0, 80);
+}
+
+async function renderPageWithTranslationBlocksForExport(page: MangaPage): Promise<Buffer> {
+  const sourcePath = page.inpaintedImagePath || page.imagePath;
+  const image = await loadImageForPngExport(sourcePath);
+  const size = image.getSize();
+  const width = Math.max(1, size.width || page.width);
+  const height = Math.max(1, size.height || page.height);
+  const imageDataUrl = `data:image/png;base64,${image.toPNG().toString("base64")}`;
+  const html = buildPageExportHtml(page, imageDataUrl, width, height);
+  const renderDir = join(appPaths.dataRoot, "tmp", "png-export-render");
+  await mkdir(renderDir, { recursive: true });
+  const htmlPath = join(renderDir, `${page.id}-${randomUUID()}.html`);
+  const win = new BrowserWindow({
+    width,
+    height,
+    show: false,
+    useContentSize: true,
+    backgroundColor: "#ffffff",
+    webPreferences: {
+      offscreen: true,
+      backgroundThrottling: false
+    }
+  });
+
+  try {
+    await writeFile(htmlPath, html, "utf8");
+    await win.loadFile(htmlPath);
+    await waitForExportRenderReady(win);
+    const rendered = await win.webContents.capturePage({ x: 0, y: 0, width, height });
+    const png = rendered.toPNG();
+    if (!png.length) {
+      throw new Error(`출력 PNG를 만들지 못했습니다: ${page.name}`);
+    }
+    return png;
+  } finally {
+    win.destroy();
+    await rm(htmlPath, { force: true }).catch(() => {});
+  }
+}
+
+function buildPageExportHtml(page: MangaPage, imageDataUrl: string, width: number, height: number): string {
+  const rendererCssHref = findRendererCssHref();
+  const blocks = buildPageExportBlocks(page, width, height);
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+${rendererCssHref ? `<link rel="stylesheet" href="${escapeHtml(rendererCssHref)}" />` : ""}
+<style>
+html, body {
+  margin: 0;
+  width: ${width}px;
+  height: ${height}px;
+  overflow: hidden;
+  background: #fff;
+}
+body {
+  font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+}
+.page-export-stage {
+  position: relative;
+  width: ${width}px;
+  height: ${height}px;
+  overflow: hidden;
+  background: #fff;
+}
+.page-export-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.page-export-block {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  white-space: normal;
+  font-weight: 600;
+  transform-origin: center center;
+}
+.page-export-content {
+  display: inline-block;
+  box-sizing: border-box;
+  overflow: visible;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+.page-export-content.vertical {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  white-space: normal;
+  word-break: normal;
+}
+</style>
+</head>
+<body>
+<div class="page-export-stage" id="stage">
+  <img class="page-export-image" src="${imageDataUrl}" />
+</div>
+<script>
+const EXPORT_BLOCKS = ${JSON.stringify(blocks)};
+const MIN_FONT_SIZE = 10;
+const MAX_AUTOFIT_FONT_SIZE = 256;
+const canvas = document.createElement("canvas");
+const context = canvas.getContext("2d");
+
+function clamp(value, min, max) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function escapeText(value) {
+  return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+}
+
+function buildFont(size, family) {
+  return "600 " + size + "px " + family;
+}
+
+function wrapTextToWidth(text, maxWidth, fontSize, fontFamily) {
+  context.font = buildFont(fontSize, fontFamily);
+  const paragraphs = String(text).replace(/\\r/g, "").split("\\n");
+  const lines = [];
+  for (const paragraph of paragraphs) {
+    const normalized = paragraph.replace(/\\s+/g, " ").trim();
+    if (!normalized) {
+      lines.push("");
+      continue;
+    }
+    let current = "";
+    for (const char of Array.from(normalized)) {
+      const candidate = current + char;
+      if (!current || context.measureText(candidate).width <= maxWidth) {
+        current = candidate;
+        continue;
+      }
+      lines.push(current.trimEnd());
+      current = /\\s/u.test(char) ? "" : char;
+    }
+    if (current) {
+      lines.push(current.trimEnd());
+    }
+  }
+  return lines.length ? lines : [String(text)];
+}
+
+function measureHorizontal(block, fontSize, innerWidth) {
+  const lines = wrapTextToWidth(block.text, innerWidth, fontSize, block.fontFamily);
+  context.font = buildFont(fontSize, block.fontFamily);
+  return {
+    lines,
+    totalHeight: lines.length * fontSize * block.lineHeight,
+    maxLineWidth: lines.reduce((widest, line) => Math.max(widest, context.measureText(line).width), 0)
+  };
+}
+
+function fits(block, fontSize, innerWidth, innerHeight) {
+  if (block.renderDirection === "vertical") {
+    const compact = block.text.replace(/\\r/g, "").replace(/\\s+/g, "");
+    if (!compact) return true;
+    const charsPerColumn = Math.max(1, Math.floor(innerHeight / Math.max(fontSize, fontSize * block.lineHeight)));
+    const columnCount = Math.max(1, Math.ceil(Array.from(compact).length / charsPerColumn));
+    return columnCount <= 2 && columnCount * fontSize * 1.15 <= innerWidth;
+  }
+  const measured = measureHorizontal(block, fontSize, innerWidth);
+  return measured.totalHeight <= innerHeight && measured.maxLineWidth <= innerWidth;
+}
+
+function resolveFontSize(block, innerWidth, innerHeight) {
+  const preferred = Math.max(MIN_FONT_SIZE, Math.floor(block.fontSizePx));
+  if (!block.autoFitText || !block.text.trim()) {
+    return preferred;
+  }
+  const heightBound = Math.floor(innerHeight / Math.max(1, block.lineHeight || 1));
+  const widthBound = block.renderDirection === "vertical" ? Math.floor(innerWidth / 1.15) : MAX_AUTOFIT_FONT_SIZE;
+  const capped = clamp(Math.max(MIN_FONT_SIZE, heightBound, widthBound), MIN_FONT_SIZE, MAX_AUTOFIT_FONT_SIZE);
+  let low = MIN_FONT_SIZE;
+  let high = Math.floor(capped);
+  let best = MIN_FONT_SIZE;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    if (fits(block, mid, innerWidth, innerHeight)) {
+      best = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return Math.min(best, capped);
+}
+
+function resolveOutlineShadow(fontSize, color) {
+  const radius = Math.round(Math.min(4, Math.max(0.35, fontSize * 0.055)) * 10) / 10;
+  const half = Math.round(radius * 0.55 * 10) / 10;
+  return [[0, -radius], [radius, 0], [0, radius], [-radius, 0], [radius, -radius], [radius, radius], [-radius, radius], [-radius, -radius], [half, -half], [half, half], [-half, half], [-half, -half]]
+    .map(([x, y]) => x + "px " + y + "px 0 " + color)
+    .join(", ");
+}
+
+function renderBlocks() {
+  const stage = document.getElementById("stage");
+  for (const block of EXPORT_BLOCKS) {
+    const root = document.createElement("div");
+    root.className = "page-export-block";
+    root.style.left = block.rect.left + "px";
+    root.style.top = block.rect.top + "px";
+    root.style.width = block.rect.width + "px";
+    root.style.height = block.rect.height + "px";
+    root.style.color = block.textColor;
+    root.style.fontFamily = block.fontFamily;
+    root.style.lineHeight = String(block.lineHeight);
+    root.style.textAlign = block.textAlign;
+    if (block.rotationDeg) {
+      root.style.transform = "rotate(" + block.rotationDeg + "deg)";
+    }
+
+    const innerWidth = Math.max(1, block.rect.width - 2);
+    const innerHeight = Math.max(1, block.rect.height - 2);
+    const fontSize = resolveFontSize(block, innerWidth, innerHeight);
+    root.style.fontSize = fontSize + "px";
+
+    const content = document.createElement("span");
+    content.className = "page-export-content" + (block.renderDirection === "vertical" ? " vertical" : "");
+    content.style.textShadow = resolveOutlineShadow(fontSize, block.outlineColor);
+    if (block.renderDirection === "vertical") {
+      content.textContent = block.text.replace(/\\r/g, "").replace(/\\s+/g, "");
+      content.style.height = Math.min(innerHeight, Math.max(1, Array.from(content.textContent).length * fontSize * block.lineHeight)) + "px";
+      content.style.maxHeight = "100%";
+    } else {
+      const lines = measureHorizontal(block, fontSize, innerWidth).lines;
+      content.innerHTML = lines.map(escapeText).join("<br>");
+      content.style.width = innerWidth + "px";
+      content.style.maxWidth = "100%";
+    }
+    root.appendChild(content);
+    stage.appendChild(root);
+  }
+}
+
+async function preloadExportFonts() {
+  if (!document.fonts) {
+    return;
+  }
+  const loads = [];
+  for (const block of EXPORT_BLOCKS) {
+    const size = Math.max(MIN_FONT_SIZE, Math.floor(block.fontSizePx || 20));
+    loads.push(document.fonts.load("600 " + size + "px " + block.fontFamily));
+    loads.push(document.fonts.load("700 " + size + "px " + block.fontFamily));
+    loads.push(document.fonts.load("400 " + size + "px " + block.fontFamily));
+  }
+  await Promise.all(loads.map((load) => load.catch(() => [])));
+  await document.fonts.ready;
+}
+
+window.addEventListener("load", async () => {
+  await preloadExportFonts();
+  renderBlocks();
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready;
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.body.dataset.ready = "1";
+  }));
+});
+</script>
+</body>
+</html>`;
+}
+
+function buildPageExportBlocks(page: MangaPage, outputWidth: number, outputHeight: number): PageExportBlock[] {
+  const pageWidth = Math.max(1, page.width || outputWidth);
+  const pageHeight = Math.max(1, page.height || outputHeight);
+  const scaleX = outputWidth / pageWidth;
+  const scaleY = outputHeight / pageHeight;
+  const fontScale = Math.min(scaleX, scaleY);
+  return page.blocks
+    .map((block) => buildPageExportBlock(block, { width: pageWidth, height: pageHeight }, scaleX, scaleY, fontScale))
+    .filter((block): block is PageExportBlock => Boolean(block));
+}
+
+type PageExportBlock = {
+  text: string;
+  rect: { left: number; top: number; width: number; height: number };
+  renderDirection: "horizontal" | "vertical" | "rotated";
+  rotationDeg: number;
+  fontFamily: string;
+  fontSizePx: number;
+  lineHeight: number;
+  textAlign: "left" | "center" | "right";
+  textColor: string;
+  outlineColor: string;
+  autoFitText: boolean;
+};
+
+function buildPageExportBlock(
+  block: TranslationBlock,
+  pageSize: { width: number; height: number },
+  scaleX: number,
+  scaleY: number,
+  fontScale: number
+): PageExportBlock | null {
+  if (block.renderDirection === "hidden") {
+    return null;
+  }
+  const text = block.translatedText || block.sourceText || "";
+  if (!text.trim()) {
+    return null;
+  }
+  const renderBbox = resolveEffectiveRenderBbox(block, pageSize, text);
+  const rect = bboxToPixels(renderBbox, pageSize.width, pageSize.height);
+  return {
+    text,
+    rect: {
+      left: rect.x * scaleX,
+      top: rect.y * scaleY,
+      width: Math.max(1, rect.w * scaleX),
+      height: Math.max(1, rect.h * scaleY)
+    },
+    renderDirection: block.renderDirection === "vertical" ? "vertical" : block.renderDirection === "rotated" ? "rotated" : "horizontal",
+    rotationDeg: block.rotationDeg ? clamp(Math.round(block.rotationDeg), -30, 30) : 0,
+    fontFamily: resolveExportBlockFontFamily(block.fontFamily),
+    fontSizePx: Math.max(10, Math.round((block.fontSizePx || 20) * fontScale)),
+    lineHeight: Math.max(1, block.lineHeight || 1.18),
+    textAlign: block.textAlign || "center",
+    textColor: normalizeExportColor(block.textColor, "#000000"),
+    outlineColor: normalizeExportColor(block.outlineColor, "#ffffff"),
+    autoFitText: block.autoFitText ?? true
+  };
+}
+
+function resolveExportBlockFontFamily(value: string | undefined): string {
+  switch (value) {
+    case "mongtori":
+      return '"MGT Mongtori", "Malgun Gothic", sans-serif';
+    case "chosun-gungseo":
+      return '"MGT Chosun Gungseo", "Malgun Gothic", serif';
+    case "griun-pol-sensibility":
+      return '"MGT Griun Pol Sensibility", "Malgun Gothic", sans-serif';
+    case "nanum-gothic":
+      return '"MGT Nanum Gothic", "Malgun Gothic", sans-serif';
+    case "nanum-myeongjo":
+      return '"MGT Nanum Myeongjo", "Malgun Gothic", serif';
+    case "nanum-barun-gothic":
+      return '"MGT Nanum Barun Gothic", "Malgun Gothic", sans-serif';
+    case "seoul-namsan":
+      return '"MGT Seoul Namsan", "Malgun Gothic", sans-serif';
+    case "seoul-namsan-vertical":
+      return '"MGT Seoul Namsan Vertical", "Malgun Gothic", sans-serif';
+    case "seoul-hangang":
+      return '"MGT Seoul Hangang", "Malgun Gothic", serif';
+    default:
+      return '"Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif';
+  }
+}
+
+function normalizeExportColor(value: string | undefined, fallback: string): string {
+  const text = String(value ?? "").trim();
+  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
+}
+
+function findRendererCssHref(): string | null {
+  const rendererDir = join(__dirname, "../renderer");
+  const rendererIndexPath = join(rendererDir, "index.html");
+  if (existsSync(rendererIndexPath)) {
+    const html = readFileSync(rendererIndexPath, "utf8");
+    const match = html.match(/<link[^>]+href=["']([^"']+index-[^"']+\.css)["']/i);
+    if (match?.[1]) {
+      const cssPath = join(rendererDir, match[1].replace(/^\.\//, ""));
+      if (existsSync(cssPath)) {
+        return pathToFileURL(cssPath).toString();
+      }
+    }
+  }
+
+  const assetDir = join(__dirname, "../renderer/assets");
+  if (existsSync(assetDir)) {
+    const cssFile = readdirSync(assetDir)
+      .filter((file) => /^index-.*\.css$/i.test(file))
+      .sort()
+      .at(-1);
+    if (cssFile) {
+      return pathToFileURL(join(assetDir, cssFile)).toString();
+    }
+  }
+
+  const sourceCssPath = join(process.cwd(), "src", "renderer", "src", "styles.css");
+  return existsSync(sourceCssPath) ? pathToFileURL(sourceCssPath).toString() : null;
+}
+
+async function waitForExportRenderReady(win: BrowserWindow): Promise<void> {
+  await win.webContents.executeJavaScript(`
+    new Promise((resolve, reject) => {
+      const startedAt = Date.now();
+      const tick = () => {
+        if (document.body && document.body.dataset.ready === "1") {
+          resolve(true);
+          return;
+        }
+        if (Date.now() - startedAt > 15000) {
+          reject(new Error("PNG export render timeout"));
+          return;
+        }
+        setTimeout(tick, 40);
+      };
+      tick();
+    })
+  `);
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"]/g, (char) => {
+    switch (char) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      default:
+        return char;
+    }
+  });
 }
 
 function mapRegionBlocksToPageBlocks(blocks: TranslationBlock[], page: MangaPage, cropRect: PixelRect): TranslationBlock[] {
@@ -859,8 +1322,12 @@ function registerIpc(): void {
     }
 
     const chapter = await openChapter(request.chapterId);
+    const drawnPatternMode = request.mode === "page-pattern-drawn";
+    const drawnStrokes = request.mode === "page-pattern-drawn" ? request.strokes : [];
+    const drawnFeatherPx = request.mode === "page-pattern-drawn" ? request.featherPx : undefined;
+    const targetLabel = drawnPatternMode ? "그린 영역" : "무늬 배경";
     const pages =
-      request.mode === "page-solid"
+      "pageId" in request
         ? chapter.pages.filter((page) => page.id === request.pageId)
         : chapter.pages;
 
@@ -871,7 +1338,7 @@ function registerIpc(): void {
     const id = randomUUID();
     const abortController = new AbortController();
     activeJob = { id, kind: "inpainting", abortController };
-    let lamaEngine: LamaInpaintingEngine | null = null;
+    let fluxEngine: FluxInpaintingEngine | null = null;
 
     const emit = (event: JobEvent) => {
       if (activeJob?.id === id) {
@@ -891,24 +1358,27 @@ function registerIpc(): void {
     };
 
     try {
-      const totalSolidBlocks = pages.reduce((count, page) => count + page.blocks.filter((block) => block.type === "solid").length, 0);
+      const totalTargetBlocks = drawnPatternMode
+        ? drawnStrokes.length
+        : pages.reduce((count, page) => count + page.blocks.length, 0);
       emit({
         id,
         kind: "inpainting",
         status: "starting",
-        progressText: "단색 배경 지우기 준비 중",
+        progressText: `${targetLabel} 지우기 준비 중`,
         phase: "inpainting_preparing",
         progressCurrent: 0,
         progressTotal: pages.length,
         pageTotal: pages.length,
-        detail: `${pages.length}페이지, ${totalSolidBlocks}개 블록`
+        detail: `${pages.length}페이지, ${totalTargetBlocks}개 블록`
       });
 
       let blocksErased = 0;
       const changedPages: MangaPage[] = [];
-      if (totalSolidBlocks > 0) {
-        lamaEngine = await prepareLamaInpaintingEngine({
-          modelDir: join(appPaths.dataRoot, "models", "inpainting", "lama-manga-onnx"),
+      if (totalTargetBlocks > 0) {
+        fluxEngine = await prepareFluxInpaintingEngine({
+          runtimeDir: join(appPaths.dataRoot, "models", "inpainting", "mgt-flux-klein-runtime"),
+          modelDir: join(appPaths.dataRoot, "models", "inpainting", "flux-klein-4b"),
           signal: abortController.signal,
           onProgress: (progress) =>
             emit({
@@ -934,24 +1404,33 @@ function registerIpc(): void {
           throw new DOMException("Aborted", "AbortError");
         }
 
+        const pageTargetCount = drawnPatternMode ? drawnStrokes.length : page.blocks.length;
         emit({
           id,
           kind: "inpainting",
           status: "running",
-          progressText: `${pageIndex + 1} / ${pages.length} 페이지 단색 배경 지우는 중`,
+          progressText: `${pageIndex + 1} / ${pages.length} 페이지 ${targetLabel} 지우는 중`,
           phase: "inpainting_running",
           progressCurrent: pageIndex + 1,
           progressTotal: pages.length,
           pageIndex: pageIndex + 1,
           pageTotal: pages.length,
-          detail: `${page.name} · ${page.blocks.filter((block) => block.type === "solid").length}개 블록`
+          detail: `${page.name} · ${pageTargetCount}${drawnPatternMode ? "개 그린 영역" : "개 블록"}`
         });
 
-        const result = await inpaintSolidPage(page, {
-          signal: abortController.signal,
-          decodeFallback: decodeImageThroughRuntime,
-          lamaEngine: lamaEngine ?? undefined
-        });
+        const result = drawnPatternMode
+          ? await inpaintDrawnPatternPage(page, {
+              signal: abortController.signal,
+              decodeFallback: decodeImageThroughRuntime,
+              fluxEngine: fluxEngine ?? undefined,
+              strokes: drawnStrokes,
+              featherPx: drawnFeatherPx
+            })
+          : await inpaintPatternPage(page, {
+              signal: abortController.signal,
+              decodeFallback: decodeImageThroughRuntime,
+              fluxEngine: fluxEngine ?? undefined
+            });
         if (result.blocksErased > 0) {
           changedPages.push(result.page);
           blocksErased += result.blocksErased;
@@ -961,7 +1440,7 @@ function registerIpc(): void {
           id,
           kind: "inpainting",
           status: "running",
-          progressText: `${pageIndex + 1} / ${pages.length} 페이지 단색 배경 완료`,
+          progressText: `${pageIndex + 1} / ${pages.length} 페이지 ${targetLabel} 완료`,
           phase: "inpainting_done",
           progressCurrent: pageIndex + 1,
           progressTotal: pages.length,
@@ -976,7 +1455,7 @@ function registerIpc(): void {
         id,
         kind: "inpainting",
         status: "completed",
-        progressText: "단색 배경 지우기 완료",
+        progressText: `${targetLabel} 지우기 완료`,
         phase: "done",
         progressCurrent: pages.length,
         progressTotal: pages.length,
@@ -1027,8 +1506,8 @@ function registerIpc(): void {
         chapter: await openChapter(request.chapterId)
       };
     } finally {
-      if (lamaEngine) {
-        await lamaEngine.dispose().catch((error) => logError("Failed to dispose LaMA inpainting session", { error }));
+      if (fluxEngine) {
+        await fluxEngine.dispose().catch((error) => logError("Failed to dispose Flux inpainting session", { error }));
       }
       if (activeJob?.id === id) {
         activeJob = null;
@@ -1083,6 +1562,30 @@ function registerIpc(): void {
   ipcMain.handle("inpainting:sample-color", async (_event, request: InpaintingColorSampleRequest): Promise<InpaintingColorSampleResult> => {
     return {
       color: await sampleImageColor(request.imagePath, request.x, request.y, decodeImageThroughRuntime)
+    };
+  });
+
+  ipcMain.handle("inpainting:export-results", async (_event, request: InpaintingExportRequest): Promise<InpaintingExportResult> => {
+    const chapter = await openChapter(request.chapterId);
+    if (chapter.pages.length === 0) {
+      throw new Error("출력할 페이지가 없습니다.");
+    }
+
+    const firstPageDir = dirname(chapter.pages[0].imagePath);
+    const chapterDir = dirname(firstPageDir);
+    const outputDir = join(chapterDir, "processed", new Date().toISOString().replace(/[:.]/g, "-"));
+    await mkdir(outputDir, { recursive: true });
+
+    for (const [index, page] of chapter.pages.entries()) {
+      const outputName = `${String(index + 1).padStart(3, "0")}-${sanitizeOutputBaseName(page.name)}.png`;
+      const png = await renderPageWithTranslationBlocksForExport(page);
+      await writeFile(join(outputDir, outputName), png);
+    }
+
+    await shell.openPath(outputDir);
+    return {
+      outputDir,
+      pageCount: chapter.pages.length
     };
   });
 

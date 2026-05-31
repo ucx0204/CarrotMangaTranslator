@@ -7,16 +7,16 @@
 }
 
 @font-face {
-  font-family: "MGT Ongle Park Dahyun";
-  src: url("./assets/fonts/ongle-park-dahyun.ttf") format("truetype");
+  font-family: "MGT Chosun Gungseo";
+  src: url("./assets/fonts/chosun-gungseo.ttf") format("truetype");
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "MGT Chosun Gungseo";
-  src: url("./assets/fonts/chosun-gungseo.ttf") format("truetype");
+  font-family: "MGT Griun Pol Sensibility";
+  src: url("./assets/fonts/griun-pol-sensibility.ttf") format("truetype");
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
@@ -869,16 +869,16 @@ textarea {
   color: #fff7ec;
 }
 
-.flow-step.solid.active {
-  border-color: #35d17a;
-  background: linear-gradient(180deg, rgba(28, 73, 53, 0.88), rgba(25, 49, 42, 0.92));
-  box-shadow: 0 0 0 1px rgba(53, 209, 122, 0.12);
-}
-
 .flow-step.pattern.active {
   border-color: #f59e0b;
   background: linear-gradient(180deg, rgba(91, 62, 20, 0.88), rgba(58, 43, 24, 0.92));
   box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.14);
+}
+
+.flow-step.finalize.active {
+  border-color: #4fb99b;
+  background: linear-gradient(180deg, rgba(29, 74, 64, 0.88), rgba(24, 48, 44, 0.92));
+  box-shadow: 0 0 0 1px rgba(79, 185, 155, 0.14);
 }
 
 .flow-step.review.active {
@@ -897,7 +897,7 @@ textarea {
   padding: 10px;
 }
 
-.solid-back-button {
+.inpainting-back-button {
   min-height: 40px;
   border-color: #40d083;
   background: #1f5a43;
@@ -968,52 +968,6 @@ textarea {
   gap: 8px;
 }
 
-.inpainting-block-type-card {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid #33404c;
-  border-radius: 9px;
-  background: #151a20;
-}
-
-.inpainting-block-type-card strong {
-  color: #f5eee3;
-  font-size: 13px;
-}
-
-.inpainting-block-type-card span {
-  color: #b8b1a6;
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.inpainting-type-switch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-}
-
-.inpainting-type-switch button {
-  min-width: 0;
-  min-height: 34px;
-  padding: 7px 8px;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.inpainting-type-switch button.solid.active {
-  border-color: #35d17a;
-  background: #1f5a43;
-  color: #f2fff8;
-}
-
-.inpainting-type-switch button.nonsolid.active {
-  border-color: #f59e0b;
-  background: #7a4d17;
-  color: #fff7df;
-}
-
 .inpainting-run-card {
   display: grid;
   gap: 10px;
@@ -1021,6 +975,11 @@ textarea {
   border: 1px solid #33404c;
   border-radius: 9px;
   background: #151a20;
+}
+
+.inpainting-run-card.pattern {
+  border-color: rgba(245, 158, 11, 0.55);
+  background: rgba(70, 45, 15, 0.18);
 }
 
 .inpainting-run-card > div:first-child {
@@ -1050,6 +1009,17 @@ textarea {
   padding: 7px 9px;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.inpainting-action-grid button.pattern {
+  border-color: #f59e0b;
+  background: #6f4716;
+  color: #fff4d8;
+}
+
+.inpainting-action-grid button.pattern:hover:not(:disabled) {
+  border-color: #fbbf24;
+  background: #83551d;
 }
 
 .inpainting-progress-card {
@@ -1094,6 +1064,11 @@ textarea {
   background: rgba(70, 45, 15, 0.22);
 }
 
+.pending-stage-card.finalize {
+  border-color: rgba(79, 185, 155, 0.5);
+  background: rgba(24, 68, 58, 0.22);
+}
+
 .pending-stage-card.review {
   border-color: rgba(106, 169, 255, 0.5);
   background: rgba(32, 48, 70, 0.3);
@@ -1101,6 +1076,35 @@ textarea {
 
 .mask-tool-panel {
   gap: 8px;
+}
+
+.drawn-mask-panel {
+  gap: 8px;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.drawn-mask-panel .panel-header small {
+  color: #f9c86f;
+}
+
+.retouch-toolbar.compact-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.retouch-toolbar button.mask-tool.active {
+  border-color: #f59e0b;
+  background: #5c3b16;
+  color: #fff6df;
+}
+
+.drawn-mask-actions {
+  display: grid;
+}
+
+.drawn-mask-actions button.pattern {
+  border-color: #f59e0b;
+  background: #6f4716;
+  color: #fff4d8;
 }
 
 .retouch-toolbar {
@@ -1262,16 +1266,16 @@ textarea {
   white-space: nowrap;
 }
 
-.type-stat.solid {
-  border-color: #22c55e;
-  background: rgba(220, 252, 231, 0.12);
-  color: #a7f3d0;
-}
-
 .type-stat.nonsolid {
   border-color: #f59e0b;
   background: rgba(254, 243, 199, 0.12);
   color: #fde68a;
+}
+
+.type-stat.review {
+  border-color: #6aa9ff;
+  background: rgba(106, 169, 255, 0.1);
+  color: #cfe3ff;
 }
 
 .inpainting-actions {
@@ -1659,6 +1663,16 @@ textarea {
   filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.65)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.55));
 }
 
+.retouch-preview-mask path {
+  stroke: rgba(255, 159, 28, 0.5);
+  opacity: 0.92;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.65)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.42));
+}
+
+.retouch-preview-committed-mask path {
+  stroke: rgba(255, 159, 28, 0.34);
+}
+
 .retouch-preview-outline {
   fill: none;
   stroke: rgba(112, 183, 255, 0.9);
@@ -1684,6 +1698,11 @@ textarea {
 
 .retouch-cursor-eraser {
   background: rgba(112, 183, 255, 0.16);
+  border-style: dashed;
+}
+
+.retouch-cursor-mask {
+  background: rgba(255, 159, 28, 0.18);
   border-style: dashed;
 }
 
@@ -2066,14 +2085,36 @@ textarea {
   background: linear-gradient(180deg, rgba(24, 28, 36, 0.98), rgba(13, 16, 22, 0.98));
 }
 
-.inpainting-guide-modal img {
-  display: block;
-  width: 100%;
-  max-height: min(76vh, 780px);
-  object-fit: contain;
-  border-radius: 11px;
-  background: #0f1218;
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.36);
+.inpainting-guide-content {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border: 1px solid #33404c;
+  border-radius: 12px;
+  background: #111820;
+}
+
+.inpainting-guide-content h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.inpainting-guide-content p {
+  margin: 0;
+  color: #d8d0c3;
+  line-height: 1.5;
+}
+
+.inpainting-guide-content ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+  color: #f5eee3;
+}
+
+.inpainting-guide-content li {
+  line-height: 1.45;
 }
 
 .guide-actions {

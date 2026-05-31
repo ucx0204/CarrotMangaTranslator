@@ -23,7 +23,7 @@ function makeChapter(): ChapterSnapshot {
         blocks: [
           {
             id: "block-1",
-            type: "solid",
+            type: "nonsolid",
             bbox: { x: 100, y: 100, w: 300, h: 240 },
             sourceText: "JP",
             translatedText: "KO",
