@@ -1,6 +1,6 @@
 const { spawn } = require("node:child_process");
 const { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } = require("node:fs");
-const { mkdir, readFile, rename, rm, writeFile } = require("node:fs/promises");
+const { mkdir, open, readFile, rename, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
 
@@ -22,9 +22,55 @@ const MAX_LOG_PREVIEW_LENGTH = 8000;
 const MM_PROJ_CANDIDATE_NAMES = ["mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-F32.gguf", "mmproj.gguf"];
 const DEFAULT_OCR_BBOX_TIMEOUT_MS = 60 * 60 * 1000;
 const DEFAULT_OCR_BBOX_PAGE_TIMEOUT_MS = 5 * 60 * 1000;
+const DEFAULT_DOWNLOAD_METADATA_TIMEOUT_MS = 30000;
+const DEFAULT_DOWNLOAD_STALL_TIMEOUT_MS = 5 * 60 * 1000;
+const DEFAULT_DOWNLOAD_RETRY_COUNT = 3;
+const HF_DOWNLOAD_CHUNK_SIZE = 10 * 1024 * 1024;
 const CROP_RETRY_MIN_SIDE_PX = 192;
 const CROP_RETRY_MIN_MARGIN_PX = 64;
 const CROP_RETRY_MARGIN_RATIO = 0.5;
+const PADDLE_OCR_MODEL_DOWNLOADS = [
+  {
+    name: "PP-DocLayoutV3",
+    repo: "PaddlePaddle/PP-DocLayoutV3",
+    files: [".gitattributes", "README.md", "inference.json", "inference.pdiparams", "inference.yml"]
+  },
+  {
+    name: "PaddleOCR-VL-1.5",
+    repo: "PaddlePaddle/PaddleOCR-VL-1.5",
+    files: [
+      ".gitattributes",
+      "LICENSE",
+      "README.md",
+      "added_tokens.json",
+      "chat_template.jinja",
+      "config.json",
+      "configuration_paddleocr_vl.py",
+      "generation_config.json",
+      "image_processing_paddleocr_vl.py",
+      "inference.yml",
+      "model.safetensors",
+      "modeling_paddleocr_vl.py",
+      "preprocessor_config.json",
+      "processing_paddleocr_vl.py",
+      "processor_config.json",
+      "special_tokens_map.json",
+      "tokenizer.json",
+      "tokenizer.model",
+      "tokenizer_config.json"
+    ]
+  },
+  {
+    name: "PP-OCRv5_server_det",
+    repo: "PaddlePaddle/PP-OCRv5_server_det",
+    files: [".gitattributes", "README.md", "config.json", "inference.json", "inference.pdiparams", "inference.yml"]
+  },
+  {
+    name: "PP-OCRv5_server_rec",
+    repo: "PaddlePaddle/PP-OCRv5_server_rec",
+    files: [".gitattributes", "README.md", "config.json", "inference.json", "inference.pdiparams", "inference.yml"]
+  }
+];
 
 function nowMs() {
   return typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
@@ -614,6 +660,110 @@ async function ensureHfModelAssetsDownloaded(options = {}, launchTarget = inspec
   });
 }
 
+function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
+  const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);
+  const endpoint = String(process.env.PADDLE_PDX_HUGGING_FACE_ENDPOINT || "https://huggingface.co").replace(/\/+$/, "");
+  const tasks = [];
+  for (const model of PADDLE_OCR_MODEL_DOWNLOADS) {
+    const modelDir = resolvePaddleOcrModelCacheDir(runtimeDir, model.name);
+    for (const file of model.files) {
+      tasks.push({
+        kind: "paddle-ocr-model",
+        label: `Paddle OCR ${model.name}`,
+        repo: model.repo,
+        file,
+        url: buildHfResolveUrl(endpoint, model.repo, file),
+        destination: path.join(modelDir, safeHfRelativePath(file)),
+        progressPhase: "ocr_downloading",
+        progressTitle: "Paddle OCR 모델 파일 다운로드 중",
+        completeTitle: "Paddle OCR 모델 파일 다운로드 완료"
+      });
+    }
+  }
+  return tasks;
+}
+
+async function ensurePaddleOcrModelAssetsDownloaded(options = {}, runtime = null) {
+  if (isTruthy(process.env.MANGA_TRANSLATOR_SKIP_PADDLE_MODEL_PREFETCH ?? "false")) {
+    return;
+  }
+
+  const allTasks = collectRequiredPaddleOcrModelDownloads(options, runtime);
+  const pending = [];
+  const totals = new Map();
+  let knownTotalBytes = 0;
+
+  for (const task of allTasks) {
+    const totalBytes = await probeContentLength(task.url, options.abortSignal);
+    const existingSize = getFileSize(task.destination);
+    if (totalBytes > 0 && existingSize === totalBytes) {
+      continue;
+    }
+    if (totalBytes <= 0 && existingSize > 0) {
+      continue;
+    }
+    if (existingSize > 0 && totalBytes > 0 && existingSize !== totalBytes) {
+      await rm(task.destination, { force: true }).catch(() => {});
+    }
+    pending.push(task);
+    if (totalBytes > 0) {
+      totals.set(task.destination, totalBytes);
+      knownTotalBytes += totalBytes;
+    }
+  }
+
+  if (pending.length === 0) {
+    return;
+  }
+
+  const hasKnownAggregate = knownTotalBytes > 0 && totals.size === pending.length;
+  let completedBytes = 0;
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 파일 다운로드 중", `${pending.length}개 파일 준비`, {
+    progressMode: hasKnownAggregate ? "determinate" : "log-only",
+    progressPercent: hasKnownAggregate ? 0 : undefined,
+    progressBytes: 0,
+    progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+    installLogLine: `Paddle OCR 모델 다운로드 대상 ${pending.length}개 파일을 확인했습니다.`
+  });
+
+  for (const task of pending) {
+    const totalBytes = totals.get(task.destination) || 0;
+    await downloadHfFileWithProgress(task, options, {
+      totalBytes,
+      knownAggregateBytes: hasKnownAggregate ? knownTotalBytes : 0,
+      completedBytes,
+      onComplete: (bytesWritten) => {
+        completedBytes += hasKnownAggregate ? totalBytes : bytesWritten;
+      }
+    });
+  }
+
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 파일 다운로드 완료", "모든 Paddle OCR 모델 파일을 로컬 캐시에 저장했습니다.", {
+    progressMode: hasKnownAggregate ? "determinate" : "log-only",
+    progressPercent: hasKnownAggregate ? 1 : undefined,
+    progressBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+    progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+    installLogLine: "Paddle OCR 모델 파일 다운로드가 완료되었습니다."
+  });
+}
+
+function resolvePaddleOcrModelCacheDir(runtimeDir, modelName) {
+  return path.join(runtimeDir, "paddlex-cache", "official_models", modelName);
+}
+
+function buildHfResolveUrl(endpoint, repo, file) {
+  const filePath = String(file ?? "").replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/");
+  return `${String(endpoint || "https://huggingface.co").replace(/\/+$/, "")}/${repo}/resolve/main/${filePath}`;
+}
+
+function getFileSize(filePath) {
+  try {
+    return statSync(filePath).size;
+  } catch {
+    return 0;
+  }
+}
+
 function isUsableFile(filePath) {
   try {
     return Boolean(filePath) && statSync(filePath).isFile() && statSync(filePath).size > 0;
@@ -623,57 +773,266 @@ function isUsableFile(filePath) {
 }
 
 async function probeContentLength(url, signal) {
+  if (signal?.aborted) {
+    throw createAbortError();
+  }
+  const timeoutMs = readPositiveInteger(process.env.MANGA_TRANSLATOR_DOWNLOAD_METADATA_TIMEOUT_MS) || DEFAULT_DOWNLOAD_METADATA_TIMEOUT_MS;
+  const linked = createLinkedAbortController(signal);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    linked.controller.abort();
+  }, timeoutMs);
   try {
-    const response = await fetch(url, { method: "HEAD", signal });
+    const response = await fetch(url, { method: "HEAD", signal: linked.controller.signal });
     if (!response.ok) {
       return 0;
     }
     return readContentLength(response);
   } catch {
+    if (signal?.aborted) {
+      throw createAbortError();
+    }
+    if (timedOut) {
+      return 0;
+    }
     return 0;
+  } finally {
+    clearTimeout(timeout);
+    linked.cleanup();
   }
 }
 
 async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
+  const maxAttempts = resolveDownloadRetryCount();
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await downloadHfFileWithProgressAttempt(task, options, progress, { attempt, maxAttempts });
+    } catch (error) {
+      if (options.abortSignal?.aborted || isAbortError(error)) {
+        throw error;
+      }
+      lastError = error;
+      if (attempt >= maxAttempts) {
+        break;
+      }
+      emitDownloadRetryProgress(options, task, error, attempt + 1, maxAttempts);
+      await delay(Math.min(30000, 1000 * 2 ** (attempt - 1)), undefined, { signal: options.abortSignal });
+    }
+  }
+  throw lastError || createDetailedError(`${task.label} 다운로드에 실패했습니다.`, { url: task.url, file: task.file });
+}
+
+async function downloadHfFileWithProgressAttempt(task, options = {}, progress = {}, attemptState = {}) {
   const partPath = `${task.destination}.part`;
   await mkdir(path.dirname(task.destination), { recursive: true });
   await rm(partPath, { force: true });
 
-  emitRuntimeProgress(options, "model_downloading", "Gemma 모델 다운로드 중", `${task.label}: ${task.file}`, {
+  emitRuntimeProgress(options, task.progressPhase || "model_downloading", resolveDownloadProgressTitle(task, false), `${task.label}: ${task.file}`, {
     progressMode: progress.knownAggregateBytes || progress.totalBytes ? "determinate" : "log-only",
     progressPercent: progress.knownAggregateBytes ? progress.completedBytes / progress.knownAggregateBytes : progress.totalBytes ? 0 : undefined,
     progressBytes: progress.knownAggregateBytes ? progress.completedBytes : progress.totalBytes ? 0 : undefined,
     progressTotalBytes: progress.knownAggregateBytes || progress.totalBytes || undefined,
-    installLogLine: `${task.label} 다운로드 시작: ${task.file}`
+    installLogLine: attemptState.attempt > 1
+      ? `${task.label} 다운로드 재시도 ${attemptState.attempt}/${attemptState.maxAttempts}: ${task.file}`
+      : `${task.label} 다운로드 시작: ${task.file}`
   });
 
-  const response = await fetch(task.url, { signal: options.abortSignal });
-  if (!response.ok || !response.body) {
-    throw createDetailedError(`${task.label} 다운로드에 실패했습니다 (${response.status}).`, {
-      status: response.status,
-      statusText: response.statusText,
-      url: task.url,
-      file: task.file
-    });
-  }
-
-  const totalBytes = progress.totalBytes || readContentLength(response);
-  const knownAggregateBytes = progress.knownAggregateBytes || 0;
-  const reader = response.body.getReader();
-  const writer = createWriteStream(partPath, { flags: "wx" });
-  let receivedBytes = 0;
-  let lastEmitAt = 0;
   const startedAt = Date.now();
+  const totalBytes = progress.totalBytes || 0;
+  const knownAggregateBytes = progress.knownAggregateBytes || 0;
 
   try {
+    const receivedBytes = totalBytes > 0
+      ? await downloadHfFileByRanges(task, options, progress, partPath, totalBytes, startedAt)
+      : await downloadHfFileByStream(task, options, progress, partPath, startedAt);
+    await rm(task.destination, { force: true });
+    await rename(partPath, task.destination);
+    progress.onComplete?.(receivedBytes);
+    emitHfDownloadProgress(options, task, {
+      receivedBytes,
+      totalBytes,
+      knownAggregateBytes,
+      aggregateCompletedBytes: progress.completedBytes || 0,
+      startedAt,
+      completed: true
+    });
+  } catch (error) {
+    await rm(partPath, { force: true }).catch(() => {});
+    throw error;
+  }
+}
+
+async function downloadHfFileByRanges(task, options, progress, partPath, totalBytes, startedAt) {
+  let file = null;
+  try {
+    file = await open(partPath, "w");
+    await file.truncate(totalBytes);
+    const knownAggregateBytes = progress.knownAggregateBytes || 0;
+    let receivedBytes = 0;
+    let lastEmitAt = 0;
+
+    for (let start = 0; start < totalBytes; start += HF_DOWNLOAD_CHUNK_SIZE) {
+      const end = Math.min(totalBytes - 1, start + HF_DOWNLOAD_CHUNK_SIZE - 1);
+      let chunk = null;
+      try {
+        chunk = await fetchRangeBufferWithRetry(task, options, start, end);
+      } catch (error) {
+        if (error?.rangeUnsupported && start === 0) {
+          await file.close();
+          file = null;
+          await rm(partPath, { force: true }).catch(() => {});
+          return await downloadHfFileByStream(task, options, progress, partPath, startedAt);
+        }
+        throw error;
+      }
+      const expectedLength = end - start + 1;
+      if (chunk.length !== expectedLength) {
+        throw createDetailedError(`${task.label} 다운로드 조각 크기가 올바르지 않습니다.`, {
+          url: task.url,
+          file: task.file,
+          rangeStart: start,
+          rangeEnd: end,
+          expectedLength,
+          receivedLength: chunk.length
+        });
+      }
+      await file.write(chunk, 0, chunk.length, start);
+      receivedBytes += chunk.length;
+      const now = Date.now();
+      if (now - lastEmitAt > 500 || receivedBytes >= totalBytes) {
+        lastEmitAt = now;
+        emitHfDownloadProgress(options, task, {
+          receivedBytes,
+          totalBytes,
+          knownAggregateBytes,
+          aggregateCompletedBytes: progress.completedBytes || 0,
+          startedAt
+        });
+      }
+    }
+    return receivedBytes;
+  } finally {
+    if (file) {
+      await file.close().catch(() => {});
+    }
+  }
+}
+
+async function fetchRangeBufferWithRetry(task, options, start, end) {
+  const maxAttempts = resolveDownloadRetryCount();
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetchRangeBuffer(task, options, start, end);
+    } catch (error) {
+      if (options.abortSignal?.aborted || isAbortError(error) || error?.rangeUnsupported) {
+        throw error;
+      }
+      lastError = error;
+      if (attempt >= maxAttempts) {
+        break;
+      }
+      emitDownloadRetryProgress(options, task, error, attempt + 1, maxAttempts, `bytes=${start}-${end}`);
+      await delay(Math.min(30000, 1000 * 2 ** (attempt - 1)), undefined, { signal: options.abortSignal });
+    }
+  }
+  throw lastError || createDetailedError(`${task.label} 다운로드 조각에 실패했습니다.`, { url: task.url, file: task.file, rangeStart: start, rangeEnd: end });
+}
+
+async function fetchRangeBuffer(task, options, start, end) {
+  const range = `bytes=${start}-${end}`;
+  const stallTimeoutMs = resolveDownloadStallTimeoutMs();
+  const linked = createLinkedAbortController(options.abortSignal);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    linked.controller.abort();
+  }, stallTimeoutMs);
+  try {
+    const response = await fetch(task.url, {
+      headers: { Range: range },
+      signal: linked.controller.signal
+    });
+    if (response.status === 200) {
+      throw createDetailedError(`${task.label} 서버가 범위 다운로드를 지원하지 않습니다.`, {
+        rangeUnsupported: true,
+        status: response.status,
+        url: task.url,
+        file: task.file
+      });
+    }
+    if (response.status !== 206 || !response.ok) {
+      throw createDetailedError(`${task.label} 다운로드 조각에 실패했습니다 (${response.status}).`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: task.url,
+        file: task.file,
+        range
+      });
+    }
+    return Buffer.from(await response.arrayBuffer());
+  } catch (error) {
+    if (timedOut) {
+      throw createDetailedError(`${task.label} 다운로드가 ${Math.round(stallTimeoutMs / 1000)}초 동안 응답하지 않았습니다.`, {
+        url: task.url,
+        file: task.file,
+        range,
+        stallTimeoutMs
+      }, error);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    linked.cleanup();
+  }
+}
+
+async function downloadHfFileByStream(task, options, progress, partPath, startedAt) {
+  const stallTimeoutMs = resolveDownloadStallTimeoutMs();
+  const linked = createLinkedAbortController(options.abortSignal);
+  let timedOut = false;
+  let timeout = null;
+  const resetTimeout = () => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(() => {
+      timedOut = true;
+      linked.controller.abort();
+    }, stallTimeoutMs);
+  };
+  resetTimeout();
+
+  const writer = createWriteStream(partPath, { flags: "wx" });
+  try {
+    const response = await fetch(task.url, { signal: linked.controller.signal });
+    if (!response.ok || !response.body) {
+      throw createDetailedError(`${task.label} 다운로드에 실패했습니다 (${response.status}).`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: task.url,
+        file: task.file
+      });
+    }
+
+    const totalBytes = progress.totalBytes || readContentLength(response);
+    const knownAggregateBytes = progress.knownAggregateBytes || 0;
+    const reader = response.body.getReader();
+    let receivedBytes = 0;
+    let lastEmitAt = 0;
+
     while (true) {
       if (options.abortSignal?.aborted) {
         throw createAbortError();
       }
+      resetTimeout();
       const { done, value } = await reader.read();
       if (done) {
         break;
       }
+      resetTimeout();
       await writeStreamChunk(writer, Buffer.from(value));
       receivedBytes += value.byteLength;
       const now = Date.now();
@@ -689,22 +1048,31 @@ async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
       }
     }
     await finishWriteStream(writer);
-    await rm(task.destination, { force: true });
-    await rename(partPath, task.destination);
-    progress.onComplete?.(receivedBytes);
-    emitHfDownloadProgress(options, task, {
-      receivedBytes,
-      totalBytes,
-      knownAggregateBytes,
-      aggregateCompletedBytes: progress.completedBytes || 0,
-      startedAt,
-      completed: true
-    });
+    return receivedBytes;
   } catch (error) {
     writer.destroy();
-    await rm(partPath, { force: true }).catch(() => {});
+    if (timedOut) {
+      throw createDetailedError(`${task.label} 다운로드가 ${Math.round(stallTimeoutMs / 1000)}초 동안 응답하지 않았습니다.`, {
+        url: task.url,
+        file: task.file,
+        stallTimeoutMs
+      }, error);
+    }
     throw error;
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    linked.cleanup();
   }
+}
+
+function emitDownloadRetryProgress(options, task, error, nextAttempt, maxAttempts, range = "") {
+  const suffix = range ? ` (${range})` : "";
+  emitRuntimeProgress(options, task.progressPhase || "model_downloading", resolveDownloadProgressTitle(task, false), `${task.label}: ${task.file}`, {
+    progressMode: "log-only",
+    installLogLine: `${task.label} 다운로드 재시도 ${nextAttempt}/${maxAttempts}${suffix}: ${error instanceof Error ? error.message : String(error)}`
+  });
 }
 
 function emitHfDownloadProgress(options, task, state) {
@@ -723,7 +1091,7 @@ function emitHfDownloadProgress(options, task, state) {
   const fileProgress = state.totalBytes
     ? `${formatBytes(state.receivedBytes)} / ${formatBytes(state.totalBytes)}`
     : `${formatBytes(state.receivedBytes)} 받음`;
-  emitRuntimeProgress(options, "model_downloading", state.completed ? "Gemma 모델 다운로드 완료" : "Gemma 모델 다운로드 중", `${task.label}: ${task.file}`, {
+  emitRuntimeProgress(options, task.progressPhase || "model_downloading", resolveDownloadProgressTitle(task, Boolean(state.completed)), `${task.label}: ${task.file}`, {
     progressMode: knownAggregateBytes || state.totalBytes ? "determinate" : "log-only",
     progressPercent,
     progressBytes: aggregateBytes ?? fileBytes,
@@ -733,6 +1101,39 @@ function emitHfDownloadProgress(options, task, state) {
       ? `${task.label} 다운로드 완료: ${task.file} (${fileProgress})`
       : `${task.label} 다운로드 중: ${task.file} (${fileProgress})`
   });
+}
+
+function resolveDownloadProgressTitle(task, completed) {
+  if (completed) {
+    return task.completeTitle || `${task.label} 다운로드 완료`;
+  }
+  return task.progressTitle || `${task.label} 다운로드 중`;
+}
+
+function resolveDownloadRetryCount() {
+  return readPositiveInteger(process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRY_COUNT ?? process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRIES) || DEFAULT_DOWNLOAD_RETRY_COUNT;
+}
+
+function resolveDownloadStallTimeoutMs() {
+  return readPositiveInteger(process.env.MANGA_TRANSLATOR_DOWNLOAD_STALL_TIMEOUT_MS) || DEFAULT_DOWNLOAD_STALL_TIMEOUT_MS;
+}
+
+function createLinkedAbortController(parentSignal) {
+  const controller = new AbortController();
+  if (parentSignal?.aborted) {
+    controller.abort();
+    return { controller, cleanup: () => {} };
+  }
+  const onAbort = () => controller.abort();
+  parentSignal?.addEventListener?.("abort", onAbort, { once: true });
+  return {
+    controller,
+    cleanup: () => parentSignal?.removeEventListener?.("abort", onAbort)
+  };
+}
+
+function isAbortError(error) {
+  return error?.name === "AbortError";
 }
 
 function readContentLength(response) {
@@ -2395,7 +2796,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
     ? await checkPaddleOcrImport(venvPython, options, { runtimeDir, includePackageDir: false })
     : { ok: false, message: "venv python is missing" };
   if (existsSync(venvPython) && importCheck.ok) {
-    return { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, usesTargetPackageDir: false, diagnostics };
+    return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, usesTargetPackageDir: false, diagnostics });
   }
 
   const bootstrapPython = resolveBootstrapPython(options);
@@ -2407,7 +2808,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
     ? await checkPaddleOcrImport(bootstrapPython, options, { runtimeDir, packageDir, includePackageDir: true })
     : importCheck;
   if (!existsSync(venvPython) && importCheck.ok) {
-    return { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, usesTargetPackageDir: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] };
+    return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, usesTargetPackageDir: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] });
   }
 
   const targetInstallLooksBroken = hasOcrInstallMarker(packageDir, runtimeVariant) || hasExpectedOcrPackages(packageDir, options);
@@ -2514,7 +2915,12 @@ async function ensurePaddleOcrRuntime(options = {}) {
     installLogLine: "Paddle OCR 설치가 완료되었습니다."
   });
 
-  return { runtimeDir, runtimeVariant, packageDir, pythonPath: installPython, prepared: true, usesTargetPackageDir: Boolean(targetDir), diagnostics };
+  return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: installPython, prepared: true, usesTargetPackageDir: Boolean(targetDir), diagnostics });
+}
+
+async function finalizePaddleOcrRuntime(options, runtime) {
+  await ensurePaddleOcrModelAssetsDownloaded(options, runtime);
+  return runtime;
 }
 
 function ensureEmbeddedPythonPackagePath(pythonPath, packageDir, runtimeDir = null) {
@@ -3178,6 +3584,9 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
     HF_HOME: hfHomeDir,
     HF_HUB_CACHE: hfHubCacheDir,
     HUGGINGFACE_HUB_CACHE: hfHubCacheDir,
+    HF_HUB_DISABLE_XET: process.env.HF_HUB_DISABLE_XET || "1",
+    HF_HUB_ETAG_TIMEOUT: process.env.HF_HUB_ETAG_TIMEOUT || "30",
+    HF_HUB_DOWNLOAD_TIMEOUT: process.env.HF_HUB_DOWNLOAD_TIMEOUT || "300",
     MANGA_TRANSLATOR_OCR_DEVICE: options.ocrDevice || process.env.MANGA_TRANSLATOR_OCR_DEVICE || "cpu",
     MANGA_TRANSLATOR_PADDLEOCR_DEVICE: ocrDevice,
     PYTHONPATH: pythonPath,
@@ -4595,6 +5004,7 @@ module.exports = {
   buildLaunchArgs,
   buildResponsesRequestBody,
   collectRequiredHfDownloads,
+  collectRequiredPaddleOcrModelDownloads,
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
   convertImageToPngBufferWithFfmpeg,
@@ -4605,6 +5015,7 @@ module.exports = {
   parseOcrBatchProgressLine,
   parsePaddleModelFetchProgress,
   parsePipRawProgress,
+  buildOcrRuntimeEnv,
   resolveOcrBboxTimeoutMs,
   resolveOcrInstallBatchProgressRanges,
   resolveFfmpegPath,

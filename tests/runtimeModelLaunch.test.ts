@@ -27,6 +27,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
     options: { [key: string]: unknown },
     imageVariants: Array<{ role: string; dataUrl?: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number }>
   ) => string;
+  buildOcrRuntimeEnv: (options: { [key: string]: unknown }, runtime?: { runtimeDir?: string; packageDir?: string; includePackageDir?: boolean }) => Record<string, string>;
   collectOcrBboxHints: (options: { [key: string]: unknown }) => Promise<{
     hints: Array<{ x1: number; y1: number; x2: number; y2: number; ocrText?: string }>;
     diagnostics: unknown[];
@@ -34,6 +35,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
     textEvidenceCount: number;
   }>;
   collectRequiredHfDownloads: (options: { [key: string]: unknown }) => Array<{ kind: string; file: string; destination: string }>;
+  collectRequiredPaddleOcrModelDownloads: (options: { [key: string]: unknown }, runtime?: { runtimeDir?: string }) => Array<{ kind: string; repo: string; file: string; destination: string; url: string }>;
   extractModelOutputText: (parsed: unknown) => string;
   inspectModelLaunch: (options: { [key: string]: unknown }) => { launchMode: string; model?: string; reasoningEffort?: string };
   isModelCached: (options: { [key: string]: unknown }) => boolean;
@@ -53,6 +55,8 @@ const {
   buildResponsesRequestBody,
   collectOcrBboxHints,
   collectRequiredHfDownloads,
+  collectRequiredPaddleOcrModelDownloads,
+  buildOcrRuntimeEnv,
   getOverlayPrompt,
   extractModelOutputText,
   inspectModelLaunch,
@@ -156,6 +160,59 @@ describe("runtime model launch helpers", () => {
         delete process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS;
       } else {
         process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS = previous;
+      }
+    }
+  });
+
+  it("prepares Paddle OCR model downloads in the PaddleX official cache", () => {
+    const runtimeDir = createTempDir("ocr-runtime-");
+    const tasks = collectRequiredPaddleOcrModelDownloads({}, { runtimeDir });
+
+    expect(tasks).toHaveLength(36);
+    expect(tasks).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        repo: "PaddlePaddle/PP-DocLayoutV3",
+        file: "inference.pdiparams",
+        destination: join(runtimeDir, "paddlex-cache", "official_models", "PP-DocLayoutV3", "inference.pdiparams")
+      }),
+      expect.objectContaining({
+        repo: "PaddlePaddle/PaddleOCR-VL-1.5",
+        file: "model.safetensors",
+        destination: join(runtimeDir, "paddlex-cache", "official_models", "PaddleOCR-VL-1.5", "model.safetensors")
+      }),
+      expect.objectContaining({
+        repo: "PaddlePaddle/PP-OCRv5_server_det",
+        file: "inference.pdiparams",
+        destination: join(runtimeDir, "paddlex-cache", "official_models", "PP-OCRv5_server_det", "inference.pdiparams")
+      }),
+      expect.objectContaining({
+        repo: "PaddlePaddle/PP-OCRv5_server_rec",
+        file: "inference.pdiparams",
+        destination: join(runtimeDir, "paddlex-cache", "official_models", "PP-OCRv5_server_rec", "inference.pdiparams")
+      })
+    ]));
+  });
+
+  it("disables hf-xet for Paddle OCR Python downloads by default", () => {
+    const runtimeDir = createTempDir("ocr-runtime-");
+    const previousDisableXet = process.env.HF_HUB_DISABLE_XET;
+    const previousDownloadTimeout = process.env.HF_HUB_DOWNLOAD_TIMEOUT;
+    delete process.env.HF_HUB_DISABLE_XET;
+    delete process.env.HF_HUB_DOWNLOAD_TIMEOUT;
+    try {
+      const env = buildOcrRuntimeEnv({}, { runtimeDir, includePackageDir: false });
+      expect(env.HF_HUB_DISABLE_XET).toBe("1");
+      expect(env.HF_HUB_DOWNLOAD_TIMEOUT).toBe("300");
+    } finally {
+      if (previousDisableXet === undefined) {
+        delete process.env.HF_HUB_DISABLE_XET;
+      } else {
+        process.env.HF_HUB_DISABLE_XET = previousDisableXet;
+      }
+      if (previousDownloadTimeout === undefined) {
+        delete process.env.HF_HUB_DOWNLOAD_TIMEOUT;
+      } else {
+        process.env.HF_HUB_DOWNLOAD_TIMEOUT = previousDownloadTimeout;
       }
     }
   });
