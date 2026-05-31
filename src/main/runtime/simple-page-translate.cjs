@@ -20,6 +20,8 @@ const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
 const OCR_INSTALL_MARKER_FILE = "install-complete.json";
 const MAX_LOG_PREVIEW_LENGTH = 8000;
 const MM_PROJ_CANDIDATE_NAMES = ["mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-F32.gguf", "mmproj.gguf"];
+const DEFAULT_OCR_BBOX_TIMEOUT_MS = 60 * 60 * 1000;
+const DEFAULT_OCR_BBOX_PAGE_TIMEOUT_MS = 5 * 60 * 1000;
 const CROP_RETRY_MIN_SIDE_PX = 192;
 const CROP_RETRY_MIN_MARGIN_PX = 64;
 const CROP_RETRY_MARGIN_RATIO = 0.5;
@@ -2209,10 +2211,14 @@ async function runOcrBboxCommand(options = {}, provider = "external-command") {
   const runtime = provider === "paddleocr-vl" ? await ensurePaddleOcrRuntime(options) : null;
   const command = buildOcrBboxCommand(options, provider, outputPath, runtime);
   emitRuntimeProgress(options, "ocr_running", "Paddle OCR 모델 다운로드/위치 분석 중", `장치: ${resolveOcrDeviceLabel(options)}`);
+  const handleOcrOutput = createOcrCommandProgressHandler(options, {
+    progressText: "Paddle OCR 모델 다운로드/위치 분석 중"
+  });
   const { stdout, stderr } = await runShellCommand(command, {
-    timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS) || 600000,
+    timeoutMs: resolveOcrBboxTimeoutMs(1),
     env: buildOcrRuntimeEnv(options, runtime),
-    signal: options.abortSignal
+    signal: options.abortSignal,
+    onOutput: handleOcrOutput
   });
 
   let rawText = "";
@@ -2288,9 +2294,15 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
     progressTotal: readPositiveInteger(firstOptions.ocrBatchTotal) || items.length
   });
   const seenProgressEvents = new Set();
+  const handleCommandOutput = createOcrCommandProgressHandler(batchOptions, {
+    progressText: "Paddle OCR 배치 위치 분석 중",
+    progressCurrent: readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0,
+    progressTotal: readPositiveInteger(firstOptions.ocrBatchTotal) || items.length
+  });
   const handleProgressLine = (line) => {
       const progress = parseOcrBatchProgressLine(line);
       if (!progress) {
+        handleCommandOutput(line);
         return;
       }
       const phase = progress.phase || "done";
@@ -2326,7 +2338,7 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   try {
     progressPoller.start();
     ({ stdout, stderr } = await runShellCommand(command, {
-      timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS) || Math.max(600000, items.length * 300000),
+      timeoutMs: resolveOcrBboxTimeoutMs(items.length),
       env: buildOcrRuntimeEnv(batchOptions, runtime),
       signal: batchOptions.abortSignal,
       onOutput: handleProgressLine
@@ -2999,6 +3011,77 @@ function parseOcrBatchProgressLine(line) {
   }
 }
 
+function parsePaddleModelFetchProgress(line) {
+  const text = String(line ?? "");
+  const fetchMatch = text.match(/\bFetching\s+(\d+)\s+files:\s+(\d+)%/i);
+  if (!fetchMatch) {
+    return null;
+  }
+
+  const totalFiles = Number(fetchMatch[1]);
+  const percent = Number(fetchMatch[2]);
+  const fractionMatch = text.match(/\b(\d+)\s*\/\s*(\d+)\b/);
+  const currentFiles = fractionMatch && Number(fractionMatch[2]) === totalFiles ? Number(fractionMatch[1]) : null;
+
+  return {
+    totalFiles,
+    currentFiles: Number.isFinite(currentFiles) ? Math.max(0, Math.min(currentFiles, totalFiles)) : null,
+    percent: Number.isFinite(percent) ? Math.max(0, Math.min(percent, 100)) : null
+  };
+}
+
+function createOcrCommandProgressHandler(options = {}, config = {}) {
+  let lastDetail = "";
+  let lastAt = 0;
+  return (line) => {
+    const logLine = sanitizeInstallLogLine(line);
+    if (!logLine || parseOcrBatchProgressLine(logLine)) {
+      return;
+    }
+
+    const fetchProgress = parsePaddleModelFetchProgress(logLine);
+    const isModelStatusLine = Boolean(fetchProgress) ||
+      /^(Creating model:|Checking connectivity|Using official model|Fetching \d+ files:)/i.test(logLine);
+    if (!isModelStatusLine) {
+      return;
+    }
+
+    const detail = fetchProgress
+      ? formatPaddleModelFetchProgress(fetchProgress)
+      : logLine;
+    const now = Date.now();
+    if (detail === lastDetail && now - lastAt < 2000) {
+      return;
+    }
+    lastDetail = detail;
+    lastAt = now;
+
+    emitRuntimeProgress(options, "ocr_running", config.progressText || "Paddle OCR 모델 다운로드/위치 분석 중", detail, {
+      progressMode: "log-only",
+      progressCurrent: config.progressCurrent,
+      progressTotal: config.progressTotal,
+      installLogLine: logLine
+    });
+  };
+}
+
+function formatPaddleModelFetchProgress(progress) {
+  const countText = Number.isFinite(progress.currentFiles)
+    ? `${progress.currentFiles} / ${progress.totalFiles}개`
+    : `${progress.totalFiles}개`;
+  const percentText = Number.isFinite(progress.percent) ? ` (${progress.percent}%)` : "";
+  return `Paddle OCR 모델 파일 다운로드 중: ${countText}${percentText}`;
+}
+
+function resolveOcrBboxTimeoutMs(pageCount = 1) {
+  const explicit = readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS);
+  if (explicit) {
+    return explicit;
+  }
+  const pages = Math.max(1, readPositiveInteger(pageCount) || 1);
+  return Math.max(DEFAULT_OCR_BBOX_TIMEOUT_MS, pages * DEFAULT_OCR_BBOX_PAGE_TIMEOUT_MS);
+}
+
 function createOcrBatchProgressFilePoller(progressPath, onLine) {
   let timer = null;
   let consumedLines = 0;
@@ -3104,6 +3187,7 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
     PADDLE_PDX_MODEL_SOURCE: process.env.PADDLE_PDX_MODEL_SOURCE || "huggingface",
     PADDLE_PDX_CACHE_HOME: process.env.PADDLE_PDX_CACHE_HOME || path.join(runtimeDir, "paddlex-cache"),
     PADDLE_PDX_HUGGING_FACE_ENDPOINT: process.env.PADDLE_PDX_HUGGING_FACE_ENDPOINT || "https://huggingface.co",
+    PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: process.env.PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK || "True",
     PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT: process.env.PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT || "0",
     PIP_DISABLE_PIP_VERSION_CHECK: process.env.PIP_DISABLE_PIP_VERSION_CHECK || "1",
     TMP: tempDir,
@@ -4519,7 +4603,9 @@ module.exports = {
   getOverlayPrompt,
   getScaledSize,
   parseOcrBatchProgressLine,
+  parsePaddleModelFetchProgress,
   parsePipRawProgress,
+  resolveOcrBboxTimeoutMs,
   resolveOcrInstallBatchProgressRanges,
   resolveFfmpegPath,
   resolveManagedHfFilePath,
