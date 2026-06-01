@@ -293,6 +293,23 @@ function normalizeDirection(value) {
   return text === "vertical" ? "vertical" : "horizontal";
 }
 
+function normalizeTextRole(value) {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[_\s-]+/g, "");
+  if (!text) {
+    return "";
+  }
+  if (["sound", "sfx", "soundeffect", "effect", "reaction", "onomatopoeia"].includes(text)) {
+    return "sound";
+  }
+  if (["ordinary", "speech", "dialogue", "dialog", "bubble", "caption", "narration", "label", "sign", "note", "title"].includes(text)) {
+    return "ordinary";
+  }
+  if (["nontext", "nottext", "reject", "decoration", "texture", "ornament"].includes(text)) {
+    return "nontext";
+  }
+  return "";
+}
+
 function normalizeAngle(value) {
   const parsed = toNumber(value);
   if (parsed === null) {
@@ -318,7 +335,7 @@ function normalizeConfidence(value) {
     return null;
   }
   const normalized = parsed > 1 && parsed <= 100 ? parsed / 100 : parsed;
-  return Math.min(1, Math.max(0, Math.round(normalized * 100) / 100));
+  return Math.min(1, Math.max(0, normalized));
 }
 
 function normalizeBBox(item) {
@@ -397,6 +414,7 @@ function normalizeItem(item, index) {
   return {
     id: toNumber(item?.id) ?? index + 1,
     type: normalizeParsedType(item?.type),
+    ...(normalizeTextRole(item?.textRole ?? item?.text_role ?? item?.role) ? { textRole: normalizeTextRole(item?.textRole ?? item?.text_role ?? item?.role) } : {}),
     bbox,
     jp: normalizedJp,
     ko: normalizedKo,
@@ -422,7 +440,7 @@ function normalizeRetryItem(item, index) {
     id: toNumber(item?.id) ?? index + 1,
     type: normalizeParsedType(item?.type),
     ...(bbox ? { bbox } : {}),
-    ...(typeof item?.textRole === "string" && item.textRole.trim() ? { textRole: item.textRole.trim() } : {}),
+    ...(normalizeTextRole(item?.textRole ?? item?.text_role ?? item?.role) ? { textRole: normalizeTextRole(item?.textRole ?? item?.text_role ?? item?.role) } : {}),
     jp: normalizedJp,
     ko: normalizedKo,
     direction: normalizeDirection(item?.direction ?? item?.sourceDirection ?? item?.writingDirection),

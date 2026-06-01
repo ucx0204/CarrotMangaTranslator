@@ -19,7 +19,8 @@ import {
   normalizeRenderDirection,
   normalizeRotationDeg,
   offsetBlockBboxes,
-  resolveEditableBlockBbox
+  resolveEditableBlockBbox,
+  sanitizeChapterBboxes
 } from "../../shared/geometry";
 import { isUsableRegionBbox } from "../../shared/region";
 import { AppModals, type RenameTarget } from "./components/AppModals";
@@ -248,6 +249,15 @@ export default function App(): React.JSX.Element {
     }
   }, [inpaintingToolActive]);
 
+  const persistChapter = useCallback(async (chapter: ChapterSnapshot, options: { syncState?: boolean } = {}): Promise<ChapterSnapshot> => {
+    const saved = await window.mangaApi.saveChapter(sanitizeChapterBboxes(chapter));
+    if (options.syncState !== false && currentChapterRef.current?.id === saved.id) {
+      currentChapterRef.current = saved;
+      setCurrentChapter(saved);
+    }
+    return saved;
+  }, []);
+
   const mergeLiveChapter = useCallback((chapter: ChapterSnapshot) => {
     const current = currentChapterRef.current;
     if (current && current.id !== chapter.id) {
@@ -341,8 +351,10 @@ export default function App(): React.JSX.Element {
     const version = dirtyVersionRef.current;
     saveTimerRef.current = window.setTimeout(async () => {
       try {
-        await window.mangaApi.saveChapter(currentChapter);
+        const saved = await persistChapter(currentChapter, { syncState: false });
         if (dirtyVersionRef.current === version) {
+          currentChapterRef.current = saved;
+          setCurrentChapter(saved);
           dirtyPageIdsRef.current.clear();
           setDirty(false);
         }
@@ -358,7 +370,7 @@ export default function App(): React.JSX.Element {
         window.clearTimeout(saveTimerRef.current);
       }
     };
-  }, [currentChapter, dirty, jobActive]);
+  }, [currentChapter, dirty, jobActive, persistChapter]);
 
   const markDirty = useCallback((pageId?: string) => {
     dirtyVersionRef.current += 1;
@@ -376,10 +388,10 @@ export default function App(): React.JSX.Element {
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
-    await window.mangaApi.saveChapter(currentChapter);
+    await persistChapter(currentChapter);
     dirtyPageIdsRef.current.clear();
     setDirty(false);
-  }, [currentChapter]);
+  }, [currentChapter, persistChapter]);
 
   const clearCurrentChapter = useCallback(() => {
     if (saveTimerRef.current) {
@@ -1159,11 +1171,11 @@ export default function App(): React.JSX.Element {
       clearPageImageCache();
       setCurrentChapter(nextChapter);
       currentChapterRef.current = nextChapter;
-      const saved = await window.mangaApi.saveChapter(nextChapter);
+      const saved = await persistChapter(nextChapter);
       mergeLiveChapter(saved);
       return saved;
     },
-    [clearPageImageCache, mergeLiveChapter]
+    [clearPageImageCache, mergeLiveChapter, persistChapter]
   );
 
   const applyRetouchPoints = useCallback(

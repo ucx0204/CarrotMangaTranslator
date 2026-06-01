@@ -114,6 +114,7 @@ export function selectCropRetryTargets(
     .map(({ item, reason }) => ({
       id: item.id,
       type: item.type,
+      textRole: item.textRole,
       bbox: item.bbox,
       cropBox: buildExpandedCropBox(item.bbox, page),
       reason,
@@ -165,6 +166,7 @@ export function mergeCropRetryItems(
     merged.push({
       ...item,
       type: retry.type || item.type,
+      textRole: retry.textRole || item.textRole,
       bbox: retryBbox ?? item.bbox,
       jp: retry.jp || item.jp,
       ko: retry.ko || item.ko,

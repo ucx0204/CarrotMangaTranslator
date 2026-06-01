@@ -78,6 +78,7 @@ export function summarizeTranslationOptions(options: TranslationOptions): Record
     codexReasoningEffort: options.codexReasoningEffort,
     codexOauthPort: options.codexOauthPort,
     ocrDevice: options.ocrDevice,
+    ocrGpuCudaTag: options.ocrGpuCudaTag,
     hfHomeDir: options.hfHomeDir ?? null,
     hfHubCacheDir: options.hfHubCacheDir ?? null
   };

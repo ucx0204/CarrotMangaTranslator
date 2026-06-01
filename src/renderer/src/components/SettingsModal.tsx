@@ -166,7 +166,8 @@ export function SettingsModal({
           oauthPort: parsedCodexOauthPort
         },
         ocr: {
-          device: ocrDevice
+          device: ocrDevice,
+          ...(initialSettings.ocr.gpuCudaTag ? { gpuCudaTag: initialSettings.ocr.gpuCudaTag } : {})
         },
         maxTokens: parsedMaxTokens
       };
@@ -190,7 +191,8 @@ export function SettingsModal({
         oauthPort: codexOauthPortValid ? parsedCodexOauthPort : initialSettings.codex.oauthPort
       },
       ocr: {
-        device: ocrDevice
+        device: ocrDevice,
+        ...(initialSettings.ocr.gpuCudaTag ? { gpuCudaTag: initialSettings.ocr.gpuCudaTag } : {})
       },
       maxTokens: parsedMaxTokens
     };
@@ -212,6 +214,7 @@ export function SettingsModal({
     ocrDevice,
     initialSettings.codex.model,
     initialSettings.codex.oauthPort,
+    initialSettings.ocr.gpuCudaTag,
     maxTokensValid
   ]);
 

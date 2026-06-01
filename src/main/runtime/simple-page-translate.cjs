@@ -1,6 +1,6 @@
 const { spawn } = require("node:child_process");
 const { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } = require("node:fs");
-const { mkdir, readFile, rename, rm, writeFile } = require("node:fs/promises");
+const { mkdir, open, readFile, rename, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
 
@@ -12,6 +12,9 @@ const {
   DEFAULT_API_KEY,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
+  DEFAULT_DOWNLOAD_METADATA_TIMEOUT_MS,
+  DEFAULT_DOWNLOAD_RETRY_COUNT,
+  DEFAULT_DOWNLOAD_STALL_TIMEOUT_MS,
   DEFAULT_HF_FILE,
   DEFAULT_MMPROJ_FILE,
   DEFAULT_MMPROJ_HF,
@@ -22,9 +25,11 @@ const {
   DEFAULT_OCR_GPU_CUDA_TAG,
   DEFAULT_OCR_GPU_EXTRA_PACKAGES,
   DEFAULT_OCR_GPU_PADDLE_PACKAGE,
+  HF_DOWNLOAD_CHUNK_SIZE,
   MAX_LOG_PREVIEW_LENGTH,
   MM_PROJ_CANDIDATE_NAMES,
-  OCR_INSTALL_MARKER_FILE
+  OCR_INSTALL_MARKER_FILE,
+  PADDLE_OCR_MODEL_DOWNLOADS
 } = require("./simple-page-defaults.cjs");
 const {
   buildSystemPrompt,
@@ -151,6 +156,7 @@ function buildOptionSummary(options = {}) {
     codexOauthPort: options.codexOauthPort,
     ocrBboxProvider: resolveOcrBboxProvider(options),
     ocrDevice: resolveOcrDevice(options),
+    ocrGpuCudaTag: resolveOcrGpuCudaTag(options),
     ocrRuntimeDir: resolveOcrRuntimeDir(options),
     launchMode: launchTarget.launchMode,
     hfHomeDir: resolveHfHomeDir(options),
@@ -615,6 +621,110 @@ async function ensureHfModelAssetsDownloaded(options = {}, launchTarget = inspec
   });
 }
 
+function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
+  const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);
+  const endpoint = String(process.env.PADDLE_PDX_HUGGING_FACE_ENDPOINT || "https://huggingface.co").replace(/\/+$/, "");
+  const tasks = [];
+  for (const model of PADDLE_OCR_MODEL_DOWNLOADS) {
+    const modelDir = resolvePaddleOcrModelCacheDir(runtimeDir, model.name);
+    for (const file of model.files) {
+      tasks.push({
+        kind: "paddle-ocr-model",
+        label: `Paddle OCR ${model.name}`,
+        repo: model.repo,
+        file,
+        url: buildHfResolveUrl(endpoint, model.repo, file),
+        destination: path.join(modelDir, safeHfRelativePath(file)),
+        progressPhase: "ocr_downloading",
+        progressTitle: "Paddle OCR 모델 파일 다운로드 중",
+        completeTitle: "Paddle OCR 모델 파일 다운로드 완료"
+      });
+    }
+  }
+  return tasks;
+}
+
+async function ensurePaddleOcrModelAssetsDownloaded(options = {}, runtime = null) {
+  if (isTruthy(process.env.MANGA_TRANSLATOR_SKIP_PADDLE_MODEL_PREFETCH ?? "false")) {
+    return;
+  }
+
+  const allTasks = collectRequiredPaddleOcrModelDownloads(options, runtime);
+  const pending = [];
+  const totals = new Map();
+  let knownTotalBytes = 0;
+
+  for (const task of allTasks) {
+    const totalBytes = await probeContentLength(task.url, options.abortSignal);
+    const existingSize = getFileSize(task.destination);
+    if (totalBytes > 0 && existingSize === totalBytes) {
+      continue;
+    }
+    if (totalBytes <= 0 && existingSize > 0) {
+      continue;
+    }
+    if (existingSize > 0 && totalBytes > 0 && existingSize !== totalBytes) {
+      await rm(task.destination, { force: true }).catch(() => {});
+    }
+    pending.push(task);
+    if (totalBytes > 0) {
+      totals.set(task.destination, totalBytes);
+      knownTotalBytes += totalBytes;
+    }
+  }
+
+  if (pending.length === 0) {
+    return;
+  }
+
+  const hasKnownAggregate = knownTotalBytes > 0 && totals.size === pending.length;
+  let completedBytes = 0;
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 파일 다운로드 중", `${pending.length}개 파일 준비`, {
+    progressMode: hasKnownAggregate ? "determinate" : "log-only",
+    progressPercent: hasKnownAggregate ? 0 : undefined,
+    progressBytes: 0,
+    progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+    installLogLine: `Paddle OCR 모델 다운로드 대상 ${pending.length}개 파일을 확인했습니다.`
+  });
+
+  for (const task of pending) {
+    const totalBytes = totals.get(task.destination) || 0;
+    await downloadHfFileWithProgress(task, options, {
+      totalBytes,
+      knownAggregateBytes: hasKnownAggregate ? knownTotalBytes : 0,
+      completedBytes,
+      onComplete: (bytesWritten) => {
+        completedBytes += hasKnownAggregate ? totalBytes : bytesWritten;
+      }
+    });
+  }
+
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 파일 다운로드 완료", "모든 Paddle OCR 모델 파일을 로컬 캐시에 저장했습니다.", {
+    progressMode: hasKnownAggregate ? "determinate" : "log-only",
+    progressPercent: hasKnownAggregate ? 1 : undefined,
+    progressBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+    progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+    installLogLine: "Paddle OCR 모델 파일 다운로드가 완료되었습니다."
+  });
+}
+
+function resolvePaddleOcrModelCacheDir(runtimeDir, modelName) {
+  return path.join(runtimeDir, "paddlex-cache", "official_models", modelName);
+}
+
+function buildHfResolveUrl(endpoint, repo, file) {
+  const filePath = String(file ?? "").replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/");
+  return `${String(endpoint || "https://huggingface.co").replace(/\/+$/, "")}/${repo}/resolve/main/${filePath}`;
+}
+
+function getFileSize(filePath) {
+  try {
+    return statSync(filePath).size;
+  } catch {
+    return 0;
+  }
+}
+
 function isUsableFile(filePath) {
   try {
     return Boolean(filePath) && statSync(filePath).isFile() && statSync(filePath).size > 0;
@@ -624,57 +734,266 @@ function isUsableFile(filePath) {
 }
 
 async function probeContentLength(url, signal) {
+  if (signal?.aborted) {
+    throw createAbortError();
+  }
+  const timeoutMs = readPositiveInteger(process.env.MANGA_TRANSLATOR_DOWNLOAD_METADATA_TIMEOUT_MS) || DEFAULT_DOWNLOAD_METADATA_TIMEOUT_MS;
+  const linked = createLinkedAbortController(signal);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    linked.controller.abort();
+  }, timeoutMs);
   try {
-    const response = await fetch(url, { method: "HEAD", signal });
+    const response = await fetch(url, { method: "HEAD", signal: linked.controller.signal });
     if (!response.ok) {
       return 0;
     }
     return readContentLength(response);
   } catch {
+    if (signal?.aborted) {
+      throw createAbortError();
+    }
+    if (timedOut) {
+      return 0;
+    }
     return 0;
+  } finally {
+    clearTimeout(timeout);
+    linked.cleanup();
   }
 }
 
 async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
+  const maxAttempts = resolveDownloadRetryCount();
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await downloadHfFileWithProgressAttempt(task, options, progress, { attempt, maxAttempts });
+    } catch (error) {
+      if (options.abortSignal?.aborted || isAbortError(error)) {
+        throw error;
+      }
+      lastError = error;
+      if (attempt >= maxAttempts) {
+        break;
+      }
+      emitDownloadRetryProgress(options, task, error, attempt + 1, maxAttempts);
+      await delay(Math.min(30000, 1000 * 2 ** (attempt - 1)), undefined, { signal: options.abortSignal });
+    }
+  }
+  throw lastError || createDetailedError(`${task.label} 다운로드에 실패했습니다.`, { url: task.url, file: task.file });
+}
+
+async function downloadHfFileWithProgressAttempt(task, options = {}, progress = {}, attemptState = {}) {
   const partPath = `${task.destination}.part`;
   await mkdir(path.dirname(task.destination), { recursive: true });
   await rm(partPath, { force: true });
 
-  emitRuntimeProgress(options, "model_downloading", "Gemma 모델 다운로드 중", `${task.label}: ${task.file}`, {
+  emitRuntimeProgress(options, task.progressPhase || "model_downloading", resolveDownloadProgressTitle(task, false), `${task.label}: ${task.file}`, {
     progressMode: progress.knownAggregateBytes || progress.totalBytes ? "determinate" : "log-only",
     progressPercent: progress.knownAggregateBytes ? progress.completedBytes / progress.knownAggregateBytes : progress.totalBytes ? 0 : undefined,
     progressBytes: progress.knownAggregateBytes ? progress.completedBytes : progress.totalBytes ? 0 : undefined,
     progressTotalBytes: progress.knownAggregateBytes || progress.totalBytes || undefined,
-    installLogLine: `${task.label} 다운로드 시작: ${task.file}`
+    installLogLine: attemptState.attempt > 1
+      ? `${task.label} 다운로드 재시도 ${attemptState.attempt}/${attemptState.maxAttempts}: ${task.file}`
+      : `${task.label} 다운로드 시작: ${task.file}`
   });
 
-  const response = await fetch(task.url, { signal: options.abortSignal });
-  if (!response.ok || !response.body) {
-    throw createDetailedError(`${task.label} 다운로드에 실패했습니다 (${response.status}).`, {
-      status: response.status,
-      statusText: response.statusText,
-      url: task.url,
-      file: task.file
-    });
-  }
-
-  const totalBytes = progress.totalBytes || readContentLength(response);
-  const knownAggregateBytes = progress.knownAggregateBytes || 0;
-  const reader = response.body.getReader();
-  const writer = createWriteStream(partPath, { flags: "wx" });
-  let receivedBytes = 0;
-  let lastEmitAt = 0;
   const startedAt = Date.now();
+  const totalBytes = progress.totalBytes || 0;
+  const knownAggregateBytes = progress.knownAggregateBytes || 0;
 
   try {
+    const receivedBytes = totalBytes > 0
+      ? await downloadHfFileByRanges(task, options, progress, partPath, totalBytes, startedAt)
+      : await downloadHfFileByStream(task, options, progress, partPath, startedAt);
+    await rm(task.destination, { force: true });
+    await rename(partPath, task.destination);
+    progress.onComplete?.(receivedBytes);
+    emitHfDownloadProgress(options, task, {
+      receivedBytes,
+      totalBytes,
+      knownAggregateBytes,
+      aggregateCompletedBytes: progress.completedBytes || 0,
+      startedAt,
+      completed: true
+    });
+  } catch (error) {
+    await rm(partPath, { force: true }).catch(() => {});
+    throw error;
+  }
+}
+
+async function downloadHfFileByRanges(task, options, progress, partPath, totalBytes, startedAt) {
+  let file = null;
+  try {
+    file = await open(partPath, "w");
+    await file.truncate(totalBytes);
+    const knownAggregateBytes = progress.knownAggregateBytes || 0;
+    let receivedBytes = 0;
+    let lastEmitAt = 0;
+
+    for (let start = 0; start < totalBytes; start += HF_DOWNLOAD_CHUNK_SIZE) {
+      const end = Math.min(totalBytes - 1, start + HF_DOWNLOAD_CHUNK_SIZE - 1);
+      let chunk = null;
+      try {
+        chunk = await fetchRangeBufferWithRetry(task, options, start, end);
+      } catch (error) {
+        if (error?.rangeUnsupported && start === 0) {
+          await file.close();
+          file = null;
+          await rm(partPath, { force: true }).catch(() => {});
+          return await downloadHfFileByStream(task, options, progress, partPath, startedAt);
+        }
+        throw error;
+      }
+      const expectedLength = end - start + 1;
+      if (chunk.length !== expectedLength) {
+        throw createDetailedError(`${task.label} 다운로드 조각 크기가 올바르지 않습니다.`, {
+          url: task.url,
+          file: task.file,
+          rangeStart: start,
+          rangeEnd: end,
+          expectedLength,
+          receivedLength: chunk.length
+        });
+      }
+      await file.write(chunk, 0, chunk.length, start);
+      receivedBytes += chunk.length;
+      const now = Date.now();
+      if (now - lastEmitAt > 500 || receivedBytes >= totalBytes) {
+        lastEmitAt = now;
+        emitHfDownloadProgress(options, task, {
+          receivedBytes,
+          totalBytes,
+          knownAggregateBytes,
+          aggregateCompletedBytes: progress.completedBytes || 0,
+          startedAt
+        });
+      }
+    }
+    return receivedBytes;
+  } finally {
+    if (file) {
+      await file.close().catch(() => {});
+    }
+  }
+}
+
+async function fetchRangeBufferWithRetry(task, options, start, end) {
+  const maxAttempts = resolveDownloadRetryCount();
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetchRangeBuffer(task, options, start, end);
+    } catch (error) {
+      if (options.abortSignal?.aborted || isAbortError(error) || error?.rangeUnsupported) {
+        throw error;
+      }
+      lastError = error;
+      if (attempt >= maxAttempts) {
+        break;
+      }
+      emitDownloadRetryProgress(options, task, error, attempt + 1, maxAttempts, `bytes=${start}-${end}`);
+      await delay(Math.min(30000, 1000 * 2 ** (attempt - 1)), undefined, { signal: options.abortSignal });
+    }
+  }
+  throw lastError || createDetailedError(`${task.label} 다운로드 조각에 실패했습니다.`, { url: task.url, file: task.file, rangeStart: start, rangeEnd: end });
+}
+
+async function fetchRangeBuffer(task, options, start, end) {
+  const range = `bytes=${start}-${end}`;
+  const stallTimeoutMs = resolveDownloadStallTimeoutMs();
+  const linked = createLinkedAbortController(options.abortSignal);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    linked.controller.abort();
+  }, stallTimeoutMs);
+  try {
+    const response = await fetch(task.url, {
+      headers: { Range: range },
+      signal: linked.controller.signal
+    });
+    if (response.status === 200) {
+      throw createDetailedError(`${task.label} 서버가 범위 다운로드를 지원하지 않습니다.`, {
+        rangeUnsupported: true,
+        status: response.status,
+        url: task.url,
+        file: task.file
+      });
+    }
+    if (response.status !== 206 || !response.ok) {
+      throw createDetailedError(`${task.label} 다운로드 조각에 실패했습니다 (${response.status}).`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: task.url,
+        file: task.file,
+        range
+      });
+    }
+    return Buffer.from(await response.arrayBuffer());
+  } catch (error) {
+    if (timedOut) {
+      throw createDetailedError(`${task.label} 다운로드가 ${Math.round(stallTimeoutMs / 1000)}초 동안 응답하지 않았습니다.`, {
+        url: task.url,
+        file: task.file,
+        range,
+        stallTimeoutMs
+      }, error);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    linked.cleanup();
+  }
+}
+
+async function downloadHfFileByStream(task, options, progress, partPath, startedAt) {
+  const stallTimeoutMs = resolveDownloadStallTimeoutMs();
+  const linked = createLinkedAbortController(options.abortSignal);
+  let timedOut = false;
+  let timeout = null;
+  const resetTimeout = () => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(() => {
+      timedOut = true;
+      linked.controller.abort();
+    }, stallTimeoutMs);
+  };
+  resetTimeout();
+
+  const writer = createWriteStream(partPath, { flags: "wx" });
+  try {
+    const response = await fetch(task.url, { signal: linked.controller.signal });
+    if (!response.ok || !response.body) {
+      throw createDetailedError(`${task.label} 다운로드에 실패했습니다 (${response.status}).`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: task.url,
+        file: task.file
+      });
+    }
+
+    const totalBytes = progress.totalBytes || readContentLength(response);
+    const knownAggregateBytes = progress.knownAggregateBytes || 0;
+    const reader = response.body.getReader();
+    let receivedBytes = 0;
+    let lastEmitAt = 0;
+
     while (true) {
       if (options.abortSignal?.aborted) {
         throw createAbortError();
       }
+      resetTimeout();
       const { done, value } = await reader.read();
       if (done) {
         break;
       }
+      resetTimeout();
       await writeStreamChunk(writer, Buffer.from(value));
       receivedBytes += value.byteLength;
       const now = Date.now();
@@ -690,22 +1009,31 @@ async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
       }
     }
     await finishWriteStream(writer);
-    await rm(task.destination, { force: true });
-    await rename(partPath, task.destination);
-    progress.onComplete?.(receivedBytes);
-    emitHfDownloadProgress(options, task, {
-      receivedBytes,
-      totalBytes,
-      knownAggregateBytes,
-      aggregateCompletedBytes: progress.completedBytes || 0,
-      startedAt,
-      completed: true
-    });
+    return receivedBytes;
   } catch (error) {
     writer.destroy();
-    await rm(partPath, { force: true }).catch(() => {});
+    if (timedOut) {
+      throw createDetailedError(`${task.label} 다운로드가 ${Math.round(stallTimeoutMs / 1000)}초 동안 응답하지 않았습니다.`, {
+        url: task.url,
+        file: task.file,
+        stallTimeoutMs
+      }, error);
+    }
     throw error;
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    linked.cleanup();
   }
+}
+
+function emitDownloadRetryProgress(options, task, error, nextAttempt, maxAttempts, range = "") {
+  const suffix = range ? ` (${range})` : "";
+  emitRuntimeProgress(options, task.progressPhase || "model_downloading", resolveDownloadProgressTitle(task, false), `${task.label}: ${task.file}`, {
+    progressMode: "log-only",
+    installLogLine: `${task.label} 다운로드 재시도 ${nextAttempt}/${maxAttempts}${suffix}: ${error instanceof Error ? error.message : String(error)}`
+  });
 }
 
 function emitHfDownloadProgress(options, task, state) {
@@ -724,7 +1052,7 @@ function emitHfDownloadProgress(options, task, state) {
   const fileProgress = state.totalBytes
     ? `${formatBytes(state.receivedBytes)} / ${formatBytes(state.totalBytes)}`
     : `${formatBytes(state.receivedBytes)} 받음`;
-  emitRuntimeProgress(options, "model_downloading", state.completed ? "Gemma 모델 다운로드 완료" : "Gemma 모델 다운로드 중", `${task.label}: ${task.file}`, {
+  emitRuntimeProgress(options, task.progressPhase || "model_downloading", resolveDownloadProgressTitle(task, Boolean(state.completed)), `${task.label}: ${task.file}`, {
     progressMode: knownAggregateBytes || state.totalBytes ? "determinate" : "log-only",
     progressPercent,
     progressBytes: aggregateBytes ?? fileBytes,
@@ -734,6 +1062,39 @@ function emitHfDownloadProgress(options, task, state) {
       ? `${task.label} 다운로드 완료: ${task.file} (${fileProgress})`
       : `${task.label} 다운로드 중: ${task.file} (${fileProgress})`
   });
+}
+
+function resolveDownloadProgressTitle(task, completed) {
+  if (completed) {
+    return task.completeTitle || `${task.label} 다운로드 완료`;
+  }
+  return task.progressTitle || `${task.label} 다운로드 중`;
+}
+
+function resolveDownloadRetryCount() {
+  return readPositiveInteger(process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRY_COUNT ?? process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRIES) || DEFAULT_DOWNLOAD_RETRY_COUNT;
+}
+
+function resolveDownloadStallTimeoutMs() {
+  return readPositiveInteger(process.env.MANGA_TRANSLATOR_DOWNLOAD_STALL_TIMEOUT_MS) || DEFAULT_DOWNLOAD_STALL_TIMEOUT_MS;
+}
+
+function createLinkedAbortController(parentSignal) {
+  const controller = new AbortController();
+  if (parentSignal?.aborted) {
+    controller.abort();
+    return { controller, cleanup: () => {} };
+  }
+  const onAbort = () => controller.abort();
+  parentSignal?.addEventListener?.("abort", onAbort, { once: true });
+  return {
+    controller,
+    cleanup: () => parentSignal?.removeEventListener?.("abort", onAbort)
+  };
+}
+
+function isAbortError(error) {
+  return error?.name === "AbortError";
 }
 
 function readContentLength(response) {
@@ -1423,7 +1784,7 @@ function buildCropRetryPrompt(targets = []) {
       `reason:${target.reason || "low-confidence"}`,
       target.cropGroupId ? `cropGroup:${target.cropGroupId}` : "",
       cropSize,
-      `type:${target.type || "nonsolid"} direction:${target.direction || "horizontal"} angle:${Number.isFinite(Number(target.angle)) ? target.angle : 0} fontSize:${Number.isFinite(Number(target.fontSize)) ? target.fontSize : ""} confidence:${confidence}`,
+      `type:${target.type || "nonsolid"} textRole:${target.textRole || ""} direction:${target.direction || "horizontal"} angle:${Number.isFinite(Number(target.angle)) ? target.angle : 0} fontSize:${Number.isFinite(Number(target.fontSize)) ? target.fontSize : ""} confidence:${confidence}`,
       bbox
     ].filter(Boolean).join(" ");
   });
@@ -1437,7 +1798,8 @@ function buildCropRetryPrompt(targets = []) {
     "Read the real Japanese text inside that crop for the same target id. If the crop contains the target text, return the tight crop-coordinate bbox for the visible Japanese glyphs.",
     "Several target ids may point to the same crop image. In that case, use the larger crop as context and return separate records for the separate visible Japanese lettering groups represented by those target ids.",
     "If a large sound effect was split into nearby target ids, keep those ids separate when the visible lettering groups are separate. Do not create one giant combined translation over the whole crop.",
-    "For sound-check targets, decide whether the crop is printed sound/reaction lettering, ordinary language, or non-text. Sound/reaction lettering should preserve the original visible sound texture in Korean pronunciation instead of being converted into a scene description.",
+    "For sound-check targets, decide whether the crop is standalone printed sound/reaction lettering, ordinary language, or non-text. Sound/reaction lettering should become compact Korean effect lettering, not a scene description and not a mechanical kana transliteration.",
+    "If the crop text is inside a speech bubble, caption, note, sign, or label, treat it as ordinary language unless the visible lettering is unmistakably standalone sound/reaction lettering.",
     "",
     "# Output",
     "Return plain text records only. Do not output JSON, markdown, bullets, commentary, or code fences.",
@@ -1447,12 +1809,15 @@ function buildCropRetryPrompt(targets = []) {
     "Never copy the target bbox or crop origin numbers into x1/y1/x2/y2; those are page coordinates, not crop coordinates.",
     "textRole is one of sound, ordinary, or nontext.",
     "confidence is 0.00 to 1.00 for the corrected OCR+translation.",
+    "If textRole is sound, use confidence 1.00 only when the complete sound effect is unquestionably real Japanese text and every glyph, including final/trailing kana, is read correctly. If there is any doubt, use confidence below 1.00.",
     "If the crop is decoration, panel trim, texture, non-Japanese art, or otherwise not real Japanese text, output type: reject, textRole: nontext, confidence: 1, jp: [non-text], ko: [non-text].",
     "If the crop still has readable Japanese, never output only [?]; give the best OCR and concise natural Korean.",
     "Use type nonsolid for every accepted text target.",
-    "If textRole is ordinary, keep dialogue/caption/label Korean natural and do not apply sound-effect rules.",
+    "If textRole is ordinary, keep dialogue/caption/label Korean natural, horizontally readable, and do not apply sound-effect rules.",
+    "For ordinary textRole, translate the Japanese lexical meaning. Never replace an ordinary word, noun, label, or dialogue fragment with a Korean sound effect.",
+    "Short kana, handwritten words, or tall vertical bbox shapes are not enough to make textRole sound.",
     "For sound-effect or reaction lettering, ko must be bare Korean effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
-    "If textRole is sound, preserve the original visible sound texture first. Prefer a short Korean phonetic rendering unless a natural Korean onomatopoeia clearly keeps the same sound texture and scene fit.",
+    "If textRole is sound, choose compact Korean effect lettering that fits the scene and visible rhythm. Do not mechanically transliterate Japanese kana when that would sound awkward in Korean.",
     "If textRole is sound, avoid Korean grammar endings, particles, connective endings, explanatory spacing, adverbs, and action descriptions.",
     "",
     "# Targets",
@@ -1719,9 +2084,10 @@ async function collectOcrBboxHints(options = {}) {
     const diagnostic = buildOcrBboxDiagnostic(provider, error);
     diagnostics.push(diagnostic);
     if (provider === "paddleocr-vl" && isOcrGpuRequested(options)) {
-      emitRuntimeProgress(options, "ocr_running", "Paddle OCR GPU 실행 실패", diagnostic.message);
+      const failureMessage = buildPaddleOcrGpuFailureMessage(error, options);
+      emitRuntimeProgress(options, "ocr_running", "Paddle OCR GPU 실행 실패", failureMessage);
       throw createOcrRuntimeError(
-        "Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 GPU Paddle 런타임이 필요합니다. CPU로 바꾸면 계속 진행할 수 있습니다.",
+        failureMessage,
         { diagnostics },
         error
       );
@@ -1772,7 +2138,7 @@ function buildOcrBboxDiagnostic(provider, error, extra = {}) {
   return {
     provider,
     reason: "ocr-bbox-unavailable",
-    message: error instanceof Error ? error.message : String(error),
+    message: summarizeOcrErrorMessage(error),
     ...extra
   };
 }
@@ -1967,7 +2333,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
     ? await checkPaddleOcrImport(venvPython, options, { runtimeDir, includePackageDir: false })
     : { ok: false, message: "venv python is missing" };
   if (existsSync(venvPython) && importCheck.ok) {
-    return { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, usesTargetPackageDir: false, diagnostics };
+    return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, usesTargetPackageDir: false, diagnostics });
   }
 
   const bootstrapPython = resolveBootstrapPython(options);
@@ -1979,7 +2345,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
     ? await checkPaddleOcrImport(bootstrapPython, options, { runtimeDir, packageDir, includePackageDir: true })
     : importCheck;
   if (!existsSync(venvPython) && importCheck.ok) {
-    return { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, usesTargetPackageDir: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] };
+    return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, usesTargetPackageDir: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] });
   }
 
   const targetInstallLooksBroken = hasOcrInstallMarker(packageDir, runtimeVariant) || hasExpectedOcrPackages(packageDir, options);
@@ -2086,7 +2452,12 @@ async function ensurePaddleOcrRuntime(options = {}) {
     installLogLine: "Paddle OCR 설치가 완료되었습니다."
   });
 
-  return { runtimeDir, runtimeVariant, packageDir, pythonPath: installPython, prepared: true, usesTargetPackageDir: Boolean(targetDir), diagnostics };
+  return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: installPython, prepared: true, usesTargetPackageDir: Boolean(targetDir), diagnostics });
+}
+
+async function finalizePaddleOcrRuntime(options, runtime) {
+  await ensurePaddleOcrModelAssetsDownloaded(options, runtime);
+  return runtime;
 }
 
 function ensureEmbeddedPythonPackagePath(pythonPath, packageDir, runtimeDir = null) {
@@ -2332,7 +2703,7 @@ function summarizeOcrInstallBatches(installBatches, options = {}) {
   const packageNames = installBatches
     .flat()
     .filter((part) => !part.startsWith("-") && !/^https?:\/\//i.test(part));
-  const suffix = isOcrGpuRequested(options) ? ` (${resolveOcrGpuCudaTag()})` : "";
+  const suffix = isOcrGpuRequested(options) ? ` (${resolveOcrGpuCudaTag(options)})` : "";
   return `${packageNames.join(", ")}${suffix}`;
 }
 
@@ -2340,11 +2711,12 @@ function isOcrGpuRequested(options = {}) {
   return resolveOcrDevice(options).startsWith("gpu");
 }
 
-function resolveOcrGpuCudaTag() {
+function resolveOcrGpuCudaTag(options = {}) {
   const raw = String(
     process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG
       ?? process.env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG
       ?? process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA
+      ?? options.ocrGpuCudaTag
       ?? DEFAULT_OCR_GPU_CUDA_TAG
   ).trim().toLowerCase();
   if (/^cu\d+$/.test(raw)) {
@@ -2354,11 +2726,11 @@ function resolveOcrGpuCudaTag() {
   return digits ? `cu${digits}` : DEFAULT_OCR_GPU_CUDA_TAG;
 }
 
-function resolveOcrGpuPackageIndexUrl() {
+function resolveOcrGpuPackageIndexUrl(options = {}) {
   return String(
     process.env.MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL
       ?? process.env.MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL
-      ?? `https://www.paddlepaddle.org.cn/packages/stable/${resolveOcrGpuCudaTag()}/`
+      ?? `https://www.paddlepaddle.org.cn/packages/stable/${resolveOcrGpuCudaTag(options)}/`
   ).trim();
 }
 
@@ -2366,7 +2738,7 @@ function resolveOcrRuntimeVariant(options = {}) {
   if (!isOcrGpuRequested(options)) {
     return "cpu";
   }
-  return `gpu-${resolveOcrGpuCudaTag()}`.replace(/[^a-z0-9._-]+/gi, "-").toLowerCase();
+  return `gpu-${resolveOcrGpuCudaTag(options)}`.replace(/[^a-z0-9._-]+/gi, "-").toLowerCase();
 }
 
 function resolveOcrPythonPackageDir(runtimeDir, options = {}) {
@@ -2430,11 +2802,43 @@ async function checkPaddleOcrImport(pythonPath, options = {}, runtime = null) {
 }
 
 function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
+  if (isPaddleSm120UnsupportedText(importMessage)) {
+    return buildPaddleOcrSm120FailureMessage(importMessage, options);
+  }
   const suffix = isOcrGpuRequested(options)
     ? " GPU를 선택했지만 GPU Paddle/CUDA 검증에 실패했습니다. CPU로 바꾸거나 CUDA 드라이버와 GPU Paddle wheel을 확인하세요."
     : "";
   const detail = importMessage ? ` detail=${truncateText(importMessage, 1200)}` : "";
   return `PaddleOCR-VL runtime was installed but paddleocr/paddlex/paddle imports still fail.${suffix}${detail}`;
+}
+
+function buildPaddleOcrGpuFailureMessage(error, options = {}) {
+  const text = summarizeOcrErrorMessage(error);
+  if (isPaddleSm120UnsupportedText(text)) {
+    return buildPaddleOcrSm120FailureMessage(text, options);
+  }
+  return `Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 GPU Paddle 런타임이 필요합니다. CPU로 바꾸면 계속 진행할 수 있습니다. detail=${truncateText(text, 1200)}`;
+}
+
+function buildPaddleOcrSm120FailureMessage(detail, options = {}) {
+  return `RTX 50번대/SM120에서 현재 Paddle OCR GPU 런타임이 맞지 않습니다. 이 버전은 RTX 50번대에서 OCR GPU CUDA 태그를 ${resolveOcrGpuCudaTag(options)}로 분리해 설치합니다. 기존 gpu-cu126 런타임이 남아 있으면 OCR 런타임을 삭제하고 다시 시도하세요. detail=${truncateText(detail, 1200)}`;
+}
+
+function isPaddleSm120UnsupportedText(value) {
+  return /not compiled for\s+SM\s*120|sm[_\s-]*120|compute capability:\s*12(?:\.0)?|mismatched gpu architecture/i.test(String(value ?? ""));
+}
+
+function summarizeOcrErrorMessage(error) {
+  if (!error || typeof error !== "object") {
+    return String(error ?? "");
+  }
+  const parts = [
+    error.message,
+    error.stderrPreview,
+    error.stdoutPreview,
+    error.cause instanceof Error ? error.cause.message : error.cause
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.map((part) => String(part)).join(" ") : String(error);
 }
 
 function createOcrRuntimeError(message, detail = {}, cause) {
@@ -2605,7 +3009,11 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
     HF_HOME: hfHomeDir,
     HF_HUB_CACHE: hfHubCacheDir,
     HUGGINGFACE_HUB_CACHE: hfHubCacheDir,
+    HF_HUB_DISABLE_XET: process.env.HF_HUB_DISABLE_XET || "1",
+    HF_HUB_ETAG_TIMEOUT: process.env.HF_HUB_ETAG_TIMEOUT || "30",
+    HF_HUB_DOWNLOAD_TIMEOUT: process.env.HF_HUB_DOWNLOAD_TIMEOUT || "300",
     MANGA_TRANSLATOR_OCR_DEVICE: options.ocrDevice || process.env.MANGA_TRANSLATOR_OCR_DEVICE || "cpu",
+    MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG: resolveOcrGpuCudaTag(options),
     MANGA_TRANSLATOR_PADDLEOCR_DEVICE: ocrDevice,
     PYTHONPATH: pythonPath,
     PYTHONNOUSERSITE: "1",
@@ -3806,8 +4214,10 @@ async function saveArtifacts(options, result) {
 module.exports = {
   buildMessages,
   buildLaunchArgs,
+  buildOcrRuntimeEnv,
   buildResponsesRequestBody,
   collectRequiredHfDownloads,
+  collectRequiredPaddleOcrModelDownloads,
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
   convertImageToPngBufferWithFfmpeg,
@@ -3819,6 +4229,8 @@ module.exports = {
   parsePaddleModelFetchProgress,
   parsePipRawProgress,
   resolveOcrBboxTimeoutMs,
+  resolveOcrGpuCudaTag,
+  resolveOcrGpuPackageIndexUrl,
   resolveOcrInstallBatchProgressRanges,
   resolveFfmpegPath,
   resolveManagedHfFilePath,

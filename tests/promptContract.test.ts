@@ -18,9 +18,14 @@ describe("prompt contracts", () => {
     expect(contractSource).toContain("For SFX, box only the sound-effect glyph strokes");
     expect(contractSource).toContain("type must always be nonsolid.");
     expect(contractSource).toContain("The app uses one Flux-based inpainting path for every text block");
+    expect(contractSource).toContain("textRole must be ordinary for speech bubbles, captions, narration, labels, signs, and notes.");
+    expect(contractSource).toContain("A word or phrase inside a speech bubble, caption, note, sign, or label remains ordinary");
+    expect(contractSource).toContain("Never replace an ordinary word, noun, label, or dialogue fragment with a Korean sound effect.");
+    expect(contractSource).toContain("Korean rendering should be horizontal by default even when the Japanese source direction is vertical.");
     expect(contractSource).toContain("For sound-effect or reaction lettering, ko must be bare Korean effect lettering only");
     expect(contractSource).toContain("do not wrap it in parentheses/brackets/quotes");
-    expect(contractSource).toContain("preserve the original visible sound texture first");
+    expect(contractSource).toContain("Do not mechanically transliterate Japanese kana when that would sound awkward in Korean.");
+    expect(contractSource).toContain("confidence must be 1.00 only for a complete, clearly read SFX");
     expect(contractSource).toContain("Do not force every SFX into semantic Korean");
     expect(contractSource).toContain("For repeated or lengthened SFX, preserve the visible rhythm and duration");
     expect(contractSource).toContain("Do not translate ambient SFX as spoken dialogue");
@@ -34,7 +39,7 @@ describe("prompt contracts", () => {
     expect(contractSource).toContain("Use the full visible Image 1 frame as the coordinate frame");
     expect(contractSource).toContain("detail: \"original\"");
     expect(contractSource).toContain("bboxCoordinateSpace");
-    expect(contractSource).toContain("Use exactly these keys, one per line: id, type, x1, y1, x2, y2, direction, angle, fontSize, confidence, jp, ko.");
+    expect(contractSource).toContain("Use exactly these keys, one per line: id, type, textRole, x1, y1, x2, y2, direction, angle, fontSize, confidence, jp, ko.");
     expect(contractSource).toContain("confidence is your confidence from 0.00 to 1.00");
     expect(contractSource).toContain("You are directly OCR-reading and translating only the listed manga crop images.");
     expect(contractSource).toContain("The crop image itself is the authority.");
@@ -46,7 +51,7 @@ describe("prompt contracts", () => {
     expect(contractSource).toContain("Use Image 1 as the authority");
     expect(contractSource).toContain("Treat each candidate as a locked geometry slot.");
     expect(contractSource).toContain("Do not merge two candidates into one record");
-    expect(contractSource).toContain("For every accepted candidate, output type nonsolid.");
+    expect(contractSource).toContain("For every accepted candidate, output type nonsolid and set textRole to ordinary or sound.");
     expect(contractSource).not.toContain("buildPointDetectionPrompt");
     expect(contractSource).not.toContain("buildPointExpansionPrompt");
     expect(pipelineSource).not.toContain("function buildRetryPrompt");

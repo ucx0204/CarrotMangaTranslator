@@ -10,7 +10,6 @@ export function RunPanel({
   jobState,
   onRunPending,
   onRunAll,
-  onEnterInpainting,
   onCancelJob
 }: {
   currentChapter: ChapterSnapshot | null;
@@ -34,9 +33,6 @@ export function RunPanel({
       </button>
       <button onClick={onRunAll} disabled={!currentChapter || jobActive}>
         전체 다시 번역
-      </button>
-      <button onClick={onEnterInpainting} disabled={!currentChapter || jobActive}>
-        인페인팅
       </button>
       {jobActive ? (
         <button className="danger" onClick={onCancelJob}>

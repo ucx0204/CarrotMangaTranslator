@@ -29,6 +29,7 @@ export type CodexSettings = {
 
 export type OcrSettings = {
   device: OcrDevice;
+  gpuCudaTag?: string;
 };
 
 export type AppSettings = {

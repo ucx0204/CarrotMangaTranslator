@@ -264,7 +264,10 @@ export const AppSettingsSchema = z
         oauthPort: z.number().int().min(1).max(65535)
       })
       .strict(),
-    ocr: z.object({ device: z.enum(["cpu", "gpu"]) }).strict(),
+    ocr: z.object({
+      device: z.enum(["cpu", "gpu"]),
+      gpuCudaTag: z.string().regex(/^cu\d+$/i).optional()
+    }).strict(),
     maxTokens: z.number().int().min(1024).max(64000)
   })
   .strict();

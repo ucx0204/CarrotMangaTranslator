@@ -9,7 +9,8 @@ import {
   offsetBlockBboxes,
   resolveEditableBlockBbox,
   resolveEffectiveRenderBbox,
-  resolveBlockRenderBbox
+  resolveBlockRenderBbox,
+  sanitizeChapterBboxes
 } from "../src/shared/geometry";
 
 describe("geometry helpers", () => {
@@ -20,6 +21,71 @@ describe("geometry helpers", () => {
       w: 1000,
       h: 990
     });
+  });
+
+  it("keeps boxes valid when dragged to the bottom-right edge", () => {
+    expect(clampBbox({ x: 1000, y: 1000, w: 0, h: 0 })).toEqual({
+      x: 999,
+      y: 999,
+      w: 1,
+      h: 1
+    });
+    expect(clampBbox({ x: 999.8, y: 999.4, w: 4, h: 4 })).toEqual({
+      x: 999,
+      y: 999,
+      w: 1,
+      h: 1
+    });
+  });
+
+  it("normalizes invalid saved chapter block boxes before IPC validation", () => {
+    const chapter = sanitizeChapterBboxes({
+      id: "11111111-1111-4111-8111-111111111111",
+      workId: "22222222-2222-4222-8222-222222222222",
+      title: "chapter",
+      sourceKind: "images",
+      status: "idle",
+      pageOrder: ["33333333-3333-4333-8333-333333333333"],
+      pages: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          name: "page.png",
+          imagePath: "C:/page.png",
+          dataUrl: "",
+          width: 1000,
+          height: 1000,
+          analysisStatus: "completed",
+          createdAt: "2026-06-01T00:00:00.000Z",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+          blocks: [
+            {
+              id: "block-1",
+              type: "nonsolid",
+              bbox: { x: 1000, y: 1000, w: 0, h: 0 },
+              renderBbox: { x: 1000, y: 1000, w: 0, h: 0 },
+              sourceText: "",
+              translatedText: "",
+              confidence: 1,
+              sourceDirection: "vertical",
+              renderDirection: "horizontal",
+              fontSizePx: 24,
+              lineHeight: 1.18,
+              textAlign: "center",
+              textColor: "#111111",
+              backgroundColor: "#fffdf5",
+              opacity: 0.8
+            }
+          ]
+        }
+      ],
+      createdAt: "2026-06-01T00:00:00.000Z",
+      updatedAt: "2026-06-01T00:00:00.000Z"
+    });
+
+    expect(chapter.pages[0].blocks[0].bbox).toEqual({ x: 999, y: 999, w: 1, h: 1 });
+    expect(chapter.pages[0].blocks[0].renderBbox).toEqual({ x: 999, y: 999, w: 1, h: 1 });
+    expect(chapter.pages[0].blocks[0].bboxSpace).toBe("normalized_1000");
+    expect(chapter.pages[0].blocks[0].renderBboxSpace).toBe("normalized_1000");
   });
 
   it("uses renderBbox when a dedicated layout box exists", () => {
