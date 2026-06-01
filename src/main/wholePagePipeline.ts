@@ -19,7 +19,7 @@ import {
   overlayItemToBlock
 } from "./pipeline/overlayItems";
 import { buildBaseOptions, buildPageOptions, formatGemmaVramMode, readNumberEnv, summarizePreview, summarizeTranslationOptions } from "./pipeline/options";
-import { loadRuntimeModules, startModelEndpointSession } from "./pipeline/runtimeModules";
+import { loadTranslationRuntimePort } from "./pipeline/translationRuntimePort";
 import type {
   OcrBboxResult,
   PipelineOptions,
@@ -44,11 +44,11 @@ export async function runWholePagePipeline({
 
   const paths = getAppPaths();
   const appSettings = await getAppSettings(paths);
-  const runtime = loadRuntimeModules();
+  const runtime = loadTranslationRuntimePort();
   const baseOptions = buildBaseOptions(jobId, runPaths.runDir, appSettings, paths);
   const progressTotal = pages.length;
   const codexSelected = baseOptions.modelProvider === "openai-codex";
-  const modelCached = codexSelected || runtime.simplePage.isModelCached(baseOptions);
+  const modelCached = codexSelected || runtime.isModelCached(baseOptions);
   const localModelSelected = !codexSelected && baseOptions.modelSource === "local";
   const warnings: string[] = [];
 
@@ -200,7 +200,7 @@ export async function runWholePagePipeline({
           : "로컬 모델 자산이 없거나 부족해 다운로드/갱신이 필요할 수 있습니다."
   });
 
-  const endpointSession = await startModelEndpointSession(runtime, baseOptions);
+  const endpointSession = await runtime.startEndpointSession(baseOptions);
   const server = endpointSession.handle;
   onCleanupReady?.(() => endpointSession.dispose());
   const maxAttempts = Math.max(1, readNumberEnv("MANGA_TRANSLATOR_PAGE_RETRIES", 5));
@@ -284,12 +284,12 @@ export async function runWholePagePipeline({
         });
 
         try {
-          const result = await runtime.simplePage.requestTranslation(server, pageOptions);
-          await runtime.simplePage.saveArtifacts(pageOptions, result);
+          const result = await runtime.requestTranslation(server, pageOptions);
+          await runtime.saveArtifacts(pageOptions, result);
 
           let parsed: unknown;
           try {
-            parsed = runtime.overlayTools.parseJsonLenient(result.outputText);
+            parsed = runtime.parseJsonLenient(result.outputText);
           } catch (error) {
             const preview = summarizePreview(result.outputText);
             const parseError = new Error(
@@ -304,7 +304,7 @@ export async function runWholePagePipeline({
             throw parseError;
           }
 
-          const items = runtime.overlayTools.normalizeItems(parsed);
+          const items = runtime.normalizeItems(parsed);
           if (items.length === 0 && isRequestNoTextDetected(result.requestBody)) {
             successPage = buildNoTextCompletedPage(page);
             await onPageComplete?.(successPage);

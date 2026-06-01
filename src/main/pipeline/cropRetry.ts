@@ -5,7 +5,8 @@ import { logWarn } from "../logger";
 import { clamp, pixelsToBbox } from "../../shared/geometry";
 import type { BBox, MangaPage } from "../../shared/types";
 import { containsJapaneseKana, hasUncertaintyMarker, normalizeConfidence } from "./overlayItems";
-import type { CropRetryItem, CropRetryTarget, ModelEndpointHandle, OverlayItem, PipelineOptions, RuntimeModules, ServerHandle } from "./types";
+import type { TranslationRuntimePort } from "./translationRuntimePort";
+import type { CropRetryItem, CropRetryTarget, ModelEndpointHandle, OverlayItem, PipelineOptions } from "./types";
 
 const CROP_RETRY_CONFIDENCE_THRESHOLD = 0.72;
 const CROP_RETRY_MAX_ITEMS_PER_PAGE = readPositiveInteger(process.env.MANGA_TRANSLATOR_CROP_RETRY_MAX_ITEMS_PER_PAGE) ?? 8;
@@ -14,7 +15,7 @@ const CROP_RETRY_MIN_MARGIN_PX = 64;
 const CROP_RETRY_MARGIN_RATIO = 0.5;
 
 type CropRetryContext = {
-  runtime: RuntimeModules;
+  runtime: TranslationRuntimePort;
   server: ModelEndpointHandle;
   pageOptions: TranslationOptions;
   page: MangaPage;
@@ -38,7 +39,7 @@ export async function maybeRetryLowConfidenceItems({
   pageTotal,
   progressTotal
 }: CropRetryContext): Promise<OverlayItem[]> {
-  if (!runtime.simplePage.requestCropRetryTranslation || !runtime.overlayTools.parseRetryItems) {
+  if (!runtime.requestCropRetryTranslation || !runtime.parseRetryItems) {
     return items;
   }
 
@@ -67,13 +68,13 @@ export async function maybeRetryLowConfidenceItems({
   });
 
   try {
-    const result = await runtime.simplePage.requestCropRetryTranslation(server as ServerHandle, retryOptions, targets);
+    const result = await runtime.requestCropRetryTranslation(server, retryOptions, targets);
     if (!result.outputText.trim()) {
       return items;
     }
 
-    await runtime.simplePage.saveArtifacts(retryOptions, result);
-    const retryItems = runtime.overlayTools.parseRetryItems(result.outputText);
+    await runtime.saveArtifacts(retryOptions, result);
+    const retryItems = runtime.parseRetryItems(result.outputText);
     await mkdir(retryOptions.outputDir, { recursive: true });
     await writeFile(join(retryOptions.outputDir, "crop-retry-items.json"), `${JSON.stringify({ items: retryItems }, null, 2)}\n`, "utf8");
     return mergeCropRetryItems(items, retryItems, targets, page);

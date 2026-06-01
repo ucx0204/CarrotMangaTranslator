@@ -5,7 +5,8 @@ import type { ChapterRunPaths } from "../library";
 import type { JobEvent, MangaPage } from "../../shared/types";
 import { throwIfAborted } from "./failure";
 import { isOcrResultNoTextDetected } from "./noText";
-import type { OcrBboxResult, RuntimeModules } from "./types";
+import type { TranslationRuntimePort } from "./translationRuntimePort";
+import type { OcrBboxResult } from "./types";
 
 const OCR_HINT_CACHE_SCHEMA_VERSION = 2;
 
@@ -18,7 +19,7 @@ export async function prepareOcrHintsForPages({
   jobId,
   signal
 }: {
-  runtime: RuntimeModules;
+  runtime: TranslationRuntimePort;
   baseOptions: TranslationOptions;
   pages: MangaPage[];
   runPaths: ChapterRunPaths;
@@ -96,9 +97,7 @@ export async function prepareOcrHintsForPages({
       detail: `${pendingPages.length}페이지를 한 번에 처리합니다. OCR 프로세스는 이 구간 끝에서 종료됩니다.`
     });
 
-    const batchResults = runtime.simplePage.collectOcrBboxHintsBatch
-      ? await runtime.simplePage.collectOcrBboxHintsBatch(pendingPages.map((entry) => entry.options))
-      : await collectOcrHintsSequentially(runtime, pendingPages);
+    const batchResults = await runtime.collectOcrHintsBatch(pendingPages.map((entry) => entry.options));
 
     for (const [batchIndex, result] of batchResults.entries()) {
       throwIfAborted(signal);
@@ -146,17 +145,6 @@ function formatOcrHintDetail(result: OcrBboxResult): string {
     return `${result.hints.length}개 후보, 텍스트 근거 ${result.textEvidenceCount}개`;
   }
   return `${result.hints.length}개 후보`;
-}
-
-async function collectOcrHintsSequentially(
-  runtime: RuntimeModules,
-  entries: Array<{ options: TranslationOptions }>
-): Promise<OcrBboxResult[]> {
-  const results: OcrBboxResult[] = [];
-  for (const entry of entries) {
-    results.push(await runtime.simplePage.collectOcrBboxHints(entry.options));
-  }
-  return results;
 }
 
 function buildOcrPageOptions(baseOptions: TranslationOptions, page: MangaPage, runPaths: ChapterRunPaths, index: number, total: number): TranslationOptions {

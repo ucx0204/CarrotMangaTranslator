@@ -19,8 +19,7 @@ import {
   normalizeRenderDirection,
   normalizeRotationDeg,
   offsetBlockBboxes,
-  resolveEditableBlockBbox,
-  sanitizeChapterBboxes
+  resolveEditableBlockBbox
 } from "../../shared/geometry";
 import { isUsableRegionBbox } from "../../shared/region";
 import { AppModals, type RenameTarget } from "./components/AppModals";
@@ -268,8 +267,6 @@ export default function App(): React.JSX.Element {
           }))
         });
       }
-    } else {
-      saved = await window.mangaApi.saveChapter(sanitizeChapterBboxes(chapter));
     }
     if (options.syncState !== false && currentChapterRef.current?.id === saved.id) {
       currentChapterRef.current = saved;

@@ -47,7 +47,6 @@ const api = {
   openLibraryFolder: () => ipcRenderer.invoke("library:open-folder"),
   openChapter: (chapterId: string): Promise<ChapterSnapshot> => ipcRenderer.invoke("library:open-chapter", chapterId),
   getPageImageDataUrl: (imagePath: string): Promise<string> => ipcRenderer.invoke("library:get-page-image-data-url", imagePath),
-  saveChapter: (chapter: ChapterSnapshot): Promise<ChapterSnapshot> => ipcRenderer.invoke("library:save-chapter", chapter),
   savePageBlocks: (request: SavePageBlocksRequest): Promise<ChapterSnapshot> => ipcRenderer.invoke("library:save-page-blocks", request),
   renameWork: (workId: string, title: string): Promise<LibraryIndex> => ipcRenderer.invoke("library:rename-work", workId, title),
   renameChapter: (chapterId: string, title: string): Promise<LibraryIndex> => ipcRenderer.invoke("library:rename-chapter", chapterId, title),
