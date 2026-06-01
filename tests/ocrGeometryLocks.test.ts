@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { applyOcrCandidateGeometryLocks, isOcrResultNoTextDetected } from "../src/main/wholePagePipeline";
+import { isOcrResultNoTextDetected } from "../src/main/pipeline/noText";
+import { applyOcrCandidateGeometryLocks } from "../src/main/pipeline/overlayItems";
 
 const page = {
   id: "page-1",
