@@ -23,6 +23,7 @@ import {
   resolveEditableBlockBbox
 } from "../../shared/geometry";
 import { isUsableRegionBbox } from "../../shared/region";
+import { AppSidebar } from "./components/AppSidebar";
 import { ConfirmModal } from "./components/ConfirmModal";
 import { EditorPanel } from "./components/EditorPanel";
 import { ImageStage } from "./components/ImageStage";
@@ -32,13 +33,10 @@ import { ImportModal, type ImportModalSubmit } from "./components/ImportModal";
 import {
   DisplayControlPanel,
   InpaintingControlPanel,
-  InpaintingWorkflowPanel,
   type BlockCounts,
   type InpaintingStage,
   type InpaintingTool
 } from "./components/InpaintingControlPanel";
-import { LibraryTree } from "./components/LibraryTree";
-import { PageList } from "./components/PageList";
 import { RenameModal } from "./components/RenameModal";
 import { RunPanel, StatusPanel } from "./components/RunStatusPanels";
 import { SettingsModal } from "./components/SettingsModal";
@@ -1819,121 +1817,84 @@ export default function App(): React.JSX.Element {
     }
   }, [pushStatus]);
 
+  const reorderChapterInLibrary = useCallback(
+    (workId: string, sourceChapterId: string, targetChapterId: string) => {
+      const work = library.works.find((candidate) => candidate.id === workId);
+      if (!work) {
+        return;
+      }
+      const nextOrder = reorderByTarget(work.chapterOrder, sourceChapterId, targetChapterId);
+      setLibrary((current) => ({
+        ...current,
+        works: current.works.map((candidate) =>
+          candidate.id === workId
+            ? {
+                ...candidate,
+                chapterOrder: nextOrder,
+                chapters: reorderRecordsByIdOrder(candidate.chapters, nextOrder)
+              }
+            : candidate
+        )
+      }));
+      void window.mangaApi.reorderChapters(workId, nextOrder).then(setLibrary);
+    },
+    [library.works]
+  );
+
+  const reorderPageInChapter = useCallback(
+    (sourcePageId: string, targetPageId: string) => {
+      if (!currentChapter) {
+        return;
+      }
+      const nextOrder = reorderByTarget(currentChapter.pageOrder, sourcePageId, targetPageId);
+      setCurrentChapter((chapter) => {
+        if (!chapter || chapter.id !== currentChapter.id) {
+          return chapter;
+        }
+        const nextChapter = {
+          ...chapter,
+          pageOrder: nextOrder,
+          pages: reorderRecordsByIdOrder(chapter.pages, nextOrder)
+        };
+        currentChapterRef.current = nextChapter;
+        return nextChapter;
+      });
+      void window.mangaApi.reorderPages(currentChapter.id, nextOrder).then((chapter) => {
+        applyChapter(chapter);
+        void refreshLibrary();
+      });
+    },
+    [applyChapter, currentChapter, refreshLibrary]
+  );
+
   return (
     <main className={`app-shell ${inpaintingMode ? "inpainting-mode" : ""}`}>
-      <aside className={`sidebar ${inpaintingMode ? "inpainting-sidebar" : ""}`}>
-        {inpaintingMode ? (
-          <>
-            <section className="inpainting-exit-panel">
-              <button className="danger" onClick={exitInpaintingMode} disabled={jobActive}>
-                인페인팅 나가기
-              </button>
-              <small>{currentChapter ? currentChapter.title : "현재 화 없음"}</small>
-            </section>
-
-            <InpaintingWorkflowPanel stage={inpaintingStage} />
-
-            <PageList
-              pages={currentChapter?.pages ?? []}
-              selectedPageId={selectedPage?.id ?? null}
-              jobActive={true}
-              onSelect={selectPageForReading}
-              onRetranslate={(pageId) => void retranslatePage(pageId)}
-              onRemove={(pageId) => void removePage(pageId)}
-              onReorder={() => undefined}
-            />
-
-            {inpaintingStage !== "pattern" ? (
-              <section className="inpainting-back-panel">
-                <button className="inpainting-back-button" onClick={goToPreviousInpaintingStage} disabled={jobActive}>
-                  이전 단계로 돌아가기
-                </button>
-              </section>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <section className="toolbar">
-              <button className="primary" onClick={() => setTranslationSourceOpen(true)} disabled={jobActive}>
-                번역
-              </button>
-              <button onClick={() => void openImportPreview("zip-folder")} disabled={jobActive}>
-                작품 일괄 번역
-              </button>
-              <button onClick={() => void openSettings()} disabled={settingsBusy && !settingsOpen}>
-                설정
-              </button>
-              <button onClick={() => void window.mangaApi.openLibraryFolder()}>보관함 폴더</button>
-              <button className="share-button" onClick={() => setShareExportOpen(true)} disabled={jobActive || library.works.length === 0}>
-                공유하기
-              </button>
-              <button className="import-button" onClick={() => void openShareImportPreview()} disabled={jobActive}>
-                가져오기
-              </button>
-            </section>
-
-            <LibraryTree
-              library={library}
-              currentChapterId={currentChapter?.id ?? null}
-              jobActive={jobActive}
-              onOpenChapter={(chapterId) => void openChapter(chapterId)}
-              onRenameWork={(workId) => void renameWork(workId)}
-              onRenameChapter={(chapterId) => void renameChapter(chapterId)}
-              onReorderChapter={(workId, sourceChapterId, targetChapterId) => {
-                const work = library.works.find((candidate) => candidate.id === workId);
-                if (!work) {
-                  return;
-                }
-                const nextOrder = reorderByTarget(work.chapterOrder, sourceChapterId, targetChapterId);
-                setLibrary((current) => ({
-                  ...current,
-                  works: current.works.map((candidate) =>
-                    candidate.id === workId
-                      ? {
-                          ...candidate,
-                          chapterOrder: nextOrder,
-                          chapters: reorderRecordsByIdOrder(candidate.chapters, nextOrder)
-                        }
-                      : candidate
-                  )
-                }));
-                void window.mangaApi.reorderChapters(workId, nextOrder).then(setLibrary);
-              }}
-            />
-
-            <PageList
-              pages={currentChapter?.pages ?? []}
-              selectedPageId={selectedPage?.id ?? null}
-              jobActive={jobActive}
-              onSelect={selectPageForReading}
-              onRetranslate={(pageId) => void retranslatePage(pageId)}
-              onRemove={(pageId) => void removePage(pageId)}
-              onReorder={(sourcePageId, targetPageId) => {
-                if (!currentChapter) {
-                  return;
-                }
-                const nextOrder = reorderByTarget(currentChapter.pageOrder, sourcePageId, targetPageId);
-                setCurrentChapter((chapter) => {
-                  if (!chapter || chapter.id !== currentChapter.id) {
-                    return chapter;
-                  }
-                  const nextChapter = {
-                    ...chapter,
-                    pageOrder: nextOrder,
-                    pages: reorderRecordsByIdOrder(chapter.pages, nextOrder)
-                  };
-                  currentChapterRef.current = nextChapter;
-                  return nextChapter;
-                });
-                void window.mangaApi.reorderPages(currentChapter.id, nextOrder).then((chapter) => {
-                  applyChapter(chapter);
-                  void refreshLibrary();
-                });
-              }}
-            />
-          </>
-        )}
-      </aside>
+      <AppSidebar
+        inpaintingMode={inpaintingMode}
+        inpaintingStage={inpaintingStage}
+        currentChapter={currentChapter}
+        selectedPageId={selectedPage?.id ?? null}
+        library={library}
+        jobActive={jobActive}
+        settingsBusy={settingsBusy}
+        settingsOpen={settingsOpen}
+        onExitInpainting={exitInpaintingMode}
+        onPreviousInpaintingStage={goToPreviousInpaintingStage}
+        onOpenTranslationSource={() => setTranslationSourceOpen(true)}
+        onOpenBatchImport={() => void openImportPreview("zip-folder")}
+        onOpenSettings={() => void openSettings()}
+        onOpenLibraryFolder={() => void window.mangaApi.openLibraryFolder()}
+        onOpenShareExport={() => setShareExportOpen(true)}
+        onOpenShareImport={() => void openShareImportPreview()}
+        onOpenChapter={(chapterId) => void openChapter(chapterId)}
+        onRenameWork={(workId) => void renameWork(workId)}
+        onRenameChapter={(chapterId) => void renameChapter(chapterId)}
+        onReorderChapter={reorderChapterInLibrary}
+        onSelectPage={selectPageForReading}
+        onRetranslatePage={(pageId) => void retranslatePage(pageId)}
+        onRemovePage={(pageId) => void removePage(pageId)}
+        onReorderPage={reorderPageInChapter}
+      />
 
       <section
         ref={workspacePanelRef}
