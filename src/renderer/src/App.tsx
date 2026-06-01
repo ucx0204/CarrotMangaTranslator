@@ -34,6 +34,7 @@ import type { TranslateSourceMode } from "./components/TranslateSourceModal";
 import { useConfirmDialog } from "./hooks/useConfirmDialog";
 import { usePageImageDataUrls } from "./hooks/usePageImageDataUrls";
 import { useStageSize } from "./hooks/useStageSize";
+import { useStatusLog } from "./hooks/useStatusLog";
 import {
   formatErrorMessage,
   isEditableTarget,
@@ -86,7 +87,7 @@ export default function App(): React.JSX.Element {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [regionSelection, setRegionSelection] = useState<RegionSelectionState | null>(null);
   const [jobState, setJobState] = useState<JobState>(EMPTY_JOB);
-  const [statusLines, setStatusLines] = useState<string[]>([]);
+  const { statusLines, appendStatusLine, pushStatus, clearStatusLines } = useStatusLog();
   const [translationSourceOpen, setTranslationSourceOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportPreviewResult | null>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -284,20 +285,6 @@ export default function App(): React.JSX.Element {
     setDirty(mergeResult.preservedDirtyPageIds.length > 0);
   }, []);
 
-  const appendStatusLine = useCallback((line: string, replaceExisting?: (line: string) => boolean) => {
-    const next = line.trim();
-    if (!next) {
-      return;
-    }
-    setStatusLines((lines) => {
-      if (lines[0] === next) {
-        return lines;
-      }
-      const remaining = replaceExisting ? lines.filter((line) => !replaceExisting(line)) : lines;
-      return [next, ...remaining].slice(0, 16);
-    });
-  }, []);
-
   React.useEffect(() => {
     const unsubscribe = window.mangaApi.onJobEvent((event) => {
       setJobState((current) => {
@@ -386,14 +373,6 @@ export default function App(): React.JSX.Element {
       }
     };
   }, [currentChapter, dirty, jobActive]);
-
-  const pushStatus = useCallback(
-    (line: string) => {
-      void window.mangaApi.writeLog("info", "UI status", { line });
-      appendStatusLine(line);
-    },
-    [appendStatusLine]
-  );
 
   const markDirty = useCallback((pageId?: string) => {
     dirtyVersionRef.current += 1;
@@ -603,7 +582,7 @@ export default function App(): React.JSX.Element {
       }
 
       await saveNow();
-      setStatusLines([]);
+      clearStatusLines();
       setJobState({
         id: "pending",
         kind: "gemma-analysis",
@@ -631,7 +610,7 @@ export default function App(): React.JSX.Element {
         pushStatus(result.error);
       }
     },
-    [currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow]
+    [clearStatusLines, currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow]
   );
 
   const enterInpaintingMode = useCallback(async () => {
@@ -882,7 +861,7 @@ export default function App(): React.JSX.Element {
       }
 
       await saveNow();
-      setStatusLines([]);
+      clearStatusLines();
       setJobState({
         id: "pending",
         kind: "gemma-analysis",
@@ -918,7 +897,7 @@ export default function App(): React.JSX.Element {
         pushStatus(result.error);
       }
     },
-    [currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage]
+    [clearStatusLines, currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage]
   );
 
   const submitImport = useCallback(
