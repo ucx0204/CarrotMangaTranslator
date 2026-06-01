@@ -31,6 +31,7 @@ import type { ImportModalSubmit } from "./components/ImportModal";
 import { type BlockCounts, type InpaintingStage, type InpaintingTool } from "./components/InpaintingControlPanel";
 import type { ShareImportModalSubmit } from "./components/ShareImportModal";
 import type { TranslateSourceMode } from "./components/TranslateSourceModal";
+import { usePageImageDataUrls } from "./hooks/usePageImageDataUrls";
 import { useStageSize } from "./hooks/useStageSize";
 import {
   formatErrorMessage,
@@ -53,7 +54,6 @@ const EMPTY_JOB: JobState = {
   progressText: "대기 중"
 };
 
-const PAGE_IMAGE_CACHE_LIMIT = 3;
 const INPAINTING_GUIDE_HIDDEN_KEY = "mgt.inpaintingGuide.hidden";
 
 type DragMode = "move" | "resize";
@@ -82,8 +82,6 @@ export default function App(): React.JSX.Element {
   const [library, setLibrary] = useState<LibraryIndex>({ workOrder: [], works: [] });
   const [currentChapter, setCurrentChapter] = useState<ChapterSnapshot | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
-  const [selectedPageImageDataUrl, setSelectedPageImageDataUrl] = useState("");
-  const [selectedPageOriginalImageDataUrl, setSelectedPageOriginalImageDataUrl] = useState("");
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [regionSelection, setRegionSelection] = useState<RegionSelectionState | null>(null);
   const [jobState, setJobState] = useState<JobState>(EMPTY_JOB);
@@ -131,7 +129,6 @@ export default function App(): React.JSX.Element {
   const selectedPageIdRef = useRef<string | null>(null);
   const selectedBlockIdRef = useRef<string | null>(null);
   const confirmResolverRef = useRef<((confirmed: boolean) => void) | null>(null);
-  const pageImageCacheRef = useRef<Map<string, string>>(new Map());
   const inpaintingRetouchDrawingRef = useRef(false);
   const inpaintingRetouchPointsRef = useRef<Array<{ x: number; y: number }>>([]);
   const lastInpaintingRetouchPointRef = useRef<{ x: number; y: number } | null>(null);
@@ -144,6 +141,11 @@ export default function App(): React.JSX.Element {
     [currentChapter?.pages, selectedPageId]
   );
   const selectedPageImagePath = selectedPage?.inpaintedImagePath ?? selectedPage?.imagePath ?? null;
+  const { selectedPageImageDataUrl, selectedPageOriginalImageDataUrl, clearPageImageCache } = usePageImageDataUrls({
+    chapterId: currentChapter?.id ?? null,
+    selectedPage,
+    selectedPageImagePath
+  });
   const selectedBlock = selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
   const jobActive = ["starting", "running", "cancelling"].includes(jobState.status);
   const modalOpen = Boolean(
@@ -241,110 +243,16 @@ export default function App(): React.JSX.Element {
   }, [currentChapter]);
 
   React.useEffect(() => {
-    pageImageCacheRef.current.clear();
-    setSelectedPageImageDataUrl("");
     setRetouchUndoStack([]);
     setRetouchRedoStack([]);
   }, [currentChapter?.id]);
 
   React.useEffect(() => {
     if (!selectedPage) {
-      setSelectedPageImageDataUrl("");
-      setSelectedPageOriginalImageDataUrl("");
       setRetouchCursorPoint(null);
       setRetouchPreview(null);
-      return;
     }
-
-    const imagePath = selectedPageImagePath ?? selectedPage.imagePath;
-    const cacheKey = `${selectedPage.id}:${imagePath}`;
-    const cached = pageImageCacheRef.current.get(cacheKey);
-    if (cached) {
-      setSelectedPageImageDataUrl(cached);
-      return;
-    }
-
-    let cancelled = false;
-    setSelectedPageImageDataUrl("");
-    void window.mangaApi
-      .getPageImageDataUrl(imagePath)
-      .then((dataUrl) => {
-        if (cancelled) {
-          return;
-        }
-        const cache = pageImageCacheRef.current;
-        cache.delete(cacheKey);
-        cache.set(cacheKey, dataUrl);
-        while (cache.size > PAGE_IMAGE_CACHE_LIMIT) {
-          const oldestPageId = cache.keys().next().value;
-          if (!oldestPageId) {
-            break;
-          }
-          cache.delete(oldestPageId);
-        }
-        setSelectedPageImageDataUrl(dataUrl);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.error(error);
-          setSelectedPageImageDataUrl("");
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedPage?.id, selectedPageImagePath]);
-
-  React.useEffect(() => {
-    if (!selectedPage) {
-      setSelectedPageOriginalImageDataUrl("");
-      return;
-    }
-    if (selectedPageImagePath === selectedPage.imagePath && selectedPageImageDataUrl) {
-      setSelectedPageOriginalImageDataUrl(selectedPageImageDataUrl);
-      return;
-    }
-
-    const imagePath = selectedPage.imagePath;
-    const cacheKey = `${selectedPage.id}:original:${imagePath}`;
-    const cached = pageImageCacheRef.current.get(cacheKey);
-    if (cached) {
-      setSelectedPageOriginalImageDataUrl(cached);
-      return;
-    }
-
-    let cancelled = false;
-    setSelectedPageOriginalImageDataUrl("");
-    void window.mangaApi
-      .getPageImageDataUrl(imagePath)
-      .then((dataUrl) => {
-        if (cancelled) {
-          return;
-        }
-        const cache = pageImageCacheRef.current;
-        cache.delete(cacheKey);
-        cache.set(cacheKey, dataUrl);
-        while (cache.size > PAGE_IMAGE_CACHE_LIMIT) {
-          const oldestPageId = cache.keys().next().value;
-          if (!oldestPageId) {
-            break;
-          }
-          cache.delete(oldestPageId);
-        }
-        setSelectedPageOriginalImageDataUrl(dataUrl);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.error(error);
-          setSelectedPageOriginalImageDataUrl("");
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedPage?.id, selectedPage?.imagePath, selectedPageImageDataUrl, selectedPageImagePath]);
+  }, [selectedPage]);
 
   React.useEffect(() => {
     if (!inpaintingToolActive) {
@@ -820,7 +728,7 @@ export default function App(): React.JSX.Element {
             }
       );
       if (result.chapter) {
-        pageImageCacheRef.current.clear();
+        clearPageImageCache();
         mergeLiveChapter(result.chapter);
       }
       await refreshLibrary();
@@ -831,7 +739,7 @@ export default function App(): React.JSX.Element {
         pushStatus(result.error);
       }
     },
-    [askConfirm, currentChapter, dirty, inpaintingStage, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage]
+    [askConfirm, clearPageImageCache, currentChapter, dirty, inpaintingStage, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage]
   );
 
   const runDrawnPatternInpainting = useCallback(async () => {
@@ -866,7 +774,7 @@ export default function App(): React.JSX.Element {
       featherPx: 8
     });
     if (result.chapter) {
-      pageImageCacheRef.current.clear();
+      clearPageImageCache();
       mergeLiveChapter(result.chapter);
     }
     await refreshLibrary();
@@ -879,6 +787,7 @@ export default function App(): React.JSX.Element {
   }, [
     askConfirm,
     currentChapter,
+    clearPageImageCache,
     dirty,
     jobActive,
     mergeLiveChapter,
@@ -1297,14 +1206,14 @@ export default function App(): React.JSX.Element {
             : page
         )
       };
-      pageImageCacheRef.current.clear();
+      clearPageImageCache();
       setCurrentChapter(nextChapter);
       currentChapterRef.current = nextChapter;
       const saved = await window.mangaApi.saveChapter(nextChapter);
       mergeLiveChapter(saved);
       return saved;
     },
-    [mergeLiveChapter]
+    [clearPageImageCache, mergeLiveChapter]
   );
 
   const applyRetouchPoints = useCallback(
@@ -1323,7 +1232,7 @@ export default function App(): React.JSX.Element {
           color: inpaintingPaintColor
         });
         const afterPage = result.chapter.pages.find((page) => page.id === selectedPage.id);
-        pageImageCacheRef.current.clear();
+        clearPageImageCache();
         mergeLiveChapter(result.chapter);
         const afterPath = afterPage?.inpaintedImagePath;
         if (afterPath !== beforePath) {
@@ -1335,7 +1244,7 @@ export default function App(): React.JSX.Element {
         pushStatus("리터치 적용에 실패했습니다.");
       }
     },
-    [currentChapter, inpaintingBrushRadius, inpaintingPaintColor, jobActive, mergeLiveChapter, pushStatus, selectedPage]
+    [clearPageImageCache, currentChapter, inpaintingBrushRadius, inpaintingPaintColor, jobActive, mergeLiveChapter, pushStatus, selectedPage]
   );
 
   const undoRetouch = useCallback(async () => {
@@ -1381,13 +1290,13 @@ export default function App(): React.JSX.Element {
           ? { chapterId: currentChapter.id, scope: "page", pageId: selectedPage!.id }
           : { chapterId: currentChapter.id, scope: "chapter" }
       );
-      pageImageCacheRef.current.clear();
+      clearPageImageCache();
       mergeLiveChapter(result.chapter);
       setRetouchUndoStack([]);
       setRetouchRedoStack([]);
       pushStatus(`인페인팅 되돌리기 완료: ${result.pagesChanged}페이지`);
     },
-    [askConfirm, currentChapter, jobActive, mergeLiveChapter, pushStatus, selectedPage]
+    [askConfirm, clearPageImageCache, currentChapter, jobActive, mergeLiveChapter, pushStatus, selectedPage]
   );
 
   const onBlockPointerDown = (event: React.PointerEvent, block: TranslationBlock, mode: DragMode) => {
