@@ -106,6 +106,7 @@ export default function App(): React.JSX.Element {
   const [inpaintingTool, setInpaintingTool] = useState<InpaintingTool>("none");
   const [inpaintingBrushRadius, setInpaintingBrushRadius] = useState(28);
   const [inpaintingPaintColor, setInpaintingPaintColor] = useState("#ffffff");
+  const [peekOriginal, setPeekOriginal] = useState(false);
   const [retouchCursorPoint, setRetouchCursorPoint] = useState<{ x: number; y: number } | null>(null);
   const [retouchPreview, setRetouchPreview] = useState<RetouchPreviewState | null>(null);
   const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<Record<string, InpaintingMaskStroke[]>>({});
@@ -143,6 +144,9 @@ export default function App(): React.JSX.Element {
     selectedPageImagePath
   });
   const selectedBlock = selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
+  const peekAvailable = Boolean(selectedPage?.inpaintedImagePath && selectedPageOriginalImageDataUrl);
+  const showingOriginalPeek = inpaintingMode && peekOriginal && peekAvailable;
+  const workspaceImageDataUrl = showingOriginalPeek ? selectedPageOriginalImageDataUrl : selectedPageImageDataUrl;
   const jobActive = ["starting", "running", "cancelling"].includes(jobState.status);
   const { clearDirtyTracking, dirty, dirtyPageIdsRef, markDirty, replaceDirtyPageIds, saveNow } = useChapterPersistence({
     currentChapter,
@@ -510,6 +514,7 @@ export default function App(): React.JSX.Element {
     }
     setInpaintingMode(false);
     setInpaintingTool("none");
+    setPeekOriginal(false);
     setInpaintingGuideOpen(false);
     setPatternMaskStrokesByPage({});
     setSelectedBlockId(null);
@@ -643,6 +648,16 @@ export default function App(): React.JSX.Element {
       await saveNow();
     }
     try {
+      setJobState({
+        id: "pending-export",
+        kind: "inpainting",
+        status: "starting",
+        progressText: "PNG 출력 준비 중",
+        phase: "finalizing",
+        progressCurrent: 0,
+        progressTotal: currentChapter.pages.length,
+        pageTotal: currentChapter.pages.length
+      });
       const result = await window.mangaApi.exportInpaintingResults({ chapterId: currentChapter.id });
       pushStatus(`인페인팅 결과를 PNG로 출력했습니다: ${result.pageCount}페이지`);
     } catch (error) {
@@ -854,6 +869,26 @@ export default function App(): React.JSX.Element {
                   renderBboxSpace: patch.renderBbox ? "normalized_1000" : block.renderBboxSpace
                 };
               })
+            }
+      )
+    }));
+  };
+
+  const toggleBlockInpaintExcluded = (blockId: string) => {
+    if (!selectedPage || jobActive) {
+      return;
+    }
+    updateCurrentChapter(selectedPage.id, (current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== selectedPage.id
+          ? page
+          : {
+              ...page,
+              updatedAt: new Date().toISOString(),
+              blocks: page.blocks.map((block) =>
+                block.id === blockId ? { ...block, inpaintExcluded: !block.inpaintExcluded } : block
+              )
             }
       )
     }));
@@ -1525,13 +1560,15 @@ export default function App(): React.JSX.Element {
       <AppWorkspace
         workspacePanelRef={workspacePanelRef}
         selectedPage={selectedPage}
-        selectedPageImageDataUrl={selectedPageImageDataUrl}
+        selectedPageImageDataUrl={workspaceImageDataUrl}
         imageRef={imageRef}
         stageRef={stageRef}
         stageSize={stageSize}
         selectedBlockId={selectedBlockId}
         showTextBlocks={showTextBlocks}
         showBlockChrome={showBlockChrome}
+        inpaintingMode={inpaintingMode}
+        showingOriginalPeek={showingOriginalPeek}
         inpaintingToolActive={inpaintingToolActive}
         retouchCursor={retouchCursor}
         retouchPreviewLayer={retouchPreviewLayer}
@@ -1546,6 +1583,7 @@ export default function App(): React.JSX.Element {
         onStagePointerDown={onStagePointerDown}
         onStagePointerLeave={onStagePointerLeave}
         onBlockPointerDown={onBlockPointerDown}
+        onToggleBlockExcluded={toggleBlockInpaintExcluded}
         onOpenTranslationSource={() => setTranslationSourceOpen(true)}
         onOpenBatchImport={() => void openImportPreview("zip-folder")}
         onOpenShareImport={() => void openShareImportPreview()}
@@ -1595,6 +1633,10 @@ export default function App(): React.JSX.Element {
           });
         }}
         onShowInpaintingGuide={() => setInpaintingGuideOpen(true)}
+        peekAvailable={peekAvailable}
+        peeking={showingOriginalPeek}
+        onPeekOriginalStart={() => setPeekOriginal(true)}
+        onPeekOriginalEnd={() => setPeekOriginal(false)}
         onToggleChrome={() => setShowBlockChrome((value) => !value)}
         onToggleBlocks={() => setShowTextBlocks((value) => !value)}
         onExportResults={() => void exportInpaintingResults()}
@@ -1674,13 +1716,14 @@ function countChapterBlocks(chapter: ChapterSnapshot | null, selectedPageId: str
   }
   return chapter.pages.reduce<BlockCounts>(
     (counts, page) => {
-      counts.total += page.blocks.length;
+      const targetBlocks = page.blocks.filter((block) => !block.inpaintExcluded).length;
+      counts.total += targetBlocks;
       if (page.id === selectedPageId) {
-        counts.selectedPage = page.blocks.length;
+        counts.selectedPage = targetBlocks;
       }
-      if (!page.inpaintedImagePath && page.blocks.length > 0) {
+      if (!page.inpaintedImagePath && targetBlocks > 0) {
         counts.pendingPages += 1;
-        counts.pendingTotal += page.blocks.length;
+        counts.pendingTotal += targetBlocks;
       }
       return counts;
     },

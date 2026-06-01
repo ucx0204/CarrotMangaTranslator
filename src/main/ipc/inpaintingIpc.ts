@@ -285,29 +285,115 @@ export function registerInpaintingIpc(context: IpcContext): void {
 
   ipcMain.handle("inpainting:export-results", async (_event, rawRequest: unknown): Promise<InpaintingExportResult> => {
     const request = parseIpcPayload(InpaintingExportRequestSchema, rawRequest, "결과 출력");
-    const chapter = await openChapter(request.chapterId);
-    if (chapter.pages.length === 0) {
-      throw new Error("출력할 페이지가 없습니다.");
+    if (context.jobs.hasActive) {
+      throw new Error("이미 실행 중인 작업이 있습니다.");
     }
 
-    const firstPageDir = dirname(chapter.pages[0].imagePath);
-    const chapterDir = dirname(firstPageDir);
-    const outputDir = join(chapterDir, "processed", new Date().toISOString().replace(/[:.]/g, "-"));
-    await mkdir(outputDir, { recursive: true });
+    const id = randomUUID();
+    const abortController = new AbortController();
+    context.jobs.start({ id, kind: "inpainting", abortController });
+    const emit = (event: JobEvent) => emitJobEvent(context.jobs, context.getMainWindow(), event);
 
-    for (const [index, page] of chapter.pages.entries()) {
-      const outputName = `${String(index + 1).padStart(3, "0")}-${sanitizeOutputBaseName(page.name)}.png`;
-      const png = await renderPageWithTranslationBlocksForExport(page, {
-        dataRoot: context.appPaths.dataRoot,
-        decodeFallback: context.decodeImage
+    try {
+      const chapter = await openChapter(request.chapterId);
+      if (chapter.pages.length === 0) {
+        throw new Error("출력할 페이지가 없습니다.");
+      }
+
+      emit({
+        id,
+        kind: "inpainting",
+        status: "starting",
+        progressText: "PNG 출력 준비 중",
+        phase: "finalizing",
+        progressCurrent: 0,
+        progressTotal: chapter.pages.length,
+        pageTotal: chapter.pages.length,
+        detail: `${chapter.pages.length}페이지`
       });
-      await writeFile(join(outputDir, outputName), png);
-    }
 
-    await shell.openPath(outputDir);
-    return {
-      outputDir,
-      pageCount: chapter.pages.length
-    };
+      const firstPageDir = dirname(chapter.pages[0].imagePath);
+      const chapterDir = dirname(firstPageDir);
+      const outputDir = join(chapterDir, "processed", new Date().toISOString().replace(/[:.]/g, "-"));
+      await mkdir(outputDir, { recursive: true });
+
+      for (const [index, page] of chapter.pages.entries()) {
+        if (abortController.signal.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+        emit({
+          id,
+          kind: "inpainting",
+          status: "running",
+          progressText: `${index + 1} / ${chapter.pages.length} 페이지 PNG 출력 중`,
+          phase: "finalizing",
+          progressCurrent: index,
+          progressTotal: chapter.pages.length,
+          pageIndex: index + 1,
+          pageTotal: chapter.pages.length,
+          detail: page.name
+        });
+        const outputName = `${String(index + 1).padStart(3, "0")}-${sanitizeOutputBaseName(page.name)}.png`;
+        const png = await renderPageWithTranslationBlocksForExport(page, {
+          dataRoot: context.appPaths.dataRoot,
+          decodeFallback: context.decodeImage
+        });
+        await writeFile(join(outputDir, outputName), png);
+        emit({
+          id,
+          kind: "inpainting",
+          status: "running",
+          progressText: `${index + 1} / ${chapter.pages.length} 페이지 PNG 출력 완료`,
+          phase: "finalizing",
+          progressCurrent: index + 1,
+          progressTotal: chapter.pages.length,
+          pageIndex: index + 1,
+          pageTotal: chapter.pages.length,
+          detail: page.name
+        });
+      }
+
+      emit({
+        id,
+        kind: "inpainting",
+        status: "completed",
+        progressText: "PNG 출력 완료",
+        phase: "done",
+        progressCurrent: chapter.pages.length,
+        progressTotal: chapter.pages.length,
+        pageTotal: chapter.pages.length,
+        detail: `${chapter.pages.length}페이지`
+      });
+      await shell.openPath(outputDir);
+      return {
+        outputDir,
+        pageCount: chapter.pages.length
+      };
+    } catch (error) {
+      if (isAbortError(error) || abortController.signal.aborted) {
+        emit({
+          id,
+          kind: "inpainting",
+          status: "cancelled",
+          progressText: "PNG 출력이 취소되었습니다.",
+          phase: "cancelled"
+        });
+        throw new Error("PNG 출력이 취소되었습니다.");
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      logError("Inpainting export failed", { jobId: id, request, error });
+      emit({
+        id,
+        kind: "inpainting",
+        status: "failed",
+        progressText: "PNG 출력 실패",
+        phase: "failed",
+        detail: message
+      });
+      throw error;
+    } finally {
+      context.jobs.clearIfCurrent(id);
+    }
   });
 }

@@ -97,7 +97,7 @@ export async function inpaintPatternPage(
     fluxEngine?: FluxInpaintingEngine;
   } = {}
 ): Promise<PatternPageInpaintingResult> {
-  const patternBlocks = page.blocks.filter((block) => hasUsableBbox(block.bbox));
+  const patternBlocks = page.blocks.filter((block) => hasUsableBbox(block.bbox) && !block.inpaintExcluded);
   if (patternBlocks.length === 0) {
     return { page, blocksErased: 0 };
   }

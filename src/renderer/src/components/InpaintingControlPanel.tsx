@@ -27,6 +27,8 @@ export function InpaintingControlPanel({
   showBlockChrome,
   showTextBlocks,
   jobActive,
+  peekAvailable,
+  peeking,
   onSelectTool,
   onBrushRadiusChange,
   onBrushColorChange,
@@ -39,6 +41,8 @@ export function InpaintingControlPanel({
   onRunDrawnPattern,
   onClearPatternMask,
   onShowGuide,
+  onPeekOriginalStart,
+  onPeekOriginalEnd,
   onToggleChrome,
   onToggleBlocks,
   onExportResults,
@@ -59,6 +63,8 @@ export function InpaintingControlPanel({
   showBlockChrome: boolean;
   showTextBlocks: boolean;
   jobActive: boolean;
+  peekAvailable: boolean;
+  peeking: boolean;
   onSelectTool: (tool: InpaintingTool) => void;
   onBrushRadiusChange: (radius: number) => void;
   onBrushColorChange: (color: string) => void;
@@ -71,6 +77,8 @@ export function InpaintingControlPanel({
   onRunDrawnPattern: () => void;
   onClearPatternMask: () => void;
   onShowGuide: () => void;
+  onPeekOriginalStart: () => void;
+  onPeekOriginalEnd: () => void;
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
   onExportResults: () => void;
@@ -78,7 +86,6 @@ export function InpaintingControlPanel({
 }): React.JSX.Element {
   const activeInpaintingJob = jobState.kind === "inpainting" && jobState.status !== "idle";
   const totalPages = currentChapter?.pages.length ?? 0;
-  const targetLabel = "무늬 배경";
   const pageTargetCount = blockCounts.selectedPage;
   const pendingTargetCount = blockCounts.pendingTotal;
 
@@ -87,36 +94,61 @@ export function InpaintingControlPanel({
       <section className="inpainting-panel stage-panel">
         <div className="panel-header">
           <h2>무늬 배경 지우기</h2>
-          <button className="inpainting-guide-button" onClick={onShowGuide}>
-            안내
-          </button>
+          <div className="inpainting-header-actions">
+            <button
+              className={`chip-toggle ${showTextBlocks ? "active" : ""}`}
+              onClick={onToggleBlocks}
+              title="블록 표시 켜기/끄기"
+            >
+              블록
+            </button>
+            <button
+              className={`chip-toggle ${showBlockChrome ? "active" : ""}`}
+              onClick={onToggleChrome}
+              title="배경/테두리 표시 켜기/끄기"
+            >
+              테두리
+            </button>
+            <button className="inpainting-guide-button" onClick={onShowGuide}>
+              안내
+            </button>
+          </div>
         </div>
 
         <div className="inpainting-counts">
           <span className="type-stat nonsolid">이 페이지 {pageTargetCount}</span>
-          <span className="type-stat nonsolid">남은 전체 {pendingTargetCount}</span>
-          <span className="type-stat review">처리된 페이지 {inpaintedPageCount}</span>
+          <span className="type-stat nonsolid">남은 {pendingTargetCount}</span>
+          <span className="type-stat review">완료 {inpaintedPageCount}</span>
         </div>
 
         {activeInpaintingJob ? <InpaintingProgressCard jobState={jobState} progressSnapshot={progressSnapshot} onCancel={onCancelJob} /> : null}
 
         <div className="inpainting-run-card pattern">
-          <div>
-            <strong>{targetLabel} 실행</strong>
-            <span>
-              {currentChapter
-                ? `남은 ${blockCounts.pendingPages} / ${totalPages}페이지 · ${pendingTargetCount}개 ${targetLabel} 블록`
-                : "화가 열려 있지 않습니다."}
-            </span>
-          </div>
+          <span className="inpainting-run-meta">
+            {currentChapter
+              ? `남은 ${blockCounts.pendingPages} / ${totalPages}페이지 · ${pendingTargetCount}개 블록`
+              : "화가 열려 있지 않습니다."}
+          </span>
           <div className="inpainting-action-grid">
             <button className="pattern compact" disabled={!selectedPage || jobActive || pageTargetCount === 0} onClick={onRunPage}>
-              이 페이지 지우기
+              이 페이지
             </button>
             <button className="pattern compact" disabled={!currentChapter || jobActive || pendingTargetCount === 0} onClick={onRunChapter}>
-              남은 페이지 지우기
+              남은 페이지
             </button>
           </div>
+          <button
+            className={`peek-button ${peeking ? "active" : ""}`}
+            disabled={!peekAvailable || jobActive}
+            onPointerDown={onPeekOriginalStart}
+            onPointerUp={onPeekOriginalEnd}
+            onPointerLeave={onPeekOriginalEnd}
+            onPointerCancel={onPeekOriginalEnd}
+          >
+            <EyeIcon />
+            <span>{peeking ? "원본 표시 중" : "원본 비교 (누르고 있기)"}</span>
+          </button>
+          <p className="inpainting-hint">블록 모서리의 ‘제외’ 버튼으로 해당 블록을 인페인팅에서 빼거나 다시 넣을 수 있어요.</p>
         </div>
       </section>
 
@@ -131,14 +163,12 @@ export function InpaintingControlPanel({
             <span>마스크 붓</span>
           </button>
           <button className="secondary compact" disabled={jobActive || maskStrokeCount === 0} onClick={onClearPatternMask}>
-            마스크 비우기
+            비우기
           </button>
         </div>
-        <div className="drawn-mask-actions">
-          <button className="pattern compact" disabled={jobActive || !selectedPage || maskStrokeCount === 0} onClick={onRunDrawnPattern}>
-            그린 영역 지우기
-          </button>
-        </div>
+        <button className="pattern compact" disabled={jobActive || !selectedPage || maskStrokeCount === 0} onClick={onRunDrawnPattern}>
+          그린 영역 지우기
+        </button>
       </section>
 
       <section className="inpainting-panel mask-tool-panel">
@@ -154,7 +184,7 @@ export function InpaintingControlPanel({
           </button>
           <button className={tool === "eraser" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "eraser" ? "none" : "eraser")}>
             <RestoreIcon />
-            <span>복원 붓</span>
+            <span>복원</span>
           </button>
           <button className={tool === "picker" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "picker" ? "none" : "picker")}>
             <PickerIcon />
@@ -202,13 +232,6 @@ export function InpaintingControlPanel({
           PNG 출력
         </button>
       </section>
-
-      <DisplayControlPanel
-        showBlockChrome={showBlockChrome}
-        showTextBlocks={showTextBlocks}
-        onToggleChrome={onToggleChrome}
-        onToggleBlocks={onToggleBlocks}
-      />
     </>
   );
 }
@@ -321,6 +344,15 @@ function PickerIcon(): React.JSX.Element {
       <path d="m14.5 4.5 5 5" />
       <path d="m5 19 4.4-1.1 8.9-8.9-3.3-3.3-8.9 8.9L5 19Z" />
       <path d="M7.2 14.8 9.2 16.8" />
+    </svg>
+  );
+}
+
+function EyeIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }

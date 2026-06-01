@@ -12,6 +12,7 @@ export type ImageStageProps = {
   selectedBlockId: string | null;
   showTextBlocks: boolean;
   showBlockChrome: boolean;
+  inpaintingMode?: boolean;
   blockPointerDisabled?: boolean;
   retouchCursor?: {
     point: { x: number; y: number } | null;
@@ -34,6 +35,7 @@ export type ImageStageProps = {
   onStagePointerDown: (event: React.PointerEvent) => void;
   onStagePointerLeave?: (event: React.PointerEvent) => void;
   onBlockPointerDown: (event: React.PointerEvent, block: TranslationBlock, mode: "move" | "resize") => void;
+  onToggleBlockExcluded?: (blockId: string) => void;
 };
 
 export function ImageStage({
@@ -45,6 +47,7 @@ export function ImageStage({
   selectedBlockId,
   showTextBlocks,
   showBlockChrome,
+  inpaintingMode = false,
   blockPointerDisabled = false,
   retouchCursor = null,
   retouchPreview = null,
@@ -55,7 +58,8 @@ export function ImageStage({
   onStagePointerUp,
   onStagePointerDown,
   onStagePointerLeave,
-  onBlockPointerDown
+  onBlockPointerDown,
+  onToggleBlockExcluded
 }: ImageStageProps): React.JSX.Element {
   const clipId = React.useId();
   const cursorVisible = Boolean(retouchCursor?.point && stageSize);
@@ -106,9 +110,11 @@ export function ImageStage({
                 stageSize={stageSize}
                 selected={block.id === selectedBlockId}
                 showChrome={showBlockChrome}
+                showExcluded={inpaintingMode}
                 pointerDisabled={blockPointerDisabled}
                 onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
                 onResizePointerDown={(event) => onBlockPointerDown(event, block, "resize")}
+                onToggleExcluded={onToggleBlockExcluded ? () => onToggleBlockExcluded(block.id) : undefined}
               />
             ))
           : null}

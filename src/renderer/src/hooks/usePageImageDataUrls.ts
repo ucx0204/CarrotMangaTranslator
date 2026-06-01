@@ -22,12 +22,14 @@ export function usePageImageDataUrls({
 }: UsePageImageDataUrlsOptions): UsePageImageDataUrlsResult {
   const [selectedPageImageDataUrl, setSelectedPageImageDataUrl] = React.useState("");
   const [selectedPageOriginalImageDataUrl, setSelectedPageOriginalImageDataUrl] = React.useState("");
+  const [cacheRevision, setCacheRevision] = React.useState(0);
   const pageImageCacheRef = React.useRef<Map<string, string>>(new Map());
 
   const clearPageImageCache = React.useCallback(() => {
     pageImageCacheRef.current.clear();
     setSelectedPageImageDataUrl("");
     setSelectedPageOriginalImageDataUrl("");
+    setCacheRevision((revision) => revision + 1);
   }, []);
 
   React.useEffect(() => {
@@ -70,7 +72,7 @@ export function usePageImageDataUrls({
     return () => {
       cancelled = true;
     };
-  }, [selectedPage?.id, selectedPageImagePath]);
+  }, [cacheRevision, selectedPage?.id, selectedPageImagePath]);
 
   React.useEffect(() => {
     if (!selectedPage) {
@@ -111,7 +113,7 @@ export function usePageImageDataUrls({
     return () => {
       cancelled = true;
     };
-  }, [selectedPage?.id, selectedPage?.imagePath, selectedPageImageDataUrl, selectedPageImagePath]);
+  }, [cacheRevision, selectedPage?.id, selectedPage?.imagePath, selectedPageImageDataUrl, selectedPageImagePath]);
 
   return { selectedPageImageDataUrl, selectedPageOriginalImageDataUrl, clearPageImageCache };
 }

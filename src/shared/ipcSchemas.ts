@@ -54,7 +54,8 @@ export const TranslationBlockSchema = z
     outlineColor: hexColor.optional(),
     backgroundColor: hexColor,
     opacity: finiteNumber.min(0).max(1),
-    autoFitText: z.boolean().optional()
+    autoFitText: z.boolean().optional(),
+    inpaintExcluded: z.boolean().optional()
   })
   .strict();
 

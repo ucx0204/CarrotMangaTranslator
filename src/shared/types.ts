@@ -106,6 +106,7 @@ export type TranslationBlock = {
   backgroundColor: string;
   opacity: number;
   autoFitText?: boolean;
+  inpaintExcluded?: boolean;
 };
 
 export type MangaPage = {

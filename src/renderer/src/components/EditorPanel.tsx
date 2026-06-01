@@ -1,6 +1,6 @@
 import React from "react";
 import type { RenderTextDirection, TranslationBlock } from "../../../shared/types";
-import { BLOCK_FONT_OPTIONS, normalizeBlockFontFamily, resolveBlockFontFamily, resolveBlockFontOption } from "../lib/fonts";
+import { FontSelect } from "./FontSelect";
 
 type EditorPanelProps = {
   block: TranslationBlock | null;
@@ -39,7 +39,6 @@ export function EditorPanel({
   }
 
   const outlineColor = resolveColor(block.outlineColor, "#ffffff");
-  const selectedFont = resolveBlockFontOption(block.fontFamily);
   const autoFitText = block.autoFitText ?? true;
   const fontSizePx = clampFontSize(block.fontSizePx);
 
@@ -91,25 +90,10 @@ export function EditorPanel({
           onChange={(event) => onUpdate({ opacity: Number(event.target.value) })}
         />
       </label>
-      <label className="font-field">
+      <div className="font-field">
         <span className="font-field-label">폰트</span>
-        <span className="font-select-wrap">
-          <select
-            value={selectedFont.id}
-            disabled={disabled}
-            onChange={(event) => onUpdate({ fontFamily: normalizeBlockFontFamily(event.target.value) })}
-          >
-            {BLOCK_FONT_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <span className="font-preview" style={{ fontFamily: resolveBlockFontFamily(selectedFont.id) }}>
-            {selectedFont.sample}
-          </span>
-        </span>
-      </label>
+        <FontSelect value={block.fontFamily} disabled={disabled} onChange={(fontFamily) => onUpdate({ fontFamily })} />
+      </div>
       <div className="font-size-field">
         <div className="font-size-header">
           <span>글자 크기</span>
@@ -145,7 +129,7 @@ export function EditorPanel({
           />
         </div>
       </div>
-      <div className="color-stack" aria-label="블록 색상">
+      <div className="color-row" aria-label="블록 색상">
         <ColorField label="글자색" value={resolveColor(block.textColor, "#111111")} disabled={disabled} onChange={(textColor) => onUpdate({ textColor })} />
         <ColorField label="외곽선" value={outlineColor} disabled={disabled} onChange={(nextOutlineColor) => onUpdate({ outlineColor: nextOutlineColor })} />
       </div>

@@ -45,6 +45,10 @@ type AppRightRailProps = {
   onRunDrawnPattern: () => void;
   onClearPatternMask: () => void;
   onShowInpaintingGuide: () => void;
+  peekAvailable: boolean;
+  peeking: boolean;
+  onPeekOriginalStart: () => void;
+  onPeekOriginalEnd: () => void;
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
   onExportResults: () => void;
@@ -93,6 +97,10 @@ export function AppRightRail({
   onRunDrawnPattern,
   onClearPatternMask,
   onShowInpaintingGuide,
+  peekAvailable,
+  peeking,
+  onPeekOriginalStart,
+  onPeekOriginalEnd,
   onToggleChrome,
   onToggleBlocks,
   onExportResults,
@@ -139,6 +147,10 @@ export function AppRightRail({
             onRunDrawnPattern={onRunDrawnPattern}
             onClearPatternMask={onClearPatternMask}
             onShowGuide={onShowInpaintingGuide}
+            peekAvailable={peekAvailable}
+            peeking={peeking}
+            onPeekOriginalStart={onPeekOriginalStart}
+            onPeekOriginalEnd={onPeekOriginalEnd}
             onToggleChrome={onToggleChrome}
             onToggleBlocks={onToggleBlocks}
             onExportResults={onExportResults}

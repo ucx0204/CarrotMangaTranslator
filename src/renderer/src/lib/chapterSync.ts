@@ -61,6 +61,7 @@ export function mergeLiveChapterPreservingDirtyPages(
         preservedDirtyPageIds.push(page.id);
         return {
           ...localPage,
+          inpaintedImagePath: page.inpaintedImagePath,
           analysisStatus: page.analysisStatus,
           lastError: page.lastError,
           updatedAt: page.updatedAt

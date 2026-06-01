@@ -14,6 +14,8 @@ type AppWorkspaceProps = {
   selectedBlockId: string | null;
   showTextBlocks: boolean;
   showBlockChrome: boolean;
+  inpaintingMode: boolean;
+  showingOriginalPeek: boolean;
   inpaintingToolActive: boolean;
   retouchCursor: ImageStageProps["retouchCursor"];
   retouchPreviewLayer: ImageStageProps["retouchPreview"];
@@ -28,6 +30,7 @@ type AppWorkspaceProps = {
   onStagePointerDown: ImageStageProps["onStagePointerDown"];
   onStagePointerLeave: ImageStageProps["onStagePointerLeave"];
   onBlockPointerDown: ImageStageProps["onBlockPointerDown"];
+  onToggleBlockExcluded: ImageStageProps["onToggleBlockExcluded"];
   onOpenTranslationSource: () => void;
   onOpenBatchImport: () => void;
   onOpenShareImport: () => void;
@@ -43,6 +46,8 @@ export function AppWorkspace({
   selectedBlockId,
   showTextBlocks,
   showBlockChrome,
+  inpaintingMode,
+  showingOriginalPeek,
   inpaintingToolActive,
   retouchCursor,
   retouchPreviewLayer,
@@ -57,6 +62,7 @@ export function AppWorkspace({
   onStagePointerDown,
   onStagePointerLeave,
   onBlockPointerDown,
+  onToggleBlockExcluded,
   onOpenTranslationSource,
   onOpenBatchImport,
   onOpenShareImport
@@ -72,6 +78,7 @@ export function AppWorkspace({
     >
       {selectedPage ? (
         <div className="workspace-pane">
+          {showingOriginalPeek ? <div className="peek-original-badge">원본</div> : null}
           <ImageStage
             page={selectedPage}
             imageDataUrl={selectedPageImageDataUrl}
@@ -81,6 +88,7 @@ export function AppWorkspace({
             selectedBlockId={selectedBlockId}
             showTextBlocks={showTextBlocks}
             showBlockChrome={showBlockChrome && !inpaintingToolActive}
+            inpaintingMode={inpaintingMode}
             blockPointerDisabled={inpaintingToolActive}
             retouchCursor={retouchCursor}
             retouchPreview={retouchPreviewLayer}
@@ -92,6 +100,7 @@ export function AppWorkspace({
             onStagePointerDown={onStagePointerDown}
             onStagePointerLeave={onStagePointerLeave}
             onBlockPointerDown={onBlockPointerDown}
+            onToggleBlockExcluded={onToggleBlockExcluded}
           />
         </div>
       ) : (

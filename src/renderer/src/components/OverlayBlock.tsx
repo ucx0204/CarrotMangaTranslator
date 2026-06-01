@@ -10,9 +10,11 @@ type OverlayBlockProps = {
   stageSize: ViewportSize;
   selected: boolean;
   showChrome: boolean;
+  showExcluded?: boolean;
   pointerDisabled?: boolean;
   onPointerDown: (event: React.PointerEvent) => void;
   onResizePointerDown: (event: React.PointerEvent) => void;
+  onToggleExcluded?: () => void;
 };
 
 export function OverlayBlock({
@@ -21,9 +23,11 @@ export function OverlayBlock({
   stageSize,
   selected,
   showChrome,
+  showExcluded = false,
   pointerDisabled = false,
   onPointerDown,
-  onResizePointerDown
+  onResizePointerDown,
+  onToggleExcluded
 }: OverlayBlockProps): React.JSX.Element | null {
   if (block.renderDirection === "hidden") {
     return null;
@@ -74,12 +78,15 @@ export function OverlayBlock({
     textShadow: textOutlineShadow
   };
 
+  const excluded = showExcluded && Boolean(block.inpaintExcluded);
+
   return (
     <div
       className={[
         "overlay-block",
         `block-${block.type}`,
         selected ? "selected" : "",
+        excluded ? "excluded" : "",
         showChrome ? "" : "chrome-hidden"
       ]
         .filter(Boolean)
@@ -92,6 +99,26 @@ export function OverlayBlock({
           {displayText}
         </span>
       </div>
+      {showExcluded && onToggleExcluded && !pointerDisabled ? (
+        <button
+          type="button"
+          className={`overlay-exclude-toggle ${block.inpaintExcluded ? "excluded" : ""}`}
+          title={block.inpaintExcluded ? "인페인팅에 다시 포함" : "인페인팅에서 제외"}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleExcluded();
+          }}
+        >
+          {block.inpaintExcluded ? "제외됨" : "제외"}
+        </button>
+      ) : excluded ? (
+        <span className="overlay-excluded-badge" aria-hidden="true">제외</span>
+      ) : null}
       {selected && !pointerDisabled ? <button className="resize-handle" onPointerDown={onResizePointerDown} aria-label="Resize" /> : null}
     </div>
   );

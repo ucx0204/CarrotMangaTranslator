@@ -26,8 +26,8 @@ export async function renderPageWithTranslationBlocksForExport(
   await mkdir(renderDir, { recursive: true });
   const htmlPath = join(renderDir, `${page.id}-${randomUUID()}.html`);
   const win = new BrowserWindow({
-    width,
-    height,
+    width: Math.min(1200, width),
+    height: Math.min(1000, height),
     show: false,
     useContentSize: true,
     backgroundColor: "#ffffff",
@@ -41,8 +41,11 @@ export async function renderPageWithTranslationBlocksForExport(
     await writeFile(htmlPath, html, "utf8");
     await win.loadFile(htmlPath);
     await waitForExportRenderReady(win);
-    const rendered = await win.webContents.capturePage({ x: 0, y: 0, width, height });
-    const png = rendered.toPNG();
+    const pngDataUrl = await win.webContents.executeJavaScript("window.__exportPngDataUrl", true);
+    if (typeof pngDataUrl !== "string" || !pngDataUrl.startsWith("data:image/png;base64,")) {
+      throw new Error(`출력 PNG 데이터를 만들지 못했습니다: ${page.name}`);
+    }
+    const png = Buffer.from(pngDataUrl.slice("data:image/png;base64,".length), "base64");
     if (!png.length) {
       throw new Error(`출력 PNG를 만들지 못했습니다: ${page.name}`);
     }
@@ -138,10 +141,11 @@ body {
 </head>
 <body>
 <div class="page-export-stage" id="stage">
-  <img class="page-export-image" src="${imageDataUrl}" />
+  <canvas id="exportCanvas" width="${width}" height="${height}" style="display:block;width:${width}px;height:${height}px"></canvas>
 </div>
 <script>
 const EXPORT_BLOCKS = ${safeScriptJson(blocks)};
+const EXPORT_IMAGE_DATA_URL = ${safeScriptJson(imageDataUrl)};
 const MIN_FONT_SIZE = 10;
 const MAX_AUTOFIT_FONT_SIZE = 256;
 const canvas = document.createElement("canvas");
@@ -240,6 +244,108 @@ function resolveOutlineShadow(fontSize, color) {
     .join(", ");
 }
 
+function resolveOutlineWidth(fontSize) {
+  return Math.round(Math.min(4, Math.max(0.35, fontSize * 0.055)) * 2 * 10) / 10;
+}
+
+function drawOutlinedText(ctx, text, x, y, block, fontSize) {
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 2;
+  ctx.lineWidth = resolveOutlineWidth(fontSize);
+  ctx.strokeStyle = block.outlineColor;
+  ctx.fillStyle = block.textColor;
+  ctx.strokeText(text, x, y);
+  ctx.fillText(text, x, y);
+}
+
+function drawHorizontalText(ctx, block, rect, fontSize) {
+  const innerWidth = Math.max(1, rect.width - 2);
+  const measured = measureHorizontal(block, fontSize, innerWidth);
+  const lineHeightPx = fontSize * block.lineHeight;
+  const totalHeight = measured.lines.length * lineHeightPx;
+  const startY = rect.top + Math.max(0, (rect.height - totalHeight) / 2);
+  const align = block.textAlign || "center";
+  const x = align === "left" ? rect.left + 1 : align === "right" ? rect.left + rect.width - 1 : rect.left + rect.width / 2;
+  ctx.font = buildFont(fontSize, block.fontFamily);
+  ctx.textAlign = align;
+  ctx.textBaseline = "top";
+  for (const [index, line] of measured.lines.entries()) {
+    drawOutlinedText(ctx, line, x, startY + index * lineHeightPx, block, fontSize);
+  }
+}
+
+function drawVerticalText(ctx, block, rect, fontSize) {
+  const compact = block.text.replace(/\\r/g, "").replace(/\\s+/g, "");
+  if (!compact) {
+    return;
+  }
+  const chars = Array.from(compact);
+  const lineHeightPx = fontSize * block.lineHeight;
+  const charsPerColumn = Math.max(1, Math.floor(Math.max(1, rect.height - 2) / lineHeightPx));
+  const columns = [];
+  for (let index = 0; index < chars.length; index += charsPerColumn) {
+    columns.push(chars.slice(index, index + charsPerColumn));
+  }
+  const columnGap = fontSize * 1.15;
+  const totalWidth = Math.max(columnGap, columns.length * columnGap);
+  const firstX = rect.left + rect.width / 2 + totalWidth / 2 - columnGap / 2;
+  ctx.font = buildFont(fontSize, block.fontFamily);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (const [columnIndex, column] of columns.entries()) {
+    const x = firstX - columnIndex * columnGap;
+    const columnHeight = column.length * lineHeightPx;
+    const startY = rect.top + Math.max(0, (rect.height - columnHeight) / 2);
+    for (const [rowIndex, char] of column.entries()) {
+      drawOutlinedText(ctx, char, x, startY + rowIndex * lineHeightPx, block, fontSize);
+    }
+  }
+}
+
+function drawExportBlock(ctx, block) {
+  const rect = block.rect;
+  const innerWidth = Math.max(1, rect.width - 2);
+  const innerHeight = Math.max(1, rect.height - 2);
+  const fontSize = resolveFontSize(block, innerWidth, innerHeight);
+  ctx.save();
+  let drawRect = rect;
+  if (block.rotationDeg) {
+    ctx.translate(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    ctx.rotate((block.rotationDeg * Math.PI) / 180);
+    drawRect = { left: -rect.width / 2, top: -rect.height / 2, width: rect.width, height: rect.height };
+  }
+  if (block.renderDirection === "vertical") {
+    drawVerticalText(ctx, block, drawRect, fontSize);
+  } else {
+    drawHorizontalText(ctx, block, drawRect, fontSize);
+  }
+  ctx.restore();
+}
+
+function loadExportImage() {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("export image load failed"));
+    image.src = EXPORT_IMAGE_DATA_URL;
+  });
+}
+
+async function renderCanvasPng() {
+  const outputCanvas = document.getElementById("exportCanvas");
+  const ctx = outputCanvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("canvas context unavailable");
+  }
+  const image = await loadExportImage();
+  ctx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+  ctx.drawImage(image, 0, 0, outputCanvas.width, outputCanvas.height);
+  for (const block of EXPORT_BLOCKS) {
+    drawExportBlock(ctx, block);
+  }
+  window.__exportPngDataUrl = outputCanvas.toDataURL("image/png");
+}
+
 function renderBlocks() {
   const stage = document.getElementById("stage");
   for (const block of EXPORT_BLOCKS) {
@@ -297,7 +403,7 @@ async function preloadExportFonts() {
 
 window.addEventListener("load", async () => {
   await preloadExportFonts();
-  renderBlocks();
+  await renderCanvasPng();
   if (document.fonts && document.fonts.ready) {
     await document.fonts.ready;
   }
