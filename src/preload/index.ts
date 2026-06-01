@@ -4,7 +4,7 @@ import type {
   ChapterSnapshot,
   CreateImportRequest,
   CreateImportResult,
-  ImportPreviewResult,
+  ImportPreviewSession,
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
   InpaintingExportRequest,
@@ -20,6 +20,8 @@ import type {
   ModelTestResult,
   RegionAnalysisRequest,
   RegionAnalysisResult,
+  SetPageInpaintingResultRequest,
+  SetPageInpaintingResultResult,
   StartInpaintingRequest,
   StartInpaintingResult,
   StartAnalysisRequest,
@@ -32,10 +34,10 @@ import type {
 } from "../shared/types";
 
 const api = {
-  previewImagesImport: (): Promise<ImportPreviewResult | null> => ipcRenderer.invoke("import:preview-images"),
-  previewFolderImport: (): Promise<ImportPreviewResult | null> => ipcRenderer.invoke("import:preview-folder"),
-  previewZipImport: (): Promise<ImportPreviewResult | null> => ipcRenderer.invoke("import:preview-zip"),
-  previewZipFolderImport: (): Promise<ImportPreviewResult | null> => ipcRenderer.invoke("import:preview-zip-folder"),
+  previewImagesImport: (): Promise<ImportPreviewSession | null> => ipcRenderer.invoke("import:preview-images"),
+  previewFolderImport: (): Promise<ImportPreviewSession | null> => ipcRenderer.invoke("import:preview-folder"),
+  previewZipImport: (): Promise<ImportPreviewSession | null> => ipcRenderer.invoke("import:preview-zip"),
+  previewZipFolderImport: (): Promise<ImportPreviewSession | null> => ipcRenderer.invoke("import:preview-zip-folder"),
   createImport: (request: CreateImportRequest): Promise<CreateImportResult> => ipcRenderer.invoke("import:create", request),
   exportWorkShare: (request: WorkShareExportRequest): Promise<WorkShareExportResult | null> => ipcRenderer.invoke("share:export-work", request),
   previewWorkShareImport: (): Promise<WorkShareImportPreview | null> => ipcRenderer.invoke("share:preview-import"),
@@ -68,6 +70,8 @@ const api = {
   startInpainting: (request: StartInpaintingRequest): Promise<StartInpaintingResult> => ipcRenderer.invoke("job:start-inpainting", request),
   applyInpaintingRetouch: (request: InpaintingRetouchRequest): Promise<InpaintingRetouchResult> =>
     ipcRenderer.invoke("inpainting:apply-retouch", request),
+  setPageInpaintingResult: (request: SetPageInpaintingResultRequest): Promise<SetPageInpaintingResultResult> =>
+    ipcRenderer.invoke("inpainting:set-page-result", request),
   revertInpainting: (request: InpaintingRevertRequest): Promise<InpaintingRevertResult> => ipcRenderer.invoke("inpainting:revert", request),
   sampleInpaintingColor: (request: InpaintingColorSampleRequest): Promise<InpaintingColorSampleResult> =>
     ipcRenderer.invoke("inpainting:sample-color", request),

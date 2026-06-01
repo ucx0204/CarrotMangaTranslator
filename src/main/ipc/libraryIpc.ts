@@ -1,6 +1,5 @@
 import { ipcMain, shell } from "electron";
 import {
-  ChapterSnapshotSchema,
   DeleteChapterRequestSchema,
   DeletePageRequestSchema,
   DeleteWorkRequestSchema,
@@ -10,6 +9,7 @@ import {
   RenameWorkRequestSchema,
   ReorderChaptersRequestSchema,
   ReorderPagesRequestSchema,
+  SaveChapterSnapshotSchema,
   parseIpcPayload
 } from "../../shared/ipcSchemas";
 import {
@@ -41,7 +41,7 @@ export function registerLibraryIpc(): void {
     const request = parseIpcPayload(ImageDataUrlRequestSchema, { imagePath }, "페이지 이미지 열기");
     return readLibraryPageImageDataUrl(request.imagePath);
   });
-  ipcMain.handle("library:save-chapter", async (_event, chapter: unknown) => saveChapterSnapshot(parseIpcPayload(ChapterSnapshotSchema, chapter, "화 저장")));
+  ipcMain.handle("library:save-chapter", async (_event, chapter: unknown) => saveChapterSnapshot(parseIpcPayload(SaveChapterSnapshotSchema, chapter, "화 저장")));
   ipcMain.handle("library:rename-work", async (_event, workId: unknown, title: unknown) => {
     const request = parseIpcPayload(RenameWorkRequestSchema, { workId, title }, "작품 이름 변경");
     return renameWork(request.workId, request.title);

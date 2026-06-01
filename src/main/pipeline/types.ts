@@ -39,6 +39,7 @@ export type OcrBboxResult = {
 export type OverlayItem = {
   id: number;
   type: string;
+  textRole?: "sound" | "ordinary" | "nontext" | string;
   bbox: BBox;
   jp: string;
   ko: string;
@@ -51,6 +52,7 @@ export type OverlayItem = {
 export type CropRetryTarget = {
   id: number;
   type: string;
+  textRole?: "sound" | "ordinary" | "nontext" | string;
   bbox: BBox;
   cropBox: BBox;
   reason?: "low-confidence";

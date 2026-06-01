@@ -30,6 +30,8 @@ export const DEFAULT_MAX_TOKENS = 12000;
 export const MIN_MAX_TOKENS = 300;
 export const MAX_MAX_TOKENS = 12000;
 export const DEFAULT_OCR_DEVICE: OcrDevice = "cpu";
+export const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
+export const RTX_50_OCR_GPU_CUDA_TAG = "cu129";
 
 const DEFAULT_IMAGE_TOKENS = 1024;
 
@@ -146,6 +148,7 @@ export type TranslationOptions = {
   codexReasoningEffort: CodexReasoningEffort;
   codexOauthPort: number;
   ocrDevice: OcrDevice;
+  ocrGpuCudaTag?: string;
   ocrBboxProvider?: string;
   ocrBboxCommand?: string;
   ocrBboxHintsPath?: string;
@@ -211,7 +214,13 @@ export function resolveDefaultAppSettings(
       oauthPort: resolvePortNumber(env.MANGA_TRANSLATOR_CODEX_OAUTH_PORT, DEFAULT_CODEX_OAUTH_PORT)
     },
     ocr: {
-      device: resolveOcrDevice(env.MANGA_TRANSLATOR_OCR_DEVICE, hardwareDefaults.ocrDevice)
+      device: resolveOcrDevice(env.MANGA_TRANSLATOR_OCR_DEVICE, hardwareDefaults.ocrDevice),
+      gpuCudaTag: resolveOcrGpuCudaTag(
+        env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG ??
+          env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG ??
+          env.MANGA_TRANSLATOR_OCR_GPU_CUDA,
+        hardwareDefaults.ocrGpuCudaTag
+      )
     },
     maxTokens: resolveMaxTokens(env.MANGA_TRANSLATOR_MAX_TOKENS, DEFAULT_MAX_TOKENS)
   };
@@ -219,35 +228,42 @@ export function resolveDefaultAppSettings(
 
 export function resolveHardwareDefaults(
   detectedGpu?: number | DetectedGpuInfo | null
-): { modelProvider: ModelProvider; gemmaVramMode: GemmaVramMode; ocrDevice: OcrDevice } {
+): { modelProvider: ModelProvider; gemmaVramMode: GemmaVramMode; ocrDevice: OcrDevice; ocrGpuCudaTag: string } {
   const info = normalizeDetectedGpuInfo(detectedGpu);
-  if (!info || !info.memoryMb || !info.rtxGeneration || info.rtxGeneration < 30) {
+  const supportedRtxGeneration = (info?.rtxGeneration ?? 0) >= 30;
+  const supportedComputeCapability = (info?.computeCapability ?? 0) >= 8;
+  if (!info || !info.memoryMb || (!supportedRtxGeneration && !supportedComputeCapability)) {
     return {
       modelProvider: "openai-codex",
       gemmaVramMode: "economy",
-      ocrDevice: "cpu"
+      ocrDevice: "cpu",
+      ocrGpuCudaTag: resolveHardwareOcrGpuCudaTag(info)
     };
   }
 
   const ocrDevice: OcrDevice = info.memoryMb >= 12000 ? "gpu" : "cpu";
+  const ocrGpuCudaTag = resolveHardwareOcrGpuCudaTag(info);
   if (info.memoryMb >= 24000) {
     return {
       modelProvider: "gemma",
       gemmaVramMode: "full",
-      ocrDevice
+      ocrDevice,
+      ocrGpuCudaTag
     };
   }
   if (info.memoryMb >= 16000) {
     return {
       modelProvider: "gemma",
       gemmaVramMode: "economy",
-      ocrDevice
+      ocrDevice,
+      ocrGpuCudaTag
     };
   }
   return {
     modelProvider: "openai-codex",
     gemmaVramMode: "economy",
-    ocrDevice
+    ocrDevice,
+    ocrGpuCudaTag
   };
 }
 
@@ -262,6 +278,7 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
     modelSource === "huggingface" ? resolveStoredGemmaMmproj(asRecord(gemma), resolvedModel, defaults) : {};
   const localModelPath = resolveOptionalString(asRecord(gemma)?.localModelPath);
   const localMmprojPath = resolveOptionalString(asRecord(gemma)?.localMmprojPath);
+  const resolvedOcr = asRecord(ocr);
   return {
     modelProvider: resolveModelProvider(record?.modelProvider, defaults.modelProvider),
     gemma: {
@@ -280,7 +297,8 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
       oauthPort: resolvePortNumber(asRecord(codex)?.oauthPort, defaults.codex.oauthPort)
     },
     ocr: {
-      device: resolveOcrDevice(asRecord(ocr)?.device, defaults.ocr.device)
+      device: resolveOcrDevice(resolvedOcr?.device, defaults.ocr.device),
+      gpuCudaTag: resolveStoredOcrGpuCudaTag(resolvedOcr, defaults)
     },
     maxTokens: resolveMaxTokens(record?.maxTokens, defaults.maxTokens)
   };
@@ -411,6 +429,12 @@ export function buildBaseTranslationOptions({
     codexReasoningEffort: resolveCodexReasoningEffort(env.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT, settings.codex.reasoningEffort),
     codexOauthPort: settings.codex.oauthPort,
     ocrDevice: resolveOcrDevice(env.MANGA_TRANSLATOR_OCR_DEVICE, settings.ocr.device),
+    ocrGpuCudaTag: resolveOcrGpuCudaTag(
+      env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG ??
+        env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG ??
+        env.MANGA_TRANSLATOR_OCR_GPU_CUDA,
+      settings.ocr.gpuCudaTag ?? DEFAULT_OCR_GPU_CUDA_TAG
+    ),
     ocrBboxProvider: resolveOptionalString(env.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER),
     ocrBboxCommand: resolveOptionalString(env.MANGA_TRANSLATOR_OCR_BBOX_CMD),
     ocrBboxHintsPath: resolveOptionalString(env.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH),
@@ -466,6 +490,34 @@ function resolveOcrDevice(value: unknown, fallback: OcrDevice): OcrDevice {
   return value === "gpu" || value === "cpu" ? value : fallback;
 }
 
+function resolveOcrGpuCudaTag(value: unknown, fallback: string): string {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (/^cu\d+$/.test(text)) {
+    return text;
+  }
+  const digits = text.replace(/\D/g, "");
+  if (digits) {
+    return `cu${digits}`;
+  }
+  return fallback;
+}
+
+function resolveStoredOcrGpuCudaTag(ocr: Record<string, unknown> | null, defaults: AppSettings): string {
+  const defaultTag = defaults.ocr.gpuCudaTag ?? DEFAULT_OCR_GPU_CUDA_TAG;
+  const stored = resolveOcrGpuCudaTag(ocr?.gpuCudaTag, defaultTag);
+  if (defaultTag === RTX_50_OCR_GPU_CUDA_TAG && (!ocr?.gpuCudaTag || stored === DEFAULT_OCR_GPU_CUDA_TAG)) {
+    return RTX_50_OCR_GPU_CUDA_TAG;
+  }
+  return stored;
+}
+
+function resolveHardwareOcrGpuCudaTag(info: DetectedGpuInfo | null): string {
+  if ((info?.computeCapability ?? 0) >= 12 || (info?.rtxGeneration ?? 0) >= 50) {
+    return RTX_50_OCR_GPU_CUDA_TAG;
+  }
+  return DEFAULT_OCR_GPU_CUDA_TAG;
+}
+
 function resolveCodexReasoningEffort(value: unknown, fallback: CodexReasoningEffort): CodexReasoningEffort {
   if (value === "minimal") {
     return "low";
@@ -513,7 +565,8 @@ function normalizeDetectedGpuInfo(value?: number | DetectedGpuInfo | null): Dete
       ? {
           name: null,
           memoryMb: value,
-          rtxGeneration: null
+          rtxGeneration: null,
+          computeCapability: null
         }
       : null;
   }
@@ -523,10 +576,13 @@ function normalizeDetectedGpuInfo(value?: number | DetectedGpuInfo | null): Dete
   const memoryMb = typeof value.memoryMb === "number" && Number.isFinite(value.memoryMb) ? value.memoryMb : null;
   const rtxGeneration =
     typeof value.rtxGeneration === "number" && Number.isFinite(value.rtxGeneration) ? value.rtxGeneration : null;
+  const computeCapability =
+    typeof value.computeCapability === "number" && Number.isFinite(value.computeCapability) ? value.computeCapability : null;
   return {
     name: typeof value.name === "string" ? value.name : null,
     memoryMb,
-    rtxGeneration
+    rtxGeneration,
+    computeCapability
   };
 }
 

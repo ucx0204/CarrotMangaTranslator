@@ -1,4 +1,4 @@
-import type { BBox, BlockType, RenderTextDirection, SourceTextDirection, TranslationBlock } from "./types";
+import type { BBox, BlockType, ChapterSnapshot, RenderTextDirection, SourceTextDirection, TranslationBlock } from "./types";
 
 type PageSize = {
   width: number;
@@ -23,11 +23,32 @@ export function clamp(value: number, min: number, max: number): number {
 }
 
 export function clampBbox(bbox: BBox): BBox {
-  const x = clamp(bbox.x, 0, 1000);
-  const y = clamp(bbox.y, 0, 1000);
+  const x = clamp(bbox.x, 0, 999);
+  const y = clamp(bbox.y, 0, 999);
   const w = clamp(bbox.w, 1, 1000 - x);
   const h = clamp(bbox.h, 1, 1000 - y);
   return { x, y, w, h };
+}
+
+export function sanitizeChapterBboxes(chapter: ChapterSnapshot): ChapterSnapshot {
+  return {
+    ...chapter,
+    pages: chapter.pages.map((page) => ({
+      ...page,
+      blocks: page.blocks.map((block) => sanitizeBlockBboxes(block, { width: page.width, height: page.height }))
+    }))
+  };
+}
+
+export function sanitizeBlockBboxes(block: TranslationBlock, pageSize?: PageSize | null): TranslationBlock {
+  const renderBbox = block.renderBbox ? normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace) : undefined;
+  return {
+    ...block,
+    bbox: normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace),
+    bboxSpace: "normalized_1000",
+    renderBbox,
+    renderBboxSpace: renderBbox ? "normalized_1000" : undefined
+  };
 }
 
 export function bboxToPixels(bbox: BBox, width: number, height: number): BBox {

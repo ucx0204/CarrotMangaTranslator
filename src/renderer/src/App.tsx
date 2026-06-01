@@ -3,7 +3,7 @@ import type {
   BBox,
   BlockType,
   ChapterSnapshot,
-  ImportPreviewResult,
+  ImportPreviewSession,
   InpaintingMaskStroke,
   JobState,
   LibraryIndex,
@@ -19,7 +19,8 @@ import {
   normalizeRenderDirection,
   normalizeRotationDeg,
   offsetBlockBboxes,
-  resolveEditableBlockBbox
+  resolveEditableBlockBbox,
+  sanitizeChapterBboxes
 } from "../../shared/geometry";
 import { isUsableRegionBbox } from "../../shared/region";
 import { AppModals, type RenameTarget } from "./components/AppModals";
@@ -89,7 +90,7 @@ export default function App(): React.JSX.Element {
   const [jobState, setJobState] = useState<JobState>(EMPTY_JOB);
   const { statusLines, appendStatusLine, pushStatus, clearStatusLines } = useStatusLog();
   const [translationSourceOpen, setTranslationSourceOpen] = useState(false);
-  const [importPreview, setImportPreview] = useState<ImportPreviewResult | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreviewSession | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const [shareExportOpen, setShareExportOpen] = useState(false);
   const [shareExportBusy, setShareExportBusy] = useState(false);
@@ -248,6 +249,15 @@ export default function App(): React.JSX.Element {
     }
   }, [inpaintingToolActive]);
 
+  const persistChapter = useCallback(async (chapter: ChapterSnapshot, options: { syncState?: boolean } = {}): Promise<ChapterSnapshot> => {
+    const saved = await window.mangaApi.saveChapter(sanitizeChapterBboxes(chapter));
+    if (options.syncState !== false && currentChapterRef.current?.id === saved.id) {
+      currentChapterRef.current = saved;
+      setCurrentChapter(saved);
+    }
+    return saved;
+  }, []);
+
   const mergeLiveChapter = useCallback((chapter: ChapterSnapshot) => {
     const current = currentChapterRef.current;
     if (current && current.id !== chapter.id) {
@@ -341,8 +351,10 @@ export default function App(): React.JSX.Element {
     const version = dirtyVersionRef.current;
     saveTimerRef.current = window.setTimeout(async () => {
       try {
-        await window.mangaApi.saveChapter(currentChapter);
+        const saved = await persistChapter(currentChapter, { syncState: false });
         if (dirtyVersionRef.current === version) {
+          currentChapterRef.current = saved;
+          setCurrentChapter(saved);
           dirtyPageIdsRef.current.clear();
           setDirty(false);
         }
@@ -358,7 +370,7 @@ export default function App(): React.JSX.Element {
         window.clearTimeout(saveTimerRef.current);
       }
     };
-  }, [currentChapter, dirty, jobActive]);
+  }, [currentChapter, dirty, jobActive, persistChapter]);
 
   const markDirty = useCallback((pageId?: string) => {
     dirtyVersionRef.current += 1;
@@ -376,10 +388,10 @@ export default function App(): React.JSX.Element {
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
-    await window.mangaApi.saveChapter(currentChapter);
+    await persistChapter(currentChapter);
     dirtyPageIdsRef.current.clear();
     setDirty(false);
-  }, [currentChapter]);
+  }, [currentChapter, persistChapter]);
 
   const clearCurrentChapter = useCallback(() => {
     if (saveTimerRef.current) {
@@ -544,7 +556,7 @@ export default function App(): React.JSX.Element {
           await saveNow();
         }
         const result = await window.mangaApi.importWorkShare({
-          packagePath: shareImportPreview.packagePath,
+          previewId: shareImportPreview.previewId,
           target: payload.target,
           entries: payload.entries
         });
@@ -895,7 +907,7 @@ export default function App(): React.JSX.Element {
       setImportBusy(true);
       try {
         const result = await window.mangaApi.createImport({
-          preview: importPreview,
+          previewId: importPreview.previewId,
           target,
           selections
         });
@@ -1159,9 +1171,13 @@ export default function App(): React.JSX.Element {
       clearPageImageCache();
       setCurrentChapter(nextChapter);
       currentChapterRef.current = nextChapter;
-      const saved = await window.mangaApi.saveChapter(nextChapter);
-      mergeLiveChapter(saved);
-      return saved;
+      const result = await window.mangaApi.setPageInpaintingResult({
+        chapterId: chapter.id,
+        pageId,
+        inpaintedImagePath: inpaintedImagePath ?? null
+      });
+      mergeLiveChapter(result.chapter);
+      return result.chapter;
     },
     [clearPageImageCache, mergeLiveChapter]
   );

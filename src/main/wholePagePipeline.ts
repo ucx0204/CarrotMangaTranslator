@@ -12,6 +12,7 @@ import { prepareOcrHintsForPages } from "./pipeline/ocrHints";
 import {
   applyOcrCandidateGeometryLocks,
   buildPageWarnings,
+  filterRejectedOrUncertainSoundItems,
   getBboxNormalizationOptions,
   getOcrBboxHints,
   normalizeOverlayItemBboxes,
@@ -350,6 +351,8 @@ export async function runWholePagePipeline({
             pageTotal: pages.length,
             progressTotal
           });
+          const soundFiltered = filterRejectedOrUncertainSoundItems(normalizedItems);
+          normalizedItems = soundFiltered.items;
           successPage = {
             ...page,
             blocks: normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex)),
@@ -369,7 +372,9 @@ export async function runWholePagePipeline({
             progressTotal,
             pageIndex: index + 1,
             pageTotal: pages.length,
-            detail: `${items.length}개 블록`
+            detail: soundFiltered.droppedCount > 0
+              ? `${normalizedItems.length}개 블록, 불확실한 효과음 ${soundFiltered.droppedCount}개 제외`
+              : `${normalizedItems.length}개 블록`
           });
           break;
         } catch (error) {

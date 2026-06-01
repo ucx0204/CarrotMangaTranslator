@@ -83,6 +83,7 @@ function buildPageExportHtml(page: MangaPage, imageDataUrl: string, width: numbe
 <html>
 <head>
 <meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: file:; font-src data: file:; style-src 'unsafe-inline' file:; script-src 'unsafe-inline';" />
 ${rendererCssHref ? `<link rel="stylesheet" href="${escapeHtml(rendererCssHref)}" />` : ""}
 <style>
 html, body {
@@ -140,7 +141,7 @@ body {
   <img class="page-export-image" src="${imageDataUrl}" />
 </div>
 <script>
-const EXPORT_BLOCKS = ${JSON.stringify(blocks)};
+const EXPORT_BLOCKS = ${safeScriptJson(blocks)};
 const MIN_FONT_SIZE = 10;
 const MAX_AUTOFIT_FONT_SIZE = 256;
 const canvas = document.createElement("canvas");
@@ -464,4 +465,13 @@ function escapeHtml(value: string): string {
         return char;
     }
   });
+}
+
+function safeScriptJson(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }

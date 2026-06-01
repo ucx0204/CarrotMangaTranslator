@@ -1,4 +1,4 @@
-import { BrowserWindow } from "electron";
+import { app, BrowserWindow } from "electron";
 import { join } from "node:path";
 import { logError, writeLog } from "./logger";
 
@@ -34,11 +34,25 @@ export function createMainWindow(): BrowserWindow {
 
   window.setMenuBarVisibility(false);
 
-  if (process.env.ELECTRON_RENDERER_URL) {
-    void window.loadURL(process.env.ELECTRON_RENDERER_URL);
+  const devRendererUrl = resolveAllowedDevRendererUrl(process.env.ELECTRON_RENDERER_URL);
+  if (devRendererUrl) {
+    void window.loadURL(devRendererUrl);
   } else {
     void window.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
   return window;
+}
+
+function resolveAllowedDevRendererUrl(value: string | undefined): string | null {
+  if (app.isPackaged || !value) {
+    return null;
+  }
+  try {
+    const url = new URL(value);
+    const allowedHost = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+    return url.protocol === "http:" && allowedHost ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

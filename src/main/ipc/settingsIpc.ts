@@ -48,7 +48,7 @@ export function registerSettingsIpc(context: IpcContext): void {
     }
     return result.filePaths[0];
   });
-  ipcMain.handle("settings:test-model", async (event, rawSettings: unknown, providedTestId?: string): Promise<ModelTestResult> => {
+  ipcMain.handle("settings:test-model", async (event, rawSettings: unknown, _providedTestId?: string): Promise<ModelTestResult> => {
     const settings = parseIpcPayload(AppSettingsSchema, rawSettings, "모델 테스트");
     if (context.jobs.hasActive) {
       return {
@@ -59,7 +59,7 @@ export function registerSettingsIpc(context: IpcContext): void {
     }
 
     const runtime = context.loadSimplePageRuntime();
-    const testId = typeof providedTestId === "string" && providedTestId.trim() ? providedTestId.trim() : randomUUID();
+    const testId = randomUUID();
     const sendProgress = (progress: Omit<ModelTestProgressEvent, "id">) => {
       event.sender.send("settings:model-test-progress", {
         id: testId,

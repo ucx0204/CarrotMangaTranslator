@@ -12,7 +12,7 @@ import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { nativeImage } from "electron";
 import type {
   ChapterSnapshot,
-  CreateImportRequest,
+  CreateImportFromPreviewRequest,
   CreateImportResult,
   ImportChapterDraft,
   ImportPageDraft,
@@ -25,11 +25,11 @@ import type {
   LibraryWork,
   LibraryWorkSummary,
   MangaPage,
+  WorkShareImportFromPackageRequest,
   WorkShareExportRequest,
   WorkShareExportResult,
   WorkShareImportEntry,
-  WorkShareImportPreview,
-  WorkShareImportRequest,
+  WorkShareImportPreviewView,
   WorkShareImportResult
 } from "../shared/types";
 import { normalizeBlockType } from "../shared/geometry";
@@ -416,7 +416,7 @@ export async function previewZipFolder(folderPath: string): Promise<ImportPrevie
   };
 }
 
-export async function createImport(request: CreateImportRequest): Promise<CreateImportResult> {
+export async function createImport(request: CreateImportFromPreviewRequest): Promise<CreateImportResult> {
   const selectedDraftIds = new Set(request.selections.filter((selection) => selection.enabled).map((selection) => selection.draftId));
   const selectedDrafts = request.preview.chapters.filter((draft) => selectedDraftIds.has(draft.draftId) && draft.pages.length > 0);
   if (selectedDrafts.length === 0) {
@@ -522,10 +522,9 @@ export async function exportWorkShareToFile(
   };
 }
 
-export async function previewWorkShareImport(packagePath: string): Promise<WorkShareImportPreview> {
+export async function previewWorkShareImport(packagePath: string): Promise<WorkShareImportPreviewView> {
   const sharePackage = readSharePackage(packagePath);
   return {
-    packagePath,
     workTitle: sharePackage.manifest.work.title,
     chapters: sharePackage.chapters.map(({ packageChapterId, chapter }) => ({
       packageChapterId,
@@ -535,7 +534,7 @@ export async function previewWorkShareImport(packagePath: string): Promise<WorkS
   };
 }
 
-export async function importWorkShare(request: WorkShareImportRequest): Promise<WorkShareImportResult> {
+export async function importWorkShare(request: WorkShareImportFromPackageRequest): Promise<WorkShareImportResult> {
   const sharePackage = readSharePackage(request.packagePath);
   if (request.entries.length === 0) {
     throw new Error("가져올 화가 없습니다.");
@@ -685,12 +684,51 @@ export async function updatePagesAfterInpainting(chapterId: string, pages: Manga
     if (!next) {
       return record;
     }
+    if (next.inpaintedImagePath) {
+      assertChapterImagePath(locator.workId, locator.chapterId, next.inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.");
+    }
     return {
       ...record,
       inpaintedImagePath: next.inpaintedImagePath,
       updatedAt: now
     };
   });
+  chapter.updatedAt = now;
+  await writeChapterFile(chapter);
+  await touchWork(locator.workId, now);
+  return hydrateChapter(chapter);
+}
+
+export async function setPageInpaintingResult(
+  chapterId: string,
+  pageId: string,
+  inpaintedImagePath?: string | null
+): Promise<ChapterSnapshot> {
+  const locator = await findChapterLocation(chapterId);
+  if (!locator) {
+    throw new Error("화를 찾지 못했습니다.");
+  }
+  const chapter = await readChapterFile(locator.workId, locator.chapterId);
+  if (!chapter) {
+    throw new Error("화를 찾지 못했습니다.");
+  }
+  if (!chapter.pages.some((page) => page.id === pageId)) {
+    throw new Error("인페인팅 결과를 적용할 페이지를 찾지 못했습니다.");
+  }
+
+  const resolvedInpaintedPath = inpaintedImagePath
+    ? assertChapterImagePath(locator.workId, locator.chapterId, inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.")
+    : undefined;
+  const now = new Date().toISOString();
+  chapter.pages = chapter.pages.map((page) =>
+    page.id === pageId
+      ? {
+          ...page,
+          inpaintedImagePath: resolvedInpaintedPath,
+          updatedAt: now
+        }
+      : page
+  );
   chapter.updatedAt = now;
   await writeChapterFile(chapter);
   await touchWork(locator.workId, now);
@@ -818,7 +856,7 @@ async function materializePageRecord(pageDraft: ImportPageDraft, pagesDir: strin
   };
 }
 
-async function importWorkShareAsNewWork(sharePackage: SharePackage, request: WorkShareImportRequest): Promise<WorkShareImportResult> {
+async function importWorkShareAsNewWork(sharePackage: SharePackage, request: WorkShareImportFromPackageRequest): Promise<WorkShareImportResult> {
   if (request.target.mode !== "new") {
     throw new Error("새 작품 가져오기 요청이 아닙니다.");
   }
@@ -859,7 +897,7 @@ async function importWorkShareAsNewWork(sharePackage: SharePackage, request: Wor
   };
 }
 
-async function importWorkShareIntoExistingWork(sharePackage: SharePackage, request: WorkShareImportRequest): Promise<WorkShareImportResult> {
+async function importWorkShareIntoExistingWork(sharePackage: SharePackage, request: WorkShareImportFromPackageRequest): Promise<WorkShareImportResult> {
   if (request.target.mode !== "existing") {
     throw new Error("기존 작품 가져오기 요청이 아닙니다.");
   }
@@ -1067,6 +1105,15 @@ function validateChapterSnapshotForStorage(snapshot: ChapterSnapshot, current: C
       throw new Error("페이지 순서 정보가 페이지 목록과 맞지 않습니다.");
     }
   }
+}
+
+function assertChapterImagePath(workId: string, chapterId: string, imagePath: string, message: string): string {
+  const resolvedImagePath = assertLibraryImagePath(imagePath);
+  const chapterDir = resolve(join(WORKS_ROOT, workId, "chapters", chapterId));
+  if (!isPathInside(chapterDir, resolvedImagePath)) {
+    throw new Error(message);
+  }
+  return resolvedImagePath;
 }
 
 async function readIndexFile(): Promise<StoredIndexFile> {

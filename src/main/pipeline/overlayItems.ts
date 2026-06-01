@@ -5,9 +5,13 @@ import type { BboxNormalizationOptions, DetectedBboxSpace, OverlayItem, RequestS
 
 const DEFAULT_TEXT_COLOR = "#111111";
 const DEFAULT_OUTLINE_COLOR = "#ffffff";
+const REQUIRED_SOUND_CONFIDENCE = 1;
+
+type NormalizedTextRole = "ordinary" | "sound" | "nontext" | "";
 
 export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: number): TranslationBlock {
   const type = mapOverlayType(item.type);
+  const textRole = normalizeOverlayTextRole(item.textRole);
   const rawBbox = clampBbox(item.bbox);
   const translatedText = item.ko.trim();
   const sourceText = item.jp.trim();
@@ -16,7 +20,7 @@ export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: nu
   const fontSizePx = resolveOverlayFontSizePx(item, rawBbox, page, textForSizing);
   const sourceDirection = item.direction === "vertical" ? "vertical" : "horizontal";
   const bbox = rawBbox;
-  const renderDirection = resolveInitialRenderDirection(type, sourceDirection, item, bbox, page, fontSizePx);
+  const renderDirection = resolveInitialRenderDirection(type, textRole, sourceDirection, item, bbox, page, fontSizePx);
   const rotationDeg = enforceRotationDeg(type, item.angle ?? 0);
   const visualStyle = resolveBlockVisualStyle(type);
   return {
@@ -39,6 +43,26 @@ export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: nu
     opacity: visualStyle.defaultOpacity,
     autoFitText: true
   };
+}
+
+export function filterRejectedOrUncertainSoundItems(items: OverlayItem[]): { items: OverlayItem[]; droppedCount: number } {
+  const filtered: OverlayItem[] = [];
+  let droppedCount = 0;
+
+  for (const item of items) {
+    const textRole = normalizeOverlayTextRole(item.textRole);
+    if (textRole === "nontext") {
+      droppedCount += 1;
+      continue;
+    }
+    if (textRole === "sound" && normalizeConfidence(item.confidence, 0) < REQUIRED_SOUND_CONFIDENCE) {
+      droppedCount += 1;
+      continue;
+    }
+    filtered.push(item);
+  }
+
+  return { items: filtered, droppedCount };
 }
 
 export function normalizeOverlayItemBboxes(items: OverlayItem[], page: MangaPage, options: BboxNormalizationOptions = {}): OverlayItem[] {
@@ -152,6 +176,23 @@ export function containsJapaneseKana(value: string | undefined): boolean {
   return /[\u3040-\u30ff]/u.test(String(value ?? ""));
 }
 
+export function normalizeOverlayTextRole(value: unknown): NormalizedTextRole {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[_\s-]+/g, "");
+  if (!text) {
+    return "";
+  }
+  if (["sound", "sfx", "soundeffect", "effect", "reaction", "onomatopoeia"].includes(text)) {
+    return "sound";
+  }
+  if (["ordinary", "speech", "dialogue", "dialog", "bubble", "caption", "narration", "label", "sign", "note", "title"].includes(text)) {
+    return "ordinary";
+  }
+  if (["nontext", "nottext", "reject", "decoration", "texture", "ornament"].includes(text)) {
+    return "nontext";
+  }
+  return "";
+}
+
 function resolveOverlayFontSizePx(item: OverlayItem, bbox: BBox, page: MangaPage, textForSizing: string): number {
   if (typeof item.fontSize === "number" && Number.isFinite(item.fontSize)) {
     return Math.round(clamp(item.fontSize, 6, 160));
@@ -162,17 +203,26 @@ function resolveOverlayFontSizePx(item: OverlayItem, bbox: BBox, page: MangaPage
 
 function resolveInitialRenderDirection(
   type: BlockType,
+  textRole: NormalizedTextRole,
   sourceDirection: SourceTextDirection,
   item: OverlayItem,
   bbox: BBox,
   page: MangaPage,
   fontSizePx: number
 ): RenderTextDirection {
+  const rotationDeg = enforceRotationDeg(type, item.angle ?? 0);
+  if (textRole !== "sound") {
+    if (Math.abs(rotationDeg) > 0) {
+      return "rotated";
+    }
+    return enforceRenderDirection(type, "horizontal");
+  }
+
   if (sourceDirection === "vertical" && shouldKeepVerticalRendering(bbox, page, fontSizePx)) {
     return "vertical";
   }
 
-  if (Math.abs(enforceRotationDeg(type, item.angle ?? 0)) > 0) {
+  if (Math.abs(rotationDeg) > 0) {
     return "rotated";
   }
 

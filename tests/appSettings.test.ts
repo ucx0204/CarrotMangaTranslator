@@ -10,9 +10,11 @@ import {
   DEFAULT_GEMMA_MODEL_REPO,
   DEFAULT_MAX_TOKENS,
   DEFAULT_OCR_DEVICE,
+  DEFAULT_OCR_GPU_CUDA_TAG,
   parseStoredAppSettings,
   resolveHardwareDefaults,
-  resolveDefaultAppSettings
+  resolveDefaultAppSettings,
+  RTX_50_OCR_GPU_CUDA_TAG
 } from "../src/main/appSettings";
 import type { AppSettings } from "../src/shared/types";
 
@@ -30,6 +32,7 @@ describe("app settings helpers", () => {
     expect(defaults.codex.reasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(defaults.codex.oauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
     expect(defaults.ocr.device).toBe(DEFAULT_OCR_DEVICE);
+    expect(defaults.ocr.gpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
     expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
   });
 
@@ -37,10 +40,12 @@ describe("app settings helpers", () => {
     expect(resolveDefaultAppSettings({}, 12000).gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
     expect(resolveDefaultAppSettings({}, 24564).gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
     expect(resolveDefaultAppSettings({}, 32768).gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
-    expect(resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40 }).modelProvider).toBe("gemma");
-    expect(resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40 }).gemma.vramMode).toBe("full");
-    expect(resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50 }).modelProvider).toBe("gemma");
-    expect(resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50 }).gemma.vramMode).toBe("economy");
+    expect(resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40, computeCapability: 8.9 }).modelProvider).toBe("gemma");
+    expect(resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40, computeCapability: 8.9 }).gemma.vramMode).toBe("full");
+    const rtx5070Defaults = resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50, computeCapability: 12 });
+    expect(rtx5070Defaults.modelProvider).toBe("gemma");
+    expect(rtx5070Defaults.gemma.vramMode).toBe("economy");
+    expect(rtx5070Defaults.ocr.gpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
   });
 
   it("fills missing or partial stored settings from environment-based defaults", () => {
@@ -100,7 +105,8 @@ describe("app settings helpers", () => {
         oauthPort: DEFAULT_CODEX_OAUTH_PORT
       },
       ocr: {
-        device: "gpu"
+        device: "gpu",
+        gpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG
       },
       maxTokens: DEFAULT_MAX_TOKENS
     };
@@ -129,6 +135,7 @@ describe("app settings helpers", () => {
     expect(options.codexReasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(options.codexOauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
     expect(options.ocrDevice).toBe("gpu");
+    expect(options.ocrGpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
     expect(options.gemmaVramMode).toBe("economy");
     expect(options.cacheTypeK).toBe("q4_0");
     expect(options.cacheTypeV).toBe("q4_0");
@@ -196,7 +203,7 @@ describe("app settings helpers", () => {
   });
 
   it("uses the full VRAM smoke preset with DFlash draft enabled", () => {
-    const defaults = resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40 });
+    const defaults = resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40, computeCapability: 8.9 });
     const options = buildBaseTranslationOptions({
       jobId: "job-full",
       runDir: "C:/runs/job-full",
@@ -288,35 +295,51 @@ describe("app settings helpers", () => {
     const defaults = resolveDefaultAppSettings();
 
     expect(parseStoredAppSettings("{\"ocr\":{\"device\":\"gpu\"}}", defaults).ocr.device).toBe("gpu");
+    expect(parseStoredAppSettings("{\"ocr\":{\"device\":\"gpu\"}}", defaults).ocr.gpuCudaTag).toBe(defaults.ocr.gpuCudaTag);
+    expect(parseStoredAppSettings("{\"ocr\":{\"device\":\"gpu\",\"gpuCudaTag\":\"cu129\"}}", defaults).ocr.gpuCudaTag).toBe("cu129");
     expect(parseStoredAppSettings("{\"ocr\":{\"device\":\"tpu\"}}", defaults).ocr.device).toBe(defaults.ocr.device);
     expect(resolveDefaultAppSettings({ MANGA_TRANSLATOR_OCR_DEVICE: "gpu" }).ocr.device).toBe("gpu");
+    expect(resolveDefaultAppSettings({ MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG: "cu129" }).ocr.gpuCudaTag).toBe("cu129");
+    const rtx50Defaults = resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 5080", memoryMb: 16303, rtxGeneration: 50, computeCapability: 12 });
+    expect(parseStoredAppSettings("{\"ocr\":{\"device\":\"gpu\",\"gpuCudaTag\":\"cu126\"}}", rtx50Defaults).ocr.gpuCudaTag).toBe("cu129");
   });
 
   it("chooses first-run defaults from detected GPU generation and VRAM", () => {
-    expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40 })).toEqual({
+    expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40, computeCapability: 8.9 })).toEqual({
       modelProvider: "gemma",
       gemmaVramMode: "full",
-      ocrDevice: "gpu"
+      ocrDevice: "gpu",
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG
     });
-    expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50 })).toEqual({
+    expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50, computeCapability: 12 })).toEqual({
       modelProvider: "gemma",
       gemmaVramMode: "economy",
-      ocrDevice: "gpu"
+      ocrDevice: "gpu",
+      ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG
     });
-    expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 3060", memoryMb: 12288, rtxGeneration: 30 })).toEqual({
+    expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 5090", memoryMb: 32768, rtxGeneration: null, computeCapability: 12 })).toEqual({
+      modelProvider: "gemma",
+      gemmaVramMode: "full",
+      ocrDevice: "gpu",
+      ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG
+    });
+    expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 3060", memoryMb: 12288, rtxGeneration: 30, computeCapability: 8.6 })).toEqual({
       modelProvider: "openai-codex",
       gemmaVramMode: "economy",
-      ocrDevice: "gpu"
+      ocrDevice: "gpu",
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG
     });
-    expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 2080 Ti", memoryMb: 11264, rtxGeneration: 20 })).toEqual({
+    expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 2080 Ti", memoryMb: 11264, rtxGeneration: 20, computeCapability: 7.5 })).toEqual({
       modelProvider: "openai-codex",
       gemmaVramMode: "economy",
-      ocrDevice: "cpu"
+      ocrDevice: "cpu",
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG
     });
     expect(resolveHardwareDefaults(null)).toEqual({
       modelProvider: "openai-codex",
       gemmaVramMode: "economy",
-      ocrDevice: "cpu"
+      ocrDevice: "cpu",
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG
     });
   });
 

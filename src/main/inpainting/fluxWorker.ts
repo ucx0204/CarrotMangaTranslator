@@ -32,10 +32,7 @@ export class FluxWorker {
       {
         windowsHide: true,
         stdio: ["pipe", "pipe", "pipe"],
-        env: {
-          ...process.env,
-          PATH: buildRuntimePathEnv(runtimePath)
-        }
+        env: buildFluxWorkerEnv(runtimePath)
       }
     );
     this.child.stdout.on("data", (chunk: Buffer) => this.handleStdout(chunk));
@@ -180,6 +177,20 @@ function buildRuntimePathEnv(command: string): string {
     current = parent;
   }
   return [...dirs, process.env.PATH ?? ""].join(delimiter);
+}
+
+function buildFluxWorkerEnv(command: string): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    PATH: buildRuntimePathEnv(command),
+    PYTHONIOENCODING: "utf-8"
+  };
+  for (const key of ["SystemRoot", "WINDIR", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA"] as const) {
+    const value = process.env[key];
+    if (value) {
+      env[key] = value;
+    }
+  }
+  return env;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

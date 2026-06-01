@@ -23,6 +23,10 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
     stream: boolean;
     store: boolean;
   };
+  buildOcrRuntimeEnv: (
+    options: { [key: string]: unknown },
+    runtime?: { runtimeDir?: string; packageDir?: string; includePackageDir?: boolean }
+  ) => Record<string, string>;
   getOverlayPrompt: (
     options: { [key: string]: unknown },
     imageVariants: Array<{ role: string; dataUrl?: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number }>
@@ -34,6 +38,10 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
     textEvidenceCount: number;
   }>;
   collectRequiredHfDownloads: (options: { [key: string]: unknown }) => Array<{ kind: string; file: string; destination: string }>;
+  collectRequiredPaddleOcrModelDownloads: (
+    options: { [key: string]: unknown },
+    runtime?: { runtimeDir?: string }
+  ) => Array<{ kind: string; repo: string; file: string; destination: string; url: string }>;
   extractModelOutputText: (parsed: unknown) => string;
   inspectModelLaunch: (options: { [key: string]: unknown }) => { launchMode: string; model?: string; reasoningEffort?: string };
   isModelCached: (options: { [key: string]: unknown }) => boolean;
@@ -42,6 +50,8 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   parsePipRawProgress: (line: string) => { current: number; total: number } | null;
   parseResponsesSseText: (rawText: string) => { outputText: string; eventCount: number; rawResponse: unknown };
   requestTranslation: (server: { baseUrl: string }, options: { [key: string]: unknown }) => Promise<{ outputText: string; rawResponse: unknown; requestBody: Record<string, unknown> }>;
+  resolveOcrGpuCudaTag: (options?: { [key: string]: unknown }) => string;
+  resolveOcrGpuPackageIndexUrl: (options?: { [key: string]: unknown }) => string;
   resolveFfmpegPath: (options: { [key: string]: unknown }) => string;
   resolveOcrBboxTimeoutMs: (pageCount?: number) => number;
   resolveOcrInstallBatchProgressRanges: (batches: string[][], start: number, end: number) => Array<{ start: number; end: number }>;
@@ -50,9 +60,11 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
 const {
   buildLaunchArgs,
   buildMessages,
+  buildOcrRuntimeEnv,
   buildResponsesRequestBody,
   collectOcrBboxHints,
   collectRequiredHfDownloads,
+  collectRequiredPaddleOcrModelDownloads,
   getOverlayPrompt,
   extractModelOutputText,
   inspectModelLaunch,
@@ -65,7 +77,9 @@ const {
   resolveOcrBboxTimeoutMs,
   resolveFfmpegPath,
   parseResponsesSseText,
-  requestTranslation
+  requestTranslation,
+  resolveOcrGpuCudaTag,
+  resolveOcrGpuPackageIndexUrl
 } = runtimeHelpers;
 
 const tempDirs: string[] = [];
@@ -86,6 +100,14 @@ function createTempDir(prefix: string): string {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   tempDirs.push(dir);
   return dir;
+}
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+  process.env[name] = value;
 }
 
 function writeCachedAssets({
@@ -157,6 +179,86 @@ describe("runtime model launch helpers", () => {
       } else {
         process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS = previous;
       }
+    }
+  });
+
+  it("prepares Paddle OCR model downloads in the PaddleX official cache", () => {
+    const runtimeDir = createTempDir("ocr-runtime-");
+    const tasks = collectRequiredPaddleOcrModelDownloads({}, { runtimeDir });
+
+    expect(tasks).toHaveLength(36);
+    expect(tasks).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        repo: "PaddlePaddle/PP-DocLayoutV3",
+        file: "inference.pdiparams",
+        destination: join(runtimeDir, "paddlex-cache", "official_models", "PP-DocLayoutV3", "inference.pdiparams")
+      }),
+      expect.objectContaining({
+        repo: "PaddlePaddle/PaddleOCR-VL-1.5",
+        file: "model.safetensors",
+        destination: join(runtimeDir, "paddlex-cache", "official_models", "PaddleOCR-VL-1.5", "model.safetensors")
+      }),
+      expect.objectContaining({
+        repo: "PaddlePaddle/PP-OCRv5_server_det",
+        file: "inference.pdiparams",
+        destination: join(runtimeDir, "paddlex-cache", "official_models", "PP-OCRv5_server_det", "inference.pdiparams")
+      }),
+      expect.objectContaining({
+        repo: "PaddlePaddle/PP-OCRv5_server_rec",
+        file: "inference.pdiparams",
+        destination: join(runtimeDir, "paddlex-cache", "official_models", "PP-OCRv5_server_rec", "inference.pdiparams")
+      })
+    ]));
+  });
+
+  it("disables hf-xet for Paddle OCR Python downloads by default", () => {
+    const runtimeDir = createTempDir("ocr-runtime-");
+    const previousDisableXet = process.env.HF_HUB_DISABLE_XET;
+    const previousDownloadTimeout = process.env.HF_HUB_DOWNLOAD_TIMEOUT;
+    delete process.env.HF_HUB_DISABLE_XET;
+    delete process.env.HF_HUB_DOWNLOAD_TIMEOUT;
+    try {
+      const env = buildOcrRuntimeEnv({}, { runtimeDir, includePackageDir: false });
+      expect(env.HF_HUB_DISABLE_XET).toBe("1");
+      expect(env.HF_HUB_DOWNLOAD_TIMEOUT).toBe("300");
+    } finally {
+      if (previousDisableXet === undefined) {
+        delete process.env.HF_HUB_DISABLE_XET;
+      } else {
+        process.env.HF_HUB_DISABLE_XET = previousDisableXet;
+      }
+      if (previousDownloadTimeout === undefined) {
+        delete process.env.HF_HUB_DOWNLOAD_TIMEOUT;
+      } else {
+        process.env.HF_HUB_DOWNLOAD_TIMEOUT = previousDownloadTimeout;
+      }
+    }
+  });
+
+  it("uses the configured CUDA tag for isolated Paddle OCR GPU runtimes", () => {
+    const runtimeDir = createTempDir("ocr-runtime-");
+    const previousCudaTag = process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG;
+    const previousPaddleCudaTag = process.env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG;
+    const previousOcrGpuCuda = process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA;
+    const previousIndexUrl = process.env.MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL;
+    const previousPaddleIndexUrl = process.env.MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL;
+    delete process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG;
+    delete process.env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG;
+    delete process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA;
+    delete process.env.MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL;
+    delete process.env.MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL;
+    try {
+      expect(resolveOcrGpuCudaTag({ ocrGpuCudaTag: "cu129" })).toBe("cu129");
+      expect(resolveOcrGpuPackageIndexUrl({ ocrGpuCudaTag: "cu129" })).toBe("https://www.paddlepaddle.org.cn/packages/stable/cu129/");
+      const env = buildOcrRuntimeEnv({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" }, { runtimeDir, includePackageDir: false });
+      expect(env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG).toBe("cu129");
+      expect(env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE).toBe("gpu:0");
+    } finally {
+      restoreEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG", previousCudaTag);
+      restoreEnv("MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG", previousPaddleCudaTag);
+      restoreEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA", previousOcrGpuCuda);
+      restoreEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL", previousIndexUrl);
+      restoreEnv("MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL", previousPaddleIndexUrl);
     }
   });
 

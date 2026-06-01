@@ -1,10 +1,13 @@
 const http = require("node:http");
 const { join } = require("node:path");
+const { readdirSync, rmSync, statSync } = require("node:fs");
 const { spawn, spawnSync } = require("node:child_process");
 const { prepareRuntimeAssets } = require("./prepare-runtime.cjs");
 
 const root = join(__dirname, "..");
 const rendererUrl = "http://127.0.0.1:5173";
+const devStorageRoot = join(root, ".tmp", "electron-dev");
+const devSessionData = join(devStorageRoot, `session-${process.pid}-${Date.now()}`);
 const children = [];
 
 function runSync(command, args) {
@@ -85,15 +88,36 @@ function shutdown() {
 }
 
 (async () => {
+  cleanupOldDevSessions();
   prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
   runSync(process.execPath, [nodeBin("typescript", "bin", "tsc"), "-p", "tsconfig.electron.json"]);
   spawnChild(process.execPath, [nodeBin("vite", "bin", "vite.js"), "--config", "vite.renderer.config.ts", "--host", "127.0.0.1"]);
   await waitForUrl(rendererUrl);
   spawnChild(process.execPath, [nodeBin("electron", "cli.js"), "."], {
     ELECTRON_RENDERER_URL: rendererUrl,
-    ELECTRON_RUN_AS_NODE: undefined
+    ELECTRON_RUN_AS_NODE: undefined,
+    MANGA_TRANSLATOR_DEV_USER_DATA: join(devStorageRoot, "user-data"),
+    MANGA_TRANSLATOR_DEV_SESSION_DATA: devSessionData
   });
 })().catch((error) => {
   console.error(error);
   shutdown();
 });
+
+function cleanupOldDevSessions() {
+  const maxAgeMs = 24 * 60 * 60 * 1000;
+  try {
+    for (const entry of readdirSync(devStorageRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !entry.name.startsWith("session-")) {
+        continue;
+      }
+      const fullPath = join(devStorageRoot, entry.name);
+      const ageMs = Date.now() - statSync(fullPath).mtimeMs;
+      if (ageMs > maxAgeMs) {
+        rmSync(fullPath, { recursive: true, force: true });
+      }
+    }
+  } catch {
+    // Stale Electron cache directories are best-effort cleanup only.
+  }
+}

@@ -79,6 +79,10 @@ export const MangaPageSchema = z
   })
   .strict();
 
+export const SaveMangaPageSchema = MangaPageSchema.extend({
+  dataUrl: z.literal("")
+}).strict();
+
 export const ChapterSnapshotSchema = z
   .object({
     id: uuid,
@@ -93,38 +97,13 @@ export const ChapterSnapshotSchema = z
   })
   .strict();
 
+export const SaveChapterSnapshotSchema = ChapterSnapshotSchema.extend({
+  pages: z.array(SaveMangaPageSchema).max(MAX_PAGES_PER_REQUEST)
+}).strict();
+
 export const CreateImportRequestSchema = z
   .object({
-    preview: z
-      .object({
-        mode: z.enum(["single", "batch"]),
-        sourceKind: ImportSourceKindSchema,
-        suggestedWorkTitle: title,
-        chapters: z
-          .array(
-            z
-              .object({
-                draftId: uuid,
-                title,
-                sourceKind: ImportSourceKindSchema,
-                pages: z
-                  .array(
-                    z
-                      .object({
-                        name: z.string().min(1).max(260),
-                        sourcePath: filePath,
-                        sourceKind: z.enum(["file", "zip-entry"]),
-                        zipEntryName: z.string().min(1).max(MAX_PATH_LENGTH).optional()
-                      })
-                      .strict()
-                  )
-                  .max(MAX_PAGES_PER_REQUEST)
-              })
-              .strict()
-          )
-          .max(500)
-      })
-      .strict(),
+    previewId: uuid,
     target: z.discriminatedUnion("mode", [
       z.object({ mode: z.literal("new"), title }).strict(),
       z.object({ mode: z.literal("existing"), workId: uuid }).strict()
@@ -152,7 +131,7 @@ export const WorkShareExportRequestSchema = z
 
 export const WorkShareImportRequestSchema = z
   .object({
-    packagePath: filePath,
+    previewId: uuid,
     target: z.discriminatedUnion("mode", [
       z.object({ mode: z.literal("new"), title }).strict(),
       z.object({ mode: z.literal("existing"), workId: uuid }).strict()
@@ -217,6 +196,14 @@ export const InpaintingRetouchRequestSchema = z
   })
   .strict();
 
+export const SetPageInpaintingResultRequestSchema = z
+  .object({
+    chapterId: uuid,
+    pageId: uuid,
+    inpaintedImagePath: filePath.nullable().optional()
+  })
+  .strict();
+
 export const InpaintingRevertRequestSchema = z.discriminatedUnion("scope", [
   z.object({ chapterId: uuid, scope: z.literal("chapter") }).strict(),
   z.object({ chapterId: uuid, scope: z.literal("page"), pageId: uuid }).strict()
@@ -264,7 +251,10 @@ export const AppSettingsSchema = z
         oauthPort: z.number().int().min(1).max(65535)
       })
       .strict(),
-    ocr: z.object({ device: z.enum(["cpu", "gpu"]) }).strict(),
+    ocr: z.object({
+      device: z.enum(["cpu", "gpu"]),
+      gpuCudaTag: z.string().regex(/^cu\d+$/i).optional()
+    }).strict(),
     maxTokens: z.number().int().min(1024).max(64000)
   })
   .strict();

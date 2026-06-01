@@ -7,6 +7,7 @@ export type DetectedGpuInfo = {
   name: string | null;
   memoryMb: number | null;
   rtxGeneration: number | null;
+  computeCapability: number | null;
 };
 
 export function detectMaxGpuMemoryMb(): Promise<number | null> {
@@ -25,10 +26,18 @@ export function detectBestGpuInfo(): Promise<DetectedGpuInfo | null> {
 
 async function queryBestGpuInfo(): Promise<DetectedGpuInfo | null> {
   try {
-    const stdout = await execFileAsync("nvidia-smi", [
-      "--query-gpu=name,memory.total",
-      "--format=csv,noheader,nounits"
-    ]);
+    let stdout = "";
+    try {
+      stdout = await execFileAsync("nvidia-smi", [
+        "--query-gpu=name,memory.total,compute_cap",
+        "--format=csv,noheader,nounits"
+      ]);
+    } catch {
+      stdout = await execFileAsync("nvidia-smi", [
+        "--query-gpu=name,memory.total",
+        "--format=csv,noheader,nounits"
+      ]);
+    }
     const values = stdout
       .split(/\r?\n/)
       .map(parseNvidiaSmiGpuLine)
@@ -50,19 +59,26 @@ function parseNvidiaSmiGpuLine(line: string): DetectedGpuInfo | null {
     return null;
   }
 
-  const lastComma = trimmed.lastIndexOf(",");
-  const name = lastComma >= 0 ? trimmed.slice(0, lastComma).trim() : null;
-  const memoryText = lastComma >= 0 ? trimmed.slice(lastComma + 1).trim() : trimmed;
+  const parts = trimmed.split(",").map((part) => part.trim());
+  const name = parts.length >= 2 ? parts[0] : null;
+  const memoryText = parts.length >= 2 ? parts[1] : parts[0];
   const memoryMb = Number(memoryText);
   if (!Number.isFinite(memoryMb) || memoryMb <= 0) {
     return null;
   }
+  const computeCapability = parseComputeCapability(parts[2]);
 
   return {
     name,
     memoryMb,
-    rtxGeneration: parseRtxGeneration(name)
+    rtxGeneration: parseRtxGeneration(name),
+    computeCapability
   };
+}
+
+function parseComputeCapability(value: string | null | undefined): number | null {
+  const parsed = Number(String(value ?? "").trim());
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 export function parseRtxGeneration(name: string | null | undefined): number | null {

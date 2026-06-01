@@ -29,6 +29,7 @@ export type CodexSettings = {
 
 export type OcrSettings = {
   device: OcrDevice;
+  gpuCudaTag?: string;
 };
 
 export type AppSettings = {
@@ -182,6 +183,10 @@ export type ImportPreviewResult = {
   chapters: ImportChapterDraft[];
 };
 
+export type ImportPreviewSession = ImportPreviewResult & {
+  previewId: string;
+};
+
 export type ImportTarget =
   | {
       mode: "new";
@@ -199,6 +204,12 @@ export type ImportCreateSelection = {
 };
 
 export type CreateImportRequest = {
+  previewId: string;
+  target: ImportTarget;
+  selections: ImportCreateSelection[];
+};
+
+export type CreateImportFromPreviewRequest = {
   preview: ImportPreviewResult;
   target: ImportTarget;
   selections: ImportCreateSelection[];
@@ -372,6 +383,17 @@ export type InpaintingColorSampleResult = {
   color: string;
 };
 
+export type SetPageInpaintingResultRequest = {
+  chapterId: string;
+  pageId: string;
+  inpaintedImagePath?: string | null;
+};
+
+export type SetPageInpaintingResultResult = {
+  chapter: ChapterSnapshot;
+  pageId: string;
+};
+
 export type WorkShareExportRequest = {
   workId: string;
   chapterIds: string[];
@@ -390,10 +412,13 @@ export type WorkSharePreviewChapter = {
   pageCount: number;
 };
 
-export type WorkShareImportPreview = {
-  packagePath: string;
+export type WorkShareImportPreviewView = {
   workTitle: string;
   chapters: WorkSharePreviewChapter[];
+};
+
+export type WorkShareImportPreview = WorkShareImportPreviewView & {
+  previewId: string;
 };
 
 export type WorkShareImportEntry =
@@ -409,6 +434,20 @@ export type WorkShareImportEntry =
     };
 
 export type WorkShareImportRequest = {
+  previewId: string;
+  target:
+    | {
+        mode: "new";
+        title: string;
+      }
+    | {
+        mode: "existing";
+        workId: string;
+      };
+  entries: WorkShareImportEntry[];
+};
+
+export type WorkShareImportFromPackageRequest = {
   packagePath: string;
   target:
     | {

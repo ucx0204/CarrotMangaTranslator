@@ -2,6 +2,8 @@ import { app } from "electron";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
+configureDevelopmentElectronStorage();
+
 function bootstrapLogPath(): string {
   if (app.isPackaged || __dirname.includes("app.asar")) {
     return join(dirname(process.execPath), "bootstrap.log");
@@ -37,6 +39,26 @@ function serialize(detail: unknown): string {
     return JSON.stringify(detail);
   } catch {
     return String(detail);
+  }
+}
+
+function configureDevelopmentElectronStorage(): void {
+  if (app.isPackaged || __dirname.includes("app.asar")) {
+    return;
+  }
+
+  const repoRoot = resolve(__dirname, "../..");
+  const userDataDir = process.env.MANGA_TRANSLATOR_DEV_USER_DATA?.trim() || join(repoRoot, ".tmp", "electron-dev", "user-data");
+  const sessionDataDir = process.env.MANGA_TRANSLATOR_DEV_SESSION_DATA?.trim() || join(repoRoot, ".tmp", "electron-dev", "session-data");
+  try {
+    mkdirSync(userDataDir, { recursive: true });
+    mkdirSync(sessionDataDir, { recursive: true });
+    app.setPath("userData", userDataDir);
+    app.setPath("sessionData", sessionDataDir);
+    app.commandLine.appendSwitch("disk-cache-dir", join(sessionDataDir, "Cache"));
+    app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
+  } catch (error) {
+    writeBootstrapLog("bootstrap:dev-storage-config-failed", error);
   }
 }
 

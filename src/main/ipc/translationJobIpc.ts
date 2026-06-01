@@ -24,25 +24,27 @@ export function registerTranslationJobIpc(context: IpcContext): void {
       return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
     }
 
-    const resolved = await resolvePagesForRun(request.chapterId, request.runMode, request.pageId);
-    if (resolved.pages.length === 0) {
-      return {
-        status: "completed",
-        chapter: resolved.chapter,
-        warnings: []
-      };
-    }
-
     const id = randomUUID();
     const abortController = new AbortController();
-    const pageIds = resolved.pages.map((page) => page.id);
-    let runPaths: Awaited<ReturnType<typeof getRunPaths>> | null = null;
-    await markChapterPagesRunning(request.chapterId, pageIds);
     context.jobs.start({ id, kind: "gemma-analysis", abortController });
+    let resolved: Awaited<ReturnType<typeof resolvePagesForRun>> | null = null;
+    let pageIds: string[] = [];
+    let runPaths: Awaited<ReturnType<typeof getRunPaths>> | null = null;
 
     const emit = (event: JobEvent) => emitJobEvent(context.jobs, context.getMainWindow(), event);
 
     try {
+      resolved = await resolvePagesForRun(request.chapterId, request.runMode, request.pageId);
+      if (resolved.pages.length === 0) {
+        return {
+          status: "completed",
+          chapter: resolved.chapter,
+          warnings: []
+        };
+      }
+
+      pageIds = resolved.pages.map((page) => page.id);
+      await markChapterPagesRunning(request.chapterId, pageIds);
       runPaths = await getRunPaths(request.chapterId, id);
       const result = await runWholePagePipeline({
         jobId: id,
@@ -84,7 +86,9 @@ export function registerTranslationJobIpc(context: IpcContext): void {
     } catch (error) {
       const lastEvent = context.jobs.current?.id === id ? context.jobs.current.lastEvent : undefined;
       if (isAbortError(error) || abortController.signal.aborted) {
-        await finalizeRunningPages(request.chapterId, pageIds, "idle");
+        if (pageIds.length > 0) {
+          await finalizeRunningPages(request.chapterId, pageIds, "idle");
+        }
         emit({
           id,
           kind: "gemma-analysis",
@@ -98,19 +102,21 @@ export function registerTranslationJobIpc(context: IpcContext): void {
           attempt: lastEvent?.attempt,
           attemptTotal: lastEvent?.attemptTotal
         });
-        return { status: "cancelled", chapter: await openChapter(request.chapterId) };
+        return { status: "cancelled", chapter: await openChapter(request.chapterId).catch(() => resolved?.chapter) };
       }
 
       const message = error instanceof Error ? error.message : String(error);
-      await finalizeRunningPages(request.chapterId, pageIds, "failed", message);
+      if (pageIds.length > 0) {
+        await finalizeRunningPages(request.chapterId, pageIds, "failed", message);
+      }
       logError("Analysis job failed", {
         jobId: id,
         request,
         chapterId: request.chapterId,
         runMode: request.runMode,
         pageIds,
-        resolvedPageCount: resolved.pages.length,
-        resolvedPageNames: resolved.pages.map((page) => page.name),
+        resolvedPageCount: resolved?.pages.length,
+        resolvedPageNames: resolved?.pages.map((page) => page.name),
         runPaths,
         lastEvent,
         error
@@ -132,7 +138,7 @@ export function registerTranslationJobIpc(context: IpcContext): void {
       return {
         status: "failed",
         error: message,
-        chapter: await openChapter(request.chapterId)
+        chapter: await openChapter(request.chapterId).catch(() => resolved?.chapter)
       };
     } finally {
       const job = context.jobs.current;
@@ -149,20 +155,20 @@ export function registerTranslationJobIpc(context: IpcContext): void {
       return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
     }
 
-    const chapter = await openChapter(request.chapterId);
-    const page = chapter.pages.find((candidate) => candidate.id === request.pageId);
-    if (!page) {
-      return { status: "failed", chapter, error: "선택한 페이지를 찾지 못했습니다." };
-    }
-
     const id = randomUUID();
     const abortController = new AbortController();
     let runPaths: Awaited<ReturnType<typeof getRunPaths>> | null = null;
     context.jobs.start({ id, kind: "gemma-analysis", abortController });
+    let chapter: Awaited<ReturnType<typeof openChapter>> | null = null;
 
     const emit = (event: JobEvent) => emitJobEvent(context.jobs, context.getMainWindow(), event);
 
     try {
+      chapter = await openChapter(request.chapterId);
+      const page = chapter.pages.find((candidate) => candidate.id === request.pageId);
+      if (!page) {
+        return { status: "failed", chapter, error: "선택한 페이지를 찾지 못했습니다." };
+      }
       runPaths = await getRunPaths(request.chapterId, id);
       const { cropPage, cropRect } = await createRegionCropPage(page, request.bbox, id, runPaths.runDir, context.decodeImage);
       emit({
@@ -232,7 +238,7 @@ export function registerTranslationJobIpc(context: IpcContext): void {
           attempt: lastEvent?.attempt,
           attemptTotal: lastEvent?.attemptTotal
         });
-        return { status: "cancelled", chapter: await openChapter(request.chapterId), pageId: request.pageId };
+        return { status: "cancelled", chapter: await openChapter(request.chapterId).catch(() => chapter ?? undefined), pageId: request.pageId };
       }
 
       const message = error instanceof Error ? error.message : String(error);
@@ -260,7 +266,7 @@ export function registerTranslationJobIpc(context: IpcContext): void {
       return {
         status: "failed",
         error: message,
-        chapter: await openChapter(request.chapterId),
+        chapter: await openChapter(request.chapterId).catch(() => chapter ?? undefined),
         pageId: request.pageId
       };
     } finally {

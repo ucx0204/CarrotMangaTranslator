@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ChapterSnapshotSchema,
   parseIpcPayload,
+  SaveChapterSnapshotSchema,
   StartAnalysisRequestSchema,
   WorkShareImportRequestSchema
 } from "../src/shared/ipcSchemas";
@@ -40,13 +41,42 @@ describe("IPC schemas", () => {
     const parsed = parseIpcPayload(
       WorkShareImportRequestSchema,
       {
-        packagePath: "C:\\temp\\sample.mgtshare",
+        previewId: "44444444-4444-4444-8444-444444444444",
         target: { mode: "existing", workId },
         entries: [{ source: "package", packageChapterId: "chapter-in-package", title: "1화" }]
       },
       "공유 파일 가져오기"
     );
     expect(parsed.entries[0]?.source).toBe("package");
+  });
+
+  it("rejects file paths in share import commands after preview sessions are created", () => {
+    expect(() =>
+      parseIpcPayload(
+        WorkShareImportRequestSchema,
+        {
+          previewId: "44444444-4444-4444-8444-444444444444",
+          packagePath: "C:\\temp\\sample.mgtshare",
+          target: { mode: "existing", workId },
+          entries: []
+        },
+        "공유 파일 가져오기"
+      )
+    ).toThrow(/요청 형식/);
+  });
+
+  it("rejects oversized save data urls", () => {
+    const payload = makeChapterSnapshot();
+    expect(() =>
+      parseIpcPayload(
+        SaveChapterSnapshotSchema,
+        {
+          ...payload,
+          pages: [{ ...payload.pages[0], dataUrl: "data:image/png;base64,AAAA" }]
+        },
+        "화 저장"
+      )
+    ).toThrow(/요청 형식/);
   });
 });
 

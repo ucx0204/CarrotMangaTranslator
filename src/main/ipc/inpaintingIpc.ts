@@ -7,6 +7,7 @@ import {
   InpaintingExportRequestSchema,
   InpaintingRetouchRequestSchema,
   InpaintingRevertRequestSchema,
+  SetPageInpaintingResultRequestSchema,
   StartInpaintingRequestSchema,
   parseIpcPayload
 } from "../../shared/ipcSchemas";
@@ -17,6 +18,7 @@ import type {
   InpaintingRevertResult,
   JobEvent,
   MangaPage,
+  SetPageInpaintingResultResult,
   StartInpaintingResult
 } from "../../shared/types";
 import {
@@ -27,7 +29,7 @@ import {
   sampleImageColor,
   type FluxInpaintingEngine
 } from "../inpainting";
-import { assertLibraryImagePath, openChapter, updatePagesAfterInpainting } from "../library";
+import { assertLibraryImagePath, openChapter, setPageInpaintingResult, updatePagesAfterInpainting } from "../library";
 import { logError } from "../logger";
 import { renderPageWithTranslationBlocksForExport, sanitizeOutputBaseName } from "../pageExport";
 import type { IpcContext } from "./context";
@@ -40,25 +42,26 @@ export function registerInpaintingIpc(context: IpcContext): void {
       return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
     }
 
-    const chapter = await openChapter(request.chapterId);
-    const drawnPatternMode = request.mode === "page-pattern-drawn";
-    const drawnStrokes = request.mode === "page-pattern-drawn" ? request.strokes : [];
-    const drawnFeatherPx = request.mode === "page-pattern-drawn" ? request.featherPx : undefined;
-    const targetLabel = drawnPatternMode ? "그린 영역" : "무늬 배경";
-    const pages = "pageId" in request ? chapter.pages.filter((page) => page.id === request.pageId) : chapter.pages;
-
-    if (pages.length === 0) {
-      return { status: "failed", chapter, error: "인페인팅할 페이지를 찾지 못했습니다." };
-    }
-
     const id = randomUUID();
     const abortController = new AbortController();
     context.jobs.start({ id, kind: "inpainting", abortController });
     let fluxEngine: FluxInpaintingEngine | null = null;
+    let chapter: Awaited<ReturnType<typeof openChapter>> | null = null;
 
     const emit = (event: JobEvent) => emitJobEvent(context.jobs, context.getMainWindow(), event);
 
     try {
+      chapter = await openChapter(request.chapterId);
+      const drawnPatternMode = request.mode === "page-pattern-drawn";
+      const drawnStrokes = request.mode === "page-pattern-drawn" ? request.strokes : [];
+      const drawnFeatherPx = request.mode === "page-pattern-drawn" ? request.featherPx : undefined;
+      const targetLabel = drawnPatternMode ? "그린 영역" : "무늬 배경";
+      const pages = "pageId" in request ? chapter.pages.filter((page) => page.id === request.pageId) : chapter.pages;
+
+      if (pages.length === 0) {
+        return { status: "failed", chapter, error: "인페인팅할 페이지를 찾지 못했습니다." };
+      }
+
       const totalTargetBlocks = drawnPatternMode ? drawnStrokes.length : pages.reduce((count, page) => count + page.blocks.length, 0);
       emit({
         id,
@@ -182,7 +185,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
           pageIndex: lastEvent?.pageIndex,
           pageTotal: lastEvent?.pageTotal
         });
-        return { status: "cancelled", chapter: await openChapter(request.chapterId) };
+        return { status: "cancelled", chapter: await openChapter(request.chapterId).catch(() => chapter ?? undefined) };
       }
 
       const message = error instanceof Error ? error.message : String(error);
@@ -202,7 +205,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
       return {
         status: "failed",
         error: message,
-        chapter: await openChapter(request.chapterId)
+        chapter: await openChapter(request.chapterId).catch(() => chapter ?? undefined)
       };
     } finally {
       if (fluxEngine) {
@@ -229,6 +232,15 @@ export function registerInpaintingIpc(context: IpcContext): void {
     const saved = await updatePagesAfterInpainting(request.chapterId, [nextPage]);
     return {
       chapter: saved,
+      pageId: request.pageId
+    };
+  });
+
+  ipcMain.handle("inpainting:set-page-result", async (_event, rawRequest: unknown): Promise<SetPageInpaintingResultResult> => {
+    const request = parseIpcPayload(SetPageInpaintingResultRequestSchema, rawRequest, "인페인팅 결과 적용");
+    const chapter = await setPageInpaintingResult(request.chapterId, request.pageId, request.inpaintedImagePath ?? undefined);
+    return {
+      chapter,
       pageId: request.pageId
     };
   });
