@@ -1,5 +1,6 @@
 import React from "react";
 import type { LibraryIndex, WorkShareExportRequest } from "../../../shared/types";
+import { Button, Modal } from "./ui";
 
 type ShareExportModalProps = {
   library: LibraryIndex;
@@ -26,15 +27,34 @@ export function ShareExportModal({ library, currentWorkId, busy, onCancel, onSub
     selectedWork?.chapters.reduce((sum, chapter) => (selectedChapterIds.has(chapter.id) ? sum + chapter.pageCount : sum), 0) ?? 0;
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card share-export-modal">
-        <div className="modal-header">
-          <h2>공유하기</h2>
-          <button className="ghost-button" onClick={onCancel} disabled={busy}>
-            닫기
-          </button>
-        </div>
-
+    <Modal
+      ariaLabel="공유하기"
+      title="공유하기"
+      onClose={onCancel}
+      closeDisabled={busy}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>
+            취소
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || !selectedWork || selectedChapterIds.size === 0}
+            onClick={() => {
+              if (!selectedWork) {
+                return;
+              }
+              onSubmit({
+                workId: selectedWork.id,
+                chapterIds: selectedWork.chapters.map((chapter) => chapter.id).filter((chapterId) => selectedChapterIds.has(chapterId))
+              });
+            }}
+          >
+            공유 파일 저장
+          </Button>
+        </>
+      }
+    >
         <section className="modal-section">
           <label>
             작품
@@ -52,16 +72,17 @@ export function ShareExportModal({ library, currentWorkId, busy, onCancel, onSub
           <div className="modal-subheader">
             <h3>공유할 화</h3>
             <div className="inline-actions">
-              <button
-                className="ghost-button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setSelectedChapterIds(new Set(selectedWork?.chapters.map((chapter) => chapter.id) ?? []))}
                 disabled={busy || !selectedWork}
               >
                 전체 선택
-              </button>
-              <button className="ghost-button" onClick={() => setSelectedChapterIds(new Set())} disabled={busy || !selectedWork}>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedChapterIds(new Set())} disabled={busy || !selectedWork}>
                 전체 해제
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -94,28 +115,6 @@ export function ShareExportModal({ library, currentWorkId, busy, onCancel, onSub
         <div className="modal-summary-line">
           {selectedCount}개 화, {pageCount}페이지
         </div>
-
-        <div className="modal-actions">
-          <button onClick={onCancel} disabled={busy}>
-            취소
-          </button>
-          <button
-            className="primary"
-            disabled={busy || !selectedWork || selectedChapterIds.size === 0}
-            onClick={() => {
-              if (!selectedWork) {
-                return;
-              }
-              onSubmit({
-                workId: selectedWork.id,
-                chapterIds: selectedWork.chapters.map((chapter) => chapter.id).filter((chapterId) => selectedChapterIds.has(chapterId))
-              });
-            }}
-          >
-            공유 파일 저장
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

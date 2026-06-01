@@ -1,5 +1,6 @@
 import React from "react";
 import type { ImportCreateSelection, ImportPreviewResult, LibraryIndex } from "../../../shared/types";
+import { Button, Modal } from "./ui";
 
 export type ImportModalSubmit = {
   target:
@@ -35,15 +36,31 @@ export function ImportModal({ library, preview, busy, onCancel, onSubmit }: Impo
   );
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card import-modal">
-        <div className="modal-header">
-          <h2>{preview.mode === "batch" ? "작품 일괄 번역 준비" : "보관함에 추가"}</h2>
-          <button className="ghost-button" onClick={onCancel} disabled={busy}>
-            닫기
-          </button>
-        </div>
-
+    <Modal
+      ariaLabel={preview.mode === "batch" ? "작품 일괄 번역 준비" : "보관함에 추가"}
+      title={preview.mode === "batch" ? "작품 일괄 번역 준비" : "보관함에 추가"}
+      onClose={onCancel}
+      closeDisabled={busy}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>
+            취소
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || !isSubmittable(targetMode, newWorkTitle, existingWorkId, selections)}
+            onClick={() =>
+              onSubmit({
+                target: targetMode === "new" ? { mode: "new", title: newWorkTitle } : { mode: "existing", workId: existingWorkId },
+                selections
+              })
+            }
+          >
+            {preview.mode === "batch" ? "생성 후 번역 시작" : "보관함에 추가"}
+          </Button>
+        </>
+      }
+    >
         <section className="modal-section">
           <label className="radio-row">
             <input
@@ -124,26 +141,7 @@ export function ImportModal({ library, preview, busy, onCancel, onSubmit }: Impo
             })}
           </div>
         </section>
-
-        <div className="modal-actions">
-          <button onClick={onCancel} disabled={busy}>
-            취소
-          </button>
-          <button
-            className="primary"
-            disabled={busy || !isSubmittable(targetMode, newWorkTitle, existingWorkId, selections)}
-            onClick={() =>
-              onSubmit({
-                target: targetMode === "new" ? { mode: "new", title: newWorkTitle } : { mode: "existing", workId: existingWorkId },
-                selections
-              })
-            }
-          >
-            {preview.mode === "batch" ? "생성 후 번역 시작" : "보관함에 추가"}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

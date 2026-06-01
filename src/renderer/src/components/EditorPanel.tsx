@@ -1,6 +1,7 @@
 import React from "react";
 import type { RenderTextDirection, TranslationBlock } from "../../../shared/types";
 import { FontSelect } from "./FontSelect";
+import { Button } from "./ui";
 
 type EditorPanelProps = {
   block: TranslationBlock | null;
@@ -134,8 +135,12 @@ export function EditorPanel({
         <ColorField label="외곽선" value={outlineColor} disabled={disabled} onChange={(nextOutlineColor) => onUpdate({ outlineColor: nextOutlineColor })} />
       </div>
       <div className="block-actions">
-        <button onClick={onDuplicate} disabled={disabled}>복제</button>
-        <button className="danger" onClick={onDelete} disabled={disabled}>삭제</button>
+        <Button fullWidth onClick={onDuplicate} disabled={disabled}>
+          복제
+        </Button>
+        <Button variant="danger" fullWidth onClick={onDelete} disabled={disabled}>
+          삭제
+        </Button>
       </div>
     </section>
   );

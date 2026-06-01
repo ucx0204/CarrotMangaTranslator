@@ -2,12 +2,7 @@ import React from "react";
 import type { ChapterSnapshot, JobState, MangaPage, TranslationBlock } from "../../../shared/types";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { EditorPanel } from "./EditorPanel";
-import {
-  DisplayControlPanel,
-  InpaintingControlPanel,
-  type BlockCounts,
-  type InpaintingTool
-} from "./InpaintingControlPanel";
+import { DisplayControlPanel, InpaintingControlPanel } from "./InpaintingControlPanel";
 import { RunPanel, StatusPanel } from "./RunStatusPanels";
 
 type AppRightRailProps = {
@@ -17,14 +12,6 @@ type AppRightRailProps = {
   selectedBlock: TranslationBlock | null;
   selectedPageImageDataUrl: string;
   selectedPageEditLocked: boolean;
-  blockCounts: BlockCounts;
-  inpaintedPageCount: number;
-  inpaintingTool: InpaintingTool;
-  inpaintingBrushRadius: number;
-  inpaintingPaintColor: string;
-  patternMaskStrokeCount: number;
-  canUndoRetouch: boolean;
-  canRedoRetouch: boolean;
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
   showProgressBar: boolean;
@@ -33,25 +20,8 @@ type AppRightRailProps = {
   jobActive: boolean;
   statusLines: string[];
   areaTranslateSelecting: boolean;
-  onSelectInpaintingTool: (tool: InpaintingTool) => void;
-  onBrushRadiusChange: (radius: number) => void;
-  onBrushColorChange: (color: string) => void;
-  onUndoRetouch: () => void;
-  onRedoRetouch: () => void;
-  onRevertPage: () => void;
-  onRevertChapter: () => void;
-  onRunInpaintingPage: () => void;
-  onRunInpaintingChapter: () => void;
-  onRunDrawnPattern: () => void;
-  onClearPatternMask: () => void;
-  onShowInpaintingGuide: () => void;
-  peekAvailable: boolean;
-  peeking: boolean;
-  onPeekOriginalStart: () => void;
-  onPeekOriginalEnd: () => void;
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
-  onExportResults: () => void;
   onRunPending: () => void;
   onRunAll: () => void;
   onEnterInpainting: () => void;
@@ -69,14 +39,6 @@ export function AppRightRail({
   selectedBlock,
   selectedPageImageDataUrl,
   selectedPageEditLocked,
-  blockCounts,
-  inpaintedPageCount,
-  inpaintingTool,
-  inpaintingBrushRadius,
-  inpaintingPaintColor,
-  patternMaskStrokeCount,
-  canUndoRetouch,
-  canRedoRetouch,
   jobState,
   progressSnapshot,
   showProgressBar,
@@ -85,25 +47,8 @@ export function AppRightRail({
   jobActive,
   statusLines,
   areaTranslateSelecting,
-  onSelectInpaintingTool,
-  onBrushRadiusChange,
-  onBrushColorChange,
-  onUndoRetouch,
-  onRedoRetouch,
-  onRevertPage,
-  onRevertChapter,
-  onRunInpaintingPage,
-  onRunInpaintingChapter,
-  onRunDrawnPattern,
-  onClearPatternMask,
-  onShowInpaintingGuide,
-  peekAvailable,
-  peeking,
-  onPeekOriginalStart,
-  onPeekOriginalEnd,
   onToggleChrome,
   onToggleBlocks,
-  onExportResults,
   onRunPending,
   onRunAll,
   onEnterInpainting,
@@ -119,43 +64,7 @@ export function AppRightRail({
     <aside className={`right-rail ${inpaintingMode ? "inpainting-rail" : ""}`}>
       {inpaintingMode ? (
         <>
-          <InpaintingControlPanel
-            currentChapter={currentChapter}
-            selectedPage={selectedPage}
-            blockCounts={blockCounts}
-            inpaintedPageCount={inpaintedPageCount}
-            tool={inpaintingTool}
-            brushRadius={inpaintingBrushRadius}
-            brushColor={inpaintingPaintColor}
-            maskStrokeCount={patternMaskStrokeCount}
-            canUndo={canUndoRetouch}
-            canRedo={canRedoRetouch}
-            jobState={jobState}
-            progressSnapshot={progressSnapshot}
-            showBlockChrome={showBlockChrome}
-            showTextBlocks={showTextBlocks}
-            jobActive={jobActive}
-            onSelectTool={onSelectInpaintingTool}
-            onBrushRadiusChange={onBrushRadiusChange}
-            onBrushColorChange={onBrushColorChange}
-            onUndoRetouch={onUndoRetouch}
-            onRedoRetouch={onRedoRetouch}
-            onRevertPage={onRevertPage}
-            onRevertChapter={onRevertChapter}
-            onRunPage={onRunInpaintingPage}
-            onRunChapter={onRunInpaintingChapter}
-            onRunDrawnPattern={onRunDrawnPattern}
-            onClearPatternMask={onClearPatternMask}
-            onShowGuide={onShowInpaintingGuide}
-            peekAvailable={peekAvailable}
-            peeking={peeking}
-            onPeekOriginalStart={onPeekOriginalStart}
-            onPeekOriginalEnd={onPeekOriginalEnd}
-            onToggleChrome={onToggleChrome}
-            onToggleBlocks={onToggleBlocks}
-            onExportResults={onExportResults}
-            onCancelJob={onCancelJob}
-          />
+          <InpaintingControlPanel />
           {selectedBlock ? (
             <EditorPanel
               block={selectedBlock}

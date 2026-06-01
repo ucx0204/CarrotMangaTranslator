@@ -4,6 +4,8 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import type { MangaPage } from "../../../shared/types";
 import { useStandardDndSensors } from "../lib/dnd";
+import { IconButton } from "./ui";
+import { CloseIcon, RefreshIcon } from "./ui/icons";
 
 type PageListProps = {
   pages: MangaPage[];
@@ -140,12 +142,12 @@ function SortablePageItem({
       <div className="page-side">
         {selected ? (
           <div className="page-actions">
-            <button className="page-icon-button" onClick={() => onRetranslate(page.id)} disabled={disabled} aria-label={`${page.name} 재번역`} title="재번역">
-              ↻
-            </button>
-            <button className="page-remove page-icon-button" onClick={() => onRemove(page.id)} disabled={disabled} aria-label={`${page.name} 삭제`} title="삭제">
-              ×
-            </button>
+            <IconButton size="sm" label={`${page.name} 재번역`} title="재번역" onClick={() => onRetranslate(page.id)} disabled={disabled}>
+              <RefreshIcon size={15} />
+            </IconButton>
+            <IconButton size="sm" variant="danger" label={`${page.name} 삭제`} title="삭제" onClick={() => onRemove(page.id)} disabled={disabled}>
+              <CloseIcon size={15} />
+            </IconButton>
           </div>
         ) : (
           <span className="page-status-badge">{resolveStatusLabel(page)}</span>

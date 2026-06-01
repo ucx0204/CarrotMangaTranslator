@@ -1,6 +1,7 @@
 import React from "react";
 import type { ChapterSnapshot, JobState } from "../../../shared/types";
 import type { ProgressSnapshot } from "../lib/jobProgress";
+import { Button } from "./ui";
 
 export function RunPanel({
   currentChapter,
@@ -29,19 +30,19 @@ export function RunPanel({
         <h2>{currentChapter?.title ?? "현재 화 없음"}</h2>
         <small>{currentChapter ? `${currentChapter.pages.length}페이지` : "보관함에서 화를 열어 주세요."}</small>
       </div>
-      <button className="primary" onClick={onRunPending} disabled={!currentChapter || jobActive}>
+      <Button variant="primary" fullWidth onClick={onRunPending} disabled={!currentChapter || jobActive}>
         이어서 번역
-      </button>
-      <button onClick={onRunAll} disabled={!currentChapter || jobActive}>
+      </Button>
+      <Button fullWidth onClick={onRunAll} disabled={!currentChapter || jobActive}>
         전체 다시 번역
-      </button>
-      <button onClick={onEnterInpainting} disabled={!currentChapter || jobActive}>
+      </Button>
+      <Button fullWidth onClick={onEnterInpainting} disabled={!currentChapter || jobActive}>
         인페인팅
-      </button>
+      </Button>
       {jobActive ? (
-        <button className="danger" onClick={onCancelJob}>
+        <Button variant="danger" fullWidth onClick={onCancelJob}>
           취소
-        </button>
+        </Button>
       ) : null}
       {showProgressBar && progressSnapshot ? <ProgressCard jobState={jobState} progressSnapshot={progressSnapshot} /> : null}
     </section>

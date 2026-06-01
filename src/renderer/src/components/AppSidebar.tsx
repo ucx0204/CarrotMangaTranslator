@@ -2,6 +2,7 @@ import React from "react";
 import type { ChapterSnapshot, LibraryIndex } from "../../../shared/types";
 import { LibraryTree } from "./LibraryTree";
 import { PageList } from "./PageList";
+import { Button } from "./ui";
 
 export function AppSidebar({
   inpaintingMode,
@@ -55,9 +56,9 @@ export function AppSidebar({
       {inpaintingMode ? (
         <>
           <section className="inpainting-exit-panel">
-            <button className="danger" onClick={onExitInpainting} disabled={jobActive}>
+            <Button variant="danger" fullWidth onClick={onExitInpainting} disabled={jobActive}>
               인페인팅 나가기
-            </button>
+            </Button>
             <small>{currentChapter ? currentChapter.title : "현재 화 없음"}</small>
           </section>
 
@@ -74,22 +75,24 @@ export function AppSidebar({
       ) : (
         <>
           <section className="toolbar">
-            <button className="primary" onClick={onOpenTranslationSource} disabled={jobActive}>
+            <Button variant="primary" fullWidth onClick={onOpenTranslationSource} disabled={jobActive}>
               번역
-            </button>
-            <button onClick={onOpenBatchImport} disabled={jobActive}>
+            </Button>
+            <Button fullWidth onClick={onOpenBatchImport} disabled={jobActive}>
               작품 일괄 번역
-            </button>
-            <button onClick={onOpenSettings} disabled={settingsBusy && !settingsOpen}>
+            </Button>
+            <Button fullWidth onClick={onOpenSettings} disabled={settingsBusy && !settingsOpen}>
               설정
-            </button>
-            <button onClick={onOpenLibraryFolder}>보관함 폴더</button>
-            <button className="share-button" onClick={onOpenShareExport} disabled={jobActive || library.works.length === 0}>
+            </Button>
+            <Button fullWidth onClick={onOpenLibraryFolder}>
+              보관함 폴더
+            </Button>
+            <Button fullWidth onClick={onOpenShareExport} disabled={jobActive || library.works.length === 0}>
               공유하기
-            </button>
-            <button className="import-button" onClick={onOpenShareImport} disabled={jobActive}>
+            </Button>
+            <Button fullWidth onClick={onOpenShareImport} disabled={jobActive}>
               가져오기
-            </button>
+            </Button>
           </section>
 
           <LibraryTree

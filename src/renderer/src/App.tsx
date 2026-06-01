@@ -27,6 +27,7 @@ import { AppRightRail } from "./components/AppRightRail";
 import { AppWorkspace } from "./components/AppWorkspace";
 import type { ImportModalSubmit } from "./components/ImportModal";
 import { type BlockCounts, type InpaintingTool } from "./components/InpaintingControlPanel";
+import { InpaintingProvider, type InpaintingContextValue } from "./inpainting/InpaintingContext";
 import type { ShareImportModalSubmit } from "./components/ShareImportModal";
 import type { TranslateSourceMode } from "./components/TranslateSourceModal";
 import { useConfirmDialog } from "./hooks/useConfirmDialog";
@@ -1163,8 +1164,7 @@ export default function App(): React.JSX.Element {
             .sampleInpaintingColor({ imagePath, x: point.x, y: point.y })
             .then((result) => {
               setInpaintingPaintColor(result.color);
-              setInpaintingTool("brush");
-              pushStatus(`붓 색상을 ${result.color}로 선택했습니다.`);
+              pushStatus(`붓 색상을 ${result.color}로 선택했습니다. 계속 다른 색을 뽑거나 붓으로 전환하세요.`);
             })
             .catch((error) => {
               console.error(error);
@@ -1530,6 +1530,52 @@ export default function App(): React.JSX.Element {
     [applyChapter, currentChapter, refreshLibrary]
   );
 
+  const inpaintingContextValue: InpaintingContextValue = {
+    currentChapter,
+    selectedPage,
+    blockCounts,
+    inpaintedPageCount,
+    tool: inpaintingTool,
+    brushRadius: inpaintingBrushRadius,
+    brushColor: inpaintingPaintColor,
+    maskStrokeCount: patternMaskStrokes.length,
+    canUndo: retouchUndoStack.length > 0,
+    canRedo: retouchRedoStack.length > 0,
+    jobState,
+    progressSnapshot,
+    showBlockChrome,
+    showTextBlocks,
+    jobActive,
+    peekAvailable,
+    peeking: showingOriginalPeek,
+    onSelectTool: setInpaintingTool,
+    onBrushRadiusChange: setInpaintingBrushRadius,
+    onBrushColorChange: setInpaintingPaintColor,
+    onUndoRetouch: () => void undoRetouch(),
+    onRedoRetouch: () => void redoRetouch(),
+    onRevertPage: () => void revertInpainting("page"),
+    onRevertChapter: () => void revertInpainting("chapter"),
+    onRunPage: () => void runInpainting("page"),
+    onRunChapter: () => void runInpainting("chapter"),
+    onRunDrawnPattern: () => void runDrawnPatternInpainting(),
+    onClearPatternMask: () => {
+      if (!selectedPage) {
+        return;
+      }
+      setPatternMaskStrokesByPage((current) => {
+        const next = { ...current };
+        delete next[selectedPage.id];
+        return next;
+      });
+    },
+    onShowGuide: () => setInpaintingGuideOpen(true),
+    onPeekToggle: () => setPeekOriginal((value) => !value),
+    onToggleChrome: () => setShowBlockChrome((value) => !value),
+    onToggleBlocks: () => setShowTextBlocks((value) => !value),
+    onExportResults: () => void exportInpaintingResults(),
+    onCancelJob: () => void window.mangaApi.cancelJob()
+  };
+
   return (
     <main className={`app-shell ${inpaintingMode ? "inpainting-mode" : ""}`}>
       <AppSidebar
@@ -1589,66 +1635,34 @@ export default function App(): React.JSX.Element {
         onOpenShareImport={() => void openShareImportPreview()}
       />
 
-      <AppRightRail
-        inpaintingMode={inpaintingMode}
-        currentChapter={currentChapter}
-        selectedPage={selectedPage}
-        selectedBlock={selectedBlock}
-        selectedPageImageDataUrl={selectedPageImageDataUrl}
-        selectedPageEditLocked={selectedPageEditLocked}
-        blockCounts={blockCounts}
-        inpaintedPageCount={inpaintedPageCount}
-        inpaintingTool={inpaintingTool}
-        inpaintingBrushRadius={inpaintingBrushRadius}
-        inpaintingPaintColor={inpaintingPaintColor}
-        patternMaskStrokeCount={patternMaskStrokes.length}
-        canUndoRetouch={retouchUndoStack.length > 0}
-        canRedoRetouch={retouchRedoStack.length > 0}
-        jobState={jobState}
-        progressSnapshot={progressSnapshot}
-        showProgressBar={showProgressBar}
-        showBlockChrome={showBlockChrome}
-        showTextBlocks={showTextBlocks}
-        jobActive={jobActive}
-        statusLines={statusLines}
-        areaTranslateSelecting={Boolean(regionSelection?.active)}
-        onSelectInpaintingTool={setInpaintingTool}
-        onBrushRadiusChange={setInpaintingBrushRadius}
-        onBrushColorChange={setInpaintingPaintColor}
-        onUndoRetouch={() => void undoRetouch()}
-        onRedoRetouch={() => void redoRetouch()}
-        onRevertPage={() => void revertInpainting("page")}
-        onRevertChapter={() => void revertInpainting("chapter")}
-        onRunInpaintingPage={() => void runInpainting("page")}
-        onRunInpaintingChapter={() => void runInpainting("chapter")}
-        onRunDrawnPattern={() => void runDrawnPatternInpainting()}
-        onClearPatternMask={() => {
-          if (!selectedPage) {
-            return;
-          }
-          setPatternMaskStrokesByPage((current) => {
-            const next = { ...current };
-            delete next[selectedPage.id];
-            return next;
-          });
-        }}
-        onShowInpaintingGuide={() => setInpaintingGuideOpen(true)}
-        peekAvailable={peekAvailable}
-        peeking={showingOriginalPeek}
-        onPeekOriginalStart={() => setPeekOriginal(true)}
-        onPeekOriginalEnd={() => setPeekOriginal(false)}
-        onToggleChrome={() => setShowBlockChrome((value) => !value)}
-        onToggleBlocks={() => setShowTextBlocks((value) => !value)}
-        onExportResults={() => void exportInpaintingResults()}
-        onRunPending={() => void runAnalysis("pending")}
-        onRunAll={() => void runAnalysis("all")}
-        onEnterInpainting={() => void enterInpaintingMode()}
-        onCancelJob={() => void window.mangaApi.cancelJob()}
-        onStartAreaTranslate={startRegionTranslationSelection}
-        onUpdateBlock={updateSelectedBlock}
-        onDeleteBlock={deleteSelectedBlock}
-        onDuplicateBlock={duplicateSelectedBlock}
-      />
+      <InpaintingProvider value={inpaintingContextValue}>
+        <AppRightRail
+          inpaintingMode={inpaintingMode}
+          currentChapter={currentChapter}
+          selectedPage={selectedPage}
+          selectedBlock={selectedBlock}
+          selectedPageImageDataUrl={selectedPageImageDataUrl}
+          selectedPageEditLocked={selectedPageEditLocked}
+          jobState={jobState}
+          progressSnapshot={progressSnapshot}
+          showProgressBar={showProgressBar}
+          showBlockChrome={showBlockChrome}
+          showTextBlocks={showTextBlocks}
+          jobActive={jobActive}
+          statusLines={statusLines}
+          areaTranslateSelecting={Boolean(regionSelection?.active)}
+          onToggleChrome={() => setShowBlockChrome((value) => !value)}
+          onToggleBlocks={() => setShowTextBlocks((value) => !value)}
+          onRunPending={() => void runAnalysis("pending")}
+          onRunAll={() => void runAnalysis("all")}
+          onEnterInpainting={() => void enterInpaintingMode()}
+          onCancelJob={() => void window.mangaApi.cancelJob()}
+          onStartAreaTranslate={startRegionTranslationSelection}
+          onUpdateBlock={updateSelectedBlock}
+          onDeleteBlock={deleteSelectedBlock}
+          onDuplicateBlock={duplicateSelectedBlock}
+        />
+      </InpaintingProvider>
 
       <AppModals
         library={library}

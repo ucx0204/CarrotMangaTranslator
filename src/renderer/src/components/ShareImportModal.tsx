@@ -11,6 +11,7 @@ import type {
   WorkSharePreviewChapter
 } from "../../../shared/types";
 import { insertItemAt, moveItemById, useStandardDndSensors } from "../lib/dnd";
+import { Button, Modal } from "./ui";
 
 type LeftItem =
   | {
@@ -172,15 +173,23 @@ export function ShareImportModal({ library, preview, busy, onCancel, onSubmit }:
   );
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card share-import-modal">
-        <div className="modal-header">
-          <h2>가져오기</h2>
-          <button className="ghost-button" onClick={onCancel} disabled={busy}>
-            닫기
-          </button>
-        </div>
-
+    <Modal
+      size="xl"
+      ariaLabel="가져오기"
+      title="가져오기"
+      onClose={onCancel}
+      closeDisabled={busy}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>
+            취소
+          </Button>
+          <Button variant="primary" disabled={busy || !canSubmit()} onClick={() => onSubmit(buildSubmitPayload())}>
+            가져오기 적용
+          </Button>
+        </>
+      }
+    >
         <section className="modal-section share-target-section">
           <div className="share-package-title">
             <strong>{preview.workTitle}</strong>
@@ -225,12 +234,12 @@ export function ShareImportModal({ library, preview, busy, onCancel, onSubmit }:
             <div className="modal-subheader">
               <h3>가져올 화</h3>
               <div className="inline-actions">
-                <button className="ghost-button" onClick={() => setNewSelections((current) => current.map((item) => ({ ...item, enabled: true })))} disabled={busy}>
+                <Button variant="ghost" size="sm" onClick={() => setNewSelections((current) => current.map((item) => ({ ...item, enabled: true })))} disabled={busy}>
                   전체 선택
-                </button>
-                <button className="ghost-button" onClick={() => setNewSelections((current) => current.map((item) => ({ ...item, enabled: false })))} disabled={busy}>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setNewSelections((current) => current.map((item) => ({ ...item, enabled: false })))} disabled={busy}>
                   전체 해제
-                </button>
+                </Button>
               </div>
             </div>
             <div className="draft-list">
@@ -276,9 +285,9 @@ export function ShareImportModal({ library, preview, busy, onCancel, onSubmit }:
                 <span className={deletedExistingChapters.length ? "danger-stat" : ""}>삭제 예정 {deletedExistingChapters.length}개</span>
                 <span>남은 후보 {availablePackageChapters.length}개</span>
               </div>
-              <button className="ghost-button" onClick={appendAllPackageChapters} disabled={busy || availablePackageChapters.length === 0}>
+              <Button variant="ghost" size="sm" onClick={appendAllPackageChapters} disabled={busy || availablePackageChapters.length === 0}>
                 모두 추가
-              </button>
+              </Button>
             </div>
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragCancel={() => setActiveDrag(null)} onDragEnd={onDragEnd}>
@@ -315,16 +324,7 @@ export function ShareImportModal({ library, preview, busy, onCancel, onSubmit }:
           </section>
         )}
 
-        <div className="modal-actions">
-          <button onClick={onCancel} disabled={busy}>
-            취소
-          </button>
-          <button className="primary" disabled={busy || !canSubmit()} onClick={() => onSubmit(buildSubmitPayload())}>
-            가져오기 적용
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 
   function canSubmit(): boolean {

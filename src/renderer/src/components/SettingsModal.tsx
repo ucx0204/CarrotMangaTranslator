@@ -21,6 +21,7 @@ import {
   resolveModelPreset,
   type ModelPresetId
 } from "./settingsOptions";
+import { Button, Modal } from "./ui";
 
 type TestState =
   | {
@@ -324,15 +325,29 @@ export function SettingsModal({
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card settings-modal">
-        <div className="modal-header">
-          <h2>설정</h2>
-          <button className="ghost-button" onClick={onCancel} disabled={controlsBusy}>
-            닫기
-          </button>
-        </div>
-
+    <Modal
+      width="min(680px, 100%)"
+      ariaLabel="설정"
+      title="설정"
+      onClose={onCancel}
+      closeDisabled={controlsBusy}
+      footer={
+        <>
+          <Button variant="ghost" style={{ marginRight: "auto" }} onClick={onOpenLogFolder} disabled={controlsBusy}>
+            로그 폴더 열기
+          </Button>
+          <Button onClick={onReset} disabled={controlsBusy}>
+            기본값 복원
+          </Button>
+          <Button variant="ghost" onClick={onCancel} disabled={controlsBusy}>
+            취소
+          </Button>
+          <Button variant="primary" onClick={submit} disabled={controlsBusy || !canSubmit}>
+            저장
+          </Button>
+        </>
+      }
+    >
         <section className="modal-section">
           <p className="muted-line modal-note">다음 번 번역 실행부터 적용됩니다.</p>
           <div className="settings-field-stack">
@@ -679,23 +694,7 @@ export function SettingsModal({
             <p className="muted-line">최대 출력 토큰은 {MIN_MAX_TOKENS} 이상 {MAX_MAX_TOKENS} 이하의 정수여야 합니다.</p>
           ) : null}
         </section>
-
-        <div className="modal-actions settings-actions">
-          <button className="ghost-button" onClick={onOpenLogFolder} disabled={controlsBusy}>
-            로그 폴더 열기
-          </button>
-          <button onClick={onReset} disabled={controlsBusy}>
-            기본값 복원
-          </button>
-          <button onClick={onCancel} disabled={controlsBusy}>
-            취소
-          </button>
-          <button className="primary" onClick={submit} disabled={controlsBusy || !canSubmit}>
-            저장
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

@@ -3,6 +3,7 @@ import type { JobState, MangaPage } from "../../../shared/types";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { ImageStage, type ImageStageProps } from "./ImageStage";
 import { InstallProgressOverlay } from "./InstallProgressOverlay";
+import { Button } from "./ui";
 
 type AppWorkspaceProps = {
   workspacePanelRef: React.RefObject<HTMLElement | null>;
@@ -108,13 +109,11 @@ export function AppWorkspace({
           <h2>보관함에서 화를 열거나 새로 가져오세요.</h2>
           <p>작품과 화 단위로 저장해두고, 이어서 번역하거나 페이지별로 다시 번역할 수 있습니다.</p>
           <div className="empty-actions">
-            <button className="primary" onClick={onOpenTranslationSource}>
+            <Button variant="primary" onClick={onOpenTranslationSource}>
               번역
-            </button>
-            <button onClick={onOpenBatchImport}>작품 일괄 번역</button>
-            <button className="import-button" onClick={onOpenShareImport}>
-              가져오기
-            </button>
+            </Button>
+            <Button onClick={onOpenBatchImport}>작품 일괄 번역</Button>
+            <Button onClick={onOpenShareImport}>가져오기</Button>
           </div>
         </div>
       )}

@@ -1,4 +1,5 @@
 import React from "react";
+import { Button, Modal, TextField } from "./ui";
 
 type RenameModalProps = {
   kind: "work" | "chapter";
@@ -27,45 +28,39 @@ export function RenameModal({ kind, initialTitle, busy, onCancel, onDelete, onSu
       : "화를 삭제하면 포함된 페이지와 번역 결과가 함께 삭제됩니다.";
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card rename-modal">
-        <div className="modal-header">
-          <h2>{heading}</h2>
-          <button className="ghost-button" onClick={onCancel} disabled={busy}>
-            닫기
-          </button>
-        </div>
-
-        <section className="modal-section">
-          <label>
-            새 이름
-            <input
-              ref={inputRef}
-              value={title}
-              disabled={busy}
-              onChange={(event) => setTitle(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && trimmed) {
-                  onSubmit(trimmed);
-                }
-              }}
-            />
-          </label>
-          <p className="muted-line modal-note">{deleteNote}</p>
-        </section>
-
-        <div className="modal-actions">
-          <button className="danger modal-danger" onClick={onDelete} disabled={busy}>
+    <Modal
+      size="sm"
+      ariaLabel={heading}
+      title={heading}
+      onClose={onCancel}
+      closeDisabled={busy}
+      footer={
+        <>
+          <Button variant="danger" className="modal-danger" onClick={onDelete} disabled={busy}>
             {deleteLabel}
-          </button>
-          <button onClick={onCancel} disabled={busy}>
+          </Button>
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>
             취소
-          </button>
-          <button className="primary" onClick={() => onSubmit(trimmed)} disabled={busy || !trimmed}>
+          </Button>
+          <Button variant="primary" onClick={() => onSubmit(trimmed)} disabled={busy || !trimmed}>
             저장
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </>
+      }
+    >
+      <TextField
+        ref={inputRef}
+        label="새 이름"
+        value={title}
+        disabled={busy}
+        onChange={(event) => setTitle(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && trimmed) {
+            onSubmit(trimmed);
+          }
+        }}
+      />
+      <p className="muted-line modal-note">{deleteNote}</p>
+    </Modal>
   );
 }

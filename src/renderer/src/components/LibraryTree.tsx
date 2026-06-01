@@ -5,6 +5,8 @@ import { CSS } from "@dnd-kit/utilities";
 import type { LibraryChapterSummary, LibraryIndex } from "../../../shared/types";
 import { useStandardDndSensors } from "../lib/dnd";
 import { filterLibraryIndex } from "../lib/libraryFilter";
+import { IconButton } from "./ui";
+import { EditIcon } from "./ui/icons";
 
 type LibraryTreeProps = {
   library: LibraryIndex;
@@ -91,15 +93,15 @@ export function LibraryTree({
               <div key={work.id} className="work-group">
                 <div className="work-row">
                   <strong title={work.title}>{work.title}</strong>
-                  <button
-                    className="ghost-button library-icon-button"
+                  <IconButton
+                    size="sm"
+                    label={`${work.title} 이름 변경`}
+                    title="이름 변경"
                     onClick={() => onRenameWork(work.id)}
                     disabled={jobActive}
-                    aria-label={`${work.title} 이름 변경`}
-                    title="이름 변경"
                   >
-                    ✎
-                  </button>
+                    <EditIcon size={14} />
+                  </IconButton>
                 </div>
                 <SortableContext items={work.chapters.map((chapter) => chapter.id)} strategy={verticalListSortingStrategy}>
                   <div className="chapter-list">
@@ -180,15 +182,15 @@ function SortableChapterItem({
           {chapter.pageCount}페이지 · {resolveChapterStatusLabel(chapter.status)}
         </small>
       </button>
-      <button
-        className="ghost-button library-icon-button"
+      <IconButton
+        size="sm"
+        label={`${chapter.title} 이름 변경`}
+        title="이름 변경"
         onClick={() => onRenameChapter(chapter.id)}
         disabled={jobActive}
-        aria-label={`${chapter.title} 이름 변경`}
-        title="이름 변경"
       >
-        ✎
-      </button>
+        <EditIcon size={14} />
+      </IconButton>
     </div>
   );
 }
@@ -205,7 +207,9 @@ function ChapterDragPreview({ chapter, active }: { chapter: LibraryChapterSummar
           {chapter.pageCount}페이지 · {resolveChapterStatusLabel(chapter.status)}
         </small>
       </div>
-      <span className="library-icon-button preview-edit">✎</span>
+      <span className="library-icon-button preview-edit" aria-hidden="true">
+        <EditIcon size={14} />
+      </span>
     </div>
   );
 }
