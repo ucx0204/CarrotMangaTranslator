@@ -3,7 +3,7 @@ import type { BBox, InpaintingMaskStroke, MangaPage, TranslationBlock } from "..
 import type { ViewportSize } from "../lib/overlayLayout";
 import { OverlayBlock } from "./OverlayBlock";
 
-type ImageStageProps = {
+export type ImageStageProps = {
   page: MangaPage;
   imageDataUrl: string;
   imageRef: React.RefObject<HTMLImageElement | null>;

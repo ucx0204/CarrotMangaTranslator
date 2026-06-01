@@ -24,10 +24,9 @@ import {
 } from "../../shared/geometry";
 import { isUsableRegionBbox } from "../../shared/region";
 import { AppSidebar } from "./components/AppSidebar";
+import { AppWorkspace } from "./components/AppWorkspace";
 import { ConfirmModal } from "./components/ConfirmModal";
 import { EditorPanel } from "./components/EditorPanel";
-import { ImageStage } from "./components/ImageStage";
-import { InstallProgressOverlay } from "./components/InstallProgressOverlay";
 import { InpaintingGuideModal } from "./components/InpaintingGuideModal";
 import { ImportModal, type ImportModalSubmit } from "./components/ImportModal";
 import {
@@ -1896,52 +1895,35 @@ export default function App(): React.JSX.Element {
         onReorderPage={reorderPageInChapter}
       />
 
-      <section
-        ref={workspacePanelRef}
-        className="workspace"
-        tabIndex={0}
-        aria-label="읽기 영역"
-        onMouseDown={() => workspacePanelRef.current?.focus()}
-        onWheel={onWorkspaceWheel}
-      >
-        {selectedPage ? (
-          <div className="workspace-pane">
-            <ImageStage
-              page={selectedPage}
-              imageDataUrl={selectedPageImageDataUrl}
-              imageRef={imageRef}
-              stageRef={stageRef}
-              stageSize={stageSize}
-              selectedBlockId={selectedBlockId}
-              showTextBlocks={showTextBlocks}
-              showBlockChrome={showBlockChrome && !inpaintingToolActive}
-              highlightBlockType={inpaintingHighlightType}
-              blockPointerDisabled={inpaintingToolActive}
-              retouchCursor={retouchCursor}
-              retouchPreview={retouchPreviewLayer}
-              maskStrokes={inpaintingMode && inpaintingStage === "pattern" ? patternMaskStrokes : []}
-              regionSelectionActive={Boolean(regionSelection?.active)}
-              regionSelectionRect={regionSelectionRect}
-              onStagePointerMove={onStagePointerMove}
-              onStagePointerUp={onStagePointerUp}
-              onStagePointerDown={onStagePointerDown}
-              onStagePointerLeave={onStagePointerLeave}
-              onBlockPointerDown={onBlockPointerDown}
-            />
-          </div>
-        ) : (
-          <div className="empty-state">
-            <h2>보관함에서 화를 열거나 새로 가져오세요.</h2>
-            <p>작품과 화 단위로 저장해두고, 이어서 번역하거나 페이지별로 다시 번역할 수 있습니다.</p>
-            <div className="empty-actions">
-              <button className="primary" onClick={() => setTranslationSourceOpen(true)}>번역</button>
-              <button onClick={() => void openImportPreview("zip-folder")}>작품 일괄 번역</button>
-              <button className="import-button" onClick={() => void openShareImportPreview()}>가져오기</button>
-            </div>
-          </div>
-        )}
-        <InstallProgressOverlay job={jobState} snapshot={progressSnapshot} />
-      </section>
+      <AppWorkspace
+        workspacePanelRef={workspacePanelRef}
+        selectedPage={selectedPage}
+        selectedPageImageDataUrl={selectedPageImageDataUrl}
+        imageRef={imageRef}
+        stageRef={stageRef}
+        stageSize={stageSize}
+        selectedBlockId={selectedBlockId}
+        showTextBlocks={showTextBlocks}
+        showBlockChrome={showBlockChrome}
+        inpaintingToolActive={inpaintingToolActive}
+        inpaintingHighlightType={inpaintingHighlightType}
+        retouchCursor={retouchCursor}
+        retouchPreviewLayer={retouchPreviewLayer}
+        maskStrokes={inpaintingMode && inpaintingStage === "pattern" ? patternMaskStrokes : []}
+        regionSelectionActive={Boolean(regionSelection?.active)}
+        regionSelectionRect={regionSelectionRect}
+        jobState={jobState}
+        progressSnapshot={progressSnapshot}
+        onWorkspaceWheel={onWorkspaceWheel}
+        onStagePointerMove={onStagePointerMove}
+        onStagePointerUp={onStagePointerUp}
+        onStagePointerDown={onStagePointerDown}
+        onStagePointerLeave={onStagePointerLeave}
+        onBlockPointerDown={onBlockPointerDown}
+        onOpenTranslationSource={() => setTranslationSourceOpen(true)}
+        onOpenBatchImport={() => void openImportPreview("zip-folder")}
+        onOpenShareImport={() => void openShareImportPreview()}
+      />
 
       <aside className={`right-rail ${inpaintingMode ? "inpainting-rail" : ""}`}>
         {inpaintingMode ? (
