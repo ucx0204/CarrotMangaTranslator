@@ -40,6 +40,7 @@ import {
 import { LibraryTree } from "./components/LibraryTree";
 import { PageList } from "./components/PageList";
 import { RenameModal } from "./components/RenameModal";
+import { RunPanel, StatusPanel } from "./components/RunStatusPanels";
 import { SettingsModal } from "./components/SettingsModal";
 import { ShareExportModal } from "./components/ShareExportModal";
 import { ShareImportModal, type ShareImportModalSubmit } from "./components/ShareImportModal";
@@ -2039,54 +2040,17 @@ export default function App(): React.JSX.Element {
           </>
         ) : (
           <>
-            <section className="run-panel">
-              <div className="run-title">
-                <h2>{currentChapter?.title ?? "현재 화 없음"}</h2>
-                <small>{currentChapter ? `${currentChapter.pages.length}페이지` : "보관함에서 화를 열어 주세요."}</small>
-              </div>
-              <button className="primary" onClick={() => void runAnalysis("pending")} disabled={!currentChapter || jobActive}>
-                이어서 번역
-              </button>
-              <button onClick={() => void runAnalysis("all")} disabled={!currentChapter || jobActive}>
-                전체 다시 번역
-              </button>
-              <button onClick={() => void enterInpaintingMode()} disabled={!currentChapter || jobActive}>
-                인페인팅
-              </button>
-              {jobActive ? (
-                <button className="danger" onClick={() => void window.mangaApi.cancelJob()}>
-                  취소
-                </button>
-              ) : null}
-              {showProgressBar && progressSnapshot ? (
-                <div className="progress-card">
-                  <div className="progress-meta">
-                    <span>{jobState.progressText}</span>
-                    {progressSnapshot.mode === "determinate" ? (
-                      <strong>
-                        {progressSnapshot.current} / {progressSnapshot.total}
-                      </strong>
-                    ) : (
-                      <strong>준비 중</strong>
-                    )}
-                  </div>
-                  {jobState.detail ? <small className="progress-detail">{jobState.detail}</small> : null}
-                  <div
-                    className={`progress-track ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
-                    aria-hidden="true"
-                  >
-                    <div
-                      className={`progress-fill ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
-                      style={
-                        progressSnapshot.mode === "determinate"
-                          ? { width: `${Math.round(progressSnapshot.ratio * 100)}%` }
-                          : undefined
-                      }
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </section>
+            <RunPanel
+              currentChapter={currentChapter}
+              jobActive={jobActive}
+              showProgressBar={showProgressBar}
+              progressSnapshot={progressSnapshot}
+              jobState={jobState}
+              onRunPending={() => void runAnalysis("pending")}
+              onRunAll={() => void runAnalysis("all")}
+              onEnterInpainting={() => void enterInpaintingMode()}
+              onCancelJob={() => void window.mangaApi.cancelJob()}
+            />
 
             <DisplayControlPanel
               showBlockChrome={showBlockChrome}
@@ -2095,19 +2059,7 @@ export default function App(): React.JSX.Element {
               onToggleBlocks={() => setShowTextBlocks((value) => !value)}
             />
 
-            {!selectedBlock ? (
-              <section className="status-panel">
-                <h2>상태</h2>
-                <div className={`job-pill ${jobState.status}`}>{jobState.progressText}</div>
-                <div className="status-log-scroll">
-                  {statusLines.length ? (
-                    statusLines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)
-                  ) : (
-                    <p className="muted-line">아직 표시할 상태가 없습니다.</p>
-                  )}
-                </div>
-              </section>
-            ) : null}
+            {!selectedBlock ? <StatusPanel jobState={jobState} statusLines={statusLines} /> : null}
 
             <EditorPanel
               block={selectedBlock}
