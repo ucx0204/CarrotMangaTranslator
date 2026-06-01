@@ -31,6 +31,7 @@ import { type BlockCounts, type InpaintingStage, type InpaintingTool } from "./c
 import type { ShareImportModalSubmit } from "./components/ShareImportModal";
 import type { TranslateSourceMode } from "./components/TranslateSourceModal";
 import { useConfirmDialog } from "./hooks/useConfirmDialog";
+import { useChapterPersistence } from "./hooks/useChapterPersistence";
 import { usePageImageDataUrls } from "./hooks/usePageImageDataUrls";
 import { useSettingsDialog } from "./hooks/useSettingsDialog";
 import { useStageSize } from "./hooks/useStageSize";
@@ -97,7 +98,6 @@ export default function App(): React.JSX.Element {
   const [shareImportBusy, setShareImportBusy] = useState(false);
   const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
   const [renameBusy, setRenameBusy] = useState(false);
-  const [dirty, setDirty] = useState(false);
   const { confirmDialog, askConfirm, resolveConfirmDialog } = useConfirmDialog();
   const [inpaintingMode, setInpaintingMode] = useState(false);
   const [inpaintingStage, setInpaintingStage] = useState<InpaintingStage>("pattern");
@@ -121,10 +121,7 @@ export default function App(): React.JSX.Element {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
-  const saveTimerRef = useRef<number | null>(null);
   const lastWheelNavigationAtRef = useRef(0);
-  const dirtyVersionRef = useRef(0);
-  const dirtyPageIdsRef = useRef<Set<string>>(new Set());
   const currentChapterRef = useRef<ChapterSnapshot | null>(null);
   const selectedPageIdRef = useRef<string | null>(null);
   const selectedBlockIdRef = useRef<string | null>(null);
@@ -147,6 +144,12 @@ export default function App(): React.JSX.Element {
   });
   const selectedBlock = selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
   const jobActive = ["starting", "running", "cancelling"].includes(jobState.status);
+  const { clearDirtyTracking, dirty, dirtyPageIdsRef, markDirty, replaceDirtyPageIds, saveNow } = useChapterPersistence({
+    currentChapter,
+    currentChapterRef,
+    jobActive,
+    setCurrentChapter
+  });
   const modalOpen = Boolean(
     translationSourceOpen || importPreview || shareExportOpen || shareImportPreview || renameTarget || settingsOpen || confirmDialog || inpaintingGuideOpen
   );
@@ -248,33 +251,6 @@ export default function App(): React.JSX.Element {
     }
   }, [inpaintingToolActive]);
 
-  const persistChapter = useCallback(async (chapter: ChapterSnapshot, options: { syncState?: boolean } = {}): Promise<ChapterSnapshot> => {
-    const dirtyPageIds = [...dirtyPageIdsRef.current];
-    let saved = chapter;
-    if (dirtyPageIds.length > 0) {
-      for (const pageId of dirtyPageIds) {
-        const page = chapter.pages.find((candidate) => candidate.id === pageId);
-        if (!page) {
-          continue;
-        }
-        saved = await window.mangaApi.savePageBlocks({
-          chapterId: saved.id,
-          pageId,
-          blocks: page.blocks.map((block) => ({
-            ...block,
-            bbox: clampBbox(block.bbox),
-            renderBbox: block.renderBbox ? clampBbox(block.renderBbox) : undefined
-          }))
-        });
-      }
-    }
-    if (options.syncState !== false && currentChapterRef.current?.id === saved.id) {
-      currentChapterRef.current = saved;
-      setCurrentChapter(saved);
-    }
-    return saved;
-  }, []);
-
   const mergeLiveChapter = useCallback((chapter: ChapterSnapshot) => {
     const current = currentChapterRef.current;
     if (current && current.id !== chapter.id) {
@@ -282,7 +258,7 @@ export default function App(): React.JSX.Element {
     }
 
     const mergeResult = mergeLiveChapterPreservingDirtyPages(chapter, current, dirtyPageIdsRef.current);
-    dirtyPageIdsRef.current = new Set(mergeResult.preservedDirtyPageIds);
+    replaceDirtyPageIds(mergeResult.preservedDirtyPageIds);
     currentChapterRef.current = mergeResult.chapter;
 
     setCurrentChapter((currentChapter) => {
@@ -295,8 +271,7 @@ export default function App(): React.JSX.Element {
     const selection = resolveSelectionAfterChapterSync(mergeResult.chapter, selectedPageIdRef.current, selectedBlockIdRef.current);
     setSelectedPageId(selection.selectedPageId);
     setSelectedBlockId(selection.selectedBlockId);
-    setDirty(mergeResult.preservedDirtyPageIds.length > 0);
-  }, []);
+  }, [dirtyPageIdsRef, replaceDirtyPageIds]);
 
   React.useEffect(() => {
     const unsubscribe = window.mangaApi.onJobEvent((event) => {
@@ -360,68 +335,13 @@ export default function App(): React.JSX.Element {
     return unsubscribe;
   }, [appendStatusLine, mergeLiveChapter, refreshLibrary]);
 
-  React.useEffect(() => {
-    if (!dirty || !currentChapter || jobActive) {
-      return;
-    }
-
-    const version = dirtyVersionRef.current;
-    saveTimerRef.current = window.setTimeout(async () => {
-      try {
-        const saved = await persistChapter(currentChapter, { syncState: false });
-        if (dirtyVersionRef.current === version) {
-          currentChapterRef.current = saved;
-          setCurrentChapter(saved);
-          dirtyPageIdsRef.current.clear();
-          setDirty(false);
-        }
-      } catch (error) {
-        console.error(error);
-      } finally {
-        saveTimerRef.current = null;
-      }
-    }, 400);
-
-    return () => {
-      if (saveTimerRef.current) {
-        window.clearTimeout(saveTimerRef.current);
-      }
-    };
-  }, [currentChapter, dirty, jobActive, persistChapter]);
-
-  const markDirty = useCallback((pageId?: string) => {
-    dirtyVersionRef.current += 1;
-    if (pageId) {
-      dirtyPageIdsRef.current = new Set([...dirtyPageIdsRef.current, pageId]);
-    }
-    setDirty(true);
-  }, []);
-
-  const saveNow = useCallback(async () => {
-    if (!currentChapter) {
-      return;
-    }
-    if (saveTimerRef.current) {
-      window.clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
-    await persistChapter(currentChapter);
-    dirtyPageIdsRef.current.clear();
-    setDirty(false);
-  }, [currentChapter, persistChapter]);
-
   const clearCurrentChapter = useCallback(() => {
-    if (saveTimerRef.current) {
-      window.clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
     setCurrentChapter(null);
     currentChapterRef.current = null;
     setSelectedPageId(null);
     setSelectedBlockId(null);
-    dirtyPageIdsRef.current.clear();
-    setDirty(false);
-  }, []);
+    clearDirtyTracking();
+  }, [clearDirtyTracking]);
 
   const openChapter = useCallback(
     async (chapterId: string) => {
@@ -429,30 +349,28 @@ export default function App(): React.JSX.Element {
         await saveNow();
       }
       const chapter = await window.mangaApi.openChapter(chapterId);
-      dirtyPageIdsRef.current.clear();
+      clearDirtyTracking();
       currentChapterRef.current = chapter;
       setCurrentChapter(chapter);
       setSelectedPageId(chapter.pages[0]?.id ?? null);
       setSelectedBlockId(null);
-      setDirty(false);
     },
-    [dirty, saveNow]
+    [clearDirtyTracking, dirty, saveNow]
   );
 
   const applyChapter = useCallback((chapter: ChapterSnapshot | undefined, fallbackStatus?: string) => {
     if (!chapter) {
       return;
     }
-    dirtyPageIdsRef.current.clear();
+    clearDirtyTracking();
     currentChapterRef.current = chapter;
     setCurrentChapter(chapter);
     setSelectedPageId((current) => (chapter.pages.some((page) => page.id === current) ? current : chapter.pages[0]?.id ?? null));
     setSelectedBlockId(null);
-    setDirty(false);
     if (fallbackStatus) {
       pushStatus(fallbackStatus);
     }
-  }, [pushStatus]);
+  }, [clearDirtyTracking, pushStatus]);
 
   const selectPageForReading = useCallback((pageId: string | null) => {
     if (!pageId) {
