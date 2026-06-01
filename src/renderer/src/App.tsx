@@ -6,7 +6,6 @@ import type {
   ChapterSnapshot,
   ImportPreviewResult,
   InpaintingMaskStroke,
-  JobEvent,
   JobState,
   LibraryIndex,
   MangaPage,
@@ -24,9 +23,11 @@ import {
   resolveEditableBlockBbox
 } from "../../shared/geometry";
 import { isUsableRegionBbox } from "../../shared/region";
+import { ConfirmModal } from "./components/ConfirmModal";
 import { EditorPanel } from "./components/EditorPanel";
 import { ImageStage } from "./components/ImageStage";
 import { InstallProgressOverlay } from "./components/InstallProgressOverlay";
+import { InpaintingGuideModal } from "./components/InpaintingGuideModal";
 import { ImportModal, type ImportModalSubmit } from "./components/ImportModal";
 import {
   DisplayControlPanel,
@@ -44,6 +45,15 @@ import { ShareExportModal } from "./components/ShareExportModal";
 import { ShareImportModal, type ShareImportModalSubmit } from "./components/ShareImportModal";
 import { TranslateSourceModal, type TranslateSourceMode } from "./components/TranslateSourceModal";
 import { useStageSize } from "./hooks/useStageSize";
+import {
+  formatErrorMessage,
+  isEditableTarget,
+  regionSelectionToBbox,
+  reorderByTarget,
+  reorderRecordsByIdOrder,
+  resolveStatusLineReplacement,
+  type RegionSelectionState
+} from "./lib/appHelpers";
 import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyPages, resolveSelectionAfterChapterSync } from "./lib/chapterSync";
 import { formatJobEventLine, formatJobLabel, resolveProgressSnapshot, summarizeWarnings, type ProgressSnapshot } from "./lib/jobProgress";
 import { resolveAdjacentPageId, resolveKeyboardPageNavigation, resolveWheelPageNavigation } from "./lib/pageNavigation";
@@ -67,19 +77,6 @@ type DragState = {
   startX: number;
   startY: number;
   startBbox: BBox;
-};
-
-type RegionSelectionState = {
-  active: boolean;
-  dragging: boolean;
-  start: {
-    x: number;
-    y: number;
-  };
-  current: {
-    x: number;
-    y: number;
-  };
 };
 
 type RetouchPreviewState = {
@@ -2220,71 +2217,6 @@ export default function App(): React.JSX.Element {
   );
 }
 
-function InpaintingGuideModal({ onClose }: { onClose: (hideNextTime: boolean) => void }): React.JSX.Element {
-  const [hideNextTime, setHideNextTime] = useState(false);
-  return (
-    <div className="modal-backdrop guide-backdrop" role="presentation">
-      <div className="modal-card inpainting-guide-modal" role="dialog" aria-modal="true" aria-label="인페인팅 안내" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="inpainting-guide-content">
-          <h2>인페인팅 흐름</h2>
-          <p>이제 모든 원문 지우기는 Flux 무늬 배경 처리로 통일됩니다.</p>
-          <ol>
-            <li>무늬 배경 단계에서 이 페이지 또는 전체 페이지의 원문을 지웁니다.</li>
-            <li>최종 처리 단계에서 블록을 눌러 폰트, 색상, 위치를 정리합니다.</li>
-            <li>결과 확인 단계에서 PNG로 출력하고 폴더를 열어 확인합니다.</li>
-          </ol>
-        </div>
-        <div className="modal-actions guide-actions">
-          <label className="guide-hide-check">
-            <input type="checkbox" checked={hideNextTime} onChange={(event) => setHideNextTime(event.target.checked)} />
-            <span>다시는 보지 않기</span>
-          </label>
-          <button className="primary" onClick={() => onClose(hideNextTime)}>
-            확인
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ConfirmModal({
-  title,
-  message,
-  detail,
-  onConfirm,
-  onCancel
-}: {
-  title: string;
-  message: string;
-  detail?: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}): React.JSX.Element {
-  return (
-    <div className="modal-backdrop confirm-backdrop" role="presentation">
-      <div className="modal-card confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="modal-header">
-          <div className="confirm-title-row">
-            <span className="confirm-warning-icon" aria-hidden="true">!</span>
-            <h2 id="confirm-title">{title}</h2>
-          </div>
-        </div>
-        <section className="modal-section confirm-body">
-          <strong>{message}</strong>
-          {detail ? <p>{detail}</p> : null}
-        </section>
-        <div className="modal-actions">
-          <button onClick={onCancel}>취소</button>
-          <button className="primary" onClick={onConfirm}>
-            확인
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function countChapterBlocks(chapter: ChapterSnapshot | null): BlockCounts {
   if (!chapter) {
     return { total: 0 };
@@ -2298,81 +2230,3 @@ function countChapterBlocks(chapter: ChapterSnapshot | null): BlockCounts {
   );
 }
 
-function regionSelectionToBbox(selection: RegionSelectionState): BBox {
-  const x1 = Math.min(selection.start.x, selection.current.x);
-  const y1 = Math.min(selection.start.y, selection.current.y);
-  const x2 = Math.max(selection.start.x, selection.current.x);
-  const y2 = Math.max(selection.start.y, selection.current.y);
-  return clampBbox({
-    x: Math.round(x1),
-    y: Math.round(y1),
-    w: Math.round(x2 - x1),
-    h: Math.round(y2 - y1)
-  });
-}
-
-function reorderByTarget(currentOrder: string[], sourceId: string, targetId: string): string[] {
-  const next = [...currentOrder];
-  const sourceIndex = next.indexOf(sourceId);
-  const targetIndex = next.indexOf(targetId);
-  if (sourceIndex < 0 || targetIndex < 0) {
-    return currentOrder;
-  }
-  const [item] = next.splice(sourceIndex, 1);
-  next.splice(targetIndex, 0, item);
-  return next;
-}
-
-function reorderRecordsByIdOrder<T extends { id: string }>(records: T[], order: string[]): T[] {
-  const recordMap = new Map(records.map((record) => [record.id, record]));
-  const ordered = order.flatMap((id) => {
-    const record = recordMap.get(id);
-    return record ? [record] : [];
-  });
-  const orderedIds = new Set(ordered.map((record) => record.id));
-  return [...ordered, ...records.filter((record) => !orderedIds.has(record.id))];
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (typeof Element === "undefined" || !(target instanceof Element)) {
-    return false;
-  }
-
-  if (target instanceof HTMLElement && target.isContentEditable) {
-    return true;
-  }
-
-  return Boolean(target.closest("input, textarea, select, [contenteditable=''], [contenteditable='true'], [contenteditable='plaintext-only']"));
-}
-
-function formatErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message.trim() ? error.message : fallback;
-}
-
-function resolveStatusLineReplacement(event: JobEvent): ((line: string) => boolean) | undefined {
-  if (
-    event.phase === "ocr_running" &&
-    Number.isFinite(event.pageIndex) &&
-    Number.isFinite(event.pageTotal) &&
-    (event.pageTotal ?? 0) > 0
-  ) {
-    return (line) => /^\d+ \/ \d+ 페이지 Paddle OCR 분석 중$/.test(line) || line === "페이지 Paddle OCR 분석 중";
-  }
-  if (event.phase === "model_requesting" || event.phase === "page_running" || event.phase === "page_retry") {
-    return (line) =>
-      /^\d+ \/ \d+ 페이지 (AI 번역 요청 중|번역 중|재시도 \d+ \/ \d+)$/.test(line) ||
-      /^페이지 (AI 번역 요청 중|번역 중|재시도 중)$/.test(line);
-  }
-  if (event.phase === "booting" || event.phase === "model_downloading" || event.phase === "ready") {
-    return (line) =>
-      line === "모델 준비 중" ||
-      line === "모델 준비 완료" ||
-      line === "모델 다운로드/서버 준비 중" ||
-      line === "Gemma 4 서버 시작 중" ||
-      line === "Gemma 서버 시작 중" ||
-      line === "Gemma 서버 준비 완료" ||
-      line === "OpenAI Codex 엔드포인트 준비 중" ||
-      line === "로컬 모델/서버 준비 중";
-  }
-  return undefined;
-}
