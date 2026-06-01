@@ -19,7 +19,7 @@ import {
   overlayItemToBlock
 } from "./pipeline/overlayItems";
 import { buildBaseOptions, buildPageOptions, formatGemmaVramMode, readNumberEnv, summarizePreview, summarizeTranslationOptions } from "./pipeline/options";
-import { loadRuntimeModules, startModelEndpoint, stopModelEndpoint } from "./pipeline/runtimeModules";
+import { loadRuntimeModules, startModelEndpointSession } from "./pipeline/runtimeModules";
 import type {
   OcrBboxResult,
   PipelineOptions,
@@ -200,8 +200,9 @@ export async function runWholePagePipeline({
           : "로컬 모델 자산이 없거나 부족해 다운로드/갱신이 필요할 수 있습니다."
   });
 
-  const server = await startModelEndpoint(runtime, baseOptions);
-  onCleanupReady?.(() => stopModelEndpoint(runtime, server));
+  const endpointSession = await startModelEndpointSession(runtime, baseOptions);
+  const server = endpointSession.handle;
+  onCleanupReady?.(() => endpointSession.dispose());
   const maxAttempts = Math.max(1, readNumberEnv("MANGA_TRANSLATOR_PAGE_RETRIES", 5));
 
   emit({
@@ -480,6 +481,6 @@ export async function runWholePagePipeline({
       warnings
     };
   } finally {
-    await stopModelEndpoint(runtime, server);
+    await endpointSession.dispose();
   }
 }

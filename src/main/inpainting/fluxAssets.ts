@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import { createWriteStream, existsSync, readdirSync, statSync } from "node:fs";
-import { mkdir, rename, rm } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 export const FLUX_RUNTIME_EXECUTABLE = "mgt-flux-klein.exe";
@@ -17,6 +17,12 @@ export type FluxAssetProgress = {
   progressBytes?: number;
   progressTotalBytes?: number;
   installLogLine?: string;
+};
+
+type RemoteFileMetadata = {
+  url: string;
+  bytes: number;
+  downloadedAt: string;
 };
 
 export async function ensureMgtFluxKleinRuntime(options: {
@@ -60,7 +66,7 @@ export async function ensureRemoteFile(options: {
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<string> {
   const filePath = join(options.modelDir, options.fileName);
-  if (isUsableFile(filePath)) {
+  if (await isUsableRemoteFile(filePath, options.url)) {
     options.onProgress?.({
       progressText: `${options.label} 캐시 사용`,
       detail: options.fileName,
@@ -89,7 +95,7 @@ async function downloadToFile(options: {
   label: string;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<void> {
-  if (isUsableFile(options.outputPath)) {
+  if (await isUsableRemoteFile(options.outputPath, options.url)) {
     options.onProgress?.({
       progressText: `${options.label} 캐시 사용`,
       detail: options.label,
@@ -142,8 +148,16 @@ async function downloadToFile(options: {
       }
     }
     await finishWriteStream(writer);
+    if (responseTotalBytes > 0 && receivedBytes !== responseTotalBytes) {
+      throw new Error(`${options.label} 다운로드 크기가 맞지 않습니다 (${formatBytes(receivedBytes)} / ${formatBytes(responseTotalBytes)}).`);
+    }
     await rm(options.outputPath, { force: true });
     await rename(partPath, options.outputPath);
+    await writeRemoteFileMetadata(options.outputPath, {
+      url: options.url,
+      bytes: receivedBytes,
+      downloadedAt: new Date().toISOString()
+    });
     emitDownloadProgress(options, responseTotalBytes > 0 ? responseTotalBytes : receivedBytes, responseTotalBytes || receivedBytes, true);
   } catch (error) {
     writer.destroy();
@@ -225,6 +239,38 @@ function isUsableFile(filePath: string): boolean {
   } catch {
     return false;
   }
+}
+
+async function isUsableRemoteFile(filePath: string, url: string): Promise<boolean> {
+  if (!isUsableFile(filePath)) {
+    return false;
+  }
+  const metadata = await readRemoteFileMetadata(filePath);
+  if (!metadata) {
+    return true;
+  }
+  try {
+    const actualBytes = statSync(filePath).size;
+    return metadata.url === url && metadata.bytes === actualBytes && actualBytes > 1024 * 1024;
+  } catch {
+    return false;
+  }
+}
+
+async function readRemoteFileMetadata(filePath: string): Promise<RemoteFileMetadata | null> {
+  try {
+    return JSON.parse(await readFile(remoteFileMetadataPath(filePath), "utf8")) as RemoteFileMetadata;
+  } catch {
+    return null;
+  }
+}
+
+async function writeRemoteFileMetadata(filePath: string, metadata: RemoteFileMetadata): Promise<void> {
+  await writeFile(remoteFileMetadataPath(filePath), `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
+}
+
+function remoteFileMetadataPath(filePath: string): string {
+  return `${filePath}.mgtmeta.json`;
 }
 
 function isExecutableFile(filePath: string): boolean {

@@ -29,6 +29,39 @@ export async function startModelEndpoint(runtime: RuntimeModules, options: Trans
   return runtime.simplePage.startServer(options);
 }
 
+export class ModelEndpointSession {
+  private endpoint: ModelEndpointHandle | null;
+  private disposed = false;
+
+  constructor(
+    private readonly runtime: RuntimeModules,
+    endpoint: ModelEndpointHandle
+  ) {
+    this.endpoint = endpoint;
+  }
+
+  get handle(): ModelEndpointHandle {
+    if (!this.endpoint) {
+      throw new Error("모델 엔드포인트가 이미 정리되었습니다.");
+    }
+    return this.endpoint;
+  }
+
+  async dispose(): Promise<void> {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    const endpoint = this.endpoint;
+    this.endpoint = null;
+    await stopModelEndpoint(this.runtime, endpoint);
+  }
+}
+
+export async function startModelEndpointSession(runtime: RuntimeModules, options: TranslationOptions): Promise<ModelEndpointSession> {
+  return new ModelEndpointSession(runtime, await startModelEndpoint(runtime, options));
+}
+
 export async function stopModelEndpoint(runtime: RuntimeModules, endpoint: ModelEndpointHandle | null | undefined): Promise<void> {
   if (isOpenAIOAuthEndpoint(endpoint)) {
     await stopOpenAIOAuthEndpoint(endpoint);
