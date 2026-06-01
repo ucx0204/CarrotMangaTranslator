@@ -4,6 +4,7 @@ import {
   mkdir,
   readFile,
   readdir,
+  rename,
   rm,
   stat,
   unlink,
@@ -40,6 +41,10 @@ import { getAppPaths } from "./appPaths";
 type ZipEntryLike = {
   entryName: string;
   isDirectory: boolean;
+  header?: {
+    size?: number;
+    compressedSize?: number;
+  };
   getData: () => Buffer;
 };
 
@@ -55,6 +60,11 @@ const WORKS_ROOT = join(LIBRARY_ROOT, "works");
 const DEFAULT_WORK_TITLE = "미정 작품";
 const SHARE_FORMAT = "manga-gemma-translator-share";
 const SHARE_VERSION = 1;
+const MAX_ZIP_ENTRY_COUNT = 10000;
+const MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES = 4 * 1024 * 1024 * 1024;
+const MAX_SHARE_JSON_BYTES = 20 * 1024 * 1024;
+const MAX_SHARE_IMAGE_BYTES = 128 * 1024 * 1024;
+const MAX_IMPORT_IMAGE_BYTES = 256 * 1024 * 1024;
 
 const AdmZip = require("adm-zip") as {
   new (archivePath?: string): AdmZipLike;
@@ -136,6 +146,11 @@ export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
 }
 
 export async function readLibraryPageImageDataUrl(imagePath: string): Promise<string> {
+  const resolvedImagePath = assertLibraryImagePath(imagePath);
+  return fileToDataUrl(resolvedImagePath);
+}
+
+export function assertLibraryImagePath(imagePath: string): string {
   const resolvedRoot = resolve(LIBRARY_ROOT);
   const resolvedImagePath = resolve(imagePath);
   if (!isPathInside(resolvedRoot, resolvedImagePath)) {
@@ -147,11 +162,20 @@ export async function readLibraryPageImageDataUrl(imagePath: string): Promise<st
   if (!existsSync(resolvedImagePath)) {
     throw new Error("페이지 이미지 파일을 찾지 못했습니다.");
   }
-  return fileToDataUrl(resolvedImagePath);
+  return resolvedImagePath;
 }
 
 export async function saveChapterSnapshot(snapshot: ChapterSnapshot): Promise<ChapterSnapshot> {
-  const stored = toStoredChapter(snapshot);
+  const locator = await findChapterLocation(snapshot.id);
+  if (!locator || locator.workId !== snapshot.workId) {
+    throw new Error("저장할 화의 보관함 위치가 올바르지 않습니다.");
+  }
+  const current = await readChapterFile(locator.workId, locator.chapterId);
+  if (!current) {
+    throw new Error("저장할 화를 찾지 못했습니다.");
+  }
+  validateChapterSnapshotForStorage(snapshot, current);
+  const stored = toStoredChapter(snapshot, current);
   await writeChapterFile(stored);
   return hydrateChapter(stored);
 }
@@ -406,6 +430,12 @@ export async function previewZipFolder(folderPath: string): Promise<ImportPrevie
 }
 
 export async function createImport(request: CreateImportRequest): Promise<CreateImportResult> {
+  const selectedDraftIds = new Set(request.selections.filter((selection) => selection.enabled).map((selection) => selection.draftId));
+  const selectedDrafts = request.preview.chapters.filter((draft) => selectedDraftIds.has(draft.draftId) && draft.pages.length > 0);
+  if (selectedDrafts.length === 0) {
+    throw new Error("생성할 화가 없습니다.");
+  }
+
   const target = request.target.mode === "new" ? await createWork(request.target.title || request.preview.suggestedWorkTitle) : await ensureExistingWork(request.target.workId);
   const selections = new Map(request.selections.map((selection) => [selection.draftId, selection]));
   const createdChapterIds: string[] = [];
@@ -779,7 +809,7 @@ async function materializePageRecord(pageDraft: ImportPageDraft, pagesDir: strin
     if (!entry) {
       throw new Error(`ZIP 항목을 찾지 못했습니다: ${pageDraft.zipEntryName ?? pageDraft.sourcePath}`);
     }
-    await writeFile(outputPath, entry.getData());
+    await writeFile(outputPath, readZipEntryData(entry, MAX_IMPORT_IMAGE_BYTES, pageDraft.zipEntryName ?? pageDraft.sourcePath));
   } else {
     await copyFile(pageDraft.sourcePath, outputPath);
   }
@@ -954,7 +984,7 @@ async function materializeSharedChapter({
       throw new Error(`지원하지 않는 이미지 형식입니다: ${packagePage.name}`);
     }
     const outputPath = join(pagesDir, `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`);
-    await writeFile(outputPath, entry.getData());
+    await writeFile(outputPath, readZipEntryData(entry, MAX_SHARE_IMAGE_BYTES, packageImagePath));
 
     const image = nativeImage.createFromPath(outputPath);
     const size = image.getSize();
@@ -1006,11 +1036,50 @@ async function hydrateChapter(chapter: ChapterFile): Promise<ChapterSnapshot> {
   };
 }
 
-function toStoredChapter(snapshot: ChapterSnapshot): ChapterFile {
+function toStoredChapter(snapshot: ChapterSnapshot, current?: ChapterFile): ChapterFile {
+  const currentPages = new Map(current?.pages.map((page) => [page.id, page]) ?? []);
   return {
     ...snapshot,
-    pages: snapshot.pages.map(({ dataUrl: _dataUrl, ...page }) => page)
+    workId: current?.workId ?? snapshot.workId,
+    sourceKind: current?.sourceKind ?? snapshot.sourceKind,
+    createdAt: current?.createdAt ?? snapshot.createdAt,
+    pages: snapshot.pages.map(({ dataUrl: _dataUrl, ...page }) => {
+      const currentPage = currentPages.get(page.id);
+      return {
+        ...page,
+        imagePath: currentPage?.imagePath ?? page.imagePath,
+        inpaintedImagePath: currentPage?.inpaintedImagePath ?? page.inpaintedImagePath,
+        createdAt: currentPage?.createdAt ?? page.createdAt
+      };
+    })
   };
+}
+
+function validateChapterSnapshotForStorage(snapshot: ChapterSnapshot, current: ChapterFile): void {
+  const currentPageIds = new Set(current.pages.map((page) => page.id));
+  const pageIds = new Set<string>();
+  for (const page of snapshot.pages) {
+    if (!currentPageIds.has(page.id)) {
+      throw new Error("저장할 수 없는 페이지가 포함되어 있습니다.");
+    }
+    if (pageIds.has(page.id)) {
+      throw new Error("중복된 페이지 ID가 있습니다.");
+    }
+    pageIds.add(page.id);
+    assertLibraryImagePath(page.imagePath);
+    if (page.inpaintedImagePath) {
+      assertLibraryImagePath(page.inpaintedImagePath);
+    }
+  }
+
+  if (pageIds.size !== snapshot.pageOrder.length) {
+    throw new Error("페이지 순서 정보가 페이지 목록과 맞지 않습니다.");
+  }
+  for (const pageId of snapshot.pageOrder) {
+    if (!pageIds.has(pageId)) {
+      throw new Error("페이지 순서 정보가 페이지 목록과 맞지 않습니다.");
+    }
+  }
 }
 
 async function readIndexFile(): Promise<StoredIndexFile> {
@@ -1137,8 +1206,9 @@ async function listNestedImageFolders(rootPath: string): Promise<string[]> {
 
 function listImageEntriesInZip(zipPath: string): ZipEntryLike[] {
   const zip = new AdmZip(zipPath);
-  return zip
-    .getEntries()
+  const entries = zip.getEntries();
+  assertZipEntryBudget(entries, "ZIP 파일");
+  return entries
     .filter((entry) => !entry.isDirectory && isSupportedImagePath(entry.entryName))
     .sort((left, right) => left.entryName.localeCompare(right.entryName, undefined, { numeric: true, sensitivity: "base" }));
 }
@@ -1170,6 +1240,7 @@ function readSharePackage(packagePath: string): SharePackage {
 }
 
 function buildSafeShareEntryMap(zipEntries: ZipEntryLike[]): Map<string, ZipEntryLike> {
+  assertZipEntryBudget(zipEntries, "공유 파일");
   const entries = new Map<string, ZipEntryLike>();
   for (const entry of zipEntries) {
     const normalized = normalizeShareEntryName(entry.entryName, entry.isDirectory);
@@ -1190,7 +1261,7 @@ function readRequiredShareJson<T>(entries: Map<string, ZipEntryLike>, path: stri
     throw new Error(`공유 파일에 필요한 정보가 없습니다: ${path}`);
   }
   try {
-    return JSON.parse(entry.getData().toString("utf8")) as T;
+    return JSON.parse(readZipEntryData(entry, MAX_SHARE_JSON_BYTES, path).toString("utf8")) as T;
   } catch {
     throw new Error(`공유 파일의 JSON을 읽지 못했습니다: ${path}`);
   }
@@ -1226,9 +1297,11 @@ function validateShareChapter(chapter: ChapterFile, packageChapterId: string, en
     if (!isSupportedImagePath(imagePath)) {
       throw new Error(`지원하지 않는 이미지 형식입니다: ${page.name}`);
     }
-    if (!entries.has(imagePath)) {
+    const imageEntry = entries.get(imagePath);
+    if (!imageEntry) {
       throw new Error(`공유 파일에 이미지가 없습니다: ${page.name}`);
     }
+    assertZipEntrySize(imageEntry, MAX_SHARE_IMAGE_BYTES, imagePath);
   }
 }
 
@@ -1257,6 +1330,45 @@ function normalizeSharePathSegment(value: string, message: string): string {
     throw new Error(message);
   }
   return value;
+}
+
+function assertZipEntryBudget(entries: ZipEntryLike[], label: string): void {
+  if (entries.length > MAX_ZIP_ENTRY_COUNT) {
+    throw new Error(`${label} 항목이 너무 많습니다.`);
+  }
+
+  let totalBytes = 0;
+  for (const entry of entries) {
+    const size = getZipEntrySize(entry);
+    if (size === null) {
+      continue;
+    }
+    totalBytes += size;
+    if (totalBytes > MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES) {
+      throw new Error(`${label} 압축 해제 크기가 너무 큽니다.`);
+    }
+  }
+}
+
+function assertZipEntrySize(entry: ZipEntryLike, maxBytes: number, label: string): void {
+  const size = getZipEntrySize(entry);
+  if (size !== null && size > maxBytes) {
+    throw new Error(`${label} 파일이 너무 큽니다.`);
+  }
+}
+
+function readZipEntryData(entry: ZipEntryLike, maxBytes: number, label: string): Buffer {
+  assertZipEntrySize(entry, maxBytes, label);
+  const data = entry.getData();
+  if (data.byteLength > maxBytes) {
+    throw new Error(`${label} 파일이 너무 큽니다.`);
+  }
+  return data;
+}
+
+function getZipEntrySize(entry: ZipEntryLike): number | null {
+  const size = Number(entry.header?.size);
+  return Number.isFinite(size) && size >= 0 ? size : null;
 }
 
 function assertPackageOnlyEntries(entries: WorkShareImportEntry[]): asserts entries is Array<Extract<WorkShareImportEntry, { source: "package" }>> {
@@ -1310,7 +1422,15 @@ function mimeFromPath(filePath: string): string {
 }
 
 async function writeJsonFile(path: string, payload: unknown): Promise<void> {
-  await writeFile(path, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  await mkdir(dirname(path), { recursive: true });
+  const tmpPath = join(dirname(path), `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`);
+  try {
+    await writeFile(tmpPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+    await rename(tmpPath, path);
+  } catch (error) {
+    await safeUnlink(tmpPath);
+    throw error;
+  }
 }
 
 async function readJsonFile<T>(path: string, fallback?: T): Promise<T> {

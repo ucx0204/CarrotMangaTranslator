@@ -150,6 +150,44 @@ describe("work share packages", () => {
 
     await expect(library.previewWorkShareImport(sharePath)).rejects.toThrow(/안전하지 않은 경로|이미지 경로/);
   });
+
+  it("does not leave an empty work when import creation has no selected chapters", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await writeFile(join(rootDir, "001.png"), "image");
+
+    await expect(
+      library.createImport({
+        preview: {
+          mode: "single",
+          sourceKind: "images",
+          suggestedWorkTitle: "새 작품",
+          chapters: [
+            {
+              draftId: "draft-a",
+              title: "1화",
+              sourceKind: "images",
+              pages: [{ name: "001.png", sourceKind: "file", sourcePath: join(rootDir, "001.png") }]
+            }
+          ]
+        },
+        target: { mode: "new", title: "새 작품" },
+        selections: [{ draftId: "draft-a", title: "1화", enabled: false }]
+      })
+    ).rejects.toThrow(/생성할 화/);
+
+    const index = await library.listLibrary();
+    expect(index.works).toHaveLength(0);
+  });
+
+  it("rejects saving a chapter snapshot under a forged work id", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+
+    await expect(library.saveChapterSnapshot({ ...chapter, workId: "work-forged" })).rejects.toThrow(/보관함 위치/);
+  });
 });
 
 async function createTempLibrary(): Promise<string> {

@@ -12,6 +12,7 @@ import {
   cleanupLegacyLogs,
   deleteChapter,
   deleteWork,
+  assertLibraryImagePath,
   createImport,
   deletePage,
   exportWorkShareToFile,
@@ -79,6 +80,31 @@ import type {
   WorkShareImportResult,
   WorkShareImportPreview
 } from "../shared/types";
+import {
+  AppSettingsSchema,
+  ChapterSnapshotSchema,
+  CreateImportRequestSchema,
+  DeleteChapterRequestSchema,
+  DeletePageRequestSchema,
+  DeleteWorkRequestSchema,
+  ImageDataUrlRequestSchema,
+  InpaintingColorSampleRequestSchema,
+  InpaintingExportRequestSchema,
+  InpaintingRetouchRequestSchema,
+  InpaintingRevertRequestSchema,
+  OpenChapterRequestSchema,
+  parseIpcPayload,
+  RegionAnalysisRequestSchema,
+  RenameChapterRequestSchema,
+  RenameWorkRequestSchema,
+  RendererLogRequestSchema,
+  ReorderChaptersRequestSchema,
+  ReorderPagesRequestSchema,
+  StartAnalysisRequestSchema,
+  StartInpaintingRequestSchema,
+  WorkShareExportRequestSchema,
+  WorkShareImportRequestSchema
+} from "../shared/ipcSchemas";
 import { isUsableRegionBbox, mapCropNormalizedBboxToPageBbox, normalizedRegionToPixelRect, type PixelRect } from "../shared/region";
 
 const appPaths = ensureWritableAppDirectories();
@@ -749,13 +775,14 @@ function registerIpc(): void {
     return { opened: true, logPath: getLogPath() };
   });
 
-  ipcMain.handle("logs:write", async (_event, level: "debug" | "info" | "warn" | "error", message: string, detail?: unknown) => {
-    writeLog(level, `renderer: ${message}`, detail);
+  ipcMain.handle("logs:write", async (_event, level: unknown, message: unknown, detail?: unknown) => {
+    const payload = parseIpcPayload(RendererLogRequestSchema, { level, message, detail }, "로그 기록");
+    writeLog(payload.level, `renderer: ${payload.message}`, payload.detail);
     return { logged: true };
   });
 
   ipcMain.handle("settings:get", async () => getAppSettings());
-  ipcMain.handle("settings:save", async (_event, settings: AppSettings) => saveAppSettings(settings));
+  ipcMain.handle("settings:save", async (_event, settings: unknown) => saveAppSettings(parseIpcPayload(AppSettingsSchema, settings, "설정 저장")));
   ipcMain.handle("settings:reset", async () => resetAppSettings());
   ipcMain.handle("settings:pick-local-model", async (): Promise<LocalModelPickResult | null> => {
     const options = {
@@ -787,7 +814,8 @@ function registerIpc(): void {
     }
     return result.filePaths[0];
   });
-  ipcMain.handle("settings:test-model", async (event, settings: AppSettings, providedTestId?: string): Promise<ModelTestResult> => {
+  ipcMain.handle("settings:test-model", async (event, rawSettings: unknown, providedTestId?: string): Promise<ModelTestResult> => {
+    const settings = parseIpcPayload(AppSettingsSchema, rawSettings, "모델 테스트");
     if (activeJob) {
       return {
         ok: false,
@@ -898,16 +926,43 @@ function registerIpc(): void {
     await shell.openPath(getLibraryRoot());
     return { opened: true, libraryPath: getLibraryRoot() };
   });
-  ipcMain.handle("library:open-chapter", async (_event, chapterId: string) => openChapter(chapterId));
-  ipcMain.handle("library:get-page-image-data-url", async (_event, imagePath: string) => readLibraryPageImageDataUrl(imagePath));
-  ipcMain.handle("library:save-chapter", async (_event, chapter) => saveChapterSnapshot(chapter));
-  ipcMain.handle("library:rename-work", async (_event, workId: string, title: string) => renameWork(workId, title));
-  ipcMain.handle("library:rename-chapter", async (_event, chapterId: string, title: string) => renameChapter(chapterId, title));
-  ipcMain.handle("library:delete-work", async (_event, workId: string) => deleteWork(workId));
-  ipcMain.handle("library:delete-chapter", async (_event, chapterId: string) => deleteChapter(chapterId));
-  ipcMain.handle("library:reorder-chapters", async (_event, workId: string, chapterIds: string[]) => reorderChapters(workId, chapterIds));
-  ipcMain.handle("library:reorder-pages", async (_event, chapterId: string, pageIds: string[]) => reorderPages(chapterId, pageIds));
-  ipcMain.handle("library:delete-page", async (_event, chapterId: string, pageId: string) => deletePage(chapterId, pageId));
+  ipcMain.handle("library:open-chapter", async (_event, chapterId: unknown) => {
+    const request = parseIpcPayload(OpenChapterRequestSchema, { chapterId }, "화 열기");
+    return openChapter(request.chapterId);
+  });
+  ipcMain.handle("library:get-page-image-data-url", async (_event, imagePath: unknown) => {
+    const request = parseIpcPayload(ImageDataUrlRequestSchema, { imagePath }, "페이지 이미지 열기");
+    return readLibraryPageImageDataUrl(request.imagePath);
+  });
+  ipcMain.handle("library:save-chapter", async (_event, chapter: unknown) => saveChapterSnapshot(parseIpcPayload(ChapterSnapshotSchema, chapter, "화 저장")));
+  ipcMain.handle("library:rename-work", async (_event, workId: unknown, title: unknown) => {
+    const request = parseIpcPayload(RenameWorkRequestSchema, { workId, title }, "작품 이름 변경");
+    return renameWork(request.workId, request.title);
+  });
+  ipcMain.handle("library:rename-chapter", async (_event, chapterId: unknown, title: unknown) => {
+    const request = parseIpcPayload(RenameChapterRequestSchema, { chapterId, title }, "화 이름 변경");
+    return renameChapter(request.chapterId, request.title);
+  });
+  ipcMain.handle("library:delete-work", async (_event, workId: unknown) => {
+    const request = parseIpcPayload(DeleteWorkRequestSchema, { workId }, "작품 삭제");
+    return deleteWork(request.workId);
+  });
+  ipcMain.handle("library:delete-chapter", async (_event, chapterId: unknown) => {
+    const request = parseIpcPayload(DeleteChapterRequestSchema, { chapterId }, "화 삭제");
+    return deleteChapter(request.chapterId);
+  });
+  ipcMain.handle("library:reorder-chapters", async (_event, workId: unknown, chapterIds: unknown) => {
+    const request = parseIpcPayload(ReorderChaptersRequestSchema, { workId, chapterIds }, "화 순서 변경");
+    return reorderChapters(request.workId, request.chapterIds);
+  });
+  ipcMain.handle("library:reorder-pages", async (_event, chapterId: unknown, pageIds: unknown) => {
+    const request = parseIpcPayload(ReorderPagesRequestSchema, { chapterId, pageIds }, "페이지 순서 변경");
+    return reorderPages(request.chapterId, request.pageIds);
+  });
+  ipcMain.handle("library:delete-page", async (_event, chapterId: unknown, pageId: unknown) => {
+    const request = parseIpcPayload(DeletePageRequestSchema, { chapterId, pageId }, "페이지 삭제");
+    return deletePage(request.chapterId, request.pageId);
+  });
 
   ipcMain.handle("import:preview-images", async () => {
     const options = {
@@ -963,9 +1018,10 @@ function registerIpc(): void {
     return preview.chapters.length ? preview : null;
   });
 
-  ipcMain.handle("import:create", async (_event, request: CreateImportRequest) => createImport(request));
+  ipcMain.handle("import:create", async (_event, request: unknown) => createImport(parseIpcPayload(CreateImportRequestSchema, request, "가져오기 적용")));
 
-  ipcMain.handle("share:export-work", async (_event, request: WorkShareExportRequest): Promise<WorkShareExportResult | null> => {
+  ipcMain.handle("share:export-work", async (_event, rawRequest: unknown): Promise<WorkShareExportResult | null> => {
+    const request = parseIpcPayload(WorkShareExportRequestSchema, rawRequest, "공유 파일 저장");
     const library = await listLibrary();
     const work = library.works.find((candidate) => candidate.id === request.workId);
     const defaultName = `${sanitizeShareFileName(work?.title ?? "manga-share")}.mgtshare`;
@@ -997,9 +1053,12 @@ function registerIpc(): void {
     return previewWorkShareImport(result.filePaths[0]);
   });
 
-  ipcMain.handle("share:import", async (_event, request: WorkShareImportRequest): Promise<WorkShareImportResult> => importWorkShare(request));
+  ipcMain.handle("share:import", async (_event, request: unknown): Promise<WorkShareImportResult> =>
+    importWorkShare(parseIpcPayload(WorkShareImportRequestSchema, request, "공유 파일 가져오기"))
+  );
 
-  ipcMain.handle("job:start-analysis", async (_event, request: StartAnalysisRequest): Promise<StartAnalysisResult> => {
+  ipcMain.handle("job:start-analysis", async (_event, rawRequest: unknown): Promise<StartAnalysisResult> => {
+    const request = parseIpcPayload(StartAnalysisRequestSchema, rawRequest, "번역 작업");
     if (activeJob) {
       return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
     }
@@ -1147,7 +1206,8 @@ function registerIpc(): void {
     }
   });
 
-  ipcMain.handle("job:translate-region", async (_event, request: RegionAnalysisRequest): Promise<RegionAnalysisResult> => {
+  ipcMain.handle("job:translate-region", async (_event, rawRequest: unknown): Promise<RegionAnalysisResult> => {
+    const request = parseIpcPayload(RegionAnalysisRequestSchema, rawRequest, "영역 번역");
     if (activeJob) {
       return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
     }
@@ -1316,7 +1376,8 @@ function registerIpc(): void {
     }
   });
 
-  ipcMain.handle("job:start-inpainting", async (_event, request: StartInpaintingRequest): Promise<StartInpaintingResult> => {
+  ipcMain.handle("job:start-inpainting", async (_event, rawRequest: unknown): Promise<StartInpaintingResult> => {
+    const request = parseIpcPayload(StartInpaintingRequestSchema, rawRequest, "인페인팅 작업");
     if (activeJob) {
       return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
     }
@@ -1515,7 +1576,8 @@ function registerIpc(): void {
     }
   });
 
-  ipcMain.handle("inpainting:apply-retouch", async (_event, request: InpaintingRetouchRequest): Promise<InpaintingRetouchResult> => {
+  ipcMain.handle("inpainting:apply-retouch", async (_event, rawRequest: unknown): Promise<InpaintingRetouchResult> => {
+    const request = parseIpcPayload(InpaintingRetouchRequestSchema, rawRequest, "인페인팅 보정");
     const chapter = await openChapter(request.chapterId);
     const page = chapter.pages.find((candidate) => candidate.id === request.pageId);
     if (!page) {
@@ -1535,7 +1597,8 @@ function registerIpc(): void {
     };
   });
 
-  ipcMain.handle("inpainting:revert", async (_event, request: InpaintingRevertRequest): Promise<InpaintingRevertResult> => {
+  ipcMain.handle("inpainting:revert", async (_event, rawRequest: unknown): Promise<InpaintingRevertResult> => {
+    const request = parseIpcPayload(InpaintingRevertRequestSchema, rawRequest, "인페인팅 되돌리기");
     const chapter = await openChapter(request.chapterId);
     const pages =
       request.scope === "page"
@@ -1559,13 +1622,16 @@ function registerIpc(): void {
     };
   });
 
-  ipcMain.handle("inpainting:sample-color", async (_event, request: InpaintingColorSampleRequest): Promise<InpaintingColorSampleResult> => {
+  ipcMain.handle("inpainting:sample-color", async (_event, rawRequest: unknown): Promise<InpaintingColorSampleResult> => {
+    const request = parseIpcPayload(InpaintingColorSampleRequestSchema, rawRequest, "색상 샘플");
+    const imagePath = assertLibraryImagePath(request.imagePath);
     return {
-      color: await sampleImageColor(request.imagePath, request.x, request.y, decodeImageThroughRuntime)
+      color: await sampleImageColor(imagePath, request.x, request.y, decodeImageThroughRuntime)
     };
   });
 
-  ipcMain.handle("inpainting:export-results", async (_event, request: InpaintingExportRequest): Promise<InpaintingExportResult> => {
+  ipcMain.handle("inpainting:export-results", async (_event, rawRequest: unknown): Promise<InpaintingExportResult> => {
+    const request = parseIpcPayload(InpaintingExportRequestSchema, rawRequest, "결과 출력");
     const chapter = await openChapter(request.chapterId);
     if (chapter.pages.length === 0) {
       throw new Error("출력할 페이지가 없습니다.");
