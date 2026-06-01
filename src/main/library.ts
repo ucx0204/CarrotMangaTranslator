@@ -4,14 +4,11 @@ import {
   mkdir,
   readFile,
   readdir,
-  rename,
   rm,
-  stat,
-  unlink,
   writeFile
 } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { nativeImage } from "electron";
 import type {
   ChapterSnapshot,
@@ -37,22 +34,21 @@ import type {
 } from "../shared/types";
 import { normalizeBlockType } from "../shared/geometry";
 import { getAppPaths } from "./appPaths";
-
-type ZipEntryLike = {
-  entryName: string;
-  isDirectory: boolean;
-  header?: {
-    size?: number;
-    compressedSize?: number;
-  };
-  getData: () => Buffer;
-};
-
-type AdmZipLike = {
-  getEntries: () => ZipEntryLike[];
-  addFile: (entryName: string, content: Buffer | string) => void;
-  writeZip: (targetPath: string) => void;
-};
+import { fileToDataUrl, isPathInside, isSupportedImagePath, readJsonFile, safeUnlink, sortNaturally, writeJsonFile } from "./libraryStore/storage";
+import {
+  AdmZip,
+  MAX_IMPORT_IMAGE_BYTES,
+  MAX_SHARE_IMAGE_BYTES,
+  MAX_SHARE_JSON_BYTES,
+  assertZipEntryBudget,
+  assertZipEntrySize,
+  buildSafeShareEntryMap,
+  normalizeSharePathSegment,
+  normalizeShareRelativePath,
+  readZipEntryData,
+  type ZipEntryLike
+} from "./libraryStore/zipSafety";
+export { pathExists } from "./libraryStore/storage";
 
 const LIBRARY_ROOT = getAppPaths().libraryDir;
 const INDEX_PATH = join(LIBRARY_ROOT, "index.json");
@@ -60,15 +56,6 @@ const WORKS_ROOT = join(LIBRARY_ROOT, "works");
 const DEFAULT_WORK_TITLE = "미정 작품";
 const SHARE_FORMAT = "manga-gemma-translator-share";
 const SHARE_VERSION = 1;
-const MAX_ZIP_ENTRY_COUNT = 10000;
-const MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES = 4 * 1024 * 1024 * 1024;
-const MAX_SHARE_JSON_BYTES = 20 * 1024 * 1024;
-const MAX_SHARE_IMAGE_BYTES = 128 * 1024 * 1024;
-const MAX_IMPORT_IMAGE_BYTES = 256 * 1024 * 1024;
-
-const AdmZip = require("adm-zip") as {
-  new (archivePath?: string): AdmZipLike;
-};
 
 type StoredIndexFile = {
   workOrder: string[];
@@ -1239,22 +1226,6 @@ function readSharePackage(packagePath: string): SharePackage {
   };
 }
 
-function buildSafeShareEntryMap(zipEntries: ZipEntryLike[]): Map<string, ZipEntryLike> {
-  assertZipEntryBudget(zipEntries, "공유 파일");
-  const entries = new Map<string, ZipEntryLike>();
-  for (const entry of zipEntries) {
-    const normalized = normalizeShareEntryName(entry.entryName, entry.isDirectory);
-    if (!normalized || entry.isDirectory) {
-      continue;
-    }
-    if (entries.has(normalized)) {
-      throw new Error(`공유 파일에 중복 항목이 있습니다: ${normalized}`);
-    }
-    entries.set(normalized, entry);
-  }
-  return entries;
-}
-
 function readRequiredShareJson<T>(entries: Map<string, ZipEntryLike>, path: string): T {
   const entry = entries.get(path);
   if (!entry) {
@@ -1305,72 +1276,6 @@ function validateShareChapter(chapter: ChapterFile, packageChapterId: string, en
   }
 }
 
-function normalizeShareEntryName(entryName: string, isDirectory: boolean): string | null {
-  const raw = entryName.replace(/\\/g, "/").replace(/\/+$/g, "");
-  if (!raw && isDirectory) {
-    return null;
-  }
-  return normalizeShareRelativePath(raw, "공유 파일에 안전하지 않은 경로가 있습니다.");
-}
-
-function normalizeShareRelativePath(path: string, message: string): string {
-  const normalized = path.replace(/\\/g, "/");
-  if (!normalized || normalized.includes("\0") || normalized.startsWith("/") || /^[A-Za-z]:/.test(normalized)) {
-    throw new Error(message);
-  }
-  const parts = normalized.split("/");
-  if (parts.some((part) => !part || part === "." || part === "..")) {
-    throw new Error(message);
-  }
-  return parts.join("/");
-}
-
-function normalizeSharePathSegment(value: string, message: string): string {
-  if (!value || value.includes("\0") || value.includes("/") || value.includes("\\") || value === "." || value === "..") {
-    throw new Error(message);
-  }
-  return value;
-}
-
-function assertZipEntryBudget(entries: ZipEntryLike[], label: string): void {
-  if (entries.length > MAX_ZIP_ENTRY_COUNT) {
-    throw new Error(`${label} 항목이 너무 많습니다.`);
-  }
-
-  let totalBytes = 0;
-  for (const entry of entries) {
-    const size = getZipEntrySize(entry);
-    if (size === null) {
-      continue;
-    }
-    totalBytes += size;
-    if (totalBytes > MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES) {
-      throw new Error(`${label} 압축 해제 크기가 너무 큽니다.`);
-    }
-  }
-}
-
-function assertZipEntrySize(entry: ZipEntryLike, maxBytes: number, label: string): void {
-  const size = getZipEntrySize(entry);
-  if (size !== null && size > maxBytes) {
-    throw new Error(`${label} 파일이 너무 큽니다.`);
-  }
-}
-
-function readZipEntryData(entry: ZipEntryLike, maxBytes: number, label: string): Buffer {
-  assertZipEntrySize(entry, maxBytes, label);
-  const data = entry.getData();
-  if (data.byteLength > maxBytes) {
-    throw new Error(`${label} 파일이 너무 큽니다.`);
-  }
-  return data;
-}
-
-function getZipEntrySize(entry: ZipEntryLike): number | null {
-  const size = Number(entry.header?.size);
-  return Number.isFinite(size) && size >= 0 ? size : null;
-}
-
 function assertPackageOnlyEntries(entries: WorkShareImportEntry[]): asserts entries is Array<Extract<WorkShareImportEntry, { source: "package" }>> {
   if (entries.some((entry) => entry.source !== "package")) {
     throw new Error("새 작품으로 가져올 때는 공유 파일의 화만 선택할 수 있습니다.");
@@ -1394,55 +1299,6 @@ function makeUniqueTitleInList(desired: string, used: Set<string>): string {
 
 function normalizeImportPageName(entryName: string): string {
   return entryName.replace(/\\/g, "/");
-}
-
-function isSupportedImagePath(filePath: string): boolean {
-  return [".png", ".jpg", ".jpeg", ".webp"].includes(extname(filePath).toLowerCase());
-}
-
-function isPathInside(rootPath: string, targetPath: string): boolean {
-  const child = relative(rootPath, targetPath);
-  return child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child));
-}
-
-async function fileToDataUrl(filePath: string): Promise<string> {
-  const buffer = await readFile(filePath);
-  return `data:${mimeFromPath(filePath)};base64,${buffer.toString("base64")}`;
-}
-
-function mimeFromPath(filePath: string): string {
-  const ext = extname(filePath).toLowerCase();
-  if (ext === ".jpg" || ext === ".jpeg") {
-    return "image/jpeg";
-  }
-  if (ext === ".webp") {
-    return "image/webp";
-  }
-  return "image/png";
-}
-
-async function writeJsonFile(path: string, payload: unknown): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  const tmpPath = join(dirname(path), `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`);
-  try {
-    await writeFile(tmpPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
-    await rename(tmpPath, path);
-  } catch (error) {
-    await safeUnlink(tmpPath);
-    throw error;
-  }
-}
-
-async function readJsonFile<T>(path: string, fallback?: T): Promise<T> {
-  try {
-    const raw = await readFile(path, "utf8");
-    return JSON.parse(raw) as T;
-  } catch (error) {
-    if (fallback !== undefined) {
-      return fallback;
-    }
-    throw error;
-  }
 }
 
 function workFilePath(workId: string): string {
@@ -1502,18 +1358,6 @@ function toChapterSummary(chapter: LibraryChapter): LibraryChapterSummary {
   };
 }
 
-function sortNaturally(values: string[]): string[] {
-  return [...values].sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" }));
-}
-
-async function safeUnlink(path: string): Promise<void> {
-  try {
-    await unlink(path);
-  } catch {
-    // no-op
-  }
-}
-
 async function removePageArtifacts(workId: string, chapterId: string, pageId: string): Promise<void> {
   const runsRoot = join(WORKS_ROOT, workId, "chapters", chapterId, "runs");
   if (!existsSync(runsRoot)) {
@@ -1557,13 +1401,4 @@ export async function cleanupLegacyLogs(): Promise<void> {
 export async function resetAppLog(logPath: string): Promise<void> {
   await mkdir(dirname(logPath), { recursive: true });
   await writeFile(logPath, "", "utf8");
-}
-
-export async function pathExists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch {
-    return false;
-  }
 }
