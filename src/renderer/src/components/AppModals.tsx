@@ -14,6 +14,7 @@ import { SettingsModal } from "./SettingsModal";
 import { ShareExportModal } from "./ShareExportModal";
 import { ShareImportModal, type ShareImportModalSubmit } from "./ShareImportModal";
 import { TranslateSourceModal, type TranslateSourceMode } from "./TranslateSourceModal";
+import type { ConfirmDialogState } from "../hooks/useConfirmDialog";
 
 type RenameTarget =
   | {
@@ -26,12 +27,6 @@ type RenameTarget =
       id: string;
       title: string;
     };
-
-type ConfirmDialogState = {
-  title: string;
-  message: string;
-  detail?: string;
-};
 
 type AppModalsProps = {
   library: LibraryIndex;
@@ -170,4 +165,4 @@ export function AppModals({
   );
 }
 
-export type { ConfirmDialogState, RenameTarget };
+export type { RenameTarget };

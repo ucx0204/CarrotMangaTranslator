@@ -23,7 +23,7 @@ import {
   resolveEditableBlockBbox
 } from "../../shared/geometry";
 import { isUsableRegionBbox } from "../../shared/region";
-import { AppModals, type ConfirmDialogState, type RenameTarget } from "./components/AppModals";
+import { AppModals, type RenameTarget } from "./components/AppModals";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppRightRail } from "./components/AppRightRail";
 import { AppWorkspace } from "./components/AppWorkspace";
@@ -31,6 +31,7 @@ import type { ImportModalSubmit } from "./components/ImportModal";
 import { type BlockCounts, type InpaintingStage, type InpaintingTool } from "./components/InpaintingControlPanel";
 import type { ShareImportModalSubmit } from "./components/ShareImportModal";
 import type { TranslateSourceMode } from "./components/TranslateSourceModal";
+import { useConfirmDialog } from "./hooks/useConfirmDialog";
 import { usePageImageDataUrls } from "./hooks/usePageImageDataUrls";
 import { useStageSize } from "./hooks/useStageSize";
 import {
@@ -99,7 +100,7 @@ export default function App(): React.JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+  const { confirmDialog, askConfirm, resolveConfirmDialog } = useConfirmDialog();
   const [inpaintingMode, setInpaintingMode] = useState(false);
   const [inpaintingStage, setInpaintingStage] = useState<InpaintingStage>("pattern");
   const [inpaintingHighlightType, setInpaintingHighlightType] = useState<BlockType | null>(null);
@@ -128,7 +129,6 @@ export default function App(): React.JSX.Element {
   const currentChapterRef = useRef<ChapterSnapshot | null>(null);
   const selectedPageIdRef = useRef<string | null>(null);
   const selectedBlockIdRef = useRef<string | null>(null);
-  const confirmResolverRef = useRef<((confirmed: boolean) => void) | null>(null);
   const inpaintingRetouchDrawingRef = useRef(false);
   const inpaintingRetouchPointsRef = useRef<Array<{ x: number; y: number }>>([]);
   const lastInpaintingRetouchPointRef = useRef<{ x: number; y: number } | null>(null);
@@ -394,21 +394,6 @@ export default function App(): React.JSX.Element {
     },
     [appendStatusLine]
   );
-
-  const resolveConfirmDialog = useCallback((confirmed: boolean) => {
-    const resolver = confirmResolverRef.current;
-    confirmResolverRef.current = null;
-    setConfirmDialog(null);
-    resolver?.(confirmed);
-  }, []);
-
-  const askConfirm = useCallback((title: string, message: string, detail?: string) => {
-    confirmResolverRef.current?.(false);
-    return new Promise<boolean>((resolve) => {
-      confirmResolverRef.current = resolve;
-      setConfirmDialog({ title, message, detail });
-    });
-  }, []);
 
   const markDirty = useCallback((pageId?: string) => {
     dirtyVersionRef.current += 1;
