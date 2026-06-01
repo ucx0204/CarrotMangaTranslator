@@ -23,18 +23,14 @@ import {
   resolveEditableBlockBbox
 } from "../../shared/geometry";
 import { isUsableRegionBbox } from "../../shared/region";
+import { AppModals, type ConfirmDialogState, type RenameTarget } from "./components/AppModals";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppRightRail } from "./components/AppRightRail";
 import { AppWorkspace } from "./components/AppWorkspace";
-import { ConfirmModal } from "./components/ConfirmModal";
-import { InpaintingGuideModal } from "./components/InpaintingGuideModal";
-import { ImportModal, type ImportModalSubmit } from "./components/ImportModal";
+import type { ImportModalSubmit } from "./components/ImportModal";
 import { type BlockCounts, type InpaintingStage, type InpaintingTool } from "./components/InpaintingControlPanel";
-import { RenameModal } from "./components/RenameModal";
-import { SettingsModal } from "./components/SettingsModal";
-import { ShareExportModal } from "./components/ShareExportModal";
-import { ShareImportModal, type ShareImportModalSubmit } from "./components/ShareImportModal";
-import { TranslateSourceModal, type TranslateSourceMode } from "./components/TranslateSourceModal";
+import type { ShareImportModalSubmit } from "./components/ShareImportModal";
+import type { TranslateSourceMode } from "./components/TranslateSourceModal";
 import { useStageSize } from "./hooks/useStageSize";
 import {
   formatErrorMessage,
@@ -80,24 +76,6 @@ type RetouchHistoryEntry = {
   pageId: string;
   beforePath?: string;
   afterPath?: string;
-};
-
-type RenameTarget =
-  | {
-      kind: "work";
-      id: string;
-      title: string;
-    }
-  | {
-      kind: "chapter";
-      id: string;
-      title: string;
-    };
-
-type ConfirmDialogState = {
-  title: string;
-  message: string;
-  detail?: string;
 };
 
 export default function App(): React.JSX.Element {
@@ -1968,96 +1946,66 @@ export default function App(): React.JSX.Element {
         onDuplicateBlock={duplicateSelectedBlock}
       />
 
-      {translationSourceOpen ? (
-        <TranslateSourceModal busy={importBusy} onCancel={() => setTranslationSourceOpen(false)} onSelect={(mode) => void selectTranslateSource(mode)} />
-      ) : null}
-
-      {importPreview ? (
-        <ImportModal library={library} preview={importPreview} busy={importBusy} onCancel={() => setImportPreview(null)} onSubmit={(payload) => void submitImport(payload)} />
-      ) : null}
-
-      {shareExportOpen ? (
-        <ShareExportModal
-          library={library}
-          currentWorkId={currentChapter?.workId ?? null}
-          busy={shareExportBusy}
-          onCancel={() => {
-            if (!shareExportBusy) {
-              setShareExportOpen(false);
-            }
-          }}
-          onSubmit={(request) => void submitShareExport(request)}
-        />
-      ) : null}
-
-      {shareImportPreview ? (
-        <ShareImportModal
-          library={library}
-          preview={shareImportPreview}
-          busy={shareImportBusy}
-          onCancel={() => {
-            if (!shareImportBusy) {
-              setShareImportPreview(null);
-            }
-          }}
-          onSubmit={(payload) => void submitShareImport(payload)}
-        />
-      ) : null}
-
-      {renameTarget ? (
-        <RenameModal
-          kind={renameTarget.kind}
-          initialTitle={renameTarget.title}
-          busy={renameBusy}
-          onCancel={() => {
-            if (!renameBusy) {
-              setRenameTarget(null);
-            }
-          }}
-          onDelete={() => void deleteRenameTarget()}
-          onSubmit={(title) => void submitRename(title)}
-        />
-      ) : null}
-
-      {settingsOpen && settings ? (
-        <SettingsModal
-          initialSettings={settings}
-          busy={settingsBusy}
-          jobActive={jobActive}
-          onCancel={() => {
-            if (!settingsBusy) {
-              setSettingsOpen(false);
-            }
-          }}
-          onOpenLogFolder={() => {
-            void window.mangaApi.openLogFolder();
-          }}
-          onReset={() => void resetSettings()}
-          onSubmit={(nextSettings) => void submitSettings(nextSettings)}
-        />
-      ) : null}
-
-      {confirmDialog ? (
-        <ConfirmModal
-          title={confirmDialog.title}
-          message={confirmDialog.message}
-          detail={confirmDialog.detail}
-          onConfirm={() => resolveConfirmDialog(true)}
-          onCancel={() => resolveConfirmDialog(false)}
-        />
-      ) : null}
-
-      {inpaintingGuideOpen ? (
-        <InpaintingGuideModal
-          onClose={(hideNextTime) => {
-            if (hideNextTime) {
-              window.localStorage.setItem(INPAINTING_GUIDE_HIDDEN_KEY, "1");
-              setHideInpaintingGuide(true);
-            }
-            setInpaintingGuideOpen(false);
-          }}
-        />
-      ) : null}
+      <AppModals
+        library={library}
+        currentWorkId={currentChapter?.workId ?? null}
+        translationSourceOpen={translationSourceOpen}
+        importPreview={importPreview}
+        importBusy={importBusy}
+        shareExportOpen={shareExportOpen}
+        shareExportBusy={shareExportBusy}
+        shareImportPreview={shareImportPreview}
+        shareImportBusy={shareImportBusy}
+        renameTarget={renameTarget}
+        renameBusy={renameBusy}
+        settingsOpen={settingsOpen}
+        settings={settings}
+        settingsBusy={settingsBusy}
+        jobActive={jobActive}
+        confirmDialog={confirmDialog}
+        inpaintingGuideOpen={inpaintingGuideOpen}
+        onCancelTranslationSource={() => setTranslationSourceOpen(false)}
+        onSelectTranslationSource={(mode) => void selectTranslateSource(mode)}
+        onCancelImport={() => setImportPreview(null)}
+        onSubmitImport={(payload) => void submitImport(payload)}
+        onCancelShareExport={() => {
+          if (!shareExportBusy) {
+            setShareExportOpen(false);
+          }
+        }}
+        onSubmitShareExport={(request) => void submitShareExport(request)}
+        onCancelShareImport={() => {
+          if (!shareImportBusy) {
+            setShareImportPreview(null);
+          }
+        }}
+        onSubmitShareImport={(payload) => void submitShareImport(payload)}
+        onCancelRename={() => {
+          if (!renameBusy) {
+            setRenameTarget(null);
+          }
+        }}
+        onDeleteRename={() => void deleteRenameTarget()}
+        onSubmitRename={(title) => void submitRename(title)}
+        onCancelSettings={() => {
+          if (!settingsBusy) {
+            setSettingsOpen(false);
+          }
+        }}
+        onOpenLogFolder={() => {
+          void window.mangaApi.openLogFolder();
+        }}
+        onResetSettings={() => void resetSettings()}
+        onSubmitSettings={(nextSettings) => void submitSettings(nextSettings)}
+        onResolveConfirm={resolveConfirmDialog}
+        onCloseInpaintingGuide={(hideNextTime) => {
+          if (hideNextTime) {
+            window.localStorage.setItem(INPAINTING_GUIDE_HIDDEN_KEY, "1");
+            setHideInpaintingGuide(true);
+          }
+          setInpaintingGuideOpen(false);
+        }}
+      />
     </main>
   );
 }
