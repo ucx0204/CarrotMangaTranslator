@@ -24,20 +24,13 @@ import {
 } from "../../shared/geometry";
 import { isUsableRegionBbox } from "../../shared/region";
 import { AppSidebar } from "./components/AppSidebar";
+import { AppRightRail } from "./components/AppRightRail";
 import { AppWorkspace } from "./components/AppWorkspace";
 import { ConfirmModal } from "./components/ConfirmModal";
-import { EditorPanel } from "./components/EditorPanel";
 import { InpaintingGuideModal } from "./components/InpaintingGuideModal";
 import { ImportModal, type ImportModalSubmit } from "./components/ImportModal";
-import {
-  DisplayControlPanel,
-  InpaintingControlPanel,
-  type BlockCounts,
-  type InpaintingStage,
-  type InpaintingTool
-} from "./components/InpaintingControlPanel";
+import { type BlockCounts, type InpaintingStage, type InpaintingTool } from "./components/InpaintingControlPanel";
 import { RenameModal } from "./components/RenameModal";
-import { RunPanel, StatusPanel } from "./components/RunStatusPanels";
 import { SettingsModal } from "./components/SettingsModal";
 import { ShareExportModal } from "./components/ShareExportModal";
 import { ShareImportModal, type ShareImportModalSubmit } from "./components/ShareImportModal";
@@ -1925,98 +1918,55 @@ export default function App(): React.JSX.Element {
         onOpenShareImport={() => void openShareImportPreview()}
       />
 
-      <aside className={`right-rail ${inpaintingMode ? "inpainting-rail" : ""}`}>
-        {inpaintingMode ? (
-          <>
-            <InpaintingControlPanel
-              stage={inpaintingStage}
-              currentChapter={currentChapter}
-              selectedPage={selectedPage}
-              selectedBlock={selectedBlock}
-              blockCounts={blockCounts}
-              inpaintedPageCount={inpaintedPageCount}
-              tool={inpaintingTool}
-              brushRadius={inpaintingBrushRadius}
-              brushColor={inpaintingPaintColor}
-              maskStrokeCount={patternMaskStrokes.length}
-              canUndo={retouchUndoStack.length > 0}
-              canRedo={retouchRedoStack.length > 0}
-              jobState={jobState}
-              progressSnapshot={progressSnapshot}
-              showBlockChrome={showBlockChrome}
-              showTextBlocks={showTextBlocks}
-              jobActive={jobActive}
-              onSelectTool={setInpaintingTool}
-              onBrushRadiusChange={setInpaintingBrushRadius}
-              onBrushColorChange={setInpaintingPaintColor}
-              onUndoRetouch={() => void undoRetouch()}
-              onRedoRetouch={() => void redoRetouch()}
-              onRevertPage={() => void revertInpainting("page")}
-              onRevertChapter={() => void revertInpainting("chapter")}
-              onRunPage={() => void runInpainting("page")}
-              onRunChapter={() => void runInpainting("chapter")}
-              onRunDrawnPattern={() => void runDrawnPatternInpainting()}
-              onClearPatternMask={() => setPatternMaskStrokes([])}
-              onShowGuide={() => setInpaintingGuideOpen(true)}
-              onToggleChrome={() => setShowBlockChrome((value) => !value)}
-              onToggleBlocks={() => setShowTextBlocks((value) => !value)}
-              onExportResults={() => void exportInpaintingResults()}
-            />
-            {inpaintingStage === "finalize" ? (
-              <EditorPanel
-                block={selectedBlock}
-                disabled={selectedPageEditLocked || jobActive}
-                onUpdate={updateSelectedBlock}
-                onDelete={deleteSelectedBlock}
-                onDuplicate={duplicateSelectedBlock}
-              />
-            ) : null}
-            <section className="inpainting-next-panel">
-              <button
-                className={inpaintingStage === "pattern" ? "pattern-next-button" : "primary"}
-                onClick={() => void goToNextInpaintingStage()}
-                disabled={jobActive || inpaintingStage === "review"}
-              >
-                {inpaintingStage === "pattern" ? "최종 처리로 넘어가기" : inpaintingStage === "finalize" ? "결과 확인" : "완료"}
-              </button>
-            </section>
-          </>
-        ) : (
-          <>
-            <RunPanel
-              currentChapter={currentChapter}
-              jobActive={jobActive}
-              showProgressBar={showProgressBar}
-              progressSnapshot={progressSnapshot}
-              jobState={jobState}
-              onRunPending={() => void runAnalysis("pending")}
-              onRunAll={() => void runAnalysis("all")}
-              onEnterInpainting={() => void enterInpaintingMode()}
-              onCancelJob={() => void window.mangaApi.cancelJob()}
-            />
-
-            <DisplayControlPanel
-              showBlockChrome={showBlockChrome}
-              showTextBlocks={showTextBlocks}
-              onToggleChrome={() => setShowBlockChrome((value) => !value)}
-              onToggleBlocks={() => setShowTextBlocks((value) => !value)}
-            />
-
-            {!selectedBlock ? <StatusPanel jobState={jobState} statusLines={statusLines} /> : null}
-
-            <EditorPanel
-              block={selectedBlock}
-              disabled={selectedPageEditLocked || jobActive}
-              areaTranslateAvailable={Boolean(selectedPage && selectedPageImageDataUrl && !jobActive)}
-              areaTranslateSelecting={Boolean(regionSelection?.active)}
-              onStartAreaTranslate={startRegionTranslationSelection}
-              onUpdate={updateSelectedBlock}
-              onDelete={deleteSelectedBlock}
-              onDuplicate={duplicateSelectedBlock}
-            />
-          </>
-        )}
-      </aside>
+      <AppRightRail
+        inpaintingMode={inpaintingMode}
+        inpaintingStage={inpaintingStage}
+        currentChapter={currentChapter}
+        selectedPage={selectedPage}
+        selectedBlock={selectedBlock}
+        selectedPageImageDataUrl={selectedPageImageDataUrl}
+        selectedPageEditLocked={selectedPageEditLocked}
+        blockCounts={blockCounts}
+        inpaintedPageCount={inpaintedPageCount}
+        inpaintingTool={inpaintingTool}
+        inpaintingBrushRadius={inpaintingBrushRadius}
+        inpaintingPaintColor={inpaintingPaintColor}
+        patternMaskStrokeCount={patternMaskStrokes.length}
+        canUndoRetouch={retouchUndoStack.length > 0}
+        canRedoRetouch={retouchRedoStack.length > 0}
+        jobState={jobState}
+        progressSnapshot={progressSnapshot}
+        showProgressBar={showProgressBar}
+        showBlockChrome={showBlockChrome}
+        showTextBlocks={showTextBlocks}
+        jobActive={jobActive}
+        statusLines={statusLines}
+        areaTranslateSelecting={Boolean(regionSelection?.active)}
+        onSelectInpaintingTool={setInpaintingTool}
+        onBrushRadiusChange={setInpaintingBrushRadius}
+        onBrushColorChange={setInpaintingPaintColor}
+        onUndoRetouch={() => void undoRetouch()}
+        onRedoRetouch={() => void redoRetouch()}
+        onRevertPage={() => void revertInpainting("page")}
+        onRevertChapter={() => void revertInpainting("chapter")}
+        onRunInpaintingPage={() => void runInpainting("page")}
+        onRunInpaintingChapter={() => void runInpainting("chapter")}
+        onRunDrawnPattern={() => void runDrawnPatternInpainting()}
+        onClearPatternMask={() => setPatternMaskStrokes([])}
+        onShowInpaintingGuide={() => setInpaintingGuideOpen(true)}
+        onToggleChrome={() => setShowBlockChrome((value) => !value)}
+        onToggleBlocks={() => setShowTextBlocks((value) => !value)}
+        onExportResults={() => void exportInpaintingResults()}
+        onGoToNextInpaintingStage={() => void goToNextInpaintingStage()}
+        onRunPending={() => void runAnalysis("pending")}
+        onRunAll={() => void runAnalysis("all")}
+        onEnterInpainting={() => void enterInpaintingMode()}
+        onCancelJob={() => void window.mangaApi.cancelJob()}
+        onStartAreaTranslate={startRegionTranslationSelection}
+        onUpdateBlock={updateSelectedBlock}
+        onDeleteBlock={deleteSelectedBlock}
+        onDuplicateBlock={duplicateSelectedBlock}
+      />
 
       {translationSourceOpen ? (
         <TranslateSourceModal busy={importBusy} onCancel={() => setTranslationSourceOpen(false)} onSelect={(mode) => void selectTranslateSource(mode)} />
