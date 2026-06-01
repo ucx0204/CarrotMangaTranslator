@@ -25,6 +25,7 @@ import type {
   LibraryWork,
   LibraryWorkSummary,
   MangaPage,
+  SavePageBlocksRequest,
   WorkShareImportFromPackageRequest,
   WorkShareExportRequest,
   WorkShareExportResult,
@@ -182,6 +183,47 @@ async function saveChapterSnapshotUnlocked(snapshot: ChapterSnapshot): Promise<C
   const stored = toStoredChapter(snapshot, current);
   await writeChapterFile(stored);
   return hydrateChapter(stored);
+}
+
+export async function savePageBlocks(request: SavePageBlocksRequest): Promise<ChapterSnapshot> {
+  return withLibraryMutation(() => savePageBlocksUnlocked(request));
+}
+
+async function savePageBlocksUnlocked(request: SavePageBlocksRequest): Promise<ChapterSnapshot> {
+  const locator = await findChapterLocation(request.chapterId);
+  if (!locator) {
+    throw new Error("저장할 화를 찾지 못했습니다.");
+  }
+  const chapter = await readChapterFile(locator.workId, locator.chapterId);
+  if (!chapter) {
+    throw new Error("저장할 화를 찾지 못했습니다.");
+  }
+  const page = chapter.pages.find((candidate) => candidate.id === request.pageId);
+  if (!page) {
+    throw new Error("저장할 페이지를 찾지 못했습니다.");
+  }
+
+  const now = new Date().toISOString();
+  const pages = chapter.pages.map((candidate) =>
+    candidate.id === request.pageId
+      ? {
+          ...candidate,
+          blocks: request.blocks.map((block) => ({
+            ...block,
+            type: normalizeBlockType(block.type)
+          })),
+          updatedAt: now
+        }
+      : candidate
+  );
+  const nextChapter: ChapterFile = {
+    ...chapter,
+    pages,
+    status: resolveChapterStatus(pages),
+    updatedAt: now
+  };
+  await writeChapterFile(nextChapter);
+  return hydrateChapter(nextChapter);
 }
 
 export async function renameWork(workId: string, title: string): Promise<LibraryIndex> {

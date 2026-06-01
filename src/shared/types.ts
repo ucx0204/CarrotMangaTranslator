@@ -394,6 +394,12 @@ export type SetPageInpaintingResultResult = {
   pageId: string;
 };
 
+export type SavePageBlocksRequest = {
+  chapterId: string;
+  pageId: string;
+  blocks: TranslationBlock[];
+};
+
 export type WorkShareExportRequest = {
   workId: string;
   chapterIds: string[];

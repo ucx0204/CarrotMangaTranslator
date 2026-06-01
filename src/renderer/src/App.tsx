@@ -250,7 +250,27 @@ export default function App(): React.JSX.Element {
   }, [inpaintingToolActive]);
 
   const persistChapter = useCallback(async (chapter: ChapterSnapshot, options: { syncState?: boolean } = {}): Promise<ChapterSnapshot> => {
-    const saved = await window.mangaApi.saveChapter(sanitizeChapterBboxes(chapter));
+    const dirtyPageIds = [...dirtyPageIdsRef.current];
+    let saved = chapter;
+    if (dirtyPageIds.length > 0) {
+      for (const pageId of dirtyPageIds) {
+        const page = chapter.pages.find((candidate) => candidate.id === pageId);
+        if (!page) {
+          continue;
+        }
+        saved = await window.mangaApi.savePageBlocks({
+          chapterId: saved.id,
+          pageId,
+          blocks: page.blocks.map((block) => ({
+            ...block,
+            bbox: clampBbox(block.bbox),
+            renderBbox: block.renderBbox ? clampBbox(block.renderBbox) : undefined
+          }))
+        });
+      }
+    } else {
+      saved = await window.mangaApi.saveChapter(sanitizeChapterBboxes(chapter));
+    }
     if (options.syncState !== false && currentChapterRef.current?.id === saved.id) {
       currentChapterRef.current = saved;
       setCurrentChapter(saved);

@@ -8,7 +8,6 @@ import {
   markChapterPagesRunning,
   openChapter,
   resolvePagesForRun,
-  saveChapterSnapshot,
   updatePageAfterAnalysis
 } from "../library";
 import { logError } from "../logger";
@@ -281,21 +280,10 @@ export function registerTranslationJobIpc(context: IpcContext): void {
 
 async function saveMappedRegionBlocks(chapterId: string, pageId: string, mappedBlocks: MangaPage["blocks"]) {
   const latest = await openChapter(chapterId);
-  const now = new Date().toISOString();
-  const nextChapter: typeof latest = {
-    ...latest,
-    pages: latest.pages.map((candidate) =>
-      candidate.id === pageId
-        ? {
-            ...candidate,
-            blocks: [...candidate.blocks, ...mappedBlocks],
-            analysisStatus: "completed",
-            lastError: undefined,
-            updatedAt: now
-          }
-        : candidate
-    ),
-    updatedAt: now
-  };
-  return saveChapterSnapshot(nextChapter);
+  const page = latest.pages.find((candidate) => candidate.id === pageId);
+  if (!page) {
+    throw new Error("저장할 페이지를 찾지 못했습니다.");
+  }
+  await updatePageAfterAnalysis(chapterId, { ...page, blocks: [...page.blocks, ...mappedBlocks] }, [], "completed");
+  return openChapter(chapterId);
 }

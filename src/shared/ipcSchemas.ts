@@ -225,6 +225,13 @@ export const DeleteWorkRequestSchema = z.object({ workId: uuid }).strict();
 export const DeleteChapterRequestSchema = z.object({ chapterId: uuid }).strict();
 export const OpenChapterRequestSchema = z.object({ chapterId: uuid }).strict();
 export const ImageDataUrlRequestSchema = z.object({ imagePath: filePath }).strict();
+export const SavePageBlocksRequestSchema = z
+  .object({
+    chapterId: uuid,
+    pageId: uuid,
+    blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE)
+  })
+  .strict();
 export const ReorderChaptersRequestSchema = z.object({ workId: uuid, chapterIds: z.array(uuid).max(MAX_ID_LIST_LENGTH) }).strict();
 export const ReorderPagesRequestSchema = z.object({ chapterId: uuid, pageIds: z.array(uuid).max(MAX_ID_LIST_LENGTH) }).strict();
 export const DeletePageRequestSchema = z.object({ chapterId: uuid, pageId: uuid }).strict();

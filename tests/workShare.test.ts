@@ -292,6 +292,32 @@ describe("work share packages", () => {
 
     await expect(library.saveChapterSnapshot({ ...chapter, workId: "work-forged" })).rejects.toThrow(/보관함 위치/);
   });
+
+  it("saves page blocks without letting the renderer overwrite image paths", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+    const originalPage = chapter.pages[0]!;
+    const originalImagePath = originalPage.imagePath;
+
+    const saved = await library.savePageBlocks({
+      chapterId: chapter.id,
+      pageId: originalPage.id,
+      blocks: [
+        {
+          ...originalPage.blocks[0]!,
+          id: "edited-block",
+          translatedText: "수정됨"
+        }
+      ]
+    });
+
+    expect(saved.pages[0]?.imagePath).toBe(originalImagePath);
+    expect(saved.pages[0]?.blocks).toHaveLength(1);
+    expect(saved.pages[0]?.blocks[0]?.id).toBe("edited-block");
+    expect(saved.pages[0]?.blocks[0]?.translatedText).toBe("수정됨");
+  });
 });
 
 async function createTempLibrary(): Promise<string> {
