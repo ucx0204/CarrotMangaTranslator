@@ -6,14 +6,12 @@ import {
   DisplayControlPanel,
   InpaintingControlPanel,
   type BlockCounts,
-  type InpaintingStage,
   type InpaintingTool
 } from "./InpaintingControlPanel";
 import { RunPanel, StatusPanel } from "./RunStatusPanels";
 
 type AppRightRailProps = {
   inpaintingMode: boolean;
-  inpaintingStage: InpaintingStage;
   currentChapter: ChapterSnapshot | null;
   selectedPage: MangaPage | null;
   selectedBlock: TranslationBlock | null;
@@ -50,7 +48,6 @@ type AppRightRailProps = {
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
   onExportResults: () => void;
-  onGoToNextInpaintingStage: () => void;
   onRunPending: () => void;
   onRunAll: () => void;
   onEnterInpainting: () => void;
@@ -63,7 +60,6 @@ type AppRightRailProps = {
 
 export function AppRightRail({
   inpaintingMode,
-  inpaintingStage,
   currentChapter,
   selectedPage,
   selectedBlock,
@@ -100,7 +96,6 @@ export function AppRightRail({
   onToggleChrome,
   onToggleBlocks,
   onExportResults,
-  onGoToNextInpaintingStage,
   onRunPending,
   onRunAll,
   onEnterInpainting,
@@ -117,10 +112,8 @@ export function AppRightRail({
       {inpaintingMode ? (
         <>
           <InpaintingControlPanel
-            stage={inpaintingStage}
             currentChapter={currentChapter}
             selectedPage={selectedPage}
-            selectedBlock={selectedBlock}
             blockCounts={blockCounts}
             inpaintedPageCount={inpaintedPageCount}
             tool={inpaintingTool}
@@ -149,8 +142,9 @@ export function AppRightRail({
             onToggleChrome={onToggleChrome}
             onToggleBlocks={onToggleBlocks}
             onExportResults={onExportResults}
+            onCancelJob={onCancelJob}
           />
-          {inpaintingStage === "finalize" ? (
+          {selectedBlock ? (
             <EditorPanel
               block={selectedBlock}
               disabled={editorDisabled}
@@ -159,15 +153,6 @@ export function AppRightRail({
               onDuplicate={onDuplicateBlock}
             />
           ) : null}
-          <section className="inpainting-next-panel">
-            <button
-              className={inpaintingStage === "pattern" ? "pattern-next-button" : "primary"}
-              onClick={onGoToNextInpaintingStage}
-              disabled={jobActive || inpaintingStage === "review"}
-            >
-              {inpaintingStage === "pattern" ? "최종 처리로 넘어가기" : inpaintingStage === "finalize" ? "결과 확인" : "완료"}
-            </button>
-          </section>
         </>
       ) : (
         <>

@@ -36,7 +36,7 @@ import type {
 import { normalizeBlockType } from "../shared/geometry";
 import { getAppPaths } from "./appPaths";
 import { AsyncMutex } from "./libraryStore/mutex";
-import { fileToDataUrl, isPathInside, isSupportedImagePath, readJsonFile, safeUnlink, sortNaturally, writeJsonFile } from "./libraryStore/storage";
+import { isPathInside, isSupportedImagePath, readJsonFile, safeUnlink, sortNaturally, writeJsonFile } from "./libraryStore/storage";
 import {
   AdmZip,
   MAX_IMPORT_IMAGE_BYTES,
@@ -144,11 +144,6 @@ export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
     throw new Error("열려는 화를 찾지 못했습니다.");
   }
   return hydrateChapter(chapter);
-}
-
-export async function readLibraryPageImageDataUrl(imagePath: string): Promise<string> {
-  const resolvedImagePath = assertLibraryImagePath(imagePath);
-  return fileToDataUrl(resolvedImagePath);
 }
 
 export function assertLibraryImagePath(imagePath: string): string {

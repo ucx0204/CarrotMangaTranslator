@@ -25,10 +25,9 @@ import {
   applyInpaintingRetouch,
   inpaintDrawnPatternPage,
   inpaintPatternPage,
-  prepareFluxInpaintingEngine,
   sampleImageColor,
-  type FluxInpaintingEngine
 } from "../inpainting";
+import { acquireFluxInpaintingEngine, disposeCachedFluxInpaintingEngine } from "../inpainting/fluxEnginePool";
 import { assertLibraryImagePath, openChapter, setPageInpaintingResult, updatePagesAfterInpainting } from "../library";
 import { logError } from "../logger";
 import { renderPageWithTranslationBlocksForExport, sanitizeOutputBaseName } from "../pageExport";
@@ -45,7 +44,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
     const id = randomUUID();
     const abortController = new AbortController();
     context.jobs.start({ id, kind: "inpainting", abortController });
-    let fluxEngine: FluxInpaintingEngine | null = null;
+    let fluxEngineLease: Awaited<ReturnType<typeof acquireFluxInpaintingEngine>> | null = null;
     let chapter: Awaited<ReturnType<typeof openChapter>> | null = null;
 
     const emit = (event: JobEvent) => emitJobEvent(context.jobs, context.getMainWindow(), event);
@@ -56,7 +55,12 @@ export function registerInpaintingIpc(context: IpcContext): void {
       const drawnStrokes = request.mode === "page-pattern-drawn" ? request.strokes : [];
       const drawnFeatherPx = request.mode === "page-pattern-drawn" ? request.featherPx : undefined;
       const targetLabel = drawnPatternMode ? "그린 영역" : "무늬 배경";
-      const pages = "pageId" in request ? chapter.pages.filter((page) => page.id === request.pageId) : chapter.pages;
+      const pages =
+        "pageId" in request
+          ? chapter.pages.filter((page) => page.id === request.pageId)
+          : request.mode === "chapter-pattern-pending"
+            ? chapter.pages.filter((page) => !page.inpaintedImagePath)
+            : chapter.pages;
 
       if (pages.length === 0) {
         return { status: "failed", chapter, error: "인페인팅할 페이지를 찾지 못했습니다." };
@@ -78,9 +82,8 @@ export function registerInpaintingIpc(context: IpcContext): void {
       let blocksErased = 0;
       const changedPages: MangaPage[] = [];
       if (totalTargetBlocks > 0) {
-        fluxEngine = await prepareFluxInpaintingEngine({
-          runtimeDir: join(context.appPaths.dataRoot, "models", "inpainting", "mgt-flux-klein-runtime"),
-          modelDir: join(context.appPaths.dataRoot, "models", "inpainting", "flux-klein-4b"),
+        fluxEngineLease = await acquireFluxInpaintingEngine({
+          appPaths: context.appPaths,
           signal: abortController.signal,
           onProgress: (progress) =>
             emit({
@@ -124,14 +127,14 @@ export function registerInpaintingIpc(context: IpcContext): void {
           ? await inpaintDrawnPatternPage(page, {
               signal: abortController.signal,
               decodeFallback: context.decodeImage,
-              fluxEngine: fluxEngine ?? undefined,
+              fluxEngine: fluxEngineLease?.engine,
               strokes: drawnStrokes,
               featherPx: drawnFeatherPx
             })
           : await inpaintPatternPage(page, {
               signal: abortController.signal,
               decodeFallback: context.decodeImage,
-              fluxEngine: fluxEngine ?? undefined
+              fluxEngine: fluxEngineLease?.engine
             });
         if (result.blocksErased > 0) {
           changedPages.push(result.page);
@@ -208,12 +211,14 @@ export function registerInpaintingIpc(context: IpcContext): void {
         chapter: await openChapter(request.chapterId).catch(() => chapter ?? undefined)
       };
     } finally {
-      if (fluxEngine) {
-        await fluxEngine.dispose().catch((error) => logError("Failed to dispose Flux inpainting session", { error }));
-      }
+      fluxEngineLease?.release();
       context.jobs.clearIfCurrent(id);
     }
   });
+
+  ipcMain.handle("inpainting:dispose-engine", async (): Promise<{ disposed: boolean }> => ({
+    disposed: await disposeCachedFluxInpaintingEngine("renderer-exit")
+  }));
 
   ipcMain.handle("inpainting:apply-retouch", async (_event, rawRequest: unknown): Promise<InpaintingRetouchResult> => {
     const request = parseIpcPayload(InpaintingRetouchRequestSchema, rawRequest, "인페인팅 보정");

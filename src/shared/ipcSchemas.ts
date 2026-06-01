@@ -173,6 +173,7 @@ const InpaintingMaskStrokeSchema = z
 
 export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
   z.object({ chapterId: uuid, mode: z.literal("chapter-pattern") }).strict(),
+  z.object({ chapterId: uuid, mode: z.literal("chapter-pattern-pending") }).strict(),
   z.object({ chapterId: uuid, mode: z.literal("page-pattern"), pageId: uuid }).strict(),
   z
     .object({

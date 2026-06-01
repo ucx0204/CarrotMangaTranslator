@@ -12,7 +12,6 @@ export type ImageStageProps = {
   selectedBlockId: string | null;
   showTextBlocks: boolean;
   showBlockChrome: boolean;
-  highlightBlockType: TranslationBlock["type"] | null;
   blockPointerDisabled?: boolean;
   retouchCursor?: {
     point: { x: number; y: number } | null;
@@ -46,7 +45,6 @@ export function ImageStage({
   selectedBlockId,
   showTextBlocks,
   showBlockChrome,
-  highlightBlockType,
   blockPointerDisabled = false,
   retouchCursor = null,
   retouchPreview = null,
@@ -108,7 +106,6 @@ export function ImageStage({
                 stageSize={stageSize}
                 selected={block.id === selectedBlockId}
                 showChrome={showBlockChrome}
-                highlightType={highlightBlockType}
                 pointerDisabled={blockPointerDisabled}
                 onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
                 onResizePointerDown={(event) => onBlockPointerDown(event, block, "resize")}

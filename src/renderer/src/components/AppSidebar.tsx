@@ -1,12 +1,10 @@
 import React from "react";
 import type { ChapterSnapshot, LibraryIndex } from "../../../shared/types";
-import { InpaintingWorkflowPanel, type InpaintingStage } from "./InpaintingControlPanel";
 import { LibraryTree } from "./LibraryTree";
 import { PageList } from "./PageList";
 
 export function AppSidebar({
   inpaintingMode,
-  inpaintingStage,
   currentChapter,
   selectedPageId,
   library,
@@ -14,7 +12,6 @@ export function AppSidebar({
   settingsBusy,
   settingsOpen,
   onExitInpainting,
-  onPreviousInpaintingStage,
   onOpenTranslationSource,
   onOpenBatchImport,
   onOpenSettings,
@@ -31,7 +28,6 @@ export function AppSidebar({
   onReorderPage
 }: {
   inpaintingMode: boolean;
-  inpaintingStage: InpaintingStage;
   currentChapter: ChapterSnapshot | null;
   selectedPageId: string | null;
   library: LibraryIndex;
@@ -39,7 +35,6 @@ export function AppSidebar({
   settingsBusy: boolean;
   settingsOpen: boolean;
   onExitInpainting: () => void;
-  onPreviousInpaintingStage: () => void;
   onOpenTranslationSource: () => void;
   onOpenBatchImport: () => void;
   onOpenSettings: () => void;
@@ -66,8 +61,6 @@ export function AppSidebar({
             <small>{currentChapter ? currentChapter.title : "현재 화 없음"}</small>
           </section>
 
-          <InpaintingWorkflowPanel stage={inpaintingStage} />
-
           <PageList
             pages={currentChapter?.pages ?? []}
             selectedPageId={selectedPageId}
@@ -77,14 +70,6 @@ export function AppSidebar({
             onRemove={onRemovePage}
             onReorder={() => undefined}
           />
-
-          {inpaintingStage !== "pattern" ? (
-            <section className="inpainting-back-panel">
-              <button className="inpainting-back-button" onClick={onPreviousInpaintingStage} disabled={jobActive}>
-                이전 단계로 돌아가기
-              </button>
-            </section>
-          ) : null}
         </>
       ) : (
         <>

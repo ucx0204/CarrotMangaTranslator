@@ -78,6 +78,7 @@ const api = {
     ipcRenderer.invoke("inpainting:sample-color", request),
   exportInpaintingResults: (request: InpaintingExportRequest): Promise<InpaintingExportResult> =>
     ipcRenderer.invoke("inpainting:export-results", request),
+  disposeInpaintingEngine: (): Promise<{ disposed: boolean }> => ipcRenderer.invoke("inpainting:dispose-engine"),
   cancelJob: () => ipcRenderer.invoke("job:cancel"),
   onJobEvent: (callback: (event: JobEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: JobEvent) => callback(payload);

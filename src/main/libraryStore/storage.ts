@@ -11,22 +11,6 @@ export function isPathInside(rootPath: string, targetPath: string): boolean {
   return child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child));
 }
 
-export async function fileToDataUrl(filePath: string): Promise<string> {
-  const buffer = await readFile(filePath);
-  return `data:${mimeFromPath(filePath)};base64,${buffer.toString("base64")}`;
-}
-
-export function mimeFromPath(filePath: string): string {
-  const ext = extname(filePath).toLowerCase();
-  if (ext === ".jpg" || ext === ".jpeg") {
-    return "image/jpeg";
-  }
-  if (ext === ".webp") {
-    return "image/webp";
-  }
-  return "image/png";
-}
-
 export async function writeJsonFile(path: string, payload: unknown): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   const tmpPath = join(dirname(path), `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`);

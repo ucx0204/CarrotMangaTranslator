@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu } from "electron";
 import { ensureWritableAppDirectories } from "./appPaths";
+import { registerImageProtocolHandler, registerImageProtocolScheme } from "./imageProtocol";
 import { registerIpc } from "./ipc/registerIpc";
 import { ActiveJobStore } from "./jobs/activeJob";
 import { cleanupLegacyLogs, cleanupLibraryOrphans, getLibraryRoot } from "./library";
@@ -11,6 +12,7 @@ const appPaths = ensureWritableAppDirectories();
 const jobs = new ActiveJobStore();
 let mainWindow: BrowserWindow | null = null;
 
+registerImageProtocolScheme();
 resetAppLog();
 
 logInfo("Application process starting", {
@@ -36,6 +38,7 @@ process.on("unhandledRejection", (reason) => {
 });
 
 app.whenReady().then(async () => {
+  registerImageProtocolHandler();
   await cleanupLegacyLogs();
   const cleanupResult = await cleanupLibraryOrphans();
   if (

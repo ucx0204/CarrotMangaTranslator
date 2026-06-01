@@ -20,7 +20,6 @@ import {
   getLibraryRoot,
   listLibrary,
   openChapter,
-  readLibraryPageImageDataUrl,
   renameChapter,
   renameWork,
   reorderChapters,
@@ -28,6 +27,7 @@ import {
   savePageBlocks,
   saveChapterSnapshot
 } from "../library";
+import { createLibraryImageUrl } from "../imageProtocol";
 
 export function registerLibraryIpc(): void {
   ipcMain.handle("library:get-index", async () => listLibrary());
@@ -41,7 +41,7 @@ export function registerLibraryIpc(): void {
   });
   ipcMain.handle("library:get-page-image-data-url", async (_event, imagePath: unknown) => {
     const request = parseIpcPayload(ImageDataUrlRequestSchema, { imagePath }, "페이지 이미지 열기");
-    return readLibraryPageImageDataUrl(request.imagePath);
+    return createLibraryImageUrl(request.imagePath);
   });
   ipcMain.handle("library:save-chapter", async (_event, chapter: unknown) => saveChapterSnapshot(parseIpcPayload(SaveChapterSnapshotSchema, chapter, "화 저장")));
   ipcMain.handle("library:save-page-blocks", async (_event, raw: unknown) =>

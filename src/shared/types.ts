@@ -305,6 +305,10 @@ export type StartInpaintingRequest =
     }
   | {
       chapterId: string;
+      mode: "chapter-pattern-pending";
+    }
+  | {
+      chapterId: string;
       mode: "page-pattern";
       pageId: string;
     }

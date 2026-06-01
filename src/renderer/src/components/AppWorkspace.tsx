@@ -15,7 +15,6 @@ type AppWorkspaceProps = {
   showTextBlocks: boolean;
   showBlockChrome: boolean;
   inpaintingToolActive: boolean;
-  inpaintingHighlightType: ImageStageProps["highlightBlockType"];
   retouchCursor: ImageStageProps["retouchCursor"];
   retouchPreviewLayer: ImageStageProps["retouchPreview"];
   maskStrokes: ImageStageProps["maskStrokes"];
@@ -45,7 +44,6 @@ export function AppWorkspace({
   showTextBlocks,
   showBlockChrome,
   inpaintingToolActive,
-  inpaintingHighlightType,
   retouchCursor,
   retouchPreviewLayer,
   maskStrokes,
@@ -83,7 +81,6 @@ export function AppWorkspace({
             selectedBlockId={selectedBlockId}
             showTextBlocks={showTextBlocks}
             showBlockChrome={showBlockChrome && !inpaintingToolActive}
-            highlightBlockType={inpaintingHighlightType}
             blockPointerDisabled={inpaintingToolActive}
             retouchCursor={retouchCursor}
             retouchPreview={retouchPreviewLayer}

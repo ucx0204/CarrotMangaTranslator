@@ -10,7 +10,6 @@ type OverlayBlockProps = {
   stageSize: ViewportSize;
   selected: boolean;
   showChrome: boolean;
-  highlightType: TranslationBlock["type"] | null;
   pointerDisabled?: boolean;
   onPointerDown: (event: React.PointerEvent) => void;
   onResizePointerDown: (event: React.PointerEvent) => void;
@@ -22,7 +21,6 @@ export function OverlayBlock({
   stageSize,
   selected,
   showChrome,
-  highlightType,
   pointerDisabled = false,
   onPointerDown,
   onResizePointerDown
@@ -82,9 +80,7 @@ export function OverlayBlock({
         "overlay-block",
         `block-${block.type}`,
         selected ? "selected" : "",
-        showChrome ? "" : "chrome-hidden",
-        showChrome && highlightType && block.type === highlightType ? "highlight-target" : "",
-        showChrome && highlightType && block.type !== highlightType ? "highlight-dimmed" : ""
+        showChrome ? "" : "chrome-hidden"
       ]
         .filter(Boolean)
         .join(" ")}

@@ -1,41 +1,19 @@
 import React from "react";
-import type { ChapterSnapshot, JobState, MangaPage, TranslationBlock } from "../../../shared/types";
+import type { ChapterSnapshot, JobState, MangaPage } from "../../../shared/types";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 
-export type InpaintingStage = "pattern" | "finalize" | "review";
 export type InpaintingTool = "none" | "brush" | "eraser" | "picker" | "mask";
 
 export type BlockCounts = {
   total: number;
+  selectedPage: number;
+  pendingTotal: number;
+  pendingPages: number;
 };
 
-export function InpaintingWorkflowPanel({ stage }: { stage: InpaintingStage }): React.JSX.Element {
-  const steps: Array<{ id: InpaintingStage; label: string; tone: "pattern" | "finalize" | "review" }> = [
-    { id: "pattern", label: "무늬 배경", tone: "pattern" },
-    { id: "finalize", label: "최종 처리", tone: "finalize" },
-    { id: "review", label: "결과 확인", tone: "review" }
-  ];
-  const activeIndex = steps.findIndex((step) => step.id === stage);
-  return (
-    <section className="inpainting-flow-panel" aria-label="인페인팅 단계">
-      {steps.map((step, index) => {
-        const state = index < activeIndex ? "done" : index === activeIndex ? "active" : "pending";
-        return (
-          <div className={`flow-step ${step.tone} ${state}`} key={step.id}>
-            <span className="flow-step-index">{index + 1}</span>
-            <span className="flow-step-label">{step.label}</span>
-          </div>
-        );
-      })}
-    </section>
-  );
-}
-
 export function InpaintingControlPanel({
-  stage,
   currentChapter,
   selectedPage,
-  selectedBlock,
   blockCounts,
   inpaintedPageCount,
   tool,
@@ -63,12 +41,11 @@ export function InpaintingControlPanel({
   onShowGuide,
   onToggleChrome,
   onToggleBlocks,
-  onExportResults
+  onExportResults,
+  onCancelJob
 }: {
-  stage: InpaintingStage;
   currentChapter: ChapterSnapshot | null;
   selectedPage: MangaPage | null;
-  selectedBlock: TranslationBlock | null;
   blockCounts: BlockCounts;
   inpaintedPageCount: number;
   tool: InpaintingTool;
@@ -97,137 +74,134 @@ export function InpaintingControlPanel({
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
   onExportResults: () => void;
+  onCancelJob: () => void;
 }): React.JSX.Element {
   const activeInpaintingJob = jobState.kind === "inpainting" && jobState.status !== "idle";
   const totalPages = currentChapter?.pages.length ?? 0;
-  const stageTitle = stage === "pattern" ? "무늬 배경 지우기" : stage === "finalize" ? "최종 처리" : "결과 확인";
   const targetLabel = "무늬 배경";
-  const targetCount = blockCounts.total;
+  const pageTargetCount = blockCounts.selectedPage;
+  const pendingTargetCount = blockCounts.pendingTotal;
 
   return (
     <>
       <section className="inpainting-panel stage-panel">
         <div className="panel-header">
-          <h2>{stageTitle}</h2>
+          <h2>무늬 배경 지우기</h2>
           <button className="inpainting-guide-button" onClick={onShowGuide}>
             안내
           </button>
         </div>
 
         <div className="inpainting-counts">
-          <span className="type-stat nonsolid">지울 블록 {blockCounts.total}</span>
+          <span className="type-stat nonsolid">이 페이지 {pageTargetCount}</span>
+          <span className="type-stat nonsolid">남은 전체 {pendingTargetCount}</span>
           <span className="type-stat review">처리된 페이지 {inpaintedPageCount}</span>
         </div>
 
-        {activeInpaintingJob ? <InpaintingProgressCard jobState={jobState} progressSnapshot={progressSnapshot} /> : null}
+        {activeInpaintingJob ? <InpaintingProgressCard jobState={jobState} progressSnapshot={progressSnapshot} onCancel={onCancelJob} /> : null}
 
-        {stage === "pattern" ? (
-          <div className={`inpainting-run-card ${stage}`}>
-            <div>
-              <strong>{targetLabel} 실행</strong>
-              <span>{currentChapter ? `${totalPages}페이지 · ${targetCount}개 ${targetLabel} 블록` : "화가 열려 있지 않습니다."}</span>
-            </div>
-            <div className="inpainting-action-grid">
-              <button className="pattern compact" disabled={!selectedPage || jobActive || targetCount === 0} onClick={onRunPage}>
-                이 페이지 지우기
-              </button>
-              <button className="pattern compact" disabled={!currentChapter || jobActive || targetCount === 0} onClick={onRunChapter}>
-                전체 페이지 지우기
-              </button>
-            </div>
+        <div className="inpainting-run-card pattern">
+          <div>
+            <strong>{targetLabel} 실행</strong>
+            <span>
+              {currentChapter
+                ? `남은 ${blockCounts.pendingPages} / ${totalPages}페이지 · ${pendingTargetCount}개 ${targetLabel} 블록`
+                : "화가 열려 있지 않습니다."}
+            </span>
           </div>
-        ) : stage === "finalize" ? (
-          <div className="pending-stage-card finalize">
-            <strong>블록 최종 처리</strong>
-            <span>{selectedBlock ? "선택한 블록의 폰트, 색상, 위치를 조정하세요." : "캔버스에서 블록을 선택하면 편집 패널이 열립니다."}</span>
-          </div>
-        ) : (
-          <div className="pending-stage-card review">
-            <strong>결과 확인</strong>
-            <span>{inpaintedPageCount}페이지에 인페인팅 결과가 저장되어 있습니다.</span>
-            <button className="primary compact" disabled={!currentChapter || jobActive} onClick={onExportResults}>
-              PNG 출력
+          <div className="inpainting-action-grid">
+            <button className="pattern compact" disabled={!selectedPage || jobActive || pageTargetCount === 0} onClick={onRunPage}>
+              이 페이지 지우기
+            </button>
+            <button className="pattern compact" disabled={!currentChapter || jobActive || pendingTargetCount === 0} onClick={onRunChapter}>
+              남은 페이지 지우기
             </button>
           </div>
-        )}
+        </div>
       </section>
 
-      {stage === "pattern" ? (
-        <section className="inpainting-panel drawn-mask-panel">
-          <div className="panel-header">
-            <h2>그려서 지우기</h2>
-            <small>{maskStrokeCount > 0 ? `그린 영역 ${maskStrokeCount}개` : "효과음 보정"}</small>
-          </div>
-          <div className="retouch-toolbar compact-toolbar">
-            <button className={tool === "mask" ? "active mask-tool" : "mask-tool"} disabled={jobActive} onClick={() => onSelectTool(tool === "mask" ? "none" : "mask")}>
-              <MaskIcon />
-              <span>마스크 붓</span>
-            </button>
-            <button className="secondary compact" disabled={jobActive || maskStrokeCount === 0} onClick={onClearPatternMask}>
-              마스크 비우기
-            </button>
-          </div>
-          <div className="drawn-mask-actions">
-            <button className="pattern compact" disabled={jobActive || !selectedPage || maskStrokeCount === 0} onClick={onRunDrawnPattern}>
-              그린 영역 지우기
-            </button>
-          </div>
-        </section>
-      ) : null}
+      <section className="inpainting-panel drawn-mask-panel">
+        <div className="panel-header">
+          <h2>그려서 지우기</h2>
+          <small>{maskStrokeCount > 0 ? `그린 영역 ${maskStrokeCount}개` : "효과음 보정"}</small>
+        </div>
+        <div className="retouch-toolbar compact-toolbar">
+          <button className={tool === "mask" ? "active mask-tool" : "mask-tool"} disabled={jobActive} onClick={() => onSelectTool(tool === "mask" ? "none" : "mask")}>
+            <MaskIcon />
+            <span>마스크 붓</span>
+          </button>
+          <button className="secondary compact" disabled={jobActive || maskStrokeCount === 0} onClick={onClearPatternMask}>
+            마스크 비우기
+          </button>
+        </div>
+        <div className="drawn-mask-actions">
+          <button className="pattern compact" disabled={jobActive || !selectedPage || maskStrokeCount === 0} onClick={onRunDrawnPattern}>
+            그린 영역 지우기
+          </button>
+        </div>
+      </section>
 
-      {stage !== "review" ? (
-        <section className="inpainting-panel mask-tool-panel">
-          <div className="panel-header">
-            <h2>수동 보정</h2>
-            <small>Ctrl+Z / Ctrl+Y</small>
-          </div>
-          <div className="retouch-toolbar">
-            <button className={tool === "brush" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "brush" ? "none" : "brush")}>
-              <PaintIcon />
-              <span>붓</span>
-              <i className="brush-swatch" style={{ backgroundColor: brushColor }} aria-hidden="true" />
-            </button>
-            <button className={tool === "eraser" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "eraser" ? "none" : "eraser")}>
-              <RestoreIcon />
-              <span>복원 붓</span>
-            </button>
-            <button className={tool === "picker" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "picker" ? "none" : "picker")}>
-              <PickerIcon />
-              <span>색 뽑기</span>
-            </button>
-          </div>
-          <div className="retouch-control-strip">
-            <label className="brush-color-control" title="붓 색상">
-              <input type="color" value={brushColor} disabled={jobActive} onChange={(event) => onBrushColorChange(event.target.value)} />
-            </label>
-            <label className="brush-size-control compact">
-              <input
-                type="range"
-                min={4}
-                max={90}
-                value={brushRadius}
-                disabled={jobActive}
-                onChange={(event) => onBrushRadiusChange(Number(event.target.value))}
-              />
-              <strong>{brushRadius}px</strong>
-            </label>
-            <button className="icon-button" disabled={!canUndo || jobActive} onClick={onUndoRetouch} title="되돌리기 (Ctrl+Z)">
-              ↶
-            </button>
-            <button className="icon-button" disabled={!canRedo || jobActive} onClick={onRedoRetouch} title="다시 실행 (Ctrl+Y / Ctrl+Shift+Z)">
-              ↷
-            </button>
-          </div>
-          <div className="retouch-revert-row">
-            <button className="secondary compact" disabled={!selectedPage?.inpaintedImagePath || jobActive} onClick={onRevertPage}>
-              페이지 되돌리기
-            </button>
-            <button className="secondary compact" disabled={!inpaintedPageCount || jobActive} onClick={onRevertChapter}>
-              전체 되돌리기
-            </button>
-          </div>
-        </section>
-      ) : null}
+      <section className="inpainting-panel mask-tool-panel">
+        <div className="panel-header">
+          <h2>수동 보정</h2>
+          <small>Ctrl+Z / Ctrl+Y</small>
+        </div>
+        <div className="retouch-toolbar">
+          <button className={tool === "brush" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "brush" ? "none" : "brush")}>
+            <PaintIcon />
+            <span>붓</span>
+            <i className="brush-swatch" style={{ backgroundColor: brushColor }} aria-hidden="true" />
+          </button>
+          <button className={tool === "eraser" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "eraser" ? "none" : "eraser")}>
+            <RestoreIcon />
+            <span>복원 붓</span>
+          </button>
+          <button className={tool === "picker" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "picker" ? "none" : "picker")}>
+            <PickerIcon />
+            <span>색 뽑기</span>
+          </button>
+        </div>
+        <div className="retouch-control-strip">
+          <label className="brush-color-control" title="붓 색상">
+            <input type="color" value={brushColor} disabled={jobActive} onChange={(event) => onBrushColorChange(event.target.value)} />
+          </label>
+          <label className="brush-size-control compact">
+            <input
+              type="range"
+              min={4}
+              max={90}
+              value={brushRadius}
+              disabled={jobActive}
+              onChange={(event) => onBrushRadiusChange(Number(event.target.value))}
+            />
+            <strong>{brushRadius}px</strong>
+          </label>
+          <button className="icon-button" disabled={!canUndo || jobActive} onClick={onUndoRetouch} title="되돌리기 (Ctrl+Z)">
+            ↶
+          </button>
+          <button className="icon-button" disabled={!canRedo || jobActive} onClick={onRedoRetouch} title="다시 실행 (Ctrl+Y / Ctrl+Shift+Z)">
+            ↷
+          </button>
+        </div>
+        <div className="retouch-revert-row">
+          <button className="secondary compact" disabled={!selectedPage?.inpaintedImagePath || jobActive} onClick={onRevertPage}>
+            페이지 되돌리기
+          </button>
+          <button className="secondary compact" disabled={!inpaintedPageCount || jobActive} onClick={onRevertChapter}>
+            전체 되돌리기
+          </button>
+        </div>
+      </section>
+
+      <section className="inpainting-panel review-export-panel">
+        <div className="panel-header">
+          <h2>결과 출력</h2>
+          <small>{inpaintedPageCount}페이지 저장됨</small>
+        </div>
+        <button className="primary compact" disabled={!currentChapter || jobActive} onClick={onExportResults}>
+          PNG 출력
+        </button>
+      </section>
 
       <DisplayControlPanel
         showBlockChrome={showBlockChrome}
@@ -239,7 +213,15 @@ export function InpaintingControlPanel({
   );
 }
 
-function InpaintingProgressCard({ jobState, progressSnapshot }: { jobState: JobState; progressSnapshot: ProgressSnapshot | null }): React.JSX.Element {
+function InpaintingProgressCard({
+  jobState,
+  progressSnapshot,
+  onCancel
+}: {
+  jobState: JobState;
+  progressSnapshot: ProgressSnapshot | null;
+  onCancel: () => void;
+}): React.JSX.Element {
   const current = progressSnapshot?.mode === "determinate" ? progressSnapshot.current : jobState.progressCurrent;
   const total = progressSnapshot?.mode === "determinate" ? progressSnapshot.total : jobState.progressTotal;
   const ratio =
@@ -268,6 +250,11 @@ function InpaintingProgressCard({ jobState, progressSnapshot }: { jobState: JobS
       <div className="progress-track" aria-hidden="true">
         <div className="progress-fill" style={{ width: `${Math.round(ratio * 100)}%` }} />
       </div>
+      {jobState.status === "starting" || jobState.status === "running" ? (
+        <button className="danger compact" onClick={onCancel}>
+          취소
+        </button>
+      ) : null}
     </div>
   );
 }
