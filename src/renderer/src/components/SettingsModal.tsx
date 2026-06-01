@@ -8,55 +8,19 @@ import type {
   ModelSource,
   OcrDevice
 } from "../../../shared/types";
-
-const MIN_MAX_TOKENS = 300;
-const MAX_MAX_TOKENS = 12000;
-const DEFAULT_GEMMA_MODEL_REPO =
-  "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
-const DEFAULT_GEMMA_MMPROJ_REPO =
-  "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF";
-const DEFAULT_GEMMA_MMPROJ_FILE =
-  "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
-const MODEL_PRESETS = {
-  iq3s: {
-    label: "IQ3_S",
-    modelRepo: DEFAULT_GEMMA_MODEL_REPO,
-    modelFile: "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf",
-    mmprojRepo: DEFAULT_GEMMA_MMPROJ_REPO,
-    mmprojFile: DEFAULT_GEMMA_MMPROJ_FILE
-  }
-} as const;
-
-type ModelPresetId = keyof typeof MODEL_PRESETS | "custom";
-type ModelSourceOption = {
-  id: ModelSource;
-  label: string;
-  description: string;
-};
-
-type ModelProviderOption = {
-  id: ModelProvider;
-  label: string;
-  description: string;
-};
-
-type CodexReasoningOption = {
-  id: CodexReasoningEffort;
-  label: string;
-  description: string;
-};
-
-type OcrDeviceOption = {
-  id: OcrDevice;
-  label: string;
-  description: string;
-};
-
-type GemmaVramModeOption = {
-  id: GemmaVramMode;
-  label: string;
-  description: string;
-};
+import {
+  CODEX_REASONING_OPTIONS,
+  DEFAULT_GEMMA_MODEL_REPO,
+  GEMMA_VRAM_MODE_OPTIONS,
+  MAX_MAX_TOKENS,
+  MIN_MAX_TOKENS,
+  MODEL_PRESETS,
+  MODEL_PROVIDER_OPTIONS,
+  MODEL_SOURCE_OPTIONS,
+  OCR_DEVICE_OPTIONS,
+  resolveModelPreset,
+  type ModelPresetId
+} from "./settingsOptions";
 
 type TestState =
   | {
@@ -69,86 +33,6 @@ type TestState =
       message: string;
       detail: string | null;
     };
-
-const MODEL_SOURCE_OPTIONS: ModelSourceOption[] = [
-  {
-    id: "huggingface",
-    label: "HF repo",
-    description: "기본 프리셋이나 Hugging Face repo/GGUF 파일명을 사용합니다."
-  },
-  {
-    id: "local",
-    label: "로컬 파일",
-    description: "이미 가지고 있는 GGUF 모델과 mmproj를 직접 지정합니다."
-  }
-];
-
-const MODEL_PROVIDER_OPTIONS: ModelProviderOption[] = [
-  {
-    id: "gemma",
-    label: "Gemma 4",
-    description: "로컬 llama-server로 Gemma 4 비전 모델을 실행합니다."
-  },
-  {
-    id: "openai-codex",
-    label: "OpenAI Codex",
-    description: "Codex 로그인 토큰을 쓰는 openai-oauth 엔드포인트로 요청합니다."
-  }
-];
-
-const CODEX_REASONING_OPTIONS: CodexReasoningOption[] = [
-  {
-    id: "none",
-    label: "없음",
-    description: "생각 예산을 쓰지 않고 가장 빠르게 응답합니다."
-  },
-  {
-    id: "low",
-    label: "낮음",
-    description: "가벼운 추론으로 처리합니다."
-  },
-  {
-    id: "medium",
-    label: "보통",
-    description: "기본 균형 설정입니다."
-  },
-  {
-    id: "high",
-    label: "높음",
-    description: "더 오래 생각해서 까다로운 페이지를 처리합니다."
-  },
-  {
-    id: "xhigh",
-    label: "최고",
-    description: "가장 넉넉한 생각 예산을 사용합니다."
-  }
-];
-
-const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [
-  {
-    id: "cpu",
-    label: "CPU",
-    description: "기본값입니다. 느리지만 별도 GPU Paddle 런타임 없이 가장 안정적으로 동작합니다."
-  },
-  {
-    id: "gpu",
-    label: "GPU",
-    description: "PaddleOCR를 GPU로 실행합니다. GPU용 Paddle 런타임/CUDA가 맞지 않으면 OCR 단계가 실패할 수 있습니다."
-  }
-];
-
-const GEMMA_VRAM_MODE_OPTIONS: GemmaVramModeOption[] = [
-  {
-    id: "full",
-    label: "풀로드",
-    description: "현재 품질 기준입니다. 이미지 토큰은 그대로 쓰고, 넉넉한 VRAM에서 가장 여유 있게 실행합니다."
-  },
-  {
-    id: "economy",
-    label: "절약",
-    description: "이미지 토큰 1024는 유지하고 batch/ubatch와 KV GPU 사용을 줄입니다. 16GB급 VRAM에서 더 안전하지만 조금 느릴 수 있습니다."
-  }
-];
 
 type SettingsModalProps = {
   initialSettings: AppSettings;
@@ -810,25 +694,6 @@ export function SettingsModal({
       </div>
     </div>
   );
-}
-
-function resolveModelPreset(modelRepo: string, modelFile: string): ModelPresetId {
-  const trimmedModelRepo = modelRepo.trim();
-  const trimmedModelFile = modelFile.trim();
-
-  if (matchesPreset(MODEL_PRESETS.iq3s, trimmedModelRepo, trimmedModelFile)) {
-    return "iq3s";
-  }
-
-  return "custom";
-}
-
-function matchesPreset(
-  preset: (typeof MODEL_PRESETS)[keyof typeof MODEL_PRESETS],
-  modelRepo: string,
-  modelFile: string
-): boolean {
-  return preset.modelRepo === modelRepo && preset.modelFile === modelFile;
 }
 
 function buildTestDetail(
