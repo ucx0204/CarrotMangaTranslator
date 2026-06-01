@@ -26,11 +26,16 @@ if (existsSync(join(__dirname, "tools", "ffmpeg", "ffmpeg.exe"))) {
   });
 }
 
-if (existsSync(join(__dirname, "tools", "mgt-flux-klein", "mgt-flux-klein.exe"))) {
+const fluxKleinRunnerPath = join(__dirname, "tools", "mgt-flux-klein", "mgt-flux-klein.exe");
+if (existsSync(fluxKleinRunnerPath)) {
   extraResources.push({
     from: "tools/mgt-flux-klein",
     to: "tools/mgt-flux-klein"
   });
+} else if (process.env.MGT_ALLOW_MISSING_FLUX_RUNNER !== "1") {
+  throw new Error(
+    `Missing ${fluxKleinRunnerPath}. Run node scripts/prepare-flux-klein-runner.cjs before packaging.`
+  );
 }
 
 module.exports = {
