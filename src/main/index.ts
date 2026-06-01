@@ -2,7 +2,7 @@ import { app, BrowserWindow, Menu } from "electron";
 import { ensureWritableAppDirectories } from "./appPaths";
 import { registerIpc } from "./ipc/registerIpc";
 import { ActiveJobStore } from "./jobs/activeJob";
-import { cleanupLegacyLogs, getLibraryRoot } from "./library";
+import { cleanupLegacyLogs, cleanupLibraryOrphans, getLibraryRoot } from "./library";
 import { getLogPath, logError, logInfo, resetAppLog } from "./logger";
 import { createMainWindow } from "./mainWindow";
 import { decodeImageThroughRuntime, loadSimplePageRuntime } from "./simplePageRuntime";
@@ -37,6 +37,15 @@ process.on("unhandledRejection", (reason) => {
 
 app.whenReady().then(async () => {
   await cleanupLegacyLogs();
+  const cleanupResult = await cleanupLibraryOrphans();
+  if (
+    cleanupResult.missingWorkReferencesRemoved > 0 ||
+    cleanupResult.missingChapterReferencesRemoved > 0 ||
+    cleanupResult.workDirsRemoved > 0 ||
+    cleanupResult.chapterDirsRemoved > 0
+  ) {
+    logInfo("Library orphan cleanup finished", cleanupResult);
+  }
   Menu.setApplicationMenu(null);
   registerIpc({
     appPaths,

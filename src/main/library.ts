@@ -34,6 +34,7 @@ import type {
 } from "../shared/types";
 import { normalizeBlockType } from "../shared/geometry";
 import { getAppPaths } from "./appPaths";
+import { AsyncMutex } from "./libraryStore/mutex";
 import { fileToDataUrl, isPathInside, isSupportedImagePath, readJsonFile, safeUnlink, sortNaturally, writeJsonFile } from "./libraryStore/storage";
 import {
   AdmZip,
@@ -56,6 +57,7 @@ const WORKS_ROOT = join(LIBRARY_ROOT, "works");
 const DEFAULT_WORK_TITLE = "미정 작품";
 const SHARE_FORMAT = "manga-gemma-translator-share";
 const SHARE_VERSION = 1;
+const libraryMutationMutex = new AsyncMutex();
 
 type StoredIndexFile = {
   workOrder: string[];
@@ -89,6 +91,17 @@ export type ChapterRunPaths = {
   chapterDir: string;
   runDir: string;
 };
+
+export type LibraryCleanupResult = {
+  missingWorkReferencesRemoved: number;
+  missingChapterReferencesRemoved: number;
+  workDirsRemoved: number;
+  chapterDirsRemoved: number;
+};
+
+function withLibraryMutation<T>(operation: () => Promise<T>): Promise<T> {
+  return libraryMutationMutex.runExclusive(operation);
+}
 
 export function getLibraryRoot(): string {
   return LIBRARY_ROOT;
@@ -153,6 +166,10 @@ export function assertLibraryImagePath(imagePath: string): string {
 }
 
 export async function saveChapterSnapshot(snapshot: ChapterSnapshot): Promise<ChapterSnapshot> {
+  return withLibraryMutation(() => saveChapterSnapshotUnlocked(snapshot));
+}
+
+async function saveChapterSnapshotUnlocked(snapshot: ChapterSnapshot): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(snapshot.id);
   if (!locator || locator.workId !== snapshot.workId) {
     throw new Error("저장할 화의 보관함 위치가 올바르지 않습니다.");
@@ -168,6 +185,10 @@ export async function saveChapterSnapshot(snapshot: ChapterSnapshot): Promise<Ch
 }
 
 export async function renameWork(workId: string, title: string): Promise<LibraryIndex> {
+  return withLibraryMutation(() => renameWorkUnlocked(workId, title));
+}
+
+async function renameWorkUnlocked(workId: string, title: string): Promise<LibraryIndex> {
   const work = await readWorkFile(workId);
   if (!work) {
     throw new Error("작품을 찾지 못했습니다.");
@@ -179,6 +200,10 @@ export async function renameWork(workId: string, title: string): Promise<Library
 }
 
 export async function renameChapter(chapterId: string, title: string): Promise<LibraryIndex> {
+  return withLibraryMutation(() => renameChapterUnlocked(chapterId, title));
+}
+
+async function renameChapterUnlocked(chapterId: string, title: string): Promise<LibraryIndex> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -195,6 +220,10 @@ export async function renameChapter(chapterId: string, title: string): Promise<L
 }
 
 export async function deleteWork(workId: string): Promise<LibraryIndex> {
+  return withLibraryMutation(() => deleteWorkUnlocked(workId));
+}
+
+async function deleteWorkUnlocked(workId: string): Promise<LibraryIndex> {
   const work = await readWorkFile(workId);
   if (!work) {
     throw new Error("작품을 찾지 못했습니다.");
@@ -213,6 +242,10 @@ export async function deleteWork(workId: string): Promise<LibraryIndex> {
 }
 
 export async function deleteChapter(chapterId: string): Promise<LibraryIndex> {
+  return withLibraryMutation(() => deleteChapterUnlocked(chapterId));
+}
+
+async function deleteChapterUnlocked(chapterId: string): Promise<LibraryIndex> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -241,6 +274,10 @@ export async function deleteChapter(chapterId: string): Promise<LibraryIndex> {
 }
 
 export async function reorderChapters(workId: string, chapterIds: string[]): Promise<LibraryIndex> {
+  return withLibraryMutation(() => reorderChaptersUnlocked(workId, chapterIds));
+}
+
+async function reorderChaptersUnlocked(workId: string, chapterIds: string[]): Promise<LibraryIndex> {
   const work = await readWorkFile(workId);
   if (!work) {
     throw new Error("작품을 찾지 못했습니다.");
@@ -252,6 +289,10 @@ export async function reorderChapters(workId: string, chapterIds: string[]): Pro
 }
 
 export async function reorderPages(chapterId: string, pageIds: string[]): Promise<ChapterSnapshot> {
+  return withLibraryMutation(() => reorderPagesUnlocked(chapterId, pageIds));
+}
+
+async function reorderPagesUnlocked(chapterId: string, pageIds: string[]): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -270,6 +311,10 @@ export async function reorderPages(chapterId: string, pageIds: string[]): Promis
 }
 
 export async function deletePage(chapterId: string, pageId: string): Promise<ChapterSnapshot> {
+  return withLibraryMutation(() => deletePageUnlocked(chapterId, pageId));
+}
+
+async function deletePageUnlocked(chapterId: string, pageId: string): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -417,39 +462,58 @@ export async function previewZipFolder(folderPath: string): Promise<ImportPrevie
 }
 
 export async function createImport(request: CreateImportFromPreviewRequest): Promise<CreateImportResult> {
+  return withLibraryMutation(() => createImportUnlocked(request));
+}
+
+async function createImportUnlocked(request: CreateImportFromPreviewRequest): Promise<CreateImportResult> {
   const selectedDraftIds = new Set(request.selections.filter((selection) => selection.enabled).map((selection) => selection.draftId));
   const selectedDrafts = request.preview.chapters.filter((draft) => selectedDraftIds.has(draft.draftId) && draft.pages.length > 0);
   if (selectedDrafts.length === 0) {
     throw new Error("생성할 화가 없습니다.");
   }
 
-  const target = request.target.mode === "new" ? await createWork(request.target.title || request.preview.suggestedWorkTitle) : await ensureExistingWork(request.target.workId);
-  const selections = new Map(request.selections.map((selection) => [selection.draftId, selection]));
-  const createdChapterIds: string[] = [];
-  let openedChapter: ChapterSnapshot | undefined;
+  const target =
+    request.target.mode === "new" ? await createWork(request.target.title || request.preview.suggestedWorkTitle) : await ensureExistingWork(request.target.workId);
+  const createdWorkId = request.target.mode === "new" ? target.id : null;
+  const createdChapters: LibraryChapter[] = [];
 
-  for (const draft of request.preview.chapters) {
-    const selection = selections.get(draft.draftId);
-    if (!selection?.enabled) {
-      continue;
+  try {
+    const selections = new Map(request.selections.map((selection) => [selection.draftId, selection]));
+    const usedTitles = await collectUsedChapterTitles(target.id);
+
+    for (const draft of request.preview.chapters) {
+      const selection = selections.get(draft.draftId);
+      if (!selection?.enabled) {
+        continue;
+      }
+
+      const title = makeUniqueTitleInList(sanitizeTitle(selection.title || draft.title, "제목없음"), usedTitles);
+      createdChapters.push(await materializeChapterFromDraft(target.id, draft, title));
     }
 
-    const chapter = await createChapterFromDraft(target.id, draft, selection.title);
-    createdChapterIds.push(chapter.id);
-    if (!openedChapter) {
-      openedChapter = await hydrateChapter(chapter);
+    if (createdChapters.length === 0) {
+      throw new Error("생성할 화가 없습니다.");
     }
-  }
 
-  if (createdChapterIds.length === 0) {
-    throw new Error("생성할 화가 없습니다.");
-  }
+    const latestWork = await ensureExistingWork(target.id);
+    latestWork.chapterOrder = [...latestWork.chapterOrder, ...createdChapters.map((chapter) => chapter.id)];
+    latestWork.updatedAt = new Date().toISOString();
+    await writeWorkFile(latestWork);
 
-  return {
-    workId: target.id,
-    chapterIds: createdChapterIds,
-    openedChapter
-  };
+    return {
+      workId: target.id,
+      chapterIds: createdChapters.map((chapter) => chapter.id),
+      openedChapter: await hydrateChapter(createdChapters[0]!)
+    };
+  } catch (error) {
+    for (const chapter of createdChapters) {
+      await removeChapterDirectory(chapter.workId, chapter.id);
+    }
+    if (createdWorkId) {
+      await removeWorkFromIndexAndDisk(createdWorkId);
+    }
+    throw error;
+  }
 }
 
 export async function exportWorkShareToFile(
@@ -535,6 +599,10 @@ export async function previewWorkShareImport(packagePath: string): Promise<WorkS
 }
 
 export async function importWorkShare(request: WorkShareImportFromPackageRequest): Promise<WorkShareImportResult> {
+  return withLibraryMutation(() => importWorkShareUnlocked(request));
+}
+
+async function importWorkShareUnlocked(request: WorkShareImportFromPackageRequest): Promise<WorkShareImportResult> {
   const sharePackage = readSharePackage(request.packagePath);
   if (request.entries.length === 0) {
     throw new Error("가져올 화가 없습니다.");
@@ -548,6 +616,10 @@ export async function importWorkShare(request: WorkShareImportFromPackageRequest
 }
 
 export async function markChapterPagesRunning(chapterId: string, pageIds: string[]): Promise<ChapterSnapshot> {
+  return withLibraryMutation(() => markChapterPagesRunningUnlocked(chapterId, pageIds));
+}
+
+async function markChapterPagesRunningUnlocked(chapterId: string, pageIds: string[]): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -576,6 +648,10 @@ export async function markChapterPagesRunning(chapterId: string, pageIds: string
 }
 
 export async function updatePageAfterAnalysis(chapterId: string, page: MangaPage, warnings: string[], status: "completed" | "failed"): Promise<void> {
+  return withLibraryMutation(() => updatePageAfterAnalysisUnlocked(chapterId, page, warnings, status));
+}
+
+async function updatePageAfterAnalysisUnlocked(chapterId: string, page: MangaPage, warnings: string[], status: "completed" | "failed"): Promise<void> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     return;
@@ -609,6 +685,15 @@ export async function finalizeRunningPages(
   status: "idle" | "failed",
   errorMessage?: string
 ): Promise<void> {
+  return withLibraryMutation(() => finalizeRunningPagesUnlocked(chapterId, pageIds, status, errorMessage));
+}
+
+async function finalizeRunningPagesUnlocked(
+  chapterId: string,
+  pageIds: string[],
+  status: "idle" | "failed",
+  errorMessage?: string
+): Promise<void> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     return;
@@ -636,6 +721,10 @@ export async function finalizeRunningPages(
 }
 
 export async function updatePagesAfterAnalysis(chapterId: string, pages: MangaPage[]): Promise<ChapterSnapshot> {
+  return withLibraryMutation(() => updatePagesAfterAnalysisUnlocked(chapterId, pages));
+}
+
+async function updatePagesAfterAnalysisUnlocked(chapterId: string, pages: MangaPage[]): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -668,6 +757,10 @@ export async function updatePagesAfterAnalysis(chapterId: string, pages: MangaPa
 }
 
 export async function updatePagesAfterInpainting(chapterId: string, pages: MangaPage[]): Promise<ChapterSnapshot> {
+  return withLibraryMutation(() => updatePagesAfterInpaintingUnlocked(chapterId, pages));
+}
+
+async function updatePagesAfterInpaintingUnlocked(chapterId: string, pages: MangaPage[]): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -700,6 +793,14 @@ export async function updatePagesAfterInpainting(chapterId: string, pages: Manga
 }
 
 export async function setPageInpaintingResult(
+  chapterId: string,
+  pageId: string,
+  inpaintedImagePath?: string | null
+): Promise<ChapterSnapshot> {
+  return withLibraryMutation(() => setPageInpaintingResultUnlocked(chapterId, pageId, inpaintedImagePath));
+}
+
+async function setPageInpaintingResultUnlocked(
   chapterId: string,
   pageId: string,
   inpaintedImagePath?: string | null
@@ -775,9 +876,13 @@ async function createWork(title: string): Promise<LibraryWork> {
     updatedAt: now
   };
   const index = await readIndexFile();
-  index.workOrder.push(work.id);
-  await writeIndexFile(index);
   await writeWorkFile(work);
+  try {
+    await writeIndexFile({ workOrder: [...index.workOrder, work.id] });
+  } catch (error) {
+    await removeWorkDirectory(work.id);
+    throw error;
+  }
   return work;
 }
 
@@ -789,37 +894,40 @@ async function ensureExistingWork(workId: string): Promise<LibraryWork> {
   return work;
 }
 
-async function createChapterFromDraft(workId: string, draft: ImportChapterDraft, requestedTitle: string): Promise<LibraryChapter> {
-  const work = await ensureExistingWork(workId);
+async function materializeChapterFromDraft(workId: string, draft: ImportChapterDraft, requestedTitle: string): Promise<LibraryChapter> {
+  await ensureExistingWork(workId);
   const now = new Date().toISOString();
   const chapterId = randomUUID();
-  const title = await makeUniqueChapterTitle(workId, sanitizeTitle(requestedTitle || draft.title, "제목없음"));
+  const title = sanitizeTitle(requestedTitle || draft.title, "제목없음");
   const chapterDir = join(WORKS_ROOT, workId, "chapters", chapterId);
   const pagesDir = join(chapterDir, "pages");
-  await mkdir(pagesDir, { recursive: true });
 
-  const pages: LibraryPageRecord[] = [];
-  for (const [index, pageDraft] of draft.pages.entries()) {
-    pages.push(await materializePageRecord(pageDraft, pagesDir, index));
+  try {
+    await mkdir(pagesDir, { recursive: true });
+
+    const pages: LibraryPageRecord[] = [];
+    for (const [index, pageDraft] of draft.pages.entries()) {
+      pages.push(await materializePageRecord(pageDraft, pagesDir, index));
+    }
+
+    const chapter: LibraryChapter = {
+      id: chapterId,
+      workId,
+      title,
+      sourceKind: draft.sourceKind,
+      status: resolveChapterStatus(pages),
+      pageOrder: pages.map((page) => page.id),
+      pages,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    await writeChapterFile(chapter);
+    return chapter;
+  } catch (error) {
+    await removeChapterDirectory(workId, chapterId);
+    throw error;
   }
-
-  const chapter: LibraryChapter = {
-    id: chapterId,
-    workId,
-    title,
-    sourceKind: draft.sourceKind,
-    status: resolveChapterStatus(pages),
-    pageOrder: pages.map((page) => page.id),
-    pages,
-    createdAt: now,
-    updatedAt: now
-  };
-
-  work.chapterOrder = [...work.chapterOrder, chapterId];
-  work.updatedAt = now;
-  await writeWorkFile(work);
-  await writeChapterFile(chapter);
-  return chapter;
 }
 
 async function materializePageRecord(pageDraft: ImportPageDraft, pagesDir: string, index: number): Promise<LibraryPageRecord> {
@@ -865,36 +973,45 @@ async function importWorkShareAsNewWork(sharePackage: SharePackage, request: Wor
   const work = await createWork(request.target.title || sharePackage.manifest.work.title);
   const chapterByPackageId = new Map(sharePackage.chapters.map((item) => [item.packageChapterId, item.chapter]));
   const usedTitles = new Set<string>();
-  const chapterIds: string[] = [];
+  const createdChapters: ChapterFile[] = [];
 
-  for (const entry of request.entries) {
-    const packageChapter = chapterByPackageId.get(entry.packageChapterId);
-    if (!packageChapter) {
-      throw new Error("공유 파일에서 가져올 화를 찾지 못했습니다.");
+  try {
+    for (const entry of request.entries) {
+      const packageChapter = chapterByPackageId.get(entry.packageChapterId);
+      if (!packageChapter) {
+        throw new Error("공유 파일에서 가져올 화를 찾지 못했습니다.");
+      }
+      const title = makeUniqueTitleInList(sanitizeTitle(entry.title || packageChapter.title, "제목없음"), usedTitles);
+      const chapter = await materializeSharedChapter({
+        workId: work.id,
+        packageChapter,
+        entries: sharePackage.entries,
+        requestedTitle: title
+      });
+      createdChapters.push(chapter);
     }
-    const title = makeUniqueTitleInList(sanitizeTitle(entry.title || packageChapter.title, "제목없음"), usedTitles);
-    const chapter = await materializeSharedChapter({
+
+    if (createdChapters.length === 0) {
+      throw new Error("가져올 화가 없습니다.");
+    }
+
+    const chapterIds = createdChapters.map((chapter) => chapter.id);
+    work.chapterOrder = chapterIds;
+    work.updatedAt = new Date().toISOString();
+    await writeWorkFile(work);
+
+    return {
       workId: work.id,
-      packageChapter,
-      entries: sharePackage.entries,
-      requestedTitle: title
-    });
-    chapterIds.push(chapter.id);
+      chapterIds,
+      openedChapter: await openChapter(chapterIds[0]!)
+    };
+  } catch (error) {
+    for (const chapter of createdChapters) {
+      await removeChapterDirectory(chapter.workId, chapter.id);
+    }
+    await removeWorkFromIndexAndDisk(work.id);
+    throw error;
   }
-
-  if (chapterIds.length === 0) {
-    throw new Error("가져올 화가 없습니다.");
-  }
-
-  work.chapterOrder = chapterIds;
-  work.updatedAt = new Date().toISOString();
-  await writeWorkFile(work);
-
-  return {
-    workId: work.id,
-    chapterIds,
-    openedChapter: await openChapter(chapterIds[0]!)
-  };
 }
 
 async function importWorkShareIntoExistingWork(sharePackage: SharePackage, request: WorkShareImportFromPackageRequest): Promise<WorkShareImportResult> {
@@ -916,66 +1033,81 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
   const usedExistingIds = new Set<string>();
   const usedPackageIds = new Set<string>();
   const finalChapterIds: string[] = [];
+  const updatedExistingChapters: ChapterFile[] = [];
+  const createdPackageChapters: ChapterFile[] = [];
   const now = new Date().toISOString();
 
-  for (const entry of request.entries) {
-    if (entry.source === "existing") {
-      if (usedExistingIds.has(entry.chapterId)) {
-        throw new Error("같은 기존 화가 두 번 포함되어 있습니다.");
+  try {
+    for (const entry of request.entries) {
+      if (entry.source === "existing") {
+        if (usedExistingIds.has(entry.chapterId)) {
+          throw new Error("같은 기존 화가 두 번 포함되어 있습니다.");
+        }
+        const currentChapter = currentChapters.get(entry.chapterId);
+        if (!currentChapter) {
+          throw new Error("기존 작품에서 적용할 화를 찾지 못했습니다.");
+        }
+        const chapter = {
+          ...currentChapter,
+          title: makeUniqueTitleInList(sanitizeTitle(entry.title || currentChapter.title, "제목없음"), usedTitles),
+          updatedAt: now
+        };
+        updatedExistingChapters.push(chapter);
+        usedExistingIds.add(chapter.id);
+        finalChapterIds.push(chapter.id);
+        continue;
       }
-      const chapter = currentChapters.get(entry.chapterId);
-      if (!chapter) {
-        throw new Error("기존 작품에서 적용할 화를 찾지 못했습니다.");
+
+      if (usedPackageIds.has(entry.packageChapterId)) {
+        throw new Error("같은 공유 화가 두 번 포함되어 있습니다.");
       }
-      chapter.title = makeUniqueTitleInList(sanitizeTitle(entry.title || chapter.title, "제목없음"), usedTitles);
-      chapter.updatedAt = now;
-      await writeChapterFile(chapter);
-      usedExistingIds.add(chapter.id);
+      const packageChapter = chapterByPackageId.get(entry.packageChapterId);
+      if (!packageChapter) {
+        throw new Error("공유 파일에서 가져올 화를 찾지 못했습니다.");
+      }
+      const title = makeUniqueTitleInList(sanitizeTitle(entry.title || packageChapter.title, "제목없음"), usedTitles);
+      const chapter = await materializeSharedChapter({
+        workId: work.id,
+        packageChapter,
+        entries: sharePackage.entries,
+        requestedTitle: title
+      });
+      createdPackageChapters.push(chapter);
+      usedPackageIds.add(entry.packageChapterId);
       finalChapterIds.push(chapter.id);
-      continue;
     }
 
-    if (usedPackageIds.has(entry.packageChapterId)) {
-      throw new Error("같은 공유 화가 두 번 포함되어 있습니다.");
+    if (finalChapterIds.length === 0) {
+      throw new Error("적용할 화가 없습니다.");
     }
-    const packageChapter = chapterByPackageId.get(entry.packageChapterId);
-    if (!packageChapter) {
-      throw new Error("공유 파일에서 가져올 화를 찾지 못했습니다.");
+
+    const previousChapterIds = [...work.chapterOrder];
+    work.chapterOrder = finalChapterIds;
+    work.updatedAt = now;
+    await writeWorkFile(work);
+
+    for (const chapter of updatedExistingChapters) {
+      await writeChapterFile(chapter);
     }
-    const title = makeUniqueTitleInList(sanitizeTitle(entry.title || packageChapter.title, "제목없음"), usedTitles);
-    const chapter = await materializeSharedChapter({
+
+    for (const chapterId of previousChapterIds) {
+      if (finalChapterIds.includes(chapterId)) {
+        continue;
+      }
+      await removeChapterDirectory(work.id, chapterId);
+    }
+
+    return {
       workId: work.id,
-      packageChapter,
-      entries: sharePackage.entries,
-      requestedTitle: title
-    });
-    usedPackageIds.add(entry.packageChapterId);
-    finalChapterIds.push(chapter.id);
-  }
-
-  if (finalChapterIds.length === 0) {
-    throw new Error("적용할 화가 없습니다.");
-  }
-
-  for (const chapterId of work.chapterOrder) {
-    if (finalChapterIds.includes(chapterId)) {
-      continue;
+      chapterIds: finalChapterIds,
+      openedChapter: await openChapter(finalChapterIds[0]!)
+    };
+  } catch (error) {
+    for (const chapter of createdPackageChapters) {
+      await removeChapterDirectory(chapter.workId, chapter.id);
     }
-    const chapterDir = join(WORKS_ROOT, work.id, "chapters", chapterId);
-    if (existsSync(chapterDir)) {
-      await rm(chapterDir, { recursive: true, force: true });
-    }
+    throw error;
   }
-
-  work.chapterOrder = finalChapterIds;
-  work.updatedAt = now;
-  await writeWorkFile(work);
-
-  return {
-    workId: work.id,
-    chapterIds: finalChapterIds,
-    openedChapter: await openChapter(finalChapterIds[0]!)
-  };
 }
 
 async function materializeSharedChapter({
@@ -993,55 +1125,60 @@ async function materializeSharedChapter({
   const chapterId = randomUUID();
   const chapterDir = join(WORKS_ROOT, workId, "chapters", chapterId);
   const pagesDir = join(chapterDir, "pages");
-  await mkdir(pagesDir, { recursive: true });
+  try {
+    await mkdir(pagesDir, { recursive: true });
 
-  const pages: LibraryPageRecord[] = [];
-  for (const [index, packagePage] of reorderRecords(packageChapter.pages, packageChapter.pageOrder).entries()) {
-    const packageImagePath = normalizeShareRelativePath(packagePage.imagePath, "페이지 이미지 경로가 올바르지 않습니다.");
-    const entry = entries.get(packageImagePath);
-    if (!entry) {
-      throw new Error(`공유 파일에 이미지가 없습니다: ${packagePage.name}`);
+    const pages: LibraryPageRecord[] = [];
+    for (const [index, packagePage] of reorderRecords(packageChapter.pages, packageChapter.pageOrder).entries()) {
+      const packageImagePath = normalizeShareRelativePath(packagePage.imagePath, "페이지 이미지 경로가 올바르지 않습니다.");
+      const entry = entries.get(packageImagePath);
+      if (!entry) {
+        throw new Error(`공유 파일에 이미지가 없습니다: ${packagePage.name}`);
+      }
+
+      const pageId = randomUUID();
+      const targetExt = extname(packageImagePath).toLowerCase() || ".png";
+      if (!isSupportedImagePath(packageImagePath)) {
+        throw new Error(`지원하지 않는 이미지 형식입니다: ${packagePage.name}`);
+      }
+      const outputPath = join(pagesDir, `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`);
+      await writeFile(outputPath, readZipEntryData(entry, MAX_SHARE_IMAGE_BYTES, packageImagePath));
+
+      const image = nativeImage.createFromPath(outputPath);
+      const size = image.getSize();
+      pages.push({
+        ...packagePage,
+        id: pageId,
+        imagePath: outputPath,
+        inpaintedImagePath: undefined,
+        width: size.width || packagePage.width || 1000,
+        height: size.height || packagePage.height || 1400,
+        blocks: packagePage.blocks.map((block, blockIndex) => ({
+          ...block,
+          id: `${pageId}-block-${blockIndex + 1}`
+        })),
+        createdAt: now,
+        updatedAt: now
+      });
     }
 
-    const pageId = randomUUID();
-    const targetExt = extname(packageImagePath).toLowerCase() || ".png";
-    if (!isSupportedImagePath(packageImagePath)) {
-      throw new Error(`지원하지 않는 이미지 형식입니다: ${packagePage.name}`);
-    }
-    const outputPath = join(pagesDir, `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`);
-    await writeFile(outputPath, readZipEntryData(entry, MAX_SHARE_IMAGE_BYTES, packageImagePath));
-
-    const image = nativeImage.createFromPath(outputPath);
-    const size = image.getSize();
-    pages.push({
-      ...packagePage,
-      id: pageId,
-      imagePath: outputPath,
-      inpaintedImagePath: undefined,
-      width: size.width || packagePage.width || 1000,
-      height: size.height || packagePage.height || 1400,
-      blocks: packagePage.blocks.map((block, blockIndex) => ({
-        ...block,
-        id: `${pageId}-block-${blockIndex + 1}`
-      })),
+    const chapter: ChapterFile = {
+      ...packageChapter,
+      id: chapterId,
+      workId,
+      title: requestedTitle,
+      status: resolveChapterStatus(pages),
+      pageOrder: pages.map((page) => page.id),
+      pages,
       createdAt: now,
       updatedAt: now
-    });
+    };
+    await writeChapterFile(chapter);
+    return chapter;
+  } catch (error) {
+    await removeChapterDirectory(workId, chapterId);
+    throw error;
   }
-
-  const chapter: ChapterFile = {
-    ...packageChapter,
-    id: chapterId,
-    workId,
-    title: requestedTitle,
-    status: resolveChapterStatus(pages),
-    pageOrder: pages.map((page) => page.id),
-    pages,
-    createdAt: now,
-    updatedAt: now
-  };
-  await writeChapterFile(chapter);
-  return chapter;
 }
 
 async function hydrateChapter(chapter: ChapterFile): Promise<ChapterSnapshot> {
@@ -1182,7 +1319,7 @@ async function ensureLibraryStructure(): Promise<void> {
   await mkdir(WORKS_ROOT, { recursive: true });
 }
 
-async function makeUniqueChapterTitle(workId: string, desired: string, excludeChapterId?: string): Promise<string> {
+async function collectUsedChapterTitles(workId: string, excludeChapterId?: string): Promise<Set<string>> {
   const work = await ensureExistingWork(workId);
   const used = new Set<string>();
   for (const chapterId of work.chapterOrder) {
@@ -1194,6 +1331,11 @@ async function makeUniqueChapterTitle(workId: string, desired: string, excludeCh
       used.add(chapter.title);
     }
   }
+  return used;
+}
+
+async function makeUniqueChapterTitle(workId: string, desired: string, excludeChapterId?: string): Promise<string> {
+  const used = await collectUsedChapterTitles(workId, excludeChapterId);
 
   if (!used.has(desired)) {
     return desired;
@@ -1204,6 +1346,36 @@ async function makeUniqueChapterTitle(workId: string, desired: string, excludeCh
     index += 1;
   }
   return `${desired} (${index})`;
+}
+
+async function removeWorkFromIndexAndDisk(workId: string): Promise<void> {
+  const index = await readIndexFile();
+  if (index.workOrder.includes(workId)) {
+    await writeIndexFile({ workOrder: index.workOrder.filter((id) => id !== workId) });
+  }
+  await removeWorkDirectory(workId);
+}
+
+async function removeWorkDirectory(workId: string): Promise<void> {
+  const worksRoot = resolve(WORKS_ROOT);
+  const workDir = resolve(join(WORKS_ROOT, workId));
+  if (!isPathInside(worksRoot, workDir) || workDir === worksRoot) {
+    return;
+  }
+  if (existsSync(workDir)) {
+    await rm(workDir, { recursive: true, force: true });
+  }
+}
+
+async function removeChapterDirectory(workId: string, chapterId: string): Promise<void> {
+  const chaptersRoot = resolve(join(WORKS_ROOT, workId, "chapters"));
+  const chapterDir = resolve(join(chaptersRoot, chapterId));
+  if (!isPathInside(chaptersRoot, chapterDir) || chapterDir === chaptersRoot) {
+    return;
+  }
+  if (existsSync(chapterDir)) {
+    await rm(chapterDir, { recursive: true, force: true });
+  }
 }
 
 function sanitizeTitle(title: string, fallback: string): string {
@@ -1422,6 +1594,90 @@ async function removePageArtifacts(workId: string, chapterId: string, pageId: st
     }
     await rm(target, { recursive: true, force: true });
   }
+}
+
+export async function cleanupLibraryOrphans(): Promise<LibraryCleanupResult> {
+  return withLibraryMutation(cleanupLibraryOrphansUnlocked);
+}
+
+async function cleanupLibraryOrphansUnlocked(): Promise<LibraryCleanupResult> {
+  await ensureLibraryStructure();
+  const result: LibraryCleanupResult = {
+    missingWorkReferencesRemoved: 0,
+    missingChapterReferencesRemoved: 0,
+    workDirsRemoved: 0,
+    chapterDirsRemoved: 0
+  };
+
+  const index = await readIndexFile();
+  const retainedWorkIds: string[] = [];
+  for (const workId of index.workOrder) {
+    const work = await readWorkFile(workId);
+    if (!work) {
+      result.missingWorkReferencesRemoved += 1;
+      continue;
+    }
+    retainedWorkIds.push(workId);
+  }
+  if (retainedWorkIds.length !== index.workOrder.length) {
+    await writeIndexFile({ workOrder: retainedWorkIds });
+  }
+
+  const retainedWorkIdSet = new Set(retainedWorkIds);
+  const workEntries = await readdir(WORKS_ROOT, { withFileTypes: true });
+  for (const entry of workEntries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    if (retainedWorkIdSet.has(entry.name)) {
+      continue;
+    }
+    await removeWorkDirectory(entry.name);
+    result.workDirsRemoved += 1;
+  }
+
+  for (const workId of retainedWorkIds) {
+    const work = await readWorkFile(workId);
+    if (!work) {
+      continue;
+    }
+
+    const retainedChapterIds: string[] = [];
+    for (const chapterId of work.chapterOrder) {
+      const chapter = await readChapterFile(workId, chapterId);
+      if (!chapter) {
+        result.missingChapterReferencesRemoved += 1;
+        continue;
+      }
+      retainedChapterIds.push(chapterId);
+    }
+    if (retainedChapterIds.length !== work.chapterOrder.length) {
+      await writeWorkFile({
+        ...work,
+        chapterOrder: retainedChapterIds,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    const chaptersRoot = join(WORKS_ROOT, workId, "chapters");
+    if (!existsSync(chaptersRoot)) {
+      continue;
+    }
+    const retainedChapterIdSet = new Set(retainedChapterIds);
+    const chapterEntries = await readdir(chaptersRoot, { withFileTypes: true });
+    for (const entry of chapterEntries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      if (retainedChapterIdSet.has(entry.name)) {
+        continue;
+      }
+      await removeChapterDirectory(workId, entry.name);
+      result.chapterDirsRemoved += 1;
+    }
+  }
+
+  return result;
 }
 
 export async function cleanupLegacyLogs(): Promise<void> {
