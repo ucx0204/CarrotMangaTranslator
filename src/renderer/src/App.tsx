@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import type {
-  AppSettings,
   BBox,
   BlockType,
   ChapterSnapshot,
@@ -33,6 +32,7 @@ import type { ShareImportModalSubmit } from "./components/ShareImportModal";
 import type { TranslateSourceMode } from "./components/TranslateSourceModal";
 import { useConfirmDialog } from "./hooks/useConfirmDialog";
 import { usePageImageDataUrls } from "./hooks/usePageImageDataUrls";
+import { useSettingsDialog } from "./hooks/useSettingsDialog";
 import { useStageSize } from "./hooks/useStageSize";
 import { useStatusLog } from "./hooks/useStatusLog";
 import {
@@ -97,9 +97,6 @@ export default function App(): React.JSX.Element {
   const [shareImportBusy, setShareImportBusy] = useState(false);
   const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
   const [renameBusy, setRenameBusy] = useState(false);
-  const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsBusy, setSettingsBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const { confirmDialog, askConfirm, resolveConfirmDialog } = useConfirmDialog();
   const [inpaintingMode, setInpaintingMode] = useState(false);
@@ -119,6 +116,7 @@ export default function App(): React.JSX.Element {
   const [retouchRedoStack, setRetouchRedoStack] = useState<RetouchHistoryEntry[]>([]);
   const [showBlockChrome, setShowBlockChrome] = useState(true);
   const [showTextBlocks, setShowTextBlocks] = useState(true);
+  const { settings, settingsOpen, settingsBusy, openSettings, closeSettings, submitSettings, resetSettings } = useSettingsDialog(pushStatus);
   const workspacePanelRef = useRef<HTMLElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -188,21 +186,9 @@ export default function App(): React.JSX.Element {
     setLibrary(next);
   }, []);
 
-  const refreshSettings = useCallback(async () => {
-    const next = await window.mangaApi.getSettings();
-    setSettings(next);
-    return next;
-  }, []);
-
   React.useEffect(() => {
     void refreshLibrary();
   }, [refreshLibrary]);
-
-  React.useEffect(() => {
-    void refreshSettings().catch((error) => {
-      console.error(error);
-    });
-  }, [refreshSettings]);
 
   React.useEffect(() => {
     currentChapterRef.current = currentChapter;
@@ -1613,53 +1599,6 @@ export default function App(): React.JSX.Element {
     }
   }, [askConfirm, clearCurrentChapter, currentChapter?.id, currentChapter?.workId, dirty, pushStatus, renameTarget, saveNow]);
 
-  const openSettings = useCallback(async () => {
-    if (settings) {
-      setSettingsOpen(true);
-      return;
-    }
-
-    setSettingsBusy(true);
-    try {
-      await refreshSettings();
-      setSettingsOpen(true);
-    } catch (error) {
-      console.error(error);
-      pushStatus("설정을 불러오지 못했습니다.");
-    } finally {
-      setSettingsBusy(false);
-    }
-  }, [pushStatus, refreshSettings, settings]);
-
-  const submitSettings = useCallback(async (nextSettings: AppSettings) => {
-    setSettingsBusy(true);
-    try {
-      const saved = await window.mangaApi.saveSettings(nextSettings);
-      setSettings(saved);
-      setSettingsOpen(false);
-      pushStatus("설정을 저장했습니다. 다음 번 번역 실행부터 적용됩니다.");
-    } catch (error) {
-      console.error(error);
-      pushStatus("설정을 저장하지 못했습니다.");
-    } finally {
-      setSettingsBusy(false);
-    }
-  }, [pushStatus]);
-
-  const resetSettings = useCallback(async () => {
-    setSettingsBusy(true);
-    try {
-      const reset = await window.mangaApi.resetSettings();
-      setSettings(reset);
-      pushStatus("설정을 기본값으로 복원했습니다. 다음 번 번역 실행부터 적용됩니다.");
-    } catch (error) {
-      console.error(error);
-      pushStatus("기본 설정을 복원하지 못했습니다.");
-    } finally {
-      setSettingsBusy(false);
-    }
-  }, [pushStatus]);
-
   const reorderChapterInLibrary = useCallback(
     (workId: string, sourceChapterId: string, targetChapterId: string) => {
       const work = library.works.find((candidate) => candidate.id === workId);
@@ -1860,11 +1799,7 @@ export default function App(): React.JSX.Element {
         }}
         onDeleteRename={() => void deleteRenameTarget()}
         onSubmitRename={(title) => void submitRename(title)}
-        onCancelSettings={() => {
-          if (!settingsBusy) {
-            setSettingsOpen(false);
-          }
-        }}
+        onCancelSettings={closeSettings}
         onOpenLogFolder={() => {
           void window.mangaApi.openLogFolder();
         }}
