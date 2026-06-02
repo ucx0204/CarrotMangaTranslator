@@ -27,6 +27,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
     options: { [key: string]: unknown },
     runtime?: { runtimeDir?: string; packageDir?: string; includePackageDir?: boolean }
   ) => Record<string, string>;
+  buildPaddleOcrImportCheckScript: (options?: { [key: string]: unknown }) => string;
   getOverlayPrompt: (
     options: { [key: string]: unknown },
     imageVariants: Array<{ role: string; dataUrl?: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number }>
@@ -52,6 +53,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   requestTranslation: (server: { baseUrl: string }, options: { [key: string]: unknown }) => Promise<{ outputText: string; rawResponse: unknown; requestBody: Record<string, unknown> }>;
   resolveOcrGpuCudaTag: (options?: { [key: string]: unknown }) => string;
   resolveOcrGpuPackageIndexUrl: (options?: { [key: string]: unknown }) => string;
+  resolvePaddleOcrImportCheckTimeoutMs: (options?: { [key: string]: unknown }) => number;
   resolveFfmpegPath: (options: { [key: string]: unknown }) => string;
   resolveOcrBboxTimeoutMs: (pageCount?: number) => number;
   resolveOcrInstallBatchProgressRanges: (batches: string[][], start: number, end: number) => Array<{ start: number; end: number }>;
@@ -61,6 +63,7 @@ const {
   buildLaunchArgs,
   buildMessages,
   buildOcrRuntimeEnv,
+  buildPaddleOcrImportCheckScript,
   buildResponsesRequestBody,
   collectOcrBboxHints,
   collectRequiredHfDownloads,
@@ -79,7 +82,8 @@ const {
   parseResponsesSseText,
   requestTranslation,
   resolveOcrGpuCudaTag,
-  resolveOcrGpuPackageIndexUrl
+  resolveOcrGpuPackageIndexUrl,
+  resolvePaddleOcrImportCheckTimeoutMs
 } = runtimeHelpers;
 
 const tempDirs: string[] = [];
@@ -259,6 +263,23 @@ describe("runtime model launch helpers", () => {
       restoreEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA", previousOcrGpuCuda);
       restoreEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL", previousIndexUrl);
       restoreEnv("MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL", previousPaddleIndexUrl);
+    }
+  });
+
+  it("keeps RTX 50 Paddle OCR verification lightweight and gives cu129 more startup time", () => {
+    const previous = process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS;
+    delete process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS;
+    try {
+      const script = buildPaddleOcrImportCheckScript({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" });
+      expect(script).toContain("importlib.util.find_spec");
+      expect(script).toContain("import paddle");
+      expect(script).not.toContain("import paddle, paddlex, paddleocr");
+      expect(script).toContain("paddle.set_device");
+      expect(resolvePaddleOcrImportCheckTimeoutMs({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" })).toBeGreaterThanOrEqual(300000);
+      expect(resolvePaddleOcrImportCheckTimeoutMs({ ocrDevice: "gpu", ocrGpuCudaTag: "cu126" })).toBeGreaterThanOrEqual(180000);
+      expect(resolvePaddleOcrImportCheckTimeoutMs({ ocrDevice: "cpu" })).toBeGreaterThanOrEqual(120000);
+    } finally {
+      restoreEnv("MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS", previous);
     }
   });
 

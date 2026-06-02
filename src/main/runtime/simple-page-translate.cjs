@@ -2711,6 +2711,10 @@ function isOcrGpuRequested(options = {}) {
   return resolveOcrDevice(options).startsWith("gpu");
 }
 
+function isOcrBlackwellCudaTag(options = {}) {
+  return resolveOcrGpuCudaTag(options) === "cu129";
+}
+
 function resolveOcrGpuCudaTag(options = {}) {
   const raw = String(
     process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG
@@ -2783,13 +2787,14 @@ async function canImportPaddleOcr(pythonPath, options = {}) {
 async function checkPaddleOcrImport(pythonPath, options = {}, runtime = null) {
   try {
     await runShellCommand(`${quoteCommandArg(pythonPath)} -c ${quoteCommandArg(buildPaddleOcrImportCheckScript(options))}`, {
-      timeoutMs: 60000,
+      timeoutMs: resolvePaddleOcrImportCheckTimeoutMs(options),
       env: buildOcrRuntimeEnv(options, {
         runtimeDir: runtime?.runtimeDir || resolveOcrRuntimeDir(options),
         packageDir: runtime?.packageDir,
         includePackageDir: runtime?.includePackageDir
       }),
-      signal: options.abortSignal
+      signal: options.abortSignal,
+      timeoutMessage: "Paddle OCR runtime verification timed out."
     });
     return { ok: true, message: "" };
   } catch (error) {
@@ -2801,9 +2806,26 @@ async function checkPaddleOcrImport(pythonPath, options = {}, runtime = null) {
   }
 }
 
+function resolvePaddleOcrImportCheckTimeoutMs(options = {}) {
+  const explicit = readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS);
+  if (explicit) {
+    return explicit;
+  }
+  if (isOcrGpuRequested(options)) {
+    return isOcrBlackwellCudaTag(options) ? 300000 : 180000;
+  }
+  return 120000;
+}
+
 function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
   if (isPaddleSm120UnsupportedText(importMessage)) {
     return buildPaddleOcrSm120FailureMessage(importMessage, options);
+  }
+  if (isPaddleOcrVerificationTimeoutText(importMessage)) {
+    const suffix = isOcrGpuRequested(options)
+      ? ` GPU 검증이 제한 시간 안에 끝나지 않았습니다. RTX 50번대는 cu129 런타임을 사용하며 첫 실행 검증이 오래 걸릴 수 있지만, 반복되면 NVIDIA 드라이버/CUDA 12.9용 Paddle 런타임 호환성을 확인해야 합니다.`
+      : " CPU 런타임 검증이 제한 시간 안에 끝나지 않았습니다.";
+    return `Paddle OCR 런타임 설치 후 검증이 시간 초과되었습니다.${suffix} detail=${truncateText(importMessage, 1200)}`;
   }
   const suffix = isOcrGpuRequested(options)
     ? " GPU를 선택했지만 GPU Paddle/CUDA 검증에 실패했습니다. CPU로 바꾸거나 CUDA 드라이버와 GPU Paddle wheel을 확인하세요."
@@ -2821,11 +2843,15 @@ function buildPaddleOcrGpuFailureMessage(error, options = {}) {
 }
 
 function buildPaddleOcrSm120FailureMessage(detail, options = {}) {
-  return `RTX 50번대/SM120에서 현재 Paddle OCR GPU 런타임이 맞지 않습니다. 이 버전은 RTX 50번대에서 OCR GPU CUDA 태그를 ${resolveOcrGpuCudaTag(options)}로 분리해 설치합니다. 기존 gpu-cu126 런타임이 남아 있으면 OCR 런타임을 삭제하고 다시 시도하세요. detail=${truncateText(detail, 1200)}`;
+  return `RTX 50번대/SM120에서 현재 Paddle OCR GPU 런타임이 맞지 않습니다. RTX 50번대는 CUDA 12.9용 Paddle OCR 런타임(cu129)을 사용해야 합니다. 설정값은 현재 ${resolveOcrGpuCudaTag(options)}입니다. 기존 gpu-cu126 런타임이 남아 있으면 OCR 런타임을 삭제하고 다시 시도하세요. detail=${truncateText(detail, 1200)}`;
 }
 
 function isPaddleSm120UnsupportedText(value) {
   return /not compiled for\s+SM\s*120|sm[_\s-]*120|compute capability:\s*12(?:\.0)?|mismatched gpu architecture/i.test(String(value ?? ""));
+}
+
+function isPaddleOcrVerificationTimeoutText(value) {
+  return /Paddle OCR runtime verification timed out|OCR bbox command timed out/i.test(String(value ?? ""));
 }
 
 function summarizeOcrErrorMessage(error) {
@@ -2979,7 +3005,10 @@ function createOcrCommandProgressHandler(options = {}, config = {}) {
 function buildPaddleOcrImportCheckScript(options = {}) {
   const device = resolveOcrDevice(options);
   const lines = [
-    "import paddle, paddlex, paddleocr"
+    "import importlib.util",
+    "missing = [name for name in ('paddle', 'paddlex', 'paddleocr') if importlib.util.find_spec(name) is None]",
+    "assert not missing, 'Missing Paddle OCR package(s): ' + ', '.join(missing)",
+    "import paddle"
   ];
   if (device.startsWith("gpu")) {
     lines.push("assert paddle.device.is_compiled_with_cuda(), 'PaddlePaddle is not compiled with CUDA'");
@@ -3094,7 +3123,7 @@ function withoutPageProgressOptions(options = {}) {
   return next;
 }
 
-function runShellCommand(command, { timeoutMs, env, signal, onOutput } = {}) {
+function runShellCommand(command, { timeoutMs, env, signal, onOutput, timeoutMessage } = {}) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(createAbortError());
@@ -3146,7 +3175,7 @@ function runShellCommand(command, { timeoutMs, env, signal, onOutput } = {}) {
     if (timeoutMs > 0) {
       timeout = setTimeout(() => {
         terminateChildProcessTree(child);
-        settleReject(createDetailedError("OCR bbox command timed out.", { command, timeoutMs, stdoutPreview: truncateText(stdout), stderrPreview: truncateText(stderr) }));
+        settleReject(createDetailedError(timeoutMessage || "OCR bbox command timed out.", { command, timeoutMs, stdoutPreview: truncateText(stdout), stderrPreview: truncateText(stderr) }));
       }, timeoutMs);
     }
 
@@ -4215,6 +4244,7 @@ module.exports = {
   buildMessages,
   buildLaunchArgs,
   buildOcrRuntimeEnv,
+  buildPaddleOcrImportCheckScript,
   buildResponsesRequestBody,
   collectRequiredHfDownloads,
   collectRequiredPaddleOcrModelDownloads,
@@ -4228,6 +4258,7 @@ module.exports = {
   parseOcrBatchProgressLine,
   parsePaddleModelFetchProgress,
   parsePipRawProgress,
+  resolvePaddleOcrImportCheckTimeoutMs,
   resolveOcrBboxTimeoutMs,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
