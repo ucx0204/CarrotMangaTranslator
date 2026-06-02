@@ -199,9 +199,9 @@
   --border-strong: #3d4147;
   --border-soft: #2e3137;
   /* accents */
-  --accent: #2f6f61;
-  --accent-bd: #4aa58f;
-  --accent-hi: #78c7b2;
+  --accent: #5965e0;
+  --accent-bd: #7a85ec;
+  --accent-hi: #c7cefb;
   --danger: #7c3030;
   --danger-bd: #c56363;
   --focus: #6aa9ff;
@@ -233,11 +233,18 @@
   --r-xs: 4px;
   --r-pill: 999px;
   /* interaction states */
-  --bg-hover: #2a3038;
-  --accent-hover: #3a8576;
+  --bg-hover: #2a2f3a;
+  --accent-hover: #6a75e8;
   --danger-hover: #8f4141;
-  --accent-soft: rgba(47, 111, 97, 0.16);
+  --accent-soft: rgba(89, 101, 224, 0.2);
+  --accent-text: #f4f5ff;
   --danger-soft: rgba(124, 48, 48, 0.2);
+  /* glass surfaces */
+  --glass-panel: rgba(31, 35, 44, 0.66);
+  --glass-rail: rgba(22, 25, 32, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --glass-blur: 16px;
   /* elevation */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.42);
@@ -247,6 +254,7 @@
 
   color: var(--text);
   background: var(--bg-app);
+  accent-color: var(--accent);
   font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -381,6 +389,71 @@ select {
   min-height: var(--ctl-h);
 }
 
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(
+    to right,
+    var(--accent) 0,
+    var(--accent) var(--range-progress, 0%),
+    var(--bg-sunken) var(--range-progress, 0%),
+    var(--bg-sunken) 100%
+  );
+  border: 1px solid var(--glass-border);
+}
+
+input[type="range"]:disabled::-webkit-slider-runnable-track {
+  background: var(--bg-sunken);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--accent-text);
+  box-shadow: var(--shadow-sm);
+  transition:
+    background 120ms ease,
+    transform 120ms ease;
+}
+
+input[type="range"]:hover:not(:disabled)::-webkit-slider-thumb {
+  background: var(--accent-hover);
+}
+
+input[type="range"]:active:not(:disabled)::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: var(--text-muted);
+  border-color: var(--bg-raised);
+}
+
+input[type="range"]:focus-visible {
+  outline: none;
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-sm);
+}
+
 .primary {
   background: var(--accent);
   border-color: var(--accent-bd);
@@ -395,7 +468,10 @@ select {
   display: grid;
   grid-template-columns: 400px minmax(0, 1fr) 340px;
   height: 100vh;
-  background: #101114;
+  background:
+    radial-gradient(1200px 620px at 12% -12%, rgba(89, 101, 224, 0.08), transparent 58%),
+    radial-gradient(1000px 700px at 112% 8%, rgba(120, 130, 240, 0.06), transparent 55%),
+    #0f1014;
 }
 
 .app-shell.inpainting-mode {
@@ -413,13 +489,15 @@ select {
 }
 
 .sidebar {
-  border-right: 1px solid var(--border-soft);
-  background: #17191e;
+  border-right: 1px solid var(--glass-border);
+  background: var(--glass-rail);
+  backdrop-filter: blur(var(--glass-blur));
 }
 
 .right-rail {
-  border-left: 1px solid var(--border-soft);
-  background: var(--bg-rail);
+  border-left: 1px solid var(--glass-border);
+  background: var(--glass-rail);
+  backdrop-filter: blur(var(--glass-blur));
 }
 
 .workspace {
@@ -428,7 +506,7 @@ select {
   place-items: center;
   overflow: auto;
   padding: 24px;
-  background: radial-gradient(circle at top, rgba(60, 76, 95, 0.28), transparent 40%), #101114;
+  background: radial-gradient(circle at top, rgba(89, 101, 224, 0.1), transparent 42%);
   outline: none;
 }
 
@@ -449,9 +527,11 @@ select {
   display: grid;
   gap: var(--sp-3);
   padding: var(--sp-4);
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  background: var(--bg-panel);
+  background: var(--glass-panel);
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-sm), var(--glass-highlight);
   min-width: 0;
 }
 
@@ -549,10 +629,10 @@ select {
   align-items: center;
   gap: 10px;
   padding: 0 12px;
-  border: 1px solid #343941;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #181c22 0%, #14181d 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-pill);
+  background: var(--bg-sunken);
+  box-shadow: var(--glass-highlight);
   transition:
     border-color 140ms ease,
     box-shadow 140ms ease,
@@ -560,11 +640,9 @@ select {
 }
 
 .library-search-shell:focus-within {
-  border-color: #4f8bb8;
-  background: linear-gradient(180deg, #1a1f26 0%, #151a20 100%);
-  box-shadow:
-    0 0 0 1px rgba(79, 139, 184, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-color: var(--accent-bd);
+  background: var(--bg-sunken);
+  box-shadow: 0 0 0 1px var(--accent-soft), var(--glass-highlight);
 }
 
 .library-search-icon {
@@ -780,8 +858,8 @@ select {
 
 .chapter-item.active .chapter-select,
 .page-item.active .page-select {
-  border-color: #78c7b2;
-  background: #24443d;
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
 }
 
 .page-actions {
@@ -847,15 +925,21 @@ select {
 
 .area-translate-button {
   min-height: 36px;
-  border-color: #4b8d7d;
-  background: #275f54;
-  color: #fbf5eb;
+  border-color: var(--accent-bd);
+  background: var(--accent);
+  color: var(--accent-text);
   font-weight: 700;
 }
 
+.area-translate-button:hover:not(:disabled) {
+  border-color: var(--accent-hi);
+  background: var(--accent-hover);
+}
+
 .area-translate-button.active {
-  border-color: #d49a5c;
-  background: #6f4b27;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-hi);
 }
 
 .display-panel {
@@ -871,15 +955,15 @@ select {
 .display-toggle-row button {
   min-width: 0;
   padding: var(--ctl-pad-y) var(--ctl-pad-x);
-  border-color: #333b45;
+  border-color: var(--border-soft);
   background: var(--bg-raised);
-  color: #cfc7bb;
+  color: var(--text);
 }
 
 .display-toggle-row button.active {
-  border-color: #78c7b2;
-  background: #24443d;
-  color: #f7f1e8;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .inpainting-exit-panel {
@@ -955,22 +1039,21 @@ select {
 }
 
 .inpaint-step.active {
-  color: #f1fff8;
+  color: var(--accent-text);
   border-color: var(--accent-bd);
   background: var(--accent);
 }
 
 .inpaint-step.active .inpaint-step-num {
-  background: #f1fff8;
-  border-color: #f1fff8;
+  background: var(--accent-text);
+  border-color: var(--accent-text);
   color: var(--accent);
 }
 
 .inpaint-flow-display {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--sp-2);
 }
 
@@ -1029,18 +1112,19 @@ select {
 
 .inpainting-guide-button {
   width: auto;
-  min-height: 28px;
-  padding: 4px 9px;
-  border-color: #3a4654;
-  border-radius: 999px;
-  background: #171b21;
-  color: #dce7f4;
-  font-size: 12px;
+  min-height: var(--ctl-h);
+  padding: var(--ctl-pad-y) var(--sp-4);
+  border-color: var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-size: var(--font-sm);
 }
 
 .inpainting-guide-button:hover {
-  border-color: #6aa9ff;
-  background: #202938;
+  border-color: var(--accent-bd);
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .inpainting-counts {
@@ -1050,21 +1134,21 @@ select {
 }
 
 .chip-toggle {
-  width: auto;
-  min-height: 26px;
-  padding: 3px var(--sp-3);
-  border-color: var(--border-strong);
-  border-radius: 999px;
+  width: 100%;
+  min-height: var(--ctl-h);
+  padding: var(--ctl-pad-y) var(--ctl-pad-x);
+  border-color: var(--border-soft);
+  border-radius: var(--r-md);
   background: var(--bg-raised);
-  color: var(--text-dim);
-  font-size: 11px;
+  color: var(--text);
+  font-size: var(--font-sm);
   font-weight: 700;
 }
 
 .chip-toggle.active {
-  border-color: var(--accent-hi);
-  background: #24443d;
-  color: #f1fff8;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .inpainting-run-card {
@@ -1110,9 +1194,9 @@ select {
 }
 
 .peek-button.active {
-  border-color: var(--focus);
-  background: #24354a;
-  color: #eaf3ff;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-hi);
 }
 
 .peek-button svg {
@@ -1161,8 +1245,8 @@ select {
 }
 
 .inpainting-progress-card.completed {
-  border-color: #4fb99b;
-  background: linear-gradient(180deg, rgba(25, 64, 54, 0.9), rgba(20, 28, 26, 0.94));
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
 }
 
 .inpainting-progress-card small {
@@ -1188,9 +1272,9 @@ select {
 }
 
 .retouch-toolbar button.mask-tool.active {
-  border-color: #f59e0b;
-  background: #5c3b16;
-  color: #fff6df;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-hi);
 }
 
 .drawn-mask-panel > button.pattern {
@@ -1232,9 +1316,9 @@ select {
 }
 
 .retouch-toolbar button.active {
-  border-color: #70dcc9;
-  background: #24483f;
-  color: #f1fff8;
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-hi);
 }
 
 .retouch-toolbar svg {
@@ -1712,16 +1796,16 @@ select {
 .progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #4aa58f 0%, #78c7b2 100%);
+  background: var(--accent);
 }
 
 .progress-track.indeterminate {
-  background: linear-gradient(90deg, #0f1216 0%, #11161c 100%);
+  background: var(--bg-sunken);
 }
 
 .progress-fill.indeterminate {
   width: 38%;
-  background: linear-gradient(90deg, rgba(74, 165, 143, 0.12) 0%, #4aa58f 48%, rgba(120, 199, 178, 0.18) 100%);
+  background: var(--accent);
   animation: progress-slide 1.4s ease-in-out infinite;
 }
 
@@ -2052,9 +2136,9 @@ select {
   position: absolute;
   z-index: 12;
   pointer-events: none;
-  border: 2px solid #70dcc9;
+  border: 2px solid var(--accent-bd);
   border-radius: 3px;
-  background: rgba(95, 200, 173, 0.16);
+  background: var(--accent-soft);
   box-shadow: 0 0 0 1px rgba(9, 15, 22, 0.72), 0 0 0 9999px rgba(5, 7, 10, 0.18);
 }
 
@@ -2119,9 +2203,10 @@ select {
   gap: 16px;
   padding: 22px;
   border-radius: 14px;
-  border: 1px solid rgba(111, 168, 255, 0.35);
-  background: linear-gradient(180deg, rgba(29, 34, 42, 0.98), rgba(18, 21, 27, 0.98));
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-panel);
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-overlay), var(--glass-highlight);
   color: #f5efe6;
   pointer-events: auto;
 }
@@ -2132,7 +2217,7 @@ select {
 }
 
 .install-progress-kicker {
-  color: #78c7b2;
+  color: var(--accent-hi);
   font-size: 12px;
   font-weight: 800;
 }
@@ -2155,7 +2240,7 @@ select {
   width: 100%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #2f7d6d 0%, #5fc8ad 52%, #9bd7ff 100%);
+  background: var(--accent);
   transition: transform 420ms ease;
 }
 
@@ -2402,8 +2487,8 @@ select {
 }
 
 .share-target-card.active {
-  border-color: #4aa58f;
-  background: rgba(47, 111, 97, 0.22);
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
 }
 
 .share-target-card input {
@@ -2571,7 +2656,7 @@ select {
 }
 
 .share-final-item.package {
-  border-left: 3px solid #4aa58f;
+  border-left: 3px solid var(--accent-bd);
 }
 
 .share-final-item.dragging,
@@ -2678,14 +2763,14 @@ select {
 }
 
 .icon-add-button {
-  color: #d2f4e8;
-  border-color: #315f54;
-  background: #162620;
+  color: var(--accent-hi);
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
 }
 
 .icon-add-button:hover:not(:disabled) {
-  border-color: #4aa58f;
-  background: #24443d;
+  border-color: var(--accent-hi);
+  background: var(--accent-soft);
 }
 
 .preview-icon {
@@ -2777,8 +2862,9 @@ select {
 }
 
 .settings-preset-button.active {
-  background: #2f6f61;
-  border-color: #4aa58f;
+  background: var(--accent);
+  border-color: var(--accent-bd);
+  color: var(--accent-text);
 }
 
 .settings-file-row {

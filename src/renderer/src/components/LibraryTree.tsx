@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { closestCenter, DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -127,7 +128,10 @@ export function LibraryTree({
             <p className="panel-empty">아직 보관함에 저장된 작품이 없습니다.</p>
           )}
         </div>
-        <DragOverlay>{activeDrag ? <ChapterDragPreview chapter={activeDrag.chapter} active={activeDrag.chapter.id === currentChapterId} /> : null}</DragOverlay>
+        {createPortal(
+          <DragOverlay>{activeDrag ? <ChapterDragPreview chapter={activeDrag.chapter} active={activeDrag.chapter.id === currentChapterId} /> : null}</DragOverlay>,
+          document.body
+        )}
       </DndContext>
     </section>
   );

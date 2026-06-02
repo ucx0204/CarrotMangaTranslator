@@ -1,7 +1,7 @@
 import React from "react";
 import type { RenderTextDirection, TranslationBlock } from "../../../shared/types";
 import { FontSelect } from "./FontSelect";
-import { Button } from "./ui";
+import { Button, RangeInput } from "./ui";
 
 type EditorPanelProps = {
   block: TranslationBlock | null;
@@ -69,8 +69,7 @@ export function EditorPanel({
       </label>
       <label>
         기울기 {block.rotationDeg ?? 0}°
-        <input
-          type="range"
+        <RangeInput
           min={-30}
           max={30}
           step={1}
@@ -81,8 +80,7 @@ export function EditorPanel({
       </label>
       <label>
         투명도 {Math.round(block.opacity * 100)}%
-        <input
-          type="range"
+        <RangeInput
           min={0.1}
           max={1}
           step={0.01}
@@ -109,8 +107,7 @@ export function EditorPanel({
           </label>
         </div>
         <div className="font-size-row">
-          <input
-            type="range"
+          <RangeInput
             min={10}
             max={160}
             step={1}

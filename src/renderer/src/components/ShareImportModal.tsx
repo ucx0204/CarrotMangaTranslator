@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { closestCenter, DndContext, DragOverlay, useDraggable, useDroppable, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -307,15 +308,18 @@ export function ShareImportModal({ library, preview, busy, onCancel, onSubmit }:
                   </div>
                 </div>
               </div>
-              <DragOverlay>
-                {activeDrag ? (
-                  activeDrag.type === "left" ? (
-                    <FinalChapterPreview item={activeDrag.item} index={Math.max(0, leftItems.findIndex((item) => item.key === activeDrag.item.key)) + 1} />
-                  ) : (
-                    <CandidatePreview chapter={activeDrag.chapter} />
-                  )
-                ) : null}
-              </DragOverlay>
+              {createPortal(
+                <DragOverlay>
+                  {activeDrag ? (
+                    activeDrag.type === "left" ? (
+                      <FinalChapterPreview item={activeDrag.item} index={Math.max(0, leftItems.findIndex((item) => item.key === activeDrag.item.key)) + 1} />
+                    ) : (
+                      <CandidatePreview chapter={activeDrag.chapter} />
+                    )
+                  ) : null}
+                </DragOverlay>,
+                document.body
+              )}
             </DndContext>
 
             {deletedExistingChapters.length > 0 ? (

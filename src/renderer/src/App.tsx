@@ -596,6 +596,7 @@ export default function App(): React.JSX.Element {
     if (!confirmed) {
       return;
     }
+    setInpaintingTool("none");
     setJobState({
       id: "pending-inpainting",
       kind: "inpainting",

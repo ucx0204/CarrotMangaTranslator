@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { closestCenter, DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -83,7 +84,10 @@ export function PageList({
             )}
           </div>
         </SortableContext>
-        <DragOverlay>{activePage ? <PageDragPreview page={activePage} selected={activePage.id === selectedPageId} /> : null}</DragOverlay>
+        {createPortal(
+          <DragOverlay>{activePage ? <PageDragPreview page={activePage} selected={activePage.id === selectedPageId} /> : null}</DragOverlay>,
+          document.body
+        )}
       </DndContext>
     </section>
   );

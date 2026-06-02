@@ -14,10 +14,11 @@
   flex-direction: column;
   width: min(560px, 100%);
   max-height: calc(100vh - 2 * var(--sp-6));
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  background: var(--bg-panel);
-  box-shadow: var(--shadow-overlay);
+  background: rgba(28, 32, 40, 0.88);
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-overlay), var(--glass-highlight);
   overflow: hidden;
 }
 

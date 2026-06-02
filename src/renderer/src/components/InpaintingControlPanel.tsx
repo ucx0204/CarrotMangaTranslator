@@ -2,7 +2,7 @@ import React from "react";
 import type { JobState } from "../../../shared/types";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { useInpainting } from "../inpainting/InpaintingContext";
-import { Button, IconButton } from "./ui";
+import { Button, IconButton, RangeInput } from "./ui";
 import { BrushIcon, EyeIcon, MaskIcon, PickerIcon, RedoIcon, RestoreIcon, UndoIcon } from "./ui/icons";
 
 export type { InpaintingTool, BlockCounts } from "../inpainting/InpaintingContext";
@@ -50,6 +50,12 @@ export function InpaintingControlPanel(): React.JSX.Element {
     onCancelJob
   } = useInpainting();
   const [step, setStep] = React.useState<FlowStep>("auto");
+  const goToStep = (next: FlowStep): void => {
+    setStep(next);
+    if (next !== "retouch") {
+      onSelectTool("none");
+    }
+  };
   const activeInpaintingJob = jobState.kind === "inpainting" && jobState.status !== "idle";
   const totalPages = currentChapter?.pages.length ?? 0;
   const pageTargetCount = blockCounts.selectedPage;
@@ -67,7 +73,7 @@ export function InpaintingControlPanel(): React.JSX.Element {
               role="tab"
               aria-selected={step === value}
               className={`inpaint-step ${step === value ? "active" : ""} ${index < stepIndex ? "done" : ""}`}
-              onClick={() => setStep(value)}
+              onClick={() => goToStep(value)}
             >
               <span className="inpaint-step-num">{index + 1}</span>
               <span className="inpaint-step-label">{STEP_LABELS[value]}</span>
@@ -98,7 +104,7 @@ export function InpaintingControlPanel(): React.JSX.Element {
       {step === "auto" ? (
         <div className="inpaint-step-body">
           <p className="inpaint-step-lead">먼저 원문 배경을 자동으로 지웁니다. 한 페이지씩 또는 남은 페이지를 한 번에 처리할 수 있어요.</p>
-          <div className="inpainting-run-card pattern">
+          <div className="inpainting-run-card">
             <span className="inpainting-run-meta">
               {currentChapter ? `남은 ${blockCounts.pendingPages} / ${totalPages}페이지 · ${pendingTargetCount}개 블록` : "화가 열려 있지 않습니다."}
             </span>
@@ -124,7 +130,7 @@ export function InpaintingControlPanel(): React.JSX.Element {
           </div>
           <div className="inpaint-step-nav">
             <span />
-            <Button variant="primary" onClick={() => setStep("retouch")} disabled={jobActive}>
+            <Button variant="primary" onClick={() => goToStep("retouch")} disabled={jobActive}>
               다음: 보정 →
             </Button>
           </div>
@@ -179,7 +185,7 @@ export function InpaintingControlPanel(): React.JSX.Element {
                 <input type="color" value={brushColor} disabled={jobActive} onChange={(event) => onBrushColorChange(event.target.value)} />
               </label>
               <label className="brush-size-control compact">
-                <input type="range" min={4} max={90} value={brushRadius} disabled={jobActive} onChange={(event) => onBrushRadiusChange(Number(event.target.value))} />
+                <RangeInput min={4} max={90} value={brushRadius} disabled={jobActive} onChange={(event) => onBrushRadiusChange(Number(event.target.value))} />
                 <strong>{brushRadius}px</strong>
               </label>
               <IconButton size="sm" label="되돌리기 (Ctrl+Z)" title="되돌리기 (Ctrl+Z)" disabled={!canUndo || jobActive} onClick={onUndoRetouch}>
@@ -200,10 +206,10 @@ export function InpaintingControlPanel(): React.JSX.Element {
           </div>
 
           <div className="inpaint-step-nav">
-            <Button variant="ghost" onClick={() => setStep("auto")}>
+            <Button variant="ghost" onClick={() => goToStep("auto")}>
               ← 자동
             </Button>
-            <Button variant="primary" onClick={() => setStep("export")} disabled={jobActive}>
+            <Button variant="primary" onClick={() => goToStep("export")} disabled={jobActive}>
               출력 →
             </Button>
           </div>
@@ -223,7 +229,7 @@ export function InpaintingControlPanel(): React.JSX.Element {
             </Button>
           </div>
           <div className="inpaint-step-nav">
-            <Button variant="ghost" onClick={() => setStep("retouch")}>
+            <Button variant="ghost" onClick={() => goToStep("retouch")}>
               ← 보정
             </Button>
             <span />

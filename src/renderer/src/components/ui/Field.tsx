@@ -72,7 +72,28 @@ export const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>
   );
 });
 
-export type SliderProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> & {
+export type RangeInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">;
+
+/** A range input whose track is filled up to the current value (via the --range-progress CSS var). */
+export function RangeInput({ min = 0, max = 100, value, style, ...rest }: RangeInputProps): React.JSX.Element {
+  const lo = Number(min);
+  const hi = Number(max);
+  const current = Number(value ?? lo);
+  const ratio = hi > lo ? ((current - lo) / (hi - lo)) * 100 : 0;
+  const progress = Math.max(0, Math.min(100, ratio));
+  return (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      value={value}
+      style={{ ...style, "--range-progress": `${progress}%` } as React.CSSProperties}
+      {...rest}
+    />
+  );
+}
+
+export type SliderProps = RangeInputProps & {
   label?: React.ReactNode;
   /** Formatted value shown beside the label (e.g. "28px", "70%"). */
   valueLabel?: React.ReactNode;
@@ -87,7 +108,7 @@ export function Slider({ label, valueLabel, className, ...rest }: SliderProps): 
           {valueLabel != null ? <strong className={styles.value}>{valueLabel}</strong> : null}
         </span>
       ) : null}
-      <input type="range" {...rest} />
+      <RangeInput {...rest} />
     </label>
   );
 }
