@@ -26,6 +26,20 @@ if (existsSync(join(__dirname, "tools", "ffmpeg", "ffmpeg.exe"))) {
   });
 }
 
+if (existsSync(join(__dirname, "tools", "mgt-flux-cuda12.9", "cublas64_12.dll"))) {
+  extraResources.push({
+    from: "tools/mgt-flux-cuda12.9",
+    to: "tools/mgt-flux-cuda12.9"
+  });
+}
+
+if (existsSync(join(__dirname, "tools", "mgt-flux-cuda12.8", "cublas64_12.dll"))) {
+  extraResources.push({
+    from: "tools/mgt-flux-cuda12.8",
+    to: "tools/mgt-flux-cuda12.8"
+  });
+}
+
 const fluxKleinRunnerPath = join(__dirname, "tools", "mgt-flux-klein", "mgt-flux-klein.exe");
 if (existsSync(fluxKleinRunnerPath)) {
   extraResources.push({

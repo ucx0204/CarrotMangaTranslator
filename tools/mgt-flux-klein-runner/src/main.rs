@@ -60,6 +60,7 @@ struct WorkerResponse<'a> {
 }
 
 fn main() -> Result<()> {
+    install_panic_hook();
     init_logging();
     let cli = Cli::parse();
 
@@ -168,4 +169,16 @@ fn run_inpaint(
 fn init_logging() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
     let _ = fmt().with_env_filter(filter).with_target(false).try_init();
+}
+
+fn install_panic_hook() {
+    std::panic::set_hook(Box::new(|panic_info| {
+        let message = panic_info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|text| *text)
+            .or_else(|| panic_info.payload().downcast_ref::<String>().map(|text| text.as_str()))
+            .unwrap_or("unknown panic");
+        eprintln!("mgt-flux-klein: fatal runtime panic: {message}");
+    }));
 }

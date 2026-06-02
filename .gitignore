@@ -15,6 +15,7 @@ tools/llama-b8808-cuda12/
 tools/llama-b8833-cuda12.4/
 tools/llama-b8833-cuda13.1/
 tools/beellama*/
+tools/mgt-flux-cuda12.*/
 tools/mgt-flux-klein-runner/target/
 tools/mgt-flux-klein/*.exe
 !tools/mgt-flux-klein/mgt-flux-klein.exe

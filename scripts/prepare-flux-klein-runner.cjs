@@ -10,8 +10,9 @@ const outExe = join(outDir, "mgt-flux-klein.exe");
 const cargoTargetDir = process.env.MGT_FLUX_KLEIN_TARGET_DIR || join(tmpdir(), "mgt-flux-klein-target");
 const builtExe = join(cargoTargetDir, "release", "mgt-flux-klein.exe");
 const cudaRoot = process.env.MGT_FLUX_KLEIN_CUDA_ROOT || findCudaRoot();
+const forceRebuild = process.env.MGT_FORCE_REBUILD_FLUX_RUNNER === "1";
 
-if (isUsableFile(outExe)) {
+if (!forceRebuild && isUsableFile(outExe)) {
   console.log(`mgt-flux-klein already exists: ${outExe}`);
   process.exit(0);
 }
@@ -41,6 +42,7 @@ function runCargo(args) {
   run("cargo", args, {
     CARGO_TARGET_DIR: cargoTargetDir,
     LLAMA_CPP_TAG: "b-mgt-unused",
+    RUSTFLAGS: buildRustFlags(),
     ...(cudaRoot
       ? {
           CUDA_PATH: cudaRoot,
@@ -99,8 +101,10 @@ function findMsvcClBin() {
 
 function findCudaRoot() {
   const candidates = [
+    process.env.CUDA_PATH_V12_9,
     process.env.CUDA_PATH_V12_8,
     process.env.CUDA_PATH_V12_4,
+    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.9"),
     join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.8"),
     join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.4"),
     process.env.CUDA_PATH,
@@ -115,4 +119,20 @@ function isUsableFile(path) {
   } catch {
     return false;
   }
+}
+
+function buildRustFlags() {
+  const flags = [process.env.RUSTFLAGS].filter(Boolean);
+  const remaps = [
+    [root, "<mgt-source>"],
+    [process.env.USERPROFILE || process.env.HOME, "<build-home>"],
+    [process.env.CARGO_HOME, "<cargo-home>"],
+    [join(process.env.USERPROFILE || process.env.HOME || "", ".cargo"), "<cargo-home>"]
+  ];
+  for (const [from, to] of remaps) {
+    if (from && existsSync(from)) {
+      flags.push(`--remap-path-prefix=${from}=${to}`);
+    }
+  }
+  return flags.join(" ").trim();
 }

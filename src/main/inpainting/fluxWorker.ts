@@ -1,6 +1,7 @@
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { once } from "node:events";
-import { delimiter, dirname } from "node:path";
+import { existsSync } from "node:fs";
+import { delimiter, dirname, join } from "node:path";
 
 export type FluxWorkerRequest = {
   input: string;
@@ -41,7 +42,7 @@ export class FluxWorker {
     this.child.on("exit", (code) => {
       this.closed = true;
       if (this.pending.size > 0) {
-        this.rejectAll(new Error(`Flux 인페인팅 런타임이 종료되었습니다 (${code}). ${this.stderrTail.join("").slice(-1600)}`));
+        this.rejectAll(buildFluxRuntimeExitError(code, this.stderrTail.join("")));
       }
     });
   }
@@ -49,7 +50,7 @@ export class FluxWorker {
   async inpaint(request: FluxWorkerRequest, signal?: AbortSignal): Promise<void> {
     throwIfAborted(signal);
     if (this.closed || !this.child.stdin.writable) {
-      throw new Error(`Flux 인페인팅 런타임이 실행 중이 아닙니다. ${this.stderrTail.join("").slice(-1600)}`);
+      throw new Error(`Flux 인페인팅 런타임이 실행 중이 아닙니다. ${formatFluxRuntimeDetail(this.stderrTail.join(""))}`);
     }
     const id = String(this.nextId++);
     const payload = JSON.stringify({
@@ -149,7 +150,7 @@ export class FluxWorker {
   }
 
   private rememberStderr(text: string): void {
-    this.stderrTail.push(text);
+    this.stderrTail.push(sanitizeFluxRuntimeStderr(text));
     if (this.stderrTail.length > 80) {
       this.stderrTail.splice(0, this.stderrTail.length - 80);
     }
@@ -163,13 +164,38 @@ export class FluxWorker {
   }
 }
 
-function buildRuntimePathEnv(command: string): string {
+export function buildRuntimePathEnv(command: string): string {
   const dirs: string[] = [];
-  let current = dirname(command);
-  for (let depth = 0; depth < 4; depth += 1) {
-    if (!dirs.includes(current)) {
-      dirs.push(current);
+  const addDir = (dir: string | null | undefined) => {
+    if (!dir || !existsSync(dir)) {
+      return;
     }
+    const normalized = dir.toLowerCase();
+    if (!dirs.some((candidate) => candidate.toLowerCase() === normalized)) {
+      dirs.push(dir);
+    }
+  };
+
+  const runnerDir = dirname(command);
+  const toolsDir = dirname(runnerDir);
+  addDir(runnerDir);
+  addDir(process.env.CUDA_PATH_V12_9 ? join(process.env.CUDA_PATH_V12_9, "bin") : null);
+  addDir(join(toolsDir, "mgt-flux-cuda12.9"));
+  addDir(join(toolsDir, "cuda12.9"));
+  addDir(process.env.CUDA_PATH_V12_8 ? join(process.env.CUDA_PATH_V12_8, "bin") : null);
+  addDir(join(toolsDir, "mgt-flux-cuda12.8"));
+  addDir(join(toolsDir, "cuda12.8"));
+  addDir(process.env.CUDA_PATH_V12_4 ? join(process.env.CUDA_PATH_V12_4, "bin") : null);
+  addDir(process.env.CUDA_PATH ? join(process.env.CUDA_PATH, "bin") : null);
+  addDir(process.env.CUDA_HOME ? join(process.env.CUDA_HOME, "bin") : null);
+  addDir(join(toolsDir, "beellama-v0.2.0-cuda12.4"));
+  addDir(join(toolsDir, "llama-b8833-cuda12.4"));
+  addDir(join(toolsDir, "llama-b8808-cuda12"));
+  addDir(join(toolsDir, "cuda"));
+
+  let current = runnerDir;
+  for (let depth = 0; depth < 4; depth += 1) {
+    addDir(current);
     const parent = dirname(current);
     if (parent === current) {
       break;
@@ -177,6 +203,30 @@ function buildRuntimePathEnv(command: string): string {
     current = parent;
   }
   return [...dirs, process.env.PATH ?? ""].join(delimiter);
+}
+
+export function sanitizeFluxRuntimeStderr(text: string): string {
+  return text
+    .replace(/[A-Z]:\\Users\\[^\\\r\n]+\\\.cargo\\registry\\src\\[^:\r\n]+/gi, "<rust-crate-source>")
+    .replace(/[A-Z]:\\Users\\[^\\\r\n]+\\\.cargo\\git\\checkouts\\[^:\r\n]+/gi, "<rust-git-source>")
+    .replace(/[A-Z]:\\Users\\[^\\\r\n]+\\CARGO~1\\registry\\src\\[^:\r\n]+/gi, "<rust-crate-source>")
+    .replace(/[A-Z]:\\Users\\[^:\r\n]+?\\tools\\mgt-flux-klein-runner\\[^:\r\n]+/gi, "<flux-runner-source>")
+    .replace(/[A-Z]:\\Users\\[^\\\r\n]+\\Downloads\\[^:\r\n]+?\\tools\\mgt-flux-klein-runner\\[^:\r\n]+/gi, "<flux-runner-source>");
+}
+
+function buildFluxRuntimeExitError(code: number | null, stderr: string): Error {
+  const detail = formatFluxRuntimeDetail(stderr);
+  if (/Unable to dynamically load the "cublas"|cublas64_12\.dll|cublas\.dll/i.test(stderr)) {
+    return new Error(
+      `Flux 인페인팅 런타임이 CUDA cuBLAS DLL(cublas64_12.dll)을 찾지 못했습니다. 앱에 포함된 CUDA 런타임 경로를 확인하세요. ${detail}`
+    );
+  }
+  return new Error(`Flux 인페인팅 런타임이 종료되었습니다 (${code}). ${detail}`);
+}
+
+function formatFluxRuntimeDetail(stderr: string): string {
+  const detail = sanitizeFluxRuntimeStderr(stderr).replace(/\s+/g, " ").trim().slice(-1600);
+  return detail ? `detail=${detail}` : "";
 }
 
 function buildFluxWorkerEnv(command: string): NodeJS.ProcessEnv {

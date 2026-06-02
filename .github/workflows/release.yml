@@ -65,6 +65,9 @@ jobs:
           }
           Write-Host "Bundled Flux Klein runner: $runner ($size bytes)"
 
+      - name: Prepare bundled Flux CUDA runtime
+        run: node scripts/prepare-flux-cuda-runtime.cjs
+
       - name: Build Windows release
         run: npm run build && npx electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never
 
