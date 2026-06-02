@@ -222,7 +222,10 @@ export const InpaintingColorSampleRequestSchema = z
   })
   .strict();
 
-export const InpaintingExportRequestSchema = z.object({ chapterId: uuid }).strict();
+export const InpaintingExportRequestSchema = z.discriminatedUnion("scope", [
+  z.object({ chapterId: uuid, scope: z.literal("chapter") }).strict(),
+  z.object({ chapterId: uuid, scope: z.literal("page"), pageId: uuid }).strict()
+]);
 
 export const RenameWorkRequestSchema = z.object({ workId: uuid, title }).strict();
 export const RenameChapterRequestSchema = z.object({ chapterId: uuid, title }).strict();

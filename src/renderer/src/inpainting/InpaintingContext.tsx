@@ -44,7 +44,7 @@ export type InpaintingContextValue = {
   onPeekToggle: () => void;
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
-  onExportResults: () => void;
+  onExportResults: (scope: "page" | "chapter") => void;
   onCancelJob: () => void;
 };
 

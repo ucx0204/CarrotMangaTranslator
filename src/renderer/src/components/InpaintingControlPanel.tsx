@@ -224,9 +224,14 @@ export function InpaintingControlPanel(): React.JSX.Element {
               <h3>결과 출력</h3>
               <small>{inpaintedPageCount}페이지 저장됨</small>
             </div>
-            <Button variant="primary" fullWidth disabled={!currentChapter || jobActive} onClick={onExportResults}>
-              PNG 출력
-            </Button>
+            <div className="inpainting-action-grid">
+              <Button variant="primary" fullWidth disabled={!selectedPage || jobActive} onClick={() => onExportResults("page")}>
+                이 페이지
+              </Button>
+              <Button variant="primary" fullWidth disabled={!currentChapter || jobActive} onClick={() => onExportResults("chapter")}>
+                전체 페이지
+              </Button>
+            </div>
           </div>
           <div className="inpaint-step-nav">
             <Button variant="ghost" onClick={() => goToStep("retouch")}>

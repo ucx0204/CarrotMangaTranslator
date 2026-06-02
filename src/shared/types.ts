@@ -339,9 +339,16 @@ export type StartInpaintingResult = {
   error?: string;
 };
 
-export type InpaintingExportRequest = {
-  chapterId: string;
-};
+export type InpaintingExportRequest =
+  | {
+      chapterId: string;
+      scope: "chapter";
+    }
+  | {
+      chapterId: string;
+      scope: "page";
+      pageId: string;
+    };
 
 export type InpaintingExportResult = {
   outputDir: string;

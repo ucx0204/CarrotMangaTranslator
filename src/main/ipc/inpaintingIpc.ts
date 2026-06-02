@@ -296,9 +296,15 @@ export function registerInpaintingIpc(context: IpcContext): void {
 
     try {
       const chapter = await openChapter(request.chapterId);
-      if (chapter.pages.length === 0) {
+      const pages =
+        request.scope === "page"
+          ? chapter.pages.filter((page) => page.id === request.pageId)
+          : chapter.pages;
+      if (pages.length === 0) {
         throw new Error("출력할 페이지가 없습니다.");
       }
+      const totalPages = pages.length;
+      const targetLabel = request.scope === "page" ? "이 페이지" : "전체 페이지";
 
       emit({
         id,
@@ -307,17 +313,17 @@ export function registerInpaintingIpc(context: IpcContext): void {
         progressText: "PNG 출력 준비 중",
         phase: "finalizing",
         progressCurrent: 0,
-        progressTotal: chapter.pages.length,
-        pageTotal: chapter.pages.length,
-        detail: `${chapter.pages.length}페이지`
+        progressTotal: totalPages,
+        pageTotal: totalPages,
+        detail: `${targetLabel} · ${totalPages}페이지`
       });
 
-      const firstPageDir = dirname(chapter.pages[0].imagePath);
+      const firstPageDir = dirname(pages[0].imagePath);
       const chapterDir = dirname(firstPageDir);
       const outputDir = join(chapterDir, "processed", new Date().toISOString().replace(/[:.]/g, "-"));
       await mkdir(outputDir, { recursive: true });
 
-      for (const [index, page] of chapter.pages.entries()) {
+      for (const [index, page] of pages.entries()) {
         if (abortController.signal.aborted) {
           throw new DOMException("Aborted", "AbortError");
         }
@@ -325,12 +331,12 @@ export function registerInpaintingIpc(context: IpcContext): void {
           id,
           kind: "inpainting",
           status: "running",
-          progressText: `${index + 1} / ${chapter.pages.length} 페이지 PNG 출력 중`,
+          progressText: `${index + 1} / ${totalPages} 페이지 PNG 출력 중`,
           phase: "finalizing",
           progressCurrent: index,
-          progressTotal: chapter.pages.length,
+          progressTotal: totalPages,
           pageIndex: index + 1,
-          pageTotal: chapter.pages.length,
+          pageTotal: totalPages,
           detail: page.name
         });
         const outputName = `${String(index + 1).padStart(3, "0")}-${sanitizeOutputBaseName(page.name)}.png`;
@@ -343,12 +349,12 @@ export function registerInpaintingIpc(context: IpcContext): void {
           id,
           kind: "inpainting",
           status: "running",
-          progressText: `${index + 1} / ${chapter.pages.length} 페이지 PNG 출력 완료`,
+          progressText: `${index + 1} / ${totalPages} 페이지 PNG 출력 완료`,
           phase: "finalizing",
           progressCurrent: index + 1,
-          progressTotal: chapter.pages.length,
+          progressTotal: totalPages,
           pageIndex: index + 1,
-          pageTotal: chapter.pages.length,
+          pageTotal: totalPages,
           detail: page.name
         });
       }
@@ -359,15 +365,15 @@ export function registerInpaintingIpc(context: IpcContext): void {
         status: "completed",
         progressText: "PNG 출력 완료",
         phase: "done",
-        progressCurrent: chapter.pages.length,
-        progressTotal: chapter.pages.length,
-        pageTotal: chapter.pages.length,
-        detail: `${chapter.pages.length}페이지`
+        progressCurrent: totalPages,
+        progressTotal: totalPages,
+        pageTotal: totalPages,
+        detail: `${targetLabel} · ${totalPages}페이지`
       });
       await shell.openPath(outputDir);
       return {
         outputDir,
-        pageCount: chapter.pages.length
+        pageCount: totalPages
       };
     } catch (error) {
       if (isAbortError(error) || abortController.signal.aborted) {
