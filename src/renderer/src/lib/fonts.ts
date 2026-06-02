@@ -1,3 +1,5 @@
+import type { CustomFont } from "../../../shared/types";
+
 export const DEFAULT_BLOCK_FONT_ID = "default";
 
 export const DEFAULT_BLOCK_FONT_STACK = '"Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif';
@@ -74,9 +76,34 @@ export const BLOCK_FONT_OPTIONS: BlockFontOption[] = [
 
 const BLOCK_FONT_IDS = new Set(BLOCK_FONT_OPTIONS.map((option) => option.id));
 
+let customFontOptions: BlockFontOption[] = [];
+const customFontIds = new Set<string>();
+
+export function customFontToOption(font: CustomFont): BlockFontOption {
+  return {
+    id: font.id,
+    label: font.label,
+    cssFamily: `"${font.family}", "Malgun Gothic", sans-serif`,
+    sample: font.label
+  };
+}
+
+/** Registers user-installed fonts so they resolve like built-ins (call when the list changes). */
+export function setCustomFontOptions(fonts: CustomFont[]): void {
+  customFontOptions = fonts.map(customFontToOption);
+  customFontIds.clear();
+  for (const font of fonts) {
+    customFontIds.add(font.id);
+  }
+}
+
+export function getBlockFontOptions(): BlockFontOption[] {
+  return [...BLOCK_FONT_OPTIONS, ...customFontOptions];
+}
+
 export function normalizeBlockFontFamily(value: string | undefined): string | undefined {
   const id = String(value ?? "").trim();
-  if (!id || id === DEFAULT_BLOCK_FONT_ID || !BLOCK_FONT_IDS.has(id)) {
+  if (!id || id === DEFAULT_BLOCK_FONT_ID || (!BLOCK_FONT_IDS.has(id) && !customFontIds.has(id))) {
     return undefined;
   }
   return id;
@@ -84,7 +111,7 @@ export function normalizeBlockFontFamily(value: string | undefined): string | un
 
 export function resolveBlockFontOption(value: string | undefined): BlockFontOption {
   const id = normalizeBlockFontFamily(value) ?? DEFAULT_BLOCK_FONT_ID;
-  return BLOCK_FONT_OPTIONS.find((option) => option.id === id) ?? BLOCK_FONT_OPTIONS[0];
+  return getBlockFontOptions().find((option) => option.id === id) ?? BLOCK_FONT_OPTIONS[0];
 }
 
 export function resolveBlockFontFamily(value: string | undefined): string {

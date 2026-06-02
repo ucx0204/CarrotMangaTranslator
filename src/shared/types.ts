@@ -112,6 +112,13 @@ export type TranslationBlock = {
   inpaintExcluded?: boolean;
 };
 
+export type CustomFont = {
+  id: string;
+  label: string;
+  family: string;
+  fileName: string;
+};
+
 export type MangaPage = {
   id: string;
   name: string;

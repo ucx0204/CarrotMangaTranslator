@@ -1,10 +1,6 @@
 import React from "react";
-import {
-  BLOCK_FONT_OPTIONS,
-  normalizeBlockFontFamily,
-  resolveBlockFontFamily,
-  resolveBlockFontOption
-} from "../lib/fonts";
+import { useFonts } from "../fonts/FontsContext";
+import { normalizeBlockFontFamily, resolveBlockFontFamily, resolveBlockFontOption } from "../lib/fonts";
 
 type FontSelectProps = {
   value: string | undefined;
@@ -13,11 +9,11 @@ type FontSelectProps = {
 };
 
 export function FontSelect({ value, disabled = false, onChange }: FontSelectProps): React.JSX.Element {
+  const { options, customFonts, registerFont, removeFont, busy } = useFonts();
+  const customIds = React.useMemo(() => new Set(customFonts.map((font) => font.id)), [customFonts]);
   const selected = resolveBlockFontOption(value);
   const [open, setOpen] = React.useState(false);
-  const [activeIndex, setActiveIndex] = React.useState(() =>
-    Math.max(0, BLOCK_FONT_OPTIONS.findIndex((option) => option.id === selected.id))
-  );
+  const [activeIndex, setActiveIndex] = React.useState(() => Math.max(0, options.findIndex((option) => option.id === selected.id)));
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -38,9 +34,9 @@ export function FontSelect({ value, disabled = false, onChange }: FontSelectProp
 
   React.useEffect(() => {
     if (open) {
-      setActiveIndex(Math.max(0, BLOCK_FONT_OPTIONS.findIndex((option) => option.id === selected.id)));
+      setActiveIndex(Math.max(0, options.findIndex((option) => option.id === selected.id)));
     }
-  }, [open, selected.id]);
+  }, [open, selected.id, options]);
 
   React.useEffect(() => {
     if (!open || !listRef.current) {
@@ -76,7 +72,7 @@ export function FontSelect({ value, disabled = false, onChange }: FontSelectProp
     }
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActiveIndex((index) => Math.min(BLOCK_FONT_OPTIONS.length - 1, index + 1));
+      setActiveIndex((index) => Math.min(options.length - 1, index + 1));
       return;
     }
     if (event.key === "ArrowUp") {
@@ -91,12 +87,15 @@ export function FontSelect({ value, disabled = false, onChange }: FontSelectProp
     }
     if (event.key === "End") {
       event.preventDefault();
-      setActiveIndex(BLOCK_FONT_OPTIONS.length - 1);
+      setActiveIndex(options.length - 1);
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      commit(BLOCK_FONT_OPTIONS[activeIndex].id);
+      const option = options[activeIndex];
+      if (option) {
+        commit(option.id);
+      }
     }
   };
 
@@ -108,7 +107,7 @@ export function FontSelect({ value, disabled = false, onChange }: FontSelectProp
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setOpen((current) => !current)}
         onKeyDown={onTriggerKeyDown}
       >
         <span className="font-select-name">{selected.label}</span>
@@ -118,29 +117,57 @@ export function FontSelect({ value, disabled = false, onChange }: FontSelectProp
         <ChevronIcon />
       </button>
       {open ? (
-        <div className="font-select-menu" role="listbox" tabIndex={-1} ref={listRef} onKeyDown={onListKeyDown}>
-          {BLOCK_FONT_OPTIONS.map((option, index) => (
-            <button
-              type="button"
-              key={option.id}
-              role="option"
-              aria-selected={option.id === selected.id}
-              className={[
-                "font-select-option",
-                option.id === selected.id ? "selected" : "",
-                index === activeIndex ? "active" : ""
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onPointerEnter={() => setActiveIndex(index)}
-              onClick={() => commit(option.id)}
-            >
-              <span className="font-select-option-label">{option.label}</span>
-              <span className="font-select-option-sample" style={{ fontFamily: resolveBlockFontFamily(option.id) }}>
-                {option.sample}
-              </span>
-            </button>
-          ))}
+        <div className="font-select-menu">
+          <div className="font-select-options" role="listbox" tabIndex={-1} ref={listRef} onKeyDown={onListKeyDown}>
+            {options.map((option, index) => (
+              <div
+                key={option.id}
+                role="option"
+                aria-selected={option.id === selected.id}
+                className={[
+                  "font-select-option",
+                  option.id === selected.id ? "selected" : "",
+                  index === activeIndex ? "active" : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onPointerEnter={() => setActiveIndex(index)}
+                onClick={() => commit(option.id)}
+              >
+                <span className="font-select-option-label">{option.label}</span>
+                <span className="font-select-option-sample" style={{ fontFamily: resolveBlockFontFamily(option.id) }}>
+                  {option.sample}
+                </span>
+                {customIds.has(option.id) ? (
+                  <button
+                    type="button"
+                    className="font-select-remove"
+                    title="이 폰트 삭제"
+                    aria-label={`${option.label} 삭제`}
+                    disabled={busy}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void removeFont(option.id);
+                    }}
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="font-select-add"
+            disabled={busy}
+            onClick={() => {
+              close();
+              void registerFont();
+            }}
+          >
+            + TTF/OTF 폰트 등록
+          </button>
         </div>
       ) : null}
     </div>

@@ -10,6 +10,7 @@ export type AppPaths = {
   dataRoot: string;
   settingsPath: string;
   libraryDir: string;
+  fontsDir: string;
   logsDir: string;
   logFile: string;
   runtimeDir: string;
@@ -56,6 +57,7 @@ export function getAppPaths(): AppPaths {
     dataRoot,
     settingsPath: join(dataRoot, "settings.json"),
     libraryDir,
+    fontsDir: join(dataRoot, "fonts"),
     logsDir,
     logFile: join(logsDir, "app.log"),
     runtimeDir,
@@ -72,6 +74,7 @@ export function ensureWritableAppDirectories(): AppPaths {
   const paths = getAppPaths();
   migrateLegacyPackagedData(paths);
   mkdirSync(paths.libraryDir, { recursive: true });
+  mkdirSync(paths.fontsDir, { recursive: true });
   mkdirSync(paths.logsDir, { recursive: true });
   if (paths.hfHomeDir) {
     mkdirSync(paths.hfHomeDir, { recursive: true });

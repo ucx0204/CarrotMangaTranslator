@@ -28,6 +28,18 @@
     RMDir /r "$INSTDIR\data\ocr-runtime"
   SectionEnd
 
+  Section /o "un.등록한 TTF/OTF 폰트 삭제" MGT_CLEAN_FONTS_SECTION
+    DetailPrint "Deleting registered custom fonts..."
+
+    RMDir /r "$LOCALAPPDATA\manga-gemma-translator\fonts"
+    RMDir /r "$APPDATA\manga-gemma-translator\fonts"
+    RMDir /r "$LOCALAPPDATA\망가번역기\fonts"
+    RMDir /r "$APPDATA\망가번역기\fonts"
+
+    ; Legacy data location used by older builds.
+    RMDir /r "$INSTDIR\data\fonts"
+  SectionEnd
+
   Section /o "un.설정/로그 등 기타 앱 데이터 삭제" MGT_CLEAN_MISC_DATA_SECTION
     DetailPrint "Deleting manga translator settings, logs, and temporary app data..."
 

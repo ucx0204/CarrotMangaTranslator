@@ -28,6 +28,7 @@ import { AppWorkspace } from "./components/AppWorkspace";
 import type { ImportModalSubmit } from "./components/ImportModal";
 import { type BlockCounts, type InpaintingTool } from "./components/InpaintingControlPanel";
 import { InpaintingProvider, type InpaintingContextValue } from "./inpainting/InpaintingContext";
+import { FontsProvider } from "./fonts/FontsContext";
 import type { ShareImportModalSubmit } from "./components/ShareImportModal";
 import type { TranslateSourceMode } from "./components/TranslateSourceModal";
 import { useConfirmDialog } from "./hooks/useConfirmDialog";
@@ -1606,6 +1607,7 @@ export default function App(): React.JSX.Element {
   };
 
   return (
+    <FontsProvider>
     <main className={`app-shell ${inpaintingMode ? "inpainting-mode" : ""}`}>
       <AppSidebar
         inpaintingMode={inpaintingMode}
@@ -1751,6 +1753,7 @@ export default function App(): React.JSX.Element {
         }}
       />
     </main>
+    </FontsProvider>
   );
 }
 

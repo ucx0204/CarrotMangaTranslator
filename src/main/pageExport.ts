@@ -5,7 +5,9 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { bboxToPixels, clamp, resolveEffectiveRenderBbox } from "../shared/geometry";
-import type { MangaPage, TranslationBlock } from "../shared/types";
+import type { CustomFont, MangaPage, TranslationBlock } from "../shared/types";
+import { getAppPaths } from "./appPaths";
+import { listCustomFonts } from "./customFonts";
 import type { ImageDecodeFallback } from "./regionCrop";
 
 export async function renderPageWithTranslationBlocksForExport(
@@ -81,7 +83,10 @@ async function loadImageForPngExport(imagePath: string, decodeFallback: ImageDec
 
 function buildPageExportHtml(page: MangaPage, imageDataUrl: string, width: number, height: number): string {
   const rendererCssHref = findRendererCssHref();
-  const blocks = buildPageExportBlocks(page, width, height);
+  const customFonts = listCustomFonts();
+  const customFamilyById = new Map(customFonts.map((font) => [font.id, font.family]));
+  const customFontFaces = buildCustomFontFaces(customFonts);
+  const blocks = buildPageExportBlocks(page, width, height, customFamilyById);
   return `<!doctype html>
 <html>
 <head>
@@ -89,6 +94,7 @@ function buildPageExportHtml(page: MangaPage, imageDataUrl: string, width: numbe
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: file:; font-src data: file:; style-src 'unsafe-inline' file:; script-src 'unsafe-inline';" />
 ${rendererCssHref ? `<link rel="stylesheet" href="${escapeHtml(rendererCssHref)}" />` : ""}
 <style>
+${customFontFaces}
 html, body {
   margin: 0;
   width: ${width}px;
@@ -425,14 +431,29 @@ window.addEventListener("load", async () => {
 </html>`;
 }
 
-function buildPageExportBlocks(page: MangaPage, outputWidth: number, outputHeight: number): PageExportBlock[] {
+function buildCustomFontFaces(fonts: CustomFont[]): string {
+  const fontsDir = getAppPaths().fontsDir;
+  return fonts
+    .map((font) => {
+      const fileUrl = pathToFileURL(join(fontsDir, font.fileName)).toString();
+      return `@font-face { font-family: "${font.family}"; src: url("${fileUrl}"); font-display: swap; }`;
+    })
+    .join("\n");
+}
+
+function buildPageExportBlocks(
+  page: MangaPage,
+  outputWidth: number,
+  outputHeight: number,
+  customFamilyById: Map<string, string>
+): PageExportBlock[] {
   const pageWidth = Math.max(1, page.width || outputWidth);
   const pageHeight = Math.max(1, page.height || outputHeight);
   const scaleX = outputWidth / pageWidth;
   const scaleY = outputHeight / pageHeight;
   const fontScale = Math.min(scaleX, scaleY);
   return page.blocks
-    .map((block) => buildPageExportBlock(block, { width: pageWidth, height: pageHeight }, scaleX, scaleY, fontScale))
+    .map((block) => buildPageExportBlock(block, { width: pageWidth, height: pageHeight }, scaleX, scaleY, fontScale, customFamilyById))
     .filter((block): block is PageExportBlock => Boolean(block));
 }
 
@@ -458,7 +479,8 @@ function buildPageExportBlock(
   pageSize: { width: number; height: number },
   scaleX: number,
   scaleY: number,
-  fontScale: number
+  fontScale: number,
+  customFamilyById: Map<string, string>
 ): PageExportBlock | null {
   if (block.renderDirection === "hidden") {
     return null;
@@ -479,7 +501,7 @@ function buildPageExportBlock(
     },
     renderDirection: block.renderDirection === "vertical" ? "vertical" : block.renderDirection === "rotated" ? "rotated" : "horizontal",
     rotationDeg: block.rotationDeg ? clamp(Math.round(block.rotationDeg), -30, 30) : 0,
-    fontFamily: resolveExportBlockFontFamily(block.fontFamily),
+    fontFamily: resolveExportBlockFontFamily(block.fontFamily, customFamilyById),
     fontSizePx: Math.max(10, Math.round((block.fontSizePx || 20) * fontScale)),
     lineHeight: Math.max(1, block.lineHeight || 1.18),
     textAlign: block.textAlign || "center",
@@ -492,7 +514,10 @@ function buildPageExportBlock(
   };
 }
 
-function resolveExportBlockFontFamily(value: string | undefined): string {
+function resolveExportBlockFontFamily(value: string | undefined, customFamilyById?: Map<string, string>): string {
+  if (value && customFamilyById?.has(value)) {
+    return `"${customFamilyById.get(value)}", "Malgun Gothic", sans-serif`;
+  }
   switch (value) {
     case "mongtori":
       return '"MGT Mongtori", "Malgun Gothic", sans-serif';

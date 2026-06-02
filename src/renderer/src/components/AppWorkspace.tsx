@@ -4,6 +4,7 @@ import type { ProgressSnapshot } from "../lib/jobProgress";
 import { ImageStage, type ImageStageProps } from "./ImageStage";
 import { InstallProgressOverlay } from "./InstallProgressOverlay";
 import { Button } from "./ui";
+import { useFonts } from "../fonts/FontsContext";
 
 type AppWorkspaceProps = {
   workspacePanelRef: React.RefObject<HTMLElement | null>;
@@ -68,6 +69,8 @@ export function AppWorkspace({
   onOpenBatchImport,
   onOpenShareImport
 }: AppWorkspaceProps): React.JSX.Element {
+  // Subscribe to custom-font changes so overlay text re-resolves families when fonts load/register.
+  useFonts();
   return (
     <section
       ref={workspacePanelRef}

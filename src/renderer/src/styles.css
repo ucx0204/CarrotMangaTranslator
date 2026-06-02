@@ -1564,20 +1564,40 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  display: grid;
-  gap: 2px;
-  max-height: 280px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
   padding: var(--sp-1);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-md);
   background: #14171c;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-md);
+}
+
+.font-select-options {
+  display: grid;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.font-select-add {
+  width: 100%;
+  min-height: var(--ctl-h-sm);
+  border-color: var(--border-soft);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
+
+.font-select-add:hover:not(:disabled) {
+  border-color: var(--accent-bd);
+  color: var(--text);
 }
 
 .font-select-option {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--sp-3);
   width: 100%;
@@ -1586,6 +1606,26 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   border-radius: var(--r-sm);
   background: transparent;
   text-align: left;
+  cursor: pointer;
+}
+
+.font-select-remove {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.font-select-remove:hover:not(:disabled) {
+  border-color: var(--danger-bd);
+  background: var(--danger-soft);
+  color: #e7a3a3;
 }
 
 .font-select-option.active,
