@@ -108,3 +108,42 @@ export const EditIcon = createIcon(
     <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
   </>
 );
+
+export const BoldIcon = createIcon(
+  <>
+    <path d="M7 5h6a3.5 3.5 0 0 1 0 7H7z" />
+    <path d="M7 12h7a3.5 3.5 0 0 1 0 7H7z" />
+  </>
+);
+
+export const ItalicIcon = createIcon(
+  <>
+    <path d="M19 4h-9" />
+    <path d="M14 20H5" />
+    <path d="M15 4 9 20" />
+  </>
+);
+
+export const AlignLeftIcon = createIcon(
+  <>
+    <path d="M4 6h16" />
+    <path d="M4 12h10" />
+    <path d="M4 18h13" />
+  </>
+);
+
+export const AlignCenterIcon = createIcon(
+  <>
+    <path d="M4 6h16" />
+    <path d="M7 12h10" />
+    <path d="M5 18h14" />
+  </>
+);
+
+export const AlignRightIcon = createIcon(
+  <>
+    <path d="M4 6h16" />
+    <path d="M10 12h10" />
+    <path d="M7 18h13" />
+  </>
+);

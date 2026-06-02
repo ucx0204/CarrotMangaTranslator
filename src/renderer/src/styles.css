@@ -1477,6 +1477,41 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   color: var(--text-dim);
 }
 
+.font-apply-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.font-apply-label {
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+}
+
+.font-apply-buttons {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.block-style-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.block-style-group {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.outline-width-field {
+  display: grid;
+  gap: var(--sp-1);
+}
+
 /* Custom font dropdown with per-option previews */
 .font-select {
   position: relative;

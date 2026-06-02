@@ -160,8 +160,8 @@ function escapeText(value) {
   return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
 }
 
-function buildFont(size, family) {
-  return "600 " + size + "px " + family;
+function buildFont(size, family, weight, italic) {
+  return (italic ? "italic " : "") + (weight || 600) + " " + size + "px " + family;
 }
 
 function wrapTextToWidth(text, maxWidth, fontSize, fontFamily) {
@@ -236,8 +236,8 @@ function resolveFontSize(block, innerWidth, innerHeight) {
   return Math.min(best, capped);
 }
 
-function resolveOutlineShadow(fontSize, color) {
-  const radius = Math.round(Math.min(4, Math.max(0.35, fontSize * 0.055)) * 10) / 10;
+function resolveOutlineShadow(fontSize, color, scale) {
+  const radius = Math.round(Math.min(4, Math.max(0.35, fontSize * 0.055)) * (scale == null ? 1 : scale) * 10) / 10;
   const half = Math.round(radius * 0.55 * 10) / 10;
   return [[0, -radius], [radius, 0], [0, radius], [-radius, 0], [radius, -radius], [radius, radius], [-radius, radius], [-radius, -radius], [half, -half], [half, half], [-half, half], [-half, -half]]
     .map(([x, y]) => x + "px " + y + "px 0 " + color)
@@ -249,12 +249,15 @@ function resolveOutlineWidth(fontSize) {
 }
 
 function drawOutlinedText(ctx, text, x, y, block, fontSize) {
-  ctx.lineJoin = "round";
-  ctx.miterLimit = 2;
-  ctx.lineWidth = resolveOutlineWidth(fontSize);
-  ctx.strokeStyle = block.outlineColor;
+  const outlineScale = block.outlineWidthScale == null ? 1 : block.outlineWidthScale;
   ctx.fillStyle = block.textColor;
-  ctx.strokeText(text, x, y);
+  if (outlineScale > 0) {
+    ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+    ctx.lineWidth = resolveOutlineWidth(fontSize) * outlineScale;
+    ctx.strokeStyle = block.outlineColor;
+    ctx.strokeText(text, x, y);
+  }
   ctx.fillText(text, x, y);
 }
 
@@ -266,7 +269,7 @@ function drawHorizontalText(ctx, block, rect, fontSize) {
   const startY = rect.top + Math.max(0, (rect.height - totalHeight) / 2);
   const align = block.textAlign || "center";
   const x = align === "left" ? rect.left + 1 : align === "right" ? rect.left + rect.width - 1 : rect.left + rect.width / 2;
-  ctx.font = buildFont(fontSize, block.fontFamily);
+  ctx.font = buildFont(fontSize, block.fontFamily, block.bold ? 800 : 400, block.italic);
   ctx.textAlign = align;
   ctx.textBaseline = "top";
   for (const [index, line] of measured.lines.entries()) {
@@ -289,7 +292,7 @@ function drawVerticalText(ctx, block, rect, fontSize) {
   const columnGap = fontSize * 1.15;
   const totalWidth = Math.max(columnGap, columns.length * columnGap);
   const firstX = rect.left + rect.width / 2 + totalWidth / 2 - columnGap / 2;
-  ctx.font = buildFont(fontSize, block.fontFamily);
+  ctx.font = buildFont(fontSize, block.fontFamily, block.bold ? 800 : 400, block.italic);
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   for (const [columnIndex, column] of columns.entries()) {
@@ -357,6 +360,9 @@ function renderBlocks() {
     root.style.height = block.rect.height + "px";
     root.style.color = block.textColor;
     root.style.fontFamily = block.fontFamily;
+    root.style.fontWeight = block.bold ? "800" : "400";
+    root.style.fontStyle = block.italic ? "italic" : "normal";
+    root.style.fontSynthesis = "weight style";
     root.style.lineHeight = String(block.lineHeight);
     root.style.textAlign = block.textAlign;
     if (block.rotationDeg) {
@@ -370,7 +376,8 @@ function renderBlocks() {
 
     const content = document.createElement("span");
     content.className = "page-export-content" + (block.renderDirection === "vertical" ? " vertical" : "");
-    content.style.textShadow = resolveOutlineShadow(fontSize, block.outlineColor);
+    content.style.textShadow =
+      block.outlineWidthScale != null && block.outlineWidthScale <= 0 ? "none" : resolveOutlineShadow(fontSize, block.outlineColor, block.outlineWidthScale);
     if (block.renderDirection === "vertical") {
       content.textContent = block.text.replace(/\\r/g, "").replace(/\\s+/g, "");
       content.style.height = Math.min(innerHeight, Math.max(1, Array.from(content.textContent).length * fontSize * block.lineHeight)) + "px";
@@ -393,9 +400,11 @@ async function preloadExportFonts() {
   const loads = [];
   for (const block of EXPORT_BLOCKS) {
     const size = Math.max(MIN_FONT_SIZE, Math.floor(block.fontSizePx || 20));
+    loads.push(document.fonts.load("400 " + size + "px " + block.fontFamily));
     loads.push(document.fonts.load("600 " + size + "px " + block.fontFamily));
     loads.push(document.fonts.load("700 " + size + "px " + block.fontFamily));
-    loads.push(document.fonts.load("400 " + size + "px " + block.fontFamily));
+    loads.push(document.fonts.load("800 " + size + "px " + block.fontFamily));
+    loads.push(document.fonts.load("italic 400 " + size + "px " + block.fontFamily));
   }
   await Promise.all(loads.map((load) => load.catch(() => [])));
   await document.fonts.ready;
@@ -438,6 +447,9 @@ type PageExportBlock = {
   textAlign: "left" | "center" | "right";
   textColor: string;
   outlineColor: string;
+  bold: boolean;
+  italic: boolean;
+  outlineWidthScale: number;
   autoFitText: boolean;
 };
 
@@ -473,6 +485,9 @@ function buildPageExportBlock(
     textAlign: block.textAlign || "center",
     textColor: normalizeExportColor(block.textColor, "#000000"),
     outlineColor: normalizeExportColor(block.outlineColor, "#ffffff"),
+    bold: Boolean(block.bold),
+    italic: Boolean(block.italic),
+    outlineWidthScale: block.outlineWidthScale == null ? 1 : Math.max(0, block.outlineWidthScale),
     autoFitText: block.autoFitText ?? true
   };
 }

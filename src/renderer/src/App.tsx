@@ -896,6 +896,34 @@ export default function App(): React.JSX.Element {
     }));
   };
 
+  const applyFontToScope = (scope: "page" | "chapter") => {
+    if (!currentChapter || !selectedBlock || selectedPageEditLocked) {
+      return;
+    }
+    const fontFamily = selectedBlock.fontFamily;
+    const targetPageIds = scope === "page" ? (selectedPage ? [selectedPage.id] : []) : currentChapter.pages.map((page) => page.id);
+    if (targetPageIds.length === 0) {
+      return;
+    }
+    const targetSet = new Set(targetPageIds);
+    const stamp = new Date().toISOString();
+    setCurrentChapter((current) => {
+      if (!current) {
+        return current;
+      }
+      const next = {
+        ...current,
+        pages: current.pages.map((page) =>
+          targetSet.has(page.id) ? { ...page, updatedAt: stamp, blocks: page.blocks.map((block) => ({ ...block, fontFamily })) } : page
+        )
+      };
+      currentChapterRef.current = next;
+      return next;
+    });
+    targetPageIds.forEach((id) => markDirty(id));
+    pushStatus(scope === "page" ? "이 페이지의 모든 블록에 폰트를 적용했습니다." : "이 화 전체 블록에 폰트를 적용했습니다.");
+  };
+
   const deleteSelectedBlock = () => {
     if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
       return;
@@ -1659,6 +1687,7 @@ export default function App(): React.JSX.Element {
           onEnterInpainting={() => void enterInpaintingMode()}
           onCancelJob={() => void window.mangaApi.cancelJob()}
           onStartAreaTranslate={startRegionTranslationSelection}
+          onApplyFont={applyFontToScope}
           onUpdateBlock={updateSelectedBlock}
           onDeleteBlock={deleteSelectedBlock}
           onDuplicateBlock={duplicateSelectedBlock}

@@ -35,7 +35,9 @@ export function OverlayBlock({
 
   const displayText = block.translatedText || block.sourceText || "...";
   const layout = resolveBlockTextLayout(block, displayText, pageSize, stageSize);
-  const textOutlineShadow = resolveTextOutlineShadow(layout.fontSizePx, resolveCssColor(block.outlineColor, "#ffffff"));
+  const outlineScale = block.outlineWidthScale ?? 1;
+  const textOutlineShadow =
+    outlineScale <= 0 ? "none" : resolveTextOutlineShadow(layout.fontSizePx, resolveCssColor(block.outlineColor, "#ffffff"), outlineScale);
   const visualStyle = resolveBlockVisualStyle(block.type);
   const style: React.CSSProperties = {
     left: layout.rect.left,
@@ -75,6 +77,9 @@ export function OverlayBlock({
     maxWidth: "100%",
     maxHeight: "100%",
     overflow: "visible",
+    fontWeight: block.bold ? 800 : 400,
+    fontStyle: block.italic ? "italic" : "normal",
+    fontSynthesis: "weight style",
     textShadow: textOutlineShadow
   };
 
@@ -124,8 +129,8 @@ export function OverlayBlock({
   );
 }
 
-function resolveTextOutlineShadow(fontSizePx: number, color: string): string {
-  const radius = resolveTextOutlinePx(fontSizePx);
+function resolveTextOutlineShadow(fontSizePx: number, color: string, scale = 1): string {
+  const radius = resolveTextOutlinePx(fontSizePx) * scale;
   const halfRadius = Math.round(radius * 0.55 * 10) / 10;
   const offsets = [
     [0, -radius],

@@ -31,6 +31,12 @@
   opacity: 0.5;
 }
 
+.iconButton[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
 .sm {
   width: var(--ctl-h-sm);
   height: var(--ctl-h-sm);

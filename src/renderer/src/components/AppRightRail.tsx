@@ -27,6 +27,7 @@ type AppRightRailProps = {
   onEnterInpainting: () => void;
   onCancelJob: () => void;
   onStartAreaTranslate: () => void;
+  onApplyFont: (scope: "page" | "chapter") => void;
   onUpdateBlock: (patch: Partial<TranslationBlock>) => void;
   onDeleteBlock: () => void;
   onDuplicateBlock: () => void;
@@ -54,6 +55,7 @@ export function AppRightRail({
   onEnterInpainting,
   onCancelJob,
   onStartAreaTranslate,
+  onApplyFont,
   onUpdateBlock,
   onDeleteBlock,
   onDuplicateBlock
@@ -69,6 +71,7 @@ export function AppRightRail({
             <EditorPanel
               block={selectedBlock}
               disabled={editorDisabled}
+              onApplyFont={onApplyFont}
               onUpdate={onUpdateBlock}
               onDelete={onDeleteBlock}
               onDuplicate={onDuplicateBlock}
@@ -99,6 +102,7 @@ export function AppRightRail({
             areaTranslateAvailable={Boolean(selectedPage && selectedPageImageDataUrl && !jobActive)}
             areaTranslateSelecting={areaTranslateSelecting}
             onStartAreaTranslate={onStartAreaTranslate}
+            onApplyFont={onApplyFont}
             onUpdate={onUpdateBlock}
             onDelete={onDeleteBlock}
             onDuplicate={onDuplicateBlock}

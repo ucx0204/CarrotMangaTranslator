@@ -103,6 +103,9 @@ export type TranslationBlock = {
   textAlign: "left" | "center" | "right";
   textColor: string;
   outlineColor?: string;
+  outlineWidthScale?: number;
+  bold?: boolean;
+  italic?: boolean;
   backgroundColor: string;
   opacity: number;
   autoFitText?: boolean;
