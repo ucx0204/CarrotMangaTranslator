@@ -1,0 +1,17 @@
+.body {
+  padding: 12px;
+}
+
+.content {
+  display: grid;
+  place-items: center;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  max-height: calc(100vh - 150px);
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+}
