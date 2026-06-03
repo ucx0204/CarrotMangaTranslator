@@ -31,4 +31,12 @@ describe("Windows installer clean uninstall option", () => {
     expect(appPaths).toContain('const legacyDataRoot = join(paths.executableDir, "data")');
     expect(appPaths).not.toContain('const dataRoot = isPackaged ? join(executableDir, "data") : repoRoot');
   });
+
+  it("writes packaged bootstrap logs under userData logs instead of beside the executable", () => {
+    const bootstrap = readFileSync(join(repoRoot, "src", "main", "bootstrap.ts"), "utf8");
+
+    expect(bootstrap).toContain('app.getPath("userData")');
+    expect(bootstrap).toContain('join(resolveBootstrapUserDataDir(), "logs", "bootstrap.log")');
+    expect(bootstrap).not.toContain('join(dirname(process.execPath), "bootstrap.log")');
+  });
 });

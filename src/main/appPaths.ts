@@ -20,6 +20,7 @@ export type AppPaths = {
   llamaServerPath: string;
   hfHomeDir?: string;
   hfHubCacheDir?: string;
+  llamaCacheDir?: string;
 };
 
 function isRunningPackaged(): boolean {
@@ -36,7 +37,8 @@ export function getAppPaths(): AppPaths {
   const logsDir = isPackaged ? join(dataRoot, "logs") : join(repoRoot, "logs");
   const runtimeDir = isPackaged ? join(resourcesDir, "app-runtime") : join(repoRoot, "out", "app-runtime");
   const toolsDir = isPackaged ? join(resourcesDir, "tools") : join(repoRoot, "tools");
-  const explicitOcrRuntimeDir = process.env.MANGA_TRANSLATOR_OCR_RUNTIME_DIR?.trim();
+  const allowExternalRuntime = allowExternalRuntimeOverrides(isPackaged);
+  const explicitOcrRuntimeDir = allowExternalRuntime ? process.env.MANGA_TRANSLATOR_OCR_RUNTIME_DIR?.trim() : undefined;
   const ocrRuntimeDir = explicitOcrRuntimeDir || (
     process.platform === "win32"
       ? join(process.env.LOCALAPPDATA || dataRoot, "manga-gemma-translator", "ocr-runtime")
@@ -48,6 +50,7 @@ export function getAppPaths(): AppPaths {
   const explicitHubCache = process.env.HF_HUB_CACHE?.trim() || process.env.HUGGINGFACE_HUB_CACHE?.trim();
   const hfHomeDir = isPackaged ? join(dataRoot, "hf-cache") : explicitHfHome || undefined;
   const hfHubCacheDir = isPackaged ? join(dataRoot, "hf-cache", "hub") : explicitHubCache || undefined;
+  const llamaCacheDir = isPackaged ? join(dataRoot, "llama.cpp") : undefined;
 
   return {
     isPackaged,
@@ -66,8 +69,20 @@ export function getAppPaths(): AppPaths {
     llamaRuntimeDir,
     llamaServerPath,
     hfHomeDir,
-    hfHubCacheDir
+    hfHubCacheDir,
+    llamaCacheDir
   };
+}
+
+function allowExternalRuntimeOverrides(isPackaged: boolean): boolean {
+  if (!isPackaged) {
+    return true;
+  }
+  return isTruthyEnv(process.env.MGT_ALLOW_EXTERNAL_RUNTIME ?? process.env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME);
+}
+
+function isTruthyEnv(value: unknown): boolean {
+  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
 }
 
 function llamaServerBinaryName(): string {
@@ -77,7 +92,9 @@ function llamaServerBinaryName(): string {
 function bundledLlamaServerCandidates(toolsDir: string): string[] {
   const serverBinary = llamaServerBinaryName();
   const knownRuntimeDirs = [
+    "beellama-v0.2.0-cuda13.1",
     "beellama-v0.2.0-cuda12.4",
+    "llama-b9490-cuda13.3",
     "llama-b8833-cuda12.4",
     "llama-b8808-cuda12"
   ];
@@ -125,6 +142,9 @@ export function ensureWritableAppDirectories(): AppPaths {
   }
   if (paths.hfHubCacheDir) {
     mkdirSync(paths.hfHubCacheDir, { recursive: true });
+  }
+  if (paths.llamaCacheDir) {
+    mkdirSync(paths.llamaCacheDir, { recursive: true });
   }
   mkdirSync(paths.ocrRuntimeDir, { recursive: true });
   return paths;

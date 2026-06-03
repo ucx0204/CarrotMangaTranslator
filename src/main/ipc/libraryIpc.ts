@@ -32,8 +32,8 @@ import { createLibraryImageUrl } from "../imageProtocol";
 export function registerLibraryIpc(): void {
   ipcMain.handle("library:get-index", async () => listLibrary());
   ipcMain.handle("library:open-folder", async () => {
-    await shell.openPath(getLibraryRoot());
-    return { opened: true, libraryPath: getLibraryRoot() };
+    const error = await shell.openPath(getLibraryRoot());
+    return { opened: !error, libraryPath: getLibraryRoot(), ...(error ? { error } : {}) };
   });
   ipcMain.handle("library:open-chapter", async (_event, chapterId: unknown) => {
     const request = parseIpcPayload(OpenChapterRequestSchema, { chapterId }, "화 열기");

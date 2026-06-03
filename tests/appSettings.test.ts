@@ -18,6 +18,7 @@ import {
   RTX_50_OCR_GPU_CUDA_TAG
 } from "../src/main/appSettings";
 import type { AppSettings } from "../src/shared/types";
+import { join } from "node:path";
 
 describe("app settings helpers", () => {
   it("uses Codex as the hardware-safe fallback when GPU detection is unavailable", () => {
@@ -73,6 +74,12 @@ describe("app settings helpers", () => {
       ocr: defaults.ocr,
       maxTokens: defaults.maxTokens
     });
+  });
+
+  it("throws on malformed stored settings so the settings store can back it up", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(() => parseStoredAppSettings("{ malformed", defaults)).toThrow(SyntaxError);
   });
 
   it("ignores legacy stored translation mode values", () => {
@@ -163,10 +170,69 @@ describe("app settings helpers", () => {
     expect(options.includeEnhancedVariant).toBe(false);
     expect(options.topP).toBe(0.95);
     expect(options.topK).toBe(64);
-    expect(options.fitTargetMb).toBe(9000);
+    expect(options.fitTargetMb).toBe(2048);
     expect(options.workingDir).toBe("C:/app-data");
     expect(options.outputDir).toBe("C:/runs/job-1");
     expect(options.label).toBe("app-job-1");
+  });
+
+  it("ignores packaged runtime environment overrides unless external runtime diagnostics are explicitly allowed", () => {
+    const defaults = resolveDefaultAppSettings();
+    const settings: AppSettings = {
+      ...defaults,
+      modelProvider: "gemma",
+      gemma: {
+        modelSource: "huggingface",
+        modelRepo: "saved/repo",
+        modelFile: "saved-model.gguf",
+        vramMode: "economy"
+      }
+    };
+    const paths = {
+      isPackaged: true,
+      dataRoot: "C:/app-data",
+      toolsDir: "C:/app/resources/tools",
+      ocrRuntimeDir: "C:/app-data/ocr-runtime",
+      llamaServerPath: "C:/app/resources/tools/llama-server.exe",
+      hfHomeDir: "C:/app-data/hf-cache",
+      hfHubCacheDir: "C:/app-data/hf-cache/hub",
+      llamaCacheDir: "C:/app-data/llama.cpp"
+    };
+    const env = {
+      MANGA_TRANSLATOR_LLAMA_SERVER_PATH: "D:/external/llama-server.exe",
+      MANGA_TRANSLATOR_MODEL_HF: "env/repo",
+      LLAMA_ARG_HF_FILE: "env-model.gguf",
+      MANGA_TRANSLATOR_CTX: "1234",
+      MANGA_TRANSLATOR_OCR_BBOX_CMD: "external-ocr"
+    } satisfies NodeJS.ProcessEnv;
+
+    const blocked = buildBaseTranslationOptions({
+      jobId: "packaged",
+      runDir: "C:/app-data/runs/packaged",
+      paths,
+      settings,
+      env
+    });
+    const allowed = buildBaseTranslationOptions({
+      jobId: "packaged",
+      runDir: "C:/app-data/runs/packaged",
+      paths,
+      settings,
+      env: { ...env, MGT_ALLOW_EXTERNAL_RUNTIME: "1" }
+    });
+
+    expect(blocked.serverPath).toBe(paths.llamaServerPath);
+    expect(blocked.modelRepo).toBe("saved/repo");
+    expect(blocked.modelFile).toBe("saved-model.gguf");
+    expect(blocked.ctx).toBe(8192);
+    expect(blocked.ocrBboxCommand).toBeUndefined();
+    expect(blocked.llamaCacheDir).toBe(paths.llamaCacheDir);
+
+    expect(allowed.serverPath).toBe("D:/external/llama-server.exe");
+    expect(allowed.modelRepo).toBe("env/repo");
+    expect(allowed.modelFile).toBe("env-model.gguf");
+    expect(allowed.ctx).toBe(1234);
+    expect(allowed.ocrBboxCommand).toBe("external-ocr");
   });
 
   it("uses economy VRAM runtime options without clipping image tokens", () => {
@@ -204,9 +270,10 @@ describe("app settings helpers", () => {
     expect(options.enableMetrics).toBe(true);
     expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(false);
-    expect(options.fitTargetMb).toBe(9000);
+    expect(options.fitTargetMb).toBe(2048);
     expect(options.imageMinTokens).toBe(1024);
     expect(options.imageMaxTokens).toBe(1024);
+    expect(options.serverPath).toBe(join("C:/app-data", "tools", "llama-b8833-cuda12.4", "llama-server.exe"));
   });
 
   it("uses the full VRAM smoke preset with DFlash draft enabled", () => {
@@ -240,6 +307,53 @@ describe("app settings helpers", () => {
     expect(options.draftModelRepo).toBeTruthy();
     expect(options.draftModelFile).toBeTruthy();
     expect(options.fitTargetMb).toBe(1024);
+    expect(options.llamaRuntimeProfile).toBe("cuda12");
+    expect(options.serverPath).toBe(join("C:/app-data", "tools", "beellama-v0.2.0-cuda12.4", "llama-server.exe"));
+  });
+
+  it("routes RTX 50 series Gemma runtimes to CUDA 13 builds", () => {
+    const rtx50EconomyDefaults = resolveDefaultAppSettings(
+      {},
+      { name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50, computeCapability: 12 }
+    );
+    const economyOptions = buildBaseTranslationOptions({
+      jobId: "job-rtx50-economy",
+      runDir: "C:/runs/job-rtx50-economy",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub"
+      },
+      settings: rtx50EconomyDefaults,
+      env: {}
+    });
+
+    expect(economyOptions.llamaRuntimeProfile).toBe("rtx50");
+    expect(economyOptions.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
+    expect(economyOptions.serverPath).toBe(join("C:/app-data", "tools", "llama-b9490-cuda13.3", "llama-server.exe"));
+
+    const rtx50FullDefaults = resolveDefaultAppSettings(
+      {},
+      { name: "NVIDIA GeForce RTX 5090", memoryMb: 32607, rtxGeneration: 50, computeCapability: 12 }
+    );
+    const fullOptions = buildBaseTranslationOptions({
+      jobId: "job-rtx50-full",
+      runDir: "C:/runs/job-rtx50-full",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub"
+      },
+      settings: rtx50FullDefaults,
+      env: {}
+    });
+
+    expect(fullOptions.llamaRuntimeProfile).toBe("rtx50");
+    expect(fullOptions.serverPath).toBe(join("C:/app-data", "tools", "beellama-v0.2.0-cuda13.1", "llama-server.exe"));
   });
 
   it("keeps local model settings when the source is local", () => {

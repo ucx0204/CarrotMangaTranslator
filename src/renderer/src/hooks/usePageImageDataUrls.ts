@@ -72,7 +72,7 @@ export function usePageImageDataUrls({
     return () => {
       cancelled = true;
     };
-  }, [cacheRevision, selectedPage?.id, selectedPageImagePath]);
+  }, [cacheRevision, selectedPage?.id, selectedPage?.imagePath, selectedPageImagePath]);
 
   React.useEffect(() => {
     if (!selectedPage) {

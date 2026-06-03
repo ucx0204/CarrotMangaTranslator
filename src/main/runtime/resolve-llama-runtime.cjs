@@ -8,7 +8,9 @@ function binaryName() {
 function bundledServerCandidates(toolsDir) {
   const serverBinary = binaryName();
   const knownRuntimeDirs = [
+    "beellama-v0.2.0-cuda13.1",
     "beellama-v0.2.0-cuda12.4",
+    "llama-b9490-cuda13.3",
     "llama-b8833-cuda12.4",
     "llama-b8808-cuda12"
   ];

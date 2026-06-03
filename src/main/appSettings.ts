@@ -8,6 +8,7 @@ import type {
   OcrDevice
 } from "../shared/types";
 import type { DetectedGpuInfo } from "./gpuInfo";
+import { join } from "node:path";
 
 export const GEMMA_31B_MODEL_REPO =
   "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
@@ -21,6 +22,10 @@ export const GEMMA_26B_MODEL_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncen
 export const GEMMA_26B_MODEL_FILE_IQ3_S = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf";
 export const GEMMA_26B_MMPROJ_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF";
 export const GEMMA_26B_MMPROJ_FILE = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf";
+const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12 = "beellama-v0.2.0-cuda12.4";
+const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 = "beellama-v0.2.0-cuda13.1";
+const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b8833-cuda12.4";
+const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9490-cuda13.3";
 export const DEFAULT_GEMMA_MODEL_REPO = GEMMA_31B_MODEL_REPO;
 export const DEFAULT_GEMMA_MODEL_FILE_IQ3_S = GEMMA_31B_MODEL_FILE_IQ3_S;
 export const DEFAULT_GEMMA_MODEL_FILE = DEFAULT_GEMMA_MODEL_FILE_IQ3_S;
@@ -89,7 +94,7 @@ const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> = {
     ctx: 8192,
     batch: 1024,
     ubatch: 1024,
-    fitTargetMb: 9000,
+    fitTargetMb: 2048,
     cacheTypeK: "q4_0",
     cacheTypeV: "q4_0",
     ctxCheckpoints: 0,
@@ -145,6 +150,7 @@ export type TranslationOptions = {
   enhancedContrast: number;
   imageFirst: boolean;
   reuseServer: boolean;
+  llamaRuntimeProfile?: string;
   workingDir: string;
   toolsDir: string;
   ocrRuntimeDir?: string;
@@ -189,17 +195,20 @@ export type TranslationOptions = {
   }) => void;
   hfHomeDir?: string;
   hfHubCacheDir?: string;
+  llamaCacheDir?: string;
   label: string;
   abortSignal?: AbortSignal;
 };
 
 export type TranslationOptionPaths = {
+  isPackaged?: boolean;
   dataRoot: string;
   toolsDir: string;
   ocrRuntimeDir?: string;
   llamaServerPath: string;
   hfHomeDir?: string;
   hfHubCacheDir?: string;
+  llamaCacheDir?: string;
 };
 
 export function resolveDefaultAppSettings(
@@ -332,11 +341,7 @@ export function parseStoredAppSettings(rawText: string | null | undefined, defau
     return defaults;
   }
 
-  try {
-    return normalizeAppSettings(JSON.parse(rawText), defaults);
-  } catch {
-    return defaults;
-  }
+  return normalizeAppSettings(JSON.parse(rawText), defaults);
 }
 
 export function buildBaseTranslationOptions({
@@ -352,130 +357,145 @@ export function buildBaseTranslationOptions({
   settings: AppSettings;
   env?: NodeJS.ProcessEnv;
 }): TranslationOptions {
-  const gemmaVramMode = resolveGemmaVramMode(env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE, settings.gemma.vramMode);
+  const runtimeEnv = filterPackagedRuntimeEnv(env, paths);
+  const gemmaVramMode = resolveGemmaVramMode(runtimeEnv.MANGA_TRANSLATOR_GEMMA_VRAM_MODE, settings.gemma.vramMode);
   const gemmaRuntimePreset = GEMMA_RUNTIME_PRESETS[gemmaVramMode];
   const runtimeGemma = resolveRuntimeGemmaSettings(settings.gemma, gemmaVramMode);
+  const ocrGpuCudaTag = resolveOcrGpuCudaTag(
+    runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG ??
+      runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG ??
+      runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_CUDA,
+    settings.ocr.gpuCudaTag ?? DEFAULT_OCR_GPU_CUDA_TAG
+  );
+  const llamaRuntimeProfile = resolveLlamaRuntimeProfile(runtimeEnv, ocrGpuCudaTag);
   return {
     imagePath: "",
     outputDir: runDir,
     modelProvider: settings.modelProvider,
-    port: readNumberEnv(env, "MANGA_TRANSLATOR_LLAMA_PORT", 18180),
+    port: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_LLAMA_PORT", 18180),
     promptMode: "ko_bbox_lines_multiview",
-    temperature: readNumberEnv(env, "MANGA_TRANSLATOR_TEMPERATURE", 0.2),
-    topP: readNumberEnv(env, "MANGA_TRANSLATOR_TOP_P", 0.95),
-    topK: readNumberEnv(env, "MANGA_TRANSLATOR_TOP_K", 64),
-    maxTokens: resolveMaxTokens(env.MANGA_TRANSLATOR_MAX_TOKENS, settings.maxTokens),
-    ctx: readNumberEnv(env, "MANGA_TRANSLATOR_CTX", gemmaRuntimePreset.ctx),
-    batch: readNumberEnv(env, "MANGA_TRANSLATOR_BATCH", gemmaRuntimePreset.batch),
-    ubatch: readNumberEnv(env, "MANGA_TRANSLATOR_UBATCH", gemmaRuntimePreset.ubatch),
+    temperature: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_TEMPERATURE", 0.2),
+    topP: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_TOP_P", 0.95),
+    topK: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_TOP_K", 64),
+    maxTokens: resolveMaxTokens(runtimeEnv.MANGA_TRANSLATOR_MAX_TOKENS, settings.maxTokens),
+    ctx: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_CTX", gemmaRuntimePreset.ctx),
+    batch: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_BATCH", gemmaRuntimePreset.batch),
+    ubatch: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_UBATCH", gemmaRuntimePreset.ubatch),
     gemmaVramMode,
-    fitTargetMb: readNumberEnv(env, "MANGA_TRANSLATOR_FIT_TARGET_MB", gemmaRuntimePreset.fitTargetMb),
+    fitTargetMb: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_FIT_TARGET_MB", gemmaRuntimePreset.fitTargetMb),
     gpuLayers:
-      readOptionalGpuLayersEnv(env, "MANGA_TRANSLATOR_GEMMA_GPU_LAYERS") ??
-      readOptionalGpuLayersEnv(env, "MANGA_TRANSLATOR_GPU_LAYERS") ??
+      readOptionalGpuLayersEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_GPU_LAYERS") ??
+      readOptionalGpuLayersEnv(runtimeEnv, "MANGA_TRANSLATOR_GPU_LAYERS") ??
       gemmaRuntimePreset.gpuLayers,
     cacheTypeK:
-      resolveOptionalString(env.MANGA_TRANSLATOR_GEMMA_CACHE_TYPE_K ?? env.MANGA_TRANSLATOR_CACHE_TYPE_K) ??
+      resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_GEMMA_CACHE_TYPE_K ?? runtimeEnv.MANGA_TRANSLATOR_CACHE_TYPE_K) ??
       gemmaRuntimePreset.cacheTypeK,
     cacheTypeV:
-      resolveOptionalString(env.MANGA_TRANSLATOR_GEMMA_CACHE_TYPE_V ?? env.MANGA_TRANSLATOR_CACHE_TYPE_V) ??
+      resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_GEMMA_CACHE_TYPE_V ?? runtimeEnv.MANGA_TRANSLATOR_CACHE_TYPE_V) ??
       gemmaRuntimePreset.cacheTypeV,
     ctxCheckpoints:
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_CTX_CHECKPOINTS") ??
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_CTX_CHECKPOINTS") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_CTX_CHECKPOINTS") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_CTX_CHECKPOINTS") ??
       gemmaRuntimePreset.ctxCheckpoints,
-    kvOffload: readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_KV_OFFLOAD") ?? gemmaRuntimePreset.kvOffload,
+    kvOffload: readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_KV_OFFLOAD") ?? gemmaRuntimePreset.kvOffload,
     mmprojOffload:
-      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_MMPROJ_OFFLOAD") ?? gemmaRuntimePreset.mmprojOffload,
+      readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_MMPROJ_OFFLOAD") ?? gemmaRuntimePreset.mmprojOffload,
     threads:
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_THREADS") ??
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_THREADS") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_THREADS") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_THREADS") ??
       gemmaRuntimePreset.threads,
     threadsBatch:
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_THREADS_BATCH") ??
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_THREADS_BATCH") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_THREADS_BATCH") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_THREADS_BATCH") ??
       gemmaRuntimePreset.threadsBatch,
     poll:
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_POLL") ??
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_POLL") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_POLL") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_POLL") ??
       gemmaRuntimePreset.poll,
     pollBatch:
-      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_GEMMA_POLL_BATCH") ??
-      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_POLL_BATCH") ??
+      readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_POLL_BATCH") ??
+      readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_POLL_BATCH") ??
       gemmaRuntimePreset.pollBatch,
     prioBatch:
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_PRIO_BATCH") ??
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_PRIO_BATCH") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_PRIO_BATCH") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_PRIO_BATCH") ??
       gemmaRuntimePreset.prioBatch,
     cacheIdleSlots:
-      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_GEMMA_CACHE_IDLE_SLOTS") ??
-      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_CACHE_IDLE_SLOTS") ??
+      readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_CACHE_IDLE_SLOTS") ??
+      readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_CACHE_IDLE_SLOTS") ??
       gemmaRuntimePreset.cacheIdleSlots,
     cacheReuse:
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_GEMMA_CACHE_REUSE") ??
-      readOptionalNumberEnv(env, "MANGA_TRANSLATOR_CACHE_REUSE") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_CACHE_REUSE") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_CACHE_REUSE") ??
       gemmaRuntimePreset.cacheReuse,
     enableMetrics:
-      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_GEMMA_METRICS") ??
-      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_METRICS") ??
+      readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_METRICS") ??
+      readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_METRICS") ??
       gemmaRuntimePreset.enableMetrics,
     enablePerf:
-      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_GEMMA_PERF") ??
-      readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_PERF") ??
+      readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_PERF") ??
+      readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_PERF") ??
       gemmaRuntimePreset.enablePerf,
     draftModelRepo:
-      resolveOptionalString(env.MANGA_TRANSLATOR_DRAFT_MODEL_HF) ?? gemmaRuntimePreset.draftModelRepo,
+      resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_DRAFT_MODEL_HF) ?? gemmaRuntimePreset.draftModelRepo,
     draftModelFile:
-      resolveOptionalString(env.MANGA_TRANSLATOR_DRAFT_MODEL_FILE) ?? gemmaRuntimePreset.draftModelFile,
-    useDraft: readOptionalBooleanEnv(env, "MANGA_TRANSLATOR_USE_DRAFT") ?? gemmaRuntimePreset.useDraft,
-    imageMinTokens: readNumberEnv(env, "MANGA_TRANSLATOR_IMAGE_MIN_TOKENS", DEFAULT_IMAGE_TOKENS),
-    imageMaxTokens: readNumberEnv(env, "MANGA_TRANSLATOR_IMAGE_MAX_TOKENS", DEFAULT_IMAGE_TOKENS),
+      resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_DRAFT_MODEL_FILE) ?? gemmaRuntimePreset.draftModelFile,
+    useDraft: readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_USE_DRAFT") ?? gemmaRuntimePreset.useDraft,
+    imageMinTokens: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_IMAGE_MIN_TOKENS", DEFAULT_IMAGE_TOKENS),
+    imageMaxTokens: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_IMAGE_MAX_TOKENS", DEFAULT_IMAGE_TOKENS),
     includeEnhancedVariant: false,
     enhancedMaxLongSide: 1900,
     enhancedContrast: 1.35,
     imageFirst: true,
     reuseServer: true,
+    llamaRuntimeProfile,
     workingDir: paths.dataRoot,
     toolsDir: paths.toolsDir,
     serverPath:
-      resolveOptionalString(env.MANGA_TRANSLATOR_LLAMA_SERVER_PATH) ??
-      resolveOptionalString(env.LLAMA_SERVER_PATH) ??
-      paths.llamaServerPath,
+      resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_LLAMA_SERVER_PATH) ??
+      resolveOptionalString(runtimeEnv.LLAMA_SERVER_PATH) ??
+      resolveDefaultLlamaServerPathForGemma(paths, runtimeGemma, llamaRuntimeProfile),
     modelSource: runtimeGemma.modelSource,
-    modelRepo: resolveOptionalString(env.MANGA_TRANSLATOR_MODEL_HF) ?? runtimeGemma.modelRepo,
-    modelFile: resolveOptionalString(env.LLAMA_ARG_HF_FILE) ?? runtimeGemma.modelFile,
+    modelRepo: resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_MODEL_HF) ?? runtimeGemma.modelRepo,
+    modelFile: resolveOptionalString(runtimeEnv.LLAMA_ARG_HF_FILE) ?? runtimeGemma.modelFile,
     mmprojRepo:
       runtimeGemma.modelSource === "huggingface"
-        ? resolveOptionalString(env.MANGA_TRANSLATOR_MMPROJ_HF) ??
+        ? resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_MMPROJ_HF) ??
           runtimeGemma.mmprojRepo ??
           getDefaultMmprojForGemmaModel(runtimeGemma)?.mmprojRepo
         : undefined,
     mmprojFile:
       runtimeGemma.modelSource === "huggingface"
-        ? resolveOptionalString(env.LLAMA_ARG_MMPROJ_FILE) ??
+        ? resolveOptionalString(runtimeEnv.LLAMA_ARG_MMPROJ_FILE) ??
           runtimeGemma.mmprojFile ??
           getDefaultMmprojForGemmaModel(runtimeGemma)?.mmprojFile
         : undefined,
     localModelPath: runtimeGemma.localModelPath,
     localMmprojPath: runtimeGemma.localMmprojPath,
     codexModel: settings.codex.model,
-    codexReasoningEffort: resolveCodexReasoningEffort(env.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT, settings.codex.reasoningEffort),
+    codexReasoningEffort: resolveCodexReasoningEffort(runtimeEnv.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT, settings.codex.reasoningEffort),
     codexOauthPort: settings.codex.oauthPort,
-    ocrDevice: resolveOcrDevice(env.MANGA_TRANSLATOR_OCR_DEVICE, settings.ocr.device),
-    ocrGpuCudaTag: resolveOcrGpuCudaTag(
-      env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG ??
-        env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG ??
-        env.MANGA_TRANSLATOR_OCR_GPU_CUDA,
-      settings.ocr.gpuCudaTag ?? DEFAULT_OCR_GPU_CUDA_TAG
-    ),
-    ocrBboxProvider: resolveOptionalString(env.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER),
-    ocrBboxCommand: resolveOptionalString(env.MANGA_TRANSLATOR_OCR_BBOX_CMD),
-    ocrBboxHintsPath: resolveOptionalString(env.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH),
+    ocrDevice: resolveOcrDevice(runtimeEnv.MANGA_TRANSLATOR_OCR_DEVICE, settings.ocr.device),
+    ocrGpuCudaTag,
+    ocrBboxProvider: resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER),
+    ocrBboxCommand: resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_CMD),
+    ocrBboxHintsPath: resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH),
     ocrRuntimeDir: paths.ocrRuntimeDir,
     hfHomeDir: paths.hfHomeDir,
     hfHubCacheDir: paths.hfHubCacheDir,
+    llamaCacheDir: paths.llamaCacheDir,
     label: `app-${jobId}`
   };
+}
+
+export function filterPackagedRuntimeEnv(
+  env: NodeJS.ProcessEnv,
+  paths: Pick<TranslationOptionPaths, "isPackaged">
+): NodeJS.ProcessEnv {
+  if (!paths.isPackaged || readBooleanLikeEnv(env.MGT_ALLOW_EXTERNAL_RUNTIME ?? env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME)) {
+    return env;
+  }
+  return {};
 }
 
 function readNumberEnv(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
@@ -513,7 +533,11 @@ function readOptionalBooleanEnv(env: NodeJS.ProcessEnv, name: string): boolean |
   if (raw === undefined || raw === "") {
     return undefined;
   }
-  const normalized = raw.trim().toLowerCase();
+  return readBooleanLikeEnv(raw);
+}
+
+function readBooleanLikeEnv(raw: unknown): boolean | undefined {
+  const normalized = String(raw ?? "").trim().toLowerCase();
   if (["1", "true", "yes", "on"].includes(normalized)) {
     return true;
   }
@@ -589,7 +613,7 @@ function resolvePortNumber(value: unknown, fallback: number): number {
   if (!Number.isInteger(parsed)) {
     return fallback;
   }
-  return clampInteger(parsed, 0, 65535);
+  return clampInteger(parsed, 1, 65535);
 }
 
 function resolveMaxTokens(value: unknown, fallback: number): number {
@@ -686,6 +710,40 @@ function resolveRuntimeGemmaSettings(
     ...gemma,
     ...getDefaultGemmaPresetForVramMode(vramMode)
   };
+}
+
+function resolveDefaultLlamaServerPathForGemma(
+  paths: TranslationOptionPaths,
+  gemma: AppSettings["gemma"],
+  llamaRuntimeProfile = "cuda12"
+): string {
+  if (gemma.modelSource !== "huggingface" || !isBuiltInGemmaModel({ modelRepo: gemma.modelRepo, modelFile: gemma.modelFile })) {
+    return paths.llamaServerPath;
+  }
+  const binaryName = process.platform === "win32" ? "llama-server.exe" : "llama-server";
+  const useCuda13 = isRtx50LlamaRuntimeProfile(llamaRuntimeProfile);
+  const runtimeDir = is26BGemmaModel({ modelRepo: gemma.modelRepo, modelFile: gemma.modelFile })
+    ? useCuda13 ? MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 : MAINLINE_LLAMA_RUNTIME_DIR_CUDA12
+    : useCuda13 ? BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 : BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12;
+  return join(paths.dataRoot, "tools", runtimeDir, binaryName);
+}
+
+function resolveLlamaRuntimeProfile(env: NodeJS.ProcessEnv, ocrGpuCudaTag: string): string {
+  const explicit = resolveOptionalString(env.MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE);
+  if (explicit) {
+    return explicit.toLowerCase();
+  }
+  return isRtx50OcrCudaTag(ocrGpuCudaTag) ? "rtx50" : "cuda12";
+}
+
+function isRtx50LlamaRuntimeProfile(profile: string): boolean {
+  const normalized = String(profile ?? "").trim().toLowerCase();
+  return ["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(normalized);
+}
+
+function isRtx50OcrCudaTag(tag: string): boolean {
+  const normalized = String(tag ?? "").trim().toLowerCase();
+  return normalized === RTX_50_OCR_GPU_CUDA_TAG || normalized === "cu13" || normalized === "cu131" || normalized === "cu133";
 }
 
 function isBuiltInGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">): boolean {

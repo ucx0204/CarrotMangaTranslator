@@ -28,11 +28,15 @@ export async function readJsonFile<T>(path: string, fallback?: T): Promise<T> {
     const raw = await readFile(path, "utf8");
     return JSON.parse(raw) as T;
   } catch (error) {
-    if (fallback !== undefined) {
+    if (fallback !== undefined && isErrnoException(error) && error.code === "ENOENT") {
       return fallback;
     }
     throw error;
   }
+}
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return typeof error === "object" && error !== null && "code" in error;
 }
 
 export function sortNaturally(values: string[]): string[] {

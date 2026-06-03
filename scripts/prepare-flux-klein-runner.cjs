@@ -102,13 +102,17 @@ function findMsvcClBin() {
 function findCudaRoot() {
   const candidates = [
     process.env.CUDA_PATH_V12_9,
-    process.env.CUDA_PATH_V12_8,
-    process.env.CUDA_PATH_V12_4,
     join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.9"),
-    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.8"),
-    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.4"),
-    process.env.CUDA_PATH,
-    process.env.CUDA_HOME
+    ...(process.env.MGT_FLUX_ALLOW_LEGACY_CUDA_BUILD === "1"
+      ? [
+          process.env.CUDA_PATH_V12_8,
+          process.env.CUDA_PATH_V12_4,
+          join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.8"),
+          join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.4"),
+          process.env.CUDA_PATH,
+          process.env.CUDA_HOME
+        ]
+      : [])
   ].filter(Boolean);
   return candidates.find((candidate) => existsSync(join(candidate, "bin", "nvcc.exe"))) || null;
 }

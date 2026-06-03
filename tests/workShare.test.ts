@@ -284,6 +284,51 @@ describe("work share packages", () => {
     expect(index.works[0]?.chapterOrder).toEqual(["chapter-a", "chapter-b"]);
   });
 
+  it("does not delete works when cleanup cannot read a malformed index", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    await mkdir(join(rootDir, "works", "orphan-work"), { recursive: true });
+    await writeFile(join(rootDir, "index.json"), "{ malformed", "utf8");
+
+    await expect(library.cleanupLibraryOrphans()).rejects.toThrow();
+
+    expect(existsSync(join(rootDir, "works", "work-1"))).toBe(true);
+    expect(existsSync(join(rootDir, "works", "orphan-work"))).toBe(true);
+  });
+
+  it("rejects stored page image paths outside the chapter directory when opening a chapter", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const escapedImagePath = join(rootDir, "works", "work-1", "escaped.png");
+    await writeFile(escapedImagePath, "image");
+    const chapter = makeChapter(rootDir, "chapter-a", "1화", "page-a", "block-a");
+    chapter.pages[0] = {
+      ...chapter.pages[0]!,
+      imagePath: escapedImagePath
+    };
+    await writeJson(join(rootDir, "works", "work-1", "chapters", "chapter-a", "chapter.json"), chapter);
+
+    await expect(library.openChapter("chapter-a")).rejects.toThrow(/페이지 이미지 경로/);
+  });
+
+  it("rejects stored inpainted image paths outside the chapter directory when opening a chapter", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const escapedImagePath = join(rootDir, "works", "work-1", "escaped-inpainted.png");
+    await writeFile(escapedImagePath, "image");
+    const chapter = makeChapter(rootDir, "chapter-a", "1화", "page-a", "block-a");
+    chapter.pages[0] = {
+      ...chapter.pages[0]!,
+      inpaintedImagePath: escapedImagePath
+    };
+    await writeJson(join(rootDir, "works", "work-1", "chapters", "chapter-a", "chapter.json"), chapter);
+
+    await expect(library.openChapter("chapter-a")).rejects.toThrow(/인페인팅 결과 이미지 경로/);
+  });
+
   it("rejects saving a chapter snapshot under a forged work id", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);

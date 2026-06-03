@@ -2,12 +2,12 @@ import { BrowserWindow, nativeImage } from "electron";
 import { randomUUID } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { basename, extname, join } from "node:path";
+import { basename, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { bboxToPixels, clamp, resolveEffectiveRenderBbox } from "../shared/geometry";
 import type { CustomFont, MangaPage, TranslationBlock } from "../shared/types";
 import { getAppPaths } from "./appPaths";
-import { listCustomFonts } from "./customFonts";
+import { listCustomFonts, resolveCustomFontFilePath } from "./customFonts";
 import type { ImageDecodeFallback } from "./regionCrop";
 
 export async function renderPageWithTranslationBlocksForExport(
@@ -27,6 +27,7 @@ export async function renderPageWithTranslationBlocksForExport(
   const renderDir = join(options.dataRoot, "tmp", "png-export-render");
   await mkdir(renderDir, { recursive: true });
   const htmlPath = join(renderDir, `${page.id}-${randomUUID()}.html`);
+  const htmlUrl = pathToFileURL(htmlPath).toString();
   const win = new BrowserWindow({
     width: Math.min(1200, width),
     height: Math.min(1000, height),
@@ -35,7 +36,18 @@ export async function renderPageWithTranslationBlocksForExport(
     backgroundColor: "#ffffff",
     webPreferences: {
       offscreen: true,
-      backgroundThrottling: false
+      backgroundThrottling: false,
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false
+    }
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.webContents.on("will-navigate", (event, url) => {
+    if (url !== htmlUrl) {
+      event.preventDefault();
     }
   });
 
@@ -170,8 +182,12 @@ function buildFont(size, family, weight, italic) {
   return (italic ? "italic " : "") + (weight || 600) + " " + size + "px " + family;
 }
 
-function wrapTextToWidth(text, maxWidth, fontSize, fontFamily) {
-  context.font = buildFont(fontSize, fontFamily);
+function blockFontWeight(block) {
+  return block.bold ? 800 : 400;
+}
+
+function wrapTextToWidth(text, maxWidth, fontSize, fontFamily, weight, italic) {
+  context.font = buildFont(fontSize, fontFamily, weight, italic);
   const paragraphs = String(text).replace(/\\r/g, "").split("\\n");
   const lines = [];
   for (const paragraph of paragraphs) {
@@ -198,8 +214,9 @@ function wrapTextToWidth(text, maxWidth, fontSize, fontFamily) {
 }
 
 function measureHorizontal(block, fontSize, innerWidth) {
-  const lines = wrapTextToWidth(block.text, innerWidth, fontSize, block.fontFamily);
-  context.font = buildFont(fontSize, block.fontFamily);
+  const weight = blockFontWeight(block);
+  const lines = wrapTextToWidth(block.text, innerWidth, fontSize, block.fontFamily, weight, block.italic);
+  context.font = buildFont(fontSize, block.fontFamily, weight, block.italic);
   return {
     lines,
     totalHeight: lines.length * fontSize * block.lineHeight,
@@ -275,7 +292,7 @@ function drawHorizontalText(ctx, block, rect, fontSize) {
   const startY = rect.top + Math.max(0, (rect.height - totalHeight) / 2);
   const align = block.textAlign || "center";
   const x = align === "left" ? rect.left + 1 : align === "right" ? rect.left + rect.width - 1 : rect.left + rect.width / 2;
-  ctx.font = buildFont(fontSize, block.fontFamily, block.bold ? 800 : 400, block.italic);
+  ctx.font = buildFont(fontSize, block.fontFamily, blockFontWeight(block), block.italic);
   ctx.textAlign = align;
   ctx.textBaseline = "top";
   for (const [index, line] of measured.lines.entries()) {
@@ -298,7 +315,7 @@ function drawVerticalText(ctx, block, rect, fontSize) {
   const columnGap = fontSize * 1.15;
   const totalWidth = Math.max(columnGap, columns.length * columnGap);
   const firstX = rect.left + rect.width / 2 + totalWidth / 2 - columnGap / 2;
-  ctx.font = buildFont(fontSize, block.fontFamily, block.bold ? 800 : 400, block.italic);
+  ctx.font = buildFont(fontSize, block.fontFamily, blockFontWeight(block), block.italic);
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   for (const [columnIndex, column] of columns.entries()) {
@@ -432,10 +449,13 @@ window.addEventListener("load", async () => {
 }
 
 function buildCustomFontFaces(fonts: CustomFont[]): string {
-  const fontsDir = getAppPaths().fontsDir;
   return fonts
-    .map((font) => {
-      const fileUrl = pathToFileURL(join(fontsDir, font.fileName)).toString();
+    .flatMap((font) => {
+      const fontPath = resolveCustomFontFilePath(font.id);
+      if (!fontPath) {
+        return [];
+      }
+      const fileUrl = pathToFileURL(fontPath).toString();
       return `@font-face { font-family: "${font.family}"; src: url("${fileUrl}"); font-display: swap; }`;
     })
     .join("\n");
@@ -548,15 +568,16 @@ function normalizeExportColor(value: string | undefined, fallback: string): stri
 }
 
 function findRendererCssHref(): string | null {
+  const appPaths = getAppPaths();
   const rendererDir = join(__dirname, "../renderer");
   const rendererIndexPath = join(rendererDir, "index.html");
   if (existsSync(rendererIndexPath)) {
     const html = readFileSync(rendererIndexPath, "utf8");
     const match = html.match(/<link[^>]+href=["']([^"']+index-[^"']+\.css)["']/i);
     if (match?.[1]) {
-      const cssPath = join(rendererDir, match[1].replace(/^\.\//, ""));
-      if (existsSync(cssPath)) {
-        return pathToFileURL(cssPath).toString();
+      const cssHref = resolveExistingFileUrlInside(rendererDir, resolveRendererAssetPath(rendererDir, match[1]));
+      if (cssHref) {
+        return cssHref;
       }
     }
   }
@@ -568,12 +589,36 @@ function findRendererCssHref(): string | null {
       .sort()
       .at(-1);
     if (cssFile) {
-      return pathToFileURL(join(assetDir, cssFile)).toString();
+      const cssHref = resolveExistingFileUrlInside(assetDir, join(assetDir, cssFile));
+      if (cssHref) {
+        return cssHref;
+      }
     }
   }
 
-  const sourceCssPath = join(process.cwd(), "src", "renderer", "src", "styles.css");
-  return existsSync(sourceCssPath) ? pathToFileURL(sourceCssPath).toString() : null;
+  if (!appPaths.isPackaged) {
+    return resolveExistingFileUrlInside(appPaths.repoRoot, join(appPaths.repoRoot, "src", "renderer", "src", "styles.css"));
+  }
+  return null;
+}
+
+function resolveRendererAssetPath(rendererDir: string, href: string): string {
+  const rendererRelativePath = href.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "");
+  return resolve(rendererDir, rendererRelativePath);
+}
+
+function resolveExistingFileUrlInside(rootPath: string, targetPath: string): string | null {
+  const resolvedRoot = resolve(rootPath);
+  const resolvedTarget = resolve(targetPath);
+  if (!isPathInside(resolvedRoot, resolvedTarget) || !existsSync(resolvedTarget)) {
+    return null;
+  }
+  return pathToFileURL(resolvedTarget).toString();
+}
+
+function isPathInside(rootPath: string, targetPath: string): boolean {
+  const child = relative(rootPath, targetPath);
+  return child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child));
 }
 
 async function waitForExportRenderReady(win: BrowserWindow): Promise<void> {

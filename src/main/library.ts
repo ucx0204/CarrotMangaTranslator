@@ -5,6 +5,7 @@ import {
   readFile,
   readdir,
   rm,
+  stat,
   writeFile
 } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -147,16 +148,24 @@ export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
 }
 
 export function assertLibraryImagePath(imagePath: string): string {
+  const resolvedImagePath = assertLibraryImagePathScope(imagePath);
+  if (!existsSync(resolvedImagePath)) {
+    throw new Error("페이지 이미지 파일을 찾지 못했습니다.");
+  }
+  return resolvedImagePath;
+}
+
+function assertLibraryImagePathScope(imagePath: string, message = "보관함 밖의 이미지는 열 수 없습니다."): string {
+  if (typeof imagePath !== "string" || imagePath.length === 0) {
+    throw new Error(message);
+  }
   const resolvedRoot = resolve(LIBRARY_ROOT);
   const resolvedImagePath = resolve(imagePath);
   if (!isPathInside(resolvedRoot, resolvedImagePath)) {
-    throw new Error("보관함 밖의 이미지는 열 수 없습니다.");
+    throw new Error(message);
   }
   if (!isSupportedImagePath(resolvedImagePath)) {
     throw new Error("지원하지 않는 이미지 형식입니다.");
-  }
-  if (!existsSync(resolvedImagePath)) {
-    throw new Error("페이지 이미지 파일을 찾지 못했습니다.");
   }
   return resolvedImagePath;
 }
@@ -384,7 +393,7 @@ async function deletePageUnlocked(chapterId: string, pageId: string): Promise<Ch
 }
 
 export async function previewImages(filePaths: string[]): Promise<ImportPreviewResult> {
-  const normalized = sortNaturally(filePaths.filter((filePath) => isSupportedImagePath(filePath)));
+  const normalized = await filterImportImageFiles(filePaths);
   const pages = normalized.map((filePath) => ({
     name: basename(filePath),
     sourceKind: "file" as const,
@@ -807,6 +816,8 @@ async function updatePagesAfterInpaintingUnlocked(chapterId: string, pages: Mang
     throw new Error("화를 찾지 못했습니다.");
   }
 
+  const chapterDir = resolve(join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId));
+  const replacedInpaintedPaths: string[] = [];
   const pageMap = new Map(pages.map((page) => [page.id, page]));
   const now = new Date().toISOString();
   chapter.pages = chapter.pages.map((record) => {
@@ -814,18 +825,22 @@ async function updatePagesAfterInpaintingUnlocked(chapterId: string, pages: Mang
     if (!next) {
       return record;
     }
-    if (next.inpaintedImagePath) {
-      assertChapterImagePath(locator.workId, locator.chapterId, next.inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.");
+    const resolvedInpaintedPath = next.inpaintedImagePath
+      ? assertChapterImagePath(locator.workId, locator.chapterId, next.inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.")
+      : undefined;
+    if (record.inpaintedImagePath && inpaintedPathChanged(record.inpaintedImagePath, resolvedInpaintedPath)) {
+      replacedInpaintedPaths.push(record.inpaintedImagePath);
     }
     return {
       ...record,
-      inpaintedImagePath: next.inpaintedImagePath,
+      inpaintedImagePath: resolvedInpaintedPath,
       updatedAt: now
     };
   });
   chapter.updatedAt = now;
   await writeChapterFile(chapter);
   await touchWork(locator.workId, now);
+  await removeUnreferencedInpaintedArtifacts(chapterDir, replacedInpaintedPaths, chapter.pages);
   return hydrateChapter(chapter);
 }
 
@@ -854,9 +869,14 @@ async function setPageInpaintingResultUnlocked(
     throw new Error("인페인팅 결과를 적용할 페이지를 찾지 못했습니다.");
   }
 
+  const target = chapter.pages.find((page) => page.id === pageId);
   const resolvedInpaintedPath = inpaintedImagePath
     ? assertChapterImagePath(locator.workId, locator.chapterId, inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.")
     : undefined;
+  const replacedInpaintedPaths =
+    target?.inpaintedImagePath && inpaintedPathChanged(target.inpaintedImagePath, resolvedInpaintedPath)
+      ? [target.inpaintedImagePath]
+      : [];
   const now = new Date().toISOString();
   chapter.pages = chapter.pages.map((page) =>
     page.id === pageId
@@ -870,6 +890,7 @@ async function setPageInpaintingResultUnlocked(
   chapter.updatedAt = now;
   await writeChapterFile(chapter);
   await touchWork(locator.workId, now);
+  await removeUnreferencedInpaintedArtifacts(resolve(join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId)), replacedInpaintedPaths, chapter.pages);
   return hydrateChapter(chapter);
 }
 
@@ -981,11 +1002,11 @@ async function materializePageRecord(pageDraft: ImportPageDraft, pagesDir: strin
     }
     await writeFile(outputPath, readZipEntryData(entry, MAX_IMPORT_IMAGE_BYTES, pageDraft.zipEntryName ?? pageDraft.sourcePath));
   } else {
+    await assertImportImageFileBudget(pageDraft.sourcePath);
     await copyFile(pageDraft.sourcePath, outputPath);
   }
 
-  const image = nativeImage.createFromPath(outputPath);
-  const size = image.getSize();
+  const size = readDecodedImportImageSize(outputPath, pageDraft.name);
   const now = new Date().toISOString();
 
   return {
@@ -1057,6 +1078,10 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
   }
 
   const work = await ensureExistingWork(request.target.workId);
+  const originalWork: WorkFile = {
+    ...work,
+    chapterOrder: [...work.chapterOrder]
+  };
   const currentChapters = new Map<string, ChapterFile>();
   for (const chapterId of work.chapterOrder) {
     const chapter = await readChapterFile(work.id, chapterId);
@@ -1119,13 +1144,17 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
     }
 
     const previousChapterIds = [...work.chapterOrder];
-    work.chapterOrder = finalChapterIds;
-    work.updatedAt = now;
-    await writeWorkFile(work);
+    const nextWork: WorkFile = {
+      ...work,
+      chapterOrder: finalChapterIds,
+      updatedAt: now
+    };
 
     for (const chapter of updatedExistingChapters) {
       await writeChapterFile(chapter);
     }
+
+    await writeWorkFile(nextWork);
 
     for (const chapterId of previousChapterIds) {
       if (finalChapterIds.includes(chapterId)) {
@@ -1143,6 +1172,13 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
     for (const chapter of createdPackageChapters) {
       await removeChapterDirectory(chapter.workId, chapter.id);
     }
+    for (const chapter of updatedExistingChapters) {
+      const originalChapter = currentChapters.get(chapter.id);
+      if (originalChapter) {
+        await writeChapterFile(originalChapter).catch(() => {});
+      }
+    }
+    await writeWorkFile(originalWork).catch(() => {});
     throw error;
   }
 }
@@ -1181,8 +1217,7 @@ async function materializeSharedChapter({
       const outputPath = join(pagesDir, `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`);
       await writeFile(outputPath, readZipEntryData(entry, MAX_SHARE_IMAGE_BYTES, packageImagePath));
 
-      const image = nativeImage.createFromPath(outputPath);
-      const size = image.getSize();
+      const size = readDecodedImportImageSize(outputPath, packagePage.name);
       pages.push({
         ...packagePage,
         id: pageId,
@@ -1265,9 +1300,9 @@ function validateChapterSnapshotForStorage(snapshot: ChapterSnapshot, current: C
       throw new Error("중복된 페이지 ID가 있습니다.");
     }
     pageIds.add(page.id);
-    assertLibraryImagePath(page.imagePath);
+    assertChapterImagePath(current.workId, current.id, page.imagePath, "페이지 이미지 경로가 올바르지 않습니다.");
     if (page.inpaintedImagePath) {
-      assertLibraryImagePath(page.inpaintedImagePath);
+      assertChapterImagePath(current.workId, current.id, page.inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.");
     }
   }
 
@@ -1282,7 +1317,15 @@ function validateChapterSnapshotForStorage(snapshot: ChapterSnapshot, current: C
 }
 
 function assertChapterImagePath(workId: string, chapterId: string, imagePath: string, message: string): string {
-  const resolvedImagePath = assertLibraryImagePath(imagePath);
+  const resolvedImagePath = assertChapterImagePathScope(workId, chapterId, imagePath, message);
+  if (!existsSync(resolvedImagePath)) {
+    throw new Error("페이지 이미지 파일을 찾지 못했습니다.");
+  }
+  return resolvedImagePath;
+}
+
+function assertChapterImagePathScope(workId: string, chapterId: string, imagePath: string, message: string): string {
+  const resolvedImagePath = assertLibraryImagePathScope(imagePath, message);
   const chapterDir = resolve(join(WORKS_ROOT, workId, "chapters", chapterId));
   if (!isPathInside(chapterDir, resolvedImagePath)) {
     throw new Error(message);
@@ -1290,11 +1333,108 @@ function assertChapterImagePath(workId: string, chapterId: string, imagePath: st
   return resolvedImagePath;
 }
 
+function inpaintedPathChanged(previousPath: string, nextPath?: string): boolean {
+  return !nextPath || normalizePathForReference(previousPath) !== normalizePathForReference(nextPath);
+}
+
+async function removeUnreferencedInpaintedArtifacts(
+  chapterDir: string,
+  candidatePaths: string[],
+  pages: Array<{ inpaintedImagePath?: string }>
+): Promise<void> {
+  if (candidatePaths.length === 0) {
+    return;
+  }
+
+  const retainedPaths = new Set(
+    pages
+      .map((page) => page.inpaintedImagePath)
+      .filter((path): path is string => Boolean(path))
+      .map(normalizePathForReference)
+  );
+  const seenCandidates = new Set<string>();
+  for (const candidatePath of candidatePaths) {
+    const normalizedCandidate = normalizePathForReference(candidatePath);
+    if (seenCandidates.has(normalizedCandidate) || retainedPaths.has(normalizedCandidate)) {
+      continue;
+    }
+    seenCandidates.add(normalizedCandidate);
+    if (!isManagedInpaintedArtifact(chapterDir, candidatePath)) {
+      continue;
+    }
+    await safeUnlink(resolve(candidatePath));
+  }
+}
+
+function isManagedInpaintedArtifact(chapterDir: string, imagePath: string): boolean {
+  const inpaintedDir = resolve(join(chapterDir, "inpainted"));
+  const resolvedImagePath = resolve(imagePath);
+  return resolvedImagePath !== inpaintedDir && isPathInside(inpaintedDir, resolvedImagePath) && isSupportedImagePath(resolvedImagePath);
+}
+
+function normalizePathForReference(filePath: string): string {
+  const resolvedPath = resolve(filePath);
+  return process.platform === "win32" ? resolvedPath.toLowerCase() : resolvedPath;
+}
+
+function validateChapterFilePaths(workId: string, chapterId: string, chapter: ChapterFile): ChapterFile {
+  assertChapterStorageLocation(workId, chapterId);
+  if (chapter.workId !== workId || chapter.id !== chapterId) {
+    throw new Error("화 정보의 보관함 위치가 올바르지 않습니다.");
+  }
+  if (!Array.isArray(chapter.pages) || !Array.isArray(chapter.pageOrder)) {
+    throw new Error("화 정보가 올바르지 않습니다.");
+  }
+
+  const pageIds = new Set<string>();
+  const pages = chapter.pages.map((page) => {
+    if (!page || typeof page.id !== "string") {
+      throw new Error("화 정보가 올바르지 않습니다.");
+    }
+    if (pageIds.has(page.id)) {
+      throw new Error("중복된 페이지 ID가 있습니다.");
+    }
+    pageIds.add(page.id);
+
+    return {
+      ...page,
+      imagePath: assertChapterImagePathScope(workId, chapterId, page.imagePath, "페이지 이미지 경로가 올바르지 않습니다."),
+      inpaintedImagePath: page.inpaintedImagePath
+        ? assertChapterImagePathScope(workId, chapterId, page.inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.")
+        : undefined
+    };
+  });
+
+  for (const pageId of chapter.pageOrder) {
+    if (!pageIds.has(pageId)) {
+      throw new Error("페이지 순서 정보가 페이지 목록과 맞지 않습니다.");
+    }
+  }
+
+  return {
+    ...chapter,
+    pages
+  };
+}
+
+function assertChapterStorageLocation(workId: string, chapterId: string): void {
+  if (!isSafeStoreId(workId) || !isSafeStoreId(chapterId)) {
+    throw new Error("화 정보의 보관함 위치가 올바르지 않습니다.");
+  }
+  const worksRoot = resolve(WORKS_ROOT);
+  const chaptersRoot = resolve(join(WORKS_ROOT, workId, "chapters"));
+  const chapterDir = resolve(join(chaptersRoot, chapterId));
+  if (!isPathInside(worksRoot, chaptersRoot) || chaptersRoot === worksRoot || !isPathInside(chaptersRoot, chapterDir) || chapterDir === chaptersRoot) {
+    throw new Error("화 정보의 보관함 위치가 올바르지 않습니다.");
+  }
+}
+
+function isSafeStoreId(value: string): boolean {
+  return typeof value === "string" && value.length > 0 && value !== "." && value !== ".." && !value.includes("/") && !value.includes("\\");
+}
+
 async function readIndexFile(): Promise<StoredIndexFile> {
   await ensureLibraryStructure();
-  if (!existsSync(INDEX_PATH)) {
-    return { workOrder: [] };
-  }
   return readJsonFile<StoredIndexFile>(INDEX_PATH, { workOrder: [] });
 }
 
@@ -1304,11 +1444,7 @@ async function writeIndexFile(index: StoredIndexFile): Promise<void> {
 }
 
 async function readWorkFile(workId: string): Promise<WorkFile | null> {
-  const path = workFilePath(workId);
-  if (!existsSync(path)) {
-    return null;
-  }
-  return readJsonFile<WorkFile>(path);
+  return readJsonFile<WorkFile | null>(workFilePath(workId), null);
 }
 
 async function writeWorkFile(work: WorkFile): Promise<void> {
@@ -1326,16 +1462,14 @@ async function touchWork(workId: string, updatedAt: string): Promise<void> {
 }
 
 async function readChapterFile(workId: string, chapterId: string): Promise<ChapterFile | null> {
-  const path = chapterFilePath(workId, chapterId);
-  if (!existsSync(path)) {
-    return null;
-  }
-  return readJsonFile<ChapterFile>(path);
+  const chapter = await readJsonFile<ChapterFile | null>(chapterFilePath(workId, chapterId), null);
+  return chapter ? validateChapterFilePaths(workId, chapterId, chapter) : null;
 }
 
 async function writeChapterFile(chapter: ChapterFile): Promise<void> {
-  await mkdir(dirname(chapterFilePath(chapter.workId, chapter.id)), { recursive: true });
-  await writeJsonFile(chapterFilePath(chapter.workId, chapter.id), chapter);
+  const checkedChapter = validateChapterFilePaths(chapter.workId, chapter.id, chapter);
+  await mkdir(dirname(chapterFilePath(checkedChapter.workId, checkedChapter.id)), { recursive: true });
+  await writeJsonFile(chapterFilePath(checkedChapter.workId, checkedChapter.id), checkedChapter);
 }
 
 async function findChapterLocation(chapterId: string): Promise<{ workId: string; chapterId: string } | null> {
@@ -1422,9 +1556,11 @@ function sanitizeTitle(title: string, fallback: string): string {
 
 async function listImageFiles(folderPath: string): Promise<string[]> {
   const entries = await readdir(folderPath, { withFileTypes: true });
-  return sortNaturally(
+  const filePaths = sortNaturally(
     entries.filter((entry) => entry.isFile() && isSupportedImagePath(entry.name)).map((entry) => join(folderPath, entry.name))
   );
+  await Promise.all(filePaths.map((filePath) => assertImportImageFileBudget(filePath)));
+  return filePaths;
 }
 
 async function listNestedImageFolders(rootPath: string): Promise<string[]> {
@@ -1451,9 +1587,39 @@ function listImageEntriesInZip(zipPath: string): ZipEntryLike[] {
   const zip = new AdmZip(zipPath);
   const entries = zip.getEntries();
   assertZipEntryBudget(entries, "ZIP 파일");
-  return entries
+  const imageEntries = entries
     .filter((entry) => !entry.isDirectory && isSupportedImagePath(entry.entryName))
     .sort((left, right) => left.entryName.localeCompare(right.entryName, undefined, { numeric: true, sensitivity: "base" }));
+  for (const entry of imageEntries) {
+    assertZipEntrySize(entry, MAX_IMPORT_IMAGE_BYTES, entry.entryName);
+  }
+  return imageEntries;
+}
+
+async function filterImportImageFiles(filePaths: string[]): Promise<string[]> {
+  const normalized = sortNaturally(filePaths.filter((filePath) => isSupportedImagePath(filePath)));
+  await Promise.all(normalized.map((filePath) => assertImportImageFileBudget(filePath)));
+  return normalized;
+}
+
+async function assertImportImageFileBudget(filePath: string): Promise<void> {
+  const info = await stat(filePath);
+  if (!info.isFile()) {
+    throw new Error(`이미지 파일을 읽지 못했습니다: ${basename(filePath)}`);
+  }
+  if (info.size > MAX_IMPORT_IMAGE_BYTES) {
+    throw new Error(`${basename(filePath)} 파일이 너무 큽니다.`);
+  }
+}
+
+function readDecodedImportImageSize(imagePath: string, label: string): { width: number; height: number } {
+  const image = nativeImage.createFromPath(imagePath);
+  const size = image.getSize();
+  const isEmpty = typeof image.isEmpty === "function" ? image.isEmpty() : false;
+  if (isEmpty || !Number.isFinite(size.width) || !Number.isFinite(size.height) || size.width < 1 || size.height < 1) {
+    throw new Error(`이미지 파일을 읽지 못했습니다: ${label}`);
+  }
+  return size;
 }
 
 function readSharePackage(packagePath: string): SharePackage {
@@ -1731,7 +1897,7 @@ export async function cleanupLegacyLogs(): Promise<void> {
       continue;
     }
     const resolved = resolve(target);
-    if (!resolved.startsWith(logsRoot)) {
+    if (!isPathInside(logsRoot, resolved) || resolved === logsRoot) {
       continue;
     }
     await rm(resolved, { recursive: true, force: true });

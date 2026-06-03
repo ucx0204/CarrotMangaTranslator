@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { tmpdir } from "node:os";
 
 const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") as {
@@ -27,6 +27,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
     options: { [key: string]: unknown },
     runtime?: { runtimeDir?: string; packageDir?: string; includePackageDir?: boolean }
   ) => Record<string, string>;
+  buildLlamaServerEnv: (serverPath: string, options: { [key: string]: unknown }) => Record<string, string>;
   buildPaddleOcrImportCheckScript: (options?: { [key: string]: unknown }) => string;
   getOverlayPrompt: (
     options: { [key: string]: unknown },
@@ -53,8 +54,10 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   requestTranslation: (server: { baseUrl: string }, options: { [key: string]: unknown }) => Promise<{ outputText: string; rawResponse: unknown; requestBody: Record<string, unknown> }>;
   resolveOcrGpuCudaTag: (options?: { [key: string]: unknown }) => string;
   resolveOcrGpuPackageIndexUrl: (options?: { [key: string]: unknown }) => string;
+  resolveOcrPipInstallBatches: (options?: { [key: string]: unknown }) => string[][];
   resolvePaddleOcrImportCheckTimeoutMs: (options?: { [key: string]: unknown }) => number;
   resolveFfmpegPath: (options: { [key: string]: unknown }) => string;
+  resolveLlamaCppCacheDir: (options?: { [key: string]: unknown }) => string | null;
   resolveOcrBboxTimeoutMs: (pageCount?: number) => number;
   resolveOcrInstallBatchProgressRanges: (batches: string[][], start: number, end: number) => Array<{ start: number; end: number }>;
   resolveManagedHfFilePath: (options: { [key: string]: unknown }, repo: string, file: string) => string | null;
@@ -67,6 +70,7 @@ const {
   buildLaunchArgs,
   buildMessages,
   buildOcrRuntimeEnv,
+  buildLlamaServerEnv,
   buildPaddleOcrImportCheckScript,
   buildResponsesRequestBody,
   collectOcrBboxHints,
@@ -83,10 +87,12 @@ const {
   resolveManagedHfFilePath,
   resolveOcrBboxTimeoutMs,
   resolveFfmpegPath,
+  resolveLlamaCppCacheDir,
   parseResponsesSseText,
   requestTranslation,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
+  resolveOcrPipInstallBatches,
   resolvePaddleOcrImportCheckTimeoutMs
 } = runtimeHelpers;
 const { bundledServerCandidates, resolveBundledServerPath } = llamaRuntimeResolver;
@@ -98,6 +104,10 @@ const DEFAULT_MMPROJ_REPO = "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNC
 const DEFAULT_MMPROJ_FILE = "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
 const DEFAULT_DRAFT_REPO = "Anbeeld/gemma-4-31B-it-DFlash-GGUF";
 const DEFAULT_DRAFT_FILE = "gemma4-31b-it-dflash-IQ4_XS.gguf";
+const DEFAULT_26B_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF";
+const DEFAULT_26B_FILE = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf";
+const DEFAULT_26B_MMPROJ_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF";
+const DEFAULT_26B_MMPROJ_FILE = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf";
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
@@ -258,12 +268,16 @@ describe("runtime model launch helpers", () => {
     const runtimeDir = createTempDir("ocr-runtime-");
     const previousDisableXet = process.env.HF_HUB_DISABLE_XET;
     const previousDownloadTimeout = process.env.HF_HUB_DOWNLOAD_TIMEOUT;
+    const previousSecret = process.env.MGT_UNRELATED_SECRET;
     delete process.env.HF_HUB_DISABLE_XET;
     delete process.env.HF_HUB_DOWNLOAD_TIMEOUT;
+    process.env.MGT_UNRELATED_SECRET = "secret";
     try {
       const env = buildOcrRuntimeEnv({}, { runtimeDir, includePackageDir: false });
       expect(env.HF_HUB_DISABLE_XET).toBe("1");
       expect(env.HF_HUB_DOWNLOAD_TIMEOUT).toBe("300");
+      expect(env.MGT_UNRELATED_SECRET).toBeUndefined();
+      expect(env.PYTHONHOME).toBeUndefined();
     } finally {
       if (previousDisableXet === undefined) {
         delete process.env.HF_HUB_DISABLE_XET;
@@ -275,6 +289,62 @@ describe("runtime model launch helpers", () => {
       } else {
         process.env.HF_HUB_DOWNLOAD_TIMEOUT = previousDownloadTimeout;
       }
+      restoreEnv("MGT_UNRELATED_SECRET", previousSecret);
+    }
+  });
+
+  it("namespaces the default llama.cpp cache under app data", () => {
+    const previousLlamaCache = process.env.MANGA_TRANSLATOR_LLAMA_CACHE_DIR;
+    const previousLocalAppData = process.env.LOCALAPPDATA;
+    const previousXdgCacheHome = process.env.XDG_CACHE_HOME;
+    const previousHome = process.env.HOME;
+    delete process.env.MANGA_TRANSLATOR_LLAMA_CACHE_DIR;
+    try {
+      if (process.platform === "win32") {
+        const localAppData = createTempDir("local-app-data-");
+        process.env.LOCALAPPDATA = localAppData;
+        expect(resolveLlamaCppCacheDir()).toBe(join(localAppData, "manga-gemma-translator", "llama.cpp"));
+      } else {
+        const xdgCacheHome = createTempDir("xdg-cache-");
+        process.env.XDG_CACHE_HOME = xdgCacheHome;
+        expect(resolveLlamaCppCacheDir()).toBe(join(xdgCacheHome, "manga-gemma-translator", "llama.cpp"));
+      }
+    } finally {
+      restoreEnv("MANGA_TRANSLATOR_LLAMA_CACHE_DIR", previousLlamaCache);
+      restoreEnv("LOCALAPPDATA", previousLocalAppData);
+      restoreEnv("XDG_CACHE_HOME", previousXdgCacheHome);
+      restoreEnv("HOME", previousHome);
+    }
+  });
+
+  it("builds a minimal llama-server environment with app-scoped caches", () => {
+    const toolsDir = createTempDir("llama-tools-");
+    const runtimeDir = join(toolsDir, "beellama-v0.2.0-cuda12.4");
+    const serverPath = join(runtimeDir, process.platform === "win32" ? "llama-server.exe" : "llama-server");
+    const llamaCacheDir = join(toolsDir, "llama-cache");
+    const previousSecret = process.env.MGT_UNRELATED_SECRET;
+    mkdirSync(runtimeDir, { recursive: true });
+    writeFileSync(serverPath, "server");
+    process.env.MGT_UNRELATED_SECRET = "secret";
+    try {
+      const env = buildLlamaServerEnv(serverPath, {
+        port: 18180,
+        toolsDir,
+        hfHomeDir: join(toolsDir, "hf-cache"),
+        hfHubCacheDir: join(toolsDir, "hf-cache", "hub"),
+        llamaCacheDir
+      });
+      const pathParts = String(env.PATH ?? "").split(delimiter);
+
+      expect(env.MGT_UNRELATED_SECRET).toBeUndefined();
+      expect(env.MANGA_TRANSLATOR_LLAMA_PORT).toBe("18180");
+      expect(env.HF_HOME).toBe(join(toolsDir, "hf-cache"));
+      expect(env.HF_HUB_CACHE).toBe(join(toolsDir, "hf-cache", "hub"));
+      expect(env.LLAMA_CACHE).toBe(llamaCacheDir);
+      expect(env.LLAMA_CACHE_DIR).toBe(llamaCacheDir);
+      expect(pathParts).toContain(runtimeDir);
+    } finally {
+      restoreEnv("MGT_UNRELATED_SECRET", previousSecret);
     }
   });
 
@@ -305,6 +375,28 @@ describe("runtime model launch helpers", () => {
     }
   });
 
+  it("uses the RTX 50 Windows Paddle wheel only for cu129 GPU OCR runtimes", () => {
+    const cu129Batches = resolveOcrPipInstallBatches({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" });
+    const cu126Batches = resolveOcrPipInstallBatches({ ocrDevice: "gpu", ocrGpuCudaTag: "cu126" });
+    const cpuBatches = resolveOcrPipInstallBatches({ ocrDevice: "cpu" });
+
+    if (process.platform === "win32") {
+      expect(cu129Batches[0][0]).toContain("paddlepaddle_gpu-3.0.0.dev20250717-cp312-cp312-win_amd64.whl");
+      expect(cu129Batches[0]).not.toContain("--index-url");
+    } else {
+      expect(cu129Batches[0]).toContain("--index-url");
+      expect(cu129Batches[0]).toContain("https://www.paddlepaddle.org.cn/packages/stable/cu129/");
+    }
+    expect(cu129Batches[1]).toEqual(["paddleocr[doc-parser]==3.5.0"]);
+    expect(cu126Batches[0]).toEqual([
+      "paddlepaddle-gpu==3.3.1",
+      "--index-url",
+      "https://www.paddlepaddle.org.cn/packages/stable/cu126/"
+    ]);
+    expect(cu126Batches[1]).toEqual(["paddleocr[doc-parser]==3.5.0"]);
+    expect(cpuBatches[0]).toEqual(["paddlepaddle==3.3.1", "paddleocr[doc-parser]==3.5.0"]);
+  });
+
   it("keeps RTX 50 Paddle OCR verification lightweight and gives cu129 more startup time", () => {
     const previous = process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS;
     delete process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS;
@@ -312,6 +404,7 @@ describe("runtime model launch helpers", () => {
       const script = buildPaddleOcrImportCheckScript({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" });
       expect(script).toContain("importlib.util.find_spec");
       expect(script).toContain("import paddle");
+      expect(script).toContain("from paddleocr import PaddleOCRVL, PaddleOCR");
       expect(script).not.toContain("import paddle, paddlex, paddleocr");
       expect(script).toContain("paddle.set_device");
       expect(resolvePaddleOcrImportCheckTimeoutMs({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" })).toBeGreaterThanOrEqual(300000);
@@ -366,7 +459,7 @@ describe("runtime model launch helpers", () => {
     });
   });
 
-  it("uses OCR text evidence to identify no-text pages", async () => {
+  it("does not skip model analysis when OCR found geometry without readable Japanese transcript", async () => {
     const noEvidence = await collectOcrBboxHints({
       ocrBboxHints: [{ id: 1, label: "text", x1: 10, y1: 20, x2: 80, y2: 90 }]
     });
@@ -374,7 +467,7 @@ describe("runtime model launch helpers", () => {
       ocrBboxHints: [{ id: 1, label: "text", x1: 10, y1: 20, x2: 80, y2: 90, ocrText: "1998年1月" }]
     });
 
-    expect(noEvidence).toMatchObject({ noTextDetected: true, textEvidenceCount: 0 });
+    expect(noEvidence).toMatchObject({ noTextDetected: false, textEvidenceCount: 0 });
     expect(hasEvidence).toMatchObject({ noTextDetected: false, textEvidenceCount: 1 });
   });
 
@@ -761,6 +854,42 @@ describe("runtime model launch helpers", () => {
     ]);
     expect(args).toContain("--metrics");
     expect(args).toContain("--no-perf");
+  });
+
+  it("launches the 26B economy preset on mainline llama instead of beellama-only flags", () => {
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 2048,
+      ctx: 8192,
+      batch: 1024,
+      ubatch: 1024,
+      cacheTypeK: "q4_0",
+      cacheTypeV: "q4_0",
+      ctxCheckpoints: 0,
+      kvOffload: true,
+      mmprojOffload: true,
+      gpuLayers: "fit",
+      enableMetrics: true,
+      enablePerf: true,
+      imageMinTokens: 1024,
+      imageMaxTokens: 1024,
+      modelRepo: DEFAULT_26B_REPO,
+      modelFile: DEFAULT_26B_FILE,
+      mmprojRepo: DEFAULT_26B_MMPROJ_REPO,
+      mmprojFile: DEFAULT_26B_MMPROJ_FILE
+    });
+
+    expect(args).toContain("--fit");
+    expect(args.slice(args.indexOf("--fit-target"), args.indexOf("--fit-target") + 2)).toEqual(["--fit-target", "2048"]);
+    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual(["-ngl", "auto"]);
+    expect(args).toContain("--no-cache-prompt");
+    expect(args).toContain("--no-warmup");
+    expect(args).toContain("--mmproj-offload");
+    expect(args).not.toContain("--kv-unified");
+    expect(args).not.toContain("--jinja");
+    expect(args).not.toContain("--no-mmap");
+    expect(args).not.toContain("--mlock");
+    expect(args).not.toContain("--no-host");
   });
 
   it("passes the full VRAM smoke DFlash draft options to llama-server", () => {

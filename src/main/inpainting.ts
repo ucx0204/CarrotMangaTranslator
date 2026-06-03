@@ -1,6 +1,6 @@
 import { nativeImage } from "electron";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, join } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { clamp } from "../shared/geometry";
 import type { InpaintingMaskStroke, InpaintingPoint, MangaPage, TranslationBlock } from "../shared/types";
 import {
@@ -65,6 +65,8 @@ export type FluxInpaintingEngine = {
   runtimePath: string;
   modelPath: string;
   vaePath: string;
+  runRootDir: string;
+  isHealthy?: () => boolean;
   inpaint: (
     bitmap: Buffer,
     width: number,
@@ -124,9 +126,6 @@ export async function inpaintPatternPage(
     const detectRect = expandRect(sourceRect, size.width, size.height, resolvePatternBlockMarginPx(block, page));
     const detectedMask = buildPatternTextMask(bitmap, size.width, size.height, detectRect, resolvePatternDilationRadius(block));
 
-    // Koharu's Flux path intentionally widens a detected text mask to the whole
-    // text-region support. Thin glyph-only masks tend to leave residue on tones
-    // and SFX, so pattern cleanup uses the block region as the inference mask.
     mergeFilledRectIntoPage(pageMask, size.width, supportRect);
     if (detectedMask.count > 0) {
       mergeMaskIntoPage(pageMask, size.width, detectRect, detectedMask.mask);
@@ -244,6 +243,7 @@ export async function inpaintDrawnPatternPage(
 export async function prepareFluxInpaintingEngine(options: {
   runtimeDir: string;
   modelDir: string;
+  runRootDir?: string;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
 }): Promise<FluxInpaintingEngine> {
@@ -273,7 +273,8 @@ export async function prepareFluxInpaintingEngine(options: {
   return createFluxEngine({
     runtimePath,
     modelPath,
-    vaePath
+    vaePath,
+    runRootDir: options.runRootDir ?? resolveDefaultFluxRunRootDir(options.runtimeDir)
   });
 }
 
@@ -349,9 +350,14 @@ function createFluxEngine(options: {
   runtimePath: string;
   modelPath: string;
   vaePath: string;
+  runRootDir: string;
 }): FluxInpaintingEngine {
   let worker: FluxWorker | null = null;
   const getWorker = () => {
+    if (worker && !worker.isHealthy()) {
+      void worker.dispose().catch(() => {});
+      worker = null;
+    }
     worker ??= new FluxWorker(options.runtimePath, options.modelPath, options.vaePath, FLUX_INPAINT_MASK_PADDING_PX);
     return worker;
   };
@@ -359,12 +365,16 @@ function createFluxEngine(options: {
     runtimePath: options.runtimePath,
     modelPath: options.modelPath,
     vaePath: options.vaePath,
+    runRootDir: options.runRootDir,
+    isHealthy() {
+      return !worker || worker.isHealthy();
+    },
     async inpaint(bitmap, width, height, mask, windows, runOptions = {}) {
       const featherPx = clamp(Math.round(runOptions.featherPx ?? FLUX_INPAINT_FEATHER_PX), 0, 48);
       const contextPx = clamp(Math.round(runOptions.contextPx ?? FLUX_INPAINT_CONTEXT_PX), 16, 256);
       const maskPaddingPx = clamp(Math.round(runOptions.maskPaddingPx ?? FLUX_INPAINT_MASK_PADDING_PX), 0, 64);
       const maxPixels = clamp(Math.round(runOptions.maxPixels ?? FLUX_INPAINT_MAX_PIXELS), 256 * 256, 1536 * 1536);
-      const runDir = join(dirname(options.modelPath), "runs", `flux-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+      const runDir = join(options.runRootDir, `flux-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
       await mkdir(runDir, { recursive: true });
       try {
         for (const [index, window] of windows.entries()) {
@@ -422,6 +432,16 @@ function createFluxEngine(options: {
       worker = null;
     }
   };
+}
+
+function resolveDefaultFluxRunRootDir(runtimeDir: string): string {
+  const resolvedRuntimeDir = resolve(runtimeDir);
+  const inpaintingDir = dirname(resolvedRuntimeDir);
+  const modelsDir = dirname(inpaintingDir);
+  if (basename(inpaintingDir).toLowerCase() === "inpainting" && basename(modelsDir).toLowerCase() === "models") {
+    return join(dirname(modelsDir), "tmp", "runtime", "flux-inpainting");
+  }
+  return join(resolvedRuntimeDir, "tmp", "flux-inpainting");
 }
 
 async function loadPageImage(filePath: string, decodeFallback?: ImageDecodeFallback): Promise<Electron.NativeImage> {

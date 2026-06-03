@@ -25,9 +25,10 @@ export async function acquireFluxInpaintingEngine(options: {
 }): Promise<FluxEngineLease> {
   const runtimeDir = join(options.appPaths.dataRoot, "models", "inpainting", "mgt-flux-klein-runtime");
   const modelDir = join(options.appPaths.dataRoot, "models", "inpainting", "flux-klein-4b");
-  const key = `${runtimeDir}\n${modelDir}`;
+  const runRootDir = join(options.appPaths.dataRoot, "tmp", "runtime", "flux-inpainting");
+  const key = `${runtimeDir}\n${modelDir}\n${runRootDir}`;
 
-  if (cachedEngine?.key === key) {
+  if (cachedEngine?.key === key && cachedEngine.engine.isHealthy?.() !== false) {
     clearIdleTimer(cachedEngine);
     options.onProgress?.({
       progressText: "Flux 인페인팅 준비 완료",
@@ -41,10 +42,15 @@ export async function acquireFluxInpaintingEngine(options: {
     };
   }
 
+  if (cachedEngine?.key === key) {
+    await disposeCachedFluxInpaintingEngine("unhealthy-worker");
+  }
+
   await disposeCachedFluxInpaintingEngine("replace");
   const engine = await prepareFluxInpaintingEngine({
     runtimeDir,
     modelDir,
+    runRootDir,
     signal: options.signal,
     onProgress: options.onProgress
   });

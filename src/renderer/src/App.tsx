@@ -111,6 +111,7 @@ export default function App(): React.JSX.Element {
   const [peekOriginal, setPeekOriginal] = useState(false);
   const [retouchCursorPoint, setRetouchCursorPoint] = useState<{ x: number; y: number } | null>(null);
   const [retouchPreview, setRetouchPreview] = useState<RetouchPreviewState | null>(null);
+  const [retouchBusy, setRetouchBusy] = useState(false);
   const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<Record<string, InpaintingMaskStroke[]>>({});
   const [retouchUndoStack, setRetouchUndoStack] = useState<RetouchHistoryEntry[]>([]);
   const [retouchRedoStack, setRetouchRedoStack] = useState<RetouchHistoryEntry[]>([]);
@@ -128,6 +129,7 @@ export default function App(): React.JSX.Element {
   const inpaintingRetouchDrawingRef = useRef(false);
   const inpaintingRetouchPointsRef = useRef<Array<{ x: number; y: number }>>([]);
   const lastInpaintingRetouchPointRef = useRef<{ x: number; y: number } | null>(null);
+  const retouchBusyRef = useRef(false);
   const retouchUndoStackRef = useRef<RetouchHistoryEntry[]>([]);
   const retouchRedoStackRef = useRef<RetouchHistoryEntry[]>([]);
 
@@ -218,6 +220,10 @@ export default function App(): React.JSX.Element {
   React.useEffect(() => {
     retouchRedoStackRef.current = retouchRedoStack;
   }, [retouchRedoStack]);
+
+  React.useEffect(() => {
+    retouchBusyRef.current = retouchBusy;
+  }, [retouchBusy]);
 
   React.useEffect(() => {
     setRegionSelection(null);
@@ -555,18 +561,33 @@ export default function App(): React.JSX.Element {
         phase: "inpainting_preparing"
       });
 
-      const result = await window.mangaApi.startInpainting(
-        scope === "page"
-          ? {
-              chapterId: currentChapter.id,
-              mode: "page-pattern",
-              pageId: selectedPage!.id
-            }
-          : {
-              chapterId: currentChapter.id,
-              mode: "chapter-pattern-pending"
-            }
-      );
+      let result;
+      try {
+        result = await window.mangaApi.startInpainting(
+          scope === "page"
+            ? {
+                chapterId: currentChapter.id,
+                mode: "page-pattern",
+                pageId: selectedPage!.id
+              }
+            : {
+                chapterId: currentChapter.id,
+                mode: "chapter-pattern-pending"
+              }
+        );
+      } catch (error) {
+        console.error(error);
+        const message = formatErrorMessage(error, `${targetLabel} 지우기를 시작하지 못했습니다.`);
+        setJobState({
+          id: "failed-inpainting",
+          kind: "inpainting",
+          status: "failed",
+          progressText: "작업 실패",
+          detail: message
+        });
+        pushStatus(message);
+        return;
+      }
       if (result.chapter) {
         clearPageImageCache();
         mergeLiveChapter(result.chapter);
@@ -607,13 +628,28 @@ export default function App(): React.JSX.Element {
       progressCurrent: 0,
       progressTotal: 1
     });
-    const result = await window.mangaApi.startInpainting({
-      chapterId: currentChapter.id,
-      mode: "page-pattern-drawn",
-      pageId: selectedPage.id,
-      strokes: patternMaskStrokes,
-      featherPx: 8
-    });
+    let result;
+    try {
+      result = await window.mangaApi.startInpainting({
+        chapterId: currentChapter.id,
+        mode: "page-pattern-drawn",
+        pageId: selectedPage.id,
+        strokes: patternMaskStrokes,
+        featherPx: 8
+      });
+    } catch (error) {
+      console.error(error);
+      const message = formatErrorMessage(error, "그린 영역 지우기를 시작하지 못했습니다.");
+      setJobState({
+        id: "failed-inpainting",
+        kind: "inpainting",
+        status: "failed",
+        progressText: "작업 실패",
+        detail: message
+      });
+      pushStatus(message);
+      return;
+    }
     if (result.chapter) {
       clearPageImageCache();
       mergeLiveChapter(result.chapter);
@@ -672,10 +708,22 @@ export default function App(): React.JSX.Element {
           ? { chapterId: currentChapter.id, scope, pageId: selectedPage!.id }
           : { chapterId: currentChapter.id, scope };
       const result = await window.mangaApi.exportInpaintingResults(request);
-      pushStatus(`인페인팅 결과를 PNG로 출력했습니다: ${result.pageCount}페이지`);
+      pushStatus(
+        result.openError
+          ? `PNG 출력은 완료됐지만 폴더를 열지 못했습니다: ${result.outputDir}`
+          : `인페인팅 결과를 PNG로 출력했습니다: ${result.pageCount}페이지`
+      );
     } catch (error) {
       console.error(error);
-      pushStatus(formatErrorMessage(error, "인페인팅 결과를 출력하지 못했습니다."));
+      const message = formatErrorMessage(error, "인페인팅 결과를 출력하지 못했습니다.");
+      setJobState({
+        id: "failed-export",
+        kind: "inpainting",
+        status: "failed",
+        progressText: "PNG 출력 실패",
+        detail: message
+      });
+      pushStatus(message);
     }
   }, [currentChapter, dirty, jobActive, pushStatus, saveNow, selectedPage]);
 
@@ -1084,9 +1132,11 @@ export default function App(): React.JSX.Element {
 
   const applyRetouchPoints = useCallback(
     async (tool: Extract<InpaintingTool, "brush" | "eraser">, points: Array<{ x: number; y: number }>) => {
-      if (!currentChapter || !selectedPage || points.length === 0 || jobActive) {
+      if (!currentChapter || !selectedPage || points.length === 0 || jobActive || retouchBusyRef.current) {
         return;
       }
+      retouchBusyRef.current = true;
+      setRetouchBusy(true);
       const beforePath = selectedPage.inpaintedImagePath;
       try {
         const result = await window.mangaApi.applyInpaintingRetouch({
@@ -1108,6 +1158,9 @@ export default function App(): React.JSX.Element {
       } catch (error) {
         console.error(error);
         pushStatus("리터치 적용에 실패했습니다.");
+      } finally {
+        retouchBusyRef.current = false;
+        setRetouchBusy(false);
       }
     },
     [clearPageImageCache, currentChapter, inpaintingBrushRadius, inpaintingPaintColor, jobActive, mergeLiveChapter, pushStatus, selectedPage]
@@ -1115,24 +1168,46 @@ export default function App(): React.JSX.Element {
 
   const undoRetouch = useCallback(async () => {
     const entry = retouchUndoStackRef.current[retouchUndoStackRef.current.length - 1];
-    if (!entry || jobActive) {
+    if (!entry || jobActive || retouchBusyRef.current) {
       return;
     }
+    retouchBusyRef.current = true;
+    setRetouchBusy(true);
     setRetouchUndoStack((stack) => stack.slice(0, -1));
-    await saveChapterWithInpaintPath(entry.pageId, entry.beforePath);
-    setRetouchRedoStack((stack) => [...stack, entry].slice(-60));
-    pushStatus("리터치를 되돌렸습니다.");
+    try {
+      await saveChapterWithInpaintPath(entry.pageId, entry.beforePath);
+      setRetouchRedoStack((stack) => [...stack, entry].slice(-60));
+      pushStatus("리터치를 되돌렸습니다.");
+    } catch (error) {
+      console.error(error);
+      setRetouchUndoStack((stack) => [...stack, entry].slice(-60));
+      pushStatus("리터치 되돌리기에 실패했습니다.");
+    } finally {
+      retouchBusyRef.current = false;
+      setRetouchBusy(false);
+    }
   }, [jobActive, pushStatus, saveChapterWithInpaintPath]);
 
   const redoRetouch = useCallback(async () => {
     const entry = retouchRedoStackRef.current[retouchRedoStackRef.current.length - 1];
-    if (!entry || jobActive) {
+    if (!entry || jobActive || retouchBusyRef.current) {
       return;
     }
+    retouchBusyRef.current = true;
+    setRetouchBusy(true);
     setRetouchRedoStack((stack) => stack.slice(0, -1));
-    await saveChapterWithInpaintPath(entry.pageId, entry.afterPath);
-    setRetouchUndoStack((stack) => [...stack, entry].slice(-60));
-    pushStatus("리터치를 다시 적용했습니다.");
+    try {
+      await saveChapterWithInpaintPath(entry.pageId, entry.afterPath);
+      setRetouchUndoStack((stack) => [...stack, entry].slice(-60));
+      pushStatus("리터치를 다시 적용했습니다.");
+    } catch (error) {
+      console.error(error);
+      setRetouchRedoStack((stack) => [...stack, entry].slice(-60));
+      pushStatus("리터치 다시 적용에 실패했습니다.");
+    } finally {
+      retouchBusyRef.current = false;
+      setRetouchBusy(false);
+    }
   }, [jobActive, pushStatus, saveChapterWithInpaintPath]);
 
   const revertInpainting = useCallback(
@@ -1579,8 +1654,8 @@ export default function App(): React.JSX.Element {
     brushRadius: inpaintingBrushRadius,
     brushColor: inpaintingPaintColor,
     maskStrokeCount: patternMaskStrokes.length,
-    canUndo: retouchUndoStack.length > 0,
-    canRedo: retouchRedoStack.length > 0,
+    canUndo: !retouchBusy && retouchUndoStack.length > 0,
+    canRedo: !retouchBusy && retouchRedoStack.length > 0,
     jobState,
     progressSnapshot,
     showBlockChrome,

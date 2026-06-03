@@ -5,10 +5,12 @@ const DEFAULT_MMPROJ_FILE = "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Think
 const DEFAULT_CODEX_MODEL = "gpt-5.5";
 const DEFAULT_CODEX_REASONING_EFFORT = "low";
 const DEFAULT_API_KEY = "local-llama-server";
-const DEFAULT_OCR_CPU_PIP_PACKAGES = ["paddlepaddle==3.3.1", "paddleocr==3.5.0", "paddlex[ocr]==3.5.2"];
+const DEFAULT_OCR_CPU_PIP_PACKAGES = ["paddlepaddle==3.3.1", "paddleocr[doc-parser]==3.5.0"];
 const DEFAULT_OCR_GPU_PADDLE_PACKAGE = "paddlepaddle-gpu==3.3.1";
-const DEFAULT_OCR_GPU_EXTRA_PACKAGES = ["paddleocr==3.5.0", "paddlex[ocr]==3.5.2"];
+const DEFAULT_OCR_GPU_EXTRA_PACKAGES = ["paddleocr[doc-parser]==3.5.0"];
 const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
+const RTX_50_WINDOWS_PADDLE_GPU_WHEEL_CP312 =
+  "https://paddle-qa.bj.bcebos.com/paddle-pipeline/Develop-TagBuild-Training-Windows-Gpu-Cuda12.9-Cudnn9.9-Trt10.5-Mkl-Avx-VS2019-SelfBuiltPypiUse/86d658f56ebf3a5a7b2b33ace48f22d10680d311/paddlepaddle_gpu-3.0.0.dev20250717-cp312-cp312-win_amd64.whl";
 const OCR_INSTALL_MARKER_FILE = "install-complete.json";
 const MAX_LOG_PREVIEW_LENGTH = 8000;
 const MM_PROJ_CANDIDATE_NAMES = ["mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-F32.gguf", "mmproj.gguf"];
@@ -88,5 +90,6 @@ module.exports = {
   MAX_LOG_PREVIEW_LENGTH,
   MM_PROJ_CANDIDATE_NAMES,
   OCR_INSTALL_MARKER_FILE,
-  PADDLE_OCR_MODEL_DOWNLOADS
+  PADDLE_OCR_MODEL_DOWNLOADS,
+  RTX_50_WINDOWS_PADDLE_GPU_WHEEL_CP312
 };

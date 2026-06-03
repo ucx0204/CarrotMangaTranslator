@@ -6,7 +6,8 @@ const MAX_PATH_LENGTH = 4096;
 const MAX_ID_LIST_LENGTH = 2000;
 const MAX_PAGES_PER_REQUEST = 2000;
 const MAX_BLOCKS_PER_PAGE = 500;
-const MAX_STROKE_POINTS = 20000;
+const MAX_MASK_STROKES = 200;
+const MAX_STROKE_POINTS = 1200;
 
 const finiteNumber = z.number().finite();
 const uuid = z.string().uuid();
@@ -184,7 +185,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
       chapterId: uuid,
       mode: z.literal("page-pattern-drawn"),
       pageId: uuid,
-      strokes: z.array(InpaintingMaskStrokeSchema).min(1).max(2000),
+      strokes: z.array(InpaintingMaskStrokeSchema).min(1).max(MAX_MASK_STROKES),
       featherPx: finiteNumber.min(0).max(128).optional()
     })
     .strict()
@@ -270,7 +271,7 @@ export const AppSettingsSchema = z
       device: z.enum(["cpu", "gpu"]),
       gpuCudaTag: z.string().regex(/^cu\d+$/i).optional()
     }).strict(),
-    maxTokens: z.number().int().min(1024).max(64000)
+    maxTokens: z.number().int().min(300).max(12000)
   })
   .strict();
 

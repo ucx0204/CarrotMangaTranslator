@@ -1,6 +1,6 @@
 const { spawn } = require("node:child_process");
 const { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } = require("node:fs");
-const { mkdir, open, readFile, rename, rm, writeFile } = require("node:fs/promises");
+const { copyFile, mkdir, open, readFile, rename, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
 
@@ -29,7 +29,8 @@ const {
   MAX_LOG_PREVIEW_LENGTH,
   MM_PROJ_CANDIDATE_NAMES,
   OCR_INSTALL_MARKER_FILE,
-  PADDLE_OCR_MODEL_DOWNLOADS
+  PADDLE_OCR_MODEL_DOWNLOADS,
+  RTX_50_WINDOWS_PADDLE_GPU_WHEEL_CP312
 } = require("./simple-page-defaults.cjs");
 const {
   buildSystemPrompt,
@@ -75,6 +76,140 @@ const {
   mimeFromPath
 } = require("./simple-page-image-utils.cjs");
 
+const BEELLAMA_LLAMA_RUNTIME_CUDA12 = {
+  id: "beellama-v0.2.0-cuda12.4",
+  kind: "beellama",
+  dir: "beellama-v0.2.0-cuda12.4",
+  archive: "beellama-v0.2.0-bin-win-cuda-12.4-x64.zip",
+  url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-12.4-x64.zip",
+  archives: [
+    {
+      archive: "beellama-v0.2.0-bin-win-cuda-12.4-x64.zip",
+      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-12.4-x64.zip"
+    },
+    {
+      archive: "cudart-llama-bin-win-cuda-12.4-x64.zip",
+      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-12.4-x64.zip"
+    }
+  ],
+  requiredFiles: [
+    "llama-server.exe",
+    ["ggml-cuda.dll", "ggml-cuda-cu12.dll"],
+    ["cublas64_12.dll"],
+    ["cublasLt64_12.dll"],
+    ["cudart64_12.dll"]
+  ]
+};
+const BEELLAMA_LLAMA_RUNTIME_CUDA13 = {
+  id: "beellama-v0.2.0-cuda13.1",
+  kind: "beellama",
+  dir: "beellama-v0.2.0-cuda13.1",
+  archive: "beellama-v0.2.0-bin-win-cuda-13.1-x64.zip",
+  url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-13.1-x64.zip",
+  archives: [
+    {
+      archive: "beellama-v0.2.0-bin-win-cuda-13.1-x64.zip",
+      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-13.1-x64.zip"
+    },
+    {
+      archive: "cudart-llama-bin-win-cuda-13.1-x64.zip",
+      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-13.1-x64.zip"
+    }
+  ],
+  requiredFiles: [
+    "llama-server.exe",
+    ["ggml-cuda.dll", "ggml-cuda-cu13.dll"],
+    ["cublas64_13.dll", "cublas64_12.dll"],
+    ["cublasLt64_13.dll", "cublasLt64_12.dll"],
+    ["cudart64_13.dll", "cudart64_12.dll"]
+  ]
+};
+const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
+  id: "llama-b8833-cuda12.4",
+  kind: "mainline",
+  dir: "llama-b8833-cuda12.4",
+  archive: "llama-b8833-bin-win-cuda-12.4-x64.zip",
+  url: "https://github.com/ggml-org/llama.cpp/releases/download/b8833/llama-b8833-bin-win-cuda-12.4-x64.zip",
+  archives: [
+    {
+      archive: "llama-b8833-bin-win-cuda-12.4-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b8833/llama-b8833-bin-win-cuda-12.4-x64.zip"
+    },
+    {
+      archive: "cudart-llama-bin-win-cuda-12.4-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b8833/cudart-llama-bin-win-cuda-12.4-x64.zip"
+    }
+  ],
+  requiredFiles: [
+    "llama-server.exe",
+    ["ggml-cuda.dll", "ggml-cuda-cu12.dll"],
+    ["cublas64_12.dll"],
+    ["cublasLt64_12.dll"],
+    ["cudart64_12.dll"]
+  ]
+};
+const MAINLINE_LLAMA_RUNTIME_CUDA13 = {
+  id: "llama-b9490-cuda13.3",
+  kind: "mainline",
+  dir: "llama-b9490-cuda13.3",
+  archive: "llama-b9490-bin-win-cuda-13.3-x64.zip",
+  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9490/llama-b9490-bin-win-cuda-13.3-x64.zip",
+  archives: [
+    {
+      archive: "llama-b9490-bin-win-cuda-13.3-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9490/llama-b9490-bin-win-cuda-13.3-x64.zip"
+    },
+    {
+      archive: "cudart-llama-bin-win-cuda-13.3-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9490/cudart-llama-bin-win-cuda-13.3-x64.zip"
+    }
+  ],
+  requiredFiles: [
+    "llama-server.exe",
+    ["ggml-cuda.dll", "ggml-cuda-cu13.dll"],
+    ["cublas64_13.dll", "cublas64_12.dll"],
+    ["cublasLt64_13.dll", "cublasLt64_12.dll"],
+    ["cudart64_13.dll", "cudart64_12.dll"]
+  ]
+};
+const LLAMA_RUNTIME_MARKER_FILE = ".mgt-runtime.json";
+const LLAMA_RUNTIME_FILES = new Set([
+  "LICENSE",
+  "cublas64_12.dll",
+  "cublas64_13.dll",
+  "cublasLt64_12.dll",
+  "cublasLt64_13.dll",
+  "cudart64_12.dll",
+  "cudart64_13.dll",
+  "ggml-base.dll",
+  "ggml-cpu.dll",
+  "ggml-cpu-alderlake.dll",
+  "ggml-cpu-cannonlake.dll",
+  "ggml-cpu-cascadelake.dll",
+  "ggml-cpu-cooperlake.dll",
+  "ggml-cpu-haswell.dll",
+  "ggml-cpu-icelake.dll",
+  "ggml-cpu-ivybridge.dll",
+  "ggml-cpu-piledriver.dll",
+  "ggml-cpu-sandybridge.dll",
+  "ggml-cpu-sapphirerapids.dll",
+  "ggml-cpu-skylakex.dll",
+  "ggml-cpu-sse42.dll",
+  "ggml-cpu-x64.dll",
+  "ggml-cpu-zen4.dll",
+  "ggml-cuda.dll",
+  "ggml-cuda-cu12.dll",
+  "ggml-cuda-cu13.dll",
+  "ggml-rpc.dll",
+  "ggml.dll",
+  "libomp140.x86_64.dll",
+  "llama-common.dll",
+  "llama-server.exe",
+  "llama.dll",
+  "mtmd.dll",
+  "rpc-server.exe"
+]);
+
 function nowMs() {
   return typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
 }
@@ -94,6 +229,104 @@ function createDetailedError(message, detail = {}, cause) {
   }
   Object.assign(error, detail);
   return error;
+}
+
+const BASE_CHILD_ENV_KEYS = [
+  "SystemRoot",
+  "WINDIR",
+  "ComSpec",
+  "TEMP",
+  "TMP",
+  "USERPROFILE",
+  "LOCALAPPDATA",
+  "APPDATA",
+  "PROGRAMDATA",
+  "HOME",
+  "LANG",
+  "LC_ALL"
+];
+
+const NETWORK_CHILD_ENV_KEYS = [
+  "HTTP_PROXY",
+  "HTTPS_PROXY",
+  "NO_PROXY",
+  "http_proxy",
+  "https_proxy",
+  "no_proxy",
+  "REQUESTS_CA_BUNDLE",
+  "SSL_CERT_FILE",
+  "CURL_CA_BUNDLE"
+];
+
+const HF_CHILD_ENV_KEYS = [
+  "HF_ENDPOINT",
+  "HF_TOKEN",
+  "HUGGING_FACE_HUB_TOKEN"
+];
+
+function shouldAllowExternalRuntimeOverrides(options = {}) {
+  if (!isLikelyPackagedToolsDir(options.toolsDir)) {
+    return true;
+  }
+  return isTruthy(process.env.MGT_ALLOW_EXTERNAL_RUNTIME ?? process.env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME);
+}
+
+function runtimeOverrideEnv(name, options = {}) {
+  return shouldAllowExternalRuntimeOverrides(options) ? process.env[name] : undefined;
+}
+
+function buildWhitelistedChildEnv({ pathDirs = [], includeProcessPath = false, extraKeys = [] } = {}) {
+  const env = {};
+  for (const key of [...BASE_CHILD_ENV_KEYS, ...extraKeys]) {
+    const value = process.env[key];
+    if (value) {
+      env[key] = value;
+    }
+  }
+
+  const runtimePath = buildChildPathEnv(pathDirs, includeProcessPath);
+  if (runtimePath) {
+    env.PATH = runtimePath;
+  }
+  return env;
+}
+
+function buildUtilityChildEnv(options = {}, pathDirs = []) {
+  return buildWhitelistedChildEnv({
+    pathDirs,
+    includeProcessPath: shouldAllowExternalRuntimeOverrides(options),
+    extraKeys: NETWORK_CHILD_ENV_KEYS
+  });
+}
+
+function buildChildPathEnv(pathDirs = [], includeProcessPath = false) {
+  const dirs = [];
+  const addDir = (dir) => {
+    const text = String(dir ?? "").trim();
+    if (!text) {
+      return;
+    }
+    const normalized = process.platform === "win32" ? text.toLowerCase() : text;
+    if (!dirs.some((candidate) => (process.platform === "win32" ? candidate.toLowerCase() : candidate) === normalized)) {
+      dirs.push(text);
+    }
+  };
+
+  for (const dir of pathDirs) {
+    addDir(dir);
+  }
+  if (process.platform === "win32") {
+    const systemRoot = process.env.SystemRoot || process.env.WINDIR;
+    addDir(systemRoot ? path.join(systemRoot, "System32") : null);
+    addDir(systemRoot);
+    addDir(systemRoot ? path.join(systemRoot, "System32", "WindowsPowerShell", "v1.0") : null);
+  }
+  if (includeProcessPath) {
+    for (const dir of String(process.env.PATH ?? "").split(path.delimiter)) {
+      addDir(dir);
+    }
+  }
+  return dirs.join(path.delimiter);
 }
 
 function buildOptionSummary(options = {}) {
@@ -138,6 +371,7 @@ function buildOptionSummary(options = {}) {
     enhancedContrast: options.enhancedContrast,
     imageFirst: options.imageFirst,
     reuseServer: options.reuseServer,
+    llamaRuntimeProfile: options.llamaRuntimeProfile,
     workingDir: options.workingDir,
     toolsDir: options.toolsDir,
     serverPath: options.serverPath,
@@ -257,7 +491,7 @@ function resolveElectronNativeImage() {
 function resolveToolsDir(options = {}) {
   const candidates = [
     options.toolsDir,
-    process.env.MANGA_TRANSLATOR_TOOLS_DIR,
+    runtimeOverrideEnv("MANGA_TRANSLATOR_TOOLS_DIR", options),
     path.resolve(__dirname, "..", "tools"),
     path.resolve(__dirname, "..", "..", "tools")
   ].filter(Boolean);
@@ -265,8 +499,151 @@ function resolveToolsDir(options = {}) {
   return candidates.find((candidate) => existsSync(candidate)) || candidates[0];
 }
 
+function resolveManagedToolsDir(options = {}) {
+  const explicit = String(options.managedToolsDir ?? runtimeOverrideEnv("MANGA_TRANSLATOR_MANAGED_TOOLS_DIR", options) ?? "").trim();
+  if (explicit) {
+    return explicit;
+  }
+  return path.join(resolveWorkingDir(options), "tools");
+}
+
+function resolveLlamaRuntimeSearchDirs(options = {}) {
+  const dirs = [
+    resolveManagedToolsDir(options),
+    resolveToolsDir(options)
+  ];
+  const seen = new Set();
+  return dirs.filter((dir) => {
+    if (!dir) {
+      return false;
+    }
+    const key = path.resolve(dir).toLowerCase();
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 function defaultServerPath(options = {}) {
-  return resolveBundledServerPath(resolveToolsDir(options));
+  const dirs = resolveLlamaRuntimeSearchDirs(options);
+  const existingCandidates = dirs.flatMap((dir) => bundledServerCandidates(dir).filter((candidate) => existsSync(candidate)));
+  const preferredRuntime = resolvePreferredLlamaRuntime(options);
+  const preferredCandidate = existingCandidates.find((candidate) => isRuntimeCandidate(candidate, preferredRuntime));
+  if (preferredCandidate) {
+    return preferredCandidate;
+  }
+  const preferredManagedPath = path.join(resolveManagedToolsDir(options), preferredRuntime.dir, serverBinaryName());
+  if (isBuiltInGemmaRuntimeModel(options)) {
+    return preferredManagedPath;
+  }
+  if (!existsSync(preferredManagedPath)) {
+    return preferredManagedPath;
+  }
+  return (
+    existingCandidates.find((candidate) => hasCudaRuntimeBackend(path.dirname(candidate))) ||
+    existingCandidates[0] ||
+    resolveBundledServerPath(dirs[0] || resolveToolsDir(options))
+  );
+}
+
+function serverBinaryName() {
+  return process.platform === "win32" ? "llama-server.exe" : "llama-server";
+}
+
+function hasCudaRuntimeBackend(runtimeDir) {
+  try {
+    return ["ggml-cuda.dll", "ggml-cuda-cu12.dll", "ggml-cuda-cu13.dll"].some((fileName) => existsSync(path.join(runtimeDir, fileName)));
+  } catch {
+    return false;
+  }
+}
+
+function hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
+  if (!runtimeDir || !runtime) {
+    return false;
+  }
+  try {
+    for (const requirement of runtime.requiredFiles || [serverBinaryName()]) {
+      const candidates = Array.isArray(requirement) ? requirement : [requirement];
+      if (!candidates.some((fileName) => existsSync(path.join(runtimeDir, fileName)))) {
+        return false;
+      }
+    }
+    return hasCudaRuntimeBackend(runtimeDir);
+  } catch {
+    return false;
+  }
+}
+
+function missingRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
+  const missing = [];
+  for (const requirement of runtime?.requiredFiles || [serverBinaryName()]) {
+    const candidates = Array.isArray(requirement) ? requirement : [requirement];
+    if (!candidates.some((fileName) => existsSync(path.join(runtimeDir, fileName)))) {
+      missing.push(candidates.join(" | "));
+    }
+  }
+  if (!hasCudaRuntimeBackend(runtimeDir)) {
+    missing.push("ggml-cuda.dll | ggml-cuda-cu12.dll | ggml-cuda-cu13.dll");
+  }
+  return missing;
+}
+
+function isRuntimeCandidate(serverPath, runtime) {
+  try {
+    const runtimeDir = path.dirname(serverPath);
+    return path.basename(runtimeDir).toLowerCase() === runtime.dir.toLowerCase() && hasRequiredLlamaRuntimeFiles(runtimeDir, runtime);
+  } catch {
+    return false;
+  }
+}
+
+function resolvePreferredLlamaRuntime(options = {}) {
+  const rtx50Runtime = shouldUseRtx50LlamaRuntime(options);
+  if (isGemma26BModel(options)) {
+    return rtx50Runtime ? MAINLINE_LLAMA_RUNTIME_CUDA13 : MAINLINE_LLAMA_RUNTIME_CUDA12;
+  }
+  return rtx50Runtime ? BEELLAMA_LLAMA_RUNTIME_CUDA13 : BEELLAMA_LLAMA_RUNTIME_CUDA12;
+}
+
+function shouldUseRtx50LlamaRuntime(options = {}) {
+  const profile = String(options.llamaRuntimeProfile ?? runtimeOverrideEnv("MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE", options) ?? "").trim().toLowerCase();
+  if (["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(profile)) {
+    return true;
+  }
+  if (["default", "cuda12", "cuda12.4", "legacy"].includes(profile)) {
+    return false;
+  }
+  const cudaTag = String(options.ocrGpuCudaTag ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG", options) ?? "").trim().toLowerCase();
+  return cudaTag === "cu129" || cudaTag === "cu13" || cudaTag === "cu131" || cudaTag === "cu133";
+}
+
+function isGemma26BModel(options = {}) {
+  const parts = [
+    resolveConfiguredModelRepo(options),
+    resolveConfiguredModelFile(options),
+    resolveConfiguredLocalModelPath(options),
+    resolveConfiguredMmprojRepo(options),
+    resolveConfiguredMmprojFile(options)
+  ];
+  return parts.some((part) => /gemma[-_]?4[-_]?26b/i.test(String(part || "")));
+}
+
+function isGemma31BModel(options = {}) {
+  const parts = [
+    resolveConfiguredModelRepo(options),
+    resolveConfiguredModelFile(options),
+    resolveConfiguredLocalModelPath(options),
+    resolveConfiguredMmprojRepo(options),
+    resolveConfiguredMmprojFile(options)
+  ];
+  return parts.some((part) => /gemma[-_]?4[-_]?31b/i.test(String(part || "")));
+}
+
+function isBuiltInGemmaRuntimeModel(options = {}) {
+  return isGemma26BModel(options) || isGemma31BModel(options);
 }
 
 function bundledFfmpegCandidates(toolsDir) {
@@ -296,7 +673,7 @@ function resolveFfmpegPath(options = {}) {
 
   const explicitCandidates = [
     options.ffmpegPath,
-    process.env.MANGA_TRANSLATOR_FFMPEG_PATH
+    runtimeOverrideEnv("MANGA_TRANSLATOR_FFMPEG_PATH", options)
   ].filter(Boolean);
   const explicitPath = explicitCandidates.find((candidate) => existsSync(candidate));
   if (explicitPath) {
@@ -311,12 +688,22 @@ function resolveWorkingDir(options = {}) {
 }
 
 function resolveHfHomeDir(options = {}) {
-  return options.hfHomeDir || process.env.HF_HOME || process.env.MANGA_TRANSLATOR_HF_HOME || defaultHfHomeDir();
+  return (
+    options.hfHomeDir ||
+    runtimeOverrideEnv("HF_HOME", options) ||
+    runtimeOverrideEnv("MANGA_TRANSLATOR_HF_HOME", options) ||
+    defaultHfHomeDir()
+  );
 }
 
 function resolveHubCacheDir(options = {}) {
   const hfHomeDir = resolveHfHomeDir(options);
-  return options.hfHubCacheDir || process.env.HF_HUB_CACHE || process.env.HUGGINGFACE_HUB_CACHE || (hfHomeDir ? path.join(hfHomeDir, "hub") : null);
+  return (
+    options.hfHubCacheDir ||
+    runtimeOverrideEnv("HF_HUB_CACHE", options) ||
+    runtimeOverrideEnv("HUGGINGFACE_HUB_CACHE", options) ||
+    (hfHomeDir ? path.join(hfHomeDir, "hub") : null)
+  );
 }
 
 function defaultHfHomeDir() {
@@ -334,20 +721,20 @@ function defaultHfHomeDir() {
 }
 
 function resolveLlamaCppCacheDir(options = {}) {
-  const explicit = String(options.llamaCacheDir ?? process.env.MANGA_TRANSLATOR_LLAMA_CACHE_DIR ?? "").trim();
+  const explicit = String(options.llamaCacheDir ?? runtimeOverrideEnv("MANGA_TRANSLATOR_LLAMA_CACHE_DIR", options) ?? "").trim();
   if (explicit) {
     return explicit;
   }
   if (process.platform === "win32") {
     const localAppData = String(process.env.LOCALAPPDATA ?? "").trim();
-    return localAppData ? path.join(localAppData, "llama.cpp") : null;
+    return localAppData ? path.join(localAppData, "manga-gemma-translator", "llama.cpp") : null;
   }
   const xdgCacheHome = String(process.env.XDG_CACHE_HOME ?? "").trim();
   if (xdgCacheHome) {
-    return path.join(xdgCacheHome, "llama.cpp");
+    return path.join(xdgCacheHome, "manga-gemma-translator", "llama.cpp");
   }
   const homeDir = String(process.env.HOME ?? "").trim();
-  return homeDir ? path.join(homeDir, ".cache", "llama.cpp") : null;
+  return homeDir ? path.join(homeDir, ".cache", "manga-gemma-translator", "llama.cpp") : null;
 }
 
 function repoCacheDir(repoId, hubCacheDir) {
@@ -621,9 +1008,223 @@ async function ensureHfModelAssetsDownloaded(options = {}, launchTarget = inspec
   });
 }
 
+async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
+  const runtime = resolvePreferredLlamaRuntime(options);
+  const managedToolsDir = resolveManagedToolsDir(options);
+  const runtimeDir = path.join(managedToolsDir, runtime.dir);
+  const serverPath = path.join(runtimeDir, process.platform === "win32" ? "llama-server.exe" : "llama-server");
+  if (isCurrentLlamaRuntime(runtimeDir, runtime) && hasRequiredLlamaRuntimeFiles(runtimeDir, runtime)) {
+    return;
+  }
+
+  if (process.platform !== "win32") {
+    throw createDetailedError("Bundled llama-server binary is missing.", {
+      serverPath,
+      toolsDir: resolveToolsDir(options),
+      managedToolsDir,
+      checkedServerPaths: resolveLlamaRuntimeSearchDirs(options).flatMap((dir) => bundledServerCandidates(dir))
+    });
+  }
+
+  const downloadsDir = path.join(managedToolsDir, ".downloads");
+  const archives = getLlamaRuntimeArchives(runtime);
+  const archiveTotals = new Map();
+  let knownAggregateBytes = 0;
+  for (const archive of archives) {
+    const totalBytes = await probeContentLength(archive.url, options.abortSignal);
+    if (Number.isFinite(totalBytes) && totalBytes > 0) {
+      archiveTotals.set(archive.archive, totalBytes);
+      knownAggregateBytes += totalBytes;
+    }
+  }
+  const hasKnownAggregate = knownAggregateBytes > 0 && archiveTotals.size === archives.length;
+  let completedBytes = 0;
+  const archivePaths = [];
+  for (const archive of archives) {
+    const archivePath = path.join(downloadsDir, archive.archive);
+    archivePaths.push(archivePath);
+    const totalBytes = archiveTotals.get(archive.archive) || 0;
+    await downloadHfFileWithProgress(
+      {
+        kind: "llama-runtime",
+        label: `Gemma 실행 런타임 (${runtime.kind})`,
+        file: archive.archive,
+        url: archive.url,
+        destination: archivePath,
+        progressPhase: "model_downloading",
+        progressTitle: "Gemma 실행 런타임 다운로드 중",
+        completeTitle: "Gemma 실행 런타임 다운로드 완료"
+      },
+      options,
+      {
+        totalBytes,
+        knownAggregateBytes: hasKnownAggregate ? knownAggregateBytes : 0,
+        completedBytes,
+        onComplete: (bytesWritten) => {
+          completedBytes += hasKnownAggregate ? totalBytes : bytesWritten;
+        }
+      }
+    );
+  }
+
+  emitRuntimeProgress(options, "model_downloading", "Gemma 실행 런타임 설치 중", runtime.dir, {
+    progressMode: "indeterminate",
+    installLogLine: "Gemma 실행 파일과 CUDA DLL을 앱 데이터 폴더에 풀고 있습니다."
+  });
+  await rm(runtimeDir, { recursive: true, force: true }).catch(() => {});
+  await mkdir(runtimeDir, { recursive: true });
+  for (const archivePath of archivePaths) {
+    await extractSelectedZipEntries(archivePath, runtimeDir, (fileName) => LLAMA_RUNTIME_FILES.has(fileName));
+  }
+
+  const missingFiles = missingRequiredLlamaRuntimeFiles(runtimeDir, runtime);
+  if (missingFiles.length > 0) {
+    throw createDetailedError("Gemma 실행 런타임을 설치했지만 필수 실행 파일 또는 CUDA DLL을 찾지 못했습니다.", {
+      archives: archivePaths,
+      runtimeDir,
+      serverPath,
+      missingFiles
+    });
+  }
+  await writeFile(path.join(runtimeDir, LLAMA_RUNTIME_MARKER_FILE), `${JSON.stringify({
+    id: runtime.id,
+    kind: runtime.kind,
+    dir: runtime.dir,
+    archives,
+    requiredFiles: runtime.requiredFiles,
+    installedAt: new Date().toISOString()
+  }, null, 2)}\n`, "utf8");
+  emitRuntimeProgress(options, "model_downloading", "Gemma 실행 런타임 설치 완료", runtime.dir, {
+    progressMode: "determinate",
+    progressPercent: 1,
+    installLogLine: "Gemma 실행 런타임 준비가 완료되었습니다."
+  });
+}
+
+function isCurrentLlamaRuntime(runtimeDir, runtime = resolvePreferredLlamaRuntime({})) {
+  try {
+    const marker = JSON.parse(readFileSync(path.join(runtimeDir, LLAMA_RUNTIME_MARKER_FILE), "utf8"));
+    const expectedArchives = getLlamaRuntimeArchives(runtime);
+    const markerArchives = Array.isArray(marker?.archives) ? marker.archives : [];
+    return (
+      marker?.id === runtime.id &&
+      marker?.kind === runtime.kind &&
+      marker?.dir === runtime.dir &&
+      expectedArchives.every((archive) =>
+        markerArchives.some((candidate) => candidate?.archive === archive.archive && candidate?.url === archive.url)
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getLlamaRuntimeArchives(runtime) {
+  if (Array.isArray(runtime?.archives) && runtime.archives.length > 0) {
+    return runtime.archives;
+  }
+  return runtime?.archive && runtime?.url ? [{ archive: runtime.archive, url: runtime.url }] : [];
+}
+
+async function extractSelectedZipEntries(archivePath, outputDir, shouldExtract) {
+  const extractDir = path.join(path.dirname(outputDir), `${path.basename(outputDir)}.extract-${process.pid}-${Date.now()}`);
+  await rm(extractDir, { recursive: true, force: true }).catch(() => {});
+  await mkdir(extractDir, { recursive: true });
+  try {
+    await expandZipArchive(archivePath, extractDir);
+    const selectedFiles = collectSelectedFiles(extractDir, shouldExtract);
+    if (selectedFiles.length === 0) {
+      throw new Error(`No runtime files matched in ${archivePath}`);
+    }
+    for (const filePath of selectedFiles) {
+      const fileName = path.basename(filePath);
+      const outputPath = path.join(outputDir, fileName);
+      if (!path.resolve(outputPath).startsWith(path.resolve(outputDir))) {
+        throw new Error(`Invalid runtime output path: ${fileName}`);
+      }
+      await copyFile(filePath, outputPath);
+    }
+  } finally {
+    await rm(extractDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+async function expandZipArchive(archivePath, outputDir) {
+  if (process.platform !== "win32") {
+    throw new Error("Default Gemma runtime auto-install is only supported on Windows.");
+  }
+  const psScript = "& { param($zip, $dest) Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force }";
+  await new Promise((resolve, reject) => {
+    const child = spawn(
+      "powershell",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript, archivePath, outputDir],
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+        shell: false,
+        env: buildUtilityChildEnv({})
+      }
+    );
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk) => {
+      stdout = shrinkBuffer(stdout, chunk, 4000);
+    });
+    child.stderr?.on("data", (chunk) => {
+      stderr = shrinkBuffer(stderr, chunk, 4000);
+    });
+    child.on("error", (error) => {
+      reject(createDetailedError("Failed to launch Expand-Archive.", {
+        archivePath,
+        outputDir,
+        stdout: truncateText(stdout, 4000),
+        stderr: truncateText(stderr, 4000)
+      }, error));
+    });
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(createDetailedError(`Expand-Archive failed (${code ?? "null"}).`, {
+        archivePath,
+        outputDir,
+        stdout: truncateText(stdout.trim(), 4000),
+        stderr: truncateText(stderr.trim(), 4000)
+      }));
+    });
+  });
+}
+
+function collectSelectedFiles(rootDir, shouldExtract) {
+  const selected = [];
+  const stack = [rootDir];
+  while (stack.length > 0) {
+    const currentDir = stack.pop();
+    let entries = [];
+    try {
+      entries = readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const filePath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(filePath);
+        continue;
+      }
+      if (entry.isFile() && shouldExtract(entry.name)) {
+        selected.push(filePath);
+      }
+    }
+  }
+  return selected;
+}
+
 function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
   const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);
-  const endpoint = String(process.env.PADDLE_PDX_HUGGING_FACE_ENDPOINT || "https://huggingface.co").replace(/\/+$/, "");
+  const endpoint = String(runtimeOverrideEnv("PADDLE_PDX_HUGGING_FACE_ENDPOINT", options) || "https://huggingface.co").replace(/\/+$/, "");
   const tasks = [];
   for (const model of PADDLE_OCR_MODEL_DOWNLOADS) {
     const modelDir = resolvePaddleOcrModelCacheDir(runtimeDir, model.name);
@@ -645,7 +1246,7 @@ function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
 }
 
 async function ensurePaddleOcrModelAssetsDownloaded(options = {}, runtime = null) {
-  if (isTruthy(process.env.MANGA_TRANSLATOR_SKIP_PADDLE_MODEL_PREFETCH ?? "false")) {
+  if (isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_SKIP_PADDLE_MODEL_PREFETCH", options) ?? "false")) {
     return;
   }
 
@@ -1335,7 +1936,8 @@ async function convertImageToPngBufferWithFfmpeg(filePath, options = {}) {
       ],
       {
         windowsHide: true,
-        stdio: ["ignore", "pipe", "pipe"]
+        stdio: ["ignore", "pipe", "pipe"],
+        env: buildUtilityChildEnv(options, [path.dirname(ffmpegPath)])
       }
     );
 
@@ -1604,7 +2206,7 @@ async function buildEnhancedVariantWithPowerShell(options) {
       cwd: resolveWorkingDir(options),
       stdio: ["ignore", "pipe", "pipe"],
       shell: false,
-      env: process.env
+      env: buildUtilityChildEnv(options)
     });
 
     let stdout = "";
@@ -2001,20 +2603,20 @@ function buildResponsesRequestBody(options, imageVariants, promptText, systemPro
 }
 
 function resolveOcrBboxProvider(options = {}) {
-  const explicit = String(options.ocrBboxProvider ?? process.env.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER ?? "").trim();
+  const explicit = String(options.ocrBboxProvider ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_PROVIDER", options) ?? "").trim();
   if (explicit) {
     return explicit;
   }
-  if (isTruthy(process.env.MANGA_TRANSLATOR_DISABLE_OCR_BBOX)) {
+  if (isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_DISABLE_OCR_BBOX", options))) {
     return "none";
   }
-  if (isTruthy(process.env.MANGA_TRANSLATOR_PADDLEOCR_VL)) {
+  if (isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VL", options))) {
     return "paddleocr-vl";
   }
-  if (String(process.env.MANGA_TRANSLATOR_OCR_BBOX_CMD ?? "").trim()) {
+  if (String(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_CMD", options) ?? "").trim()) {
     return "external-command";
   }
-  if (String(process.env.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH ?? "").trim()) {
+  if (String(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH", options) ?? "").trim()) {
     return "json-file";
   }
   return "paddleocr-vl";
@@ -2039,7 +2641,7 @@ async function collectOcrBboxHints(options = {}) {
       }]);
   }
 
-  const hintsPath = String(options.ocrBboxHintsPath ?? process.env.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH ?? "").trim();
+  const hintsPath = String(options.ocrBboxHintsPath ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH", options) ?? "").trim();
   if (hintsPath) {
     try {
       const rawText = await readFile(hintsPath, "utf8");
@@ -2102,7 +2704,7 @@ function buildOcrBboxResult(hints = [], diagnostics = [], options = {}) {
   const noTextDetected =
     typeof options.noTextDetected === "boolean"
       ? options.noTextDetected
-      : normalizedHints.length === 0 || textEvidenceCount === 0;
+      : normalizedHints.length === 0;
   return {
     hints: normalizedHints,
     diagnostics: Array.isArray(diagnostics) ? diagnostics : [],
@@ -2348,7 +2950,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
     return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, usesTargetPackageDir: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] });
   }
 
-  const targetInstallLooksBroken = hasOcrInstallMarker(packageDir, runtimeVariant) || hasExpectedOcrPackages(packageDir, options);
+  const targetInstallLooksBroken = hasOcrInstallMarker(packageDir, runtimeVariant, options) || hasExpectedOcrPackages(packageDir, options);
   if (targetInstallLooksBroken && !importCheck.ok) {
     diagnostics.push({
       step: "installed-runtime-verification-failed",
@@ -2362,7 +2964,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
     ensureEmbeddedPythonPackagePath(bootstrapPython, packageDir, runtimeDir);
   }
 
-  if (!isTruthy(process.env.MANGA_TRANSLATOR_OCR_AUTO_INSTALL ?? "true")) {
+  if (!isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_AUTO_INSTALL", options) ?? "true")) {
     throw new Error("PaddleOCR-VL runtime is not installed and automatic installation is disabled.");
   }
 
@@ -2415,12 +3017,6 @@ async function ensurePaddleOcrRuntime(options = {}) {
     await installOcrPythonPackages(installPython, installBatches, targetDir, options, runtimeDir);
   }
   diagnostics.push({ step: "pip-installed", installBatches, targetDir, runtimeVariant });
-  await writeOcrInstallMarker(packageDir, {
-    runtimeVariant,
-    installBatches,
-    targetDir,
-    installedAt: new Date().toISOString()
-  });
 
   emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 설치 검증 중", packageSummary, {
     progressMode: "indeterminate",
@@ -2445,6 +3041,14 @@ async function ensurePaddleOcrRuntime(options = {}) {
       importCheck.error
     );
   }
+  await writeOcrInstallMarker(packageDir, {
+    runtimeVariant,
+    installBatches,
+    targetDir,
+    packageSignature: resolveOcrInstallSignature(options),
+    installedAt: new Date().toISOString(),
+    verifiedAt: new Date().toISOString()
+  });
 
   emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 설치 완료", packageSummary, {
     progressMode: "determinate",
@@ -2554,7 +3158,7 @@ async function installOcrPythonPackages(pythonPath, installBatches, targetDir, o
       const end = range.end;
       monitor.setStep(`패키지 설치 ${index + 1}/${installBatches.length}`, start, end);
       await runShellCommand(`${quoteCommandArg(pythonPath)} -m pip install --upgrade ${pipProgressArgs} ${targetDir ? `--target ${quoteCommandArg(targetDir)} ` : ""}${packages.map(quoteCommandArg).join(" ")}`, {
-        timeoutMs: readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_PIP_TIMEOUT_MS) || 1800000,
+        timeoutMs: readPositiveInteger(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PIP_TIMEOUT_MS", options)) || 1800000,
         env: buildOcrRuntimeEnv(options, { runtimeDir, includePackageDir: false }),
         signal: options.abortSignal,
         onOutput: (line) => monitor.log(line)
@@ -2606,8 +3210,8 @@ function resolveInstallProgressDir(pythonPath) {
 function resolveOcrRuntimeDir(options = {}) {
   return path.resolve(
     String(
-      process.env.MANGA_TRANSLATOR_OCR_RUNTIME_DIR
-        ?? options.ocrRuntimeDir
+      options.ocrRuntimeDir
+        ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_RUNTIME_DIR", options)
         ?? path.join(options.workingDir || process.cwd(), "ocr-runtime")
     )
   );
@@ -2621,8 +3225,8 @@ function resolveVenvPythonPath(venvDir) {
 
 function resolveBootstrapPython(options = {}) {
   const explicitCandidates = [
-    process.env.MANGA_TRANSLATOR_OCR_PYTHON,
-    process.env.MANGA_TRANSLATOR_PYTHON
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PYTHON", options),
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PYTHON", options)
   ]
     .map((candidate) => String(candidate ?? "").trim())
     .filter(Boolean);
@@ -2652,7 +3256,9 @@ function resolveBootstrapPython(options = {}) {
 }
 
 function shouldAllowSystemPythonFallback(options = {}) {
-  const explicit = process.env.MANGA_TRANSLATOR_OCR_ALLOW_SYSTEM_PYTHON ?? process.env.MANGA_TRANSLATOR_ALLOW_SYSTEM_PYTHON;
+  const explicit =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_ALLOW_SYSTEM_PYTHON", options) ??
+    runtimeOverrideEnv("MANGA_TRANSLATOR_ALLOW_SYSTEM_PYTHON", options);
   if (explicit !== undefined) {
     return isTruthy(explicit);
   }
@@ -2669,29 +3275,48 @@ function isLikelyPackagedToolsDir(toolsDir) {
 }
 
 function resolveOcrPipInstallBatches(options = {}) {
-  const explicit = splitShellLikeEnv(process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES);
+  const explicit = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", options));
   if (explicit.length > 0) {
     return [explicit];
   }
 
   if (!isOcrGpuRequested(options)) {
-    const cpuPackages = splitShellLikeEnv(process.env.MANGA_TRANSLATOR_OCR_CPU_PIP_PACKAGES);
+    const cpuPackages = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_CPU_PIP_PACKAGES", options));
     return [cpuPackages.length > 0 ? cpuPackages : DEFAULT_OCR_CPU_PIP_PACKAGES];
   }
 
-  const gpuPackages = splitShellLikeEnv(process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES);
+  const gpuPackages = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES", options));
   if (gpuPackages.length > 0) {
     return [gpuPackages];
   }
 
   return [
-    [
-      process.env.MANGA_TRANSLATOR_OCR_GPU_PADDLE_PACKAGE || DEFAULT_OCR_GPU_PADDLE_PACKAGE,
-      "--extra-index-url",
-      resolveOcrGpuPackageIndexUrl(options)
-    ],
+    resolveOcrGpuPaddleInstallBatch(options),
     DEFAULT_OCR_GPU_EXTRA_PACKAGES
   ];
+}
+
+function resolveOcrGpuPaddleInstallBatch(options = {}) {
+  const explicitWheel = String(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_WHEEL", options) ?? "").trim();
+  if (explicitWheel) {
+    return [explicitWheel];
+  }
+  if (shouldUseRtx50WindowsPaddleWheel(options)) {
+    return [RTX_50_WINDOWS_PADDLE_GPU_WHEEL_CP312];
+  }
+  return [
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_PACKAGE", options) || DEFAULT_OCR_GPU_PADDLE_PACKAGE,
+    "--index-url",
+    resolveOcrGpuPackageIndexUrl(options)
+  ];
+}
+
+function shouldUseRtx50WindowsPaddleWheel(options = {}) {
+  const explicit = runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_USE_RTX50_WINDOWS_WHEEL", options);
+  if (explicit !== undefined) {
+    return isTruthy(explicit);
+  }
+  return process.platform === "win32" && resolveOcrGpuCudaTag(options) === "cu129";
 }
 
 function splitShellLikeEnv(value) {
@@ -2717,9 +3342,9 @@ function isOcrBlackwellCudaTag(options = {}) {
 
 function resolveOcrGpuCudaTag(options = {}) {
   const raw = String(
-    process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG
-      ?? process.env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG
-      ?? process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG", options)
+      ?? runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG", options)
+      ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA", options)
       ?? options.ocrGpuCudaTag
       ?? DEFAULT_OCR_GPU_CUDA_TAG
   ).trim().toLowerCase();
@@ -2732,8 +3357,8 @@ function resolveOcrGpuCudaTag(options = {}) {
 
 function resolveOcrGpuPackageIndexUrl(options = {}) {
   return String(
-    process.env.MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL
-      ?? process.env.MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL", options)
+      ?? runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL", options)
       ?? `https://www.paddlepaddle.org.cn/packages/stable/${resolveOcrGpuCudaTag(options)}/`
   ).trim();
 }
@@ -2750,11 +3375,11 @@ function resolveOcrPythonPackageDir(runtimeDir, options = {}) {
 }
 
 function resolveOcrDevice(options = {}) {
-  const explicitDevice = String(process.env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE ?? "").trim();
+  const explicitDevice = String(runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_DEVICE", options) ?? "").trim();
   if (explicitDevice) {
     return explicitDevice;
   }
-  const value = String(process.env.MANGA_TRANSLATOR_OCR_DEVICE ?? options.ocrDevice ?? "cpu").trim().toLowerCase();
+  const value = String(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options) ?? options.ocrDevice ?? "cpu").trim().toLowerCase();
   if (value === "gpu" || value === "cuda") {
     return "gpu:0";
   }
@@ -2879,13 +3504,19 @@ function createOcrRuntimeError(message, detail = {}, cause) {
   );
 }
 
-function hasOcrInstallMarker(packageDir, runtimeVariant) {
+function hasOcrInstallMarker(packageDir, runtimeVariant, options = {}) {
   try {
     const marker = JSON.parse(readFileSync(path.join(packageDir, OCR_INSTALL_MARKER_FILE), "utf8"));
-    return marker?.runtimeVariant === runtimeVariant;
+    return marker?.runtimeVariant === runtimeVariant && marker?.packageSignature === resolveOcrInstallSignature(options);
   } catch {
     return false;
   }
+}
+
+function resolveOcrInstallSignature(options = {}) {
+  return resolveOcrPipInstallBatches(options)
+    .map((batch) => batch.join(" "))
+    .join(" | ");
 }
 
 async function writeOcrInstallMarker(packageDir, payload) {
@@ -3008,7 +3639,8 @@ function buildPaddleOcrImportCheckScript(options = {}) {
     "import importlib.util",
     "missing = [name for name in ('paddle', 'paddlex', 'paddleocr') if importlib.util.find_spec(name) is None]",
     "assert not missing, 'Missing Paddle OCR package(s): ' + ', '.join(missing)",
-    "import paddle"
+    "import paddle",
+    "from paddleocr import PaddleOCRVL, PaddleOCR"
   ];
   if (device.startsWith("gpu")) {
     lines.push("assert paddle.device.is_compiled_with_cuda(), 'PaddlePaddle is not compiled with CUDA'");
@@ -3021,39 +3653,44 @@ function buildPaddleOcrImportCheckScript(options = {}) {
 
 function buildOcrRuntimeEnv(options = {}, runtime = null) {
   const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);
-  const hfHomeDir = options.hfHomeDir || process.env.HF_HOME || path.join(runtimeDir, "hf-cache");
-  const hfHubCacheDir = options.hfHubCacheDir || process.env.HF_HUB_CACHE || process.env.HUGGINGFACE_HUB_CACHE || path.join(hfHomeDir, "hub");
+  const hfHomeDir = options.hfHomeDir || runtimeOverrideEnv("HF_HOME", options) || path.join(runtimeDir, "hf-cache");
+  const hfHubCacheDir =
+    options.hfHubCacheDir ||
+    runtimeOverrideEnv("HF_HUB_CACHE", options) ||
+    runtimeOverrideEnv("HUGGINGFACE_HUB_CACHE", options) ||
+    path.join(hfHomeDir, "hub");
   const packageDir = runtime?.packageDir || resolveOcrPythonPackageDir(runtimeDir, options);
   const includePackageDir = runtime?.includePackageDir ?? runtime?.usesTargetPackageDir ?? true;
   const pythonPath = includePackageDir ? packageDir : "";
   const ocrDevice = resolveOcrDevice(options);
   const pipCacheDir = path.join(runtimeDir, "pip-cache");
   const tempDir = path.join(runtimeDir, "tmp");
-  const env = { ...process.env };
-  delete env.PYTHONHOME;
-  delete env.PYTHONPATH;
-  delete env.PYTHONUSERBASE;
+  const env = buildWhitelistedChildEnv({
+    pathDirs: buildOcrRuntimePathDirs(options, runtime, runtimeDir),
+    includeProcessPath: shouldAllowExternalRuntimeOverrides(options),
+    extraKeys: [...NETWORK_CHILD_ENV_KEYS, ...HF_CHILD_ENV_KEYS]
+  });
   return {
     ...env,
     HF_HOME: hfHomeDir,
     HF_HUB_CACHE: hfHubCacheDir,
     HUGGINGFACE_HUB_CACHE: hfHubCacheDir,
-    HF_HUB_DISABLE_XET: process.env.HF_HUB_DISABLE_XET || "1",
-    HF_HUB_ETAG_TIMEOUT: process.env.HF_HUB_ETAG_TIMEOUT || "30",
-    HF_HUB_DOWNLOAD_TIMEOUT: process.env.HF_HUB_DOWNLOAD_TIMEOUT || "300",
-    MANGA_TRANSLATOR_OCR_DEVICE: options.ocrDevice || process.env.MANGA_TRANSLATOR_OCR_DEVICE || "cpu",
+    HF_HUB_DISABLE_XET: runtimeOverrideEnv("HF_HUB_DISABLE_XET", options) || "1",
+    HF_HUB_ETAG_TIMEOUT: runtimeOverrideEnv("HF_HUB_ETAG_TIMEOUT", options) || "30",
+    HF_HUB_DOWNLOAD_TIMEOUT: runtimeOverrideEnv("HF_HUB_DOWNLOAD_TIMEOUT", options) || "300",
+    MANGA_TRANSLATOR_OCR_DEVICE: options.ocrDevice || runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options) || "cpu",
     MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG: resolveOcrGpuCudaTag(options),
     MANGA_TRANSLATOR_PADDLEOCR_DEVICE: ocrDevice,
     PYTHONPATH: pythonPath,
     PYTHONNOUSERSITE: "1",
     PYTHONUSERBASE: path.join(runtimeDir, "python-user-base"),
     PIP_CACHE_DIR: pipCacheDir,
-    PADDLE_PDX_MODEL_SOURCE: process.env.PADDLE_PDX_MODEL_SOURCE || "huggingface",
-    PADDLE_PDX_CACHE_HOME: process.env.PADDLE_PDX_CACHE_HOME || path.join(runtimeDir, "paddlex-cache"),
-    PADDLE_PDX_HUGGING_FACE_ENDPOINT: process.env.PADDLE_PDX_HUGGING_FACE_ENDPOINT || "https://huggingface.co",
-    PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: process.env.PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK || "True",
-    PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT: process.env.PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT || "0",
-    PIP_DISABLE_PIP_VERSION_CHECK: process.env.PIP_DISABLE_PIP_VERSION_CHECK || "1",
+    PADDLE_PDX_MODEL_SOURCE: runtimeOverrideEnv("PADDLE_PDX_MODEL_SOURCE", options) || "huggingface",
+    PADDLE_PDX_CACHE_HOME: runtimeOverrideEnv("PADDLE_PDX_CACHE_HOME", options) || path.join(runtimeDir, "paddlex-cache"),
+    PADDLE_PDX_HUGGING_FACE_ENDPOINT: runtimeOverrideEnv("PADDLE_PDX_HUGGING_FACE_ENDPOINT", options) || "https://huggingface.co",
+    PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: runtimeOverrideEnv("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", options) || "True",
+    PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT: runtimeOverrideEnv("PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT", options) || "0",
+    PIP_DISABLE_PIP_VERSION_CHECK: runtimeOverrideEnv("PIP_DISABLE_PIP_VERSION_CHECK", options) || "1",
     TMP: tempDir,
     TEMP: tempDir,
     PYTHONUTF8: "1",
@@ -3061,8 +3698,52 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
   };
 }
 
+function buildOcrRuntimePathDirs(options = {}, runtime = null, runtimeDir = resolveOcrRuntimeDir(options)) {
+  const variant = resolveOcrRuntimeVariant(options);
+  const venvBinDir = process.platform === "win32"
+    ? path.join(runtimeDir, `.venv-${variant}`, "Scripts")
+    : path.join(runtimeDir, `.venv-${variant}`, "bin");
+  const toolsDir = resolveToolsDir(options);
+  return [
+    runtime?.pythonPath ? path.dirname(runtime.pythonPath) : null,
+    venvBinDir,
+    path.join(toolsDir || "", "python"),
+    path.join(toolsDir || "", "python", "python-embed"),
+    runtimeDir
+  ];
+}
+
+function buildLlamaServerEnv(serverPath, options = {}) {
+  const env = buildWhitelistedChildEnv({
+    pathDirs: [path.dirname(serverPath)],
+    includeProcessPath: shouldAllowExternalRuntimeOverrides(options),
+    extraKeys: [...NETWORK_CHILD_ENV_KEYS, ...HF_CHILD_ENV_KEYS]
+  });
+  const hfHomeDir = resolveHfHomeDir(options);
+  const hfHubCacheDir = resolveHubCacheDir(options);
+  const llamaCacheDir = resolveLlamaCppCacheDir(options);
+  if (hfHomeDir) {
+    env.HF_HOME = hfHomeDir;
+  }
+  if (hfHubCacheDir) {
+    env.HF_HUB_CACHE = hfHubCacheDir;
+    env.HUGGINGFACE_HUB_CACHE = hfHubCacheDir;
+  }
+  if (llamaCacheDir) {
+    try {
+      mkdirSync(llamaCacheDir, { recursive: true });
+    } catch {
+      // llama-server can still use its own fallback if the cache directory cannot be created.
+    }
+    env.LLAMA_CACHE = llamaCacheDir;
+    env.LLAMA_CACHE_DIR = llamaCacheDir;
+  }
+  env.MANGA_TRANSLATOR_LLAMA_PORT = String(options.port);
+  return env;
+}
+
 function buildOcrBboxCommand(options = {}, provider, outputPath, runtime = null) {
-  const template = String(options.ocrBboxCommand ?? process.env.MANGA_TRANSLATOR_OCR_BBOX_CMD ?? "").trim();
+  const template = String(options.ocrBboxCommand ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_CMD", options) ?? "").trim();
   const image = options.imagePath;
   const replacements = {
     image: quoteCommandArg(image),
@@ -3134,7 +3815,7 @@ function runShellCommand(command, { timeoutMs, env, signal, onOutput, timeoutMes
       shell: true,
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
-      env: env || process.env
+      env: env || buildUtilityChildEnv({})
     });
     let stdout = "";
     let stderr = "";
@@ -3277,7 +3958,8 @@ function terminateChildProcessTree(child) {
   if (process.platform === "win32" && child.pid) {
     const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
       stdio: "ignore",
-      windowsHide: true
+      windowsHide: true,
+      env: buildUtilityChildEnv({})
     });
     killer.on("error", () => {
       child.kill("SIGKILL");
@@ -3303,7 +3985,7 @@ function buildLaunchArgs(options) {
   const useBeellamaGemmaLaunch = shouldUseBeellamaGemmaLaunch(options);
   const gpuLayerArgs =
     options.gpuLayers === "fit"
-      ? []
+      ? ["-ngl", "auto"]
       : [
           "-ngl",
           String(options.gpuLayers ?? "all")
@@ -3365,9 +4047,9 @@ function buildLaunchArgs(options) {
     "--port",
     String(options.port),
     "--repeat-last-n",
-    process.env.MANGA_TRANSLATOR_REPEAT_LAST_N || "256",
+    runtimeOverrideEnv("MANGA_TRANSLATOR_REPEAT_LAST_N", options) || "256",
     "--repeat-penalty",
-    process.env.MANGA_TRANSLATOR_REPEAT_PENALTY || "1.08",
+    runtimeOverrideEnv("MANGA_TRANSLATOR_REPEAT_PENALTY", options) || "1.08",
     "--presence-penalty",
     "0",
     "--frequency-penalty",
@@ -3377,13 +4059,13 @@ function buildLaunchArgs(options) {
     "-fa",
     "on",
     "--temp",
-    String(options.temperature ?? process.env.MANGA_TRANSLATOR_TEMPERATURE ?? "0.2"),
+    String(options.temperature ?? runtimeOverrideEnv("MANGA_TRANSLATOR_TEMPERATURE", options) ?? "0.2"),
     "--top-k",
-    String(options.topK ?? process.env.MANGA_TRANSLATOR_TOP_K ?? "64"),
+    String(options.topK ?? runtimeOverrideEnv("MANGA_TRANSLATOR_TOP_K", options) ?? "64"),
     "--top-p",
-    String(options.topP ?? process.env.MANGA_TRANSLATOR_TOP_P ?? "0.95"),
+    String(options.topP ?? runtimeOverrideEnv("MANGA_TRANSLATOR_TOP_P", options) ?? "0.95"),
     "--min-p",
-    String(process.env.MANGA_TRANSLATOR_MIN_P ?? "0.0"),
+    String(runtimeOverrideEnv("MANGA_TRANSLATOR_MIN_P", options) ?? "0.0"),
     "-rea",
     "off",
     "--reasoning-budget",
@@ -3477,7 +4159,10 @@ function resolveDraftModelRepoArg(options = {}) {
 }
 
 function shouldUseBeellamaGemmaLaunch(options = {}) {
-  const serverPath = String(options.serverPath || process.env.LLAMA_SERVER_PATH || defaultServerPath(options) || "");
+  if (isGemma26BModel(options)) {
+    return false;
+  }
+  const serverPath = String(options.serverPath || runtimeOverrideEnv("LLAMA_SERVER_PATH", options) || defaultServerPath(options) || "");
   const isBeellamaRuntime = /beellama/i.test(serverPath);
   const isGemma4Model = looksLikeGemma4Model(options);
   if (isBeellamaRuntime && isGemma4Model) {
@@ -3536,15 +4221,19 @@ function shrinkBuffer(current, chunk, maxLength = 12000) {
 
 async function startServer(options) {
   const baseUrl = `http://127.0.0.1:${options.port}/v1`;
-  if (options.reuseServer && await isReachable(baseUrl)) {
+  if (options.reuseServer && shouldAllowExistingLlamaServerReuse(options) && await isReachable(baseUrl)) {
     return { baseUrl, child: null, startedByScript: false };
   }
 
+  const explicitServerPath =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_LLAMA_SERVER_PATH", options) ||
+    runtimeOverrideEnv("LLAMA_SERVER_PATH", options);
+  const configuredServerPath = options.serverPath || defaultServerPath(options);
   const requestedServerPath =
-    process.env.MANGA_TRANSLATOR_LLAMA_SERVER_PATH ||
-    process.env.LLAMA_SERVER_PATH ||
-    options.serverPath ||
-    defaultServerPath(options);
+    explicitServerPath || (isServerRuntimeCompatibleWithModel(configuredServerPath, options) ? configuredServerPath : defaultServerPath(options));
+  if (!requestedServerPath || !existsSync(requestedServerPath) || isIncompleteManagedLlamaRuntime(requestedServerPath, options)) {
+    await ensureDefaultLlamaRuntimeDownloaded(options);
+  }
   const resolvedBundledServerPath = defaultServerPath(options);
   const serverPath = requestedServerPath && existsSync(requestedServerPath)
     ? requestedServerPath
@@ -3560,19 +4249,8 @@ async function startServer(options) {
     });
   }
 
-  const childEnv = {
-    ...process.env,
-    MANGA_TRANSLATOR_LLAMA_PORT: String(options.port)
-  };
-  const hfHomeDir = resolveHfHomeDir(options);
-  const hfHubCacheDir = resolveHubCacheDir(options);
-  if (hfHomeDir) {
-    childEnv.HF_HOME = hfHomeDir;
-  }
-  if (hfHubCacheDir) {
-    childEnv.HF_HUB_CACHE = hfHubCacheDir;
-    childEnv.HUGGINGFACE_HUB_CACHE = hfHubCacheDir;
-  }
+  await verifyLlamaRuntimePreflight(serverPath, options);
+  const childEnv = buildLlamaServerEnv(serverPath, options);
 
   let launchTarget = inspectModelLaunch(options);
   if (launchTarget.requiresDownload) {
@@ -3667,6 +4345,113 @@ async function startServer(options) {
   }
 
   return { baseUrl, child, startedByScript: true, serverLogPath: options.serverLogPath };
+}
+
+function shouldAllowExistingLlamaServerReuse(options = {}) {
+  return isTruthy(runtimeOverrideEnv("MGT_ALLOW_LLAMA_SERVER_REUSE", options) ?? runtimeOverrideEnv("MANGA_TRANSLATOR_ALLOW_LLAMA_SERVER_REUSE", options));
+}
+
+function isIncompleteManagedLlamaRuntime(serverPath, options = {}) {
+  if (!serverPath || !isBuiltInGemmaRuntimeModel(options)) {
+    return false;
+  }
+  const preferredRuntime = resolvePreferredLlamaRuntime(options);
+  const runtimeDir = path.dirname(serverPath);
+  if (path.basename(runtimeDir).toLowerCase() !== preferredRuntime.dir.toLowerCase()) {
+    return false;
+  }
+  return !hasRequiredLlamaRuntimeFiles(runtimeDir, preferredRuntime);
+}
+
+async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
+  if (!looksLikeGemma4Model(options)) {
+    return;
+  }
+  const preferredRuntime = resolvePreferredLlamaRuntime(options);
+  const runtimeDir = path.dirname(serverPath);
+  if (path.basename(runtimeDir).toLowerCase() === preferredRuntime.dir.toLowerCase()) {
+    const missingFiles = missingRequiredLlamaRuntimeFiles(runtimeDir, preferredRuntime);
+    if (missingFiles.length > 0) {
+      throw createDetailedError("Gemma 실행 런타임이 불완전합니다. CUDA DLL을 포함해 다시 설치해야 합니다.", {
+        serverPath,
+        runtimeDir,
+        runtime: preferredRuntime.id,
+        missingFiles
+      });
+    }
+  }
+  if (process.platform !== "win32" || runtimeOverrideEnv("MGT_SKIP_LLAMA_RUNTIME_PREFLIGHT", options)) {
+    return;
+  }
+  const result = await runLlamaRuntimeProbe(serverPath, options, ["--list-devices"], 20000);
+  const output = `${result.stdout}\n${result.stderr}`;
+  if (result.code !== 0) {
+    throw createDetailedError("llama-server CUDA 런타임 검증에 실패했습니다.", {
+      serverPath,
+      code: result.code,
+      stdout: truncateText(result.stdout, 4000),
+      stderr: truncateText(result.stderr, 4000)
+    });
+  }
+  if (!/(cuda|nvidia|geforce|rtx|gpu)/i.test(output)) {
+    throw createDetailedError("llama-server가 CUDA GPU를 찾지 못했습니다. CPU 실행으로 조용히 넘어가지 않도록 중단합니다.", {
+      serverPath,
+      stdout: truncateText(result.stdout, 4000),
+      stderr: truncateText(result.stderr, 4000)
+    });
+  }
+}
+
+function runLlamaRuntimeProbe(serverPath, options = {}, args = [], timeoutMs = 20000) {
+  return new Promise((resolve) => {
+    let stdout = "";
+    let stderr = "";
+    const child = spawn(serverPath, args, {
+      cwd: resolveWorkingDir(options),
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: false,
+      windowsHide: true,
+      env: buildLlamaServerEnv(serverPath, options)
+    });
+    const timer = setTimeout(() => {
+      terminateChildProcessTree(child);
+      resolve({
+        code: -1,
+        stdout,
+        stderr: `${stderr}\nllama-server probe timed out after ${timeoutMs}ms`
+      });
+    }, timeoutMs);
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk) => {
+      stdout = shrinkBuffer(stdout, chunk, 8000);
+    });
+    child.stderr?.on("data", (chunk) => {
+      stderr = shrinkBuffer(stderr, chunk, 8000);
+    });
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      resolve({ code: -1, stdout, stderr: `${stderr}\n${error.message}` });
+    });
+    child.once("close", (code) => {
+      clearTimeout(timer);
+      resolve({ code: code ?? -1, stdout, stderr });
+    });
+  });
+}
+
+function isServerRuntimeCompatibleWithModel(serverPath, options = {}) {
+  if (!serverPath || !looksLikeGemma4Model(options)) {
+    return true;
+  }
+  const text = String(serverPath);
+  if (isGemma26BModel(options)) {
+    return !/beellama/i.test(text);
+  }
+  if (isGemma31BModel(options)) {
+    return /beellama/i.test(text);
+  }
+  return true;
 }
 
 function createServerLogStream(options, serverPath, launchArgs) {
@@ -4299,8 +5084,11 @@ module.exports = {
   resolveOcrBboxTimeoutMs,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
+  resolveOcrPipInstallBatches,
   resolveOcrInstallBatchProgressRanges,
   resolveFfmpegPath,
+  resolveLlamaCppCacheDir,
+  buildLlamaServerEnv,
   resolveManagedHfFilePath,
   inspectModelLaunch,
   isModelCached,

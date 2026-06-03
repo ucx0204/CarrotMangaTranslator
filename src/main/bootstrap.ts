@@ -1,14 +1,24 @@
 import { app } from "electron";
 import { appendFileSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 configureDevelopmentElectronStorage();
 
 function bootstrapLogPath(): string {
   if (app.isPackaged || __dirname.includes("app.asar")) {
-    return join(dirname(process.execPath), "bootstrap.log");
+    return join(resolveBootstrapUserDataDir(), "logs", "bootstrap.log");
   }
   return join(resolve(__dirname, "../.."), "logs", "bootstrap.log");
+}
+
+function resolveBootstrapUserDataDir(): string {
+  try {
+    return app.getPath("userData");
+  } catch {
+    const dataRoot = process.env.LOCALAPPDATA?.trim() || process.env.APPDATA?.trim() || tmpdir();
+    return join(dataRoot, "manga-gemma-translator");
+  }
 }
 
 function writeBootstrapLog(message: string, detail?: unknown): void {

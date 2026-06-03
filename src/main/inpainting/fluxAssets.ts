@@ -1,13 +1,34 @@
 import { once } from "node:events";
 import { createWriteStream, existsSync, readdirSync, statSync } from "node:fs";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
+
+const AdmZip = require("adm-zip");
 
 export const FLUX_RUNTIME_EXECUTABLE = "mgt-flux-klein.exe";
 export const FLUX_MODEL_REPO = "unsloth/FLUX.2-klein-4B-GGUF";
 export const FLUX_MODEL_FILE = "flux-2-klein-4b-Q4_K_M.gguf";
 export const FLUX_VAE_REPO = "black-forest-labs/FLUX.2-small-decoder";
 export const FLUX_VAE_FILE = "diffusion_pytorch_model.safetensors";
+const FLUX_RUNNER_DIR = "mgt-flux-klein";
+const FLUX_CUDA_RUNTIME_DIR = "mgt-flux-cuda12.9";
+const FLUX_CUDA_RUNTIME_MARKER = ".mgt-runtime.json";
+const CUDA_REDIST_BASE_URL = "https://developer.download.nvidia.com/compute/cuda/redist";
+const CUDNN_REDIST_BASE_URL = "https://developer.download.nvidia.com/compute/cudnn/redist";
+const CUDA_REDIST_MANIFEST_URL = `${CUDA_REDIST_BASE_URL}/redistrib_12.9.0.json`;
+const CUDNN_REDIST_MANIFEST_URL = `${CUDNN_REDIST_BASE_URL}/redistrib_9.21.0.json`;
+const FLUX_CUDA_DLLS = new Set(["cublas64_12.dll", "cublasLt64_12.dll", "cudart64_12.dll", "curand64_10.dll"]);
+const FLUX_CUDNN_DLLS = new Set([
+  "cudnn64_9.dll",
+  "cudnn_adv64_9.dll",
+  "cudnn_cnn64_9.dll",
+  "cudnn_engines_precompiled64_9.dll",
+  "cudnn_engines_runtime_compiled64_9.dll",
+  "cudnn_engines_tensor_ir64_9.dll",
+  "cudnn_graph64_9.dll",
+  "cudnn_heuristic64_9.dll",
+  "cudnn_ops64_9.dll"
+]);
 
 export type FluxAssetProgress = {
   progressText: string;
@@ -30,27 +51,198 @@ export async function ensureMgtFluxKleinRuntime(options: {
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<string> {
-  const existing = findFirstExecutable([
-    process.env.MGT_FLUX_KLEIN_EXE,
-    findExecutable(options.runtimeDir, [FLUX_RUNTIME_EXECUTABLE]),
-    process.resourcesPath ? join(process.resourcesPath, "tools", "mgt-flux-klein", FLUX_RUNTIME_EXECUTABLE) : undefined,
-    join(process.cwd(), "tools", "mgt-flux-klein", FLUX_RUNTIME_EXECUTABLE)
-  ]);
-  if (existing) {
-    options.onProgress?.({
-      progressText: "Flux 런타임 캐시 사용",
-      detail: basename(existing),
-      progressMode: "log-only",
-      installLogLine: `MGT Flux Klein 런타임을 사용합니다: ${basename(existing)}`
-    });
-    return existing;
+  await mkdir(options.runtimeDir, { recursive: true });
+  const runtimePath = await ensureManagedFluxRunner(options);
+  await ensureFluxCudaRuntime(options);
+  options.onProgress?.({
+    progressText: "Flux 런타임 캐시 사용",
+    detail: basename(runtimePath),
+    progressMode: "log-only",
+    installLogLine: `MGT Flux Klein 런타임을 사용합니다: ${basename(runtimePath)}`
+  });
+  return runtimePath;
+}
+
+async function ensureManagedFluxRunner(options: {
+  runtimeDir: string;
+  signal?: AbortSignal;
+  onProgress?: (progress: FluxAssetProgress) => void;
+}): Promise<string> {
+  const managedDir = join(options.runtimeDir, FLUX_RUNNER_DIR);
+  const managedPath = join(managedDir, FLUX_RUNTIME_EXECUTABLE);
+  if (isExecutableFile(managedPath)) {
+    return managedPath;
   }
 
-  await mkdir(options.runtimeDir, { recursive: true });
-  throw new Error(
-    `${FLUX_RUNTIME_EXECUTABLE}를 찾지 못했습니다. 무늬 배경 인페인팅은 앱 전용 Flux Klein 런타임을 사용합니다. ` +
-      `node scripts/prepare-flux-klein-runner.cjs를 실행하거나 MGT_FLUX_KLEIN_EXE로 경로를 지정해야 합니다.`
-  );
+  const source = findFirstExecutable([
+    process.env.MGT_FLUX_KLEIN_EXE,
+    process.resourcesPath ? join(process.resourcesPath, "tools", FLUX_RUNNER_DIR, FLUX_RUNTIME_EXECUTABLE) : undefined,
+    join(process.cwd(), "tools", FLUX_RUNNER_DIR, FLUX_RUNTIME_EXECUTABLE)
+  ]);
+  if (!source) {
+    throw new Error(
+      `${FLUX_RUNTIME_EXECUTABLE}를 찾지 못했습니다. 설치 파일에 Flux Klein 실행 파일이 포함되어 있어야 합니다. ` +
+        `개발 환경에서는 node scripts/prepare-flux-klein-runner.cjs를 실행하거나 MGT_FLUX_KLEIN_EXE로 경로를 지정하세요.`
+    );
+  }
+
+  throwIfAborted(options.signal);
+  await mkdir(managedDir, { recursive: true });
+  await copyFile(source, managedPath);
+  options.onProgress?.({
+    progressText: "Flux 실행 파일 준비 중",
+    detail: FLUX_RUNTIME_EXECUTABLE,
+    progressMode: "log-only",
+    installLogLine: `Flux 실행 파일을 앱 데이터 캐시에 복사했습니다: ${FLUX_RUNTIME_EXECUTABLE}`
+  });
+  return managedPath;
+}
+
+async function ensureFluxCudaRuntime(options: {
+  runtimeDir: string;
+  signal?: AbortSignal;
+  onProgress?: (progress: FluxAssetProgress) => void;
+}): Promise<void> {
+  const cudaDir = join(options.runtimeDir, FLUX_CUDA_RUNTIME_DIR);
+  if (await isCurrentFluxCudaRuntime(cudaDir)) {
+    options.onProgress?.({
+      progressText: "Flux CUDA 런타임 캐시 사용",
+      detail: FLUX_CUDA_RUNTIME_DIR,
+      progressMode: "log-only",
+      installLogLine: "캐시된 Flux CUDA/cuDNN 런타임을 사용합니다."
+    });
+    return;
+  }
+
+  await rm(cudaDir, { recursive: true, force: true });
+  await mkdir(cudaDir, { recursive: true });
+  const downloadsDir = join(options.runtimeDir, ".downloads");
+  await mkdir(downloadsDir, { recursive: true });
+
+  const cudaManifest = await readJsonUrl(CUDA_REDIST_MANIFEST_URL, options.signal);
+  const cudaPackages = [
+    cudaManifest?.libcublas?.["windows-x86_64"],
+    cudaManifest?.cuda_cudart?.["windows-x86_64"],
+    cudaManifest?.libcurand?.["windows-x86_64"]
+  ].filter(Boolean);
+  if (cudaPackages.length !== 3) {
+    throw new Error("NVIDIA CUDA 12.9 런타임 목록에서 필요한 DLL 패키지를 찾지 못했습니다.");
+  }
+
+  const cudnnManifest = await readJsonUrl(CUDNN_REDIST_MANIFEST_URL, options.signal);
+  const cudnnPackage = cudnnManifest?.cudnn?.["windows-x86_64"]?.cuda12;
+  if (!cudnnPackage) {
+    throw new Error("NVIDIA cuDNN 9.21 CUDA 12 런타임 패키지를 찾지 못했습니다.");
+  }
+
+  for (const entry of cudaPackages) {
+    const archivePath = await downloadRuntimeArchive({
+      ...options,
+      downloadsDir,
+      entry,
+      baseUrl: CUDA_REDIST_BASE_URL,
+      label: "Flux CUDA 런타임"
+    });
+    extractSelectedZipEntries(archivePath, cudaDir, (fileName) => FLUX_CUDA_DLLS.has(fileName));
+  }
+
+  const cudnnArchivePath = await downloadRuntimeArchive({
+    ...options,
+    downloadsDir,
+    entry: cudnnPackage,
+    baseUrl: CUDNN_REDIST_BASE_URL,
+    label: "Flux cuDNN 런타임"
+  });
+  extractSelectedZipEntries(cudnnArchivePath, cudaDir, (fileName) => FLUX_CUDNN_DLLS.has(fileName));
+
+  if (!(await hasFluxCudaRuntimeFiles(cudaDir))) {
+    throw new Error("Flux CUDA/cuDNN 런타임 설치가 완료되지 않았습니다.");
+  }
+  await writeFile(runtimeMarkerPath(cudaDir), `${JSON.stringify({
+    cudaManifest: CUDA_REDIST_MANIFEST_URL,
+    cudnnManifest: CUDNN_REDIST_MANIFEST_URL,
+    installedAt: new Date().toISOString()
+  }, null, 2)}\n`, "utf8");
+  options.onProgress?.({
+    progressText: "Flux CUDA 런타임 설치 완료",
+    detail: FLUX_CUDA_RUNTIME_DIR,
+    progressMode: "determinate",
+    progressPercent: 1,
+    installLogLine: "Flux CUDA/cuDNN 런타임 준비가 완료되었습니다."
+  });
+}
+
+async function downloadRuntimeArchive(options: {
+  downloadsDir: string;
+  entry: { relative_path: string; size?: number };
+  baseUrl: string;
+  label: string;
+  signal?: AbortSignal;
+  onProgress?: (progress: FluxAssetProgress) => void;
+}): Promise<string> {
+  const url = `${options.baseUrl}/${options.entry.relative_path}`;
+  const fileName = basename(options.entry.relative_path);
+  const outputPath = join(options.downloadsDir, fileName);
+  await downloadToFile({
+    url,
+    outputPath,
+    signal: options.signal,
+    progressText: `${options.label} 다운로드 중`,
+    label: fileName,
+    onProgress: options.onProgress
+  });
+  return outputPath;
+}
+
+async function readJsonUrl(url: string, signal?: AbortSignal): Promise<any> {
+  throwIfAborted(signal);
+  const response = await fetch(url, { signal, headers: { "User-Agent": "manga-gemma-translator" } });
+  if (!response.ok) {
+    throw new Error(`${url} 요청에 실패했습니다 (${response.status}).`);
+  }
+  return response.json();
+}
+
+function extractSelectedZipEntries(archivePath: string, outputDir: string, shouldExtract: (fileName: string) => boolean): void {
+  const zip = new AdmZip(archivePath);
+  let extracted = 0;
+  for (const item of zip.getEntries()) {
+    if (item.isDirectory) {
+      continue;
+    }
+    const fileName = basename(item.entryName);
+    if (!fileName || !shouldExtract(fileName)) {
+      continue;
+    }
+    zip.extractEntryTo(item, outputDir, false, true, false, fileName);
+    extracted += 1;
+  }
+  if (extracted === 0) {
+    throw new Error(`${basename(archivePath)}에서 필요한 런타임 DLL을 찾지 못했습니다.`);
+  }
+}
+
+async function isCurrentFluxCudaRuntime(cudaDir: string): Promise<boolean> {
+  try {
+    const marker = JSON.parse(await readFile(runtimeMarkerPath(cudaDir), "utf8")) as { cudnnManifest?: string };
+    return marker?.cudnnManifest === CUDNN_REDIST_MANIFEST_URL && await hasFluxCudaRuntimeFiles(cudaDir);
+  } catch {
+    return false;
+  }
+}
+
+async function hasFluxCudaRuntimeFiles(cudaDir: string): Promise<boolean> {
+  return [...FLUX_CUDA_DLLS, ...FLUX_CUDNN_DLLS].every((fileName) => {
+    try {
+      return statSync(join(cudaDir, fileName)).size > 0;
+    } catch {
+      return false;
+    }
+  });
+}
+
+function runtimeMarkerPath(cudaDir: string): string {
+  return join(cudaDir, FLUX_CUDA_RUNTIME_MARKER);
 }
 
 export function hfResolveUrl(repo: string, fileName: string): string {

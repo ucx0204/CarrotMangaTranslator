@@ -5,10 +5,6 @@ const extraResources = [
   {
     from: "out/app-runtime",
     to: "app-runtime"
-  },
-  {
-    from: "tools/beellama-v0.2.0-cuda12.4",
-    to: "tools/beellama-v0.2.0-cuda12.4"
   }
 ];
 
@@ -23,20 +19,6 @@ if (existsSync(join(__dirname, "tools", "ffmpeg", "ffmpeg.exe"))) {
   extraResources.push({
     from: "tools/ffmpeg",
     to: "tools/ffmpeg"
-  });
-}
-
-if (existsSync(join(__dirname, "tools", "mgt-flux-cuda12.9", "cublas64_12.dll"))) {
-  extraResources.push({
-    from: "tools/mgt-flux-cuda12.9",
-    to: "tools/mgt-flux-cuda12.9"
-  });
-}
-
-if (existsSync(join(__dirname, "tools", "mgt-flux-cuda12.8", "cublas64_12.dll"))) {
-  extraResources.push({
-    from: "tools/mgt-flux-cuda12.8",
-    to: "tools/mgt-flux-cuda12.8"
   });
 }
 

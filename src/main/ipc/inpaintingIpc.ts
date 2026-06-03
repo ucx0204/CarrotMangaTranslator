@@ -370,10 +370,11 @@ export function registerInpaintingIpc(context: IpcContext): void {
         pageTotal: totalPages,
         detail: `${targetLabel} · ${totalPages}페이지`
       });
-      await shell.openPath(outputDir);
+      const openError = await shell.openPath(outputDir);
       return {
         outputDir,
-        pageCount: totalPages
+        pageCount: totalPages,
+        ...(openError ? { openError } : {})
       };
     } catch (error) {
       if (isAbortError(error) || abortController.signal.aborted) {

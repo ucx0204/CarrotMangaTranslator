@@ -66,8 +66,10 @@ export class FluxWorker {
     });
     await new Promise<void>((resolve, reject) => {
       const onAbort = () => {
-        this.child.kill("SIGTERM");
         this.pending.delete(id);
+        this.closed = true;
+        this.child.kill("SIGTERM");
+        this.rejectAll(new DOMException("Aborted", "AbortError") as Error);
         reject(new DOMException("Aborted", "AbortError") as Error);
       };
       const finish = (error?: Error) => {
@@ -111,6 +113,10 @@ export class FluxWorker {
       }
       this.closed = true;
     }
+  }
+
+  isHealthy(): boolean {
+    return !this.closed && this.child.exitCode === null && this.child.signalCode === null && this.child.stdin.writable;
   }
 
   private handleStdout(chunk: Buffer): void {
@@ -179,19 +185,18 @@ export function buildRuntimePathEnv(command: string): string {
   const runnerDir = dirname(command);
   const toolsDir = dirname(runnerDir);
   addDir(runnerDir);
-  addDir(process.env.CUDA_PATH_V12_9 ? join(process.env.CUDA_PATH_V12_9, "bin") : null);
   addDir(join(toolsDir, "mgt-flux-cuda12.9"));
   addDir(join(toolsDir, "cuda12.9"));
-  addDir(process.env.CUDA_PATH_V12_8 ? join(process.env.CUDA_PATH_V12_8, "bin") : null);
-  addDir(join(toolsDir, "mgt-flux-cuda12.8"));
-  addDir(join(toolsDir, "cuda12.8"));
-  addDir(process.env.CUDA_PATH_V12_4 ? join(process.env.CUDA_PATH_V12_4, "bin") : null);
-  addDir(process.env.CUDA_PATH ? join(process.env.CUDA_PATH, "bin") : null);
-  addDir(process.env.CUDA_HOME ? join(process.env.CUDA_HOME, "bin") : null);
-  addDir(join(toolsDir, "beellama-v0.2.0-cuda12.4"));
-  addDir(join(toolsDir, "llama-b8833-cuda12.4"));
-  addDir(join(toolsDir, "llama-b8808-cuda12"));
-  addDir(join(toolsDir, "cuda"));
+  addDir(process.env.CUDA_PATH_V12_9 ? join(process.env.CUDA_PATH_V12_9, "bin") : null);
+  if (isTruthy(process.env.MGT_FLUX_ALLOW_SYSTEM_CUDA)) {
+    addDir(process.env.CUDA_PATH ? join(process.env.CUDA_PATH, "bin") : null);
+    addDir(process.env.CUDA_HOME ? join(process.env.CUDA_HOME, "bin") : null);
+    addDir(process.env.CUDA_PATH_V12_8 ? join(process.env.CUDA_PATH_V12_8, "bin") : null);
+    addDir(process.env.CUDA_PATH_V12_4 ? join(process.env.CUDA_PATH_V12_4, "bin") : null);
+    for (const pathPart of String(process.env.PATH ?? "").split(delimiter)) {
+      addDir(pathPart);
+    }
+  }
 
   let current = runnerDir;
   for (let depth = 0; depth < 4; depth += 1) {
@@ -202,7 +207,7 @@ export function buildRuntimePathEnv(command: string): string {
     }
     current = parent;
   }
-  return [...dirs, process.env.PATH ?? ""].join(delimiter);
+  return dirs.join(delimiter);
 }
 
 export function sanitizeFluxRuntimeStderr(text: string): string {
@@ -221,7 +226,30 @@ function buildFluxRuntimeExitError(code: number | null, stderr: string): Error {
       `Flux 인페인팅 런타임이 CUDA cuBLAS DLL(cublas64_12.dll)을 찾지 못했습니다. 앱에 포함된 CUDA 런타임 경로를 확인하세요. ${detail}`
     );
   }
+  if (/Unable to dynamically load the "curand"|curand64_10\.dll|curand\.dll/i.test(stderr)) {
+    return new Error(
+      `Flux 인페인팅 런타임이 CUDA cuRAND DLL(curand64_10.dll)을 찾지 못했습니다. 앱의 Flux CUDA 런타임을 다시 준비해야 합니다. ${detail}`
+    );
+  }
+  if (/Unable to dynamically load the "cudnn"|cudnn64(?:_9|_12)?\.dll|cudnn\.dll/i.test(stderr)) {
+    return new Error(
+      `Flux 인페인팅 런타임이 cuDNN DLL(cudnn64_9.dll)을 찾지 못했습니다. 최신 설치 파일로 업데이트하거나 앱의 Flux CUDA 런타임을 다시 준비해야 합니다. ${detail}`
+    );
+  }
+  if (isFluxBlackwellRuntimeError(stderr)) {
+    return new Error(
+      `RTX 50번대/Blackwell에서 Flux CUDA 커널 실행에 실패했습니다. Flux는 앱이 준비한 CUDA 12.9/cuDNN 9.21 런타임만 사용해야 합니다. 앱을 최신 설치 파일로 업데이트하고 Flux 런타임 캐시를 다시 준비하세요. ${detail}`
+    );
+  }
   return new Error(`Flux 인페인팅 런타임이 종료되었습니다 (${code}). ${detail}`);
+}
+
+function isFluxBlackwellRuntimeError(stderr: string): boolean {
+  return /SM\s*120|sm[_\s-]*120|compute capability\s*12(?:\.0)?|no kernel image is available|invalid device function|unsupported gpu architecture|invalid device kernel image|named symbol not found/i.test(stderr);
+}
+
+function isTruthy(value: unknown): boolean {
+  return /^(1|true|yes|on)$/i.test(String(value ?? "").trim());
 }
 
 function formatFluxRuntimeDetail(stderr: string): string {
