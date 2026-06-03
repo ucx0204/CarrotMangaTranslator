@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, truncate, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, truncate, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -58,6 +58,36 @@ describe("library import resource limits", () => {
     expect(existsSync(join(rootDir, "index.json"))).toBe(true);
     expect((await library.listLibrary()).works).toHaveLength(0);
   });
+
+  it("normalizes imported webp pages to png before storing them", async () => {
+    const rootDir = await createTempLibrary();
+    const imagePath = join(rootDir, "001.webp");
+    await writeFile(imagePath, "webp source");
+    const library = await loadLibrary(rootDir, { decodeEmpty: false });
+
+    const result = await library.createImport({
+      preview: {
+        mode: "single",
+        sourceKind: "images",
+        suggestedWorkTitle: "Webp import",
+        chapters: [
+          {
+            draftId: "22222222-2222-4222-8222-222222222222",
+            title: "1화",
+            sourceKind: "images",
+            pages: [{ name: "001.webp", sourceKind: "file", sourcePath: imagePath }]
+          }
+        ]
+      },
+      target: { mode: "new", title: "Webp import" },
+      selections: [{ draftId: "22222222-2222-4222-8222-222222222222", title: "1화", enabled: true }]
+    });
+
+    const storedPath = result.openedChapter?.pages[0]?.imagePath;
+    expect(storedPath).toMatch(/\.png$/);
+    expect(storedPath && existsSync(storedPath)).toBe(true);
+    expect(await readFile(storedPath!)).toEqual(Buffer.from("converted png"));
+  });
 });
 
 async function createTempLibrary(): Promise<string> {
@@ -97,6 +127,9 @@ async function loadLibrary(rootDir: string, options: { decodeEmpty: boolean }): 
       llamaRuntimeDir: join(rootDir, "tools", "llama"),
       llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe")
     })
+  }));
+  vi.doMock("../src/main/simplePageRuntime", () => ({
+    decodeImageThroughRuntime: vi.fn(async () => Buffer.from("converted png"))
   }));
   return import("../src/main/library");
 }

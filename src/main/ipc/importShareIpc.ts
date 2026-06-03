@@ -94,12 +94,14 @@ export function registerImportShareIpc(context: IpcContext): void {
 
   ipcMain.handle("import:create", async (_event, request: unknown) => {
     const command = parseIpcPayload(CreateImportRequestSchema, request, "가져오기 적용");
-    const session = consumeImportPreviewSession(command.previewId);
-    return createImport({
+    const session = getImportPreviewSession(command.previewId);
+    const result = await createImport({
       preview: session.preview,
       target: command.target,
       selections: command.selections
     });
+    importPreviewSessions.delete(command.previewId);
+    return result;
   });
 
   ipcMain.handle("share:export-work", async (_event, rawRequest: unknown): Promise<WorkShareExportResult | null> => {
@@ -162,12 +164,17 @@ function createImportPreviewSession(preview: ImportPreviewResult): ImportPreview
 }
 
 function consumeImportPreviewSession(previewId: string): { preview: ImportPreviewResult } {
+  const session = getImportPreviewSession(previewId);
+  importPreviewSessions.delete(previewId);
+  return session;
+}
+
+function getImportPreviewSession(previewId: string): { preview: ImportPreviewResult } {
   prunePreviewSessions(importPreviewSessions);
   const session = importPreviewSessions.get(previewId);
   if (!session) {
     throw new Error("만료되었거나 유효하지 않은 가져오기 미리보기입니다.");
   }
-  importPreviewSessions.delete(previewId);
   return session;
 }
 

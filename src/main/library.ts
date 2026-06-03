@@ -51,6 +51,7 @@ import {
   readZipEntryData,
   type ZipEntryLike
 } from "./libraryStore/zipSafety";
+import { decodeImageThroughRuntime } from "./simplePageRuntime";
 export { pathExists } from "./libraryStore/storage";
 
 const LIBRARY_ROOT = getAppPaths().libraryDir;
@@ -990,8 +991,9 @@ async function materializeChapterFromDraft(workId: string, draft: ImportChapterD
 
 async function materializePageRecord(pageDraft: ImportPageDraft, pagesDir: string, index: number): Promise<LibraryPageRecord> {
   const pageId = randomUUID();
-  const targetExt =
+  const sourceExt =
     pageDraft.sourceKind === "zip-entry" ? extname(pageDraft.zipEntryName ?? "").toLowerCase() || ".png" : extname(pageDraft.sourcePath).toLowerCase() || ".png";
+  const targetExt = shouldNormalizeImportImageToPng(sourceExt) ? ".png" : sourceExt;
   const outputPath = join(pagesDir, `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`);
 
   if (pageDraft.sourceKind === "zip-entry") {
@@ -1000,13 +1002,28 @@ async function materializePageRecord(pageDraft: ImportPageDraft, pagesDir: strin
     if (!entry) {
       throw new Error(`ZIP 항목을 찾지 못했습니다: ${pageDraft.zipEntryName ?? pageDraft.sourcePath}`);
     }
-    await writeFile(outputPath, readZipEntryData(entry, MAX_IMPORT_IMAGE_BYTES, pageDraft.zipEntryName ?? pageDraft.sourcePath));
+    const sourceBytes = readZipEntryData(entry, MAX_IMPORT_IMAGE_BYTES, pageDraft.zipEntryName ?? pageDraft.sourcePath);
+    if (shouldNormalizeImportImageToPng(sourceExt)) {
+      const tempSourcePath = join(pagesDir, `.${pageId}.import-source${sourceExt}`);
+      try {
+        await writeFile(tempSourcePath, sourceBytes);
+        await writeNormalizedWebpImportImage(tempSourcePath, outputPath, pageDraft.name);
+      } finally {
+        await safeUnlink(tempSourcePath);
+      }
+    } else {
+      await writeFile(outputPath, sourceBytes);
+    }
   } else {
     await assertImportImageFileBudget(pageDraft.sourcePath);
-    await copyFile(pageDraft.sourcePath, outputPath);
+    if (shouldNormalizeImportImageToPng(sourceExt)) {
+      await writeNormalizedWebpImportImage(pageDraft.sourcePath, outputPath, pageDraft.name);
+    } else {
+      await copyFile(pageDraft.sourcePath, outputPath);
+    }
   }
 
-  const size = readDecodedImportImageSize(outputPath, pageDraft.name);
+  const size = await readDecodedImportImageSize(outputPath, pageDraft.name);
   const now = new Date().toISOString();
 
   return {
@@ -1210,14 +1227,26 @@ async function materializeSharedChapter({
       }
 
       const pageId = randomUUID();
-      const targetExt = extname(packageImagePath).toLowerCase() || ".png";
+      const sourceExt = extname(packageImagePath).toLowerCase() || ".png";
+      const targetExt = shouldNormalizeImportImageToPng(sourceExt) ? ".png" : sourceExt;
       if (!isSupportedImagePath(packageImagePath)) {
         throw new Error(`지원하지 않는 이미지 형식입니다: ${packagePage.name}`);
       }
       const outputPath = join(pagesDir, `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`);
-      await writeFile(outputPath, readZipEntryData(entry, MAX_SHARE_IMAGE_BYTES, packageImagePath));
+      const sourceBytes = readZipEntryData(entry, MAX_SHARE_IMAGE_BYTES, packageImagePath);
+      if (shouldNormalizeImportImageToPng(sourceExt)) {
+        const tempSourcePath = join(pagesDir, `.${pageId}.share-source${sourceExt}`);
+        try {
+          await writeFile(tempSourcePath, sourceBytes);
+          await writeNormalizedWebpImportImage(tempSourcePath, outputPath, packagePage.name);
+        } finally {
+          await safeUnlink(tempSourcePath);
+        }
+      } else {
+        await writeFile(outputPath, sourceBytes);
+      }
 
-      const size = readDecodedImportImageSize(outputPath, packagePage.name);
+      const size = await readDecodedImportImageSize(outputPath, packagePage.name);
       pages.push({
         ...packagePage,
         id: pageId,
@@ -1612,7 +1641,20 @@ async function assertImportImageFileBudget(filePath: string): Promise<void> {
   }
 }
 
-function readDecodedImportImageSize(imagePath: string, label: string): { width: number; height: number } {
+function shouldNormalizeImportImageToPng(ext: string): boolean {
+  return ext.toLowerCase() === ".webp";
+}
+
+async function writeNormalizedWebpImportImage(sourcePath: string, outputPath: string, label: string): Promise<void> {
+  const converted = await decodeImageThroughRuntime(getAppPaths().runtimeDir, sourcePath);
+  if (!converted?.length) {
+    throw new Error(`WEBP 이미지를 PNG로 변환하지 못했습니다: ${label}`);
+  }
+
+  await writeFile(outputPath, converted);
+}
+
+async function readDecodedImportImageSize(imagePath: string, label: string): Promise<{ width: number; height: number }> {
   const image = nativeImage.createFromPath(imagePath);
   const size = image.getSize();
   const isEmpty = typeof image.isEmpty === "function" ? image.isEmpty() : false;

@@ -349,19 +349,24 @@ export default function App(): React.JSX.Element {
   );
 
   const openImportPreview = useCallback(async (mode: "images" | "folder" | "zip" | "zip-folder") => {
-    const preview =
-      mode === "images"
-        ? await window.mangaApi.previewImagesImport()
-        : mode === "folder"
-          ? await window.mangaApi.previewFolderImport()
-          : mode === "zip"
-            ? await window.mangaApi.previewZipImport()
-            : await window.mangaApi.previewZipFolderImport();
-    if (!preview) {
-      return;
+    try {
+      const preview =
+        mode === "images"
+          ? await window.mangaApi.previewImagesImport()
+          : mode === "folder"
+            ? await window.mangaApi.previewFolderImport()
+            : mode === "zip"
+              ? await window.mangaApi.previewZipImport()
+              : await window.mangaApi.previewZipFolderImport();
+      if (!preview) {
+        return;
+      }
+      setImportPreview(preview);
+    } catch (error) {
+      console.error(error);
+      pushStatus(formatErrorMessage(error, "번역할 원본을 읽지 못했습니다."));
     }
-    setImportPreview(preview);
-  }, []);
+  }, [pushStatus]);
 
   const selectTranslateSource = useCallback(
     async (mode: TranslateSourceMode) => {
@@ -828,11 +833,14 @@ export default function App(): React.JSX.Element {
             }
           }
         }
+      } catch (error) {
+        console.error(error);
+        pushStatus(formatErrorMessage(error, "가져오기를 적용하지 못했습니다."));
       } finally {
         setImportBusy(false);
       }
     },
-    [applyChapter, importPreview, mergeLiveChapter, openChapter, refreshLibrary]
+    [applyChapter, importPreview, mergeLiveChapter, openChapter, pushStatus, refreshLibrary]
   );
 
   const updateCurrentChapter = useCallback((pageId: string, updater: (chapter: ChapterSnapshot) => ChapterSnapshot) => {
