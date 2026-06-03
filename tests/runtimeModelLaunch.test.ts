@@ -59,6 +59,10 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   resolveOcrInstallBatchProgressRanges: (batches: string[][], start: number, end: number) => Array<{ start: number; end: number }>;
   resolveManagedHfFilePath: (options: { [key: string]: unknown }, repo: string, file: string) => string | null;
 };
+const llamaRuntimeResolver = require("../src/main/runtime/resolve-llama-runtime.cjs") as {
+  bundledServerCandidates: (toolsDir: string) => string[];
+  resolveBundledServerPath: (toolsDir: string) => string;
+};
 const {
   buildLaunchArgs,
   buildMessages,
@@ -85,6 +89,7 @@ const {
   resolveOcrGpuPackageIndexUrl,
   resolvePaddleOcrImportCheckTimeoutMs
 } = runtimeHelpers;
+const { bundledServerCandidates, resolveBundledServerPath } = llamaRuntimeResolver;
 
 const tempDirs: string[] = [];
 const DEFAULT_31B_REPO = "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
@@ -137,6 +142,40 @@ function writeCachedAssets({
 }
 
 describe("runtime model launch helpers", () => {
+  it("resolves the preferred bundled beellama llama-server when present", () => {
+    const toolsDir = createTempDir("llama-tools-");
+    const runtimeDir = join(toolsDir, "beellama-v0.2.0-cuda12.4");
+    mkdirSync(runtimeDir, { recursive: true });
+    const serverPath = join(runtimeDir, "llama-server.exe");
+    writeFileSync(serverPath, "");
+    writeFileSync(join(runtimeDir, "ggml-cuda.dll"), "");
+
+    expect(resolveBundledServerPath(toolsDir)).toBe(serverPath);
+    expect(bundledServerCandidates(toolsDir)).toContain(serverPath);
+  });
+
+  it("resolves another bundled llama-server when the preferred runtime is absent", () => {
+    const toolsDir = createTempDir("llama-tools-");
+    const runtimeDir = join(toolsDir, "llama-b8833-cuda12.4");
+    mkdirSync(runtimeDir, { recursive: true });
+    const serverPath = join(runtimeDir, "llama-server.exe");
+    writeFileSync(serverPath, "");
+    writeFileSync(join(runtimeDir, "ggml-cuda.dll"), "");
+
+    expect(resolveBundledServerPath(toolsDir)).toBe(serverPath);
+  });
+
+  it("discovers a one-level bundled llama-server directory unknown to the fixed runtime list", () => {
+    const toolsDir = createTempDir("llama-tools-");
+    const runtimeDir = join(toolsDir, "custom-llama-runtime");
+    mkdirSync(runtimeDir, { recursive: true });
+    const serverPath = join(runtimeDir, "llama-server.exe");
+    writeFileSync(serverPath, "");
+    writeFileSync(join(runtimeDir, "ggml-cuda-cu12.dll"), "");
+
+    expect(resolveBundledServerPath(toolsDir)).toBe(serverPath);
+  });
+
   it("parses pip raw progress without inventing elapsed-time progress", () => {
     expect(parsePipRawProgress("Progress 32768 of 1048576")).toEqual({
       current: 32768,

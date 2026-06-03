@@ -52,6 +52,7 @@ export function summarizeTranslationOptions(options: TranslationOptions): Record
     ubatch: options.ubatch,
     gemmaVramMode: options.gemmaVramMode,
     fitTargetMb: options.fitTargetMb,
+    gpuLayers: options.gpuLayers,
     cacheTypeK: options.cacheTypeK,
     cacheTypeV: options.cacheTypeV,
     ctxCheckpoints: options.ctxCheckpoints,

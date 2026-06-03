@@ -9,15 +9,23 @@ import type {
 } from "../shared/types";
 import type { DetectedGpuInfo } from "./gpuInfo";
 
-export const DEFAULT_GEMMA_MODEL_REPO =
+export const GEMMA_31B_MODEL_REPO =
   "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
-export const DEFAULT_GEMMA_MODEL_FILE_IQ3_S =
+export const GEMMA_31B_MODEL_FILE_IQ3_S =
   "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf";
-export const DEFAULT_GEMMA_MODEL_FILE = DEFAULT_GEMMA_MODEL_FILE_IQ3_S;
-export const DEFAULT_GEMMA_MMPROJ_REPO =
+export const GEMMA_31B_MMPROJ_REPO =
   "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF";
-export const DEFAULT_GEMMA_MMPROJ_FILE =
+export const GEMMA_31B_MMPROJ_FILE =
   "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
+export const GEMMA_26B_MODEL_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF";
+export const GEMMA_26B_MODEL_FILE_IQ3_S = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf";
+export const GEMMA_26B_MMPROJ_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF";
+export const GEMMA_26B_MMPROJ_FILE = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf";
+export const DEFAULT_GEMMA_MODEL_REPO = GEMMA_31B_MODEL_REPO;
+export const DEFAULT_GEMMA_MODEL_FILE_IQ3_S = GEMMA_31B_MODEL_FILE_IQ3_S;
+export const DEFAULT_GEMMA_MODEL_FILE = DEFAULT_GEMMA_MODEL_FILE_IQ3_S;
+export const DEFAULT_GEMMA_MMPROJ_REPO = GEMMA_31B_MMPROJ_REPO;
+export const DEFAULT_GEMMA_MMPROJ_FILE = GEMMA_31B_MMPROJ_FILE;
 export const DEFAULT_GEMMA_DRAFT_MODEL_REPO = "Anbeeld/gemma-4-31B-it-DFlash-GGUF";
 export const DEFAULT_GEMMA_DRAFT_MODEL_FILE = "gemma4-31b-it-dflash-IQ4_XS.gguf";
 export const DEFAULT_GEMMA_VRAM_MODE: GemmaVramMode = "full";
@@ -40,6 +48,7 @@ type GemmaRuntimePreset = {
   batch: number;
   ubatch: number;
   fitTargetMb: number;
+  gpuLayers?: number | "fit";
   cacheTypeK?: string;
   cacheTypeV?: string;
   ctxCheckpoints?: number;
@@ -61,14 +70,15 @@ type GemmaRuntimePreset = {
 
 const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> = {
   full: {
-    ctx: 16384,
-    batch: 2048,
-    ubatch: 1536,
-    fitTargetMb: 4096,
+    ctx: 8192,
+    batch: 1024,
+    ubatch: 1024,
+    fitTargetMb: 1024,
     cacheTypeK: "q4_0",
     cacheTypeV: "q4_0",
     ctxCheckpoints: 0,
-    mmprojOffload: false,
+    kvOffload: true,
+    mmprojOffload: true,
     enableMetrics: true,
     enablePerf: true,
     draftModelRepo: DEFAULT_GEMMA_DRAFT_MODEL_REPO,
@@ -79,12 +89,13 @@ const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> = {
     ctx: 8192,
     batch: 1024,
     ubatch: 1024,
-    fitTargetMb: 1024,
+    fitTargetMb: 9000,
     cacheTypeK: "q4_0",
     cacheTypeV: "q4_0",
     ctxCheckpoints: 0,
     kvOffload: true,
-    mmprojOffload: false,
+    mmprojOffload: true,
+    gpuLayers: "fit",
     enableMetrics: true,
     enablePerf: true,
     useDraft: false
@@ -109,6 +120,7 @@ export type TranslationOptions = {
   ubatch: number;
   gemmaVramMode: GemmaVramMode;
   fitTargetMb: number;
+  gpuLayers?: number | "fit";
   cacheTypeK?: string;
   cacheTypeV?: string;
   ctxCheckpoints?: number;
@@ -195,15 +207,17 @@ export function resolveDefaultAppSettings(
   detectedGpu?: number | DetectedGpuInfo | null
 ): AppSettings {
   const hardwareDefaults = resolveHardwareDefaults(detectedGpu);
+  const vramMode = resolveGemmaVramMode(env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE, hardwareDefaults.gemmaVramMode);
+  const defaultGemmaPreset = getDefaultGemmaPresetForVramMode(vramMode);
   return {
     modelProvider: resolveModelProvider(env.MANGA_TRANSLATOR_MODEL_PROVIDER, hardwareDefaults.modelProvider),
     gemma: {
       modelSource: DEFAULT_MODEL_SOURCE,
-      modelRepo: resolveNonEmptyString(env.MANGA_TRANSLATOR_MODEL_HF, DEFAULT_GEMMA_MODEL_REPO),
-      modelFile: resolveNonEmptyString(env.LLAMA_ARG_HF_FILE, DEFAULT_GEMMA_MODEL_FILE),
-      mmprojRepo: resolveOptionalString(env.MANGA_TRANSLATOR_MMPROJ_HF) ?? DEFAULT_GEMMA_MMPROJ_REPO,
-      mmprojFile: resolveOptionalString(env.LLAMA_ARG_MMPROJ_FILE) ?? DEFAULT_GEMMA_MMPROJ_FILE,
-      vramMode: resolveGemmaVramMode(env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE, hardwareDefaults.gemmaVramMode)
+      modelRepo: resolveNonEmptyString(env.MANGA_TRANSLATOR_MODEL_HF, defaultGemmaPreset.modelRepo),
+      modelFile: resolveNonEmptyString(env.LLAMA_ARG_HF_FILE, defaultGemmaPreset.modelFile),
+      mmprojRepo: resolveOptionalString(env.MANGA_TRANSLATOR_MMPROJ_HF) ?? defaultGemmaPreset.mmprojRepo,
+      mmprojFile: resolveOptionalString(env.LLAMA_ARG_MMPROJ_FILE) ?? defaultGemmaPreset.mmprojFile,
+      vramMode
     },
     codex: {
       model: resolveNonEmptyString(env.MANGA_TRANSLATOR_CODEX_MODEL, DEFAULT_CODEX_MODEL),
@@ -273,9 +287,18 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
   const codex = record?.codex;
   const ocr = record?.ocr;
   const modelSource = resolveModelSource(asRecord(gemma)?.modelSource, defaults.gemma.modelSource);
-  const resolvedModel = resolveStoredGemmaModel(asRecord(gemma), defaults);
+  const resolvedVramMode = resolveGemmaVramMode(asRecord(gemma)?.vramMode, defaults.gemma.vramMode);
+  const modeAwareGemmaDefaults = getModeAwareGemmaDefaults(defaults, resolvedVramMode);
+  const modeDefaults = {
+    ...defaults,
+    gemma: {
+      ...defaults.gemma,
+      ...modeAwareGemmaDefaults
+    }
+  };
+  const resolvedModel = resolveStoredGemmaModel(asRecord(gemma), modeDefaults, resolvedVramMode);
   const resolvedMmproj =
-    modelSource === "huggingface" ? resolveStoredGemmaMmproj(asRecord(gemma), resolvedModel, defaults) : {};
+    modelSource === "huggingface" ? resolveStoredGemmaMmproj(asRecord(gemma), resolvedModel, modeDefaults) : {};
   const localModelPath = resolveOptionalString(asRecord(gemma)?.localModelPath);
   const localMmprojPath = resolveOptionalString(asRecord(gemma)?.localMmprojPath);
   const resolvedOcr = asRecord(ocr);
@@ -289,7 +312,7 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
       ...(resolvedMmproj.mmprojFile ? { mmprojFile: resolvedMmproj.mmprojFile } : {}),
       ...(localModelPath ? { localModelPath } : {}),
       ...(localMmprojPath ? { localMmprojPath } : {}),
-      vramMode: resolveGemmaVramMode(asRecord(gemma)?.vramMode, defaults.gemma.vramMode)
+      vramMode: resolvedVramMode
     },
     codex: {
       model: resolveNonEmptyString(asRecord(codex)?.model, defaults.codex.model),
@@ -331,6 +354,7 @@ export function buildBaseTranslationOptions({
 }): TranslationOptions {
   const gemmaVramMode = resolveGemmaVramMode(env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE, settings.gemma.vramMode);
   const gemmaRuntimePreset = GEMMA_RUNTIME_PRESETS[gemmaVramMode];
+  const runtimeGemma = resolveRuntimeGemmaSettings(settings.gemma, gemmaVramMode);
   return {
     imagePath: "",
     outputDir: runDir,
@@ -346,6 +370,10 @@ export function buildBaseTranslationOptions({
     ubatch: readNumberEnv(env, "MANGA_TRANSLATOR_UBATCH", gemmaRuntimePreset.ubatch),
     gemmaVramMode,
     fitTargetMb: readNumberEnv(env, "MANGA_TRANSLATOR_FIT_TARGET_MB", gemmaRuntimePreset.fitTargetMb),
+    gpuLayers:
+      readOptionalGpuLayersEnv(env, "MANGA_TRANSLATOR_GEMMA_GPU_LAYERS") ??
+      readOptionalGpuLayersEnv(env, "MANGA_TRANSLATOR_GPU_LAYERS") ??
+      gemmaRuntimePreset.gpuLayers,
     cacheTypeK:
       resolveOptionalString(env.MANGA_TRANSLATOR_GEMMA_CACHE_TYPE_K ?? env.MANGA_TRANSLATOR_CACHE_TYPE_K) ??
       gemmaRuntimePreset.cacheTypeK,
@@ -409,22 +437,27 @@ export function buildBaseTranslationOptions({
     reuseServer: true,
     workingDir: paths.dataRoot,
     toolsDir: paths.toolsDir,
-    serverPath: paths.llamaServerPath,
-    modelSource: settings.gemma.modelSource,
-    modelRepo: settings.gemma.modelRepo,
-    modelFile: settings.gemma.modelFile,
+    serverPath:
+      resolveOptionalString(env.MANGA_TRANSLATOR_LLAMA_SERVER_PATH) ??
+      resolveOptionalString(env.LLAMA_SERVER_PATH) ??
+      paths.llamaServerPath,
+    modelSource: runtimeGemma.modelSource,
+    modelRepo: resolveOptionalString(env.MANGA_TRANSLATOR_MODEL_HF) ?? runtimeGemma.modelRepo,
+    modelFile: resolveOptionalString(env.LLAMA_ARG_HF_FILE) ?? runtimeGemma.modelFile,
     mmprojRepo:
-      settings.gemma.modelSource === "huggingface"
-        ? settings.gemma.mmprojRepo ??
-          (settings.gemma.modelRepo === DEFAULT_GEMMA_MODEL_REPO ? DEFAULT_GEMMA_MMPROJ_REPO : undefined)
+      runtimeGemma.modelSource === "huggingface"
+        ? resolveOptionalString(env.MANGA_TRANSLATOR_MMPROJ_HF) ??
+          runtimeGemma.mmprojRepo ??
+          getDefaultMmprojForGemmaModel(runtimeGemma)?.mmprojRepo
         : undefined,
     mmprojFile:
-      settings.gemma.modelSource === "huggingface"
-        ? settings.gemma.mmprojFile ??
-          (settings.gemma.modelRepo === DEFAULT_GEMMA_MODEL_REPO ? DEFAULT_GEMMA_MMPROJ_FILE : undefined)
+      runtimeGemma.modelSource === "huggingface"
+        ? resolveOptionalString(env.LLAMA_ARG_MMPROJ_FILE) ??
+          runtimeGemma.mmprojFile ??
+          getDefaultMmprojForGemmaModel(runtimeGemma)?.mmprojFile
         : undefined,
-    localModelPath: settings.gemma.localModelPath,
-    localMmprojPath: settings.gemma.localMmprojPath,
+    localModelPath: runtimeGemma.localModelPath,
+    localMmprojPath: runtimeGemma.localMmprojPath,
     codexModel: settings.codex.model,
     codexReasoningEffort: resolveCodexReasoningEffort(env.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT, settings.codex.reasoningEffort),
     codexOauthPort: settings.codex.oauthPort,
@@ -457,6 +490,22 @@ function readOptionalNumberEnv(env: NodeJS.ProcessEnv, name: string): number | u
   }
   const value = Number(raw);
   return Number.isFinite(value) ? value : undefined;
+}
+
+function readOptionalGpuLayersEnv(env: NodeJS.ProcessEnv, name: string): number | "fit" | undefined {
+  const raw = env[name];
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === "fit") {
+    return "fit";
+  }
+  if (normalized === "all") {
+    return undefined;
+  }
+  const value = Number(normalized);
+  return Number.isFinite(value) ? Math.round(value) : undefined;
 }
 
 function readOptionalBooleanEnv(env: NodeJS.ProcessEnv, name: string): boolean | undefined {
@@ -586,6 +635,96 @@ function normalizeDetectedGpuInfo(value?: number | DetectedGpuInfo | null): Dete
   };
 }
 
+type GemmaModelPreset = Pick<AppSettings["gemma"], "modelRepo" | "modelFile" | "mmprojRepo" | "mmprojFile">;
+
+function getDefaultGemmaPresetForVramMode(vramMode: GemmaVramMode): GemmaModelPreset {
+  return vramMode === "economy"
+    ? {
+        modelRepo: GEMMA_26B_MODEL_REPO,
+        modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+        mmprojRepo: GEMMA_26B_MMPROJ_REPO,
+        mmprojFile: GEMMA_26B_MMPROJ_FILE
+      }
+    : {
+        modelRepo: GEMMA_31B_MODEL_REPO,
+        modelFile: GEMMA_31B_MODEL_FILE_IQ3_S,
+        mmprojRepo: GEMMA_31B_MMPROJ_REPO,
+        mmprojFile: GEMMA_31B_MMPROJ_FILE
+      };
+}
+
+function getModeAwareGemmaDefaults(defaults: AppSettings, vramMode: GemmaVramMode): GemmaModelPreset {
+  const currentDefaultModel = {
+    modelRepo: defaults.gemma.modelRepo,
+    modelFile: defaults.gemma.modelFile
+  };
+  if (!isBuiltInGemmaModel(currentDefaultModel)) {
+    return {
+      modelRepo: defaults.gemma.modelRepo,
+      modelFile: defaults.gemma.modelFile,
+      mmprojRepo: defaults.gemma.mmprojRepo,
+      mmprojFile: defaults.gemma.mmprojFile
+    };
+  }
+  return getDefaultGemmaPresetForVramMode(vramMode);
+}
+
+function resolveRuntimeGemmaSettings(
+  gemma: AppSettings["gemma"],
+  vramMode: GemmaVramMode
+): AppSettings["gemma"] {
+  if (gemma.modelSource !== "huggingface") {
+    return gemma;
+  }
+
+  const model = { modelRepo: gemma.modelRepo, modelFile: gemma.modelFile };
+  if (!isBuiltInGemmaModel(model)) {
+    return gemma;
+  }
+
+  return {
+    ...gemma,
+    ...getDefaultGemmaPresetForVramMode(vramMode)
+  };
+}
+
+function isBuiltInGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">): boolean {
+  return is31BGemmaModel(model) || is26BGemmaModel(model);
+}
+
+function is31BGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">): boolean {
+  return model.modelRepo === GEMMA_31B_MODEL_REPO && model.modelFile === GEMMA_31B_MODEL_FILE_IQ3_S;
+}
+
+function is26BGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">): boolean {
+  return model.modelRepo === GEMMA_26B_MODEL_REPO && model.modelFile === GEMMA_26B_MODEL_FILE_IQ3_S;
+}
+
+function getDefaultMmprojForGemmaModel(
+  model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">
+): Pick<AppSettings["gemma"], "mmprojRepo" | "mmprojFile"> | undefined {
+  if (is26BGemmaModel(model)) {
+    return {
+      mmprojRepo: GEMMA_26B_MMPROJ_REPO,
+      mmprojFile: GEMMA_26B_MMPROJ_FILE
+    };
+  }
+  if (is31BGemmaModel(model)) {
+    return {
+      mmprojRepo: GEMMA_31B_MMPROJ_REPO,
+      mmprojFile: GEMMA_31B_MMPROJ_FILE
+    };
+  }
+  return undefined;
+}
+
+function isBuiltInGemmaMmproj(mmprojRepo?: string, mmprojFile?: string): boolean {
+  return (
+    (mmprojRepo === GEMMA_31B_MMPROJ_REPO && mmprojFile === GEMMA_31B_MMPROJ_FILE) ||
+    (mmprojRepo === GEMMA_26B_MMPROJ_REPO && mmprojFile === GEMMA_26B_MMPROJ_FILE)
+  );
+}
+
 const LEGACY_GEMMA_MODEL_REPO = "unsloth/gemma-4-26B-A4B-it-GGUF";
 const LEGACY_GEMMA_MODEL_FILES = new Set([
   "gemma-4-26B-A4B-it-UD-Q3_K_XL.gguf",
@@ -595,7 +734,8 @@ const LEGACY_GEMMA_MODEL_FILES = new Set([
 
 function resolveStoredGemmaModel(
   gemma: Record<string, unknown> | null,
-  defaults: AppSettings
+  defaults: AppSettings,
+  vramMode: GemmaVramMode = defaults.gemma.vramMode
 ): Pick<AppSettings["gemma"], "modelRepo" | "modelFile"> {
   const modelRepo = resolveNonEmptyString(gemma?.modelRepo, defaults.gemma.modelRepo);
   const modelFile = resolveNonEmptyString(gemma?.modelFile, defaults.gemma.modelFile);
@@ -605,7 +745,15 @@ function resolveStoredGemmaModel(
       modelFile: defaults.gemma.modelFile
     };
   }
-  return { modelRepo, modelFile };
+  const resolvedModel = { modelRepo, modelFile };
+  if (isBuiltInGemmaModel(resolvedModel)) {
+    const preset = getDefaultGemmaPresetForVramMode(vramMode);
+    return {
+      modelRepo: preset.modelRepo,
+      modelFile: preset.modelFile
+    };
+  }
+  return resolvedModel;
 }
 
 function resolveStoredGemmaMmproj(
@@ -615,17 +763,21 @@ function resolveStoredGemmaMmproj(
 ): Pick<AppSettings["gemma"], "mmprojRepo" | "mmprojFile"> {
   const storedMmprojRepo = resolveOptionalString(gemma?.mmprojRepo);
   const storedMmprojFile = resolveOptionalString(gemma?.mmprojFile);
+  const builtInMmproj = getDefaultMmprojForGemmaModel(model);
+  if (
+    builtInMmproj &&
+    (!storedMmprojRepo || !storedMmprojFile || isBuiltInGemmaMmproj(storedMmprojRepo, storedMmprojFile))
+  ) {
+    return builtInMmproj;
+  }
   if (storedMmprojRepo || storedMmprojFile) {
     return {
-      mmprojRepo: storedMmprojRepo ?? defaults.gemma.mmprojRepo ?? DEFAULT_GEMMA_MMPROJ_REPO,
-      mmprojFile: storedMmprojFile ?? defaults.gemma.mmprojFile ?? DEFAULT_GEMMA_MMPROJ_FILE
+      mmprojRepo: storedMmprojRepo ?? defaults.gemma.mmprojRepo ?? builtInMmproj?.mmprojRepo ?? DEFAULT_GEMMA_MMPROJ_REPO,
+      mmprojFile: storedMmprojFile ?? defaults.gemma.mmprojFile ?? builtInMmproj?.mmprojFile ?? DEFAULT_GEMMA_MMPROJ_FILE
     };
   }
-  if (model.modelRepo === DEFAULT_GEMMA_MODEL_REPO) {
-    return {
-      mmprojRepo: defaults.gemma.mmprojRepo ?? DEFAULT_GEMMA_MMPROJ_REPO,
-      mmprojFile: defaults.gemma.mmprojFile ?? DEFAULT_GEMMA_MMPROJ_FILE
-    };
+  if (builtInMmproj) {
+    return builtInMmproj;
   }
   return {};
 }

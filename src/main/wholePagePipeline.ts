@@ -5,7 +5,6 @@ import { logError, logInfo, logWarn } from "./logger";
 import type { MangaPage } from "../shared/types";
 import { getAppPaths } from "./appPaths";
 import { getAppSettings } from "./settingsStore";
-import { maybeRetryLowConfidenceItems } from "./pipeline/cropRetry";
 import { classifyFailure, isAbortErrorLike, isNonRetriableRuntimeError, summarizePage, throwIfAborted } from "./pipeline/failure";
 import { buildNoTextCompletedPage, isOcrResultNoTextDetected, isRequestNoTextDetected } from "./pipeline/noText";
 import { prepareOcrHintsForPages } from "./pipeline/ocrHints";
@@ -340,18 +339,6 @@ export async function runWholePagePipeline({
             page,
             getOcrBboxHints(result.requestBody)
           );
-          normalizedItems = await maybeRetryLowConfidenceItems({
-            runtime,
-            server,
-            pageOptions,
-            page,
-            items: normalizedItems,
-            emit,
-            jobId,
-            pageIndex: index + 1,
-            pageTotal: pages.length,
-            progressTotal
-          });
           const soundFiltered = filterRejectedOrUncertainSoundItems(normalizedItems);
           normalizedItems = soundFiltered.items;
           successPage = {

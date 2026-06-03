@@ -17,10 +17,87 @@ const GPU_SAMPLE_INTERVAL_MS = readIntEnv("MANGA_PERF_GPU_SAMPLE_INTERVAL_MS", 1
 const VRAM_DELTA_LIMIT_MB = readIntEnv("MANGA_PERF_VRAM_DELTA_LIMIT_MB", 300);
 const MIN_WALL_IMPROVEMENT = readNumberEnv("MANGA_PERF_MIN_WALL_IMPROVEMENT", 0.05);
 const BASE_PORT = readIntEnv("MANGA_PERF_BASE_PORT", 18240);
+const SKIP_OCR = String(process.env.MANGA_PERF_SKIP_OCR || "").trim() === "1";
+const REUSE_OCR_DIR = String(process.env.MANGA_PERF_REUSE_OCR_DIR || "").trim();
 const CPU_THREAD_GUESS = Math.max(4, Math.min(os.cpus().length || 8, 16));
 
 const CANDIDATES = [
   { name: "baseline-b1024-ub1024", batch: 1024, ubatch: 1024 },
+  { name: "gpu-kv-ngl58", batch: 1024, ubatch: 1024, kvOffload: true, gpuLayers: 58, noHost: false },
+  { name: "gpu-kv-ngl58-no-warmup", batch: 1024, ubatch: 1024, kvOffload: true, gpuLayers: 58, noHost: false, extraArgs: ["--no-warmup"] },
+  {
+    name: "beellama-ctx7168-img512-ub512",
+    batch: 1024,
+    ubatch: 512,
+    ctx: 7168,
+    kvOffload: true,
+    imageMinTokens: 512,
+    imageMaxTokens: 512
+  },
+  {
+    name: "beellama-ctx6144-img512-ub512",
+    batch: 1024,
+    ubatch: 512,
+    ctx: 6144,
+    kvOffload: true,
+    imageMinTokens: 512,
+    imageMaxTokens: 512
+  },
+  {
+    name: "beellama-26b-a4b-iq3s-q8-mmproj",
+    batch: 1024,
+    ubatch: 512,
+    ctx: 7168,
+    kvOffload: true,
+    imageMinTokens: 512,
+    imageMaxTokens: 512,
+    modelRepo: "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF",
+    modelFile: "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf",
+    mmprojRepo: "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF",
+    mmprojFile: "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf"
+  },
+  {
+    name: "official-llama-b8833-baseline",
+    batch: 1024,
+    ubatch: 1024,
+    serverPath: path.join(ROOT, "tools", "llama-b8833-cuda12.4", "llama-server.exe")
+  },
+  {
+    name: "official-llama-b8833-fit14g",
+    batch: 1024,
+    ubatch: 1024,
+    fitTargetMb: 9000,
+    gpuLayers: "fit",
+    extraArgs: ["--fit", "on", "--fit-target", "9000"],
+    serverPath: path.join(ROOT, "tools", "llama-b8833-cuda12.4", "llama-server.exe")
+  },
+  {
+    name: "official-llama-b8833-fit13g",
+    batch: 1024,
+    ubatch: 1024,
+    fitTargetMb: 10000,
+    gpuLayers: "fit",
+    extraArgs: ["--fit", "on", "--fit-target", "10000"],
+    serverPath: path.join(ROOT, "tools", "llama-b8833-cuda12.4", "llama-server.exe")
+  },
+  {
+    name: "official-llama-b8833-fit12g",
+    batch: 1024,
+    ubatch: 1024,
+    fitTargetMb: 12000,
+    gpuLayers: "fit",
+    extraArgs: ["--fit", "on", "--fit-target", "12000"],
+    serverPath: path.join(ROOT, "tools", "llama-b8833-cuda12.4", "llama-server.exe")
+  },
+  {
+    name: "official-llama-b8833-ngl58",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    gpuLayers: 58,
+    noHost: false,
+    serverPath: path.join(ROOT, "tools", "llama-b8833-cuda12.4", "llama-server.exe")
+  },
   { name: "b512-ub1024", batch: 512, ubatch: 1024 },
   { name: "b1536-ub1024", batch: 1536, ubatch: 1024 },
   { name: "gpu-kv-b1024-ub1024", batch: 1024, ubatch: 1024, kvOffload: true },
@@ -139,7 +216,7 @@ async function main() {
   console.log(`[perf] writing ${outDir}`);
   console.log(`[perf] samples=${samples.length}, candidates=${candidates.length}, runs=${RUNS_PER_CANDIDATE}`);
 
-  const ocrHintsByPath = await prepareCachedOcrHints(simplePage, baseOptions, samples, pagesDir);
+  const ocrHintsByPath = SKIP_OCR ? new Map() : await prepareCachedOcrHints(simplePage, baseOptions, samples, pagesDir);
   const results = [];
   for (const [candidateIndex, candidate] of candidates.entries()) {
     let candidateResult;
@@ -178,6 +255,14 @@ async function prepareCachedOcrHints(simplePage, baseOptions, samples, pagesDir)
   const hintsByPath = new Map();
   for (const [index, sample] of samples.entries()) {
     const outputDir = path.join(pagesDir, String(index + 1).padStart(2, "0"), "ocr");
+    const reusedHints = await readReusableOcrHints(index);
+    if (reusedHints) {
+      hintsByPath.set(sample.imagePath, reusedHints);
+      await mkdir(outputDir, { recursive: true });
+      await writeFile(path.join(outputDir, "ocr-hints.json"), `${JSON.stringify({ hints: reusedHints }, null, 2)}\n`, "utf8");
+      console.log(`[perf] reused OCR ${index + 1}/${samples.length}: hints=${reusedHints.length}`);
+      continue;
+    }
     const options = {
       ...baseOptions,
       imagePath: sample.imagePath,
@@ -196,6 +281,42 @@ async function prepareCachedOcrHints(simplePage, baseOptions, samples, pagesDir)
   return hintsByPath;
 }
 
+async function readReusableOcrHints(sampleIndex) {
+  if (!REUSE_OCR_DIR) {
+    return null;
+  }
+  const pageDir = path.join(REUSE_OCR_DIR, "pages", String(sampleIndex + 1).padStart(2, "0"), "ocr");
+  const candidates = [
+    path.join(pageDir, "ocr-bbox-hints.json"),
+    path.join(pageDir, "ocr-hints.json")
+  ];
+  for (const filePath of candidates) {
+    try {
+      const payload = JSON.parse(await readFile(filePath, "utf8"));
+      const hints = normalizeReusableOcrHints(payload);
+      if (hints.length > 0) {
+        return hints;
+      }
+    } catch {
+      // Try the next cache format.
+    }
+  }
+  return null;
+}
+
+function normalizeReusableOcrHints(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (Array.isArray(payload?.items)) {
+    return payload.items;
+  }
+  if (Array.isArray(payload?.hints)) {
+    return payload.hints;
+  }
+  return [];
+}
+
 async function runCandidate({ candidate, candidateIndex, baseOptions, simplePage, overlayTools, samples, ocrHintsByPath, outDir }) {
   const candidateDir = path.join(outDir, "candidates", candidate.name);
   await mkdir(candidateDir, { recursive: true });
@@ -206,6 +327,9 @@ async function runCandidate({ candidate, candidateIndex, baseOptions, simplePage
     ctx: candidate.ctx ?? baseOptions.ctx,
     batch: candidate.batch,
     ubatch: candidate.ubatch,
+    fitTargetMb: candidate.fitTargetMb ?? baseOptions.fitTargetMb,
+    imageMinTokens: candidate.imageMinTokens ?? baseOptions.imageMinTokens,
+    imageMaxTokens: candidate.imageMaxTokens ?? baseOptions.imageMaxTokens,
     extraArgs: candidate.extraArgs,
     threads: candidate.threads,
     threadsBatch: candidate.threadsBatch,
@@ -216,6 +340,13 @@ async function runCandidate({ candidate, candidateIndex, baseOptions, simplePage
     cacheReuse: candidate.cacheReuse,
     kvOffload: candidate.kvOffload ?? baseOptions.kvOffload,
     mmprojOffload: candidate.mmprojOffload ?? baseOptions.mmprojOffload,
+    gpuLayers: candidate.gpuLayers ?? baseOptions.gpuLayers,
+    noHost: candidate.noHost ?? baseOptions.noHost,
+    serverPath: candidate.serverPath ?? baseOptions.serverPath,
+    modelRepo: candidate.modelRepo ?? baseOptions.modelRepo,
+    modelFile: candidate.modelFile ?? baseOptions.modelFile,
+    mmprojRepo: candidate.mmprojRepo ?? baseOptions.mmprojRepo,
+    mmprojFile: candidate.mmprojFile ?? baseOptions.mmprojFile,
     cacheTypeK: candidate.cacheTypeK ?? baseOptions.cacheTypeK,
     cacheTypeV: candidate.cacheTypeV ?? baseOptions.cacheTypeV,
     enableMetrics: true,

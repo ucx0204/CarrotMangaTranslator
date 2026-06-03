@@ -4,7 +4,7 @@ const { mkdir, open, readFile, rename, rm, writeFile } = require("node:fs/promis
 const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
 
-const { resolveBundledServerPath } = require("./resolve-llama-runtime.cjs");
+const { bundledServerCandidates, resolveBundledServerPath } = require("./resolve-llama-runtime.cjs");
 const {
   CROP_RETRY_MARGIN_RATIO,
   CROP_RETRY_MIN_MARGIN_PX,
@@ -3301,6 +3301,13 @@ function buildLaunchArgs(options) {
     });
   }
   const useBeellamaGemmaLaunch = shouldUseBeellamaGemmaLaunch(options);
+  const gpuLayerArgs =
+    options.gpuLayers === "fit"
+      ? []
+      : [
+          "-ngl",
+          String(options.gpuLayers ?? "all")
+        ];
   const draftArgs =
     options.useDraft && (launchTarget.draftModelPath || launchTarget.draftModelUrl)
       ? [
@@ -3366,8 +3373,7 @@ function buildLaunchArgs(options) {
     "--frequency-penalty",
     "0",
     ...(useBeellamaGemmaLaunch ? [] : ["--fit", "on", "--fit-target", String(options.fitTargetMb)]),
-    "-ngl",
-    "all",
+    ...gpuLayerArgs,
     "-fa",
     "on",
     "--temp",
@@ -3397,7 +3403,10 @@ function buildLaunchArgs(options) {
   ];
 
   if (useBeellamaGemmaLaunch) {
-    args.push("--kv-unified", "--jinja", "--no-mmap", "--mlock", "--no-host");
+    args.push("--kv-unified", "--jinja", "--no-mmap", "--mlock");
+    if (options.noHost !== false) {
+      args.push("--no-host");
+    }
   }
   if (typeof options.threads === "number" && Number.isFinite(options.threads) && options.threads > 0) {
     args.push("--threads", String(Math.round(options.threads)));
@@ -3468,11 +3477,28 @@ function resolveDraftModelRepoArg(options = {}) {
 }
 
 function shouldUseBeellamaGemmaLaunch(options = {}) {
+  const serverPath = String(options.serverPath || process.env.LLAMA_SERVER_PATH || defaultServerPath(options) || "");
+  const isBeellamaRuntime = /beellama/i.test(serverPath);
+  const isGemma4Model = looksLikeGemma4Model(options);
+  if (isBeellamaRuntime && isGemma4Model) {
+    return true;
+  }
   if (resolveConfiguredModelSource(options) === "local") {
     const localModelPath = resolveConfiguredLocalModelPath(options);
     return path.basename(localModelPath || "") === DEFAULT_HF_FILE;
   }
   return resolveConfiguredModelRepo(options) === DEFAULT_MODEL_HF || resolveConfiguredModelFile(options) === DEFAULT_HF_FILE;
+}
+
+function looksLikeGemma4Model(options = {}) {
+  const parts = [
+    resolveConfiguredModelRepo(options),
+    resolveConfiguredModelFile(options),
+    resolveConfiguredLocalModelPath(options),
+    resolveConfiguredMmprojRepo(options),
+    resolveConfiguredMmprojFile(options)
+  ];
+  return parts.some((part) => /gemma[-_]?4/i.test(String(part || "")));
 }
 
 async function isReachable(baseUrl) {
@@ -3514,11 +3540,22 @@ async function startServer(options) {
     return { baseUrl, child: null, startedByScript: false };
   }
 
-  const serverPath = options.serverPath || process.env.LLAMA_SERVER_PATH || defaultServerPath(options);
+  const requestedServerPath =
+    process.env.MANGA_TRANSLATOR_LLAMA_SERVER_PATH ||
+    process.env.LLAMA_SERVER_PATH ||
+    options.serverPath ||
+    defaultServerPath(options);
+  const resolvedBundledServerPath = defaultServerPath(options);
+  const serverPath = requestedServerPath && existsSync(requestedServerPath)
+    ? requestedServerPath
+    : resolvedBundledServerPath;
   if (!existsSync(serverPath)) {
     throw createDetailedError("Bundled llama-server binary is missing.", {
       baseUrl,
       serverPath,
+      requestedServerPath,
+      toolsDir: resolveToolsDir(options),
+      checkedServerPaths: bundledServerCandidates(resolveToolsDir(options)),
       optionSummary: buildOptionSummary(options)
     });
   }

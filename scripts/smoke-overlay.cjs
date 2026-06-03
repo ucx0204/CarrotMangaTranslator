@@ -11,6 +11,7 @@ const TARGET_IMAGE_PATH = process.env.MANGA_SMOKE_IMAGE_PATH || "";
 const TARGET_IMAGE_LIST = process.env.MANGA_SMOKE_IMAGE_LIST || "";
 const TARGET_IMAGE_LIST_FILE = process.env.MANGA_SMOKE_IMAGE_LIST_FILE || "";
 const SMOKE_PROVIDER = normalizeSmokeProvider(process.env.MANGA_SMOKE_PROVIDER);
+const REUSE_OCR_DIR = process.env.MANGA_SMOKE_REUSE_OCR_DIR || "";
 const SAMPLE_OFFSET = readIntEnv("MANGA_SMOKE_SAMPLE_OFFSET", 0);
 const MAX_CAPTURE_LONG_SIDE = readIntEnv("MANGA_SMOKE_MAX_LONG_SIDE", 1400);
 const PAGE_TIMEOUT_MS = readIntEnv("MANGA_SMOKE_PAGE_TIMEOUT_MS", 120000);
@@ -36,11 +37,12 @@ async function main() {
   const { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint } = require("../out/main/openaiOauthEndpoint.js");
   const {
     applyOcrCandidateGeometryLocks,
+    filterRejectedOrUncertainSoundItems,
+    getBboxNormalizationOptions: getPipelineBboxNormalizationOptions,
+    getOcrBboxHints,
     overlayItemToBlock,
-    normalizeOverlayItemBboxes,
-    selectCropRetryTargets,
-    mergeCropRetryItems
-  } = require("../out/main/wholePagePipeline.js");
+    normalizeOverlayItemBboxes
+  } = require("../out/main/pipeline/overlayItems.js");
   sharedGeometry = require("../out/shared/geometry.js");
   const simplePage = require("../out/app-runtime/simple-page-translate.cjs");
   const overlayTools = require("../out/app-runtime/overlay-parser.cjs");
@@ -53,12 +55,12 @@ async function main() {
     paths,
     settings
   });
-  const baseOptions = {
+  const baseOptions = applySmokeOptionOverrides({
     ...configuredBaseOptions,
     ...(SMOKE_PROVIDER ? { modelProvider: SMOKE_PROVIDER } : {}),
     serverLogPath: path.join(outDir, "server.log"),
     label: "smoke-overlay"
-  };
+  });
 
   const samples = await selectSmokeSamples(MANGA_ROOT, SAMPLE_COUNT * 4);
   await writeFile(path.join(outDir, "samples.json"), `${JSON.stringify(samples, null, 2)}\n`, "utf8");
@@ -69,10 +71,21 @@ async function main() {
     modelFile: baseOptions.modelFile,
     mmprojRepo: baseOptions.mmprojRepo,
     mmprojFile: baseOptions.mmprojFile,
+    ctx: baseOptions.ctx,
+    batch: baseOptions.batch,
+    ubatch: baseOptions.ubatch,
+    kvOffload: baseOptions.kvOffload,
+    mmprojOffload: baseOptions.mmprojOffload,
+    fitTargetMb: baseOptions.fitTargetMb,
+    useDraft: baseOptions.useDraft,
+    imageMinTokens: baseOptions.imageMinTokens,
+    imageMaxTokens: baseOptions.imageMaxTokens,
     codexModel: baseOptions.codexModel,
-    codexReasoningEffort: baseOptions.codexReasoningEffort
+    codexReasoningEffort: baseOptions.codexReasoningEffort,
+    reuseOcrDir: REUSE_OCR_DIR || undefined
   }, null, 2)}\n`, "utf8");
 
+  const smokeStartedAt = Date.now();
   const server = baseOptions.modelProvider === "openai-codex"
     ? await startOpenAIOAuthEndpoint(baseOptions)
     : await simplePage.startServer(baseOptions);
@@ -96,10 +109,12 @@ async function main() {
           imageHeight: page.height,
           outputDir: path.join(pageOutDir, "analysis"),
           label: `smoke-${index + 1}`,
+          ...(REUSE_OCR_DIR ? { ocrBboxHints: await readReusableOcrHints(REUSE_OCR_DIR, index + 1) } : {}),
           abortSignal: abortController.signal
         };
 
         console.log(`[smoke] ${index + 1}/${SAMPLE_COUNT} candidate=${candidateIndex + 1}/${samples.length} ${sample.filePath}`);
+        const pageStartedAt = Date.now();
         const result = await withTimeout(
           simplePage.requestTranslation(server, pageOptions),
           PAGE_TIMEOUT_MS,
@@ -107,38 +122,26 @@ async function main() {
           abortController
         );
         await simplePage.saveArtifacts(pageOptions, result);
+        const requestOcrHints = Array.isArray(result.requestBody?.ocrBboxHints)
+          ? result.requestBody.ocrBboxHints
+          : Array.isArray(pageOptions.ocrBboxHints)
+            ? pageOptions.ocrBboxHints
+            : [];
+        if (requestOcrHints.length > 0) {
+          await writeFile(path.join(pageOutDir, "ocr-bbox-hints.json"), `${JSON.stringify(requestOcrHints, null, 2)}\n`, "utf8");
+        }
         const parsed = overlayTools.parseJsonLenient(result.outputText);
         const items = overlayTools.normalizeItems(parsed);
         if (items.length === 0) {
           throw new Error("No overlay items parsed.");
         }
         let normalizedItems = applyOcrCandidateGeometryLocks(
-          normalizeOverlayItemBboxes(items, page, getBboxNormalizationOptions(result.requestBody)),
+          normalizeOverlayItemBboxes(items, page, getPipelineBboxNormalizationOptions(result.requestBody)),
           page,
-          Array.isArray(result.requestBody?.ocrBboxHints) ? result.requestBody.ocrBboxHints : []
+          getOcrBboxHints(result.requestBody)
         );
-        if (typeof simplePage.requestCropRetryTranslation === "function" && typeof overlayTools.parseRetryItems === "function") {
-          const retryTargets = selectCropRetryTargets(normalizedItems, page);
-          if (retryTargets.length > 0) {
-            const retryOptions = {
-              ...pageOptions,
-              label: `${pageOptions.label}-crop-retry`,
-              outputDir: path.join(pageOptions.outputDir, "crop-retry")
-            };
-            const retryResult = await withTimeout(
-              simplePage.requestCropRetryTranslation(server, retryOptions, retryTargets),
-              PAGE_TIMEOUT_MS,
-              `crop retry timed out after ${PAGE_TIMEOUT_MS}ms`,
-              abortController
-            );
-            await simplePage.saveArtifacts(retryOptions, retryResult);
-            const retryItems = overlayTools.parseRetryItems(retryResult.outputText);
-            await mkdir(retryOptions.outputDir, { recursive: true });
-            await writeFile(path.join(retryOptions.outputDir, "crop-retry-targets.json"), `${JSON.stringify({ targets: retryTargets }, null, 2)}\n`, "utf8");
-            await writeFile(path.join(retryOptions.outputDir, "crop-retry-items.json"), `${JSON.stringify({ items: retryItems }, null, 2)}\n`, "utf8");
-            normalizedItems = mergeCropRetryItems(normalizedItems, retryItems, retryTargets, page);
-          }
-        }
+        const soundFiltered = filterRejectedOrUncertainSoundItems(normalizedItems);
+        normalizedItems = soundFiltered.items;
         const blocks = normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex));
         const typeCounts = countBlockTypes(blocks);
         const analyzedPage = {
@@ -155,7 +158,15 @@ async function main() {
         await writeFile(pageJsonPath, `${JSON.stringify({ sample, items: normalizedItems, page: analyzedPage }, null, 2)}\n`, "utf8");
         await renderGeometryPng(analyzedPage, analyzedPage.blocks, geometryPath);
         await renderOverlayPng(analyzedPage, overlayPath);
-        rendered.push({ index: index + 1, sample, geometryPath, overlayPath, blockCount: blocks.length, typeCounts });
+        rendered.push({
+          index: index + 1,
+          sample,
+          geometryPath,
+          overlayPath,
+          blockCount: blocks.length,
+          typeCounts,
+          elapsedMs: Date.now() - pageStartedAt
+        });
       } catch (error) {
         const failure = {
           sample,
@@ -186,7 +197,7 @@ async function main() {
     await renderContactSheet(rendered, geometrySheetPath, "geometryPath");
     await renderContactSheet(rendered, overlaySheetPath, "overlayPath");
   }
-  await writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath, baseOptions);
+  await writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath, baseOptions, Date.now() - smokeStartedAt);
   console.log(`[smoke] wrote ${outDir}`);
   app.quit();
 }
@@ -203,6 +214,74 @@ function countBlockTypes(blocks) {
     },
     { pattern: 0, other: 0 }
   );
+}
+
+function applySmokeOptionOverrides(options) {
+  const next = { ...options };
+  setStringOption(next, "modelRepo", "MANGA_TRANSLATOR_MODEL_HF");
+  setStringOption(next, "modelFile", "LLAMA_ARG_HF_FILE");
+  setStringOption(next, "mmprojRepo", "MANGA_TRANSLATOR_MMPROJ_HF");
+  setStringOption(next, "mmprojFile", "LLAMA_ARG_MMPROJ_FILE");
+  setStringOption(next, "serverPath", "MANGA_TRANSLATOR_LLAMA_SERVER_PATH");
+  setNumberOption(next, "ctx", "MANGA_TRANSLATOR_CTX");
+  setNumberOption(next, "batch", "MANGA_TRANSLATOR_BATCH");
+  setNumberOption(next, "ubatch", "MANGA_TRANSLATOR_UBATCH");
+  setNumberOption(next, "imageMinTokens", "MANGA_TRANSLATOR_IMAGE_MIN_TOKENS");
+  setNumberOption(next, "imageMaxTokens", "MANGA_TRANSLATOR_IMAGE_MAX_TOKENS");
+  setNumberOption(next, "ctxCheckpoints", "MANGA_TRANSLATOR_GEMMA_CTX_CHECKPOINTS");
+  setBooleanOption(next, "mmprojOffload", "MANGA_TRANSLATOR_MMPROJ_OFFLOAD");
+  const vramMode = String(process.env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE || "").trim().toLowerCase();
+  if (vramMode === "full" || vramMode === "economy") {
+    next.gemmaVramMode = vramMode;
+  }
+  return next;
+}
+
+function setStringOption(target, key, envName) {
+  const value = String(process.env[envName] ?? "").trim();
+  if (value) {
+    target[key] = value;
+  }
+}
+
+function setNumberOption(target, key, envName) {
+  const value = Number(process.env[envName]);
+  if (Number.isFinite(value) && value > 0) {
+    target[key] = Math.round(value);
+  }
+}
+
+function setBooleanOption(target, key, envName) {
+  const value = String(process.env[envName] ?? "").trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(value)) {
+    target[key] = true;
+  } else if (["0", "false", "no", "off"].includes(value)) {
+    target[key] = false;
+  }
+}
+
+async function readReusableOcrHints(rootDir, pageIndex) {
+  const padded = String(pageIndex).padStart(2, "0");
+  const candidates = [
+    path.join(rootDir, "pages", padded, "ocr-bbox-hints.json"),
+    path.join(rootDir, "pages", padded, "ocr", "ocr-bbox-hints.json"),
+    path.join(rootDir, "pages", padded, "ocr", "ocr-hints.json")
+  ];
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(await readFile(candidate, "utf8"));
+      const hints = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.hints) ? parsed.hints : [];
+      if (hints.length > 0) {
+        return hints;
+      }
+    } catch (error) {
+      console.warn(`[smoke] failed to read reusable OCR hints ${candidate}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return undefined;
 }
 
 function getBboxNormalizationOptions(requestBody) {
@@ -626,7 +705,7 @@ ${items.map((item) => `<div class="cell"><div class="label">${item.index}. ${esc
 </div><script>window.addEventListener("load", () => setTimeout(() => document.body.dataset.ready = "1", 200));</script></body></html>`;
 }
 
-async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath, baseOptions) {
+async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath, baseOptions, elapsedMs) {
   const totalTypeCounts = rendered.reduce(
     (counts, item) => {
       counts.pattern += item.typeCounts?.pattern ?? 0;
@@ -642,6 +721,12 @@ async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlay
     `- Provider: ${baseOptions.modelProvider}`,
     `- Samples: ${rendered.length}`,
     `- Skipped candidates: ${skipped.length}`,
+    `- Elapsed: ${formatDuration(elapsedMs)}`,
+    `- Gemma mode: ${baseOptions.gemmaVramMode ?? ""}`,
+    `- Model: ${baseOptions.modelRepo ?? ""} / ${baseOptions.modelFile ?? ""}`,
+    `- MMProj: ${baseOptions.mmprojRepo ?? ""} / ${baseOptions.mmprojFile ?? ""}`,
+    `- Runtime: ctx ${baseOptions.ctx ?? ""}, batch ${baseOptions.batch ?? ""}, ubatch ${baseOptions.ubatch ?? ""}, image tokens ${baseOptions.imageMinTokens ?? ""}-${baseOptions.imageMaxTokens ?? ""}`,
+    `- Runtime flags: kvOffload=${String(baseOptions.kvOffload)}, mmprojOffload=${String(baseOptions.mmprojOffload)}, useDraft=${String(baseOptions.useDraft)}, fitTargetMb=${String(baseOptions.fitTargetMb ?? "")}`,
     `- Type counts: pattern ${totalTypeCounts.pattern}, other ${totalTypeCounts.other}`,
     ...(geometrySheetPath ? [`- Geometry sheet: ${geometrySheetPath}`] : []),
     ...(overlaySheetPath ? [`- Overlay sheet: ${overlaySheetPath}`] : []),
@@ -658,12 +743,25 @@ async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlay
     "## Samples",
     "",
     ...rendered.flatMap((item) => [
-      `- ${item.index}. blocks=${item.blockCount} pattern=${item.typeCounts?.pattern ?? 0} ${item.sample.filePath}`,
+      `- ${item.index}. blocks=${item.blockCount} pattern=${item.typeCounts?.pattern ?? 0} elapsed=${formatDuration(item.elapsedMs)} ${item.sample.filePath}`,
       `  - geometry: ${item.geometryPath}`,
       `  - overlay: ${item.overlayPath}`
     ])
   ];
   await writeFile(path.join(outDir, "report.md"), `${lines.join("\n")}\n`, "utf8");
+}
+
+function formatDuration(ms) {
+  const safeMs = Math.max(0, Number(ms) || 0);
+  if (safeMs < 1000) {
+    return `${Math.round(safeMs)}ms`;
+  }
+  const seconds = safeMs / 1000;
+  if (seconds < 60) {
+    return `${seconds.toFixed(1)}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${(seconds - minutes * 60).toFixed(1)}s`;
 }
 
 function waitForReady(win) {

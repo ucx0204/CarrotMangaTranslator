@@ -4,13 +4,14 @@ import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_OAUTH_PORT,
   DEFAULT_CODEX_REASONING_EFFORT,
-  DEFAULT_GEMMA_MMPROJ_FILE,
-  DEFAULT_GEMMA_MMPROJ_REPO,
   DEFAULT_GEMMA_MODEL_FILE,
-  DEFAULT_GEMMA_MODEL_REPO,
   DEFAULT_MAX_TOKENS,
   DEFAULT_OCR_DEVICE,
   DEFAULT_OCR_GPU_CUDA_TAG,
+  GEMMA_26B_MMPROJ_FILE,
+  GEMMA_26B_MMPROJ_REPO,
+  GEMMA_26B_MODEL_FILE_IQ3_S,
+  GEMMA_26B_MODEL_REPO,
   parseStoredAppSettings,
   resolveHardwareDefaults,
   resolveDefaultAppSettings,
@@ -22,10 +23,10 @@ describe("app settings helpers", () => {
   it("uses Codex as the hardware-safe fallback when GPU detection is unavailable", () => {
     const defaults = resolveDefaultAppSettings();
 
-    expect(defaults.gemma.modelRepo).toBe(DEFAULT_GEMMA_MODEL_REPO);
-    expect(defaults.gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
-    expect(defaults.gemma.mmprojRepo).toBe(DEFAULT_GEMMA_MMPROJ_REPO);
-    expect(defaults.gemma.mmprojFile).toBe(DEFAULT_GEMMA_MMPROJ_FILE);
+    expect(defaults.gemma.modelRepo).toBe(GEMMA_26B_MODEL_REPO);
+    expect(defaults.gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
+    expect(defaults.gemma.mmprojRepo).toBe(GEMMA_26B_MMPROJ_REPO);
+    expect(defaults.gemma.mmprojFile).toBe(GEMMA_26B_MMPROJ_FILE);
     expect(defaults.modelProvider).toBe("openai-codex");
     expect(defaults.gemma.vramMode).toBe("economy");
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
@@ -37,14 +38,18 @@ describe("app settings helpers", () => {
   });
 
   it("uses hardware-based provider and VRAM mode defaults when no override is provided", () => {
-    expect(resolveDefaultAppSettings({}, 12000).gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
-    expect(resolveDefaultAppSettings({}, 24564).gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
-    expect(resolveDefaultAppSettings({}, 32768).gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
-    expect(resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40, computeCapability: 8.9 }).modelProvider).toBe("gemma");
-    expect(resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40, computeCapability: 8.9 }).gemma.vramMode).toBe("full");
+    expect(resolveDefaultAppSettings({}, 12000).gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
+    expect(resolveDefaultAppSettings({}, 24564).gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
+    expect(resolveDefaultAppSettings({}, 32768).gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
+    const rtx4090Defaults = resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40, computeCapability: 8.9 });
+    expect(rtx4090Defaults.modelProvider).toBe("gemma");
+    expect(rtx4090Defaults.gemma.vramMode).toBe("full");
+    expect(rtx4090Defaults.gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
     const rtx5070Defaults = resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50, computeCapability: 12 });
     expect(rtx5070Defaults.modelProvider).toBe("gemma");
     expect(rtx5070Defaults.gemma.vramMode).toBe("economy");
+    expect(rtx5070Defaults.gemma.modelRepo).toBe(GEMMA_26B_MODEL_REPO);
+    expect(rtx5070Defaults.gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
     expect(rtx5070Defaults.ocr.gpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
   });
 
@@ -141,7 +146,8 @@ describe("app settings helpers", () => {
     expect(options.cacheTypeV).toBe("q4_0");
     expect(options.ctxCheckpoints).toBe(0);
     expect(options.kvOffload).toBe(true);
-    expect(options.mmprojOffload).toBe(false);
+    expect(options.mmprojOffload).toBe(true);
+    expect(options.gpuLayers).toBe("fit");
     expect(options.enableMetrics).toBe(true);
     expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(false);
@@ -157,7 +163,7 @@ describe("app settings helpers", () => {
     expect(options.includeEnhancedVariant).toBe(false);
     expect(options.topP).toBe(0.95);
     expect(options.topK).toBe(64);
-    expect(options.fitTargetMb).toBe(1024);
+    expect(options.fitTargetMb).toBe(9000);
     expect(options.workingDir).toBe("C:/app-data");
     expect(options.outputDir).toBe("C:/runs/job-1");
     expect(options.label).toBe("app-job-1");
@@ -193,11 +199,12 @@ describe("app settings helpers", () => {
     expect(options.cacheTypeV).toBe("q4_0");
     expect(options.ctxCheckpoints).toBe(0);
     expect(options.kvOffload).toBe(true);
-    expect(options.mmprojOffload).toBe(false);
+    expect(options.mmprojOffload).toBe(true);
+    expect(options.gpuLayers).toBe("fit");
     expect(options.enableMetrics).toBe(true);
     expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(false);
-    expect(options.fitTargetMb).toBe(1024);
+    expect(options.fitTargetMb).toBe(9000);
     expect(options.imageMinTokens).toBe(1024);
     expect(options.imageMaxTokens).toBe(1024);
   });
@@ -219,18 +226,20 @@ describe("app settings helpers", () => {
     });
 
     expect(options.gemmaVramMode).toBe("full");
-    expect(options.ctx).toBe(16384);
-    expect(options.batch).toBe(2048);
-    expect(options.ubatch).toBe(1536);
+    expect(options.ctx).toBe(8192);
+    expect(options.batch).toBe(1024);
+    expect(options.ubatch).toBe(1024);
     expect(options.cacheTypeK).toBe("q4_0");
     expect(options.cacheTypeV).toBe("q4_0");
     expect(options.ctxCheckpoints).toBe(0);
-    expect(options.mmprojOffload).toBe(false);
+    expect(options.kvOffload).toBe(true);
+    expect(options.mmprojOffload).toBe(true);
     expect(options.enableMetrics).toBe(true);
     expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(true);
     expect(options.draftModelRepo).toBeTruthy();
     expect(options.draftModelFile).toBeTruthy();
+    expect(options.fitTargetMb).toBe(1024);
   });
 
   it("keeps local model settings when the source is local", () => {

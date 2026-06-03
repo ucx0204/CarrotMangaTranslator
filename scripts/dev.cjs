@@ -1,6 +1,6 @@
 const http = require("node:http");
 const { join } = require("node:path");
-const { readdirSync, rmSync, statSync } = require("node:fs");
+const { existsSync } = require("node:fs");
 const { spawn, spawnSync } = require("node:child_process");
 const { prepareRuntimeAssets } = require("./prepare-runtime.cjs");
 
@@ -9,6 +9,13 @@ const rendererUrl = "http://127.0.0.1:5173";
 const devStorageRoot = join(root, ".tmp", "electron-dev");
 const devSessionData = join(devStorageRoot, `session-${process.pid}-${Date.now()}`);
 const children = [];
+let shuttingDown = false;
+
+delete process.env.ELECTRON_RUN_AS_NODE;
+
+function log(message) {
+  console.log(`[dev] ${message}`);
+}
 
 function runSync(command, args) {
   const result = spawnSync(command, args, {
@@ -21,7 +28,7 @@ function runSync(command, args) {
   }
 }
 
-function spawnChild(command, args, env = {}) {
+function spawnChild(label, command, args, env = {}) {
   const mergedEnv = { ...process.env, ...env };
   for (const [key, value] of Object.entries(mergedEnv)) {
     if (value === undefined) {
@@ -29,18 +36,33 @@ function spawnChild(command, args, env = {}) {
     }
   }
 
+  log(`starting ${label}`);
   const child = spawn(command, args, {
     cwd: root,
     stdio: "inherit",
     shell: false,
     env: mergedEnv
   });
+  child.__devLabel = label;
   children.push(child);
-  child.on("exit", () => {
+  child.on("exit", (code, signal) => {
+    log(`${label} exited${code === null ? "" : ` code=${code}`}${signal ? ` signal=${signal}` : ""}`);
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
     for (const other of children) {
       if (other !== child && other.exitCode === null && other.signalCode === null) {
         other.kill();
       }
+    }
+    process.exit(code ?? 1);
+  });
+  child.on("error", (error) => {
+    console.error(`[dev] failed to start ${label}:`, error);
+    if (!shuttingDown) {
+      shuttingDown = true;
+      shutdown(1);
     }
   });
   return child;
@@ -75,25 +97,39 @@ function nodeBin(packageName, ...parts) {
   return join(root, "node_modules", packageName, ...parts);
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+process.on("SIGINT", () => shutdown(0));
+process.on("SIGTERM", () => shutdown(0));
 
-function shutdown() {
+function shutdown(exitCode = 0) {
+  shuttingDown = true;
   for (const child of children) {
     if (child.exitCode === null && child.signalCode === null) {
       child.kill();
     }
   }
-  process.exit(0);
+  process.exit(exitCode);
 }
 
 (async () => {
-  cleanupOldDevSessions();
+  log("preparing runtime assets");
   prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
+  log("compiling Electron main process");
   runSync(process.execPath, [nodeBin("typescript", "bin", "tsc"), "-p", "tsconfig.electron.json"]);
-  spawnChild(process.execPath, [nodeBin("vite", "bin", "vite.js"), "--config", "vite.renderer.config.ts", "--host", "127.0.0.1"]);
+  spawnChild("vite", process.execPath, [
+    nodeBin("vite", "bin", "vite.js"),
+    "--config",
+    "vite.renderer.config.ts",
+    "--host",
+    "127.0.0.1",
+    "--strictPort"
+  ]);
+  log(`waiting for renderer ${rendererUrl}`);
   await waitForUrl(rendererUrl);
-  spawnChild(process.execPath, [nodeBin("electron", "cli.js"), "."], {
+  const electronExe = nodeBin("electron", "dist", process.platform === "win32" ? "electron.exe" : "electron");
+  if (!existsSync(electronExe)) {
+    throw new Error(`Electron executable is missing: ${electronExe}`);
+  }
+  spawnChild("electron", electronExe, ["."], {
     ELECTRON_RENDERER_URL: rendererUrl,
     ELECTRON_RUN_AS_NODE: undefined,
     MANGA_TRANSLATOR_DEV_USER_DATA: join(devStorageRoot, "user-data"),
@@ -101,23 +137,5 @@ function shutdown() {
   });
 })().catch((error) => {
   console.error(error);
-  shutdown();
+  shutdown(1);
 });
-
-function cleanupOldDevSessions() {
-  const maxAgeMs = 24 * 60 * 60 * 1000;
-  try {
-    for (const entry of readdirSync(devStorageRoot, { withFileTypes: true })) {
-      if (!entry.isDirectory() || !entry.name.startsWith("session-")) {
-        continue;
-      }
-      const fullPath = join(devStorageRoot, entry.name);
-      const ageMs = Date.now() - statSync(fullPath).mtimeMs;
-      if (ageMs > maxAgeMs) {
-        rmSync(fullPath, { recursive: true, force: true });
-      }
-    }
-  } catch {
-    // Stale Electron cache directories are best-effort cleanup only.
-  }
-}

@@ -42,8 +42,8 @@ export function getAppPaths(): AppPaths {
       ? join(process.env.LOCALAPPDATA || dataRoot, "manga-gemma-translator", "ocr-runtime")
       : join(dataRoot, "ocr-runtime")
   );
-  const llamaRuntimeDir = join(toolsDir, "beellama-v0.2.0-cuda12.4");
-  const llamaServerBinary = process.platform === "win32" ? "llama-server.exe" : "llama-server";
+  const llamaServerPath = resolveBundledLlamaServerPath(toolsDir);
+  const llamaRuntimeDir = dirname(llamaServerPath);
   const explicitHfHome = process.env.MANGA_TRANSLATOR_HF_HOME?.trim();
   const explicitHubCache = process.env.HF_HUB_CACHE?.trim() || process.env.HUGGINGFACE_HUB_CACHE?.trim();
   const hfHomeDir = isPackaged ? join(dataRoot, "hf-cache") : explicitHfHome || undefined;
@@ -64,10 +64,54 @@ export function getAppPaths(): AppPaths {
     toolsDir,
     ocrRuntimeDir,
     llamaRuntimeDir,
-    llamaServerPath: join(llamaRuntimeDir, llamaServerBinary),
+    llamaServerPath,
     hfHomeDir,
     hfHubCacheDir
   };
+}
+
+function llamaServerBinaryName(): string {
+  return process.platform === "win32" ? "llama-server.exe" : "llama-server";
+}
+
+function bundledLlamaServerCandidates(toolsDir: string): string[] {
+  const serverBinary = llamaServerBinaryName();
+  const knownRuntimeDirs = [
+    "beellama-v0.2.0-cuda12.4",
+    "llama-b8833-cuda12.4",
+    "llama-b8808-cuda12"
+  ];
+  const candidates = [
+    ...knownRuntimeDirs.map((runtimeDir) => join(toolsDir, runtimeDir, serverBinary)),
+    join(toolsDir, serverBinary)
+  ];
+
+  try {
+    for (const entry of readdirSync(toolsDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        candidates.push(join(toolsDir, entry.name, serverBinary));
+      }
+    }
+  } catch {
+    // The tools directory may not exist in early dev/build states.
+  }
+
+  return Array.from(new Set(candidates));
+}
+
+function resolveBundledLlamaServerPath(toolsDir: string): string {
+  const candidates = bundledLlamaServerCandidates(toolsDir);
+  const existing = candidates.filter((candidate) => existsSync(candidate));
+  return existing.find((candidate) => hasBundledCudaBackend(candidate)) ?? existing[0] ?? candidates[0];
+}
+
+function hasBundledCudaBackend(serverPath: string): boolean {
+  const runtimeDir = dirname(serverPath);
+  return [
+    "ggml-cuda.dll",
+    "ggml-cuda-cu12.dll",
+    "ggml-cuda-cu13.dll"
+  ].some((fileName) => existsSync(join(runtimeDir, fileName)));
 }
 
 export function ensureWritableAppDirectories(): AppPaths {

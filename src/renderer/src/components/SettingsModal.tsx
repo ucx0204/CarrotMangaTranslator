@@ -10,8 +10,8 @@ import type {
 } from "../../../shared/types";
 import {
   CODEX_REASONING_OPTIONS,
+  DEFAULT_MODEL_PRESET_ID,
   DEFAULT_GEMMA_MODEL_REPO,
-  GEMMA_VRAM_MODE_OPTIONS,
   MAX_MAX_TOKENS,
   MIN_MAX_TOKENS,
   MODEL_PRESETS,
@@ -22,6 +22,11 @@ import {
   type ModelPresetId
 } from "./settingsOptions";
 import { Button, Modal } from "./ui";
+
+const MODEL_PRESET_BUTTON_IDS = [
+  ...Object.keys(MODEL_PRESETS),
+  "custom"
+] as ModelPresetId[];
 
 type TestState =
   | {
@@ -63,7 +68,7 @@ export function SettingsModal({
   const [customModelFile, setCustomModelFile] = React.useState(initialSettings.gemma.modelFile);
   const [localModelPath, setLocalModelPath] = React.useState(initialSettings.gemma.localModelPath ?? "");
   const [localMmprojPath, setLocalMmprojPath] = React.useState(initialSettings.gemma.localMmprojPath ?? "");
-  const [vramMode, setVramMode] = React.useState<GemmaVramMode>(initialSettings.gemma.vramMode);
+  const [customVramMode, setCustomVramMode] = React.useState<GemmaVramMode>(initialSettings.gemma.vramMode);
   const [codexModel, setCodexModel] = React.useState(initialSettings.codex.model);
   const [codexReasoningEffort, setCodexReasoningEffort] = React.useState<CodexReasoningEffort>(
     initialSettings.codex.reasoningEffort
@@ -86,7 +91,7 @@ export function SettingsModal({
     setCustomModelFile(initialSettings.gemma.modelFile);
     setLocalModelPath(initialSettings.gemma.localModelPath ?? "");
     setLocalMmprojPath(initialSettings.gemma.localMmprojPath ?? "");
-    setVramMode(initialSettings.gemma.vramMode);
+    setCustomVramMode(initialSettings.gemma.vramMode);
     setCodexModel(initialSettings.codex.model);
     setCodexReasoningEffort(initialSettings.codex.reasoningEffort);
     setCodexOauthPort(String(initialSettings.codex.oauthPort));
@@ -124,6 +129,7 @@ export function SettingsModal({
   const trimmedModelFile = (activePreset?.modelFile ?? customModelFile).trim();
   const trimmedMmprojRepo = activePreset?.mmprojRepo;
   const trimmedMmprojFile = activePreset?.mmprojFile;
+  const selectedVramMode = activePreset?.vramMode ?? customVramMode;
   const trimmedLocalModelPath = localModelPath.trim();
   const trimmedLocalMmprojPath = localMmprojPath.trim();
   const trimmedCodexModel = codexModel.trim();
@@ -154,12 +160,12 @@ export function SettingsModal({
         gemma: {
           modelSource,
           modelRepo: trimmedModelRepo || DEFAULT_GEMMA_MODEL_REPO,
-          modelFile: trimmedModelFile || MODEL_PRESETS.iq3s.modelFile,
+          modelFile: trimmedModelFile || MODEL_PRESETS[DEFAULT_MODEL_PRESET_ID].modelFile,
           ...(trimmedMmprojRepo ? { mmprojRepo: trimmedMmprojRepo } : {}),
           ...(trimmedMmprojFile ? { mmprojFile: trimmedMmprojFile } : {}),
           ...(trimmedLocalModelPath ? { localModelPath: trimmedLocalModelPath } : {}),
           ...(trimmedLocalMmprojPath ? { localMmprojPath: trimmedLocalMmprojPath } : {}),
-          vramMode
+          vramMode: selectedVramMode
         },
         codex: {
           model: trimmedCodexModel,
@@ -179,12 +185,12 @@ export function SettingsModal({
       gemma: {
         modelSource,
         modelRepo: trimmedModelRepo || DEFAULT_GEMMA_MODEL_REPO,
-        modelFile: trimmedModelFile || MODEL_PRESETS.iq3s.modelFile,
+        modelFile: trimmedModelFile || MODEL_PRESETS[DEFAULT_MODEL_PRESET_ID].modelFile,
         ...(trimmedMmprojRepo ? { mmprojRepo: trimmedMmprojRepo } : {}),
         ...(trimmedMmprojFile ? { mmprojFile: trimmedMmprojFile } : {}),
         ...(trimmedLocalModelPath ? { localModelPath: trimmedLocalModelPath } : {}),
         ...(trimmedLocalMmprojPath ? { localMmprojPath: trimmedLocalMmprojPath } : {}),
-        vramMode
+        vramMode: selectedVramMode
       },
       codex: {
         model: trimmedCodexModel || initialSettings.codex.model,
@@ -210,7 +216,7 @@ export function SettingsModal({
     trimmedCodexModel,
     parsedCodexOauthPort,
     parsedMaxTokens,
-    vramMode,
+    selectedVramMode,
     codexReasoningEffort,
     ocrDevice,
     initialSettings.codex.model,
@@ -451,9 +457,9 @@ export function SettingsModal({
           {modelSource === "huggingface" ? (
             <>
               <div className="settings-field-stack">
-                <span>모델</span>
+                <span>모델 / 실행 모드</span>
                 <div className="settings-preset-group" role="tablist" aria-label="모델 프리셋">
-                  {(["iq3s", "custom"] as const).map((presetId) => (
+                  {MODEL_PRESET_BUTTON_IDS.map((presetId) => (
                     <button
                       key={presetId}
                       type="button"
@@ -461,6 +467,9 @@ export function SettingsModal({
                       onClick={() => {
                         clearTestState();
                         setSelectedPreset(presetId);
+                        if (presetId !== "custom") {
+                          setCustomVramMode(MODEL_PRESETS[presetId].vramMode);
+                        }
                       }}
                       disabled={controlsBusy}
                       aria-pressed={selectedPreset === presetId}
@@ -470,7 +479,9 @@ export function SettingsModal({
                   ))}
                 </div>
                 <p className="muted-line modal-note">
-                  기본값은 IQ3_S입니다. mmproj는 별도 Hugging Face repo에서 자동으로 받아옵니다.
+                  {selectedPreset === "custom"
+                    ? "직접 지정한 모델을 사용합니다. 커스텀 모델은 현재 저장된 실행 설정을 유지합니다."
+                    : MODEL_PRESETS[selectedPreset].description}
                 </p>
               </div>
               {selectedPreset === "custom" ? (
@@ -564,30 +575,6 @@ export function SettingsModal({
               </div>
             </>
           )}
-
-          <div className="settings-field-stack">
-            <span>VRAM 모드</span>
-            <div className="settings-mode-group" role="tablist" aria-label="Gemma VRAM 모드">
-              {GEMMA_VRAM_MODE_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`settings-preset-button ${vramMode === option.id ? "active" : ""}`}
-                  onClick={() => {
-                    clearTestState();
-                    setVramMode(option.id);
-                  }}
-                  disabled={controlsBusy}
-                  aria-pressed={vramMode === option.id}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <p className="muted-line modal-note">
-              {GEMMA_VRAM_MODE_OPTIONS.find((option) => option.id === vramMode)?.description}
-            </p>
-          </div>
 
             </>
           ) : (
