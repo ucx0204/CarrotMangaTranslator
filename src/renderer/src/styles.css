@@ -523,6 +523,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 .status-panel,
 .display-panel,
 .inpainting-panel,
+.inpainting-area-translate-panel,
 .inpainting-exit-panel {
   display: grid;
   gap: var(--sp-3);
@@ -594,7 +595,8 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 .status-panel h2,
 .library-panel h2,
 .display-panel h2,
-.inpainting-panel h2 {
+.inpainting-panel h2,
+.inpainting-area-translate-panel h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -607,7 +609,8 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 .editor-panel h2,
 .library-panel h2,
 .display-panel h2,
-.inpainting-panel h2 {
+.inpainting-panel h2,
+.inpainting-area-translate-panel h2 {
   margin: 0;
   font-size: var(--font-md);
   font-weight: 700;
@@ -940,6 +943,30 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   border-color: transparent;
   background: var(--accent-soft);
   color: var(--accent-hi);
+}
+
+.inpainting-area-translate-panel {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.inpainting-area-translate-panel .area-translate-button {
+  width: 100%;
+}
+
+.area-translate-progress-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--glass-border);
+  background: rgba(14, 17, 22, 0.72);
+  box-shadow: var(--glass-highlight);
+}
+
+.area-translate-progress-card.failed {
+  border-color: rgba(196, 67, 67, 0.55);
+  background: rgba(48, 28, 30, 0.72);
 }
 
 .display-panel {

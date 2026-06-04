@@ -35,7 +35,7 @@ export function useBlockEditingActions({
   setSelectedBlockId,
   updateCurrentChapter
 }: UseBlockEditingActionsOptions): {
-  applyFontToScope: (scope: "page" | "chapter") => void;
+  applyFontToScope: (scope: "page" | "chapter", fontFamily?: string) => void;
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
   toggleBlockInpaintExcluded: (blockId: string) => void;
@@ -107,30 +107,24 @@ export function useBlockEditingActions({
   );
 
   const applyFontToScope = useCallback(
-    (scope: "page" | "chapter") => {
+    (scope: "page" | "chapter", fontFamily?: string) => {
       if (!currentChapter || !selectedBlock || selectedPageEditLocked) {
         return;
       }
-      const fontFamily = selectedBlock.fontFamily;
       const targetPageIds = scope === "page" ? (selectedPage ? [selectedPage.id] : []) : currentChapter.pages.map((page) => page.id);
       if (targetPageIds.length === 0) {
         return;
       }
       const targetSet = new Set(targetPageIds);
       const stamp = new Date().toISOString();
-      setCurrentChapter((current) => {
-        if (!current) {
-          return current;
-        }
-        const next = {
-          ...current,
-          pages: current.pages.map((page) =>
-            targetSet.has(page.id) ? { ...page, updatedAt: stamp, blocks: page.blocks.map((block) => ({ ...block, fontFamily })) } : page
-          )
-        };
-        currentChapterRef.current = next;
-        return next;
-      });
+      const next = {
+        ...currentChapter,
+        pages: currentChapter.pages.map((page) =>
+          targetSet.has(page.id) ? { ...page, updatedAt: stamp, blocks: page.blocks.map((block) => ({ ...block, fontFamily })) } : page
+        )
+      };
+      currentChapterRef.current = next;
+      setCurrentChapter(next);
       targetPageIds.forEach((id) => markDirty(id));
       pushStatus(scope === "page" ? "이 페이지의 모든 블록에 폰트를 적용했습니다." : "이 화 전체 블록에 폰트를 적용했습니다.");
     },

@@ -10,7 +10,7 @@ type EditorPanelProps = {
   areaTranslateAvailable?: boolean;
   areaTranslateSelecting?: boolean;
   onStartAreaTranslate?: () => void;
-  onApplyFont?: (scope: "page" | "chapter") => void;
+  onApplyFont?: (scope: "page" | "chapter", fontFamily?: string) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -27,6 +27,12 @@ export function EditorPanel({
   onDelete,
   onDuplicate
 }: EditorPanelProps): React.JSX.Element {
+  const [fontFamilyDraft, setFontFamilyDraft] = React.useState<string | undefined>(block?.fontFamily);
+
+  React.useEffect(() => {
+    setFontFamilyDraft(block?.fontFamily);
+  }, [block?.id, block?.fontFamily]);
+
   if (!block) {
     return (
       <section className="editor-panel muted">
@@ -94,16 +100,23 @@ export function EditorPanel({
       </label>
       <div className="font-field">
         <span className="font-field-label">폰트</span>
-        <FontSelect value={block.fontFamily} disabled={disabled} onChange={(fontFamily) => onUpdate({ fontFamily })} />
+        <FontSelect
+          value={fontFamilyDraft}
+          disabled={disabled}
+          onChange={(fontFamily) => {
+            setFontFamilyDraft(fontFamily);
+            onUpdate({ fontFamily });
+          }}
+        />
       </div>
       {onApplyFont ? (
         <div className="font-apply-row">
           <span className="font-apply-label">이 폰트 일괄 적용</span>
           <div className="font-apply-buttons">
-            <Button size="sm" disabled={disabled} onClick={() => onApplyFont("page")} title="이 페이지의 모든 블록에 적용">
+            <Button size="sm" disabled={disabled} onClick={() => onApplyFont("page", fontFamilyDraft)} title="이 페이지의 모든 블록에 적용">
               페이지
             </Button>
-            <Button size="sm" disabled={disabled} onClick={() => onApplyFont("chapter")} title="이 화의 모든 페이지·블록에 적용">
+            <Button size="sm" disabled={disabled} onClick={() => onApplyFont("chapter", fontFamilyDraft)} title="이 화의 모든 페이지·블록에 적용">
               전체
             </Button>
           </div>

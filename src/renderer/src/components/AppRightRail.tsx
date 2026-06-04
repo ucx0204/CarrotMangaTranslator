@@ -4,6 +4,7 @@ import type { ProgressSnapshot } from "../lib/jobProgress";
 import { EditorPanel } from "./EditorPanel";
 import { DisplayControlPanel, InpaintingControlPanel } from "./InpaintingControlPanel";
 import { RunPanel, StatusPanel } from "./RunStatusPanels";
+import { Button } from "./ui";
 
 type AppRightRailProps = {
   inpaintingMode: boolean;
@@ -27,7 +28,7 @@ type AppRightRailProps = {
   onEnterInpainting: () => void;
   onCancelJob: () => void;
   onStartAreaTranslate: () => void;
-  onApplyFont: (scope: "page" | "chapter") => void;
+  onApplyFont: (scope: "page" | "chapter", fontFamily?: string) => void;
   onUpdateBlock: (patch: Partial<TranslationBlock>) => void;
   onDeleteBlock: () => void;
   onDuplicateBlock: () => void;
@@ -61,6 +62,12 @@ export function AppRightRail({
   onDuplicateBlock
 }: AppRightRailProps): React.JSX.Element {
   const editorDisabled = selectedPageEditLocked || jobActive;
+  const showAreaTranslationProgress =
+    inpaintingMode &&
+    jobState.kind === "gemma-analysis" &&
+    jobState.status !== "idle" &&
+    jobState.status !== "completed" &&
+    jobState.status !== "cancelled";
 
   return (
     <aside className={`right-rail ${inpaintingMode ? "inpainting-rail" : ""}`}>
@@ -77,6 +84,19 @@ export function AppRightRail({
               onDuplicate={onDuplicateBlock}
             />
           ) : null}
+          <section className="inpainting-area-translate-panel">
+            <h2>영역 번역</h2>
+            <button
+              className={`area-translate-button ${areaTranslateSelecting ? "active" : ""}`}
+              disabled={!selectedPage || !selectedPageImageDataUrl || jobActive}
+              onClick={onStartAreaTranslate}
+            >
+              {areaTranslateSelecting ? "선택 취소" : "영역 번역"}
+            </button>
+            {showAreaTranslationProgress ? (
+              <AreaTranslationProgressCard jobState={jobState} progressSnapshot={progressSnapshot} onCancel={onCancelJob} />
+            ) : null}
+          </section>
         </>
       ) : (
         <>
@@ -110,5 +130,52 @@ export function AppRightRail({
         </>
       )}
     </aside>
+  );
+}
+
+function AreaTranslationProgressCard({
+  jobState,
+  progressSnapshot,
+  onCancel
+}: {
+  jobState: JobState;
+  progressSnapshot: ProgressSnapshot | null;
+  onCancel: () => void;
+}): React.JSX.Element {
+  const current = progressSnapshot?.mode === "determinate" ? progressSnapshot.current : jobState.progressCurrent;
+  const total = progressSnapshot?.mode === "determinate" ? progressSnapshot.total : jobState.progressTotal;
+  const ratio =
+    progressSnapshot?.mode === "determinate"
+      ? progressSnapshot.ratio
+      : Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0
+        ? Math.min(1, Math.max(0, (current ?? 0) / (total ?? 1)))
+        : 0;
+  const canCancel = jobState.status === "starting" || jobState.status === "running";
+
+  return (
+    <div className={`area-translate-progress-card ${jobState.status}`}>
+      <div className="progress-meta">
+        <span>{jobState.progressText}</span>
+        {Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0 ? (
+          <strong>
+            {current} / {total}
+          </strong>
+        ) : (
+          <strong>{progressSnapshot?.mode === "indeterminate" ? "준비 중" : "진행 중"}</strong>
+        )}
+      </div>
+      {jobState.detail ? <small className="progress-detail">{jobState.detail}</small> : null}
+      <div className={`progress-track ${progressSnapshot?.mode === "indeterminate" ? "indeterminate" : ""}`} aria-hidden="true">
+        <div
+          className={`progress-fill ${progressSnapshot?.mode === "indeterminate" ? "indeterminate" : ""}`}
+          style={progressSnapshot?.mode === "determinate" || ratio > 0 ? { width: `${Math.round(ratio * 100)}%` } : undefined}
+        />
+      </div>
+      {canCancel ? (
+        <Button variant="danger" size="sm" fullWidth onClick={onCancel}>
+          취소
+        </Button>
+      ) : null}
+    </div>
   );
 }

@@ -12,6 +12,7 @@ type UseTranslationActionsOptions = {
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
+  beforeTranslateRegion?: () => Promise<void>;
   pushStatus: (line: string) => void;
   refreshLibrary: () => Promise<void>;
   saveNow: () => Promise<void>;
@@ -43,6 +44,7 @@ export function useTranslationActions({
   currentChapter,
   jobActive,
   mergeLiveChapter,
+  beforeTranslateRegion,
   pushStatus,
   refreshLibrary,
   saveNow,
@@ -122,6 +124,7 @@ export function useTranslationActions({
       });
 
       try {
+        await beforeTranslateRegion?.();
         const result = await window.mangaApi.translateRegion({
           chapterId: currentChapter.id,
           pageId: selectedPage.id,
@@ -154,7 +157,19 @@ export function useTranslationActions({
         );
       }
     },
-    [clearStatusLines, currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage, setJobState, setSelectedBlockId]
+    [
+      beforeTranslateRegion,
+      clearStatusLines,
+      currentChapter,
+      jobActive,
+      mergeLiveChapter,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      selectedPage,
+      setJobState,
+      setSelectedBlockId
+    ]
   );
 
   return {

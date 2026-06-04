@@ -32,7 +32,7 @@ export function useChapterPersistence({
       const dirtyPageIds = [...dirtyPageIdsRef.current];
       let saved = chapter;
       for (const pageId of dirtyPageIds) {
-        const page = saved.pages.find((candidate) => candidate.id === pageId);
+        const page = chapter.pages.find((candidate) => candidate.id === pageId);
         if (!page) {
           continue;
         }

@@ -26,6 +26,7 @@ import { useConfirmDialog } from "./hooks/useConfirmDialog";
 import { useChapterPersistence } from "./hooks/useChapterPersistence";
 import { useImportShareActions } from "./hooks/useImportShareActions";
 import { useInpaintingActions } from "./hooks/useInpaintingActions";
+import { useInpaintingRetouch } from "./hooks/useInpaintingRetouch";
 import { useJobEvents } from "./hooks/useJobEvents";
 import { usePageImageDataUrls } from "./hooks/usePageImageDataUrls";
 import { useSettingsDialog } from "./hooks/useSettingsDialog";
@@ -68,40 +69,6 @@ type DragState = {
   startBbox: BBox;
 };
 
-type RetouchPreviewState = {
-  mode: "brush" | "eraser" | "mask";
-  points: Array<{ x: number; y: number }>;
-  radiusPx: number;
-  color: string;
-};
-type RetouchHistoryEntry = {
-  pageId: string;
-  beforePath?: string;
-  afterPath?: string;
-};
-
-function collectRetainedRetouchArtifactPaths(...sources: Array<RetouchHistoryEntry[] | Array<string | undefined> | undefined>): string[] {
-  const retainedPaths = new Set<string>();
-  for (const source of sources) {
-    if (!source) {
-      continue;
-    }
-    for (const item of source) {
-      if (typeof item === "string") {
-        retainedPaths.add(item);
-      } else if (item) {
-        if (item.beforePath) {
-          retainedPaths.add(item.beforePath);
-        }
-        if (item.afterPath) {
-          retainedPaths.add(item.afterPath);
-        }
-      }
-    }
-  }
-  return Array.from(retainedPaths);
-}
-
 export default function App(): React.JSX.Element {
   const [library, setLibrary] = useState<LibraryIndex>({ workOrder: [], works: [] });
   const [currentChapter, setCurrentChapter] = useState<ChapterSnapshot | null>(null);
@@ -129,12 +96,7 @@ export default function App(): React.JSX.Element {
   const [inpaintingBrushRadius, setInpaintingBrushRadius] = useState(28);
   const [inpaintingPaintColor, setInpaintingPaintColor] = useState("#ffffff");
   const [peekOriginal, setPeekOriginal] = useState(false);
-  const [retouchCursorPoint, setRetouchCursorPoint] = useState<{ x: number; y: number } | null>(null);
-  const [retouchPreview, setRetouchPreview] = useState<RetouchPreviewState | null>(null);
-  const [retouchBusy, setRetouchBusy] = useState(false);
   const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<Record<string, InpaintingMaskStroke[]>>({});
-  const [retouchUndoStack, setRetouchUndoStack] = useState<RetouchHistoryEntry[]>([]);
-  const [retouchRedoStack, setRetouchRedoStack] = useState<RetouchHistoryEntry[]>([]);
   const [showBlockChrome, setShowBlockChrome] = useState(true);
   const [showTextBlocks, setShowTextBlocks] = useState(true);
   const { settings, settingsOpen, settingsBusy, openSettings, closeSettings, submitSettings, resetSettings } = useSettingsDialog(pushStatus);
@@ -145,12 +107,6 @@ export default function App(): React.JSX.Element {
   const currentChapterRef = useRef<ChapterSnapshot | null>(null);
   const selectedPageIdRef = useRef<string | null>(null);
   const selectedBlockIdRef = useRef<string | null>(null);
-  const inpaintingRetouchDrawingRef = useRef(false);
-  const inpaintingRetouchPointsRef = useRef<Array<{ x: number; y: number }>>([]);
-  const lastInpaintingRetouchPointRef = useRef<{ x: number; y: number } | null>(null);
-  const retouchBusyRef = useRef(false);
-  const retouchUndoStackRef = useRef<RetouchHistoryEntry[]>([]);
-  const retouchRedoStackRef = useRef<RetouchHistoryEntry[]>([]);
 
   const selectedPage = useMemo(
     () => currentChapter?.pages.find((page) => page.id === selectedPageId) ?? currentChapter?.pages[0] ?? null,
@@ -192,22 +148,6 @@ export default function App(): React.JSX.Element {
   const blockCounts = useMemo(() => countChapterBlocks(currentChapter, selectedPage?.id ?? null), [currentChapter, selectedPage?.id]);
   const inpaintedPageCount = useMemo(() => countInpaintedPages(currentChapter), [currentChapter]);
   const inpaintingToolActive = inpaintingMode && inpaintingTool !== "none";
-  const retouchCursor =
-    inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask"
-      ? {
-          point: retouchCursorPoint,
-          radiusPx: inpaintingBrushRadius,
-          mode: inpaintingTool,
-          color: inpaintingTool === "brush" ? inpaintingPaintColor : inpaintingTool === "mask" ? "#ff9f1c" : "#70b7ff"
-        }
-      : null;
-  const retouchPreviewLayer =
-    retouchPreview && retouchPreview.points.length > 0
-      ? {
-          ...retouchPreview,
-          originalImageDataUrl: retouchPreview.mode === "eraser" ? selectedPageOriginalImageDataUrl : ""
-        }
-      : null;
   const refreshLibrary = useCallback(async () => {
     const next = await window.mangaApi.getLibrary();
     setLibrary(next);
@@ -230,18 +170,6 @@ export default function App(): React.JSX.Element {
   }, [selectedBlockId]);
 
   React.useEffect(() => {
-    retouchUndoStackRef.current = retouchUndoStack;
-  }, [retouchUndoStack]);
-
-  React.useEffect(() => {
-    retouchRedoStackRef.current = retouchRedoStack;
-  }, [retouchRedoStack]);
-
-  React.useEffect(() => {
-    retouchBusyRef.current = retouchBusy;
-  }, [retouchBusy]);
-
-  React.useEffect(() => {
     setRegionSelection(null);
   }, [selectedPage?.id]);
 
@@ -252,25 +180,6 @@ export default function App(): React.JSX.Element {
       setPatternMaskStrokesByPage({});
     }
   }, [currentChapter]);
-
-  React.useEffect(() => {
-    setRetouchUndoStack([]);
-    setRetouchRedoStack([]);
-  }, [currentChapter?.id]);
-
-  React.useEffect(() => {
-    if (!selectedPage) {
-      setRetouchCursorPoint(null);
-      setRetouchPreview(null);
-    }
-  }, [selectedPage]);
-
-  React.useEffect(() => {
-    if (!inpaintingToolActive) {
-      setRetouchCursorPoint(null);
-      setRetouchPreview(null);
-    }
-  }, [inpaintingToolActive]);
 
   const mergeLiveChapter = useCallback((chapter: ChapterSnapshot) => {
     const current = currentChapterRef.current;
@@ -360,7 +269,16 @@ export default function App(): React.JSX.Element {
       shareImportPreview
     });
 
+  const prepareRegionTranslation = useCallback(async () => {
+    if (!inpaintingMode) {
+      return;
+    }
+    pushStatus("영역 번역을 위해 Flux 인페인팅 런타임을 정리합니다.");
+    await window.mangaApi.disposeInpaintingEngine();
+  }, [inpaintingMode, pushStatus]);
+
   const { runAnalysis, translateSelectedRegion } = useTranslationActions({
+    beforeTranslateRegion: prepareRegionTranslation,
     clearStatusLines,
     currentChapter,
     jobActive,
@@ -412,6 +330,7 @@ export default function App(): React.JSX.Element {
     }
 
     setSelectedBlockId(null);
+    setInpaintingTool("none");
     setRegionSelection({
       active: true,
       dragging: false,
@@ -531,173 +450,53 @@ export default function App(): React.JSX.Element {
     [selectedPage]
   );
 
-  const appendRetouchPoint = useCallback(
-    (point: { x: number; y: number }, tool?: Extract<InpaintingTool, "brush" | "eraser" | "mask">) => {
-      const last = lastInpaintingRetouchPointRef.current;
-      const minDistance = Math.max(2, inpaintingBrushRadius * 0.2);
-      if (last) {
-        const dx = point.x - last.x;
-        const dy = point.y - last.y;
-        if (Math.sqrt(dx * dx + dy * dy) < minDistance) {
-          return;
-        }
-      }
-      lastInpaintingRetouchPointRef.current = point;
-      inpaintingRetouchPointsRef.current.push({
-        x: Math.round(point.x),
-        y: Math.round(point.y)
-      });
-      if (tool) {
-        const nextPoint = { x: Math.round(point.x), y: Math.round(point.y) };
-        setRetouchPreview((current) => {
-          if (!current || current.mode !== tool) {
-            return {
-              mode: tool,
-              points: [nextPoint],
-              radiusPx: inpaintingBrushRadius,
-              color: tool === "mask" ? "#ff9f1c" : inpaintingPaintColor
-            };
-          }
-          return {
-            ...current,
-            radiusPx: inpaintingBrushRadius,
-            color: tool === "mask" ? "#ff9f1c" : inpaintingPaintColor,
-            points: [...current.points, nextPoint].slice(-1200)
-          };
-        });
-      }
-    },
-    [inpaintingBrushRadius, inpaintingPaintColor]
-  );
+  const {
+    appendRetouchPoint,
+    applyRetouchPoints,
+    clearRetouchHistory,
+    inpaintingRetouchDrawingRef,
+    inpaintingRetouchPointsRef,
+    lastInpaintingRetouchPointRef,
+    redoRetouch,
+    retouchBusy,
+    retouchCursorPoint,
+    retouchPreview,
+    retouchRedoStack,
+    retouchUndoStack,
+    setRetouchCursorPoint,
+    setRetouchPreview,
+    undoRetouch
+  } = useInpaintingRetouch({
+    clearPageImageCache,
+    currentChapter,
+    currentChapterRef,
+    inpaintingBrushRadius,
+    inpaintingPaintColor,
+    inpaintingToolActive,
+    jobActive,
+    mergeLiveChapter,
+    pushStatus,
+    selectedPage,
+    setCurrentChapter
+  });
 
-  const saveChapterWithInpaintPath = useCallback(
-    async (pageId: string, inpaintedImagePath?: string, retainedInpaintedArtifactPaths: string[] = []) => {
-      const chapter = currentChapterRef.current;
-      if (!chapter) {
-        return null;
-      }
-      const nextChapter: ChapterSnapshot = {
-        ...chapter,
-        pages: chapter.pages.map((page) =>
-          page.id === pageId
-            ? {
-                ...page,
-                inpaintedImagePath,
-                updatedAt: new Date().toISOString()
-              }
-            : page
-        )
-      };
-      clearPageImageCache();
-      setCurrentChapter(nextChapter);
-      currentChapterRef.current = nextChapter;
-      const result = await window.mangaApi.setPageInpaintingResult({
-        chapterId: chapter.id,
-        pageId,
-        inpaintedImagePath: inpaintedImagePath ?? null,
-        retainedInpaintedArtifactPaths
-      });
-      mergeLiveChapter(result.chapter);
-      return result.chapter;
-    },
-    [clearPageImageCache, mergeLiveChapter]
-  );
-
-  const applyRetouchPoints = useCallback(
-    async (tool: Extract<InpaintingTool, "brush" | "eraser">, points: Array<{ x: number; y: number }>) => {
-      if (!currentChapter || !selectedPage || points.length === 0 || jobActive || retouchBusyRef.current) {
-        return;
-      }
-      retouchBusyRef.current = true;
-      setRetouchBusy(true);
-      const beforePath = selectedPage.inpaintedImagePath;
-      const retainedInpaintedArtifactPaths = collectRetainedRetouchArtifactPaths(
-        retouchUndoStackRef.current,
-        retouchRedoStackRef.current,
-        [beforePath]
-      );
-      try {
-        const result = await window.mangaApi.applyInpaintingRetouch({
-          chapterId: currentChapter.id,
-          pageId: selectedPage.id,
-          mode: tool === "brush" ? "paint" : "restore",
-          points,
+  const retouchCursor =
+    inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask"
+      ? {
+          point: retouchCursorPoint,
           radiusPx: inpaintingBrushRadius,
-          color: inpaintingPaintColor,
-          retainedInpaintedArtifactPaths
-        });
-        const afterPage = result.chapter.pages.find((page) => page.id === selectedPage.id);
-        clearPageImageCache();
-        mergeLiveChapter(result.chapter);
-        const afterPath = afterPage?.inpaintedImagePath;
-        if (afterPath !== beforePath) {
-          setRetouchUndoStack((stack) => [...stack, { pageId: selectedPage.id, beforePath, afterPath }].slice(-60));
-          setRetouchRedoStack([]);
+          mode: inpaintingTool,
+          color: inpaintingTool === "brush" ? inpaintingPaintColor : inpaintingTool === "mask" ? "#ff9f1c" : "#70b7ff"
         }
-      } catch (error) {
-        console.error(error);
-        pushStatus("리터치 적용에 실패했습니다.");
-      } finally {
-        retouchBusyRef.current = false;
-        setRetouchBusy(false);
-      }
-    },
-    [clearPageImageCache, currentChapter, inpaintingBrushRadius, inpaintingPaintColor, jobActive, mergeLiveChapter, pushStatus, selectedPage]
-  );
+      : null;
 
-  const undoRetouch = useCallback(async () => {
-    const entry = retouchUndoStackRef.current[retouchUndoStackRef.current.length - 1];
-    if (!entry || jobActive || retouchBusyRef.current) {
-      return;
-    }
-    retouchBusyRef.current = true;
-    setRetouchBusy(true);
-    setRetouchUndoStack((stack) => stack.slice(0, -1));
-    const retainedInpaintedArtifactPaths = collectRetainedRetouchArtifactPaths(
-      retouchUndoStackRef.current,
-      retouchRedoStackRef.current,
-      [entry.beforePath, entry.afterPath]
-    );
-    try {
-      await saveChapterWithInpaintPath(entry.pageId, entry.beforePath, retainedInpaintedArtifactPaths);
-      setRetouchRedoStack((stack) => [...stack, entry].slice(-60));
-      pushStatus("리터치를 되돌렸습니다.");
-    } catch (error) {
-      console.error(error);
-      setRetouchUndoStack((stack) => [...stack, entry].slice(-60));
-      pushStatus("리터치 되돌리기에 실패했습니다.");
-    } finally {
-      retouchBusyRef.current = false;
-      setRetouchBusy(false);
-    }
-  }, [jobActive, pushStatus, saveChapterWithInpaintPath]);
-
-  const redoRetouch = useCallback(async () => {
-    const entry = retouchRedoStackRef.current[retouchRedoStackRef.current.length - 1];
-    if (!entry || jobActive || retouchBusyRef.current) {
-      return;
-    }
-    retouchBusyRef.current = true;
-    setRetouchBusy(true);
-    setRetouchRedoStack((stack) => stack.slice(0, -1));
-    const retainedInpaintedArtifactPaths = collectRetainedRetouchArtifactPaths(
-      retouchUndoStackRef.current,
-      retouchRedoStackRef.current,
-      [entry.beforePath, entry.afterPath]
-    );
-    try {
-      await saveChapterWithInpaintPath(entry.pageId, entry.afterPath, retainedInpaintedArtifactPaths);
-      setRetouchUndoStack((stack) => [...stack, entry].slice(-60));
-      pushStatus("리터치를 다시 적용했습니다.");
-    } catch (error) {
-      console.error(error);
-      setRetouchRedoStack((stack) => [...stack, entry].slice(-60));
-      pushStatus("리터치 다시 적용에 실패했습니다.");
-    } finally {
-      retouchBusyRef.current = false;
-      setRetouchBusy(false);
-    }
-  }, [jobActive, pushStatus, saveChapterWithInpaintPath]);
+  const retouchPreviewLayer =
+    retouchPreview && retouchPreview.points.length > 0
+      ? {
+          ...retouchPreview,
+          originalImageDataUrl: retouchPreview.mode === "eraser" ? selectedPageOriginalImageDataUrl : ""
+        }
+      : null;
 
   const { onWorkspaceWheel, selectPageForReading } = usePageNavigationHandlers({
     currentChapterRef,
@@ -735,11 +534,10 @@ export default function App(): React.JSX.Element {
       );
       clearPageImageCache();
       mergeLiveChapter(result.chapter);
-      setRetouchUndoStack([]);
-      setRetouchRedoStack([]);
+      clearRetouchHistory();
       pushStatus(`인페인팅 되돌리기 완료: ${result.pagesChanged}페이지`);
     },
-    [askConfirm, clearPageImageCache, currentChapter, jobActive, mergeLiveChapter, pushStatus, selectedPage]
+    [askConfirm, clearPageImageCache, clearRetouchHistory, currentChapter, jobActive, mergeLiveChapter, pushStatus, selectedPage]
   );
 
   const onBlockPointerDown = (event: React.PointerEvent, block: TranslationBlock, mode: DragMode) => {
