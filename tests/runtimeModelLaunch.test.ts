@@ -409,6 +409,51 @@ describe("runtime model launch helpers", () => {
     }
   });
 
+  it("keeps PaddleOCR install batches independent from the selected Gemma model", () => {
+    const gemma31B = resolveOcrPipInstallBatches({
+      ocrDevice: "gpu",
+      ocrGpuCudaTag: "cu129",
+      modelRepo: DEFAULT_31B_REPO,
+      modelFile: DEFAULT_31B_FILE
+    });
+    const gemma26B = resolveOcrPipInstallBatches({
+      ocrDevice: "gpu",
+      ocrGpuCudaTag: "cu129",
+      modelRepo: DEFAULT_26B_REPO,
+      modelFile: DEFAULT_26B_FILE
+    });
+
+    expect(gemma26B).toEqual(gemma31B);
+  });
+
+  it("always installs Windows PaddleOCR-VL safetensors in a separate no-deps batch", () => {
+    const previousGeneric = process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES;
+    const previousGpu = process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES;
+    try {
+      delete process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES;
+      process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES =
+        "paddleocr[doc-parser]==3.5.0 https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl";
+
+      const batches = resolveOcrPipInstallBatches({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" });
+
+      if (process.platform === "win32") {
+        expect(batches).toEqual([
+          ["paddleocr[doc-parser]==3.5.0"],
+          [
+            "--no-deps",
+            "--force-reinstall",
+            "https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl"
+          ]
+        ]);
+      } else {
+        expect(batches[0]).toContain("paddleocr[doc-parser]==3.5.0");
+      }
+    } finally {
+      restoreEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", previousGeneric);
+      restoreEnv("MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES", previousGpu);
+    }
+  });
+
   it("keeps RTX 50 Paddle OCR verification lightweight and gives cu129 more startup time", () => {
     const previous = process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS;
     delete process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS;

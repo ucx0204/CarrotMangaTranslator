@@ -3314,7 +3314,7 @@ function isLikelyPackagedToolsDir(toolsDir) {
 function resolveOcrPipInstallBatches(options = {}) {
   const explicit = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", options));
   if (explicit.length > 0) {
-    return [explicit];
+    return withPaddleOcrVlSafetensorsBatch([explicit]);
   }
 
   if (!isOcrGpuRequested(options)) {
@@ -3350,8 +3350,32 @@ function withPaddleOcrVlSafetensorsBatch(installBatches) {
   if (process.platform !== "win32") {
     return batches;
   }
-  const alreadyPresent = batches.some((batch) => batch.some((item) => /safetensors/i.test(String(item ?? ""))));
-  return alreadyPresent ? batches : [...batches, ["--no-deps", "--force-reinstall", PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL]];
+
+  const safetensorsPackages = [];
+  const normalizedBatches = batches
+    .map((batch) => {
+      const normalPackages = [];
+      for (const item of batch) {
+        const text = String(item ?? "").trim();
+        if (!text) {
+          continue;
+        }
+        if (/safetensors/i.test(text)) {
+          safetensorsPackages.push(text);
+          continue;
+        }
+        normalPackages.push(text);
+      }
+      return normalPackages;
+    })
+    .filter((batch) => batch.length > 0);
+
+  const safetensorsBatch = [
+    "--no-deps",
+    "--force-reinstall",
+    ...(safetensorsPackages.length > 0 ? safetensorsPackages : [PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL])
+  ];
+  return [...normalizedBatches, safetensorsBatch];
 }
 
 function splitShellLikeEnv(value) {
