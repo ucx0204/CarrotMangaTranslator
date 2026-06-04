@@ -7,13 +7,11 @@ import { registerLibraryIpc } from "./libraryIpc";
 import { registerLogsIpc } from "./logsIpc";
 import { registerSettingsIpc } from "./settingsIpc";
 import { registerTranslationJobIpc } from "./translationJobIpc";
-import { installTrustedIpcGuard } from "./trustedIpc";
 
 export function registerIpc(context: IpcContext): void {
-  installTrustedIpcGuard(context);
-  registerLogsIpc();
+  registerLogsIpc(context);
   registerSettingsIpc(context);
-  registerLibraryIpc();
+  registerLibraryIpc(context);
   registerFontsIpc(context);
   registerImportShareIpc(context);
   registerTranslationJobIpc(context);

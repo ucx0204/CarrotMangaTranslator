@@ -1,4 +1,4 @@
-import { ipcMain, shell } from "electron";
+import { shell } from "electron";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -33,9 +33,10 @@ import { logError } from "../logger";
 import { renderPageWithTranslationBlocksForExport, sanitizeOutputBaseName } from "../pageExport";
 import type { IpcContext } from "./context";
 import { emitJobEvent, isAbortError } from "./jobEvents";
+import { trustedHandle } from "./trustedIpc";
 
 export function registerInpaintingIpc(context: IpcContext): void {
-  ipcMain.handle("job:start-inpainting", async (_event, rawRequest: unknown): Promise<StartInpaintingResult> => {
+  trustedHandle(context, "job:start-inpainting", async (_event, rawRequest: unknown): Promise<StartInpaintingResult> => {
     const request = parseIpcPayload(StartInpaintingRequestSchema, rawRequest, "인페인팅 작업");
     if (context.jobs.hasActive) {
       return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
@@ -56,11 +57,9 @@ export function registerInpaintingIpc(context: IpcContext): void {
       const drawnFeatherPx = request.mode === "page-pattern-drawn" ? request.featherPx : undefined;
       const targetLabel = drawnPatternMode ? "그린 영역" : "무늬 배경";
       const pages =
-        "pageId" in request
-          ? chapter.pages.filter((page) => page.id === request.pageId)
-          : request.mode === "chapter-pattern-pending"
-            ? chapter.pages.filter((page) => !page.inpaintedImagePath)
-            : chapter.pages;
+        request.mode === "chapter-pattern-pending"
+          ? chapter.pages.filter((page) => !page.inpaintedImagePath)
+          : chapter.pages.filter((page) => page.id === request.pageId);
 
       if (pages.length === 0) {
         return { status: "failed", chapter, error: "인페인팅할 페이지를 찾지 못했습니다." };
@@ -216,11 +215,11 @@ export function registerInpaintingIpc(context: IpcContext): void {
     }
   });
 
-  ipcMain.handle("inpainting:dispose-engine", async (): Promise<{ disposed: boolean }> => ({
+  trustedHandle(context, "inpainting:dispose-engine", async (): Promise<{ disposed: boolean }> => ({
     disposed: await disposeCachedFluxInpaintingEngine("renderer-exit")
   }));
 
-  ipcMain.handle("inpainting:apply-retouch", async (_event, rawRequest: unknown): Promise<InpaintingRetouchResult> => {
+  trustedHandle(context, "inpainting:apply-retouch", async (_event, rawRequest: unknown): Promise<InpaintingRetouchResult> => {
     const request = parseIpcPayload(InpaintingRetouchRequestSchema, rawRequest, "인페인팅 보정");
     const chapter = await openChapter(request.chapterId);
     const page = chapter.pages.find((candidate) => candidate.id === request.pageId);
@@ -234,23 +233,27 @@ export function registerInpaintingIpc(context: IpcContext): void {
       color: request.color,
       decodeFallback: context.decodeImage
     });
-    const saved = await updatePagesAfterInpainting(request.chapterId, [nextPage]);
+    const saved = await updatePagesAfterInpainting(request.chapterId, [nextPage], {
+      retainedInpaintedArtifactPaths: request.retainedInpaintedArtifactPaths
+    });
     return {
       chapter: saved,
       pageId: request.pageId
     };
   });
 
-  ipcMain.handle("inpainting:set-page-result", async (_event, rawRequest: unknown): Promise<SetPageInpaintingResultResult> => {
+  trustedHandle(context, "inpainting:set-page-result", async (_event, rawRequest: unknown): Promise<SetPageInpaintingResultResult> => {
     const request = parseIpcPayload(SetPageInpaintingResultRequestSchema, rawRequest, "인페인팅 결과 적용");
-    const chapter = await setPageInpaintingResult(request.chapterId, request.pageId, request.inpaintedImagePath ?? undefined);
+    const chapter = await setPageInpaintingResult(request.chapterId, request.pageId, request.inpaintedImagePath ?? undefined, {
+      retainedInpaintedArtifactPaths: request.retainedInpaintedArtifactPaths
+    });
     return {
       chapter,
       pageId: request.pageId
     };
   });
 
-  ipcMain.handle("inpainting:revert", async (_event, rawRequest: unknown): Promise<InpaintingRevertResult> => {
+  trustedHandle(context, "inpainting:revert", async (_event, rawRequest: unknown): Promise<InpaintingRevertResult> => {
     const request = parseIpcPayload(InpaintingRevertRequestSchema, rawRequest, "인페인팅 되돌리기");
     const chapter = await openChapter(request.chapterId);
     const pages =
@@ -275,7 +278,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
     };
   });
 
-  ipcMain.handle("inpainting:sample-color", async (_event, rawRequest: unknown): Promise<InpaintingColorSampleResult> => {
+  trustedHandle(context, "inpainting:sample-color", async (_event, rawRequest: unknown): Promise<InpaintingColorSampleResult> => {
     const request = parseIpcPayload(InpaintingColorSampleRequestSchema, rawRequest, "색상 샘플");
     const imagePath = assertLibraryImagePath(request.imagePath);
     return {
@@ -283,7 +286,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
     };
   });
 
-  ipcMain.handle("inpainting:export-results", async (_event, rawRequest: unknown): Promise<InpaintingExportResult> => {
+  trustedHandle(context, "inpainting:export-results", async (_event, rawRequest: unknown): Promise<InpaintingExportResult> => {
     const request = parseIpcPayload(InpaintingExportRequestSchema, rawRequest, "결과 출력");
     if (context.jobs.hasActive) {
       throw new Error("이미 실행 중인 작업이 있습니다.");

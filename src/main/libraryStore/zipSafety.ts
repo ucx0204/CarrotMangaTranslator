@@ -1,5 +1,3 @@
-import { isSupportedImagePath } from "./storage";
-
 export type ZipEntryLike = {
   entryName: string;
   isDirectory: boolean;
@@ -106,8 +104,4 @@ function normalizeShareEntryName(entryName: string, isDirectory: boolean): strin
 function getZipEntrySize(entry: ZipEntryLike): number | null {
   const size = Number(entry.header?.size);
   return Number.isFinite(size) && size >= 0 ? size : null;
-}
-
-export function isSupportedShareImagePath(filePath: string): boolean {
-  return isSupportedImagePath(filePath);
 }

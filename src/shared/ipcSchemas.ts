@@ -8,6 +8,7 @@ const MAX_PAGES_PER_REQUEST = 2000;
 const MAX_BLOCKS_PER_PAGE = 500;
 const MAX_MASK_STROKES = 200;
 const MAX_STROKE_POINTS = 1200;
+const MAX_RETAINED_INPAINTING_ARTIFACTS = 200;
 
 const finiteNumber = z.number().finite();
 const uuid = z.string().uuid();
@@ -177,7 +178,6 @@ const InpaintingMaskStrokeSchema = z
   .strict();
 
 export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
-  z.object({ chapterId: uuid, mode: z.literal("chapter-pattern") }).strict(),
   z.object({ chapterId: uuid, mode: z.literal("chapter-pattern-pending") }).strict(),
   z.object({ chapterId: uuid, mode: z.literal("page-pattern"), pageId: uuid }).strict(),
   z
@@ -198,7 +198,8 @@ export const InpaintingRetouchRequestSchema = z
     mode: z.enum(["paint", "restore"]),
     points: z.array(InpaintingPointSchema).min(1).max(MAX_STROKE_POINTS),
     radiusPx: finiteNumber.min(1).max(512),
-    color: hexColor.optional()
+    color: hexColor.optional(),
+    retainedInpaintedArtifactPaths: z.array(filePath).max(MAX_RETAINED_INPAINTING_ARTIFACTS).optional()
   })
   .strict();
 
@@ -206,7 +207,8 @@ export const SetPageInpaintingResultRequestSchema = z
   .object({
     chapterId: uuid,
     pageId: uuid,
-    inpaintedImagePath: filePath.nullable().optional()
+    inpaintedImagePath: filePath.nullable().optional(),
+    retainedInpaintedArtifactPaths: z.array(filePath).max(MAX_RETAINED_INPAINTING_ARTIFACTS).optional()
   })
   .strict();
 
@@ -257,7 +259,8 @@ export const AppSettingsSchema = z
         mmprojFile: z.string().min(1).max(300).optional(),
         localModelPath: filePath.optional(),
         localMmprojPath: filePath.optional(),
-        vramMode: z.enum(["full", "economy"])
+        vramMode: z.enum(["full", "economy"]),
+        llamaRuntimeProfile: z.enum(["cuda12", "rtx50"]).optional()
       })
       .strict(),
     codex: z

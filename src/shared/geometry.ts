@@ -1,4 +1,4 @@
-import type { BBox, BlockType, ChapterSnapshot, RenderTextDirection, SourceTextDirection, TranslationBlock } from "./types";
+import type { BBox, BlockType, ChapterSnapshot, RenderTextDirection, TranslationBlock } from "./types";
 
 type PageSize = {
   width: number;
@@ -174,24 +174,9 @@ export function normalizeBlockType(value: unknown): BlockType {
   return "nonsolid";
 }
 
-export function normalizeSourceDirection(value: unknown, fallback: SourceTextDirection): SourceTextDirection {
-  const text = String(value ?? "").trim().toLowerCase();
-  return text === "horizontal" || text === "vertical" ? text : fallback;
-}
-
 export function normalizeRenderDirection(value: unknown, fallback: RenderTextDirection): RenderTextDirection {
   const text = String(value ?? "").trim().toLowerCase();
   return text === "horizontal" || text === "vertical" || text === "rotated" || text === "hidden" ? text : fallback;
-}
-
-export function normalizeTextAlign(value: unknown): "left" | "center" | "right" {
-  const text = String(value ?? "").trim().toLowerCase();
-  return text === "left" || text === "right" ? text : "center";
-}
-
-export function normalizeColor(value: unknown, fallback: string): string {
-  const text = String(value ?? "").trim();
-  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
 }
 
 export function estimateFontSizePx(text: string, bbox: BBox, pageSize: { width: number; height: number }): number {

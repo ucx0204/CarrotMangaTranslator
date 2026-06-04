@@ -1,9 +1,9 @@
-import { ipcMain } from "electron";
 import type { JobEvent } from "../../shared/types";
 import type { IpcContext } from "./context";
+import { trustedHandle } from "./trustedIpc";
 
 export function registerJobControlIpc(context: IpcContext): void {
-  ipcMain.handle("job:cancel", async () => {
+  trustedHandle(context, "job:cancel", async () => {
     const job = context.jobs.current;
     if (!job) {
       return { cancelled: false };

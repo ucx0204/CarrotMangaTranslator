@@ -165,7 +165,10 @@ export function SettingsModal({
           ...(trimmedMmprojFile ? { mmprojFile: trimmedMmprojFile } : {}),
           ...(trimmedLocalModelPath ? { localModelPath: trimmedLocalModelPath } : {}),
           ...(trimmedLocalMmprojPath ? { localMmprojPath: trimmedLocalMmprojPath } : {}),
-          vramMode: selectedVramMode
+          vramMode: selectedVramMode,
+          ...(initialSettings.gemma.llamaRuntimeProfile
+            ? { llamaRuntimeProfile: initialSettings.gemma.llamaRuntimeProfile }
+            : {})
         },
         codex: {
           model: trimmedCodexModel,
@@ -190,7 +193,10 @@ export function SettingsModal({
         ...(trimmedMmprojFile ? { mmprojFile: trimmedMmprojFile } : {}),
         ...(trimmedLocalModelPath ? { localModelPath: trimmedLocalModelPath } : {}),
         ...(trimmedLocalMmprojPath ? { localMmprojPath: trimmedLocalMmprojPath } : {}),
-        vramMode: selectedVramMode
+        vramMode: selectedVramMode,
+        ...(initialSettings.gemma.llamaRuntimeProfile
+          ? { llamaRuntimeProfile: initialSettings.gemma.llamaRuntimeProfile }
+          : {})
       },
       codex: {
         model: trimmedCodexModel || initialSettings.codex.model,
@@ -221,6 +227,7 @@ export function SettingsModal({
     ocrDevice,
     initialSettings.codex.model,
     initialSettings.codex.oauthPort,
+    initialSettings.gemma.llamaRuntimeProfile,
     initialSettings.ocr.gpuCudaTag,
     maxTokensValid
   ]);
@@ -289,11 +296,14 @@ export function SettingsModal({
     }
 
     const testId = `settings-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    setTestLogLines(["모델 테스트를 시작합니다."]);
+    setTestLogLines(["Paddle OCR과 번역 엔진 확인을 시작합니다."]);
     setTestState({
       status: "running",
-      message: "모델을 불러오고 간단한 텍스트 응답을 확인하는 중입니다...",
-      detail: "이 테스트는 모델 로드와 텍스트 응답만 확인합니다."
+      message: "OCR, 모델 런타임, 간단한 텍스트 응답을 차례대로 확인하는 중입니다...",
+      detail:
+        modelProvider === "gemma"
+          ? "Paddle OCR과 Gemma 실행 런타임 준비 로그를 함께 표시합니다."
+          : "Paddle OCR과 Codex 엔드포인트 준비 상태를 함께 확인합니다."
     });
     const unsubscribe = window.mangaApi.onModelTestEvent((event) => {
       if (event.id !== testId) {
@@ -312,14 +322,14 @@ export function SettingsModal({
     });
     try {
       const result = await window.mangaApi.testModelSettings(nextSettings, testId);
-      appendTestLogLine(result.ok ? "모델 테스트가 완료되었습니다." : "모델 테스트가 실패했습니다.");
+      appendTestLogLine(result.ok ? "Paddle OCR과 번역 엔진 확인이 완료되었습니다." : "Paddle OCR과 번역 엔진 확인이 실패했습니다.");
       setTestState({
         status: result.ok ? "success" : "error",
         message: result.message,
         detail: buildTestDetail(result.resolvedModelPath, result.resolvedMmprojPath, result.resolvedEndpoint)
       });
     } catch (error) {
-      appendTestLogLine("모델 테스트 요청 중 오류가 발생했습니다.");
+      appendTestLogLine("Paddle OCR과 번역 엔진 확인 요청 중 오류가 발생했습니다.");
       setTestState({
         status: "error",
         message: error instanceof Error ? error.message : String(error),
@@ -645,20 +655,20 @@ export function SettingsModal({
           )}
 
           <div className="settings-field-stack">
-            <span>모델 테스트</span>
+            <span>설치/작동 확인</span>
             <div className="settings-inline-actions">
               <button
                 type="button"
                 onClick={() => void runModelTest()}
                 disabled={controlsBusy || !canSubmit || jobActive}
               >
-                {testState.status === "running" ? "테스트 중..." : "잘 작동되나 확인"}
+                {testState.status === "running" ? "확인 중..." : "OCR/모델 확인"}
               </button>
             </div>
             <p className="muted-line modal-note">
-              서버가 뜨고 간단한 텍스트 요청에 응답하는지만 확인합니다. 실제 이미지 번역 가능 여부와는 다를 수 있습니다.
+              Paddle OCR 준비 상태와 선택한 번역 엔진이 실제로 뜨는지 함께 확인합니다.
             </p>
-            {jobActive ? <p className="muted-line">번역 작업 중에는 모델 테스트를 실행할 수 없습니다.</p> : null}
+            {jobActive ? <p className="muted-line">번역 작업 중에는 설치/작동 확인을 실행할 수 없습니다.</p> : null}
             {testState.status !== "idle" ? (
               <div className={`settings-test-result ${testState.status}`}>
                 <strong>{testState.message}</strong>
@@ -666,7 +676,7 @@ export function SettingsModal({
               </div>
             ) : null}
             {testLogLines.length > 0 ? (
-              <div className="settings-test-log" ref={testLogRef} aria-label="모델 테스트 로그">
+              <div className="settings-test-log" ref={testLogRef} aria-label="설치/작동 확인 로그">
                 {testLogLines.map((line, index) => (
                   <code key={`${index}-${line}`}>{line}</code>
                 ))}

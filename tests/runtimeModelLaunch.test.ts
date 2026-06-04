@@ -2,6 +2,18 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { tmpdir } from "node:os";
+import {
+  DEFAULT_GEMMA_DRAFT_MODEL_FILE,
+  DEFAULT_GEMMA_DRAFT_MODEL_REPO,
+  DEFAULT_GEMMA_MMPROJ_FILE,
+  DEFAULT_GEMMA_MMPROJ_REPO,
+  DEFAULT_GEMMA_MODEL_FILE,
+  DEFAULT_GEMMA_MODEL_REPO,
+  GEMMA_26B_MMPROJ_FILE,
+  GEMMA_26B_MMPROJ_REPO,
+  GEMMA_26B_MODEL_FILE_IQ3_S,
+  GEMMA_26B_MODEL_REPO
+} from "../src/shared/modelPresets";
 
 const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") as {
   buildLaunchArgs: (options: { [key: string]: unknown }) => string[];
@@ -62,6 +74,12 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   resolveOcrInstallBatchProgressRanges: (batches: string[][], start: number, end: number) => Array<{ start: number; end: number }>;
   resolveManagedHfFilePath: (options: { [key: string]: unknown }, repo: string, file: string) => string | null;
 };
+const runtimeDefaults = require("../src/main/runtime/simple-page-defaults.cjs") as {
+  DEFAULT_MODEL_HF: string;
+  DEFAULT_HF_FILE: string;
+  DEFAULT_MMPROJ_HF: string;
+  DEFAULT_MMPROJ_FILE: string;
+};
 const llamaRuntimeResolver = require("../src/main/runtime/resolve-llama-runtime.cjs") as {
   bundledServerCandidates: (toolsDir: string) => string[];
   resolveBundledServerPath: (toolsDir: string) => string;
@@ -98,16 +116,16 @@ const {
 const { bundledServerCandidates, resolveBundledServerPath } = llamaRuntimeResolver;
 
 const tempDirs: string[] = [];
-const DEFAULT_31B_REPO = "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
-const DEFAULT_31B_FILE = "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf";
-const DEFAULT_MMPROJ_REPO = "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF";
-const DEFAULT_MMPROJ_FILE = "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
-const DEFAULT_DRAFT_REPO = "Anbeeld/gemma-4-31B-it-DFlash-GGUF";
-const DEFAULT_DRAFT_FILE = "gemma4-31b-it-dflash-IQ4_XS.gguf";
-const DEFAULT_26B_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF";
-const DEFAULT_26B_FILE = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf";
-const DEFAULT_26B_MMPROJ_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF";
-const DEFAULT_26B_MMPROJ_FILE = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf";
+const DEFAULT_31B_REPO = DEFAULT_GEMMA_MODEL_REPO;
+const DEFAULT_31B_FILE = DEFAULT_GEMMA_MODEL_FILE;
+const DEFAULT_MMPROJ_REPO = DEFAULT_GEMMA_MMPROJ_REPO;
+const DEFAULT_MMPROJ_FILE = DEFAULT_GEMMA_MMPROJ_FILE;
+const DEFAULT_DRAFT_REPO = DEFAULT_GEMMA_DRAFT_MODEL_REPO;
+const DEFAULT_DRAFT_FILE = DEFAULT_GEMMA_DRAFT_MODEL_FILE;
+const DEFAULT_26B_REPO = GEMMA_26B_MODEL_REPO;
+const DEFAULT_26B_FILE = GEMMA_26B_MODEL_FILE_IQ3_S;
+const DEFAULT_26B_MMPROJ_REPO = GEMMA_26B_MMPROJ_REPO;
+const DEFAULT_26B_MMPROJ_FILE = GEMMA_26B_MMPROJ_FILE;
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
@@ -152,6 +170,13 @@ function writeCachedAssets({
 }
 
 describe("runtime model launch helpers", () => {
+  it("keeps CJS runtime model defaults aligned with shared model presets", () => {
+    expect(runtimeDefaults.DEFAULT_MODEL_HF).toBe(DEFAULT_31B_REPO);
+    expect(runtimeDefaults.DEFAULT_HF_FILE).toBe(DEFAULT_31B_FILE);
+    expect(runtimeDefaults.DEFAULT_MMPROJ_HF).toBe(DEFAULT_MMPROJ_REPO);
+    expect(runtimeDefaults.DEFAULT_MMPROJ_FILE).toBe(DEFAULT_MMPROJ_FILE);
+  });
+
   it("resolves the preferred bundled beellama llama-server when present", () => {
     const toolsDir = createTempDir("llama-tools-");
     const runtimeDir = join(toolsDir, "beellama-v0.2.0-cuda12.4");
@@ -504,10 +529,11 @@ describe("runtime model launch helpers", () => {
 
   it("keeps the CUDA 13 llama-server implementation DLL in the managed runtime", () => {
     const runtimeSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-translate.cjs"), "utf8");
-    const mainlineCuda13Profile = runtimeSource.match(/const MAINLINE_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
-    const beellamaCuda13Profile = runtimeSource.match(/const BEELLAMA_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
+    const runtimeProfilesSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-llama-runtimes.cjs"), "utf8");
+    const mainlineCuda13Profile = runtimeProfilesSource.match(/const MAINLINE_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
+    const beellamaCuda13Profile = runtimeProfilesSource.match(/const BEELLAMA_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
 
-    expect(mainlineCuda13Profile).toContain('"llama-b9490-cuda13.3"');
+    expect(mainlineCuda13Profile).toContain('"llama-b9360-cuda13.1"');
     expect(mainlineCuda13Profile).toContain('"llama-server-impl.dll"');
     expect(beellamaCuda13Profile).not.toContain('"llama-server-impl.dll"');
     expect(runtimeSource).toContain("function shouldExtractLlamaRuntimeFile(fileName)");

@@ -18,10 +18,6 @@ export function getLogPath(): string {
   return configured || getAppPaths().logFile;
 }
 
-export function logDebug(message: string, detail?: unknown): void {
-  writeLog("debug", message, detail);
-}
-
 export function logInfo(message: string, detail?: unknown): void {
   writeLog("info", message, detail);
 }

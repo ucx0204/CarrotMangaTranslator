@@ -6,18 +6,11 @@ import type {
   InpaintingMaskStroke,
   JobState,
   LibraryIndex,
-  MangaPage,
   TranslationBlock,
-  WorkShareExportRequest,
   WorkShareImportPreview
 } from "../../shared/types";
 import {
   applyEditableBlockBbox,
-  clampBbox,
-  normalizeBlockType,
-  normalizeRenderDirection,
-  normalizeRotationDeg,
-  offsetBlockBboxes,
   resolveEditableBlockBbox
 } from "../../shared/geometry";
 import { isUsableRegionBbox } from "../../shared/region";
@@ -25,30 +18,31 @@ import { AppModals, type RenameTarget } from "./components/AppModals";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppRightRail } from "./components/AppRightRail";
 import { AppWorkspace } from "./components/AppWorkspace";
-import type { ImportModalSubmit } from "./components/ImportModal";
-import { type BlockCounts, type InpaintingTool } from "./components/InpaintingControlPanel";
+import { type InpaintingTool } from "./components/InpaintingControlPanel";
 import { InpaintingProvider, type InpaintingContextValue } from "./inpainting/InpaintingContext";
 import { FontsProvider } from "./fonts/FontsContext";
-import type { ShareImportModalSubmit } from "./components/ShareImportModal";
-import type { TranslateSourceMode } from "./components/TranslateSourceModal";
+import { useBlockEditingActions } from "./hooks/useBlockEditingActions";
 import { useConfirmDialog } from "./hooks/useConfirmDialog";
 import { useChapterPersistence } from "./hooks/useChapterPersistence";
+import { useImportShareActions } from "./hooks/useImportShareActions";
+import { useInpaintingActions } from "./hooks/useInpaintingActions";
 import { useJobEvents } from "./hooks/useJobEvents";
 import { usePageImageDataUrls } from "./hooks/usePageImageDataUrls";
 import { useSettingsDialog } from "./hooks/useSettingsDialog";
 import { useStageSize } from "./hooks/useStageSize";
 import { useStatusLog } from "./hooks/useStatusLog";
+import { useTranslationActions } from "./hooks/useTranslationActions";
 import {
   formatErrorMessage,
-  isEditableTarget,
   regionSelectionToBbox,
   reorderByTarget,
   reorderRecordsByIdOrder,
   type RegionSelectionState
 } from "./lib/appHelpers";
-import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyPages, resolveSelectionAfterChapterSync } from "./lib/chapterSync";
-import { resolveProgressSnapshot, summarizeWarnings, type ProgressSnapshot } from "./lib/jobProgress";
-import { resolveAdjacentPageId, resolveKeyboardPageNavigation, resolveWheelPageNavigation } from "./lib/pageNavigation";
+import { mergeLiveChapterPreservingDirtyPages, resolveSelectionAfterChapterSync } from "./lib/chapterSync";
+import { resolveProgressSnapshot } from "./lib/jobProgress";
+import { countChapterBlocks, countInpaintedPages } from "./lib/inpaintingStats";
+import { usePageNavigationHandlers } from "./hooks/usePageNavigationHandlers";
 import "./styles.css";
 
 const EMPTY_JOB: JobState = {
@@ -59,6 +53,10 @@ const EMPTY_JOB: JobState = {
 };
 
 const INPAINTING_GUIDE_HIDDEN_KEY = "mgt.inpaintingGuide.hidden";
+
+function isSameStringOrder(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
 
 type DragMode = "move" | "resize";
 
@@ -81,6 +79,28 @@ type RetouchHistoryEntry = {
   beforePath?: string;
   afterPath?: string;
 };
+
+function collectRetainedRetouchArtifactPaths(...sources: Array<RetouchHistoryEntry[] | Array<string | undefined> | undefined>): string[] {
+  const retainedPaths = new Set<string>();
+  for (const source of sources) {
+    if (!source) {
+      continue;
+    }
+    for (const item of source) {
+      if (typeof item === "string") {
+        retainedPaths.add(item);
+      } else if (item) {
+        if (item.beforePath) {
+          retainedPaths.add(item.beforePath);
+        }
+        if (item.afterPath) {
+          retainedPaths.add(item.afterPath);
+        }
+      }
+    }
+  }
+  return Array.from(retainedPaths);
+}
 
 export default function App(): React.JSX.Element {
   const [library, setLibrary] = useState<LibraryIndex>({ workOrder: [], works: [] });
@@ -122,7 +142,6 @@ export default function App(): React.JSX.Element {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
-  const lastWheelNavigationAtRef = useRef(0);
   const currentChapterRef = useRef<ChapterSnapshot | null>(null);
   const selectedPageIdRef = useRef<string | null>(null);
   const selectedBlockIdRef = useRef<string | null>(null);
@@ -171,10 +190,7 @@ export default function App(): React.JSX.Element {
   const showProgressBar = jobState.status !== "idle" && !!progressSnapshot;
   const regionSelectionRect = useMemo(() => (regionSelection ? regionSelectionToBbox(regionSelection) : null), [regionSelection]);
   const blockCounts = useMemo(() => countChapterBlocks(currentChapter, selectedPage?.id ?? null), [currentChapter, selectedPage?.id]);
-  const inpaintedPageCount = useMemo(
-    () => currentChapter?.pages.filter((page) => Boolean(page.inpaintedImagePath)).length ?? 0,
-    [currentChapter?.pages]
-  );
+  const inpaintedPageCount = useMemo(() => countInpaintedPages(currentChapter), [currentChapter]);
   const inpaintingToolActive = inpaintingMode && inpaintingTool !== "none";
   const retouchCursor =
     inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask"
@@ -323,414 +339,66 @@ export default function App(): React.JSX.Element {
     }
   }, [clearDirtyTracking, pushStatus]);
 
-  const selectPageForReading = useCallback((pageId: string | null) => {
-    if (!pageId) {
-      return;
-    }
-    selectedPageIdRef.current = pageId;
-    selectedBlockIdRef.current = null;
-    setSelectedPageId(pageId);
-    setSelectedBlockId(null);
-  }, []);
-
-  const selectAdjacentPageForReading = useCallback(
-    (direction: "previous" | "next") => {
-      const chapter = currentChapterRef.current;
-      const pageIds = chapter?.pages.map((page) => page.id) ?? [];
-      const nextPageId = resolveAdjacentPageId(pageIds, selectedPageIdRef.current, direction);
-      if (!nextPageId) {
-        return false;
-      }
-
-      selectPageForReading(nextPageId);
-      return true;
-    },
-    [selectPageForReading]
-  );
-
-  const openImportPreview = useCallback(async (mode: "images" | "folder" | "zip" | "zip-folder") => {
-    try {
-      const preview =
-        mode === "images"
-          ? await window.mangaApi.previewImagesImport()
-          : mode === "folder"
-            ? await window.mangaApi.previewFolderImport()
-            : mode === "zip"
-              ? await window.mangaApi.previewZipImport()
-              : await window.mangaApi.previewZipFolderImport();
-      if (!preview) {
-        return;
-      }
-      setImportPreview(preview);
-    } catch (error) {
-      console.error(error);
-      pushStatus(formatErrorMessage(error, "번역할 원본을 읽지 못했습니다."));
-    }
-  }, [pushStatus]);
-
-  const selectTranslateSource = useCallback(
-    async (mode: TranslateSourceMode) => {
-      setTranslationSourceOpen(false);
-      await openImportPreview(mode);
-    },
-    [openImportPreview]
-  );
-
-  const submitShareExport = useCallback(
-    async (request: WorkShareExportRequest) => {
-      setShareExportBusy(true);
-      try {
-        if (dirty) {
-          await saveNow();
-        }
-        const result = await window.mangaApi.exportWorkShare(request);
-        if (result) {
-          pushStatus(`${result.workTitle} 공유 파일을 저장했습니다. ${result.chapterCount}개 화, ${result.pageCount}페이지`);
-          setShareExportOpen(false);
-        }
-      } catch (error) {
-        console.error(error);
-        pushStatus(formatErrorMessage(error, "공유 파일을 저장하지 못했습니다."));
-      } finally {
-        setShareExportBusy(false);
-      }
-    },
-    [dirty, pushStatus, saveNow]
-  );
-
-  const openShareImportPreview = useCallback(async () => {
-    try {
-      if (dirty) {
-        await saveNow();
-      }
-      const preview = await window.mangaApi.previewWorkShareImport();
-      if (preview) {
-        setShareImportPreview(preview);
-      }
-    } catch (error) {
-      console.error(error);
-      pushStatus(formatErrorMessage(error, "공유 파일을 읽지 못했습니다."));
-    }
-  }, [dirty, pushStatus, saveNow]);
-
-  const submitShareImport = useCallback(
-    async (payload: ShareImportModalSubmit) => {
-      if (!shareImportPreview) {
-        return;
-      }
-
-      if (payload.remainingPackageChapters.length > 0) {
-        const confirmed = await askConfirm(
-          "가져오지 않는 화가 있습니다",
-          "오른쪽에 남은 공유 화는 적용되지 않습니다.",
-          payload.remainingPackageChapters.map((chapter) => chapter.title).join("\n")
-        );
-        if (!confirmed) {
-          return;
-        }
-      }
-
-      if (payload.deletedExistingChapters.length > 0) {
-        const confirmed = await askConfirm(
-          "기존 화 삭제",
-          "왼쪽 최종 목록에서 빠진 기존 화가 보관함에서 삭제됩니다.",
-          payload.deletedExistingChapters.map((chapter) => chapter.title).join("\n")
-        );
-        if (!confirmed) {
-          return;
-        }
-      }
-
-      setShareImportBusy(true);
-      try {
-        if (dirty) {
-          await saveNow();
-        }
-        const result = await window.mangaApi.importWorkShare({
-          previewId: shareImportPreview.previewId,
-          target: payload.target,
-          entries: payload.entries
-        });
-        await refreshLibrary();
-        applyChapter(result.openedChapter, `${result.chapterIds.length}개 화를 보관함에 적용했습니다.`);
-        setShareImportPreview(null);
-      } catch (error) {
-        console.error(error);
-        pushStatus(formatErrorMessage(error, "공유 파일을 가져오지 못했습니다."));
-      } finally {
-        setShareImportBusy(false);
-      }
-    },
-    [applyChapter, askConfirm, dirty, pushStatus, refreshLibrary, saveNow, shareImportPreview]
-  );
-
-  const runAnalysis = useCallback(
-    async (runMode: "pending" | "all" | "single-page", pageId?: string) => {
-      if (!currentChapter || jobActive) {
-        return;
-      }
-
-      await saveNow();
-      clearStatusLines();
-      setJobState({
-        id: "pending",
-        kind: "gemma-analysis",
-        status: "starting",
-        progressText: "모델 준비 중",
-        phase: "booting"
-      });
-      setCurrentChapter((chapter) => (chapter ? markChapterPagesRunning(chapter, runMode, pageId) : chapter));
-
-      const result = await window.mangaApi.startAnalysis({ chapterId: currentChapter.id, runMode, pageId });
-      if (result.chapter) {
-        mergeLiveChapter(result.chapter);
-      }
-      await refreshLibrary();
-
-      if (result.status === "completed") {
-        const warningSummary = summarizeWarnings(result.warnings ?? []);
-        if (warningSummary) {
-          pushStatus(warningSummary);
-        }
-        return;
-      }
-
-      if (result.status === "failed" && result.error) {
-        pushStatus(result.error);
-      }
-    },
-    [clearStatusLines, currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow]
-  );
-
-  const enterInpaintingMode = useCallback(async () => {
-    if (!currentChapter || jobActive) {
-      return;
-    }
-    if (dirty) {
-      await saveNow();
-    }
-    setInpaintingMode(true);
-    setInpaintingTool("none");
-    setSelectedBlockId(null);
-    setRegionSelection(null);
-    setShowBlockChrome(true);
-    setShowTextBlocks(true);
-    if (!hideInpaintingGuide) {
-      setInpaintingGuideOpen(true);
-    }
-    pushStatus("인페인팅 모드로 전환했습니다. 무늬 배경 지우기부터 시작하세요.");
-  }, [currentChapter, dirty, hideInpaintingGuide, jobActive, pushStatus, saveNow]);
-
-  const exitInpaintingMode = useCallback(() => {
-    if (jobActive) {
-      return;
-    }
-    setInpaintingMode(false);
-    setInpaintingTool("none");
-    setPeekOriginal(false);
-    setInpaintingGuideOpen(false);
-    setPatternMaskStrokesByPage({});
-    setSelectedBlockId(null);
-    setRegionSelection(null);
-    void window.mangaApi.disposeInpaintingEngine().catch((error) => console.error(error));
-    pushStatus("인페인팅 모드를 종료했습니다.");
-  }, [jobActive, pushStatus]);
-
-  const runInpainting = useCallback(
-    async (scope: "page" | "chapter") => {
-      if (!currentChapter || jobActive) {
-        return;
-      }
-      if (scope === "page" && !selectedPage) {
-        return;
-      }
-      if (dirty) {
-        await saveNow();
-      }
-      const targetLabel = "무늬 배경";
-      const scopeLabel = scope === "page" ? "현재 페이지" : "아직 지우지 않은 페이지";
-      const confirmed = await askConfirm(
-        `${targetLabel} 원문 지우기`,
-        `${scopeLabel}의 ${targetLabel} 블록을 지웁니다.`,
-        "말풍선, 톤, 배경 그림, 효과음 위 글자까지 모두 Flux 인페인팅으로 지웁니다. 원본 이미지는 유지하고 결과 이미지는 별도로 저장합니다."
-      );
-      if (!confirmed) {
-        return;
-      }
-
-      setJobState({
-        id: "pending-inpainting",
-        kind: "inpainting",
-        status: "starting",
-        progressText: `${targetLabel} 지우기 준비 중`,
-        phase: "inpainting_preparing"
-      });
-
-      let result;
-      try {
-        result = await window.mangaApi.startInpainting(
-          scope === "page"
-            ? {
-                chapterId: currentChapter.id,
-                mode: "page-pattern",
-                pageId: selectedPage!.id
-              }
-            : {
-                chapterId: currentChapter.id,
-                mode: "chapter-pattern-pending"
-              }
-        );
-      } catch (error) {
-        console.error(error);
-        const message = formatErrorMessage(error, `${targetLabel} 지우기를 시작하지 못했습니다.`);
-        setJobState({
-          id: "failed-inpainting",
-          kind: "inpainting",
-          status: "failed",
-          progressText: "작업 실패",
-          detail: message
-        });
-        pushStatus(message);
-        return;
-      }
-      if (result.chapter) {
-        clearPageImageCache();
-        mergeLiveChapter(result.chapter);
-      }
-      await refreshLibrary();
-
-      if (result.status === "completed") {
-        pushStatus(`${targetLabel} 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}블록`);
-      } else if (result.status === "failed" && result.error) {
-        pushStatus(result.error);
-      }
-    },
-    [askConfirm, clearPageImageCache, currentChapter, dirty, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage]
-  );
-
-  const runDrawnPatternInpainting = useCallback(async () => {
-    if (!currentChapter || !selectedPage || jobActive || patternMaskStrokes.length === 0) {
-      return;
-    }
-    if (dirty) {
-      await saveNow();
-    }
-    const confirmed = await askConfirm(
-      "그린 영역 지우기",
-      "주황색으로 그린 마스크 영역만 Flux로 지웁니다.",
-      "글자 위를 넉넉히 문질러 둔 영역을 crop으로 잘라 무늬 배경을 복원합니다. 결과는 별도 이미지로 저장되며 원본 페이지는 유지됩니다."
-    );
-    if (!confirmed) {
-      return;
-    }
-    setInpaintingTool("none");
-    setJobState({
-      id: "pending-inpainting",
-      kind: "inpainting",
-      status: "starting",
-      progressText: "그린 영역 지우기 준비 중",
-      phase: "inpainting_preparing",
-      progressCurrent: 0,
-      progressTotal: 1
+  const { openImportPreview, openShareImportPreview, selectTranslateSource, submitImport, submitShareExport, submitShareImport } =
+    useImportShareActions({
+      applyChapter,
+      askConfirm,
+      dirty,
+      importPreview,
+      mergeLiveChapter,
+      openChapter,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      setImportBusy,
+      setImportPreview,
+      setShareExportBusy,
+      setShareExportOpen,
+      setShareImportBusy,
+      setShareImportPreview,
+      setTranslationSourceOpen,
+      shareImportPreview
     });
-    let result;
-    try {
-      result = await window.mangaApi.startInpainting({
-        chapterId: currentChapter.id,
-        mode: "page-pattern-drawn",
-        pageId: selectedPage.id,
-        strokes: patternMaskStrokes,
-        featherPx: 8
-      });
-    } catch (error) {
-      console.error(error);
-      const message = formatErrorMessage(error, "그린 영역 지우기를 시작하지 못했습니다.");
-      setJobState({
-        id: "failed-inpainting",
-        kind: "inpainting",
-        status: "failed",
-        progressText: "작업 실패",
-        detail: message
-      });
-      pushStatus(message);
-      return;
-    }
-    if (result.chapter) {
-      clearPageImageCache();
-      mergeLiveChapter(result.chapter);
-    }
-    await refreshLibrary();
-    if (result.status === "completed") {
-      setPatternMaskStrokesByPage((current) => {
-        const next = { ...current };
-        delete next[selectedPage.id];
-        return next;
-      });
-      pushStatus(`그린 영역 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}영역`);
-    } else if (result.status === "failed" && result.error) {
-      pushStatus(result.error);
-    }
-  }, [
-    askConfirm,
+
+  const { runAnalysis, translateSelectedRegion } = useTranslationActions({
+    clearStatusLines,
     currentChapter,
-    clearPageImageCache,
-    dirty,
     jobActive,
     mergeLiveChapter,
-    patternMaskStrokes,
     pushStatus,
     refreshLibrary,
     saveNow,
-    selectedPage
-  ]);
+    selectedPage,
+    setCurrentChapter,
+    setJobState,
+    setSelectedBlockId
+  });
 
-  const exportInpaintingResults = useCallback(async (scope: "page" | "chapter") => {
-    if (!currentChapter || jobActive) {
-      return;
-    }
-    if (scope === "page" && !selectedPage) {
-      pushStatus("출력할 페이지가 선택되어 있지 않습니다.");
-      return;
-    }
-    if (dirty) {
-      await saveNow();
-    }
-    const targetTotal = scope === "page" ? 1 : currentChapter.pages.length;
-    try {
-      setJobState({
-        id: "pending-export",
-        kind: "inpainting",
-        status: "starting",
-        progressText: "PNG 출력 준비 중",
-        phase: "finalizing",
-        progressCurrent: 0,
-        progressTotal: targetTotal,
-        pageTotal: targetTotal,
-        detail: scope === "page" ? selectedPage?.name : `${currentChapter.pages.length}페이지`
-      });
-      const request =
-        scope === "page"
-          ? { chapterId: currentChapter.id, scope, pageId: selectedPage!.id }
-          : { chapterId: currentChapter.id, scope };
-      const result = await window.mangaApi.exportInpaintingResults(request);
-      pushStatus(
-        result.openError
-          ? `PNG 출력은 완료됐지만 폴더를 열지 못했습니다: ${result.outputDir}`
-          : `인페인팅 결과를 PNG로 출력했습니다: ${result.pageCount}페이지`
-      );
-    } catch (error) {
-      console.error(error);
-      const message = formatErrorMessage(error, "인페인팅 결과를 출력하지 못했습니다.");
-      setJobState({
-        id: "failed-export",
-        kind: "inpainting",
-        status: "failed",
-        progressText: "PNG 출력 실패",
-        detail: message
-      });
-      pushStatus(message);
-    }
-  }, [currentChapter, dirty, jobActive, pushStatus, saveNow, selectedPage]);
+  const { enterInpaintingMode, exitInpaintingMode, exportInpaintingResults, runDrawnPatternInpainting, runInpainting } =
+    useInpaintingActions({
+      askConfirm,
+      clearPageImageCache,
+      currentChapter,
+      dirty,
+      hideInpaintingGuide,
+      jobActive,
+      mergeLiveChapter,
+      patternMaskStrokes,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      selectedPage,
+      setInpaintingGuideOpen,
+      setInpaintingMode,
+      setInpaintingTool,
+      setJobState,
+      setPatternMaskStrokesByPage,
+      setPeekOriginal,
+      setRegionSelection,
+      setSelectedBlockId,
+      setShowBlockChrome,
+      setShowTextBlocks
+    });
 
   const startRegionTranslationSelection = useCallback(() => {
     if (!selectedPage || !selectedPageImageDataUrl || jobActive) {
@@ -752,96 +420,6 @@ export default function App(): React.JSX.Element {
     });
     pushStatus("번역할 영역을 드래그하세요.");
   }, [jobActive, pushStatus, regionSelection?.active, selectedPage, selectedPageImageDataUrl]);
-
-  const translateSelectedRegion = useCallback(
-    async (bbox: BBox) => {
-      if (!currentChapter || !selectedPage || jobActive) {
-        return;
-      }
-      if (!isUsableRegionBbox(bbox, 10)) {
-        pushStatus("선택 영역이 너무 작습니다.");
-        return;
-      }
-
-      await saveNow();
-      clearStatusLines();
-      setJobState({
-        id: "pending",
-        kind: "gemma-analysis",
-        status: "starting",
-        progressText: "선택 영역 번역 준비 중",
-        phase: "booting",
-        progressCurrent: 0,
-        progressTotal: 1,
-        pageIndex: 1,
-        pageTotal: 1
-      });
-
-      const result = await window.mangaApi.translateRegion({
-        chapterId: currentChapter.id,
-        pageId: selectedPage.id,
-        bbox
-      });
-      if (result.chapter) {
-        mergeLiveChapter(result.chapter);
-      }
-      await refreshLibrary();
-
-      if (result.status === "completed") {
-        if (result.blockIds?.[0]) {
-          setSelectedBlockId(result.blockIds[0]);
-        }
-        const warningSummary = summarizeWarnings(result.warnings ?? []);
-        pushStatus(warningSummary || `선택 영역에서 ${result.blockIds?.length ?? 0}개 블록을 만들었습니다.`);
-        return;
-      }
-
-      if (result.status === "failed" && result.error) {
-        pushStatus(result.error);
-      }
-    },
-    [clearStatusLines, currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage]
-  );
-
-  const submitImport = useCallback(
-    async ({ target, selections }: ImportModalSubmit) => {
-      if (!importPreview) {
-        return;
-      }
-
-      setImportBusy(true);
-      try {
-        const result = await window.mangaApi.createImport({
-          previewId: importPreview.previewId,
-          target,
-          selections
-        });
-        await refreshLibrary();
-        applyChapter(result.openedChapter, `${result.chapterIds.length}개 화를 보관함에 추가했습니다.`);
-        setImportPreview(null);
-
-        if (importPreview.mode === "batch") {
-          for (const chapterId of result.chapterIds) {
-            await openChapter(chapterId);
-            const runResult = await window.mangaApi.startAnalysis({ chapterId, runMode: "pending" });
-            if (runResult.chapter) {
-              mergeLiveChapter(runResult.chapter);
-            }
-            await refreshLibrary();
-            if (runResult.status !== "completed") {
-              break;
-            }
-          }
-        }
-      } catch (error) {
-        console.error(error);
-        pushStatus(formatErrorMessage(error, "가져오기를 적용하지 못했습니다."));
-      } finally {
-        setImportBusy(false);
-      }
-    },
-    [applyChapter, importPreview, mergeLiveChapter, openChapter, pushStatus, refreshLibrary]
-  );
 
   const updateCurrentChapter = useCallback((pageId: string, updater: (chapter: ChapterSnapshot) => ChapterSnapshot) => {
     setCurrentChapter((current) => {
@@ -904,134 +482,20 @@ export default function App(): React.JSX.Element {
     [askConfirm, currentChapter, runAnalysis]
   );
 
-  const updateSelectedBlock = (patch: Partial<TranslationBlock>) => {
-    if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
-      return;
-    }
-
-    updateCurrentChapter(selectedPage.id, (current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id !== selectedPage.id
-          ? page
-          : {
-              ...page,
-              updatedAt: new Date().toISOString(),
-              blocks: page.blocks.map((block) => {
-                if (block.id !== selectedBlock.id) {
-                  return block;
-                }
-
-                const nextType = normalizeBlockType(patch.type ?? block.type);
-                const nextRenderDirection = normalizeRenderDirection(patch.renderDirection ?? block.renderDirection, block.renderDirection);
-                return {
-                  ...block,
-                  ...patch,
-                  type: nextType,
-                  renderDirection: nextRenderDirection,
-                  rotationDeg: normalizeRotationDeg(patch.rotationDeg ?? block.rotationDeg ?? 0),
-                  backgroundColor: patch.backgroundColor ?? block.backgroundColor,
-                  opacity: patch.opacity ?? block.opacity,
-                  bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
-                  bboxSpace: patch.bbox ? "normalized_1000" : block.bboxSpace,
-                  renderBbox: patch.renderBbox ? clampBbox(patch.renderBbox) : block.renderBbox,
-                  renderBboxSpace: patch.renderBbox ? "normalized_1000" : block.renderBboxSpace
-                };
-              })
-            }
-      )
-    }));
-  };
-
-  const toggleBlockInpaintExcluded = (blockId: string) => {
-    if (!selectedPage || jobActive) {
-      return;
-    }
-    updateCurrentChapter(selectedPage.id, (current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id !== selectedPage.id
-          ? page
-          : {
-              ...page,
-              updatedAt: new Date().toISOString(),
-              blocks: page.blocks.map((block) =>
-                block.id === blockId ? { ...block, inpaintExcluded: !block.inpaintExcluded } : block
-              )
-            }
-      )
-    }));
-  };
-
-  const applyFontToScope = (scope: "page" | "chapter") => {
-    if (!currentChapter || !selectedBlock || selectedPageEditLocked) {
-      return;
-    }
-    const fontFamily = selectedBlock.fontFamily;
-    const targetPageIds = scope === "page" ? (selectedPage ? [selectedPage.id] : []) : currentChapter.pages.map((page) => page.id);
-    if (targetPageIds.length === 0) {
-      return;
-    }
-    const targetSet = new Set(targetPageIds);
-    const stamp = new Date().toISOString();
-    setCurrentChapter((current) => {
-      if (!current) {
-        return current;
-      }
-      const next = {
-        ...current,
-        pages: current.pages.map((page) =>
-          targetSet.has(page.id) ? { ...page, updatedAt: stamp, blocks: page.blocks.map((block) => ({ ...block, fontFamily })) } : page
-        )
-      };
-      currentChapterRef.current = next;
-      return next;
+  const { applyFontToScope, deleteSelectedBlock, duplicateSelectedBlock, toggleBlockInpaintExcluded, updateSelectedBlock } =
+    useBlockEditingActions({
+      currentChapter,
+      currentChapterRef,
+      jobActive,
+      markDirty,
+      pushStatus,
+      selectedBlock,
+      selectedPage,
+      selectedPageEditLocked,
+      setCurrentChapter,
+      setSelectedBlockId,
+      updateCurrentChapter
     });
-    targetPageIds.forEach((id) => markDirty(id));
-    pushStatus(scope === "page" ? "이 페이지의 모든 블록에 폰트를 적용했습니다." : "이 화 전체 블록에 폰트를 적용했습니다.");
-  };
-
-  const deleteSelectedBlock = () => {
-    if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
-      return;
-    }
-    updateCurrentChapter(selectedPage.id, (current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id === selectedPage.id
-          ? {
-              ...page,
-              updatedAt: new Date().toISOString(),
-              blocks: page.blocks.filter((block) => block.id !== selectedBlock.id)
-            }
-          : page
-      )
-    }));
-    setSelectedBlockId(null);
-  };
-
-  const duplicateSelectedBlock = () => {
-    if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
-      return;
-    }
-    const copy = {
-      ...offsetBlockBboxes(selectedBlock, 16, 16, { width: selectedPage.width, height: selectedPage.height }),
-      id: `${selectedBlock.id}-copy-${Date.now()}`
-    };
-    updateCurrentChapter(selectedPage.id, (current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id === selectedPage.id
-          ? {
-              ...page,
-              updatedAt: new Date().toISOString(),
-              blocks: [...page.blocks, copy]
-            }
-          : page
-      )
-    }));
-    setSelectedBlockId(copy.id);
-  };
 
   const getNormalizedImagePoint = useCallback((event: React.PointerEvent): { x: number; y: number } | null => {
     const stage = stageRef.current;
@@ -1107,7 +571,7 @@ export default function App(): React.JSX.Element {
   );
 
   const saveChapterWithInpaintPath = useCallback(
-    async (pageId: string, inpaintedImagePath?: string) => {
+    async (pageId: string, inpaintedImagePath?: string, retainedInpaintedArtifactPaths: string[] = []) => {
       const chapter = currentChapterRef.current;
       if (!chapter) {
         return null;
@@ -1130,7 +594,8 @@ export default function App(): React.JSX.Element {
       const result = await window.mangaApi.setPageInpaintingResult({
         chapterId: chapter.id,
         pageId,
-        inpaintedImagePath: inpaintedImagePath ?? null
+        inpaintedImagePath: inpaintedImagePath ?? null,
+        retainedInpaintedArtifactPaths
       });
       mergeLiveChapter(result.chapter);
       return result.chapter;
@@ -1146,6 +611,11 @@ export default function App(): React.JSX.Element {
       retouchBusyRef.current = true;
       setRetouchBusy(true);
       const beforePath = selectedPage.inpaintedImagePath;
+      const retainedInpaintedArtifactPaths = collectRetainedRetouchArtifactPaths(
+        retouchUndoStackRef.current,
+        retouchRedoStackRef.current,
+        [beforePath]
+      );
       try {
         const result = await window.mangaApi.applyInpaintingRetouch({
           chapterId: currentChapter.id,
@@ -1153,7 +623,8 @@ export default function App(): React.JSX.Element {
           mode: tool === "brush" ? "paint" : "restore",
           points,
           radiusPx: inpaintingBrushRadius,
-          color: inpaintingPaintColor
+          color: inpaintingPaintColor,
+          retainedInpaintedArtifactPaths
         });
         const afterPage = result.chapter.pages.find((page) => page.id === selectedPage.id);
         clearPageImageCache();
@@ -1182,8 +653,13 @@ export default function App(): React.JSX.Element {
     retouchBusyRef.current = true;
     setRetouchBusy(true);
     setRetouchUndoStack((stack) => stack.slice(0, -1));
+    const retainedInpaintedArtifactPaths = collectRetainedRetouchArtifactPaths(
+      retouchUndoStackRef.current,
+      retouchRedoStackRef.current,
+      [entry.beforePath, entry.afterPath]
+    );
     try {
-      await saveChapterWithInpaintPath(entry.pageId, entry.beforePath);
+      await saveChapterWithInpaintPath(entry.pageId, entry.beforePath, retainedInpaintedArtifactPaths);
       setRetouchRedoStack((stack) => [...stack, entry].slice(-60));
       pushStatus("리터치를 되돌렸습니다.");
     } catch (error) {
@@ -1204,8 +680,13 @@ export default function App(): React.JSX.Element {
     retouchBusyRef.current = true;
     setRetouchBusy(true);
     setRetouchRedoStack((stack) => stack.slice(0, -1));
+    const retainedInpaintedArtifactPaths = collectRetainedRetouchArtifactPaths(
+      retouchUndoStackRef.current,
+      retouchRedoStackRef.current,
+      [entry.beforePath, entry.afterPath]
+    );
     try {
-      await saveChapterWithInpaintPath(entry.pageId, entry.afterPath);
+      await saveChapterWithInpaintPath(entry.pageId, entry.afterPath, retainedInpaintedArtifactPaths);
       setRetouchUndoStack((stack) => [...stack, entry].slice(-60));
       pushStatus("리터치를 다시 적용했습니다.");
     } catch (error) {
@@ -1217,6 +698,19 @@ export default function App(): React.JSX.Element {
       setRetouchBusy(false);
     }
   }, [jobActive, pushStatus, saveChapterWithInpaintPath]);
+
+  const { onWorkspaceWheel, selectPageForReading } = usePageNavigationHandlers({
+    currentChapterRef,
+    selectedPageIdRef,
+    selectedBlockIdRef,
+    workspacePanelRef,
+    modalOpen,
+    inpaintingMode,
+    setSelectedPageId,
+    setSelectedBlockId,
+    undoRetouch,
+    redoRetouch
+  });
 
   const revertInpainting = useCallback(
     async (scope: "page" | "chapter") => {
@@ -1437,83 +931,6 @@ export default function App(): React.JSX.Element {
     }
   };
 
-  React.useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const pageIds = currentChapterRef.current?.pages.map((page) => page.id) ?? [];
-      const activeElement = typeof document !== "undefined" ? document.activeElement : null;
-      const editableTarget = isEditableTarget(event.target);
-      if (inpaintingMode && !modalOpen && !editableTarget && (event.ctrlKey || event.metaKey)) {
-        const key = event.key.toLowerCase();
-        if (key === "z" && !event.shiftKey) {
-          event.preventDefault();
-          void undoRetouch();
-          return;
-        }
-        if (key === "y" || (key === "z" && event.shiftKey)) {
-          event.preventDefault();
-          void redoRetouch();
-          return;
-        }
-      }
-      const navigation = resolveKeyboardPageNavigation({
-        key: event.key,
-        hasPages: pageIds.length > 0,
-        modalOpen,
-        editableTarget,
-        centerPanelFocused: Boolean(workspacePanelRef.current && activeElement && workspacePanelRef.current.contains(activeElement))
-      });
-
-      if (!navigation) {
-        return;
-      }
-
-      if (!selectAdjacentPageForReading(navigation.direction)) {
-        return;
-      }
-
-      if (navigation.preventDefault) {
-        event.preventDefault();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [inpaintingMode, modalOpen, redoRetouch, selectAdjacentPageForReading, undoRetouch]);
-
-  const onWorkspaceWheel = useCallback(
-    (event: React.WheelEvent<HTMLElement>) => {
-      const pageIds = currentChapterRef.current?.pages.map((page) => page.id) ?? [];
-      const direction = resolveWheelPageNavigation({
-        deltaX: event.deltaX,
-        deltaY: event.deltaY,
-        hasPages: pageIds.length > 0,
-        modalOpen,
-        editableTarget: isEditableTarget(event.target)
-      });
-
-      if (!direction) {
-        return;
-      }
-
-      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-      if (now - lastWheelNavigationAtRef.current < 320) {
-        event.preventDefault();
-        return;
-      }
-
-      if (!selectAdjacentPageForReading(direction)) {
-        return;
-      }
-
-      lastWheelNavigationAtRef.current = now;
-      workspacePanelRef.current?.focus();
-      event.preventDefault();
-    },
-    [modalOpen, selectAdjacentPageForReading]
-  );
-
   const renameWork = useCallback((workId: string) => {
     const work = library.works.find((candidate) => candidate.id === workId);
     if (!work) {
@@ -1609,6 +1026,7 @@ export default function App(): React.JSX.Element {
       if (!work) {
         return;
       }
+      const previousOrder = work.chapterOrder;
       const nextOrder = reorderByTarget(work.chapterOrder, sourceChapterId, targetChapterId);
       setLibrary((current) => ({
         ...current,
@@ -1622,9 +1040,28 @@ export default function App(): React.JSX.Element {
             : candidate
         )
       }));
-      void window.mangaApi.reorderChapters(workId, nextOrder).then(setLibrary);
+      void window.mangaApi
+        .reorderChapters(workId, nextOrder)
+        .then(setLibrary)
+        .catch((error) => {
+          console.error(error);
+          setLibrary((current) => ({
+            ...current,
+            works: current.works.map((candidate) =>
+              candidate.id === workId && isSameStringOrder(candidate.chapterOrder, nextOrder)
+                ? {
+                    ...candidate,
+                    chapterOrder: previousOrder,
+                    chapters: reorderRecordsByIdOrder(candidate.chapters, previousOrder)
+                  }
+                : candidate
+            )
+          }));
+          const message = formatErrorMessage(error, "화 순서를 저장하지 못했습니다.");
+          pushStatus(`${message} 이전 순서로 되돌렸습니다.`);
+        });
     },
-    [library.works]
+    [library.works, pushStatus]
   );
 
   const reorderPageInChapter = useCallback(
@@ -1632,6 +1069,7 @@ export default function App(): React.JSX.Element {
       if (!currentChapter) {
         return;
       }
+      const previousOrder = currentChapter.pageOrder;
       const nextOrder = reorderByTarget(currentChapter.pageOrder, sourcePageId, targetPageId);
       setCurrentChapter((chapter) => {
         if (!chapter || chapter.id !== currentChapter.id) {
@@ -1645,12 +1083,31 @@ export default function App(): React.JSX.Element {
         currentChapterRef.current = nextChapter;
         return nextChapter;
       });
-      void window.mangaApi.reorderPages(currentChapter.id, nextOrder).then((chapter) => {
-        applyChapter(chapter);
-        void refreshLibrary();
-      });
+      void window.mangaApi
+        .reorderPages(currentChapter.id, nextOrder)
+        .then((chapter) => {
+          applyChapter(chapter);
+          void refreshLibrary();
+        })
+        .catch((error) => {
+          console.error(error);
+          setCurrentChapter((chapter) => {
+            if (!chapter || chapter.id !== currentChapter.id || !isSameStringOrder(chapter.pageOrder, nextOrder)) {
+              return chapter;
+            }
+            const rolledBackChapter = {
+              ...chapter,
+              pageOrder: previousOrder,
+              pages: reorderRecordsByIdOrder(chapter.pages, previousOrder)
+            };
+            currentChapterRef.current = rolledBackChapter;
+            return rolledBackChapter;
+          });
+          const message = formatErrorMessage(error, "페이지 순서를 저장하지 못했습니다.");
+          pushStatus(`${message} 이전 순서로 되돌렸습니다.`);
+        });
     },
-    [applyChapter, currentChapter, refreshLibrary]
+    [applyChapter, currentChapter, pushStatus, refreshLibrary]
   );
 
   const inpaintingContextValue: InpaintingContextValue = {
@@ -1847,27 +1304,6 @@ export default function App(): React.JSX.Element {
       />
     </main>
     </FontsProvider>
-  );
-}
-
-function countChapterBlocks(chapter: ChapterSnapshot | null, selectedPageId: string | null): BlockCounts {
-  if (!chapter) {
-    return { total: 0, selectedPage: 0, pendingTotal: 0, pendingPages: 0 };
-  }
-  return chapter.pages.reduce<BlockCounts>(
-    (counts, page) => {
-      const targetBlocks = page.blocks.filter((block) => !block.inpaintExcluded).length;
-      counts.total += targetBlocks;
-      if (page.id === selectedPageId) {
-        counts.selectedPage = targetBlocks;
-      }
-      if (!page.inpaintedImagePath && targetBlocks > 0) {
-        counts.pendingPages += 1;
-        counts.pendingTotal += targetBlocks;
-      }
-      return counts;
-    },
-    { total: 0, selectedPage: 0, pendingTotal: 0, pendingPages: 0 }
   );
 }
 

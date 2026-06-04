@@ -1,19 +1,30 @@
 import type { CodexReasoningEffort, GemmaVramMode, ModelProvider, ModelSource, OcrDevice } from "../../../shared/types";
+import {
+  DEFAULT_GEMMA_MMPROJ_FILE,
+  DEFAULT_GEMMA_MMPROJ_REPO,
+  DEFAULT_GEMMA_MODEL_FILE,
+  DEFAULT_GEMMA_MODEL_REPO,
+  GEMMA_26B_MMPROJ_FILE,
+  GEMMA_26B_MMPROJ_REPO,
+  GEMMA_26B_MODEL_FILE_IQ3_S,
+  GEMMA_26B_MODEL_REPO,
+  MAX_MAX_TOKENS,
+  MIN_MAX_TOKENS
+} from "../../../shared/modelPresets";
 
-export const MIN_MAX_TOKENS = 300;
-export const MAX_MAX_TOKENS = 12000;
-export const DEFAULT_GEMMA_MODEL_REPO =
-  "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
-export const DEFAULT_GEMMA_MODEL_FILE =
-  "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf";
-export const DEFAULT_GEMMA_MMPROJ_REPO =
-  "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF";
-export const DEFAULT_GEMMA_MMPROJ_FILE =
-  "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
-export const ECONOMY_GEMMA_MODEL_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF";
-export const ECONOMY_GEMMA_MODEL_FILE = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf";
-export const ECONOMY_GEMMA_MMPROJ_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF";
-export const ECONOMY_GEMMA_MMPROJ_FILE = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf";
+export {
+  DEFAULT_GEMMA_MMPROJ_FILE,
+  DEFAULT_GEMMA_MMPROJ_REPO,
+  DEFAULT_GEMMA_MODEL_FILE,
+  DEFAULT_GEMMA_MODEL_REPO,
+  MAX_MAX_TOKENS,
+  MIN_MAX_TOKENS
+} from "../../../shared/modelPresets";
+
+export const ECONOMY_GEMMA_MODEL_REPO = GEMMA_26B_MODEL_REPO;
+export const ECONOMY_GEMMA_MODEL_FILE = GEMMA_26B_MODEL_FILE_IQ3_S;
+export const ECONOMY_GEMMA_MMPROJ_REPO = GEMMA_26B_MMPROJ_REPO;
+export const ECONOMY_GEMMA_MMPROJ_FILE = GEMMA_26B_MMPROJ_FILE;
 
 export const MODEL_PRESETS = {
   economy26b: {

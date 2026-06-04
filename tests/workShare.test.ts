@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
-import { mkdtemp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, rm, truncate, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LibraryChapter, LibraryWork } from "../src/shared/types";
+import { MAX_SHARE_IMAGE_BYTES } from "../src/main/libraryStore/zipSafety";
 
 type AdmZipInstance = {
   addFile: (entryName: string, content: Buffer | string) => void;
@@ -19,6 +20,7 @@ describe("work share packages", () => {
   afterEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
+    vi.doUnmock("node:fs/promises");
     while (tempDirs.length > 0) {
       const dir = tempDirs.pop();
       if (dir) {
@@ -53,6 +55,24 @@ describe("work share packages", () => {
     const chapter = JSON.parse(chapterEntry!.getData().toString("utf8")) as LibraryChapter;
     expect(chapter.pages[0]?.imagePath).toMatch(/^chapters\/chapter-a\/pages\//);
     expect(chapter.pages[0]?.imagePath).not.toMatch(/^[A-Za-z]:/);
+  });
+
+  it("rejects exporting a share package with an image that import would reject", async () => {
+    const rootDir = await createTempLibrary();
+    const sharePath = join(rootDir, "too-large.mgtshare");
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    await truncate(join(rootDir, "works", "work-1", "chapters", "chapter-a", "pages", "001-page-a.png"), MAX_SHARE_IMAGE_BYTES + 1);
+
+    await expect(
+      library.exportWorkShareToFile({
+        workId: "work-1",
+        chapterIds: ["chapter-a"],
+        outputPath: sharePath
+      })
+    ).rejects.toThrow(/파일이 너무 큽니다/);
+
+    expect(existsSync(sharePath)).toBe(false);
   });
 
   it("imports shared chapters as new ids and preserves blocks", async () => {
@@ -108,6 +128,65 @@ describe("work share packages", () => {
     expect(result.chapterIds[0]).toBe("chapter-b");
     expect(result.chapterIds[1]).not.toBe("chapter-a");
     expect(existsSync(join(rootDir, "works", "work-1", "chapters", "chapter-a"))).toBe(false);
+    const chapterDirs = await readdir(join(rootDir, "works", "work-1", "chapters"));
+    expect(chapterDirs).not.toContain(".trash");
+  });
+
+  it("restores omitted existing chapter directories if a share merge fails after trashing them", async () => {
+    const rootDir = await createTempLibrary();
+    const sharePath = join(rootDir, "merge-rollback.mgtshare");
+    let corruptedAfterTrash = false;
+    vi.doMock("node:fs/promises", async () => {
+      const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+      return {
+        ...actual,
+        rename: async (oldPath: Parameters<typeof actual.rename>[0], newPath: Parameters<typeof actual.rename>[1]) => {
+          await actual.rename(oldPath, newPath);
+          const targetPath = String(newPath).replace(/\\/g, "/");
+          if (!corruptedAfterTrash && targetPath.includes("/chapters/.trash/") && targetPath.endsWith("/chapter-a")) {
+            corruptedAfterTrash = true;
+            const brokenChapter = makeChapter(rootDir, "chapter-b", "2화", "page-b", "block-b");
+            brokenChapter.pages[0] = {
+              ...brokenChapter.pages[0]!,
+              imagePath: join(rootDir, "outside-after-trash.png")
+            };
+            await actual.writeFile(
+              join(rootDir, "works", "work-1", "chapters", "chapter-b", "chapter.json"),
+              `${JSON.stringify(brokenChapter, null, 2)}\n`,
+              "utf8"
+            );
+          }
+        }
+      };
+    });
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    await library.exportWorkShareToFile({
+      workId: "work-1",
+      chapterIds: ["chapter-a"],
+      outputPath: sharePath
+    });
+
+    await expect(
+      library.importWorkShare({
+        packagePath: sharePath,
+        target: { mode: "existing", workId: "work-1" },
+        entries: [
+          { source: "existing", chapterId: "chapter-b", title: "기존 유지" },
+          { source: "package", packageChapterId: "chapter-a", title: "교체본" }
+        ]
+      })
+    ).rejects.toThrow(/페이지 이미지 경로/);
+
+    expect(corruptedAfterTrash).toBe(true);
+    const index = await library.listLibrary();
+    const work = index.works.find((candidate) => candidate.id === "work-1");
+    expect(work?.chapterOrder).toEqual(["chapter-a", "chapter-b"]);
+    expect(work?.chapters.map((chapter) => chapter.title)).toEqual(["1화", "2화"]);
+
+    const chapterDirs = await readdir(join(rootDir, "works", "work-1", "chapters"));
+    expect(chapterDirs.sort()).toEqual(["chapter-a", "chapter-b"]);
+    expect(existsSync(join(rootDir, "works", "work-1", "chapters", "chapter-a", "pages", "001-page-a.png"))).toBe(true);
   });
 
   it("rejects traversal paths in share zips", async () => {

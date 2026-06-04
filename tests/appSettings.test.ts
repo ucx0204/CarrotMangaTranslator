@@ -68,7 +68,8 @@ describe("app settings helpers", () => {
         modelSource: "huggingface",
         modelRepo: "custom/repo",
         modelFile: "env-default.gguf",
-        vramMode: defaults.gemma.vramMode
+        vramMode: defaults.gemma.vramMode,
+        llamaRuntimeProfile: defaults.gemma.llamaRuntimeProfile
       },
       codex: defaults.codex,
       ocr: defaults.ocr,
@@ -332,7 +333,7 @@ describe("app settings helpers", () => {
 
     expect(economyOptions.llamaRuntimeProfile).toBe("rtx50");
     expect(economyOptions.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
-    expect(economyOptions.serverPath).toBe(join("C:/app-data", "tools", "llama-b9490-cuda13.3", "llama-server.exe"));
+    expect(economyOptions.serverPath).toBe(join("C:/app-data", "tools", "llama-b9360-cuda13.1", "llama-server.exe"));
 
     const rtx50FullDefaults = resolveDefaultAppSettings(
       {},
@@ -354,6 +355,53 @@ describe("app settings helpers", () => {
 
     expect(fullOptions.llamaRuntimeProfile).toBe("rtx50");
     expect(fullOptions.serverPath).toBe(join("C:/app-data", "tools", "beellama-v0.2.0-cuda13.1", "llama-server.exe"));
+  });
+
+  it("keeps Paddle OCR CUDA tag separate from the llama runtime profile", () => {
+    const defaults = resolveDefaultAppSettings();
+    const paths = {
+      dataRoot: "C:/app-data",
+      toolsDir: "C:/tools",
+      llamaServerPath: "C:/tools/llama-server.exe",
+      hfHomeDir: "C:/hf-home",
+      hfHubCacheDir: "C:/hf-home/hub"
+    };
+    const settings: AppSettings = {
+      ...defaults,
+      modelProvider: "gemma",
+      gemma: {
+        ...defaults.gemma,
+        llamaRuntimeProfile: "cuda12"
+      },
+      ocr: {
+        device: "gpu",
+        gpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG
+      }
+    };
+
+    const cuda12Options = buildBaseTranslationOptions({
+      jobId: "job-ocr-cu129-llama-cuda12",
+      runDir: "C:/runs/job-ocr-cu129-llama-cuda12",
+      paths,
+      settings,
+      env: {}
+    });
+    const rtx50Options = buildBaseTranslationOptions({
+      jobId: "job-ocr-cu129-llama-rtx50",
+      runDir: "C:/runs/job-ocr-cu129-llama-rtx50",
+      paths,
+      settings,
+      env: {
+        MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE: "rtx50"
+      }
+    });
+
+    expect(cuda12Options.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
+    expect(cuda12Options.llamaRuntimeProfile).toBe("cuda12");
+    expect(cuda12Options.serverPath).toBe(join("C:/app-data", "tools", "llama-b8833-cuda12.4", "llama-server.exe"));
+    expect(rtx50Options.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
+    expect(rtx50Options.llamaRuntimeProfile).toBe("rtx50");
+    expect(rtx50Options.serverPath).toBe(join("C:/app-data", "tools", "llama-b9360-cuda13.1", "llama-server.exe"));
   });
 
   it("keeps local model settings when the source is local", () => {
@@ -378,7 +426,8 @@ describe("app settings helpers", () => {
         modelFile: defaults.gemma.modelFile,
         localModelPath: "D:/models/custom-vision-model.gguf",
         localMmprojPath: "D:/models/mmproj.gguf",
-        vramMode: defaults.gemma.vramMode
+        vramMode: defaults.gemma.vramMode,
+        llamaRuntimeProfile: defaults.gemma.llamaRuntimeProfile
       },
       codex: defaults.codex,
       ocr: defaults.ocr,
@@ -432,37 +481,43 @@ describe("app settings helpers", () => {
       modelProvider: "gemma",
       gemmaVramMode: "full",
       ocrDevice: "gpu",
-      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      llamaRuntimeProfile: "cuda12"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50, computeCapability: 12 })).toEqual({
       modelProvider: "gemma",
       gemmaVramMode: "economy",
       ocrDevice: "gpu",
-      ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG
+      ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
+      llamaRuntimeProfile: "rtx50"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 5090", memoryMb: 32768, rtxGeneration: null, computeCapability: 12 })).toEqual({
       modelProvider: "gemma",
       gemmaVramMode: "full",
       ocrDevice: "gpu",
-      ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG
+      ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
+      llamaRuntimeProfile: "rtx50"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 3060", memoryMb: 12288, rtxGeneration: 30, computeCapability: 8.6 })).toEqual({
       modelProvider: "openai-codex",
       gemmaVramMode: "economy",
       ocrDevice: "gpu",
-      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      llamaRuntimeProfile: "cuda12"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 2080 Ti", memoryMb: 11264, rtxGeneration: 20, computeCapability: 7.5 })).toEqual({
       modelProvider: "openai-codex",
       gemmaVramMode: "economy",
       ocrDevice: "cpu",
-      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      llamaRuntimeProfile: "cuda12"
     });
     expect(resolveHardwareDefaults(null)).toEqual({
       modelProvider: "openai-codex",
       gemmaVramMode: "economy",
       ocrDevice: "cpu",
-      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      llamaRuntimeProfile: "cuda12"
     });
   });
 

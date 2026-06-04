@@ -168,14 +168,6 @@ export function normalizeConfidence(value: unknown, fallback: number): number {
   return clamp(normalized, 0, 1);
 }
 
-export function hasUncertaintyMarker(value: string | undefined): boolean {
-  return String(value ?? "").includes("[?]");
-}
-
-export function containsJapaneseKana(value: string | undefined): boolean {
-  return /[\u3040-\u30ff]/u.test(String(value ?? ""));
-}
-
 export function normalizeOverlayTextRole(value: unknown): NormalizedTextRole {
   const text = String(value ?? "").trim().toLowerCase().replace(/[_\s-]+/g, "");
   if (!text) {

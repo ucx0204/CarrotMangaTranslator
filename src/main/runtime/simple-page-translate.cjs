@@ -75,142 +75,27 @@ const {
   getScaledSize,
   mimeFromPath
 } = require("./simple-page-image-utils.cjs");
-
-const BEELLAMA_LLAMA_RUNTIME_CUDA12 = {
-  id: "beellama-v0.2.0-cuda12.4",
-  kind: "beellama",
-  dir: "beellama-v0.2.0-cuda12.4",
-  archive: "beellama-v0.2.0-bin-win-cuda-12.4-x64.zip",
-  url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-12.4-x64.zip",
-  archives: [
-    {
-      archive: "beellama-v0.2.0-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-12.4-x64.zip"
-    },
-    {
-      archive: "cudart-llama-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-12.4-x64.zip"
-    }
-  ],
-  requiredFiles: [
-    "llama-server.exe",
-    ["ggml-cuda.dll", "ggml-cuda-cu12.dll"],
-    ["cublas64_12.dll"],
-    ["cublasLt64_12.dll"],
-    ["cudart64_12.dll"]
-  ]
-};
-const BEELLAMA_LLAMA_RUNTIME_CUDA13 = {
-  id: "beellama-v0.2.0-cuda13.1",
-  kind: "beellama",
-  dir: "beellama-v0.2.0-cuda13.1",
-  archive: "beellama-v0.2.0-bin-win-cuda-13.1-x64.zip",
-  url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-13.1-x64.zip",
-  archives: [
-    {
-      archive: "beellama-v0.2.0-bin-win-cuda-13.1-x64.zip",
-      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-13.1-x64.zip"
-    },
-    {
-      archive: "cudart-llama-bin-win-cuda-13.1-x64.zip",
-      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-13.1-x64.zip"
-    }
-  ],
-  requiredFiles: [
-    "llama-server.exe",
-    ["ggml-cuda.dll", "ggml-cuda-cu13.dll"],
-    ["cublas64_13.dll", "cublas64_12.dll"],
-    ["cublasLt64_13.dll", "cublasLt64_12.dll"],
-    ["cudart64_13.dll", "cudart64_12.dll"]
-  ]
-};
-const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
-  id: "llama-b8833-cuda12.4",
-  kind: "mainline",
-  dir: "llama-b8833-cuda12.4",
-  archive: "llama-b8833-bin-win-cuda-12.4-x64.zip",
-  url: "https://github.com/ggml-org/llama.cpp/releases/download/b8833/llama-b8833-bin-win-cuda-12.4-x64.zip",
-  archives: [
-    {
-      archive: "llama-b8833-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b8833/llama-b8833-bin-win-cuda-12.4-x64.zip"
-    },
-    {
-      archive: "cudart-llama-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b8833/cudart-llama-bin-win-cuda-12.4-x64.zip"
-    }
-  ],
-  requiredFiles: [
-    "llama-server.exe",
-    ["ggml-cuda.dll", "ggml-cuda-cu12.dll"],
-    ["cublas64_12.dll"],
-    ["cublasLt64_12.dll"],
-    ["cudart64_12.dll"]
-  ]
-};
-const MAINLINE_LLAMA_RUNTIME_CUDA13 = {
-  id: "llama-b9490-cuda13.3",
-  kind: "mainline",
-  dir: "llama-b9490-cuda13.3",
-  archive: "llama-b9490-bin-win-cuda-13.3-x64.zip",
-  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9490/llama-b9490-bin-win-cuda-13.3-x64.zip",
-  archives: [
-    {
-      archive: "llama-b9490-bin-win-cuda-13.3-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9490/llama-b9490-bin-win-cuda-13.3-x64.zip"
-    },
-    {
-      archive: "cudart-llama-bin-win-cuda-13.3-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9490/cudart-llama-bin-win-cuda-13.3-x64.zip"
-    }
-  ],
-  requiredFiles: [
-    "llama-server.exe",
-    "llama-server-impl.dll",
-    ["ggml-cuda.dll", "ggml-cuda-cu13.dll"],
-    ["cublas64_13.dll", "cublas64_12.dll"],
-    ["cublasLt64_13.dll", "cublasLt64_12.dll"],
-    ["cudart64_13.dll", "cudart64_12.dll"]
-  ]
-};
-const LLAMA_RUNTIME_MARKER_FILE = ".mgt-runtime.json";
-const LLAMA_RUNTIME_FILES = new Set([
-  "LICENSE",
-  "cublas64_12.dll",
-  "cublas64_13.dll",
-  "cublasLt64_12.dll",
-  "cublasLt64_13.dll",
-  "cudart64_12.dll",
-  "cudart64_13.dll",
-  "ggml-base.dll",
-  "ggml-cpu.dll",
-  "ggml-cpu-alderlake.dll",
-  "ggml-cpu-cannonlake.dll",
-  "ggml-cpu-cascadelake.dll",
-  "ggml-cpu-cooperlake.dll",
-  "ggml-cpu-haswell.dll",
-  "ggml-cpu-icelake.dll",
-  "ggml-cpu-ivybridge.dll",
-  "ggml-cpu-piledriver.dll",
-  "ggml-cpu-sandybridge.dll",
-  "ggml-cpu-sapphirerapids.dll",
-  "ggml-cpu-skylakex.dll",
-  "ggml-cpu-sse42.dll",
-  "ggml-cpu-x64.dll",
-  "ggml-cpu-zen4.dll",
-  "ggml-cuda.dll",
-  "ggml-cuda-cu12.dll",
-  "ggml-cuda-cu13.dll",
-  "ggml-rpc.dll",
-  "ggml.dll",
-  "libomp140.x86_64.dll",
-  "llama-common.dll",
-  "llama-server-impl.dll",
-  "llama-server.exe",
-  "llama.dll",
-  "mtmd.dll",
-  "rpc-server.exe"
-]);
+const {
+  extractModelOutputText,
+  parseResponsesSseText
+} = require("./simple-page-response-text.cjs");
+const {
+  BEELLAMA_LLAMA_RUNTIME_CUDA12,
+  BEELLAMA_LLAMA_RUNTIME_CUDA13,
+  LLAMA_RUNTIME_FILES,
+  LLAMA_RUNTIME_MARKER_FILE,
+  MAINLINE_LLAMA_RUNTIME_CUDA12,
+  MAINLINE_LLAMA_RUNTIME_CUDA13
+} = require("./simple-page-llama-runtimes.cjs");
+const {
+  HF_CHILD_ENV_KEYS,
+  NETWORK_CHILD_ENV_KEYS,
+  buildUtilityChildEnv,
+  buildWhitelistedChildEnv,
+  isLikelyPackagedToolsDir,
+  runtimeOverrideEnv,
+  shouldAllowExternalRuntimeOverrides
+} = require("./simple-page-child-env.cjs");
 
 function nowMs() {
   return typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
@@ -231,104 +116,6 @@ function createDetailedError(message, detail = {}, cause) {
   }
   Object.assign(error, detail);
   return error;
-}
-
-const BASE_CHILD_ENV_KEYS = [
-  "SystemRoot",
-  "WINDIR",
-  "ComSpec",
-  "TEMP",
-  "TMP",
-  "USERPROFILE",
-  "LOCALAPPDATA",
-  "APPDATA",
-  "PROGRAMDATA",
-  "HOME",
-  "LANG",
-  "LC_ALL"
-];
-
-const NETWORK_CHILD_ENV_KEYS = [
-  "HTTP_PROXY",
-  "HTTPS_PROXY",
-  "NO_PROXY",
-  "http_proxy",
-  "https_proxy",
-  "no_proxy",
-  "REQUESTS_CA_BUNDLE",
-  "SSL_CERT_FILE",
-  "CURL_CA_BUNDLE"
-];
-
-const HF_CHILD_ENV_KEYS = [
-  "HF_ENDPOINT",
-  "HF_TOKEN",
-  "HUGGING_FACE_HUB_TOKEN"
-];
-
-function shouldAllowExternalRuntimeOverrides(options = {}) {
-  if (!isLikelyPackagedToolsDir(options.toolsDir)) {
-    return true;
-  }
-  return isTruthy(process.env.MGT_ALLOW_EXTERNAL_RUNTIME ?? process.env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME);
-}
-
-function runtimeOverrideEnv(name, options = {}) {
-  return shouldAllowExternalRuntimeOverrides(options) ? process.env[name] : undefined;
-}
-
-function buildWhitelistedChildEnv({ pathDirs = [], includeProcessPath = false, extraKeys = [] } = {}) {
-  const env = {};
-  for (const key of [...BASE_CHILD_ENV_KEYS, ...extraKeys]) {
-    const value = process.env[key];
-    if (value) {
-      env[key] = value;
-    }
-  }
-
-  const runtimePath = buildChildPathEnv(pathDirs, includeProcessPath);
-  if (runtimePath) {
-    env.PATH = runtimePath;
-  }
-  return env;
-}
-
-function buildUtilityChildEnv(options = {}, pathDirs = []) {
-  return buildWhitelistedChildEnv({
-    pathDirs,
-    includeProcessPath: shouldAllowExternalRuntimeOverrides(options),
-    extraKeys: NETWORK_CHILD_ENV_KEYS
-  });
-}
-
-function buildChildPathEnv(pathDirs = [], includeProcessPath = false) {
-  const dirs = [];
-  const addDir = (dir) => {
-    const text = String(dir ?? "").trim();
-    if (!text) {
-      return;
-    }
-    const normalized = process.platform === "win32" ? text.toLowerCase() : text;
-    if (!dirs.some((candidate) => (process.platform === "win32" ? candidate.toLowerCase() : candidate) === normalized)) {
-      dirs.push(text);
-    }
-  };
-
-  for (const dir of pathDirs) {
-    addDir(dir);
-  }
-  if (process.platform === "win32") {
-    const systemRoot = process.env.SystemRoot || process.env.WINDIR;
-    addDir(systemRoot ? path.join(systemRoot, "System32") : null);
-    addDir(systemRoot);
-    addDir(systemRoot ? path.join(systemRoot, "System32", "WindowsPowerShell", "v1.0") : null);
-  }
-  if (includeProcessPath) {
-    for (const dir of String(process.env.PATH ?? "").split(path.delimiter)) {
-      addDir(dir);
-    }
-  }
-  return dirs.join(path.delimiter);
 }
 
 function buildOptionSummary(options = {}) {
@@ -2362,191 +2149,7 @@ function describeImageVariant(variant, index, options = {}) {
     return `Image ${index + 1}: the same full manga page rendered as grayscale/high-contrast assist view. Use it only for OCR help, never as the coordinate authority.${sizeText}${originalSizeText}`;
   }
 
-  if (variant.role === "crop-retry") {
-    const idText = Array.isArray(variant.itemIds) && variant.itemIds.length > 0
-      ? ` item ids ${variant.itemIds.join(", ")}`
-      : Number.isFinite(Number(variant.itemId))
-        ? ` item id ${variant.itemId}`
-        : " one low-confidence item";
-    const box = variant.cropBox
-      ? ` Crop on original page: x=${variant.cropBox.x}, y=${variant.cropBox.y}, w=${variant.cropBox.w}, h=${variant.cropBox.h}.`
-      : "";
-    return `Image ${index + 1}: expanded crop for${idText}. Use it only to re-read that same id; do not create new ids or change geometry.${sizeText}${originalSizeText}${box}`;
-  }
-
   return `Image ${index + 1}: the original full manga page. Use it as the geometry authority.${sizeText}${originalSizeText}`;
-}
-
-function buildCropRetryPrompt(targets = []) {
-  const targetLines = targets.map((target, index) => {
-    const cropImageIndex = Number.isFinite(Number(target.cropImageIndex)) ? Number(target.cropImageIndex) : index + 2;
-    const confidence = Number.isFinite(Number(target.confidence)) ? Number(target.confidence).toFixed(2) : "unknown";
-    const bbox = target.bbox
-      ? `bbox x=${target.bbox.x} y=${target.bbox.y} w=${target.bbox.w} h=${target.bbox.h}`
-      : "bbox unchanged";
-    const cropSize = target.cropBox
-      ? `cropSize:${Math.round(Number(target.cropBox.w) || 0)}x${Math.round(Number(target.cropBox.h) || 0)}`
-      : "cropSize:unknown";
-    return [
-      `target ${target.id}: cropImage:${cropImageIndex}`,
-      `reason:${target.reason || "low-confidence"}`,
-      target.cropGroupId ? `cropGroup:${target.cropGroupId}` : "",
-      cropSize,
-      `type:${target.type || "nonsolid"} textRole:${target.textRole || ""} direction:${target.direction || "horizontal"} angle:${Number.isFinite(Number(target.angle)) ? target.angle : 0} fontSize:${Number.isFinite(Number(target.fontSize)) ? target.fontSize : ""} confidence:${confidence}`,
-      bbox
-    ].filter(Boolean).join(" ");
-  });
-
-  return [
-    "# Task",
-    "You are directly OCR-reading and translating only the listed manga crop images.",
-    "Image 1 is the full page for context only. Each following image is an expanded crop for exactly one target id.",
-    "Do not detect new ids or output extra ids.",
-    "For each target, ignore any previous model OCR/translation. The crop image itself is the authority.",
-    "Read the real Japanese text inside that crop for the same target id. If the crop contains the target text, return the tight crop-coordinate bbox for the visible Japanese glyphs.",
-    "Several target ids may point to the same crop image. In that case, use the larger crop as context and return separate records for the separate visible Japanese lettering groups represented by those target ids.",
-    "If a large sound effect was split into nearby target ids, keep those ids separate when the visible lettering groups are separate. Do not create one giant combined translation over the whole crop.",
-    "For sound-check targets, decide whether the crop is standalone printed sound/reaction lettering, ordinary language, or non-text. Sound/reaction lettering should become compact Korean effect lettering, not a scene description and not a mechanical kana transliteration.",
-    "If the crop text is inside a speech bubble, caption, note, sign, or label, treat it as ordinary language unless the visible lettering is unmistakably standalone sound/reaction lettering.",
-    "",
-    "# Output",
-    "Return plain text records only. Do not output JSON, markdown, bullets, commentary, or code fences.",
-    "Output exactly one record for each target id, using exactly these keys: id, type, textRole, x1, y1, x2, y2, direction, angle, fontSize, confidence, jp, ko.",
-    "x1, y1, x2, y2 are integer crop image pixel coordinates around the visible Japanese glyph ink for that target, not full-page coordinates.",
-    "Crop coordinates start at 0,0 in the top-left corner of the crop image. x1 and x2 must be within the crop image width; y1 and y2 must be within the crop image height.",
-    "Never copy the target bbox or crop origin numbers into x1/y1/x2/y2; those are page coordinates, not crop coordinates.",
-    "textRole is one of sound, ordinary, or nontext.",
-    "confidence is 0.00 to 1.00 for the corrected OCR+translation.",
-    "If textRole is sound, use confidence 1.00 only when the complete sound effect is unquestionably real Japanese text and every glyph, including final/trailing kana, is read correctly. If there is any doubt, use confidence below 1.00.",
-    "If the crop is decoration, panel trim, texture, non-Japanese art, or otherwise not real Japanese text, output type: reject, textRole: nontext, confidence: 1, jp: [non-text], ko: [non-text].",
-    "If the crop still has readable Japanese, never output only [?]; give the best OCR and concise natural Korean.",
-    "Use type nonsolid for every accepted text target.",
-    "If textRole is ordinary, keep dialogue/caption/label Korean natural, horizontally readable, and do not apply sound-effect rules.",
-    "For ordinary textRole, translate the Japanese lexical meaning. Never replace an ordinary word, noun, label, or dialogue fragment with a Korean sound effect.",
-    "Short kana, handwritten words, or tall vertical bbox shapes are not enough to make textRole sound.",
-    "For sound-effect or reaction lettering, ko must be bare Korean effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
-    "If textRole is sound, choose compact Korean effect lettering that fits the scene and visible rhythm. Do not mechanically transliterate Japanese kana when that would sound awkward in Korean.",
-    "If textRole is sound, avoid Korean grammar endings, particles, connective endings, explanatory spacing, adverbs, and action descriptions.",
-    "",
-    "# Targets",
-    ...targetLines
-  ].join("\n");
-}
-
-async function prepareCropRetryImageVariants(options, targets = []) {
-  const sourceSize = resolveImageSize(options);
-  const fullPageVariant = isOpenAICodexProvider(options)
-    ? await buildOpenAIVisionVariant({ ...options, imageWidth: sourceSize.width, imageHeight: sourceSize.height })
-    : { role: "original", path: options.imagePath, width: sourceSize.width, height: sourceSize.height };
-  const cropVariants = await buildCropRetryVariants(options, targets, sourceSize);
-  const variants = [fullPageVariant, ...cropVariants];
-
-  return {
-    imageVariants: await Promise.all(
-      variants.map(async (variant) => ({
-        ...variant,
-        ...(await fileToModelAsset(variant.path))
-      }))
-    )
-  };
-}
-
-async function buildCropRetryVariants(options, targets = [], sourceSize = {}) {
-  const nativeImage = resolveElectronNativeImage();
-  if (!nativeImage) {
-    throw createDetailedError("Electron nativeImage is required for crop retry images.", {
-      imagePath: options.imagePath,
-      targetCount: targets.length
-    });
-  }
-
-  const image = await loadNativeImageForCropping(nativeImage, options.imagePath);
-  if (!image || image.isEmpty()) {
-    throw createDetailedError("Electron nativeImage could not decode source image for crop retry.", {
-      imagePath: options.imagePath,
-      targetCount: targets.length
-    });
-  }
-
-  const imageSize = image.getSize();
-  const pageWidth = readPositiveInteger(sourceSize.width) || readPositiveInteger(imageSize.width);
-  const pageHeight = readPositiveInteger(sourceSize.height) || readPositiveInteger(imageSize.height);
-  const outputDir = path.join(options.outputDir, "crop-retry-inputs");
-  await mkdir(outputDir, { recursive: true });
-
-  const variants = [];
-  for (const group of groupCropRetryTargets(targets)) {
-    const cropBox = normalizeCropBox(group.cropBox, pageWidth, pageHeight);
-    if (!cropBox) {
-      continue;
-    }
-    const cropped = image.crop(cropBox);
-    if (!cropped || cropped.isEmpty()) {
-      continue;
-    }
-    const imageIndex = variants.length + 2;
-    for (const target of group.targets) {
-      target.cropImageIndex = imageIndex;
-    }
-
-    const outputPath = path.join(outputDir, `${group.id}.png`);
-    await writeFile(outputPath, cropped.toPNG());
-    variants.push({
-      role: "crop-retry",
-      itemId: group.id,
-      itemIds: group.targets.map((target) => target.id),
-      cropBox,
-      path: outputPath,
-      width: cropBox.width,
-      height: cropBox.height,
-      originalWidth: pageWidth,
-      originalHeight: pageHeight
-    });
-  }
-  return variants;
-}
-
-function groupCropRetryTargets(targets = []) {
-  const groups = new Map();
-  for (const target of targets) {
-    const key = target.cropGroupId || `item-${target.id}`;
-    const previous = groups.get(key);
-    if (previous) {
-      previous.targets.push(target);
-      continue;
-    }
-    groups.set(key, {
-      id: key.replace(/[^A-Za-z0-9_.-]+/g, "-"),
-      cropBox: target.cropBox,
-      targets: [target]
-    });
-  }
-  return [...groups.values()];
-}
-
-async function loadNativeImageForCropping(nativeImage, filePath) {
-  if (mimeFromPath(filePath) === "image/webp") {
-    const pngBuffer = await convertImageToPngBufferWithFfmpeg(filePath);
-    return nativeImage.createFromBuffer(pngBuffer);
-  }
-
-  return nativeImage.createFromPath(filePath);
-}
-
-function normalizeCropBox(box, pageWidth, pageHeight) {
-  if (!box || !pageWidth || !pageHeight) {
-    return null;
-  }
-  const x = Math.max(0, Math.min(pageWidth - 1, Math.round(Number(box.x))));
-  const y = Math.max(0, Math.min(pageHeight - 1, Math.round(Number(box.y))));
-  const right = Math.max(x + 1, Math.min(pageWidth, Math.round(Number(box.x) + Number(box.w))));
-  const bottom = Math.max(y + 1, Math.min(pageHeight, Math.round(Number(box.y) + Number(box.h))));
-  return {
-    x,
-    y,
-    width: right - x,
-    height: bottom - y
-  };
 }
 
 function resolveRequestModelName(options = {}) {
@@ -3306,15 +2909,6 @@ function shouldAllowSystemPythonFallback(options = {}) {
     return isTruthy(explicit);
   }
   return !isLikelyPackagedToolsDir(options.toolsDir);
-}
-
-function isLikelyPackagedToolsDir(toolsDir) {
-  const text = String(toolsDir ?? "").trim();
-  if (!text) {
-    return false;
-  }
-  const normalized = path.resolve(text).replace(/\\/g, "/").toLowerCase();
-  return normalized.endsWith("/resources/tools") || normalized.includes("/resources/tools/");
 }
 
 function resolveOcrPipInstallBatches(options = {}) {
@@ -4702,101 +4296,6 @@ async function requestTranslation(server, options) {
   };
 }
 
-async function requestCropRetryTranslation(server, options, targets = []) {
-  const retryTargets = Array.isArray(targets) ? targets.filter((target) => Number.isFinite(Number(target?.id))) : [];
-  if (retryTargets.length === 0) {
-    return {
-      requestBody: { cropRetryTargets: [] },
-      rawResponse: { skipped: true, reason: "no-crop-retry-targets" },
-      outputText: ""
-    };
-  }
-
-  const preparedVariants = await prepareCropRetryImageVariants(options, retryTargets);
-  const imageVariants = preparedVariants.imageVariants;
-  if (imageVariants.length <= 1) {
-    return {
-      requestBody: { cropRetryTargets: retryTargets, imageVariants: summarizeImageVariants(imageVariants), skipped: true },
-      rawResponse: { skipped: true, reason: "no-crop-retry-images" },
-      outputText: ""
-    };
-  }
-
-  const promptText = options.promptOverrideText || buildCropRetryPrompt(retryTargets);
-  const promptOptions = {
-    ...options,
-    promptOverrideText: promptText,
-    ocrBboxHints: []
-  };
-  const systemPrompt = buildSystemPrompt(promptOptions);
-  const requestBody = isOpenAICodexProvider(promptOptions)
-    ? buildResponsesRequestBody(promptOptions, imageVariants, promptText, systemPrompt)
-    : buildChatRequestBody(promptOptions, buildMessages(promptOptions, imageVariants));
-  const requestSummary = buildRequestSummary(server, promptOptions, imageVariants, promptText, systemPrompt);
-  requestSummary.promptText = promptText;
-  requestSummary.cropRetryTargets = retryTargets.map((target) => ({
-    id: target.id,
-    type: target.type,
-    bbox: target.bbox,
-    cropBox: target.cropBox,
-    confidence: target.confidence ?? null
-  }));
-
-  if (isOpenAICodexProvider(promptOptions)) {
-    emitRuntimeProgress(promptOptions, "model_requesting", "낮은 신뢰도 crop 재번역 중", `${retryTargets.length}개 항목`);
-    const finalResult = await requestCodexResponsesText(server, promptOptions, requestBody, requestSummary);
-    return {
-      requestBody: requestSummary,
-      rawResponse: finalResult.rawResponse,
-      outputText: finalResult.outputText
-    };
-  }
-
-  let response;
-  try {
-    emitRuntimeProgress(promptOptions, "model_requesting", "낮은 신뢰도 crop 재번역 중", `${retryTargets.length}개 항목`);
-    response = await fetch(`${server.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: buildChatRequestHeaders(promptOptions),
-      body: JSON.stringify(requestBody),
-      signal: promptOptions.abortSignal
-    });
-  } catch (error) {
-    throw createDetailedError(`${resolveProviderDisplayName(promptOptions)} crop retry request transport failed.`, { requestSummary }, error);
-  }
-
-  const rawText = await readResponseText(response, requestSummary, promptOptions);
-  if (!response.ok) {
-    throw createDetailedError(`${resolveProviderDisplayName(promptOptions)} crop retry request failed (${response.status}).`, {
-      requestSummary,
-      status: response.status,
-      statusText: response.statusText,
-      rawTextPreview: truncateText(rawText, 4000)
-    });
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(rawText);
-  } catch (error) {
-    throw createDetailedError(
-      `${resolveProviderDisplayName(promptOptions)} crop retry response JSON parse failed.`,
-      {
-        requestSummary,
-        rawTextPreview: truncateText(rawText, 4000)
-      },
-      error
-    );
-  }
-
-  const outputText = extractModelOutputText(parsed);
-  return {
-    requestBody: requestSummary,
-    rawResponse: parsed,
-    outputText
-  };
-}
-
 async function requestCodexResponsesText(server, options, requestBody, requestSummary) {
   let response;
   try {
@@ -4867,94 +4366,6 @@ async function readCodexResponsesStream(response, requestSummary, options) {
       streamEventCount: parsed.eventCount
     }
   };
-}
-
-function parseResponsesSseText(rawText) {
-  const deltas = [];
-  let rawResponse = null;
-  let eventCount = 0;
-
-  for (const block of rawText.split(/\r?\n\r?\n/)) {
-    const dataLines = [];
-    for (const line of block.split(/\r?\n/)) {
-      if (line.startsWith("data:")) {
-        dataLines.push(line.slice(5).trimStart());
-      }
-    }
-    if (dataLines.length === 0) {
-      continue;
-    }
-
-    const data = dataLines.join("\n");
-    if (!data || data === "[DONE]") {
-      continue;
-    }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(data);
-    } catch {
-      continue;
-    }
-    eventCount += 1;
-
-    if (parsed?.type === "response.output_text.delta" && typeof parsed.delta === "string") {
-      deltas.push(parsed.delta);
-      continue;
-    }
-
-    if ((parsed?.type === "response.completed" || parsed?.type === "response.incomplete") && parsed.response) {
-      rawResponse = parsed.response;
-      continue;
-    }
-
-    const nestedOutput = extractModelOutputText(parsed);
-    if (nestedOutput) {
-      deltas.push(nestedOutput);
-    }
-  }
-
-  return {
-    outputText: deltas.join(""),
-    rawResponse,
-    eventCount
-  };
-}
-
-function extractModelOutputText(parsed) {
-  if (typeof parsed?.output_text === "string") {
-    return parsed.output_text.trim();
-  }
-
-  const chatContent = parsed?.choices?.[0]?.message?.content;
-  if (typeof chatContent === "string") {
-    return chatContent.trim();
-  }
-  if (Array.isArray(chatContent)) {
-    return chatContent.map((item) => item?.text || "").join("\n").trim();
-  }
-
-  if (!Array.isArray(parsed?.output)) {
-    return "";
-  }
-
-  const parts = [];
-  for (const item of parsed.output) {
-    if (typeof item?.content === "string") {
-      parts.push(item.content);
-      continue;
-    }
-    if (!Array.isArray(item?.content)) {
-      continue;
-    }
-    for (const content of item.content) {
-      if (typeof content?.text === "string") {
-        parts.push(content.text);
-      }
-    }
-  }
-
-  return parts.join("\n").trim();
 }
 
 async function testModelReply(server, options) {
@@ -5152,6 +4563,7 @@ module.exports = {
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
   convertImageToPngBufferWithFfmpeg,
+  ensurePaddleOcrRuntime,
   enhanceBitmapBuffer,
   extractModelOutputText,
   getOverlayPrompt,
@@ -5174,7 +4586,6 @@ module.exports = {
   parseResponsesSseText,
   prepareImageVariants,
   requestTranslation,
-  requestCropRetryTranslation,
   saveArtifacts,
   startServer,
   stopServer,

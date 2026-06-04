@@ -49,26 +49,6 @@ export type OverlayItem = {
   confidence?: number | null;
 };
 
-export type CropRetryTarget = {
-  id: number;
-  type: string;
-  textRole?: "sound" | "ordinary" | "nontext" | string;
-  bbox: BBox;
-  cropBox: BBox;
-  reason?: "low-confidence";
-  jp: string;
-  ko: string;
-  direction?: SourceTextDirection;
-  angle?: number;
-  fontSize?: number | null;
-  confidence?: number | null;
-};
-
-export type CropRetryItem = Omit<OverlayItem, "bbox"> & {
-  bbox?: BBox;
-  textRole?: "sound" | "ordinary" | "nontext" | string;
-};
-
 export type DetectedBboxSpace = "normalized_1000" | "pixels";
 
 export type RequestSummary = {
@@ -102,7 +82,6 @@ export type RuntimeModules = {
     collectOcrBboxHints: (options: TranslationOptions) => Promise<OcrBboxResult>;
     collectOcrBboxHintsBatch?: (options: TranslationOptions[]) => Promise<OcrBboxResult[]>;
     requestTranslation: (server: ServerHandle, options: TranslationOptions) => Promise<TranslationResult>;
-    requestCropRetryTranslation?: (server: ServerHandle, options: TranslationOptions, targets: CropRetryTarget[]) => Promise<TranslationResult>;
     saveArtifacts: (options: TranslationOptions, result: TranslationResult) => Promise<void>;
     startServer: (options: TranslationOptions) => Promise<ServerHandle>;
     stopServer: (server: ServerHandle | null | undefined) => Promise<void>;
@@ -110,7 +89,6 @@ export type RuntimeModules = {
   };
   overlayTools: {
     normalizeItems: (parsed: unknown) => OverlayItem[];
-    parseRetryItems?: (rawText: string) => CropRetryItem[];
     parseJsonLenient: (rawText: string) => unknown;
   };
 };

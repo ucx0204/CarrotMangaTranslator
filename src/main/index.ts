@@ -1,9 +1,10 @@
 import { app, BrowserWindow, Menu } from "electron";
 import { ensureWritableAppDirectories } from "./appPaths";
+import { cleanupLegacyLogs } from "./appMaintenance";
 import { registerImageProtocolHandler, registerImageProtocolScheme } from "./imageProtocol";
 import { registerIpc } from "./ipc/registerIpc";
 import { ActiveJobStore } from "./jobs/activeJob";
-import { cleanupLegacyLogs, cleanupLibraryOrphans, getLibraryRoot } from "./library";
+import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
 import { getLogPath, logError, logInfo, resetAppLog } from "./logger";
 import { createMainWindow } from "./mainWindow";
 import { decodeImageThroughRuntime, loadSimplePageRuntime } from "./simplePageRuntime";

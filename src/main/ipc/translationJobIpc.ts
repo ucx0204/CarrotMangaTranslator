@@ -1,4 +1,3 @@
-import { ipcMain } from "electron";
 import { randomUUID } from "node:crypto";
 import { StartAnalysisRequestSchema, RegionAnalysisRequestSchema, parseIpcPayload } from "../../shared/ipcSchemas";
 import type { JobEvent, MangaPage, RegionAnalysisResult, StartAnalysisResult } from "../../shared/types";
@@ -15,9 +14,10 @@ import { createRegionCropPage, mapRegionBlocksToPageBlocks } from "../regionCrop
 import { runWholePagePipeline } from "../wholePagePipeline";
 import type { IpcContext } from "./context";
 import { emitJobEvent, isAbortError } from "./jobEvents";
+import { trustedHandle } from "./trustedIpc";
 
 export function registerTranslationJobIpc(context: IpcContext): void {
-  ipcMain.handle("job:start-analysis", async (_event, rawRequest: unknown): Promise<StartAnalysisResult> => {
+  trustedHandle(context, "job:start-analysis", async (_event, rawRequest: unknown): Promise<StartAnalysisResult> => {
     const request = parseIpcPayload(StartAnalysisRequestSchema, rawRequest, "번역 작업");
     if (context.jobs.hasActive) {
       return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
@@ -148,7 +148,7 @@ export function registerTranslationJobIpc(context: IpcContext): void {
     }
   });
 
-  ipcMain.handle("job:translate-region", async (_event, rawRequest: unknown): Promise<RegionAnalysisResult> => {
+  trustedHandle(context, "job:translate-region", async (_event, rawRequest: unknown): Promise<RegionAnalysisResult> => {
     const request = parseIpcPayload(RegionAnalysisRequestSchema, rawRequest, "영역 번역");
     if (context.jobs.hasActive) {
       return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };

@@ -7,44 +7,69 @@ import type {
   ModelSource,
   OcrDevice
 } from "../shared/types";
+import {
+  DEFAULT_CODEX_MODEL,
+  DEFAULT_CODEX_OAUTH_PORT,
+  DEFAULT_CODEX_REASONING_EFFORT,
+  DEFAULT_GEMMA_DRAFT_MODEL_FILE,
+  DEFAULT_GEMMA_DRAFT_MODEL_REPO,
+  DEFAULT_GEMMA_MMPROJ_FILE,
+  DEFAULT_GEMMA_MMPROJ_REPO,
+  DEFAULT_GEMMA_MODEL_FILE,
+  DEFAULT_GEMMA_MODEL_FILE_IQ3_S,
+  DEFAULT_GEMMA_MODEL_REPO,
+  DEFAULT_GEMMA_VRAM_MODE,
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_MODEL_PROVIDER,
+  DEFAULT_MODEL_SOURCE,
+  DEFAULT_OCR_DEVICE,
+  DEFAULT_OCR_GPU_CUDA_TAG,
+  GEMMA_26B_MMPROJ_FILE,
+  GEMMA_26B_MMPROJ_REPO,
+  GEMMA_26B_MODEL_FILE_IQ3_S,
+  GEMMA_26B_MODEL_REPO,
+  GEMMA_31B_MMPROJ_FILE,
+  GEMMA_31B_MMPROJ_REPO,
+  GEMMA_31B_MODEL_FILE_IQ3_S,
+  GEMMA_31B_MODEL_REPO,
+  MAX_MAX_TOKENS,
+  MIN_MAX_TOKENS,
+  RTX_50_OCR_GPU_CUDA_TAG
+} from "../shared/modelPresets";
 import type { DetectedGpuInfo } from "./gpuInfo";
 import { join } from "node:path";
 
-export const GEMMA_31B_MODEL_REPO =
-  "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
-export const GEMMA_31B_MODEL_FILE_IQ3_S =
-  "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf";
-export const GEMMA_31B_MMPROJ_REPO =
-  "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF";
-export const GEMMA_31B_MMPROJ_FILE =
-  "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
-export const GEMMA_26B_MODEL_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF";
-export const GEMMA_26B_MODEL_FILE_IQ3_S = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf";
-export const GEMMA_26B_MMPROJ_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF";
-export const GEMMA_26B_MMPROJ_FILE = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf";
+export {
+  DEFAULT_CODEX_MODEL,
+  DEFAULT_CODEX_OAUTH_PORT,
+  DEFAULT_CODEX_REASONING_EFFORT,
+  DEFAULT_GEMMA_MMPROJ_FILE,
+  DEFAULT_GEMMA_MMPROJ_REPO,
+  DEFAULT_GEMMA_MODEL_FILE,
+  DEFAULT_GEMMA_MODEL_FILE_IQ3_S,
+  DEFAULT_GEMMA_MODEL_REPO,
+  DEFAULT_GEMMA_VRAM_MODE,
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_MODEL_PROVIDER,
+  DEFAULT_MODEL_SOURCE,
+  DEFAULT_OCR_DEVICE,
+  DEFAULT_OCR_GPU_CUDA_TAG,
+  GEMMA_26B_MMPROJ_FILE,
+  GEMMA_26B_MMPROJ_REPO,
+  GEMMA_26B_MODEL_FILE_IQ3_S,
+  GEMMA_26B_MODEL_REPO,
+  GEMMA_31B_MMPROJ_FILE,
+  GEMMA_31B_MMPROJ_REPO,
+  GEMMA_31B_MODEL_FILE_IQ3_S,
+  GEMMA_31B_MODEL_REPO,
+  MAX_MAX_TOKENS,
+  MIN_MAX_TOKENS,
+  RTX_50_OCR_GPU_CUDA_TAG
+} from "../shared/modelPresets";
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12 = "beellama-v0.2.0-cuda12.4";
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 = "beellama-v0.2.0-cuda13.1";
 const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b8833-cuda12.4";
-const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9490-cuda13.3";
-export const DEFAULT_GEMMA_MODEL_REPO = GEMMA_31B_MODEL_REPO;
-export const DEFAULT_GEMMA_MODEL_FILE_IQ3_S = GEMMA_31B_MODEL_FILE_IQ3_S;
-export const DEFAULT_GEMMA_MODEL_FILE = DEFAULT_GEMMA_MODEL_FILE_IQ3_S;
-export const DEFAULT_GEMMA_MMPROJ_REPO = GEMMA_31B_MMPROJ_REPO;
-export const DEFAULT_GEMMA_MMPROJ_FILE = GEMMA_31B_MMPROJ_FILE;
-export const DEFAULT_GEMMA_DRAFT_MODEL_REPO = "Anbeeld/gemma-4-31B-it-DFlash-GGUF";
-export const DEFAULT_GEMMA_DRAFT_MODEL_FILE = "gemma4-31b-it-dflash-IQ4_XS.gguf";
-export const DEFAULT_GEMMA_VRAM_MODE: GemmaVramMode = "full";
-export const DEFAULT_MODEL_PROVIDER: ModelProvider = "gemma";
-export const DEFAULT_CODEX_MODEL = "gpt-5.5";
-export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = "low";
-export const DEFAULT_CODEX_OAUTH_PORT = 10531;
-export const DEFAULT_MODEL_SOURCE: ModelSource = "huggingface";
-export const DEFAULT_MAX_TOKENS = 12000;
-export const MIN_MAX_TOKENS = 300;
-export const MAX_MAX_TOKENS = 12000;
-export const DEFAULT_OCR_DEVICE: OcrDevice = "cpu";
-export const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
-export const RTX_50_OCR_GPU_CUDA_TAG = "cu129";
+const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9360-cuda13.1";
 
 const DEFAULT_IMAGE_TOKENS = 1024;
 
@@ -218,6 +243,7 @@ export function resolveDefaultAppSettings(
   const hardwareDefaults = resolveHardwareDefaults(detectedGpu);
   const vramMode = resolveGemmaVramMode(env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE, hardwareDefaults.gemmaVramMode);
   const defaultGemmaPreset = getDefaultGemmaPresetForVramMode(vramMode);
+  const llamaRuntimeProfile = resolveLlamaRuntimeProfile(env, hardwareDefaults.llamaRuntimeProfile);
   return {
     modelProvider: resolveModelProvider(env.MANGA_TRANSLATOR_MODEL_PROVIDER, hardwareDefaults.modelProvider),
     gemma: {
@@ -226,7 +252,8 @@ export function resolveDefaultAppSettings(
       modelFile: resolveNonEmptyString(env.LLAMA_ARG_HF_FILE, defaultGemmaPreset.modelFile),
       mmprojRepo: resolveOptionalString(env.MANGA_TRANSLATOR_MMPROJ_HF) ?? defaultGemmaPreset.mmprojRepo,
       mmprojFile: resolveOptionalString(env.LLAMA_ARG_MMPROJ_FILE) ?? defaultGemmaPreset.mmprojFile,
-      vramMode
+      vramMode,
+      llamaRuntimeProfile
     },
     codex: {
       model: resolveNonEmptyString(env.MANGA_TRANSLATOR_CODEX_MODEL, DEFAULT_CODEX_MODEL),
@@ -251,7 +278,7 @@ export function resolveDefaultAppSettings(
 
 export function resolveHardwareDefaults(
   detectedGpu?: number | DetectedGpuInfo | null
-): { modelProvider: ModelProvider; gemmaVramMode: GemmaVramMode; ocrDevice: OcrDevice; ocrGpuCudaTag: string } {
+): { modelProvider: ModelProvider; gemmaVramMode: GemmaVramMode; ocrDevice: OcrDevice; ocrGpuCudaTag: string; llamaRuntimeProfile: string } {
   const info = normalizeDetectedGpuInfo(detectedGpu);
   const supportedRtxGeneration = (info?.rtxGeneration ?? 0) >= 30;
   const supportedComputeCapability = (info?.computeCapability ?? 0) >= 8;
@@ -260,18 +287,21 @@ export function resolveHardwareDefaults(
       modelProvider: "openai-codex",
       gemmaVramMode: "economy",
       ocrDevice: "cpu",
-      ocrGpuCudaTag: resolveHardwareOcrGpuCudaTag(info)
+      ocrGpuCudaTag: resolveHardwareOcrGpuCudaTag(info),
+      llamaRuntimeProfile: resolveHardwareLlamaRuntimeProfile(info)
     };
   }
 
   const ocrDevice: OcrDevice = info.memoryMb >= 12000 ? "gpu" : "cpu";
   const ocrGpuCudaTag = resolveHardwareOcrGpuCudaTag(info);
+  const llamaRuntimeProfile = resolveHardwareLlamaRuntimeProfile(info);
   if (info.memoryMb >= 24000) {
     return {
       modelProvider: "gemma",
       gemmaVramMode: "full",
       ocrDevice,
-      ocrGpuCudaTag
+      ocrGpuCudaTag,
+      llamaRuntimeProfile
     };
   }
   if (info.memoryMb >= 16000) {
@@ -279,14 +309,16 @@ export function resolveHardwareDefaults(
       modelProvider: "gemma",
       gemmaVramMode: "economy",
       ocrDevice,
-      ocrGpuCudaTag
+      ocrGpuCudaTag,
+      llamaRuntimeProfile
     };
   }
   return {
     modelProvider: "openai-codex",
     gemmaVramMode: "economy",
     ocrDevice,
-    ocrGpuCudaTag
+    ocrGpuCudaTag,
+    llamaRuntimeProfile
   };
 }
 
@@ -321,7 +353,8 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
       ...(resolvedMmproj.mmprojFile ? { mmprojFile: resolvedMmproj.mmprojFile } : {}),
       ...(localModelPath ? { localModelPath } : {}),
       ...(localMmprojPath ? { localMmprojPath } : {}),
-      vramMode: resolvedVramMode
+      vramMode: resolvedVramMode,
+      llamaRuntimeProfile: resolveLlamaRuntimeProfile({}, asRecord(gemma)?.llamaRuntimeProfile ?? defaults.gemma.llamaRuntimeProfile)
     },
     codex: {
       model: resolveNonEmptyString(asRecord(codex)?.model, defaults.codex.model),
@@ -367,7 +400,7 @@ export function buildBaseTranslationOptions({
       runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_CUDA,
     settings.ocr.gpuCudaTag ?? DEFAULT_OCR_GPU_CUDA_TAG
   );
-  const llamaRuntimeProfile = resolveLlamaRuntimeProfile(runtimeEnv, ocrGpuCudaTag);
+  const llamaRuntimeProfile = resolveLlamaRuntimeProfile(runtimeEnv, settings.gemma.llamaRuntimeProfile);
   return {
     imagePath: "",
     outputDir: runDir,
@@ -728,12 +761,12 @@ function resolveDefaultLlamaServerPathForGemma(
   return join(paths.dataRoot, "tools", runtimeDir, binaryName);
 }
 
-function resolveLlamaRuntimeProfile(env: NodeJS.ProcessEnv, ocrGpuCudaTag: string): string {
+function resolveLlamaRuntimeProfile(env: NodeJS.ProcessEnv, fallback: unknown = "cuda12"): string {
   const explicit = resolveOptionalString(env.MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE);
   if (explicit) {
     return explicit.toLowerCase();
   }
-  return isRtx50OcrCudaTag(ocrGpuCudaTag) ? "rtx50" : "cuda12";
+  return (resolveOptionalString(fallback) ?? "cuda12").toLowerCase();
 }
 
 function isRtx50LlamaRuntimeProfile(profile: string): boolean {
@@ -741,9 +774,11 @@ function isRtx50LlamaRuntimeProfile(profile: string): boolean {
   return ["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(normalized);
 }
 
-function isRtx50OcrCudaTag(tag: string): boolean {
-  const normalized = String(tag ?? "").trim().toLowerCase();
-  return normalized === RTX_50_OCR_GPU_CUDA_TAG || normalized === "cu13" || normalized === "cu131" || normalized === "cu133";
+function resolveHardwareLlamaRuntimeProfile(info: DetectedGpuInfo | null): string {
+  if ((info?.computeCapability ?? 0) >= 12 || (info?.rtxGeneration ?? 0) >= 50) {
+    return "rtx50";
+  }
+  return "cuda12";
 }
 
 function isBuiltInGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">): boolean {

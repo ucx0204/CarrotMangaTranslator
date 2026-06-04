@@ -19,6 +19,7 @@ export type GemmaSettings = {
   localModelPath?: string;
   localMmprojPath?: string;
   vramMode: GemmaVramMode;
+  llamaRuntimeProfile?: string;
 };
 
 export type CodexSettings = {
@@ -312,10 +313,6 @@ export type RegionAnalysisResult = StartAnalysisResult & {
 export type StartInpaintingRequest =
   | {
       chapterId: string;
-      mode: "chapter-pattern";
-    }
-  | {
-      chapterId: string;
       mode: "chapter-pattern-pending";
     }
   | {
@@ -373,6 +370,7 @@ export type InpaintingRetouchRequest = {
   points: InpaintingPoint[];
   radiusPx: number;
   color?: string;
+  retainedInpaintedArtifactPaths?: string[];
 };
 
 export type InpaintingRetouchResult = {
@@ -410,6 +408,7 @@ export type SetPageInpaintingResultRequest = {
   chapterId: string;
   pageId: string;
   inpaintedImagePath?: string | null;
+  retainedInpaintedArtifactPaths?: string[];
 };
 
 export type SetPageInpaintingResultResult = {

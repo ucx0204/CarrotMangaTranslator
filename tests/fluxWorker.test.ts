@@ -83,10 +83,10 @@ describe("Flux worker runtime helpers", () => {
 
   it("keeps Flux scratch run directories under app tmp runtime instead of the model cache", () => {
     const poolSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxEnginePool.ts"), "utf8");
-    const inpaintingSource = readFileSync(join(repoRoot, "src", "main", "inpainting.ts"), "utf8");
+    const fluxEngineSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxEngine.ts"), "utf8");
 
     expect(poolSource).toContain('join(options.appPaths.dataRoot, "tmp", "runtime", "flux-inpainting")');
-    expect(inpaintingSource).toContain("join(options.runRootDir");
-    expect(inpaintingSource).not.toContain('dirname(options.modelPath), "runs"');
+    expect(fluxEngineSource).toContain("join(options.runRootDir");
+    expect(fluxEngineSource).not.toContain('dirname(options.modelPath), "runs"');
   });
 });

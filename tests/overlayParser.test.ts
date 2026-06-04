@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-const { normalizeItems, parseJsonLenient, parseRetryItems } = require("../src/main/runtime/overlay-parser.cjs");
+const { normalizeItems, parseJsonLenient } = require("../src/main/runtime/overlay-parser.cjs");
 
 describe("overlay parser", () => {
   it("parses strict line records with corner coordinates", () => {
@@ -190,50 +190,4 @@ ko: 생긋
     expect(items.map((item: { id: number }) => item.id)).toEqual([6, 10]);
   });
 
-  it("parses crop retry records without bbox", () => {
-    const items = parseRetryItems(String.raw`
-id: 6
-type: solid
-textRole: sound
-x1: 12
-y1: 18
-x2: 88
-y2: 96
-direction: horizontal
-angle: 0
-fontSize: 22
-confidence: 92
-jp: ありがとう
-ko: 고마워.
-
-id: 9
-type: reject
-direction: horizontal
-angle: 0
-fontSize: 10
-confidence: 1
-jp: [non-text]
-ko: [non-text]
-`);
-
-    expect(items).toHaveLength(2);
-    expect(items[0]).toMatchObject({
-      id: 6,
-      type: "nonsolid",
-      textRole: "sound",
-      bbox: {
-        x: 12,
-        y: 18,
-        w: 76,
-        h: 78
-      },
-      direction: "horizontal",
-      angle: 0,
-      fontSize: 22,
-      confidence: 0.92,
-      jp: "ありがとう",
-      ko: "고마워."
-    });
-    expect(items[1].type).toBe("reject");
-  });
 });

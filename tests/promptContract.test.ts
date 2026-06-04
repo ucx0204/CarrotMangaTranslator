@@ -41,11 +41,6 @@ describe("prompt contracts", () => {
     expect(contractSource).toContain("bboxCoordinateSpace");
     expect(contractSource).toContain("Use exactly these keys, one per line: id, type, textRole, x1, y1, x2, y2, direction, angle, fontSize, confidence, jp, ko.");
     expect(contractSource).toContain("confidence is your confidence from 0.00 to 1.00");
-    expect(contractSource).toContain("You are directly OCR-reading and translating only the listed manga crop images.");
-    expect(contractSource).toContain("The crop image itself is the authority.");
-    expect(contractSource).toContain("textRole is one of sound, ordinary, or nontext.");
-    expect(contractSource).toContain("x1, y1, x2, y2 are integer crop image pixel coordinates");
-    expect(contractSource).toContain("For sound-check targets");
     expect(contractSource).toContain("OCR bbox candidates");
     expect(contractSource).toContain("low-trust OCR text hints for slot matching only");
     expect(contractSource).toContain("Use Image 1 as the authority");

@@ -1,6 +1,5 @@
 import { execFile } from "node:child_process";
 
-let cachedGpuMemoryMbPromise: Promise<number | null> | null = null;
 let cachedGpuInfoPromise: Promise<DetectedGpuInfo | null> | null = null;
 
 export type DetectedGpuInfo = {
@@ -9,13 +8,6 @@ export type DetectedGpuInfo = {
   rtxGeneration: number | null;
   computeCapability: number | null;
 };
-
-export function detectMaxGpuMemoryMb(): Promise<number | null> {
-  if (!cachedGpuMemoryMbPromise) {
-    cachedGpuMemoryMbPromise = detectBestGpuInfo().then((info) => info?.memoryMb ?? null);
-  }
-  return cachedGpuMemoryMbPromise;
-}
 
 export function detectBestGpuInfo(): Promise<DetectedGpuInfo | null> {
   if (!cachedGpuInfoPromise) {

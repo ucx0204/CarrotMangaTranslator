@@ -1,20 +1,15 @@
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import type { IpcContext } from "./context";
 
-let guardInstalled = false;
-
-export function installTrustedIpcGuard(context: IpcContext): void {
-  if (guardInstalled) {
-    return;
-  }
-  guardInstalled = true;
-
-  const originalHandle = ipcMain.handle.bind(ipcMain);
-  ipcMain.handle = ((channel, listener) =>
-    originalHandle(channel, async (event: IpcMainInvokeEvent, ...args: unknown[]) => {
-      assertTrustedIpcSender(event, context);
-      return listener(event, ...args);
-    })) as typeof ipcMain.handle;
+export function trustedHandle(
+  context: IpcContext,
+  channel: string,
+  listener: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown
+): void {
+  ipcMain.handle(channel, async (event: IpcMainInvokeEvent, ...args: unknown[]) => {
+    assertTrustedIpcSender(event, context);
+    return listener(event, ...args);
+  });
 }
 
 export function assertTrustedIpcSender(event: IpcMainInvokeEvent, context: IpcContext): void {

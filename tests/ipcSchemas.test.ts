@@ -132,7 +132,8 @@ describe("IPC schemas", () => {
         modelSource: "huggingface",
         modelRepo: "owner/repo",
         modelFile: "model.gguf",
-        vramMode: "economy"
+        vramMode: "economy",
+        llamaRuntimeProfile: "rtx50"
       },
       codex: {
         model: "gpt-5.5",
@@ -146,7 +147,15 @@ describe("IPC schemas", () => {
     };
 
     expect(parseIpcPayload(AppSettingsSchema, payload, "설정 저장").maxTokens).toBe(12000);
+    expect(parseIpcPayload(AppSettingsSchema, payload, "설정 저장").gemma.llamaRuntimeProfile).toBe("rtx50");
     expect(() => parseIpcPayload(AppSettingsSchema, { ...payload, maxTokens: 12001 }, "설정 저장")).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        AppSettingsSchema,
+        { ...payload, gemma: { ...payload.gemma, llamaRuntimeProfile: "cuda13.3" } },
+        "설정 저장"
+      )
+    ).toThrow(/요청 형식/);
     expect(() =>
       parseIpcPayload(AppSettingsSchema, { ...payload, codex: { ...payload.codex, oauthPort: 0 } }, "설정 저장")
     ).toThrow(/요청 형식/);
