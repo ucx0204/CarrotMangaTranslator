@@ -502,6 +502,18 @@ describe("runtime model launch helpers", () => {
     expect(paddleSource).toContain("flush=True");
   });
 
+  it("keeps the CUDA 13 llama-server implementation DLL in the managed runtime", () => {
+    const runtimeSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-translate.cjs"), "utf8");
+    const mainlineCuda13Profile = runtimeSource.match(/const MAINLINE_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
+    const beellamaCuda13Profile = runtimeSource.match(/const BEELLAMA_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
+
+    expect(mainlineCuda13Profile).toContain('"llama-b9490-cuda13.3"');
+    expect(mainlineCuda13Profile).toContain('"llama-server-impl.dll"');
+    expect(beellamaCuda13Profile).not.toContain('"llama-server-impl.dll"');
+    expect(runtimeSource).toContain("function shouldExtractLlamaRuntimeFile(fileName)");
+    expect(runtimeSource).toContain("LLAMA_RUNTIME_FILES.has(fileName) || /\\.dll$/i.test");
+  });
+
   it("treats an explicitly empty OCR hint array as a completed OCR pass", async () => {
     const result = await collectOcrBboxHints({
       ocrBboxHints: [],

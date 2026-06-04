@@ -166,6 +166,7 @@ const MAINLINE_LLAMA_RUNTIME_CUDA13 = {
   ],
   requiredFiles: [
     "llama-server.exe",
+    "llama-server-impl.dll",
     ["ggml-cuda.dll", "ggml-cuda-cu13.dll"],
     ["cublas64_13.dll", "cublas64_12.dll"],
     ["cublasLt64_13.dll", "cublasLt64_12.dll"],
@@ -204,6 +205,7 @@ const LLAMA_RUNTIME_FILES = new Set([
   "ggml.dll",
   "libomp140.x86_64.dll",
   "llama-common.dll",
+  "llama-server-impl.dll",
   "llama-server.exe",
   "llama.dll",
   "mtmd.dll",
@@ -1074,7 +1076,7 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
   await rm(runtimeDir, { recursive: true, force: true }).catch(() => {});
   await mkdir(runtimeDir, { recursive: true });
   for (const archivePath of archivePaths) {
-    await extractSelectedZipEntries(archivePath, runtimeDir, (fileName) => LLAMA_RUNTIME_FILES.has(fileName));
+    await extractSelectedZipEntries(archivePath, runtimeDir, shouldExtractLlamaRuntimeFile);
   }
 
   const missingFiles = missingRequiredLlamaRuntimeFiles(runtimeDir, runtime);
@@ -1124,6 +1126,10 @@ function getLlamaRuntimeArchives(runtime) {
     return runtime.archives;
   }
   return runtime?.archive && runtime?.url ? [{ archive: runtime.archive, url: runtime.url }] : [];
+}
+
+function shouldExtractLlamaRuntimeFile(fileName) {
+  return LLAMA_RUNTIME_FILES.has(fileName) || /\.dll$/i.test(String(fileName ?? ""));
 }
 
 async function extractSelectedZipEntries(archivePath, outputDir, shouldExtract) {
