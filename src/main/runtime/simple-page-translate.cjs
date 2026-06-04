@@ -3214,6 +3214,9 @@ function resolveOcrInstallBatchProgressRanges(installBatches, startPercent, endP
 
   const weights = batches.map((packages, index) => {
     const packageText = Array.isArray(packages) ? packages.join(" ").toLowerCase() : "";
+    if (packageText.includes("safetensors")) {
+      return batches.length > 1 ? 0.04 : 1;
+    }
     if (packageText.includes("paddlepaddle")) {
       return batches.length > 1 ? 0.36 : 1;
     }
@@ -3316,18 +3319,18 @@ function resolveOcrPipInstallBatches(options = {}) {
 
   if (!isOcrGpuRequested(options)) {
     const cpuPackages = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_CPU_PIP_PACKAGES", options));
-    return [withPaddleOcrVlSafetensorsPackage(cpuPackages.length > 0 ? cpuPackages : DEFAULT_OCR_CPU_PIP_PACKAGES)];
+    return withPaddleOcrVlSafetensorsBatch([cpuPackages.length > 0 ? cpuPackages : DEFAULT_OCR_CPU_PIP_PACKAGES]);
   }
 
   const gpuPackages = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES", options));
   if (gpuPackages.length > 0) {
-    return [gpuPackages];
+    return withPaddleOcrVlSafetensorsBatch([gpuPackages]);
   }
 
-  return [
+  return withPaddleOcrVlSafetensorsBatch([
     resolveOcrGpuPaddleInstallBatch(options),
-    withPaddleOcrVlSafetensorsPackage(DEFAULT_OCR_GPU_EXTRA_PACKAGES)
-  ];
+    DEFAULT_OCR_GPU_EXTRA_PACKAGES
+  ]);
 }
 
 function resolveOcrGpuPaddleInstallBatch(options = {}) {
@@ -3342,13 +3345,13 @@ function resolveOcrGpuPaddleInstallBatch(options = {}) {
   ];
 }
 
-function withPaddleOcrVlSafetensorsPackage(packages) {
-  const list = Array.isArray(packages) ? [...packages] : [];
+function withPaddleOcrVlSafetensorsBatch(installBatches) {
+  const batches = Array.isArray(installBatches) ? installBatches.map((batch) => Array.isArray(batch) ? [...batch] : []) : [];
   if (process.platform !== "win32") {
-    return list;
+    return batches;
   }
-  const alreadyPresent = list.some((item) => /safetensors/i.test(String(item ?? "")));
-  return alreadyPresent ? list : [...list, PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL];
+  const alreadyPresent = batches.some((batch) => batch.some((item) => /safetensors/i.test(String(item ?? ""))));
+  return alreadyPresent ? batches : [...batches, ["--no-deps", "--force-reinstall", PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL]];
 }
 
 function splitShellLikeEnv(value) {

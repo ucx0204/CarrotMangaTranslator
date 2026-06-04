@@ -385,21 +385,27 @@ describe("runtime model launch helpers", () => {
       "--index-url",
       "https://www.paddlepaddle.org.cn/packages/stable/cu129/"
     ]);
-    expect(cu129Batches[1][0]).toBe("paddleocr[doc-parser]==3.5.0");
+    expect(cu129Batches[1]).toEqual(["paddleocr[doc-parser]==3.5.0"]);
     if (process.platform === "win32") {
-      expect(cu129Batches[1].some((item) => item.includes("safetensors-0.6.2.dev0"))).toBe(true);
+      expect(cu129Batches[2][0]).toBe("--no-deps");
+      expect(cu129Batches[2][1]).toBe("--force-reinstall");
+      expect(cu129Batches[2][2]).toContain("safetensors-0.6.2.dev0");
     }
     expect(cu126Batches[0]).toEqual([
       "paddlepaddle-gpu==3.3.1",
       "--index-url",
       "https://www.paddlepaddle.org.cn/packages/stable/cu126/"
     ]);
-    expect(cu126Batches[1][0]).toBe("paddleocr[doc-parser]==3.5.0");
+    expect(cu126Batches[1]).toEqual(["paddleocr[doc-parser]==3.5.0"]);
     expect(cpuBatches[0][0]).toBe("paddlepaddle==3.3.1");
     expect(cpuBatches[0][1]).toBe("paddleocr[doc-parser]==3.5.0");
     if (process.platform === "win32") {
-      expect(cu126Batches[1].some((item) => item.includes("safetensors-0.6.2.dev0"))).toBe(true);
-      expect(cpuBatches[0].some((item) => item.includes("safetensors-0.6.2.dev0"))).toBe(true);
+      expect(cu126Batches[2][0]).toBe("--no-deps");
+      expect(cu126Batches[2][1]).toBe("--force-reinstall");
+      expect(cu126Batches[2][2]).toContain("safetensors-0.6.2.dev0");
+      expect(cpuBatches[1][0]).toBe("--no-deps");
+      expect(cpuBatches[1][1]).toBe("--force-reinstall");
+      expect(cpuBatches[1][2]).toContain("safetensors-0.6.2.dev0");
     }
   });
 
