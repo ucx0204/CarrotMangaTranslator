@@ -30,7 +30,7 @@ const {
   MM_PROJ_CANDIDATE_NAMES,
   OCR_INSTALL_MARKER_FILE,
   PADDLE_OCR_MODEL_DOWNLOADS,
-  RTX_50_WINDOWS_PADDLE_GPU_WHEEL_CP312
+  PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL
 } = require("./simple-page-defaults.cjs");
 const {
   buildSystemPrompt,
@@ -2935,7 +2935,24 @@ async function ensurePaddleOcrRuntime(options = {}) {
     ? await checkPaddleOcrImport(venvPython, options, { runtimeDir, includePackageDir: false })
     : { ok: false, message: "venv python is missing" };
   if (existsSync(venvPython) && importCheck.ok) {
-    return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, usesTargetPackageDir: false, diagnostics });
+    if (hasOcrInstallMarker(packageDir, runtimeVariant, options)) {
+      return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, usesTargetPackageDir: false, diagnostics });
+    }
+    diagnostics.push({
+      step: "venv-runtime-signature-mismatch",
+      runtimeDir,
+      runtimeVariant,
+      packageDir,
+      pythonPath: venvPython,
+      expectedSignature: resolveOcrInstallSignature(options)
+    });
+    emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 런타임 재설치 중", "패키지 구성이 바뀌어 기존 OCR 런타임을 다시 준비합니다.", {
+      progressMode: "log-only",
+      installLogLine: "기존 OCR 런타임 패키지 구성이 현재 버전과 달라 재설치합니다."
+    });
+    await rm(venvDir, { recursive: true, force: true });
+    await rm(packageDir, { recursive: true, force: true });
+    importCheck = { ok: false, message: "OCR runtime package signature changed" };
   }
 
   const bootstrapPython = resolveBootstrapPython(options);
@@ -2947,7 +2964,24 @@ async function ensurePaddleOcrRuntime(options = {}) {
     ? await checkPaddleOcrImport(bootstrapPython, options, { runtimeDir, packageDir, includePackageDir: true })
     : importCheck;
   if (!existsSync(venvPython) && importCheck.ok) {
-    return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, usesTargetPackageDir: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] });
+    if (hasOcrInstallMarker(packageDir, runtimeVariant, options)) {
+      return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, usesTargetPackageDir: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] });
+    }
+    diagnostics.push({
+      step: "target-runtime-signature-mismatch",
+      runtimeDir,
+      runtimeVariant,
+      packageDir,
+      pythonPath: bootstrapPython,
+      expectedSignature: resolveOcrInstallSignature(options)
+    });
+    emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 런타임 재설치 중", "패키지 구성이 바뀌어 기존 OCR 런타임을 다시 준비합니다.", {
+      progressMode: "log-only",
+      installLogLine: "기존 OCR 런타임 패키지 구성이 현재 버전과 달라 재설치합니다."
+    });
+    await rm(packageDir, { recursive: true, force: true });
+    ensureEmbeddedPythonPackagePath(bootstrapPython, packageDir, runtimeDir);
+    importCheck = { ok: false, message: "OCR runtime package signature changed" };
   }
 
   const targetInstallLooksBroken = hasOcrInstallMarker(packageDir, runtimeVariant, options) || hasExpectedOcrPackages(packageDir, options);
@@ -3282,7 +3316,7 @@ function resolveOcrPipInstallBatches(options = {}) {
 
   if (!isOcrGpuRequested(options)) {
     const cpuPackages = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_CPU_PIP_PACKAGES", options));
-    return [cpuPackages.length > 0 ? cpuPackages : DEFAULT_OCR_CPU_PIP_PACKAGES];
+    return [withPaddleOcrVlSafetensorsPackage(cpuPackages.length > 0 ? cpuPackages : DEFAULT_OCR_CPU_PIP_PACKAGES)];
   }
 
   const gpuPackages = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES", options));
@@ -3292,7 +3326,7 @@ function resolveOcrPipInstallBatches(options = {}) {
 
   return [
     resolveOcrGpuPaddleInstallBatch(options),
-    DEFAULT_OCR_GPU_EXTRA_PACKAGES
+    withPaddleOcrVlSafetensorsPackage(DEFAULT_OCR_GPU_EXTRA_PACKAGES)
   ];
 }
 
@@ -3301,9 +3335,6 @@ function resolveOcrGpuPaddleInstallBatch(options = {}) {
   if (explicitWheel) {
     return [explicitWheel];
   }
-  if (shouldUseRtx50WindowsPaddleWheel(options)) {
-    return [RTX_50_WINDOWS_PADDLE_GPU_WHEEL_CP312];
-  }
   return [
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_PACKAGE", options) || DEFAULT_OCR_GPU_PADDLE_PACKAGE,
     "--index-url",
@@ -3311,12 +3342,13 @@ function resolveOcrGpuPaddleInstallBatch(options = {}) {
   ];
 }
 
-function shouldUseRtx50WindowsPaddleWheel(options = {}) {
-  const explicit = runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_USE_RTX50_WINDOWS_WHEEL", options);
-  if (explicit !== undefined) {
-    return isTruthy(explicit);
+function withPaddleOcrVlSafetensorsPackage(packages) {
+  const list = Array.isArray(packages) ? [...packages] : [];
+  if (process.platform !== "win32") {
+    return list;
   }
-  return process.platform === "win32" && resolveOcrGpuCudaTag(options) === "cu129";
+  const alreadyPresent = list.some((item) => /safetensors/i.test(String(item ?? "")));
+  return alreadyPresent ? list : [...list, PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL];
 }
 
 function splitShellLikeEnv(value) {
@@ -3446,6 +3478,9 @@ function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
   if (isPaddleSm120UnsupportedText(importMessage)) {
     return buildPaddleOcrSm120FailureMessage(importMessage, options);
   }
+  if (isPaddleBfloat16SafetensorsText(importMessage)) {
+    return buildPaddleOcrBfloat16SafetensorsFailureMessage(importMessage, options);
+  }
   if (isPaddleOcrVerificationTimeoutText(importMessage)) {
     const suffix = isOcrGpuRequested(options)
       ? ` GPU 검증이 제한 시간 안에 끝나지 않았습니다. RTX 50번대는 cu129 런타임을 사용하며 첫 실행 검증이 오래 걸릴 수 있지만, 반복되면 NVIDIA 드라이버/CUDA 12.9용 Paddle 런타임 호환성을 확인해야 합니다.`
@@ -3464,6 +3499,9 @@ function buildPaddleOcrGpuFailureMessage(error, options = {}) {
   if (isPaddleSm120UnsupportedText(text)) {
     return buildPaddleOcrSm120FailureMessage(text, options);
   }
+  if (isPaddleBfloat16SafetensorsText(text)) {
+    return buildPaddleOcrBfloat16SafetensorsFailureMessage(text, options);
+  }
   return `Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 GPU Paddle 런타임이 필요합니다. CPU로 바꾸면 계속 진행할 수 있습니다. detail=${truncateText(text, 1200)}`;
 }
 
@@ -3471,8 +3509,16 @@ function buildPaddleOcrSm120FailureMessage(detail, options = {}) {
   return `RTX 50번대/SM120에서 현재 Paddle OCR GPU 런타임이 맞지 않습니다. RTX 50번대는 CUDA 12.9용 Paddle OCR 런타임(cu129)을 사용해야 합니다. 설정값은 현재 ${resolveOcrGpuCudaTag(options)}입니다. 기존 gpu-cu126 런타임이 남아 있으면 OCR 런타임을 삭제하고 다시 시도하세요. detail=${truncateText(detail, 1200)}`;
 }
 
+function buildPaddleOcrBfloat16SafetensorsFailureMessage(detail, options = {}) {
+  return `PaddleOCR-VL 모델 가중치(bfloat16)를 현재 OCR 런타임이 읽지 못했습니다. Windows에서는 PaddleOCR-VL용 special safetensors 휠과 공식 ${resolveOcrGpuCudaTag(options)} Paddle 런타임이 같이 필요합니다. OCR 런타임 패키지가 다시 설치되도록 앱을 업데이트한 뒤 재시도하세요. detail=${truncateText(detail, 1200)}`;
+}
+
 function isPaddleSm120UnsupportedText(value) {
   return /not compiled for\s+SM\s*120|sm[_\s-]*120|compute capability:\s*12(?:\.0)?|mismatched gpu architecture/i.test(String(value ?? ""));
+}
+
+function isPaddleBfloat16SafetensorsText(value) {
+  return /data type ['"]?bfloat16['"]? not understood|_load_part_state_dict_from_safetensors/i.test(String(value ?? ""));
 }
 
 function isPaddleOcrVerificationTimeoutText(value) {
