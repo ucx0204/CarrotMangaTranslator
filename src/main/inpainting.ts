@@ -106,7 +106,7 @@ export async function inpaintPatternPage(
   }
 
   if (!options.fluxEngine) {
-    throw new Error("Flux 무늬 배경 인페인팅 엔진이 준비되지 않았습니다.");
+    throw new Error("Flux 원문 지우기 엔진이 준비되지 않았습니다.");
   }
 
   await options.fluxEngine.inpaint(bitmap, size.width, size.height, pageMask, mergeRects(inpaintWindows), {
@@ -174,7 +174,7 @@ export async function inpaintDrawnPatternPage(
   }
 
   if (!options.fluxEngine) {
-    throw new Error("Flux 무늬 배경 인페인팅 엔진이 준비되지 않았습니다.");
+    throw new Error("Flux 원문 지우기 엔진이 준비되지 않았습니다.");
   }
 
   await options.fluxEngine.inpaint(bitmap, size.width, size.height, pageMask, mergeRects(components), {
@@ -234,7 +234,7 @@ export async function prepareFluxInpaintingEngine(options: {
     progressText: "Flux 인페인팅 준비 완료",
     detail: "FLUX.2 Klein 4B",
     progressMode: "log-only",
-    installLogLine: "Flux 무늬 배경 인페인팅 엔진 준비가 완료되었습니다."
+    installLogLine: "Flux 원문 지우기 엔진 준비가 완료되었습니다."
   });
 
   return createFluxEngine({

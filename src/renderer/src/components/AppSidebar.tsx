@@ -66,6 +66,7 @@ export function AppSidebar({
             pages={currentChapter?.pages ?? []}
             selectedPageId={selectedPageId}
             jobActive={true}
+            statusMode="inpainting"
             onSelect={onSelectPage}
             onRetranslate={onRetranslatePage}
             onRemove={onRemovePage}

@@ -33,11 +33,16 @@ export type OcrSettings = {
   gpuCudaTag?: string;
 };
 
+export type UiSettings = {
+  inpaintingGuideHidden?: boolean;
+};
+
 export type AppSettings = {
   modelProvider: ModelProvider;
   gemma: GemmaSettings;
   codex: CodexSettings;
   ocr: OcrSettings;
+  ui?: UiSettings;
   maxTokens: number;
 };
 

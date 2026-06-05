@@ -8,6 +8,7 @@ type InpaintingScope = "page" | "chapter";
 type UseInpaintingActionsOptions = {
   askConfirm: (title: string, message: string, detail?: string) => Promise<boolean>;
   clearPageImageCache: () => void;
+  clearRetouchHistory: () => void;
   currentChapter: ChapterSnapshot | null;
   dirty: boolean;
   hideInpaintingGuide: boolean;
@@ -49,6 +50,7 @@ function failInpaintingJob(
 export function useInpaintingActions({
   askConfirm,
   clearPageImageCache,
+  clearRetouchHistory,
   currentChapter,
   dirty,
   hideInpaintingGuide,
@@ -73,6 +75,7 @@ export function useInpaintingActions({
   enterInpaintingMode: () => Promise<void>;
   exitInpaintingMode: () => void;
   exportInpaintingResults: (scope: InpaintingScope) => Promise<void>;
+  revertInpainting: (scope: InpaintingScope) => Promise<void>;
   runDrawnPatternInpainting: () => Promise<void>;
   runInpainting: (scope: InpaintingScope) => Promise<void>;
 } {
@@ -92,7 +95,7 @@ export function useInpaintingActions({
     if (!hideInpaintingGuide) {
       setInpaintingGuideOpen(true);
     }
-    pushStatus("인페인팅 모드로 전환했습니다. 무늬 배경 지우기부터 시작하세요.");
+    pushStatus("인페인팅 모드로 전환했습니다. 원문 지우기부터 시작하세요.");
   }, [
     currentChapter,
     dirty,
@@ -145,11 +148,11 @@ export function useInpaintingActions({
       if (dirty) {
         await saveNow();
       }
-      const targetLabel = "무늬 배경";
+      const targetLabel = "원문";
       const scopeLabel = scope === "page" ? "현재 페이지" : "아직 지우지 않은 페이지";
       const confirmed = await askConfirm(
-        `${targetLabel} 원문 지우기`,
-        `${scopeLabel}의 ${targetLabel} 블록을 지웁니다.`,
+        `${targetLabel} 지우기`,
+        `${scopeLabel}의 번역 블록 위치에 있는 원문을 지웁니다.`,
         "말풍선, 톤, 배경 그림, 효과음 위 글자까지 모두 Flux 인페인팅으로 지웁니다. 원본 이미지는 유지하고 결과 이미지는 별도로 저장합니다."
       );
       if (!confirmed) {
@@ -208,7 +211,7 @@ export function useInpaintingActions({
     const confirmed = await askConfirm(
       "그린 영역 지우기",
       "주황색으로 그린 마스크 영역만 Flux로 지웁니다.",
-      "글자 위를 넉넉히 문질러 둔 영역을 crop으로 잘라 무늬 배경을 복원합니다. 결과는 별도 이미지로 저장되며 원본 페이지는 유지됩니다."
+      "글자 위를 넉넉히 문질러 둔 영역을 crop으로 잘라 배경을 복원합니다. 결과는 별도 이미지로 저장되며 원본 페이지는 유지됩니다."
     );
     if (!confirmed) {
       return;
@@ -269,6 +272,35 @@ export function useInpaintingActions({
     setPatternMaskStrokesByPage
   ]);
 
+  const revertInpainting = useCallback(
+    async (scope: InpaintingScope) => {
+      if (!currentChapter || jobActive) {
+        return;
+      }
+      if (scope === "page" && !selectedPage) {
+        return;
+      }
+      const confirmed = await askConfirm(
+        scope === "page" ? "이 페이지 원본으로 되돌리기" : "전체 페이지 원본으로 되돌리기",
+        scope === "page" ? "현재 페이지의 인페인팅 결과를 원본 이미지로 되돌립니다." : "현재 화의 인페인팅 결과를 원본 이미지로 되돌립니다.",
+        "번역 블록과 좌표는 유지하고, 지워진 이미지 결과만 해제합니다."
+      );
+      if (!confirmed) {
+        return;
+      }
+      const result = await window.mangaApi.revertInpainting(
+        scope === "page"
+          ? { chapterId: currentChapter.id, scope: "page", pageId: selectedPage!.id }
+          : { chapterId: currentChapter.id, scope: "chapter" }
+      );
+      clearPageImageCache();
+      mergeLiveChapter(result.chapter);
+      clearRetouchHistory();
+      pushStatus(`인페인팅 되돌리기 완료: ${result.pagesChanged}페이지`);
+    },
+    [askConfirm, clearPageImageCache, clearRetouchHistory, currentChapter, jobActive, mergeLiveChapter, pushStatus, selectedPage]
+  );
+
   const exportInpaintingResults = useCallback(
     async (scope: InpaintingScope) => {
       if (!currentChapter || jobActive) {
@@ -323,6 +355,7 @@ export function useInpaintingActions({
     enterInpaintingMode,
     exitInpaintingMode,
     exportInpaintingResults,
+    revertInpainting,
     runDrawnPatternInpainting,
     runInpainting
   };

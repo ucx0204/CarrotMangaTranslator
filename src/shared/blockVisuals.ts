@@ -11,7 +11,7 @@ export const BLOCK_VISUAL_STYLES: Record<BlockType, BlockVisualStyle> = {
   nonsolid: {
     borderColor: "#f59e0b",
     backgroundColor: "#fef3c7",
-    defaultOpacity: 0.5
+    defaultOpacity: 0.7
   }
 };
 

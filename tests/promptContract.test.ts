@@ -6,8 +6,10 @@ describe("prompt contracts", () => {
   it("keeps one canonical overlay prompt with tight Japanese glyph bbox rules", () => {
     const runtimeSource = readFileSync(join(process.cwd(), "src/main/runtime/simple-page-translate.cjs"), "utf8");
     const promptSource = readFileSync(join(process.cwd(), "src/main/runtime/simple-page-prompts.cjs"), "utf8");
+    const requestBuilderSource = readFileSync(join(process.cwd(), "src/main/runtime/simple-page-request-builders.cjs"), "utf8");
+    const requestSummarySource = readFileSync(join(process.cwd(), "src/main/runtime/simple-page-request-summary.cjs"), "utf8");
     const pipelineSource = readFileSync(join(process.cwd(), "src/main/wholePagePipeline.ts"), "utf8");
-    const contractSource = `${promptSource}\n${runtimeSource}`;
+    const contractSource = `${promptSource}\n${requestBuilderSource}\n${requestSummarySource}\n${runtimeSource}`;
 
     expect(promptSource).toContain("const OVERLAY_PROMPT_SECTIONS");
     expect(contractSource).toContain("x1, y1, x2, y2 describe the tight rectangle corners of the visible Japanese glyph ink and its outline.");

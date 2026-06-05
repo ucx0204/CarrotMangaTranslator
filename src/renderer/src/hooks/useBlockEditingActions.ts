@@ -111,6 +111,10 @@ export function useBlockEditingActions({
       if (!currentChapter || !selectedBlock || selectedPageEditLocked) {
         return;
       }
+      if (scope === "chapter" && jobActive) {
+        pushStatus("작업 중에는 전체 페이지 폰트 일괄 적용을 사용할 수 없습니다.");
+        return;
+      }
       const targetPageIds = scope === "page" ? (selectedPage ? [selectedPage.id] : []) : currentChapter.pages.map((page) => page.id);
       if (targetPageIds.length === 0) {
         return;
@@ -128,7 +132,7 @@ export function useBlockEditingActions({
       targetPageIds.forEach((id) => markDirty(id));
       pushStatus(scope === "page" ? "이 페이지의 모든 블록에 폰트를 적용했습니다." : "이 화 전체 블록에 폰트를 적용했습니다.");
     },
-    [currentChapter, currentChapterRef, markDirty, pushStatus, selectedBlock, selectedPage, selectedPageEditLocked, setCurrentChapter]
+    [currentChapter, currentChapterRef, jobActive, markDirty, pushStatus, selectedBlock, selectedPage, selectedPageEditLocked, setCurrentChapter]
   );
 
   const deleteSelectedBlock = useCallback(() => {

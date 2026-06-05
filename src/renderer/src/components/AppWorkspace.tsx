@@ -26,7 +26,6 @@ type AppWorkspaceProps = {
   regionSelectionRect: ImageStageProps["regionSelectionRect"];
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
-  onWorkspaceWheel: React.WheelEventHandler<HTMLElement>;
   onStagePointerMove: ImageStageProps["onStagePointerMove"];
   onStagePointerUp: ImageStageProps["onStagePointerUp"];
   onStagePointerDown: ImageStageProps["onStagePointerDown"];
@@ -58,7 +57,6 @@ export function AppWorkspace({
   regionSelectionRect,
   jobState,
   progressSnapshot,
-  onWorkspaceWheel,
   onStagePointerMove,
   onStagePointerUp,
   onStagePointerDown,
@@ -78,7 +76,6 @@ export function AppWorkspace({
       tabIndex={0}
       aria-label="읽기 영역"
       onMouseDown={() => workspacePanelRef.current?.focus()}
-      onWheel={onWorkspaceWheel}
     >
       {selectedPage ? (
         <div className="workspace-pane">

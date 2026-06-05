@@ -9,6 +9,7 @@ type UseSettingsDialogResult = {
   closeSettings: () => void;
   submitSettings: (nextSettings: AppSettings) => Promise<void>;
   resetSettings: () => Promise<void>;
+  saveSettingsQuietly: (nextSettings: AppSettings) => Promise<AppSettings | null>;
 };
 
 export function useSettingsDialog(pushStatus: (line: string) => void): UseSettingsDialogResult {
@@ -68,6 +69,17 @@ export function useSettingsDialog(pushStatus: (line: string) => void): UseSettin
     [pushStatus]
   );
 
+  const saveSettingsQuietly = React.useCallback(async (nextSettings: AppSettings) => {
+    try {
+      const saved = await window.mangaApi.saveSettings(nextSettings);
+      setSettings(saved);
+      return saved;
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }, []);
+
   const resetSettings = React.useCallback(async () => {
     setSettingsBusy(true);
     try {
@@ -82,5 +94,5 @@ export function useSettingsDialog(pushStatus: (line: string) => void): UseSettin
     }
   }, [pushStatus]);
 
-  return { settings, settingsOpen, settingsBusy, openSettings, closeSettings, submitSettings, resetSettings };
+  return { settings, settingsOpen, settingsBusy, openSettings, closeSettings, submitSettings, resetSettings, saveSettingsQuietly };
 }

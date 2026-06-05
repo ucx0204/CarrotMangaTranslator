@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from "react";
-import type React from "react";
 import type { ChapterSnapshot } from "../../../shared/types";
 import { isEditableTarget } from "../lib/appHelpers";
 import { resolveAdjacentPageId, resolveKeyboardPageNavigation, resolveWheelPageNavigation } from "../lib/pageNavigation";
@@ -30,7 +29,6 @@ export function usePageNavigationHandlers({
   redoRetouch
 }: UsePageNavigationHandlersOptions): {
   selectPageForReading: (pageId: string | null) => void;
-  onWorkspaceWheel: (event: React.WheelEvent<HTMLElement>) => void;
 } {
   const lastWheelNavigationAtRef = useRef(0);
 
@@ -104,8 +102,8 @@ export function usePageNavigationHandlers({
     };
   }, [currentChapterRef, inpaintingMode, modalOpen, redoRetouch, selectAdjacentPageForReading, undoRetouch, workspacePanelRef]);
 
-  const onWorkspaceWheel = useCallback(
-    (event: React.WheelEvent<HTMLElement>) => {
+  const handleWorkspaceWheel = useCallback(
+    (event: WheelEvent) => {
       const pageIds = currentChapterRef.current?.pages.map((page) => page.id) ?? [];
       const direction = resolveWheelPageNavigation({
         deltaX: event.deltaX,
@@ -136,8 +134,18 @@ export function usePageNavigationHandlers({
     [currentChapterRef, modalOpen, selectAdjacentPageForReading, workspacePanelRef]
   );
 
+  useEffect(() => {
+    const panel = workspacePanelRef.current;
+    if (!panel) {
+      return;
+    }
+    panel.addEventListener("wheel", handleWorkspaceWheel, { passive: false });
+    return () => {
+      panel.removeEventListener("wheel", handleWorkspaceWheel);
+    };
+  }, [handleWorkspaceWheel, workspacePanelRef]);
+
   return {
-    selectPageForReading,
-    onWorkspaceWheel
+    selectPageForReading
   };
 }

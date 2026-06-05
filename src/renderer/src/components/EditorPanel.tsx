@@ -9,6 +9,7 @@ type EditorPanelProps = {
   disabled: boolean;
   areaTranslateAvailable?: boolean;
   areaTranslateSelecting?: boolean;
+  disableChapterFontApply?: boolean;
   onStartAreaTranslate?: () => void;
   onApplyFont?: (scope: "page" | "chapter", fontFamily?: string) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
@@ -21,6 +22,7 @@ export function EditorPanel({
   disabled,
   areaTranslateAvailable = false,
   areaTranslateSelecting = false,
+  disableChapterFontApply = false,
   onStartAreaTranslate,
   onApplyFont,
   onUpdate,
@@ -116,7 +118,12 @@ export function EditorPanel({
             <Button size="sm" disabled={disabled} onClick={() => onApplyFont("page", fontFamilyDraft)} title="이 페이지의 모든 블록에 적용">
               페이지
             </Button>
-            <Button size="sm" disabled={disabled} onClick={() => onApplyFont("chapter", fontFamilyDraft)} title="이 화의 모든 페이지·블록에 적용">
+            <Button
+              size="sm"
+              disabled={disabled || disableChapterFontApply}
+              onClick={() => onApplyFont("chapter", fontFamilyDraft)}
+              title="이 화의 모든 페이지·블록에 적용"
+            >
               전체
             </Button>
           </div>

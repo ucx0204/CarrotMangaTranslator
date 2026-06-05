@@ -61,7 +61,7 @@ export function AppRightRail({
   onDeleteBlock,
   onDuplicateBlock
 }: AppRightRailProps): React.JSX.Element {
-  const editorDisabled = selectedPageEditLocked || jobActive;
+  const editorDisabled = selectedPageEditLocked || (inpaintingMode && jobActive);
   const showAreaTranslationProgress =
     inpaintingMode &&
     jobState.kind === "gemma-analysis" &&
@@ -78,6 +78,7 @@ export function AppRightRail({
             <EditorPanel
               block={selectedBlock}
               disabled={editorDisabled}
+              disableChapterFontApply={jobActive}
               onApplyFont={onApplyFont}
               onUpdate={onUpdateBlock}
               onDelete={onDeleteBlock}
@@ -119,6 +120,7 @@ export function AppRightRail({
           <EditorPanel
             block={selectedBlock}
             disabled={editorDisabled}
+            disableChapterFontApply={jobActive}
             areaTranslateAvailable={Boolean(selectedPage && selectedPageImageDataUrl && !jobActive)}
             areaTranslateSelecting={areaTranslateSelecting}
             onStartAreaTranslate={onStartAreaTranslate}

@@ -4,6 +4,8 @@ const {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
   DEFAULT_HF_FILE,
+  DEFAULT_MMPROJ_FILE,
+  DEFAULT_MMPROJ_HF,
   DEFAULT_MODEL_HF
 } = require("./simple-page-defaults.cjs");
 
@@ -53,15 +55,55 @@ function resolveConfiguredModelFile(options = {}) {
   return String(options.modelFile ?? process.env.LLAMA_ARG_HF_FILE ?? "").trim() || DEFAULT_HF_FILE;
 }
 
+function resolveConfiguredMmprojRepo(options = {}) {
+  return String(options.mmprojRepo ?? process.env.MANGA_TRANSLATOR_MMPROJ_HF ?? "").trim() || DEFAULT_MMPROJ_HF;
+}
+
+function resolveConfiguredMmprojFile(options = {}) {
+  return String(options.mmprojFile ?? process.env.LLAMA_ARG_MMPROJ_FILE ?? "").trim() || DEFAULT_MMPROJ_FILE;
+}
+
+function resolveConfiguredDraftModelRepo(options = {}) {
+  return String(options.draftModelRepo ?? process.env.MANGA_TRANSLATOR_DRAFT_MODEL_HF ?? "").trim();
+}
+
+function resolveConfiguredDraftModelFile(options = {}) {
+  return String(options.draftModelFile ?? process.env.MANGA_TRANSLATOR_DRAFT_MODEL_FILE ?? "").trim();
+}
+
+function resolveConfiguredDraftModelUrl(options = {}) {
+  const repo = resolveConfiguredDraftModelRepo(options);
+  const file = resolveConfiguredDraftModelFile(options);
+  if (!repo || !file) {
+    return null;
+  }
+  return `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(file)}`;
+}
+
+function shouldUseConfiguredMmproj(options = {}) {
+  const explicitRepo = String(options.mmprojRepo ?? process.env.MANGA_TRANSLATOR_MMPROJ_HF ?? "").trim();
+  const explicitFile = String(options.mmprojFile ?? process.env.LLAMA_ARG_MMPROJ_FILE ?? "").trim();
+  if (explicitRepo || explicitFile) {
+    return true;
+  }
+  return resolveConfiguredModelRepo(options) === DEFAULT_MODEL_HF;
+}
+
 module.exports = {
   isOpenAICodexProvider,
   resolveConfiguredCodexModel,
   resolveConfiguredCodexReasoningEffort,
+  resolveConfiguredDraftModelFile,
+  resolveConfiguredDraftModelRepo,
+  resolveConfiguredDraftModelUrl,
   resolveConfiguredLocalMmprojPath,
   resolveConfiguredLocalModelPath,
   resolveConfiguredModelFile,
   resolveConfiguredModelRepo,
   resolveConfiguredModelSource,
+  resolveConfiguredMmprojFile,
+  resolveConfiguredMmprojRepo,
   resolveModelProvider,
-  resolveProviderDisplayName
+  resolveProviderDisplayName,
+  shouldUseConfiguredMmproj
 };

@@ -5,14 +5,12 @@ import { clampBbox } from "../../../shared/geometry";
 type UseChapterPersistenceOptions = {
   currentChapter: ChapterSnapshot | null;
   currentChapterRef: React.MutableRefObject<ChapterSnapshot | null>;
-  jobActive: boolean;
   setCurrentChapter: React.Dispatch<React.SetStateAction<ChapterSnapshot | null>>;
 };
 
 export function useChapterPersistence({
   currentChapter,
   currentChapterRef,
-  jobActive,
   setCurrentChapter
 }: UseChapterPersistenceOptions): {
   clearDirtyTracking: () => void;
@@ -56,7 +54,7 @@ export function useChapterPersistence({
   );
 
   React.useEffect(() => {
-    if (!dirty || !currentChapter || jobActive) {
+    if (!dirty || !currentChapter) {
       return;
     }
 
@@ -82,7 +80,7 @@ export function useChapterPersistence({
         window.clearTimeout(saveTimerRef.current);
       }
     };
-  }, [currentChapter, currentChapterRef, dirty, jobActive, persistChapter, setCurrentChapter]);
+  }, [currentChapter, currentChapterRef, dirty, persistChapter, setCurrentChapter]);
 
   const markDirty = useCallback((pageId?: string) => {
     dirtyVersionRef.current += 1;

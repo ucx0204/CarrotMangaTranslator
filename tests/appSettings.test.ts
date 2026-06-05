@@ -73,6 +73,7 @@ describe("app settings helpers", () => {
       },
       codex: defaults.codex,
       ocr: defaults.ocr,
+      ui: defaults.ui,
       maxTokens: defaults.maxTokens
     });
   });
@@ -91,6 +92,7 @@ describe("app settings helpers", () => {
       gemma: defaults.gemma,
       codex: defaults.codex,
       ocr: defaults.ocr,
+      ui: defaults.ui,
       maxTokens: defaults.maxTokens
     });
 
@@ -99,6 +101,7 @@ describe("app settings helpers", () => {
       gemma: defaults.gemma,
       codex: defaults.codex,
       ocr: defaults.ocr,
+      ui: defaults.ui,
       maxTokens: defaults.maxTokens
     });
   });
@@ -431,6 +434,7 @@ describe("app settings helpers", () => {
       },
       codex: defaults.codex,
       ocr: defaults.ocr,
+      ui: defaults.ui,
       maxTokens: defaults.maxTokens
     });
   });
@@ -459,8 +463,16 @@ describe("app settings helpers", () => {
         oauthPort: 10532
       },
       ocr: defaults.ocr,
+      ui: defaults.ui,
       maxTokens: defaults.maxTokens
     });
+  });
+
+  it("persists UI settings such as hidden inpainting guide", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(parseStoredAppSettings("{\"ui\":{\"inpaintingGuideHidden\":true}}", defaults).ui?.inpaintingGuideHidden).toBe(true);
+    expect(parseStoredAppSettings("{\"ui\":{\"inpaintingGuideHidden\":\"yes\"}}", defaults).ui?.inpaintingGuideHidden).toBe(false);
   });
 
   it("normalizes OCR device settings", () => {

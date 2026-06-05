@@ -516,19 +516,20 @@ describe("runtime model launch helpers", () => {
   });
 
   it("streams OCR batch progress without inheriting the first page index during runtime setup", () => {
-    const runtimeSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-translate.cjs"), "utf8");
+    const runtimeSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-ocr-bbox-pipeline.cjs"), "utf8");
+    const shellUtilsSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-shell-utils.cjs"), "utf8");
     const paddleSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "paddleocr-vl-bboxes.py"), "utf8");
 
     expect(runtimeSource).toContain("const batchOptions = withoutPageProgressOptions(firstOptions)");
     expect(runtimeSource).toContain("await ensurePaddleOcrRuntime(batchOptions)");
     expect(runtimeSource).toContain("emitRuntimeProgress(batchOptions, \"ocr_running\"");
-    expect(runtimeSource).toContain("createCommandOutputLineEmitter(onOutput)");
-    expect(runtimeSource).toContain("stdoutLines.write(chunk)");
+    expect(shellUtilsSource).toContain("createCommandOutputLineEmitter(onOutput)");
+    expect(shellUtilsSource).toContain("stdoutLines.write(chunk)");
     expect(paddleSource).toContain("flush=True");
   });
 
   it("keeps the CUDA 13 llama-server implementation DLL in the managed runtime", () => {
-    const runtimeSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-translate.cjs"), "utf8");
+    const modelAssetsSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-model-assets.cjs"), "utf8");
     const runtimeProfilesSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-llama-runtimes.cjs"), "utf8");
     const mainlineCuda13Profile = runtimeProfilesSource.match(/const MAINLINE_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
     const beellamaCuda13Profile = runtimeProfilesSource.match(/const BEELLAMA_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
@@ -536,8 +537,8 @@ describe("runtime model launch helpers", () => {
     expect(mainlineCuda13Profile).toContain('"llama-b9360-cuda13.1"');
     expect(mainlineCuda13Profile).toContain('"llama-server-impl.dll"');
     expect(beellamaCuda13Profile).not.toContain('"llama-server-impl.dll"');
-    expect(runtimeSource).toContain("function shouldExtractLlamaRuntimeFile(fileName)");
-    expect(runtimeSource).toContain("LLAMA_RUNTIME_FILES.has(fileName) || /\\.dll$/i.test");
+    expect(modelAssetsSource).toContain("function shouldExtractLlamaRuntimeFile(fileName)");
+    expect(modelAssetsSource).toContain("LLAMA_RUNTIME_FILES.has(fileName) || /\\.dll$/i.test");
   });
 
   it("treats an explicitly empty OCR hint array as a completed OCR pass", async () => {

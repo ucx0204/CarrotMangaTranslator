@@ -12,6 +12,7 @@ type PageListProps = {
   pages: MangaPage[];
   selectedPageId: string | null;
   jobActive: boolean;
+  statusMode?: "translation" | "inpainting";
   onSelect: (pageId: string) => void;
   onRetranslate: (pageId: string) => void;
   onRemove: (pageId: string) => void;
@@ -22,6 +23,7 @@ export function PageList({
   pages,
   selectedPageId,
   jobActive,
+  statusMode = "translation",
   onSelect,
   onRetranslate,
   onRemove,
@@ -71,6 +73,7 @@ export function PageList({
                   page={page}
                   selected={page.id === selectedPageId}
                   disabled={jobActive}
+                  statusMode={statusMode}
                   onSelect={onSelect}
                   onRetranslate={onRetranslate}
                   onRemove={onRemove}
@@ -85,7 +88,7 @@ export function PageList({
           </div>
         </SortableContext>
         {createPortal(
-          <DragOverlay>{activePage ? <PageDragPreview page={activePage} selected={activePage.id === selectedPageId} /> : null}</DragOverlay>,
+          <DragOverlay>{activePage ? <PageDragPreview page={activePage} selected={activePage.id === selectedPageId} statusMode={statusMode} /> : null}</DragOverlay>,
           document.body
         )}
       </DndContext>
@@ -97,6 +100,7 @@ function SortablePageItem({
   page,
   selected,
   disabled,
+  statusMode,
   onSelect,
   onRetranslate,
   onRemove,
@@ -105,6 +109,7 @@ function SortablePageItem({
   page: MangaPage;
   selected: boolean;
   disabled: boolean;
+  statusMode: "translation" | "inpainting";
   onSelect: (pageId: string) => void;
   onRetranslate: (pageId: string) => void;
   onRemove: (pageId: string) => void;
@@ -144,7 +149,7 @@ function SortablePageItem({
         <span>{page.name}</span>
       </button>
       <div className="page-side">
-        {selected ? (
+        {selected && statusMode === "translation" ? (
           <div className="page-actions">
             <IconButton size="sm" label={`${page.name} 재번역`} title="재번역" onClick={() => onRetranslate(page.id)} disabled={disabled}>
               <RefreshIcon size={15} />
@@ -154,14 +159,22 @@ function SortablePageItem({
             </IconButton>
           </div>
         ) : (
-          <span className="page-status-badge">{resolveStatusLabel(page)}</span>
+          <span className="page-status-badge">{resolveStatusLabel(page, statusMode)}</span>
         )}
       </div>
     </div>
   );
 }
 
-function PageDragPreview({ page, selected }: { page: MangaPage; selected: boolean }): React.JSX.Element {
+function PageDragPreview({
+  page,
+  selected,
+  statusMode
+}: {
+  page: MangaPage;
+  selected: boolean;
+  statusMode: "translation" | "inpainting";
+}): React.JSX.Element {
   return (
     <div className={`page-item sortable-item drag-preview ${selected ? "active" : ""}`}>
       <span className="drag-handle compact preview-handle">
@@ -170,12 +183,16 @@ function PageDragPreview({ page, selected }: { page: MangaPage; selected: boolea
       <div className="page-select preview-select" title={page.name}>
         <span>{page.name}</span>
       </div>
-      <span className="page-status-badge">{resolveStatusLabel(page)}</span>
+      <span className="page-status-badge">{resolveStatusLabel(page, statusMode)}</span>
     </div>
   );
 }
 
-function resolveStatusLabel(page: MangaPage): string {
+function resolveStatusLabel(page: MangaPage, statusMode: "translation" | "inpainting"): string {
+  if (statusMode === "inpainting") {
+    return page.inpaintedImagePath ? "지움" : "대기";
+  }
+
   switch (page.analysisStatus) {
     case "completed":
       return "완료";

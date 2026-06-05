@@ -55,7 +55,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
       const drawnPatternMode = request.mode === "page-pattern-drawn";
       const drawnStrokes = request.mode === "page-pattern-drawn" ? request.strokes : [];
       const drawnFeatherPx = request.mode === "page-pattern-drawn" ? request.featherPx : undefined;
-      const targetLabel = drawnPatternMode ? "그린 영역" : "무늬 배경";
+      const targetLabel = drawnPatternMode ? "그린 영역" : "원문";
       const pages =
         request.mode === "chapter-pattern-pending"
           ? chapter.pages.filter((page) => !page.inpaintedImagePath)
@@ -79,7 +79,8 @@ export function registerInpaintingIpc(context: IpcContext): void {
       });
 
       let blocksErased = 0;
-      const changedPages: MangaPage[] = [];
+      let savedChapter = chapter;
+      let pagesChanged = 0;
       if (totalTargetBlocks > 0) {
         fluxEngineLease = await acquireFluxInpaintingEngine({
           appPaths: context.appPaths,
@@ -136,8 +137,9 @@ export function registerInpaintingIpc(context: IpcContext): void {
               fluxEngine: fluxEngineLease?.engine
             });
         if (result.blocksErased > 0) {
-          changedPages.push(result.page);
           blocksErased += result.blocksErased;
+          pagesChanged += 1;
+          savedChapter = await updatePagesAfterInpainting(request.chapterId, [result.page]);
         }
 
         emit({
@@ -154,7 +156,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
         });
       }
 
-      const saved = changedPages.length > 0 ? await updatePagesAfterInpainting(request.chapterId, changedPages) : await openChapter(request.chapterId);
+      const saved = savedChapter ?? (await openChapter(request.chapterId));
       emit({
         id,
         kind: "inpainting",
@@ -170,7 +172,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
       return {
         status: "completed",
         chapter: saved,
-        pagesChanged: changedPages.length,
+        pagesChanged,
         blocksErased
       };
     } catch (error) {

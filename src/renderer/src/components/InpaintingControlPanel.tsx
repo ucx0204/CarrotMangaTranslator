@@ -103,7 +103,7 @@ export function InpaintingControlPanel(): React.JSX.Element {
 
       {step === "auto" ? (
         <div className="inpaint-step-body">
-          <p className="inpaint-step-lead">먼저 원문 배경을 자동으로 지웁니다. 한 페이지씩 또는 남은 페이지를 한 번에 처리할 수 있어요.</p>
+          <p className="inpaint-step-lead">먼저 원문 글자를 자동으로 지웁니다. 한 페이지씩 또는 남은 페이지를 한 번에 처리할 수 있어요.</p>
           <div className="inpainting-run-card">
             <span className="inpainting-run-meta">
               {currentChapter ? `남은 ${blockCounts.pendingPages} / ${totalPages}페이지 · ${pendingTargetCount}개 블록` : "화가 열려 있지 않습니다."}

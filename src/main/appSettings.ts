@@ -272,6 +272,9 @@ export function resolveDefaultAppSettings(
         hardwareDefaults.ocrGpuCudaTag
       )
     },
+    ui: {
+      inpaintingGuideHidden: false
+    },
     maxTokens: resolveMaxTokens(env.MANGA_TRANSLATOR_MAX_TOKENS, DEFAULT_MAX_TOKENS)
   };
 }
@@ -327,6 +330,7 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
   const gemma = record?.gemma;
   const codex = record?.codex;
   const ocr = record?.ocr;
+  const ui = asRecord(record?.ui);
   const modelSource = resolveModelSource(asRecord(gemma)?.modelSource, defaults.gemma.modelSource);
   const resolvedVramMode = resolveGemmaVramMode(asRecord(gemma)?.vramMode, defaults.gemma.vramMode);
   const modeAwareGemmaDefaults = getModeAwareGemmaDefaults(defaults, resolvedVramMode);
@@ -364,6 +368,9 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
     ocr: {
       device: resolveOcrDevice(resolvedOcr?.device, defaults.ocr.device),
       gpuCudaTag: resolveStoredOcrGpuCudaTag(resolvedOcr, defaults)
+    },
+    ui: {
+      inpaintingGuideHidden: resolveBoolean(ui?.inpaintingGuideHidden, defaults.ui?.inpaintingGuideHidden ?? false)
     },
     maxTokens: resolveMaxTokens(record?.maxTokens, defaults.maxTokens)
   };
@@ -594,6 +601,10 @@ function resolveGemmaVramMode(value: unknown, fallback: GemmaVramMode): GemmaVra
 
 function resolveOcrDevice(value: unknown, fallback: OcrDevice): OcrDevice {
   return value === "gpu" || value === "cpu" ? value : fallback;
+}
+
+function resolveBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
 }
 
 function resolveOcrGpuCudaTag(value: unknown, fallback: string): string {

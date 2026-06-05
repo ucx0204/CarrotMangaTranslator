@@ -59,7 +59,7 @@ export function useJobEvents({
         appendStatusLine(formatJobEventLine(event), resolveStatusLineReplacement(event));
       }
 
-      if (event.phase === "page_done" || event.phase === "page_skipped") {
+      if (event.phase === "page_done" || event.phase === "page_skipped" || event.phase === "inpainting_done") {
         const chapterId = currentChapterRef.current?.id;
         if (!chapterId) {
           return;

@@ -274,6 +274,9 @@ export const AppSettingsSchema = z
       device: z.enum(["cpu", "gpu"]),
       gpuCudaTag: z.string().regex(/^cu\d+$/i).optional()
     }).strict(),
+    ui: z.object({
+      inpaintingGuideHidden: z.boolean().optional()
+    }).strict().optional(),
     maxTokens: z.number().int().min(300).max(12000)
   })
   .strict();
