@@ -1,5 +1,12 @@
 import type { TranslationBlock } from "../../../shared/types";
-import { bboxToPixels, clamp, MIN_READABLE_FONT_SIZE_PX, resolveBlockRenderBbox, resolveEffectiveRenderBbox } from "../../../shared/geometry";
+import {
+  bboxToPixels,
+  clamp,
+  MIN_READABLE_FONT_SIZE_PX,
+  normalizeRenderDirection,
+  resolveBlockRenderBbox,
+  resolveEffectiveRenderBbox
+} from "../../../shared/geometry";
 import { resolveBlockFontFamily } from "./fonts";
 
 const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
@@ -118,7 +125,7 @@ function resolveTextFontSizePx(
 }
 
 function doesTextFit(block: TranslationBlock, text: string, fontSize: number, innerWidth: number, innerHeight: number): boolean {
-  if (block.renderDirection === "vertical") {
+  if (normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical") {
     return measureVerticalText(text, fontSize, innerWidth, innerHeight, fontSize * block.lineHeight).fits;
   }
 
@@ -133,26 +140,25 @@ function wrapTextToWidth(context: CanvasRenderingContext2D, text: string, maxWid
   const lines: string[] = [];
 
   for (const paragraph of paragraphs) {
-    const normalized = paragraph.replace(/\s+/g, " ").trim();
-    if (!normalized) {
+    if (!paragraph) {
       lines.push("");
       continue;
     }
 
     let current = "";
-    for (const char of [...normalized]) {
+    for (const char of [...paragraph]) {
       const candidate = `${current}${char}`;
       if (!current || context.measureText(candidate).width <= maxWidth) {
         current = candidate;
         continue;
       }
 
-      lines.push(current.trimEnd());
-      current = /\s/u.test(char) ? "" : char;
+      lines.push(current);
+      current = char;
     }
 
     if (current) {
-      lines.push(current.trimEnd());
+      lines.push(current);
     }
   }
 
@@ -179,7 +185,7 @@ function resolveAutoFitUpperBound(block: TranslationBlock, preferredFontSize: nu
   }
 
   const heightBound = Math.floor(innerHeight / Math.max(1, block.lineHeight || 1));
-  const widthBound = block.renderDirection === "vertical" ? Math.floor(innerWidth / 1.15) : MAX_AUTOFIT_FONT_SIZE_PX;
+  const widthBound = normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical" ? Math.floor(innerWidth / 1.15) : MAX_AUTOFIT_FONT_SIZE_PX;
   return clamp(Math.max(MIN_FONT_SIZE_PX, heightBound, widthBound), MIN_FONT_SIZE_PX, MAX_AUTOFIT_FONT_SIZE_PX);
 }
 
@@ -190,13 +196,13 @@ function measureVerticalText(
   maxHeight: number,
   lineHeight: number
 ): { columnCount: number; fits: boolean } {
-  const compact = text.replace(/\r/g, "").replace(/\s+/g, "");
-  if (!compact) {
+  if (!text.trim()) {
     return { columnCount: 0, fits: true };
   }
 
+  const verticalSlots = [...text.replace(/\r/g, "").replace(/\n/g, " ")];
   const charsPerColumn = Math.max(1, Math.floor(maxHeight / Math.max(fontSize, lineHeight)));
-  const columnCount = Math.max(1, Math.ceil(compact.length / charsPerColumn));
+  const columnCount = Math.max(1, Math.ceil(verticalSlots.length / charsPerColumn));
   const estimatedColumnWidth = fontSize * 1.15;
   return {
     columnCount,

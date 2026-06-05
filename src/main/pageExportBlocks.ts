@@ -1,10 +1,10 @@
-import { bboxToPixels, clamp, resolveEffectiveRenderBbox } from "../shared/geometry";
+import { bboxToPixels, clamp, normalizeRenderDirection, resolveEffectiveRenderBbox } from "../shared/geometry";
 import type { MangaPage, TranslationBlock } from "../shared/types";
 
 export type PageExportBlock = {
   text: string;
   rect: { left: number; top: number; width: number; height: number };
-  renderDirection: "horizontal" | "vertical" | "rotated";
+  renderDirection: "horizontal" | "vertical";
   rotationDeg: number;
   fontFamily: string;
   fontSizePx: number;
@@ -42,9 +42,6 @@ function buildPageExportBlock(
   fontScale: number,
   customFamilyById: Map<string, string>
 ): PageExportBlock | null {
-  if (block.renderDirection === "hidden") {
-    return null;
-  }
   const text = block.translatedText || block.sourceText || "";
   if (!text.trim()) {
     return null;
@@ -59,7 +56,7 @@ function buildPageExportBlock(
       width: Math.max(1, rect.w * scaleX),
       height: Math.max(1, rect.h * scaleY)
     },
-    renderDirection: block.renderDirection === "vertical" ? "vertical" : block.renderDirection === "rotated" ? "rotated" : "horizontal",
+    renderDirection: normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical" ? "vertical" : "horizontal",
     rotationDeg: block.rotationDeg ? clamp(Math.round(block.rotationDeg), -30, 30) : 0,
     fontFamily: resolveExportBlockFontFamily(block.fontFamily, customFamilyById),
     fontSizePx: Math.max(10, Math.round((block.fontSizePx || 20) * fontScale)),

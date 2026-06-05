@@ -113,6 +113,20 @@ describe("inpainting artifact cleanup", () => {
     expect(redone.pages[0]?.inpaintedImagePath).toBe(afterPath);
     expect(existsSync(afterPath)).toBe(true);
   });
+
+  it("relocates copied chapter image paths from a previous data root", async () => {
+    const rootDir = await createTempLibrary();
+    const oldRootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir, oldRootDir);
+
+    const chapter = await library.openChapter("chapter-a");
+
+    expect(chapter.pages[0]?.imagePath).toBe(join(rootDir, "works", "work-1", "chapters", "chapter-a", "pages", "001-page-a.png"));
+    expect(chapter.pages[0]?.inpaintedImagePath).toBe(
+      join(rootDir, "works", "work-1", "chapters", "chapter-a", "inpainted", "001-page-a-inpainted.png")
+    );
+  });
 });
 
 async function createTempLibrary(): Promise<string> {
@@ -153,7 +167,7 @@ async function loadLibrary(rootDir: string): Promise<typeof import("../src/main/
   return import("../src/main/library");
 }
 
-async function seedLibrary(rootDir: string): Promise<void> {
+async function seedLibrary(rootDir: string, storedPathRoot = rootDir): Promise<void> {
   const work: LibraryWork = {
     id: "work-1",
     title: "원본 작품",
@@ -162,10 +176,12 @@ async function seedLibrary(rootDir: string): Promise<void> {
     updatedAt: "2026-01-01T00:00:00.000Z"
   };
   await mkdir(join(rootDir, "works", work.id, "chapters", "chapter-a", "pages"), { recursive: true });
+  await mkdir(join(rootDir, "works", work.id, "chapters", "chapter-a", "inpainted"), { recursive: true });
   await writeJson(join(rootDir, "index.json"), { workOrder: [work.id] });
   await writeJson(join(rootDir, "works", work.id, "work.json"), work);
   await writeFile(join(rootDir, "works", work.id, "chapters", "chapter-a", "pages", "001-page-a.png"), "image-a");
-  await writeJson(join(rootDir, "works", work.id, "chapters", "chapter-a", "chapter.json"), makeChapter(rootDir));
+  await writeFile(join(rootDir, "works", work.id, "chapters", "chapter-a", "inpainted", "001-page-a-inpainted.png"), "inpainted-a");
+  await writeJson(join(rootDir, "works", work.id, "chapters", "chapter-a", "chapter.json"), makeChapter(storedPathRoot));
 }
 
 function makeChapter(rootDir: string): LibraryChapter {
@@ -181,6 +197,7 @@ function makeChapter(rootDir: string): LibraryChapter {
         id: "page-a",
         name: "001.png",
         imagePath: join(rootDir, "works", "work-1", "chapters", "chapter-a", "pages", "001-page-a.png"),
+        inpaintedImagePath: join(rootDir, "works", "work-1", "chapters", "chapter-a", "inpainted", "001-page-a-inpainted.png"),
         width: 100,
         height: 120,
         blocks: [],

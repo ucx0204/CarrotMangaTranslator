@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, rm } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import type { LibraryChapter, LibraryWork } from "../../shared/types";
 import { getAppPaths } from "../appPaths";
 import { isPathInside, isSupportedImagePath, readJsonFile, writeJsonFile } from "./storage";
@@ -338,9 +338,9 @@ function validateChapterFilePaths(workId: string, chapterId: string, chapter: Ch
 
     return {
       ...page,
-      imagePath: assertChapterImagePathScope(workId, chapterId, page.imagePath, "페이지 이미지 경로가 올바르지 않습니다."),
+      imagePath: resolveChapterStoredImagePath(workId, chapterId, page.imagePath, "페이지 이미지 경로가 올바르지 않습니다."),
       inpaintedImagePath: page.inpaintedImagePath
-        ? assertChapterImagePathScope(workId, chapterId, page.inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.")
+        ? resolveChapterStoredImagePath(workId, chapterId, page.inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.")
         : undefined
     };
   });
@@ -355,6 +355,53 @@ function validateChapterFilePaths(workId: string, chapterId: string, chapter: Ch
     ...chapter,
     pages
   };
+}
+
+function resolveChapterStoredImagePath(workId: string, chapterId: string, imagePath: string, message: string): string {
+  try {
+    return assertChapterImagePathScope(workId, chapterId, imagePath, message);
+  } catch (error) {
+    const relocated = relocateCopiedChapterImagePath(workId, chapterId, imagePath);
+    if (relocated) {
+      return assertChapterImagePathScope(workId, chapterId, relocated, message);
+    }
+    throw error;
+  }
+}
+
+function relocateCopiedChapterImagePath(workId: string, chapterId: string, imagePath: string): string | null {
+  if (typeof imagePath !== "string" || imagePath.length === 0) {
+    return null;
+  }
+
+  const chapterDir = resolve(join(WORKS_ROOT, workId, "chapters", chapterId));
+  const normalized = normalizePathSeparators(resolve(imagePath));
+  const marker = `/works/${workId}/chapters/${chapterId}/`;
+  const markerIndex = normalized.lastIndexOf(marker);
+
+  if (markerIndex >= 0) {
+    const relativeToChapter = normalized.slice(markerIndex + marker.length);
+    const candidate = resolve(chapterDir, ...relativeToChapter.split("/").filter(Boolean));
+    if (isPathInside(chapterDir, candidate) && isSupportedImagePath(candidate)) {
+      return candidate;
+    }
+  }
+
+  const pageCandidate = resolve(join(chapterDir, "pages", basename(imagePath)));
+  if (existsSync(pageCandidate) && isPathInside(chapterDir, pageCandidate) && isSupportedImagePath(pageCandidate)) {
+    return pageCandidate;
+  }
+
+  const inpaintedCandidate = resolve(join(chapterDir, "inpainted", basename(imagePath)));
+  if (existsSync(inpaintedCandidate) && isPathInside(chapterDir, inpaintedCandidate) && isSupportedImagePath(inpaintedCandidate)) {
+    return inpaintedCandidate;
+  }
+
+  return null;
+}
+
+function normalizePathSeparators(value: string): string {
+  return value.replace(/\\/g, "/");
 }
 
 function assertChapterStorageLocation(workId: string, chapterId: string): void {

@@ -240,6 +240,10 @@ describe("geometry helpers", () => {
     expect(normalizeBlockType("caption")).toBe("nonsolid");
     expect(normalizeBlockType("sfx")).toBe("nonsolid");
     expect(enforceRenderDirection("nonsolid", "vertical")).toBe("vertical");
+    expect(enforceRenderDirection("nonsolid", "rotated")).toBe("horizontal");
+    expect(enforceRenderDirection("nonsolid", "hidden")).toBe("horizontal");
     expect(normalizeRenderDirection("vertical", "horizontal")).toBe("vertical");
+    expect(normalizeRenderDirection("rotated", "vertical")).toBe("horizontal");
+    expect(normalizeRenderDirection("hidden", "vertical")).toBe("horizontal");
   });
 });

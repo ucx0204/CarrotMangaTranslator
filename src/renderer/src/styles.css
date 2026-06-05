@@ -2287,14 +2287,15 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 }
 
 .install-progress-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 5000;
   display: grid;
   place-items: center;
   padding: 24px;
   pointer-events: auto;
   overflow: hidden;
+  overscroll-behavior: contain;
   background: radial-gradient(circle at center, rgba(16, 17, 20, 0.12), rgba(16, 17, 20, 0.5));
   backdrop-filter: blur(2px);
 }
@@ -2311,6 +2312,9 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   box-shadow: var(--shadow-overlay), var(--glass-highlight);
   color: #f5efe6;
   pointer-events: auto;
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .install-progress-header {
@@ -2398,6 +2402,8 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   max-height: 180px;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: auto;
   padding: 12px;
   border-radius: 8px;
   border: 1px solid #303844;

@@ -2,7 +2,9 @@ import { app } from "electron";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { resolvePackagedDataRoot } from "./dataRoot";
 
+configurePackagedElectronStorage();
 configureDevelopmentElectronStorage();
 
 function bootstrapLogPath(): string {
@@ -18,6 +20,30 @@ function resolveBootstrapUserDataDir(): string {
   } catch {
     const dataRoot = process.env.LOCALAPPDATA?.trim() || process.env.APPDATA?.trim() || tmpdir();
     return join(dataRoot, "manga-gemma-translator");
+  }
+}
+
+function configurePackagedElectronStorage(): void {
+  if (!isPackagedBootstrap()) {
+    return;
+  }
+
+  try {
+    const dataRoot = resolvePackagedDataRoot(dirname(process.execPath));
+    const userDataDir = join(dataRoot, "electron-user-data");
+    const sessionDataDir = join(dataRoot, "electron-session");
+    const tempDir = join(dataRoot, "tmp", "system-temp");
+    mkdirSync(userDataDir, { recursive: true });
+    mkdirSync(sessionDataDir, { recursive: true });
+    mkdirSync(tempDir, { recursive: true });
+    app.setPath("userData", userDataDir);
+    app.setPath("sessionData", sessionDataDir);
+    app.commandLine.appendSwitch("disk-cache-dir", join(sessionDataDir, "Cache"));
+    app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
+    process.env.TEMP = tempDir;
+    process.env.TMP = tempDir;
+  } catch (error) {
+    writeBootstrapLog("bootstrap:packaged-storage-config-failed", error);
   }
 }
 
@@ -53,7 +79,7 @@ function serialize(detail: unknown): string {
 }
 
 function configureDevelopmentElectronStorage(): void {
-  if (app.isPackaged || __dirname.includes("app.asar")) {
+  if (isPackagedBootstrap()) {
     return;
   }
 
@@ -70,6 +96,10 @@ function configureDevelopmentElectronStorage(): void {
   } catch (error) {
     writeBootstrapLog("bootstrap:dev-storage-config-failed", error);
   }
+}
+
+function isPackagedBootstrap(): boolean {
+  return app.isPackaged || __dirname.includes("app.asar");
 }
 
 process.on("uncaughtException", (error) => {

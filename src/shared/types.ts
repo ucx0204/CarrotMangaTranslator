@@ -1,7 +1,7 @@
 export type BlockType = "nonsolid";
 
 export type SourceTextDirection = "horizontal" | "vertical";
-export type RenderTextDirection = "horizontal" | "vertical" | "rotated" | "hidden";
+export type RenderTextDirection = "horizontal" | "vertical";
 
 export type JobKind = "gemma-analysis" | "inpainting";
 export type ModelProvider = "gemma" | "openai-codex";

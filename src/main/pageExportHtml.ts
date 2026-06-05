@@ -69,23 +69,22 @@ function wrapTextToWidth(text, maxWidth, fontSize, fontFamily, weight, italic) {
   const paragraphs = String(text).replace(/\\r/g, "").split("\\n");
   const lines = [];
   for (const paragraph of paragraphs) {
-    const normalized = paragraph.replace(/\\s+/g, " ").trim();
-    if (!normalized) {
+    if (!paragraph) {
       lines.push("");
       continue;
     }
     let current = "";
-    for (const char of Array.from(normalized)) {
+    for (const char of Array.from(paragraph)) {
       const candidate = current + char;
       if (!current || context.measureText(candidate).width <= maxWidth) {
         current = candidate;
         continue;
       }
-      lines.push(current.trimEnd());
-      current = /\\s/u.test(char) ? "" : char;
+      lines.push(current);
+      current = char;
     }
     if (current) {
-      lines.push(current.trimEnd());
+      lines.push(current);
     }
   }
   return lines.length ? lines : [String(text)];
@@ -104,10 +103,10 @@ function measureHorizontal(block, fontSize, innerWidth) {
 
 function fits(block, fontSize, innerWidth, innerHeight) {
   if (block.renderDirection === "vertical") {
-    const compact = block.text.replace(/\\r/g, "").replace(/\\s+/g, "");
-    if (!compact) return true;
+    if (!block.text.trim()) return true;
+    const verticalSlots = Array.from(block.text.replace(/\\r/g, "").replace(/\\n/g, " "));
     const charsPerColumn = Math.max(1, Math.floor(innerHeight / Math.max(fontSize, fontSize * block.lineHeight)));
-    const columnCount = Math.max(1, Math.ceil(Array.from(compact).length / charsPerColumn));
+    const columnCount = Math.max(1, Math.ceil(verticalSlots.length / charsPerColumn));
     return columnCount <= 2 && columnCount * fontSize * 1.15 <= innerWidth;
   }
   const measured = measureHorizontal(block, fontSize, innerWidth);
@@ -171,11 +170,10 @@ function drawHorizontalText(ctx, block, rect, fontSize) {
 }
 
 function drawVerticalText(ctx, block, rect, fontSize) {
-  const compact = block.text.replace(/\\r/g, "").replace(/\\s+/g, "");
-  if (!compact) {
+  if (!block.text.trim()) {
     return;
   }
-  const chars = Array.from(compact);
+  const chars = Array.from(block.text.replace(/\\r/g, "").replace(/\\n/g, " "));
   const lineHeightPx = fontSize * block.lineHeight;
   const charsPerColumn = Math.max(1, Math.floor(Math.max(1, rect.height - 2) / lineHeightPx));
   const columns = [];
@@ -193,7 +191,9 @@ function drawVerticalText(ctx, block, rect, fontSize) {
     const columnHeight = column.length * lineHeightPx;
     const startY = rect.top + Math.max(0, (rect.height - columnHeight) / 2);
     for (const [rowIndex, char] of column.entries()) {
-      drawOutlinedText(ctx, char, x, startY + rowIndex * lineHeightPx, block, fontSize);
+      if (!/\\s/u.test(char)) {
+        drawOutlinedText(ctx, char, x, startY + rowIndex * lineHeightPx, block, fontSize);
+      }
     }
   }
 }

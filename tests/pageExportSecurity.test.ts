@@ -82,6 +82,20 @@ describe("page export BrowserWindow security", () => {
     expect(blockedEvent.preventDefault).toHaveBeenCalledTimes(1);
     expect(latestWindow?.loadedHtml).not.toContain("src/renderer/src/styles.css");
   });
+
+  it("preserves whitespace slots for vertical text in PNG export rendering", async () => {
+    const rootDir = await createTempRoot();
+    const { renderPageWithTranslationBlocksForExport } = await loadPageExport(rootDir);
+
+    await renderPageWithTranslationBlocksForExport(makePage(rootDir, true), {
+      dataRoot: rootDir,
+      decodeFallback: async () => null
+    });
+
+    expect(latestWindow?.loadedHtml).not.toContain("replace(/\\s+/g, \"\")");
+    expect(latestWindow?.loadedHtml).toContain('replace(/\\n/g, " ")');
+    expect(latestWindow?.loadedHtml).toContain("if (!/\\s/u.test(char))");
+  });
 });
 
 async function createTempRoot(): Promise<string> {
@@ -117,7 +131,7 @@ async function loadPageExport(rootDir: string): Promise<typeof import("../src/ma
   return import("../src/main/pageExport");
 }
 
-function makePage(rootDir: string): MangaPage {
+function makePage(rootDir: string, withVerticalBlock = false): MangaPage {
   return {
     id: "11111111-1111-4111-8111-111111111111",
     name: "001.png",
@@ -125,7 +139,26 @@ function makePage(rootDir: string): MangaPage {
     dataUrl: "",
     width: 16,
     height: 16,
-    blocks: [],
+    blocks: withVerticalBlock
+      ? [
+          {
+            id: "block-1",
+            type: "nonsolid",
+            bbox: { x: 0, y: 0, w: 1000, h: 1000 },
+            sourceText: "가 나",
+            translatedText: "가 나",
+            confidence: 1,
+            sourceDirection: "vertical",
+            renderDirection: "vertical",
+            fontSizePx: 20,
+            lineHeight: 1.2,
+            textAlign: "center",
+            textColor: "#111111",
+            backgroundColor: "#ffffff",
+            opacity: 0.9
+          }
+        ]
+      : [],
     analysisStatus: "idle",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z"

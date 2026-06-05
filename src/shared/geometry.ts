@@ -47,7 +47,8 @@ export function sanitizeBlockBboxes(block: TranslationBlock, pageSize?: PageSize
     bbox: normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace),
     bboxSpace: "normalized_1000",
     renderBbox,
-    renderBboxSpace: renderBbox ? "normalized_1000" : undefined
+    renderBboxSpace: renderBbox ? "normalized_1000" : undefined,
+    renderDirection: normalizeRenderDirection(block.renderDirection, "horizontal")
   };
 }
 
@@ -90,7 +91,7 @@ export function resolveBlockRenderBbox(
 
 export function resolveEffectiveRenderBbox(block: RenderBboxBlock, pageSize: PageSize, text: string): BBox {
   const base = resolveBlockRenderBbox(block, pageSize);
-  if (block.renderBbox || block.renderDirection === "hidden" || !text.trim()) {
+  if (block.renderBbox || !text.trim()) {
     return base;
   }
 
@@ -155,9 +156,9 @@ export function offsetBlockBboxes(block: TranslationBlock, dx: number, dy: numbe
   };
 }
 
-export function enforceRenderDirection(type: BlockType, direction: RenderTextDirection): RenderTextDirection {
+export function enforceRenderDirection(type: BlockType, direction: unknown): RenderTextDirection {
   void type;
-  return direction === "vertical" || direction === "rotated" || direction === "hidden" ? direction : "horizontal";
+  return direction === "vertical" ? "vertical" : "horizontal";
 }
 
 export function enforceRotationDeg(type: BlockType, value: unknown): number {
@@ -174,14 +175,20 @@ export function normalizeBlockType(value: unknown): BlockType {
   return "nonsolid";
 }
 
-export function normalizeRenderDirection(value: unknown, fallback: RenderTextDirection): RenderTextDirection {
+export function normalizeRenderDirection(value: unknown, fallback: RenderTextDirection | "rotated" | "hidden"): RenderTextDirection {
   const text = String(value ?? "").trim().toLowerCase();
-  return text === "horizontal" || text === "vertical" || text === "rotated" || text === "hidden" ? text : fallback;
+  if (text === "vertical") {
+    return "vertical";
+  }
+  if (text === "horizontal" || text === "rotated" || text === "hidden") {
+    return "horizontal";
+  }
+  return fallback === "vertical" ? "vertical" : "horizontal";
 }
 
 export function estimateFontSizePx(text: string, bbox: BBox, pageSize: { width: number; height: number }): number {
   const px = bboxToPixels(bbox, pageSize.width, pageSize.height);
-  const compactLength = Math.max(1, text.replace(/\s+/g, "").length);
+  const compactLength = Math.max(1, [...text.replace(/\r/g, "").replace(/\n/g, " ")].length);
   const approxCharsPerLine = Math.max(4, Math.floor(px.w / 20));
   const lineCount = Math.max(1, Math.ceil(compactLength / approxCharsPerLine));
   const heightLimited = Math.floor(px.h / (lineCount * 1.2));
@@ -198,7 +205,7 @@ function offsetBbox(bbox: BBox, dx: number, dy: number): BBox {
 }
 
 function estimateReadableTextBoxSizePx(text: string, block: RenderBboxBlock, basePx: BBox): { width: number; height: number } {
-  const compactLength = Math.max(1, [...text.replace(/\s+/g, "")].length);
+  const compactLength = Math.max(1, [...text.replace(/\r/g, "").replace(/\n/g, " ")].length);
   const fontSizePx = MIN_READABLE_FONT_SIZE_PX;
   const lineHeightPx = fontSizePx * Math.max(1, block.lineHeight ?? 1.18);
 

@@ -202,20 +202,12 @@ function resolveInitialRenderDirection(
   page: MangaPage,
   fontSizePx: number
 ): RenderTextDirection {
-  const rotationDeg = enforceRotationDeg(type, item.angle ?? 0);
   if (textRole !== "sound") {
-    if (Math.abs(rotationDeg) > 0) {
-      return "rotated";
-    }
     return enforceRenderDirection(type, "horizontal");
   }
 
   if (sourceDirection === "vertical" && shouldKeepVerticalRendering(bbox, page, fontSizePx)) {
     return "vertical";
-  }
-
-  if (Math.abs(rotationDeg) > 0) {
-    return "rotated";
   }
 
   return enforceRenderDirection(type, "horizontal");

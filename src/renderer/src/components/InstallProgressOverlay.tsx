@@ -10,13 +10,33 @@ type InstallProgressOverlayProps = {
 
 export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlayProps): React.JSX.Element | null {
   const logRef = React.useRef<HTMLDivElement | null>(null);
+  const logPinnedToBottomRef = React.useRef(true);
+  const logLineCount = job.installLogLines?.length ?? 0;
 
-  React.useEffect(() => {
+  const scrollLogToBottom = React.useCallback(() => {
     const element = logRef.current;
     if (element) {
       element.scrollTop = element.scrollHeight;
     }
-  }, [job.installLogLines?.length]);
+  }, []);
+
+  React.useLayoutEffect(() => {
+    if (!logPinnedToBottomRef.current) {
+      return;
+    }
+    scrollLogToBottom();
+    const frame = window.requestAnimationFrame(scrollLogToBottom);
+    return () => window.cancelAnimationFrame(frame);
+  }, [logLineCount, scrollLogToBottom]);
+
+  React.useEffect(() => {
+    logPinnedToBottomRef.current = true;
+    scrollLogToBottom();
+  }, [job.phase, scrollLogToBottom]);
+
+  const handleLogScroll = React.useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    logPinnedToBottomRef.current = isScrolledNearBottom(event.currentTarget);
+  }, []);
 
   if (!isInstallPhase(job.phase)) {
     return null;
@@ -33,12 +53,18 @@ export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlay
   return (
     <div
       className="install-progress-overlay"
-      role="status"
+      role="dialog"
+      aria-modal="true"
       aria-live="polite"
-      onPointerDown={(event) => event.stopPropagation()}
-      onWheel={(event) => event.stopPropagation()}
+      onPointerDownCapture={stopOverlayEvent}
+      onPointerMoveCapture={stopOverlayEvent}
+      onPointerUpCapture={stopOverlayEvent}
+      onClickCapture={stopOverlayEvent}
+      onDoubleClickCapture={stopOverlayEvent}
+      onContextMenuCapture={stopOverlayEvent}
+      onWheel={stopOverlayEvent}
     >
-      <div className="install-progress-card">
+      <div className="install-progress-card" onWheel={stopOverlayEvent}>
         <div className="install-progress-header">
           <span className="install-progress-kicker">{resolveKicker(job.phase)}</span>
           <strong>{job.progressText}</strong>
@@ -59,7 +85,13 @@ export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlay
         {job.detail ? <p>{job.detail}</p> : null}
 
         {logLines.length ? (
-          <div ref={logRef} className="install-progress-log" aria-label="설치 로그">
+          <div
+            ref={logRef}
+            className="install-progress-log"
+            aria-label="설치 로그"
+            onScroll={handleLogScroll}
+            onWheel={stopOverlayEvent}
+          >
             {logLines.map((line, index) => (
               <code key={`${line}-${index}`}>{line}</code>
             ))}
@@ -68,6 +100,14 @@ export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlay
       </div>
     </div>
   );
+}
+
+function stopOverlayEvent(event: React.SyntheticEvent): void {
+  event.stopPropagation();
+}
+
+function isScrolledNearBottom(element: HTMLElement): boolean {
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= 12;
 }
 
 function resolveProgressLabel(mode: ProgressSnapshot["mode"] | "log-only", percent: number | null): string {

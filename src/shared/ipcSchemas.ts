@@ -16,6 +16,11 @@ const title = z.string().max(MAX_TITLE_LENGTH);
 const filePath = z.string().min(1).max(MAX_PATH_LENGTH);
 const boundedText = z.string().max(MAX_TEXT_LENGTH);
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i);
+const RenderDirectionSchema = z
+  .custom<"horizontal" | "vertical" | "rotated" | "hidden">((value) =>
+    ["horizontal", "vertical", "rotated", "hidden"].includes(String(value ?? "").trim().toLowerCase())
+  )
+  .transform((value): "horizontal" | "vertical" => (value === "vertical" ? "vertical" : "horizontal"));
 
 export const BBoxSchema = z
   .object({
@@ -46,7 +51,7 @@ export const TranslationBlockSchema = z
     translatedText: boundedText,
     confidence: finiteNumber.min(0).max(1),
     sourceDirection: z.enum(["horizontal", "vertical"]),
-    renderDirection: z.enum(["horizontal", "vertical", "rotated", "hidden"]),
+    renderDirection: RenderDirectionSchema,
     rotationDeg: finiteNumber.min(-30).max(30).optional(),
     fontFamily: z.string().max(120).optional(),
     fontSizePx: finiteNumber.min(1).max(512),
@@ -281,7 +286,7 @@ export const RendererLogRequestSchema = z
   })
   .strict();
 
-export function parseIpcPayload<T>(schema: z.ZodType<T>, payload: unknown, label: string): T {
+export function parseIpcPayload<TSchema extends z.ZodType>(schema: TSchema, payload: unknown, label: string): z.output<TSchema> {
   const result = schema.safeParse(payload);
   if (result.success) {
     return result.data;

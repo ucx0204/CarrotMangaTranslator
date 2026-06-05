@@ -145,6 +145,15 @@ describe("IPC schemas", () => {
       parseIpcPayload(AppSettingsSchema, { ...payload, codex: { ...payload.codex, oauthPort: 0 } }, "설정 저장")
     ).toThrow(/요청 형식/);
   });
+
+  it("normalizes obsolete render directions to horizontal when saving chapters", () => {
+    const payload = makeChapterSnapshot();
+    payload.pages[0].blocks[0].renderDirection = "hidden";
+
+    const parsed = parseIpcPayload(ChapterSnapshotSchema, payload, "화 저장");
+
+    expect(parsed.pages[0].blocks[0].renderDirection).toBe("horizontal");
+  });
 });
 
 function makeChapterSnapshot() {

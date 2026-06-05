@@ -1,5 +1,6 @@
 import React from "react";
 import type { RenderTextDirection, TranslationBlock } from "../../../shared/types";
+import { normalizeRenderDirection } from "../../../shared/geometry";
 import { FontSelect } from "./FontSelect";
 import { Button, IconButton, RangeInput } from "./ui";
 import { AlignCenterIcon, AlignLeftIcon, AlignRightIcon, BoldIcon, ItalicIcon } from "./ui/icons";
@@ -53,6 +54,7 @@ export function EditorPanel({
   const outlineColor = resolveColor(block.outlineColor, "#ffffff");
   const autoFitText = block.autoFitText ?? true;
   const fontSizePx = clampFontSize(block.fontSizePx);
+  const renderDirection = normalizeRenderDirection(block.renderDirection, "horizontal");
 
   return (
     <section className="editor-panel has-block">
@@ -68,14 +70,12 @@ export function EditorPanel({
       <label>
         방향
         <select
-          value={block.renderDirection}
+          value={renderDirection}
           disabled={disabled}
           onChange={(event) => onUpdate({ renderDirection: event.target.value as RenderTextDirection })}
         >
-          <option value="horizontal">horizontal</option>
-          <option value="vertical">vertical</option>
-          <option value="rotated">rotated</option>
-          <option value="hidden">hidden</option>
+          <option value="horizontal">가로쓰기</option>
+          <option value="vertical">세로쓰기</option>
         </select>
       </label>
       <label>

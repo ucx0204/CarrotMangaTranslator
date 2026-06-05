@@ -1,6 +1,7 @@
 import React from "react";
 import type { TranslationBlock } from "../../../shared/types";
 import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
+import { normalizeRenderDirection } from "../../../shared/geometry";
 import { resolveBlockFontFamily } from "../lib/fonts";
 import { hexToRgba, resolveBlockTextLayout, type ViewportSize } from "../lib/overlayLayout";
 
@@ -29,10 +30,7 @@ export function OverlayBlock({
   onResizePointerDown,
   onToggleExcluded
 }: OverlayBlockProps): React.JSX.Element | null {
-  if (block.renderDirection === "hidden") {
-    return null;
-  }
-
+  const renderDirection = normalizeRenderDirection(block.renderDirection, "horizontal");
   const displayText = block.translatedText || block.sourceText || "...";
   const layout = resolveBlockTextLayout(block, displayText, pageSize, stageSize);
   const outlineScale = block.outlineWidthScale ?? 1;
@@ -70,10 +68,10 @@ export function OverlayBlock({
   };
   const contentStyle: React.CSSProperties = {
     boxSizing: "border-box",
-    writingMode: block.renderDirection === "vertical" ? "vertical-rl" : "horizontal-tb",
-    textOrientation: block.renderDirection === "vertical" ? "upright" : undefined,
-    width: block.renderDirection === "vertical" ? "max-content" : `${layout.fitInnerWidth}px`,
-    height: block.renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
+    writingMode: renderDirection === "vertical" ? "vertical-rl" : "horizontal-tb",
+    textOrientation: renderDirection === "vertical" ? "upright" : undefined,
+    width: renderDirection === "vertical" ? "max-content" : `${layout.fitInnerWidth}px`,
+    height: renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
     maxWidth: "100%",
     maxHeight: "100%",
     overflow: "visible",

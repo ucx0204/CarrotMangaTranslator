@@ -1,6 +1,7 @@
 import { app } from "electron";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { DATA_ROOT_MARKER_FILE, legacyAppDataRoots, resolvePackagedDataRoot } from "./dataRoot";
 
 export type AppPaths = {
   isPackaged: boolean;
@@ -39,11 +40,7 @@ export function getAppPaths(): AppPaths {
   const toolsDir = isPackaged ? join(resourcesDir, "tools") : join(repoRoot, "tools");
   const allowExternalRuntime = allowExternalRuntimeOverrides(isPackaged);
   const explicitOcrRuntimeDir = allowExternalRuntime ? process.env.MANGA_TRANSLATOR_OCR_RUNTIME_DIR?.trim() : undefined;
-  const ocrRuntimeDir = explicitOcrRuntimeDir || (
-    process.platform === "win32"
-      ? join(process.env.LOCALAPPDATA || dataRoot, "manga-gemma-translator", "ocr-runtime")
-      : join(dataRoot, "ocr-runtime")
-  );
+  const ocrRuntimeDir = explicitOcrRuntimeDir || join(dataRoot, "ocr-runtime");
   const llamaServerPath = resolveBundledLlamaServerPath(toolsDir);
   const llamaRuntimeDir = dirname(llamaServerPath);
   const explicitHfHome = process.env.MANGA_TRANSLATOR_HF_HOME?.trim();
@@ -134,6 +131,9 @@ function hasBundledCudaBackend(serverPath: string): boolean {
 export function ensureWritableAppDirectories(): AppPaths {
   const paths = getAppPaths();
   migrateLegacyPackagedData(paths);
+  if (paths.isPackaged) {
+    writeDataRootMarker(paths.dataRoot);
+  }
   mkdirSync(paths.libraryDir, { recursive: true });
   mkdirSync(paths.fontsDir, { recursive: true });
   mkdirSync(paths.logsDir, { recursive: true });
@@ -150,32 +150,43 @@ export function ensureWritableAppDirectories(): AppPaths {
   return paths;
 }
 
-function resolvePackagedDataRoot(executableDir: string): string {
-  if (process.platform === "win32") {
-    const localAppData = process.env.LOCALAPPDATA?.trim();
-    if (localAppData) {
-      return join(localAppData, "manga-gemma-translator");
-    }
-  }
-
-  try {
-    return app.getPath("userData");
-  } catch {
-    return join(executableDir, "data");
-  }
-}
-
 function migrateLegacyPackagedData(paths: AppPaths): void {
   if (!paths.isPackaged) {
     return;
   }
 
-  const legacyDataRoot = join(paths.executableDir, "data");
-  if (resolve(legacyDataRoot) === resolve(paths.dataRoot) || !existsSync(legacyDataRoot)) {
-    return;
+  for (const legacyDataRoot of legacyPackagedDataRoots(paths)) {
+    if (resolve(legacyDataRoot) === resolve(paths.dataRoot) || !existsSync(legacyDataRoot)) {
+      continue;
+    }
+    copyDirectoryContentsIfMissing(legacyDataRoot, paths.dataRoot);
   }
 
-  copyDirectoryContentsIfMissing(legacyDataRoot, paths.dataRoot);
+  for (const legacyDataRoot of legacyAppDataRoots()) {
+    if (resolve(legacyDataRoot) === resolve(paths.dataRoot) || !existsSync(legacyDataRoot)) {
+      continue;
+    }
+    copyLegacyUserDataIfMissing(legacyDataRoot, paths.dataRoot);
+  }
+}
+
+function legacyPackagedDataRoots(paths: AppPaths): string[] {
+  return [resolve(join(paths.executableDir, "data"))];
+}
+
+function writeDataRootMarker(dataRoot: string): void {
+  try {
+    mkdirSync(dataRoot, { recursive: true });
+    writeFileSync(join(dataRoot, DATA_ROOT_MARKER_FILE), "manga-gemma-translator data root\n", "utf8");
+  } catch {
+    // Marker creation is a safety aid for uninstall cleanup, not a startup requirement.
+  }
+}
+
+function copyLegacyUserDataIfMissing(sourceDir: string, targetDir: string): void {
+  copyFileIfMissing(join(sourceDir, "settings.json"), join(targetDir, "settings.json"));
+  copyDirectoryContentsIfMissing(join(sourceDir, "library"), join(targetDir, "library"));
+  copyDirectoryContentsIfMissing(join(sourceDir, "fonts"), join(targetDir, "fonts"));
 }
 
 function copyDirectoryContentsIfMissing(sourceDir: string, targetDir: string): void {
@@ -203,4 +214,15 @@ function copyDirectoryContentsIfMissing(sourceDir: string, targetDir: string): v
       copyFileSync(sourcePath, targetPath);
     }
   }
+}
+
+function copyFileIfMissing(sourcePath: string, targetPath: string): void {
+  if (!existsSync(sourcePath) || existsSync(targetPath)) {
+    return;
+  }
+  if (!statSync(sourcePath).isFile()) {
+    return;
+  }
+  mkdirSync(dirname(targetPath), { recursive: true });
+  copyFileSync(sourcePath, targetPath);
 }
