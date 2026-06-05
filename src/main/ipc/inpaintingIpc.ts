@@ -17,7 +17,6 @@ import type {
   InpaintingRetouchResult,
   InpaintingRevertResult,
   JobEvent,
-  MangaPage,
   SetPageInpaintingResultResult,
   StartInpaintingResult
 } from "../../shared/types";

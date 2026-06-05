@@ -187,10 +187,14 @@ export function useInpaintingActions({
         return;
       }
       if (result.chapter) {
+        clearRetouchHistory();
         clearPageImageCache();
         mergeLiveChapter(result.chapter);
       }
-      await refreshLibrary();
+      await refreshLibrary().catch((error) => {
+        console.error(error);
+        pushStatus(formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."));
+      });
 
       if (result.status === "completed") {
         pushStatus(`${targetLabel} 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}블록`);
@@ -198,7 +202,20 @@ export function useInpaintingActions({
         pushStatus(result.error);
       }
     },
-    [askConfirm, clearPageImageCache, currentChapter, dirty, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, selectedPage, setJobState]
+    [
+      askConfirm,
+      clearPageImageCache,
+      clearRetouchHistory,
+      currentChapter,
+      dirty,
+      jobActive,
+      mergeLiveChapter,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      selectedPage,
+      setJobState
+    ]
   );
 
   const runDrawnPatternInpainting = useCallback(async () => {
@@ -241,10 +258,14 @@ export function useInpaintingActions({
       return;
     }
     if (result.chapter) {
+      clearRetouchHistory();
       clearPageImageCache();
       mergeLiveChapter(result.chapter);
     }
-    await refreshLibrary();
+    await refreshLibrary().catch((error) => {
+      console.error(error);
+      pushStatus(formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."));
+    });
     if (result.status === "completed") {
       setPatternMaskStrokesByPage((current) => {
         const next = { ...current };
@@ -258,6 +279,7 @@ export function useInpaintingActions({
   }, [
     askConfirm,
     clearPageImageCache,
+    clearRetouchHistory,
     currentChapter,
     dirty,
     jobActive,
@@ -288,17 +310,22 @@ export function useInpaintingActions({
       if (!confirmed) {
         return;
       }
-      const result = await window.mangaApi.revertInpainting(
-        scope === "page"
-          ? { chapterId: currentChapter.id, scope: "page", pageId: selectedPage!.id }
-          : { chapterId: currentChapter.id, scope: "chapter" }
-      );
-      clearPageImageCache();
-      mergeLiveChapter(result.chapter);
-      clearRetouchHistory();
-      pushStatus(`인페인팅 되돌리기 완료: ${result.pagesChanged}페이지`);
+      try {
+        const result = await window.mangaApi.revertInpainting(
+          scope === "page"
+            ? { chapterId: currentChapter.id, scope: "page", pageId: selectedPage!.id }
+            : { chapterId: currentChapter.id, scope: "chapter" }
+        );
+        clearPageImageCache();
+        mergeLiveChapter(result.chapter);
+        clearRetouchHistory();
+        pushStatus(`인페인팅 되돌리기 완료: ${result.pagesChanged}페이지`);
+      } catch (error) {
+        console.error(error);
+        failInpaintingJob(setJobState, pushStatus, "되돌리기 실패", formatErrorMessage(error, "인페인팅 결과를 되돌리지 못했습니다."));
+      }
     },
-    [askConfirm, clearPageImageCache, clearRetouchHistory, currentChapter, jobActive, mergeLiveChapter, pushStatus, selectedPage]
+    [askConfirm, clearPageImageCache, clearRetouchHistory, currentChapter, jobActive, mergeLiveChapter, pushStatus, selectedPage, setJobState]
   );
 
   const exportInpaintingResults = useCallback(

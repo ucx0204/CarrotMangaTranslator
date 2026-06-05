@@ -5,7 +5,7 @@ import {
   resolveEditableBlockBbox
 } from "../../../shared/geometry";
 import { isUsableRegionBbox } from "../../../shared/region";
-import type { InpaintingTool } from "../components/InpaintingControlPanel";
+import type { InpaintingTool } from "../inpainting/InpaintingContext";
 import type { RetouchPreviewState } from "./useInpaintingRetouch";
 import { regionSelectionToBbox, type RegionSelectionState } from "../lib/appHelpers";
 
@@ -38,7 +38,6 @@ type UseWorkspacePointerHandlersOptions = {
   selectedPageIdRef: MutableRefObject<string | null>;
   selectedPageImageDataUrl: string;
   selectedPageImagePath: string | null;
-  setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setInpaintingPaintColor: Dispatch<SetStateAction<string>>;
   setInpaintingTool: Dispatch<SetStateAction<InpaintingTool>>;
   setPatternMaskStrokesByPage: Dispatch<SetStateAction<Record<string, InpaintingMaskStroke[]>>>;
@@ -70,7 +69,6 @@ export function useWorkspacePointerHandlers({
   selectedPageIdRef,
   selectedPageImageDataUrl,
   selectedPageImagePath,
-  setCurrentChapter,
   setInpaintingPaintColor,
   setInpaintingTool,
   setPatternMaskStrokesByPage,
@@ -168,7 +166,7 @@ export function useWorkspacePointerHandlers({
         startY: event.clientY,
         startBbox: target.bbox
       };
-      stageRef.current.setPointerCapture(event.pointerId);
+      capturePointerSafely(stageRef.current, event.pointerId);
     },
     [inpaintingToolActive, regionSelection?.active, selectedPage, selectedPageEditLocked, setSelectedBlockId, stageRef]
   );
@@ -208,7 +206,7 @@ export function useWorkspacePointerHandlers({
           lastInpaintingRetouchPointRef.current = null;
           setRetouchPreview(null);
           appendRetouchPoint(point, inpaintingTool);
-          stageRef.current.setPointerCapture(event.pointerId);
+          capturePointerSafely(stageRef.current, event.pointerId);
         }
         return;
       }
@@ -232,7 +230,7 @@ export function useWorkspacePointerHandlers({
         start: point,
         current: point
       });
-      stageRef.current.setPointerCapture(event.pointerId);
+      capturePointerSafely(stageRef.current, event.pointerId);
     },
     [
       appendRetouchPoint,
@@ -338,9 +336,7 @@ export function useWorkspacePointerHandlers({
   const onStagePointerUp = useCallback(
     (event: PointerEvent) => {
       if (inpaintingRetouchDrawingRef.current) {
-        if (stageRef.current) {
-          stageRef.current.releasePointerCapture(event.pointerId);
-        }
+        releasePointerCaptureSafely(stageRef.current, event.pointerId);
         inpaintingRetouchDrawingRef.current = false;
         lastInpaintingRetouchPointRef.current = null;
         const points = inpaintingRetouchPointsRef.current;
@@ -361,9 +357,7 @@ export function useWorkspacePointerHandlers({
       }
 
       if (regionSelection?.active && regionSelection.dragging) {
-        if (stageRef.current) {
-          stageRef.current.releasePointerCapture(event.pointerId);
-        }
+        releasePointerCaptureSafely(stageRef.current, event.pointerId);
         const bbox = regionSelectionToBbox(regionSelection);
         setRegionSelection(null);
         if (!isUsableRegionBbox(bbox, 10)) {
@@ -374,8 +368,8 @@ export function useWorkspacePointerHandlers({
         return;
       }
 
-      if (dragRef.current && stageRef.current) {
-        stageRef.current.releasePointerCapture(event.pointerId);
+      if (dragRef.current) {
+        releasePointerCaptureSafely(stageRef.current, event.pointerId);
       }
       dragRef.current = null;
     },
@@ -411,4 +405,22 @@ export function useWorkspacePointerHandlers({
     onStagePointerUp,
     startRegionTranslationSelection
   };
+}
+
+function capturePointerSafely(element: HTMLElement | null, pointerId: number): void {
+  try {
+    element?.setPointerCapture(pointerId);
+  } catch {
+    // Pointer capture can fail if the pointer was already released by the browser.
+  }
+}
+
+function releasePointerCaptureSafely(element: HTMLElement | null, pointerId: number): void {
+  try {
+    if (element?.hasPointerCapture(pointerId)) {
+      element.releasePointerCapture(pointerId);
+    }
+  } catch {
+    // Ignore stale pointer ids. The interaction state is reset by the caller.
+  }
 }

@@ -103,7 +103,7 @@ function collectSelectedFiles(rootDir, shouldExtract) {
   const stack = [rootDir];
   while (stack.length > 0) {
     const currentDir = stack.pop();
-    let entries = [];
+    let entries;
     try {
       entries = readdirSync(currentDir, { withFileTypes: true });
     } catch {

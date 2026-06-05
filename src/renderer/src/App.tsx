@@ -11,7 +11,7 @@ import { AppModals } from "./components/AppModals";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppRightRail } from "./components/AppRightRail";
 import { AppWorkspace } from "./components/AppWorkspace";
-import { type InpaintingTool } from "./components/InpaintingControlPanel";
+import type { InpaintingTool } from "./inpainting/InpaintingContext";
 import { InpaintingProvider } from "./inpainting/InpaintingContext";
 import { FontsProvider } from "./fonts/FontsContext";
 import { useBlockEditingActions } from "./hooks/useBlockEditingActions";
@@ -34,6 +34,7 @@ import { useStatusLog } from "./hooks/useStatusLog";
 import { useTranslationActions } from "./hooks/useTranslationActions";
 import { useWorkspacePointerHandlers } from "./hooks/useWorkspacePointerHandlers";
 import {
+  formatErrorMessage,
   regionSelectionToBbox,
   type RegionSelectionState
 } from "./lib/appHelpers";
@@ -123,10 +124,27 @@ export default function App(): React.JSX.Element {
   const blockCounts = useMemo(() => countChapterBlocks(currentChapter, selectedPage?.id ?? null), [currentChapter, selectedPage?.id]);
   const inpaintedPageCount = useMemo(() => countInpaintedPages(currentChapter), [currentChapter]);
   const inpaintingToolActive = inpaintingMode && inpaintingTool !== "none";
+  const cancelJob = React.useCallback(() => {
+    void window.mangaApi.cancelJob().catch((error) => {
+      console.error(error);
+      pushStatus(formatErrorMessage(error, "작업 취소 요청을 보내지 못했습니다."));
+    });
+  }, [pushStatus]);
+  const openLibraryFolder = React.useCallback(() => {
+    void window.mangaApi.openLibraryFolder().catch((error) => {
+      console.error(error);
+      pushStatus(formatErrorMessage(error, "보관함 폴더를 열지 못했습니다."));
+    });
+  }, [pushStatus]);
+  const openLogFolder = React.useCallback(() => {
+    void window.mangaApi.openLogFolder().catch((error) => {
+      console.error(error);
+      pushStatus(formatErrorMessage(error, "로그 폴더를 열지 못했습니다."));
+    });
+  }, [pushStatus]);
 
   const {
     applyChapter,
-    clearCurrentChapter,
     deleteRenameTarget,
     openChapter,
     refreshLibrary,
@@ -378,7 +396,6 @@ export default function App(): React.JSX.Element {
     selectedPageIdRef,
     selectedPageImageDataUrl,
     selectedPageImagePath,
-    setCurrentChapter,
     setInpaintingPaintColor,
     setInpaintingTool,
     setPatternMaskStrokesByPage,
@@ -403,7 +420,7 @@ export default function App(): React.JSX.Element {
     jobActive,
     jobState,
     maskStrokes: patternMaskStrokes,
-    onCancelJob: () => void window.mangaApi.cancelJob(),
+    onCancelJob: cancelJob,
     onClearPatternMask: () => {
       if (!selectedPage) {
         return;
@@ -454,7 +471,7 @@ export default function App(): React.JSX.Element {
         onOpenTranslationSource={() => setTranslationSourceOpen(true)}
         onOpenBatchImport={() => void openImportPreview("zip-folder")}
         onOpenSettings={() => void openSettings()}
-        onOpenLibraryFolder={() => void window.mangaApi.openLibraryFolder()}
+        onOpenLibraryFolder={openLibraryFolder}
         onOpenShareExport={() => setShareExportOpen(true)}
         onOpenShareImport={() => void openShareImportPreview()}
         onOpenChapter={(chapterId) => void openChapter(chapterId)}
@@ -519,7 +536,7 @@ export default function App(): React.JSX.Element {
           onRunPending={() => void runAnalysis("pending")}
           onRunAll={() => void runAnalysis("all")}
           onEnterInpainting={() => void enterInpaintingMode()}
-          onCancelJob={() => void window.mangaApi.cancelJob()}
+          onCancelJob={cancelJob}
           onStartAreaTranslate={startRegionTranslationSelection}
           onApplyFont={applyFontToScope}
           onUpdateBlock={updateSelectedBlock}
@@ -570,9 +587,7 @@ export default function App(): React.JSX.Element {
         onDeleteRename={() => void deleteRenameTarget()}
         onSubmitRename={(title) => void submitRename(title)}
         onCancelSettings={closeSettings}
-        onOpenLogFolder={() => {
-          void window.mangaApi.openLogFolder();
-        }}
+        onOpenLogFolder={openLogFolder}
         onResetSettings={() => void resetSettings()}
         onSubmitSettings={(nextSettings) => void submitSettings(nextSettings)}
         onResolveConfirm={resolveConfirmDialog}

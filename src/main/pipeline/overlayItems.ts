@@ -156,7 +156,7 @@ export function buildPageWarnings(pageName: string, items: OverlayItem[]): strin
   return warnings;
 }
 
-export function normalizeConfidence(value: unknown, fallback: number): number {
+function normalizeConfidence(value: unknown, fallback: number): number {
   if (value === null || value === undefined || value === "") {
     return fallback;
   }
@@ -168,7 +168,7 @@ export function normalizeConfidence(value: unknown, fallback: number): number {
   return clamp(normalized, 0, 1);
 }
 
-export function normalizeOverlayTextRole(value: unknown): NormalizedTextRole {
+function normalizeOverlayTextRole(value: unknown): NormalizedTextRole {
   const text = String(value ?? "").trim().toLowerCase().replace(/[_\s-]+/g, "");
   if (!text) {
     return "";

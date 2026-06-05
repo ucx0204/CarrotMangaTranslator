@@ -150,10 +150,9 @@ async function startServer(options) {
   await verifyLlamaRuntimePreflight(serverPath, options);
   const childEnv = buildLlamaServerEnv(serverPath, options);
 
-  let launchTarget = inspectModelLaunch(options);
+  const launchTarget = inspectModelLaunch(options);
   if (launchTarget.requiresDownload) {
     await ensureHfModelAssetsDownloaded(options, launchTarget);
-    launchTarget = inspectModelLaunch(options);
   }
   const launchArgs = buildLaunchArgs(options);
   const serverLogStream = createServerLogStream(options, serverPath, launchArgs);

@@ -107,8 +107,7 @@ export function useInpaintingRetouch({
   }, [retouchBusy]);
 
   useEffect(() => {
-    setRetouchUndoStack([]);
-    setRetouchRedoStack([]);
+    clearRetouchStacks();
   }, [currentChapter?.id]);
 
   useEffect(() => {
@@ -170,6 +169,7 @@ export function useInpaintingRetouch({
       if (!chapter) {
         return null;
       }
+      const previousChapter = chapter;
       const nextChapter: ChapterSnapshot = {
         ...chapter,
         pages: chapter.pages.map((page) =>
@@ -185,14 +185,21 @@ export function useInpaintingRetouch({
       clearPageImageCache();
       setCurrentChapter(nextChapter);
       currentChapterRef.current = nextChapter;
-      const result = await window.mangaApi.setPageInpaintingResult({
-        chapterId: chapter.id,
-        pageId,
-        inpaintedImagePath: inpaintedImagePath ?? null,
-        retainedInpaintedArtifactPaths
-      });
-      mergeLiveChapter(result.chapter);
-      return result.chapter;
+      try {
+        const result = await window.mangaApi.setPageInpaintingResult({
+          chapterId: chapter.id,
+          pageId,
+          inpaintedImagePath: inpaintedImagePath ?? null,
+          retainedInpaintedArtifactPaths
+        });
+        mergeLiveChapter(result.chapter);
+        return result.chapter;
+      } catch (error) {
+        clearPageImageCache();
+        currentChapterRef.current = previousChapter;
+        setCurrentChapter(previousChapter);
+        throw error;
+      }
     },
     [clearPageImageCache, currentChapterRef, mergeLiveChapter, setCurrentChapter]
   );
@@ -294,9 +301,15 @@ export function useInpaintingRetouch({
   }, [jobActive, pushStatus, saveChapterWithInpaintPath]);
 
   const clearRetouchHistory = useCallback(() => {
+    clearRetouchStacks();
+  }, []);
+
+  function clearRetouchStacks(): void {
+    retouchUndoStackRef.current = [];
+    retouchRedoStackRef.current = [];
     setRetouchUndoStack([]);
     setRetouchRedoStack([]);
-  }, []);
+  }
 
   return {
     appendRetouchPoint,

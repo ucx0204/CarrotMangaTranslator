@@ -407,6 +407,35 @@ describe("app settings helpers", () => {
     expect(rtx50Options.serverPath).toBe(join("C:/app-data", "tools", "llama-b9360-cuda13.1", "llama-server.exe"));
   });
 
+  it("canonicalizes llama runtime profile aliases before settings can be saved", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(parseStoredAppSettings("{\"gemma\":{\"llamaRuntimeProfile\":\"cuda13.1\"}}", defaults).gemma.llamaRuntimeProfile).toBe(
+      "rtx50"
+    );
+    expect(parseStoredAppSettings("{\"gemma\":{\"llamaRuntimeProfile\":\"blackwell\"}}", defaults).gemma.llamaRuntimeProfile).toBe(
+      "rtx50"
+    );
+
+    const options = buildBaseTranslationOptions({
+      jobId: "job-rtx50-alias",
+      runDir: "C:/runs/job-rtx50-alias",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub"
+      },
+      settings: defaults,
+      env: {
+        MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE: "cuda13.1"
+      }
+    });
+
+    expect(options.llamaRuntimeProfile).toBe("rtx50");
+  });
+
   it("keeps local model settings when the source is local", () => {
     const defaults = resolveDefaultAppSettings();
 

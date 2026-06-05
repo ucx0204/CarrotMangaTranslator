@@ -9,7 +9,6 @@ const {
   MAINLINE_LLAMA_RUNTIME_CUDA13
 } = require("./simple-page-llama-runtimes.cjs");
 const {
-  resolveConfiguredLocalMmprojPath,
   resolveConfiguredLocalModelPath,
   resolveConfiguredModelFile,
   resolveConfiguredModelRepo,

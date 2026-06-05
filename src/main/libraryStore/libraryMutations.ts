@@ -1,7 +1,7 @@
 import { join, resolve } from "node:path";
 import type { ChapterSnapshot, LibraryIndex, MangaPage, SavePageBlocksRequest } from "../../shared/types";
 import { normalizeBlockType } from "../../shared/geometry";
-import { hydrateChapter, toStoredChapter, validateChapterSnapshotForStorage } from "./chapterSnapshots";
+import { hydrateChapter } from "./chapterSnapshots";
 import { collectManagedInpaintedArtifacts, inpaintedPathChanged, removeUnreferencedInpaintedArtifacts } from "./inpaintedArtifacts";
 import { reorderIds, reorderRecords, resolveChapterStatus } from "./chapterRecords";
 import { listLibrary } from "./libraryAccess";
@@ -29,21 +29,6 @@ import { sanitizeTitle } from "./titles";
 export type InpaintingArtifactCleanupOptions = {
   retainedInpaintedArtifactPaths?: string[];
 };
-
-export async function saveChapterSnapshotUnlocked(snapshot: ChapterSnapshot): Promise<ChapterSnapshot> {
-  const locator = await findChapterLocation(snapshot.id);
-  if (!locator || locator.workId !== snapshot.workId) {
-    throw new Error("저장할 화의 보관함 위치가 올바르지 않습니다.");
-  }
-  const current = await readChapterFile(locator.workId, locator.chapterId);
-  if (!current) {
-    throw new Error("저장할 화를 찾지 못했습니다.");
-  }
-  validateChapterSnapshotForStorage(snapshot, current, assertChapterImagePath);
-  const stored = toStoredChapter(snapshot, current);
-  await writeChapterFile(stored);
-  return hydrateChapter(stored);
-}
 
 export async function savePageBlocksUnlocked(request: SavePageBlocksRequest): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(request.chapterId);
@@ -293,38 +278,6 @@ export async function finalizeRunningPagesUnlocked(
   chapter.status = resolveChapterStatus(chapter.pages);
   await writeChapterFile(chapter);
   await touchWork(locator.workId, now);
-}
-
-export async function updatePagesAfterAnalysisUnlocked(chapterId: string, pages: MangaPage[]): Promise<ChapterSnapshot> {
-  const locator = await findChapterLocation(chapterId);
-  if (!locator) {
-    throw new Error("화를 찾지 못했습니다.");
-  }
-  const chapter = await readChapterFile(locator.workId, locator.chapterId);
-  if (!chapter) {
-    throw new Error("화를 찾지 못했습니다.");
-  }
-
-  const pageMap = new Map(pages.map((page) => [page.id, page]));
-  const now = new Date().toISOString();
-  chapter.pages = chapter.pages.map((record) => {
-    const next = pageMap.get(record.id);
-    if (!next) {
-      return record;
-    }
-    return {
-      ...record,
-      blocks: next.blocks,
-      analysisStatus: next.analysisStatus,
-      lastError: next.lastError,
-      updatedAt: now
-    };
-  });
-  chapter.updatedAt = now;
-  chapter.status = resolveChapterStatus(chapter.pages);
-  await writeChapterFile(chapter);
-  await touchWork(locator.workId, now);
-  return hydrateChapter(chapter);
 }
 
 export async function updatePagesAfterInpaintingUnlocked(

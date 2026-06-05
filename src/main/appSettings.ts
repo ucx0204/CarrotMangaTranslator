@@ -11,18 +11,10 @@ import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_OAUTH_PORT,
   DEFAULT_CODEX_REASONING_EFFORT,
-  DEFAULT_GEMMA_DRAFT_MODEL_FILE,
-  DEFAULT_GEMMA_DRAFT_MODEL_REPO,
   DEFAULT_GEMMA_MMPROJ_FILE,
   DEFAULT_GEMMA_MMPROJ_REPO,
-  DEFAULT_GEMMA_MODEL_FILE,
-  DEFAULT_GEMMA_MODEL_FILE_IQ3_S,
-  DEFAULT_GEMMA_MODEL_REPO,
-  DEFAULT_GEMMA_VRAM_MODE,
   DEFAULT_MAX_TOKENS,
-  DEFAULT_MODEL_PROVIDER,
   DEFAULT_MODEL_SOURCE,
-  DEFAULT_OCR_DEVICE,
   DEFAULT_OCR_GPU_CUDA_TAG,
   GEMMA_26B_MMPROJ_FILE,
   GEMMA_26B_MMPROJ_REPO,
@@ -37,6 +29,12 @@ import {
   RTX_50_OCR_GPU_CUDA_TAG
 } from "../shared/modelPresets";
 import type { DetectedGpuInfo } from "./gpuInfo";
+import { DEFAULT_IMAGE_TOKENS, GEMMA_RUNTIME_PRESETS } from "./settings/gemmaRuntimePresets";
+import {
+  isRtx50LlamaRuntimeProfile,
+  resolveHardwareLlamaRuntimeProfile,
+  resolveLlamaRuntimeProfile
+} from "./settings/llamaRuntimeProfile";
 import { join } from "node:path";
 
 export {
@@ -70,67 +68,6 @@ const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12 = "beellama-v0.2.0-cuda12.4";
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 = "beellama-v0.2.0-cuda13.1";
 const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b8833-cuda12.4";
 const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9360-cuda13.1";
-
-const DEFAULT_IMAGE_TOKENS = 1024;
-
-type GemmaRuntimePreset = {
-  ctx: number;
-  batch: number;
-  ubatch: number;
-  fitTargetMb: number;
-  gpuLayers?: number | "fit";
-  cacheTypeK?: string;
-  cacheTypeV?: string;
-  ctxCheckpoints?: number;
-  kvOffload?: boolean;
-  mmprojOffload?: boolean;
-  threads?: number;
-  threadsBatch?: number;
-  poll?: number;
-  pollBatch?: boolean;
-  prioBatch?: number;
-  cacheIdleSlots?: boolean;
-  cacheReuse?: number;
-  enableMetrics?: boolean;
-  enablePerf?: boolean;
-  draftModelRepo?: string;
-  draftModelFile?: string;
-  useDraft?: boolean;
-};
-
-const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> = {
-  full: {
-    ctx: 8192,
-    batch: 1024,
-    ubatch: 1024,
-    fitTargetMb: 1024,
-    cacheTypeK: "q4_0",
-    cacheTypeV: "q4_0",
-    ctxCheckpoints: 0,
-    kvOffload: true,
-    mmprojOffload: true,
-    enableMetrics: true,
-    enablePerf: true,
-    draftModelRepo: DEFAULT_GEMMA_DRAFT_MODEL_REPO,
-    draftModelFile: DEFAULT_GEMMA_DRAFT_MODEL_FILE,
-    useDraft: true
-  },
-  economy: {
-    ctx: 8192,
-    batch: 1024,
-    ubatch: 1024,
-    fitTargetMb: 2048,
-    cacheTypeK: "q4_0",
-    cacheTypeV: "q4_0",
-    ctxCheckpoints: 0,
-    kvOffload: true,
-    mmprojOffload: true,
-    gpuLayers: "fit",
-    enableMetrics: true,
-    enablePerf: true,
-    useDraft: false
-  }
-};
 
 export type TranslationOptions = {
   imagePath: string;
@@ -196,6 +133,12 @@ export type TranslationOptions = {
   ocrBboxCommand?: string;
   ocrBboxHintsPath?: string;
   ocrBboxHints?: unknown;
+  ocrBboxResult?: {
+    hints?: unknown[];
+    diagnostics?: unknown[];
+    noTextDetected?: boolean;
+    textEvidenceCount?: number;
+  };
   skipOcrBboxHints?: boolean;
   regionCropMode?: boolean;
   ocrPageIndex?: number;
@@ -770,26 +713,6 @@ function resolveDefaultLlamaServerPathForGemma(
     ? useCuda13 ? MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 : MAINLINE_LLAMA_RUNTIME_DIR_CUDA12
     : useCuda13 ? BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 : BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12;
   return join(paths.dataRoot, "tools", runtimeDir, binaryName);
-}
-
-function resolveLlamaRuntimeProfile(env: NodeJS.ProcessEnv, fallback: unknown = "cuda12"): string {
-  const explicit = resolveOptionalString(env.MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE);
-  if (explicit) {
-    return explicit.toLowerCase();
-  }
-  return (resolveOptionalString(fallback) ?? "cuda12").toLowerCase();
-}
-
-function isRtx50LlamaRuntimeProfile(profile: string): boolean {
-  const normalized = String(profile ?? "").trim().toLowerCase();
-  return ["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(normalized);
-}
-
-function resolveHardwareLlamaRuntimeProfile(info: DetectedGpuInfo | null): string {
-  if ((info?.computeCapability ?? 0) >= 12 || (info?.rtxGeneration ?? 0) >= 50) {
-    return "rtx50";
-  }
-  return "cuda12";
 }
 
 function isBuiltInGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">): boolean {

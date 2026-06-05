@@ -230,7 +230,7 @@ function ensureEmbeddedPythonPackagePath(pythonPath, packageDir, runtimeDir = nu
     return;
   }
   const pythonDir = path.dirname(path.resolve(pythonPath));
-  let pthName = "";
+  let pthName;
   try {
     pthName = readdirSync(pythonDir).find((name) => /^python\d+._pth$/i.test(name)) || "";
   } catch {
@@ -268,7 +268,7 @@ function isManagedOcrPackagePathLine(line, pythonDir, runtimeDir) {
   if (!raw || raw.startsWith("#")) {
     return false;
   }
-  let resolved = raw;
+  let resolved;
   try {
     resolved = path.resolve(pythonDir, raw);
   } catch {

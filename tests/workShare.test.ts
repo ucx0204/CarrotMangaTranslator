@@ -408,15 +408,6 @@ describe("work share packages", () => {
     await expect(library.openChapter("chapter-a")).rejects.toThrow(/인페인팅 결과 이미지 경로/);
   });
 
-  it("rejects saving a chapter snapshot under a forged work id", async () => {
-    const rootDir = await createTempLibrary();
-    const library = await loadLibrary(rootDir);
-    await seedLibrary(rootDir);
-    const chapter = await library.openChapter("chapter-a");
-
-    await expect(library.saveChapterSnapshot({ ...chapter, workId: "work-forged" })).rejects.toThrow(/보관함 위치/);
-  });
-
   it("saves page blocks without letting the renderer overwrite image paths", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);

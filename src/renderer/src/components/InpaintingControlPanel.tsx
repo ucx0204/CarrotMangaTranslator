@@ -5,7 +5,6 @@ import { useInpainting } from "../inpainting/InpaintingContext";
 import { Button, IconButton, RangeInput } from "./ui";
 import { BrushIcon, EyeIcon, MaskIcon, PickerIcon, RedoIcon, RestoreIcon, UndoIcon } from "./ui/icons";
 
-export type { InpaintingTool, BlockCounts } from "../inpainting/InpaintingContext";
 
 type FlowStep = "auto" | "retouch" | "export";
 

@@ -284,18 +284,6 @@ async function readReusableOcrHints(rootDir, pageIndex) {
   return undefined;
 }
 
-function getBboxNormalizationOptions(requestBody) {
-  if (!requestBody || typeof requestBody !== "object" || requestBody.bboxCoordinateSpace !== "pixels") {
-    return {};
-  }
-
-  return {
-    coordinateSpace: "pixels",
-    pixelWidth: Number(requestBody.bboxCoordinateFrame?.width),
-    pixelHeight: Number(requestBody.bboxCoordinateFrame?.height)
-  };
-}
-
 function createPageRecord(imagePath, index) {
   const image = nativeImage.createFromPath(imagePath);
   const size = image.getSize();

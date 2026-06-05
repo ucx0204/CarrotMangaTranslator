@@ -3,7 +3,6 @@ import {
   AppSettingsSchema,
   ChapterSnapshotSchema,
   parseIpcPayload,
-  SaveChapterSnapshotSchema,
   StartAnalysisRequestSchema,
   StartInpaintingRequestSchema,
   WorkShareImportRequestSchema
@@ -63,20 +62,6 @@ describe("IPC schemas", () => {
           entries: []
         },
         "공유 파일 가져오기"
-      )
-    ).toThrow(/요청 형식/);
-  });
-
-  it("rejects oversized save data urls", () => {
-    const payload = makeChapterSnapshot();
-    expect(() =>
-      parseIpcPayload(
-        SaveChapterSnapshotSchema,
-        {
-          ...payload,
-          pages: [{ ...payload.pages[0], dataUrl: "data:image/png;base64,AAAA" }]
-        },
-        "화 저장"
       )
     ).toThrow(/요청 형식/);
   });

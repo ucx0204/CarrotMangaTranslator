@@ -10,8 +10,6 @@ import type {
 } from "../../../shared/types";
 import {
   CODEX_REASONING_OPTIONS,
-  DEFAULT_MODEL_PRESET_ID,
-  DEFAULT_GEMMA_MODEL_REPO,
   MAX_MAX_TOKENS,
   MIN_MAX_TOKENS,
   MODEL_PRESETS,
@@ -21,6 +19,7 @@ import {
   resolveModelPreset,
   type ModelPresetId
 } from "./settingsOptions";
+import { buildSettingsFromForm } from "./settingsFormBuilder";
 import { Button, Modal } from "./ui";
 
 const MODEL_PRESET_BUTTON_IDS = [
@@ -136,7 +135,7 @@ export function SettingsModal({
   const parsedCodexOauthPort = Number(codexOauthPort);
   const parsedMaxTokens = Number(maxTokens);
   const codexOauthPortValid =
-    Number.isInteger(parsedCodexOauthPort) && parsedCodexOauthPort >= 0 && parsedCodexOauthPort <= 65535;
+    Number.isInteger(parsedCodexOauthPort) && parsedCodexOauthPort >= 1 && parsedCodexOauthPort <= 65535;
   const maxTokensValid =
     Number.isInteger(parsedMaxTokens) && parsedMaxTokens >= MIN_MAX_TOKENS && parsedMaxTokens <= MAX_MAX_TOKENS;
   const gemmaSettingsReady = modelSource === "local" ? Boolean(trimmedLocalModelPath) : Boolean(trimmedModelRepo && trimmedModelFile);
@@ -150,68 +149,31 @@ export function SettingsModal({
       return null;
     }
 
-    if (modelProvider === "openai-codex") {
-      if (!trimmedCodexModel || !codexOauthPortValid) {
-        return null;
-      }
-
-      return {
-        modelProvider,
-        gemma: {
-          modelSource,
-          modelRepo: trimmedModelRepo || DEFAULT_GEMMA_MODEL_REPO,
-          modelFile: trimmedModelFile || MODEL_PRESETS[DEFAULT_MODEL_PRESET_ID].modelFile,
-          ...(trimmedMmprojRepo ? { mmprojRepo: trimmedMmprojRepo } : {}),
-          ...(trimmedMmprojFile ? { mmprojFile: trimmedMmprojFile } : {}),
-          ...(trimmedLocalModelPath ? { localModelPath: trimmedLocalModelPath } : {}),
-          ...(trimmedLocalMmprojPath ? { localMmprojPath: trimmedLocalMmprojPath } : {}),
-          vramMode: selectedVramMode,
-          ...(initialSettings.gemma.llamaRuntimeProfile
-            ? { llamaRuntimeProfile: initialSettings.gemma.llamaRuntimeProfile }
-            : {})
-        },
-        codex: {
-          model: trimmedCodexModel,
-          reasoningEffort: codexReasoningEffort,
-          oauthPort: parsedCodexOauthPort
-        },
-        ocr: {
-          device: ocrDevice,
-          ...(initialSettings.ocr.gpuCudaTag ? { gpuCudaTag: initialSettings.ocr.gpuCudaTag } : {})
-        },
-        maxTokens: parsedMaxTokens
-      };
+    if (modelProvider === "openai-codex" && (!trimmedCodexModel || !codexOauthPortValid)) {
+      return null;
     }
 
-    return {
+    return buildSettingsFromForm({
+      initialSettings,
       modelProvider,
-      gemma: {
-        modelSource,
-        modelRepo: trimmedModelRepo || DEFAULT_GEMMA_MODEL_REPO,
-        modelFile: trimmedModelFile || MODEL_PRESETS[DEFAULT_MODEL_PRESET_ID].modelFile,
-        ...(trimmedMmprojRepo ? { mmprojRepo: trimmedMmprojRepo } : {}),
-        ...(trimmedMmprojFile ? { mmprojFile: trimmedMmprojFile } : {}),
-        ...(trimmedLocalModelPath ? { localModelPath: trimmedLocalModelPath } : {}),
-        ...(trimmedLocalMmprojPath ? { localMmprojPath: trimmedLocalMmprojPath } : {}),
-        vramMode: selectedVramMode,
-        ...(initialSettings.gemma.llamaRuntimeProfile
-          ? { llamaRuntimeProfile: initialSettings.gemma.llamaRuntimeProfile }
-          : {})
-      },
-      codex: {
-        model: trimmedCodexModel || initialSettings.codex.model,
-        reasoningEffort: codexReasoningEffort,
-        oauthPort: codexOauthPortValid ? parsedCodexOauthPort : initialSettings.codex.oauthPort
-      },
-      ocr: {
-        device: ocrDevice,
-        ...(initialSettings.ocr.gpuCudaTag ? { gpuCudaTag: initialSettings.ocr.gpuCudaTag } : {})
-      },
+      modelSource,
+      modelRepo: trimmedModelRepo,
+      modelFile: trimmedModelFile,
+      mmprojRepo: trimmedMmprojRepo,
+      mmprojFile: trimmedMmprojFile,
+      localModelPath: trimmedLocalModelPath,
+      localMmprojPath: trimmedLocalMmprojPath,
+      vramMode: selectedVramMode,
+      codexModel: trimmedCodexModel,
+      codexReasoningEffort,
+      codexOauthPort: codexOauthPortValid ? parsedCodexOauthPort : initialSettings.codex.oauthPort,
+      ocrDevice,
       maxTokens: parsedMaxTokens
-    };
+    });
   }, [
     modelProvider,
     codexOauthPortValid,
+    initialSettings,
     modelSource,
     trimmedModelRepo,
     trimmedModelFile,
@@ -225,10 +187,7 @@ export function SettingsModal({
     selectedVramMode,
     codexReasoningEffort,
     ocrDevice,
-    initialSettings.codex.model,
     initialSettings.codex.oauthPort,
-    initialSettings.gemma.llamaRuntimeProfile,
-    initialSettings.ocr.gpuCudaTag,
     maxTokensValid
   ]);
 
@@ -635,7 +594,7 @@ export function SettingsModal({
                 openai-oauth 포트
                 <input
                   type="number"
-                  min={0}
+                  min={1}
                   max={65535}
                   step={1}
                   value={codexOauthPort}
@@ -685,7 +644,7 @@ export function SettingsModal({
           </div>
 
           {modelProvider === "openai-codex" && !codexOauthPortValid ? (
-            <p className="muted-line">openai-oauth 포트는 0 이상 65535 이하의 정수여야 합니다.</p>
+            <p className="muted-line">openai-oauth 포트는 1 이상 65535 이하의 정수여야 합니다.</p>
           ) : null}
           {!maxTokensValid ? (
             <p className="muted-line">최대 출력 토큰은 {MIN_MAX_TOKENS} 이상 {MAX_MAX_TOKENS} 이하의 정수여야 합니다.</p>

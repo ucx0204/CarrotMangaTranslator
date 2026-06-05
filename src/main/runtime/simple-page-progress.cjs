@@ -103,7 +103,7 @@ function createOcrBatchProgressFilePoller(progressPath, onLine) {
     if (!progressPath || !existsSync(progressPath)) {
       return;
     }
-    let raw = "";
+    let raw;
     try {
       raw = readFileSync(progressPath, "utf8");
     } catch {

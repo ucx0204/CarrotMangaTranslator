@@ -30,11 +30,9 @@ import {
   renameWorkUnlocked,
   reorderChaptersUnlocked,
   reorderPagesUnlocked,
-  saveChapterSnapshotUnlocked,
   savePageBlocksUnlocked,
   setPageInpaintingResultUnlocked,
   updatePageAfterAnalysisUnlocked,
-  updatePagesAfterAnalysisUnlocked,
   updatePagesAfterInpaintingUnlocked,
   type InpaintingArtifactCleanupOptions
 } from "./libraryStore/libraryMutations";
@@ -51,10 +49,6 @@ const libraryMutationMutex = new AsyncMutex();
 
 function withLibraryMutation<T>(operation: () => Promise<T>): Promise<T> {
   return libraryMutationMutex.runExclusive(operation);
-}
-
-export async function saveChapterSnapshot(snapshot: ChapterSnapshot): Promise<ChapterSnapshot> {
-  return withLibraryMutation(() => saveChapterSnapshotUnlocked(snapshot));
 }
 
 export async function savePageBlocks(request: SavePageBlocksRequest): Promise<ChapterSnapshot> {
@@ -112,10 +106,6 @@ export async function finalizeRunningPages(
   errorMessage?: string
 ): Promise<void> {
   return withLibraryMutation(() => finalizeRunningPagesUnlocked(chapterId, pageIds, status, errorMessage));
-}
-
-export async function updatePagesAfterAnalysis(chapterId: string, pages: MangaPage[]): Promise<ChapterSnapshot> {
-  return withLibraryMutation(() => updatePagesAfterAnalysisUnlocked(chapterId, pages));
 }
 
 export async function updatePagesAfterInpainting(

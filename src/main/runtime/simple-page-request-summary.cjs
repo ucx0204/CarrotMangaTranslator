@@ -15,7 +15,6 @@ const {
   resolveConfiguredDraftModelRepo,
   resolveConfiguredLocalMmprojPath,
   resolveConfiguredLocalModelPath,
-  resolveConfiguredModelFile,
   resolveConfiguredModelRepo,
   resolveConfiguredModelSource,
   resolveConfiguredMmprojFile,

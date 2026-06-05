@@ -223,8 +223,15 @@ export async function runWholePagePipeline({
       pageOptions.regionCropMode = true;
       pageOptions.ocrBboxProvider = "none";
       delete pageOptions.ocrBboxHints;
+      delete pageOptions.ocrBboxResult;
     } else {
-      pageOptions.ocrBboxHints = ocrHintsByPageId.get(page.id)?.hints ?? [];
+      pageOptions.ocrBboxResult = ocrHintsByPageId.get(page.id) ?? {
+        hints: [],
+        diagnostics: [{ provider: "prepass", reason: "missing-result" }],
+        noTextDetected: false,
+        textEvidenceCount: 0
+      };
+      pageOptions.ocrBboxHints = pageOptions.ocrBboxResult.hints ?? [];
     }
     pageOptions.abortSignal = signal;
     pageOptions.onProgress = (progress) => {

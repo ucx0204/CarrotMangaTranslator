@@ -26,7 +26,7 @@ export function useStatusLog(): UseStatusLogResult {
 
   const pushStatus = React.useCallback(
     (line: string) => {
-      void window.mangaApi.writeLog("info", "UI status", { line });
+      void window.mangaApi.writeLog("info", "UI status", { line }).catch((error) => console.error(error));
       appendStatusLine(line);
     },
     [appendStatusLine]

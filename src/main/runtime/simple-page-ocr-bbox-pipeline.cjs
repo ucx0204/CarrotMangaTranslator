@@ -1,5 +1,5 @@
 const { existsSync, readFileSync } = require("node:fs");
-const { mkdir, readFile, writeFile } = require("node:fs/promises");
+const { mkdir, readFile, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
 const {
@@ -71,6 +71,14 @@ async function collectOcrBboxHints(options = {}) {
     return buildOcrBboxResult([], [{ provider: "disabled", reason: "skipOcrBboxHints" }], { noTextDetected: false });
   }
 
+  if (Object.prototype.hasOwnProperty.call(options, "ocrBboxResult")) {
+    const result = normalizeOcrBboxResultPayload(options.ocrBboxResult, options);
+    return buildOcrBboxResult(result.hints, result.diagnostics, {
+      noTextDetected: result.noTextDetected,
+      textEvidenceCount: result.textEvidenceCount
+    });
+  }
+
   const inlineHints = normalizeOcrBboxHintPayload(options.ocrBboxHints, options);
   if (Object.prototype.hasOwnProperty.call(options, "ocrBboxHints")) {
     return buildOcrBboxResult(inlineHints, [{
@@ -138,7 +146,10 @@ async function collectOcrBboxHints(options = {}) {
 
 function buildOcrBboxResult(hints = [], diagnostics = [], options = {}) {
   const normalizedHints = Array.isArray(hints) ? hints : [];
-  const textEvidenceCount = countOcrTextEvidence(normalizedHints);
+  const textEvidenceCount =
+    Number.isFinite(options.textEvidenceCount) && options.textEvidenceCount >= 0
+      ? Number(options.textEvidenceCount)
+      : countOcrTextEvidence(normalizedHints);
   const noTextDetected =
     typeof options.noTextDetected === "boolean"
       ? options.noTextDetected
@@ -148,6 +159,17 @@ function buildOcrBboxResult(hints = [], diagnostics = [], options = {}) {
     diagnostics: Array.isArray(diagnostics) ? diagnostics : [],
     noTextDetected,
     textEvidenceCount
+  };
+}
+
+function normalizeOcrBboxResultPayload(value, options = {}) {
+  const record = value && typeof value === "object" ? value : {};
+  const hints = normalizeOcrBboxHintPayload(record.hints, options);
+  return {
+    hints,
+    diagnostics: Array.isArray(record.diagnostics) ? record.diagnostics : [],
+    noTextDetected: typeof record.noTextDetected === "boolean" ? record.noTextDetected : undefined,
+    textEvidenceCount: Number.isFinite(record.textEvidenceCount) && record.textEvidenceCount >= 0 ? Number(record.textEvidenceCount) : undefined
   };
 }
 
@@ -199,7 +221,7 @@ async function runOcrBboxCommand(options = {}, provider = "external-command") {
     onOutput: handleOcrOutput
   });
 
-  let rawText = "";
+  let rawText;
   if (existsSync(outputPath)) {
     rawText = await readFile(outputPath, "utf8");
   } else {
@@ -321,40 +343,41 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
       signal: batchOptions.abortSignal,
       onOutput: handleProgressLine
     }));
+
+    return normalizedOptions.map((options, index) => {
+      const outputPath = items[index].output;
+      let payload = null;
+      if (existsSync(outputPath)) {
+        payload = JSON.parse(readFileSync(outputPath, "utf8"));
+      }
+      if (!payload) {
+        throw createDetailedError("OCR bbox batch command did not produce JSON.", {
+          command,
+          outputPath,
+          stdoutPreview: truncateText(stdout, 2000),
+          stderrPreview: truncateText(stderr, 2000)
+        });
+      }
+      const hints = normalizeOcrBboxHintPayload(payload, options);
+      return buildOcrBboxResult(hints, [{
+          provider,
+          command,
+          outputPath,
+          runtimeDir: runtime?.runtimeDir || null,
+          runtimeVariant: runtime?.runtimeVariant || null,
+          packageDir: runtime?.packageDir || null,
+          pythonPath: runtime?.pythonPath || null,
+          runtimePrepared: Boolean(runtime?.prepared),
+          hintCount: hints.length,
+          stdoutPreview: truncateText(stdout.trim(), 1200),
+          stderrPreview: truncateText(stderr.trim(), 1200),
+          runtimeDiagnostics: runtime?.diagnostics || []
+        }]);
+    });
   } finally {
     progressPoller.stop();
+    await cleanupOcrBatchControlFiles(batchPath, progressPath, batchOptions);
   }
-
-  return normalizedOptions.map((options, index) => {
-    const outputPath = items[index].output;
-    let payload = null;
-    if (existsSync(outputPath)) {
-      payload = JSON.parse(readFileSync(outputPath, "utf8"));
-    }
-    if (!payload) {
-      throw createDetailedError("OCR bbox batch command did not produce JSON.", {
-        command,
-        outputPath,
-        stdoutPreview: truncateText(stdout, 2000),
-        stderrPreview: truncateText(stderr, 2000)
-      });
-    }
-    const hints = normalizeOcrBboxHintPayload(payload, options);
-    return buildOcrBboxResult(hints, [{
-        provider,
-        command,
-        outputPath,
-        runtimeDir: runtime?.runtimeDir || null,
-        runtimeVariant: runtime?.runtimeVariant || null,
-        packageDir: runtime?.packageDir || null,
-        pythonPath: runtime?.pythonPath || null,
-        runtimePrepared: Boolean(runtime?.prepared),
-        hintCount: hints.length,
-        stdoutPreview: truncateText(stdout.trim(), 1200),
-        stderrPreview: truncateText(stderr.trim(), 1200),
-        runtimeDiagnostics: runtime?.diagnostics || []
-      }]);
-  });
 }
 
 function withoutPageProgressOptions(options = {}) {
@@ -370,6 +393,16 @@ function withoutPageProgressOptions(options = {}) {
 function isTruthy(value) {
   const text = String(value ?? "").trim().toLowerCase();
   return ["1", "true", "yes", "y", "on"].includes(text);
+}
+
+async function cleanupOcrBatchControlFiles(batchPath, progressPath, options = {}) {
+  if (options.keepOcrBatchArtifacts || isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_KEEP_OCR_BATCH_ARTIFACTS", options))) {
+    return;
+  }
+  await Promise.all([
+    rm(batchPath, { force: true }).catch(() => {}),
+    rm(progressPath, { force: true }).catch(() => {})
+  ]);
 }
 
 module.exports = {

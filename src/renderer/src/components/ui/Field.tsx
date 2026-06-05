@@ -1,8 +1,7 @@
 import React from "react";
 import styles from "./Field.module.css";
 
-/** Generic labelled wrapper for a custom control. */
-export function Field({
+function Field({
   label,
   hint,
   children,
@@ -38,40 +37,6 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(func
   );
 });
 
-export type TextAreaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
-  label?: React.ReactNode;
-  hint?: React.ReactNode;
-};
-
-export const TextArea = React.forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
-  { label, hint, className, ...rest },
-  ref
-) {
-  return (
-    <Field label={label} hint={hint} className={className}>
-      <textarea ref={ref} {...rest} />
-    </Field>
-  );
-});
-
-export type SelectFieldProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
-  label?: React.ReactNode;
-  hint?: React.ReactNode;
-};
-
-export const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(function SelectField(
-  { label, hint, className, children, ...rest },
-  ref
-) {
-  return (
-    <Field label={label} hint={hint} className={className}>
-      <select ref={ref} {...rest}>
-        {children}
-      </select>
-    </Field>
-  );
-});
-
 export type RangeInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">;
 
 /** A range input whose track is filled up to the current value (via the --range-progress CSS var). */
@@ -90,38 +55,5 @@ export function RangeInput({ min = 0, max = 100, value, style, ...rest }: RangeI
       style={{ ...style, "--range-progress": `${progress}%` } as React.CSSProperties}
       {...rest}
     />
-  );
-}
-
-export type SliderProps = RangeInputProps & {
-  label?: React.ReactNode;
-  /** Formatted value shown beside the label (e.g. "28px", "70%"). */
-  valueLabel?: React.ReactNode;
-};
-
-export function Slider({ label, valueLabel, className, ...rest }: SliderProps): React.JSX.Element {
-  return (
-    <label className={[styles.field, className ?? ""].filter(Boolean).join(" ")}>
-      {label != null || valueLabel != null ? (
-        <span className={styles.sliderHead}>
-          <span>{label}</span>
-          {valueLabel != null ? <strong className={styles.value}>{valueLabel}</strong> : null}
-        </span>
-      ) : null}
-      <RangeInput {...rest} />
-    </label>
-  );
-}
-
-export type CheckboxProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> & {
-  label: React.ReactNode;
-};
-
-export function Checkbox({ label, className, ...rest }: CheckboxProps): React.JSX.Element {
-  return (
-    <label className={[styles.checkbox, className ?? ""].filter(Boolean).join(" ")}>
-      <input type="checkbox" {...rest} />
-      <span>{label}</span>
-    </label>
   );
 }

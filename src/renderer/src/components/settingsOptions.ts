@@ -1,15 +1,7 @@
-import type { CodexReasoningEffort, GemmaVramMode, ModelProvider, ModelSource, OcrDevice } from "../../../shared/types";
+import type { CodexReasoningEffort, ModelProvider, ModelSource, OcrDevice } from "../../../shared/types";
 import {
-  DEFAULT_GEMMA_MMPROJ_FILE,
-  DEFAULT_GEMMA_MMPROJ_REPO,
-  DEFAULT_GEMMA_MODEL_FILE,
-  DEFAULT_GEMMA_MODEL_REPO,
-  GEMMA_26B_MMPROJ_FILE,
-  GEMMA_26B_MMPROJ_REPO,
-  GEMMA_26B_MODEL_FILE_IQ3_S,
-  GEMMA_26B_MODEL_REPO,
-  MAX_MAX_TOKENS,
-  MIN_MAX_TOKENS
+  GEMMA_MODEL_PRESETS,
+  type GemmaModelPresetId
 } from "../../../shared/modelPresets";
 
 export {
@@ -21,32 +13,28 @@ export {
   MIN_MAX_TOKENS
 } from "../../../shared/modelPresets";
 
-export const ECONOMY_GEMMA_MODEL_REPO = GEMMA_26B_MODEL_REPO;
-export const ECONOMY_GEMMA_MODEL_FILE = GEMMA_26B_MODEL_FILE_IQ3_S;
-export const ECONOMY_GEMMA_MMPROJ_REPO = GEMMA_26B_MMPROJ_REPO;
-export const ECONOMY_GEMMA_MMPROJ_FILE = GEMMA_26B_MMPROJ_FILE;
-
-export const MODEL_PRESETS = {
+const MODEL_PRESET_COPY: Record<GemmaModelPresetId, { label: string; description: string }> = {
   economy26b: {
     label: "26B 절약",
-    description: "16GB급 VRAM용입니다. 이미지 토큰 1024는 유지하고 26B 모델로 더 안전하게 실행합니다.",
-    vramMode: "economy" as GemmaVramMode,
-    modelRepo: ECONOMY_GEMMA_MODEL_REPO,
-    modelFile: ECONOMY_GEMMA_MODEL_FILE,
-    mmprojRepo: ECONOMY_GEMMA_MMPROJ_REPO,
-    mmprojFile: ECONOMY_GEMMA_MMPROJ_FILE
+    description: "16GB급 VRAM용입니다. 이미지 토큰 1024는 유지하고 26B 모델로 더 안전하게 실행합니다."
   },
   full31b: {
     label: "31B 풀로드",
-    description: "넉넉한 VRAM용입니다. 31B 모델과 DFlash를 사용해 품질 우선으로 실행합니다.",
-    vramMode: "full" as GemmaVramMode,
-    modelRepo: DEFAULT_GEMMA_MODEL_REPO,
-    modelFile: DEFAULT_GEMMA_MODEL_FILE,
-    mmprojRepo: DEFAULT_GEMMA_MMPROJ_REPO,
-    mmprojFile: DEFAULT_GEMMA_MMPROJ_FILE
+    description: "넉넉한 VRAM용입니다. 31B 모델과 DFlash를 사용해 품질 우선으로 실행합니다."
   }
 } as const;
-export const DEFAULT_MODEL_PRESET_ID: keyof typeof MODEL_PRESETS = "full31b";
+
+export const MODEL_PRESETS = {
+  economy26b: {
+    ...GEMMA_MODEL_PRESETS.economy26b,
+    ...MODEL_PRESET_COPY.economy26b
+  },
+  full31b: {
+    ...GEMMA_MODEL_PRESETS.full31b,
+    ...MODEL_PRESET_COPY.full31b
+  }
+} as const;
+export const DEFAULT_MODEL_PRESET_ID: GemmaModelPresetId = "full31b";
 
 export type ModelPresetId = keyof typeof MODEL_PRESETS | "custom";
 

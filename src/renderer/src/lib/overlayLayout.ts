@@ -4,7 +4,6 @@ import { resolveBlockFontFamily } from "./fonts";
 
 const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
 const MAX_AUTOFIT_FONT_SIZE_PX = 256;
-const MIN_BLOCK_PADDING_PX = 0;
 const MIN_INNER_SIZE_PX = 1;
 const BLOCK_BORDER_PX = 1;
 const MAX_VERTICAL_COLUMNS = 2;
@@ -33,10 +32,6 @@ export type BlockTextLayout = {
   fontSizePx: number;
   overflow: boolean;
 };
-
-export function resolveOverlayFontSizePx(block: TranslationBlock, text: string, pageSize: ViewportSize, stageSize: ViewportSize): number {
-  return resolveBlockTextLayout(block, text, pageSize, stageSize).fontSizePx;
-}
 
 export function resolveBlockPaddingPx(rect: PixelRect): number {
   void rect;
@@ -128,7 +123,7 @@ function doesTextFit(block: TranslationBlock, text: string, fontSize: number, in
   }
 
   const context = getMeasureContext();
-  context.font = buildFont(fontSize, block.fontFamily);
+  context.font = buildFont(fontSize, block);
   const measured = measureWrappedText(context, text, innerWidth, fontSize * block.lineHeight);
   return measured.totalHeight <= innerHeight && measured.maxLineWidth <= innerWidth;
 }
@@ -222,6 +217,8 @@ function getMeasureContext(): CanvasRenderingContext2D {
   return context;
 }
 
-function buildFont(fontSize: number, fontFamily: string | undefined): string {
-  return `600 ${fontSize}px ${resolveBlockFontFamily(fontFamily)}`;
+function buildFont(fontSize: number, block: TranslationBlock): string {
+  const style = block.italic ? "italic " : "";
+  const weight = block.bold ? 800 : 400;
+  return `${style}${weight} ${fontSize}px ${resolveBlockFontFamily(block.fontFamily)}`;
 }

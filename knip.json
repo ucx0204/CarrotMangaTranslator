@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/main/bootstrap.ts",
+    "src/preload/index.ts",
+    "src/renderer/src/main.tsx",
+    "vite.renderer.config.ts",
+    "vitest.config.ts",
+    "electron-builder.config.cjs",
+    "scripts/*.cjs"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx,cjs}",
+    "tests/**/*.ts",
+    "scripts/**/*.cjs",
+    "vite.renderer.config.ts",
+    "vitest.config.ts",
+    "electron-builder.config.cjs"
+  ],
+  "ignore": [
+    "src/main/runtime/paddleocr-vl-bboxes.py",
+    "src/main/runtime/build-page-variant.ps1",
+    "scripts/crop_image.ps1"
+  ],
+  "ignoreDependencies": ["openai-oauth"]
+}

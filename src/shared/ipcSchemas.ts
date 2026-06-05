@@ -85,10 +85,6 @@ export const MangaPageSchema = z
   })
   .strict();
 
-export const SaveMangaPageSchema = MangaPageSchema.extend({
-  dataUrl: z.literal("")
-}).strict();
-
 export const ChapterSnapshotSchema = z
   .object({
     id: uuid,
@@ -102,10 +98,6 @@ export const ChapterSnapshotSchema = z
     updatedAt: z.string().max(80)
   })
   .strict();
-
-export const SaveChapterSnapshotSchema = ChapterSnapshotSchema.extend({
-  pages: z.array(SaveMangaPageSchema).max(MAX_PAGES_PER_REQUEST)
-}).strict();
 
 export const CreateImportRequestSchema = z
   .object({

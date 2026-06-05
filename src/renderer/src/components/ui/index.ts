@@ -4,6 +4,6 @@ export { IconButton } from "./IconButton";
 export type { IconButtonProps, IconButtonVariant, IconButtonSize } from "./IconButton";
 export { Modal } from "./Modal";
 export type { ModalProps, ModalSize } from "./Modal";
-export { Field, TextField, TextArea, SelectField, Slider, RangeInput, Checkbox } from "./Field";
-export type { TextFieldProps, TextAreaProps, SelectFieldProps, SliderProps, RangeInputProps, CheckboxProps } from "./Field";
+export { TextField, RangeInput } from "./Field";
+export type { TextFieldProps, RangeInputProps } from "./Field";
 export * from "./icons";

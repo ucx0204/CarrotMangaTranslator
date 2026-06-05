@@ -1,5 +1,5 @@
 import { once } from "node:events";
-import { createWriteStream, existsSync, readdirSync, statSync } from "node:fs";
+import { createWriteStream, existsSync, statSync } from "node:fs";
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
@@ -44,6 +44,11 @@ type RemoteFileMetadata = {
   url: string;
   bytes: number;
   downloadedAt: string;
+};
+
+type NvidiaRedistPackage = {
+  relative_path: string;
+  size?: number;
 };
 
 export async function ensureMgtFluxKleinRuntime(options: {
@@ -120,17 +125,17 @@ async function ensureFluxCudaRuntime(options: {
   await mkdir(downloadsDir, { recursive: true });
 
   const cudaManifest = await readJsonUrl(CUDA_REDIST_MANIFEST_URL, options.signal);
-  const cudaPackages = [
-    cudaManifest?.libcublas?.["windows-x86_64"],
-    cudaManifest?.cuda_cudart?.["windows-x86_64"],
-    cudaManifest?.libcurand?.["windows-x86_64"]
-  ].filter(Boolean);
+  const cudaPackages: NvidiaRedistPackage[] = [
+    readNvidiaRedistPackage(cudaManifest, "libcublas", "windows-x86_64"),
+    readNvidiaRedistPackage(cudaManifest, "cuda_cudart", "windows-x86_64"),
+    readNvidiaRedistPackage(cudaManifest, "libcurand", "windows-x86_64")
+  ].filter((entry): entry is NvidiaRedistPackage => Boolean(entry));
   if (cudaPackages.length !== 3) {
     throw new Error("NVIDIA CUDA 12.9 런타임 목록에서 필요한 DLL 패키지를 찾지 못했습니다.");
   }
 
   const cudnnManifest = await readJsonUrl(CUDNN_REDIST_MANIFEST_URL, options.signal);
-  const cudnnPackage = cudnnManifest?.cudnn?.["windows-x86_64"]?.cuda12;
+  const cudnnPackage = readNvidiaRedistPackage(cudnnManifest, "cudnn", "windows-x86_64", "cuda12");
   if (!cudnnPackage) {
     throw new Error("NVIDIA cuDNN 9.21 CUDA 12 런타임 패키지를 찾지 못했습니다.");
   }
@@ -194,13 +199,38 @@ async function downloadRuntimeArchive(options: {
   return outputPath;
 }
 
-async function readJsonUrl(url: string, signal?: AbortSignal): Promise<any> {
+async function readJsonUrl(url: string, signal?: AbortSignal): Promise<unknown> {
   throwIfAborted(signal);
   const response = await fetch(url, { signal, headers: { "User-Agent": "manga-gemma-translator" } });
   if (!response.ok) {
     throw new Error(`${url} 요청에 실패했습니다 (${response.status}).`);
   }
   return response.json();
+}
+
+function readNvidiaRedistPackage(
+  manifest: unknown,
+  packageName: string,
+  platform: string,
+  variant?: string
+): NvidiaRedistPackage | null {
+  const packageRecord = asJsonRecord(asJsonRecord(manifest)[packageName]);
+  const platformValue = packageRecord[platform];
+  const value = variant ? asJsonRecord(platformValue)[variant] : platformValue;
+  const record = asJsonRecord(value);
+  const relativePath = typeof record.relative_path === "string" ? record.relative_path : "";
+  if (!relativePath) {
+    return null;
+  }
+  const size = typeof record.size === "number" && Number.isFinite(record.size) ? record.size : undefined;
+  return {
+    relative_path: relativePath,
+    ...(size === undefined ? {} : { size })
+  };
+}
+
+function asJsonRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 function extractSelectedZipEntries(archivePath: string, outputDir: string, shouldExtract: (fileName: string) => boolean): void {
@@ -386,40 +416,6 @@ function findFirstExecutable(candidates: Array<string | null | undefined>): stri
   for (const candidate of candidates) {
     if (candidate && isExecutableFile(candidate)) {
       return candidate;
-    }
-  }
-  return null;
-}
-
-function findExecutable(rootDir: string, executableNames: string[]): string | null {
-  if (!existsSync(rootDir)) {
-    return null;
-  }
-  const stack = [rootDir];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) {
-      continue;
-    }
-    let entries: string[];
-    try {
-      entries = readdirSync(current);
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      const path = join(current, entry);
-      let stat;
-      try {
-        stat = statSync(path);
-      } catch {
-        continue;
-      }
-      if (stat.isDirectory()) {
-        stack.push(path);
-      } else if (stat.isFile() && executableNames.some((name) => entry.toLowerCase() === name.toLowerCase())) {
-        return path;
-      }
     }
   }
   return null;

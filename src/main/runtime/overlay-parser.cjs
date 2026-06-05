@@ -25,7 +25,7 @@ function extractJsonCandidate(rawText) {
 }
 
 function parseJsonLenient(rawText) {
-  let candidate = "";
+  let candidate;
   try {
     candidate = extractJsonCandidate(rawText);
   } catch {
@@ -77,7 +77,7 @@ function repairBrokenJson(candidate) {
   repaired = repaired.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, (_, prefix, key) => `${prefix}"${key}":`);
   repaired = repaired.replace(/:\s*'([^']*)'/g, ': "$1"');
   repaired = repaired.replace(/("id"\s*:\s*)([A-Za-z]+)(\s*[,\n}])/g, '$1"$2"$3');
-  repaired = repaired.replace(/("(?:jp|ko|type)"\s*:\s*)([^"{\[\n][^,\n}]*)/g, (_match, prefix, value) => {
+  repaired = repaired.replace(/("(?:jp|ko|type)"\s*:\s*)([^"{[\n][^,\n}]*)/g, (_match, prefix, value) => {
     const trimmed = String(value).trim();
     if (!trimmed || /^"/.test(trimmed)) {
       return `${prefix}${trimmed}`;

@@ -62,23 +62,26 @@ export function useTranslationActions({
         return;
       }
 
-      await saveNow();
-      clearStatusLines();
-      setJobState({
-        id: "pending",
-        kind: "gemma-analysis",
-        status: "starting",
-        progressText: "모델 준비 중",
-        phase: "booting"
-      });
-      setCurrentChapter((chapter) => (chapter ? markChapterPagesRunning(chapter, runMode, pageId) : chapter));
-
       try {
+        await saveNow();
+        clearStatusLines();
+        setJobState({
+          id: "pending",
+          kind: "gemma-analysis",
+          status: "starting",
+          progressText: "모델 준비 중",
+          phase: "booting"
+        });
+        setCurrentChapter((chapter) => (chapter ? markChapterPagesRunning(chapter, runMode, pageId) : chapter));
+
         const result = await window.mangaApi.startAnalysis({ chapterId: currentChapter.id, runMode, pageId });
         if (result.chapter) {
           mergeLiveChapter(result.chapter);
         }
-        await refreshLibrary();
+        await refreshLibrary().catch((error) => {
+          console.error(error);
+          pushStatus(formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."));
+        });
 
         if (result.status === "completed") {
           const warningSummary = summarizeWarnings(result.warnings ?? []);
@@ -109,21 +112,21 @@ export function useTranslationActions({
         return;
       }
 
-      await saveNow();
-      clearStatusLines();
-      setJobState({
-        id: "pending",
-        kind: "gemma-analysis",
-        status: "starting",
-        progressText: "선택 영역 번역 준비 중",
-        phase: "booting",
-        progressCurrent: 0,
-        progressTotal: 1,
-        pageIndex: 1,
-        pageTotal: 1
-      });
-
       try {
+        await saveNow();
+        clearStatusLines();
+        setJobState({
+          id: "pending",
+          kind: "gemma-analysis",
+          status: "starting",
+          progressText: "선택 영역 번역 준비 중",
+          phase: "booting",
+          progressCurrent: 0,
+          progressTotal: 1,
+          pageIndex: 1,
+          pageTotal: 1
+        });
+
         await beforeTranslateRegion?.();
         const result = await window.mangaApi.translateRegion({
           chapterId: currentChapter.id,
@@ -133,7 +136,10 @@ export function useTranslationActions({
         if (result.chapter) {
           mergeLiveChapter(result.chapter);
         }
-        await refreshLibrary();
+        await refreshLibrary().catch((error) => {
+          console.error(error);
+          pushStatus(formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."));
+        });
 
         if (result.status === "completed") {
           if (result.blockIds?.[0]) {

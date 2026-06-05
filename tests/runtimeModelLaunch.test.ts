@@ -555,6 +555,25 @@ describe("runtime model launch helpers", () => {
     });
   });
 
+  it("preserves OCR prepass no-text state when the full result is provided", async () => {
+    const result = await collectOcrBboxHints({
+      ocrBboxResult: {
+        hints: [],
+        diagnostics: [{ provider: "paddleocr-vl", reason: "uncertain-empty-result" }],
+        noTextDetected: false,
+        textEvidenceCount: 0
+      },
+      ocrBboxProvider: "none"
+    });
+
+    expect(result).toMatchObject({
+      hints: [],
+      diagnostics: [{ provider: "paddleocr-vl", reason: "uncertain-empty-result" }],
+      noTextDetected: false,
+      textEvidenceCount: 0
+    });
+  });
+
   it("does not skip model analysis when OCR found geometry without readable Japanese transcript", async () => {
     const noEvidence = await collectOcrBboxHints({
       ocrBboxHints: [{ id: 1, label: "text", x1: 10, y1: 20, x2: 80, y2: 90 }]

@@ -1,0 +1,15 @@
+node_modules
+out
+dist
+release
+library
+data
+.tmp
+coverage
+*.log
+*.zip
+*.7z
+*.exe
+*.gguf
+*.safetensors
+

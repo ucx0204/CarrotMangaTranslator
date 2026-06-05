@@ -55,9 +55,14 @@ export function useLibraryActions({
   const [renameBusy, setRenameBusy] = useState(false);
 
   const refreshLibrary = useCallback(async () => {
-    const next = await window.mangaApi.getLibrary();
-    setLibrary(next);
-  }, [setLibrary]);
+    try {
+      const next = await window.mangaApi.getLibrary();
+      setLibrary(next);
+    } catch (error) {
+      console.error(error);
+      pushStatus(formatErrorMessage(error, "보관함 목록을 불러오지 못했습니다."));
+    }
+  }, [pushStatus, setLibrary]);
 
   const clearCurrentChapter = useCallback(() => {
     setCurrentChapter(null);
@@ -69,17 +74,22 @@ export function useLibraryActions({
 
   const openChapter = useCallback(
     async (chapterId: string) => {
-      if (dirty) {
-        await saveNow();
+      try {
+        if (dirty) {
+          await saveNow();
+        }
+        const chapter = await window.mangaApi.openChapter(chapterId);
+        clearDirtyTracking();
+        currentChapterRef.current = chapter;
+        setCurrentChapter(chapter);
+        setSelectedPageId(chapter.pages[0]?.id ?? null);
+        setSelectedBlockId(null);
+      } catch (error) {
+        console.error(error);
+        pushStatus(formatErrorMessage(error, "화를 열지 못했습니다."));
       }
-      const chapter = await window.mangaApi.openChapter(chapterId);
-      clearDirtyTracking();
-      currentChapterRef.current = chapter;
-      setCurrentChapter(chapter);
-      setSelectedPageId(chapter.pages[0]?.id ?? null);
-      setSelectedBlockId(null);
     },
-    [clearDirtyTracking, currentChapterRef, dirty, saveNow, setCurrentChapter, setSelectedBlockId, setSelectedPageId]
+    [clearDirtyTracking, currentChapterRef, dirty, pushStatus, saveNow, setCurrentChapter, setSelectedBlockId, setSelectedPageId]
   );
 
   const applyChapter = useCallback(
@@ -117,14 +127,19 @@ export function useLibraryActions({
         return;
       }
 
-      const previousOrder = currentChapter.pages.map((candidate) => candidate.id);
-      const nextChapter = await window.mangaApi.deletePage(currentChapter.id, pageId);
-      applyChapter(nextChapter);
-      const currentIndex = previousOrder.indexOf(pageId);
-      const nextId = previousOrder[currentIndex + 1] ?? previousOrder[currentIndex - 1] ?? null;
-      setSelectedPageId(nextId && nextChapter.pages.some((candidate) => candidate.id === nextId) ? nextId : nextChapter.pages[0]?.id ?? null);
-      pushStatus(`${page.name} 페이지를 삭제했습니다.`);
-      await refreshLibrary();
+      try {
+        const previousOrder = currentChapter.pages.map((candidate) => candidate.id);
+        const nextChapter = await window.mangaApi.deletePage(currentChapter.id, pageId);
+        applyChapter(nextChapter);
+        const currentIndex = previousOrder.indexOf(pageId);
+        const nextId = previousOrder[currentIndex + 1] ?? previousOrder[currentIndex - 1] ?? null;
+        setSelectedPageId(nextId && nextChapter.pages.some((candidate) => candidate.id === nextId) ? nextId : nextChapter.pages[0]?.id ?? null);
+        pushStatus(`${page.name} 페이지를 삭제했습니다.`);
+        await refreshLibrary();
+      } catch (error) {
+        console.error(error);
+        pushStatus(formatErrorMessage(error, "페이지를 삭제하지 못했습니다."));
+      }
     },
     [applyChapter, askConfirm, currentChapter, pushStatus, refreshLibrary, setSelectedPageId]
   );
@@ -173,11 +188,14 @@ export function useLibraryActions({
           }
         }
         setRenameTarget(null);
+      } catch (error) {
+        console.error(error);
+        pushStatus(formatErrorMessage(error, "이름을 저장하지 못했습니다."));
       } finally {
         setRenameBusy(false);
       }
     },
-    [applyChapter, currentChapter, dirty, renameTarget, saveNow, setLibrary]
+    [applyChapter, currentChapter, dirty, pushStatus, renameTarget, saveNow, setLibrary]
   );
 
   const deleteRenameTarget = useCallback(async () => {
@@ -294,7 +312,10 @@ export function useLibraryActions({
         .reorderPages(currentChapter.id, nextOrder)
         .then((chapter) => {
           applyChapter(chapter);
-          void refreshLibrary();
+          void refreshLibrary().catch((error) => {
+            console.error(error);
+            pushStatus(formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."));
+          });
         })
         .catch((error) => {
           console.error(error);

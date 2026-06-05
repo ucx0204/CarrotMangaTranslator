@@ -1,7 +1,7 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import type { ChapterSnapshot, InpaintingMaskStroke, JobState, MangaPage } from "../../../shared/types";
 import type { BlockCounts, InpaintingContextValue } from "../inpainting/InpaintingContext";
-import type { InpaintingTool } from "../components/InpaintingControlPanel";
+import type { InpaintingTool } from "../inpainting/InpaintingContext";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import type { RetouchPreviewState } from "./useInpaintingRetouch";
 
