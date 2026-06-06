@@ -349,6 +349,7 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
     .slice(0, formattedHints.length)
     .map((hint, index) => readPositiveInteger(hint.id) || index + 1);
   const maxCandidateId = Math.max(...candidateIds, 0);
+  const groupContextLines = buildOcrGroupContextLines(hints.slice(0, formattedHints.length));
 
   if (formattedHints.length === 0) {
     return [];
@@ -385,6 +386,7 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
     "Treat each candidate as a locked geometry slot. For every candidate that contains Japanese glyphs, output one record with that same id and the exact x1, y1, x2, y2 numbers shown below.",
     ...(use26bDuplicateProfile ? [GEMMA_26B_OCR_DUPLICATE_LINES[0]] : []),
     `Required candidate ids: ${candidateIds.join(", ")}.`,
+    ...groupContextLines,
     "Read and translate only the text inside that candidate rectangle plus a tiny visual margin; do not move the rectangle to a different nearby text group.",
     ...(use26bDuplicateProfile ? GEMMA_26B_OCR_DUPLICATE_LINES.slice(1) : []),
     "For each candidate, read every visible Japanese line inside the rectangle. A candidate record is incomplete if jp or ko contains only the first line while lower or side lines remain readable.",
@@ -403,6 +405,64 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
   ];
 }
 
+function buildOcrGroupContextLines(hints) {
+  const groups = collectOcrHintGroups(hints);
+  if (groups.length === 0) {
+    return [];
+  }
+
+  return [
+    "Group context hints:",
+    "Some OCR candidates may be separate geometry slots but parts of the same visible utterance or related printed text. Use group context only to read and translate them coherently.",
+    "Even inside a group, keep one output record per candidate id; never merge grouped candidate boxes into one record and never move one candidate to another candidate's position.",
+    "For grouped candidates, translate each candidate's visible source text as the appropriate part of the group, informed by the whole group reading order.",
+    "For grouped ordinary text, first understand the combined Japanese expression in reading order, then split the Korean naturally across the original candidate ids. Do not translate each fragment syllable-by-syllable in isolation.",
+    ...groups.map(formatOcrGroupForPrompt)
+  ];
+}
+
+function collectOcrHintGroups(hints) {
+  const grouped = new Map();
+  for (const hint of Array.isArray(hints) ? hints : []) {
+    const groupId = sanitizeOcrGroupId(hint?.groupId);
+    if (!groupId) continue;
+    const group = grouped.get(groupId) || {
+      groupId,
+      rolePrior: sanitizeOcrGroupValue(hint.rolePrior) || "unknown",
+      containerType: sanitizeOcrGroupValue(hint.containerType) || "unknown",
+      hints: []
+    };
+    group.hints.push(hint);
+    grouped.set(groupId, group);
+  }
+
+  return [...grouped.values()]
+    .map((group) => ({
+      ...group,
+      hints: group.hints
+        .slice()
+        .sort((left, right) => (readPositiveInteger(left.orderInGroup) || 9999) - (readPositiveInteger(right.orderInGroup) || 9999))
+    }))
+    .filter((group) => group.hints.length > 1)
+    .sort((left, right) => left.groupId.localeCompare(right.groupId))
+    .slice(0, 12);
+}
+
+function formatOcrGroupForPrompt(group) {
+  const candidateIds = group.hints
+    .map((hint) => readPositiveInteger(hint.id))
+    .filter(Boolean);
+  const readingOrder = group.hints
+    .map((hint) => readPositiveInteger(hint.id))
+    .filter(Boolean);
+  const textPreview = group.hints
+    .map((hint) => sanitizeOcrTextForPrompt(readOcrCandidateText(hint)))
+    .filter(Boolean)
+    .join(" / ");
+  const preview = textPreview ? ` textPreview:${JSON.stringify(textPreview)}` : "";
+  return `group ${group.groupId}: rolePrior:${group.rolePrior} containerType:${group.containerType} candidateIds:[${candidateIds.join(",")}] readingOrder:[${readingOrder.join(",")}]${preview}`;
+}
+
 function formatOcrBboxHintForPrompt(hint, fallbackId, frame, originalWidth, originalHeight) {
   const x1 = Number(hint?.x1);
   const y1 = Number(hint?.y1);
@@ -418,7 +478,21 @@ function formatOcrBboxHintForPrompt(hint, fallbackId, frame, originalWidth, orig
   const score = Number.isFinite(hint.score) ? ` score:${Math.round(hint.score * 100) / 100}` : "";
   const ocrText = sanitizeOcrTextForPrompt(readOcrCandidateText(hint));
   const textHint = ocrText ? ` ocrText:${JSON.stringify(ocrText)}` : "";
-  return `candidate ${id}: label:${label} x1:${converted.x1} y1:${converted.y1} x2:${converted.x2} y2:${converted.y2}${score}${textHint}`;
+  const groupId = sanitizeOcrGroupId(hint.groupId);
+  const group = groupId ? ` group:${groupId} orderInGroup:${readPositiveInteger(hint.orderInGroup) || 1}` : "";
+  const rolePrior = sanitizeOcrGroupValue(hint.rolePrior);
+  const role = rolePrior ? ` rolePrior:${rolePrior}` : "";
+  return `candidate ${id}: label:${label} x1:${converted.x1} y1:${converted.y1} x2:${converted.x2} y2:${converted.y2}${score}${group}${role}${textHint}`;
+}
+
+function sanitizeOcrGroupId(value) {
+  const text = String(value ?? "").trim().toUpperCase();
+  return /^G\d{3,4}$/.test(text) ? text : "";
+}
+
+function sanitizeOcrGroupValue(value) {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
+  return text.slice(0, 48);
 }
 
 function convertOriginalPixelBoxToPromptFrame(box, frame, originalWidth, originalHeight) {

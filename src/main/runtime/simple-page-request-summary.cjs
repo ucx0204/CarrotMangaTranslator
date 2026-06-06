@@ -145,6 +145,9 @@ function buildRequestSummary(server, options, imageVariants, promptText, systemP
       x2: hint.x2,
       y2: hint.y2,
       score: hint.score ?? null,
+      groupId: hint.groupId ?? null,
+      rolePrior: hint.rolePrior ?? null,
+      orderInGroup: hint.orderInGroup ?? null,
       ocrText: truncateText(readOcrCandidateText(hint), 160) || null
     })),
     ocrBboxHintsPreview: ocrBboxHints.slice(0, 24).map((hint) => ({
@@ -155,6 +158,9 @@ function buildRequestSummary(server, options, imageVariants, promptText, systemP
       x2: hint.x2,
       y2: hint.y2,
       score: hint.score ?? null,
+      groupId: hint.groupId ?? null,
+      rolePrior: hint.rolePrior ?? null,
+      orderInGroup: hint.orderInGroup ?? null,
       ocrText: truncateText(readOcrCandidateText(hint), 160) || null
     })),
     options: buildOptionSummary(options)

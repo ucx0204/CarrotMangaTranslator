@@ -46,7 +46,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
     imageVariants: Array<{ role: string; dataUrl?: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number }>
   ) => string;
   collectOcrBboxHints: (options: { [key: string]: unknown }) => Promise<{
-    hints: Array<{ x1: number; y1: number; x2: number; y2: number; ocrText?: string }>;
+    hints: Array<{ x1: number; y1: number; x2: number; y2: number; ocrText?: string; groupId?: string; rolePrior?: string; orderInGroup?: number }>;
     diagnostics: unknown[];
     noTextDetected: boolean;
     textEvidenceCount: number;
@@ -713,6 +713,51 @@ describe("runtime model launch helpers", () => {
     expect(prompt).toContain("Do not merge two candidates into one record");
     expect(prompt).toContain("add a new record with id greater than 2");
     expect(prompt).not.toContain("Find one anchor point");
+  });
+
+  it("adds soft semantic group hints for split OCR fragments without merging geometry slots", async () => {
+    const dir = createTempDir("ocr-group-hints-");
+    const hintPath = join(dir, "hints.json");
+    writeFileSync(
+      hintPath,
+      JSON.stringify({
+        source: "paddleocr-vl",
+        coordinateSpace: "pixels",
+        width: 1200,
+        height: 1600,
+        items: [
+          { label: "vertical_text", bbox: [900, 40, 960, 270], content: "あ～れ～" },
+          { label: "vertical_text", bbox: [120, 170, 250, 440], content: "ま～し～た～！！" },
+          { label: "vertical_text", bbox: [760, 700, 850, 900], content: "漢字を含む通常文" }
+        ]
+      }),
+      "utf8"
+    );
+
+    const result = await collectOcrBboxHints({
+      imageWidth: 1200,
+      imageHeight: 1600,
+      ocrBboxHintsPath: hintPath
+    });
+    expect(result.hints[0]).toMatchObject({ groupId: "G001", rolePrior: "ordinary_soft", orderInGroup: 1 });
+    expect(result.hints[1]).toMatchObject({ groupId: "G001", rolePrior: "ordinary_soft", orderInGroup: 2 });
+    expect(result.hints[2]?.groupId).toBeUndefined();
+
+    const prompt = getOverlayPrompt(
+      {
+        modelProvider: "gemma",
+        imageWidth: 1200,
+        imageHeight: 1600,
+        ocrBboxHints: result.hints
+      },
+      [{ role: "original", dataUrl: "data:image/png;base64,abc123", width: 1200, height: 1600, originalWidth: 1200, originalHeight: 1600 }]
+    );
+
+    expect(prompt).toContain("Group context hints:");
+    expect(prompt).toContain("group G001: rolePrior:ordinary_soft containerType:possible_continuing_text candidateIds:[1,2] readingOrder:[1,2]");
+    expect(prompt).toContain("Even inside a group, keep one output record per candidate id");
+    expect(prompt).toContain('candidate 1: label:vertical_text x1:750 y1:25 x2:800 y2:169 group:G001 orderInGroup:1 rolePrior:ordinary_soft ocrText:"あ～れ～"');
+    expect(prompt).toContain('candidate 2: label:vertical_text x1:100 y1:106 x2:208 y2:275 group:G001 orderInGroup:2 rolePrior:ordinary_soft ocrText:"ま～し～た～！！"');
   });
 
   it("uses container-level grouping for selected-region crop translation", () => {

@@ -49,7 +49,10 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
     });
   }
 
-  return hints.slice(0, 80);
+  return attachOcrGroupingHints(hints, {
+    imageWidth: originalWidth,
+    imageHeight: originalHeight
+  }).slice(0, 80);
 }
 
 function collectOcrBboxCandidates(payload) {
@@ -219,7 +222,174 @@ function isIgnoredOcrLabel(label) {
   ].includes(normalized);
 }
 
+function attachOcrGroupingHints(hints, options = {}) {
+  if (!Array.isArray(hints) || hints.length < 2) {
+    return Array.isArray(hints) ? hints : [];
+  }
+
+  const items = hints.map((hint, index) => ({
+    hint,
+    index,
+    eligible: isSemanticGroupingCandidate(hint)
+  }));
+  const parent = items.map((_, index) => index);
+
+  function find(index) {
+    while (parent[index] !== index) {
+      parent[index] = parent[parent[index]];
+      index = parent[index];
+    }
+    return index;
+  }
+
+  function union(left, right) {
+    const leftRoot = find(left);
+    const rightRoot = find(right);
+    if (leftRoot !== rightRoot) {
+      parent[rightRoot] = leftRoot;
+    }
+  }
+
+  for (let left = 0; left < items.length; left += 1) {
+    if (!items[left].eligible) continue;
+    for (let right = left + 1; right < items.length; right += 1) {
+      if (items[right].eligible && areGroupingCompatible(items[left].hint, items[right].hint, options)) {
+        union(left, right);
+      }
+    }
+  }
+
+  const groups = new Map();
+  for (const item of items) {
+    if (!item.eligible) continue;
+    const root = find(item.index);
+    const group = groups.get(root) || [];
+    group.push(item);
+    groups.set(root, group);
+  }
+
+  let groupNumber = 1;
+  for (const group of groups.values()) {
+    if (group.length < 2 || group.length > 4) {
+      continue;
+    }
+    group.sort((left, right) => compareJapaneseReadingOrder(left.hint, right.hint));
+    const groupId = `G${String(groupNumber).padStart(3, "0")}`;
+    groupNumber += 1;
+    group.forEach((item, orderIndex) => {
+      item.hint.groupId = groupId;
+      item.hint.orderInGroup = orderIndex + 1;
+      item.hint.rolePrior = "ordinary_soft";
+      item.hint.containerType = "possible_continuing_text";
+    });
+  }
+
+  return hints;
+}
+
+function isSemanticGroupingCandidate(hint) {
+  const label = sanitizeHintLabel(hint?.label);
+  const text = sanitizeOcrTextForPrompt(readOcrCandidateText(hint));
+  if (!text || !hasJapaneseTextEvidence(text) || !hasHiragana(text) || hasCjkIdeograph(text)) {
+    return false;
+  }
+
+  const baseLength = text.replace(/[^\u3040-\u309f\u30a0-\u30ff]/g, "").length;
+  if (baseLength < 2 || baseLength > 10) {
+    return false;
+  }
+
+  return label.includes("vertical") || isTallBox(hint);
+}
+
+function areGroupingCompatible(left, right, options = {}) {
+  const leftBox = readHintBox(left);
+  const rightBox = readHintBox(right);
+  if (!leftBox || !rightBox) {
+    return false;
+  }
+
+  const leftHeight = leftBox.y2 - leftBox.y1;
+  const rightHeight = rightBox.y2 - rightBox.y1;
+  const leftWidth = leftBox.x2 - leftBox.x1;
+  const rightWidth = rightBox.x2 - rightBox.x1;
+  if (leftHeight <= 0 || rightHeight <= 0 || leftWidth <= 0 || rightWidth <= 0) {
+    return false;
+  }
+
+  const yOverlap = Math.max(0, Math.min(leftBox.y2, rightBox.y2) - Math.max(leftBox.y1, rightBox.y1));
+  const overlapRatio = yOverlap / Math.min(leftHeight, rightHeight);
+  const centerYDistance = Math.abs(centerOf(leftBox).y - centerOf(rightBox).y);
+  const sameReadingBand = overlapRatio >= 0.25 || centerYDistance <= Math.max(leftHeight, rightHeight) * 0.75;
+  if (!sameReadingBand) {
+    return false;
+  }
+
+  const pageWidth = readPositiveInteger(options.imageWidth) || Math.max(leftBox.x2, rightBox.x2);
+  const centerXDistance = Math.abs(centerOf(leftBox).x - centerOf(rightBox).x);
+  if (pageWidth && centerXDistance > pageWidth * 0.85) {
+    return false;
+  }
+
+  const areaRatio = (leftWidth * leftHeight) / Math.max(1, rightWidth * rightHeight);
+  return areaRatio >= 0.15 && areaRatio <= 6.5;
+}
+
+function compareJapaneseReadingOrder(left, right) {
+  const leftBox = readHintBox(left);
+  const rightBox = readHintBox(right);
+  if (!leftBox || !rightBox) return 0;
+  const leftCenter = centerOf(leftBox);
+  const rightCenter = centerOf(rightBox);
+  const xDistance = rightCenter.x - leftCenter.x;
+  if (Math.abs(xDistance) > 12) {
+    return xDistance;
+  }
+  return leftCenter.y - rightCenter.y;
+}
+
+function readHintBox(hint) {
+  const x1 = Number(hint?.x1);
+  const y1 = Number(hint?.y1);
+  const x2 = Number(hint?.x2);
+  const y2 = Number(hint?.y2);
+  if (![x1, y1, x2, y2].every(Number.isFinite)) {
+    return null;
+  }
+  return {
+    x1: Math.min(x1, x2),
+    y1: Math.min(y1, y2),
+    x2: Math.max(x1, x2),
+    y2: Math.max(y1, y2)
+  };
+}
+
+function centerOf(box) {
+  return {
+    x: (box.x1 + box.x2) / 2,
+    y: (box.y1 + box.y2) / 2
+  };
+}
+
+function isTallBox(hint) {
+  const box = readHintBox(hint);
+  return Boolean(box && box.y2 - box.y1 > (box.x2 - box.x1) * 1.2);
+}
+
+function hasJapaneseTextEvidence(text) {
+  return /[\u3040-\u30ff\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3005]/u.test(String(text ?? ""));
+}
+
+function hasHiragana(text) {
+  return /[\u3040-\u309f]/u.test(String(text ?? ""));
+}
+
+function hasCjkIdeograph(text) {
+  return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(String(text ?? ""));
+}
+
 module.exports = {
+  attachOcrGroupingHints,
   extractJsonText,
   normalizeOcrBboxHintPayload
 };
