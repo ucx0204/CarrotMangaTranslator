@@ -42,6 +42,10 @@ const {
   truncateText
 } = require("./simple-page-runtime-common.cjs");
 const {
+  isPaddleOcrModelAssetLoadFailure,
+  repairPaddleOcrModelAssetsCache
+} = require("./simple-page-model-assets.cjs");
+const {
   runShellCommand
 } = require("./simple-page-shell-utils.cjs");
 
@@ -214,10 +218,8 @@ async function runOcrBboxCommand(options = {}, provider = "external-command") {
   const handleOcrOutput = createOcrCommandProgressHandler(options, {
     progressText: "Paddle OCR 모델 다운로드/위치 분석 중"
   });
-  const { stdout, stderr } = await runShellCommand(command, {
+  const { stdout, stderr } = await runOcrShellCommandWithModelRepair(command, options, runtime, {
     timeoutMs: resolveOcrBboxTimeoutMs(1),
-    env: buildOcrRuntimeEnv(options, runtime),
-    signal: options.abortSignal,
     onOutput: handleOcrOutput
   });
 
@@ -337,10 +339,8 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   let stderr = "";
   try {
     progressPoller.start();
-    ({ stdout, stderr } = await runShellCommand(command, {
+    ({ stdout, stderr } = await runOcrShellCommandWithModelRepair(command, batchOptions, runtime, {
       timeoutMs: resolveOcrBboxTimeoutMs(items.length),
-      env: buildOcrRuntimeEnv(batchOptions, runtime),
-      signal: batchOptions.abortSignal,
       onOutput: handleProgressLine
     }));
 
@@ -377,6 +377,32 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   } finally {
     progressPoller.stop();
     await cleanupOcrBatchControlFiles(batchPath, progressPath, batchOptions);
+  }
+}
+
+async function runOcrShellCommandWithModelRepair(command, options = {}, runtime = null, runOptions = {}) {
+  try {
+    return await runShellCommand(command, {
+      timeoutMs: runOptions.timeoutMs,
+      env: buildOcrRuntimeEnv(options, runtime),
+      signal: options.abortSignal,
+      onOutput: runOptions.onOutput
+    });
+  } catch (error) {
+    if (!isPaddleOcrModelAssetLoadFailure(error)) {
+      throw error;
+    }
+    emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 캐시 복구 중", "모델 캐시가 깨져 다시 다운로드합니다.", {
+      progressMode: "log-only",
+      installLogLine: "Paddle OCR 모델 로드 실패를 감지해 모델 캐시를 복구한 뒤 OCR을 다시 시도합니다."
+    });
+    await repairPaddleOcrModelAssetsCache(options, runtime, error);
+    return await runShellCommand(command, {
+      timeoutMs: runOptions.timeoutMs,
+      env: buildOcrRuntimeEnv(options, runtime),
+      signal: options.abortSignal,
+      onOutput: runOptions.onOutput
+    });
   }
 }
 

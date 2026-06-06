@@ -1,4 +1,6 @@
+const crypto = require("node:crypto");
 const { existsSync } = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 
 const {
@@ -52,6 +54,39 @@ function resolveOcrRuntimeDir(options = {}) {
         ?? path.join(options.workingDir || process.cwd(), "ocr-runtime")
     )
   );
+}
+
+function resolvePaddlexCacheHome(runtimeDir, options = {}, runtime = null) {
+  const explicit = runtimeOverrideEnv("PADDLE_PDX_CACHE_HOME", options);
+  if (explicit) {
+    return path.resolve(String(explicit));
+  }
+  if (runtime?.paddlexCacheHome) {
+    return path.resolve(String(runtime.paddlexCacheHome));
+  }
+  const realCacheHome = resolveRealPaddlexCacheHome(runtimeDir);
+  if (!hasNonAsciiPath(realCacheHome)) {
+    return realCacheHome;
+  }
+  const digest = crypto.createHash("sha1").update(realCacheHome).digest("hex").slice(0, 16);
+  return path.join(resolvePaddlexCacheAliasRoot(options), digest, "paddlex-cache");
+}
+
+function resolveRealPaddlexCacheHome(runtimeDir) {
+  return path.join(runtimeDir, "paddlex-cache");
+}
+
+function resolvePaddlexCacheAliasRoot(options = {}) {
+  const explicit = runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_CACHE_ALIAS_ROOT", options);
+  if (explicit) {
+    return path.resolve(String(explicit));
+  }
+  const base = String(process.env.LOCALAPPDATA || os.tmpdir() || "").trim();
+  return path.join(base || process.cwd(), "mgt-ocr-cache-links");
+}
+
+function hasNonAsciiPath(value) {
+  return /[^\x00-\x7f]/.test(String(value ?? ""));
 }
 
 function resolveVenvPythonPath(venvDir) {
@@ -378,7 +413,7 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
     PYTHONUSERBASE: path.join(runtimeDir, "python-user-base"),
     PIP_CACHE_DIR: pipCacheDir,
     PADDLE_PDX_MODEL_SOURCE: runtimeOverrideEnv("PADDLE_PDX_MODEL_SOURCE", options) || "huggingface",
-    PADDLE_PDX_CACHE_HOME: runtimeOverrideEnv("PADDLE_PDX_CACHE_HOME", options) || path.join(runtimeDir, "paddlex-cache"),
+    PADDLE_PDX_CACHE_HOME: resolvePaddlexCacheHome(runtimeDir, options, runtime),
     PADDLE_PDX_HUGGING_FACE_ENDPOINT: runtimeOverrideEnv("PADDLE_PDX_HUGGING_FACE_ENDPOINT", options) || "https://huggingface.co",
     PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: runtimeOverrideEnv("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", options) || "True",
     PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT: runtimeOverrideEnv("PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT", options) || "0",
@@ -410,6 +445,7 @@ module.exports = {
   buildPaddleOcrGpuFailureMessage,
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
+  hasNonAsciiPath,
   isOcrGpuRequested,
   isPaddleBfloat16SafetensorsText,
   isPaddleSm120UnsupportedText,
@@ -424,7 +460,10 @@ module.exports = {
   resolveOcrPythonPackageDir,
   resolveOcrRuntimeDir,
   resolveOcrRuntimeVariant,
+  resolvePaddlexCacheAliasRoot,
+  resolvePaddlexCacheHome,
   resolvePaddleOcrImportCheckTimeoutMs,
+  resolveRealPaddlexCacheHome,
   resolveVenvPythonPath,
   shouldAllowSystemPythonFallback,
   summarizeOcrInstallBatches,

@@ -1,4 +1,4 @@
-const { existsSync, readFileSync } = require("node:fs");
+const { closeSync, existsSync, openSync, readFileSync, readSync } = require("node:fs");
 const { mkdir, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
@@ -7,6 +7,9 @@ const {
   LLAMA_RUNTIME_FILES,
   LLAMA_RUNTIME_MARKER_FILE
 } = require("./simple-page-llama-runtimes.cjs");
+const {
+  PADDLE_OCR_MODEL_DOWNLOADS
+} = require("./simple-page-defaults.cjs");
 const {
   runtimeOverrideEnv
 } = require("./simple-page-child-env.cjs");
@@ -55,7 +58,8 @@ const {
   extractSelectedZipEntries
 } = require("./simple-page-zip-utils.cjs");
 const {
-  collectRequiredPaddleOcrModelDownloads
+  collectRequiredPaddleOcrModelDownloads,
+  resolvePaddleOcrModelCacheDir
 } = require("./simple-page-ocr-model-assets.cjs");
 const {
   createDetailedError,
@@ -329,6 +333,20 @@ async function ensurePaddleOcrModelAssetsDownloaded(options = {}, runtime = null
   for (const task of allTasks) {
     const totalBytes = await probeContentLength(task.url, options.abortSignal);
     const existingSize = getFileSize(task.destination);
+    const assetProblem = inspectPaddleOcrAssetFile(task.destination, task.file);
+    if (assetProblem) {
+      await rm(task.destination, { force: true }).catch(() => {});
+      emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 파일 재검사 중", `${task.label}: ${task.file}`, {
+        progressMode: "log-only",
+        installLogLine: `깨진 OCR 모델 파일을 다시 받습니다: ${task.file} (${assetProblem})`
+      });
+      pending.push(task);
+      if (totalBytes > 0) {
+        totals.set(task.destination, totalBytes);
+        knownTotalBytes += totalBytes;
+      }
+      continue;
+    }
     if (totalBytes > 0 && existingSize === totalBytes) {
       continue;
     }
@@ -378,6 +396,105 @@ async function ensurePaddleOcrModelAssetsDownloaded(options = {}, runtime = null
     progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
     installLogLine: "Paddle OCR 모델 파일 다운로드가 완료되었습니다."
   });
+}
+
+async function repairPaddleOcrModelAssetsCache(options = {}, runtime = null, reason = "") {
+  const runtimeDir = runtime?.runtimeDir || options.ocrRuntimeDir || path.join(options.workingDir || process.cwd(), "ocr-runtime");
+  const names = resolvePaddleOcrModelNamesForRepair(reason);
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 캐시 복구 중", names.join(", "), {
+    progressMode: "log-only",
+    installLogLine: `Paddle OCR 모델 캐시를 다시 준비합니다. reason=${truncateReason(reason)}`
+  });
+
+  for (const modelName of names) {
+    const modelDir = resolvePaddleOcrModelCacheDir(runtimeDir, modelName);
+    if (!isSafePaddleOcrModelCacheDir(runtimeDir, modelDir)) {
+      throw createDetailedError("Unsafe Paddle OCR model cache path.", { runtimeDir, modelDir, modelName });
+    }
+    await rm(modelDir, { recursive: true, force: true }).catch(() => {});
+  }
+
+  await ensurePaddleOcrModelAssetsDownloaded(options, runtime);
+}
+
+function isPaddleOcrModelAssetLoadFailure(value) {
+  const text = stringifyErrorForDetection(value);
+  return /json\.exception\.parse_error\.101|attempting to parse an empty input|Creating model:\s*\('?(PP-DocLayoutV3|PaddleOCR-VL-1\.5|PP-OCRv5_server_det|PP-OCRv5_server_rec)/i.test(text);
+}
+
+function resolvePaddleOcrModelNamesForRepair(reason = "") {
+  const text = stringifyErrorForDetection(reason);
+  const explicit = PADDLE_OCR_MODEL_DOWNLOADS
+    .map((model) => model.name)
+    .filter((name) => text.includes(name));
+  return explicit.length > 0 ? explicit : PADDLE_OCR_MODEL_DOWNLOADS.map((model) => model.name);
+}
+
+function isSafePaddleOcrModelCacheDir(runtimeDir, modelDir) {
+  const root = path.resolve(runtimeDir, "paddlex-cache", "official_models");
+  const resolved = path.resolve(modelDir);
+  const relative = path.relative(root, resolved);
+  return Boolean(relative) && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
+function inspectPaddleOcrAssetFile(filePath, fileName = "") {
+  if (!existsSync(filePath)) {
+    return null;
+  }
+  const size = getFileSize(filePath);
+  if (size <= 0) {
+    return "empty";
+  }
+  const lowerName = String(fileName || filePath).toLowerCase();
+  const head = readFileHead(filePath, Math.min(size, 4096));
+  if (/^version https:\/\/git-lfs\.github\.com\/spec\/v1/m.test(head)) {
+    return "git-lfs-pointer";
+  }
+  if (lowerName.endsWith(".json")) {
+    try {
+      JSON.parse(readFileSync(filePath, "utf8"));
+    } catch (error) {
+      return `invalid-json: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+  return null;
+}
+
+function readFileHead(filePath, maxLength) {
+  let fd = null;
+  try {
+    fd = openSync(filePath, "r");
+    const buffer = Buffer.alloc(Math.max(0, maxLength));
+    const bytesRead = readSync(fd, buffer, 0, buffer.length, 0);
+    return buffer.subarray(0, bytesRead).toString("utf8");
+  } catch {
+    return "";
+  } finally {
+    if (fd !== null) {
+      try {
+        closeSync(fd);
+      } catch {
+        // Ignore close errors for cache validation.
+      }
+    }
+  }
+}
+
+function stringifyErrorForDetection(value) {
+  if (!value || typeof value !== "object") {
+    return String(value ?? "");
+  }
+  return [
+    value.message,
+    value.stderrPreview,
+    value.stdoutPreview,
+    value.cause
+  ].filter(Boolean).map((part) => String(part)).join(" ");
+}
+
+function truncateReason(value, maxLength = 500) {
+  const text = stringifyErrorForDetection(value).replace(/\s+/g, " ").trim();
+  return text.length <= maxLength ? text : `${text.slice(0, maxLength)}...`;
 }
 
 function resolveCachedConfiguredDraftModelPath(options = {}) {
@@ -573,7 +690,9 @@ module.exports = {
   ensureHfModelAssetsDownloaded,
   ensurePaddleOcrModelAssetsDownloaded,
   inspectModelLaunch,
+  isPaddleOcrModelAssetLoadFailure,
   isModelCached,
+  repairPaddleOcrModelAssetsCache,
   resolveCachedConfiguredDraftModelPath,
   resolveCachedConfiguredMmprojPath,
   resolveCachedLlamaCppFile,

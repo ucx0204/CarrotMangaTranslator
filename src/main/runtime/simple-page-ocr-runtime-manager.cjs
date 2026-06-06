@@ -1,5 +1,5 @@
 const { existsSync, readFileSync, readdirSync, writeFileSync } = require("node:fs");
-const { mkdir, rm, writeFile } = require("node:fs/promises");
+const { lstat, mkdir, readlink, rm, symlink, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
 const {
@@ -24,7 +24,10 @@ const {
   resolveOcrPythonPackageDir,
   resolveOcrRuntimeDir,
   resolveOcrRuntimeVariant,
+  resolvePaddlexCacheAliasRoot,
+  resolvePaddlexCacheHome,
   resolvePaddleOcrImportCheckTimeoutMs,
+  resolveRealPaddlexCacheHome,
   resolveVenvPythonPath,
   summarizeOcrInstallBatches
 } = require("./simple-page-ocr-runtime-config.cjs");
@@ -56,14 +59,15 @@ async function ensurePaddleOcrRuntime(options = {}) {
   await mkdir(runtimeDir, { recursive: true });
   await mkdir(path.join(runtimeDir, "pip-cache"), { recursive: true });
   await mkdir(path.join(runtimeDir, "tmp"), { recursive: true });
+  const cachePaths = await preparePaddlexCacheHome(options, runtimeDir);
 
   emitRuntimeProgress(options, "ocr_preparing", "Paddle OCR 런타임 확인 중", `${resolveOcrDeviceLabel(options)}, ${runtimeVariant}`);
   let importCheck = existsSync(venvPython)
-    ? await checkPaddleOcrImport(venvPython, options, { runtimeDir, includePackageDir: false })
+    ? await checkPaddleOcrImport(venvPython, options, { runtimeDir, includePackageDir: false, ...cachePaths })
     : { ok: false, message: "venv python is missing" };
   if (existsSync(venvPython) && importCheck.ok) {
     if (hasOcrInstallMarker(packageDir, runtimeVariant, options)) {
-      return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, usesTargetPackageDir: false, diagnostics });
+      return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: venvPython, prepared: true, usesTargetPackageDir: false, diagnostics, ...cachePaths });
     }
     diagnostics.push({
       step: "venv-runtime-signature-mismatch",
@@ -88,11 +92,11 @@ async function ensurePaddleOcrRuntime(options = {}) {
   }
   ensureEmbeddedPythonPackagePath(bootstrapPython, packageDir, runtimeDir);
   importCheck = !existsSync(venvPython)
-    ? await checkPaddleOcrImport(bootstrapPython, options, { runtimeDir, packageDir, includePackageDir: true })
+    ? await checkPaddleOcrImport(bootstrapPython, options, { runtimeDir, packageDir, includePackageDir: true, ...cachePaths })
     : importCheck;
   if (!existsSync(venvPython) && importCheck.ok) {
     if (hasOcrInstallMarker(packageDir, runtimeVariant, options)) {
-      return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, usesTargetPackageDir: true, diagnostics: [{ step: "embedded-python-ready", packageDir }] });
+      return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: bootstrapPython, prepared: true, usesTargetPackageDir: true, diagnostics: [{ step: "embedded-python-ready", packageDir }], ...cachePaths });
     }
     diagnostics.push({
       step: "target-runtime-signature-mismatch",
@@ -138,7 +142,7 @@ async function ensurePaddleOcrRuntime(options = {}) {
       });
       await runShellCommand(`${quoteCommandArg(bootstrapPython)} -m venv ${quoteCommandArg(venvDir)}`, {
         timeoutMs: 180000,
-        env: buildOcrRuntimeEnv(options, { runtimeDir, includePackageDir: false }),
+        env: buildOcrRuntimeEnv(options, { runtimeDir, includePackageDir: false, ...cachePaths }),
         signal: options.abortSignal
       });
       diagnostics.push({ step: "venv-created", venvDir });
@@ -186,7 +190,8 @@ async function ensurePaddleOcrRuntime(options = {}) {
   importCheck = await checkPaddleOcrImport(installPython, options, {
     runtimeDir,
     packageDir,
-    includePackageDir: Boolean(targetDir)
+    includePackageDir: Boolean(targetDir),
+    ...cachePaths
   });
   if (!importCheck.ok) {
     throw createOcrRuntimeError(
@@ -217,12 +222,72 @@ async function ensurePaddleOcrRuntime(options = {}) {
     installLogLine: "Paddle OCR 설치가 완료되었습니다."
   });
 
-  return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: installPython, prepared: true, usesTargetPackageDir: Boolean(targetDir), diagnostics });
+  return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: installPython, prepared: true, usesTargetPackageDir: Boolean(targetDir), diagnostics, ...cachePaths });
 }
 
 async function finalizePaddleOcrRuntime(options, runtime) {
   await ensurePaddleOcrModelAssetsDownloaded(options, runtime);
   return runtime;
+}
+
+async function preparePaddlexCacheHome(options, runtimeDir) {
+  const realPaddlexCacheHome = resolveRealPaddlexCacheHome(runtimeDir);
+  const paddlexCacheHome = resolvePaddlexCacheHome(runtimeDir, options);
+  await mkdir(realPaddlexCacheHome, { recursive: true });
+  if (path.resolve(paddlexCacheHome).toLowerCase() === path.resolve(realPaddlexCacheHome).toLowerCase()) {
+    return { paddlexCacheHome: realPaddlexCacheHome, realPaddlexCacheHome };
+  }
+
+  try {
+    await mkdir(path.dirname(paddlexCacheHome), { recursive: true });
+    await replaceStalePaddlexCacheAlias(paddlexCacheHome, realPaddlexCacheHome, options);
+    if (!existsSync(paddlexCacheHome)) {
+      await symlink(realPaddlexCacheHome, paddlexCacheHome, "junction");
+    }
+    emitRuntimeProgress(options, "ocr_preparing", "Paddle OCR 캐시 경로 준비 중", "한글 경로 호환을 위해 안전한 캐시 별칭을 사용합니다.", {
+      progressMode: "log-only",
+      installLogLine: `Paddle OCR 캐시 별칭: ${paddlexCacheHome}`
+    });
+    return { paddlexCacheHome, realPaddlexCacheHome };
+  } catch (error) {
+    emitRuntimeProgress(options, "ocr_preparing", "Paddle OCR 캐시 경로 별칭 실패", "원래 캐시 경로로 계속 진행합니다.", {
+      progressMode: "log-only",
+      installLogLine: `Paddle OCR 캐시 별칭 생성 실패: ${error instanceof Error ? error.message : String(error)}`
+    });
+    return { paddlexCacheHome: realPaddlexCacheHome, realPaddlexCacheHome };
+  }
+}
+
+async function replaceStalePaddlexCacheAlias(aliasPath, targetPath, options = {}) {
+  let stats;
+  try {
+    stats = await lstat(aliasPath);
+  } catch {
+    return;
+  }
+
+  if (stats.isSymbolicLink()) {
+    try {
+      const currentTarget = await readlink(aliasPath);
+      if (path.resolve(path.dirname(aliasPath), currentTarget).toLowerCase() === path.resolve(targetPath).toLowerCase()) {
+        return;
+      }
+    } catch {
+      // Recreate broken links below.
+    }
+  }
+
+  if (!isSafePaddlexCacheAliasPath(aliasPath, options)) {
+    throw new Error(`Unsafe Paddle OCR cache alias path: ${aliasPath}`);
+  }
+  await rm(aliasPath, { recursive: true, force: true });
+}
+
+function isSafePaddlexCacheAliasPath(aliasPath, options = {}) {
+  const root = path.resolve(resolvePaddlexCacheAliasRoot(options));
+  const resolved = path.resolve(aliasPath);
+  const relative = path.relative(root, resolved);
+  return Boolean(relative) && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
 function ensureEmbeddedPythonPackagePath(pythonPath, packageDir, runtimeDir = null) {
