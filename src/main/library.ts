@@ -33,8 +33,10 @@ import {
   savePageBlocksUnlocked,
   setPageInpaintingResultUnlocked,
   updatePageAfterAnalysisUnlocked,
+  updatePagesAfterAnalysisUnlocked,
   updatePagesAfterInpaintingUnlocked,
-  type InpaintingArtifactCleanupOptions
+  type InpaintingArtifactCleanupOptions,
+  type PageAnalysisUpdate
 } from "./libraryStore/libraryMutations";
 import { AsyncMutex } from "./libraryStore/mutex";
 import { importWorkShareUnlocked } from "./libraryStore/shareWorkflow";
@@ -97,6 +99,10 @@ export async function markChapterPagesRunning(chapterId: string, pageIds: string
 
 export async function updatePageAfterAnalysis(chapterId: string, page: MangaPage, warnings: string[], status: "completed" | "failed"): Promise<void> {
   return withLibraryMutation(() => updatePageAfterAnalysisUnlocked(chapterId, page, warnings, status));
+}
+
+export async function updatePagesAfterAnalysis(chapterId: string, updates: PageAnalysisUpdate[]): Promise<void> {
+  return withLibraryMutation(() => updatePagesAfterAnalysisUnlocked(chapterId, updates));
 }
 
 export async function finalizeRunningPages(

@@ -15,6 +15,7 @@ export default tseslint.config(
       "library/**",
       "logs/**",
       "models/**",
+      "ocr-runtime/**",
       "tools/**",
       "fonts/**",
       "docs/**",

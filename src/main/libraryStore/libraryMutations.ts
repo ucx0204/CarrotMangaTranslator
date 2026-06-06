@@ -30,6 +30,12 @@ export type InpaintingArtifactCleanupOptions = {
   retainedInpaintedArtifactPaths?: string[];
 };
 
+export type PageAnalysisUpdate = {
+  page: MangaPage;
+  warnings: string[];
+  status: "completed" | "failed";
+};
+
 export async function savePageBlocksUnlocked(request: SavePageBlocksRequest): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(request.chapterId);
   if (!locator) {
@@ -220,7 +226,10 @@ export async function markChapterPagesRunningUnlocked(chapterId: string, pageIds
   return hydrateChapter(chapter);
 }
 
-export async function updatePageAfterAnalysisUnlocked(chapterId: string, page: MangaPage, warnings: string[], status: "completed" | "failed"): Promise<void> {
+export async function updatePagesAfterAnalysisUnlocked(chapterId: string, updates: PageAnalysisUpdate[]): Promise<void> {
+  if (updates.length === 0) {
+    return;
+  }
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     return;
@@ -230,22 +239,29 @@ export async function updatePageAfterAnalysisUnlocked(chapterId: string, page: M
     return;
   }
 
+  const updatesByPageId = new Map(updates.map((update) => [update.page.id, update]));
   const now = new Date().toISOString();
-  chapter.pages = chapter.pages.map((record) =>
-    record.id === page.id
-      ? {
-          ...record,
-          blocks: page.blocks,
-          analysisStatus: status,
-          lastError: status === "failed" ? warnings[warnings.length - 1] : undefined,
-          updatedAt: now
-        }
-      : record
-  );
+  chapter.pages = chapter.pages.map((record) => {
+    const update = updatesByPageId.get(record.id);
+    if (!update) {
+      return record;
+    }
+    return {
+      ...record,
+      blocks: update.page.blocks,
+      analysisStatus: update.status,
+      lastError: update.status === "failed" ? update.warnings[update.warnings.length - 1] : undefined,
+      updatedAt: now
+    };
+  });
   chapter.updatedAt = now;
   chapter.status = resolveChapterStatus(chapter.pages);
   await writeChapterFile(chapter);
   await touchWork(locator.workId, now);
+}
+
+export async function updatePageAfterAnalysisUnlocked(chapterId: string, page: MangaPage, warnings: string[], status: "completed" | "failed"): Promise<void> {
+  await updatePagesAfterAnalysisUnlocked(chapterId, [{ page, warnings, status }]);
 }
 
 export async function finalizeRunningPagesUnlocked(

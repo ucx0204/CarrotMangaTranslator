@@ -12,6 +12,7 @@ export type PipelineOptions = {
   skipOcrPrepass?: boolean;
   onCleanupReady?: (cleanup: () => Promise<void>) => void;
   onPageComplete?: (page: MangaPage) => Promise<void>;
+  onPagesComplete?: (pages: MangaPage[]) => Promise<void>;
   onPageFailed?: (page: MangaPage, errorMessage: string) => Promise<void>;
 };
 

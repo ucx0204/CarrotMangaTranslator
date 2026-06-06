@@ -29,6 +29,7 @@ export async function runWholePagePipeline({
   emit,
   onCleanupReady,
   onPageComplete,
+  onPagesComplete,
   onPageFailed,
   pages,
   runPaths,
@@ -130,6 +131,7 @@ export async function runWholePagePipeline({
   const pageIndexById = new Map(pages.map((page, index) => [page.id, index]));
   const completedPagesById = new Map<string, MangaPage>();
   const pagesToTranslate: MangaPage[] = [];
+  const prepassNoTextPages: Array<{ page: MangaPage; pageIndex: number }> = [];
 
   for (const page of pages) {
     const ocrResult = ocrHintsByPageId.get(page.id);
@@ -141,19 +143,33 @@ export async function runWholePagePipeline({
     const pageIndex = (pageIndexById.get(page.id) ?? 0) + 1;
     const noTextPage = buildNoTextCompletedPage(page);
     completedPagesById.set(page.id, noTextPage);
-    await onPageComplete?.(noTextPage);
-    emit({
-      id: jobId,
-      kind: "gemma-analysis",
-      status: "running",
-      progressText: `${page.name} 텍스트 없음`,
-      phase: "page_done",
-      progressCurrent: pageIndex,
-      progressTotal,
-      pageIndex,
-      pageTotal: pages.length,
-      detail: "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다."
-    });
+    prepassNoTextPages.push({ page: noTextPage, pageIndex });
+  }
+
+  if (prepassNoTextPages.length > 0) {
+    if (onPagesComplete) {
+      await onPagesComplete(prepassNoTextPages.map((entry) => entry.page));
+    } else {
+      for (const entry of prepassNoTextPages) {
+        await onPageComplete?.(entry.page);
+      }
+    }
+    for (const entry of prepassNoTextPages) {
+      const page = entry.page;
+      const pageIndex = entry.pageIndex;
+      emit({
+        id: jobId,
+        kind: "gemma-analysis",
+        status: "running",
+        progressText: `${page.name} 텍스트 없음`,
+        phase: "page_done",
+        progressCurrent: pageIndex,
+        progressTotal,
+        pageIndex,
+        pageTotal: pages.length,
+        detail: "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다."
+      });
+    }
   }
 
   if (pagesToTranslate.length === 0) {

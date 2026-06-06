@@ -7,7 +7,8 @@ import {
   markChapterPagesRunning,
   openChapter,
   resolvePagesForRun,
-  updatePageAfterAnalysis
+  updatePageAfterAnalysis,
+  updatePagesAfterAnalysis
 } from "../library";
 import { logError } from "../logger";
 import { createRegionCropPage, mapRegionBlocksToPageBlocks } from "../regionCrop";
@@ -54,6 +55,12 @@ export function registerTranslationJobIpc(context: IpcContext): void {
         onPageComplete: async (page) => {
           await updatePageAfterAnalysis(request.chapterId, page, [], "completed");
         },
+        onPagesComplete: async (pages) => {
+          await updatePagesAfterAnalysis(
+            request.chapterId,
+            pages.map((page) => ({ page, warnings: [], status: "completed" as const }))
+          );
+        },
         onPageFailed: async (page, errorMessage) => {
           await updatePageAfterAnalysis(request.chapterId, page, [errorMessage], "failed");
         },
@@ -86,7 +93,7 @@ export function registerTranslationJobIpc(context: IpcContext): void {
       const lastEvent = context.jobs.current?.id === id ? context.jobs.current.lastEvent : undefined;
       if (isAbortError(error) || abortController.signal.aborted) {
         if (pageIds.length > 0) {
-          await finalizeRunningPages(request.chapterId, pageIds, "idle");
+          await finalizeRunningPagesSafely(request.chapterId, pageIds, "idle", undefined, id);
         }
         emit({
           id,
@@ -106,7 +113,7 @@ export function registerTranslationJobIpc(context: IpcContext): void {
 
       const message = error instanceof Error ? error.message : String(error);
       if (pageIds.length > 0) {
-        await finalizeRunningPages(request.chapterId, pageIds, "failed", message);
+        await finalizeRunningPagesSafely(request.chapterId, pageIds, "failed", message, id);
       }
       logError("Analysis job failed", {
         jobId: id,
@@ -276,6 +283,26 @@ export function registerTranslationJobIpc(context: IpcContext): void {
       }
     }
   });
+}
+
+async function finalizeRunningPagesSafely(
+  chapterId: string,
+  pageIds: string[],
+  status: "idle" | "failed",
+  errorMessage: string | undefined,
+  jobId: string
+): Promise<void> {
+  try {
+    await finalizeRunningPages(chapterId, pageIds, status, errorMessage);
+  } catch (error) {
+    logError("Failed to finalize running pages after analysis job error", {
+      jobId,
+      chapterId,
+      pageCount: pageIds.length,
+      status,
+      error
+    });
+  }
 }
 
 async function saveMappedRegionBlocks(chapterId: string, pageId: string, mappedBlocks: MangaPage["blocks"]) {
