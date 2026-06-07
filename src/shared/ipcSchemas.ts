@@ -21,6 +21,19 @@ const RenderDirectionSchema = z
     ["horizontal", "vertical", "rotated", "hidden"].includes(String(value ?? "").trim().toLowerCase())
   )
   .transform((value): "horizontal" | "vertical" => (value === "vertical" ? "vertical" : "horizontal"));
+const GemmaVramModeSchema = z.preprocess((value) => {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["minimum12b", "minimum", "minimal", "min", "12b"].includes(normalized)) {
+    return "minimum12b";
+  }
+  if (["economy26b", "economy", "eco", "26b"].includes(normalized)) {
+    return "economy26b";
+  }
+  if (["full31b", "full", "31b"].includes(normalized)) {
+    return "full31b";
+  }
+  return value;
+}, z.enum(["minimum12b", "economy26b", "full31b"]));
 
 export const BBoxSchema = z
   .object({
@@ -256,7 +269,7 @@ export const AppSettingsSchema = z
         mmprojFile: z.string().min(1).max(300).optional(),
         localModelPath: filePath.optional(),
         localMmprojPath: filePath.optional(),
-        vramMode: z.enum(["full", "economy"]),
+        vramMode: GemmaVramModeSchema,
         llamaRuntimeProfile: z.enum(["cuda12", "rtx50"]).optional()
       })
       .strict(),

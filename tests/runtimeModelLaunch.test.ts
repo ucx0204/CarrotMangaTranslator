@@ -9,6 +9,10 @@ import {
   DEFAULT_GEMMA_MMPROJ_REPO,
   DEFAULT_GEMMA_MODEL_FILE,
   DEFAULT_GEMMA_MODEL_REPO,
+  GEMMA_12B_MMPROJ_FILE,
+  GEMMA_12B_MMPROJ_REPO,
+  GEMMA_12B_MODEL_FILE_Q4_K_M,
+  GEMMA_12B_MODEL_REPO,
   GEMMA_26B_MMPROJ_FILE,
   GEMMA_26B_MMPROJ_REPO,
   GEMMA_26B_MODEL_FILE_IQ3_S,
@@ -122,6 +126,10 @@ const DEFAULT_MMPROJ_REPO = DEFAULT_GEMMA_MMPROJ_REPO;
 const DEFAULT_MMPROJ_FILE = DEFAULT_GEMMA_MMPROJ_FILE;
 const DEFAULT_DRAFT_REPO = DEFAULT_GEMMA_DRAFT_MODEL_REPO;
 const DEFAULT_DRAFT_FILE = DEFAULT_GEMMA_DRAFT_MODEL_FILE;
+const DEFAULT_12B_REPO = GEMMA_12B_MODEL_REPO;
+const DEFAULT_12B_FILE = GEMMA_12B_MODEL_FILE_Q4_K_M;
+const DEFAULT_12B_MMPROJ_REPO = GEMMA_12B_MMPROJ_REPO;
+const DEFAULT_12B_MMPROJ_FILE = GEMMA_12B_MMPROJ_FILE;
 const DEFAULT_26B_REPO = GEMMA_26B_MODEL_REPO;
 const DEFAULT_26B_FILE = GEMMA_26B_MODEL_FILE_IQ3_S;
 const DEFAULT_26B_MMPROJ_REPO = GEMMA_26B_MMPROJ_REPO;
@@ -191,7 +199,7 @@ describe("runtime model launch helpers", () => {
 
   it("resolves another bundled llama-server when the preferred runtime is absent", () => {
     const toolsDir = createTempDir("llama-tools-");
-    const runtimeDir = join(toolsDir, "llama-b8833-cuda12.4");
+    const runtimeDir = join(toolsDir, "llama-b9547-cuda12.4");
     mkdirSync(runtimeDir, { recursive: true });
     const serverPath = join(runtimeDir, "llama-server.exe");
     writeFileSync(serverPath, "");
@@ -534,7 +542,7 @@ describe("runtime model launch helpers", () => {
     const mainlineCuda13Profile = runtimeProfilesSource.match(/const MAINLINE_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
     const beellamaCuda13Profile = runtimeProfilesSource.match(/const BEELLAMA_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
 
-    expect(mainlineCuda13Profile).toContain('"llama-b9360-cuda13.1"');
+    expect(mainlineCuda13Profile).toContain('"llama-b9547-cuda13.3"');
     expect(mainlineCuda13Profile).toContain('"llama-server-impl.dll"');
     expect(beellamaCuda13Profile).not.toContain('"llama-server-impl.dll"');
     expect(modelAssetsSource).toContain("function shouldExtractLlamaRuntimeFile(fileName)");
@@ -1037,6 +1045,42 @@ describe("runtime model launch helpers", () => {
       modelFile: DEFAULT_26B_FILE,
       mmprojRepo: DEFAULT_26B_MMPROJ_REPO,
       mmprojFile: DEFAULT_26B_MMPROJ_FILE
+    });
+
+    expect(args).toContain("--fit");
+    expect(args.slice(args.indexOf("--fit-target"), args.indexOf("--fit-target") + 2)).toEqual(["--fit-target", "2048"]);
+    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual(["-ngl", "auto"]);
+    expect(args).toContain("--no-cache-prompt");
+    expect(args).toContain("--no-warmup");
+    expect(args).toContain("--mmproj-offload");
+    expect(args).not.toContain("--kv-unified");
+    expect(args).not.toContain("--jinja");
+    expect(args).not.toContain("--no-mmap");
+    expect(args).not.toContain("--mlock");
+    expect(args).not.toContain("--no-host");
+  });
+
+  it("launches the 12B minimum preset on mainline llama instead of beellama-only flags", () => {
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 2048,
+      ctx: 8192,
+      batch: 1024,
+      ubatch: 1024,
+      cacheTypeK: "q4_0",
+      cacheTypeV: "q4_0",
+      ctxCheckpoints: 0,
+      kvOffload: true,
+      mmprojOffload: true,
+      gpuLayers: "fit",
+      enableMetrics: true,
+      enablePerf: true,
+      imageMinTokens: 1024,
+      imageMaxTokens: 1024,
+      modelRepo: DEFAULT_12B_REPO,
+      modelFile: DEFAULT_12B_FILE,
+      mmprojRepo: DEFAULT_12B_MMPROJ_REPO,
+      mmprojFile: DEFAULT_12B_MMPROJ_FILE
     });
 
     expect(args).toContain("--fit");

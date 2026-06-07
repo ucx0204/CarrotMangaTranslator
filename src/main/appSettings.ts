@@ -16,6 +16,10 @@ import {
   DEFAULT_MAX_TOKENS,
   DEFAULT_MODEL_SOURCE,
   DEFAULT_OCR_GPU_CUDA_TAG,
+  GEMMA_12B_MMPROJ_FILE,
+  GEMMA_12B_MMPROJ_REPO,
+  GEMMA_12B_MODEL_FILE_Q4_K_M,
+  GEMMA_12B_MODEL_REPO,
   GEMMA_26B_MMPROJ_FILE,
   GEMMA_26B_MMPROJ_REPO,
   GEMMA_26B_MODEL_FILE_IQ3_S,
@@ -52,6 +56,10 @@ export {
   DEFAULT_MODEL_SOURCE,
   DEFAULT_OCR_DEVICE,
   DEFAULT_OCR_GPU_CUDA_TAG,
+  GEMMA_12B_MMPROJ_FILE,
+  GEMMA_12B_MMPROJ_REPO,
+  GEMMA_12B_MODEL_FILE_Q4_K_M,
+  GEMMA_12B_MODEL_REPO,
   GEMMA_26B_MMPROJ_FILE,
   GEMMA_26B_MMPROJ_REPO,
   GEMMA_26B_MODEL_FILE_IQ3_S,
@@ -66,8 +74,13 @@ export {
 } from "../shared/modelPresets";
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12 = "beellama-v0.2.0-cuda12.4";
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 = "beellama-v0.2.0-cuda13.1";
-const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b8833-cuda12.4";
-const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9360-cuda13.1";
+const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b9547-cuda12.4";
+const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9547-cuda13.3";
+const GEMMA_MINIMUM_VRAM_MB = 8000;
+const GEMMA_ECONOMY_VRAM_MB = 16000;
+const GEMMA_FULL_VRAM_MB = 24000;
+const GEMMA_MINIMUM_COMPUTE_CAPABILITY = 7.5;
+const GEMMA_MINIMUM_RTX_GENERATION = 20;
 
 export type TranslationOptions = {
   imagePath: string;
@@ -226,42 +239,47 @@ export function resolveHardwareDefaults(
   detectedGpu?: number | DetectedGpuInfo | null
 ): { modelProvider: ModelProvider; gemmaVramMode: GemmaVramMode; ocrDevice: OcrDevice; ocrGpuCudaTag: string; llamaRuntimeProfile: string } {
   const info = normalizeDetectedGpuInfo(detectedGpu);
-  const supportedRtxGeneration = (info?.rtxGeneration ?? 0) >= 30;
-  const supportedComputeCapability = (info?.computeCapability ?? 0) >= 8;
-  if (!info || !info.memoryMb || (!supportedRtxGeneration && !supportedComputeCapability)) {
+  const supportedRtxGeneration = (info?.rtxGeneration ?? 0) >= GEMMA_MINIMUM_RTX_GENERATION;
+  const supportedComputeCapability = (info?.computeCapability ?? 0) >= GEMMA_MINIMUM_COMPUTE_CAPABILITY;
+  const supportsGemma =
+    !!info?.memoryMb &&
+    info.memoryMb >= GEMMA_MINIMUM_VRAM_MB &&
+    (supportedRtxGeneration || supportedComputeCapability);
+  if (!supportsGemma) {
     return {
       modelProvider: "openai-codex",
-      gemmaVramMode: "economy",
+      gemmaVramMode: "minimum12b",
       ocrDevice: "cpu",
       ocrGpuCudaTag: resolveHardwareOcrGpuCudaTag(info),
       llamaRuntimeProfile: resolveHardwareLlamaRuntimeProfile(info)
     };
   }
 
-  const ocrDevice: OcrDevice = info.memoryMb >= 12000 ? "gpu" : "cpu";
+  const memoryMb = info.memoryMb ?? 0;
+  const ocrDevice: OcrDevice = memoryMb >= 12000 ? "gpu" : "cpu";
   const ocrGpuCudaTag = resolveHardwareOcrGpuCudaTag(info);
   const llamaRuntimeProfile = resolveHardwareLlamaRuntimeProfile(info);
-  if (info.memoryMb >= 24000) {
+  if (memoryMb >= GEMMA_FULL_VRAM_MB) {
     return {
       modelProvider: "gemma",
-      gemmaVramMode: "full",
+      gemmaVramMode: "full31b",
       ocrDevice,
       ocrGpuCudaTag,
       llamaRuntimeProfile
     };
   }
-  if (info.memoryMb >= 16000) {
+  if (memoryMb >= GEMMA_ECONOMY_VRAM_MB) {
     return {
       modelProvider: "gemma",
-      gemmaVramMode: "economy",
+      gemmaVramMode: "economy26b",
       ocrDevice,
       ocrGpuCudaTag,
       llamaRuntimeProfile
     };
   }
   return {
-    modelProvider: "openai-codex",
-    gemmaVramMode: "economy",
+    modelProvider: "gemma",
+    gemmaVramMode: "minimum12b",
     ocrDevice,
     ocrGpuCudaTag,
     llamaRuntimeProfile
@@ -539,7 +557,17 @@ function resolveModelSource(value: unknown, fallback: ModelSource): ModelSource 
 }
 
 function resolveGemmaVramMode(value: unknown, fallback: GemmaVramMode): GemmaVramMode {
-  return value === "economy" || value === "full" ? value : fallback;
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["minimum12b", "minimum", "minimal", "min", "12b"].includes(normalized)) {
+    return "minimum12b";
+  }
+  if (["economy26b", "economy", "eco", "26b"].includes(normalized)) {
+    return "economy26b";
+  }
+  if (["full31b", "full", "31b"].includes(normalized)) {
+    return "full31b";
+  }
+  return fallback;
 }
 
 function resolveOcrDevice(value: unknown, fallback: OcrDevice): OcrDevice {
@@ -649,19 +677,28 @@ function normalizeDetectedGpuInfo(value?: number | DetectedGpuInfo | null): Dete
 type GemmaModelPreset = Pick<AppSettings["gemma"], "modelRepo" | "modelFile" | "mmprojRepo" | "mmprojFile">;
 
 function getDefaultGemmaPresetForVramMode(vramMode: GemmaVramMode): GemmaModelPreset {
-  return vramMode === "economy"
-    ? {
-        modelRepo: GEMMA_26B_MODEL_REPO,
-        modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
-        mmprojRepo: GEMMA_26B_MMPROJ_REPO,
-        mmprojFile: GEMMA_26B_MMPROJ_FILE
-      }
-    : {
-        modelRepo: GEMMA_31B_MODEL_REPO,
-        modelFile: GEMMA_31B_MODEL_FILE_IQ3_S,
-        mmprojRepo: GEMMA_31B_MMPROJ_REPO,
-        mmprojFile: GEMMA_31B_MMPROJ_FILE
-      };
+  if (vramMode === "minimum12b") {
+    return {
+      modelRepo: GEMMA_12B_MODEL_REPO,
+      modelFile: GEMMA_12B_MODEL_FILE_Q4_K_M,
+      mmprojRepo: GEMMA_12B_MMPROJ_REPO,
+      mmprojFile: GEMMA_12B_MMPROJ_FILE
+    };
+  }
+  if (vramMode === "economy26b") {
+    return {
+      modelRepo: GEMMA_26B_MODEL_REPO,
+      modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+      mmprojRepo: GEMMA_26B_MMPROJ_REPO,
+      mmprojFile: GEMMA_26B_MMPROJ_FILE
+    };
+  }
+  return {
+    modelRepo: GEMMA_31B_MODEL_REPO,
+    modelFile: GEMMA_31B_MODEL_FILE_IQ3_S,
+    mmprojRepo: GEMMA_31B_MMPROJ_REPO,
+    mmprojFile: GEMMA_31B_MMPROJ_FILE
+  };
 }
 
 function getModeAwareGemmaDefaults(defaults: AppSettings, vramMode: GemmaVramMode): GemmaModelPreset {
@@ -709,14 +746,22 @@ function resolveDefaultLlamaServerPathForGemma(
   }
   const binaryName = process.platform === "win32" ? "llama-server.exe" : "llama-server";
   const useCuda13 = isRtx50LlamaRuntimeProfile(llamaRuntimeProfile);
-  const runtimeDir = is26BGemmaModel({ modelRepo: gemma.modelRepo, modelFile: gemma.modelFile })
+  const runtimeDir = isMainlineGemmaModel({ modelRepo: gemma.modelRepo, modelFile: gemma.modelFile })
     ? useCuda13 ? MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 : MAINLINE_LLAMA_RUNTIME_DIR_CUDA12
     : useCuda13 ? BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 : BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12;
   return join(paths.dataRoot, "tools", runtimeDir, binaryName);
 }
 
 function isBuiltInGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">): boolean {
-  return is31BGemmaModel(model) || is26BGemmaModel(model);
+  return is12BGemmaModel(model) || is26BGemmaModel(model) || is31BGemmaModel(model);
+}
+
+function isMainlineGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">): boolean {
+  return is12BGemmaModel(model) || is26BGemmaModel(model);
+}
+
+function is12BGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">): boolean {
+  return model.modelRepo === GEMMA_12B_MODEL_REPO && model.modelFile === GEMMA_12B_MODEL_FILE_Q4_K_M;
 }
 
 function is31BGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">): boolean {
@@ -730,6 +775,12 @@ function is26BGemmaModel(model: Pick<AppSettings["gemma"], "modelRepo" | "modelF
 function getDefaultMmprojForGemmaModel(
   model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">
 ): Pick<AppSettings["gemma"], "mmprojRepo" | "mmprojFile"> | undefined {
+  if (is12BGemmaModel(model)) {
+    return {
+      mmprojRepo: GEMMA_12B_MMPROJ_REPO,
+      mmprojFile: GEMMA_12B_MMPROJ_FILE
+    };
+  }
   if (is26BGemmaModel(model)) {
     return {
       mmprojRepo: GEMMA_26B_MMPROJ_REPO,
@@ -748,7 +799,8 @@ function getDefaultMmprojForGemmaModel(
 function isBuiltInGemmaMmproj(mmprojRepo?: string, mmprojFile?: string): boolean {
   return (
     (mmprojRepo === GEMMA_31B_MMPROJ_REPO && mmprojFile === GEMMA_31B_MMPROJ_FILE) ||
-    (mmprojRepo === GEMMA_26B_MMPROJ_REPO && mmprojFile === GEMMA_26B_MMPROJ_FILE)
+    (mmprojRepo === GEMMA_26B_MMPROJ_REPO && mmprojFile === GEMMA_26B_MMPROJ_FILE) ||
+    (mmprojRepo === GEMMA_12B_MMPROJ_REPO && mmprojFile === GEMMA_12B_MMPROJ_FILE)
   );
 }
 

@@ -29,7 +29,10 @@ export function canonicalizeLlamaRuntimeProfile(value: unknown): LlamaRuntimePro
 }
 
 export function resolveHardwareLlamaRuntimeProfile(info: DetectedGpuInfo | null): LlamaRuntimeProfile {
-  if ((info?.computeCapability ?? 0) >= 12 || (info?.rtxGeneration ?? 0) >= 50) {
+  if ((info?.computeCapability ?? 0) >= 12) {
+    return "rtx50";
+  }
+  if (info?.computeCapability == null && (info?.rtxGeneration ?? 0) >= 50) {
     return "rtx50";
   }
   return "cuda12";

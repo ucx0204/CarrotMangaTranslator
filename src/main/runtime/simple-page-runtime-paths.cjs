@@ -143,6 +143,17 @@ function isGemma26BModel(options = {}) {
   return parts.some((part) => /gemma[-_]?4[-_]?26b/i.test(String(part || "")));
 }
 
+function isGemma12BModel(options = {}) {
+  const parts = [
+    resolveConfiguredModelRepo(options),
+    resolveConfiguredModelFile(options),
+    resolveConfiguredLocalModelPath(options),
+    resolveConfiguredMmprojRepo(options),
+    resolveConfiguredMmprojFile(options)
+  ];
+  return parts.some((part) => /gemma[-_]?4[-_]?12b/i.test(String(part || "")));
+}
+
 function isGemma31BModel(options = {}) {
   const parts = [
     resolveConfiguredModelRepo(options),
@@ -154,13 +165,17 @@ function isGemma31BModel(options = {}) {
   return parts.some((part) => /gemma[-_]?4[-_]?31b/i.test(String(part || "")));
 }
 
+function isMainlineGemmaModel(options = {}) {
+  return isGemma12BModel(options) || isGemma26BModel(options);
+}
+
 function isBuiltInGemmaRuntimeModel(options = {}) {
-  return isGemma26BModel(options) || isGemma31BModel(options);
+  return isMainlineGemmaModel(options) || isGemma31BModel(options);
 }
 
 function resolvePreferredLlamaRuntime(options = {}) {
   const rtx50Runtime = shouldUseRtx50LlamaRuntime(options);
-  if (isGemma26BModel(options)) {
+  if (isMainlineGemmaModel(options)) {
     return rtx50Runtime ? MAINLINE_LLAMA_RUNTIME_CUDA13 : MAINLINE_LLAMA_RUNTIME_CUDA12;
   }
   return rtx50Runtime ? BEELLAMA_LLAMA_RUNTIME_CUDA13 : BEELLAMA_LLAMA_RUNTIME_CUDA12;
@@ -230,8 +245,10 @@ module.exports = {
   hasCudaRuntimeBackend,
   hasRequiredLlamaRuntimeFiles,
   isBuiltInGemmaRuntimeModel,
+  isGemma12BModel,
   isGemma26BModel,
   isGemma31BModel,
+  isMainlineGemmaModel,
   isRuntimeCandidate,
   missingRequiredLlamaRuntimeFiles,
   resolveFfmpegPath,

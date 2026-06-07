@@ -221,7 +221,7 @@ function createGemmaSettings(): AppSettings {
       modelFile: "gemma.gguf",
       mmprojRepo: "example/gemma-mmproj",
       mmprojFile: "mmproj.gguf",
-      vramMode: "economy"
+      vramMode: "economy26b"
     },
     codex: {
       model: "gpt-5.5",

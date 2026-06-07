@@ -14,6 +14,10 @@ export {
 } from "../../../shared/modelPresets";
 
 const MODEL_PRESET_COPY: Record<GemmaModelPresetId, { label: string; description: string }> = {
+  minimum12b: {
+    label: "12B 최소",
+    description: "8GB급 VRAM용입니다. 실행 가능성과 가벼운 구동을 우선합니다."
+  },
   economy26b: {
     label: "26B 절약",
     description: "16GB급 VRAM용입니다. 이미지 토큰 1024는 유지하고 26B 모델로 더 안전하게 실행합니다."
@@ -25,6 +29,10 @@ const MODEL_PRESET_COPY: Record<GemmaModelPresetId, { label: string; description
 } as const;
 
 export const MODEL_PRESETS = {
+  minimum12b: {
+    ...GEMMA_MODEL_PRESETS.minimum12b,
+    ...MODEL_PRESET_COPY.minimum12b
+  },
   economy26b: {
     ...GEMMA_MODEL_PRESETS.economy26b,
     ...MODEL_PRESET_COPY.economy26b

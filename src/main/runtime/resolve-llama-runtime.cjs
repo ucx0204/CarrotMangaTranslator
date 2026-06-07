@@ -10,6 +10,8 @@ function bundledServerCandidates(toolsDir) {
   const knownRuntimeDirs = [
     "beellama-v0.2.0-cuda13.1",
     "beellama-v0.2.0-cuda12.4",
+    "llama-b9547-cuda13.3",
+    "llama-b9547-cuda12.4",
     "llama-b9360-cuda13.1",
     "llama-b8833-cuda12.4",
     "llama-b8808-cuda12"

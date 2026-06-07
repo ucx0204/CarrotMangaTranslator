@@ -8,6 +8,10 @@ import {
   DEFAULT_MAX_TOKENS,
   DEFAULT_OCR_DEVICE,
   DEFAULT_OCR_GPU_CUDA_TAG,
+  GEMMA_12B_MMPROJ_FILE,
+  GEMMA_12B_MMPROJ_REPO,
+  GEMMA_12B_MODEL_FILE_Q4_K_M,
+  GEMMA_12B_MODEL_REPO,
   GEMMA_26B_MMPROJ_FILE,
   GEMMA_26B_MMPROJ_REPO,
   GEMMA_26B_MODEL_FILE_IQ3_S,
@@ -24,12 +28,12 @@ describe("app settings helpers", () => {
   it("uses Codex as the hardware-safe fallback when GPU detection is unavailable", () => {
     const defaults = resolveDefaultAppSettings();
 
-    expect(defaults.gemma.modelRepo).toBe(GEMMA_26B_MODEL_REPO);
-    expect(defaults.gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
-    expect(defaults.gemma.mmprojRepo).toBe(GEMMA_26B_MMPROJ_REPO);
-    expect(defaults.gemma.mmprojFile).toBe(GEMMA_26B_MMPROJ_FILE);
+    expect(defaults.gemma.modelRepo).toBe(GEMMA_12B_MODEL_REPO);
+    expect(defaults.gemma.modelFile).toBe(GEMMA_12B_MODEL_FILE_Q4_K_M);
+    expect(defaults.gemma.mmprojRepo).toBe(GEMMA_12B_MMPROJ_REPO);
+    expect(defaults.gemma.mmprojFile).toBe(GEMMA_12B_MMPROJ_FILE);
     expect(defaults.modelProvider).toBe("openai-codex");
-    expect(defaults.gemma.vramMode).toBe("economy");
+    expect(defaults.gemma.vramMode).toBe("minimum12b");
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
     expect(defaults.codex.reasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(defaults.codex.oauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
@@ -39,16 +43,17 @@ describe("app settings helpers", () => {
   });
 
   it("uses hardware-based provider and VRAM mode defaults when no override is provided", () => {
-    expect(resolveDefaultAppSettings({}, 12000).gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
-    expect(resolveDefaultAppSettings({}, 24564).gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
-    expect(resolveDefaultAppSettings({}, 32768).gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
+    expect(resolveDefaultAppSettings({}, 12000).modelProvider).toBe("openai-codex");
+    expect(resolveDefaultAppSettings({}, 12000).gemma.modelFile).toBe(GEMMA_12B_MODEL_FILE_Q4_K_M);
+    expect(resolveDefaultAppSettings({}, 24564).modelProvider).toBe("openai-codex");
+    expect(resolveDefaultAppSettings({}, 32768).gemma.modelFile).toBe(GEMMA_12B_MODEL_FILE_Q4_K_M);
     const rtx4090Defaults = resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40, computeCapability: 8.9 });
     expect(rtx4090Defaults.modelProvider).toBe("gemma");
-    expect(rtx4090Defaults.gemma.vramMode).toBe("full");
+    expect(rtx4090Defaults.gemma.vramMode).toBe("full31b");
     expect(rtx4090Defaults.gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
     const rtx5070Defaults = resolveDefaultAppSettings({}, { name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50, computeCapability: 12 });
     expect(rtx5070Defaults.modelProvider).toBe("gemma");
-    expect(rtx5070Defaults.gemma.vramMode).toBe("economy");
+    expect(rtx5070Defaults.gemma.vramMode).toBe("economy26b");
     expect(rtx5070Defaults.gemma.modelRepo).toBe(GEMMA_26B_MODEL_REPO);
     expect(rtx5070Defaults.gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
     expect(rtx5070Defaults.ocr.gpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
@@ -113,7 +118,7 @@ describe("app settings helpers", () => {
         modelSource: "huggingface",
         modelRepo: "saved/repo",
         modelFile: "saved-model.gguf",
-        vramMode: "economy"
+        vramMode: "economy26b"
       },
       codex: {
         model: DEFAULT_CODEX_MODEL,
@@ -152,7 +157,7 @@ describe("app settings helpers", () => {
     expect(options.codexOauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
     expect(options.ocrDevice).toBe("gpu");
     expect(options.ocrGpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
-    expect(options.gemmaVramMode).toBe("economy");
+    expect(options.gemmaVramMode).toBe("economy26b");
     expect(options.cacheTypeK).toBe("q4_0");
     expect(options.cacheTypeV).toBe("q4_0");
     expect(options.ctxCheckpoints).toBe(0);
@@ -189,7 +194,7 @@ describe("app settings helpers", () => {
         modelSource: "huggingface",
         modelRepo: "saved/repo",
         modelFile: "saved-model.gguf",
-        vramMode: "economy"
+        vramMode: "economy26b"
       }
     };
     const paths = {
@@ -255,13 +260,13 @@ describe("app settings helpers", () => {
         ...defaults,
         gemma: {
           ...defaults.gemma,
-          vramMode: "economy"
+          vramMode: "economy26b"
         }
       },
       env: {}
     });
 
-    expect(options.gemmaVramMode).toBe("economy");
+    expect(options.gemmaVramMode).toBe("economy26b");
     expect(options.ctx).toBe(8192);
     expect(options.batch).toBe(1024);
     expect(options.ubatch).toBe(1024);
@@ -277,7 +282,7 @@ describe("app settings helpers", () => {
     expect(options.fitTargetMb).toBe(2048);
     expect(options.imageMinTokens).toBe(1024);
     expect(options.imageMaxTokens).toBe(1024);
-    expect(options.serverPath).toBe(join("C:/app-data", "tools", "llama-b8833-cuda12.4", "llama-server.exe"));
+    expect(options.serverPath).toBe(join("C:/app-data", "tools", "llama-b9547-cuda12.4", "llama-server.exe"));
   });
 
   it("uses the full VRAM smoke preset with DFlash draft enabled", () => {
@@ -296,7 +301,7 @@ describe("app settings helpers", () => {
       env: {}
     });
 
-    expect(options.gemmaVramMode).toBe("full");
+    expect(options.gemmaVramMode).toBe("full31b");
     expect(options.ctx).toBe(8192);
     expect(options.batch).toBe(1024);
     expect(options.ubatch).toBe(1024);
@@ -336,7 +341,7 @@ describe("app settings helpers", () => {
 
     expect(economyOptions.llamaRuntimeProfile).toBe("rtx50");
     expect(economyOptions.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
-    expect(economyOptions.serverPath).toBe(join("C:/app-data", "tools", "llama-b9360-cuda13.1", "llama-server.exe"));
+    expect(economyOptions.serverPath).toBe(join("C:/app-data", "tools", "llama-b9547-cuda13.3", "llama-server.exe"));
 
     const rtx50FullDefaults = resolveDefaultAppSettings(
       {},
@@ -401,10 +406,10 @@ describe("app settings helpers", () => {
 
     expect(cuda12Options.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
     expect(cuda12Options.llamaRuntimeProfile).toBe("cuda12");
-    expect(cuda12Options.serverPath).toBe(join("C:/app-data", "tools", "llama-b8833-cuda12.4", "llama-server.exe"));
+    expect(cuda12Options.serverPath).toBe(join("C:/app-data", "tools", "llama-b9547-cuda12.4", "llama-server.exe"));
     expect(rtx50Options.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
     expect(rtx50Options.llamaRuntimeProfile).toBe("rtx50");
-    expect(rtx50Options.serverPath).toBe(join("C:/app-data", "tools", "llama-b9360-cuda13.1", "llama-server.exe"));
+    expect(rtx50Options.serverPath).toBe(join("C:/app-data", "tools", "llama-b9547-cuda13.3", "llama-server.exe"));
   });
 
   it("canonicalizes llama runtime profile aliases before settings can be saved", () => {
@@ -520,42 +525,49 @@ describe("app settings helpers", () => {
   it("chooses first-run defaults from detected GPU generation and VRAM", () => {
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40, computeCapability: 8.9 })).toEqual({
       modelProvider: "gemma",
-      gemmaVramMode: "full",
+      gemmaVramMode: "full31b",
       ocrDevice: "gpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       llamaRuntimeProfile: "cuda12"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50, computeCapability: 12 })).toEqual({
       modelProvider: "gemma",
-      gemmaVramMode: "economy",
+      gemmaVramMode: "economy26b",
       ocrDevice: "gpu",
       ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
       llamaRuntimeProfile: "rtx50"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 5090", memoryMb: 32768, rtxGeneration: null, computeCapability: 12 })).toEqual({
       modelProvider: "gemma",
-      gemmaVramMode: "full",
+      gemmaVramMode: "full31b",
       ocrDevice: "gpu",
       ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
       llamaRuntimeProfile: "rtx50"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 3060", memoryMb: 12288, rtxGeneration: 30, computeCapability: 8.6 })).toEqual({
-      modelProvider: "openai-codex",
-      gemmaVramMode: "economy",
+      modelProvider: "gemma",
+      gemmaVramMode: "minimum12b",
       ocrDevice: "gpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       llamaRuntimeProfile: "cuda12"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 2080 Ti", memoryMb: 11264, rtxGeneration: 20, computeCapability: 7.5 })).toEqual({
-      modelProvider: "openai-codex",
-      gemmaVramMode: "economy",
+      modelProvider: "gemma",
+      gemmaVramMode: "minimum12b",
       ocrDevice: "cpu",
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      llamaRuntimeProfile: "cuda12"
+    });
+    expect(resolveHardwareDefaults({ name: "NVIDIA Quadro RTX 5000", memoryMb: 16384, rtxGeneration: null, computeCapability: 7.5 })).toEqual({
+      modelProvider: "gemma",
+      gemmaVramMode: "economy26b",
+      ocrDevice: "gpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       llamaRuntimeProfile: "cuda12"
     });
     expect(resolveHardwareDefaults(null)).toEqual({
       modelProvider: "openai-codex",
-      gemmaVramMode: "economy",
+      gemmaVramMode: "minimum12b",
       ocrDevice: "cpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       llamaRuntimeProfile: "cuda12"
@@ -565,11 +577,16 @@ describe("app settings helpers", () => {
   it("normalizes Gemma VRAM mode settings", () => {
     const defaults = resolveDefaultAppSettings();
 
-    expect(parseStoredAppSettings("{\"gemma\":{\"vramMode\":\"economy\"}}", defaults).gemma.vramMode).toBe("economy");
+    expect(parseStoredAppSettings("{\"gemma\":{\"vramMode\":\"economy\"}}", defaults).gemma.vramMode).toBe("economy26b");
+    expect(parseStoredAppSettings("{\"gemma\":{\"vramMode\":\"full\"}}", defaults).gemma.vramMode).toBe("full31b");
+    expect(parseStoredAppSettings("{\"gemma\":{\"vramMode\":\"12b\"}}", defaults).gemma.vramMode).toBe("minimum12b");
     expect(parseStoredAppSettings("{\"gemma\":{\"vramMode\":\"tiny\"}}", defaults).gemma.vramMode).toBe(
       defaults.gemma.vramMode
     );
-    expect(resolveDefaultAppSettings({ MANGA_TRANSLATOR_GEMMA_VRAM_MODE: "economy" }).gemma.vramMode).toBe("economy");
+    expect(resolveDefaultAppSettings({ MANGA_TRANSLATOR_GEMMA_VRAM_MODE: "economy" }).gemma.vramMode).toBe("economy26b");
+    expect(resolveDefaultAppSettings({ MANGA_TRANSLATOR_GEMMA_VRAM_MODE: "26b" }).gemma.vramMode).toBe("economy26b");
+    expect(resolveDefaultAppSettings({ MANGA_TRANSLATOR_GEMMA_VRAM_MODE: "31b" }).gemma.vramMode).toBe("full31b");
+    expect(resolveDefaultAppSettings({ MANGA_TRANSLATOR_GEMMA_VRAM_MODE: "min" }).gemma.vramMode).toBe("minimum12b");
   });
 
   it("normalizes max token settings", () => {

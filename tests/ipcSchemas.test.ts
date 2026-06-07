@@ -131,8 +131,10 @@ describe("IPC schemas", () => {
       maxTokens: 12000
     };
 
-    expect(parseIpcPayload(AppSettingsSchema, payload, "설정 저장").maxTokens).toBe(12000);
-    expect(parseIpcPayload(AppSettingsSchema, payload, "설정 저장").gemma.llamaRuntimeProfile).toBe("rtx50");
+    const parsed = parseIpcPayload(AppSettingsSchema, payload, "설정 저장");
+    expect(parsed.maxTokens).toBe(12000);
+    expect(parsed.gemma.vramMode).toBe("economy26b");
+    expect(parsed.gemma.llamaRuntimeProfile).toBe("rtx50");
     expect(() => parseIpcPayload(AppSettingsSchema, { ...payload, maxTokens: 12001 }, "설정 저장")).toThrow(/요청 형식/);
     expect(() =>
       parseIpcPayload(
@@ -140,6 +142,9 @@ describe("IPC schemas", () => {
         { ...payload, gemma: { ...payload.gemma, llamaRuntimeProfile: "cuda13.3" } },
         "설정 저장"
       )
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(AppSettingsSchema, { ...payload, gemma: { ...payload.gemma, vramMode: "custom" } }, "설정 저장")
     ).toThrow(/요청 형식/);
     expect(() =>
       parseIpcPayload(AppSettingsSchema, { ...payload, codex: { ...payload.codex, oauthPort: 0 } }, "설정 저장")

@@ -49,23 +49,24 @@ const BEELLAMA_LLAMA_RUNTIME_CUDA13 = {
 };
 
 const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
-  id: "llama-b8833-cuda12.4",
+  id: "llama-b9547-cuda12.4",
   kind: "mainline",
-  dir: "llama-b8833-cuda12.4",
-  archive: "llama-b8833-bin-win-cuda-12.4-x64.zip",
-  url: "https://github.com/ggml-org/llama.cpp/releases/download/b8833/llama-b8833-bin-win-cuda-12.4-x64.zip",
+  dir: "llama-b9547-cuda12.4",
+  archive: "llama-b9547-bin-win-cuda-12.4-x64.zip",
+  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-12.4-x64.zip",
   archives: [
     {
-      archive: "llama-b8833-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b8833/llama-b8833-bin-win-cuda-12.4-x64.zip"
+      archive: "llama-b9547-bin-win-cuda-12.4-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-12.4-x64.zip"
     },
     {
       archive: "cudart-llama-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b8833/cudart-llama-bin-win-cuda-12.4-x64.zip"
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/cudart-llama-bin-win-cuda-12.4-x64.zip"
     }
   ],
   requiredFiles: [
     "llama-server.exe",
+    "llama-server-impl.dll",
     ["ggml-cuda.dll", "ggml-cuda-cu12.dll"],
     ["cublas64_12.dll"],
     ["cublasLt64_12.dll"],
@@ -74,19 +75,19 @@ const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
 };
 
 const MAINLINE_LLAMA_RUNTIME_CUDA13 = {
-  id: "llama-b9360-cuda13.1",
+  id: "llama-b9547-cuda13.3",
   kind: "mainline",
-  dir: "llama-b9360-cuda13.1",
-  archive: "llama-b9360-bin-win-cuda-13.1-x64.zip",
-  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9360/llama-b9360-bin-win-cuda-13.1-x64.zip",
+  dir: "llama-b9547-cuda13.3",
+  archive: "llama-b9547-bin-win-cuda-13.3-x64.zip",
+  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-13.3-x64.zip",
   archives: [
     {
-      archive: "llama-b9360-bin-win-cuda-13.1-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9360/llama-b9360-bin-win-cuda-13.1-x64.zip"
+      archive: "llama-b9547-bin-win-cuda-13.3-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-13.3-x64.zip"
     },
     {
-      archive: "cudart-llama-bin-win-cuda-13.1-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9360/cudart-llama-bin-win-cuda-13.1-x64.zip"
+      archive: "cudart-llama-bin-win-cuda-13.3-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/cudart-llama-bin-win-cuda-13.3-x64.zip"
     }
   ],
   requiredFiles: [

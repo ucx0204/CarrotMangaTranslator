@@ -32,7 +32,37 @@ export type GemmaRuntimePreset = {
 };
 
 export const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> = {
-  full: {
+  minimum12b: {
+    ctx: 8192,
+    batch: 1024,
+    ubatch: 1024,
+    fitTargetMb: 2048,
+    cacheTypeK: "q4_0",
+    cacheTypeV: "q4_0",
+    ctxCheckpoints: 0,
+    kvOffload: true,
+    mmprojOffload: true,
+    gpuLayers: "fit",
+    enableMetrics: true,
+    enablePerf: true,
+    useDraft: false
+  },
+  economy26b: {
+    ctx: 8192,
+    batch: 1024,
+    ubatch: 1024,
+    fitTargetMb: 2048,
+    cacheTypeK: "q4_0",
+    cacheTypeV: "q4_0",
+    ctxCheckpoints: 0,
+    kvOffload: true,
+    mmprojOffload: true,
+    gpuLayers: "fit",
+    enableMetrics: true,
+    enablePerf: true,
+    useDraft: false
+  },
+  full31b: {
     ctx: 8192,
     batch: 1024,
     ubatch: 1024,
@@ -47,20 +77,5 @@ export const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> = 
     draftModelRepo: DEFAULT_GEMMA_DRAFT_MODEL_REPO,
     draftModelFile: DEFAULT_GEMMA_DRAFT_MODEL_FILE,
     useDraft: true
-  },
-  economy: {
-    ctx: 8192,
-    batch: 1024,
-    ubatch: 1024,
-    fitTargetMb: 2048,
-    cacheTypeK: "q4_0",
-    cacheTypeV: "q4_0",
-    ctxCheckpoints: 0,
-    kvOffload: true,
-    mmprojOffload: true,
-    gpuLayers: "fit",
-    enableMetrics: true,
-    enablePerf: true,
-    useDraft: false
   }
 };

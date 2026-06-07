@@ -6,7 +6,7 @@ export type RenderTextDirection = "horizontal" | "vertical";
 export type JobKind = "gemma-analysis" | "inpainting";
 export type ModelProvider = "gemma" | "openai-codex";
 export type ModelSource = "huggingface" | "local";
-export type GemmaVramMode = "full" | "economy";
+export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
 export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
 

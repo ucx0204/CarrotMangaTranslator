@@ -154,7 +154,7 @@ async function startServer(options) {
   if (launchTarget.requiresDownload) {
     await ensureHfModelAssetsDownloaded(options, launchTarget);
   }
-  const launchArgs = buildLaunchArgs(options);
+  const launchArgs = buildLaunchArgs({ ...options, serverPath });
   const serverLogStream = createServerLogStream(options, serverPath, launchArgs);
   emitRuntimeProgress(options, "booting", "Gemma 서버 시작 중", `${resolveConfiguredModelFile(options)} 로드 중`, {
     progressMode: "indeterminate",

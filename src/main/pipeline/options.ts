@@ -31,7 +31,13 @@ export function buildPageOptions(baseOptions: TranslationOptions, page: MangaPag
 }
 
 export function formatGemmaVramMode(mode: TranslationOptions["gemmaVramMode"]): string {
-  return mode === "economy" ? "VRAM 절약 모드" : "VRAM 풀로드 모드";
+  if (mode === "minimum12b") {
+    return "12B 최소 모드";
+  }
+  if (mode === "economy26b") {
+    return "26B 절약 모드";
+  }
+  return "31B 풀로드 모드";
 }
 
 export function summarizeTranslationOptions(options: TranslationOptions): Record<string, unknown> {

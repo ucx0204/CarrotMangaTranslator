@@ -19,8 +19,8 @@ const {
 } = require("./simple-page-child-env.cjs");
 const {
   defaultServerPath,
-  isGemma26BModel,
-  isGemma31BModel
+  isGemma31BModel,
+  isMainlineGemmaModel
 } = require("./simple-page-runtime-paths.cjs");
 const {
   inspectModelLaunch
@@ -216,7 +216,7 @@ function resolveDraftModelRepoArg(options = {}) {
 }
 
 function shouldUseBeellamaGemmaLaunch(options = {}) {
-  if (isGemma26BModel(options)) {
+  if (isMainlineGemmaModel(options)) {
     return false;
   }
   const serverPath = String(options.serverPath || runtimeOverrideEnv("LLAMA_SERVER_PATH", options) || defaultServerPath(options) || "");
@@ -248,7 +248,7 @@ function isServerRuntimeCompatibleWithModel(serverPath, options = {}) {
     return true;
   }
   const text = String(serverPath);
-  if (isGemma26BModel(options)) {
+  if (isMainlineGemmaModel(options)) {
     return !/beellama/i.test(text);
   }
   if (isGemma31BModel(options)) {
