@@ -217,7 +217,15 @@ export async function runWholePagePipeline({
 
   const endpointSession = await runtime.startEndpointSession(baseOptions);
   const server = endpointSession.handle;
-  onCleanupReady?.(() => endpointSession.dispose());
+  let endpointDisposed = false;
+  const disposeEndpointSession = async () => {
+    if (endpointDisposed) {
+      return;
+    }
+    endpointDisposed = true;
+    await endpointSession.dispose();
+  };
+  onCleanupReady?.(disposeEndpointSession);
   const maxAttempts = Math.max(1, readNumberEnv("MANGA_TRANSLATOR_PAGE_RETRIES", 5));
 
   emit({
@@ -366,7 +374,7 @@ export async function runWholePagePipeline({
           normalizedItems = soundFiltered.items;
           successPage = {
             ...page,
-            blocks: normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex)),
+            blocks: normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex, jobId)),
             analysisStatus: "completed",
             lastError: undefined,
             updatedAt: new Date().toISOString()
@@ -453,7 +461,6 @@ export async function runWholePagePipeline({
       });
       const failedPage: MangaPage = {
         ...page,
-        blocks: [],
         analysisStatus: "failed",
         lastError: lastErrorMessage,
         updatedAt: new Date().toISOString()
@@ -491,6 +498,6 @@ export async function runWholePagePipeline({
       warnings
     };
   } finally {
-    await endpointSession.dispose();
+    await disposeEndpointSession();
   }
 }

@@ -19,6 +19,18 @@ export function useJobEvents({
   setJobState
 }: UseJobEventsOptions): void {
   React.useEffect(() => {
+    let refreshTimer: number | null = null;
+    const scheduleRefreshLibrary = () => {
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+        void refreshLibrary().catch((error) => {
+          console.error(error);
+        });
+      }, 250);
+    };
     const unsubscribe = window.mangaApi.onJobEvent((event) => {
       setJobState((current) => {
         const sameJob = current.id === event.id;
@@ -72,12 +84,17 @@ export function useJobEvents({
               mergeLiveChapter(chapter);
             }
           })
-          .then(() => refreshLibrary())
+          .then(scheduleRefreshLibrary)
           .catch((error) => {
             console.error(error);
           });
       }
     });
-    return unsubscribe;
+    return () => {
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      unsubscribe();
+    };
   }, [appendStatusLine, currentChapterRef, mergeLiveChapter, refreshLibrary, setJobState]);
 }

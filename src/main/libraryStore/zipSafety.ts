@@ -19,6 +19,7 @@ export const MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES = 4 * 1024 * 1024 * 1024;
 export const MAX_SHARE_JSON_BYTES = 20 * 1024 * 1024;
 export const MAX_SHARE_IMAGE_BYTES = 128 * 1024 * 1024;
 export const MAX_IMPORT_IMAGE_BYTES = 256 * 1024 * 1024;
+export const MAX_IMPORT_IMAGE_PIXELS = 120_000_000;
 
 export const AdmZip = require("adm-zip") as {
   new (archivePath?: string): AdmZipLike;

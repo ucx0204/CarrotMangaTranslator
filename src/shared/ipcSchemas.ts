@@ -163,13 +163,11 @@ export const WorkShareImportRequestSchema = z
   })
   .strict();
 
-export const StartAnalysisRequestSchema = z
-  .object({
-    chapterId: uuid,
-    runMode: z.enum(["pending", "all", "single-page"]),
-    pageId: uuid.optional()
-  })
-  .strict();
+export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
+  z.object({ chapterId: uuid, runMode: z.literal("pending") }).strict(),
+  z.object({ chapterId: uuid, runMode: z.literal("all") }).strict(),
+  z.object({ chapterId: uuid, runMode: z.literal("single-page"), pageId: uuid }).strict()
+]);
 
 export const RegionAnalysisRequestSchema = z
   .object({
@@ -250,6 +248,7 @@ export const SavePageBlocksRequestSchema = z
   .object({
     chapterId: uuid,
     pageId: uuid,
+    baseUpdatedAt: z.string().max(80).optional(),
     blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE)
   })
   .strict();

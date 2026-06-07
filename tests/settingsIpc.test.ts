@@ -7,7 +7,7 @@ import type { IpcContext } from "../src/main/ipc/context";
 import type { SimplePageRuntime } from "../src/main/simplePageRuntime";
 
 type IpcHandler = (
-  event: { sender: { id: number; send: (channel: string, payload: unknown) => void } },
+  event: { sender: { id: number; send: (channel: string, payload: unknown) => void }; senderFrame?: { url: string } },
   ...args: unknown[]
 ) => Promise<unknown> | unknown;
 
@@ -132,7 +132,8 @@ async function invokeSettingsModelTest({
             progressEvents.push(payload as ModelTestProgressEvent);
           }
         }
-      }
+      },
+      senderFrame: { url: "http://127.0.0.1:5173/" }
     },
     settings,
     testId
@@ -169,7 +170,7 @@ function createContext(dataRoot: string, runtime: SimplePageRuntime): IpcContext
     getMainWindow: () =>
       ({
         isDestroyed: () => false,
-        webContents: { id: 1 }
+        webContents: { id: 1, getURL: () => "http://127.0.0.1:5173/" }
       }) as ReturnType<IpcContext["getMainWindow"]>,
     loadSimplePageRuntime: () => runtime,
     decodeImage: vi.fn()

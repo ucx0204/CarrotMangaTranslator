@@ -3,6 +3,7 @@ import {
   AppSettingsSchema,
   ChapterSnapshotSchema,
   parseIpcPayload,
+  SavePageBlocksRequestSchema,
   StartAnalysisRequestSchema,
   StartInpaintingRequestSchema,
   WorkShareImportRequestSchema
@@ -17,6 +18,32 @@ describe("IPC schemas", () => {
     expect(() =>
       parseIpcPayload(StartAnalysisRequestSchema, { chapterId: "../outside", runMode: "all" }, "번역 작업")
     ).toThrow(/요청 형식/);
+  });
+
+  it("requires pageId only for single-page analysis", () => {
+    expect(parseIpcPayload(StartAnalysisRequestSchema, { chapterId, runMode: "pending" }, "번역 작업").runMode).toBe("pending");
+    expect(parseIpcPayload(StartAnalysisRequestSchema, { chapterId, runMode: "all" }, "번역 작업").runMode).toBe("all");
+    expect(() => parseIpcPayload(StartAnalysisRequestSchema, { chapterId, runMode: "single-page" }, "번역 작업")).toThrow(/요청 형식/);
+    const parsed = parseIpcPayload(StartAnalysisRequestSchema, { chapterId, runMode: "single-page", pageId }, "번역 작업");
+    expect(parsed.runMode).toBe("single-page");
+    if (parsed.runMode !== "single-page") {
+      throw new Error("single-page request was not parsed as single-page");
+    }
+    expect(parsed.pageId).toBe(pageId);
+  });
+
+  it("accepts a base page timestamp for conflict-aware block saves", () => {
+    const parsed = parseIpcPayload(
+      SavePageBlocksRequestSchema,
+      {
+        chapterId,
+        pageId,
+        baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+        blocks: makeChapterSnapshot().pages[0].blocks
+      },
+      "페이지 블록 저장"
+    );
+    expect(parsed.baseUpdatedAt).toBe("2026-01-01T00:00:00.000Z");
   });
 
   it("rejects unknown fields in full chapter snapshots", () => {

@@ -83,11 +83,11 @@ export default tseslint.config(
     files: ["**/*.{js,cjs,mjs,ts,tsx}"],
     rules: {
       "no-control-regex": "off",
-      "no-redeclare": "off",
+      "no-redeclare": "error",
       "no-this-alias": "off",
       "@typescript-eslint/no-this-alias": "off",
       "no-useless-assignment": "warn",
-      "preserve-caught-error": "off"
+      "preserve-caught-error": "warn"
     }
   }
 );

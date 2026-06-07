@@ -19,7 +19,25 @@ export function loadRuntimeModules(): RuntimeModules {
     simplePage: require(join(runtimeDir, "simple-page-translate.cjs")) as RuntimeModules["simplePage"],
     overlayTools: require(join(runtimeDir, "overlay-parser.cjs")) as RuntimeModules["overlayTools"]
   };
+  assertRuntimeModules(cachedRuntime);
   return cachedRuntime;
+}
+
+function assertRuntimeModules(runtime: RuntimeModules): void {
+  assertFunction(runtime.simplePage?.collectOcrBboxHints, "simple-page-translate.cjs collectOcrBboxHints");
+  assertFunction(runtime.simplePage?.requestTranslation, "simple-page-translate.cjs requestTranslation");
+  assertFunction(runtime.simplePage?.saveArtifacts, "simple-page-translate.cjs saveArtifacts");
+  assertFunction(runtime.simplePage?.startServer, "simple-page-translate.cjs startServer");
+  assertFunction(runtime.simplePage?.stopServer, "simple-page-translate.cjs stopServer");
+  assertFunction(runtime.simplePage?.isModelCached, "simple-page-translate.cjs isModelCached");
+  assertFunction(runtime.overlayTools?.normalizeItems, "overlay-parser.cjs normalizeItems");
+  assertFunction(runtime.overlayTools?.parseJsonLenient, "overlay-parser.cjs parseJsonLenient");
+}
+
+function assertFunction(value: unknown, label: string): void {
+  if (typeof value !== "function") {
+    throw new Error(`런타임 모듈이 올바르지 않습니다: ${label}`);
+  }
 }
 
 export async function startModelEndpoint(runtime: RuntimeModules, options: TranslationOptions): Promise<ModelEndpointHandle> {

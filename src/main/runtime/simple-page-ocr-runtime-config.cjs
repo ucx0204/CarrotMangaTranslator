@@ -1,4 +1,4 @@
-const crypto = require("node:crypto");
+const nodeCrypto = require("node:crypto");
 const { existsSync } = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -68,7 +68,7 @@ function resolvePaddlexCacheHome(runtimeDir, options = {}, runtime = null) {
   if (!hasNonAsciiPath(realCacheHome)) {
     return realCacheHome;
   }
-  const digest = crypto.createHash("sha1").update(realCacheHome).digest("hex").slice(0, 16);
+  const digest = nodeCrypto.createHash("sha1").update(realCacheHome).digest("hex").slice(0, 16);
   return path.join(resolvePaddlexCacheAliasRoot(options), digest, "paddlex-cache");
 }
 

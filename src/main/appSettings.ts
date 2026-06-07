@@ -39,6 +39,7 @@ import {
   resolveHardwareLlamaRuntimeProfile,
   resolveLlamaRuntimeProfile
 } from "./settings/llamaRuntimeProfile";
+import { readBooleanLikeEnv, readNumberEnv, readOptionalBooleanEnv, readOptionalNumberEnv } from "./settings/envSettings";
 import { join } from "node:path";
 
 export {
@@ -373,17 +374,17 @@ export function buildBaseTranslationOptions({
     imagePath: "",
     outputDir: runDir,
     modelProvider: settings.modelProvider,
-    port: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_LLAMA_PORT", 18180),
+    port: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_LLAMA_PORT", 18180, { min: 1, max: 65535, integer: true }),
     promptMode: "ko_bbox_lines_multiview",
-    temperature: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_TEMPERATURE", 0.2),
-    topP: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_TOP_P", 0.95),
-    topK: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_TOP_K", 64),
+    temperature: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_TEMPERATURE", 0.2, { min: 0, max: 2 }),
+    topP: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_TOP_P", 0.95, { min: 0.01, max: 1 }),
+    topK: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_TOP_K", 64, { min: 1, max: 500, integer: true }),
     maxTokens: resolveMaxTokens(runtimeEnv.MANGA_TRANSLATOR_MAX_TOKENS, settings.maxTokens),
-    ctx: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_CTX", gemmaRuntimePreset.ctx),
-    batch: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_BATCH", gemmaRuntimePreset.batch),
-    ubatch: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_UBATCH", gemmaRuntimePreset.ubatch),
+    ctx: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_CTX", gemmaRuntimePreset.ctx, { min: 1024, max: 32768, integer: true }),
+    batch: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_BATCH", gemmaRuntimePreset.batch, { min: 1, max: 4096, integer: true }),
+    ubatch: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_UBATCH", gemmaRuntimePreset.ubatch, { min: 1, max: 4096, integer: true }),
     gemmaVramMode,
-    fitTargetMb: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_FIT_TARGET_MB", gemmaRuntimePreset.fitTargetMb),
+    fitTargetMb: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_FIT_TARGET_MB", gemmaRuntimePreset.fitTargetMb, { min: 0, max: 8192, integer: true }),
     gpuLayers:
       readOptionalGpuLayersEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_GPU_LAYERS") ??
       readOptionalGpuLayersEnv(runtimeEnv, "MANGA_TRANSLATOR_GPU_LAYERS") ??
@@ -395,39 +396,39 @@ export function buildBaseTranslationOptions({
       resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_GEMMA_CACHE_TYPE_V ?? runtimeEnv.MANGA_TRANSLATOR_CACHE_TYPE_V) ??
       gemmaRuntimePreset.cacheTypeV,
     ctxCheckpoints:
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_CTX_CHECKPOINTS") ??
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_CTX_CHECKPOINTS") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_CTX_CHECKPOINTS", { min: 0, max: 64, integer: true }) ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_CTX_CHECKPOINTS", { min: 0, max: 64, integer: true }) ??
       gemmaRuntimePreset.ctxCheckpoints,
     kvOffload: readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_KV_OFFLOAD") ?? gemmaRuntimePreset.kvOffload,
     mmprojOffload:
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_MMPROJ_OFFLOAD") ?? gemmaRuntimePreset.mmprojOffload,
     threads:
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_THREADS") ??
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_THREADS") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_THREADS", { min: 1, max: 128, integer: true }) ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_THREADS", { min: 1, max: 128, integer: true }) ??
       gemmaRuntimePreset.threads,
     threadsBatch:
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_THREADS_BATCH") ??
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_THREADS_BATCH") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_THREADS_BATCH", { min: 1, max: 128, integer: true }) ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_THREADS_BATCH", { min: 1, max: 128, integer: true }) ??
       gemmaRuntimePreset.threadsBatch,
     poll:
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_POLL") ??
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_POLL") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_POLL", { min: 0, max: 100, integer: true }) ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_POLL", { min: 0, max: 100, integer: true }) ??
       gemmaRuntimePreset.poll,
     pollBatch:
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_POLL_BATCH") ??
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_POLL_BATCH") ??
       gemmaRuntimePreset.pollBatch,
     prioBatch:
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_PRIO_BATCH") ??
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_PRIO_BATCH") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_PRIO_BATCH", { min: -1, max: 3, integer: true }) ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_PRIO_BATCH", { min: -1, max: 3, integer: true }) ??
       gemmaRuntimePreset.prioBatch,
     cacheIdleSlots:
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_CACHE_IDLE_SLOTS") ??
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_CACHE_IDLE_SLOTS") ??
       gemmaRuntimePreset.cacheIdleSlots,
     cacheReuse:
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_CACHE_REUSE") ??
-      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_CACHE_REUSE") ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_CACHE_REUSE", { min: 0, max: 4096, integer: true }) ??
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_CACHE_REUSE", { min: 0, max: 4096, integer: true }) ??
       gemmaRuntimePreset.cacheReuse,
     enableMetrics:
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_METRICS") ??
@@ -442,8 +443,8 @@ export function buildBaseTranslationOptions({
     draftModelFile:
       resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_DRAFT_MODEL_FILE) ?? gemmaRuntimePreset.draftModelFile,
     useDraft: readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_USE_DRAFT") ?? gemmaRuntimePreset.useDraft,
-    imageMinTokens: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_IMAGE_MIN_TOKENS", DEFAULT_IMAGE_TOKENS),
-    imageMaxTokens: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_IMAGE_MAX_TOKENS", DEFAULT_IMAGE_TOKENS),
+    imageMinTokens: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_IMAGE_MIN_TOKENS", DEFAULT_IMAGE_TOKENS, { min: 70, max: 2048, integer: true }),
+    imageMaxTokens: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_IMAGE_MAX_TOKENS", DEFAULT_IMAGE_TOKENS, { min: 70, max: 2048, integer: true }),
     includeEnhancedVariant: false,
     enhancedMaxLongSide: 1900,
     enhancedContrast: 1.35,
@@ -499,20 +500,6 @@ export function filterPackagedRuntimeEnv(
   return {};
 }
 
-function readNumberEnv(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
-  const value = Number(env[name]);
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function readOptionalNumberEnv(env: NodeJS.ProcessEnv, name: string): number | undefined {
-  const raw = env[name];
-  if (raw === undefined || raw === "") {
-    return undefined;
-  }
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : undefined;
-}
-
 function readOptionalGpuLayersEnv(env: NodeJS.ProcessEnv, name: string): number | "fit" | undefined {
   const raw = env[name];
   if (raw === undefined || raw === "") {
@@ -527,25 +514,6 @@ function readOptionalGpuLayersEnv(env: NodeJS.ProcessEnv, name: string): number 
   }
   const value = Number(normalized);
   return Number.isFinite(value) ? Math.round(value) : undefined;
-}
-
-function readOptionalBooleanEnv(env: NodeJS.ProcessEnv, name: string): boolean | undefined {
-  const raw = env[name];
-  if (raw === undefined || raw === "") {
-    return undefined;
-  }
-  return readBooleanLikeEnv(raw);
-}
-
-function readBooleanLikeEnv(raw: unknown): boolean | undefined {
-  const normalized = String(raw ?? "").trim().toLowerCase();
-  if (["1", "true", "yes", "on"].includes(normalized)) {
-    return true;
-  }
-  if (["0", "false", "no", "off"].includes(normalized)) {
-    return false;
-  }
-  return undefined;
 }
 
 function resolveModelProvider(value: unknown, fallback: ModelProvider): ModelProvider {

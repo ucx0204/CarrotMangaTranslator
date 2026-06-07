@@ -83,8 +83,14 @@ export function useInpaintingActions({
     if (!currentChapter || jobActive) {
       return;
     }
-    if (dirty) {
-      await saveNow();
+    try {
+      if (dirty) {
+        await saveNow();
+      }
+    } catch (error) {
+      console.error(error);
+      pushStatus(formatErrorMessage(error, "인페인팅 모드로 들어가기 전에 변경사항을 저장하지 못했습니다."));
+      return;
     }
     setInpaintingMode(true);
     setInpaintingTool("none");
@@ -145,8 +151,14 @@ export function useInpaintingActions({
       if (scope === "page" && !selectedPage) {
         return;
       }
-      if (dirty) {
-        await saveNow();
+      try {
+        if (dirty) {
+          await saveNow();
+        }
+      } catch (error) {
+        console.error(error);
+        failInpaintingJob(setJobState, pushStatus, "저장 실패", formatErrorMessage(error, "원문 지우기 전에 변경사항을 저장하지 못했습니다."));
+        return;
       }
       const targetLabel = "원문";
       const scopeLabel = scope === "page" ? "현재 페이지" : "아직 지우지 않은 페이지";
@@ -222,8 +234,14 @@ export function useInpaintingActions({
     if (!currentChapter || !selectedPage || jobActive || patternMaskStrokes.length === 0) {
       return;
     }
-    if (dirty) {
-      await saveNow();
+    try {
+      if (dirty) {
+        await saveNow();
+      }
+    } catch (error) {
+      console.error(error);
+      failInpaintingJob(setJobState, pushStatus, "저장 실패", formatErrorMessage(error, "그린 영역을 지우기 전에 변경사항을 저장하지 못했습니다."));
+      return;
     }
     const confirmed = await askConfirm(
       "그린 영역 지우기",
@@ -337,8 +355,21 @@ export function useInpaintingActions({
         pushStatus("출력할 페이지가 선택되어 있지 않습니다.");
         return;
       }
-      if (dirty) {
-        await saveNow();
+      try {
+        if (dirty) {
+          await saveNow();
+        }
+      } catch (error) {
+        console.error(error);
+        setJobState({
+          id: "failed-export",
+          kind: "inpainting",
+          status: "failed",
+          progressText: "PNG 출력 실패",
+          detail: formatErrorMessage(error, "PNG 출력 전에 변경사항을 저장하지 못했습니다.")
+        });
+        pushStatus(formatErrorMessage(error, "PNG 출력 전에 변경사항을 저장하지 못했습니다."));
+        return;
       }
       const targetTotal = scope === "page" ? 1 : currentChapter.pages.length;
       try {

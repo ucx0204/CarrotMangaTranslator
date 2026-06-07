@@ -59,6 +59,33 @@ describe("library import resource limits", () => {
     expect((await library.listLibrary()).works).toHaveLength(0);
   });
 
+  it("rejects decoded images with an excessive pixel count", async () => {
+    const rootDir = await createTempLibrary();
+    const imagePath = join(rootDir, "huge-pixels.png");
+    await writeFile(imagePath, "small compressed image");
+    const library = await loadLibrary(rootDir, { decodeEmpty: false, width: 20000, height: 8000 });
+
+    await expect(
+      library.createImport({
+        preview: {
+          mode: "single",
+          sourceKind: "images",
+          suggestedWorkTitle: "Huge pixels",
+          chapters: [
+            {
+              draftId: "33333333-3333-4333-8333-333333333333",
+              title: "1화",
+              sourceKind: "images",
+              pages: [{ name: "huge-pixels.png", sourceKind: "file", sourcePath: imagePath }]
+            }
+          ]
+        },
+        target: { mode: "new", title: "Huge pixels" },
+        selections: [{ draftId: "33333333-3333-4333-8333-333333333333", title: "1화", enabled: true }]
+      })
+    ).rejects.toThrow(/해상도가 너무 큽니다/);
+  });
+
   it("normalizes imported webp pages to png before storing them", async () => {
     const rootDir = await createTempLibrary();
     const imagePath = join(rootDir, "001.webp");
@@ -96,7 +123,10 @@ async function createTempLibrary(): Promise<string> {
   return rootDir;
 }
 
-async function loadLibrary(rootDir: string, options: { decodeEmpty: boolean }): Promise<typeof import("../src/main/library")> {
+async function loadLibrary(
+  rootDir: string,
+  options: { decodeEmpty: boolean; width?: number; height?: number }
+): Promise<typeof import("../src/main/library")> {
   vi.resetModules();
   vi.doMock("electron", () => ({
     app: {
@@ -105,7 +135,8 @@ async function loadLibrary(rootDir: string, options: { decodeEmpty: boolean }): 
     nativeImage: {
       createFromPath: () => ({
         isEmpty: () => options.decodeEmpty,
-        getSize: () => (options.decodeEmpty ? { width: 0, height: 0 } : { width: 64, height: 96 })
+        getSize: () =>
+          options.decodeEmpty ? { width: 0, height: 0 } : { width: options.width ?? 64, height: options.height ?? 96 }
       })
     }
   }));

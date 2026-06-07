@@ -34,6 +34,12 @@ import type { IpcContext } from "./context";
 import { emitJobEvent, isAbortError } from "./jobEvents";
 import { trustedHandle } from "./trustedIpc";
 
+function assertNoActiveJob(context: IpcContext): void {
+  if (context.jobs.hasActive) {
+    throw new Error("이미 실행 중인 작업이 있습니다.");
+  }
+}
+
 export function registerInpaintingIpc(context: IpcContext): void {
   trustedHandle(context, "job:start-inpainting", async (_event, rawRequest: unknown): Promise<StartInpaintingResult> => {
     const request = parseIpcPayload(StartInpaintingRequestSchema, rawRequest, "인페인팅 작업");
@@ -222,6 +228,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
 
   trustedHandle(context, "inpainting:apply-retouch", async (_event, rawRequest: unknown): Promise<InpaintingRetouchResult> => {
     const request = parseIpcPayload(InpaintingRetouchRequestSchema, rawRequest, "인페인팅 보정");
+    assertNoActiveJob(context);
     const chapter = await openChapter(request.chapterId);
     const page = chapter.pages.find((candidate) => candidate.id === request.pageId);
     if (!page) {
@@ -245,6 +252,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
 
   trustedHandle(context, "inpainting:set-page-result", async (_event, rawRequest: unknown): Promise<SetPageInpaintingResultResult> => {
     const request = parseIpcPayload(SetPageInpaintingResultRequestSchema, rawRequest, "인페인팅 결과 적용");
+    assertNoActiveJob(context);
     const chapter = await setPageInpaintingResult(request.chapterId, request.pageId, request.inpaintedImagePath ?? undefined, {
       retainedInpaintedArtifactPaths: request.retainedInpaintedArtifactPaths
     });
@@ -256,6 +264,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
 
   trustedHandle(context, "inpainting:revert", async (_event, rawRequest: unknown): Promise<InpaintingRevertResult> => {
     const request = parseIpcPayload(InpaintingRevertRequestSchema, rawRequest, "인페인팅 되돌리기");
+    assertNoActiveJob(context);
     const chapter = await openChapter(request.chapterId);
     const pages =
       request.scope === "page"
@@ -289,9 +298,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
 
   trustedHandle(context, "inpainting:export-results", async (_event, rawRequest: unknown): Promise<InpaintingExportResult> => {
     const request = parseIpcPayload(InpaintingExportRequestSchema, rawRequest, "결과 출력");
-    if (context.jobs.hasActive) {
-      throw new Error("이미 실행 중인 작업이 있습니다.");
-    }
+    assertNoActiveJob(context);
 
     const id = randomUUID();
     const abortController = new AbortController();
@@ -389,7 +396,7 @@ export function registerInpaintingIpc(context: IpcContext): void {
           progressText: "PNG 출력이 취소되었습니다.",
           phase: "cancelled"
         });
-        throw new Error("PNG 출력이 취소되었습니다.");
+        throw new Error("PNG 출력이 취소되었습니다.", { cause: error });
       }
 
       const message = error instanceof Error ? error.message : String(error);

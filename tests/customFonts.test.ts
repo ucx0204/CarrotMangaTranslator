@@ -25,7 +25,7 @@ describe("custom font index validation", () => {
     const validId = "11111111-1111-4111-8111-111111111111";
     const traversalId = "22222222-2222-4222-8222-222222222222";
     const outsidePath = join(rootDir, "outside.otf");
-    await writeFile(join(fontsDir, `${validId}.ttf`), "font");
+    await writeFile(join(fontsDir, `${validId}.ttf`), makeTinyTtfBytes());
     await writeFile(outsidePath, "outside");
     await writeFile(
       join(fontsDir, "index.json"),
@@ -121,4 +121,8 @@ async function loadCustomFonts(rootDir: string): Promise<typeof import("../src/m
     logError: vi.fn()
   }));
   return import("../src/main/customFonts");
+}
+
+function makeTinyTtfBytes(): Buffer {
+  return Buffer.from([0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
 }

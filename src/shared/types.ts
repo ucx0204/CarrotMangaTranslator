@@ -291,11 +291,20 @@ export type ModelTestProgressEvent = {
   installLogLine?: string;
 };
 
-export type StartAnalysisRequest = {
-  chapterId: string;
-  runMode: RunMode;
-  pageId?: string;
-};
+export type StartAnalysisRequest =
+  | {
+      chapterId: string;
+      runMode: "pending";
+    }
+  | {
+      chapterId: string;
+      runMode: "all";
+    }
+  | {
+      chapterId: string;
+      runMode: "single-page";
+      pageId: string;
+    };
 
 export type StartAnalysisResult = {
   status: "completed" | "cancelled" | "failed";
@@ -424,6 +433,7 @@ export type SetPageInpaintingResultResult = {
 export type SavePageBlocksRequest = {
   chapterId: string;
   pageId: string;
+  baseUpdatedAt?: string;
   blocks: TranslationBlock[];
 };
 

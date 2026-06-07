@@ -4,7 +4,7 @@ import { basename } from "node:path";
 import { getAppPaths } from "../appPaths";
 import { decodeImageThroughRuntime } from "../simplePageRuntime";
 import { isSupportedImagePath, sortNaturally } from "./storage";
-import { MAX_IMPORT_IMAGE_BYTES } from "./zipSafety";
+import { MAX_IMPORT_IMAGE_BYTES, MAX_IMPORT_IMAGE_PIXELS } from "./zipSafety";
 
 export async function filterImportImageFiles(filePaths: string[]): Promise<string[]> {
   const normalized = sortNaturally(filePaths.filter((filePath) => isSupportedImagePath(filePath)));
@@ -41,6 +41,9 @@ export async function readDecodedImportImageSize(imagePath: string, label: strin
   const isEmpty = typeof image.isEmpty === "function" ? image.isEmpty() : false;
   if (isEmpty || !Number.isFinite(size.width) || !Number.isFinite(size.height) || size.width < 1 || size.height < 1) {
     throw new Error(`이미지 파일을 읽지 못했습니다: ${label}`);
+  }
+  if (size.width * size.height > MAX_IMPORT_IMAGE_PIXELS) {
+    throw new Error(`${label} 이미지 해상도가 너무 큽니다.`);
   }
   return size;
 }

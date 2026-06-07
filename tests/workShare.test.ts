@@ -433,6 +433,74 @@ describe("work share packages", () => {
     expect(saved.pages[0]?.blocks[0]?.id).toBe("edited-block");
     expect(saved.pages[0]?.blocks[0]?.translatedText).toBe("수정됨");
   });
+
+  it("rejects stale page block saves after another job updates the page", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+    const originalPage = chapter.pages[0]!;
+
+    await library.updatePagesAfterAnalysis("chapter-a", [
+      {
+        page: {
+          ...originalPage,
+          blocks: [
+            {
+              ...originalPage.blocks[0]!,
+              id: "fresh-block",
+              translatedText: "새 분석"
+            }
+          ]
+        },
+        status: "completed",
+        warnings: []
+      }
+    ]);
+
+    await expect(
+      library.savePageBlocks({
+        chapterId: chapter.id,
+        pageId: originalPage.id,
+        baseUpdatedAt: originalPage.updatedAt,
+        blocks: [
+          {
+            ...originalPage.blocks[0]!,
+            translatedText: "오래된 자동 저장"
+          }
+        ]
+      })
+    ).rejects.toThrow(/다른 작업으로 갱신/);
+
+    const reopened = await library.openChapter("chapter-a");
+    expect(reopened.pages[0]?.blocks[0]?.id).toBe("fresh-block");
+    expect(reopened.pages[0]?.blocks[0]?.translatedText).toBe("새 분석");
+  });
+
+  it("preserves existing blocks when an analysis update fails", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+    const originalPage = chapter.pages[0]!;
+
+    await library.updatePagesAfterAnalysis("chapter-a", [
+      {
+        page: {
+          ...originalPage,
+          blocks: []
+        },
+        status: "failed",
+        warnings: ["모델 응답 실패"]
+      }
+    ]);
+
+    const reopened = await library.openChapter("chapter-a");
+    expect(reopened.pages[0]?.analysisStatus).toBe("failed");
+    expect(reopened.pages[0]?.blocks).toHaveLength(1);
+    expect(reopened.pages[0]?.blocks[0]?.id).toBe("block-a");
+    expect(reopened.pages[0]?.blocks[0]?.translatedText).toBe("안녕");
+  });
 });
 
 async function createTempLibrary(): Promise<string> {

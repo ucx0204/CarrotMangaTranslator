@@ -1,5 +1,5 @@
 const { createWriteStream, statSync } = require("node:fs");
-const { mkdir, open, rename, rm } = require("node:fs/promises");
+const { mkdir, open: fsOpen, rename, rm } = require("node:fs/promises");
 const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
 
@@ -202,7 +202,7 @@ async function downloadHfFileWithProgressAttempt(task, options = {}, progress = 
 async function downloadHfFileByRanges(task, options, progress, partPath, totalBytes, startedAt) {
   let file = null;
   try {
-    file = await open(partPath, "w");
+    file = await fsOpen(partPath, "w");
     await file.truncate(totalBytes);
     const knownAggregateBytes = progress.knownAggregateBytes || 0;
     let receivedBytes = 0;

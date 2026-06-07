@@ -211,10 +211,13 @@ export async function removeChapterDirectory(workId: string, chapterId: string):
 }
 
 export function workFilePath(workId: string): string {
+  assertSafeStoreId(workId, "작품 ID가 올바르지 않습니다.");
   return join(WORKS_ROOT, workId, "work.json");
 }
 
 export function chapterFilePath(workId: string, chapterId: string): string {
+  assertSafeStoreId(workId, "작품 ID가 올바르지 않습니다.");
+  assertSafeStoreId(chapterId, "화 ID가 올바르지 않습니다.");
   return join(WORKS_ROOT, workId, "chapters", chapterId, "chapter.json");
 }
 
@@ -405,14 +408,19 @@ function normalizePathSeparators(value: string): string {
 }
 
 function assertChapterStorageLocation(workId: string, chapterId: string): void {
-  if (!isSafeStoreId(workId) || !isSafeStoreId(chapterId)) {
-    throw new Error("화 정보의 보관함 위치가 올바르지 않습니다.");
-  }
+  assertSafeStoreId(workId, "화 정보의 보관함 위치가 올바르지 않습니다.");
+  assertSafeStoreId(chapterId, "화 정보의 보관함 위치가 올바르지 않습니다.");
   const worksRoot = resolve(WORKS_ROOT);
   const chaptersRoot = resolve(join(WORKS_ROOT, workId, "chapters"));
   const chapterDir = resolve(join(chaptersRoot, chapterId));
   if (!isPathInside(worksRoot, chaptersRoot) || chaptersRoot === worksRoot || !isPathInside(chaptersRoot, chapterDir) || chapterDir === chaptersRoot) {
     throw new Error("화 정보의 보관함 위치가 올바르지 않습니다.");
+  }
+}
+
+function assertSafeStoreId(value: string, message: string): void {
+  if (!isSafeStoreId(value)) {
+    throw new Error(message);
   }
 }
 

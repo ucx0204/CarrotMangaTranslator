@@ -49,6 +49,9 @@ export async function savePageBlocksUnlocked(request: SavePageBlocksRequest): Pr
   if (!page) {
     throw new Error("저장할 페이지를 찾지 못했습니다.");
   }
+  if (request.baseUpdatedAt && page.updatedAt !== request.baseUpdatedAt) {
+    throw new Error("페이지가 다른 작업으로 갱신되었습니다. 최신 내용을 다시 불러온 뒤 저장해 주세요.");
+  }
 
   const now = new Date().toISOString();
   const pages = chapter.pages.map((candidate) =>
@@ -248,7 +251,7 @@ export async function updatePagesAfterAnalysisUnlocked(chapterId: string, update
     }
     return {
       ...record,
-      blocks: update.page.blocks,
+      blocks: update.status === "completed" ? update.page.blocks : record.blocks,
       analysisStatus: update.status,
       lastError: update.status === "failed" ? update.warnings[update.warnings.length - 1] : undefined,
       updatedAt: now

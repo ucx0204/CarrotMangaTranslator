@@ -1,4 +1,5 @@
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
+import { isAllowedMainWindowNavigation } from "../mainWindow";
 import type { IpcContext } from "./context";
 
 export function trustedHandle(
@@ -19,6 +20,12 @@ export function assertTrustedIpcSender(event: IpcMainInvokeEvent, context: IpcCo
   }
 
   if (event.sender.id !== mainWindow.webContents.id) {
+    throw new Error("신뢰할 수 없는 IPC 요청입니다.");
+  }
+
+  const senderFrameUrl = event.senderFrame?.url;
+  const rendererUrl = mainWindow.webContents.getURL();
+  if (!senderFrameUrl || !rendererUrl || !isAllowedMainWindowNavigation(senderFrameUrl, rendererUrl)) {
     throw new Error("신뢰할 수 없는 IPC 요청입니다.");
   }
 }

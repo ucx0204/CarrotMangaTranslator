@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { CustomFont } from "../shared/types";
@@ -6,6 +6,7 @@ import { getAppPaths } from "./appPaths";
 import { logError } from "./logger";
 
 const ALLOWED_EXTENSIONS = new Set([".ttf", ".otf"]);
+const MAX_CUSTOM_FONT_BYTES = 32 * 1024 * 1024;
 const MAX_FONTS = 200;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
@@ -110,7 +111,10 @@ export function listCustomFonts(): CustomFont[] {
 
 function saveIndex(fonts: CustomFont[]): void {
   const safeFonts = fonts.map(normalizeCustomFont).filter((font): font is CustomFont => Boolean(font));
-  writeFileSync(indexPath(), JSON.stringify(safeFonts, null, 2), "utf8");
+  const targetPath = indexPath();
+  const tempPath = `${targetPath}.${process.pid}.tmp`;
+  writeFileSync(tempPath, JSON.stringify(safeFonts, null, 2), "utf8");
+  renameSync(tempPath, targetPath);
 }
 
 function sanitizeLabel(raw: string): string {
@@ -127,6 +131,7 @@ export function registerCustomFontFromFile(sourcePath: string): CustomFont {
   if (!ALLOWED_EXTENSIONS.has(ext)) {
     throw new Error("TTF 또는 OTF 폰트 파일만 등록할 수 있습니다.");
   }
+  assertFontFileLooksValid(sourcePath, ext);
   const fonts = listCustomFonts();
   if (fonts.length >= MAX_FONTS) {
     throw new Error("등록할 수 있는 폰트 수를 초과했습니다.");
@@ -142,6 +147,27 @@ export function registerCustomFontFromFile(sourcePath: string): CustomFont {
   };
   saveIndex([...fonts, font]);
   return font;
+}
+
+function assertFontFileLooksValid(sourcePath: string, ext: string): void {
+  const info = statSync(sourcePath);
+  if (!info.isFile()) {
+    throw new Error("폰트 파일을 읽지 못했습니다.");
+  }
+  if (info.size < 12 || info.size > MAX_CUSTOM_FONT_BYTES) {
+    throw new Error("폰트 파일 크기가 올바르지 않습니다.");
+  }
+  const header = readFileSync(sourcePath).subarray(0, 4);
+  const signature = header.toString("latin1");
+  const isTrueType = header[0] === 0x00 && header[1] === 0x01 && header[2] === 0x00 && header[3] === 0x00;
+  const isOtf = signature === "OTTO";
+  const isAppleTrueType = signature === "true";
+  if (ext === ".otf" && !isOtf) {
+    throw new Error("OTF 폰트 파일 형식이 올바르지 않습니다.");
+  }
+  if (ext === ".ttf" && !isTrueType && !isAppleTrueType) {
+    throw new Error("TTF 폰트 파일 형식이 올바르지 않습니다.");
+  }
 }
 
 export function removeCustomFont(id: string): CustomFont[] {

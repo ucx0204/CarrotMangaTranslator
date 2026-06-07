@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
-import type { ChapterSnapshot } from "../../../shared/types";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/types";
 import { clampBbox } from "../../../shared/geometry";
 
 type UseChapterPersistenceOptions = {
@@ -7,6 +7,18 @@ type UseChapterPersistenceOptions = {
   currentChapterRef: React.MutableRefObject<ChapterSnapshot | null>;
   setCurrentChapter: React.Dispatch<React.SetStateAction<ChapterSnapshot | null>>;
 };
+
+function isStalePageSaveError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("페이지가 다른 작업으로 갱신되었습니다");
+}
+
+function serializePageBlocks(page: MangaPage): MangaPage["blocks"] {
+  return page.blocks.map((block) => ({
+    ...block,
+    bbox: clampBbox(block.bbox),
+    renderBbox: block.renderBbox ? clampBbox(block.renderBbox) : undefined
+  }));
+}
 
 export function useChapterPersistence({
   currentChapter,
@@ -28,21 +40,42 @@ export function useChapterPersistence({
   const persistChapter = useCallback(
     async (chapter: ChapterSnapshot, options: { syncState?: boolean } = {}): Promise<ChapterSnapshot> => {
       const dirtyPageIds = [...dirtyPageIdsRef.current];
+      const dirtyPages = new Map(
+        dirtyPageIds
+          .map((pageId) => chapter.pages.find((candidate) => candidate.id === pageId))
+          .filter((page): page is MangaPage => Boolean(page))
+          .map((page) => [page.id, page])
+      );
       let saved = chapter;
       for (const pageId of dirtyPageIds) {
-        const page = chapter.pages.find((candidate) => candidate.id === pageId);
+        const page = dirtyPages.get(pageId);
         if (!page) {
           continue;
         }
-        saved = await window.mangaApi.savePageBlocks({
-          chapterId: saved.id,
-          pageId,
-          blocks: page.blocks.map((block) => ({
-            ...block,
-            bbox: clampBbox(block.bbox),
-            renderBbox: block.renderBbox ? clampBbox(block.renderBbox) : undefined
-          }))
-        });
+        try {
+          saved = await window.mangaApi.savePageBlocks({
+            chapterId: saved.id,
+            pageId,
+            baseUpdatedAt: page.updatedAt,
+            blocks: serializePageBlocks(page)
+          });
+        } catch (error) {
+          if (!isStalePageSaveError(error)) {
+            throw error;
+          }
+
+          const latest = await window.mangaApi.openChapter(saved.id);
+          const latestPage = latest.pages.find((candidate) => candidate.id === pageId);
+          if (!latestPage) {
+            throw error;
+          }
+          saved = await window.mangaApi.savePageBlocks({
+            chapterId: latest.id,
+            pageId,
+            baseUpdatedAt: latestPage.updatedAt,
+            blocks: serializePageBlocks(page)
+          });
+        }
       }
       if (options.syncState !== false && currentChapterRef.current?.id === saved.id) {
         currentChapterRef.current = saved;

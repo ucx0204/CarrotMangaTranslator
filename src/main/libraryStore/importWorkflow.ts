@@ -33,7 +33,7 @@ import {
 } from "./libraryFiles";
 import { safeUnlink } from "./storage";
 import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
-import { AdmZip, MAX_IMPORT_IMAGE_BYTES, readZipEntryData } from "./zipSafety";
+import { AdmZip, MAX_IMPORT_IMAGE_BYTES, assertZipEntryBudget, readZipEntryData, type ZipEntryLike } from "./zipSafety";
 import { hydrateChapter } from "./chapterSnapshots";
 
 export async function previewImages(filePaths: string[]): Promise<ImportPreviewResult> {
@@ -163,6 +163,7 @@ export async function createImportFromPreviewUnlocked(request: CreateImportFromP
   try {
     const selections = new Map(request.selections.map((selection) => [selection.draftId, selection]));
     const usedTitles = await collectUsedChapterTitles(target.id);
+    const zipEntryCache = new Map<string, Map<string, ZipEntryLike>>();
 
     for (const draft of request.preview.chapters) {
       const selection = selections.get(draft.draftId);
@@ -171,7 +172,8 @@ export async function createImportFromPreviewUnlocked(request: CreateImportFromP
       }
 
       const title = makeUniqueTitleInList(sanitizeTitle(selection.title || draft.title, "제목없음"), usedTitles);
-      createdChapters.push(await materializeChapterFromDraft(target.id, draft, title));
+      usedTitles.add(title);
+      createdChapters.push(await materializeChapterFromDraft(target.id, draft, title, zipEntryCache));
     }
 
     if (createdChapters.length === 0) {
@@ -199,7 +201,12 @@ export async function createImportFromPreviewUnlocked(request: CreateImportFromP
   }
 }
 
-async function materializeChapterFromDraft(workId: string, draft: ImportChapterDraft, requestedTitle: string): Promise<LibraryChapter> {
+async function materializeChapterFromDraft(
+  workId: string,
+  draft: ImportChapterDraft,
+  requestedTitle: string,
+  zipEntryCache: Map<string, Map<string, ZipEntryLike>>
+): Promise<LibraryChapter> {
   await ensureExistingWork(workId);
   const now = new Date().toISOString();
   const chapterId = randomUUID();
@@ -212,7 +219,7 @@ async function materializeChapterFromDraft(workId: string, draft: ImportChapterD
 
     const pages: LibraryPageRecord[] = [];
     for (const [index, pageDraft] of draft.pages.entries()) {
-      pages.push(await materializePageRecord(pageDraft, pagesDir, index));
+      pages.push(await materializePageRecord(pageDraft, pagesDir, index, zipEntryCache));
     }
 
     const chapter: LibraryChapter = {
@@ -235,7 +242,12 @@ async function materializeChapterFromDraft(workId: string, draft: ImportChapterD
   }
 }
 
-async function materializePageRecord(pageDraft: ImportPageDraft, pagesDir: string, index: number): Promise<LibraryPageRecord> {
+async function materializePageRecord(
+  pageDraft: ImportPageDraft,
+  pagesDir: string,
+  index: number,
+  zipEntryCache: Map<string, Map<string, ZipEntryLike>>
+): Promise<LibraryPageRecord> {
   const pageId = randomUUID();
   const sourceExt =
     pageDraft.sourceKind === "zip-entry" ? extname(pageDraft.zipEntryName ?? "").toLowerCase() || ".png" : extname(pageDraft.sourcePath).toLowerCase() || ".png";
@@ -243,8 +255,8 @@ async function materializePageRecord(pageDraft: ImportPageDraft, pagesDir: strin
   const outputPath = join(pagesDir, `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`);
 
   if (pageDraft.sourceKind === "zip-entry") {
-    const zip = new AdmZip(pageDraft.sourcePath);
-    const entry = zip.getEntries().find((candidate) => candidate.entryName === pageDraft.zipEntryName);
+    const entryMap = getCachedZipEntryMap(pageDraft.sourcePath, zipEntryCache);
+    const entry = entryMap.get(pageDraft.zipEntryName ?? "");
     if (!entry) {
       throw new Error(`ZIP 항목을 찾지 못했습니다: ${pageDraft.zipEntryName ?? pageDraft.sourcePath}`);
     }
@@ -283,4 +295,20 @@ async function materializePageRecord(pageDraft: ImportPageDraft, pagesDir: strin
     createdAt: now,
     updatedAt: now
   };
+}
+
+function getCachedZipEntryMap(zipPath: string, cache: Map<string, Map<string, ZipEntryLike>>): Map<string, ZipEntryLike> {
+  const cached = cache.get(zipPath);
+  if (cached) {
+    return cached;
+  }
+  const zip = new AdmZip(zipPath);
+  const zipEntries = zip.getEntries();
+  assertZipEntryBudget(zipEntries, "ZIP 파일");
+  const entries = new Map<string, ZipEntryLike>();
+  for (const entry of zipEntries) {
+    entries.set(entry.entryName, entry);
+  }
+  cache.set(zipPath, entries);
+  return entries;
 }

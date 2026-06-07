@@ -34,7 +34,8 @@ export function registerTranslationJobIpc(context: IpcContext): void {
     const emit = (event: JobEvent) => emitJobEvent(context.jobs, context.getMainWindow(), event);
 
     try {
-      resolved = await resolvePagesForRun(request.chapterId, request.runMode, request.pageId);
+      const requestedPageId = request.runMode === "single-page" ? request.pageId : undefined;
+      resolved = await resolvePagesForRun(request.chapterId, request.runMode, requestedPageId);
       if (resolved.pages.length === 0) {
         return {
           status: "completed",

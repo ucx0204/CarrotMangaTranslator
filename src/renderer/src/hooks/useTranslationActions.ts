@@ -1,5 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import type { BBox, ChapterSnapshot, JobState, MangaPage } from "../../../shared/types";
+import type { BBox, ChapterSnapshot, JobState, MangaPage, StartAnalysisRequest } from "../../../shared/types";
 import { isUsableRegionBbox } from "../../../shared/region";
 import { formatErrorMessage } from "../lib/appHelpers";
 import { markChapterPagesRunning } from "../lib/chapterSync";
@@ -39,6 +39,16 @@ function failAnalysisJob(
   pushStatus(message);
 }
 
+function makeStartAnalysisRequest(chapterId: string, runMode: RunAnalysisMode, pageId?: string): StartAnalysisRequest {
+  if (runMode === "single-page") {
+    if (!pageId) {
+      throw new Error("다시 번역할 페이지를 찾지 못했습니다.");
+    }
+    return { chapterId, runMode, pageId };
+  }
+  return { chapterId, runMode };
+}
+
 export function useTranslationActions({
   clearStatusLines,
   currentChapter,
@@ -74,7 +84,7 @@ export function useTranslationActions({
         });
         setCurrentChapter((chapter) => (chapter ? markChapterPagesRunning(chapter, runMode, pageId) : chapter));
 
-        const result = await window.mangaApi.startAnalysis({ chapterId: currentChapter.id, runMode, pageId });
+        const result = await window.mangaApi.startAnalysis(makeStartAnalysisRequest(currentChapter.id, runMode, pageId));
         if (result.chapter) {
           mergeLiveChapter(result.chapter);
         }
