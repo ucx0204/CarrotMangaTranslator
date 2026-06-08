@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 let cachedGpuInfoPromise: Promise<DetectedGpuInfo | null> | null = null;
 
 export type GpuVendor = "nvidia" | "amd" | "unknown";
+export type AmdRocmTarget = "gfx908" | "gfx90a" | "gfx103X" | "gfx110X" | "gfx1150" | "gfx1151" | "gfx120X";
 
 export type DetectedGpuInfo = {
   name: string | null;
@@ -11,6 +12,7 @@ export type DetectedGpuInfo = {
   computeCapability: number | null;
   vendor?: GpuVendor;
   rocmArch?: string | null;
+  rocmTarget?: AmdRocmTarget | null;
   supportsRocm?: boolean;
   supportsVulkan?: boolean;
 };
@@ -64,14 +66,17 @@ async function queryNvidiaGpuInfo(): Promise<DetectedGpuInfo | null> {
 }
 
 async function queryAmdGpuInfo(): Promise<DetectedGpuInfo | null> {
+  const rocmCandidates = await queryRocmSmiGpuInfo();
   const candidates = process.platform === "win32"
-    ? await queryWindowsAmdGpuInfo()
-    : await queryUnixAmdGpuInfo();
+    ? [...(await queryWindowsAmdGpuInfo()), ...rocmCandidates]
+    : rocmCandidates.length > 0
+      ? rocmCandidates
+      : await queryLspciAmdGpuInfo();
   const values = candidates.filter((value): value is DetectedGpuInfo => Boolean(value));
   if (values.length === 0) {
     return null;
   }
-  return values.sort((left, right) => (right.memoryMb ?? 0) - (left.memoryMb ?? 0))[0];
+  return values.sort(compareAmdGpuPriority)[0];
 }
 
 function parseNvidiaSmiGpuLine(line: string): DetectedGpuInfo | null {
@@ -115,14 +120,6 @@ async function queryWindowsAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> 
   }
 }
 
-async function queryUnixAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
-  const fromRocmSmi = await queryRocmSmiGpuInfo();
-  if (fromRocmSmi.length > 0) {
-    return fromRocmSmi;
-  }
-  return queryLspciAmdGpuInfo();
-}
-
 async function queryRocmSmiGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
   try {
     const stdout = await execFileAsync("rocm-smi", ["--showproductname", "--showmeminfo", "vram", "--csv"]);
@@ -146,6 +143,7 @@ async function queryLspciAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
         computeCapability: null,
         vendor: "amd" as const,
         rocmArch: null,
+        rocmTarget: inferAmdRocmTargetFromName(name),
         supportsRocm: false,
         supportsVulkan: true
       }));
@@ -165,6 +163,7 @@ export function parseWindowsAmdGpuLine(line: string): DetectedGpuInfo | null {
   const parsedMemoryMb = Number.isFinite(bytes) && bytes > 0 ? Math.round(bytes / 1024 / 1024) : null;
   const inferredMemoryMb = inferAmdVramMbFromName(name);
   const memoryMb = parsedMemoryMb && parsedMemoryMb >= 4096 ? parsedMemoryMb : inferredMemoryMb;
+  const rocmTarget = inferAmdRocmTargetFromName(name);
   return {
     name,
     memoryMb,
@@ -172,7 +171,8 @@ export function parseWindowsAmdGpuLine(line: string): DetectedGpuInfo | null {
     computeCapability: null,
     vendor: "amd",
     rocmArch: null,
-    supportsRocm: false,
+    rocmTarget,
+    supportsRocm: Boolean(rocmTarget),
     supportsVulkan: true
   };
 }
@@ -197,7 +197,9 @@ export function inferAmdVramMbFromName(name: string | null | undefined): number 
     [/\b(rx\s*)?6750\s*xt\b/, 12288],
     [/\b(rx\s*)?6700\s*xt\b/, 12288],
     [/\b(rx\s*)?6600\s*xt\b/, 8192],
-    [/\b(rx\s*)?6600\b/, 8192]
+    [/\b(rx\s*)?6600\b/, 8192],
+    [/\b(rx\s*)?6500\s*xt\b/, 4096],
+    [/\b(rx\s*)?6400\b/, 4096]
   ];
   return rules.find(([pattern]) => pattern.test(normalized))?.[1] ?? null;
 }
@@ -211,6 +213,7 @@ export function parseRocmSmiGpuLine(line: string): DetectedGpuInfo | null {
   const name = parts.find((part) => /radeon|instinct|amd/i.test(part)) || parts[1] || parts[0] || null;
   const memoryMb = parseMemoryMb(parts.join(" "));
   const arch = parseRocmArch(parts.join(" "));
+  const rocmTarget = resolveAmdRocmTargetFromArch(arch) ?? inferAmdRocmTargetFromName(name);
   return {
     name,
     memoryMb,
@@ -218,7 +221,8 @@ export function parseRocmSmiGpuLine(line: string): DetectedGpuInfo | null {
     computeCapability: null,
     vendor: "amd",
     rocmArch: arch,
-    supportsRocm: Boolean(arch) || process.platform !== "win32",
+    rocmTarget,
+    supportsRocm: Boolean(rocmTarget),
     supportsVulkan: true
   };
 }
@@ -251,9 +255,102 @@ function parseMemoryMb(value: string): number | null {
   return null;
 }
 
-function parseRocmArch(value: string): string | null {
+export function parseRocmArch(value: string): string | null {
   const match = value.match(/\bgfx[0-9a-f]+(?:[:_a-z0-9.-]*)?\b/i);
-  return match ? match[0] : null;
+  return match ? match[0].toLowerCase() : null;
+}
+
+export function normalizeAmdRocmTarget(value: unknown): AmdRocmTarget | null {
+  const normalized = String(value ?? "").trim().toLowerCase().replace(/[-_\s]/g, "");
+  if (!normalized) {
+    return null;
+  }
+  if (normalized === "gfx908") {
+    return "gfx908";
+  }
+  if (normalized === "gfx90a") {
+    return "gfx90a";
+  }
+  if (/^gfx103[0-9a-fx]*$/.test(normalized)) {
+    return "gfx103X";
+  }
+  if (/^gfx110[0-9a-fx]*$/.test(normalized)) {
+    return "gfx110X";
+  }
+  if (normalized === "gfx1150") {
+    return "gfx1150";
+  }
+  if (normalized === "gfx1151") {
+    return "gfx1151";
+  }
+  if (/^gfx120[0-9a-fx]*$/.test(normalized)) {
+    return "gfx120X";
+  }
+  if (normalized === "gfx103x") {
+    return "gfx103X";
+  }
+  if (normalized === "gfx110x") {
+    return "gfx110X";
+  }
+  if (normalized === "gfx120x") {
+    return "gfx120X";
+  }
+  return null;
+}
+
+export function resolveAmdRocmTargetFromArch(arch: string | null | undefined): AmdRocmTarget | null {
+  return normalizeAmdRocmTarget(parseRocmArch(String(arch ?? "")) ?? arch);
+}
+
+export function inferAmdRocmTargetFromName(name: string | null | undefined): AmdRocmTarget | null {
+  const normalized = String(name ?? "").toLowerCase().replace(/[™®]/g, " ");
+  if (!normalized.trim()) {
+    return null;
+  }
+
+  if (/\bmi\s*100\b|\binstinct\s+mi100\b/.test(normalized)) {
+    return "gfx908";
+  }
+  if (/\bmi\s*210\b|\binstinct\s+mi210\b/.test(normalized)) {
+    return "gfx90a";
+  }
+  if (/\b(rx\s*)?90(60|70)\b|\b(rx\s*)?90(60|70)\s*(xt|gre)\b/.test(normalized)) {
+    return "gfx120X";
+  }
+  if (
+    /\b(rx\s*)?7(600|700|800|900)\b|\b(rx\s*)?7(600|700|800|900)\s*(xt|xtx|gre)\b/.test(normalized) ||
+    /\b(pro\s*)?w7(600|700|800|900)\b/.test(normalized) ||
+    /\bradeon\s+(740m|760m|780m)\b/.test(normalized)
+  ) {
+    return "gfx110X";
+  }
+  if (
+    /\b(rx\s*)?6(400|500|600|700|750|800|900|950)\b|\b(rx\s*)?6(400|500|600|700|750|800|900|950)\s*(xt|m|s)\b/.test(normalized)
+  ) {
+    return "gfx103X";
+  }
+  if (/\bryzen\s+ai\s+max\b|\bstrix\s+halo\b|\bradeon\s+80(50|60)s\b/.test(normalized)) {
+    return "gfx1151";
+  }
+  if (
+    /\bryzen\s+ai\s+(9|7|5)\s+(3\d{2}|hx)\b|\bstrix\s+point\b|\bradeon\s+(880m|890m)\b/.test(normalized)
+  ) {
+    return "gfx1150";
+  }
+  return null;
+}
+
+export function resolveAmdRocmTargetFromInfo(info: DetectedGpuInfo | null | undefined): AmdRocmTarget | null {
+  return normalizeAmdRocmTarget(info?.rocmTarget) ?? resolveAmdRocmTargetFromArch(info?.rocmArch) ?? inferAmdRocmTargetFromName(info?.name);
+}
+
+function compareAmdGpuPriority(left: DetectedGpuInfo, right: DetectedGpuInfo): number {
+  const leftRocm = resolveAmdRocmTargetFromInfo(left) ? 1 : 0;
+  const rightRocm = resolveAmdRocmTargetFromInfo(right) ? 1 : 0;
+  if (leftRocm !== rightRocm) {
+    return rightRocm - leftRocm;
+  }
+  return (right.memoryMb ?? 0) - (left.memoryMb ?? 0);
 }
 
 function execFileAsync(file: string, args: string[]): Promise<string> {

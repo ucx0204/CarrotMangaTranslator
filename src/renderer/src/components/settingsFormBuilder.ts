@@ -45,7 +45,8 @@ export function buildSettingsFromForm(input: BuildSettingsFromFormInput): AppSet
     ...(input.localModelPath ? { localModelPath: input.localModelPath } : {}),
     ...(input.localMmprojPath ? { localMmprojPath: input.localMmprojPath } : {}),
     vramMode: input.vramMode,
-    llamaRuntimeProfile: input.llamaRuntimeProfile
+    llamaRuntimeProfile: input.llamaRuntimeProfile,
+    ...(input.initialSettings.gemma.llamaRocmTarget ? { llamaRocmTarget: input.initialSettings.gemma.llamaRocmTarget } : {})
   };
   const ocr = {
     device: input.ocrDevice,

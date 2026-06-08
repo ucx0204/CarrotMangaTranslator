@@ -85,6 +85,7 @@ function buildOptionSummary(options = {}) {
     imageFirst: options.imageFirst,
     reuseServer: options.reuseServer,
     llamaRuntimeProfile: options.llamaRuntimeProfile,
+    llamaRocmTarget: options.llamaRocmTarget,
     workingDir: options.workingDir,
     toolsDir: options.toolsDir,
     serverPath: options.serverPath,

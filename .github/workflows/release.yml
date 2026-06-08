@@ -36,39 +36,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download bundled beellama runtime
-        shell: pwsh
-        run: |
-          $runtimeDir = Join-Path $PWD "tools/beellama-v0.2.0-cuda12.4"
-          $binZip = Join-Path $env:RUNNER_TEMP "beellama-v0.2.0-bin-win-cuda-12.4-x64.zip"
-          $cudaZip = Join-Path $env:RUNNER_TEMP "cudart-llama-bin-win-cuda-12.4-x64.zip"
-
-          New-Item -ItemType Directory -Force -Path $runtimeDir | Out-Null
-          Invoke-WebRequest -Uri "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-12.4-x64.zip" -OutFile $binZip
-          Invoke-WebRequest -Uri "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-12.4-x64.zip" -OutFile $cudaZip
-          Expand-Archive -Path $binZip -DestinationPath $runtimeDir -Force
-          Expand-Archive -Path $cudaZip -DestinationPath $runtimeDir -Force
-
-      - name: Prepare bundled Python runtime
-        run: node scripts/prepare-ocr-python.cjs
-
-      - name: Verify bundled Flux Klein runtime
-        shell: pwsh
-        run: |
-          $runner = Join-Path $PWD "tools/mgt-flux-klein/mgt-flux-klein.exe"
-          if (-not (Test-Path $runner)) {
-            throw "Missing bundled Flux Klein runner: $runner"
-          }
-          $size = (Get-Item $runner).Length
-          if ($size -lt 1048576) {
-            throw "Bundled Flux Klein runner is too small: $size bytes"
-          }
-          Write-Host "Bundled Flux Klein runner: $runner ($size bytes)"
-
-      - name: Prepare bundled Flux CUDA runtime
-        run: node scripts/prepare-flux-cuda-runtime.cjs
-
       - name: Build Windows release
+        env:
+          MGT_THIN_INSTALLER: "1"
+          MGT_ALLOW_MISSING_FLUX_RUNNER: "1"
         run: npm run build && npx electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never
 
       - name: Resolve release metadata

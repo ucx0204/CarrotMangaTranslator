@@ -61,7 +61,9 @@ async function loadSettingsStore(rootDir: string): Promise<typeof import("../src
     })
   }));
   vi.doMock("../src/main/gpuInfo", () => ({
-    detectBestGpuInfo: async () => null
+    detectBestGpuInfo: async () => null,
+    normalizeAmdRocmTarget: () => null,
+    resolveAmdRocmTargetFromInfo: () => null
   }));
   return import("../src/main/settingsStore");
 }

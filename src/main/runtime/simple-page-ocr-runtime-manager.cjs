@@ -39,6 +39,10 @@ const {
   ensurePaddleOcrModelAssetsDownloaded
 } = require("./simple-page-model-assets.cjs");
 const {
+  downloadHfFileWithProgress,
+  probeContentLength
+} = require("./simple-page-download-utils.cjs");
+const {
   createDetailedError,
   emitRuntimeProgress
 } = require("./simple-page-runtime-common.cjs");
@@ -49,6 +53,10 @@ const {
 const {
   readPositiveInteger
 } = require("./simple-page-prompts.cjs");
+
+const DEFAULT_EMBED_PYTHON_VERSION = "3.12.7";
+const DEFAULT_GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py";
+const PYTHON_RUNTIME_MARKER_FILE = ".mgt-bootstrap-python.json";
 
 async function ensurePaddleOcrRuntime(options = {}) {
   const diagnostics = [];
@@ -87,9 +95,9 @@ async function ensurePaddleOcrRuntime(options = {}) {
     importCheck = { ok: false, message: "OCR runtime package signature changed" };
   }
 
-  const bootstrapPython = resolveBootstrapPython(options);
+  let bootstrapPython = resolveBootstrapPython(options);
   if (!bootstrapPython) {
-    throw new Error("PaddleOCR-VL bbox provider needs Python. Bundle tools/python/python.exe or set MANGA_TRANSLATOR_OCR_PYTHON.");
+    bootstrapPython = await ensureManagedBootstrapPython(options, runtimeDir);
   }
   ensureEmbeddedPythonPackagePath(bootstrapPython, packageDir, runtimeDir);
   importCheck = !existsSync(venvPython)
@@ -224,6 +232,217 @@ async function ensurePaddleOcrRuntime(options = {}) {
   });
 
   return finalizePaddleOcrRuntime(options, { runtimeDir, runtimeVariant, packageDir, pythonPath: installPython, prepared: true, usesTargetPackageDir: Boolean(targetDir), diagnostics, ...cachePaths });
+}
+
+async function ensureManagedBootstrapPython(options = {}, runtimeDir) {
+  if (process.platform !== "win32") {
+    throw new Error("PaddleOCR-VL bbox provider needs Python. Install Python 3 or set MANGA_TRANSLATOR_OCR_PYTHON.");
+  }
+
+  const version = String(runtimeOverrideEnv("MANGA_TRANSLATOR_EMBED_PYTHON_VERSION", options) || DEFAULT_EMBED_PYTHON_VERSION).trim();
+  const pythonUrl = String(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_EMBED_PYTHON_URL", options) ||
+      `https://www.python.org/ftp/python/${version}/python-${version}-embed-amd64.zip`
+  ).trim();
+  const getPipUrl = String(runtimeOverrideEnv("MANGA_TRANSLATOR_GET_PIP_URL", options) || DEFAULT_GET_PIP_URL).trim();
+  const bootstrapRoot = path.join(runtimeDir, "bootstrap-python");
+  const pythonDir = path.join(bootstrapRoot, `python-${version}`);
+  const pythonExe = path.join(pythonDir, "python.exe");
+  const markerPath = path.join(pythonDir, PYTHON_RUNTIME_MARKER_FILE);
+
+  if (isCurrentManagedBootstrapPython(pythonExe, markerPath, { version, pythonUrl, getPipUrl })) {
+    sanitizeStandaloneEmbeddedPythonPathFile(pythonDir);
+    return pythonExe;
+  }
+
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR Python 준비 중", `Python ${version}`, {
+    progressMode: "log-only",
+    installLogLine: "설치 파일에 Python을 묶지 않았기 때문에 OCR용 Python을 앱 데이터 폴더에 준비합니다."
+  });
+
+  await rm(pythonDir, { recursive: true, force: true });
+  await mkdir(pythonDir, { recursive: true });
+  const downloadsDir = path.join(runtimeDir, ".downloads", "python");
+  await mkdir(downloadsDir, { recursive: true });
+  const zipName = path.basename(new URL(pythonUrl).pathname) || `python-${version}-embed-amd64.zip`;
+  const zipPath = path.join(downloadsDir, zipName);
+  const getPipPath = path.join(downloadsDir, "get-pip.py");
+
+  await downloadGenericFileWithRuntimeProgress(
+    {
+      label: "Paddle OCR Python",
+      file: zipName,
+      url: pythonUrl,
+      destination: zipPath,
+      progressTitle: "Paddle OCR Python 다운로드 중",
+      completeTitle: "Paddle OCR Python 다운로드 완료"
+    },
+    options
+  );
+
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR Python 압축 해제 중", zipName, {
+    progressMode: "indeterminate",
+    installLogLine: "OCR용 Python 압축을 앱 데이터 폴더에 풀고 있습니다."
+  });
+  await extractZipWithPowerShell(zipPath, pythonDir, options);
+  if (!existsSync(pythonExe)) {
+    throw createOcrRuntimeError("OCR용 Python 압축을 풀었지만 python.exe를 찾지 못했습니다.", {
+      pythonDir,
+      pythonUrl
+    });
+  }
+  sanitizeStandaloneEmbeddedPythonPathFile(pythonDir);
+
+  await downloadGenericFileWithRuntimeProgress(
+    {
+      label: "Paddle OCR pip",
+      file: "get-pip.py",
+      url: getPipUrl,
+      destination: getPipPath,
+      progressTitle: "Paddle OCR pip 다운로드 중",
+      completeTitle: "Paddle OCR pip 다운로드 완료"
+    },
+    options
+  );
+
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR pip 설치 중", `Python ${version}`, {
+    progressMode: "indeterminate",
+    installLogLine: "OCR용 Python에 pip를 설치합니다."
+  });
+  await runShellCommand(`${quoteCommandArg(pythonExe)} ${quoteCommandArg(getPipPath)} --no-warn-script-location`, {
+    timeoutMs: 300000,
+    env: buildBootstrapPythonEnv(runtimeDir),
+    signal: options.abortSignal,
+    onOutput: (line) =>
+      emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR pip 설치 중", `Python ${version}`, {
+        progressMode: "indeterminate",
+        installLogLine: line
+      })
+  });
+
+  await writeFile(markerPath, `${JSON.stringify({
+    version,
+    pythonUrl,
+    getPipUrl,
+    installedAt: new Date().toISOString()
+  }, null, 2)}\n`, "utf8");
+  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR Python 준비 완료", `Python ${version}`, {
+    progressMode: "determinate",
+    progressPercent: 1,
+    installLogLine: "OCR용 Python 준비가 완료되었습니다."
+  });
+  return pythonExe;
+}
+
+function isCurrentManagedBootstrapPython(pythonExe, markerPath, expected) {
+  try {
+    if (!existsSync(pythonExe)) {
+      return false;
+    }
+    const marker = JSON.parse(readFileSync(markerPath, "utf8"));
+    return marker?.version === expected.version && marker?.pythonUrl === expected.pythonUrl && marker?.getPipUrl === expected.getPipUrl;
+  } catch {
+    return false;
+  }
+}
+
+async function downloadGenericFileWithRuntimeProgress(task, options = {}) {
+  const totalBytes = await probeContentLength(task.url, options.abortSignal);
+  await downloadHfFileWithProgress(
+    {
+      ...task,
+      kind: "runtime",
+      progressPhase: "ocr_downloading"
+    },
+    options,
+    {
+      totalBytes,
+      knownAggregateBytes: 0,
+      completedBytes: 0
+    }
+  );
+}
+
+async function extractZipWithPowerShell(zipPath, destinationDir, options = {}) {
+  if (process.platform !== "win32") {
+    throw new Error("ZIP extraction for managed OCR Python is currently supported on Windows only.");
+  }
+  const command = [
+    "powershell.exe",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-Command",
+    quoteCommandArg(`Expand-Archive -LiteralPath '${escapePowerShellSingleQuoted(zipPath)}' -DestinationPath '${escapePowerShellSingleQuoted(destinationDir)}' -Force`)
+  ].join(" ");
+  await runShellCommand(command, {
+    timeoutMs: 300000,
+    env: buildBootstrapPythonEnv(path.dirname(path.dirname(destinationDir))),
+    signal: options.abortSignal
+  });
+}
+
+function escapePowerShellSingleQuoted(value) {
+  return String(value).replace(/'/g, "''");
+}
+
+function buildBootstrapPythonEnv(runtimeDir) {
+  const env = {
+    ...process.env,
+    PYTHONNOUSERSITE: "1",
+    PYTHONUTF8: "1",
+    PYTHONUNBUFFERED: "1",
+    TMP: path.join(runtimeDir, "tmp"),
+    TEMP: path.join(runtimeDir, "tmp")
+  };
+  delete env.PYTHONHOME;
+  delete env.PYTHONPATH;
+  delete env.PYTHONUSERBASE;
+  return env;
+}
+
+function sanitizeStandaloneEmbeddedPythonPathFile(outputDir) {
+  let pthName;
+  try {
+    pthName = readdirSync(outputDir).find((name) => /^python\d+._pth$/i.test(name)) || "";
+  } catch {
+    return;
+  }
+  if (!pthName) {
+    return;
+  }
+
+  const pthPath = path.join(outputDir, pthName);
+  try {
+    const text = readFileSync(pthPath, "utf8");
+    const sanitized = [];
+    for (const line of text.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (trimmed === "#import site" || trimmed === "import site") {
+        continue;
+      }
+      if (isManagedOcrPackagePathLine(trimmed, outputDir, "")) {
+        continue;
+      }
+      if (!trimmed && sanitized[sanitized.length - 1] === "") {
+        continue;
+      }
+      sanitized.push(line);
+    }
+    while (sanitized.length > 0 && sanitized[sanitized.length - 1] === "") {
+      sanitized.pop();
+    }
+    if (sanitized.length > 0) {
+      sanitized.push("");
+    }
+    sanitized.push("import site");
+    const nextText = `${sanitized.join("\n")}\n`;
+    if (nextText !== text) {
+      writeFileSync(pthPath, nextText, "utf8");
+    }
+  } catch {
+    // The OCR install path can still fall back to a venv/target install.
+  }
 }
 
 async function finalizePaddleOcrRuntime(options, runtime) {

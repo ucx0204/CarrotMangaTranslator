@@ -11,6 +11,7 @@ export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm";
 export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
+export type AmdRocmTarget = "gfx908" | "gfx90a" | "gfx103X" | "gfx110X" | "gfx1150" | "gfx1151" | "gfx120X";
 export type FluxBackend = "cuda-native" | "python-rocm" | "python-cpu";
 
 export type GemmaSettings = {
@@ -23,6 +24,7 @@ export type GemmaSettings = {
   localMmprojPath?: string;
   vramMode: GemmaVramMode;
   llamaRuntimeProfile?: LlamaRuntimeProfile;
+  llamaRocmTarget?: AmdRocmTarget;
 };
 
 export type CodexSettings = {

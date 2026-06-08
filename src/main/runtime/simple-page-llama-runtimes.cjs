@@ -124,25 +124,40 @@ const MAINLINE_LLAMA_RUNTIME_VULKAN = {
   ]
 };
 
-const MAINLINE_LLAMA_RUNTIME_ROCM = {
-  id: "llama-b9547-rocm",
-  kind: "mainline",
-  backend: "rocm",
-  dir: "llama-b9547-rocm",
-  archive: "llama-b9547-bin-win-hip-radeon-x64.zip",
-  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-hip-radeon-x64.zip",
-  archives: [
-    {
-      archive: "llama-b9547-bin-win-hip-radeon-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-hip-radeon-x64.zip"
-    }
-  ],
-  requiredFiles: [
-    "llama-server.exe",
-    "llama-server-impl.dll",
-    ["ggml-hip.dll", "ggml-rocm.dll", "libggml-hip.so", "libggml-rocm.so"]
-  ]
-};
+const LEMONADE_LLAMA_ROCM_RELEASE = "b1291";
+const LEMONADE_LLAMA_ROCM_BASE_URL = `https://github.com/lemonade-sdk/llamacpp-rocm/releases/download/${LEMONADE_LLAMA_ROCM_RELEASE}`;
+
+function createLemonadeLlamaRuntimeRocm(target) {
+  const archive = `llama-${LEMONADE_LLAMA_ROCM_RELEASE}-windows-rocm-${target}-x64.zip`;
+  return {
+    id: `lemonade-llama-${LEMONADE_LLAMA_ROCM_RELEASE}-rocm-${target}`,
+    kind: "lemonade-rocm",
+    backend: "rocm",
+    dir: `lemonade-llama-${LEMONADE_LLAMA_ROCM_RELEASE}-rocm-${target}`,
+    archive,
+    url: `${LEMONADE_LLAMA_ROCM_BASE_URL}/${archive}`,
+    archives: [
+      {
+        archive,
+        url: `${LEMONADE_LLAMA_ROCM_BASE_URL}/${archive}`
+      }
+    ],
+    requiredFiles: [
+      "llama-server.exe",
+      ["llama-server-impl.dll", "llama.dll"],
+      ["amdhip64.dll"],
+      ["ggml-hip.dll", "ggml-rocm.dll", "libggml-hip.so", "libggml-rocm.so"]
+    ]
+  };
+}
+
+function resolveLemonadeLlamaRuntimeRocm(target) {
+  const normalized = String(target || "").trim();
+  if (!normalized) {
+    throw new Error("AMD ROCm GPU target is required.");
+  }
+  return createLemonadeLlamaRuntimeRocm(normalized);
+}
 
 const LLAMA_RUNTIME_MARKER_FILE = ".mgt-runtime.json";
 const LLAMA_RUNTIME_FILES = new Set([
@@ -211,6 +226,6 @@ module.exports = {
   LLAMA_RUNTIME_MARKER_FILE,
   MAINLINE_LLAMA_RUNTIME_CUDA12,
   MAINLINE_LLAMA_RUNTIME_CUDA13,
-  MAINLINE_LLAMA_RUNTIME_ROCM,
-  MAINLINE_LLAMA_RUNTIME_VULKAN
+  MAINLINE_LLAMA_RUNTIME_VULKAN,
+  resolveLemonadeLlamaRuntimeRocm
 };

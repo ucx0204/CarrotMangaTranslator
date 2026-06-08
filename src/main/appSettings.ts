@@ -1,5 +1,6 @@
 import type {
   AppSettings,
+  AmdRocmTarget,
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
@@ -36,6 +37,7 @@ import {
   RTX_50_OCR_GPU_CUDA_TAG
 } from "../shared/modelPresets";
 import type { DetectedGpuInfo } from "./gpuInfo";
+import { normalizeAmdRocmTarget, resolveAmdRocmTargetFromInfo } from "./gpuInfo";
 import { DEFAULT_IMAGE_TOKENS, GEMMA_RUNTIME_PRESETS } from "./settings/gemmaRuntimePresets";
 import {
   isRtx50LlamaRuntimeProfile,
@@ -82,7 +84,7 @@ const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12 = "beellama-v0.2.0-cuda12.4";
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 = "beellama-v0.2.0-cuda13.1";
 const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b9547-cuda12.4";
 const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9547-cuda13.3";
-const MAINLINE_LLAMA_RUNTIME_DIR_ROCM = "llama-b9547-rocm";
+const LEMONADE_LLAMA_RUNTIME_ROCM_RELEASE = "b1291";
 const MAINLINE_LLAMA_RUNTIME_DIR_VULKAN = "llama-b9547-vulkan";
 const GEMMA_MINIMUM_VRAM_MB = 8000;
 const GEMMA_ECONOMY_VRAM_MB = 16000;
@@ -134,6 +136,7 @@ export type TranslationOptions = {
   imageFirst: boolean;
   reuseServer: boolean;
   llamaRuntimeProfile?: string;
+  llamaRocmTarget?: string;
   workingDir: string;
   toolsDir: string;
   ocrRuntimeDir?: string;
@@ -209,6 +212,9 @@ export function resolveDefaultAppSettings(
   const vramMode = resolveGemmaVramMode(env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE, hardwareDefaults.gemmaVramMode);
   const defaultGemmaPreset = getDefaultGemmaPresetForVramMode(vramMode);
   const llamaRuntimeProfile = resolveLlamaRuntimeProfile(env, hardwareDefaults.llamaRuntimeProfile);
+  const llamaRocmTarget =
+    normalizeAmdRocmTarget(env.MANGA_TRANSLATOR_AMD_ROCM_TARGET ?? env.MANGA_TRANSLATOR_AMD_GFX_ARCH) ??
+    hardwareDefaults.llamaRocmTarget;
   return {
     modelProvider: resolveModelProvider(env.MANGA_TRANSLATOR_MODEL_PROVIDER, hardwareDefaults.modelProvider),
     gemma: {
@@ -218,7 +224,8 @@ export function resolveDefaultAppSettings(
       mmprojRepo: resolveOptionalString(env.MANGA_TRANSLATOR_MMPROJ_HF) ?? defaultGemmaPreset.mmprojRepo,
       mmprojFile: resolveOptionalString(env.LLAMA_ARG_MMPROJ_FILE) ?? defaultGemmaPreset.mmprojFile,
       vramMode,
-      llamaRuntimeProfile
+      llamaRuntimeProfile,
+      ...(llamaRocmTarget ? { llamaRocmTarget } : {})
     },
     codex: {
       model: resolveNonEmptyString(env.MANGA_TRANSLATOR_CODEX_MODEL, DEFAULT_CODEX_MODEL),
@@ -260,6 +267,7 @@ export function resolveHardwareDefaults(
   ocrGpuCudaTag: string;
   ocrGpuBackend: OcrGpuBackend;
   llamaRuntimeProfile: LlamaRuntimeProfile;
+  llamaRocmTarget?: AmdRocmTarget;
   fluxBackend: FluxBackend;
 } {
   const info = normalizeDetectedGpuInfo(detectedGpu);
@@ -267,6 +275,7 @@ export function resolveHardwareDefaults(
   const supportedRtxGeneration = (info?.rtxGeneration ?? 0) >= GEMMA_MINIMUM_RTX_GENERATION;
   const supportedComputeCapability = (info?.computeCapability ?? 0) >= GEMMA_MINIMUM_COMPUTE_CAPABILITY;
   const supportedAmdGpu = isAmd && Boolean(info?.supportsVulkan || info?.supportsRocm);
+  const llamaRocmTarget = resolveHardwareLlamaRocmTarget(info);
   const supportsGemma =
     !!info?.memoryMb &&
     info.memoryMb >= GEMMA_MINIMUM_VRAM_MB &&
@@ -279,6 +288,7 @@ export function resolveHardwareDefaults(
       ocrGpuCudaTag: resolveHardwareOcrGpuCudaTag(info),
       ocrGpuBackend: resolveHardwareOcrGpuBackend(info),
       llamaRuntimeProfile: resolveHardwareLlamaRuntimeProfile(info),
+      ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
       fluxBackend: resolveHardwareFluxBackend(info)
     };
   }
@@ -296,6 +306,7 @@ export function resolveHardwareDefaults(
       ocrGpuCudaTag,
       ocrGpuBackend,
       llamaRuntimeProfile,
+      ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
       fluxBackend: resolveHardwareFluxBackend(info)
     };
   }
@@ -307,6 +318,7 @@ export function resolveHardwareDefaults(
       ocrGpuCudaTag,
       ocrGpuBackend,
       llamaRuntimeProfile,
+      ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
       fluxBackend: resolveHardwareFluxBackend(info)
     };
   }
@@ -317,6 +329,7 @@ export function resolveHardwareDefaults(
     ocrGpuCudaTag,
     ocrGpuBackend,
     llamaRuntimeProfile,
+    ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
     fluxBackend: resolveHardwareFluxBackend(info)
   };
 }
@@ -343,6 +356,7 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
     modelSource === "huggingface" ? resolveStoredGemmaMmproj(asRecord(gemma), resolvedModel, modeDefaults) : {};
   const localModelPath = resolveOptionalString(asRecord(gemma)?.localModelPath);
   const localMmprojPath = resolveOptionalString(asRecord(gemma)?.localMmprojPath);
+  const llamaRocmTarget = normalizeAmdRocmTarget(asRecord(gemma)?.llamaRocmTarget ?? defaults.gemma.llamaRocmTarget);
   const resolvedOcr = asRecord(ocr);
   return {
     modelProvider: resolveModelProvider(record?.modelProvider, defaults.modelProvider),
@@ -355,7 +369,8 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
       ...(localModelPath ? { localModelPath } : {}),
       ...(localMmprojPath ? { localMmprojPath } : {}),
       vramMode: resolvedVramMode,
-      llamaRuntimeProfile: resolveLlamaRuntimeProfile({}, asRecord(gemma)?.llamaRuntimeProfile ?? defaults.gemma.llamaRuntimeProfile)
+      llamaRuntimeProfile: resolveLlamaRuntimeProfile({}, asRecord(gemma)?.llamaRuntimeProfile ?? defaults.gemma.llamaRuntimeProfile),
+      ...(llamaRocmTarget ? { llamaRocmTarget } : {})
     },
     codex: {
       model: resolveNonEmptyString(asRecord(codex)?.model, defaults.codex.model),
@@ -413,6 +428,9 @@ export function buildBaseTranslationOptions({
     settings.ocr.gpuBackend ?? "cuda"
   );
   const llamaRuntimeProfile = resolveLlamaRuntimeProfile(runtimeEnv, settings.gemma.llamaRuntimeProfile);
+  const llamaRocmTarget =
+    normalizeAmdRocmTarget(runtimeEnv.MANGA_TRANSLATOR_AMD_ROCM_TARGET ?? runtimeEnv.MANGA_TRANSLATOR_AMD_GFX_ARCH) ??
+    normalizeAmdRocmTarget(settings.gemma.llamaRocmTarget);
   return {
     imagePath: "",
     outputDir: runDir,
@@ -494,12 +512,13 @@ export function buildBaseTranslationOptions({
     imageFirst: true,
     reuseServer: true,
     llamaRuntimeProfile,
+    ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
     workingDir: paths.dataRoot,
     toolsDir: paths.toolsDir,
     serverPath:
       resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_LLAMA_SERVER_PATH) ??
       resolveOptionalString(runtimeEnv.LLAMA_SERVER_PATH) ??
-      resolveDefaultLlamaServerPathForGemma(paths, runtimeGemma, llamaRuntimeProfile),
+      resolveDefaultLlamaServerPathForGemma(paths, runtimeGemma, llamaRuntimeProfile, llamaRocmTarget ?? undefined),
     modelSource: runtimeGemma.modelSource,
     modelRepo: resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_MODEL_HF) ?? runtimeGemma.modelRepo,
     modelFile: resolveOptionalString(runtimeEnv.LLAMA_ARG_HF_FILE) ?? runtimeGemma.modelFile,
@@ -650,6 +669,13 @@ function resolveHardwareOcrGpuBackend(info: DetectedGpuInfo | null): OcrGpuBacke
   return info?.vendor === "amd" ? "rocm" : "cuda";
 }
 
+function resolveHardwareLlamaRocmTarget(info: DetectedGpuInfo | null): AmdRocmTarget | undefined {
+  if (info?.vendor !== "amd") {
+    return undefined;
+  }
+  return resolveAmdRocmTargetFromInfo(info) ?? undefined;
+}
+
 function resolveHardwareFluxBackend(info: DetectedGpuInfo | null): FluxBackend {
   if (info?.vendor !== "amd") {
     return "cuda-native";
@@ -725,6 +751,7 @@ function normalizeDetectedGpuInfo(value?: number | DetectedGpuInfo | null): Dete
     computeCapability,
     vendor: value.vendor === "nvidia" || value.vendor === "amd" ? value.vendor : "unknown",
     rocmArch: typeof value.rocmArch === "string" ? value.rocmArch : null,
+    rocmTarget: normalizeAmdRocmTarget(value.rocmTarget),
     supportsRocm: typeof value.supportsRocm === "boolean" ? value.supportsRocm : false,
     supportsVulkan: typeof value.supportsVulkan === "boolean" ? value.supportsVulkan : false
   };
@@ -795,7 +822,8 @@ function resolveRuntimeGemmaSettings(
 function resolveDefaultLlamaServerPathForGemma(
   paths: TranslationOptionPaths,
   gemma: AppSettings["gemma"],
-  llamaRuntimeProfile = "cuda12"
+  llamaRuntimeProfile = "cuda12",
+  llamaRocmTarget?: string
 ): string {
   if (gemma.modelSource !== "huggingface" || !isBuiltInGemmaModel({ modelRepo: gemma.modelRepo, modelFile: gemma.modelFile })) {
     return paths.llamaServerPath;
@@ -803,7 +831,8 @@ function resolveDefaultLlamaServerPathForGemma(
   const binaryName = process.platform === "win32" ? "llama-server.exe" : "llama-server";
   const useCuda13 = isRtx50LlamaRuntimeProfile(llamaRuntimeProfile);
   if (isRocmLlamaRuntimeProfile(llamaRuntimeProfile)) {
-    return join(paths.dataRoot, "tools", MAINLINE_LLAMA_RUNTIME_DIR_ROCM, binaryName);
+    const rocmTarget = normalizeAmdRocmTarget(llamaRocmTarget) ?? "unknown";
+    return join(paths.dataRoot, "tools", `lemonade-llama-${LEMONADE_LLAMA_RUNTIME_ROCM_RELEASE}-rocm-${rocmTarget}`, binaryName);
   }
   if (isVulkanLlamaRuntimeProfile(llamaRuntimeProfile)) {
     return join(paths.dataRoot, "tools", MAINLINE_LLAMA_RUNTIME_DIR_VULKAN, binaryName);

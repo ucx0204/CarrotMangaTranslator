@@ -1,4 +1,5 @@
 import type { DetectedGpuInfo } from "../gpuInfo";
+import { resolveAmdRocmTargetFromInfo } from "../gpuInfo";
 import type { LlamaRuntimeProfile } from "../../shared/types";
 
 export function resolveLlamaRuntimeProfile(
@@ -43,7 +44,7 @@ export function canonicalizeLlamaRuntimeProfile(value: unknown): LlamaRuntimePro
 
 export function resolveHardwareLlamaRuntimeProfile(info: DetectedGpuInfo | null): LlamaRuntimeProfile {
   if (info?.vendor === "amd") {
-    return "vulkan";
+    return resolveAmdRocmTargetFromInfo(info) ? "rocm" : "vulkan";
   }
   if ((info?.computeCapability ?? 0) >= 12) {
     return "rtx50";

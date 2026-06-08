@@ -368,6 +368,40 @@ describe("app settings helpers", () => {
     expect(fullOptions.serverPath).toBe(join("C:/app-data", "tools", "beellama-v0.2.0-cuda13.1", "llama-server.exe"));
   });
 
+  it("routes known AMD GPUs to Lemonade ROCm runtime targets", () => {
+    const amdDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon RX 7900 XTX",
+        memoryMb: 24576,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: false
+      }
+    );
+    const options = buildBaseTranslationOptions({
+      jobId: "job-amd-rocm",
+      runDir: "C:/runs/job-amd-rocm",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub"
+      },
+      settings: amdDefaults,
+      env: {}
+    });
+
+    expect(amdDefaults.gemma.llamaRuntimeProfile).toBe("rocm");
+    expect(amdDefaults.gemma.llamaRocmTarget).toBe("gfx110X");
+    expect(options.llamaRuntimeProfile).toBe("rocm");
+    expect(options.llamaRocmTarget).toBe("gfx110X");
+    expect(options.serverPath).toBe(join("C:/app-data", "tools", "lemonade-llama-b1291-rocm-gfx110X", "llama-server.exe"));
+  });
+
   it("keeps Paddle OCR CUDA tag separate from the llama runtime profile", () => {
     const defaults = resolveDefaultAppSettings();
     const paths = {
@@ -599,7 +633,8 @@ describe("app settings helpers", () => {
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "rocm",
       fluxBackend: "python-cpu",
-      llamaRuntimeProfile: "vulkan"
+      llamaRuntimeProfile: "rocm",
+      llamaRocmTarget: "gfx110X"
     });
     expect(
       resolveHardwareDefaults({
@@ -618,7 +653,8 @@ describe("app settings helpers", () => {
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "rocm",
       fluxBackend: process.platform === "win32" ? "python-cpu" : "python-rocm",
-      llamaRuntimeProfile: process.platform === "win32" ? "vulkan" : "rocm"
+      llamaRuntimeProfile: "rocm",
+      llamaRocmTarget: "gfx110X"
     });
     expect(resolveHardwareDefaults(null)).toEqual({
       modelProvider: "openai-codex",

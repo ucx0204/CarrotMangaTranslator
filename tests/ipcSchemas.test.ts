@@ -145,7 +145,8 @@ describe("IPC schemas", () => {
         modelRepo: "owner/repo",
         modelFile: "model.gguf",
         vramMode: "economy",
-        llamaRuntimeProfile: "rtx50"
+        llamaRuntimeProfile: "rtx50",
+        llamaRocmTarget: "gfx1100"
       },
       codex: {
         model: "gpt-5.5",
@@ -165,6 +166,7 @@ describe("IPC schemas", () => {
     expect(parsed.maxTokens).toBe(12000);
     expect(parsed.gemma.vramMode).toBe("economy26b");
     expect(parsed.gemma.llamaRuntimeProfile).toBe("rtx50");
+    expect(parsed.gemma.llamaRocmTarget).toBe("gfx110X");
     expect(parsed.inpainting?.fluxBackend).toBe("python-rocm");
     expect(
       parseIpcPayload(

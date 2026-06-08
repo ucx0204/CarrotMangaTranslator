@@ -1,6 +1,7 @@
 const { existsSync } = require("node:fs");
 const { join } = require("node:path");
 
+const thinInstaller = process.env.MGT_THIN_INSTALLER === "1";
 const extraResources = [
   {
     from: "out/app-runtime",
@@ -8,7 +9,7 @@ const extraResources = [
   }
 ];
 
-if (existsSync(join(__dirname, "tools", "python"))) {
+if (!thinInstaller && existsSync(join(__dirname, "tools", "python"))) {
   extraResources.push({
     from: "tools/python",
     to: "tools/python"
@@ -28,7 +29,7 @@ if (existsSync(fluxKleinRunnerPath)) {
     from: "tools/mgt-flux-klein",
     to: "tools/mgt-flux-klein"
   });
-} else if (process.env.MGT_ALLOW_MISSING_FLUX_RUNNER !== "1") {
+} else if (!thinInstaller && process.env.MGT_ALLOW_MISSING_FLUX_RUNNER !== "1") {
   throw new Error(
     `Missing ${fluxKleinRunnerPath}. Run node scripts/prepare-flux-klein-runner.cjs before packaging.`
   );
@@ -48,6 +49,12 @@ module.exports = {
     "!tools{,/**/*}",
     "!models{,/**/*}",
     "!library{,/**/*}",
+    "!ocr-runtime{,/**/*}",
+    "!hf-cache{,/**/*}",
+    "!llama.cpp{,/**/*}",
+    "!fonts{,/**/*}",
+    "!dist{,/**/*}",
+    "!tmp{,/**/*}",
     "!.tmp{,/**/*}",
     "!.venv-glmocr{,/**/*}",
     "!logs{,/**/*}",

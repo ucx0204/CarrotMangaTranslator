@@ -9,8 +9,40 @@ describe("Windows installer clean uninstall option", () => {
     const config = readFileSync(join(repoRoot, "electron-builder.config.cjs"), "utf8");
 
     expect(config).toContain('include: "build/installer.nsh"');
+    expect(config).toContain("MGT_THIN_INSTALLER");
     expect(config).toContain('from: "tools/ffmpeg"');
     expect(config).toContain('to: "tools/ffmpeg"');
+    expect(config).toContain('!dist{,/**/*}');
+    expect(config).toContain('!ocr-runtime{,/**/*}');
+    expect(config).toContain('!hf-cache{,/**/*}');
+    expect(config).toContain('!llama.cpp{,/**/*}');
+    expect(config).toContain('!tmp{,/**/*}');
+    expect(config).toContain('!fonts{,/**/*}');
+  });
+
+  it("builds one thin Windows installer instead of separate NVIDIA/AMD bundles", () => {
+    const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    const releaseWorkflow = readFileSync(join(repoRoot, ".github", "workflows", "release.yml"), "utf8");
+
+    expect(packageJson.scripts["dist:win"]).toBe("node scripts/dist-win-thin.cjs");
+    expect(packageJson.scripts["dist:win:nvidia"]).toBe("node scripts/dist-win-thin.cjs");
+    expect(packageJson.scripts["dist:win:amd"]).toBe("node scripts/dist-win-thin.cjs");
+    expect(releaseWorkflow).toContain('MGT_THIN_INSTALLER: "1"');
+    expect(releaseWorkflow).not.toContain("Prepare bundled Python runtime");
+    expect(releaseWorkflow).not.toContain("Prepare bundled Flux CUDA runtime");
+  });
+
+  it("downloads OCR bootstrap Python at first run when the installer is thin", () => {
+    const ocrRuntime = readFileSync(join(repoRoot, "src", "main", "runtime", "simple-page-ocr-runtime-manager.cjs"), "utf8");
+
+    expect(ocrRuntime).toContain("ensureManagedBootstrapPython");
+    expect(ocrRuntime).toContain("python-${version}-embed-amd64.zip");
+    expect(ocrRuntime).toContain("Paddle OCR Python 다운로드 중");
+    expect(ocrRuntime).toContain("Paddle OCR pip 설치 중");
+    expect(ocrRuntime).toContain("Expand-Archive");
+    expect(ocrRuntime).not.toContain('require("adm-zip")');
   });
 
   it("offers an optional clean uninstall section for app data and OCR cache", () => {

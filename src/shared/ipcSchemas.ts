@@ -50,6 +50,31 @@ const LlamaRuntimeProfileSchema = z.preprocess((value) => {
   }
   return value;
 }, z.enum(["cuda12", "rtx50", "rocm", "vulkan"]));
+const AmdRocmTargetSchema = z.preprocess((value) => {
+  const normalized = String(value ?? "").trim().toLowerCase().replace(/[-_\s]/g, "");
+  if (normalized === "gfx908") {
+    return "gfx908";
+  }
+  if (normalized === "gfx90a") {
+    return "gfx90a";
+  }
+  if (/^gfx103[0-9a-fx]*$/.test(normalized)) {
+    return "gfx103X";
+  }
+  if (/^gfx110[0-9a-fx]*$/.test(normalized)) {
+    return "gfx110X";
+  }
+  if (normalized === "gfx1150") {
+    return "gfx1150";
+  }
+  if (normalized === "gfx1151") {
+    return "gfx1151";
+  }
+  if (/^gfx120[0-9a-fx]*$/.test(normalized)) {
+    return "gfx120X";
+  }
+  return value;
+}, z.enum(["gfx908", "gfx90a", "gfx103X", "gfx110X", "gfx1150", "gfx1151", "gfx120X"]));
 const FluxBackendSchema = z.preprocess((value) => {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (["auto", ""].includes(normalized)) {
@@ -312,7 +337,8 @@ export const AppSettingsSchema = z
         localModelPath: filePath.optional(),
         localMmprojPath: filePath.optional(),
         vramMode: GemmaVramModeSchema,
-        llamaRuntimeProfile: LlamaRuntimeProfileSchema.optional()
+        llamaRuntimeProfile: LlamaRuntimeProfileSchema.optional(),
+        llamaRocmTarget: AmdRocmTargetSchema.optional()
       })
       .strict(),
     codex: z

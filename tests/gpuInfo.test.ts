@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { parseRocmSmiGpuLine, parseRtxGeneration, parseWindowsAmdGpuLine } from "../src/main/gpuInfo";
+import {
+  inferAmdRocmTargetFromName,
+  parseRocmSmiGpuLine,
+  parseRtxGeneration,
+  parseWindowsAmdGpuLine,
+  resolveAmdRocmTargetFromArch
+} from "../src/main/gpuInfo";
 
 describe("GPU info helpers", () => {
   it("parses NVIDIA RTX generations from common GPU names", () => {
@@ -19,7 +25,8 @@ describe("GPU info helpers", () => {
       computeCapability: null,
       vendor: "amd",
       rocmArch: null,
-      supportsRocm: false,
+      rocmTarget: "gfx110X",
+      supportsRocm: true,
       supportsVulkan: true
     });
   });
@@ -32,8 +39,19 @@ describe("GPU info helpers", () => {
       computeCapability: null,
       vendor: "amd",
       rocmArch: "gfx1100",
+      rocmTarget: "gfx110X",
       supportsRocm: true,
       supportsVulkan: true
     });
+  });
+
+  it("maps AMD GPU names and gfx arch strings to Lemonade ROCm runtime targets", () => {
+    expect(resolveAmdRocmTargetFromArch("gfx1200")).toBe("gfx120X");
+    expect(resolveAmdRocmTargetFromArch("gfx1101")).toBe("gfx110X");
+    expect(resolveAmdRocmTargetFromArch("gfx1034")).toBe("gfx103X");
+    expect(inferAmdRocmTargetFromName("AMD Radeon RX 9070 XT")).toBe("gfx120X");
+    expect(inferAmdRocmTargetFromName("AMD Radeon RX 7900 XTX")).toBe("gfx110X");
+    expect(inferAmdRocmTargetFromName("AMD Radeon RX 6800 XT")).toBe("gfx103X");
+    expect(inferAmdRocmTargetFromName("AMD Radeon 890M")).toBe("gfx1150");
   });
 });

@@ -7,9 +7,10 @@ const {
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
   MAINLINE_LLAMA_RUNTIME_CUDA12,
   MAINLINE_LLAMA_RUNTIME_CUDA13,
-  MAINLINE_LLAMA_RUNTIME_ROCM,
-  MAINLINE_LLAMA_RUNTIME_VULKAN
+  MAINLINE_LLAMA_RUNTIME_VULKAN,
+  resolveLemonadeLlamaRuntimeRocm
 } = require("./simple-page-llama-runtimes.cjs");
+const { resolveAmdRocmTargetFromOptions } = require("./simple-page-amd-rocm-target.cjs");
 const {
   resolveConfiguredLocalModelPath,
   resolveConfiguredModelFile,
@@ -218,7 +219,15 @@ function isBuiltInGemmaRuntimeModel(options = {}) {
 function resolvePreferredLlamaRuntime(options = {}) {
   const profile = resolveLlamaRuntimeProfile(options);
   if (profile === "rocm") {
-    return MAINLINE_LLAMA_RUNTIME_ROCM;
+    const rocmTarget = resolveAmdRocmTargetFromOptions(options);
+    if (!rocmTarget) {
+      throw createDetailedError("AMD GPU 아키텍처를 확인하지 못해 ROCm llama 런타임을 선택할 수 없습니다.", {
+        llamaRuntimeProfile: "rocm",
+        hint:
+          "AMD GPU 이름/ROCm gfx 아키텍처를 감지하지 못했습니다. 설정을 Vulkan으로 바꾸거나 MANGA_TRANSLATOR_AMD_ROCM_TARGET=gfx103X/gfx110X/gfx1150/gfx1151/gfx120X 중 하나로 지정하세요."
+      });
+    }
+    return resolveLemonadeLlamaRuntimeRocm(rocmTarget);
   }
   if (profile === "vulkan") {
     return MAINLINE_LLAMA_RUNTIME_VULKAN;
