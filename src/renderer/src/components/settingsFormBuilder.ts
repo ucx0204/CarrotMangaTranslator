@@ -1,10 +1,13 @@
 import type {
   AppSettings,
   CodexReasoningEffort,
+  FluxBackend,
   GemmaVramMode,
+  LlamaRuntimeProfile,
   ModelProvider,
   ModelSource,
-  OcrDevice
+  OcrDevice,
+  OcrGpuBackend
 } from "../../../shared/types";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
@@ -22,10 +25,13 @@ type BuildSettingsFromFormInput = {
   localModelPath: string;
   localMmprojPath: string;
   vramMode: GemmaVramMode;
+  llamaRuntimeProfile: LlamaRuntimeProfile;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   codexOauthPort: number;
   ocrDevice: OcrDevice;
+  ocrGpuBackend: OcrGpuBackend;
+  fluxBackend: FluxBackend;
   maxTokens: number;
 };
 
@@ -39,12 +45,11 @@ export function buildSettingsFromForm(input: BuildSettingsFromFormInput): AppSet
     ...(input.localModelPath ? { localModelPath: input.localModelPath } : {}),
     ...(input.localMmprojPath ? { localMmprojPath: input.localMmprojPath } : {}),
     vramMode: input.vramMode,
-    ...(input.initialSettings.gemma.llamaRuntimeProfile
-      ? { llamaRuntimeProfile: input.initialSettings.gemma.llamaRuntimeProfile }
-      : {})
+    llamaRuntimeProfile: input.llamaRuntimeProfile
   };
   const ocr = {
     device: input.ocrDevice,
+    gpuBackend: input.ocrGpuBackend,
     ...(input.initialSettings.ocr.gpuCudaTag ? { gpuCudaTag: input.initialSettings.ocr.gpuCudaTag } : {})
   };
 
@@ -58,7 +63,10 @@ export function buildSettingsFromForm(input: BuildSettingsFromFormInput): AppSet
     },
     ocr,
     ui: input.initialSettings.ui,
+    inpainting: {
+      ...input.initialSettings.inpainting,
+      fluxBackend: input.fluxBackend
+    },
     maxTokens: input.maxTokens
   };
 }
-

@@ -2,9 +2,9 @@ import { nativeImage } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import { clamp } from "../shared/geometry";
-import type { InpaintingMaskStroke, InpaintingPoint, MangaPage } from "../shared/types";
+import type { FluxBackend, InpaintingMaskStroke, InpaintingPoint, MangaPage } from "../shared/types";
 import {
-  ensureMgtFluxKleinRuntime,
+  ensureFluxWorkerLaunch,
   ensureRemoteFile,
   FLUX_MODEL_FILE,
   FLUX_MODEL_REPO,
@@ -210,35 +210,58 @@ export async function inpaintDrawnPatternPage(
 export async function prepareFluxInpaintingEngine(options: {
   runtimeDir: string;
   modelDir: string;
+  fluxBackend?: FluxBackend;
   runRootDir?: string;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
 }): Promise<FluxInpaintingEngine> {
-  const runtimePath = await ensureMgtFluxKleinRuntime(options);
-  const [modelPath, vaePath] = await Promise.all([
-    ensureRemoteFile({
-      ...options,
-      fileName: FLUX_MODEL_FILE,
-      label: "Flux Klein 4B",
-      url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE)
-    }),
-    ensureRemoteFile({
-      ...options,
-      fileName: FLUX_VAE_FILE,
-      label: "Flux small decoder",
-      url: hfResolveUrl(FLUX_VAE_REPO, FLUX_VAE_FILE)
-    })
-  ]);
+  const launch = await ensureFluxWorkerLaunch({
+    runtimeDir: options.runtimeDir,
+    modelDir: options.modelDir,
+    backend: options.fluxBackend ?? "cuda-native",
+    signal: options.signal,
+    onProgress: options.onProgress
+  });
+  let modelPath: string | undefined;
+  let vaePath: string | undefined;
+  if (launch.backend === "cuda-native") {
+    [modelPath, vaePath] = await Promise.all([
+      ensureRemoteFile({
+        ...options,
+        fileName: FLUX_MODEL_FILE,
+        label: "Flux Klein 4B",
+        url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE)
+      }),
+      ensureRemoteFile({
+        ...options,
+        fileName: FLUX_VAE_FILE,
+        label: "Flux small decoder",
+        url: hfResolveUrl(FLUX_VAE_REPO, FLUX_VAE_FILE)
+      })
+    ]);
+    launch.args = [
+      "--transformer-path",
+      modelPath,
+      "--vae-path",
+      vaePath,
+      "--steps",
+      "4",
+      "--strength",
+      "1",
+      "--mask-padding",
+      String(FLUX_INPAINT_MASK_PADDING_PX)
+    ];
+  }
 
   options.onProgress?.({
     progressText: "Flux 인페인팅 준비 완료",
-    detail: "FLUX.2 Klein 4B",
+    detail: launch.label,
     progressMode: "log-only",
     installLogLine: "Flux 원문 지우기 엔진 준비가 완료되었습니다."
   });
 
   return createFluxEngine({
-    runtimePath,
+    launch,
     modelPath,
     vaePath,
     runRootDir: options.runRootDir ?? resolveDefaultFluxRunRootDir(options.runtimeDir)

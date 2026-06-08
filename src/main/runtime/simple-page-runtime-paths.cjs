@@ -6,7 +6,9 @@ const {
   BEELLAMA_LLAMA_RUNTIME_CUDA12,
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
   MAINLINE_LLAMA_RUNTIME_CUDA12,
-  MAINLINE_LLAMA_RUNTIME_CUDA13
+  MAINLINE_LLAMA_RUNTIME_CUDA13,
+  MAINLINE_LLAMA_RUNTIME_ROCM,
+  MAINLINE_LLAMA_RUNTIME_VULKAN
 } = require("./simple-page-llama-runtimes.cjs");
 const {
   resolveConfiguredLocalModelPath,
@@ -80,6 +82,23 @@ function hasCudaRuntimeBackend(runtimeDir) {
   }
 }
 
+function hasLlamaRuntimeBackend(runtimeDir, backend = "cuda") {
+  const normalized = String(backend || "cuda").trim().toLowerCase();
+  try {
+    if (normalized === "vulkan") {
+      return ["ggml-vulkan.dll", "libggml-vulkan.so"].some((fileName) => existsSync(path.join(runtimeDir, fileName)));
+    }
+    if (normalized === "rocm" || normalized === "hip") {
+      return ["ggml-hip.dll", "ggml-rocm.dll", "libggml-hip.so", "libggml-rocm.so"].some((fileName) =>
+        existsSync(path.join(runtimeDir, fileName))
+      );
+    }
+    return hasCudaRuntimeBackend(runtimeDir);
+  } catch {
+    return false;
+  }
+}
+
 function hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
   if (!runtimeDir || !runtime) {
     return false;
@@ -91,7 +110,7 @@ function hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
         return false;
       }
     }
-    return hasCudaRuntimeBackend(runtimeDir);
+    return hasLlamaRuntimeBackend(runtimeDir, runtime.backend);
   } catch {
     return false;
   }
@@ -105,8 +124,15 @@ function missingRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
       missing.push(candidates.join(" | "));
     }
   }
-  if (!hasCudaRuntimeBackend(runtimeDir)) {
-    missing.push("ggml-cuda.dll | ggml-cuda-cu12.dll | ggml-cuda-cu13.dll");
+  if (!hasLlamaRuntimeBackend(runtimeDir, runtime?.backend)) {
+    const backend = String(runtime?.backend || "cuda").toLowerCase();
+    if (backend === "vulkan") {
+      missing.push("ggml-vulkan.dll | libggml-vulkan.so");
+    } else if (backend === "rocm" || backend === "hip") {
+      missing.push("ggml-hip.dll | ggml-rocm.dll | libggml-hip.so | libggml-rocm.so");
+    } else {
+      missing.push("ggml-cuda.dll | ggml-cuda-cu12.dll | ggml-cuda-cu13.dll");
+    }
   }
   return missing;
 }
@@ -130,6 +156,22 @@ function shouldUseRtx50LlamaRuntime(options = {}) {
   }
   const cudaTag = String(options.ocrGpuCudaTag ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG", options) ?? "").trim().toLowerCase();
   return cudaTag === "cu129" || cudaTag === "cu13" || cudaTag === "cu131" || cudaTag === "cu133";
+}
+
+function resolveLlamaRuntimeProfile(options = {}) {
+  const profile = String(options.llamaRuntimeProfile ?? runtimeOverrideEnv("MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE", options) ?? "")
+    .trim()
+    .toLowerCase();
+  if (["rocm", "hip", "amd-rocm"].includes(profile)) {
+    return "rocm";
+  }
+  if (["vulkan", "vk", "amd-vulkan"].includes(profile)) {
+    return "vulkan";
+  }
+  if (["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(profile)) {
+    return "rtx50";
+  }
+  return "cuda12";
 }
 
 function isGemma26BModel(options = {}) {
@@ -174,6 +216,13 @@ function isBuiltInGemmaRuntimeModel(options = {}) {
 }
 
 function resolvePreferredLlamaRuntime(options = {}) {
+  const profile = resolveLlamaRuntimeProfile(options);
+  if (profile === "rocm") {
+    return MAINLINE_LLAMA_RUNTIME_ROCM;
+  }
+  if (profile === "vulkan") {
+    return MAINLINE_LLAMA_RUNTIME_VULKAN;
+  }
   const rtx50Runtime = shouldUseRtx50LlamaRuntime(options);
   if (isMainlineGemmaModel(options)) {
     return rtx50Runtime ? MAINLINE_LLAMA_RUNTIME_CUDA13 : MAINLINE_LLAMA_RUNTIME_CUDA12;
@@ -197,6 +246,7 @@ function defaultServerPath(options = {}) {
     return preferredManagedPath;
   }
   return (
+    existingCandidates.find((candidate) => hasLlamaRuntimeBackend(path.dirname(candidate), preferredRuntime.backend)) ||
     existingCandidates.find((candidate) => hasCudaRuntimeBackend(path.dirname(candidate))) ||
     existingCandidates[0] ||
     resolveBundledServerPath(dirs[0] || resolveToolsDir(options))
@@ -243,6 +293,7 @@ function resolveFfmpegPath(options = {}) {
 module.exports = {
   defaultServerPath,
   hasCudaRuntimeBackend,
+  hasLlamaRuntimeBackend,
   hasRequiredLlamaRuntimeFiles,
   isBuiltInGemmaRuntimeModel,
   isGemma12BModel,

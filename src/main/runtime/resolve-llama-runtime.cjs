@@ -10,6 +10,8 @@ function bundledServerCandidates(toolsDir) {
   const knownRuntimeDirs = [
     "beellama-v0.2.0-cuda13.1",
     "beellama-v0.2.0-cuda12.4",
+    "llama-b9547-rocm",
+    "llama-b9547-vulkan",
     "llama-b9547-cuda13.3",
     "llama-b9547-cuda12.4",
     "llama-b9360-cuda13.1",
@@ -37,9 +39,31 @@ function hasCudaBackend(serverPath) {
   ].some((fileName) => existsSync(join(runtimeDir, fileName)));
 }
 
+function hasRocmBackend(serverPath) {
+  const runtimeDir = dirname(serverPath);
+  return [
+    "ggml-hip.dll",
+    "ggml-rocm.dll",
+    "libggml-hip.so",
+    "libggml-rocm.so"
+  ].some((fileName) => existsSync(join(runtimeDir, fileName)));
+}
+
+function hasVulkanBackend(serverPath) {
+  const runtimeDir = dirname(serverPath);
+  return [
+    "ggml-vulkan.dll",
+    "libggml-vulkan.so"
+  ].some((fileName) => existsSync(join(runtimeDir, fileName)));
+}
+
+function hasGpuBackend(serverPath) {
+  return hasCudaBackend(serverPath) || hasRocmBackend(serverPath) || hasVulkanBackend(serverPath);
+}
+
 function resolveBundledServerPath(toolsDir) {
   const candidates = bundledServerCandidates(toolsDir).filter((candidate) => existsSync(candidate));
-  return candidates.find((candidate) => hasCudaBackend(candidate))
+  return candidates.find((candidate) => hasGpuBackend(candidate))
     ?? candidates[0]
     ?? bundledServerCandidates(toolsDir)[0];
 }
@@ -71,5 +95,8 @@ function uniquePaths(paths) {
 module.exports = {
   bundledServerCandidates,
   hasCudaBackend,
+  hasGpuBackend,
+  hasRocmBackend,
+  hasVulkanBackend,
   resolveBundledServerPath
 };

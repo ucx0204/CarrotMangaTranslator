@@ -2,11 +2,14 @@ import React from "react";
 import type {
   AppSettings,
   CodexReasoningEffort,
+  FluxBackend,
   GemmaVramMode,
+  LlamaRuntimeProfile,
   ModelTestProgressEvent,
   ModelProvider,
   ModelSource,
-  OcrDevice
+  OcrDevice,
+  OcrGpuBackend
 } from "../../../shared/types";
 import {
   CODEX_REASONING_OPTIONS,
@@ -15,7 +18,10 @@ import {
   MODEL_PRESETS,
   MODEL_PROVIDER_OPTIONS,
   MODEL_SOURCE_OPTIONS,
+  FLUX_BACKEND_OPTIONS,
   OCR_DEVICE_OPTIONS,
+  OCR_GPU_BACKEND_OPTIONS,
+  LLAMA_RUNTIME_PROFILE_OPTIONS,
   resolveModelPreset,
   type ModelPresetId
 } from "./settingsOptions";
@@ -68,12 +74,19 @@ export function SettingsModal({
   const [localModelPath, setLocalModelPath] = React.useState(initialSettings.gemma.localModelPath ?? "");
   const [localMmprojPath, setLocalMmprojPath] = React.useState(initialSettings.gemma.localMmprojPath ?? "");
   const [customVramMode, setCustomVramMode] = React.useState<GemmaVramMode>(initialSettings.gemma.vramMode);
+  const [llamaRuntimeProfile, setLlamaRuntimeProfile] = React.useState<LlamaRuntimeProfile>(
+    initialSettings.gemma.llamaRuntimeProfile ?? "cuda12"
+  );
   const [codexModel, setCodexModel] = React.useState(initialSettings.codex.model);
   const [codexReasoningEffort, setCodexReasoningEffort] = React.useState<CodexReasoningEffort>(
     initialSettings.codex.reasoningEffort
   );
   const [codexOauthPort, setCodexOauthPort] = React.useState(String(initialSettings.codex.oauthPort));
   const [ocrDevice, setOcrDevice] = React.useState<OcrDevice>(initialSettings.ocr.device);
+  const [ocrGpuBackend, setOcrGpuBackend] = React.useState<OcrGpuBackend>(initialSettings.ocr.gpuBackend ?? "cuda");
+  const [fluxBackend, setFluxBackend] = React.useState<FluxBackend>(
+    initialSettings.inpainting?.fluxBackend ?? "cuda-native"
+  );
   const [maxTokens, setMaxTokens] = React.useState(String(initialSettings.maxTokens));
   const [localActionBusy, setLocalActionBusy] = React.useState(false);
   const [testState, setTestState] = React.useState<TestState>({ status: "idle", message: null, detail: null });
@@ -91,10 +104,13 @@ export function SettingsModal({
     setLocalModelPath(initialSettings.gemma.localModelPath ?? "");
     setLocalMmprojPath(initialSettings.gemma.localMmprojPath ?? "");
     setCustomVramMode(initialSettings.gemma.vramMode);
+    setLlamaRuntimeProfile(initialSettings.gemma.llamaRuntimeProfile ?? "cuda12");
     setCodexModel(initialSettings.codex.model);
     setCodexReasoningEffort(initialSettings.codex.reasoningEffort);
     setCodexOauthPort(String(initialSettings.codex.oauthPort));
     setOcrDevice(initialSettings.ocr.device);
+    setOcrGpuBackend(initialSettings.ocr.gpuBackend ?? "cuda");
+    setFluxBackend(initialSettings.inpainting?.fluxBackend ?? "cuda-native");
     setMaxTokens(String(initialSettings.maxTokens));
     setTestState({ status: "idle", message: null, detail: null });
     setTestLogLines([]);
@@ -164,10 +180,13 @@ export function SettingsModal({
       localModelPath: trimmedLocalModelPath,
       localMmprojPath: trimmedLocalMmprojPath,
       vramMode: selectedVramMode,
+      llamaRuntimeProfile,
       codexModel: trimmedCodexModel,
       codexReasoningEffort,
       codexOauthPort: codexOauthPortValid ? parsedCodexOauthPort : initialSettings.codex.oauthPort,
       ocrDevice,
+      ocrGpuBackend,
+      fluxBackend,
       maxTokens: parsedMaxTokens
     });
   }, [
@@ -185,8 +204,11 @@ export function SettingsModal({
     parsedCodexOauthPort,
     parsedMaxTokens,
     selectedVramMode,
+    llamaRuntimeProfile,
     codexReasoningEffort,
     ocrDevice,
+    ocrGpuBackend,
+    fluxBackend,
     initialSettings.codex.oauthPort,
     maxTokensValid
   ]);
@@ -397,6 +419,56 @@ export function SettingsModal({
             </p>
           </div>
 
+          {ocrDevice === "gpu" ? (
+            <div className="settings-field-stack">
+              <span>OCR GPU 백엔드</span>
+              <div className="settings-mode-group" role="tablist" aria-label="OCR GPU 백엔드">
+                {OCR_GPU_BACKEND_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`settings-preset-button ${ocrGpuBackend === option.id ? "active" : ""}`}
+                    onClick={() => {
+                      clearTestState();
+                      setOcrGpuBackend(option.id);
+                    }}
+                    disabled={controlsBusy}
+                    aria-pressed={ocrGpuBackend === option.id}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <p className="muted-line modal-note">
+                {OCR_GPU_BACKEND_OPTIONS.find((option) => option.id === ocrGpuBackend)?.description}
+              </p>
+            </div>
+          ) : null}
+
+          <div className="settings-field-stack">
+            <span>Flux 인페인팅 백엔드</span>
+            <div className="settings-preset-group" role="tablist" aria-label="Flux 인페인팅 백엔드">
+              {FLUX_BACKEND_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`settings-preset-button ${fluxBackend === option.id ? "active" : ""}`}
+                  onClick={() => {
+                    clearTestState();
+                    setFluxBackend(option.id);
+                  }}
+                  disabled={controlsBusy}
+                  aria-pressed={fluxBackend === option.id}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="muted-line modal-note">
+              {FLUX_BACKEND_OPTIONS.find((option) => option.id === fluxBackend)?.description}
+            </p>
+          </div>
+
           {modelProvider === "gemma" ? (
             <>
           <div className="settings-field-stack">
@@ -490,6 +562,29 @@ export function SettingsModal({
                   </label>
                 </>
               ) : null}
+              <div className="settings-field-stack">
+                <span>Gemma GPU 런타임</span>
+                <div className="settings-preset-group" role="tablist" aria-label="Gemma GPU 런타임">
+                  {LLAMA_RUNTIME_PROFILE_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`settings-preset-button ${llamaRuntimeProfile === option.id ? "active" : ""}`}
+                      onClick={() => {
+                        clearTestState();
+                        setLlamaRuntimeProfile(option.id);
+                      }}
+                      disabled={controlsBusy}
+                      aria-pressed={llamaRuntimeProfile === option.id}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="muted-line modal-note">
+                  {LLAMA_RUNTIME_PROFILE_OPTIONS.find((option) => option.id === llamaRuntimeProfile)?.description}
+                </p>
+              </div>
             </>
           ) : (
             <>

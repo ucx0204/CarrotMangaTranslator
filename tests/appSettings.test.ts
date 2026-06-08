@@ -78,6 +78,7 @@ describe("app settings helpers", () => {
       },
       codex: defaults.codex,
       ocr: defaults.ocr,
+      inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens
     });
@@ -97,6 +98,7 @@ describe("app settings helpers", () => {
       gemma: defaults.gemma,
       codex: defaults.codex,
       ocr: defaults.ocr,
+      inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens
     });
@@ -106,6 +108,7 @@ describe("app settings helpers", () => {
       gemma: defaults.gemma,
       codex: defaults.codex,
       ocr: defaults.ocr,
+      inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens
     });
@@ -468,6 +471,7 @@ describe("app settings helpers", () => {
       },
       codex: defaults.codex,
       ocr: defaults.ocr,
+      inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens
     });
@@ -497,6 +501,7 @@ describe("app settings helpers", () => {
         oauthPort: 10532
       },
       ocr: defaults.ocr,
+      inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens
     });
@@ -528,6 +533,8 @@ describe("app settings helpers", () => {
       gemmaVramMode: "full31b",
       ocrDevice: "gpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      ocrGpuBackend: "cuda",
+      fluxBackend: "cuda-native",
       llamaRuntimeProfile: "cuda12"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 5070 Ti", memoryMb: 16303, rtxGeneration: 50, computeCapability: 12 })).toEqual({
@@ -535,6 +542,8 @@ describe("app settings helpers", () => {
       gemmaVramMode: "economy26b",
       ocrDevice: "gpu",
       ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
+      ocrGpuBackend: "cuda",
+      fluxBackend: "cuda-native",
       llamaRuntimeProfile: "rtx50"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 5090", memoryMb: 32768, rtxGeneration: null, computeCapability: 12 })).toEqual({
@@ -542,6 +551,8 @@ describe("app settings helpers", () => {
       gemmaVramMode: "full31b",
       ocrDevice: "gpu",
       ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
+      ocrGpuBackend: "cuda",
+      fluxBackend: "cuda-native",
       llamaRuntimeProfile: "rtx50"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 3060", memoryMb: 12288, rtxGeneration: 30, computeCapability: 8.6 })).toEqual({
@@ -549,6 +560,8 @@ describe("app settings helpers", () => {
       gemmaVramMode: "minimum12b",
       ocrDevice: "gpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      ocrGpuBackend: "cuda",
+      fluxBackend: "cuda-native",
       llamaRuntimeProfile: "cuda12"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA GeForce RTX 2080 Ti", memoryMb: 11264, rtxGeneration: 20, computeCapability: 7.5 })).toEqual({
@@ -556,6 +569,8 @@ describe("app settings helpers", () => {
       gemmaVramMode: "minimum12b",
       ocrDevice: "cpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      ocrGpuBackend: "cuda",
+      fluxBackend: "cuda-native",
       llamaRuntimeProfile: "cuda12"
     });
     expect(resolveHardwareDefaults({ name: "NVIDIA Quadro RTX 5000", memoryMb: 16384, rtxGeneration: null, computeCapability: 7.5 })).toEqual({
@@ -563,13 +578,55 @@ describe("app settings helpers", () => {
       gemmaVramMode: "economy26b",
       ocrDevice: "gpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      ocrGpuBackend: "cuda",
+      fluxBackend: "cuda-native",
       llamaRuntimeProfile: "cuda12"
+    });
+    expect(
+      resolveHardwareDefaults({
+        name: "AMD Radeon RX 7900 XTX",
+        memoryMb: 24576,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: false
+      })
+    ).toEqual({
+      modelProvider: "gemma",
+      gemmaVramMode: "full31b",
+      ocrDevice: "cpu",
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      ocrGpuBackend: "rocm",
+      fluxBackend: "python-cpu",
+      llamaRuntimeProfile: "vulkan"
+    });
+    expect(
+      resolveHardwareDefaults({
+        name: "AMD Radeon RX 7800 XT",
+        memoryMb: 16384,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: true
+      })
+    ).toEqual({
+      modelProvider: "gemma",
+      gemmaVramMode: "economy26b",
+      ocrDevice: "cpu",
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      ocrGpuBackend: "rocm",
+      fluxBackend: process.platform === "win32" ? "python-cpu" : "python-rocm",
+      llamaRuntimeProfile: process.platform === "win32" ? "vulkan" : "rocm"
     });
     expect(resolveHardwareDefaults(null)).toEqual({
       modelProvider: "openai-codex",
       gemmaVramMode: "minimum12b",
       ocrDevice: "cpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      ocrGpuBackend: "cuda",
+      fluxBackend: "cuda-native",
       llamaRuntimeProfile: "cuda12"
     });
   });

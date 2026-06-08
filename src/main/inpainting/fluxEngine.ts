@@ -17,7 +17,7 @@ import {
   resolveFluxProcessSize,
   type PixelRect
 } from "./maskGeometry";
-import { FluxWorker } from "./fluxWorker";
+import { FluxWorker, type FluxWorkerLaunchSpec } from "./fluxWorker";
 
 export const FLUX_INPAINT_CONTEXT_PX = 160;
 export const FLUX_INPAINT_MASK_PADDING_PX = 16;
@@ -37,8 +37,9 @@ export type InpaintingRuntimeProgress = {
 
 export type FluxInpaintingEngine = {
   runtimePath: string;
-  modelPath: string;
-  vaePath: string;
+  modelPath?: string;
+  vaePath?: string;
+  backend: string;
   runRootDir: string;
   isHealthy?: () => boolean;
   inpaint: (
@@ -59,9 +60,9 @@ export type FluxInpaintingEngine = {
 };
 
 export function createFluxEngine(options: {
-  runtimePath: string;
-  modelPath: string;
-  vaePath: string;
+  launch: FluxWorkerLaunchSpec;
+  modelPath?: string;
+  vaePath?: string;
   runRootDir: string;
 }): FluxInpaintingEngine {
   let worker: FluxWorker | null = null;
@@ -70,13 +71,14 @@ export function createFluxEngine(options: {
       void worker.dispose().catch(() => {});
       worker = null;
     }
-    worker ??= new FluxWorker(options.runtimePath, options.modelPath, options.vaePath, FLUX_INPAINT_MASK_PADDING_PX);
+    worker ??= new FluxWorker(options.launch);
     return worker;
   };
   return {
-    runtimePath: options.runtimePath,
+    runtimePath: options.launch.runtimePath,
     modelPath: options.modelPath,
     vaePath: options.vaePath,
+    backend: options.launch.backend,
     runRootDir: options.runRootDir,
     isHealthy() {
       return !worker || worker.isHealthy();
@@ -105,7 +107,7 @@ export function createFluxEngine(options: {
             height,
             FLUX_INPAINT_MULTIPLE
           );
-          const localMask = buildLocalMask(mask, width, paddedBounds, 0);
+          const localMask = buildLocalMask(mask, width, paddedBounds, maskPaddingPx);
           if (!localMask.some((value) => value > 0)) {
             continue;
           }

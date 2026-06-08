@@ -25,6 +25,7 @@ const {
 const {
   buildOcrRuntimeEnv,
   buildPaddleOcrImportCheckScript,
+  resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
   resolveOcrPipInstallBatches,
@@ -89,6 +90,7 @@ module.exports = {
   parsePipRawProgress,
   resolvePaddleOcrImportCheckTimeoutMs,
   resolveOcrBboxTimeoutMs,
+  resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
   resolveOcrPipInstallBatches,

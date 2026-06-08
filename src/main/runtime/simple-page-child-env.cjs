@@ -33,6 +33,19 @@ const HF_CHILD_ENV_KEYS = [
   "HUGGING_FACE_HUB_TOKEN"
 ];
 
+const ROCM_CHILD_ENV_KEYS = [
+  "ROCM_PATH",
+  "HIP_PATH",
+  "HIP_VISIBLE_DEVICES",
+  "ROCR_VISIBLE_DEVICES",
+  "GPU_DEVICE_ORDINAL",
+  "HSA_OVERRIDE_GFX_VERSION",
+  "HSA_ENABLE_SDMA",
+  "PYTORCH_HIP_ALLOC_CONF",
+  "LD_LIBRARY_PATH",
+  "LIBRARY_PATH"
+];
+
 function isTruthy(value) {
   const text = String(value ?? "").trim().toLowerCase();
   return ["1", "true", "yes", "y", "on"].includes(text);
@@ -115,6 +128,7 @@ function isLikelyPackagedToolsDir(toolsDir) {
 module.exports = {
   HF_CHILD_ENV_KEYS,
   NETWORK_CHILD_ENV_KEYS,
+  ROCM_CHILD_ENV_KEYS,
   buildChildPathEnv,
   buildUtilityChildEnv,
   buildWhitelistedChildEnv,

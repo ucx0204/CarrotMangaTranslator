@@ -1,4 +1,12 @@
-import type { CodexReasoningEffort, ModelProvider, ModelSource, OcrDevice } from "../../../shared/types";
+import type {
+  CodexReasoningEffort,
+  FluxBackend,
+  LlamaRuntimeProfile,
+  ModelProvider,
+  ModelSource,
+  OcrDevice,
+  OcrGpuBackend
+} from "../../../shared/types";
 import {
   GEMMA_MODEL_PRESETS,
   type GemmaModelPresetId
@@ -70,6 +78,24 @@ type OcrDeviceOption = {
   description: string;
 };
 
+type OcrGpuBackendOption = {
+  id: OcrGpuBackend;
+  label: string;
+  description: string;
+};
+
+type LlamaRuntimeProfileOption = {
+  id: LlamaRuntimeProfile;
+  label: string;
+  description: string;
+};
+
+type FluxBackendOption = {
+  id: FluxBackend;
+  label: string;
+  description: string;
+};
+
 export const MODEL_SOURCE_OPTIONS: ModelSourceOption[] = [
   {
     id: "huggingface",
@@ -134,6 +160,60 @@ export const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [
     id: "gpu",
     label: "GPU",
     description: "PaddleOCR를 GPU로 실행합니다. GPU용 Paddle 런타임/CUDA가 맞지 않으면 OCR 단계가 실패할 수 있습니다."
+  }
+];
+
+export const OCR_GPU_BACKEND_OPTIONS: OcrGpuBackendOption[] = [
+  {
+    id: "cuda",
+    label: "CUDA",
+    description: "NVIDIA GPU용 PaddleOCR 런타임입니다."
+  },
+  {
+    id: "rocm",
+    label: "ROCm",
+    description: "AMD ROCm용 PaddleOCR 런타임입니다. 실험적 기능이며 Linux/WSL ROCm 환경에서 먼저 테스트하세요. 실패하면 OCR만 CPU로 두는 것을 권장합니다."
+  }
+];
+
+export const LLAMA_RUNTIME_PROFILE_OPTIONS: LlamaRuntimeProfileOption[] = [
+  {
+    id: "cuda12",
+    label: "CUDA 12",
+    description: "RTX 20/30/40 등 기존 NVIDIA GPU용 런타임입니다."
+  },
+  {
+    id: "rtx50",
+    label: "RTX 50",
+    description: "RTX 50번대/Blackwell용 CUDA 13 계열 런타임입니다."
+  },
+  {
+    id: "vulkan",
+    label: "AMD Vulkan",
+    description: "Windows AMD Radeon에서 먼저 시도할 수 있는 llama.cpp Vulkan 런타임입니다."
+  },
+  {
+    id: "rocm",
+    label: "AMD ROCm",
+    description: "명시적으로 ROCm/HIP를 준비한 Linux/WSL AMD 환경용입니다. Windows AMD 기본값은 Vulkan입니다."
+  }
+];
+
+export const FLUX_BACKEND_OPTIONS: FluxBackendOption[] = [
+  {
+    id: "cuda-native",
+    label: "NVIDIA CUDA",
+    description: "기존 Flux Klein 네이티브 런타임입니다. RTX 계열에서는 이 경로가 가장 빠릅니다."
+  },
+  {
+    id: "python-rocm",
+    label: "AMD ROCm",
+    description: "AMD GPU용 Python/ROCm 경로입니다. ROCm PyTorch와 드라이버가 맞는 환경에서만 사용하세요."
+  },
+  {
+    id: "python-cpu",
+    label: "CPU",
+    description: "GPU Flux가 맞지 않는 환경용입니다. 많이 느리지만 CUDA/ROCm 없이 실행합니다."
   }
 ];
 

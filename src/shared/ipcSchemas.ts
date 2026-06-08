@@ -34,6 +34,49 @@ const GemmaVramModeSchema = z.preprocess((value) => {
   }
   return value;
 }, z.enum(["minimum12b", "economy26b", "full31b"]));
+const LlamaRuntimeProfileSchema = z.preprocess((value) => {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(normalized)) {
+    return "rtx50";
+  }
+  if (["cuda12", "cuda12.4", "cuda"].includes(normalized)) {
+    return "cuda12";
+  }
+  if (["rocm", "hip", "amd-rocm"].includes(normalized)) {
+    return "rocm";
+  }
+  if (["vulkan", "amd-vulkan", "vk"].includes(normalized)) {
+    return "vulkan";
+  }
+  return value;
+}, z.enum(["cuda12", "rtx50", "rocm", "vulkan"]));
+const FluxBackendSchema = z.preprocess((value) => {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["auto", ""].includes(normalized)) {
+    return "cuda-native";
+  }
+  if (["cuda-native", "cuda", "native", "nvidia"].includes(normalized)) {
+    return "cuda-native";
+  }
+  if (["python-rocm", "rocm", "hip", "amd"].includes(normalized)) {
+    return "python-rocm";
+  }
+  if (["python-cpu", "cpu"].includes(normalized)) {
+    return "python-cpu";
+  }
+  return value;
+}, z.enum(["cuda-native", "python-rocm", "python-cpu"]));
+
+const OcrGpuBackendSchema = z.preprocess((value) => {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["rocm", "hip", "amd"].includes(normalized)) {
+    return "rocm";
+  }
+  if (["auto", "", "cuda", "nvidia"].includes(normalized)) {
+    return "cuda";
+  }
+  return value;
+}, z.enum(["cuda", "rocm"]));
 
 export const BBoxSchema = z
   .object({
@@ -269,7 +312,7 @@ export const AppSettingsSchema = z
         localModelPath: filePath.optional(),
         localMmprojPath: filePath.optional(),
         vramMode: GemmaVramModeSchema,
-        llamaRuntimeProfile: z.enum(["cuda12", "rtx50"]).optional()
+        llamaRuntimeProfile: LlamaRuntimeProfileSchema.optional()
       })
       .strict(),
     codex: z
@@ -281,10 +324,14 @@ export const AppSettingsSchema = z
       .strict(),
     ocr: z.object({
       device: z.enum(["cpu", "gpu"]),
-      gpuCudaTag: z.string().regex(/^cu\d+$/i).optional()
+      gpuCudaTag: z.string().regex(/^cu\d+$/i).optional(),
+      gpuBackend: OcrGpuBackendSchema.optional()
     }).strict(),
     ui: z.object({
       inpaintingGuideHidden: z.boolean().optional()
+    }).strict().optional(),
+    inpainting: z.object({
+      fluxBackend: FluxBackendSchema.optional()
     }).strict().optional(),
     maxTokens: z.number().int().min(300).max(12000)
   })

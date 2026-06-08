@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "node scripts/dev.cjs",
     "build": "node scripts/build.cjs",
-    "dist:win": "node scripts/prepare-ocr-python.cjs && node scripts/prepare-flux-klein-runner.cjs && npm run build && electron-builder --config electron-builder.config.cjs --win nsis --x64",
+    "dist:win": "npm run dist:win:nvidia",
+    "dist:win:nvidia": "node scripts/prepare-ocr-python.cjs && node scripts/prepare-flux-klein-runner.cjs && npm run build && electron-builder --config electron-builder.config.cjs --win nsis --x64",
+    "dist:win:amd": "node scripts/dist-win-amd.cjs",
     "compile:electron": "tsc -p tsconfig.electron.json",
     "logs": "node scripts/tail-log.cjs",
     "typecheck": "tsc --noEmit",

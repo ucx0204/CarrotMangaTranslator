@@ -2,6 +2,7 @@ import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import { logError, logInfo } from "../logger";
 import { prepareFluxInpaintingEngine, type FluxInpaintingEngine, type InpaintingRuntimeProgress } from "../inpainting";
+import type { FluxBackend } from "../../shared/types";
 
 const FLUX_ENGINE_IDLE_TTL_MS = 5 * 60 * 1000;
 
@@ -20,13 +21,15 @@ let cachedEngine: CachedFluxEngine | null = null;
 
 export async function acquireFluxInpaintingEngine(options: {
   appPaths: AppPaths;
+  fluxBackend?: FluxBackend;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
 }): Promise<FluxEngineLease> {
   const runtimeDir = join(options.appPaths.dataRoot, "models", "inpainting", "mgt-flux-klein-runtime");
   const modelDir = join(options.appPaths.dataRoot, "models", "inpainting", "flux-klein-4b");
   const runRootDir = join(options.appPaths.dataRoot, "tmp", "runtime", "flux-inpainting");
-  const key = `${runtimeDir}\n${modelDir}\n${runRootDir}`;
+  const fluxBackend = options.fluxBackend ?? "cuda-native";
+  const key = `${fluxBackend}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
 
   if (cachedEngine?.key === key && cachedEngine.engine.isHealthy?.() !== false) {
     clearIdleTimer(cachedEngine);
@@ -50,6 +53,7 @@ export async function acquireFluxInpaintingEngine(options: {
   const engine = await prepareFluxInpaintingEngine({
     runtimeDir,
     modelDir,
+    fluxBackend,
     runRootDir,
     signal: options.signal,
     onProgress: options.onProgress

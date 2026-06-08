@@ -1,7 +1,10 @@
 import { once } from "node:events";
+import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, statSync } from "node:fs";
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
+import type { FluxBackend } from "../../shared/types";
+import { sanitizeFluxRuntimeStderr, type FluxWorkerBackend, type FluxWorkerLaunchSpec } from "./fluxWorker";
 
 const AdmZip = require("adm-zip");
 
@@ -13,6 +16,12 @@ export const FLUX_VAE_FILE = "diffusion_pytorch_model.safetensors";
 const FLUX_RUNNER_DIR = "mgt-flux-klein";
 const FLUX_CUDA_RUNTIME_DIR = "mgt-flux-cuda12.9";
 const FLUX_CUDA_RUNTIME_MARKER = ".mgt-runtime.json";
+const FLUX_PYTHON_WORKER = "flux-klein-python-worker.py";
+const FLUX_PYTHON_RUNTIME_MARKER = ".mgt-flux-python-runtime.json";
+const FLUX_DIFFUSERS_MODEL_ID = "black-forest-labs/FLUX.2-klein-4B";
+const FLUX_ROCM_TORCH_INDEX_URL = "https://download.pytorch.org/whl/rocm7.1";
+const FLUX_CPU_TORCH_INDEX_URL = "https://download.pytorch.org/whl/cpu";
+const FLUX_PYTHON_DEFAULT_MODE = "klein-edit-composite";
 const CUDA_REDIST_BASE_URL = "https://developer.download.nvidia.com/compute/cuda/redist";
 const CUDNN_REDIST_BASE_URL = "https://developer.download.nvidia.com/compute/cudnn/redist";
 const CUDA_REDIST_MANIFEST_URL = `${CUDA_REDIST_BASE_URL}/redistrib_12.9.0.json`;
@@ -68,6 +77,27 @@ export async function ensureMgtFluxKleinRuntime(options: {
   return runtimePath;
 }
 
+export async function ensureFluxWorkerLaunch(options: {
+  runtimeDir: string;
+  modelDir: string;
+  backend: FluxBackend;
+  signal?: AbortSignal;
+  onProgress?: (progress: FluxAssetProgress) => void;
+}): Promise<FluxWorkerLaunchSpec> {
+  const backend = resolveFluxWorkerBackend(options.backend);
+  if (backend === "cuda-native") {
+    const runtimePath = await ensureMgtFluxKleinRuntime(options);
+    return {
+      backend,
+      executable: runtimePath,
+      runtimePath,
+      label: "Flux Klein CUDA",
+      args: []
+    };
+  }
+  return ensureFluxPythonRuntime({ ...options, backend });
+}
+
 async function ensureManagedFluxRunner(options: {
   runtimeDir: string;
   signal?: AbortSignal;
@@ -101,6 +131,113 @@ async function ensureManagedFluxRunner(options: {
     installLogLine: `Flux 실행 파일을 앱 데이터 캐시에 복사했습니다: ${FLUX_RUNTIME_EXECUTABLE}`
   });
   return managedPath;
+}
+
+async function ensureFluxPythonRuntime(options: {
+  runtimeDir: string;
+  modelDir: string;
+  backend: Exclude<FluxWorkerBackend, "cuda-native">;
+  signal?: AbortSignal;
+  onProgress?: (progress: FluxAssetProgress) => void;
+}): Promise<FluxWorkerLaunchSpec> {
+  await mkdir(options.runtimeDir, { recursive: true });
+  const runtimeName = options.backend === "python-rocm" ? "mgt-flux-python-rocm" : "mgt-flux-python-cpu";
+  const runtimeDir = join(options.runtimeDir, runtimeName);
+  const venvDir = join(runtimeDir, ".venv");
+  const pythonPath = pythonExecutablePath(venvDir);
+  const workerPath = join(runtimeDir, FLUX_PYTHON_WORKER);
+  const markerPath = join(runtimeDir, FLUX_PYTHON_RUNTIME_MARKER);
+  const torchIndexUrl = resolveTorchIndexUrl(options.backend);
+  const torchPackages = ["torch", "torchvision"];
+  const extraPackages = resolvePythonFluxPackages(options.backend);
+  const expectedMarker = {
+    backend: options.backend,
+    torchIndexUrl,
+    torchPackages,
+    packages: extraPackages,
+    worker: FLUX_PYTHON_WORKER
+  };
+
+  if (!(await isCurrentFluxPythonRuntime(pythonPath, markerPath, expectedMarker))) {
+    await rm(runtimeDir, { recursive: true, force: true });
+    await mkdir(runtimeDir, { recursive: true });
+    await ensureFluxPythonWorker(runtimeDir);
+    options.onProgress?.({
+      progressText: options.backend === "python-rocm" ? "Flux ROCm 런타임 설치 중" : "Flux CPU 런타임 설치 중",
+      detail: "Python venv 생성",
+      progressMode: "indeterminate",
+      installLogLine: "Flux Python 가상환경을 생성합니다."
+    });
+    const basePython = await findPythonCommand(options.signal);
+    await runCommand(basePython.command, [...basePython.args, "-m", "venv", venvDir], { signal: options.signal });
+    await runCommand(pythonPath, ["-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"], {
+      signal: options.signal,
+      onLine: (line) => emitPythonInstallLog(options, line)
+    });
+    options.onProgress?.({
+      progressText: options.backend === "python-rocm" ? "Flux ROCm PyTorch 설치 중" : "Flux CPU PyTorch 설치 중",
+      detail: torchIndexUrl,
+      progressMode: "indeterminate",
+      installLogLine: `PyTorch 설치 인덱스: ${torchIndexUrl}`
+    });
+    await runCommand(pythonPath, ["-m", "pip", "install", "--index-url", torchIndexUrl, ...torchPackages], {
+      signal: options.signal,
+      onLine: (line) => emitPythonInstallLog(options, line)
+    });
+    options.onProgress?.({
+      progressText: "Flux Python 패키지 설치 중",
+      detail: extraPackages.join(" "),
+      progressMode: "indeterminate",
+      installLogLine: "diffusers/transformers/accelerate 패키지를 설치합니다."
+    });
+    await runCommand(pythonPath, ["-m", "pip", "install", ...extraPackages], {
+      signal: options.signal,
+      onLine: (line) => emitPythonInstallLog(options, line)
+    });
+    await verifyFluxPythonRuntime(pythonPath, options.backend, options.signal);
+    await writeFile(markerPath, `${JSON.stringify(expectedMarker, null, 2)}\n`, "utf8");
+  } else {
+    await ensureFluxPythonWorker(runtimeDir);
+  }
+
+  const modelId = process.env.MANGA_TRANSLATOR_FLUX_PYTHON_MODEL_ID ?? process.env.MGT_FLUX_PYTHON_MODEL_ID ?? FLUX_DIFFUSERS_MODEL_ID;
+  const mode = resolveFluxPythonMode();
+  await mkdir(options.modelDir, { recursive: true });
+  await ensureFluxPythonModelCache({
+    pythonPath,
+    modelDir: options.modelDir,
+    modelId,
+    signal: options.signal,
+    onProgress: options.onProgress
+  });
+  options.onProgress?.({
+    progressText: "Flux Python 런타임 준비 완료",
+    detail: `${options.backend === "python-rocm" ? "ROCm" : "CPU"} · ${modelId}`,
+    progressMode: "log-only",
+    installLogLine: `Flux Python ${options.backend === "python-rocm" ? "ROCm" : "CPU"} 런타임을 사용합니다.`
+  });
+  return {
+    backend: options.backend,
+    executable: pythonPath,
+    runtimePath: pythonPath,
+    label: options.backend === "python-rocm" ? "Flux Python ROCm" : "Flux Python CPU",
+    args: [
+      "-u",
+      workerPath,
+      "--backend",
+      options.backend === "python-rocm" ? "rocm" : "cpu",
+      "--model-id",
+      modelId,
+      "--mode",
+      mode,
+      "--cache-dir",
+      options.modelDir
+    ],
+    env: {
+      HF_HOME: options.modelDir,
+      HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub")
+    }
+  };
 }
 
 async function ensureFluxCudaRuntime(options: {
@@ -273,6 +410,269 @@ async function hasFluxCudaRuntimeFiles(cudaDir: string): Promise<boolean> {
 
 function runtimeMarkerPath(cudaDir: string): string {
   return join(cudaDir, FLUX_CUDA_RUNTIME_MARKER);
+}
+
+function resolveFluxWorkerBackend(backend: FluxBackend): FluxWorkerBackend {
+  if (backend === "python-rocm" || backend === "python-cpu") {
+    return backend;
+  }
+  return "cuda-native";
+}
+
+async function ensureFluxPythonWorker(runtimeDir: string): Promise<string> {
+  await mkdir(runtimeDir, { recursive: true });
+  const workerPath = join(runtimeDir, FLUX_PYTHON_WORKER);
+  if (isExecutableFile(workerPath)) {
+    return workerPath;
+  }
+  const sourceWorker = findFluxPythonWorkerSource();
+  if (!sourceWorker) {
+    throw new Error(`${FLUX_PYTHON_WORKER}를 찾지 못했습니다. 앱 런타임 파일을 다시 준비하세요.`);
+  }
+  await copyFile(sourceWorker, workerPath);
+  return workerPath;
+}
+
+function findFluxPythonWorkerSource(): string | null {
+  const candidates = [
+    process.resourcesPath ? join(process.resourcesPath, "app-runtime", FLUX_PYTHON_WORKER) : undefined,
+    join(process.cwd(), "out", "app-runtime", FLUX_PYTHON_WORKER),
+    join(process.cwd(), "src", "main", "runtime", FLUX_PYTHON_WORKER)
+  ];
+  for (const candidate of candidates) {
+    if (candidate && isExecutableFile(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+async function isCurrentFluxPythonRuntime(
+  pythonPath: string,
+  markerPath: string,
+  expectedMarker: { backend: FluxWorkerBackend; torchIndexUrl: string; worker: string }
+): Promise<boolean> {
+  try {
+    if (!isExecutableFile(pythonPath) || !isExecutableFile(join(dirname(markerPath), expectedMarker.worker))) {
+      return false;
+    }
+    const marker = JSON.parse(await readFile(markerPath, "utf8")) as Partial<typeof expectedMarker>;
+    return (
+      marker.backend === expectedMarker.backend &&
+      marker.torchIndexUrl === expectedMarker.torchIndexUrl &&
+      marker.worker === expectedMarker.worker
+    );
+  } catch {
+    return false;
+  }
+}
+
+function pythonExecutablePath(venvDir: string): string {
+  return process.platform === "win32" ? join(venvDir, "Scripts", "python.exe") : join(venvDir, "bin", "python");
+}
+
+async function findPythonCommand(signal?: AbortSignal): Promise<{ command: string; args: string[] }> {
+  const configured = process.env.MANGA_TRANSLATOR_FLUX_PYTHON ?? process.env.MGT_FLUX_PYTHON;
+  const candidates: Array<{ command: string; args: string[] }> = [];
+  if (configured) {
+    candidates.push({ command: configured, args: [] });
+  }
+  if (process.platform === "win32") {
+    candidates.push({ command: "py", args: ["-3"] }, { command: "python", args: [] });
+  } else {
+    candidates.push({ command: "python3", args: [] }, { command: "python", args: [] });
+  }
+  for (const candidate of candidates) {
+    try {
+      await runCommand(candidate.command, [...candidate.args, "--version"], { signal });
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+  throw new Error("Flux Python 런타임을 만들 Python 3 실행 파일을 찾지 못했습니다. Python 3.11 이상을 설치하거나 MGT_FLUX_PYTHON으로 경로를 지정하세요.");
+}
+
+function resolveTorchIndexUrl(backend: Exclude<FluxWorkerBackend, "cuda-native">): string {
+  if (backend === "python-rocm") {
+    return process.env.MANGA_TRANSLATOR_FLUX_ROCM_TORCH_INDEX_URL ?? process.env.MGT_FLUX_ROCM_TORCH_INDEX_URL ?? FLUX_ROCM_TORCH_INDEX_URL;
+  }
+  return process.env.MANGA_TRANSLATOR_FLUX_CPU_TORCH_INDEX_URL ?? process.env.MGT_FLUX_CPU_TORCH_INDEX_URL ?? FLUX_CPU_TORCH_INDEX_URL;
+}
+
+function resolvePythonFluxPackages(backend: Exclude<FluxWorkerBackend, "cuda-native">): string[] {
+  return [
+    "diffusers>=0.36.0",
+    "transformers>=4.56.0",
+    "accelerate>=1.10.0",
+    "safetensors>=0.6.0",
+    "huggingface_hub>=0.36.0",
+    "pillow>=10.0.0",
+    "sentencepiece>=0.2.0",
+    "protobuf>=4.25.0"
+  ];
+}
+
+function resolveFluxPythonMode(): string {
+  const normalized = String(process.env.MANGA_TRANSLATOR_FLUX_PYTHON_MODE ?? process.env.MGT_FLUX_PYTHON_MODE ?? "")
+    .trim()
+    .toLowerCase();
+  return normalized === "flux-fill" ? "flux-fill" : FLUX_PYTHON_DEFAULT_MODE;
+}
+
+async function verifyFluxPythonRuntime(
+  pythonPath: string,
+  backend: Exclude<FluxWorkerBackend, "cuda-native">,
+  signal?: AbortSignal
+): Promise<void> {
+  const verifyScript = [
+    "import importlib, torch",
+    "for name in ['diffusers','transformers','accelerate','safetensors','PIL','torchvision','sentencepiece','google.protobuf']:",
+    "    importlib.import_module(name)",
+    backend === "python-rocm" ? "assert getattr(torch.version, 'hip', None), 'installed torch is not a ROCm/HIP build'" : "",
+    backend === "python-rocm" ? "assert torch.cuda.is_available(), 'ROCm torch cannot see an AMD GPU'" : "",
+    "print('ok')"
+  ].filter(Boolean).join("\n");
+  await runCommand(pythonPath, ["-c", verifyScript], { signal });
+}
+
+async function ensureFluxPythonModelCache(options: {
+  pythonPath: string;
+  modelDir: string;
+  modelId: string;
+  signal?: AbortSignal;
+  onProgress?: (progress: FluxAssetProgress) => void;
+}): Promise<void> {
+  const markerPath = join(options.modelDir, ".mgt-flux-diffusers-model.json");
+  try {
+    const marker = JSON.parse(await readFile(markerPath, "utf8")) as { modelId?: string };
+    if (marker.modelId === options.modelId) {
+      options.onProgress?.({
+        progressText: "Flux Diffusers 모델 캐시 사용",
+        detail: options.modelId,
+        progressMode: "log-only",
+        installLogLine: `캐시된 Diffusers Flux 모델을 사용합니다: ${options.modelId}`
+      });
+      return;
+    }
+  } catch {
+    // Model cache marker is best-effort; snapshot_download below is idempotent.
+  }
+
+  await mkdir(options.modelDir, { recursive: true });
+  options.onProgress?.({
+    progressText: "Flux Diffusers 모델 준비 중",
+    detail: options.modelId,
+    progressMode: "indeterminate",
+    installLogLine: `Diffusers Flux 모델 캐시를 확인합니다: ${options.modelId}`
+  });
+  const downloadScript = [
+    "from huggingface_hub import snapshot_download",
+    "import sys",
+    "snapshot_download(repo_id=sys.argv[1], cache_dir=sys.argv[2], resume_download=True)"
+  ].join("\n");
+  await runCommand(options.pythonPath, ["-c", downloadScript, options.modelId, options.modelDir], {
+    signal: options.signal,
+    env: {
+      HF_HOME: options.modelDir,
+      HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub")
+    },
+    onLine: (line) =>
+      options.onProgress?.({
+        progressText: "Flux Diffusers 모델 준비 중",
+        detail: options.modelId,
+        progressMode: "indeterminate",
+        installLogLine: line
+      })
+  });
+  await writeFile(markerPath, `${JSON.stringify({ modelId: options.modelId, cachedAt: new Date().toISOString() }, null, 2)}\n`, "utf8");
+}
+
+function emitPythonInstallLog(
+  options: { onProgress?: (progress: FluxAssetProgress) => void },
+  line: string
+): void {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return;
+  }
+  options.onProgress?.({
+    progressText: "Flux Python 런타임 설치 중",
+    detail: trimmed.slice(0, 180),
+    progressMode: "indeterminate",
+    installLogLine: trimmed
+  });
+}
+
+async function runCommand(
+  command: string,
+  args: string[],
+  options: {
+    cwd?: string;
+    env?: NodeJS.ProcessEnv;
+    signal?: AbortSignal;
+    onLine?: (line: string) => void;
+  } = {}
+): Promise<void> {
+  throwIfAborted(options.signal);
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      windowsHide: true,
+      env: {
+        ...process.env,
+        ...options.env,
+        PYTHONIOENCODING: "utf-8",
+        PYTHONUNBUFFERED: "1"
+      },
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stderrTail = "";
+    let stdoutBuffer = "";
+    let stderrBuffer = "";
+    const emitLines = (text: string, isError = false) => {
+      const key = isError ? "stderr" : "stdout";
+      let buffer = key === "stderr" ? stderrBuffer : stdoutBuffer;
+      buffer += text;
+      while (true) {
+        const newline = buffer.indexOf("\n");
+        if (newline < 0) {
+          break;
+        }
+        const line = buffer.slice(0, newline).trimEnd();
+        buffer = buffer.slice(newline + 1);
+        options.onLine?.(line);
+      }
+      if (key === "stderr") {
+        stderrBuffer = buffer;
+      } else {
+        stdoutBuffer = buffer;
+      }
+    };
+    const onAbort = () => {
+      child.kill("SIGTERM");
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    options.signal?.addEventListener("abort", onAbort, { once: true });
+    child.stdout.on("data", (chunk: Buffer) => emitLines(chunk.toString("utf8")));
+    child.stderr.on("data", (chunk: Buffer) => {
+      const text = chunk.toString("utf8");
+      stderrTail = `${stderrTail}${text}`.slice(-2400);
+      emitLines(text, true);
+    });
+    child.on("error", (error) => {
+      options.signal?.removeEventListener("abort", onAbort);
+      reject(error);
+    });
+    child.on("exit", (code) => {
+      options.signal?.removeEventListener("abort", onAbort);
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`${command} ${args.join(" ")} failed (${code}). ${sanitizeFluxRuntimeStderr(stderrTail).trim()}`));
+      }
+    });
+  });
 }
 
 export function hfResolveUrl(repo: string, fileName: string): string {

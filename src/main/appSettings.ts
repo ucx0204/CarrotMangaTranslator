@@ -1,11 +1,14 @@
 import type {
   AppSettings,
   CodexReasoningEffort,
+  FluxBackend,
   GemmaVramMode,
+  LlamaRuntimeProfile,
   JobPhase,
   ModelProvider,
   ModelSource,
-  OcrDevice
+  OcrDevice,
+  OcrGpuBackend
 } from "../shared/types";
 import {
   DEFAULT_CODEX_MODEL,
@@ -36,6 +39,8 @@ import type { DetectedGpuInfo } from "./gpuInfo";
 import { DEFAULT_IMAGE_TOKENS, GEMMA_RUNTIME_PRESETS } from "./settings/gemmaRuntimePresets";
 import {
   isRtx50LlamaRuntimeProfile,
+  isRocmLlamaRuntimeProfile,
+  isVulkanLlamaRuntimeProfile,
   resolveHardwareLlamaRuntimeProfile,
   resolveLlamaRuntimeProfile
 } from "./settings/llamaRuntimeProfile";
@@ -77,6 +82,8 @@ const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12 = "beellama-v0.2.0-cuda12.4";
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 = "beellama-v0.2.0-cuda13.1";
 const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b9547-cuda12.4";
 const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9547-cuda13.3";
+const MAINLINE_LLAMA_RUNTIME_DIR_ROCM = "llama-b9547-rocm";
+const MAINLINE_LLAMA_RUNTIME_DIR_VULKAN = "llama-b9547-vulkan";
 const GEMMA_MINIMUM_VRAM_MB = 8000;
 const GEMMA_ECONOMY_VRAM_MB = 16000;
 const GEMMA_FULL_VRAM_MB = 24000;
@@ -142,6 +149,7 @@ export type TranslationOptions = {
   codexReasoningEffort: CodexReasoningEffort;
   codexOauthPort: number;
   ocrDevice: OcrDevice;
+  ocrGpuBackend?: OcrGpuBackend;
   ocrGpuCudaTag?: string;
   ocrBboxProvider?: string;
   ocrBboxCommand?: string;
@@ -222,6 +230,7 @@ export function resolveDefaultAppSettings(
     },
     ocr: {
       device: resolveOcrDevice(env.MANGA_TRANSLATOR_OCR_DEVICE, hardwareDefaults.ocrDevice),
+      gpuBackend: resolveOcrGpuBackend(env.MANGA_TRANSLATOR_OCR_GPU_BACKEND, hardwareDefaults.ocrGpuBackend),
       gpuCudaTag: resolveOcrGpuCudaTag(
         env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG ??
           env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG ??
@@ -232,33 +241,52 @@ export function resolveDefaultAppSettings(
     ui: {
       inpaintingGuideHidden: false
     },
+    inpainting: {
+      fluxBackend: resolveFluxBackend(
+        env.MANGA_TRANSLATOR_FLUX_BACKEND ?? env.MGT_FLUX_BACKEND,
+        hardwareDefaults.fluxBackend
+      )
+    },
     maxTokens: resolveMaxTokens(env.MANGA_TRANSLATOR_MAX_TOKENS, DEFAULT_MAX_TOKENS)
   };
 }
 
 export function resolveHardwareDefaults(
   detectedGpu?: number | DetectedGpuInfo | null
-): { modelProvider: ModelProvider; gemmaVramMode: GemmaVramMode; ocrDevice: OcrDevice; ocrGpuCudaTag: string; llamaRuntimeProfile: string } {
+): {
+  modelProvider: ModelProvider;
+  gemmaVramMode: GemmaVramMode;
+  ocrDevice: OcrDevice;
+  ocrGpuCudaTag: string;
+  ocrGpuBackend: OcrGpuBackend;
+  llamaRuntimeProfile: LlamaRuntimeProfile;
+  fluxBackend: FluxBackend;
+} {
   const info = normalizeDetectedGpuInfo(detectedGpu);
+  const isAmd = info?.vendor === "amd";
   const supportedRtxGeneration = (info?.rtxGeneration ?? 0) >= GEMMA_MINIMUM_RTX_GENERATION;
   const supportedComputeCapability = (info?.computeCapability ?? 0) >= GEMMA_MINIMUM_COMPUTE_CAPABILITY;
+  const supportedAmdGpu = isAmd && Boolean(info?.supportsVulkan || info?.supportsRocm);
   const supportsGemma =
     !!info?.memoryMb &&
     info.memoryMb >= GEMMA_MINIMUM_VRAM_MB &&
-    (supportedRtxGeneration || supportedComputeCapability);
+    (supportedRtxGeneration || supportedComputeCapability || supportedAmdGpu);
   if (!supportsGemma) {
     return {
       modelProvider: "openai-codex",
       gemmaVramMode: "minimum12b",
       ocrDevice: "cpu",
       ocrGpuCudaTag: resolveHardwareOcrGpuCudaTag(info),
-      llamaRuntimeProfile: resolveHardwareLlamaRuntimeProfile(info)
+      ocrGpuBackend: resolveHardwareOcrGpuBackend(info),
+      llamaRuntimeProfile: resolveHardwareLlamaRuntimeProfile(info),
+      fluxBackend: resolveHardwareFluxBackend(info)
     };
   }
 
   const memoryMb = info.memoryMb ?? 0;
-  const ocrDevice: OcrDevice = memoryMb >= 12000 ? "gpu" : "cpu";
+  const ocrDevice: OcrDevice = isAmd ? "cpu" : memoryMb >= 12000 ? "gpu" : "cpu";
   const ocrGpuCudaTag = resolveHardwareOcrGpuCudaTag(info);
+  const ocrGpuBackend = resolveHardwareOcrGpuBackend(info);
   const llamaRuntimeProfile = resolveHardwareLlamaRuntimeProfile(info);
   if (memoryMb >= GEMMA_FULL_VRAM_MB) {
     return {
@@ -266,7 +294,9 @@ export function resolveHardwareDefaults(
       gemmaVramMode: "full31b",
       ocrDevice,
       ocrGpuCudaTag,
-      llamaRuntimeProfile
+      ocrGpuBackend,
+      llamaRuntimeProfile,
+      fluxBackend: resolveHardwareFluxBackend(info)
     };
   }
   if (memoryMb >= GEMMA_ECONOMY_VRAM_MB) {
@@ -275,7 +305,9 @@ export function resolveHardwareDefaults(
       gemmaVramMode: "economy26b",
       ocrDevice,
       ocrGpuCudaTag,
-      llamaRuntimeProfile
+      ocrGpuBackend,
+      llamaRuntimeProfile,
+      fluxBackend: resolveHardwareFluxBackend(info)
     };
   }
   return {
@@ -283,7 +315,9 @@ export function resolveHardwareDefaults(
     gemmaVramMode: "minimum12b",
     ocrDevice,
     ocrGpuCudaTag,
-    llamaRuntimeProfile
+    ocrGpuBackend,
+    llamaRuntimeProfile,
+    fluxBackend: resolveHardwareFluxBackend(info)
   };
 }
 
@@ -293,6 +327,7 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
   const codex = record?.codex;
   const ocr = record?.ocr;
   const ui = asRecord(record?.ui);
+  const inpainting = asRecord(record?.inpainting);
   const modelSource = resolveModelSource(asRecord(gemma)?.modelSource, defaults.gemma.modelSource);
   const resolvedVramMode = resolveGemmaVramMode(asRecord(gemma)?.vramMode, defaults.gemma.vramMode);
   const modeAwareGemmaDefaults = getModeAwareGemmaDefaults(defaults, resolvedVramMode);
@@ -329,10 +364,14 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
     },
     ocr: {
       device: resolveOcrDevice(resolvedOcr?.device, defaults.ocr.device),
+      gpuBackend: resolveOcrGpuBackend(resolvedOcr?.gpuBackend, defaults.ocr.gpuBackend ?? "cuda"),
       gpuCudaTag: resolveStoredOcrGpuCudaTag(resolvedOcr, defaults)
     },
     ui: {
       inpaintingGuideHidden: resolveBoolean(ui?.inpaintingGuideHidden, defaults.ui?.inpaintingGuideHidden ?? false)
+    },
+    inpainting: {
+      fluxBackend: resolveFluxBackend(inpainting?.fluxBackend, defaults.inpainting?.fluxBackend ?? "cuda-native")
     },
     maxTokens: resolveMaxTokens(record?.maxTokens, defaults.maxTokens)
   };
@@ -368,6 +407,10 @@ export function buildBaseTranslationOptions({
       runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG ??
       runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_CUDA,
     settings.ocr.gpuCudaTag ?? DEFAULT_OCR_GPU_CUDA_TAG
+  );
+  const ocrGpuBackend = resolveOcrGpuBackend(
+    runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_BACKEND,
+    settings.ocr.gpuBackend ?? "cuda"
   );
   const llamaRuntimeProfile = resolveLlamaRuntimeProfile(runtimeEnv, settings.gemma.llamaRuntimeProfile);
   return {
@@ -478,6 +521,7 @@ export function buildBaseTranslationOptions({
     codexReasoningEffort: resolveCodexReasoningEffort(runtimeEnv.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT, settings.codex.reasoningEffort),
     codexOauthPort: settings.codex.oauthPort,
     ocrDevice: resolveOcrDevice(runtimeEnv.MANGA_TRANSLATOR_OCR_DEVICE, settings.ocr.device),
+    ocrGpuBackend,
     ocrGpuCudaTag,
     ocrBboxProvider: resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER),
     ocrBboxCommand: resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_CMD),
@@ -542,6 +586,31 @@ function resolveOcrDevice(value: unknown, fallback: OcrDevice): OcrDevice {
   return value === "gpu" || value === "cpu" ? value : fallback;
 }
 
+function resolveOcrGpuBackend(value: unknown, fallback: OcrGpuBackend = "cuda"): OcrGpuBackend {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "rocm" || normalized === "hip" || normalized === "amd") {
+    return "rocm";
+  }
+  if (normalized === "cuda" || normalized === "nvidia") {
+    return "cuda";
+  }
+  return fallback;
+}
+
+function resolveFluxBackend(value: unknown, fallback: FluxBackend = "cuda-native"): FluxBackend {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["cuda-native", "cuda", "native", "nvidia"].includes(normalized)) {
+    return "cuda-native";
+  }
+  if (["python-rocm", "rocm", "hip", "amd"].includes(normalized)) {
+    return "python-rocm";
+  }
+  if (["python-cpu", "cpu"].includes(normalized)) {
+    return "python-cpu";
+  }
+  return fallback;
+}
+
 function resolveBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
@@ -568,10 +637,24 @@ function resolveStoredOcrGpuCudaTag(ocr: Record<string, unknown> | null, default
 }
 
 function resolveHardwareOcrGpuCudaTag(info: DetectedGpuInfo | null): string {
+  if (info?.vendor === "amd") {
+    return DEFAULT_OCR_GPU_CUDA_TAG;
+  }
   if ((info?.computeCapability ?? 0) >= 12 || (info?.rtxGeneration ?? 0) >= 50) {
     return RTX_50_OCR_GPU_CUDA_TAG;
   }
   return DEFAULT_OCR_GPU_CUDA_TAG;
+}
+
+function resolveHardwareOcrGpuBackend(info: DetectedGpuInfo | null): OcrGpuBackend {
+  return info?.vendor === "amd" ? "rocm" : "cuda";
+}
+
+function resolveHardwareFluxBackend(info: DetectedGpuInfo | null): FluxBackend {
+  if (info?.vendor !== "amd") {
+    return "cuda-native";
+  }
+  return "python-cpu";
 }
 
 function resolveCodexReasoningEffort(value: unknown, fallback: CodexReasoningEffort): CodexReasoningEffort {
@@ -622,7 +705,8 @@ function normalizeDetectedGpuInfo(value?: number | DetectedGpuInfo | null): Dete
           name: null,
           memoryMb: value,
           rtxGeneration: null,
-          computeCapability: null
+          computeCapability: null,
+          vendor: "unknown"
         }
       : null;
   }
@@ -638,7 +722,11 @@ function normalizeDetectedGpuInfo(value?: number | DetectedGpuInfo | null): Dete
     name: typeof value.name === "string" ? value.name : null,
     memoryMb,
     rtxGeneration,
-    computeCapability
+    computeCapability,
+    vendor: value.vendor === "nvidia" || value.vendor === "amd" ? value.vendor : "unknown",
+    rocmArch: typeof value.rocmArch === "string" ? value.rocmArch : null,
+    supportsRocm: typeof value.supportsRocm === "boolean" ? value.supportsRocm : false,
+    supportsVulkan: typeof value.supportsVulkan === "boolean" ? value.supportsVulkan : false
   };
 }
 
@@ -714,6 +802,12 @@ function resolveDefaultLlamaServerPathForGemma(
   }
   const binaryName = process.platform === "win32" ? "llama-server.exe" : "llama-server";
   const useCuda13 = isRtx50LlamaRuntimeProfile(llamaRuntimeProfile);
+  if (isRocmLlamaRuntimeProfile(llamaRuntimeProfile)) {
+    return join(paths.dataRoot, "tools", MAINLINE_LLAMA_RUNTIME_DIR_ROCM, binaryName);
+  }
+  if (isVulkanLlamaRuntimeProfile(llamaRuntimeProfile)) {
+    return join(paths.dataRoot, "tools", MAINLINE_LLAMA_RUNTIME_DIR_VULKAN, binaryName);
+  }
   const runtimeDir = isMainlineGemmaModel({ modelRepo: gemma.modelRepo, modelFile: gemma.modelFile })
     ? useCuda13 ? MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 : MAINLINE_LLAMA_RUNTIME_DIR_CUDA12
     : useCuda13 ? BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 : BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12;

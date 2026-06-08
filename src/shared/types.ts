@@ -9,6 +9,9 @@ export type ModelSource = "huggingface" | "local";
 export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
 export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
+export type OcrGpuBackend = "cuda" | "rocm";
+export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
+export type FluxBackend = "cuda-native" | "python-rocm" | "python-cpu";
 
 export type GemmaSettings = {
   modelSource: ModelSource;
@@ -19,7 +22,7 @@ export type GemmaSettings = {
   localModelPath?: string;
   localMmprojPath?: string;
   vramMode: GemmaVramMode;
-  llamaRuntimeProfile?: string;
+  llamaRuntimeProfile?: LlamaRuntimeProfile;
 };
 
 export type CodexSettings = {
@@ -31,10 +34,15 @@ export type CodexSettings = {
 export type OcrSettings = {
   device: OcrDevice;
   gpuCudaTag?: string;
+  gpuBackend?: OcrGpuBackend;
 };
 
 export type UiSettings = {
   inpaintingGuideHidden?: boolean;
+};
+
+export type InpaintingSettings = {
+  fluxBackend?: FluxBackend;
 };
 
 export type AppSettings = {
@@ -43,6 +51,7 @@ export type AppSettings = {
   codex: CodexSettings;
   ocr: OcrSettings;
   ui?: UiSettings;
+  inpainting?: InpaintingSettings;
   maxTokens: number;
 };
 

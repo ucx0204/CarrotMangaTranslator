@@ -93,6 +93,8 @@ function bundledLlamaServerCandidates(toolsDir: string): string[] {
     "beellama-v0.2.0-cuda12.4",
     "llama-b9547-cuda13.3",
     "llama-b9547-cuda12.4",
+    "llama-b9547-rocm",
+    "llama-b9547-vulkan",
     "llama-b9360-cuda13.1",
     "llama-b8833-cuda12.4",
     "llama-b8808-cuda12"
@@ -118,15 +120,18 @@ function bundledLlamaServerCandidates(toolsDir: string): string[] {
 function resolveBundledLlamaServerPath(toolsDir: string): string {
   const candidates = bundledLlamaServerCandidates(toolsDir);
   const existing = candidates.filter((candidate) => existsSync(candidate));
-  return existing.find((candidate) => hasBundledCudaBackend(candidate)) ?? existing[0] ?? candidates[0];
+  return existing.find((candidate) => hasBundledGpuBackend(candidate)) ?? existing[0] ?? candidates[0];
 }
 
-function hasBundledCudaBackend(serverPath: string): boolean {
+function hasBundledGpuBackend(serverPath: string): boolean {
   const runtimeDir = dirname(serverPath);
   return [
     "ggml-cuda.dll",
     "ggml-cuda-cu12.dll",
-    "ggml-cuda-cu13.dll"
+    "ggml-cuda-cu13.dll",
+    "ggml-hip.dll",
+    "ggml-rocm.dll",
+    "ggml-vulkan.dll"
   ].some((fileName) => existsSync(join(runtimeDir, fileName)));
 }
 

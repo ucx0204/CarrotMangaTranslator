@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseRtxGeneration } from "../src/main/gpuInfo";
+import { parseRocmSmiGpuLine, parseRtxGeneration, parseWindowsAmdGpuLine } from "../src/main/gpuInfo";
 
 describe("GPU info helpers", () => {
   it("parses NVIDIA RTX generations from common GPU names", () => {
@@ -9,5 +9,31 @@ describe("GPU info helpers", () => {
     expect(parseRtxGeneration("NVIDIA GeForce RTX 2080 Ti")).toBe(20);
     expect(parseRtxGeneration("NVIDIA GeForce GTX 1080 Ti")).toBeNull();
     expect(parseRtxGeneration(null)).toBeNull();
+  });
+
+  it("parses AMD Radeon GPU names and VRAM from Windows WMI output", () => {
+    expect(parseWindowsAmdGpuLine("AMD Radeon RX 7900 XTX,25753026560")).toEqual({
+      name: "AMD Radeon RX 7900 XTX",
+      memoryMb: 24560,
+      rtxGeneration: null,
+      computeCapability: null,
+      vendor: "amd",
+      rocmArch: null,
+      supportsRocm: false,
+      supportsVulkan: true
+    });
+  });
+
+  it("parses AMD ROCm SMI lines as ROCm-capable GPUs", () => {
+    expect(parseRocmSmiGpuLine("card0, AMD Radeon RX 7900 XTX, 24 GiB, gfx1100")).toEqual({
+      name: "AMD Radeon RX 7900 XTX",
+      memoryMb: 24576,
+      rtxGeneration: null,
+      computeCapability: null,
+      vendor: "amd",
+      rocmArch: "gfx1100",
+      supportsRocm: true,
+      supportsVulkan: true
+    });
   });
 });

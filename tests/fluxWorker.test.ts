@@ -14,6 +14,8 @@ afterEach(() => {
   delete process.env.CUDA_PATH_V12_9;
   delete process.env.MGT_FLUX_ALLOW_SYSTEM_CUDA;
   delete process.env.CUDA_PATH;
+  delete process.env.ROCM_PATH;
+  delete process.env.HIP_PATH;
 });
 
 function createTempToolsLayout(): { root: string; exe: string; cuda129: string; cuda128: string; beellama: string } {
@@ -66,6 +68,23 @@ describe("Flux worker runtime helpers", () => {
     expect(buildRuntimePathEnv(exe).split(delimiter)).not.toContain(join(systemCuda, "bin"));
     process.env.MGT_FLUX_ALLOW_SYSTEM_CUDA = "1";
     expect(buildRuntimePathEnv(exe).split(delimiter)).toContain(join(systemCuda, "bin"));
+  });
+
+  it("uses ROCm/HIP paths for Python ROCm workers without adding CUDA runtime folders", () => {
+    const { exe, cuda129 } = createTempToolsLayout();
+    const rocmRoot = join(tmpdir(), `mgt-rocm-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const hipRoot = join(tmpdir(), `mgt-hip-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    tempDirs.push(rocmRoot, hipRoot);
+    mkdirSync(join(rocmRoot, "bin"), { recursive: true });
+    mkdirSync(join(hipRoot, "bin"), { recursive: true });
+    process.env.ROCM_PATH = rocmRoot;
+    process.env.HIP_PATH = hipRoot;
+
+    const pathParts = buildRuntimePathEnv(exe, "python-rocm").split(delimiter);
+
+    expect(pathParts).toContain(join(rocmRoot, "bin"));
+    expect(pathParts).toContain(join(hipRoot, "bin"));
+    expect(pathParts).not.toContain(cuda129);
   });
 
   it("removes local build-machine paths from Flux stderr", () => {

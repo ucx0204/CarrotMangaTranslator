@@ -13,6 +13,7 @@ const {
 const {
   HF_CHILD_ENV_KEYS,
   NETWORK_CHILD_ENV_KEYS,
+  ROCM_CHILD_ENV_KEYS,
   buildWhitelistedChildEnv,
   runtimeOverrideEnv,
   shouldAllowExternalRuntimeOverrides
@@ -61,10 +62,26 @@ function isTruthy(value) {
 }
 
 function buildLlamaServerEnv(serverPath, options = {}) {
+  const preferredRuntime = resolvePreferredLlamaRuntime(options);
+  const backend = String(preferredRuntime.backend || "cuda").toLowerCase();
+  const rocmPath = runtimeOverrideEnv("ROCM_PATH", options) || process.env.ROCM_PATH || (process.platform === "win32" ? "" : "/opt/rocm");
+  const hipPath = runtimeOverrideEnv("HIP_PATH", options) || process.env.HIP_PATH || rocmPath;
+  const pathDirs = [path.dirname(serverPath)];
+  if (backend === "rocm" || backend === "hip") {
+    pathDirs.push(
+      rocmPath ? path.join(rocmPath, "bin") : null,
+      rocmPath ? path.join(rocmPath, "llvm", "bin") : null,
+      hipPath ? path.join(hipPath, "bin") : null
+    );
+  }
   const env = buildWhitelistedChildEnv({
-    pathDirs: [path.dirname(serverPath)],
+    pathDirs,
     includeProcessPath: shouldAllowExternalRuntimeOverrides(options),
-    extraKeys: [...NETWORK_CHILD_ENV_KEYS, ...HF_CHILD_ENV_KEYS]
+    extraKeys: [
+      ...NETWORK_CHILD_ENV_KEYS,
+      ...HF_CHILD_ENV_KEYS,
+      ...((backend === "rocm" || backend === "hip") ? ROCM_CHILD_ENV_KEYS : [])
+    ]
   });
   const hfHomeDir = resolveHfHomeDir(options);
   const hfHubCacheDir = resolveHubCacheDir(options);
@@ -84,6 +101,17 @@ function buildLlamaServerEnv(serverPath, options = {}) {
     }
     env.LLAMA_CACHE = llamaCacheDir;
     env.LLAMA_CACHE_DIR = llamaCacheDir;
+  }
+  if ((backend === "rocm" || backend === "hip") && rocmPath) {
+    env.ROCM_PATH = env.ROCM_PATH || rocmPath;
+    env.HIP_PATH = env.HIP_PATH || hipPath || rocmPath;
+    if (process.platform !== "win32") {
+      env.LD_LIBRARY_PATH = [
+        env.LD_LIBRARY_PATH,
+        path.join(rocmPath, "lib"),
+        path.join(rocmPath, "lib64")
+      ].filter(Boolean).join(":");
+    }
   }
   env.MANGA_TRANSLATOR_LLAMA_PORT = String(options.port);
   return env;
@@ -269,7 +297,7 @@ async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
   if (path.basename(runtimeDir).toLowerCase() === preferredRuntime.dir.toLowerCase()) {
     const missingFiles = missingRequiredLlamaRuntimeFiles(runtimeDir, preferredRuntime);
     if (missingFiles.length > 0) {
-      throw createDetailedError("Gemma 실행 런타임이 불완전합니다. CUDA DLL을 포함해 다시 설치해야 합니다.", {
+      throw createDetailedError("Gemma 실행 런타임이 불완전합니다. GPU 런타임 파일을 포함해 다시 설치해야 합니다.", {
         serverPath,
         runtimeDir,
         runtime: preferredRuntime.id,
@@ -277,26 +305,53 @@ async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
       });
     }
   }
-  if (process.platform !== "win32" || runtimeOverrideEnv("MGT_SKIP_LLAMA_RUNTIME_PREFLIGHT", options)) {
+  const shouldProbe = process.platform === "win32" || preferredRuntime.backend === "rocm" || preferredRuntime.backend === "vulkan";
+  if (!shouldProbe || runtimeOverrideEnv("MGT_SKIP_LLAMA_RUNTIME_PREFLIGHT", options)) {
     return;
   }
   const result = await runLlamaRuntimeProbe(serverPath, options, ["--list-devices"], 20000);
   const output = `${result.stdout}\n${result.stderr}`;
   if (result.code !== 0) {
-    throw createDetailedError("llama-server CUDA 런타임 검증에 실패했습니다.", {
+    throw createDetailedError(`llama-server ${formatLlamaBackendLabel(preferredRuntime.backend)} 런타임 검증에 실패했습니다.`, {
       serverPath,
+      runtimeBackend: preferredRuntime.backend,
       code: result.code,
       stdout: truncateText(result.stdout, 4000),
       stderr: truncateText(result.stderr, 4000)
     });
   }
-  if (!/(cuda|nvidia|geforce|rtx|gpu)/i.test(output)) {
-    throw createDetailedError("llama-server가 CUDA GPU를 찾지 못했습니다. CPU 실행으로 조용히 넘어가지 않도록 중단합니다.", {
+  if (!llamaRuntimeProbeLooksGpuBacked(output, preferredRuntime.backend)) {
+    const backendLabel = preferredRuntime.backend === "vulkan" ? "Vulkan/AMD GPU" : preferredRuntime.backend === "rocm" ? "ROCm/HIP GPU" : "CUDA GPU";
+    throw createDetailedError(`llama-server가 ${backendLabel}를 찾지 못했습니다. CPU 실행으로 조용히 넘어가지 않도록 중단합니다.`, {
       serverPath,
+      runtimeBackend: preferredRuntime.backend,
       stdout: truncateText(result.stdout, 4000),
       stderr: truncateText(result.stderr, 4000)
     });
   }
+}
+
+function formatLlamaBackendLabel(backend = "cuda") {
+  const normalized = String(backend || "cuda").toLowerCase();
+  if (normalized === "vulkan") {
+    return "Vulkan";
+  }
+  if (normalized === "rocm" || normalized === "hip") {
+    return "ROCm/HIP";
+  }
+  return "CUDA";
+}
+
+function llamaRuntimeProbeLooksGpuBacked(output, backend = "cuda") {
+  const text = String(output || "");
+  const normalizedBackend = String(backend || "cuda").toLowerCase();
+  if (normalizedBackend === "vulkan") {
+    return /(vulkan|radeon|amd|gpu)/i.test(text);
+  }
+  if (normalizedBackend === "rocm" || normalizedBackend === "hip") {
+    return /(rocm|hip|radeon|amd|gpu)/i.test(text);
+  }
+  return /(cuda|nvidia|geforce|rtx|gpu)/i.test(text);
 }
 
 function runLlamaRuntimeProbe(serverPath, options = {}, args = [], timeoutMs = 20000) {

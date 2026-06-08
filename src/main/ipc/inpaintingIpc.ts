@@ -30,6 +30,7 @@ import { acquireFluxInpaintingEngine, disposeCachedFluxInpaintingEngine } from "
 import { assertLibraryImagePath, openChapter, setPageInpaintingResult, updatePagesAfterInpainting } from "../library";
 import { logError } from "../logger";
 import { renderPageWithTranslationBlocksForExport, sanitizeOutputBaseName } from "../pageExport";
+import { getAppSettings } from "../settingsStore";
 import type { IpcContext } from "./context";
 import { emitJobEvent, isAbortError } from "./jobEvents";
 import { trustedHandle } from "./trustedIpc";
@@ -87,8 +88,10 @@ export function registerInpaintingIpc(context: IpcContext): void {
       let savedChapter = chapter;
       let pagesChanged = 0;
       if (totalTargetBlocks > 0) {
+        const appSettings = await getAppSettings(context.appPaths);
         fluxEngineLease = await acquireFluxInpaintingEngine({
           appPaths: context.appPaths,
+          fluxBackend: appSettings.inpainting?.fluxBackend,
           signal: abortController.signal,
           onProgress: (progress) =>
             emit({

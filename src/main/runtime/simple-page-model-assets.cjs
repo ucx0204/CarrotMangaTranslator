@@ -259,7 +259,7 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
 
   emitRuntimeProgress(options, "model_downloading", "Gemma 실행 런타임 설치 중", runtime.dir, {
     progressMode: "indeterminate",
-    installLogLine: "Gemma 실행 파일과 CUDA DLL을 앱 데이터 폴더에 풀고 있습니다."
+    installLogLine: `Gemma 실행 파일과 ${formatLlamaRuntimeBackend(runtime)} 런타임 파일을 앱 데이터 폴더에 풀고 있습니다.`
   });
   await rm(runtimeDir, { recursive: true, force: true }).catch(() => {});
   await mkdir(runtimeDir, { recursive: true });
@@ -269,7 +269,7 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
 
   const missingFiles = missingRequiredLlamaRuntimeFiles(runtimeDir, runtime);
   if (missingFiles.length > 0) {
-    throw createDetailedError("Gemma 실행 런타임을 설치했지만 필수 실행 파일 또는 CUDA DLL을 찾지 못했습니다.", {
+    throw createDetailedError("Gemma 실행 런타임을 설치했지만 필수 실행 파일 또는 GPU 런타임 파일을 찾지 못했습니다.", {
       archives: archivePaths,
       runtimeDir,
       serverPath,
@@ -289,6 +289,17 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
     progressPercent: 1,
     installLogLine: "Gemma 실행 런타임 준비가 완료되었습니다."
   });
+}
+
+function formatLlamaRuntimeBackend(runtime = {}) {
+  const backend = String(runtime.backend || "cuda").toLowerCase();
+  if (backend === "vulkan") {
+    return "Vulkan";
+  }
+  if (backend === "rocm" || backend === "hip") {
+    return "ROCm/HIP";
+  }
+  return "CUDA";
 }
 
 function isCurrentLlamaRuntime(runtimeDir, runtime = resolvePreferredLlamaRuntime({})) {
@@ -317,7 +328,7 @@ function getLlamaRuntimeArchives(runtime) {
 }
 
 function shouldExtractLlamaRuntimeFile(fileName) {
-  return LLAMA_RUNTIME_FILES.has(fileName) || /\.dll$/i.test(String(fileName ?? ""));
+  return LLAMA_RUNTIME_FILES.has(fileName) || /\.(?:dll|so|dylib)$/i.test(String(fileName ?? ""));
 }
 
 async function ensurePaddleOcrModelAssetsDownloaded(options = {}, runtime = null) {

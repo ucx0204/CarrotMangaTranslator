@@ -155,6 +155,9 @@ describe("IPC schemas", () => {
       ocr: {
         device: "cpu"
       },
+      inpainting: {
+        fluxBackend: "rocm"
+      },
       maxTokens: 12000
     };
 
@@ -162,11 +165,19 @@ describe("IPC schemas", () => {
     expect(parsed.maxTokens).toBe(12000);
     expect(parsed.gemma.vramMode).toBe("economy26b");
     expect(parsed.gemma.llamaRuntimeProfile).toBe("rtx50");
+    expect(parsed.inpainting?.fluxBackend).toBe("python-rocm");
+    expect(
+      parseIpcPayload(
+        AppSettingsSchema,
+        { ...payload, gemma: { ...payload.gemma, llamaRuntimeProfile: "cuda13.3" } },
+        "설정 저장"
+      ).gemma.llamaRuntimeProfile
+    ).toBe("rtx50");
     expect(() => parseIpcPayload(AppSettingsSchema, { ...payload, maxTokens: 12001 }, "설정 저장")).toThrow(/요청 형식/);
     expect(() =>
       parseIpcPayload(
         AppSettingsSchema,
-        { ...payload, gemma: { ...payload.gemma, llamaRuntimeProfile: "cuda13.3" } },
+        { ...payload, gemma: { ...payload.gemma, llamaRuntimeProfile: "metal" } },
         "설정 저장"
       )
     ).toThrow(/요청 형식/);

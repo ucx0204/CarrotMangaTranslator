@@ -68,6 +68,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   parsePipRawProgress: (line: string) => { current: number; total: number } | null;
   parseResponsesSseText: (rawText: string) => { outputText: string; eventCount: number; rawResponse: unknown };
   requestTranslation: (server: { baseUrl: string }, options: { [key: string]: unknown }) => Promise<{ outputText: string; rawResponse: unknown; requestBody: Record<string, unknown> }>;
+  resolveOcrGpuBackend: (options?: { [key: string]: unknown }) => string;
   resolveOcrGpuCudaTag: (options?: { [key: string]: unknown }) => string;
   resolveOcrGpuPackageIndexUrl: (options?: { [key: string]: unknown }) => string;
   resolveOcrPipInstallBatches: (options?: { [key: string]: unknown }) => string[][];
@@ -112,6 +113,7 @@ const {
   resolveLlamaCppCacheDir,
   parseResponsesSseText,
   requestTranslation,
+  resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
   resolveOcrPipInstallBatches,
@@ -442,6 +444,42 @@ describe("runtime model launch helpers", () => {
     }
   });
 
+  it("keeps ROCm Paddle OCR runtimes isolated from CUDA package assumptions", () => {
+    const rocmBatches = resolveOcrPipInstallBatches({ ocrDevice: "gpu", ocrGpuBackend: "rocm" });
+    const env = buildOcrRuntimeEnv({ ocrDevice: "gpu", ocrGpuBackend: "rocm" }, { runtimeDir: "C:/ocr-runtime", includePackageDir: false });
+    const script = buildPaddleOcrImportCheckScript({ ocrDevice: "gpu", ocrGpuBackend: "rocm" });
+
+    expect(resolveOcrGpuBackend({ ocrGpuBackend: "amd" })).toBe("rocm");
+    expect(rocmBatches[0][0]).toBe("paddlepaddle-rocm");
+    expect(rocmBatches.flat()).not.toContain("--index-url");
+    expect(env.MANGA_TRANSLATOR_OCR_GPU_BACKEND).toBe("rocm");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE).toBe("gpu:0");
+    expect(script).toContain("is_compiled_with_rocm");
+    expect(script).not.toContain("is_compiled_with_cuda");
+  });
+
+  it("lets ROCm Paddle OCR package sources be overridden explicitly", () => {
+    const previousPackage = process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE;
+    const previousIndex = process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_INDEX_URL;
+    try {
+      process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE = "paddlepaddle-rocm==3.0.0";
+      process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_INDEX_URL = "https://example.invalid/rocm/";
+      const batches = resolveOcrPipInstallBatches({
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm"
+      });
+
+      expect(batches[0]).toEqual([
+        "paddlepaddle-rocm==3.0.0",
+        "--index-url",
+        "https://example.invalid/rocm/"
+      ]);
+    } finally {
+      restoreEnv("MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE", previousPackage);
+      restoreEnv("MANGA_TRANSLATOR_OCR_ROCM_PADDLE_INDEX_URL", previousIndex);
+    }
+  });
+
   it("keeps PaddleOCR install batches independent from the selected Gemma model", () => {
     const gemma31B = resolveOcrPipInstallBatches({
       ocrDevice: "gpu",
@@ -546,7 +584,7 @@ describe("runtime model launch helpers", () => {
     expect(mainlineCuda13Profile).toContain('"llama-server-impl.dll"');
     expect(beellamaCuda13Profile).not.toContain('"llama-server-impl.dll"');
     expect(modelAssetsSource).toContain("function shouldExtractLlamaRuntimeFile(fileName)");
-    expect(modelAssetsSource).toContain("LLAMA_RUNTIME_FILES.has(fileName) || /\\.dll$/i.test");
+    expect(modelAssetsSource).toContain("LLAMA_RUNTIME_FILES.has(fileName) || /\\.(?:dll|so|dylib)$/i.test");
   });
 
   it("treats an explicitly empty OCR hint array as a completed OCR pass", async () => {

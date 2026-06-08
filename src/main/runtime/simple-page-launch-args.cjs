@@ -216,10 +216,19 @@ function resolveDraftModelRepoArg(options = {}) {
 }
 
 function shouldUseBeellamaGemmaLaunch(options = {}) {
+  const profile = String(options.llamaRuntimeProfile ?? runtimeOverrideEnv("MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE", options) ?? "")
+    .trim()
+    .toLowerCase();
+  if (["rocm", "hip", "amd", "amd-rocm", "vulkan", "vk", "amd-vulkan"].includes(profile)) {
+    return false;
+  }
   if (isMainlineGemmaModel(options)) {
     return false;
   }
   const serverPath = String(options.serverPath || runtimeOverrideEnv("LLAMA_SERVER_PATH", options) || defaultServerPath(options) || "");
+  if (/rocm|hip|vulkan/i.test(serverPath)) {
+    return false;
+  }
   const isBeellamaRuntime = /beellama/i.test(serverPath);
   const isGemma4Model = looksLikeGemma4Model(options);
   if (isBeellamaRuntime && isGemma4Model) {

@@ -19,6 +19,7 @@ const {
   resolveBootstrapPython,
   resolveInstallProgressDir,
   resolveOcrDeviceLabel,
+  resolveOcrGpuBackend,
   resolveOcrInstallSignature,
   resolveOcrPipInstallBatches,
   resolveOcrPythonPackageDir,
@@ -482,7 +483,7 @@ function hasExpectedOcrPackages(packageDir, options = {}) {
     return false;
   }
   const required = ["paddle", "paddleocr", "paddlex"];
-  if (isOcrGpuRequested(options)) {
+  if (isOcrGpuRequested(options) && resolveOcrGpuBackend(options) === "cuda") {
     required.push("nvidia");
   }
   return required.every((name) => existsSync(path.join(packageDir, name)));

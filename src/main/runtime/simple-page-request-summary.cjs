@@ -31,6 +31,7 @@ const {
 } = require("./simple-page-model-assets.cjs");
 const {
   resolveOcrDevice,
+  resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrRuntimeDir
 } = require("./simple-page-ocr-runtime-config.cjs");
@@ -102,6 +103,7 @@ function buildOptionSummary(options = {}) {
     codexOauthPort: options.codexOauthPort,
     ocrBboxProvider: resolveOcrBboxProvider(options),
     ocrDevice: resolveOcrDevice(options),
+    ocrGpuBackend: resolveOcrGpuBackend(options),
     ocrGpuCudaTag: resolveOcrGpuCudaTag(options),
     ocrRuntimeDir: resolveOcrRuntimeDir(options),
     launchMode: launchTarget.launchMode,

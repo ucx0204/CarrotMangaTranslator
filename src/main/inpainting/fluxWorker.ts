@@ -3,6 +3,8 @@ import { once } from "node:events";
 import { existsSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 
+const DEFAULT_ROCM_PATH = process.platform === "win32" ? "" : "/opt/rocm";
+
 export type FluxWorkerRequest = {
   input: string;
   mask: string;
@@ -11,6 +13,17 @@ export type FluxWorkerRequest = {
   strength: number;
   maxPixels: number;
   maskPadding: number;
+};
+
+export type FluxWorkerBackend = "cuda-native" | "python-rocm" | "python-cpu";
+
+export type FluxWorkerLaunchSpec = {
+  backend: FluxWorkerBackend;
+  executable: string;
+  args: string[];
+  runtimePath: string;
+  label: string;
+  env?: NodeJS.ProcessEnv;
 };
 
 type FluxWorkerPending = {
@@ -26,23 +39,19 @@ export class FluxWorker {
   private pending = new Map<string, FluxWorkerPending>();
   private closed = false;
 
-  constructor(runtimePath: string, modelPath: string, vaePath: string, maskPaddingPx: number) {
-    this.child = spawn(
-      runtimePath,
-      ["--transformer-path", modelPath, "--vae-path", vaePath, "--steps", "4", "--strength", "1", "--mask-padding", String(maskPaddingPx)],
-      {
-        windowsHide: true,
-        stdio: ["pipe", "pipe", "pipe"],
-        env: buildFluxWorkerEnv(runtimePath)
-      }
-    );
+  constructor(private readonly launch: FluxWorkerLaunchSpec) {
+    this.child = spawn(launch.executable, launch.args, {
+      windowsHide: true,
+      stdio: ["pipe", "pipe", "pipe"],
+      env: buildFluxWorkerEnv(launch)
+    });
     this.child.stdout.on("data", (chunk: Buffer) => this.handleStdout(chunk));
     this.child.stderr.on("data", (chunk: Buffer) => this.rememberStderr(chunk.toString("utf8")));
     this.child.on("error", (error) => this.rejectAll(error));
     this.child.on("exit", (code) => {
       this.closed = true;
       if (this.pending.size > 0) {
-        this.rejectAll(buildFluxRuntimeExitError(code, this.stderrTail.join("")));
+        this.rejectAll(buildFluxRuntimeExitError(code, this.stderrTail.join(""), this.launch.backend));
       }
     });
   }
@@ -170,7 +179,7 @@ export class FluxWorker {
   }
 }
 
-export function buildRuntimePathEnv(command: string): string {
+export function buildRuntimePathEnv(command: string, backend: FluxWorkerBackend = "cuda-native"): string {
   const dirs: string[] = [];
   const addDir = (dir: string | null | undefined) => {
     if (!dir || !existsSync(dir)) {
@@ -185,14 +194,25 @@ export function buildRuntimePathEnv(command: string): string {
   const runnerDir = dirname(command);
   const toolsDir = dirname(runnerDir);
   addDir(runnerDir);
-  addDir(join(toolsDir, "mgt-flux-cuda12.9"));
-  addDir(join(toolsDir, "cuda12.9"));
-  addDir(process.env.CUDA_PATH_V12_9 ? join(process.env.CUDA_PATH_V12_9, "bin") : null);
-  if (isTruthy(process.env.MGT_FLUX_ALLOW_SYSTEM_CUDA)) {
-    addDir(process.env.CUDA_PATH ? join(process.env.CUDA_PATH, "bin") : null);
-    addDir(process.env.CUDA_HOME ? join(process.env.CUDA_HOME, "bin") : null);
-    addDir(process.env.CUDA_PATH_V12_8 ? join(process.env.CUDA_PATH_V12_8, "bin") : null);
-    addDir(process.env.CUDA_PATH_V12_4 ? join(process.env.CUDA_PATH_V12_4, "bin") : null);
+  if (backend === "cuda-native") {
+    addDir(join(toolsDir, "mgt-flux-cuda12.9"));
+    addDir(join(toolsDir, "cuda12.9"));
+    addDir(process.env.CUDA_PATH_V12_9 ? join(process.env.CUDA_PATH_V12_9, "bin") : null);
+    if (isTruthy(process.env.MGT_FLUX_ALLOW_SYSTEM_CUDA)) {
+      addDir(process.env.CUDA_PATH ? join(process.env.CUDA_PATH, "bin") : null);
+      addDir(process.env.CUDA_HOME ? join(process.env.CUDA_HOME, "bin") : null);
+      addDir(process.env.CUDA_PATH_V12_8 ? join(process.env.CUDA_PATH_V12_8, "bin") : null);
+      addDir(process.env.CUDA_PATH_V12_4 ? join(process.env.CUDA_PATH_V12_4, "bin") : null);
+      for (const pathPart of String(process.env.PATH ?? "").split(delimiter)) {
+        addDir(pathPart);
+      }
+    }
+  } else {
+    const rocmPath = process.env.ROCM_PATH || DEFAULT_ROCM_PATH;
+    const hipPath = process.env.HIP_PATH || rocmPath;
+    addDir(rocmPath ? join(rocmPath, "bin") : null);
+    addDir(rocmPath ? join(rocmPath, "llvm", "bin") : null);
+    addDir(hipPath ? join(hipPath, "bin") : null);
     for (const pathPart of String(process.env.PATH ?? "").split(delimiter)) {
       addDir(pathPart);
     }
@@ -219,8 +239,19 @@ export function sanitizeFluxRuntimeStderr(text: string): string {
     .replace(/[A-Z]:\\Users\\[^\\\r\n]+\\Downloads\\[^:\r\n]+?\\tools\\mgt-flux-klein-runner\\[^:\r\n]+/gi, "<flux-runner-source>");
 }
 
-function buildFluxRuntimeExitError(code: number | null, stderr: string): Error {
+function buildFluxRuntimeExitError(code: number | null, stderr: string, backend: FluxWorkerBackend): Error {
   const detail = formatFluxRuntimeDetail(stderr);
+  if (backend === "python-rocm" || backend === "python-cpu") {
+    if (/ModuleNotFoundError|No module named/i.test(stderr)) {
+      return new Error(`Flux Python 런타임 패키지를 불러오지 못했습니다. Flux 런타임 설치를 다시 실행하세요. ${detail}`);
+    }
+    if (/ROCm|HIP|torch\.version\.hip|torch\.cuda\.is_available|No HIP GPUs are available|hipError|HSA|gfx/i.test(stderr)) {
+      return new Error(
+        `Flux ROCm 런타임이 AMD GPU를 사용할 수 없습니다. ROCm/PyTorch 호환성을 확인하거나 Flux 백엔드를 CPU로 바꾸세요. ${detail}`
+      );
+    }
+    return new Error(`Flux Python 인페인팅 런타임이 종료되었습니다 (${code}). ${detail}`);
+  }
   if (/Unable to dynamically load the "cublas"|cublas64_12\.dll|cublas\.dll/i.test(stderr)) {
     return new Error(
       `Flux 인페인팅 런타임이 CUDA cuBLAS DLL(cublas64_12.dll)을 찾지 못했습니다. 앱에 포함된 CUDA 런타임 경로를 확인하세요. ${detail}`
@@ -257,15 +288,59 @@ function formatFluxRuntimeDetail(stderr: string): string {
   return detail ? `detail=${detail}` : "";
 }
 
-function buildFluxWorkerEnv(command: string): NodeJS.ProcessEnv {
+function buildFluxWorkerEnv(launch: FluxWorkerLaunchSpec): NodeJS.ProcessEnv {
+  const launchPath = launch.env?.PATH;
+  const rocmPath = process.env.ROCM_PATH || DEFAULT_ROCM_PATH;
+  const hipPath = process.env.HIP_PATH || rocmPath;
   const env: NodeJS.ProcessEnv = {
-    PATH: buildRuntimePathEnv(command),
-    PYTHONIOENCODING: "utf-8"
+    ...launch.env,
+    PATH: [buildRuntimePathEnv(launch.executable, launch.backend), launchPath].filter(Boolean).join(delimiter),
+    PYTHONIOENCODING: "utf-8",
+    PYTHONUNBUFFERED: "1"
   };
-  for (const key of ["SystemRoot", "WINDIR", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA"] as const) {
+  for (const key of [
+    "SystemRoot",
+    "WINDIR",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "LOCALAPPDATA",
+    "APPDATA",
+    "HOME",
+    "ROCM_PATH",
+    "HIP_PATH",
+    "HIP_VISIBLE_DEVICES",
+    "ROCR_VISIBLE_DEVICES",
+    "GPU_DEVICE_ORDINAL",
+    "HSA_OVERRIDE_GFX_VERSION",
+    "HSA_ENABLE_SDMA",
+    "PYTORCH_HIP_ALLOC_CONF",
+    "LD_LIBRARY_PATH",
+    "LIBRARY_PATH",
+    "HF_HOME",
+    "HUGGINGFACE_HUB_CACHE"
+  ] as const) {
     const value = process.env[key];
-    if (value) {
+    if (value && !env[key]) {
       env[key] = value;
+    }
+  }
+  if (process.env.PATH && launch.backend !== "cuda-native") {
+    env.PATH = `${env.PATH}${delimiter}${process.env.PATH}`;
+  }
+  if (launch.backend === "python-rocm") {
+    if (rocmPath && !env.ROCM_PATH) {
+      env.ROCM_PATH = rocmPath;
+    }
+    if (hipPath && !env.HIP_PATH) {
+      env.HIP_PATH = hipPath;
+    }
+    if (process.platform !== "win32" && rocmPath) {
+      env.LD_LIBRARY_PATH = [
+        env.LD_LIBRARY_PATH,
+        join(rocmPath, "lib"),
+        join(rocmPath, "lib64")
+      ].filter(Boolean).join(":");
     }
   }
   return env;
