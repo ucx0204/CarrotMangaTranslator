@@ -56,6 +56,8 @@ const fluxPackages = [
   "huggingface_hub>=0.36.0",
   "pillow>=10.0.0"
 ];
+const windowsMsvcCompilerTarget = "x86_64-pc-windows-msvc";
+const windowsDynamicRuntimeLibs = ["msvcrt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
 
 main().catch((error) => {
   const message = error?.stack || error?.message || String(error);
@@ -247,6 +249,11 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets) {
     isFile(rocmPaths.llvmMt) ? `-DCMAKE_MT:FILEPATH=${toCmakePath(rocmPaths.llvmMt)}` : "",
     nativeBuildEnv.sdkVersion ? `-DCMAKE_SYSTEM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
     nativeBuildEnv.sdkVersion ? `-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
+    `-DCMAKE_C_COMPILER_TARGET=${windowsMsvcCompilerTarget}`,
+    `-DCMAKE_CXX_COMPILER_TARGET=${windowsMsvcCompilerTarget}`,
+    "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
+    `-DCMAKE_C_STANDARD_LIBRARIES:STRING=${windowsDynamicRuntimeLibs.join(";")}`,
+    `-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${windowsDynamicRuntimeLibs.join(";")}`,
     "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
     "-DSD_HIPBLAS=ON",
     "-DCMAKE_BUILD_TYPE=Release",
@@ -268,6 +275,9 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets) {
     LIB: mergePathList(process.env.LIB, nativeBuildEnv.libPaths),
     LIBPATH: mergePathList(process.env.LIBPATH, nativeBuildEnv.libPaths),
     CMAKE_ARGS: mergeWords(process.env.CMAKE_ARGS, cmakeArgs.join(" ")),
+    CFLAGS: mergeWords(process.env.CFLAGS, `--target=${windowsMsvcCompilerTarget}`),
+    CXXFLAGS: mergeWords(process.env.CXXFLAGS, `--target=${windowsMsvcCompilerTarget}`),
+    LDFLAGS: mergeWords(process.env.LDFLAGS, windowsDynamicRuntimeLibs.join(" ")),
     FORCE_CMAKE: "1",
     CMAKE_GENERATOR: process.env.CMAKE_GENERATOR || "Ninja",
     CC: process.env.CC || rocmPaths.clang,
@@ -477,10 +487,12 @@ function resolveWindowsNativeBuildEnv() {
   ]);
   const hasWindowsSdkLibs = ["kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "ole32.lib", "uuid.lib", "advapi32.lib"]
     .every((file) => pathListContainsFile(libPaths, file));
+  const hasUcrtLibs = pathListContainsFile(libPaths, "ucrt.lib");
   const hasMsvcLibs =
     pathListContainsFile(libPaths, "oldnames.lib") &&
+    pathListContainsFile(libPaths, "vcruntime.lib") &&
     (pathListContainsFile(libPaths, "msvcrt.lib") || pathListContainsFile(libPaths, "msvcrtd.lib"));
-  if (!hasWindowsSdkLibs || !hasMsvcLibs) {
+  if (!hasWindowsSdkLibs || !hasUcrtLibs || !hasMsvcLibs) {
     return null;
   }
   return { sdkVersion: sdk?.version, pathEntries, includePaths, libPaths };

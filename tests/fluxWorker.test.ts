@@ -158,6 +158,10 @@ describe("Flux worker runtime helpers", () => {
     expect(fluxAssetsSource).toContain("-DCMAKE_TRY_COMPILE_CONFIGURATION=Release");
     expect(fluxAssetsSource).toContain("kernel32.lib");
     expect(fluxAssetsSource).toContain("oldnames.lib");
+    expect(fluxAssetsSource).toContain("vcruntime.lib");
+    expect(fluxAssetsSource).toContain("-DCMAKE_C_COMPILER_TARGET=");
+    expect(fluxAssetsSource).toContain("-DCMAKE_C_STANDARD_LIBRARIES:STRING=");
+    expect(fluxAssetsSource).toContain("env.LDFLAGS = mergeWords(env.LDFLAGS");
     expect(fluxAssetsSource).toContain('clang: join(llvmBin, "clang.exe")');
     expect(fluxAssetsSource).toContain('clangxx: join(llvmBin, "clang++.exe")');
     expect(fluxAssetsSource).toContain('llvmRc: join(llvmBin, "llvm-rc.exe")');
@@ -198,6 +202,9 @@ describe("Flux worker runtime helpers", () => {
     expect(script).toContain("rocm_sdk_libraries_custom");
     expect(script).toContain("CMAKE_ARGS");
     expect(script).toContain("-DSD_HIPBLAS=ON");
+    expect(script).toContain("x86_64-pc-windows-msvc");
+    expect(script).toContain("CMAKE_C_STANDARD_LIBRARIES");
+    expect(script).toContain("LDFLAGS");
     expect(script).toContain("GPU_TARGETS");
     expect(script).toContain("SHA256");
   });
@@ -235,7 +242,7 @@ describe("Flux worker runtime helpers", () => {
     for (const dir of [msvcLib, msvcInclude, msvcBin]) {
       mkdirSync(dir, { recursive: true });
     }
-    for (const lib of ["oldnames.lib", "msvcrt.lib", "msvcrtd.lib"]) {
+    for (const lib of ["oldnames.lib", "msvcrt.lib", "msvcrtd.lib", "vcruntime.lib"]) {
       writeFileSync(join(msvcLib, lib), "");
     }
 

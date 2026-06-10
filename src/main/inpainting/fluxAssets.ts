@@ -21,6 +21,8 @@ const FLUX_PYTHON_WORKER = "flux-klein-python-worker.py";
 const FLUX_SDCPP_WORKER = "flux-klein-sdcpp-worker.py";
 const FLUX_PYTHON_RUNTIME_MARKER = ".mgt-flux-python-runtime.json";
 const FLUX_ROCM_PREBUILT_RUNTIME_SCHEMA = 1;
+const WINDOWS_MSVC_COMPILER_TARGET = "x86_64-pc-windows-msvc";
+const WINDOWS_DYNAMIC_RUNTIME_LIBS = ["msvcrt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
 const FLUX_ROCM_PREBUILT_RUNTIME_MANIFEST = "mgt-flux-rocm-runtime.json";
 const FLUX_DIFFUSERS_MODEL_ID = "black-forest-labs/FLUX.2-klein-4B";
 const FLUX_SDCPP_VAE_FILE = "full_encoder_small_decoder.safetensors";
@@ -1165,6 +1167,11 @@ function buildTargetPythonEnv(
       existsSync(rocmPaths.llvmMt) ? `-DCMAKE_MT:FILEPATH=${toCmakePath(rocmPaths.llvmMt)}` : "",
       nativeBuildEnv?.sdkVersion ? `-DCMAKE_SYSTEM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
       nativeBuildEnv?.sdkVersion ? `-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
+      `-DCMAKE_C_COMPILER_TARGET=${WINDOWS_MSVC_COMPILER_TARGET}`,
+      `-DCMAKE_CXX_COMPILER_TARGET=${WINDOWS_MSVC_COMPILER_TARGET}`,
+      "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
+      `-DCMAKE_C_STANDARD_LIBRARIES:STRING=${WINDOWS_DYNAMIC_RUNTIME_LIBS.join(";")}`,
+      `-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${WINDOWS_DYNAMIC_RUNTIME_LIBS.join(";")}`,
       "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
       "-DSD_HIPBLAS=ON",
       "-DCMAKE_BUILD_TYPE=Release",
@@ -1174,6 +1181,9 @@ function buildTargetPythonEnv(
       gpuTargets ? `-DAMDGPU_TARGETS=${gpuTargets}` : ""
     ].filter(Boolean);
     env.CMAKE_ARGS = cmakeArgs.join(" ");
+    env.CFLAGS = mergeWords(env.CFLAGS, `--target=${WINDOWS_MSVC_COMPILER_TARGET}`);
+    env.CXXFLAGS = mergeWords(env.CXXFLAGS, `--target=${WINDOWS_MSVC_COMPILER_TARGET}`);
+    env.LDFLAGS = mergeWords(env.LDFLAGS, WINDOWS_DYNAMIC_RUNTIME_LIBS.join(" "));
     env.FORCE_CMAKE = "1";
     env.CMAKE_GENERATOR = env.CMAKE_GENERATOR || "Ninja";
     if (nativeBuildEnv) {
@@ -1246,10 +1256,12 @@ export function resolveWindowsNativeBuildEnv(): WindowsNativeBuildEnv | null {
   ]);
   const hasWindowsSdkLibs = ["kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "ole32.lib", "uuid.lib", "advapi32.lib"]
     .every((file) => pathListContainsFile(libPaths, file));
+  const hasUcrtLibs = pathListContainsFile(libPaths, "ucrt.lib");
   const hasMsvcLibs =
     pathListContainsFile(libPaths, "oldnames.lib") &&
+    pathListContainsFile(libPaths, "vcruntime.lib") &&
     (pathListContainsFile(libPaths, "msvcrt.lib") || pathListContainsFile(libPaths, "msvcrtd.lib"));
-  if (!hasWindowsSdkLibs || !hasMsvcLibs) {
+  if (!hasWindowsSdkLibs || !hasUcrtLibs || !hasMsvcLibs) {
     return null;
   }
   return {
@@ -1397,6 +1409,14 @@ function mergePathList(...values: Array<string | string[] | null | undefined>): 
     }
   }
   return uniquePaths(entries).join(delimiter);
+}
+
+function mergeWords(...values: Array<string | string[] | null | undefined>): string {
+  return values
+    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
 }
 
 function uniqueExistingDirs(paths: string[]): string[] {
