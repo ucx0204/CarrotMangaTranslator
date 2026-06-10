@@ -1177,6 +1177,7 @@ function buildTargetPythonEnv(
       runtimeLibraryCmakeList ? quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`) : "",
       "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
       "-DSD_HIPBLAS=ON",
+      "-DGGML_OPENMP=OFF",
       "-DCMAKE_BUILD_TYPE=Release",
       "-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON",
       "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
@@ -1239,18 +1240,18 @@ export function resolveWindowsNativeBuildEnv(): WindowsNativeBuildEnv | null {
   }
   const sdk = resolveWindowsSdkLayout();
   const msvc = resolveMsvcToolsLayout();
-  const envLibPaths = splitPathList(process.env.LIB);
+  const envLibPaths = splitPathList(process.env.LIB).filter((item) => !isX86WindowsLibraryPath(item));
   const envIncludePaths = splitPathList(process.env.INCLUDE);
   const envPathEntries = splitPathList(process.env.PATH);
   const libPaths = uniqueExistingDirs([
-    ...envLibPaths,
     ...(sdk ? [sdk.umLibPath, sdk.ucrtLibPath] : []),
-    ...(msvc ? [msvc.libPath] : [])
+    ...(msvc ? [msvc.libPath] : []),
+    ...envLibPaths
   ]);
   const includePaths = uniqueExistingDirs([
-    ...envIncludePaths,
     ...(sdk ? sdk.includePaths : []),
-    ...(msvc ? [msvc.includePath] : [])
+    ...(msvc ? [msvc.includePath] : []),
+    ...envIncludePaths
   ]);
   const pathEntries = uniqueExistingDirs([
     ...(sdk?.binPath ? [sdk.binPath] : []),
@@ -1281,8 +1282,16 @@ function resolveWindowsRuntimeLibraryPaths(libPaths: string[]): string[] {
     if (!match) {
       throw new Error(`Required Windows/MSVC runtime library was not found: ${fileName}`);
     }
+    if (isX86WindowsLibraryPath(match)) {
+      throw new Error(`Resolved a 32-bit Windows/MSVC runtime library while building x64: ${match}`);
+    }
     return match;
   });
+}
+
+function isX86WindowsLibraryPath(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/").toLowerCase();
+  return /\/lib\/x86(\/|$)/.test(normalized) || /\/(um|ucrt)\/x86(\/|$)/.test(normalized);
 }
 
 function formatWindowsNativeBuildToolsMissingMessage(): string {

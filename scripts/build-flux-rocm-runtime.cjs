@@ -259,6 +259,7 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets) {
     quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`),
     "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
     "-DSD_HIPBLAS=ON",
+    "-DGGML_OPENMP=OFF",
     "-DCMAKE_BUILD_TYPE=Release",
     "-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON",
     "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
@@ -473,15 +474,16 @@ function resolveWindowsRocmSdkPaths(packageDir) {
 function resolveWindowsNativeBuildEnv() {
   const sdk = resolveWindowsSdkLayout();
   const msvc = resolveMsvcToolsLayout();
+  const envLibPaths = splitPathList(process.env.LIB).filter((item) => !isX86WindowsLibraryPath(item));
   const libPaths = uniqueExistingDirs([
-    ...splitPathList(process.env.LIB),
     ...(sdk ? [sdk.umLibPath, sdk.ucrtLibPath] : []),
-    ...(msvc ? [msvc.libPath] : [])
+    ...(msvc ? [msvc.libPath] : []),
+    ...envLibPaths
   ]);
   const includePaths = uniqueExistingDirs([
-    ...splitPathList(process.env.INCLUDE),
     ...(sdk ? sdk.includePaths : []),
-    ...(msvc ? [msvc.includePath] : [])
+    ...(msvc ? [msvc.includePath] : []),
+    ...splitPathList(process.env.INCLUDE)
   ]);
   const pathEntries = uniqueExistingDirs([
     ...(sdk?.binPath ? [sdk.binPath] : []),
@@ -507,8 +509,16 @@ function resolveWindowsRuntimeLibraryPaths(libPaths) {
     if (!match) {
       throw new Error(`Required Windows/MSVC runtime library was not found: ${fileName}`);
     }
+    if (isX86WindowsLibraryPath(match)) {
+      throw new Error(`Resolved a 32-bit Windows/MSVC runtime library while building x64: ${match}`);
+    }
     return match;
   });
+}
+
+function isX86WindowsLibraryPath(filePath) {
+  const normalized = filePath.replace(/\\/g, "/").toLowerCase();
+  return /\/lib\/x86(\/|$)/.test(normalized) || /\/(um|ucrt)\/x86(\/|$)/.test(normalized);
 }
 
 function formatWindowsNativeBuildToolsMissingMessage() {
@@ -609,6 +619,12 @@ function resolveGpuTargets(args) {
 }
 
 function snapshotEnvironment(nativeBuildEnv, gpuTargets) {
+  let runtimeLibraries = [];
+  try {
+    runtimeLibraries = resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths);
+  } catch {
+    runtimeLibraries = [];
+  }
   return {
     node: process.version,
     platform: process.platform,
@@ -626,7 +642,8 @@ function snapshotEnvironment(nativeBuildEnv, gpuTargets) {
       AMDGPU_TARGETS: process.env.AMDGPU_TARGETS || null,
       CMAKE_GENERATOR: process.env.CMAKE_GENERATOR || null
     },
-    nativeBuildEnv
+    nativeBuildEnv,
+    runtimeLibraries
   };
 }
 
