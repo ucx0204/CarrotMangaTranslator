@@ -22,7 +22,7 @@ const FLUX_SDCPP_WORKER = "flux-klein-sdcpp-worker.py";
 const FLUX_PYTHON_RUNTIME_MARKER = ".mgt-flux-python-runtime.json";
 const FLUX_ROCM_PREBUILT_RUNTIME_SCHEMA = 1;
 const WINDOWS_MSVC_COMPILER_TARGET = "x86_64-pc-windows-msvc";
-const WINDOWS_DYNAMIC_RUNTIME_LIBS = ["msvcrt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
+const WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES = ["msvcrt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
 const FLUX_ROCM_PREBUILT_RUNTIME_MANIFEST = "mgt-flux-rocm-runtime.json";
 const FLUX_DIFFUSERS_MODEL_ID = "black-forest-labs/FLUX.2-klein-4B";
 const FLUX_SDCPP_VAE_FILE = "full_encoder_small_decoder.safetensors";
@@ -1159,6 +1159,9 @@ function buildTargetPythonEnv(
     if (!nativeBuildEnv && options.requireNativeBuildEnv) {
       throw new Error(formatWindowsNativeBuildToolsMissingMessage());
     }
+    const runtimeLibraryPaths = nativeBuildEnv ? resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths) : [];
+    const runtimeLibraryCmakeList = runtimeLibraryPaths.map(toCmakePath).join(";");
+    const runtimeLibraryLdFlags = runtimeLibraryPaths.map((item) => quoteShellToken(toCmakePath(item))).join(" ");
     const cmakeArgs = [
       env.CMAKE_ARGS,
       `-DCMAKE_C_COMPILER:FILEPATH=${toCmakePath(rocmPaths.clang)}`,
@@ -1170,8 +1173,8 @@ function buildTargetPythonEnv(
       `-DCMAKE_C_COMPILER_TARGET=${WINDOWS_MSVC_COMPILER_TARGET}`,
       `-DCMAKE_CXX_COMPILER_TARGET=${WINDOWS_MSVC_COMPILER_TARGET}`,
       "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
-      `-DCMAKE_C_STANDARD_LIBRARIES:STRING=${WINDOWS_DYNAMIC_RUNTIME_LIBS.join(";")}`,
-      `-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${WINDOWS_DYNAMIC_RUNTIME_LIBS.join(";")}`,
+      runtimeLibraryCmakeList ? quoteCmakeArg(`-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`) : "",
+      runtimeLibraryCmakeList ? quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`) : "",
       "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
       "-DSD_HIPBLAS=ON",
       "-DCMAKE_BUILD_TYPE=Release",
@@ -1183,7 +1186,7 @@ function buildTargetPythonEnv(
     env.CMAKE_ARGS = cmakeArgs.join(" ");
     env.CFLAGS = mergeWords(env.CFLAGS, `--target=${WINDOWS_MSVC_COMPILER_TARGET}`);
     env.CXXFLAGS = mergeWords(env.CXXFLAGS, `--target=${WINDOWS_MSVC_COMPILER_TARGET}`);
-    env.LDFLAGS = mergeWords(env.LDFLAGS, WINDOWS_DYNAMIC_RUNTIME_LIBS.join(" "));
+    env.LDFLAGS = mergeWords(env.LDFLAGS, runtimeLibraryLdFlags);
     env.FORCE_CMAKE = "1";
     env.CMAKE_GENERATOR = env.CMAKE_GENERATOR || "Ninja";
     if (nativeBuildEnv) {
@@ -1270,6 +1273,16 @@ export function resolveWindowsNativeBuildEnv(): WindowsNativeBuildEnv | null {
     includePaths,
     libPaths
   };
+}
+
+function resolveWindowsRuntimeLibraryPaths(libPaths: string[]): string[] {
+  return WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES.map((fileName) => {
+    const match = findFileInPathList(libPaths, fileName);
+    if (!match) {
+      throw new Error(`Required Windows/MSVC runtime library was not found: ${fileName}`);
+    }
+    return match;
+  });
 }
 
 function formatWindowsNativeBuildToolsMissingMessage(): string {
@@ -1419,6 +1432,14 @@ function mergeWords(...values: Array<string | string[] | null | undefined>): str
     .join(" ");
 }
 
+function quoteCmakeArg(value: string): string {
+  return /\s/.test(value) ? `"${value.replace(/"/g, '\\"')}"` : value;
+}
+
+function quoteShellToken(value: string): string {
+  return /\s/.test(value) ? JSON.stringify(value) : value;
+}
+
 function uniqueExistingDirs(paths: string[]): string[] {
   return uniquePaths(paths).filter(directoryExists);
 }
@@ -1472,6 +1493,16 @@ function compareVersionStrings(left: string, right: string): number {
 
 function pathListContainsFile(paths: string[], fileName: string): boolean {
   return paths.some((dir) => fileExists(join(dir, fileName)));
+}
+
+function findFileInPathList(paths: string[], fileName: string): string | null {
+  for (const dir of paths) {
+    const candidate = join(dir, fileName);
+    if (fileExists(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 function directoryExists(pathValue: string): boolean {

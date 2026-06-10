@@ -57,7 +57,7 @@ const fluxPackages = [
   "pillow>=10.0.0"
 ];
 const windowsMsvcCompilerTarget = "x86_64-pc-windows-msvc";
-const windowsDynamicRuntimeLibs = ["msvcrt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
+const windowsDynamicRuntimeLibNames = ["msvcrt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
 
 main().catch((error) => {
   const message = error?.stack || error?.message || String(error);
@@ -226,6 +226,9 @@ async function prepareEmbeddedPython({ pythonDir, pythonExe, packageDir, downloa
 
 function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets) {
   const rocmPaths = resolveWindowsRocmSdkPaths(packageDir);
+  const runtimeLibraryPaths = resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths);
+  const runtimeLibraryCmakeList = runtimeLibraryPaths.map(toCmakePath).join(";");
+  const runtimeLibraryLdFlags = runtimeLibraryPaths.map((item) => quoteArg(toCmakePath(item))).join(" ");
   const pathEntries = [
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`),
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`, "Scripts"),
@@ -252,8 +255,8 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets) {
     `-DCMAKE_C_COMPILER_TARGET=${windowsMsvcCompilerTarget}`,
     `-DCMAKE_CXX_COMPILER_TARGET=${windowsMsvcCompilerTarget}`,
     "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
-    `-DCMAKE_C_STANDARD_LIBRARIES:STRING=${windowsDynamicRuntimeLibs.join(";")}`,
-    `-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${windowsDynamicRuntimeLibs.join(";")}`,
+    quoteCmakeArg(`-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`),
+    quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`),
     "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
     "-DSD_HIPBLAS=ON",
     "-DCMAKE_BUILD_TYPE=Release",
@@ -277,7 +280,7 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets) {
     CMAKE_ARGS: mergeWords(process.env.CMAKE_ARGS, cmakeArgs.join(" ")),
     CFLAGS: mergeWords(process.env.CFLAGS, `--target=${windowsMsvcCompilerTarget}`),
     CXXFLAGS: mergeWords(process.env.CXXFLAGS, `--target=${windowsMsvcCompilerTarget}`),
-    LDFLAGS: mergeWords(process.env.LDFLAGS, windowsDynamicRuntimeLibs.join(" ")),
+    LDFLAGS: mergeWords(process.env.LDFLAGS, runtimeLibraryLdFlags),
     FORCE_CMAKE: "1",
     CMAKE_GENERATOR: process.env.CMAKE_GENERATOR || "Ninja",
     CC: process.env.CC || rocmPaths.clang,
@@ -498,6 +501,16 @@ function resolveWindowsNativeBuildEnv() {
   return { sdkVersion: sdk?.version, pathEntries, includePaths, libPaths };
 }
 
+function resolveWindowsRuntimeLibraryPaths(libPaths) {
+  return windowsDynamicRuntimeLibNames.map((fileName) => {
+    const match = findFileInPathList(libPaths, fileName);
+    if (!match) {
+      throw new Error(`Required Windows/MSVC runtime library was not found: ${fileName}`);
+    }
+    return match;
+  });
+}
+
 function formatWindowsNativeBuildToolsMissingMessage() {
   return [
     "Windows SDK and Microsoft C++ Build Tools were not found.",
@@ -630,6 +643,10 @@ function quoteArg(value) {
   return /\s/.test(value) ? JSON.stringify(value) : value;
 }
 
+function quoteCmakeArg(value) {
+  return /\s/.test(value) ? `"${value.replace(/"/g, '\\"')}"` : value;
+}
+
 function sha256File(filePath) {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex");
 }
@@ -733,6 +750,16 @@ function compareVersionStrings(left, right) {
 
 function pathListContainsFile(paths, fileName) {
   return paths.some((dir) => isFile(join(dir, fileName)));
+}
+
+function findFileInPathList(paths, fileName) {
+  for (const dir of paths) {
+    const candidate = join(dir, fileName);
+    if (isFile(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 function isDirectory(pathValue) {
