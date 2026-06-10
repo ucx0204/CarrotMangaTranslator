@@ -23,6 +23,41 @@ const FLUX_PYTHON_RUNTIME_MARKER = ".mgt-flux-python-runtime.json";
 const FLUX_ROCM_PREBUILT_RUNTIME_SCHEMA = 1;
 const WINDOWS_MSVC_COMPILER_TARGET = "x86_64-pc-windows-msvc";
 const WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES = ["msvcrt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
+const DEFAULT_AMD_GPU_TARGETS = [
+  // Keep this in sync with scripts/build-flux-rocm-runtime.cjs. ROCm/HIP wants
+  // concrete LLVM targets here, not grouped labels such as "gfx110X".
+  "gfx908",
+  "gfx90a",
+  "gfx1030",
+  "gfx1031",
+  "gfx1032",
+  "gfx1033",
+  "gfx1034",
+  "gfx1035",
+  "gfx1036",
+  "gfx1100",
+  "gfx1101",
+  "gfx1102",
+  "gfx1103",
+  "gfx1150",
+  "gfx1151",
+  "gfx1152",
+  "gfx1153",
+  "gfx1200",
+  "gfx1201"
+];
+const WINDOWS_SYSTEM_IMPORT_LIB_NAMES = [
+  "kernel32.lib",
+  "user32.lib",
+  "gdi32.lib",
+  "winspool.lib",
+  "shell32.lib",
+  "ole32.lib",
+  "oleaut32.lib",
+  "uuid.lib",
+  "comdlg32.lib",
+  "advapi32.lib"
+];
 const FLUX_ROCM_PREBUILT_RUNTIME_MANIFEST = "mgt-flux-rocm-runtime.json";
 const FLUX_DIFFUSERS_MODEL_ID = "black-forest-labs/FLUX.2-klein-4B";
 const FLUX_SDCPP_VAE_FILE = "full_encoder_small_decoder.safetensors";
@@ -1277,7 +1312,7 @@ export function resolveWindowsNativeBuildEnv(): WindowsNativeBuildEnv | null {
 }
 
 function resolveWindowsRuntimeLibraryPaths(libPaths: string[]): string[] {
-  return WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES.map((fileName) => {
+  return [...WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES, ...WINDOWS_SYSTEM_IMPORT_LIB_NAMES].map((fileName) => {
     const match = findFileInPathList(libPaths, fileName);
     if (!match) {
       throw new Error(`Required Windows/MSVC runtime library was not found: ${fileName}`);
@@ -1546,7 +1581,7 @@ function resolveAmdGpuTargets(): string | null {
     .map((item) => item.trim())
     .filter(Boolean)
     .join(";");
-  return normalized || null;
+  return normalized || DEFAULT_AMD_GPU_TARGETS.join(";");
 }
 
 function ensureEmbeddedPythonPackagePath(pythonPath: string, packageDir: string): void {

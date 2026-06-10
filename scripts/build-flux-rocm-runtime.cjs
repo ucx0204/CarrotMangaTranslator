@@ -58,6 +58,41 @@ const fluxPackages = [
 ];
 const windowsMsvcCompilerTarget = "x86_64-pc-windows-msvc";
 const windowsDynamicRuntimeLibNames = ["msvcrt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
+const defaultAmdGpuTargets = [
+  // Broad ROCm/HIP Windows runtime coverage. These must be concrete LLVM targets,
+  // not grouped names like "gfx110X".
+  "gfx908",
+  "gfx90a",
+  "gfx1030",
+  "gfx1031",
+  "gfx1032",
+  "gfx1033",
+  "gfx1034",
+  "gfx1035",
+  "gfx1036",
+  "gfx1100",
+  "gfx1101",
+  "gfx1102",
+  "gfx1103",
+  "gfx1150",
+  "gfx1151",
+  "gfx1152",
+  "gfx1153",
+  "gfx1200",
+  "gfx1201"
+];
+const windowsSystemImportLibNames = [
+  "kernel32.lib",
+  "user32.lib",
+  "gdi32.lib",
+  "winspool.lib",
+  "shell32.lib",
+  "ole32.lib",
+  "oleaut32.lib",
+  "uuid.lib",
+  "comdlg32.lib",
+  "advapi32.lib"
+];
 
 main().catch((error) => {
   const message = error?.stack || error?.message || String(error);
@@ -103,10 +138,7 @@ async function main() {
     await writeFile(envPath, `${JSON.stringify(snapshotEnvironment(nativeBuildEnv, gpuTargets), null, 2)}\n`, "utf8");
     logger.line(`environment snapshot: ${envPath}`);
     logger.line(`Windows SDK: ${nativeBuildEnv.sdkVersion || "unknown"}`);
-    logger.line(`GPU targets: ${gpuTargets || "(not set)"}`);
-    if (!gpuTargets) {
-      logger.line("WARNING: GPU_TARGETS/AMDGPU_TARGETS is not set. The wheel may only support the builder default target.");
-    }
+    logger.line(`GPU targets: ${gpuTargets}`);
 
     if (force) {
       await rm(runtimeDir, { recursive: true, force: true });
@@ -504,7 +536,7 @@ function resolveWindowsNativeBuildEnv() {
 }
 
 function resolveWindowsRuntimeLibraryPaths(libPaths) {
-  return windowsDynamicRuntimeLibNames.map((fileName) => {
+  return [...windowsDynamicRuntimeLibNames, ...windowsSystemImportLibNames].map((fileName) => {
     const match = findFileInPathList(libPaths, fileName);
     if (!match) {
       throw new Error(`Required Windows/MSVC runtime library was not found: ${fileName}`);
@@ -611,11 +643,12 @@ function resolveGpuTargets(args) {
     process.env.AMDGPU_TARGETS ||
     process.env.GPU_TARGETS ||
     "";
-  return String(value)
+  const targets = String(value)
     .split(/[,\s;]+/)
     .map((item) => item.trim())
     .filter(Boolean)
-    .join(";") || null;
+    .join(";");
+  return targets || defaultAmdGpuTargets.join(";");
 }
 
 function snapshotEnvironment(nativeBuildEnv, gpuTargets) {

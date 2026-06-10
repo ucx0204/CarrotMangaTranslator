@@ -190,6 +190,7 @@ describe("Flux worker runtime helpers", () => {
 
   it("ships a logged reproducible Flux ROCm runtime builder script", () => {
     const script = readFileSync(join(repoRoot, "scripts", "build-flux-rocm-runtime.cjs"), "utf8");
+    const fluxAssetsSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"), "utf8");
 
     expect(script).toContain("build.log");
     expect(script).toContain("environment.json");
@@ -207,6 +208,11 @@ describe("Flux worker runtime helpers", () => {
     expect(script).toContain("LDFLAGS");
     expect(script).toContain("GPU_TARGETS");
     expect(script).toContain("SHA256");
+
+    for (const target of ["gfx1030", "gfx1100", "gfx1101", "gfx1102", "gfx1151", "gfx1200", "gfx1201"]) {
+      expect(script).toContain(target);
+      expect(fluxAssetsSource).toContain(target);
+    }
   });
 
   it("discovers Windows SDK and MSVC import libraries for ROCm source builds", () => {
