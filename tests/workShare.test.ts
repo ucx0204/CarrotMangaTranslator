@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
-import { mkdtemp, mkdir, readdir, rm, truncate, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, truncate, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LibraryChapter, LibraryWork } from "../src/shared/types";
@@ -99,6 +99,39 @@ describe("work share packages", () => {
     expect(result.openedChapter?.pages[0]?.blocks[0]?.id).not.toBe("block-a");
     expect(result.openedChapter?.pages[0]?.blocks[0]?.translatedText).toBe("안녕");
     expect(existsSync(result.openedChapter?.pages[0]?.imagePath ?? "")).toBe(true);
+  });
+
+  it("exports and imports inpainted page images", async () => {
+    const rootDir = await createTempLibrary();
+    const sharePath = join(rootDir, "import-inpainted.mgtshare");
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    await attachInpaintedImage(rootDir, "chapter-a", "page-a", "inpainted-a");
+
+    await library.exportWorkShareToFile({
+      workId: "work-1",
+      chapterIds: ["chapter-a"],
+      outputPath: sharePath
+    });
+
+    const zip = new AdmZip(sharePath);
+    const entryNames = zip.getEntries().map((entry) => entry.entryName.replace(/\\/g, "/"));
+    expect(entryNames.some((entryName) => entryName.startsWith("chapters/chapter-a/inpainted/"))).toBe(true);
+    const chapterEntry = zip.getEntries().find((entry) => entry.entryName.replace(/\\/g, "/") === "chapters/chapter-a/chapter.json");
+    const packageChapter = JSON.parse(chapterEntry!.getData().toString("utf8")) as LibraryChapter;
+    expect(packageChapter.pages[0]?.inpaintedImagePath).toMatch(/^chapters\/chapter-a\/inpainted\//);
+
+    const result = await library.importWorkShare({
+      packagePath: sharePath,
+      target: { mode: "new", title: "인페인팅 포함 작품" },
+      entries: [{ source: "package", packageChapterId: "chapter-a", title: "인페인팅 포함 1화" }]
+    });
+
+    const importedInpaintedPath = result.openedChapter?.pages[0]?.inpaintedImagePath;
+    expect(importedInpaintedPath).toBeTruthy();
+    expect(importedInpaintedPath).not.toMatch(/^chapters\//);
+    expect(existsSync(importedInpaintedPath ?? "")).toBe(true);
+    await expect(readFile(importedInpaintedPath ?? "", "utf8")).resolves.toBe("inpainted-a");
   });
 
   it("merges into an existing work in final order and deletes omitted existing chapters", async () => {
@@ -604,6 +637,21 @@ function makeChapter(rootDir: string, chapterId: string, title: string, pageId: 
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z"
   };
+}
+
+async function attachInpaintedImage(rootDir: string, chapterId: string, pageId: string, content: string): Promise<void> {
+  const inpaintedDir = join(rootDir, "works", "work-1", "chapters", chapterId, "inpainted");
+  const inpaintedPath = join(inpaintedDir, `001-${pageId}-inpainted.png`);
+  await mkdir(inpaintedDir, { recursive: true });
+  await writeFile(inpaintedPath, content, "utf8");
+
+  const chapterPath = join(rootDir, "works", "work-1", "chapters", chapterId, "chapter.json");
+  const chapter = makeChapter(rootDir, chapterId, "1화", pageId, "block-a");
+  chapter.pages[0] = {
+    ...chapter.pages[0]!,
+    inpaintedImagePath: inpaintedPath
+  };
+  await writeJson(chapterPath, chapter);
 }
 
 async function writeJson(path: string, payload: unknown): Promise<void> {

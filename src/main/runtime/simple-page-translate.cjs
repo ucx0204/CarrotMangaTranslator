@@ -25,6 +25,7 @@ const {
 const {
   buildOcrRuntimeEnv,
   buildPaddleOcrImportCheckScript,
+  buildPaddleOcrImportFailureMessage,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
@@ -74,6 +75,7 @@ module.exports = {
   buildLaunchArgs,
   buildOcrRuntimeEnv,
   buildPaddleOcrImportCheckScript,
+  buildPaddleOcrImportFailureMessage,
   buildResponsesRequestBody,
   collectRequiredHfDownloads,
   collectRequiredPaddleOcrModelDownloads,

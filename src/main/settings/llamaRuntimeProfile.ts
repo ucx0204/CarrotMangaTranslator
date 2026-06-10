@@ -25,6 +25,16 @@ export function isVulkanLlamaRuntimeProfile(profile: string): boolean {
   return canonicalizeLlamaRuntimeProfile(profile) === "vulkan";
 }
 
+export function isAmdLlamaRuntimeProfile(profile: string): boolean {
+  const canonical = canonicalizeLlamaRuntimeProfile(profile);
+  return canonical === "rocm" || canonical === "vulkan";
+}
+
+export function isNvidiaLlamaRuntimeProfile(profile: string): boolean {
+  const canonical = canonicalizeLlamaRuntimeProfile(profile);
+  return canonical === "cuda12" || canonical === "rtx50";
+}
+
 export function canonicalizeLlamaRuntimeProfile(value: unknown): LlamaRuntimeProfile | undefined {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(normalized)) {

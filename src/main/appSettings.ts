@@ -43,6 +43,8 @@ import {
   isRtx50LlamaRuntimeProfile,
   isRocmLlamaRuntimeProfile,
   isVulkanLlamaRuntimeProfile,
+  isNvidiaLlamaRuntimeProfile,
+  isAmdLlamaRuntimeProfile,
   resolveHardwareLlamaRuntimeProfile,
   resolveLlamaRuntimeProfile
 } from "./settings/llamaRuntimeProfile";
@@ -356,8 +358,11 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
     modelSource === "huggingface" ? resolveStoredGemmaMmproj(asRecord(gemma), resolvedModel, modeDefaults) : {};
   const localModelPath = resolveOptionalString(asRecord(gemma)?.localModelPath);
   const localMmprojPath = resolveOptionalString(asRecord(gemma)?.localMmprojPath);
-  const llamaRocmTarget = normalizeAmdRocmTarget(asRecord(gemma)?.llamaRocmTarget ?? defaults.gemma.llamaRocmTarget);
+  const llamaRuntimeProfile = resolveStoredLlamaRuntimeProfile(asRecord(gemma), defaults);
+  const llamaRocmTarget = resolveStoredLlamaRocmTarget(asRecord(gemma), defaults, llamaRuntimeProfile);
   const resolvedOcr = asRecord(ocr);
+  const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
+  const ocrDevice = hardwareVendor === "amd" ? "cpu" : resolveOcrDevice(resolvedOcr?.device, defaults.ocr.device);
   return {
     modelProvider: resolveModelProvider(record?.modelProvider, defaults.modelProvider),
     gemma: {
@@ -369,7 +374,7 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
       ...(localModelPath ? { localModelPath } : {}),
       ...(localMmprojPath ? { localMmprojPath } : {}),
       vramMode: resolvedVramMode,
-      llamaRuntimeProfile: resolveLlamaRuntimeProfile({}, asRecord(gemma)?.llamaRuntimeProfile ?? defaults.gemma.llamaRuntimeProfile),
+      llamaRuntimeProfile,
       ...(llamaRocmTarget ? { llamaRocmTarget } : {})
     },
     codex: {
@@ -378,7 +383,7 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
       oauthPort: resolvePortNumber(asRecord(codex)?.oauthPort, defaults.codex.oauthPort)
     },
     ocr: {
-      device: resolveOcrDevice(resolvedOcr?.device, defaults.ocr.device),
+      device: ocrDevice,
       gpuBackend: resolveOcrGpuBackend(resolvedOcr?.gpuBackend, defaults.ocr.gpuBackend ?? "cuda"),
       gpuCudaTag: resolveStoredOcrGpuCudaTag(resolvedOcr, defaults)
     },
@@ -386,7 +391,7 @@ export function normalizeAppSettings(raw: unknown, defaults = resolveDefaultAppS
       inpaintingGuideHidden: resolveBoolean(ui?.inpaintingGuideHidden, defaults.ui?.inpaintingGuideHidden ?? false)
     },
     inpainting: {
-      fluxBackend: resolveFluxBackend(inpainting?.fluxBackend, defaults.inpainting?.fluxBackend ?? "cuda-native")
+      fluxBackend: resolveStoredFluxBackend(inpainting, defaults)
     },
     maxTokens: resolveMaxTokens(record?.maxTokens, defaults.maxTokens)
   };
@@ -417,6 +422,8 @@ export function buildBaseTranslationOptions({
   const gemmaVramMode = resolveGemmaVramMode(runtimeEnv.MANGA_TRANSLATOR_GEMMA_VRAM_MODE, settings.gemma.vramMode);
   const gemmaRuntimePreset = GEMMA_RUNTIME_PRESETS[gemmaVramMode];
   const runtimeGemma = resolveRuntimeGemmaSettings(settings.gemma, gemmaVramMode);
+  const llamaRuntimeProfile = resolveLlamaRuntimeProfile(runtimeEnv, settings.gemma.llamaRuntimeProfile);
+  const ocrDevice = resolveRuntimeOcrDevice(runtimeEnv, settings.ocr.device, llamaRuntimeProfile);
   const ocrGpuCudaTag = resolveOcrGpuCudaTag(
     runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG ??
       runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG ??
@@ -427,10 +434,10 @@ export function buildBaseTranslationOptions({
     runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_BACKEND,
     settings.ocr.gpuBackend ?? "cuda"
   );
-  const llamaRuntimeProfile = resolveLlamaRuntimeProfile(runtimeEnv, settings.gemma.llamaRuntimeProfile);
   const llamaRocmTarget =
     normalizeAmdRocmTarget(runtimeEnv.MANGA_TRANSLATOR_AMD_ROCM_TARGET ?? runtimeEnv.MANGA_TRANSLATOR_AMD_GFX_ARCH) ??
-    normalizeAmdRocmTarget(settings.gemma.llamaRocmTarget);
+    normalizeAmdRocmTarget(settings.gemma.llamaRocmTarget) ??
+    normalizeAmdRocmTarget(settings.runtimeHardware?.llamaRocmTarget);
   return {
     imagePath: "",
     outputDir: runDir,
@@ -539,7 +546,7 @@ export function buildBaseTranslationOptions({
     codexModel: settings.codex.model,
     codexReasoningEffort: resolveCodexReasoningEffort(runtimeEnv.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT, settings.codex.reasoningEffort),
     codexOauthPort: settings.codex.oauthPort,
-    ocrDevice: resolveOcrDevice(runtimeEnv.MANGA_TRANSLATOR_OCR_DEVICE, settings.ocr.device),
+    ocrDevice,
     ocrGpuBackend,
     ocrGpuCudaTag,
     ocrBboxProvider: resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER),
@@ -560,7 +567,10 @@ export function filterPackagedRuntimeEnv(
   if (!paths.isPackaged || readBooleanLikeEnv(env.MGT_ALLOW_EXTERNAL_RUNTIME ?? env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME)) {
     return env;
   }
-  return {};
+  return {
+    ...(env.MANGA_TRANSLATOR_AMD_ROCM_TARGET ? { MANGA_TRANSLATOR_AMD_ROCM_TARGET: env.MANGA_TRANSLATOR_AMD_ROCM_TARGET } : {}),
+    ...(env.MANGA_TRANSLATOR_AMD_GFX_ARCH ? { MANGA_TRANSLATOR_AMD_GFX_ARCH: env.MANGA_TRANSLATOR_AMD_GFX_ARCH } : {})
+  };
 }
 
 function readOptionalGpuLayersEnv(env: NodeJS.ProcessEnv, name: string): number | "fit" | undefined {
@@ -605,15 +615,27 @@ function resolveOcrDevice(value: unknown, fallback: OcrDevice): OcrDevice {
   return value === "gpu" || value === "cpu" ? value : fallback;
 }
 
+function resolveRuntimeOcrDevice(
+  env: NodeJS.ProcessEnv,
+  configuredDevice: OcrDevice,
+  llamaRuntimeProfile: LlamaRuntimeProfile
+): OcrDevice {
+  if (isRocmLlamaRuntimeProfile(llamaRuntimeProfile) || isVulkanLlamaRuntimeProfile(llamaRuntimeProfile)) {
+    return "cpu";
+  }
+  const explicit = env.MANGA_TRANSLATOR_OCR_DEVICE ?? env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE;
+  if (explicit !== undefined) {
+    return resolveOcrDevice(explicit, configuredDevice);
+  }
+  return configuredDevice;
+}
+
 function resolveOcrGpuBackend(value: unknown, fallback: OcrGpuBackend = "cuda"): OcrGpuBackend {
   const normalized = String(value ?? "").trim().toLowerCase();
-  if (normalized === "rocm" || normalized === "hip" || normalized === "amd") {
-    return "rocm";
-  }
   if (normalized === "cuda" || normalized === "nvidia") {
     return "cuda";
   }
-  return fallback;
+  return fallback === "rocm" ? "cuda" : fallback;
 }
 
 function resolveFluxBackend(value: unknown, fallback: FluxBackend = "cuda-native"): FluxBackend {
@@ -628,6 +650,61 @@ function resolveFluxBackend(value: unknown, fallback: FluxBackend = "cuda-native
     return "python-cpu";
   }
   return fallback;
+}
+
+function resolveStoredLlamaRuntimeProfile(
+  gemma: Record<string, unknown> | null,
+  defaults: AppSettings
+): LlamaRuntimeProfile {
+  const requested = resolveLlamaRuntimeProfile({}, gemma?.llamaRuntimeProfile ?? defaults.gemma.llamaRuntimeProfile);
+  const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
+  if (hardwareVendor === "amd" && isNvidiaLlamaRuntimeProfile(requested)) {
+    return resolveLlamaRuntimeProfile({}, defaults.gemma.llamaRuntimeProfile);
+  }
+  if (hardwareVendor === "nvidia" && isAmdLlamaRuntimeProfile(requested)) {
+    return resolveLlamaRuntimeProfile({}, defaults.gemma.llamaRuntimeProfile);
+  }
+  return requested;
+}
+
+function resolveStoredLlamaRocmTarget(
+  gemma: Record<string, unknown> | null,
+  defaults: AppSettings,
+  llamaRuntimeProfile: LlamaRuntimeProfile
+): AmdRocmTarget | undefined {
+  const target =
+    normalizeAmdRocmTarget(gemma?.llamaRocmTarget) ??
+    normalizeAmdRocmTarget(defaults.gemma.llamaRocmTarget);
+  if (isRocmLlamaRuntimeProfile(llamaRuntimeProfile)) {
+    return target ?? undefined;
+  }
+  return target ?? undefined;
+}
+
+function resolveStoredFluxBackend(
+  inpainting: Record<string, unknown> | null,
+  defaults: AppSettings
+): FluxBackend {
+  const requested = resolveFluxBackend(inpainting?.fluxBackend, defaults.inpainting?.fluxBackend ?? "cuda-native");
+  const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
+  if (hardwareVendor === "amd" && requested === "cuda-native") {
+    return defaults.inpainting?.fluxBackend ?? "python-cpu";
+  }
+  if (hardwareVendor === "nvidia" && requested === "python-rocm") {
+    return defaults.inpainting?.fluxBackend ?? "cuda-native";
+  }
+  return requested;
+}
+
+function inferHardwareVendorFromDefaults(defaults: AppSettings): "amd" | "nvidia" | "unknown" {
+  const profile = resolveLlamaRuntimeProfile({}, defaults.gemma.llamaRuntimeProfile);
+  if (defaults.gemma.llamaRocmTarget || isAmdLlamaRuntimeProfile(profile)) {
+    return "amd";
+  }
+  if (defaults.modelProvider === "gemma" && isNvidiaLlamaRuntimeProfile(profile)) {
+    return "nvidia";
+  }
+  return "unknown";
 }
 
 function resolveBoolean(value: unknown, fallback: boolean): boolean {
@@ -665,8 +742,8 @@ function resolveHardwareOcrGpuCudaTag(info: DetectedGpuInfo | null): string {
   return DEFAULT_OCR_GPU_CUDA_TAG;
 }
 
-function resolveHardwareOcrGpuBackend(info: DetectedGpuInfo | null): OcrGpuBackend {
-  return info?.vendor === "amd" ? "rocm" : "cuda";
+function resolveHardwareOcrGpuBackend(_info: DetectedGpuInfo | null): OcrGpuBackend {
+  return "cuda";
 }
 
 function resolveHardwareLlamaRocmTarget(info: DetectedGpuInfo | null): AmdRocmTarget | undefined {
@@ -744,7 +821,7 @@ function normalizeDetectedGpuInfo(value?: number | DetectedGpuInfo | null): Dete
     typeof value.rtxGeneration === "number" && Number.isFinite(value.rtxGeneration) ? value.rtxGeneration : null;
   const computeCapability =
     typeof value.computeCapability === "number" && Number.isFinite(value.computeCapability) ? value.computeCapability : null;
-  return {
+  const normalized: DetectedGpuInfo = {
     name: typeof value.name === "string" ? value.name : null,
     memoryMb,
     rtxGeneration,
@@ -753,7 +830,13 @@ function normalizeDetectedGpuInfo(value?: number | DetectedGpuInfo | null): Dete
     rocmArch: typeof value.rocmArch === "string" ? value.rocmArch : null,
     rocmTarget: normalizeAmdRocmTarget(value.rocmTarget),
     supportsRocm: typeof value.supportsRocm === "boolean" ? value.supportsRocm : false,
-    supportsVulkan: typeof value.supportsVulkan === "boolean" ? value.supportsVulkan : false
+    supportsVulkan: typeof value.supportsVulkan === "boolean" ? value.supportsVulkan : value.vendor === "amd"
+  };
+  const inferredRocmTarget = resolveAmdRocmTargetFromInfo(normalized);
+  return {
+    ...normalized,
+    rocmTarget: inferredRocmTarget,
+    supportsRocm: normalized.supportsRocm || Boolean(inferredRocmTarget)
   };
 }
 

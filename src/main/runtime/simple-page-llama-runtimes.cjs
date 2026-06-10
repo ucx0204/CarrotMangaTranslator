@@ -145,7 +145,7 @@ function createLemonadeLlamaRuntimeRocm(target) {
     requiredFiles: [
       "llama-server.exe",
       ["llama-server-impl.dll", "llama.dll"],
-      ["amdhip64.dll"],
+      ["amdhip64.dll", "amdhip64_7.dll"],
       ["ggml-hip.dll", "ggml-rocm.dll", "libggml-hip.so", "libggml-rocm.so"]
     ]
   };
@@ -199,6 +199,7 @@ const LLAMA_RUNTIME_FILES = new Set([
   "hiprtc0506.dll",
   "hiprtc-builtins.dll",
   "amdhip64.dll",
+  "amdhip64_7.dll",
   "rocblas.dll",
   "rocblas64.dll",
   "rocsolver.dll",

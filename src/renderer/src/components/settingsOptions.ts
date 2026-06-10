@@ -4,8 +4,7 @@ import type {
   LlamaRuntimeProfile,
   ModelProvider,
   ModelSource,
-  OcrDevice,
-  OcrGpuBackend
+  OcrDevice
 } from "../../../shared/types";
 import {
   GEMMA_MODEL_PRESETS,
@@ -74,12 +73,6 @@ type CodexReasoningOption = {
 
 type OcrDeviceOption = {
   id: OcrDevice;
-  label: string;
-  description: string;
-};
-
-type OcrGpuBackendOption = {
-  id: OcrGpuBackend;
   label: string;
   description: string;
 };
@@ -159,20 +152,7 @@ export const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [
   {
     id: "gpu",
     label: "GPU",
-    description: "PaddleOCR를 GPU로 실행합니다. GPU용 Paddle 런타임/CUDA가 맞지 않으면 OCR 단계가 실패할 수 있습니다."
-  }
-];
-
-export const OCR_GPU_BACKEND_OPTIONS: OcrGpuBackendOption[] = [
-  {
-    id: "cuda",
-    label: "CUDA",
-    description: "NVIDIA GPU용 PaddleOCR 런타임입니다."
-  },
-  {
-    id: "rocm",
-    label: "ROCm",
-    description: "AMD ROCm용 PaddleOCR 런타임입니다. 실험적 기능이며 Linux/WSL ROCm 환경에서 먼저 테스트하세요. 실패하면 OCR만 CPU로 두는 것을 권장합니다."
+    description: "NVIDIA CUDA 환경에서 PaddleOCR를 GPU로 실행합니다. AMD GPU 환경에서는 OCR만 CPU 사용을 권장합니다."
   }
 ];
 
@@ -190,12 +170,12 @@ export const LLAMA_RUNTIME_PROFILE_OPTIONS: LlamaRuntimeProfileOption[] = [
   {
     id: "vulkan",
     label: "AMD Vulkan",
-    description: "Windows AMD Radeon에서 먼저 시도할 수 있는 llama.cpp Vulkan 런타임입니다."
+    description: "ROCm 대상 확인이 안 되는 AMD GPU에서 쓰는 예비 llama.cpp Vulkan 런타임입니다."
   },
   {
     id: "rocm",
     label: "AMD ROCm",
-    description: "명시적으로 ROCm/HIP를 준비한 Linux/WSL AMD 환경용입니다. Windows AMD 기본값은 Vulkan입니다."
+    description: "Windows AMD ROCm/HIP llama.cpp 런타임입니다. 지원되는 Radeon 아키텍처에서는 이 경로를 우선 사용합니다."
   }
 ];
 

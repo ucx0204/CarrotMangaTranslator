@@ -37,7 +37,6 @@ export function useJobEvents({
         const logOnlyEvent = Boolean(event.installLogLine && event.progressMode === "log-only");
         const preserveCurrentStatus = sameJob && logOnlyEvent;
         const friendlyText = preserveCurrentStatus ? current.progressText : formatJobLabel(event);
-        const preserveExactProgress = Boolean(event.installLogLine && sameJob && event.progressMode !== "log-only");
         return {
           id: event.id,
           kind: preserveCurrentStatus ? current.kind : event.kind,
@@ -45,13 +44,11 @@ export function useJobEvents({
           progressText: friendlyText,
           detail: preserveCurrentStatus ? current.detail : event.detail ?? current.detail,
           phase: preserveCurrentStatus ? current.phase : event.phase ?? current.phase,
-          progressMode: preserveCurrentStatus ? current.progressMode : event.progressMode ?? (event.installLogLine && sameJob ? current.progressMode : undefined),
-          progressPercent: preserveCurrentStatus ? current.progressPercent : event.progressPercent ?? (preserveExactProgress ? current.progressPercent : undefined),
-          progressBytes: preserveCurrentStatus ? current.progressBytes : event.progressBytes ?? (preserveExactProgress ? current.progressBytes : undefined),
-          progressTotalBytes: preserveCurrentStatus ? current.progressTotalBytes : event.progressTotalBytes ?? (preserveExactProgress ? current.progressTotalBytes : undefined),
-          progressBytesPerSecond: preserveCurrentStatus
-            ? current.progressBytesPerSecond
-            : event.progressBytesPerSecond ?? (preserveExactProgress ? current.progressBytesPerSecond : undefined),
+          progressMode: preserveCurrentStatus ? current.progressMode : event.progressMode,
+          progressPercent: preserveCurrentStatus ? current.progressPercent : event.progressPercent,
+          progressBytes: preserveCurrentStatus ? current.progressBytes : event.progressBytes,
+          progressTotalBytes: preserveCurrentStatus ? current.progressTotalBytes : event.progressTotalBytes,
+          progressBytesPerSecond: preserveCurrentStatus ? current.progressBytesPerSecond : event.progressBytesPerSecond,
           installLogLine: event.installLogLine,
           installLogLines: event.installLogLine
             ? [...(sameJob ? current.installLogLines ?? [] : []), event.installLogLine].slice(-80)

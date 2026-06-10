@@ -11,6 +11,7 @@
     "dist:win": "node scripts/dist-win-thin.cjs",
     "dist:win:nvidia": "node scripts/dist-win-thin.cjs",
     "dist:win:amd": "node scripts/dist-win-thin.cjs",
+    "build:flux-rocm-runtime": "node scripts/build-flux-rocm-runtime.cjs",
     "compile:electron": "tsc -p tsconfig.electron.json",
     "logs": "node scripts/tail-log.cjs",
     "typecheck": "tsc --noEmit",

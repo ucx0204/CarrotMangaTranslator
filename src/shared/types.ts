@@ -13,6 +13,15 @@ export type OcrGpuBackend = "cuda" | "rocm";
 export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
 export type AmdRocmTarget = "gfx908" | "gfx90a" | "gfx103X" | "gfx110X" | "gfx1150" | "gfx1151" | "gfx120X";
 export type FluxBackend = "cuda-native" | "python-rocm" | "python-cpu";
+export type RuntimeGpuVendor = "nvidia" | "amd" | "unknown";
+
+export type RuntimeHardwareInfo = {
+  gpuVendor: RuntimeGpuVendor;
+  gpuName?: string | null;
+  llamaRocmTarget?: AmdRocmTarget | null;
+  supportsRocm?: boolean;
+  supportsVulkan?: boolean;
+};
 
 export type GemmaSettings = {
   modelSource: ModelSource;
@@ -54,6 +63,7 @@ export type AppSettings = {
   ocr: OcrSettings;
   ui?: UiSettings;
   inpainting?: InpaintingSettings;
+  runtimeHardware?: RuntimeHardwareInfo;
   maxTokens: number;
 };
 

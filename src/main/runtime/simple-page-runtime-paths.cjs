@@ -1,4 +1,4 @@
-const { existsSync } = require("node:fs");
+const { existsSync, readdirSync } = require("node:fs");
 const path = require("node:path");
 
 const { bundledServerCandidates, resolveBundledServerPath } = require("./resolve-llama-runtime.cjs");
@@ -100,6 +100,29 @@ function hasLlamaRuntimeBackend(runtimeDir, backend = "cuda") {
   }
 }
 
+function hasAnyRuntimeLibraryFile(dir) {
+  try {
+    return readdirSync(dir, { withFileTypes: true }).some((entry) =>
+      entry.isFile() && /\.(?:dat|co|hsaco)$/i.test(entry.name)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function missingRocmRuntimeLibraryDirs(runtimeDir) {
+  const missing = [];
+  const rocblasLibraryDir = path.join(runtimeDir, "rocblas", "library");
+  const hipblasltLibraryDir = path.join(runtimeDir, "hipblaslt", "library");
+  if (!hasAnyRuntimeLibraryFile(rocblasLibraryDir)) {
+    missing.push("rocblas/library/*.dat|*.co|*.hsaco");
+  }
+  if (!hasAnyRuntimeLibraryFile(hipblasltLibraryDir)) {
+    missing.push("hipblaslt/library/*.dat|*.co|*.hsaco");
+  }
+  return missing;
+}
+
 function hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
   if (!runtimeDir || !runtime) {
     return false;
@@ -110,6 +133,10 @@ function hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
       if (!candidates.some((fileName) => existsSync(path.join(runtimeDir, fileName)))) {
         return false;
       }
+    }
+    const backend = String(runtime.backend || "cuda").toLowerCase();
+    if ((backend === "rocm" || backend === "hip") && missingRocmRuntimeLibraryDirs(runtimeDir).length > 0) {
+      return false;
     }
     return hasLlamaRuntimeBackend(runtimeDir, runtime.backend);
   } catch {
@@ -134,6 +161,10 @@ function missingRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
     } else {
       missing.push("ggml-cuda.dll | ggml-cuda-cu12.dll | ggml-cuda-cu13.dll");
     }
+  }
+  const backend = String(runtime?.backend || "cuda").toLowerCase();
+  if (backend === "rocm" || backend === "hip") {
+    missing.push(...missingRocmRuntimeLibraryDirs(runtimeDir));
   }
   return missing;
 }

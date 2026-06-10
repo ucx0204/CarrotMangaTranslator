@@ -29,6 +29,7 @@ function shrinkBuffer(current, chunk, maxLength = 12000) {
 
 async function extractSelectedZipEntries(archivePath, outputDir, shouldExtract) {
   const extractDir = path.join(path.dirname(outputDir), `${path.basename(outputDir)}.extract-${process.pid}-${Date.now()}`);
+  const resolvedOutputDir = path.resolve(outputDir);
   await rm(extractDir, { recursive: true, force: true }).catch(() => {});
   await mkdir(extractDir, { recursive: true });
   try {
@@ -37,12 +38,15 @@ async function extractSelectedZipEntries(archivePath, outputDir, shouldExtract) 
     if (selectedFiles.length === 0) {
       throw new Error(`No runtime files matched in ${archivePath}`);
     }
-    for (const filePath of selectedFiles) {
-      const fileName = path.basename(filePath);
-      const outputPath = path.join(outputDir, fileName);
-      if (!path.resolve(outputPath).startsWith(path.resolve(outputDir))) {
-        throw new Error(`Invalid runtime output path: ${fileName}`);
+    for (const selected of selectedFiles) {
+      const filePath = typeof selected === "string" ? selected : selected.filePath;
+      const outputName = typeof selected === "string" ? path.basename(filePath) : selected.outputName;
+      const outputPath = path.join(outputDir, outputName);
+      const resolvedOutputPath = path.resolve(outputPath);
+      if (!isPathInside(resolvedOutputPath, resolvedOutputDir)) {
+        throw new Error(`Invalid runtime output path: ${outputName}`);
       }
+      await mkdir(path.dirname(outputPath), { recursive: true });
       await copyFile(filePath, outputPath);
     }
   } finally {
@@ -100,9 +104,10 @@ async function expandZipArchive(archivePath, outputDir) {
 
 function collectSelectedFiles(rootDir, shouldExtract) {
   const selected = [];
-  const stack = [rootDir];
+  const stack = [{ dir: rootDir, relativeDir: "" }];
   while (stack.length > 0) {
-    const currentDir = stack.pop();
+    const current = stack.pop();
+    const currentDir = current.dir;
     let entries;
     try {
       entries = readdirSync(currentDir, { withFileTypes: true });
@@ -111,16 +116,30 @@ function collectSelectedFiles(rootDir, shouldExtract) {
     }
     for (const entry of entries) {
       const filePath = path.join(currentDir, entry.name);
+      const relativePath = current.relativeDir ? path.join(current.relativeDir, entry.name) : entry.name;
       if (entry.isDirectory()) {
-        stack.push(filePath);
+        stack.push({ dir: filePath, relativeDir: relativePath });
         continue;
       }
-      if (entry.isFile() && shouldExtract(entry.name)) {
-        selected.push(filePath);
+      if (entry.isFile() && shouldExtract(entry.name, relativePath)) {
+        selected.push({
+          filePath,
+          outputName: shouldPreserveRuntimeRelativePath(relativePath) ? relativePath : entry.name
+        });
       }
     }
   }
   return selected;
+}
+
+function shouldPreserveRuntimeRelativePath(relativePath) {
+  const normalized = String(relativePath || "").replace(/\\/g, "/").toLowerCase();
+  return normalized.startsWith("rocblas/") || normalized.startsWith("hipblaslt/");
+}
+
+function isPathInside(childPath, parentPath) {
+  const relative = path.relative(parentPath, childPath);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 module.exports = {

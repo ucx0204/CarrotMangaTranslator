@@ -38,7 +38,7 @@ function quoteCommandArg(value) {
   return `"${text.replace(/"/g, '\\"')}"`;
 }
 
-function runShellCommand(command, { timeoutMs, env, signal, onOutput, timeoutMessage, failureMessage } = {}) {
+function runShellCommand(command, { timeoutMs, env, signal, onOutput, timeoutMessage, failureMessage, successCodes } = {}) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(createAbortError());
@@ -120,7 +120,10 @@ function runShellCommand(command, { timeoutMs, env, signal, onOutput, timeoutMes
       }
       stdoutLines.flush();
       stderrLines.flush();
-      if (code === 0) {
+      const acceptedCodes = Array.isArray(successCodes) && successCodes.length > 0
+        ? successCodes
+        : [0];
+      if (typeof code === "number" && acceptedCodes.includes(code)) {
         settleResolve({ stdout, stderr });
         return;
       }

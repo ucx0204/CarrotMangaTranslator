@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=["klein-edit-composite", "flux-fill"], default="klein-edit-composite")
     parser.add_argument("--model-id", required=True)
     parser.add_argument("--cache-dir", required=True)
+    parser.add_argument("--gguf-transformer")
     return parser.parse_args()
 
 
@@ -44,15 +45,21 @@ def load_pipeline(args: argparse.Namespace):
         dtype = resolve_torch_dtype(torch, args.backend)
 
     errors: list[str] = []
+    transformer = load_gguf_transformer(diffusers, torch, args.gguf_transformer, args.model_id, args.cache_dir, dtype) if args.gguf_transformer else None
     for class_name in resolve_pipeline_classes(args.mode):
         pipeline_class = getattr(diffusers, class_name, None)
         if pipeline_class is None:
             continue
         try:
+            load_kwargs = {
+                "cache_dir": args.cache_dir,
+                "torch_dtype": dtype,
+            }
+            if transformer is not None:
+                load_kwargs["transformer"] = transformer
             pipe = pipeline_class.from_pretrained(
                 args.model_id,
-                cache_dir=args.cache_dir,
-                torch_dtype=dtype,
+                **load_kwargs,
             )
             if hasattr(pipe, "set_progress_bar_config"):
                 pipe.set_progress_bar_config(disable=True)
@@ -63,6 +70,45 @@ def load_pipeline(args: argparse.Namespace):
         except Exception as exc:  # noqa: BLE001 - report all loader attempts to the parent process
             errors.append(f"{class_name}: {exc}")
     raise RuntimeError("No usable Diffusers inpainting pipeline was found. " + " | ".join(errors[-3:]))
+
+
+def load_gguf_transformer(diffusers, torch, gguf_path: str | None, model_id: str, cache_dir: str, dtype):
+    if not gguf_path:
+        return None
+    path = Path(gguf_path)
+    if not path.is_file():
+        raise RuntimeError(f"GGUF transformer file was not found: {path}")
+
+    quant_config_class = getattr(diffusers, "GGUFQuantizationConfig", None)
+    if quant_config_class is None:
+        raise RuntimeError("Installed diffusers does not provide GGUFQuantizationConfig. Upgrade diffusers/gguf packages.")
+
+    quantization_config = quant_config_class(compute_dtype=dtype)
+    errors: list[str] = []
+    for class_name in ("Flux2Transformer2DModel", "FluxTransformer2DModel"):
+        model_class = getattr(diffusers, class_name, None)
+        if model_class is None:
+            continue
+        attempts = (
+            {
+                "config": model_id,
+                "subfolder": "transformer",
+                "cache_dir": cache_dir,
+            },
+            {},
+        )
+        for extra_kwargs in attempts:
+            try:
+                return model_class.from_single_file(
+                    str(path),
+                    quantization_config=quantization_config,
+                    torch_dtype=dtype,
+                    **extra_kwargs,
+                )
+            except Exception as exc:  # noqa: BLE001 - include every loader attempt in one actionable message
+                suffix = " with Klein transformer config" if extra_kwargs else ""
+                errors.append(f"{class_name}{suffix}: {exc}")
+    raise RuntimeError("Unable to load Flux GGUF transformer. " + " | ".join(errors[-3:]))
 
 
 def resolve_torch_dtype(torch, backend: str):

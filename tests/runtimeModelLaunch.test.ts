@@ -45,6 +45,7 @@ const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") 
   ) => Record<string, string>;
   buildLlamaServerEnv: (serverPath: string, options: { [key: string]: unknown }) => Record<string, string>;
   buildPaddleOcrImportCheckScript: (options?: { [key: string]: unknown }) => string;
+  buildPaddleOcrImportFailureMessage: (message: string, options?: { [key: string]: unknown }) => string;
   getOverlayPrompt: (
     options: { [key: string]: unknown },
     imageVariants: Array<{ role: string; dataUrl?: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number }>
@@ -95,6 +96,7 @@ const {
   buildOcrRuntimeEnv,
   buildLlamaServerEnv,
   buildPaddleOcrImportCheckScript,
+  buildPaddleOcrImportFailureMessage,
   buildResponsesRequestBody,
   collectOcrBboxHints,
   collectRequiredHfDownloads,
@@ -444,21 +446,51 @@ describe("runtime model launch helpers", () => {
     }
   });
 
-  it("keeps ROCm Paddle OCR runtimes isolated from CUDA package assumptions", () => {
+  it("keeps Paddle OCR GPU on the CUDA runtime even if legacy ROCm backend values remain", () => {
     const rocmBatches = resolveOcrPipInstallBatches({ ocrDevice: "gpu", ocrGpuBackend: "rocm" });
     const env = buildOcrRuntimeEnv({ ocrDevice: "gpu", ocrGpuBackend: "rocm" }, { runtimeDir: "C:/ocr-runtime", includePackageDir: false });
     const script = buildPaddleOcrImportCheckScript({ ocrDevice: "gpu", ocrGpuBackend: "rocm" });
 
-    expect(resolveOcrGpuBackend({ ocrGpuBackend: "amd" })).toBe("rocm");
-    expect(rocmBatches[0][0]).toBe("paddlepaddle-rocm");
-    expect(rocmBatches.flat()).not.toContain("--index-url");
-    expect(env.MANGA_TRANSLATOR_OCR_GPU_BACKEND).toBe("rocm");
+    expect(resolveOcrGpuBackend({ ocrGpuBackend: "amd" })).toBe("cuda");
+    expect(rocmBatches[0]).toEqual([
+      "paddlepaddle-gpu==3.3.1",
+      "--index-url",
+      "https://www.paddlepaddle.org.cn/packages/stable/cu126/"
+    ]);
+    expect(env.MANGA_TRANSLATOR_OCR_GPU_BACKEND).toBeUndefined();
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE).toBe("gpu:0");
-    expect(script).toContain("is_compiled_with_rocm");
-    expect(script).not.toContain("is_compiled_with_cuda");
+    expect(script).not.toContain("is_compiled_with_rocm");
+    expect(script).toContain("is_compiled_with_cuda");
   });
 
-  it("lets ROCm Paddle OCR package sources be overridden explicitly", () => {
+  it("adds Paddle native DLL directories for isolated Windows OCR runtimes", () => {
+    const packageDir = join("C:/ocr-runtime", "python-packages-cpu");
+    const paddleBaseDir = join(packageDir, "paddle", "base");
+    const env = buildOcrRuntimeEnv({ ocrDevice: "cpu" }, {
+      runtimeDir: "C:/ocr-runtime",
+      packageDir
+    });
+    const pathParts = String(env.PATH ?? "").split(delimiter);
+    const dllParts = String(env.MANGA_TRANSLATOR_OCR_DLL_DIRS ?? "").split(delimiter);
+    const script = buildPaddleOcrImportCheckScript({ ocrDevice: "cpu" });
+
+    expect(pathParts).toContain(paddleBaseDir);
+    expect(dllParts).toContain(paddleBaseDir);
+    expect(script).toContain("os.add_dll_directory");
+  });
+
+  it("explains Paddle native DLL load failures separately from generic import errors", () => {
+    const message = buildPaddleOcrImportFailureMessage(
+      "Error: Can not import paddle core while this file exists: C:/ocr/python-packages-cpu/paddle/base/libpaddle.pyd\nImportError: DLL load failed while importing libpaddle: The specified module could not be found.",
+      { ocrDevice: "cpu" }
+    );
+
+    expect(message).toContain("네이티브 DLL");
+    expect(message).toContain("Microsoft Visual C++");
+    expect(message).toContain("libpaddle.pyd");
+  });
+
+  it("ignores legacy ROCm Paddle OCR package overrides", () => {
     const previousPackage = process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE;
     const previousIndex = process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_INDEX_URL;
     try {
@@ -470,9 +502,9 @@ describe("runtime model launch helpers", () => {
       });
 
       expect(batches[0]).toEqual([
-        "paddlepaddle-rocm==3.0.0",
+        "paddlepaddle-gpu==3.3.1",
         "--index-url",
-        "https://example.invalid/rocm/"
+        "https://www.paddlepaddle.org.cn/packages/stable/cu126/"
       ]);
     } finally {
       restoreEnv("MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE", previousPackage);
@@ -583,8 +615,10 @@ describe("runtime model launch helpers", () => {
     expect(mainlineCuda13Profile).toContain('"llama-b9547-cuda13.3"');
     expect(mainlineCuda13Profile).toContain('"llama-server-impl.dll"');
     expect(beellamaCuda13Profile).not.toContain('"llama-server-impl.dll"');
-    expect(modelAssetsSource).toContain("function shouldExtractLlamaRuntimeFile(fileName)");
+    expect(modelAssetsSource).toContain("function shouldExtractLlamaRuntimeFile(fileName");
     expect(modelAssetsSource).toContain("LLAMA_RUNTIME_FILES.has(fileName) || /\\.(?:dll|so|dylib)$/i.test");
+    expect(modelAssetsSource).toContain("normalizedRelativePath.startsWith(\"rocblas/\")");
+    expect(modelAssetsSource).toContain("normalizedRelativePath.startsWith(\"hipblaslt/\")");
   });
 
   it("treats an explicitly empty OCR hint array as a completed OCR pass", async () => {

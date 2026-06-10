@@ -116,5 +116,20 @@ function validateShareChapter(chapter: LibraryChapter, packageChapterId: string,
       throw new Error(`공유 파일에 이미지가 없습니다: ${page.name}`);
     }
     assertZipEntrySize(imageEntry, MAX_SHARE_IMAGE_BYTES, imagePath);
+
+    if (page.inpaintedImagePath) {
+      const inpaintedPath = normalizeShareRelativePath(page.inpaintedImagePath, "공유 파일의 인페인팅 이미지 경로가 올바르지 않습니다.");
+      if (!inpaintedPath.startsWith(`chapters/${packageChapterId}/inpainted/`)) {
+        throw new Error("공유 파일의 인페인팅 이미지 위치가 올바르지 않습니다.");
+      }
+      if (!isSupportedImagePath(inpaintedPath)) {
+        throw new Error(`지원하지 않는 인페인팅 이미지 형식입니다: ${page.name}`);
+      }
+      const inpaintedEntry = entries.get(inpaintedPath);
+      if (!inpaintedEntry) {
+        throw new Error(`공유 파일에 인페인팅 이미지가 없습니다: ${page.name}`);
+      }
+      assertZipEntrySize(inpaintedEntry, MAX_SHARE_IMAGE_BYTES, inpaintedPath);
+    }
   }
 }

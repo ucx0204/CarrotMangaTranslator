@@ -36,6 +36,19 @@ IGNORED_LABELS = {
 }
 
 
+DLL_DIRECTORY_HANDLES = []
+
+
+def configure_windows_dll_search_path() -> None:
+    raw_dirs = os.environ.get("MANGA_TRANSLATOR_OCR_DLL_DIRS", "")
+    if not raw_dirs or not hasattr(os, "add_dll_directory"):
+        return
+    for entry in raw_dirs.split(os.pathsep):
+        candidate = entry.strip()
+        if candidate and os.path.isdir(candidate):
+            DLL_DIRECTORY_HANDLES.append(os.add_dll_directory(candidate))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run PaddleOCR-VL and write geometry hint JSON.")
     parser.add_argument("--image", default=None, help="Input image path.")
@@ -47,6 +60,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.device:
       os.environ["MANGA_TRANSLATOR_PADDLEOCR_DEVICE"] = args.device
+
+    configure_windows_dll_search_path()
 
     try:
       from paddleocr import PaddleOCRVL
@@ -228,33 +243,20 @@ def ensure_requested_device(device: str | None) -> None:
     except Exception as exc:
       raise RuntimeError("GPU OCR was requested, but PaddlePaddle is not importable.") from exc
 
-    gpu_backend = normalize_gpu_backend(os.environ.get("MANGA_TRANSLATOR_OCR_GPU_BACKEND"))
-    if gpu_backend == "rocm":
-      rocm_check = getattr(paddle.device, "is_compiled_with_rocm", None)
-      if not callable(rocm_check) or not rocm_check():
-        raise RuntimeError("GPU OCR was requested, but the installed PaddlePaddle package is not compiled with ROCm.")
-    else:
-      if not paddle.device.is_compiled_with_cuda():
-        raise RuntimeError("GPU OCR was requested, but the installed PaddlePaddle package is CPU-only.")
-      try:
-        device_count = int(paddle.device.cuda.device_count())
-      except Exception as exc:
-        raise RuntimeError("GPU OCR was requested, but PaddlePaddle cannot query CUDA devices.") from exc
+    if not paddle.device.is_compiled_with_cuda():
+      raise RuntimeError("GPU OCR was requested, but the installed PaddlePaddle package is CPU-only.")
+    try:
+      device_count = int(paddle.device.cuda.device_count())
+    except Exception as exc:
+      raise RuntimeError("GPU OCR was requested, but PaddlePaddle cannot query CUDA devices.") from exc
 
-      if device_count <= 0:
-        raise RuntimeError("GPU OCR was requested, but no CUDA device is visible to PaddlePaddle.")
+    if device_count <= 0:
+      raise RuntimeError("GPU OCR was requested, but no CUDA device is visible to PaddlePaddle.")
 
     try:
       paddle.set_device(device)
     except Exception as exc:
       raise RuntimeError(f"GPU OCR was requested, but PaddlePaddle could not use device {device!r}.") from exc
-
-
-def normalize_gpu_backend(value: str | None) -> str:
-    text = str(value or "").strip().lower()
-    if text in {"rocm", "hip", "amd"}:
-      return "rocm"
-    return "cuda"
 
 
 def normalize_label(value: object) -> str:

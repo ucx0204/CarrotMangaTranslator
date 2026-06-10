@@ -77,23 +77,33 @@ export async function exportWorkShareToFile(
     const packagePages: LibraryPageRecord[] = [];
     const orderedPages = reorderRecords(chapter.pages, chapter.pageOrder);
     for (const [pageIndex, page] of orderedPages.entries()) {
-      if (!existsSync(page.imagePath)) {
-        throw new Error(`원본 이미지를 찾지 못했습니다: ${page.name}`);
-      }
       const imageExt = extname(page.imagePath).toLowerCase() || ".png";
-      if (!isSupportedImagePath(page.imagePath)) {
-        throw new Error(`지원하지 않는 이미지 형식입니다: ${page.name}`);
-      }
-      const sourceStat = await stat(page.imagePath);
-      if (sourceStat.size > MAX_SHARE_IMAGE_BYTES) {
-        throw new Error(`${page.name} 파일이 너무 큽니다.`);
-      }
       const packageImagePath = `chapters/${chapter.id}/pages/${String(pageIndex + 1).padStart(3, "0")}-${page.id}${imageExt}`;
-      zip.addFile(packageImagePath, await readFile(page.imagePath));
+      await addImageFileToShare({
+        zip,
+        sourcePath: page.imagePath,
+        packagePath: packageImagePath,
+        displayName: page.name,
+        missingMessage: `원본 이미지를 찾지 못했습니다: ${page.name}`
+      });
+
+      let packageInpaintedImagePath: string | undefined;
+      if (page.inpaintedImagePath) {
+        const inpaintedExt = extname(page.inpaintedImagePath).toLowerCase() || ".png";
+        packageInpaintedImagePath = `chapters/${chapter.id}/inpainted/${String(pageIndex + 1).padStart(3, "0")}-${page.id}-inpainted${inpaintedExt}`;
+        await addImageFileToShare({
+          zip,
+          sourcePath: page.inpaintedImagePath,
+          packagePath: packageInpaintedImagePath,
+          displayName: `${page.name} 인페인팅 결과`,
+          missingMessage: `인페인팅 결과 이미지를 찾지 못했습니다: ${page.name}`
+        });
+      }
+
       packagePages.push({
         ...page,
         imagePath: packageImagePath,
-        inpaintedImagePath: undefined
+        inpaintedImagePath: packageInpaintedImagePath
       });
       pageCount += 1;
     }
@@ -115,6 +125,32 @@ export async function exportWorkShareToFile(
     chapterCount: chapterIds.length,
     pageCount
   };
+}
+
+async function addImageFileToShare({
+  zip,
+  sourcePath,
+  packagePath,
+  displayName,
+  missingMessage
+}: {
+  zip: { addFile: (entryName: string, content: Buffer | string) => void };
+  sourcePath: string;
+  packagePath: string;
+  displayName: string;
+  missingMessage: string;
+}): Promise<void> {
+  if (!existsSync(sourcePath)) {
+    throw new Error(missingMessage);
+  }
+  if (!isSupportedImagePath(sourcePath) || !isSupportedImagePath(packagePath)) {
+    throw new Error(`지원하지 않는 이미지 형식입니다: ${displayName}`);
+  }
+  const sourceStat = await stat(sourcePath);
+  if (sourceStat.size > MAX_SHARE_IMAGE_BYTES) {
+    throw new Error(`${displayName} 파일이 너무 큽니다.`);
+  }
+  zip.addFile(packagePath, await readFile(sourcePath));
 }
 
 export async function previewWorkShareImport(packagePath: string): Promise<WorkShareImportPreviewView> {
@@ -420,43 +456,40 @@ async function materializeSharedChapter({
   const chapterId = randomUUID();
   const chapterDir = join(WORKS_ROOT, workId, "chapters", chapterId);
   const pagesDir = join(chapterDir, "pages");
+  const inpaintedDir = join(chapterDir, "inpainted");
   try {
     await mkdir(pagesDir, { recursive: true });
 
     const pages: LibraryPageRecord[] = [];
     for (const [index, packagePage] of reorderRecords(packageChapter.pages, packageChapter.pageOrder).entries()) {
       const packageImagePath = normalizeShareRelativePath(packagePage.imagePath, "페이지 이미지 경로가 올바르지 않습니다.");
-      const entry = entries.get(packageImagePath);
-      if (!entry) {
-        throw new Error(`공유 파일에 이미지가 없습니다: ${packagePage.name}`);
-      }
 
       const pageId = randomUUID();
       const sourceExt = extname(packageImagePath).toLowerCase() || ".png";
       const targetExt = shouldNormalizeImportImageToPng(sourceExt) ? ".png" : sourceExt;
-      if (!isSupportedImagePath(packageImagePath)) {
-        throw new Error(`지원하지 않는 이미지 형식입니다: ${packagePage.name}`);
-      }
       const outputPath = join(pagesDir, `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`);
-      const sourceBytes = readZipEntryData(entry, MAX_SHARE_IMAGE_BYTES, packageImagePath);
-      if (shouldNormalizeImportImageToPng(sourceExt)) {
-        const tempSourcePath = join(pagesDir, `.${pageId}.share-source${sourceExt}`);
-        try {
-          await writeFile(tempSourcePath, sourceBytes);
-          await writeNormalizedWebpImportImage(tempSourcePath, outputPath, packagePage.name);
-        } finally {
-          await safeUnlink(tempSourcePath);
-        }
-      } else {
-        await writeFile(outputPath, sourceBytes);
-      }
+      await writePackageImageEntry({
+        entries,
+        packageImagePath,
+        outputPath,
+        displayName: packagePage.name,
+        missingMessage: `공유 파일에 이미지가 없습니다: ${packagePage.name}`
+      });
+
+      const inpaintedImagePath = await materializeSharedInpaintedImage({
+        entries,
+        packagePage,
+        pageId,
+        index,
+        inpaintedDir
+      });
 
       const size = await readDecodedImportImageSize(outputPath, packagePage.name);
       pages.push({
         ...packagePage,
         id: pageId,
         imagePath: outputPath,
-        inpaintedImagePath: undefined,
+        inpaintedImagePath,
         width: size.width || packagePage.width || 1000,
         height: size.height || packagePage.height || 1400,
         blocks: packagePage.blocks.map((block, blockIndex) => ({
@@ -485,4 +518,79 @@ async function materializeSharedChapter({
     await removeChapterDirectory(workId, chapterId);
     throw error;
   }
+}
+
+async function materializeSharedInpaintedImage({
+  entries,
+  packagePage,
+  pageId,
+  index,
+  inpaintedDir
+}: {
+  entries: Map<string, ZipEntryLike>;
+  packagePage: LibraryPageRecord;
+  pageId: string;
+  index: number;
+  inpaintedDir: string;
+}): Promise<string | undefined> {
+  if (!packagePage.inpaintedImagePath) {
+    return undefined;
+  }
+
+  const packageInpaintedPath = normalizeShareRelativePath(
+    packagePage.inpaintedImagePath,
+    "인페인팅 결과 이미지 경로가 올바르지 않습니다."
+  );
+  const sourceExt = extname(packageInpaintedPath).toLowerCase() || ".png";
+  const targetExt = shouldNormalizeImportImageToPng(sourceExt) ? ".png" : sourceExt;
+  const outputPath = join(inpaintedDir, `${String(index + 1).padStart(3, "0")}-${pageId}-inpainted${targetExt}`);
+
+  await mkdir(inpaintedDir, { recursive: true });
+  await writePackageImageEntry({
+    entries,
+    packageImagePath: packageInpaintedPath,
+    outputPath,
+    displayName: `${packagePage.name} 인페인팅 결과`,
+    missingMessage: `공유 파일에 인페인팅 결과 이미지가 없습니다: ${packagePage.name}`
+  });
+  return outputPath;
+}
+
+async function writePackageImageEntry({
+  entries,
+  packageImagePath,
+  outputPath,
+  displayName,
+  missingMessage
+}: {
+  entries: Map<string, ZipEntryLike>;
+  packageImagePath: string;
+  outputPath: string;
+  displayName: string;
+  missingMessage: string;
+}): Promise<void> {
+  if (!isSupportedImagePath(packageImagePath)) {
+    throw new Error(`지원하지 않는 이미지 형식입니다: ${displayName}`);
+  }
+
+  const entry = entries.get(packageImagePath);
+  if (!entry) {
+    throw new Error(missingMessage);
+  }
+
+  await mkdir(dirname(outputPath), { recursive: true });
+  const sourceExt = extname(packageImagePath).toLowerCase() || ".png";
+  const sourceBytes = readZipEntryData(entry, MAX_SHARE_IMAGE_BYTES, packageImagePath);
+  if (shouldNormalizeImportImageToPng(sourceExt)) {
+    const tempSourcePath = join(dirname(outputPath), `.${randomUUID()}.share-source${sourceExt}`);
+    try {
+      await writeFile(tempSourcePath, sourceBytes);
+      await writeNormalizedWebpImportImage(tempSourcePath, outputPath, displayName);
+    } finally {
+      await safeUnlink(tempSourcePath);
+    }
+    return;
+  }
+
+  await writeFile(outputPath, sourceBytes);
 }

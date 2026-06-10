@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { AppSettingsSchema, parseIpcPayload } from "../../shared/ipcSchemas";
 import type { AppSettings, LocalModelPickResult, ModelTestProgressEvent, ModelTestResult } from "../../shared/types";
 import { buildBaseTranslationOptions } from "../appSettings";
+import { logError, logInfo } from "../logger";
 import { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint, type OpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
 import { getAppSettings, resetAppSettings, saveAppSettings } from "../settingsStore";
 import { isOpenAIOAuthEndpoint, type SimplePageRuntime } from "../simplePageRuntime";
@@ -65,10 +66,12 @@ export function registerSettingsIpc(context: IpcContext): void {
     const runtime = context.loadSimplePageRuntime();
     const testId = resolveModelTestId(providedTestId);
     const sendProgress = (progress: Omit<ModelTestProgressEvent, "id">) => {
-      event.sender.send("settings:model-test-progress", {
+      const payload = {
         id: testId,
         ...progress
-      } satisfies ModelTestProgressEvent);
+      } satisfies ModelTestProgressEvent;
+      event.sender.send("settings:model-test-progress", payload);
+      logInfo("Settings model/runtime check progress", summarizeModelTestProgress(payload));
     };
     const port = await reserveFreePort();
     const options = {
@@ -149,6 +152,7 @@ export function registerSettingsIpc(context: IpcContext): void {
         resolvedEndpoint: options.modelProvider === "openai-codex" ? server.baseUrl : null
       };
     } catch (error) {
+      logError("Settings model/runtime check failed", { testId, error: formatModelTestError(error) });
       sendProgress({
         phase: "failed",
         progressText: "모델/런타임 확인 실패",
@@ -168,6 +172,21 @@ export function registerSettingsIpc(context: IpcContext): void {
       }
     }
   });
+}
+
+function summarizeModelTestProgress(progress: ModelTestProgressEvent): Record<string, unknown> {
+  return {
+    id: progress.id,
+    phase: progress.phase,
+    progressText: progress.progressText,
+    detail: progress.detail,
+    progressMode: progress.progressMode,
+    progressPercent: progress.progressPercent,
+    progressBytes: progress.progressBytes,
+    progressTotalBytes: progress.progressTotalBytes,
+    progressBytesPerSecond: progress.progressBytesPerSecond,
+    installLogLine: progress.installLogLine
+  };
 }
 
 function resolveModelTestId(providedTestId: unknown): string {

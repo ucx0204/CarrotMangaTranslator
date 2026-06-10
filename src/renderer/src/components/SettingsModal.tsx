@@ -8,8 +8,7 @@ import type {
   ModelTestProgressEvent,
   ModelProvider,
   ModelSource,
-  OcrDevice,
-  OcrGpuBackend
+  OcrDevice
 } from "../../../shared/types";
 import {
   CODEX_REASONING_OPTIONS,
@@ -20,7 +19,6 @@ import {
   MODEL_SOURCE_OPTIONS,
   FLUX_BACKEND_OPTIONS,
   OCR_DEVICE_OPTIONS,
-  OCR_GPU_BACKEND_OPTIONS,
   LLAMA_RUNTIME_PROFILE_OPTIONS,
   resolveModelPreset,
   type ModelPresetId
@@ -83,7 +81,6 @@ export function SettingsModal({
   );
   const [codexOauthPort, setCodexOauthPort] = React.useState(String(initialSettings.codex.oauthPort));
   const [ocrDevice, setOcrDevice] = React.useState<OcrDevice>(initialSettings.ocr.device);
-  const [ocrGpuBackend, setOcrGpuBackend] = React.useState<OcrGpuBackend>(initialSettings.ocr.gpuBackend ?? "cuda");
   const [fluxBackend, setFluxBackend] = React.useState<FluxBackend>(
     initialSettings.inpainting?.fluxBackend ?? "cuda-native"
   );
@@ -94,6 +91,7 @@ export function SettingsModal({
   const modelRepoInputRef = React.useRef<HTMLInputElement | null>(null);
   const localModelInputRef = React.useRef<HTMLInputElement | null>(null);
   const testLogRef = React.useRef<HTMLDivElement | null>(null);
+  const hardwareRuntimeLock = React.useMemo(() => resolveHardwareRuntimeLock(initialSettings), [initialSettings]);
 
   React.useEffect(() => {
     setModelProvider(initialSettings.modelProvider);
@@ -109,7 +107,6 @@ export function SettingsModal({
     setCodexReasoningEffort(initialSettings.codex.reasoningEffort);
     setCodexOauthPort(String(initialSettings.codex.oauthPort));
     setOcrDevice(initialSettings.ocr.device);
-    setOcrGpuBackend(initialSettings.ocr.gpuBackend ?? "cuda");
     setFluxBackend(initialSettings.inpainting?.fluxBackend ?? "cuda-native");
     setMaxTokens(String(initialSettings.maxTokens));
     setTestState({ status: "idle", message: null, detail: null });
@@ -138,6 +135,45 @@ export function SettingsModal({
     }
   }, [modelProvider, modelSource, selectedPreset]);
 
+  const usesAmdHardware = hardwareRuntimeLock === "amd";
+  const usesNvidiaHardware = hardwareRuntimeLock === "nvidia";
+  const usesAmdGemmaRuntime =
+    modelProvider === "gemma" && isAmdLlamaRuntimeProfile(llamaRuntimeProfile);
+  const forceOcrCpu = usesAmdHardware || usesAmdGemmaRuntime;
+
+  React.useEffect(() => {
+    if (forceOcrCpu && ocrDevice !== "cpu") {
+      setOcrDevice("cpu");
+    }
+  }, [forceOcrCpu, ocrDevice]);
+
+  React.useEffect(() => {
+    if (usesAmdHardware && isNvidiaLlamaRuntimeProfile(llamaRuntimeProfile)) {
+      const preferredProfile = isAmdLlamaRuntimeProfile(initialSettings.gemma.llamaRuntimeProfile ?? "rocm")
+        ? initialSettings.gemma.llamaRuntimeProfile ?? "rocm"
+        : "rocm";
+      setLlamaRuntimeProfile(preferredProfile);
+      return;
+    }
+    if (usesNvidiaHardware && isAmdLlamaRuntimeProfile(llamaRuntimeProfile)) {
+      const preferredProfile = isNvidiaLlamaRuntimeProfile(initialSettings.gemma.llamaRuntimeProfile ?? "cuda12")
+        ? initialSettings.gemma.llamaRuntimeProfile ?? "cuda12"
+        : "cuda12";
+      setLlamaRuntimeProfile(preferredProfile);
+    }
+  }, [initialSettings.gemma.llamaRuntimeProfile, llamaRuntimeProfile, usesAmdHardware, usesNvidiaHardware]);
+
+  React.useEffect(() => {
+    if (usesAmdHardware && fluxBackend === "cuda-native") {
+      const preferredBackend = initialSettings.inpainting?.fluxBackend === "python-rocm" ? "python-rocm" : "python-cpu";
+      setFluxBackend(preferredBackend);
+      return;
+    }
+    if (usesNvidiaHardware && fluxBackend === "python-rocm") {
+      setFluxBackend("cuda-native");
+    }
+  }, [fluxBackend, initialSettings.inpainting?.fluxBackend, usesAmdHardware, usesNvidiaHardware]);
+
   const controlsBusy = busy || localActionBusy || testState.status === "running";
   const activePreset = modelSource === "huggingface" && selectedPreset !== "custom" ? MODEL_PRESETS[selectedPreset] : null;
   const trimmedModelRepo = (activePreset?.modelRepo ?? customModelRepo).trim();
@@ -158,6 +194,20 @@ export function SettingsModal({
   const canSubmit = Boolean(
     maxTokensValid &&
       (modelProvider === "openai-codex" ? trimmedCodexModel && codexOauthPortValid : gemmaSettingsReady)
+  );
+  const isLlamaRuntimeOptionDisabled = React.useCallback(
+    (profile: LlamaRuntimeProfile) =>
+      controlsBusy ||
+      (usesAmdHardware && isNvidiaLlamaRuntimeProfile(profile)) ||
+      (usesNvidiaHardware && isAmdLlamaRuntimeProfile(profile)),
+    [controlsBusy, usesAmdHardware, usesNvidiaHardware]
+  );
+  const isFluxBackendOptionDisabled = React.useCallback(
+    (backend: FluxBackend) =>
+      controlsBusy ||
+      (usesAmdHardware && backend === "cuda-native") ||
+      (usesNvidiaHardware && backend === "python-rocm"),
+    [controlsBusy, usesAmdHardware, usesNvidiaHardware]
   );
 
   const buildSettings = React.useCallback((): AppSettings | null => {
@@ -185,7 +235,6 @@ export function SettingsModal({
       codexReasoningEffort,
       codexOauthPort: codexOauthPortValid ? parsedCodexOauthPort : initialSettings.codex.oauthPort,
       ocrDevice,
-      ocrGpuBackend,
       fluxBackend,
       maxTokens: parsedMaxTokens
     });
@@ -207,7 +256,6 @@ export function SettingsModal({
     llamaRuntimeProfile,
     codexReasoningEffort,
     ocrDevice,
-    ocrGpuBackend,
     fluxBackend,
     initialSettings.codex.oauthPort,
     maxTokensValid
@@ -407,7 +455,7 @@ export function SettingsModal({
                     clearTestState();
                     setOcrDevice(option.id);
                   }}
-                  disabled={controlsBusy}
+                  disabled={controlsBusy || (forceOcrCpu && option.id === "gpu")}
                   aria-pressed={ocrDevice === option.id}
                 >
                   {option.label}
@@ -415,35 +463,11 @@ export function SettingsModal({
               ))}
             </div>
             <p className="muted-line modal-note">
-              {OCR_DEVICE_OPTIONS.find((option) => option.id === ocrDevice)?.description}
+              {forceOcrCpu
+                ? "AMD GPU 환경에서는 PaddleOCR GPU 경로를 쓰지 않고 OCR만 CPU로 처리합니다."
+                : OCR_DEVICE_OPTIONS.find((option) => option.id === ocrDevice)?.description}
             </p>
           </div>
-
-          {ocrDevice === "gpu" ? (
-            <div className="settings-field-stack">
-              <span>OCR GPU 백엔드</span>
-              <div className="settings-mode-group" role="tablist" aria-label="OCR GPU 백엔드">
-                {OCR_GPU_BACKEND_OPTIONS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className={`settings-preset-button ${ocrGpuBackend === option.id ? "active" : ""}`}
-                    onClick={() => {
-                      clearTestState();
-                      setOcrGpuBackend(option.id);
-                    }}
-                    disabled={controlsBusy}
-                    aria-pressed={ocrGpuBackend === option.id}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <p className="muted-line modal-note">
-                {OCR_GPU_BACKEND_OPTIONS.find((option) => option.id === ocrGpuBackend)?.description}
-              </p>
-            </div>
-          ) : null}
 
           <div className="settings-field-stack">
             <span>Flux 인페인팅 백엔드</span>
@@ -457,7 +481,7 @@ export function SettingsModal({
                     clearTestState();
                     setFluxBackend(option.id);
                   }}
-                  disabled={controlsBusy}
+                  disabled={isFluxBackendOptionDisabled(option.id)}
                   aria-pressed={fluxBackend === option.id}
                 >
                   {option.label}
@@ -574,7 +598,7 @@ export function SettingsModal({
                         clearTestState();
                         setLlamaRuntimeProfile(option.id);
                       }}
-                      disabled={controlsBusy}
+                      disabled={isLlamaRuntimeOptionDisabled(option.id)}
                       aria-pressed={llamaRuntimeProfile === option.id}
                     >
                       {option.label}
@@ -773,4 +797,26 @@ function formatModelTestProgressLine(event: ModelTestProgressEvent): string {
   }
   const detail = event.detail?.trim();
   return detail ? `${percent}${event.progressText} - ${detail}` : `${percent}${event.progressText}`;
+}
+
+function resolveHardwareRuntimeLock(settings: AppSettings): "amd" | "nvidia" | "unknown" {
+  const detectedVendor = settings.runtimeHardware?.gpuVendor;
+  if (detectedVendor === "amd" || detectedVendor === "nvidia") {
+    return detectedVendor;
+  }
+  if (settings.gemma.llamaRocmTarget || isAmdLlamaRuntimeProfile(settings.gemma.llamaRuntimeProfile ?? "cuda12")) {
+    return "amd";
+  }
+  if (settings.modelProvider === "gemma" && isNvidiaLlamaRuntimeProfile(settings.gemma.llamaRuntimeProfile ?? "cuda12")) {
+    return "nvidia";
+  }
+  return "unknown";
+}
+
+function isAmdLlamaRuntimeProfile(profile: LlamaRuntimeProfile): boolean {
+  return profile === "rocm" || profile === "vulkan";
+}
+
+function isNvidiaLlamaRuntimeProfile(profile: LlamaRuntimeProfile): boolean {
+  return profile === "cuda12" || profile === "rtx50";
 }

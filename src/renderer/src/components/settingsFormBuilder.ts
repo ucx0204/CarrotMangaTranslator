@@ -6,8 +6,7 @@ import type {
   LlamaRuntimeProfile,
   ModelProvider,
   ModelSource,
-  OcrDevice,
-  OcrGpuBackend
+  OcrDevice
 } from "../../../shared/types";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
@@ -30,12 +29,12 @@ type BuildSettingsFromFormInput = {
   codexReasoningEffort: CodexReasoningEffort;
   codexOauthPort: number;
   ocrDevice: OcrDevice;
-  ocrGpuBackend: OcrGpuBackend;
   fluxBackend: FluxBackend;
   maxTokens: number;
 };
 
 export function buildSettingsFromForm(input: BuildSettingsFromFormInput): AppSettings {
+  const llamaRocmTarget = input.initialSettings.gemma.llamaRocmTarget ?? input.initialSettings.runtimeHardware?.llamaRocmTarget ?? undefined;
   const gemma = {
     modelSource: input.modelSource,
     modelRepo: input.modelRepo || DEFAULT_GEMMA_MODEL_REPO,
@@ -46,11 +45,10 @@ export function buildSettingsFromForm(input: BuildSettingsFromFormInput): AppSet
     ...(input.localMmprojPath ? { localMmprojPath: input.localMmprojPath } : {}),
     vramMode: input.vramMode,
     llamaRuntimeProfile: input.llamaRuntimeProfile,
-    ...(input.initialSettings.gemma.llamaRocmTarget ? { llamaRocmTarget: input.initialSettings.gemma.llamaRocmTarget } : {})
+    ...(llamaRocmTarget ? { llamaRocmTarget } : {})
   };
   const ocr = {
     device: input.ocrDevice,
-    gpuBackend: input.ocrGpuBackend,
     ...(input.initialSettings.ocr.gpuCudaTag ? { gpuCudaTag: input.initialSettings.ocr.gpuCudaTag } : {})
   };
 

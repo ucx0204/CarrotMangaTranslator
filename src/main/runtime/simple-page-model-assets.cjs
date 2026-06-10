@@ -327,7 +327,14 @@ function getLlamaRuntimeArchives(runtime) {
   return runtime?.archive && runtime?.url ? [{ archive: runtime.archive, url: runtime.url }] : [];
 }
 
-function shouldExtractLlamaRuntimeFile(fileName) {
+function shouldExtractLlamaRuntimeFile(fileName, relativePath = fileName) {
+  const normalizedRelativePath = String(relativePath ?? fileName ?? "").replace(/\\/g, "/").toLowerCase();
+  if (
+    (normalizedRelativePath.startsWith("rocblas/") || normalizedRelativePath.startsWith("hipblaslt/")) &&
+    /\.(?:dat|co|hsaco)$/i.test(normalizedRelativePath)
+  ) {
+    return true;
+  }
   return LLAMA_RUNTIME_FILES.has(fileName) || /\.(?:dll|so|dylib)$/i.test(String(fileName ?? ""));
 }
 

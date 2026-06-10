@@ -15,6 +15,7 @@ const {
   buildOcrRuntimeEnv,
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
+  isPaddleNativeDllLoadFailureText,
   isOcrGpuRequested,
   resolveBootstrapPython,
   resolveInstallProgressDir,
@@ -30,6 +31,7 @@ const {
   resolvePaddleOcrImportCheckTimeoutMs,
   resolveRealPaddlexCacheHome,
   resolveVenvPythonPath,
+  summarizeOcrErrorMessage,
   summarizeOcrInstallBatches
 } = require("./simple-page-ocr-runtime-config.cjs");
 const {
@@ -56,6 +58,7 @@ const {
 
 const DEFAULT_EMBED_PYTHON_VERSION = "3.12.7";
 const DEFAULT_GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py";
+const DEFAULT_VCREDIST_X64_URL = "https://aka.ms/vs/17/release/vc_redist.x64.exe";
 const PYTHON_RUNTIME_MARKER_FILE = ".mgt-bootstrap-python.json";
 
 async function ensurePaddleOcrRuntime(options = {}) {
@@ -202,16 +205,37 @@ async function ensurePaddleOcrRuntime(options = {}) {
     includePackageDir: Boolean(targetDir),
     ...cachePaths
   });
+  if (!importCheck.ok && isPaddleNativeDllLoadFailureText(summarizeImportCheckFailure(importCheck))) {
+    diagnostics.push({
+      step: "paddle-native-dll-load-failed",
+      runtimeDir,
+      runtimeVariant,
+      packageDir,
+      pythonPath: installPython,
+      importError: summarizeImportCheckFailure(importCheck)
+    });
+    await ensureMicrosoftVisualCppRuntimeForPaddle(options, runtimeDir);
+    emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 설치 재검증 중", packageSummary, {
+      progressMode: "indeterminate",
+      installLogLine: "Microsoft Visual C++ 런타임 준비 후 Paddle OCR import를 다시 확인합니다."
+    });
+    importCheck = await checkPaddleOcrImport(installPython, options, {
+      runtimeDir,
+      packageDir,
+      includePackageDir: Boolean(targetDir),
+      ...cachePaths
+    });
+  }
   if (!importCheck.ok) {
     throw createOcrRuntimeError(
-      buildPaddleOcrImportFailureMessage(importCheck.message, options),
+      buildPaddleOcrImportFailureMessage(summarizeImportCheckFailure(importCheck), options),
       {
         step: "post-install-verification-failed",
         runtimeDir,
         runtimeVariant,
         packageDir,
         pythonPath: installPython,
-        importError: importCheck.message
+        importError: summarizeImportCheckFailure(importCheck)
       },
       importCheck.error
     );
@@ -332,6 +356,65 @@ async function ensureManagedBootstrapPython(options = {}, runtimeDir) {
     installLogLine: "OCR용 Python 준비가 완료되었습니다."
   });
   return pythonExe;
+}
+
+async function ensureMicrosoftVisualCppRuntimeForPaddle(options = {}, runtimeDir) {
+  if (process.platform !== "win32") {
+    return;
+  }
+  if (!isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_AUTO_INSTALL_VCREDIST", options) ?? "true")) {
+    emitRuntimeProgress(options, "ocr_downloading", "Microsoft Visual C++ 런타임 필요", "자동 설치가 비활성화되어 있습니다.", {
+      progressMode: "log-only",
+      installLogLine: "Paddle 네이티브 DLL 로딩에 필요한 Microsoft Visual C++ 2015-2022 x64 런타임을 설치해야 합니다."
+    });
+    return;
+  }
+
+  const url = String(runtimeOverrideEnv("MANGA_TRANSLATOR_VCREDIST_X64_URL", options) || DEFAULT_VCREDIST_X64_URL).trim();
+  const downloadsDir = path.join(runtimeDir, ".downloads", "vcredist");
+  const redistPath = path.join(downloadsDir, "vc_redist.x64.exe");
+  await mkdir(downloadsDir, { recursive: true });
+
+  if (!existsSync(redistPath)) {
+    const totalBytes = await probeContentLength(url, options.abortSignal).catch(() => 0);
+    await downloadHfFileWithProgress({
+      label: "Microsoft Visual C++ 런타임",
+      file: "vc_redist.x64.exe",
+      url,
+      destination: redistPath,
+      progressPhase: "ocr_downloading",
+      progressTitle: "Microsoft Visual C++ 런타임 다운로드 중",
+      completeTitle: "Microsoft Visual C++ 런타임 다운로드 완료"
+    }, options, { totalBytes });
+  }
+
+  emitRuntimeProgress(options, "ocr_downloading", "Microsoft Visual C++ 런타임 설치 중", "Paddle 네이티브 DLL 로딩에 필요한 x64 런타임을 준비합니다.", {
+    progressMode: "indeterminate",
+    installLogLine: "Microsoft Visual C++ 2015-2022 x64 런타임을 설치/복구합니다. Windows가 권한 확인을 요청하면 허용해 주세요."
+  });
+
+  try {
+    await runShellCommand(`${quoteCommandArg(redistPath)} /install /quiet /norestart`, {
+      timeoutMs: 600000,
+      env: buildOcrRuntimeEnv(options, { runtimeDir, includePackageDir: false }),
+      signal: options.abortSignal,
+      successCodes: [0, 3010, 1638],
+      failureMessage: "Microsoft Visual C++ runtime installer failed."
+    });
+    emitRuntimeProgress(options, "ocr_downloading", "Microsoft Visual C++ 런타임 준비 완료", "Paddle OCR import를 다시 확인합니다.", {
+      progressMode: "log-only",
+      installLogLine: "Microsoft Visual C++ 런타임 준비가 완료되었습니다."
+    });
+  } catch (error) {
+    emitRuntimeProgress(options, "ocr_downloading", "Microsoft Visual C++ 런타임 설치 실패", error instanceof Error ? error.message : String(error), {
+      progressMode: "log-only",
+      installLogLine: "Microsoft Visual C++ 런타임 자동 설치에 실패했습니다. 관리자 권한 또는 Windows 정책 때문에 막혔을 수 있습니다."
+    });
+  }
+}
+
+function summarizeImportCheckFailure(importCheck) {
+  return summarizeOcrErrorMessage(importCheck?.error || importCheck?.message || "");
 }
 
 function isCurrentManagedBootstrapPython(pythonExe, markerPath, expected) {

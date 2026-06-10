@@ -241,16 +241,24 @@ export function sanitizeFluxRuntimeStderr(text: string): string {
 
 function buildFluxRuntimeExitError(code: number | null, stderr: string, backend: FluxWorkerBackend): Error {
   const detail = formatFluxRuntimeDetail(stderr);
-  if (backend === "python-rocm" || backend === "python-cpu") {
+  if (backend === "python-rocm") {
     if (/ModuleNotFoundError|No module named/i.test(stderr)) {
-      return new Error(`Flux Python 런타임 패키지를 불러오지 못했습니다. Flux 런타임 설치를 다시 실행하세요. ${detail}`);
-    }
-    if (/ROCm|HIP|torch\.version\.hip|torch\.cuda\.is_available|No HIP GPUs are available|hipError|HSA|gfx/i.test(stderr)) {
       return new Error(
-        `Flux ROCm 런타임이 AMD GPU를 사용할 수 없습니다. ROCm/PyTorch 호환성을 확인하거나 Flux 백엔드를 CPU로 바꾸세요. ${detail}`
+        `Flux stable-diffusion.cpp ROCm 런타임 패키지를 불러오지 못했습니다. Flux 런타임 설치를 다시 실행하세요. ${detail}`
       );
     }
-    return new Error(`Flux Python 인페인팅 런타임이 종료되었습니다 (${code}). ${detail}`);
+    if (/ROCm|HIP|hipError|HSA|gfx|hipblas|rocblas|amdgpu|GPU_TARGETS|AMDGPU_TARGETS/i.test(stderr)) {
+      return new Error(
+        `Flux stable-diffusion.cpp ROCm/HIP 런타임이 AMD GPU를 사용할 수 없습니다. AMD 드라이버, ROCm/HIP 지원 아키텍처, GPU target 설정을 확인하세요. ${detail}`
+      );
+    }
+    return new Error(`Flux stable-diffusion.cpp ROCm 인페인팅 런타임이 종료되었습니다 (${code}). ${detail}`);
+  }
+  if (backend === "python-cpu") {
+    if (/ModuleNotFoundError|No module named/i.test(stderr)) {
+      return new Error(`Flux Python CPU 런타임 패키지를 불러오지 못했습니다. Flux 런타임 설치를 다시 실행하세요. ${detail}`);
+    }
+    return new Error(`Flux Python CPU 인페인팅 런타임이 종료되었습니다 (${code}). ${detail}`);
   }
   if (/Unable to dynamically load the "cublas"|cublas64_12\.dll|cublas\.dll/i.test(stderr)) {
     return new Error(

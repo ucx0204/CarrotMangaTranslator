@@ -247,6 +247,40 @@ describe("app settings helpers", () => {
     expect(allowed.ocrBboxCommand).toBe("external-ocr");
   });
 
+  it("still allows packaged AMD ROCm target overrides because they select bundled runtime folders", () => {
+    const defaults = resolveDefaultAppSettings();
+    const options = buildBaseTranslationOptions({
+      jobId: "packaged-amd-target",
+      runDir: "C:/app-data/runs/packaged-amd-target",
+      paths: {
+        isPackaged: true,
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/app/resources/tools",
+        ocrRuntimeDir: "C:/app-data/ocr-runtime",
+        llamaServerPath: "C:/app/resources/tools/llama-server.exe",
+        hfHomeDir: "C:/app-data/hf-cache",
+        hfHubCacheDir: "C:/app-data/hf-cache/hub",
+        llamaCacheDir: "C:/app-data/llama.cpp"
+      },
+      settings: {
+        ...defaults,
+        modelProvider: "gemma",
+        gemma: {
+          ...defaults.gemma,
+          llamaRuntimeProfile: "rocm"
+        }
+      },
+      env: {
+        MANGA_TRANSLATOR_AMD_ROCM_TARGET: "gfx110X",
+        MANGA_TRANSLATOR_LLAMA_SERVER_PATH: "D:/external/llama-server.exe"
+      } satisfies NodeJS.ProcessEnv
+    });
+
+    expect(options.llamaRuntimeProfile).toBe("rocm");
+    expect(options.llamaRocmTarget).toBe("gfx110X");
+    expect(options.serverPath).toBe(join("C:/app-data", "tools", "lemonade-llama-b1291-rocm-gfx110X", "llama-server.exe"));
+  });
+
   it("uses economy VRAM runtime options without clipping image tokens", () => {
     const defaults = resolveDefaultAppSettings();
     const options = buildBaseTranslationOptions({
@@ -399,7 +433,163 @@ describe("app settings helpers", () => {
     expect(amdDefaults.gemma.llamaRocmTarget).toBe("gfx110X");
     expect(options.llamaRuntimeProfile).toBe("rocm");
     expect(options.llamaRocmTarget).toBe("gfx110X");
+    expect(options.ocrDevice).toBe("cpu");
+    expect(options.ocrGpuBackend).toBe("cuda");
     expect(options.serverPath).toBe(join("C:/app-data", "tools", "lemonade-llama-b1291-rocm-gfx110X", "llama-server.exe"));
+  });
+
+  it("routes Azure Radeon PRO V710 to the AMD ROCm Gemma profile", () => {
+    const amdDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon PRO V710",
+        memoryMb: 28672,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        rocmArch: null,
+        supportsVulkan: true,
+        supportsRocm: false
+      }
+    );
+
+    expect(amdDefaults.modelProvider).toBe("gemma");
+    expect(amdDefaults.gemma.llamaRuntimeProfile).toBe("rocm");
+    expect(amdDefaults.gemma.llamaRocmTarget).toBe("gfx110X");
+    expect(amdDefaults.ocr.device).toBe("cpu");
+  });
+
+  it("restores the AMD ROCm target when old saved settings only kept the ROCm profile", () => {
+    const amdDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon PRO V710 MxGPU",
+        memoryMb: 28672,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: true
+      }
+    );
+    const restored = parseStoredAppSettings(
+      JSON.stringify({
+        modelProvider: "gemma",
+        gemma: {
+          llamaRuntimeProfile: "rocm",
+          vramMode: "minimum12b"
+        }
+      }),
+      amdDefaults
+    );
+    const options = buildBaseTranslationOptions({
+      jobId: "job-amd-v710-restored",
+      runDir: "C:/runs/job-amd-v710-restored",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub"
+      },
+      settings: restored,
+      env: {}
+    });
+
+    expect(restored.gemma.llamaRuntimeProfile).toBe("rocm");
+    expect(restored.gemma.llamaRocmTarget).toBe("gfx110X");
+    expect(options.llamaRocmTarget).toBe("gfx110X");
+    expect(options.serverPath).toBe(join("C:/app-data", "tools", "lemonade-llama-b1291-rocm-gfx110X", "llama-server.exe"));
+  });
+
+  it("coerces saved runtime backends that do not match the detected GPU vendor", () => {
+    const amdDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon PRO V710",
+        memoryMb: 28672,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: true
+      }
+    );
+    const nvidiaDefaults = resolveDefaultAppSettings(
+      {},
+      { name: "NVIDIA GeForce RTX 4090", memoryMb: 24564, rtxGeneration: 40, computeCapability: 8.9 }
+    );
+
+    const amdNormalized = parseStoredAppSettings(
+      JSON.stringify({
+        gemma: {
+          llamaRuntimeProfile: "cuda12"
+        },
+        ocr: {
+          device: "gpu"
+        },
+        inpainting: {
+          fluxBackend: "cuda-native"
+        }
+      }),
+      amdDefaults
+    );
+    const nvidiaNormalized = parseStoredAppSettings(
+      JSON.stringify({
+        gemma: {
+          llamaRuntimeProfile: "rocm",
+          llamaRocmTarget: "gfx110X"
+        },
+        inpainting: {
+          fluxBackend: "python-rocm"
+        }
+      }),
+      nvidiaDefaults
+    );
+
+    expect(amdNormalized.gemma.llamaRuntimeProfile).toBe("rocm");
+    expect(amdNormalized.gemma.llamaRocmTarget).toBe("gfx110X");
+    expect(amdNormalized.ocr.device).toBe("cpu");
+    expect(amdNormalized.inpainting?.fluxBackend).toBe(amdDefaults.inpainting?.fluxBackend);
+    expect(nvidiaNormalized.gemma.llamaRuntimeProfile).toBe("cuda12");
+    expect(nvidiaNormalized.inpainting?.fluxBackend).toBe("cuda-native");
+  });
+
+  it("forces OCR to CPU for AMD llama runtimes even when GPU OCR is configured", () => {
+    const defaults = resolveDefaultAppSettings();
+    const settings: AppSettings = {
+      ...defaults,
+      modelProvider: "gemma",
+      gemma: {
+        ...defaults.gemma,
+        llamaRuntimeProfile: "rocm"
+      },
+      ocr: {
+        device: "gpu",
+        gpuBackend: "cuda",
+        gpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG
+      }
+    };
+
+    const options = buildBaseTranslationOptions({
+      jobId: "job-amd-ocr-cpu",
+      runDir: "C:/runs/job-amd-ocr-cpu",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub"
+      },
+      settings,
+      env: {
+        MANGA_TRANSLATOR_OCR_DEVICE: "gpu"
+      }
+    });
+
+    expect(options.llamaRuntimeProfile).toBe("rocm");
+    expect(options.ocrDevice).toBe("cpu");
+    expect(options.ocrGpuBackend).toBe("cuda");
   });
 
   it("keeps Paddle OCR CUDA tag separate from the llama runtime profile", () => {
@@ -631,7 +821,7 @@ describe("app settings helpers", () => {
       gemmaVramMode: "full31b",
       ocrDevice: "cpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
-      ocrGpuBackend: "rocm",
+      ocrGpuBackend: "cuda",
       fluxBackend: "python-cpu",
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X"
@@ -651,7 +841,7 @@ describe("app settings helpers", () => {
       gemmaVramMode: "economy26b",
       ocrDevice: "cpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
-      ocrGpuBackend: "rocm",
+      ocrGpuBackend: "cuda",
       fluxBackend: process.platform === "win32" ? "python-cpu" : "python-rocm",
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X"

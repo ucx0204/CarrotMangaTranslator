@@ -359,6 +359,13 @@ export const AppSettingsSchema = z
     inpainting: z.object({
       fluxBackend: FluxBackendSchema.optional()
     }).strict().optional(),
+    runtimeHardware: z.object({
+      gpuVendor: z.enum(["nvidia", "amd", "unknown"]),
+      gpuName: z.string().max(300).nullable().optional(),
+      llamaRocmTarget: AmdRocmTargetSchema.nullable().optional(),
+      supportsRocm: z.boolean().optional(),
+      supportsVulkan: z.boolean().optional()
+    }).strict().optional(),
     maxTokens: z.number().int().min(300).max(12000)
   })
   .strict();
