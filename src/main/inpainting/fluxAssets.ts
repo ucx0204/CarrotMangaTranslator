@@ -1,7 +1,7 @@
 import { once } from "node:events";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createWriteStream, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, delimiter, dirname, isAbsolute, join, normalize, relative, resolve } from "node:path";
 import type { FluxBackend } from "../../shared/types";
@@ -1243,27 +1243,37 @@ function buildTargetPythonEnv(
     if (!nativeBuildEnv && options.requireNativeBuildEnv) {
       throw new Error(formatWindowsNativeBuildToolsMissingMessage());
     }
+    const rcCompiler = stageWindowsResourceCompiler(runtimeDir, resolveWindowsResourceCompiler(rocmPaths, nativeBuildEnv));
     const runtimeLibraryPaths = nativeBuildEnv ? resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths) : [];
-    const runtimeLibraryCmakeList = runtimeLibraryPaths.map(toCmakePath).join(";");
-    const runtimeLibraryLdFlags = runtimeLibraryPaths.map((item) => quoteShellToken(toCmakePath(item))).join(" ");
+    const stagedRuntimeLibraryPaths = stageWindowsRuntimeLibraries(runtimeDir, runtimeLibraryPaths);
+    const runtimeLibraryCmakeValue = stagedRuntimeLibraryPaths.map((item) => quoteShellToken(toCmakePath(item))).join(" ");
+    const runtimeLibraryLdFlags = stagedRuntimeLibraryPaths.map((item) => quoteShellToken(toCmakePath(item))).join(" ");
     const rocmCmakePrefixList = rocmPaths.cmakePrefixPaths.map(toCmakePath).join(";");
+    const hipCompilerFlags = [
+      `--rocm-device-lib-path=${toCmakePath(rocmPaths.deviceLibPath)}`,
+      `--hip-device-lib-path=${toCmakePath(rocmPaths.deviceLibPath)}`,
+      `--hip-path=${toCmakePath(rocmPaths.hipRoot)}`
+    ].map(quoteShellToken).join(" ");
     const cmakeArgs = [
       env.CMAKE_ARGS,
       `-DCMAKE_C_COMPILER:FILEPATH=${toCmakePath(rocmPaths.clang)}`,
       `-DCMAKE_CXX_COMPILER:FILEPATH=${toCmakePath(rocmPaths.clangxx)}`,
-      `-DCMAKE_RC_COMPILER:FILEPATH=${toCmakePath(rocmPaths.llvmRc)}`,
+      rcCompiler ? `-DCMAKE_RC_COMPILER:FILEPATH=${toCmakePath(rcCompiler)}` : "",
       existsSync(rocmPaths.llvmMt) ? `-DCMAKE_MT:FILEPATH=${toCmakePath(rocmPaths.llvmMt)}` : "",
       nativeBuildEnv?.sdkVersion ? `-DCMAKE_SYSTEM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
       nativeBuildEnv?.sdkVersion ? `-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
       `-DCMAKE_C_COMPILER_TARGET=${WINDOWS_MSVC_COMPILER_TARGET}`,
       `-DCMAKE_CXX_COMPILER_TARGET=${WINDOWS_MSVC_COMPILER_TARGET}`,
       "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
-      runtimeLibraryCmakeList ? quoteCmakeArg(`-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`) : "",
-      runtimeLibraryCmakeList ? quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`) : "",
+      runtimeLibraryCmakeValue ? quoteCmakeArg(`-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`) : "",
+      runtimeLibraryCmakeValue ? quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`) : "",
       quoteCmakeArg(`-DCMAKE_PREFIX_PATH:STRING=${rocmCmakePrefixList}`),
       quoteCmakeArg(`-Dhip_DIR:PATH=${toCmakePath(rocmPaths.hipCmakeDir)}`),
       quoteCmakeArg(`-DHIP_PATH:PATH=${toCmakePath(rocmPaths.hipRoot)}`),
       quoteCmakeArg(`-DROCM_PATH:PATH=${toCmakePath(rocmPaths.rocmRoot)}`),
+      quoteCmakeArg(`-DHIP_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`),
+      quoteCmakeArg(`-DROCM_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`),
+      quoteCmakeArg(`-DCMAKE_HIP_FLAGS:STRING=${hipCompilerFlags}`),
       "-DHIP_PLATFORM=amd",
       "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
       "-DSD_HIPBLAS=ON",
@@ -1276,7 +1286,7 @@ function buildTargetPythonEnv(
     ].filter(Boolean);
     env.CMAKE_ARGS = cmakeArgs.join(" ");
     env.CFLAGS = mergeWords(env.CFLAGS, `--target=${WINDOWS_MSVC_COMPILER_TARGET}`);
-    env.CXXFLAGS = mergeWords(env.CXXFLAGS, `--target=${WINDOWS_MSVC_COMPILER_TARGET}`);
+    env.CXXFLAGS = mergeWords(env.CXXFLAGS, `--target=${WINDOWS_MSVC_COMPILER_TARGET}`, hipCompilerFlags);
     env.LDFLAGS = mergeWords(env.LDFLAGS, runtimeLibraryLdFlags);
     env.FORCE_CMAKE = "1";
     env.CMAKE_GENERATOR = env.CMAKE_GENERATOR || "Ninja";
@@ -1288,9 +1298,13 @@ function buildTargetPythonEnv(
     }
     env.CC = env.CC || rocmPaths.clang;
     env.CXX = env.CXX || rocmPaths.clangxx;
-    env.RC = env.RC || rocmPaths.llvmRc;
+    if (rcCompiler) {
+      env.RC = env.RC || rcCompiler;
+    }
     env.ROCM_PATH = env.ROCM_PATH || rocmPaths.rocmRoot;
     env.HIP_PATH = env.HIP_PATH || rocmPaths.hipRoot;
+    env.HIP_DEVICE_LIB_PATH = env.HIP_DEVICE_LIB_PATH || rocmPaths.deviceLibPath;
+    env.ROCM_DEVICE_LIB_PATH = env.ROCM_DEVICE_LIB_PATH || rocmPaths.deviceLibPath;
     env.CMAKE_PREFIX_PATH = mergePathList(env.CMAKE_PREFIX_PATH, rocmPaths.cmakePrefixPaths);
     if (gpuTargets) {
       env.GPU_TARGETS = env.GPU_TARGETS || gpuTargets;
@@ -1312,11 +1326,13 @@ function resolveWindowsRocmSdkPaths(packageDir: string): {
   clangxx: string;
   llvmRc: string;
   llvmMt: string;
+  deviceLibPath: string;
 } {
   const coreRoot = join(packageDir, "_rocm_sdk_core");
   const develRoot = join(packageDir, "_rocm_sdk_devel");
   const librariesRoot = join(packageDir, "_rocm_sdk_libraries_custom");
   const llvmBin = join(coreRoot, "lib", "llvm", "bin");
+  const deviceLibPath = resolveRocmDeviceLibPath(packageDir, coreRoot, develRoot);
   const hipCmakeDir = resolveCmakePackageDir(packageDir, "hip", [
     join(develRoot, "lib", "cmake", "hip"),
     join(coreRoot, "lib", "cmake", "hip"),
@@ -1345,8 +1361,61 @@ function resolveWindowsRocmSdkPaths(packageDir: string): {
     clang: join(llvmBin, "clang.exe"),
     clangxx: join(llvmBin, "clang++.exe"),
     llvmRc: join(llvmBin, "llvm-rc.exe"),
-    llvmMt: join(llvmBin, "llvm-mt.exe")
+    llvmMt: join(llvmBin, "llvm-mt.exe"),
+    deviceLibPath
   };
+}
+
+function resolveRocmDeviceLibPath(packageDir: string, coreRoot: string, develRoot: string): string {
+  const candidates = [
+    join(coreRoot, "lib", "llvm", "amdgcn", "bitcode"),
+    join(develRoot, "lib", "llvm", "amdgcn", "bitcode"),
+    join(packageDir, "lib", "llvm", "amdgcn", "bitcode")
+  ];
+  for (const candidate of candidates) {
+    if (fileExists(join(candidate, "ocml.bc"))) {
+      return candidate;
+    }
+  }
+  const found = findFirstFileRecursive(packageDir, new Set(["ocml.bc"]), 8);
+  if (found) {
+    return dirname(found);
+  }
+  return candidates[0];
+}
+
+function resolveWindowsResourceCompiler(
+  rocmPaths: { llvmRc: string },
+  nativeBuildEnv: WindowsNativeBuildEnv | null
+): string | null {
+  if (fileExists(rocmPaths.llvmRc)) {
+    return rocmPaths.llvmRc;
+  }
+  return nativeBuildEnv ? findFileInPathList(nativeBuildEnv.pathEntries, "rc.exe") : null;
+}
+
+function stageWindowsResourceCompiler(runtimeDir: string, rcCompiler: string | null): string | null {
+  if (!rcCompiler) {
+    return rcCompiler;
+  }
+  const stagedDir = join(runtimeDir, "native-tools");
+  const stagedPath = join(stagedDir, "rc.exe");
+  mkdirSync(stagedDir, { recursive: true });
+  copyFileSync(rcCompiler, stagedPath);
+  return stagedPath;
+}
+
+function stageWindowsRuntimeLibraries(runtimeDir: string, libraryPaths: string[]): string[] {
+  if (!libraryPaths.length) {
+    return [];
+  }
+  const stagedDir = join(runtimeDir, "native-libs");
+  mkdirSync(stagedDir, { recursive: true });
+  return libraryPaths.map((libraryPath) => {
+    const stagedPath = join(stagedDir, basename(libraryPath));
+    copyFileSync(libraryPath, stagedPath);
+    return stagedPath;
+  });
 }
 
 function resolveCmakePackageDir(packageDir: string, packageName: string, candidates: string[]): string {

@@ -2,6 +2,7 @@
 const { spawn } = require("node:child_process");
 const { createHash } = require("node:crypto");
 const {
+  copyFileSync,
   createWriteStream,
   existsSync,
   mkdirSync,
@@ -103,7 +104,7 @@ main().catch((error) => {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const workDir = resolve(args["work-dir"] || join(rootDir, ".tmp", "flux-rocm-runtime-build", stamp));
+  const workDir = resolve(args["work-dir"] || resolveDefaultWorkDir(stamp));
   const runtimeDir = resolve(args["runtime-dir"] || join(workDir, "runtime"));
   const downloadsDir = join(workDir, "downloads");
   const logsDir = join(workDir, "logs");
@@ -216,6 +217,22 @@ function parseArgs(argv) {
   return result;
 }
 
+function resolveDefaultWorkDir(stamp) {
+  const candidates = [
+    process.env.MGT_FLUX_ROCM_BUILD_ROOT,
+    process.env.MGT_FLUX_BUILD_ROOT,
+    process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, "mgt-flux-rocm-runtime-build") : "",
+    join(os.tmpdir(), "mgt-flux-rocm-runtime-build"),
+    "C:\\mgt-flux-rocm-runtime-build"
+  ].filter(Boolean);
+  const base = candidates.find((item) => isAsciiPath(item)) || candidates[candidates.length - 1];
+  return join(base, stamp);
+}
+
+function isAsciiPath(pathValue) {
+  return /^[\x00-\x7F]+$/.test(String(pathValue));
+}
+
 function createLogger(logPath) {
   mkdirSync(dirname(logPath), { recursive: true });
   const stream = createWriteStream(logPath, { flags: "a" });
@@ -288,11 +305,18 @@ async function initializeRocmSdk({ pythonExe, packageDir, runtimeDir, logger }) 
 
 function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, logger) {
   const rocmPaths = resolveWindowsRocmSdkPaths(packageDir);
-  validateWindowsRocmSdkPaths(rocmPaths, packageDir, logger);
+  const rcCompiler = stageWindowsResourceCompiler(runtimeDir, resolveWindowsResourceCompiler(rocmPaths, nativeBuildEnv));
+  validateWindowsRocmSdkPaths(rocmPaths, packageDir, logger, rcCompiler);
   const runtimeLibraryPaths = resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths);
-  const runtimeLibraryCmakeList = runtimeLibraryPaths.map(toCmakePath).join(";");
-  const runtimeLibraryLdFlags = runtimeLibraryPaths.map((item) => quoteArg(toCmakePath(item))).join(" ");
+  const stagedRuntimeLibraryPaths = stageWindowsRuntimeLibraries(runtimeDir, runtimeLibraryPaths);
+  const runtimeLibraryCmakeValue = stagedRuntimeLibraryPaths.map((item) => quoteArg(toCmakePath(item))).join(" ");
+  const runtimeLibraryLdFlags = stagedRuntimeLibraryPaths.map((item) => quoteArg(toCmakePath(item))).join(" ");
   const rocmCmakePrefixList = rocmPaths.cmakePrefixPaths.map(toCmakePath).join(";");
+  const hipCompilerFlags = [
+    `--rocm-device-lib-path=${toCmakePath(rocmPaths.deviceLibPath)}`,
+    `--hip-device-lib-path=${toCmakePath(rocmPaths.deviceLibPath)}`,
+    `--hip-path=${toCmakePath(rocmPaths.hipRoot)}`
+  ].map(quoteArg).join(" ");
   const pathEntries = [
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`),
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`, "Scripts"),
@@ -312,19 +336,22 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, log
   const cmakeArgs = [
     `-DCMAKE_C_COMPILER:FILEPATH=${toCmakePath(rocmPaths.clang)}`,
     `-DCMAKE_CXX_COMPILER:FILEPATH=${toCmakePath(rocmPaths.clangxx)}`,
-    `-DCMAKE_RC_COMPILER:FILEPATH=${toCmakePath(rocmPaths.llvmRc)}`,
+    `-DCMAKE_RC_COMPILER:FILEPATH=${toCmakePath(rcCompiler)}`,
     isFile(rocmPaths.llvmMt) ? `-DCMAKE_MT:FILEPATH=${toCmakePath(rocmPaths.llvmMt)}` : "",
     nativeBuildEnv.sdkVersion ? `-DCMAKE_SYSTEM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
     nativeBuildEnv.sdkVersion ? `-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
     `-DCMAKE_C_COMPILER_TARGET=${windowsMsvcCompilerTarget}`,
     `-DCMAKE_CXX_COMPILER_TARGET=${windowsMsvcCompilerTarget}`,
     "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
-    quoteCmakeArg(`-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`),
-    quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`),
+    quoteCmakeArg(`-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`),
+    quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`),
     quoteCmakeArg(`-DCMAKE_PREFIX_PATH:STRING=${rocmCmakePrefixList}`),
     quoteCmakeArg(`-Dhip_DIR:PATH=${toCmakePath(rocmPaths.hipCmakeDir)}`),
     quoteCmakeArg(`-DHIP_PATH:PATH=${toCmakePath(rocmPaths.hipRoot)}`),
     quoteCmakeArg(`-DROCM_PATH:PATH=${toCmakePath(rocmPaths.rocmRoot)}`),
+    quoteCmakeArg(`-DHIP_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`),
+    quoteCmakeArg(`-DROCM_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`),
+    quoteCmakeArg(`-DCMAKE_HIP_FLAGS:STRING=${hipCompilerFlags}`),
     "-DHIP_PLATFORM=amd",
     "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
     "-DSD_HIPBLAS=ON",
@@ -349,15 +376,17 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, log
     LIBPATH: mergePathList(process.env.LIBPATH, nativeBuildEnv.libPaths),
     CMAKE_ARGS: mergeWords(process.env.CMAKE_ARGS, cmakeArgs.join(" ")),
     CFLAGS: mergeWords(process.env.CFLAGS, `--target=${windowsMsvcCompilerTarget}`),
-    CXXFLAGS: mergeWords(process.env.CXXFLAGS, `--target=${windowsMsvcCompilerTarget}`),
+    CXXFLAGS: mergeWords(process.env.CXXFLAGS, `--target=${windowsMsvcCompilerTarget}`, hipCompilerFlags),
     LDFLAGS: mergeWords(process.env.LDFLAGS, runtimeLibraryLdFlags),
     FORCE_CMAKE: "1",
     CMAKE_GENERATOR: process.env.CMAKE_GENERATOR || "Ninja",
     CC: process.env.CC || rocmPaths.clang,
     CXX: process.env.CXX || rocmPaths.clangxx,
-    RC: process.env.RC || rocmPaths.llvmRc,
+    RC: process.env.RC || rcCompiler,
     ROCM_PATH: process.env.ROCM_PATH || rocmPaths.rocmRoot,
     HIP_PATH: process.env.HIP_PATH || rocmPaths.hipRoot,
+    HIP_DEVICE_LIB_PATH: process.env.HIP_DEVICE_LIB_PATH || rocmPaths.deviceLibPath,
+    ROCM_DEVICE_LIB_PATH: process.env.ROCM_DEVICE_LIB_PATH || rocmPaths.deviceLibPath,
     CMAKE_PREFIX_PATH: mergePathList(process.env.CMAKE_PREFIX_PATH, rocmPaths.cmakePrefixPaths)
   };
   if (gpuTargets) {
@@ -405,10 +434,16 @@ async function writeRuntimeManifest({ runtimeDir, gpuTargets, nativeBuildEnv, lo
 }
 
 async function createRuntimeZip({ runtimeDir, outputPath, logger }) {
-  rmSync(outputPath, { force: true });
-  const zip = new AdmZip();
-  zip.addLocalFolder(runtimeDir);
-  zip.writeZip(outputPath);
+  logger.line(`creating zip with Windows bsdtar: ${outputPath}`);
+  if (existsSync(outputPath)) {
+    logger.line(`removing existing zip: ${outputPath} (${formatBytes(statSync(outputPath).size)})`);
+    rmSync(outputPath, { force: true });
+  }
+  await run("tar.exe", ["-a", "-cf", outputPath, "-C", runtimeDir, "."], {
+    env: process.env,
+    logger,
+    cwd: runtimeDir
+  });
   logger.line(`zip created: ${outputPath} (${formatBytes(statSync(outputPath).size)})`);
 }
 
@@ -531,6 +566,7 @@ function resolveWindowsRocmSdkPaths(packageDir) {
   const develRoot = join(packageDir, "_rocm_sdk_devel");
   const librariesRoot = join(packageDir, "_rocm_sdk_libraries_custom");
   const llvmBin = join(coreRoot, "lib", "llvm", "bin");
+  const deviceLibPath = resolveRocmDeviceLibPath(packageDir, coreRoot, develRoot);
   const hipCmakeDir = resolveCmakePackageDir(packageDir, "hip", [
     join(develRoot, "lib", "cmake", "hip"),
     join(coreRoot, "lib", "cmake", "hip"),
@@ -558,9 +594,28 @@ function resolveWindowsRocmSdkPaths(packageDir) {
     cmakePrefixPaths,
     clang: join(llvmBin, "clang.exe"),
     clangxx: join(llvmBin, "clang++.exe"),
+    deviceLibPath,
     llvmRc: join(llvmBin, "llvm-rc.exe"),
     llvmMt: join(llvmBin, "llvm-mt.exe")
   };
+}
+
+function resolveRocmDeviceLibPath(packageDir, coreRoot, develRoot) {
+  const candidates = [
+    join(coreRoot, "lib", "llvm", "amdgcn", "bitcode"),
+    join(develRoot, "lib", "llvm", "amdgcn", "bitcode"),
+    join(packageDir, "lib", "llvm", "amdgcn", "bitcode")
+  ];
+  for (const candidate of candidates) {
+    if (isFile(join(candidate, "ocml.bc"))) {
+      return candidate;
+    }
+  }
+  const found = findFirstFileRecursive(packageDir, new Set(["ocml.bc"]), 8);
+  if (found) {
+    return dirname(found);
+  }
+  return candidates[0];
 }
 
 function resolveCmakePackageDir(packageDir, packageName, candidates) {
@@ -586,11 +641,43 @@ function resolveRocmRootForCmakePackage(cmakeDir, fallbackRoot) {
   return markerIndex > 0 ? normalized.slice(0, markerIndex) : fallbackRoot;
 }
 
-function validateWindowsRocmSdkPaths(rocmPaths, packageDir, logger) {
+function resolveWindowsResourceCompiler(rocmPaths, nativeBuildEnv) {
+  if (isFile(rocmPaths.llvmRc)) {
+    return rocmPaths.llvmRc;
+  }
+  return findFileInPathList(nativeBuildEnv.pathEntries, "rc.exe");
+}
+
+function stageWindowsResourceCompiler(runtimeDir, rcCompiler) {
+  if (!rcCompiler) {
+    return rcCompiler;
+  }
+  const stagedDir = join(runtimeDir, "native-tools");
+  const stagedPath = join(stagedDir, "rc.exe");
+  mkdirSync(stagedDir, { recursive: true });
+  copyFileSync(rcCompiler, stagedPath);
+  return stagedPath;
+}
+
+function stageWindowsRuntimeLibraries(runtimeDir, libraryPaths) {
+  if (!libraryPaths.length) {
+    return [];
+  }
+  const stagedDir = join(runtimeDir, "native-libs");
+  mkdirSync(stagedDir, { recursive: true });
+  return libraryPaths.map((libraryPath) => {
+    const stagedPath = join(stagedDir, basename(libraryPath));
+    copyFileSync(libraryPath, stagedPath);
+    return stagedPath;
+  });
+}
+
+function validateWindowsRocmSdkPaths(rocmPaths, packageDir, logger, rcCompiler) {
   const requiredFiles = [
     ["ROCm clang", rocmPaths.clang],
     ["ROCm clang++", rocmPaths.clangxx],
-    ["ROCm llvm-rc", rocmPaths.llvmRc]
+    ["ROCm device library", join(rocmPaths.deviceLibPath, "ocml.bc")],
+    ["Windows resource compiler", rcCompiler]
   ];
   for (const [label, filePath] of requiredFiles) {
     if (!isFile(filePath)) {
@@ -602,6 +689,7 @@ function validateWindowsRocmSdkPaths(rocmPaths, packageDir, logger) {
   }
   if (logger) {
     logger.line(`ROCm clang: ${rocmPaths.clang}`);
+    logger.line(`ROCm device library path: ${rocmPaths.deviceLibPath}`);
     logger.line(`ROCm HIP CMake config: ${rocmPaths.hipCmakeDir}`);
     logger.line(`ROCm CMake prefix paths: ${rocmPaths.cmakePrefixPaths.join(";")}`);
   }
