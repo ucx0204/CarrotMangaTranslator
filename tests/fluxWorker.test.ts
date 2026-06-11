@@ -167,6 +167,8 @@ describe("Flux worker runtime helpers", () => {
     expect(fluxAssetsSource).toContain('llvmRc: join(llvmBin, "llvm-rc.exe")');
     expect(fluxAssetsSource).toContain('llvmMt: join(llvmBin, "llvm-mt.exe")');
     expect(fluxAssetsSource).toContain("stable-diffusion.cpp Python 바인딩 빌드 도구를 먼저 설치합니다.");
+    expect(fluxAssetsSource).toContain("rocm_sdk\", \"init");
+    expect(fluxAssetsSource).toContain("rocm_sdk\", \"path\", \"--cmake");
     expect(fluxAssetsSource).not.toContain("id: `windows-rocm-pytorch-${FLUX_ROCM_WINDOWS_TORCH_VERSION}`");
     expect(fluxAssetsSource).not.toContain("torchWheelUrls");
     expect(fluxAssetsSource).not.toContain("Flux ROCm/PyTorch 설치 중");
@@ -201,6 +203,8 @@ describe("Flux worker runtime helpers", () => {
     expect(script).toContain("--force-reinstall");
     expect(script).toContain("rocm_sdk_core");
     expect(script).toContain("rocm_sdk_libraries_custom");
+    expect(script).toContain('"rocm_sdk", "init"');
+    expect(script).toContain('"rocm_sdk", "path", "--cmake"');
     expect(script).toContain("CMAKE_ARGS");
     expect(script).toContain("-DSD_HIPBLAS=ON");
     expect(script).toContain("-Dhip_DIR:PATH=");

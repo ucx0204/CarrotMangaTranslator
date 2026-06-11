@@ -305,7 +305,12 @@ async function ensureFluxPythonRuntime(options: {
         ensureEmbeddedPythonPackagePath(basePython.command, packageDir);
       }
 
-      const installEnv = buildTargetPythonEnv(runtimeDir, packageDir, options.backend, { requireNativeBuildEnv: true });
+      let installEnv = buildTargetPythonEnv(
+        runtimeDir,
+        packageDir,
+        options.backend === "python-rocm" && process.platform === "win32" ? "python-cpu" : options.backend,
+        { requireNativeBuildEnv: false }
+      );
       await runCommand(installPython.command, [...installPython.args, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"], {
         signal: options.signal,
         env: installEnv,
@@ -351,6 +356,16 @@ async function ensureFluxPythonRuntime(options: {
           env: installEnv,
           onLine: (line) => emitPythonInstallLog(options, line)
         });
+      }
+      if (options.backend === "python-rocm" && process.platform === "win32") {
+        await initializeWindowsRocmSdk({
+          python: installPython,
+          packageDir,
+          runtimeDir,
+          signal: options.signal,
+          onProgress: options.onProgress
+        });
+        installEnv = buildTargetPythonEnv(runtimeDir, packageDir, options.backend, { requireNativeBuildEnv: true });
       }
       options.onProgress?.({
         progressText: "Flux Python 패키지 설치 중",
@@ -1159,6 +1174,40 @@ function buildBootstrapPythonEnv(runtimeDir: string): NodeJS.ProcessEnv {
   return env;
 }
 
+async function initializeWindowsRocmSdk(options: {
+  python: PythonCommand;
+  packageDir: string;
+  runtimeDir: string;
+  signal?: AbortSignal;
+  onProgress?: (progress: FluxAssetProgress) => void;
+}): Promise<void> {
+  const env = buildTargetPythonEnv(options.runtimeDir, options.packageDir, "python-cpu", { requireNativeBuildEnv: false });
+  options.onProgress?.({
+    progressText: "Flux ROCm SDK 초기화 중",
+    detail: "rocm_sdk init",
+    progressMode: "indeterminate",
+    installLogLine: "ROCm wheel 안의 HIP/CMake 개발 파일을 실제 런타임 폴더로 펼칩니다."
+  });
+  await runCommand(options.python.command, [...options.python.args, "-m", "rocm_sdk", "init"], {
+    cwd: options.packageDir,
+    signal: options.signal,
+    env,
+    onLine: (line) => emitPythonInstallLog({ onProgress: options.onProgress }, line)
+  });
+  await runCommand(options.python.command, [...options.python.args, "-m", "rocm_sdk", "path", "--cmake"], {
+    cwd: options.packageDir,
+    signal: options.signal,
+    env,
+    onLine: (line) => emitPythonInstallLog({ onProgress: options.onProgress }, line)
+  });
+  options.onProgress?.({
+    progressText: "Flux ROCm SDK 초기화 완료",
+    detail: "HIP/CMake 개발 파일 확인",
+    progressMode: "log-only",
+    installLogLine: "ROCm SDK 초기화와 CMake 경로 확인이 완료되었습니다."
+  });
+}
+
 function buildTargetPythonEnv(
   runtimeDir: string,
   packageDir: string,
@@ -1311,13 +1360,75 @@ function resolveCmakePackageDir(packageDir: string, packageName: string, candida
     }
   }
   const found = findFirstFileRecursive(packageDir, new Set(configNames.map((name) => name.toLowerCase())), 8);
-  return found ? dirname(found) : candidates[0];
+  if (found) {
+    return dirname(found);
+  }
+  throw new Error(formatMissingCmakePackageMessage(packageDir, packageName, configNames, candidates));
 }
 
 function resolveRocmRootForCmakePackage(cmakeDir: string, fallbackRoot: string): string {
   const normalized = resolve(cmakeDir).replace(/\\/g, "/");
   const markerIndex = normalized.toLowerCase().lastIndexOf("/lib/cmake");
   return markerIndex > 0 ? normalized.slice(0, markerIndex) : fallbackRoot;
+}
+
+function formatMissingCmakePackageMessage(
+  packageDir: string,
+  packageName: string,
+  configNames: string[],
+  candidates: string[]
+): string {
+  return [
+    `ROCm CMake package "${packageName}" was not found after ROCm SDK initialization.`,
+    `Expected one of: ${configNames.join(", ")}`,
+    "Candidate directories:",
+    ...candidates.map((item) => `  - ${item} ${directoryExists(item) ? "(exists)" : "(missing)"}`),
+    formatRocmTreeSummary(packageDir)
+  ].join("\n");
+}
+
+function formatRocmTreeSummary(packageDir: string): string {
+  const roots = [
+    packageDir,
+    join(packageDir, "_rocm_sdk_core"),
+    join(packageDir, "_rocm_sdk_devel"),
+    join(packageDir, "_rocm_sdk_libraries_custom"),
+    join(packageDir, "rocm"),
+    join(packageDir, "rocm_sdk")
+  ];
+  const lines = ["ROCm package tree summary:"];
+  for (const root of roots) {
+    if (!directoryExists(root)) {
+      lines.push(`  - ${root}: missing`);
+      continue;
+    }
+    lines.push(`  - ${root}: exists`);
+    const entries = safeReadDir(root).slice(0, 30).map((entry) => entry.name).join(", ");
+    if (entries) {
+      lines.push(`    entries: ${entries}`);
+    }
+  }
+  const cmakeHits = findFilesRecursive(packageDir, (entry) => {
+    const lower = entry.name.toLowerCase();
+    return entry.isFile() && (lower.includes("hip") || lower.includes("rocm")) && lower.endsWith(".cmake");
+  }, 9, 60);
+  if (cmakeHits.length) {
+    lines.push("Nearby ROCm/HIP CMake files:");
+    for (const hit of cmakeHits) {
+      lines.push(`  - ${hit}`);
+    }
+  } else {
+    lines.push("Nearby ROCm/HIP CMake files: none found");
+  }
+  return lines.join("\n");
+}
+
+function safeReadDir(dir: string): import("node:fs").Dirent[] {
+  try {
+    return readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
 }
 
 function findFirstFileRecursive(root: string, lowerCaseNames: Set<string>, maxDepth: number): string | null {
@@ -1347,6 +1458,44 @@ function findFirstFileRecursive(root: string, lowerCaseNames: Set<string>, maxDe
     }
   }
   return null;
+}
+
+function findFilesRecursive(
+  root: string,
+  predicate: (entry: import("node:fs").Dirent, fullPath: string) => boolean,
+  maxDepth: number,
+  limit: number
+): string[] {
+  if (!directoryExists(root)) {
+    return [];
+  }
+  const results: string[] = [];
+  const queue: Array<{ dir: string; depth: number }> = [{ dir: root, depth: 0 }];
+  while (queue.length && results.length < limit) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+    let entries: import("node:fs").Dirent[] = [];
+    try {
+      entries = readdirSync(current.dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const fullPath = join(current.dir, entry.name);
+      if (predicate(entry, fullPath)) {
+        results.push(fullPath);
+        if (results.length >= limit) {
+          break;
+        }
+      }
+      if (entry.isDirectory() && current.depth < maxDepth && !["__pycache__", ".git"].includes(entry.name)) {
+        queue.push({ dir: fullPath, depth: current.depth + 1 });
+      }
+    }
+  }
+  return results;
 }
 
 export function resolveWindowsNativeBuildEnv(): WindowsNativeBuildEnv | null {

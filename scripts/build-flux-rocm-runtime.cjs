@@ -151,10 +151,12 @@ async function main() {
     await mkdir(packageDir, { recursive: true });
 
     await prepareEmbeddedPython({ pythonDir, pythonExe, packageDir, downloadsDir, logger });
-    const installEnv = buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets);
-    await run(pythonExe, ["-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"], { env: installEnv, logger });
-    await run(pythonExe, ["-m", "pip", "install", "--upgrade", ...buildPackages], { env: installEnv, logger });
-    await run(pythonExe, ["-m", "pip", "install", "--target", packageDir, ...rocmPackageUrls], { env: installEnv, logger });
+    const bootstrapEnv = buildPythonPackageInstallEnv(runtimeDir, packageDir);
+    await run(pythonExe, ["-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"], { env: bootstrapEnv, logger });
+    await run(pythonExe, ["-m", "pip", "install", "--upgrade", ...buildPackages], { env: bootstrapEnv, logger });
+    await run(pythonExe, ["-m", "pip", "install", "--target", packageDir, ...rocmPackageUrls], { env: bootstrapEnv, logger });
+    await initializeRocmSdk({ pythonExe, packageDir, runtimeDir, logger });
+    const installEnv = buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, logger);
     await run(pythonExe, ["-m", "pip", "install", "--target", packageDir, ...fluxPackages], { env: installEnv, logger });
 
     const workerSource = join(rootDir, "src", "main", "runtime", workerFile);
@@ -256,8 +258,37 @@ async function prepareEmbeddedPython({ pythonDir, pythonExe, packageDir, downloa
   });
 }
 
-function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets) {
+function buildPythonPackageInstallEnv(runtimeDir, packageDir) {
+  const pathEntries = [
+    join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`),
+    join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`, "Scripts"),
+    packageDir,
+    join(packageDir, "Scripts")
+  ];
+  const tmpDir = join(runtimeDir, "t");
+  mkdirSync(tmpDir, { recursive: true });
+  return {
+    ...process.env,
+    PYTHONNOUSERSITE: "1",
+    PYTHONUTF8: "1",
+    PYTHONUNBUFFERED: "1",
+    PYTHONPATH: packageDir,
+    TMP: tmpDir,
+    TEMP: tmpDir,
+    PATH: mergePathList(pathEntries, process.env.PATH)
+  };
+}
+
+async function initializeRocmSdk({ pythonExe, packageDir, runtimeDir, logger }) {
+  const env = buildPythonPackageInstallEnv(runtimeDir, packageDir);
+  logger.line("Initializing ROCm SDK package contents with rocm_sdk.");
+  await run(pythonExe, ["-m", "rocm_sdk", "init"], { env, logger, cwd: packageDir });
+  await run(pythonExe, ["-m", "rocm_sdk", "path", "--cmake"], { env, logger, cwd: packageDir });
+}
+
+function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, logger) {
   const rocmPaths = resolveWindowsRocmSdkPaths(packageDir);
+  validateWindowsRocmSdkPaths(rocmPaths, packageDir, logger);
   const runtimeLibraryPaths = resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths);
   const runtimeLibraryCmakeList = runtimeLibraryPaths.map(toCmakePath).join(";");
   const runtimeLibraryLdFlags = runtimeLibraryPaths.map((item) => quoteArg(toCmakePath(item))).join(" ");
@@ -543,13 +574,91 @@ function resolveCmakePackageDir(packageDir, packageName, candidates) {
     }
   }
   const found = findFirstFileRecursive(packageDir, new Set(configNames.map((name) => name.toLowerCase())), 8);
-  return found ? dirname(found) : candidates[0];
+  if (found) {
+    return dirname(found);
+  }
+  throw new Error(formatMissingCmakePackageMessage(packageDir, packageName, configNames, candidates));
 }
 
 function resolveRocmRootForCmakePackage(cmakeDir, fallbackRoot) {
   const normalized = resolve(cmakeDir).replace(/\\/g, "/");
   const markerIndex = normalized.toLowerCase().lastIndexOf("/lib/cmake");
   return markerIndex > 0 ? normalized.slice(0, markerIndex) : fallbackRoot;
+}
+
+function validateWindowsRocmSdkPaths(rocmPaths, packageDir, logger) {
+  const requiredFiles = [
+    ["ROCm clang", rocmPaths.clang],
+    ["ROCm clang++", rocmPaths.clangxx],
+    ["ROCm llvm-rc", rocmPaths.llvmRc]
+  ];
+  for (const [label, filePath] of requiredFiles) {
+    if (!isFile(filePath)) {
+      throw new Error(`${label} was not found: ${filePath}\n${formatRocmTreeSummary(packageDir)}`);
+    }
+  }
+  if (!["hip-config.cmake", "hipConfig.cmake"].some((fileName) => isFile(join(rocmPaths.hipCmakeDir, fileName)))) {
+    throw new Error(`HIP CMake config was not found in ${rocmPaths.hipCmakeDir}\n${formatRocmTreeSummary(packageDir)}`);
+  }
+  if (logger) {
+    logger.line(`ROCm clang: ${rocmPaths.clang}`);
+    logger.line(`ROCm HIP CMake config: ${rocmPaths.hipCmakeDir}`);
+    logger.line(`ROCm CMake prefix paths: ${rocmPaths.cmakePrefixPaths.join(";")}`);
+  }
+}
+
+function formatMissingCmakePackageMessage(packageDir, packageName, configNames, candidates) {
+  return [
+    `ROCm CMake package "${packageName}" was not found after ROCm SDK installation.`,
+    `Expected one of: ${configNames.join(", ")}`,
+    "Candidate directories:",
+    ...candidates.map((item) => `  - ${item} ${isDirectory(item) ? "(exists)" : "(missing)"}`),
+    formatRocmTreeSummary(packageDir)
+  ].join("\n");
+}
+
+function formatRocmTreeSummary(packageDir) {
+  const roots = [
+    packageDir,
+    join(packageDir, "_rocm_sdk_core"),
+    join(packageDir, "_rocm_sdk_devel"),
+    join(packageDir, "_rocm_sdk_libraries_custom"),
+    join(packageDir, "rocm"),
+    join(packageDir, "rocm_sdk")
+  ];
+  const lines = ["ROCm package tree summary:"];
+  for (const root of roots) {
+    if (!isDirectory(root)) {
+      lines.push(`  - ${root}: missing`);
+      continue;
+    }
+    lines.push(`  - ${root}: exists`);
+    const entries = safeReadDir(root).slice(0, 30).map((entry) => entry.name).join(", ");
+    if (entries) {
+      lines.push(`    entries: ${entries}`);
+    }
+  }
+  const cmakeHits = findFilesRecursive(packageDir, (entry) => {
+    const lower = entry.name.toLowerCase();
+    return entry.isFile() && (lower.includes("hip") || lower.includes("rocm")) && lower.endsWith(".cmake");
+  }, 9, 60);
+  if (cmakeHits.length) {
+    lines.push("Nearby ROCm/HIP CMake files:");
+    for (const hit of cmakeHits) {
+      lines.push(`  - ${hit}`);
+    }
+  } else {
+    lines.push("Nearby ROCm/HIP CMake files: none found");
+  }
+  return lines.join("\n");
+}
+
+function safeReadDir(dir) {
+  try {
+    return readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
 }
 
 function findFirstFileRecursive(root, lowerCaseNames, maxDepth) {
@@ -576,6 +685,36 @@ function findFirstFileRecursive(root, lowerCaseNames, maxDepth) {
     }
   }
   return null;
+}
+
+function findFilesRecursive(root, predicate, maxDepth, limit) {
+  if (!isDirectory(root)) {
+    return [];
+  }
+  const results = [];
+  const queue = [{ dir: root, depth: 0 }];
+  while (queue.length && results.length < limit) {
+    const { dir, depth } = queue.shift();
+    let entries = [];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      if (predicate(entry, fullPath)) {
+        results.push(fullPath);
+        if (results.length >= limit) {
+          break;
+        }
+      }
+      if (entry.isDirectory() && depth < maxDepth && !["__pycache__", ".git"].includes(entry.name)) {
+        queue.push({ dir: fullPath, depth: depth + 1 });
+      }
+    }
+  }
+  return results;
 }
 
 function resolveWindowsNativeBuildEnv() {
