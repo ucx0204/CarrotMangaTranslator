@@ -10,6 +10,7 @@ const {
   readdirSync,
   readFileSync,
   rmSync,
+  statfsSync,
   statSync,
   writeFileSync
 } = require("node:fs");
@@ -59,6 +60,9 @@ const fluxPackages = [
   "pillow>=10.0.0"
 ];
 const windowsMsvcCompilerTarget = "x86_64-pc-windows-msvc";
+const recommendedBuildFreeBytes = 80 * 1024 * 1024 * 1024;
+const minimumBuildFreeBytes = 35 * 1024 * 1024 * 1024;
+const minimumOutputFreeBytes = 8 * 1024 * 1024 * 1024;
 const windowsDynamicRuntimeLibNames = ["msvcrt.lib", "msvcprt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
 const defaultAmdGpuTargets = [
   // Broad ROCm/HIP Windows runtime coverage. These must be concrete LLVM targets,
@@ -105,11 +109,11 @@ main().catch((error) => {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const workDir = resolve(args["work-dir"] || resolveDefaultWorkDir(stamp));
+  const outputPath = resolve(args.out || join(rootDir, "dist", "runtime", outputFileName));
+  const workDir = resolve(args["work-dir"] || resolveDefaultWorkDir(stamp, outputPath));
   const runtimeDir = resolve(args["runtime-dir"] || join(workDir, "runtime"));
   const downloadsDir = join(workDir, "downloads");
   const logsDir = join(workDir, "logs");
-  const outputPath = resolve(args.out || join(rootDir, "dist", "runtime", outputFileName));
   const logPath = join(logsDir, "build.log");
   const envPath = join(logsDir, "environment.json");
   const keepWork = Boolean(args["keep-work"]);
@@ -121,9 +125,12 @@ async function main() {
     logger.line(`workDir=${workDir}`);
     logger.line(`runtimeDir=${runtimeDir}`);
     logger.line(`outputPath=${outputPath}`);
+    logger.line(`workDir free=${formatOptionalBytes(getPathFreeBytes(workDir))}`);
+    logger.line(`outputDir free=${formatOptionalBytes(getPathFreeBytes(dirname(outputPath)))}`);
     await mkdir(logsDir, { recursive: true });
     await mkdir(downloadsDir, { recursive: true });
     await mkdir(dirname(outputPath), { recursive: true });
+    ensureBuildDiskSpace({ workDir, outputPath, logger });
 
     if (process.platform !== "win32" || process.arch !== "x64") {
       throw new Error("This runtime builder must be run on Windows x64.");
@@ -218,20 +225,125 @@ function parseArgs(argv) {
   return result;
 }
 
-function resolveDefaultWorkDir(stamp) {
-  const candidates = [
-    process.env.MGT_FLUX_ROCM_BUILD_ROOT,
-    process.env.MGT_FLUX_BUILD_ROOT,
+function resolveDefaultWorkDir(stamp, outputPath) {
+  const explicitRoot = process.env.MGT_FLUX_ROCM_BUILD_ROOT || process.env.MGT_FLUX_BUILD_ROOT;
+  if (explicitRoot) {
+    return join(explicitRoot, stamp);
+  }
+
+  const candidates = uniqueTruthy([
+    isAsciiPath(dirname(outputPath)) ? join(dirname(outputPath), ".mgt-flux-rocm-runtime-build") : "",
     process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, "mgt-flux-rocm-runtime-build") : "",
     join(os.tmpdir(), "mgt-flux-rocm-runtime-build"),
-    "C:\\mgt-flux-rocm-runtime-build"
-  ].filter(Boolean);
-  const base = candidates.find((item) => isAsciiPath(item)) || candidates[candidates.length - 1];
+    ...resolveWindowsScratchDriveCandidates()
+  ]).filter(isAsciiPath);
+
+  const scored = candidates
+    .map((pathValue, index) => ({
+      pathValue,
+      index,
+      freeBytes: getPathFreeBytes(pathValue)
+    }))
+    .filter((item) => item.freeBytes !== null)
+    .sort((left, right) => {
+      const rightEnough = right.freeBytes >= recommendedBuildFreeBytes;
+      const leftEnough = left.freeBytes >= recommendedBuildFreeBytes;
+      if (leftEnough !== rightEnough) {
+        return leftEnough ? -1 : 1;
+      }
+      if (right.freeBytes !== left.freeBytes) {
+        return right.freeBytes - left.freeBytes;
+      }
+      return left.index - right.index;
+    });
+
+  const base = scored[0]?.pathValue || candidates[0] || "C:\\mgt-flux-rocm-runtime-build";
   return join(base, stamp);
 }
 
 function isAsciiPath(pathValue) {
   return /^[\x00-\x7F]+$/.test(String(pathValue));
+}
+
+function uniqueTruthy(values) {
+  const seen = new Set();
+  const result = [];
+  for (const value of values) {
+    if (!value) {
+      continue;
+    }
+    const key = String(value).toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(value);
+  }
+  return result;
+}
+
+function resolveWindowsScratchDriveCandidates() {
+  if (process.platform !== "win32") {
+    return [];
+  }
+  const result = [];
+  for (let code = "C".charCodeAt(0); code <= "Z".charCodeAt(0); code += 1) {
+    const root = `${String.fromCharCode(code)}:\\`;
+    if (existsSync(root)) {
+      result.push(join(root, "mgt-flux-rocm-runtime-build"));
+    }
+  }
+  return result;
+}
+
+function ensureBuildDiskSpace({ workDir, outputPath, logger }) {
+  const workFreeBytes = getPathFreeBytes(workDir);
+  const outputFreeBytes = getPathFreeBytes(dirname(outputPath));
+  if (workFreeBytes !== null && workFreeBytes < minimumBuildFreeBytes) {
+    throw new Error(
+      [
+        `Not enough free space for ROCm runtime build workDir: ${workDir}`,
+        `Available: ${formatBytes(workFreeBytes)}, required minimum: ${formatBytes(minimumBuildFreeBytes)}.`,
+        "Set MGT_FLUX_ROCM_BUILD_ROOT to a spacious ASCII path, for example:",
+        "  $env:MGT_FLUX_ROCM_BUILD_ROOT='D:\\mgt-flux-rocm-runtime-build'"
+      ].join("\n")
+    );
+  }
+  if (outputFreeBytes !== null && outputFreeBytes < minimumOutputFreeBytes) {
+    throw new Error(
+      [
+        `Not enough free space for ROCm runtime ZIP output: ${dirname(outputPath)}`,
+        `Available: ${formatBytes(outputFreeBytes)}, required minimum: ${formatBytes(minimumOutputFreeBytes)}.`,
+        "Pass --out to a drive with more space or free up the output drive."
+      ].join("\n")
+    );
+  }
+  if (workFreeBytes !== null && workFreeBytes < recommendedBuildFreeBytes) {
+    logger.line(
+      `warning: workDir has ${formatBytes(workFreeBytes)} free; ${formatBytes(recommendedBuildFreeBytes)}+ is recommended for ROCm wheel builds.`
+    );
+  }
+}
+
+function getPathFreeBytes(pathValue) {
+  let current = resolve(pathValue);
+  while (!existsSync(current)) {
+    const parent = dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+  try {
+    const stat = statfsSync(current, { bigint: true });
+    return Number(stat.bavail * stat.bsize);
+  } catch {
+    return null;
+  }
+}
+
+function formatOptionalBytes(bytes) {
+  return bytes === null ? "unknown" : formatBytes(bytes);
 }
 
 function createLogger(logPath) {
@@ -284,13 +396,17 @@ function buildPythonPackageInstallEnv(runtimeDir, packageDir) {
     join(packageDir, "Scripts")
   ];
   const tmpDir = join(runtimeDir, "t");
+  const pipCacheDir = join(runtimeDir, "pip-cache");
   mkdirSync(tmpDir, { recursive: true });
+  mkdirSync(pipCacheDir, { recursive: true });
   return {
     ...process.env,
     PYTHONNOUSERSITE: "1",
     PYTHONUTF8: "1",
     PYTHONUNBUFFERED: "1",
     PYTHONPATH: packageDir,
+    PIP_CACHE_DIR: pipCacheDir,
+    PIP_DISABLE_PIP_VERSION_CHECK: "1",
     TMP: tmpDir,
     TEMP: tmpDir,
     PATH: mergePathList(pathEntries, process.env.PATH)
@@ -369,6 +485,8 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, log
     PYTHONUTF8: "1",
     PYTHONUNBUFFERED: "1",
     PYTHONPATH: packageDir,
+    PIP_CACHE_DIR: join(runtimeDir, "pip-cache"),
+    PIP_DISABLE_PIP_VERSION_CHECK: "1",
     TMP: join(runtimeDir, "t"),
     TEMP: join(runtimeDir, "t"),
     PATH: mergePathList(nativeBuildEnv.pathEntries, pathEntries, process.env.PATH),
@@ -395,6 +513,7 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, log
     env.AMDGPU_TARGETS = gpuTargets;
   }
   mkdirSync(env.TMP, { recursive: true });
+  mkdirSync(env.PIP_CACHE_DIR, { recursive: true });
   return env;
 }
 
