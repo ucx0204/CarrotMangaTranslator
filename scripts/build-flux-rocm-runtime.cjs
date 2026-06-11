@@ -3,6 +3,7 @@ const { spawn } = require("node:child_process");
 const { createHash } = require("node:crypto");
 const {
   copyFileSync,
+  createReadStream,
   createWriteStream,
   existsSync,
   mkdirSync,
@@ -168,7 +169,7 @@ async function main() {
     await verifyRuntime({ pythonExe, packageDir, env: installEnv, logger });
     await writeRuntimeManifest({ runtimeDir, gpuTargets, nativeBuildEnv, logger });
     await createRuntimeZip({ runtimeDir, outputPath, logger });
-    const sha256 = sha256File(outputPath);
+    const sha256 = await sha256File(outputPath);
     const sidecar = {
       file: basename(outputPath),
       sha256,
@@ -1000,7 +1001,13 @@ function quoteCmakeArg(value) {
 }
 
 function sha256File(filePath) {
-  return createHash("sha256").update(readFileSync(filePath)).digest("hex");
+  return new Promise((resolveHash, rejectHash) => {
+    const hash = createHash("sha256");
+    const stream = createReadStream(filePath);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("error", rejectHash);
+    stream.on("end", () => resolveHash(hash.digest("hex")));
+  });
 }
 
 function formatBytes(bytes) {
