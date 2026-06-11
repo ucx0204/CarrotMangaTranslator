@@ -261,6 +261,7 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets) {
   const runtimeLibraryPaths = resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths);
   const runtimeLibraryCmakeList = runtimeLibraryPaths.map(toCmakePath).join(";");
   const runtimeLibraryLdFlags = runtimeLibraryPaths.map((item) => quoteArg(toCmakePath(item))).join(" ");
+  const rocmCmakePrefixList = rocmPaths.cmakePrefixPaths.map(toCmakePath).join(";");
   const pathEntries = [
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`),
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`, "Scripts"),
@@ -289,6 +290,11 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets) {
     "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
     quoteCmakeArg(`-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`),
     quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeList}`),
+    quoteCmakeArg(`-DCMAKE_PREFIX_PATH:STRING=${rocmCmakePrefixList}`),
+    quoteCmakeArg(`-Dhip_DIR:PATH=${toCmakePath(rocmPaths.hipCmakeDir)}`),
+    quoteCmakeArg(`-DHIP_PATH:PATH=${toCmakePath(rocmPaths.hipRoot)}`),
+    quoteCmakeArg(`-DROCM_PATH:PATH=${toCmakePath(rocmPaths.rocmRoot)}`),
+    "-DHIP_PLATFORM=amd",
     "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
     "-DSD_HIPBLAS=ON",
     "-DGGML_OPENMP=OFF",
@@ -319,9 +325,9 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets) {
     CC: process.env.CC || rocmPaths.clang,
     CXX: process.env.CXX || rocmPaths.clangxx,
     RC: process.env.RC || rocmPaths.llvmRc,
-    ROCM_PATH: process.env.ROCM_PATH || rocmPaths.coreRoot,
-    HIP_PATH: process.env.HIP_PATH || rocmPaths.coreRoot,
-    CMAKE_PREFIX_PATH: mergePathList(process.env.CMAKE_PREFIX_PATH, [rocmPaths.coreRoot, rocmPaths.develRoot, rocmPaths.librariesRoot])
+    ROCM_PATH: process.env.ROCM_PATH || rocmPaths.rocmRoot,
+    HIP_PATH: process.env.HIP_PATH || rocmPaths.hipRoot,
+    CMAKE_PREFIX_PATH: mergePathList(process.env.CMAKE_PREFIX_PATH, rocmPaths.cmakePrefixPaths)
   };
   if (gpuTargets) {
     env.GPU_TARGETS = gpuTargets;
@@ -491,16 +497,85 @@ function ensureEmbeddedPythonPackagePath(pythonPath, packageDir) {
 
 function resolveWindowsRocmSdkPaths(packageDir) {
   const coreRoot = join(packageDir, "_rocm_sdk_core");
+  const develRoot = join(packageDir, "_rocm_sdk_devel");
+  const librariesRoot = join(packageDir, "_rocm_sdk_libraries_custom");
   const llvmBin = join(coreRoot, "lib", "llvm", "bin");
+  const hipCmakeDir = resolveCmakePackageDir(packageDir, "hip", [
+    join(develRoot, "lib", "cmake", "hip"),
+    join(coreRoot, "lib", "cmake", "hip"),
+    join(librariesRoot, "lib", "cmake", "hip"),
+    join(packageDir, "lib", "cmake", "hip")
+  ]);
+  const hipRoot = resolveRocmRootForCmakePackage(hipCmakeDir, develRoot);
+  const cmakePrefixPaths = uniqueExistingDirs([
+    coreRoot,
+    develRoot,
+    librariesRoot,
+    join(coreRoot, "lib", "cmake"),
+    join(develRoot, "lib", "cmake"),
+    join(librariesRoot, "lib", "cmake"),
+    hipRoot,
+    hipCmakeDir
+  ]);
   return {
     coreRoot,
-    develRoot: join(packageDir, "_rocm_sdk_devel"),
-    librariesRoot: join(packageDir, "_rocm_sdk_libraries_custom"),
+    develRoot,
+    librariesRoot,
+    rocmRoot: develRoot,
+    hipRoot,
+    hipCmakeDir,
+    cmakePrefixPaths,
     clang: join(llvmBin, "clang.exe"),
     clangxx: join(llvmBin, "clang++.exe"),
     llvmRc: join(llvmBin, "llvm-rc.exe"),
     llvmMt: join(llvmBin, "llvm-mt.exe")
   };
+}
+
+function resolveCmakePackageDir(packageDir, packageName, candidates) {
+  const configNames = [
+    `${packageName}-config.cmake`,
+    `${packageName}Config.cmake`
+  ];
+  for (const candidate of candidates) {
+    if (configNames.some((name) => isFile(join(candidate, name)))) {
+      return candidate;
+    }
+  }
+  const found = findFirstFileRecursive(packageDir, new Set(configNames.map((name) => name.toLowerCase())), 8);
+  return found ? dirname(found) : candidates[0];
+}
+
+function resolveRocmRootForCmakePackage(cmakeDir, fallbackRoot) {
+  const normalized = resolve(cmakeDir).replace(/\\/g, "/");
+  const markerIndex = normalized.toLowerCase().lastIndexOf("/lib/cmake");
+  return markerIndex > 0 ? normalized.slice(0, markerIndex) : fallbackRoot;
+}
+
+function findFirstFileRecursive(root, lowerCaseNames, maxDepth) {
+  if (!isDirectory(root)) {
+    return null;
+  }
+  const queue = [{ dir: root, depth: 0 }];
+  while (queue.length) {
+    const { dir, depth } = queue.shift();
+    let entries = [];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isFile() && lowerCaseNames.has(entry.name.toLowerCase())) {
+        return fullPath;
+      }
+      if (entry.isDirectory() && depth < maxDepth && !["__pycache__", ".git"].includes(entry.name)) {
+        queue.push({ dir: fullPath, depth: depth + 1 });
+      }
+    }
+  }
+  return null;
 }
 
 function resolveWindowsNativeBuildEnv() {

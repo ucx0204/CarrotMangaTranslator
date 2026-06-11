@@ -203,6 +203,8 @@ describe("Flux worker runtime helpers", () => {
     expect(script).toContain("rocm_sdk_libraries_custom");
     expect(script).toContain("CMAKE_ARGS");
     expect(script).toContain("-DSD_HIPBLAS=ON");
+    expect(script).toContain("-Dhip_DIR:PATH=");
+    expect(script).toContain("-DHIP_PLATFORM=amd");
     expect(script).toContain("x86_64-pc-windows-msvc");
     expect(script).toContain("CMAKE_C_STANDARD_LIBRARIES");
     expect(script).toContain("LDFLAGS");
