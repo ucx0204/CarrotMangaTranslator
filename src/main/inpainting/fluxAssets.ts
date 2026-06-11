@@ -547,7 +547,7 @@ async function ensurePrebuiltFluxRocmPythonRuntime(options: {
 
   await rm(options.layout.runtimeDir, { recursive: true, force: true });
   await mkdir(options.layout.runtimeDir, { recursive: true });
-  extractZipSafely(archivePath, options.layout.runtimeDir);
+  await extractLargeZipSafely(archivePath, options.layout.runtimeDir);
   await ensureFluxPythonWorker(options.layout.runtimeDir, options.expectedMarker.worker);
   await validatePrebuiltFluxRocmRuntime(options.layout.runtimeDir);
 
@@ -1150,6 +1150,44 @@ function extractZipSafely(archivePath: string, outputDir: string): void {
       throw new Error(`${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${item.entryName}`);
     }
     zip.extractEntryTo(item, root, true, true);
+  }
+}
+
+async function extractLargeZipSafely(archivePath: string, outputDir: string): Promise<void> {
+  const root = resolve(outputDir);
+  await mkdir(root, { recursive: true });
+  const entries: string[] = [];
+  await runCommand("tar.exe", ["-tf", archivePath], {
+    cwd: root,
+    onLine(line) {
+      const trimmed = line.trim();
+      if (trimmed) {
+        entries.push(trimmed);
+      }
+    }
+  });
+  validateArchiveEntries(entries, archivePath, root);
+  await runCommand("tar.exe", ["-xf", archivePath, "-C", root], { cwd: root });
+}
+
+function validateArchiveEntries(entries: string[], archivePath: string, outputRoot: string): void {
+  if (entries.length === 0) {
+    throw new Error(`${basename(archivePath)} 압축 파일이 비어 있습니다.`);
+  }
+  for (const rawEntry of entries) {
+    const entryName = normalize(rawEntry)
+      .replace(/^([/\\])+/, "")
+      .replace(/^\.([/\\])+/, "");
+    if (!entryName || entryName === ".") {
+      continue;
+    }
+    if (entryName.startsWith("..") || isAbsolute(entryName)) {
+      throw new Error(`${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${rawEntry}`);
+    }
+    const destination = resolve(outputRoot, entryName);
+    if (!isPathInside(destination, outputRoot)) {
+      throw new Error(`${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${rawEntry}`);
+    }
   }
 }
 
