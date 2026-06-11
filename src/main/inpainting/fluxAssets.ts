@@ -22,7 +22,7 @@ const FLUX_SDCPP_WORKER = "flux-klein-sdcpp-worker.py";
 const FLUX_PYTHON_RUNTIME_MARKER = ".mgt-flux-python-runtime.json";
 const FLUX_ROCM_PREBUILT_RUNTIME_SCHEMA = 1;
 const WINDOWS_MSVC_COMPILER_TARGET = "x86_64-pc-windows-msvc";
-const WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES = ["msvcrt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
+const WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES = ["msvcrt.lib", "msvcprt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
 const DEFAULT_AMD_GPU_TARGETS = [
   // Keep this in sync with scripts/build-flux-rocm-runtime.cjs. ROCm/HIP wants
   // concrete LLVM targets here, not grouped labels such as "gfx110X".
@@ -1292,9 +1292,9 @@ function buildTargetPythonEnv(
     env.CMAKE_GENERATOR = env.CMAKE_GENERATOR || "Ninja";
     if (nativeBuildEnv) {
       env.PATH = mergePathList(nativeBuildEnv.pathEntries, env.PATH);
-      env.INCLUDE = mergePathList(env.INCLUDE, nativeBuildEnv.includePaths);
-      env.LIB = mergePathList(env.LIB, nativeBuildEnv.libPaths);
-      env.LIBPATH = mergePathList(env.LIBPATH, nativeBuildEnv.libPaths);
+      env.INCLUDE = mergePathList(nativeBuildEnv.includePaths);
+      env.LIB = mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths);
+      env.LIBPATH = mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths);
     }
     env.CC = env.CC || rocmPaths.clang;
     env.CXX = env.CXX || rocmPaths.clangxx;

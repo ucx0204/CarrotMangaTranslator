@@ -58,7 +58,7 @@ const fluxPackages = [
   "pillow>=10.0.0"
 ];
 const windowsMsvcCompilerTarget = "x86_64-pc-windows-msvc";
-const windowsDynamicRuntimeLibNames = ["msvcrt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
+const windowsDynamicRuntimeLibNames = ["msvcrt.lib", "msvcprt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
 const defaultAmdGpuTargets = [
   // Broad ROCm/HIP Windows runtime coverage. These must be concrete LLVM targets,
   // not grouped names like "gfx110X".
@@ -371,9 +371,9 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, log
     TMP: join(runtimeDir, "t"),
     TEMP: join(runtimeDir, "t"),
     PATH: mergePathList(nativeBuildEnv.pathEntries, pathEntries, process.env.PATH),
-    INCLUDE: mergePathList(process.env.INCLUDE, nativeBuildEnv.includePaths),
-    LIB: mergePathList(process.env.LIB, nativeBuildEnv.libPaths),
-    LIBPATH: mergePathList(process.env.LIBPATH, nativeBuildEnv.libPaths),
+    INCLUDE: mergePathList(nativeBuildEnv.includePaths),
+    LIB: mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths),
+    LIBPATH: mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths),
     CMAKE_ARGS: mergeWords(process.env.CMAKE_ARGS, cmakeArgs.join(" ")),
     CFLAGS: mergeWords(process.env.CFLAGS, `--target=${windowsMsvcCompilerTarget}`),
     CXXFLAGS: mergeWords(process.env.CXXFLAGS, `--target=${windowsMsvcCompilerTarget}`, hipCompilerFlags),
