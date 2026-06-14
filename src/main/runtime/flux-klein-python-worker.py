@@ -12,11 +12,16 @@ from PIL import Image
 
 
 PROMPT = (
-    "Remove only the Japanese manga text inside the white mask. "
-    "Reconstruct the original manga background, line art, screentone, panel borders, and objects. "
-    "Do not add any text, symbols, captions, signatures, or new objects."
+    "Clean manga inpainting after lettering removal. "
+    "The masked area is filled only by the surrounding artwork: blank speech-bubble surface, continuous screentone, "
+    "paper grain, panel borders, color palette, and line art matching neighboring pixels. "
+    "Preserve the source page's original color or grayscale style and keep unmasked pixels unchanged."
 )
-NEGATIVE_PROMPT = "text, letters, words, caption, watermark, logo, signature, extra objects, blurry artifacts"
+
+# Keep this as a plain prompt string instead of a bundled prompt embedding.
+# FLUX.2/Klein responds better here when the desired final state is described
+# positively; long negative prompt lists can leave glyph-like artifacts.
+NEGATIVE_PROMPT = ""
 
 
 def parse_args() -> argparse.Namespace:

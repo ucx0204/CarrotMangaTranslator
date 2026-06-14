@@ -83,14 +83,20 @@ const FluxBackendSchema = z.preprocess((value) => {
   if (["cuda-native", "cuda", "native", "nvidia"].includes(normalized)) {
     return "cuda-native";
   }
+  if (["zluda-native", "zluda"].includes(normalized)) {
+    return "zluda-native";
+  }
   if (["python-rocm", "rocm", "hip", "amd"].includes(normalized)) {
-    return "python-rocm";
+    return "zluda-native";
   }
   if (["python-cpu", "cpu"].includes(normalized)) {
     return "python-cpu";
   }
+  if (["candle-cpu", "candle", "koharu"].includes(normalized)) {
+    return "zluda-native";
+  }
   return value;
-}, z.enum(["cuda-native", "python-rocm", "python-cpu"]));
+}, z.enum(["cuda-native", "zluda-native", "python-rocm", "python-cpu"]));
 
 const OcrGpuBackendSchema = z.preprocess((value) => {
   const normalized = String(value ?? "").trim().toLowerCase();

@@ -107,6 +107,42 @@ describe("Flux worker runtime helpers", () => {
     expect(sanitized).toContain("<flux-runner-source>:42:1");
   });
 
+  it("creates ZLUDA CUDA DLL aliases for cudarc dynamic loading", () => {
+    const runnerSource = readFileSync(join(repoRoot, "tools", "mgt-flux-klein-runner", "src", "main.rs"), "utf8");
+
+    expect(runnerSource).toContain("ensure_zluda_dll_aliases");
+    expect(runnerSource).toContain("cublas64_13.dll");
+    expect(runnerSource).toContain("cublas64_12.dll");
+    expect(runnerSource).toContain("cublasLt64_13.dll");
+    expect(runnerSource).toContain("cublasLt64_12.dll");
+    expect(runnerSource).toContain("nvcudart_hybrid64.dll");
+    expect(runnerSource).toContain("cudart64_12.dll");
+    expect(runnerSource).toContain("curand64_10.dll");
+    expect(runnerSource).toContain("curand64_130.dll");
+    expect(runnerSource).toContain("cuda_runtime_dir");
+
+    const fluxAssetsSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"), "utf8");
+    expect(fluxAssetsSource).toContain("ensureFluxZludaSupportRuntime(options)");
+    expect(fluxAssetsSource).toContain("mgt-flux-zluda-support");
+    expect(fluxAssetsSource).toContain('readNvidiaRedistPackage(cudaManifest, "libcurand", "windows-x86_64")');
+    expect(fluxAssetsSource).toContain('"--cuda-runtime-dir"');
+    expect(fluxAssetsSource).toContain("cudaRuntimeDir");
+  });
+
+  it("keeps NVIDIA CUDA support DLLs out of the ZLUDA PATH and passes them explicitly", () => {
+    const { exe, cuda129 } = createTempToolsLayout();
+    const pathParts = buildRuntimePathEnv(exe, "zluda-native").split(delimiter);
+
+    expect(pathParts).not.toContain(cuda129);
+  });
+
+  it("refreshes the managed Flux runner when the bundled executable changes", () => {
+    const fluxAssetsSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"), "utf8");
+
+    expect(fluxAssetsSource).toContain("sha256FileSync(managedPath) === sha256FileSync(source)");
+    expect(fluxAssetsSource).not.toContain("if (isExecutableFile(managedPath)) {\n    return managedPath;\n  }");
+  });
+
   it("keeps Flux scratch run directories under app tmp runtime instead of the model cache", () => {
     const poolSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxEnginePool.ts"), "utf8");
     const fluxEngineSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxEngine.ts"), "utf8");
@@ -149,12 +185,13 @@ describe("Flux worker runtime helpers", () => {
     expect(fluxAssetsSource).toContain('join(packageDir, "_rocm_sdk_core", "lib", "llvm", "bin")');
     expect(fluxAssetsSource).toContain("-DCMAKE_C_COMPILER:FILEPATH=");
     expect(fluxAssetsSource).toContain("-DCMAKE_RC_COMPILER:FILEPATH=");
-    expect(fluxAssetsSource).toContain("env.RC = env.RC || rocmPaths.llvmRc");
+    expect(fluxAssetsSource).toContain("stageWindowsResourceCompiler(runtimeDir");
+    expect(fluxAssetsSource).toContain("env.RC = env.RC || rcCompiler");
     expect(fluxAssetsSource).toContain("env.CC = env.CC || rocmPaths.clang");
     expect(fluxAssetsSource).toContain("env.CXX = env.CXX || rocmPaths.clangxx");
     expect(fluxAssetsSource).toContain("resolveWindowsNativeBuildEnv()");
-    expect(fluxAssetsSource).toContain("env.LIB = mergePathList(env.LIB, nativeBuildEnv.libPaths)");
-    expect(fluxAssetsSource).toContain("env.INCLUDE = mergePathList(env.INCLUDE, nativeBuildEnv.includePaths)");
+    expect(fluxAssetsSource).toContain('env.LIB = mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths)');
+    expect(fluxAssetsSource).toContain("env.INCLUDE = mergePathList(nativeBuildEnv.includePaths)");
     expect(fluxAssetsSource).toContain("-DCMAKE_TRY_COMPILE_CONFIGURATION=Release");
     expect(fluxAssetsSource).toContain("kernel32.lib");
     expect(fluxAssetsSource).toContain("oldnames.lib");
@@ -286,7 +323,25 @@ describe("Flux worker runtime helpers", () => {
     expect(workerSource).toContain("diffusion_model_path");
     expect(workerSource).toContain("llm_path");
     expect(workerSource).toContain("vae_path");
-    expect(workerSource).toContain("mask_image");
+    expect(workerSource).toContain("ref_images");
+    expect(workerSource).toContain("erase_mask = mask.point(lambda value: 255 if value > 16 else 0");
+    expect(workerSource).toContain("build_klein_reference_image");
+    expect(workerSource).toContain("estimate_local_fill_color");
+    expect(workerSource).toContain("INPAINT_CROP_CONTEXT = 64");
+    expect(workerSource).toContain("def inpaint_crop_bounds");
+    expect(workerSource).toContain("def composite_inpaint_crop");
+    expect(workerSource).toContain("def expand_inference_mask");
+    expect(workerSource).toContain("ImageFilter.MaxFilter");
+    expect(workerSource).toContain("Clean manga inpainting after lettering removal.");
+    expect(workerSource).toContain("original color or grayscale style");
+    expect(workerSource).toContain('NEGATIVE_PROMPT = ""');
+    expect(workerSource).toContain('sample_method="euler"');
+    expect(workerSource).toContain("guidance=1.0");
+    expect(workerSource).toContain("composite_mask");
+    expect(workerSource).toContain("expanded_erase_mask");
+    expect(workerSource).toContain(".sdcpp-ref.png");
+    expect(workerSource).toContain("if bounds is not None");
+    expect(workerSource).not.toContain("mask_image");
     expect(workerSource).not.toContain("GGUFQuantizationConfig");
     expect(workerSource).not.toContain("Flux2Transformer2DModel");
     expect(workerSource).not.toContain("--gguf-transformer");

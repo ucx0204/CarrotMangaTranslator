@@ -1,4 +1,4 @@
-const { copyFileSync, existsSync, mkdirSync, statSync } = require("node:fs");
+const { copyFileSync, existsSync, mkdirSync, statSync, readFileSync, writeFileSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { delimiter, join } = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -22,6 +22,7 @@ if (!existsSync(manifestPath)) {
   process.exit(1);
 }
 
+patchKoharuFluxSources();
 runCargo(["build", "--release", "--manifest-path", manifestPath]);
 if (!isUsableFile(builtExe)) {
   console.error(`Flux runner build did not produce ${builtExe}`);
@@ -101,13 +102,19 @@ function findMsvcClBin() {
 
 function findCudaRoot() {
   const candidates = [
+    process.env.CUDA_PATH_V13_0,
+    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v13.0"),
+    process.env.CUDA_PATH_V13_1,
+    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v13.1"),
     process.env.CUDA_PATH_V12_9,
     join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.9"),
+    process.env.CUDA_PATH_V12_8,
+    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.8"),
+    process.env.CUDA_PATH_V12_6,
+    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.6"),
     ...(process.env.MGT_FLUX_ALLOW_LEGACY_CUDA_BUILD === "1"
       ? [
-          process.env.CUDA_PATH_V12_8,
           process.env.CUDA_PATH_V12_4,
-          join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.8"),
           join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.4"),
           process.env.CUDA_PATH,
           process.env.CUDA_HOME
@@ -115,6 +122,84 @@ function findCudaRoot() {
       : [])
   ].filter(Boolean);
   return candidates.find((candidate) => existsSync(join(candidate, "bin", "nvcc.exe"))) || null;
+}
+
+function patchKoharuFluxSources() {
+  const metadata = readCargoMetadata();
+  const koharuMl = metadata.packages.find((pkg) => pkg.name === "koharu-ml");
+  if (!koharuMl?.manifest_path) {
+    console.warn("Could not find koharu-ml in cargo metadata; skipping ZLUDA Flux source patch.");
+    return;
+  }
+
+  const koharuMlDir = koharuMl.manifest_path.replace(/[\\/]Cargo\.toml$/, "");
+  patchFile(
+    join(koharuMlDir, "src", "flux2_klein", "mod.rs"),
+    [
+      [
+        `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`,
+        `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`
+      ]
+    ],
+    "ZLUDA Flux dtype"
+  );
+  patchFile(
+    join(koharuMlDir, "src", "flux2_klein", "transformer.rs"),
+    [
+      [
+        `    #[cfg(feature = "cuda")]\n    if q.device().is_cuda() {\n`,
+        `    #[cfg(feature = "cuda")]\n    if q.device().is_cuda() && !koharu_runtime::zluda_active() {\n`
+      ]
+    ],
+    "ZLUDA Flux attention"
+  );
+}
+
+function readCargoMetadata() {
+  const result = spawnSync("cargo", ["metadata", "--manifest-path", manifestPath, "--locked", "--format-version", "1"], {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    shell: false,
+    env: process.env
+  });
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    process.stderr.write(result.stderr || result.stdout || "");
+    process.exit(result.status ?? 1);
+  }
+  const stdout = String(result.stdout || "");
+  const jsonStart = stdout.indexOf("{");
+  if (jsonStart < 0) {
+    throw new Error("cargo metadata did not return JSON");
+  }
+  return JSON.parse(stdout.slice(jsonStart));
+}
+
+function patchFile(path, replacements, label) {
+  let text = readFileSync(path, "utf8");
+  const newline = text.includes("\r\n") ? "\r\n" : "\n";
+  let changed = false;
+  for (const [from, to] of replacements) {
+    const fromText = from.replace(/\n/g, newline);
+    const toText = to.replace(/\n/g, newline);
+    if (text.includes(toText)) {
+      continue;
+    }
+    if (!text.includes(fromText)) {
+      throw new Error(`Could not apply ${label} patch to ${path}`);
+    }
+    text = text.replace(fromText, toText);
+    changed = true;
+  }
+  if (changed) {
+    writeFileSync(path, text);
+    console.log(`Applied ${label} patch: ${path}`);
+  } else {
+    console.log(`${label} patch already applied: ${path}`);
+  }
 }
 
 function isUsableFile(path) {

@@ -186,14 +186,14 @@ export const FLUX_BACKEND_OPTIONS: FluxBackendOption[] = [
     description: "기존 Flux Klein 네이티브 런타임입니다. RTX 계열에서는 이 경로가 가장 빠릅니다."
   },
   {
-    id: "python-rocm",
-    label: "AMD ROCm",
-    description: "AMD GPU용 Python/ROCm 경로입니다. ROCm PyTorch와 드라이버가 맞는 환경에서만 사용하세요."
+    id: "zluda-native",
+    label: "AMD ZLUDA",
+    description: "AMD GPU에서 NVIDIA와 같은 Flux Klein/Candle 실행기를 ZLUDA로 실행합니다. AMD HIP SDK가 필요합니다."
   },
   {
     id: "python-cpu",
     label: "CPU",
-    description: "GPU Flux가 맞지 않는 환경용입니다. 많이 느리지만 CUDA/ROCm 없이 실행합니다."
+    description: "GPU 런타임이 맞지 않는 환경에서 직접 선택하는 CPU 호환 모드입니다. 처리 속도는 많이 느립니다."
   }
 ];
 

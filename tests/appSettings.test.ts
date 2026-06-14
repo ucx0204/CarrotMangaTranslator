@@ -822,7 +822,7 @@ describe("app settings helpers", () => {
       ocrDevice: "cpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
-      fluxBackend: "python-cpu",
+      fluxBackend: "zluda-native",
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X"
     });
@@ -842,7 +842,7 @@ describe("app settings helpers", () => {
       ocrDevice: "cpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
-      fluxBackend: process.platform === "win32" ? "python-cpu" : "python-rocm",
+      fluxBackend: "zluda-native",
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X"
     });

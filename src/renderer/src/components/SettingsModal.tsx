@@ -165,11 +165,11 @@ export function SettingsModal({
 
   React.useEffect(() => {
     if (usesAmdHardware && fluxBackend === "cuda-native") {
-      const preferredBackend = initialSettings.inpainting?.fluxBackend === "python-rocm" ? "python-rocm" : "python-cpu";
+      const preferredBackend = initialSettings.inpainting?.fluxBackend === "python-cpu" ? "python-cpu" : "zluda-native";
       setFluxBackend(preferredBackend);
       return;
     }
-    if (usesNvidiaHardware && fluxBackend === "python-rocm") {
+    if (usesNvidiaHardware && (fluxBackend === "python-rocm" || fluxBackend === "zluda-native")) {
       setFluxBackend("cuda-native");
     }
   }, [fluxBackend, initialSettings.inpainting?.fluxBackend, usesAmdHardware, usesNvidiaHardware]);
@@ -206,7 +206,7 @@ export function SettingsModal({
     (backend: FluxBackend) =>
       controlsBusy ||
       (usesAmdHardware && backend === "cuda-native") ||
-      (usesNvidiaHardware && backend === "python-rocm"),
+      (usesNvidiaHardware && (backend === "python-rocm" || backend === "zluda-native")),
     [controlsBusy, usesAmdHardware, usesNvidiaHardware]
   );
 

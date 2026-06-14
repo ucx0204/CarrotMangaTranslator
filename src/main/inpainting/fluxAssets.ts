@@ -16,6 +16,7 @@ export const FLUX_VAE_REPO = "black-forest-labs/FLUX.2-small-decoder";
 export const FLUX_VAE_FILE = "diffusion_pytorch_model.safetensors";
 const FLUX_RUNNER_DIR = "mgt-flux-klein";
 const FLUX_CUDA_RUNTIME_DIR = "mgt-flux-cuda12.9";
+const FLUX_ZLUDA_SUPPORT_RUNTIME_DIR = "mgt-flux-zluda-support";
 const FLUX_CUDA_RUNTIME_MARKER = ".mgt-runtime.json";
 const FLUX_PYTHON_WORKER = "flux-klein-python-worker.py";
 const FLUX_SDCPP_WORKER = "flux-klein-sdcpp-worker.py";
@@ -89,6 +90,7 @@ const CUDNN_REDIST_BASE_URL = "https://developer.download.nvidia.com/compute/cud
 const CUDA_REDIST_MANIFEST_URL = `${CUDA_REDIST_BASE_URL}/redistrib_12.9.0.json`;
 const CUDNN_REDIST_MANIFEST_URL = `${CUDNN_REDIST_BASE_URL}/redistrib_9.21.0.json`;
 const FLUX_CUDA_DLLS = new Set(["cublas64_12.dll", "cublasLt64_12.dll", "cudart64_12.dll", "curand64_10.dll"]);
+const FLUX_ZLUDA_SUPPORT_DLLS = new Set(["curand64_10.dll"]);
 const FLUX_CUDNN_DLLS = new Set([
   "cudnn64_9.dll",
   "cudnn_adv64_9.dll",
@@ -160,6 +162,8 @@ type FluxPythonRuntimeLayout = {
   tempDir: string;
 };
 
+type FluxPythonBackend = "python-rocm" | "python-cpu";
+
 export async function ensureMgtFluxKleinRuntime(options: {
   runtimeDir: string;
   signal?: AbortSignal;
@@ -195,7 +199,38 @@ export async function ensureFluxWorkerLaunch(options: {
       args: []
     };
   }
-  return ensureFluxPythonRuntime({ ...options, backend });
+  if (backend === "zluda-native") {
+    await mkdir(options.runtimeDir, { recursive: true });
+    const runtimePath = await ensureManagedFluxRunner(options);
+    const cudaRuntimeDir = await ensureFluxZludaSupportRuntime(options);
+    const zludaRuntimeRoot = join(options.runtimeDir, "koharu-zluda");
+    options.onProgress?.({
+      progressText: "Flux ZLUDA 런타임 준비 중",
+      detail: "Koharu/Candle ZLUDA",
+      progressMode: "log-only",
+      installLogLine: "AMD GPU에서는 NVIDIA와 같은 Flux Klein 실행기를 ZLUDA/HIP 경로로 실행하고, 필요한 CUDA 보조 DLL만 함께 준비합니다."
+    });
+    return {
+      backend,
+      executable: runtimePath,
+      runtimePath,
+      label: "Flux Klein ZLUDA",
+      args: [
+        "--require-zluda",
+        "--zluda-runtime-root",
+        zludaRuntimeRoot,
+        "--cuda-runtime-dir",
+        cudaRuntimeDir
+      ],
+      env: {
+        KOHARU_DATA_ROOT: zludaRuntimeRoot
+      }
+    };
+  }
+  if (backend === "python-rocm" || backend === "python-cpu") {
+    return ensureFluxPythonRuntime({ ...options, backend });
+  }
+  throw new Error(`지원하지 않는 Flux 런타임입니다: ${backend}`);
 }
 
 async function ensureManagedFluxRunner(options: {
@@ -205,9 +240,6 @@ async function ensureManagedFluxRunner(options: {
 }): Promise<string> {
   const managedDir = join(options.runtimeDir, FLUX_RUNNER_DIR);
   const managedPath = join(managedDir, FLUX_RUNTIME_EXECUTABLE);
-  if (isExecutableFile(managedPath)) {
-    return managedPath;
-  }
 
   const source = findFirstExecutable([
     process.env.MGT_FLUX_KLEIN_EXE,
@@ -223,12 +255,15 @@ async function ensureManagedFluxRunner(options: {
 
   throwIfAborted(options.signal);
   await mkdir(managedDir, { recursive: true });
+  if (isExecutableFile(managedPath) && sha256FileSync(managedPath) === sha256FileSync(source)) {
+    return managedPath;
+  }
   await copyFile(source, managedPath);
   options.onProgress?.({
     progressText: "Flux 실행 파일 준비 중",
     detail: FLUX_RUNTIME_EXECUTABLE,
     progressMode: "log-only",
-    installLogLine: `Flux 실행 파일을 앱 데이터 캐시에 복사했습니다: ${FLUX_RUNTIME_EXECUTABLE}`
+    installLogLine: `Flux 실행 파일을 앱 데이터 캐시에 갱신했습니다: ${FLUX_RUNTIME_EXECUTABLE}`
   });
   return managedPath;
 }
@@ -236,7 +271,7 @@ async function ensureManagedFluxRunner(options: {
 async function ensureFluxPythonRuntime(options: {
   runtimeDir: string;
   modelDir: string;
-  backend: Exclude<FluxWorkerBackend, "cuda-native">;
+  backend: FluxPythonBackend;
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<FluxWorkerLaunchSpec> {
@@ -515,7 +550,7 @@ async function ensureFluxPythonRuntime(options: {
 async function ensurePrebuiltFluxRocmPythonRuntime(options: {
   layout: FluxPythonRuntimeLayout;
   expectedMarker: {
-    backend: Exclude<FluxWorkerBackend, "cuda-native">;
+    backend: FluxPythonBackend;
     runtimeInstallBatches: Array<{ id: string; pipArgs: string[] }>;
     buildPackages: string[];
     packages: string[];
@@ -666,7 +701,7 @@ async function validatePrebuiltFluxRocmRuntime(runtimeDir: string): Promise<void
 
 export function resolveFluxPythonRuntimeLayout(
   baseRuntimeDir: string,
-  backend: Exclude<FluxWorkerBackend, "cuda-native">
+  backend: FluxPythonBackend
 ): FluxPythonRuntimeLayout {
   const runtimeName = backend === "python-rocm" ? "mgt-flux-python-rocm" : "mgt-flux-python-cpu";
   const useShortRocmLayout = backend === "python-rocm" && process.platform === "win32";
@@ -796,6 +831,57 @@ async function ensureFluxCudaRuntime(options: {
   });
 }
 
+async function ensureFluxZludaSupportRuntime(options: {
+  runtimeDir: string;
+  signal?: AbortSignal;
+  onProgress?: (progress: FluxAssetProgress) => void;
+}): Promise<string> {
+  const supportDir = join(options.runtimeDir, FLUX_ZLUDA_SUPPORT_RUNTIME_DIR);
+  if (await isCurrentFluxZludaSupportRuntime(supportDir)) {
+    options.onProgress?.({
+      progressText: "Flux ZLUDA 보조 런타임 캐시 사용",
+      detail: FLUX_ZLUDA_SUPPORT_RUNTIME_DIR,
+      progressMode: "log-only",
+      installLogLine: "캐시된 Flux ZLUDA cuRAND 보조 DLL을 사용합니다."
+    });
+    return supportDir;
+  }
+
+  await rm(supportDir, { recursive: true, force: true });
+  await mkdir(supportDir, { recursive: true });
+  const downloadsDir = join(options.runtimeDir, ".downloads");
+  await mkdir(downloadsDir, { recursive: true });
+
+  const cudaManifest = await readJsonUrl(CUDA_REDIST_MANIFEST_URL, options.signal);
+  const curandPackage = readNvidiaRedistPackage(cudaManifest, "libcurand", "windows-x86_64");
+  if (!curandPackage) {
+    throw new Error("NVIDIA CUDA 12.9 런타임 목록에서 cuRAND DLL 패키지를 찾지 못했습니다.");
+  }
+  const archivePath = await downloadRuntimeArchive({
+    ...options,
+    downloadsDir,
+    entry: curandPackage,
+    baseUrl: CUDA_REDIST_BASE_URL,
+    label: "Flux ZLUDA cuRAND 보조 런타임"
+  });
+  extractSelectedZipEntries(archivePath, supportDir, (fileName) => FLUX_ZLUDA_SUPPORT_DLLS.has(fileName));
+  if (!(await hasFluxZludaSupportRuntimeFiles(supportDir))) {
+    throw new Error("Flux ZLUDA cuRAND 보조 런타임 설치가 완료되지 않았습니다.");
+  }
+  await writeFile(runtimeMarkerPath(supportDir), `${JSON.stringify({
+    cudaManifest: CUDA_REDIST_MANIFEST_URL,
+    installedAt: new Date().toISOString()
+  }, null, 2)}\n`, "utf8");
+  options.onProgress?.({
+    progressText: "Flux ZLUDA 보조 런타임 설치 완료",
+    detail: FLUX_ZLUDA_SUPPORT_RUNTIME_DIR,
+    progressMode: "determinate",
+    progressPercent: 1,
+    installLogLine: "Flux ZLUDA cuRAND 보조 DLL 준비가 완료되었습니다."
+  });
+  return supportDir;
+}
+
 async function downloadRuntimeArchive(options: {
   downloadsDir: string;
   entry: { relative_path: string; size?: number };
@@ -890,18 +976,40 @@ async function hasFluxCudaRuntimeFiles(cudaDir: string): Promise<boolean> {
   });
 }
 
+async function isCurrentFluxZludaSupportRuntime(supportDir: string): Promise<boolean> {
+  try {
+    const marker = JSON.parse(await readFile(runtimeMarkerPath(supportDir), "utf8")) as { cudaManifest?: string };
+    return marker?.cudaManifest === CUDA_REDIST_MANIFEST_URL && await hasFluxZludaSupportRuntimeFiles(supportDir);
+  } catch {
+    return false;
+  }
+}
+
+async function hasFluxZludaSupportRuntimeFiles(supportDir: string): Promise<boolean> {
+  return [...FLUX_ZLUDA_SUPPORT_DLLS].every((fileName) => {
+    try {
+      return statSync(join(supportDir, fileName)).size > 0;
+    } catch {
+      return false;
+    }
+  });
+}
+
 function runtimeMarkerPath(cudaDir: string): string {
   return join(cudaDir, FLUX_CUDA_RUNTIME_MARKER);
 }
 
 function resolveFluxWorkerBackend(backend: FluxBackend): FluxWorkerBackend {
-  if (backend === "python-rocm" || backend === "python-cpu") {
+  if (backend === "python-cpu") {
     return backend;
+  }
+  if (backend === "zluda-native" || backend === "python-rocm") {
+    return "zluda-native";
   }
   return "cuda-native";
 }
 
-function resolveFluxPythonWorkerFile(backend: Exclude<FluxWorkerBackend, "cuda-native">): string {
+function resolveFluxPythonWorkerFile(backend: FluxPythonBackend): string {
   return backend === "python-rocm" ? FLUX_SDCPP_WORKER : FLUX_PYTHON_WORKER;
 }
 
@@ -939,7 +1047,7 @@ async function resolveCurrentFluxPythonRuntime(options: {
   packageDir: string;
   markerPath: string;
   expectedMarker: {
-    backend: Exclude<FluxWorkerBackend, "cuda-native">;
+    backend: FluxPythonBackend;
     runtimeInstallBatches: Array<{ id: string; pipArgs: string[] }>;
     buildPackages: string[];
     packages: string[];
@@ -1249,7 +1357,7 @@ async function initializeWindowsRocmSdk(options: {
 function buildTargetPythonEnv(
   runtimeDir: string,
   packageDir: string,
-  backend: Exclude<FluxWorkerBackend, "cuda-native"> = "python-cpu",
+  backend: FluxPythonBackend = "python-cpu",
   options: { requireNativeBuildEnv?: boolean } = {}
 ): NodeJS.ProcessEnv {
   const pathEntries = [
@@ -2038,14 +2146,14 @@ function isManagedFluxPackagePathLine(line: string, pythonDir: string, packageDi
   }
 }
 
-function hasUsablePackageDir(packageDir: string, backend: Exclude<FluxWorkerBackend, "cuda-native">): boolean {
+function hasUsablePackageDir(packageDir: string, backend: FluxPythonBackend): boolean {
   const requiredModules = backend === "python-rocm"
     ? ["stable_diffusion_cpp", "PIL"]
     : ["torch", "diffusers", "transformers"];
   return requiredModules.every((name) => existsSync(join(packageDir, name)));
 }
 
-function resolvePythonRuntimeInstallBatches(backend: Exclude<FluxWorkerBackend, "cuda-native">): FluxPythonInstallBatch[] {
+function resolvePythonRuntimeInstallBatches(backend: FluxPythonBackend): FluxPythonInstallBatch[] {
   if (backend === "python-rocm" && process.platform === "win32") {
     const rocmPackageUrls = resolveListEnv("MANGA_TRANSLATOR_FLUX_ROCM_PACKAGE_URLS", "MGT_FLUX_ROCM_PACKAGE_URLS") ??
       defaultWindowsRocmPackageUrls();
@@ -2126,7 +2234,7 @@ function resolveListEnv(primary: string, secondary: string): string[] | null {
   return items.length > 0 ? items : null;
 }
 
-function resolvePythonFluxPackages(backend: Exclude<FluxWorkerBackend, "cuda-native">): string[] {
+function resolvePythonFluxPackages(backend: FluxPythonBackend): string[] {
   if (backend === "python-rocm") {
     return [
       "--no-build-isolation",
@@ -2150,7 +2258,7 @@ function resolvePythonFluxPackages(backend: Exclude<FluxWorkerBackend, "cuda-nat
   ];
 }
 
-function resolvePythonBuildPackages(backend: Exclude<FluxWorkerBackend, "cuda-native">): string[] {
+function resolvePythonBuildPackages(backend: FluxPythonBackend): string[] {
   if (backend !== "python-rocm") {
     return [];
   }
@@ -2173,7 +2281,7 @@ function resolveFluxPythonMode(): string {
 
 async function verifyFluxPythonRuntime(
   pythonRuntime: FluxPythonRuntime,
-  backend: Exclude<FluxWorkerBackend, "cuda-native">,
+  backend: FluxPythonBackend,
   signal?: AbortSignal
 ): Promise<void> {
   const verifyScript = backend === "python-rocm"

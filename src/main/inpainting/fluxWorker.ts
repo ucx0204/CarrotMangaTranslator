@@ -15,7 +15,7 @@ export type FluxWorkerRequest = {
   maskPadding: number;
 };
 
-export type FluxWorkerBackend = "cuda-native" | "python-rocm" | "python-cpu";
+export type FluxWorkerBackend = "cuda-native" | "zluda-native" | "python-rocm" | "python-cpu";
 
 export type FluxWorkerLaunchSpec = {
   backend: FluxWorkerBackend;
@@ -159,7 +159,9 @@ export class FluxWorker {
       if (response.ok) {
         pending.resolve();
       } else {
-        pending.reject(new Error(`Flux 인페인팅 실패: ${response.error ?? "알 수 없는 오류"}`));
+        pending.reject(
+          buildFluxWorkerResponseError(response.error ?? "알 수 없는 오류", this.stderrTail.join(""), this.launch.backend)
+        );
       }
     }
   }
@@ -207,7 +209,7 @@ export function buildRuntimePathEnv(command: string, backend: FluxWorkerBackend 
         addDir(pathPart);
       }
     }
-  } else {
+  } else if (backend === "python-rocm" || backend === "python-cpu") {
     const rocmPath = process.env.ROCM_PATH || DEFAULT_ROCM_PATH;
     const hipPath = process.env.HIP_PATH || rocmPath;
     addDir(rocmPath ? join(rocmPath, "bin") : null);
@@ -241,6 +243,29 @@ export function sanitizeFluxRuntimeStderr(text: string): string {
 
 function buildFluxRuntimeExitError(code: number | null, stderr: string, backend: FluxWorkerBackend): Error {
   const detail = formatFluxRuntimeDetail(stderr);
+  if (backend === "zluda-native") {
+    if (/HIP SDK not found|HIP_PATH|amdhip64|ZLUDA.*unavailable|ZLUDA.*not active/i.test(stderr)) {
+      return new Error(
+        `AMD ZLUDA Flux 런타임을 준비하지 못했습니다. AMD HIP SDK가 설치되어 있고 HIP_PATH가 올바른지 확인하세요. ${detail}`
+      );
+    }
+    if (/Unable to dynamically load the "cublas"|cublas64_12\.dll|cublas\.dll|cublas64\.dll/i.test(stderr)) {
+      return new Error(
+        `AMD ZLUDA Flux 런타임이 cuBLAS 호환 DLL을 찾지 못했습니다. 앱이 ZLUDA DLL alias를 자동으로 준비하므로, 최신 설치 파일로 업데이트한 뒤 Flux 런타임을 다시 준비하세요. ${detail}`
+      );
+    }
+    if (/Unable to dynamically load the "curand"|curand64_10\.dll|curand\.dll|curand64\.dll/i.test(stderr)) {
+      return new Error(
+        `AMD ZLUDA Flux 런타임이 cuRAND DLL(curand64_10.dll)을 찾지 못했습니다. 앱이 Flux CUDA 보조 DLL을 자동으로 준비해야 하므로, 최신 설치 파일로 업데이트한 뒤 Flux 런타임을 다시 준비하세요. ${detail}`
+      );
+    }
+    if (/ZLUDA|nvcuda|cublas64_13|cublasLt64_13|cufft64_12|cudnn64_9|hipError|HSA|amdgpu|gfx/i.test(stderr)) {
+      return new Error(
+        `AMD ZLUDA Flux 런타임이 GPU 실행에 실패했습니다. AMD 드라이버/HIP SDK/ZLUDA 런타임 조합을 확인하세요. ${detail}`
+      );
+    }
+    return new Error(`AMD ZLUDA Flux 인페인팅 런타임이 종료되었습니다 (${code}). ${detail}`);
+  }
   if (backend === "python-rocm") {
     if (/ModuleNotFoundError|No module named/i.test(stderr)) {
       return new Error(
@@ -281,6 +306,29 @@ function buildFluxRuntimeExitError(code: number | null, stderr: string, backend:
     );
   }
   return new Error(`Flux 인페인팅 런타임이 종료되었습니다 (${code}). ${detail}`);
+}
+
+function buildFluxWorkerResponseError(message: string, stderr: string, backend: FluxWorkerBackend): Error {
+  const detail = formatFluxRuntimeDetail(stderr);
+  const combined = `${message}\n${stderr}`;
+  if (backend === "zluda-native") {
+    if (/Unable to dynamically load the "curand"|curand64_10\.dll|curand\.dll|curand64\.dll/i.test(combined)) {
+      return new Error(
+        `AMD ZLUDA Flux 실행 중 cuRAND DLL(curand64_10.dll)을 찾지 못했습니다. 최신 설치 파일로 Flux 런타임을 갱신한 뒤 다시 시도하세요. 원인=${message}${detail ? ` ${detail}` : ""}`
+      );
+    }
+    if (/CUDA_ERROR_NOT_FOUND|named symbol not found|symbol not found|invalid device function|invalid device kernel image|DriverError/i.test(combined)) {
+      return new Error(
+        `AMD ZLUDA Flux 실행 중 CUDA 호환 함수 호출에 실패했습니다. 앱의 Flux 런너는 CUDA 13/ZLUDA 우회 경로로 빌드되어야 하며, AMD HIP SDK와 드라이버가 맞아야 합니다. 원인=${message}${detail ? ` ${detail}` : ""}`
+      );
+    }
+    if (/BF16|fma\.rn\.bf16|flash[_ -]?attn|flash attention/i.test(combined)) {
+      return new Error(
+        `AMD ZLUDA Flux 실행 중 BF16 또는 Flash Attention 경로가 실패했습니다. 최신 설치 파일로 Flux 런너를 갱신한 뒤 다시 시도하세요. 원인=${message}${detail ? ` ${detail}` : ""}`
+      );
+    }
+  }
+  return new Error(`Flux 인페인팅 실패: ${message}${detail ? ` ${detail}` : ""}`);
 }
 
 function isFluxBlackwellRuntimeError(stderr: string): boolean {
@@ -333,7 +381,7 @@ function buildFluxWorkerEnv(launch: FluxWorkerLaunchSpec): NodeJS.ProcessEnv {
       env[key] = value;
     }
   }
-  if (process.env.PATH && launch.backend !== "cuda-native") {
+  if (process.env.PATH && (launch.backend === "python-rocm" || launch.backend === "python-cpu")) {
     env.PATH = `${env.PATH}${delimiter}${process.env.PATH}`;
   }
   if (launch.backend === "python-rocm") {
@@ -349,6 +397,14 @@ function buildFluxWorkerEnv(launch: FluxWorkerLaunchSpec): NodeJS.ProcessEnv {
         join(rocmPath, "lib"),
         join(rocmPath, "lib64")
       ].filter(Boolean).join(":");
+    }
+  }
+  if (launch.backend === "zluda-native") {
+    if (!env.RUST_BACKTRACE) {
+      env.RUST_BACKTRACE = "1";
+    }
+    if (!env.RUST_LOG) {
+      env.RUST_LOG = "warn,koharu_runtime=info";
     }
   }
   return env;

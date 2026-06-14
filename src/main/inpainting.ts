@@ -224,7 +224,7 @@ export async function prepareFluxInpaintingEngine(options: {
   });
   let modelPath: string | undefined;
   let vaePath: string | undefined;
-  if (launch.backend === "cuda-native") {
+  if (launch.backend === "cuda-native" || launch.backend === "zluda-native") {
     [modelPath, vaePath] = await Promise.all([
       ensureRemoteFile({
         ...options,
@@ -240,6 +240,7 @@ export async function prepareFluxInpaintingEngine(options: {
       })
     ]);
     launch.args = [
+      ...launch.args,
       "--transformer-path",
       modelPath,
       "--vae-path",

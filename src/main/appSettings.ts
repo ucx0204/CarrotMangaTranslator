@@ -643,11 +643,17 @@ function resolveFluxBackend(value: unknown, fallback: FluxBackend = "cuda-native
   if (["cuda-native", "cuda", "native", "nvidia"].includes(normalized)) {
     return "cuda-native";
   }
+  if (["zluda-native", "zluda"].includes(normalized)) {
+    return "zluda-native";
+  }
   if (["python-rocm", "rocm", "hip", "amd"].includes(normalized)) {
-    return "python-rocm";
+    return "zluda-native";
   }
   if (["python-cpu", "cpu"].includes(normalized)) {
     return "python-cpu";
+  }
+  if (["candle-cpu", "candle", "koharu"].includes(normalized)) {
+    return "zluda-native";
   }
   return fallback;
 }
@@ -685,12 +691,14 @@ function resolveStoredFluxBackend(
   inpainting: Record<string, unknown> | null,
   defaults: AppSettings
 ): FluxBackend {
+  const rawRequested = String(inpainting?.fluxBackend ?? "").trim().toLowerCase();
   const requested = resolveFluxBackend(inpainting?.fluxBackend, defaults.inpainting?.fluxBackend ?? "cuda-native");
   const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
   if (hardwareVendor === "amd" && requested === "cuda-native") {
-    return defaults.inpainting?.fluxBackend ?? "python-cpu";
+    const defaultBackend = defaults.inpainting?.fluxBackend;
+    return defaultBackend === "python-cpu" ? "python-cpu" : "zluda-native";
   }
-  if (hardwareVendor === "nvidia" && requested === "python-rocm") {
+  if (hardwareVendor === "nvidia" && ["zluda-native", "zluda", "python-rocm", "rocm", "hip", "amd"].includes(rawRequested)) {
     return defaults.inpainting?.fluxBackend ?? "cuda-native";
   }
   return requested;
@@ -757,7 +765,7 @@ function resolveHardwareFluxBackend(info: DetectedGpuInfo | null): FluxBackend {
   if (info?.vendor !== "amd") {
     return "cuda-native";
   }
-  return "python-cpu";
+  return "zluda-native";
 }
 
 function resolveCodexReasoningEffort(value: unknown, fallback: CodexReasoningEffort): CodexReasoningEffort {

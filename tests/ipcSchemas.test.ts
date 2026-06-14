@@ -167,7 +167,7 @@ describe("IPC schemas", () => {
     expect(parsed.gemma.vramMode).toBe("economy26b");
     expect(parsed.gemma.llamaRuntimeProfile).toBe("rtx50");
     expect(parsed.gemma.llamaRocmTarget).toBe("gfx110X");
-    expect(parsed.inpainting?.fluxBackend).toBe("python-rocm");
+    expect(parsed.inpainting?.fluxBackend).toBe("zluda-native");
     expect(
       parseIpcPayload(
         AppSettingsSchema,
