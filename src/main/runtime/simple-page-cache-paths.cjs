@@ -1,11 +1,20 @@
+// @ts-check
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 const path = require("node:path");
 
 const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
 function resolveWorkingDir(options = {}) {
   return options.workingDir || process.cwd();
 }
 
+/**
+ * @returns {string | null}
+ */
 function defaultHfHomeDir() {
   const xdgCacheHome = String(process.env.XDG_CACHE_HOME ?? "").trim();
   if (xdgCacheHome) {
@@ -22,6 +31,10 @@ function defaultHfHomeDir() {
   return path.join(homeDir, ".cache", "huggingface");
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @returns {string | null}
+ */
 function resolveHfHomeDir(options = {}) {
   return (
     options.hfHomeDir ||
@@ -31,6 +44,10 @@ function resolveHfHomeDir(options = {}) {
   );
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @returns {string | null}
+ */
 function resolveHubCacheDir(options = {}) {
   const hfHomeDir = resolveHfHomeDir(options);
   return (
@@ -41,6 +58,10 @@ function resolveHubCacheDir(options = {}) {
   );
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @returns {string | null}
+ */
 function resolveLlamaCppCacheDir(options = {}) {
   const explicit = String(
     options.llamaCacheDir ??
@@ -66,10 +87,19 @@ function resolveLlamaCppCacheDir(options = {}) {
     : null;
 }
 
+/**
+ * @param {string} repoId
+ * @param {string} hubCacheDir
+ * @returns {string}
+ */
 function repoCacheDir(repoId, hubCacheDir) {
   return path.join(hubCacheDir, `models--${repoId.replace(/\//g, "--")}`);
 }
 
+/**
+ * @param {string} file
+ * @returns {string}
+ */
 function safeHfRelativePath(file) {
   const normalized = String(file ?? "")
     .replace(/\\/g, "/")
@@ -84,6 +114,12 @@ function safeHfRelativePath(file) {
   return normalized.split("/").join(path.sep);
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {string | null | undefined} [repo]
+ * @param {string | null | undefined} [file]
+ * @returns {string | null}
+ */
 function resolveManagedHfFilePath(options = {}, repo, file) {
   const hubCacheDir = resolveHubCacheDir(options);
   if (!hubCacheDir || !repo || !file) {

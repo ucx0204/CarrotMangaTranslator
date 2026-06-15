@@ -1,3 +1,5 @@
+// @ts-check
+/** @typedef {{ detail?: string; [key: string]: unknown }} FinalProgress */
 const {
   clampProgressRatio,
   formatBytes,
@@ -20,7 +22,7 @@ function emitRuntimeProgress(
   }
   try {
     options.onProgress({ phase, progressText, detail, ...progress });
-  } catch {
+  } catch (_error) {
     // Progress reporting must never interrupt OCR work.
   }
 }
@@ -82,6 +84,9 @@ function startTaskProgressMonitor(options = {}, config = {}) {
       }
       emit({ progressMode: "indeterminate", installLogLine: logLine });
     },
+    /**
+     * @param {FinalProgress | null} [finalProgress]
+     */
     stop(finalProgress = null) {
       stopped = true;
       if (finalProgress) {

@@ -34,7 +34,7 @@ function normalizeImportSpecifier(specifier: string): string | null {
   if (specifier.startsWith("file:")) {
     try {
       return fileURLToPath(specifier);
-    } catch {
+    } catch (_error) {
       return null;
     }
   }

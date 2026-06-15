@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.checkjs.json",
+  "compilerOptions": {
+    "maxNodeModuleJsDepth": 0
+  },
+  "include": [
+    ".dependency-cruiser.cjs",
+    "electron-builder.config.cjs",
+    "eslint.config.mjs",
+    "scripts/**/*.cjs",
+    "src/main/runtime/runtime-jsdoc-types.d.ts",
+    "src/main/runtime/**/*.cjs"
+  ],
+  "exclude": ["node_modules", "out", "dist", "release", "coverage", ".tmp"]
+}

@@ -1,3 +1,4 @@
+// @ts-check
 function truncateText(value, maxLength) {
   const text = String(value ?? "");
   if (text.length <= maxLength) {

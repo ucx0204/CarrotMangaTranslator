@@ -152,7 +152,7 @@ function bundledLlamaServerCandidates(toolsDir: string): string[] {
         candidates.push(join(toolsDir, entry.name, serverBinary));
       }
     }
-  } catch {
+  } catch (_error) {
     // The tools directory may not exist in early dev/build states.
   }
 
@@ -241,7 +241,7 @@ function writeDataRootMarker(dataRoot: string): void {
       "manga-gemma-translator data root\n",
       "utf8",
     );
-  } catch {
+  } catch (_error) {
     // Marker creation is a safety aid for uninstall cleanup, not a startup requirement.
   }
 }

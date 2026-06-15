@@ -52,7 +52,7 @@ async function queryNvidiaGpuInfo(): Promise<DetectedGpuInfo | null> {
         "--query-gpu=name,memory.total,compute_cap",
         "--format=csv,noheader,nounits",
       ]);
-    } catch {
+    } catch (_error) {
       stdout = await execFileAsync("nvidia-smi", [
         "--query-gpu=name,memory.total",
         "--format=csv,noheader,nounits",
@@ -72,7 +72,7 @@ async function queryNvidiaGpuInfo(): Promise<DetectedGpuInfo | null> {
     return values.sort(
       (left, right) => (right.memoryMb ?? 0) - (left.memoryMb ?? 0),
     )[0];
-  } catch {
+  } catch (_error) {
     return null;
   }
 }
@@ -138,7 +138,7 @@ async function queryWindowsAmdGpuInfo(): Promise<
       ].join(" "),
     ]);
     return stdout.split(/\r?\n/).map(parseWindowsAmdGpuLine);
-  } catch {
+  } catch (_error) {
     return [];
   }
 }
@@ -152,7 +152,7 @@ async function queryRocmSmiGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
       "--csv",
     ]);
     return stdout.split(/\r?\n/).map(parseRocmSmiGpuLine);
-  } catch {
+  } catch (_error) {
     return [];
   }
 }
@@ -178,7 +178,7 @@ async function queryLspciAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
         supportsRocm: false,
         supportsVulkan: true,
       }));
-  } catch {
+  } catch (_error) {
     return [];
   }
 }

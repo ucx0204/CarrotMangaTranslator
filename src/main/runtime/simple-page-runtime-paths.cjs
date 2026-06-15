@@ -1,3 +1,4 @@
+// @ts-check
 const { existsSync, readdirSync } = require("node:fs");
 const path = require("node:path");
 
@@ -86,7 +87,7 @@ function hasCudaRuntimeBackend(runtimeDir) {
     return ["ggml-cuda.dll", "ggml-cuda-cu12.dll", "ggml-cuda-cu13.dll"].some(
       (fileName) => existsSync(path.join(runtimeDir, fileName)),
     );
-  } catch {
+  } catch (_error) {
     return false;
   }
 }
@@ -110,7 +111,7 @@ function hasLlamaRuntimeBackend(runtimeDir, backend = "cuda") {
       ].some((fileName) => existsSync(path.join(runtimeDir, fileName)));
     }
     return hasCudaRuntimeBackend(runtimeDir);
-  } catch {
+  } catch (_error) {
     return false;
   }
 }
@@ -120,7 +121,7 @@ function hasAnyRuntimeLibraryFile(dir) {
     return readdirSync(dir, { withFileTypes: true }).some(
       (entry) => entry.isFile() && /\.(?:dat|co|hsaco)$/i.test(entry.name),
     );
-  } catch {
+  } catch (_error) {
     return false;
   }
 }
@@ -163,7 +164,7 @@ function hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
       return false;
     }
     return hasLlamaRuntimeBackend(runtimeDir, runtime.backend);
-  } catch {
+  } catch (_error) {
     return false;
   }
 }
@@ -206,7 +207,7 @@ function isRuntimeCandidate(serverPath, runtime) {
       path.basename(runtimeDir).toLowerCase() === runtime.dir.toLowerCase() &&
       hasRequiredLlamaRuntimeFiles(runtimeDir, runtime)
     );
-  } catch {
+  } catch (_error) {
     return false;
   }
 }

@@ -1,3 +1,15 @@
+// @ts-check
+/**
+ * @typedef {{
+ *   env?: NodeJS.ProcessEnv;
+ *   failureMessage?: string;
+ *   onOutput?: ((line: string) => void) | null;
+ *   signal?: AbortSignal | null;
+ *   successCodes?: number[];
+ *   timeoutMessage?: string;
+ *   timeoutMs?: number;
+ * }} RunShellCommandOptions
+ */
 const { spawn } = require("node:child_process");
 
 const { buildUtilityChildEnv } = require("./simple-page-child-env.cjs");
@@ -38,10 +50,15 @@ function quoteCommandArg(value) {
   return `"${text.replace(/"/g, '\\"')}"`;
 }
 
+/**
+ * @param {string} command
+ * @param {RunShellCommandOptions} [options]
+ * @returns {Promise<{ stdout: string; stderr: string }>}
+ */
 function runShellCommand(
   command,
   {
-    timeoutMs,
+    timeoutMs = 0,
     env,
     signal,
     onOutput,

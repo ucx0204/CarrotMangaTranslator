@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  JobKindSchema,
+  JobPhaseSchema,
+  JobStatusSchema,
+  ProgressModeSchema,
+} from "./jobContracts";
 
 const MAX_TITLE_LENGTH = 240;
 const MAX_TEXT_LENGTH = 20000;
@@ -233,40 +239,9 @@ const ImportSourceKindSchema = z.enum([
   "zip",
   "zip-folder",
 ]);
-const JobKindSchema = z.enum(["gemma-analysis", "inpainting"]);
-const JobStatusSchema = z.enum([
-  "idle",
-  "starting",
-  "running",
-  "cancelling",
-  "cancelled",
-  "failed",
-  "completed",
-]);
-const JobPhaseSchema = z.enum([
-  "booting",
-  "model_downloading",
-  "ocr_preparing",
-  "ocr_downloading",
-  "ocr_running",
-  "model_requesting",
-  "ready",
-  "page_running",
-  "page_retry",
-  "page_done",
-  "page_skipped",
-  "inpainting_preparing",
-  "inpainting_running",
-  "inpainting_done",
-  "finalizing",
-  "done",
-  "cancelled",
-  "failed",
-]);
-
 const JobProgressFieldsSchema = {
   phase: JobPhaseSchema.optional(),
-  progressMode: z.enum(["determinate", "indeterminate", "log-only"]).optional(),
+  progressMode: ProgressModeSchema.optional(),
   progressPercent: finiteNumber.min(0).max(1).optional(),
   progressBytes: finiteNumber.min(0).optional(),
   progressTotalBytes: finiteNumber.min(0).optional(),

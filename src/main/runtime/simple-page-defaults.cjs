@@ -1,3 +1,4 @@
+// @ts-check
 const DEFAULT_MODEL_HF =
   "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
 const DEFAULT_HF_FILE =

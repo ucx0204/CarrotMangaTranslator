@@ -1,3 +1,4 @@
+// @ts-check
 const { DEFAULT_API_KEY } = require("./simple-page-defaults.cjs");
 const {
   buildSystemPrompt,

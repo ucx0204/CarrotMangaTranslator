@@ -379,20 +379,28 @@ async function main() {
   const pagesDir = path.join(outDir, "pages");
   await mkdir(pagesDir, { recursive: true });
 
-  const { getAppPaths } = require("../out/main/appPaths.js");
-  const {
-    normalizeAppSettings,
-    buildBaseTranslationOptions,
-  } = require("../out/main/appSettings.js");
-  const simplePage = require("../out/app-runtime/simple-page-translate.cjs");
-  const overlayTools = require("../out/app-runtime/overlay-parser.cjs");
+  const { getAppPaths } = /** @type {typeof import("../src/main/appPaths")} */ (
+    loadBuiltModule("out/main/appPaths.js")
+  );
+  const { normalizeAppSettings, buildBaseTranslationOptions } =
+    /** @type {typeof import("../src/main/appSettings")} */ (
+      loadBuiltModule("out/main/appSettings.js")
+    );
+  const simplePage =
+    /** @type {typeof import("../src/main/runtime/simple-page-translate.cjs")} */ (
+      loadBuiltModule("out/app-runtime/simple-page-translate.cjs")
+    );
+  const overlayTools =
+    /** @type {typeof import("../src/main/runtime/overlay-parser.cjs")} */ (
+      loadBuiltModule("out/app-runtime/overlay-parser.cjs")
+    );
 
   const paths = getAppPaths();
   const settings = normalizeAppSettings(
     await readJsonIfExists(paths.settingsPath),
   );
   settings.modelProvider = "gemma";
-  settings.gemma.vramMode = "economy";
+  settings.gemma.vramMode = "economy26b";
 
   const baseOptions = buildBaseTranslationOptions({
     jobId: "perf-gemma-economy",
@@ -483,6 +491,14 @@ async function main() {
   app.quit();
 }
 
+/**
+ * @param {string} relativePath
+ * @returns {unknown}
+ */
+function loadBuiltModule(relativePath) {
+  return require(path.join(ROOT, relativePath));
+}
+
 async function prepareCachedOcrHints(
   simplePage,
   baseOptions,
@@ -555,7 +571,7 @@ async function readReusableOcrHints(sampleIndex) {
       if (hints.length > 0) {
         return hints;
       }
-    } catch {
+    } catch (_error) {
       // Try the next cache format.
     }
   }
@@ -1025,7 +1041,7 @@ function readGpuUtilAndMemory() {
       gpuUtilPercent: Number(util),
       gpuUsedMb: Number(used),
     };
-  } catch {
+  } catch (_error) {
     return {
       gpuUtilPercent: null,
       gpuUsedMb: null,
@@ -1051,7 +1067,7 @@ function readProcessVramMb(pid) {
       }
     }
     return null;
-  } catch {
+  } catch (_error) {
     return null;
   }
 }
@@ -1112,7 +1128,7 @@ function candidateKeepsImageTokenBudget(candidate, baseOptions) {
 async function readJsonIfExists(filePath) {
   try {
     return JSON.parse(await readFile(filePath, "utf8"));
-  } catch {
+  } catch (_error) {
     return {};
   }
 }
@@ -1120,7 +1136,7 @@ async function readJsonIfExists(filePath) {
 async function readTextIfExists(filePath) {
   try {
     return await readFile(filePath, "utf8");
-  } catch {
+  } catch (_error) {
     return "";
   }
 }

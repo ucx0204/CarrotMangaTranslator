@@ -1,3 +1,4 @@
+// @ts-check
 const BEELLAMA_LLAMA_RUNTIME_CUDA12 = {
   id: "beellama-v0.2.0-cuda12.4",
   kind: "beellama",
@@ -220,6 +221,23 @@ const LLAMA_RUNTIME_FILES = new Set([
   "rpc-server.exe",
 ]);
 
+function shouldExtractLlamaRuntimeFile(fileName, relativePath = fileName) {
+  const normalizedRelativePath = String(relativePath ?? fileName ?? "")
+    .replace(/\\/g, "/")
+    .toLowerCase();
+  if (
+    (normalizedRelativePath.startsWith("rocblas/") ||
+      normalizedRelativePath.startsWith("hipblaslt/")) &&
+    /\.(?:dat|co|hsaco)$/i.test(normalizedRelativePath)
+  ) {
+    return true;
+  }
+  return (
+    LLAMA_RUNTIME_FILES.has(fileName) ||
+    /\.(?:dll|so|dylib)$/i.test(String(fileName ?? ""))
+  );
+}
+
 module.exports = {
   BEELLAMA_LLAMA_RUNTIME_CUDA12,
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
@@ -229,4 +247,5 @@ module.exports = {
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   MAINLINE_LLAMA_RUNTIME_VULKAN,
   resolveLemonadeLlamaRuntimeRocm,
+  shouldExtractLlamaRuntimeFile,
 };

@@ -6,6 +6,8 @@ import type {
   LibraryIndex,
   MangaPage,
   SavePageBlocksRequest,
+  WorkShareExportRequest,
+  WorkShareExportResult,
   WorkShareImportFromPackageRequest,
   WorkShareImportResult,
 } from "../shared/types";
@@ -43,7 +45,10 @@ import {
   type PageAnalysisUpdate,
 } from "./libraryStore/libraryMutations";
 import { AsyncReaderWriterLock } from "./libraryStore/mutex";
-import { importWorkShareUnlocked } from "./libraryStore/shareWorkflow";
+import {
+  exportWorkShareToFile as exportWorkShareToFileUnlocked,
+  importWorkShareUnlocked,
+} from "./libraryStore/shareWorkflow";
 
 export { pathExists } from "./libraryStore/storage";
 export {
@@ -52,10 +57,7 @@ export {
   previewZip,
   previewZipFolder,
 } from "./libraryStore/importWorkflow";
-export {
-  exportWorkShareToFile,
-  previewWorkShareImport,
-} from "./libraryStore/shareWorkflow";
+export { previewWorkShareImport } from "./libraryStore/shareWorkflow";
 export { assertLibraryImagePath, getLibraryRoot };
 export type {
   ChapterRunPaths,
@@ -149,6 +151,12 @@ export async function importWorkShare(
   request: WorkShareImportFromPackageRequest,
 ): Promise<WorkShareImportResult> {
   return withLibraryMutation(() => importWorkShareUnlocked(request));
+}
+
+export async function exportWorkShareToFile(
+  request: WorkShareExportRequest & { outputPath: string },
+): Promise<WorkShareExportResult> {
+  return withLibraryRead(() => exportWorkShareToFileUnlocked(request));
 }
 
 export async function markChapterPagesRunning(

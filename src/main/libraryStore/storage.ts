@@ -117,7 +117,7 @@ export function sortNaturally(values: string[]): string[] {
 export async function safeUnlink(path: string): Promise<void> {
   try {
     await unlink(path);
-  } catch {
+  } catch (_error) {
     // no-op
   }
 }
@@ -126,7 +126,7 @@ export async function pathExists(path: string): Promise<boolean> {
   try {
     await stat(path);
     return true;
-  } catch {
+  } catch (_error) {
     return false;
   }
 }

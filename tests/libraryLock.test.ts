@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { join } from "node:path";
 import { AsyncReaderWriterLock } from "../src/main/libraryStore/mutex";
 
 function createDeferred<T = void>(): {
@@ -19,6 +20,15 @@ function waitForTurn(): Promise<void> {
 }
 
 describe("AsyncReaderWriterLock", () => {
+  afterEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.doUnmock("electron");
+    vi.doUnmock("../src/main/appPaths");
+    vi.doUnmock("../src/main/libraryStore/libraryMutations");
+    vi.doUnmock("../src/main/libraryStore/shareWorkflow");
+  });
+
   it("runs queued reads concurrently", async () => {
     const lock = new AsyncReaderWriterLock();
     const releaseReads = createDeferred();
@@ -97,5 +107,91 @@ describe("AsyncReaderWriterLock", () => {
       "write:end",
       "later-read:start",
     ]);
+  });
+
+  it("runs share exports through the read lock behind active mutations", async () => {
+    const rootDir = "C:\\manga-lock-test";
+    const releaseMutation = createDeferred();
+    const events: string[] = [];
+
+    vi.doMock("electron", () => ({
+      app: {
+        isPackaged: false,
+      },
+    }));
+    vi.doMock("../src/main/appPaths", () => ({
+      getAppPaths: () => ({
+        isPackaged: false,
+        repoRoot: rootDir,
+        executableDir: rootDir,
+        resourcesDir: rootDir,
+        dataRoot: rootDir,
+        settingsPath: join(rootDir, "settings.json"),
+        libraryDir: join(rootDir, "library"),
+        logsDir: join(rootDir, "logs"),
+        logFile: join(rootDir, "logs", "app.log"),
+        runtimeDir: join(rootDir, "runtime"),
+        toolsDir: join(rootDir, "tools"),
+        ocrRuntimeDir: join(rootDir, "ocr-runtime"),
+        llamaRuntimeDir: join(rootDir, "tools", "llama"),
+        llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
+      }),
+    }));
+    vi.doMock("../src/main/libraryStore/libraryMutations", async () => {
+      const actual = await vi.importActual<
+        typeof import("../src/main/libraryStore/libraryMutations")
+      >("../src/main/libraryStore/libraryMutations");
+      return {
+        ...actual,
+        savePageBlocksUnlocked: vi.fn(async () => {
+          events.push("write:start");
+          await releaseMutation.promise;
+          events.push("write:end");
+          return {
+            id: "chapter-a",
+          } as Awaited<ReturnType<typeof actual.savePageBlocksUnlocked>>;
+        }),
+      };
+    });
+    vi.doMock("../src/main/libraryStore/shareWorkflow", () => ({
+      exportWorkShareToFile: vi.fn(async () => {
+        events.push("export:start");
+        return {
+          filePath: "share.mgtshare",
+          workTitle: "원본 작품",
+          chapterCount: 1,
+          pageCount: 1,
+        };
+      }),
+      importWorkShareUnlocked: vi.fn(),
+      previewWorkShareImport: vi.fn(),
+    }));
+
+    const library = await import("../src/main/library");
+    const mutation = library.savePageBlocks({
+      chapterId: "chapter-a",
+      pageId: "page-a",
+      blocks: [],
+    });
+    await waitForTurn();
+
+    expect(events).toEqual(["write:start"]);
+
+    const shareExport = library.exportWorkShareToFile({
+      workId: "work-1",
+      chapterIds: ["chapter-a"],
+      outputPath: "share.mgtshare",
+    });
+    await waitForTurn();
+
+    expect(events).toEqual(["write:start"]);
+
+    releaseMutation.resolve();
+
+    await expect(mutation).resolves.toMatchObject({ id: "chapter-a" });
+    await expect(shareExport).resolves.toMatchObject({
+      filePath: "share.mgtshare",
+    });
+    expect(events).toEqual(["write:start", "write:end", "export:start"]);
   });
 });

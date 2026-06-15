@@ -1,3 +1,6 @@
+// @ts-check
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+/** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 const path = require("node:path");
 
 const { PADDLE_OCR_MODEL_DOWNLOADS } = require("./simple-page-defaults.cjs");
@@ -8,6 +11,10 @@ const {
   resolveOcrRuntimeDir,
 } = require("./simple-page-ocr-runtime-config.cjs");
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {OcrRuntimeLayout | null} [runtime]
+ */
 function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
   const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);
   const endpoint = String(

@@ -160,7 +160,7 @@ function resolveResourceOpenAIOAuthEntryPath(): string | null {
 function resolveOpenAIOAuthEntryPath(): string | null {
   try {
     return requireFromHere.resolve("openai-oauth");
-  } catch {
+  } catch (_error) {
     return null;
   }
 }
@@ -247,7 +247,7 @@ function parseModelIds(rawText: string): string[] {
     return parsed.data
       .map((item: { id?: unknown }) => item.id)
       .filter((id: unknown): id is string => typeof id === "string");
-  } catch {
+  } catch (_error) {
     return [];
   }
 }

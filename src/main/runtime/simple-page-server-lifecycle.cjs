@@ -1,3 +1,6 @@
+// @ts-check
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+/** @typedef {import("./runtime-jsdoc-types").DetailedError} DetailedError */
 const { spawn } = require("node:child_process");
 const { createWriteStream, existsSync, mkdirSync } = require("node:fs");
 const path = require("node:path");
@@ -68,6 +71,7 @@ function buildLlamaServerEnv(serverPath, options = {}) {
     (process.platform === "win32" ? "" : "/opt/rocm");
   const hipPath =
     runtimeOverrideEnv("HIP_PATH", options) || process.env.HIP_PATH || rocmPath;
+  /** @type {Array<string | null>} */
   const pathDirs = [path.dirname(serverPath)];
   if (backend === "rocm" || backend === "hip") {
     pathDirs.push(
@@ -98,7 +102,7 @@ function buildLlamaServerEnv(serverPath, options = {}) {
   if (llamaCacheDir) {
     try {
       mkdirSync(llamaCacheDir, { recursive: true });
-    } catch {
+    } catch (_error) {
       // llama-server can still use its own fallback if the cache directory cannot be created.
     }
     env.LLAMA_CACHE = llamaCacheDir;
@@ -127,7 +131,7 @@ async function isReachable(baseUrl) {
       signal: AbortSignal.timeout(2500),
     });
     return response.ok;
-  } catch {
+  } catch (_error) {
     return false;
   }
 }
@@ -136,6 +140,7 @@ async function waitForReadyOrExit(
   baseUrl,
   child,
   timeoutMs = 1800000,
+  /** @type {AbortSignal | null} */
   signal = null,
 ) {
   const startedAt = Date.now();
@@ -285,12 +290,19 @@ async function startServer(options) {
     );
   } catch (error) {
     terminateChildProcessTree(child);
-    if (error?.name === "AbortError" || abortSignal?.aborted) {
+    if (
+      (error instanceof Error && error.name === "AbortError") ||
+      abortSignal?.aborted
+    ) {
       throw createAbortError();
     }
+    const detailedError =
+      error instanceof Error ? /** @type {DetailedError} */ (error) : null;
     if (
-      error instanceof Error &&
-      (error.serverPath || error.baseUrl || error.optionSummary)
+      detailedError &&
+      (detailedError.serverPath ||
+        detailedError.baseUrl ||
+        detailedError.optionSummary)
     ) {
       throw error;
     }
@@ -493,7 +505,7 @@ function createServerLogStream(options, serverPath, launchArgs) {
     stream.write(`# serverPath=${serverPath}\n`);
     stream.write(`# launchArgs=${launchArgs.join(" ")}\n`);
     return stream;
-  } catch {
+  } catch (_error) {
     return null;
   }
 }

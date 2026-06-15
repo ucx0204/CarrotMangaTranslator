@@ -17,7 +17,7 @@ function bootstrapLogPath(): string {
 function resolveBootstrapUserDataDir(): string {
   try {
     return app.getPath("userData");
-  } catch {
+  } catch (_error) {
     const dataRoot =
       process.env.LOCALAPPDATA?.trim() ||
       process.env.APPDATA?.trim() ||
@@ -59,7 +59,7 @@ function writeBootstrapLog(message: string, detail?: unknown): void {
     mkdirSync(dirname(logPath), { recursive: true });
     const line = `[${new Date().toISOString()}] ${message}${detail === undefined ? "" : ` ${serialize(detail)}`}\n`;
     appendFileSync(logPath, line, "utf8");
-  } catch {
+  } catch (_error) {
     // Ignore bootstrap logging failures so the app can continue trying to start.
   }
 }
@@ -79,7 +79,7 @@ function serialize(detail: unknown): string {
 
   try {
     return JSON.stringify(detail);
-  } catch {
+  } catch (_error) {
     return String(detail);
   }
 }

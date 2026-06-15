@@ -6,6 +6,7 @@ import {
   WorkShareImportRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
+import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../../shared/archive";
 import type {
   ImportPreviewResult,
   ImportPreviewSession,
@@ -25,7 +26,6 @@ import {
   previewZip,
   previewZipFolder,
 } from "../library";
-import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../libraryStore/importSources";
 import type { IpcContext } from "./context";
 import { trustedHandle } from "./trustedIpc";
 

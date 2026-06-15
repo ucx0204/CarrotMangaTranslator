@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "maxNodeModuleJsDepth": 0,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022",
+    "types": ["node"]
+  },
+  "include": [
+    ".dependency-cruiser.cjs",
+    "electron-builder.config.cjs",
+    "eslint.config.mjs",
+    "scripts/**/*.cjs",
+    "src/main/runtime/runtime-jsdoc-types.d.ts",
+    "src/main/runtime/**/*.cjs"
+  ]
+}

@@ -1,3 +1,6 @@
+// @ts-check
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+/** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 const path = require("node:path");
 
 const {
@@ -10,10 +13,17 @@ const {
 } = require("./simple-page-ocr-runtime-config.cjs");
 const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {string} provider
+ * @param {string} outputPath
+ * @param {OcrRuntimeLayout | null} [runtime]
+ * @returns {string}
+ */
 function buildOcrBboxCommand(
   options = {},
-  provider,
-  outputPath,
+  provider = "",
+  outputPath = "",
   runtime = null,
 ) {
   const template = String(
@@ -44,9 +54,16 @@ function buildOcrBboxCommand(
   throw new Error("OCR bbox provider requires MANGA_TRANSLATOR_OCR_BBOX_CMD.");
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {string} batchPath
+ * @param {OcrRuntimeLayout | null} [runtime]
+ * @param {string | null} [progressPath]
+ * @returns {string}
+ */
 function buildOcrBboxBatchCommand(
   options = {},
-  batchPath,
+  batchPath = "",
   runtime = null,
   progressPath = null,
 ) {
@@ -60,6 +77,11 @@ function buildOcrBboxBatchCommand(
   return `${python} -u ${scriptPath} --batch ${quoteCommandArg(batchPath)}${progressArg} --device ${quoteCommandArg(resolveOcrDevice(options))}`;
 }
 
+/**
+ * @param {OcrRuntimeLayout | null} [runtime]
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
 function resolveOcrRuntimePythonPath(runtime = null, options = {}) {
   if (runtime?.pythonPath) {
     return runtime.pythonPath;

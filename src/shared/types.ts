@@ -1,547 +1,97 @@
-export type BlockType = "nonsolid";
-
-export type SourceTextDirection = "horizontal" | "vertical";
-export type RenderTextDirection = "horizontal" | "vertical";
-
-export type JobKind = "gemma-analysis" | "inpainting";
-export type ModelProvider = "gemma" | "openai-codex";
-export type ModelSource = "huggingface" | "local";
-export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
-export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
-export type OcrDevice = "cpu" | "gpu";
-export type OcrGpuBackend = "cuda";
-export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
-export type AmdRocmTarget =
-  | "gfx908"
-  | "gfx90a"
-  | "gfx103X"
-  | "gfx110X"
-  | "gfx1150"
-  | "gfx1151"
-  | "gfx120X";
-export type FluxBackend = "cuda-native" | "zluda-native" | "python-cpu";
-export type RuntimeGpuVendor = "nvidia" | "amd" | "unknown";
-
-export type RuntimeHardwareInfo = {
-  gpuVendor: RuntimeGpuVendor;
-  gpuName?: string | null;
-  llamaRocmTarget?: AmdRocmTarget | null;
-  supportsRocm?: boolean;
-  supportsVulkan?: boolean;
-};
-
-export type GemmaSettings = {
-  modelSource: ModelSource;
-  modelRepo: string;
-  modelFile: string;
-  mmprojRepo?: string;
-  mmprojFile?: string;
-  localModelPath?: string;
-  localMmprojPath?: string;
-  vramMode: GemmaVramMode;
-  llamaRuntimeProfile?: LlamaRuntimeProfile;
-  llamaRocmTarget?: AmdRocmTarget;
-};
-
-export type CodexSettings = {
-  model: string;
-  reasoningEffort: CodexReasoningEffort;
-  oauthPort: number;
-};
-
-export type OcrSettings = {
-  device: OcrDevice;
-  gpuCudaTag?: string;
-  gpuBackend?: OcrGpuBackend;
-};
-
-export type UiSettings = {
-  inpaintingGuideHidden?: boolean;
-};
-
-export type InpaintingSettings = {
-  fluxBackend?: FluxBackend;
-};
-
-export type AppSettings = {
-  modelProvider: ModelProvider;
-  gemma: GemmaSettings;
-  codex: CodexSettings;
-  ocr: OcrSettings;
-  ui?: UiSettings;
-  inpainting?: InpaintingSettings;
-  runtimeHardware?: RuntimeHardwareInfo;
-  maxTokens: number;
-};
-
-export type JobStatus =
-  | "idle"
-  | "starting"
-  | "running"
-  | "cancelling"
-  | "cancelled"
-  | "failed"
-  | "completed";
-
-export type JobPhase =
-  | "booting"
-  | "model_downloading"
-  | "ocr_preparing"
-  | "ocr_downloading"
-  | "ocr_running"
-  | "model_requesting"
-  | "ready"
-  | "page_running"
-  | "page_retry"
-  | "page_done"
-  | "page_skipped"
-  | "inpainting_preparing"
-  | "inpainting_running"
-  | "inpainting_done"
-  | "finalizing"
-  | "done"
-  | "cancelled"
-  | "failed";
-
-export type PageAnalysisStatus = "idle" | "running" | "completed" | "failed";
-
-export type ChapterStatus =
-  | "idle"
-  | "running"
-  | "completed"
-  | "partial"
-  | "failed";
-
-export type RunMode = "pending" | "all" | "single-page";
-
-export type ImportSourceKind = "images" | "folder" | "zip" | "zip-folder";
-
-export type BBox = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-};
-
-export type TranslationBlock = {
-  id: string;
-  type: BlockType;
-  bbox: BBox;
-  renderBbox?: BBox;
-  bboxSpace?: "normalized_1000" | "pixels";
-  renderBboxSpace?: "normalized_1000" | "pixels";
-  sourceText: string;
-  translatedText: string;
-  confidence: number;
-  sourceDirection: SourceTextDirection;
-  renderDirection: RenderTextDirection;
-  rotationDeg?: number;
-  fontFamily?: string;
-  fontSizePx: number;
-  lineHeight: number;
-  textAlign: "left" | "center" | "right";
-  textColor: string;
-  outlineColor?: string;
-  outlineWidthScale?: number;
-  bold?: boolean;
-  italic?: boolean;
-  backgroundColor: string;
-  opacity: number;
-  autoFitText?: boolean;
-  inpaintExcluded?: boolean;
-};
-
-export type CustomFont = {
-  id: string;
-  label: string;
-  family: string;
-  fileName: string;
-};
-
-export type MangaPage = {
-  id: string;
-  name: string;
-  imagePath: string;
-  inpaintedImagePath?: string;
-  dataUrl: string;
-  width: number;
-  height: number;
-  blocks: TranslationBlock[];
-  analysisStatus: PageAnalysisStatus;
-  lastError?: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type LibraryPageRecord = Omit<MangaPage, "dataUrl">;
-
-export type LibraryChapter = {
-  id: string;
-  workId: string;
-  title: string;
-  sourceKind: ImportSourceKind;
-  status: ChapterStatus;
-  pageOrder: string[];
-  pages: LibraryPageRecord[];
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ChapterSnapshot = Omit<LibraryChapter, "pages"> & {
-  pages: MangaPage[];
-};
-
-export type LibraryChapterSummary = Pick<
+export type {
+  BBox,
+  BlockType,
+  RenderTextDirection,
+  SourceTextDirection,
+  TranslationBlock,
+} from "./textTypes";
+export type {
+  AmdRocmTarget,
+  AppSettings,
+  CodexReasoningEffort,
+  CodexSettings,
+  FluxBackend,
+  GemmaSettings,
+  GemmaVramMode,
+  InpaintingSettings,
+  LlamaRuntimeProfile,
+  ModelProvider,
+  ModelSource,
+  OcrDevice,
+  OcrGpuBackend,
+  OcrSettings,
+  RuntimeGpuVendor,
+  RuntimeHardwareInfo,
+  UiSettings,
+} from "./settingsTypes";
+export type {
+  ChapterSnapshot,
+  ChapterStatus,
+  CustomFont,
+  ImportSourceKind,
   LibraryChapter,
-  "id" | "workId" | "title" | "status" | "createdAt" | "updatedAt"
-> & {
-  pageCount: number;
-};
-
-export type LibraryWork = {
-  id: string;
-  title: string;
-  chapterOrder: string[];
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type LibraryWorkSummary = LibraryWork & {
-  chapters: LibraryChapterSummary[];
-};
-
-export type LibraryIndex = {
-  workOrder: string[];
-  works: LibraryWorkSummary[];
-};
-
-export type ImportPageDraft = {
-  name: string;
-  sourcePath: string;
-  sourceKind: "file" | "zip-entry";
-  zipEntryName?: string;
-};
-
-export type ImportChapterDraft = {
-  draftId: string;
-  title: string;
-  sourceKind: ImportSourceKind;
-  pages: ImportPageDraft[];
-};
-
-export type ImportPreviewResult = {
-  mode: "single" | "batch";
-  sourceKind: ImportSourceKind;
-  suggestedWorkTitle: string;
-  chapters: ImportChapterDraft[];
-};
-
-export type ImportPreviewSession = ImportPreviewResult & {
-  previewId: string;
-};
-
-export type ImportTarget =
-  | {
-      mode: "new";
-      title: string;
-    }
-  | {
-      mode: "existing";
-      workId: string;
-    };
-
-export type ImportCreateSelection = {
-  draftId: string;
-  title: string;
-  enabled: boolean;
-};
-
-export type CreateImportRequest = {
-  previewId: string;
-  target: ImportTarget;
-  selections: ImportCreateSelection[];
-};
-
-export type CreateImportFromPreviewRequest = {
-  preview: ImportPreviewResult;
-  target: ImportTarget;
-  selections: ImportCreateSelection[];
-};
-
-export type CreateImportResult = {
-  workId: string;
-  chapterIds: string[];
-  openedChapter?: ChapterSnapshot;
-};
-
-export type JobState = {
-  id: string;
-  kind: JobKind;
-  status: JobStatus;
-  progressText: string;
-  detail?: string;
-  phase?: JobPhase;
-  progressMode?: "determinate" | "indeterminate" | "log-only";
-  progressPercent?: number;
-  progressBytes?: number;
-  progressTotalBytes?: number;
-  progressBytesPerSecond?: number;
-  installLogLine?: string;
-  installLogLines?: string[];
-  progressCurrent?: number;
-  progressTotal?: number;
-  pageIndex?: number;
-  pageTotal?: number;
-  attempt?: number;
-  attemptTotal?: number;
-};
-
-export type JobEvent = JobState & {
-  detail?: string;
-};
-
-export type LocalModelPickResult = {
-  modelPath: string;
-  detectedMmprojPath?: string;
-};
-
-export type ModelTestResult = {
-  ok: boolean;
-  message: string;
-  launchMode: "huggingface" | "cached-hf" | "local" | "openai-codex";
-  resolvedModelPath?: string | null;
-  resolvedMmprojPath?: string | null;
-  resolvedEndpoint?: string | null;
-};
-
-export type ModelTestProgressEvent = {
-  id: string;
-  phase?: JobPhase;
-  progressText: string;
-  detail?: string;
-  progressMode?: "determinate" | "indeterminate" | "log-only";
-  progressPercent?: number;
-  progressBytes?: number;
-  progressTotalBytes?: number;
-  progressBytesPerSecond?: number;
-  installLogLine?: string;
-};
-
-export type StartAnalysisRequest =
-  | {
-      chapterId: string;
-      runMode: "pending";
-    }
-  | {
-      chapterId: string;
-      runMode: "all";
-    }
-  | {
-      chapterId: string;
-      runMode: "single-page";
-      pageId: string;
-    };
-
-export type StartAnalysisResult = {
-  status: "completed" | "cancelled" | "failed";
-  chapter?: ChapterSnapshot;
-  warnings?: string[];
-  error?: string;
-};
-
-export type RegionAnalysisRequest = {
-  chapterId: string;
-  pageId: string;
-  bbox: BBox;
-};
-
-export type RegionAnalysisResult = StartAnalysisResult & {
-  pageId?: string;
-  blockIds?: string[];
-};
-
-export type StartInpaintingRequest =
-  | {
-      chapterId: string;
-      mode: "chapter-pattern-pending";
-    }
-  | {
-      chapterId: string;
-      mode: "page-pattern";
-      pageId: string;
-    }
-  | {
-      chapterId: string;
-      mode: "page-pattern-drawn";
-      pageId: string;
-      strokes: InpaintingMaskStroke[];
-      featherPx?: number;
-    };
-
-export type StartInpaintingResult = {
-  status: "completed" | "cancelled" | "failed";
-  chapter?: ChapterSnapshot;
-  pagesChanged?: number;
-  blocksErased?: number;
-  error?: string;
-};
-
-export type InpaintingExportRequest =
-  | {
-      chapterId: string;
-      scope: "chapter";
-    }
-  | {
-      chapterId: string;
-      scope: "page";
-      pageId: string;
-    };
-
-export type InpaintingExportResult = {
-  outputDir: string;
-  pageCount: number;
-  openError?: string;
-};
-
-export type InpaintingPoint = {
-  x: number;
-  y: number;
-};
-
-export type InpaintingMaskStroke = {
-  points: InpaintingPoint[];
-  radiusPx: number;
-};
-
-export type InpaintingRetouchRequest = {
-  chapterId: string;
-  pageId: string;
-  mode: "paint" | "restore";
-  points: InpaintingPoint[];
-  radiusPx: number;
-  color?: string;
-  retainedInpaintedArtifactPaths?: string[];
-};
-
-export type InpaintingRetouchResult = {
-  chapter: ChapterSnapshot;
-  pageId: string;
-};
-
-export type InpaintingRevertRequest =
-  | {
-      chapterId: string;
-      scope: "chapter";
-    }
-  | {
-      chapterId: string;
-      scope: "page";
-      pageId: string;
-    };
-
-export type InpaintingRevertResult = {
-  chapter: ChapterSnapshot;
-  pagesChanged: number;
-};
-
-export type InpaintingColorSampleRequest = {
-  imagePath: string;
-  x: number;
-  y: number;
-};
-
-export type InpaintingColorSampleResult = {
-  color: string;
-};
-
-export type SetPageInpaintingResultRequest = {
-  chapterId: string;
-  pageId: string;
-  inpaintedImagePath?: string | null;
-  retainedInpaintedArtifactPaths?: string[];
-};
-
-export type SetPageInpaintingResultResult = {
-  chapter: ChapterSnapshot;
-  pageId: string;
-};
-
-export type SavePageBlocksRequest = {
-  chapterId: string;
-  pageId: string;
-  baseUpdatedAt?: string;
-  blocks: TranslationBlock[];
-};
-
-export type WorkShareExportRequest = {
-  workId: string;
-  chapterIds: string[];
-};
-
-export type WorkShareExportResult = {
-  filePath: string;
-  workTitle: string;
-  chapterCount: number;
-  pageCount: number;
-};
-
-export type WorkSharePreviewChapter = {
-  packageChapterId: string;
-  title: string;
-  pageCount: number;
-};
-
-export type WorkShareImportPreviewView = {
-  workTitle: string;
-  chapters: WorkSharePreviewChapter[];
-};
-
-export type WorkShareImportPreview = WorkShareImportPreviewView & {
-  previewId: string;
-};
-
-export type WorkShareImportEntry =
-  | {
-      source: "existing";
-      chapterId: string;
-      title: string;
-    }
-  | {
-      source: "package";
-      packageChapterId: string;
-      title: string;
-    };
-
-export type WorkShareImportRequest = {
-  previewId: string;
-  target:
-    | {
-        mode: "new";
-        title: string;
-      }
-    | {
-        mode: "existing";
-        workId: string;
-      };
-  entries: WorkShareImportEntry[];
-};
-
-export type WorkShareImportFromPackageRequest = {
-  packagePath: string;
-  target:
-    | {
-        mode: "new";
-        title: string;
-      }
-    | {
-        mode: "existing";
-        workId: string;
-      };
-  entries: WorkShareImportEntry[];
-};
-
-export type WorkShareImportResult = {
-  workId: string;
-  chapterIds: string[];
-  openedChapter?: ChapterSnapshot;
-};
+  LibraryChapterSummary,
+  LibraryIndex,
+  LibraryPageRecord,
+  LibraryWork,
+  LibraryWorkSummary,
+  MangaPage,
+  PageAnalysisStatus,
+  RunMode,
+} from "./libraryTypes";
+export type {
+  CreateImportFromPreviewRequest,
+  CreateImportRequest,
+  CreateImportResult,
+  ImportChapterDraft,
+  ImportCreateSelection,
+  ImportPageDraft,
+  ImportPreviewResult,
+  ImportPreviewSession,
+  ImportTarget,
+} from "./importTypes";
+export type {
+  JobEvent,
+  JobKind,
+  JobPhase,
+  JobState,
+  JobStatus,
+  LocalModelPickResult,
+  ModelTestProgressEvent,
+  ModelTestResult,
+  ProgressMode,
+} from "./jobTypes";
+export type {
+  RegionAnalysisRequest,
+  RegionAnalysisResult,
+  StartAnalysisRequest,
+  StartAnalysisResult,
+} from "./analysisTypes";
+export type {
+  InpaintingColorSampleRequest,
+  InpaintingColorSampleResult,
+  InpaintingExportRequest,
+  InpaintingExportResult,
+  InpaintingMaskStroke,
+  InpaintingPoint,
+  InpaintingRetouchRequest,
+  InpaintingRetouchResult,
+  InpaintingRevertRequest,
+  InpaintingRevertResult,
+  SetPageInpaintingResultRequest,
+  SetPageInpaintingResultResult,
+  StartInpaintingRequest,
+  StartInpaintingResult,
+} from "./inpaintingTypes";
+export type {
+  SavePageBlocksRequest,
+  WorkShareExportRequest,
+  WorkShareExportResult,
+  WorkShareImportEntry,
+  WorkShareImportFromPackageRequest,
+  WorkShareImportPreview,
+  WorkShareImportPreviewView,
+  WorkShareImportRequest,
+  WorkShareImportResult,
+  WorkSharePreviewChapter,
+} from "./shareTypes";

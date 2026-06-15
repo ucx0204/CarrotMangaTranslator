@@ -1,3 +1,7 @@
+// @ts-check
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+/** @typedef {import("./runtime-jsdoc-types").ChildEnvBuildOptions} ChildEnvBuildOptions */
+/** @typedef {import("./runtime-jsdoc-types").ChildEnvironment} ChildEnvironment */
 const path = require("node:path");
 
 const BASE_CHILD_ENV_KEYS = [
@@ -42,6 +46,10 @@ const ROCM_CHILD_ENV_KEYS = [
   "LIBRARY_PATH",
 ];
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isTruthy(value) {
   const text = String(value ?? "")
     .trim()
@@ -49,6 +57,10 @@ function isTruthy(value) {
   return ["1", "true", "yes", "y", "on"].includes(text);
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @returns {boolean}
+ */
 function shouldAllowExternalRuntimeOverrides(options = {}) {
   if (!isLikelyPackagedToolsDir(options.toolsDir)) {
     return true;
@@ -59,17 +71,27 @@ function shouldAllowExternalRuntimeOverrides(options = {}) {
   );
 }
 
+/**
+ * @param {string} name
+ * @param {RuntimeOptions} [options]
+ * @returns {string | undefined}
+ */
 function runtimeOverrideEnv(name, options = {}) {
   return shouldAllowExternalRuntimeOverrides(options)
     ? process.env[name]
     : undefined;
 }
 
+/**
+ * @param {ChildEnvBuildOptions} [options]
+ * @returns {ChildEnvironment}
+ */
 function buildWhitelistedChildEnv({
   pathDirs = [],
   includeProcessPath = false,
   extraKeys = [],
 } = {}) {
+  /** @type {ChildEnvironment} */
   const env = {};
   for (const key of [...BASE_CHILD_ENV_KEYS, ...extraKeys]) {
     const value = process.env[key];
@@ -85,6 +107,11 @@ function buildWhitelistedChildEnv({
   return env;
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {Array<string | null | undefined>} [pathDirs]
+ * @returns {ChildEnvironment}
+ */
 function buildUtilityChildEnv(options = {}, pathDirs = []) {
   return buildWhitelistedChildEnv({
     pathDirs,
@@ -93,8 +120,18 @@ function buildUtilityChildEnv(options = {}, pathDirs = []) {
   });
 }
 
+/**
+ * @param {Array<string | null | undefined>} [pathDirs]
+ * @param {boolean} [includeProcessPath]
+ * @returns {string}
+ */
 function buildChildPathEnv(pathDirs = [], includeProcessPath = false) {
+  /** @type {string[]} */
   const dirs = [];
+  /**
+   * @param {string | null | undefined} dir
+   * @returns {void}
+   */
   const addDir = (dir) => {
     const text = String(dir ?? "").trim();
     if (!text) {
@@ -134,6 +171,10 @@ function buildChildPathEnv(pathDirs = [], includeProcessPath = false) {
   return dirs.join(path.delimiter);
 }
 
+/**
+ * @param {string | null | undefined} toolsDir
+ * @returns {boolean}
+ */
 function isLikelyPackagedToolsDir(toolsDir) {
   const text = String(toolsDir ?? "").trim();
   if (!text) {

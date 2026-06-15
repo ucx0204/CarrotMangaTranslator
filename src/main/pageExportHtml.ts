@@ -262,8 +262,16 @@ async function preloadExportFonts() {
     loads.push(document.fonts.load("800 " + size + "px " + block.fontFamily));
     loads.push(document.fonts.load("italic 400 " + size + "px " + block.fontFamily));
   }
-  await Promise.all(loads.map((load) => load.catch(() => [])));
+  await Promise.all(loads.map(ignoreFontLoadFailure));
   await document.fonts.ready;
+}
+
+async function ignoreFontLoadFailure(load) {
+  try {
+    return await load;
+  } catch (_error) {
+    return [];
+  }
 }
 
 window.addEventListener("load", async () => {

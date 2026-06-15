@@ -84,7 +84,7 @@ export function serializeLogDetail(detail: unknown): string {
 
   try {
     return JSON.stringify(normalizeLogValue(detail, new WeakSet<object>(), 0));
-  } catch {
+  } catch (_error) {
     return inspect(detail, {
       depth: 5,
       breakLength: Infinity,

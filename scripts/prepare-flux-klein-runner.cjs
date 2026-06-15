@@ -48,7 +48,9 @@ function runCargo(args) {
     cudaRoot ? join(cudaRoot, "bin") : null,
     msvcBin,
     process.env.PATH ?? "",
-  ].filter(Boolean);
+  ].filter(
+    (candidate) => typeof candidate === "string" && candidate.length > 0,
+  );
   run("cargo", args, {
     CARGO_TARGET_DIR: cargoTargetDir,
     LLAMA_CPP_TAG: "b-mgt-unused",
@@ -143,7 +145,7 @@ function findMsvcClBin() {
 }
 
 function findCudaRoot() {
-  const candidates = [
+  const rawCandidates = [
     process.env.CUDA_PATH_V13_0,
     join(
       "C:",
@@ -198,7 +200,14 @@ function findCudaRoot() {
           process.env.CUDA_HOME,
         ]
       : []),
-  ].filter(Boolean);
+  ];
+  /** @type {string[]} */
+  const candidates = [];
+  for (const candidate of rawCandidates) {
+    if (typeof candidate === "string" && candidate.length > 0) {
+      candidates.push(candidate);
+    }
+  }
   return (
     candidates.find((candidate) =>
       existsSync(join(candidate, "bin", "nvcc.exe")),
@@ -304,7 +313,7 @@ function isUsableFile(path) {
       statSync(path).isFile() &&
       statSync(path).size > 1024 * 1024
     );
-  } catch {
+  } catch (_error) {
     return false;
   }
 }

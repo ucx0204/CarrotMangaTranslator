@@ -8,10 +8,8 @@ const AdmZip = require("adm-zip") as {
     writeZip: (path: string) => void;
   };
 };
-import {
-  isSupportedArchivePath,
-  SUPPORTED_ARCHIVE_EXTENSIONS,
-} from "../src/main/libraryStore/importSources";
+import { isSupportedArchivePath } from "../src/main/libraryStore/importSources";
+import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../src/shared/archive";
 import {
   assertZipEntryBudget,
   assertZipEntrySize,

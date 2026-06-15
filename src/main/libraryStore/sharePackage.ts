@@ -131,7 +131,7 @@ async function readRequiredShareJson<TSchema extends z.ZodTypeAny>(
         )
       ).toString("utf8"),
     );
-  } catch {
+  } catch (_error) {
     throw new Error(`공유 파일의 JSON을 읽지 못했습니다: ${path}`);
   }
 

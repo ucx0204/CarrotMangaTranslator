@@ -1,6 +1,7 @@
 import { mkdir, rm } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { clamp } from "../../shared/geometry";
+import { safeCleanup } from "../safeCleanup";
 import {
   buildLocalMask,
   compositeFluxOutput,
@@ -68,7 +69,9 @@ export function createFluxEngine(options: {
   let worker: FluxWorker | null = null;
   const getWorker = () => {
     if (worker && !worker.isHealthy()) {
-      void worker.dispose().catch(() => {});
+      void safeCleanup("dispose unhealthy Flux worker", () =>
+        worker?.dispose(),
+      );
       worker = null;
     }
     worker ??= new FluxWorker(options.launch);
@@ -199,7 +202,9 @@ export function createFluxEngine(options: {
         }
       } finally {
         if (process.env.MGT_KEEP_FLUX_DEBUG !== "1") {
-          await rm(runDir, { recursive: true, force: true }).catch(() => {});
+          await safeCleanup("remove Flux inpainting run directory", () =>
+            rm(runDir, { recursive: true, force: true }),
+          );
         }
       }
     },

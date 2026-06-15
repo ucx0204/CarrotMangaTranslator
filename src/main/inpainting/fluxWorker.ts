@@ -165,7 +165,7 @@ export class FluxWorker {
       let response: { id?: string; ok?: boolean; error?: string };
       try {
         response = JSON.parse(line);
-      } catch {
+      } catch (_error) {
         this.rememberStderr(`Unexpected Flux worker stdout: ${line}\n`);
         continue;
       }

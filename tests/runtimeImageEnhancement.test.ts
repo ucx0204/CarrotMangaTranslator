@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 const runtimeHelpers =
-  require("../src/main/runtime/simple-page-translate.cjs") as {
+  require("../src/main/runtime/simple-page-image-utils.cjs") as {
     enhanceBitmapBuffer: (
       bitmap: Buffer,
       contrast?: number,

@@ -240,7 +240,7 @@ function readVramSample() {
       .map((line) => Number.parseInt(line.trim(), 10))
       .filter(Number.isFinite);
     sample.totalMiB = total.reduce((sum, value) => sum + value, 0);
-  } catch {
+  } catch (_error) {
     sample.totalMiB = 0;
   }
   try {
@@ -270,7 +270,7 @@ function readVramSample() {
         sample.fluxProcessMiB += used;
       }
     }
-  } catch {
+  } catch (_error) {
     sample.fluxProcessMiB = 0;
   }
   return sample;

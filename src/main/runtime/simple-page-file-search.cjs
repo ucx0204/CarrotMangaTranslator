@@ -1,3 +1,4 @@
+// @ts-check
 const { existsSync, readdirSync, statSync } = require("node:fs");
 const path = require("node:path");
 
@@ -6,7 +7,7 @@ const { MM_PROJ_CANDIDATE_NAMES } = require("./simple-page-defaults.cjs");
 function safeMtimeMs(filePath) {
   try {
     return statSync(filePath).mtimeMs;
-  } catch {
+  } catch (_error) {
     return 0;
   }
 }

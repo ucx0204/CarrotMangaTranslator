@@ -1,3 +1,5 @@
+// @ts-check
+/** @typedef {import("./runtime-jsdoc-types").DetailedError} DetailedError */
 const { createWriteStream, statSync } = require("node:fs");
 const { mkdir, open: fsOpen, rename, rm } = require("node:fs/promises");
 const path = require("node:path");
@@ -13,6 +15,7 @@ const { formatBytes } = require("./simple-page-progress.cjs");
 const {
   createDetailedError,
   emitRuntimeProgress,
+  safeCleanup,
 } = require("./simple-page-runtime-common.cjs");
 
 function readPositiveInteger(value) {
@@ -38,7 +41,7 @@ function buildHfResolveUrl(endpoint, repo, file) {
 function getFileSize(filePath) {
   try {
     return statSync(filePath).size;
-  } catch {
+  } catch (_error) {
     return 0;
   }
 }
@@ -47,7 +50,7 @@ function isUsableFile(filePath) {
   try {
     const stats = statSync(filePath);
     return Boolean(filePath) && stats.isFile() && stats.size > 0;
-  } catch {
+  } catch (_error) {
     return false;
   }
 }
@@ -75,7 +78,7 @@ async function probeContentLength(url, signal) {
       return 0;
     }
     return readContentLength(response);
-  } catch {
+  } catch (_error) {
     if (signal?.aborted) {
       throw createAbortError();
     }
@@ -124,11 +127,25 @@ function isAbortError(error) {
   return error?.name === "AbortError";
 }
 
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function hasRangeUnsupported(error) {
+  return (
+    error instanceof Error &&
+    /** @type {DetailedError} */ (error).rangeUnsupported === true
+  );
+}
+
 function readContentLength(response) {
   const value = Number(response.headers?.get?.("content-length"));
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 function writeStreamChunk(writer, chunk) {
   return new Promise((resolve, reject) => {
     const onError = (error) => {
@@ -149,6 +166,9 @@ function writeStreamChunk(writer, chunk) {
   });
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 function finishWriteStream(writer) {
   return new Promise((resolve, reject) => {
     writer.once("error", reject);
@@ -260,7 +280,9 @@ async function downloadHfFileWithProgressAttempt(
       completed: true,
     });
   } catch (error) {
-    await rm(partPath, { force: true }).catch(() => {});
+    await safeCleanup("remove partial HF download", () =>
+      rm(partPath, { force: true }),
+    );
     throw error;
   }
 }
@@ -287,10 +309,12 @@ async function downloadHfFileByRanges(
       try {
         chunk = await fetchRangeBufferWithRetry(task, options, start, end);
       } catch (error) {
-        if (error?.rangeUnsupported && start === 0) {
+        if (hasRangeUnsupported(error) && start === 0) {
           await file.close();
           file = null;
-          await rm(partPath, { force: true }).catch(() => {});
+          await safeCleanup("remove partial ranged HF download", () =>
+            rm(partPath, { force: true }),
+          );
           return await downloadHfFileByStream(
             task,
             options,
@@ -332,7 +356,7 @@ async function downloadHfFileByRanges(
     return receivedBytes;
   } finally {
     if (file) {
-      await file.close().catch(() => {});
+      await safeCleanup("close ranged HF download file", () => file.close());
     }
   }
 }
@@ -347,7 +371,7 @@ async function fetchRangeBufferWithRetry(task, options, start, end) {
       if (
         options.abortSignal?.aborted ||
         isAbortError(error) ||
-        error?.rangeUnsupported
+        hasRangeUnsupported(error)
       ) {
         throw error;
       }
@@ -562,11 +586,12 @@ function emitHfDownloadProgress(options, task, state) {
   const fileBytes = state.totalBytes
     ? Math.min(state.receivedBytes, state.totalBytes)
     : undefined;
-  const progressPercent = knownAggregateBytes
-    ? aggregateBytes / knownAggregateBytes
-    : state.totalBytes
-      ? fileBytes / state.totalBytes
-      : undefined;
+  const progressPercent =
+    knownAggregateBytes && aggregateBytes !== undefined
+      ? aggregateBytes / knownAggregateBytes
+      : state.totalBytes && fileBytes !== undefined
+        ? fileBytes / state.totalBytes
+        : undefined;
   const elapsedSeconds = Math.max(0.001, (Date.now() - state.startedAt) / 1000);
   const speed = Math.max(0, state.receivedBytes / elapsedSeconds);
   const fileProgress = state.totalBytes

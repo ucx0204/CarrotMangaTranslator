@@ -118,7 +118,7 @@ function resolveExistingFontFilePath(
     const realRoot = realpathSync(resolve(fontsRoot));
     const realFilePath = realpathSync(filePath);
     return isPathInside(realRoot, realFilePath) ? filePath : null;
-  } catch {
+  } catch (_error) {
     return null;
   }
 }

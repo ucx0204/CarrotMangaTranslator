@@ -37,7 +37,7 @@ export function readDataRootPointer(executableDir: string): string | null {
     }
     const raw = readFileSync(pointerPath, "utf8");
     return normalizeDataRoot(raw, executableDir);
-  } catch {
+  } catch (_error) {
     return null;
   }
 }

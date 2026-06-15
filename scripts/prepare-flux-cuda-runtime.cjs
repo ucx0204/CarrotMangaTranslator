@@ -176,7 +176,7 @@ function hasRequiredDlls(dir) {
   const hasCudaDlls = [...requiredCudaDlls].every((file) => {
     try {
       return statSync(join(dir, file)).size > 0;
-    } catch {
+    } catch (_error) {
       return false;
     }
   });
@@ -189,7 +189,7 @@ function hasCudnnDll(dir) {
     if (statSync(cudnnPath).size > 0) {
       return true;
     }
-  } catch {
+  } catch (_error) {
     // Fall through to the broader check below.
   }
   try {
@@ -200,11 +200,11 @@ function hasCudnnDll(dir) {
       }
       try {
         return statSync(join(dir, file)).size > 0;
-      } catch {
+      } catch (_error) {
         return false;
       }
     });
-  } catch {
+  } catch (_error) {
     return false;
   }
 }

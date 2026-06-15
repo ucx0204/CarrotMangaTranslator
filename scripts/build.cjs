@@ -1,8 +1,16 @@
-const { join } = require("node:path");
+const { join, resolve } = require("node:path");
+const {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  rmdirSync,
+  unlinkSync,
+} = require("node:fs");
 const { spawnSync } = require("node:child_process");
 const { prepareRuntimeAssets } = require("./prepare-runtime.cjs");
 
 const root = join(__dirname, "..");
+const rendererOutDir = join(root, "out", "renderer");
 
 function run(command, args) {
   console.log(`> ${command} ${args.join(" ")}`);
@@ -19,12 +27,35 @@ function run(command, args) {
   }
 }
 
+function cleanDirectoryContents(dir) {
+  const resolvedDir = resolve(dir);
+  const expectedDir = resolve(root, "out", "renderer");
+  if (resolvedDir !== expectedDir) {
+    throw new Error(`Refusing to clean unexpected renderer output: ${dir}`);
+  }
+  if (!existsSync(resolvedDir)) {
+    return;
+  }
+  for (const entry of readdirSync(resolvedDir)) {
+    removePath(resolve(resolvedDir, entry));
+  }
+}
+
+function removePath(targetPath) {
+  const stat = lstatSync(targetPath);
+  if (stat.isDirectory() && !stat.isSymbolicLink()) {
+    for (const entry of readdirSync(targetPath)) {
+      removePath(resolve(targetPath, entry));
+    }
+    rmdirSync(targetPath);
+    return;
+  }
+  unlinkSync(targetPath);
+}
+
 run(process.execPath, [nodeBin("typescript", "bin", "tsc"), "--noEmit"]);
-run(process.execPath, [
-  nodeBin("typescript", "bin", "tsc"),
-  "-p",
-  "tsconfig.electron.json",
-]);
+run(process.execPath, [join(__dirname, "compile-electron.cjs")]);
+cleanDirectoryContents(rendererOutDir);
 run(process.execPath, [
   nodeBin("vite", "bin", "vite.js"),
   "build",

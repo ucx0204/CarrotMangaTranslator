@@ -1,3 +1,6 @@
+// @ts-check
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+/** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 const nodeCrypto = require("node:crypto");
 const { existsSync } = require("node:fs");
 const os = require("node:os");
@@ -50,6 +53,10 @@ function resolveInstallProgressDir(pythonPath) {
   return path.dirname(resolved);
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
 function resolveOcrRuntimeDir(options = {}) {
   return path.resolve(
     String(
@@ -60,6 +67,12 @@ function resolveOcrRuntimeDir(options = {}) {
   );
 }
 
+/**
+ * @param {string} runtimeDir
+ * @param {RuntimeOptions} [options]
+ * @param {OcrRuntimeLayout | null} [runtime]
+ * @returns {string}
+ */
 function resolvePaddlexCacheHome(runtimeDir, options = {}, runtime = null) {
   const explicit = runtimeOverrideEnv("PADDLE_PDX_CACHE_HOME", options);
   if (explicit) {
@@ -88,6 +101,10 @@ function resolveRealPaddlexCacheHome(runtimeDir) {
   return path.join(runtimeDir, "paddlex-cache");
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
 function resolvePaddlexCacheAliasRoot(options = {}) {
   const explicit = runtimeOverrideEnv(
     "MANGA_TRANSLATOR_OCR_CACHE_ALIAS_ROOT",
@@ -516,6 +533,11 @@ function buildPaddleOcrImportCheckScript(options = {}) {
   return lines.join("; ");
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {OcrRuntimeLayout | null} [runtime]
+ * @returns {NodeJS.ProcessEnv}
+ */
 function buildOcrRuntimeEnv(options = {}, runtime = null) {
   const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);
   const hfHomeDir =
@@ -591,6 +613,12 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
   };
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {OcrRuntimeLayout | null} [runtime]
+ * @param {string} [runtimeDir]
+ * @returns {Array<string | null | undefined>}
+ */
 function buildOcrRuntimePathDirs(
   options = {},
   runtime = null,
@@ -613,6 +641,12 @@ function buildOcrRuntimePathDirs(
   return dirs;
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {OcrRuntimeLayout | null} [runtime]
+ * @param {string} [runtimeDir]
+ * @returns {string[]}
+ */
 function buildOcrRuntimeDllSearchDirs(
   options = {},
   runtime = null,

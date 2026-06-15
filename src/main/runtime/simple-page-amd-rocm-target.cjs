@@ -1,3 +1,4 @@
+// @ts-check
 const { execFileSync } = require("node:child_process");
 
 const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
@@ -86,7 +87,7 @@ function detectWindowsAmdRocmTarget() {
       { encoding: "utf8", windowsHide: true, timeout: 5000 },
     );
     return inferAmdRocmTargetFromText(stdout);
-  } catch {
+  } catch (_error) {
     return null;
   }
 }
@@ -103,7 +104,7 @@ function detectRocmSmiTarget() {
       },
     );
     return inferAmdRocmTargetFromText(stdout);
-  } catch {
+  } catch (_error) {
     return null;
   }
 }

@@ -1,3 +1,36 @@
+// @ts-check
+/**
+ * @typedef {{ x: number; y: number; w: number; h: number }} ParsedBbox
+ * @typedef {{ [key: string]: number | undefined; x1?: number; y1?: number; x2?: number; y2?: number }} PartialParsedBbox
+ * @typedef {{
+ *   id?: number;
+ *   type?: string;
+ *   textRole?: string;
+ *   direction?: string;
+ *   angle?: number;
+ *   fontSize?: number;
+ *   confidence?: number;
+ *   partialBbox?: PartialParsedBbox;
+ *   bbox?: ParsedBbox | null;
+ *   jp?: string;
+ *   ko?: string;
+ * }} LooseParsedItem
+ * @typedef {{
+ *   id: number;
+ *   type: string;
+ *   x1?: number;
+ *   y1?: number;
+ *   x2?: number;
+ *   y2?: number;
+ *   jp: string;
+ *   ko: string;
+ *   textRole?: string;
+ *   direction?: string;
+ *   angle?: number;
+ *   fontSize?: number;
+ *   confidence?: number;
+ * }} LooseParsedOutput
+ */
 function extractJsonCandidate(rawText) {
   const trimmed = rawText.trim();
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
@@ -28,7 +61,7 @@ function parseJsonLenient(rawText) {
   let candidate;
   try {
     candidate = extractJsonCandidate(rawText);
-  } catch {
+  } catch (_error) {
     const looseItems = parseLooseItemList(rawText);
     if (looseItems.length > 0) {
       return { items: looseItems };
@@ -50,7 +83,7 @@ function parseJsonLenient(rawText) {
       if (hasStructuredItems(parsed)) {
         return parsed;
       }
-    } catch {
+    } catch (_error) {
       // Try the next cleanup step.
     }
   }
@@ -150,8 +183,11 @@ function parseLooseItemList(rawText, options = {}) {
     .replace(/```/g, "")
     .trim();
   const lines = cleaned.split(/\r?\n/);
+  /** @type {LooseParsedOutput[]} */
   const items = [];
+  /** @type {LooseParsedItem | null} */
   let current = null;
+  /** @type {"jp" | "ko" | null} */
   let currentTextKey = null;
 
   function pushCurrent() {

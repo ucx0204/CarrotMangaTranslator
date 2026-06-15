@@ -58,7 +58,7 @@ export async function collectManagedInpaintedArtifacts(
   let entries: Array<{ isFile: () => boolean; name: string }>;
   try {
     entries = await readdir(inpaintedDir, { withFileTypes: true });
-  } catch {
+  } catch (_error) {
     return [];
   }
 

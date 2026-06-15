@@ -1,3 +1,4 @@
+// @ts-check
 function getScaledSize(width, height, maxLongSide) {
   const longSide = Math.max(width, height);
   if (longSide <= 0 || longSide <= maxLongSide) {

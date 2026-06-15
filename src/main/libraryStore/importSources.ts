@@ -1,5 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
+import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../../shared/archive";
 import { assertImportImageFileBudget } from "./importImages";
 import { isSupportedImagePath, sortNaturally } from "./storage";
 import {
@@ -13,7 +14,6 @@ import {
 const MAX_NESTED_IMAGE_FOLDER_DEPTH = 8;
 const MAX_NESTED_IMAGE_FOLDERS = 500;
 const MAX_NESTED_IMAGE_FOLDER_PAGES = 5000;
-export const SUPPORTED_ARCHIVE_EXTENSIONS = [".zip", ".cbz"] as const;
 
 export function isSupportedArchivePath(filePath: string): boolean {
   return SUPPORTED_ARCHIVE_EXTENSIONS.includes(

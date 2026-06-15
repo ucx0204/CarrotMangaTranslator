@@ -242,7 +242,7 @@ async function readCachedOcrHints(
         ? Number(raw.textEvidenceCount)
         : undefined,
     };
-  } catch {
+  } catch (_error) {
     return null;
   }
 }

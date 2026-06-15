@@ -38,11 +38,48 @@ export function loadSimplePageRuntime(runtimeDir: string): SimplePageRuntime {
     return cachedRuntime;
   }
 
-  const runtime = require(
-    join(cacheKey, "simple-page-translate.cjs"),
-  ) as SimplePageRuntime;
+  const runtimePath = join(cacheKey, "simple-page-translate.cjs");
+  const runtime: unknown = require(runtimePath);
+  assertSimplePageRuntime(runtime, runtimePath);
   runtimeCache.set(cacheKey, runtime);
   return runtime;
+}
+
+function assertSimplePageRuntime(
+  value: unknown,
+  runtimePath: string,
+): asserts value is SimplePageRuntime {
+  if (!isRecord(value)) {
+    throw new Error(`런타임 모듈이 올바르지 않습니다: ${runtimePath} exports`);
+  }
+  assertFunction(value.startServer, `${runtimePath} startServer`);
+  assertFunction(value.stopServer, `${runtimePath} stopServer`);
+  assertFunction(value.isModelCached, `${runtimePath} isModelCached`);
+  assertFunction(value.testModelReply, `${runtimePath} testModelReply`);
+  assertOptionalFunction(
+    value.ensurePaddleOcrRuntime,
+    `${runtimePath} ensurePaddleOcrRuntime`,
+  );
+  assertOptionalFunction(
+    value.convertImageToPngBufferWithFfmpeg,
+    `${runtimePath} convertImageToPngBufferWithFfmpeg`,
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function assertFunction(value: unknown, label: string): void {
+  if (typeof value !== "function") {
+    throw new Error(`런타임 모듈이 올바르지 않습니다: ${label}`);
+  }
+}
+
+function assertOptionalFunction(value: unknown, label: string): void {
+  if (value !== undefined && typeof value !== "function") {
+    throw new Error(`런타임 모듈이 올바르지 않습니다: ${label}`);
+  }
 }
 
 export async function decodeImageThroughRuntime(

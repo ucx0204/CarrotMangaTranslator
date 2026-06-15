@@ -1,3 +1,4 @@
+// @ts-check
 const { MAX_LOG_PREVIEW_LENGTH } = require("./simple-page-defaults.cjs");
 
 function nowMs() {
@@ -24,6 +25,19 @@ function createDetailedError(message, detail = {}, cause) {
   return error;
 }
 
+/**
+ * @param {string} label
+ * @param {() => Promise<void> | void} cleanup
+ * @returns {Promise<void>}
+ */
+async function safeCleanup(label, cleanup) {
+  try {
+    await cleanup();
+  } catch (error) {
+    console.warn(`[manga-runtime] Cleanup failed: ${label}`, error);
+  }
+}
+
 function emitRuntimeProgress(
   options = {},
   phase,
@@ -36,7 +50,7 @@ function emitRuntimeProgress(
   }
   try {
     options.onProgress({ phase, progressText, detail, ...progress });
-  } catch {
+  } catch (_error) {
     // Progress reporting must never interrupt translation.
   }
 }
@@ -45,5 +59,6 @@ module.exports = {
   createDetailedError,
   emitRuntimeProgress,
   nowMs,
+  safeCleanup,
   truncateText,
 };

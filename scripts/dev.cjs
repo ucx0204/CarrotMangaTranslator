@@ -47,7 +47,6 @@ function spawnChild(label, command, args, env = {}) {
     shell: false,
     env: mergedEnv,
   });
-  child.__devLabel = label;
   children.push(child);
   child.on("exit", (code, signal) => {
     log(
@@ -93,7 +92,8 @@ function canReach(url) {
   return new Promise((resolve) => {
     const req = http.get(url, (res) => {
       res.resume();
-      resolve(res.statusCode >= 200 && res.statusCode < 500);
+      const statusCode = res.statusCode ?? 0;
+      resolve(statusCode >= 200 && statusCode < 500);
     });
     req.on("error", () => resolve(false));
     req.setTimeout(1000, () => {
@@ -150,11 +150,7 @@ function shutdown(exitCode = 0) {
   log("preparing runtime assets");
   prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
   log("compiling Electron main process");
-  runSync(process.execPath, [
-    nodeBin("typescript", "bin", "tsc"),
-    "-p",
-    "tsconfig.electron.json",
-  ]);
+  runSync(process.execPath, [join(__dirname, "compile-electron.cjs")]);
   const rendererPort = await findAvailablePort(
     Number(process.env.MANGA_TRANSLATOR_DEV_PORT) || DEFAULT_RENDERER_PORT,
   );

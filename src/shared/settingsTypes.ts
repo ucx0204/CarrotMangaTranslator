@@ -1,0 +1,69 @@
+export type ModelProvider = "gemma" | "openai-codex";
+export type ModelSource = "huggingface" | "local";
+export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
+export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
+export type OcrDevice = "cpu" | "gpu";
+export type OcrGpuBackend = "cuda";
+export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
+export type AmdRocmTarget =
+  | "gfx908"
+  | "gfx90a"
+  | "gfx103X"
+  | "gfx110X"
+  | "gfx1150"
+  | "gfx1151"
+  | "gfx120X";
+export type FluxBackend = "cuda-native" | "zluda-native" | "python-cpu";
+export type RuntimeGpuVendor = "nvidia" | "amd" | "unknown";
+
+export type RuntimeHardwareInfo = {
+  gpuVendor: RuntimeGpuVendor;
+  gpuName?: string | null;
+  llamaRocmTarget?: AmdRocmTarget | null;
+  supportsRocm?: boolean;
+  supportsVulkan?: boolean;
+};
+
+export type GemmaSettings = {
+  modelSource: ModelSource;
+  modelRepo: string;
+  modelFile: string;
+  mmprojRepo?: string;
+  mmprojFile?: string;
+  localModelPath?: string;
+  localMmprojPath?: string;
+  vramMode: GemmaVramMode;
+  llamaRuntimeProfile?: LlamaRuntimeProfile;
+  llamaRocmTarget?: AmdRocmTarget;
+};
+
+export type CodexSettings = {
+  model: string;
+  reasoningEffort: CodexReasoningEffort;
+  oauthPort: number;
+};
+
+export type OcrSettings = {
+  device: OcrDevice;
+  gpuCudaTag?: string;
+  gpuBackend?: OcrGpuBackend;
+};
+
+export type UiSettings = {
+  inpaintingGuideHidden?: boolean;
+};
+
+export type InpaintingSettings = {
+  fluxBackend?: FluxBackend;
+};
+
+export type AppSettings = {
+  modelProvider: ModelProvider;
+  gemma: GemmaSettings;
+  codex: CodexSettings;
+  ocr: OcrSettings;
+  ui?: UiSettings;
+  inpainting?: InpaintingSettings;
+  runtimeHardware?: RuntimeHardwareInfo;
+  maxTokens: number;
+};

@@ -1,3 +1,4 @@
+// @ts-check
 const { mkdir, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 

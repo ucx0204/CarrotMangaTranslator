@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import type { MangaPage } from "../shared/types";
 import { buildPageExportHtml } from "./pageExportHtml";
 import type { ImageDecodeFallback } from "./regionCrop";
+import { safeCleanup } from "./safeCleanup";
 
 export async function renderPageWithTranslationBlocksForExport(
   page: MangaPage,
@@ -72,7 +73,7 @@ export async function renderPageWithTranslationBlocksForExport(
     return png;
   } finally {
     win.destroy();
-    await rm(htmlPath, { force: true }).catch(() => {});
+    await safeCleanup("page-export-html", () => rm(htmlPath, { force: true }));
   }
 }
 

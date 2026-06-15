@@ -1,3 +1,4 @@
+// @ts-check
 function parseResponsesSseText(rawText) {
   const deltas = [];
   let rawResponse = null;
@@ -22,7 +23,7 @@ function parseResponsesSseText(rawText) {
     let parsed;
     try {
       parsed = JSON.parse(data);
-    } catch {
+    } catch (_error) {
       continue;
     }
     eventCount += 1;

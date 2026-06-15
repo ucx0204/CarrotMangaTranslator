@@ -10,4 +10,24 @@ export { Modal } from "./Modal";
 export type { ModalProps, ModalSize } from "./Modal";
 export { TextField, RangeInput } from "./Field";
 export type { TextFieldProps, RangeInputProps } from "./Field";
-export * from "./icons";
+export {
+  AlignCenterIcon,
+  AlignLeftIcon,
+  AlignRightIcon,
+  BoldIcon,
+  BrushIcon,
+  CheckCircleIcon,
+  CloseIcon,
+  EditIcon,
+  EyeIcon,
+  InfoIcon,
+  ItalicIcon,
+  MaskIcon,
+  PickerIcon,
+  RedoIcon,
+  RefreshIcon,
+  RestoreIcon,
+  UndoIcon,
+  WarnIcon,
+} from "./icons";
+export type { IconProps } from "./icons";

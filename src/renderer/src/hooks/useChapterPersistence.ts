@@ -19,6 +19,13 @@ function isStalePageSaveError(error: unknown): boolean {
   );
 }
 
+function isPageSaveConflictError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (isStalePageSaveError(error) || error.message.includes("페이지 저장 충돌"))
+  );
+}
+
 function makeStalePageSaveConflictError(): Error {
   return new Error(
     "페이지 저장 충돌이 발생했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.",
@@ -50,6 +57,7 @@ export function useChapterPersistence({
   const saveTimerRef = useRef<number | null>(null);
   const dirtyVersionRef = useRef(0);
   const dirtyPageIdsRef = useRef<Set<string>>(new Set());
+  const blockedAutoSaveVersionRef = useRef<number | null>(null);
   const serverUpdatedAtByPageIdRef = useRef<Map<string, string>>(new Map());
   const serverVersionChapterIdRef = useRef<string | null>(null);
 
@@ -151,6 +159,9 @@ export function useChapterPersistence({
     if (!dirty || !currentChapter) {
       return;
     }
+    if (blockedAutoSaveVersionRef.current === dirtyVersionRef.current) {
+      return;
+    }
 
     const version = dirtyVersionRef.current;
     saveTimerRef.current = window.setTimeout(async () => {
@@ -165,6 +176,9 @@ export function useChapterPersistence({
           setDirty(false);
         }
       } catch (error) {
+        if (isPageSaveConflictError(error)) {
+          blockedAutoSaveVersionRef.current = version;
+        }
         console.error(error);
         onSaveError?.(error instanceof Error ? error.message : String(error));
       } finally {
@@ -189,6 +203,7 @@ export function useChapterPersistence({
   const markDirty = useCallback(
     (pageId?: string) => {
       dirtyVersionRef.current += 1;
+      blockedAutoSaveVersionRef.current = null;
       if (pageId) {
         if (!dirtyPageIdsRef.current.has(pageId)) {
           const page = currentChapterRef.current?.pages.find(
@@ -213,12 +228,16 @@ export function useChapterPersistence({
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
+    blockedAutoSaveVersionRef.current = null;
     dirtyPageIdsRef.current.clear();
     syncServerPageVersions(currentChapterRef.current);
     setDirty(false);
   }, [currentChapterRef, syncServerPageVersions]);
 
   const replaceDirtyPageIds = useCallback((pageIds: string[]) => {
+    if (pageIds.length === 0) {
+      blockedAutoSaveVersionRef.current = null;
+    }
     dirtyPageIdsRef.current = new Set(pageIds);
     setDirty(pageIds.length > 0);
   }, []);
@@ -232,6 +251,7 @@ export function useChapterPersistence({
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
+    blockedAutoSaveVersionRef.current = null;
     await persistChapter(chapter);
     dirtyPageIdsRef.current.clear();
     syncServerPageVersions(currentChapterRef.current);

@@ -1,311 +1,45 @@
-import { afterEach, describe, expect, it } from "vitest";
-import {
-  mkdtempSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { describe, expect, it } from "vitest";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
-import { tmpdir } from "node:os";
 import {
-  DEFAULT_GEMMA_DRAFT_MODEL_FILE,
-  DEFAULT_GEMMA_DRAFT_MODEL_REPO,
-  DEFAULT_GEMMA_MMPROJ_FILE,
-  DEFAULT_GEMMA_MMPROJ_REPO,
-  DEFAULT_GEMMA_MODEL_FILE,
-  DEFAULT_GEMMA_MODEL_REPO,
-  GEMMA_12B_MMPROJ_FILE,
-  GEMMA_12B_MMPROJ_REPO,
-  GEMMA_12B_MODEL_FILE_Q4_K_M,
-  GEMMA_12B_MODEL_REPO,
-  GEMMA_26B_MMPROJ_FILE,
-  GEMMA_26B_MMPROJ_REPO,
-  GEMMA_26B_MODEL_FILE_IQ3_S,
-  GEMMA_26B_MODEL_REPO,
-} from "../src/shared/modelPresets";
-
-function compactSource(source: string): string {
-  return source.replace(/\s+/g, "").replace(/,([)\]}])/g, "$1");
-}
-
-function expectSourceToContain(source: string, snippet: string): void {
-  expect(compactSource(source)).toContain(compactSource(snippet));
-}
-
-const runtimeHelpers =
-  require("../src/main/runtime/simple-page-translate.cjs") as {
-    buildLaunchArgs: (options: { [key: string]: unknown }) => string[];
-    buildMessages: (
-      options: { [key: string]: unknown },
-      imageVariants: Array<{
-        role: string;
-        dataUrl: string;
-        width?: number;
-        height?: number;
-        originalWidth?: number;
-        originalHeight?: number;
-      }>,
-    ) => Array<{
-      role: string;
-      content: Array<{
-        type: string;
-        text?: string;
-        image_url?: { url: string };
-      }>;
-    }>;
-    buildResponsesRequestBody: (
-      options: { [key: string]: unknown },
-      imageVariants: Array<{
-        role: string;
-        dataUrl: string;
-        width?: number;
-        height?: number;
-        originalWidth?: number;
-        originalHeight?: number;
-      }>,
-    ) => {
-      model: string;
-      instructions: string;
-      input: Array<{
-        role: string;
-        content: Array<{
-          type: string;
-          text?: string;
-          image_url?: string;
-          detail?: string;
-        }>;
-      }>;
-      reasoning: { effort: string };
-      stream: boolean;
-      store: boolean;
-    };
-    buildOcrRuntimeEnv: (
-      options: { [key: string]: unknown },
-      runtime?: {
-        runtimeDir?: string;
-        packageDir?: string;
-        includePackageDir?: boolean;
-      },
-    ) => Record<string, string>;
-    buildLlamaServerEnv: (
-      serverPath: string,
-      options: { [key: string]: unknown },
-    ) => Record<string, string>;
-    buildPaddleOcrImportCheckScript: (options?: {
-      [key: string]: unknown;
-    }) => string;
-    buildPaddleOcrImportFailureMessage: (
-      message: string,
-      options?: { [key: string]: unknown },
-    ) => string;
-    getOverlayPrompt: (
-      options: { [key: string]: unknown },
-      imageVariants: Array<{
-        role: string;
-        dataUrl?: string;
-        width?: number;
-        height?: number;
-        originalWidth?: number;
-        originalHeight?: number;
-      }>,
-    ) => string;
-    collectOcrBboxHints: (options: { [key: string]: unknown }) => Promise<{
-      hints: Array<{
-        x1: number;
-        y1: number;
-        x2: number;
-        y2: number;
-        ocrText?: string;
-        groupId?: string;
-        rolePrior?: string;
-        orderInGroup?: number;
-      }>;
-      diagnostics: unknown[];
-      noTextDetected: boolean;
-      textEvidenceCount: number;
-    }>;
-    collectRequiredHfDownloads: (options: {
-      [key: string]: unknown;
-    }) => Array<{ kind: string; file: string; destination: string }>;
-    collectRequiredPaddleOcrModelDownloads: (
-      options: { [key: string]: unknown },
-      runtime?: { runtimeDir?: string },
-    ) => Array<{
-      kind: string;
-      repo: string;
-      file: string;
-      destination: string;
-      url: string;
-    }>;
-    extractModelOutputText: (parsed: unknown) => string;
-    inspectModelLaunch: (options: { [key: string]: unknown }) => {
-      launchMode: string;
-      model?: string;
-      reasoningEffort?: string;
-    };
-    isModelCached: (options: { [key: string]: unknown }) => boolean;
-    parseOcrBatchProgressLine: (
-      line: string,
-    ) => { index: number; total: number; count: number } | null;
-    parsePaddleModelFetchProgress: (line: string) => {
-      totalFiles: number;
-      currentFiles: number | null;
-      percent: number | null;
-    } | null;
-    parsePipRawProgress: (
-      line: string,
-    ) => { current: number; total: number } | null;
-    parseResponsesSseText: (rawText: string) => {
-      outputText: string;
-      eventCount: number;
-      rawResponse: unknown;
-    };
-    requestTranslation: (
-      server: { baseUrl: string },
-      options: { [key: string]: unknown },
-    ) => Promise<{
-      outputText: string;
-      rawResponse: unknown;
-      requestBody: Record<string, unknown>;
-    }>;
-    resolveOcrGpuBackend: (options?: { [key: string]: unknown }) => string;
-    resolveOcrGpuCudaTag: (options?: { [key: string]: unknown }) => string;
-    resolveOcrGpuPackageIndexUrl: (options?: {
-      [key: string]: unknown;
-    }) => string;
-    resolveOcrPipInstallBatches: (options?: {
-      [key: string]: unknown;
-    }) => string[][];
-    resolvePaddleOcrImportCheckTimeoutMs: (options?: {
-      [key: string]: unknown;
-    }) => number;
-    resolveFfmpegPath: (options: { [key: string]: unknown }) => string;
-    resolveLlamaCppCacheDir: (options?: {
-      [key: string]: unknown;
-    }) => string | null;
-    resolveOcrBboxTimeoutMs: (pageCount?: number) => number;
-    resolveOcrInstallBatchProgressRanges: (
-      batches: string[][],
-      start: number,
-      end: number,
-    ) => Array<{ start: number; end: number }>;
-    resolveManagedHfFilePath: (
-      options: { [key: string]: unknown },
-      repo: string,
-      file: string,
-    ) => string | null;
-  };
-const runtimeDefaults =
-  require("../src/main/runtime/simple-page-defaults.cjs") as {
-    DEFAULT_MODEL_HF: string;
-    DEFAULT_HF_FILE: string;
-    DEFAULT_MMPROJ_HF: string;
-    DEFAULT_MMPROJ_FILE: string;
-  };
-const llamaRuntimeResolver =
-  require("../src/main/runtime/resolve-llama-runtime.cjs") as {
-    bundledServerCandidates: (toolsDir: string) => string[];
-    resolveBundledServerPath: (toolsDir: string) => string;
-  };
-const {
-  buildLaunchArgs,
-  buildMessages,
-  buildOcrRuntimeEnv,
+  BEELLAMA_LLAMA_RUNTIME_CUDA13,
+  DEFAULT_26B_FILE,
+  DEFAULT_26B_REPO,
+  DEFAULT_31B_FILE,
+  DEFAULT_31B_REPO,
+  DEFAULT_MMPROJ_FILE,
+  DEFAULT_MMPROJ_REPO,
+  LLAMA_RUNTIME_FILES,
+  MAINLINE_LLAMA_RUNTIME_CUDA13,
   buildLlamaServerEnv,
+  buildOcrRuntimeEnv,
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
-  buildResponsesRequestBody,
   collectOcrBboxHints,
-  collectRequiredHfDownloads,
   collectRequiredPaddleOcrModelDownloads,
-  getOverlayPrompt,
-  extractModelOutputText,
-  inspectModelLaunch,
-  isModelCached,
+  createTempDir,
   parseOcrBatchProgressLine,
   parsePaddleModelFetchProgress,
   parsePipRawProgress,
-  resolveOcrInstallBatchProgressRanges,
-  resolveManagedHfFilePath,
-  resolveOcrBboxTimeoutMs,
+  requestTranslation,
+  resolveBundledServerPath,
   resolveFfmpegPath,
   resolveLlamaCppCacheDir,
-  parseResponsesSseText,
-  requestTranslation,
+  resolveOcrBboxTimeoutMs,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
+  resolveOcrInstallBatchProgressRanges,
   resolveOcrPipInstallBatches,
   resolvePaddleOcrImportCheckTimeoutMs,
-} = runtimeHelpers;
-const { bundledServerCandidates, resolveBundledServerPath } =
-  llamaRuntimeResolver;
+  restoreEnv,
+  runtimeDefaults,
+  shouldExtractLlamaRuntimeFile,
+  withOcrBatchPipelineStubs,
+  bundledServerCandidates,
+} from "./helpers/runtimeModelContracts";
 
-const tempDirs: string[] = [];
-const DEFAULT_31B_REPO = DEFAULT_GEMMA_MODEL_REPO;
-const DEFAULT_31B_FILE = DEFAULT_GEMMA_MODEL_FILE;
-const DEFAULT_MMPROJ_REPO = DEFAULT_GEMMA_MMPROJ_REPO;
-const DEFAULT_MMPROJ_FILE = DEFAULT_GEMMA_MMPROJ_FILE;
-const DEFAULT_DRAFT_REPO = DEFAULT_GEMMA_DRAFT_MODEL_REPO;
-const DEFAULT_DRAFT_FILE = DEFAULT_GEMMA_DRAFT_MODEL_FILE;
-const DEFAULT_12B_REPO = GEMMA_12B_MODEL_REPO;
-const DEFAULT_12B_FILE = GEMMA_12B_MODEL_FILE_Q4_K_M;
-const DEFAULT_12B_MMPROJ_REPO = GEMMA_12B_MMPROJ_REPO;
-const DEFAULT_12B_MMPROJ_FILE = GEMMA_12B_MMPROJ_FILE;
-const DEFAULT_26B_REPO = GEMMA_26B_MODEL_REPO;
-const DEFAULT_26B_FILE = GEMMA_26B_MODEL_FILE_IQ3_S;
-const DEFAULT_26B_MMPROJ_REPO = GEMMA_26B_MMPROJ_REPO;
-const DEFAULT_26B_MMPROJ_FILE = GEMMA_26B_MMPROJ_FILE;
-
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-function createTempDir(prefix: string): string {
-  const dir = mkdtempSync(join(tmpdir(), prefix));
-  tempDirs.push(dir);
-  return dir;
-}
-
-function restoreEnv(name: string, value: string | undefined): void {
-  if (value === undefined) {
-    delete process.env[name];
-    return;
-  }
-  process.env[name] = value;
-}
-
-function writeCachedAssets({
-  hubCacheDir,
-  repoId,
-  snapshot,
-  modelFile,
-  includeMmproj = true,
-}: {
-  hubCacheDir: string;
-  repoId: string;
-  snapshot: string;
-  modelFile: string;
-  includeMmproj?: boolean;
-}): string {
-  const snapshotDir = join(
-    hubCacheDir,
-    `models--${repoId.replace(/\//g, "--")}`,
-    "snapshots",
-    snapshot,
-  );
-  mkdirSync(snapshotDir, { recursive: true });
-  writeFileSync(join(snapshotDir, modelFile), "model");
-  if (includeMmproj) {
-    writeFileSync(join(snapshotDir, "mmproj-BF16.gguf"), "mmproj");
-  }
-  return snapshotDir;
-}
-
-describe("runtime model launch helpers", () => {
+describe("runtime model support helpers", () => {
   it("keeps CJS runtime model defaults aligned with shared model presets", () => {
     expect(runtimeDefaults.DEFAULT_MODEL_HF).toBe(DEFAULT_31B_REPO);
     expect(runtimeDefaults.DEFAULT_HF_FILE).toBe(DEFAULT_31B_FILE);
@@ -826,100 +560,147 @@ describe("runtime model launch helpers", () => {
     );
   });
 
-  it("streams OCR batch progress without inheriting the first page index during runtime setup", () => {
-    const runtimeSource = readFileSync(
-      join(
-        __dirname,
-        "..",
-        "src",
-        "main",
-        "runtime",
-        "simple-page-ocr-bbox-pipeline.cjs",
-      ),
-      "utf8",
-    );
-    const shellUtilsSource = readFileSync(
-      join(
-        __dirname,
-        "..",
-        "src",
-        "main",
-        "runtime",
-        "simple-page-shell-utils.cjs",
-      ),
-      "utf8",
-    );
-    const paddleSource = readFileSync(
-      join(__dirname, "..", "src", "main", "runtime", "paddleocr-vl-bboxes.py"),
-      "utf8",
+  it("streams OCR batch progress without inheriting the first page index during runtime setup", async () => {
+    const outputDir = createTempDir("ocr-batch-progress-");
+    const progressEvents: Array<Record<string, unknown>> = [];
+    const runtimeSetupOptions: Array<Record<string, unknown>> = [];
+    let observedBatchPath = "";
+
+    await withOcrBatchPipelineStubs(
+      {
+        ensurePaddleOcrRuntime(options) {
+          runtimeSetupOptions.push({ ...options });
+          return {
+            pythonPath: "python",
+            runtimeDir: join(outputDir, "runtime"),
+            prepared: true,
+            diagnostics: [],
+          };
+        },
+        buildOcrBboxBatchCommand(_options, batchPath) {
+          observedBatchPath = batchPath;
+          return "ocr-batch-command";
+        },
+        async runShellCommand(_command, options) {
+          options.onOutput?.(
+            JSON.stringify({ phase: "start", index: 1, total: 2, count: 0 }),
+          );
+          const batch = JSON.parse(readFileSync(observedBatchPath, "utf8")) as {
+            items: Array<{ output: string }>;
+          };
+          for (const [index, item] of batch.items.entries()) {
+            writeFileSync(
+              item.output,
+              JSON.stringify([
+                {
+                  label: "text",
+                  bbox: [10 + index, 20, 40 + index, 60],
+                  text: "日本語",
+                },
+              ]),
+              "utf8",
+            );
+          }
+          options.onOutput?.(
+            JSON.stringify({ phase: "done", index: 1, total: 2, count: 1 }),
+          );
+          return { stdout: "", stderr: "" };
+        },
+      },
+      async ({ collectOcrBboxHintsBatch }) => {
+        const results = await collectOcrBboxHintsBatch([
+          {
+            imagePath: join(outputDir, "page-1.png"),
+            outputDir,
+            imageWidth: 100,
+            imageHeight: 100,
+            ocrBboxProvider: "paddleocr-vl",
+            ocrPageIndex: 7,
+            ocrPageTotal: 9,
+            ocrBatchCompletedBefore: 6,
+            ocrBatchTotal: 9,
+            onProgress: (event: Record<string, unknown>) => {
+              progressEvents.push(event);
+            },
+          },
+          {
+            imagePath: join(outputDir, "page-2.png"),
+            outputDir,
+            imageWidth: 100,
+            imageHeight: 100,
+            ocrBboxProvider: "paddleocr-vl",
+            ocrPageIndex: 8,
+            ocrPageTotal: 9,
+            onProgress: (event: Record<string, unknown>) => {
+              progressEvents.push(event);
+            },
+          },
+        ]);
+
+        expect(results).toHaveLength(2);
+        expect(results[0]?.hints).toHaveLength(1);
+      },
     );
 
-    expect(runtimeSource).toContain(
-      "const batchOptions = withoutPageProgressOptions(firstOptions)",
+    expect(runtimeSetupOptions).toHaveLength(1);
+    expect(runtimeSetupOptions[0]).not.toHaveProperty("ocrPageIndex");
+    expect(runtimeSetupOptions[0]).not.toHaveProperty("ocrPageTotal");
+    expect(runtimeSetupOptions[0]).not.toHaveProperty("pageIndex");
+    expect(runtimeSetupOptions[0]).not.toHaveProperty("pageTotal");
+    expect(progressEvents[0]).toMatchObject({
+      phase: "ocr_running",
+      progressText: "Paddle OCR 배치 위치 분석 중",
+      pageIndex: null,
+      pageTotal: null,
+      progressCurrent: 6,
+      progressTotal: 9,
+    });
+    expect(progressEvents).toContainEqual(
+      expect.objectContaining({
+        phase: "ocr_running",
+        progressText: "7 / 9 페이지 Paddle OCR 분석 중",
+        pageIndex: 7,
+        pageTotal: 9,
+        progressCurrent: 6,
+        progressTotal: 9,
+      }),
     );
-    expect(runtimeSource).toContain(
-      "await ensurePaddleOcrRuntime(batchOptions)",
+    expect(progressEvents).toContainEqual(
+      expect.objectContaining({
+        progressText: "7 / 9 페이지 Paddle OCR 분석 중",
+        detail: "1개 후보",
+        progressCurrent: 7,
+      }),
     );
-    expectSourceToContain(
-      runtimeSource,
-      'emitRuntimeProgress(batchOptions, "ocr_running"',
-    );
-    expect(shellUtilsSource).toContain(
-      "createCommandOutputLineEmitter(onOutput)",
-    );
-    expect(shellUtilsSource).toContain("stdoutLines.write(chunk)");
-    expect(paddleSource).toContain("flush=True");
   });
 
   it("keeps the CUDA 13 llama-server implementation DLL in the managed runtime", () => {
-    const modelAssetsSource = readFileSync(
-      join(
-        __dirname,
-        "..",
-        "src",
-        "main",
-        "runtime",
-        "simple-page-model-assets.cjs",
-      ),
-      "utf8",
-    );
-    const runtimeProfilesSource = readFileSync(
-      join(
-        __dirname,
-        "..",
-        "src",
-        "main",
-        "runtime",
-        "simple-page-llama-runtimes.cjs",
-      ),
-      "utf8",
-    );
-    const mainlineCuda13Profile =
-      runtimeProfilesSource.match(
-        /const MAINLINE_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/,
-      )?.[0] ?? "";
-    const beellamaCuda13Profile =
-      runtimeProfilesSource.match(
-        /const BEELLAMA_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/,
-      )?.[0] ?? "";
+    const flattenRequiredFiles = (files: Array<string | string[]>): string[] =>
+      files.flatMap((file) => (Array.isArray(file) ? file : file));
 
-    expect(mainlineCuda13Profile).toContain('"llama-b9547-cuda13.3"');
-    expect(mainlineCuda13Profile).toContain('"llama-server-impl.dll"');
-    expect(beellamaCuda13Profile).not.toContain('"llama-server-impl.dll"');
-    expectSourceToContain(
-      modelAssetsSource,
-      "function shouldExtractLlamaRuntimeFile(fileName",
-    );
-    expectSourceToContain(
-      modelAssetsSource,
-      "LLAMA_RUNTIME_FILES.has(fileName) || /\\.(?:dll|so|dylib)$/i.test",
-    );
-    expect(modelAssetsSource).toContain(
-      'normalizedRelativePath.startsWith("rocblas/")',
-    );
-    expect(modelAssetsSource).toContain(
-      'normalizedRelativePath.startsWith("hipblaslt/")',
-    );
+    expect(MAINLINE_LLAMA_RUNTIME_CUDA13.id).toBe("llama-b9547-cuda13.3");
+    expect(
+      flattenRequiredFiles(MAINLINE_LLAMA_RUNTIME_CUDA13.requiredFiles),
+    ).toContain("llama-server-impl.dll");
+    expect(
+      flattenRequiredFiles(BEELLAMA_LLAMA_RUNTIME_CUDA13.requiredFiles),
+    ).not.toContain("llama-server-impl.dll");
+    expect(LLAMA_RUNTIME_FILES.has("llama-server-impl.dll")).toBe(true);
+    expect(shouldExtractLlamaRuntimeFile("llama-server-impl.dll")).toBe(true);
+    expect(shouldExtractLlamaRuntimeFile("vendor-only.dll")).toBe(true);
+    expect(
+      shouldExtractLlamaRuntimeFile(
+        "TensileLibrary.dat",
+        "rocblas/library/TensileLibrary.dat",
+      ),
+    ).toBe(true);
+    expect(
+      shouldExtractLlamaRuntimeFile(
+        "hipblaslt.dat",
+        "hipblaslt/library/hipblaslt.dat",
+      ),
+    ).toBe(true);
+    expect(shouldExtractLlamaRuntimeFile("readme.txt")).toBe(false);
   });
 
   it("treats an explicitly empty OCR hint array as a completed OCR pass", async () => {
@@ -1030,1114 +811,5 @@ describe("runtime model launch helpers", () => {
     expect(ranges[0].end).toBeLessThan(0.39);
     expect(ranges[1].start).toBeCloseTo(ranges[0].end);
     expect(ranges[1].end).toBeCloseTo(0.86);
-  });
-
-  it("treats OpenAI Codex as a remote OAuth-backed endpoint", () => {
-    const launch = inspectModelLaunch({
-      modelProvider: "openai-codex",
-      codexModel: "gpt-5.5",
-      codexReasoningEffort: "high",
-    });
-
-    expect(launch).toEqual({
-      launchMode: "openai-codex",
-      model: "gpt-5.5",
-      reasoningEffort: "high",
-      requiresDownload: false,
-    });
-    expect(isModelCached({ modelProvider: "openai-codex" })).toBe(true);
-  });
-
-  it("builds Codex Responses requests with input_image data URLs", () => {
-    const requestBody = buildResponsesRequestBody(
-      {
-        modelProvider: "openai-codex",
-        codexModel: "gpt-5.5",
-        codexReasoningEffort: "xhigh",
-        imageWidth: 836,
-        imageHeight: 1188,
-      },
-      [
-        {
-          role: "openai-vision",
-          dataUrl: "data:image/png;base64,abc123",
-          width: 836,
-          height: 1188,
-          originalWidth: 836,
-          originalHeight: 1188,
-        },
-      ],
-    );
-
-    expect(requestBody.model).toBe("gpt-5.5");
-    expect(requestBody.reasoning.effort).toBe("xhigh");
-    expect(requestBody.stream).toBe(true);
-    expect(requestBody.store).toBe(false);
-    expect(
-      requestBody.input[0]?.content.some(
-        (part) =>
-          part.type === "input_image" &&
-          part.image_url === "data:image/png;base64,abc123" &&
-          part.detail === "original",
-      ),
-    ).toBe(true);
-    expect(requestBody.input[0]?.content[0]).toMatchObject({
-      type: "input_image",
-      image_url: "data:image/png;base64,abc123",
-    });
-    expect(requestBody.input[0]?.content[1]).toMatchObject({
-      type: "input_text",
-    });
-    expect(requestBody).not.toHaveProperty("max_tokens");
-  });
-
-  it("uses tight Japanese glyph bbox instructions for Codex Responses requests", () => {
-    const requestBody = buildResponsesRequestBody(
-      {
-        modelProvider: "openai-codex",
-        codexModel: "gpt-5.5",
-        codexReasoningEffort: "medium",
-        imageWidth: 7680,
-        imageHeight: 4320,
-      },
-      [
-        {
-          role: "openai-vision",
-          dataUrl: "data:image/png;base64,abc123",
-          width: 4256,
-          height: 2400,
-          originalWidth: 7680,
-          originalHeight: 4320,
-        },
-      ],
-    );
-    const promptText =
-      requestBody.input[0]?.content.find(
-        (part) => part.type === "input_text" && part.text?.includes("# Task"),
-      )?.text ?? "";
-    const imageDescription =
-      requestBody.input[0]?.content.find(
-        (part) => part.type === "input_text" && part.text?.includes("Image 1:"),
-      )?.text ?? "";
-
-    expect(requestBody.instructions).toContain(
-      "Geometry accuracy comes before Korean text fit",
-    );
-    expect(requestBody.instructions).toContain(
-      "Never merge separate speech bubbles, including touching or stacked balloon lobes.",
-    );
-    expect(promptText).toContain("Detect every visible Japanese text group");
-    expect(promptText).toContain(
-      "You are given one full-page Japanese manga image.",
-    );
-    expect(promptText).toContain(
-      "fontSize is the apparent Japanese glyph size in Image 1 pixels",
-    );
-    expect(promptText).toContain(
-      "x1, y1, x2, y2 describe the tight rectangle corners of the visible Japanese glyph ink and its outline.",
-    );
-    expect(promptText).toContain("Each speech bubble is one dialogue item.");
-    expect(promptText).toContain(
-      "If two white balloon lobes touch, overlap, stack vertically, or connect through a narrow neck",
-    );
-    expect(promptText).toContain(
-      "Never enlarge, shift, or reshape the rectangle",
-    );
-    expect(promptText).toContain("The original page is 7680x4320 px.");
-    expect(promptText).toContain(
-      "Image 1 was prepared before the API call to match the OpenAI detail: original vision frame",
-    );
-    expect(promptText).toContain(
-      "Return x1, y1, x2, y2 as integer pixel coordinates in that 4256x2400 Image 1 frame.",
-    );
-    expect(
-      requestBody.input[0]?.content.find(
-        (part) => part.type === "input_text" && part.text?.includes("# Task"),
-      )?.text,
-    ).not.toContain("Return x, y, w, h as normalized 0..1000");
-    expect(imageDescription).toContain(
-      "prepared for OpenAI detail: original vision",
-    );
-    expect(promptText).toContain(
-      "Do not return width/height, original-page pixels, normalized 0..1000 coordinates, viewport coordinates, crop coordinates, tile coordinates, or model-internal coordinates.",
-    );
-  });
-
-  it("uses OCR bbox candidates as single-pass geometry hints", () => {
-    const options = {
-      modelProvider: "openai-codex",
-      imageWidth: 836,
-      imageHeight: 1188,
-      ocrBboxHints: [
-        {
-          id: 1,
-          label: "text",
-          x1: 67,
-          y1: 589,
-          x2: 267,
-          y2: 760,
-          ocrText: "いえ…資金はこちらも",
-        },
-        {
-          id: 2,
-          label: "text",
-          x1: 83,
-          y1: 767,
-          x2: 239,
-          y2: 1029,
-          ocrText: "モリーダ村に支店を置く",
-        },
-      ],
-    };
-    const variants = [
-      {
-        role: "openai-vision",
-        dataUrl: "data:image/png;base64,abc123",
-        width: 836,
-        height: 1188,
-        originalWidth: 836,
-        originalHeight: 1188,
-      },
-    ];
-    const prompt = getOverlayPrompt(options, variants);
-
-    expect(prompt).toContain("# OCR bbox candidates");
-    expect(prompt).toContain("low-trust OCR text hints for slot matching only");
-    expect(prompt).toContain("Use Image 1 as the authority");
-    expect(prompt).toContain("Treat each candidate as a locked geometry slot.");
-    expect(prompt).toContain("Required candidate ids: 1, 2.");
-    expect(prompt).toContain(
-      'candidate 1: label:text x1:67 y1:589 x2:267 y2:760 ocrText:"いえ…資金はこちらも"',
-    );
-    expect(prompt).toContain(
-      'candidate 2: label:text x1:83 y1:767 x2:239 y2:1029 ocrText:"モリーダ村に支店を置く"',
-    );
-    expect(prompt).toContain("Do not merge two candidates into one record");
-    expect(prompt).toContain("add a new record with id greater than 2");
-    expect(prompt).not.toContain("Find one anchor point");
-  });
-
-  it("adds soft semantic group hints for split OCR fragments without merging geometry slots", async () => {
-    const dir = createTempDir("ocr-group-hints-");
-    const hintPath = join(dir, "hints.json");
-    writeFileSync(
-      hintPath,
-      JSON.stringify({
-        source: "paddleocr-vl",
-        coordinateSpace: "pixels",
-        width: 1200,
-        height: 1600,
-        items: [
-          {
-            label: "vertical_text",
-            bbox: [900, 40, 960, 270],
-            content: "あ～れ～",
-          },
-          {
-            label: "vertical_text",
-            bbox: [120, 170, 250, 440],
-            content: "ま～し～た～！！",
-          },
-          {
-            label: "vertical_text",
-            bbox: [760, 700, 850, 900],
-            content: "漢字を含む通常文",
-          },
-        ],
-      }),
-      "utf8",
-    );
-
-    const result = await collectOcrBboxHints({
-      imageWidth: 1200,
-      imageHeight: 1600,
-      ocrBboxHintsPath: hintPath,
-    });
-    expect(result.hints[0]).toMatchObject({
-      groupId: "G001",
-      rolePrior: "ordinary_soft",
-      orderInGroup: 1,
-    });
-    expect(result.hints[1]).toMatchObject({
-      groupId: "G001",
-      rolePrior: "ordinary_soft",
-      orderInGroup: 2,
-    });
-    expect(result.hints[2]?.groupId).toBeUndefined();
-
-    const prompt = getOverlayPrompt(
-      {
-        modelProvider: "gemma",
-        imageWidth: 1200,
-        imageHeight: 1600,
-        ocrBboxHints: result.hints,
-      },
-      [
-        {
-          role: "original",
-          dataUrl: "data:image/png;base64,abc123",
-          width: 1200,
-          height: 1600,
-          originalWidth: 1200,
-          originalHeight: 1600,
-        },
-      ],
-    );
-
-    expect(prompt).toContain("Group context hints:");
-    expect(prompt).toContain(
-      "group G001: rolePrior:ordinary_soft containerType:possible_continuing_text candidateIds:[1,2] readingOrder:[1,2]",
-    );
-    expect(prompt).toContain(
-      "Even inside a group, keep one output record per candidate id",
-    );
-    expect(prompt).toContain(
-      'candidate 1: label:vertical_text x1:750 y1:25 x2:800 y2:169 group:G001 orderInGroup:1 rolePrior:ordinary_soft ocrText:"あ～れ～"',
-    );
-    expect(prompt).toContain(
-      'candidate 2: label:vertical_text x1:100 y1:106 x2:208 y2:275 group:G001 orderInGroup:2 rolePrior:ordinary_soft ocrText:"ま～し～た～！！"',
-    );
-  });
-
-  it("uses container-level grouping for selected-region crop translation", () => {
-    const prompt = getOverlayPrompt(
-      {
-        regionCropMode: true,
-        skipOcrBboxHints: true,
-        imageWidth: 420,
-        imageHeight: 320,
-      },
-      [
-        {
-          role: "original",
-          dataUrl: "data:image/png;base64,abc123",
-          width: 420,
-          height: 320,
-          originalWidth: 420,
-          originalHeight: 320,
-        },
-      ],
-    );
-
-    expect(prompt).toContain(
-      "You are given one user-selected crop from a Japanese manga page.",
-    );
-    expect(prompt).toContain("# Selected region grouping");
-    expect(prompt).toContain("Do not treat the whole crop as one text item.");
-    expect(prompt).toContain(
-      "If the crop contains one speech bubble or one caption plate, output exactly one record",
-    );
-    expect(prompt).toContain(
-      "Inside one speech bubble, never split by Japanese vertical column, text line, word, sentence fragment, punctuation gap, or line break.",
-    );
-    expect(prompt).toContain(
-      "jp must include all columns in natural Japanese reading order",
-    );
-  });
-
-  it("normalizes bbox hint JSON with low-trust OCR text", async () => {
-    const dir = createTempDir("ocr-hints-");
-    const hintPath = join(dir, "hints.json");
-    writeFileSync(
-      hintPath,
-      JSON.stringify({
-        source: "paddleocr-vl",
-        coordinateSpace: "pixels",
-        width: 836,
-        height: 1188,
-        items: [
-          { label: "text", bbox: [67, 589, 267, 760], content: "いえ…" },
-          { label: "image", bbox: [0, 0, 100, 100], content: "ignored" },
-        ],
-      }),
-      "utf8",
-    );
-
-    const result = await collectOcrBboxHints({
-      imageWidth: 836,
-      imageHeight: 1188,
-      ocrBboxHintsPath: hintPath,
-    });
-
-    expect(result.hints).toHaveLength(1);
-    expect(result.hints[0]).toMatchObject({
-      x1: 67,
-      y1: 589,
-      x2: 267,
-      y2: 760,
-      ocrText: "いえ…",
-    });
-  });
-
-  it("uses the same tight Japanese glyph bbox prompt for Gemma chat requests", () => {
-    const messages = buildMessages(
-      {
-        modelProvider: "gemma",
-        imageWidth: 836,
-        imageHeight: 1188,
-      },
-      [{ role: "original", dataUrl: "data:image/png;base64,abc123" }],
-    );
-    const systemText =
-      messages[0]?.content.find((part) => part.type === "text")?.text ?? "";
-    const userPrompt =
-      messages[1]?.content.find(
-        (part) => part.type === "text" && part.text?.includes("# Task"),
-      )?.text ?? "";
-
-    expect(systemText).toContain(
-      "Geometry accuracy comes before Korean text fit",
-    );
-    expect(messages[1]?.content[0]).toMatchObject({ type: "image_url" });
-    expect(messages[1]?.content[1]).toMatchObject({ type: "text" });
-    expect(userPrompt).toContain("Detect every visible Japanese text group");
-    expect(userPrompt).toContain("Return x1, y1, x2, y2 as normalized 0..1000");
-    expect(userPrompt).toContain("direction, angle, fontSize");
-    expect(userPrompt).toContain(
-      "For SFX, box only the sound-effect glyph strokes",
-    );
-    expect(userPrompt).not.toContain(
-      "speech bubble, narration box, name call, or sound-effect block",
-    );
-  });
-
-  it("extracts text from Responses API output payloads", () => {
-    expect(
-      extractModelOutputText({
-        output: [
-          {
-            type: "message",
-            content: [
-              {
-                type: "output_text",
-                text: "id: 1\nko: 테스트",
-              },
-            ],
-          },
-        ],
-      }),
-    ).toBe("id: 1\nko: 테스트");
-  });
-
-  it("collects Responses API streaming text deltas", () => {
-    const parsed = parseResponsesSseText(
-      [
-        "event: response.output_text.delta",
-        'data: {"type":"response.output_text.delta","delta":"id: 1"}',
-        "",
-        "event: response.output_text.delta",
-        'data: {"type":"response.output_text.delta","delta":"\\nko: 테스트"}',
-        "",
-        "event: response.completed",
-        'data: {"type":"response.completed","response":{"id":"resp_1","output":[]}}',
-        "",
-        "data: [DONE]",
-        "",
-      ].join("\n"),
-    );
-
-    expect(parsed.outputText).toBe("id: 1\nko: 테스트");
-    expect(parsed.eventCount).toBe(3);
-  });
-
-  it("launches an explicitly configured local GGUF without Hugging Face flags", () => {
-    const localDir = createTempDir("local-model-");
-    const modelPath = join(localDir, "custom-vision-model.gguf");
-    const mmprojPath = join(localDir, "mmproj-BF16.gguf");
-    writeFileSync(modelPath, "model");
-    writeFileSync(mmprojPath, "mmproj");
-
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 4096,
-      ctx: 16384,
-      batch: 32,
-      ubatch: 32,
-      modelSource: "local",
-      localModelPath: modelPath,
-      localMmprojPath: mmprojPath,
-    });
-
-    expect(args).toContain("-m");
-    expect(args).toContain(modelPath);
-    expect(args).toContain("--mmproj");
-    expect(args).toContain(mmprojPath);
-    expect(args).toContain("--no-mmproj-offload");
-    expect(args).not.toContain("--mmproj-offload");
-    expect(args).toContain("--no-warmup");
-    expect(args).not.toContain("--n-cpu-moe");
-    expect(args).not.toContain("--chat-template-kwargs");
-    expect(
-      args.slice(
-        args.indexOf("--repeat-penalty"),
-        args.indexOf("--repeat-penalty") + 2,
-      ),
-    ).toEqual(["--repeat-penalty", "1.08"]);
-    expect(args).not.toContain("-hf");
-    expect(args).not.toContain("-hff");
-    expect(
-      isModelCached({ modelSource: "local", localModelPath: modelPath }),
-    ).toBe(true);
-  });
-
-  it("passes VRAM economy cache options to llama-server without clipping image tokens", () => {
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 1024,
-      ctx: 8192,
-      batch: 1024,
-      ubatch: 1024,
-      cacheTypeK: "q4_0",
-      cacheTypeV: "q4_0",
-      ctxCheckpoints: 0,
-      kvOffload: true,
-      mmprojOffload: false,
-      enableMetrics: true,
-      enablePerf: true,
-      imageMinTokens: 1024,
-      imageMaxTokens: 1024,
-      modelRepo: DEFAULT_31B_REPO,
-      modelFile: DEFAULT_31B_FILE,
-      mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE,
-    });
-
-    expect(
-      args.slice(
-        args.indexOf("--cache-type-k"),
-        args.indexOf("--cache-type-k") + 2,
-      ),
-    ).toEqual(["--cache-type-k", "q4_0"]);
-    expect(
-      args.slice(
-        args.indexOf("--cache-type-v"),
-        args.indexOf("--cache-type-v") + 2,
-      ),
-    ).toEqual(["--cache-type-v", "q4_0"]);
-    expect(
-      args.slice(
-        args.indexOf("--ctx-checkpoints"),
-        args.indexOf("--ctx-checkpoints") + 2,
-      ),
-    ).toEqual(["--ctx-checkpoints", "0"]);
-    expect(args).toContain("--no-mmproj-offload");
-    expect(args).toContain("--metrics");
-    expect(args).toContain("--perf");
-    expect(args).toContain("--kv-offload");
-    expect(args).toContain("--kv-unified");
-    expect(args).toContain("--jinja");
-    expect(args).toContain("--no-mmap");
-    expect(args).toContain("--mlock");
-    expect(args).toContain("--no-host");
-    expect(args).not.toContain("--no-kv-offload");
-    expect(args).not.toContain("--fit");
-    expect(args).not.toContain("--no-cache-prompt");
-    expect(args).not.toContain("--no-warmup");
-    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
-      "-ngl",
-      "all",
-    ]);
-    expect(args.slice(args.indexOf("-b"), args.indexOf("-b") + 2)).toEqual([
-      "-b",
-      "1024",
-    ]);
-    expect(args.slice(args.indexOf("-ub"), args.indexOf("-ub") + 2)).toEqual([
-      "-ub",
-      "1024",
-    ]);
-    expect(
-      args.slice(
-        args.indexOf("--image-min-tokens"),
-        args.indexOf("--image-min-tokens") + 2,
-      ),
-    ).toEqual(["--image-min-tokens", "1024"]);
-    expect(
-      args.slice(
-        args.indexOf("--image-max-tokens"),
-        args.indexOf("--image-max-tokens") + 2,
-      ),
-    ).toEqual(["--image-max-tokens", "1024"]);
-    expect(
-      args.slice(args.indexOf("--temp"), args.indexOf("--temp") + 2),
-    ).toEqual(["--temp", "0.2"]);
-    expect(
-      args.slice(args.indexOf("--top-k"), args.indexOf("--top-k") + 2),
-    ).toEqual(["--top-k", "64"]);
-    expect(
-      args.slice(args.indexOf("--top-p"), args.indexOf("--top-p") + 2),
-    ).toEqual(["--top-p", "0.95"]);
-    expect(
-      args.slice(args.indexOf("--min-p"), args.indexOf("--min-p") + 2),
-    ).toEqual(["--min-p", "0.0"]);
-  });
-
-  it("passes economy performance tuning launch options when explicitly configured", () => {
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 1024,
-      ctx: 8192,
-      batch: 1024,
-      ubatch: 1024,
-      cacheTypeK: "q4_0",
-      cacheTypeV: "q4_0",
-      threadsBatch: 16,
-      poll: 100,
-      pollBatch: true,
-      prioBatch: 2,
-      cacheIdleSlots: false,
-      cacheReuse: 128,
-      enableMetrics: true,
-      enablePerf: false,
-      modelRepo: DEFAULT_31B_REPO,
-      modelFile: DEFAULT_31B_FILE,
-      mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE,
-    });
-
-    expect(
-      args.slice(
-        args.indexOf("--threads-batch"),
-        args.indexOf("--threads-batch") + 2,
-      ),
-    ).toEqual(["--threads-batch", "16"]);
-    expect(
-      args.slice(args.indexOf("--poll"), args.indexOf("--poll") + 2),
-    ).toEqual(["--poll", "100"]);
-    expect(
-      args.slice(
-        args.indexOf("--poll-batch"),
-        args.indexOf("--poll-batch") + 2,
-      ),
-    ).toEqual(["--poll-batch", "1"]);
-    expect(
-      args.slice(
-        args.indexOf("--prio-batch"),
-        args.indexOf("--prio-batch") + 2,
-      ),
-    ).toEqual(["--prio-batch", "2"]);
-    expect(args).toContain("--no-cache-idle-slots");
-    expect(
-      args.slice(
-        args.indexOf("--cache-reuse"),
-        args.indexOf("--cache-reuse") + 2,
-      ),
-    ).toEqual(["--cache-reuse", "128"]);
-    expect(args).toContain("--metrics");
-    expect(args).toContain("--no-perf");
-  });
-
-  it("launches the 26B economy preset on mainline llama instead of beellama-only flags", () => {
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 2048,
-      ctx: 8192,
-      batch: 1024,
-      ubatch: 1024,
-      cacheTypeK: "q4_0",
-      cacheTypeV: "q4_0",
-      ctxCheckpoints: 0,
-      kvOffload: true,
-      mmprojOffload: true,
-      gpuLayers: "fit",
-      enableMetrics: true,
-      enablePerf: true,
-      imageMinTokens: 1024,
-      imageMaxTokens: 1024,
-      modelRepo: DEFAULT_26B_REPO,
-      modelFile: DEFAULT_26B_FILE,
-      mmprojRepo: DEFAULT_26B_MMPROJ_REPO,
-      mmprojFile: DEFAULT_26B_MMPROJ_FILE,
-    });
-
-    expect(args).toContain("--fit");
-    expect(
-      args.slice(
-        args.indexOf("--fit-target"),
-        args.indexOf("--fit-target") + 2,
-      ),
-    ).toEqual(["--fit-target", "2048"]);
-    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
-      "-ngl",
-      "auto",
-    ]);
-    expect(args).toContain("--no-cache-prompt");
-    expect(args).toContain("--no-warmup");
-    expect(args).toContain("--mmproj-offload");
-    expect(args).not.toContain("--kv-unified");
-    expect(args).not.toContain("--jinja");
-    expect(args).not.toContain("--no-mmap");
-    expect(args).not.toContain("--mlock");
-    expect(args).not.toContain("--no-host");
-  });
-
-  it("launches the 12B minimum preset on mainline llama instead of beellama-only flags", () => {
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 2048,
-      ctx: 8192,
-      batch: 1024,
-      ubatch: 1024,
-      cacheTypeK: "q4_0",
-      cacheTypeV: "q4_0",
-      ctxCheckpoints: 0,
-      kvOffload: true,
-      mmprojOffload: true,
-      gpuLayers: "fit",
-      enableMetrics: true,
-      enablePerf: true,
-      imageMinTokens: 1024,
-      imageMaxTokens: 1024,
-      modelRepo: DEFAULT_12B_REPO,
-      modelFile: DEFAULT_12B_FILE,
-      mmprojRepo: DEFAULT_12B_MMPROJ_REPO,
-      mmprojFile: DEFAULT_12B_MMPROJ_FILE,
-    });
-
-    expect(args).toContain("--fit");
-    expect(
-      args.slice(
-        args.indexOf("--fit-target"),
-        args.indexOf("--fit-target") + 2,
-      ),
-    ).toEqual(["--fit-target", "2048"]);
-    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
-      "-ngl",
-      "auto",
-    ]);
-    expect(args).toContain("--no-cache-prompt");
-    expect(args).toContain("--no-warmup");
-    expect(args).toContain("--mmproj-offload");
-    expect(args).not.toContain("--kv-unified");
-    expect(args).not.toContain("--jinja");
-    expect(args).not.toContain("--no-mmap");
-    expect(args).not.toContain("--mlock");
-    expect(args).not.toContain("--no-host");
-  });
-
-  it("passes the full VRAM smoke DFlash draft options to llama-server", () => {
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 4096,
-      ctx: 16384,
-      batch: 2048,
-      ubatch: 1536,
-      cacheTypeK: "q4_0",
-      cacheTypeV: "q4_0",
-      ctxCheckpoints: 0,
-      mmprojOffload: false,
-      enableMetrics: true,
-      enablePerf: true,
-      useDraft: true,
-      draftModelRepo: DEFAULT_DRAFT_REPO,
-      draftModelFile: DEFAULT_DRAFT_FILE,
-      imageMinTokens: 1024,
-      imageMaxTokens: 1024,
-      modelRepo: DEFAULT_31B_REPO,
-      modelFile: DEFAULT_31B_FILE,
-      mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE,
-    });
-
-    expect(args).toContain("--no-mmproj-offload");
-    expect(args).toContain("--metrics");
-    expect(args).toContain("--perf");
-    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
-      "-ngl",
-      "all",
-    ]);
-    expect(args.slice(args.indexOf("-b"), args.indexOf("-b") + 2)).toEqual([
-      "-b",
-      "2048",
-    ]);
-    expect(args.slice(args.indexOf("-ub"), args.indexOf("-ub") + 2)).toEqual([
-      "-ub",
-      "1536",
-    ]);
-    expect(args.slice(args.indexOf("-np"), args.indexOf("-np") + 2)).toEqual([
-      "-np",
-      "1",
-    ]);
-    expect(
-      args.slice(
-        args.indexOf("--ctx-checkpoints"),
-        args.indexOf("--ctx-checkpoints") + 2,
-      ),
-    ).toEqual(["--ctx-checkpoints", "0"]);
-    const draftFlagIndex = args.findIndex(
-      (arg) => arg === "--spec-draft-hf" || arg === "--spec-draft-model",
-    );
-    expect(draftFlagIndex).toBeGreaterThanOrEqual(0);
-    expect(args[draftFlagIndex + 1]).toSatisfy(
-      (value: string) =>
-        value === `${DEFAULT_DRAFT_REPO}:IQ4_XS` ||
-        value.endsWith(DEFAULT_DRAFT_FILE),
-    );
-    expect(args).toContain("--spec-type");
-    expect(args).toContain("dflash");
-    expect(args).toContain("--spec-dflash-cross-ctx");
-    expect(args).toContain("--spec-draft-ngl");
-    expect(args).toContain("all");
-    expect(args).toContain("--spec-draft-n-max");
-    expect(args).toContain("16");
-    expect(args).toContain("--spec-branch-budget");
-    expect(args).toContain("0");
-    expect(args).toContain("--kv-unified");
-    expect(args).toContain("--jinja");
-    expect(args).toContain("--no-mmap");
-    expect(args).toContain("--mlock");
-    expect(args).toContain("--no-host");
-    expect(args).not.toContain("--n-cpu-moe");
-    expect(args).not.toContain("--chat-template-kwargs");
-  });
-
-  it("launches from app-managed HF cache files after direct download", () => {
-    const hubCacheDir = createTempDir("hf-managed-cache-");
-    const options = {
-      port: 18180,
-      fitTargetMb: 4096,
-      ctx: 16384,
-      batch: 2048,
-      ubatch: 1536,
-      useDraft: true,
-      modelRepo: DEFAULT_31B_REPO,
-      modelFile: DEFAULT_31B_FILE,
-      mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE,
-      draftModelRepo: DEFAULT_DRAFT_REPO,
-      draftModelFile: DEFAULT_DRAFT_FILE,
-      hfHubCacheDir: hubCacheDir,
-    };
-    const modelPath = resolveManagedHfFilePath(
-      options,
-      DEFAULT_31B_REPO,
-      DEFAULT_31B_FILE,
-    );
-    const mmprojPath = resolveManagedHfFilePath(
-      options,
-      DEFAULT_MMPROJ_REPO,
-      DEFAULT_MMPROJ_FILE,
-    );
-    const draftPath = resolveManagedHfFilePath(
-      options,
-      DEFAULT_DRAFT_REPO,
-      DEFAULT_DRAFT_FILE,
-    );
-    for (const filePath of [modelPath, mmprojPath, draftPath]) {
-      if (!filePath) {
-        throw new Error("managed path not resolved");
-      }
-      mkdirSync(join(filePath, ".."), { recursive: true });
-      writeFileSync(filePath, "cached");
-    }
-
-    const args = buildLaunchArgs(options);
-
-    expect(args).toContain("-m");
-    expect(args).toContain(modelPath);
-    expect(args).toContain("--mmproj");
-    expect(args).toContain(mmprojPath);
-    expect(args).toContain("--spec-draft-model");
-    expect(args).toContain(draftPath);
-    expect(args).not.toContain("-hf");
-    expect(args).not.toContain("-hff");
-    expect(args).not.toContain("--mmproj-url");
-    expect(args).not.toContain("--spec-draft-hf");
-    expect(isModelCached(options)).toBe(true);
-  });
-
-  it("collects only the HF files needed by the selected VRAM mode", () => {
-    const hubCacheDir = createTempDir("hf-download-plan-");
-    const llamaCacheDir = createTempDir("llama-download-plan-");
-    const baseOptions = {
-      modelRepo: DEFAULT_31B_REPO,
-      modelFile: DEFAULT_31B_FILE,
-      mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE,
-      draftModelRepo: DEFAULT_DRAFT_REPO,
-      draftModelFile: DEFAULT_DRAFT_FILE,
-      hfHubCacheDir: hubCacheDir,
-      llamaCacheDir,
-    };
-
-    expect(
-      collectRequiredHfDownloads({ ...baseOptions, useDraft: false }).map(
-        (task) => task.kind,
-      ),
-    ).toEqual(["model", "mmproj"]);
-    expect(
-      collectRequiredHfDownloads({ ...baseOptions, useDraft: true }).map(
-        (task) => task.kind,
-      ),
-    ).toEqual(["model", "mmproj", "draft"]);
-  });
-
-  it("can explicitly offload the multimodal projector to GPU for diagnostics", () => {
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 1024,
-      ctx: 8192,
-      batch: 512,
-      ubatch: 512,
-      mmprojOffload: true,
-      modelRepo: DEFAULT_31B_REPO,
-      modelFile: DEFAULT_31B_FILE,
-      mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE,
-    });
-
-    expect(args).toContain("--mmproj-offload");
-    expect(args).not.toContain("--no-mmproj-offload");
-  });
-
-  it("prefers sibling cached mmproj paths for custom cached HF models", () => {
-    const hubCacheDir = createTempDir("hf-cache-");
-    const modelFile = "custom-vision-model.gguf";
-    const repoId = "custom/vision-model";
-    const snapshotDir = writeCachedAssets({
-      hubCacheDir,
-      repoId,
-      snapshot: "snapshot-new",
-      modelFile,
-    });
-
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 4096,
-      ctx: 16384,
-      batch: 32,
-      ubatch: 32,
-      modelRepo: repoId,
-      modelFile,
-      hfHubCacheDir: hubCacheDir,
-    });
-
-    expect(args).toContain("-m");
-    expect(args).toContain(join(snapshotDir, modelFile));
-    expect(args).toContain("--mmproj");
-    expect(args).toContain(join(snapshotDir, "mmproj-BF16.gguf"));
-    expect(args).not.toContain("-hf");
-    expect(args).not.toContain("-hff");
-    expect(
-      isModelCached({
-        modelRepo: repoId,
-        modelFile,
-        hfHubCacheDir: hubCacheDir,
-      }),
-    ).toBe(true);
-  });
-
-  it("uses a cached HF model with mmproj-url when the separate mmproj is not cached yet", () => {
-    const hubCacheDir = createTempDir("hf-cache-");
-    const llamaCacheDir = createTempDir("llama-cache-empty-");
-    const modelFile = DEFAULT_31B_FILE;
-    const repoId = DEFAULT_31B_REPO;
-    const snapshotDir = writeCachedAssets({
-      hubCacheDir,
-      repoId,
-      snapshot: "snapshot-model-only",
-      modelFile,
-      includeMmproj: false,
-    });
-
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 4096,
-      ctx: 16384,
-      batch: 32,
-      ubatch: 32,
-      modelRepo: repoId,
-      modelFile,
-      mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE,
-      hfHubCacheDir: hubCacheDir,
-      llamaCacheDir,
-    });
-
-    expect(args).toContain("-m");
-    expect(args).toContain(join(snapshotDir, modelFile));
-    expect(args).toContain("--mmproj-url");
-    expect(args).toContain(
-      `https://huggingface.co/${DEFAULT_MMPROJ_REPO}/resolve/main/${encodeURIComponent(DEFAULT_MMPROJ_FILE)}`,
-    );
-    expect(args).not.toContain("-hf");
-    expect(args).not.toContain("-hff");
-    expect(
-      isModelCached({
-        modelRepo: repoId,
-        modelFile,
-        mmprojRepo: DEFAULT_MMPROJ_REPO,
-        mmprojFile: DEFAULT_MMPROJ_FILE,
-        hfHubCacheDir: hubCacheDir,
-        llamaCacheDir,
-      }),
-    ).toBe(false);
-  });
-
-  it("treats beellama's llama.cpp mmproj cache as already downloaded", () => {
-    const hubCacheDir = createTempDir("hf-cache-");
-    const llamaCacheDir = createTempDir("llama-cache-");
-    const modelFile = DEFAULT_31B_FILE;
-    const repoId = DEFAULT_31B_REPO;
-    const snapshotDir = writeCachedAssets({
-      hubCacheDir,
-      repoId,
-      snapshot: "snapshot-model-only",
-      modelFile,
-      includeMmproj: false,
-    });
-    const mmprojPath = join(llamaCacheDir, DEFAULT_MMPROJ_FILE);
-    writeFileSync(mmprojPath, "mmproj");
-
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 4096,
-      ctx: 16384,
-      batch: 32,
-      ubatch: 32,
-      modelRepo: repoId,
-      modelFile,
-      mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE,
-      hfHubCacheDir: hubCacheDir,
-      llamaCacheDir,
-    });
-
-    expect(args).toContain("-m");
-    expect(args).toContain(join(snapshotDir, modelFile));
-    expect(args).toContain("--mmproj");
-    expect(args).toContain(mmprojPath);
-    expect(args).not.toContain("--mmproj-url");
-    expect(
-      isModelCached({
-        modelRepo: repoId,
-        modelFile,
-        mmprojRepo: DEFAULT_MMPROJ_REPO,
-        mmprojFile: DEFAULT_MMPROJ_FILE,
-        hfHubCacheDir: hubCacheDir,
-        llamaCacheDir,
-      }),
-    ).toBe(true);
-  });
-
-  it("uses separate cached mmproj repo assets with cached HF model assets", () => {
-    const hubCacheDir = createTempDir("hf-cache-");
-    const modelFile = DEFAULT_31B_FILE;
-    const repoId = DEFAULT_31B_REPO;
-    const snapshotDir = writeCachedAssets({
-      hubCacheDir,
-      repoId,
-      snapshot: "snapshot-model",
-      modelFile,
-      includeMmproj: false,
-    });
-    const mmprojSnapshotDir = writeCachedAssets({
-      hubCacheDir,
-      repoId: DEFAULT_MMPROJ_REPO,
-      snapshot: "snapshot-mmproj",
-      modelFile: DEFAULT_MMPROJ_FILE,
-      includeMmproj: false,
-    });
-
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 4096,
-      ctx: 16384,
-      batch: 32,
-      ubatch: 32,
-      modelRepo: repoId,
-      modelFile,
-      mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE,
-      hfHubCacheDir: hubCacheDir,
-    });
-
-    expect(args).toContain("-m");
-    expect(args).toContain(join(snapshotDir, modelFile));
-    expect(args).toContain("--mmproj");
-    expect(args).toContain(join(mmprojSnapshotDir, DEFAULT_MMPROJ_FILE));
-    expect(args).not.toContain("--mmproj-url");
-    expect(
-      isModelCached({
-        modelRepo: repoId,
-        modelFile,
-        mmprojRepo: DEFAULT_MMPROJ_REPO,
-        mmprojFile: DEFAULT_MMPROJ_FILE,
-        hfHubCacheDir: hubCacheDir,
-      }),
-    ).toBe(true);
-  });
-
-  it("keeps generic custom HF repo launch when a custom mmproj is not configured", () => {
-    const hubCacheDir = createTempDir("hf-cache-");
-    const modelFile = "custom-q4.gguf";
-    const repoId = "custom/gemma-vision";
-    writeCachedAssets({
-      hubCacheDir,
-      repoId,
-      snapshot: "snapshot-partial",
-      modelFile,
-      includeMmproj: false,
-    });
-
-    const args = buildLaunchArgs({
-      port: 18180,
-      fitTargetMb: 4096,
-      ctx: 16384,
-      batch: 32,
-      ubatch: 32,
-      modelRepo: repoId,
-      modelFile,
-      hfHubCacheDir: hubCacheDir,
-    });
-
-    expect(args).toContain("-m");
-    expect(args).not.toContain("--mmproj");
-    expect(args).not.toContain("--mmproj-url");
-    expect(
-      isModelCached({
-        modelRepo: repoId,
-        modelFile,
-        hfHubCacheDir: hubCacheDir,
-      }),
-    ).toBe(true);
-  });
-
-  it("detects cached assets from HF_HOME when HF_HUB_CACHE is unset", () => {
-    const hfHomeDir = createTempDir("hf-home-");
-    const previousHfHome = process.env.HF_HOME;
-    const previousHubCache = process.env.HF_HUB_CACHE;
-    const previousLegacyHubCache = process.env.HUGGINGFACE_HUB_CACHE;
-    delete process.env.HF_HUB_CACHE;
-    delete process.env.HUGGINGFACE_HUB_CACHE;
-    process.env.HF_HOME = hfHomeDir;
-
-    const modelFile = DEFAULT_31B_FILE;
-    const repoId = DEFAULT_31B_REPO;
-    writeCachedAssets({
-      hubCacheDir: join(hfHomeDir, "hub"),
-      repoId,
-      snapshot: "snapshot-env",
-      modelFile,
-    });
-
-    try {
-      expect(isModelCached({ modelRepo: repoId, modelFile })).toBe(true);
-    } finally {
-      if (previousHfHome === undefined) {
-        delete process.env.HF_HOME;
-      } else {
-        process.env.HF_HOME = previousHfHome;
-      }
-      if (previousHubCache === undefined) {
-        delete process.env.HF_HUB_CACHE;
-      } else {
-        process.env.HF_HUB_CACHE = previousHubCache;
-      }
-      if (previousLegacyHubCache === undefined) {
-        delete process.env.HUGGINGFACE_HUB_CACHE;
-      } else {
-        process.env.HUGGINGFACE_HUB_CACHE = previousLegacyHubCache;
-      }
-    }
   });
 });

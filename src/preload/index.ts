@@ -1,4 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { MangaApi } from "../shared/mangaApi";
+import {
+  isJobKind,
+  isJobPhase,
+  isJobStatus,
+  isProgressMode,
+} from "../shared/jobContracts";
 import type {
   AppSettings,
   ChapterSnapshot,
@@ -34,38 +41,6 @@ import type {
   WorkShareImportRequest,
   WorkShareImportResult,
 } from "../shared/types";
-
-const JOB_KINDS = new Set(["gemma-analysis", "inpainting"]);
-const JOB_STATUSES = new Set([
-  "idle",
-  "starting",
-  "running",
-  "cancelling",
-  "cancelled",
-  "failed",
-  "completed",
-]);
-const JOB_PHASES = new Set([
-  "booting",
-  "model_downloading",
-  "ocr_preparing",
-  "ocr_downloading",
-  "ocr_running",
-  "model_requesting",
-  "ready",
-  "page_running",
-  "page_retry",
-  "page_done",
-  "page_skipped",
-  "inpainting_preparing",
-  "inpainting_running",
-  "inpainting_done",
-  "finalizing",
-  "done",
-  "cancelled",
-  "failed",
-]);
-const PROGRESS_MODES = new Set(["determinate", "indeterminate", "log-only"]);
 
 const api = {
   previewImagesImport: (): Promise<ImportPreviewSession | null> =>
@@ -205,11 +180,9 @@ const api = {
       ipcRenderer.removeListener("settings:model-test-progress", listener);
     };
   },
-};
+} satisfies MangaApi;
 
 contextBridge.exposeInMainWorld("mangaApi", api);
-
-export type MangaApi = typeof api;
 
 function isJobEvent(value: unknown): value is JobEvent {
   if (!isRecord(value)) {
@@ -217,12 +190,12 @@ function isJobEvent(value: unknown): value is JobEvent {
   }
   return (
     isBoundedString(value.id, 1, 200) &&
-    JOB_KINDS.has(String(value.kind)) &&
-    JOB_STATUSES.has(String(value.status)) &&
+    isJobKind(value.kind) &&
+    isJobStatus(value.status) &&
     isBoundedString(value.progressText, 1, 1000) &&
     isOptionalBoundedString(value.detail, 4000) &&
-    isOptionalEnum(value.phase, JOB_PHASES) &&
-    isOptionalEnum(value.progressMode, PROGRESS_MODES) &&
+    isOptionalJobPhase(value.phase) &&
+    isOptionalProgressMode(value.progressMode) &&
     isOptionalFiniteNumber(value.progressPercent, 0, 1) &&
     isOptionalFiniteNumber(value.progressBytes, 0) &&
     isOptionalFiniteNumber(value.progressTotalBytes, 0) &&
@@ -248,8 +221,8 @@ function isModelTestProgressEvent(
     isBoundedString(value.id, 1, 200) &&
     isBoundedString(value.progressText, 1, 1000) &&
     isOptionalBoundedString(value.detail, 4000) &&
-    isOptionalEnum(value.phase, JOB_PHASES) &&
-    isOptionalEnum(value.progressMode, PROGRESS_MODES) &&
+    isOptionalJobPhase(value.phase) &&
+    isOptionalProgressMode(value.progressMode) &&
     isOptionalFiniteNumber(value.progressPercent, 0, 1) &&
     isOptionalFiniteNumber(value.progressBytes, 0) &&
     isOptionalFiniteNumber(value.progressTotalBytes, 0) &&
@@ -284,10 +257,12 @@ function isOptionalBoundedString(
   );
 }
 
-function isOptionalEnum(value: unknown, allowed: Set<string>): boolean {
-  return (
-    value === undefined || (typeof value === "string" && allowed.has(value))
-  );
+function isOptionalJobPhase(value: unknown): boolean {
+  return value === undefined || isJobPhase(value);
+}
+
+function isOptionalProgressMode(value: unknown): boolean {
+  return value === undefined || isProgressMode(value);
 }
 
 function isOptionalFiniteNumber(

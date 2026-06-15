@@ -1,0 +1,29 @@
+{
+  "modelProvider": "gemma",
+  "gemma": {
+    "modelSource": "huggingface",
+    "modelRepo": "google/gemma-3-27b-it-qat-q4_0-gguf",
+    "modelFile": "gemma-3-27b-it-q4_0.gguf",
+    "mmprojRepo": "google/gemma-3-27b-it-qat-q4_0-gguf",
+    "mmprojFile": "mmproj-model-f16.gguf",
+    "vramMode": "full31b",
+    "llamaRuntimeProfile": "cuda12"
+  },
+  "codex": {
+    "model": "gpt-5.5",
+    "reasoningEffort": "medium",
+    "oauthPort": 10531
+  },
+  "ocr": {
+    "device": "gpu",
+    "gpuBackend": "cuda",
+    "gpuCudaTag": "cu126"
+  },
+  "ui": {
+    "inpaintingGuideHidden": false
+  },
+  "inpainting": {
+    "fluxBackend": "cuda-native"
+  },
+  "maxTokens": 12000
+}

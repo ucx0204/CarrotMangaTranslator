@@ -1,9 +1,11 @@
+// @ts-check
 const { spawn } = require("node:child_process");
 const { readdirSync } = require("node:fs");
 const { copyFile, mkdir, rm } = require("node:fs/promises");
 const path = require("node:path");
 
 const { buildUtilityChildEnv } = require("./simple-page-child-env.cjs");
+const { safeCleanup } = require("./simple-page-runtime-common.cjs");
 
 function truncateText(value, maxLength = 4000) {
   const text = String(value ?? "");
@@ -37,7 +39,9 @@ async function extractSelectedZipEntries(
     `${path.basename(outputDir)}.extract-${process.pid}-${Date.now()}`,
   );
   const resolvedOutputDir = path.resolve(outputDir);
-  await rm(extractDir, { recursive: true, force: true }).catch(() => {});
+  await safeCleanup("remove previous runtime extract directory", () =>
+    rm(extractDir, { recursive: true, force: true }),
+  );
   await mkdir(extractDir, { recursive: true });
   try {
     await expandZipArchive(archivePath, extractDir);
@@ -61,7 +65,9 @@ async function extractSelectedZipEntries(
       await copyFile(filePath, outputPath);
     }
   } finally {
-    await rm(extractDir, { recursive: true, force: true }).catch(() => {});
+    await safeCleanup("remove runtime extract directory", () =>
+      rm(extractDir, { recursive: true, force: true }),
+    );
   }
 }
 
@@ -73,7 +79,8 @@ async function expandZipArchive(archivePath, outputDir) {
   }
   const psScript =
     "& { param($zip, $dest) Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force }";
-  await new Promise((resolve, reject) => {
+  /** @type {Promise<void>} */
+  const completed = new Promise((resolve, reject) => {
     const child = spawn(
       "powershell",
       [
@@ -130,6 +137,7 @@ async function expandZipArchive(archivePath, outputDir) {
       );
     });
   });
+  await completed;
 }
 
 function collectSelectedFiles(rootDir, shouldExtract) {
@@ -137,11 +145,14 @@ function collectSelectedFiles(rootDir, shouldExtract) {
   const stack = [{ dir: rootDir, relativeDir: "" }];
   while (stack.length > 0) {
     const current = stack.pop();
+    if (!current) {
+      break;
+    }
     const currentDir = current.dir;
     let entries;
     try {
       entries = readdirSync(currentDir, { withFileTypes: true });
-    } catch {
+    } catch (_error) {
       continue;
     }
     for (const entry of entries) {

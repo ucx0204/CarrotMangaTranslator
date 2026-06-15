@@ -18,6 +18,7 @@ import type {
   WorkShareImportPreviewView,
   WorkShareImportResult,
 } from "../../shared/types";
+import { safeCleanup } from "../safeCleanup";
 import { reorderRecords, resolveChapterStatus } from "./chapterRecords";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
@@ -411,20 +412,23 @@ async function importWorkShareIntoExistingWork(
       openedChapter: hydrateChapter(openedChapter),
     };
   } catch (error) {
-    await restoreTrashedChapterDirectories(
-      work.id,
-      trashedExistingChapters,
-    ).catch(() => {});
+    await safeCleanup("restore-trashed-share-chapters", () =>
+      restoreTrashedChapterDirectories(work.id, trashedExistingChapters),
+    );
     for (const chapter of createdPackageChapters) {
       await removeChapterDirectory(chapter.workId, chapter.id);
     }
     for (const chapter of updatedExistingChapters) {
       const originalChapter = currentChapters.get(chapter.id);
       if (originalChapter) {
-        await writeChapterFile(originalChapter).catch(() => {});
+        await safeCleanup("restore-share-chapter-file", () =>
+          writeChapterFile(originalChapter),
+        );
       }
     }
-    await writeWorkFile(originalWork).catch(() => {});
+    await safeCleanup("restore-share-work-file", () =>
+      writeWorkFile(originalWork),
+    );
     throw error;
   }
 }
@@ -516,9 +520,13 @@ async function pruneTrashRoots(
     trashedChapters.map((trashedChapter) => trashedChapter.operationTrashRoot),
   );
   for (const operationTrashRoot of operationTrashRoots) {
-    await rmdir(operationTrashRoot).catch(() => {});
+    await safeCleanup("prune-share-operation-trash", () =>
+      rmdir(operationTrashRoot),
+    );
   }
-  await rmdir(resolveTrashRoot(workId)).catch(() => {});
+  await safeCleanup("prune-share-trash-root", () =>
+    rmdir(resolveTrashRoot(workId)),
+  );
 }
 
 function resolveChapterDirectory(workId: string, chapterId: string): string {

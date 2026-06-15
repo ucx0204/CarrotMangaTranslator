@@ -47,7 +47,7 @@ try {
 
         $cropped.Dispose()
         $cropped = $resized
-      } catch {
+      } catch [System.Exception] {
         $resized.Dispose()
         throw
       }

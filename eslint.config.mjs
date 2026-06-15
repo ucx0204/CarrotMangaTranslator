@@ -76,6 +76,100 @@ export default tseslint.config(
     },
   },
   {
+    files: ["src/main/{ipc,jobs}/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "../libraryStore",
+                "../libraryStore/*",
+                "../../libraryStore",
+                "../../libraryStore/*",
+                "**/libraryStore",
+                "**/libraryStore/*",
+              ],
+              message:
+                "IPC and job modules must use src/main/library.ts instead of importing libraryStore directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/renderer/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "../preload",
+                "../preload/*",
+                "../../preload",
+                "../../preload/*",
+                "../../../preload",
+                "../../../preload/*",
+                "../main",
+                "../main/*",
+                "../../main",
+                "../../main/*",
+                "../../../main",
+                "../../../main/*",
+                "**/preload",
+                "**/preload/*",
+                "**/main",
+                "**/main/*",
+              ],
+              message:
+                "Renderer modules must use shared contracts and the preload bridge, not preload/main imports.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/shared/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "../main",
+                "../main/*",
+                "../../main",
+                "../../main/*",
+                "../renderer",
+                "../renderer/*",
+                "../../renderer",
+                "../../renderer/*",
+                "../preload",
+                "../preload/*",
+                "../../preload",
+                "../../preload/*",
+                "**/main",
+                "**/main/*",
+                "**/renderer",
+                "**/renderer/*",
+                "**/preload",
+                "**/preload/*",
+              ],
+              message:
+                "Shared modules must not import main, renderer, or preload layers.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: [
       "src/main/runtime/**/*.cjs",
       "scripts/**/*.cjs",
@@ -86,14 +180,35 @@ export default tseslint.config(
     },
     rules: {
       "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
     },
   },
   {
     files: ["**/*.{js,cjs,mjs,ts,tsx}"],
     rules: {
       "no-control-regex": "off",
+      "no-empty": ["warn", { allowEmptyCatch: false }],
       "no-new-func": "error",
       "no-redeclare": "error",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ExportAllDeclaration",
+          message: "Use explicit exports instead of export *.",
+        },
+        {
+          selector: "CatchClause[param=null]",
+          message:
+            "Use catch (error) and handle, rethrow, or explicitly ignore expected optional failures.",
+        },
+      ],
       "no-this-alias": "off",
       "@typescript-eslint/no-this-alias": "off",
       "@typescript-eslint/no-non-null-assertion": "warn",
@@ -109,6 +224,16 @@ export default tseslint.config(
       "src/shared/**/*.{ts,tsx}",
     ],
     rules: {
+      complexity: ["warn", 12],
+      "max-depth": ["warn", 3],
+      "max-lines": [
+        "warn",
+        { max: 400, skipBlankLines: true, skipComments: true },
+      ],
+      "max-lines-per-function": [
+        "warn",
+        { max: 80, skipBlankLines: true, skipComments: true },
+      ],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
     },

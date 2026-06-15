@@ -1,3 +1,21 @@
+// @ts-check
+/** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
+/**
+ * @typedef {{
+ *   draftModelPath?: string | null;
+ *   draftModelUrl?: string | null;
+ *   hubCacheDir?: string | null;
+ *   launchMode: string;
+ *   mmprojPath?: string | null;
+ *   mmprojUrl?: string | null;
+ *   model?: string;
+ *   modelPath?: string | null;
+ *   reasoningEffort?: string;
+ *   repoDir?: string | null;
+ *   requiresDownload: boolean;
+ *   snapshotDir?: string | null;
+ * }} ModelLaunchTarget
+ */
 const {
   closeSync,
   existsSync,
@@ -10,8 +28,8 @@ const path = require("node:path");
 
 const { bundledServerCandidates } = require("./resolve-llama-runtime.cjs");
 const {
-  LLAMA_RUNTIME_FILES,
   LLAMA_RUNTIME_MARKER_FILE,
+  shouldExtractLlamaRuntimeFile,
 } = require("./simple-page-llama-runtimes.cjs");
 const { PADDLE_OCR_MODEL_DOWNLOADS } = require("./simple-page-defaults.cjs");
 const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
@@ -64,6 +82,7 @@ const {
 const {
   createDetailedError,
   emitRuntimeProgress,
+  safeCleanup,
 } = require("./simple-page-runtime-common.cjs");
 
 function resolveConfiguredMmprojUrl(options = {}) {
@@ -327,7 +346,9 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
       installLogLine: `Gemma 실행 파일과 ${formatLlamaRuntimeBackend(runtime)} 런타임 파일을 앱 데이터 폴더에 풀고 있습니다.`,
     },
   );
-  await rm(runtimeDir, { recursive: true, force: true }).catch(() => {});
+  await safeCleanup("remove stale llama runtime directory", () =>
+    rm(runtimeDir, { recursive: true, force: true }),
+  );
   await mkdir(runtimeDir, { recursive: true });
   for (const archivePath of archivePaths) {
     await extractSelectedZipEntries(
@@ -413,7 +434,7 @@ function isCurrentLlamaRuntime(
         ),
       )
     );
-  } catch {
+  } catch (_error) {
     return false;
   }
 }
@@ -427,23 +448,11 @@ function getLlamaRuntimeArchives(runtime) {
     : [];
 }
 
-function shouldExtractLlamaRuntimeFile(fileName, relativePath = fileName) {
-  const normalizedRelativePath = String(relativePath ?? fileName ?? "")
-    .replace(/\\/g, "/")
-    .toLowerCase();
-  if (
-    (normalizedRelativePath.startsWith("rocblas/") ||
-      normalizedRelativePath.startsWith("hipblaslt/")) &&
-    /\.(?:dat|co|hsaco)$/i.test(normalizedRelativePath)
-  ) {
-    return true;
-  }
-  return (
-    LLAMA_RUNTIME_FILES.has(fileName) ||
-    /\.(?:dll|so|dylib)$/i.test(String(fileName ?? ""))
-  );
-}
-
+/**
+ * @param {import("./runtime-jsdoc-types").RuntimeOptions} [options]
+ * @param {OcrRuntimeLayout | null} [runtime]
+ * @returns {Promise<void>}
+ */
 async function ensurePaddleOcrModelAssetsDownloaded(
   options = {},
   runtime = null,
@@ -469,7 +478,9 @@ async function ensurePaddleOcrModelAssetsDownloaded(
     const existingSize = getFileSize(task.destination);
     const assetProblem = inspectPaddleOcrAssetFile(task.destination, task.file);
     if (assetProblem) {
-      await rm(task.destination, { force: true }).catch(() => {});
+      await safeCleanup("remove corrupt Paddle OCR model asset", () =>
+        rm(task.destination, { force: true }),
+      );
       emitRuntimeProgress(
         options,
         "ocr_downloading",
@@ -494,7 +505,9 @@ async function ensurePaddleOcrModelAssetsDownloaded(
       continue;
     }
     if (existingSize > 0 && totalBytes > 0 && existingSize !== totalBytes) {
-      await rm(task.destination, { force: true }).catch(() => {});
+      await safeCleanup("remove partial Paddle OCR model asset", () =>
+        rm(task.destination, { force: true }),
+      );
     }
     pending.push(task);
     if (totalBytes > 0) {
@@ -551,6 +564,11 @@ async function ensurePaddleOcrModelAssetsDownloaded(
   );
 }
 
+/**
+ * @param {import("./runtime-jsdoc-types").RuntimeOptions} [options]
+ * @param {OcrRuntimeLayout | null} [runtime]
+ * @param {unknown} [reason]
+ */
 async function repairPaddleOcrModelAssetsCache(
   options = {},
   runtime = null,
@@ -560,7 +578,7 @@ async function repairPaddleOcrModelAssetsCache(
     runtime?.runtimeDir ||
     options.ocrRuntimeDir ||
     path.join(options.workingDir || process.cwd(), "ocr-runtime");
-  const names = resolvePaddleOcrModelNamesForRepair(reason);
+  const names = resolvePaddleOcrModelNamesForRepair(String(reason ?? ""));
   emitRuntimeProgress(
     options,
     "ocr_downloading",
@@ -568,7 +586,7 @@ async function repairPaddleOcrModelAssetsCache(
     names.join(", "),
     {
       progressMode: "log-only",
-      installLogLine: `Paddle OCR 모델 캐시를 다시 준비합니다. reason=${truncateReason(reason)}`,
+      installLogLine: `Paddle OCR 모델 캐시를 다시 준비합니다. reason=${truncateReason(String(reason ?? ""))}`,
     },
   );
 
@@ -581,7 +599,9 @@ async function repairPaddleOcrModelAssetsCache(
         modelName,
       });
     }
-    await rm(modelDir, { recursive: true, force: true }).catch(() => {});
+    await safeCleanup("remove corrupt cached HF model directory", () =>
+      rm(modelDir, { recursive: true, force: true }),
+    );
   }
 
   await ensurePaddleOcrModelAssetsDownloaded(options, runtime);
@@ -645,13 +665,13 @@ function readFileHead(filePath, maxLength) {
     const buffer = Buffer.alloc(Math.max(0, maxLength));
     const bytesRead = readSync(fd, buffer, 0, buffer.length, 0);
     return buffer.subarray(0, bytesRead).toString("utf8");
-  } catch {
+  } catch (_error) {
     return "";
   } finally {
     if (fd !== null) {
       try {
         closeSync(fd);
-      } catch {
+      } catch (_error) {
         // Ignore close errors for cache validation.
       }
     }
@@ -696,6 +716,9 @@ function resolveCachedConfiguredDraftModelPath(options = {}) {
   return findNamedFile(repoDir, file);
 }
 
+/**
+ * @returns {ModelLaunchTarget}
+ */
 function resolveCachedModelAssets(options = {}) {
   const hubCacheDir = resolveHubCacheDir(options);
   const configuredMmprojPath = resolveCachedConfiguredMmprojPath(options);
@@ -817,6 +840,9 @@ function resolveCachedModelAssets(options = {}) {
   };
 }
 
+/**
+ * @returns {ModelLaunchTarget}
+ */
 function inspectModelLaunch(options = {}) {
   if (isOpenAICodexProvider(options)) {
     return {

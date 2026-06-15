@@ -21,7 +21,7 @@ const env = {
   ELECTRON_ENABLE_LOGGING: "1",
   MGT_KEEP_FLUX_DEBUG: "1",
 };
-delete env.ELECTRON_RUN_AS_NODE;
+delete env["ELECTRON_RUN_AS_NODE"];
 
 const result = spawnSync(electronExe, [smokeScript, ...process.argv.slice(2)], {
   cwd: root,

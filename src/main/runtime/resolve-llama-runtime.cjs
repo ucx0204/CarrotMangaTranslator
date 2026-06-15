@@ -1,3 +1,4 @@
+// @ts-check
 const { existsSync, readdirSync } = require("node:fs");
 const { dirname, join } = require("node:path");
 
@@ -87,7 +88,7 @@ function listRuntimeDirs(toolsDir) {
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
-  } catch {
+  } catch (_error) {
     return [];
   }
 }

@@ -1,3 +1,4 @@
+// @ts-check
 const { existsSync, readFileSync } = require("node:fs");
 
 const {
@@ -64,7 +65,7 @@ function parseOcrBatchProgressLine(line) {
         ? Math.max(0, Math.floor(Number(payload.count)))
         : 0,
     };
-  } catch {
+  } catch (_error) {
     return null;
   }
 }
@@ -86,9 +87,10 @@ function parsePaddleModelFetchProgress(line) {
 
   return {
     totalFiles,
-    currentFiles: Number.isFinite(currentFiles)
-      ? Math.max(0, Math.min(currentFiles, totalFiles))
-      : null,
+    currentFiles:
+      currentFiles !== null && Number.isFinite(currentFiles)
+        ? Math.max(0, Math.min(currentFiles, totalFiles))
+        : null,
     percent: Number.isFinite(percent)
       ? Math.max(0, Math.min(percent, 100))
       : null,
@@ -129,7 +131,7 @@ function createOcrBatchProgressFilePoller(progressPath, onLine) {
     let raw;
     try {
       raw = readFileSync(progressPath, "utf8");
-    } catch {
+    } catch (_error) {
       return;
     }
     if (!raw) {

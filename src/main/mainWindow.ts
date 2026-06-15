@@ -89,7 +89,7 @@ function resolveAllowedDevRendererUrl(
       url.hostname === "127.0.0.1" ||
       url.hostname === "::1";
     return url.protocol === "http:" && allowedHost ? url.toString() : null;
-  } catch {
+  } catch (_error) {
     return null;
   }
 }
@@ -110,7 +110,7 @@ export function isAllowedMainWindowNavigation(
     const rendererRoot = resolve(dirname(fileURLToPath(allowed)));
     const targetPath = resolve(fileURLToPath(target));
     return isPathInside(rendererRoot, targetPath);
-  } catch {
+  } catch (_error) {
     return false;
   }
 }

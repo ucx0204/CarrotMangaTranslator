@@ -107,10 +107,21 @@ const windowsSystemImportLibNames = [
 ];
 
 main().catch((error) => {
-  const message = error?.stack || error?.message || String(error);
+  const message = formatUnknownError(error);
   console.error(message);
   process.exit(1);
 });
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function formatUnknownError(error) {
+  if (error instanceof Error) {
+    return error.stack || error.message;
+  }
+  return String(error);
+}
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -261,7 +272,7 @@ async function main() {
   } catch (error) {
     logger.line("");
     logger.line("BUILD FAILED");
-    logger.line(error?.stack || error?.message || String(error));
+    logger.line(formatUnknownError(error));
     logger.line(`Log file: ${logPath}`);
     throw error;
   } finally {
@@ -316,7 +327,7 @@ function resolveDefaultWorkDir(stamp, outputPath) {
       index,
       freeBytes: getPathFreeBytes(pathValue),
     }))
-    .filter((item) => item.freeBytes !== null)
+    .filter(hasFreeBytes)
     .sort((left, right) => {
       const rightEnough = right.freeBytes >= recommendedBuildFreeBytes;
       const leftEnough = left.freeBytes >= recommendedBuildFreeBytes;
@@ -332,6 +343,14 @@ function resolveDefaultWorkDir(stamp, outputPath) {
   const base =
     scored[0]?.pathValue || candidates[0] || "C:\\mgt-flux-rocm-runtime-build";
   return join(base, stamp);
+}
+
+/**
+ * @param {{ pathValue: string; index: number; freeBytes: number | null }} item
+ * @returns {item is { pathValue: string; index: number; freeBytes: number }}
+ */
+function hasFreeBytes(item) {
+  return item.freeBytes !== null;
 }
 
 function isAsciiPath(pathValue) {
@@ -410,7 +429,7 @@ function getPathFreeBytes(pathValue) {
   try {
     const stat = statfsSync(current, { bigint: true });
     return Number(stat.bavail * stat.bsize);
-  } catch {
+  } catch (_error) {
     return null;
   }
 }
@@ -613,6 +632,7 @@ function buildRuntimeEnv(
     gpuTargets ? `-DGPU_TARGETS=${gpuTargets}` : "",
     gpuTargets ? `-DAMDGPU_TARGETS=${gpuTargets}` : "",
   ].filter(Boolean);
+  /** @type {NodeJS.ProcessEnv} */
   const env = {
     ...process.env,
     PYTHONNOUSERSITE: "1",
@@ -668,8 +688,8 @@ function buildRuntimeEnv(
     env.GPU_TARGETS = gpuTargets;
     env.AMDGPU_TARGETS = gpuTargets;
   }
-  mkdirSync(env.TMP, { recursive: true });
-  mkdirSync(env.PIP_CACHE_DIR, { recursive: true });
+  mkdirSync(String(env.TMP), { recursive: true });
+  mkdirSync(String(env.PIP_CACHE_DIR), { recursive: true });
   return env;
 }
 
@@ -741,6 +761,9 @@ async function createRuntimeZip({ runtimeDir, outputPath, logger }) {
   );
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 function run(command, args, options) {
   return new Promise((resolveRun, reject) => {
     options.logger.line(`> ${command} ${args.map(quoteArg).join(" ")}`);
@@ -1115,7 +1138,7 @@ function formatRocmTreeSummary(packageDir) {
 function safeReadDir(dir) {
   try {
     return readdirSync(dir, { withFileTypes: true });
-  } catch {
+  } catch (_error) {
     return [];
   }
 }
@@ -1126,11 +1149,15 @@ function findFirstFileRecursive(root, lowerCaseNames, maxDepth) {
   }
   const queue = [{ dir: root, depth: 0 }];
   while (queue.length) {
-    const { dir, depth } = queue.shift();
+    const current = queue.shift();
+    if (!current) {
+      break;
+    }
+    const { dir, depth } = current;
     let entries;
     try {
       entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
+    } catch (_error) {
       continue;
     }
     for (const entry of entries) {
@@ -1157,11 +1184,15 @@ function findFilesRecursive(root, predicate, maxDepth, limit) {
   const results = [];
   const queue = [{ dir: root, depth: 0 }];
   while (queue.length && results.length < limit) {
-    const { dir, depth } = queue.shift();
+    const current = queue.shift();
+    if (!current) {
+      break;
+    }
+    const { dir, depth } = current;
     let entries;
     try {
       entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
+    } catch (_error) {
       continue;
     }
     for (const entry of entries) {
@@ -1391,7 +1422,7 @@ function snapshotEnvironment(nativeBuildEnv, gpuTargets) {
   const runtimeLibraries = (() => {
     try {
       return resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths);
-    } catch {
+    } catch (_error) {
       return [];
     }
   })();
@@ -1424,7 +1455,7 @@ function readGitRevision() {
       cwd: rootDir,
       encoding: "utf8",
     }).trim();
-  } catch {
+  } catch (_error) {
     return null;
   }
 }
@@ -1522,7 +1553,7 @@ function readChildDirectories(root) {
       .map((name) => ({ name, path: join(root, name) }))
       .filter((entry) => isDirectory(entry.path))
       .map((entry) => entry.name);
-  } catch {
+  } catch (_error) {
     return [];
   }
 }
@@ -1567,7 +1598,7 @@ function findFileInPathList(paths, fileName) {
 function isDirectory(pathValue) {
   try {
     return statSync(pathValue).isDirectory();
-  } catch {
+  } catch (_error) {
     return false;
   }
 }
@@ -1575,7 +1606,7 @@ function isDirectory(pathValue) {
 function isFile(pathValue) {
   try {
     return statSync(pathValue).isFile();
-  } catch {
+  } catch (_error) {
     return false;
   }
 }

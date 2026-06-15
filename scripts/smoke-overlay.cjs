@@ -42,15 +42,17 @@ async function main() {
   const pagesDir = path.join(outDir, "pages");
   await mkdir(pagesDir, { recursive: true });
 
-  const { getAppPaths } = require("../out/main/appPaths.js");
-  const {
-    normalizeAppSettings,
-    buildBaseTranslationOptions,
-  } = require("../out/main/appSettings.js");
-  const {
-    startOpenAIOAuthEndpoint,
-    stopOpenAIOAuthEndpoint,
-  } = require("../out/main/openaiOauthEndpoint.js");
+  const { getAppPaths } = /** @type {typeof import("../src/main/appPaths")} */ (
+    loadBuiltModule("out/main/appPaths.js")
+  );
+  const { normalizeAppSettings, buildBaseTranslationOptions } =
+    /** @type {typeof import("../src/main/appSettings")} */ (
+      loadBuiltModule("out/main/appSettings.js")
+    );
+  const { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint } =
+    /** @type {typeof import("../src/main/openaiOauthEndpoint")} */ (
+      loadBuiltModule("out/main/openaiOauthEndpoint.js")
+    );
   const {
     applyOcrCandidateGeometryLocks,
     filterRejectedOrUncertainSoundItems,
@@ -58,10 +60,20 @@ async function main() {
     getOcrBboxHints,
     overlayItemToBlock,
     normalizeOverlayItemBboxes,
-  } = require("../out/main/pipeline/overlayItems.js");
-  sharedGeometry = require("../out/shared/geometry.js");
-  const simplePage = require("../out/app-runtime/simple-page-translate.cjs");
-  const overlayTools = require("../out/app-runtime/overlay-parser.cjs");
+  } = /** @type {typeof import("../src/main/pipeline/overlayItems")} */ (
+    loadBuiltModule("out/main/pipeline/overlayItems.js")
+  );
+  sharedGeometry = /** @type {typeof import("../src/shared/geometry")} */ (
+    loadBuiltModule("out/shared/geometry.js")
+  );
+  const simplePage =
+    /** @type {typeof import("../src/main/runtime/simple-page-translate.cjs")} */ (
+      loadBuiltModule("out/app-runtime/simple-page-translate.cjs")
+    );
+  const overlayTools =
+    /** @type {typeof import("../src/main/runtime/overlay-parser.cjs")} */ (
+      loadBuiltModule("out/app-runtime/overlay-parser.cjs")
+    );
 
   const paths = getAppPaths();
   const settings = normalizeAppSettings(
@@ -236,13 +248,19 @@ async function main() {
           elapsedMs: Date.now() - pageStartedAt,
         });
       } catch (error) {
+        const errorDetail =
+          error && typeof error === "object"
+            ? /** @type {{ status?: unknown; statusText?: unknown; rawTextPreview?: unknown; requestSummary?: unknown }} */ (
+                error
+              )
+            : {};
         const failure = {
           sample,
           message: error instanceof Error ? error.message : String(error),
-          status: error?.status,
-          statusText: error?.statusText,
-          rawTextPreview: error?.rawTextPreview,
-          requestSummary: error?.requestSummary,
+          status: errorDetail.status,
+          statusText: errorDetail.statusText,
+          rawTextPreview: errorDetail.rawTextPreview,
+          requestSummary: errorDetail.requestSummary,
         };
         skipped.push(failure);
         await writeFile(
@@ -255,7 +273,11 @@ async function main() {
     }
   } finally {
     if (baseOptions.modelProvider === "openai-codex") {
-      await stopOpenAIOAuthEndpoint(server);
+      await stopOpenAIOAuthEndpoint(
+        /** @type {Awaited<ReturnType<typeof startOpenAIOAuthEndpoint>>} */ (
+          server
+        ),
+      );
     } else {
       await simplePage.stopServer(server);
     }
@@ -288,6 +310,14 @@ async function main() {
   );
   console.log(`[smoke] wrote ${outDir}`);
   app.quit();
+}
+
+/**
+ * @param {string} relativePath
+ * @returns {unknown}
+ */
+function loadBuiltModule(relativePath) {
+  return require(path.join(ROOT, relativePath));
 }
 
 function countBlockTypes(blocks) {
@@ -386,6 +416,11 @@ async function readReusableOcrHints(rootDir, pageIndex) {
   return undefined;
 }
 
+/**
+ * @param {string} imagePath
+ * @param {number} index
+ * @returns {import("../src/shared/types").MangaPage}
+ */
 function createPageRecord(imagePath, index) {
   const image = nativeImage.createFromPath(imagePath);
   const size = image.getSize();
@@ -485,7 +520,7 @@ function parseTargetImageList(value) {
           .map((entry) => String(entry || "").trim())
           .filter(Boolean);
       }
-    } catch {
+    } catch (_error) {
       // Fall through to the simple list parser.
     }
   }
@@ -499,7 +534,7 @@ function parseTargetImageList(value) {
 async function readTextIfExists(filePath) {
   try {
     return await readFile(filePath, "utf8");
-  } catch {
+  } catch (_error) {
     return "";
   }
 }
@@ -525,7 +560,7 @@ async function collectImageFiles(root) {
     let entries;
     try {
       entries = await readdir(dir, { withFileTypes: true });
-    } catch {
+    } catch (_error) {
       continue;
     }
     for (const entry of entries) {

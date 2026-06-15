@@ -4,7 +4,7 @@ export function capturePointerSafely(
 ): void {
   try {
     element?.setPointerCapture(pointerId);
-  } catch {
+  } catch (_error) {
     // Pointer capture can fail if the pointer was already released by the browser.
   }
 }
@@ -17,7 +17,7 @@ export function releasePointerCaptureSafely(
     if (element?.hasPointerCapture(pointerId)) {
       element.releasePointerCapture(pointerId);
     }
-  } catch {
+  } catch (_error) {
     // Ignore stale pointer ids. The interaction state is reset by the caller.
   }
 }

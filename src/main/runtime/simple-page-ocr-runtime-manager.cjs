@@ -1,3 +1,6 @@
+// @ts-check
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+/** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 const {
   existsSync,
   readFileSync,
@@ -66,6 +69,9 @@ const DEFAULT_VCREDIST_X64_URL =
   "https://aka.ms/vs/17/release/vc_redist.x64.exe";
 const PYTHON_RUNTIME_MARKER_FILE = ".mgt-bootstrap-python.json";
 
+/**
+ * @param {RuntimeOptions} [options]
+ */
 async function ensurePaddleOcrRuntime(options = {}) {
   const diagnostics = [];
   const runtimeDir = resolveOcrRuntimeDir(options);
@@ -686,7 +692,7 @@ function isCurrentManagedBootstrapPython(pythonExe, markerPath, expected) {
       marker?.pythonUrl === expected.pythonUrl &&
       marker?.getPipUrl === expected.getPipUrl
     );
-  } catch {
+  } catch (_error) {
     return false;
   }
 }
@@ -735,7 +741,12 @@ function escapePowerShellSingleQuoted(value) {
   return String(value).replace(/'/g, "''");
 }
 
+/**
+ * @param {string} runtimeDir
+ * @returns {NodeJS.ProcessEnv}
+ */
 function buildBootstrapPythonEnv(runtimeDir) {
+  /** @type {NodeJS.ProcessEnv} */
   const env = {
     ...process.env,
     PYTHONNOUSERSITE: "1",
@@ -756,7 +767,7 @@ function sanitizeStandaloneEmbeddedPythonPathFile(outputDir) {
     pthName =
       readdirSync(outputDir).find((name) => /^python\d+._pth$/i.test(name)) ||
       "";
-  } catch {
+  } catch (_error) {
     return;
   }
   if (!pthName) {
@@ -791,16 +802,25 @@ function sanitizeStandaloneEmbeddedPythonPathFile(outputDir) {
     if (nextText !== text) {
       writeFileSync(pthPath, nextText, "utf8");
     }
-  } catch {
+  } catch (_error) {
     // The OCR install path can still fall back to a venv/target install.
   }
 }
 
+/**
+ * @param {RuntimeOptions} options
+ * @param {OcrRuntimeLayout} runtime
+ */
 async function finalizePaddleOcrRuntime(options, runtime) {
   await ensurePaddleOcrModelAssetsDownloaded(options, runtime);
   return runtime;
 }
 
+/**
+ * @param {RuntimeOptions} options
+ * @param {string} runtimeDir
+ * @returns {Promise<OcrRuntimeLayout>}
+ */
 async function preparePaddlexCacheHome(options, runtimeDir) {
   const realPaddlexCacheHome = resolveRealPaddlexCacheHome(runtimeDir);
   const paddlexCacheHome = resolvePaddlexCacheHome(runtimeDir, options);
@@ -856,7 +876,7 @@ async function replaceStalePaddlexCacheAlias(
   let stats;
   try {
     stats = await lstat(aliasPath);
-  } catch {
+  } catch (_error) {
     return;
   }
 
@@ -869,7 +889,7 @@ async function replaceStalePaddlexCacheAlias(
       ) {
         return;
       }
-    } catch {
+    } catch (_error) {
       // Recreate broken links below.
     }
   }
@@ -891,6 +911,11 @@ function isSafePaddlexCacheAliasPath(aliasPath, options = {}) {
   );
 }
 
+/**
+ * @param {string | null | undefined} pythonPath
+ * @param {string} packageDir
+ * @param {string | null} [runtimeDir]
+ */
 function ensureEmbeddedPythonPackagePath(
   pythonPath,
   packageDir,
@@ -905,7 +930,7 @@ function ensureEmbeddedPythonPackagePath(
     pthName =
       readdirSync(pythonDir).find((name) => /^python\d+._pth$/i.test(name)) ||
       "";
-  } catch {
+  } catch (_error) {
     return;
   }
   if (!pthName) {
@@ -935,7 +960,7 @@ function ensureEmbeddedPythonPackagePath(
     if (nextText !== text) {
       writeFileSync(pthPath, nextText, "utf8");
     }
-  } catch {
+  } catch (_error) {
     // Packaged Python may be read-only; the venv/target install path can still work.
   }
 }
@@ -948,7 +973,7 @@ function isManagedOcrPackagePathLine(line, pythonDir, runtimeDir) {
   let resolved;
   try {
     resolved = path.resolve(pythonDir, raw);
-  } catch {
+  } catch (_error) {
     return false;
   }
   const base = path.basename(resolved);
@@ -1083,10 +1108,19 @@ function resolveOcrInstallBatchProgressRanges(
   });
 }
 
+/**
+ * @param {string} pythonPath
+ * @param {RuntimeOptions} [options]
+ */
 async function canImportPaddleOcr(pythonPath, options = {}) {
   return (await checkPaddleOcrImport(pythonPath, options)).ok;
 }
 
+/**
+ * @param {string} pythonPath
+ * @param {RuntimeOptions} [options]
+ * @param {OcrRuntimeLayout | null} [runtime]
+ */
 async function checkPaddleOcrImport(pythonPath, options = {}, runtime = null) {
   try {
     await runShellCommand(
@@ -1133,7 +1167,7 @@ function hasOcrInstallMarker(packageDir, runtimeVariant, options = {}) {
       marker?.runtimeVariant === runtimeVariant &&
       marker?.packageSignature === resolveOcrInstallSignature(options)
     );
-  } catch {
+  } catch (_error) {
     return false;
   }
 }

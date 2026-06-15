@@ -1,3 +1,6 @@
+// @ts-check
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+/** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 const { existsSync, readFileSync } = require("node:fs");
 const { mkdir, readFile, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
@@ -37,6 +40,7 @@ const {
 const {
   createDetailedError,
   emitRuntimeProgress,
+  safeCleanup,
   truncateText,
 } = require("./simple-page-runtime-common.cjs");
 const {
@@ -237,6 +241,9 @@ function hasJapaneseTextEvidence(value) {
   const text = String(value ?? "");
   for (const char of text) {
     const code = char.codePointAt(0);
+    if (code === undefined) {
+      continue;
+    }
     if (
       (code >= 0x3040 && code <= 0x30ff) ||
       (code >= 0x31f0 && code <= 0x31ff) ||
@@ -252,6 +259,11 @@ function hasJapaneseTextEvidence(value) {
   return false;
 }
 
+/**
+ * @param {string} provider
+ * @param {unknown} error
+ * @param {Record<string, unknown>} [extra]
+ */
 function buildOcrBboxDiagnostic(provider, error, extra = {}) {
   return {
     provider,
@@ -261,9 +273,14 @@ function buildOcrBboxDiagnostic(provider, error, extra = {}) {
   };
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {string} [provider]
+ */
 async function runOcrBboxCommand(options = {}, provider = "external-command") {
-  await mkdir(options.outputDir, { recursive: true });
-  const outputPath = path.join(options.outputDir, "ocr-bbox-hints.json");
+  const outputDir = options.outputDir || process.cwd();
+  await mkdir(outputDir, { recursive: true });
+  const outputPath = path.join(outputDir, "ocr-bbox-hints.json");
   const runtime =
     provider === "paddleocr-vl" ? await ensurePaddleOcrRuntime(options) : null;
   const command = buildOcrBboxCommand(options, provider, outputPath, runtime);
@@ -485,6 +502,11 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   }
 }
 
+/**
+ * @param {string} command
+ * @param {RuntimeOptions} options
+ * @param {OcrRuntimeLayout | null} runtime
+ */
 async function runOcrShellCommandWithModelRepair(
   command,
   options = {},
@@ -523,6 +545,10 @@ async function runOcrShellCommandWithModelRepair(
   }
 }
 
+/**
+ * @param {RuntimeOptions} [options]
+ * @returns {RuntimeOptions}
+ */
 function withoutPageProgressOptions(options = {}) {
   const next = { ...options };
   delete next.ocrPageIndex;
@@ -554,8 +580,12 @@ async function cleanupOcrBatchControlFiles(
     return;
   }
   await Promise.all([
-    rm(batchPath, { force: true }).catch(() => {}),
-    rm(progressPath, { force: true }).catch(() => {}),
+    safeCleanup("remove OCR batch request file", () =>
+      rm(batchPath, { force: true }),
+    ),
+    safeCleanup("remove OCR batch progress file", () =>
+      rm(progressPath, { force: true }),
+    ),
   ]);
 }
 

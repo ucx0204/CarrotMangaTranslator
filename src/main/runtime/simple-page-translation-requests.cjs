@@ -1,3 +1,4 @@
+// @ts-check
 const {
   buildSystemPrompt,
   getOverlayPrompt,

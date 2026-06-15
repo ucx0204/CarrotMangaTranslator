@@ -1,102 +1,47 @@
-const { getOverlayPrompt } = require("./simple-page-prompts.cjs");
-const {
-  parseOcrBatchProgressLine,
-  parsePipRawProgress,
-  parsePaddleModelFetchProgress,
-  resolveOcrBboxTimeoutMs,
-} = require("./simple-page-progress.cjs");
-const {
-  enhanceBitmapBuffer,
-  getScaledSize,
-} = require("./simple-page-image-utils.cjs");
-const {
-  extractModelOutputText,
-  parseResponsesSseText,
-} = require("./simple-page-response-text.cjs");
-const {
-  resolveLlamaCppCacheDir,
-  resolveManagedHfFilePath,
-} = require("./simple-page-cache-paths.cjs");
-const { resolveFfmpegPath } = require("./simple-page-runtime-paths.cjs");
-const {
-  buildOcrRuntimeEnv,
-  buildPaddleOcrImportCheckScript,
-  buildPaddleOcrImportFailureMessage,
-  resolveOcrGpuBackend,
-  resolveOcrGpuCudaTag,
-  resolveOcrGpuPackageIndexUrl,
-  resolveOcrPipInstallBatches,
-  resolvePaddleOcrImportCheckTimeoutMs,
-} = require("./simple-page-ocr-runtime-config.cjs");
-const {
-  collectRequiredPaddleOcrModelDownloads,
-} = require("./simple-page-ocr-model-assets.cjs");
+// @ts-check
+
 const {
   convertImageToPngBufferWithFfmpeg,
-  prepareImageVariants,
 } = require("./simple-page-image-variants.cjs");
-const {
-  collectRequiredHfDownloads,
-  inspectModelLaunch,
-  isModelCached,
-} = require("./simple-page-model-assets.cjs");
+const { isModelCached } = require("./simple-page-model-assets.cjs");
 const {
   ensurePaddleOcrRuntime,
-  resolveOcrInstallBatchProgressRanges,
 } = require("./simple-page-ocr-runtime-manager.cjs");
 const {
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
 } = require("./simple-page-ocr-bbox-pipeline.cjs");
-const { buildMessages } = require("./simple-page-request-builders.cjs");
 const { saveArtifacts } = require("./simple-page-artifacts.cjs");
 const {
-  buildResponsesRequestBody,
   requestTranslation,
   testModelReply,
 } = require("./simple-page-translation-requests.cjs");
 const {
-  buildLaunchArgs,
-  buildLlamaServerEnv,
   startServer,
   stopServer,
 } = require("./simple-page-server-lifecycle.cjs");
 
+/**
+ * @typedef {Object} SimplePageRuntimePublicApi
+ * @property {typeof collectOcrBboxHints} collectOcrBboxHints
+ * @property {typeof collectOcrBboxHintsBatch} collectOcrBboxHintsBatch
+ * @property {typeof convertImageToPngBufferWithFfmpeg} convertImageToPngBufferWithFfmpeg
+ * @property {typeof ensurePaddleOcrRuntime} ensurePaddleOcrRuntime
+ * @property {typeof isModelCached} isModelCached
+ * @property {typeof requestTranslation} requestTranslation
+ * @property {typeof saveArtifacts} saveArtifacts
+ * @property {typeof startServer} startServer
+ * @property {typeof stopServer} stopServer
+ * @property {typeof testModelReply} testModelReply
+ */
+
+/** @satisfies {SimplePageRuntimePublicApi} */
 module.exports = {
-  buildMessages,
-  buildLaunchArgs,
-  buildOcrRuntimeEnv,
-  buildPaddleOcrImportCheckScript,
-  buildPaddleOcrImportFailureMessage,
-  buildResponsesRequestBody,
-  collectRequiredHfDownloads,
-  collectRequiredPaddleOcrModelDownloads,
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
   convertImageToPngBufferWithFfmpeg,
   ensurePaddleOcrRuntime,
-  enhanceBitmapBuffer,
-  extractModelOutputText,
-  getOverlayPrompt,
-  getScaledSize,
-  parseOcrBatchProgressLine,
-  parsePaddleModelFetchProgress,
-  parsePipRawProgress,
-  resolvePaddleOcrImportCheckTimeoutMs,
-  resolveOcrBboxTimeoutMs,
-  resolveOcrGpuBackend,
-  resolveOcrGpuCudaTag,
-  resolveOcrGpuPackageIndexUrl,
-  resolveOcrPipInstallBatches,
-  resolveOcrInstallBatchProgressRanges,
-  resolveFfmpegPath,
-  resolveLlamaCppCacheDir,
-  buildLlamaServerEnv,
-  resolveManagedHfFilePath,
-  inspectModelLaunch,
   isModelCached,
-  parseResponsesSseText,
-  prepareImageVariants,
   requestTranslation,
   saveArtifacts,
   startServer,

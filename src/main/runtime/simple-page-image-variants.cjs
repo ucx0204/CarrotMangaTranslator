@@ -1,3 +1,4 @@
+// @ts-check
 const { spawn } = require("node:child_process");
 const { mkdir, readFile, writeFile } = require("node:fs/promises");
 const path = require("node:path");
@@ -51,7 +52,7 @@ function resolveElectronNativeImage() {
     ) {
       return electronModule.nativeImage;
     }
-  } catch {
+  } catch (_error) {
     // Ignore node-only contexts and fall back to the PowerShell pipeline.
   }
 
@@ -402,7 +403,8 @@ async function buildEnhancedVariantWithPowerShell(options) {
     "-Grayscale",
   ];
 
-  await new Promise((resolve, reject) => {
+  /** @type {Promise<void>} */
+  const completed = new Promise((resolve, reject) => {
     const child = spawn("powershell", args, {
       cwd: resolveWorkingDir(options),
       stdio: ["ignore", "pipe", "pipe"],
@@ -464,6 +466,7 @@ async function buildEnhancedVariantWithPowerShell(options) {
       );
     });
   });
+  await completed;
 
   return outputPath;
 }
@@ -492,6 +495,8 @@ async function prepareImageVariants(options) {
       variants.push({
         role: "enhanced",
         path: await buildEnhancedVariant(options),
+        width: sourceSize.width,
+        height: sourceSize.height,
         originalWidth: sourceSize.width,
         originalHeight: sourceSize.height,
       });

@@ -1,8 +1,8 @@
-import type { MangaApi } from "../../../preload";
+import type { MangaApi } from "../../../shared/mangaApi";
 
 export type MangaGateway = MangaApi;
 
-function createMissingPreloadMethod(property: PropertyKey): unknown {
+function createMissingBridgeMethod(property: PropertyKey): unknown {
   const name = String(property);
   if (name === "writeLog") {
     return () => Promise.resolve();
@@ -11,9 +11,7 @@ function createMissingPreloadMethod(property: PropertyKey): unknown {
     return () => () => undefined;
   }
   return () =>
-    Promise.reject(
-      new Error(`mangaApi preload bridge is not available for ${name}.`),
-    );
+    Promise.reject(new Error(`Manga API bridge is not available for ${name}.`));
 }
 
 export const mangaGateway: MangaGateway = new Proxy({} as MangaGateway, {
@@ -24,7 +22,7 @@ export const mangaGateway: MangaGateway = new Proxy({} as MangaGateway, {
 
     const api = window.mangaApi;
     if (!api) {
-      return createMissingPreloadMethod(property);
+      return createMissingBridgeMethod(property);
     }
     const value = Reflect.get(api, property);
     return typeof value === "function" ? value.bind(api) : value;
