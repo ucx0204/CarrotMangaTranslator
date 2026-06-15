@@ -24,9 +24,12 @@ export {
   ItalicIcon,
   MaskIcon,
   PickerIcon,
+  PlusIcon,
   RedoIcon,
   RefreshIcon,
   RestoreIcon,
+  SortIcon,
+  TrashIcon,
   UndoIcon,
   WarnIcon,
 } from "./icons";

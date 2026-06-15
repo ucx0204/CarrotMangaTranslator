@@ -1,6 +1,7 @@
 import React from "react";
 import type { ChapterSnapshot, JobState } from "../../../shared/types";
 import type { ProgressSnapshot } from "../lib/jobProgress";
+import { useEtaText } from "../hooks/useEtaText";
 import { Button } from "./ui";
 
 export function RunPanel({
@@ -78,7 +79,11 @@ export function StatusPanel({
   return (
     <section className="status-panel">
       <h2>상태</h2>
-      <div className={`job-pill ${jobState.status}`}>
+      <div
+        className={`job-pill ${jobState.status}`}
+        role="status"
+        aria-live="polite"
+      >
         {jobState.progressText}
       </div>
       <div className="status-log-scroll">
@@ -101,6 +106,7 @@ function ProgressCard({
   jobState: JobState;
   progressSnapshot: ProgressSnapshot;
 }): React.JSX.Element {
+  const etaText = useEtaText(progressSnapshot);
   return (
     <div className="progress-card">
       <div className="progress-meta">
@@ -116,6 +122,7 @@ function ProgressCard({
       {jobState.detail ? (
         <small className="progress-detail">{jobState.detail}</small>
       ) : null}
+      {etaText ? <small className="progress-eta">{etaText}</small> : null}
       <div
         className={`progress-track ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
         aria-hidden="true"

@@ -3,6 +3,15 @@ import styles from "./Modal.module.css";
 import { IconButton } from "./IconButton";
 import { CloseIcon } from "./icons";
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusable(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+  ).filter((element) => element.offsetParent !== null);
+}
+
 export type ModalSize = "sm" | "md" | "lg" | "xl";
 
 export type ModalProps = {
@@ -40,6 +49,8 @@ export function Modal({
   footer,
   children,
 }: ModalProps): React.JSX.Element {
+  const cardRef = React.useRef<HTMLDivElement | null>(null);
+
   React.useEffect(() => {
     if (!closeOnEsc || !onClose) {
       return;
@@ -52,6 +63,48 @@ export function Modal({
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
   }, [closeOnEsc, onClose, closeDisabled]);
+
+  React.useEffect(() => {
+    const previouslyFocused =
+      typeof document !== "undefined"
+        ? (document.activeElement as HTMLElement | null)
+        : null;
+    const card = cardRef.current;
+    if (card) {
+      const focusable = getFocusable(card);
+      (focusable[0] ?? card).focus();
+    }
+    return () => {
+      previouslyFocused?.focus?.();
+    };
+  }, []);
+
+  const handleCardKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ): void => {
+    if (event.key !== "Tab") {
+      return;
+    }
+    const card = cardRef.current;
+    if (!card) {
+      return;
+    }
+    const focusable = getFocusable(card);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   const showHeader = Boolean(title) || Boolean(headerExtra) || Boolean(onClose);
 
@@ -71,6 +124,7 @@ export function Modal({
       }}
     >
       <div
+        ref={cardRef}
         className={[styles.card, styles[size], cardClassName ?? ""]
           .filter(Boolean)
           .join(" ")}
@@ -78,6 +132,8 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
+        tabIndex={-1}
+        onKeyDown={handleCardKeyDown}
         onMouseDown={(event) => event.stopPropagation()}
       >
         {showHeader ? (

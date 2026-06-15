@@ -1,6 +1,7 @@
 import React from "react";
 import type { JobState } from "../../../../shared/types";
 import type { ProgressSnapshot } from "../../lib/jobProgress";
+import { useEtaText } from "../../hooks/useEtaText";
 import { Button } from "../ui";
 
 type InpaintingProgressCardProps = {
@@ -35,6 +36,7 @@ export function InpaintingProgressCard({
         (Number.isFinite(jobState.pageTotal)
           ? `${jobState.pageTotal}페이지 처리 중`
           : "인페인팅 작업 진행 중");
+  const etaText = useEtaText(progressSnapshot);
   return (
     <div className={`inpainting-progress-card ${jobState.status}`}>
       <div className="progress-meta">
@@ -50,6 +52,7 @@ export function InpaintingProgressCard({
         )}
       </div>
       <small>{detail}</small>
+      {etaText ? <small className="progress-eta">{etaText}</small> : null}
       <div className="progress-track" aria-hidden="true">
         <div
           className="progress-fill"

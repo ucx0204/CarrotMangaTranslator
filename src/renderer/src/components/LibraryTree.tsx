@@ -19,6 +19,13 @@ import type {
 } from "../../../shared/types";
 import { useStandardDndSensors } from "../lib/dnd";
 import { filterLibraryIndex } from "../lib/libraryFilter";
+import {
+  readLibrarySort,
+  sortLibraryIndex,
+  writeLibrarySort,
+  type LibrarySort,
+} from "../lib/librarySort";
+import { LibrarySortMenu } from "./LibrarySortMenu";
 import { IconButton } from "./ui";
 import { EditIcon } from "./ui/icons";
 
@@ -56,9 +63,18 @@ export function LibraryTree({
   );
   const [searchQuery, setSearchQuery] = React.useState("");
   const deferredSearchQuery = React.useDeferredValue(searchQuery);
+  const [sort, setSort] = React.useState<LibrarySort>(() => readLibrarySort());
+  const handleSortChange = React.useCallback((next: LibrarySort) => {
+    setSort(next);
+    writeLibrarySort(next);
+  }, []);
   const filteredLibrary = React.useMemo(
     () => filterLibraryIndex(library, deferredSearchQuery),
     [deferredSearchQuery, library],
+  );
+  const visibleLibrary = React.useMemo(
+    () => sortLibraryIndex(filteredLibrary, sort),
+    [filteredLibrary, sort],
   );
   const searchActive = searchQuery.trim().length > 0;
   const dragEnabled = !jobActive && !searchActive;
@@ -67,7 +83,7 @@ export function LibraryTree({
     (event: DragStartEvent) => {
       const workId = event.active.data.current?.workId;
       const chapterId = String(event.active.id);
-      const work = filteredLibrary.works.find(
+      const work = visibleLibrary.works.find(
         (candidate) => candidate.id === workId,
       );
       const chapter = work?.chapters.find(
@@ -77,7 +93,7 @@ export function LibraryTree({
         setActiveDrag({ workId, chapter });
       }
     },
-    [filteredLibrary.works],
+    [visibleLibrary.works],
   );
 
   const handleDragEnd = React.useCallback(
@@ -116,6 +132,7 @@ export function LibraryTree({
             spellCheck={false}
           />
         </label>
+        <LibrarySortMenu value={sort} onChange={handleSortChange} />
       </div>
       <DndContext
         sensors={sensors}
@@ -127,8 +144,8 @@ export function LibraryTree({
         <div
           className={`library-scroll sortable-scroll ${activeDrag ? "drag-active" : ""}`}
         >
-          {filteredLibrary.works.length ? (
-            filteredLibrary.works.map((work) => (
+          {visibleLibrary.works.length ? (
+            visibleLibrary.works.map((work) => (
               <div key={work.id} className="work-group">
                 <div className="work-row">
                   <strong title={work.title}>{work.title}</strong>

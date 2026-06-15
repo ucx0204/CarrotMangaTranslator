@@ -3,6 +3,7 @@ import type {
   LibraryIndex,
   WorkShareImportPreview,
 } from "../../../../shared/types";
+import { TextField } from "../ui";
 
 type ShareImportTargetSectionProps = {
   busy: boolean;
@@ -58,14 +59,12 @@ export function ShareImportTargetSection({
         </label>
       </div>
       {targetMode === "new" ? (
-        <label>
-          새 작품 제목
-          <input
-            value={newWorkTitle}
-            disabled={busy}
-            onChange={(event) => setNewWorkTitle(event.target.value)}
-          />
-        </label>
+        <TextField
+          label="새 작품 제목"
+          value={newWorkTitle}
+          disabled={busy}
+          onChange={(event) => setNewWorkTitle(event.target.value)}
+        />
       ) : (
         <label>
           기존 작품

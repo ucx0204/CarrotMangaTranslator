@@ -78,9 +78,9 @@ export function ShareExportModal({
         </>
       }
     >
-      <section className="modal-section">
+      <section className="modal-section share-target-section">
         <label>
-          작품
+          공유 대상 작품
           <select
             value={workId}
             disabled={busy || library.works.length === 0}
@@ -151,7 +151,8 @@ export function ShareExportModal({
       </section>
 
       <div className="modal-summary-line">
-        {selectedCount}개 화, {pageCount}페이지
+        <strong>{selectedCount}</strong>개 화 · <strong>{pageCount}</strong>
+        페이지
       </div>
     </Modal>
   );

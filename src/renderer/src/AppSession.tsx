@@ -140,6 +140,27 @@ export function AppSession(): React.JSX.Element {
   );
   const selectedPageImagePath =
     selectedPage?.inpaintedImagePath ?? selectedPage?.imagePath ?? null;
+  const neighborImageTargets = useMemo(() => {
+    const pages = currentChapter?.pages;
+    if (!pages || !selectedPage) {
+      return [];
+    }
+    const index = pages.findIndex((page) => page.id === selectedPage.id);
+    if (index < 0) {
+      return [];
+    }
+    const targets: Array<{ pageId: string; imagePath: string }> = [];
+    for (const offset of [1, -1]) {
+      const neighbor = pages[index + offset];
+      if (neighbor) {
+        targets.push({
+          pageId: neighbor.id,
+          imagePath: neighbor.inpaintedImagePath ?? neighbor.imagePath,
+        });
+      }
+    }
+    return targets;
+  }, [currentChapter?.pages, selectedPage]);
   const {
     selectedPageImageDataUrl,
     selectedPageOriginalImageDataUrl,
@@ -148,6 +169,7 @@ export function AppSession(): React.JSX.Element {
     chapterId: currentChapter?.id ?? null,
     selectedPage,
     selectedPageImagePath,
+    neighborTargets: neighborImageTargets,
   });
   const selectedBlock =
     selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
@@ -510,6 +532,7 @@ export function AppSession(): React.JSX.Element {
     onStagePointerMove,
     onStagePointerUp,
     startRegionTranslationSelection,
+    dragHud,
   } = useWorkspacePointerHandlers({
     appendRetouchPoint,
     applyRetouchPoints,
@@ -672,6 +695,7 @@ export function AppSession(): React.JSX.Element {
           maskStrokes={inpaintingMode ? patternMaskStrokes : []}
           regionSelectionActive={Boolean(regionSelection?.active)}
           regionSelectionRect={regionSelectionRect}
+          dragHud={dragHud}
           jobState={jobState}
           progressSnapshot={progressSnapshot}
           onStagePointerMove={onStagePointerMove}

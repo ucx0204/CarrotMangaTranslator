@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type Dispatch,
   type MutableRefObject,
   type PointerEvent,
@@ -40,6 +41,26 @@ type DragState = {
   startY: number;
   startBbox: { x: number; y: number; w: number; h: number };
 };
+
+export type DragHud = {
+  mode: DragMode;
+  label: string;
+};
+
+function describeDragBbox(
+  mode: DragMode,
+  bbox: { x: number; y: number; w: number; h: number },
+  page: { width: number; height: number },
+): string {
+  if (mode === "resize") {
+    const widthPx = Math.round((bbox.w / 1000) * page.width);
+    const heightPx = Math.round((bbox.h / 1000) * page.height);
+    return `${widthPx} × ${heightPx}px`;
+  }
+  const xPx = Math.round((bbox.x / 1000) * page.width);
+  const yPx = Math.round((bbox.y / 1000) * page.height);
+  return `${xPx}, ${yPx}`;
+}
 
 type UseWorkspacePointerHandlersOptions = {
   appendRetouchPoint: (
@@ -133,8 +154,10 @@ export function useWorkspacePointerHandlers({
   onStagePointerMove: (event: PointerEvent) => void;
   onStagePointerUp: (event: PointerEvent) => void;
   startRegionTranslationSelection: () => void;
+  dragHud: DragHud | null;
 } {
   const dragRef = useRef<DragState | null>(null);
+  const [dragHud, setDragHud] = useState<DragHud | null>(null);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -168,6 +191,7 @@ export function useWorkspacePointerHandlers({
           }));
         }
         dragRef.current = null;
+        setDragHud(null);
         if (stageRef.current) {
           stageRef.current.style.cursor = "";
         }
@@ -299,6 +323,12 @@ export function useWorkspacePointerHandlers({
         startY: event.clientY,
         startBbox: target.bbox,
       };
+      if (pageSize) {
+        setDragHud({
+          mode,
+          label: describeDragBbox(mode, target.bbox, pageSize),
+        });
+      }
       stageRef.current.style.cursor =
         mode === "move" ? "grabbing" : "nwse-resize";
       capturePointerSafely(stageRef.current, event.pointerId);
@@ -398,6 +428,14 @@ export function useWorkspacePointerHandlers({
               h: drag.startBbox.h + dy,
             };
 
+      setDragHud({
+        mode: drag.mode,
+        label: describeDragBbox(drag.mode, next, {
+          width: page.width,
+          height: page.height,
+        }),
+      });
+
       updateCurrentChapter(page.id, (chapter) => ({
         ...chapter,
         pages: chapter.pages.map((candidate) =>
@@ -460,6 +498,7 @@ export function useWorkspacePointerHandlers({
         releasePointerCaptureSafely(stageRef.current, event.pointerId);
       }
       dragRef.current = null;
+      setDragHud(null);
       if (stageRef.current) {
         stageRef.current.style.cursor = "";
       }
@@ -486,5 +525,6 @@ export function useWorkspacePointerHandlers({
     onStagePointerMove,
     onStagePointerUp,
     startRegionTranslationSelection,
+    dragHud,
   };
 }

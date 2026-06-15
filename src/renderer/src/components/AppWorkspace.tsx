@@ -24,6 +24,7 @@ type AppWorkspaceProps = {
   maskStrokes: ImageStageProps["maskStrokes"];
   regionSelectionActive: boolean;
   regionSelectionRect: ImageStageProps["regionSelectionRect"];
+  dragHud: ImageStageProps["dragHud"];
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
   onStagePointerMove: ImageStageProps["onStagePointerMove"];
@@ -56,6 +57,7 @@ export function AppWorkspace({
   maskStrokes,
   regionSelectionActive,
   regionSelectionRect,
+  dragHud,
   jobState,
   progressSnapshot,
   onStagePointerMove,
@@ -100,6 +102,7 @@ export function AppWorkspace({
             maskStrokes={maskStrokes}
             regionSelectionActive={regionSelectionActive}
             regionSelectionRect={regionSelectionRect}
+            dragHud={dragHud}
             onStagePointerMove={onStagePointerMove}
             onStagePointerUp={onStagePointerUp}
             onStagePointerDown={onStagePointerDown}

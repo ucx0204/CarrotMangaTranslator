@@ -22,6 +22,7 @@ import {
   useStandardDndSensors,
 } from "../../lib/dnd";
 import { Button } from "../ui";
+import { PlusIcon, TrashIcon } from "../ui/icons";
 import { toLeftPackageItem } from "./shareImportHelpers";
 import {
   CANDIDATE_PREFIX,
@@ -356,7 +357,7 @@ function SortableFinalChapterCard({
         aria-label={`${item.title} 삭제`}
         title="삭제"
       >
-        ×
+        <TrashIcon size={15} />
       </button>
     </div>
   );
@@ -408,7 +409,7 @@ function CandidateChapterCard({
         aria-label={`${chapter.title} 추가`}
         title="추가"
       >
-        +
+        <PlusIcon size={16} />
       </button>
     </div>
   );
@@ -450,7 +451,9 @@ function CandidatePreview({
         <strong>{chapter.title}</strong>
         <small>{chapter.pageCount}페이지</small>
       </div>
-      <span className="icon-add-button preview-icon">+</span>
+      <span className="icon-add-button preview-icon">
+        <PlusIcon size={16} />
+      </span>
     </div>
   );
 }

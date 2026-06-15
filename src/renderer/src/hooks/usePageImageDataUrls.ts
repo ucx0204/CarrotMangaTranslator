@@ -2,12 +2,14 @@ import React from "react";
 import type { MangaPage } from "../../../shared/types";
 import { mangaGateway } from "../api/mangaGateway";
 
-const PAGE_IMAGE_CACHE_LIMIT = 3;
+const PAGE_IMAGE_CACHE_LIMIT = 6;
 
 type UsePageImageDataUrlsOptions = {
   chapterId: string | null;
   selectedPage: MangaPage | null;
   selectedPageImagePath: string | null;
+  /** Adjacent pages to prefetch so flipping swaps from cache without a blank frame. */
+  neighborTargets?: Array<{ pageId: string; imagePath: string }>;
 };
 
 type UsePageImageDataUrlsResult = {
@@ -20,6 +22,7 @@ export function usePageImageDataUrls({
   chapterId,
   selectedPage,
   selectedPageImagePath,
+  neighborTargets = [],
 }: UsePageImageDataUrlsOptions): UsePageImageDataUrlsResult {
   const [selectedPageImageDataUrl, setSelectedPageImageDataUrl] =
     React.useState("");
@@ -58,8 +61,9 @@ export function usePageImageDataUrls({
       return;
     }
 
+    // Keep the previous page visible until the next one resolves so flipping
+    // pages never flashes the dark placeholder.
     let cancelled = false;
-    setSelectedPageImageDataUrl("");
     void mangaGateway
       .getPageImageDataUrl(imagePath)
       .then((dataUrl) => {
@@ -135,6 +139,32 @@ export function usePageImageDataUrls({
     selectedPageImagePath,
     selectedPageOriginalImagePath,
   ]);
+
+  React.useEffect(() => {
+    if (neighborTargets.length === 0) {
+      return;
+    }
+    let cancelled = false;
+    for (const target of neighborTargets) {
+      const cacheKey = `${target.pageId}:${target.imagePath}`;
+      if (pageImageCacheRef.current.has(cacheKey)) {
+        continue;
+      }
+      void mangaGateway
+        .getPageImageDataUrl(target.imagePath)
+        .then((dataUrl) => {
+          if (!cancelled) {
+            setCachedImageDataUrl(pageImageCacheRef.current, cacheKey, dataUrl);
+          }
+        })
+        .catch((error) => {
+          console.warn("이웃 페이지 미리 불러오기 실패", error);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [neighborTargets]);
 
   return {
     selectedPageImageDataUrl,

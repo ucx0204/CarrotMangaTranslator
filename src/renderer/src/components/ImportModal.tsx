@@ -4,7 +4,7 @@ import type {
   ImportPreviewResult,
   LibraryIndex,
 } from "../../../shared/types";
-import { Button, Modal } from "./ui";
+import { Button, Modal, TextField } from "./ui";
 
 export type ImportModalSubmit = {
   target:
@@ -90,51 +90,56 @@ export function ImportModal({
         </>
       }
     >
-      <section className="modal-section">
-        <label className="radio-row">
-          <input
-            type="radio"
-            name="target-mode"
-            checked={targetMode === "new"}
-            disabled={busy}
-            onChange={() => setTargetMode("new")}
-          />
-          <span>새 작품 만들기</span>
-        </label>
-        <label>
-          작품 제목
-          <input
+      <section className="modal-section share-target-section">
+        <div className="share-target-grid">
+          <label
+            className={`share-target-card ${targetMode === "new" ? "active" : ""}`}
+          >
+            <input
+              type="radio"
+              name="target-mode"
+              checked={targetMode === "new"}
+              disabled={busy}
+              onChange={() => setTargetMode("new")}
+            />
+            <span>새 작품 만들기</span>
+          </label>
+          <label
+            className={`share-target-card ${targetMode === "existing" ? "active" : ""}`}
+          >
+            <input
+              type="radio"
+              name="target-mode"
+              checked={targetMode === "existing"}
+              disabled={busy || library.works.length === 0}
+              onChange={() => setTargetMode("existing")}
+            />
+            <span>기존 작품에 추가</span>
+          </label>
+        </div>
+        {targetMode === "new" ? (
+          <TextField
+            label="작품 제목"
             value={newWorkTitle}
-            disabled={busy || targetMode !== "new"}
+            disabled={busy}
             onChange={(event) => setNewWorkTitle(event.target.value)}
           />
-        </label>
-        <label className="radio-row">
-          <input
-            type="radio"
-            name="target-mode"
-            checked={targetMode === "existing"}
-            disabled={busy || library.works.length === 0}
-            onChange={() => setTargetMode("existing")}
-          />
-          <span>기존 작품에 추가</span>
-        </label>
-        <label>
-          작품 선택
-          <select
-            value={existingWorkId}
-            disabled={
-              busy || targetMode !== "existing" || library.works.length === 0
-            }
-            onChange={(event) => setExistingWorkId(event.target.value)}
-          >
-            {library.works.map((work) => (
-              <option key={work.id} value={work.id}>
-                {work.title}
-              </option>
-            ))}
-          </select>
-        </label>
+        ) : (
+          <label>
+            작품 선택
+            <select
+              value={existingWorkId}
+              disabled={busy || library.works.length === 0}
+              onChange={(event) => setExistingWorkId(event.target.value)}
+            >
+              {library.works.map((work) => (
+                <option key={work.id} value={work.id}>
+                  {work.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </section>
 
       <section className="modal-section">

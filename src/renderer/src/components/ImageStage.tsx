@@ -6,6 +6,7 @@ import type {
   TranslationBlock,
 } from "../../../shared/types";
 import type { ViewportSize } from "../lib/overlayLayout";
+import type { DragHud } from "../hooks/useWorkspacePointerHandlers";
 import { OverlayBlock } from "./OverlayBlock";
 
 export type ImageStageProps = {
@@ -35,6 +36,7 @@ export type ImageStageProps = {
   maskStrokes?: InpaintingMaskStroke[];
   regionSelectionActive: boolean;
   regionSelectionRect: BBox | null;
+  dragHud?: DragHud | null;
   onStagePointerMove: (event: React.PointerEvent) => void;
   onStagePointerUp: (event: React.PointerEvent) => void;
   onStagePointerDown: (event: React.PointerEvent) => void;
@@ -63,6 +65,7 @@ export function ImageStage({
   maskStrokes = [],
   regionSelectionActive,
   regionSelectionRect,
+  dragHud = null,
   onStagePointerMove,
   onStagePointerUp,
   onStagePointerDown,
@@ -254,6 +257,11 @@ export function ImageStage({
               height: `${(regionSelectionRect.h / 1000) * stageSize.height}px`,
             }}
           />
+        ) : null}
+        {dragHud ? (
+          <div className={`stage-drag-hud ${dragHud.mode}`}>
+            {dragHud.label}
+          </div>
         ) : null}
       </div>
     </div>

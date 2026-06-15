@@ -162,3 +162,28 @@ export const AlignRightIcon = createIcon(
     <path d="M7 18h13" />
   </>,
 );
+
+export const SortIcon = createIcon(
+  <>
+    <path d="M5 7h13" />
+    <path d="M5 12h9" />
+    <path d="M5 17h5" />
+  </>,
+);
+
+export const PlusIcon = createIcon(
+  <>
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </>,
+);
+
+export const TrashIcon = createIcon(
+  <>
+    <path d="M4 7h16" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+    <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+    <path d="M9 7V4h6v3" />
+  </>,
+);
