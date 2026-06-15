@@ -1,5 +1,5 @@
 import type { ChapterSnapshot } from "../../../shared/types";
-import type { BlockCounts } from "../inpainting/InpaintingContext";
+import type { BlockCounts } from "../inpainting/inpaintingTypes";
 
 export function countChapterBlocks(chapter: ChapterSnapshot | null, selectedPageId: string | null): BlockCounts {
   if (!chapter) {

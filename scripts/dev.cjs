@@ -1,13 +1,17 @@
 const http = require("node:http");
+const net = require("node:net");
 const { join } = require("node:path");
 const { existsSync } = require("node:fs");
 const { spawn, spawnSync } = require("node:child_process");
 const { prepareRuntimeAssets } = require("./prepare-runtime.cjs");
 
 const root = join(__dirname, "..");
-const rendererUrl = "http://127.0.0.1:5173";
+const DEFAULT_RENDERER_PORT = 5173;
 const devStorageRoot = join(root, ".tmp", "electron-dev");
-const devSessionData = join(devStorageRoot, `session-${process.pid}-${Date.now()}`);
+const devSessionData = join(
+  devStorageRoot,
+  `session-${process.pid}-${Date.now()}`,
+);
 const children = [];
 let shuttingDown = false;
 
@@ -21,7 +25,7 @@ function runSync(command, args) {
   const result = spawnSync(command, args, {
     cwd: root,
     stdio: "inherit",
-    shell: false
+    shell: false,
   });
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
@@ -41,18 +45,24 @@ function spawnChild(label, command, args, env = {}) {
     cwd: root,
     stdio: "inherit",
     shell: false,
-    env: mergedEnv
+    env: mergedEnv,
   });
   child.__devLabel = label;
   children.push(child);
   child.on("exit", (code, signal) => {
-    log(`${label} exited${code === null ? "" : ` code=${code}`}${signal ? ` signal=${signal}` : ""}`);
+    log(
+      `${label} exited${code === null ? "" : ` code=${code}`}${signal ? ` signal=${signal}` : ""}`,
+    );
     if (shuttingDown) {
       return;
     }
     shuttingDown = true;
     for (const other of children) {
-      if (other !== child && other.exitCode === null && other.signalCode === null) {
+      if (
+        other !== child &&
+        other.exitCode === null &&
+        other.signalCode === null
+      ) {
         other.kill();
       }
     }
@@ -93,6 +103,32 @@ function canReach(url) {
   });
 }
 
+async function findAvailablePort(
+  startPort,
+  host = "127.0.0.1",
+  maxAttempts = 50,
+) {
+  for (let offset = 0; offset < maxAttempts; offset += 1) {
+    const port = startPort + offset;
+    if (await canListen(host, port)) {
+      return port;
+    }
+  }
+  throw new Error(
+    `No available renderer dev server port found from ${startPort}`,
+  );
+}
+
+function canListen(host, port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once("error", () => resolve(false));
+    server.listen(port, host, () => {
+      server.close((error) => resolve(!error));
+    });
+  });
+}
+
 function nodeBin(packageName, ...parts) {
   return join(root, "node_modules", packageName, ...parts);
 }
@@ -114,18 +150,32 @@ function shutdown(exitCode = 0) {
   log("preparing runtime assets");
   prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
   log("compiling Electron main process");
-  runSync(process.execPath, [nodeBin("typescript", "bin", "tsc"), "-p", "tsconfig.electron.json"]);
+  runSync(process.execPath, [
+    nodeBin("typescript", "bin", "tsc"),
+    "-p",
+    "tsconfig.electron.json",
+  ]);
+  const rendererPort = await findAvailablePort(
+    Number(process.env.MANGA_TRANSLATOR_DEV_PORT) || DEFAULT_RENDERER_PORT,
+  );
+  const rendererUrl = `http://127.0.0.1:${rendererPort}`;
   spawnChild("vite", process.execPath, [
     nodeBin("vite", "bin", "vite.js"),
     "--config",
     "vite.renderer.config.ts",
     "--host",
     "127.0.0.1",
-    "--strictPort"
+    "--port",
+    String(rendererPort),
+    "--strictPort",
   ]);
   log(`waiting for renderer ${rendererUrl}`);
   await waitForUrl(rendererUrl);
-  const electronExe = nodeBin("electron", "dist", process.platform === "win32" ? "electron.exe" : "electron");
+  const electronExe = nodeBin(
+    "electron",
+    "dist",
+    process.platform === "win32" ? "electron.exe" : "electron",
+  );
   if (!existsSync(electronExe)) {
     throw new Error(`Electron executable is missing: ${electronExe}`);
   }
@@ -133,7 +183,7 @@ function shutdown(exitCode = 0) {
     ELECTRON_RENDERER_URL: rendererUrl,
     ELECTRON_RUN_AS_NODE: undefined,
     MANGA_TRANSLATOR_DEV_USER_DATA: join(devStorageRoot, "user-data"),
-    MANGA_TRANSLATOR_DEV_SESSION_DATA: devSessionData
+    MANGA_TRANSLATOR_DEV_SESSION_DATA: devSessionData,
   });
 })().catch((error) => {
   console.error(error);

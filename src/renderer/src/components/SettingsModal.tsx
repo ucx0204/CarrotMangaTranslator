@@ -5,52 +5,35 @@ import type {
   FluxBackend,
   GemmaVramMode,
   LlamaRuntimeProfile,
-  ModelTestProgressEvent,
   ModelProvider,
   ModelSource,
-  OcrDevice
+  OcrDevice,
 } from "../../../shared/types";
 import {
-  CODEX_REASONING_OPTIONS,
   MAX_MAX_TOKENS,
   MIN_MAX_TOKENS,
   MODEL_PRESETS,
-  MODEL_PROVIDER_OPTIONS,
-  MODEL_SOURCE_OPTIONS,
-  FLUX_BACKEND_OPTIONS,
-  OCR_DEVICE_OPTIONS,
-  LLAMA_RUNTIME_PROFILE_OPTIONS,
   resolveModelPreset,
-  type ModelPresetId
+  type ModelPresetId,
 } from "./settingsOptions";
 import { buildSettingsFromForm } from "./settingsFormBuilder";
+import {
+  EngineSettingsPanel,
+  HardwareSettingsPanel,
+  SettingsTabs,
+  SettingsValidationMessages,
+  TestSettingsPanel,
+} from "./SettingsModalSections";
+import {
+  buildTestDetail,
+  formatModelTestProgressLine,
+  isAmdLlamaRuntimeProfile,
+  isNvidiaLlamaRuntimeProfile,
+  resolveHardwareRuntimeLock,
+} from "./settingsModalHelpers";
+import type { SettingsTabId, TestState } from "./settingsModalTypes";
 import { Button, Modal } from "./ui";
 import { mangaGateway } from "../api/mangaGateway";
-
-const MODEL_PRESET_BUTTON_IDS = [
-  ...Object.keys(MODEL_PRESETS),
-  "custom"
-] as ModelPresetId[];
-
-type SettingsTabId = "engine" | "hardware" | "test";
-
-const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
-  { id: "engine", label: "번역 엔진" },
-  { id: "hardware", label: "하드웨어 · OCR" },
-  { id: "test", label: "설치 / 확인" }
-];
-
-type TestState =
-  | {
-      status: "idle";
-      message: null;
-      detail: null;
-    }
-  | {
-      status: "running" | "success" | "error";
-      message: string;
-      detail: string | null;
-    };
 
 type SettingsModalProps = {
   initialSettings: AppSettings;
@@ -69,50 +52,90 @@ export function SettingsModal({
   onCancel,
   onOpenLogFolder,
   onReset,
-  onSubmit
+  onSubmit,
 }: SettingsModalProps): React.JSX.Element {
-  const [modelProvider, setModelProvider] = React.useState<ModelProvider>(initialSettings.modelProvider);
-  const [modelSource, setModelSource] = React.useState<ModelSource>(initialSettings.gemma.modelSource);
-  const [selectedPreset, setSelectedPreset] = React.useState<ModelPresetId>(() =>
-    resolveModelPreset(initialSettings.gemma.modelRepo, initialSettings.gemma.modelFile)
+  const [modelProvider, setModelProvider] = React.useState<ModelProvider>(
+    initialSettings.modelProvider,
   );
-  const [customModelRepo, setCustomModelRepo] = React.useState(initialSettings.gemma.modelRepo);
-  const [customModelFile, setCustomModelFile] = React.useState(initialSettings.gemma.modelFile);
-  const [localModelPath, setLocalModelPath] = React.useState(initialSettings.gemma.localModelPath ?? "");
-  const [localMmprojPath, setLocalMmprojPath] = React.useState(initialSettings.gemma.localMmprojPath ?? "");
-  const [customVramMode, setCustomVramMode] = React.useState<GemmaVramMode>(initialSettings.gemma.vramMode);
-  const [llamaRuntimeProfile, setLlamaRuntimeProfile] = React.useState<LlamaRuntimeProfile>(
-    initialSettings.gemma.llamaRuntimeProfile ?? "cuda12"
+  const [modelSource, setModelSource] = React.useState<ModelSource>(
+    initialSettings.gemma.modelSource,
   );
-  const [codexModel, setCodexModel] = React.useState(initialSettings.codex.model);
-  const [codexReasoningEffort, setCodexReasoningEffort] = React.useState<CodexReasoningEffort>(
-    initialSettings.codex.reasoningEffort
+  const [selectedPreset, setSelectedPreset] = React.useState<ModelPresetId>(
+    () =>
+      resolveModelPreset(
+        initialSettings.gemma.modelRepo,
+        initialSettings.gemma.modelFile,
+      ),
   );
-  const [codexOauthPort, setCodexOauthPort] = React.useState(String(initialSettings.codex.oauthPort));
-  const [ocrDevice, setOcrDevice] = React.useState<OcrDevice>(initialSettings.ocr.device);
+  const [customModelRepo, setCustomModelRepo] = React.useState(
+    initialSettings.gemma.modelRepo,
+  );
+  const [customModelFile, setCustomModelFile] = React.useState(
+    initialSettings.gemma.modelFile,
+  );
+  const [localModelPath, setLocalModelPath] = React.useState(
+    initialSettings.gemma.localModelPath ?? "",
+  );
+  const [localMmprojPath, setLocalMmprojPath] = React.useState(
+    initialSettings.gemma.localMmprojPath ?? "",
+  );
+  const [customVramMode, setCustomVramMode] = React.useState<GemmaVramMode>(
+    initialSettings.gemma.vramMode,
+  );
+  const [llamaRuntimeProfile, setLlamaRuntimeProfile] =
+    React.useState<LlamaRuntimeProfile>(
+      initialSettings.gemma.llamaRuntimeProfile ?? "cuda12",
+    );
+  const [codexModel, setCodexModel] = React.useState(
+    initialSettings.codex.model,
+  );
+  const [codexReasoningEffort, setCodexReasoningEffort] =
+    React.useState<CodexReasoningEffort>(initialSettings.codex.reasoningEffort);
+  const [codexOauthPort, setCodexOauthPort] = React.useState(
+    String(initialSettings.codex.oauthPort),
+  );
+  const [ocrDevice, setOcrDevice] = React.useState<OcrDevice>(
+    initialSettings.ocr.device,
+  );
   const [fluxBackend, setFluxBackend] = React.useState<FluxBackend>(
-    initialSettings.inpainting?.fluxBackend ?? "cuda-native"
+    initialSettings.inpainting?.fluxBackend ?? "cuda-native",
   );
-  const [maxTokens, setMaxTokens] = React.useState(String(initialSettings.maxTokens));
+  const [maxTokens, setMaxTokens] = React.useState(
+    String(initialSettings.maxTokens),
+  );
   const [activeTab, setActiveTab] = React.useState<SettingsTabId>("engine");
   const [localActionBusy, setLocalActionBusy] = React.useState(false);
-  const [testState, setTestState] = React.useState<TestState>({ status: "idle", message: null, detail: null });
+  const [testState, setTestState] = React.useState<TestState>({
+    status: "idle",
+    message: null,
+    detail: null,
+  });
   const [testLogLines, setTestLogLines] = React.useState<string[]>([]);
   const modelRepoInputRef = React.useRef<HTMLInputElement | null>(null);
   const localModelInputRef = React.useRef<HTMLInputElement | null>(null);
   const testLogRef = React.useRef<HTMLDivElement | null>(null);
-  const hardwareRuntimeLock = React.useMemo(() => resolveHardwareRuntimeLock(initialSettings), [initialSettings]);
+  const hardwareRuntimeLock = React.useMemo(
+    () => resolveHardwareRuntimeLock(initialSettings),
+    [initialSettings],
+  );
 
   React.useEffect(() => {
     setModelProvider(initialSettings.modelProvider);
     setModelSource(initialSettings.gemma.modelSource);
-    setSelectedPreset(resolveModelPreset(initialSettings.gemma.modelRepo, initialSettings.gemma.modelFile));
+    setSelectedPreset(
+      resolveModelPreset(
+        initialSettings.gemma.modelRepo,
+        initialSettings.gemma.modelFile,
+      ),
+    );
     setCustomModelRepo(initialSettings.gemma.modelRepo);
     setCustomModelFile(initialSettings.gemma.modelFile);
     setLocalModelPath(initialSettings.gemma.localModelPath ?? "");
     setLocalMmprojPath(initialSettings.gemma.localMmprojPath ?? "");
     setCustomVramMode(initialSettings.gemma.vramMode);
-    setLlamaRuntimeProfile(initialSettings.gemma.llamaRuntimeProfile ?? "cuda12");
+    setLlamaRuntimeProfile(
+      initialSettings.gemma.llamaRuntimeProfile ?? "cuda12",
+    );
     setCodexModel(initialSettings.codex.model);
     setCodexReasoningEffort(initialSettings.codex.reasoningEffort);
     setCodexOauthPort(String(initialSettings.codex.oauthPort));
@@ -159,33 +182,54 @@ export function SettingsModal({
 
   React.useEffect(() => {
     if (usesAmdHardware && isNvidiaLlamaRuntimeProfile(llamaRuntimeProfile)) {
-      const preferredProfile = isAmdLlamaRuntimeProfile(initialSettings.gemma.llamaRuntimeProfile ?? "rocm")
-        ? initialSettings.gemma.llamaRuntimeProfile ?? "rocm"
+      const preferredProfile = isAmdLlamaRuntimeProfile(
+        initialSettings.gemma.llamaRuntimeProfile ?? "rocm",
+      )
+        ? (initialSettings.gemma.llamaRuntimeProfile ?? "rocm")
         : "rocm";
       setLlamaRuntimeProfile(preferredProfile);
       return;
     }
     if (usesNvidiaHardware && isAmdLlamaRuntimeProfile(llamaRuntimeProfile)) {
-      const preferredProfile = isNvidiaLlamaRuntimeProfile(initialSettings.gemma.llamaRuntimeProfile ?? "cuda12")
-        ? initialSettings.gemma.llamaRuntimeProfile ?? "cuda12"
+      const preferredProfile = isNvidiaLlamaRuntimeProfile(
+        initialSettings.gemma.llamaRuntimeProfile ?? "cuda12",
+      )
+        ? (initialSettings.gemma.llamaRuntimeProfile ?? "cuda12")
         : "cuda12";
       setLlamaRuntimeProfile(preferredProfile);
     }
-  }, [initialSettings.gemma.llamaRuntimeProfile, llamaRuntimeProfile, usesAmdHardware, usesNvidiaHardware]);
+  }, [
+    initialSettings.gemma.llamaRuntimeProfile,
+    llamaRuntimeProfile,
+    usesAmdHardware,
+    usesNvidiaHardware,
+  ]);
 
   React.useEffect(() => {
     if (usesAmdHardware && fluxBackend === "cuda-native") {
-      const preferredBackend = initialSettings.inpainting?.fluxBackend === "python-cpu" ? "python-cpu" : "zluda-native";
+      const preferredBackend =
+        initialSettings.inpainting?.fluxBackend === "python-cpu"
+          ? "python-cpu"
+          : "zluda-native";
       setFluxBackend(preferredBackend);
       return;
     }
     if (usesNvidiaHardware && fluxBackend === "zluda-native") {
       setFluxBackend("cuda-native");
     }
-  }, [fluxBackend, initialSettings.inpainting?.fluxBackend, usesAmdHardware, usesNvidiaHardware]);
+  }, [
+    fluxBackend,
+    initialSettings.inpainting?.fluxBackend,
+    usesAmdHardware,
+    usesNvidiaHardware,
+  ]);
 
-  const controlsBusy = busy || localActionBusy || testState.status === "running";
-  const activePreset = modelSource === "huggingface" && selectedPreset !== "custom" ? MODEL_PRESETS[selectedPreset] : null;
+  const controlsBusy =
+    busy || localActionBusy || testState.status === "running";
+  const activePreset =
+    modelSource === "huggingface" && selectedPreset !== "custom"
+      ? MODEL_PRESETS[selectedPreset]
+      : null;
   const trimmedModelRepo = (activePreset?.modelRepo ?? customModelRepo).trim();
   const trimmedModelFile = (activePreset?.modelFile ?? customModelFile).trim();
   const trimmedMmprojRepo = activePreset?.mmprojRepo;
@@ -197,27 +241,36 @@ export function SettingsModal({
   const parsedCodexOauthPort = Number(codexOauthPort);
   const parsedMaxTokens = Number(maxTokens);
   const codexOauthPortValid =
-    Number.isInteger(parsedCodexOauthPort) && parsedCodexOauthPort >= 1 && parsedCodexOauthPort <= 65535;
+    Number.isInteger(parsedCodexOauthPort) &&
+    parsedCodexOauthPort >= 1 &&
+    parsedCodexOauthPort <= 65535;
   const maxTokensValid =
-    Number.isInteger(parsedMaxTokens) && parsedMaxTokens >= MIN_MAX_TOKENS && parsedMaxTokens <= MAX_MAX_TOKENS;
-  const gemmaSettingsReady = modelSource === "local" ? Boolean(trimmedLocalModelPath) : Boolean(trimmedModelRepo && trimmedModelFile);
+    Number.isInteger(parsedMaxTokens) &&
+    parsedMaxTokens >= MIN_MAX_TOKENS &&
+    parsedMaxTokens <= MAX_MAX_TOKENS;
+  const gemmaSettingsReady =
+    modelSource === "local"
+      ? Boolean(trimmedLocalModelPath)
+      : Boolean(trimmedModelRepo && trimmedModelFile);
   const canSubmit = Boolean(
     maxTokensValid &&
-      (modelProvider === "openai-codex" ? trimmedCodexModel && codexOauthPortValid : gemmaSettingsReady)
+    (modelProvider === "openai-codex"
+      ? trimmedCodexModel && codexOauthPortValid
+      : gemmaSettingsReady),
   );
   const isLlamaRuntimeOptionDisabled = React.useCallback(
     (profile: LlamaRuntimeProfile) =>
       controlsBusy ||
       (usesAmdHardware && isNvidiaLlamaRuntimeProfile(profile)) ||
       (usesNvidiaHardware && isAmdLlamaRuntimeProfile(profile)),
-    [controlsBusy, usesAmdHardware, usesNvidiaHardware]
+    [controlsBusy, usesAmdHardware, usesNvidiaHardware],
   );
   const isFluxBackendOptionDisabled = React.useCallback(
     (backend: FluxBackend) =>
       controlsBusy ||
       (usesAmdHardware && backend === "cuda-native") ||
       (usesNvidiaHardware && backend === "zluda-native"),
-    [controlsBusy, usesAmdHardware, usesNvidiaHardware]
+    [controlsBusy, usesAmdHardware, usesNvidiaHardware],
   );
 
   const buildSettings = React.useCallback((): AppSettings | null => {
@@ -225,7 +278,10 @@ export function SettingsModal({
       return null;
     }
 
-    if (modelProvider === "openai-codex" && (!trimmedCodexModel || !codexOauthPortValid)) {
+    if (
+      modelProvider === "openai-codex" &&
+      (!trimmedCodexModel || !codexOauthPortValid)
+    ) {
       return null;
     }
 
@@ -243,10 +299,12 @@ export function SettingsModal({
       llamaRuntimeProfile,
       codexModel: trimmedCodexModel,
       codexReasoningEffort,
-      codexOauthPort: codexOauthPortValid ? parsedCodexOauthPort : initialSettings.codex.oauthPort,
+      codexOauthPort: codexOauthPortValid
+        ? parsedCodexOauthPort
+        : initialSettings.codex.oauthPort,
       ocrDevice,
       fluxBackend,
-      maxTokens: parsedMaxTokens
+      maxTokens: parsedMaxTokens,
     });
   }, [
     modelProvider,
@@ -267,8 +325,7 @@ export function SettingsModal({
     codexReasoningEffort,
     ocrDevice,
     fluxBackend,
-    initialSettings.codex.oauthPort,
-    maxTokensValid
+    maxTokensValid,
   ]);
 
   const clearTestState = React.useCallback(() => {
@@ -289,15 +346,15 @@ export function SettingsModal({
     });
   }, []);
 
-  const submit = () => {
+  const submit = React.useCallback(() => {
     const nextSettings = buildSettings();
     if (!nextSettings || !canSubmit) {
       return;
     }
     onSubmit(nextSettings);
-  };
+  }, [buildSettings, canSubmit, onSubmit]);
 
-  const pickLocalModelFile = async () => {
+  const pickLocalModelFile = React.useCallback(async () => {
     setLocalActionBusy(true);
     try {
       const picked = await mangaGateway.pickLocalModelFile();
@@ -312,9 +369,9 @@ export function SettingsModal({
     } finally {
       setLocalActionBusy(false);
     }
-  };
+  }, [clearTestState]);
 
-  const pickLocalMmprojFile = async () => {
+  const pickLocalMmprojFile = React.useCallback(async () => {
     setLocalActionBusy(true);
     try {
       const picked = await mangaGateway.pickLocalMmprojFile();
@@ -326,9 +383,9 @@ export function SettingsModal({
     } finally {
       setLocalActionBusy(false);
     }
-  };
+  }, [clearTestState]);
 
-  const runModelTest = async () => {
+  const runModelTest = React.useCallback(async () => {
     const nextSettings = buildSettings();
     if (!nextSettings || !canSubmit || jobActive) {
       return;
@@ -338,11 +395,12 @@ export function SettingsModal({
     setTestLogLines(["Paddle OCR과 번역 엔진 확인을 시작합니다."]);
     setTestState({
       status: "running",
-      message: "OCR, 모델 런타임, 간단한 텍스트 응답을 차례대로 확인하는 중입니다...",
+      message:
+        "OCR, 모델 런타임, 간단한 텍스트 응답을 차례대로 확인하는 중입니다...",
       detail:
         modelProvider === "gemma"
           ? "Paddle OCR과 Gemma 실행 런타임 준비 로그를 함께 표시합니다."
-          : "Paddle OCR과 Codex 엔드포인트 준비 상태를 함께 확인합니다."
+          : "Paddle OCR과 Codex 엔드포인트 준비 상태를 함께 확인합니다.",
     });
     const unsubscribe = mangaGateway.onModelTestEvent((event) => {
       if (event.id !== testId) {
@@ -354,30 +412,40 @@ export function SettingsModal({
           ? {
               status: "running",
               message: event.progressText,
-              detail: event.detail ?? current.detail
+              detail: event.detail ?? current.detail,
             }
-          : current
+          : current,
       );
     });
     try {
       const result = await mangaGateway.testModelSettings(nextSettings, testId);
-      appendTestLogLine(result.ok ? "Paddle OCR과 번역 엔진 확인이 완료되었습니다." : "Paddle OCR과 번역 엔진 확인이 실패했습니다.");
+      appendTestLogLine(
+        result.ok
+          ? "Paddle OCR과 번역 엔진 확인이 완료되었습니다."
+          : "Paddle OCR과 번역 엔진 확인이 실패했습니다.",
+      );
       setTestState({
         status: result.ok ? "success" : "error",
         message: result.message,
-        detail: buildTestDetail(result.resolvedModelPath, result.resolvedMmprojPath, result.resolvedEndpoint)
+        detail: buildTestDetail(
+          result.resolvedModelPath,
+          result.resolvedMmprojPath,
+          result.resolvedEndpoint,
+        ),
       });
     } catch (error) {
-      appendTestLogLine("Paddle OCR과 번역 엔진 확인 요청 중 오류가 발생했습니다.");
+      appendTestLogLine(
+        "Paddle OCR과 번역 엔진 확인 요청 중 오류가 발생했습니다.",
+      );
       setTestState({
         status: "error",
         message: error instanceof Error ? error.message : String(error),
-        detail: null
+        detail: null,
       });
     } finally {
       unsubscribe();
     }
-  };
+  }, [appendTestLogLine, buildSettings, canSubmit, jobActive, modelProvider]);
 
   return (
     <Modal
@@ -388,7 +456,12 @@ export function SettingsModal({
       closeDisabled={controlsBusy}
       footer={
         <>
-          <Button variant="ghost" style={{ marginRight: "auto" }} onClick={onOpenLogFolder} disabled={controlsBusy}>
+          <Button
+            variant="ghost"
+            style={{ marginRight: "auto" }}
+            onClick={onOpenLogFolder}
+            disabled={controlsBusy}
+          >
             로그 폴더 열기
           </Button>
           <Button onClick={onReset} disabled={controlsBusy}>
@@ -397,493 +470,102 @@ export function SettingsModal({
           <Button variant="ghost" onClick={onCancel} disabled={controlsBusy}>
             취소
           </Button>
-          <Button variant="primary" onClick={submit} disabled={controlsBusy || !canSubmit}>
+          <Button
+            variant="primary"
+            onClick={submit}
+            disabled={controlsBusy || !canSubmit}
+          >
             저장
           </Button>
         </>
       }
     >
-        <div className="settings-layout">
-          <nav className="settings-tabs" role="tablist" aria-label="설정 영역">
-            {SETTINGS_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                id={`settings-tab-${tab.id}`}
-                aria-selected={activeTab === tab.id}
-                aria-controls={`settings-panel-${tab.id}`}
-                className={`settings-tab ${activeTab === tab.id ? "active" : ""}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-          <div
-            className="settings-tabpanel modal-section"
-            role="tabpanel"
-            id={`settings-panel-${activeTab}`}
-            aria-labelledby={`settings-tab-${activeTab}`}
-          >
-          <p className="muted-line modal-note">다음 번 번역 실행부터 적용됩니다.</p>
-          {activeTab === "engine" ? (
-            <>
-          <div className="settings-field-stack">
-            <span>번역 엔진</span>
-            <div className="settings-mode-group" role="tablist" aria-label="번역 엔진">
-              {MODEL_PROVIDER_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`settings-preset-button ${modelProvider === option.id ? "active" : ""}`}
-                  onClick={() => {
-                    clearTestState();
-                    setModelProvider(option.id);
-                  }}
-                  disabled={controlsBusy}
-                  aria-pressed={modelProvider === option.id}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <p className="muted-line modal-note">
-              {MODEL_PROVIDER_OPTIONS.find((option) => option.id === modelProvider)?.description}
-            </p>
-          </div>
-
-          <label>
-            최대 출력 토큰
-            <input
-              type="number"
-              min={MIN_MAX_TOKENS}
-              max={MAX_MAX_TOKENS}
-              step={100}
-              value={maxTokens}
-              disabled={controlsBusy}
-              onChange={(event) => {
-                clearTestState();
-                setMaxTokens(event.target.value);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  submit();
-                }
-              }}
-            />
-          </label>
+      <div className="settings-layout">
+        <SettingsTabs activeTab={activeTab} onChange={setActiveTab} />
+        <div
+          className="settings-tabpanel modal-section"
+          role="tabpanel"
+          id={`settings-panel-${activeTab}`}
+          aria-labelledby={`settings-tab-${activeTab}`}
+        >
           <p className="muted-line modal-note">
-            출력이 길어지는 페이지에서 말풍선 누락을 줄입니다. 기본값은 12000입니다.
+            다음 번 번역 실행부터 적용됩니다.
           </p>
-            </>
+
+          {activeTab === "engine" ? (
+            <EngineSettingsPanel
+              clearTestState={clearTestState}
+              codexModel={codexModel}
+              codexOauthPort={codexOauthPort}
+              codexReasoningEffort={codexReasoningEffort}
+              controlsBusy={controlsBusy}
+              customModelFile={customModelFile}
+              customModelRepo={customModelRepo}
+              isLlamaRuntimeOptionDisabled={isLlamaRuntimeOptionDisabled}
+              llamaRuntimeProfile={llamaRuntimeProfile}
+              localMmprojPath={localMmprojPath}
+              localModelInputRef={localModelInputRef}
+              localModelPath={localModelPath}
+              maxTokens={maxTokens}
+              modelProvider={modelProvider}
+              modelRepoInputRef={modelRepoInputRef}
+              modelSource={modelSource}
+              pickLocalMmprojFile={pickLocalMmprojFile}
+              pickLocalModelFile={pickLocalModelFile}
+              selectedPreset={selectedPreset}
+              setCodexModel={setCodexModel}
+              setCodexOauthPort={setCodexOauthPort}
+              setCodexReasoningEffort={setCodexReasoningEffort}
+              setCustomModelFile={setCustomModelFile}
+              setCustomModelRepo={setCustomModelRepo}
+              setCustomVramMode={setCustomVramMode}
+              setLlamaRuntimeProfile={setLlamaRuntimeProfile}
+              setLocalMmprojPath={setLocalMmprojPath}
+              setLocalModelPath={setLocalModelPath}
+              setMaxTokens={setMaxTokens}
+              setModelProvider={setModelProvider}
+              setModelSource={setModelSource}
+              setSelectedPreset={setSelectedPreset}
+              submit={submit}
+              usesAmdHardware={usesAmdHardware}
+              usesNvidiaHardware={usesNvidiaHardware}
+            />
           ) : null}
 
           {activeTab === "hardware" ? (
-            <>
-          <div className="settings-field-stack">
-            <span>Paddle OCR 장치</span>
-            <div className="settings-mode-group" role="tablist" aria-label="Paddle OCR 장치">
-              {OCR_DEVICE_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`settings-preset-button ${ocrDevice === option.id ? "active" : ""}`}
-                  onClick={() => {
-                    clearTestState();
-                    setOcrDevice(option.id);
-                  }}
-                  disabled={controlsBusy || (forceOcrCpu && option.id === "gpu")}
-                  aria-pressed={ocrDevice === option.id}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <p className="muted-line modal-note">
-              {forceOcrCpu
-                ? "AMD GPU 환경에서는 PaddleOCR GPU 경로를 쓰지 않고 OCR만 CPU로 처리합니다."
-                : OCR_DEVICE_OPTIONS.find((option) => option.id === ocrDevice)?.description}
-            </p>
-          </div>
-
-          <div className="settings-field-stack">
-            <span>Flux 인페인팅 백엔드</span>
-            <div className="settings-preset-group" role="tablist" aria-label="Flux 인페인팅 백엔드">
-              {FLUX_BACKEND_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`settings-preset-button ${fluxBackend === option.id ? "active" : ""}`}
-                  onClick={() => {
-                    clearTestState();
-                    setFluxBackend(option.id);
-                  }}
-                  disabled={isFluxBackendOptionDisabled(option.id)}
-                  aria-pressed={fluxBackend === option.id}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <p className="muted-line modal-note">
-              {FLUX_BACKEND_OPTIONS.find((option) => option.id === fluxBackend)?.description}
-            </p>
-            {usesAmdHardware ? (
-              <p className="muted-line modal-note">
-                감지된 AMD GPU에서는 CUDA 네이티브 백엔드를 쓸 수 없어 ZLUDA 또는 CPU 중에서 선택합니다.
-              </p>
-            ) : usesNvidiaHardware ? (
-              <p className="muted-line modal-note">
-                감지된 NVIDIA GPU에서는 ZLUDA 백엔드 대신 CUDA 네이티브를 사용합니다.
-              </p>
-            ) : null}
-          </div>
-            </>
-          ) : null}
-
-          {activeTab === "engine" ? (
-            <>
-          {modelProvider === "gemma" ? (
-            <>
-          <div className="settings-field-stack">
-            <span>모델 소스</span>
-            <div className="settings-mode-group" role="tablist" aria-label="모델 소스">
-              {MODEL_SOURCE_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`settings-preset-button ${modelSource === option.id ? "active" : ""}`}
-                  onClick={() => {
-                    clearTestState();
-                    setModelSource(option.id);
-                  }}
-                  disabled={controlsBusy}
-                  aria-pressed={modelSource === option.id}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <p className="muted-line modal-note">
-              {MODEL_SOURCE_OPTIONS.find((option) => option.id === modelSource)?.description}
-            </p>
-          </div>
-
-          {modelSource === "huggingface" ? (
-            <>
-              <div className="settings-field-stack">
-                <span>모델 / 실행 모드</span>
-                <div className="settings-preset-group" role="tablist" aria-label="모델 프리셋">
-                  {MODEL_PRESET_BUTTON_IDS.map((presetId) => (
-                    <button
-                      key={presetId}
-                      type="button"
-                      className={`settings-preset-button ${selectedPreset === presetId ? "active" : ""}`}
-                      onClick={() => {
-                        clearTestState();
-                        setSelectedPreset(presetId);
-                        if (presetId !== "custom") {
-                          setCustomVramMode(MODEL_PRESETS[presetId].vramMode);
-                        }
-                      }}
-                      disabled={controlsBusy}
-                      aria-pressed={selectedPreset === presetId}
-                    >
-                      {presetId === "custom" ? "커스텀" : MODEL_PRESETS[presetId].label}
-                    </button>
-                  ))}
-                </div>
-                <p className="muted-line modal-note">
-                  {selectedPreset === "custom"
-                    ? "직접 지정한 모델을 사용합니다. 커스텀 모델은 현재 저장된 실행 설정을 유지합니다."
-                    : MODEL_PRESETS[selectedPreset].description}
-                </p>
-              </div>
-              {selectedPreset === "custom" ? (
-                <>
-                  <label>
-                    HF repo
-                    <input
-                      ref={modelRepoInputRef}
-                      value={customModelRepo}
-                      disabled={controlsBusy}
-                      onChange={(event) => {
-                        clearTestState();
-                        setCustomModelRepo(event.target.value);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          submit();
-                        }
-                      }}
-                    />
-                  </label>
-                  <label>
-                    GGUF 파일명
-                    <input
-                      value={customModelFile}
-                      disabled={controlsBusy}
-                      onChange={(event) => {
-                        clearTestState();
-                        setCustomModelFile(event.target.value);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          submit();
-                        }
-                      }}
-                    />
-                  </label>
-                </>
-              ) : null}
-              <div className="settings-field-stack">
-                <span>Gemma GPU 런타임</span>
-                <div className="settings-preset-group" role="tablist" aria-label="Gemma GPU 런타임">
-                  {LLAMA_RUNTIME_PROFILE_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={`settings-preset-button ${llamaRuntimeProfile === option.id ? "active" : ""}`}
-                      onClick={() => {
-                        clearTestState();
-                        setLlamaRuntimeProfile(option.id);
-                      }}
-                      disabled={isLlamaRuntimeOptionDisabled(option.id)}
-                      aria-pressed={llamaRuntimeProfile === option.id}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="muted-line modal-note">
-                  {LLAMA_RUNTIME_PROFILE_OPTIONS.find((option) => option.id === llamaRuntimeProfile)?.description}
-                </p>
-                {usesAmdHardware ? (
-                  <p className="muted-line modal-note">
-                    감지된 AMD GPU에서는 CUDA·RTX 런타임이 비활성화되고 ROCm·Vulkan 중에서 선택합니다.
-                  </p>
-                ) : usesNvidiaHardware ? (
-                  <p className="muted-line modal-note">
-                    감지된 NVIDIA GPU에서는 ROCm·Vulkan 런타임이 비활성화됩니다.
-                  </p>
-                ) : null}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="settings-field-stack">
-                <span>로컬 모델 파일</span>
-                <div className="settings-file-row">
-                  <input
-                    ref={localModelInputRef}
-                    value={localModelPath}
-                    disabled={controlsBusy}
-                    onChange={(event) => {
-                      clearTestState();
-                      setLocalModelPath(event.target.value);
-                    }}
-                    placeholder="C:\\models\\my-model.gguf"
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        submit();
-                      }
-                    }}
-                  />
-                  <button type="button" onClick={() => void pickLocalModelFile()} disabled={controlsBusy}>
-                    파일 선택
-                  </button>
-                </div>
-              </div>
-
-              <div className="settings-field-stack">
-                <span>mmproj 파일</span>
-                <div className="settings-file-row">
-                  <input
-                    value={localMmprojPath}
-                    disabled={controlsBusy}
-                    onChange={(event) => {
-                      clearTestState();
-                      setLocalMmprojPath(event.target.value);
-                    }}
-                    placeholder="같은 폴더면 자동 탐지, 필요하면 직접 지정"
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        submit();
-                      }
-                    }}
-                  />
-                  <button type="button" onClick={() => void pickLocalMmprojFile()} disabled={controlsBusy}>
-                    파일 선택
-                  </button>
-                </div>
-                <p className="muted-line modal-note">
-                  mmproj는 같은 폴더에서 자동으로 찾아보고, 안 잡히면 직접 지정할 수 있습니다.
-                </p>
-              </div>
-            </>
-          )}
-
-            </>
-          ) : (
-            <>
-              <label>
-                Codex 모델
-                <input
-                  value={codexModel}
-                  disabled={controlsBusy}
-                  onChange={(event) => {
-                    clearTestState();
-                    setCodexModel(event.target.value);
-                  }}
-                  placeholder="gpt-5.5"
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      submit();
-                    }
-                  }}
-                />
-              </label>
-
-              <div className="settings-field-stack">
-                <span>생각</span>
-                <div className="settings-preset-group" role="tablist" aria-label="Codex 생각">
-                  {CODEX_REASONING_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={`settings-preset-button ${codexReasoningEffort === option.id ? "active" : ""}`}
-                      onClick={() => {
-                        clearTestState();
-                        setCodexReasoningEffort(option.id);
-                      }}
-                      disabled={controlsBusy}
-                      aria-pressed={codexReasoningEffort === option.id}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="muted-line modal-note">
-                  {CODEX_REASONING_OPTIONS.find((option) => option.id === codexReasoningEffort)?.description}
-                </p>
-              </div>
-
-              <label>
-                openai-oauth 포트
-                <input
-                  type="number"
-                  min={1}
-                  max={65535}
-                  step={1}
-                  value={codexOauthPort}
-                  disabled={controlsBusy}
-                  onChange={(event) => {
-                    clearTestState();
-                    setCodexOauthPort(event.target.value);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      submit();
-                    }
-                  }}
-                />
-              </label>
-            </>
-          )}
-            </>
+            <HardwareSettingsPanel
+              clearTestState={clearTestState}
+              controlsBusy={controlsBusy}
+              fluxBackend={fluxBackend}
+              forceOcrCpu={forceOcrCpu}
+              isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
+              ocrDevice={ocrDevice}
+              setFluxBackend={setFluxBackend}
+              setOcrDevice={setOcrDevice}
+              usesAmdHardware={usesAmdHardware}
+              usesNvidiaHardware={usesNvidiaHardware}
+            />
           ) : null}
 
           {activeTab === "test" ? (
-            <>
-          <div className="settings-field-stack">
-            <span>설치/작동 확인</span>
-            <div className="settings-inline-actions">
-              <button
-                type="button"
-                onClick={() => void runModelTest()}
-                disabled={controlsBusy || !canSubmit || jobActive}
-              >
-                {testState.status === "running" ? "확인 중..." : "OCR/모델 확인"}
-              </button>
-            </div>
-            <p className="muted-line modal-note">
-              Paddle OCR 준비 상태와 선택한 번역 엔진이 실제로 뜨는지 함께 확인합니다.
-            </p>
-            {jobActive ? <p className="muted-line">번역 작업 중에는 설치/작동 확인을 실행할 수 없습니다.</p> : null}
-            {testState.status !== "idle" ? (
-              <div className={`settings-test-result ${testState.status}`}>
-                <strong>{testState.message}</strong>
-                {testState.detail ? <p>{testState.detail}</p> : null}
-              </div>
-            ) : null}
-            {testLogLines.length > 0 ? (
-              <div className="settings-test-log" ref={testLogRef} aria-label="설치/작동 확인 로그">
-                {testLogLines.map((line, index) => (
-                  <code key={`${index}-${line}`}>{line}</code>
-                ))}
-              </div>
-            ) : null}
-          </div>
-            </>
+            <TestSettingsPanel
+              canSubmit={canSubmit}
+              controlsBusy={controlsBusy}
+              jobActive={jobActive}
+              runModelTest={runModelTest}
+              testLogLines={testLogLines}
+              testLogRef={testLogRef}
+              testState={testState}
+            />
           ) : null}
 
-          {modelProvider === "openai-codex" && !codexOauthPortValid ? (
-            <p className="muted-line">openai-oauth 포트는 1 이상 65535 이하의 정수여야 합니다.</p>
-          ) : null}
-          {!maxTokensValid ? (
-            <p className="muted-line">최대 출력 토큰은 {MIN_MAX_TOKENS} 이상 {MAX_MAX_TOKENS} 이하의 정수여야 합니다.</p>
-          ) : null}
-          </div>
+          <SettingsValidationMessages
+            codexOauthPortValid={codexOauthPortValid}
+            maxTokensValid={maxTokensValid}
+            modelProvider={modelProvider}
+          />
         </div>
+      </div>
     </Modal>
   );
-}
-
-function buildTestDetail(
-  modelPath: string | null | undefined,
-  mmprojPath: string | null | undefined,
-  endpoint: string | null | undefined
-): string | null {
-  const lines = [
-    modelPath ? `모델: ${modelPath}` : null,
-    mmprojPath ? `mmproj: ${mmprojPath}` : null,
-    endpoint ? `엔드포인트: ${endpoint}` : null
-  ].filter(Boolean);
-
-  return lines.length > 0 ? lines.join("\n") : null;
-}
-
-function formatModelTestProgressLine(event: ModelTestProgressEvent): string {
-  const percent =
-    event.progressMode !== "log-only" && typeof event.progressPercent === "number" && Number.isFinite(event.progressPercent)
-      ? `${Math.round(event.progressPercent * 100)}% `
-      : "";
-  if (event.installLogLine?.trim()) {
-    return `${percent}${event.installLogLine.trim()}`;
-  }
-  const detail = event.detail?.trim();
-  return detail ? `${percent}${event.progressText} - ${detail}` : `${percent}${event.progressText}`;
-}
-
-function resolveHardwareRuntimeLock(settings: AppSettings): "amd" | "nvidia" | "unknown" {
-  const detectedVendor = settings.runtimeHardware?.gpuVendor;
-  if (detectedVendor === "amd" || detectedVendor === "nvidia") {
-    return detectedVendor;
-  }
-  if (settings.gemma.llamaRocmTarget || isAmdLlamaRuntimeProfile(settings.gemma.llamaRuntimeProfile ?? "cuda12")) {
-    return "amd";
-  }
-  if (settings.modelProvider === "gemma" && isNvidiaLlamaRuntimeProfile(settings.gemma.llamaRuntimeProfile ?? "cuda12")) {
-    return "nvidia";
-  }
-  return "unknown";
-}
-
-function isAmdLlamaRuntimeProfile(profile: LlamaRuntimeProfile): boolean {
-  return profile === "rocm" || profile === "vulkan";
-}
-
-function isNvidiaLlamaRuntimeProfile(profile: LlamaRuntimeProfile): boolean {
-  return profile === "cuda12" || profile === "rtx50";
 }

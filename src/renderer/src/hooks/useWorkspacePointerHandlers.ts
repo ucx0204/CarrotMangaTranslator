@@ -1,14 +1,35 @@
-import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type PointerEvent, type RefObject, type SetStateAction } from "react";
-import type { ChapterSnapshot, InpaintingMaskStroke, MangaPage, TranslationBlock } from "../../../shared/types";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type Dispatch,
+  type MutableRefObject,
+  type PointerEvent,
+  type RefObject,
+  type SetStateAction,
+} from "react";
+import type {
+  ChapterSnapshot,
+  InpaintingMaskStroke,
+  MangaPage,
+  TranslationBlock,
+} from "../../../shared/types";
 import {
   applyEditableBlockBbox,
-  resolveEditableBlockBbox
+  resolveEditableBlockBbox,
 } from "../../../shared/geometry";
 import { isUsableRegionBbox } from "../../../shared/region";
-import type { InpaintingTool } from "../inpainting/InpaintingContext";
+import type { InpaintingTool } from "../inpainting/inpaintingTypes";
 import type { RetouchPreviewState } from "./useInpaintingRetouch";
-import { regionSelectionToBbox, type RegionSelectionState } from "../lib/appHelpers";
-import { mangaGateway } from "../api/mangaGateway";
+import {
+  regionSelectionToBbox,
+  type RegionSelectionState,
+} from "../lib/appHelpers";
+import { useWorkspaceInpaintingPointerHandlers } from "./useWorkspaceInpaintingPointerHandlers";
+import {
+  capturePointerSafely,
+  releasePointerCaptureSafely,
+} from "./workspacePointerCapture";
 
 type DragMode = "move" | "resize";
 
@@ -21,8 +42,14 @@ type DragState = {
 };
 
 type UseWorkspacePointerHandlersOptions = {
-  appendRetouchPoint: (point: { x: number; y: number }, tool?: "brush" | "eraser" | "mask") => void;
-  applyRetouchPoints: (tool: "brush" | "eraser", points: Array<{ x: number; y: number }>) => Promise<void>;
+  appendRetouchPoint: (
+    point: { x: number; y: number },
+    tool?: "brush" | "eraser" | "mask",
+  ) => void;
+  applyRetouchPoints: (
+    tool: "brush" | "eraser",
+    points: Array<{ x: number; y: number }>,
+  ) => Promise<void>;
   currentChapter: ChapterSnapshot | null;
   imageRef: RefObject<HTMLImageElement | null>;
   inpaintingBrushRadius: number;
@@ -31,7 +58,10 @@ type UseWorkspacePointerHandlersOptions = {
   inpaintingTool: InpaintingTool;
   inpaintingToolActive: boolean;
   jobActive: boolean;
-  lastInpaintingRetouchPointRef: MutableRefObject<{ x: number; y: number } | null>;
+  lastInpaintingRetouchPointRef: MutableRefObject<{
+    x: number;
+    y: number;
+  } | null>;
   pushStatus: (line: string) => void;
   regionSelection: RegionSelectionState | null;
   selectedPage: MangaPage | null;
@@ -41,14 +71,26 @@ type UseWorkspacePointerHandlersOptions = {
   selectedPageImagePath: string | null;
   setInpaintingPaintColor: Dispatch<SetStateAction<string>>;
   setInpaintingTool: Dispatch<SetStateAction<InpaintingTool>>;
-  setPatternMaskStrokesByPage: Dispatch<SetStateAction<Record<string, InpaintingMaskStroke[]>>>;
+  setPatternMaskStrokesByPage: Dispatch<
+    SetStateAction<Record<string, InpaintingMaskStroke[]>>
+  >;
   setRegionSelection: Dispatch<SetStateAction<RegionSelectionState | null>>;
-  setRetouchCursorPoint: Dispatch<SetStateAction<{ x: number; y: number } | null>>;
+  setRetouchCursorPoint: Dispatch<
+    SetStateAction<{ x: number; y: number } | null>
+  >;
   setRetouchPreview: Dispatch<SetStateAction<RetouchPreviewState | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
   stageRef: RefObject<HTMLDivElement | null>;
-  translateSelectedRegion: (bbox: { x: number; y: number; w: number; h: number }) => Promise<void>;
-  updateCurrentChapter: (pageId: string, updater: (chapter: ChapterSnapshot) => ChapterSnapshot) => void;
+  translateSelectedRegion: (bbox: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }) => Promise<void>;
+  updateCurrentChapter: (
+    pageId: string,
+    updater: (chapter: ChapterSnapshot) => ChapterSnapshot,
+  ) => void;
 };
 
 export function useWorkspacePointerHandlers({
@@ -79,9 +121,13 @@ export function useWorkspacePointerHandlers({
   setSelectedBlockId,
   stageRef,
   translateSelectedRegion,
-  updateCurrentChapter
+  updateCurrentChapter,
 }: UseWorkspacePointerHandlersOptions): {
-  onBlockPointerDown: (event: PointerEvent, block: TranslationBlock, mode: DragMode) => void;
+  onBlockPointerDown: (
+    event: PointerEvent,
+    block: TranslationBlock,
+    mode: DragMode,
+  ) => void;
   onStagePointerDown: (event: PointerEvent) => void;
   onStagePointerLeave: () => void;
   onStagePointerMove: (event: PointerEvent) => void;
@@ -109,11 +155,16 @@ export function useWorkspacePointerHandlers({
                     updatedAt: new Date().toISOString(),
                     blocks: candidate.blocks.map((block) =>
                       block.id === drag.blockId
-                        ? applyEditableBlockBbox(block, drag.startBbox, { width: page.width, height: page.height }, block.translatedText || block.sourceText || "...")
-                        : block
-                    )
-                  }
-            )
+                        ? applyEditableBlockBbox(
+                            block,
+                            drag.startBbox,
+                            { width: page.width, height: page.height },
+                            block.translatedText || block.sourceText || "...",
+                          )
+                        : block,
+                    ),
+                  },
+            ),
           }));
         }
         dragRef.current = null;
@@ -129,7 +180,15 @@ export function useWorkspacePointerHandlers({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [currentChapter, pushStatus, regionSelection?.active, selectedPage, setRegionSelection, stageRef, updateCurrentChapter]);
+  }, [
+    currentChapter,
+    pushStatus,
+    regionSelection?.active,
+    selectedPage,
+    setRegionSelection,
+    stageRef,
+    updateCurrentChapter,
+  ]);
 
   const startRegionTranslationSelection = useCallback(() => {
     if (!selectedPage || !selectedPageImageDataUrl || jobActive) {
@@ -148,10 +207,19 @@ export function useWorkspacePointerHandlers({
       active: true,
       dragging: false,
       start: { x: 0, y: 0 },
-      current: { x: 0, y: 0 }
+      current: { x: 0, y: 0 },
     });
     pushStatus("번역할 영역을 드래그하세요.");
-  }, [jobActive, pushStatus, regionSelection?.active, selectedPage, selectedPageImageDataUrl, setInpaintingTool, setRegionSelection, setSelectedBlockId]);
+  }, [
+    jobActive,
+    pushStatus,
+    regionSelection?.active,
+    selectedPage,
+    selectedPageImageDataUrl,
+    setInpaintingTool,
+    setRegionSelection,
+    setSelectedBlockId,
+  ]);
 
   const getNormalizedImagePoint = useCallback(
     (event: PointerEvent): { x: number; y: number } | null => {
@@ -159,46 +227,69 @@ export function useWorkspacePointerHandlers({
       if (!stage) {
         return null;
       }
-      const rect = imageRef.current?.getBoundingClientRect() ?? stage.getBoundingClientRect();
+      const rect =
+        imageRef.current?.getBoundingClientRect() ??
+        stage.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) {
         return null;
       }
       return {
-        x: Math.max(0, Math.min(1000, ((event.clientX - rect.left) / rect.width) * 1000)),
-        y: Math.max(0, Math.min(1000, ((event.clientY - rect.top) / rect.height) * 1000))
+        x: Math.max(
+          0,
+          Math.min(1000, ((event.clientX - rect.left) / rect.width) * 1000),
+        ),
+        y: Math.max(
+          0,
+          Math.min(1000, ((event.clientY - rect.top) / rect.height) * 1000),
+        ),
       };
     },
-    [imageRef, stageRef]
+    [imageRef, stageRef],
   );
 
-  const getImagePixelPoint = useCallback(
-    (event: PointerEvent): { x: number; y: number } | null => {
-      const stage = stageRef.current;
-      const page = selectedPage;
-      if (!stage || !page) {
-        return null;
-      }
-      const rect = imageRef.current?.getBoundingClientRect() ?? stage.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) {
-        return null;
-      }
-      return {
-        x: Math.max(0, Math.min(page.width - 1, ((event.clientX - rect.left) / rect.width) * page.width)),
-        y: Math.max(0, Math.min(page.height - 1, ((event.clientY - rect.top) / rect.height) * page.height))
-      };
-    },
-    [imageRef, selectedPage, stageRef]
-  );
+  const {
+    onPointerDown: onInpaintingPointerDown,
+    onPointerLeave: onInpaintingPointerLeave,
+    onPointerMove: onInpaintingPointerMove,
+    onPointerUp: onInpaintingPointerUp,
+  } = useWorkspaceInpaintingPointerHandlers({
+    appendRetouchPoint,
+    applyRetouchPoints,
+    imageRef,
+    inpaintingBrushRadius,
+    inpaintingRetouchDrawingRef,
+    inpaintingRetouchPointsRef,
+    inpaintingTool,
+    inpaintingToolActive,
+    lastInpaintingRetouchPointRef,
+    pushStatus,
+    selectedPage,
+    selectedPageIdRef,
+    selectedPageImagePath,
+    setInpaintingPaintColor,
+    setPatternMaskStrokesByPage,
+    setRetouchCursorPoint,
+    setRetouchPreview,
+    setSelectedBlockId,
+    stageRef,
+  });
 
   const onBlockPointerDown = useCallback(
     (event: PointerEvent, block: TranslationBlock, mode: DragMode) => {
-      if (!stageRef.current || selectedPageEditLocked || regionSelection?.active || inpaintingToolActive) {
+      if (
+        !stageRef.current ||
+        selectedPageEditLocked ||
+        regionSelection?.active ||
+        inpaintingToolActive
+      ) {
         return;
       }
       event.preventDefault();
       event.stopPropagation();
       setSelectedBlockId(block.id);
-      const pageSize = selectedPage ? { width: selectedPage.width, height: selectedPage.height } : null;
+      const pageSize = selectedPage
+        ? { width: selectedPage.width, height: selectedPage.height }
+        : null;
       const displayText = block.translatedText || block.sourceText || "...";
       const target = resolveEditableBlockBbox(block, pageSize, displayText);
       dragRef.current = {
@@ -206,51 +297,25 @@ export function useWorkspacePointerHandlers({
         blockId: block.id,
         startX: event.clientX,
         startY: event.clientY,
-        startBbox: target.bbox
+        startBbox: target.bbox,
       };
-      stageRef.current.style.cursor = mode === "move" ? "grabbing" : "nwse-resize";
+      stageRef.current.style.cursor =
+        mode === "move" ? "grabbing" : "nwse-resize";
       capturePointerSafely(stageRef.current, event.pointerId);
     },
-    [inpaintingToolActive, regionSelection?.active, selectedPage, selectedPageEditLocked, setSelectedBlockId, stageRef]
+    [
+      inpaintingToolActive,
+      regionSelection?.active,
+      selectedPage,
+      selectedPageEditLocked,
+      setSelectedBlockId,
+      stageRef,
+    ],
   );
 
   const onStagePointerDown = useCallback(
     (event: PointerEvent) => {
-      if (inpaintingToolActive) {
-        const point = getImagePixelPoint(event);
-        if (!point || !stageRef.current) {
-          return;
-        }
-        if (inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask") {
-          setRetouchCursorPoint(point);
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        setSelectedBlockId(null);
-        if (inpaintingTool === "picker") {
-          const imagePath = selectedPageImagePath ?? selectedPage?.imagePath;
-          if (imagePath) {
-            void mangaGateway
-              .sampleInpaintingColor({ imagePath, x: point.x, y: point.y })
-              .then((result) => {
-                setInpaintingPaintColor(result.color);
-                pushStatus(`붓 색상을 ${result.color}로 선택했습니다. 계속 다른 색을 뽑거나 붓으로 전환하세요.`);
-              })
-              .catch((error) => {
-                console.error(error);
-                pushStatus("색상을 가져오지 못했습니다.");
-              });
-          }
-          return;
-        }
-        if (inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask") {
-          inpaintingRetouchDrawingRef.current = true;
-          inpaintingRetouchPointsRef.current = [];
-          lastInpaintingRetouchPointRef.current = null;
-          setRetouchPreview(null);
-          appendRetouchPoint(point, inpaintingTool);
-          capturePointerSafely(stageRef.current, event.pointerId);
-        }
+      if (onInpaintingPointerDown(event)) {
         return;
       }
 
@@ -271,49 +336,32 @@ export function useWorkspacePointerHandlers({
         active: true,
         dragging: true,
         start: point,
-        current: point
+        current: point,
       });
       capturePointerSafely(stageRef.current, event.pointerId);
     },
     [
-      appendRetouchPoint,
-      getImagePixelPoint,
       getNormalizedImagePoint,
-      inpaintingRetouchDrawingRef,
-      inpaintingRetouchPointsRef,
-      inpaintingTool,
-      inpaintingToolActive,
-      lastInpaintingRetouchPointRef,
-      pushStatus,
+      onInpaintingPointerDown,
       regionSelection?.active,
-      selectedPage,
-      selectedPageImagePath,
-      setInpaintingPaintColor,
       setRegionSelection,
-      setRetouchCursorPoint,
-      setRetouchPreview,
       setSelectedBlockId,
-      stageRef
-    ]
+      stageRef,
+    ],
   );
 
   const onStagePointerMove = useCallback(
     (event: PointerEvent) => {
-      if (inpaintingToolActive) {
-        const point = getImagePixelPoint(event);
-        if (point && (inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask")) {
-          setRetouchCursorPoint(point);
-        }
-        if (point && inpaintingRetouchDrawingRef.current && (inpaintingTool === "brush" || inpaintingTool === "eraser" || inpaintingTool === "mask")) {
-          appendRetouchPoint(point, inpaintingTool);
-        }
+      if (onInpaintingPointerMove(event)) {
         return;
       }
 
       if (regionSelection?.active && regionSelection.dragging) {
         const point = getNormalizedImagePoint(event);
         if (point) {
-          setRegionSelection((current) => (current?.active ? { ...current, current: point } : current));
+          setRegionSelection((current) =>
+            current?.active ? { ...current, current: point } : current,
+          );
         }
         return;
       }
@@ -321,23 +369,33 @@ export function useWorkspacePointerHandlers({
       const drag = dragRef.current;
       const page = selectedPage;
       const stage = stageRef.current;
-      if (!drag || !page || !stage || !currentChapter || selectedPageEditLocked) {
+      if (
+        !drag ||
+        !page ||
+        !stage ||
+        !currentChapter ||
+        selectedPageEditLocked
+      ) {
         return;
       }
-      const rect = imageRef.current?.getBoundingClientRect() ?? stage.getBoundingClientRect();
-      const dx = ((event.clientX - drag.startX) / Math.max(1, rect.width)) * 1000;
-      const dy = ((event.clientY - drag.startY) / Math.max(1, rect.height)) * 1000;
+      const rect =
+        imageRef.current?.getBoundingClientRect() ??
+        stage.getBoundingClientRect();
+      const dx =
+        ((event.clientX - drag.startX) / Math.max(1, rect.width)) * 1000;
+      const dy =
+        ((event.clientY - drag.startY) / Math.max(1, rect.height)) * 1000;
       const next =
         drag.mode === "move"
           ? {
               ...drag.startBbox,
               x: drag.startBbox.x + dx,
-              y: drag.startBbox.y + dy
+              y: drag.startBbox.y + dy,
             }
           : {
               ...drag.startBbox,
               w: drag.startBbox.w + dx,
-              h: drag.startBbox.h + dy
+              h: drag.startBbox.h + dy,
             };
 
       updateCurrentChapter(page.id, (chapter) => ({
@@ -350,58 +408,45 @@ export function useWorkspacePointerHandlers({
                 updatedAt: new Date().toISOString(),
                 blocks: candidate.blocks.map((block) =>
                   block.id === drag.blockId
-                    ? applyEditableBlockBbox(block, next, { width: page.width, height: page.height }, block.translatedText || block.sourceText || "...")
-                    : block
-                )
-              }
-        )
+                    ? applyEditableBlockBbox(
+                        block,
+                        next,
+                        { width: page.width, height: page.height },
+                        block.translatedText || block.sourceText || "...",
+                      )
+                    : block,
+                ),
+              },
+        ),
       }));
     },
     [
-      appendRetouchPoint,
       currentChapter,
-      getImagePixelPoint,
       getNormalizedImagePoint,
       imageRef,
-      inpaintingRetouchDrawingRef,
-      inpaintingTool,
-      inpaintingToolActive,
+      onInpaintingPointerMove,
       regionSelection,
       selectedPage,
       selectedPageEditLocked,
       setRegionSelection,
-      setRetouchCursorPoint,
       stageRef,
-      updateCurrentChapter
-    ]
+      updateCurrentChapter,
+    ],
   );
 
   const onStagePointerUp = useCallback(
     (event: PointerEvent) => {
-      if (inpaintingRetouchDrawingRef.current) {
-        releasePointerCaptureSafely(stageRef.current, event.pointerId);
-        inpaintingRetouchDrawingRef.current = false;
-        lastInpaintingRetouchPointRef.current = null;
-        const points = inpaintingRetouchPointsRef.current;
-        inpaintingRetouchPointsRef.current = [];
-        if (inpaintingTool === "brush" || inpaintingTool === "eraser") {
-          void applyRetouchPoints(inpaintingTool, points);
-        } else if (inpaintingTool === "mask" && points.length > 0) {
-          const pageId = selectedPageIdRef.current;
-          if (pageId) {
-            setPatternMaskStrokesByPage((current) => ({
-              ...current,
-              [pageId]: [...(current[pageId] ?? []), { points, radiusPx: inpaintingBrushRadius }].slice(-200)
-            }));
-          }
-        }
-        window.setTimeout(() => setRetouchPreview(null), 180);
+      if (onInpaintingPointerUp(event)) {
         return;
       }
 
       if (regionSelection?.active && regionSelection.dragging) {
         releasePointerCaptureSafely(stageRef.current, event.pointerId);
-        const bbox = regionSelectionToBbox(regionSelection);
+        const finalPoint = getNormalizedImagePoint(event);
+        const completedSelection = finalPoint
+          ? { ...regionSelection, current: finalPoint }
+          : regionSelection;
+        const bbox = regionSelectionToBbox(completedSelection);
         setRegionSelection(null);
         if (!isUsableRegionBbox(bbox, 10)) {
           pushStatus("선택 영역이 너무 작습니다.");
@@ -420,28 +465,19 @@ export function useWorkspacePointerHandlers({
       }
     },
     [
-      applyRetouchPoints,
-      inpaintingBrushRadius,
-      inpaintingRetouchDrawingRef,
-      inpaintingRetouchPointsRef,
-      inpaintingTool,
-      lastInpaintingRetouchPointRef,
+      getNormalizedImagePoint,
+      onInpaintingPointerUp,
       pushStatus,
       regionSelection,
-      selectedPageIdRef,
-      setPatternMaskStrokesByPage,
       setRegionSelection,
-      setRetouchPreview,
       stageRef,
-      translateSelectedRegion
-    ]
+      translateSelectedRegion,
+    ],
   );
 
   const onStagePointerLeave = useCallback(() => {
-    if (!inpaintingRetouchDrawingRef.current) {
-      setRetouchCursorPoint(null);
-    }
-  }, [inpaintingRetouchDrawingRef, setRetouchCursorPoint]);
+    onInpaintingPointerLeave();
+  }, [onInpaintingPointerLeave]);
 
   return {
     onBlockPointerDown,
@@ -449,24 +485,6 @@ export function useWorkspacePointerHandlers({
     onStagePointerLeave,
     onStagePointerMove,
     onStagePointerUp,
-    startRegionTranslationSelection
+    startRegionTranslationSelection,
   };
-}
-
-function capturePointerSafely(element: HTMLElement | null, pointerId: number): void {
-  try {
-    element?.setPointerCapture(pointerId);
-  } catch {
-    // Pointer capture can fail if the pointer was already released by the browser.
-  }
-}
-
-function releasePointerCaptureSafely(element: HTMLElement | null, pointerId: number): void {
-  try {
-    if (element?.hasPointerCapture(pointerId)) {
-      element.releasePointerCapture(pointerId);
-    }
-  } catch {
-    // Ignore stale pointer ids. The interaction state is reset by the caller.
-  }
 }

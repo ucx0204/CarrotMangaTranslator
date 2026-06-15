@@ -1,0 +1,184 @@
+import { MAX_MAX_TOKENS, MIN_MAX_TOKENS } from "../../shared/modelPresets";
+import type {
+  AppSettings,
+  CodexReasoningEffort,
+  FluxBackend,
+  GemmaVramMode,
+  ModelProvider,
+  ModelSource,
+  OcrDevice,
+  OcrGpuBackend,
+} from "../../shared/types";
+import {
+  isAmdLlamaRuntimeProfile,
+  isNvidiaLlamaRuntimeProfile,
+  resolveLlamaRuntimeProfile,
+} from "./llamaRuntimeProfile";
+
+export function resolveModelProvider(
+  value: unknown,
+  fallback: ModelProvider,
+): ModelProvider {
+  return value === "openai-codex" || value === "gemma" ? value : fallback;
+}
+
+export function resolveModelSource(
+  value: unknown,
+  fallback: ModelSource,
+): ModelSource {
+  return value === "local" || value === "huggingface" ? value : fallback;
+}
+
+export function resolveGemmaVramMode(
+  value: unknown,
+  fallback: GemmaVramMode,
+): GemmaVramMode {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (["minimum12b", "minimum", "minimal", "min", "12b"].includes(normalized)) {
+    return "minimum12b";
+  }
+  if (["economy26b", "economy", "eco", "26b"].includes(normalized)) {
+    return "economy26b";
+  }
+  if (["full31b", "full", "31b"].includes(normalized)) {
+    return "full31b";
+  }
+  return fallback;
+}
+
+export function resolveOcrDevice(
+  value: unknown,
+  fallback: OcrDevice,
+): OcrDevice {
+  return value === "gpu" || value === "cpu" ? value : fallback;
+}
+
+export function resolveOcrGpuBackend(
+  value: unknown,
+  fallback: OcrGpuBackend = "cuda",
+): OcrGpuBackend {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "cuda" || normalized === "nvidia") {
+    return "cuda";
+  }
+  return fallback;
+}
+
+export function resolveFluxBackend(
+  value: unknown,
+  fallback: FluxBackend = "cuda-native",
+): FluxBackend {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (["cuda-native", "cuda", "native", "nvidia"].includes(normalized)) {
+    return "cuda-native";
+  }
+  if (["zluda-native", "zluda"].includes(normalized)) {
+    return "zluda-native";
+  }
+  if (["python-rocm", "rocm", "hip", "amd"].includes(normalized)) {
+    return "zluda-native";
+  }
+  if (["python-cpu", "cpu"].includes(normalized)) {
+    return "python-cpu";
+  }
+  if (["candle-cpu", "candle", "koharu"].includes(normalized)) {
+    return "zluda-native";
+  }
+  return fallback;
+}
+
+export function inferHardwareVendorFromDefaults(
+  defaults: AppSettings,
+): "amd" | "nvidia" | "unknown" {
+  const profile = resolveLlamaRuntimeProfile(
+    {},
+    defaults.gemma.llamaRuntimeProfile,
+  );
+  if (defaults.gemma.llamaRocmTarget || isAmdLlamaRuntimeProfile(profile)) {
+    return "amd";
+  }
+  if (
+    defaults.modelProvider === "gemma" &&
+    isNvidiaLlamaRuntimeProfile(profile)
+  ) {
+    return "nvidia";
+  }
+  return "unknown";
+}
+
+export function resolveBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+export function resolveOcrGpuCudaTag(value: unknown, fallback: string): string {
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (/^cu\d+$/.test(text)) {
+    return text;
+  }
+  const digits = text.replace(/\D/g, "");
+  if (digits) {
+    return `cu${digits}`;
+  }
+  return fallback;
+}
+
+export function resolveCodexReasoningEffort(
+  value: unknown,
+  fallback: CodexReasoningEffort,
+): CodexReasoningEffort {
+  if (value === "minimal") {
+    return "low";
+  }
+  return value === "none" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "xhigh"
+    ? value
+    : fallback;
+}
+
+export function resolveNonEmptyString(
+  value: unknown,
+  fallback: string,
+): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+export function resolveOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+export function resolvePortNumber(value: unknown, fallback: number): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed)) {
+    return fallback;
+  }
+  return clampInteger(parsed, 1, 65535);
+}
+
+export function resolveMaxTokens(value: unknown, fallback: number): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed)) {
+    return fallback;
+  }
+  return clampInteger(parsed, MIN_MAX_TOKENS, MAX_MAX_TOKENS);
+}
+
+function clampInteger(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}

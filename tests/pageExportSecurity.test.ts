@@ -5,13 +5,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { MangaPage } from "../src/shared/types";
 
-type Listener = (...args: any[]) => void;
+type Listener = (...args: unknown[]) => void;
+type ExportWindowOptions = {
+  webPreferences?: Record<string, unknown>;
+};
 
 const tempDirs: string[] = [];
 let latestWindow: FakeExportWindow | null = null;
 
 class FakeExportWindow {
-  options: any;
+  options: ExportWindowOptions;
   loadedHtml = "";
   listeners = new Map<string, Listener>();
   windowOpenHandler: (() => { action: "deny" | "allow" }) | null = null;
@@ -31,7 +34,7 @@ class FakeExportWindow {
     })
   };
 
-  constructor(options: any) {
+  constructor(options: ExportWindowOptions) {
     this.options = options;
     latestWindow = this;
   }

@@ -683,7 +683,8 @@ async function validatePrebuiltFluxRocmRuntime(runtimeDir: string): Promise<void
   try {
     manifest = JSON.parse(await readFile(manifestPath, "utf8")) as Record<string, unknown>;
   } catch (error) {
-    throw new Error(`Flux ROCm prebuilt manifest를 읽지 못했습니다: ${manifestPath}. ${String(error)}`);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Flux ROCm prebuilt manifest를 읽지 못했습니다: ${manifestPath}. ${message}`, { cause: error });
   }
   const schemaVersion = Number(manifest.schemaVersion);
   if (schemaVersion !== FLUX_ROCM_PREBUILT_RUNTIME_SCHEMA) {
@@ -1657,7 +1658,7 @@ function findFirstFileRecursive(root: string, lowerCaseNames: Set<string>, maxDe
     if (!current) {
       continue;
     }
-    let entries: import("node:fs").Dirent[] = [];
+    let entries: import("node:fs").Dirent[];
     try {
       entries = readdirSync(current.dir, { withFileTypes: true });
     } catch {
@@ -1692,7 +1693,7 @@ function findFilesRecursive(
     if (!current) {
       continue;
     }
-    let entries: import("node:fs").Dirent[] = [];
+    let entries: import("node:fs").Dirent[];
     try {
       entries = readdirSync(current.dir, { withFileTypes: true });
     } catch {
@@ -2034,9 +2035,9 @@ function ensureEmbeddedPythonPackagePath(pythonPath: string, packageDir: string)
     return;
   }
   const pythonDir = dirname(resolve(pythonPath));
-  let pthName = "";
+  let pthName: string | undefined;
   try {
-    pthName = readdirSync(pythonDir).find((name) => /^python\d+._pth$/i.test(name)) || "";
+    pthName = readdirSync(pythonDir).find((name) => /^python\d+._pth$/i.test(name));
   } catch {
     return;
   }
@@ -2067,9 +2068,9 @@ function ensureEmbeddedPythonPackagePath(pythonPath: string, packageDir: string)
 }
 
 function sanitizeStandaloneEmbeddedPythonPathFile(outputDir: string): void {
-  let pthName = "";
+  let pthName: string | undefined;
   try {
-    pthName = readdirSync(outputDir).find((name) => /^python\d+._pth$/i.test(name)) || "";
+    pthName = readdirSync(outputDir).find((name) => /^python\d+._pth$/i.test(name));
   } catch {
     return;
   }

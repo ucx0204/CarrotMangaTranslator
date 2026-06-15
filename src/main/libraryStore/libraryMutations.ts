@@ -1,9 +1,22 @@
 import { join, resolve } from "node:path";
-import type { ChapterSnapshot, LibraryIndex, MangaPage, SavePageBlocksRequest } from "../../shared/types";
+import type {
+  ChapterSnapshot,
+  LibraryIndex,
+  MangaPage,
+  SavePageBlocksRequest,
+} from "../../shared/types";
 import { normalizeBlockType } from "../../shared/geometry";
 import { hydrateChapter } from "./chapterSnapshots";
-import { collectManagedInpaintedArtifacts, inpaintedPathChanged, removeUnreferencedInpaintedArtifacts } from "./inpaintedArtifacts";
-import { reorderIds, reorderRecords, resolveChapterStatus } from "./chapterRecords";
+import {
+  collectManagedInpaintedArtifacts,
+  inpaintedPathChanged,
+  removeUnreferencedInpaintedArtifacts,
+} from "./inpaintedArtifacts";
+import {
+  reorderIds,
+  reorderRecords,
+  resolveChapterStatus,
+} from "./chapterRecords";
 import { listLibrary } from "./libraryAccess";
 import {
   DEFAULT_WORK_TITLE,
@@ -21,7 +34,7 @@ import {
   writeChapterFile,
   writeIndexFile,
   writeWorkFile,
-  type ChapterFile
+  type ChapterFile,
 } from "./libraryFiles";
 import { safeUnlink } from "./storage";
 import { sanitizeTitle } from "./titles";
@@ -37,9 +50,12 @@ export type PageAnalysisUpdate = {
   status: "completed" | "failed";
 };
 
-const ANALYSIS_UPDATE_CONFLICT_MESSAGE = "사용자 편집으로 자동 번역 결과를 적용하지 않았습니다.";
+const ANALYSIS_UPDATE_CONFLICT_MESSAGE =
+  "사용자 편집으로 자동 번역 결과를 적용하지 않았습니다.";
 
-export async function savePageBlocksUnlocked(request: SavePageBlocksRequest): Promise<ChapterSnapshot> {
+export async function savePageBlocksUnlocked(
+  request: SavePageBlocksRequest,
+): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(request.chapterId);
   if (!locator) {
     throw new Error("저장할 화를 찾지 못했습니다.");
@@ -48,12 +64,16 @@ export async function savePageBlocksUnlocked(request: SavePageBlocksRequest): Pr
   if (!chapter) {
     throw new Error("저장할 화를 찾지 못했습니다.");
   }
-  const page = chapter.pages.find((candidate) => candidate.id === request.pageId);
+  const page = chapter.pages.find(
+    (candidate) => candidate.id === request.pageId,
+  );
   if (!page) {
     throw new Error("저장할 페이지를 찾지 못했습니다.");
   }
   if (request.baseUpdatedAt && page.updatedAt !== request.baseUpdatedAt) {
-    throw new Error("페이지가 다른 작업으로 갱신되었습니다. 최신 내용을 다시 불러온 뒤 저장해 주세요.");
+    throw new Error(
+      "페이지가 다른 작업으로 갱신되었습니다. 최신 내용을 다시 불러온 뒤 저장해 주세요.",
+    );
   }
 
   const now = new Date().toISOString();
@@ -63,23 +83,27 @@ export async function savePageBlocksUnlocked(request: SavePageBlocksRequest): Pr
           ...candidate,
           blocks: request.blocks.map((block) => ({
             ...block,
-            type: normalizeBlockType(block.type)
+            type: normalizeBlockType(block.type),
           })),
-          updatedAt: now
+          updatedAt: now,
         }
-      : candidate
+      : candidate,
   );
   const nextChapter: ChapterFile = {
     ...chapter,
     pages,
     status: resolveChapterStatus(pages),
-    updatedAt: now
+    updatedAt: now,
   };
   await writeChapterFile(nextChapter);
+  await touchWork(locator.workId, now);
   return hydrateChapter(nextChapter);
 }
 
-export async function renameWorkUnlocked(workId: string, title: string): Promise<LibraryIndex> {
+export async function renameWorkUnlocked(
+  workId: string,
+  title: string,
+): Promise<LibraryIndex> {
   const work = await readWorkFile(workId);
   if (!work) {
     throw new Error("작품을 찾지 못했습니다.");
@@ -90,7 +114,10 @@ export async function renameWorkUnlocked(workId: string, title: string): Promise
   return listLibrary();
 }
 
-export async function renameChapterUnlocked(chapterId: string, title: string): Promise<LibraryIndex> {
+export async function renameChapterUnlocked(
+  chapterId: string,
+  title: string,
+): Promise<LibraryIndex> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -99,14 +126,20 @@ export async function renameChapterUnlocked(chapterId: string, title: string): P
   if (!chapter) {
     throw new Error("화를 찾지 못했습니다.");
   }
-  chapter.title = await makeUniqueChapterTitle(locator.workId, sanitizeTitle(title, "제목없음"), chapter.id);
+  chapter.title = await makeUniqueChapterTitle(
+    locator.workId,
+    sanitizeTitle(title, "제목없음"),
+    chapter.id,
+  );
   chapter.updatedAt = new Date().toISOString();
   await writeChapterFile(chapter);
   await touchWork(locator.workId, chapter.updatedAt);
   return listLibrary();
 }
 
-export async function deleteWorkUnlocked(workId: string): Promise<LibraryIndex> {
+export async function deleteWorkUnlocked(
+  workId: string,
+): Promise<LibraryIndex> {
   const work = await readWorkFile(workId);
   if (!work) {
     throw new Error("작품을 찾지 못했습니다.");
@@ -120,7 +153,9 @@ export async function deleteWorkUnlocked(workId: string): Promise<LibraryIndex> 
   return listLibrary();
 }
 
-export async function deleteChapterUnlocked(chapterId: string): Promise<LibraryIndex> {
+export async function deleteChapterUnlocked(
+  chapterId: string,
+): Promise<LibraryIndex> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -144,7 +179,10 @@ export async function deleteChapterUnlocked(chapterId: string): Promise<LibraryI
   return listLibrary();
 }
 
-export async function reorderChaptersUnlocked(workId: string, chapterIds: string[]): Promise<LibraryIndex> {
+export async function reorderChaptersUnlocked(
+  workId: string,
+  chapterIds: string[],
+): Promise<LibraryIndex> {
   const work = await readWorkFile(workId);
   if (!work) {
     throw new Error("작품을 찾지 못했습니다.");
@@ -155,7 +193,10 @@ export async function reorderChaptersUnlocked(workId: string, chapterIds: string
   return listLibrary();
 }
 
-export async function reorderPagesUnlocked(chapterId: string, pageIds: string[]): Promise<ChapterSnapshot> {
+export async function reorderPagesUnlocked(
+  chapterId: string,
+  pageIds: string[],
+): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -173,7 +214,10 @@ export async function reorderPagesUnlocked(chapterId: string, pageIds: string[])
   return hydrateChapter(chapter);
 }
 
-export async function deletePageUnlocked(chapterId: string, pageId: string): Promise<ChapterSnapshot> {
+export async function deletePageUnlocked(
+  chapterId: string,
+  pageId: string,
+): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -204,7 +248,10 @@ export async function deletePageUnlocked(chapterId: string, pageId: string): Pro
   return hydrateChapter(chapter);
 }
 
-export async function markChapterPagesRunningUnlocked(chapterId: string, pageIds: string[]): Promise<ChapterSnapshot> {
+export async function markChapterPagesRunningUnlocked(
+  chapterId: string,
+  pageIds: string[],
+): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
     throw new Error("화를 찾지 못했습니다.");
@@ -220,9 +267,9 @@ export async function markChapterPagesRunningUnlocked(chapterId: string, pageIds
       ? {
           ...page,
           analysisStatus: "running",
-          lastError: undefined
+          lastError: undefined,
         }
-      : page
+      : page,
   );
   chapter.status = resolveChapterStatus(chapter.pages);
   chapter.updatedAt = now;
@@ -231,7 +278,10 @@ export async function markChapterPagesRunningUnlocked(chapterId: string, pageIds
   return hydrateChapter(chapter);
 }
 
-export async function updatePagesAfterAnalysisUnlocked(chapterId: string, updates: PageAnalysisUpdate[]): Promise<void> {
+export async function updatePagesAfterAnalysisUnlocked(
+  chapterId: string,
+  updates: PageAnalysisUpdate[],
+): Promise<void> {
   if (updates.length === 0) {
     return;
   }
@@ -244,25 +294,30 @@ export async function updatePagesAfterAnalysisUnlocked(chapterId: string, update
     return;
   }
 
-  const updatesByPageId = new Map(updates.map((update) => [update.page.id, update]));
+  const updatesByPageId = new Map(
+    updates.map((update) => [update.page.id, update]),
+  );
   const now = new Date().toISOString();
   chapter.pages = chapter.pages.map((record) => {
     const update = updatesByPageId.get(record.id);
     if (!update) {
       return record;
     }
-    if (update.expectedUpdatedAt && record.updatedAt !== update.expectedUpdatedAt) {
+    if (
+      update.expectedUpdatedAt &&
+      record.updatedAt !== update.expectedUpdatedAt
+    ) {
       return {
         ...record,
         analysisStatus: "failed",
-        lastError: ANALYSIS_UPDATE_CONFLICT_MESSAGE
+        lastError: ANALYSIS_UPDATE_CONFLICT_MESSAGE,
       };
     }
     if (update.status === "failed") {
       return {
         ...record,
         analysisStatus: "failed",
-        lastError: update.warnings[update.warnings.length - 1]
+        lastError: update.warnings[update.warnings.length - 1],
       };
     }
     return {
@@ -270,7 +325,7 @@ export async function updatePagesAfterAnalysisUnlocked(chapterId: string, update
       blocks: update.page.blocks,
       analysisStatus: "completed",
       lastError: undefined,
-      updatedAt: now
+      updatedAt: now,
     };
   });
   chapter.updatedAt = now;
@@ -284,16 +339,18 @@ export async function updatePageAfterAnalysisUnlocked(
   page: MangaPage,
   warnings: string[],
   status: "completed" | "failed",
-  expectedUpdatedAt?: string
+  expectedUpdatedAt?: string,
 ): Promise<void> {
-  await updatePagesAfterAnalysisUnlocked(chapterId, [{ page, warnings, status, expectedUpdatedAt }]);
+  await updatePagesAfterAnalysisUnlocked(chapterId, [
+    { page, warnings, status, expectedUpdatedAt },
+  ]);
 }
 
 export async function finalizeRunningPagesUnlocked(
   chapterId: string,
   pageIds: string[],
   status: "idle" | "failed",
-  errorMessage?: string
+  errorMessage?: string,
 ): Promise<void> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
@@ -310,9 +367,9 @@ export async function finalizeRunningPagesUnlocked(
       ? {
           ...page,
           analysisStatus: status,
-          lastError: status === "failed" ? errorMessage : undefined
+          lastError: status === "failed" ? errorMessage : undefined,
         }
-      : page
+      : page,
   );
   chapter.updatedAt = now;
   chapter.status = resolveChapterStatus(chapter.pages);
@@ -323,7 +380,7 @@ export async function finalizeRunningPagesUnlocked(
 export async function updatePagesAfterInpaintingUnlocked(
   chapterId: string,
   pages: MangaPage[],
-  cleanupOptions: InpaintingArtifactCleanupOptions = {}
+  cleanupOptions: InpaintingArtifactCleanupOptions = {},
 ): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
@@ -334,7 +391,9 @@ export async function updatePagesAfterInpaintingUnlocked(
     throw new Error("화를 찾지 못했습니다.");
   }
 
-  const chapterDir = resolve(join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId));
+  const chapterDir = resolve(
+    join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId),
+  );
   const replacedInpaintedPaths: string[] = [];
   const pageMap = new Map(pages.map((page) => [page.id, page]));
   const now = new Date().toISOString();
@@ -344,20 +403,33 @@ export async function updatePagesAfterInpaintingUnlocked(
       return record;
     }
     const resolvedInpaintedPath = next.inpaintedImagePath
-      ? assertChapterImagePath(locator.workId, locator.chapterId, next.inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.")
+      ? assertChapterImagePath(
+          locator.workId,
+          locator.chapterId,
+          next.inpaintedImagePath,
+          "인페인팅 결과 이미지 경로가 올바르지 않습니다.",
+        )
       : undefined;
-    if (record.inpaintedImagePath && inpaintedPathChanged(record.inpaintedImagePath, resolvedInpaintedPath)) {
+    if (
+      record.inpaintedImagePath &&
+      inpaintedPathChanged(record.inpaintedImagePath, resolvedInpaintedPath)
+    ) {
       replacedInpaintedPaths.push(record.inpaintedImagePath);
     }
     return {
       ...record,
-      inpaintedImagePath: resolvedInpaintedPath
+      inpaintedImagePath: resolvedInpaintedPath,
     };
   });
   chapter.updatedAt = now;
   await writeChapterFile(chapter);
   await touchWork(locator.workId, now);
-  await cleanupInpaintedArtifacts(chapterDir, replacedInpaintedPaths, chapter.pages, cleanupOptions);
+  await cleanupInpaintedArtifacts(
+    chapterDir,
+    replacedInpaintedPaths,
+    chapter.pages,
+    cleanupOptions,
+  );
   return hydrateChapter(chapter);
 }
 
@@ -365,7 +437,7 @@ export async function setPageInpaintingResultUnlocked(
   chapterId: string,
   pageId: string,
   inpaintedImagePath?: string | null,
-  cleanupOptions: InpaintingArtifactCleanupOptions = {}
+  cleanupOptions: InpaintingArtifactCleanupOptions = {},
 ): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
@@ -381,10 +453,16 @@ export async function setPageInpaintingResultUnlocked(
 
   const target = chapter.pages.find((page) => page.id === pageId);
   const resolvedInpaintedPath = inpaintedImagePath
-    ? assertChapterImagePath(locator.workId, locator.chapterId, inpaintedImagePath, "인페인팅 결과 이미지 경로가 올바르지 않습니다.")
+    ? assertChapterImagePath(
+        locator.workId,
+        locator.chapterId,
+        inpaintedImagePath,
+        "인페인팅 결과 이미지 경로가 올바르지 않습니다.",
+      )
     : undefined;
   const replacedInpaintedPaths =
-    target?.inpaintedImagePath && inpaintedPathChanged(target.inpaintedImagePath, resolvedInpaintedPath)
+    target?.inpaintedImagePath &&
+    inpaintedPathChanged(target.inpaintedImagePath, resolvedInpaintedPath)
       ? [target.inpaintedImagePath]
       : [];
   const now = new Date().toISOString();
@@ -392,14 +470,19 @@ export async function setPageInpaintingResultUnlocked(
     page.id === pageId
       ? {
           ...page,
-          inpaintedImagePath: resolvedInpaintedPath
+          inpaintedImagePath: resolvedInpaintedPath,
         }
-      : page
+      : page,
   );
   chapter.updatedAt = now;
   await writeChapterFile(chapter);
   await touchWork(locator.workId, now);
-  await cleanupInpaintedArtifacts(resolve(join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId)), replacedInpaintedPaths, chapter.pages, cleanupOptions);
+  await cleanupInpaintedArtifacts(
+    resolve(join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId)),
+    replacedInpaintedPaths,
+    chapter.pages,
+    cleanupOptions,
+  );
   return hydrateChapter(chapter);
 }
 
@@ -407,12 +490,18 @@ async function cleanupInpaintedArtifacts(
   chapterDir: string,
   replacedInpaintedPaths: string[],
   pages: Array<{ inpaintedImagePath?: string }>,
-  cleanupOptions: InpaintingArtifactCleanupOptions
+  cleanupOptions: InpaintingArtifactCleanupOptions,
 ): Promise<void> {
-  const retainedInpaintedArtifactPaths = cleanupOptions.retainedInpaintedArtifactPaths ?? [];
+  const retainedInpaintedArtifactPaths =
+    cleanupOptions.retainedInpaintedArtifactPaths ?? [];
   const candidatePaths =
     retainedInpaintedArtifactPaths.length > 0
       ? await collectManagedInpaintedArtifacts(chapterDir)
       : replacedInpaintedPaths;
-  await removeUnreferencedInpaintedArtifacts(chapterDir, candidatePaths, pages, retainedInpaintedArtifactPaths);
+  await removeUnreferencedInpaintedArtifacts(
+    chapterDir,
+    candidatePaths,
+    pages,
+    retainedInpaintedArtifactPaths,
+  );
 }

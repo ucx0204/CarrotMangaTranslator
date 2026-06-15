@@ -1,4 +1,3 @@
-import React from "react";
 import type { ChapterSnapshot, JobState, MangaPage } from "../../../shared/types";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 
@@ -47,23 +46,3 @@ export type InpaintingContextValue = {
   onExportResults: (scope: "page" | "chapter") => void;
   onCancelJob: () => void;
 };
-
-const InpaintingContext = React.createContext<InpaintingContextValue | null>(null);
-
-export function InpaintingProvider({
-  value,
-  children
-}: {
-  value: InpaintingContextValue;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return <InpaintingContext.Provider value={value}>{children}</InpaintingContext.Provider>;
-}
-
-export function useInpainting(): InpaintingContextValue {
-  const context = React.useContext(InpaintingContext);
-  if (!context) {
-    throw new Error("useInpainting must be used within an InpaintingProvider");
-  }
-  return context;
-}

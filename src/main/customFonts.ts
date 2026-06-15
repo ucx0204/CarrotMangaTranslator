@@ -1,5 +1,22 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { basename, extname, isAbsolute, join, relative, resolve } from "node:path";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import {
+  basename,
+  extname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 import { randomUUID } from "node:crypto";
 import type { CustomFont } from "../shared/types";
 import { getAppPaths } from "./appPaths";
@@ -8,7 +25,8 @@ import { logError } from "./logger";
 const ALLOWED_EXTENSIONS = new Set([".ttf", ".otf"]);
 const MAX_CUSTOM_FONT_BYTES = 32 * 1024 * 1024;
 const MAX_FONTS = 200;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function fontsDir(): string {
   const dir = getAppPaths().fontsDir;
@@ -22,7 +40,9 @@ function indexPath(): string {
 
 function isPathInside(rootPath: string, targetPath: string): boolean {
   const child = relative(rootPath, targetPath);
-  return child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child));
+  return (
+    child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child))
+  );
 }
 
 function normalizeUuid(value: unknown): string | null {
@@ -41,7 +61,11 @@ function isSafeFontFileName(id: string, fileName: string): boolean {
   return ALLOWED_EXTENSIONS.has(ext) && fileName === `${id}${ext}`;
 }
 
-function resolveFontFilePath(fontsRoot: string, id: string, fileName: string): string | null {
+function resolveFontFilePath(
+  fontsRoot: string,
+  id: string,
+  fileName: string,
+): string | null {
   if (!isSafeFontFileName(id, fileName)) {
     return null;
   }
@@ -56,21 +80,32 @@ function normalizeCustomFont(value: unknown): CustomFont | null {
   }
   const font = value as Record<string, unknown>;
   const id = normalizeUuid(font.id);
-  if (!id || typeof font.label !== "string" || typeof font.family !== "string" || typeof font.fileName !== "string") {
+  if (
+    !id ||
+    typeof font.label !== "string" ||
+    typeof font.family !== "string" ||
+    typeof font.fileName !== "string"
+  ) {
     return null;
   }
-  if (font.family !== `MGTUser-${id}` || !isSafeFontFileName(id, font.fileName)) {
+  if (
+    font.family !== `MGTUser-${id}` ||
+    !isSafeFontFileName(id, font.fileName)
+  ) {
     return null;
   }
   return {
     id,
     label: sanitizeLabel(font.label),
     family: `MGTUser-${id}`,
-    fileName: font.fileName
+    fileName: font.fileName,
   };
 }
 
-function resolveExistingFontFilePath(font: CustomFont, fontsRoot = fontsDir()): string | null {
+function resolveExistingFontFilePath(
+  font: CustomFont,
+  fontsRoot = fontsDir(),
+): string | null {
   const filePath = resolveFontFilePath(fontsRoot, font.id, font.fileName);
   if (!filePath) {
     return null;
@@ -110,7 +145,9 @@ export function listCustomFonts(): CustomFont[] {
 }
 
 function saveIndex(fonts: CustomFont[]): void {
-  const safeFonts = fonts.map(normalizeCustomFont).filter((font): font is CustomFont => Boolean(font));
+  const safeFonts = fonts
+    .map(normalizeCustomFont)
+    .filter((font): font is CustomFont => Boolean(font));
   const targetPath = indexPath();
   const tempPath = `${targetPath}.${process.pid}.tmp`;
   writeFileSync(tempPath, JSON.stringify(safeFonts, null, 2), "utf8");
@@ -119,7 +156,10 @@ function saveIndex(fonts: CustomFont[]): void {
 
 function sanitizeLabel(raw: string): string {
   const cleaned = Array.from(raw)
-    .filter((char) => char.codePointAt(0)! >= 0x20)
+    .filter((char) => {
+      const codePoint = char.codePointAt(0);
+      return codePoint !== undefined && codePoint >= 0x20;
+    })
     .join("")
     .trim()
     .slice(0, 60);
@@ -143,7 +183,7 @@ export function registerCustomFontFromFile(sourcePath: string): CustomFont {
     id,
     label: sanitizeLabel(basename(sourcePath, extname(sourcePath))),
     family: `MGTUser-${id}`,
-    fileName
+    fileName,
   };
   saveIndex([...fonts, font]);
   return font;
@@ -159,7 +199,11 @@ function assertFontFileLooksValid(sourcePath: string, ext: string): void {
   }
   const header = readFileSync(sourcePath).subarray(0, 4);
   const signature = header.toString("latin1");
-  const isTrueType = header[0] === 0x00 && header[1] === 0x01 && header[2] === 0x00 && header[3] === 0x00;
+  const isTrueType =
+    header[0] === 0x00 &&
+    header[1] === 0x01 &&
+    header[2] === 0x00 &&
+    header[3] === 0x00;
   const isOtf = signature === "OTTO";
   const isAppleTrueType = signature === "true";
   if (ext === ".otf" && !isOtf) {
@@ -184,7 +228,10 @@ export function removeCustomFont(id: string): CustomFont[] {
         rmSync(fontPath, { force: true });
       }
     } catch (error) {
-      logError("Failed to delete custom font file", { id: normalizedId, error });
+      logError("Failed to delete custom font file", {
+        id: normalizedId,
+        error,
+      });
     }
   }
   const remaining = fonts.filter((font) => font.id !== normalizedId);
@@ -197,7 +244,9 @@ export function resolveCustomFontFilePath(id: string): string | null {
   if (!normalizedId) {
     return null;
   }
-  const font = listCustomFonts().find((candidate) => candidate.id === normalizedId);
+  const font = listCustomFonts().find(
+    (candidate) => candidate.id === normalizedId,
+  );
   if (!font) {
     return null;
   }

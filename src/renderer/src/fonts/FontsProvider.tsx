@@ -1,7 +1,8 @@
 import React from "react";
 import type { CustomFont } from "../../../shared/types";
-import { getBlockFontOptions, setCustomFontOptions, type BlockFontOption } from "../lib/fonts";
 import { mangaGateway } from "../api/mangaGateway";
+import { getBlockFontOptions, setCustomFontOptions } from "../lib/fonts";
+import { FontsContext, type FontsContextValue } from "./fontsContextValue";
 
 const STYLE_ELEMENT_ID = "mgt-custom-fonts";
 
@@ -16,16 +17,6 @@ function injectCustomFontFaces(fonts: CustomFont[]): void {
     .map((font) => `@font-face { font-family: "${font.family}"; src: url("mgt-font://${font.id}"); font-display: swap; }`)
     .join("\n");
 }
-
-type FontsContextValue = {
-  customFonts: CustomFont[];
-  options: BlockFontOption[];
-  busy: boolean;
-  registerFont: () => Promise<void>;
-  removeFont: (id: string) => Promise<void>;
-};
-
-const FontsContext = React.createContext<FontsContextValue | null>(null);
 
 export function FontsProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [customFonts, setFonts] = React.useState<CustomFont[]>([]);
@@ -79,21 +70,13 @@ export function FontsProvider({ children }: { children: React.ReactNode }): Reac
         setBusy(false);
       }
     },
-    [apply]
+    [apply],
   );
 
   const value = React.useMemo<FontsContextValue>(
     () => ({ customFonts, options: getBlockFontOptions(), busy, registerFont, removeFont }),
-    [customFonts, busy, registerFont, removeFont]
+    [customFonts, busy, registerFont, removeFont],
   );
 
   return <FontsContext.Provider value={value}>{children}</FontsContext.Provider>;
-}
-
-export function useFonts(): FontsContextValue {
-  const context = React.useContext(FontsContext);
-  if (!context) {
-    throw new Error("useFonts must be used within a FontsProvider");
-  }
-  return context;
 }

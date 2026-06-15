@@ -16,9 +16,9 @@ import { ShortcutHelp } from "./components/ShortcutHelp";
 import { ToastViewport } from "./components/ui/ToastViewport";
 import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
 import { toast } from "./lib/toastStore";
-import type { InpaintingTool } from "./inpainting/InpaintingContext";
-import { InpaintingProvider } from "./inpainting/InpaintingContext";
-import { FontsProvider } from "./fonts/FontsContext";
+import { FontsProvider } from "./fonts/FontsProvider";
+import { InpaintingProvider } from "./inpainting/InpaintingProvider";
+import type { InpaintingTool } from "./inpainting/inpaintingTypes";
 import { useBlockEditingActions } from "./hooks/useBlockEditingActions";
 import { useConfirmDialog } from "./hooks/useConfirmDialog";
 import { useChapterPersistence } from "./hooks/useChapterPersistence";
@@ -128,7 +128,7 @@ export default function App(): React.JSX.Element {
   const selectedPageEditLocked = Boolean(jobActive && selectedPage && selectedPage.analysisStatus !== "completed");
   const selectedPageSize = useMemo(
     () => (selectedPage ? { width: selectedPage.width, height: selectedPage.height } : null),
-    [selectedPage?.height, selectedPage?.width]
+    [selectedPage]
   );
   const stageSize = useStageSize(imageRef, selectedPageSize, selectedPageImageDataUrl);
   const progressSnapshot = useMemo(() => resolveProgressSnapshot(jobState), [jobState]);
@@ -695,4 +695,3 @@ export default function App(): React.JSX.Element {
     </FontsProvider>
   );
 }
-

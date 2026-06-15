@@ -7,7 +7,10 @@ import type { IpcContext } from "../src/main/ipc/context";
 import type { SimplePageRuntime } from "../src/main/simplePageRuntime";
 
 type IpcHandler = (
-  event: { sender: { id: number; send: (channel: string, payload: unknown) => void }; senderFrame?: { url: string } },
+  event: {
+    sender: { id: number; send: (channel: string, payload: unknown) => void };
+    senderFrame?: { url: string };
+  },
   ...args: unknown[]
 ) => Promise<unknown> | unknown;
 
@@ -18,21 +21,31 @@ const electronMock = vi.hoisted(() => {
     handle: vi.fn((channel: string, handler: IpcHandler) => {
       handlers.set(channel, handler);
     }),
-    showOpenDialog: vi.fn()
+    showOpenDialog: vi.fn(),
   };
 });
+
+const oauthMock = vi.hoisted(() => ({
+  start: vi.fn(),
+  stop: vi.fn(async () => {}),
+}));
 
 vi.mock("electron", () => ({
   app: {
     isPackaged: false,
-    getPath: () => ""
+    getPath: () => "",
   },
   dialog: {
-    showOpenDialog: electronMock.showOpenDialog
+    showOpenDialog: electronMock.showOpenDialog,
   },
   ipcMain: {
-    handle: electronMock.handle
-  }
+    handle: electronMock.handle,
+  },
+}));
+
+vi.mock("../src/main/openaiOauthEndpoint", () => ({
+  startOpenAIOAuthEndpoint: oauthMock.start,
+  stopOpenAIOAuthEndpoint: oauthMock.stop,
 }));
 
 import { registerSettingsIpc } from "../src/main/ipc/settingsIpc";
@@ -43,6 +56,9 @@ beforeEach(() => {
   electronMock.handlers.clear();
   electronMock.handle.mockClear();
   electronMock.showOpenDialog.mockClear();
+  oauthMock.start.mockReset();
+  oauthMock.stop.mockReset();
+  oauthMock.stop.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -59,28 +75,34 @@ describe("settings IPC model/runtime check", () => {
       progressText: "Gemma 실행 런타임 다운로드 중",
       detail: "runtime.zip",
       progressMode: "log-only",
-      installLogLine: "Gemma runtime preparation log"
+      installLogLine: "Gemma runtime preparation log",
     } satisfies Omit<ModelTestProgressEvent, "id">;
     const runtime = createRuntime({
       cached: false,
-      startProgress: runtimeProgress
+      startProgress: runtimeProgress,
     });
 
     const { result, progressEvents } = await invokeSettingsModelTest({
       runtime,
       settings: createGemmaSettings(),
-      testId: providedTestId
+      testId: providedTestId,
     });
 
     expect(result).toMatchObject({
       ok: true,
       message: "Paddle OCR과 번역 엔진 확인 완료: model test ok",
-      launchMode: "cached-hf"
+      launchMode: "cached-hf",
     });
     expect(progressEvents.length).toBeGreaterThan(0);
-    expect(progressEvents.every((event) => event.id === providedTestId)).toBe(true);
-    expect(progressEvents.map((event) => event.progressText)).toContain("Paddle OCR 확인 완료");
-    expect(progressEvents.map((event) => event.installLogLine)).toContain(runtimeProgress.installLogLine);
+    expect(progressEvents.every((event) => event.id === providedTestId)).toBe(
+      true,
+    );
+    expect(progressEvents.map((event) => event.progressText)).toContain(
+      "Paddle OCR 확인 완료",
+    );
+    expect(progressEvents.map((event) => event.installLogLine)).toContain(
+      runtimeProgress.installLogLine,
+    );
     expect(runtime.ensurePaddleOcrRuntime).toHaveBeenCalledTimes(1);
     expect(runtime.stopServer).toHaveBeenCalledTimes(1);
   });
@@ -88,13 +110,13 @@ describe("settings IPC model/runtime check", () => {
   it("falls back to an internal id when the renderer id is too long", async () => {
     const providedTestId = "x".repeat(201);
     const runtime = createRuntime({
-      cached: true
+      cached: true,
     });
 
     const { progressEvents } = await invokeSettingsModelTest({
       runtime,
       settings: createGemmaSettings(),
-      testId: providedTestId
+      testId: providedTestId,
     });
 
     const eventIds = new Set(progressEvents.map((event) => event.id));
@@ -102,17 +124,83 @@ describe("settings IPC model/runtime check", () => {
     expect([...eventIds][0]).not.toBe(providedTestId);
     expect([...eventIds][0]).toHaveLength(36);
   });
+
+  it("retries Gemma model tests when the reserved port is taken before startup", async () => {
+    const runtime = createRuntime({
+      cached: true,
+      startErrors: [portBindError()],
+    });
+
+    const { result, progressEvents } = await invokeSettingsModelTest({
+      runtime,
+      settings: createGemmaSettings(),
+      testId: "retry-gemma-port",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(runtime.startServer).toHaveBeenCalledTimes(2);
+    expect(progressEvents.map((event) => event.progressText)).toContain(
+      "모델/런타임 확인 포트 재시도 중",
+    );
+    expect(runtime.stopServer).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries OpenAI Codex model test endpoints with a fresh temporary port", async () => {
+    const endpoint = {
+      baseUrl: "http://127.0.0.1:18080/v1",
+      child: null,
+      startedByScript: true,
+      provider: "openai-codex",
+      oauthServer: {},
+    };
+    oauthMock.start
+      .mockRejectedValueOnce(portBindError())
+      .mockResolvedValueOnce(endpoint);
+    const runtime = createRuntime({
+      cached: true,
+    });
+
+    const { result, progressEvents } = await invokeSettingsModelTest({
+      runtime,
+      settings: createCodexSettings(),
+      testId: "retry-codex-port",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      launchMode: "openai-codex",
+      resolvedEndpoint: endpoint.baseUrl,
+    });
+    expect(oauthMock.start).toHaveBeenCalledTimes(2);
+    const firstOptions = oauthMock.start.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    const secondOptions = oauthMock.start.mock.calls[1]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(firstOptions.codexOauthPort).toBe(firstOptions.port);
+    expect(secondOptions.codexOauthPort).toBe(secondOptions.port);
+    expect(progressEvents.map((event) => event.progressText)).toContain(
+      "모델/런타임 확인 포트 재시도 중",
+    );
+    expect(oauthMock.stop).toHaveBeenCalledWith(endpoint);
+  });
 });
 
 async function invokeSettingsModelTest({
   runtime,
   settings,
-  testId
+  testId,
 }: {
   runtime: SimplePageRuntime;
   settings: AppSettings;
   testId: string;
-}): Promise<{ result: Record<string, unknown>; progressEvents: ModelTestProgressEvent[] }> {
+}): Promise<{
+  result: Record<string, unknown>;
+  progressEvents: ModelTestProgressEvent[];
+}> {
   const dataRoot = mkdtempSync(join(tmpdir(), "settings-ipc-"));
   tempDirs.push(dataRoot);
   const context = createContext(dataRoot, runtime);
@@ -131,21 +219,24 @@ async function invokeSettingsModelTest({
           if (channel === "settings:model-test-progress") {
             progressEvents.push(payload as ModelTestProgressEvent);
           }
-        }
+        },
       },
-      senderFrame: { url: "http://127.0.0.1:5173/" }
+      senderFrame: { url: "http://127.0.0.1:5173/" },
     },
     settings,
-    testId
+    testId,
   );
 
   return {
     result: result as Record<string, unknown>,
-    progressEvents
+    progressEvents,
   };
 }
 
-function createContext(dataRoot: string, runtime: SimplePageRuntime): IpcContext {
+function createContext(
+  dataRoot: string,
+  runtime: SimplePageRuntime,
+): IpcContext {
   return {
     appPaths: {
       isPackaged: false,
@@ -162,43 +253,54 @@ function createContext(dataRoot: string, runtime: SimplePageRuntime): IpcContext
       toolsDir: join(dataRoot, "tools"),
       ocrRuntimeDir: join(dataRoot, "ocr-runtime"),
       llamaRuntimeDir: join(dataRoot, "tools"),
-      llamaServerPath: join(dataRoot, "tools", "llama-server")
+      llamaServerPath: join(dataRoot, "tools", "llama-server"),
     },
     jobs: {
-      hasActive: false
+      hasActive: false,
     } as IpcContext["jobs"],
     getMainWindow: () =>
       ({
         isDestroyed: () => false,
-        webContents: { id: 1, getURL: () => "http://127.0.0.1:5173/" }
+        webContents: { id: 1, getURL: () => "http://127.0.0.1:5173/" },
       }) as ReturnType<IpcContext["getMainWindow"]>,
     loadSimplePageRuntime: () => runtime,
-    decodeImage: vi.fn()
+    decodeImage: vi.fn(),
   };
 }
 
 function createRuntime({
   cached,
-  startProgress
+  startProgress,
+  startErrors = [],
 }: {
   cached: boolean;
   startProgress?: Omit<ModelTestProgressEvent, "id">;
+  startErrors?: unknown[];
 }): SimplePageRuntime {
+  const pendingStartErrors = [...startErrors];
   return {
     isModelCached: vi.fn(() => cached),
     ensurePaddleOcrRuntime: vi.fn(async () => ({
       runtimeVariant: "cpu",
       pythonPath: "C:\\python\\python.exe",
-      prepared: true
+      prepared: true,
     })),
     startServer: vi.fn(async (options) => {
+      const startError = pendingStartErrors.shift();
+      if (startError) {
+        throw startError;
+      }
       if (startProgress) {
-        (options.onProgress as ((progress: Omit<ModelTestProgressEvent, "id">) => void) | undefined)?.(startProgress);
+        (
+          options.onProgress as
+            | ((progress: Omit<ModelTestProgressEvent, "id">) => void)
+            | undefined
+        )?.(startProgress);
       }
       return {
         baseUrl: "http://127.0.0.1:18180/v1",
         child: null,
-        startedByScript: true
+        startedByScript: true,
       };
     }),
     stopServer: vi.fn(async () => {}),
@@ -207,10 +309,16 @@ function createRuntime({
       launchTarget: {
         launchMode: "cached-hf" as const,
         modelPath: "C:\\models\\gemma.gguf",
-        mmprojPath: "C:\\models\\mmproj.gguf"
-      }
-    }))
+        mmprojPath: "C:\\models\\mmproj.gguf",
+      },
+    })),
   };
+}
+
+function portBindError(): Error {
+  return Object.assign(new Error("EADDRINUSE: address already in use"), {
+    code: "EADDRINUSE",
+  });
 }
 
 function createGemmaSettings(): AppSettings {
@@ -222,17 +330,29 @@ function createGemmaSettings(): AppSettings {
       modelFile: "gemma.gguf",
       mmprojRepo: "example/gemma-mmproj",
       mmprojFile: "mmproj.gguf",
-      vramMode: "economy26b"
+      vramMode: "economy26b",
     },
     codex: {
       model: "gpt-5.5",
       reasoningEffort: "low",
-      oauthPort: 10531
+      oauthPort: 10531,
     },
     ocr: {
       device: "cpu",
-      gpuCudaTag: "cu126"
+      gpuCudaTag: "cu126",
     },
-    maxTokens: 12000
+    maxTokens: 12000,
+  };
+}
+
+function createCodexSettings(): AppSettings {
+  return {
+    ...createGemmaSettings(),
+    modelProvider: "openai-codex",
+    codex: {
+      model: "gpt-5.5",
+      reasoningEffort: "low",
+      oauthPort: 10531,
+    },
   };
 }

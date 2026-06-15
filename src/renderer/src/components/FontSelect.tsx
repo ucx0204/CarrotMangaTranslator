@@ -1,5 +1,5 @@
 import React from "react";
-import { useFonts } from "../fonts/FontsContext";
+import { useFonts } from "../fonts/useFonts";
 import { normalizeBlockFontFamily, resolveBlockFontFamily, resolveBlockFontOption } from "../lib/fonts";
 
 type FontSelectProps = {

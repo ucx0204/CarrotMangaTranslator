@@ -42,7 +42,7 @@ import {
   type InpaintingArtifactCleanupOptions,
   type PageAnalysisUpdate,
 } from "./libraryStore/libraryMutations";
-import { AsyncMutex } from "./libraryStore/mutex";
+import { AsyncReaderWriterLock } from "./libraryStore/mutex";
 import { importWorkShareUnlocked } from "./libraryStore/shareWorkflow";
 
 export { pathExists } from "./libraryStore/storage";
@@ -62,14 +62,14 @@ export type {
   LibraryCleanupResult,
 } from "./libraryStore/libraryFiles";
 
-const libraryMutationMutex = new AsyncMutex();
+const libraryLock = new AsyncReaderWriterLock();
 
 function withLibraryMutation<T>(operation: () => Promise<T>): Promise<T> {
-  return libraryMutationMutex.runExclusive(operation);
+  return libraryLock.runWrite(operation);
 }
 
 function withLibraryRead<T>(operation: () => Promise<T>): Promise<T> {
-  return libraryMutationMutex.runExclusive(operation);
+  return libraryLock.runRead(operation);
 }
 
 export async function listLibrary(): Promise<LibraryIndex> {

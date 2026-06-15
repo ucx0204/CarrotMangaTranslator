@@ -20,8 +20,8 @@ export default tseslint.config(
       "fonts/**",
       "docs/**",
       "build/**",
-      "coverage/**"
-    ]
+      "coverage/**",
+    ],
   },
   {
     files: ["**/*.{js,cjs,mjs,ts,tsx}"],
@@ -29,18 +29,23 @@ export default tseslint.config(
       ecmaVersion: "latest",
       globals: {
         ...globals.browser,
-        ...globals.node
-      }
+        ...globals.node,
+      },
     },
-    rules: {}
+    rules: {},
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["src/**/*.{ts,tsx}", "tests/**/*.ts", "vite*.ts", "vitest.config.ts"],
+    files: [
+      "src/**/*.{ts,tsx}",
+      "tests/**/*.ts",
+      "vite*.ts",
+      "vitest.config.ts",
+    ],
     plugins: {
       "react-hooks": reactHooks,
-      "react-refresh": reactRefresh
+      "react-refresh": reactRefresh,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -51,33 +56,37 @@ export default tseslint.config(
         {
           argsIgnorePattern: "^_",
           caughtErrorsIgnorePattern: "^_",
-          varsIgnorePattern: "^_"
-        }
+          varsIgnorePattern: "^_",
+        },
       ],
       "react-refresh/only-export-components": [
         "warn",
         {
-          allowConstantExport: true
-        }
+          allowConstantExport: true,
+        },
       ],
       "react-hooks/immutability": "off",
-      "react-hooks/set-state-in-effect": "off"
-    }
+      "react-hooks/set-state-in-effect": "off",
+    },
   },
   {
     files: ["tests/**/*.{ts,tsx}"],
     rules: {
-      "no-this-alias": "off"
-    }
+      "no-this-alias": "off",
+    },
   },
   {
-    files: ["src/main/runtime/**/*.cjs", "scripts/**/*.cjs", "electron-builder.config.cjs"],
+    files: [
+      "src/main/runtime/**/*.cjs",
+      "scripts/**/*.cjs",
+      "electron-builder.config.cjs",
+    ],
     languageOptions: {
-      sourceType: "commonjs"
+      sourceType: "commonjs",
     },
     rules: {
-      "@typescript-eslint/no-require-imports": "off"
-    }
+      "@typescript-eslint/no-require-imports": "off",
+    },
   },
   {
     files: ["**/*.{js,cjs,mjs,ts,tsx}"],
@@ -89,7 +98,19 @@ export default tseslint.config(
       "@typescript-eslint/no-this-alias": "off",
       "@typescript-eslint/no-non-null-assertion": "warn",
       "no-useless-assignment": "warn",
-      "preserve-caught-error": "warn"
-    }
-  }
+      "preserve-caught-error": "warn",
+    },
+  },
+  {
+    files: [
+      "src/main/**/*.{ts,tsx}",
+      "src/preload/**/*.{ts,tsx}",
+      "src/renderer/**/*.{ts,tsx}",
+      "src/shared/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+    },
+  },
 );

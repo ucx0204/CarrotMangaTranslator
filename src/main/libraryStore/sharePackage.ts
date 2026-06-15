@@ -1,4 +1,6 @@
 import type { LibraryChapter, WorkShareImportEntry } from "../../shared/types";
+import { z } from "zod";
+import { LibraryChapterFileSchema } from "../../shared/ipcSchemas";
 import { isSupportedImagePath } from "./storage";
 import {
   MAX_SHARE_IMAGE_BYTES,
@@ -36,18 +38,33 @@ export type SharePackage = {
   }>;
 };
 
+const ShareManifestSchema = z
+  .object({
+    format: z.literal(SHARE_FORMAT),
+    version: z.literal(SHARE_VERSION),
+    exportedAt: z.string().max(80),
+    work: z
+      .object({
+        id: z.string().min(1).max(200),
+        title: z.string().max(240),
+      })
+      .strict(),
+    chapterOrder: z.array(z.string().min(1).max(200)).min(1).max(2000),
+  })
+  .strict();
+
 export async function readSharePackage(
   packagePath: string,
 ): Promise<SharePackage> {
   const entries = buildSafeShareEntryMap(
     await readZipEntries(packagePath, "공유 파일"),
   );
-  const manifest = await readRequiredShareJson<ShareManifest>(
+  const manifest = await readRequiredShareJson(
     packagePath,
     entries,
     "manifest.json",
+    ShareManifestSchema,
   );
-  validateShareManifest(manifest);
 
   const chapters = await Promise.all(
     manifest.chapterOrder.map(async (packageChapterId) => {
@@ -55,10 +72,11 @@ export async function readSharePackage(
         packageChapterId,
         "공유 파일의 화 ID가 올바르지 않습니다.",
       );
-      const chapter = await readRequiredShareJson<LibraryChapter>(
+      const chapter = await readRequiredShareJson(
         packagePath,
         entries,
         `chapters/${safeChapterId}/chapter.json`,
+        LibraryChapterFileSchema,
       );
       validateShareChapter(chapter, safeChapterId, entries);
       return {
@@ -91,17 +109,19 @@ export function assertPackageOnlyEntries(
   }
 }
 
-async function readRequiredShareJson<T>(
+async function readRequiredShareJson<TSchema extends z.ZodTypeAny>(
   packagePath: string,
   entries: Map<string, ZipEntryLike>,
   path: string,
-): Promise<T> {
+  schema: TSchema,
+): Promise<z.output<TSchema>> {
   const entry = entries.get(path);
   if (!entry) {
     throw new Error(`공유 파일에 필요한 정보가 없습니다: ${path}`);
   }
+  let parsedJson: unknown;
   try {
-    return JSON.parse(
+    parsedJson = JSON.parse(
       (
         await readZipEntryDataFromFile(
           packagePath,
@@ -110,25 +130,24 @@ async function readRequiredShareJson<T>(
           path,
         )
       ).toString("utf8"),
-    ) as T;
+    );
   } catch {
     throw new Error(`공유 파일의 JSON을 읽지 못했습니다: ${path}`);
   }
-}
 
-function validateShareManifest(manifest: ShareManifest): void {
-  if (manifest.format !== SHARE_FORMAT || manifest.version !== SHARE_VERSION) {
-    throw new Error("지원하지 않는 공유 파일 버전입니다.");
+  const result = schema.safeParse(parsedJson);
+  if (result.success) {
+    return result.data;
   }
-  if (!manifest.work || typeof manifest.work.title !== "string") {
-    throw new Error("공유 파일의 작품 정보가 올바르지 않습니다.");
-  }
-  if (
-    !Array.isArray(manifest.chapterOrder) ||
-    manifest.chapterOrder.length === 0
-  ) {
-    throw new Error("공유 파일에 화 정보가 없습니다.");
-  }
+
+  const issue = result.error.issues[0];
+  const issuePath = issue?.path.length ? issue.path.join(".") : "payload";
+  const message = issue
+    ? `${issuePath}: ${issue.message}`
+    : "unknown validation error";
+  throw new Error(
+    `공유 파일의 JSON 형식이 올바르지 않습니다: ${path} (${message})`,
+  );
 }
 
 function validateShareChapter(

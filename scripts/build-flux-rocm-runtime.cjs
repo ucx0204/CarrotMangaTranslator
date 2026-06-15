@@ -876,7 +876,7 @@ function findFirstFileRecursive(root, lowerCaseNames, maxDepth) {
   const queue = [{ dir: root, depth: 0 }];
   while (queue.length) {
     const { dir, depth } = queue.shift();
-    let entries = [];
+    let entries;
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch {
@@ -903,7 +903,7 @@ function findFilesRecursive(root, predicate, maxDepth, limit) {
   const queue = [{ dir: root, depth: 0 }];
   while (queue.length && results.length < limit) {
     const { dir, depth } = queue.shift();
-    let entries = [];
+    let entries;
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch {
@@ -1074,12 +1074,13 @@ function resolveGpuTargets(args) {
 }
 
 function snapshotEnvironment(nativeBuildEnv, gpuTargets) {
-  let runtimeLibraries = [];
-  try {
-    runtimeLibraries = resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths);
-  } catch {
-    runtimeLibraries = [];
-  }
+  const runtimeLibraries = (() => {
+    try {
+      return resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths);
+    } catch {
+      return [];
+    }
+  })();
   return {
     node: process.version,
     platform: process.platform,

@@ -12,121 +12,182 @@ const MAX_RETAINED_INPAINTING_ARTIFACTS = 200;
 
 const finiteNumber = z.number().finite();
 const uuid = z.string().uuid();
+const storeId = z
+  .string()
+  .min(1)
+  .max(200)
+  .refine(
+    (value) =>
+      value !== "." &&
+      value !== ".." &&
+      !value.includes("/") &&
+      !value.includes("\\"),
+    "invalid store id",
+  );
 const title = z.string().max(MAX_TITLE_LENGTH);
 const filePath = z.string().min(1).max(MAX_PATH_LENGTH);
 const boundedText = z.string().max(MAX_TEXT_LENGTH);
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i);
-const LegacyRenderDirectionSchema = z
-  .custom<"horizontal" | "vertical" | "rotated" | "hidden">((value) =>
-    ["horizontal", "vertical", "rotated", "hidden"].includes(String(value ?? "").trim().toLowerCase())
-  )
-  .transform((value): "horizontal" | "vertical" => (value === "vertical" ? "vertical" : "horizontal"));
-const GemmaVramModeSchema = z.preprocess((value) => {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (["minimum12b", "minimum", "minimal", "min", "12b"].includes(normalized)) {
-    return "minimum12b";
-  }
-  if (["economy26b", "economy", "eco", "26b"].includes(normalized)) {
-    return "economy26b";
-  }
-  if (["full31b", "full", "31b"].includes(normalized)) {
-    return "full31b";
-  }
-  return value;
-}, z.enum(["minimum12b", "economy26b", "full31b"]));
-const LlamaRuntimeProfileSchema = z.preprocess((value) => {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(normalized)) {
-    return "rtx50";
-  }
-  if (["cuda12", "cuda12.4", "cuda"].includes(normalized)) {
-    return "cuda12";
-  }
-  if (["rocm", "hip", "amd-rocm"].includes(normalized)) {
-    return "rocm";
-  }
-  if (["vulkan", "amd-vulkan", "vk"].includes(normalized)) {
-    return "vulkan";
-  }
-  return value;
-}, z.enum(["cuda12", "rtx50", "rocm", "vulkan"]));
-const AmdRocmTargetSchema = z.preprocess((value) => {
-  const normalized = String(value ?? "").trim().toLowerCase().replace(/[-_\s]/g, "");
-  if (normalized === "gfx908") {
-    return "gfx908";
-  }
-  if (normalized === "gfx90a") {
-    return "gfx90a";
-  }
-  if (/^gfx103[0-9a-fx]*$/.test(normalized)) {
-    return "gfx103X";
-  }
-  if (/^gfx110[0-9a-fx]*$/.test(normalized)) {
-    return "gfx110X";
-  }
-  if (normalized === "gfx1150") {
-    return "gfx1150";
-  }
-  if (normalized === "gfx1151") {
-    return "gfx1151";
-  }
-  if (/^gfx120[0-9a-fx]*$/.test(normalized)) {
-    return "gfx120X";
-  }
-  return value;
-}, z.enum(["gfx908", "gfx90a", "gfx103X", "gfx110X", "gfx1150", "gfx1151", "gfx120X"]));
-const FluxBackendSchema = z.preprocess((value) => {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (["auto", ""].includes(normalized)) {
-    return "cuda-native";
-  }
-  if (["cuda-native", "cuda", "native", "nvidia"].includes(normalized)) {
-    return "cuda-native";
-  }
-  if (["zluda-native", "zluda"].includes(normalized)) {
-    return "zluda-native";
-  }
-  if (["python-rocm", "rocm", "hip", "amd"].includes(normalized)) {
-    return "zluda-native";
-  }
-  if (["python-cpu", "cpu"].includes(normalized)) {
-    return "python-cpu";
-  }
-  if (["candle-cpu", "candle", "koharu"].includes(normalized)) {
-    return "zluda-native";
-  }
-  return value;
-}, z.enum(["cuda-native", "zluda-native", "python-cpu"]));
+const LegacyRenderDirectionSchema = z.preprocess(
+  (value) => {
+    const normalized = String(value ?? "")
+      .trim()
+      .toLowerCase();
+    if (normalized === "vertical") {
+      return "vertical";
+    }
+    if (
+      normalized === "horizontal" ||
+      normalized === "rotated" ||
+      normalized === "hidden"
+    ) {
+      return "horizontal";
+    }
+    return value;
+  },
+  z.enum(["horizontal", "vertical"]),
+);
+const GemmaVramModeSchema = z.preprocess(
+  (value) => {
+    const normalized = String(value ?? "")
+      .trim()
+      .toLowerCase();
+    if (
+      ["minimum12b", "minimum", "minimal", "min", "12b"].includes(normalized)
+    ) {
+      return "minimum12b";
+    }
+    if (["economy26b", "economy", "eco", "26b"].includes(normalized)) {
+      return "economy26b";
+    }
+    if (["full31b", "full", "31b"].includes(normalized)) {
+      return "full31b";
+    }
+    return value;
+  },
+  z.enum(["minimum12b", "economy26b", "full31b"]),
+);
+const LlamaRuntimeProfileSchema = z.preprocess(
+  (value) => {
+    const normalized = String(value ?? "")
+      .trim()
+      .toLowerCase();
+    if (
+      ["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(
+        normalized,
+      )
+    ) {
+      return "rtx50";
+    }
+    if (["cuda12", "cuda12.4", "cuda"].includes(normalized)) {
+      return "cuda12";
+    }
+    if (["rocm", "hip", "amd-rocm"].includes(normalized)) {
+      return "rocm";
+    }
+    if (["vulkan", "amd-vulkan", "vk"].includes(normalized)) {
+      return "vulkan";
+    }
+    return value;
+  },
+  z.enum(["cuda12", "rtx50", "rocm", "vulkan"]),
+);
+const AmdRocmTargetSchema = z.preprocess(
+  (value) => {
+    const normalized = String(value ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/[-_\s]/g, "");
+    if (normalized === "gfx908") {
+      return "gfx908";
+    }
+    if (normalized === "gfx90a") {
+      return "gfx90a";
+    }
+    if (/^gfx103[0-9a-fx]*$/.test(normalized)) {
+      return "gfx103X";
+    }
+    if (/^gfx110[0-9a-fx]*$/.test(normalized)) {
+      return "gfx110X";
+    }
+    if (normalized === "gfx1150") {
+      return "gfx1150";
+    }
+    if (normalized === "gfx1151") {
+      return "gfx1151";
+    }
+    if (/^gfx120[0-9a-fx]*$/.test(normalized)) {
+      return "gfx120X";
+    }
+    return value;
+  },
+  z.enum([
+    "gfx908",
+    "gfx90a",
+    "gfx103X",
+    "gfx110X",
+    "gfx1150",
+    "gfx1151",
+    "gfx120X",
+  ]),
+);
+const FluxBackendSchema = z.preprocess(
+  (value) => {
+    const normalized = String(value ?? "")
+      .trim()
+      .toLowerCase();
+    if (["auto", ""].includes(normalized)) {
+      return "cuda-native";
+    }
+    if (["cuda-native", "cuda", "native", "nvidia"].includes(normalized)) {
+      return "cuda-native";
+    }
+    if (["zluda-native", "zluda"].includes(normalized)) {
+      return "zluda-native";
+    }
+    if (["python-rocm", "rocm", "hip", "amd"].includes(normalized)) {
+      return "zluda-native";
+    }
+    if (["python-cpu", "cpu"].includes(normalized)) {
+      return "python-cpu";
+    }
+    if (["candle-cpu", "candle", "koharu"].includes(normalized)) {
+      return "zluda-native";
+    }
+    return value;
+  },
+  z.enum(["cuda-native", "zluda-native", "python-cpu"]),
+);
 
-const OcrGpuBackendSchema = z.preprocess((value) => {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (["auto", "", "cuda", "nvidia", "rocm", "hip", "amd"].includes(normalized)) {
-    return "cuda";
-  }
-  return value;
-}, z.enum(["cuda"]));
+const OcrGpuBackendSchema = z.preprocess(
+  (value) => {
+    const normalized = String(value ?? "")
+      .trim()
+      .toLowerCase();
+    if (
+      ["auto", "", "cuda", "nvidia", "rocm", "hip", "amd"].includes(normalized)
+    ) {
+      return "cuda";
+    }
+    return value;
+  },
+  z.enum(["cuda"]),
+);
 
 export const BBoxSchema = z
   .object({
     x: finiteNumber.min(0).max(1000),
     y: finiteNumber.min(0).max(1000),
-    w: finiteNumber.min(1).max(1000),
-    h: finiteNumber.min(1).max(1000)
+    w: finiteNumber.min(0).max(1000),
+    h: finiteNumber.min(0).max(1000),
   })
   .strict()
-  .superRefine((bbox, context) => {
-    if (bbox.x + bbox.w > 1000.0001) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ["w"], message: "bbox exceeds normalized page width" });
-    }
-    if (bbox.y + bbox.h > 1000.0001) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ["h"], message: "bbox exceeds normalized page height" });
-    }
-  });
+  .transform((bbox) => clampNormalizedBbox(bbox));
 
 export const TranslationBlockSchema = z
   .object({
     id: z.string().min(1).max(200),
-    type: z.literal("nonsolid"),
+    type: z.preprocess(() => "nonsolid", z.literal("nonsolid")),
     bbox: BBoxSchema,
     renderBbox: BBoxSchema.optional(),
     bboxSpace: z.enum(["normalized_1000", "pixels"]).optional(),
@@ -149,15 +210,39 @@ export const TranslationBlockSchema = z
     backgroundColor: hexColor,
     opacity: finiteNumber.min(0).max(1),
     autoFitText: z.boolean().optional(),
-    inpaintExcluded: z.boolean().optional()
+    inpaintExcluded: z.boolean().optional(),
   })
   .strict();
 
-const PageAnalysisStatusSchema = z.enum(["idle", "running", "completed", "failed"]);
-const ChapterStatusSchema = z.enum(["idle", "running", "completed", "partial", "failed"]);
-const ImportSourceKindSchema = z.enum(["images", "folder", "zip", "zip-folder"]);
+const PageAnalysisStatusSchema = z.enum([
+  "idle",
+  "running",
+  "completed",
+  "failed",
+]);
+const ChapterStatusSchema = z.enum([
+  "idle",
+  "running",
+  "completed",
+  "partial",
+  "failed",
+]);
+const ImportSourceKindSchema = z.enum([
+  "images",
+  "folder",
+  "zip",
+  "zip-folder",
+]);
 const JobKindSchema = z.enum(["gemma-analysis", "inpainting"]);
-const JobStatusSchema = z.enum(["idle", "starting", "running", "cancelling", "cancelled", "failed", "completed"]);
+const JobStatusSchema = z.enum([
+  "idle",
+  "starting",
+  "running",
+  "cancelling",
+  "cancelled",
+  "failed",
+  "completed",
+]);
 const JobPhaseSchema = z.enum([
   "booting",
   "model_downloading",
@@ -176,17 +261,17 @@ const JobPhaseSchema = z.enum([
   "finalizing",
   "done",
   "cancelled",
-  "failed"
+  "failed",
 ]);
 
 const JobProgressFieldsSchema = {
   phase: JobPhaseSchema.optional(),
   progressMode: z.enum(["determinate", "indeterminate", "log-only"]).optional(),
-  progressPercent: finiteNumber.min(0).max(100).optional(),
+  progressPercent: finiteNumber.min(0).max(1).optional(),
   progressBytes: finiteNumber.min(0).optional(),
   progressTotalBytes: finiteNumber.min(0).optional(),
   progressBytesPerSecond: finiteNumber.min(0).optional(),
-  installLogLine: z.string().max(4000).optional()
+  installLogLine: z.string().max(4000).optional(),
 };
 
 export const JobEventSchema = z
@@ -203,7 +288,7 @@ export const JobEventSchema = z
     pageIndex: finiteNumber.min(0).optional(),
     pageTotal: finiteNumber.min(0).optional(),
     attempt: finiteNumber.min(0).optional(),
-    attemptTotal: finiteNumber.min(0).optional()
+    attemptTotal: finiteNumber.min(0).optional(),
   })
   .strict();
 
@@ -212,7 +297,7 @@ export const ModelTestProgressEventSchema = z
     id: z.string().min(1).max(200),
     progressText: z.string().min(1).max(1000),
     detail: z.string().max(4000).optional(),
-    ...JobProgressFieldsSchema
+    ...JobProgressFieldsSchema,
   })
   .strict();
 
@@ -229,7 +314,53 @@ export const MangaPageSchema = z
     analysisStatus: PageAnalysisStatusSchema,
     lastError: z.string().max(4000).optional(),
     createdAt: z.string().max(80),
-    updatedAt: z.string().max(80)
+    updatedAt: z.string().max(80),
+  })
+  .strict();
+
+export const LibraryPageRecordSchema = z
+  .object({
+    id: storeId,
+    name: z.string().min(1).max(260),
+    imagePath: filePath,
+    inpaintedImagePath: filePath.optional(),
+    width: z.number().int().min(1).max(100000),
+    height: z.number().int().min(1).max(100000),
+    blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
+    analysisStatus: PageAnalysisStatusSchema,
+    lastError: z.string().max(4000).optional(),
+    createdAt: z.string().max(80),
+    updatedAt: z.string().max(80),
+  })
+  .strict();
+
+export const LibraryChapterFileSchema = z
+  .object({
+    id: storeId,
+    workId: storeId,
+    title,
+    sourceKind: ImportSourceKindSchema,
+    status: ChapterStatusSchema,
+    pageOrder: z.array(storeId).max(MAX_PAGES_PER_REQUEST),
+    pages: z.array(LibraryPageRecordSchema).max(MAX_PAGES_PER_REQUEST),
+    createdAt: z.string().max(80),
+    updatedAt: z.string().max(80),
+  })
+  .strict();
+
+export const LibraryWorkFileSchema = z
+  .object({
+    id: storeId,
+    title,
+    chapterOrder: z.array(storeId).max(MAX_ID_LIST_LENGTH),
+    createdAt: z.string().max(80),
+    updatedAt: z.string().max(80),
+  })
+  .strict();
+
+export const StoredLibraryIndexFileSchema = z
+  .object({
+    workOrder: z.array(storeId).max(MAX_ID_LIST_LENGTH),
   })
   .strict();
 
@@ -243,7 +374,7 @@ export const ChapterSnapshotSchema = z
     pageOrder: z.array(uuid).max(MAX_PAGES_PER_REQUEST),
     pages: z.array(MangaPageSchema).max(MAX_PAGES_PER_REQUEST),
     createdAt: z.string().max(80),
-    updatedAt: z.string().max(80)
+    updatedAt: z.string().max(80),
   })
   .strict();
 
@@ -252,7 +383,7 @@ export const CreateImportRequestSchema = z
     previewId: uuid,
     target: z.discriminatedUnion("mode", [
       z.object({ mode: z.literal("new"), title }).strict(),
-      z.object({ mode: z.literal("existing"), workId: uuid }).strict()
+      z.object({ mode: z.literal("existing"), workId: uuid }).strict(),
     ]),
     selections: z
       .array(
@@ -260,18 +391,18 @@ export const CreateImportRequestSchema = z
           .object({
             draftId: uuid,
             title,
-            enabled: z.boolean()
+            enabled: z.boolean(),
           })
-          .strict()
+          .strict(),
       )
-      .max(500)
+      .max(500),
   })
   .strict();
 
 export const WorkShareExportRequestSchema = z
   .object({
     workId: uuid,
-    chapterIds: z.array(uuid).min(1).max(MAX_ID_LIST_LENGTH)
+    chapterIds: z.array(uuid).min(1).max(MAX_ID_LIST_LENGTH),
   })
   .strict();
 
@@ -280,53 +411,73 @@ export const WorkShareImportRequestSchema = z
     previewId: uuid,
     target: z.discriminatedUnion("mode", [
       z.object({ mode: z.literal("new"), title }).strict(),
-      z.object({ mode: z.literal("existing"), workId: uuid }).strict()
+      z.object({ mode: z.literal("existing"), workId: uuid }).strict(),
     ]),
     entries: z
       .array(
         z.discriminatedUnion("source", [
-          z.object({ source: z.literal("existing"), chapterId: uuid, title }).strict(),
-          z.object({ source: z.literal("package"), packageChapterId: z.string().min(1).max(200), title }).strict()
-        ])
+          z
+            .object({ source: z.literal("existing"), chapterId: uuid, title })
+            .strict(),
+          z
+            .object({
+              source: z.literal("package"),
+              packageChapterId: z.string().min(1).max(200),
+              title,
+            })
+            .strict(),
+        ]),
       )
-      .max(MAX_ID_LIST_LENGTH)
+      .max(MAX_ID_LIST_LENGTH),
   })
   .strict();
 
 export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
   z.object({ chapterId: uuid, runMode: z.literal("pending") }).strict(),
   z.object({ chapterId: uuid, runMode: z.literal("all") }).strict(),
-  z.object({ chapterId: uuid, runMode: z.literal("single-page"), pageId: uuid }).strict()
+  z
+    .object({
+      chapterId: uuid,
+      runMode: z.literal("single-page"),
+      pageId: uuid,
+    })
+    .strict(),
 ]);
 
 export const RegionAnalysisRequestSchema = z
   .object({
     chapterId: uuid,
     pageId: uuid,
-    bbox: BBoxSchema
+    bbox: BBoxSchema,
   })
   .strict();
 
-const InpaintingPointSchema = z.object({ x: finiteNumber, y: finiteNumber }).strict();
+const InpaintingPointSchema = z
+  .object({ x: finiteNumber, y: finiteNumber })
+  .strict();
 const InpaintingMaskStrokeSchema = z
   .object({
     points: z.array(InpaintingPointSchema).min(1).max(MAX_STROKE_POINTS),
-    radiusPx: finiteNumber.min(1).max(512)
+    radiusPx: finiteNumber.min(1).max(512),
   })
   .strict();
 
 export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
-  z.object({ chapterId: uuid, mode: z.literal("chapter-pattern-pending") }).strict(),
-  z.object({ chapterId: uuid, mode: z.literal("page-pattern"), pageId: uuid }).strict(),
+  z
+    .object({ chapterId: uuid, mode: z.literal("chapter-pattern-pending") })
+    .strict(),
+  z
+    .object({ chapterId: uuid, mode: z.literal("page-pattern"), pageId: uuid })
+    .strict(),
   z
     .object({
       chapterId: uuid,
       mode: z.literal("page-pattern-drawn"),
       pageId: uuid,
       strokes: z.array(InpaintingMaskStrokeSchema).min(1).max(MAX_MASK_STROKES),
-      featherPx: finiteNumber.min(0).max(128).optional()
+      featherPx: finiteNumber.min(0).max(128).optional(),
     })
-    .strict()
+    .strict(),
 ]);
 
 export const InpaintingRetouchRequestSchema = z
@@ -337,7 +488,10 @@ export const InpaintingRetouchRequestSchema = z
     points: z.array(InpaintingPointSchema).min(1).max(MAX_STROKE_POINTS),
     radiusPx: finiteNumber.min(1).max(512),
     color: hexColor.optional(),
-    retainedInpaintedArtifactPaths: z.array(filePath).max(MAX_RETAINED_INPAINTING_ARTIFACTS).optional()
+    retainedInpaintedArtifactPaths: z
+      .array(filePath)
+      .max(MAX_RETAINED_INPAINTING_ARTIFACTS)
+      .optional(),
   })
   .strict();
 
@@ -346,45 +500,66 @@ export const SetPageInpaintingResultRequestSchema = z
     chapterId: uuid,
     pageId: uuid,
     inpaintedImagePath: filePath.nullable().optional(),
-    retainedInpaintedArtifactPaths: z.array(filePath).max(MAX_RETAINED_INPAINTING_ARTIFACTS).optional()
+    retainedInpaintedArtifactPaths: z
+      .array(filePath)
+      .max(MAX_RETAINED_INPAINTING_ARTIFACTS)
+      .optional(),
   })
   .strict();
 
 export const InpaintingRevertRequestSchema = z.discriminatedUnion("scope", [
   z.object({ chapterId: uuid, scope: z.literal("chapter") }).strict(),
-  z.object({ chapterId: uuid, scope: z.literal("page"), pageId: uuid }).strict()
+  z
+    .object({ chapterId: uuid, scope: z.literal("page"), pageId: uuid })
+    .strict(),
 ]);
 
 export const InpaintingColorSampleRequestSchema = z
   .object({
     imagePath: filePath,
     x: finiteNumber.min(0),
-    y: finiteNumber.min(0)
+    y: finiteNumber.min(0),
   })
   .strict();
 
 export const InpaintingExportRequestSchema = z.discriminatedUnion("scope", [
   z.object({ chapterId: uuid, scope: z.literal("chapter") }).strict(),
-  z.object({ chapterId: uuid, scope: z.literal("page"), pageId: uuid }).strict()
+  z
+    .object({ chapterId: uuid, scope: z.literal("page"), pageId: uuid })
+    .strict(),
 ]);
 
-export const RenameWorkRequestSchema = z.object({ workId: uuid, title }).strict();
-export const RenameChapterRequestSchema = z.object({ chapterId: uuid, title }).strict();
+export const RenameWorkRequestSchema = z
+  .object({ workId: uuid, title })
+  .strict();
+export const RenameChapterRequestSchema = z
+  .object({ chapterId: uuid, title })
+  .strict();
 export const DeleteWorkRequestSchema = z.object({ workId: uuid }).strict();
-export const DeleteChapterRequestSchema = z.object({ chapterId: uuid }).strict();
+export const DeleteChapterRequestSchema = z
+  .object({ chapterId: uuid })
+  .strict();
 export const OpenChapterRequestSchema = z.object({ chapterId: uuid }).strict();
-export const ImageDataUrlRequestSchema = z.object({ imagePath: filePath }).strict();
+export const ImageDataUrlRequestSchema = z
+  .object({ imagePath: filePath })
+  .strict();
 export const SavePageBlocksRequestSchema = z
   .object({
     chapterId: uuid,
     pageId: uuid,
     baseUpdatedAt: z.string().max(80).optional(),
-    blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE)
+    blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
   })
   .strict();
-export const ReorderChaptersRequestSchema = z.object({ workId: uuid, chapterIds: z.array(uuid).max(MAX_ID_LIST_LENGTH) }).strict();
-export const ReorderPagesRequestSchema = z.object({ chapterId: uuid, pageIds: z.array(uuid).max(MAX_ID_LIST_LENGTH) }).strict();
-export const DeletePageRequestSchema = z.object({ chapterId: uuid, pageId: uuid }).strict();
+export const ReorderChaptersRequestSchema = z
+  .object({ workId: uuid, chapterIds: z.array(uuid).max(MAX_ID_LIST_LENGTH) })
+  .strict();
+export const ReorderPagesRequestSchema = z
+  .object({ chapterId: uuid, pageIds: z.array(uuid).max(MAX_ID_LIST_LENGTH) })
+  .strict();
+export const DeletePageRequestSchema = z
+  .object({ chapterId: uuid, pageId: uuid })
+  .strict();
 
 export const AppSettingsSchema = z
   .object({
@@ -400,35 +575,49 @@ export const AppSettingsSchema = z
         localMmprojPath: filePath.optional(),
         vramMode: GemmaVramModeSchema,
         llamaRuntimeProfile: LlamaRuntimeProfileSchema.optional(),
-        llamaRocmTarget: AmdRocmTargetSchema.optional()
+        llamaRocmTarget: AmdRocmTargetSchema.optional(),
       })
       .strict(),
     codex: z
       .object({
         model: z.string().min(1).max(120),
         reasoningEffort: z.enum(["none", "low", "medium", "high", "xhigh"]),
-        oauthPort: z.number().int().min(1).max(65535)
+        oauthPort: z.number().int().min(1).max(65535),
       })
       .strict(),
-    ocr: z.object({
-      device: z.enum(["cpu", "gpu"]),
-      gpuCudaTag: z.string().regex(/^cu\d+$/i).optional(),
-      gpuBackend: OcrGpuBackendSchema.optional()
-    }).strict(),
-    ui: z.object({
-      inpaintingGuideHidden: z.boolean().optional()
-    }).strict().optional(),
-    inpainting: z.object({
-      fluxBackend: FluxBackendSchema.optional()
-    }).strict().optional(),
-    runtimeHardware: z.object({
-      gpuVendor: z.enum(["nvidia", "amd", "unknown"]),
-      gpuName: z.string().max(300).nullable().optional(),
-      llamaRocmTarget: AmdRocmTargetSchema.nullable().optional(),
-      supportsRocm: z.boolean().optional(),
-      supportsVulkan: z.boolean().optional()
-    }).strict().optional(),
-    maxTokens: z.number().int().min(300).max(12000)
+    ocr: z
+      .object({
+        device: z.enum(["cpu", "gpu"]),
+        gpuCudaTag: z
+          .string()
+          .regex(/^cu\d+$/i)
+          .optional(),
+        gpuBackend: OcrGpuBackendSchema.optional(),
+      })
+      .strict(),
+    ui: z
+      .object({
+        inpaintingGuideHidden: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    inpainting: z
+      .object({
+        fluxBackend: FluxBackendSchema.optional(),
+      })
+      .strict()
+      .optional(),
+    runtimeHardware: z
+      .object({
+        gpuVendor: z.enum(["nvidia", "amd", "unknown"]),
+        gpuName: z.string().max(300).nullable().optional(),
+        llamaRocmTarget: AmdRocmTargetSchema.nullable().optional(),
+        supportsRocm: z.boolean().optional(),
+        supportsVulkan: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    maxTokens: z.number().int().min(300).max(12000),
   })
   .strict();
 
@@ -436,11 +625,15 @@ export const RendererLogRequestSchema = z
   .object({
     level: z.enum(["debug", "info", "warn", "error"]),
     message: z.string().min(1).max(1000),
-    detail: z.unknown().optional()
+    detail: z.unknown().optional(),
   })
   .strict();
 
-export function parseIpcPayload<TSchema extends z.ZodType>(schema: TSchema, payload: unknown, label: string): z.output<TSchema> {
+export function parseIpcPayload<TSchema extends z.ZodType>(
+  schema: TSchema,
+  payload: unknown,
+  label: string,
+): z.output<TSchema> {
   const result = schema.safeParse(payload);
   if (result.success) {
     return result.data;
@@ -448,6 +641,26 @@ export function parseIpcPayload<TSchema extends z.ZodType>(schema: TSchema, payl
 
   const firstIssue = result.error.issues[0];
   const path = firstIssue?.path.length ? firstIssue.path.join(".") : "payload";
-  const message = firstIssue ? `${path}: ${firstIssue.message}` : "unknown validation error";
+  const message = firstIssue
+    ? `${path}: ${firstIssue.message}`
+    : "unknown validation error";
   throw new Error(`${label} 요청 형식이 올바르지 않습니다. ${message}`);
+}
+
+function clampNormalizedBbox(bbox: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+} {
+  const x = Math.min(999, Math.max(0, bbox.x));
+  const y = Math.min(999, Math.max(0, bbox.y));
+  const w = Math.min(1000 - x, Math.max(1, bbox.w));
+  const h = Math.min(1000 - y, Math.max(1, bbox.h));
+  return { x, y, w, h };
 }

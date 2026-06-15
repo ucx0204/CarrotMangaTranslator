@@ -4,7 +4,7 @@ import type { ProgressSnapshot } from "../lib/jobProgress";
 import { ImageStage, type ImageStageProps } from "./ImageStage";
 import { InstallProgressOverlay } from "./InstallProgressOverlay";
 import { Button } from "./ui";
-import { useFonts } from "../fonts/FontsContext";
+import { useFonts } from "../fonts/useFonts";
 
 type AppWorkspaceProps = {
   workspacePanelRef: React.RefObject<HTMLElement | null>;

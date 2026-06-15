@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { isOcrResultNoTextDetected } from "../src/main/pipeline/noText";
 import { applyOcrCandidateGeometryLocks } from "../src/main/pipeline/overlayItems";
+import type { MangaPage } from "../src/shared/types";
 
-const page = {
+const page: MangaPage = {
   id: "page-1",
+  name: "page.jpg",
   imagePath: "page.jpg",
+  dataUrl: "",
   width: 1000,
-  height: 1000
-} as any;
+  height: 1000,
+  blocks: [],
+  analysisStatus: "idle",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z"
+};
 
 describe("OCR candidate geometry locks", () => {
   it("treats OCR no-text metadata as the page skip signal", () => {

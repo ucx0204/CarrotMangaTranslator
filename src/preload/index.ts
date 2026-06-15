@@ -32,11 +32,19 @@ import type {
   WorkShareExportResult,
   WorkShareImportPreview,
   WorkShareImportRequest,
-  WorkShareImportResult
+  WorkShareImportResult,
 } from "../shared/types";
 
 const JOB_KINDS = new Set(["gemma-analysis", "inpainting"]);
-const JOB_STATUSES = new Set(["idle", "starting", "running", "cancelling", "cancelled", "failed", "completed"]);
+const JOB_STATUSES = new Set([
+  "idle",
+  "starting",
+  "running",
+  "cancelling",
+  "cancelled",
+  "failed",
+  "completed",
+]);
 const JOB_PHASES = new Set([
   "booting",
   "model_downloading",
@@ -55,58 +63,121 @@ const JOB_PHASES = new Set([
   "finalizing",
   "done",
   "cancelled",
-  "failed"
+  "failed",
 ]);
 const PROGRESS_MODES = new Set(["determinate", "indeterminate", "log-only"]);
 
 const api = {
-  previewImagesImport: (): Promise<ImportPreviewSession | null> => ipcRenderer.invoke("import:preview-images"),
-  previewFolderImport: (): Promise<ImportPreviewSession | null> => ipcRenderer.invoke("import:preview-folder"),
-  previewZipImport: (): Promise<ImportPreviewSession | null> => ipcRenderer.invoke("import:preview-zip"),
-  previewZipFolderImport: (): Promise<ImportPreviewSession | null> => ipcRenderer.invoke("import:preview-zip-folder"),
-  createImport: (request: CreateImportRequest): Promise<CreateImportResult> => ipcRenderer.invoke("import:create", request),
-  exportWorkShare: (request: WorkShareExportRequest): Promise<WorkShareExportResult | null> => ipcRenderer.invoke("share:export-work", request),
-  previewWorkShareImport: (): Promise<WorkShareImportPreview | null> => ipcRenderer.invoke("share:preview-import"),
-  importWorkShare: (request: WorkShareImportRequest): Promise<WorkShareImportResult> => ipcRenderer.invoke("share:import", request),
-  getLibrary: (): Promise<LibraryIndex> => ipcRenderer.invoke("library:get-index"),
+  previewImagesImport: (): Promise<ImportPreviewSession | null> =>
+    ipcRenderer.invoke("import:preview-images"),
+  previewFolderImport: (): Promise<ImportPreviewSession | null> =>
+    ipcRenderer.invoke("import:preview-folder"),
+  previewZipImport: (): Promise<ImportPreviewSession | null> =>
+    ipcRenderer.invoke("import:preview-zip"),
+  previewZipFolderImport: (): Promise<ImportPreviewSession | null> =>
+    ipcRenderer.invoke("import:preview-zip-folder"),
+  createImport: (request: CreateImportRequest): Promise<CreateImportResult> =>
+    ipcRenderer.invoke("import:create", request),
+  exportWorkShare: (
+    request: WorkShareExportRequest,
+  ): Promise<WorkShareExportResult | null> =>
+    ipcRenderer.invoke("share:export-work", request),
+  previewWorkShareImport: (): Promise<WorkShareImportPreview | null> =>
+    ipcRenderer.invoke("share:preview-import"),
+  importWorkShare: (
+    request: WorkShareImportRequest,
+  ): Promise<WorkShareImportResult> =>
+    ipcRenderer.invoke("share:import", request),
+  getLibrary: (): Promise<LibraryIndex> =>
+    ipcRenderer.invoke("library:get-index"),
   openLibraryFolder: () => ipcRenderer.invoke("library:open-folder"),
-  openChapter: (chapterId: string): Promise<ChapterSnapshot> => ipcRenderer.invoke("library:open-chapter", chapterId),
-  getPageImageDataUrl: (imagePath: string): Promise<string> => ipcRenderer.invoke("library:get-page-image-data-url", imagePath),
-  savePageBlocks: (request: SavePageBlocksRequest): Promise<ChapterSnapshot> => ipcRenderer.invoke("library:save-page-blocks", request),
-  renameWork: (workId: string, title: string): Promise<LibraryIndex> => ipcRenderer.invoke("library:rename-work", workId, title),
-  renameChapter: (chapterId: string, title: string): Promise<LibraryIndex> => ipcRenderer.invoke("library:rename-chapter", chapterId, title),
-  deleteWork: (workId: string): Promise<LibraryIndex> => ipcRenderer.invoke("library:delete-work", workId),
-  deleteChapter: (chapterId: string): Promise<LibraryIndex> => ipcRenderer.invoke("library:delete-chapter", chapterId),
-  reorderChapters: (workId: string, chapterIds: string[]): Promise<LibraryIndex> => ipcRenderer.invoke("library:reorder-chapters", workId, chapterIds),
-  reorderPages: (chapterId: string, pageIds: string[]): Promise<ChapterSnapshot> => ipcRenderer.invoke("library:reorder-pages", chapterId, pageIds),
-  deletePage: (chapterId: string, pageId: string): Promise<ChapterSnapshot> => ipcRenderer.invoke("library:delete-page", chapterId, pageId),
-  listCustomFonts: (): Promise<CustomFont[]> => ipcRenderer.invoke("fonts:list"),
-  registerCustomFont: (): Promise<CustomFont | null> => ipcRenderer.invoke("fonts:register"),
-  removeCustomFont: (id: string): Promise<CustomFont[]> => ipcRenderer.invoke("fonts:remove", id),
+  openChapter: (chapterId: string): Promise<ChapterSnapshot> =>
+    ipcRenderer.invoke("library:open-chapter", chapterId),
+  getPageImageDataUrl: (imagePath: string): Promise<string> =>
+    ipcRenderer.invoke("library:get-page-image-data-url", imagePath),
+  savePageBlocks: (request: SavePageBlocksRequest): Promise<ChapterSnapshot> =>
+    ipcRenderer.invoke("library:save-page-blocks", request),
+  renameWork: (workId: string, title: string): Promise<LibraryIndex> =>
+    ipcRenderer.invoke("library:rename-work", workId, title),
+  renameChapter: (chapterId: string, title: string): Promise<LibraryIndex> =>
+    ipcRenderer.invoke("library:rename-chapter", chapterId, title),
+  deleteWork: (workId: string): Promise<LibraryIndex> =>
+    ipcRenderer.invoke("library:delete-work", workId),
+  deleteChapter: (chapterId: string): Promise<LibraryIndex> =>
+    ipcRenderer.invoke("library:delete-chapter", chapterId),
+  reorderChapters: (
+    workId: string,
+    chapterIds: string[],
+  ): Promise<LibraryIndex> =>
+    ipcRenderer.invoke("library:reorder-chapters", workId, chapterIds),
+  reorderPages: (
+    chapterId: string,
+    pageIds: string[],
+  ): Promise<ChapterSnapshot> =>
+    ipcRenderer.invoke("library:reorder-pages", chapterId, pageIds),
+  deletePage: (chapterId: string, pageId: string): Promise<ChapterSnapshot> =>
+    ipcRenderer.invoke("library:delete-page", chapterId, pageId),
+  listCustomFonts: (): Promise<CustomFont[]> =>
+    ipcRenderer.invoke("fonts:list"),
+  registerCustomFont: (): Promise<CustomFont | null> =>
+    ipcRenderer.invoke("fonts:register"),
+  removeCustomFont: (id: string): Promise<CustomFont[]> =>
+    ipcRenderer.invoke("fonts:remove", id),
   getSettings: (): Promise<AppSettings> => ipcRenderer.invoke("settings:get"),
-  saveSettings: (settings: AppSettings): Promise<AppSettings> => ipcRenderer.invoke("settings:save", settings),
-  resetSettings: (): Promise<AppSettings> => ipcRenderer.invoke("settings:reset"),
-  pickLocalModelFile: (): Promise<LocalModelPickResult | null> => ipcRenderer.invoke("settings:pick-local-model"),
-  pickLocalMmprojFile: (): Promise<string | null> => ipcRenderer.invoke("settings:pick-local-mmproj"),
-  testModelSettings: (settings: AppSettings, testId?: string): Promise<ModelTestResult> =>
+  saveSettings: (settings: AppSettings): Promise<AppSettings> =>
+    ipcRenderer.invoke("settings:save", settings),
+  resetSettings: (): Promise<AppSettings> =>
+    ipcRenderer.invoke("settings:reset"),
+  pickLocalModelFile: (): Promise<LocalModelPickResult | null> =>
+    ipcRenderer.invoke("settings:pick-local-model"),
+  pickLocalMmprojFile: (): Promise<string | null> =>
+    ipcRenderer.invoke("settings:pick-local-mmproj"),
+  testModelSettings: (
+    settings: AppSettings,
+    testId?: string,
+  ): Promise<ModelTestResult> =>
     ipcRenderer.invoke("settings:test-model", settings, testId),
   getLogPath: (): Promise<string> => ipcRenderer.invoke("logs:get-path"),
   openLogFolder: () => ipcRenderer.invoke("logs:open-folder"),
-  writeLog: (level: "debug" | "info" | "warn" | "error", message: string, detail?: unknown) =>
-    ipcRenderer.invoke("logs:write", level, message, detail),
-  startAnalysis: (request: StartAnalysisRequest): Promise<StartAnalysisResult> => ipcRenderer.invoke("job:start-analysis", request),
-  translateRegion: (request: RegionAnalysisRequest): Promise<RegionAnalysisResult> => ipcRenderer.invoke("job:translate-region", request),
-  startInpainting: (request: StartInpaintingRequest): Promise<StartInpaintingResult> => ipcRenderer.invoke("job:start-inpainting", request),
-  applyInpaintingRetouch: (request: InpaintingRetouchRequest): Promise<InpaintingRetouchResult> =>
+  writeLog: (
+    level: "debug" | "info" | "warn" | "error",
+    message: string,
+    detail?: unknown,
+  ) => ipcRenderer.invoke("logs:write", level, message, detail),
+  startAnalysis: (
+    request: StartAnalysisRequest,
+  ): Promise<StartAnalysisResult> =>
+    ipcRenderer.invoke("job:start-analysis", request),
+  translateRegion: (
+    request: RegionAnalysisRequest,
+  ): Promise<RegionAnalysisResult> =>
+    ipcRenderer.invoke("job:translate-region", request),
+  startInpainting: (
+    request: StartInpaintingRequest,
+  ): Promise<StartInpaintingResult> =>
+    ipcRenderer.invoke("job:start-inpainting", request),
+  applyInpaintingRetouch: (
+    request: InpaintingRetouchRequest,
+  ): Promise<InpaintingRetouchResult> =>
     ipcRenderer.invoke("inpainting:apply-retouch", request),
-  setPageInpaintingResult: (request: SetPageInpaintingResultRequest): Promise<SetPageInpaintingResultResult> =>
+  setPageInpaintingResult: (
+    request: SetPageInpaintingResultRequest,
+  ): Promise<SetPageInpaintingResultResult> =>
     ipcRenderer.invoke("inpainting:set-page-result", request),
-  revertInpainting: (request: InpaintingRevertRequest): Promise<InpaintingRevertResult> => ipcRenderer.invoke("inpainting:revert", request),
-  sampleInpaintingColor: (request: InpaintingColorSampleRequest): Promise<InpaintingColorSampleResult> =>
+  revertInpainting: (
+    request: InpaintingRevertRequest,
+  ): Promise<InpaintingRevertResult> =>
+    ipcRenderer.invoke("inpainting:revert", request),
+  sampleInpaintingColor: (
+    request: InpaintingColorSampleRequest,
+  ): Promise<InpaintingColorSampleResult> =>
     ipcRenderer.invoke("inpainting:sample-color", request),
-  exportInpaintingResults: (request: InpaintingExportRequest): Promise<InpaintingExportResult> =>
+  exportInpaintingResults: (
+    request: InpaintingExportRequest,
+  ): Promise<InpaintingExportResult> =>
     ipcRenderer.invoke("inpainting:export-results", request),
-  disposeInpaintingEngine: (): Promise<{ disposed: boolean }> => ipcRenderer.invoke("inpainting:dispose-engine"),
+  disposeInpaintingEngine: (): Promise<{ disposed: boolean }> =>
+    ipcRenderer.invoke("inpainting:dispose-engine"),
   cancelJob: () => ipcRenderer.invoke("job:cancel"),
   onJobEvent: (callback: (event: JobEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
@@ -133,7 +204,7 @@ const api = {
     return () => {
       ipcRenderer.removeListener("settings:model-test-progress", listener);
     };
-  }
+  },
 };
 
 contextBridge.exposeInMainWorld("mangaApi", api);
@@ -152,7 +223,7 @@ function isJobEvent(value: unknown): value is JobEvent {
     isOptionalBoundedString(value.detail, 4000) &&
     isOptionalEnum(value.phase, JOB_PHASES) &&
     isOptionalEnum(value.progressMode, PROGRESS_MODES) &&
-    isOptionalFiniteNumber(value.progressPercent, 0, 100) &&
+    isOptionalFiniteNumber(value.progressPercent, 0, 1) &&
     isOptionalFiniteNumber(value.progressBytes, 0) &&
     isOptionalFiniteNumber(value.progressTotalBytes, 0) &&
     isOptionalFiniteNumber(value.progressBytesPerSecond, 0) &&
@@ -167,7 +238,9 @@ function isJobEvent(value: unknown): value is JobEvent {
   );
 }
 
-function isModelTestProgressEvent(value: unknown): value is ModelTestProgressEvent {
+function isModelTestProgressEvent(
+  value: unknown,
+): value is ModelTestProgressEvent {
   if (!isRecord(value)) {
     return false;
   }
@@ -177,7 +250,7 @@ function isModelTestProgressEvent(value: unknown): value is ModelTestProgressEve
     isOptionalBoundedString(value.detail, 4000) &&
     isOptionalEnum(value.phase, JOB_PHASES) &&
     isOptionalEnum(value.progressMode, PROGRESS_MODES) &&
-    isOptionalFiniteNumber(value.progressPercent, 0, 100) &&
+    isOptionalFiniteNumber(value.progressPercent, 0, 1) &&
     isOptionalFiniteNumber(value.progressBytes, 0) &&
     isOptionalFiniteNumber(value.progressTotalBytes, 0) &&
     isOptionalFiniteNumber(value.progressBytesPerSecond, 0) &&
@@ -189,27 +262,59 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isBoundedString(value: unknown, minLength: number, maxLength: number): value is string {
-  return typeof value === "string" && value.length >= minLength && value.length <= maxLength;
+function isBoundedString(
+  value: unknown,
+  minLength: number,
+  maxLength: number,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= minLength &&
+    value.length <= maxLength
+  );
 }
 
-function isOptionalBoundedString(value: unknown, maxLength: number): value is string | undefined {
-  return value === undefined || (typeof value === "string" && value.length <= maxLength);
+function isOptionalBoundedString(
+  value: unknown,
+  maxLength: number,
+): value is string | undefined {
+  return (
+    value === undefined ||
+    (typeof value === "string" && value.length <= maxLength)
+  );
 }
 
 function isOptionalEnum(value: unknown, allowed: Set<string>): boolean {
-  return value === undefined || (typeof value === "string" && allowed.has(value));
+  return (
+    value === undefined || (typeof value === "string" && allowed.has(value))
+  );
 }
 
-function isOptionalFiniteNumber(value: unknown, min: number, max = Number.POSITIVE_INFINITY): value is number | undefined {
-  return value === undefined || (typeof value === "number" && Number.isFinite(value) && value >= min && value <= max);
+function isOptionalFiniteNumber(
+  value: unknown,
+  min: number,
+  max = Number.POSITIVE_INFINITY,
+): value is number | undefined {
+  return (
+    value === undefined ||
+    (typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= min &&
+      value <= max)
+  );
 }
 
-function isOptionalStringArray(value: unknown, maxItems: number, maxLength: number): value is string[] | undefined {
+function isOptionalStringArray(
+  value: unknown,
+  maxItems: number,
+  maxLength: number,
+): value is string[] | undefined {
   return (
     value === undefined ||
     (Array.isArray(value) &&
       value.length <= maxItems &&
-      value.every((item) => typeof item === "string" && item.length <= maxLength))
+      value.every(
+        (item) => typeof item === "string" && item.length <= maxLength,
+      ))
   );
 }

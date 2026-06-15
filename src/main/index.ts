@@ -1,17 +1,27 @@
 import { app, BrowserWindow, Menu } from "electron";
 import { ensureWritableAppDirectories } from "./appPaths";
 import { cleanupLegacyLogs } from "./appMaintenance";
-import { registerImageProtocolHandler, registerImageProtocolScheme } from "./imageProtocol";
+import {
+  registerImageProtocolHandler,
+  registerImageProtocolScheme,
+} from "./imageProtocol";
 import { registerIpc } from "./ipc/registerIpc";
+import type { ActiveJob } from "./jobs/activeJob";
 import { ActiveJobStore } from "./jobs/activeJob";
 import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
-import { getLogPath, logError, logInfo, resetAppLog } from "./logger";
+import { getLogPath, logError, logInfo, logWarn, resetAppLog } from "./logger";
 import { createMainWindow } from "./mainWindow";
-import { decodeImageThroughRuntime, loadSimplePageRuntime } from "./simplePageRuntime";
+import {
+  decodeImageThroughRuntime,
+  loadSimplePageRuntime,
+} from "./simplePageRuntime";
+
+const BEFORE_QUIT_CLEANUP_TIMEOUT_MS = 5000;
 
 const appPaths = ensureWritableAppDirectories();
 const jobs = new ActiveJobStore();
 let mainWindow: BrowserWindow | null = null;
+let quitCleanupStarted = false;
 
 registerImageProtocolScheme();
 resetAppLog();
@@ -27,7 +37,7 @@ logInfo("Application process starting", {
   runtimeDir: appPaths.runtimeDir,
   llamaServerPath: appPaths.llamaServerPath,
   hfHomeDir: appPaths.hfHomeDir ?? null,
-  electronRunAsNode: process.env.ELECTRON_RUN_AS_NODE ?? null
+  electronRunAsNode: process.env.ELECTRON_RUN_AS_NODE ?? null,
 });
 
 process.on("uncaughtException", (error) => {
@@ -56,7 +66,8 @@ app.whenReady().then(async () => {
     jobs,
     getMainWindow: () => mainWindow,
     loadSimplePageRuntime: () => loadSimplePageRuntime(appPaths.runtimeDir),
-    decodeImage: (filePath) => decodeImageThroughRuntime(appPaths.runtimeDir, filePath)
+    decodeImage: (filePath) =>
+      decodeImageThroughRuntime(appPaths.runtimeDir, filePath),
   });
   openMainWindow();
 
@@ -73,17 +84,41 @@ app.on("window-all-closed", () => {
   }
 });
 
-app.on("before-quit", () => {
+app.on("before-quit", (event) => {
   const job = jobs.current;
-  if (job) {
-    job.abortController.abort();
-    void jobs.runCleanup(job, "before-quit");
+  if (!job || quitCleanupStarted) {
+    return;
   }
+  event.preventDefault();
+  quitCleanupStarted = true;
+  job.abortController.abort();
+  void finishBeforeQuitCleanup(job);
 });
 
 function openMainWindow(): void {
   mainWindow = createMainWindow();
   mainWindow.on("closed", () => {
     mainWindow = null;
+  });
+}
+
+async function finishBeforeQuitCleanup(job: ActiveJob): Promise<void> {
+  const timedOut = await Promise.race([
+    jobs.runCleanup(job, "before-quit").then(() => false),
+    delay(BEFORE_QUIT_CLEANUP_TIMEOUT_MS).then(() => true),
+  ]);
+  if (timedOut) {
+    logWarn("Timed out waiting for active job cleanup during app quit", {
+      jobId: job.id,
+      timeoutMs: BEFORE_QUIT_CLEANUP_TIMEOUT_MS,
+    });
+  }
+  jobs.clearIfCurrent(job.id);
+  app.quit();
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
   });
 }

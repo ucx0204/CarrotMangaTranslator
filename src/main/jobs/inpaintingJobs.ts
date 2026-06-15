@@ -1,0 +1,390 @@
+import { shell } from "electron";
+import type { BrowserWindow } from "electron";
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import type {
+  InpaintingExportRequest,
+  InpaintingExportResult,
+  JobEvent,
+  StartInpaintingRequest,
+  StartInpaintingResult,
+} from "../../shared/types";
+import type { AppPaths } from "../appPaths";
+import { inpaintDrawnPatternPage, inpaintPatternPage } from "../inpainting";
+import { acquireFluxInpaintingEngine } from "../inpainting/fluxEnginePool";
+import { openChapter, updatePagesAfterInpainting } from "../library";
+import { logError } from "../logger";
+import {
+  renderPageWithTranslationBlocksForExport,
+  sanitizeOutputBaseName,
+} from "../pageExport";
+import type { ImageDecodeFallback } from "../regionCrop";
+import { getAppSettings } from "../settingsStore";
+import type { ActiveJobStore } from "./activeJob";
+import { emitJobEvent, isAbortError } from "./jobEvents";
+
+export type InpaintingJobContext = {
+  appPaths: AppPaths;
+  jobs: ActiveJobStore;
+  getMainWindow: () => BrowserWindow | null;
+  decodeImage: ImageDecodeFallback;
+};
+
+export async function startInpaintingJob(
+  context: InpaintingJobContext,
+  request: StartInpaintingRequest,
+): Promise<StartInpaintingResult> {
+  if (context.jobs.hasActive) {
+    return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
+  }
+
+  const id = randomUUID();
+  const abortController = new AbortController();
+  context.jobs.start({ id, kind: "inpainting", abortController });
+  let fluxEngineLease: Awaited<
+    ReturnType<typeof acquireFluxInpaintingEngine>
+  > | null = null;
+  let chapter: Awaited<ReturnType<typeof openChapter>> | null = null;
+
+  const emit = (event: JobEvent) =>
+    emitJobEvent(context.jobs, context.getMainWindow(), event);
+
+  try {
+    chapter = await openChapter(request.chapterId);
+    const drawnPatternMode = request.mode === "page-pattern-drawn";
+    const drawnStrokes =
+      request.mode === "page-pattern-drawn" ? request.strokes : [];
+    const drawnFeatherPx =
+      request.mode === "page-pattern-drawn" ? request.featherPx : undefined;
+    const targetLabel = drawnPatternMode ? "그린 영역" : "원문";
+    const pages =
+      request.mode === "chapter-pattern-pending"
+        ? chapter.pages.filter((page) => !page.inpaintedImagePath)
+        : chapter.pages.filter((page) => page.id === request.pageId);
+
+    if (pages.length === 0) {
+      emit({
+        id,
+        kind: "inpainting",
+        status: "failed",
+        progressText: "인페인팅 작업 실패",
+        phase: "failed",
+        progressCurrent: 0,
+        progressTotal: 0,
+        pageTotal: 0,
+        detail: "인페인팅할 페이지를 찾지 못했습니다.",
+      });
+      return {
+        status: "failed",
+        chapter,
+        error: "인페인팅할 페이지를 찾지 못했습니다.",
+      };
+    }
+
+    const totalTargetBlocks = drawnPatternMode
+      ? drawnStrokes.length
+      : pages.reduce((count, page) => count + page.blocks.length, 0);
+    emit({
+      id,
+      kind: "inpainting",
+      status: "starting",
+      progressText: `${targetLabel} 지우기 준비 중`,
+      phase: "inpainting_preparing",
+      progressCurrent: 0,
+      progressTotal: pages.length,
+      pageTotal: pages.length,
+      detail: `${pages.length}페이지, ${totalTargetBlocks}개 블록`,
+    });
+
+    let blocksErased = 0;
+    let savedChapter = chapter;
+    let pagesChanged = 0;
+    if (totalTargetBlocks > 0) {
+      const appSettings = await getAppSettings(context.appPaths);
+      fluxEngineLease = await acquireFluxInpaintingEngine({
+        appPaths: context.appPaths,
+        fluxBackend: appSettings.inpainting?.fluxBackend,
+        signal: abortController.signal,
+        onProgress: (progress) =>
+          emit({
+            id,
+            kind: "inpainting",
+            status: "starting",
+            progressText: progress.progressText,
+            phase: "model_downloading",
+            progressCurrent: 0,
+            progressTotal: pages.length,
+            pageTotal: pages.length,
+            detail: progress.detail,
+            progressMode: progress.progressMode,
+            progressPercent: progress.progressPercent,
+            progressBytes: progress.progressBytes,
+            progressTotalBytes: progress.progressTotalBytes,
+            installLogLine: progress.installLogLine,
+          }),
+      });
+    }
+    for (const [pageIndex, page] of pages.entries()) {
+      if (abortController.signal.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+
+      const pageTargetCount = drawnPatternMode
+        ? drawnStrokes.length
+        : page.blocks.length;
+      emit({
+        id,
+        kind: "inpainting",
+        status: "running",
+        progressText: `${pageIndex + 1} / ${pages.length} 페이지 ${targetLabel} 지우는 중`,
+        phase: "inpainting_running",
+        progressCurrent: pageIndex + 1,
+        progressTotal: pages.length,
+        pageIndex: pageIndex + 1,
+        pageTotal: pages.length,
+        detail: `${page.name} · ${pageTargetCount}${drawnPatternMode ? "개 그린 영역" : "개 블록"}`,
+      });
+
+      const result = drawnPatternMode
+        ? await inpaintDrawnPatternPage(page, {
+            signal: abortController.signal,
+            decodeFallback: context.decodeImage,
+            fluxEngine: fluxEngineLease?.engine,
+            strokes: drawnStrokes,
+            featherPx: drawnFeatherPx,
+          })
+        : await inpaintPatternPage(page, {
+            signal: abortController.signal,
+            decodeFallback: context.decodeImage,
+            fluxEngine: fluxEngineLease?.engine,
+          });
+      if (result.blocksErased > 0) {
+        blocksErased += result.blocksErased;
+        pagesChanged += 1;
+        savedChapter = await updatePagesAfterInpainting(request.chapterId, [
+          result.page,
+        ]);
+      }
+
+      emit({
+        id,
+        kind: "inpainting",
+        status: "running",
+        progressText: `${pageIndex + 1} / ${pages.length} 페이지 ${targetLabel} 완료`,
+        phase: "inpainting_done",
+        progressCurrent: pageIndex + 1,
+        progressTotal: pages.length,
+        pageIndex: pageIndex + 1,
+        pageTotal: pages.length,
+        detail: `${result.blocksErased}개 블록`,
+      });
+    }
+
+    const saved = savedChapter ?? (await openChapter(request.chapterId));
+    emit({
+      id,
+      kind: "inpainting",
+      status: "completed",
+      progressText: `${targetLabel} 지우기 완료`,
+      phase: "done",
+      progressCurrent: pages.length,
+      progressTotal: pages.length,
+      pageTotal: pages.length,
+      detail: `${pages.length}페이지, ${blocksErased}개 블록`,
+    });
+
+    return {
+      status: "completed",
+      chapter: saved,
+      pagesChanged,
+      blocksErased,
+    };
+  } catch (error) {
+    const lastEvent =
+      context.jobs.current?.id === id
+        ? context.jobs.current.lastEvent
+        : undefined;
+    if (isAbortError(error) || abortController.signal.aborted) {
+      emit({
+        id,
+        kind: "inpainting",
+        status: "cancelled",
+        progressText: "인페인팅 작업이 취소되었습니다.",
+        phase: "cancelled",
+        progressCurrent: lastEvent?.progressCurrent,
+        progressTotal: lastEvent?.progressTotal,
+        pageIndex: lastEvent?.pageIndex,
+        pageTotal: lastEvent?.pageTotal,
+      });
+      return {
+        status: "cancelled",
+        chapter: await openChapter(request.chapterId).catch(
+          () => chapter ?? undefined,
+        ),
+      };
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    logError("Inpainting job failed", {
+      jobId: id,
+      request,
+      lastEvent,
+      error,
+    });
+    emit({
+      id,
+      kind: "inpainting",
+      status: "failed",
+      progressText: "인페인팅 작업 실패",
+      phase: "failed",
+      progressCurrent: lastEvent?.progressCurrent,
+      progressTotal: lastEvent?.progressTotal,
+      pageIndex: lastEvent?.pageIndex,
+      pageTotal: lastEvent?.pageTotal,
+      detail: message,
+    });
+    return {
+      status: "failed",
+      error: message,
+      chapter: await openChapter(request.chapterId).catch(
+        () => chapter ?? undefined,
+      ),
+    };
+  } finally {
+    fluxEngineLease?.release();
+    context.jobs.clearIfCurrent(id);
+  }
+}
+
+export async function exportInpaintingResults(
+  context: InpaintingJobContext,
+  request: InpaintingExportRequest,
+): Promise<InpaintingExportResult> {
+  assertNoActiveJob(context);
+
+  const id = randomUUID();
+  const abortController = new AbortController();
+  context.jobs.start({ id, kind: "inpainting", abortController });
+  const emit = (event: JobEvent) =>
+    emitJobEvent(context.jobs, context.getMainWindow(), event);
+
+  try {
+    const chapter = await openChapter(request.chapterId);
+    const pages =
+      request.scope === "page"
+        ? chapter.pages.filter((page) => page.id === request.pageId)
+        : chapter.pages;
+    if (pages.length === 0) {
+      throw new Error("출력할 페이지가 없습니다.");
+    }
+    const totalPages = pages.length;
+    const targetLabel = request.scope === "page" ? "이 페이지" : "전체 페이지";
+
+    emit({
+      id,
+      kind: "inpainting",
+      status: "starting",
+      progressText: "PNG 출력 준비 중",
+      phase: "finalizing",
+      progressCurrent: 0,
+      progressTotal: totalPages,
+      pageTotal: totalPages,
+      detail: `${targetLabel} · ${totalPages}페이지`,
+    });
+
+    const firstPageDir = dirname(pages[0].imagePath);
+    const chapterDir = dirname(firstPageDir);
+    const outputDir = join(
+      chapterDir,
+      "processed",
+      new Date().toISOString().replace(/[:.]/g, "-"),
+    );
+    await mkdir(outputDir, { recursive: true });
+
+    for (const [index, page] of pages.entries()) {
+      if (abortController.signal.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+      emit({
+        id,
+        kind: "inpainting",
+        status: "running",
+        progressText: `${index + 1} / ${totalPages} 페이지 PNG 출력 중`,
+        phase: "finalizing",
+        progressCurrent: index,
+        progressTotal: totalPages,
+        pageIndex: index + 1,
+        pageTotal: totalPages,
+        detail: page.name,
+      });
+      const outputName = `${String(index + 1).padStart(3, "0")}-${sanitizeOutputBaseName(page.name)}.png`;
+      const png = await renderPageWithTranslationBlocksForExport(page, {
+        dataRoot: context.appPaths.dataRoot,
+        decodeFallback: context.decodeImage,
+      });
+      await writeFile(join(outputDir, outputName), png);
+      emit({
+        id,
+        kind: "inpainting",
+        status: "running",
+        progressText: `${index + 1} / ${totalPages} 페이지 PNG 출력 완료`,
+        phase: "finalizing",
+        progressCurrent: index + 1,
+        progressTotal: totalPages,
+        pageIndex: index + 1,
+        pageTotal: totalPages,
+        detail: page.name,
+      });
+    }
+
+    emit({
+      id,
+      kind: "inpainting",
+      status: "completed",
+      progressText: "PNG 출력 완료",
+      phase: "done",
+      progressCurrent: totalPages,
+      progressTotal: totalPages,
+      pageTotal: totalPages,
+      detail: `${targetLabel} · ${totalPages}페이지`,
+    });
+    const openError = await shell.openPath(outputDir);
+    return {
+      outputDir,
+      pageCount: totalPages,
+      ...(openError ? { openError } : {}),
+    };
+  } catch (error) {
+    if (isAbortError(error) || abortController.signal.aborted) {
+      emit({
+        id,
+        kind: "inpainting",
+        status: "cancelled",
+        progressText: "PNG 출력이 취소되었습니다.",
+        phase: "cancelled",
+      });
+      throw new Error("PNG 출력이 취소되었습니다.", { cause: error });
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    logError("Inpainting export failed", { jobId: id, request, error });
+    emit({
+      id,
+      kind: "inpainting",
+      status: "failed",
+      progressText: "PNG 출력 실패",
+      phase: "failed",
+      detail: message,
+    });
+    throw error;
+  } finally {
+    context.jobs.clearIfCurrent(id);
+  }
+}
+
+function assertNoActiveJob(context: Pick<InpaintingJobContext, "jobs">): void {
+  if (context.jobs.hasActive) {
+    throw new Error("이미 실행 중인 작업이 있습니다.");
+  }
+}

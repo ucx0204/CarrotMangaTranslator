@@ -32,9 +32,9 @@ describe("inpainting artifact cleanup", () => {
     await writeFile(newPath, "new");
 
     const chapter = await library.openChapter("chapter-a");
-    const page = chapter.pages[0]!;
+    const page = firstPage(chapter);
     const withOld = await library.updatePagesAfterInpainting(chapter.id, [{ ...page, inpaintedImagePath: oldPath }]);
-    const withNew = await library.updatePagesAfterInpainting(chapter.id, [{ ...withOld.pages[0]!, inpaintedImagePath: newPath }]);
+    const withNew = await library.updatePagesAfterInpainting(chapter.id, [{ ...firstPage(withOld), inpaintedImagePath: newPath }]);
 
     expect(withNew.pages[0]?.inpaintedImagePath).toBe(newPath);
     expect(existsSync(oldPath)).toBe(false);
@@ -52,8 +52,8 @@ describe("inpainting artifact cleanup", () => {
     await writeFile(oldPath, "old");
 
     const chapter = await library.openChapter("chapter-a");
-    const withOld = await library.updatePagesAfterInpainting(chapter.id, [{ ...chapter.pages[0]!, inpaintedImagePath: oldPath }]);
-    const reverted = await library.updatePagesAfterInpainting(chapter.id, [{ ...withOld.pages[0]!, inpaintedImagePath: undefined }]);
+    const withOld = await library.updatePagesAfterInpainting(chapter.id, [{ ...firstPage(chapter), inpaintedImagePath: oldPath }]);
+    const reverted = await library.updatePagesAfterInpainting(chapter.id, [{ ...firstPage(withOld), inpaintedImagePath: undefined }]);
 
     expect(reverted.pages[0]?.inpaintedImagePath).toBeUndefined();
     expect(existsSync(oldPath)).toBe(false);
@@ -74,10 +74,10 @@ describe("inpainting artifact cleanup", () => {
     await writeFile(orphanPath, "orphan");
 
     const chapter = await library.openChapter("chapter-a");
-    const withOld = await library.updatePagesAfterInpainting(chapter.id, [{ ...chapter.pages[0]!, inpaintedImagePath: oldPath }]);
+    const withOld = await library.updatePagesAfterInpainting(chapter.id, [{ ...firstPage(chapter), inpaintedImagePath: oldPath }]);
     const withNew = await library.updatePagesAfterInpainting(
       chapter.id,
-      [{ ...withOld.pages[0]!, inpaintedImagePath: newPath }],
+      [{ ...firstPage(withOld), inpaintedImagePath: newPath }],
       { retainedInpaintedArtifactPaths: [oldPath] }
     );
 
@@ -98,15 +98,16 @@ describe("inpainting artifact cleanup", () => {
     await writeFile(afterPath, "after");
 
     const chapter = await library.openChapter("chapter-a");
-    const withAfter = await library.updatePagesAfterInpainting(chapter.id, [{ ...chapter.pages[0]!, inpaintedImagePath: afterPath }]);
-    const undone = await library.setPageInpaintingResult(chapter.id, withAfter.pages[0]!.id, undefined, {
+    const withAfter = await library.updatePagesAfterInpainting(chapter.id, [{ ...firstPage(chapter), inpaintedImagePath: afterPath }]);
+    const pageWithAfter = firstPage(withAfter);
+    const undone = await library.setPageInpaintingResult(chapter.id, pageWithAfter.id, undefined, {
       retainedInpaintedArtifactPaths: [afterPath]
     });
 
     expect(undone.pages[0]?.inpaintedImagePath).toBeUndefined();
     expect(existsSync(afterPath)).toBe(true);
 
-    const redone = await library.setPageInpaintingResult(chapter.id, withAfter.pages[0]!.id, afterPath, {
+    const redone = await library.setPageInpaintingResult(chapter.id, pageWithAfter.id, afterPath, {
       retainedInpaintedArtifactPaths: [afterPath]
     });
 
@@ -133,6 +134,14 @@ async function createTempLibrary(): Promise<string> {
   const rootDir = await mkdtemp(join(tmpdir(), "manga-inpainting-cleanup-"));
   tempDirs.push(rootDir);
   return rootDir;
+}
+
+function firstPage<T>(chapter: { pages: T[] }): T {
+  const page = chapter.pages[0];
+  if (!page) {
+    throw new Error("Expected chapter to contain a page");
+  }
+  return page;
 }
 
 async function loadLibrary(rootDir: string): Promise<typeof import("../src/main/library")> {

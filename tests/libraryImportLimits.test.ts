@@ -112,8 +112,11 @@ describe("library import resource limits", () => {
 
     const storedPath = result.openedChapter?.pages[0]?.imagePath;
     expect(storedPath).toMatch(/\.png$/);
+    if (!storedPath) {
+      throw new Error("Expected imported page image path");
+    }
     expect(storedPath && existsSync(storedPath)).toBe(true);
-    expect(await readFile(storedPath!)).toEqual(Buffer.from("converted png"));
+    expect(await readFile(storedPath)).toEqual(Buffer.from("converted png"));
   });
 });
 

@@ -13,14 +13,14 @@ type ShareExportModalProps = {
 export function ShareExportModal({ library, currentWorkId, busy, onCancel, onSubmit }: ShareExportModalProps): React.JSX.Element {
   const initialWorkId = currentWorkId && library.works.some((work) => work.id === currentWorkId) ? currentWorkId : library.works[0]?.id ?? "";
   const [workId, setWorkId] = React.useState(initialWorkId);
-  const selectedWork = library.works.find((work) => work.id === workId) ?? null;
+  const selectedWork = React.useMemo(() => library.works.find((work) => work.id === workId) ?? null, [library.works, workId]);
   const [selectedChapterIds, setSelectedChapterIds] = React.useState<Set<string>>(
     () => new Set(selectedWork?.chapters.map((chapter) => chapter.id) ?? [])
   );
 
   React.useEffect(() => {
     setSelectedChapterIds(new Set(selectedWork?.chapters.map((chapter) => chapter.id) ?? []));
-  }, [selectedWork?.id]);
+  }, [selectedWork]);
 
   const selectedCount = selectedChapterIds.size;
   const pageCount =

@@ -25,6 +25,8 @@ export function usePageImageDataUrls({
   const [selectedPageOriginalImageDataUrl, setSelectedPageOriginalImageDataUrl] = React.useState("");
   const [cacheRevision, setCacheRevision] = React.useState(0);
   const pageImageCacheRef = React.useRef<Map<string, string>>(new Map());
+  const selectedPageId = selectedPage?.id ?? null;
+  const selectedPageOriginalImagePath = selectedPage?.imagePath ?? null;
 
   const clearPageImageCache = React.useCallback(() => {
     pageImageCacheRef.current.clear();
@@ -38,14 +40,14 @@ export function usePageImageDataUrls({
   }, [chapterId, clearPageImageCache]);
 
   React.useEffect(() => {
-    if (!selectedPage) {
+    if (!selectedPageId || !selectedPageOriginalImagePath) {
       setSelectedPageImageDataUrl("");
       setSelectedPageOriginalImageDataUrl("");
       return;
     }
 
-    const imagePath = selectedPageImagePath ?? selectedPage.imagePath;
-    const cacheKey = `${selectedPage.id}:${imagePath}`;
+    const imagePath = selectedPageImagePath ?? selectedPageOriginalImagePath;
+    const cacheKey = `${selectedPageId}:${imagePath}`;
     const cached = pageImageCacheRef.current.get(cacheKey);
     if (cached) {
       setSelectedPageImageDataUrl(cached);
@@ -73,20 +75,20 @@ export function usePageImageDataUrls({
     return () => {
       cancelled = true;
     };
-  }, [cacheRevision, selectedPage?.id, selectedPage?.imagePath, selectedPageImagePath]);
+  }, [cacheRevision, selectedPageId, selectedPageImagePath, selectedPageOriginalImagePath]);
 
   React.useEffect(() => {
-    if (!selectedPage) {
+    if (!selectedPageId || !selectedPageOriginalImagePath) {
       setSelectedPageOriginalImageDataUrl("");
       return;
     }
-    if (selectedPageImagePath === selectedPage.imagePath && selectedPageImageDataUrl) {
+    if (selectedPageImagePath === selectedPageOriginalImagePath && selectedPageImageDataUrl) {
       setSelectedPageOriginalImageDataUrl(selectedPageImageDataUrl);
       return;
     }
 
-    const imagePath = selectedPage.imagePath;
-    const cacheKey = `${selectedPage.id}:original:${imagePath}`;
+    const imagePath = selectedPageOriginalImagePath;
+    const cacheKey = `${selectedPageId}:original:${imagePath}`;
     const cached = pageImageCacheRef.current.get(cacheKey);
     if (cached) {
       setSelectedPageOriginalImageDataUrl(cached);
@@ -114,7 +116,7 @@ export function usePageImageDataUrls({
     return () => {
       cancelled = true;
     };
-  }, [cacheRevision, selectedPage?.id, selectedPage?.imagePath, selectedPageImageDataUrl, selectedPageImagePath]);
+  }, [cacheRevision, selectedPageId, selectedPageImageDataUrl, selectedPageImagePath, selectedPageOriginalImagePath]);
 
   return { selectedPageImageDataUrl, selectedPageOriginalImageDataUrl, clearPageImageCache };
 }
