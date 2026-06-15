@@ -1089,6 +1089,9 @@ function resolveOcrInstallBatchProgressRanges(
     if (packageText.includes("paddlepaddle")) {
       return batches.length > 1 ? 0.36 : 1;
     }
+    if (packageText.includes("rocm_sdk") || packageText.includes("torch-")) {
+      return batches.length > 1 ? 0.36 : 1;
+    }
     if (packageText.includes("paddleocr") || packageText.includes("paddlex")) {
       return batches.length > 1 ? 0.64 : 1;
     }
@@ -1185,8 +1188,14 @@ function hasExpectedOcrPackages(packageDir, options = {}) {
   if (!packageDir || !existsSync(packageDir)) {
     return false;
   }
+  const backend = resolveOcrGpuBackend(options);
+  if (isOcrGpuRequested(options) && backend === "rocm-transformers") {
+    return ["torch", "transformers", "paddleocr"].every((name) =>
+      existsSync(path.join(packageDir, name)),
+    );
+  }
   const required = ["paddle", "paddleocr", "paddlex"];
-  if (isOcrGpuRequested(options) && resolveOcrGpuBackend(options) === "cuda") {
+  if (isOcrGpuRequested(options) && backend === "cuda") {
     required.push("nvidia");
   }
   return required.every((name) => existsSync(path.join(packageDir, name)));

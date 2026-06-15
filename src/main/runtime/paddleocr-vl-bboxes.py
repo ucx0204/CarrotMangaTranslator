@@ -57,11 +57,66 @@ def main() -> int:
     parser.add_argument("--progress", default=None, help="Optional JSONL progress output path.")
     parser.add_argument("--pipeline-version", default="v1.5", choices=["v1", "v1.5"])
     parser.add_argument("--device", default=None, help="Optional Paddle device, e.g. gpu:0 or cpu.")
+    parser.add_argument("--bbox-mode", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE", "vl"), choices=["vl", "ocr"])
+    parser.add_argument("--engine", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", "paddle"))
+    parser.add_argument("--dtype", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", "float16"))
+    parser.add_argument("--ocr-version", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_VERSION", "PP-OCRv6"))
     args = parser.parse_args()
     if args.device:
       os.environ["MANGA_TRANSLATOR_PADDLEOCR_DEVICE"] = args.device
 
     configure_windows_dll_search_path()
+    if Image is None:
+      raise RuntimeError("Pillow is not installed, so image dimensions cannot be read.")
+
+    batch_items = load_batch_items(args)
+    if not batch_items:
+      raise RuntimeError("Provide --image/--output or --batch with at least one item.")
+
+    ensure_requested_device(args)
+
+    if args.bbox_mode == "ocr":
+      textline_detector = create_textline_detector(args)
+      source = "paddleocr-ppocrv6-transformers" if is_transformers_engine(args) else "paddleocr-ppocrv6"
+      try:
+        summaries = []
+        total = len(batch_items)
+        for index, item in enumerate(batch_items, start=1):
+          emit_progress(
+              args.progress,
+              {
+                  "phase": "start",
+                  "index": index,
+                  "total": total,
+                  "output": str(item["output"]),
+                  "count": 0,
+              },
+          )
+          summary = write_page_bboxes_from_ocr(
+              image_path=Path(item["image"]),
+              output_path=Path(item["output"]),
+              ocr=textline_detector,
+              source=source,
+          )
+          summaries.append(summary)
+          emit_progress(
+              args.progress,
+              {
+                  "phase": "done",
+                  "index": index,
+                  "total": total,
+                  "output": summary["output"],
+                  "count": summary["count"],
+              },
+          )
+      finally:
+        close_textline_detector(textline_detector)
+
+      print(json.dumps({"items": summaries, "count": len(summaries)}, ensure_ascii=False), flush=True)
+      return 0
+
+    if is_transformers_engine(args):
+      raise RuntimeError("PaddleOCRVL bbox mode does not support the Transformers engine yet. Use --bbox-mode ocr.")
 
     try:
       from paddleocr import PaddleOCRVL
@@ -70,17 +125,9 @@ def main() -> int:
           "PaddleOCR-VL is not installed. Install paddleocr/paddlex and PaddlePaddle, "
           "or provide MANGA_TRANSLATOR_OCR_BBOX_CMD."
       ) from exc
-    if Image is None:
-      raise RuntimeError("Pillow is not installed, so image dimensions cannot be read.")
-
-    batch_items = load_batch_items(args)
-    if not batch_items:
-      raise RuntimeError("Provide --image/--output or --batch with at least one item.")
-
-    ensure_requested_device(args.device)
 
     pipeline = PaddleOCRVL(**build_pipeline_kwargs(args))
-    textline_detector = create_textline_detector()
+    textline_detector = create_textline_detector(args)
     try:
       summaries = []
       total = len(batch_items)
@@ -154,6 +201,8 @@ def load_batch_items(args: argparse.Namespace) -> list[dict]:
 
 
 def build_pipeline_kwargs(args: argparse.Namespace) -> dict:
+    if is_transformers_engine(args):
+      raise RuntimeError("PaddleOCRVL bbox mode does not support the Transformers engine yet. Use --bbox-mode ocr.")
     pipeline_kwargs = {
         "pipeline_version": args.pipeline_version,
         "use_doc_orientation_classify": False,
@@ -168,6 +217,20 @@ def build_pipeline_kwargs(args: argparse.Namespace) -> dict:
     if args.device:
       pipeline_kwargs["device"] = args.device
     return pipeline_kwargs
+
+
+def is_transformers_engine(args: argparse.Namespace) -> bool:
+    return str(getattr(args, "engine", "") or "").strip().lower() == "transformers"
+
+
+def parse_device_id(device: str | None) -> int:
+    text = str(device or "").strip().lower()
+    if ":" not in text:
+      return 0
+    try:
+      return max(0, int(text.rsplit(":", 1)[1]))
+    except Exception:
+      return 0
 
 
 def write_page_bboxes(image_path: Path, output_path: Path, pipeline: object, textline_detector: object) -> dict:
@@ -235,9 +298,105 @@ def write_page_bboxes(image_path: Path, output_path: Path, pipeline: object, tex
     return {"output": str(output_path), "count": len(items)}
 
 
-def ensure_requested_device(device: str | None) -> None:
+def write_page_bboxes_from_ocr(image_path: Path, output_path: Path, ocr: object, source: str) -> dict:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with Image.open(image_path) as image:
+      width, height = image.size
+
+    if ocr is None:
+      raise RuntimeError("PaddleOCR textline detector is unavailable.")
+
+    raw_candidates: list[dict] = []
+    results = ocr.predict(str(image_path))
+    for result in results:
+      data = dict(result)
+      rec_texts = data.get("rec_texts") or data.get("texts") or []
+      rec_scores = data.get("rec_scores") or data.get("scores") or []
+      for index, poly in enumerate(data.get("dt_polys") or []):
+        box = bbox_from_poly(poly, width, height)
+        if not box:
+          continue
+        text = str(rec_texts[index] if index < len(rec_texts) else "").strip()
+        if text and is_probable_symbol_noise(text):
+          continue
+        x1, y1, x2, y2 = box
+        box_width = x2 - x1
+        box_height = y2 - y1
+        if box_width < 6 or box_height < 6 or box_width * box_height < 200:
+          continue
+        score = None
+        try:
+          score = float(rec_scores[index]) if index < len(rec_scores) else None
+        except Exception:
+          score = None
+        raw_candidates.append(
+            {
+                "label": "ocr_textline",
+                "x1": x1,
+                "y1": y1,
+                "x2": x2,
+                "y2": y2,
+                "_score": score,
+                "_text": text,
+            }
+        )
+
+    items = merge_textline_candidates(raw_candidates, width, height)
+    for index, item in enumerate(items):
+      item["id"] = index + 1
+      score = item.pop("_score", None)
+      single_text = item.pop("_text", "")
+      grouped_texts = item.pop("_texts", [])
+      ocr_text = clean_ocr_text(single_text or merge_ocr_texts(grouped_texts))
+      if ocr_text:
+        item["ocrText"] = ocr_text
+      if isinstance(score, float):
+        item["score"] = round(score, 4)
+
+    finalize_ocr_text_fields(items)
+    renumber_items(items)
+
+    payload = {
+        "source": source,
+        "coordinateSpace": "pixels",
+        "width": width,
+        "height": height,
+        "items": items,
+    }
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"output": str(output_path), "count": len(items)}
+
+
+def ensure_requested_device(args: argparse.Namespace) -> None:
+    device = getattr(args, "device", None)
     if not device or not device.lower().startswith("gpu"):
       return
+
+    if is_transformers_engine(args):
+      try:
+        import torch
+      except Exception as exc:
+        raise RuntimeError(
+            "GPU OCR was requested with Transformers engine, but PyTorch is not importable."
+        ) from exc
+
+      if not torch.cuda.is_available():
+        raise RuntimeError(
+            "GPU OCR was requested with Transformers engine, but torch.cuda is not available."
+        )
+
+      if not getattr(torch.version, "hip", None):
+        print(
+            "[paddleocr-vl-bboxes] warning: torch is not a ROCm/HIP build; continuing for non-AMD Transformers GPU.",
+            file=sys.stderr,
+        )
+
+      _probe = torch.ones((1,), device="cuda")
+      torch.cuda.synchronize()
+
+      return
+
     try:
       import paddle
     except Exception as exc:
@@ -268,23 +427,37 @@ def clamp(value: int, lower: int, upper: int) -> int:
     return max(lower, min(upper, value))
 
 
-def create_textline_detector() -> object:
+def create_textline_detector(args: argparse.Namespace | None = None) -> object:
     if os.environ.get("MANGA_TRANSLATOR_DISABLE_PADDLEOCR_LINES", "").lower() in {"1", "true", "yes", "on"}:
       return None
 
     try:
       from paddleocr import PaddleOCR
+      device = getattr(args, "device", None) if args else None
+      if not device and os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_DEVICE"):
+        device = os.environ["MANGA_TRANSLATOR_PADDLEOCR_DEVICE"]
       ocr_kwargs = {
           "lang": "japan",
+          "ocr_version": getattr(args, "ocr_version", None) or os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_VERSION", "PP-OCRv6"),
           "use_doc_orientation_classify": False,
           "use_doc_unwarping": False,
           "use_textline_orientation": False,
           "text_det_limit_side_len": int(os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT", "1600")),
           "text_det_limit_type": "max",
-          "enable_mkldnn": False,
+          "text_recognition_batch_size": int(os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH", "1")),
       }
-      if os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_DEVICE"):
-        ocr_kwargs["device"] = os.environ["MANGA_TRANSLATOR_PADDLEOCR_DEVICE"]
+      if device:
+        ocr_kwargs["device"] = device
+      if args and is_transformers_engine(args):
+        device_type = "gpu" if device and str(device).lower().startswith("gpu") else "cpu"
+        ocr_kwargs["engine"] = "transformers"
+        ocr_kwargs["engine_config"] = {
+            "dtype": getattr(args, "dtype", "float16"),
+            "device_type": device_type,
+            "device_id": parse_device_id(device),
+            "attn_implementation": os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ATTN", "sdpa"),
+            "trust_remote_code": True,
+        }
       return PaddleOCR(**ocr_kwargs)
     except Exception as exc:
       print(f"[paddleocr-vl-bboxes] textline detector unavailable: {exc}", file=sys.stderr)

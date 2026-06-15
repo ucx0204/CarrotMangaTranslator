@@ -12,6 +12,8 @@ import {
   LLAMA_RUNTIME_FILES,
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   buildLlamaServerEnv,
+  buildOcrBboxBatchCommand,
+  buildOcrBboxCommand,
   buildOcrRuntimeEnv,
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
@@ -31,6 +33,7 @@ import {
   resolveOcrGpuPackageIndexUrl,
   resolveOcrInstallBatchProgressRanges,
   resolveOcrPipInstallBatches,
+  resolveOcrRuntimeVariant,
   resolvePaddleOcrImportCheckTimeoutMs,
   restoreEnv,
   runtimeDefaults,
@@ -126,7 +129,7 @@ describe("runtime model support helpers", () => {
     });
     expect(
       parsePaddleModelFetchProgress(
-        "Creating model: ('PaddleOCR-VL-1.5-0.9B', None, None)",
+        "Creating model: ('PaddleOCR-VL-1.6-0.9B', None, None)",
       ),
     ).toBeNull();
   });
@@ -152,7 +155,7 @@ describe("runtime model support helpers", () => {
     const runtimeDir = createTempDir("ocr-runtime-");
     const tasks = collectRequiredPaddleOcrModelDownloads({}, { runtimeDir });
 
-    expect(tasks).toHaveLength(36);
+    expect(tasks).toHaveLength(34);
     expect(tasks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -167,40 +170,50 @@ describe("runtime model support helpers", () => {
           ),
         }),
         expect.objectContaining({
-          repo: "PaddlePaddle/PaddleOCR-VL-1.5",
+          repo: "PaddlePaddle/PaddleOCR-VL-1.6",
           file: "model.safetensors",
           destination: join(
             runtimeDir,
             "paddlex-cache",
             "official_models",
-            "PaddleOCR-VL-1.5",
+            "PaddleOCR-VL-1.6",
             "model.safetensors",
           ),
         }),
         expect.objectContaining({
-          repo: "PaddlePaddle/PP-OCRv5_server_det",
+          repo: "PaddlePaddle/PP-OCRv6_medium_det",
           file: "inference.pdiparams",
           destination: join(
             runtimeDir,
             "paddlex-cache",
             "official_models",
-            "PP-OCRv5_server_det",
+            "PP-OCRv6_medium_det",
             "inference.pdiparams",
           ),
         }),
         expect.objectContaining({
-          repo: "PaddlePaddle/PP-OCRv5_server_rec",
+          repo: "PaddlePaddle/PP-OCRv6_medium_rec",
           file: "inference.pdiparams",
           destination: join(
             runtimeDir,
             "paddlex-cache",
             "official_models",
-            "PP-OCRv5_server_rec",
+            "PP-OCRv6_medium_rec",
             "inference.pdiparams",
           ),
         }),
       ]),
     );
+  });
+
+  it("does not predownload PaddleOCRVL model assets for AMD ROCm Transformers OCR", () => {
+    const runtimeDir = createTempDir("ocr-runtime-");
+    const tasks = collectRequiredPaddleOcrModelDownloads(
+      { ocrDevice: "gpu", ocrGpuBackend: "rocm-transformers" },
+      { runtimeDir },
+    );
+
+    expect(tasks).toEqual([]);
   });
 
   it("disables hf-xet for Paddle OCR Python downloads by default", () => {
@@ -351,7 +364,7 @@ describe("runtime model support helpers", () => {
       "--index-url",
       "https://www.paddlepaddle.org.cn/packages/stable/cu129/",
     ]);
-    expect(cu129Batches[1]).toEqual(["paddleocr[doc-parser]==3.5.0"]);
+    expect(cu129Batches[1]).toEqual(["paddleocr[doc-parser]==3.7.0"]);
     if (process.platform === "win32") {
       expect(cu129Batches[2][0]).toBe("--no-deps");
       expect(cu129Batches[2][1]).toBe("--force-reinstall");
@@ -362,9 +375,9 @@ describe("runtime model support helpers", () => {
       "--index-url",
       "https://www.paddlepaddle.org.cn/packages/stable/cu126/",
     ]);
-    expect(cu126Batches[1]).toEqual(["paddleocr[doc-parser]==3.5.0"]);
+    expect(cu126Batches[1]).toEqual(["paddleocr[doc-parser]==3.7.0"]);
     expect(cpuBatches[0][0]).toBe("paddlepaddle==3.3.1");
-    expect(cpuBatches[0][1]).toBe("paddleocr[doc-parser]==3.5.0");
+    expect(cpuBatches[0][1]).toBe("paddleocr[doc-parser]==3.7.0");
     if (process.platform === "win32") {
       expect(cu126Batches[2][0]).toBe("--no-deps");
       expect(cu126Batches[2][1]).toBe("--force-reinstall");
@@ -375,7 +388,7 @@ describe("runtime model support helpers", () => {
     }
   });
 
-  it("keeps Paddle OCR GPU on the CUDA runtime even if legacy ROCm backend values remain", () => {
+  it("uses native Windows ROCm PyTorch packages for AMD Transformers OCR runtimes", () => {
     const rocmBatches = resolveOcrPipInstallBatches({
       ocrDevice: "gpu",
       ocrGpuBackend: "rocm",
@@ -389,16 +402,95 @@ describe("runtime model support helpers", () => {
       ocrGpuBackend: "rocm",
     });
 
-    expect(resolveOcrGpuBackend({ ocrGpuBackend: "amd" })).toBe("cuda");
-    expect(rocmBatches[0]).toEqual([
-      "paddlepaddle-gpu==3.3.1",
-      "--index-url",
-      "https://www.paddlepaddle.org.cn/packages/stable/cu126/",
+    expect(resolveOcrGpuBackend({ ocrGpuBackend: "amd" })).toBe(
+      "rocm-transformers",
+    );
+    expect(rocmBatches[0]).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("rocm_sdk_core-7.2.1"),
+        expect.stringContaining("rocm_sdk_devel-7.2.1"),
+        expect.stringContaining("rocm_sdk_libraries_custom-7.2.1"),
+        expect.stringContaining("rocm-7.2.1.tar.gz"),
+      ]),
+    );
+    expect(rocmBatches[1]).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("torch-2.9.1%2Brocm7.2.1"),
+        expect.stringContaining("torchaudio-2.9.1%2Brocm7.2.1"),
+        expect.stringContaining("torchvision-0.24.1%2Brocm7.2.1"),
+      ]),
+    );
+    expect(rocmBatches[2]).toEqual([
+      "paddleocr==3.7.0",
+      "transformers>=5.10.0",
+      "safetensors>=0.6.2",
     ]);
-    expect(env.MANGA_TRANSLATOR_OCR_GPU_BACKEND).toBeUndefined();
+    expect(rocmBatches.flat().join(" ")).not.toContain("paddlepaddle-gpu");
+    expect(rocmBatches.flat().join(" ")).not.toContain("/cu126/");
+    expect(env.MANGA_TRANSLATOR_OCR_GPU_BACKEND).toBe("rocm-transformers");
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE).toBe("gpu:0");
-    expect(script).not.toContain("is_compiled_with_rocm");
-    expect(script).toContain("is_compiled_with_cuda");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE).toBe("transformers");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE).toBe("float16");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE).toBe("ocr");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_VERSION).toBe("PP-OCRv6");
+    expect(script).toContain("import torch");
+    expect(script).toContain("torch.cuda.is_available()");
+    expect(script).toContain("torch.version");
+    expect(script).toContain("from paddleocr import PaddleOCR");
+    expect(script).not.toContain("import paddle");
+    expect(script).not.toContain("PaddleOCRVL");
+    expect(resolveOcrRuntimeVariant({ ocrDevice: "cpu" })).toBe("cpu");
+    expect(
+      resolveOcrRuntimeVariant({ ocrDevice: "gpu", ocrGpuCudaTag: "cu126" }),
+    ).toBe("gpu-cu126");
+    expect(
+      resolveOcrRuntimeVariant({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" }),
+    ).toBe("gpu-cu129");
+    expect(
+      resolveOcrRuntimeVariant({
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+      }),
+    ).toBe("gpu-rocm-transformers");
+  });
+
+  it("builds backend-specific OCR bbox commands", () => {
+    const runtime = { pythonPath: "python" };
+    const cpuCommand = buildOcrBboxCommand(
+      { imagePath: "page.png", ocrDevice: "cpu" },
+      "paddleocr-vl",
+      "out.json",
+      runtime,
+    );
+    const cudaCommand = buildOcrBboxBatchCommand(
+      { ocrDevice: "gpu", ocrGpuBackend: "cuda" },
+      "batch.json",
+      runtime,
+      "progress.jsonl",
+    );
+    const amdCommand = buildOcrBboxCommand(
+      {
+        imagePath: "page.png",
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+      },
+      "paddleocr-vl",
+      "out.json",
+      runtime,
+    );
+
+    expect(cpuCommand).not.toContain("--engine");
+    expect(cpuCommand).not.toContain("--bbox-mode");
+    expect(cudaCommand).not.toContain("--engine");
+    expect(cudaCommand).not.toContain("--bbox-mode");
+    expect(amdCommand).toContain("--bbox-mode");
+    expect(amdCommand).toContain("ocr");
+    expect(amdCommand).toContain("--engine");
+    expect(amdCommand).toContain("transformers");
+    expect(amdCommand).toContain("--dtype");
+    expect(amdCommand).toContain("float16");
+    expect(amdCommand).toContain("--ocr-version");
+    expect(amdCommand).toContain("PP-OCRv6");
   });
 
   it("adds Paddle native DLL directories for isolated Windows OCR runtimes", () => {
@@ -420,6 +512,10 @@ describe("runtime model support helpers", () => {
     expect(pathParts).toContain(paddleBaseDir);
     expect(dllParts).toContain(paddleBaseDir);
     expect(script).toContain("os.add_dll_directory");
+    expect(script).toContain("import paddle");
+    expect(script).toContain("from paddleocr import PaddleOCRVL, PaddleOCR");
+    expect(script).not.toContain("import torch");
+    expect(script).not.toContain("torch.version");
   });
 
   it("explains Paddle native DLL load failures separately from generic import errors", () => {
@@ -433,7 +529,7 @@ describe("runtime model support helpers", () => {
     expect(message).toContain("libpaddle.pyd");
   });
 
-  it("ignores legacy ROCm Paddle OCR package overrides", () => {
+  it("ignores legacy ROCm Paddle OCR package overrides for the Transformers backend", () => {
     const previousPackage =
       process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE;
     const previousIndex =
@@ -448,11 +544,14 @@ describe("runtime model support helpers", () => {
         ocrGpuBackend: "rocm",
       });
 
-      expect(batches[0]).toEqual([
-        "paddlepaddle-gpu==3.3.1",
-        "--index-url",
-        "https://www.paddlepaddle.org.cn/packages/stable/cu126/",
-      ]);
+      expect(batches.flat().join(" ")).not.toContain("paddlepaddle-rocm");
+      expect(batches.flat().join(" ")).not.toContain("example.invalid");
+      expect(batches[1]).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("torch-2.9.1%2Brocm7.2.1"),
+        ]),
+      );
+      expect(batches[2]).toContain("paddleocr==3.7.0");
     } finally {
       restoreEnv("MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE", previousPackage);
       restoreEnv("MANGA_TRANSLATOR_OCR_ROCM_PADDLE_INDEX_URL", previousIndex);
@@ -482,7 +581,7 @@ describe("runtime model support helpers", () => {
     try {
       delete process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES;
       process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES =
-        "paddleocr[doc-parser]==3.5.0 https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl";
+        "paddleocr[doc-parser]==3.7.0 https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl";
 
       const batches = resolveOcrPipInstallBatches({
         ocrDevice: "gpu",
@@ -491,7 +590,7 @@ describe("runtime model support helpers", () => {
 
       if (process.platform === "win32") {
         expect(batches).toEqual([
-          ["paddleocr[doc-parser]==3.5.0"],
+          ["paddleocr[doc-parser]==3.7.0"],
           [
             "--no-deps",
             "--force-reinstall",
@@ -499,7 +598,7 @@ describe("runtime model support helpers", () => {
           ],
         ]);
       } else {
-        expect(batches[0]).toContain("paddleocr[doc-parser]==3.5.0");
+        expect(batches[0]).toContain("paddleocr[doc-parser]==3.7.0");
       }
     } finally {
       restoreEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", previousGeneric);
@@ -519,6 +618,7 @@ describe("runtime model support helpers", () => {
       expect(script).toContain("import paddle");
       expect(script).toContain("from paddleocr import PaddleOCRVL, PaddleOCR");
       expect(script).not.toContain("import paddle, paddlex, paddleocr");
+      expect(script).not.toContain("torch.version");
       expect(script).toContain("paddle.set_device");
       expect(
         resolvePaddleOcrImportCheckTimeoutMs({
@@ -799,7 +899,7 @@ describe("runtime model support helpers", () => {
           "--extra-index-url",
           "https://www.paddlepaddle.org.cn/packages/stable/cu126/",
         ],
-        ["paddleocr==3.5.0", "paddlex[ocr]==3.5.2"],
+        ["paddleocr[doc-parser]==3.7.0"],
       ],
       0.1,
       0.86,

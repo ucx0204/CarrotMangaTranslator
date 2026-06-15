@@ -10,6 +10,7 @@ const {
 const {
   resolveBootstrapPython,
   resolveOcrDevice,
+  resolveOcrGpuBackend,
 } = require("./simple-page-ocr-runtime-config.cjs");
 const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
 
@@ -48,7 +49,7 @@ function buildOcrBboxCommand(
     const scriptPath = quoteCommandArg(
       path.join(__dirname, "paddleocr-vl-bboxes.py"),
     );
-    return `${python} -u ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveOcrDevice(options))}`;
+    return `${python} -u ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveOcrDevice(options))}${buildPaddleOcrBboxModeArgs(options)}`;
   }
 
   throw new Error("OCR bbox provider requires MANGA_TRANSLATOR_OCR_BBOX_CMD.");
@@ -74,7 +75,43 @@ function buildOcrBboxBatchCommand(
   const progressArg = progressPath
     ? ` --progress ${quoteCommandArg(progressPath)}`
     : "";
-  return `${python} -u ${scriptPath} --batch ${quoteCommandArg(batchPath)}${progressArg} --device ${quoteCommandArg(resolveOcrDevice(options))}`;
+  return `${python} -u ${scriptPath} --batch ${quoteCommandArg(batchPath)}${progressArg} --device ${quoteCommandArg(resolveOcrDevice(options))}${buildPaddleOcrBboxModeArgs(options)}`;
+}
+
+/**
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function buildPaddleOcrBboxModeArgs(options = {}) {
+  const device = resolveOcrDevice(options);
+  if (
+    !device.startsWith("gpu") ||
+    resolveOcrGpuBackend(options) !== "rocm-transformers"
+  ) {
+    return "";
+  }
+  const bboxMode =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE", options) ||
+    "ocr";
+  const engine =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", options) ||
+    "transformers";
+  const dtype =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", options) ||
+    "float16";
+  const ocrVersion =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VERSION", options) ||
+    "PP-OCRv6";
+  return [
+    " --bbox-mode ",
+    quoteCommandArg(bboxMode),
+    " --engine ",
+    quoteCommandArg(engine),
+    " --dtype ",
+    quoteCommandArg(dtype),
+    " --ocr-version ",
+    quoteCommandArg(ocrVersion),
+  ].join("");
 }
 
 /**
@@ -96,6 +133,7 @@ function resolveOcrRuntimePythonPath(runtime = null, options = {}) {
 }
 
 module.exports = {
+  buildPaddleOcrBboxModeArgs,
   buildOcrBboxBatchCommand,
   buildOcrBboxCommand,
   resolveOcrRuntimePythonPath,

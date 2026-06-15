@@ -52,7 +52,20 @@ export function resolveOcrDevice(
   value: unknown,
   fallback: OcrDevice,
 ): OcrDevice {
-  return value === "gpu" || value === "cpu" ? value : fallback;
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "cpu") {
+    return "cpu";
+  }
+  if (
+    normalized === "gpu" ||
+    normalized === "cuda" ||
+    normalized.startsWith("gpu")
+  ) {
+    return "gpu";
+  }
+  return fallback;
 }
 
 export function resolveOcrGpuBackend(
@@ -64,6 +77,15 @@ export function resolveOcrGpuBackend(
     .toLowerCase();
   if (normalized === "cuda" || normalized === "nvidia") {
     return "cuda";
+  }
+  if (
+    normalized === "rocm" ||
+    normalized === "amd" ||
+    normalized === "hip" ||
+    normalized === "rocm-transformers" ||
+    normalized === "transformers-rocm"
+  ) {
+    return "rocm-transformers";
   }
   return fallback;
 }

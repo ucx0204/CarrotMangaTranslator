@@ -31,7 +31,7 @@
 처음 번역하거나 처음 인페인팅을 실행하면 필요한 런타임과 모델을 다운로드합니다. 이 과정은 PC와 인터넷 속도에 따라 시간이 걸릴 수 있습니다.
 
 - `Gemma 4`를 쓰면 Gemma 모델, vision mmproj, llama/beellama 실행 런타임을 준비합니다.
-- `Paddle OCR`을 쓰면 OCR용 Python 런타임, PaddleOCR 패키지, OCR 모델을 준비합니다.
+- `Paddle OCR`을 쓰면 OCR용 Python 런타임, PaddleOCR 3.7.0 패키지, OCR 모델을 준비합니다.
 - `인페인팅`을 쓰면 Flux Klein 인페인팅 런타임과 모델을 준비합니다.
 
 다운로드/설치 중에는 큰 진행 모달이 뜹니다. 진행률을 알 수 있는 파일 다운로드는 실제 받은 용량 기준으로 표시하고, pip 설치처럼 정확한 퍼센트를 알 수 없는 구간은 로그 중심으로 표시합니다.
@@ -93,7 +93,7 @@ Gemma 4는 내 PC에서 로컬 모델을 실행하는 방식입니다.
 초보자 기준으로는 아래처럼 이해하면 됩니다.
 
 - `최대 출력 토큰`: 긴 페이지에서 말풍선 누락을 줄이기 위한 출력 한도입니다. 보통 기본값 그대로 두면 됩니다.
-- `Paddle OCR 장치`: OCR을 CPU로 돌릴지 GPU로 돌릴지 고릅니다. GPU가 불안정하면 CPU로 바꾸면 됩니다.
+- `Paddle OCR 장치`: `NVIDIA CUDA`, `AMD ROCm`, `CPU` 중에서 고릅니다. NVIDIA 환경에서는 AMD ROCm OCR 버튼이, AMD 환경에서는 NVIDIA CUDA OCR 버튼이 비활성화됩니다.
 - `모델 소스`: 기본 HF repo를 쓰거나, 직접 받은 GGUF 파일을 고를 수 있습니다.
 - `모델 / 실행 모드`
   - `12B 최소`: 8GB급 VRAM에서 실행 가능성과 가벼운 구동을 우선하는 모드입니다. RTX 20번대 이상, compute capability 7.5 이상을 기준으로 잡습니다.
@@ -111,6 +111,8 @@ Gemma 4는 내 PC에서 로컬 모델을 실행하는 방식입니다.
 - GPU 정보를 확실히 알 수 없거나 8GB 미만이면: `OpenAI Codex` + `12B 최소` 후보 설정
 
 RTX 20/30/40번대는 기본 CUDA 12.4 계열 Gemma 런타임을 사용하고, RTX 50번대는 CUDA 13.1 계열 Gemma 런타임을 우선 사용합니다. RTX 50번대는 Paddle OCR GPU 런타임과 CUDA 조합도 민감해서 앱이 CUDA 12.9 계열 OCR 런타임을 쓰도록 처리합니다. 그래도 실패하면 OCR 장치를 CPU로 바꿔서 확인해 보세요. 번역 모델은 GPU로 쓰고 OCR만 CPU로 쓰는 것도 가능합니다.
+
+AMD OCR GPU는 실험 기능입니다. WSL, ZLUDA, PaddlePaddle CUDA/ROCm 경로를 쓰지 않고, native Windows ROCm PyTorch 2.9.1/ROCm 7.2.1 wheel과 PaddleOCR Transformers engine으로 PP-OCRv6 텍스트라인 bbox를 실행합니다. 지원 GPU/드라이버가 맞지 않거나 import 검증이 실패하면 번역 모델은 AMD ROCm/Vulkan으로 유지하고 OCR 장치만 CPU로 바꿀 수 있습니다.
 
 ### OpenAI Codex
 
@@ -288,6 +290,10 @@ data/
 
 RTX 50번대는 CUDA/Paddle 조합이 민감합니다. 앱은 RTX 50번대용 `cu129` OCR 런타임을 사용하도록 처리하지만, 사용자의 드라이버 상태에 따라 GPU OCR이 실패할 수 있습니다. 이 경우 설정에서 `Paddle OCR 장치`를 CPU로 바꿔도 번역은 계속 사용할 수 있습니다.
 
+### AMD GPU에서 OCR GPU를 쓸 수 있나요?
+
+지원되는 native Windows ROCm GPU에서는 실험적으로 사용할 수 있습니다. AMD OCR GPU는 PaddlePaddle CUDA나 ZLUDA가 아니라 Windows ROCm PyTorch + PaddleOCR Transformers engine을 사용하며, 기본 dtype은 `float16`, 일반 OCR 버전은 `PP-OCRv6`입니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 드라이버가 필요하고, 실패하면 설정에서 `Paddle OCR 장치`만 CPU로 바꿔 번역을 계속할 수 있습니다.
+
 ### Gemma 모델이 시작되지 않습니다.
 
 설정의 `OCR/모델 확인`을 먼저 실행해 보세요. 그래도 실패하면 로그 폴더를 열어 `app.log`를 확인해야 합니다. VRAM이 부족하거나 드라이버가 오래된 경우 모델 서버가 준비되기 전에 종료될 수 있습니다.
@@ -313,7 +319,7 @@ Paddle OCR에서 일본어 텍스트 근거가 없으면 모델 호출을 생략
 - GPU 모델과 VRAM
 - 선택한 번역 엔진: Gemma 4 또는 OpenAI Codex
 - Gemma라면 `12B 최소`, `26B 절약`, `31B 풀로드` 중 무엇인지
-- Paddle OCR 장치: CPU 또는 GPU
+- Paddle OCR 장치: NVIDIA CUDA, AMD ROCm, CPU 중 무엇인지
 - 문제가 난 페이지 이미지 또는 재현 가능한 작품/화
 - `로그 폴더 열기`에서 나온 `app.log`
 
@@ -398,6 +404,9 @@ scripts/      빌드, 개발 실행, 스모크 테스트, 런타임 준비 스�
 
 - Gemma 번역은 `src/main/runtime/simple-page-*.cjs` 계열에서 처리합니다.
 - Paddle OCR 런타임은 `ocr-runtime` 아래에 격리됩니다.
+- CPU OCR과 NVIDIA OCR GPU는 PaddlePaddle 기반 PaddleOCRVL을 사용하며 Transformers engine을 기본으로 쓰지 않습니다.
+- AMD OCR GPU는 `gpu-rocm-transformers` OCR 런타임을 따로 만들고, native Windows ROCm PyTorch + PaddleOCR Transformers engine으로 실행합니다.
+- OCR 고급 override: `MANGA_TRANSLATOR_OCR_DEVICE=gpu`, `MANGA_TRANSLATOR_OCR_GPU_BACKEND=rocm-transformers`, `MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE=float16`, `MANGA_TRANSLATOR_PADDLEOCR_VERSION=PP-OCRv6`, `MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT=1600`, `MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH=1`.
 - Flux 인페인팅은 `src/main/inpainting` 아래에서 관리합니다.
 - 설치형 앱의 대용량 모델/런타임은 앱 데이터 루트 아래에 저장됩니다.
 - GitHub Actions 릴리즈 빌드는 태그 기준으로 설치 파일을 생성합니다.

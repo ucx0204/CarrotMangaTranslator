@@ -8,6 +8,8 @@ const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
 const { buildHfResolveUrl } = require("./simple-page-download-utils.cjs");
 const { safeHfRelativePath } = require("./simple-page-cache-paths.cjs");
 const {
+  isOcrGpuRequested,
+  resolveOcrGpuBackend,
   resolveOcrRuntimeDir,
 } = require("./simple-page-ocr-runtime-config.cjs");
 
@@ -16,6 +18,12 @@ const {
  * @param {OcrRuntimeLayout | null} [runtime]
  */
 function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
+  if (
+    isOcrGpuRequested(options) &&
+    resolveOcrGpuBackend(options) === "rocm-transformers"
+  ) {
+    return [];
+  }
   const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);
   const endpoint = String(
     runtimeOverrideEnv("PADDLE_PDX_HUGGING_FACE_ENDPOINT", options) ||

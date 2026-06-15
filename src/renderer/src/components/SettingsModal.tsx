@@ -8,6 +8,7 @@ import type {
   ModelProvider,
   ModelSource,
   OcrDevice,
+  OcrGpuBackend,
 } from "../../../shared/types";
 import {
   MAX_MAX_TOKENS,
@@ -97,6 +98,9 @@ export function SettingsModal({
   const [ocrDevice, setOcrDevice] = React.useState<OcrDevice>(
     initialSettings.ocr.device,
   );
+  const [ocrGpuBackend, setOcrGpuBackend] = React.useState<OcrGpuBackend>(
+    initialSettings.ocr.gpuBackend ?? "cuda",
+  );
   const [fluxBackend, setFluxBackend] = React.useState<FluxBackend>(
     initialSettings.inpainting?.fluxBackend ?? "cuda-native",
   );
@@ -140,6 +144,7 @@ export function SettingsModal({
     setCodexReasoningEffort(initialSettings.codex.reasoningEffort);
     setCodexOauthPort(String(initialSettings.codex.oauthPort));
     setOcrDevice(initialSettings.ocr.device);
+    setOcrGpuBackend(initialSettings.ocr.gpuBackend ?? "cuda");
     setFluxBackend(initialSettings.inpainting?.fluxBackend ?? "cuda-native");
     setMaxTokens(String(initialSettings.maxTokens));
     setTestState({ status: "idle", message: null, detail: null });
@@ -172,13 +177,26 @@ export function SettingsModal({
   const usesNvidiaHardware = hardwareRuntimeLock === "nvidia";
   const usesAmdGemmaRuntime =
     modelProvider === "gemma" && isAmdLlamaRuntimeProfile(llamaRuntimeProfile);
-  const forceOcrCpu = usesAmdHardware || usesAmdGemmaRuntime;
+  const usesNvidiaGemmaRuntime =
+    modelProvider === "gemma" &&
+    isNvidiaLlamaRuntimeProfile(llamaRuntimeProfile);
+  const usesAmdOcrContext = usesAmdHardware || usesAmdGemmaRuntime;
+  const usesNvidiaOcrContext =
+    usesNvidiaHardware || (!usesAmdOcrContext && usesNvidiaGemmaRuntime);
 
   React.useEffect(() => {
-    if (forceOcrCpu && ocrDevice !== "cpu") {
-      setOcrDevice("cpu");
+    if (ocrDevice === "gpu" && ocrGpuBackend === "cuda" && usesAmdOcrContext) {
+      setOcrGpuBackend("rocm-transformers");
+      return;
     }
-  }, [forceOcrCpu, ocrDevice]);
+    if (
+      ocrDevice === "gpu" &&
+      ocrGpuBackend === "rocm-transformers" &&
+      usesNvidiaOcrContext
+    ) {
+      setOcrGpuBackend("cuda");
+    }
+  }, [ocrDevice, ocrGpuBackend, usesAmdOcrContext, usesNvidiaOcrContext]);
 
   React.useEffect(() => {
     if (usesAmdHardware && isNvidiaLlamaRuntimeProfile(llamaRuntimeProfile)) {
@@ -303,6 +321,7 @@ export function SettingsModal({
         ? parsedCodexOauthPort
         : initialSettings.codex.oauthPort,
       ocrDevice,
+      ocrGpuBackend,
       fluxBackend,
       maxTokens: parsedMaxTokens,
     });
@@ -324,6 +343,7 @@ export function SettingsModal({
     llamaRuntimeProfile,
     codexReasoningEffort,
     ocrDevice,
+    ocrGpuBackend,
     fluxBackend,
     maxTokensValid,
   ]);
@@ -537,13 +557,16 @@ export function SettingsModal({
               clearTestState={clearTestState}
               controlsBusy={controlsBusy}
               fluxBackend={fluxBackend}
-              forceOcrCpu={forceOcrCpu}
               isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
+              ocrGpuBackend={ocrGpuBackend}
               ocrDevice={ocrDevice}
               setFluxBackend={setFluxBackend}
               setOcrDevice={setOcrDevice}
+              setOcrGpuBackend={setOcrGpuBackend}
               usesAmdHardware={usesAmdHardware}
+              usesAmdOcrContext={usesAmdOcrContext}
               usesNvidiaHardware={usesNvidiaHardware}
+              usesNvidiaOcrContext={usesNvidiaOcrContext}
             />
           ) : null}
 

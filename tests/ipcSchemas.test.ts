@@ -196,6 +196,7 @@ describe("IPC schemas", () => {
       },
       ocr: {
         device: "cpu",
+        gpuBackend: "rocm",
       },
       inpainting: {
         fluxBackend: "rocm",
@@ -208,6 +209,7 @@ describe("IPC schemas", () => {
     expect(parsed.gemma.vramMode).toBe("economy26b");
     expect(parsed.gemma.llamaRuntimeProfile).toBe("rtx50");
     expect(parsed.gemma.llamaRocmTarget).toBe("gfx110X");
+    expect(parsed.ocr.gpuBackend).toBe("rocm-transformers");
     expect(parsed.inpainting?.fluxBackend).toBe("zluda-native");
     expect(
       parseIpcPayload(

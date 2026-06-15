@@ -3,7 +3,7 @@ export type ModelSource = "huggingface" | "local";
 export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
 export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
-export type OcrGpuBackend = "cuda";
+export type OcrGpuBackend = "cuda" | "rocm-transformers";
 export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
 export type AmdRocmTarget =
   | "gfx908"

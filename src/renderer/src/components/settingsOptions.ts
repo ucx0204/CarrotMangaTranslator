@@ -5,6 +5,7 @@ import type {
   ModelProvider,
   ModelSource,
   OcrDevice,
+  OcrGpuBackend,
 } from "../../../shared/types";
 import {
   GEMMA_MODEL_PRESETS,
@@ -76,10 +77,14 @@ type CodexReasoningOption = {
   description: string;
 };
 
+export type OcrRuntimeOptionId = OcrGpuBackend | "cpu";
+
 type OcrDeviceOption = {
-  id: OcrDevice;
+  id: OcrRuntimeOptionId;
   label: string;
   description: string;
+  device: OcrDevice;
+  gpuBackend?: OcrGpuBackend;
 };
 
 type LlamaRuntimeProfileOption = {
@@ -151,16 +156,27 @@ export const CODEX_REASONING_OPTIONS: CodexReasoningOption[] = [
 
 export const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [
   {
+    id: "cuda",
+    label: "NVIDIA CUDA",
+    description:
+      "NVIDIA GPU에서 PaddlePaddle CUDA + PaddleOCRVL로 OCR을 실행합니다.",
+    device: "gpu",
+    gpuBackend: "cuda",
+  },
+  {
+    id: "rocm-transformers",
+    label: "AMD ROCm",
+    description:
+      "지원되는 Windows ROCm GPU에서 PyTorch ROCm + PaddleOCR Transformers engine으로 OCR을 실행합니다.",
+    device: "gpu",
+    gpuBackend: "rocm-transformers",
+  },
+  {
     id: "cpu",
     label: "CPU",
     description:
-      "기본값입니다. 느리지만 별도 GPU Paddle 런타임 없이 가장 안정적으로 동작합니다.",
-  },
-  {
-    id: "gpu",
-    label: "GPU",
-    description:
-      "NVIDIA CUDA 환경에서 PaddleOCR를 GPU로 실행합니다. AMD GPU 환경에서는 OCR만 CPU 사용을 권장합니다.",
+      "느리지만 별도 GPU OCR 런타임 없이 가장 안정적으로 동작합니다.",
+    device: "cpu",
   },
 ];
 

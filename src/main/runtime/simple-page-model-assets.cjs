@@ -609,7 +609,7 @@ async function repairPaddleOcrModelAssetsCache(
 
 function isPaddleOcrModelAssetLoadFailure(value) {
   const text = stringifyErrorForDetection(value);
-  return /json\.exception\.parse_error\.101|attempting to parse an empty input|Creating model:\s*\('?(PP-DocLayoutV3|PaddleOCR-VL-1\.5|PP-OCRv5_server_det|PP-OCRv5_server_rec)/i.test(
+  return /json\.exception\.parse_error\.101|attempting to parse an empty input|Creating model:\s*\('?(PP-DocLayoutV3|PaddleOCR-VL-1\.[56]|PP-OCRv[56]_(server|medium)_det|PP-OCRv[56]_(server|medium)_rec)/i.test(
     text,
   );
 }

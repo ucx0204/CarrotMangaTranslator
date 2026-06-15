@@ -97,8 +97,12 @@ export function normalizeAppSettings(
   );
   const resolvedOcr = asRecord(ocr);
   const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
+  const ocrGpuBackend = resolveOcrGpuBackend(
+    resolvedOcr?.gpuBackend,
+    defaults.ocr.gpuBackend ?? "cuda",
+  );
   const ocrDevice =
-    hardwareVendor === "amd"
+    hardwareVendor === "amd" && ocrGpuBackend !== "rocm-transformers"
       ? "cpu"
       : resolveOcrDevice(resolvedOcr?.device, defaults.ocr.device);
   return {
@@ -138,10 +142,7 @@ export function normalizeAppSettings(
     },
     ocr: {
       device: ocrDevice,
-      gpuBackend: resolveOcrGpuBackend(
-        resolvedOcr?.gpuBackend,
-        defaults.ocr.gpuBackend ?? "cuda",
-      ),
+      gpuBackend: ocrGpuBackend,
       gpuCudaTag: resolveStoredOcrGpuCudaTag(resolvedOcr, defaults),
     },
     ui: {

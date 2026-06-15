@@ -7,6 +7,9 @@ const os = require("node:os");
 const path = require("node:path");
 
 const {
+  AMD_ROCM_721_SDK_PACKAGES,
+  AMD_ROCM_721_TORCH_PACKAGES,
+  DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
   DEFAULT_OCR_CPU_PIP_PACKAGES,
   DEFAULT_OCR_GPU_CUDA_TAG,
   DEFAULT_OCR_GPU_EXTRA_PACKAGES,
@@ -174,7 +177,10 @@ function resolveOcrPipInstallBatches(options = {}) {
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", options),
   );
   if (explicit.length > 0) {
-    return withPaddleOcrVlSafetensorsBatch([explicit]);
+    return isOcrGpuRequested(options) &&
+      resolveOcrGpuBackend(options) === "rocm-transformers"
+      ? [explicit]
+      : withPaddleOcrVlSafetensorsBatch([explicit]);
   }
 
   if (!isOcrGpuRequested(options)) {
@@ -184,6 +190,21 @@ function resolveOcrPipInstallBatches(options = {}) {
     return withPaddleOcrVlSafetensorsBatch([
       cpuPackages.length > 0 ? cpuPackages : DEFAULT_OCR_CPU_PIP_PACKAGES,
     ]);
+  }
+
+  if (resolveOcrGpuBackend(options) === "rocm-transformers") {
+    const amdPackages = splitShellLikeEnv(
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_AMD_PIP_PACKAGES", options) ??
+        runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_ROCM_PIP_PACKAGES", options),
+    );
+    if (amdPackages.length > 0) {
+      return [amdPackages];
+    }
+    return [
+      AMD_ROCM_721_SDK_PACKAGES,
+      AMD_ROCM_721_TORCH_PACKAGES,
+      DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
+    ];
   }
 
   const gpuPackages = splitShellLikeEnv(
@@ -304,9 +325,13 @@ function summarizeOcrInstallBatches(installBatches, options = {}) {
   const packageNames = installBatches
     .flat()
     .filter((part) => !part.startsWith("-") && !/^https?:\/\//i.test(part));
-  const suffix = isOcrGpuRequested(options)
-    ? ` (${resolveOcrGpuCudaTag(options)})`
-    : "";
+  let suffix = "";
+  if (isOcrGpuRequested(options)) {
+    suffix =
+      resolveOcrGpuBackend(options) === "rocm-transformers"
+        ? " (rocm-transformers)"
+        : ` (${resolveOcrGpuCudaTag(options)})`;
+  }
   return `${packageNames.join(", ")}${suffix}`;
 }
 
@@ -322,7 +347,25 @@ function isOcrBlackwellCudaTag(options = {}) {
 }
 
 function resolveOcrGpuBackend(options = {}) {
-  void options;
+  const normalized = String(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_BACKEND", options) ??
+      options.ocrGpuBackend ??
+      "cuda",
+  )
+    .trim()
+    .toLowerCase();
+  if (normalized === "cuda" || normalized === "nvidia") {
+    return "cuda";
+  }
+  if (
+    normalized === "rocm" ||
+    normalized === "amd" ||
+    normalized === "hip" ||
+    normalized === "rocm-transformers" ||
+    normalized === "transformers-rocm"
+  ) {
+    return "rocm-transformers";
+  }
   return "cuda";
 }
 
@@ -354,6 +397,9 @@ function resolveOcrGpuPackageIndexUrl(options = {}) {
 function resolveOcrRuntimeVariant(options = {}) {
   if (!isOcrGpuRequested(options)) {
     return "cpu";
+  }
+  if (resolveOcrGpuBackend(options) === "rocm-transformers") {
+    return "gpu-rocm-transformers";
   }
   return `gpu-${resolveOcrGpuCudaTag(options)}`
     .replace(/[^a-z0-9._-]+/gi, "-")
@@ -403,12 +449,27 @@ function resolvePaddleOcrImportCheckTimeoutMs(options = {}) {
     return explicit;
   }
   if (isOcrGpuRequested(options)) {
+    if (resolveOcrGpuBackend(options) === "rocm-transformers") {
+      return 300000;
+    }
     return isOcrBlackwellCudaTag(options) ? 300000 : 180000;
   }
   return 120000;
 }
 
 function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
+  if (
+    isOcrGpuRequested(options) &&
+    resolveOcrGpuBackend(options) === "rocm-transformers"
+  ) {
+    const detail = importMessage
+      ? ` detail=${truncateText(importMessage, 1200)}`
+      : "";
+    if (isPaddleOcrVerificationTimeoutText(importMessage)) {
+      return `Paddle OCR 런타임 설치 후 AMD ROCm/PyTorch 검증이 시간 초과되었습니다. Windows ROCm PyTorch 첫 import가 오래 걸릴 수 있습니다.${detail}`;
+    }
+    return `AMD OCR GPU 실행에 실패했습니다. AMD 경로는 PaddlePaddle CUDA가 아니라 Windows ROCm PyTorch + PaddleOCR Transformers engine을 사용합니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 드라이버가 필요합니다. 실패가 반복되면 OCR 장치를 CPU로 바꾸세요.${detail}`;
+  }
   if (isPaddleSm120UnsupportedText(importMessage)) {
     return buildPaddleOcrSm120FailureMessage(importMessage, options);
   }
@@ -438,18 +499,24 @@ function resolvePaddleOcrTimeoutSuffix(options = {}) {
   if (!isOcrGpuRequested(options)) {
     return " CPU 런타임 검증이 제한 시간 안에 끝나지 않았습니다.";
   }
+  if (resolveOcrGpuBackend(options) === "rocm-transformers") {
+    return " AMD ROCm/PyTorch GPU 검증이 제한 시간 안에 끝나지 않았습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1 지원 GPU와 드라이버를 확인하세요.";
+  }
   return ` CUDA GPU 검증이 제한 시간 안에 끝나지 않았습니다. RTX 50번대는 cu129 런타임을 사용하며 첫 실행 검증이 오래 걸릴 수 있지만, 반복되면 NVIDIA 드라이버/CUDA 12.9용 Paddle 런타임 호환성을 확인해야 합니다.`;
 }
 
 function buildPaddleOcrGpuFailureMessage(error, options = {}) {
   const text = summarizeOcrErrorMessage(error);
+  if (resolveOcrGpuBackend(options) === "rocm-transformers") {
+    return `AMD OCR GPU 실행에 실패했습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 Python 3.12가 필요합니다. OCR 장치를 CPU로 바꾸거나 AMD ROCm 지원 GPU/드라이버를 확인하세요. detail=${truncateText(text, 1200)}`;
+  }
   if (isPaddleSm120UnsupportedText(text)) {
     return buildPaddleOcrSm120FailureMessage(text, options);
   }
   if (isPaddleBfloat16SafetensorsText(text)) {
     return buildPaddleOcrBfloat16SafetensorsFailureMessage(text, options);
   }
-  return `Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 NVIDIA GPU Paddle 런타임이 필요합니다. AMD 환경에서는 OCR만 CPU로 처리하세요. detail=${truncateText(text, 1200)}`;
+  return `Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 NVIDIA GPU Paddle 런타임이 필요합니다. OCR 장치를 CPU로 바꾸거나 NVIDIA 드라이버/CUDA용 Paddle 런타임을 확인하세요. detail=${truncateText(text, 1200)}`;
 }
 
 function buildPaddleOcrSm120FailureMessage(detail, options = {}) {
@@ -461,6 +528,12 @@ function buildPaddleOcrBfloat16SafetensorsFailureMessage(detail, options = {}) {
 }
 
 function buildPaddleOcrNativeDllFailureMessage(detail, options = {}) {
+  if (
+    isOcrGpuRequested(options) &&
+    resolveOcrGpuBackend(options) === "rocm-transformers"
+  ) {
+    return `AMD OCR GPU 런타임의 Windows ROCm PyTorch DLL을 불러오지 못했습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1 지원 GPU/드라이버와 OCR 런타임 설치 상태를 확인하거나 OCR 장치를 CPU로 바꾸세요. detail=${truncateText(detail, 1200)}`;
+  }
   const runtimeLabel = isOcrGpuRequested(options) ? "GPU" : "CPU";
   return `Paddle OCR ${runtimeLabel} 런타임의 네이티브 DLL을 불러오지 못했습니다. 앱이 Paddle 패키지 내부 DLL 경로를 다시 잡도록 수정했지만, 같은 오류가 반복되면 OCR 런타임을 삭제하고 재설치하거나 Microsoft Visual C++ 2015-2022 재배포 패키지가 설치되어 있는지 확인하세요. detail=${truncateText(detail, 1200)}`;
 }
@@ -512,6 +585,29 @@ function resolveOcrInstallSignature(options = {}) {
 
 function buildPaddleOcrImportCheckScript(options = {}) {
   const device = resolveOcrDevice(options);
+  if (
+    device.startsWith("gpu") &&
+    resolveOcrGpuBackend(options) === "rocm-transformers"
+  ) {
+    return [
+      "import os",
+      "_dll_dirs = [p for p in os.environ.get('MANGA_TRANSLATOR_OCR_DLL_DIRS', '').split(os.pathsep) if p]",
+      "_dll_handles = [os.add_dll_directory(p) for p in _dll_dirs if hasattr(os, 'add_dll_directory') and os.path.isdir(p)]",
+      "import importlib.util",
+      "missing = [name for name in ('torch', 'transformers', 'paddleocr') if importlib.util.find_spec(name) is None]",
+      "assert not missing, 'Missing AMD ROCm OCR package(s): ' + ', '.join(missing)",
+      "import torch",
+      "assert torch.cuda.is_available(), 'AMD ROCm PyTorch GPU is not available'",
+      "assert getattr(torch.version, 'hip', None), 'PyTorch is not a ROCm/HIP build'",
+      "x = torch.ones((1,), device='cuda')",
+      "torch.cuda.synchronize()",
+      "print('torch', torch.__version__)",
+      "print('hip', torch.version.hip)",
+      "print('gpu', torch.cuda.get_device_name(0))",
+      "from paddleocr import PaddleOCR",
+    ].join("; ");
+  }
+
   const lines = [
     "import os",
     "_dll_dirs = [p for p in os.environ.get('MANGA_TRANSLATOR_OCR_DLL_DIRS', '').split(os.pathsep) if p]",
@@ -560,6 +656,7 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
     runtimeDir,
   );
   const ocrDevice = resolveOcrDevice(options);
+  const ocrGpuBackend = resolveOcrGpuBackend(options);
   const pipCacheDir = path.join(runtimeDir, "pip-cache");
   const tempDir = path.join(runtimeDir, "tmp");
   const env = buildWhitelistedChildEnv({
@@ -582,9 +679,30 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
       options.ocrDevice ||
       runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options) ||
       "cpu",
+    MANGA_TRANSLATOR_OCR_GPU_BACKEND: ocrGpuBackend,
     MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG: resolveOcrGpuCudaTag(options),
     MANGA_TRANSLATOR_OCR_DLL_DIRS: dllSearchDirs.join(path.delimiter),
     MANGA_TRANSLATOR_PADDLEOCR_DEVICE: ocrDevice,
+    ...(ocrGpuBackend === "rocm-transformers" && ocrDevice.startsWith("gpu")
+      ? {
+          MANGA_TRANSLATOR_PADDLEOCR_ENGINE:
+            runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", options) ||
+            "transformers",
+          MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE:
+            runtimeOverrideEnv(
+              "MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE",
+              options,
+            ) || "float16",
+          MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE:
+            runtimeOverrideEnv(
+              "MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE",
+              options,
+            ) || "ocr",
+          MANGA_TRANSLATOR_PADDLEOCR_VERSION:
+            runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VERSION", options) ||
+            "PP-OCRv6",
+        }
+      : {}),
     PYTHONPATH: pythonPath,
     PYTHONNOUSERSITE: "1",
     PYTHONUSERBASE: path.join(runtimeDir, "python-user-base"),
@@ -654,7 +772,7 @@ function buildOcrRuntimeDllSearchDirs(
 ) {
   const packageDir =
     runtime?.packageDir || resolveOcrPythonPackageDir(runtimeDir, options);
-  return [
+  const paddleDirs = [
     packageDir,
     path.join(packageDir, "paddle"),
     path.join(packageDir, "paddle", "base"),
@@ -662,6 +780,28 @@ function buildOcrRuntimeDllSearchDirs(
     path.join(packageDir, "paddle", "libs"),
     path.join(packageDir, "paddle.libs"),
     path.join(packageDir, "Paddle.libs"),
+  ];
+  if (resolveOcrGpuBackend(options) !== "rocm-transformers") {
+    return paddleDirs;
+  }
+  return [
+    ...paddleDirs,
+    path.join(packageDir, "torch"),
+    path.join(packageDir, "torch", "lib"),
+    path.join(packageDir, "rocm"),
+    path.join(packageDir, "rocm", "bin"),
+    path.join(packageDir, "rocm", "lib"),
+    path.join(packageDir, "rocm_sdk"),
+    path.join(packageDir, "rocm_sdk", "bin"),
+    path.join(packageDir, "_rocm_sdk_core"),
+    path.join(packageDir, "_rocm_sdk_core", "bin"),
+    path.join(packageDir, "_rocm_sdk_core", "lib", "llvm", "bin"),
+    path.join(packageDir, "_rocm_sdk_devel"),
+    path.join(packageDir, "_rocm_sdk_devel", "bin"),
+    path.join(packageDir, "_rocm_sdk_devel", "lib", "llvm", "bin"),
+    path.join(packageDir, "_rocm_sdk_libraries_custom"),
+    path.join(packageDir, "_rocm_sdk_libraries_custom", "bin"),
+    path.join(packageDir, "_rocm_sdk_libraries_custom", "bin", "hipblaslt"),
   ];
 }
 

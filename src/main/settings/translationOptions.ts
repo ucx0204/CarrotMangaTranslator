@@ -4,6 +4,7 @@ import type {
   AppSettings,
   LlamaRuntimeProfile,
   OcrDevice,
+  OcrGpuBackend,
 } from "../../shared/types";
 import { normalizeAmdRocmTarget } from "../gpuInfo";
 import type {
@@ -81,20 +82,21 @@ export function buildBaseTranslationOptions({
     runtimeEnv,
     settings.gemma.llamaRuntimeProfile,
   );
+  const ocrGpuBackend = resolveOcrGpuBackend(
+    runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_BACKEND,
+    settings.ocr.gpuBackend ?? "cuda",
+  );
   const ocrDevice = resolveRuntimeOcrDevice(
     runtimeEnv,
     settings.ocr.device,
     llamaRuntimeProfile,
+    ocrGpuBackend,
   );
   const ocrGpuCudaTag = resolveOcrGpuCudaTag(
     runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG ??
       runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG ??
       runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_CUDA,
     settings.ocr.gpuCudaTag ?? DEFAULT_OCR_GPU_CUDA_TAG,
-  );
-  const ocrGpuBackend = resolveOcrGpuBackend(
-    runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_BACKEND,
-    settings.ocr.gpuBackend ?? "cuda",
   );
   const llamaRocmTarget =
     normalizeAmdRocmTarget(
@@ -406,17 +408,19 @@ function resolveRuntimeOcrDevice(
   env: NodeJS.ProcessEnv,
   configuredDevice: OcrDevice,
   llamaRuntimeProfile: LlamaRuntimeProfile,
+  ocrGpuBackend: OcrGpuBackend,
 ): OcrDevice {
-  if (
-    isRocmLlamaRuntimeProfile(llamaRuntimeProfile) ||
-    isVulkanLlamaRuntimeProfile(llamaRuntimeProfile)
-  ) {
-    return "cpu";
-  }
   const explicit =
     env.MANGA_TRANSLATOR_OCR_DEVICE ?? env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE;
   if (explicit !== undefined) {
     return resolveOcrDevice(explicit, configuredDevice);
+  }
+  if (
+    (isRocmLlamaRuntimeProfile(llamaRuntimeProfile) ||
+      isVulkanLlamaRuntimeProfile(llamaRuntimeProfile)) &&
+    ocrGpuBackend !== "rocm-transformers"
+  ) {
+    return "cpu";
   }
   return configuredDevice;
 }

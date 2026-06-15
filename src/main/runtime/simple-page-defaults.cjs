@@ -12,11 +12,27 @@ const DEFAULT_CODEX_REASONING_EFFORT = "low";
 const DEFAULT_API_KEY = "local-llama-server";
 const DEFAULT_OCR_CPU_PIP_PACKAGES = [
   "paddlepaddle==3.3.1",
-  "paddleocr[doc-parser]==3.5.0",
+  "paddleocr[doc-parser]==3.7.0",
 ];
 const DEFAULT_OCR_GPU_PADDLE_PACKAGE = "paddlepaddle-gpu==3.3.1";
-const DEFAULT_OCR_GPU_EXTRA_PACKAGES = ["paddleocr[doc-parser]==3.5.0"];
+const DEFAULT_OCR_GPU_EXTRA_PACKAGES = ["paddleocr[doc-parser]==3.7.0"];
 const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
+const AMD_ROCM_721_SDK_PACKAGES = [
+  "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/rocm_sdk_core-7.2.1-py3-none-win_amd64.whl",
+  "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/rocm_sdk_devel-7.2.1-py3-none-win_amd64.whl",
+  "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/rocm_sdk_libraries_custom-7.2.1-py3-none-win_amd64.whl",
+  "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/rocm-7.2.1.tar.gz",
+];
+const AMD_ROCM_721_TORCH_PACKAGES = [
+  "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
+  "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torchaudio-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
+  "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torchvision-0.24.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
+];
+const DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES = [
+  "paddleocr==3.7.0",
+  "transformers>=5.10.0",
+  "safetensors>=0.6.2",
+];
 const PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL =
   "https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl";
 const OCR_INSTALL_MARKER_FILE = "install-complete.json";
@@ -49,8 +65,8 @@ const PADDLE_OCR_MODEL_DOWNLOADS = [
     ],
   },
   {
-    name: "PaddleOCR-VL-1.5",
-    repo: "PaddlePaddle/PaddleOCR-VL-1.5",
+    name: "PaddleOCR-VL-1.6",
+    repo: "PaddlePaddle/PaddleOCR-VL-1.6",
     files: [
       ".gitattributes",
       "LICENSE",
@@ -74,24 +90,22 @@ const PADDLE_OCR_MODEL_DOWNLOADS = [
     ],
   },
   {
-    name: "PP-OCRv5_server_det",
-    repo: "PaddlePaddle/PP-OCRv5_server_det",
+    name: "PP-OCRv6_medium_det",
+    repo: "PaddlePaddle/PP-OCRv6_medium_det",
     files: [
       ".gitattributes",
       "README.md",
-      "config.json",
       "inference.json",
       "inference.pdiparams",
       "inference.yml",
     ],
   },
   {
-    name: "PP-OCRv5_server_rec",
-    repo: "PaddlePaddle/PP-OCRv5_server_rec",
+    name: "PP-OCRv6_medium_rec",
+    repo: "PaddlePaddle/PP-OCRv6_medium_rec",
     files: [
       ".gitattributes",
       "README.md",
-      "config.json",
       "inference.json",
       "inference.pdiparams",
       "inference.yml",
@@ -100,9 +114,12 @@ const PADDLE_OCR_MODEL_DOWNLOADS = [
 ];
 
 module.exports = {
+  AMD_ROCM_721_SDK_PACKAGES,
+  AMD_ROCM_721_TORCH_PACKAGES,
   CROP_RETRY_MARGIN_RATIO,
   CROP_RETRY_MIN_MARGIN_PX,
   CROP_RETRY_MIN_SIDE_PX,
+  DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
   DEFAULT_API_KEY,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,

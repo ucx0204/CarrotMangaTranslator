@@ -1,63 +1,95 @@
 import React from "react";
-import type { FluxBackend, OcrDevice } from "../../../../shared/types";
+import type {
+  FluxBackend,
+  OcrDevice,
+  OcrGpuBackend,
+} from "../../../../shared/types";
 import { FLUX_BACKEND_OPTIONS, OCR_DEVICE_OPTIONS } from "../settingsOptions";
 
 type HardwareSettingsPanelProps = {
   clearTestState: () => void;
   controlsBusy: boolean;
   fluxBackend: FluxBackend;
-  forceOcrCpu: boolean;
   isFluxBackendOptionDisabled: (backend: FluxBackend) => boolean;
+  ocrGpuBackend: OcrGpuBackend;
   ocrDevice: OcrDevice;
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
   setOcrDevice: React.Dispatch<React.SetStateAction<OcrDevice>>;
+  setOcrGpuBackend: React.Dispatch<React.SetStateAction<OcrGpuBackend>>;
   usesAmdHardware: boolean;
+  usesAmdOcrContext: boolean;
   usesNvidiaHardware: boolean;
+  usesNvidiaOcrContext: boolean;
 };
 
 export function HardwareSettingsPanel({
   clearTestState,
   controlsBusy,
   fluxBackend,
-  forceOcrCpu,
   isFluxBackendOptionDisabled,
+  ocrGpuBackend,
   ocrDevice,
   setFluxBackend,
   setOcrDevice,
+  setOcrGpuBackend,
   usesAmdHardware,
+  usesAmdOcrContext,
   usesNvidiaHardware,
+  usesNvidiaOcrContext,
 }: HardwareSettingsPanelProps): React.JSX.Element {
+  const activeOcrOptionId = ocrDevice === "cpu" ? "cpu" : ocrGpuBackend;
+  const activeOcrOption = OCR_DEVICE_OPTIONS.find(
+    (option) => option.id === activeOcrOptionId,
+  );
+  const ocrDescription =
+    usesAmdOcrContext && activeOcrOptionId === "rocm-transformers"
+      ? "AMD OCR GPU는 실험 기능입니다. PaddlePaddle CUDA가 아니라 PyTorch ROCm + Transformers engine을 사용하며, 실패하면 OCR만 CPU로 바꿀 수 있습니다."
+      : activeOcrOption?.description;
+
   return (
     <>
       <div className="settings-field-stack">
         <span>Paddle OCR 장치</span>
         <div
-          className="settings-mode-group"
+          className="settings-preset-group"
           role="tablist"
           aria-label="Paddle OCR 장치"
         >
-          {OCR_DEVICE_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={`settings-preset-button ${ocrDevice === option.id ? "active" : ""}`}
-              onClick={() => {
-                clearTestState();
-                setOcrDevice(option.id);
-              }}
-              disabled={controlsBusy || (forceOcrCpu && option.id === "gpu")}
-              aria-pressed={ocrDevice === option.id}
-            >
-              {option.label}
-            </button>
-          ))}
+          {OCR_DEVICE_OPTIONS.map((option) => {
+            const disabled =
+              controlsBusy ||
+              (option.id === "cuda" && usesAmdOcrContext) ||
+              (option.id === "rocm-transformers" && usesNvidiaOcrContext);
+            return (
+              <button
+                key={option.id}
+                type="button"
+                className={`settings-preset-button ${activeOcrOptionId === option.id ? "active" : ""}`}
+                onClick={() => {
+                  clearTestState();
+                  setOcrDevice(option.device);
+                  if (option.gpuBackend) {
+                    setOcrGpuBackend(option.gpuBackend);
+                  }
+                }}
+                disabled={disabled}
+                aria-pressed={activeOcrOptionId === option.id}
+              >
+                {option.label}
+              </button>
+            );
+          })}
         </div>
-        <p className="muted-line modal-note">
-          {forceOcrCpu
-            ? "AMD GPU 환경에서는 PaddleOCR GPU 경로를 쓰지 않고 OCR만 CPU로 처리합니다."
-            : OCR_DEVICE_OPTIONS.find((option) => option.id === ocrDevice)
-                ?.description}
-        </p>
+        <p className="muted-line modal-note">{ocrDescription}</p>
+        {usesAmdOcrContext ? (
+          <p className="muted-line modal-note">
+            AMD 환경에서는 NVIDIA CUDA OCR을 선택할 수 없습니다.
+          </p>
+        ) : usesNvidiaOcrContext ? (
+          <p className="muted-line modal-note">
+            NVIDIA 환경에서는 AMD ROCm OCR을 선택할 수 없습니다.
+          </p>
+        ) : null}
       </div>
 
       <div className="settings-field-stack">

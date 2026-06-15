@@ -12,6 +12,7 @@ export type RuntimeOptions = {
   ocrBboxCommand?: string | null;
   ocrBboxProvider?: string | null;
   ocrDevice?: string | null;
+  ocrGpuBackend?: string | null;
   ocrGpuCudaTag?: string | null;
   ocrPageIndex?: number | null;
   ocrPageTotal?: number | null;

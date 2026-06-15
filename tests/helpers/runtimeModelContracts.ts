@@ -23,6 +23,7 @@ const runtimeHelpers = {
   ...require("../../src/main/runtime/simple-page-launch-args.cjs"),
   ...require("../../src/main/runtime/simple-page-request-builders.cjs"),
   ...require("../../src/main/runtime/simple-page-ocr-runtime-config.cjs"),
+  ...require("../../src/main/runtime/simple-page-ocr-commands.cjs"),
   ...require("../../src/main/runtime/simple-page-ocr-model-assets.cjs"),
   ...require("../../src/main/runtime/simple-page-image-variants.cjs"),
   ...require("../../src/main/runtime/simple-page-model-assets.cjs"),
@@ -96,6 +97,18 @@ const runtimeHelpers = {
   buildPaddleOcrImportCheckScript: (options?: {
     [key: string]: unknown;
   }) => string;
+  buildOcrBboxCommand: (
+    options: { [key: string]: unknown },
+    provider: string,
+    outputPath: string,
+    runtime?: { pythonPath?: string } | null,
+  ) => string;
+  buildOcrBboxBatchCommand: (
+    options: { [key: string]: unknown },
+    batchPath: string,
+    runtime?: { pythonPath?: string } | null,
+    progressPath?: string | null,
+  ) => string;
   buildPaddleOcrImportFailureMessage: (
     message: string,
     options?: { [key: string]: unknown },
@@ -178,6 +191,7 @@ const runtimeHelpers = {
   resolveOcrPipInstallBatches: (options?: {
     [key: string]: unknown;
   }) => string[][];
+  resolveOcrRuntimeVariant: (options?: { [key: string]: unknown }) => string;
   resolvePaddleOcrImportCheckTimeoutMs: (options?: {
     [key: string]: unknown;
   }) => number;
@@ -229,6 +243,8 @@ export const {
   buildLaunchArgs,
   buildMessages,
   buildOcrRuntimeEnv,
+  buildOcrBboxBatchCommand,
+  buildOcrBboxCommand,
   buildLlamaServerEnv,
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
@@ -254,6 +270,7 @@ export const {
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
   resolveOcrPipInstallBatches,
+  resolveOcrRuntimeVariant,
   resolvePaddleOcrImportCheckTimeoutMs,
 } = runtimeHelpers;
 export const { bundledServerCandidates, resolveBundledServerPath } =

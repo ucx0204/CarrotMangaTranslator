@@ -19,6 +19,7 @@ import {
   resolveDefaultAppSettings,
   RTX_50_OCR_GPU_CUDA_TAG,
 } from "../src/main/appSettings";
+import { resolveOcrGpuBackend } from "../src/main/settings/appSettingsResolvers";
 import type { AppSettings } from "../src/shared/types";
 import { join } from "node:path";
 
@@ -506,8 +507,8 @@ describe("app settings helpers", () => {
     expect(amdDefaults.gemma.llamaRocmTarget).toBe("gfx110X");
     expect(options.llamaRuntimeProfile).toBe("rocm");
     expect(options.llamaRocmTarget).toBe("gfx110X");
-    expect(options.ocrDevice).toBe("cpu");
-    expect(options.ocrGpuBackend).toBe("cuda");
+    expect(options.ocrDevice).toBe("gpu");
+    expect(options.ocrGpuBackend).toBe("rocm-transformers");
     expect(options.serverPath).toBe(
       join(
         "C:/app-data",
@@ -536,7 +537,8 @@ describe("app settings helpers", () => {
     expect(amdDefaults.modelProvider).toBe("gemma");
     expect(amdDefaults.gemma.llamaRuntimeProfile).toBe("rocm");
     expect(amdDefaults.gemma.llamaRocmTarget).toBe("gfx110X");
-    expect(amdDefaults.ocr.device).toBe("cpu");
+    expect(amdDefaults.ocr.device).toBe("gpu");
+    expect(amdDefaults.ocr.gpuBackend).toBe("rocm-transformers");
   });
 
   it("restores the AMD ROCm target when old saved settings only kept the ROCm profile", () => {
@@ -641,7 +643,7 @@ describe("app settings helpers", () => {
 
     expect(amdNormalized.gemma.llamaRuntimeProfile).toBe("rocm");
     expect(amdNormalized.gemma.llamaRocmTarget).toBe("gfx110X");
-    expect(amdNormalized.ocr.device).toBe("cpu");
+    expect(amdNormalized.ocr.device).toBe("gpu");
     expect(amdNormalized.inpainting?.fluxBackend).toBe(
       amdDefaults.inpainting?.fluxBackend,
     );
@@ -649,7 +651,7 @@ describe("app settings helpers", () => {
     expect(nvidiaNormalized.inpainting?.fluxBackend).toBe("cuda-native");
   });
 
-  it("forces OCR to CPU for AMD llama runtimes even when GPU OCR is configured", () => {
+  it("forces OCR to CPU for AMD llama runtimes when CUDA OCR is configured", () => {
     const defaults = resolveDefaultAppSettings();
     const settings: AppSettings = {
       ...defaults,
@@ -676,14 +678,47 @@ describe("app settings helpers", () => {
         hfHubCacheDir: "C:/hf-home/hub",
       },
       settings,
-      env: {
-        MANGA_TRANSLATOR_OCR_DEVICE: "gpu",
-      },
+      env: {},
     });
 
     expect(options.llamaRuntimeProfile).toBe("rocm");
     expect(options.ocrDevice).toBe("cpu");
     expect(options.ocrGpuBackend).toBe("cuda");
+  });
+
+  it("allows OCR GPU for AMD llama runtimes with the ROCm Transformers backend", () => {
+    const defaults = resolveDefaultAppSettings();
+    const settings: AppSettings = {
+      ...defaults,
+      modelProvider: "gemma",
+      gemma: {
+        ...defaults.gemma,
+        llamaRuntimeProfile: "rocm",
+      },
+      ocr: {
+        device: "gpu",
+        gpuBackend: "rocm-transformers",
+        gpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      },
+    };
+
+    const options = buildBaseTranslationOptions({
+      jobId: "job-amd-ocr-rocm",
+      runDir: "C:/runs/job-amd-ocr-rocm",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub",
+      },
+      settings,
+      env: {},
+    });
+
+    expect(options.llamaRuntimeProfile).toBe("rocm");
+    expect(options.ocrDevice).toBe("gpu");
+    expect(options.ocrGpuBackend).toBe("rocm-transformers");
   });
 
   it("keeps Paddle OCR CUDA tag separate from the llama runtime profile", () => {
@@ -892,6 +927,19 @@ describe("app settings helpers", () => {
     ).toBe("cu129");
   });
 
+  it("normalizes OCR GPU backend aliases", () => {
+    expect(resolveOcrGpuBackend("cuda")).toBe("cuda");
+    expect(resolveOcrGpuBackend("nvidia")).toBe("cuda");
+    expect(resolveOcrGpuBackend("rocm")).toBe("rocm-transformers");
+    expect(resolveOcrGpuBackend("amd")).toBe("rocm-transformers");
+    expect(resolveOcrGpuBackend("hip")).toBe("rocm-transformers");
+    expect(resolveOcrGpuBackend("rocm-transformers")).toBe("rocm-transformers");
+    expect(resolveOcrGpuBackend("transformers-rocm")).toBe("rocm-transformers");
+    expect(resolveOcrGpuBackend("mps", "rocm-transformers")).toBe(
+      "rocm-transformers",
+    );
+  });
+
   it("chooses first-run defaults from detected GPU generation and VRAM", () => {
     expect(
       resolveHardwareDefaults({
@@ -967,7 +1015,7 @@ describe("app settings helpers", () => {
     ).toEqual({
       modelProvider: "gemma",
       gemmaVramMode: "minimum12b",
-      ocrDevice: "cpu",
+      ocrDevice: "gpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
       fluxBackend: "cuda-native",
@@ -1002,9 +1050,9 @@ describe("app settings helpers", () => {
     ).toEqual({
       modelProvider: "gemma",
       gemmaVramMode: "full31b",
-      ocrDevice: "cpu",
+      ocrDevice: "gpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
-      ocrGpuBackend: "cuda",
+      ocrGpuBackend: "rocm-transformers",
       fluxBackend: "zluda-native",
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X",
@@ -1022,9 +1070,9 @@ describe("app settings helpers", () => {
     ).toEqual({
       modelProvider: "gemma",
       gemmaVramMode: "economy26b",
-      ocrDevice: "cpu",
+      ocrDevice: "gpu",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
-      ocrGpuBackend: "cuda",
+      ocrGpuBackend: "rocm-transformers",
       fluxBackend: "zluda-native",
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X",

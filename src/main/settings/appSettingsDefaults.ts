@@ -174,14 +174,16 @@ export function resolveHardwareDefaults(
     };
   }
 
+  const ocrGpuBackend = resolveHardwareOcrGpuBackend(info);
   const memoryMb = info.memoryMb ?? 0;
-  const ocrDevice: OcrDevice = isAmd
-    ? "cpu"
-    : memoryMb >= 12000
+  const supportsNvidiaOcrGpu =
+    !isAmd && (supportedRtxGeneration || supportedComputeCapability);
+  const ocrDevice: OcrDevice =
+    memoryMb >= 8000 &&
+    (supportsNvidiaOcrGpu || ocrGpuBackend === "rocm-transformers")
       ? "gpu"
       : "cpu";
   const ocrGpuCudaTag = resolveHardwareOcrGpuCudaTag(info);
-  const ocrGpuBackend = resolveHardwareOcrGpuBackend(info);
   const llamaRuntimeProfile = resolveHardwareLlamaRuntimeProfile(info);
   if (memoryMb >= GEMMA_FULL_VRAM_MB) {
     return {
@@ -233,8 +235,11 @@ function resolveHardwareOcrGpuCudaTag(info: DetectedGpuInfo | null): string {
 }
 
 function resolveHardwareOcrGpuBackend(
-  _info: DetectedGpuInfo | null,
+  info: DetectedGpuInfo | null,
 ): OcrGpuBackend {
+  if (info?.vendor === "amd" && (info.supportsRocm || info.rocmTarget)) {
+    return "rocm-transformers";
+  }
   return "cuda";
 }
 

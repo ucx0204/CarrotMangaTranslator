@@ -170,14 +170,19 @@ const OcrGpuBackendSchema = z.preprocess(
     const normalized = String(value ?? "")
       .trim()
       .toLowerCase();
-    if (
-      ["auto", "", "cuda", "nvidia", "rocm", "hip", "amd"].includes(normalized)
-    ) {
+    if (["auto", "", "cuda", "nvidia"].includes(normalized)) {
       return "cuda";
+    }
+    if (
+      ["rocm", "amd", "hip", "rocm-transformers", "transformers-rocm"].includes(
+        normalized,
+      )
+    ) {
+      return "rocm-transformers";
     }
     return value;
   },
-  z.enum(["cuda"]),
+  z.enum(["cuda", "rocm-transformers"]),
 );
 
 export const BBoxSchema = z

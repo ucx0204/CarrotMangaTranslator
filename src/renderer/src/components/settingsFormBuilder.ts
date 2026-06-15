@@ -7,6 +7,7 @@ import type {
   ModelProvider,
   ModelSource,
   OcrDevice,
+  OcrGpuBackend,
 } from "../../../shared/types";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
@@ -29,6 +30,7 @@ type BuildSettingsFromFormInput = {
   codexReasoningEffort: CodexReasoningEffort;
   codexOauthPort: number;
   ocrDevice: OcrDevice;
+  ocrGpuBackend: OcrGpuBackend;
   fluxBackend: FluxBackend;
   maxTokens: number;
 };
@@ -56,6 +58,7 @@ export function buildSettingsFromForm(
   };
   const ocr = {
     device: input.ocrDevice,
+    gpuBackend: input.ocrGpuBackend,
     ...(input.initialSettings.ocr.gpuCudaTag
       ? { gpuCudaTag: input.initialSettings.ocr.gpuCudaTag }
       : {}),
