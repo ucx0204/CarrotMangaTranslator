@@ -80,7 +80,8 @@
 
 @font-face {
   font-family: "MGT Nanum Barun Gothic";
-  src: url("./assets/fonts/nanum-barun-gothic-ultra-light.ttf") format("truetype");
+  src: url("./assets/fonts/nanum-barun-gothic-ultra-light.ttf")
+    format("truetype");
   font-weight: 200;
   font-style: normal;
   font-display: swap;
@@ -471,7 +472,9 @@ input[type="range"]:focus-visible {
 }
 
 input[type="range"]:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-sm);
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    var(--shadow-sm);
 }
 
 .primary {
@@ -678,7 +681,9 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 .library-search-shell:focus-within {
   border-color: var(--accent-bd);
   background: var(--bg-sunken);
-  box-shadow: 0 0 0 1px var(--accent-soft), var(--glass-highlight);
+  box-shadow:
+    0 0 0 1px var(--accent-soft),
+    var(--glass-highlight);
 }
 
 .library-search-icon {
@@ -902,7 +907,6 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   display: flex;
   gap: 8px;
 }
-
 
 .library-icon-button {
   width: 28px;
@@ -2098,7 +2102,11 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   pointer-events: none;
   border: 2px solid var(--retouch-cursor-color, #111);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--retouch-cursor-color, #111) 14%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--retouch-cursor-color, #111) 14%,
+    transparent
+  );
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.95),
     0 0 0 3px rgba(0, 0, 0, 0.35),
@@ -2118,13 +2126,15 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 
 .retouch-preview-brush path {
   opacity: 0.92;
-  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.65)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.55));
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.65))
+    drop-shadow(0 0 1px rgba(0, 0, 0, 0.55));
 }
 
 .retouch-preview-mask path {
   stroke: rgba(255, 159, 28, 0.5);
   opacity: 0.92;
-  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.65)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.42));
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.65))
+    drop-shadow(0 0 1px rgba(0, 0, 0, 0.42));
 }
 
 .retouch-preview-committed-mask path {
@@ -2339,7 +2349,9 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   border: 2px solid var(--accent-bd);
   border-radius: 3px;
   background: var(--accent-soft);
-  box-shadow: 0 0 0 1px rgba(9, 15, 22, 0.72), 0 0 0 9999px rgba(5, 7, 10, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(9, 15, 22, 0.72),
+    0 0 0 9999px rgba(5, 7, 10, 0.18);
 }
 
 .overlay-text {

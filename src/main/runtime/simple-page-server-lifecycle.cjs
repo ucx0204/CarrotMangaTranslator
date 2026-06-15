@@ -4,11 +4,9 @@ const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
 
 const { bundledServerCandidates } = require("./resolve-llama-runtime.cjs");
+const { sanitizeInstallLogLine } = require("./simple-page-progress.cjs");
 const {
-  sanitizeInstallLogLine
-} = require("./simple-page-progress.cjs");
-const {
-  resolveConfiguredModelFile
+  resolveConfiguredModelFile,
 } = require("./simple-page-model-config.cjs");
 const {
   HF_CHILD_ENV_KEYS,
@@ -16,13 +14,13 @@ const {
   ROCM_CHILD_ENV_KEYS,
   buildWhitelistedChildEnv,
   runtimeOverrideEnv,
-  shouldAllowExternalRuntimeOverrides
+  shouldAllowExternalRuntimeOverrides,
 } = require("./simple-page-child-env.cjs");
 const {
   resolveHfHomeDir,
   resolveHubCacheDir,
   resolveLlamaCppCacheDir,
-  resolveWorkingDir
+  resolveWorkingDir,
 } = require("./simple-page-cache-paths.cjs");
 const {
   defaultServerPath,
@@ -30,48 +28,52 @@ const {
   isBuiltInGemmaRuntimeModel,
   missingRequiredLlamaRuntimeFiles,
   resolvePreferredLlamaRuntime,
-  resolveToolsDir
+  resolveToolsDir,
 } = require("./simple-page-runtime-paths.cjs");
 const {
   createAbortError,
   shrinkBuffer,
-  terminateChildProcessTree
+  terminateChildProcessTree,
 } = require("./simple-page-shell-utils.cjs");
 const {
   ensureDefaultLlamaRuntimeDownloaded,
   ensureHfModelAssetsDownloaded,
-  inspectModelLaunch
+  inspectModelLaunch,
 } = require("./simple-page-model-assets.cjs");
-const {
-  buildOptionSummary
-} = require("./simple-page-request-summary.cjs");
+const { buildOptionSummary } = require("./simple-page-request-summary.cjs");
 const {
   buildLaunchArgs,
   isServerRuntimeCompatibleWithModel,
-  looksLikeGemma4Model
+  looksLikeGemma4Model,
 } = require("./simple-page-launch-args.cjs");
 const {
   createDetailedError,
   emitRuntimeProgress,
-  truncateText
+  truncateText,
 } = require("./simple-page-runtime-common.cjs");
 
 function isTruthy(value) {
-  const text = String(value ?? "").trim().toLowerCase();
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
   return ["1", "true", "yes", "y", "on"].includes(text);
 }
 
 function buildLlamaServerEnv(serverPath, options = {}) {
   const preferredRuntime = resolvePreferredLlamaRuntime(options);
   const backend = String(preferredRuntime.backend || "cuda").toLowerCase();
-  const rocmPath = runtimeOverrideEnv("ROCM_PATH", options) || process.env.ROCM_PATH || (process.platform === "win32" ? "" : "/opt/rocm");
-  const hipPath = runtimeOverrideEnv("HIP_PATH", options) || process.env.HIP_PATH || rocmPath;
+  const rocmPath =
+    runtimeOverrideEnv("ROCM_PATH", options) ||
+    process.env.ROCM_PATH ||
+    (process.platform === "win32" ? "" : "/opt/rocm");
+  const hipPath =
+    runtimeOverrideEnv("HIP_PATH", options) || process.env.HIP_PATH || rocmPath;
   const pathDirs = [path.dirname(serverPath)];
   if (backend === "rocm" || backend === "hip") {
     pathDirs.push(
       rocmPath ? path.join(rocmPath, "bin") : null,
       rocmPath ? path.join(rocmPath, "llvm", "bin") : null,
-      hipPath ? path.join(hipPath, "bin") : null
+      hipPath ? path.join(hipPath, "bin") : null,
     );
   }
   const env = buildWhitelistedChildEnv({
@@ -80,8 +82,8 @@ function buildLlamaServerEnv(serverPath, options = {}) {
     extraKeys: [
       ...NETWORK_CHILD_ENV_KEYS,
       ...HF_CHILD_ENV_KEYS,
-      ...((backend === "rocm" || backend === "hip") ? ROCM_CHILD_ENV_KEYS : [])
-    ]
+      ...(backend === "rocm" || backend === "hip" ? ROCM_CHILD_ENV_KEYS : []),
+    ],
   });
   const hfHomeDir = resolveHfHomeDir(options);
   const hfHubCacheDir = resolveHubCacheDir(options);
@@ -109,8 +111,10 @@ function buildLlamaServerEnv(serverPath, options = {}) {
       env.LD_LIBRARY_PATH = [
         env.LD_LIBRARY_PATH,
         path.join(rocmPath, "lib"),
-        path.join(rocmPath, "lib64")
-      ].filter(Boolean).join(":");
+        path.join(rocmPath, "lib64"),
+      ]
+        .filter(Boolean)
+        .join(":");
     }
   }
   env.MANGA_TRANSLATOR_LLAMA_PORT = String(options.port);
@@ -120,7 +124,7 @@ function buildLlamaServerEnv(serverPath, options = {}) {
 async function isReachable(baseUrl) {
   try {
     const response = await fetch(`${baseUrl}/models`, {
-      signal: AbortSignal.timeout(2500)
+      signal: AbortSignal.timeout(2500),
     });
     return response.ok;
   } catch {
@@ -128,14 +132,21 @@ async function isReachable(baseUrl) {
   }
 }
 
-async function waitForReadyOrExit(baseUrl, child, timeoutMs = 1800000, signal = null) {
+async function waitForReadyOrExit(
+  baseUrl,
+  child,
+  timeoutMs = 1800000,
+  signal = null,
+) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     if (signal?.aborted) {
       throw createAbortError();
     }
     if (child.exitCode !== null || child.signalCode !== null) {
-      throw new Error(`llama-server exited before becoming ready (code=${child.exitCode ?? "null"}, signal=${child.signalCode ?? "null"})`);
+      throw new Error(
+        `llama-server exited before becoming ready (code=${child.exitCode ?? "null"}, signal=${child.signalCode ?? "null"})`,
+      );
     }
     if (await isReachable(baseUrl)) {
       return;
@@ -147,7 +158,11 @@ async function waitForReadyOrExit(baseUrl, child, timeoutMs = 1800000, signal = 
 
 async function startServer(options) {
   const baseUrl = `http://127.0.0.1:${options.port}/v1`;
-  if (options.reuseServer && shouldAllowExistingLlamaServerReuse(options) && await isReachable(baseUrl)) {
+  if (
+    options.reuseServer &&
+    shouldAllowExistingLlamaServerReuse(options) &&
+    (await isReachable(baseUrl))
+  ) {
     return { baseUrl, child: null, startedByScript: false };
   }
 
@@ -156,14 +171,22 @@ async function startServer(options) {
     runtimeOverrideEnv("LLAMA_SERVER_PATH", options);
   const configuredServerPath = options.serverPath || defaultServerPath(options);
   const requestedServerPath =
-    explicitServerPath || (isServerRuntimeCompatibleWithModel(configuredServerPath, options) ? configuredServerPath : defaultServerPath(options));
-  if (!requestedServerPath || !existsSync(requestedServerPath) || isIncompleteManagedLlamaRuntime(requestedServerPath, options)) {
+    explicitServerPath ||
+    (isServerRuntimeCompatibleWithModel(configuredServerPath, options)
+      ? configuredServerPath
+      : defaultServerPath(options));
+  if (
+    !requestedServerPath ||
+    !existsSync(requestedServerPath) ||
+    isIncompleteManagedLlamaRuntime(requestedServerPath, options)
+  ) {
     await ensureDefaultLlamaRuntimeDownloaded(options);
   }
   const resolvedBundledServerPath = defaultServerPath(options);
-  const serverPath = requestedServerPath && existsSync(requestedServerPath)
-    ? requestedServerPath
-    : resolvedBundledServerPath;
+  const serverPath =
+    requestedServerPath && existsSync(requestedServerPath)
+      ? requestedServerPath
+      : resolvedBundledServerPath;
   if (!existsSync(serverPath)) {
     throw createDetailedError("Bundled llama-server binary is missing.", {
       baseUrl,
@@ -171,7 +194,7 @@ async function startServer(options) {
       requestedServerPath,
       toolsDir: resolveToolsDir(options),
       checkedServerPaths: bundledServerCandidates(resolveToolsDir(options)),
-      optionSummary: buildOptionSummary(options)
+      optionSummary: buildOptionSummary(options),
     });
   }
 
@@ -183,18 +206,28 @@ async function startServer(options) {
     await ensureHfModelAssetsDownloaded(options, launchTarget);
   }
   const launchArgs = buildLaunchArgs({ ...options, serverPath });
-  const serverLogStream = createServerLogStream(options, serverPath, launchArgs);
-  emitRuntimeProgress(options, "booting", "Gemma 서버 시작 중", `${resolveConfiguredModelFile(options)} 로드 중`, {
-    progressMode: "indeterminate",
-    installLogLine: "llama-server를 시작합니다."
-  });
+  const serverLogStream = createServerLogStream(
+    options,
+    serverPath,
+    launchArgs,
+  );
+  emitRuntimeProgress(
+    options,
+    "booting",
+    "Gemma 서버 시작 중",
+    `${resolveConfiguredModelFile(options)} 로드 중`,
+    {
+      progressMode: "indeterminate",
+      installLogLine: "llama-server를 시작합니다.",
+    },
+  );
   let recentStdout = "";
   let recentStderr = "";
   const child = spawn(serverPath, launchArgs, {
     cwd: resolveWorkingDir(options),
     stdio: ["ignore", "pipe", "pipe"],
     shell: false,
-    env: childEnv
+    env: childEnv,
   });
   const abortSignal = options.abortSignal;
   const onAbort = () => terminateChildProcessTree(child);
@@ -231,25 +264,34 @@ async function startServer(options) {
                 launchArgs,
                 optionSummary: buildOptionSummary(options),
                 recentStdout: truncateText(recentStdout.trim(), 4000),
-                recentStderr: truncateText(recentStderr.trim(), 4000)
+                recentStderr: truncateText(recentStderr.trim(), 4000),
               },
-              error
-            )
+              error,
+            ),
           );
         });
-      })
+      }),
     ]);
-    emitRuntimeProgress(options, "booting", "Gemma 서버 준비 완료", `${resolveConfiguredModelFile(options)} 준비 완료`, {
-      progressMode: "determinate",
-      progressPercent: 1,
-      installLogLine: "Gemma 서버 준비가 완료되었습니다."
-    });
+    emitRuntimeProgress(
+      options,
+      "booting",
+      "Gemma 서버 준비 완료",
+      `${resolveConfiguredModelFile(options)} 준비 완료`,
+      {
+        progressMode: "determinate",
+        progressPercent: 1,
+        installLogLine: "Gemma 서버 준비가 완료되었습니다.",
+      },
+    );
   } catch (error) {
     terminateChildProcessTree(child);
     if (error?.name === "AbortError" || abortSignal?.aborted) {
       throw createAbortError();
     }
-    if (error instanceof Error && (error.serverPath || error.baseUrl || error.optionSummary)) {
+    if (
+      error instanceof Error &&
+      (error.serverPath || error.baseUrl || error.optionSummary)
+    ) {
       throw error;
     }
     const message = error instanceof Error ? error.message : String(error);
@@ -261,19 +303,27 @@ async function startServer(options) {
         launchArgs,
         optionSummary: buildOptionSummary(options),
         recentStdout: truncateText(recentStdout.trim(), 4000),
-        recentStderr: truncateText(recentStderr.trim(), 4000)
+        recentStderr: truncateText(recentStderr.trim(), 4000),
       },
-      error
+      error,
     );
   } finally {
     abortSignal?.removeEventListener?.("abort", onAbort);
   }
 
-  return { baseUrl, child, startedByScript: true, serverLogPath: options.serverLogPath };
+  return {
+    baseUrl,
+    child,
+    startedByScript: true,
+    serverLogPath: options.serverLogPath,
+  };
 }
 
 function shouldAllowExistingLlamaServerReuse(options = {}) {
-  return isTruthy(runtimeOverrideEnv("MGT_ALLOW_LLAMA_SERVER_REUSE", options) ?? runtimeOverrideEnv("MANGA_TRANSLATOR_ALLOW_LLAMA_SERVER_REUSE", options));
+  return isTruthy(
+    runtimeOverrideEnv("MGT_ALLOW_LLAMA_SERVER_REUSE", options) ??
+      runtimeOverrideEnv("MANGA_TRANSLATOR_ALLOW_LLAMA_SERVER_REUSE", options),
+  );
 }
 
 function isIncompleteManagedLlamaRuntime(serverPath, options = {}) {
@@ -282,7 +332,10 @@ function isIncompleteManagedLlamaRuntime(serverPath, options = {}) {
   }
   const preferredRuntime = resolvePreferredLlamaRuntime(options);
   const runtimeDir = path.dirname(serverPath);
-  if (path.basename(runtimeDir).toLowerCase() !== preferredRuntime.dir.toLowerCase()) {
+  if (
+    path.basename(runtimeDir).toLowerCase() !==
+    preferredRuntime.dir.toLowerCase()
+  ) {
     return false;
   }
   return !hasRequiredLlamaRuntimeFiles(runtimeDir, preferredRuntime);
@@ -294,40 +347,71 @@ async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
   }
   const preferredRuntime = resolvePreferredLlamaRuntime(options);
   const runtimeDir = path.dirname(serverPath);
-  if (path.basename(runtimeDir).toLowerCase() === preferredRuntime.dir.toLowerCase()) {
-    const missingFiles = missingRequiredLlamaRuntimeFiles(runtimeDir, preferredRuntime);
+  if (
+    path.basename(runtimeDir).toLowerCase() ===
+    preferredRuntime.dir.toLowerCase()
+  ) {
+    const missingFiles = missingRequiredLlamaRuntimeFiles(
+      runtimeDir,
+      preferredRuntime,
+    );
     if (missingFiles.length > 0) {
-      throw createDetailedError("Gemma 실행 런타임이 불완전합니다. GPU 런타임 파일을 포함해 다시 설치해야 합니다.", {
-        serverPath,
-        runtimeDir,
-        runtime: preferredRuntime.id,
-        missingFiles
-      });
+      throw createDetailedError(
+        "Gemma 실행 런타임이 불완전합니다. GPU 런타임 파일을 포함해 다시 설치해야 합니다.",
+        {
+          serverPath,
+          runtimeDir,
+          runtime: preferredRuntime.id,
+          missingFiles,
+        },
+      );
     }
   }
-  const shouldProbe = process.platform === "win32" || preferredRuntime.backend === "rocm" || preferredRuntime.backend === "vulkan";
-  if (!shouldProbe || runtimeOverrideEnv("MGT_SKIP_LLAMA_RUNTIME_PREFLIGHT", options)) {
+  const shouldProbe =
+    process.platform === "win32" ||
+    preferredRuntime.backend === "rocm" ||
+    preferredRuntime.backend === "vulkan";
+  if (
+    !shouldProbe ||
+    runtimeOverrideEnv("MGT_SKIP_LLAMA_RUNTIME_PREFLIGHT", options)
+  ) {
     return;
   }
-  const result = await runLlamaRuntimeProbe(serverPath, options, ["--list-devices"], 20000);
+  const result = await runLlamaRuntimeProbe(
+    serverPath,
+    options,
+    ["--list-devices"],
+    20000,
+  );
   const output = `${result.stdout}\n${result.stderr}`;
   if (result.code !== 0) {
-    throw createDetailedError(`llama-server ${formatLlamaBackendLabel(preferredRuntime.backend)} 런타임 검증에 실패했습니다.`, {
-      serverPath,
-      runtimeBackend: preferredRuntime.backend,
-      code: result.code,
-      stdout: truncateText(result.stdout, 4000),
-      stderr: truncateText(result.stderr, 4000)
-    });
+    throw createDetailedError(
+      `llama-server ${formatLlamaBackendLabel(preferredRuntime.backend)} 런타임 검증에 실패했습니다.`,
+      {
+        serverPath,
+        runtimeBackend: preferredRuntime.backend,
+        code: result.code,
+        stdout: truncateText(result.stdout, 4000),
+        stderr: truncateText(result.stderr, 4000),
+      },
+    );
   }
   if (!llamaRuntimeProbeLooksGpuBacked(output, preferredRuntime.backend)) {
-    const backendLabel = preferredRuntime.backend === "vulkan" ? "Vulkan/AMD GPU" : preferredRuntime.backend === "rocm" ? "ROCm/HIP GPU" : "CUDA GPU";
-    throw createDetailedError(`llama-server가 ${backendLabel}를 찾지 못했습니다. CPU 실행으로 조용히 넘어가지 않도록 중단합니다.`, {
-      serverPath,
-      runtimeBackend: preferredRuntime.backend,
-      stdout: truncateText(result.stdout, 4000),
-      stderr: truncateText(result.stderr, 4000)
-    });
+    const backendLabel =
+      preferredRuntime.backend === "vulkan"
+        ? "Vulkan/AMD GPU"
+        : preferredRuntime.backend === "rocm"
+          ? "ROCm/HIP GPU"
+          : "CUDA GPU";
+    throw createDetailedError(
+      `llama-server가 ${backendLabel}를 찾지 못했습니다. CPU 실행으로 조용히 넘어가지 않도록 중단합니다.`,
+      {
+        serverPath,
+        runtimeBackend: preferredRuntime.backend,
+        stdout: truncateText(result.stdout, 4000),
+        stderr: truncateText(result.stderr, 4000),
+      },
+    );
   }
 }
 
@@ -354,7 +438,12 @@ function llamaRuntimeProbeLooksGpuBacked(output, backend = "cuda") {
   return /(cuda|nvidia|geforce|rtx|gpu)/i.test(text);
 }
 
-function runLlamaRuntimeProbe(serverPath, options = {}, args = [], timeoutMs = 20000) {
+function runLlamaRuntimeProbe(
+  serverPath,
+  options = {},
+  args = [],
+  timeoutMs = 20000,
+) {
   return new Promise((resolve) => {
     let stdout = "";
     let stderr = "";
@@ -363,14 +452,14 @@ function runLlamaRuntimeProbe(serverPath, options = {}, args = [], timeoutMs = 2
       stdio: ["ignore", "pipe", "pipe"],
       shell: false,
       windowsHide: true,
-      env: buildLlamaServerEnv(serverPath, options)
+      env: buildLlamaServerEnv(serverPath, options),
     });
     const timer = setTimeout(() => {
       terminateChildProcessTree(child);
       resolve({
         code: -1,
         stdout,
-        stderr: `${stderr}\nllama-server probe timed out after ${timeoutMs}ms`
+        stderr: `${stderr}\nllama-server probe timed out after ${timeoutMs}ms`,
       });
     }, timeoutMs);
     child.stdout?.setEncoding("utf8");
@@ -415,10 +504,16 @@ function emitServerInstallLog(options = {}, chunk) {
     if (!line) {
       continue;
     }
-    emitRuntimeProgress(options, "booting", "Gemma 서버 로그", `${resolveConfiguredModelFile(options)} 실행 중`, {
-      progressMode: "log-only",
-      installLogLine: line
-    });
+    emitRuntimeProgress(
+      options,
+      "booting",
+      "Gemma 서버 로그",
+      `${resolveConfiguredModelFile(options)} 실행 중`,
+      {
+        progressMode: "log-only",
+        installLogLine: line,
+      },
+    );
   }
 }
 
@@ -438,7 +533,7 @@ async function stopServer(server) {
   }
   await Promise.race([
     new Promise((resolve) => child.once("exit", resolve)),
-    delay(5000)
+    delay(5000),
   ]);
   if (!exited) {
     terminateChildProcessTree(child);
@@ -449,5 +544,5 @@ module.exports = {
   buildLaunchArgs,
   buildLlamaServerEnv,
   startServer,
-  stopServer
+  stopServer,
 };

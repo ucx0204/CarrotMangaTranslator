@@ -1,4 +1,10 @@
-import type { BBox, BlockType, ChapterSnapshot, RenderTextDirection, TranslationBlock } from "./types";
+import type {
+  BBox,
+  BlockType,
+  ChapterSnapshot,
+  RenderTextDirection,
+  TranslationBlock,
+} from "./types";
 
 type PageSize = {
   width: number;
@@ -7,7 +13,17 @@ type PageSize = {
 
 type BBoxSpace = NonNullable<TranslationBlock["bboxSpace"]>;
 type RenderBboxBlock = Pick<TranslationBlock, "bbox" | "renderBbox"> &
-  Partial<Pick<TranslationBlock, "bboxSpace" | "renderBboxSpace" | "renderDirection" | "lineHeight" | "fontSizePx" | "autoFitText">>;
+  Partial<
+    Pick<
+      TranslationBlock,
+      | "bboxSpace"
+      | "renderBboxSpace"
+      | "renderDirection"
+      | "lineHeight"
+      | "fontSizePx"
+      | "autoFitText"
+    >
+  >;
 
 export const MIN_READABLE_FONT_SIZE_PX = 10;
 
@@ -30,25 +46,37 @@ export function clampBbox(bbox: BBox): BBox {
   return { x, y, w, h };
 }
 
-export function sanitizeChapterBboxes(chapter: ChapterSnapshot): ChapterSnapshot {
+export function sanitizeChapterBboxes(
+  chapter: ChapterSnapshot,
+): ChapterSnapshot {
   return {
     ...chapter,
     pages: chapter.pages.map((page) => ({
       ...page,
-      blocks: page.blocks.map((block) => sanitizeBlockBboxes(block, { width: page.width, height: page.height }))
-    }))
+      blocks: page.blocks.map((block) =>
+        sanitizeBlockBboxes(block, { width: page.width, height: page.height }),
+      ),
+    })),
   };
 }
 
-export function sanitizeBlockBboxes(block: TranslationBlock, pageSize?: PageSize | null): TranslationBlock {
-  const renderBbox = block.renderBbox ? normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace) : undefined;
+export function sanitizeBlockBboxes(
+  block: TranslationBlock,
+  pageSize?: PageSize | null,
+): TranslationBlock {
+  const renderBbox = block.renderBbox
+    ? normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace)
+    : undefined;
   return {
     ...block,
     bbox: normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace),
     bboxSpace: "normalized_1000",
     renderBbox,
     renderBboxSpace: renderBbox ? "normalized_1000" : undefined,
-    renderDirection: normalizeRenderDirection(block.renderDirection, "horizontal")
+    renderDirection: normalizeRenderDirection(
+      block.renderDirection,
+      "horizontal",
+    ),
   };
 }
 
@@ -57,7 +85,7 @@ export function bboxToPixels(bbox: BBox, width: number, height: number): BBox {
     x: (bbox.x / 1000) * width,
     y: (bbox.y / 1000) * height,
     w: (bbox.w / 1000) * width,
-    h: (bbox.h / 1000) * height
+    h: (bbox.h / 1000) * height,
   };
 }
 
@@ -66,11 +94,15 @@ export function pixelsToBbox(bbox: BBox, width: number, height: number): BBox {
     x: (bbox.x / Math.max(1, width)) * 1000,
     y: (bbox.y / Math.max(1, height)) * 1000,
     w: (bbox.w / Math.max(1, width)) * 1000,
-    h: (bbox.h / Math.max(1, height)) * 1000
+    h: (bbox.h / Math.max(1, height)) * 1000,
   });
 }
 
-export function normalizeBboxTo1000(bbox: BBox, pageSize?: PageSize | null, bboxSpace?: BBoxSpace): BBox {
+export function normalizeBboxTo1000(
+  bbox: BBox,
+  pageSize?: PageSize | null,
+  bboxSpace?: BBoxSpace,
+): BBox {
   if (bboxSpace === "pixels" && pageSize) {
     return pixelsToBbox(bbox, pageSize.width, pageSize.height);
   }
@@ -80,16 +112,24 @@ export function normalizeBboxTo1000(bbox: BBox, pageSize?: PageSize | null, bbox
 
 export function resolveBlockRenderBbox(
   block: RenderBboxBlock,
-  pageSize?: PageSize | null
+  pageSize?: PageSize | null,
 ): BBox {
   if (block.renderBbox) {
-    return normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace);
+    return normalizeBboxTo1000(
+      block.renderBbox,
+      pageSize,
+      block.renderBboxSpace,
+    );
   }
 
   return normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace);
 }
 
-export function resolveEffectiveRenderBbox(block: RenderBboxBlock, pageSize: PageSize, text: string): BBox {
+export function resolveEffectiveRenderBbox(
+  block: RenderBboxBlock,
+  pageSize: PageSize,
+  text: string,
+): BBox {
   const base = resolveBlockRenderBbox(block, pageSize);
   if (block.renderBbox || !text.trim()) {
     return base;
@@ -110,23 +150,38 @@ export function resolveEffectiveRenderBbox(block: RenderBboxBlock, pageSize: Pag
 export function estimateBlockFontSizePx(
   text: string,
   block: RenderBboxBlock,
-  pageSize: PageSize
+  pageSize: PageSize,
 ): number {
-  return estimateFontSizePx(text, resolveEffectiveRenderBbox(block, pageSize, text), pageSize);
+  return estimateFontSizePx(
+    text,
+    resolveEffectiveRenderBbox(block, pageSize, text),
+    pageSize,
+  );
 }
 
 export function resolveEditableBlockBbox(
   block: RenderBboxBlock,
   pageSize?: PageSize | null,
-  text = ""
+  text = "",
 ): { key: "bbox" | "renderBbox"; bbox: BBox } {
   if (block.renderBbox) {
-    return { key: "renderBbox", bbox: normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace) };
+    return {
+      key: "renderBbox",
+      bbox: normalizeBboxTo1000(
+        block.renderBbox,
+        pageSize,
+        block.renderBboxSpace,
+      ),
+    };
   }
 
   const bbox = normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace);
   if (pageSize && text.trim()) {
-    const effectiveRenderBbox = resolveEffectiveRenderBbox(block, pageSize, text);
+    const effectiveRenderBbox = resolveEffectiveRenderBbox(
+      block,
+      pageSize,
+      text,
+    );
     if (!areBboxesClose(effectiveRenderBbox, bbox)) {
       return { key: "renderBbox", bbox: effectiveRenderBbox };
     }
@@ -135,7 +190,12 @@ export function resolveEditableBlockBbox(
   return { key: "bbox", bbox };
 }
 
-export function applyEditableBlockBbox(block: TranslationBlock, nextBbox: BBox, pageSize?: PageSize | null, text = ""): TranslationBlock {
+export function applyEditableBlockBbox(
+  block: TranslationBlock,
+  nextBbox: BBox,
+  pageSize?: PageSize | null,
+  text = "",
+): TranslationBlock {
   const target = resolveEditableBlockBbox(block, pageSize, text);
   const clamped = clampBbox(nextBbox);
   return target.key === "renderBbox"
@@ -143,20 +203,30 @@ export function applyEditableBlockBbox(block: TranslationBlock, nextBbox: BBox, 
     : { ...block, bbox: clamped, bboxSpace: "normalized_1000" };
 }
 
-export function offsetBlockBboxes(block: TranslationBlock, dx: number, dy: number, pageSize?: PageSize | null): TranslationBlock {
+export function offsetBlockBboxes(
+  block: TranslationBlock,
+  dx: number,
+  dy: number,
+  pageSize?: PageSize | null,
+): TranslationBlock {
   const bbox = normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace);
-  const renderBbox = block.renderBbox ? normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace) : undefined;
+  const renderBbox = block.renderBbox
+    ? normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace)
+    : undefined;
 
   return {
     ...block,
     bbox: offsetBbox(bbox, dx, dy),
     bboxSpace: "normalized_1000",
     renderBbox: renderBbox ? offsetBbox(renderBbox, dx, dy) : undefined,
-    renderBboxSpace: renderBbox ? "normalized_1000" : undefined
+    renderBboxSpace: renderBbox ? "normalized_1000" : undefined,
   };
 }
 
-export function enforceRenderDirection(type: BlockType, direction: unknown): RenderTextDirection {
+export function enforceRenderDirection(
+  type: BlockType,
+  direction: unknown,
+): RenderTextDirection {
   void type;
   return direction === "vertical" ? "vertical" : "horizontal";
 }
@@ -175,8 +245,13 @@ export function normalizeBlockType(value: unknown): BlockType {
   return "nonsolid";
 }
 
-export function normalizeRenderDirection(value: unknown, fallback: RenderTextDirection | "rotated" | "hidden"): RenderTextDirection {
-  const text = String(value ?? "").trim().toLowerCase();
+export function normalizeRenderDirection(
+  value: unknown,
+  fallback: RenderTextDirection | "rotated" | "hidden",
+): RenderTextDirection {
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (text === "vertical") {
     return "vertical";
   }
@@ -186,13 +261,22 @@ export function normalizeRenderDirection(value: unknown, fallback: RenderTextDir
   return fallback === "vertical" ? "vertical" : "horizontal";
 }
 
-export function estimateFontSizePx(text: string, bbox: BBox, pageSize: { width: number; height: number }): number {
+export function estimateFontSizePx(
+  text: string,
+  bbox: BBox,
+  pageSize: { width: number; height: number },
+): number {
   const px = bboxToPixels(bbox, pageSize.width, pageSize.height);
-  const compactLength = Math.max(1, [...text.replace(/\r/g, "").replace(/\n/g, " ")].length);
+  const compactLength = Math.max(
+    1,
+    [...text.replace(/\r/g, "").replace(/\n/g, " ")].length,
+  );
   const approxCharsPerLine = Math.max(4, Math.floor(px.w / 20));
   const lineCount = Math.max(1, Math.ceil(compactLength / approxCharsPerLine));
   const heightLimited = Math.floor(px.h / (lineCount * 1.2));
-  const widthLimited = Math.floor(px.w / Math.min(12, Math.max(4, compactLength)));
+  const widthLimited = Math.floor(
+    px.w / Math.min(12, Math.max(4, compactLength)),
+  );
   return clamp(Math.min(heightLimited, widthLimited, 40), 12, 72);
 }
 
@@ -200,36 +284,55 @@ function offsetBbox(bbox: BBox, dx: number, dy: number): BBox {
   return clampBbox({
     ...bbox,
     x: bbox.x + dx,
-    y: bbox.y + dy
+    y: bbox.y + dy,
   });
 }
 
-function estimateReadableTextBoxSizePx(text: string, block: RenderBboxBlock, basePx: BBox): { width: number; height: number } {
-  const compactLength = Math.max(1, [...text.replace(/\r/g, "").replace(/\n/g, " ")].length);
+function estimateReadableTextBoxSizePx(
+  text: string,
+  block: RenderBboxBlock,
+  basePx: BBox,
+): { width: number; height: number } {
+  const compactLength = Math.max(
+    1,
+    [...text.replace(/\r/g, "").replace(/\n/g, " ")].length,
+  );
   const fontSizePx = MIN_READABLE_FONT_SIZE_PX;
   const lineHeightPx = fontSizePx * Math.max(1, block.lineHeight ?? 1.18);
 
   if (block.renderDirection === "vertical") {
     const availableHeight = Math.max(1, basePx.h);
-    const charsPerColumn = Math.max(1, Math.floor(availableHeight / lineHeightPx));
-    const columnCount = Math.min(READABLE_MAX_VERTICAL_COLUMNS, Math.max(1, Math.ceil(compactLength / charsPerColumn)));
+    const charsPerColumn = Math.max(
+      1,
+      Math.floor(availableHeight / lineHeightPx),
+    );
+    const columnCount = Math.min(
+      READABLE_MAX_VERTICAL_COLUMNS,
+      Math.max(1, Math.ceil(compactLength / charsPerColumn)),
+    );
     return {
       width: columnCount * fontSizePx * READABLE_VERTICAL_COLUMN_WIDTH_RATIO,
-      height: Math.min(compactLength, charsPerColumn) * lineHeightPx
+      height: Math.min(compactLength, charsPerColumn) * lineHeightPx,
     };
   }
 
   const availableWidth = Math.max(1, basePx.w);
-  const naturalCharsPerLine = resolveNaturalHorizontalCharsPerLine(compactLength);
-  const widthLimitedCharsPerLine = Math.max(1, Math.floor(availableWidth / (fontSizePx * READABLE_AVERAGE_CHAR_WIDTH_RATIO)));
+  const naturalCharsPerLine =
+    resolveNaturalHorizontalCharsPerLine(compactLength);
+  const widthLimitedCharsPerLine = Math.max(
+    1,
+    Math.floor(
+      availableWidth / (fontSizePx * READABLE_AVERAGE_CHAR_WIDTH_RATIO),
+    ),
+  );
   const charsPerLine = Math.max(
     Math.min(compactLength, naturalCharsPerLine),
-    Math.min(compactLength, widthLimitedCharsPerLine)
+    Math.min(compactLength, widthLimitedCharsPerLine),
   );
   const lineCount = Math.max(1, Math.ceil(compactLength / charsPerLine));
   return {
     width: charsPerLine * fontSizePx * READABLE_AVERAGE_CHAR_WIDTH_RATIO,
-    height: lineCount * lineHeightPx
+    height: lineCount * lineHeightPx,
   };
 }
 
@@ -240,20 +343,41 @@ function resolveNaturalHorizontalCharsPerLine(compactLength: number): number {
   if (compactLength <= 10) {
     return Math.min(compactLength, 5);
   }
-  return Math.min(compactLength, Math.max(6, Math.min(14, Math.ceil(Math.sqrt(compactLength * 5)))));
+  return Math.min(
+    compactLength,
+    Math.max(6, Math.min(14, Math.ceil(Math.sqrt(compactLength * 5)))),
+  );
 }
 
-function expandBboxAroundCenter(bbox: BBox, pageSize: PageSize, targetWidthPx: number, targetHeightPx: number): BBox {
+function expandBboxAroundCenter(
+  bbox: BBox,
+  pageSize: PageSize,
+  targetWidthPx: number,
+  targetHeightPx: number,
+): BBox {
   const px = bboxToPixels(bbox, pageSize.width, pageSize.height);
   const width = Math.min(pageSize.width, Math.max(px.w, targetWidthPx));
   const height = Math.min(pageSize.height, Math.max(px.h, targetHeightPx));
   const centerX = px.x + px.w / 2;
   const centerY = px.y + px.h / 2;
   const x = clamp(centerX - width / 2, 0, Math.max(0, pageSize.width - width));
-  const y = clamp(centerY - height / 2, 0, Math.max(0, pageSize.height - height));
-  return pixelsToBbox({ x, y, w: width, h: height }, pageSize.width, pageSize.height);
+  const y = clamp(
+    centerY - height / 2,
+    0,
+    Math.max(0, pageSize.height - height),
+  );
+  return pixelsToBbox(
+    { x, y, w: width, h: height },
+    pageSize.width,
+    pageSize.height,
+  );
 }
 
 function areBboxesClose(a: BBox, b: BBox): boolean {
-  return Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01 && Math.abs(a.w - b.w) < 0.01 && Math.abs(a.h - b.h) < 0.01;
+  return (
+    Math.abs(a.x - b.x) < 0.01 &&
+    Math.abs(a.y - b.y) < 0.01 &&
+    Math.abs(a.w - b.w) < 0.01 &&
+    Math.abs(a.h - b.h) < 0.01
+  );
 }

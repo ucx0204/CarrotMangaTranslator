@@ -2,15 +2,22 @@ import { resolve, join } from "node:path";
 import { readdir } from "node:fs/promises";
 import { isPathInside, isSupportedImagePath, safeUnlink } from "./storage";
 
-export function inpaintedPathChanged(previousPath: string, nextPath?: string): boolean {
-  return !nextPath || normalizePathForReference(previousPath) !== normalizePathForReference(nextPath);
+export function inpaintedPathChanged(
+  previousPath: string,
+  nextPath?: string,
+): boolean {
+  return (
+    !nextPath ||
+    normalizePathForReference(previousPath) !==
+      normalizePathForReference(nextPath)
+  );
 }
 
 export async function removeUnreferencedInpaintedArtifacts(
   chapterDir: string,
   candidatePaths: string[],
   pages: Array<{ inpaintedImagePath?: string }>,
-  retainedArtifactPaths: string[] = []
+  retainedArtifactPaths: string[] = [],
 ): Promise<void> {
   if (candidatePaths.length === 0) {
     return;
@@ -20,7 +27,7 @@ export async function removeUnreferencedInpaintedArtifacts(
     pages
       .map((page) => page.inpaintedImagePath)
       .filter((path): path is string => Boolean(path))
-      .map(normalizePathForReference)
+      .map(normalizePathForReference),
   );
   for (const retainedPath of retainedArtifactPaths) {
     if (isManagedInpaintedArtifact(chapterDir, retainedPath)) {
@@ -30,7 +37,10 @@ export async function removeUnreferencedInpaintedArtifacts(
   const seenCandidates = new Set<string>();
   for (const candidatePath of candidatePaths) {
     const normalizedCandidate = normalizePathForReference(candidatePath);
-    if (seenCandidates.has(normalizedCandidate) || retainedPaths.has(normalizedCandidate)) {
+    if (
+      seenCandidates.has(normalizedCandidate) ||
+      retainedPaths.has(normalizedCandidate)
+    ) {
       continue;
     }
     seenCandidates.add(normalizedCandidate);
@@ -41,7 +51,9 @@ export async function removeUnreferencedInpaintedArtifacts(
   }
 }
 
-export async function collectManagedInpaintedArtifacts(chapterDir: string): Promise<string[]> {
+export async function collectManagedInpaintedArtifacts(
+  chapterDir: string,
+): Promise<string[]> {
   const inpaintedDir = resolve(join(chapterDir, "inpainted"));
   let entries: Array<{ isFile: () => boolean; name: string }>;
   try {
@@ -56,13 +68,22 @@ export async function collectManagedInpaintedArtifacts(chapterDir: string): Prom
     .filter((filePath) => isManagedInpaintedArtifact(chapterDir, filePath));
 }
 
-function isManagedInpaintedArtifact(chapterDir: string, imagePath: string): boolean {
+function isManagedInpaintedArtifact(
+  chapterDir: string,
+  imagePath: string,
+): boolean {
   const inpaintedDir = resolve(join(chapterDir, "inpainted"));
   const resolvedImagePath = resolve(imagePath);
-  return resolvedImagePath !== inpaintedDir && isPathInside(inpaintedDir, resolvedImagePath) && isSupportedImagePath(resolvedImagePath);
+  return (
+    resolvedImagePath !== inpaintedDir &&
+    isPathInside(inpaintedDir, resolvedImagePath) &&
+    isSupportedImagePath(resolvedImagePath)
+  );
 }
 
 function normalizePathForReference(filePath: string): string {
   const resolvedPath = resolve(filePath);
-  return process.platform === "win32" ? resolvedPath.toLowerCase() : resolvedPath;
+  return process.platform === "win32"
+    ? resolvedPath.toLowerCase()
+    : resolvedPath;
 }

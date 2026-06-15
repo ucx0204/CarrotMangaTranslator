@@ -12,7 +12,9 @@ function defaultHfHomeDir() {
     return path.join(xdgCacheHome, "huggingface");
   }
 
-  const homeDir = String(process.env.USERPROFILE ?? process.env.HOME ?? "").trim();
+  const homeDir = String(
+    process.env.USERPROFILE ?? process.env.HOME ?? "",
+  ).trim();
   if (!homeDir) {
     return null;
   }
@@ -40,20 +42,28 @@ function resolveHubCacheDir(options = {}) {
 }
 
 function resolveLlamaCppCacheDir(options = {}) {
-  const explicit = String(options.llamaCacheDir ?? runtimeOverrideEnv("MANGA_TRANSLATOR_LLAMA_CACHE_DIR", options) ?? "").trim();
+  const explicit = String(
+    options.llamaCacheDir ??
+      runtimeOverrideEnv("MANGA_TRANSLATOR_LLAMA_CACHE_DIR", options) ??
+      "",
+  ).trim();
   if (explicit) {
     return explicit;
   }
   if (process.platform === "win32") {
     const localAppData = String(process.env.LOCALAPPDATA ?? "").trim();
-    return localAppData ? path.join(localAppData, "manga-gemma-translator", "llama.cpp") : null;
+    return localAppData
+      ? path.join(localAppData, "manga-gemma-translator", "llama.cpp")
+      : null;
   }
   const xdgCacheHome = String(process.env.XDG_CACHE_HOME ?? "").trim();
   if (xdgCacheHome) {
     return path.join(xdgCacheHome, "manga-gemma-translator", "llama.cpp");
   }
   const homeDir = String(process.env.HOME ?? "").trim();
-  return homeDir ? path.join(homeDir, ".cache", "manga-gemma-translator", "llama.cpp") : null;
+  return homeDir
+    ? path.join(homeDir, ".cache", "manga-gemma-translator", "llama.cpp")
+    : null;
 }
 
 function repoCacheDir(repoId, hubCacheDir) {
@@ -61,8 +71,14 @@ function repoCacheDir(repoId, hubCacheDir) {
 }
 
 function safeHfRelativePath(file) {
-  const normalized = String(file ?? "").replace(/\\/g, "/").trim();
-  if (!normalized || path.isAbsolute(normalized) || normalized.split("/").some((part) => !part || part === "." || part === "..")) {
+  const normalized = String(file ?? "")
+    .replace(/\\/g, "/")
+    .trim();
+  if (
+    !normalized ||
+    path.isAbsolute(normalized) ||
+    normalized.split("/").some((part) => !part || part === "." || part === "..")
+  ) {
     throw new Error(`Invalid Hugging Face file path: ${file}`);
   }
   return normalized.split("/").join(path.sep);
@@ -73,7 +89,12 @@ function resolveManagedHfFilePath(options = {}, repo, file) {
   if (!hubCacheDir || !repo || !file) {
     return null;
   }
-  return path.join(repoCacheDir(repo, hubCacheDir), "snapshots", "mgt-managed", safeHfRelativePath(file));
+  return path.join(
+    repoCacheDir(repo, hubCacheDir),
+    "snapshots",
+    "mgt-managed",
+    safeHfRelativePath(file),
+  );
 }
 
 module.exports = {
@@ -84,5 +105,5 @@ module.exports = {
   resolveLlamaCppCacheDir,
   resolveManagedHfFilePath,
   resolveWorkingDir,
-  safeHfRelativePath
+  safeHfRelativePath,
 };

@@ -8,7 +8,7 @@ const {
   DEFAULT_OCR_GPU_CUDA_TAG,
   DEFAULT_OCR_GPU_EXTRA_PACKAGES,
   DEFAULT_OCR_GPU_PADDLE_PACKAGE,
-  PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL
+  PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL,
 } = require("./simple-page-defaults.cjs");
 const {
   HF_CHILD_ENV_KEYS,
@@ -16,12 +16,14 @@ const {
   buildWhitelistedChildEnv,
   isLikelyPackagedToolsDir,
   runtimeOverrideEnv,
-  shouldAllowExternalRuntimeOverrides
+  shouldAllowExternalRuntimeOverrides,
 } = require("./simple-page-child-env.cjs");
 const { resolveToolsDir } = require("./simple-page-runtime-paths.cjs");
 
 function isTruthy(value) {
-  const text = String(value ?? "").trim().toLowerCase();
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
   return ["1", "true", "yes", "y", "on"].includes(text);
 }
 
@@ -40,7 +42,9 @@ function truncateText(value, maxLength = 1200) {
 
 function resolveInstallProgressDir(pythonPath) {
   const resolved = path.resolve(String(pythonPath || ""));
-  if (resolved.toLowerCase().endsWith(`${path.sep}scripts${path.sep}python.exe`)) {
+  if (
+    resolved.toLowerCase().endsWith(`${path.sep}scripts${path.sep}python.exe`)
+  ) {
     return path.dirname(path.dirname(resolved));
   }
   return path.dirname(resolved);
@@ -49,10 +53,10 @@ function resolveInstallProgressDir(pythonPath) {
 function resolveOcrRuntimeDir(options = {}) {
   return path.resolve(
     String(
-      options.ocrRuntimeDir
-        ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_RUNTIME_DIR", options)
-        ?? path.join(options.workingDir || process.cwd(), "ocr-runtime")
-    )
+      options.ocrRuntimeDir ??
+        runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_RUNTIME_DIR", options) ??
+        path.join(options.workingDir || process.cwd(), "ocr-runtime"),
+    ),
   );
 }
 
@@ -68,8 +72,16 @@ function resolvePaddlexCacheHome(runtimeDir, options = {}, runtime = null) {
   if (!hasNonAsciiPath(realCacheHome)) {
     return realCacheHome;
   }
-  const digest = nodeCrypto.createHash("sha1").update(realCacheHome).digest("hex").slice(0, 16);
-  return path.join(resolvePaddlexCacheAliasRoot(options), digest, "paddlex-cache");
+  const digest = nodeCrypto
+    .createHash("sha1")
+    .update(realCacheHome)
+    .digest("hex")
+    .slice(0, 16);
+  return path.join(
+    resolvePaddlexCacheAliasRoot(options),
+    digest,
+    "paddlex-cache",
+  );
 }
 
 function resolveRealPaddlexCacheHome(runtimeDir) {
@@ -77,7 +89,10 @@ function resolveRealPaddlexCacheHome(runtimeDir) {
 }
 
 function resolvePaddlexCacheAliasRoot(options = {}) {
-  const explicit = runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_CACHE_ALIAS_ROOT", options);
+  const explicit = runtimeOverrideEnv(
+    "MANGA_TRANSLATOR_OCR_CACHE_ALIAS_ROOT",
+    options,
+  );
   if (explicit) {
     return path.resolve(String(explicit));
   }
@@ -98,7 +113,7 @@ function resolveVenvPythonPath(venvDir) {
 function resolveBootstrapPython(options = {}) {
   const explicitCandidates = [
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PYTHON", options),
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PYTHON", options)
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PYTHON", options),
   ]
     .map((candidate) => String(candidate ?? "").trim())
     .filter(Boolean);
@@ -112,7 +127,7 @@ function resolveBootstrapPython(options = {}) {
   const bundledCandidates = [
     path.join(options.toolsDir || "", "python", "python.exe"),
     path.join(options.toolsDir || "", "python", "python-embed", "python.exe"),
-    path.join(options.toolsDir || "", "python.exe")
+    path.join(options.toolsDir || "", "python.exe"),
   ];
 
   for (const candidate of bundledCandidates) {
@@ -138,44 +153,54 @@ function shouldAllowSystemPythonFallback(options = {}) {
 }
 
 function resolveOcrPipInstallBatches(options = {}) {
-  const explicit = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", options));
+  const explicit = splitShellLikeEnv(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", options),
+  );
   if (explicit.length > 0) {
     return withPaddleOcrVlSafetensorsBatch([explicit]);
   }
 
   if (!isOcrGpuRequested(options)) {
-    const cpuPackages = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_CPU_PIP_PACKAGES", options));
-    return withPaddleOcrVlSafetensorsBatch([cpuPackages.length > 0 ? cpuPackages : DEFAULT_OCR_CPU_PIP_PACKAGES]);
+    const cpuPackages = splitShellLikeEnv(
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_CPU_PIP_PACKAGES", options),
+    );
+    return withPaddleOcrVlSafetensorsBatch([
+      cpuPackages.length > 0 ? cpuPackages : DEFAULT_OCR_CPU_PIP_PACKAGES,
+    ]);
   }
 
-  const gpuPackages = splitShellLikeEnv(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES", options));
+  const gpuPackages = splitShellLikeEnv(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES", options),
+  );
   if (gpuPackages.length > 0) {
     return withPaddleOcrVlSafetensorsBatch([gpuPackages]);
   }
 
   return withPaddleOcrVlSafetensorsBatch([
     resolveOcrGpuPaddleInstallBatch(options),
-    DEFAULT_OCR_GPU_EXTRA_PACKAGES
+    DEFAULT_OCR_GPU_EXTRA_PACKAGES,
   ]);
 }
 
 function resolveOcrGpuPaddleInstallBatch(options = {}) {
   const explicitWheel = String(
-    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_WHEEL", options)
-      ?? ""
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_WHEEL", options) ?? "",
   ).trim();
   if (explicitWheel) {
     return [explicitWheel];
   }
   return [
-    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_PACKAGE", options) || DEFAULT_OCR_GPU_PADDLE_PACKAGE,
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_PACKAGE", options) ||
+      DEFAULT_OCR_GPU_PADDLE_PACKAGE,
     "--index-url",
-    resolveOcrGpuPackageIndexUrl(options)
+    resolveOcrGpuPackageIndexUrl(options),
   ];
 }
 
 function withPaddleOcrVlSafetensorsBatch(installBatches) {
-  const batches = Array.isArray(installBatches) ? installBatches.map((batch) => Array.isArray(batch) ? [...batch] : []) : [];
+  const batches = Array.isArray(installBatches)
+    ? installBatches.map((batch) => (Array.isArray(batch) ? [...batch] : []))
+    : [];
   if (process.platform !== "win32") {
     return batches;
   }
@@ -202,7 +227,9 @@ function withPaddleOcrVlSafetensorsBatch(installBatches) {
   const safetensorsBatch = [
     "--no-deps",
     "--force-reinstall",
-    ...(safetensorsPackages.length > 0 ? safetensorsPackages : [PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL])
+    ...(safetensorsPackages.length > 0
+      ? safetensorsPackages
+      : [PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL]),
   ];
   return [...normalizedBatches, safetensorsBatch];
 }
@@ -234,7 +261,7 @@ function splitShellLikeEnv(value) {
       }
       continue;
     }
-    if (char === "\"" || char === "'") {
+    if (char === '"' || char === "'") {
       quote = char;
       continue;
     }
@@ -271,7 +298,10 @@ function isOcrGpuRequested(options = {}) {
 }
 
 function isOcrBlackwellCudaTag(options = {}) {
-  return resolveOcrGpuBackend(options) === "cuda" && resolveOcrGpuCudaTag(options) === "cu129";
+  return (
+    resolveOcrGpuBackend(options) === "cuda" &&
+    resolveOcrGpuCudaTag(options) === "cu129"
+  );
 }
 
 function resolveOcrGpuBackend(options = {}) {
@@ -281,12 +311,14 @@ function resolveOcrGpuBackend(options = {}) {
 
 function resolveOcrGpuCudaTag(options = {}) {
   const raw = String(
-    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG", options)
-      ?? runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG", options)
-      ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA", options)
-      ?? options.ocrGpuCudaTag
-      ?? DEFAULT_OCR_GPU_CUDA_TAG
-  ).trim().toLowerCase();
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG", options) ??
+      runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG", options) ??
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA", options) ??
+      options.ocrGpuCudaTag ??
+      DEFAULT_OCR_GPU_CUDA_TAG,
+  )
+    .trim()
+    .toLowerCase();
   if (/^cu\d+$/.test(raw)) {
     return raw;
   }
@@ -296,9 +328,9 @@ function resolveOcrGpuCudaTag(options = {}) {
 
 function resolveOcrGpuPackageIndexUrl(options = {}) {
   return String(
-    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL", options)
-      ?? runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL", options)
-      ?? `https://www.paddlepaddle.org.cn/packages/stable/${resolveOcrGpuCudaTag(options)}/`
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL", options) ??
+      runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL", options) ??
+      `https://www.paddlepaddle.org.cn/packages/stable/${resolveOcrGpuCudaTag(options)}/`,
   ).trim();
 }
 
@@ -306,19 +338,32 @@ function resolveOcrRuntimeVariant(options = {}) {
   if (!isOcrGpuRequested(options)) {
     return "cpu";
   }
-  return `gpu-${resolveOcrGpuCudaTag(options)}`.replace(/[^a-z0-9._-]+/gi, "-").toLowerCase();
+  return `gpu-${resolveOcrGpuCudaTag(options)}`
+    .replace(/[^a-z0-9._-]+/gi, "-")
+    .toLowerCase();
 }
 
 function resolveOcrPythonPackageDir(runtimeDir, options = {}) {
-  return path.join(runtimeDir, `python-packages-${resolveOcrRuntimeVariant(options)}`);
+  return path.join(
+    runtimeDir,
+    `python-packages-${resolveOcrRuntimeVariant(options)}`,
+  );
 }
 
 function resolveOcrDevice(options = {}) {
-  const explicitDevice = String(runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_DEVICE", options) ?? "").trim();
+  const explicitDevice = String(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_DEVICE", options) ?? "",
+  ).trim();
   if (explicitDevice) {
     return explicitDevice;
   }
-  const value = String(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options) ?? options.ocrDevice ?? "cpu").trim().toLowerCase();
+  const value = String(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options) ??
+      options.ocrDevice ??
+      "cpu",
+  )
+    .trim()
+    .toLowerCase();
   if (value === "gpu" || value === "cuda") {
     return "gpu:0";
   }
@@ -334,7 +379,9 @@ function resolveOcrDeviceLabel(options = {}) {
 }
 
 function resolvePaddleOcrImportCheckTimeoutMs(options = {}) {
-  const explicit = readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS);
+  const explicit = readPositiveInteger(
+    process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS,
+  );
   if (explicit) {
     return explicit;
   }
@@ -349,7 +396,10 @@ function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
     return buildPaddleOcrSm120FailureMessage(importMessage, options);
   }
   if (isPaddleBfloat16SafetensorsText(importMessage)) {
-    return buildPaddleOcrBfloat16SafetensorsFailureMessage(importMessage, options);
+    return buildPaddleOcrBfloat16SafetensorsFailureMessage(
+      importMessage,
+      options,
+    );
   }
   if (isPaddleNativeDllLoadFailureText(importMessage)) {
     return buildPaddleOcrNativeDllFailureMessage(importMessage, options);
@@ -361,7 +411,9 @@ function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
   const suffix = isOcrGpuRequested(options)
     ? " GPU를 선택했지만 GPU Paddle/CUDA 검증에 실패했습니다. CPU로 바꾸거나 CUDA 드라이버와 GPU Paddle wheel을 확인하세요."
     : "";
-  const detail = importMessage ? ` detail=${truncateText(importMessage, 1200)}` : "";
+  const detail = importMessage
+    ? ` detail=${truncateText(importMessage, 1200)}`
+    : "";
   return `PaddleOCR-VL runtime was installed but paddleocr/paddlex/paddle imports still fail.${suffix}${detail}`;
 }
 
@@ -397,19 +449,27 @@ function buildPaddleOcrNativeDllFailureMessage(detail, options = {}) {
 }
 
 function isPaddleSm120UnsupportedText(value) {
-  return /not compiled for\s+SM\s*120|sm[_\s-]*120|compute capability:\s*12(?:\.0)?|mismatched gpu architecture/i.test(String(value ?? ""));
+  return /not compiled for\s+SM\s*120|sm[_\s-]*120|compute capability:\s*12(?:\.0)?|mismatched gpu architecture/i.test(
+    String(value ?? ""),
+  );
 }
 
 function isPaddleBfloat16SafetensorsText(value) {
-  return /data type ['"]?bfloat16['"]? not understood|_load_part_state_dict_from_safetensors/i.test(String(value ?? ""));
+  return /data type ['"]?bfloat16['"]? not understood|_load_part_state_dict_from_safetensors/i.test(
+    String(value ?? ""),
+  );
 }
 
 function isPaddleNativeDllLoadFailureText(value) {
-  return /can not import paddle core|libpaddle\.pyd|dll load failed while importing libpaddle|the specified module could not be found/i.test(String(value ?? ""));
+  return /can not import paddle core|libpaddle\.pyd|dll load failed while importing libpaddle|the specified module could not be found/i.test(
+    String(value ?? ""),
+  );
 }
 
 function isPaddleOcrVerificationTimeoutText(value) {
-  return /Paddle OCR runtime verification timed out|OCR bbox command timed out/i.test(String(value ?? ""));
+  return /Paddle OCR runtime verification timed out|OCR bbox command timed out/i.test(
+    String(value ?? ""),
+  );
 }
 
 function summarizeOcrErrorMessage(error) {
@@ -420,9 +480,11 @@ function summarizeOcrErrorMessage(error) {
     error.message,
     error.stderrPreview,
     error.stdoutPreview,
-    error.cause instanceof Error ? error.cause.message : error.cause
+    error.cause instanceof Error ? error.cause.message : error.cause,
   ].filter(Boolean);
-  return parts.length > 0 ? parts.map((part) => String(part)).join(" ") : String(error);
+  return parts.length > 0
+    ? parts.map((part) => String(part)).join(" ")
+    : String(error);
 }
 
 function resolveOcrInstallSignature(options = {}) {
@@ -441,10 +503,12 @@ function buildPaddleOcrImportCheckScript(options = {}) {
     "missing = [name for name in ('paddle', 'paddlex', 'paddleocr') if importlib.util.find_spec(name) is None]",
     "assert not missing, 'Missing Paddle OCR package(s): ' + ', '.join(missing)",
     "import paddle",
-    "from paddleocr import PaddleOCRVL, PaddleOCR"
+    "from paddleocr import PaddleOCRVL, PaddleOCR",
   ];
   if (device.startsWith("gpu")) {
-    lines.push("assert paddle.device.is_compiled_with_cuda(), 'PaddlePaddle is not compiled with CUDA'");
+    lines.push(
+      "assert paddle.device.is_compiled_with_cuda(), 'PaddlePaddle is not compiled with CUDA'",
+    );
     lines.push("count = paddle.device.cuda.device_count()");
     lines.push("assert count > 0, 'No CUDA device is visible to PaddlePaddle'");
     lines.push(`paddle.set_device(${JSON.stringify(device)})`);
@@ -454,36 +518,48 @@ function buildPaddleOcrImportCheckScript(options = {}) {
 
 function buildOcrRuntimeEnv(options = {}, runtime = null) {
   const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);
-  const hfHomeDir = options.hfHomeDir || runtimeOverrideEnv("HF_HOME", options) || path.join(runtimeDir, "hf-cache");
+  const hfHomeDir =
+    options.hfHomeDir ||
+    runtimeOverrideEnv("HF_HOME", options) ||
+    path.join(runtimeDir, "hf-cache");
   const hfHubCacheDir =
     options.hfHubCacheDir ||
     runtimeOverrideEnv("HF_HUB_CACHE", options) ||
     runtimeOverrideEnv("HUGGINGFACE_HUB_CACHE", options) ||
     path.join(hfHomeDir, "hub");
-  const packageDir = runtime?.packageDir || resolveOcrPythonPackageDir(runtimeDir, options);
-  const includePackageDir = runtime?.includePackageDir ?? runtime?.usesTargetPackageDir ?? true;
+  const packageDir =
+    runtime?.packageDir || resolveOcrPythonPackageDir(runtimeDir, options);
+  const includePackageDir =
+    runtime?.includePackageDir ?? runtime?.usesTargetPackageDir ?? true;
   const pythonPath = includePackageDir ? packageDir : "";
-  const dllSearchDirs = buildOcrRuntimeDllSearchDirs(options, runtime, runtimeDir);
+  const dllSearchDirs = buildOcrRuntimeDllSearchDirs(
+    options,
+    runtime,
+    runtimeDir,
+  );
   const ocrDevice = resolveOcrDevice(options);
   const pipCacheDir = path.join(runtimeDir, "pip-cache");
   const tempDir = path.join(runtimeDir, "tmp");
   const env = buildWhitelistedChildEnv({
     pathDirs: buildOcrRuntimePathDirs(options, runtime, runtimeDir),
     includeProcessPath: shouldAllowExternalRuntimeOverrides(options),
-    extraKeys: [
-      ...NETWORK_CHILD_ENV_KEYS,
-      ...HF_CHILD_ENV_KEYS
-    ]
+    extraKeys: [...NETWORK_CHILD_ENV_KEYS, ...HF_CHILD_ENV_KEYS],
   });
   return {
     ...env,
     HF_HOME: hfHomeDir,
     HF_HUB_CACHE: hfHubCacheDir,
     HUGGINGFACE_HUB_CACHE: hfHubCacheDir,
-    HF_HUB_DISABLE_XET: runtimeOverrideEnv("HF_HUB_DISABLE_XET", options) || "1",
-    HF_HUB_ETAG_TIMEOUT: runtimeOverrideEnv("HF_HUB_ETAG_TIMEOUT", options) || "30",
-    HF_HUB_DOWNLOAD_TIMEOUT: runtimeOverrideEnv("HF_HUB_DOWNLOAD_TIMEOUT", options) || "300",
-    MANGA_TRANSLATOR_OCR_DEVICE: options.ocrDevice || runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options) || "cpu",
+    HF_HUB_DISABLE_XET:
+      runtimeOverrideEnv("HF_HUB_DISABLE_XET", options) || "1",
+    HF_HUB_ETAG_TIMEOUT:
+      runtimeOverrideEnv("HF_HUB_ETAG_TIMEOUT", options) || "30",
+    HF_HUB_DOWNLOAD_TIMEOUT:
+      runtimeOverrideEnv("HF_HUB_DOWNLOAD_TIMEOUT", options) || "300",
+    MANGA_TRANSLATOR_OCR_DEVICE:
+      options.ocrDevice ||
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_DEVICE", options) ||
+      "cpu",
     MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG: resolveOcrGpuCudaTag(options),
     MANGA_TRANSLATOR_OCR_DLL_DIRS: dllSearchDirs.join(path.delimiter),
     MANGA_TRANSLATOR_PADDLEOCR_DEVICE: ocrDevice,
@@ -491,24 +567,40 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
     PYTHONNOUSERSITE: "1",
     PYTHONUSERBASE: path.join(runtimeDir, "python-user-base"),
     PIP_CACHE_DIR: pipCacheDir,
-    PADDLE_PDX_MODEL_SOURCE: runtimeOverrideEnv("PADDLE_PDX_MODEL_SOURCE", options) || "huggingface",
-    PADDLE_PDX_CACHE_HOME: resolvePaddlexCacheHome(runtimeDir, options, runtime),
-    PADDLE_PDX_HUGGING_FACE_ENDPOINT: runtimeOverrideEnv("PADDLE_PDX_HUGGING_FACE_ENDPOINT", options) || "https://huggingface.co",
-    PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: runtimeOverrideEnv("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", options) || "True",
-    PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT: runtimeOverrideEnv("PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT", options) || "0",
-    PIP_DISABLE_PIP_VERSION_CHECK: runtimeOverrideEnv("PIP_DISABLE_PIP_VERSION_CHECK", options) || "1",
+    PADDLE_PDX_MODEL_SOURCE:
+      runtimeOverrideEnv("PADDLE_PDX_MODEL_SOURCE", options) || "huggingface",
+    PADDLE_PDX_CACHE_HOME: resolvePaddlexCacheHome(
+      runtimeDir,
+      options,
+      runtime,
+    ),
+    PADDLE_PDX_HUGGING_FACE_ENDPOINT:
+      runtimeOverrideEnv("PADDLE_PDX_HUGGING_FACE_ENDPOINT", options) ||
+      "https://huggingface.co",
+    PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK:
+      runtimeOverrideEnv("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", options) ||
+      "True",
+    PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT:
+      runtimeOverrideEnv("PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT", options) || "0",
+    PIP_DISABLE_PIP_VERSION_CHECK:
+      runtimeOverrideEnv("PIP_DISABLE_PIP_VERSION_CHECK", options) || "1",
     TMP: tempDir,
     TEMP: tempDir,
     PYTHONUTF8: "1",
-    PYTHONUNBUFFERED: "1"
+    PYTHONUNBUFFERED: "1",
   };
 }
 
-function buildOcrRuntimePathDirs(options = {}, runtime = null, runtimeDir = resolveOcrRuntimeDir(options)) {
+function buildOcrRuntimePathDirs(
+  options = {},
+  runtime = null,
+  runtimeDir = resolveOcrRuntimeDir(options),
+) {
   const variant = resolveOcrRuntimeVariant(options);
-  const venvBinDir = process.platform === "win32"
-    ? path.join(runtimeDir, `.venv-${variant}`, "Scripts")
-    : path.join(runtimeDir, `.venv-${variant}`, "bin");
+  const venvBinDir =
+    process.platform === "win32"
+      ? path.join(runtimeDir, `.venv-${variant}`, "Scripts")
+      : path.join(runtimeDir, `.venv-${variant}`, "bin");
   const toolsDir = resolveToolsDir(options);
   const dirs = [
     runtime?.pythonPath ? path.dirname(runtime.pythonPath) : null,
@@ -516,13 +608,18 @@ function buildOcrRuntimePathDirs(options = {}, runtime = null, runtimeDir = reso
     ...buildOcrRuntimeDllSearchDirs(options, runtime, runtimeDir),
     path.join(toolsDir || "", "python"),
     path.join(toolsDir || "", "python", "python-embed"),
-    runtimeDir
+    runtimeDir,
   ];
   return dirs;
 }
 
-function buildOcrRuntimeDllSearchDirs(options = {}, runtime = null, runtimeDir = resolveOcrRuntimeDir(options)) {
-  const packageDir = runtime?.packageDir || resolveOcrPythonPackageDir(runtimeDir, options);
+function buildOcrRuntimeDllSearchDirs(
+  options = {},
+  runtime = null,
+  runtimeDir = resolveOcrRuntimeDir(options),
+) {
+  const packageDir =
+    runtime?.packageDir || resolveOcrPythonPackageDir(runtimeDir, options);
   return [
     packageDir,
     path.join(packageDir, "paddle"),
@@ -530,7 +627,7 @@ function buildOcrRuntimeDllSearchDirs(options = {}, runtime = null, runtimeDir =
     path.join(packageDir, "paddle", "base", "libs"),
     path.join(packageDir, "paddle", "libs"),
     path.join(packageDir, "paddle.libs"),
-    path.join(packageDir, "Paddle.libs")
+    path.join(packageDir, "Paddle.libs"),
   ];
 }
 
@@ -563,5 +660,5 @@ module.exports = {
   resolveVenvPythonPath,
   shouldAllowSystemPythonFallback,
   summarizeOcrInstallBatches,
-  summarizeOcrErrorMessage
+  summarizeOcrErrorMessage,
 };

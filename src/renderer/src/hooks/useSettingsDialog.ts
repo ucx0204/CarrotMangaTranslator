@@ -10,10 +10,14 @@ type UseSettingsDialogResult = {
   closeSettings: () => void;
   submitSettings: (nextSettings: AppSettings) => Promise<void>;
   resetSettings: () => Promise<void>;
-  saveSettingsQuietly: (nextSettings: AppSettings) => Promise<AppSettings | null>;
+  saveSettingsQuietly: (
+    nextSettings: AppSettings,
+  ) => Promise<AppSettings | null>;
 };
 
-export function useSettingsDialog(pushStatus: (line: string) => void): UseSettingsDialogResult {
+export function useSettingsDialog(
+  pushStatus: (line: string) => void,
+): UseSettingsDialogResult {
   const [settings, setSettings] = React.useState<AppSettings | null>(null);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [settingsBusy, setSettingsBusy] = React.useState(false);
@@ -67,26 +71,31 @@ export function useSettingsDialog(pushStatus: (line: string) => void): UseSettin
         setSettingsBusy(false);
       }
     },
-    [pushStatus]
+    [pushStatus],
   );
 
-  const saveSettingsQuietly = React.useCallback(async (nextSettings: AppSettings) => {
-    try {
-      const saved = await mangaGateway.saveSettings(nextSettings);
-      setSettings(saved);
-      return saved;
-    } catch (error) {
-      console.error(error);
-      return null;
-    }
-  }, []);
+  const saveSettingsQuietly = React.useCallback(
+    async (nextSettings: AppSettings) => {
+      try {
+        const saved = await mangaGateway.saveSettings(nextSettings);
+        setSettings(saved);
+        return saved;
+      } catch (error) {
+        console.error(error);
+        return null;
+      }
+    },
+    [],
+  );
 
   const resetSettings = React.useCallback(async () => {
     setSettingsBusy(true);
     try {
       const reset = await mangaGateway.resetSettings();
       setSettings(reset);
-      pushStatus("설정을 기본값으로 복원했습니다. 다음 번 번역 실행부터 적용됩니다.");
+      pushStatus(
+        "설정을 기본값으로 복원했습니다. 다음 번 번역 실행부터 적용됩니다.",
+      );
     } catch (error) {
       console.error(error);
       pushStatus("기본 설정을 복원하지 못했습니다.");
@@ -95,5 +104,14 @@ export function useSettingsDialog(pushStatus: (line: string) => void): UseSettin
     }
   }, [pushStatus]);
 
-  return { settings, settingsOpen, settingsBusy, openSettings, closeSettings, submitSettings, resetSettings, saveSettingsQuietly };
+  return {
+    settings,
+    settingsOpen,
+    settingsBusy,
+    openSettings,
+    closeSettings,
+    submitSettings,
+    resetSettings,
+    saveSettingsQuietly,
+  };
 }

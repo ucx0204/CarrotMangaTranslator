@@ -19,7 +19,7 @@ const library: LibraryIndex = {
           status: "idle",
           createdAt: "2026-04-20T00:00:00.000Z",
           updatedAt: "2026-04-20T00:00:00.000Z",
-          pageCount: 12
+          pageCount: 12,
         },
         {
           id: "chapter-2",
@@ -28,9 +28,9 @@ const library: LibraryIndex = {
           status: "completed",
           createdAt: "2026-04-20T00:00:00.000Z",
           updatedAt: "2026-04-20T00:00:00.000Z",
-          pageCount: 10
-        }
-      ]
+          pageCount: 10,
+        },
+      ],
     },
     {
       id: "work-2",
@@ -46,11 +46,11 @@ const library: LibraryIndex = {
           status: "running",
           createdAt: "2026-04-20T00:00:00.000Z",
           updatedAt: "2026-04-20T00:00:00.000Z",
-          pageCount: 18
-        }
-      ]
-    }
-  ]
+          pageCount: 18,
+        },
+      ],
+    },
+  ],
 };
 
 describe("library filter helpers", () => {
@@ -64,7 +64,10 @@ describe("library filter helpers", () => {
 
     expect(filtered.workOrder).toEqual(["work-1"]);
     expect(filtered.works).toHaveLength(1);
-    expect(filtered.works[0]?.chapters.map((chapter) => chapter.id)).toEqual(["chapter-1", "chapter-2"]);
+    expect(filtered.works[0]?.chapters.map((chapter) => chapter.id)).toEqual([
+      "chapter-1",
+      "chapter-2",
+    ]);
   });
 
   it("keeps only matching chapters when the work title does not match", () => {
@@ -72,7 +75,9 @@ describe("library filter helpers", () => {
 
     expect(filtered.workOrder).toEqual(["work-1"]);
     expect(filtered.works).toHaveLength(1);
-    expect(filtered.works[0]?.chapters.map((chapter) => chapter.id)).toEqual(["chapter-2"]);
+    expect(filtered.works[0]?.chapters.map((chapter) => chapter.id)).toEqual([
+      "chapter-2",
+    ]);
   });
 
   it("matches case-insensitively and returns no works when nothing matches", () => {
@@ -82,6 +87,8 @@ describe("library filter helpers", () => {
     const filtered = filterLibraryIndex(library, "중급닌자시험");
 
     expect(filtered.workOrder).toEqual(["work-2"]);
-    expect(filtered.works[0]?.chapters.map((chapter) => chapter.id)).toEqual(["chapter-3"]);
+    expect(filtered.works[0]?.chapters.map((chapter) => chapter.id)).toEqual([
+      "chapter-3",
+    ]);
   });
 });

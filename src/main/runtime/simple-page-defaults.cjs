@@ -1,11 +1,18 @@
-const DEFAULT_MODEL_HF = "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
-const DEFAULT_HF_FILE = "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf";
-const DEFAULT_MMPROJ_HF = "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF";
-const DEFAULT_MMPROJ_FILE = "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
+const DEFAULT_MODEL_HF =
+  "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
+const DEFAULT_HF_FILE =
+  "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf";
+const DEFAULT_MMPROJ_HF =
+  "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF";
+const DEFAULT_MMPROJ_FILE =
+  "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
 const DEFAULT_CODEX_MODEL = "gpt-5.5";
 const DEFAULT_CODEX_REASONING_EFFORT = "low";
 const DEFAULT_API_KEY = "local-llama-server";
-const DEFAULT_OCR_CPU_PIP_PACKAGES = ["paddlepaddle==3.3.1", "paddleocr[doc-parser]==3.5.0"];
+const DEFAULT_OCR_CPU_PIP_PACKAGES = [
+  "paddlepaddle==3.3.1",
+  "paddleocr[doc-parser]==3.5.0",
+];
 const DEFAULT_OCR_GPU_PADDLE_PACKAGE = "paddlepaddle-gpu==3.3.1";
 const DEFAULT_OCR_GPU_EXTRA_PACKAGES = ["paddleocr[doc-parser]==3.5.0"];
 const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
@@ -13,7 +20,12 @@ const PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL =
   "https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl";
 const OCR_INSTALL_MARKER_FILE = "install-complete.json";
 const MAX_LOG_PREVIEW_LENGTH = 8000;
-const MM_PROJ_CANDIDATE_NAMES = ["mmproj-BF16.gguf", "mmproj-F16.gguf", "mmproj-F32.gguf", "mmproj.gguf"];
+const MM_PROJ_CANDIDATE_NAMES = [
+  "mmproj-BF16.gguf",
+  "mmproj-F16.gguf",
+  "mmproj-F32.gguf",
+  "mmproj.gguf",
+];
 const DEFAULT_OCR_BBOX_TIMEOUT_MS = 60 * 60 * 1000;
 const DEFAULT_OCR_BBOX_PAGE_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_DOWNLOAD_METADATA_TIMEOUT_MS = 30000;
@@ -27,7 +39,13 @@ const PADDLE_OCR_MODEL_DOWNLOADS = [
   {
     name: "PP-DocLayoutV3",
     repo: "PaddlePaddle/PP-DocLayoutV3",
-    files: [".gitattributes", "README.md", "inference.json", "inference.pdiparams", "inference.yml"]
+    files: [
+      ".gitattributes",
+      "README.md",
+      "inference.json",
+      "inference.pdiparams",
+      "inference.yml",
+    ],
   },
   {
     name: "PaddleOCR-VL-1.5",
@@ -51,19 +69,33 @@ const PADDLE_OCR_MODEL_DOWNLOADS = [
       "special_tokens_map.json",
       "tokenizer.json",
       "tokenizer.model",
-      "tokenizer_config.json"
-    ]
+      "tokenizer_config.json",
+    ],
   },
   {
     name: "PP-OCRv5_server_det",
     repo: "PaddlePaddle/PP-OCRv5_server_det",
-    files: [".gitattributes", "README.md", "config.json", "inference.json", "inference.pdiparams", "inference.yml"]
+    files: [
+      ".gitattributes",
+      "README.md",
+      "config.json",
+      "inference.json",
+      "inference.pdiparams",
+      "inference.yml",
+    ],
   },
   {
     name: "PP-OCRv5_server_rec",
     repo: "PaddlePaddle/PP-OCRv5_server_rec",
-    files: [".gitattributes", "README.md", "config.json", "inference.json", "inference.pdiparams", "inference.yml"]
-  }
+    files: [
+      ".gitattributes",
+      "README.md",
+      "config.json",
+      "inference.json",
+      "inference.pdiparams",
+      "inference.yml",
+    ],
+  },
 ];
 
 module.exports = {
@@ -91,5 +123,5 @@ module.exports = {
   MM_PROJ_CANDIDATE_NAMES,
   OCR_INSTALL_MARKER_FILE,
   PADDLE_OCR_MODEL_DOWNLOADS,
-  PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL
+  PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL,
 };

@@ -17,8 +17,11 @@ function shouldUseSmallGemmaDuplicatePromptProfile(options = {}) {
   const modelText = [
     options.modelRepo,
     options.modelFile,
-    options.localModelPath
-  ].filter(Boolean).join(" ").toLowerCase();
+    options.localModelPath,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
   return /(^|[^0-9])(12b|26b)([^0-9]|$)|26b-a4b/.test(modelText);
 }
 
@@ -26,17 +29,17 @@ const SMALL_GEMMA_DUPLICATE_OUTPUT_LINES = [
   "One physical Japanese text area may appear only once in the output. Never output multiple records whose boxes sit on the same glyph cluster, same speech bubble text, same caption text, or same SFX group.",
   "If two possible records would occupy the same place or mostly cover the same visible glyphs, keep one record only. Put all readable source lines for that same area into that one jp field and one Korean translation.",
   "Never stack several records at the same x/y position to represent separate lines, columns, words, or fragments inside one visual text area.",
-  "Never output a later correction record that repeats, contains, or is contained by the jp text of an earlier record from the same visual area. Correct the original record instead of adding another one."
+  "Never output a later correction record that repeats, contains, or is contained by the jp text of an earlier record from the same visual area. Correct the original record instead of adding another one.",
 ];
 
 const SMALL_GEMMA_DUPLICATE_SEGMENTATION_LINES = [
-  "Inside one speech bubble, caption box, note, sign, label, or one continuous SFX glyph group, do not create overlapping records for separate columns, lines, words, or fragments. Same physical place means one record."
+  "Inside one speech bubble, caption box, note, sign, label, or one continuous SFX glyph group, do not create overlapping records for separate columns, lines, words, or fragments. Same physical place means one record.",
 ];
 
 const SMALL_GEMMA_OCR_ANCHOR_LINES = [
   "OCR text hints may be wrong, incomplete, or split strangely, but treat the OCR candidate rectangles as your primary geometry anchors unless Image 1 clearly proves otherwise.",
   "Compared with pure visual guessing, trust the OCR candidate placement and grouping more strongly: about 70% OCR geometry anchor, 30% visual correction from Image 1.",
-  "Use the OCR text hint and candidate rectangle together to keep each translated record attached to the correct candidate id, especially when nearby candidates are close together."
+  "Use the OCR text hint and candidate rectangle together to keep each translated record attached to the correct candidate id, especially when nearby candidates are close together.",
 ];
 
 const SMALL_GEMMA_OCR_DUPLICATE_LINES = [
@@ -45,7 +48,7 @@ const SMALL_GEMMA_OCR_DUPLICATE_LINES = [
   "Before adding any new record, compare it against every candidate bbox. If the new bbox would cover the same glyph cluster or the same visual text area as a candidate, keep the candidate record only.",
   "If one OCR candidate covers several Japanese lines or columns inside the same visual container, keep them as one record for that candidate; do not split them into multiple overlapping records.",
   "New ids are for genuinely missed text only, not for correcting, enlarging, summarizing, or re-reading an existing candidate. If a candidate needs a better jp/ko, fix that candidate record with the same id.",
-  "A new id is invalid if its jp repeats, partially repeats, or summarizes text already assigned to a candidate or earlier record in the same speech bubble/caption/SFX area."
+  "A new id is invalid if its jp repeats, partially repeats, or summarizes text already assigned to a candidate or earlier record in the same speech bubble/caption/SFX area.",
 ];
 
 const OVERLAY_OUTPUT_SCHEMA = [
@@ -61,7 +64,7 @@ const OVERLAY_OUTPUT_SCHEMA = [
   "fontSize: <integer>",
   "confidence: <0.00-1.00>",
   "jp: <visible Japanese source text>",
-  "ko: <concise Korean translation>"
+  "ko: <concise Korean translation>",
 ].join("\n");
 
 const OVERLAY_PROMPT_SECTIONS = [
@@ -73,7 +76,7 @@ const OVERLAY_PROMPT_SECTIONS = [
     "Scan the entire page before writing records; do not stop after the first obvious text.",
     "First identify the exact Japanese glyph strokes for each item, then write the record. Do not estimate from the speech bubble or panel shape.",
     "Before reading dialogue text, segment the visible speech balloons themselves. Each distinct balloon lobe and each separated dialogue text cluster becomes a separate dialogue record.",
-    "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text."
+    "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text.",
   ],
   [
     "Output",
@@ -92,7 +95,7 @@ const OVERLAY_PROMPT_SECTIONS = [
     "If a stylized SFX looks like a Latin letter but is probably Japanese kana, re-read it as kana. If you still cannot read it as Japanese, skip it rather than translating the Latin letter.",
     "Put one blank line between records.",
     "Record template:",
-    OVERLAY_OUTPUT_SCHEMA
+    OVERLAY_OUTPUT_SCHEMA,
   ],
   [
     "Geometry",
@@ -116,7 +119,7 @@ const OVERLAY_PROMPT_SECTIONS = [
     "Before final output, mentally fill each bbox with translucent color: no Japanese glyph from jp should remain visible outside that filled area.",
     "Then check tightness: if the filled area covers large blank bubble paper or caption-box padding on any side, redraw the bbox tighter around the glyph ink.",
     "Then check placement: the center of the bbox must lie on or very near the jp glyph ink cluster, not on adjacent background art or empty panel space.",
-    "Decorative hearts, bubble tails, panel borders, box borders, background textures, and motion effects are not Japanese glyph ink."
+    "Decorative hearts, bubble tails, panel borders, box borders, background textures, and motion effects are not Japanese glyph ink.",
   ],
   [
     "Segmentation",
@@ -134,7 +137,7 @@ const OVERLAY_PROMPT_SECTIONS = [
     "SFX is often gray, slanted, outlined, partly behind characters, or outside OCR candidates. Do a separate SFX pass after dialogue/captions and add every clear kana sound effect.",
     "Do not invent SFX from sweat drops, vertical panel trim, furniture lines, wall patterns, texture, impact lines, or isolated non-character strokes.",
     "Do not add records for isolated symbol fragments, stray decorative marks, page numbers, or clipped scraps that are not complete Japanese text.",
-    "Include meaningful short interjections, names, captions, and SFX."
+    "Include meaningful short interjections, names, captions, and SFX.",
   ],
   [
     "Rendering hints",
@@ -163,8 +166,8 @@ const OVERLAY_PROMPT_SECTIONS = [
     "Use angle 0 for ordinary upright speech and captions; use a nonzero angle only when the source glyphs are visibly slanted.",
     "Keep Korean short enough for an on-image overlay while preserving meaning.",
     "For handwritten diagrams and search-word lists, translate the whole note as one compact Korean phrase or comma-separated list when possible.",
-    "If OCR is uncertain, write [?] only for the uncertain fragment and still output the item."
-  ]
+    "If OCR is uncertain, write [?] only for the uncertain fragment and still output the item.",
+  ],
 ];
 
 const PROMPT_KO_BBOX_LINES_MULTIVIEW = buildOverlayPrompt();
@@ -178,20 +181,20 @@ function buildSystemPrompt(options = {}) {
     "Render ordinary speech/caption/label Korean horizontally by default; source Japanese vertical direction is not a reason to make Korean vertical.",
     "For SFX records, output bare Korean effect lettering only; do not wrap it in parentheses/brackets/quotes or turn it into a stage direction.",
     "For SFX records, choose compact Korean effect lettering that fits the scene and rhythm. Do not mechanically transliterate Japanese kana, and do not force ambient sounds into dialogue words or action descriptions.",
-    "For SFX records, confidence must be 1.00 only when the complete sound effect is unquestionably real Japanese text and fully read; otherwise use confidence below 1.00."
+    "For SFX records, confidence must be 1.00 only when the complete sound effect is unquestionably real Japanese text and fully read; otherwise use confidence below 1.00.",
   ];
 
   if (shouldUseSmallGemmaDuplicatePromptProfile(options)) {
     lines.splice(
       4,
       0,
-      "Never output duplicate or overlapping records for the same physical Japanese text area. One glyph cluster/container must become one record, not stacked blocks."
+      "Never output duplicate or overlapping records for the same physical Japanese text area. One glyph cluster/container must become one record, not stacked blocks.",
     );
   }
 
   if (options.regionCropMode) {
     lines.push(
-      "Selected-region mode: group by visual text container, not by line or column. One speech bubble or one caption plate is one item even when the Japanese is split across multiple vertical columns or lines."
+      "Selected-region mode: group by visual text container, not by line or column. One speech bubble or one caption plate is one item even when the Japanese is split across multiple vertical columns or lines.",
     );
   }
 
@@ -199,21 +202,33 @@ function buildSystemPrompt(options = {}) {
 }
 
 function buildOverlayPrompt(options = {}, imageVariants = []) {
-  const sections = OVERLAY_PROMPT_SECTIONS.map(([title, ...lines]) => [title, ...lines]);
+  const sections = OVERLAY_PROMPT_SECTIONS.map(([title, ...lines]) => [
+    title,
+    ...lines,
+  ]);
   sections[0] = buildTaskSection(options, imageVariants);
   applyModelSpecificPromptProfile(sections, options);
   const regionCropSection = buildRegionCropSection(options);
   if (regionCropSection.length > 1) {
     sections.splice(1, 0, regionCropSection);
   }
-  const coordinateSection = buildCoordinateCalibrationSection(options, imageVariants);
+  const coordinateSection = buildCoordinateCalibrationSection(
+    options,
+    imageVariants,
+  );
   if (coordinateSection.length > 1) {
     sections.splice(2, 0, coordinateSection);
   }
   const ocrHintSection = buildOcrBboxHintSection(options, imageVariants);
   if (ocrHintSection.length > 1) {
-    const coordinateIndex = sections.findIndex((section) => section[0] === "Coordinate calibration");
-    sections.splice(coordinateIndex === -1 ? 2 : coordinateIndex + 1, 0, ocrHintSection);
+    const coordinateIndex = sections.findIndex(
+      (section) => section[0] === "Coordinate calibration",
+    );
+    sections.splice(
+      coordinateIndex === -1 ? 2 : coordinateIndex + 1,
+      0,
+      ocrHintSection,
+    );
   }
 
   return sections
@@ -226,8 +241,18 @@ function applyModelSpecificPromptProfile(sections, options = {}) {
     return;
   }
 
-  insertSectionLinesBefore(sections, "Output", "Do not copy placeholder text. Estimate every value from the actual glyphs in Image 1.", SMALL_GEMMA_DUPLICATE_OUTPUT_LINES);
-  insertSectionLinesAfter(sections, "Segmentation", "Inside one speech bubble, group all Japanese glyph lines from that same bubble into one item.", SMALL_GEMMA_DUPLICATE_SEGMENTATION_LINES);
+  insertSectionLinesBefore(
+    sections,
+    "Output",
+    "Do not copy placeholder text. Estimate every value from the actual glyphs in Image 1.",
+    SMALL_GEMMA_DUPLICATE_OUTPUT_LINES,
+  );
+  insertSectionLinesAfter(
+    sections,
+    "Segmentation",
+    "Inside one speech bubble, group all Japanese glyph lines from that same bubble into one item.",
+    SMALL_GEMMA_DUPLICATE_SEGMENTATION_LINES,
+  );
 }
 
 function insertSectionLinesBefore(sections, title, anchorLine, lines) {
@@ -271,7 +296,7 @@ function buildTaskSection(options = {}, imageVariants = []) {
     "Scan the entire page before writing records; do not stop after the first obvious text.",
     "First identify the exact Japanese glyph strokes for each item, then write the record. Do not estimate from the speech bubble or panel shape.",
     "Before reading dialogue text, segment the visible speech balloons themselves. Each distinct balloon lobe and each separated dialogue text cluster becomes a separate dialogue record.",
-    "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text."
+    "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text.",
   ];
 }
 
@@ -288,14 +313,16 @@ function buildRegionCropSection(options = {}) {
     "Inside one speech bubble, never split by Japanese vertical column, text line, word, sentence fragment, punctuation gap, or line break.",
     "For vertical dialogue in one bubble, jp must include all columns in natural Japanese reading order, and ko must be one coherent Korean translation for that bubble.",
     "Only split a dialogue item when there is a visible separate speech bubble/lobe or clearly separate dialogue container, not merely because columns are separated by blank paper.",
-    "The bbox for that one record should tightly cover the union of all visible Japanese glyph ink belonging to the same bubble/caption, not the whole bubble paper."
+    "The bbox for that one record should tightly cover the union of all visible Japanese glyph ink belonging to the same bubble/caption, not the whole bubble paper.",
   ];
 }
 
 function buildCoordinateCalibrationSection(options = {}, imageVariants = []) {
   const originalWidth = readPositiveInteger(options.imageWidth);
   const originalHeight = readPositiveInteger(options.imageHeight);
-  const geometryVariant = imageVariants.find((variant) => variant.role === "openai-vision") || imageVariants[0];
+  const geometryVariant =
+    imageVariants.find((variant) => variant.role === "openai-vision") ||
+    imageVariants[0];
   const sentWidth = readPositiveInteger(geometryVariant?.width);
   const sentHeight = readPositiveInteger(geometryVariant?.height);
   const coordinateFrame = resolvePromptCoordinateFrame(options, imageVariants);
@@ -303,7 +330,10 @@ function buildCoordinateCalibrationSection(options = {}, imageVariants = []) {
     return [];
   }
 
-  const lines = ["Coordinate calibration", `The original page is ${originalWidth}x${originalHeight} px.`];
+  const lines = [
+    "Coordinate calibration",
+    `The original page is ${originalWidth}x${originalHeight} px.`,
+  ];
 
   if (coordinateFrame.space === "pixels") {
     lines.push(
@@ -311,7 +341,7 @@ function buildCoordinateCalibrationSection(options = {}, imageVariants = []) {
       `Return x1, y1, x2, y2 as integer pixel coordinates in that ${coordinateFrame.frame.width}x${coordinateFrame.frame.height} Image 1 frame.`,
       "Do not return width/height, original-page pixels, normalized 0..1000 coordinates, viewport coordinates, crop coordinates, tile coordinates, or model-internal coordinates.",
       `Use the full visible Image 1 frame as the coordinate frame: left edge 0, top edge 0, right edge ${coordinateFrame.frame.width}, bottom edge ${coordinateFrame.frame.height}.`,
-      "The app will map these sent-image pixels back to the original page after the model response."
+      "The app will map these sent-image pixels back to the original page after the model response.",
     );
     return lines;
   }
@@ -319,13 +349,17 @@ function buildCoordinateCalibrationSection(options = {}, imageVariants = []) {
   lines.push(
     "Return x1, y1, x2, y2 as normalized 0..1000 corner coordinates over Image 1, not viewport, crop, tile, or model-internal coordinates.",
     "Use the full visible Image 1 frame as the coordinate frame: left edge 0, top edge 0, right edge 1000, bottom edge 1000.",
-    "Because Image 1 preserves the original aspect ratio, these normalized coordinates map directly back to the original page."
+    "Because Image 1 preserves the original aspect ratio, these normalized coordinates map directly back to the original page.",
   );
 
-  if (sentWidth && sentHeight && (sentWidth !== originalWidth || sentHeight !== originalHeight)) {
+  if (
+    sentWidth &&
+    sentHeight &&
+    (sentWidth !== originalWidth || sentHeight !== originalHeight)
+  ) {
     lines.push(
       `For OpenAI vision, Image 1 was pre-scaled to ${sentWidth}x${sentHeight} px for detail: original before sending so the coordinate frame matches what the model sees.`,
-      `If measuring in sent pixels, convert directly with x1 = round(left * 1000 / ${sentWidth}), y1 = round(top * 1000 / ${sentHeight}), x2 = round(right * 1000 / ${sentWidth}), y2 = round(bottom * 1000 / ${sentHeight}).`
+      `If measuring in sent pixels, convert directly with x1 = round(left * 1000 / ${sentWidth}), y1 = round(top * 1000 / ${sentHeight}), x2 = round(right * 1000 / ${sentWidth}), y2 = round(bottom * 1000 / ${sentHeight}).`,
     );
   }
 
@@ -343,24 +377,35 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
   const originalHeight = readPositiveInteger(options.imageHeight);
   const formattedHints = hints
     .slice(0, 80)
-    .map((hint, index) => formatOcrBboxHintForPrompt(hint, index + 1, frame, originalWidth, originalHeight))
+    .map((hint, index) =>
+      formatOcrBboxHintForPrompt(
+        hint,
+        index + 1,
+        frame,
+        originalWidth,
+        originalHeight,
+      ),
+    )
     .filter(Boolean);
   const candidateIds = hints
     .slice(0, formattedHints.length)
     .map((hint, index) => readPositiveInteger(hint.id) || index + 1);
   const maxCandidateId = Math.max(...candidateIds, 0);
-  const groupContextLines = buildOcrGroupContextLines(hints.slice(0, formattedHints.length));
+  const groupContextLines = buildOcrGroupContextLines(
+    hints.slice(0, formattedHints.length),
+  );
 
   if (formattedHints.length === 0) {
     return [];
   }
 
-  const useSmallGemmaDuplicateProfile = shouldUseSmallGemmaDuplicatePromptProfile(options);
+  const useSmallGemmaDuplicateProfile =
+    shouldUseSmallGemmaDuplicatePromptProfile(options);
   const ocrAnchorLines = useSmallGemmaDuplicateProfile
     ? SMALL_GEMMA_OCR_ANCHOR_LINES
     : [
         "OCR text hints may be wrong, incomplete, or split strangely. Use Image 1 as the authority for the actual Japanese text and Korean translation.",
-        "Use the OCR text hint to keep each translated record attached to the correct candidate id, especially when nearby candidates are close together."
+        "Use the OCR text hint to keep each translated record attached to the correct candidate id, especially when nearby candidates are close together.",
       ];
   const candidateChangeLine = useSmallGemmaDuplicateProfile
     ? "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes or includes non-text art; then change the minimum amount needed and keep the same id."
@@ -370,13 +415,13 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
         "OCR candidates are the normal source of output records. After processing candidates, inspect Image 1 only for obvious missing Japanese text that is clearly outside all candidate rectangles.",
         `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle, and never add a new id for text already covered by a candidate.`,
         "New records are allowed only for clear Japanese glyphs whose bbox does not overlap existing candidate rectangles except for a tiny edge touch.",
-        "For new missing SFX records, be conservative: add them only when the complete kana/SFX glyph group is clearly visible and not covered by any candidate. The bbox must visibly cover kana/SFX glyph strokes."
+        "For new missing SFX records, be conservative: add them only when the complete kana/SFX glyph group is clearly visible and not covered by any candidate. The bbox must visibly cover kana/SFX glyph strokes.",
       ]
     : [
         "OCR candidates are a floor, not a ceiling. After processing candidates, inspect the whole Image 1 again for missing Japanese text.",
         `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle.`,
         "New records are allowed only for clear Japanese glyphs that are not covered by any candidate.",
-        "For new missing SFX records, search especially near character bodies, panel edges, and lower panels where OCR often misses gray or outlined kana. The bbox must visibly cover kana/SFX glyph strokes."
+        "For new missing SFX records, search especially near character bodies, panel edges, and lower panels where OCR often misses gray or outlined kana. The bbox must visibly cover kana/SFX glyph strokes.",
       ];
 
   return [
@@ -384,11 +429,15 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
     "An external OCR geometry detector has already proposed bbox candidates. Some candidates include low-trust OCR text hints for slot matching only.",
     ...ocrAnchorLines,
     "Treat each candidate as a locked geometry slot. For every candidate that contains Japanese glyphs, output one record with that same id and the exact x1, y1, x2, y2 numbers shown below.",
-    ...(useSmallGemmaDuplicateProfile ? [SMALL_GEMMA_OCR_DUPLICATE_LINES[0]] : []),
+    ...(useSmallGemmaDuplicateProfile
+      ? [SMALL_GEMMA_OCR_DUPLICATE_LINES[0]]
+      : []),
     `Required candidate ids: ${candidateIds.join(", ")}.`,
     ...groupContextLines,
     "Read and translate only the text inside that candidate rectangle plus a tiny visual margin; do not move the rectangle to a different nearby text group.",
-    ...(useSmallGemmaDuplicateProfile ? SMALL_GEMMA_OCR_DUPLICATE_LINES.slice(1) : []),
+    ...(useSmallGemmaDuplicateProfile
+      ? SMALL_GEMMA_OCR_DUPLICATE_LINES.slice(1)
+      : []),
     "For each candidate, read every visible Japanese line inside the rectangle. A candidate record is incomplete if jp or ko contains only the first line while lower or side lines remain readable.",
     "If a candidate is a handwritten note or diagram label, preserve all readable words, but translate ko compactly for horizontal Korean reading rather than copying the Japanese vertical line breaks.",
     "For every accepted candidate, output type nonsolid and set textRole to ordinary or sound.",
@@ -401,7 +450,7 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
     "Never add SFX on panel trim, furniture lines, wall patterns, or isolated vertical strokes.",
     "The candidate coordinates below are already converted into the same coordinate frame required for your output.",
     "",
-    ...formattedHints
+    ...formattedHints,
   ];
 }
 
@@ -417,7 +466,7 @@ function buildOcrGroupContextLines(hints) {
     "Even inside a group, keep one output record per candidate id; never merge grouped candidate boxes into one record and never move one candidate to another candidate's position.",
     "For grouped candidates, translate each candidate's visible source text as the appropriate part of the group, informed by the whole group reading order.",
     "For grouped ordinary text, first understand the combined Japanese expression in reading order, then split the Korean naturally across the original candidate ids. Do not translate each fragment syllable-by-syllable in isolation.",
-    ...groups.map(formatOcrGroupForPrompt)
+    ...groups.map(formatOcrGroupForPrompt),
   ];
 }
 
@@ -430,7 +479,7 @@ function collectOcrHintGroups(hints) {
       groupId,
       rolePrior: sanitizeOcrGroupValue(hint.rolePrior) || "unknown",
       containerType: sanitizeOcrGroupValue(hint.containerType) || "unknown",
-      hints: []
+      hints: [],
     };
     group.hints.push(hint);
     grouped.set(groupId, group);
@@ -441,7 +490,11 @@ function collectOcrHintGroups(hints) {
       ...group,
       hints: group.hints
         .slice()
-        .sort((left, right) => (readPositiveInteger(left.orderInGroup) || 9999) - (readPositiveInteger(right.orderInGroup) || 9999))
+        .sort(
+          (left, right) =>
+            (readPositiveInteger(left.orderInGroup) || 9999) -
+            (readPositiveInteger(right.orderInGroup) || 9999),
+        ),
     }))
     .filter((group) => group.hints.length > 1)
     .sort((left, right) => left.groupId.localeCompare(right.groupId))
@@ -459,11 +512,19 @@ function formatOcrGroupForPrompt(group) {
     .map((hint) => sanitizeOcrTextForPrompt(readOcrCandidateText(hint)))
     .filter(Boolean)
     .join(" / ");
-  const preview = textPreview ? ` textPreview:${JSON.stringify(textPreview)}` : "";
+  const preview = textPreview
+    ? ` textPreview:${JSON.stringify(textPreview)}`
+    : "";
   return `group ${group.groupId}: rolePrior:${group.rolePrior} containerType:${group.containerType} candidateIds:[${candidateIds.join(",")}] readingOrder:[${readingOrder.join(",")}]${preview}`;
 }
 
-function formatOcrBboxHintForPrompt(hint, fallbackId, frame, originalWidth, originalHeight) {
+function formatOcrBboxHintForPrompt(
+  hint,
+  fallbackId,
+  frame,
+  originalWidth,
+  originalHeight,
+) {
   const x1 = Number(hint?.x1);
   const y1 = Number(hint?.y1);
   const x2 = Number(hint?.x2);
@@ -474,28 +535,47 @@ function formatOcrBboxHintForPrompt(hint, fallbackId, frame, originalWidth, orig
 
   const id = readPositiveInteger(hint.id) || fallbackId;
   const label = sanitizeHintLabel(hint.label);
-  const converted = convertOriginalPixelBoxToPromptFrame({ x1, y1, x2, y2 }, frame, originalWidth, originalHeight);
-  const score = Number.isFinite(hint.score) ? ` score:${Math.round(hint.score * 100) / 100}` : "";
+  const converted = convertOriginalPixelBoxToPromptFrame(
+    { x1, y1, x2, y2 },
+    frame,
+    originalWidth,
+    originalHeight,
+  );
+  const score = Number.isFinite(hint.score)
+    ? ` score:${Math.round(hint.score * 100) / 100}`
+    : "";
   const ocrText = sanitizeOcrTextForPrompt(readOcrCandidateText(hint));
   const textHint = ocrText ? ` ocrText:${JSON.stringify(ocrText)}` : "";
   const groupId = sanitizeOcrGroupId(hint.groupId);
-  const group = groupId ? ` group:${groupId} orderInGroup:${readPositiveInteger(hint.orderInGroup) || 1}` : "";
+  const group = groupId
+    ? ` group:${groupId} orderInGroup:${readPositiveInteger(hint.orderInGroup) || 1}`
+    : "";
   const rolePrior = sanitizeOcrGroupValue(hint.rolePrior);
   const role = rolePrior ? ` rolePrior:${rolePrior}` : "";
   return `candidate ${id}: label:${label} x1:${converted.x1} y1:${converted.y1} x2:${converted.x2} y2:${converted.y2}${score}${group}${role}${textHint}`;
 }
 
 function sanitizeOcrGroupId(value) {
-  const text = String(value ?? "").trim().toUpperCase();
+  const text = String(value ?? "")
+    .trim()
+    .toUpperCase();
   return /^G\d{3,4}$/.test(text) ? text : "";
 }
 
 function sanitizeOcrGroupValue(value) {
-  const text = String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "_");
   return text.slice(0, 48);
 }
 
-function convertOriginalPixelBoxToPromptFrame(box, frame, originalWidth, originalHeight) {
+function convertOriginalPixelBoxToPromptFrame(
+  box,
+  frame,
+  originalWidth,
+  originalHeight,
+) {
   if (frame.space === "pixels" && originalWidth && originalHeight) {
     const xScale = frame.frame.width / originalWidth;
     const yScale = frame.frame.height / originalHeight;
@@ -503,7 +583,7 @@ function convertOriginalPixelBoxToPromptFrame(box, frame, originalWidth, origina
       x1: Math.round(Math.min(box.x1, box.x2) * xScale),
       y1: Math.round(Math.min(box.y1, box.y2) * yScale),
       x2: Math.round(Math.max(box.x1, box.x2) * xScale),
-      y2: Math.round(Math.max(box.y1, box.y2) * yScale)
+      y2: Math.round(Math.max(box.y1, box.y2) * yScale),
     };
   }
 
@@ -512,7 +592,7 @@ function convertOriginalPixelBoxToPromptFrame(box, frame, originalWidth, origina
       x1: Math.round((Math.min(box.x1, box.x2) / originalWidth) * 1000),
       y1: Math.round((Math.min(box.y1, box.y2) / originalHeight) * 1000),
       x2: Math.round((Math.max(box.x1, box.x2) / originalWidth) * 1000),
-      y2: Math.round((Math.max(box.y1, box.y2) / originalHeight) * 1000)
+      y2: Math.round((Math.max(box.y1, box.y2) / originalHeight) * 1000),
     };
   }
 
@@ -520,12 +600,15 @@ function convertOriginalPixelBoxToPromptFrame(box, frame, originalWidth, origina
     x1: Math.round(Math.min(box.x1, box.x2)),
     y1: Math.round(Math.min(box.y1, box.y2)),
     x2: Math.round(Math.max(box.x1, box.x2)),
-    y2: Math.round(Math.max(box.y1, box.y2))
+    y2: Math.round(Math.max(box.y1, box.y2)),
   };
 }
 
 function sanitizeHintLabel(value) {
-  const text = String(value ?? "text").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
+  const text = String(value ?? "text")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "_");
   return text || "text";
 }
 
@@ -533,7 +616,15 @@ function readOcrCandidateText(candidate) {
   if (!candidate || typeof candidate !== "object") {
     return "";
   }
-  for (const key of ["ocrText", "ocr_text", "text", "content", "block_content", "rec_text", "transcription"]) {
+  for (const key of [
+    "ocrText",
+    "ocr_text",
+    "text",
+    "content",
+    "block_content",
+    "rec_text",
+    "transcription",
+  ]) {
     const text = normalizeOcrTextValue(candidate[key]);
     if (text) {
       return text;
@@ -550,7 +641,13 @@ function normalizeOcrTextValue(value) {
     return value.map(normalizeOcrTextValue).filter(Boolean).join(" ").trim();
   }
   if (value && typeof value === "object") {
-    for (const key of ["text", "content", "value", "rec_text", "transcription"]) {
+    for (const key of [
+      "text",
+      "content",
+      "value",
+      "rec_text",
+      "transcription",
+    ]) {
       const text = normalizeOcrTextValue(value[key]);
       if (text) {
         return text;
@@ -561,23 +658,37 @@ function normalizeOcrTextValue(value) {
 }
 
 function sanitizeOcrTextForPrompt(value) {
-  return truncateText(normalizeOcrTextValue(value).replace(/[\u0000-\u001F\u007F]+/g, " ").replace(/\s+/g, " ").trim(), 160);
+  return truncateText(
+    normalizeOcrTextValue(value)
+      .replace(/[\u0000-\u001F\u007F]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+    160,
+  );
 }
 
 function resolvePromptCoordinateFrame(options = {}, imageVariants = []) {
   if (isOpenAICodexProvider(options)) {
-    const geometryVariant = imageVariants.find((variant) => variant.role === "openai-vision") || imageVariants[0];
-    const width = readPositiveInteger(geometryVariant?.width) || readPositiveInteger(options.imageWidth) || 1000;
-    const height = readPositiveInteger(geometryVariant?.height) || readPositiveInteger(options.imageHeight) || 1000;
+    const geometryVariant =
+      imageVariants.find((variant) => variant.role === "openai-vision") ||
+      imageVariants[0];
+    const width =
+      readPositiveInteger(geometryVariant?.width) ||
+      readPositiveInteger(options.imageWidth) ||
+      1000;
+    const height =
+      readPositiveInteger(geometryVariant?.height) ||
+      readPositiveInteger(options.imageHeight) ||
+      1000;
     return {
       space: "pixels",
-      frame: { width, height }
+      frame: { width, height },
     };
   }
 
   return {
     space: "normalized_1000",
-    frame: { width: 1000, height: 1000 }
+    frame: { width: 1000, height: 1000 },
   };
 }
 
@@ -594,5 +705,5 @@ module.exports = {
   readPositiveInteger,
   resolvePromptCoordinateFrame,
   sanitizeHintLabel,
-  sanitizeOcrTextForPrompt
+  sanitizeOcrTextForPrompt,
 };

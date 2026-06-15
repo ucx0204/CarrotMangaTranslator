@@ -1,7 +1,28 @@
 import { resolveBlockVisualStyle } from "../../shared/blockVisuals";
-import { estimateBlockFontSizePx, clamp, clampBbox, enforceRenderDirection, enforceRotationDeg, normalizeBlockType, pixelsToBbox } from "../../shared/geometry";
-import type { BBox, BlockType, MangaPage, RenderTextDirection, SourceTextDirection, TranslationBlock } from "../../shared/types";
-import type { BboxNormalizationOptions, DetectedBboxSpace, OverlayItem, RequestSummary, TranslationResult } from "./types";
+import {
+  estimateBlockFontSizePx,
+  clamp,
+  clampBbox,
+  enforceRenderDirection,
+  enforceRotationDeg,
+  normalizeBlockType,
+  pixelsToBbox,
+} from "../../shared/geometry";
+import type {
+  BBox,
+  BlockType,
+  MangaPage,
+  RenderTextDirection,
+  SourceTextDirection,
+  TranslationBlock,
+} from "../../shared/types";
+import type {
+  BboxNormalizationOptions,
+  DetectedBboxSpace,
+  OverlayItem,
+  RequestSummary,
+  TranslationResult,
+} from "./types";
 
 const DEFAULT_TEXT_COLOR = "#111111";
 const DEFAULT_OUTLINE_COLOR = "#ffffff";
@@ -9,7 +30,12 @@ const REQUIRED_SOUND_CONFIDENCE = 1;
 
 type NormalizedTextRole = "ordinary" | "sound" | "nontext" | "";
 
-export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: number, runId?: string): TranslationBlock {
+export function overlayItemToBlock(
+  item: OverlayItem,
+  page: MangaPage,
+  index: number,
+  runId?: string,
+): TranslationBlock {
   const type = mapOverlayType(item.type);
   const textRole = normalizeOverlayTextRole(item.textRole);
   const rawBbox = clampBbox(item.bbox);
@@ -17,10 +43,24 @@ export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: nu
   const sourceText = item.jp.trim();
   const textForSizing = translatedText || sourceText || "...";
   const lineHeight = 1.18;
-  const fontSizePx = resolveOverlayFontSizePx(item, rawBbox, page, textForSizing);
-  const sourceDirection = item.direction === "vertical" ? "vertical" : "horizontal";
+  const fontSizePx = resolveOverlayFontSizePx(
+    item,
+    rawBbox,
+    page,
+    textForSizing,
+  );
+  const sourceDirection =
+    item.direction === "vertical" ? "vertical" : "horizontal";
   const bbox = rawBbox;
-  const renderDirection = resolveInitialRenderDirection(type, textRole, sourceDirection, item, bbox, page, fontSizePx);
+  const renderDirection = resolveInitialRenderDirection(
+    type,
+    textRole,
+    sourceDirection,
+    item,
+    bbox,
+    page,
+    fontSizePx,
+  );
   const rotationDeg = enforceRotationDeg(type, item.angle ?? 0);
   const visualStyle = resolveBlockVisualStyle(type);
   return {
@@ -41,16 +81,21 @@ export function overlayItemToBlock(item: OverlayItem, page: MangaPage, index: nu
     outlineColor: DEFAULT_OUTLINE_COLOR,
     backgroundColor: visualStyle.backgroundColor,
     opacity: visualStyle.defaultOpacity,
-    autoFitText: true
+    autoFitText: true,
   };
 }
 
 function normalizeBlockRunId(runId: string | undefined): string {
-  const normalized = String(runId ?? "").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 48);
+  const normalized = String(runId ?? "")
+    .replace(/[^a-zA-Z0-9-]/g, "")
+    .slice(0, 48);
   return normalized || "analysis";
 }
 
-export function filterRejectedOrUncertainSoundItems(items: OverlayItem[]): { items: OverlayItem[]; droppedCount: number } {
+export function filterRejectedOrUncertainSoundItems(items: OverlayItem[]): {
+  items: OverlayItem[];
+  droppedCount: number;
+} {
   const filtered: OverlayItem[] = [];
   let droppedCount = 0;
 
@@ -60,7 +105,10 @@ export function filterRejectedOrUncertainSoundItems(items: OverlayItem[]): { ite
       droppedCount += 1;
       continue;
     }
-    if (textRole === "sound" && normalizeConfidence(item.confidence, 0) < REQUIRED_SOUND_CONFIDENCE) {
+    if (
+      textRole === "sound" &&
+      normalizeConfidence(item.confidence, 0) < REQUIRED_SOUND_CONFIDENCE
+    ) {
       droppedCount += 1;
       continue;
     }
@@ -70,25 +118,50 @@ export function filterRejectedOrUncertainSoundItems(items: OverlayItem[]): { ite
   return { items: filtered, droppedCount };
 }
 
-export function normalizeOverlayItemBboxes(items: OverlayItem[], page: MangaPage, options: BboxNormalizationOptions = {}): OverlayItem[] {
-  const bboxSpace = options.coordinateSpace ?? inferDetectedBboxSpace(items, page);
-  const pixelWidth = options.pixelWidth && options.pixelWidth > 0 ? options.pixelWidth : page.width;
-  const pixelHeight = options.pixelHeight && options.pixelHeight > 0 ? options.pixelHeight : page.height;
-  const fontSizeScale = bboxSpace === "pixels" ? Math.max(page.width / pixelWidth, page.height / pixelHeight) : 1;
+export function normalizeOverlayItemBboxes(
+  items: OverlayItem[],
+  page: MangaPage,
+  options: BboxNormalizationOptions = {},
+): OverlayItem[] {
+  const bboxSpace =
+    options.coordinateSpace ?? inferDetectedBboxSpace(items, page);
+  const pixelWidth =
+    options.pixelWidth && options.pixelWidth > 0
+      ? options.pixelWidth
+      : page.width;
+  const pixelHeight =
+    options.pixelHeight && options.pixelHeight > 0
+      ? options.pixelHeight
+      : page.height;
+  const fontSizeScale =
+    bboxSpace === "pixels"
+      ? Math.max(page.width / pixelWidth, page.height / pixelHeight)
+      : 1;
   return items.map((item) => {
-    const itemBboxSpace = bboxSpace === "normalized_1000" && hasPixelCoordinateEvidence(item.bbox, page) ? "pixels" : bboxSpace;
+    const itemBboxSpace =
+      bboxSpace === "normalized_1000" &&
+      hasPixelCoordinateEvidence(item.bbox, page)
+        ? "pixels"
+        : bboxSpace;
     return {
       ...item,
-      bbox: itemBboxSpace === "pixels" ? pixelsToBbox(item.bbox, pixelWidth, pixelHeight) : clampBbox(item.bbox),
+      bbox:
+        itemBboxSpace === "pixels"
+          ? pixelsToBbox(item.bbox, pixelWidth, pixelHeight)
+          : clampBbox(item.bbox),
       fontSize:
-        itemBboxSpace === "pixels" && typeof item.fontSize === "number" && Number.isFinite(item.fontSize)
+        itemBboxSpace === "pixels" &&
+        typeof item.fontSize === "number" &&
+        Number.isFinite(item.fontSize)
           ? Math.max(1, Math.round(item.fontSize * fontSizeScale))
-          : item.fontSize
+          : item.fontSize,
     };
   });
 }
 
-export function getBboxNormalizationOptions(requestBody: TranslationResult["requestBody"]): BboxNormalizationOptions {
+export function getBboxNormalizationOptions(
+  requestBody: TranslationResult["requestBody"],
+): BboxNormalizationOptions {
   if (!requestBody || typeof requestBody !== "object") {
     return {};
   }
@@ -101,11 +174,13 @@ export function getBboxNormalizationOptions(requestBody: TranslationResult["requ
   return {
     coordinateSpace: "pixels",
     pixelWidth: Number(summary.bboxCoordinateFrame?.width),
-    pixelHeight: Number(summary.bboxCoordinateFrame?.height)
+    pixelHeight: Number(summary.bboxCoordinateFrame?.height),
   };
 }
 
-export function getOcrBboxHints(requestBody: TranslationResult["requestBody"]): NonNullable<RequestSummary["ocrBboxHints"]> {
+export function getOcrBboxHints(
+  requestBody: TranslationResult["requestBody"],
+): NonNullable<RequestSummary["ocrBboxHints"]> {
   if (!requestBody || typeof requestBody !== "object") {
     return [];
   }
@@ -113,7 +188,11 @@ export function getOcrBboxHints(requestBody: TranslationResult["requestBody"]): 
   return Array.isArray(hints) ? hints : [];
 }
 
-export function applyOcrCandidateGeometryLocks(items: OverlayItem[], page: MangaPage, hints: NonNullable<RequestSummary["ocrBboxHints"]>): OverlayItem[] {
+export function applyOcrCandidateGeometryLocks(
+  items: OverlayItem[],
+  page: MangaPage,
+  hints: NonNullable<RequestSummary["ocrBboxHints"]>,
+): OverlayItem[] {
   if (hints.length === 0) {
     return items;
   }
@@ -125,17 +204,25 @@ export function applyOcrCandidateGeometryLocks(items: OverlayItem[], page: Manga
     const y1 = Number(hint.y1);
     const x2 = Number(hint.x2);
     const y2 = Number(hint.y2);
-    if (!Number.isInteger(id) || id <= 0 || ![x1, y1, x2, y2].every(Number.isFinite)) {
+    if (
+      !Number.isInteger(id) ||
+      id <= 0 ||
+      ![x1, y1, x2, y2].every(Number.isFinite)
+    ) {
       continue;
     }
     hintMap.set(id, {
-      bbox: pixelsToBbox({
-        x: Math.min(x1, x2),
-        y: Math.min(y1, y2),
-        w: Math.abs(x2 - x1),
-        h: Math.abs(y2 - y1)
-      }, page.width, page.height),
-      label: String(hint.label ?? "")
+      bbox: pixelsToBbox(
+        {
+          x: Math.min(x1, x2),
+          y: Math.min(y1, y2),
+          w: Math.abs(x2 - x1),
+          h: Math.abs(y2 - y1),
+        },
+        page.width,
+        page.height,
+      ),
+      label: String(hint.label ?? ""),
     });
   }
 
@@ -150,16 +237,23 @@ export function applyOcrCandidateGeometryLocks(items: OverlayItem[], page: Manga
     }
     return {
       ...item,
-      bbox: lockedHint.bbox
+      bbox: lockedHint.bbox,
     };
   });
 }
 
-export function buildPageWarnings(pageName: string, items: OverlayItem[]): string[] {
+export function buildPageWarnings(
+  pageName: string,
+  items: OverlayItem[],
+): string[] {
   const warnings: string[] = [];
-  const uncertainCount = items.filter((item) => item.jp.includes("[?]") || item.ko.includes("[?]")).length;
+  const uncertainCount = items.filter(
+    (item) => item.jp.includes("[?]") || item.ko.includes("[?]"),
+  ).length;
   if (uncertainCount > 0) {
-    warnings.push(`${pageName}: 불확실한 OCR 조각이 ${uncertainCount}개 있습니다.`);
+    warnings.push(
+      `${pageName}: 불확실한 OCR 조각이 ${uncertainCount}개 있습니다.`,
+    );
   }
   return warnings;
 }
@@ -177,28 +271,72 @@ function normalizeConfidence(value: unknown, fallback: number): number {
 }
 
 function normalizeOverlayTextRole(value: unknown): NormalizedTextRole {
-  const text = String(value ?? "").trim().toLowerCase().replace(/[_\s-]+/g, "");
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s-]+/g, "");
   if (!text) {
     return "";
   }
-  if (["sound", "sfx", "soundeffect", "effect", "reaction", "onomatopoeia"].includes(text)) {
+  if (
+    [
+      "sound",
+      "sfx",
+      "soundeffect",
+      "effect",
+      "reaction",
+      "onomatopoeia",
+    ].includes(text)
+  ) {
     return "sound";
   }
-  if (["ordinary", "speech", "dialogue", "dialog", "bubble", "caption", "narration", "label", "sign", "note", "title"].includes(text)) {
+  if (
+    [
+      "ordinary",
+      "speech",
+      "dialogue",
+      "dialog",
+      "bubble",
+      "caption",
+      "narration",
+      "label",
+      "sign",
+      "note",
+      "title",
+    ].includes(text)
+  ) {
     return "ordinary";
   }
-  if (["nontext", "nottext", "reject", "decoration", "texture", "ornament"].includes(text)) {
+  if (
+    [
+      "nontext",
+      "nottext",
+      "reject",
+      "decoration",
+      "texture",
+      "ornament",
+    ].includes(text)
+  ) {
     return "nontext";
   }
   return "";
 }
 
-function resolveOverlayFontSizePx(item: OverlayItem, bbox: BBox, page: MangaPage, textForSizing: string): number {
+function resolveOverlayFontSizePx(
+  item: OverlayItem,
+  bbox: BBox,
+  page: MangaPage,
+  textForSizing: string,
+): number {
   if (typeof item.fontSize === "number" && Number.isFinite(item.fontSize)) {
     return Math.round(clamp(item.fontSize, 6, 160));
   }
 
-  return estimateBlockFontSizePx(textForSizing, { bbox }, { width: page.width, height: page.height });
+  return estimateBlockFontSizePx(
+    textForSizing,
+    { bbox },
+    { width: page.width, height: page.height },
+  );
 }
 
 function resolveInitialRenderDirection(
@@ -208,33 +346,50 @@ function resolveInitialRenderDirection(
   item: OverlayItem,
   bbox: BBox,
   page: MangaPage,
-  fontSizePx: number
+  fontSizePx: number,
 ): RenderTextDirection {
   if (textRole !== "sound") {
     return enforceRenderDirection(type, "horizontal");
   }
 
-  if (sourceDirection === "vertical" && shouldKeepVerticalRendering(bbox, page, fontSizePx)) {
+  if (
+    sourceDirection === "vertical" &&
+    shouldKeepVerticalRendering(bbox, page, fontSizePx)
+  ) {
     return "vertical";
   }
 
   return enforceRenderDirection(type, "horizontal");
 }
 
-function shouldKeepVerticalRendering(bbox: BBox, page: MangaPage, fontSizePx: number): boolean {
+function shouldKeepVerticalRendering(
+  bbox: BBox,
+  page: MangaPage,
+  fontSizePx: number,
+): boolean {
   const widthPx = (bbox.w / 1000) * page.width;
-  const estimatedColumns = Math.max(1, Math.round(widthPx / Math.max(1, fontSizePx * 1.15)));
+  const estimatedColumns = Math.max(
+    1,
+    Math.round(widthPx / Math.max(1, fontSizePx * 1.15)),
+  );
   return estimatedColumns <= 2;
 }
 
-function isNearOcrHint(modelBbox: BBox, hintBbox: BBox, page: MangaPage): boolean {
+function isNearOcrHint(
+  modelBbox: BBox,
+  hintBbox: BBox,
+  page: MangaPage,
+): boolean {
   const modelPx = normalizedBboxToPixels(modelBbox, page);
   const hintPx = normalizedBboxToPixels(hintBbox, page);
   const modelCenterX = modelPx.x + modelPx.w / 2;
   const modelCenterY = modelPx.y + modelPx.h / 2;
   const hintCenterX = hintPx.x + hintPx.w / 2;
   const hintCenterY = hintPx.y + hintPx.h / 2;
-  const distance = Math.hypot(modelCenterX - hintCenterX, modelCenterY - hintCenterY);
+  const distance = Math.hypot(
+    modelCenterX - hintCenterX,
+    modelCenterY - hintCenterY,
+  );
   const tolerance = Math.max(150, Math.max(hintPx.w, hintPx.h) * 1.35);
   return distance <= tolerance || bboxOverlapRatio(modelPx, hintPx) > 0.1;
 }
@@ -244,7 +399,7 @@ function normalizedBboxToPixels(bbox: BBox, page: MangaPage): BBox {
     x: (bbox.x / 1000) * page.width,
     y: (bbox.y / 1000) * page.height,
     w: (bbox.w / 1000) * page.width,
-    h: (bbox.h / 1000) * page.height
+    h: (bbox.h / 1000) * page.height,
   };
 }
 
@@ -258,8 +413,13 @@ function bboxOverlapRatio(a: BBox, b: BBox): number {
   return overlap / minArea;
 }
 
-function inferDetectedBboxSpace(items: OverlayItem[], page: Pick<MangaPage, "width" | "height">): DetectedBboxSpace {
-  const coordinatePixelEvidence = items.filter((item) => hasPixelCoordinateEvidence(item.bbox, page)).length;
+function inferDetectedBboxSpace(
+  items: OverlayItem[],
+  page: Pick<MangaPage, "width" | "height">,
+): DetectedBboxSpace {
+  const coordinatePixelEvidence = items.filter((item) =>
+    hasPixelCoordinateEvidence(item.bbox, page),
+  ).length;
   if (items.length === 1 && coordinatePixelEvidence === 1) {
     return "pixels";
   }
@@ -267,22 +427,41 @@ function inferDetectedBboxSpace(items: OverlayItem[], page: Pick<MangaPage, "wid
     return "pixels";
   }
 
-  const overflowPixelEvidence = items.filter((item) => hasPixelOverflowEvidence(item.bbox, page)).length;
-  return overflowPixelEvidence >= Math.max(2, Math.ceil(items.length * 0.2)) ? "pixels" : "normalized_1000";
+  const overflowPixelEvidence = items.filter((item) =>
+    hasPixelOverflowEvidence(item.bbox, page),
+  ).length;
+  return overflowPixelEvidence >= Math.max(2, Math.ceil(items.length * 0.2))
+    ? "pixels"
+    : "normalized_1000";
 }
 
-function hasPixelCoordinateEvidence(bbox: BBox, page: Pick<MangaPage, "width" | "height">): boolean {
-  return fitsPagePixels(bbox, page) && (bbox.x > 1000 || bbox.y > 1000 || bbox.w > 1000 || bbox.h > 1000);
+function hasPixelCoordinateEvidence(
+  bbox: BBox,
+  page: Pick<MangaPage, "width" | "height">,
+): boolean {
+  return (
+    fitsPagePixels(bbox, page) &&
+    (bbox.x > 1000 || bbox.y > 1000 || bbox.w > 1000 || bbox.h > 1000)
+  );
 }
 
-function hasPixelOverflowEvidence(bbox: BBox, page: Pick<MangaPage, "width" | "height">): boolean {
+function hasPixelOverflowEvidence(
+  bbox: BBox,
+  page: Pick<MangaPage, "width" | "height">,
+): boolean {
   const right = bbox.x + bbox.w;
   const bottom = bbox.y + bbox.h;
   const normalizedTolerance = 80;
-  return fitsPagePixels(bbox, page) && (right > 1000 + normalizedTolerance || bottom > 1000 + normalizedTolerance);
+  return (
+    fitsPagePixels(bbox, page) &&
+    (right > 1000 + normalizedTolerance || bottom > 1000 + normalizedTolerance)
+  );
 }
 
-function fitsPagePixels(bbox: BBox, page: Pick<MangaPage, "width" | "height">): boolean {
+function fitsPagePixels(
+  bbox: BBox,
+  page: Pick<MangaPage, "width" | "height">,
+): boolean {
   const right = bbox.x + bbox.w;
   const bottom = bbox.y + bbox.h;
   const pixelBoundsTolerance = 1.06;

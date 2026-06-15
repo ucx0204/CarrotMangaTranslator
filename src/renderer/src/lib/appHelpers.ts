@@ -23,11 +23,15 @@ export function regionSelectionToBbox(selection: RegionSelectionState): BBox {
     x: Math.round(x1),
     y: Math.round(y1),
     w: Math.round(x2 - x1),
-    h: Math.round(y2 - y1)
+    h: Math.round(y2 - y1),
   });
 }
 
-export function reorderByTarget(currentOrder: string[], sourceId: string, targetId: string): string[] {
+export function reorderByTarget(
+  currentOrder: string[],
+  sourceId: string,
+  targetId: string,
+): string[] {
   const next = [...currentOrder];
   const sourceIndex = next.indexOf(sourceId);
   const targetIndex = next.indexOf(targetId);
@@ -39,14 +43,20 @@ export function reorderByTarget(currentOrder: string[], sourceId: string, target
   return next;
 }
 
-export function reorderRecordsByIdOrder<T extends { id: string }>(records: T[], order: string[]): T[] {
+export function reorderRecordsByIdOrder<T extends { id: string }>(
+  records: T[],
+  order: string[],
+): T[] {
   const recordMap = new Map(records.map((record) => [record.id, record]));
   const ordered = order.flatMap((id) => {
     const record = recordMap.get(id);
     return record ? [record] : [];
   });
   const orderedIds = new Set(ordered.map((record) => record.id));
-  return [...ordered, ...records.filter((record) => !orderedIds.has(record.id))];
+  return [
+    ...ordered,
+    ...records.filter((record) => !orderedIds.has(record.id)),
+  ];
 }
 
 export function isEditableTarget(target: EventTarget | null): boolean {
@@ -58,28 +68,47 @@ export function isEditableTarget(target: EventTarget | null): boolean {
     return true;
   }
 
-  return Boolean(target.closest("input, textarea, select, [contenteditable=''], [contenteditable='true'], [contenteditable='plaintext-only']"));
+  return Boolean(
+    target.closest(
+      "input, textarea, select, [contenteditable=''], [contenteditable='true'], [contenteditable='plaintext-only']",
+    ),
+  );
 }
 
 export function formatErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message.trim() ? error.message : fallback;
+  return error instanceof Error && error.message.trim()
+    ? error.message
+    : fallback;
 }
 
-export function resolveStatusLineReplacement(event: JobEvent): ((line: string) => boolean) | undefined {
+export function resolveStatusLineReplacement(
+  event: JobEvent,
+): ((line: string) => boolean) | undefined {
   if (
     event.phase === "ocr_running" &&
     Number.isFinite(event.pageIndex) &&
     Number.isFinite(event.pageTotal) &&
     (event.pageTotal ?? 0) > 0
   ) {
-    return (line) => /^\d+ \/ \d+ 페이지 Paddle OCR 분석 중$/.test(line) || line === "페이지 Paddle OCR 분석 중";
-  }
-  if (event.phase === "model_requesting" || event.phase === "page_running" || event.phase === "page_retry") {
     return (line) =>
-      /^\d+ \/ \d+ 페이지 (AI 번역 요청 중|번역 중|재시도 \d+ \/ \d+)$/.test(line) ||
-      /^페이지 (AI 번역 요청 중|번역 중|재시도 중)$/.test(line);
+      /^\d+ \/ \d+ 페이지 Paddle OCR 분석 중$/.test(line) ||
+      line === "페이지 Paddle OCR 분석 중";
   }
-  if (event.phase === "booting" || event.phase === "model_downloading" || event.phase === "ready") {
+  if (
+    event.phase === "model_requesting" ||
+    event.phase === "page_running" ||
+    event.phase === "page_retry"
+  ) {
+    return (line) =>
+      /^\d+ \/ \d+ 페이지 (AI 번역 요청 중|번역 중|재시도 \d+ \/ \d+)$/.test(
+        line,
+      ) || /^페이지 (AI 번역 요청 중|번역 중|재시도 중)$/.test(line);
+  }
+  if (
+    event.phase === "booting" ||
+    event.phase === "model_downloading" ||
+    event.phase === "ready"
+  ) {
     return (line) =>
       line === "모델 준비 중" ||
       line === "모델 준비 완료" ||

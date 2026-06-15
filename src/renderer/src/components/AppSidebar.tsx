@@ -26,7 +26,7 @@ export function AppSidebar({
   onSelectPage,
   onRetranslatePage,
   onRemovePage,
-  onReorderPage
+  onReorderPage,
 }: {
   inpaintingMode: boolean;
   currentChapter: ChapterSnapshot | null;
@@ -45,7 +45,11 @@ export function AppSidebar({
   onOpenChapter: (chapterId: string) => void;
   onRenameWork: (workId: string) => void;
   onRenameChapter: (chapterId: string) => void;
-  onReorderChapter: (workId: string, sourceChapterId: string, targetChapterId: string) => void;
+  onReorderChapter: (
+    workId: string,
+    sourceChapterId: string,
+    targetChapterId: string,
+  ) => void;
   onSelectPage: (pageId: string) => void;
   onRetranslatePage: (pageId: string) => void;
   onRemovePage: (pageId: string) => void;
@@ -56,10 +60,17 @@ export function AppSidebar({
       {inpaintingMode ? (
         <>
           <section className="inpainting-exit-panel">
-            <Button variant="danger" fullWidth onClick={onExitInpainting} disabled={jobActive}>
+            <Button
+              variant="danger"
+              fullWidth
+              onClick={onExitInpainting}
+              disabled={jobActive}
+            >
               인페인팅 나가기
             </Button>
-            <small>{currentChapter ? currentChapter.title : "현재 화 없음"}</small>
+            <small>
+              {currentChapter ? currentChapter.title : "현재 화 없음"}
+            </small>
           </section>
 
           <PageList
@@ -76,19 +87,32 @@ export function AppSidebar({
       ) : (
         <>
           <section className="toolbar">
-            <Button variant="primary" fullWidth onClick={onOpenTranslationSource} disabled={jobActive}>
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={onOpenTranslationSource}
+              disabled={jobActive}
+            >
               번역
             </Button>
             <Button fullWidth onClick={onOpenBatchImport} disabled={jobActive}>
               작품 일괄 번역
             </Button>
-            <Button fullWidth onClick={onOpenSettings} disabled={settingsBusy && !settingsOpen}>
+            <Button
+              fullWidth
+              onClick={onOpenSettings}
+              disabled={settingsBusy && !settingsOpen}
+            >
               설정
             </Button>
             <Button fullWidth onClick={onOpenLibraryFolder}>
               보관함 폴더
             </Button>
-            <Button fullWidth onClick={onOpenShareExport} disabled={jobActive || library.works.length === 0}>
+            <Button
+              fullWidth
+              onClick={onOpenShareExport}
+              disabled={jobActive || library.works.length === 0}
+            >
               공유하기
             </Button>
             <Button fullWidth onClick={onOpenShareImport} disabled={jobActive}>

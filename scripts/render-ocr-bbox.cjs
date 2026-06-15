@@ -7,7 +7,9 @@ const ROOT = path.join(__dirname, "..");
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.image || !args.json || !args.output) {
-    throw new Error("Usage: electron scripts/render-ocr-bbox.cjs --image <path> --json <path> --output <path>");
+    throw new Error(
+      "Usage: electron scripts/render-ocr-bbox.cjs --image <path> --json <path> --output <path>",
+    );
   }
 
   app.setPath("userData", path.join(ROOT, ".tmp", "ocr-bbox-render-user-data"));
@@ -19,17 +21,21 @@ async function main() {
   const width = Number(payload.width);
   const height = Number(payload.height);
   const imageDataUrl = await readImageDataUrl(args.image);
-  const maxLongSide = Number(args.maxLongSide || process.env.MANGA_OCR_RENDER_MAX_LONG_SIDE || 1400);
+  const maxLongSide = Number(
+    args.maxLongSide || process.env.MANGA_OCR_RENDER_MAX_LONG_SIDE || 1400,
+  );
   const scale = Math.min(1, maxLongSide / Math.max(width, height));
   const win = new BrowserWindow({
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),
     show: false,
-    webPreferences: { offscreen: true }
+    webPreferences: { offscreen: true },
   });
 
   try {
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(buildHtml(payload, scale, imageDataUrl))}`);
+    await win.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(buildHtml(payload, scale, imageDataUrl))}`,
+    );
     await waitForReady(win);
     const image = await win.webContents.capturePage();
     await writeFile(args.output, image.toPNG());

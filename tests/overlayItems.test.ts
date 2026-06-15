@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { filterRejectedOrUncertainSoundItems, overlayItemToBlock } from "../src/main/pipeline/overlayItems";
+import {
+  filterRejectedOrUncertainSoundItems,
+  overlayItemToBlock,
+} from "../src/main/pipeline/overlayItems";
 import type { MangaPage } from "../src/shared/types";
 import type { OverlayItem } from "../src/main/pipeline/types";
 
@@ -17,10 +20,10 @@ describe("overlay item conversion", () => {
         direction: "vertical",
         angle: 0,
         fontSize: 28,
-        confidence: 1
+        confidence: 1,
       },
       page,
-      0
+      0,
     );
 
     expect(block.sourceDirection).toBe("vertical");
@@ -36,7 +39,7 @@ describe("overlay item conversion", () => {
         bbox: { x: 10, y: 10, w: 80, h: 80 },
         jp: "ザッ",
         ko: "삭",
-        confidence: 0.999
+        confidence: 0.999,
       },
       {
         id: 2,
@@ -45,7 +48,7 @@ describe("overlay item conversion", () => {
         bbox: { x: 110, y: 10, w: 80, h: 80 },
         jp: "ドン",
         ko: "쿵",
-        confidence: 1
+        confidence: 1,
       },
       {
         id: 3,
@@ -54,8 +57,8 @@ describe("overlay item conversion", () => {
         bbox: { x: 210, y: 10, w: 80, h: 80 },
         jp: "はい",
         ko: "네",
-        confidence: 0.8
-      }
+        confidence: 0.8,
+      },
     ];
 
     const result = filterRejectedOrUncertainSoundItems(items);
@@ -76,6 +79,6 @@ function makePage(): MangaPage {
     blocks: [],
     analysisStatus: "idle",
     createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z"
+    updatedAt: "2026-01-01T00:00:00.000Z",
   };
 }

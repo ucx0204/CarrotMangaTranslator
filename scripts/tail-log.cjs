@@ -1,7 +1,16 @@
-const { existsSync, openSync, readSync, statSync, watchFile, closeSync } = require("node:fs");
+const {
+  existsSync,
+  openSync,
+  readSync,
+  statSync,
+  watchFile,
+  closeSync,
+} = require("node:fs");
 const { dirname, join } = require("node:path");
 
-const logPath = process.env.MANGA_TRANSLATOR_LOG_PATH || join(process.cwd(), "logs", "app.log");
+const logPath =
+  process.env.MANGA_TRANSLATOR_LOG_PATH ||
+  join(process.cwd(), "logs", "app.log");
 
 process.stdout.setDefaultEncoding("utf8");
 process.stderr.setDefaultEncoding("utf8");

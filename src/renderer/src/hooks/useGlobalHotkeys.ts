@@ -18,7 +18,7 @@ export function useGlobalHotkeys({
   blockingModalOpen,
   paletteOpen,
   onTogglePalette,
-  onToggleHelp
+  onToggleHelp,
 }: UseGlobalHotkeysOptions): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {

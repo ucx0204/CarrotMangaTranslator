@@ -1,4 +1,9 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import {
+  useCallback,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
 import type { ChapterSnapshot } from "../../../shared/types";
 
 type UseCurrentChapterUpdaterOptions = {
@@ -7,12 +12,15 @@ type UseCurrentChapterUpdaterOptions = {
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
 };
 
-export type UpdateCurrentChapter = (pageId: string, updater: (chapter: ChapterSnapshot) => ChapterSnapshot) => void;
+export type UpdateCurrentChapter = (
+  pageId: string,
+  updater: (chapter: ChapterSnapshot) => ChapterSnapshot,
+) => void;
 
 export function useCurrentChapterUpdater({
   currentChapterRef,
   markDirty,
-  setCurrentChapter
+  setCurrentChapter,
 }: UseCurrentChapterUpdaterOptions): UpdateCurrentChapter {
   return useCallback(
     (pageId, updater) => {
@@ -26,6 +34,6 @@ export function useCurrentChapterUpdater({
       currentChapterRef.current = next;
       setCurrentChapter(next);
     },
-    [currentChapterRef, markDirty, setCurrentChapter]
+    [currentChapterRef, markDirty, setCurrentChapter],
   );
 }

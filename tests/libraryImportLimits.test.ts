@@ -26,7 +26,9 @@ describe("library import resource limits", () => {
     await truncate(largeImagePath, MAX_IMPORT_IMAGE_BYTES + 1);
     const library = await loadLibrary(rootDir, { decodeEmpty: false });
 
-    await expect(library.previewImages([largeImagePath])).rejects.toThrow(/너무 큽니다/);
+    await expect(library.previewImages([largeImagePath])).rejects.toThrow(
+      /너무 큽니다/,
+    );
   });
 
   it("rejects image files that cannot be decoded and rolls back the new work", async () => {
@@ -46,13 +48,21 @@ describe("library import resource limits", () => {
               draftId: "11111111-1111-4111-8111-111111111111",
               title: "1화",
               sourceKind: "images",
-              pages: [{ name: "bad.png", sourceKind: "file", sourcePath: imagePath }]
-            }
-          ]
+              pages: [
+                { name: "bad.png", sourceKind: "file", sourcePath: imagePath },
+              ],
+            },
+          ],
         },
         target: { mode: "new", title: "Decode failure" },
-        selections: [{ draftId: "11111111-1111-4111-8111-111111111111", title: "1화", enabled: true }]
-      })
+        selections: [
+          {
+            draftId: "11111111-1111-4111-8111-111111111111",
+            title: "1화",
+            enabled: true,
+          },
+        ],
+      }),
     ).rejects.toThrow(/이미지 파일/);
 
     expect(existsSync(join(rootDir, "index.json"))).toBe(true);
@@ -63,7 +73,11 @@ describe("library import resource limits", () => {
     const rootDir = await createTempLibrary();
     const imagePath = join(rootDir, "huge-pixels.png");
     await writeFile(imagePath, "small compressed image");
-    const library = await loadLibrary(rootDir, { decodeEmpty: false, width: 20000, height: 8000 });
+    const library = await loadLibrary(rootDir, {
+      decodeEmpty: false,
+      width: 20000,
+      height: 8000,
+    });
 
     await expect(
       library.createImport({
@@ -76,13 +90,25 @@ describe("library import resource limits", () => {
               draftId: "33333333-3333-4333-8333-333333333333",
               title: "1화",
               sourceKind: "images",
-              pages: [{ name: "huge-pixels.png", sourceKind: "file", sourcePath: imagePath }]
-            }
-          ]
+              pages: [
+                {
+                  name: "huge-pixels.png",
+                  sourceKind: "file",
+                  sourcePath: imagePath,
+                },
+              ],
+            },
+          ],
         },
         target: { mode: "new", title: "Huge pixels" },
-        selections: [{ draftId: "33333333-3333-4333-8333-333333333333", title: "1화", enabled: true }]
-      })
+        selections: [
+          {
+            draftId: "33333333-3333-4333-8333-333333333333",
+            title: "1화",
+            enabled: true,
+          },
+        ],
+      }),
     ).rejects.toThrow(/해상도가 너무 큽니다/);
   });
 
@@ -102,12 +128,20 @@ describe("library import resource limits", () => {
             draftId: "22222222-2222-4222-8222-222222222222",
             title: "1화",
             sourceKind: "images",
-            pages: [{ name: "001.webp", sourceKind: "file", sourcePath: imagePath }]
-          }
-        ]
+            pages: [
+              { name: "001.webp", sourceKind: "file", sourcePath: imagePath },
+            ],
+          },
+        ],
       },
       target: { mode: "new", title: "Webp import" },
-      selections: [{ draftId: "22222222-2222-4222-8222-222222222222", title: "1화", enabled: true }]
+      selections: [
+        {
+          draftId: "22222222-2222-4222-8222-222222222222",
+          title: "1화",
+          enabled: true,
+        },
+      ],
     });
 
     const storedPath = result.openedChapter?.pages[0]?.imagePath;
@@ -128,20 +162,22 @@ async function createTempLibrary(): Promise<string> {
 
 async function loadLibrary(
   rootDir: string,
-  options: { decodeEmpty: boolean; width?: number; height?: number }
+  options: { decodeEmpty: boolean; width?: number; height?: number },
 ): Promise<typeof import("../src/main/library")> {
   vi.resetModules();
   vi.doMock("electron", () => ({
     app: {
-      isPackaged: false
+      isPackaged: false,
     },
     nativeImage: {
       createFromPath: () => ({
         isEmpty: () => options.decodeEmpty,
         getSize: () =>
-          options.decodeEmpty ? { width: 0, height: 0 } : { width: options.width ?? 64, height: options.height ?? 96 }
-      })
-    }
+          options.decodeEmpty
+            ? { width: 0, height: 0 }
+            : { width: options.width ?? 64, height: options.height ?? 96 },
+      }),
+    },
   }));
   vi.doMock("../src/main/appPaths", () => ({
     getAppPaths: () => ({
@@ -159,11 +195,11 @@ async function loadLibrary(
       toolsDir: join(rootDir, "tools"),
       ocrRuntimeDir: join(rootDir, "ocr-runtime"),
       llamaRuntimeDir: join(rootDir, "tools", "llama"),
-      llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe")
-    })
+      llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
+    }),
   }));
   vi.doMock("../src/main/simplePageRuntime", () => ({
-    decodeImageThroughRuntime: vi.fn(async () => Buffer.from("converted png"))
+    decodeImageThroughRuntime: vi.fn(async () => Buffer.from("converted png")),
   }));
   return import("../src/main/library");
 }

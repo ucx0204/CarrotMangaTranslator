@@ -26,7 +26,7 @@ module.exports = {
   testModelReply: async () => ({ outputText: ${JSON.stringify(label)}, launchTarget: { launchMode: "unknown" } })
 };
 `,
-    "utf8"
+    "utf8",
   );
   return runtimeDir;
 }
@@ -36,8 +36,12 @@ describe("simple page runtime loader", () => {
     const firstDir = writeRuntimeStub("first");
     const secondDir = writeRuntimeStub("second");
 
-    const firstRuntime = loadSimplePageRuntime(firstDir) as ReturnType<typeof loadSimplePageRuntime> & { label: string };
-    const secondRuntime = loadSimplePageRuntime(secondDir) as ReturnType<typeof loadSimplePageRuntime> & { label: string };
+    const firstRuntime = loadSimplePageRuntime(firstDir) as ReturnType<
+      typeof loadSimplePageRuntime
+    > & { label: string };
+    const secondRuntime = loadSimplePageRuntime(secondDir) as ReturnType<
+      typeof loadSimplePageRuntime
+    > & { label: string };
 
     expect(firstRuntime.label).toBe("first");
     expect(secondRuntime.label).toBe("second");

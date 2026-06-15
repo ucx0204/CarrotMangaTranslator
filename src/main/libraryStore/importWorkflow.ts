@@ -123,7 +123,8 @@ export async function previewZipFolder(
 ): Promise<ImportPreviewResult> {
   const zipPaths = await listZipFiles(folderPath);
   const imageFolderPaths = await listNestedImageFolders(folderPath);
-  const zipChapters = await Promise.all(zipPaths.map(async (zipPath) => ({
+  const zipChapters = await Promise.all(
+    zipPaths.map(async (zipPath) => ({
       sortKey: relative(folderPath, zipPath),
       chapter: {
         draftId: randomUUID(),
@@ -136,7 +137,8 @@ export async function previewZipFolder(
           zipEntryName: entry.entryName,
         })),
       },
-    })));
+    })),
+  );
   const chapters = [
     ...zipChapters,
     ...(await Promise.all(

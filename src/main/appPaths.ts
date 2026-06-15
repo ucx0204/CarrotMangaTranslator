@@ -1,7 +1,18 @@
 import { app } from "electron";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { DATA_ROOT_MARKER_FILE, legacyAppDataRoots, resolvePackagedDataRoot } from "./dataRoot";
+import {
+  DATA_ROOT_MARKER_FILE,
+  legacyAppDataRoots,
+  resolvePackagedDataRoot,
+} from "./dataRoot";
 
 export type AppPaths = {
   isPackaged: boolean;
@@ -33,20 +44,36 @@ export function getAppPaths(): AppPaths {
   const repoRoot = resolve(__dirname, "../..");
   const executableDir = dirname(process.execPath);
   const resourcesDir = process.resourcesPath;
-  const dataRoot = isPackaged ? resolvePackagedDataRoot(executableDir) : repoRoot;
-  const libraryDir = isPackaged ? join(dataRoot, "library") : join(repoRoot, "library");
+  const dataRoot = isPackaged
+    ? resolvePackagedDataRoot(executableDir)
+    : repoRoot;
+  const libraryDir = isPackaged
+    ? join(dataRoot, "library")
+    : join(repoRoot, "library");
   const logsDir = isPackaged ? join(dataRoot, "logs") : join(repoRoot, "logs");
-  const runtimeDir = isPackaged ? join(resourcesDir, "app-runtime") : join(repoRoot, "out", "app-runtime");
-  const toolsDir = isPackaged ? join(resourcesDir, "tools") : join(repoRoot, "tools");
+  const runtimeDir = isPackaged
+    ? join(resourcesDir, "app-runtime")
+    : join(repoRoot, "out", "app-runtime");
+  const toolsDir = isPackaged
+    ? join(resourcesDir, "tools")
+    : join(repoRoot, "tools");
   const allowExternalRuntime = allowExternalRuntimeOverrides(isPackaged);
-  const explicitOcrRuntimeDir = allowExternalRuntime ? process.env.MANGA_TRANSLATOR_OCR_RUNTIME_DIR?.trim() : undefined;
+  const explicitOcrRuntimeDir = allowExternalRuntime
+    ? process.env.MANGA_TRANSLATOR_OCR_RUNTIME_DIR?.trim()
+    : undefined;
   const ocrRuntimeDir = explicitOcrRuntimeDir || join(dataRoot, "ocr-runtime");
   const llamaServerPath = resolveBundledLlamaServerPath(toolsDir);
   const llamaRuntimeDir = dirname(llamaServerPath);
   const explicitHfHome = process.env.MANGA_TRANSLATOR_HF_HOME?.trim();
-  const explicitHubCache = process.env.HF_HUB_CACHE?.trim() || process.env.HUGGINGFACE_HUB_CACHE?.trim();
-  const hfHomeDir = isPackaged ? join(dataRoot, "hf-cache") : explicitHfHome || undefined;
-  const hfHubCacheDir = isPackaged ? join(dataRoot, "hf-cache", "hub") : explicitHubCache || undefined;
+  const explicitHubCache =
+    process.env.HF_HUB_CACHE?.trim() ||
+    process.env.HUGGINGFACE_HUB_CACHE?.trim();
+  const hfHomeDir = isPackaged
+    ? join(dataRoot, "hf-cache")
+    : explicitHfHome || undefined;
+  const hfHubCacheDir = isPackaged
+    ? join(dataRoot, "hf-cache", "hub")
+    : explicitHubCache || undefined;
   const llamaCacheDir = isPackaged ? join(dataRoot, "llama.cpp") : undefined;
 
   return {
@@ -67,7 +94,7 @@ export function getAppPaths(): AppPaths {
     llamaServerPath,
     hfHomeDir,
     hfHubCacheDir,
-    llamaCacheDir
+    llamaCacheDir,
   };
 }
 
@@ -75,11 +102,18 @@ function allowExternalRuntimeOverrides(isPackaged: boolean): boolean {
   if (!isPackaged) {
     return true;
   }
-  return isTruthyEnv(process.env.MGT_ALLOW_EXTERNAL_RUNTIME ?? process.env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME);
+  return isTruthyEnv(
+    process.env.MGT_ALLOW_EXTERNAL_RUNTIME ??
+      process.env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME,
+  );
 }
 
 function isTruthyEnv(value: unknown): boolean {
-  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
+  return ["1", "true", "yes", "on"].includes(
+    String(value ?? "")
+      .trim()
+      .toLowerCase(),
+  );
 }
 
 function llamaServerBinaryName(): string {
@@ -103,11 +137,13 @@ function bundledLlamaServerCandidates(toolsDir: string): string[] {
     "llama-b9547-vulkan",
     "llama-b9360-cuda13.1",
     "llama-b8833-cuda12.4",
-    "llama-b8808-cuda12"
+    "llama-b8808-cuda12",
   ];
   const candidates = [
-    ...knownRuntimeDirs.map((runtimeDir) => join(toolsDir, runtimeDir, serverBinary)),
-    join(toolsDir, serverBinary)
+    ...knownRuntimeDirs.map((runtimeDir) =>
+      join(toolsDir, runtimeDir, serverBinary),
+    ),
+    join(toolsDir, serverBinary),
   ];
 
   try {
@@ -126,7 +162,11 @@ function bundledLlamaServerCandidates(toolsDir: string): string[] {
 function resolveBundledLlamaServerPath(toolsDir: string): string {
   const candidates = bundledLlamaServerCandidates(toolsDir);
   const existing = candidates.filter((candidate) => existsSync(candidate));
-  return existing.find((candidate) => hasBundledGpuBackend(candidate)) ?? existing[0] ?? candidates[0];
+  return (
+    existing.find((candidate) => hasBundledGpuBackend(candidate)) ??
+    existing[0] ??
+    candidates[0]
+  );
 }
 
 function hasBundledGpuBackend(serverPath: string): boolean {
@@ -137,7 +177,7 @@ function hasBundledGpuBackend(serverPath: string): boolean {
     "ggml-cuda-cu13.dll",
     "ggml-hip.dll",
     "ggml-rocm.dll",
-    "ggml-vulkan.dll"
+    "ggml-vulkan.dll",
   ].some((fileName) => existsSync(join(runtimeDir, fileName)));
 }
 
@@ -169,14 +209,20 @@ function migrateLegacyPackagedData(paths: AppPaths): void {
   }
 
   for (const legacyDataRoot of legacyPackagedDataRoots(paths)) {
-    if (resolve(legacyDataRoot) === resolve(paths.dataRoot) || !existsSync(legacyDataRoot)) {
+    if (
+      resolve(legacyDataRoot) === resolve(paths.dataRoot) ||
+      !existsSync(legacyDataRoot)
+    ) {
       continue;
     }
     copyDirectoryContentsIfMissing(legacyDataRoot, paths.dataRoot);
   }
 
   for (const legacyDataRoot of legacyAppDataRoots()) {
-    if (resolve(legacyDataRoot) === resolve(paths.dataRoot) || !existsSync(legacyDataRoot)) {
+    if (
+      resolve(legacyDataRoot) === resolve(paths.dataRoot) ||
+      !existsSync(legacyDataRoot)
+    ) {
       continue;
     }
     copyLegacyUserDataIfMissing(legacyDataRoot, paths.dataRoot);
@@ -190,19 +236,38 @@ function legacyPackagedDataRoots(paths: AppPaths): string[] {
 function writeDataRootMarker(dataRoot: string): void {
   try {
     mkdirSync(dataRoot, { recursive: true });
-    writeFileSync(join(dataRoot, DATA_ROOT_MARKER_FILE), "manga-gemma-translator data root\n", "utf8");
+    writeFileSync(
+      join(dataRoot, DATA_ROOT_MARKER_FILE),
+      "manga-gemma-translator data root\n",
+      "utf8",
+    );
   } catch {
     // Marker creation is a safety aid for uninstall cleanup, not a startup requirement.
   }
 }
 
-function copyLegacyUserDataIfMissing(sourceDir: string, targetDir: string): void {
-  copyFileIfMissing(join(sourceDir, "settings.json"), join(targetDir, "settings.json"));
-  copyDirectoryContentsIfMissing(join(sourceDir, "library"), join(targetDir, "library"));
-  copyDirectoryContentsIfMissing(join(sourceDir, "fonts"), join(targetDir, "fonts"));
+function copyLegacyUserDataIfMissing(
+  sourceDir: string,
+  targetDir: string,
+): void {
+  copyFileIfMissing(
+    join(sourceDir, "settings.json"),
+    join(targetDir, "settings.json"),
+  );
+  copyDirectoryContentsIfMissing(
+    join(sourceDir, "library"),
+    join(targetDir, "library"),
+  );
+  copyDirectoryContentsIfMissing(
+    join(sourceDir, "fonts"),
+    join(targetDir, "fonts"),
+  );
 }
 
-function copyDirectoryContentsIfMissing(sourceDir: string, targetDir: string): void {
+function copyDirectoryContentsIfMissing(
+  sourceDir: string,
+  targetDir: string,
+): void {
   if (!existsSync(sourceDir)) {
     return;
   }

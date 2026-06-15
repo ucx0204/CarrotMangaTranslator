@@ -11,17 +11,40 @@ export type IconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
 };
 
-export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { variant = "default", size = "md", label, className, children, type = "button", title, ...rest },
-  ref
-) {
-  const classes = [styles.iconButton, styles[variant], size === "sm" ? styles.sm : "", className ?? ""]
-    .filter(Boolean)
-    .join(" ");
+export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
+  function IconButton(
+    {
+      variant = "default",
+      size = "md",
+      label,
+      className,
+      children,
+      type = "button",
+      title,
+      ...rest
+    },
+    ref,
+  ) {
+    const classes = [
+      styles.iconButton,
+      styles[variant],
+      size === "sm" ? styles.sm : "",
+      className ?? "",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
-  return (
-    <button ref={ref} type={type} className={classes} aria-label={label} title={title ?? label} {...rest}>
-      {children}
-    </button>
-  );
-});
+    return (
+      <button
+        ref={ref}
+        type={type}
+        className={classes}
+        aria-label={label}
+        title={title ?? label}
+        {...rest}
+      >
+        {children}
+      </button>
+    );
+  },
+);

@@ -4,66 +4,76 @@ const path = require("node:path");
 
 const {
   extractJsonText,
-  normalizeOcrBboxHintPayload
+  normalizeOcrBboxHintPayload,
 } = require("./simple-page-ocr-hints.cjs");
 const {
   createOcrBatchProgressFilePoller,
   parseOcrBatchProgressLine,
-  resolveOcrBboxTimeoutMs
+  resolveOcrBboxTimeoutMs,
 } = require("./simple-page-progress.cjs");
 const {
   readOcrCandidateText,
-  readPositiveInteger
+  readPositiveInteger,
 } = require("./simple-page-prompts.cjs");
-const {
-  runtimeOverrideEnv
-} = require("./simple-page-child-env.cjs");
+const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
 const {
   buildOcrRuntimeEnv,
   buildPaddleOcrGpuFailureMessage,
   isOcrGpuRequested,
   resolveOcrDeviceLabel,
-  summarizeOcrErrorMessage
+  summarizeOcrErrorMessage,
 } = require("./simple-page-ocr-runtime-config.cjs");
 const {
-  createOcrCommandProgressHandler
+  createOcrCommandProgressHandler,
 } = require("./simple-page-ocr-progress-handlers.cjs");
 const {
   buildOcrBboxBatchCommand,
-  buildOcrBboxCommand
+  buildOcrBboxCommand,
 } = require("./simple-page-ocr-commands.cjs");
 const {
   createOcrRuntimeError,
-  ensurePaddleOcrRuntime
+  ensurePaddleOcrRuntime,
 } = require("./simple-page-ocr-runtime-manager.cjs");
 const {
   createDetailedError,
   emitRuntimeProgress,
-  truncateText
+  truncateText,
 } = require("./simple-page-runtime-common.cjs");
 const {
   isPaddleOcrModelAssetLoadFailure,
-  repairPaddleOcrModelAssetsCache
+  repairPaddleOcrModelAssetsCache,
 } = require("./simple-page-model-assets.cjs");
-const {
-  runShellCommand
-} = require("./simple-page-shell-utils.cjs");
+const { runShellCommand } = require("./simple-page-shell-utils.cjs");
 
 function resolveOcrBboxProvider(options = {}) {
-  const explicit = String(options.ocrBboxProvider ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_PROVIDER", options) ?? "").trim();
+  const explicit = String(
+    options.ocrBboxProvider ??
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_PROVIDER", options) ??
+      "",
+  ).trim();
   if (explicit) {
     return explicit;
   }
-  if (isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_DISABLE_OCR_BBOX", options))) {
+  if (
+    isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_DISABLE_OCR_BBOX", options))
+  ) {
     return "none";
   }
   if (isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VL", options))) {
     return "paddleocr-vl";
   }
-  if (String(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_CMD", options) ?? "").trim()) {
+  if (
+    String(
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_CMD", options) ?? "",
+    ).trim()
+  ) {
     return "external-command";
   }
-  if (String(runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH", options) ?? "").trim()) {
+  if (
+    String(
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH", options) ?? "",
+    ).trim()
+  ) {
     return "json-file";
   }
   return "paddleocr-vl";
@@ -72,33 +82,53 @@ function resolveOcrBboxProvider(options = {}) {
 async function collectOcrBboxHints(options = {}) {
   const diagnostics = [];
   if (options.skipOcrBboxHints) {
-    return buildOcrBboxResult([], [{ provider: "disabled", reason: "skipOcrBboxHints" }], { noTextDetected: false });
+    return buildOcrBboxResult(
+      [],
+      [{ provider: "disabled", reason: "skipOcrBboxHints" }],
+      { noTextDetected: false },
+    );
   }
 
   if (Object.prototype.hasOwnProperty.call(options, "ocrBboxResult")) {
-    const result = normalizeOcrBboxResultPayload(options.ocrBboxResult, options);
+    const result = normalizeOcrBboxResultPayload(
+      options.ocrBboxResult,
+      options,
+    );
     return buildOcrBboxResult(result.hints, result.diagnostics, {
       noTextDetected: result.noTextDetected,
-      textEvidenceCount: result.textEvidenceCount
+      textEvidenceCount: result.textEvidenceCount,
     });
   }
 
-  const inlineHints = normalizeOcrBboxHintPayload(options.ocrBboxHints, options);
+  const inlineHints = normalizeOcrBboxHintPayload(
+    options.ocrBboxHints,
+    options,
+  );
   if (Object.prototype.hasOwnProperty.call(options, "ocrBboxHints")) {
-    return buildOcrBboxResult(inlineHints, [{
+    return buildOcrBboxResult(inlineHints, [
+      {
         provider: "inline",
-        hintCount: inlineHints.length
-      }]);
+        hintCount: inlineHints.length,
+      },
+    ]);
   }
 
-  const hintsPath = String(options.ocrBboxHintsPath ?? runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH", options) ?? "").trim();
+  const hintsPath = String(
+    options.ocrBboxHintsPath ??
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH", options) ??
+      "",
+  ).trim();
   if (hintsPath) {
     try {
       const rawText = await readFile(hintsPath, "utf8");
       const hints = normalizeOcrBboxHintPayload(JSON.parse(rawText), options);
-      return buildOcrBboxResult(hints, [{ provider: "json-file", path: hintsPath }]);
+      return buildOcrBboxResult(hints, [
+        { provider: "json-file", path: hintsPath },
+      ]);
     } catch (error) {
-      diagnostics.push(buildOcrBboxDiagnostic("json-file", error, { path: hintsPath }));
+      diagnostics.push(
+        buildOcrBboxDiagnostic("json-file", error, { path: hintsPath }),
+      );
     }
   }
 
@@ -108,10 +138,16 @@ async function collectOcrBboxHints(options = {}) {
   }
 
   try {
-    emitRuntimeProgress(options, "ocr_preparing", "Paddle OCR 준비 중", `장치: ${resolveOcrDeviceLabel(options)}`);
+    emitRuntimeProgress(
+      options,
+      "ocr_preparing",
+      "Paddle OCR 준비 중",
+      `장치: ${resolveOcrDeviceLabel(options)}`,
+    );
     const commandResult = await runOcrBboxCommand(options, provider);
     const hints = normalizeOcrBboxHintPayload(commandResult.payload, options);
-    const result = buildOcrBboxResult(hints, [{
+    const result = buildOcrBboxResult(hints, [
+      {
         provider,
         command: commandResult.command,
         outputPath: commandResult.outputPath,
@@ -123,13 +159,18 @@ async function collectOcrBboxHints(options = {}) {
         hintCount: hints.length,
         stdoutPreview: truncateText(commandResult.stdout.trim(), 1200),
         stderrPreview: truncateText(commandResult.stderr.trim(), 1200),
-        runtimeDiagnostics: commandResult.runtimeDiagnostics || []
-      }]);
+        runtimeDiagnostics: commandResult.runtimeDiagnostics || [],
+      },
+    ]);
     emitRuntimeProgress(
       options,
       "ocr_running",
-      result.noTextDetected ? "Paddle OCR 텍스트 없음" : `Paddle OCR 후보 ${hints.length}개 감지`,
-      result.noTextDetected ? `장치: ${resolveOcrDeviceLabel(options)}, 텍스트 근거 없음` : `장치: ${resolveOcrDeviceLabel(options)}`
+      result.noTextDetected
+        ? "Paddle OCR 텍스트 없음"
+        : `Paddle OCR 후보 ${hints.length}개 감지`,
+      result.noTextDetected
+        ? `장치: ${resolveOcrDeviceLabel(options)}, 텍스트 근거 없음`
+        : `장치: ${resolveOcrDeviceLabel(options)}`,
     );
     return result;
   } catch (error) {
@@ -137,12 +178,13 @@ async function collectOcrBboxHints(options = {}) {
     diagnostics.push(diagnostic);
     if (provider === "paddleocr-vl" && isOcrGpuRequested(options)) {
       const failureMessage = buildPaddleOcrGpuFailureMessage(error, options);
-      emitRuntimeProgress(options, "ocr_running", "Paddle OCR GPU 실행 실패", failureMessage);
-      throw createOcrRuntimeError(
+      emitRuntimeProgress(
+        options,
+        "ocr_running",
+        "Paddle OCR GPU 실행 실패",
         failureMessage,
-        { diagnostics },
-        error
       );
+      throw createOcrRuntimeError(failureMessage, { diagnostics }, error);
     }
     return buildOcrBboxResult([], diagnostics, { noTextDetected: false });
   }
@@ -162,7 +204,7 @@ function buildOcrBboxResult(hints = [], diagnostics = [], options = {}) {
     hints: normalizedHints,
     diagnostics: Array.isArray(diagnostics) ? diagnostics : [],
     noTextDetected,
-    textEvidenceCount
+    textEvidenceCount,
   };
 }
 
@@ -172,13 +214,23 @@ function normalizeOcrBboxResultPayload(value, options = {}) {
   return {
     hints,
     diagnostics: Array.isArray(record.diagnostics) ? record.diagnostics : [],
-    noTextDetected: typeof record.noTextDetected === "boolean" ? record.noTextDetected : undefined,
-    textEvidenceCount: Number.isFinite(record.textEvidenceCount) && record.textEvidenceCount >= 0 ? Number(record.textEvidenceCount) : undefined
+    noTextDetected:
+      typeof record.noTextDetected === "boolean"
+        ? record.noTextDetected
+        : undefined,
+    textEvidenceCount:
+      Number.isFinite(record.textEvidenceCount) && record.textEvidenceCount >= 0
+        ? Number(record.textEvidenceCount)
+        : undefined,
   };
 }
 
 function countOcrTextEvidence(hints = []) {
-  return hints.reduce((count, hint) => count + (hasJapaneseTextEvidence(readOcrCandidateText(hint)) ? 1 : 0), 0);
+  return hints.reduce(
+    (count, hint) =>
+      count + (hasJapaneseTextEvidence(readOcrCandidateText(hint)) ? 1 : 0),
+    0,
+  );
 }
 
 function hasJapaneseTextEvidence(value) {
@@ -205,23 +257,34 @@ function buildOcrBboxDiagnostic(provider, error, extra = {}) {
     provider,
     reason: "ocr-bbox-unavailable",
     message: summarizeOcrErrorMessage(error),
-    ...extra
+    ...extra,
   };
 }
 
 async function runOcrBboxCommand(options = {}, provider = "external-command") {
   await mkdir(options.outputDir, { recursive: true });
   const outputPath = path.join(options.outputDir, "ocr-bbox-hints.json");
-  const runtime = provider === "paddleocr-vl" ? await ensurePaddleOcrRuntime(options) : null;
+  const runtime =
+    provider === "paddleocr-vl" ? await ensurePaddleOcrRuntime(options) : null;
   const command = buildOcrBboxCommand(options, provider, outputPath, runtime);
-  emitRuntimeProgress(options, "ocr_running", "Paddle OCR 모델 다운로드/위치 분석 중", `장치: ${resolveOcrDeviceLabel(options)}`);
+  emitRuntimeProgress(
+    options,
+    "ocr_running",
+    "Paddle OCR 모델 다운로드/위치 분석 중",
+    `장치: ${resolveOcrDeviceLabel(options)}`,
+  );
   const handleOcrOutput = createOcrCommandProgressHandler(options, {
-    progressText: "Paddle OCR 모델 다운로드/위치 분석 중"
+    progressText: "Paddle OCR 모델 다운로드/위치 분석 중",
   });
-  const { stdout, stderr } = await runOcrShellCommandWithModelRepair(command, options, runtime, {
-    timeoutMs: resolveOcrBboxTimeoutMs(1),
-    onOutput: handleOcrOutput
-  });
+  const { stdout, stderr } = await runOcrShellCommandWithModelRepair(
+    command,
+    options,
+    runtime,
+    {
+      timeoutMs: resolveOcrBboxTimeoutMs(1),
+      onOutput: handleOcrOutput,
+    },
+  );
 
   let rawText;
   if (existsSync(outputPath)) {
@@ -235,7 +298,7 @@ async function runOcrBboxCommand(options = {}, provider = "external-command") {
       command,
       outputPath,
       stdoutPreview: truncateText(stdout, 2000),
-      stderrPreview: truncateText(stderr, 2000)
+      stderrPreview: truncateText(stderr, 2000),
     });
   }
 
@@ -250,7 +313,7 @@ async function runOcrBboxCommand(options = {}, provider = "external-command") {
     runtimeDiagnostics: runtime?.diagnostics || [],
     stdout,
     stderr,
-    payload: JSON.parse(rawText)
+    payload: JSON.parse(rawText),
   };
 }
 
@@ -272,13 +335,21 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   }
 
   const runtime = await ensurePaddleOcrRuntime(batchOptions);
-  const batchPath = path.join(firstOptions.outputDir || process.cwd(), `ocr-batch-${Date.now()}-${process.pid}.json`);
-  const progressPath = path.join(firstOptions.outputDir || process.cwd(), `ocr-batch-progress-${Date.now()}-${process.pid}.jsonl`);
+  const batchPath = path.join(
+    firstOptions.outputDir || process.cwd(),
+    `ocr-batch-${Date.now()}-${process.pid}.json`,
+  );
+  const progressPath = path.join(
+    firstOptions.outputDir || process.cwd(),
+    `ocr-batch-progress-${Date.now()}-${process.pid}.jsonl`,
+  );
   const items = normalizedOptions.map((options, index) => {
-    const outputDir = options.outputDir || path.join(firstOptions.outputDir || process.cwd(), `page-${index + 1}`);
+    const outputDir =
+      options.outputDir ||
+      path.join(firstOptions.outputDir || process.cwd(), `page-${index + 1}`);
     return {
       image: options.imagePath,
-      output: path.join(outputDir, "ocr-bbox-hints.json")
+      output: path.join(outputDir, "ocr-bbox-hints.json"),
     };
   });
   await mkdir(path.dirname(batchPath), { recursive: true });
@@ -288,61 +359,90 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   await writeFile(batchPath, `${JSON.stringify({ items }, null, 2)}\n`, "utf8");
   await writeFile(progressPath, "", "utf8");
 
-  const command = buildOcrBboxBatchCommand(batchOptions, batchPath, runtime, progressPath);
-  emitRuntimeProgress(batchOptions, "ocr_running", "Paddle OCR 배치 위치 분석 중", `${items.length}페이지, 장치: ${resolveOcrDeviceLabel(batchOptions)}`, {
-    pageIndex: null,
-    pageTotal: null,
-    progressCurrent: readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0,
-    progressTotal: readPositiveInteger(firstOptions.ocrBatchTotal) || items.length
-  });
+  const command = buildOcrBboxBatchCommand(
+    batchOptions,
+    batchPath,
+    runtime,
+    progressPath,
+  );
+  emitRuntimeProgress(
+    batchOptions,
+    "ocr_running",
+    "Paddle OCR 배치 위치 분석 중",
+    `${items.length}페이지, 장치: ${resolveOcrDeviceLabel(batchOptions)}`,
+    {
+      pageIndex: null,
+      pageTotal: null,
+      progressCurrent:
+        readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0,
+      progressTotal:
+        readPositiveInteger(firstOptions.ocrBatchTotal) || items.length,
+    },
+  );
   const seenProgressEvents = new Set();
   const handleCommandOutput = createOcrCommandProgressHandler(batchOptions, {
     progressText: "Paddle OCR 배치 위치 분석 중",
-    progressCurrent: readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0,
-    progressTotal: readPositiveInteger(firstOptions.ocrBatchTotal) || items.length
+    progressCurrent:
+      readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0,
+    progressTotal:
+      readPositiveInteger(firstOptions.ocrBatchTotal) || items.length,
   });
   const handleProgressLine = (line) => {
-      const progress = parseOcrBatchProgressLine(line);
-      if (!progress) {
-        handleCommandOutput(line);
-        return;
-      }
-      const phase = progress.phase || "done";
-      const eventKey = `${phase}:${progress.index}:${progress.total}`;
-      if (seenProgressEvents.has(eventKey)) {
-        return;
-      }
-      seenProgressEvents.add(eventKey);
-      const pageOptions = normalizedOptions[progress.index - 1] || firstOptions;
-      const completedBefore = readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0;
-      const batchTotal = readPositiveInteger(firstOptions.ocrBatchTotal) || progress.total;
-      const pageIndex = readPositiveInteger(pageOptions.ocrPageIndex) || completedBefore + progress.index;
-      const pageTotal = readPositiveInteger(pageOptions.ocrPageTotal) || batchTotal;
-      const completedCount = phase === "start"
+    const progress = parseOcrBatchProgressLine(line);
+    if (!progress) {
+      handleCommandOutput(line);
+      return;
+    }
+    const phase = progress.phase || "done";
+    const eventKey = `${phase}:${progress.index}:${progress.total}`;
+    if (seenProgressEvents.has(eventKey)) {
+      return;
+    }
+    seenProgressEvents.add(eventKey);
+    const pageOptions = normalizedOptions[progress.index - 1] || firstOptions;
+    const completedBefore =
+      readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0;
+    const batchTotal =
+      readPositiveInteger(firstOptions.ocrBatchTotal) || progress.total;
+    const pageIndex =
+      readPositiveInteger(pageOptions.ocrPageIndex) ||
+      completedBefore + progress.index;
+    const pageTotal =
+      readPositiveInteger(pageOptions.ocrPageTotal) || batchTotal;
+    const completedCount =
+      phase === "start"
         ? Math.max(0, completedBefore + progress.index - 1)
         : completedBefore + progress.index;
-      emitRuntimeProgress(
-        batchOptions,
-        "ocr_running",
-        `${pageIndex} / ${pageTotal} 페이지 Paddle OCR 분석 중`,
-        phase === "start" ? "페이지 처리 시작" : `${progress.count}개 후보`,
-        {
-          progressCurrent: Math.min(pageTotal, completedCount),
-          progressTotal: pageTotal,
-          pageIndex,
-          pageTotal
-        }
-      );
+    emitRuntimeProgress(
+      batchOptions,
+      "ocr_running",
+      `${pageIndex} / ${pageTotal} 페이지 Paddle OCR 분석 중`,
+      phase === "start" ? "페이지 처리 시작" : `${progress.count}개 후보`,
+      {
+        progressCurrent: Math.min(pageTotal, completedCount),
+        progressTotal: pageTotal,
+        pageIndex,
+        pageTotal,
+      },
+    );
   };
-  const progressPoller = createOcrBatchProgressFilePoller(progressPath, handleProgressLine);
+  const progressPoller = createOcrBatchProgressFilePoller(
+    progressPath,
+    handleProgressLine,
+  );
   let stdout = "";
   let stderr = "";
   try {
     progressPoller.start();
-    ({ stdout, stderr } = await runOcrShellCommandWithModelRepair(command, batchOptions, runtime, {
-      timeoutMs: resolveOcrBboxTimeoutMs(items.length),
-      onOutput: handleProgressLine
-    }));
+    ({ stdout, stderr } = await runOcrShellCommandWithModelRepair(
+      command,
+      batchOptions,
+      runtime,
+      {
+        timeoutMs: resolveOcrBboxTimeoutMs(items.length),
+        onOutput: handleProgressLine,
+      },
+    ));
 
     return normalizedOptions.map((options, index) => {
       const outputPath = items[index].output;
@@ -351,15 +451,19 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
         payload = JSON.parse(readFileSync(outputPath, "utf8"));
       }
       if (!payload) {
-        throw createDetailedError("OCR bbox batch command did not produce JSON.", {
-          command,
-          outputPath,
-          stdoutPreview: truncateText(stdout, 2000),
-          stderrPreview: truncateText(stderr, 2000)
-        });
+        throw createDetailedError(
+          "OCR bbox batch command did not produce JSON.",
+          {
+            command,
+            outputPath,
+            stdoutPreview: truncateText(stdout, 2000),
+            stderrPreview: truncateText(stderr, 2000),
+          },
+        );
       }
       const hints = normalizeOcrBboxHintPayload(payload, options);
-      return buildOcrBboxResult(hints, [{
+      return buildOcrBboxResult(hints, [
+        {
           provider,
           command,
           outputPath,
@@ -371,8 +475,9 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
           hintCount: hints.length,
           stdoutPreview: truncateText(stdout.trim(), 1200),
           stderrPreview: truncateText(stderr.trim(), 1200),
-          runtimeDiagnostics: runtime?.diagnostics || []
-        }]);
+          runtimeDiagnostics: runtime?.diagnostics || [],
+        },
+      ]);
     });
   } finally {
     progressPoller.stop();
@@ -380,28 +485,40 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   }
 }
 
-async function runOcrShellCommandWithModelRepair(command, options = {}, runtime = null, runOptions = {}) {
+async function runOcrShellCommandWithModelRepair(
+  command,
+  options = {},
+  runtime = null,
+  runOptions = {},
+) {
   try {
     return await runShellCommand(command, {
       timeoutMs: runOptions.timeoutMs,
       env: buildOcrRuntimeEnv(options, runtime),
       signal: options.abortSignal,
-      onOutput: runOptions.onOutput
+      onOutput: runOptions.onOutput,
     });
   } catch (error) {
     if (!isPaddleOcrModelAssetLoadFailure(error)) {
       throw error;
     }
-    emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 캐시 복구 중", "모델 캐시가 깨져 다시 다운로드합니다.", {
-      progressMode: "log-only",
-      installLogLine: "Paddle OCR 모델 로드 실패를 감지해 모델 캐시를 복구한 뒤 OCR을 다시 시도합니다."
-    });
+    emitRuntimeProgress(
+      options,
+      "ocr_downloading",
+      "Paddle OCR 모델 캐시 복구 중",
+      "모델 캐시가 깨져 다시 다운로드합니다.",
+      {
+        progressMode: "log-only",
+        installLogLine:
+          "Paddle OCR 모델 로드 실패를 감지해 모델 캐시를 복구한 뒤 OCR을 다시 시도합니다.",
+      },
+    );
     await repairPaddleOcrModelAssetsCache(options, runtime, error);
     return await runShellCommand(command, {
       timeoutMs: runOptions.timeoutMs,
       env: buildOcrRuntimeEnv(options, runtime),
       signal: options.abortSignal,
-      onOutput: runOptions.onOutput
+      onOutput: runOptions.onOutput,
     });
   }
 }
@@ -417,22 +534,33 @@ function withoutPageProgressOptions(options = {}) {
 }
 
 function isTruthy(value) {
-  const text = String(value ?? "").trim().toLowerCase();
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
   return ["1", "true", "yes", "y", "on"].includes(text);
 }
 
-async function cleanupOcrBatchControlFiles(batchPath, progressPath, options = {}) {
-  if (options.keepOcrBatchArtifacts || isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_KEEP_OCR_BATCH_ARTIFACTS", options))) {
+async function cleanupOcrBatchControlFiles(
+  batchPath,
+  progressPath,
+  options = {},
+) {
+  if (
+    options.keepOcrBatchArtifacts ||
+    isTruthy(
+      runtimeOverrideEnv("MANGA_TRANSLATOR_KEEP_OCR_BATCH_ARTIFACTS", options),
+    )
+  ) {
     return;
   }
   await Promise.all([
     rm(batchPath, { force: true }).catch(() => {}),
-    rm(progressPath, { force: true }).catch(() => {})
+    rm(progressPath, { force: true }).catch(() => {}),
   ]);
 }
 
 module.exports = {
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
-  resolveOcrBboxProvider
+  resolveOcrBboxProvider,
 };

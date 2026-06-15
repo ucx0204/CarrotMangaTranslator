@@ -1,6 +1,15 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import type { ChapterSnapshot, InpaintingMaskStroke, JobState, MangaPage } from "../../../shared/types";
-import type { BlockCounts, InpaintingContextValue, InpaintingTool } from "../inpainting/inpaintingTypes";
+import type {
+  ChapterSnapshot,
+  InpaintingMaskStroke,
+  JobState,
+  MangaPage,
+} from "../../../shared/types";
+import type {
+  BlockCounts,
+  InpaintingContextValue,
+  InpaintingTool,
+} from "../inpainting/inpaintingTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import type { RetouchPreviewState } from "./useInpaintingRetouch";
 
@@ -79,7 +88,7 @@ export function useInpaintingContextBridge({
   showBlockChrome,
   showTextBlocks,
   tool,
-  undoRetouch
+  undoRetouch,
 }: UseInpaintingContextBridgeOptions): {
   contextValue: InpaintingContextValue;
   retouchCursor: {
@@ -88,7 +97,9 @@ export function useInpaintingContextBridge({
     point: { x: number; y: number } | null;
     radiusPx: number;
   } | null;
-  retouchPreviewLayer: (RetouchPreviewState & { originalImageDataUrl: string }) | null;
+  retouchPreviewLayer:
+    | (RetouchPreviewState & { originalImageDataUrl: string })
+    | null;
 } {
   const retouchCursor =
     tool === "brush" || tool === "eraser" || tool === "mask"
@@ -96,7 +107,12 @@ export function useInpaintingContextBridge({
           point: retouchCursorPoint,
           radiusPx: brushRadius,
           mode: tool,
-          color: tool === "brush" ? brushColor : tool === "mask" ? "#ff9f1c" : "#70b7ff"
+          color:
+            tool === "brush"
+              ? brushColor
+              : tool === "mask"
+                ? "#ff9f1c"
+                : "#70b7ff",
         }
       : null;
 
@@ -104,7 +120,10 @@ export function useInpaintingContextBridge({
     retouchPreview && retouchPreview.points.length > 0
       ? {
           ...retouchPreview,
-          originalImageDataUrl: retouchPreview.mode === "eraser" ? selectedPageOriginalImageDataUrl : ""
+          originalImageDataUrl:
+            retouchPreview.mode === "eraser"
+              ? selectedPageOriginalImageDataUrl
+              : "",
         }
       : null;
 
@@ -143,7 +162,7 @@ export function useInpaintingContextBridge({
       onToggleChrome: () => setShowBlockChrome((value) => !value),
       onToggleBlocks: () => setShowTextBlocks((value) => !value),
       onExportResults: (scope) => void exportInpaintingResults(scope),
-      onCancelJob
+      onCancelJob,
     }),
     [
       blockCounts,
@@ -178,8 +197,8 @@ export function useInpaintingContextBridge({
       showBlockChrome,
       showTextBlocks,
       tool,
-      undoRetouch
-    ]
+      undoRetouch,
+    ],
   );
 
   return { contextValue, retouchCursor, retouchPreviewLayer };

@@ -4,11 +4,17 @@ import type { LlamaRuntimeProfile } from "../../shared/types";
 
 export function resolveLlamaRuntimeProfile(
   env: { MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE?: string },
-  fallback: unknown = "cuda12"
+  fallback: unknown = "cuda12",
 ): LlamaRuntimeProfile {
-  const explicit = resolveOptionalString(env.MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE);
+  const explicit = resolveOptionalString(
+    env.MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE,
+  );
   if (explicit) {
-    return canonicalizeLlamaRuntimeProfile(explicit) ?? canonicalizeLlamaRuntimeProfile(fallback) ?? "cuda12";
+    return (
+      canonicalizeLlamaRuntimeProfile(explicit) ??
+      canonicalizeLlamaRuntimeProfile(fallback) ??
+      "cuda12"
+    );
   }
   return canonicalizeLlamaRuntimeProfile(fallback) ?? "cuda12";
 }
@@ -35,9 +41,17 @@ export function isNvidiaLlamaRuntimeProfile(profile: string): boolean {
   return canonical === "cuda12" || canonical === "rtx50";
 }
 
-export function canonicalizeLlamaRuntimeProfile(value: unknown): LlamaRuntimeProfile | undefined {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(normalized)) {
+export function canonicalizeLlamaRuntimeProfile(
+  value: unknown,
+): LlamaRuntimeProfile | undefined {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (
+    ["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(
+      normalized,
+    )
+  ) {
     return "rtx50";
   }
   if (["cuda12", "cuda12.4", "cuda"].includes(normalized)) {
@@ -52,7 +66,9 @@ export function canonicalizeLlamaRuntimeProfile(value: unknown): LlamaRuntimePro
   return undefined;
 }
 
-export function resolveHardwareLlamaRuntimeProfile(info: DetectedGpuInfo | null): LlamaRuntimeProfile {
+export function resolveHardwareLlamaRuntimeProfile(
+  info: DetectedGpuInfo | null,
+): LlamaRuntimeProfile {
   if (info?.vendor === "amd") {
     return resolveAmdRocmTargetFromInfo(info) ? "rocm" : "vulkan";
   }

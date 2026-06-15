@@ -3,7 +3,9 @@ import type { ModelTestResult } from "../shared/types";
 import type { OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
 
 export type SimplePageRuntime = {
-  startServer: (options: Record<string, unknown>) => Promise<{ baseUrl: string; child: unknown; startedByScript: boolean }>;
+  startServer: (
+    options: Record<string, unknown>,
+  ) => Promise<{ baseUrl: string; child: unknown; startedByScript: boolean }>;
   stopServer: (server: { child: unknown } | null | undefined) => Promise<void>;
   isModelCached: (options: Record<string, unknown>) => boolean;
   ensurePaddleOcrRuntime?: (options: Record<string, unknown>) => Promise<{
@@ -14,7 +16,10 @@ export type SimplePageRuntime = {
     prepared?: boolean;
   }>;
   convertImageToPngBufferWithFfmpeg?: (filePath: string) => Promise<Buffer>;
-  testModelReply: (server: { baseUrl: string }, options: Record<string, unknown>) => Promise<{
+  testModelReply: (
+    server: { baseUrl: string },
+    options: Record<string, unknown>,
+  ) => Promise<{
     outputText: string;
     launchTarget: {
       launchMode: ModelTestResult["launchMode"];
@@ -33,12 +38,17 @@ export function loadSimplePageRuntime(runtimeDir: string): SimplePageRuntime {
     return cachedRuntime;
   }
 
-  const runtime = require(join(cacheKey, "simple-page-translate.cjs")) as SimplePageRuntime;
+  const runtime = require(
+    join(cacheKey, "simple-page-translate.cjs"),
+  ) as SimplePageRuntime;
   runtimeCache.set(cacheKey, runtime);
   return runtime;
 }
 
-export async function decodeImageThroughRuntime(runtimeDir: string, filePath: string): Promise<Buffer | null> {
+export async function decodeImageThroughRuntime(
+  runtimeDir: string,
+  filePath: string,
+): Promise<Buffer | null> {
   const runtime = loadSimplePageRuntime(runtimeDir);
   if (!runtime.convertImageToPngBufferWithFfmpeg) {
     return null;
@@ -47,7 +57,12 @@ export async function decodeImageThroughRuntime(runtimeDir: string, filePath: st
 }
 
 export function isOpenAIOAuthEndpoint(
-  server: Awaited<ReturnType<SimplePageRuntime["startServer"]>> | OpenAIOAuthEndpoint | null
+  server:
+    | Awaited<ReturnType<SimplePageRuntime["startServer"]>>
+    | OpenAIOAuthEndpoint
+    | null,
 ): server is OpenAIOAuthEndpoint {
-  return Boolean(server && "provider" in server && server.provider === "openai-codex");
+  return Boolean(
+    server && "provider" in server && server.provider === "openai-codex",
+  );
 }

@@ -11,7 +11,14 @@ export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda";
 export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
-export type AmdRocmTarget = "gfx908" | "gfx90a" | "gfx103X" | "gfx110X" | "gfx1150" | "gfx1151" | "gfx120X";
+export type AmdRocmTarget =
+  | "gfx908"
+  | "gfx90a"
+  | "gfx103X"
+  | "gfx110X"
+  | "gfx1150"
+  | "gfx1151"
+  | "gfx120X";
 export type FluxBackend = "cuda-native" | "zluda-native" | "python-cpu";
 export type RuntimeGpuVendor = "nvidia" | "amd" | "unknown";
 
@@ -98,7 +105,12 @@ export type JobPhase =
 
 export type PageAnalysisStatus = "idle" | "running" | "completed" | "failed";
 
-export type ChapterStatus = "idle" | "running" | "completed" | "partial" | "failed";
+export type ChapterStatus =
+  | "idle"
+  | "running"
+  | "completed"
+  | "partial"
+  | "failed";
 
 export type RunMode = "pending" | "all" | "single-page";
 
@@ -179,7 +191,10 @@ export type ChapterSnapshot = Omit<LibraryChapter, "pages"> & {
   pages: MangaPage[];
 };
 
-export type LibraryChapterSummary = Pick<LibraryChapter, "id" | "workId" | "title" | "status" | "createdAt" | "updatedAt"> & {
+export type LibraryChapterSummary = Pick<
+  LibraryChapter,
+  "id" | "workId" | "title" | "status" | "createdAt" | "updatedAt"
+> & {
   pageCount: number;
 };
 

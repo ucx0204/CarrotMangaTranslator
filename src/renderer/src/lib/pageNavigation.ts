@@ -26,14 +26,15 @@ const MIN_WHEEL_PAGE_DELTA = 18;
 export function resolveAdjacentPageId(
   pageIds: string[],
   selectedPageId: string | null,
-  direction: PageNavigationDirection
+  direction: PageNavigationDirection,
 ): string | null {
   if (!pageIds.length) {
     return null;
   }
 
   const currentIndex = Math.max(0, pageIds.indexOf(selectedPageId ?? ""));
-  const targetIndex = direction === "previous" ? currentIndex - 1 : currentIndex + 1;
+  const targetIndex =
+    direction === "previous" ? currentIndex - 1 : currentIndex + 1;
 
   if (targetIndex < 0 || targetIndex >= pageIds.length) {
     return null;
@@ -47,7 +48,7 @@ export function resolveKeyboardPageNavigation({
   hasPages,
   modalOpen,
   editableTarget,
-  centerPanelFocused
+  centerPanelFocused,
 }: KeyboardPageNavigationOptions): KeyboardPageNavigation | null {
   if (!hasPages || modalOpen || editableTarget) {
     return null;
@@ -59,9 +60,13 @@ export function resolveKeyboardPageNavigation({
     case "ArrowRight":
       return { direction: "next", preventDefault: false };
     case "ArrowUp":
-      return centerPanelFocused ? { direction: "previous", preventDefault: true } : null;
+      return centerPanelFocused
+        ? { direction: "previous", preventDefault: true }
+        : null;
     case "ArrowDown":
-      return centerPanelFocused ? { direction: "next", preventDefault: true } : null;
+      return centerPanelFocused
+        ? { direction: "next", preventDefault: true }
+        : null;
     default:
       return null;
   }
@@ -72,13 +77,16 @@ export function resolveWheelPageNavigation({
   deltaY,
   hasPages,
   modalOpen,
-  editableTarget
+  editableTarget,
 }: WheelPageNavigationOptions): PageNavigationDirection | null {
   if (!hasPages || modalOpen || editableTarget) {
     return null;
   }
 
-  if (Math.abs(deltaY) < MIN_WHEEL_PAGE_DELTA || Math.abs(deltaY) < Math.abs(deltaX)) {
+  if (
+    Math.abs(deltaY) < MIN_WHEEL_PAGE_DELTA ||
+    Math.abs(deltaY) < Math.abs(deltaX)
+  ) {
     return null;
   }
 

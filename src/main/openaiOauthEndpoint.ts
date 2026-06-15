@@ -33,15 +33,20 @@ export type OpenAIOAuthEndpoint = {
 const requireFromHere = createRequire(__filename);
 const OPENAI_OAUTH_RESOURCE_ENTRY = join("openai-oauth", "dist", "index.js");
 
-export async function startOpenAIOAuthEndpoint(options: TranslationOptions): Promise<OpenAIOAuthEndpoint> {
+export async function startOpenAIOAuthEndpoint(
+  options: TranslationOptions,
+): Promise<OpenAIOAuthEndpoint> {
   let module: OpenAIOAuthModule;
   try {
     module = await importOpenAIOAuthModule();
   } catch (error) {
     throw createDetailedError(
       "openai-oauth 패키지를 불러오지 못했습니다. 설치 파일을 다시 설치하거나 최신 버전으로 업데이트하세요.",
-      { packageName: "openai-oauth", importCandidates: resolveOpenAIOAuthImportCandidates() },
-      error
+      {
+        packageName: "openai-oauth",
+        importCandidates: resolveOpenAIOAuthImportCandidates(),
+      },
+      error,
     );
   }
 
@@ -50,14 +55,16 @@ export async function startOpenAIOAuthEndpoint(options: TranslationOptions): Pro
     port: options.codexOauthPort,
     requestLogger: (event) => {
       logInfo("openai-oauth request", { label: options.label, event });
-    }
+    },
   });
 
   try {
     await verifyEndpoint(oauthServer.url, options);
   } catch (error) {
     await oauthServer.close().catch((closeError) => {
-      logWarn("Failed to close openai-oauth endpoint after startup failure", { closeError });
+      logWarn("Failed to close openai-oauth endpoint after startup failure", {
+        closeError,
+      });
     });
     throw error;
   }
@@ -66,7 +73,7 @@ export async function startOpenAIOAuthEndpoint(options: TranslationOptions): Pro
     label: options.label,
     baseUrl: oauthServer.url,
     model: options.codexModel,
-    reasoningEffort: options.codexReasoningEffort
+    reasoningEffort: options.codexReasoningEffort,
   });
 
   return {
@@ -74,11 +81,13 @@ export async function startOpenAIOAuthEndpoint(options: TranslationOptions): Pro
     child: null,
     startedByScript: true,
     provider: "openai-codex",
-    oauthServer
+    oauthServer,
   };
 }
 
-export async function stopOpenAIOAuthEndpoint(endpoint: OpenAIOAuthEndpoint | null | undefined): Promise<void> {
+export async function stopOpenAIOAuthEndpoint(
+  endpoint: OpenAIOAuthEndpoint | null | undefined,
+): Promise<void> {
   if (!endpoint || endpoint.closed) {
     return;
   }
@@ -86,7 +95,11 @@ export async function stopOpenAIOAuthEndpoint(endpoint: OpenAIOAuthEndpoint | nu
   try {
     await endpoint.oauthServer.close();
   } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ERR_SERVER_NOT_RUNNING") {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "ERR_SERVER_NOT_RUNNING"
+    ) {
       return;
     }
     throw error;
@@ -105,14 +118,20 @@ async function importOpenAIOAuthModule(): Promise<OpenAIOAuthModule> {
     }
   }
 
-  throw createDetailedError("No openai-oauth import candidate loaded.", { importFailures: failures }, lastError);
+  throw createDetailedError(
+    "No openai-oauth import candidate loaded.",
+    { importFailures: failures },
+    lastError,
+  );
 }
 
 function resolveOpenAIOAuthImportCandidates(): string[] {
   const candidates = new Set<string>();
   const resourcePath = resolveResourceOpenAIOAuthEntryPath();
   const resolvedPath = resolveOpenAIOAuthEntryPath();
-  const unpackedPath = resolvedPath ? resolveAsarUnpackedPath(resolvedPath) : null;
+  const unpackedPath = resolvedPath
+    ? resolveAsarUnpackedPath(resolvedPath)
+    : null;
 
   if (resourcePath && existsSync(resourcePath)) {
     candidates.add(pathToFileURL(resourcePath).href);
@@ -129,7 +148,8 @@ function resolveOpenAIOAuthImportCandidates(): string[] {
 }
 
 function resolveResourceOpenAIOAuthEntryPath(): string | null {
-  const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
+  const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string })
+    .resourcesPath;
   if (!resourcesPath) {
     return null;
   }
@@ -150,55 +170,70 @@ function resolveAsarUnpackedPath(resolvedPath: string): string | null {
     return null;
   }
 
-  return resolvedPath.replace(/([\\/])app\.asar([\\/])/, "$1app.asar.unpacked$2");
+  return resolvedPath.replace(
+    /([\\/])app\.asar([\\/])/,
+    "$1app.asar.unpacked$2",
+  );
 }
 
-function summarizeImportFailure(specifier: string, error: unknown): Record<string, unknown> {
+function summarizeImportFailure(
+  specifier: string,
+  error: unknown,
+): Record<string, unknown> {
   if (error instanceof Error) {
     return {
       specifier,
       name: error.name,
       message: error.message,
       code: "code" in error ? error.code : undefined,
-      cause: "cause" in error ? error.cause : undefined
+      cause: "cause" in error ? error.cause : undefined,
     };
   }
 
   return {
     specifier,
-    message: String(error)
+    message: String(error),
   };
 }
 
-async function verifyEndpoint(baseUrl: string, options: TranslationOptions): Promise<void> {
+async function verifyEndpoint(
+  baseUrl: string,
+  options: TranslationOptions,
+): Promise<void> {
   let response: Response;
   try {
     response = await fetch(`${baseUrl}/models`, {
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(30000),
     });
   } catch (error) {
     throw createDetailedError(
       "openai-oauth 엔드포인트에 연결하지 못했습니다. 먼저 Codex 로그인이 되어 있는지 확인하세요.",
       { baseUrl, model: options.codexModel },
-      error
+      error,
     );
   }
 
   const rawText = await response.text();
   if (!response.ok) {
-    throw createDetailedError("openai-oauth 모델 목록을 확인하지 못했습니다. Codex 로그인이 필요할 수 있습니다.", {
-      baseUrl,
-      status: response.status,
-      statusText: response.statusText,
-      rawTextPreview: truncateText(rawText)
-    });
+    throw createDetailedError(
+      "openai-oauth 모델 목록을 확인하지 못했습니다. Codex 로그인이 필요할 수 있습니다.",
+      {
+        baseUrl,
+        status: response.status,
+        statusText: response.statusText,
+        rawTextPreview: truncateText(rawText),
+      },
+    );
   }
 
   const availableModels = parseModelIds(rawText);
-  if (availableModels.length > 0 && !availableModels.includes(options.codexModel)) {
+  if (
+    availableModels.length > 0 &&
+    !availableModels.includes(options.codexModel)
+  ) {
     logWarn("Selected Codex model was not advertised by openai-oauth", {
       selectedModel: options.codexModel,
-      availableModels
+      availableModels,
     });
   }
 }
@@ -209,17 +244,25 @@ function parseModelIds(rawText: string): string[] {
     if (!Array.isArray(parsed?.data)) {
       return [];
     }
-    return parsed.data.map((item: { id?: unknown }) => item.id).filter((id: unknown): id is string => typeof id === "string");
+    return parsed.data
+      .map((item: { id?: unknown }) => item.id)
+      .filter((id: unknown): id is string => typeof id === "string");
   } catch {
     return [];
   }
 }
 
 function truncateText(value: string, maxLength = 4000): string {
-  return value.length <= maxLength ? value : `${value.slice(0, maxLength)}... [truncated ${value.length - maxLength} chars]`;
+  return value.length <= maxLength
+    ? value
+    : `${value.slice(0, maxLength)}... [truncated ${value.length - maxLength} chars]`;
 }
 
-function createDetailedError(message: string, detail: Record<string, unknown> = {}, cause?: unknown): Error {
+function createDetailedError(
+  message: string,
+  detail: Record<string, unknown> = {},
+  cause?: unknown,
+): Error {
   const error = new Error(message);
   if (cause !== undefined) {
     error.cause = cause;

@@ -1,11 +1,40 @@
 import { once } from "node:events";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { basename, delimiter, dirname, isAbsolute, join, normalize, relative, resolve } from "node:path";
+import {
+  copyFileSync,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import {
+  copyFile,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import {
+  basename,
+  delimiter,
+  dirname,
+  isAbsolute,
+  join,
+  normalize,
+  relative,
+  resolve,
+} from "node:path";
 import type { FluxBackend } from "../../shared/types";
-import { sanitizeFluxRuntimeStderr, type FluxWorkerBackend, type FluxWorkerLaunchSpec } from "./fluxWorker";
+import {
+  sanitizeFluxRuntimeStderr,
+  type FluxWorkerBackend,
+  type FluxWorkerLaunchSpec,
+} from "./fluxWorker";
 
 const AdmZip = require("adm-zip");
 
@@ -23,7 +52,13 @@ const FLUX_SDCPP_WORKER = "flux-klein-sdcpp-worker.py";
 const FLUX_PYTHON_RUNTIME_MARKER = ".mgt-flux-python-runtime.json";
 const FLUX_ROCM_PREBUILT_RUNTIME_SCHEMA = 1;
 const WINDOWS_MSVC_COMPILER_TARGET = "x86_64-pc-windows-msvc";
-const WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES = ["msvcrt.lib", "msvcprt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
+const WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES = [
+  "msvcrt.lib",
+  "msvcprt.lib",
+  "vcruntime.lib",
+  "ucrt.lib",
+  "oldnames.lib",
+];
 const DEFAULT_AMD_GPU_TARGETS = [
   // Keep this in sync with scripts/build-flux-rocm-runtime.cjs. ROCm/HIP wants
   // concrete LLVM targets here, not grouped labels such as "gfx110X".
@@ -45,7 +80,7 @@ const DEFAULT_AMD_GPU_TARGETS = [
   "gfx1152",
   "gfx1153",
   "gfx1200",
-  "gfx1201"
+  "gfx1201",
 ];
 const WINDOWS_SYSTEM_IMPORT_LIB_NAMES = [
   "kernel32.lib",
@@ -57,7 +92,7 @@ const WINDOWS_SYSTEM_IMPORT_LIB_NAMES = [
   "oleaut32.lib",
   "uuid.lib",
   "comdlg32.lib",
-  "advapi32.lib"
+  "advapi32.lib",
 ];
 const FLUX_ROCM_PREBUILT_RUNTIME_MANIFEST = "mgt-flux-rocm-runtime.json";
 const FLUX_DIFFUSERS_MODEL_ID = "black-forest-labs/FLUX.2-klein-4B";
@@ -68,10 +103,8 @@ const FLUX_ROCM_WINDOWS_VERSION = "7.2.1";
 const FLUX_CPU_TORCH_INDEX_URL = "https://download.pytorch.org/whl/cpu";
 const FLUX_PYTHON_DEFAULT_MODE = "klein-edit-composite";
 const FLUX_EMBED_PYTHON_VERSION = "3.12.7";
-const FLUX_ROCM_PREBUILT_RUNTIME_FILE =
-  `mgt-flux-rocm-win-x64-rocm${FLUX_ROCM_WINDOWS_VERSION}-py${FLUX_EMBED_PYTHON_VERSION}-sdcpp.zip`;
-const FLUX_ROCM_PREBUILT_RUNTIME_URL =
-  `https://github.com/ucx0204/Gemma4MangaTranslatorForKorean/releases/download/flux-runtime/${FLUX_ROCM_PREBUILT_RUNTIME_FILE}`;
+const FLUX_ROCM_PREBUILT_RUNTIME_FILE = `mgt-flux-rocm-win-x64-rocm${FLUX_ROCM_WINDOWS_VERSION}-py${FLUX_EMBED_PYTHON_VERSION}-sdcpp.zip`;
+const FLUX_ROCM_PREBUILT_RUNTIME_URL = `https://github.com/ucx0204/Gemma4MangaTranslatorForKorean/releases/download/flux-runtime/${FLUX_ROCM_PREBUILT_RUNTIME_FILE}`;
 const FLUX_GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py";
 const FLUX_BOOTSTRAP_PYTHON_MARKER = ".mgt-flux-bootstrap-python.json";
 const WINDOWS_LEGACY_MAX_PATH = 260;
@@ -81,15 +114,28 @@ const ROCM_LONGEST_LIBRARY_ENTRY = join(
   "bin",
   "hipblaslt",
   "library",
-  "TensileLibrary_B8B8_B8B8_HA_Bias_SAB_SCD_SAV_UA_Type_B8B8_HPA_Contraction_l_Ailk_Bjlk_Cijk_Dijk_gfx1200.co"
+  "TensileLibrary_B8B8_B8B8_HA_Bias_SAB_SCD_SAV_UA_Type_B8B8_HPA_Contraction_l_Ailk_Bjlk_Cijk_Dijk_gfx1200.co",
 );
 const ROCM_LONGEST_FINAL_ENTRY = join("p", ROCM_LONGEST_LIBRARY_ENTRY);
-const ROCM_LONGEST_PIP_TEMP_ENTRY = join("t", "pip-target-xxxxxxxx", "lib", "python", ROCM_LONGEST_LIBRARY_ENTRY);
-const CUDA_REDIST_BASE_URL = "https://developer.download.nvidia.com/compute/cuda/redist";
-const CUDNN_REDIST_BASE_URL = "https://developer.download.nvidia.com/compute/cudnn/redist";
+const ROCM_LONGEST_PIP_TEMP_ENTRY = join(
+  "t",
+  "pip-target-xxxxxxxx",
+  "lib",
+  "python",
+  ROCM_LONGEST_LIBRARY_ENTRY,
+);
+const CUDA_REDIST_BASE_URL =
+  "https://developer.download.nvidia.com/compute/cuda/redist";
+const CUDNN_REDIST_BASE_URL =
+  "https://developer.download.nvidia.com/compute/cudnn/redist";
 const CUDA_REDIST_MANIFEST_URL = `${CUDA_REDIST_BASE_URL}/redistrib_12.9.0.json`;
 const CUDNN_REDIST_MANIFEST_URL = `${CUDNN_REDIST_BASE_URL}/redistrib_9.21.0.json`;
-const FLUX_CUDA_DLLS = new Set(["cublas64_12.dll", "cublasLt64_12.dll", "cudart64_12.dll", "curand64_10.dll"]);
+const FLUX_CUDA_DLLS = new Set([
+  "cublas64_12.dll",
+  "cublasLt64_12.dll",
+  "cudart64_12.dll",
+  "curand64_10.dll",
+]);
 const FLUX_ZLUDA_SUPPORT_DLLS = new Set(["curand64_10.dll"]);
 const FLUX_CUDNN_DLLS = new Set([
   "cudnn64_9.dll",
@@ -100,7 +146,7 @@ const FLUX_CUDNN_DLLS = new Set([
   "cudnn_engines_tensor_ir64_9.dll",
   "cudnn_graph64_9.dll",
   "cudnn_heuristic64_9.dll",
-  "cudnn_ops64_9.dll"
+  "cudnn_ops64_9.dll",
 ]);
 
 export type FluxAssetProgress = {
@@ -177,7 +223,7 @@ export async function ensureMgtFluxKleinRuntime(options: {
     progressText: "Flux 런타임 캐시 사용",
     detail: basename(runtimePath),
     progressMode: "log-only",
-    installLogLine: `MGT Flux Klein 런타임을 사용합니다: ${basename(runtimePath)}`
+    installLogLine: `MGT Flux Klein 런타임을 사용합니다: ${basename(runtimePath)}`,
   });
   return runtimePath;
 }
@@ -197,7 +243,7 @@ export async function ensureFluxWorkerLaunch(options: {
       executable: runtimePath,
       runtimePath,
       label: "Flux Klein CUDA",
-      args: []
+      args: [],
     };
   }
   if (backend === "zluda-native") {
@@ -209,7 +255,8 @@ export async function ensureFluxWorkerLaunch(options: {
       progressText: "Flux ZLUDA 런타임 준비 중",
       detail: "Koharu/Candle ZLUDA",
       progressMode: "log-only",
-      installLogLine: "AMD GPU에서는 NVIDIA와 같은 Flux Klein 실행기를 ZLUDA/HIP 경로로 실행하고, 필요한 CUDA 보조 DLL만 함께 준비합니다."
+      installLogLine:
+        "AMD GPU에서는 NVIDIA와 같은 Flux Klein 실행기를 ZLUDA/HIP 경로로 실행하고, 필요한 CUDA 보조 DLL만 함께 준비합니다.",
     });
     return {
       backend,
@@ -221,11 +268,11 @@ export async function ensureFluxWorkerLaunch(options: {
         "--zluda-runtime-root",
         zludaRuntimeRoot,
         "--cuda-runtime-dir",
-        cudaRuntimeDir
+        cudaRuntimeDir,
       ],
       env: {
-        KOHARU_DATA_ROOT: zludaRuntimeRoot
-      }
+        KOHARU_DATA_ROOT: zludaRuntimeRoot,
+      },
     };
   }
   if (backend === "python-rocm" || backend === "python-cpu") {
@@ -244,19 +291,29 @@ async function ensureManagedFluxRunner(options: {
 
   const source = findFirstExecutable([
     process.env.MGT_FLUX_KLEIN_EXE,
-    process.resourcesPath ? join(process.resourcesPath, "tools", FLUX_RUNNER_DIR, FLUX_RUNTIME_EXECUTABLE) : undefined,
-    join(process.cwd(), "tools", FLUX_RUNNER_DIR, FLUX_RUNTIME_EXECUTABLE)
+    process.resourcesPath
+      ? join(
+          process.resourcesPath,
+          "tools",
+          FLUX_RUNNER_DIR,
+          FLUX_RUNTIME_EXECUTABLE,
+        )
+      : undefined,
+    join(process.cwd(), "tools", FLUX_RUNNER_DIR, FLUX_RUNTIME_EXECUTABLE),
   ]);
   if (!source) {
     throw new Error(
       `${FLUX_RUNTIME_EXECUTABLE}를 찾지 못했습니다. 설치 파일에 Flux Klein 실행 파일이 포함되어 있어야 합니다. ` +
-        `개발 환경에서는 node scripts/prepare-flux-klein-runner.cjs를 실행하거나 MGT_FLUX_KLEIN_EXE로 경로를 지정하세요.`
+        `개발 환경에서는 node scripts/prepare-flux-klein-runner.cjs를 실행하거나 MGT_FLUX_KLEIN_EXE로 경로를 지정하세요.`,
     );
   }
 
   throwIfAborted(options.signal);
   await mkdir(managedDir, { recursive: true });
-  if (isExecutableFile(managedPath) && sha256FileSync(managedPath) === sha256FileSync(source)) {
+  if (
+    isExecutableFile(managedPath) &&
+    sha256FileSync(managedPath) === sha256FileSync(source)
+  ) {
     return managedPath;
   }
   await copyFile(source, managedPath);
@@ -264,7 +321,7 @@ async function ensureManagedFluxRunner(options: {
     progressText: "Flux 실행 파일 준비 중",
     detail: FLUX_RUNTIME_EXECUTABLE,
     progressMode: "log-only",
-    installLogLine: `Flux 실행 파일을 앱 데이터 캐시에 갱신했습니다: ${FLUX_RUNTIME_EXECUTABLE}`
+    installLogLine: `Flux 실행 파일을 앱 데이터 캐시에 갱신했습니다: ${FLUX_RUNTIME_EXECUTABLE}`,
   });
   return managedPath;
 }
@@ -277,9 +334,15 @@ async function ensureFluxPythonRuntime(options: {
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<FluxWorkerLaunchSpec> {
   await mkdir(options.runtimeDir, { recursive: true });
-  const layout = resolveFluxPythonRuntimeLayout(options.runtimeDir, options.backend);
-  const { runtimeDir, venvPythonPath, packageDir, workerPath, markerPath } = layout;
-  const runtimeInstallBatches = resolvePythonRuntimeInstallBatches(options.backend);
+  const layout = resolveFluxPythonRuntimeLayout(
+    options.runtimeDir,
+    options.backend,
+  );
+  const { runtimeDir, venvPythonPath, packageDir, workerPath, markerPath } =
+    layout;
+  const runtimeInstallBatches = resolvePythonRuntimeInstallBatches(
+    options.backend,
+  );
   const buildPackages = resolvePythonBuildPackages(options.backend);
   const extraPackages = resolvePythonFluxPackages(options.backend);
   const workerFile = resolveFluxPythonWorkerFile(options.backend);
@@ -287,11 +350,14 @@ async function ensureFluxPythonRuntime(options: {
   const workerHash = workerSource ? sha256FileSync(workerSource) : "missing";
   const expectedMarker = {
     backend: options.backend,
-    runtimeInstallBatches: runtimeInstallBatches.map((batch) => ({ id: batch.id, pipArgs: batch.pipArgs })),
+    runtimeInstallBatches: runtimeInstallBatches.map((batch) => ({
+      id: batch.id,
+      pipArgs: batch.pipArgs,
+    })),
     buildPackages,
     packages: extraPackages,
     worker: workerFile,
-    workerHash
+    workerHash,
   };
 
   let pythonRuntime = await resolveCurrentFluxPythonRuntime({
@@ -299,7 +365,7 @@ async function ensureFluxPythonRuntime(options: {
     venvPythonPath,
     packageDir,
     markerPath,
-    expectedMarker
+    expectedMarker,
   });
 
   if (!pythonRuntime) {
@@ -308,15 +374,19 @@ async function ensureFluxPythonRuntime(options: {
         layout,
         expectedMarker,
         signal: options.signal,
-        onProgress: options.onProgress
+        onProgress: options.onProgress,
       });
     }
 
     if (!pythonRuntime) {
-      if (options.backend === "python-rocm" && process.platform === "win32" && !shouldAllowFluxRocmSourceBuildFallback()) {
+      if (
+        options.backend === "python-rocm" &&
+        process.platform === "win32" &&
+        !shouldAllowFluxRocmSourceBuildFallback()
+      ) {
         throw new Error(
           "Flux ROCm prebuilt 런타임을 준비하지 못했습니다. 사용자 PC에서 C++/ROCm 소스 빌드는 비활성화되어 있습니다. " +
-            "GitHub Release의 mgt-flux-rocm 런타임 ZIP을 확인하거나 MGT_FLUX_ROCM_ALLOW_SOURCE_BUILD=1로 개발용 소스 빌드를 명시적으로 허용하세요."
+            "GitHub Release의 mgt-flux-rocm 런타임 ZIP을 확인하거나 MGT_FLUX_ROCM_ALLOW_SOURCE_BUILD=1로 개발용 소스 빌드를 명시적으로 허용하세요.",
         );
       }
 
@@ -324,15 +394,18 @@ async function ensureFluxPythonRuntime(options: {
       await mkdir(runtimeDir, { recursive: true });
       await ensureFluxPythonWorker(runtimeDir, workerFile);
       options.onProgress?.({
-        progressText: options.backend === "python-rocm" ? "Flux ROCm 런타임 설치 중" : "Flux CPU 런타임 설치 중",
+        progressText:
+          options.backend === "python-rocm"
+            ? "Flux ROCm 런타임 설치 중"
+            : "Flux CPU 런타임 설치 중",
         detail: "Python target package install",
         progressMode: "log-only",
-        installLogLine: "Flux 전용 패키지 폴더에 Python 패키지를 설치합니다."
+        installLogLine: "Flux 전용 패키지 폴더에 Python 패키지를 설치합니다.",
       });
       const basePython = await findPythonCommand({
         runtimeDir,
         signal: options.signal,
-        onProgress: options.onProgress
+        onProgress: options.onProgress,
       });
       const runtimeMode = "target" as const;
       const installPython: PythonCommand = basePython;
@@ -344,54 +417,78 @@ async function ensureFluxPythonRuntime(options: {
       let installEnv = buildTargetPythonEnv(
         runtimeDir,
         packageDir,
-        options.backend === "python-rocm" && process.platform === "win32" ? "python-cpu" : options.backend,
-        { requireNativeBuildEnv: false }
+        options.backend === "python-rocm" && process.platform === "win32"
+          ? "python-cpu"
+          : options.backend,
+        { requireNativeBuildEnv: false },
       );
-      await runCommand(installPython.command, [...installPython.args, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"], {
-        signal: options.signal,
-        env: installEnv,
-        onLine: (line) => emitPythonInstallLog(options, line)
-      });
-      if (buildPackages.length > 0) {
-        options.onProgress?.({
-          progressText: "Flux 빌드 도구 설치 중",
-          detail: buildPackages.join(" "),
-          progressMode: "indeterminate",
-          installLogLine: "stable-diffusion.cpp Python 바인딩 빌드 도구를 먼저 설치합니다."
-        });
-        await runCommand(installPython.command, [
+      await runCommand(
+        installPython.command,
+        [
           ...installPython.args,
           "-m",
           "pip",
           "install",
           "--upgrade",
-          ...buildPackages
-        ], {
+          "pip",
+          "setuptools",
+          "wheel",
+        ],
+        {
           signal: options.signal,
           env: installEnv,
-          onLine: (line) => emitPythonInstallLog(options, line)
+          onLine: (line) => emitPythonInstallLog(options, line),
+        },
+      );
+      if (buildPackages.length > 0) {
+        options.onProgress?.({
+          progressText: "Flux 빌드 도구 설치 중",
+          detail: buildPackages.join(" "),
+          progressMode: "indeterminate",
+          installLogLine:
+            "stable-diffusion.cpp Python 바인딩 빌드 도구를 먼저 설치합니다.",
         });
+        await runCommand(
+          installPython.command,
+          [
+            ...installPython.args,
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            ...buildPackages,
+          ],
+          {
+            signal: options.signal,
+            env: installEnv,
+            onLine: (line) => emitPythonInstallLog(options, line),
+          },
+        );
       }
       for (const batch of runtimeInstallBatches) {
         options.onProgress?.({
           progressText: batch.progressText,
           detail: batch.detail,
           progressMode: "indeterminate",
-          installLogLine: batch.installLogLine
+          installLogLine: batch.installLogLine,
         });
-        await runCommand(installPython.command, [
-          ...installPython.args,
-          "-m",
-          "pip",
-          "install",
-          "--target",
-          packageDir,
-          ...batch.pipArgs
-        ], {
-          signal: options.signal,
-          env: installEnv,
-          onLine: (line) => emitPythonInstallLog(options, line)
-        });
+        await runCommand(
+          installPython.command,
+          [
+            ...installPython.args,
+            "-m",
+            "pip",
+            "install",
+            "--target",
+            packageDir,
+            ...batch.pipArgs,
+          ],
+          {
+            signal: options.signal,
+            env: installEnv,
+            onLine: (line) => emitPythonInstallLog(options, line),
+          },
+        );
       }
       if (options.backend === "python-rocm" && process.platform === "win32") {
         await initializeWindowsRocmSdk({
@@ -399,46 +496,68 @@ async function ensureFluxPythonRuntime(options: {
           packageDir,
           runtimeDir,
           signal: options.signal,
-          onProgress: options.onProgress
+          onProgress: options.onProgress,
         });
-        installEnv = buildTargetPythonEnv(runtimeDir, packageDir, options.backend, { requireNativeBuildEnv: true });
+        installEnv = buildTargetPythonEnv(
+          runtimeDir,
+          packageDir,
+          options.backend,
+          { requireNativeBuildEnv: true },
+        );
       }
       options.onProgress?.({
         progressText: "Flux Python 패키지 설치 중",
         detail: extraPackages.join(" "),
         progressMode: "indeterminate",
-        installLogLine: options.backend === "python-rocm"
-          ? "stable-diffusion.cpp Python 바인딩을 ROCm/HIP용으로 빌드합니다."
-          : "diffusers/transformers/accelerate 패키지를 설치합니다."
+        installLogLine:
+          options.backend === "python-rocm"
+            ? "stable-diffusion.cpp Python 바인딩을 ROCm/HIP용으로 빌드합니다."
+            : "diffusers/transformers/accelerate 패키지를 설치합니다.",
       });
-      await runCommand(installPython.command, [
-        ...installPython.args,
-        "-m",
-        "pip",
-        "install",
-        "--target",
-        packageDir,
-        ...extraPackages
-      ], {
-        signal: options.signal,
-        env: installEnv,
-        onLine: (line) => emitPythonInstallLog(options, line)
-      });
+      await runCommand(
+        installPython.command,
+        [
+          ...installPython.args,
+          "-m",
+          "pip",
+          "install",
+          "--target",
+          packageDir,
+          ...extraPackages,
+        ],
+        {
+          signal: options.signal,
+          env: installEnv,
+          onLine: (line) => emitPythonInstallLog(options, line),
+        },
+      );
       pythonRuntime = {
         mode: "target",
         command: installPython.command,
         executable: installPython.command,
         args: installPython.args,
         env: installEnv,
-        packageDir
+        packageDir,
       };
-      await verifyFluxPythonRuntime(pythonRuntime, options.backend, options.signal);
-      await writeFile(markerPath, `${JSON.stringify({
-        ...expectedMarker,
-        runtimeMode,
-        pythonPath: pythonRuntime.executable,
-        packageDir: pythonRuntime.packageDir
-      }, null, 2)}\n`, "utf8");
+      await verifyFluxPythonRuntime(
+        pythonRuntime,
+        options.backend,
+        options.signal,
+      );
+      await writeFile(
+        markerPath,
+        `${JSON.stringify(
+          {
+            ...expectedMarker,
+            runtimeMode,
+            pythonPath: pythonRuntime.executable,
+            packageDir: pythonRuntime.packageDir,
+          },
+          null,
+          2,
+        )}\n`,
+        "utf8",
+      );
     }
   } else {
     await ensureFluxPythonWorker(runtimeDir, workerFile);
@@ -456,7 +575,7 @@ async function ensureFluxPythonRuntime(options: {
       label: "Flux Klein 4B GGUF",
       url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE),
       signal: options.signal,
-      onProgress: options.onProgress
+      onProgress: options.onProgress,
     });
     const vaePath = await ensureRemoteFile({
       modelDir: options.modelDir,
@@ -464,7 +583,7 @@ async function ensureFluxPythonRuntime(options: {
       label: "Flux small decoder",
       url: hfResolveUrl(FLUX_VAE_REPO, FLUX_SDCPP_VAE_FILE),
       signal: options.signal,
-      onProgress: options.onProgress
+      onProgress: options.onProgress,
     });
     const llmPath = await ensureRemoteFile({
       modelDir: options.modelDir,
@@ -472,13 +591,14 @@ async function ensureFluxPythonRuntime(options: {
       label: "Flux text encoder GGUF",
       url: hfResolveUrl(FLUX_SDCPP_LLM_REPO, FLUX_SDCPP_LLM_FILE),
       signal: options.signal,
-      onProgress: options.onProgress
+      onProgress: options.onProgress,
     });
     options.onProgress?.({
       progressText: "Flux stable-diffusion.cpp 런타임 준비 완료",
       detail: "ROCm · GGUF Q4_K_M",
       progressMode: "log-only",
-      installLogLine: "Flux stable-diffusion.cpp ROCm/HIP + GGUF 런타임을 사용합니다."
+      installLogLine:
+        "Flux stable-diffusion.cpp ROCm/HIP + GGUF 런타임을 사용합니다.",
     });
     return {
       backend: options.backend,
@@ -496,17 +616,20 @@ async function ensureFluxPythonRuntime(options: {
         "--vae",
         vaePath,
         "--llm",
-        llmPath
+        llmPath,
       ],
       env: {
         ...pythonRuntime.env,
         HF_HOME: options.modelDir,
-        HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub")
-      }
+        HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub"),
+      },
     };
   }
 
-  const modelId = process.env.MANGA_TRANSLATOR_FLUX_PYTHON_MODEL_ID ?? process.env.MGT_FLUX_PYTHON_MODEL_ID ?? FLUX_DIFFUSERS_MODEL_ID;
+  const modelId =
+    process.env.MANGA_TRANSLATOR_FLUX_PYTHON_MODEL_ID ??
+    process.env.MGT_FLUX_PYTHON_MODEL_ID ??
+    FLUX_DIFFUSERS_MODEL_ID;
   const mode = resolveFluxPythonMode();
   await ensureFluxPythonModelCache({
     pythonRuntime,
@@ -514,13 +637,13 @@ async function ensureFluxPythonRuntime(options: {
     modelId,
     ignorePatterns: [],
     signal: options.signal,
-    onProgress: options.onProgress
+    onProgress: options.onProgress,
   });
   options.onProgress?.({
     progressText: "Flux Python 런타임 준비 완료",
     detail: `CPU · ${modelId}`,
     progressMode: "log-only",
-    installLogLine: "Flux Python CPU 런타임을 사용합니다."
+    installLogLine: "Flux Python CPU 런타임을 사용합니다.",
   });
   return {
     backend: options.backend,
@@ -538,13 +661,13 @@ async function ensureFluxPythonRuntime(options: {
       "--mode",
       mode,
       "--cache-dir",
-      options.modelDir
+      options.modelDir,
     ],
     env: {
       ...pythonRuntime.env,
       HF_HOME: options.modelDir,
-      HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub")
-    }
+      HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub"),
+    },
   };
 }
 
@@ -566,33 +689,47 @@ async function ensurePrebuiltFluxRocmPythonRuntime(options: {
     return null;
   }
 
-  const archiveName = resolveArchiveFileName(archiveUrl, FLUX_ROCM_PREBUILT_RUNTIME_FILE);
+  const archiveName = resolveArchiveFileName(
+    archiveUrl,
+    FLUX_ROCM_PREBUILT_RUNTIME_FILE,
+  );
   options.onProgress?.({
     progressText: "Flux ROCm prebuilt 런타임 준비 중",
     detail: archiveName,
     progressMode: "log-only",
-    installLogLine: `Flux ROCm prebuilt 런타임을 사용합니다: ${archiveName}`
+    installLogLine: `Flux ROCm prebuilt 런타임을 사용합니다: ${archiveName}`,
   });
   const archivePath = await ensurePrebuiltFluxRocmRuntimeArchive({
     urlOrPath: archiveUrl,
-    outputPath: join(dirname(options.layout.runtimeDir), ".downloads", archiveName),
+    outputPath: join(
+      dirname(options.layout.runtimeDir),
+      ".downloads",
+      archiveName,
+    ),
     signal: options.signal,
     label: archiveName,
-    onProgress: options.onProgress
+    onProgress: options.onProgress,
   });
 
   await rm(options.layout.runtimeDir, { recursive: true, force: true });
   await mkdir(options.layout.runtimeDir, { recursive: true });
   await extractLargeZipSafely(archivePath, options.layout.runtimeDir);
-  await ensureFluxPythonWorker(options.layout.runtimeDir, options.expectedMarker.worker);
+  await ensureFluxPythonWorker(
+    options.layout.runtimeDir,
+    options.expectedMarker.worker,
+  );
   await validatePrebuiltFluxRocmRuntime(options.layout.runtimeDir);
 
   const pythonPath = managedFluxBootstrapPythonPath(options.layout.runtimeDir);
   if (!isExecutableFile(pythonPath)) {
-    throw new Error(`Flux ROCm prebuilt 런타임에 Python 실행 파일이 없습니다: ${pythonPath}`);
+    throw new Error(
+      `Flux ROCm prebuilt 런타임에 Python 실행 파일이 없습니다: ${pythonPath}`,
+    );
   }
   if (!hasUsablePackageDir(options.layout.packageDir, "python-rocm")) {
-    throw new Error(`Flux ROCm prebuilt 런타임에 필요한 Python 패키지가 없습니다: ${options.layout.packageDir}`);
+    throw new Error(
+      `Flux ROCm prebuilt 런타임에 필요한 Python 패키지가 없습니다: ${options.layout.packageDir}`,
+    );
   }
   ensureEmbeddedPythonPackagePath(pythonPath, options.layout.packageDir);
 
@@ -601,24 +738,36 @@ async function ensurePrebuiltFluxRocmPythonRuntime(options: {
     command: pythonPath,
     executable: pythonPath,
     args: [],
-    env: buildTargetPythonEnv(options.layout.runtimeDir, options.layout.packageDir, "python-rocm"),
-    packageDir: options.layout.packageDir
+    env: buildTargetPythonEnv(
+      options.layout.runtimeDir,
+      options.layout.packageDir,
+      "python-rocm",
+    ),
+    packageDir: options.layout.packageDir,
   };
   await verifyFluxPythonRuntime(pythonRuntime, "python-rocm", options.signal);
-  await writeFile(options.layout.markerPath, `${JSON.stringify({
-    ...options.expectedMarker,
-    runtimeMode: "target",
-    pythonPath: pythonRuntime.executable,
-    packageDir: pythonRuntime.packageDir,
-    prebuiltRuntimeUrl: archiveUrl,
-    prebuiltRuntimeFile: archiveName,
-    installedAt: new Date().toISOString()
-  }, null, 2)}\n`, "utf8");
+  await writeFile(
+    options.layout.markerPath,
+    `${JSON.stringify(
+      {
+        ...options.expectedMarker,
+        runtimeMode: "target",
+        pythonPath: pythonRuntime.executable,
+        packageDir: pythonRuntime.packageDir,
+        prebuiltRuntimeUrl: archiveUrl,
+        prebuiltRuntimeFile: archiveName,
+        installedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
   options.onProgress?.({
     progressText: "Flux ROCm prebuilt 런타임 준비 완료",
     detail: archiveName,
     progressMode: "log-only",
-    installLogLine: "Flux ROCm prebuilt 런타임 검증이 완료되었습니다."
+    installLogLine: "Flux ROCm prebuilt 런타임 검증이 완료되었습니다.",
   });
   return pythonRuntime;
 }
@@ -638,17 +787,25 @@ async function ensurePrebuiltFluxRocmRuntimeArchive(options: {
       signal: options.signal,
       progressText: "Flux ROCm prebuilt 런타임 다운로드 중",
       label: options.label,
-      onProgress: options.onProgress
+      onProgress: options.onProgress,
     });
     return options.outputPath;
   }
 
-  const sourcePath = parsed?.protocol === "file:" ? decodeURIComponent(parsed.pathname) : options.urlOrPath;
-  const normalizedSourcePath = process.platform === "win32" && sourcePath.startsWith("/") && /^[A-Za-z]:/.test(sourcePath.slice(1))
-    ? sourcePath.slice(1)
-    : sourcePath;
+  const sourcePath =
+    parsed?.protocol === "file:"
+      ? decodeURIComponent(parsed.pathname)
+      : options.urlOrPath;
+  const normalizedSourcePath =
+    process.platform === "win32" &&
+    sourcePath.startsWith("/") &&
+    /^[A-Za-z]:/.test(sourcePath.slice(1))
+      ? sourcePath.slice(1)
+      : sourcePath;
   if (!isUsableFile(normalizedSourcePath)) {
-    throw new Error(`Flux ROCm prebuilt 런타임 파일을 찾지 못했습니다: ${options.urlOrPath}`);
+    throw new Error(
+      `Flux ROCm prebuilt 런타임 파일을 찾지 못했습니다: ${options.urlOrPath}`,
+    );
   }
   await mkdir(dirname(options.outputPath), { recursive: true });
   await copyFile(normalizedSourcePath, options.outputPath);
@@ -656,7 +813,7 @@ async function ensurePrebuiltFluxRocmRuntimeArchive(options: {
     progressText: "Flux ROCm prebuilt 런타임 파일 복사 완료",
     detail: basename(normalizedSourcePath),
     progressMode: "log-only",
-    installLogLine: `로컬 Flux ROCm prebuilt 런타임을 사용합니다: ${normalizedSourcePath}`
+    installLogLine: `로컬 Flux ROCm prebuilt 런타임을 사용합니다: ${normalizedSourcePath}`,
   });
   return options.outputPath;
 }
@@ -677,39 +834,63 @@ function parseMaybeUrl(value: string): URL | null {
   }
 }
 
-async function validatePrebuiltFluxRocmRuntime(runtimeDir: string): Promise<void> {
+async function validatePrebuiltFluxRocmRuntime(
+  runtimeDir: string,
+): Promise<void> {
   const manifestPath = join(runtimeDir, FLUX_ROCM_PREBUILT_RUNTIME_MANIFEST);
   let manifest: Record<string, unknown>;
   try {
-    manifest = JSON.parse(await readFile(manifestPath, "utf8")) as Record<string, unknown>;
+    manifest = JSON.parse(await readFile(manifestPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Flux ROCm prebuilt manifest를 읽지 못했습니다: ${manifestPath}. ${message}`, { cause: error });
+    throw new Error(
+      `Flux ROCm prebuilt manifest를 읽지 못했습니다: ${manifestPath}. ${message}`,
+      { cause: error },
+    );
   }
   const schemaVersion = Number(manifest.schemaVersion);
   if (schemaVersion !== FLUX_ROCM_PREBUILT_RUNTIME_SCHEMA) {
-    throw new Error(`Flux ROCm prebuilt manifest 버전이 맞지 않습니다 (${manifest.schemaVersion}).`);
+    throw new Error(
+      `Flux ROCm prebuilt manifest 버전이 맞지 않습니다 (${manifest.schemaVersion}).`,
+    );
   }
   if (manifest.backend !== "python-rocm") {
-    throw new Error(`Flux ROCm prebuilt manifest backend가 맞지 않습니다 (${String(manifest.backend)}).`);
+    throw new Error(
+      `Flux ROCm prebuilt manifest backend가 맞지 않습니다 (${String(manifest.backend)}).`,
+    );
   }
   if (manifest.rocmVersion !== FLUX_ROCM_WINDOWS_VERSION) {
-    throw new Error(`Flux ROCm prebuilt ROCm 버전이 맞지 않습니다 (${String(manifest.rocmVersion)}).`);
+    throw new Error(
+      `Flux ROCm prebuilt ROCm 버전이 맞지 않습니다 (${String(manifest.rocmVersion)}).`,
+    );
   }
   if (manifest.pythonVersion !== FLUX_EMBED_PYTHON_VERSION) {
-    throw new Error(`Flux ROCm prebuilt Python 버전이 맞지 않습니다 (${String(manifest.pythonVersion)}).`);
+    throw new Error(
+      `Flux ROCm prebuilt Python 버전이 맞지 않습니다 (${String(manifest.pythonVersion)}).`,
+    );
   }
 }
 
 export function resolveFluxPythonRuntimeLayout(
   baseRuntimeDir: string,
-  backend: FluxPythonBackend
+  backend: FluxPythonBackend,
 ): FluxPythonRuntimeLayout {
-  const runtimeName = backend === "python-rocm" ? "mgt-flux-python-rocm" : "mgt-flux-python-cpu";
-  const useShortRocmLayout = backend === "python-rocm" && process.platform === "win32";
-  const runtimeDir = useShortRocmLayout ? resolveWindowsRocmFluxRuntimeDir(baseRuntimeDir) : join(baseRuntimeDir, runtimeName);
-  const venvDir = useShortRocmLayout ? join(runtimeDir, "v") : join(runtimeDir, ".venv");
-  const packageDir = useShortRocmLayout ? join(runtimeDir, "p") : join(runtimeDir, "python-packages");
+  const runtimeName =
+    backend === "python-rocm" ? "mgt-flux-python-rocm" : "mgt-flux-python-cpu";
+  const useShortRocmLayout =
+    backend === "python-rocm" && process.platform === "win32";
+  const runtimeDir = useShortRocmLayout
+    ? resolveWindowsRocmFluxRuntimeDir(baseRuntimeDir)
+    : join(baseRuntimeDir, runtimeName);
+  const venvDir = useShortRocmLayout
+    ? join(runtimeDir, "v")
+    : join(runtimeDir, ".venv");
+  const packageDir = useShortRocmLayout
+    ? join(runtimeDir, "p")
+    : join(runtimeDir, "python-packages");
   const workerFile = resolveFluxPythonWorkerFile(backend);
   return {
     runtimeName,
@@ -719,12 +900,14 @@ export function resolveFluxPythonRuntimeLayout(
     packageDir,
     workerPath: join(runtimeDir, workerFile),
     markerPath: join(runtimeDir, FLUX_PYTHON_RUNTIME_MARKER),
-    tempDir: resolveFluxRuntimeTempDir(runtimeDir)
+    tempDir: resolveFluxRuntimeTempDir(runtimeDir),
   };
 }
 
 function resolveWindowsRocmFluxRuntimeDir(baseRuntimeDir: string): string {
-  const configured = process.env.MANGA_TRANSLATOR_FLUX_ROCM_RUNTIME_DIR ?? process.env.MGT_FLUX_ROCM_RUNTIME_DIR;
+  const configured =
+    process.env.MANGA_TRANSLATOR_FLUX_ROCM_RUNTIME_DIR ??
+    process.env.MGT_FLUX_ROCM_RUNTIME_DIR;
   if (configured?.trim()) {
     return resolve(configured.trim());
   }
@@ -733,14 +916,20 @@ function resolveWindowsRocmFluxRuntimeDir(baseRuntimeDir: string): string {
   const dataRoot = resolve(baseRuntimeDir, "..", "..", "..");
   const dataRootCandidate = join(dataRoot, "fx", rocmDirName);
   const localAppData = process.env.LOCALAPPDATA?.trim();
-  const localCandidate = localAppData ? join(localAppData, "MGTFlux", rocmDirName) : null;
-  const candidates = [dataRootCandidate, localCandidate].filter((candidate): candidate is string => Boolean(candidate));
+  const localCandidate = localAppData
+    ? join(localAppData, "MGTFlux", rocmDirName)
+    : null;
+  const candidates = [dataRootCandidate, localCandidate].filter(
+    (candidate): candidate is string => Boolean(candidate),
+  );
 
   const dataRootIsSafe = isRocmRuntimePathShortEnough(dataRootCandidate);
   if (dataRootIsSafe) {
     return dataRootCandidate;
   }
-  const localIsSafe = localCandidate ? isRocmRuntimePathShortEnough(localCandidate) : false;
+  const localIsSafe = localCandidate
+    ? isRocmRuntimePathShortEnough(localCandidate)
+    : false;
   if (localCandidate && localIsSafe) {
     return localCandidate;
   }
@@ -750,9 +939,11 @@ function resolveWindowsRocmFluxRuntimeDir(baseRuntimeDir: string): string {
 function isRocmRuntimePathShortEnough(runtimeDir: string): boolean {
   const longestRuntimePath = Math.max(
     join(runtimeDir, ROCM_LONGEST_FINAL_ENTRY).length,
-    join(runtimeDir, ROCM_LONGEST_PIP_TEMP_ENTRY).length
+    join(runtimeDir, ROCM_LONGEST_PIP_TEMP_ENTRY).length,
   );
-  return longestRuntimePath < WINDOWS_LEGACY_MAX_PATH - WINDOWS_PATH_SAFETY_MARGIN;
+  return (
+    longestRuntimePath < WINDOWS_LEGACY_MAX_PATH - WINDOWS_PATH_SAFETY_MARGIN
+  );
 }
 
 function resolveFluxRuntimeTempDir(runtimeDir: string): string {
@@ -770,7 +961,7 @@ async function ensureFluxCudaRuntime(options: {
       progressText: "Flux CUDA 런타임 캐시 사용",
       detail: FLUX_CUDA_RUNTIME_DIR,
       progressMode: "log-only",
-      installLogLine: "캐시된 Flux CUDA/cuDNN 런타임을 사용합니다."
+      installLogLine: "캐시된 Flux CUDA/cuDNN 런타임을 사용합니다.",
     });
     return;
   }
@@ -780,20 +971,35 @@ async function ensureFluxCudaRuntime(options: {
   const downloadsDir = join(options.runtimeDir, ".downloads");
   await mkdir(downloadsDir, { recursive: true });
 
-  const cudaManifest = await readJsonUrl(CUDA_REDIST_MANIFEST_URL, options.signal);
+  const cudaManifest = await readJsonUrl(
+    CUDA_REDIST_MANIFEST_URL,
+    options.signal,
+  );
   const cudaPackages: NvidiaRedistPackage[] = [
     readNvidiaRedistPackage(cudaManifest, "libcublas", "windows-x86_64"),
     readNvidiaRedistPackage(cudaManifest, "cuda_cudart", "windows-x86_64"),
-    readNvidiaRedistPackage(cudaManifest, "libcurand", "windows-x86_64")
+    readNvidiaRedistPackage(cudaManifest, "libcurand", "windows-x86_64"),
   ].filter((entry): entry is NvidiaRedistPackage => Boolean(entry));
   if (cudaPackages.length !== 3) {
-    throw new Error("NVIDIA CUDA 12.9 런타임 목록에서 필요한 DLL 패키지를 찾지 못했습니다.");
+    throw new Error(
+      "NVIDIA CUDA 12.9 런타임 목록에서 필요한 DLL 패키지를 찾지 못했습니다.",
+    );
   }
 
-  const cudnnManifest = await readJsonUrl(CUDNN_REDIST_MANIFEST_URL, options.signal);
-  const cudnnPackage = readNvidiaRedistPackage(cudnnManifest, "cudnn", "windows-x86_64", "cuda12");
+  const cudnnManifest = await readJsonUrl(
+    CUDNN_REDIST_MANIFEST_URL,
+    options.signal,
+  );
+  const cudnnPackage = readNvidiaRedistPackage(
+    cudnnManifest,
+    "cudnn",
+    "windows-x86_64",
+    "cuda12",
+  );
   if (!cudnnPackage) {
-    throw new Error("NVIDIA cuDNN 9.21 CUDA 12 런타임 패키지를 찾지 못했습니다.");
+    throw new Error(
+      "NVIDIA cuDNN 9.21 CUDA 12 런타임 패키지를 찾지 못했습니다.",
+    );
   }
 
   for (const entry of cudaPackages) {
@@ -802,9 +1008,11 @@ async function ensureFluxCudaRuntime(options: {
       downloadsDir,
       entry,
       baseUrl: CUDA_REDIST_BASE_URL,
-      label: "Flux CUDA 런타임"
+      label: "Flux CUDA 런타임",
     });
-    extractSelectedZipEntries(archivePath, cudaDir, (fileName) => FLUX_CUDA_DLLS.has(fileName));
+    extractSelectedZipEntries(archivePath, cudaDir, (fileName) =>
+      FLUX_CUDA_DLLS.has(fileName),
+    );
   }
 
   const cudnnArchivePath = await downloadRuntimeArchive({
@@ -812,24 +1020,34 @@ async function ensureFluxCudaRuntime(options: {
     downloadsDir,
     entry: cudnnPackage,
     baseUrl: CUDNN_REDIST_BASE_URL,
-    label: "Flux cuDNN 런타임"
+    label: "Flux cuDNN 런타임",
   });
-  extractSelectedZipEntries(cudnnArchivePath, cudaDir, (fileName) => FLUX_CUDNN_DLLS.has(fileName));
+  extractSelectedZipEntries(cudnnArchivePath, cudaDir, (fileName) =>
+    FLUX_CUDNN_DLLS.has(fileName),
+  );
 
   if (!(await hasFluxCudaRuntimeFiles(cudaDir))) {
     throw new Error("Flux CUDA/cuDNN 런타임 설치가 완료되지 않았습니다.");
   }
-  await writeFile(runtimeMarkerPath(cudaDir), `${JSON.stringify({
-    cudaManifest: CUDA_REDIST_MANIFEST_URL,
-    cudnnManifest: CUDNN_REDIST_MANIFEST_URL,
-    installedAt: new Date().toISOString()
-  }, null, 2)}\n`, "utf8");
+  await writeFile(
+    runtimeMarkerPath(cudaDir),
+    `${JSON.stringify(
+      {
+        cudaManifest: CUDA_REDIST_MANIFEST_URL,
+        cudnnManifest: CUDNN_REDIST_MANIFEST_URL,
+        installedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
   options.onProgress?.({
     progressText: "Flux CUDA 런타임 설치 완료",
     detail: FLUX_CUDA_RUNTIME_DIR,
     progressMode: "determinate",
     progressPercent: 1,
-    installLogLine: "Flux CUDA/cuDNN 런타임 준비가 완료되었습니다."
+    installLogLine: "Flux CUDA/cuDNN 런타임 준비가 완료되었습니다.",
   });
 }
 
@@ -844,7 +1062,7 @@ async function ensureFluxZludaSupportRuntime(options: {
       progressText: "Flux ZLUDA 보조 런타임 캐시 사용",
       detail: FLUX_ZLUDA_SUPPORT_RUNTIME_DIR,
       progressMode: "log-only",
-      installLogLine: "캐시된 Flux ZLUDA cuRAND 보조 DLL을 사용합니다."
+      installLogLine: "캐시된 Flux ZLUDA cuRAND 보조 DLL을 사용합니다.",
     });
     return supportDir;
   }
@@ -854,32 +1072,53 @@ async function ensureFluxZludaSupportRuntime(options: {
   const downloadsDir = join(options.runtimeDir, ".downloads");
   await mkdir(downloadsDir, { recursive: true });
 
-  const cudaManifest = await readJsonUrl(CUDA_REDIST_MANIFEST_URL, options.signal);
-  const curandPackage = readNvidiaRedistPackage(cudaManifest, "libcurand", "windows-x86_64");
+  const cudaManifest = await readJsonUrl(
+    CUDA_REDIST_MANIFEST_URL,
+    options.signal,
+  );
+  const curandPackage = readNvidiaRedistPackage(
+    cudaManifest,
+    "libcurand",
+    "windows-x86_64",
+  );
   if (!curandPackage) {
-    throw new Error("NVIDIA CUDA 12.9 런타임 목록에서 cuRAND DLL 패키지를 찾지 못했습니다.");
+    throw new Error(
+      "NVIDIA CUDA 12.9 런타임 목록에서 cuRAND DLL 패키지를 찾지 못했습니다.",
+    );
   }
   const archivePath = await downloadRuntimeArchive({
     ...options,
     downloadsDir,
     entry: curandPackage,
     baseUrl: CUDA_REDIST_BASE_URL,
-    label: "Flux ZLUDA cuRAND 보조 런타임"
+    label: "Flux ZLUDA cuRAND 보조 런타임",
   });
-  extractSelectedZipEntries(archivePath, supportDir, (fileName) => FLUX_ZLUDA_SUPPORT_DLLS.has(fileName));
+  extractSelectedZipEntries(archivePath, supportDir, (fileName) =>
+    FLUX_ZLUDA_SUPPORT_DLLS.has(fileName),
+  );
   if (!(await hasFluxZludaSupportRuntimeFiles(supportDir))) {
-    throw new Error("Flux ZLUDA cuRAND 보조 런타임 설치가 완료되지 않았습니다.");
+    throw new Error(
+      "Flux ZLUDA cuRAND 보조 런타임 설치가 완료되지 않았습니다.",
+    );
   }
-  await writeFile(runtimeMarkerPath(supportDir), `${JSON.stringify({
-    cudaManifest: CUDA_REDIST_MANIFEST_URL,
-    installedAt: new Date().toISOString()
-  }, null, 2)}\n`, "utf8");
+  await writeFile(
+    runtimeMarkerPath(supportDir),
+    `${JSON.stringify(
+      {
+        cudaManifest: CUDA_REDIST_MANIFEST_URL,
+        installedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
   options.onProgress?.({
     progressText: "Flux ZLUDA 보조 런타임 설치 완료",
     detail: FLUX_ZLUDA_SUPPORT_RUNTIME_DIR,
     progressMode: "determinate",
     progressPercent: 1,
-    installLogLine: "Flux ZLUDA cuRAND 보조 DLL 준비가 완료되었습니다."
+    installLogLine: "Flux ZLUDA cuRAND 보조 DLL 준비가 완료되었습니다.",
   });
   return supportDir;
 }
@@ -901,14 +1140,20 @@ async function downloadRuntimeArchive(options: {
     signal: options.signal,
     progressText: `${options.label} 다운로드 중`,
     label: fileName,
-    onProgress: options.onProgress
+    onProgress: options.onProgress,
   });
   return outputPath;
 }
 
-async function readJsonUrl(url: string, signal?: AbortSignal): Promise<unknown> {
+async function readJsonUrl(
+  url: string,
+  signal?: AbortSignal,
+): Promise<unknown> {
   throwIfAborted(signal);
-  const response = await fetch(url, { signal, headers: { "User-Agent": "manga-gemma-translator" } });
+  const response = await fetch(url, {
+    signal,
+    headers: { "User-Agent": "manga-gemma-translator" },
+  });
   if (!response.ok) {
     throw new Error(`${url} 요청에 실패했습니다 (${response.status}).`);
   }
@@ -919,28 +1164,38 @@ function readNvidiaRedistPackage(
   manifest: unknown,
   packageName: string,
   platform: string,
-  variant?: string
+  variant?: string,
 ): NvidiaRedistPackage | null {
   const packageRecord = asJsonRecord(asJsonRecord(manifest)[packageName]);
   const platformValue = packageRecord[platform];
   const value = variant ? asJsonRecord(platformValue)[variant] : platformValue;
   const record = asJsonRecord(value);
-  const relativePath = typeof record.relative_path === "string" ? record.relative_path : "";
+  const relativePath =
+    typeof record.relative_path === "string" ? record.relative_path : "";
   if (!relativePath) {
     return null;
   }
-  const size = typeof record.size === "number" && Number.isFinite(record.size) ? record.size : undefined;
+  const size =
+    typeof record.size === "number" && Number.isFinite(record.size)
+      ? record.size
+      : undefined;
   return {
     relative_path: relativePath,
-    ...(size === undefined ? {} : { size })
+    ...(size === undefined ? {} : { size }),
   };
 }
 
 function asJsonRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
-function extractSelectedZipEntries(archivePath: string, outputDir: string, shouldExtract: (fileName: string) => boolean): void {
+function extractSelectedZipEntries(
+  archivePath: string,
+  outputDir: string,
+  shouldExtract: (fileName: string) => boolean,
+): void {
   const zip = new AdmZip(archivePath);
   let extracted = 0;
   for (const item of zip.getEntries()) {
@@ -955,14 +1210,21 @@ function extractSelectedZipEntries(archivePath: string, outputDir: string, shoul
     extracted += 1;
   }
   if (extracted === 0) {
-    throw new Error(`${basename(archivePath)}에서 필요한 런타임 DLL을 찾지 못했습니다.`);
+    throw new Error(
+      `${basename(archivePath)}에서 필요한 런타임 DLL을 찾지 못했습니다.`,
+    );
   }
 }
 
 async function isCurrentFluxCudaRuntime(cudaDir: string): Promise<boolean> {
   try {
-    const marker = JSON.parse(await readFile(runtimeMarkerPath(cudaDir), "utf8")) as { cudnnManifest?: string };
-    return marker?.cudnnManifest === CUDNN_REDIST_MANIFEST_URL && await hasFluxCudaRuntimeFiles(cudaDir);
+    const marker = JSON.parse(
+      await readFile(runtimeMarkerPath(cudaDir), "utf8"),
+    ) as { cudnnManifest?: string };
+    return (
+      marker?.cudnnManifest === CUDNN_REDIST_MANIFEST_URL &&
+      (await hasFluxCudaRuntimeFiles(cudaDir))
+    );
   } catch {
     return false;
   }
@@ -978,16 +1240,25 @@ async function hasFluxCudaRuntimeFiles(cudaDir: string): Promise<boolean> {
   });
 }
 
-async function isCurrentFluxZludaSupportRuntime(supportDir: string): Promise<boolean> {
+async function isCurrentFluxZludaSupportRuntime(
+  supportDir: string,
+): Promise<boolean> {
   try {
-    const marker = JSON.parse(await readFile(runtimeMarkerPath(supportDir), "utf8")) as { cudaManifest?: string };
-    return marker?.cudaManifest === CUDA_REDIST_MANIFEST_URL && await hasFluxZludaSupportRuntimeFiles(supportDir);
+    const marker = JSON.parse(
+      await readFile(runtimeMarkerPath(supportDir), "utf8"),
+    ) as { cudaManifest?: string };
+    return (
+      marker?.cudaManifest === CUDA_REDIST_MANIFEST_URL &&
+      (await hasFluxZludaSupportRuntimeFiles(supportDir))
+    );
   } catch {
     return false;
   }
 }
 
-async function hasFluxZludaSupportRuntimeFiles(supportDir: string): Promise<boolean> {
+async function hasFluxZludaSupportRuntimeFiles(
+  supportDir: string,
+): Promise<boolean> {
   return [...FLUX_ZLUDA_SUPPORT_DLLS].every((fileName) => {
     try {
       return statSync(join(supportDir, fileName)).size > 0;
@@ -1001,7 +1272,9 @@ function runtimeMarkerPath(cudaDir: string): string {
   return join(cudaDir, FLUX_CUDA_RUNTIME_MARKER);
 }
 
-function resolveFluxWorkerBackend(backend: FluxRuntimeBackend): FluxWorkerBackend {
+function resolveFluxWorkerBackend(
+  backend: FluxRuntimeBackend,
+): FluxWorkerBackend {
   if (backend === "python-cpu") {
     return backend;
   }
@@ -1015,14 +1288,22 @@ function resolveFluxPythonWorkerFile(backend: FluxPythonBackend): string {
   return backend === "python-rocm" ? FLUX_SDCPP_WORKER : FLUX_PYTHON_WORKER;
 }
 
-async function ensureFluxPythonWorker(runtimeDir: string, workerFile: string): Promise<string> {
+async function ensureFluxPythonWorker(
+  runtimeDir: string,
+  workerFile: string,
+): Promise<string> {
   await mkdir(runtimeDir, { recursive: true });
   const workerPath = join(runtimeDir, workerFile);
   const sourceWorker = findFluxPythonWorkerSource(workerFile);
   if (!sourceWorker) {
-    throw new Error(`${workerFile}를 찾지 못했습니다. 앱 런타임 파일을 다시 준비하세요.`);
+    throw new Error(
+      `${workerFile}를 찾지 못했습니다. 앱 런타임 파일을 다시 준비하세요.`,
+    );
   }
-  if (isExecutableFile(workerPath) && sha256FileSync(workerPath) === sha256FileSync(sourceWorker)) {
+  if (
+    isExecutableFile(workerPath) &&
+    sha256FileSync(workerPath) === sha256FileSync(sourceWorker)
+  ) {
     return workerPath;
   }
   await copyFile(sourceWorker, workerPath);
@@ -1031,9 +1312,11 @@ async function ensureFluxPythonWorker(runtimeDir: string, workerFile: string): P
 
 function findFluxPythonWorkerSource(workerFile: string): string | null {
   const candidates = [
-    process.resourcesPath ? join(process.resourcesPath, "app-runtime", workerFile) : undefined,
+    process.resourcesPath
+      ? join(process.resourcesPath, "app-runtime", workerFile)
+      : undefined,
     join(process.cwd(), "out", "app-runtime", workerFile),
-    join(process.cwd(), "src", "main", "runtime", workerFile)
+    join(process.cwd(), "src", "main", "runtime", workerFile),
   ];
   for (const candidate of candidates) {
     if (candidate && isExecutableFile(candidate)) {
@@ -1058,19 +1341,28 @@ async function resolveCurrentFluxPythonRuntime(options: {
   };
 }): Promise<FluxPythonRuntime | null> {
   try {
-    if (!isExecutableFile(join(dirname(options.markerPath), options.expectedMarker.worker))) {
+    if (
+      !isExecutableFile(
+        join(dirname(options.markerPath), options.expectedMarker.worker),
+      )
+    ) {
       return null;
     }
-    const marker = JSON.parse(await readFile(options.markerPath, "utf8")) as Partial<typeof options.expectedMarker> & {
+    const marker = JSON.parse(
+      await readFile(options.markerPath, "utf8"),
+    ) as Partial<typeof options.expectedMarker> & {
       runtimeMode?: "venv" | "target";
       pythonPath?: string;
       packageDir?: string;
     };
     if (
       marker.backend !== options.expectedMarker.backend ||
-      JSON.stringify(marker.runtimeInstallBatches ?? null) !== JSON.stringify(options.expectedMarker.runtimeInstallBatches) ||
-      JSON.stringify(marker.buildPackages ?? null) !== JSON.stringify(options.expectedMarker.buildPackages) ||
-      JSON.stringify(marker.packages ?? null) !== JSON.stringify(options.expectedMarker.packages) ||
+      JSON.stringify(marker.runtimeInstallBatches ?? null) !==
+        JSON.stringify(options.expectedMarker.runtimeInstallBatches) ||
+      JSON.stringify(marker.buildPackages ?? null) !==
+        JSON.stringify(options.expectedMarker.buildPackages) ||
+      JSON.stringify(marker.packages ?? null) !==
+        JSON.stringify(options.expectedMarker.packages) ||
       marker.worker !== options.expectedMarker.worker ||
       marker.workerHash !== options.expectedMarker.workerHash
     ) {
@@ -1079,9 +1371,18 @@ async function resolveCurrentFluxPythonRuntime(options: {
     if (marker.runtimeMode !== "target") {
       return null;
     }
-    const pythonPath = typeof marker.pythonPath === "string" ? marker.pythonPath : managedFluxBootstrapPythonPath(options.runtimeDir);
-    const packageDir = typeof marker.packageDir === "string" ? marker.packageDir : options.packageDir;
-    if (!isExecutableFile(pythonPath) || !hasUsablePackageDir(packageDir, options.expectedMarker.backend)) {
+    const pythonPath =
+      typeof marker.pythonPath === "string"
+        ? marker.pythonPath
+        : managedFluxBootstrapPythonPath(options.runtimeDir);
+    const packageDir =
+      typeof marker.packageDir === "string"
+        ? marker.packageDir
+        : options.packageDir;
+    if (
+      !isExecutableFile(pythonPath) ||
+      !hasUsablePackageDir(packageDir, options.expectedMarker.backend)
+    ) {
       return null;
     }
     if (isAbsolute(pythonPath)) {
@@ -1092,8 +1393,12 @@ async function resolveCurrentFluxPythonRuntime(options: {
       command: pythonPath,
       executable: pythonPath,
       args: [],
-      env: buildTargetPythonEnv(options.runtimeDir, packageDir, options.expectedMarker.backend),
-      packageDir
+      env: buildTargetPythonEnv(
+        options.runtimeDir,
+        packageDir,
+        options.expectedMarker.backend,
+      ),
+      packageDir,
     };
   } catch {
     return null;
@@ -1101,7 +1406,9 @@ async function resolveCurrentFluxPythonRuntime(options: {
 }
 
 function pythonExecutablePath(venvDir: string): string {
-  return process.platform === "win32" ? join(venvDir, "Scripts", "python.exe") : join(venvDir, "bin", "python");
+  return process.platform === "win32"
+    ? join(venvDir, "Scripts", "python.exe")
+    : join(venvDir, "bin", "python");
 }
 
 async function findPythonCommand(options: {
@@ -1109,7 +1416,8 @@ async function findPythonCommand(options: {
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<PythonCommand> {
-  const configured = process.env.MANGA_TRANSLATOR_FLUX_PYTHON ?? process.env.MGT_FLUX_PYTHON;
+  const configured =
+    process.env.MANGA_TRANSLATOR_FLUX_PYTHON ?? process.env.MGT_FLUX_PYTHON;
   const candidates: PythonCommand[] = [];
   if (configured) {
     candidates.push({ command: configured, args: [] });
@@ -1118,20 +1426,30 @@ async function findPythonCommand(options: {
     const managedPython = await ensureManagedFluxBootstrapPython(options);
     candidates.push({ command: managedPython, args: [] });
     if (shouldAllowSystemPythonFallback()) {
-      candidates.push({ command: "py", args: ["-3"] }, { command: "python", args: [] });
+      candidates.push(
+        { command: "py", args: ["-3"] },
+        { command: "python", args: [] },
+      );
     }
   } else {
-    candidates.push({ command: "python3", args: [] }, { command: "python", args: [] });
+    candidates.push(
+      { command: "python3", args: [] },
+      { command: "python", args: [] },
+    );
   }
   for (const candidate of candidates) {
     try {
-      await runCommand(candidate.command, [...candidate.args, "--version"], { signal: options.signal });
+      await runCommand(candidate.command, [...candidate.args, "--version"], {
+        signal: options.signal,
+      });
       return candidate;
     } catch {
       continue;
     }
   }
-  throw new Error("Flux Python 런타임을 만들 Python 3 실행 파일을 찾지 못했습니다. 앱 데이터 Python 준비에 실패했거나 MGT_FLUX_PYTHON 경로가 올바르지 않습니다.");
+  throw new Error(
+    "Flux Python 런타임을 만들 Python 3 실행 파일을 찾지 못했습니다. 앱 데이터 Python 준비에 실패했거나 MGT_FLUX_PYTHON 경로가 올바르지 않습니다.",
+  );
 }
 
 async function ensureManagedFluxBootstrapPython(options: {
@@ -1142,26 +1460,42 @@ async function ensureManagedFluxBootstrapPython(options: {
   if (process.platform !== "win32") {
     throw new Error("Flux Python 런타임에는 Python 3.11 이상이 필요합니다.");
   }
-  const version = process.env.MANGA_TRANSLATOR_FLUX_PYTHON_VERSION ?? process.env.MGT_FLUX_PYTHON_VERSION ?? FLUX_EMBED_PYTHON_VERSION;
+  const version =
+    process.env.MANGA_TRANSLATOR_FLUX_PYTHON_VERSION ??
+    process.env.MGT_FLUX_PYTHON_VERSION ??
+    FLUX_EMBED_PYTHON_VERSION;
   const pythonUrl =
     process.env.MANGA_TRANSLATOR_FLUX_PYTHON_URL ??
     process.env.MGT_FLUX_PYTHON_URL ??
     `https://www.python.org/ftp/python/${version}/python-${version}-embed-amd64.zip`;
-  const getPipUrl = process.env.MANGA_TRANSLATOR_FLUX_GET_PIP_URL ?? process.env.MGT_FLUX_GET_PIP_URL ?? FLUX_GET_PIP_URL;
+  const getPipUrl =
+    process.env.MANGA_TRANSLATOR_FLUX_GET_PIP_URL ??
+    process.env.MGT_FLUX_GET_PIP_URL ??
+    FLUX_GET_PIP_URL;
   const pythonDir = managedFluxBootstrapPythonDir(options.runtimeDir, version);
   const pythonExe = join(pythonDir, "python.exe");
   const markerPath = join(pythonDir, FLUX_BOOTSTRAP_PYTHON_MARKER);
-  if (isCurrentManagedFluxBootstrapPython(pythonExe, markerPath, { version, pythonUrl, getPipUrl })) {
+  if (
+    isCurrentManagedFluxBootstrapPython(pythonExe, markerPath, {
+      version,
+      pythonUrl,
+      getPipUrl,
+    })
+  ) {
     sanitizeStandaloneEmbeddedPythonPathFile(pythonDir);
     return pythonExe;
   }
 
   await rm(pythonDir, { recursive: true, force: true });
   await mkdir(pythonDir, { recursive: true });
-  await mkdir(resolveFluxRuntimeTempDir(options.runtimeDir), { recursive: true });
+  await mkdir(resolveFluxRuntimeTempDir(options.runtimeDir), {
+    recursive: true,
+  });
   const downloadsDir = join(options.runtimeDir, ".downloads", "python");
   await mkdir(downloadsDir, { recursive: true });
-  const zipName = basename(new URL(pythonUrl).pathname) || `python-${version}-embed-amd64.zip`;
+  const zipName =
+    basename(new URL(pythonUrl).pathname) ||
+    `python-${version}-embed-amd64.zip`;
   const zipPath = join(downloadsDir, zipName);
   const getPipPath = join(downloadsDir, "get-pip.py");
 
@@ -1171,17 +1505,19 @@ async function ensureManagedFluxBootstrapPython(options: {
     signal: options.signal,
     progressText: "Flux Python 다운로드 중",
     label: zipName,
-    onProgress: options.onProgress
+    onProgress: options.onProgress,
   });
   options.onProgress?.({
     progressText: "Flux Python 압축 해제 중",
     detail: zipName,
     progressMode: "indeterminate",
-    installLogLine: "Flux 런타임용 Python을 앱 데이터 폴더에 풀고 있습니다."
+    installLogLine: "Flux 런타임용 Python을 앱 데이터 폴더에 풀고 있습니다.",
   });
   extractZipSafely(zipPath, pythonDir);
   if (!isExecutableFile(pythonExe)) {
-    throw new Error("Flux 런타임용 Python 압축을 풀었지만 python.exe를 찾지 못했습니다.");
+    throw new Error(
+      "Flux 런타임용 Python 압축을 풀었지만 python.exe를 찾지 못했습니다.",
+    );
   }
   sanitizeStandaloneEmbeddedPythonPathFile(pythonDir);
 
@@ -1191,24 +1527,31 @@ async function ensureManagedFluxBootstrapPython(options: {
     signal: options.signal,
     progressText: "Flux pip 다운로드 중",
     label: "get-pip.py",
-    onProgress: options.onProgress
+    onProgress: options.onProgress,
   });
   options.onProgress?.({
     progressText: "Flux pip 설치 중",
     detail: `Python ${version}`,
     progressMode: "indeterminate",
-    installLogLine: "Flux 런타임용 Python에 pip를 설치합니다."
+    installLogLine: "Flux 런타임용 Python에 pip를 설치합니다.",
   });
   await runCommand(pythonExe, [getPipPath, "--no-warn-script-location"], {
     signal: options.signal,
     env: buildBootstrapPythonEnv(options.runtimeDir),
-    onLine: (line) => emitPythonInstallLog(options, line)
+    onLine: (line) => emitPythonInstallLog(options, line),
   });
-  await writeFile(markerPath, `${JSON.stringify({ version, pythonUrl, getPipUrl, installedAt: new Date().toISOString() }, null, 2)}\n`, "utf8");
+  await writeFile(
+    markerPath,
+    `${JSON.stringify({ version, pythonUrl, getPipUrl, installedAt: new Date().toISOString() }, null, 2)}\n`,
+    "utf8",
+  );
   return pythonExe;
 }
 
-function managedFluxBootstrapPythonDir(runtimeDir: string, version = FLUX_EMBED_PYTHON_VERSION): string {
+function managedFluxBootstrapPythonDir(
+  runtimeDir: string,
+  version = FLUX_EMBED_PYTHON_VERSION,
+): string {
   return join(runtimeDir, "bootstrap-python", `python-${version}`);
 }
 
@@ -1219,29 +1562,44 @@ function managedFluxBootstrapPythonPath(runtimeDir: string): string {
 function isCurrentManagedFluxBootstrapPython(
   pythonExe: string,
   markerPath: string,
-  expected: { version: string; pythonUrl: string; getPipUrl: string }
+  expected: { version: string; pythonUrl: string; getPipUrl: string },
 ): boolean {
   try {
     if (!isExecutableFile(pythonExe)) {
       return false;
     }
-    const marker = JSON.parse(readFileSync(markerPath, "utf8")) as Partial<typeof expected>;
-    return marker.version === expected.version && marker.pythonUrl === expected.pythonUrl && marker.getPipUrl === expected.getPipUrl;
+    const marker = JSON.parse(readFileSync(markerPath, "utf8")) as Partial<
+      typeof expected
+    >;
+    return (
+      marker.version === expected.version &&
+      marker.pythonUrl === expected.pythonUrl &&
+      marker.getPipUrl === expected.getPipUrl
+    );
   } catch {
     return false;
   }
 }
 
 function shouldAllowSystemPythonFallback(): boolean {
-  const explicit = process.env.MANGA_TRANSLATOR_FLUX_ALLOW_SYSTEM_PYTHON ?? process.env.MGT_FLUX_ALLOW_SYSTEM_PYTHON;
+  const explicit =
+    process.env.MANGA_TRANSLATOR_FLUX_ALLOW_SYSTEM_PYTHON ??
+    process.env.MGT_FLUX_ALLOW_SYSTEM_PYTHON;
   if (explicit !== undefined) {
-    return ["1", "true", "yes", "y", "on"].includes(String(explicit).trim().toLowerCase());
+    return ["1", "true", "yes", "y", "on"].includes(
+      String(explicit).trim().toLowerCase(),
+    );
   }
   return !isPackagedAppRuntime();
 }
 
 function isPackagedAppRuntime(): boolean {
-  return Boolean(process.resourcesPath && process.resourcesPath.toLowerCase().includes(`${normalize("\\resources")}`.toLowerCase()));
+  return Boolean(
+    process.resourcesPath &&
+    process.resourcesPath
+      .toLowerCase()
+      .includes(`${normalize("\\resources")}`.toLowerCase()),
+  );
 }
 
 function extractZipSafely(archivePath: string, outputDir: string): void {
@@ -1253,17 +1611,24 @@ function extractZipSafely(archivePath: string, outputDir: string): void {
     }
     const entryName = normalize(item.entryName).replace(/^([/\\])+/, "");
     if (!entryName || entryName.startsWith("..") || isAbsolute(entryName)) {
-      throw new Error(`${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${item.entryName}`);
+      throw new Error(
+        `${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${item.entryName}`,
+      );
     }
     const destination = resolve(root, entryName);
     if (!isPathInside(destination, root)) {
-      throw new Error(`${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${item.entryName}`);
+      throw new Error(
+        `${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${item.entryName}`,
+      );
     }
     zip.extractEntryTo(item, root, true, true);
   }
 }
 
-async function extractLargeZipSafely(archivePath: string, outputDir: string): Promise<void> {
+async function extractLargeZipSafely(
+  archivePath: string,
+  outputDir: string,
+): Promise<void> {
   const root = resolve(outputDir);
   await mkdir(root, { recursive: true });
   const entries: string[] = [];
@@ -1274,13 +1639,17 @@ async function extractLargeZipSafely(archivePath: string, outputDir: string): Pr
       if (trimmed) {
         entries.push(trimmed);
       }
-    }
+    },
   });
   validateArchiveEntries(entries, archivePath, root);
   await runCommand("tar.exe", ["-xf", archivePath, "-C", root], { cwd: root });
 }
 
-function validateArchiveEntries(entries: string[], archivePath: string, outputRoot: string): void {
+function validateArchiveEntries(
+  entries: string[],
+  archivePath: string,
+  outputRoot: string,
+): void {
   if (entries.length === 0) {
     throw new Error(`${basename(archivePath)} 압축 파일이 비어 있습니다.`);
   }
@@ -1292,11 +1661,15 @@ function validateArchiveEntries(entries: string[], archivePath: string, outputRo
       continue;
     }
     if (entryName.startsWith("..") || isAbsolute(entryName)) {
-      throw new Error(`${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${rawEntry}`);
+      throw new Error(
+        `${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${rawEntry}`,
+      );
     }
     const destination = resolve(outputRoot, entryName);
     if (!isPathInside(destination, outputRoot)) {
-      throw new Error(`${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${rawEntry}`);
+      throw new Error(
+        `${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${rawEntry}`,
+      );
     }
   }
 }
@@ -1314,7 +1687,7 @@ function buildBootstrapPythonEnv(runtimeDir: string): NodeJS.ProcessEnv {
     PYTHONUTF8: "1",
     PYTHONUNBUFFERED: "1",
     TMP: tmpDir,
-    TEMP: tmpDir
+    TEMP: tmpDir,
   };
   delete env.PYTHONHOME;
   delete env.PYTHONPATH;
@@ -1329,30 +1702,46 @@ async function initializeWindowsRocmSdk(options: {
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<void> {
-  const env = buildTargetPythonEnv(options.runtimeDir, options.packageDir, "python-cpu", { requireNativeBuildEnv: false });
+  const env = buildTargetPythonEnv(
+    options.runtimeDir,
+    options.packageDir,
+    "python-cpu",
+    { requireNativeBuildEnv: false },
+  );
   options.onProgress?.({
     progressText: "Flux ROCm SDK 초기화 중",
     detail: "rocm_sdk init",
     progressMode: "indeterminate",
-    installLogLine: "ROCm wheel 안의 HIP/CMake 개발 파일을 실제 런타임 폴더로 펼칩니다."
+    installLogLine:
+      "ROCm wheel 안의 HIP/CMake 개발 파일을 실제 런타임 폴더로 펼칩니다.",
   });
-  await runCommand(options.python.command, [...options.python.args, "-m", "rocm_sdk", "init"], {
-    cwd: options.packageDir,
-    signal: options.signal,
-    env,
-    onLine: (line) => emitPythonInstallLog({ onProgress: options.onProgress }, line)
-  });
-  await runCommand(options.python.command, [...options.python.args, "-m", "rocm_sdk", "path", "--cmake"], {
-    cwd: options.packageDir,
-    signal: options.signal,
-    env,
-    onLine: (line) => emitPythonInstallLog({ onProgress: options.onProgress }, line)
-  });
+  await runCommand(
+    options.python.command,
+    [...options.python.args, "-m", "rocm_sdk", "init"],
+    {
+      cwd: options.packageDir,
+      signal: options.signal,
+      env,
+      onLine: (line) =>
+        emitPythonInstallLog({ onProgress: options.onProgress }, line),
+    },
+  );
+  await runCommand(
+    options.python.command,
+    [...options.python.args, "-m", "rocm_sdk", "path", "--cmake"],
+    {
+      cwd: options.packageDir,
+      signal: options.signal,
+      env,
+      onLine: (line) =>
+        emitPythonInstallLog({ onProgress: options.onProgress }, line),
+    },
+  );
   options.onProgress?.({
     progressText: "Flux ROCm SDK 초기화 완료",
     detail: "HIP/CMake 개발 파일 확인",
     progressMode: "log-only",
-    installLogLine: "ROCm SDK 초기화와 CMake 경로 확인이 완료되었습니다."
+    installLogLine: "ROCm SDK 초기화와 CMake 경로 확인이 완료되었습니다.",
   });
 }
 
@@ -1360,11 +1749,16 @@ function buildTargetPythonEnv(
   runtimeDir: string,
   packageDir: string,
   backend: FluxPythonBackend = "python-cpu",
-  options: { requireNativeBuildEnv?: boolean } = {}
+  options: { requireNativeBuildEnv?: boolean } = {},
 ): NodeJS.ProcessEnv {
   const pathEntries = [
     join(runtimeDir, "bootstrap-python", `python-${FLUX_EMBED_PYTHON_VERSION}`),
-    join(runtimeDir, "bootstrap-python", `python-${FLUX_EMBED_PYTHON_VERSION}`, "Scripts"),
+    join(
+      runtimeDir,
+      "bootstrap-python",
+      `python-${FLUX_EMBED_PYTHON_VERSION}`,
+      "Scripts",
+    ),
     packageDir,
     join(packageDir, "Scripts"),
     join(packageDir, "torch", "lib"),
@@ -1377,12 +1771,20 @@ function buildTargetPythonEnv(
     join(packageDir, "_rocm_sdk_devel", "lib", "llvm", "bin"),
     join(packageDir, "_rocm_sdk_libraries_custom", "bin"),
     join(packageDir, "_rocm_sdk_libraries_custom", "bin", "hipblaslt"),
-    join(packageDir, "_rocm_sdk_libraries_custom", "bin", "hipblaslt", "library")
+    join(
+      packageDir,
+      "_rocm_sdk_libraries_custom",
+      "bin",
+      "hipblaslt",
+      "library",
+    ),
   ];
   const env: NodeJS.ProcessEnv = {
     ...buildBootstrapPythonEnv(runtimeDir),
     PYTHONPATH: packageDir,
-    PATH: [...pathEntries, process.env.PATH ?? ""].filter(Boolean).join(process.platform === "win32" ? ";" : ":")
+    PATH: [...pathEntries, process.env.PATH ?? ""]
+      .filter(Boolean)
+      .join(process.platform === "win32" ? ";" : ":"),
   };
   if (backend === "python-rocm") {
     const gpuTargets = resolveAmdGpuTargets();
@@ -1391,36 +1793,72 @@ function buildTargetPythonEnv(
     if (!nativeBuildEnv && options.requireNativeBuildEnv) {
       throw new Error(formatWindowsNativeBuildToolsMissingMessage());
     }
-    const rcCompiler = stageWindowsResourceCompiler(runtimeDir, resolveWindowsResourceCompiler(rocmPaths, nativeBuildEnv));
-    const runtimeLibraryPaths = nativeBuildEnv ? resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths) : [];
-    const stagedRuntimeLibraryPaths = stageWindowsRuntimeLibraries(runtimeDir, runtimeLibraryPaths);
-    const runtimeLibraryCmakeValue = stagedRuntimeLibraryPaths.map((item) => quoteShellToken(toCmakePath(item))).join(" ");
-    const runtimeLibraryLdFlags = stagedRuntimeLibraryPaths.map((item) => quoteShellToken(toCmakePath(item))).join(" ");
-    const rocmCmakePrefixList = rocmPaths.cmakePrefixPaths.map(toCmakePath).join(";");
+    const rcCompiler = stageWindowsResourceCompiler(
+      runtimeDir,
+      resolveWindowsResourceCompiler(rocmPaths, nativeBuildEnv),
+    );
+    const runtimeLibraryPaths = nativeBuildEnv
+      ? resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths)
+      : [];
+    const stagedRuntimeLibraryPaths = stageWindowsRuntimeLibraries(
+      runtimeDir,
+      runtimeLibraryPaths,
+    );
+    const runtimeLibraryCmakeValue = stagedRuntimeLibraryPaths
+      .map((item) => quoteShellToken(toCmakePath(item)))
+      .join(" ");
+    const runtimeLibraryLdFlags = stagedRuntimeLibraryPaths
+      .map((item) => quoteShellToken(toCmakePath(item)))
+      .join(" ");
+    const rocmCmakePrefixList = rocmPaths.cmakePrefixPaths
+      .map(toCmakePath)
+      .join(";");
     const hipCompilerFlags = [
       `--rocm-device-lib-path=${toCmakePath(rocmPaths.deviceLibPath)}`,
       `--hip-device-lib-path=${toCmakePath(rocmPaths.deviceLibPath)}`,
-      `--hip-path=${toCmakePath(rocmPaths.hipRoot)}`
-    ].map(quoteShellToken).join(" ");
+      `--hip-path=${toCmakePath(rocmPaths.hipRoot)}`,
+    ]
+      .map(quoteShellToken)
+      .join(" ");
     const cmakeArgs = [
       env.CMAKE_ARGS,
       `-DCMAKE_C_COMPILER:FILEPATH=${toCmakePath(rocmPaths.clang)}`,
       `-DCMAKE_CXX_COMPILER:FILEPATH=${toCmakePath(rocmPaths.clangxx)}`,
-      rcCompiler ? `-DCMAKE_RC_COMPILER:FILEPATH=${toCmakePath(rcCompiler)}` : "",
-      existsSync(rocmPaths.llvmMt) ? `-DCMAKE_MT:FILEPATH=${toCmakePath(rocmPaths.llvmMt)}` : "",
-      nativeBuildEnv?.sdkVersion ? `-DCMAKE_SYSTEM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
-      nativeBuildEnv?.sdkVersion ? `-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
+      rcCompiler
+        ? `-DCMAKE_RC_COMPILER:FILEPATH=${toCmakePath(rcCompiler)}`
+        : "",
+      existsSync(rocmPaths.llvmMt)
+        ? `-DCMAKE_MT:FILEPATH=${toCmakePath(rocmPaths.llvmMt)}`
+        : "",
+      nativeBuildEnv?.sdkVersion
+        ? `-DCMAKE_SYSTEM_VERSION=${nativeBuildEnv.sdkVersion}`
+        : "",
+      nativeBuildEnv?.sdkVersion
+        ? `-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=${nativeBuildEnv.sdkVersion}`
+        : "",
       `-DCMAKE_C_COMPILER_TARGET=${WINDOWS_MSVC_COMPILER_TARGET}`,
       `-DCMAKE_CXX_COMPILER_TARGET=${WINDOWS_MSVC_COMPILER_TARGET}`,
       "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
-      runtimeLibraryCmakeValue ? quoteCmakeArg(`-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`) : "",
-      runtimeLibraryCmakeValue ? quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`) : "",
+      runtimeLibraryCmakeValue
+        ? quoteCmakeArg(
+            `-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`,
+          )
+        : "",
+      runtimeLibraryCmakeValue
+        ? quoteCmakeArg(
+            `-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`,
+          )
+        : "",
       quoteCmakeArg(`-DCMAKE_PREFIX_PATH:STRING=${rocmCmakePrefixList}`),
       quoteCmakeArg(`-Dhip_DIR:PATH=${toCmakePath(rocmPaths.hipCmakeDir)}`),
       quoteCmakeArg(`-DHIP_PATH:PATH=${toCmakePath(rocmPaths.hipRoot)}`),
       quoteCmakeArg(`-DROCM_PATH:PATH=${toCmakePath(rocmPaths.rocmRoot)}`),
-      quoteCmakeArg(`-DHIP_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`),
-      quoteCmakeArg(`-DROCM_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`),
+      quoteCmakeArg(
+        `-DHIP_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`,
+      ),
+      quoteCmakeArg(
+        `-DROCM_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`,
+      ),
       quoteCmakeArg(`-DCMAKE_HIP_FLAGS:STRING=${hipCompilerFlags}`),
       "-DHIP_PLATFORM=amd",
       "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
@@ -1430,19 +1868,32 @@ function buildTargetPythonEnv(
       "-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON",
       "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
       gpuTargets ? `-DGPU_TARGETS=${gpuTargets}` : "",
-      gpuTargets ? `-DAMDGPU_TARGETS=${gpuTargets}` : ""
+      gpuTargets ? `-DAMDGPU_TARGETS=${gpuTargets}` : "",
     ].filter(Boolean);
     env.CMAKE_ARGS = cmakeArgs.join(" ");
-    env.CFLAGS = mergeWords(env.CFLAGS, `--target=${WINDOWS_MSVC_COMPILER_TARGET}`);
-    env.CXXFLAGS = mergeWords(env.CXXFLAGS, `--target=${WINDOWS_MSVC_COMPILER_TARGET}`, hipCompilerFlags);
+    env.CFLAGS = mergeWords(
+      env.CFLAGS,
+      `--target=${WINDOWS_MSVC_COMPILER_TARGET}`,
+    );
+    env.CXXFLAGS = mergeWords(
+      env.CXXFLAGS,
+      `--target=${WINDOWS_MSVC_COMPILER_TARGET}`,
+      hipCompilerFlags,
+    );
     env.LDFLAGS = mergeWords(env.LDFLAGS, runtimeLibraryLdFlags);
     env.FORCE_CMAKE = "1";
     env.CMAKE_GENERATOR = env.CMAKE_GENERATOR || "Ninja";
     if (nativeBuildEnv) {
       env.PATH = mergePathList(nativeBuildEnv.pathEntries, env.PATH);
       env.INCLUDE = mergePathList(nativeBuildEnv.includePaths);
-      env.LIB = mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths);
-      env.LIBPATH = mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths);
+      env.LIB = mergePathList(
+        join(runtimeDir, "native-libs"),
+        nativeBuildEnv.libPaths,
+      );
+      env.LIBPATH = mergePathList(
+        join(runtimeDir, "native-libs"),
+        nativeBuildEnv.libPaths,
+      );
     }
     env.CC = env.CC || rocmPaths.clang;
     env.CXX = env.CXX || rocmPaths.clangxx;
@@ -1451,9 +1902,14 @@ function buildTargetPythonEnv(
     }
     env.ROCM_PATH = env.ROCM_PATH || rocmPaths.rocmRoot;
     env.HIP_PATH = env.HIP_PATH || rocmPaths.hipRoot;
-    env.HIP_DEVICE_LIB_PATH = env.HIP_DEVICE_LIB_PATH || rocmPaths.deviceLibPath;
-    env.ROCM_DEVICE_LIB_PATH = env.ROCM_DEVICE_LIB_PATH || rocmPaths.deviceLibPath;
-    env.CMAKE_PREFIX_PATH = mergePathList(env.CMAKE_PREFIX_PATH, rocmPaths.cmakePrefixPaths);
+    env.HIP_DEVICE_LIB_PATH =
+      env.HIP_DEVICE_LIB_PATH || rocmPaths.deviceLibPath;
+    env.ROCM_DEVICE_LIB_PATH =
+      env.ROCM_DEVICE_LIB_PATH || rocmPaths.deviceLibPath;
+    env.CMAKE_PREFIX_PATH = mergePathList(
+      env.CMAKE_PREFIX_PATH,
+      rocmPaths.cmakePrefixPaths,
+    );
     if (gpuTargets) {
       env.GPU_TARGETS = env.GPU_TARGETS || gpuTargets;
       env.AMDGPU_TARGETS = env.AMDGPU_TARGETS || gpuTargets;
@@ -1480,12 +1936,16 @@ function resolveWindowsRocmSdkPaths(packageDir: string): {
   const develRoot = join(packageDir, "_rocm_sdk_devel");
   const librariesRoot = join(packageDir, "_rocm_sdk_libraries_custom");
   const llvmBin = join(coreRoot, "lib", "llvm", "bin");
-  const deviceLibPath = resolveRocmDeviceLibPath(packageDir, coreRoot, develRoot);
+  const deviceLibPath = resolveRocmDeviceLibPath(
+    packageDir,
+    coreRoot,
+    develRoot,
+  );
   const hipCmakeDir = resolveCmakePackageDir(packageDir, "hip", [
     join(develRoot, "lib", "cmake", "hip"),
     join(coreRoot, "lib", "cmake", "hip"),
     join(librariesRoot, "lib", "cmake", "hip"),
-    join(packageDir, "lib", "cmake", "hip")
+    join(packageDir, "lib", "cmake", "hip"),
   ]);
   const hipRoot = resolveRocmRootForCmakePackage(hipCmakeDir, develRoot);
   const cmakePrefixPaths = uniqueExistingDirs([
@@ -1496,7 +1956,7 @@ function resolveWindowsRocmSdkPaths(packageDir: string): {
     join(develRoot, "lib", "cmake"),
     join(librariesRoot, "lib", "cmake"),
     hipRoot,
-    hipCmakeDir
+    hipCmakeDir,
   ]);
   return {
     coreRoot,
@@ -1510,15 +1970,19 @@ function resolveWindowsRocmSdkPaths(packageDir: string): {
     clangxx: join(llvmBin, "clang++.exe"),
     llvmRc: join(llvmBin, "llvm-rc.exe"),
     llvmMt: join(llvmBin, "llvm-mt.exe"),
-    deviceLibPath
+    deviceLibPath,
   };
 }
 
-function resolveRocmDeviceLibPath(packageDir: string, coreRoot: string, develRoot: string): string {
+function resolveRocmDeviceLibPath(
+  packageDir: string,
+  coreRoot: string,
+  develRoot: string,
+): string {
   const candidates = [
     join(coreRoot, "lib", "llvm", "amdgcn", "bitcode"),
     join(develRoot, "lib", "llvm", "amdgcn", "bitcode"),
-    join(packageDir, "lib", "llvm", "amdgcn", "bitcode")
+    join(packageDir, "lib", "llvm", "amdgcn", "bitcode"),
   ];
   for (const candidate of candidates) {
     if (fileExists(join(candidate, "ocml.bc"))) {
@@ -1534,15 +1998,20 @@ function resolveRocmDeviceLibPath(packageDir: string, coreRoot: string, develRoo
 
 function resolveWindowsResourceCompiler(
   rocmPaths: { llvmRc: string },
-  nativeBuildEnv: WindowsNativeBuildEnv | null
+  nativeBuildEnv: WindowsNativeBuildEnv | null,
 ): string | null {
   if (fileExists(rocmPaths.llvmRc)) {
     return rocmPaths.llvmRc;
   }
-  return nativeBuildEnv ? findFileInPathList(nativeBuildEnv.pathEntries, "rc.exe") : null;
+  return nativeBuildEnv
+    ? findFileInPathList(nativeBuildEnv.pathEntries, "rc.exe")
+    : null;
 }
 
-function stageWindowsResourceCompiler(runtimeDir: string, rcCompiler: string | null): string | null {
+function stageWindowsResourceCompiler(
+  runtimeDir: string,
+  rcCompiler: string | null,
+): string | null {
   if (!rcCompiler) {
     return rcCompiler;
   }
@@ -1553,7 +2022,10 @@ function stageWindowsResourceCompiler(runtimeDir: string, rcCompiler: string | n
   return stagedPath;
 }
 
-function stageWindowsRuntimeLibraries(runtimeDir: string, libraryPaths: string[]): string[] {
+function stageWindowsRuntimeLibraries(
+  runtimeDir: string,
+  libraryPaths: string[],
+): string[] {
   if (!libraryPaths.length) {
     return [];
   }
@@ -1566,24 +2038,42 @@ function stageWindowsRuntimeLibraries(runtimeDir: string, libraryPaths: string[]
   });
 }
 
-function resolveCmakePackageDir(packageDir: string, packageName: string, candidates: string[]): string {
+function resolveCmakePackageDir(
+  packageDir: string,
+  packageName: string,
+  candidates: string[],
+): string {
   const configNames = [
     `${packageName}-config.cmake`,
-    `${packageName}Config.cmake`
+    `${packageName}Config.cmake`,
   ];
   for (const candidate of candidates) {
     if (configNames.some((name) => fileExists(join(candidate, name)))) {
       return candidate;
     }
   }
-  const found = findFirstFileRecursive(packageDir, new Set(configNames.map((name) => name.toLowerCase())), 8);
+  const found = findFirstFileRecursive(
+    packageDir,
+    new Set(configNames.map((name) => name.toLowerCase())),
+    8,
+  );
   if (found) {
     return dirname(found);
   }
-  throw new Error(formatMissingCmakePackageMessage(packageDir, packageName, configNames, candidates));
+  throw new Error(
+    formatMissingCmakePackageMessage(
+      packageDir,
+      packageName,
+      configNames,
+      candidates,
+    ),
+  );
 }
 
-function resolveRocmRootForCmakePackage(cmakeDir: string, fallbackRoot: string): string {
+function resolveRocmRootForCmakePackage(
+  cmakeDir: string,
+  fallbackRoot: string,
+): string {
   const normalized = resolve(cmakeDir).replace(/\\/g, "/");
   const markerIndex = normalized.toLowerCase().lastIndexOf("/lib/cmake");
   return markerIndex > 0 ? normalized.slice(0, markerIndex) : fallbackRoot;
@@ -1593,14 +2083,17 @@ function formatMissingCmakePackageMessage(
   packageDir: string,
   packageName: string,
   configNames: string[],
-  candidates: string[]
+  candidates: string[],
 ): string {
   return [
     `ROCm CMake package "${packageName}" was not found after ROCm SDK initialization.`,
     `Expected one of: ${configNames.join(", ")}`,
     "Candidate directories:",
-    ...candidates.map((item) => `  - ${item} ${directoryExists(item) ? "(exists)" : "(missing)"}`),
-    formatRocmTreeSummary(packageDir)
+    ...candidates.map(
+      (item) =>
+        `  - ${item} ${directoryExists(item) ? "(exists)" : "(missing)"}`,
+    ),
+    formatRocmTreeSummary(packageDir),
   ].join("\n");
 }
 
@@ -1611,7 +2104,7 @@ function formatRocmTreeSummary(packageDir: string): string {
     join(packageDir, "_rocm_sdk_devel"),
     join(packageDir, "_rocm_sdk_libraries_custom"),
     join(packageDir, "rocm"),
-    join(packageDir, "rocm_sdk")
+    join(packageDir, "rocm_sdk"),
   ];
   const lines = ["ROCm package tree summary:"];
   for (const root of roots) {
@@ -1620,15 +2113,27 @@ function formatRocmTreeSummary(packageDir: string): string {
       continue;
     }
     lines.push(`  - ${root}: exists`);
-    const entries = safeReadDir(root).slice(0, 30).map((entry) => entry.name).join(", ");
+    const entries = safeReadDir(root)
+      .slice(0, 30)
+      .map((entry) => entry.name)
+      .join(", ");
     if (entries) {
       lines.push(`    entries: ${entries}`);
     }
   }
-  const cmakeHits = findFilesRecursive(packageDir, (entry) => {
-    const lower = entry.name.toLowerCase();
-    return entry.isFile() && (lower.includes("hip") || lower.includes("rocm")) && lower.endsWith(".cmake");
-  }, 9, 60);
+  const cmakeHits = findFilesRecursive(
+    packageDir,
+    (entry) => {
+      const lower = entry.name.toLowerCase();
+      return (
+        entry.isFile() &&
+        (lower.includes("hip") || lower.includes("rocm")) &&
+        lower.endsWith(".cmake")
+      );
+    },
+    9,
+    60,
+  );
   if (cmakeHits.length) {
     lines.push("Nearby ROCm/HIP CMake files:");
     for (const hit of cmakeHits) {
@@ -1648,11 +2153,17 @@ function safeReadDir(dir: string): import("node:fs").Dirent[] {
   }
 }
 
-function findFirstFileRecursive(root: string, lowerCaseNames: Set<string>, maxDepth: number): string | null {
+function findFirstFileRecursive(
+  root: string,
+  lowerCaseNames: Set<string>,
+  maxDepth: number,
+): string | null {
   if (!directoryExists(root)) {
     return null;
   }
-  const queue: Array<{ dir: string; depth: number }> = [{ dir: root, depth: 0 }];
+  const queue: Array<{ dir: string; depth: number }> = [
+    { dir: root, depth: 0 },
+  ];
   while (queue.length) {
     const current = queue.shift();
     if (!current) {
@@ -1669,7 +2180,11 @@ function findFirstFileRecursive(root: string, lowerCaseNames: Set<string>, maxDe
       if (entry.isFile() && lowerCaseNames.has(entry.name.toLowerCase())) {
         return fullPath;
       }
-      if (entry.isDirectory() && current.depth < maxDepth && !["__pycache__", ".git"].includes(entry.name)) {
+      if (
+        entry.isDirectory() &&
+        current.depth < maxDepth &&
+        !["__pycache__", ".git"].includes(entry.name)
+      ) {
         queue.push({ dir: fullPath, depth: current.depth + 1 });
       }
     }
@@ -1681,13 +2196,15 @@ function findFilesRecursive(
   root: string,
   predicate: (entry: import("node:fs").Dirent, fullPath: string) => boolean,
   maxDepth: number,
-  limit: number
+  limit: number,
 ): string[] {
   if (!directoryExists(root)) {
     return [];
   }
   const results: string[] = [];
-  const queue: Array<{ dir: string; depth: number }> = [{ dir: root, depth: 0 }];
+  const queue: Array<{ dir: string; depth: number }> = [
+    { dir: root, depth: 0 },
+  ];
   while (queue.length && results.length < limit) {
     const current = queue.shift();
     if (!current) {
@@ -1707,7 +2224,11 @@ function findFilesRecursive(
           break;
         }
       }
-      if (entry.isDirectory() && current.depth < maxDepth && !["__pycache__", ".git"].includes(entry.name)) {
+      if (
+        entry.isDirectory() &&
+        current.depth < maxDepth &&
+        !["__pycache__", ".git"].includes(entry.name)
+      ) {
         queue.push({ dir: fullPath, depth: current.depth + 1 });
       }
     }
@@ -1721,31 +2242,41 @@ export function resolveWindowsNativeBuildEnv(): WindowsNativeBuildEnv | null {
   }
   const sdk = resolveWindowsSdkLayout();
   const msvc = resolveMsvcToolsLayout();
-  const envLibPaths = splitPathList(process.env.LIB).filter((item) => !isX86WindowsLibraryPath(item));
+  const envLibPaths = splitPathList(process.env.LIB).filter(
+    (item) => !isX86WindowsLibraryPath(item),
+  );
   const envIncludePaths = splitPathList(process.env.INCLUDE);
   const envPathEntries = splitPathList(process.env.PATH);
   const libPaths = uniqueExistingDirs([
     ...(sdk ? [sdk.umLibPath, sdk.ucrtLibPath] : []),
     ...(msvc ? [msvc.libPath] : []),
-    ...envLibPaths
+    ...envLibPaths,
   ]);
   const includePaths = uniqueExistingDirs([
     ...(sdk ? sdk.includePaths : []),
     ...(msvc ? [msvc.includePath] : []),
-    ...envIncludePaths
+    ...envIncludePaths,
   ]);
   const pathEntries = uniqueExistingDirs([
     ...(sdk?.binPath ? [sdk.binPath] : []),
     ...(msvc?.binPath ? [msvc.binPath] : []),
-    ...envPathEntries
+    ...envPathEntries,
   ]);
-  const hasWindowsSdkLibs = ["kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "ole32.lib", "uuid.lib", "advapi32.lib"]
-    .every((file) => pathListContainsFile(libPaths, file));
+  const hasWindowsSdkLibs = [
+    "kernel32.lib",
+    "user32.lib",
+    "gdi32.lib",
+    "shell32.lib",
+    "ole32.lib",
+    "uuid.lib",
+    "advapi32.lib",
+  ].every((file) => pathListContainsFile(libPaths, file));
   const hasUcrtLibs = pathListContainsFile(libPaths, "ucrt.lib");
   const hasMsvcLibs =
     pathListContainsFile(libPaths, "oldnames.lib") &&
     pathListContainsFile(libPaths, "vcruntime.lib") &&
-    (pathListContainsFile(libPaths, "msvcrt.lib") || pathListContainsFile(libPaths, "msvcrtd.lib"));
+    (pathListContainsFile(libPaths, "msvcrt.lib") ||
+      pathListContainsFile(libPaths, "msvcrtd.lib"));
   if (!hasWindowsSdkLibs || !hasUcrtLibs || !hasMsvcLibs) {
     return null;
   }
@@ -1753,18 +2284,25 @@ export function resolveWindowsNativeBuildEnv(): WindowsNativeBuildEnv | null {
     sdkVersion: sdk?.version,
     pathEntries,
     includePaths,
-    libPaths
+    libPaths,
   };
 }
 
 function resolveWindowsRuntimeLibraryPaths(libPaths: string[]): string[] {
-  return [...WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES, ...WINDOWS_SYSTEM_IMPORT_LIB_NAMES].map((fileName) => {
+  return [
+    ...WINDOWS_DYNAMIC_RUNTIME_LIB_NAMES,
+    ...WINDOWS_SYSTEM_IMPORT_LIB_NAMES,
+  ].map((fileName) => {
     const match = findFileInPathList(libPaths, fileName);
     if (!match) {
-      throw new Error(`Required Windows/MSVC runtime library was not found: ${fileName}`);
+      throw new Error(
+        `Required Windows/MSVC runtime library was not found: ${fileName}`,
+      );
     }
     if (isX86WindowsLibraryPath(match)) {
-      throw new Error(`Resolved a 32-bit Windows/MSVC runtime library while building x64: ${match}`);
+      throw new Error(
+        `Resolved a 32-bit Windows/MSVC runtime library while building x64: ${match}`,
+      );
     }
     return match;
   });
@@ -1772,7 +2310,10 @@ function resolveWindowsRuntimeLibraryPaths(libPaths: string[]): string[] {
 
 function isX86WindowsLibraryPath(filePath: string): boolean {
   const normalized = filePath.replace(/\\/g, "/").toLowerCase();
-  return /\/lib\/x86(\/|$)/.test(normalized) || /\/(um|ucrt)\/x86(\/|$)/.test(normalized);
+  return (
+    /\/lib\/x86(\/|$)/.test(normalized) ||
+    /\/(um|ucrt)\/x86(\/|$)/.test(normalized)
+  );
 }
 
 function formatWindowsNativeBuildToolsMissingMessage(): string {
@@ -1780,7 +2321,7 @@ function formatWindowsNativeBuildToolsMissingMessage(): string {
     "Flux ROCm 런타임을 빌드하려면 Windows SDK와 Microsoft C++ Build Tools가 필요합니다.",
     "현재 Windows import library(kernel32.lib 등) 또는 MSVC library(oldnames.lib/msvcrt.lib)를 찾지 못했습니다.",
     'Visual Studio 2022 Build Tools에서 "Desktop development with C++"와 Windows 10/11 SDK를 설치한 뒤 다시 시도하세요.',
-    "이미 설치되어 있다면 Developer Command Prompt에서 실행하거나 MANGA_TRANSLATOR_WINDOWS_KITS_ROOT / MANGA_TRANSLATOR_MSVC_TOOLS_ROOT 환경변수로 위치를 지정할 수 있습니다."
+    "이미 설치되어 있다면 Developer Command Prompt에서 실행하거나 MANGA_TRANSLATOR_WINDOWS_KITS_ROOT / MANGA_TRANSLATOR_MSVC_TOOLS_ROOT 환경변수로 위치를 지정할 수 있습니다.",
   ].join(" ");
 }
 
@@ -1797,8 +2338,12 @@ function resolveWindowsSdkLayout(): {
     process.env.MGT_WINDOWS_KITS_ROOT,
     process.env.WindowsSdkDir,
     process.env.UniversalCRTSdkDir,
-    process.env["ProgramFiles(x86)"] ? join(process.env["ProgramFiles(x86)"] as string, "Windows Kits", "10") : "",
-    process.env.ProgramFiles ? join(process.env.ProgramFiles, "Windows Kits", "10") : ""
+    process.env["ProgramFiles(x86)"]
+      ? join(process.env["ProgramFiles(x86)"] as string, "Windows Kits", "10")
+      : "",
+    process.env.ProgramFiles
+      ? join(process.env.ProgramFiles, "Windows Kits", "10")
+      : "",
   ]);
   for (const root of roots) {
     const libRoot = join(root, "Lib");
@@ -1807,7 +2352,10 @@ function resolveWindowsSdkLayout(): {
     for (const version of versions) {
       const umLibPath = join(libRoot, version, "um", "x64");
       const ucrtLibPath = join(libRoot, version, "ucrt", "x64");
-      if (!fileExists(join(umLibPath, "kernel32.lib")) || !directoryExists(ucrtLibPath)) {
+      if (
+        !fileExists(join(umLibPath, "kernel32.lib")) ||
+        !directoryExists(ucrtLibPath)
+      ) {
         continue;
       }
       const includePaths = ["ucrt", "shared", "um", "winrt", "cppwinrt"]
@@ -1820,7 +2368,7 @@ function resolveWindowsSdkLayout(): {
         umLibPath,
         ucrtLibPath,
         includePaths,
-        binPath: directoryExists(binPath) ? binPath : undefined
+        binPath: directoryExists(binPath) ? binPath : undefined,
       };
     }
   }
@@ -1837,7 +2385,7 @@ function resolveMsvcToolsLayout(): {
   const directRoots = uniquePaths([
     process.env.MANGA_TRANSLATOR_MSVC_TOOLS_ROOT,
     process.env.MGT_MSVC_TOOLS_ROOT,
-    process.env.VCToolsInstallDir
+    process.env.VCToolsInstallDir,
   ]);
   for (const root of directRoots) {
     const layout = toMsvcToolsLayout(root);
@@ -1853,8 +2401,23 @@ function resolveMsvcToolsLayout(): {
   const programFiles = process.env.ProgramFiles;
   if (programFiles) {
     for (const year of ["2022", "2019"]) {
-      for (const edition of ["BuildTools", "Community", "Professional", "Enterprise"]) {
-        versionRoots.push(join(programFiles, "Microsoft Visual Studio", year, edition, "VC", "Tools", "MSVC"));
+      for (const edition of [
+        "BuildTools",
+        "Community",
+        "Professional",
+        "Enterprise",
+      ]) {
+        versionRoots.push(
+          join(
+            programFiles,
+            "Microsoft Visual Studio",
+            year,
+            edition,
+            "VC",
+            "Tools",
+            "MSVC",
+          ),
+        );
       }
     }
   }
@@ -1870,7 +2433,10 @@ function resolveMsvcToolsLayout(): {
   return null;
 }
 
-function toMsvcToolsLayout(root: string, version?: string): {
+function toMsvcToolsLayout(
+  root: string,
+  version?: string,
+): {
   root: string;
   version?: string;
   libPath: string;
@@ -1879,7 +2445,10 @@ function toMsvcToolsLayout(root: string, version?: string): {
 } | null {
   const libPath = join(root, "lib", "x64");
   const includePath = join(root, "include");
-  if (!fileExists(join(libPath, "oldnames.lib")) || !directoryExists(includePath)) {
+  if (
+    !fileExists(join(libPath, "oldnames.lib")) ||
+    !directoryExists(includePath)
+  ) {
     return null;
   }
   const binPath = join(root, "bin", "Hostx64", "x64");
@@ -1888,7 +2457,7 @@ function toMsvcToolsLayout(root: string, version?: string): {
     version,
     libPath,
     includePath,
-    binPath: directoryExists(binPath) ? binPath : undefined
+    binPath: directoryExists(binPath) ? binPath : undefined,
   };
 }
 
@@ -1899,7 +2468,9 @@ function splitPathList(value?: string): string[] {
     .filter(Boolean);
 }
 
-function mergePathList(...values: Array<string | string[] | null | undefined>): string {
+function mergePathList(
+  ...values: Array<string | string[] | null | undefined>
+): string {
   const entries: string[] = [];
   for (const value of values) {
     if (!value) {
@@ -1914,9 +2485,11 @@ function mergePathList(...values: Array<string | string[] | null | undefined>): 
   return uniquePaths(entries).join(delimiter);
 }
 
-function mergeWords(...values: Array<string | string[] | null | undefined>): string {
+function mergeWords(
+  ...values: Array<string | string[] | null | undefined>
+): string {
   return values
-    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
     .map((value) => String(value ?? "").trim())
     .filter(Boolean)
     .join(" ");
@@ -1943,7 +2516,8 @@ function uniquePaths(paths: Array<string | null | undefined>): string[] {
       continue;
     }
     const normalized = resolve(value);
-    const key = process.platform === "win32" ? normalized.toLowerCase() : normalized;
+    const key =
+      process.platform === "win32" ? normalized.toLowerCase() : normalized;
     if (seen.has(key)) {
       continue;
     }
@@ -1969,8 +2543,14 @@ function compareVersionDesc(left: string, right: string): number {
 }
 
 function compareVersionStrings(left: string, right: string): number {
-  const leftParts = left.split(/[^\d]+/).filter(Boolean).map(Number);
-  const rightParts = right.split(/[^\d]+/).filter(Boolean).map(Number);
+  const leftParts = left
+    .split(/[^\d]+/)
+    .filter(Boolean)
+    .map(Number);
+  const rightParts = right
+    .split(/[^\d]+/)
+    .filter(Boolean)
+    .map(Number);
   const length = Math.max(leftParts.length, rightParts.length);
   for (let index = 0; index < length; index += 1) {
     const diff = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
@@ -2030,14 +2610,19 @@ function resolveAmdGpuTargets(): string | null {
   return normalized || DEFAULT_AMD_GPU_TARGETS.join(";");
 }
 
-function ensureEmbeddedPythonPackagePath(pythonPath: string, packageDir: string): void {
+function ensureEmbeddedPythonPackagePath(
+  pythonPath: string,
+  packageDir: string,
+): void {
   if (basename(pythonPath).toLowerCase() !== "python.exe") {
     return;
   }
   const pythonDir = dirname(resolve(pythonPath));
   let pthName: string | undefined;
   try {
-    pthName = readdirSync(pythonDir).find((name) => /^python\d+._pth$/i.test(name));
+    pthName = readdirSync(pythonDir).find((name) =>
+      /^python\d+._pth$/i.test(name),
+    );
   } catch {
     return;
   }
@@ -2050,9 +2635,14 @@ function ensureEmbeddedPythonPackagePath(pythonPath: string, packageDir: string)
     const text = readFileSync(pthPath, "utf8");
     const nextLines = text
       .split(/\r?\n/)
-      .filter((line) => !isManagedFluxPackagePathLine(line, pythonDir, normalizedPackageDir))
-      .map((line) => line.trim() === "#import site" ? "import site" : line);
-    const importSiteIndex = nextLines.findIndex((line) => line.trim() === "import site");
+      .filter(
+        (line) =>
+          !isManagedFluxPackagePathLine(line, pythonDir, normalizedPackageDir),
+      )
+      .map((line) => (line.trim() === "#import site" ? "import site" : line));
+    const importSiteIndex = nextLines.findIndex(
+      (line) => line.trim() === "import site",
+    );
     if (importSiteIndex === -1) {
       nextLines.push(normalizedPackageDir, "import site");
     } else {
@@ -2070,7 +2660,9 @@ function ensureEmbeddedPythonPackagePath(pythonPath: string, packageDir: string)
 function sanitizeStandaloneEmbeddedPythonPathFile(outputDir: string): void {
   let pthName: string | undefined;
   try {
-    pthName = readdirSync(outputDir).find((name) => /^python\d+._pth$/i.test(name));
+    pthName = readdirSync(outputDir).find((name) =>
+      /^python\d+._pth$/i.test(name),
+    );
   } catch {
     return;
   }
@@ -2094,7 +2686,11 @@ function sanitizeStandaloneEmbeddedPythonPathFile(outputDir: string): void {
       }
       sanitized.push(line);
     }
-    const nextText = buildStandaloneEmbeddedPythonPathText(outputDir, pthName, sanitized);
+    const nextText = buildStandaloneEmbeddedPythonPathText(
+      outputDir,
+      pthName,
+      sanitized,
+    );
     if (nextText !== text) {
       writeFileSync(pthPath, nextText, "utf8");
     }
@@ -2103,13 +2699,22 @@ function sanitizeStandaloneEmbeddedPythonPathFile(outputDir: string): void {
   }
 }
 
-function buildStandaloneEmbeddedPythonPathText(outputDir: string, pthName: string, lines: string[]): string {
+function buildStandaloneEmbeddedPythonPathText(
+  outputDir: string,
+  pthName: string,
+  lines: string[],
+): string {
   const normalizedLines = lines
     .map((line) => line.trim())
-    .filter((line) => line && line !== "import site" && line !== "#import site");
+    .filter(
+      (line) => line && line !== "import site" && line !== "#import site",
+    );
   const pthEntries: string[] = [];
   const addEntry = (entry: string) => {
-    if (!entry || pthEntries.some((line) => line.toLowerCase() === entry.toLowerCase())) {
+    if (
+      !entry ||
+      pthEntries.some((line) => line.toLowerCase() === entry.toLowerCase())
+    ) {
       return;
     }
     pthEntries.push(entry);
@@ -2127,9 +2732,18 @@ function buildStandaloneEmbeddedPythonPathText(outputDir: string, pthName: strin
   return `${pthEntries.join("\n")}\n`;
 }
 
-function isManagedFluxPackagePathLine(line: string, pythonDir: string, packageDir?: string): boolean {
+function isManagedFluxPackagePathLine(
+  line: string,
+  pythonDir: string,
+  packageDir?: string,
+): boolean {
   const trimmed = line.trim();
-  if (!trimmed || trimmed === "." || trimmed === "import site" || trimmed.startsWith("#")) {
+  if (
+    !trimmed ||
+    trimmed === "." ||
+    trimmed === "import site" ||
+    trimmed.startsWith("#")
+  ) {
     return false;
   }
   try {
@@ -2142,31 +2756,44 @@ function isManagedFluxPackagePathLine(line: string, pythonDir: string, packageDi
       return false;
     }
     const normalized = resolvedLine.replace(/\\/g, "/").toLowerCase();
-    return normalized.includes("/mgt-flux-python-") || normalized.includes("/models/inpainting/");
+    return (
+      normalized.includes("/mgt-flux-python-") ||
+      normalized.includes("/models/inpainting/")
+    );
   } catch {
     return false;
   }
 }
 
-function hasUsablePackageDir(packageDir: string, backend: FluxPythonBackend): boolean {
-  const requiredModules = backend === "python-rocm"
-    ? ["stable_diffusion_cpp", "PIL"]
-    : ["torch", "diffusers", "transformers"];
+function hasUsablePackageDir(
+  packageDir: string,
+  backend: FluxPythonBackend,
+): boolean {
+  const requiredModules =
+    backend === "python-rocm"
+      ? ["stable_diffusion_cpp", "PIL"]
+      : ["torch", "diffusers", "transformers"];
   return requiredModules.every((name) => existsSync(join(packageDir, name)));
 }
 
-function resolvePythonRuntimeInstallBatches(backend: FluxPythonBackend): FluxPythonInstallBatch[] {
+function resolvePythonRuntimeInstallBatches(
+  backend: FluxPythonBackend,
+): FluxPythonInstallBatch[] {
   if (backend === "python-rocm" && process.platform === "win32") {
-    const rocmPackageUrls = resolveListEnv("MANGA_TRANSLATOR_FLUX_ROCM_PACKAGE_URLS", "MGT_FLUX_ROCM_PACKAGE_URLS") ??
-      defaultWindowsRocmPackageUrls();
+    const rocmPackageUrls =
+      resolveListEnv(
+        "MANGA_TRANSLATOR_FLUX_ROCM_PACKAGE_URLS",
+        "MGT_FLUX_ROCM_PACKAGE_URLS",
+      ) ?? defaultWindowsRocmPackageUrls();
     return [
       {
         id: `windows-rocm-runtime-${FLUX_ROCM_WINDOWS_VERSION}-sdcpp`,
         progressText: "Flux ROCm/HIP 런타임 설치 중",
         detail: `ROCm ${FLUX_ROCM_WINDOWS_VERSION}`,
-        installLogLine: "AMD Windows ROCm SDK를 stable-diffusion.cpp 빌드용으로 준비합니다.",
-        pipArgs: rocmPackageUrls
-      }
+        installLogLine:
+          "AMD Windows ROCm SDK를 stable-diffusion.cpp 빌드용으로 준비합니다.",
+        pipArgs: rocmPackageUrls,
+      },
     ];
   }
 
@@ -2174,15 +2801,18 @@ function resolvePythonRuntimeInstallBatches(backend: FluxPythonBackend): FluxPyt
     return [];
   }
 
-  const torchIndexUrl = process.env.MANGA_TRANSLATOR_FLUX_CPU_TORCH_INDEX_URL ?? process.env.MGT_FLUX_CPU_TORCH_INDEX_URL ?? FLUX_CPU_TORCH_INDEX_URL;
+  const torchIndexUrl =
+    process.env.MANGA_TRANSLATOR_FLUX_CPU_TORCH_INDEX_URL ??
+    process.env.MGT_FLUX_CPU_TORCH_INDEX_URL ??
+    FLUX_CPU_TORCH_INDEX_URL;
   return [
     {
       id: `cpu-index-${torchIndexUrl}`,
       progressText: "Flux CPU PyTorch 설치 중",
       detail: torchIndexUrl,
       installLogLine: `PyTorch 설치 인덱스: ${torchIndexUrl}`,
-      pipArgs: ["--index-url", torchIndexUrl, "torch", "torchvision"]
-    }
+      pipArgs: ["--index-url", torchIndexUrl, "torch", "torchvision"],
+    },
   ];
 }
 
@@ -2193,35 +2823,47 @@ function defaultWindowsRocmPackageUrls(): string[] {
     `${base}/rocm_sdk_core-${version}-py3-none-win_amd64.whl`,
     `${base}/rocm_sdk_devel-${version}-py3-none-win_amd64.whl`,
     `${base}/rocm_sdk_libraries_custom-${version}-py3-none-win_amd64.whl`,
-    `${base}/rocm-${version}.tar.gz`
+    `${base}/rocm-${version}.tar.gz`,
   ];
 }
 
 function windowsRocmBaseUrl(): string {
-  return process.env.MANGA_TRANSLATOR_FLUX_ROCM_WINDOWS_BASE_URL ??
+  return (
+    process.env.MANGA_TRANSLATOR_FLUX_ROCM_WINDOWS_BASE_URL ??
     process.env.MGT_FLUX_ROCM_WINDOWS_BASE_URL ??
-    `https://repo.radeon.com/rocm/windows/rocm-rel-${FLUX_ROCM_WINDOWS_VERSION}`;
+    `https://repo.radeon.com/rocm/windows/rocm-rel-${FLUX_ROCM_WINDOWS_VERSION}`
+  );
 }
 
 function resolveFluxRocmPrebuiltRuntimeUrl(): string {
-  return process.env.MANGA_TRANSLATOR_FLUX_ROCM_RUNTIME_ARCHIVE_URL ??
+  return (
+    process.env.MANGA_TRANSLATOR_FLUX_ROCM_RUNTIME_ARCHIVE_URL ??
     process.env.MGT_FLUX_ROCM_RUNTIME_ARCHIVE_URL ??
-    FLUX_ROCM_PREBUILT_RUNTIME_URL;
+    FLUX_ROCM_PREBUILT_RUNTIME_URL
+  );
 }
 
 function shouldUsePrebuiltFluxRocmRuntime(): boolean {
-  const value = process.env.MANGA_TRANSLATOR_FLUX_ROCM_USE_PREBUILT ??
+  const value =
+    process.env.MANGA_TRANSLATOR_FLUX_ROCM_USE_PREBUILT ??
     process.env.MGT_FLUX_ROCM_USE_PREBUILT;
   if (value === undefined) {
     return true;
   }
-  return !["0", "false", "no", "n", "off"].includes(String(value).trim().toLowerCase());
+  return !["0", "false", "no", "n", "off"].includes(
+    String(value).trim().toLowerCase(),
+  );
 }
 
 function shouldAllowFluxRocmSourceBuildFallback(): boolean {
-  const value = process.env.MANGA_TRANSLATOR_FLUX_ROCM_ALLOW_SOURCE_BUILD ??
+  const value =
+    process.env.MANGA_TRANSLATOR_FLUX_ROCM_ALLOW_SOURCE_BUILD ??
     process.env.MGT_FLUX_ROCM_ALLOW_SOURCE_BUILD;
-  return ["1", "true", "yes", "y", "on"].includes(String(value ?? "").trim().toLowerCase());
+  return ["1", "true", "yes", "y", "on"].includes(
+    String(value ?? "")
+      .trim()
+      .toLowerCase(),
+  );
 }
 
 function resolveListEnv(primary: string, secondary: string): string[] | null {
@@ -2244,7 +2886,7 @@ function resolvePythonFluxPackages(backend: FluxPythonBackend): string[] {
       "--force-reinstall",
       "stable-diffusion-cpp-python",
       "huggingface_hub>=0.36.0",
-      "pillow>=10.0.0"
+      "pillow>=10.0.0",
     ];
   }
   return [
@@ -2256,7 +2898,7 @@ function resolvePythonFluxPackages(backend: FluxPythonBackend): string[] {
     "huggingface_hub>=0.36.0",
     "pillow>=10.0.0",
     "sentencepiece>=0.2.0",
-    "protobuf>=4.25.0"
+    "protobuf>=4.25.0",
   ];
 }
 
@@ -2270,12 +2912,16 @@ function resolvePythonBuildPackages(backend: FluxPythonBackend): string[] {
     "ninja>=1.11.1",
     "packaging>=24.0",
     "setuptools>=69.0.0",
-    "wheel>=0.43.0"
+    "wheel>=0.43.0",
   ];
 }
 
 function resolveFluxPythonMode(): string {
-  const normalized = String(process.env.MANGA_TRANSLATOR_FLUX_PYTHON_MODE ?? process.env.MGT_FLUX_PYTHON_MODE ?? "")
+  const normalized = String(
+    process.env.MANGA_TRANSLATOR_FLUX_PYTHON_MODE ??
+      process.env.MGT_FLUX_PYTHON_MODE ??
+      "",
+  )
     .trim()
     .toLowerCase();
   return normalized === "flux-fill" ? "flux-fill" : FLUX_PYTHON_DEFAULT_MODE;
@@ -2284,25 +2930,30 @@ function resolveFluxPythonMode(): string {
 async function verifyFluxPythonRuntime(
   pythonRuntime: FluxPythonRuntime,
   backend: FluxPythonBackend,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
-  const verifyScript = backend === "python-rocm"
-    ? [
-        "import importlib",
-        "for name in ['stable_diffusion_cpp','PIL','huggingface_hub']:",
-        "    importlib.import_module(name)",
-        "print('ok')"
-      ].join("\n")
-    : [
-        "import importlib, torch",
-        "for name in ['diffusers','gguf','transformers','accelerate','safetensors','PIL','torchvision','sentencepiece','google.protobuf']:",
-        "    importlib.import_module(name)",
-        "print('ok')"
-      ].join("\n");
-  await runCommand(pythonRuntime.executable, [...pythonRuntime.args, "-c", verifyScript], {
-    signal,
-    env: pythonRuntime.env
-  });
+  const verifyScript =
+    backend === "python-rocm"
+      ? [
+          "import importlib",
+          "for name in ['stable_diffusion_cpp','PIL','huggingface_hub']:",
+          "    importlib.import_module(name)",
+          "print('ok')",
+        ].join("\n")
+      : [
+          "import importlib, torch",
+          "for name in ['diffusers','gguf','transformers','accelerate','safetensors','PIL','torchvision','sentencepiece','google.protobuf']:",
+          "    importlib.import_module(name)",
+          "print('ok')",
+        ].join("\n");
+  await runCommand(
+    pythonRuntime.executable,
+    [...pythonRuntime.args, "-c", verifyScript],
+    {
+      signal,
+      env: pythonRuntime.env,
+    },
+  );
 }
 
 async function ensureFluxPythonModelCache(options: {
@@ -2316,13 +2967,20 @@ async function ensureFluxPythonModelCache(options: {
   const markerPath = join(options.modelDir, ".mgt-flux-diffusers-model.json");
   const ignorePatterns = options.ignorePatterns ?? [];
   try {
-    const marker = JSON.parse(await readFile(markerPath, "utf8")) as { modelId?: string; ignorePatterns?: string[] };
-    if (marker.modelId === options.modelId && JSON.stringify(marker.ignorePatterns ?? []) === JSON.stringify(ignorePatterns)) {
+    const marker = JSON.parse(await readFile(markerPath, "utf8")) as {
+      modelId?: string;
+      ignorePatterns?: string[];
+    };
+    if (
+      marker.modelId === options.modelId &&
+      JSON.stringify(marker.ignorePatterns ?? []) ===
+        JSON.stringify(ignorePatterns)
+    ) {
       options.onProgress?.({
         progressText: "Flux Diffusers 모델 캐시 사용",
         detail: options.modelId,
         progressMode: "log-only",
-        installLogLine: `캐시된 Diffusers Flux 모델을 사용합니다: ${options.modelId}`
+        installLogLine: `캐시된 Diffusers Flux 모델을 사용합니다: ${options.modelId}`,
       });
       return;
     }
@@ -2332,59 +2990,80 @@ async function ensureFluxPythonModelCache(options: {
 
   await mkdir(options.modelDir, { recursive: true });
   if (ignorePatterns.length > 0) {
-    await rm(resolveHuggingFaceRepoCacheDir(options.modelDir, options.modelId), { recursive: true, force: true });
+    await rm(
+      resolveHuggingFaceRepoCacheDir(options.modelDir, options.modelId),
+      { recursive: true, force: true },
+    );
   }
   options.onProgress?.({
     progressText: "Flux Diffusers 모델 준비 중",
-    detail: ignorePatterns.length > 0 ? `${options.modelId} · transformer 제외` : options.modelId,
+    detail:
+      ignorePatterns.length > 0
+        ? `${options.modelId} · transformer 제외`
+        : options.modelId,
     progressMode: "indeterminate",
     installLogLine:
       ignorePatterns.length > 0
         ? `Diffusers Flux 모델 캐시를 확인합니다: ${options.modelId} (GGUF transformer 사용, 원본 transformer 제외)`
-        : `Diffusers Flux 모델 캐시를 확인합니다: ${options.modelId}`
+        : `Diffusers Flux 모델 캐시를 확인합니다: ${options.modelId}`,
   });
   const downloadScript = [
     "from huggingface_hub import snapshot_download",
     "import json, sys",
     "ignore_patterns = json.loads(sys.argv[3])",
-    "snapshot_download(repo_id=sys.argv[1], cache_dir=sys.argv[2], resume_download=True, ignore_patterns=ignore_patterns or None)"
+    "snapshot_download(repo_id=sys.argv[1], cache_dir=sys.argv[2], resume_download=True, ignore_patterns=ignore_patterns or None)",
   ].join("\n");
-  await runCommand(options.pythonRuntime.executable, [
-    ...options.pythonRuntime.args,
-    "-c",
-    downloadScript,
-    options.modelId,
-    options.modelDir,
-    JSON.stringify(ignorePatterns)
-  ], {
-    signal: options.signal,
-    env: {
-      ...options.pythonRuntime.env,
-      HF_HOME: options.modelDir,
-      HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub")
+  await runCommand(
+    options.pythonRuntime.executable,
+    [
+      ...options.pythonRuntime.args,
+      "-c",
+      downloadScript,
+      options.modelId,
+      options.modelDir,
+      JSON.stringify(ignorePatterns),
+    ],
+    {
+      signal: options.signal,
+      env: {
+        ...options.pythonRuntime.env,
+        HF_HOME: options.modelDir,
+        HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub"),
+      },
+      onLine: (line) =>
+        options.onProgress?.({
+          progressText: "Flux Diffusers 모델 준비 중",
+          detail: options.modelId,
+          progressMode: "indeterminate",
+          installLogLine: line,
+        }),
     },
-    onLine: (line) =>
-      options.onProgress?.({
-        progressText: "Flux Diffusers 모델 준비 중",
-        detail: options.modelId,
-        progressMode: "indeterminate",
-        installLogLine: line
-      })
-  });
-  await writeFile(markerPath, `${JSON.stringify({
-    modelId: options.modelId,
-    ignorePatterns,
-    cachedAt: new Date().toISOString()
-  }, null, 2)}\n`, "utf8");
+  );
+  await writeFile(
+    markerPath,
+    `${JSON.stringify(
+      {
+        modelId: options.modelId,
+        ignorePatterns,
+        cachedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
 }
 
-function resolveHuggingFaceRepoCacheDir(cacheDir: string, repoId: string): string {
+function resolveHuggingFaceRepoCacheDir(
+  cacheDir: string,
+  repoId: string,
+): string {
   return join(cacheDir, "hub", `models--${repoId.replace(/[\\/]/g, "--")}`);
 }
 
 function emitPythonInstallLog(
   options: { onProgress?: (progress: FluxAssetProgress) => void },
-  line: string
+  line: string,
 ): void {
   const trimmed = line.trim();
   if (!trimmed) {
@@ -2398,16 +3077,20 @@ function emitPythonInstallLog(
     progressPercent: progress?.progressPercent,
     progressBytes: progress?.progressBytes,
     progressTotalBytes: progress?.progressTotalBytes,
-    installLogLine: trimmed
+    installLogLine: trimmed,
   });
 }
 
-export function parsePipDownloadProgressLine(line: string): Pick<
+export function parsePipDownloadProgressLine(
+  line: string,
+): Pick<
   FluxAssetProgress,
   "detail" | "progressPercent" | "progressBytes" | "progressTotalBytes"
 > | null {
   const text = line.trim();
-  const fileStartMatch = text.match(/^(Downloading|Using cached)\s+(.+?)\s+\(([\d.]+)\s*([KMGT]?B)\)$/i);
+  const fileStartMatch = text.match(
+    /^(Downloading|Using cached)\s+(.+?)\s+\(([\d.]+)\s*([KMGT]?B)\)$/i,
+  );
   if (fileStartMatch) {
     const [, action, fileName, totalValue, totalUnit] = fileStartMatch;
     const totalBytes = parsePipByteValue(totalValue, totalUnit);
@@ -2417,7 +3100,7 @@ export function parsePipDownloadProgressLine(line: string): Pick<
         detail: `${basename(fileName)} · ${isCached ? "캐시 사용" : `0 B / ${formatBytes(totalBytes)}`}`,
         progressPercent: isCached ? 1 : 0,
         progressBytes: isCached ? totalBytes : 0,
-        progressTotalBytes: totalBytes
+        progressTotalBytes: totalBytes,
       };
     }
   }
@@ -2434,9 +3117,12 @@ export function parsePipDownloadProgressLine(line: string): Pick<
   }
   return {
     detail: `${formatBytes(progressBytes)} / ${formatBytes(progressTotalBytes)}`,
-    progressPercent: Math.max(0, Math.min(1, progressBytes / progressTotalBytes)),
+    progressPercent: Math.max(
+      0,
+      Math.min(1, progressBytes / progressTotalBytes),
+    ),
     progressBytes,
-    progressTotalBytes
+    progressTotalBytes,
   };
 }
 
@@ -2451,7 +3137,7 @@ function parsePipByteValue(valueText: string, unitText: string): number {
     KB: 1024,
     MB: 1024 * 1024,
     GB: 1024 * 1024 * 1024,
-    TB: 1024 * 1024 * 1024 * 1024
+    TB: 1024 * 1024 * 1024 * 1024,
   };
   return Math.round(value * (multipliers[normalizedUnit] ?? 1));
 }
@@ -2464,7 +3150,7 @@ async function runCommand(
     env?: NodeJS.ProcessEnv;
     signal?: AbortSignal;
     onLine?: (line: string) => void;
-  } = {}
+  } = {},
 ): Promise<void> {
   throwIfAborted(options.signal);
   await new Promise<void>((resolve, reject) => {
@@ -2475,9 +3161,9 @@ async function runCommand(
         ...process.env,
         ...options.env,
         PYTHONIOENCODING: "utf-8",
-        PYTHONUNBUFFERED: "1"
+        PYTHONUNBUFFERED: "1",
       },
-      stdio: ["ignore", "pipe", "pipe"]
+      stdio: ["ignore", "pipe", "pipe"],
     });
     let stderrTail = "";
     let stdoutBuffer = "";
@@ -2506,7 +3192,9 @@ async function runCommand(
       reject(new DOMException("Aborted", "AbortError"));
     };
     options.signal?.addEventListener("abort", onAbort, { once: true });
-    child.stdout.on("data", (chunk: Buffer) => emitLines(chunk.toString("utf8")));
+    child.stdout.on("data", (chunk: Buffer) =>
+      emitLines(chunk.toString("utf8")),
+    );
     child.stderr.on("data", (chunk: Buffer) => {
       const text = chunk.toString("utf8");
       stderrTail = `${stderrTail}${text}`.slice(-2400);
@@ -2521,7 +3209,11 @@ async function runCommand(
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(`${command} ${args.join(" ")} failed (${code}). ${sanitizeFluxRuntimeStderr(stderrTail).trim()}`));
+        reject(
+          new Error(
+            `${command} ${args.join(" ")} failed (${code}). ${sanitizeFluxRuntimeStderr(stderrTail).trim()}`,
+          ),
+        );
       }
     });
   });
@@ -2557,7 +3249,7 @@ export async function ensureRemoteFile(options: {
       progressText: `${options.label} 캐시 사용`,
       detail: options.fileName,
       progressMode: "log-only",
-      installLogLine: `캐시된 ${options.label} 파일을 사용합니다: ${options.fileName}`
+      installLogLine: `캐시된 ${options.label} 파일을 사용합니다: ${options.fileName}`,
     });
     return filePath;
   }
@@ -2568,7 +3260,7 @@ export async function ensureRemoteFile(options: {
     signal: options.signal,
     progressText: `${options.label} 다운로드 중`,
     label: options.fileName,
-    onProgress: options.onProgress
+    onProgress: options.onProgress,
   });
   return filePath;
 }
@@ -2586,7 +3278,7 @@ async function downloadToFile(options: {
       progressText: `${options.label} 캐시 사용`,
       detail: options.label,
       progressMode: "log-only",
-      installLogLine: `캐시된 파일을 사용합니다: ${options.label}`
+      installLogLine: `캐시된 파일을 사용합니다: ${options.label}`,
     });
     return;
   }
@@ -2601,15 +3293,17 @@ async function downloadToFile(options: {
     progressPercent: totalBytes > 0 ? 0 : undefined,
     progressBytes: totalBytes > 0 ? 0 : undefined,
     progressTotalBytes: totalBytes > 0 ? totalBytes : undefined,
-    installLogLine: `${options.label} 다운로드 시작`
+    installLogLine: `${options.label} 다운로드 시작`,
   });
 
   const response = await fetch(options.url, {
     signal: options.signal,
-    headers: { "User-Agent": "manga-gemma-translator" }
+    headers: { "User-Agent": "manga-gemma-translator" },
   });
   if (!response.ok || !response.body) {
-    throw new Error(`${options.label} 다운로드에 실패했습니다 (${response.status}).`);
+    throw new Error(
+      `${options.label} 다운로드에 실패했습니다 (${response.status}).`,
+    );
   }
 
   const responseTotalBytes = totalBytes || readContentLength(response);
@@ -2635,16 +3329,23 @@ async function downloadToFile(options: {
     }
     await finishWriteStream(writer);
     if (responseTotalBytes > 0 && receivedBytes !== responseTotalBytes) {
-      throw new Error(`${options.label} 다운로드 크기가 맞지 않습니다 (${formatBytes(receivedBytes)} / ${formatBytes(responseTotalBytes)}).`);
+      throw new Error(
+        `${options.label} 다운로드 크기가 맞지 않습니다 (${formatBytes(receivedBytes)} / ${formatBytes(responseTotalBytes)}).`,
+      );
     }
     await rm(options.outputPath, { force: true });
     await rename(partPath, options.outputPath);
     await writeRemoteFileMetadata(options.outputPath, {
       url: options.url,
       bytes: receivedBytes,
-      downloadedAt: new Date().toISOString()
+      downloadedAt: new Date().toISOString(),
     });
-    emitDownloadProgress(options, responseTotalBytes > 0 ? responseTotalBytes : receivedBytes, responseTotalBytes || receivedBytes, true);
+    emitDownloadProgress(
+      options,
+      responseTotalBytes > 0 ? responseTotalBytes : receivedBytes,
+      responseTotalBytes || receivedBytes,
+      true,
+    );
   } catch (error) {
     writer.destroy();
     await rm(partPath, { force: true }).catch(() => {});
@@ -2660,23 +3361,31 @@ function emitDownloadProgress(
   },
   receivedBytes: number,
   totalBytes: number,
-  done = false
+  done = false,
 ): void {
   options.onProgress?.({
-    progressText: done ? `${options.label} 다운로드 완료` : options.progressText,
-    detail: totalBytes > 0 ? `${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}` : `${formatBytes(receivedBytes)} 받음`,
+    progressText: done
+      ? `${options.label} 다운로드 완료`
+      : options.progressText,
+    detail:
+      totalBytes > 0
+        ? `${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}`
+        : `${formatBytes(receivedBytes)} 받음`,
     progressMode: totalBytes > 0 ? "determinate" : "log-only",
-    progressPercent: totalBytes > 0 ? Math.min(1, receivedBytes / totalBytes) : undefined,
+    progressPercent:
+      totalBytes > 0 ? Math.min(1, receivedBytes / totalBytes) : undefined,
     progressBytes: totalBytes > 0 ? receivedBytes : undefined,
     progressTotalBytes: totalBytes > 0 ? totalBytes : undefined,
     installLogLine:
       totalBytes > 0
         ? `${options.label}: ${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}`
-        : `${options.label}: ${formatBytes(receivedBytes)}`
+        : `${options.label}: ${formatBytes(receivedBytes)}`,
   });
 }
 
-function findFirstExecutable(candidates: Array<string | null | undefined>): string | null {
+function findFirstExecutable(
+  candidates: Array<string | null | undefined>,
+): string | null {
   for (const candidate of candidates) {
     if (candidate && isExecutableFile(candidate)) {
       return candidate;
@@ -2687,13 +3396,20 @@ function findFirstExecutable(candidates: Array<string | null | undefined>): stri
 
 function isUsableFile(filePath: string): boolean {
   try {
-    return existsSync(filePath) && statSync(filePath).isFile() && statSync(filePath).size > 1024 * 1024;
+    return (
+      existsSync(filePath) &&
+      statSync(filePath).isFile() &&
+      statSync(filePath).size > 1024 * 1024
+    );
   } catch {
     return false;
   }
 }
 
-async function isUsableRemoteFile(filePath: string, url: string): Promise<boolean> {
+async function isUsableRemoteFile(
+  filePath: string,
+  url: string,
+): Promise<boolean> {
   if (!isUsableFile(filePath)) {
     return false;
   }
@@ -2703,22 +3419,37 @@ async function isUsableRemoteFile(filePath: string, url: string): Promise<boolea
   }
   try {
     const actualBytes = statSync(filePath).size;
-    return metadata.url === url && metadata.bytes === actualBytes && actualBytes > 1024 * 1024;
+    return (
+      metadata.url === url &&
+      metadata.bytes === actualBytes &&
+      actualBytes > 1024 * 1024
+    );
   } catch {
     return false;
   }
 }
 
-async function readRemoteFileMetadata(filePath: string): Promise<RemoteFileMetadata | null> {
+async function readRemoteFileMetadata(
+  filePath: string,
+): Promise<RemoteFileMetadata | null> {
   try {
-    return JSON.parse(await readFile(remoteFileMetadataPath(filePath), "utf8")) as RemoteFileMetadata;
+    return JSON.parse(
+      await readFile(remoteFileMetadataPath(filePath), "utf8"),
+    ) as RemoteFileMetadata;
   } catch {
     return null;
   }
 }
 
-async function writeRemoteFileMetadata(filePath: string, metadata: RemoteFileMetadata): Promise<void> {
-  await writeFile(remoteFileMetadataPath(filePath), `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
+async function writeRemoteFileMetadata(
+  filePath: string,
+  metadata: RemoteFileMetadata,
+): Promise<void> {
+  await writeFile(
+    remoteFileMetadataPath(filePath),
+    `${JSON.stringify(metadata, null, 2)}\n`,
+    "utf8",
+  );
 }
 
 function remoteFileMetadataPath(filePath: string): string {
@@ -2737,7 +3468,10 @@ function sha256FileSync(filePath: string): string {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex");
 }
 
-async function probeContentLength(url: string, signal?: AbortSignal): Promise<number> {
+async function probeContentLength(
+  url: string,
+  signal?: AbortSignal,
+): Promise<number> {
   try {
     const response = await fetch(url, { method: "HEAD", signal });
     return response.ok ? readContentLength(response) : 0;
@@ -2751,14 +3485,19 @@ function readContentLength(response: Response): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
-async function writeStreamChunk(writer: ReturnType<typeof createWriteStream>, chunk: Buffer): Promise<void> {
+async function writeStreamChunk(
+  writer: ReturnType<typeof createWriteStream>,
+  chunk: Buffer,
+): Promise<void> {
   if (writer.write(chunk)) {
     return;
   }
   await once(writer, "drain");
 }
 
-async function finishWriteStream(writer: ReturnType<typeof createWriteStream>): Promise<void> {
+async function finishWriteStream(
+  writer: ReturnType<typeof createWriteStream>,
+): Promise<void> {
   writer.end();
   await once(writer, "finish");
 }

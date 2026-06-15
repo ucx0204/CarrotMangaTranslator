@@ -5,7 +5,7 @@ const fsState = vi.hoisted(() => ({
   renameCalls: [] as unknown[][],
   unlinkCalls: [] as unknown[][],
   writeFileCalls: [] as unknown[][],
-  renameErrors: [] as NodeJS.ErrnoException[]
+  renameErrors: [] as NodeJS.ErrnoException[],
 }));
 
 vi.mock("node:fs/promises", () => ({
@@ -26,7 +26,7 @@ vi.mock("node:fs/promises", () => ({
   }),
   writeFile: vi.fn(async (...args: unknown[]) => {
     fsState.writeFileCalls.push(args);
-  })
+  }),
 }));
 
 function errno(code: string): NodeJS.ErrnoException {
@@ -52,14 +52,18 @@ describe("library storage", () => {
     expect(fsState.writeFileCalls).toHaveLength(1);
     expect(fsState.renameCalls).toHaveLength(3);
     expect(fsState.unlinkCalls).toHaveLength(0);
-    expect(String(fsState.renameCalls[0][1])).toBe("C:/library/work/chapter.json");
+    expect(String(fsState.renameCalls[0][1])).toBe(
+      "C:/library/work/chapter.json",
+    );
   });
 
   it("does not retry non-transient rename failures and removes only the temp file", async () => {
     fsState.renameErrors = [errno("ENOENT")];
     const { writeJsonFile } = await import("../src/main/libraryStore/storage");
 
-    await expect(writeJsonFile("C:/library/work/chapter.json", { ok: true })).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(
+      writeJsonFile("C:/library/work/chapter.json", { ok: true }),
+    ).rejects.toMatchObject({ code: "ENOENT" });
 
     expect(fsState.renameCalls).toHaveLength(1);
     expect(fsState.unlinkCalls).toHaveLength(1);

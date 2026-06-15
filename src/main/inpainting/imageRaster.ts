@@ -3,7 +3,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import { clamp } from "../../shared/geometry";
 import type { PixelRect } from "./maskGeometry";
 
-export function cropBitmapFromPage(bitmap: Buffer, pageWidth: number, rect: PixelRect): Buffer {
+export function cropBitmapFromPage(
+  bitmap: Buffer,
+  pageWidth: number,
+  rect: PixelRect,
+): Buffer {
   const output = Buffer.alloc(rect.w * rect.h * 4);
   for (let y = 0; y < rect.h; y += 1) {
     const sourceStart = ((rect.y + y) * pageWidth + rect.x) * 4;
@@ -18,11 +22,15 @@ export async function writePngFromBitmap(
   bitmap: Buffer,
   width: number,
   height: number,
-  processSize: { width: number; height: number }
+  processSize: { width: number; height: number },
 ): Promise<void> {
   let image = nativeImage.createFromBitmap(bitmap, { width, height });
   if (processSize.width !== width || processSize.height !== height) {
-    image = image.resize({ width: processSize.width, height: processSize.height, quality: "best" });
+    image = image.resize({
+      width: processSize.width,
+      height: processSize.height,
+      quality: "best",
+    });
   }
   if (image.isEmpty()) {
     throw new Error("Flux 입력 crop 이미지를 만들지 못했습니다.");
@@ -35,13 +43,21 @@ export async function writePngFromMask(
   mask: Uint8Array,
   width: number,
   height: number,
-  processSize: { width: number; height: number }
+  processSize: { width: number; height: number },
 ): Promise<void> {
   const bitmap = Buffer.alloc(processSize.width * processSize.height * 4);
   for (let y = 0; y < processSize.height; y += 1) {
-    const sourceY = clamp(Math.floor(((y + 0.5) * height) / processSize.height), 0, height - 1);
+    const sourceY = clamp(
+      Math.floor(((y + 0.5) * height) / processSize.height),
+      0,
+      height - 1,
+    );
     for (let x = 0; x < processSize.width; x += 1) {
-      const sourceX = clamp(Math.floor(((x + 0.5) * width) / processSize.width), 0, width - 1);
+      const sourceX = clamp(
+        Math.floor(((x + 0.5) * width) / processSize.width),
+        0,
+        width - 1,
+      );
       const value = mask[sourceY * width + sourceX] ? 255 : 0;
       const offset = (y * processSize.width + x) * 4;
       bitmap[offset] = value;
@@ -50,14 +66,21 @@ export async function writePngFromMask(
       bitmap[offset + 3] = 255;
     }
   }
-  const image = nativeImage.createFromBitmap(bitmap, { width: processSize.width, height: processSize.height });
+  const image = nativeImage.createFromBitmap(bitmap, {
+    width: processSize.width,
+    height: processSize.height,
+  });
   if (image.isEmpty()) {
     throw new Error("Flux 마스크 이미지를 만들지 못했습니다.");
   }
   await writeFile(filePath, image.toPNG());
 }
 
-export async function readGeneratedBitmap(filePath: string, targetWidth: number, targetHeight: number): Promise<Buffer> {
+export async function readGeneratedBitmap(
+  filePath: string,
+  targetWidth: number,
+  targetHeight: number,
+): Promise<Buffer> {
   const buffer = await readFile(filePath);
   let image = nativeImage.createFromBuffer(buffer);
   if (image.isEmpty()) {
@@ -68,31 +91,64 @@ export async function readGeneratedBitmap(filePath: string, targetWidth: number,
   }
   const size = image.getSize();
   if (size.width !== targetWidth || size.height !== targetHeight) {
-    image = image.resize({ width: targetWidth, height: targetHeight, quality: "best" });
+    image = image.resize({
+      width: targetWidth,
+      height: targetHeight,
+      quality: "best",
+    });
   }
   return Buffer.from(image.toBitmap());
 }
 
-export function compositeFluxOutput(bitmap: Buffer, generated: Buffer, pageMask: Uint8Array, pageWidth: number, rect: PixelRect, featherPx: number): void {
+export function compositeFluxOutput(
+  bitmap: Buffer,
+  generated: Buffer,
+  pageMask: Uint8Array,
+  pageWidth: number,
+  rect: PixelRect,
+  featherPx: number,
+): void {
   for (let y = 0; y < rect.h; y += 1) {
     for (let x = 0; x < rect.w; x += 1) {
       const pageX = rect.x + x;
       const pageY = rect.y + y;
-      const alpha = maskSoftAlphaAt(pageMask, pageWidth, pageX, pageY, featherPx);
+      const alpha = maskSoftAlphaAt(
+        pageMask,
+        pageWidth,
+        pageX,
+        pageY,
+        featherPx,
+      );
       if (alpha <= 0) {
         continue;
       }
       const targetOffset = (pageY * pageWidth + pageX) * 4;
       const sourceOffset = (y * rect.w + x) * 4;
-      bitmap[targetOffset] = blendByte(bitmap[targetOffset] ?? 0, generated[sourceOffset] ?? 0, alpha);
-      bitmap[targetOffset + 1] = blendByte(bitmap[targetOffset + 1] ?? 0, generated[sourceOffset + 1] ?? 0, alpha);
-      bitmap[targetOffset + 2] = blendByte(bitmap[targetOffset + 2] ?? 0, generated[sourceOffset + 2] ?? 0, alpha);
+      bitmap[targetOffset] = blendByte(
+        bitmap[targetOffset] ?? 0,
+        generated[sourceOffset] ?? 0,
+        alpha,
+      );
+      bitmap[targetOffset + 1] = blendByte(
+        bitmap[targetOffset + 1] ?? 0,
+        generated[sourceOffset + 1] ?? 0,
+        alpha,
+      );
+      bitmap[targetOffset + 2] = blendByte(
+        bitmap[targetOffset + 2] ?? 0,
+        generated[sourceOffset + 2] ?? 0,
+        alpha,
+      );
       bitmap[targetOffset + 3] = 255;
     }
   }
 }
 
-export function maskBoundsInRect(mask: Uint8Array, pageWidth: number, rect: PixelRect): PixelRect | null {
+export function maskBoundsInRect(
+  mask: Uint8Array,
+  pageWidth: number,
+  rect: PixelRect,
+): PixelRect | null {
   let x1 = Number.POSITIVE_INFINITY;
   let y1 = Number.POSITIVE_INFINITY;
   let x2 = -1;
@@ -114,7 +170,12 @@ export function maskBoundsInRect(mask: Uint8Array, pageWidth: number, rect: Pixe
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
 }
 
-export function buildLocalMask(pageMask: Uint8Array, pageWidth: number, rect: PixelRect, paddingPx: number): Uint8Array {
+export function buildLocalMask(
+  pageMask: Uint8Array,
+  pageWidth: number,
+  rect: PixelRect,
+  paddingPx: number,
+): Uint8Array {
   const output = new Uint8Array(rect.w * rect.h);
   for (let y = 0; y < rect.h; y += 1) {
     for (let x = 0; x < rect.w; x += 1) {
@@ -123,14 +184,22 @@ export function buildLocalMask(pageMask: Uint8Array, pageWidth: number, rect: Pi
       }
     }
   }
-  return paddingPx > 0 ? dilateMaskSquare(output, rect.w, rect.h, paddingPx) : output;
+  return paddingPx > 0
+    ? dilateMaskSquare(output, rect.w, rect.h, paddingPx)
+    : output;
 }
 
 function blendByte(base: number, next: number, alpha: number): number {
   return clamp(Math.round(base * (1 - alpha) + next * alpha), 0, 255);
 }
 
-function maskSoftAlphaAt(mask: Uint8Array, width: number, x: number, y: number, featherPx: number): number {
+function maskSoftAlphaAt(
+  mask: Uint8Array,
+  width: number,
+  x: number,
+  y: number,
+  featherPx: number,
+): number {
   if (mask[y * width + x]) {
     return 1;
   }
@@ -162,7 +231,12 @@ function maskSoftAlphaAt(mask: Uint8Array, width: number, x: number, y: number, 
   return clamp(1 - Math.sqrt(bestDistanceSq) / Math.max(1, featherPx), 0, 1);
 }
 
-function dilateMaskSquare(mask: Uint8Array, width: number, height: number, radius: number): Uint8Array {
+function dilateMaskSquare(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+): Uint8Array {
   if (radius <= 0) {
     return mask;
   }

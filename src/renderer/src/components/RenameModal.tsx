@@ -10,7 +10,14 @@ type RenameModalProps = {
   onSubmit: (title: string) => void;
 };
 
-export function RenameModal({ kind, initialTitle, busy, onCancel, onDelete, onSubmit }: RenameModalProps): React.JSX.Element {
+export function RenameModal({
+  kind,
+  initialTitle,
+  busy,
+  onCancel,
+  onDelete,
+  onSubmit,
+}: RenameModalProps): React.JSX.Element {
   const [title, setTitle] = React.useState(initialTitle);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -36,13 +43,22 @@ export function RenameModal({ kind, initialTitle, busy, onCancel, onDelete, onSu
       closeDisabled={busy}
       footer={
         <>
-          <Button variant="danger" className="modal-danger" onClick={onDelete} disabled={busy}>
+          <Button
+            variant="danger"
+            className="modal-danger"
+            onClick={onDelete}
+            disabled={busy}
+          >
             {deleteLabel}
           </Button>
           <Button variant="ghost" onClick={onCancel} disabled={busy}>
             취소
           </Button>
-          <Button variant="primary" onClick={() => onSubmit(trimmed)} disabled={busy || !trimmed}>
+          <Button
+            variant="primary"
+            onClick={() => onSubmit(trimmed)}
+            disabled={busy || !trimmed}
+          >
             저장
           </Button>
         </>

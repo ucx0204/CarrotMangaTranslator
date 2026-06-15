@@ -1,7 +1,11 @@
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import { logError, logInfo } from "../logger";
-import { prepareFluxInpaintingEngine, type FluxInpaintingEngine, type InpaintingRuntimeProgress } from "../inpainting";
+import {
+  prepareFluxInpaintingEngine,
+  type FluxInpaintingEngine,
+  type InpaintingRuntimeProgress,
+} from "../inpainting";
 import type { FluxBackend } from "../../shared/types";
 
 const FLUX_ENGINE_IDLE_TTL_MS = 5 * 60 * 1000;
@@ -25,23 +29,41 @@ export async function acquireFluxInpaintingEngine(options: {
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
 }): Promise<FluxEngineLease> {
-  const runtimeDir = join(options.appPaths.dataRoot, "models", "inpainting", "mgt-flux-klein-runtime");
-  const modelDir = join(options.appPaths.dataRoot, "models", "inpainting", "flux-klein-4b");
-  const runRootDir = join(options.appPaths.dataRoot, "tmp", "runtime", "flux-inpainting");
+  const runtimeDir = join(
+    options.appPaths.dataRoot,
+    "models",
+    "inpainting",
+    "mgt-flux-klein-runtime",
+  );
+  const modelDir = join(
+    options.appPaths.dataRoot,
+    "models",
+    "inpainting",
+    "flux-klein-4b",
+  );
+  const runRootDir = join(
+    options.appPaths.dataRoot,
+    "tmp",
+    "runtime",
+    "flux-inpainting",
+  );
   const fluxBackend = options.fluxBackend ?? "cuda-native";
   const key = `${fluxBackend}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
 
-  if (cachedEngine?.key === key && cachedEngine.engine.isHealthy?.() !== false) {
+  if (
+    cachedEngine?.key === key &&
+    cachedEngine.engine.isHealthy?.() !== false
+  ) {
     clearIdleTimer(cachedEngine);
     options.onProgress?.({
       progressText: "Flux 인페인팅 준비 완료",
       detail: "캐시된 Flux 엔진 사용",
       progressMode: "log-only",
-      installLogLine: "캐시된 Flux 인페인팅 엔진을 재사용합니다."
+      installLogLine: "캐시된 Flux 인페인팅 엔진을 재사용합니다.",
     });
     return {
       engine: cachedEngine.engine,
-      release: scheduleCachedFluxEngineDispose
+      release: scheduleCachedFluxEngineDispose,
     };
   }
 
@@ -56,22 +78,24 @@ export async function acquireFluxInpaintingEngine(options: {
     fluxBackend,
     runRootDir,
     signal: options.signal,
-    onProgress: options.onProgress
+    onProgress: options.onProgress,
   });
   cachedEngine = {
     key,
     engine,
-    idleTimer: null
+    idleTimer: null,
   };
   logInfo("Flux inpainting engine cached", { ttlMs: FLUX_ENGINE_IDLE_TTL_MS });
 
   return {
     engine,
-    release: scheduleCachedFluxEngineDispose
+    release: scheduleCachedFluxEngineDispose,
   };
 }
 
-export async function disposeCachedFluxInpaintingEngine(reason: string): Promise<boolean> {
+export async function disposeCachedFluxInpaintingEngine(
+  reason: string,
+): Promise<boolean> {
   const current = cachedEngine;
   if (!current) {
     return false;
@@ -82,7 +106,10 @@ export async function disposeCachedFluxInpaintingEngine(reason: string): Promise
     await current.engine.dispose();
     logInfo("Flux inpainting engine disposed", { reason });
   } catch (error) {
-    logError("Failed to dispose cached Flux inpainting engine", { reason, error });
+    logError("Failed to dispose cached Flux inpainting engine", {
+      reason,
+      error,
+    });
   }
   return true;
 }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ChapterSnapshot } from "../src/shared/types";
-import { markChapterPagesRunning, mergeLiveChapterPreservingDirtyPages, resolveSelectionAfterChapterSync } from "../src/renderer/src/lib/chapterSync";
+import {
+  markChapterPagesRunning,
+  mergeLiveChapterPreservingDirtyPages,
+  resolveSelectionAfterChapterSync,
+} from "../src/renderer/src/lib/chapterSync";
 
 function makeChapter(): ChapterSnapshot {
   return {
@@ -35,12 +39,12 @@ function makeChapter(): ChapterSnapshot {
             textAlign: "center",
             textColor: "#111111",
             backgroundColor: "#fffdf5",
-            opacity: 1
-          }
+            opacity: 1,
+          },
         ],
         analysisStatus: "completed",
         createdAt: "2026-04-19T00:00:00.000Z",
-        updatedAt: "2026-04-19T00:00:00.000Z"
+        updatedAt: "2026-04-19T00:00:00.000Z",
       },
       {
         id: "page-2",
@@ -52,19 +56,23 @@ function makeChapter(): ChapterSnapshot {
         blocks: [],
         analysisStatus: "idle",
         createdAt: "2026-04-19T00:00:00.000Z",
-        updatedAt: "2026-04-19T00:00:00.000Z"
-      }
-    ]
+        updatedAt: "2026-04-19T00:00:00.000Z",
+      },
+    ],
   };
 }
 
 describe("chapter sync helpers", () => {
   it("keeps the current page and block selection when they still exist after a live refresh", () => {
-    const selection = resolveSelectionAfterChapterSync(makeChapter(), "page-1", "block-1");
+    const selection = resolveSelectionAfterChapterSync(
+      makeChapter(),
+      "page-1",
+      "block-1",
+    );
 
     expect(selection).toEqual({
       selectedPageId: "page-1",
-      selectedBlockId: "block-1"
+      selectedBlockId: "block-1",
     });
   });
 
@@ -72,11 +80,15 @@ describe("chapter sync helpers", () => {
     const chapter = makeChapter();
     chapter.pages[0].blocks = [];
 
-    const selection = resolveSelectionAfterChapterSync(chapter, "missing-page", "block-1");
+    const selection = resolveSelectionAfterChapterSync(
+      chapter,
+      "missing-page",
+      "block-1",
+    );
 
     expect(selection).toEqual({
       selectedPageId: "page-1",
-      selectedBlockId: null
+      selectedBlockId: null,
     });
   });
 
@@ -84,14 +96,24 @@ describe("chapter sync helpers", () => {
     const next = markChapterPagesRunning(makeChapter(), "pending");
 
     expect(next.status).toBe("running");
-    expect(next.pages.map((page) => page.analysisStatus)).toEqual(["completed", "running"]);
+    expect(next.pages.map((page) => page.analysisStatus)).toEqual([
+      "completed",
+      "running",
+    ]);
     expect(next.pages[1].lastError).toBeUndefined();
   });
 
   it("marks the requested page as running for single-page retranslation", () => {
-    const next = markChapterPagesRunning(makeChapter(), "single-page", "page-1");
+    const next = markChapterPagesRunning(
+      makeChapter(),
+      "single-page",
+      "page-1",
+    );
 
-    expect(next.pages.map((page) => page.analysisStatus)).toEqual(["running", "idle"]);
+    expect(next.pages.map((page) => page.analysisStatus)).toEqual([
+      "running",
+      "idle",
+    ]);
   });
 
   it("preserves local edits for dirty completed pages during live refresh", () => {
@@ -101,9 +123,9 @@ describe("chapter sync helpers", () => {
       blocks: [
         {
           ...local.pages[0].blocks[0],
-          translatedText: "수정된 번역문"
-        }
-      ]
+          translatedText: "수정된 번역문",
+        },
+      ],
     };
 
     const live = makeChapter();
@@ -125,15 +147,19 @@ describe("chapter sync helpers", () => {
           textAlign: "center",
           textColor: "#111111",
           backgroundColor: "#fffdf5",
-          opacity: 1
-        }
-      ]
+          opacity: 1,
+        },
+      ],
     };
 
-    const merged = mergeLiveChapterPreservingDirtyPages(live, local, ["page-1"]);
+    const merged = mergeLiveChapterPreservingDirtyPages(live, local, [
+      "page-1",
+    ]);
 
     expect(merged.preservedDirtyPageIds).toEqual(["page-1"]);
-    expect(merged.chapter.pages[0]?.blocks[0]?.translatedText).toBe("수정된 번역문");
+    expect(merged.chapter.pages[0]?.blocks[0]?.translatedText).toBe(
+      "수정된 번역문",
+    );
     expect(merged.chapter.pages[1]?.analysisStatus).toBe("completed");
     expect(merged.chapter.pages[1]?.blocks[0]?.translatedText).toBe("KO2");
   });
@@ -146,9 +172,9 @@ describe("chapter sync helpers", () => {
       blocks: [
         {
           ...local.pages[0].blocks[0],
-          translatedText: "수정된 번역문"
-        }
-      ]
+          translatedText: "수정된 번역문",
+        },
+      ],
     };
 
     const live = makeChapter();
@@ -159,16 +185,20 @@ describe("chapter sync helpers", () => {
       blocks: [
         {
           ...live.pages[0].blocks[0],
-          translatedText: "새 번역 결과"
-        }
-      ]
+          translatedText: "새 번역 결과",
+        },
+      ],
     };
 
-    const merged = mergeLiveChapterPreservingDirtyPages(live, local, ["page-1"]);
+    const merged = mergeLiveChapterPreservingDirtyPages(live, local, [
+      "page-1",
+    ]);
 
     expect(merged.preservedDirtyPageIds).toEqual(["page-1"]);
     expect(merged.chapter.pages[0]?.analysisStatus).toBe("completed");
     expect(merged.chapter.pages[0]?.updatedAt).toBe("2026-04-19T00:00:00.000Z");
-    expect(merged.chapter.pages[0]?.blocks[0]?.translatedText).toBe("수정된 번역문");
+    expect(merged.chapter.pages[0]?.blocks[0]?.translatedText).toBe(
+      "수정된 번역문",
+    );
   });
 });

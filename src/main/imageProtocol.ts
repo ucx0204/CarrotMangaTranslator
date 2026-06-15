@@ -18,17 +18,17 @@ export function registerImageProtocolScheme(): void {
       privileges: {
         standard: true,
         secure: true,
-        supportFetchAPI: true
-      }
+        supportFetchAPI: true,
+      },
     },
     {
       scheme: FONT_PROTOCOL,
       privileges: {
         standard: true,
         secure: true,
-        supportFetchAPI: true
-      }
-    }
+        supportFetchAPI: true,
+      },
+    },
   ]);
 }
 
@@ -43,7 +43,10 @@ export function registerImageProtocolHandler(): void {
       }
       return net.fetch(pathToFileURL(imagePath).toString());
     } catch (error) {
-      logError("Failed to serve image protocol request", { url: request.url, error });
+      logError("Failed to serve image protocol request", {
+        url: request.url,
+        error,
+      });
       return new Response("Image protocol error", { status: 500 });
     }
   });
@@ -58,7 +61,10 @@ export function registerImageProtocolHandler(): void {
       }
       return net.fetch(pathToFileURL(fontPath).toString());
     } catch (error) {
-      logError("Failed to serve font protocol request", { url: request.url, error });
+      logError("Failed to serve font protocol request", {
+        url: request.url,
+        error,
+      });
       return new Response("Font protocol error", { status: 500 });
     }
   });

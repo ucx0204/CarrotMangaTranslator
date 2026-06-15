@@ -20,9 +20,11 @@ class FakeExportWindow {
   windowOpenHandler: (() => { action: "deny" | "allow" }) | null = null;
   destroy = vi.fn();
   webContents = {
-    setWindowOpenHandler: vi.fn((handler: () => { action: "deny" | "allow" }) => {
-      this.windowOpenHandler = handler;
-    }),
+    setWindowOpenHandler: vi.fn(
+      (handler: () => { action: "deny" | "allow" }) => {
+        this.windowOpenHandler = handler;
+      },
+    ),
     on: vi.fn((event: string, listener: Listener) => {
       this.listeners.set(event, listener);
     }),
@@ -31,7 +33,7 @@ class FakeExportWindow {
         return "data:image/png;base64,b3V0";
       }
       return true;
-    })
+    }),
   };
 
   constructor(options: ExportWindowOptions) {
@@ -60,13 +62,21 @@ describe("page export BrowserWindow security", () => {
   it("uses sandboxed offscreen preferences and skips source CSS fallback when packaged", async () => {
     const rootDir = await createTempRoot();
     await mkdir(join(rootDir, "src", "renderer", "src"), { recursive: true });
-    await writeFile(join(rootDir, "src", "renderer", "src", "styles.css"), "body { color: red; }", "utf8");
-    const { renderPageWithTranslationBlocksForExport } = await loadPageExport(rootDir);
+    await writeFile(
+      join(rootDir, "src", "renderer", "src", "styles.css"),
+      "body { color: red; }",
+      "utf8",
+    );
+    const { renderPageWithTranslationBlocksForExport } =
+      await loadPageExport(rootDir);
 
-    const png = await renderPageWithTranslationBlocksForExport(makePage(rootDir), {
-      dataRoot: rootDir,
-      decodeFallback: async () => null
-    });
+    const png = await renderPageWithTranslationBlocksForExport(
+      makePage(rootDir),
+      {
+        dataRoot: rootDir,
+        decodeFallback: async () => null,
+      },
+    );
 
     expect(png.toString()).toBe("out");
     expect(latestWindow?.options.webPreferences).toMatchObject({
@@ -76,26 +86,32 @@ describe("page export BrowserWindow security", () => {
       contextIsolation: true,
       nodeIntegration: false,
       webSecurity: true,
-      allowRunningInsecureContent: false
+      allowRunningInsecureContent: false,
     });
     expect(latestWindow?.windowOpenHandler?.()).toEqual({ action: "deny" });
 
     const blockedEvent = { preventDefault: vi.fn() };
-    latestWindow?.listeners.get("will-navigate")?.(blockedEvent, "https://example.test/");
+    latestWindow?.listeners.get("will-navigate")?.(
+      blockedEvent,
+      "https://example.test/",
+    );
     expect(blockedEvent.preventDefault).toHaveBeenCalledTimes(1);
-    expect(latestWindow?.loadedHtml).not.toContain("src/renderer/src/styles.css");
+    expect(latestWindow?.loadedHtml).not.toContain(
+      "src/renderer/src/styles.css",
+    );
   });
 
   it("preserves whitespace slots for vertical text in PNG export rendering", async () => {
     const rootDir = await createTempRoot();
-    const { renderPageWithTranslationBlocksForExport } = await loadPageExport(rootDir);
+    const { renderPageWithTranslationBlocksForExport } =
+      await loadPageExport(rootDir);
 
     await renderPageWithTranslationBlocksForExport(makePage(rootDir, true), {
       dataRoot: rootDir,
-      decodeFallback: async () => null
+      decodeFallback: async () => null,
     });
 
-    expect(latestWindow?.loadedHtml).not.toContain("replace(/\\s+/g, \"\")");
+    expect(latestWindow?.loadedHtml).not.toContain('replace(/\\s+/g, "")');
     expect(latestWindow?.loadedHtml).toContain('replace(/\\n/g, " ")');
     expect(latestWindow?.loadedHtml).toContain("if (!/\\s/u.test(char))");
   });
@@ -107,7 +123,9 @@ async function createTempRoot(): Promise<string> {
   return rootDir;
 }
 
-async function loadPageExport(rootDir: string): Promise<typeof import("../src/main/pageExport")> {
+async function loadPageExport(
+  rootDir: string,
+): Promise<typeof import("../src/main/pageExport")> {
   vi.resetModules();
   latestWindow = null;
   vi.doMock("electron", () => ({
@@ -116,20 +134,20 @@ async function loadPageExport(rootDir: string): Promise<typeof import("../src/ma
       createFromPath: () => ({
         isEmpty: () => false,
         getSize: () => ({ width: 16, height: 16 }),
-        toPNG: () => Buffer.from("source")
-      })
-    }
+        toPNG: () => Buffer.from("source"),
+      }),
+    },
   }));
   vi.doMock("../src/main/appPaths", () => ({
     getAppPaths: () => ({
       isPackaged: true,
       repoRoot: rootDir,
-      fontsDir: join(rootDir, "fonts")
-    })
+      fontsDir: join(rootDir, "fonts"),
+    }),
   }));
   vi.doMock("../src/main/customFonts", () => ({
     listCustomFonts: () => [],
-    resolveCustomFontFilePath: () => null
+    resolveCustomFontFilePath: () => null,
   }));
   return import("../src/main/pageExport");
 }
@@ -158,12 +176,12 @@ function makePage(rootDir: string, withVerticalBlock = false): MangaPage {
             textAlign: "center",
             textColor: "#111111",
             backgroundColor: "#ffffff",
-            opacity: 0.9
-          }
+            opacity: 0.9,
+          },
         ]
       : [],
     analysisStatus: "idle",
     createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z"
+    updatedAt: "2026-01-01T00:00:00.000Z",
   };
 }

@@ -12,7 +12,7 @@ const {
   rmSync,
   statfsSync,
   statSync,
-  writeFileSync
+  writeFileSync,
 } = require("node:fs");
 const { copyFile, mkdir, rm, writeFile } = require("node:fs/promises");
 const https = require("node:https");
@@ -24,7 +24,7 @@ const {
   isAbsolute,
   join,
   relative,
-  resolve
+  resolve,
 } = require("node:path");
 const AdmZip = require("adm-zip");
 
@@ -41,7 +41,7 @@ const rocmPackageUrls = [
   `${rocmBaseUrl}/rocm_sdk_core-${rocmVersion}-py3-none-win_amd64.whl`,
   `${rocmBaseUrl}/rocm_sdk_devel-${rocmVersion}-py3-none-win_amd64.whl`,
   `${rocmBaseUrl}/rocm_sdk_libraries_custom-${rocmVersion}-py3-none-win_amd64.whl`,
-  `${rocmBaseUrl}/rocm-${rocmVersion}.tar.gz`
+  `${rocmBaseUrl}/rocm-${rocmVersion}.tar.gz`,
 ];
 const buildPackages = [
   "scikit-build-core>=0.11.0",
@@ -49,7 +49,7 @@ const buildPackages = [
   "ninja>=1.11.1",
   "packaging>=24.0",
   "setuptools>=69.0.0",
-  "wheel>=0.43.0"
+  "wheel>=0.43.0",
 ];
 const fluxPackages = [
   "--no-build-isolation",
@@ -57,13 +57,19 @@ const fluxPackages = [
   "--force-reinstall",
   "stable-diffusion-cpp-python",
   "huggingface_hub>=0.36.0",
-  "pillow>=10.0.0"
+  "pillow>=10.0.0",
 ];
 const windowsMsvcCompilerTarget = "x86_64-pc-windows-msvc";
 const recommendedBuildFreeBytes = 80 * 1024 * 1024 * 1024;
 const minimumBuildFreeBytes = 35 * 1024 * 1024 * 1024;
 const minimumOutputFreeBytes = 8 * 1024 * 1024 * 1024;
-const windowsDynamicRuntimeLibNames = ["msvcrt.lib", "msvcprt.lib", "vcruntime.lib", "ucrt.lib", "oldnames.lib"];
+const windowsDynamicRuntimeLibNames = [
+  "msvcrt.lib",
+  "msvcprt.lib",
+  "vcruntime.lib",
+  "ucrt.lib",
+  "oldnames.lib",
+];
 const defaultAmdGpuTargets = [
   // Broad ROCm/HIP Windows runtime coverage. These must be concrete LLVM targets,
   // not grouped names like "gfx110X".
@@ -85,7 +91,7 @@ const defaultAmdGpuTargets = [
   "gfx1152",
   "gfx1153",
   "gfx1200",
-  "gfx1201"
+  "gfx1201",
 ];
 const windowsSystemImportLibNames = [
   "kernel32.lib",
@@ -97,7 +103,7 @@ const windowsSystemImportLibNames = [
   "oleaut32.lib",
   "uuid.lib",
   "comdlg32.lib",
-  "advapi32.lib"
+  "advapi32.lib",
 ];
 
 main().catch((error) => {
@@ -109,8 +115,12 @@ main().catch((error) => {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const outputPath = resolve(args.out || join(rootDir, "dist", "runtime", outputFileName));
-  const workDir = resolve(args["work-dir"] || resolveDefaultWorkDir(stamp, outputPath));
+  const outputPath = resolve(
+    args.out || join(rootDir, "dist", "runtime", outputFileName),
+  );
+  const workDir = resolve(
+    args["work-dir"] || resolveDefaultWorkDir(stamp, outputPath),
+  );
   const runtimeDir = resolve(args["runtime-dir"] || join(workDir, "runtime"));
   const downloadsDir = join(workDir, "downloads");
   const logsDir = join(workDir, "logs");
@@ -121,12 +131,18 @@ async function main() {
   const logger = createLogger(logPath);
 
   try {
-    logger.line(`MGT Flux ROCm prebuilt runtime build started at ${new Date().toISOString()}`);
+    logger.line(
+      `MGT Flux ROCm prebuilt runtime build started at ${new Date().toISOString()}`,
+    );
     logger.line(`workDir=${workDir}`);
     logger.line(`runtimeDir=${runtimeDir}`);
     logger.line(`outputPath=${outputPath}`);
-    logger.line(`workDir free=${formatOptionalBytes(getPathFreeBytes(workDir))}`);
-    logger.line(`outputDir free=${formatOptionalBytes(getPathFreeBytes(dirname(outputPath)))}`);
+    logger.line(
+      `workDir free=${formatOptionalBytes(getPathFreeBytes(workDir))}`,
+    );
+    logger.line(
+      `outputDir free=${formatOptionalBytes(getPathFreeBytes(dirname(outputPath)))}`,
+    );
     await mkdir(logsDir, { recursive: true });
     await mkdir(downloadsDir, { recursive: true });
     await mkdir(dirname(outputPath), { recursive: true });
@@ -136,7 +152,9 @@ async function main() {
       throw new Error("This runtime builder must be run on Windows x64.");
     }
     if (existsSync(outputPath) && !force) {
-      throw new Error(`${outputPath} already exists. Use --force to overwrite it.`);
+      throw new Error(
+        `${outputPath} already exists. Use --force to overwrite it.`,
+      );
     }
 
     const nativeBuildEnv = resolveWindowsNativeBuildEnv();
@@ -144,7 +162,11 @@ async function main() {
       throw new Error(formatWindowsNativeBuildToolsMissingMessage());
     }
     const gpuTargets = resolveGpuTargets(args);
-    await writeFile(envPath, `${JSON.stringify(snapshotEnvironment(nativeBuildEnv, gpuTargets), null, 2)}\n`, "utf8");
+    await writeFile(
+      envPath,
+      `${JSON.stringify(snapshotEnvironment(nativeBuildEnv, gpuTargets), null, 2)}\n`,
+      "utf8",
+    );
     logger.line(`environment snapshot: ${envPath}`);
     logger.line(`Windows SDK: ${nativeBuildEnv.sdkVersion || "unknown"}`);
     logger.line(`GPU targets: ${gpuTargets}`);
@@ -153,20 +175,52 @@ async function main() {
       await rm(runtimeDir, { recursive: true, force: true });
     }
     await mkdir(runtimeDir, { recursive: true });
-    const pythonDir = join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`);
+    const pythonDir = join(
+      runtimeDir,
+      "bootstrap-python",
+      `python-${pythonVersion}`,
+    );
     const pythonExe = join(pythonDir, "python.exe");
     const packageDir = join(runtimeDir, "p");
     await rm(packageDir, { recursive: true, force: true });
     await mkdir(packageDir, { recursive: true });
 
-    await prepareEmbeddedPython({ pythonDir, pythonExe, packageDir, downloadsDir, logger });
+    await prepareEmbeddedPython({
+      pythonDir,
+      pythonExe,
+      packageDir,
+      downloadsDir,
+      logger,
+    });
     const bootstrapEnv = buildPythonPackageInstallEnv(runtimeDir, packageDir);
-    await run(pythonExe, ["-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"], { env: bootstrapEnv, logger });
-    await run(pythonExe, ["-m", "pip", "install", "--upgrade", ...buildPackages], { env: bootstrapEnv, logger });
-    await run(pythonExe, ["-m", "pip", "install", "--target", packageDir, ...rocmPackageUrls], { env: bootstrapEnv, logger });
+    await run(
+      pythonExe,
+      ["-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"],
+      { env: bootstrapEnv, logger },
+    );
+    await run(
+      pythonExe,
+      ["-m", "pip", "install", "--upgrade", ...buildPackages],
+      { env: bootstrapEnv, logger },
+    );
+    await run(
+      pythonExe,
+      ["-m", "pip", "install", "--target", packageDir, ...rocmPackageUrls],
+      { env: bootstrapEnv, logger },
+    );
     await initializeRocmSdk({ pythonExe, packageDir, runtimeDir, logger });
-    const installEnv = buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, logger);
-    await run(pythonExe, ["-m", "pip", "install", "--target", packageDir, ...fluxPackages], { env: installEnv, logger });
+    const installEnv = buildRuntimeEnv(
+      runtimeDir,
+      packageDir,
+      nativeBuildEnv,
+      gpuTargets,
+      logger,
+    );
+    await run(
+      pythonExe,
+      ["-m", "pip", "install", "--target", packageDir, ...fluxPackages],
+      { env: installEnv, logger },
+    );
 
     const workerSource = join(rootDir, "src", "main", "runtime", workerFile);
     if (!isFile(workerSource)) {
@@ -174,7 +228,12 @@ async function main() {
     }
     await copyFile(workerSource, join(runtimeDir, workerFile));
     await verifyRuntime({ pythonExe, packageDir, env: installEnv, logger });
-    await writeRuntimeManifest({ runtimeDir, gpuTargets, nativeBuildEnv, logger });
+    await writeRuntimeManifest({
+      runtimeDir,
+      gpuTargets,
+      nativeBuildEnv,
+      logger,
+    });
     await createRuntimeZip({ runtimeDir, outputPath, logger });
     const sha256 = await sha256File(outputPath);
     const sidecar = {
@@ -184,10 +243,18 @@ async function main() {
       createdAt: new Date().toISOString(),
       rocmVersion,
       pythonVersion,
-      gpuTargets: gpuTargets ? gpuTargets.split(";") : []
+      gpuTargets: gpuTargets ? gpuTargets.split(";") : [],
     };
-    await writeFile(`${outputPath}.sha256`, `${sha256}  ${basename(outputPath)}\n`, "utf8");
-    await writeFile(`${outputPath}.json`, `${JSON.stringify(sidecar, null, 2)}\n`, "utf8");
+    await writeFile(
+      `${outputPath}.sha256`,
+      `${sha256}  ${basename(outputPath)}\n`,
+      "utf8",
+    );
+    await writeFile(
+      `${outputPath}.json`,
+      `${JSON.stringify(sidecar, null, 2)}\n`,
+      "utf8",
+    );
     logger.line(`ZIP: ${outputPath}`);
     logger.line(`SHA256: ${sha256}`);
     logger.line("MGT Flux ROCm prebuilt runtime build finished successfully.");
@@ -226,23 +293,28 @@ function parseArgs(argv) {
 }
 
 function resolveDefaultWorkDir(stamp, outputPath) {
-  const explicitRoot = process.env.MGT_FLUX_ROCM_BUILD_ROOT || process.env.MGT_FLUX_BUILD_ROOT;
+  const explicitRoot =
+    process.env.MGT_FLUX_ROCM_BUILD_ROOT || process.env.MGT_FLUX_BUILD_ROOT;
   if (explicitRoot) {
     return join(explicitRoot, stamp);
   }
 
   const candidates = uniqueTruthy([
-    isAsciiPath(dirname(outputPath)) ? join(dirname(outputPath), ".mgt-flux-rocm-runtime-build") : "",
-    process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, "mgt-flux-rocm-runtime-build") : "",
+    isAsciiPath(dirname(outputPath))
+      ? join(dirname(outputPath), ".mgt-flux-rocm-runtime-build")
+      : "",
+    process.env.LOCALAPPDATA
+      ? join(process.env.LOCALAPPDATA, "mgt-flux-rocm-runtime-build")
+      : "",
     join(os.tmpdir(), "mgt-flux-rocm-runtime-build"),
-    ...resolveWindowsScratchDriveCandidates()
+    ...resolveWindowsScratchDriveCandidates(),
   ]).filter(isAsciiPath);
 
   const scored = candidates
     .map((pathValue, index) => ({
       pathValue,
       index,
-      freeBytes: getPathFreeBytes(pathValue)
+      freeBytes: getPathFreeBytes(pathValue),
     }))
     .filter((item) => item.freeBytes !== null)
     .sort((left, right) => {
@@ -257,7 +329,8 @@ function resolveDefaultWorkDir(stamp, outputPath) {
       return left.index - right.index;
     });
 
-  const base = scored[0]?.pathValue || candidates[0] || "C:\\mgt-flux-rocm-runtime-build";
+  const base =
+    scored[0]?.pathValue || candidates[0] || "C:\\mgt-flux-rocm-runtime-build";
   return join(base, stamp);
 }
 
@@ -305,8 +378,8 @@ function ensureBuildDiskSpace({ workDir, outputPath, logger }) {
         `Not enough free space for ROCm runtime build workDir: ${workDir}`,
         `Available: ${formatBytes(workFreeBytes)}, required minimum: ${formatBytes(minimumBuildFreeBytes)}.`,
         "Set MGT_FLUX_ROCM_BUILD_ROOT to a spacious ASCII path, for example:",
-        "  $env:MGT_FLUX_ROCM_BUILD_ROOT='D:\\mgt-flux-rocm-runtime-build'"
-      ].join("\n")
+        "  $env:MGT_FLUX_ROCM_BUILD_ROOT='D:\\mgt-flux-rocm-runtime-build'",
+      ].join("\n"),
     );
   }
   if (outputFreeBytes !== null && outputFreeBytes < minimumOutputFreeBytes) {
@@ -314,13 +387,13 @@ function ensureBuildDiskSpace({ workDir, outputPath, logger }) {
       [
         `Not enough free space for ROCm runtime ZIP output: ${dirname(outputPath)}`,
         `Available: ${formatBytes(outputFreeBytes)}, required minimum: ${formatBytes(minimumOutputFreeBytes)}.`,
-        "Pass --out to a drive with more space or free up the output drive."
-      ].join("\n")
+        "Pass --out to a drive with more space or free up the output drive.",
+      ].join("\n"),
     );
   }
   if (workFreeBytes !== null && workFreeBytes < recommendedBuildFreeBytes) {
     logger.line(
-      `warning: workDir has ${formatBytes(workFreeBytes)} free; ${formatBytes(recommendedBuildFreeBytes)}+ is recommended for ROCm wheel builds.`
+      `warning: workDir has ${formatBytes(workFreeBytes)} free; ${formatBytes(recommendedBuildFreeBytes)}+ is recommended for ROCm wheel builds.`,
     );
   }
 }
@@ -361,11 +434,17 @@ function createLogger(logPath) {
     },
     close() {
       stream.end();
-    }
+    },
   };
 }
 
-async function prepareEmbeddedPython({ pythonDir, pythonExe, packageDir, downloadsDir, logger }) {
+async function prepareEmbeddedPython({
+  pythonDir,
+  pythonExe,
+  packageDir,
+  downloadsDir,
+  logger,
+}) {
   if (!isFile(pythonExe)) {
     await rm(pythonDir, { recursive: true, force: true });
     await mkdir(pythonDir, { recursive: true });
@@ -382,9 +461,9 @@ async function prepareEmbeddedPython({ pythonDir, pythonExe, packageDir, downloa
       ...process.env,
       PYTHONNOUSERSITE: "1",
       PYTHONUTF8: "1",
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: "1",
     },
-    logger
+    logger,
   });
 }
 
@@ -393,7 +472,7 @@ function buildPythonPackageInstallEnv(runtimeDir, packageDir) {
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`),
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`, "Scripts"),
     packageDir,
-    join(packageDir, "Scripts")
+    join(packageDir, "Scripts"),
   ];
   const tmpDir = join(runtimeDir, "t");
   const pipCacheDir = join(runtimeDir, "pip-cache");
@@ -409,31 +488,66 @@ function buildPythonPackageInstallEnv(runtimeDir, packageDir) {
     PIP_DISABLE_PIP_VERSION_CHECK: "1",
     TMP: tmpDir,
     TEMP: tmpDir,
-    PATH: mergePathList(pathEntries, process.env.PATH)
+    PATH: mergePathList(pathEntries, process.env.PATH),
   };
 }
 
-async function initializeRocmSdk({ pythonExe, packageDir, runtimeDir, logger }) {
+async function initializeRocmSdk({
+  pythonExe,
+  packageDir,
+  runtimeDir,
+  logger,
+}) {
   const env = buildPythonPackageInstallEnv(runtimeDir, packageDir);
   logger.line("Initializing ROCm SDK package contents with rocm_sdk.");
-  await run(pythonExe, ["-m", "rocm_sdk", "init"], { env, logger, cwd: packageDir });
-  await run(pythonExe, ["-m", "rocm_sdk", "path", "--cmake"], { env, logger, cwd: packageDir });
+  await run(pythonExe, ["-m", "rocm_sdk", "init"], {
+    env,
+    logger,
+    cwd: packageDir,
+  });
+  await run(pythonExe, ["-m", "rocm_sdk", "path", "--cmake"], {
+    env,
+    logger,
+    cwd: packageDir,
+  });
 }
 
-function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, logger) {
+function buildRuntimeEnv(
+  runtimeDir,
+  packageDir,
+  nativeBuildEnv,
+  gpuTargets,
+  logger,
+) {
   const rocmPaths = resolveWindowsRocmSdkPaths(packageDir);
-  const rcCompiler = stageWindowsResourceCompiler(runtimeDir, resolveWindowsResourceCompiler(rocmPaths, nativeBuildEnv));
+  const rcCompiler = stageWindowsResourceCompiler(
+    runtimeDir,
+    resolveWindowsResourceCompiler(rocmPaths, nativeBuildEnv),
+  );
   validateWindowsRocmSdkPaths(rocmPaths, packageDir, logger, rcCompiler);
-  const runtimeLibraryPaths = resolveWindowsRuntimeLibraryPaths(nativeBuildEnv.libPaths);
-  const stagedRuntimeLibraryPaths = stageWindowsRuntimeLibraries(runtimeDir, runtimeLibraryPaths);
-  const runtimeLibraryCmakeValue = stagedRuntimeLibraryPaths.map((item) => quoteArg(toCmakePath(item))).join(" ");
-  const runtimeLibraryLdFlags = stagedRuntimeLibraryPaths.map((item) => quoteArg(toCmakePath(item))).join(" ");
-  const rocmCmakePrefixList = rocmPaths.cmakePrefixPaths.map(toCmakePath).join(";");
+  const runtimeLibraryPaths = resolveWindowsRuntimeLibraryPaths(
+    nativeBuildEnv.libPaths,
+  );
+  const stagedRuntimeLibraryPaths = stageWindowsRuntimeLibraries(
+    runtimeDir,
+    runtimeLibraryPaths,
+  );
+  const runtimeLibraryCmakeValue = stagedRuntimeLibraryPaths
+    .map((item) => quoteArg(toCmakePath(item)))
+    .join(" ");
+  const runtimeLibraryLdFlags = stagedRuntimeLibraryPaths
+    .map((item) => quoteArg(toCmakePath(item)))
+    .join(" ");
+  const rocmCmakePrefixList = rocmPaths.cmakePrefixPaths
+    .map(toCmakePath)
+    .join(";");
   const hipCompilerFlags = [
     `--rocm-device-lib-path=${toCmakePath(rocmPaths.deviceLibPath)}`,
     `--hip-device-lib-path=${toCmakePath(rocmPaths.deviceLibPath)}`,
-    `--hip-path=${toCmakePath(rocmPaths.hipRoot)}`
-  ].map(quoteArg).join(" ");
+    `--hip-path=${toCmakePath(rocmPaths.hipRoot)}`,
+  ]
+    .map(quoteArg)
+    .join(" ");
   const pathEntries = [
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`),
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`, "Scripts"),
@@ -448,26 +562,46 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, log
     join(packageDir, "_rocm_sdk_devel", "lib", "llvm", "bin"),
     join(packageDir, "_rocm_sdk_libraries_custom", "bin"),
     join(packageDir, "_rocm_sdk_libraries_custom", "bin", "hipblaslt"),
-    join(packageDir, "_rocm_sdk_libraries_custom", "bin", "hipblaslt", "library")
+    join(
+      packageDir,
+      "_rocm_sdk_libraries_custom",
+      "bin",
+      "hipblaslt",
+      "library",
+    ),
   ];
   const cmakeArgs = [
     `-DCMAKE_C_COMPILER:FILEPATH=${toCmakePath(rocmPaths.clang)}`,
     `-DCMAKE_CXX_COMPILER:FILEPATH=${toCmakePath(rocmPaths.clangxx)}`,
     `-DCMAKE_RC_COMPILER:FILEPATH=${toCmakePath(rcCompiler)}`,
-    isFile(rocmPaths.llvmMt) ? `-DCMAKE_MT:FILEPATH=${toCmakePath(rocmPaths.llvmMt)}` : "",
-    nativeBuildEnv.sdkVersion ? `-DCMAKE_SYSTEM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
-    nativeBuildEnv.sdkVersion ? `-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=${nativeBuildEnv.sdkVersion}` : "",
+    isFile(rocmPaths.llvmMt)
+      ? `-DCMAKE_MT:FILEPATH=${toCmakePath(rocmPaths.llvmMt)}`
+      : "",
+    nativeBuildEnv.sdkVersion
+      ? `-DCMAKE_SYSTEM_VERSION=${nativeBuildEnv.sdkVersion}`
+      : "",
+    nativeBuildEnv.sdkVersion
+      ? `-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=${nativeBuildEnv.sdkVersion}`
+      : "",
     `-DCMAKE_C_COMPILER_TARGET=${windowsMsvcCompilerTarget}`,
     `-DCMAKE_CXX_COMPILER_TARGET=${windowsMsvcCompilerTarget}`,
     "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
-    quoteCmakeArg(`-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`),
-    quoteCmakeArg(`-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`),
+    quoteCmakeArg(
+      `-DCMAKE_C_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`,
+    ),
+    quoteCmakeArg(
+      `-DCMAKE_CXX_STANDARD_LIBRARIES:STRING=${runtimeLibraryCmakeValue}`,
+    ),
     quoteCmakeArg(`-DCMAKE_PREFIX_PATH:STRING=${rocmCmakePrefixList}`),
     quoteCmakeArg(`-Dhip_DIR:PATH=${toCmakePath(rocmPaths.hipCmakeDir)}`),
     quoteCmakeArg(`-DHIP_PATH:PATH=${toCmakePath(rocmPaths.hipRoot)}`),
     quoteCmakeArg(`-DROCM_PATH:PATH=${toCmakePath(rocmPaths.rocmRoot)}`),
-    quoteCmakeArg(`-DHIP_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`),
-    quoteCmakeArg(`-DROCM_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`),
+    quoteCmakeArg(
+      `-DHIP_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`,
+    ),
+    quoteCmakeArg(
+      `-DROCM_DEVICE_LIB_PATH:PATH=${toCmakePath(rocmPaths.deviceLibPath)}`,
+    ),
     quoteCmakeArg(`-DCMAKE_HIP_FLAGS:STRING=${hipCompilerFlags}`),
     "-DHIP_PLATFORM=amd",
     "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
@@ -477,7 +611,7 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, log
     "-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON",
     "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
     gpuTargets ? `-DGPU_TARGETS=${gpuTargets}` : "",
-    gpuTargets ? `-DAMDGPU_TARGETS=${gpuTargets}` : ""
+    gpuTargets ? `-DAMDGPU_TARGETS=${gpuTargets}` : "",
   ].filter(Boolean);
   const env = {
     ...process.env,
@@ -489,13 +623,30 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, log
     PIP_DISABLE_PIP_VERSION_CHECK: "1",
     TMP: join(runtimeDir, "t"),
     TEMP: join(runtimeDir, "t"),
-    PATH: mergePathList(nativeBuildEnv.pathEntries, pathEntries, process.env.PATH),
+    PATH: mergePathList(
+      nativeBuildEnv.pathEntries,
+      pathEntries,
+      process.env.PATH,
+    ),
     INCLUDE: mergePathList(nativeBuildEnv.includePaths),
-    LIB: mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths),
-    LIBPATH: mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths),
+    LIB: mergePathList(
+      join(runtimeDir, "native-libs"),
+      nativeBuildEnv.libPaths,
+    ),
+    LIBPATH: mergePathList(
+      join(runtimeDir, "native-libs"),
+      nativeBuildEnv.libPaths,
+    ),
     CMAKE_ARGS: mergeWords(process.env.CMAKE_ARGS, cmakeArgs.join(" ")),
-    CFLAGS: mergeWords(process.env.CFLAGS, `--target=${windowsMsvcCompilerTarget}`),
-    CXXFLAGS: mergeWords(process.env.CXXFLAGS, `--target=${windowsMsvcCompilerTarget}`, hipCompilerFlags),
+    CFLAGS: mergeWords(
+      process.env.CFLAGS,
+      `--target=${windowsMsvcCompilerTarget}`,
+    ),
+    CXXFLAGS: mergeWords(
+      process.env.CXXFLAGS,
+      `--target=${windowsMsvcCompilerTarget}`,
+      hipCompilerFlags,
+    ),
     LDFLAGS: mergeWords(process.env.LDFLAGS, runtimeLibraryLdFlags),
     FORCE_CMAKE: "1",
     CMAKE_GENERATOR: process.env.CMAKE_GENERATOR || "Ninja",
@@ -504,9 +655,14 @@ function buildRuntimeEnv(runtimeDir, packageDir, nativeBuildEnv, gpuTargets, log
     RC: process.env.RC || rcCompiler,
     ROCM_PATH: process.env.ROCM_PATH || rocmPaths.rocmRoot,
     HIP_PATH: process.env.HIP_PATH || rocmPaths.hipRoot,
-    HIP_DEVICE_LIB_PATH: process.env.HIP_DEVICE_LIB_PATH || rocmPaths.deviceLibPath,
-    ROCM_DEVICE_LIB_PATH: process.env.ROCM_DEVICE_LIB_PATH || rocmPaths.deviceLibPath,
-    CMAKE_PREFIX_PATH: mergePathList(process.env.CMAKE_PREFIX_PATH, rocmPaths.cmakePrefixPaths)
+    HIP_DEVICE_LIB_PATH:
+      process.env.HIP_DEVICE_LIB_PATH || rocmPaths.deviceLibPath,
+    ROCM_DEVICE_LIB_PATH:
+      process.env.ROCM_DEVICE_LIB_PATH || rocmPaths.deviceLibPath,
+    CMAKE_PREFIX_PATH: mergePathList(
+      process.env.CMAKE_PREFIX_PATH,
+      rocmPaths.cmakePrefixPaths,
+    ),
   };
   if (gpuTargets) {
     env.GPU_TARGETS = gpuTargets;
@@ -522,16 +678,26 @@ async function verifyRuntime({ pythonExe, packageDir, env, logger }) {
     "import importlib",
     "for name in ['stable_diffusion_cpp','PIL','huggingface_hub']:",
     "    importlib.import_module(name)",
-    "print('ok')"
+    "print('ok')",
   ].join("\n");
   await run(pythonExe, ["-c", script], { env, logger });
-  await run(pythonExe, ["-m", "pip", "show", "stable-diffusion-cpp-python"], { env, logger });
+  await run(pythonExe, ["-m", "pip", "show", "stable-diffusion-cpp-python"], {
+    env,
+    logger,
+  });
   if (!isDirectory(join(packageDir, "stable_diffusion_cpp"))) {
-    throw new Error(`stable_diffusion_cpp package is missing from ${packageDir}`);
+    throw new Error(
+      `stable_diffusion_cpp package is missing from ${packageDir}`,
+    );
   }
 }
 
-async function writeRuntimeManifest({ runtimeDir, gpuTargets, nativeBuildEnv, logger }) {
+async function writeRuntimeManifest({
+  runtimeDir,
+  gpuTargets,
+  nativeBuildEnv,
+  logger,
+}) {
   const manifest = {
     schemaVersion: 1,
     kind: "mgt-flux-rocm-prebuilt-runtime",
@@ -547,24 +713,32 @@ async function writeRuntimeManifest({ runtimeDir, gpuTargets, nativeBuildEnv, lo
     gpuTargets: gpuTargets ? gpuTargets.split(";") : [],
     windowsSdkVersion: nativeBuildEnv.sdkVersion || null,
     createdAt: new Date().toISOString(),
-    gitRevision: readGitRevision()
+    gitRevision: readGitRevision(),
   };
-  await writeFile(join(runtimeDir, manifestFile), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await writeFile(
+    join(runtimeDir, manifestFile),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf8",
+  );
   logger.line(`manifest written: ${join(runtimeDir, manifestFile)}`);
 }
 
 async function createRuntimeZip({ runtimeDir, outputPath, logger }) {
   logger.line(`creating zip with Windows bsdtar: ${outputPath}`);
   if (existsSync(outputPath)) {
-    logger.line(`removing existing zip: ${outputPath} (${formatBytes(statSync(outputPath).size)})`);
+    logger.line(
+      `removing existing zip: ${outputPath} (${formatBytes(statSync(outputPath).size)})`,
+    );
     rmSync(outputPath, { force: true });
   }
   await run("tar.exe", ["-a", "-cf", outputPath, "-C", runtimeDir, "."], {
     env: process.env,
     logger,
-    cwd: runtimeDir
+    cwd: runtimeDir,
   });
-  logger.line(`zip created: ${outputPath} (${formatBytes(statSync(outputPath).size)})`);
+  logger.line(
+    `zip created: ${outputPath} (${formatBytes(statSync(outputPath).size)})`,
+  );
 }
 
 function run(command, args, options) {
@@ -575,16 +749,24 @@ function run(command, args, options) {
       cwd: options.cwd || rootDir,
       windowsHide: true,
       shell: false,
-      stdio: ["ignore", "pipe", "pipe"]
+      stdio: ["ignore", "pipe", "pipe"],
     });
-    child.stdout.on("data", (chunk) => options.logger.raw(chunk.toString("utf8")));
-    child.stderr.on("data", (chunk) => options.logger.raw(chunk.toString("utf8")));
+    child.stdout.on("data", (chunk) =>
+      options.logger.raw(chunk.toString("utf8")),
+    );
+    child.stderr.on("data", (chunk) =>
+      options.logger.raw(chunk.toString("utf8")),
+    );
     child.on("error", reject);
     child.on("exit", (code) => {
       if (code === 0) {
         resolveRun();
       } else {
-        reject(new Error(`${command} ${args.join(" ")} failed with exit code ${code}`));
+        reject(
+          new Error(
+            `${command} ${args.join(" ")} failed with exit code ${code}`,
+          ),
+        );
       }
     });
   });
@@ -599,30 +781,36 @@ async function downloadFile(url, outputPath, logger) {
   logger.line(`download: ${url}`);
   await new Promise((resolveDownload, reject) => {
     const file = createWriteStream(outputPath);
-    https.get(url, (response) => {
-      if (response.statusCode !== 200) {
-        response.resume();
-        reject(new Error(`GET ${url} failed with ${response.statusCode}`));
-        return;
-      }
-      const total = Number(response.headers["content-length"] || 0);
-      let received = 0;
-      let lastLogAt = Date.now();
-      response.on("data", (chunk) => {
-        received += chunk.byteLength;
-        const now = Date.now();
-        if (now - lastLogAt > 1500) {
-          lastLogAt = now;
-          logger.line(`download progress: ${basename(outputPath)} ${formatBytes(received)}${total ? ` / ${formatBytes(total)}` : ""}`);
+    https
+      .get(url, (response) => {
+        if (response.statusCode !== 200) {
+          response.resume();
+          reject(new Error(`GET ${url} failed with ${response.statusCode}`));
+          return;
         }
-      });
-      response.pipe(file);
-      file.on("finish", () => file.close(resolveDownload));
-      file.on("error", reject);
-      response.on("error", reject);
-    }).on("error", reject);
+        const total = Number(response.headers["content-length"] || 0);
+        let received = 0;
+        let lastLogAt = Date.now();
+        response.on("data", (chunk) => {
+          received += chunk.byteLength;
+          const now = Date.now();
+          if (now - lastLogAt > 1500) {
+            lastLogAt = now;
+            logger.line(
+              `download progress: ${basename(outputPath)} ${formatBytes(received)}${total ? ` / ${formatBytes(total)}` : ""}`,
+            );
+          }
+        });
+        response.pipe(file);
+        file.on("finish", () => file.close(resolveDownload));
+        file.on("error", reject);
+        response.on("error", reject);
+      })
+      .on("error", reject);
   });
-  logger.line(`download complete: ${outputPath} (${formatBytes(statSync(outputPath).size)})`);
+  logger.line(
+    `download complete: ${outputPath} (${formatBytes(statSync(outputPath).size)})`,
+  );
 }
 
 function extractZipSafely(archivePath, outputDir) {
@@ -634,18 +822,23 @@ function extractZipSafely(archivePath, outputDir) {
     }
     const entryName = item.entryName.replace(/^([/\\])+/, "");
     if (!entryName || entryName.startsWith("..") || isAbsolute(entryName)) {
-      throw new Error(`${basename(archivePath)} contains unsafe path: ${item.entryName}`);
+      throw new Error(
+        `${basename(archivePath)} contains unsafe path: ${item.entryName}`,
+      );
     }
     const destination = resolve(root, entryName);
     if (!isPathInside(destination, root)) {
-      throw new Error(`${basename(archivePath)} contains unsafe path: ${item.entryName}`);
+      throw new Error(
+        `${basename(archivePath)} contains unsafe path: ${item.entryName}`,
+      );
     }
     zip.extractEntryTo(item, root, true, true);
   }
 }
 
 function sanitizeStandaloneEmbeddedPythonPathFile(outputDir) {
-  const pthName = readdirSync(outputDir).find((name) => /^python\d+._pth$/i.test(name)) || "";
+  const pthName =
+    readdirSync(outputDir).find((name) => /^python\d+._pth$/i.test(name)) || "";
   if (!pthName) {
     return;
   }
@@ -653,7 +846,9 @@ function sanitizeStandaloneEmbeddedPythonPathFile(outputDir) {
   const text = readFileSync(pthPath, "utf8");
   const lines = text
     .split(/\r?\n/)
-    .filter((line) => line.trim() !== "#import site" && line.trim() !== "import site")
+    .filter(
+      (line) => line.trim() !== "#import site" && line.trim() !== "import site",
+    )
     .filter((line) => line.trim());
   lines.push("import site");
   writeFileSync(pthPath, `${lines.join("\n")}\n`, "utf8");
@@ -661,7 +856,8 @@ function sanitizeStandaloneEmbeddedPythonPathFile(outputDir) {
 
 function ensureEmbeddedPythonPackagePath(pythonPath, packageDir) {
   const pythonDir = dirname(resolve(pythonPath));
-  const pthName = readdirSync(pythonDir).find((name) => /^python\d+._pth$/i.test(name)) || "";
+  const pthName =
+    readdirSync(pythonDir).find((name) => /^python\d+._pth$/i.test(name)) || "";
   if (!pthName) {
     return;
   }
@@ -671,14 +867,20 @@ function ensureEmbeddedPythonPackagePath(pythonPath, packageDir) {
   const lines = text
     .split(/\r?\n/)
     .filter((line) => line.trim() !== normalizedPackageDir)
-    .map((line) => line.trim() === "#import site" ? "import site" : line);
-  const importSiteIndex = lines.findIndex((line) => line.trim() === "import site");
+    .map((line) => (line.trim() === "#import site" ? "import site" : line));
+  const importSiteIndex = lines.findIndex(
+    (line) => line.trim() === "import site",
+  );
   if (importSiteIndex === -1) {
     lines.push(normalizedPackageDir, "import site");
   } else {
     lines.splice(importSiteIndex, 0, normalizedPackageDir);
   }
-  writeFileSync(pthPath, `${lines.filter((line, index, array) => index < array.length - 1 || line.trim()).join("\n")}\n`, "utf8");
+  writeFileSync(
+    pthPath,
+    `${lines.filter((line, index, array) => index < array.length - 1 || line.trim()).join("\n")}\n`,
+    "utf8",
+  );
 }
 
 function resolveWindowsRocmSdkPaths(packageDir) {
@@ -686,12 +888,16 @@ function resolveWindowsRocmSdkPaths(packageDir) {
   const develRoot = join(packageDir, "_rocm_sdk_devel");
   const librariesRoot = join(packageDir, "_rocm_sdk_libraries_custom");
   const llvmBin = join(coreRoot, "lib", "llvm", "bin");
-  const deviceLibPath = resolveRocmDeviceLibPath(packageDir, coreRoot, develRoot);
+  const deviceLibPath = resolveRocmDeviceLibPath(
+    packageDir,
+    coreRoot,
+    develRoot,
+  );
   const hipCmakeDir = resolveCmakePackageDir(packageDir, "hip", [
     join(develRoot, "lib", "cmake", "hip"),
     join(coreRoot, "lib", "cmake", "hip"),
     join(librariesRoot, "lib", "cmake", "hip"),
-    join(packageDir, "lib", "cmake", "hip")
+    join(packageDir, "lib", "cmake", "hip"),
   ]);
   const hipRoot = resolveRocmRootForCmakePackage(hipCmakeDir, develRoot);
   const cmakePrefixPaths = uniqueExistingDirs([
@@ -702,7 +908,7 @@ function resolveWindowsRocmSdkPaths(packageDir) {
     join(develRoot, "lib", "cmake"),
     join(librariesRoot, "lib", "cmake"),
     hipRoot,
-    hipCmakeDir
+    hipCmakeDir,
   ]);
   return {
     coreRoot,
@@ -716,7 +922,7 @@ function resolveWindowsRocmSdkPaths(packageDir) {
     clangxx: join(llvmBin, "clang++.exe"),
     deviceLibPath,
     llvmRc: join(llvmBin, "llvm-rc.exe"),
-    llvmMt: join(llvmBin, "llvm-mt.exe")
+    llvmMt: join(llvmBin, "llvm-mt.exe"),
   };
 }
 
@@ -724,7 +930,7 @@ function resolveRocmDeviceLibPath(packageDir, coreRoot, develRoot) {
   const candidates = [
     join(coreRoot, "lib", "llvm", "amdgcn", "bitcode"),
     join(develRoot, "lib", "llvm", "amdgcn", "bitcode"),
-    join(packageDir, "lib", "llvm", "amdgcn", "bitcode")
+    join(packageDir, "lib", "llvm", "amdgcn", "bitcode"),
   ];
   for (const candidate of candidates) {
     if (isFile(join(candidate, "ocml.bc"))) {
@@ -741,18 +947,29 @@ function resolveRocmDeviceLibPath(packageDir, coreRoot, develRoot) {
 function resolveCmakePackageDir(packageDir, packageName, candidates) {
   const configNames = [
     `${packageName}-config.cmake`,
-    `${packageName}Config.cmake`
+    `${packageName}Config.cmake`,
   ];
   for (const candidate of candidates) {
     if (configNames.some((name) => isFile(join(candidate, name)))) {
       return candidate;
     }
   }
-  const found = findFirstFileRecursive(packageDir, new Set(configNames.map((name) => name.toLowerCase())), 8);
+  const found = findFirstFileRecursive(
+    packageDir,
+    new Set(configNames.map((name) => name.toLowerCase())),
+    8,
+  );
   if (found) {
     return dirname(found);
   }
-  throw new Error(formatMissingCmakePackageMessage(packageDir, packageName, configNames, candidates));
+  throw new Error(
+    formatMissingCmakePackageMessage(
+      packageDir,
+      packageName,
+      configNames,
+      candidates,
+    ),
+  );
 }
 
 function resolveRocmRootForCmakePackage(cmakeDir, fallbackRoot) {
@@ -792,36 +1009,58 @@ function stageWindowsRuntimeLibraries(runtimeDir, libraryPaths) {
   });
 }
 
-function validateWindowsRocmSdkPaths(rocmPaths, packageDir, logger, rcCompiler) {
+function validateWindowsRocmSdkPaths(
+  rocmPaths,
+  packageDir,
+  logger,
+  rcCompiler,
+) {
   const requiredFiles = [
     ["ROCm clang", rocmPaths.clang],
     ["ROCm clang++", rocmPaths.clangxx],
     ["ROCm device library", join(rocmPaths.deviceLibPath, "ocml.bc")],
-    ["Windows resource compiler", rcCompiler]
+    ["Windows resource compiler", rcCompiler],
   ];
   for (const [label, filePath] of requiredFiles) {
     if (!isFile(filePath)) {
-      throw new Error(`${label} was not found: ${filePath}\n${formatRocmTreeSummary(packageDir)}`);
+      throw new Error(
+        `${label} was not found: ${filePath}\n${formatRocmTreeSummary(packageDir)}`,
+      );
     }
   }
-  if (!["hip-config.cmake", "hipConfig.cmake"].some((fileName) => isFile(join(rocmPaths.hipCmakeDir, fileName)))) {
-    throw new Error(`HIP CMake config was not found in ${rocmPaths.hipCmakeDir}\n${formatRocmTreeSummary(packageDir)}`);
+  if (
+    !["hip-config.cmake", "hipConfig.cmake"].some((fileName) =>
+      isFile(join(rocmPaths.hipCmakeDir, fileName)),
+    )
+  ) {
+    throw new Error(
+      `HIP CMake config was not found in ${rocmPaths.hipCmakeDir}\n${formatRocmTreeSummary(packageDir)}`,
+    );
   }
   if (logger) {
     logger.line(`ROCm clang: ${rocmPaths.clang}`);
     logger.line(`ROCm device library path: ${rocmPaths.deviceLibPath}`);
     logger.line(`ROCm HIP CMake config: ${rocmPaths.hipCmakeDir}`);
-    logger.line(`ROCm CMake prefix paths: ${rocmPaths.cmakePrefixPaths.join(";")}`);
+    logger.line(
+      `ROCm CMake prefix paths: ${rocmPaths.cmakePrefixPaths.join(";")}`,
+    );
   }
 }
 
-function formatMissingCmakePackageMessage(packageDir, packageName, configNames, candidates) {
+function formatMissingCmakePackageMessage(
+  packageDir,
+  packageName,
+  configNames,
+  candidates,
+) {
   return [
     `ROCm CMake package "${packageName}" was not found after ROCm SDK installation.`,
     `Expected one of: ${configNames.join(", ")}`,
     "Candidate directories:",
-    ...candidates.map((item) => `  - ${item} ${isDirectory(item) ? "(exists)" : "(missing)"}`),
-    formatRocmTreeSummary(packageDir)
+    ...candidates.map(
+      (item) => `  - ${item} ${isDirectory(item) ? "(exists)" : "(missing)"}`,
+    ),
+    formatRocmTreeSummary(packageDir),
   ].join("\n");
 }
 
@@ -832,7 +1071,7 @@ function formatRocmTreeSummary(packageDir) {
     join(packageDir, "_rocm_sdk_devel"),
     join(packageDir, "_rocm_sdk_libraries_custom"),
     join(packageDir, "rocm"),
-    join(packageDir, "rocm_sdk")
+    join(packageDir, "rocm_sdk"),
   ];
   const lines = ["ROCm package tree summary:"];
   for (const root of roots) {
@@ -841,15 +1080,27 @@ function formatRocmTreeSummary(packageDir) {
       continue;
     }
     lines.push(`  - ${root}: exists`);
-    const entries = safeReadDir(root).slice(0, 30).map((entry) => entry.name).join(", ");
+    const entries = safeReadDir(root)
+      .slice(0, 30)
+      .map((entry) => entry.name)
+      .join(", ");
     if (entries) {
       lines.push(`    entries: ${entries}`);
     }
   }
-  const cmakeHits = findFilesRecursive(packageDir, (entry) => {
-    const lower = entry.name.toLowerCase();
-    return entry.isFile() && (lower.includes("hip") || lower.includes("rocm")) && lower.endsWith(".cmake");
-  }, 9, 60);
+  const cmakeHits = findFilesRecursive(
+    packageDir,
+    (entry) => {
+      const lower = entry.name.toLowerCase();
+      return (
+        entry.isFile() &&
+        (lower.includes("hip") || lower.includes("rocm")) &&
+        lower.endsWith(".cmake")
+      );
+    },
+    9,
+    60,
+  );
   if (cmakeHits.length) {
     lines.push("Nearby ROCm/HIP CMake files:");
     for (const hit of cmakeHits) {
@@ -887,7 +1138,11 @@ function findFirstFileRecursive(root, lowerCaseNames, maxDepth) {
       if (entry.isFile() && lowerCaseNames.has(entry.name.toLowerCase())) {
         return fullPath;
       }
-      if (entry.isDirectory() && depth < maxDepth && !["__pycache__", ".git"].includes(entry.name)) {
+      if (
+        entry.isDirectory() &&
+        depth < maxDepth &&
+        !["__pycache__", ".git"].includes(entry.name)
+      ) {
         queue.push({ dir: fullPath, depth: depth + 1 });
       }
     }
@@ -917,7 +1172,11 @@ function findFilesRecursive(root, predicate, maxDepth, limit) {
           break;
         }
       }
-      if (entry.isDirectory() && depth < maxDepth && !["__pycache__", ".git"].includes(entry.name)) {
+      if (
+        entry.isDirectory() &&
+        depth < maxDepth &&
+        !["__pycache__", ".git"].includes(entry.name)
+      ) {
         queue.push({ dir: fullPath, depth: depth + 1 });
       }
     }
@@ -928,29 +1187,39 @@ function findFilesRecursive(root, predicate, maxDepth, limit) {
 function resolveWindowsNativeBuildEnv() {
   const sdk = resolveWindowsSdkLayout();
   const msvc = resolveMsvcToolsLayout();
-  const envLibPaths = splitPathList(process.env.LIB).filter((item) => !isX86WindowsLibraryPath(item));
+  const envLibPaths = splitPathList(process.env.LIB).filter(
+    (item) => !isX86WindowsLibraryPath(item),
+  );
   const libPaths = uniqueExistingDirs([
     ...(sdk ? [sdk.umLibPath, sdk.ucrtLibPath] : []),
     ...(msvc ? [msvc.libPath] : []),
-    ...envLibPaths
+    ...envLibPaths,
   ]);
   const includePaths = uniqueExistingDirs([
     ...(sdk ? sdk.includePaths : []),
     ...(msvc ? [msvc.includePath] : []),
-    ...splitPathList(process.env.INCLUDE)
+    ...splitPathList(process.env.INCLUDE),
   ]);
   const pathEntries = uniqueExistingDirs([
     ...(sdk?.binPath ? [sdk.binPath] : []),
     ...(msvc?.binPath ? [msvc.binPath] : []),
-    ...splitPathList(process.env.PATH)
+    ...splitPathList(process.env.PATH),
   ]);
-  const hasWindowsSdkLibs = ["kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "ole32.lib", "uuid.lib", "advapi32.lib"]
-    .every((file) => pathListContainsFile(libPaths, file));
+  const hasWindowsSdkLibs = [
+    "kernel32.lib",
+    "user32.lib",
+    "gdi32.lib",
+    "shell32.lib",
+    "ole32.lib",
+    "uuid.lib",
+    "advapi32.lib",
+  ].every((file) => pathListContainsFile(libPaths, file));
   const hasUcrtLibs = pathListContainsFile(libPaths, "ucrt.lib");
   const hasMsvcLibs =
     pathListContainsFile(libPaths, "oldnames.lib") &&
     pathListContainsFile(libPaths, "vcruntime.lib") &&
-    (pathListContainsFile(libPaths, "msvcrt.lib") || pathListContainsFile(libPaths, "msvcrtd.lib"));
+    (pathListContainsFile(libPaths, "msvcrt.lib") ||
+      pathListContainsFile(libPaths, "msvcrtd.lib"));
   if (!hasWindowsSdkLibs || !hasUcrtLibs || !hasMsvcLibs) {
     return null;
   }
@@ -958,28 +1227,37 @@ function resolveWindowsNativeBuildEnv() {
 }
 
 function resolveWindowsRuntimeLibraryPaths(libPaths) {
-  return [...windowsDynamicRuntimeLibNames, ...windowsSystemImportLibNames].map((fileName) => {
-    const match = findFileInPathList(libPaths, fileName);
-    if (!match) {
-      throw new Error(`Required Windows/MSVC runtime library was not found: ${fileName}`);
-    }
-    if (isX86WindowsLibraryPath(match)) {
-      throw new Error(`Resolved a 32-bit Windows/MSVC runtime library while building x64: ${match}`);
-    }
-    return match;
-  });
+  return [...windowsDynamicRuntimeLibNames, ...windowsSystemImportLibNames].map(
+    (fileName) => {
+      const match = findFileInPathList(libPaths, fileName);
+      if (!match) {
+        throw new Error(
+          `Required Windows/MSVC runtime library was not found: ${fileName}`,
+        );
+      }
+      if (isX86WindowsLibraryPath(match)) {
+        throw new Error(
+          `Resolved a 32-bit Windows/MSVC runtime library while building x64: ${match}`,
+        );
+      }
+      return match;
+    },
+  );
 }
 
 function isX86WindowsLibraryPath(filePath) {
   const normalized = filePath.replace(/\\/g, "/").toLowerCase();
-  return /\/lib\/x86(\/|$)/.test(normalized) || /\/(um|ucrt)\/x86(\/|$)/.test(normalized);
+  return (
+    /\/lib\/x86(\/|$)/.test(normalized) ||
+    /\/(um|ucrt)\/x86(\/|$)/.test(normalized)
+  );
 }
 
 function formatWindowsNativeBuildToolsMissingMessage() {
   return [
     "Windows SDK and Microsoft C++ Build Tools were not found.",
     "Install Visual Studio 2022 Build Tools with Desktop development with C++ and a Windows 10/11 SDK.",
-    "If they are already installed, run from Developer Command Prompt or set MANGA_TRANSLATOR_WINDOWS_KITS_ROOT / MANGA_TRANSLATOR_MSVC_TOOLS_ROOT."
+    "If they are already installed, run from Developer Command Prompt or set MANGA_TRANSLATOR_WINDOWS_KITS_ROOT / MANGA_TRANSLATOR_MSVC_TOOLS_ROOT.",
   ].join(" ");
 }
 
@@ -989,8 +1267,12 @@ function resolveWindowsSdkLayout() {
     process.env.MGT_WINDOWS_KITS_ROOT,
     process.env.WindowsSdkDir,
     process.env.UniversalCRTSdkDir,
-    process.env["ProgramFiles(x86)"] ? join(process.env["ProgramFiles(x86)"], "Windows Kits", "10") : "",
-    process.env.ProgramFiles ? join(process.env.ProgramFiles, "Windows Kits", "10") : ""
+    process.env["ProgramFiles(x86)"]
+      ? join(process.env["ProgramFiles(x86)"], "Windows Kits", "10")
+      : "",
+    process.env.ProgramFiles
+      ? join(process.env.ProgramFiles, "Windows Kits", "10")
+      : "",
   ]);
   for (const root of roots) {
     const libRoot = join(root, "Lib");
@@ -999,14 +1281,24 @@ function resolveWindowsSdkLayout() {
     for (const version of versions) {
       const umLibPath = join(libRoot, version, "um", "x64");
       const ucrtLibPath = join(libRoot, version, "ucrt", "x64");
-      if (!isFile(join(umLibPath, "kernel32.lib")) || !isDirectory(ucrtLibPath)) {
+      if (
+        !isFile(join(umLibPath, "kernel32.lib")) ||
+        !isDirectory(ucrtLibPath)
+      ) {
         continue;
       }
       const includePaths = ["ucrt", "shared", "um", "winrt", "cppwinrt"]
         .map((name) => join(includeRoot, version, name))
         .filter(isDirectory);
       const binPath = join(root, "bin", version, "x64");
-      return { root, version, umLibPath, ucrtLibPath, includePaths, binPath: isDirectory(binPath) ? binPath : undefined };
+      return {
+        root,
+        version,
+        umLibPath,
+        ucrtLibPath,
+        includePaths,
+        binPath: isDirectory(binPath) ? binPath : undefined,
+      };
     }
   }
   return null;
@@ -1016,7 +1308,7 @@ function resolveMsvcToolsLayout() {
   const directRoots = uniquePaths([
     process.env.MANGA_TRANSLATOR_MSVC_TOOLS_ROOT,
     process.env.MGT_MSVC_TOOLS_ROOT,
-    process.env.VCToolsInstallDir
+    process.env.VCToolsInstallDir,
   ]);
   for (const root of directRoots) {
     const layout = toMsvcToolsLayout(root);
@@ -1031,8 +1323,23 @@ function resolveMsvcToolsLayout() {
   const programFiles = process.env.ProgramFiles;
   if (programFiles) {
     for (const year of ["2022", "2019"]) {
-      for (const edition of ["BuildTools", "Community", "Professional", "Enterprise"]) {
-        versionRoots.push(join(programFiles, "Microsoft Visual Studio", year, edition, "VC", "Tools", "MSVC"));
+      for (const edition of [
+        "BuildTools",
+        "Community",
+        "Professional",
+        "Enterprise",
+      ]) {
+        versionRoots.push(
+          join(
+            programFiles,
+            "Microsoft Visual Studio",
+            year,
+            edition,
+            "VC",
+            "Tools",
+            "MSVC",
+          ),
+        );
       }
     }
   }
@@ -1055,11 +1362,18 @@ function toMsvcToolsLayout(root, version) {
     return null;
   }
   const binPath = join(root, "bin", "Hostx64", "x64");
-  return { root, version, libPath, includePath, binPath: isDirectory(binPath) ? binPath : undefined };
+  return {
+    root,
+    version,
+    libPath,
+    includePath,
+    binPath: isDirectory(binPath) ? binPath : undefined,
+  };
 }
 
 function resolveGpuTargets(args) {
-  const value = args["gpu-targets"] ||
+  const value =
+    args["gpu-targets"] ||
     process.env.MANGA_TRANSLATOR_AMDGPU_TARGETS ||
     process.env.MGT_AMDGPU_TARGETS ||
     process.env.AMDGPU_TARGETS ||
@@ -1096,17 +1410,20 @@ function snapshotEnvironment(nativeBuildEnv, gpuTargets) {
       HIP_PATH: process.env.HIP_PATH || null,
       GPU_TARGETS: process.env.GPU_TARGETS || null,
       AMDGPU_TARGETS: process.env.AMDGPU_TARGETS || null,
-      CMAKE_GENERATOR: process.env.CMAKE_GENERATOR || null
+      CMAKE_GENERATOR: process.env.CMAKE_GENERATOR || null,
     },
     nativeBuildEnv,
-    runtimeLibraries
+    runtimeLibraries,
   };
 }
 
 function readGitRevision() {
   try {
     const { execFileSync } = require("node:child_process");
-    return execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
+    return execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: rootDir,
+      encoding: "utf8",
+    }).trim();
   } catch {
     return null;
   }
@@ -1170,7 +1487,7 @@ function mergePathList(...values) {
 
 function mergeWords(...values) {
   return values
-    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
     .map((value) => String(value || "").trim())
     .filter(Boolean)
     .join(" ");
@@ -1215,8 +1532,14 @@ function compareVersionDesc(left, right) {
 }
 
 function compareVersionStrings(left, right) {
-  const leftParts = left.split(/[^\d]+/).filter(Boolean).map(Number);
-  const rightParts = right.split(/[^\d]+/).filter(Boolean).map(Number);
+  const leftParts = left
+    .split(/[^\d]+/)
+    .filter(Boolean)
+    .map(Number);
+  const rightParts = right
+    .split(/[^\d]+/)
+    .filter(Boolean)
+    .map(Number);
   const length = Math.max(leftParts.length, rightParts.length);
   for (let index = 0; index < length; index += 1) {
     const diff = (leftParts[index] || 0) - (rightParts[index] || 0);

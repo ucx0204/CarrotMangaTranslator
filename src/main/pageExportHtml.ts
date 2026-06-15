@@ -6,10 +6,17 @@ import { getAppPaths } from "./appPaths";
 import { listCustomFonts, resolveCustomFontFilePath } from "./customFonts";
 import { buildPageExportBlocks } from "./pageExportBlocks";
 
-export function buildPageExportHtml(page: MangaPage, imageDataUrl: string, width: number, height: number): string {
+export function buildPageExportHtml(
+  page: MangaPage,
+  imageDataUrl: string,
+  width: number,
+  height: number,
+): string {
   const rendererCssHref = findRendererCssHref();
   const customFonts = listCustomFonts();
-  const customFamilyById = new Map(customFonts.map((font) => [font.id, font.family]));
+  const customFamilyById = new Map(
+    customFonts.map((font) => [font.id, font.family]),
+  );
   const customFontFaces = buildCustomFontFaces(customFonts);
   const blocks = buildPageExportBlocks(page, width, height, customFamilyById);
   return `<!doctype html>
@@ -293,9 +300,14 @@ function findRendererCssHref(): string | null {
   const rendererIndexPath = join(rendererDir, "index.html");
   if (existsSync(rendererIndexPath)) {
     const html = readFileSync(rendererIndexPath, "utf8");
-    const match = html.match(/<link[^>]+href=["']([^"']+index-[^"']+\.css)["']/i);
+    const match = html.match(
+      /<link[^>]+href=["']([^"']+index-[^"']+\.css)["']/i,
+    );
     if (match?.[1]) {
-      const cssHref = resolveExistingFileUrlInside(rendererDir, resolveRendererAssetPath(rendererDir, match[1]));
+      const cssHref = resolveExistingFileUrlInside(
+        rendererDir,
+        resolveRendererAssetPath(rendererDir, match[1]),
+      );
       if (cssHref) {
         return cssHref;
       }
@@ -309,7 +321,10 @@ function findRendererCssHref(): string | null {
       .sort()
       .at(-1);
     if (cssFile) {
-      const cssHref = resolveExistingFileUrlInside(assetDir, join(assetDir, cssFile));
+      const cssHref = resolveExistingFileUrlInside(
+        assetDir,
+        join(assetDir, cssFile),
+      );
       if (cssHref) {
         return cssHref;
       }
@@ -317,20 +332,32 @@ function findRendererCssHref(): string | null {
   }
 
   if (!appPaths.isPackaged) {
-    return resolveExistingFileUrlInside(appPaths.repoRoot, join(appPaths.repoRoot, "src", "renderer", "src", "styles.css"));
+    return resolveExistingFileUrlInside(
+      appPaths.repoRoot,
+      join(appPaths.repoRoot, "src", "renderer", "src", "styles.css"),
+    );
   }
   return null;
 }
 
 function resolveRendererAssetPath(rendererDir: string, href: string): string {
-  const rendererRelativePath = href.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "");
+  const rendererRelativePath = href
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/^\/+/, "");
   return resolve(rendererDir, rendererRelativePath);
 }
 
-function resolveExistingFileUrlInside(rootPath: string, targetPath: string): string | null {
+function resolveExistingFileUrlInside(
+  rootPath: string,
+  targetPath: string,
+): string | null {
   const resolvedRoot = resolve(rootPath);
   const resolvedTarget = resolve(targetPath);
-  if (!isPathInside(resolvedRoot, resolvedTarget) || !existsSync(resolvedTarget)) {
+  if (
+    !isPathInside(resolvedRoot, resolvedTarget) ||
+    !existsSync(resolvedTarget)
+  ) {
     return null;
   }
   return pathToFileURL(resolvedTarget).toString();
@@ -338,7 +365,9 @@ function resolveExistingFileUrlInside(rootPath: string, targetPath: string): str
 
 function isPathInside(rootPath: string, targetPath: string): boolean {
   const child = relative(rootPath, targetPath);
-  return child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child));
+  return (
+    child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child))
+  );
 }
 
 function escapeHtml(value: string): string {

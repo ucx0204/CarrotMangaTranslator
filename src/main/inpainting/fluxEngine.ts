@@ -8,14 +8,14 @@ import {
   maskBoundsInRect,
   readGeneratedBitmap,
   writePngFromBitmap,
-  writePngFromMask
+  writePngFromMask,
 } from "./imageRaster";
 import {
   alignRectToMultiple,
   expandRect,
   rectHasMask,
   resolveFluxProcessSize,
-  type PixelRect
+  type PixelRect,
 } from "./maskGeometry";
 import { FluxWorker, type FluxWorkerLaunchSpec } from "./fluxWorker";
 
@@ -54,7 +54,7 @@ export type FluxInpaintingEngine = {
       contextPx?: number;
       maskPaddingPx?: number;
       maxPixels?: number;
-    }
+    },
   ) => Promise<void>;
   dispose: () => Promise<void>;
 };
@@ -84,11 +84,30 @@ export function createFluxEngine(options: {
       return !worker || worker.isHealthy();
     },
     async inpaint(bitmap, width, height, mask, windows, runOptions = {}) {
-      const featherPx = clamp(Math.round(runOptions.featherPx ?? FLUX_INPAINT_FEATHER_PX), 0, 48);
-      const contextPx = clamp(Math.round(runOptions.contextPx ?? FLUX_INPAINT_CONTEXT_PX), 16, 256);
-      const maskPaddingPx = clamp(Math.round(runOptions.maskPaddingPx ?? FLUX_INPAINT_MASK_PADDING_PX), 0, 64);
-      const maxPixels = clamp(Math.round(runOptions.maxPixels ?? FLUX_INPAINT_MAX_PIXELS), 256 * 256, 1536 * 1536);
-      const runDir = join(options.runRootDir, `flux-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+      const featherPx = clamp(
+        Math.round(runOptions.featherPx ?? FLUX_INPAINT_FEATHER_PX),
+        0,
+        48,
+      );
+      const contextPx = clamp(
+        Math.round(runOptions.contextPx ?? FLUX_INPAINT_CONTEXT_PX),
+        16,
+        256,
+      );
+      const maskPaddingPx = clamp(
+        Math.round(runOptions.maskPaddingPx ?? FLUX_INPAINT_MASK_PADDING_PX),
+        0,
+        64,
+      );
+      const maxPixels = clamp(
+        Math.round(runOptions.maxPixels ?? FLUX_INPAINT_MAX_PIXELS),
+        256 * 256,
+        1536 * 1536,
+      );
+      const runDir = join(
+        options.runRootDir,
+        `flux-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      );
       await mkdir(runDir, { recursive: true });
       let eligibleWindows = 0;
       let processedWindows = 0;
@@ -107,21 +126,43 @@ export function createFluxEngine(options: {
             expandRect(maskBounds, width, height, contextPx + maskPaddingPx),
             width,
             height,
-            FLUX_INPAINT_MULTIPLE
+            FLUX_INPAINT_MULTIPLE,
           );
-          const localMask = buildLocalMask(mask, width, paddedBounds, maskPaddingPx);
+          const localMask = buildLocalMask(
+            mask,
+            width,
+            paddedBounds,
+            maskPaddingPx,
+          );
           if (!localMask.some((value) => value > 0)) {
             continue;
           }
           eligibleWindows += 1;
 
-          const processSize = resolveFluxProcessSize(paddedBounds.w, paddedBounds.h, maxPixels, FLUX_INPAINT_MULTIPLE);
+          const processSize = resolveFluxProcessSize(
+            paddedBounds.w,
+            paddedBounds.h,
+            maxPixels,
+            FLUX_INPAINT_MULTIPLE,
+          );
           const inputPath = join(runDir, `input-${index}.png`);
           const maskPath = join(runDir, `mask-${index}.png`);
           const outputPath = join(runDir, `output-${index}.png`);
           const cropBitmap = cropBitmapFromPage(bitmap, width, paddedBounds);
-          await writePngFromBitmap(inputPath, cropBitmap, paddedBounds.w, paddedBounds.h, processSize);
-          await writePngFromMask(maskPath, localMask, paddedBounds.w, paddedBounds.h, processSize);
+          await writePngFromBitmap(
+            inputPath,
+            cropBitmap,
+            paddedBounds.w,
+            paddedBounds.h,
+            processSize,
+          );
+          await writePngFromMask(
+            maskPath,
+            localMask,
+            paddedBounds.w,
+            paddedBounds.h,
+            processSize,
+          );
 
           await getWorker().inpaint(
             {
@@ -131,17 +172,30 @@ export function createFluxEngine(options: {
               steps: 4,
               strength: 1,
               maxPixels,
-              maskPadding: maskPaddingPx
+              maskPadding: maskPaddingPx,
             },
-            runOptions.signal
+            runOptions.signal,
           );
-          const generated = await readGeneratedBitmap(outputPath, paddedBounds.w, paddedBounds.h);
+          const generated = await readGeneratedBitmap(
+            outputPath,
+            paddedBounds.w,
+            paddedBounds.h,
+          );
           assertMaskedRegionChanged(cropBitmap, generated, localMask, index);
-          compositeFluxOutput(bitmap, generated, mask, width, paddedBounds, featherPx);
+          compositeFluxOutput(
+            bitmap,
+            generated,
+            mask,
+            width,
+            paddedBounds,
+            featherPx,
+          );
           processedWindows += 1;
         }
         if (eligibleWindows > 0 && processedWindows === 0) {
-          throw new Error("Flux 원문 지우기 결과가 적용되지 않았습니다. 마스크 영역은 있었지만 처리된 crop이 없습니다.");
+          throw new Error(
+            "Flux 원문 지우기 결과가 적용되지 않았습니다. 마스크 영역은 있었지만 처리된 crop이 없습니다.",
+          );
         }
       } finally {
         if (process.env.MGT_KEEP_FLUX_DEBUG !== "1") {
@@ -152,7 +206,7 @@ export function createFluxEngine(options: {
     async dispose() {
       await worker?.dispose();
       worker = null;
-    }
+    },
   };
 }
 
@@ -160,7 +214,10 @@ export function resolveDefaultFluxRunRootDir(runtimeDir: string): string {
   const resolvedRuntimeDir = resolve(runtimeDir);
   const inpaintingDir = dirname(resolvedRuntimeDir);
   const modelsDir = dirname(inpaintingDir);
-  if (basename(inpaintingDir).toLowerCase() === "inpainting" && basename(modelsDir).toLowerCase() === "models") {
+  if (
+    basename(inpaintingDir).toLowerCase() === "inpainting" &&
+    basename(modelsDir).toLowerCase() === "models"
+  ) {
     return join(dirname(modelsDir), "tmp", "runtime", "flux-inpainting");
   }
   return join(resolvedRuntimeDir, "tmp", "flux-inpainting");
@@ -172,16 +229,23 @@ function throwIfAborted(signal?: AbortSignal): void {
   }
 }
 
-function assertMaskedRegionChanged(before: Buffer, after: Buffer, mask: Uint8Array, index: number): void {
+function assertMaskedRegionChanged(
+  before: Buffer,
+  after: Buffer,
+  mask: Uint8Array,
+  index: number,
+): void {
   const stats = measureMaskedRegionChange(before, after, mask);
   if (stats.maskedPixels <= 0) {
-    throw new Error(`Flux 원문 지우기 마스크가 비어 있습니다. crop=${index + 1}`);
+    throw new Error(
+      `Flux 원문 지우기 마스크가 비어 있습니다. crop=${index + 1}`,
+    );
   }
   if (stats.changedRatio < 0.01 && stats.meanDelta < 2) {
     throw new Error(
       `Flux 원문 지우기 결과가 마스크 영역을 거의 바꾸지 않았습니다. ` +
         `마스크가 무시되었거나 런타임이 실제 인페인팅을 수행하지 않은 것 같습니다. ` +
-        `crop=${index + 1}, changed=${(stats.changedRatio * 100).toFixed(2)}%, meanDelta=${stats.meanDelta.toFixed(2)}`
+        `crop=${index + 1}, changed=${(stats.changedRatio * 100).toFixed(2)}%, meanDelta=${stats.meanDelta.toFixed(2)}`,
     );
   }
 }
@@ -189,12 +253,16 @@ function assertMaskedRegionChanged(before: Buffer, after: Buffer, mask: Uint8Arr
 function measureMaskedRegionChange(
   before: Buffer,
   after: Buffer,
-  mask: Uint8Array
+  mask: Uint8Array,
 ): { maskedPixels: number; changedRatio: number; meanDelta: number } {
   let maskedPixels = 0;
   let changedPixels = 0;
   let totalDelta = 0;
-  const pixelCount = Math.min(mask.length, Math.floor(before.length / 4), Math.floor(after.length / 4));
+  const pixelCount = Math.min(
+    mask.length,
+    Math.floor(before.length / 4),
+    Math.floor(after.length / 4),
+  );
   for (let pixel = 0; pixel < pixelCount; pixel += 1) {
     if (!mask[pixel]) {
       continue;
@@ -213,6 +281,6 @@ function measureMaskedRegionChange(
   return {
     maskedPixels,
     changedRatio: maskedPixels > 0 ? changedPixels / maskedPixels : 0,
-    meanDelta: maskedPixels > 0 ? totalDelta / maskedPixels : 0
+    meanDelta: maskedPixels > 0 ? totalDelta / maskedPixels : 0,
   };
 }

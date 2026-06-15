@@ -4,7 +4,7 @@ import {
   parseRocmSmiGpuLine,
   parseRtxGeneration,
   parseWindowsAmdGpuLine,
-  resolveAmdRocmTargetFromArch
+  resolveAmdRocmTargetFromArch,
 } from "../src/main/gpuInfo";
 
 describe("GPU info helpers", () => {
@@ -18,7 +18,9 @@ describe("GPU info helpers", () => {
   });
 
   it("parses AMD Radeon GPU names and VRAM from Windows WMI output", () => {
-    expect(parseWindowsAmdGpuLine("AMD Radeon RX 7900 XTX,25753026560")).toEqual({
+    expect(
+      parseWindowsAmdGpuLine("AMD Radeon RX 7900 XTX,25753026560"),
+    ).toEqual({
       name: "AMD Radeon RX 7900 XTX",
       memoryMb: 24560,
       rtxGeneration: null,
@@ -27,7 +29,7 @@ describe("GPU info helpers", () => {
       rocmArch: null,
       rocmTarget: "gfx110X",
       supportsRocm: true,
-      supportsVulkan: true
+      supportsVulkan: true,
     });
     expect(parseWindowsAmdGpuLine("AMD Radeon PRO V710,0")).toEqual({
       name: "AMD Radeon PRO V710",
@@ -38,13 +40,19 @@ describe("GPU info helpers", () => {
       rocmArch: null,
       rocmTarget: "gfx110X",
       supportsRocm: true,
-      supportsVulkan: true
+      supportsVulkan: true,
     });
     const wmiSep = "\u001f";
     expect(
       parseWindowsAmdGpuLine(
-        ["Microsoft Hyper-V Video", "Advanced Micro Devices, Inc.", "AMD Radeon PRO V710", "PCI\\VEN_1002&DEV_7461", "0"].join(wmiSep)
-      )
+        [
+          "Microsoft Hyper-V Video",
+          "Advanced Micro Devices, Inc.",
+          "AMD Radeon PRO V710",
+          "PCI\\VEN_1002&DEV_7461",
+          "0",
+        ].join(wmiSep),
+      ),
     ).toEqual({
       name: "AMD Radeon PRO V710",
       memoryMb: 28672,
@@ -54,10 +62,18 @@ describe("GPU info helpers", () => {
       rocmArch: null,
       rocmTarget: "gfx110X",
       supportsRocm: true,
-      supportsVulkan: true
+      supportsVulkan: true,
     });
     expect(
-      parseWindowsAmdGpuLine(["Microsoft Hyper-V Video", "Advanced Micro Devices, Inc.", "", "PCI\\VEN_1002&DEV_7461", "0"].join(wmiSep))
+      parseWindowsAmdGpuLine(
+        [
+          "Microsoft Hyper-V Video",
+          "Advanced Micro Devices, Inc.",
+          "",
+          "PCI\\VEN_1002&DEV_7461",
+          "0",
+        ].join(wmiSep),
+      ),
     ).toEqual({
       name: "Advanced Micro Devices, Inc.",
       memoryMb: 28672,
@@ -67,10 +83,18 @@ describe("GPU info helpers", () => {
       rocmArch: null,
       rocmTarget: "gfx110X",
       supportsRocm: true,
-      supportsVulkan: true
+      supportsVulkan: true,
     });
     expect(
-      parseWindowsAmdGpuLine(["AMD Radeon PRO V710 MxGPU", "Advanced Micro Devices, Inc.", "Display", "PCI\\VEN_1002&DEV_7460", ""].join(wmiSep))
+      parseWindowsAmdGpuLine(
+        [
+          "AMD Radeon PRO V710 MxGPU",
+          "Advanced Micro Devices, Inc.",
+          "Display",
+          "PCI\\VEN_1002&DEV_7460",
+          "",
+        ].join(wmiSep),
+      ),
     ).toEqual({
       name: "AMD Radeon PRO V710 MxGPU",
       memoryMb: 28672,
@@ -80,7 +104,7 @@ describe("GPU info helpers", () => {
       rocmArch: null,
       rocmTarget: "gfx110X",
       supportsRocm: true,
-      supportsVulkan: true
+      supportsVulkan: true,
     });
     expect(parseWindowsAmdGpuLine("AMD Radeon PRO W7900,0")).toEqual({
       name: "AMD Radeon PRO W7900",
@@ -91,12 +115,14 @@ describe("GPU info helpers", () => {
       rocmArch: null,
       rocmTarget: "gfx110X",
       supportsRocm: true,
-      supportsVulkan: true
+      supportsVulkan: true,
     });
   });
 
   it("parses AMD ROCm SMI lines as ROCm-capable GPUs", () => {
-    expect(parseRocmSmiGpuLine("card0, AMD Radeon RX 7900 XTX, 24 GiB, gfx1100")).toEqual({
+    expect(
+      parseRocmSmiGpuLine("card0, AMD Radeon RX 7900 XTX, 24 GiB, gfx1100"),
+    ).toEqual({
       name: "AMD Radeon RX 7900 XTX",
       memoryMb: 24576,
       rtxGeneration: null,
@@ -105,7 +131,7 @@ describe("GPU info helpers", () => {
       rocmArch: "gfx1100",
       rocmTarget: "gfx110X",
       supportsRocm: true,
-      supportsVulkan: true
+      supportsVulkan: true,
     });
   });
 
@@ -114,16 +140,28 @@ describe("GPU info helpers", () => {
     expect(resolveAmdRocmTargetFromArch("gfx1101")).toBe("gfx110X");
     expect(resolveAmdRocmTargetFromArch("gfx1034")).toBe("gfx103X");
     expect(inferAmdRocmTargetFromName("AMD Radeon RX 9070 XT")).toBe("gfx120X");
-    expect(inferAmdRocmTargetFromName("AMD Radeon AI PRO R9700")).toBe("gfx120X");
+    expect(inferAmdRocmTargetFromName("AMD Radeon AI PRO R9700")).toBe(
+      "gfx120X",
+    );
     expect(inferAmdRocmTargetFromName("AMD Radeon PRO V710")).toBe("gfx110X");
-    expect(inferAmdRocmTargetFromName("AMD Radeon PRO V710 MxGPU")).toBe("gfx110X");
+    expect(inferAmdRocmTargetFromName("AMD Radeon PRO V710 MxGPU")).toBe(
+      "gfx110X",
+    );
     expect(inferAmdRocmTargetFromName("AMD Radeon PRO W7900")).toBe("gfx110X");
-    expect(inferAmdRocmTargetFromName("AMD Radeon RX 7900 XTX")).toBe("gfx110X");
+    expect(inferAmdRocmTargetFromName("AMD Radeon RX 7900 XTX")).toBe(
+      "gfx110X",
+    );
     expect(inferAmdRocmTargetFromName("AMD Radeon PRO W6800")).toBe("gfx103X");
     expect(inferAmdRocmTargetFromName("AMD Radeon RX 6800 XT")).toBe("gfx103X");
-    expect(inferAmdRocmTargetFromName("AMD Ryzen AI Max+ 395 with Radeon 8060S")).toBe("gfx1151");
-    expect(inferAmdRocmTargetFromName("AMD Ryzen AI 9 HX 370 with Radeon 890M")).toBe("gfx1150");
+    expect(
+      inferAmdRocmTargetFromName("AMD Ryzen AI Max+ 395 with Radeon 8060S"),
+    ).toBe("gfx1151");
+    expect(
+      inferAmdRocmTargetFromName("AMD Ryzen AI 9 HX 370 with Radeon 890M"),
+    ).toBe("gfx1150");
     expect(inferAmdRocmTargetFromName("AMD Radeon 890M")).toBe("gfx1150");
-    expect(inferAmdRocmTargetFromName("AMD Ryzen AI 7 350 with Radeon 860M")).toBeNull();
+    expect(
+      inferAmdRocmTargetFromName("AMD Ryzen AI 7 350 with Radeon 860M"),
+    ).toBeNull();
   });
 });

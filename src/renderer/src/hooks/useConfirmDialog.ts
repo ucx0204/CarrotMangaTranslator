@@ -8,11 +8,18 @@ export type ConfirmDialogState = {
 
 export function useConfirmDialog(): {
   confirmDialog: ConfirmDialogState | null;
-  askConfirm: (title: string, message: string, detail?: string) => Promise<boolean>;
+  askConfirm: (
+    title: string,
+    message: string,
+    detail?: string,
+  ) => Promise<boolean>;
   resolveConfirmDialog: (confirmed: boolean) => void;
 } {
-  const [confirmDialog, setConfirmDialog] = React.useState<ConfirmDialogState | null>(null);
-  const confirmResolverRef = React.useRef<((confirmed: boolean) => void) | null>(null);
+  const [confirmDialog, setConfirmDialog] =
+    React.useState<ConfirmDialogState | null>(null);
+  const confirmResolverRef = React.useRef<
+    ((confirmed: boolean) => void) | null
+  >(null);
 
   const resolveConfirmDialog = React.useCallback((confirmed: boolean) => {
     const resolver = confirmResolverRef.current;
@@ -21,13 +28,16 @@ export function useConfirmDialog(): {
     resolver?.(confirmed);
   }, []);
 
-  const askConfirm = React.useCallback((title: string, message: string, detail?: string) => {
-    confirmResolverRef.current?.(false);
-    return new Promise<boolean>((resolve) => {
-      confirmResolverRef.current = resolve;
-      setConfirmDialog({ title, message, detail });
-    });
-  }, []);
+  const askConfirm = React.useCallback(
+    (title: string, message: string, detail?: string) => {
+      confirmResolverRef.current?.(false);
+      return new Promise<boolean>((resolve) => {
+        confirmResolverRef.current = resolve;
+        setConfirmDialog({ title, message, detail });
+      });
+    },
+    [],
+  );
 
   return { confirmDialog, askConfirm, resolveConfirmDialog };
 }

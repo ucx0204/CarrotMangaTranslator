@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { delimiter, join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -16,80 +22,192 @@ import {
   GEMMA_26B_MMPROJ_FILE,
   GEMMA_26B_MMPROJ_REPO,
   GEMMA_26B_MODEL_FILE_IQ3_S,
-  GEMMA_26B_MODEL_REPO
+  GEMMA_26B_MODEL_REPO,
 } from "../src/shared/modelPresets";
 
-const runtimeHelpers = require("../src/main/runtime/simple-page-translate.cjs") as {
-  buildLaunchArgs: (options: { [key: string]: unknown }) => string[];
-  buildMessages: (
-    options: { [key: string]: unknown },
-    imageVariants: Array<{ role: string; dataUrl: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number }>
-  ) => Array<{
-    role: string;
-    content: Array<{ type: string; text?: string; image_url?: { url: string } }>;
-  }>;
-  buildResponsesRequestBody: (
-    options: { [key: string]: unknown },
-    imageVariants: Array<{ role: string; dataUrl: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number }>
-  ) => {
-    model: string;
-    instructions: string;
-    input: Array<{ role: string; content: Array<{ type: string; text?: string; image_url?: string; detail?: string }> }>;
-    reasoning: { effort: string };
-    stream: boolean;
-    store: boolean;
+function compactSource(source: string): string {
+  return source.replace(/\s+/g, "").replace(/,([)\]}])/g, "$1");
+}
+
+function expectSourceToContain(source: string, snippet: string): void {
+  expect(compactSource(source)).toContain(compactSource(snippet));
+}
+
+const runtimeHelpers =
+  require("../src/main/runtime/simple-page-translate.cjs") as {
+    buildLaunchArgs: (options: { [key: string]: unknown }) => string[];
+    buildMessages: (
+      options: { [key: string]: unknown },
+      imageVariants: Array<{
+        role: string;
+        dataUrl: string;
+        width?: number;
+        height?: number;
+        originalWidth?: number;
+        originalHeight?: number;
+      }>,
+    ) => Array<{
+      role: string;
+      content: Array<{
+        type: string;
+        text?: string;
+        image_url?: { url: string };
+      }>;
+    }>;
+    buildResponsesRequestBody: (
+      options: { [key: string]: unknown },
+      imageVariants: Array<{
+        role: string;
+        dataUrl: string;
+        width?: number;
+        height?: number;
+        originalWidth?: number;
+        originalHeight?: number;
+      }>,
+    ) => {
+      model: string;
+      instructions: string;
+      input: Array<{
+        role: string;
+        content: Array<{
+          type: string;
+          text?: string;
+          image_url?: string;
+          detail?: string;
+        }>;
+      }>;
+      reasoning: { effort: string };
+      stream: boolean;
+      store: boolean;
+    };
+    buildOcrRuntimeEnv: (
+      options: { [key: string]: unknown },
+      runtime?: {
+        runtimeDir?: string;
+        packageDir?: string;
+        includePackageDir?: boolean;
+      },
+    ) => Record<string, string>;
+    buildLlamaServerEnv: (
+      serverPath: string,
+      options: { [key: string]: unknown },
+    ) => Record<string, string>;
+    buildPaddleOcrImportCheckScript: (options?: {
+      [key: string]: unknown;
+    }) => string;
+    buildPaddleOcrImportFailureMessage: (
+      message: string,
+      options?: { [key: string]: unknown },
+    ) => string;
+    getOverlayPrompt: (
+      options: { [key: string]: unknown },
+      imageVariants: Array<{
+        role: string;
+        dataUrl?: string;
+        width?: number;
+        height?: number;
+        originalWidth?: number;
+        originalHeight?: number;
+      }>,
+    ) => string;
+    collectOcrBboxHints: (options: { [key: string]: unknown }) => Promise<{
+      hints: Array<{
+        x1: number;
+        y1: number;
+        x2: number;
+        y2: number;
+        ocrText?: string;
+        groupId?: string;
+        rolePrior?: string;
+        orderInGroup?: number;
+      }>;
+      diagnostics: unknown[];
+      noTextDetected: boolean;
+      textEvidenceCount: number;
+    }>;
+    collectRequiredHfDownloads: (options: {
+      [key: string]: unknown;
+    }) => Array<{ kind: string; file: string; destination: string }>;
+    collectRequiredPaddleOcrModelDownloads: (
+      options: { [key: string]: unknown },
+      runtime?: { runtimeDir?: string },
+    ) => Array<{
+      kind: string;
+      repo: string;
+      file: string;
+      destination: string;
+      url: string;
+    }>;
+    extractModelOutputText: (parsed: unknown) => string;
+    inspectModelLaunch: (options: { [key: string]: unknown }) => {
+      launchMode: string;
+      model?: string;
+      reasoningEffort?: string;
+    };
+    isModelCached: (options: { [key: string]: unknown }) => boolean;
+    parseOcrBatchProgressLine: (
+      line: string,
+    ) => { index: number; total: number; count: number } | null;
+    parsePaddleModelFetchProgress: (line: string) => {
+      totalFiles: number;
+      currentFiles: number | null;
+      percent: number | null;
+    } | null;
+    parsePipRawProgress: (
+      line: string,
+    ) => { current: number; total: number } | null;
+    parseResponsesSseText: (rawText: string) => {
+      outputText: string;
+      eventCount: number;
+      rawResponse: unknown;
+    };
+    requestTranslation: (
+      server: { baseUrl: string },
+      options: { [key: string]: unknown },
+    ) => Promise<{
+      outputText: string;
+      rawResponse: unknown;
+      requestBody: Record<string, unknown>;
+    }>;
+    resolveOcrGpuBackend: (options?: { [key: string]: unknown }) => string;
+    resolveOcrGpuCudaTag: (options?: { [key: string]: unknown }) => string;
+    resolveOcrGpuPackageIndexUrl: (options?: {
+      [key: string]: unknown;
+    }) => string;
+    resolveOcrPipInstallBatches: (options?: {
+      [key: string]: unknown;
+    }) => string[][];
+    resolvePaddleOcrImportCheckTimeoutMs: (options?: {
+      [key: string]: unknown;
+    }) => number;
+    resolveFfmpegPath: (options: { [key: string]: unknown }) => string;
+    resolveLlamaCppCacheDir: (options?: {
+      [key: string]: unknown;
+    }) => string | null;
+    resolveOcrBboxTimeoutMs: (pageCount?: number) => number;
+    resolveOcrInstallBatchProgressRanges: (
+      batches: string[][],
+      start: number,
+      end: number,
+    ) => Array<{ start: number; end: number }>;
+    resolveManagedHfFilePath: (
+      options: { [key: string]: unknown },
+      repo: string,
+      file: string,
+    ) => string | null;
   };
-  buildOcrRuntimeEnv: (
-    options: { [key: string]: unknown },
-    runtime?: { runtimeDir?: string; packageDir?: string; includePackageDir?: boolean }
-  ) => Record<string, string>;
-  buildLlamaServerEnv: (serverPath: string, options: { [key: string]: unknown }) => Record<string, string>;
-  buildPaddleOcrImportCheckScript: (options?: { [key: string]: unknown }) => string;
-  buildPaddleOcrImportFailureMessage: (message: string, options?: { [key: string]: unknown }) => string;
-  getOverlayPrompt: (
-    options: { [key: string]: unknown },
-    imageVariants: Array<{ role: string; dataUrl?: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number }>
-  ) => string;
-  collectOcrBboxHints: (options: { [key: string]: unknown }) => Promise<{
-    hints: Array<{ x1: number; y1: number; x2: number; y2: number; ocrText?: string; groupId?: string; rolePrior?: string; orderInGroup?: number }>;
-    diagnostics: unknown[];
-    noTextDetected: boolean;
-    textEvidenceCount: number;
-  }>;
-  collectRequiredHfDownloads: (options: { [key: string]: unknown }) => Array<{ kind: string; file: string; destination: string }>;
-  collectRequiredPaddleOcrModelDownloads: (
-    options: { [key: string]: unknown },
-    runtime?: { runtimeDir?: string }
-  ) => Array<{ kind: string; repo: string; file: string; destination: string; url: string }>;
-  extractModelOutputText: (parsed: unknown) => string;
-  inspectModelLaunch: (options: { [key: string]: unknown }) => { launchMode: string; model?: string; reasoningEffort?: string };
-  isModelCached: (options: { [key: string]: unknown }) => boolean;
-  parseOcrBatchProgressLine: (line: string) => { index: number; total: number; count: number } | null;
-  parsePaddleModelFetchProgress: (line: string) => { totalFiles: number; currentFiles: number | null; percent: number | null } | null;
-  parsePipRawProgress: (line: string) => { current: number; total: number } | null;
-  parseResponsesSseText: (rawText: string) => { outputText: string; eventCount: number; rawResponse: unknown };
-  requestTranslation: (server: { baseUrl: string }, options: { [key: string]: unknown }) => Promise<{ outputText: string; rawResponse: unknown; requestBody: Record<string, unknown> }>;
-  resolveOcrGpuBackend: (options?: { [key: string]: unknown }) => string;
-  resolveOcrGpuCudaTag: (options?: { [key: string]: unknown }) => string;
-  resolveOcrGpuPackageIndexUrl: (options?: { [key: string]: unknown }) => string;
-  resolveOcrPipInstallBatches: (options?: { [key: string]: unknown }) => string[][];
-  resolvePaddleOcrImportCheckTimeoutMs: (options?: { [key: string]: unknown }) => number;
-  resolveFfmpegPath: (options: { [key: string]: unknown }) => string;
-  resolveLlamaCppCacheDir: (options?: { [key: string]: unknown }) => string | null;
-  resolveOcrBboxTimeoutMs: (pageCount?: number) => number;
-  resolveOcrInstallBatchProgressRanges: (batches: string[][], start: number, end: number) => Array<{ start: number; end: number }>;
-  resolveManagedHfFilePath: (options: { [key: string]: unknown }, repo: string, file: string) => string | null;
-};
-const runtimeDefaults = require("../src/main/runtime/simple-page-defaults.cjs") as {
-  DEFAULT_MODEL_HF: string;
-  DEFAULT_HF_FILE: string;
-  DEFAULT_MMPROJ_HF: string;
-  DEFAULT_MMPROJ_FILE: string;
-};
-const llamaRuntimeResolver = require("../src/main/runtime/resolve-llama-runtime.cjs") as {
-  bundledServerCandidates: (toolsDir: string) => string[];
-  resolveBundledServerPath: (toolsDir: string) => string;
-};
+const runtimeDefaults =
+  require("../src/main/runtime/simple-page-defaults.cjs") as {
+    DEFAULT_MODEL_HF: string;
+    DEFAULT_HF_FILE: string;
+    DEFAULT_MMPROJ_HF: string;
+    DEFAULT_MMPROJ_FILE: string;
+  };
+const llamaRuntimeResolver =
+  require("../src/main/runtime/resolve-llama-runtime.cjs") as {
+    bundledServerCandidates: (toolsDir: string) => string[];
+    resolveBundledServerPath: (toolsDir: string) => string;
+  };
 const {
   buildLaunchArgs,
   buildMessages,
@@ -119,9 +237,10 @@ const {
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
   resolveOcrPipInstallBatches,
-  resolvePaddleOcrImportCheckTimeoutMs
+  resolvePaddleOcrImportCheckTimeoutMs,
 } = runtimeHelpers;
-const { bundledServerCandidates, resolveBundledServerPath } = llamaRuntimeResolver;
+const { bundledServerCandidates, resolveBundledServerPath } =
+  llamaRuntimeResolver;
 
 const tempDirs: string[] = [];
 const DEFAULT_31B_REPO = DEFAULT_GEMMA_MODEL_REPO;
@@ -164,7 +283,7 @@ function writeCachedAssets({
   repoId,
   snapshot,
   modelFile,
-  includeMmproj = true
+  includeMmproj = true,
 }: {
   hubCacheDir: string;
   repoId: string;
@@ -172,7 +291,12 @@ function writeCachedAssets({
   modelFile: string;
   includeMmproj?: boolean;
 }): string {
-  const snapshotDir = join(hubCacheDir, `models--${repoId.replace(/\//g, "--")}`, "snapshots", snapshot);
+  const snapshotDir = join(
+    hubCacheDir,
+    `models--${repoId.replace(/\//g, "--")}`,
+    "snapshots",
+    snapshot,
+  );
   mkdirSync(snapshotDir, { recursive: true });
   writeFileSync(join(snapshotDir, modelFile), "model");
   if (includeMmproj) {
@@ -226,35 +350,51 @@ describe("runtime model launch helpers", () => {
   it("parses pip raw progress without inventing elapsed-time progress", () => {
     expect(parsePipRawProgress("Progress 32768 of 1048576")).toEqual({
       current: 32768,
-      total: 1048576
+      total: 1048576,
     });
     expect(parsePipRawProgress("Collecting paddleocr")).toBeNull();
   });
 
   it("parses OCR batch progress JSON lines", () => {
-    expect(parseOcrBatchProgressLine('{"index":2,"total":65,"output":"page.json","count":14}')).toEqual({
+    expect(
+      parseOcrBatchProgressLine(
+        '{"index":2,"total":65,"output":"page.json","count":14}',
+      ),
+    ).toEqual({
       phase: "done",
       index: 2,
       total: 65,
-      count: 14
+      count: 14,
     });
-    expect(parseOcrBatchProgressLine('{"phase":"start","index":3,"total":65,"output":"page.json","count":0}')).toEqual({
+    expect(
+      parseOcrBatchProgressLine(
+        '{"phase":"start","index":3,"total":65,"output":"page.json","count":0}',
+      ),
+    ).toEqual({
       phase: "start",
       index: 3,
       total: 65,
-      count: 0
+      count: 0,
     });
     expect(parseOcrBatchProgressLine('{"items":[],"count":65}')).toBeNull();
     expect(parseOcrBatchProgressLine("[paddleocr] warmup")).toBeNull();
   });
 
   it("parses Paddle model fetch progress lines", () => {
-    expect(parsePaddleModelFetchProgress("Fetching 19 files: 11%|█ | 2/19 [00:00<00:07, 2.14it/s]")).toEqual({
+    expect(
+      parsePaddleModelFetchProgress(
+        "Fetching 19 files: 11%|█ | 2/19 [00:00<00:07, 2.14it/s]",
+      ),
+    ).toEqual({
       totalFiles: 19,
       currentFiles: 2,
-      percent: 11
+      percent: 11,
     });
-    expect(parsePaddleModelFetchProgress("Creating model: ('PaddleOCR-VL-1.5-0.9B', None, None)")).toBeNull();
+    expect(
+      parsePaddleModelFetchProgress(
+        "Creating model: ('PaddleOCR-VL-1.5-0.9B', None, None)",
+      ),
+    ).toBeNull();
   });
 
   it("allows slow first-run Paddle model downloads before timing out OCR bbox analysis", () => {
@@ -262,7 +402,9 @@ describe("runtime model launch helpers", () => {
     delete process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS;
     try {
       expect(resolveOcrBboxTimeoutMs(1)).toBeGreaterThanOrEqual(60 * 60 * 1000);
-      expect(resolveOcrBboxTimeoutMs(20)).toBeGreaterThanOrEqual(60 * 60 * 1000);
+      expect(resolveOcrBboxTimeoutMs(20)).toBeGreaterThanOrEqual(
+        60 * 60 * 1000,
+      );
     } finally {
       if (previous === undefined) {
         delete process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS;
@@ -277,28 +419,54 @@ describe("runtime model launch helpers", () => {
     const tasks = collectRequiredPaddleOcrModelDownloads({}, { runtimeDir });
 
     expect(tasks).toHaveLength(36);
-    expect(tasks).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        repo: "PaddlePaddle/PP-DocLayoutV3",
-        file: "inference.pdiparams",
-        destination: join(runtimeDir, "paddlex-cache", "official_models", "PP-DocLayoutV3", "inference.pdiparams")
-      }),
-      expect.objectContaining({
-        repo: "PaddlePaddle/PaddleOCR-VL-1.5",
-        file: "model.safetensors",
-        destination: join(runtimeDir, "paddlex-cache", "official_models", "PaddleOCR-VL-1.5", "model.safetensors")
-      }),
-      expect.objectContaining({
-        repo: "PaddlePaddle/PP-OCRv5_server_det",
-        file: "inference.pdiparams",
-        destination: join(runtimeDir, "paddlex-cache", "official_models", "PP-OCRv5_server_det", "inference.pdiparams")
-      }),
-      expect.objectContaining({
-        repo: "PaddlePaddle/PP-OCRv5_server_rec",
-        file: "inference.pdiparams",
-        destination: join(runtimeDir, "paddlex-cache", "official_models", "PP-OCRv5_server_rec", "inference.pdiparams")
-      })
-    ]));
+    expect(tasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          repo: "PaddlePaddle/PP-DocLayoutV3",
+          file: "inference.pdiparams",
+          destination: join(
+            runtimeDir,
+            "paddlex-cache",
+            "official_models",
+            "PP-DocLayoutV3",
+            "inference.pdiparams",
+          ),
+        }),
+        expect.objectContaining({
+          repo: "PaddlePaddle/PaddleOCR-VL-1.5",
+          file: "model.safetensors",
+          destination: join(
+            runtimeDir,
+            "paddlex-cache",
+            "official_models",
+            "PaddleOCR-VL-1.5",
+            "model.safetensors",
+          ),
+        }),
+        expect.objectContaining({
+          repo: "PaddlePaddle/PP-OCRv5_server_det",
+          file: "inference.pdiparams",
+          destination: join(
+            runtimeDir,
+            "paddlex-cache",
+            "official_models",
+            "PP-OCRv5_server_det",
+            "inference.pdiparams",
+          ),
+        }),
+        expect.objectContaining({
+          repo: "PaddlePaddle/PP-OCRv5_server_rec",
+          file: "inference.pdiparams",
+          destination: join(
+            runtimeDir,
+            "paddlex-cache",
+            "official_models",
+            "PP-OCRv5_server_rec",
+            "inference.pdiparams",
+          ),
+        }),
+      ]),
+    );
   });
 
   it("disables hf-xet for Paddle OCR Python downloads by default", () => {
@@ -310,7 +478,10 @@ describe("runtime model launch helpers", () => {
     delete process.env.HF_HUB_DOWNLOAD_TIMEOUT;
     process.env.MGT_UNRELATED_SECRET = "secret";
     try {
-      const env = buildOcrRuntimeEnv({}, { runtimeDir, includePackageDir: false });
+      const env = buildOcrRuntimeEnv(
+        {},
+        { runtimeDir, includePackageDir: false },
+      );
       expect(env.HF_HUB_DISABLE_XET).toBe("1");
       expect(env.HF_HUB_DOWNLOAD_TIMEOUT).toBe("300");
       expect(env.MGT_UNRELATED_SECRET).toBeUndefined();
@@ -340,11 +511,15 @@ describe("runtime model launch helpers", () => {
       if (process.platform === "win32") {
         const localAppData = createTempDir("local-app-data-");
         process.env.LOCALAPPDATA = localAppData;
-        expect(resolveLlamaCppCacheDir()).toBe(join(localAppData, "manga-gemma-translator", "llama.cpp"));
+        expect(resolveLlamaCppCacheDir()).toBe(
+          join(localAppData, "manga-gemma-translator", "llama.cpp"),
+        );
       } else {
         const xdgCacheHome = createTempDir("xdg-cache-");
         process.env.XDG_CACHE_HOME = xdgCacheHome;
-        expect(resolveLlamaCppCacheDir()).toBe(join(xdgCacheHome, "manga-gemma-translator", "llama.cpp"));
+        expect(resolveLlamaCppCacheDir()).toBe(
+          join(xdgCacheHome, "manga-gemma-translator", "llama.cpp"),
+        );
       }
     } finally {
       restoreEnv("MANGA_TRANSLATOR_LLAMA_CACHE_DIR", previousLlamaCache);
@@ -357,7 +532,10 @@ describe("runtime model launch helpers", () => {
   it("builds a minimal llama-server environment with app-scoped caches", () => {
     const toolsDir = createTempDir("llama-tools-");
     const runtimeDir = join(toolsDir, "beellama-v0.2.0-cuda12.4");
-    const serverPath = join(runtimeDir, process.platform === "win32" ? "llama-server.exe" : "llama-server");
+    const serverPath = join(
+      runtimeDir,
+      process.platform === "win32" ? "llama-server.exe" : "llama-server",
+    );
     const llamaCacheDir = join(toolsDir, "llama-cache");
     const previousSecret = process.env.MGT_UNRELATED_SECRET;
     mkdirSync(runtimeDir, { recursive: true });
@@ -369,7 +547,7 @@ describe("runtime model launch helpers", () => {
         toolsDir,
         hfHomeDir: join(toolsDir, "hf-cache"),
         hfHubCacheDir: join(toolsDir, "hf-cache", "hub"),
-        llamaCacheDir
+        llamaCacheDir,
       });
       const pathParts = String(env.PATH ?? "").split(delimiter);
 
@@ -388,10 +566,13 @@ describe("runtime model launch helpers", () => {
   it("uses the configured CUDA tag for isolated Paddle OCR GPU runtimes", () => {
     const runtimeDir = createTempDir("ocr-runtime-");
     const previousCudaTag = process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG;
-    const previousPaddleCudaTag = process.env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG;
+    const previousPaddleCudaTag =
+      process.env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG;
     const previousOcrGpuCuda = process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA;
-    const previousIndexUrl = process.env.MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL;
-    const previousPaddleIndexUrl = process.env.MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL;
+    const previousIndexUrl =
+      process.env.MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL;
+    const previousPaddleIndexUrl =
+      process.env.MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL;
     delete process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG;
     delete process.env.MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG;
     delete process.env.MANGA_TRANSLATOR_OCR_GPU_CUDA;
@@ -399,8 +580,13 @@ describe("runtime model launch helpers", () => {
     delete process.env.MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL;
     try {
       expect(resolveOcrGpuCudaTag({ ocrGpuCudaTag: "cu129" })).toBe("cu129");
-      expect(resolveOcrGpuPackageIndexUrl({ ocrGpuCudaTag: "cu129" })).toBe("https://www.paddlepaddle.org.cn/packages/stable/cu129/");
-      const env = buildOcrRuntimeEnv({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" }, { runtimeDir, includePackageDir: false });
+      expect(resolveOcrGpuPackageIndexUrl({ ocrGpuCudaTag: "cu129" })).toBe(
+        "https://www.paddlepaddle.org.cn/packages/stable/cu129/",
+      );
+      const env = buildOcrRuntimeEnv(
+        { ocrDevice: "gpu", ocrGpuCudaTag: "cu129" },
+        { runtimeDir, includePackageDir: false },
+      );
       expect(env.MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG).toBe("cu129");
       expect(env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE).toBe("gpu:0");
     } finally {
@@ -408,19 +594,28 @@ describe("runtime model launch helpers", () => {
       restoreEnv("MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG", previousPaddleCudaTag);
       restoreEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA", previousOcrGpuCuda);
       restoreEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL", previousIndexUrl);
-      restoreEnv("MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL", previousPaddleIndexUrl);
+      restoreEnv(
+        "MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL",
+        previousPaddleIndexUrl,
+      );
     }
   });
 
   it("uses official cu129 Paddle OCR packages and Windows safetensors for RTX 50 GPU OCR runtimes", () => {
-    const cu129Batches = resolveOcrPipInstallBatches({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" });
-    const cu126Batches = resolveOcrPipInstallBatches({ ocrDevice: "gpu", ocrGpuCudaTag: "cu126" });
+    const cu129Batches = resolveOcrPipInstallBatches({
+      ocrDevice: "gpu",
+      ocrGpuCudaTag: "cu129",
+    });
+    const cu126Batches = resolveOcrPipInstallBatches({
+      ocrDevice: "gpu",
+      ocrGpuCudaTag: "cu126",
+    });
     const cpuBatches = resolveOcrPipInstallBatches({ ocrDevice: "cpu" });
 
     expect(cu129Batches[0]).toEqual([
       "paddlepaddle-gpu==3.3.1",
       "--index-url",
-      "https://www.paddlepaddle.org.cn/packages/stable/cu129/"
+      "https://www.paddlepaddle.org.cn/packages/stable/cu129/",
     ]);
     expect(cu129Batches[1]).toEqual(["paddleocr[doc-parser]==3.5.0"]);
     if (process.platform === "win32") {
@@ -431,7 +626,7 @@ describe("runtime model launch helpers", () => {
     expect(cu126Batches[0]).toEqual([
       "paddlepaddle-gpu==3.3.1",
       "--index-url",
-      "https://www.paddlepaddle.org.cn/packages/stable/cu126/"
+      "https://www.paddlepaddle.org.cn/packages/stable/cu126/",
     ]);
     expect(cu126Batches[1]).toEqual(["paddleocr[doc-parser]==3.5.0"]);
     expect(cpuBatches[0][0]).toBe("paddlepaddle==3.3.1");
@@ -447,15 +642,24 @@ describe("runtime model launch helpers", () => {
   });
 
   it("keeps Paddle OCR GPU on the CUDA runtime even if legacy ROCm backend values remain", () => {
-    const rocmBatches = resolveOcrPipInstallBatches({ ocrDevice: "gpu", ocrGpuBackend: "rocm" });
-    const env = buildOcrRuntimeEnv({ ocrDevice: "gpu", ocrGpuBackend: "rocm" }, { runtimeDir: "C:/ocr-runtime", includePackageDir: false });
-    const script = buildPaddleOcrImportCheckScript({ ocrDevice: "gpu", ocrGpuBackend: "rocm" });
+    const rocmBatches = resolveOcrPipInstallBatches({
+      ocrDevice: "gpu",
+      ocrGpuBackend: "rocm",
+    });
+    const env = buildOcrRuntimeEnv(
+      { ocrDevice: "gpu", ocrGpuBackend: "rocm" },
+      { runtimeDir: "C:/ocr-runtime", includePackageDir: false },
+    );
+    const script = buildPaddleOcrImportCheckScript({
+      ocrDevice: "gpu",
+      ocrGpuBackend: "rocm",
+    });
 
     expect(resolveOcrGpuBackend({ ocrGpuBackend: "amd" })).toBe("cuda");
     expect(rocmBatches[0]).toEqual([
       "paddlepaddle-gpu==3.3.1",
       "--index-url",
-      "https://www.paddlepaddle.org.cn/packages/stable/cu126/"
+      "https://www.paddlepaddle.org.cn/packages/stable/cu126/",
     ]);
     expect(env.MANGA_TRANSLATOR_OCR_GPU_BACKEND).toBeUndefined();
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE).toBe("gpu:0");
@@ -466,12 +670,17 @@ describe("runtime model launch helpers", () => {
   it("adds Paddle native DLL directories for isolated Windows OCR runtimes", () => {
     const packageDir = join("C:/ocr-runtime", "python-packages-cpu");
     const paddleBaseDir = join(packageDir, "paddle", "base");
-    const env = buildOcrRuntimeEnv({ ocrDevice: "cpu" }, {
-      runtimeDir: "C:/ocr-runtime",
-      packageDir
-    });
+    const env = buildOcrRuntimeEnv(
+      { ocrDevice: "cpu" },
+      {
+        runtimeDir: "C:/ocr-runtime",
+        packageDir,
+      },
+    );
     const pathParts = String(env.PATH ?? "").split(delimiter);
-    const dllParts = String(env.MANGA_TRANSLATOR_OCR_DLL_DIRS ?? "").split(delimiter);
+    const dllParts = String(env.MANGA_TRANSLATOR_OCR_DLL_DIRS ?? "").split(
+      delimiter,
+    );
     const script = buildPaddleOcrImportCheckScript({ ocrDevice: "cpu" });
 
     expect(pathParts).toContain(paddleBaseDir);
@@ -482,7 +691,7 @@ describe("runtime model launch helpers", () => {
   it("explains Paddle native DLL load failures separately from generic import errors", () => {
     const message = buildPaddleOcrImportFailureMessage(
       "Error: Can not import paddle core while this file exists: C:/ocr/python-packages-cpu/paddle/base/libpaddle.pyd\nImportError: DLL load failed while importing libpaddle: The specified module could not be found.",
-      { ocrDevice: "cpu" }
+      { ocrDevice: "cpu" },
     );
 
     expect(message).toContain("네이티브 DLL");
@@ -491,20 +700,24 @@ describe("runtime model launch helpers", () => {
   });
 
   it("ignores legacy ROCm Paddle OCR package overrides", () => {
-    const previousPackage = process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE;
-    const previousIndex = process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_INDEX_URL;
+    const previousPackage =
+      process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE;
+    const previousIndex =
+      process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_INDEX_URL;
     try {
-      process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE = "paddlepaddle-rocm==3.0.0";
-      process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_INDEX_URL = "https://example.invalid/rocm/";
+      process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE =
+        "paddlepaddle-rocm==3.0.0";
+      process.env.MANGA_TRANSLATOR_OCR_ROCM_PADDLE_INDEX_URL =
+        "https://example.invalid/rocm/";
       const batches = resolveOcrPipInstallBatches({
         ocrDevice: "gpu",
-        ocrGpuBackend: "rocm"
+        ocrGpuBackend: "rocm",
       });
 
       expect(batches[0]).toEqual([
         "paddlepaddle-gpu==3.3.1",
         "--index-url",
-        "https://www.paddlepaddle.org.cn/packages/stable/cu126/"
+        "https://www.paddlepaddle.org.cn/packages/stable/cu126/",
       ]);
     } finally {
       restoreEnv("MANGA_TRANSLATOR_OCR_ROCM_PADDLE_PACKAGE", previousPackage);
@@ -517,13 +730,13 @@ describe("runtime model launch helpers", () => {
       ocrDevice: "gpu",
       ocrGpuCudaTag: "cu129",
       modelRepo: DEFAULT_31B_REPO,
-      modelFile: DEFAULT_31B_FILE
+      modelFile: DEFAULT_31B_FILE,
     });
     const gemma26B = resolveOcrPipInstallBatches({
       ocrDevice: "gpu",
       ocrGpuCudaTag: "cu129",
       modelRepo: DEFAULT_26B_REPO,
-      modelFile: DEFAULT_26B_FILE
+      modelFile: DEFAULT_26B_FILE,
     });
 
     expect(gemma26B).toEqual(gemma31B);
@@ -537,7 +750,10 @@ describe("runtime model launch helpers", () => {
       process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES =
         "paddleocr[doc-parser]==3.5.0 https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl";
 
-      const batches = resolveOcrPipInstallBatches({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" });
+      const batches = resolveOcrPipInstallBatches({
+        ocrDevice: "gpu",
+        ocrGpuCudaTag: "cu129",
+      });
 
       if (process.platform === "win32") {
         expect(batches).toEqual([
@@ -545,8 +761,8 @@ describe("runtime model launch helpers", () => {
           [
             "--no-deps",
             "--force-reinstall",
-            "https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl"
-          ]
+            "https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl",
+          ],
         ]);
       } else {
         expect(batches[0]).toContain("paddleocr[doc-parser]==3.5.0");
@@ -561,15 +777,30 @@ describe("runtime model launch helpers", () => {
     const previous = process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS;
     delete process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS;
     try {
-      const script = buildPaddleOcrImportCheckScript({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" });
+      const script = buildPaddleOcrImportCheckScript({
+        ocrDevice: "gpu",
+        ocrGpuCudaTag: "cu129",
+      });
       expect(script).toContain("importlib.util.find_spec");
       expect(script).toContain("import paddle");
       expect(script).toContain("from paddleocr import PaddleOCRVL, PaddleOCR");
       expect(script).not.toContain("import paddle, paddlex, paddleocr");
       expect(script).toContain("paddle.set_device");
-      expect(resolvePaddleOcrImportCheckTimeoutMs({ ocrDevice: "gpu", ocrGpuCudaTag: "cu129" })).toBeGreaterThanOrEqual(300000);
-      expect(resolvePaddleOcrImportCheckTimeoutMs({ ocrDevice: "gpu", ocrGpuCudaTag: "cu126" })).toBeGreaterThanOrEqual(180000);
-      expect(resolvePaddleOcrImportCheckTimeoutMs({ ocrDevice: "cpu" })).toBeGreaterThanOrEqual(120000);
+      expect(
+        resolvePaddleOcrImportCheckTimeoutMs({
+          ocrDevice: "gpu",
+          ocrGpuCudaTag: "cu129",
+        }),
+      ).toBeGreaterThanOrEqual(300000);
+      expect(
+        resolvePaddleOcrImportCheckTimeoutMs({
+          ocrDevice: "gpu",
+          ocrGpuCudaTag: "cu126",
+        }),
+      ).toBeGreaterThanOrEqual(180000);
+      expect(
+        resolvePaddleOcrImportCheckTimeoutMs({ ocrDevice: "cpu" }),
+      ).toBeGreaterThanOrEqual(120000);
     } finally {
       restoreEnv("MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS", previous);
     }
@@ -590,48 +821,118 @@ describe("runtime model launch helpers", () => {
     const toolsDir = join(packagedRoot, "resources", "tools");
     mkdirSync(toolsDir, { recursive: true });
 
-    expect(() => resolveFfmpegPath({ toolsDir })).toThrow("Bundled ffmpeg is missing");
+    expect(() => resolveFfmpegPath({ toolsDir })).toThrow(
+      "Bundled ffmpeg is missing",
+    );
   });
 
   it("streams OCR batch progress without inheriting the first page index during runtime setup", () => {
-    const runtimeSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-ocr-bbox-pipeline.cjs"), "utf8");
-    const shellUtilsSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-shell-utils.cjs"), "utf8");
-    const paddleSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "paddleocr-vl-bboxes.py"), "utf8");
+    const runtimeSource = readFileSync(
+      join(
+        __dirname,
+        "..",
+        "src",
+        "main",
+        "runtime",
+        "simple-page-ocr-bbox-pipeline.cjs",
+      ),
+      "utf8",
+    );
+    const shellUtilsSource = readFileSync(
+      join(
+        __dirname,
+        "..",
+        "src",
+        "main",
+        "runtime",
+        "simple-page-shell-utils.cjs",
+      ),
+      "utf8",
+    );
+    const paddleSource = readFileSync(
+      join(__dirname, "..", "src", "main", "runtime", "paddleocr-vl-bboxes.py"),
+      "utf8",
+    );
 
-    expect(runtimeSource).toContain("const batchOptions = withoutPageProgressOptions(firstOptions)");
-    expect(runtimeSource).toContain("await ensurePaddleOcrRuntime(batchOptions)");
-    expect(runtimeSource).toContain("emitRuntimeProgress(batchOptions, \"ocr_running\"");
-    expect(shellUtilsSource).toContain("createCommandOutputLineEmitter(onOutput)");
+    expect(runtimeSource).toContain(
+      "const batchOptions = withoutPageProgressOptions(firstOptions)",
+    );
+    expect(runtimeSource).toContain(
+      "await ensurePaddleOcrRuntime(batchOptions)",
+    );
+    expectSourceToContain(
+      runtimeSource,
+      'emitRuntimeProgress(batchOptions, "ocr_running"',
+    );
+    expect(shellUtilsSource).toContain(
+      "createCommandOutputLineEmitter(onOutput)",
+    );
     expect(shellUtilsSource).toContain("stdoutLines.write(chunk)");
     expect(paddleSource).toContain("flush=True");
   });
 
   it("keeps the CUDA 13 llama-server implementation DLL in the managed runtime", () => {
-    const modelAssetsSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-model-assets.cjs"), "utf8");
-    const runtimeProfilesSource = readFileSync(join(__dirname, "..", "src", "main", "runtime", "simple-page-llama-runtimes.cjs"), "utf8");
-    const mainlineCuda13Profile = runtimeProfilesSource.match(/const MAINLINE_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
-    const beellamaCuda13Profile = runtimeProfilesSource.match(/const BEELLAMA_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/)?.[0] ?? "";
+    const modelAssetsSource = readFileSync(
+      join(
+        __dirname,
+        "..",
+        "src",
+        "main",
+        "runtime",
+        "simple-page-model-assets.cjs",
+      ),
+      "utf8",
+    );
+    const runtimeProfilesSource = readFileSync(
+      join(
+        __dirname,
+        "..",
+        "src",
+        "main",
+        "runtime",
+        "simple-page-llama-runtimes.cjs",
+      ),
+      "utf8",
+    );
+    const mainlineCuda13Profile =
+      runtimeProfilesSource.match(
+        /const MAINLINE_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/,
+      )?.[0] ?? "";
+    const beellamaCuda13Profile =
+      runtimeProfilesSource.match(
+        /const BEELLAMA_LLAMA_RUNTIME_CUDA13 = \{[\s\S]*?\n\};/,
+      )?.[0] ?? "";
 
     expect(mainlineCuda13Profile).toContain('"llama-b9547-cuda13.3"');
     expect(mainlineCuda13Profile).toContain('"llama-server-impl.dll"');
     expect(beellamaCuda13Profile).not.toContain('"llama-server-impl.dll"');
-    expect(modelAssetsSource).toContain("function shouldExtractLlamaRuntimeFile(fileName");
-    expect(modelAssetsSource).toContain("LLAMA_RUNTIME_FILES.has(fileName) || /\\.(?:dll|so|dylib)$/i.test");
-    expect(modelAssetsSource).toContain("normalizedRelativePath.startsWith(\"rocblas/\")");
-    expect(modelAssetsSource).toContain("normalizedRelativePath.startsWith(\"hipblaslt/\")");
+    expectSourceToContain(
+      modelAssetsSource,
+      "function shouldExtractLlamaRuntimeFile(fileName",
+    );
+    expectSourceToContain(
+      modelAssetsSource,
+      "LLAMA_RUNTIME_FILES.has(fileName) || /\\.(?:dll|so|dylib)$/i.test",
+    );
+    expect(modelAssetsSource).toContain(
+      'normalizedRelativePath.startsWith("rocblas/")',
+    );
+    expect(modelAssetsSource).toContain(
+      'normalizedRelativePath.startsWith("hipblaslt/")',
+    );
   });
 
   it("treats an explicitly empty OCR hint array as a completed OCR pass", async () => {
     const result = await collectOcrBboxHints({
       ocrBboxHints: [],
-      ocrBboxProvider: "none"
+      ocrBboxProvider: "none",
     });
 
     expect(result).toMatchObject({
       hints: [],
       diagnostics: [{ provider: "inline", hintCount: 0 }],
       noTextDetected: true,
-      textEvidenceCount: 0
+      textEvidenceCount: 0,
     });
   });
 
@@ -639,31 +940,51 @@ describe("runtime model launch helpers", () => {
     const result = await collectOcrBboxHints({
       ocrBboxResult: {
         hints: [],
-        diagnostics: [{ provider: "paddleocr-vl", reason: "uncertain-empty-result" }],
+        diagnostics: [
+          { provider: "paddleocr-vl", reason: "uncertain-empty-result" },
+        ],
         noTextDetected: false,
-        textEvidenceCount: 0
+        textEvidenceCount: 0,
       },
-      ocrBboxProvider: "none"
+      ocrBboxProvider: "none",
     });
 
     expect(result).toMatchObject({
       hints: [],
-      diagnostics: [{ provider: "paddleocr-vl", reason: "uncertain-empty-result" }],
+      diagnostics: [
+        { provider: "paddleocr-vl", reason: "uncertain-empty-result" },
+      ],
       noTextDetected: false,
-      textEvidenceCount: 0
+      textEvidenceCount: 0,
     });
   });
 
   it("does not skip model analysis when OCR found geometry without readable Japanese transcript", async () => {
     const noEvidence = await collectOcrBboxHints({
-      ocrBboxHints: [{ id: 1, label: "text", x1: 10, y1: 20, x2: 80, y2: 90 }]
+      ocrBboxHints: [{ id: 1, label: "text", x1: 10, y1: 20, x2: 80, y2: 90 }],
     });
     const hasEvidence = await collectOcrBboxHints({
-      ocrBboxHints: [{ id: 1, label: "text", x1: 10, y1: 20, x2: 80, y2: 90, ocrText: "1998年1月" }]
+      ocrBboxHints: [
+        {
+          id: 1,
+          label: "text",
+          x1: 10,
+          y1: 20,
+          x2: 80,
+          y2: 90,
+          ocrText: "1998年1月",
+        },
+      ],
     });
 
-    expect(noEvidence).toMatchObject({ noTextDetected: false, textEvidenceCount: 0 });
-    expect(hasEvidence).toMatchObject({ noTextDetected: false, textEvidenceCount: 1 });
+    expect(noEvidence).toMatchObject({
+      noTextDetected: false,
+      textEvidenceCount: 0,
+    });
+    expect(hasEvidence).toMatchObject({
+      noTextDetected: false,
+      textEvidenceCount: 1,
+    });
   });
 
   it("returns a synthetic empty overlay instead of calling a model for no-text OCR pages", async () => {
@@ -674,23 +995,33 @@ describe("runtime model launch helpers", () => {
         modelProvider: "gemma",
         imageWidth: 1000,
         imageHeight: 1000,
-        ocrBboxHints: []
-      }
+        ocrBboxHints: [],
+      },
     );
 
     expect(JSON.parse(result.outputText)).toEqual({ items: [] });
-    expect(result.rawResponse).toMatchObject({ skipped: true, reason: "ocr-no-text" });
-    expect(result.requestBody).toMatchObject({ noTextDetected: true, ocrTextEvidenceCount: 0 });
+    expect(result.rawResponse).toMatchObject({
+      skipped: true,
+      reason: "ocr-no-text",
+    });
+    expect(result.requestBody).toMatchObject({
+      noTextDetected: true,
+      ocrTextEvidenceCount: 0,
+    });
   });
 
   it("weights OCR GPU install batches so one completed download does not imply half the install is done", () => {
     const ranges = resolveOcrInstallBatchProgressRanges(
       [
-        ["paddlepaddle-gpu==3.3.1", "--extra-index-url", "https://www.paddlepaddle.org.cn/packages/stable/cu126/"],
-        ["paddleocr==3.5.0", "paddlex[ocr]==3.5.2"]
+        [
+          "paddlepaddle-gpu==3.3.1",
+          "--extra-index-url",
+          "https://www.paddlepaddle.org.cn/packages/stable/cu126/",
+        ],
+        ["paddleocr==3.5.0", "paddlex[ocr]==3.5.2"],
       ],
       0.1,
-      0.86
+      0.86,
     );
 
     expect(ranges).toHaveLength(2);
@@ -705,14 +1036,14 @@ describe("runtime model launch helpers", () => {
     const launch = inspectModelLaunch({
       modelProvider: "openai-codex",
       codexModel: "gpt-5.5",
-      codexReasoningEffort: "high"
+      codexReasoningEffort: "high",
     });
 
     expect(launch).toEqual({
       launchMode: "openai-codex",
       model: "gpt-5.5",
       reasoningEffort: "high",
-      requiresDownload: false
+      requiresDownload: false,
     });
     expect(isModelCached({ modelProvider: "openai-codex" })).toBe(true);
   });
@@ -724,18 +1055,39 @@ describe("runtime model launch helpers", () => {
         codexModel: "gpt-5.5",
         codexReasoningEffort: "xhigh",
         imageWidth: 836,
-        imageHeight: 1188
+        imageHeight: 1188,
       },
-      [{ role: "openai-vision", dataUrl: "data:image/png;base64,abc123", width: 836, height: 1188, originalWidth: 836, originalHeight: 1188 }]
+      [
+        {
+          role: "openai-vision",
+          dataUrl: "data:image/png;base64,abc123",
+          width: 836,
+          height: 1188,
+          originalWidth: 836,
+          originalHeight: 1188,
+        },
+      ],
     );
 
     expect(requestBody.model).toBe("gpt-5.5");
     expect(requestBody.reasoning.effort).toBe("xhigh");
     expect(requestBody.stream).toBe(true);
     expect(requestBody.store).toBe(false);
-    expect(requestBody.input[0]?.content.some((part) => part.type === "input_image" && part.image_url === "data:image/png;base64,abc123" && part.detail === "original")).toBe(true);
-    expect(requestBody.input[0]?.content[0]).toMatchObject({ type: "input_image", image_url: "data:image/png;base64,abc123" });
-    expect(requestBody.input[0]?.content[1]).toMatchObject({ type: "input_text" });
+    expect(
+      requestBody.input[0]?.content.some(
+        (part) =>
+          part.type === "input_image" &&
+          part.image_url === "data:image/png;base64,abc123" &&
+          part.detail === "original",
+      ),
+    ).toBe(true);
+    expect(requestBody.input[0]?.content[0]).toMatchObject({
+      type: "input_image",
+      image_url: "data:image/png;base64,abc123",
+    });
+    expect(requestBody.input[0]?.content[1]).toMatchObject({
+      type: "input_text",
+    });
     expect(requestBody).not.toHaveProperty("max_tokens");
   });
 
@@ -746,28 +1098,69 @@ describe("runtime model launch helpers", () => {
         codexModel: "gpt-5.5",
         codexReasoningEffort: "medium",
         imageWidth: 7680,
-        imageHeight: 4320
+        imageHeight: 4320,
       },
-      [{ role: "openai-vision", dataUrl: "data:image/png;base64,abc123", width: 4256, height: 2400, originalWidth: 7680, originalHeight: 4320 }]
+      [
+        {
+          role: "openai-vision",
+          dataUrl: "data:image/png;base64,abc123",
+          width: 4256,
+          height: 2400,
+          originalWidth: 7680,
+          originalHeight: 4320,
+        },
+      ],
     );
-    const promptText = requestBody.input[0]?.content.find((part) => part.type === "input_text" && part.text?.includes("# Task"))?.text ?? "";
-    const imageDescription = requestBody.input[0]?.content.find((part) => part.type === "input_text" && part.text?.includes("Image 1:"))?.text ?? "";
+    const promptText =
+      requestBody.input[0]?.content.find(
+        (part) => part.type === "input_text" && part.text?.includes("# Task"),
+      )?.text ?? "";
+    const imageDescription =
+      requestBody.input[0]?.content.find(
+        (part) => part.type === "input_text" && part.text?.includes("Image 1:"),
+      )?.text ?? "";
 
-    expect(requestBody.instructions).toContain("Geometry accuracy comes before Korean text fit");
-    expect(requestBody.instructions).toContain("Never merge separate speech bubbles, including touching or stacked balloon lobes.");
+    expect(requestBody.instructions).toContain(
+      "Geometry accuracy comes before Korean text fit",
+    );
+    expect(requestBody.instructions).toContain(
+      "Never merge separate speech bubbles, including touching or stacked balloon lobes.",
+    );
     expect(promptText).toContain("Detect every visible Japanese text group");
-    expect(promptText).toContain("You are given one full-page Japanese manga image.");
-    expect(promptText).toContain("fontSize is the apparent Japanese glyph size in Image 1 pixels");
-    expect(promptText).toContain("x1, y1, x2, y2 describe the tight rectangle corners of the visible Japanese glyph ink and its outline.");
+    expect(promptText).toContain(
+      "You are given one full-page Japanese manga image.",
+    );
+    expect(promptText).toContain(
+      "fontSize is the apparent Japanese glyph size in Image 1 pixels",
+    );
+    expect(promptText).toContain(
+      "x1, y1, x2, y2 describe the tight rectangle corners of the visible Japanese glyph ink and its outline.",
+    );
     expect(promptText).toContain("Each speech bubble is one dialogue item.");
-    expect(promptText).toContain("If two white balloon lobes touch, overlap, stack vertically, or connect through a narrow neck");
-    expect(promptText).toContain("Never enlarge, shift, or reshape the rectangle");
+    expect(promptText).toContain(
+      "If two white balloon lobes touch, overlap, stack vertically, or connect through a narrow neck",
+    );
+    expect(promptText).toContain(
+      "Never enlarge, shift, or reshape the rectangle",
+    );
     expect(promptText).toContain("The original page is 7680x4320 px.");
-    expect(promptText).toContain("Image 1 was prepared before the API call to match the OpenAI detail: original vision frame");
-    expect(promptText).toContain("Return x1, y1, x2, y2 as integer pixel coordinates in that 4256x2400 Image 1 frame.");
-    expect(requestBody.input[0]?.content.find((part) => part.type === "input_text" && part.text?.includes("# Task"))?.text).not.toContain("Return x, y, w, h as normalized 0..1000");
-    expect(imageDescription).toContain("prepared for OpenAI detail: original vision");
-    expect(promptText).toContain("Do not return width/height, original-page pixels, normalized 0..1000 coordinates, viewport coordinates, crop coordinates, tile coordinates, or model-internal coordinates.");
+    expect(promptText).toContain(
+      "Image 1 was prepared before the API call to match the OpenAI detail: original vision frame",
+    );
+    expect(promptText).toContain(
+      "Return x1, y1, x2, y2 as integer pixel coordinates in that 4256x2400 Image 1 frame.",
+    );
+    expect(
+      requestBody.input[0]?.content.find(
+        (part) => part.type === "input_text" && part.text?.includes("# Task"),
+      )?.text,
+    ).not.toContain("Return x, y, w, h as normalized 0..1000");
+    expect(imageDescription).toContain(
+      "prepared for OpenAI detail: original vision",
+    );
+    expect(promptText).toContain(
+      "Do not return width/height, original-page pixels, normalized 0..1000 coordinates, viewport coordinates, crop coordinates, tile coordinates, or model-internal coordinates.",
+    );
   });
 
   it("uses OCR bbox candidates as single-pass geometry hints", () => {
@@ -776,11 +1169,36 @@ describe("runtime model launch helpers", () => {
       imageWidth: 836,
       imageHeight: 1188,
       ocrBboxHints: [
-        { id: 1, label: "text", x1: 67, y1: 589, x2: 267, y2: 760, ocrText: "いえ…資金はこちらも" },
-        { id: 2, label: "text", x1: 83, y1: 767, x2: 239, y2: 1029, ocrText: "モリーダ村に支店を置く" }
-      ]
+        {
+          id: 1,
+          label: "text",
+          x1: 67,
+          y1: 589,
+          x2: 267,
+          y2: 760,
+          ocrText: "いえ…資金はこちらも",
+        },
+        {
+          id: 2,
+          label: "text",
+          x1: 83,
+          y1: 767,
+          x2: 239,
+          y2: 1029,
+          ocrText: "モリーダ村に支店を置く",
+        },
+      ],
     };
-    const variants = [{ role: "openai-vision", dataUrl: "data:image/png;base64,abc123", width: 836, height: 1188, originalWidth: 836, originalHeight: 1188 }];
+    const variants = [
+      {
+        role: "openai-vision",
+        dataUrl: "data:image/png;base64,abc123",
+        width: 836,
+        height: 1188,
+        originalWidth: 836,
+        originalHeight: 1188,
+      },
+    ];
     const prompt = getOverlayPrompt(options, variants);
 
     expect(prompt).toContain("# OCR bbox candidates");
@@ -788,8 +1206,12 @@ describe("runtime model launch helpers", () => {
     expect(prompt).toContain("Use Image 1 as the authority");
     expect(prompt).toContain("Treat each candidate as a locked geometry slot.");
     expect(prompt).toContain("Required candidate ids: 1, 2.");
-    expect(prompt).toContain('candidate 1: label:text x1:67 y1:589 x2:267 y2:760 ocrText:"いえ…資金はこちらも"');
-    expect(prompt).toContain('candidate 2: label:text x1:83 y1:767 x2:239 y2:1029 ocrText:"モリーダ村に支店を置く"');
+    expect(prompt).toContain(
+      'candidate 1: label:text x1:67 y1:589 x2:267 y2:760 ocrText:"いえ…資金はこちらも"',
+    );
+    expect(prompt).toContain(
+      'candidate 2: label:text x1:83 y1:767 x2:239 y2:1029 ocrText:"モリーダ村に支店を置く"',
+    );
     expect(prompt).toContain("Do not merge two candidates into one record");
     expect(prompt).toContain("add a new record with id greater than 2");
     expect(prompt).not.toContain("Find one anchor point");
@@ -806,21 +1228,41 @@ describe("runtime model launch helpers", () => {
         width: 1200,
         height: 1600,
         items: [
-          { label: "vertical_text", bbox: [900, 40, 960, 270], content: "あ～れ～" },
-          { label: "vertical_text", bbox: [120, 170, 250, 440], content: "ま～し～た～！！" },
-          { label: "vertical_text", bbox: [760, 700, 850, 900], content: "漢字を含む通常文" }
-        ]
+          {
+            label: "vertical_text",
+            bbox: [900, 40, 960, 270],
+            content: "あ～れ～",
+          },
+          {
+            label: "vertical_text",
+            bbox: [120, 170, 250, 440],
+            content: "ま～し～た～！！",
+          },
+          {
+            label: "vertical_text",
+            bbox: [760, 700, 850, 900],
+            content: "漢字を含む通常文",
+          },
+        ],
       }),
-      "utf8"
+      "utf8",
     );
 
     const result = await collectOcrBboxHints({
       imageWidth: 1200,
       imageHeight: 1600,
-      ocrBboxHintsPath: hintPath
+      ocrBboxHintsPath: hintPath,
     });
-    expect(result.hints[0]).toMatchObject({ groupId: "G001", rolePrior: "ordinary_soft", orderInGroup: 1 });
-    expect(result.hints[1]).toMatchObject({ groupId: "G001", rolePrior: "ordinary_soft", orderInGroup: 2 });
+    expect(result.hints[0]).toMatchObject({
+      groupId: "G001",
+      rolePrior: "ordinary_soft",
+      orderInGroup: 1,
+    });
+    expect(result.hints[1]).toMatchObject({
+      groupId: "G001",
+      rolePrior: "ordinary_soft",
+      orderInGroup: 2,
+    });
     expect(result.hints[2]?.groupId).toBeUndefined();
 
     const prompt = getOverlayPrompt(
@@ -828,16 +1270,33 @@ describe("runtime model launch helpers", () => {
         modelProvider: "gemma",
         imageWidth: 1200,
         imageHeight: 1600,
-        ocrBboxHints: result.hints
+        ocrBboxHints: result.hints,
       },
-      [{ role: "original", dataUrl: "data:image/png;base64,abc123", width: 1200, height: 1600, originalWidth: 1200, originalHeight: 1600 }]
+      [
+        {
+          role: "original",
+          dataUrl: "data:image/png;base64,abc123",
+          width: 1200,
+          height: 1600,
+          originalWidth: 1200,
+          originalHeight: 1600,
+        },
+      ],
     );
 
     expect(prompt).toContain("Group context hints:");
-    expect(prompt).toContain("group G001: rolePrior:ordinary_soft containerType:possible_continuing_text candidateIds:[1,2] readingOrder:[1,2]");
-    expect(prompt).toContain("Even inside a group, keep one output record per candidate id");
-    expect(prompt).toContain('candidate 1: label:vertical_text x1:750 y1:25 x2:800 y2:169 group:G001 orderInGroup:1 rolePrior:ordinary_soft ocrText:"あ～れ～"');
-    expect(prompt).toContain('candidate 2: label:vertical_text x1:100 y1:106 x2:208 y2:275 group:G001 orderInGroup:2 rolePrior:ordinary_soft ocrText:"ま～し～た～！！"');
+    expect(prompt).toContain(
+      "group G001: rolePrior:ordinary_soft containerType:possible_continuing_text candidateIds:[1,2] readingOrder:[1,2]",
+    );
+    expect(prompt).toContain(
+      "Even inside a group, keep one output record per candidate id",
+    );
+    expect(prompt).toContain(
+      'candidate 1: label:vertical_text x1:750 y1:25 x2:800 y2:169 group:G001 orderInGroup:1 rolePrior:ordinary_soft ocrText:"あ～れ～"',
+    );
+    expect(prompt).toContain(
+      'candidate 2: label:vertical_text x1:100 y1:106 x2:208 y2:275 group:G001 orderInGroup:2 rolePrior:ordinary_soft ocrText:"ま～し～た～！！"',
+    );
   });
 
   it("uses container-level grouping for selected-region crop translation", () => {
@@ -846,17 +1305,34 @@ describe("runtime model launch helpers", () => {
         regionCropMode: true,
         skipOcrBboxHints: true,
         imageWidth: 420,
-        imageHeight: 320
+        imageHeight: 320,
       },
-      [{ role: "original", dataUrl: "data:image/png;base64,abc123", width: 420, height: 320, originalWidth: 420, originalHeight: 320 }]
+      [
+        {
+          role: "original",
+          dataUrl: "data:image/png;base64,abc123",
+          width: 420,
+          height: 320,
+          originalWidth: 420,
+          originalHeight: 320,
+        },
+      ],
     );
 
-    expect(prompt).toContain("You are given one user-selected crop from a Japanese manga page.");
+    expect(prompt).toContain(
+      "You are given one user-selected crop from a Japanese manga page.",
+    );
     expect(prompt).toContain("# Selected region grouping");
     expect(prompt).toContain("Do not treat the whole crop as one text item.");
-    expect(prompt).toContain("If the crop contains one speech bubble or one caption plate, output exactly one record");
-    expect(prompt).toContain("Inside one speech bubble, never split by Japanese vertical column, text line, word, sentence fragment, punctuation gap, or line break.");
-    expect(prompt).toContain("jp must include all columns in natural Japanese reading order");
+    expect(prompt).toContain(
+      "If the crop contains one speech bubble or one caption plate, output exactly one record",
+    );
+    expect(prompt).toContain(
+      "Inside one speech bubble, never split by Japanese vertical column, text line, word, sentence fragment, punctuation gap, or line break.",
+    );
+    expect(prompt).toContain(
+      "jp must include all columns in natural Japanese reading order",
+    );
   });
 
   it("normalizes bbox hint JSON with low-trust OCR text", async () => {
@@ -871,20 +1347,26 @@ describe("runtime model launch helpers", () => {
         height: 1188,
         items: [
           { label: "text", bbox: [67, 589, 267, 760], content: "いえ…" },
-          { label: "image", bbox: [0, 0, 100, 100], content: "ignored" }
-        ]
+          { label: "image", bbox: [0, 0, 100, 100], content: "ignored" },
+        ],
       }),
-      "utf8"
+      "utf8",
     );
 
     const result = await collectOcrBboxHints({
       imageWidth: 836,
       imageHeight: 1188,
-      ocrBboxHintsPath: hintPath
+      ocrBboxHintsPath: hintPath,
     });
 
     expect(result.hints).toHaveLength(1);
-    expect(result.hints[0]).toMatchObject({ x1: 67, y1: 589, x2: 267, y2: 760, ocrText: "いえ…" });
+    expect(result.hints[0]).toMatchObject({
+      x1: 67,
+      y1: 589,
+      x2: 267,
+      y2: 760,
+      ocrText: "いえ…",
+    });
   });
 
   it("uses the same tight Japanese glyph bbox prompt for Gemma chat requests", () => {
@@ -892,21 +1374,31 @@ describe("runtime model launch helpers", () => {
       {
         modelProvider: "gemma",
         imageWidth: 836,
-        imageHeight: 1188
+        imageHeight: 1188,
       },
-      [{ role: "original", dataUrl: "data:image/png;base64,abc123" }]
+      [{ role: "original", dataUrl: "data:image/png;base64,abc123" }],
     );
-    const systemText = messages[0]?.content.find((part) => part.type === "text")?.text ?? "";
-    const userPrompt = messages[1]?.content.find((part) => part.type === "text" && part.text?.includes("# Task"))?.text ?? "";
+    const systemText =
+      messages[0]?.content.find((part) => part.type === "text")?.text ?? "";
+    const userPrompt =
+      messages[1]?.content.find(
+        (part) => part.type === "text" && part.text?.includes("# Task"),
+      )?.text ?? "";
 
-    expect(systemText).toContain("Geometry accuracy comes before Korean text fit");
+    expect(systemText).toContain(
+      "Geometry accuracy comes before Korean text fit",
+    );
     expect(messages[1]?.content[0]).toMatchObject({ type: "image_url" });
     expect(messages[1]?.content[1]).toMatchObject({ type: "text" });
     expect(userPrompt).toContain("Detect every visible Japanese text group");
     expect(userPrompt).toContain("Return x1, y1, x2, y2 as normalized 0..1000");
     expect(userPrompt).toContain("direction, angle, fontSize");
-    expect(userPrompt).toContain("For SFX, box only the sound-effect glyph strokes");
-    expect(userPrompt).not.toContain("speech bubble, narration box, name call, or sound-effect block");
+    expect(userPrompt).toContain(
+      "For SFX, box only the sound-effect glyph strokes",
+    );
+    expect(userPrompt).not.toContain(
+      "speech bubble, narration box, name call, or sound-effect block",
+    );
   });
 
   it("extracts text from Responses API output payloads", () => {
@@ -918,30 +1410,30 @@ describe("runtime model launch helpers", () => {
             content: [
               {
                 type: "output_text",
-                text: "id: 1\nko: 테스트"
-              }
-            ]
-          }
-        ]
-      })
+                text: "id: 1\nko: 테스트",
+              },
+            ],
+          },
+        ],
+      }),
     ).toBe("id: 1\nko: 테스트");
   });
 
   it("collects Responses API streaming text deltas", () => {
     const parsed = parseResponsesSseText(
       [
-        'event: response.output_text.delta',
+        "event: response.output_text.delta",
         'data: {"type":"response.output_text.delta","delta":"id: 1"}',
         "",
-        'event: response.output_text.delta',
+        "event: response.output_text.delta",
         'data: {"type":"response.output_text.delta","delta":"\\nko: 테스트"}',
         "",
-        'event: response.completed',
+        "event: response.completed",
         'data: {"type":"response.completed","response":{"id":"resp_1","output":[]}}',
         "",
         "data: [DONE]",
-        ""
-      ].join("\n")
+        "",
+      ].join("\n"),
     );
 
     expect(parsed.outputText).toBe("id: 1\nko: 테스트");
@@ -963,7 +1455,7 @@ describe("runtime model launch helpers", () => {
       ubatch: 32,
       modelSource: "local",
       localModelPath: modelPath,
-      localMmprojPath: mmprojPath
+      localMmprojPath: mmprojPath,
     });
 
     expect(args).toContain("-m");
@@ -975,13 +1467,17 @@ describe("runtime model launch helpers", () => {
     expect(args).toContain("--no-warmup");
     expect(args).not.toContain("--n-cpu-moe");
     expect(args).not.toContain("--chat-template-kwargs");
-    expect(args.slice(args.indexOf("--repeat-penalty"), args.indexOf("--repeat-penalty") + 2)).toEqual([
-      "--repeat-penalty",
-      "1.08"
-    ]);
+    expect(
+      args.slice(
+        args.indexOf("--repeat-penalty"),
+        args.indexOf("--repeat-penalty") + 2,
+      ),
+    ).toEqual(["--repeat-penalty", "1.08"]);
     expect(args).not.toContain("-hf");
     expect(args).not.toContain("-hff");
-    expect(isModelCached({ modelSource: "local", localModelPath: modelPath })).toBe(true);
+    expect(
+      isModelCached({ modelSource: "local", localModelPath: modelPath }),
+    ).toBe(true);
   });
 
   it("passes VRAM economy cache options to llama-server without clipping image tokens", () => {
@@ -1003,21 +1499,27 @@ describe("runtime model launch helpers", () => {
       modelRepo: DEFAULT_31B_REPO,
       modelFile: DEFAULT_31B_FILE,
       mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE
+      mmprojFile: DEFAULT_MMPROJ_FILE,
     });
 
-    expect(args.slice(args.indexOf("--cache-type-k"), args.indexOf("--cache-type-k") + 2)).toEqual([
-      "--cache-type-k",
-      "q4_0"
-    ]);
-    expect(args.slice(args.indexOf("--cache-type-v"), args.indexOf("--cache-type-v") + 2)).toEqual([
-      "--cache-type-v",
-      "q4_0"
-    ]);
-    expect(args.slice(args.indexOf("--ctx-checkpoints"), args.indexOf("--ctx-checkpoints") + 2)).toEqual([
-      "--ctx-checkpoints",
-      "0"
-    ]);
+    expect(
+      args.slice(
+        args.indexOf("--cache-type-k"),
+        args.indexOf("--cache-type-k") + 2,
+      ),
+    ).toEqual(["--cache-type-k", "q4_0"]);
+    expect(
+      args.slice(
+        args.indexOf("--cache-type-v"),
+        args.indexOf("--cache-type-v") + 2,
+      ),
+    ).toEqual(["--cache-type-v", "q4_0"]);
+    expect(
+      args.slice(
+        args.indexOf("--ctx-checkpoints"),
+        args.indexOf("--ctx-checkpoints") + 2,
+      ),
+    ).toEqual(["--ctx-checkpoints", "0"]);
     expect(args).toContain("--no-mmproj-offload");
     expect(args).toContain("--metrics");
     expect(args).toContain("--perf");
@@ -1033,28 +1535,40 @@ describe("runtime model launch helpers", () => {
     expect(args).not.toContain("--no-warmup");
     expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
       "-ngl",
-      "all"
+      "all",
     ]);
     expect(args.slice(args.indexOf("-b"), args.indexOf("-b") + 2)).toEqual([
       "-b",
-      "1024"
+      "1024",
     ]);
     expect(args.slice(args.indexOf("-ub"), args.indexOf("-ub") + 2)).toEqual([
       "-ub",
-      "1024"
+      "1024",
     ]);
-    expect(args.slice(args.indexOf("--image-min-tokens"), args.indexOf("--image-min-tokens") + 2)).toEqual([
-      "--image-min-tokens",
-      "1024"
-    ]);
-    expect(args.slice(args.indexOf("--image-max-tokens"), args.indexOf("--image-max-tokens") + 2)).toEqual([
-      "--image-max-tokens",
-      "1024"
-    ]);
-    expect(args.slice(args.indexOf("--temp"), args.indexOf("--temp") + 2)).toEqual(["--temp", "0.2"]);
-    expect(args.slice(args.indexOf("--top-k"), args.indexOf("--top-k") + 2)).toEqual(["--top-k", "64"]);
-    expect(args.slice(args.indexOf("--top-p"), args.indexOf("--top-p") + 2)).toEqual(["--top-p", "0.95"]);
-    expect(args.slice(args.indexOf("--min-p"), args.indexOf("--min-p") + 2)).toEqual(["--min-p", "0.0"]);
+    expect(
+      args.slice(
+        args.indexOf("--image-min-tokens"),
+        args.indexOf("--image-min-tokens") + 2,
+      ),
+    ).toEqual(["--image-min-tokens", "1024"]);
+    expect(
+      args.slice(
+        args.indexOf("--image-max-tokens"),
+        args.indexOf("--image-max-tokens") + 2,
+      ),
+    ).toEqual(["--image-max-tokens", "1024"]);
+    expect(
+      args.slice(args.indexOf("--temp"), args.indexOf("--temp") + 2),
+    ).toEqual(["--temp", "0.2"]);
+    expect(
+      args.slice(args.indexOf("--top-k"), args.indexOf("--top-k") + 2),
+    ).toEqual(["--top-k", "64"]);
+    expect(
+      args.slice(args.indexOf("--top-p"), args.indexOf("--top-p") + 2),
+    ).toEqual(["--top-p", "0.95"]);
+    expect(
+      args.slice(args.indexOf("--min-p"), args.indexOf("--min-p") + 2),
+    ).toEqual(["--min-p", "0.0"]);
   });
 
   it("passes economy performance tuning launch options when explicitly configured", () => {
@@ -1077,21 +1591,37 @@ describe("runtime model launch helpers", () => {
       modelRepo: DEFAULT_31B_REPO,
       modelFile: DEFAULT_31B_FILE,
       mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE
+      mmprojFile: DEFAULT_MMPROJ_FILE,
     });
 
-    expect(args.slice(args.indexOf("--threads-batch"), args.indexOf("--threads-batch") + 2)).toEqual([
-      "--threads-batch",
-      "16"
-    ]);
-    expect(args.slice(args.indexOf("--poll"), args.indexOf("--poll") + 2)).toEqual(["--poll", "100"]);
-    expect(args.slice(args.indexOf("--poll-batch"), args.indexOf("--poll-batch") + 2)).toEqual(["--poll-batch", "1"]);
-    expect(args.slice(args.indexOf("--prio-batch"), args.indexOf("--prio-batch") + 2)).toEqual(["--prio-batch", "2"]);
+    expect(
+      args.slice(
+        args.indexOf("--threads-batch"),
+        args.indexOf("--threads-batch") + 2,
+      ),
+    ).toEqual(["--threads-batch", "16"]);
+    expect(
+      args.slice(args.indexOf("--poll"), args.indexOf("--poll") + 2),
+    ).toEqual(["--poll", "100"]);
+    expect(
+      args.slice(
+        args.indexOf("--poll-batch"),
+        args.indexOf("--poll-batch") + 2,
+      ),
+    ).toEqual(["--poll-batch", "1"]);
+    expect(
+      args.slice(
+        args.indexOf("--prio-batch"),
+        args.indexOf("--prio-batch") + 2,
+      ),
+    ).toEqual(["--prio-batch", "2"]);
     expect(args).toContain("--no-cache-idle-slots");
-    expect(args.slice(args.indexOf("--cache-reuse"), args.indexOf("--cache-reuse") + 2)).toEqual([
-      "--cache-reuse",
-      "128"
-    ]);
+    expect(
+      args.slice(
+        args.indexOf("--cache-reuse"),
+        args.indexOf("--cache-reuse") + 2,
+      ),
+    ).toEqual(["--cache-reuse", "128"]);
     expect(args).toContain("--metrics");
     expect(args).toContain("--no-perf");
   });
@@ -1116,12 +1646,20 @@ describe("runtime model launch helpers", () => {
       modelRepo: DEFAULT_26B_REPO,
       modelFile: DEFAULT_26B_FILE,
       mmprojRepo: DEFAULT_26B_MMPROJ_REPO,
-      mmprojFile: DEFAULT_26B_MMPROJ_FILE
+      mmprojFile: DEFAULT_26B_MMPROJ_FILE,
     });
 
     expect(args).toContain("--fit");
-    expect(args.slice(args.indexOf("--fit-target"), args.indexOf("--fit-target") + 2)).toEqual(["--fit-target", "2048"]);
-    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual(["-ngl", "auto"]);
+    expect(
+      args.slice(
+        args.indexOf("--fit-target"),
+        args.indexOf("--fit-target") + 2,
+      ),
+    ).toEqual(["--fit-target", "2048"]);
+    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
+      "-ngl",
+      "auto",
+    ]);
     expect(args).toContain("--no-cache-prompt");
     expect(args).toContain("--no-warmup");
     expect(args).toContain("--mmproj-offload");
@@ -1152,12 +1690,20 @@ describe("runtime model launch helpers", () => {
       modelRepo: DEFAULT_12B_REPO,
       modelFile: DEFAULT_12B_FILE,
       mmprojRepo: DEFAULT_12B_MMPROJ_REPO,
-      mmprojFile: DEFAULT_12B_MMPROJ_FILE
+      mmprojFile: DEFAULT_12B_MMPROJ_FILE,
     });
 
     expect(args).toContain("--fit");
-    expect(args.slice(args.indexOf("--fit-target"), args.indexOf("--fit-target") + 2)).toEqual(["--fit-target", "2048"]);
-    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual(["-ngl", "auto"]);
+    expect(
+      args.slice(
+        args.indexOf("--fit-target"),
+        args.indexOf("--fit-target") + 2,
+      ),
+    ).toEqual(["--fit-target", "2048"]);
+    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
+      "-ngl",
+      "auto",
+    ]);
     expect(args).toContain("--no-cache-prompt");
     expect(args).toContain("--no-warmup");
     expect(args).toContain("--mmproj-offload");
@@ -1189,7 +1735,7 @@ describe("runtime model launch helpers", () => {
       modelRepo: DEFAULT_31B_REPO,
       modelFile: DEFAULT_31B_FILE,
       mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE
+      mmprojFile: DEFAULT_MMPROJ_FILE,
     });
 
     expect(args).toContain("--no-mmproj-offload");
@@ -1197,25 +1743,34 @@ describe("runtime model launch helpers", () => {
     expect(args).toContain("--perf");
     expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
       "-ngl",
-      "all"
+      "all",
     ]);
     expect(args.slice(args.indexOf("-b"), args.indexOf("-b") + 2)).toEqual([
       "-b",
-      "2048"
+      "2048",
     ]);
     expect(args.slice(args.indexOf("-ub"), args.indexOf("-ub") + 2)).toEqual([
       "-ub",
-      "1536"
+      "1536",
     ]);
-    expect(args.slice(args.indexOf("-np"), args.indexOf("-np") + 2)).toEqual(["-np", "1"]);
-    expect(args.slice(args.indexOf("--ctx-checkpoints"), args.indexOf("--ctx-checkpoints") + 2)).toEqual([
-      "--ctx-checkpoints",
-      "0"
+    expect(args.slice(args.indexOf("-np"), args.indexOf("-np") + 2)).toEqual([
+      "-np",
+      "1",
     ]);
-    const draftFlagIndex = args.findIndex((arg) => arg === "--spec-draft-hf" || arg === "--spec-draft-model");
+    expect(
+      args.slice(
+        args.indexOf("--ctx-checkpoints"),
+        args.indexOf("--ctx-checkpoints") + 2,
+      ),
+    ).toEqual(["--ctx-checkpoints", "0"]);
+    const draftFlagIndex = args.findIndex(
+      (arg) => arg === "--spec-draft-hf" || arg === "--spec-draft-model",
+    );
     expect(draftFlagIndex).toBeGreaterThanOrEqual(0);
-    expect(args[draftFlagIndex + 1]).toSatisfy((value: string) =>
-      value === `${DEFAULT_DRAFT_REPO}:IQ4_XS` || value.endsWith(DEFAULT_DRAFT_FILE)
+    expect(args[draftFlagIndex + 1]).toSatisfy(
+      (value: string) =>
+        value === `${DEFAULT_DRAFT_REPO}:IQ4_XS` ||
+        value.endsWith(DEFAULT_DRAFT_FILE),
     );
     expect(args).toContain("--spec-type");
     expect(args).toContain("dflash");
@@ -1250,11 +1805,23 @@ describe("runtime model launch helpers", () => {
       mmprojFile: DEFAULT_MMPROJ_FILE,
       draftModelRepo: DEFAULT_DRAFT_REPO,
       draftModelFile: DEFAULT_DRAFT_FILE,
-      hfHubCacheDir: hubCacheDir
+      hfHubCacheDir: hubCacheDir,
     };
-    const modelPath = resolveManagedHfFilePath(options, DEFAULT_31B_REPO, DEFAULT_31B_FILE);
-    const mmprojPath = resolveManagedHfFilePath(options, DEFAULT_MMPROJ_REPO, DEFAULT_MMPROJ_FILE);
-    const draftPath = resolveManagedHfFilePath(options, DEFAULT_DRAFT_REPO, DEFAULT_DRAFT_FILE);
+    const modelPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_31B_REPO,
+      DEFAULT_31B_FILE,
+    );
+    const mmprojPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_MMPROJ_REPO,
+      DEFAULT_MMPROJ_FILE,
+    );
+    const draftPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_DRAFT_REPO,
+      DEFAULT_DRAFT_FILE,
+    );
     for (const filePath of [modelPath, mmprojPath, draftPath]) {
       if (!filePath) {
         throw new Error("managed path not resolved");
@@ -1289,18 +1856,19 @@ describe("runtime model launch helpers", () => {
       draftModelRepo: DEFAULT_DRAFT_REPO,
       draftModelFile: DEFAULT_DRAFT_FILE,
       hfHubCacheDir: hubCacheDir,
-      llamaCacheDir
+      llamaCacheDir,
     };
 
-    expect(collectRequiredHfDownloads({ ...baseOptions, useDraft: false }).map((task) => task.kind)).toEqual([
-      "model",
-      "mmproj"
-    ]);
-    expect(collectRequiredHfDownloads({ ...baseOptions, useDraft: true }).map((task) => task.kind)).toEqual([
-      "model",
-      "mmproj",
-      "draft"
-    ]);
+    expect(
+      collectRequiredHfDownloads({ ...baseOptions, useDraft: false }).map(
+        (task) => task.kind,
+      ),
+    ).toEqual(["model", "mmproj"]);
+    expect(
+      collectRequiredHfDownloads({ ...baseOptions, useDraft: true }).map(
+        (task) => task.kind,
+      ),
+    ).toEqual(["model", "mmproj", "draft"]);
   });
 
   it("can explicitly offload the multimodal projector to GPU for diagnostics", () => {
@@ -1314,7 +1882,7 @@ describe("runtime model launch helpers", () => {
       modelRepo: DEFAULT_31B_REPO,
       modelFile: DEFAULT_31B_FILE,
       mmprojRepo: DEFAULT_MMPROJ_REPO,
-      mmprojFile: DEFAULT_MMPROJ_FILE
+      mmprojFile: DEFAULT_MMPROJ_FILE,
     });
 
     expect(args).toContain("--mmproj-offload");
@@ -1329,7 +1897,7 @@ describe("runtime model launch helpers", () => {
       hubCacheDir,
       repoId,
       snapshot: "snapshot-new",
-      modelFile
+      modelFile,
     });
 
     const args = buildLaunchArgs({
@@ -1340,7 +1908,7 @@ describe("runtime model launch helpers", () => {
       ubatch: 32,
       modelRepo: repoId,
       modelFile,
-      hfHubCacheDir: hubCacheDir
+      hfHubCacheDir: hubCacheDir,
     });
 
     expect(args).toContain("-m");
@@ -1349,7 +1917,13 @@ describe("runtime model launch helpers", () => {
     expect(args).toContain(join(snapshotDir, "mmproj-BF16.gguf"));
     expect(args).not.toContain("-hf");
     expect(args).not.toContain("-hff");
-    expect(isModelCached({ modelRepo: repoId, modelFile, hfHubCacheDir: hubCacheDir })).toBe(true);
+    expect(
+      isModelCached({
+        modelRepo: repoId,
+        modelFile,
+        hfHubCacheDir: hubCacheDir,
+      }),
+    ).toBe(true);
   });
 
   it("uses a cached HF model with mmproj-url when the separate mmproj is not cached yet", () => {
@@ -1362,7 +1936,7 @@ describe("runtime model launch helpers", () => {
       repoId,
       snapshot: "snapshot-model-only",
       modelFile,
-      includeMmproj: false
+      includeMmproj: false,
     });
 
     const args = buildLaunchArgs({
@@ -1376,18 +1950,27 @@ describe("runtime model launch helpers", () => {
       mmprojRepo: DEFAULT_MMPROJ_REPO,
       mmprojFile: DEFAULT_MMPROJ_FILE,
       hfHubCacheDir: hubCacheDir,
-      llamaCacheDir
+      llamaCacheDir,
     });
 
     expect(args).toContain("-m");
     expect(args).toContain(join(snapshotDir, modelFile));
     expect(args).toContain("--mmproj-url");
     expect(args).toContain(
-      `https://huggingface.co/${DEFAULT_MMPROJ_REPO}/resolve/main/${encodeURIComponent(DEFAULT_MMPROJ_FILE)}`
+      `https://huggingface.co/${DEFAULT_MMPROJ_REPO}/resolve/main/${encodeURIComponent(DEFAULT_MMPROJ_FILE)}`,
     );
     expect(args).not.toContain("-hf");
     expect(args).not.toContain("-hff");
-    expect(isModelCached({ modelRepo: repoId, modelFile, mmprojRepo: DEFAULT_MMPROJ_REPO, mmprojFile: DEFAULT_MMPROJ_FILE, hfHubCacheDir: hubCacheDir, llamaCacheDir })).toBe(false);
+    expect(
+      isModelCached({
+        modelRepo: repoId,
+        modelFile,
+        mmprojRepo: DEFAULT_MMPROJ_REPO,
+        mmprojFile: DEFAULT_MMPROJ_FILE,
+        hfHubCacheDir: hubCacheDir,
+        llamaCacheDir,
+      }),
+    ).toBe(false);
   });
 
   it("treats beellama's llama.cpp mmproj cache as already downloaded", () => {
@@ -1400,7 +1983,7 @@ describe("runtime model launch helpers", () => {
       repoId,
       snapshot: "snapshot-model-only",
       modelFile,
-      includeMmproj: false
+      includeMmproj: false,
     });
     const mmprojPath = join(llamaCacheDir, DEFAULT_MMPROJ_FILE);
     writeFileSync(mmprojPath, "mmproj");
@@ -1416,7 +1999,7 @@ describe("runtime model launch helpers", () => {
       mmprojRepo: DEFAULT_MMPROJ_REPO,
       mmprojFile: DEFAULT_MMPROJ_FILE,
       hfHubCacheDir: hubCacheDir,
-      llamaCacheDir
+      llamaCacheDir,
     });
 
     expect(args).toContain("-m");
@@ -1424,7 +2007,16 @@ describe("runtime model launch helpers", () => {
     expect(args).toContain("--mmproj");
     expect(args).toContain(mmprojPath);
     expect(args).not.toContain("--mmproj-url");
-    expect(isModelCached({ modelRepo: repoId, modelFile, mmprojRepo: DEFAULT_MMPROJ_REPO, mmprojFile: DEFAULT_MMPROJ_FILE, hfHubCacheDir: hubCacheDir, llamaCacheDir })).toBe(true);
+    expect(
+      isModelCached({
+        modelRepo: repoId,
+        modelFile,
+        mmprojRepo: DEFAULT_MMPROJ_REPO,
+        mmprojFile: DEFAULT_MMPROJ_FILE,
+        hfHubCacheDir: hubCacheDir,
+        llamaCacheDir,
+      }),
+    ).toBe(true);
   });
 
   it("uses separate cached mmproj repo assets with cached HF model assets", () => {
@@ -1436,14 +2028,14 @@ describe("runtime model launch helpers", () => {
       repoId,
       snapshot: "snapshot-model",
       modelFile,
-      includeMmproj: false
+      includeMmproj: false,
     });
     const mmprojSnapshotDir = writeCachedAssets({
       hubCacheDir,
       repoId: DEFAULT_MMPROJ_REPO,
       snapshot: "snapshot-mmproj",
       modelFile: DEFAULT_MMPROJ_FILE,
-      includeMmproj: false
+      includeMmproj: false,
     });
 
     const args = buildLaunchArgs({
@@ -1456,7 +2048,7 @@ describe("runtime model launch helpers", () => {
       modelFile,
       mmprojRepo: DEFAULT_MMPROJ_REPO,
       mmprojFile: DEFAULT_MMPROJ_FILE,
-      hfHubCacheDir: hubCacheDir
+      hfHubCacheDir: hubCacheDir,
     });
 
     expect(args).toContain("-m");
@@ -1464,7 +2056,15 @@ describe("runtime model launch helpers", () => {
     expect(args).toContain("--mmproj");
     expect(args).toContain(join(mmprojSnapshotDir, DEFAULT_MMPROJ_FILE));
     expect(args).not.toContain("--mmproj-url");
-    expect(isModelCached({ modelRepo: repoId, modelFile, mmprojRepo: DEFAULT_MMPROJ_REPO, mmprojFile: DEFAULT_MMPROJ_FILE, hfHubCacheDir: hubCacheDir })).toBe(true);
+    expect(
+      isModelCached({
+        modelRepo: repoId,
+        modelFile,
+        mmprojRepo: DEFAULT_MMPROJ_REPO,
+        mmprojFile: DEFAULT_MMPROJ_FILE,
+        hfHubCacheDir: hubCacheDir,
+      }),
+    ).toBe(true);
   });
 
   it("keeps generic custom HF repo launch when a custom mmproj is not configured", () => {
@@ -1476,7 +2076,7 @@ describe("runtime model launch helpers", () => {
       repoId,
       snapshot: "snapshot-partial",
       modelFile,
-      includeMmproj: false
+      includeMmproj: false,
     });
 
     const args = buildLaunchArgs({
@@ -1487,13 +2087,19 @@ describe("runtime model launch helpers", () => {
       ubatch: 32,
       modelRepo: repoId,
       modelFile,
-      hfHubCacheDir: hubCacheDir
+      hfHubCacheDir: hubCacheDir,
     });
 
     expect(args).toContain("-m");
     expect(args).not.toContain("--mmproj");
     expect(args).not.toContain("--mmproj-url");
-    expect(isModelCached({ modelRepo: repoId, modelFile, hfHubCacheDir: hubCacheDir })).toBe(true);
+    expect(
+      isModelCached({
+        modelRepo: repoId,
+        modelFile,
+        hfHubCacheDir: hubCacheDir,
+      }),
+    ).toBe(true);
   });
 
   it("detects cached assets from HF_HOME when HF_HUB_CACHE is unset", () => {
@@ -1511,7 +2117,7 @@ describe("runtime model launch helpers", () => {
       hubCacheDir: join(hfHomeDir, "hub"),
       repoId,
       snapshot: "snapshot-env",
-      modelFile
+      modelFile,
     });
 
     try {

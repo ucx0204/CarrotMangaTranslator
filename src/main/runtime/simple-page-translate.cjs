@@ -1,27 +1,23 @@
-const {
-  getOverlayPrompt
-} = require("./simple-page-prompts.cjs");
+const { getOverlayPrompt } = require("./simple-page-prompts.cjs");
 const {
   parseOcrBatchProgressLine,
   parsePipRawProgress,
   parsePaddleModelFetchProgress,
-  resolveOcrBboxTimeoutMs
+  resolveOcrBboxTimeoutMs,
 } = require("./simple-page-progress.cjs");
 const {
   enhanceBitmapBuffer,
-  getScaledSize
+  getScaledSize,
 } = require("./simple-page-image-utils.cjs");
 const {
   extractModelOutputText,
-  parseResponsesSseText
+  parseResponsesSseText,
 } = require("./simple-page-response-text.cjs");
 const {
   resolveLlamaCppCacheDir,
-  resolveManagedHfFilePath
+  resolveManagedHfFilePath,
 } = require("./simple-page-cache-paths.cjs");
-const {
-  resolveFfmpegPath
-} = require("./simple-page-runtime-paths.cjs");
+const { resolveFfmpegPath } = require("./simple-page-runtime-paths.cjs");
 const {
   buildOcrRuntimeEnv,
   buildPaddleOcrImportCheckScript,
@@ -30,44 +26,40 @@ const {
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
   resolveOcrPipInstallBatches,
-  resolvePaddleOcrImportCheckTimeoutMs
+  resolvePaddleOcrImportCheckTimeoutMs,
 } = require("./simple-page-ocr-runtime-config.cjs");
 const {
-  collectRequiredPaddleOcrModelDownloads
+  collectRequiredPaddleOcrModelDownloads,
 } = require("./simple-page-ocr-model-assets.cjs");
 const {
   convertImageToPngBufferWithFfmpeg,
-  prepareImageVariants
+  prepareImageVariants,
 } = require("./simple-page-image-variants.cjs");
 const {
   collectRequiredHfDownloads,
   inspectModelLaunch,
-  isModelCached
+  isModelCached,
 } = require("./simple-page-model-assets.cjs");
 const {
   ensurePaddleOcrRuntime,
-  resolveOcrInstallBatchProgressRanges
+  resolveOcrInstallBatchProgressRanges,
 } = require("./simple-page-ocr-runtime-manager.cjs");
 const {
   collectOcrBboxHints,
-  collectOcrBboxHintsBatch
+  collectOcrBboxHintsBatch,
 } = require("./simple-page-ocr-bbox-pipeline.cjs");
-const {
-  buildMessages
-} = require("./simple-page-request-builders.cjs");
-const {
-  saveArtifacts
-} = require("./simple-page-artifacts.cjs");
+const { buildMessages } = require("./simple-page-request-builders.cjs");
+const { saveArtifacts } = require("./simple-page-artifacts.cjs");
 const {
   buildResponsesRequestBody,
   requestTranslation,
-  testModelReply
+  testModelReply,
 } = require("./simple-page-translation-requests.cjs");
 const {
   buildLaunchArgs,
   buildLlamaServerEnv,
   startServer,
-  stopServer
+  stopServer,
 } = require("./simple-page-server-lifecycle.cjs");
 
 module.exports = {
@@ -109,5 +101,5 @@ module.exports = {
   saveArtifacts,
   startServer,
   stopServer,
-  testModelReply
+  testModelReply,
 };

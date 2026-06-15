@@ -67,7 +67,7 @@ export function AppWorkspace({
   onOpenTranslationSource,
   onOpenBatchImport,
   onOpenShareImport,
-  onOpenSettings
+  onOpenSettings,
 }: AppWorkspaceProps): React.JSX.Element {
   // Subscribe to custom-font changes so overlay text re-resolves families when fonts load/register.
   useFonts();
@@ -81,7 +81,9 @@ export function AppWorkspace({
     >
       {selectedPage ? (
         <div className="workspace-pane">
-          {showingOriginalPeek ? <div className="peek-original-badge">원본</div> : null}
+          {showingOriginalPeek ? (
+            <div className="peek-original-badge">원본</div>
+          ) : null}
           <ImageStage
             page={selectedPage}
             imageDataUrl={selectedPageImageDataUrl}
@@ -110,7 +112,10 @@ export function AppWorkspace({
         <div className="empty-state">
           <div className="empty-card">
             <h2>망가 번역을 시작해요</h2>
-            <p>이미지·폴더·ZIP을 가져와 작품과 화 단위로 저장하고, 페이지별로 번역·인페인팅·편집할 수 있어요.</p>
+            <p>
+              이미지·폴더·ZIP을 가져와 작품과 화 단위로 저장하고, 페이지별로
+              번역·인페인팅·편집할 수 있어요.
+            </p>
             <ol className="empty-steps">
               <li>
                 <span className="empty-step-num">1</span>
@@ -148,7 +153,8 @@ export function AppWorkspace({
               <Button onClick={onOpenShareImport}>공유본 가져오기</Button>
             </div>
             <p className="empty-hints">
-              <kbd>←</kbd> <kbd>→</kbd> 페이지 이동 · <kbd>Ctrl</kbd>+<kbd>K</kbd> 명령 팔레트 · <kbd>?</kbd> 단축키
+              <kbd>←</kbd> <kbd>→</kbd> 페이지 이동 · <kbd>Ctrl</kbd>+
+              <kbd>K</kbd> 명령 팔레트 · <kbd>?</kbd> 단축키
             </p>
           </div>
         </div>

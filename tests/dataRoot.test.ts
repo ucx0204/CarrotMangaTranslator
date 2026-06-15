@@ -1,8 +1,17 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { DATA_ROOT_POINTER_FILE, resolvePackagedDataRoot } from "../src/main/dataRoot";
+import {
+  DATA_ROOT_POINTER_FILE,
+  resolvePackagedDataRoot,
+} from "../src/main/dataRoot";
 
 const tempDirs: string[] = [];
 const originalLocalAppData = process.env.LOCALAPPDATA;
@@ -25,25 +34,43 @@ describe("packaged data root resolution", () => {
   it("uses the installer data-root pointer when present", () => {
     const executableDir = createTempDir("mgt-exe-");
     const chosenDataRoot = createTempDir("mgt-data-");
-    writeFileSync(join(executableDir, DATA_ROOT_POINTER_FILE), `${chosenDataRoot}\r\n`, "utf8");
+    writeFileSync(
+      join(executableDir, DATA_ROOT_POINTER_FILE),
+      `${chosenDataRoot}\r\n`,
+      "utf8",
+    );
 
-    expect(resolvePackagedDataRoot(executableDir)).toBe(resolve(chosenDataRoot));
+    expect(resolvePackagedDataRoot(executableDir)).toBe(
+      resolve(chosenDataRoot),
+    );
   });
 
   it("accepts manually edited data-root pointers without trailing CRLF", () => {
     const executableDir = createTempDir("mgt-exe-");
     const chosenDataRoot = createTempDir("mgt-data-");
-    writeFileSync(join(executableDir, DATA_ROOT_POINTER_FILE), chosenDataRoot, "utf8");
+    writeFileSync(
+      join(executableDir, DATA_ROOT_POINTER_FILE),
+      chosenDataRoot,
+      "utf8",
+    );
 
-    expect(resolvePackagedDataRoot(executableDir)).toBe(resolve(chosenDataRoot));
+    expect(resolvePackagedDataRoot(executableDir)).toBe(
+      resolve(chosenDataRoot),
+    );
   });
 
   it("trims LF-only data-root pointers", () => {
     const executableDir = createTempDir("mgt-exe-");
     const chosenDataRoot = createTempDir("mgt-data-");
-    writeFileSync(join(executableDir, DATA_ROOT_POINTER_FILE), `${chosenDataRoot}\n`, "utf8");
+    writeFileSync(
+      join(executableDir, DATA_ROOT_POINTER_FILE),
+      `${chosenDataRoot}\n`,
+      "utf8",
+    );
 
-    expect(resolvePackagedDataRoot(executableDir)).toBe(resolve(chosenDataRoot));
+    expect(resolvePackagedDataRoot(executableDir)).toBe(
+      resolve(chosenDataRoot),
+    );
   });
 
   it("defaults new installs to the install directory data folder", () => {
@@ -51,7 +78,9 @@ describe("packaged data root resolution", () => {
     process.env.LOCALAPPDATA = createTempDir("mgt-local-");
     process.env.APPDATA = createTempDir("mgt-roaming-");
 
-    expect(resolvePackagedDataRoot(executableDir)).toBe(resolve(join(executableDir, "data")));
+    expect(resolvePackagedDataRoot(executableDir)).toBe(
+      resolve(join(executableDir, "data")),
+    );
   });
 
   it("keeps existing AppData installs when no installer pointer exists", () => {

@@ -9,8 +9,8 @@ function run(command, args, extraEnv = {}) {
       ...process.env,
       MGT_THIN_INSTALLER: "1",
       MGT_ALLOW_MISSING_FLUX_RUNNER: "1",
-      ...extraEnv
-    }
+      ...extraEnv,
+    },
   });
   if (result.error) {
     throw result.error;
@@ -21,4 +21,11 @@ function run(command, args, extraEnv = {}) {
 }
 
 run("npm", ["run", "build"]);
-run("npx", ["electron-builder", "--config", "electron-builder.config.cjs", "--win", "nsis", "--x64"]);
+run("npx", [
+  "electron-builder",
+  "--config",
+  "electron-builder.config.cjs",
+  "--win",
+  "nsis",
+  "--x64",
+]);

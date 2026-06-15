@@ -1,14 +1,33 @@
 import type { TranslationOptions } from "../appSettings";
-import type { ModelEndpointHandle, OcrBboxResult, OverlayItem, TranslationResult } from "./types";
-import { loadRuntimeModules, startModelEndpointSession, type ModelEndpointSession } from "./runtimeModules";
+import type {
+  ModelEndpointHandle,
+  OcrBboxResult,
+  OverlayItem,
+  TranslationResult,
+} from "./types";
+import {
+  loadRuntimeModules,
+  startModelEndpointSession,
+  type ModelEndpointSession,
+} from "./runtimeModules";
 
 export type TranslationRuntimePort = {
   isModelCached: (options: TranslationOptions) => boolean;
-  startEndpointSession: (options: TranslationOptions) => Promise<ModelEndpointSession>;
+  startEndpointSession: (
+    options: TranslationOptions,
+  ) => Promise<ModelEndpointSession>;
   collectOcrHints: (options: TranslationOptions) => Promise<OcrBboxResult>;
-  collectOcrHintsBatch: (options: TranslationOptions[]) => Promise<OcrBboxResult[]>;
-  requestTranslation: (endpoint: ModelEndpointHandle, options: TranslationOptions) => Promise<TranslationResult>;
-  saveArtifacts: (options: TranslationOptions, result: TranslationResult) => Promise<void>;
+  collectOcrHintsBatch: (
+    options: TranslationOptions[],
+  ) => Promise<OcrBboxResult[]>;
+  requestTranslation: (
+    endpoint: ModelEndpointHandle,
+    options: TranslationOptions,
+  ) => Promise<TranslationResult>;
+  saveArtifacts: (
+    options: TranslationOptions,
+    result: TranslationResult,
+  ) => Promise<void>;
   parseJsonLenient: (rawText: string) => unknown;
   normalizeItems: (parsed: unknown) => OverlayItem[];
 };
@@ -23,8 +42,10 @@ export function loadTranslationRuntimePort(): TranslationRuntimePort {
   const runtime = loadRuntimeModules();
   const port: TranslationRuntimePort = {
     isModelCached: (options) => runtime.simplePage.isModelCached(options),
-    startEndpointSession: (options) => startModelEndpointSession(runtime, options),
-    collectOcrHints: (options) => runtime.simplePage.collectOcrBboxHints(options),
+    startEndpointSession: (options) =>
+      startModelEndpointSession(runtime, options),
+    collectOcrHints: (options) =>
+      runtime.simplePage.collectOcrBboxHints(options),
     collectOcrHintsBatch: async (optionsList) => {
       if (runtime.simplePage.collectOcrBboxHintsBatch) {
         return runtime.simplePage.collectOcrBboxHintsBatch(optionsList);
@@ -35,10 +56,13 @@ export function loadTranslationRuntimePort(): TranslationRuntimePort {
       }
       return results;
     },
-    requestTranslation: (endpoint, options) => runtime.simplePage.requestTranslation(endpoint, options),
-    saveArtifacts: (options, result) => runtime.simplePage.saveArtifacts(options, result),
-    parseJsonLenient: (rawText) => runtime.overlayTools.parseJsonLenient(rawText),
-    normalizeItems: (parsed) => runtime.overlayTools.normalizeItems(parsed)
+    requestTranslation: (endpoint, options) =>
+      runtime.simplePage.requestTranslation(endpoint, options),
+    saveArtifacts: (options, result) =>
+      runtime.simplePage.saveArtifacts(options, result),
+    parseJsonLenient: (rawText) =>
+      runtime.overlayTools.parseJsonLenient(rawText),
+    normalizeItems: (parsed) => runtime.overlayTools.normalizeItems(parsed),
   };
 
   cachedPort = port;

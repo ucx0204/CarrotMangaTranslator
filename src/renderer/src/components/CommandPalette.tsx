@@ -15,7 +15,11 @@ type CommandPaletteProps = {
   onClose: () => void;
 };
 
-export function CommandPalette({ open, commands, onClose }: CommandPaletteProps): React.JSX.Element | null {
+export function CommandPalette({
+  open,
+  commands,
+  onClose,
+}: CommandPaletteProps): React.JSX.Element | null {
   const [query, setQuery] = React.useState("");
   const [activeIndex, setActiveIndex] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
@@ -37,16 +41,22 @@ export function CommandPalette({ open, commands, onClose }: CommandPaletteProps)
       return commands;
     }
     return commands.filter((command) =>
-      `${command.label} ${command.hint ?? ""} ${command.keywords ?? ""}`.toLowerCase().includes(q)
+      `${command.label} ${command.hint ?? ""} ${command.keywords ?? ""}`
+        .toLowerCase()
+        .includes(q),
     );
   }, [commands, query]);
 
   React.useEffect(() => {
-    setActiveIndex((index) => Math.min(index, Math.max(0, filtered.length - 1)));
+    setActiveIndex((index) =>
+      Math.min(index, Math.max(0, filtered.length - 1)),
+    );
   }, [filtered.length]);
 
   React.useEffect(() => {
-    const active = listRef.current?.querySelector<HTMLElement>(".command-palette-item.active");
+    const active = listRef.current?.querySelector<HTMLElement>(
+      ".command-palette-item.active",
+    );
     active?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, filtered.length]);
 
@@ -77,7 +87,13 @@ export function CommandPalette({ open, commands, onClose }: CommandPaletteProps)
   };
 
   return (
-    <Modal ariaLabel="명령 팔레트" title="명령 팔레트" size="md" onClose={onClose} bodyClassName="command-palette-body">
+    <Modal
+      ariaLabel="명령 팔레트"
+      title="명령 팔레트"
+      size="md"
+      onClose={onClose}
+      bodyClassName="command-palette-body"
+    >
       <input
         ref={inputRef}
         className="command-palette-input"
@@ -90,7 +106,12 @@ export function CommandPalette({ open, commands, onClose }: CommandPaletteProps)
         onKeyDown={onInputKeyDown}
         aria-label="명령 검색"
       />
-      <div className="command-palette-list" ref={listRef} role="listbox" aria-label="명령 목록">
+      <div
+        className="command-palette-list"
+        ref={listRef}
+        role="listbox"
+        aria-label="명령 목록"
+      >
         {filtered.length === 0 ? (
           <p className="command-palette-empty">일치하는 명령이 없습니다.</p>
         ) : (
@@ -105,7 +126,9 @@ export function CommandPalette({ open, commands, onClose }: CommandPaletteProps)
               onClick={() => runIndex(index)}
             >
               <span className="command-palette-label">{command.label}</span>
-              {command.hint ? <span className="command-palette-hint">{command.hint}</span> : null}
+              {command.hint ? (
+                <span className="command-palette-hint">{command.hint}</span>
+              ) : null}
             </button>
           ))
         )}

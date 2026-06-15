@@ -8,7 +8,7 @@ type UseRegionTranslationPreparationOptions = {
 
 export function useRegionTranslationPreparation({
   inpaintingMode,
-  pushStatus
+  pushStatus,
 }: UseRegionTranslationPreparationOptions): () => Promise<void> {
   return useCallback(async () => {
     if (!inpaintingMode) {

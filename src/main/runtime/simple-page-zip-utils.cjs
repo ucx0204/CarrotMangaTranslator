@@ -27,8 +27,15 @@ function shrinkBuffer(current, chunk, maxLength = 12000) {
   return next.length > maxLength ? next.slice(next.length - maxLength) : next;
 }
 
-async function extractSelectedZipEntries(archivePath, outputDir, shouldExtract) {
-  const extractDir = path.join(path.dirname(outputDir), `${path.basename(outputDir)}.extract-${process.pid}-${Date.now()}`);
+async function extractSelectedZipEntries(
+  archivePath,
+  outputDir,
+  shouldExtract,
+) {
+  const extractDir = path.join(
+    path.dirname(outputDir),
+    `${path.basename(outputDir)}.extract-${process.pid}-${Date.now()}`,
+  );
   const resolvedOutputDir = path.resolve(outputDir);
   await rm(extractDir, { recursive: true, force: true }).catch(() => {});
   await mkdir(extractDir, { recursive: true });
@@ -39,8 +46,12 @@ async function extractSelectedZipEntries(archivePath, outputDir, shouldExtract) 
       throw new Error(`No runtime files matched in ${archivePath}`);
     }
     for (const selected of selectedFiles) {
-      const filePath = typeof selected === "string" ? selected : selected.filePath;
-      const outputName = typeof selected === "string" ? path.basename(filePath) : selected.outputName;
+      const filePath =
+        typeof selected === "string" ? selected : selected.filePath;
+      const outputName =
+        typeof selected === "string"
+          ? path.basename(filePath)
+          : selected.outputName;
       const outputPath = path.join(outputDir, outputName);
       const resolvedOutputPath = path.resolve(outputPath);
       if (!isPathInside(resolvedOutputPath, resolvedOutputDir)) {
@@ -56,18 +67,29 @@ async function extractSelectedZipEntries(archivePath, outputDir, shouldExtract) 
 
 async function expandZipArchive(archivePath, outputDir) {
   if (process.platform !== "win32") {
-    throw new Error("Default Gemma runtime auto-install is only supported on Windows.");
+    throw new Error(
+      "Default Gemma runtime auto-install is only supported on Windows.",
+    );
   }
-  const psScript = "& { param($zip, $dest) Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force }";
+  const psScript =
+    "& { param($zip, $dest) Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force }";
   await new Promise((resolve, reject) => {
     const child = spawn(
       "powershell",
-      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript, archivePath, outputDir],
+      [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        psScript,
+        archivePath,
+        outputDir,
+      ],
       {
         stdio: ["ignore", "pipe", "pipe"],
         shell: false,
-        env: buildUtilityChildEnv({})
-      }
+        env: buildUtilityChildEnv({}),
+      },
     );
     let stdout = "";
     let stderr = "";
@@ -80,24 +102,32 @@ async function expandZipArchive(archivePath, outputDir) {
       stderr = shrinkBuffer(stderr, chunk, 4000);
     });
     child.on("error", (error) => {
-      reject(createDetailedError("Failed to launch Expand-Archive.", {
-        archivePath,
-        outputDir,
-        stdout: truncateText(stdout, 4000),
-        stderr: truncateText(stderr, 4000)
-      }, error));
+      reject(
+        createDetailedError(
+          "Failed to launch Expand-Archive.",
+          {
+            archivePath,
+            outputDir,
+            stdout: truncateText(stdout, 4000),
+            stderr: truncateText(stderr, 4000),
+          },
+          error,
+        ),
+      );
     });
     child.on("exit", (code) => {
       if (code === 0) {
         resolve();
         return;
       }
-      reject(createDetailedError(`Expand-Archive failed (${code ?? "null"}).`, {
-        archivePath,
-        outputDir,
-        stdout: truncateText(stdout.trim(), 4000),
-        stderr: truncateText(stderr.trim(), 4000)
-      }));
+      reject(
+        createDetailedError(`Expand-Archive failed (${code ?? "null"}).`, {
+          archivePath,
+          outputDir,
+          stdout: truncateText(stdout.trim(), 4000),
+          stderr: truncateText(stderr.trim(), 4000),
+        }),
+      );
     });
   });
 }
@@ -116,7 +146,9 @@ function collectSelectedFiles(rootDir, shouldExtract) {
     }
     for (const entry of entries) {
       const filePath = path.join(currentDir, entry.name);
-      const relativePath = current.relativeDir ? path.join(current.relativeDir, entry.name) : entry.name;
+      const relativePath = current.relativeDir
+        ? path.join(current.relativeDir, entry.name)
+        : entry.name;
       if (entry.isDirectory()) {
         stack.push({ dir: filePath, relativeDir: relativePath });
         continue;
@@ -124,7 +156,9 @@ function collectSelectedFiles(rootDir, shouldExtract) {
       if (entry.isFile() && shouldExtract(entry.name, relativePath)) {
         selected.push({
           filePath,
-          outputName: shouldPreserveRuntimeRelativePath(relativePath) ? relativePath : entry.name
+          outputName: shouldPreserveRuntimeRelativePath(relativePath)
+            ? relativePath
+            : entry.name,
         });
       }
     }
@@ -133,17 +167,24 @@ function collectSelectedFiles(rootDir, shouldExtract) {
 }
 
 function shouldPreserveRuntimeRelativePath(relativePath) {
-  const normalized = String(relativePath || "").replace(/\\/g, "/").toLowerCase();
-  return normalized.startsWith("rocblas/") || normalized.startsWith("hipblaslt/");
+  const normalized = String(relativePath || "")
+    .replace(/\\/g, "/")
+    .toLowerCase();
+  return (
+    normalized.startsWith("rocblas/") || normalized.startsWith("hipblaslt/")
+  );
 }
 
 function isPathInside(childPath, parentPath) {
   const relative = path.relative(parentPath, childPath);
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
 }
 
 module.exports = {
   collectSelectedFiles,
   expandZipArchive,
-  extractSelectedZipEntries
+  extractSelectedZipEntries,
 };

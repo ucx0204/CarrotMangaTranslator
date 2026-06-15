@@ -23,7 +23,7 @@ function prepareRuntimeAssets(options = {}) {
 }
 
 module.exports = {
-  prepareRuntimeAssets
+  prepareRuntimeAssets,
 };
 
 if (require.main === module) {

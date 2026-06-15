@@ -6,11 +6,11 @@ import type {
   LlamaRuntimeProfile,
   ModelProvider,
   ModelSource,
-  OcrDevice
+  OcrDevice,
 } from "../../../shared/types";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
-  DEFAULT_GEMMA_MODEL_REPO
+  DEFAULT_GEMMA_MODEL_REPO,
 } from "../../../shared/modelPresets";
 
 type BuildSettingsFromFormInput = {
@@ -33,8 +33,13 @@ type BuildSettingsFromFormInput = {
   maxTokens: number;
 };
 
-export function buildSettingsFromForm(input: BuildSettingsFromFormInput): AppSettings {
-  const llamaRocmTarget = input.initialSettings.gemma.llamaRocmTarget ?? input.initialSettings.runtimeHardware?.llamaRocmTarget ?? undefined;
+export function buildSettingsFromForm(
+  input: BuildSettingsFromFormInput,
+): AppSettings {
+  const llamaRocmTarget =
+    input.initialSettings.gemma.llamaRocmTarget ??
+    input.initialSettings.runtimeHardware?.llamaRocmTarget ??
+    undefined;
   const gemma = {
     modelSource: input.modelSource,
     modelRepo: input.modelRepo || DEFAULT_GEMMA_MODEL_REPO,
@@ -42,14 +47,18 @@ export function buildSettingsFromForm(input: BuildSettingsFromFormInput): AppSet
     ...(input.mmprojRepo ? { mmprojRepo: input.mmprojRepo } : {}),
     ...(input.mmprojFile ? { mmprojFile: input.mmprojFile } : {}),
     ...(input.localModelPath ? { localModelPath: input.localModelPath } : {}),
-    ...(input.localMmprojPath ? { localMmprojPath: input.localMmprojPath } : {}),
+    ...(input.localMmprojPath
+      ? { localMmprojPath: input.localMmprojPath }
+      : {}),
     vramMode: input.vramMode,
     llamaRuntimeProfile: input.llamaRuntimeProfile,
-    ...(llamaRocmTarget ? { llamaRocmTarget } : {})
+    ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
   };
   const ocr = {
     device: input.ocrDevice,
-    ...(input.initialSettings.ocr.gpuCudaTag ? { gpuCudaTag: input.initialSettings.ocr.gpuCudaTag } : {})
+    ...(input.initialSettings.ocr.gpuCudaTag
+      ? { gpuCudaTag: input.initialSettings.ocr.gpuCudaTag }
+      : {}),
   };
 
   return {
@@ -58,14 +67,14 @@ export function buildSettingsFromForm(input: BuildSettingsFromFormInput): AppSet
     codex: {
       model: input.codexModel || input.initialSettings.codex.model,
       reasoningEffort: input.codexReasoningEffort,
-      oauthPort: input.codexOauthPort
+      oauthPort: input.codexOauthPort,
     },
     ocr,
     ui: input.initialSettings.ui,
     inpainting: {
       ...input.initialSettings.inpainting,
-      fluxBackend: input.fluxBackend
+      fluxBackend: input.fluxBackend,
     },
-    maxTokens: input.maxTokens
+    maxTokens: input.maxTokens,
   };
 }

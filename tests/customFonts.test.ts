@@ -34,34 +34,34 @@ describe("custom font index validation", () => {
           id: validId,
           label: "Valid",
           family: `MGTUser-${validId}`,
-          fileName: `${validId}.ttf`
+          fileName: `${validId}.ttf`,
         },
         {
           id: traversalId,
           label: "Traversal",
           family: `MGTUser-${traversalId}`,
-          fileName: "../outside.otf"
+          fileName: "../outside.otf",
         },
         {
           id: "not-a-uuid",
           label: "Bad id",
           family: "MGTUser-not-a-uuid",
-          fileName: "not-a-uuid.ttf"
+          fileName: "not-a-uuid.ttf",
         },
         {
           id: "33333333-3333-4333-8333-333333333333",
           label: "Bad extension",
           family: "MGTUser-33333333-3333-4333-8333-333333333333",
-          fileName: "33333333-3333-4333-8333-333333333333.woff"
+          fileName: "33333333-3333-4333-8333-333333333333.woff",
         },
         {
           id: "44444444-4444-4444-8444-444444444444",
           label: "Mismatched family",
           family: "InjectedFamily",
-          fileName: "44444444-4444-4444-8444-444444444444.otf"
-        }
+          fileName: "44444444-4444-4444-8444-444444444444.otf",
+        },
       ]),
-      "utf8"
+      "utf8",
     );
     const customFonts = await loadCustomFonts(rootDir);
 
@@ -70,10 +70,12 @@ describe("custom font index validation", () => {
         id: validId,
         label: "Valid",
         family: `MGTUser-${validId}`,
-        fileName: `${validId}.ttf`
-      }
+        fileName: `${validId}.ttf`,
+      },
     ]);
-    expect(resolve(customFonts.resolveCustomFontFilePath(validId) ?? "")).toBe(resolve(join(fontsDir, `${validId}.ttf`)));
+    expect(resolve(customFonts.resolveCustomFontFilePath(validId) ?? "")).toBe(
+      resolve(join(fontsDir, `${validId}.ttf`)),
+    );
     expect(customFonts.resolveCustomFontFilePath(traversalId)).toBeNull();
     expect(existsSync(outsidePath)).toBe(true);
   });
@@ -92,10 +94,10 @@ describe("custom font index validation", () => {
           id: traversalId,
           label: "Traversal",
           family: `MGTUser-${traversalId}`,
-          fileName: "../outside.otf"
-        }
+          fileName: "../outside.otf",
+        },
       ]),
-      "utf8"
+      "utf8",
     );
     const customFonts = await loadCustomFonts(rootDir);
 
@@ -110,15 +112,17 @@ async function createTempRoot(): Promise<string> {
   return rootDir;
 }
 
-async function loadCustomFonts(rootDir: string): Promise<typeof import("../src/main/customFonts")> {
+async function loadCustomFonts(
+  rootDir: string,
+): Promise<typeof import("../src/main/customFonts")> {
   vi.resetModules();
   vi.doMock("../src/main/appPaths", () => ({
     getAppPaths: () => ({
-      fontsDir: join(rootDir, "fonts")
-    })
+      fontsDir: join(rootDir, "fonts"),
+    }),
   }));
   vi.doMock("../src/main/logger", () => ({
-    logError: vi.fn()
+    logError: vi.fn(),
   }));
   return import("../src/main/customFonts");
 }

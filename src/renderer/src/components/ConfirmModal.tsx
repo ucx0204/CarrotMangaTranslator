@@ -7,7 +7,7 @@ export function ConfirmModal({
   message,
   detail,
   onConfirm,
-  onCancel
+  onCancel,
 }: {
   title: string;
   message: string;

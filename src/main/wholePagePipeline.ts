@@ -5,8 +5,18 @@ import { logError, logInfo, logWarn } from "./logger";
 import type { MangaPage } from "../shared/types";
 import { getAppPaths } from "./appPaths";
 import { getAppSettings } from "./settingsStore";
-import { classifyFailure, isAbortErrorLike, isNonRetriableRuntimeError, summarizePage, throwIfAborted } from "./pipeline/failure";
-import { buildNoTextCompletedPage, isOcrResultNoTextDetected, isRequestNoTextDetected } from "./pipeline/noText";
+import {
+  classifyFailure,
+  isAbortErrorLike,
+  isNonRetriableRuntimeError,
+  summarizePage,
+  throwIfAborted,
+} from "./pipeline/failure";
+import {
+  buildNoTextCompletedPage,
+  isOcrResultNoTextDetected,
+  isRequestNoTextDetected,
+} from "./pipeline/noText";
 import { prepareOcrHintsForPages } from "./pipeline/ocrHints";
 import {
   applyOcrCandidateGeometryLocks,
@@ -15,14 +25,18 @@ import {
   getBboxNormalizationOptions,
   getOcrBboxHints,
   normalizeOverlayItemBboxes,
-  overlayItemToBlock
+  overlayItemToBlock,
 } from "./pipeline/overlayItems";
-import { buildBaseOptions, buildPageOptions, formatGemmaVramMode, readNumberEnv, summarizePreview, summarizeTranslationOptions } from "./pipeline/options";
+import {
+  buildBaseOptions,
+  buildPageOptions,
+  formatGemmaVramMode,
+  readNumberEnv,
+  summarizePreview,
+  summarizeTranslationOptions,
+} from "./pipeline/options";
 import { loadTranslationRuntimePort } from "./pipeline/translationRuntimePort";
-import type {
-  OcrBboxResult,
-  PipelineOptions,
-} from "./pipeline/types";
+import type { OcrBboxResult, PipelineOptions } from "./pipeline/types";
 
 export async function runWholePagePipeline({
   jobId,
@@ -34,7 +48,7 @@ export async function runWholePagePipeline({
   pages,
   runPaths,
   signal,
-  skipOcrPrepass = false
+  skipOcrPrepass = false,
 }: PipelineOptions): Promise<{ pages: MangaPage[]; warnings: string[] }> {
   if (pages.length === 0) {
     return { pages: [], warnings: [] };
@@ -45,11 +59,17 @@ export async function runWholePagePipeline({
   const paths = getAppPaths();
   const appSettings = await getAppSettings(paths);
   const runtime = loadTranslationRuntimePort();
-  const baseOptions = buildBaseOptions(jobId, runPaths.runDir, appSettings, paths);
+  const baseOptions = buildBaseOptions(
+    jobId,
+    runPaths.runDir,
+    appSettings,
+    paths,
+  );
   const progressTotal = pages.length;
   const codexSelected = baseOptions.modelProvider === "openai-codex";
   const modelCached = codexSelected || runtime.isModelCached(baseOptions);
-  const localModelSelected = !codexSelected && baseOptions.modelSource === "local";
+  const localModelSelected =
+    !codexSelected && baseOptions.modelSource === "local";
   const warnings: string[] = [];
 
   logInfo("Analysis pipeline initialized", {
@@ -57,7 +77,7 @@ export async function runWholePagePipeline({
     pageCount: pages.length,
     runPaths,
     modelCached,
-    settings: summarizeTranslationOptions(baseOptions)
+    settings: summarizeTranslationOptions(baseOptions),
   });
 
   if (skipOcrPrepass) {
@@ -70,7 +90,8 @@ export async function runWholePagePipeline({
       progressCurrent: 0,
       progressTotal,
       pageTotal: pages.length,
-      detail: "선택 영역은 Paddle OCR 선분석 없이 모델이 직접 텍스트 그룹을 찾습니다."
+      detail:
+        "선택 영역은 Paddle OCR 선분석 없이 모델이 직접 텍스트 그룹을 찾습니다.",
     });
   } else {
     emit({
@@ -82,7 +103,7 @@ export async function runWholePagePipeline({
       progressCurrent: 0,
       progressTotal,
       pageTotal: pages.length,
-      detail: "대상 페이지의 OCR 후보 좌표를 먼저 준비합니다."
+      detail: "대상 페이지의 OCR 후보 좌표를 먼저 준비합니다.",
     });
   }
 
@@ -102,7 +123,7 @@ export async function runWholePagePipeline({
       progressBytes: progress.progressBytes,
       progressTotalBytes: progress.progressTotalBytes,
       progressBytesPerSecond: progress.progressBytesPerSecond,
-      installLogLine: progress.installLogLine
+      installLogLine: progress.installLogLine,
     });
   };
   baseOptions.abortSignal = signal;
@@ -116,13 +137,13 @@ export async function runWholePagePipeline({
         runPaths,
         emit,
         jobId,
-        signal
+        signal,
       });
 
   if (skipOcrPrepass) {
     logInfo("OCR prepass skipped for analysis pipeline", {
       jobId,
-      pageCount: pages.length
+      pageCount: pages.length,
     });
   }
 
@@ -167,7 +188,8 @@ export async function runWholePagePipeline({
         progressTotal,
         pageIndex,
         pageTotal: pages.length,
-        detail: "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다."
+        detail:
+          "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다.",
       });
     }
   }
@@ -182,12 +204,12 @@ export async function runWholePagePipeline({
       progressCurrent: progressTotal,
       progressTotal,
       pageTotal: pages.length,
-      detail: `${pages.length} pages ready, 모델 호출 없음`
+      detail: `${pages.length} pages ready, 모델 호출 없음`,
     });
 
     return {
       pages: pages.map((page) => completedPagesById.get(page.id) ?? page),
-      warnings
+      warnings,
     };
   }
 
@@ -202,7 +224,10 @@ export async function runWholePagePipeline({
         : modelCached
           ? "Gemma 4 서버 시작 중"
           : "모델 다운로드/서버 준비 중",
-    phase: localModelSelected || modelCached || codexSelected ? "booting" : "model_downloading",
+    phase:
+      localModelSelected || modelCached || codexSelected
+        ? "booting"
+        : "model_downloading",
     progressCurrent: 0,
     progressTotal,
     pageTotal: pages.length,
@@ -212,7 +237,7 @@ export async function runWholePagePipeline({
         ? `${baseOptions.codexModel}, thinking ${baseOptions.codexReasoningEffort}`
         : modelCached
           ? `${formatGemmaVramMode(baseOptions.gemmaVramMode)}, ${baseOptions.modelFile}`
-          : "로컬 모델 자산이 없거나 부족해 다운로드/갱신이 필요할 수 있습니다."
+          : "로컬 모델 자산이 없거나 부족해 다운로드/갱신이 필요할 수 있습니다.",
   });
 
   const endpointSession = await runtime.startEndpointSession(baseOptions);
@@ -226,7 +251,10 @@ export async function runWholePagePipeline({
     await endpointSession.dispose();
   };
   onCleanupReady?.(disposeEndpointSession);
-  const maxAttempts = Math.max(1, readNumberEnv("MANGA_TRANSLATOR_PAGE_RETRIES", 5));
+  const maxAttempts = Math.max(
+    1,
+    readNumberEnv("MANGA_TRANSLATOR_PAGE_RETRIES", 5),
+  );
 
   emit({
     id: jobId,
@@ -237,10 +265,16 @@ export async function runWholePagePipeline({
     progressCurrent: 0,
     progressTotal,
     pageTotal: pages.length,
-    detail: codexSelected ? `openai-oauth ready at ${server.baseUrl}` : `server ready on port ${baseOptions.port}`
+    detail: codexSelected
+      ? `openai-oauth ready at ${server.baseUrl}`
+      : `server ready on port ${baseOptions.port}`,
   });
 
-  const buildRequestPageOptions = (page: MangaPage, pageIndex: number, attempt: number): TranslationOptions => {
+  const buildRequestPageOptions = (
+    page: MangaPage,
+    pageIndex: number,
+    attempt: number,
+  ): TranslationOptions => {
     const pageOptions = buildPageOptions(baseOptions, page, pageIndex, attempt);
     if (skipOcrPrepass) {
       pageOptions.skipOcrBboxHints = true;
@@ -253,7 +287,7 @@ export async function runWholePagePipeline({
         hints: [],
         diagnostics: [{ provider: "prepass", reason: "missing-result" }],
         noTextDetected: false,
-        textEvidenceCount: 0
+        textEvidenceCount: 0,
       };
       pageOptions.ocrBboxHints = pageOptions.ocrBboxResult.hints ?? [];
     }
@@ -277,14 +311,18 @@ export async function runWholePagePipeline({
         progressBytes: progress.progressBytes,
         progressTotalBytes: progress.progressTotalBytes,
         progressBytesPerSecond: progress.progressBytesPerSecond,
-        installLogLine: progress.installLogLine
+        installLogLine: progress.installLogLine,
       });
     };
     return pageOptions;
   };
 
   try {
-    for (let translateIndex = 0; translateIndex < pagesToTranslate.length; translateIndex += 1) {
+    for (
+      let translateIndex = 0;
+      translateIndex < pagesToTranslate.length;
+      translateIndex += 1
+    ) {
       const page = pagesToTranslate[translateIndex];
       const index = pageIndexById.get(page.id) ?? 0;
       throwIfAborted(signal);
@@ -310,7 +348,7 @@ export async function runWholePagePipeline({
           pageTotal: pages.length,
           attempt,
           attemptTotal: maxAttempts,
-          detail: `${index + 1}/${pages.length}, 시도 ${attempt}/${maxAttempts}`
+          detail: `${index + 1}/${pages.length}, 시도 ${attempt}/${maxAttempts}`,
         });
 
         try {
@@ -323,19 +361,22 @@ export async function runWholePagePipeline({
           } catch (error) {
             const preview = summarizePreview(result.outputText);
             const parseError = new Error(
-              `${page.name}: 모델 응답을 구조화 형식으로 해석하지 못했습니다. preview=${preview} cause=${error instanceof Error ? error.message : String(error)}`
+              `${page.name}: 모델 응답을 구조화 형식으로 해석하지 못했습니다. preview=${preview} cause=${error instanceof Error ? error.message : String(error)}`,
             ) as Error & { cause?: unknown };
             parseError.cause = error;
             Object.assign(parseError, {
               outputPreview: preview,
               outputDir: pageOptions.outputDir,
-              responseFormat: "structured-overlay"
+              responseFormat: "structured-overlay",
             });
             throw parseError;
           }
 
           const items = runtime.normalizeItems(parsed);
-          if (items.length === 0 && isRequestNoTextDetected(result.requestBody)) {
+          if (
+            items.length === 0 &&
+            isRequestNoTextDetected(result.requestBody)
+          ) {
             successPage = buildNoTextCompletedPage(page);
             await onPageComplete?.(successPage);
             emit({
@@ -348,36 +389,53 @@ export async function runWholePagePipeline({
               progressTotal,
               pageIndex: index + 1,
               pageTotal: pages.length,
-              detail: "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다."
+              detail:
+                "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다.",
             });
             break;
           }
           if (items.length === 0) {
-            const bboxError = new Error(`${page.name}: bbox 결과를 만들지 못했습니다.`);
+            const bboxError = new Error(
+              `${page.name}: bbox 결과를 만들지 못했습니다.`,
+            );
             Object.assign(bboxError, {
               outputDir: pageOptions.outputDir,
-              outputPreview: summarizePreview(result.outputText)
+              outputPreview: summarizePreview(result.outputText),
             });
             throw bboxError;
           }
 
-          const overlayItemsPath = join(pageOptions.outputDir, "overlay-items.json");
+          const overlayItemsPath = join(
+            pageOptions.outputDir,
+            "overlay-items.json",
+          );
           await mkdir(pageOptions.outputDir, { recursive: true });
-          await writeFile(overlayItemsPath, `${JSON.stringify({ items }, null, 2)}\n`, "utf8");
+          await writeFile(
+            overlayItemsPath,
+            `${JSON.stringify({ items }, null, 2)}\n`,
+            "utf8",
+          );
 
           let normalizedItems = applyOcrCandidateGeometryLocks(
-            normalizeOverlayItemBboxes(items, page, getBboxNormalizationOptions(result.requestBody)),
+            normalizeOverlayItemBboxes(
+              items,
+              page,
+              getBboxNormalizationOptions(result.requestBody),
+            ),
             page,
-            getOcrBboxHints(result.requestBody)
+            getOcrBboxHints(result.requestBody),
           );
-          const soundFiltered = filterRejectedOrUncertainSoundItems(normalizedItems);
+          const soundFiltered =
+            filterRejectedOrUncertainSoundItems(normalizedItems);
           normalizedItems = soundFiltered.items;
           successPage = {
             ...page,
-            blocks: normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex, jobId)),
+            blocks: normalizedItems.map((item, itemIndex) =>
+              overlayItemToBlock(item, page, itemIndex, jobId),
+            ),
             analysisStatus: "completed",
             lastError: undefined,
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
           };
           warnings.push(...buildPageWarnings(page.name, normalizedItems));
           await onPageComplete?.(successPage);
@@ -391,9 +449,10 @@ export async function runWholePagePipeline({
             progressTotal,
             pageIndex: index + 1,
             pageTotal: pages.length,
-            detail: soundFiltered.droppedCount > 0
-              ? `${normalizedItems.length}개 블록, 불확실한 효과음 ${soundFiltered.droppedCount}개 제외`
-              : `${normalizedItems.length}개 블록`
+            detail:
+              soundFiltered.droppedCount > 0
+                ? `${normalizedItems.length}개 블록, 불확실한 효과음 ${soundFiltered.droppedCount}개 제외`
+                : `${normalizedItems.length}개 블록`,
           });
           break;
         } catch (error) {
@@ -405,8 +464,11 @@ export async function runWholePagePipeline({
           }
 
           lastError = error;
-          lastErrorMessage = error instanceof Error ? error.message : String(error);
-          warnings.push(`${page.name}: 시도 ${attempt}/${maxAttempts} 실패 - ${lastErrorMessage}`);
+          lastErrorMessage =
+            error instanceof Error ? error.message : String(error);
+          warnings.push(
+            `${page.name}: 시도 ${attempt}/${maxAttempts} 실패 - ${lastErrorMessage}`,
+          );
           logWarn("Analysis attempt failed", {
             failureCategory: classifyFailure(error),
             jobId,
@@ -418,7 +480,7 @@ export async function runWholePagePipeline({
             willRetry: attempt < maxAttempts,
             runPaths,
             pageOptions: summarizeTranslationOptions(pageOptions),
-            error
+            error,
           });
 
           if (attempt < maxAttempts) {
@@ -434,7 +496,7 @@ export async function runWholePagePipeline({
               pageTotal: pages.length,
               attempt: attempt + 1,
               attemptTotal: maxAttempts,
-              detail: `${attempt}/${maxAttempts} 실패, 다시 시도합니다`
+              detail: `${attempt}/${maxAttempts} 실패, 다시 시도합니다`,
             });
             continue;
           }
@@ -446,7 +508,9 @@ export async function runWholePagePipeline({
         continue;
       }
 
-      warnings.push(`${page.name}: ${maxAttempts}회 재시도 후 실패하여 이 페이지는 건너뜁니다. 마지막 오류: ${lastErrorMessage}`);
+      warnings.push(
+        `${page.name}: ${maxAttempts}회 재시도 후 실패하여 이 페이지는 건너뜁니다. 마지막 오류: ${lastErrorMessage}`,
+      );
       logError("Analysis page skipped after retries", {
         failureCategory: classifyFailure(lastError),
         jobId,
@@ -455,15 +519,17 @@ export async function runWholePagePipeline({
         pageTotal: pages.length,
         attemptTotal: maxAttempts,
         runPaths,
-        lastPageOptions: lastPageOptions ? summarizeTranslationOptions(lastPageOptions) : null,
+        lastPageOptions: lastPageOptions
+          ? summarizeTranslationOptions(lastPageOptions)
+          : null,
         lastErrorMessage,
-        error: lastError
+        error: lastError,
       });
       const failedPage: MangaPage = {
         ...page,
         analysisStatus: "failed",
         lastError: lastErrorMessage,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
       completedPagesById.set(page.id, failedPage);
       await onPageFailed?.(failedPage, lastErrorMessage);
@@ -477,7 +543,7 @@ export async function runWholePagePipeline({
         progressTotal,
         pageIndex: index + 1,
         pageTotal: pages.length,
-        detail: `${maxAttempts}회 재시도 후 실패`
+        detail: `${maxAttempts}회 재시도 후 실패`,
       });
     }
 
@@ -490,12 +556,12 @@ export async function runWholePagePipeline({
       progressCurrent: progressTotal,
       progressTotal,
       pageTotal: pages.length,
-      detail: `${pages.length} pages ready`
+      detail: `${pages.length} pages ready`,
     });
 
     return {
       pages: pages.map((page) => completedPagesById.get(page.id) ?? page),
-      warnings
+      warnings,
     };
   } finally {
     await disposeEndpointSession();

@@ -38,7 +38,7 @@ export function Modal({
   bodyClassName,
   headerExtra,
   footer,
-  children
+  children,
 }: ModalProps): React.JSX.Element {
   React.useEffect(() => {
     if (!closeOnEsc || !onClose) {
@@ -60,13 +60,20 @@ export function Modal({
       className={styles.backdrop}
       role="presentation"
       onMouseDown={(event) => {
-        if (closeOnBackdrop && !closeDisabled && onClose && event.target === event.currentTarget) {
+        if (
+          closeOnBackdrop &&
+          !closeDisabled &&
+          onClose &&
+          event.target === event.currentTarget
+        ) {
           onClose();
         }
       }}
     >
       <div
-        className={[styles.card, styles[size], cardClassName ?? ""].filter(Boolean).join(" ")}
+        className={[styles.card, styles[size], cardClassName ?? ""]
+          .filter(Boolean)
+          .join(" ")}
         style={width ? { width } : undefined}
         role="dialog"
         aria-modal="true"
@@ -79,14 +86,26 @@ export function Modal({
             <div className={styles.headerActions}>
               {headerExtra}
               {onClose ? (
-                <IconButton label="닫기" variant="default" size="sm" onClick={onClose} disabled={closeDisabled}>
+                <IconButton
+                  label="닫기"
+                  variant="default"
+                  size="sm"
+                  onClick={onClose}
+                  disabled={closeDisabled}
+                >
                   <CloseIcon size={16} />
                 </IconButton>
               ) : null}
             </div>
           </div>
         ) : null}
-        <div className={[styles.body, bodyClassName ?? ""].filter(Boolean).join(" ")}>{children}</div>
+        <div
+          className={[styles.body, bodyClassName ?? ""]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {children}
+        </div>
         {footer ? <div className={styles.footer}>{footer}</div> : null}
       </div>
     </div>

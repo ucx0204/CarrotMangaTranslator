@@ -5,7 +5,7 @@ import type {
   InpaintingMaskStroke,
   JobState,
   LibraryIndex,
-  WorkShareImportPreview
+  WorkShareImportPreview,
 } from "../../shared/types";
 import { AppModals } from "./components/AppModals";
 import { AppSidebar } from "./components/AppSidebar";
@@ -41,7 +41,7 @@ import { useWorkspacePointerHandlers } from "./hooks/useWorkspacePointerHandlers
 import {
   formatErrorMessage,
   regionSelectionToBbox,
-  type RegionSelectionState
+  type RegionSelectionState,
 } from "./lib/appHelpers";
 import { resolveProgressSnapshot } from "./lib/jobProgress";
 import { countChapterBlocks, countInpaintedPages } from "./lib/inpaintingStats";
@@ -53,42 +53,65 @@ const EMPTY_JOB: JobState = {
   id: "idle",
   kind: "gemma-analysis",
   status: "idle",
-  progressText: "대기 중"
+  progressText: "대기 중",
 };
 
 const INPAINTING_GUIDE_HIDDEN_KEY = "mgt.inpaintingGuide.hidden";
 
 export default function App(): React.JSX.Element {
-  const [library, setLibrary] = useState<LibraryIndex>({ workOrder: [], works: [] });
-  const [currentChapter, setCurrentChapter] = useState<ChapterSnapshot | null>(null);
+  const [library, setLibrary] = useState<LibraryIndex>({
+    workOrder: [],
+    works: [],
+  });
+  const [currentChapter, setCurrentChapter] = useState<ChapterSnapshot | null>(
+    null,
+  );
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
-  const [regionSelection, setRegionSelection] = useState<RegionSelectionState | null>(null);
+  const [regionSelection, setRegionSelection] =
+    useState<RegionSelectionState | null>(null);
   const [jobState, setJobState] = useState<JobState>(EMPTY_JOB);
-  const { statusLines, appendStatusLine, pushStatus, clearStatusLines } = useStatusLog();
+  const { statusLines, appendStatusLine, pushStatus, clearStatusLines } =
+    useStatusLog();
   const [translationSourceOpen, setTranslationSourceOpen] = useState(false);
-  const [importPreview, setImportPreview] = useState<ImportPreviewSession | null>(null);
+  const [importPreview, setImportPreview] =
+    useState<ImportPreviewSession | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const [shareExportOpen, setShareExportOpen] = useState(false);
   const [shareExportBusy, setShareExportBusy] = useState(false);
-  const [shareImportPreview, setShareImportPreview] = useState<WorkShareImportPreview | null>(null);
+  const [shareImportPreview, setShareImportPreview] =
+    useState<WorkShareImportPreview | null>(null);
   const [shareImportBusy, setShareImportBusy] = useState(false);
-  const { confirmDialog, askConfirm, resolveConfirmDialog } = useConfirmDialog();
+  const { confirmDialog, askConfirm, resolveConfirmDialog } =
+    useConfirmDialog();
   const [inpaintingMode, setInpaintingMode] = useState(false);
   const [inpaintingGuideOpen, setInpaintingGuideOpen] = useState(false);
   const [hideInpaintingGuide, setHideInpaintingGuide] = useState(() =>
-    typeof window === "undefined" ? false : window.localStorage.getItem(INPAINTING_GUIDE_HIDDEN_KEY) === "1"
+    typeof window === "undefined"
+      ? false
+      : window.localStorage.getItem(INPAINTING_GUIDE_HIDDEN_KEY) === "1",
   );
   const [inpaintingTool, setInpaintingTool] = useState<InpaintingTool>("none");
   const [inpaintingBrushRadius, setInpaintingBrushRadius] = useState(28);
   const [inpaintingPaintColor, setInpaintingPaintColor] = useState("#ffffff");
   const [peekOriginal, setPeekOriginal] = useState(false);
-  const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<Record<string, InpaintingMaskStroke[]>>({});
+  const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<
+    Record<string, InpaintingMaskStroke[]>
+  >({});
   const [showBlockChrome, setShowBlockChrome] = useState(true);
   const [showTextBlocks, setShowTextBlocks] = useState(true);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
-  const { settings, settingsOpen, settingsBusy, openSettings, closeSettings, submitSettings, resetSettings, saveSettingsQuietly } = useSettingsDialog(pushStatus);
+  const {
+    settings,
+    settingsOpen,
+    settingsBusy,
+    openSettings,
+    closeSettings,
+    submitSettings,
+    resetSettings,
+    saveSettingsQuietly,
+  } = useSettingsDialog(pushStatus);
   const workspacePanelRef = useRef<HTMLElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -98,49 +121,95 @@ export default function App(): React.JSX.Element {
   const prevJobStatusRef = useRef<JobState["status"]>("idle");
 
   const selectedPage = useMemo(
-    () => currentChapter?.pages.find((page) => page.id === selectedPageId) ?? currentChapter?.pages[0] ?? null,
-    [currentChapter?.pages, selectedPageId]
+    () =>
+      currentChapter?.pages.find((page) => page.id === selectedPageId) ??
+      currentChapter?.pages[0] ??
+      null,
+    [currentChapter?.pages, selectedPageId],
   );
   const patternMaskStrokes = useMemo(
-    () => (selectedPage ? (patternMaskStrokesByPage[selectedPage.id] ?? []) : []),
-    [patternMaskStrokesByPage, selectedPage]
+    () =>
+      selectedPage ? (patternMaskStrokesByPage[selectedPage.id] ?? []) : [],
+    [patternMaskStrokesByPage, selectedPage],
   );
-  const selectedPageImagePath = selectedPage?.inpaintedImagePath ?? selectedPage?.imagePath ?? null;
-  const { selectedPageImageDataUrl, selectedPageOriginalImageDataUrl, clearPageImageCache } = usePageImageDataUrls({
+  const selectedPageImagePath =
+    selectedPage?.inpaintedImagePath ?? selectedPage?.imagePath ?? null;
+  const {
+    selectedPageImageDataUrl,
+    selectedPageOriginalImageDataUrl,
+    clearPageImageCache,
+  } = usePageImageDataUrls({
     chapterId: currentChapter?.id ?? null,
     selectedPage,
-    selectedPageImagePath
+    selectedPageImagePath,
   });
-  const selectedBlock = selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
-  const peekAvailable = Boolean(selectedPage?.inpaintedImagePath && selectedPageOriginalImageDataUrl);
+  const selectedBlock =
+    selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
+  const peekAvailable = Boolean(
+    selectedPage?.inpaintedImagePath && selectedPageOriginalImageDataUrl,
+  );
   const showingOriginalPeek = inpaintingMode && peekOriginal && peekAvailable;
-  const workspaceImageDataUrl = showingOriginalPeek ? selectedPageOriginalImageDataUrl : selectedPageImageDataUrl;
-  const jobActive = ["starting", "running", "cancelling"].includes(jobState.status);
-  const { clearDirtyTracking, dirty, dirtyPageIdsRef, markDirty, replaceDirtyPageIds, saveNow } = useChapterPersistence({
+  const workspaceImageDataUrl = showingOriginalPeek
+    ? selectedPageOriginalImageDataUrl
+    : selectedPageImageDataUrl;
+  const jobActive = ["starting", "running", "cancelling"].includes(
+    jobState.status,
+  );
+  const {
+    clearDirtyTracking,
+    dirty,
+    dirtyPageIdsRef,
+    markDirty,
+    replaceDirtyPageIds,
+    saveNow,
+  } = useChapterPersistence({
     currentChapter,
     currentChapterRef,
     onSaveError: (message) => {
       pushStatus(`저장 실패: ${message}`);
       toast.error(`저장 실패: ${message}`);
     },
-    setCurrentChapter
+    setCurrentChapter,
   });
-  const selectedPageEditLocked = Boolean(jobActive && selectedPage && selectedPage.analysisStatus !== "completed");
-  const selectedPageSize = useMemo(
-    () => (selectedPage ? { width: selectedPage.width, height: selectedPage.height } : null),
-    [selectedPage]
+  const selectedPageEditLocked = Boolean(
+    jobActive && selectedPage && selectedPage.analysisStatus !== "completed",
   );
-  const stageSize = useStageSize(imageRef, selectedPageSize, selectedPageImageDataUrl);
-  const progressSnapshot = useMemo(() => resolveProgressSnapshot(jobState), [jobState]);
+  const selectedPageSize = useMemo(
+    () =>
+      selectedPage
+        ? { width: selectedPage.width, height: selectedPage.height }
+        : null,
+    [selectedPage],
+  );
+  const stageSize = useStageSize(
+    imageRef,
+    selectedPageSize,
+    selectedPageImageDataUrl,
+  );
+  const progressSnapshot = useMemo(
+    () => resolveProgressSnapshot(jobState),
+    [jobState],
+  );
   const showProgressBar = jobState.status !== "idle" && !!progressSnapshot;
-  const regionSelectionRect = useMemo(() => (regionSelection ? regionSelectionToBbox(regionSelection) : null), [regionSelection]);
-  const blockCounts = useMemo(() => countChapterBlocks(currentChapter, selectedPage?.id ?? null), [currentChapter, selectedPage?.id]);
-  const inpaintedPageCount = useMemo(() => countInpaintedPages(currentChapter), [currentChapter]);
+  const regionSelectionRect = useMemo(
+    () => (regionSelection ? regionSelectionToBbox(regionSelection) : null),
+    [regionSelection],
+  );
+  const blockCounts = useMemo(
+    () => countChapterBlocks(currentChapter, selectedPage?.id ?? null),
+    [currentChapter, selectedPage?.id],
+  );
+  const inpaintedPageCount = useMemo(
+    () => countInpaintedPages(currentChapter),
+    [currentChapter],
+  );
   const inpaintingToolActive = inpaintingMode && inpaintingTool !== "none";
   const cancelJob = React.useCallback(() => {
     void mangaGateway.cancelJob().catch((error) => {
       console.error(error);
-      pushStatus(formatErrorMessage(error, "작업 취소 요청을 보내지 못했습니다."));
+      pushStatus(
+        formatErrorMessage(error, "작업 취소 요청을 보내지 못했습니다."),
+      );
     });
   }, [pushStatus]);
   const openLibraryFolder = React.useCallback(() => {
@@ -169,7 +238,7 @@ export default function App(): React.JSX.Element {
     reorderChapterInLibrary,
     reorderPageInChapter,
     setRenameTarget,
-    submitRename
+    submitRename,
   } = useLibraryActions({
     askConfirm,
     clearDirtyTracking,
@@ -182,10 +251,17 @@ export default function App(): React.JSX.Element {
     setCurrentChapter,
     setLibrary,
     setSelectedBlockId,
-    setSelectedPageId
+    setSelectedPageId,
   });
   const overlayModalsOpen = Boolean(
-    translationSourceOpen || importPreview || shareExportOpen || shareImportPreview || renameTarget || settingsOpen || confirmDialog || inpaintingGuideOpen
+    translationSourceOpen ||
+    importPreview ||
+    shareExportOpen ||
+    shareImportPreview ||
+    renameTarget ||
+    settingsOpen ||
+    confirmDialog ||
+    inpaintingGuideOpen,
   );
   const modalOpen = overlayModalsOpen || commandPaletteOpen || shortcutHelpOpen;
 
@@ -209,7 +285,8 @@ export default function App(): React.JSX.Element {
     if (!settings) {
       return;
     }
-    const localStorageHidden = window.localStorage.getItem(INPAINTING_GUIDE_HIDDEN_KEY) === "1";
+    const localStorageHidden =
+      window.localStorage.getItem(INPAINTING_GUIDE_HIDDEN_KEY) === "1";
     const settingsHidden = settings.ui?.inpaintingGuideHidden === true;
     const nextHidden = localStorageHidden || settingsHidden;
     setHideInpaintingGuide(nextHidden);
@@ -218,8 +295,8 @@ export default function App(): React.JSX.Element {
         ...settings,
         ui: {
           ...settings.ui,
-          inpaintingGuideHidden: true
-        }
+          inpaintingGuideHidden: true,
+        },
       });
     }
   }, [saveSettingsQuietly, settings]);
@@ -235,7 +312,7 @@ export default function App(): React.JSX.Element {
       toast.success(jobState.progressText || "작업이 완료되었습니다.");
     } else if (next === "failed") {
       toast.error(jobState.progressText || "작업에 실패했습니다.", {
-        action: { label: "로그 폴더 열기", onClick: openLogFolder }
+        action: { label: "로그 폴더 열기", onClick: openLogFolder },
       });
     } else if (next === "cancelled") {
       toast.info("작업이 취소되었습니다.");
@@ -253,7 +330,7 @@ export default function App(): React.JSX.Element {
     selectedPageIdRef,
     setCurrentChapter,
     setSelectedBlockId,
-    setSelectedPageId
+    setSelectedPageId,
   });
 
   useJobEvents({
@@ -261,33 +338,39 @@ export default function App(): React.JSX.Element {
     currentChapterRef,
     mergeLiveChapter,
     refreshLibrary,
-    setJobState
+    setJobState,
   });
 
-  const { openImportPreview, openShareImportPreview, selectTranslateSource, submitImport, submitShareExport, submitShareImport } =
-    useImportShareActions({
-      applyChapter,
-      askConfirm,
-      dirty,
-      importPreview,
-      mergeLiveChapter,
-      openChapter,
-      pushStatus,
-      refreshLibrary,
-      saveNow,
-      setImportBusy,
-      setImportPreview,
-      setShareExportBusy,
-      setShareExportOpen,
-      setShareImportBusy,
-      setShareImportPreview,
-      setTranslationSourceOpen,
-      shareImportPreview
-    });
+  const {
+    openImportPreview,
+    openShareImportPreview,
+    selectTranslateSource,
+    submitImport,
+    submitShareExport,
+    submitShareImport,
+  } = useImportShareActions({
+    applyChapter,
+    askConfirm,
+    dirty,
+    importPreview,
+    mergeLiveChapter,
+    openChapter,
+    pushStatus,
+    refreshLibrary,
+    saveNow,
+    setImportBusy,
+    setImportPreview,
+    setShareExportBusy,
+    setShareExportOpen,
+    setShareImportBusy,
+    setShareImportPreview,
+    setTranslationSourceOpen,
+    shareImportPreview,
+  });
 
   const prepareRegionTranslation = useRegionTranslationPreparation({
     inpaintingMode,
-    pushStatus
+    pushStatus,
   });
 
   const { runAnalysis, translateSelectedRegion } = useTranslationActions({
@@ -303,35 +386,40 @@ export default function App(): React.JSX.Element {
     selectedPage,
     setCurrentChapter,
     setJobState,
-    setSelectedBlockId
+    setSelectedBlockId,
   });
 
   const updateCurrentChapter = useCurrentChapterUpdater({
     currentChapterRef,
     markDirty,
-    setCurrentChapter
+    setCurrentChapter,
   });
 
   const retranslatePage = usePageRetranslationAction({
     askConfirm,
     currentChapter,
-    runAnalysis
+    runAnalysis,
   });
 
-  const { applyFontToScope, deleteSelectedBlock, duplicateSelectedBlock, toggleBlockInpaintExcluded, updateSelectedBlock } =
-    useBlockEditingActions({
-      currentChapter,
-      currentChapterRef,
-      jobActive,
-      markDirty,
-      pushStatus,
-      selectedBlock,
-      selectedPage,
-      selectedPageEditLocked,
-      setCurrentChapter,
-      setSelectedBlockId,
-      updateCurrentChapter
-    });
+  const {
+    applyFontToScope,
+    deleteSelectedBlock,
+    duplicateSelectedBlock,
+    toggleBlockInpaintExcluded,
+    updateSelectedBlock,
+  } = useBlockEditingActions({
+    currentChapter,
+    currentChapterRef,
+    jobActive,
+    markDirty,
+    pushStatus,
+    selectedBlock,
+    selectedPage,
+    selectedPageEditLocked,
+    setCurrentChapter,
+    setSelectedBlockId,
+    updateCurrentChapter,
+  });
 
   const {
     appendRetouchPoint,
@@ -348,7 +436,7 @@ export default function App(): React.JSX.Element {
     retouchUndoStack,
     setRetouchCursorPoint,
     setRetouchPreview,
-    undoRetouch
+    undoRetouch,
   } = useInpaintingRetouch({
     clearPageImageCache,
     currentChapter,
@@ -360,35 +448,41 @@ export default function App(): React.JSX.Element {
     mergeLiveChapter,
     pushStatus,
     selectedPage,
-    setCurrentChapter
+    setCurrentChapter,
   });
 
-  const { enterInpaintingMode, exitInpaintingMode, exportInpaintingResults, revertInpainting, runDrawnPatternInpainting, runInpainting } =
-    useInpaintingActions({
-      askConfirm,
-      clearPageImageCache,
-      clearRetouchHistory,
-      currentChapter,
-      dirty,
-      hideInpaintingGuide,
-      jobActive,
-      mergeLiveChapter,
-      patternMaskStrokes,
-      pushStatus,
-      refreshLibrary,
-      saveNow,
-      selectedPage,
-      setInpaintingGuideOpen,
-      setInpaintingMode,
-      setInpaintingTool,
-      setJobState,
-      setPatternMaskStrokesByPage,
-      setPeekOriginal,
-      setRegionSelection,
-      setSelectedBlockId,
-      setShowBlockChrome,
-      setShowTextBlocks
-    });
+  const {
+    enterInpaintingMode,
+    exitInpaintingMode,
+    exportInpaintingResults,
+    revertInpainting,
+    runDrawnPatternInpainting,
+    runInpainting,
+  } = useInpaintingActions({
+    askConfirm,
+    clearPageImageCache,
+    clearRetouchHistory,
+    currentChapter,
+    dirty,
+    hideInpaintingGuide,
+    jobActive,
+    mergeLiveChapter,
+    patternMaskStrokes,
+    pushStatus,
+    refreshLibrary,
+    saveNow,
+    selectedPage,
+    setInpaintingGuideOpen,
+    setInpaintingMode,
+    setInpaintingTool,
+    setJobState,
+    setPatternMaskStrokesByPage,
+    setPeekOriginal,
+    setRegionSelection,
+    setSelectedBlockId,
+    setShowBlockChrome,
+    setShowTextBlocks,
+  });
 
   const { selectPageForReading } = usePageNavigationHandlers({
     currentChapterRef,
@@ -400,7 +494,7 @@ export default function App(): React.JSX.Element {
     setSelectedPageId,
     setSelectedBlockId,
     undoRetouch,
-    redoRetouch
+    redoRetouch,
   });
 
   const {
@@ -409,7 +503,7 @@ export default function App(): React.JSX.Element {
     onStagePointerLeave,
     onStagePointerMove,
     onStagePointerUp,
-    startRegionTranslationSelection
+    startRegionTranslationSelection,
   } = useWorkspacePointerHandlers({
     appendRetouchPoint,
     applyRetouchPoints,
@@ -438,10 +532,14 @@ export default function App(): React.JSX.Element {
     setSelectedBlockId,
     stageRef,
     translateSelectedRegion,
-    updateCurrentChapter
+    updateCurrentChapter,
   });
 
-  const { contextValue: inpaintingContextValue, retouchCursor, retouchPreviewLayer } = useInpaintingContextBridge({
+  const {
+    contextValue: inpaintingContextValue,
+    retouchCursor,
+    retouchPreviewLayer,
+  } = useInpaintingContextBridge({
     blockCounts,
     brushColor: inpaintingPaintColor,
     brushRadius: inpaintingBrushRadius,
@@ -486,39 +584,113 @@ export default function App(): React.JSX.Element {
     showBlockChrome,
     showTextBlocks,
     tool: inpaintingTool,
-    undoRetouch
+    undoRetouch,
   });
 
-  const togglePalette = React.useCallback(() => setCommandPaletteOpen((open) => !open), []);
-  const toggleHelp = React.useCallback(() => setShortcutHelpOpen((open) => !open), []);
+  const togglePalette = React.useCallback(
+    () => setCommandPaletteOpen((open) => !open),
+    [],
+  );
+  const toggleHelp = React.useCallback(
+    () => setShortcutHelpOpen((open) => !open),
+    [],
+  );
   useGlobalHotkeys({
     blockingModalOpen: overlayModalsOpen,
     paletteOpen: commandPaletteOpen,
     onTogglePalette: togglePalette,
-    onToggleHelp: toggleHelp
+    onToggleHelp: toggleHelp,
   });
 
   const commands = useMemo<Command[]>(() => {
     const list: Command[] = [];
     if (currentChapter && !jobActive && !inpaintingMode) {
-      list.push({ id: "translate-pending", label: "이어서 번역", hint: "남은 페이지", keywords: "translate resume ieoseo", run: () => void runAnalysis("pending") });
-      list.push({ id: "translate-all", label: "전체 다시 번역", hint: "모든 페이지", keywords: "translate all retranslate jeonche", run: () => void runAnalysis("all") });
-      list.push({ id: "enter-inpainting", label: "인페인팅 시작", keywords: "inpaint", run: () => void enterInpaintingMode() });
+      list.push({
+        id: "translate-pending",
+        label: "이어서 번역",
+        hint: "남은 페이지",
+        keywords: "translate resume ieoseo",
+        run: () => void runAnalysis("pending"),
+      });
+      list.push({
+        id: "translate-all",
+        label: "전체 다시 번역",
+        hint: "모든 페이지",
+        keywords: "translate all retranslate jeonche",
+        run: () => void runAnalysis("all"),
+      });
+      list.push({
+        id: "enter-inpainting",
+        label: "인페인팅 시작",
+        keywords: "inpaint",
+        run: () => void enterInpaintingMode(),
+      });
     }
     if (inpaintingMode) {
-      list.push({ id: "exit-inpainting", label: "인페인팅 종료", keywords: "inpaint exit", run: () => exitInpaintingMode() });
+      list.push({
+        id: "exit-inpainting",
+        label: "인페인팅 종료",
+        keywords: "inpaint exit",
+        run: () => exitInpaintingMode(),
+      });
     }
     if (jobActive) {
-      list.push({ id: "cancel-job", label: "작업 취소", keywords: "cancel stop", run: cancelJob });
+      list.push({
+        id: "cancel-job",
+        label: "작업 취소",
+        keywords: "cancel stop",
+        run: cancelJob,
+      });
     }
-    list.push({ id: "open-translate-source", label: "번역 소스 가져오기", hint: "이미지·폴더·ZIP", keywords: "import source", run: () => setTranslationSourceOpen(true) });
-    list.push({ id: "open-batch", label: "작품 일괄 번역", keywords: "batch import", run: () => void openImportPreview("zip-folder") });
-    list.push({ id: "open-share-import", label: "공유본 가져오기", keywords: "share import", run: () => void openShareImportPreview() });
-    list.push({ id: "open-share-export", label: "공유로 내보내기", keywords: "share export", run: () => setShareExportOpen(true) });
-    list.push({ id: "open-settings", label: "설정 열기", keywords: "settings", run: () => void openSettings() });
-    list.push({ id: "open-library-folder", label: "보관함 폴더 열기", keywords: "library folder", run: openLibraryFolder });
-    list.push({ id: "open-log-folder", label: "로그 폴더 열기", keywords: "log folder", run: openLogFolder });
-    list.push({ id: "show-shortcuts", label: "단축키 도움말", keywords: "shortcut help", run: () => setShortcutHelpOpen(true) });
+    list.push({
+      id: "open-translate-source",
+      label: "번역 소스 가져오기",
+      hint: "이미지·폴더·ZIP",
+      keywords: "import source",
+      run: () => setTranslationSourceOpen(true),
+    });
+    list.push({
+      id: "open-batch",
+      label: "작품 일괄 번역",
+      keywords: "batch import",
+      run: () => void openImportPreview("zip-folder"),
+    });
+    list.push({
+      id: "open-share-import",
+      label: "공유본 가져오기",
+      keywords: "share import",
+      run: () => void openShareImportPreview(),
+    });
+    list.push({
+      id: "open-share-export",
+      label: "공유로 내보내기",
+      keywords: "share export",
+      run: () => setShareExportOpen(true),
+    });
+    list.push({
+      id: "open-settings",
+      label: "설정 열기",
+      keywords: "settings",
+      run: () => void openSettings(),
+    });
+    list.push({
+      id: "open-library-folder",
+      label: "보관함 폴더 열기",
+      keywords: "library folder",
+      run: openLibraryFolder,
+    });
+    list.push({
+      id: "open-log-folder",
+      label: "로그 폴더 열기",
+      keywords: "log folder",
+      run: openLogFolder,
+    });
+    list.push({
+      id: "show-shortcuts",
+      label: "단축키 도움말",
+      keywords: "shortcut help",
+      run: () => setShortcutHelpOpen(true),
+    });
     return list;
   }, [
     currentChapter,
@@ -532,166 +704,173 @@ export default function App(): React.JSX.Element {
     openShareImportPreview,
     openSettings,
     openLibraryFolder,
-    openLogFolder
+    openLogFolder,
   ]);
 
   return (
     <FontsProvider>
-    <main className={`app-shell ${inpaintingMode ? "inpainting-mode" : ""}`}>
-      <AppSidebar
-        inpaintingMode={inpaintingMode}
-        currentChapter={currentChapter}
-        selectedPageId={selectedPage?.id ?? null}
-        library={library}
-        jobActive={jobActive}
-        settingsBusy={settingsBusy}
-        settingsOpen={settingsOpen}
-        onExitInpainting={exitInpaintingMode}
-        onOpenTranslationSource={() => setTranslationSourceOpen(true)}
-        onOpenBatchImport={() => void openImportPreview("zip-folder")}
-        onOpenSettings={() => void openSettings()}
-        onOpenLibraryFolder={openLibraryFolder}
-        onOpenShareExport={() => setShareExportOpen(true)}
-        onOpenShareImport={() => void openShareImportPreview()}
-        onOpenChapter={(chapterId) => void openChapter(chapterId)}
-        onRenameWork={(workId) => void renameWork(workId)}
-        onRenameChapter={(chapterId) => void renameChapter(chapterId)}
-        onReorderChapter={reorderChapterInLibrary}
-        onSelectPage={selectPageForReading}
-        onRetranslatePage={(pageId) => void retranslatePage(pageId)}
-        onRemovePage={(pageId) => void removePage(pageId)}
-        onReorderPage={reorderPageInChapter}
-      />
-
-      <AppWorkspace
-        workspacePanelRef={workspacePanelRef}
-        selectedPage={selectedPage}
-        selectedPageImageDataUrl={workspaceImageDataUrl}
-        imageRef={imageRef}
-        stageRef={stageRef}
-        stageSize={stageSize}
-        selectedBlockId={selectedBlockId}
-        showTextBlocks={showTextBlocks}
-        showBlockChrome={showBlockChrome}
-        inpaintingMode={inpaintingMode}
-        showingOriginalPeek={showingOriginalPeek}
-        inpaintingToolActive={inpaintingToolActive}
-        retouchCursor={retouchCursor}
-        retouchPreviewLayer={retouchPreviewLayer}
-        maskStrokes={inpaintingMode ? patternMaskStrokes : []}
-        regionSelectionActive={Boolean(regionSelection?.active)}
-        regionSelectionRect={regionSelectionRect}
-        jobState={jobState}
-        progressSnapshot={progressSnapshot}
-        onStagePointerMove={onStagePointerMove}
-        onStagePointerUp={onStagePointerUp}
-        onStagePointerDown={onStagePointerDown}
-        onStagePointerLeave={onStagePointerLeave}
-        onBlockPointerDown={onBlockPointerDown}
-        onToggleBlockExcluded={toggleBlockInpaintExcluded}
-        onOpenTranslationSource={() => setTranslationSourceOpen(true)}
-        onOpenBatchImport={() => void openImportPreview("zip-folder")}
-        onOpenShareImport={() => void openShareImportPreview()}
-        onOpenSettings={() => void openSettings()}
-      />
-
-      <InpaintingProvider value={inpaintingContextValue}>
-        <AppRightRail
+      <main className={`app-shell ${inpaintingMode ? "inpainting-mode" : ""}`}>
+        <AppSidebar
           inpaintingMode={inpaintingMode}
           currentChapter={currentChapter}
+          selectedPageId={selectedPage?.id ?? null}
+          library={library}
+          jobActive={jobActive}
+          settingsBusy={settingsBusy}
+          settingsOpen={settingsOpen}
+          onExitInpainting={exitInpaintingMode}
+          onOpenTranslationSource={() => setTranslationSourceOpen(true)}
+          onOpenBatchImport={() => void openImportPreview("zip-folder")}
+          onOpenSettings={() => void openSettings()}
+          onOpenLibraryFolder={openLibraryFolder}
+          onOpenShareExport={() => setShareExportOpen(true)}
+          onOpenShareImport={() => void openShareImportPreview()}
+          onOpenChapter={(chapterId) => void openChapter(chapterId)}
+          onRenameWork={(workId) => void renameWork(workId)}
+          onRenameChapter={(chapterId) => void renameChapter(chapterId)}
+          onReorderChapter={reorderChapterInLibrary}
+          onSelectPage={selectPageForReading}
+          onRetranslatePage={(pageId) => void retranslatePage(pageId)}
+          onRemovePage={(pageId) => void removePage(pageId)}
+          onReorderPage={reorderPageInChapter}
+        />
+
+        <AppWorkspace
+          workspacePanelRef={workspacePanelRef}
           selectedPage={selectedPage}
-          selectedBlock={selectedBlock}
-          selectedPageImageDataUrl={selectedPageImageDataUrl}
-          selectedPageEditLocked={selectedPageEditLocked}
+          selectedPageImageDataUrl={workspaceImageDataUrl}
+          imageRef={imageRef}
+          stageRef={stageRef}
+          stageSize={stageSize}
+          selectedBlockId={selectedBlockId}
+          showTextBlocks={showTextBlocks}
+          showBlockChrome={showBlockChrome}
+          inpaintingMode={inpaintingMode}
+          showingOriginalPeek={showingOriginalPeek}
+          inpaintingToolActive={inpaintingToolActive}
+          retouchCursor={retouchCursor}
+          retouchPreviewLayer={retouchPreviewLayer}
+          maskStrokes={inpaintingMode ? patternMaskStrokes : []}
+          regionSelectionActive={Boolean(regionSelection?.active)}
+          regionSelectionRect={regionSelectionRect}
           jobState={jobState}
           progressSnapshot={progressSnapshot}
-          showProgressBar={showProgressBar}
-          showBlockChrome={showBlockChrome}
-          showTextBlocks={showTextBlocks}
-          jobActive={jobActive}
-          statusLines={statusLines}
-          areaTranslateSelecting={Boolean(regionSelection?.active)}
-          onToggleChrome={() => setShowBlockChrome((value) => !value)}
-          onToggleBlocks={() => setShowTextBlocks((value) => !value)}
-          onRunPending={() => void runAnalysis("pending")}
-          onRunAll={() => void runAnalysis("all")}
-          onEnterInpainting={() => void enterInpaintingMode()}
-          onCancelJob={cancelJob}
-          onStartAreaTranslate={startRegionTranslationSelection}
-          onApplyFont={applyFontToScope}
-          onUpdateBlock={updateSelectedBlock}
-          onDeleteBlock={deleteSelectedBlock}
-          onDuplicateBlock={duplicateSelectedBlock}
+          onStagePointerMove={onStagePointerMove}
+          onStagePointerUp={onStagePointerUp}
+          onStagePointerDown={onStagePointerDown}
+          onStagePointerLeave={onStagePointerLeave}
+          onBlockPointerDown={onBlockPointerDown}
+          onToggleBlockExcluded={toggleBlockInpaintExcluded}
+          onOpenTranslationSource={() => setTranslationSourceOpen(true)}
+          onOpenBatchImport={() => void openImportPreview("zip-folder")}
+          onOpenShareImport={() => void openShareImportPreview()}
+          onOpenSettings={() => void openSettings()}
         />
-      </InpaintingProvider>
 
-      <AppModals
-        library={library}
-        currentWorkId={currentChapter?.workId ?? null}
-        translationSourceOpen={translationSourceOpen}
-        importPreview={importPreview}
-        importBusy={importBusy}
-        shareExportOpen={shareExportOpen}
-        shareExportBusy={shareExportBusy}
-        shareImportPreview={shareImportPreview}
-        shareImportBusy={shareImportBusy}
-        renameTarget={renameTarget}
-        renameBusy={renameBusy}
-        settingsOpen={settingsOpen}
-        settings={settings}
-        settingsBusy={settingsBusy}
-        jobActive={jobActive}
-        confirmDialog={confirmDialog}
-        inpaintingGuideOpen={inpaintingGuideOpen}
-        onCancelTranslationSource={() => setTranslationSourceOpen(false)}
-        onSelectTranslationSource={(mode) => void selectTranslateSource(mode)}
-        onCancelImport={() => setImportPreview(null)}
-        onSubmitImport={(payload) => void submitImport(payload)}
-        onCancelShareExport={() => {
-          if (!shareExportBusy) {
-            setShareExportOpen(false);
-          }
-        }}
-        onSubmitShareExport={(request) => void submitShareExport(request)}
-        onCancelShareImport={() => {
-          if (!shareImportBusy) {
-            setShareImportPreview(null);
-          }
-        }}
-        onSubmitShareImport={(payload) => void submitShareImport(payload)}
-        onCancelRename={() => {
-          if (!renameBusy) {
-            setRenameTarget(null);
-          }
-        }}
-        onDeleteRename={() => void deleteRenameTarget()}
-        onSubmitRename={(title) => void submitRename(title)}
-        onCancelSettings={closeSettings}
-        onOpenLogFolder={openLogFolder}
-        onResetSettings={() => void resetSettings()}
-        onSubmitSettings={(nextSettings) => void submitSettings(nextSettings)}
-        onResolveConfirm={resolveConfirmDialog}
-        onCloseInpaintingGuide={(hideNextTime) => {
-          if (hideNextTime) {
-            window.localStorage.setItem(INPAINTING_GUIDE_HIDDEN_KEY, "1");
-            setHideInpaintingGuide(true);
-            if (settings) {
-              void saveSettingsQuietly({
-                ...settings,
-                ui: {
-                  ...settings.ui,
-                  inpaintingGuideHidden: true
-                }
-              });
+        <InpaintingProvider value={inpaintingContextValue}>
+          <AppRightRail
+            inpaintingMode={inpaintingMode}
+            currentChapter={currentChapter}
+            selectedPage={selectedPage}
+            selectedBlock={selectedBlock}
+            selectedPageImageDataUrl={selectedPageImageDataUrl}
+            selectedPageEditLocked={selectedPageEditLocked}
+            jobState={jobState}
+            progressSnapshot={progressSnapshot}
+            showProgressBar={showProgressBar}
+            showBlockChrome={showBlockChrome}
+            showTextBlocks={showTextBlocks}
+            jobActive={jobActive}
+            statusLines={statusLines}
+            areaTranslateSelecting={Boolean(regionSelection?.active)}
+            onToggleChrome={() => setShowBlockChrome((value) => !value)}
+            onToggleBlocks={() => setShowTextBlocks((value) => !value)}
+            onRunPending={() => void runAnalysis("pending")}
+            onRunAll={() => void runAnalysis("all")}
+            onEnterInpainting={() => void enterInpaintingMode()}
+            onCancelJob={cancelJob}
+            onStartAreaTranslate={startRegionTranslationSelection}
+            onApplyFont={applyFontToScope}
+            onUpdateBlock={updateSelectedBlock}
+            onDeleteBlock={deleteSelectedBlock}
+            onDuplicateBlock={duplicateSelectedBlock}
+          />
+        </InpaintingProvider>
+
+        <AppModals
+          library={library}
+          currentWorkId={currentChapter?.workId ?? null}
+          translationSourceOpen={translationSourceOpen}
+          importPreview={importPreview}
+          importBusy={importBusy}
+          shareExportOpen={shareExportOpen}
+          shareExportBusy={shareExportBusy}
+          shareImportPreview={shareImportPreview}
+          shareImportBusy={shareImportBusy}
+          renameTarget={renameTarget}
+          renameBusy={renameBusy}
+          settingsOpen={settingsOpen}
+          settings={settings}
+          settingsBusy={settingsBusy}
+          jobActive={jobActive}
+          confirmDialog={confirmDialog}
+          inpaintingGuideOpen={inpaintingGuideOpen}
+          onCancelTranslationSource={() => setTranslationSourceOpen(false)}
+          onSelectTranslationSource={(mode) => void selectTranslateSource(mode)}
+          onCancelImport={() => setImportPreview(null)}
+          onSubmitImport={(payload) => void submitImport(payload)}
+          onCancelShareExport={() => {
+            if (!shareExportBusy) {
+              setShareExportOpen(false);
             }
-          }
-          setInpaintingGuideOpen(false);
-        }}
+          }}
+          onSubmitShareExport={(request) => void submitShareExport(request)}
+          onCancelShareImport={() => {
+            if (!shareImportBusy) {
+              setShareImportPreview(null);
+            }
+          }}
+          onSubmitShareImport={(payload) => void submitShareImport(payload)}
+          onCancelRename={() => {
+            if (!renameBusy) {
+              setRenameTarget(null);
+            }
+          }}
+          onDeleteRename={() => void deleteRenameTarget()}
+          onSubmitRename={(title) => void submitRename(title)}
+          onCancelSettings={closeSettings}
+          onOpenLogFolder={openLogFolder}
+          onResetSettings={() => void resetSettings()}
+          onSubmitSettings={(nextSettings) => void submitSettings(nextSettings)}
+          onResolveConfirm={resolveConfirmDialog}
+          onCloseInpaintingGuide={(hideNextTime) => {
+            if (hideNextTime) {
+              window.localStorage.setItem(INPAINTING_GUIDE_HIDDEN_KEY, "1");
+              setHideInpaintingGuide(true);
+              if (settings) {
+                void saveSettingsQuietly({
+                  ...settings,
+                  ui: {
+                    ...settings.ui,
+                    inpaintingGuideHidden: true,
+                  },
+                });
+              }
+            }
+            setInpaintingGuideOpen(false);
+          }}
+        />
+      </main>
+      <CommandPalette
+        open={commandPaletteOpen}
+        commands={commands}
+        onClose={() => setCommandPaletteOpen(false)}
       />
-    </main>
-    <CommandPalette open={commandPaletteOpen} commands={commands} onClose={() => setCommandPaletteOpen(false)} />
-    <ShortcutHelp open={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
-    <ToastViewport />
+      <ShortcutHelp
+        open={shortcutHelpOpen}
+        onClose={() => setShortcutHelpOpen(false)}
+      />
+      <ToastViewport />
     </FontsProvider>
   );
 }

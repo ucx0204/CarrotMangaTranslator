@@ -33,13 +33,15 @@ function parseJsonLenient(rawText) {
     if (looseItems.length > 0) {
       return { items: looseItems };
     }
-    throw new Error("Failed to find a parseable structured payload in the model output.");
+    throw new Error(
+      "Failed to find a parseable structured payload in the model output.",
+    );
   }
 
   const attempts = [
     candidate,
     candidate.replace(/,\s*([}\]])/g, "$1"),
-    repairBrokenJson(candidate)
+    repairBrokenJson(candidate),
   ];
 
   for (const attempt of attempts) {
@@ -67,34 +69,54 @@ function parseJsonLenient(rawText) {
 }
 
 function hasStructuredItems(parsed) {
-  return Array.isArray(parsed) || Array.isArray(parsed?.items) || Array.isArray(parsed?.blocks);
+  return (
+    Array.isArray(parsed) ||
+    Array.isArray(parsed?.items) ||
+    Array.isArray(parsed?.blocks)
+  );
 }
 
 function repairBrokenJson(candidate) {
   let repaired = candidate.trim();
-  repaired = repaired.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-  repaired = repaired.replace(/"?(id|type|textRole|text_role|bbox|jp|ko|direction|angle|fontSize|confidence|x1|y1|x2|y2)(?::|\s*:)/gi, (_, key) => `"${key === "fontSize" ? "fontSize" : key === "textRole" || key === "text_role" ? "textRole" : key.toLowerCase()}":`);
-  repaired = repaired.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, (_, prefix, key) => `${prefix}"${key}":`);
+  repaired = repaired
+    .replace(/```(?:json)?/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  repaired = repaired.replace(
+    /"?(id|type|textRole|text_role|bbox|jp|ko|direction|angle|fontSize|confidence|x1|y1|x2|y2)(?::|\s*:)/gi,
+    (_, key) =>
+      `"${key === "fontSize" ? "fontSize" : key === "textRole" || key === "text_role" ? "textRole" : key.toLowerCase()}":`,
+  );
+  repaired = repaired.replace(
+    /([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g,
+    (_, prefix, key) => `${prefix}"${key}":`,
+  );
   repaired = repaired.replace(/:\s*'([^']*)'/g, ': "$1"');
-  repaired = repaired.replace(/("id"\s*:\s*)([A-Za-z]+)(\s*[,\n}])/g, '$1"$2"$3');
-  repaired = repaired.replace(/("(?:jp|ko|type)"\s*:\s*)([^"{[\n][^,\n}]*)/g, (_match, prefix, value) => {
-    const trimmed = String(value).trim();
-    if (!trimmed || /^"/.test(trimmed)) {
-      return `${prefix}${trimmed}`;
-    }
-    return `${prefix}"${trimmed.replace(/^['"]|['"]$/g, "")}"`;
-  });
-  repaired = repaired.replace(/"(x1|y1|x2|y2)\s*:/g, "\"$1\":");
-  repaired = repaired.replace(/([{\s,])(x1|y1|x2|y2)\s*:/g, "$1\"$2\":");
-  repaired = repaired.replace(/"ko\s*:/g, "\"ko\":");
+  repaired = repaired.replace(
+    /("id"\s*:\s*)([A-Za-z]+)(\s*[,\n}])/g,
+    '$1"$2"$3',
+  );
+  repaired = repaired.replace(
+    /("(?:jp|ko|type)"\s*:\s*)([^"{[\n][^,\n}]*)/g,
+    (_match, prefix, value) => {
+      const trimmed = String(value).trim();
+      if (!trimmed || /^"/.test(trimmed)) {
+        return `${prefix}${trimmed}`;
+      }
+      return `${prefix}"${trimmed.replace(/^['"]|['"]$/g, "")}"`;
+    },
+  );
+  repaired = repaired.replace(/"(x1|y1|x2|y2)\s*:/g, '"$1":');
+  repaired = repaired.replace(/([{\s,])(x1|y1|x2|y2)\s*:/g, '$1"$2":');
+  repaired = repaired.replace(/"ko\s*:/g, '"ko":');
   repaired = repaired.replace(/,\s*([}\]])/g, "$1");
   return repaired;
 }
 
 function normalizeLooseLine(line) {
   return line
-    .replace(/"(x1|y1|x2|y2)\s*:/g, "\"$1\":")
-    .replace(/"ko\s*:/g, "\"ko\":")
+    .replace(/"(x1|y1|x2|y2)\s*:/g, '"$1":')
+    .replace(/"ko\s*:/g, '"ko":')
     .trim();
 }
 
@@ -103,7 +125,9 @@ function bboxFromPartial(partialBbox) {
     return null;
   }
 
-  if (!["x1", "y1", "x2", "y2"].every((key) => Number.isFinite(partialBbox[key]))) {
+  if (
+    !["x1", "y1", "x2", "y2"].every((key) => Number.isFinite(partialBbox[key]))
+  ) {
     return null;
   }
 
@@ -115,7 +139,7 @@ function bboxFromPartial(partialBbox) {
     x: left,
     y: top,
     w: right - left,
-    h: bottom - top
+    h: bottom - top,
   };
 }
 
@@ -137,13 +161,17 @@ function parseLooseItemList(rawText, options = {}) {
     if (!current.bbox && current.partialBbox) {
       current.bbox = bboxFromPartial(current.partialBbox);
     }
-    if ((!requireBbox || current.bbox) && typeof current.ko === "string" && current.ko.trim()) {
+    if (
+      (!requireBbox || current.bbox) &&
+      typeof current.ko === "string" &&
+      current.ko.trim()
+    ) {
       const bboxFields = current.bbox
         ? {
             x1: current.bbox.x,
             y1: current.bbox.y,
             x2: current.bbox.x + current.bbox.w,
-            y2: current.bbox.y + current.bbox.h
+            y2: current.bbox.y + current.bbox.h,
           }
         : {};
       items.push({
@@ -155,8 +183,12 @@ function parseLooseItemList(rawText, options = {}) {
         ...(current.textRole ? { textRole: current.textRole } : {}),
         ...(current.direction ? { direction: current.direction } : {}),
         ...(Number.isFinite(current.angle) ? { angle: current.angle } : {}),
-        ...(Number.isFinite(current.fontSize) ? { fontSize: current.fontSize } : {}),
-        ...(Number.isFinite(current.confidence) ? { confidence: current.confidence } : {})
+        ...(Number.isFinite(current.fontSize)
+          ? { fontSize: current.fontSize }
+          : {}),
+        ...(Number.isFinite(current.confidence)
+          ? { confidence: current.confidence }
+          : {}),
       });
     }
     current = null;
@@ -170,7 +202,9 @@ function parseLooseItemList(rawText, options = {}) {
       continue;
     }
 
-    const idMatch = line.match(/^(?:\{?\s*)?"?id"?\s*:\s*["']?([A-Za-z0-9_-]+)["']?/i);
+    const idMatch = line.match(
+      /^(?:\{?\s*)?"?id"?\s*:\s*["']?([A-Za-z0-9_-]+)["']?/i,
+    );
     if (idMatch) {
       pushCurrent();
       currentTextKey = null;
@@ -190,14 +224,18 @@ function parseLooseItemList(rawText, options = {}) {
       continue;
     }
 
-    const textRoleMatch = line.match(/^"?(?:textRole|text_role|role)"?\s*:\s*["']?([^"',}]+)["']?/i);
+    const textRoleMatch = line.match(
+      /^"?(?:textRole|text_role|role)"?\s*:\s*["']?([^"',}]+)["']?/i,
+    );
     if (textRoleMatch) {
       currentTextKey = null;
       current.textRole = textRoleMatch[1];
       continue;
     }
 
-    const directionMatch = line.match(/^"?direction"?\s*:\s*["']?([^"',}]+)["']?/i);
+    const directionMatch = line.match(
+      /^"?direction"?\s*:\s*["']?([^"',}]+)["']?/i,
+    );
     if (directionMatch) {
       currentTextKey = null;
       current.direction = directionMatch[1];
@@ -211,21 +249,27 @@ function parseLooseItemList(rawText, options = {}) {
       continue;
     }
 
-    const fontSizeMatch = line.match(/^"?(?:fontSize|font_size|font)"?\s*:\s*["']?([0-9.]+)["']?/i);
+    const fontSizeMatch = line.match(
+      /^"?(?:fontSize|font_size|font)"?\s*:\s*["']?([0-9.]+)["']?/i,
+    );
     if (fontSizeMatch) {
       currentTextKey = null;
       current.fontSize = Number(fontSizeMatch[1]);
       continue;
     }
 
-    const confidenceMatch = line.match(/^"?confidence"?\s*:\s*["']?([0-9.]+)%?["']?/i);
+    const confidenceMatch = line.match(
+      /^"?confidence"?\s*:\s*["']?([0-9.]+)%?["']?/i,
+    );
     if (confidenceMatch) {
       currentTextKey = null;
       current.confidence = Number(confidenceMatch[1]);
       continue;
     }
 
-    const coordMatches = [...line.matchAll(/["']?(x1|y1|x2|y2)["']?\s*:\s*(-?[0-9.]+)/g)];
+    const coordMatches = [
+      ...line.matchAll(/["']?(x1|y1|x2|y2)["']?\s*:\s*(-?[0-9.]+)/g),
+    ];
     if (coordMatches.length > 0) {
       currentTextKey = null;
       current.partialBbox = current.partialBbox || {};
@@ -289,22 +333,59 @@ function clampBbox(bbox) {
 }
 
 function normalizeDirection(value) {
-  const text = String(value ?? "").trim().toLowerCase();
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
   return text === "vertical" ? "vertical" : "horizontal";
 }
 
 function normalizeTextRole(value) {
-  const text = String(value ?? "").trim().toLowerCase().replace(/[_\s-]+/g, "");
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s-]+/g, "");
   if (!text) {
     return "";
   }
-  if (["sound", "sfx", "soundeffect", "effect", "reaction", "onomatopoeia"].includes(text)) {
+  if (
+    [
+      "sound",
+      "sfx",
+      "soundeffect",
+      "effect",
+      "reaction",
+      "onomatopoeia",
+    ].includes(text)
+  ) {
     return "sound";
   }
-  if (["ordinary", "speech", "dialogue", "dialog", "bubble", "caption", "narration", "label", "sign", "note", "title"].includes(text)) {
+  if (
+    [
+      "ordinary",
+      "speech",
+      "dialogue",
+      "dialog",
+      "bubble",
+      "caption",
+      "narration",
+      "label",
+      "sign",
+      "note",
+      "title",
+    ].includes(text)
+  ) {
     return "ordinary";
   }
-  if (["nontext", "nottext", "reject", "decoration", "texture", "ornament"].includes(text)) {
+  if (
+    [
+      "nontext",
+      "nottext",
+      "reject",
+      "decoration",
+      "texture",
+      "ornament",
+    ].includes(text)
+  ) {
     return "nontext";
   }
   return "";
@@ -348,7 +429,7 @@ function normalizeBBox(item) {
     x1: toNumber(box.x1),
     y1: toNumber(box.y1),
     x2: toNumber(box.x2),
-    y2: toNumber(box.y2)
+    y2: toNumber(box.y2),
   });
   const x = toNumber(cornerBbox?.x);
   const y = toNumber(cornerBbox?.y);
@@ -363,13 +444,22 @@ function normalizeBBox(item) {
     x: roundCoordinate(x),
     y: roundCoordinate(y),
     w: roundCoordinate(w),
-    h: roundCoordinate(h)
+    h: roundCoordinate(h),
   });
 }
 
 function normalizeItem(item, index) {
-  const ko = [item?.ko, item?.korean, item?.translation, item?.translated, item?.text_ko].find((value) => typeof value === "string" && value.trim());
-  const jp = [item?.jp, item?.japanese, item?.source, item?.ocr, item?.text_jp].find((value) => typeof value === "string" && value.trim()) || "";
+  const ko = [
+    item?.ko,
+    item?.korean,
+    item?.translation,
+    item?.translated,
+    item?.text_ko,
+  ].find((value) => typeof value === "string" && value.trim());
+  const jp =
+    [item?.jp, item?.japanese, item?.source, item?.ocr, item?.text_jp].find(
+      (value) => typeof value === "string" && value.trim(),
+    ) || "";
   const bbox = normalizeBBox(item);
   const normalizedKo = normalizeTextField(ko);
   const normalizedJp = normalizeTextField(jp);
@@ -378,26 +468,43 @@ function normalizeItem(item, index) {
     return null;
   }
 
-  if (isPlaceholderOnly(normalizedKo) && (!normalizedJp || isPlaceholderOnly(normalizedJp))) {
+  if (
+    isPlaceholderOnly(normalizedKo) &&
+    (!normalizedJp || isPlaceholderOnly(normalizedJp))
+  ) {
     return null;
   }
 
   return {
     id: toNumber(item?.id) ?? index + 1,
     type: normalizeParsedType(item?.type),
-    ...(normalizeTextRole(item?.textRole ?? item?.text_role ?? item?.role) ? { textRole: normalizeTextRole(item?.textRole ?? item?.text_role ?? item?.role) } : {}),
+    ...(normalizeTextRole(item?.textRole ?? item?.text_role ?? item?.role)
+      ? {
+          textRole: normalizeTextRole(
+            item?.textRole ?? item?.text_role ?? item?.role,
+          ),
+        }
+      : {}),
     bbox,
     jp: normalizedJp,
     ko: normalizedKo,
-    direction: normalizeDirection(item?.direction ?? item?.sourceDirection ?? item?.writingDirection),
+    direction: normalizeDirection(
+      item?.direction ?? item?.sourceDirection ?? item?.writingDirection,
+    ),
     angle: normalizeAngle(item?.angle ?? item?.rotation ?? item?.rotationDeg),
-    fontSize: normalizeFontSize(item?.fontSize ?? item?.font_size ?? item?.font),
-    confidence: normalizeConfidence(item?.confidence ?? item?.score)
+    fontSize: normalizeFontSize(
+      item?.fontSize ?? item?.font_size ?? item?.font,
+    ),
+    confidence: normalizeConfidence(item?.confidence ?? item?.score),
   };
 }
 
 function normalizeParsedType(value) {
-  return String(value ?? "").trim().toLowerCase() === "reject" ? "reject" : "nonsolid";
+  return String(value ?? "")
+    .trim()
+    .toLowerCase() === "reject"
+    ? "reject"
+    : "nonsolid";
 }
 
 function normalizeTextField(value) {
@@ -420,14 +527,12 @@ function normalizeItems(parsed) {
         ? parsed.blocks
         : [];
 
-  return items
-    .map((item, index) => normalizeItem(item, index))
-    .filter(Boolean);
+  return items.map((item, index) => normalizeItem(item, index)).filter(Boolean);
 }
 
 module.exports = {
   extractJsonCandidate,
   normalizeItems,
   parseJsonLenient,
-  repairBrokenJson
+  repairBrokenJson,
 };

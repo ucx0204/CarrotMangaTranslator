@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-const { normalizeItems, parseJsonLenient } = require("../src/main/runtime/overlay-parser.cjs");
+const {
+  normalizeItems,
+  parseJsonLenient,
+} = require("../src/main/runtime/overlay-parser.cjs");
 
 describe("overlay parser", () => {
   it("parses strict line records with corner coordinates", () => {
@@ -136,7 +139,8 @@ ko: 삭
   });
 
   it("normalizes text roles and keeps sub-100 sound confidence below 1", () => {
-    const items = normalizeItems(parseJsonLenient(String.raw`
+    const items = normalizeItems(
+      parseJsonLenient(String.raw`
 id: 1
 type: nonsolid
 textRole: sfx
@@ -158,7 +162,8 @@ y2: 200
 confidence: 1
 jp: その日
 ko: 그날
-`));
+`),
+    );
 
     expect(items).toHaveLength(2);
     expect(items[0].textRole).toBe("sound");
@@ -167,7 +172,8 @@ ko: 그날
   });
 
   it("preserves sparse model ids so OCR candidate geometry can stay locked", () => {
-    const items = normalizeItems(parseJsonLenient(String.raw`
+    const items = normalizeItems(
+      parseJsonLenient(String.raw`
 id: 6
 type: solid
 x1: 320
@@ -185,9 +191,9 @@ x2: 416
 y2: 798
 jp: ニコッ
 ko: 생긋
-`));
+`),
+    );
 
     expect(items.map((item: { id: number }) => item.id)).toEqual([6, 10]);
   });
-
 });

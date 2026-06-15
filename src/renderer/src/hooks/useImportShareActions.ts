@@ -1,5 +1,10 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import type { ChapterSnapshot, ImportPreviewSession, WorkShareExportRequest, WorkShareImportPreview } from "../../../shared/types";
+import type {
+  ChapterSnapshot,
+  ImportPreviewSession,
+  WorkShareExportRequest,
+  WorkShareImportPreview,
+} from "../../../shared/types";
 import type { ImportModalSubmit } from "../components/ImportModal";
 import type { ShareImportModalSubmit } from "../components/ShareImportModal";
 import type { TranslateSourceMode } from "../components/TranslateSourceModal";
@@ -9,8 +14,15 @@ import { mangaGateway } from "../api/mangaGateway";
 type ImportPreviewMode = TranslateSourceMode | "zip-folder";
 
 type UseImportShareActionsOptions = {
-  applyChapter: (chapter: ChapterSnapshot | undefined, fallbackStatus?: string) => void;
-  askConfirm: (title: string, message: string, detail?: string) => Promise<boolean>;
+  applyChapter: (
+    chapter: ChapterSnapshot | undefined,
+    fallbackStatus?: string,
+  ) => void;
+  askConfirm: (
+    title: string,
+    message: string,
+    detail?: string,
+  ) => Promise<boolean>;
   dirty: boolean;
   importPreview: ImportPreviewSession | null;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
@@ -23,12 +35,16 @@ type UseImportShareActionsOptions = {
   setShareExportBusy: Dispatch<SetStateAction<boolean>>;
   setShareExportOpen: Dispatch<SetStateAction<boolean>>;
   setShareImportBusy: Dispatch<SetStateAction<boolean>>;
-  setShareImportPreview: Dispatch<SetStateAction<WorkShareImportPreview | null>>;
+  setShareImportPreview: Dispatch<
+    SetStateAction<WorkShareImportPreview | null>
+  >;
   setTranslationSourceOpen: Dispatch<SetStateAction<boolean>>;
   shareImportPreview: WorkShareImportPreview | null;
 };
 
-async function requestImportPreview(mode: ImportPreviewMode): Promise<ImportPreviewSession | null> {
+async function requestImportPreview(
+  mode: ImportPreviewMode,
+): Promise<ImportPreviewSession | null> {
   if (mode === "images") {
     return mangaGateway.previewImagesImport();
   }
@@ -58,7 +74,7 @@ export function useImportShareActions({
   setShareImportBusy,
   setShareImportPreview,
   setTranslationSourceOpen,
-  shareImportPreview
+  shareImportPreview,
 }: UseImportShareActionsOptions): {
   openImportPreview: (mode: ImportPreviewMode) => Promise<void>;
   openShareImportPreview: () => Promise<void>;
@@ -79,7 +95,7 @@ export function useImportShareActions({
         pushStatus(formatErrorMessage(error, "번역할 원본을 읽지 못했습니다."));
       }
     },
-    [pushStatus, setImportPreview]
+    [pushStatus, setImportPreview],
   );
 
   const selectTranslateSource = useCallback(
@@ -87,7 +103,7 @@ export function useImportShareActions({
       setTranslationSourceOpen(false);
       await openImportPreview(mode);
     },
-    [openImportPreview, setTranslationSourceOpen]
+    [openImportPreview, setTranslationSourceOpen],
   );
 
   const submitShareExport = useCallback(
@@ -99,17 +115,21 @@ export function useImportShareActions({
         }
         const result = await mangaGateway.exportWorkShare(request);
         if (result) {
-          pushStatus(`${result.workTitle} 공유 파일을 저장했습니다. ${result.chapterCount}개 화, ${result.pageCount}페이지`);
+          pushStatus(
+            `${result.workTitle} 공유 파일을 저장했습니다. ${result.chapterCount}개 화, ${result.pageCount}페이지`,
+          );
           setShareExportOpen(false);
         }
       } catch (error) {
         console.error(error);
-        pushStatus(formatErrorMessage(error, "공유 파일을 저장하지 못했습니다."));
+        pushStatus(
+          formatErrorMessage(error, "공유 파일을 저장하지 못했습니다."),
+        );
       } finally {
         setShareExportBusy(false);
       }
     },
-    [dirty, pushStatus, saveNow, setShareExportBusy, setShareExportOpen]
+    [dirty, pushStatus, saveNow, setShareExportBusy, setShareExportOpen],
   );
 
   const openShareImportPreview = useCallback(async () => {
@@ -137,7 +157,9 @@ export function useImportShareActions({
         const confirmed = await askConfirm(
           "가져오지 않는 화가 있습니다",
           "오른쪽에 남은 공유 화는 적용되지 않습니다.",
-          payload.remainingPackageChapters.map((chapter) => chapter.title).join("\n")
+          payload.remainingPackageChapters
+            .map((chapter) => chapter.title)
+            .join("\n"),
         );
         if (!confirmed) {
           return;
@@ -148,7 +170,9 @@ export function useImportShareActions({
         const confirmed = await askConfirm(
           "기존 화 삭제",
           "왼쪽 최종 목록에서 빠진 기존 화가 보관함에서 삭제됩니다.",
-          payload.deletedExistingChapters.map((chapter) => chapter.title).join("\n")
+          payload.deletedExistingChapters
+            .map((chapter) => chapter.title)
+            .join("\n"),
         );
         if (!confirmed) {
           return;
@@ -163,19 +187,34 @@ export function useImportShareActions({
         const result = await mangaGateway.importWorkShare({
           previewId: shareImportPreview.previewId,
           target: payload.target,
-          entries: payload.entries
+          entries: payload.entries,
         });
         await refreshLibrary();
-        applyChapter(result.openedChapter, `${result.chapterIds.length}개 화를 보관함에 적용했습니다.`);
+        applyChapter(
+          result.openedChapter,
+          `${result.chapterIds.length}개 화를 보관함에 적용했습니다.`,
+        );
         setShareImportPreview(null);
       } catch (error) {
         console.error(error);
-        pushStatus(formatErrorMessage(error, "공유 파일을 가져오지 못했습니다."));
+        pushStatus(
+          formatErrorMessage(error, "공유 파일을 가져오지 못했습니다."),
+        );
       } finally {
         setShareImportBusy(false);
       }
     },
-    [applyChapter, askConfirm, dirty, pushStatus, refreshLibrary, saveNow, setShareImportBusy, setShareImportPreview, shareImportPreview]
+    [
+      applyChapter,
+      askConfirm,
+      dirty,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      setShareImportBusy,
+      setShareImportPreview,
+      shareImportPreview,
+    ],
   );
 
   const submitImport = useCallback(
@@ -192,16 +231,22 @@ export function useImportShareActions({
         const result = await mangaGateway.createImport({
           previewId: importPreview.previewId,
           target,
-          selections
+          selections,
         });
         await refreshLibrary();
-        applyChapter(result.openedChapter, `${result.chapterIds.length}개 화를 보관함에 추가했습니다.`);
+        applyChapter(
+          result.openedChapter,
+          `${result.chapterIds.length}개 화를 보관함에 추가했습니다.`,
+        );
         setImportPreview(null);
 
         if (importPreview.mode === "batch") {
           for (const chapterId of result.chapterIds) {
             await openChapter(chapterId);
-            const runResult = await mangaGateway.startAnalysis({ chapterId, runMode: "pending" });
+            const runResult = await mangaGateway.startAnalysis({
+              chapterId,
+              runMode: "pending",
+            });
             if (runResult.chapter) {
               mergeLiveChapter(runResult.chapter);
             }
@@ -213,12 +258,25 @@ export function useImportShareActions({
         }
       } catch (error) {
         console.error(error);
-        pushStatus(formatErrorMessage(error, "가져오기를 적용하지 못했습니다."));
+        pushStatus(
+          formatErrorMessage(error, "가져오기를 적용하지 못했습니다."),
+        );
       } finally {
         setImportBusy(false);
       }
     },
-    [applyChapter, dirty, importPreview, mergeLiveChapter, openChapter, pushStatus, refreshLibrary, saveNow, setImportBusy, setImportPreview]
+    [
+      applyChapter,
+      dirty,
+      importPreview,
+      mergeLiveChapter,
+      openChapter,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      setImportBusy,
+      setImportPreview,
+    ],
   );
 
   return {
@@ -227,6 +285,6 @@ export function useImportShareActions({
     selectTranslateSource,
     submitImport,
     submitShareExport,
-    submitShareImport
+    submitShareImport,
   };
 }

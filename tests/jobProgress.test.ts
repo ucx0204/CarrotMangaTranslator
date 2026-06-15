@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatJobEventLine, formatJobLabel, resolveProgressSnapshot, summarizeWarnings } from "../src/renderer/src/lib/jobProgress";
+import {
+  formatJobEventLine,
+  formatJobLabel,
+  resolveProgressSnapshot,
+  summarizeWarnings,
+} from "../src/renderer/src/lib/jobProgress";
 
 describe("job progress helpers", () => {
   it("formats structured page progress into short Korean labels", () => {
@@ -13,8 +18,8 @@ describe("job progress helpers", () => {
         pageIndex: 3,
         pageTotal: 20,
         progressCurrent: 3,
-        progressTotal: 20
-      })
+        progressTotal: 20,
+      }),
     ).toBe("3 / 20 페이지 번역 중");
 
     expect(
@@ -24,8 +29,8 @@ describe("job progress helpers", () => {
         pageIndex: 3,
         pageTotal: 20,
         attempt: 2,
-        attemptTotal: 5
-      })
+        attemptTotal: 5,
+      }),
     ).toBe("3 / 20 페이지 재시도 2 / 5");
 
     expect(
@@ -33,16 +38,16 @@ describe("job progress helpers", () => {
         status: "running",
         phase: "ocr_running",
         pageIndex: 3,
-        pageTotal: 20
-      })
+        pageTotal: 20,
+      }),
     ).toBe("3 / 20 페이지 Paddle OCR 분석 중");
 
     expect(
       formatJobLabel({
         status: "running",
         phase: "ocr_running",
-        progressText: "Paddle OCR 선분석 완료"
-      })
+        progressText: "Paddle OCR 선분석 완료",
+      }),
     ).toBe("Paddle OCR 선분석 완료");
 
     expect(
@@ -50,56 +55,96 @@ describe("job progress helpers", () => {
         status: "running",
         phase: "model_requesting",
         pageIndex: 3,
-        pageTotal: 20
-      })
+        pageTotal: 20,
+      }),
     ).toBe("3 / 20 페이지 AI 번역 요청 중");
   });
 
   it("returns a clamped determinate progress snapshot", () => {
-    expect(resolveProgressSnapshot({ status: "running", progressCurrent: 21, progressTotal: 20 })).toEqual({
+    expect(
+      resolveProgressSnapshot({
+        status: "running",
+        progressCurrent: 21,
+        progressTotal: 20,
+      }),
+    ).toEqual({
       mode: "determinate",
       current: 20,
       total: 20,
-      ratio: 1
+      ratio: 1,
     });
 
-    expect(resolveProgressSnapshot({ status: "running", progressMode: "determinate", progressPercent: 0.42 })).toEqual({
+    expect(
+      resolveProgressSnapshot({
+        status: "running",
+        progressMode: "determinate",
+        progressPercent: 0.42,
+      }),
+    ).toEqual({
       mode: "determinate",
       current: 42,
       total: 100,
-      ratio: 0.42
+      ratio: 0.42,
     });
   });
 
   it("uses an indeterminate snapshot while the model is booting or downloading", () => {
-    expect(formatJobLabel({ status: "starting", phase: "booting", progressText: "Gemma 4 서버 시작 중" })).toBe("Gemma 4 서버 시작 중");
-    expect(formatJobLabel({ status: "starting", phase: "model_downloading", progressText: "모델 파일 다운로드 중" })).toBe("모델 파일 다운로드 중");
+    expect(
+      formatJobLabel({
+        status: "starting",
+        phase: "booting",
+        progressText: "Gemma 4 서버 시작 중",
+      }),
+    ).toBe("Gemma 4 서버 시작 중");
+    expect(
+      formatJobLabel({
+        status: "starting",
+        phase: "model_downloading",
+        progressText: "모델 파일 다운로드 중",
+      }),
+    ).toBe("모델 파일 다운로드 중");
 
-    expect(resolveProgressSnapshot({ status: "starting", phase: "booting" })).toEqual({
-      mode: "indeterminate"
+    expect(
+      resolveProgressSnapshot({ status: "starting", phase: "booting" }),
+    ).toEqual({
+      mode: "indeterminate",
     });
 
-    expect(resolveProgressSnapshot({ status: "starting", phase: "model_downloading" })).toEqual({
-      mode: "indeterminate"
+    expect(
+      resolveProgressSnapshot({
+        status: "starting",
+        phase: "model_downloading",
+      }),
+    ).toEqual({
+      mode: "indeterminate",
     });
   });
 
   it("keeps explicit log-only install progress out of fake percent mode", () => {
-    expect(resolveProgressSnapshot({ status: "running", phase: "ocr_downloading", progressMode: "log-only", progressPercent: 0.5 })).toEqual({
-      mode: "log-only"
+    expect(
+      resolveProgressSnapshot({
+        status: "running",
+        phase: "ocr_downloading",
+        progressMode: "log-only",
+        progressPercent: 0.5,
+      }),
+    ).toEqual({
+      mode: "log-only",
     });
   });
 
   it("keeps the finalizing label unchanged", () => {
-    expect(formatJobLabel({ status: "running", phase: "finalizing" })).toBe("결과 정리 중");
+    expect(formatJobLabel({ status: "running", phase: "finalizing" })).toBe(
+      "결과 정리 중",
+    );
   });
 
   it("summarizes warnings into a short user-facing sentence", () => {
     expect(
       summarizeWarnings([
         "001.png: 5회 재시도 후 실패하여 이 페이지는 건너뜁니다. 마지막 오류: timeout",
-        "002.png: 불확실한 OCR 조각이 2개 있습니다."
-      ])
+        "002.png: 불확실한 OCR 조각이 2개 있습니다.",
+      ]),
     ).toBe("일부 페이지를 건너뛰었고 OCR 확인이 필요한 블록도 있습니다.");
   });
 });

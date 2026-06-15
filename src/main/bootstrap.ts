@@ -18,7 +18,10 @@ function resolveBootstrapUserDataDir(): string {
   try {
     return app.getPath("userData");
   } catch {
-    const dataRoot = process.env.LOCALAPPDATA?.trim() || process.env.APPDATA?.trim() || tmpdir();
+    const dataRoot =
+      process.env.LOCALAPPDATA?.trim() ||
+      process.env.APPDATA?.trim() ||
+      tmpdir();
     return join(dataRoot, "manga-gemma-translator");
   }
 }
@@ -38,7 +41,10 @@ function configurePackagedElectronStorage(): void {
     mkdirSync(tempDir, { recursive: true });
     app.setPath("userData", userDataDir);
     app.setPath("sessionData", sessionDataDir);
-    app.commandLine.appendSwitch("disk-cache-dir", join(sessionDataDir, "Cache"));
+    app.commandLine.appendSwitch(
+      "disk-cache-dir",
+      join(sessionDataDir, "Cache"),
+    );
     app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
     process.env.TEMP = tempDir;
     process.env.TMP = tempDir;
@@ -63,7 +69,7 @@ function serialize(detail: unknown): string {
     return JSON.stringify({
       name: detail.name,
       message: detail.message,
-      stack: detail.stack
+      stack: detail.stack,
     });
   }
 
@@ -84,14 +90,21 @@ function configureDevelopmentElectronStorage(): void {
   }
 
   const repoRoot = resolve(__dirname, "../..");
-  const userDataDir = process.env.MANGA_TRANSLATOR_DEV_USER_DATA?.trim() || join(repoRoot, ".tmp", "electron-dev", "user-data");
-  const sessionDataDir = process.env.MANGA_TRANSLATOR_DEV_SESSION_DATA?.trim() || join(repoRoot, ".tmp", "electron-dev", "session-data");
+  const userDataDir =
+    process.env.MANGA_TRANSLATOR_DEV_USER_DATA?.trim() ||
+    join(repoRoot, ".tmp", "electron-dev", "user-data");
+  const sessionDataDir =
+    process.env.MANGA_TRANSLATOR_DEV_SESSION_DATA?.trim() ||
+    join(repoRoot, ".tmp", "electron-dev", "session-data");
   try {
     mkdirSync(userDataDir, { recursive: true });
     mkdirSync(sessionDataDir, { recursive: true });
     app.setPath("userData", userDataDir);
     app.setPath("sessionData", sessionDataDir);
-    app.commandLine.appendSwitch("disk-cache-dir", join(sessionDataDir, "Cache"));
+    app.commandLine.appendSwitch(
+      "disk-cache-dir",
+      join(sessionDataDir, "Cache"),
+    );
     app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
   } catch (error) {
     writeBootstrapLog("bootstrap:dev-storage-config-failed", error);
@@ -113,7 +126,7 @@ process.on("unhandledRejection", (reason) => {
 writeBootstrapLog("bootstrap:start", {
   isPackaged: app.isPackaged,
   execPath: process.execPath,
-  dirname: __dirname
+  dirname: __dirname,
 });
 
 try {

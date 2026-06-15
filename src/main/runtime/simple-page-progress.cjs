@@ -2,7 +2,7 @@ const { existsSync, readFileSync } = require("node:fs");
 
 const {
   DEFAULT_OCR_BBOX_PAGE_TIMEOUT_MS,
-  DEFAULT_OCR_BBOX_TIMEOUT_MS
+  DEFAULT_OCR_BBOX_TIMEOUT_MS,
 } = require("./simple-page-defaults.cjs");
 const { readPositiveInteger } = require("./simple-page-prompts.cjs");
 
@@ -44,16 +44,25 @@ function parseOcrBatchProgressLine(line) {
     const payload = JSON.parse(text);
     const index = Number(payload?.index);
     const total = Number(payload?.total);
-    if (!Number.isFinite(index) || !Number.isFinite(total) || index <= 0 || total <= 0) {
+    if (
+      !Number.isFinite(index) ||
+      !Number.isFinite(total) ||
+      index <= 0 ||
+      total <= 0
+    ) {
       return null;
     }
-    const rawPhase = String(payload?.phase ?? "done").trim().toLowerCase();
+    const rawPhase = String(payload?.phase ?? "done")
+      .trim()
+      .toLowerCase();
     const phase = rawPhase === "start" ? "start" : "done";
     return {
       phase,
       index: Math.max(1, Math.min(Math.floor(index), Math.floor(total))),
       total: Math.floor(total),
-      count: Number.isFinite(Number(payload?.count)) ? Math.max(0, Math.floor(Number(payload.count))) : 0
+      count: Number.isFinite(Number(payload?.count))
+        ? Math.max(0, Math.floor(Number(payload.count)))
+        : 0,
     };
   } catch {
     return null;
@@ -70,12 +79,19 @@ function parsePaddleModelFetchProgress(line) {
   const totalFiles = Number(fetchMatch[1]);
   const percent = Number(fetchMatch[2]);
   const fractionMatch = text.match(/\b(\d+)\s*\/\s*(\d+)\b/);
-  const currentFiles = fractionMatch && Number(fractionMatch[2]) === totalFiles ? Number(fractionMatch[1]) : null;
+  const currentFiles =
+    fractionMatch && Number(fractionMatch[2]) === totalFiles
+      ? Number(fractionMatch[1])
+      : null;
 
   return {
     totalFiles,
-    currentFiles: Number.isFinite(currentFiles) ? Math.max(0, Math.min(currentFiles, totalFiles)) : null,
-    percent: Number.isFinite(percent) ? Math.max(0, Math.min(percent, 100)) : null
+    currentFiles: Number.isFinite(currentFiles)
+      ? Math.max(0, Math.min(currentFiles, totalFiles))
+      : null,
+    percent: Number.isFinite(percent)
+      ? Math.max(0, Math.min(percent, 100))
+      : null,
   };
 }
 
@@ -83,17 +99,24 @@ function formatPaddleModelFetchProgress(progress) {
   const countText = Number.isFinite(progress.currentFiles)
     ? `${progress.currentFiles} / ${progress.totalFiles}개`
     : `${progress.totalFiles}개`;
-  const percentText = Number.isFinite(progress.percent) ? ` (${progress.percent}%)` : "";
+  const percentText = Number.isFinite(progress.percent)
+    ? ` (${progress.percent}%)`
+    : "";
   return `Paddle OCR 모델 파일 다운로드 중: ${countText}${percentText}`;
 }
 
 function resolveOcrBboxTimeoutMs(pageCount = 1) {
-  const explicit = readPositiveInteger(process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS);
+  const explicit = readPositiveInteger(
+    process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS,
+  );
   if (explicit) {
     return explicit;
   }
   const pages = Math.max(1, readPositiveInteger(pageCount) || 1);
-  return Math.max(DEFAULT_OCR_BBOX_TIMEOUT_MS, pages * DEFAULT_OCR_BBOX_PAGE_TIMEOUT_MS);
+  return Math.max(
+    DEFAULT_OCR_BBOX_TIMEOUT_MS,
+    pages * DEFAULT_OCR_BBOX_PAGE_TIMEOUT_MS,
+  );
 }
 
 function createOcrBatchProgressFilePoller(progressPath, onLine) {
@@ -112,7 +135,10 @@ function createOcrBatchProgressFilePoller(progressPath, onLine) {
     if (!raw) {
       return;
     }
-    const completeText = raw.endsWith("\n") || raw.endsWith("\r") ? raw : raw.replace(/[^\r\n]*$/, "");
+    const completeText =
+      raw.endsWith("\n") || raw.endsWith("\r")
+        ? raw
+        : raw.replace(/[^\r\n]*$/, "");
     if (!completeText) {
       return;
     }
@@ -134,7 +160,7 @@ function createOcrBatchProgressFilePoller(progressPath, onLine) {
         timer = null;
       }
       readProgressFile();
-    }
+    },
   };
 }
 
@@ -168,5 +194,5 @@ module.exports = {
   parsePaddleModelFetchProgress,
   parsePipRawProgress,
   resolveOcrBboxTimeoutMs,
-  sanitizeInstallLogLine
+  sanitizeInstallLogLine,
 };

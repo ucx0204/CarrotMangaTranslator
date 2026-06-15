@@ -3,7 +3,13 @@ const { existsSync } = require("node:fs");
 const { join } = require("node:path");
 
 const root = join(__dirname, "..");
-const electronExe = join(root, "node_modules", "electron", "dist", process.platform === "win32" ? "electron.exe" : "electron");
+const electronExe = join(
+  root,
+  "node_modules",
+  "electron",
+  "dist",
+  process.platform === "win32" ? "electron.exe" : "electron",
+);
 const smokeScript = join(root, "scripts", "smoke-overlay.cjs");
 
 if (!existsSync(electronExe)) {
@@ -17,7 +23,7 @@ const result = spawnSync(electronExe, [smokeScript], {
   cwd: root,
   env,
   stdio: "inherit",
-  windowsHide: true
+  windowsHide: true,
 });
 
 if (result.error) {

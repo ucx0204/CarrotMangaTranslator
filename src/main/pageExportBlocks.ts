@@ -1,4 +1,9 @@
-import { bboxToPixels, clamp, normalizeRenderDirection, resolveEffectiveRenderBbox } from "../shared/geometry";
+import {
+  bboxToPixels,
+  clamp,
+  normalizeRenderDirection,
+  resolveEffectiveRenderBbox,
+} from "../shared/geometry";
 import type { MangaPage, TranslationBlock } from "../shared/types";
 
 export type PageExportBlock = {
@@ -22,7 +27,7 @@ export function buildPageExportBlocks(
   page: MangaPage,
   outputWidth: number,
   outputHeight: number,
-  customFamilyById: Map<string, string>
+  customFamilyById: Map<string, string>,
 ): PageExportBlock[] {
   const pageWidth = Math.max(1, page.width || outputWidth);
   const pageHeight = Math.max(1, page.height || outputHeight);
@@ -30,7 +35,16 @@ export function buildPageExportBlocks(
   const scaleY = outputHeight / pageHeight;
   const fontScale = Math.min(scaleX, scaleY);
   return page.blocks
-    .map((block) => buildPageExportBlock(block, { width: pageWidth, height: pageHeight }, scaleX, scaleY, fontScale, customFamilyById))
+    .map((block) =>
+      buildPageExportBlock(
+        block,
+        { width: pageWidth, height: pageHeight },
+        scaleX,
+        scaleY,
+        fontScale,
+        customFamilyById,
+      ),
+    )
     .filter((block): block is PageExportBlock => Boolean(block));
 }
 
@@ -40,7 +54,7 @@ function buildPageExportBlock(
   scaleX: number,
   scaleY: number,
   fontScale: number,
-  customFamilyById: Map<string, string>
+  customFamilyById: Map<string, string>,
 ): PageExportBlock | null {
   const text = block.translatedText || block.sourceText || "";
   if (!text.trim()) {
@@ -54,11 +68,20 @@ function buildPageExportBlock(
       left: rect.x * scaleX,
       top: rect.y * scaleY,
       width: Math.max(1, rect.w * scaleX),
-      height: Math.max(1, rect.h * scaleY)
+      height: Math.max(1, rect.h * scaleY),
     },
-    renderDirection: normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical" ? "vertical" : "horizontal",
-    rotationDeg: block.rotationDeg ? clamp(Math.round(block.rotationDeg), -30, 30) : 0,
-    fontFamily: resolveExportBlockFontFamily(block.fontFamily, customFamilyById),
+    renderDirection:
+      normalizeRenderDirection(block.renderDirection, "horizontal") ===
+      "vertical"
+        ? "vertical"
+        : "horizontal",
+    rotationDeg: block.rotationDeg
+      ? clamp(Math.round(block.rotationDeg), -30, 30)
+      : 0,
+    fontFamily: resolveExportBlockFontFamily(
+      block.fontFamily,
+      customFamilyById,
+    ),
     fontSizePx: Math.max(10, Math.round((block.fontSizePx || 20) * fontScale)),
     lineHeight: Math.max(1, block.lineHeight || 1.18),
     textAlign: block.textAlign || "center",
@@ -66,12 +89,18 @@ function buildPageExportBlock(
     outlineColor: normalizeExportColor(block.outlineColor, "#ffffff"),
     bold: Boolean(block.bold),
     italic: Boolean(block.italic),
-    outlineWidthScale: block.outlineWidthScale == null ? 1 : Math.max(0, block.outlineWidthScale),
-    autoFitText: block.autoFitText ?? true
+    outlineWidthScale:
+      block.outlineWidthScale == null
+        ? 1
+        : Math.max(0, block.outlineWidthScale),
+    autoFitText: block.autoFitText ?? true,
   };
 }
 
-function resolveExportBlockFontFamily(value: string | undefined, customFamilyById?: Map<string, string>): string {
+function resolveExportBlockFontFamily(
+  value: string | undefined,
+  customFamilyById?: Map<string, string>,
+): string {
   if (value && customFamilyById?.has(value)) {
     return `"${customFamilyById.get(value)}", "Malgun Gothic", sans-serif`;
   }
@@ -99,7 +128,10 @@ function resolveExportBlockFontFamily(value: string | undefined, customFamilyByI
   }
 }
 
-function normalizeExportColor(value: string | undefined, fallback: string): string {
+function normalizeExportColor(
+  value: string | undefined,
+  fallback: string,
+): string {
   const text = String(value ?? "").trim();
   return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
 }

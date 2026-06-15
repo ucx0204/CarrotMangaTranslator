@@ -9,7 +9,7 @@ function run(command, args) {
   const result = spawnSync(command, args, {
     cwd: root,
     stdio: "inherit",
-    shell: false
+    shell: false,
   });
   if (result.error) {
     console.error(result.error);
@@ -20,8 +20,17 @@ function run(command, args) {
 }
 
 run(process.execPath, [nodeBin("typescript", "bin", "tsc"), "--noEmit"]);
-run(process.execPath, [nodeBin("typescript", "bin", "tsc"), "-p", "tsconfig.electron.json"]);
-run(process.execPath, [nodeBin("vite", "bin", "vite.js"), "build", "--config", "vite.renderer.config.ts"]);
+run(process.execPath, [
+  nodeBin("typescript", "bin", "tsc"),
+  "-p",
+  "tsconfig.electron.json",
+]);
+run(process.execPath, [
+  nodeBin("vite", "bin", "vite.js"),
+  "build",
+  "--config",
+  "vite.renderer.config.ts",
+]);
 prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
 
 function nodeBin(packageName, ...parts) {

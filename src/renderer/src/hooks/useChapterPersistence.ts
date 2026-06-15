@@ -7,22 +7,29 @@ type UseChapterPersistenceOptions = {
   currentChapter: ChapterSnapshot | null;
   currentChapterRef: React.MutableRefObject<ChapterSnapshot | null>;
   onSaveError?: (message: string) => void;
-  setCurrentChapter: React.Dispatch<React.SetStateAction<ChapterSnapshot | null>>;
+  setCurrentChapter: React.Dispatch<
+    React.SetStateAction<ChapterSnapshot | null>
+  >;
 };
 
 function isStalePageSaveError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("페이지가 다른 작업으로 갱신되었습니다");
+  return (
+    error instanceof Error &&
+    error.message.includes("페이지가 다른 작업으로 갱신되었습니다")
+  );
 }
 
 function makeStalePageSaveConflictError(): Error {
-  return new Error("페이지 저장 충돌이 발생했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.");
+  return new Error(
+    "페이지 저장 충돌이 발생했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.",
+  );
 }
 
 function serializePageBlocks(page: MangaPage): MangaPage["blocks"] {
   return page.blocks.map((block) => ({
     ...block,
     bbox: clampBbox(block.bbox),
-    renderBbox: block.renderBbox ? clampBbox(block.renderBbox) : undefined
+    renderBbox: block.renderBbox ? clampBbox(block.renderBbox) : undefined,
   }));
 }
 
@@ -30,7 +37,7 @@ export function useChapterPersistence({
   currentChapter,
   currentChapterRef,
   onSaveError,
-  setCurrentChapter
+  setCurrentChapter,
 }: UseChapterPersistenceOptions): {
   clearDirtyTracking: () => void;
   dirty: boolean;
@@ -47,7 +54,10 @@ export function useChapterPersistence({
   const serverVersionChapterIdRef = useRef<string | null>(null);
 
   const syncServerPageVersions = useCallback(
-    (chapter: ChapterSnapshot | null, options: { preserveDirtyPages?: boolean } = {}) => {
+    (
+      chapter: ChapterSnapshot | null,
+      options: { preserveDirtyPages?: boolean } = {},
+    ) => {
       if (!chapter) {
         serverUpdatedAtByPageIdRef.current.clear();
         serverVersionChapterIdRef.current = null;
@@ -60,35 +70,48 @@ export function useChapterPersistence({
       }
 
       for (const page of chapter.pages) {
-        if (options.preserveDirtyPages && dirtyPageIdsRef.current.has(page.id)) {
+        if (
+          options.preserveDirtyPages &&
+          dirtyPageIdsRef.current.has(page.id)
+        ) {
           continue;
         }
         serverUpdatedAtByPageIdRef.current.set(page.id, page.updatedAt);
       }
     },
-    []
+    [],
   );
 
   React.useEffect(() => {
     syncServerPageVersions(currentChapter, { preserveDirtyPages: true });
   }, [currentChapter, syncServerPageVersions]);
 
-  const syncSavedPageVersion = useCallback((chapter: ChapterSnapshot, pageId: string) => {
-    const savedPage = chapter.pages.find((candidate) => candidate.id === pageId);
-    if (savedPage) {
-      serverUpdatedAtByPageIdRef.current.set(pageId, savedPage.updatedAt);
-      serverVersionChapterIdRef.current = chapter.id;
-    }
-  }, []);
+  const syncSavedPageVersion = useCallback(
+    (chapter: ChapterSnapshot, pageId: string) => {
+      const savedPage = chapter.pages.find(
+        (candidate) => candidate.id === pageId,
+      );
+      if (savedPage) {
+        serverUpdatedAtByPageIdRef.current.set(pageId, savedPage.updatedAt);
+        serverVersionChapterIdRef.current = chapter.id;
+      }
+    },
+    [],
+  );
 
   const persistChapter = useCallback(
-    async (chapter: ChapterSnapshot, options: { syncState?: boolean } = {}): Promise<ChapterSnapshot> => {
+    async (
+      chapter: ChapterSnapshot,
+      options: { syncState?: boolean } = {},
+    ): Promise<ChapterSnapshot> => {
       const dirtyPageIds = [...dirtyPageIdsRef.current];
       const dirtyPages = new Map(
         dirtyPageIds
-          .map((pageId) => chapter.pages.find((candidate) => candidate.id === pageId))
+          .map((pageId) =>
+            chapter.pages.find((candidate) => candidate.id === pageId),
+          )
           .filter((page): page is MangaPage => Boolean(page))
-          .map((page) => [page.id, page])
+          .map((page) => [page.id, page]),
       );
       let saved = chapter;
       for (const pageId of dirtyPageIds) {
@@ -100,8 +123,9 @@ export function useChapterPersistence({
           saved = await mangaGateway.savePageBlocks({
             chapterId: saved.id,
             pageId,
-            baseUpdatedAt: serverUpdatedAtByPageIdRef.current.get(pageId) ?? page.updatedAt,
-            blocks: serializePageBlocks(page)
+            baseUpdatedAt:
+              serverUpdatedAtByPageIdRef.current.get(pageId) ?? page.updatedAt,
+            blocks: serializePageBlocks(page),
           });
           syncSavedPageVersion(saved, pageId);
         } catch (error) {
@@ -111,13 +135,16 @@ export function useChapterPersistence({
           throw makeStalePageSaveConflictError();
         }
       }
-      if (options.syncState !== false && currentChapterRef.current?.id === saved.id) {
+      if (
+        options.syncState !== false &&
+        currentChapterRef.current?.id === saved.id
+      ) {
         currentChapterRef.current = saved;
         setCurrentChapter(saved);
       }
       return saved;
     },
-    [currentChapterRef, setCurrentChapter, syncSavedPageVersion]
+    [currentChapterRef, setCurrentChapter, syncSavedPageVersion],
   );
 
   React.useEffect(() => {
@@ -128,7 +155,9 @@ export function useChapterPersistence({
     const version = dirtyVersionRef.current;
     saveTimerRef.current = window.setTimeout(async () => {
       try {
-        const saved = await persistChapter(currentChapter, { syncState: false });
+        const saved = await persistChapter(currentChapter, {
+          syncState: false,
+        });
         if (dirtyVersionRef.current === version) {
           currentChapterRef.current = saved;
           setCurrentChapter(saved);
@@ -148,22 +177,36 @@ export function useChapterPersistence({
         window.clearTimeout(saveTimerRef.current);
       }
     };
-  }, [currentChapter, currentChapterRef, dirty, onSaveError, persistChapter, setCurrentChapter]);
+  }, [
+    currentChapter,
+    currentChapterRef,
+    dirty,
+    onSaveError,
+    persistChapter,
+    setCurrentChapter,
+  ]);
 
-  const markDirty = useCallback((pageId?: string) => {
-    dirtyVersionRef.current += 1;
-    if (pageId) {
-      if (!dirtyPageIdsRef.current.has(pageId)) {
-        const page = currentChapterRef.current?.pages.find((candidate) => candidate.id === pageId);
-        if (page && !serverUpdatedAtByPageIdRef.current.has(pageId)) {
-          serverUpdatedAtByPageIdRef.current.set(pageId, page.updatedAt);
-          serverVersionChapterIdRef.current = currentChapterRef.current?.id ?? serverVersionChapterIdRef.current;
+  const markDirty = useCallback(
+    (pageId?: string) => {
+      dirtyVersionRef.current += 1;
+      if (pageId) {
+        if (!dirtyPageIdsRef.current.has(pageId)) {
+          const page = currentChapterRef.current?.pages.find(
+            (candidate) => candidate.id === pageId,
+          );
+          if (page && !serverUpdatedAtByPageIdRef.current.has(pageId)) {
+            serverUpdatedAtByPageIdRef.current.set(pageId, page.updatedAt);
+            serverVersionChapterIdRef.current =
+              currentChapterRef.current?.id ??
+              serverVersionChapterIdRef.current;
+          }
         }
+        dirtyPageIdsRef.current = new Set([...dirtyPageIdsRef.current, pageId]);
       }
-      dirtyPageIdsRef.current = new Set([...dirtyPageIdsRef.current, pageId]);
-    }
-    setDirty(true);
-  }, [currentChapterRef]);
+      setDirty(true);
+    },
+    [currentChapterRef],
+  );
 
   const clearDirtyTracking = useCallback(() => {
     if (saveTimerRef.current) {
@@ -201,6 +244,6 @@ export function useChapterPersistence({
     dirtyPageIdsRef,
     markDirty,
     replaceDirtyPageIds,
-    saveNow
+    saveNow,
   };
 }

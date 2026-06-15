@@ -1,4 +1,10 @@
-import type { CodexReasoningEffort, GemmaVramMode, ModelProvider, ModelSource, OcrDevice } from "./types";
+import type {
+  CodexReasoningEffort,
+  GemmaVramMode,
+  ModelProvider,
+  ModelSource,
+  OcrDevice,
+} from "./types";
 
 export const GEMMA_31B_MODEL_REPO =
   "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
@@ -9,12 +15,17 @@ export const GEMMA_31B_MMPROJ_REPO =
 export const GEMMA_31B_MMPROJ_FILE =
   "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
 
-export const GEMMA_26B_MODEL_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF";
-export const GEMMA_26B_MODEL_FILE_IQ3_S = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf";
-export const GEMMA_26B_MMPROJ_REPO = "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF";
-export const GEMMA_26B_MMPROJ_FILE = "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf";
+export const GEMMA_26B_MODEL_REPO =
+  "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF";
+export const GEMMA_26B_MODEL_FILE_IQ3_S =
+  "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf";
+export const GEMMA_26B_MMPROJ_REPO =
+  "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF";
+export const GEMMA_26B_MMPROJ_FILE =
+  "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf";
 
-export const GEMMA_12B_MODEL_REPO = "culturerevolt/gemma-4-12b-heretic-abliterated-GGUF";
+export const GEMMA_12B_MODEL_REPO =
+  "culturerevolt/gemma-4-12b-heretic-abliterated-GGUF";
 export const GEMMA_12B_MODEL_FILE_Q4_K_M = "gemma-4-12b-heretic-Q4_K_M.gguf";
 export const GEMMA_12B_MMPROJ_REPO = "ggml-org/gemma-4-12B-it-GGUF";
 export const GEMMA_12B_MMPROJ_FILE = "mmproj-gemma-4-12B-it-bf16.gguf";
@@ -24,8 +35,10 @@ export const DEFAULT_GEMMA_MODEL_FILE_IQ3_S = GEMMA_31B_MODEL_FILE_IQ3_S;
 export const DEFAULT_GEMMA_MODEL_FILE = DEFAULT_GEMMA_MODEL_FILE_IQ3_S;
 export const DEFAULT_GEMMA_MMPROJ_REPO = GEMMA_31B_MMPROJ_REPO;
 export const DEFAULT_GEMMA_MMPROJ_FILE = GEMMA_31B_MMPROJ_FILE;
-export const DEFAULT_GEMMA_DRAFT_MODEL_REPO = "Anbeeld/gemma-4-31B-it-DFlash-GGUF";
-export const DEFAULT_GEMMA_DRAFT_MODEL_FILE = "gemma4-31b-it-dflash-IQ4_XS.gguf";
+export const DEFAULT_GEMMA_DRAFT_MODEL_REPO =
+  "Anbeeld/gemma-4-31B-it-DFlash-GGUF";
+export const DEFAULT_GEMMA_DRAFT_MODEL_FILE =
+  "gemma4-31b-it-dflash-IQ4_XS.gguf";
 
 export const DEFAULT_GEMMA_VRAM_MODE: GemmaVramMode = "full31b";
 export const DEFAULT_MODEL_PROVIDER: ModelProvider = "gemma";
@@ -46,22 +59,22 @@ export const GEMMA_MODEL_PRESETS = {
     modelRepo: GEMMA_12B_MODEL_REPO,
     modelFile: GEMMA_12B_MODEL_FILE_Q4_K_M,
     mmprojRepo: GEMMA_12B_MMPROJ_REPO,
-    mmprojFile: GEMMA_12B_MMPROJ_FILE
+    mmprojFile: GEMMA_12B_MMPROJ_FILE,
   },
   economy26b: {
     vramMode: "economy26b" as GemmaVramMode,
     modelRepo: GEMMA_26B_MODEL_REPO,
     modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
     mmprojRepo: GEMMA_26B_MMPROJ_REPO,
-    mmprojFile: GEMMA_26B_MMPROJ_FILE
+    mmprojFile: GEMMA_26B_MMPROJ_FILE,
   },
   full31b: {
     vramMode: "full31b" as GemmaVramMode,
     modelRepo: GEMMA_31B_MODEL_REPO,
     modelFile: GEMMA_31B_MODEL_FILE_IQ3_S,
     mmprojRepo: GEMMA_31B_MMPROJ_REPO,
-    mmprojFile: GEMMA_31B_MMPROJ_FILE
-  }
+    mmprojFile: GEMMA_31B_MMPROJ_FILE,
+  },
 } as const;
 
 export type GemmaModelPresetId = keyof typeof GEMMA_MODEL_PRESETS;

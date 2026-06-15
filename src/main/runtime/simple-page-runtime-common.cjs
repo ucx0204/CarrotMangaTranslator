@@ -1,7 +1,10 @@
 const { MAX_LOG_PREVIEW_LENGTH } = require("./simple-page-defaults.cjs");
 
 function nowMs() {
-  return typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+  return typeof performance !== "undefined" &&
+    typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
 }
 
 function truncateText(value, maxLength = MAX_LOG_PREVIEW_LENGTH) {
@@ -21,7 +24,13 @@ function createDetailedError(message, detail = {}, cause) {
   return error;
 }
 
-function emitRuntimeProgress(options = {}, phase, progressText, detail, progress = {}) {
+function emitRuntimeProgress(
+  options = {},
+  phase,
+  progressText,
+  detail,
+  progress = {},
+) {
   if (typeof options.onProgress !== "function") {
     return;
   }
@@ -36,5 +45,5 @@ module.exports = {
   createDetailedError,
   emitRuntimeProgress,
   nowMs,
-  truncateText
+  truncateText,
 };

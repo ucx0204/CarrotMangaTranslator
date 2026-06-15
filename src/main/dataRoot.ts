@@ -74,12 +74,14 @@ function hasExistingAppData(root: string): boolean {
     "hf-cache",
     "ocr-runtime",
     "models",
-    "fonts"
+    "fonts",
   ].some((entryName) => existsSync(join(root, entryName)));
 }
 
 function normalizeDataRoot(value: unknown, baseDir?: string): string | null {
-  const text = String(value ?? "").trim().replace(/^["']|["']$/g, "");
+  const text = String(value ?? "")
+    .trim()
+    .replace(/^["']|["']$/g, "");
   if (!text) {
     return null;
   }

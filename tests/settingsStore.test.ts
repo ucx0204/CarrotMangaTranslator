@@ -28,7 +28,9 @@ describe("settings store", () => {
 
     expect(settings.modelProvider).toBe("openai-codex");
     const files = await readdir(rootDir);
-    expect(files.some((name) => /^settings\.json\.corrupt-.*\.bak$/.test(name))).toBe(true);
+    expect(
+      files.some((name) => /^settings\.json\.corrupt-.*\.bak$/.test(name)),
+    ).toBe(true);
     expect(existsSync(settingsPath)).toBe(true);
   });
 });
@@ -39,7 +41,9 @@ async function createTempDir(): Promise<string> {
   return dir;
 }
 
-async function loadSettingsStore(rootDir: string): Promise<typeof import("../src/main/settingsStore")> {
+async function loadSettingsStore(
+  rootDir: string,
+): Promise<typeof import("../src/main/settingsStore")> {
   vi.resetModules();
   vi.doMock("../src/main/appPaths", () => ({
     getAppPaths: () => ({
@@ -57,13 +61,13 @@ async function loadSettingsStore(rootDir: string): Promise<typeof import("../src
       toolsDir: join(rootDir, "tools"),
       ocrRuntimeDir: join(rootDir, "ocr-runtime"),
       llamaRuntimeDir: join(rootDir, "tools", "llama"),
-      llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe")
-    })
+      llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
+    }),
   }));
   vi.doMock("../src/main/gpuInfo", () => ({
     detectBestGpuInfo: async () => null,
     normalizeAmdRocmTarget: () => null,
-    resolveAmdRocmTargetFromInfo: () => null
+    resolveAmdRocmTargetFromInfo: () => null,
   }));
   return import("../src/main/settingsStore");
 }

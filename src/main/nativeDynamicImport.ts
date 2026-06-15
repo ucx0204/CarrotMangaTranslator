@@ -4,7 +4,10 @@ import { fileURLToPath } from "node:url";
 // Keep the native import escape hatch isolated so ESM-only packages can still be
 // loaded without spreading new Function usage through the codebase.
 // eslint-disable-next-line no-new-func
-const nativeDynamicImport = new Function("specifier", "return import(specifier)") as <T>(specifier: string) => Promise<T>;
+const nativeDynamicImport = new Function(
+  "specifier",
+  "return import(specifier)",
+) as <T>(specifier: string) => Promise<T>;
 
 export function importNativeEsm<T>(specifier: string): Promise<T> {
   assertAllowedNativeImport(specifier);

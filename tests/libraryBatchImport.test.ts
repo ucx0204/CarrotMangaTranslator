@@ -5,13 +5,13 @@ import { join } from "node:path";
 
 vi.mock("electron", () => ({
   app: {
-    isPackaged: false
+    isPackaged: false,
   },
   nativeImage: {
     createFromPath: () => ({
-      getSize: () => ({ width: 0, height: 0 })
-    })
-  }
+      getSize: () => ({ width: 0, height: 0 }),
+    }),
+  },
 }));
 
 import { previewZipFolder } from "../src/main/library";
@@ -49,8 +49,16 @@ describe("batch folder preview", () => {
 
     expect(preview.mode).toBe("batch");
     expect(preview.suggestedWorkTitle).toBe(rootDir.split(/[/\\]/).pop());
-    expect(preview.chapters.map((chapter) => chapter.title)).toEqual(["01 첫화", "02 둘째/scene-a"]);
-    expect(preview.chapters[0]?.pages.map((page) => page.name)).toEqual(["001.webp", "002.png"]);
-    expect(preview.chapters[1]?.pages.map((page) => page.name)).toEqual(["001.jpg"]);
+    expect(preview.chapters.map((chapter) => chapter.title)).toEqual([
+      "01 첫화",
+      "02 둘째/scene-a",
+    ]);
+    expect(preview.chapters[0]?.pages.map((page) => page.name)).toEqual([
+      "001.webp",
+      "002.png",
+    ]);
+    expect(preview.chapters[1]?.pages.map((page) => page.name)).toEqual([
+      "001.jpg",
+    ]);
   });
 });

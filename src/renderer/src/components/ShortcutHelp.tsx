@@ -12,10 +12,13 @@ const SHORTCUTS: { keys: string[]; desc: string }[] = [
   { keys: ["←", "→"], desc: "이전 / 다음 페이지" },
   { keys: ["Ctrl", "Z"], desc: "인페인팅 보정 실행 취소" },
   { keys: ["Ctrl", "Y"], desc: "인페인팅 보정 다시 실행" },
-  { keys: ["Esc"], desc: "모달 닫기 · 드래그 / 영역 선택 취소" }
+  { keys: ["Esc"], desc: "모달 닫기 · 드래그 / 영역 선택 취소" },
 ];
 
-export function ShortcutHelp({ open, onClose }: ShortcutHelpProps): React.JSX.Element | null {
+export function ShortcutHelp({
+  open,
+  onClose,
+}: ShortcutHelpProps): React.JSX.Element | null {
   if (!open) {
     return null;
   }

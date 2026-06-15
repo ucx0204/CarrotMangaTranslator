@@ -24,7 +24,14 @@ describe("inpainting artifact cleanup", () => {
     const library = await loadLibrary(rootDir);
     await seedLibrary(rootDir);
 
-    const inpaintedDir = join(rootDir, "works", "work-1", "chapters", "chapter-a", "inpainted");
+    const inpaintedDir = join(
+      rootDir,
+      "works",
+      "work-1",
+      "chapters",
+      "chapter-a",
+      "inpainted",
+    );
     const oldPath = join(inpaintedDir, "001-page-a-retouch-old.png");
     const newPath = join(inpaintedDir, "001-page-a-retouch-new.png");
     await mkdir(inpaintedDir, { recursive: true });
@@ -33,8 +40,12 @@ describe("inpainting artifact cleanup", () => {
 
     const chapter = await library.openChapter("chapter-a");
     const page = firstPage(chapter);
-    const withOld = await library.updatePagesAfterInpainting(chapter.id, [{ ...page, inpaintedImagePath: oldPath }]);
-    const withNew = await library.updatePagesAfterInpainting(chapter.id, [{ ...firstPage(withOld), inpaintedImagePath: newPath }]);
+    const withOld = await library.updatePagesAfterInpainting(chapter.id, [
+      { ...page, inpaintedImagePath: oldPath },
+    ]);
+    const withNew = await library.updatePagesAfterInpainting(chapter.id, [
+      { ...firstPage(withOld), inpaintedImagePath: newPath },
+    ]);
 
     expect(withNew.pages[0]?.inpaintedImagePath).toBe(newPath);
     expect(existsSync(oldPath)).toBe(false);
@@ -46,14 +57,25 @@ describe("inpainting artifact cleanup", () => {
     const library = await loadLibrary(rootDir);
     await seedLibrary(rootDir);
 
-    const inpaintedDir = join(rootDir, "works", "work-1", "chapters", "chapter-a", "inpainted");
+    const inpaintedDir = join(
+      rootDir,
+      "works",
+      "work-1",
+      "chapters",
+      "chapter-a",
+      "inpainted",
+    );
     const oldPath = join(inpaintedDir, "001-page-a-retouch-old.png");
     await mkdir(inpaintedDir, { recursive: true });
     await writeFile(oldPath, "old");
 
     const chapter = await library.openChapter("chapter-a");
-    const withOld = await library.updatePagesAfterInpainting(chapter.id, [{ ...firstPage(chapter), inpaintedImagePath: oldPath }]);
-    const reverted = await library.updatePagesAfterInpainting(chapter.id, [{ ...firstPage(withOld), inpaintedImagePath: undefined }]);
+    const withOld = await library.updatePagesAfterInpainting(chapter.id, [
+      { ...firstPage(chapter), inpaintedImagePath: oldPath },
+    ]);
+    const reverted = await library.updatePagesAfterInpainting(chapter.id, [
+      { ...firstPage(withOld), inpaintedImagePath: undefined },
+    ]);
 
     expect(reverted.pages[0]?.inpaintedImagePath).toBeUndefined();
     expect(existsSync(oldPath)).toBe(false);
@@ -64,7 +86,14 @@ describe("inpainting artifact cleanup", () => {
     const library = await loadLibrary(rootDir);
     await seedLibrary(rootDir);
 
-    const inpaintedDir = join(rootDir, "works", "work-1", "chapters", "chapter-a", "inpainted");
+    const inpaintedDir = join(
+      rootDir,
+      "works",
+      "work-1",
+      "chapters",
+      "chapter-a",
+      "inpainted",
+    );
     const oldPath = join(inpaintedDir, "001-page-a-retouch-old.png");
     const newPath = join(inpaintedDir, "001-page-a-retouch-new.png");
     const orphanPath = join(inpaintedDir, "001-page-a-retouch-orphan.png");
@@ -74,11 +103,13 @@ describe("inpainting artifact cleanup", () => {
     await writeFile(orphanPath, "orphan");
 
     const chapter = await library.openChapter("chapter-a");
-    const withOld = await library.updatePagesAfterInpainting(chapter.id, [{ ...firstPage(chapter), inpaintedImagePath: oldPath }]);
+    const withOld = await library.updatePagesAfterInpainting(chapter.id, [
+      { ...firstPage(chapter), inpaintedImagePath: oldPath },
+    ]);
     const withNew = await library.updatePagesAfterInpainting(
       chapter.id,
       [{ ...firstPage(withOld), inpaintedImagePath: newPath }],
-      { retainedInpaintedArtifactPaths: [oldPath] }
+      { retainedInpaintedArtifactPaths: [oldPath] },
     );
 
     expect(withNew.pages[0]?.inpaintedImagePath).toBe(newPath);
@@ -92,24 +123,43 @@ describe("inpainting artifact cleanup", () => {
     const library = await loadLibrary(rootDir);
     await seedLibrary(rootDir);
 
-    const inpaintedDir = join(rootDir, "works", "work-1", "chapters", "chapter-a", "inpainted");
+    const inpaintedDir = join(
+      rootDir,
+      "works",
+      "work-1",
+      "chapters",
+      "chapter-a",
+      "inpainted",
+    );
     const afterPath = join(inpaintedDir, "001-page-a-retouch-after.png");
     await mkdir(inpaintedDir, { recursive: true });
     await writeFile(afterPath, "after");
 
     const chapter = await library.openChapter("chapter-a");
-    const withAfter = await library.updatePagesAfterInpainting(chapter.id, [{ ...firstPage(chapter), inpaintedImagePath: afterPath }]);
+    const withAfter = await library.updatePagesAfterInpainting(chapter.id, [
+      { ...firstPage(chapter), inpaintedImagePath: afterPath },
+    ]);
     const pageWithAfter = firstPage(withAfter);
-    const undone = await library.setPageInpaintingResult(chapter.id, pageWithAfter.id, undefined, {
-      retainedInpaintedArtifactPaths: [afterPath]
-    });
+    const undone = await library.setPageInpaintingResult(
+      chapter.id,
+      pageWithAfter.id,
+      undefined,
+      {
+        retainedInpaintedArtifactPaths: [afterPath],
+      },
+    );
 
     expect(undone.pages[0]?.inpaintedImagePath).toBeUndefined();
     expect(existsSync(afterPath)).toBe(true);
 
-    const redone = await library.setPageInpaintingResult(chapter.id, pageWithAfter.id, afterPath, {
-      retainedInpaintedArtifactPaths: [afterPath]
-    });
+    const redone = await library.setPageInpaintingResult(
+      chapter.id,
+      pageWithAfter.id,
+      afterPath,
+      {
+        retainedInpaintedArtifactPaths: [afterPath],
+      },
+    );
 
     expect(redone.pages[0]?.inpaintedImagePath).toBe(afterPath);
     expect(existsSync(afterPath)).toBe(true);
@@ -123,9 +173,27 @@ describe("inpainting artifact cleanup", () => {
 
     const chapter = await library.openChapter("chapter-a");
 
-    expect(chapter.pages[0]?.imagePath).toBe(join(rootDir, "works", "work-1", "chapters", "chapter-a", "pages", "001-page-a.png"));
+    expect(chapter.pages[0]?.imagePath).toBe(
+      join(
+        rootDir,
+        "works",
+        "work-1",
+        "chapters",
+        "chapter-a",
+        "pages",
+        "001-page-a.png",
+      ),
+    );
     expect(chapter.pages[0]?.inpaintedImagePath).toBe(
-      join(rootDir, "works", "work-1", "chapters", "chapter-a", "inpainted", "001-page-a-inpainted.png")
+      join(
+        rootDir,
+        "works",
+        "work-1",
+        "chapters",
+        "chapter-a",
+        "inpainted",
+        "001-page-a-inpainted.png",
+      ),
     );
   });
 });
@@ -144,17 +212,19 @@ function firstPage<T>(chapter: { pages: T[] }): T {
   return page;
 }
 
-async function loadLibrary(rootDir: string): Promise<typeof import("../src/main/library")> {
+async function loadLibrary(
+  rootDir: string,
+): Promise<typeof import("../src/main/library")> {
   vi.resetModules();
   vi.doMock("electron", () => ({
     app: {
-      isPackaged: false
+      isPackaged: false,
     },
     nativeImage: {
       createFromPath: () => ({
-        getSize: () => ({ width: 64, height: 96 })
-      })
-    }
+        getSize: () => ({ width: 64, height: 96 }),
+      }),
+    },
   }));
   vi.doMock("../src/main/appPaths", () => ({
     getAppPaths: () => ({
@@ -170,27 +240,61 @@ async function loadLibrary(rootDir: string): Promise<typeof import("../src/main/
       runtimeDir: join(rootDir, "runtime"),
       toolsDir: join(rootDir, "tools"),
       llamaRuntimeDir: join(rootDir, "tools", "llama"),
-      llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe")
-    })
+      llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
+    }),
   }));
   return import("../src/main/library");
 }
 
-async function seedLibrary(rootDir: string, storedPathRoot = rootDir): Promise<void> {
+async function seedLibrary(
+  rootDir: string,
+  storedPathRoot = rootDir,
+): Promise<void> {
   const work: LibraryWork = {
     id: "work-1",
     title: "원본 작품",
     chapterOrder: ["chapter-a"],
     createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z"
+    updatedAt: "2026-01-01T00:00:00.000Z",
   };
-  await mkdir(join(rootDir, "works", work.id, "chapters", "chapter-a", "pages"), { recursive: true });
-  await mkdir(join(rootDir, "works", work.id, "chapters", "chapter-a", "inpainted"), { recursive: true });
+  await mkdir(
+    join(rootDir, "works", work.id, "chapters", "chapter-a", "pages"),
+    { recursive: true },
+  );
+  await mkdir(
+    join(rootDir, "works", work.id, "chapters", "chapter-a", "inpainted"),
+    { recursive: true },
+  );
   await writeJson(join(rootDir, "index.json"), { workOrder: [work.id] });
   await writeJson(join(rootDir, "works", work.id, "work.json"), work);
-  await writeFile(join(rootDir, "works", work.id, "chapters", "chapter-a", "pages", "001-page-a.png"), "image-a");
-  await writeFile(join(rootDir, "works", work.id, "chapters", "chapter-a", "inpainted", "001-page-a-inpainted.png"), "inpainted-a");
-  await writeJson(join(rootDir, "works", work.id, "chapters", "chapter-a", "chapter.json"), makeChapter(storedPathRoot));
+  await writeFile(
+    join(
+      rootDir,
+      "works",
+      work.id,
+      "chapters",
+      "chapter-a",
+      "pages",
+      "001-page-a.png",
+    ),
+    "image-a",
+  );
+  await writeFile(
+    join(
+      rootDir,
+      "works",
+      work.id,
+      "chapters",
+      "chapter-a",
+      "inpainted",
+      "001-page-a-inpainted.png",
+    ),
+    "inpainted-a",
+  );
+  await writeJson(
+    join(rootDir, "works", work.id, "chapters", "chapter-a", "chapter.json"),
+    makeChapter(storedPathRoot),
+  );
 }
 
 function makeChapter(rootDir: string): LibraryChapter {
@@ -205,18 +309,34 @@ function makeChapter(rootDir: string): LibraryChapter {
       {
         id: "page-a",
         name: "001.png",
-        imagePath: join(rootDir, "works", "work-1", "chapters", "chapter-a", "pages", "001-page-a.png"),
-        inpaintedImagePath: join(rootDir, "works", "work-1", "chapters", "chapter-a", "inpainted", "001-page-a-inpainted.png"),
+        imagePath: join(
+          rootDir,
+          "works",
+          "work-1",
+          "chapters",
+          "chapter-a",
+          "pages",
+          "001-page-a.png",
+        ),
+        inpaintedImagePath: join(
+          rootDir,
+          "works",
+          "work-1",
+          "chapters",
+          "chapter-a",
+          "inpainted",
+          "001-page-a-inpainted.png",
+        ),
         width: 100,
         height: 120,
         blocks: [],
         analysisStatus: "completed",
         createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z"
-      }
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
     ],
     createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z"
+    updatedAt: "2026-01-01T00:00:00.000Z",
   };
 }
 

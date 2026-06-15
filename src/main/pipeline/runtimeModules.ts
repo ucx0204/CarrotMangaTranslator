@@ -1,7 +1,10 @@
 import { join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
 import { getAppPaths } from "../appPaths";
-import { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
+import {
+  startOpenAIOAuthEndpoint,
+  stopOpenAIOAuthEndpoint,
+} from "../openaiOauthEndpoint";
 import type { OpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
 import type { ModelEndpointHandle, RuntimeModules } from "./types";
 
@@ -16,22 +19,50 @@ export function loadRuntimeModules(): RuntimeModules {
 
   cachedRuntimeDir = runtimeDir;
   cachedRuntime = {
-    simplePage: require(join(runtimeDir, "simple-page-translate.cjs")) as RuntimeModules["simplePage"],
-    overlayTools: require(join(runtimeDir, "overlay-parser.cjs")) as RuntimeModules["overlayTools"]
+    simplePage: require(
+      join(runtimeDir, "simple-page-translate.cjs"),
+    ) as RuntimeModules["simplePage"],
+    overlayTools: require(
+      join(runtimeDir, "overlay-parser.cjs"),
+    ) as RuntimeModules["overlayTools"],
   };
   assertRuntimeModules(cachedRuntime);
   return cachedRuntime;
 }
 
 function assertRuntimeModules(runtime: RuntimeModules): void {
-  assertFunction(runtime.simplePage?.collectOcrBboxHints, "simple-page-translate.cjs collectOcrBboxHints");
-  assertFunction(runtime.simplePage?.requestTranslation, "simple-page-translate.cjs requestTranslation");
-  assertFunction(runtime.simplePage?.saveArtifacts, "simple-page-translate.cjs saveArtifacts");
-  assertFunction(runtime.simplePage?.startServer, "simple-page-translate.cjs startServer");
-  assertFunction(runtime.simplePage?.stopServer, "simple-page-translate.cjs stopServer");
-  assertFunction(runtime.simplePage?.isModelCached, "simple-page-translate.cjs isModelCached");
-  assertFunction(runtime.overlayTools?.normalizeItems, "overlay-parser.cjs normalizeItems");
-  assertFunction(runtime.overlayTools?.parseJsonLenient, "overlay-parser.cjs parseJsonLenient");
+  assertFunction(
+    runtime.simplePage?.collectOcrBboxHints,
+    "simple-page-translate.cjs collectOcrBboxHints",
+  );
+  assertFunction(
+    runtime.simplePage?.requestTranslation,
+    "simple-page-translate.cjs requestTranslation",
+  );
+  assertFunction(
+    runtime.simplePage?.saveArtifacts,
+    "simple-page-translate.cjs saveArtifacts",
+  );
+  assertFunction(
+    runtime.simplePage?.startServer,
+    "simple-page-translate.cjs startServer",
+  );
+  assertFunction(
+    runtime.simplePage?.stopServer,
+    "simple-page-translate.cjs stopServer",
+  );
+  assertFunction(
+    runtime.simplePage?.isModelCached,
+    "simple-page-translate.cjs isModelCached",
+  );
+  assertFunction(
+    runtime.overlayTools?.normalizeItems,
+    "overlay-parser.cjs normalizeItems",
+  );
+  assertFunction(
+    runtime.overlayTools?.parseJsonLenient,
+    "overlay-parser.cjs parseJsonLenient",
+  );
 }
 
 function assertFunction(value: unknown, label: string): void {
@@ -40,7 +71,10 @@ function assertFunction(value: unknown, label: string): void {
   }
 }
 
-export async function startModelEndpoint(runtime: RuntimeModules, options: TranslationOptions): Promise<ModelEndpointHandle> {
+export async function startModelEndpoint(
+  runtime: RuntimeModules,
+  options: TranslationOptions,
+): Promise<ModelEndpointHandle> {
   if (options.modelProvider === "openai-codex") {
     return startOpenAIOAuthEndpoint(options);
   }
@@ -53,7 +87,7 @@ export class ModelEndpointSession {
 
   constructor(
     private readonly runtime: RuntimeModules,
-    endpoint: ModelEndpointHandle
+    endpoint: ModelEndpointHandle,
   ) {
     this.endpoint = endpoint;
   }
@@ -76,11 +110,20 @@ export class ModelEndpointSession {
   }
 }
 
-export async function startModelEndpointSession(runtime: RuntimeModules, options: TranslationOptions): Promise<ModelEndpointSession> {
-  return new ModelEndpointSession(runtime, await startModelEndpoint(runtime, options));
+export async function startModelEndpointSession(
+  runtime: RuntimeModules,
+  options: TranslationOptions,
+): Promise<ModelEndpointSession> {
+  return new ModelEndpointSession(
+    runtime,
+    await startModelEndpoint(runtime, options),
+  );
 }
 
-export async function stopModelEndpoint(runtime: RuntimeModules, endpoint: ModelEndpointHandle | null | undefined): Promise<void> {
+export async function stopModelEndpoint(
+  runtime: RuntimeModules,
+  endpoint: ModelEndpointHandle | null | undefined,
+): Promise<void> {
   if (isOpenAIOAuthEndpoint(endpoint)) {
     await stopOpenAIOAuthEndpoint(endpoint);
     return;
@@ -88,6 +131,10 @@ export async function stopModelEndpoint(runtime: RuntimeModules, endpoint: Model
   await runtime.simplePage.stopServer(endpoint);
 }
 
-export function isOpenAIOAuthEndpoint(endpoint: ModelEndpointHandle | null | undefined): endpoint is OpenAIOAuthEndpoint {
-  return Boolean(endpoint && "provider" in endpoint && endpoint.provider === "openai-codex");
+export function isOpenAIOAuthEndpoint(
+  endpoint: ModelEndpointHandle | null | undefined,
+): endpoint is OpenAIOAuthEndpoint {
+  return Boolean(
+    endpoint && "provider" in endpoint && endpoint.provider === "openai-codex",
+  );
 }

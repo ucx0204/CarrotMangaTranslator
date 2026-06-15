@@ -1,5 +1,10 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import type { ChapterSnapshot, InpaintingMaskStroke, JobState, MangaPage } from "../../../shared/types";
+import type {
+  ChapterSnapshot,
+  InpaintingMaskStroke,
+  JobState,
+  MangaPage,
+} from "../../../shared/types";
 import type { RegionSelectionState } from "../lib/appHelpers";
 import { formatErrorMessage } from "../lib/appHelpers";
 import { mangaGateway } from "../api/mangaGateway";
@@ -7,7 +12,11 @@ import { mangaGateway } from "../api/mangaGateway";
 type InpaintingScope = "page" | "chapter";
 
 type UseInpaintingActionsOptions = {
-  askConfirm: (title: string, message: string, detail?: string) => Promise<boolean>;
+  askConfirm: (
+    title: string,
+    message: string,
+    detail?: string,
+  ) => Promise<boolean>;
   clearPageImageCache: () => void;
   clearRetouchHistory: () => void;
   currentChapter: ChapterSnapshot | null;
@@ -22,9 +31,13 @@ type UseInpaintingActionsOptions = {
   selectedPage: MangaPage | null;
   setInpaintingGuideOpen: Dispatch<SetStateAction<boolean>>;
   setInpaintingMode: Dispatch<SetStateAction<boolean>>;
-  setInpaintingTool: Dispatch<SetStateAction<"none" | "brush" | "eraser" | "picker" | "mask">>;
+  setInpaintingTool: Dispatch<
+    SetStateAction<"none" | "brush" | "eraser" | "picker" | "mask">
+  >;
   setJobState: Dispatch<SetStateAction<JobState>>;
-  setPatternMaskStrokesByPage: Dispatch<SetStateAction<Record<string, InpaintingMaskStroke[]>>>;
+  setPatternMaskStrokesByPage: Dispatch<
+    SetStateAction<Record<string, InpaintingMaskStroke[]>>
+  >;
   setPeekOriginal: Dispatch<SetStateAction<boolean>>;
   setRegionSelection: Dispatch<SetStateAction<RegionSelectionState | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
@@ -36,14 +49,14 @@ function failInpaintingJob(
   setJobState: Dispatch<SetStateAction<JobState>>,
   pushStatus: (line: string) => void,
   progressText: string,
-  message: string
+  message: string,
 ): void {
   setJobState({
     id: "failed-inpainting",
     kind: "inpainting",
     status: "failed",
     progressText,
-    detail: message
+    detail: message,
   });
   pushStatus(message);
 }
@@ -71,7 +84,7 @@ export function useInpaintingActions({
   setRegionSelection,
   setSelectedBlockId,
   setShowBlockChrome,
-  setShowTextBlocks
+  setShowTextBlocks,
 }: UseInpaintingActionsOptions): {
   enterInpaintingMode: () => Promise<void>;
   exitInpaintingMode: () => void;
@@ -90,7 +103,12 @@ export function useInpaintingActions({
       }
     } catch (error) {
       console.error(error);
-      pushStatus(formatErrorMessage(error, "인페인팅 모드로 들어가기 전에 변경사항을 저장하지 못했습니다."));
+      pushStatus(
+        formatErrorMessage(
+          error,
+          "인페인팅 모드로 들어가기 전에 변경사항을 저장하지 못했습니다.",
+        ),
+      );
       return;
     }
     setInpaintingMode(true);
@@ -116,7 +134,7 @@ export function useInpaintingActions({
     setRegionSelection,
     setSelectedBlockId,
     setShowBlockChrome,
-    setShowTextBlocks
+    setShowTextBlocks,
   ]);
 
   const exitInpaintingMode = useCallback(() => {
@@ -130,7 +148,9 @@ export function useInpaintingActions({
     setPatternMaskStrokesByPage({});
     setSelectedBlockId(null);
     setRegionSelection(null);
-    void mangaGateway.disposeInpaintingEngine().catch((error) => console.error(error));
+    void mangaGateway
+      .disposeInpaintingEngine()
+      .catch((error) => console.error(error));
     pushStatus("인페인팅 모드를 종료했습니다.");
   }, [
     jobActive,
@@ -141,7 +161,7 @@ export function useInpaintingActions({
     setPatternMaskStrokesByPage,
     setPeekOriginal,
     setRegionSelection,
-    setSelectedBlockId
+    setSelectedBlockId,
   ]);
 
   const runInpainting = useCallback(
@@ -161,15 +181,24 @@ export function useInpaintingActions({
         }
       } catch (error) {
         console.error(error);
-        failInpaintingJob(setJobState, pushStatus, "저장 실패", formatErrorMessage(error, "원문 지우기 전에 변경사항을 저장하지 못했습니다."));
+        failInpaintingJob(
+          setJobState,
+          pushStatus,
+          "저장 실패",
+          formatErrorMessage(
+            error,
+            "원문 지우기 전에 변경사항을 저장하지 못했습니다.",
+          ),
+        );
         return;
       }
       const targetLabel = "원문";
-      const scopeLabel = scope === "page" ? "현재 페이지" : "아직 지우지 않은 페이지";
+      const scopeLabel =
+        scope === "page" ? "현재 페이지" : "아직 지우지 않은 페이지";
       const confirmed = await askConfirm(
         `${targetLabel} 지우기`,
         `${scopeLabel}의 번역 블록 위치에 있는 원문을 지웁니다.`,
-        "말풍선, 톤, 배경 그림, 효과음 위 글자까지 모두 Flux 인페인팅으로 지웁니다. 원본 이미지는 유지하고 결과 이미지는 별도로 저장합니다."
+        "말풍선, 톤, 배경 그림, 효과음 위 글자까지 모두 Flux 인페인팅으로 지웁니다. 원본 이미지는 유지하고 결과 이미지는 별도로 저장합니다.",
       );
       if (!confirmed) {
         return;
@@ -180,18 +209,33 @@ export function useInpaintingActions({
         kind: "inpainting",
         status: "starting",
         progressText: `${targetLabel} 지우기 준비 중`,
-        phase: "inpainting_preparing"
+        phase: "inpainting_preparing",
       });
 
       let result;
       try {
         const request = targetPageId
-          ? { chapterId: targetChapterId, mode: "page-pattern" as const, pageId: targetPageId }
-          : { chapterId: targetChapterId, mode: "chapter-pattern-pending" as const };
+          ? {
+              chapterId: targetChapterId,
+              mode: "page-pattern" as const,
+              pageId: targetPageId,
+            }
+          : {
+              chapterId: targetChapterId,
+              mode: "chapter-pattern-pending" as const,
+            };
         result = await mangaGateway.startInpainting(request);
       } catch (error) {
         console.error(error);
-        failInpaintingJob(setJobState, pushStatus, "작업 실패", formatErrorMessage(error, `${targetLabel} 지우기를 시작하지 못했습니다.`));
+        failInpaintingJob(
+          setJobState,
+          pushStatus,
+          "작업 실패",
+          formatErrorMessage(
+            error,
+            `${targetLabel} 지우기를 시작하지 못했습니다.`,
+          ),
+        );
         return;
       }
       if (result.chapter) {
@@ -201,11 +245,15 @@ export function useInpaintingActions({
       }
       await refreshLibrary().catch((error) => {
         console.error(error);
-        pushStatus(formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."));
+        pushStatus(
+          formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."),
+        );
       });
 
       if (result.status === "completed") {
-        pushStatus(`${targetLabel} 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}블록`);
+        pushStatus(
+          `${targetLabel} 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}블록`,
+        );
       } else if (result.status === "failed" && result.error) {
         pushStatus(result.error);
       }
@@ -222,12 +270,17 @@ export function useInpaintingActions({
       refreshLibrary,
       saveNow,
       selectedPage,
-      setJobState
-    ]
+      setJobState,
+    ],
   );
 
   const runDrawnPatternInpainting = useCallback(async () => {
-    if (!currentChapter || !selectedPage || jobActive || patternMaskStrokes.length === 0) {
+    if (
+      !currentChapter ||
+      !selectedPage ||
+      jobActive ||
+      patternMaskStrokes.length === 0
+    ) {
       return;
     }
     const targetChapterId = currentChapter.id;
@@ -239,13 +292,21 @@ export function useInpaintingActions({
       }
     } catch (error) {
       console.error(error);
-      failInpaintingJob(setJobState, pushStatus, "저장 실패", formatErrorMessage(error, "그린 영역을 지우기 전에 변경사항을 저장하지 못했습니다."));
+      failInpaintingJob(
+        setJobState,
+        pushStatus,
+        "저장 실패",
+        formatErrorMessage(
+          error,
+          "그린 영역을 지우기 전에 변경사항을 저장하지 못했습니다.",
+        ),
+      );
       return;
     }
     const confirmed = await askConfirm(
       "그린 영역 지우기",
       "주황색으로 그린 마스크 영역만 Flux로 지웁니다.",
-      "글자 위를 넉넉히 문질러 둔 영역을 crop으로 잘라 배경을 복원합니다. 결과는 별도 이미지로 저장되며 원본 페이지는 유지됩니다."
+      "글자 위를 넉넉히 문질러 둔 영역을 crop으로 잘라 배경을 복원합니다. 결과는 별도 이미지로 저장되며 원본 페이지는 유지됩니다.",
     );
     if (!confirmed) {
       return;
@@ -258,7 +319,7 @@ export function useInpaintingActions({
       progressText: "그린 영역 지우기 준비 중",
       phase: "inpainting_preparing",
       progressCurrent: 0,
-      progressTotal: 1
+      progressTotal: 1,
     });
     let result;
     try {
@@ -267,11 +328,16 @@ export function useInpaintingActions({
         mode: "page-pattern-drawn",
         pageId: targetPage.id,
         strokes: targetStrokes,
-        featherPx: 8
+        featherPx: 8,
       });
     } catch (error) {
       console.error(error);
-      failInpaintingJob(setJobState, pushStatus, "작업 실패", formatErrorMessage(error, "그린 영역 지우기를 시작하지 못했습니다."));
+      failInpaintingJob(
+        setJobState,
+        pushStatus,
+        "작업 실패",
+        formatErrorMessage(error, "그린 영역 지우기를 시작하지 못했습니다."),
+      );
       return;
     }
     if (result.chapter) {
@@ -281,7 +347,9 @@ export function useInpaintingActions({
     }
     await refreshLibrary().catch((error) => {
       console.error(error);
-      pushStatus(formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."));
+      pushStatus(
+        formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."),
+      );
     });
     if (result.status === "completed") {
       setPatternMaskStrokesByPage((current) => {
@@ -289,7 +357,9 @@ export function useInpaintingActions({
         delete next[targetPage.id];
         return next;
       });
-      pushStatus(`그린 영역 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}영역`);
+      pushStatus(
+        `그린 영역 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}영역`,
+      );
     } else if (result.status === "failed" && result.error) {
       pushStatus(result.error);
     }
@@ -308,7 +378,7 @@ export function useInpaintingActions({
     selectedPage,
     setInpaintingTool,
     setJobState,
-    setPatternMaskStrokesByPage
+    setPatternMaskStrokesByPage,
   ]);
 
   const revertInpainting = useCallback(
@@ -323,16 +393,24 @@ export function useInpaintingActions({
         return;
       }
       const confirmed = await askConfirm(
-        scope === "page" ? "이 페이지 원본으로 되돌리기" : "전체 페이지 원본으로 되돌리기",
-        scope === "page" ? "현재 페이지의 인페인팅 결과를 원본 이미지로 되돌립니다." : "현재 화의 인페인팅 결과를 원본 이미지로 되돌립니다.",
-        "번역 블록과 좌표는 유지하고, 지워진 이미지 결과만 해제합니다."
+        scope === "page"
+          ? "이 페이지 원본으로 되돌리기"
+          : "전체 페이지 원본으로 되돌리기",
+        scope === "page"
+          ? "현재 페이지의 인페인팅 결과를 원본 이미지로 되돌립니다."
+          : "현재 화의 인페인팅 결과를 원본 이미지로 되돌립니다.",
+        "번역 블록과 좌표는 유지하고, 지워진 이미지 결과만 해제합니다.",
       );
       if (!confirmed) {
         return;
       }
       try {
         const request = targetPageId
-          ? { chapterId: targetChapterId, scope: "page" as const, pageId: targetPageId }
+          ? {
+              chapterId: targetChapterId,
+              scope: "page" as const,
+              pageId: targetPageId,
+            }
           : { chapterId: targetChapterId, scope: "chapter" as const };
         const result = await mangaGateway.revertInpainting(request);
         clearPageImageCache();
@@ -341,10 +419,25 @@ export function useInpaintingActions({
         pushStatus(`인페인팅 되돌리기 완료: ${result.pagesChanged}페이지`);
       } catch (error) {
         console.error(error);
-        failInpaintingJob(setJobState, pushStatus, "되돌리기 실패", formatErrorMessage(error, "인페인팅 결과를 되돌리지 못했습니다."));
+        failInpaintingJob(
+          setJobState,
+          pushStatus,
+          "되돌리기 실패",
+          formatErrorMessage(error, "인페인팅 결과를 되돌리지 못했습니다."),
+        );
       }
     },
-    [askConfirm, clearPageImageCache, clearRetouchHistory, currentChapter, jobActive, mergeLiveChapter, pushStatus, selectedPage, setJobState]
+    [
+      askConfirm,
+      clearPageImageCache,
+      clearRetouchHistory,
+      currentChapter,
+      jobActive,
+      mergeLiveChapter,
+      pushStatus,
+      selectedPage,
+      setJobState,
+    ],
   );
 
   const exportInpaintingResults = useCallback(
@@ -370,9 +463,17 @@ export function useInpaintingActions({
           kind: "inpainting",
           status: "failed",
           progressText: "PNG 출력 실패",
-          detail: formatErrorMessage(error, "PNG 출력 전에 변경사항을 저장하지 못했습니다.")
+          detail: formatErrorMessage(
+            error,
+            "PNG 출력 전에 변경사항을 저장하지 못했습니다.",
+          ),
         });
-        pushStatus(formatErrorMessage(error, "PNG 출력 전에 변경사항을 저장하지 못했습니다."));
+        pushStatus(
+          formatErrorMessage(
+            error,
+            "PNG 출력 전에 변경사항을 저장하지 못했습니다.",
+          ),
+        );
         return;
       }
       const targetTotal = scope === "page" ? 1 : currentChapter.pages.length;
@@ -386,16 +487,23 @@ export function useInpaintingActions({
           progressCurrent: 0,
           progressTotal: targetTotal,
           pageTotal: targetTotal,
-          detail: scope === "page" ? targetPage?.name : `${currentChapter.pages.length}페이지`
+          detail:
+            scope === "page"
+              ? targetPage?.name
+              : `${currentChapter.pages.length}페이지`,
         });
         const request = targetPageId
-          ? { chapterId: targetChapterId, scope: "page" as const, pageId: targetPageId }
+          ? {
+              chapterId: targetChapterId,
+              scope: "page" as const,
+              pageId: targetPageId,
+            }
           : { chapterId: targetChapterId, scope: "chapter" as const };
         const result = await mangaGateway.exportInpaintingResults(request);
         pushStatus(
           result.openError
             ? `PNG 출력은 완료됐지만 폴더를 열지 못했습니다: ${result.outputDir}`
-            : `인페인팅 결과를 PNG로 출력했습니다: ${result.pageCount}페이지`
+            : `인페인팅 결과를 PNG로 출력했습니다: ${result.pageCount}페이지`,
         );
       } catch (error) {
         console.error(error);
@@ -404,12 +512,25 @@ export function useInpaintingActions({
           kind: "inpainting",
           status: "failed",
           progressText: "PNG 출력 실패",
-          detail: formatErrorMessage(error, "인페인팅 결과를 출력하지 못했습니다.")
+          detail: formatErrorMessage(
+            error,
+            "인페인팅 결과를 출력하지 못했습니다.",
+          ),
         });
-        pushStatus(formatErrorMessage(error, "인페인팅 결과를 출력하지 못했습니다."));
+        pushStatus(
+          formatErrorMessage(error, "인페인팅 결과를 출력하지 못했습니다."),
+        );
       }
     },
-    [currentChapter, dirty, jobActive, pushStatus, saveNow, selectedPage, setJobState]
+    [
+      currentChapter,
+      dirty,
+      jobActive,
+      pushStatus,
+      saveNow,
+      selectedPage,
+      setJobState,
+    ],
   );
 
   return {
@@ -418,6 +539,6 @@ export function useInpaintingActions({
     exportInpaintingResults,
     revertInpainting,
     runDrawnPatternInpainting,
-    runInpainting
+    runInpainting,
   };
 }

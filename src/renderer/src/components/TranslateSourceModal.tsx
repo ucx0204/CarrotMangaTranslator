@@ -9,9 +9,19 @@ type TranslateSourceModalProps = {
   onSelect: (mode: TranslateSourceMode) => void;
 };
 
-export function TranslateSourceModal({ busy, onCancel, onSelect }: TranslateSourceModalProps): React.JSX.Element {
+export function TranslateSourceModal({
+  busy,
+  onCancel,
+  onSelect,
+}: TranslateSourceModalProps): React.JSX.Element {
   return (
-    <Modal size="sm" ariaLabel="번역할 원본 선택" title="번역할 원본 선택" onClose={onCancel} closeDisabled={busy}>
+    <Modal
+      size="sm"
+      ariaLabel="번역할 원본 선택"
+      title="번역할 원본 선택"
+      onClose={onCancel}
+      closeDisabled={busy}
+    >
       <div className="source-choice-grid">
         <Button onClick={() => onSelect("images")} disabled={busy}>
           이미지 열기

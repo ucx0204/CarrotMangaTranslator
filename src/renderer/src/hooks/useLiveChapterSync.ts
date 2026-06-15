@@ -1,6 +1,15 @@
-import { useCallback, useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
 import type { ChapterSnapshot } from "../../../shared/types";
-import { mergeLiveChapterPreservingDirtyPages, resolveSelectionAfterChapterSync } from "../lib/chapterSync";
+import {
+  mergeLiveChapterPreservingDirtyPages,
+  resolveSelectionAfterChapterSync,
+} from "../lib/chapterSync";
 
 type UseLiveChapterSyncOptions = {
   currentChapter: ChapterSnapshot | null;
@@ -27,7 +36,7 @@ export function useLiveChapterSync({
   selectedPageIdRef,
   setCurrentChapter,
   setSelectedBlockId,
-  setSelectedPageId
+  setSelectedPageId,
 }: UseLiveChapterSyncOptions): (chapter: ChapterSnapshot) => void {
   useEffect(() => {
     currentChapterRef.current = currentChapter;
@@ -48,7 +57,11 @@ export function useLiveChapterSync({
         return;
       }
 
-      const mergeResult = mergeLiveChapterPreservingDirtyPages(chapter, current, dirtyPageIdsRef.current);
+      const mergeResult = mergeLiveChapterPreservingDirtyPages(
+        chapter,
+        current,
+        dirtyPageIdsRef.current,
+      );
       replaceDirtyPageIds(mergeResult.preservedDirtyPageIds);
       currentChapterRef.current = mergeResult.chapter;
 
@@ -59,7 +72,11 @@ export function useLiveChapterSync({
         return mergeResult.chapter;
       });
 
-      const selection = resolveSelectionAfterChapterSync(mergeResult.chapter, selectedPageIdRef.current, selectedBlockIdRef.current);
+      const selection = resolveSelectionAfterChapterSync(
+        mergeResult.chapter,
+        selectedPageIdRef.current,
+        selectedBlockIdRef.current,
+      );
       setSelectedPageId(selection.selectedPageId);
       setSelectedBlockId(selection.selectedBlockId);
     },
@@ -71,7 +88,7 @@ export function useLiveChapterSync({
       selectedPageIdRef,
       setCurrentChapter,
       setSelectedBlockId,
-      setSelectedPageId
-    ]
+      setSelectedPageId,
+    ],
   );
 }

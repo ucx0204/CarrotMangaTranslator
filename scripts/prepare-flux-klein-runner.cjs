@@ -1,4 +1,11 @@
-const { copyFileSync, existsSync, mkdirSync, statSync, readFileSync, writeFileSync } = require("node:fs");
+const {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  statSync,
+  readFileSync,
+  writeFileSync,
+} = require("node:fs");
 const { tmpdir } = require("node:os");
 const { delimiter, join } = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -7,7 +14,9 @@ const root = join(__dirname, "..");
 const manifestPath = join(root, "tools", "mgt-flux-klein-runner", "Cargo.toml");
 const outDir = join(root, "tools", "mgt-flux-klein");
 const outExe = join(outDir, "mgt-flux-klein.exe");
-const cargoTargetDir = process.env.MGT_FLUX_KLEIN_TARGET_DIR || join(tmpdir(), "mgt-flux-klein-target");
+const cargoTargetDir =
+  process.env.MGT_FLUX_KLEIN_TARGET_DIR ||
+  join(tmpdir(), "mgt-flux-klein-target");
 const builtExe = join(cargoTargetDir, "release", "mgt-flux-klein.exe");
 const cudaRoot = process.env.MGT_FLUX_KLEIN_CUDA_ROOT || findCudaRoot();
 const forceRebuild = process.env.MGT_FORCE_REBUILD_FLUX_RUNNER === "1";
@@ -38,7 +47,7 @@ function runCargo(args) {
   const pathParts = [
     cudaRoot ? join(cudaRoot, "bin") : null,
     msvcBin,
-    process.env.PATH ?? ""
+    process.env.PATH ?? "",
   ].filter(Boolean);
   run("cargo", args, {
     CARGO_TARGET_DIR: cargoTargetDir,
@@ -49,10 +58,10 @@ function runCargo(args) {
           CUDA_PATH: cudaRoot,
           CUDA_HOME: cudaRoot,
           CUDA_ROOT: cudaRoot,
-          CUDACXX: join(cudaRoot, "bin", "nvcc.exe")
+          CUDACXX: join(cudaRoot, "bin", "nvcc.exe"),
         }
       : {}),
-    PATH: pathParts.join(delimiter)
+    PATH: pathParts.join(delimiter),
   });
 }
 
@@ -64,8 +73,8 @@ function run(command, args, extraEnv = {}) {
     shell: false,
     env: {
       ...process.env,
-      ...extraEnv
-    }
+      ...extraEnv,
+    },
   });
   if (result.error) {
     console.error(result.error);
@@ -77,19 +86,52 @@ function run(command, args, extraEnv = {}) {
 
 function findMsvcClBin() {
   const candidates = [
-    join("C:", "Program Files", "Microsoft Visual Studio", "2022", "Community", "VC", "Tools", "MSVC"),
-    join("C:", "Program Files", "Microsoft Visual Studio", "2022", "BuildTools", "VC", "Tools", "MSVC"),
-    join("C:", "Program Files", "Microsoft Visual Studio", "2022", "Professional", "VC", "Tools", "MSVC"),
-    join("C:", "Program Files", "Microsoft Visual Studio", "2022", "Enterprise", "VC", "Tools", "MSVC")
+    join(
+      "C:",
+      "Program Files",
+      "Microsoft Visual Studio",
+      "2022",
+      "Community",
+      "VC",
+      "Tools",
+      "MSVC",
+    ),
+    join(
+      "C:",
+      "Program Files",
+      "Microsoft Visual Studio",
+      "2022",
+      "BuildTools",
+      "VC",
+      "Tools",
+      "MSVC",
+    ),
+    join(
+      "C:",
+      "Program Files",
+      "Microsoft Visual Studio",
+      "2022",
+      "Professional",
+      "VC",
+      "Tools",
+      "MSVC",
+    ),
+    join(
+      "C:",
+      "Program Files",
+      "Microsoft Visual Studio",
+      "2022",
+      "Enterprise",
+      "VC",
+      "Tools",
+      "MSVC",
+    ),
   ];
   for (const root of candidates) {
     if (!existsSync(root)) {
       continue;
     }
-    const versions = require("node:fs")
-      .readdirSync(root)
-      .sort()
-      .reverse();
+    const versions = require("node:fs").readdirSync(root).sort().reverse();
     for (const version of versions) {
       const bin = join(root, version, "bin", "Hostx64", "x64");
       if (existsSync(join(bin, "cl.exe"))) {
@@ -103,32 +145,74 @@ function findMsvcClBin() {
 function findCudaRoot() {
   const candidates = [
     process.env.CUDA_PATH_V13_0,
-    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v13.0"),
+    join(
+      "C:",
+      "Program Files",
+      "NVIDIA GPU Computing Toolkit",
+      "CUDA",
+      "v13.0",
+    ),
     process.env.CUDA_PATH_V13_1,
-    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v13.1"),
+    join(
+      "C:",
+      "Program Files",
+      "NVIDIA GPU Computing Toolkit",
+      "CUDA",
+      "v13.1",
+    ),
     process.env.CUDA_PATH_V12_9,
-    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.9"),
+    join(
+      "C:",
+      "Program Files",
+      "NVIDIA GPU Computing Toolkit",
+      "CUDA",
+      "v12.9",
+    ),
     process.env.CUDA_PATH_V12_8,
-    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.8"),
+    join(
+      "C:",
+      "Program Files",
+      "NVIDIA GPU Computing Toolkit",
+      "CUDA",
+      "v12.8",
+    ),
     process.env.CUDA_PATH_V12_6,
-    join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.6"),
+    join(
+      "C:",
+      "Program Files",
+      "NVIDIA GPU Computing Toolkit",
+      "CUDA",
+      "v12.6",
+    ),
     ...(process.env.MGT_FLUX_ALLOW_LEGACY_CUDA_BUILD === "1"
       ? [
           process.env.CUDA_PATH_V12_4,
-          join("C:", "Program Files", "NVIDIA GPU Computing Toolkit", "CUDA", "v12.4"),
+          join(
+            "C:",
+            "Program Files",
+            "NVIDIA GPU Computing Toolkit",
+            "CUDA",
+            "v12.4",
+          ),
           process.env.CUDA_PATH,
-          process.env.CUDA_HOME
+          process.env.CUDA_HOME,
         ]
-      : [])
+      : []),
   ].filter(Boolean);
-  return candidates.find((candidate) => existsSync(join(candidate, "bin", "nvcc.exe"))) || null;
+  return (
+    candidates.find((candidate) =>
+      existsSync(join(candidate, "bin", "nvcc.exe")),
+    ) || null
+  );
 }
 
 function patchKoharuFluxSources() {
   const metadata = readCargoMetadata();
   const koharuMl = metadata.packages.find((pkg) => pkg.name === "koharu-ml");
   if (!koharuMl?.manifest_path) {
-    console.warn("Could not find koharu-ml in cargo metadata; skipping ZLUDA Flux source patch.");
+    console.warn(
+      "Could not find koharu-ml in cargo metadata; skipping ZLUDA Flux source patch.",
+    );
     return;
   }
 
@@ -138,31 +222,42 @@ function patchKoharuFluxSources() {
     [
       [
         `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`,
-        `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`
-      ]
+        `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`,
+      ],
     ],
-    "ZLUDA Flux dtype"
+    "ZLUDA Flux dtype",
   );
   patchFile(
     join(koharuMlDir, "src", "flux2_klein", "transformer.rs"),
     [
       [
         `    #[cfg(feature = "cuda")]\n    if q.device().is_cuda() {\n`,
-        `    #[cfg(feature = "cuda")]\n    if q.device().is_cuda() && !koharu_runtime::zluda_active() {\n`
-      ]
+        `    #[cfg(feature = "cuda")]\n    if q.device().is_cuda() && !koharu_runtime::zluda_active() {\n`,
+      ],
     ],
-    "ZLUDA Flux attention"
+    "ZLUDA Flux attention",
   );
 }
 
 function readCargoMetadata() {
-  const result = spawnSync("cargo", ["metadata", "--manifest-path", manifestPath, "--locked", "--format-version", "1"], {
-    cwd: root,
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-    shell: false,
-    env: process.env
-  });
+  const result = spawnSync(
+    "cargo",
+    [
+      "metadata",
+      "--manifest-path",
+      manifestPath,
+      "--locked",
+      "--format-version",
+      "1",
+    ],
+    {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+      shell: false,
+      env: process.env,
+    },
+  );
   if (result.error) {
     throw result.error;
   }
@@ -204,7 +299,11 @@ function patchFile(path, replacements, label) {
 
 function isUsableFile(path) {
   try {
-    return existsSync(path) && statSync(path).isFile() && statSync(path).size > 1024 * 1024;
+    return (
+      existsSync(path) &&
+      statSync(path).isFile() &&
+      statSync(path).size > 1024 * 1024
+    );
   } catch {
     return false;
   }
@@ -216,7 +315,10 @@ function buildRustFlags() {
     [root, "<mgt-source>"],
     [process.env.USERPROFILE || process.env.HOME, "<build-home>"],
     [process.env.CARGO_HOME, "<cargo-home>"],
-    [join(process.env.USERPROFILE || process.env.HOME || "", ".cargo"), "<cargo-home>"]
+    [
+      join(process.env.USERPROFILE || process.env.HOME || "", ".cargo"),
+      "<cargo-home>",
+    ],
   ];
   for (const [from, to] of remaps) {
     if (from && existsSync(from)) {

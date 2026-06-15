@@ -4,7 +4,7 @@ import type { ViewportSize } from "../lib/overlayLayout";
 export function useStageSize(
   imageRef: RefObject<HTMLImageElement | null>,
   fallback: ViewportSize | null,
-  revision?: string | null
+  revision?: string | null,
 ): ViewportSize | null {
   const [stageSize, setStageSize] = useState<ViewportSize | null>(null);
   const fallbackWidth = fallback?.width ?? null;
@@ -12,7 +12,10 @@ export function useStageSize(
 
   useLayoutEffect(() => {
     let frameId = 0;
-    const fallbackSize = fallbackWidth !== null && fallbackHeight !== null ? { width: fallbackWidth, height: fallbackHeight } : null;
+    const fallbackSize =
+      fallbackWidth !== null && fallbackHeight !== null
+        ? { width: fallbackWidth, height: fallbackHeight }
+        : null;
 
     const readImageSize = () => {
       const image = imageRef.current;

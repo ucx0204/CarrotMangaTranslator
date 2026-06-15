@@ -74,7 +74,10 @@ function listSnapshotDirs(repoDir) {
   return readdirSync(snapshotsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(snapshotsDir, entry.name))
-    .sort((left, right) => safeMtimeMs(right) - safeMtimeMs(left) || right.localeCompare(left));
+    .sort(
+      (left, right) =>
+        safeMtimeMs(right) - safeMtimeMs(left) || right.localeCompare(left),
+    );
 }
 
 function findPreferredMmprojFile(rootDir) {
@@ -93,5 +96,5 @@ module.exports = {
   findNamedFile,
   findPreferredMmprojFile,
   listSnapshotDirs,
-  safeMtimeMs
+  safeMtimeMs,
 };

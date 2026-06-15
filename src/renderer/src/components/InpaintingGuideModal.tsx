@@ -3,7 +3,11 @@ import inpaintingGuideImage from "../assets/images/inpainting-guide.png";
 import styles from "./InpaintingGuideModal.module.css";
 import { Button, Modal } from "./ui";
 
-export function InpaintingGuideModal({ onClose }: { onClose: (hideNextTime: boolean) => void }): React.JSX.Element {
+export function InpaintingGuideModal({
+  onClose,
+}: {
+  onClose: (hideNextTime: boolean) => void;
+}): React.JSX.Element {
   const [hideNextTime, setHideNextTime] = useState(false);
 
   return (
@@ -15,7 +19,11 @@ export function InpaintingGuideModal({ onClose }: { onClose: (hideNextTime: bool
       footer={
         <>
           <label className="guide-hide-check" style={{ marginRight: "auto" }}>
-            <input type="checkbox" checked={hideNextTime} onChange={(event) => setHideNextTime(event.target.checked)} />
+            <input
+              type="checkbox"
+              checked={hideNextTime}
+              onChange={(event) => setHideNextTime(event.target.checked)}
+            />
             <span>다시는 보지 않기</span>
           </label>
           <Button variant="primary" onClick={() => onClose(hideNextTime)}>

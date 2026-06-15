@@ -1,10 +1,17 @@
 const { app, BrowserWindow, nativeImage } = require("electron");
-const { copyFile, mkdir, readFile, readdir, writeFile } = require("node:fs/promises");
+const {
+  copyFile,
+  mkdir,
+  readFile,
+  readdir,
+  writeFile,
+} = require("node:fs/promises");
 const { existsSync } = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
-const DEFAULT_MANGA_ROOT = "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas";
+const DEFAULT_MANGA_ROOT =
+  "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas";
 const SAMPLE_COUNT = readIntEnv("MANGA_SMOKE_COUNT", 30);
 const MANGA_ROOT = process.env.MANGA_SMOKE_MANGA_ROOT || DEFAULT_MANGA_ROOT;
 const TARGET_IMAGE_PATH = process.env.MANGA_SMOKE_IMAGE_PATH || "";
@@ -18,7 +25,10 @@ const PAGE_TIMEOUT_MS = readIntEnv("MANGA_SMOKE_PAGE_TIMEOUT_MS", 120000);
 let sharedGeometry = null;
 
 async function main() {
-  app.setPath("userData", path.join(ROOT, ".tmp", "smoke-overlay", "electron-user-data"));
+  app.setPath(
+    "userData",
+    path.join(ROOT, ".tmp", "smoke-overlay", "electron-user-data"),
+  );
   app.commandLine.appendSwitch("disable-gpu");
   app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
   app.commandLine.appendSwitch("disk-cache-size", "0");
@@ -33,62 +43,83 @@ async function main() {
   await mkdir(pagesDir, { recursive: true });
 
   const { getAppPaths } = require("../out/main/appPaths.js");
-  const { normalizeAppSettings, buildBaseTranslationOptions } = require("../out/main/appSettings.js");
-  const { startOpenAIOAuthEndpoint, stopOpenAIOAuthEndpoint } = require("../out/main/openaiOauthEndpoint.js");
+  const {
+    normalizeAppSettings,
+    buildBaseTranslationOptions,
+  } = require("../out/main/appSettings.js");
+  const {
+    startOpenAIOAuthEndpoint,
+    stopOpenAIOAuthEndpoint,
+  } = require("../out/main/openaiOauthEndpoint.js");
   const {
     applyOcrCandidateGeometryLocks,
     filterRejectedOrUncertainSoundItems,
     getBboxNormalizationOptions: getPipelineBboxNormalizationOptions,
     getOcrBboxHints,
     overlayItemToBlock,
-    normalizeOverlayItemBboxes
+    normalizeOverlayItemBboxes,
   } = require("../out/main/pipeline/overlayItems.js");
   sharedGeometry = require("../out/shared/geometry.js");
   const simplePage = require("../out/app-runtime/simple-page-translate.cjs");
   const overlayTools = require("../out/app-runtime/overlay-parser.cjs");
 
   const paths = getAppPaths();
-  const settings = normalizeAppSettings(await readJsonIfExists(paths.settingsPath));
+  const settings = normalizeAppSettings(
+    await readJsonIfExists(paths.settingsPath),
+  );
   const configuredBaseOptions = buildBaseTranslationOptions({
     jobId: "smoke-overlay",
     runDir: path.join(outDir, "runs"),
     paths,
-    settings
+    settings,
   });
   const baseOptions = applySmokeOptionOverrides({
     ...configuredBaseOptions,
     ...(SMOKE_PROVIDER ? { modelProvider: SMOKE_PROVIDER } : {}),
     serverLogPath: path.join(outDir, "server.log"),
-    label: "smoke-overlay"
+    label: "smoke-overlay",
   });
 
   const samples = await selectSmokeSamples(MANGA_ROOT, SAMPLE_COUNT * 4);
-  await writeFile(path.join(outDir, "samples.json"), `${JSON.stringify(samples, null, 2)}\n`, "utf8");
-  await writeFile(path.join(outDir, "settings-summary.json"), `${JSON.stringify({
-    modelProvider: baseOptions.modelProvider,
-    gemmaVramMode: baseOptions.gemmaVramMode,
-    modelRepo: baseOptions.modelRepo,
-    modelFile: baseOptions.modelFile,
-    mmprojRepo: baseOptions.mmprojRepo,
-    mmprojFile: baseOptions.mmprojFile,
-    ctx: baseOptions.ctx,
-    batch: baseOptions.batch,
-    ubatch: baseOptions.ubatch,
-    kvOffload: baseOptions.kvOffload,
-    mmprojOffload: baseOptions.mmprojOffload,
-    fitTargetMb: baseOptions.fitTargetMb,
-    useDraft: baseOptions.useDraft,
-    imageMinTokens: baseOptions.imageMinTokens,
-    imageMaxTokens: baseOptions.imageMaxTokens,
-    codexModel: baseOptions.codexModel,
-    codexReasoningEffort: baseOptions.codexReasoningEffort,
-    reuseOcrDir: REUSE_OCR_DIR || undefined
-  }, null, 2)}\n`, "utf8");
+  await writeFile(
+    path.join(outDir, "samples.json"),
+    `${JSON.stringify(samples, null, 2)}\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(outDir, "settings-summary.json"),
+    `${JSON.stringify(
+      {
+        modelProvider: baseOptions.modelProvider,
+        gemmaVramMode: baseOptions.gemmaVramMode,
+        modelRepo: baseOptions.modelRepo,
+        modelFile: baseOptions.modelFile,
+        mmprojRepo: baseOptions.mmprojRepo,
+        mmprojFile: baseOptions.mmprojFile,
+        ctx: baseOptions.ctx,
+        batch: baseOptions.batch,
+        ubatch: baseOptions.ubatch,
+        kvOffload: baseOptions.kvOffload,
+        mmprojOffload: baseOptions.mmprojOffload,
+        fitTargetMb: baseOptions.fitTargetMb,
+        useDraft: baseOptions.useDraft,
+        imageMinTokens: baseOptions.imageMinTokens,
+        imageMaxTokens: baseOptions.imageMaxTokens,
+        codexModel: baseOptions.codexModel,
+        codexReasoningEffort: baseOptions.codexReasoningEffort,
+        reuseOcrDir: REUSE_OCR_DIR || undefined,
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
 
   const smokeStartedAt = Date.now();
-  const server = baseOptions.modelProvider === "openai-codex"
-    ? await startOpenAIOAuthEndpoint(baseOptions)
-    : await simplePage.startServer(baseOptions);
+  const server =
+    baseOptions.modelProvider === "openai-codex"
+      ? await startOpenAIOAuthEndpoint(baseOptions)
+      : await simplePage.startServer(baseOptions);
   const rendered = [];
   const skipped = [];
   try {
@@ -97,7 +128,10 @@ async function main() {
         break;
       }
       const index = rendered.length;
-      const pageOutDir = path.join(pagesDir, String(index + 1).padStart(2, "0"));
+      const pageOutDir = path.join(
+        pagesDir,
+        String(index + 1).padStart(2, "0"),
+      );
       await mkdir(pageOutDir, { recursive: true });
       try {
         const page = createPageRecord(sample.filePath, index);
@@ -109,17 +143,26 @@ async function main() {
           imageHeight: page.height,
           outputDir: path.join(pageOutDir, "analysis"),
           label: `smoke-${index + 1}`,
-          ...(REUSE_OCR_DIR ? { ocrBboxHints: await readReusableOcrHints(REUSE_OCR_DIR, index + 1) } : {}),
-          abortSignal: abortController.signal
+          ...(REUSE_OCR_DIR
+            ? {
+                ocrBboxHints: await readReusableOcrHints(
+                  REUSE_OCR_DIR,
+                  index + 1,
+                ),
+              }
+            : {}),
+          abortSignal: abortController.signal,
         };
 
-        console.log(`[smoke] ${index + 1}/${SAMPLE_COUNT} candidate=${candidateIndex + 1}/${samples.length} ${sample.filePath}`);
+        console.log(
+          `[smoke] ${index + 1}/${SAMPLE_COUNT} candidate=${candidateIndex + 1}/${samples.length} ${sample.filePath}`,
+        );
         const pageStartedAt = Date.now();
         const result = await withTimeout(
           simplePage.requestTranslation(server, pageOptions),
           PAGE_TIMEOUT_MS,
           `page timed out after ${PAGE_TIMEOUT_MS}ms`,
-          abortController
+          abortController,
         );
         await simplePage.saveArtifacts(pageOptions, result);
         const requestOcrHints = Array.isArray(result.requestBody?.ocrBboxHints)
@@ -128,7 +171,11 @@ async function main() {
             ? pageOptions.ocrBboxHints
             : [];
         if (requestOcrHints.length > 0) {
-          await writeFile(path.join(pageOutDir, "ocr-bbox-hints.json"), `${JSON.stringify(requestOcrHints, null, 2)}\n`, "utf8");
+          await writeFile(
+            path.join(pageOutDir, "ocr-bbox-hints.json"),
+            `${JSON.stringify(requestOcrHints, null, 2)}\n`,
+            "utf8",
+          );
         }
         const parsed = overlayTools.parseJsonLenient(result.outputText);
         const items = overlayTools.normalizeItems(parsed);
@@ -136,27 +183,48 @@ async function main() {
           throw new Error("No overlay items parsed.");
         }
         let normalizedItems = applyOcrCandidateGeometryLocks(
-          normalizeOverlayItemBboxes(items, page, getPipelineBboxNormalizationOptions(result.requestBody)),
+          normalizeOverlayItemBboxes(
+            items,
+            page,
+            getPipelineBboxNormalizationOptions(result.requestBody),
+          ),
           page,
-          getOcrBboxHints(result.requestBody)
+          getOcrBboxHints(result.requestBody),
         );
-        const soundFiltered = filterRejectedOrUncertainSoundItems(normalizedItems);
+        const soundFiltered =
+          filterRejectedOrUncertainSoundItems(normalizedItems);
         normalizedItems = soundFiltered.items;
-        const blocks = normalizedItems.map((item, itemIndex) => overlayItemToBlock(item, page, itemIndex));
+        const blocks = normalizedItems.map((item, itemIndex) =>
+          overlayItemToBlock(item, page, itemIndex),
+        );
         const typeCounts = countBlockTypes(blocks);
         const analyzedPage = {
           ...page,
           blocks,
           analysisStatus: "completed",
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         };
 
         const pageJsonPath = path.join(pageOutDir, "page.json");
         const geometryPath = path.join(pageOutDir, "geometry.png");
         const overlayPath = path.join(pageOutDir, "overlay.png");
-        await copyFile(sample.filePath, path.join(pageOutDir, `original${path.extname(sample.filePath).toLowerCase()}`));
-        await writeFile(pageJsonPath, `${JSON.stringify({ sample, items: normalizedItems, page: analyzedPage }, null, 2)}\n`, "utf8");
-        await renderGeometryPng(analyzedPage, analyzedPage.blocks, geometryPath);
+        await copyFile(
+          sample.filePath,
+          path.join(
+            pageOutDir,
+            `original${path.extname(sample.filePath).toLowerCase()}`,
+          ),
+        );
+        await writeFile(
+          pageJsonPath,
+          `${JSON.stringify({ sample, items: normalizedItems, page: analyzedPage }, null, 2)}\n`,
+          "utf8",
+        );
+        await renderGeometryPng(
+          analyzedPage,
+          analyzedPage.blocks,
+          geometryPath,
+        );
         await renderOverlayPng(analyzedPage, overlayPath);
         rendered.push({
           index: index + 1,
@@ -165,7 +233,7 @@ async function main() {
           overlayPath,
           blockCount: blocks.length,
           typeCounts,
-          elapsedMs: Date.now() - pageStartedAt
+          elapsedMs: Date.now() - pageStartedAt,
         });
       } catch (error) {
         const failure = {
@@ -174,10 +242,14 @@ async function main() {
           status: error?.status,
           statusText: error?.statusText,
           rawTextPreview: error?.rawTextPreview,
-          requestSummary: error?.requestSummary
+          requestSummary: error?.requestSummary,
         };
         skipped.push(failure);
-        await writeFile(path.join(pageOutDir, "skip.json"), `${JSON.stringify(failure, null, 2)}\n`, "utf8");
+        await writeFile(
+          path.join(pageOutDir, "skip.json"),
+          `${JSON.stringify(failure, null, 2)}\n`,
+          "utf8",
+        );
         console.warn(`[smoke] skip ${sample.filePath}: ${failure.message}`);
       }
     }
@@ -189,15 +261,31 @@ async function main() {
     }
   }
 
-  await writeFile(path.join(outDir, "skipped.json"), `${JSON.stringify(skipped, null, 2)}\n`, "utf8");
+  await writeFile(
+    path.join(outDir, "skipped.json"),
+    `${JSON.stringify(skipped, null, 2)}\n`,
+    "utf8",
+  );
   const shouldWriteSheets = SAMPLE_COUNT > 1 || rendered.length > 1;
-  const geometrySheetPath = shouldWriteSheets ? path.join(outDir, "geometry-sheet.png") : "";
-  const overlaySheetPath = shouldWriteSheets ? path.join(outDir, "overlay-sheet.png") : "";
+  const geometrySheetPath = shouldWriteSheets
+    ? path.join(outDir, "geometry-sheet.png")
+    : "";
+  const overlaySheetPath = shouldWriteSheets
+    ? path.join(outDir, "overlay-sheet.png")
+    : "";
   if (shouldWriteSheets) {
     await renderContactSheet(rendered, geometrySheetPath, "geometryPath");
     await renderContactSheet(rendered, overlaySheetPath, "overlayPath");
   }
-  await writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath, baseOptions, Date.now() - smokeStartedAt);
+  await writeReport(
+    outDir,
+    rendered,
+    skipped,
+    geometrySheetPath,
+    overlaySheetPath,
+    baseOptions,
+    Date.now() - smokeStartedAt,
+  );
   console.log(`[smoke] wrote ${outDir}`);
   app.quit();
 }
@@ -212,7 +300,7 @@ function countBlockTypes(blocks) {
       }
       return counts;
     },
-    { pattern: 0, other: 0 }
+    { pattern: 0, other: 0 },
   );
 }
 
@@ -228,9 +316,15 @@ function applySmokeOptionOverrides(options) {
   setNumberOption(next, "ubatch", "MANGA_TRANSLATOR_UBATCH");
   setNumberOption(next, "imageMinTokens", "MANGA_TRANSLATOR_IMAGE_MIN_TOKENS");
   setNumberOption(next, "imageMaxTokens", "MANGA_TRANSLATOR_IMAGE_MAX_TOKENS");
-  setNumberOption(next, "ctxCheckpoints", "MANGA_TRANSLATOR_GEMMA_CTX_CHECKPOINTS");
+  setNumberOption(
+    next,
+    "ctxCheckpoints",
+    "MANGA_TRANSLATOR_GEMMA_CTX_CHECKPOINTS",
+  );
   setBooleanOption(next, "mmprojOffload", "MANGA_TRANSLATOR_MMPROJ_OFFLOAD");
-  const vramMode = String(process.env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE || "").trim().toLowerCase();
+  const vramMode = String(process.env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE || "")
+    .trim()
+    .toLowerCase();
   if (vramMode === "full" || vramMode === "economy") {
     next.gemmaVramMode = vramMode;
   }
@@ -252,7 +346,9 @@ function setNumberOption(target, key, envName) {
 }
 
 function setBooleanOption(target, key, envName) {
-  const value = String(process.env[envName] ?? "").trim().toLowerCase();
+  const value = String(process.env[envName] ?? "")
+    .trim()
+    .toLowerCase();
   if (["1", "true", "yes", "on"].includes(value)) {
     target[key] = true;
   } else if (["0", "false", "no", "off"].includes(value)) {
@@ -265,7 +361,7 @@ async function readReusableOcrHints(rootDir, pageIndex) {
   const candidates = [
     path.join(rootDir, "pages", padded, "ocr-bbox-hints.json"),
     path.join(rootDir, "pages", padded, "ocr", "ocr-bbox-hints.json"),
-    path.join(rootDir, "pages", padded, "ocr", "ocr-hints.json")
+    path.join(rootDir, "pages", padded, "ocr", "ocr-hints.json"),
   ];
   for (const candidate of candidates) {
     if (!existsSync(candidate)) {
@@ -273,12 +369,18 @@ async function readReusableOcrHints(rootDir, pageIndex) {
     }
     try {
       const parsed = JSON.parse(await readFile(candidate, "utf8"));
-      const hints = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.hints) ? parsed.hints : [];
+      const hints = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.hints)
+          ? parsed.hints
+          : [];
       if (hints.length > 0) {
         return hints;
       }
     } catch (error) {
-      console.warn(`[smoke] failed to read reusable OCR hints ${candidate}: ${error instanceof Error ? error.message : String(error)}`);
+      console.warn(
+        `[smoke] failed to read reusable OCR hints ${candidate}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
   return undefined;
@@ -301,33 +403,46 @@ function createPageRecord(imagePath, index) {
     blocks: [],
     analysisStatus: "idle",
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }
 
 async function selectSmokeSamples(root, count) {
-  const targetListText = TARGET_IMAGE_LIST || (TARGET_IMAGE_LIST_FILE ? await readTextIfExists(TARGET_IMAGE_LIST_FILE) : "");
+  const targetListText =
+    TARGET_IMAGE_LIST ||
+    (TARGET_IMAGE_LIST_FILE
+      ? await readTextIfExists(TARGET_IMAGE_LIST_FILE)
+      : "");
   const targetList = parseTargetImageList(targetListText);
   if (targetList.length > 0) {
     return targetList.map((filePath) => ({
       filePath,
       groupKey: resolveGroupKey(root, filePath),
-      hash: stableHash(filePath)
+      hash: stableHash(filePath),
     }));
   }
 
   if (TARGET_IMAGE_PATH) {
-    return [{
-      filePath: TARGET_IMAGE_PATH,
-      groupKey: resolveGroupKey(root, TARGET_IMAGE_PATH),
-      hash: stableHash(TARGET_IMAGE_PATH)
-    }];
+    return [
+      {
+        filePath: TARGET_IMAGE_PATH,
+        groupKey: resolveGroupKey(root, TARGET_IMAGE_PATH),
+        hash: stableHash(TARGET_IMAGE_PATH),
+      },
+    ];
   }
 
   const files = await collectImageFiles(root);
-  const sorted = rotateItems(files
-    .map((filePath) => ({ filePath, groupKey: resolveGroupKey(root, filePath), hash: stableHash(filePath) }))
-    .sort((a, b) => a.hash - b.hash || a.filePath.localeCompare(b.filePath)), SAMPLE_OFFSET);
+  const sorted = rotateItems(
+    files
+      .map((filePath) => ({
+        filePath,
+        groupKey: resolveGroupKey(root, filePath),
+        hash: stableHash(filePath),
+      }))
+      .sort((a, b) => a.hash - b.hash || a.filePath.localeCompare(b.filePath)),
+    SAMPLE_OFFSET,
+  );
   const selected = [];
   const usedGroups = new Set();
 
@@ -355,7 +470,9 @@ async function selectSmokeSamples(root, count) {
 }
 
 function parseTargetImageList(value) {
-  const text = String(value || "").replace(/^\uFEFF/, "").trim();
+  const text = String(value || "")
+    .replace(/^\uFEFF/, "")
+    .trim();
   if (!text) {
     return [];
   }
@@ -364,7 +481,9 @@ function parseTargetImageList(value) {
     try {
       const parsed = JSON.parse(text);
       if (Array.isArray(parsed)) {
-        return parsed.map((entry) => String(entry || "").trim()).filter(Boolean);
+        return parsed
+          .map((entry) => String(entry || "").trim())
+          .filter(Boolean);
       }
     } catch {
       // Fall through to the simple list parser.
@@ -389,8 +508,12 @@ function rotateItems(items, offset) {
   if (items.length === 0) {
     return items;
   }
-  const normalizedOffset = ((offset % items.length) + items.length) % items.length;
-  return [...items.slice(normalizedOffset), ...items.slice(0, normalizedOffset)];
+  const normalizedOffset =
+    ((offset % items.length) + items.length) % items.length;
+  return [
+    ...items.slice(normalizedOffset),
+    ...items.slice(0, normalizedOffset),
+  ];
 }
 
 async function collectImageFiles(root) {
@@ -409,7 +532,11 @@ async function collectImageFiles(root) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         stack.push(fullPath);
-      } else if (entry.isFile() && extensions.has(path.extname(entry.name).toLowerCase()) && isOriginalMangaPageCandidate(root, fullPath)) {
+      } else if (
+        entry.isFile() &&
+        extensions.has(path.extname(entry.name).toLowerCase()) &&
+        isOriginalMangaPageCandidate(root, fullPath)
+      ) {
         result.push(fullPath);
       }
     }
@@ -418,7 +545,10 @@ async function collectImageFiles(root) {
 }
 
 function isOriginalMangaPageCandidate(root, filePath) {
-  const relativeParts = path.relative(root, filePath).split(path.sep).map((part) => part.toLowerCase());
+  const relativeParts = path
+    .relative(root, filePath)
+    .split(path.sep)
+    .map((part) => part.toLowerCase());
   const fileName = path.basename(filePath).toLowerCase();
   const blockedSegments = new Set([
     "mask",
@@ -432,12 +562,14 @@ function isOriginalMangaPageCandidate(root, filePath) {
     "output",
     "outputs",
     "result",
-    "results"
+    "results",
   ]);
   if (relativeParts.some((part) => blockedSegments.has(part))) {
     return false;
   }
-  return !/(^|[_\-. ])translated([_\-. ]|$)|(^|[_\-. ])mask([_\-. ]|$)|(^|[_\-. ])inpaint/i.test(fileName);
+  return !/(^|[_\-. ])translated([_\-. ]|$)|(^|[_\-. ])mask([_\-. ]|$)|(^|[_\-. ])inpaint/i.test(
+    fileName,
+  );
 }
 
 function resolveGroupKey(root, filePath) {
@@ -455,7 +587,10 @@ function stableHash(value) {
 }
 
 async function renderOverlayPng(page, outputPath) {
-  const scale = Math.min(1, MAX_CAPTURE_LONG_SIDE / Math.max(page.width, page.height));
+  const scale = Math.min(
+    1,
+    MAX_CAPTURE_LONG_SIDE / Math.max(page.width, page.height),
+  );
   const width = Math.max(1, Math.round(page.width * scale));
   const height = Math.max(1, Math.round(page.height * scale));
   const imageDataUrl = await readImageDataUrl(page.imagePath);
@@ -464,11 +599,13 @@ async function renderOverlayPng(page, outputPath) {
     height,
     show: false,
     webPreferences: {
-      offscreen: true
-    }
+      offscreen: true,
+    },
   });
   try {
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(buildOverlayHtml(page, scale, imageDataUrl))}`);
+    await win.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(buildOverlayHtml(page, scale, imageDataUrl))}`,
+    );
     await waitForReady(win);
     const image = await win.webContents.capturePage();
     await writeFile(outputPath, image.toPNG());
@@ -478,7 +615,10 @@ async function renderOverlayPng(page, outputPath) {
 }
 
 async function renderGeometryPng(page, items, outputPath) {
-  const scale = Math.min(1, MAX_CAPTURE_LONG_SIDE / Math.max(page.width, page.height));
+  const scale = Math.min(
+    1,
+    MAX_CAPTURE_LONG_SIDE / Math.max(page.width, page.height),
+  );
   const width = Math.max(1, Math.round(page.width * scale));
   const height = Math.max(1, Math.round(page.height * scale));
   const imageDataUrl = await readImageDataUrl(page.imagePath);
@@ -487,11 +627,13 @@ async function renderGeometryPng(page, items, outputPath) {
     height,
     show: false,
     webPreferences: {
-      offscreen: true
-    }
+      offscreen: true,
+    },
   });
   try {
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(buildGeometryHtml(page, items, scale, imageDataUrl))}`);
+    await win.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(buildGeometryHtml(page, items, scale, imageDataUrl))}`,
+    );
     await waitForReady(win);
     const image = await win.webContents.capturePage();
     await writeFile(outputPath, image.toPNG());
@@ -553,7 +695,11 @@ function buildOverlayHtml(page, scale, imageDataUrl) {
   const blocks = page.blocks.map((block) => {
     const text = block.translatedText || block.sourceText || "...";
     const box = sharedGeometry?.resolveEffectiveRenderBbox
-      ? sharedGeometry.resolveEffectiveRenderBbox(block, { width: page.width, height: page.height }, text)
+      ? sharedGeometry.resolveEffectiveRenderBbox(
+          block,
+          { width: page.width, height: page.height },
+          text,
+        )
       : block.renderBbox || block.bbox;
     return {
       ...block,
@@ -561,10 +707,10 @@ function buildOverlayHtml(page, scale, imageDataUrl) {
         left: (box.x / 1000) * page.width * scale,
         top: (box.y / 1000) * page.height * scale,
         width: (box.w / 1000) * page.width * scale,
-        height: (box.h / 1000) * page.height * scale
+        height: (box.h / 1000) * page.height * scale,
       },
       fontSize: Math.max(10, Math.round(block.fontSizePx * scale)),
-      text
+      text,
     };
   });
 
@@ -629,16 +775,20 @@ window.addEventListener("load", () => {
 function renderBlockHtml(block) {
   const bg = hexToRgba(block.backgroundColor, block.opacity);
   const color = block.textColor;
-  const transform = block.rotationDeg ? `transform: rotate(${block.rotationDeg}deg); transform-origin: center center;` : "";
-  const writing = block.renderDirection === "vertical"
-    ? "writing-mode: vertical-rl; text-orientation: upright;"
-    : "writing-mode: horizontal-tb;";
+  const transform = block.rotationDeg
+    ? `transform: rotate(${block.rotationDeg}deg); transform-origin: center center;`
+    : "";
+  const writing =
+    block.renderDirection === "vertical"
+      ? "writing-mode: vertical-rl; text-orientation: upright;"
+      : "writing-mode: horizontal-tb;";
   const shadow = `text-shadow: ${buildTextOutlineShadow(block.fontSize)};`;
   return `<div class="block" data-font-size="${block.fontSize}" data-line-height="${block.lineHeight}" style="left:${block.rect.left}px;top:${block.rect.top}px;width:${block.rect.width}px;height:${block.rect.height}px;background:${bg};color:${color};${transform}"><span class="text" style="${writing}${shadow}">${escapeHtml(block.text)}</span></div>`;
 }
 
 function buildTextOutlineShadow(fontSize) {
-  const radius = Math.round(Math.min(4, Math.max(0.35, fontSize * 0.055)) * 10) / 10;
+  const radius =
+    Math.round(Math.min(4, Math.max(0.35, fontSize * 0.055)) * 10) / 10;
   const halfRadius = Math.round(radius * 0.55 * 10) / 10;
   const color = "rgba(255,255,255,0.95)";
   return [
@@ -653,8 +803,10 @@ function buildTextOutlineShadow(fontSize) {
     [halfRadius, -halfRadius],
     [halfRadius, halfRadius],
     [-halfRadius, halfRadius],
-    [-halfRadius, -halfRadius]
-  ].map(([x, y]) => `${x}px ${y}px 0 ${color}`).join(", ");
+    [-halfRadius, -halfRadius],
+  ]
+    .map(([x, y]) => `${x}px ${y}px 0 ${color}`)
+    .join(", ");
 }
 
 async function renderContactSheet(items, outputPath, imagePathKey) {
@@ -664,13 +816,25 @@ async function renderContactSheet(items, outputPath, imagePathKey) {
   const width = cols * thumbWidth;
   const height = rows * 460;
   const outputDir = path.dirname(outputPath);
-  const htmlPath = path.join(outputDir, `${path.basename(outputPath, path.extname(outputPath))}.html`);
+  const htmlPath = path.join(
+    outputDir,
+    `${path.basename(outputPath, path.extname(outputPath))}.html`,
+  );
   const sheetItems = items.map((item) => ({
     ...item,
-    imageSrc: path.relative(outputDir, item[imagePathKey]).replace(/\\/g, "/")
+    imageSrc: path.relative(outputDir, item[imagePathKey]).replace(/\\/g, "/"),
   }));
-  await writeFile(htmlPath, buildContactSheetHtml(sheetItems, thumbWidth, cols), "utf8");
-  const win = new BrowserWindow({ width, height, show: false, webPreferences: { offscreen: true } });
+  await writeFile(
+    htmlPath,
+    buildContactSheetHtml(sheetItems, thumbWidth, cols),
+    "utf8",
+  );
+  const win = new BrowserWindow({
+    width,
+    height,
+    show: false,
+    webPreferences: { offscreen: true },
+  });
   try {
     await win.loadFile(htmlPath);
     await waitForReady(win);
@@ -693,14 +857,22 @@ ${items.map((item) => `<div class="cell"><div class="label">${item.index}. ${esc
 </div><script>window.addEventListener("load", () => setTimeout(() => document.body.dataset.ready = "1", 200));</script></body></html>`;
 }
 
-async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlaySheetPath, baseOptions, elapsedMs) {
+async function writeReport(
+  outDir,
+  rendered,
+  skipped,
+  geometrySheetPath,
+  overlaySheetPath,
+  baseOptions,
+  elapsedMs,
+) {
   const totalTypeCounts = rendered.reduce(
     (counts, item) => {
       counts.pattern += item.typeCounts?.pattern ?? 0;
       counts.other += item.typeCounts?.other ?? 0;
       return counts;
     },
-    { pattern: 0, other: 0 }
+    { pattern: 0, other: 0 },
   );
   const lines = [
     "# Overlay Smoke Test",
@@ -733,10 +905,14 @@ async function writeReport(outDir, rendered, skipped, geometrySheetPath, overlay
     ...rendered.flatMap((item) => [
       `- ${item.index}. blocks=${item.blockCount} pattern=${item.typeCounts?.pattern ?? 0} elapsed=${formatDuration(item.elapsedMs)} ${item.sample.filePath}`,
       `  - geometry: ${item.geometryPath}`,
-      `  - overlay: ${item.overlayPath}`
-    ])
+      `  - overlay: ${item.overlayPath}`,
+    ]),
   ];
-  await writeFile(path.join(outDir, "report.md"), `${lines.join("\n")}\n`, "utf8");
+  await writeFile(
+    path.join(outDir, "report.md"),
+    `${lines.join("\n")}\n`,
+    "utf8",
+  );
 }
 
 function formatDuration(ms) {
@@ -784,7 +960,7 @@ function withTimeout(promise, timeoutMs, message, abortController) {
         abortController?.abort();
         reject(new Error(message));
       }, timeoutMs);
-    })
+    }),
   ]);
 }
 
@@ -833,7 +1009,9 @@ function readIntEnv(name, fallback) {
 }
 
 function normalizeSmokeProvider(value) {
-  const text = String(value ?? "").trim().toLowerCase();
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (text === "gemma" || text === "openai-codex") {
     return text;
   }

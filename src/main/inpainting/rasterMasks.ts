@@ -8,23 +8,35 @@ type Rgb = {
   b: number;
 };
 
-export function sanitizeMaskStrokes(strokes: InpaintingMaskStroke[], width: number, height: number): InpaintingMaskStroke[] {
+export function sanitizeMaskStrokes(
+  strokes: InpaintingMaskStroke[],
+  width: number,
+  height: number,
+): InpaintingMaskStroke[] {
   return strokes
     .map((stroke) => ({
       radiusPx: clamp(Math.round(stroke.radiusPx), 2, 180),
-      points: sanitizePoints(stroke.points, width, height)
+      points: sanitizePoints(stroke.points, width, height),
     }))
     .filter((stroke) => stroke.points.length > 0)
     .slice(0, 200);
 }
 
-export function buildMaskFromStrokes(strokes: InpaintingMaskStroke[], width: number, height: number): Uint8Array {
+export function buildMaskFromStrokes(
+  strokes: InpaintingMaskStroke[],
+  width: number,
+  height: number,
+): Uint8Array {
   const mask = new Uint8Array(width * height);
   for (const stroke of strokes) {
     for (let index = 0; index < stroke.points.length; index += 1) {
       const previous = stroke.points[index - 1] ?? stroke.points[index];
       const current = stroke.points[index];
-      for (const point of interpolatePoints(previous, current, Math.max(1, stroke.radiusPx * 0.35))) {
+      for (const point of interpolatePoints(
+        previous,
+        current,
+        Math.max(1, stroke.radiusPx * 0.35),
+      )) {
         drawMaskCircle(mask, width, height, point, stroke.radiusPx);
       }
     }
@@ -32,7 +44,12 @@ export function buildMaskFromStrokes(strokes: InpaintingMaskStroke[], width: num
   return mask;
 }
 
-export function maskComponents(mask: Uint8Array, width: number, height: number, minArea: number): Array<{ rect: PixelRect; area: number }> {
+export function maskComponents(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  minArea: number,
+): Array<{ rect: PixelRect; area: number }> {
   const visited = new Uint8Array(mask.length);
   const queue: number[] = [];
   const components: Array<{ rect: PixelRect; area: number }> = [];
@@ -71,8 +88,8 @@ export function maskComponents(mask: Uint8Array, width: number, height: number, 
           x: x1,
           y: y1,
           w: Math.max(1, x2 - x1),
-          h: Math.max(1, y2 - y1)
-        }
+          h: Math.max(1, y2 - y1),
+        },
       });
     }
   }
@@ -84,7 +101,7 @@ export function buildPatternTextMask(
   width: number,
   _height: number,
   rect: PixelRect,
-  dilationRadius: number
+  dilationRadius: number,
 ): { mask: Uint8Array; count: number } {
   const pixelCount = rect.w * rect.h;
   const luminances = new Float32Array(pixelCount);
@@ -121,7 +138,7 @@ export function buildPatternTextMask(
   const medianColor = {
     r: median(redSamples),
     g: median(greenSamples),
-    b: median(blueSamples)
+    b: median(blueSamples),
   };
   const darkCutoff = Math.min(p50 - 18, p25 + 10);
   const brightCutoff = Math.max(p50 + 24, p75 - 6);
@@ -138,7 +155,10 @@ export function buildPatternTextMask(
       const colorOutlier = colorDistance(color, medianColor) >= 34;
       const darkStroke = lum <= darkCutoff;
       const brightStroke = lum >= brightCutoff && localEdge >= edgeThreshold;
-      if ((darkStroke || brightStroke) && (localEdge >= edgeThreshold || colorOutlier)) {
+      if (
+        (darkStroke || brightStroke) &&
+        (localEdge >= edgeThreshold || colorOutlier)
+      ) {
         mask[index] = 1;
         initialCount += 1;
       }
@@ -150,7 +170,12 @@ export function buildPatternTextMask(
     return { mask: new Uint8Array(pixelCount), count: 0 };
   }
 
-  const connected = removeTinyMaskComponents(mask, rect.w, rect.h, Math.max(4, Math.round(pixelCount * 0.00035)));
+  const connected = removeTinyMaskComponents(
+    mask,
+    rect.w,
+    rect.h,
+    Math.max(4, Math.round(pixelCount * 0.00035)),
+  );
   const dilated = dilateMask(connected.mask, rect.w, rect.h, dilationRadius);
   let count = 0;
   for (const value of dilated) {
@@ -166,12 +191,17 @@ export function buildPatternTextMask(
   return { mask: dilated, count };
 }
 
-export function readRgb(bitmap: Buffer, width: number, x: number, y: number): Rgb {
+export function readRgb(
+  bitmap: Buffer,
+  width: number,
+  x: number,
+  y: number,
+): Rgb {
   const offset = (y * width + x) * 4;
   return {
     b: bitmap[offset] ?? 0,
     g: bitmap[offset + 1] ?? 0,
-    r: bitmap[offset + 2] ?? 0
+    r: bitmap[offset + 2] ?? 0,
   };
 }
 
@@ -183,7 +213,7 @@ export function applyRetouchCircle(
   point: InpaintingPoint,
   radius: number,
   mode: "paint" | "restore",
-  paintColor: Rgb | null
+  paintColor: Rgb | null,
 ): void {
   const cx = clamp(Math.round(point.x), 0, Math.max(0, width - 1));
   const cy = clamp(Math.round(point.y), 0, Math.max(0, height - 1));
@@ -207,17 +237,25 @@ export function applyRetouchCircle(
   }
 }
 
-export function sanitizePoints(points: InpaintingPoint[], width: number, height: number): InpaintingPoint[] {
+export function sanitizePoints(
+  points: InpaintingPoint[],
+  width: number,
+  height: number,
+): InpaintingPoint[] {
   return points
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
     .map((point) => ({
       x: clamp(Math.round(point.x), 0, Math.max(0, width - 1)),
-      y: clamp(Math.round(point.y), 0, Math.max(0, height - 1))
+      y: clamp(Math.round(point.y), 0, Math.max(0, height - 1)),
     }))
     .slice(0, 1200);
 }
 
-export function interpolatePoints(from: InpaintingPoint, to: InpaintingPoint, step: number): InpaintingPoint[] {
+export function interpolatePoints(
+  from: InpaintingPoint,
+  to: InpaintingPoint,
+  step: number,
+): InpaintingPoint[] {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
@@ -227,7 +265,7 @@ export function interpolatePoints(from: InpaintingPoint, to: InpaintingPoint, st
     const ratio = index / count;
     points.push({
       x: from.x + dx * ratio,
-      y: from.y + dy * ratio
+      y: from.y + dy * ratio,
     });
   }
   return points;
@@ -241,7 +279,7 @@ export function parseHexColor(value?: string): Rgb {
   return {
     r: Number.parseInt(match[1], 16),
     g: Number.parseInt(match[2], 16),
-    b: Number.parseInt(match[3], 16)
+    b: Number.parseInt(match[3], 16),
   };
 }
 
@@ -249,7 +287,13 @@ export function rgbToHex(color: Rgb): string {
   return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`;
 }
 
-function drawMaskCircle(mask: Uint8Array, width: number, height: number, point: InpaintingPoint, radius: number): void {
+function drawMaskCircle(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  point: InpaintingPoint,
+  radius: number,
+): void {
   const cx = clamp(Math.round(point.x), 0, Math.max(0, width - 1));
   const cy = clamp(Math.round(point.y), 0, Math.max(0, height - 1));
   const x1 = clamp(cx - radius, 0, Math.max(0, width - 1));
@@ -267,7 +311,12 @@ function drawMaskCircle(mask: Uint8Array, width: number, height: number, point: 
   }
 }
 
-function dilateMask(mask: Uint8Array, width: number, height: number, radius: number): Uint8Array {
+function dilateMask(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+): Uint8Array {
   if (radius <= 0) {
     return mask;
   }
@@ -294,7 +343,12 @@ function dilateMask(mask: Uint8Array, width: number, height: number, radius: num
   return output;
 }
 
-function removeTinyMaskComponents(mask: Uint8Array, width: number, height: number, minArea: number): { mask: Uint8Array; count: number } {
+function removeTinyMaskComponents(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  minArea: number,
+): { mask: Uint8Array; count: number } {
   const output = new Uint8Array(mask.length);
   const visited = new Uint8Array(mask.length);
   const queue: number[] = [];
@@ -334,7 +388,12 @@ function removeTinyMaskComponents(mask: Uint8Array, width: number, height: numbe
   return { mask: output, count: keptCount };
 }
 
-function maskNeighbors(x: number, y: number, width: number, height: number): number[] {
+function maskNeighbors(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): number[] {
   const neighbors: number[] = [];
   for (let dy = -1; dy <= 1; dy += 1) {
     for (let dx = -1; dx <= 1; dx += 1) {
@@ -351,7 +410,13 @@ function maskNeighbors(x: number, y: number, width: number, height: number): num
   return neighbors;
 }
 
-function localLuminanceEdge(luminances: Float32Array, width: number, height: number, x: number, y: number): number {
+function localLuminanceEdge(
+  luminances: Float32Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): number {
   const center = luminances[y * width + x] ?? 0;
   let maxDiff = 0;
   for (let dy = -1; dy <= 1; dy += 1) {
@@ -364,7 +429,10 @@ function localLuminanceEdge(luminances: Float32Array, width: number, height: num
       if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
         continue;
       }
-      maxDiff = Math.max(maxDiff, Math.abs(center - (luminances[ny * width + nx] ?? center)));
+      maxDiff = Math.max(
+        maxDiff,
+        Math.abs(center - (luminances[ny * width + nx] ?? center)),
+      );
     }
   }
   return maxDiff;
@@ -374,7 +442,13 @@ function toHex(value: number): string {
   return clamp(Math.round(value), 0, 255).toString(16).padStart(2, "0");
 }
 
-function writeRgb(bitmap: Buffer, width: number, x: number, y: number, color: Rgb): void {
+function writeRgb(
+  bitmap: Buffer,
+  width: number,
+  x: number,
+  y: number,
+  color: Rgb,
+): void {
   const offset = (y * width + x) * 4;
   bitmap[offset] = color.b;
   bitmap[offset + 1] = color.g;
@@ -382,7 +456,13 @@ function writeRgb(bitmap: Buffer, width: number, x: number, y: number, color: Rg
   bitmap[offset + 3] = 255;
 }
 
-function copyPixel(source: Buffer, target: Buffer, width: number, x: number, y: number): void {
+function copyPixel(
+  source: Buffer,
+  target: Buffer,
+  width: number,
+  x: number,
+  y: number,
+): void {
   const offset = (y * width + x) * 4;
   target[offset] = source[offset] ?? 0;
   target[offset + 1] = source[offset + 1] ?? 0;
@@ -399,7 +479,11 @@ function percentile(sortedValues: number[], ratio: number): number {
   if (sortedValues.length === 0) {
     return 0;
   }
-  const index = clamp(Math.round((sortedValues.length - 1) * ratio), 0, sortedValues.length - 1);
+  const index = clamp(
+    Math.round((sortedValues.length - 1) * ratio),
+    0,
+    sortedValues.length - 1,
+  );
   return sortedValues[index] ?? 0;
 }
 

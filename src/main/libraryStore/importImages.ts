@@ -6,13 +6,21 @@ import { decodeImageThroughRuntime } from "../simplePageRuntime";
 import { isSupportedImagePath, sortNaturally } from "./storage";
 import { MAX_IMPORT_IMAGE_BYTES, MAX_IMPORT_IMAGE_PIXELS } from "./zipSafety";
 
-export async function filterImportImageFiles(filePaths: string[]): Promise<string[]> {
-  const normalized = sortNaturally(filePaths.filter((filePath) => isSupportedImagePath(filePath)));
-  await Promise.all(normalized.map((filePath) => assertImportImageFileBudget(filePath)));
+export async function filterImportImageFiles(
+  filePaths: string[],
+): Promise<string[]> {
+  const normalized = sortNaturally(
+    filePaths.filter((filePath) => isSupportedImagePath(filePath)),
+  );
+  await Promise.all(
+    normalized.map((filePath) => assertImportImageFileBudget(filePath)),
+  );
   return normalized;
 }
 
-export async function assertImportImageFileBudget(filePath: string): Promise<void> {
+export async function assertImportImageFileBudget(
+  filePath: string,
+): Promise<void> {
   const info = await stat(filePath);
   if (!info.isFile()) {
     throw new Error(`이미지 파일을 읽지 못했습니다: ${basename(filePath)}`);
@@ -26,8 +34,15 @@ export function shouldNormalizeImportImageToPng(ext: string): boolean {
   return ext.toLowerCase() === ".webp";
 }
 
-export async function writeNormalizedWebpImportImage(sourcePath: string, outputPath: string, label: string): Promise<void> {
-  const converted = await decodeImageThroughRuntime(getAppPaths().runtimeDir, sourcePath);
+export async function writeNormalizedWebpImportImage(
+  sourcePath: string,
+  outputPath: string,
+  label: string,
+): Promise<void> {
+  const converted = await decodeImageThroughRuntime(
+    getAppPaths().runtimeDir,
+    sourcePath,
+  );
   if (!converted?.length) {
     throw new Error(`WEBP 이미지를 PNG로 변환하지 못했습니다: ${label}`);
   }
@@ -35,11 +50,20 @@ export async function writeNormalizedWebpImportImage(sourcePath: string, outputP
   await writeFile(outputPath, converted);
 }
 
-export async function readDecodedImportImageSize(imagePath: string, label: string): Promise<{ width: number; height: number }> {
+export async function readDecodedImportImageSize(
+  imagePath: string,
+  label: string,
+): Promise<{ width: number; height: number }> {
   const image = nativeImage.createFromPath(imagePath);
   const size = image.getSize();
   const isEmpty = typeof image.isEmpty === "function" ? image.isEmpty() : false;
-  if (isEmpty || !Number.isFinite(size.width) || !Number.isFinite(size.height) || size.width < 1 || size.height < 1) {
+  if (
+    isEmpty ||
+    !Number.isFinite(size.width) ||
+    !Number.isFinite(size.height) ||
+    size.width < 1 ||
+    size.height < 1
+  ) {
     throw new Error(`이미지 파일을 읽지 못했습니다: ${label}`);
   }
   if (size.width * size.height > MAX_IMPORT_IMAGE_PIXELS) {

@@ -5,7 +5,7 @@ import {
   MIN_READABLE_FONT_SIZE_PX,
   normalizeRenderDirection,
   resolveBlockRenderBbox,
-  resolveEffectiveRenderBbox
+  resolveEffectiveRenderBbox,
 } from "../../../shared/geometry";
 import { resolveBlockFontFamily } from "./fonts";
 
@@ -49,19 +49,42 @@ export function resolveBlockTextLayout(
   block: TranslationBlock,
   text: string,
   pageSize: ViewportSize,
-  stageSize: ViewportSize
+  stageSize: ViewportSize,
 ): BlockTextLayout {
   const rect = resolveBlockRectPx(block, pageSize, stageSize, text);
   const paddingPx = resolveBlockPaddingPx(rect);
   const borderInsetPx = BLOCK_BORDER_PX * 2;
-  const innerWidth = Math.max(MIN_INNER_SIZE_PX, rect.width - paddingPx * 2 - borderInsetPx);
-  const innerHeight = Math.max(MIN_INNER_SIZE_PX, rect.height - paddingPx * 2 - borderInsetPx);
+  const innerWidth = Math.max(
+    MIN_INNER_SIZE_PX,
+    rect.width - paddingPx * 2 - borderInsetPx,
+  );
+  const innerHeight = Math.max(
+    MIN_INNER_SIZE_PX,
+    rect.height - paddingPx * 2 - borderInsetPx,
+  );
   const fitInnerWidth = innerWidth;
   const fitInnerHeight = innerHeight;
-  const scale = Math.min(stageSize.width / Math.max(1, pageSize.width), stageSize.height / Math.max(1, pageSize.height));
-  const preferredFontSize = Math.max(MIN_FONT_SIZE_PX, Math.floor(block.fontSizePx * scale));
-  const maxFontSize = resolveAutoFitUpperBound(block, preferredFontSize, fitInnerWidth, fitInnerHeight);
-  const fontSizePx = resolveTextFontSizePx(block, text, maxFontSize, fitInnerWidth, fitInnerHeight);
+  const scale = Math.min(
+    stageSize.width / Math.max(1, pageSize.width),
+    stageSize.height / Math.max(1, pageSize.height),
+  );
+  const preferredFontSize = Math.max(
+    MIN_FONT_SIZE_PX,
+    Math.floor(block.fontSizePx * scale),
+  );
+  const maxFontSize = resolveAutoFitUpperBound(
+    block,
+    preferredFontSize,
+    fitInnerWidth,
+    fitInnerHeight,
+  );
+  const fontSizePx = resolveTextFontSizePx(
+    block,
+    text,
+    maxFontSize,
+    fitInnerWidth,
+    fitInnerHeight,
+  );
 
   return {
     rect,
@@ -71,12 +94,21 @@ export function resolveBlockTextLayout(
     fitInnerWidth,
     fitInnerHeight,
     fontSizePx,
-    overflow: text.trim() ? !doesTextFit(block, text, fontSizePx, fitInnerWidth, fitInnerHeight) : false
+    overflow: text.trim()
+      ? !doesTextFit(block, text, fontSizePx, fitInnerWidth, fitInnerHeight)
+      : false,
   };
 }
 
-export function resolveBlockRectPx(block: TranslationBlock, pageSize: ViewportSize, stageSize: ViewportSize, text = ""): PixelRect {
-  const renderBbox = text.trim() ? resolveEffectiveRenderBbox(block, pageSize, text) : resolveBlockRenderBbox(block, pageSize);
+export function resolveBlockRectPx(
+  block: TranslationBlock,
+  pageSize: ViewportSize,
+  stageSize: ViewportSize,
+  text = "",
+): PixelRect {
+  const renderBbox = text.trim()
+    ? resolveEffectiveRenderBbox(block, pageSize, text)
+    : resolveBlockRenderBbox(block, pageSize);
   const pixelRect = bboxToPixels(renderBbox, pageSize.width, pageSize.height);
   const scaleX = stageSize.width / Math.max(1, pageSize.width);
   const scaleY = stageSize.height / Math.max(1, pageSize.height);
@@ -85,7 +117,7 @@ export function resolveBlockRectPx(block: TranslationBlock, pageSize: ViewportSi
     left: pixelRect.x * scaleX,
     top: pixelRect.y * scaleY,
     width: pixelRect.w * scaleX,
-    height: pixelRect.h * scaleY
+    height: pixelRect.h * scaleY,
   };
 }
 
@@ -102,7 +134,7 @@ function resolveTextFontSizePx(
   text: string,
   maxFontSize: number,
   innerWidth: number,
-  innerHeight: number
+  innerHeight: number,
 ): number {
   const capped = Math.max(MIN_FONT_SIZE_PX, Math.floor(maxFontSize));
   if (!(block.autoFitText ?? true) || !text.trim()) {
@@ -124,18 +156,43 @@ function resolveTextFontSizePx(
   return Math.min(best, capped);
 }
 
-function doesTextFit(block: TranslationBlock, text: string, fontSize: number, innerWidth: number, innerHeight: number): boolean {
-  if (normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical") {
-    return measureVerticalText(text, fontSize, innerWidth, innerHeight, fontSize * block.lineHeight).fits;
+function doesTextFit(
+  block: TranslationBlock,
+  text: string,
+  fontSize: number,
+  innerWidth: number,
+  innerHeight: number,
+): boolean {
+  if (
+    normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
+  ) {
+    return measureVerticalText(
+      text,
+      fontSize,
+      innerWidth,
+      innerHeight,
+      fontSize * block.lineHeight,
+    ).fits;
   }
 
   const context = getMeasureContext();
   context.font = buildFont(fontSize, block);
-  const measured = measureWrappedText(context, text, innerWidth, fontSize * block.lineHeight);
-  return measured.totalHeight <= innerHeight && measured.maxLineWidth <= innerWidth;
+  const measured = measureWrappedText(
+    context,
+    text,
+    innerWidth,
+    fontSize * block.lineHeight,
+  );
+  return (
+    measured.totalHeight <= innerHeight && measured.maxLineWidth <= innerWidth
+  );
 }
 
-function wrapTextToWidth(context: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+function wrapTextToWidth(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+): string[] {
   const paragraphs = text.replace(/\r/g, "").split("\n");
   const lines: string[] = [];
 
@@ -169,24 +226,41 @@ function measureWrappedText(
   context: CanvasRenderingContext2D,
   text: string,
   maxWidth: number,
-  lineHeight: number
-) : { lines: string[]; totalHeight: number; maxLineWidth: number } {
+  lineHeight: number,
+): { lines: string[]; totalHeight: number; maxLineWidth: number } {
   const lines = wrapTextToWidth(context, text, maxWidth);
   return {
     lines,
     totalHeight: lines.length * lineHeight,
-    maxLineWidth: lines.reduce((widest, line) => Math.max(widest, context.measureText(line).width), 0)
+    maxLineWidth: lines.reduce(
+      (widest, line) => Math.max(widest, context.measureText(line).width),
+      0,
+    ),
   };
 }
 
-function resolveAutoFitUpperBound(block: TranslationBlock, preferredFontSize: number, innerWidth: number, innerHeight: number): number {
+function resolveAutoFitUpperBound(
+  block: TranslationBlock,
+  preferredFontSize: number,
+  innerWidth: number,
+  innerHeight: number,
+): number {
   if (!(block.autoFitText ?? true)) {
     return preferredFontSize;
   }
 
-  const heightBound = Math.floor(innerHeight / Math.max(1, block.lineHeight || 1));
-  const widthBound = normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical" ? Math.floor(innerWidth / 1.15) : MAX_AUTOFIT_FONT_SIZE_PX;
-  return clamp(Math.max(MIN_FONT_SIZE_PX, heightBound, widthBound), MIN_FONT_SIZE_PX, MAX_AUTOFIT_FONT_SIZE_PX);
+  const heightBound = Math.floor(
+    innerHeight / Math.max(1, block.lineHeight || 1),
+  );
+  const widthBound =
+    normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
+      ? Math.floor(innerWidth / 1.15)
+      : MAX_AUTOFIT_FONT_SIZE_PX;
+  return clamp(
+    Math.max(MIN_FONT_SIZE_PX, heightBound, widthBound),
+    MIN_FONT_SIZE_PX,
+    MAX_AUTOFIT_FONT_SIZE_PX,
+  );
 }
 
 function measureVerticalText(
@@ -194,19 +268,27 @@ function measureVerticalText(
   fontSize: number,
   maxWidth: number,
   maxHeight: number,
-  lineHeight: number
+  lineHeight: number,
 ): { columnCount: number; fits: boolean } {
   if (!text.trim()) {
     return { columnCount: 0, fits: true };
   }
 
   const verticalSlots = [...text.replace(/\r/g, "").replace(/\n/g, " ")];
-  const charsPerColumn = Math.max(1, Math.floor(maxHeight / Math.max(fontSize, lineHeight)));
-  const columnCount = Math.max(1, Math.ceil(verticalSlots.length / charsPerColumn));
+  const charsPerColumn = Math.max(
+    1,
+    Math.floor(maxHeight / Math.max(fontSize, lineHeight)),
+  );
+  const columnCount = Math.max(
+    1,
+    Math.ceil(verticalSlots.length / charsPerColumn),
+  );
   const estimatedColumnWidth = fontSize * 1.15;
   return {
     columnCount,
-    fits: columnCount <= MAX_VERTICAL_COLUMNS && columnCount * estimatedColumnWidth <= maxWidth
+    fits:
+      columnCount <= MAX_VERTICAL_COLUMNS &&
+      columnCount * estimatedColumnWidth <= maxWidth,
   };
 }
 

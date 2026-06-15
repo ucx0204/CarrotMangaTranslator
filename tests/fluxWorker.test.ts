@@ -2,11 +2,30 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import { parsePipDownloadProgressLine, resolveFluxPythonRuntimeLayout, resolveWindowsNativeBuildEnv } from "../src/main/inpainting/fluxAssets";
-import { buildRuntimePathEnv, sanitizeFluxRuntimeStderr } from "../src/main/inpainting/fluxWorker";
+import {
+  parsePipDownloadProgressLine,
+  resolveFluxPythonRuntimeLayout,
+  resolveWindowsNativeBuildEnv,
+} from "../src/main/inpainting/fluxAssets";
+import {
+  buildRuntimePathEnv,
+  sanitizeFluxRuntimeStderr,
+} from "../src/main/inpainting/fluxWorker";
 
 const tempDirs: string[] = [];
 const repoRoot = join(__dirname, "..");
+
+function compactSource(source: string): string {
+  return source.replace(/\s+/g, "").replace(/,([)\]}])/g, "$1");
+}
+
+function expectSourceToContain(source: string, snippet: string): void {
+  expect(compactSource(source)).toContain(compactSource(snippet));
+}
+
+function expectSourceNotToContain(source: string, snippet: string): void {
+  expect(compactSource(source)).not.toContain(compactSource(snippet));
+}
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
@@ -25,8 +44,17 @@ afterEach(() => {
   delete process.env.MGT_MSVC_TOOLS_ROOT;
 });
 
-function createTempToolsLayout(): { root: string; exe: string; cuda129: string; cuda128: string; beellama: string } {
-  const root = join(tmpdir(), `mgt-flux-worker-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+function createTempToolsLayout(): {
+  root: string;
+  exe: string;
+  cuda129: string;
+  cuda128: string;
+  beellama: string;
+} {
+  const root = join(
+    tmpdir(),
+    `mgt-flux-worker-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
   tempDirs.push(root);
   const tools = join(root, "resources", "tools");
   const runner = join(tools, "mgt-flux-klein");
@@ -48,8 +76,14 @@ function createTempToolsLayout(): { root: string; exe: string; cuda129: string; 
 describe("Flux worker runtime helpers", () => {
   it("uses the managed Flux CUDA 12.9 runtime without mixing older CUDA fallbacks", () => {
     const { exe, cuda129, cuda128, beellama } = createTempToolsLayout();
-    const systemCuda129 = join(tmpdir(), `mgt-system-cuda-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-    const systemCuda124 = join(tmpdir(), `mgt-system-cuda-old-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const systemCuda129 = join(
+      tmpdir(),
+      `mgt-system-cuda-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
+    const systemCuda124 = join(
+      tmpdir(),
+      `mgt-system-cuda-old-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
     tempDirs.push(systemCuda129);
     tempDirs.push(systemCuda124);
     mkdirSync(join(systemCuda129, "bin"), { recursive: true });
@@ -62,25 +96,40 @@ describe("Flux worker runtime helpers", () => {
     expect(pathParts).not.toContain(cuda128);
     expect(pathParts).not.toContain(beellama);
     expect(pathParts).not.toContain(join(systemCuda124, "bin"));
-    expect(pathParts.indexOf(cuda129)).toBeLessThan(pathParts.indexOf(join(systemCuda129, "bin")));
+    expect(pathParts.indexOf(cuda129)).toBeLessThan(
+      pathParts.indexOf(join(systemCuda129, "bin")),
+    );
   });
 
   it("only uses broader system CUDA paths when explicitly enabled", () => {
     const { exe } = createTempToolsLayout();
-    const systemCuda = join(tmpdir(), `mgt-system-cuda-allow-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const systemCuda = join(
+      tmpdir(),
+      `mgt-system-cuda-allow-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
     tempDirs.push(systemCuda);
     mkdirSync(join(systemCuda, "bin"), { recursive: true });
     process.env.CUDA_PATH = systemCuda;
 
-    expect(buildRuntimePathEnv(exe).split(delimiter)).not.toContain(join(systemCuda, "bin"));
+    expect(buildRuntimePathEnv(exe).split(delimiter)).not.toContain(
+      join(systemCuda, "bin"),
+    );
     process.env.MGT_FLUX_ALLOW_SYSTEM_CUDA = "1";
-    expect(buildRuntimePathEnv(exe).split(delimiter)).toContain(join(systemCuda, "bin"));
+    expect(buildRuntimePathEnv(exe).split(delimiter)).toContain(
+      join(systemCuda, "bin"),
+    );
   });
 
   it("uses ROCm/HIP paths for Python ROCm workers without adding CUDA runtime folders", () => {
     const { exe, cuda129 } = createTempToolsLayout();
-    const rocmRoot = join(tmpdir(), `mgt-rocm-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-    const hipRoot = join(tmpdir(), `mgt-hip-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const rocmRoot = join(
+      tmpdir(),
+      `mgt-rocm-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
+    const hipRoot = join(
+      tmpdir(),
+      `mgt-hip-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
     tempDirs.push(rocmRoot, hipRoot);
     mkdirSync(join(rocmRoot, "bin"), { recursive: true });
     mkdirSync(join(hipRoot, "bin"), { recursive: true });
@@ -96,7 +145,7 @@ describe("Flux worker runtime helpers", () => {
 
   it("removes local build-machine paths from Flux stderr", () => {
     const stderr =
-      'thread \'main\' panicked at C:\\Users\\sam40\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\cudarc-0.19.7\\src\\lib.rs:200:5: Unable to dynamically load the "cublas" shared library\n' +
+      "thread 'main' panicked at C:\\Users\\sam40\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\cudarc-0.19.7\\src\\lib.rs:200:5: Unable to dynamically load the \"cublas\" shared library\n" +
       "C:\\Users\\sam40\\CARGO~1\\registry\\src\\INDEXC~2.IO-\\AWS-LC~2.0\\aws-lc\\crypto/bio/file.c\n" +
       "C:\\Users\\sam40\\Downloads\\망가번역기\\tools\\mgt-flux-klein-runner\\src\\main.rs:42:1\n";
     const sanitized = sanitizeFluxRuntimeStderr(stderr);
@@ -108,7 +157,10 @@ describe("Flux worker runtime helpers", () => {
   });
 
   it("creates ZLUDA CUDA DLL aliases for cudarc dynamic loading", () => {
-    const runnerSource = readFileSync(join(repoRoot, "tools", "mgt-flux-klein-runner", "src", "main.rs"), "utf8");
+    const runnerSource = readFileSync(
+      join(repoRoot, "tools", "mgt-flux-klein-runner", "src", "main.rs"),
+      "utf8",
+    );
 
     expect(runnerSource).toContain("ensure_zluda_dll_aliases");
     expect(runnerSource).toContain("cublas64_13.dll");
@@ -121,10 +173,17 @@ describe("Flux worker runtime helpers", () => {
     expect(runnerSource).toContain("curand64_130.dll");
     expect(runnerSource).toContain("cuda_runtime_dir");
 
-    const fluxAssetsSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"), "utf8");
-    expect(fluxAssetsSource).toContain("ensureFluxZludaSupportRuntime(options)");
+    const fluxAssetsSource = readFileSync(
+      join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"),
+      "utf8",
+    );
+    expect(fluxAssetsSource).toContain(
+      "ensureFluxZludaSupportRuntime(options)",
+    );
     expect(fluxAssetsSource).toContain("mgt-flux-zluda-support");
-    expect(fluxAssetsSource).toContain('readNvidiaRedistPackage(cudaManifest, "libcurand", "windows-x86_64")');
+    expect(fluxAssetsSource).toContain(
+      'readNvidiaRedistPackage(cudaManifest, "libcurand", "windows-x86_64")',
+    );
     expect(fluxAssetsSource).toContain('"--cuda-runtime-dir"');
     expect(fluxAssetsSource).toContain("cudaRuntimeDir");
   });
@@ -137,62 +196,115 @@ describe("Flux worker runtime helpers", () => {
   });
 
   it("refreshes the managed Flux runner when the bundled executable changes", () => {
-    const fluxAssetsSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"), "utf8");
+    const fluxAssetsSource = readFileSync(
+      join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"),
+      "utf8",
+    );
 
-    expect(fluxAssetsSource).toContain("sha256FileSync(managedPath) === sha256FileSync(source)");
-    expect(fluxAssetsSource).not.toContain("if (isExecutableFile(managedPath)) {\n    return managedPath;\n  }");
+    expect(fluxAssetsSource).toContain(
+      "sha256FileSync(managedPath) === sha256FileSync(source)",
+    );
+    expect(fluxAssetsSource).not.toContain(
+      "if (isExecutableFile(managedPath)) {\n    return managedPath;\n  }",
+    );
   });
 
   it("keeps Flux scratch run directories under app tmp runtime instead of the model cache", () => {
-    const poolSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxEnginePool.ts"), "utf8");
-    const fluxEngineSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxEngine.ts"), "utf8");
+    const poolSource = readFileSync(
+      join(repoRoot, "src", "main", "inpainting", "fluxEnginePool.ts"),
+      "utf8",
+    );
+    const fluxEngineSource = readFileSync(
+      join(repoRoot, "src", "main", "inpainting", "fluxEngine.ts"),
+      "utf8",
+    );
 
-    expect(poolSource).toContain('join(options.appPaths.dataRoot, "tmp", "runtime", "flux-inpainting")');
-    expect(fluxEngineSource).toContain("join(options.runRootDir");
-    expect(fluxEngineSource).not.toContain('dirname(options.modelPath), "runs"');
+    expectSourceToContain(
+      poolSource,
+      'join(options.appPaths.dataRoot, "tmp", "runtime", "flux-inpainting")',
+    );
+    expectSourceToContain(fluxEngineSource, "join(options.runRootDir");
+    expectSourceNotToContain(
+      fluxEngineSource,
+      'dirname(options.modelPath), "runs"',
+    );
   });
 
   it("parses pip wheel download progress for the install overlay", () => {
-    expect(parsePipDownloadProgressLine("Downloading rocm_sdk_libraries_custom-7.2.1-py3-none-win_amd64.whl (490.0 MB)")).toMatchObject({
+    expect(
+      parsePipDownloadProgressLine(
+        "Downloading rocm_sdk_libraries_custom-7.2.1-py3-none-win_amd64.whl (490.0 MB)",
+      ),
+    ).toMatchObject({
       progressBytes: 0,
       progressTotalBytes: 490 * 1024 * 1024,
-      progressPercent: 0
+      progressPercent: 0,
     });
 
-    expect(parsePipDownloadProgressLine("Using cached rocm_sdk_core-7.2.1-py3-none-win_amd64.whl (644.8 MB)")).toMatchObject({
+    expect(
+      parsePipDownloadProgressLine(
+        "Using cached rocm_sdk_core-7.2.1-py3-none-win_amd64.whl (644.8 MB)",
+      ),
+    ).toMatchObject({
       progressBytes: Math.round(644.8 * 1024 * 1024),
       progressTotalBytes: Math.round(644.8 * 1024 * 1024),
-      progressPercent: 1
+      progressPercent: 1,
     });
 
-    expect(parsePipDownloadProgressLine("---------------------------------------- 232.8/232.8 MB 49.5 MB/s  0:00:04")).toMatchObject({
+    expect(
+      parsePipDownloadProgressLine(
+        "---------------------------------------- 232.8/232.8 MB 49.5 MB/s  0:00:04",
+      ),
+    ).toMatchObject({
       progressBytes: Math.round(232.8 * 1024 * 1024),
       progressTotalBytes: Math.round(232.8 * 1024 * 1024),
-      progressPercent: 1
+      progressPercent: 1,
     });
   });
 
   it("installs the Windows ROCm SDK required by stable-diffusion.cpp HIPBLAS builds", () => {
-    const fluxAssetsSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"), "utf8");
+    const fluxAssetsSource = readFileSync(
+      join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"),
+      "utf8",
+    );
 
-    expect(fluxAssetsSource).toContain("rocm_sdk_core-${version}-py3-none-win_amd64.whl");
+    expect(fluxAssetsSource).toContain(
+      "rocm_sdk_core-${version}-py3-none-win_amd64.whl",
+    );
     expect(fluxAssetsSource).toContain("rocm-${version}.tar.gz");
-    expect(fluxAssetsSource).toContain("id: `windows-rocm-runtime-${FLUX_ROCM_WINDOWS_VERSION}-sdcpp`");
+    expect(fluxAssetsSource).toContain(
+      "id: `windows-rocm-runtime-${FLUX_ROCM_WINDOWS_VERSION}-sdcpp`",
+    );
     expect(fluxAssetsSource).toContain("pipArgs: rocmPackageUrls");
     expect(fluxAssetsSource).toContain("stable-diffusion.cpp 빌드용");
     expect(fluxAssetsSource).toContain("scikit-build-core>=0.11.0");
     expect(fluxAssetsSource).toContain("--no-build-isolation");
-    expect(fluxAssetsSource).toContain('join(packageDir, "_rocm_sdk_core", "lib", "llvm", "bin")');
+    expect(fluxAssetsSource).toContain(
+      'join(packageDir, "_rocm_sdk_core", "lib", "llvm", "bin")',
+    );
     expect(fluxAssetsSource).toContain("-DCMAKE_C_COMPILER:FILEPATH=");
     expect(fluxAssetsSource).toContain("-DCMAKE_RC_COMPILER:FILEPATH=");
-    expect(fluxAssetsSource).toContain("stageWindowsResourceCompiler(runtimeDir");
+    expectSourceToContain(
+      fluxAssetsSource,
+      "stageWindowsResourceCompiler(runtimeDir",
+    );
     expect(fluxAssetsSource).toContain("env.RC = env.RC || rcCompiler");
     expect(fluxAssetsSource).toContain("env.CC = env.CC || rocmPaths.clang");
-    expect(fluxAssetsSource).toContain("env.CXX = env.CXX || rocmPaths.clangxx");
+    expect(fluxAssetsSource).toContain(
+      "env.CXX = env.CXX || rocmPaths.clangxx",
+    );
     expect(fluxAssetsSource).toContain("resolveWindowsNativeBuildEnv()");
-    expect(fluxAssetsSource).toContain('env.LIB = mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths)');
-    expect(fluxAssetsSource).toContain("env.INCLUDE = mergePathList(nativeBuildEnv.includePaths)");
-    expect(fluxAssetsSource).toContain("-DCMAKE_TRY_COMPILE_CONFIGURATION=Release");
+    expectSourceToContain(
+      fluxAssetsSource,
+      'env.LIB = mergePathList(join(runtimeDir, "native-libs"), nativeBuildEnv.libPaths)',
+    );
+    expectSourceToContain(
+      fluxAssetsSource,
+      "env.INCLUDE = mergePathList(nativeBuildEnv.includePaths)",
+    );
+    expect(fluxAssetsSource).toContain(
+      "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release",
+    );
     expect(fluxAssetsSource).toContain("kernel32.lib");
     expect(fluxAssetsSource).toContain("oldnames.lib");
     expect(fluxAssetsSource).toContain("vcruntime.lib");
@@ -203,33 +315,52 @@ describe("Flux worker runtime helpers", () => {
     expect(fluxAssetsSource).toContain('clangxx: join(llvmBin, "clang++.exe")');
     expect(fluxAssetsSource).toContain('llvmRc: join(llvmBin, "llvm-rc.exe")');
     expect(fluxAssetsSource).toContain('llvmMt: join(llvmBin, "llvm-mt.exe")');
-    expect(fluxAssetsSource).toContain("stable-diffusion.cpp Python 바인딩 빌드 도구를 먼저 설치합니다.");
-    expect(fluxAssetsSource).toContain("rocm_sdk\", \"init");
-    expect(fluxAssetsSource).toContain("rocm_sdk\", \"path\", \"--cmake");
-    expect(fluxAssetsSource).not.toContain("id: `windows-rocm-pytorch-${FLUX_ROCM_WINDOWS_TORCH_VERSION}`");
+    expect(fluxAssetsSource).toContain(
+      "stable-diffusion.cpp Python 바인딩 빌드 도구를 먼저 설치합니다.",
+    );
+    expect(fluxAssetsSource).toContain('rocm_sdk", "init');
+    expect(fluxAssetsSource).toContain('rocm_sdk", "path", "--cmake');
+    expect(fluxAssetsSource).not.toContain(
+      "id: `windows-rocm-pytorch-${FLUX_ROCM_WINDOWS_TORCH_VERSION}`",
+    );
     expect(fluxAssetsSource).not.toContain("torchWheelUrls");
     expect(fluxAssetsSource).not.toContain("Flux ROCm/PyTorch 설치 중");
   });
 
   it("uses a prebuilt Flux ROCm runtime on user PCs before any source build path", () => {
-    const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as { scripts?: Record<string, string> };
-    const fluxAssetsSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"), "utf8");
+    const packageJson = JSON.parse(
+      readFileSync(join(repoRoot, "package.json"), "utf8"),
+    ) as { scripts?: Record<string, string> };
+    const fluxAssetsSource = readFileSync(
+      join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"),
+      "utf8",
+    );
 
-    expect(packageJson.scripts?.["build:flux-rocm-runtime"]).toBe("node scripts/build-flux-rocm-runtime.cjs");
+    expect(packageJson.scripts?.["build:flux-rocm-runtime"]).toBe(
+      "node scripts/build-flux-rocm-runtime.cjs",
+    );
     expect(fluxAssetsSource).toContain("FLUX_ROCM_PREBUILT_RUNTIME_URL");
     expect(fluxAssetsSource).toContain("ensurePrebuiltFluxRocmPythonRuntime");
     expect(fluxAssetsSource).toContain("MGT_FLUX_ROCM_RUNTIME_ARCHIVE_URL");
     expect(fluxAssetsSource).toContain("MGT_FLUX_ROCM_USE_PREBUILT");
     expect(fluxAssetsSource).toContain("MGT_FLUX_ROCM_ALLOW_SOURCE_BUILD");
-    expect(fluxAssetsSource).toContain("사용자 PC에서 C++/ROCm 소스 빌드는 비활성화");
+    expect(fluxAssetsSource).toContain(
+      "사용자 PC에서 C++/ROCm 소스 빌드는 비활성화",
+    );
     expect(fluxAssetsSource).toContain("validatePrebuiltFluxRocmRuntime");
     expect(fluxAssetsSource).toContain("mgt-flux-rocm-runtime.json");
     expect(fluxAssetsSource).toContain("requireNativeBuildEnv: true");
   });
 
   it("ships a logged reproducible Flux ROCm runtime builder script", () => {
-    const script = readFileSync(join(repoRoot, "scripts", "build-flux-rocm-runtime.cjs"), "utf8");
-    const fluxAssetsSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"), "utf8");
+    const script = readFileSync(
+      join(repoRoot, "scripts", "build-flux-rocm-runtime.cjs"),
+      "utf8",
+    );
+    const fluxAssetsSource = readFileSync(
+      join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"),
+      "utf8",
+    );
 
     expect(script).toContain("build.log");
     expect(script).toContain("environment.json");
@@ -252,7 +383,15 @@ describe("Flux worker runtime helpers", () => {
     expect(script).toContain("GPU_TARGETS");
     expect(script).toContain("SHA256");
 
-    for (const target of ["gfx1030", "gfx1100", "gfx1101", "gfx1102", "gfx1151", "gfx1200", "gfx1201"]) {
+    for (const target of [
+      "gfx1030",
+      "gfx1100",
+      "gfx1101",
+      "gfx1102",
+      "gfx1151",
+      "gfx1200",
+      "gfx1201",
+    ]) {
       expect(script).toContain(target);
       expect(fluxAssetsSource).toContain(target);
     }
@@ -262,7 +401,10 @@ describe("Flux worker runtime helpers", () => {
     if (process.platform !== "win32") {
       return;
     }
-    const root = join(tmpdir(), `mgt-native-build-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const root = join(
+      tmpdir(),
+      `mgt-native-build-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
     tempDirs.push(root);
     const sdkRoot = join(root, "Windows Kits", "10");
     const sdkVersion = "10.0.26100.0";
@@ -275,11 +417,19 @@ describe("Flux worker runtime helpers", () => {
       sdkBin,
       join(sdkRoot, "Include", sdkVersion, "ucrt"),
       join(sdkRoot, "Include", sdkVersion, "shared"),
-      join(sdkRoot, "Include", sdkVersion, "um")
+      join(sdkRoot, "Include", sdkVersion, "um"),
     ]) {
       mkdirSync(dir, { recursive: true });
     }
-    for (const lib of ["kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "ole32.lib", "uuid.lib", "advapi32.lib"]) {
+    for (const lib of [
+      "kernel32.lib",
+      "user32.lib",
+      "gdi32.lib",
+      "shell32.lib",
+      "ole32.lib",
+      "uuid.lib",
+      "advapi32.lib",
+    ]) {
       writeFileSync(join(sdkUmLib, lib), "");
     }
     writeFileSync(join(sdkUcrtLib, "ucrt.lib"), "");
@@ -291,7 +441,12 @@ describe("Flux worker runtime helpers", () => {
     for (const dir of [msvcLib, msvcInclude, msvcBin]) {
       mkdirSync(dir, { recursive: true });
     }
-    for (const lib of ["oldnames.lib", "msvcrt.lib", "msvcrtd.lib", "vcruntime.lib"]) {
+    for (const lib of [
+      "oldnames.lib",
+      "msvcrt.lib",
+      "msvcrtd.lib",
+      "vcruntime.lib",
+    ]) {
       writeFileSync(join(msvcLib, lib), "");
     }
 
@@ -310,8 +465,14 @@ describe("Flux worker runtime helpers", () => {
   });
 
   it("uses stable-diffusion.cpp GGUF assets for ROCm workers instead of Diffusers", () => {
-    const fluxAssetsSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"), "utf8");
-    const workerSource = readFileSync(join(repoRoot, "src", "main", "runtime", "flux-klein-sdcpp-worker.py"), "utf8");
+    const fluxAssetsSource = readFileSync(
+      join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"),
+      "utf8",
+    );
+    const workerSource = readFileSync(
+      join(repoRoot, "src", "main", "runtime", "flux-klein-sdcpp-worker.py"),
+      "utf8",
+    );
 
     expect(fluxAssetsSource).toContain("Flux Klein 4B GGUF");
     expect(fluxAssetsSource).toContain("FLUX_SDCPP_WORKER");
@@ -319,12 +480,16 @@ describe("Flux worker runtime helpers", () => {
     expect(fluxAssetsSource).toContain("--vae");
     expect(fluxAssetsSource).toContain("--llm");
     expect(fluxAssetsSource).toContain("stable-diffusion-cpp-python");
-    expect(workerSource).toContain("from stable_diffusion_cpp import StableDiffusion");
+    expect(workerSource).toContain(
+      "from stable_diffusion_cpp import StableDiffusion",
+    );
     expect(workerSource).toContain("diffusion_model_path");
     expect(workerSource).toContain("llm_path");
     expect(workerSource).toContain("vae_path");
     expect(workerSource).toContain("ref_images");
-    expect(workerSource).toContain("erase_mask = mask.point(lambda value: 255 if value > 16 else 0");
+    expect(workerSource).toContain(
+      "erase_mask = mask.point(lambda value: 255 if value > 16 else 0",
+    );
     expect(workerSource).toContain("build_klein_reference_image");
     expect(workerSource).toContain("estimate_local_fill_color");
     expect(workerSource).toContain("INPAINT_CROP_CONTEXT = 64");
@@ -332,7 +497,9 @@ describe("Flux worker runtime helpers", () => {
     expect(workerSource).toContain("def composite_inpaint_crop");
     expect(workerSource).toContain("def expand_inference_mask");
     expect(workerSource).toContain("ImageFilter.MaxFilter");
-    expect(workerSource).toContain("Clean manga inpainting after lettering removal.");
+    expect(workerSource).toContain(
+      "Clean manga inpainting after lettering removal.",
+    );
     expect(workerSource).toContain("original color or grayscale style");
     expect(workerSource).toContain('NEGATIVE_PROMPT = ""');
     expect(workerSource).toContain('sample_method="euler"');
@@ -348,12 +515,19 @@ describe("Flux worker runtime helpers", () => {
   });
 
   it("invalidates cached Flux Python workers when the bundled worker changes", () => {
-    const fluxAssetsSource = readFileSync(join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"), "utf8");
+    const fluxAssetsSource = readFileSync(
+      join(repoRoot, "src", "main", "inpainting", "fluxAssets.ts"),
+      "utf8",
+    );
 
     expect(fluxAssetsSource).toContain("workerHash");
-    expect(fluxAssetsSource).toContain("sha256FileSync(workerPath) === sha256FileSync(sourceWorker)");
+    expect(fluxAssetsSource).toContain(
+      "sha256FileSync(workerPath) === sha256FileSync(sourceWorker)",
+    );
     expect(fluxAssetsSource).not.toContain('"-m", "venv"');
-    expect(fluxAssetsSource).not.toContain("Flux Python 가상환경을 생성합니다.");
+    expect(fluxAssetsSource).not.toContain(
+      "Flux Python 가상환경을 생성합니다.",
+    );
   });
 
   it("keeps Windows ROCm Python runtime paths short enough for long ROCm wheel entries", () => {
@@ -365,14 +539,17 @@ describe("Flux worker runtime helpers", () => {
     try {
       const baseRuntimeDir =
         "C:\\Users\\taepotaepo\\AppData\\Local\\Programs\\manga-gemma-translator\\data\\models\\inpainting\\mgt-flux-klein-runtime";
-      const layout = resolveFluxPythonRuntimeLayout(baseRuntimeDir, "python-rocm");
+      const layout = resolveFluxPythonRuntimeLayout(
+        baseRuntimeDir,
+        "python-rocm",
+      );
       const longRocmEntry = join(
         layout.packageDir,
         "_rocm_sdk_libraries_custom",
         "bin",
         "hipblaslt",
         "library",
-        "TensileLibrary_B8B8_B8B8_HA_Bias_SAB_SCD_SAV_UA_Type_B8B8_HPA_Contraction_l_Ailk_Bjlk_Cijk_Dijk_gfx1200.co"
+        "TensileLibrary_B8B8_B8B8_HA_Bias_SAB_SCD_SAV_UA_Type_B8B8_HPA_Contraction_l_Ailk_Bjlk_Cijk_Dijk_gfx1200.co",
       );
       const longPipTempEntry = join(
         layout.runtimeDir,
@@ -384,7 +561,7 @@ describe("Flux worker runtime helpers", () => {
         "bin",
         "hipblaslt",
         "library",
-        "TensileLibrary_B8B8_B8B8_HA_Bias_SAB_SCD_SAV_UA_Type_B8B8_HPA_Contraction_l_Ailk_Bjlk_Cijk_Dijk_gfx1200.co"
+        "TensileLibrary_B8B8_B8B8_HA_Bias_SAB_SCD_SAV_UA_Type_B8B8_HPA_Contraction_l_Ailk_Bjlk_Cijk_Dijk_gfx1200.co",
       );
 
       expect(layout.packageDir).toContain(`${join("MGTFlux", "r721")}\\`);
@@ -408,10 +585,15 @@ describe("Flux worker runtime helpers", () => {
       return;
     }
     const previousLocalAppData = process.env.LOCALAPPDATA;
-    process.env.LOCALAPPDATA = "C:\\Users\\very-long-user-name-for-testing\\AppData\\Local";
+    process.env.LOCALAPPDATA =
+      "C:\\Users\\very-long-user-name-for-testing\\AppData\\Local";
     try {
-      const baseRuntimeDir = "D:\\mgt\\data\\models\\inpainting\\mgt-flux-klein-runtime";
-      const layout = resolveFluxPythonRuntimeLayout(baseRuntimeDir, "python-rocm");
+      const baseRuntimeDir =
+        "D:\\mgt\\data\\models\\inpainting\\mgt-flux-klein-runtime";
+      const layout = resolveFluxPythonRuntimeLayout(
+        baseRuntimeDir,
+        "python-rocm",
+      );
       const longPipTempEntry = join(
         layout.runtimeDir,
         "t",
@@ -422,10 +604,12 @@ describe("Flux worker runtime helpers", () => {
         "bin",
         "hipblaslt",
         "library",
-        "TensileLibrary_B8B8_B8B8_HA_Bias_SAB_SCD_SAV_UA_Type_B8B8_HPA_Contraction_l_Ailk_Bjlk_Cijk_Dijk_gfx1200.co"
+        "TensileLibrary_B8B8_B8B8_HA_Bias_SAB_SCD_SAV_UA_Type_B8B8_HPA_Contraction_l_Ailk_Bjlk_Cijk_Dijk_gfx1200.co",
       );
 
-      expect(layout.packageDir).toBe(`${join("D:\\mgt\\data", "fx", "r721", "p")}`);
+      expect(layout.packageDir).toBe(
+        `${join("D:\\mgt\\data", "fx", "r721", "p")}`,
+      );
       expect(longPipTempEntry.length).toBeLessThan(252);
     } finally {
       if (previousLocalAppData === undefined) {
@@ -444,7 +628,7 @@ describe("Flux worker runtime helpers", () => {
 
     const layout = resolveFluxPythonRuntimeLayout(
       "C:\\Users\\taepotaepo\\AppData\\Local\\Programs\\manga-gemma-translator\\data\\models\\inpainting\\mgt-flux-klein-runtime",
-      "python-rocm"
+      "python-rocm",
     );
 
     expect(layout.runtimeDir).toBe("R:\\mgtflux\\r721");

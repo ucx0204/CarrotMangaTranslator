@@ -1,6 +1,9 @@
 import type { LibraryIndex } from "../../../shared/types";
 
-export function filterLibraryIndex(library: LibraryIndex, query: string): LibraryIndex {
+export function filterLibraryIndex(
+  library: LibraryIndex,
+  query: string,
+): LibraryIndex {
   const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery) {
     return library;
@@ -8,7 +11,11 @@ export function filterLibraryIndex(library: LibraryIndex, query: string): Librar
 
   const works = library.works.flatMap((work) => {
     const workMatches = matchesSearch(work.title, normalizedQuery);
-    const chapters = workMatches ? work.chapters : work.chapters.filter((chapter) => matchesSearch(chapter.title, normalizedQuery));
+    const chapters = workMatches
+      ? work.chapters
+      : work.chapters.filter((chapter) =>
+          matchesSearch(chapter.title, normalizedQuery),
+        );
 
     if (!workMatches && chapters.length === 0) {
       return [];
@@ -17,14 +24,14 @@ export function filterLibraryIndex(library: LibraryIndex, query: string): Librar
     return [
       {
         ...work,
-        chapters
-      }
+        chapters,
+      },
     ];
   });
 
   return {
     workOrder: works.map((work) => work.id),
-    works
+    works,
   };
 }
 

@@ -5,7 +5,7 @@ function Field({
   label,
   hint,
   children,
-  className
+  className,
 }: {
   label?: React.ReactNode;
   hint?: React.ReactNode;
@@ -13,7 +13,9 @@ function Field({
   className?: string;
 }): React.JSX.Element {
   return (
-    <label className={[styles.field, className ?? ""].filter(Boolean).join(" ")}>
+    <label
+      className={[styles.field, className ?? ""].filter(Boolean).join(" ")}
+    >
       {label != null ? <span className={styles.label}>{label}</span> : null}
       {children}
       {hint != null ? <span className={styles.hint}>{hint}</span> : null}
@@ -26,21 +28,29 @@ export type TextFieldProps = React.InputHTMLAttributes<HTMLInputElement> & {
   hint?: React.ReactNode;
 };
 
-export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
-  { label, hint, className, type = "text", ...rest },
-  ref
-) {
-  return (
-    <Field label={label} hint={hint} className={className}>
-      <input ref={ref} type={type} {...rest} />
-    </Field>
-  );
-});
+export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
+  function TextField({ label, hint, className, type = "text", ...rest }, ref) {
+    return (
+      <Field label={label} hint={hint} className={className}>
+        <input ref={ref} type={type} {...rest} />
+      </Field>
+    );
+  },
+);
 
-export type RangeInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">;
+export type RangeInputProps = Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "type"
+>;
 
 /** A range input whose track is filled up to the current value (via the --range-progress CSS var). */
-export function RangeInput({ min = 0, max = 100, value, style, ...rest }: RangeInputProps): React.JSX.Element {
+export function RangeInput({
+  min = 0,
+  max = 100,
+  value,
+  style,
+  ...rest
+}: RangeInputProps): React.JSX.Element {
   const lo = Number(min);
   const hi = Number(max);
   const current = Number(value ?? lo);
@@ -52,7 +62,9 @@ export function RangeInput({ min = 0, max = 100, value, style, ...rest }: RangeI
       min={min}
       max={max}
       value={value}
-      style={{ ...style, "--range-progress": `${progress}%` } as React.CSSProperties}
+      style={
+        { ...style, "--range-progress": `${progress}%` } as React.CSSProperties
+      }
       {...rest}
     />
   );

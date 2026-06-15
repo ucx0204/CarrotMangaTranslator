@@ -1,7 +1,18 @@
-import type { ChapterSnapshot, LibraryChapterSummary, LibraryIndex, LibraryWorkSummary, MangaPage } from "../../shared/types";
+import type {
+  ChapterSnapshot,
+  LibraryChapterSummary,
+  LibraryIndex,
+  LibraryWorkSummary,
+  MangaPage,
+} from "../../shared/types";
 import { hydrateChapter } from "./chapterSnapshots";
 import { toChapterSummary } from "./chapterRecords";
-import { findChapterLocation, readChapterFile, readIndexFile, readWorkFile } from "./libraryFiles";
+import {
+  findChapterLocation,
+  readChapterFile,
+  readIndexFile,
+  readWorkFile,
+} from "./libraryFiles";
 
 export async function listLibrary(): Promise<LibraryIndex> {
   const index = await readIndexFile();
@@ -25,7 +36,7 @@ export async function listLibrary(): Promise<LibraryIndex> {
 
   return {
     workOrder: works.map((work) => work.id),
-    works
+    works,
   };
 }
 
@@ -44,7 +55,7 @@ export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
 export async function resolvePagesForRun(
   chapterId: string,
   runMode: "pending" | "all" | "single-page",
-  pageId?: string
+  pageId?: string,
 ): Promise<{
   chapter: ChapterSnapshot;
   pages: MangaPage[];
@@ -59,6 +70,6 @@ export async function resolvePagesForRun(
 
   return {
     chapter,
-    pages
+    pages,
   };
 }

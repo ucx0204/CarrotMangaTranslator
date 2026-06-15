@@ -2,7 +2,12 @@ import { nativeImage } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import { clamp } from "../shared/geometry";
-import type { FluxBackend, InpaintingMaskStroke, InpaintingPoint, MangaPage } from "../shared/types";
+import type {
+  FluxBackend,
+  InpaintingMaskStroke,
+  InpaintingPoint,
+  MangaPage,
+} from "../shared/types";
 import {
   ensureFluxWorkerLaunch,
   ensureRemoteFile,
@@ -10,7 +15,7 @@ import {
   FLUX_MODEL_REPO,
   FLUX_VAE_FILE,
   FLUX_VAE_REPO,
-  hfResolveUrl
+  hfResolveUrl,
 } from "./inpainting/fluxAssets";
 import {
   FLUX_INPAINT_CONTEXT_PX,
@@ -20,7 +25,7 @@ import {
   createFluxEngine,
   resolveDefaultFluxRunRootDir,
   type FluxInpaintingEngine,
-  type InpaintingRuntimeProgress
+  type InpaintingRuntimeProgress,
 } from "./inpainting/fluxEngine";
 import {
   bboxToPixelRect,
@@ -34,7 +39,7 @@ import {
   resolvePatternDilationRadius,
   resolvePatternRegionPaddingPx,
   resolvePatternWindowMarginPx,
-  type PixelRect
+  type PixelRect,
 } from "./inpainting/maskGeometry";
 import {
   applyRetouchCircle,
@@ -46,7 +51,7 @@ import {
   readRgb,
   rgbToHex,
   sanitizeMaskStrokes,
-  sanitizePoints
+  sanitizePoints,
 } from "./inpainting/rasterMasks";
 
 export type { FluxInpaintingEngine, InpaintingRuntimeProgress };
@@ -64,14 +69,19 @@ export async function inpaintPatternPage(
     signal?: AbortSignal;
     decodeFallback?: ImageDecodeFallback;
     fluxEngine?: FluxInpaintingEngine;
-  } = {}
+  } = {},
 ): Promise<PatternPageInpaintingResult> {
-  const patternBlocks = page.blocks.filter((block) => hasUsableBbox(block.bbox) && !block.inpaintExcluded);
+  const patternBlocks = page.blocks.filter(
+    (block) => hasUsableBbox(block.bbox) && !block.inpaintExcluded,
+  );
   if (patternBlocks.length === 0) {
     return { page, blocksErased: 0 };
   }
 
-  const image = await loadPageImage(page.inpaintedImagePath ?? page.imagePath, options.decodeFallback);
+  const image = await loadPageImage(
+    page.inpaintedImagePath ?? page.imagePath,
+    options.decodeFallback,
+  );
   const size = image.getSize();
   if (!size.width || !size.height) {
     throw new Error(`페이지 이미지를 읽지 못했습니다: ${page.name}`);
@@ -89,15 +99,38 @@ export async function inpaintPatternPage(
   for (const block of patternBlocks) {
     throwIfAborted(options.signal);
     const sourceRect = bboxToPixelRect(block.bbox, page);
-    const supportRect = expandRect(sourceRect, size.width, size.height, resolvePatternRegionPaddingPx(block, page));
-    const detectRect = expandRect(sourceRect, size.width, size.height, resolvePatternBlockMarginPx(block, page));
-    const detectedMask = buildPatternTextMask(bitmap, size.width, size.height, detectRect, resolvePatternDilationRadius(block));
+    const supportRect = expandRect(
+      sourceRect,
+      size.width,
+      size.height,
+      resolvePatternRegionPaddingPx(block, page),
+    );
+    const detectRect = expandRect(
+      sourceRect,
+      size.width,
+      size.height,
+      resolvePatternBlockMarginPx(block, page),
+    );
+    const detectedMask = buildPatternTextMask(
+      bitmap,
+      size.width,
+      size.height,
+      detectRect,
+      resolvePatternDilationRadius(block),
+    );
 
     mergeFilledRectIntoPage(pageMask, size.width, supportRect);
     if (detectedMask.count > 0) {
       mergeMaskIntoPage(pageMask, size.width, detectRect, detectedMask.mask);
     }
-    inpaintWindows.push(expandRect(supportRect, size.width, size.height, resolvePatternWindowMarginPx(block, page)));
+    inpaintWindows.push(
+      expandRect(
+        supportRect,
+        size.width,
+        size.height,
+        resolvePatternWindowMarginPx(block, page),
+      ),
+    );
     blocksErased += 1;
   }
 
@@ -109,17 +142,24 @@ export async function inpaintPatternPage(
     throw new Error("Flux 원문 지우기 엔진이 준비되지 않았습니다.");
   }
 
-  await options.fluxEngine.inpaint(bitmap, size.width, size.height, pageMask, mergeRects(inpaintWindows), {
-    signal: options.signal,
-    featherPx: FLUX_INPAINT_FEATHER_PX,
-    contextPx: FLUX_INPAINT_CONTEXT_PX,
-    maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
-    maxPixels: FLUX_INPAINT_MAX_PIXELS
-  });
+  await options.fluxEngine.inpaint(
+    bitmap,
+    size.width,
+    size.height,
+    pageMask,
+    mergeRects(inpaintWindows),
+    {
+      signal: options.signal,
+      featherPx: FLUX_INPAINT_FEATHER_PX,
+      contextPx: FLUX_INPAINT_CONTEXT_PX,
+      maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
+      maxPixels: FLUX_INPAINT_MAX_PIXELS,
+    },
+  );
 
   const outputImage = nativeImage.createFromBitmap(bitmap, {
     width: size.width,
-    height: size.height
+    height: size.height,
   });
   if (outputImage.isEmpty()) {
     throw new Error(`인페인팅 결과 이미지를 만들지 못했습니다: ${page.name}`);
@@ -134,8 +174,8 @@ export async function inpaintPatternPage(
     page: {
       ...page,
       inpaintedImagePath: outputPath,
-      updatedAt: new Date().toISOString()
-    }
+      updatedAt: new Date().toISOString(),
+    },
   };
 }
 
@@ -147,14 +187,17 @@ export async function inpaintDrawnPatternPage(
     decodeFallback?: ImageDecodeFallback;
     fluxEngine?: FluxInpaintingEngine;
     featherPx?: number;
-  }
+  },
 ): Promise<PatternPageInpaintingResult> {
   const strokes = sanitizeMaskStrokes(options.strokes, page.width, page.height);
   if (strokes.length === 0) {
     return { page, blocksErased: 0 };
   }
 
-  const image = await loadPageImage(page.inpaintedImagePath ?? page.imagePath, options.decodeFallback);
+  const image = await loadPageImage(
+    page.inpaintedImagePath ?? page.imagePath,
+    options.decodeFallback,
+  );
   const size = image.getSize();
   if (!size.width || !size.height) {
     throw new Error(`페이지 이미지를 읽지 못했습니다: ${page.name}`);
@@ -167,7 +210,14 @@ export async function inpaintDrawnPatternPage(
 
   const pageMask = buildMaskFromStrokes(strokes, size.width, size.height);
   const components = maskComponents(pageMask, size.width, size.height, 12)
-    .map((component) => expandRect(component.rect, size.width, size.height, FLUX_INPAINT_CONTEXT_PX))
+    .map((component) =>
+      expandRect(
+        component.rect,
+        size.width,
+        size.height,
+        FLUX_INPAINT_CONTEXT_PX,
+      ),
+    )
     .filter((rect) => rectHasMask(pageMask, size.width, rect));
   if (components.length === 0) {
     return { page, blocksErased: 0 };
@@ -177,17 +227,24 @@ export async function inpaintDrawnPatternPage(
     throw new Error("Flux 원문 지우기 엔진이 준비되지 않았습니다.");
   }
 
-  await options.fluxEngine.inpaint(bitmap, size.width, size.height, pageMask, mergeRects(components), {
-    signal: options.signal,
-    featherPx: options.featherPx ?? FLUX_INPAINT_FEATHER_PX,
-    contextPx: FLUX_INPAINT_CONTEXT_PX,
-    maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
-    maxPixels: FLUX_INPAINT_MAX_PIXELS
-  });
+  await options.fluxEngine.inpaint(
+    bitmap,
+    size.width,
+    size.height,
+    pageMask,
+    mergeRects(components),
+    {
+      signal: options.signal,
+      featherPx: options.featherPx ?? FLUX_INPAINT_FEATHER_PX,
+      contextPx: FLUX_INPAINT_CONTEXT_PX,
+      maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
+      maxPixels: FLUX_INPAINT_MAX_PIXELS,
+    },
+  );
 
   const outputImage = nativeImage.createFromBitmap(bitmap, {
     width: size.width,
-    height: size.height
+    height: size.height,
   });
   if (outputImage.isEmpty()) {
     throw new Error(`인페인팅 결과 이미지를 만들지 못했습니다: ${page.name}`);
@@ -202,8 +259,8 @@ export async function inpaintDrawnPatternPage(
     page: {
       ...page,
       inpaintedImagePath: outputPath,
-      updatedAt: new Date().toISOString()
-    }
+      updatedAt: new Date().toISOString(),
+    },
   };
 }
 
@@ -220,7 +277,7 @@ export async function prepareFluxInpaintingEngine(options: {
     modelDir: options.modelDir,
     backend: options.fluxBackend ?? "cuda-native",
     signal: options.signal,
-    onProgress: options.onProgress
+    onProgress: options.onProgress,
   });
   let modelPath: string | undefined;
   let vaePath: string | undefined;
@@ -230,14 +287,14 @@ export async function prepareFluxInpaintingEngine(options: {
         ...options,
         fileName: FLUX_MODEL_FILE,
         label: "Flux Klein 4B",
-        url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE)
+        url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE),
       }),
       ensureRemoteFile({
         ...options,
         fileName: FLUX_VAE_FILE,
         label: "Flux small decoder",
-        url: hfResolveUrl(FLUX_VAE_REPO, FLUX_VAE_FILE)
-      })
+        url: hfResolveUrl(FLUX_VAE_REPO, FLUX_VAE_FILE),
+      }),
     ]);
     launch.args = [
       ...launch.args,
@@ -250,7 +307,7 @@ export async function prepareFluxInpaintingEngine(options: {
       "--strength",
       "1",
       "--mask-padding",
-      String(FLUX_INPAINT_MASK_PADDING_PX)
+      String(FLUX_INPAINT_MASK_PADDING_PX),
     ];
   }
 
@@ -258,14 +315,15 @@ export async function prepareFluxInpaintingEngine(options: {
     progressText: "Flux 인페인팅 준비 완료",
     detail: launch.label,
     progressMode: "log-only",
-    installLogLine: "Flux 원문 지우기 엔진 준비가 완료되었습니다."
+    installLogLine: "Flux 원문 지우기 엔진 준비가 완료되었습니다.",
   });
 
   return createFluxEngine({
     launch,
     modelPath,
     vaePath,
-    runRootDir: options.runRootDir ?? resolveDefaultFluxRunRootDir(options.runtimeDir)
+    runRootDir:
+      options.runRootDir ?? resolveDefaultFluxRunRootDir(options.runtimeDir),
   });
 }
 
@@ -277,49 +335,75 @@ export async function applyInpaintingRetouch(
     radiusPx: number;
     color?: string;
     decodeFallback?: ImageDecodeFallback;
-  }
+  },
 ): Promise<MangaPage> {
   const points = sanitizePoints(options.points, page.width, page.height);
   if (points.length === 0) {
     return page;
   }
 
-  const baseImage = await loadPageImage(page.inpaintedImagePath ?? page.imagePath, options.decodeFallback);
-  const originalImage = await loadPageImage(page.imagePath, options.decodeFallback);
+  const baseImage = await loadPageImage(
+    page.inpaintedImagePath ?? page.imagePath,
+    options.decodeFallback,
+  );
+  const originalImage = await loadPageImage(
+    page.imagePath,
+    options.decodeFallback,
+  );
   const size = baseImage.getSize();
   const originalSize = originalImage.getSize();
-  if (size.width !== originalSize.width || size.height !== originalSize.height) {
+  if (
+    size.width !== originalSize.width ||
+    size.height !== originalSize.height
+  ) {
     throw new Error("원본 이미지와 편집 이미지 크기가 다릅니다.");
   }
 
   const bitmap = Buffer.from(baseImage.toBitmap());
   const originalBitmap = Buffer.from(originalImage.toBitmap());
   const radius = clamp(Math.round(options.radiusPx), 2, 180);
-  const paintColor = options.mode === "paint" ? parseHexColor(options.color) : null;
+  const paintColor =
+    options.mode === "paint" ? parseHexColor(options.color) : null;
 
   for (let index = 0; index < points.length; index += 1) {
     const previous = points[index - 1] ?? points[index];
     const current = points[index];
-    for (const point of interpolatePoints(previous, current, Math.max(1, radius * 0.35))) {
-      applyRetouchCircle(bitmap, originalBitmap, size.width, size.height, point, radius, options.mode, paintColor);
+    for (const point of interpolatePoints(
+      previous,
+      current,
+      Math.max(1, radius * 0.35),
+    )) {
+      applyRetouchCircle(
+        bitmap,
+        originalBitmap,
+        size.width,
+        size.height,
+        point,
+        radius,
+        options.mode,
+        paintColor,
+      );
     }
   }
 
   const outputImage = nativeImage.createFromBitmap(bitmap, {
     width: size.width,
-    height: size.height
+    height: size.height,
   });
   if (outputImage.isEmpty()) {
     throw new Error(`리터치 결과 이미지를 만들지 못했습니다: ${page.name}`);
   }
 
-  const outputPath = resolveInpaintedImagePath(page.imagePath, `retouch-${Date.now().toString(36)}`);
+  const outputPath = resolveInpaintedImagePath(
+    page.imagePath,
+    `retouch-${Date.now().toString(36)}`,
+  );
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, outputImage.toPNG());
   return {
     ...page,
     inpaintedImagePath: outputPath,
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -327,7 +411,7 @@ export async function sampleImageColor(
   imagePath: string,
   x: number,
   y: number,
-  decodeFallback?: ImageDecodeFallback
+  decodeFallback?: ImageDecodeFallback,
 ): Promise<string> {
   const image = await loadPageImage(imagePath, decodeFallback);
   const size = image.getSize();
@@ -337,7 +421,10 @@ export async function sampleImageColor(
   return rgbToHex(readRgb(bitmap, size.width, px, py));
 }
 
-async function loadPageImage(filePath: string, decodeFallback?: ImageDecodeFallback): Promise<Electron.NativeImage> {
+async function loadPageImage(
+  filePath: string,
+  decodeFallback?: ImageDecodeFallback,
+): Promise<Electron.NativeImage> {
   const direct = nativeImage.createFromPath(filePath);
   if (!direct.isEmpty()) {
     return direct;
@@ -354,7 +441,10 @@ async function loadPageImage(filePath: string, decodeFallback?: ImageDecodeFallb
   throw new Error("인페인팅할 이미지를 읽지 못했습니다.");
 }
 
-function resolveInpaintedImagePath(imagePath: string, suffix = "pattern"): string {
+function resolveInpaintedImagePath(
+  imagePath: string,
+  suffix = "pattern",
+): string {
   const imageDir = dirname(imagePath);
   const chapterDir = dirname(imageDir);
   const name = basename(imagePath, extname(imagePath));

@@ -1,15 +1,32 @@
-import { useCallback, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import {
+  useCallback,
+  useState,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
 import type { ChapterSnapshot, LibraryIndex } from "../../../shared/types";
 import type { RenameTarget } from "../components/AppModals";
-import { formatErrorMessage, reorderByTarget, reorderRecordsByIdOrder } from "../lib/appHelpers";
+import {
+  formatErrorMessage,
+  reorderByTarget,
+  reorderRecordsByIdOrder,
+} from "../lib/appHelpers";
 import { mangaGateway } from "../api/mangaGateway";
 
 function isSameStringOrder(left: string[], right: string[]): boolean {
-  return left.length === right.length && left.every((id, index) => id === right[index]);
+  return (
+    left.length === right.length &&
+    left.every((id, index) => id === right[index])
+  );
 }
 
 type UseLibraryActionsOptions = {
-  askConfirm: (title: string, message: string, detail?: string) => Promise<boolean>;
+  askConfirm: (
+    title: string,
+    message: string,
+    detail?: string,
+  ) => Promise<boolean>;
   clearDirtyTracking: () => void;
   currentChapter: ChapterSnapshot | null;
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
@@ -35,9 +52,12 @@ export function useLibraryActions({
   setCurrentChapter,
   setLibrary,
   setSelectedBlockId,
-  setSelectedPageId
+  setSelectedPageId,
 }: UseLibraryActionsOptions): {
-  applyChapter: (chapter: ChapterSnapshot | undefined, fallbackStatus?: string) => void;
+  applyChapter: (
+    chapter: ChapterSnapshot | undefined,
+    fallbackStatus?: string,
+  ) => void;
   clearCurrentChapter: () => void;
   deleteRenameTarget: () => Promise<void>;
   openChapter: (chapterId: string) => Promise<void>;
@@ -47,7 +67,11 @@ export function useLibraryActions({
   renameChapter: (chapterId: string) => void;
   renameTarget: RenameTarget | null;
   renameWork: (workId: string) => void;
-  reorderChapterInLibrary: (workId: string, sourceChapterId: string, targetChapterId: string) => void;
+  reorderChapterInLibrary: (
+    workId: string,
+    sourceChapterId: string,
+    targetChapterId: string,
+  ) => void;
   reorderPageInChapter: (sourcePageId: string, targetPageId: string) => void;
   setRenameTarget: Dispatch<SetStateAction<RenameTarget | null>>;
   submitRename: (title: string) => Promise<void>;
@@ -61,7 +85,9 @@ export function useLibraryActions({
       setLibrary(next);
     } catch (error) {
       console.error(error);
-      pushStatus(formatErrorMessage(error, "보관함 목록을 불러오지 못했습니다."));
+      pushStatus(
+        formatErrorMessage(error, "보관함 목록을 불러오지 못했습니다."),
+      );
     }
   }, [pushStatus, setLibrary]);
 
@@ -71,7 +97,13 @@ export function useLibraryActions({
     setSelectedPageId(null);
     setSelectedBlockId(null);
     clearDirtyTracking();
-  }, [clearDirtyTracking, currentChapterRef, setCurrentChapter, setSelectedBlockId, setSelectedPageId]);
+  }, [
+    clearDirtyTracking,
+    currentChapterRef,
+    setCurrentChapter,
+    setSelectedBlockId,
+    setSelectedPageId,
+  ]);
 
   const openChapter = useCallback(
     async (chapterId: string) => {
@@ -90,7 +122,16 @@ export function useLibraryActions({
         pushStatus(formatErrorMessage(error, "화를 열지 못했습니다."));
       }
     },
-    [clearDirtyTracking, currentChapterRef, dirty, pushStatus, saveNow, setCurrentChapter, setSelectedBlockId, setSelectedPageId]
+    [
+      clearDirtyTracking,
+      currentChapterRef,
+      dirty,
+      pushStatus,
+      saveNow,
+      setCurrentChapter,
+      setSelectedBlockId,
+      setSelectedPageId,
+    ],
   );
 
   const applyChapter = useCallback(
@@ -101,13 +142,24 @@ export function useLibraryActions({
       clearDirtyTracking();
       currentChapterRef.current = chapter;
       setCurrentChapter(chapter);
-      setSelectedPageId((current) => (chapter.pages.some((page) => page.id === current) ? current : chapter.pages[0]?.id ?? null));
+      setSelectedPageId((current) =>
+        chapter.pages.some((page) => page.id === current)
+          ? current
+          : (chapter.pages[0]?.id ?? null),
+      );
       setSelectedBlockId(null);
       if (fallbackStatus) {
         pushStatus(fallbackStatus);
       }
     },
-    [clearDirtyTracking, currentChapterRef, pushStatus, setCurrentChapter, setSelectedBlockId, setSelectedPageId]
+    [
+      clearDirtyTracking,
+      currentChapterRef,
+      pushStatus,
+      setCurrentChapter,
+      setSelectedBlockId,
+      setSelectedPageId,
+    ],
   );
 
   const removePage = useCallback(
@@ -115,14 +167,16 @@ export function useLibraryActions({
       if (!currentChapter) {
         return;
       }
-      const page = currentChapter.pages.find((candidate) => candidate.id === pageId);
+      const page = currentChapter.pages.find(
+        (candidate) => candidate.id === pageId,
+      );
       if (!page) {
         return;
       }
       const confirmed = await askConfirm(
         "페이지 삭제",
         "정말 삭제하시겠습니까?",
-        "이 페이지와 해당 번역 결과가 보관함에서 삭제됩니다."
+        "이 페이지와 해당 번역 결과가 보관함에서 삭제됩니다.",
       );
       if (!confirmed) {
         return;
@@ -132,12 +186,25 @@ export function useLibraryActions({
         if (dirty) {
           await saveNow();
         }
-        const previousOrder = currentChapter.pages.map((candidate) => candidate.id);
-        const nextChapter = await mangaGateway.deletePage(currentChapter.id, pageId);
+        const previousOrder = currentChapter.pages.map(
+          (candidate) => candidate.id,
+        );
+        const nextChapter = await mangaGateway.deletePage(
+          currentChapter.id,
+          pageId,
+        );
         applyChapter(nextChapter);
         const currentIndex = previousOrder.indexOf(pageId);
-        const nextId = previousOrder[currentIndex + 1] ?? previousOrder[currentIndex - 1] ?? null;
-        setSelectedPageId(nextId && nextChapter.pages.some((candidate) => candidate.id === nextId) ? nextId : nextChapter.pages[0]?.id ?? null);
+        const nextId =
+          previousOrder[currentIndex + 1] ??
+          previousOrder[currentIndex - 1] ??
+          null;
+        setSelectedPageId(
+          nextId &&
+            nextChapter.pages.some((candidate) => candidate.id === nextId)
+            ? nextId
+            : (nextChapter.pages[0]?.id ?? null),
+        );
         pushStatus(`${page.name} 페이지를 삭제했습니다.`);
         await refreshLibrary();
       } catch (error) {
@@ -145,7 +212,16 @@ export function useLibraryActions({
         pushStatus(formatErrorMessage(error, "페이지를 삭제하지 못했습니다."));
       }
     },
-    [applyChapter, askConfirm, currentChapter, dirty, pushStatus, refreshLibrary, saveNow, setSelectedPageId]
+    [
+      applyChapter,
+      askConfirm,
+      currentChapter,
+      dirty,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      setSelectedPageId,
+    ],
   );
 
   const renameWork = useCallback(
@@ -156,20 +232,24 @@ export function useLibraryActions({
       }
       setRenameTarget({ kind: "work", id: workId, title: work.title });
     },
-    [library.works]
+    [library.works],
   );
 
   const renameChapter = useCallback(
     (chapterId: string) => {
       const chapter =
-        library.works.flatMap((work) => work.chapters).find((candidate) => candidate.id === chapterId) ??
-        (currentChapter ? { id: currentChapter.id, title: currentChapter.title } : null);
+        library.works
+          .flatMap((work) => work.chapters)
+          .find((candidate) => candidate.id === chapterId) ??
+        (currentChapter
+          ? { id: currentChapter.id, title: currentChapter.title }
+          : null);
       if (!chapter) {
         return;
       }
       setRenameTarget({ kind: "chapter", id: chapterId, title: chapter.title });
     },
-    [currentChapter, library.works]
+    [currentChapter, library.works],
   );
 
   const submitRename = useCallback(
@@ -199,7 +279,15 @@ export function useLibraryActions({
         setRenameBusy(false);
       }
     },
-    [applyChapter, currentChapter, dirty, pushStatus, renameTarget, saveNow, setLibrary]
+    [
+      applyChapter,
+      currentChapter,
+      dirty,
+      pushStatus,
+      renameTarget,
+      saveNow,
+      setLibrary,
+    ],
   );
 
   const deleteRenameTarget = useCallback(async () => {
@@ -208,13 +296,15 @@ export function useLibraryActions({
     }
 
     const isCurrentChapter = currentChapter?.id === renameTarget.id;
-    const isCurrentWork = renameTarget.kind === "work" && currentChapter?.workId === renameTarget.id;
+    const isCurrentWork =
+      renameTarget.kind === "work" &&
+      currentChapter?.workId === renameTarget.id;
     const confirmed = await askConfirm(
       renameTarget.kind === "work" ? "작품 삭제" : "화 삭제",
       "정말 삭제하시겠습니까?",
       renameTarget.kind === "work"
         ? `"${renameTarget.title}" 작품과 포함된 모든 화, 페이지, 번역 결과가 보관함에서 삭제됩니다.`
-        : `"${renameTarget.title}" 화와 포함된 모든 페이지, 번역 결과가 보관함에서 삭제됩니다.`
+        : `"${renameTarget.title}" 화와 포함된 모든 페이지, 번역 결과가 보관함에서 삭제됩니다.`,
     );
     if (!confirmed) {
       return;
@@ -243,11 +333,25 @@ export function useLibraryActions({
       setRenameTarget(null);
     } catch (error) {
       console.error(error);
-      pushStatus(renameTarget.kind === "work" ? "작품을 삭제하지 못했습니다." : "화를 삭제하지 못했습니다.");
+      pushStatus(
+        renameTarget.kind === "work"
+          ? "작품을 삭제하지 못했습니다."
+          : "화를 삭제하지 못했습니다.",
+      );
     } finally {
       setRenameBusy(false);
     }
-  }, [askConfirm, clearCurrentChapter, currentChapter?.id, currentChapter?.workId, dirty, pushStatus, renameTarget, saveNow, setLibrary]);
+  }, [
+    askConfirm,
+    clearCurrentChapter,
+    currentChapter?.id,
+    currentChapter?.workId,
+    dirty,
+    pushStatus,
+    renameTarget,
+    saveNow,
+    setLibrary,
+  ]);
 
   const reorderChapterInLibrary = useCallback(
     (workId: string, sourceChapterId: string, targetChapterId: string) => {
@@ -256,7 +360,11 @@ export function useLibraryActions({
         return;
       }
       const previousOrder = work.chapterOrder;
-      const nextOrder = reorderByTarget(work.chapterOrder, sourceChapterId, targetChapterId);
+      const nextOrder = reorderByTarget(
+        work.chapterOrder,
+        sourceChapterId,
+        targetChapterId,
+      );
       setLibrary((current) => ({
         ...current,
         works: current.works.map((candidate) =>
@@ -264,10 +372,13 @@ export function useLibraryActions({
             ? {
                 ...candidate,
                 chapterOrder: nextOrder,
-                chapters: reorderRecordsByIdOrder(candidate.chapters, nextOrder)
+                chapters: reorderRecordsByIdOrder(
+                  candidate.chapters,
+                  nextOrder,
+                ),
               }
-            : candidate
-        )
+            : candidate,
+        ),
       }));
       void mangaGateway
         .reorderChapters(workId, nextOrder)
@@ -277,20 +388,27 @@ export function useLibraryActions({
           setLibrary((current) => ({
             ...current,
             works: current.works.map((candidate) =>
-              candidate.id === workId && isSameStringOrder(candidate.chapterOrder, nextOrder)
+              candidate.id === workId &&
+              isSameStringOrder(candidate.chapterOrder, nextOrder)
                 ? {
                     ...candidate,
                     chapterOrder: previousOrder,
-                    chapters: reorderRecordsByIdOrder(candidate.chapters, previousOrder)
+                    chapters: reorderRecordsByIdOrder(
+                      candidate.chapters,
+                      previousOrder,
+                    ),
                   }
-                : candidate
-            )
+                : candidate,
+            ),
           }));
-          const message = formatErrorMessage(error, "화 순서를 저장하지 못했습니다.");
+          const message = formatErrorMessage(
+            error,
+            "화 순서를 저장하지 못했습니다.",
+          );
           pushStatus(`${message} 이전 순서로 되돌렸습니다.`);
         });
     },
-    [library.works, pushStatus, setLibrary]
+    [library.works, pushStatus, setLibrary],
   );
 
   const reorderPageInChapter = useCallback(
@@ -304,15 +422,24 @@ export function useLibraryActions({
         }
       } catch (error) {
         console.error(error);
-        pushStatus(formatErrorMessage(error, "현재 수정사항을 저장하지 못해 페이지 순서를 변경하지 않았습니다."));
+        pushStatus(
+          formatErrorMessage(
+            error,
+            "현재 수정사항을 저장하지 못해 페이지 순서를 변경하지 않았습니다.",
+          ),
+        );
         return;
       }
       const previousOrder = currentChapter.pageOrder;
-      const nextOrder = reorderByTarget(currentChapter.pageOrder, sourcePageId, targetPageId);
+      const nextOrder = reorderByTarget(
+        currentChapter.pageOrder,
+        sourcePageId,
+        targetPageId,
+      );
       const nextChapter = {
         ...currentChapter,
         pageOrder: nextOrder,
-        pages: reorderRecordsByIdOrder(currentChapter.pages, nextOrder)
+        pages: reorderRecordsByIdOrder(currentChapter.pages, nextOrder),
       };
       currentChapterRef.current = nextChapter;
       setCurrentChapter(nextChapter);
@@ -322,26 +449,49 @@ export function useLibraryActions({
           applyChapter(chapter);
           void refreshLibrary().catch((error) => {
             console.error(error);
-            pushStatus(formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."));
+            pushStatus(
+              formatErrorMessage(
+                error,
+                "보관함 목록을 새로고침하지 못했습니다.",
+              ),
+            );
           });
         })
         .catch((error) => {
           console.error(error);
           const latestChapter = currentChapterRef.current;
-          if (latestChapter?.id === currentChapter.id && isSameStringOrder(latestChapter.pageOrder, nextOrder)) {
+          if (
+            latestChapter?.id === currentChapter.id &&
+            isSameStringOrder(latestChapter.pageOrder, nextOrder)
+          ) {
             const rolledBackChapter = {
               ...latestChapter,
               pageOrder: previousOrder,
-              pages: reorderRecordsByIdOrder(latestChapter.pages, previousOrder)
+              pages: reorderRecordsByIdOrder(
+                latestChapter.pages,
+                previousOrder,
+              ),
             };
             currentChapterRef.current = rolledBackChapter;
             setCurrentChapter(rolledBackChapter);
           }
-          const message = formatErrorMessage(error, "페이지 순서를 저장하지 못했습니다.");
+          const message = formatErrorMessage(
+            error,
+            "페이지 순서를 저장하지 못했습니다.",
+          );
           pushStatus(`${message} 이전 순서로 되돌렸습니다.`);
         });
     },
-    [applyChapter, currentChapter, currentChapterRef, dirty, pushStatus, refreshLibrary, saveNow, setCurrentChapter]
+    [
+      applyChapter,
+      currentChapter,
+      currentChapterRef,
+      dirty,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      setCurrentChapter,
+    ],
   );
 
   return {
@@ -358,6 +508,6 @@ export function useLibraryActions({
     reorderChapterInLibrary,
     reorderPageInChapter,
     setRenameTarget,
-    submitRename
+    submitRename,
   };
 }

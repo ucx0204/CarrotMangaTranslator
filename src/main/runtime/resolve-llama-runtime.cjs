@@ -22,11 +22,13 @@ function bundledServerCandidates(toolsDir) {
     "llama-b9547-cuda12.4",
     "llama-b9360-cuda13.1",
     "llama-b8833-cuda12.4",
-    "llama-b8808-cuda12"
+    "llama-b8808-cuda12",
   ];
   const candidates = [
-    ...knownRuntimeDirs.map((runtimeDir) => join(toolsDir, runtimeDir, serverBinary)),
-    join(toolsDir, serverBinary)
+    ...knownRuntimeDirs.map((runtimeDir) =>
+      join(toolsDir, runtimeDir, serverBinary),
+    ),
+    join(toolsDir, serverBinary),
   ];
 
   for (const runtimeDir of listRuntimeDirs(toolsDir)) {
@@ -38,11 +40,9 @@ function bundledServerCandidates(toolsDir) {
 
 function hasCudaBackend(serverPath) {
   const runtimeDir = dirname(serverPath);
-  return [
-    "ggml-cuda.dll",
-    "ggml-cuda-cu12.dll",
-    "ggml-cuda-cu13.dll"
-  ].some((fileName) => existsSync(join(runtimeDir, fileName)));
+  return ["ggml-cuda.dll", "ggml-cuda-cu12.dll", "ggml-cuda-cu13.dll"].some(
+    (fileName) => existsSync(join(runtimeDir, fileName)),
+  );
 }
 
 function hasRocmBackend(serverPath) {
@@ -51,27 +51,34 @@ function hasRocmBackend(serverPath) {
     "ggml-hip.dll",
     "ggml-rocm.dll",
     "libggml-hip.so",
-    "libggml-rocm.so"
+    "libggml-rocm.so",
   ].some((fileName) => existsSync(join(runtimeDir, fileName)));
 }
 
 function hasVulkanBackend(serverPath) {
   const runtimeDir = dirname(serverPath);
-  return [
-    "ggml-vulkan.dll",
-    "libggml-vulkan.so"
-  ].some((fileName) => existsSync(join(runtimeDir, fileName)));
+  return ["ggml-vulkan.dll", "libggml-vulkan.so"].some((fileName) =>
+    existsSync(join(runtimeDir, fileName)),
+  );
 }
 
 function hasGpuBackend(serverPath) {
-  return hasCudaBackend(serverPath) || hasRocmBackend(serverPath) || hasVulkanBackend(serverPath);
+  return (
+    hasCudaBackend(serverPath) ||
+    hasRocmBackend(serverPath) ||
+    hasVulkanBackend(serverPath)
+  );
 }
 
 function resolveBundledServerPath(toolsDir) {
-  const candidates = bundledServerCandidates(toolsDir).filter((candidate) => existsSync(candidate));
-  return candidates.find((candidate) => hasGpuBackend(candidate))
-    ?? candidates[0]
-    ?? bundledServerCandidates(toolsDir)[0];
+  const candidates = bundledServerCandidates(toolsDir).filter((candidate) =>
+    existsSync(candidate),
+  );
+  return (
+    candidates.find((candidate) => hasGpuBackend(candidate)) ??
+    candidates[0] ??
+    bundledServerCandidates(toolsDir)[0]
+  );
 }
 
 function listRuntimeDirs(toolsDir) {
@@ -104,5 +111,5 @@ module.exports = {
   hasGpuBackend,
   hasRocmBackend,
   hasVulkanBackend,
-  resolveBundledServerPath
+  resolveBundledServerPath,
 };

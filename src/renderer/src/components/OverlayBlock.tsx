@@ -3,7 +3,11 @@ import type { TranslationBlock } from "../../../shared/types";
 import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
 import { normalizeRenderDirection } from "../../../shared/geometry";
 import { resolveBlockFontFamily } from "../lib/fonts";
-import { hexToRgba, resolveBlockTextLayout, type ViewportSize } from "../lib/overlayLayout";
+import {
+  hexToRgba,
+  resolveBlockTextLayout,
+  type ViewportSize,
+} from "../lib/overlayLayout";
 
 type OverlayBlockProps = {
   block: TranslationBlock;
@@ -28,14 +32,28 @@ export function OverlayBlock({
   pointerDisabled = false,
   onPointerDown,
   onResizePointerDown,
-  onToggleExcluded
+  onToggleExcluded,
 }: OverlayBlockProps): React.JSX.Element | null {
-  const renderDirection = normalizeRenderDirection(block.renderDirection, "horizontal");
+  const renderDirection = normalizeRenderDirection(
+    block.renderDirection,
+    "horizontal",
+  );
   const displayText = block.translatedText || block.sourceText || "...";
-  const layout = resolveBlockTextLayout(block, displayText, pageSize, stageSize);
+  const layout = resolveBlockTextLayout(
+    block,
+    displayText,
+    pageSize,
+    stageSize,
+  );
   const outlineScale = block.outlineWidthScale ?? 1;
   const textOutlineShadow =
-    outlineScale <= 0 ? "none" : resolveTextOutlineShadow(layout.fontSizePx, resolveCssColor(block.outlineColor, "#ffffff"), outlineScale);
+    outlineScale <= 0
+      ? "none"
+      : resolveTextOutlineShadow(
+          layout.fontSizePx,
+          resolveCssColor(block.outlineColor, "#ffffff"),
+          outlineScale,
+        );
   const visualStyle = resolveBlockVisualStyle(block.type);
   const style: React.CSSProperties = {
     left: layout.rect.left,
@@ -48,14 +66,18 @@ export function OverlayBlock({
     color: block.textColor,
     borderWidth: showChrome ? 2 : 0,
     borderColor: showChrome ? visualStyle.borderColor : "transparent",
-    backgroundColor: showChrome ? hexToRgba(visualStyle.backgroundColor, block.opacity) : "transparent",
+    backgroundColor: showChrome
+      ? hexToRgba(visualStyle.backgroundColor, block.opacity)
+      : "transparent",
     fontFamily: resolveBlockFontFamily(block.fontFamily),
     fontSize: `${layout.fontSizePx}px`,
     lineHeight: block.lineHeight,
     textAlign: block.textAlign,
-    transform: block.rotationDeg ? `rotate(${block.rotationDeg}deg)` : undefined,
+    transform: block.rotationDeg
+      ? `rotate(${block.rotationDeg}deg)`
+      : undefined,
     transformOrigin: "center center",
-    pointerEvents: pointerDisabled ? "none" : undefined
+    pointerEvents: pointerDisabled ? "none" : undefined,
   };
   const textWrapStyle: React.CSSProperties = {
     boxSizing: "border-box",
@@ -64,21 +86,26 @@ export function OverlayBlock({
     height: layout.innerHeight,
     maxHeight: "100%",
     justifyContent: "center",
-    overflow: "visible"
+    overflow: "visible",
   };
   const contentStyle: React.CSSProperties = {
     boxSizing: "border-box",
-    writingMode: renderDirection === "vertical" ? "vertical-rl" : "horizontal-tb",
+    writingMode:
+      renderDirection === "vertical" ? "vertical-rl" : "horizontal-tb",
     textOrientation: renderDirection === "vertical" ? "upright" : undefined,
-    width: renderDirection === "vertical" ? "max-content" : `${layout.fitInnerWidth}px`,
-    height: renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
+    width:
+      renderDirection === "vertical"
+        ? "max-content"
+        : `${layout.fitInnerWidth}px`,
+    height:
+      renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
     maxWidth: "100%",
     maxHeight: "100%",
     overflow: "visible",
     fontWeight: block.bold ? 800 : 400,
     fontStyle: block.italic ? "italic" : "normal",
     fontSynthesis: "weight style",
-    textShadow: textOutlineShadow
+    textShadow: textOutlineShadow,
   };
 
   const excluded = showExcluded && Boolean(block.inpaintExcluded);
@@ -90,7 +117,7 @@ export function OverlayBlock({
         `block-${block.type}`,
         selected ? "selected" : "",
         excluded ? "excluded" : "",
-        showChrome ? "" : "chrome-hidden"
+        showChrome ? "" : "chrome-hidden",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -106,7 +133,9 @@ export function OverlayBlock({
         <button
           type="button"
           className={`overlay-exclude-toggle ${block.inpaintExcluded ? "excluded" : ""}`}
-          title={block.inpaintExcluded ? "인페인팅에 다시 포함" : "인페인팅에서 제외"}
+          title={
+            block.inpaintExcluded ? "인페인팅에 다시 포함" : "인페인팅에서 제외"
+          }
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -120,14 +149,26 @@ export function OverlayBlock({
           {block.inpaintExcluded ? "제외됨" : "제외"}
         </button>
       ) : excluded ? (
-        <span className="overlay-excluded-badge" aria-hidden="true">제외</span>
+        <span className="overlay-excluded-badge" aria-hidden="true">
+          제외
+        </span>
       ) : null}
-      {selected && !pointerDisabled ? <button className="resize-handle" onPointerDown={onResizePointerDown} aria-label="Resize" /> : null}
+      {selected && !pointerDisabled ? (
+        <button
+          className="resize-handle"
+          onPointerDown={onResizePointerDown}
+          aria-label="Resize"
+        />
+      ) : null}
     </div>
   );
 }
 
-function resolveTextOutlineShadow(fontSizePx: number, color: string, scale = 1): string {
+function resolveTextOutlineShadow(
+  fontSizePx: number,
+  color: string,
+  scale = 1,
+): string {
   const radius = resolveTextOutlinePx(fontSizePx) * scale;
   const halfRadius = Math.round(radius * 0.55 * 10) / 10;
   const offsets = [
@@ -142,7 +183,7 @@ function resolveTextOutlineShadow(fontSizePx: number, color: string, scale = 1):
     [halfRadius, -halfRadius],
     [halfRadius, halfRadius],
     [-halfRadius, halfRadius],
-    [-halfRadius, -halfRadius]
+    [-halfRadius, -halfRadius],
   ];
   return offsets.map(([x, y]) => `${x}px ${y}px 0 ${color}`).join(", ");
 }

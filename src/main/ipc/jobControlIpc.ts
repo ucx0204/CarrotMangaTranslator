@@ -19,7 +19,7 @@ export function registerJobControlIpc(context: IpcContext): void {
       pageIndex: job.lastEvent?.pageIndex,
       pageTotal: job.lastEvent?.pageTotal,
       attempt: job.lastEvent?.attempt,
-      attemptTotal: job.lastEvent?.attemptTotal
+      attemptTotal: job.lastEvent?.attemptTotal,
     } satisfies JobEvent);
     job.abortController.abort();
     await context.jobs.runCleanup(job, "cancel");

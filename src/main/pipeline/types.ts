@@ -1,6 +1,11 @@
 import type { TranslationOptions } from "../appSettings";
 import type { OpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
-import type { BBox, JobEvent, MangaPage, SourceTextDirection } from "../../shared/types";
+import type {
+  BBox,
+  JobEvent,
+  MangaPage,
+  SourceTextDirection,
+} from "../../shared/types";
 import type { ChapterRunPaths } from "../library";
 
 export type PipelineOptions = {
@@ -80,10 +85,20 @@ export type BboxNormalizationOptions = {
 
 export type RuntimeModules = {
   simplePage: {
-    collectOcrBboxHints: (options: TranslationOptions) => Promise<OcrBboxResult>;
-    collectOcrBboxHintsBatch?: (options: TranslationOptions[]) => Promise<OcrBboxResult[]>;
-    requestTranslation: (server: ModelEndpointHandle, options: TranslationOptions) => Promise<TranslationResult>;
-    saveArtifacts: (options: TranslationOptions, result: TranslationResult) => Promise<void>;
+    collectOcrBboxHints: (
+      options: TranslationOptions,
+    ) => Promise<OcrBboxResult>;
+    collectOcrBboxHintsBatch?: (
+      options: TranslationOptions[],
+    ) => Promise<OcrBboxResult[]>;
+    requestTranslation: (
+      server: ModelEndpointHandle,
+      options: TranslationOptions,
+    ) => Promise<TranslationResult>;
+    saveArtifacts: (
+      options: TranslationOptions,
+      result: TranslationResult,
+    ) => Promise<void>;
     startServer: (options: TranslationOptions) => Promise<ServerHandle>;
     stopServer: (server: ServerHandle | null | undefined) => Promise<void>;
     isModelCached: (options: TranslationOptions) => boolean;

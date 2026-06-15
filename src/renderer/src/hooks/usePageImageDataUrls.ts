@@ -19,10 +19,14 @@ type UsePageImageDataUrlsResult = {
 export function usePageImageDataUrls({
   chapterId,
   selectedPage,
-  selectedPageImagePath
+  selectedPageImagePath,
 }: UsePageImageDataUrlsOptions): UsePageImageDataUrlsResult {
-  const [selectedPageImageDataUrl, setSelectedPageImageDataUrl] = React.useState("");
-  const [selectedPageOriginalImageDataUrl, setSelectedPageOriginalImageDataUrl] = React.useState("");
+  const [selectedPageImageDataUrl, setSelectedPageImageDataUrl] =
+    React.useState("");
+  const [
+    selectedPageOriginalImageDataUrl,
+    setSelectedPageOriginalImageDataUrl,
+  ] = React.useState("");
   const [cacheRevision, setCacheRevision] = React.useState(0);
   const pageImageCacheRef = React.useRef<Map<string, string>>(new Map());
   const selectedPageId = selectedPage?.id ?? null;
@@ -75,14 +79,22 @@ export function usePageImageDataUrls({
     return () => {
       cancelled = true;
     };
-  }, [cacheRevision, selectedPageId, selectedPageImagePath, selectedPageOriginalImagePath]);
+  }, [
+    cacheRevision,
+    selectedPageId,
+    selectedPageImagePath,
+    selectedPageOriginalImagePath,
+  ]);
 
   React.useEffect(() => {
     if (!selectedPageId || !selectedPageOriginalImagePath) {
       setSelectedPageOriginalImageDataUrl("");
       return;
     }
-    if (selectedPageImagePath === selectedPageOriginalImagePath && selectedPageImageDataUrl) {
+    if (
+      selectedPageImagePath === selectedPageOriginalImagePath &&
+      selectedPageImageDataUrl
+    ) {
       setSelectedPageOriginalImageDataUrl(selectedPageImageDataUrl);
       return;
     }
@@ -116,12 +128,26 @@ export function usePageImageDataUrls({
     return () => {
       cancelled = true;
     };
-  }, [cacheRevision, selectedPageId, selectedPageImageDataUrl, selectedPageImagePath, selectedPageOriginalImagePath]);
+  }, [
+    cacheRevision,
+    selectedPageId,
+    selectedPageImageDataUrl,
+    selectedPageImagePath,
+    selectedPageOriginalImagePath,
+  ]);
 
-  return { selectedPageImageDataUrl, selectedPageOriginalImageDataUrl, clearPageImageCache };
+  return {
+    selectedPageImageDataUrl,
+    selectedPageOriginalImageDataUrl,
+    clearPageImageCache,
+  };
 }
 
-function setCachedImageDataUrl(cache: Map<string, string>, key: string, dataUrl: string): void {
+function setCachedImageDataUrl(
+  cache: Map<string, string>,
+  key: string,
+  dataUrl: string,
+): void {
   cache.delete(key);
   cache.set(key, dataUrl);
   while (cache.size > PAGE_IMAGE_CACHE_LIMIT) {

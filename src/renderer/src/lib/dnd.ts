@@ -1,16 +1,21 @@
-import { KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import {
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 export function useStandardDndSensors(): ReturnType<typeof useSensors> {
   return useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 6
-      }
+        distance: 6,
+      },
     }),
     useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates
-    })
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 }
 
@@ -18,7 +23,7 @@ export function moveItemById<T>(
   items: T[],
   activeId: string,
   overId: string,
-  getId: (item: T) => string
+  getId: (item: T) => string,
 ): T[] {
   const oldIndex = items.findIndex((item) => getId(item) === activeId);
   const newIndex = items.findIndex((item) => getId(item) === overId);

@@ -1,5 +1,10 @@
 import React from "react";
-import type { BBox, InpaintingMaskStroke, MangaPage, TranslationBlock } from "../../../shared/types";
+import type {
+  BBox,
+  InpaintingMaskStroke,
+  MangaPage,
+  TranslationBlock,
+} from "../../../shared/types";
 import type { ViewportSize } from "../lib/overlayLayout";
 import { OverlayBlock } from "./OverlayBlock";
 
@@ -34,7 +39,11 @@ export type ImageStageProps = {
   onStagePointerUp: (event: React.PointerEvent) => void;
   onStagePointerDown: (event: React.PointerEvent) => void;
   onStagePointerLeave?: (event: React.PointerEvent) => void;
-  onBlockPointerDown: (event: React.PointerEvent, block: TranslationBlock, mode: "move" | "resize") => void;
+  onBlockPointerDown: (
+    event: React.PointerEvent,
+    block: TranslationBlock,
+    mode: "move" | "resize",
+  ) => void;
   onToggleBlockExcluded?: (blockId: string) => void;
 };
 
@@ -59,19 +68,29 @@ export function ImageStage({
   onStagePointerDown,
   onStagePointerLeave,
   onBlockPointerDown,
-  onToggleBlockExcluded
+  onToggleBlockExcluded,
 }: ImageStageProps): React.JSX.Element {
   const clipId = React.useId();
   const cursorVisible = Boolean(retouchCursor?.point && stageSize);
-  const cursorScaleX = stageSize ? stageSize.width / Math.max(1, page.width) : 1;
-  const cursorScaleY = stageSize ? stageSize.height / Math.max(1, page.height) : 1;
-  const cursorRadius = retouchCursor ? Math.max(3, retouchCursor.radiusPx * Math.min(cursorScaleX, cursorScaleY)) : 0;
-  const previewPath = retouchPreview?.points.length ? pointsToPath(retouchPreview.points) : "";
-  const previewStrokeWidth = retouchPreview ? Math.max(1, retouchPreview.radiusPx * 2) : 0;
+  const cursorScaleX = stageSize
+    ? stageSize.width / Math.max(1, page.width)
+    : 1;
+  const cursorScaleY = stageSize
+    ? stageSize.height / Math.max(1, page.height)
+    : 1;
+  const cursorRadius = retouchCursor
+    ? Math.max(3, retouchCursor.radiusPx * Math.min(cursorScaleX, cursorScaleY))
+    : 0;
+  const previewPath = retouchPreview?.points.length
+    ? pointsToPath(retouchPreview.points)
+    : "";
+  const previewStrokeWidth = retouchPreview
+    ? Math.max(1, retouchPreview.radiusPx * 2)
+    : 0;
   const maskStrokePaths = maskStrokes
     .map((stroke) => ({
       path: pointsToPath(stroke.points),
-      width: Math.max(1, stroke.radiusPx * 2)
+      width: Math.max(1, stroke.radiusPx * 2),
     }))
     .filter((stroke) => stroke.path);
 
@@ -84,7 +103,7 @@ export function ImageStage({
           regionSelectionActive ? "selecting-region" : "",
           blockPointerDisabled ? "editing-mask" : "",
           retouchCursor ? "retouch-tool-enabled" : "",
-          cursorVisible ? "retouch-cursor-active" : ""
+          cursorVisible ? "retouch-cursor-active" : "",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -95,9 +114,18 @@ export function ImageStage({
         onPointerDown={onStagePointerDown}
       >
         {imageDataUrl ? (
-          <img ref={imageRef} className="page-image" src={imageDataUrl} alt={page.name} draggable={false} />
+          <img
+            ref={imageRef}
+            className="page-image"
+            src={imageDataUrl}
+            alt={page.name}
+            draggable={false}
+          />
         ) : (
-          <div className="page-image-placeholder" style={{ aspectRatio: `${page.width} / ${page.height}` }}>
+          <div
+            className="page-image-placeholder"
+            style={{ aspectRatio: `${page.width} / ${page.height}` }}
+          >
             이미지 불러오는 중
           </div>
         )}
@@ -112,9 +140,17 @@ export function ImageStage({
                 showChrome={showBlockChrome}
                 showExcluded={inpaintingMode}
                 pointerDisabled={blockPointerDisabled}
-                onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
-                onResizePointerDown={(event) => onBlockPointerDown(event, block, "resize")}
-                onToggleExcluded={onToggleBlockExcluded ? () => onToggleBlockExcluded(block.id) : undefined}
+                onPointerDown={(event) =>
+                  onBlockPointerDown(event, block, "move")
+                }
+                onResizePointerDown={(event) =>
+                  onBlockPointerDown(event, block, "resize")
+                }
+                onToggleExcluded={
+                  onToggleBlockExcluded
+                    ? () => onToggleBlockExcluded(block.id)
+                    : undefined
+                }
               />
             ))
           : null}
@@ -127,7 +163,14 @@ export function ImageStage({
             focusable="false"
           >
             {maskStrokePaths.map((stroke, index) => (
-              <path key={index} d={stroke.path} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <path
+                key={index}
+                d={stroke.path}
+                strokeWidth={stroke.width}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
             ))}
           </svg>
         ) : null}
@@ -139,45 +182,76 @@ export function ImageStage({
             aria-hidden="true"
             focusable="false"
           >
-            {retouchPreview.mode === "eraser" && retouchPreview.originalImageDataUrl ? (
+            {retouchPreview.mode === "eraser" &&
+            retouchPreview.originalImageDataUrl ? (
               <>
                 <defs>
                   <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
-                    <path d={previewPath} stroke="#fff" strokeWidth={previewStrokeWidth} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <path
+                      d={previewPath}
+                      stroke="#fff"
+                      strokeWidth={previewStrokeWidth}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
                   </clipPath>
                 </defs>
-                <image href={retouchPreview.originalImageDataUrl} x="0" y="0" width={page.width} height={page.height} clipPath={`url(#${clipId})`} />
-                <path className="retouch-preview-outline" d={previewPath} strokeWidth={previewStrokeWidth} />
+                <image
+                  href={retouchPreview.originalImageDataUrl}
+                  x="0"
+                  y="0"
+                  width={page.width}
+                  height={page.height}
+                  clipPath={`url(#${clipId})`}
+                />
+                <path
+                  className="retouch-preview-outline"
+                  d={previewPath}
+                  strokeWidth={previewStrokeWidth}
+                />
               </>
             ) : (
-              <path d={previewPath} stroke={retouchPreview.color} strokeWidth={previewStrokeWidth} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <path
+                d={previewPath}
+                stroke={retouchPreview.color}
+                strokeWidth={previewStrokeWidth}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
             )}
           </svg>
         ) : null}
         {cursorVisible && retouchCursor?.point && stageSize ? (
           <div
             className={`retouch-cursor retouch-cursor-${retouchCursor.mode}`}
-            style={{
-              left: `${retouchCursor.point.x * cursorScaleX}px`,
-              top: `${retouchCursor.point.y * cursorScaleY}px`,
-              width: `${cursorRadius * 2}px`,
-              height: `${cursorRadius * 2}px`,
-              marginLeft: `${-cursorRadius}px`,
-              marginTop: `${-cursorRadius}px`,
-              "--retouch-cursor-color": retouchCursor.color
-            } as React.CSSProperties}
+            style={
+              {
+                left: `${retouchCursor.point.x * cursorScaleX}px`,
+                top: `${retouchCursor.point.y * cursorScaleY}px`,
+                width: `${cursorRadius * 2}px`,
+                height: `${cursorRadius * 2}px`,
+                marginLeft: `${-cursorRadius}px`,
+                marginTop: `${-cursorRadius}px`,
+                "--retouch-cursor-color": retouchCursor.color,
+              } as React.CSSProperties
+            }
           >
             <span />
           </div>
         ) : null}
-        {imageDataUrl && stageSize && regionSelectionActive && regionSelectionRect ? (
+        {imageDataUrl &&
+        stageSize &&
+        regionSelectionActive &&
+        regionSelectionRect ? (
           <div
             className="region-selection-box"
             style={{
               left: `${(regionSelectionRect.x / 1000) * stageSize.width}px`,
               top: `${(regionSelectionRect.y / 1000) * stageSize.height}px`,
               width: `${(regionSelectionRect.w / 1000) * stageSize.width}px`,
-              height: `${(regionSelectionRect.h / 1000) * stageSize.height}px`
+              height: `${(regionSelectionRect.h / 1000) * stageSize.height}px`,
             }}
           />
         ) : null}
@@ -194,5 +268,7 @@ function pointsToPath(points: Array<{ x: number; y: number }>): string {
     const point = points[0];
     return `M ${point.x} ${point.y} L ${point.x + 0.01} ${point.y}`;
   }
-  return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  return points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
 }

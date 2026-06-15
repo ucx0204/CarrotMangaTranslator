@@ -1,5 +1,13 @@
 const { createHash } = require("node:crypto");
-const { createWriteStream, existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } = require("node:fs");
+const {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} = require("node:fs");
 const https = require("node:https");
 const { basename, join } = require("node:path");
 const AdmZip = require("adm-zip");
@@ -7,11 +15,18 @@ const AdmZip = require("adm-zip");
 const root = join(__dirname, "..");
 const cacheDir = join(root, ".tmp", "flux-cuda-redist");
 const outDir = join(root, "tools", "mgt-flux-cuda12.9");
-const cudaRedistBaseUrl = "https://developer.download.nvidia.com/compute/cuda/redist";
-const cudnnRedistBaseUrl = "https://developer.download.nvidia.com/compute/cudnn/redist";
+const cudaRedistBaseUrl =
+  "https://developer.download.nvidia.com/compute/cuda/redist";
+const cudnnRedistBaseUrl =
+  "https://developer.download.nvidia.com/compute/cudnn/redist";
 const cudaManifestUrl = `${cudaRedistBaseUrl}/redistrib_12.9.0.json`;
 const cudnnManifestUrl = `${cudnnRedistBaseUrl}/redistrib_9.21.0.json`;
-const requiredCudaDlls = new Set(["cublas64_12.dll", "cublasLt64_12.dll", "cudart64_12.dll", "curand64_10.dll"]);
+const requiredCudaDlls = new Set([
+  "cublas64_12.dll",
+  "cublasLt64_12.dll",
+  "cudart64_12.dll",
+  "curand64_10.dll",
+]);
 const cudnnDllPattern = /^cudnn.*\.dll$/i;
 
 main().catch((error) => {
@@ -31,29 +46,33 @@ async function main() {
   const cudaPackages = [
     cudaManifest?.libcublas?.["windows-x86_64"],
     cudaManifest?.cuda_cudart?.["windows-x86_64"],
-    cudaManifest?.libcurand?.["windows-x86_64"]
+    cudaManifest?.libcurand?.["windows-x86_64"],
   ].filter(Boolean);
   if (cudaPackages.length !== 3) {
-    throw new Error("NVIDIA CUDA 12.9 redist manifest does not contain required Windows packages.");
+    throw new Error(
+      "NVIDIA CUDA 12.9 redist manifest does not contain required Windows packages.",
+    );
   }
 
   for (const entry of cudaPackages) {
     await downloadAndExtract(entry, {
       baseUrl: cudaRedistBaseUrl,
       label: "CUDA",
-      shouldExtract: (name) => requiredCudaDlls.has(name)
+      shouldExtract: (name) => requiredCudaDlls.has(name),
     });
   }
 
   const cudnnManifest = await readJson(cudnnManifestUrl);
   const cudnnPackage = cudnnManifest?.cudnn?.["windows-x86_64"]?.cuda12;
   if (!cudnnPackage) {
-    throw new Error("NVIDIA cuDNN redist manifest does not contain the required Windows CUDA 12 package.");
+    throw new Error(
+      "NVIDIA cuDNN redist manifest does not contain the required Windows CUDA 12 package.",
+    );
   }
   await downloadAndExtract(cudnnPackage, {
     baseUrl: cudnnRedistBaseUrl,
     label: "cuDNN",
-    shouldExtract: (name) => cudnnDllPattern.test(name)
+    shouldExtract: (name) => cudnnDllPattern.test(name),
   });
 
   if (!hasRequiredDlls(outDir)) {
@@ -99,7 +118,9 @@ async function downloadAndExtract(entry, options) {
     console.log(`Extracted ${options.label} ${name}`);
   }
   if (extractedCount === 0) {
-    throw new Error(`No ${options.label} runtime DLLs matched in ${archivePath}`);
+    throw new Error(
+      `No ${options.label} runtime DLLs matched in ${archivePath}`,
+    );
   }
 }
 

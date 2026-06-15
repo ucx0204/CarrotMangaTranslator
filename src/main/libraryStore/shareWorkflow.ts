@@ -193,7 +193,10 @@ export async function importWorkShareUnlocked(
   request: WorkShareImportFromPackageRequest,
 ): Promise<WorkShareImportResult> {
   const sharePackage = await readSharePackage(request.packagePath);
-  const archiveReader = await openZipArchiveReader(request.packagePath, "공유 파일");
+  const archiveReader = await openZipArchiveReader(
+    request.packagePath,
+    "공유 파일",
+  );
   if (request.entries.length === 0) {
     archiveReader.close();
     throw new Error("가져올 화가 없습니다.");
@@ -201,10 +204,18 @@ export async function importWorkShareUnlocked(
 
   try {
     if (request.target.mode === "new") {
-      return await importWorkShareAsNewWork(sharePackage, archiveReader, request);
+      return await importWorkShareAsNewWork(
+        sharePackage,
+        archiveReader,
+        request,
+      );
     }
 
-    return await importWorkShareIntoExistingWork(sharePackage, archiveReader, request);
+    return await importWorkShareIntoExistingWork(
+      sharePackage,
+      archiveReader,
+      request,
+    );
   } finally {
     archiveReader.close();
   }

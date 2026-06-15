@@ -8,7 +8,12 @@ export type PixelRect = {
   h: number;
 };
 
-export function mergeMaskIntoPage(pageMask: Uint8Array, pageWidth: number, rect: PixelRect, rectMask: Uint8Array): void {
+export function mergeMaskIntoPage(
+  pageMask: Uint8Array,
+  pageWidth: number,
+  rect: PixelRect,
+  rectMask: Uint8Array,
+): void {
   for (let y = 0; y < rect.h; y += 1) {
     for (let x = 0; x < rect.w; x += 1) {
       if (rectMask[y * rect.w + x]) {
@@ -18,7 +23,11 @@ export function mergeMaskIntoPage(pageMask: Uint8Array, pageWidth: number, rect:
   }
 }
 
-export function mergeFilledRectIntoPage(pageMask: Uint8Array, pageWidth: number, rect: PixelRect): void {
+export function mergeFilledRectIntoPage(
+  pageMask: Uint8Array,
+  pageWidth: number,
+  rect: PixelRect,
+): void {
   for (let y = rect.y; y < rect.y + rect.h; y += 1) {
     const start = y * pageWidth + rect.x;
     pageMask.fill(1, start, start + rect.w);
@@ -26,10 +35,14 @@ export function mergeFilledRectIntoPage(pageMask: Uint8Array, pageWidth: number,
 }
 
 export function mergeRects(rects: PixelRect[]): PixelRect[] {
-  const sorted = [...rects].sort((left, right) => left.y - right.y || left.x - right.x);
+  const sorted = [...rects].sort(
+    (left, right) => left.y - right.y || left.x - right.x,
+  );
   const merged: PixelRect[] = [];
   for (const rect of sorted) {
-    const existing = merged.find((candidate) => rectsTouchOrOverlap(candidate, rect));
+    const existing = merged.find((candidate) =>
+      rectsTouchOrOverlap(candidate, rect),
+    );
     if (existing) {
       const x1 = Math.min(existing.x, rect.x);
       const y1 = Math.min(existing.y, rect.y);
@@ -46,7 +59,11 @@ export function mergeRects(rects: PixelRect[]): PixelRect[] {
   return merged;
 }
 
-export function rectHasMask(mask: Uint8Array, pageWidth: number, rect: PixelRect): boolean {
+export function rectHasMask(
+  mask: Uint8Array,
+  pageWidth: number,
+  rect: PixelRect,
+): boolean {
   for (let y = rect.y; y < rect.y + rect.h; y += 1) {
     for (let x = rect.x; x < rect.x + rect.w; x += 1) {
       if (mask[y * pageWidth + x]) {
@@ -58,7 +75,14 @@ export function rectHasMask(mask: Uint8Array, pageWidth: number, rect: PixelRect
 }
 
 export function hasUsableBbox(bbox: BBox): boolean {
-  return Number.isFinite(bbox.x) && Number.isFinite(bbox.y) && Number.isFinite(bbox.w) && Number.isFinite(bbox.h) && bbox.w > 0 && bbox.h > 0;
+  return (
+    Number.isFinite(bbox.x) &&
+    Number.isFinite(bbox.y) &&
+    Number.isFinite(bbox.w) &&
+    Number.isFinite(bbox.h) &&
+    bbox.w > 0 &&
+    bbox.h > 0
+  );
 }
 
 export function bboxToPixelRect(bbox: BBox, page: MangaPage): PixelRect {
@@ -71,25 +95,34 @@ export function bboxToPixelRect(bbox: BBox, page: MangaPage): PixelRect {
     x: x1,
     y: y1,
     w: Math.max(1, x2 - x1),
-    h: Math.max(1, y2 - y1)
+    h: Math.max(1, y2 - y1),
   };
 }
 
-export function resolvePatternBlockMarginPx(block: TranslationBlock, page: MangaPage): number {
+export function resolvePatternBlockMarginPx(
+  block: TranslationBlock,
+  page: MangaPage,
+): number {
   const rect = bboxToPixelRect(block.bbox, page);
   const byBox = Math.round(Math.max(rect.w, rect.h) * 0.12);
   const byFont = Math.round((block.fontSizePx || 20) * 0.45);
   return clamp(Math.max(8, byBox, byFont), 8, 42);
 }
 
-export function resolvePatternRegionPaddingPx(block: TranslationBlock, page: MangaPage): number {
+export function resolvePatternRegionPaddingPx(
+  block: TranslationBlock,
+  page: MangaPage,
+): number {
   const rect = bboxToPixelRect(block.bbox, page);
   const byBox = Math.round(Math.max(rect.w, rect.h) * 0.04);
   const byFont = Math.round((block.fontSizePx || 20) * 0.18);
   return clamp(Math.max(2, byBox, byFont), 2, 14);
 }
 
-export function resolvePatternWindowMarginPx(block: TranslationBlock, page: MangaPage): number {
+export function resolvePatternWindowMarginPx(
+  block: TranslationBlock,
+  page: MangaPage,
+): number {
   const rect = bboxToPixelRect(block.bbox, page);
   const byBox = Math.round(Math.max(rect.w, rect.h) * 0.32);
   const byFont = Math.round((block.fontSizePx || 20) * 2.8);
@@ -100,7 +133,12 @@ export function resolvePatternDilationRadius(block: TranslationBlock): number {
   return clamp(Math.round((block.fontSizePx || 20) / 7), 2, 9);
 }
 
-export function expandRect(rect: PixelRect, imageWidth: number, imageHeight: number, margin: number): PixelRect {
+export function expandRect(
+  rect: PixelRect,
+  imageWidth: number,
+  imageHeight: number,
+  margin: number,
+): PixelRect {
   const x1 = clamp(rect.x - margin, 0, Math.max(0, imageWidth - 1));
   const y1 = clamp(rect.y - margin, 0, Math.max(0, imageHeight - 1));
   const x2 = clamp(rect.x + rect.w + margin, x1 + 1, imageWidth);
@@ -109,38 +147,73 @@ export function expandRect(rect: PixelRect, imageWidth: number, imageHeight: num
     x: x1,
     y: y1,
     w: Math.max(1, x2 - x1),
-    h: Math.max(1, y2 - y1)
+    h: Math.max(1, y2 - y1),
   };
 }
 
-export function alignRectToMultiple(rect: PixelRect, imageWidth: number, imageHeight: number, multiple: number): PixelRect {
-  const targetW = Math.min(imageWidth, Math.max(multiple, Math.ceil(rect.w / multiple) * multiple));
-  const targetH = Math.min(imageHeight, Math.max(multiple, Math.ceil(rect.h / multiple) * multiple));
+export function alignRectToMultiple(
+  rect: PixelRect,
+  imageWidth: number,
+  imageHeight: number,
+  multiple: number,
+): PixelRect {
+  const targetW = Math.min(
+    imageWidth,
+    Math.max(multiple, Math.ceil(rect.w / multiple) * multiple),
+  );
+  const targetH = Math.min(
+    imageHeight,
+    Math.max(multiple, Math.ceil(rect.h / multiple) * multiple),
+  );
   const centerX = rect.x + rect.w / 2;
   const centerY = rect.y + rect.h / 2;
-  const x = clamp(Math.round(centerX - targetW / 2), 0, Math.max(0, imageWidth - targetW));
-  const y = clamp(Math.round(centerY - targetH / 2), 0, Math.max(0, imageHeight - targetH));
+  const x = clamp(
+    Math.round(centerX - targetW / 2),
+    0,
+    Math.max(0, imageWidth - targetW),
+  );
+  const y = clamp(
+    Math.round(centerY - targetH / 2),
+    0,
+    Math.max(0, imageHeight - targetH),
+  );
   return {
     x,
     y,
     w: targetW,
-    h: targetH
+    h: targetH,
   };
 }
 
-export function resolveFluxProcessSize(width: number, height: number, maxPixels: number, multiple: number): { width: number; height: number } {
+export function resolveFluxProcessSize(
+  width: number,
+  height: number,
+  maxPixels: number,
+  multiple: number,
+): { width: number; height: number } {
   let scale = 1;
   if (width * height > maxPixels) {
     scale = Math.sqrt(maxPixels / Math.max(1, width * height));
   }
-  const scaledWidth = Math.max(multiple, Math.round((width * scale) / multiple) * multiple);
-  const scaledHeight = Math.max(multiple, Math.round((height * scale) / multiple) * multiple);
+  const scaledWidth = Math.max(
+    multiple,
+    Math.round((width * scale) / multiple) * multiple,
+  );
+  const scaledHeight = Math.max(
+    multiple,
+    Math.round((height * scale) / multiple) * multiple,
+  );
   return {
     width: scaledWidth,
-    height: scaledHeight
+    height: scaledHeight,
   };
 }
 
 function rectsTouchOrOverlap(left: PixelRect, right: PixelRect): boolean {
-  return left.x <= right.x + right.w && left.x + left.w >= right.x && left.y <= right.y + right.h && left.y + left.h >= right.y;
+  return (
+    left.x <= right.x + right.w &&
+    left.x + left.w >= right.x &&
+    left.y <= right.y + right.h &&
+    left.y + left.h >= right.y
+  );
 }

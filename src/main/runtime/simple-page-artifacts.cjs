@@ -3,7 +3,7 @@ const path = require("node:path");
 
 const {
   buildSystemPrompt,
-  getOverlayPrompt
+  getOverlayPrompt,
 } = require("./simple-page-prompts.cjs");
 const {
   resolveConfiguredCodexModel,
@@ -15,21 +15,24 @@ const {
   resolveConfiguredModelSource,
   resolveConfiguredMmprojFile,
   resolveConfiguredMmprojRepo,
-  resolveModelProvider
+  resolveModelProvider,
 } = require("./simple-page-model-config.cjs");
 const {
   resolveHfHomeDir,
-  resolveHubCacheDir
+  resolveHubCacheDir,
 } = require("./simple-page-cache-paths.cjs");
 const {
-  resolveConfiguredMmprojUrl
+  resolveConfiguredMmprojUrl,
 } = require("./simple-page-model-assets.cjs");
 
 async function saveArtifacts(options, result) {
   await mkdir(options.outputDir, { recursive: true });
   const systemPrompt = buildSystemPrompt(options);
   const imageVariants = result.requestBody?.imageVariants || [];
-  const prompt = result.requestBody?.promptText || options.promptOverrideText || getOverlayPrompt(options, imageVariants);
+  const prompt =
+    result.requestBody?.promptText ||
+    options.promptOverrideText ||
+    getOverlayPrompt(options, imageVariants);
   const payload = {
     label: options.label,
     imagePath: options.imagePath,
@@ -77,19 +80,27 @@ async function saveArtifacts(options, result) {
       enhancedMaxLongSide: options.enhancedMaxLongSide,
       enhancedContrast: options.enhancedContrast,
       hfHomeDir: resolveHfHomeDir(options),
-      hfHubCacheDir: resolveHubCacheDir(options)
+      hfHubCacheDir: resolveHubCacheDir(options),
     },
     requestSummary: result.requestBody,
     systemPrompt,
     prompt,
     outputText: result.outputText,
-    rawResponse: result.rawResponse
+    rawResponse: result.rawResponse,
   };
 
-  await writeFile(path.join(options.outputDir, "result.json"), `${JSON.stringify(payload, null, 2)}\n`, "utf8");
-  await writeFile(path.join(options.outputDir, "result.md"), `${result.outputText.trim()}\n`, "utf8");
+  await writeFile(
+    path.join(options.outputDir, "result.json"),
+    `${JSON.stringify(payload, null, 2)}\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(options.outputDir, "result.md"),
+    `${result.outputText.trim()}\n`,
+    "utf8",
+  );
 }
 
 module.exports = {
-  saveArtifacts
+  saveArtifacts,
 };

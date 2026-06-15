@@ -13,28 +13,36 @@ export type LiveChapterMergeResult = {
 export function resolveSelectionAfterChapterSync(
   chapter: ChapterSnapshot,
   selectedPageId: string | null,
-  selectedBlockId: string | null
+  selectedBlockId: string | null,
 ): ChapterSelection {
-  const nextSelectedPageId = chapter.pages.some((page) => page.id === selectedPageId) ? selectedPageId : chapter.pages[0]?.id ?? null;
-  const nextSelectedPage = chapter.pages.find((page) => page.id === nextSelectedPageId) ?? null;
+  const nextSelectedPageId = chapter.pages.some(
+    (page) => page.id === selectedPageId,
+  )
+    ? selectedPageId
+    : (chapter.pages[0]?.id ?? null);
+  const nextSelectedPage =
+    chapter.pages.find((page) => page.id === nextSelectedPageId) ?? null;
   const nextSelectedBlockId =
-    nextSelectedPage && nextSelectedPage.blocks.some((block) => block.id === selectedBlockId) ? selectedBlockId : null;
+    nextSelectedPage &&
+    nextSelectedPage.blocks.some((block) => block.id === selectedBlockId)
+      ? selectedBlockId
+      : null;
 
   return {
     selectedPageId: nextSelectedPageId,
-    selectedBlockId: nextSelectedBlockId
+    selectedBlockId: nextSelectedBlockId,
   };
 }
 
 export function mergeLiveChapterPreservingDirtyPages(
   liveChapter: ChapterSnapshot,
   localChapter: ChapterSnapshot | null,
-  dirtyPageIds: Iterable<string>
+  dirtyPageIds: Iterable<string>,
 ): LiveChapterMergeResult {
   if (!localChapter || localChapter.id !== liveChapter.id) {
     return {
       chapter: liveChapter,
-      preservedDirtyPageIds: []
+      preservedDirtyPageIds: [],
     };
   }
 
@@ -42,7 +50,7 @@ export function mergeLiveChapterPreservingDirtyPages(
   if (dirtyPageIdSet.size === 0) {
     return {
       chapter: liveChapter,
-      preservedDirtyPageIds: []
+      preservedDirtyPageIds: [],
     };
   }
 
@@ -63,21 +71,29 @@ export function mergeLiveChapterPreservingDirtyPages(
           ...localPage,
           inpaintedImagePath: page.inpaintedImagePath,
           analysisStatus: page.analysisStatus,
-          lastError: page.lastError
+          lastError: page.lastError,
         };
-      })
+      }),
     },
-    preservedDirtyPageIds
+    preservedDirtyPageIds,
   };
 }
 
-export function markChapterPagesRunning(chapter: ChapterSnapshot, runMode: RunMode, pageId?: string): ChapterSnapshot {
+export function markChapterPagesRunning(
+  chapter: ChapterSnapshot,
+  runMode: RunMode,
+  pageId?: string,
+): ChapterSnapshot {
   const targetPageIds =
     runMode === "all"
       ? new Set(chapter.pages.map((page) => page.id))
       : runMode === "single-page"
         ? new Set(pageId ? [pageId] : [])
-        : new Set(chapter.pages.filter((page) => page.analysisStatus !== "completed").map((page) => page.id));
+        : new Set(
+            chapter.pages
+              .filter((page) => page.analysisStatus !== "completed")
+              .map((page) => page.id),
+          );
 
   if (targetPageIds.size === 0) {
     return chapter;
@@ -91,9 +107,9 @@ export function markChapterPagesRunning(chapter: ChapterSnapshot, runMode: RunMo
         ? {
             ...page,
             analysisStatus: "running",
-            lastError: undefined
+            lastError: undefined,
           }
-        : page
-    )
+        : page,
+    ),
   };
 }

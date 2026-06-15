@@ -7,7 +7,7 @@ function getScaledSize(width, height, maxLongSide) {
   const scale = maxLongSide / longSide;
   return {
     width: Math.max(1, Math.round(width * scale)),
-    height: Math.max(1, Math.round(height * scale))
+    height: Math.max(1, Math.round(height * scale)),
   };
 }
 
@@ -58,16 +58,19 @@ function calculateOpenAIOriginalDetailSize(width, height) {
   }
 
   const patchCount = (imageWidth, imageHeight) =>
-    Math.ceil(imageWidth / OPENAI_ORIGINAL_DETAIL_PATCH_SIZE) * Math.ceil(imageHeight / OPENAI_ORIGINAL_DETAIL_PATCH_SIZE);
+    Math.ceil(imageWidth / OPENAI_ORIGINAL_DETAIL_PATCH_SIZE) *
+    Math.ceil(imageHeight / OPENAI_ORIGINAL_DETAIL_PATCH_SIZE);
 
   const maxDimensionScale = Math.min(
     1,
     OPENAI_ORIGINAL_DETAIL_MAX_DIMENSION / width,
-    OPENAI_ORIGINAL_DETAIL_MAX_DIMENSION / height
+    OPENAI_ORIGINAL_DETAIL_MAX_DIMENSION / height,
   );
   const patchBudgetScale = Math.sqrt(
-    (OPENAI_ORIGINAL_DETAIL_PATCH_BUDGET * OPENAI_ORIGINAL_DETAIL_PATCH_SIZE * OPENAI_ORIGINAL_DETAIL_PATCH_SIZE) /
-      (width * height)
+    (OPENAI_ORIGINAL_DETAIL_PATCH_BUDGET *
+      OPENAI_ORIGINAL_DETAIL_PATCH_SIZE *
+      OPENAI_ORIGINAL_DETAIL_PATCH_SIZE) /
+      (width * height),
   );
   let scale = Math.min(maxDimensionScale, patchBudgetScale, 1);
   let targetWidth = Math.max(1, Math.floor(width * scale));
@@ -85,7 +88,7 @@ function calculateOpenAIOriginalDetailSize(width, height) {
 
   return {
     width: targetWidth,
-    height: targetHeight
+    height: targetHeight,
   };
 }
 
@@ -93,5 +96,5 @@ module.exports = {
   calculateOpenAIOriginalDetailSize,
   enhanceBitmapBuffer,
   getScaledSize,
-  mimeFromPath
+  mimeFromPath,
 };

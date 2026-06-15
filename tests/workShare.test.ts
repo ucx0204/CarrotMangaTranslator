@@ -822,12 +822,12 @@ describe("work share packages", () => {
     await library.savePageBlocks({
       chapterId: chapter.id,
       pageId: originalPage.id,
-        baseUpdatedAt: originalPage.updatedAt,
-        blocks: [
-          {
-            ...firstBlock(originalPage),
-            translatedText: "사용자 수동 수정",
-          },
+      baseUpdatedAt: originalPage.updatedAt,
+      blocks: [
+        {
+          ...firstBlock(originalPage),
+          translatedText: "사용자 수동 수정",
+        },
       ],
     });
 
@@ -865,7 +865,10 @@ async function createTempLibrary(): Promise<string> {
   return rootDir;
 }
 
-function requireZipEntry(entry: AdmZipEntry | undefined, entryName: string): AdmZipEntry {
+function requireZipEntry(
+  entry: AdmZipEntry | undefined,
+  entryName: string,
+): AdmZipEntry {
   if (!entry) {
     throw new Error(`Expected zip entry: ${entryName}`);
   }
@@ -880,7 +883,9 @@ function firstPage<T>(chapter: { pages: T[] }): T {
   return page;
 }
 
-function firstBlock<Page extends { blocks: unknown[] }>(page: Page): Page["blocks"][number] {
+function firstBlock<Page extends { blocks: unknown[] }>(
+  page: Page,
+): Page["blocks"][number] {
   const block = page.blocks[0];
   if (!block) {
     throw new Error("Expected page to contain a block");

@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({
   app: {
-    isPackaged: false
-  }
+    isPackaged: false,
+  },
 }));
 
 import { serializeLogDetail } from "../src/main/logger";
@@ -11,7 +11,11 @@ import { serializeLogDetail } from "../src/main/logger";
 describe("logger serialization", () => {
   it("preserves nested error metadata for AI-friendly diagnostics", () => {
     const inner = new Error("inner failure");
-    const outer = new Error("outer failure") as Error & { cause?: unknown; code?: string; meta?: unknown };
+    const outer = new Error("outer failure") as Error & {
+      cause?: unknown;
+      code?: string;
+      meta?: unknown;
+    };
     outer.cause = inner;
     outer.code = "E_OUTER";
     outer.meta = { jobId: "job-123", page: "1.webp" };

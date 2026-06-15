@@ -4,7 +4,7 @@ import type {
   ImportPreviewResult,
   LibraryIndex,
   WorkShareExportRequest,
-  WorkShareImportPreview
+  WorkShareImportPreview,
 } from "../../../shared/types";
 import { ConfirmModal } from "./ConfirmModal";
 import { InpaintingGuideModal } from "./InpaintingGuideModal";
@@ -12,8 +12,14 @@ import { ImportModal, type ImportModalSubmit } from "./ImportModal";
 import { RenameModal } from "./RenameModal";
 import { SettingsModal } from "./SettingsModal";
 import { ShareExportModal } from "./ShareExportModal";
-import { ShareImportModal, type ShareImportModalSubmit } from "./ShareImportModal";
-import { TranslateSourceModal, type TranslateSourceMode } from "./TranslateSourceModal";
+import {
+  ShareImportModal,
+  type ShareImportModalSubmit,
+} from "./ShareImportModal";
+import {
+  TranslateSourceModal,
+  type TranslateSourceMode,
+} from "./TranslateSourceModal";
 import type { ConfirmDialogState } from "../hooks/useConfirmDialog";
 
 type RenameTarget =
@@ -99,13 +105,27 @@ export function AppModals({
   onResetSettings,
   onSubmitSettings,
   onResolveConfirm,
-  onCloseInpaintingGuide
+  onCloseInpaintingGuide,
 }: AppModalsProps): React.JSX.Element {
   return (
     <>
-      {translationSourceOpen ? <TranslateSourceModal busy={importBusy} onCancel={onCancelTranslationSource} onSelect={onSelectTranslationSource} /> : null}
+      {translationSourceOpen ? (
+        <TranslateSourceModal
+          busy={importBusy}
+          onCancel={onCancelTranslationSource}
+          onSelect={onSelectTranslationSource}
+        />
+      ) : null}
 
-      {importPreview ? <ImportModal library={library} preview={importPreview} busy={importBusy} onCancel={onCancelImport} onSubmit={onSubmitImport} /> : null}
+      {importPreview ? (
+        <ImportModal
+          library={library}
+          preview={importPreview}
+          busy={importBusy}
+          onCancel={onCancelImport}
+          onSubmit={onSubmitImport}
+        />
+      ) : null}
 
       {shareExportOpen ? (
         <ShareExportModal
@@ -160,7 +180,9 @@ export function AppModals({
         />
       ) : null}
 
-      {inpaintingGuideOpen ? <InpaintingGuideModal onClose={onCloseInpaintingGuide} /> : null}
+      {inpaintingGuideOpen ? (
+        <InpaintingGuideModal onClose={onCloseInpaintingGuide} />
+      ) : null}
     </>
   );
 }

@@ -55,7 +55,11 @@ export class ActiveJobStore {
       await cleanup();
       logInfo("Analysis runtime cleanup completed", { jobId: job.id, reason });
     } catch (error) {
-      logError("Analysis runtime cleanup failed", { jobId: job.id, reason, error });
+      logError("Analysis runtime cleanup failed", {
+        jobId: job.id,
+        reason,
+        error,
+      });
     }
   }
 }

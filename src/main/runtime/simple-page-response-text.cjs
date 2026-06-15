@@ -27,12 +27,19 @@ function parseResponsesSseText(rawText) {
     }
     eventCount += 1;
 
-    if (parsed?.type === "response.output_text.delta" && typeof parsed.delta === "string") {
+    if (
+      parsed?.type === "response.output_text.delta" &&
+      typeof parsed.delta === "string"
+    ) {
       deltas.push(parsed.delta);
       continue;
     }
 
-    if ((parsed?.type === "response.completed" || parsed?.type === "response.incomplete") && parsed.response) {
+    if (
+      (parsed?.type === "response.completed" ||
+        parsed?.type === "response.incomplete") &&
+      parsed.response
+    ) {
       rawResponse = parsed.response;
       continue;
     }
@@ -46,7 +53,7 @@ function parseResponsesSseText(rawText) {
   return {
     outputText: deltas.join(""),
     rawResponse,
-    eventCount
+    eventCount,
   };
 }
 
@@ -60,7 +67,10 @@ function extractModelOutputText(parsed) {
     return chatContent.trim();
   }
   if (Array.isArray(chatContent)) {
-    return chatContent.map((item) => item?.text || "").join("\n").trim();
+    return chatContent
+      .map((item) => item?.text || "")
+      .join("\n")
+      .trim();
   }
 
   if (!Array.isArray(parsed?.output)) {
@@ -88,5 +98,5 @@ function extractModelOutputText(parsed) {
 
 module.exports = {
   extractModelOutputText,
-  parseResponsesSseText
+  parseResponsesSseText,
 };

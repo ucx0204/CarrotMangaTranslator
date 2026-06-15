@@ -8,7 +8,10 @@ type InstallProgressOverlayProps = {
   snapshot: ProgressSnapshot | null;
 };
 
-export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlayProps): React.JSX.Element | null {
+export function InstallProgressOverlay({
+  job,
+  snapshot,
+}: InstallProgressOverlayProps): React.JSX.Element | null {
   const logRef = React.useRef<HTMLDivElement | null>(null);
   const logPinnedToBottomRef = React.useRef(true);
   const logLineCount = job.installLogLines?.length ?? 0;
@@ -34,9 +37,12 @@ export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlay
     scrollLogToBottom();
   }, [job.phase, scrollLogToBottom]);
 
-  const handleLogScroll = React.useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    logPinnedToBottomRef.current = isScrolledNearBottom(event.currentTarget);
-  }, []);
+  const handleLogScroll = React.useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      logPinnedToBottomRef.current = isScrolledNearBottom(event.currentTarget);
+    },
+    [],
+  );
 
   if (!isInstallPhase(job.phase)) {
     return null;
@@ -46,7 +52,7 @@ export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlay
   const isDeterminate = snapshot?.mode === "determinate";
   const ratio = isDeterminate ? snapshot.ratio : null;
   const percent = ratio === null ? null : Math.round(ratio * 100);
-  const value = mode === "determinate" ? percent ?? 0 : undefined;
+  const value = mode === "determinate" ? (percent ?? 0) : undefined;
   const logLines = job.installLogLines ?? [];
   const byteStats = formatByteStats(job);
 
@@ -66,14 +72,24 @@ export function InstallProgressOverlay({ job, snapshot }: InstallProgressOverlay
     >
       <div className="install-progress-card" onWheel={stopOverlayEvent}>
         <div className="install-progress-header">
-          <span className="install-progress-kicker">{resolveKicker(job.phase)}</span>
+          <span className="install-progress-kicker">
+            {resolveKicker(job.phase)}
+          </span>
           <strong>{job.progressText}</strong>
         </div>
 
-        <Progress.Root className={`install-progress-root is-${mode}`} value={value} max={100}>
+        <Progress.Root
+          className={`install-progress-root is-${mode}`}
+          value={value}
+          max={100}
+        >
           <Progress.Indicator
             className="install-progress-indicator"
-            style={mode === "determinate" ? { transform: `translateX(-${100 - (percent ?? 0)}%)` } : undefined}
+            style={
+              mode === "determinate"
+                ? { transform: `translateX(-${100 - (percent ?? 0)}%)` }
+                : undefined
+            }
           />
         </Progress.Root>
 
@@ -110,7 +126,10 @@ function isScrolledNearBottom(element: HTMLElement): boolean {
   return element.scrollHeight - element.scrollTop - element.clientHeight <= 12;
 }
 
-function resolveProgressLabel(mode: ProgressSnapshot["mode"] | "log-only", percent: number | null): string {
+function resolveProgressLabel(
+  mode: ProgressSnapshot["mode"] | "log-only",
+  percent: number | null,
+): string {
   if (mode === "determinate" && percent !== null) {
     return `${percent}%`;
   }

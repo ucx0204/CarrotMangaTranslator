@@ -1,5 +1,16 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import type { BBox, ChapterSnapshot, JobState, MangaPage, StartAnalysisRequest } from "../../../shared/types";
+import {
+  useCallback,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
+import type {
+  BBox,
+  ChapterSnapshot,
+  JobState,
+  MangaPage,
+  StartAnalysisRequest,
+} from "../../../shared/types";
 import { isUsableRegionBbox } from "../../../shared/region";
 import { formatErrorMessage } from "../lib/appHelpers";
 import { markChapterPagesRunning } from "../lib/chapterSync";
@@ -28,7 +39,7 @@ function failAnalysisJob(
   setJobState: Dispatch<SetStateAction<JobState>>,
   pushStatus: (line: string) => void,
   progressText: string,
-  message: string
+  message: string,
 ): void {
   setJobState({
     id: "failed-analysis",
@@ -36,12 +47,16 @@ function failAnalysisJob(
     status: "failed",
     progressText,
     phase: "failed",
-    detail: message
+    detail: message,
   });
   pushStatus(message);
 }
 
-function makeStartAnalysisRequest(chapterId: string, runMode: RunAnalysisMode, pageId?: string): StartAnalysisRequest {
+function makeStartAnalysisRequest(
+  chapterId: string,
+  runMode: RunAnalysisMode,
+  pageId?: string,
+): StartAnalysisRequest {
   if (runMode === "single-page") {
     if (!pageId) {
       throw new Error("다시 번역할 페이지를 찾지 못했습니다.");
@@ -64,7 +79,7 @@ export function useTranslationActions({
   selectedPage,
   setCurrentChapter,
   setJobState,
-  setSelectedBlockId
+  setSelectedBlockId,
 }: UseTranslationActionsOptions): {
   runAnalysis: (runMode: RunAnalysisMode, pageId?: string) => Promise<void>;
   translateSelectedRegion: (bbox: BBox) => Promise<void>;
@@ -83,19 +98,27 @@ export function useTranslationActions({
           kind: "gemma-analysis",
           status: "starting",
           progressText: "모델 준비 중",
-          phase: "booting"
+          phase: "booting",
         });
-        const optimisticChapter = markChapterPagesRunning(currentChapter, runMode, pageId);
+        const optimisticChapter = markChapterPagesRunning(
+          currentChapter,
+          runMode,
+          pageId,
+        );
         currentChapterRef.current = optimisticChapter;
         setCurrentChapter(optimisticChapter);
 
-        const result = await mangaGateway.startAnalysis(makeStartAnalysisRequest(currentChapter.id, runMode, pageId));
+        const result = await mangaGateway.startAnalysis(
+          makeStartAnalysisRequest(currentChapter.id, runMode, pageId),
+        );
         if (result.chapter) {
           mergeLiveChapter(result.chapter);
         }
         await refreshLibrary().catch((error) => {
           console.error(error);
-          pushStatus(formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."));
+          pushStatus(
+            formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."),
+          );
         });
 
         if (result.status === "completed") {
@@ -107,11 +130,21 @@ export function useTranslationActions({
         }
 
         if (result.status === "failed") {
-          failAnalysisJob(setJobState, pushStatus, "번역 작업 실패", result.error ?? "번역 작업에 실패했습니다.");
+          failAnalysisJob(
+            setJobState,
+            pushStatus,
+            "번역 작업 실패",
+            result.error ?? "번역 작업에 실패했습니다.",
+          );
         }
       } catch (error) {
         console.error(error);
-        failAnalysisJob(setJobState, pushStatus, "번역 작업 실패", formatErrorMessage(error, "번역 작업을 시작하지 못했습니다."));
+        failAnalysisJob(
+          setJobState,
+          pushStatus,
+          "번역 작업 실패",
+          formatErrorMessage(error, "번역 작업을 시작하지 못했습니다."),
+        );
       }
     },
     [
@@ -124,8 +157,8 @@ export function useTranslationActions({
       refreshLibrary,
       saveNow,
       setCurrentChapter,
-      setJobState
-    ]
+      setJobState,
+    ],
   );
 
   const translateSelectedRegion = useCallback(
@@ -150,21 +183,23 @@ export function useTranslationActions({
           progressCurrent: 0,
           progressTotal: 1,
           pageIndex: 1,
-          pageTotal: 1
+          pageTotal: 1,
         });
 
         await beforeTranslateRegion?.();
         const result = await mangaGateway.translateRegion({
           chapterId: currentChapter.id,
           pageId: selectedPage.id,
-          bbox
+          bbox,
         });
         if (result.chapter) {
           mergeLiveChapter(result.chapter);
         }
         await refreshLibrary().catch((error) => {
           console.error(error);
-          pushStatus(formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."));
+          pushStatus(
+            formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."),
+          );
         });
 
         if (result.status === "completed") {
@@ -172,12 +207,20 @@ export function useTranslationActions({
             setSelectedBlockId(result.blockIds[0]);
           }
           const warningSummary = summarizeWarnings(result.warnings ?? []);
-          pushStatus(warningSummary || `선택 영역에서 ${result.blockIds?.length ?? 0}개 블록을 만들었습니다.`);
+          pushStatus(
+            warningSummary ||
+              `선택 영역에서 ${result.blockIds?.length ?? 0}개 블록을 만들었습니다.`,
+          );
           return;
         }
 
         if (result.status === "failed") {
-          failAnalysisJob(setJobState, pushStatus, "선택 영역 번역 실패", result.error ?? "선택 영역 번역에 실패했습니다.");
+          failAnalysisJob(
+            setJobState,
+            pushStatus,
+            "선택 영역 번역 실패",
+            result.error ?? "선택 영역 번역에 실패했습니다.",
+          );
         }
       } catch (error) {
         console.error(error);
@@ -185,7 +228,7 @@ export function useTranslationActions({
           setJobState,
           pushStatus,
           "선택 영역 번역 실패",
-          formatErrorMessage(error, "선택 영역 번역을 시작하지 못했습니다.")
+          formatErrorMessage(error, "선택 영역 번역을 시작하지 못했습니다."),
         );
       }
     },
@@ -200,12 +243,12 @@ export function useTranslationActions({
       saveNow,
       selectedPage,
       setJobState,
-      setSelectedBlockId
-    ]
+      setSelectedBlockId,
+    ],
   );
 
   return {
     runAnalysis,
-    translateSelectedRegion
+    translateSelectedRegion,
   };
 }

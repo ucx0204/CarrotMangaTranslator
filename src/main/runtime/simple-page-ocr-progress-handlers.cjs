@@ -5,10 +5,16 @@ const {
   parseOcrBatchProgressLine,
   parsePaddleModelFetchProgress,
   parsePipRawProgress,
-  sanitizeInstallLogLine
+  sanitizeInstallLogLine,
 } = require("./simple-page-progress.cjs");
 
-function emitRuntimeProgress(options = {}, phase, progressText, detail, progress = {}) {
+function emitRuntimeProgress(
+  options = {},
+  phase,
+  progressText,
+  detail,
+  progress = {},
+) {
   if (typeof options.onProgress !== "function") {
     return;
   }
@@ -36,7 +42,7 @@ function startTaskProgressMonitor(options = {}, config = {}) {
     const detail = [detailPrefix, stepText].filter(Boolean).join(" · ");
     emitRuntimeProgress(options, phase, progressText, detail, {
       progressMode: "log-only",
-      ...extra
+      ...extra,
     });
   };
 
@@ -44,7 +50,10 @@ function startTaskProgressMonitor(options = {}, config = {}) {
   return {
     setStep(text, startPercent, endPercent) {
       stepText = text;
-      stepStart = Math.max(lastRatio, clampProgressRatio(startPercent, lastRatio));
+      stepStart = Math.max(
+        lastRatio,
+        clampProgressRatio(startPercent, lastRatio),
+      );
       stepEnd = Math.max(stepStart, clampProgressRatio(endPercent, stepStart));
       emit({ progressMode: "indeterminate", installLogLine: text });
     },
@@ -53,7 +62,7 @@ function startTaskProgressMonitor(options = {}, config = {}) {
       emit({
         progressMode: "determinate",
         progressPercent: lastRatio,
-        installLogLine: text || `${stepText} 완료`
+        installLogLine: text || `${stepText} 완료`,
       });
     },
     log(line) {
@@ -67,7 +76,7 @@ function startTaskProgressMonitor(options = {}, config = {}) {
           progressMode: "indeterminate",
           progressBytes: pipProgress.current,
           progressTotalBytes: pipProgress.total,
-          installLogLine: `${stepText}: 현재 다운로드 ${formatBytes(pipProgress.current)} / ${formatBytes(pipProgress.total)}`
+          installLogLine: `${stepText}: 현재 다운로드 ${formatBytes(pipProgress.current)} / ${formatBytes(pipProgress.total)}`,
         });
         return;
       }
@@ -76,9 +85,15 @@ function startTaskProgressMonitor(options = {}, config = {}) {
     stop(finalProgress = null) {
       stopped = true;
       if (finalProgress) {
-        emitRuntimeProgress(options, phase, progressText, finalProgress.detail, finalProgress);
+        emitRuntimeProgress(
+          options,
+          phase,
+          progressText,
+          finalProgress.detail,
+          finalProgress,
+        );
       }
-    }
+    },
   };
 }
 
@@ -92,8 +107,11 @@ function createOcrCommandProgressHandler(options = {}, config = {}) {
     }
 
     const fetchProgress = parsePaddleModelFetchProgress(logLine);
-    const isModelStatusLine = Boolean(fetchProgress) ||
-      /^(Creating model:|Checking connectivity|Using official model|Fetching \d+ files:)/i.test(logLine);
+    const isModelStatusLine =
+      Boolean(fetchProgress) ||
+      /^(Creating model:|Checking connectivity|Using official model|Fetching \d+ files:)/i.test(
+        logLine,
+      );
     if (!isModelStatusLine) {
       return;
     }
@@ -108,16 +126,22 @@ function createOcrCommandProgressHandler(options = {}, config = {}) {
     lastDetail = detail;
     lastAt = now;
 
-    emitRuntimeProgress(options, "ocr_running", config.progressText || "Paddle OCR 모델 다운로드/위치 분석 중", detail, {
-      progressMode: "log-only",
-      progressCurrent: config.progressCurrent,
-      progressTotal: config.progressTotal,
-      installLogLine: logLine
-    });
+    emitRuntimeProgress(
+      options,
+      "ocr_running",
+      config.progressText || "Paddle OCR 모델 다운로드/위치 분석 중",
+      detail,
+      {
+        progressMode: "log-only",
+        progressCurrent: config.progressCurrent,
+        progressTotal: config.progressTotal,
+        installLogLine: logLine,
+      },
+    );
   };
 }
 
 module.exports = {
   createOcrCommandProgressHandler,
-  startTaskProgressMonitor
+  startTaskProgressMonitor,
 };

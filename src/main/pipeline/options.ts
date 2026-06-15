@@ -1,5 +1,8 @@
 import { join } from "node:path";
-import { buildBaseTranslationOptions, type TranslationOptions } from "../appSettings";
+import {
+  buildBaseTranslationOptions,
+  type TranslationOptions,
+} from "../appSettings";
 import { getAppPaths, type AppPaths } from "../appPaths";
 import type { AppSettings, MangaPage } from "../../shared/types";
 
@@ -8,29 +11,41 @@ export function buildBaseOptions(
   runDir: string,
   settings: AppSettings,
   paths: AppPaths = getAppPaths(),
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
 ): TranslationOptions {
   return buildBaseTranslationOptions({
     jobId,
     runDir,
     paths,
     settings,
-    env
+    env,
   });
 }
 
-export function buildPageOptions(baseOptions: TranslationOptions, page: MangaPage, index: number, attempt: number): TranslationOptions {
+export function buildPageOptions(
+  baseOptions: TranslationOptions,
+  page: MangaPage,
+  index: number,
+  attempt: number,
+): TranslationOptions {
   return {
     ...baseOptions,
     imagePath: page.imagePath,
     imageWidth: page.width,
     imageHeight: page.height,
-    outputDir: join(baseOptions.outputDir, "pages", page.id, `attempt-${attempt}`),
-    label: `page-${index + 1}-attempt-${attempt}`
+    outputDir: join(
+      baseOptions.outputDir,
+      "pages",
+      page.id,
+      `attempt-${attempt}`,
+    ),
+    label: `page-${index + 1}-attempt-${attempt}`,
   };
 }
 
-export function formatGemmaVramMode(mode: TranslationOptions["gemmaVramMode"]): string {
+export function formatGemmaVramMode(
+  mode: TranslationOptions["gemmaVramMode"],
+): string {
   if (mode === "minimum12b") {
     return "12B 최소 모드";
   }
@@ -40,7 +55,9 @@ export function formatGemmaVramMode(mode: TranslationOptions["gemmaVramMode"]): 
   return "31B 풀로드 모드";
 }
 
-export function summarizeTranslationOptions(options: TranslationOptions): Record<string, unknown> {
+export function summarizeTranslationOptions(
+  options: TranslationOptions,
+): Record<string, unknown> {
   return {
     label: options.label,
     imagePath: options.imagePath,
@@ -48,7 +65,9 @@ export function summarizeTranslationOptions(options: TranslationOptions): Record
     modelProvider: options.modelProvider,
     port: options.port,
     promptMode: options.promptMode,
-    promptOverrideText: options.promptOverrideText ? summarizePreview(options.promptOverrideText, 600) : undefined,
+    promptOverrideText: options.promptOverrideText
+      ? summarizePreview(options.promptOverrideText, 600)
+      : undefined,
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
@@ -90,13 +109,15 @@ export function summarizeTranslationOptions(options: TranslationOptions): Record
     ocrGpuBackend: options.ocrGpuBackend,
     ocrGpuCudaTag: options.ocrGpuCudaTag,
     hfHomeDir: options.hfHomeDir ?? null,
-    hfHubCacheDir: options.hfHubCacheDir ?? null
+    hfHubCacheDir: options.hfHubCacheDir ?? null,
   };
 }
 
 export function summarizePreview(text: string, maxLength = 240): string {
   const compact = text.replace(/\s+/g, " ").trim();
-  return compact.length <= maxLength ? compact : `${compact.slice(0, maxLength - 1)}…`;
+  return compact.length <= maxLength
+    ? compact
+    : `${compact.slice(0, maxLength - 1)}…`;
 }
 
 export function readNumberEnv(name: string, fallback: number): number {

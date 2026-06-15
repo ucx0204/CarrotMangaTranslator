@@ -1,34 +1,36 @@
-const { closeSync, existsSync, openSync, readFileSync, readSync } = require("node:fs");
+const {
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  readSync,
+} = require("node:fs");
 const { mkdir, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
 const { bundledServerCandidates } = require("./resolve-llama-runtime.cjs");
 const {
   LLAMA_RUNTIME_FILES,
-  LLAMA_RUNTIME_MARKER_FILE
+  LLAMA_RUNTIME_MARKER_FILE,
 } = require("./simple-page-llama-runtimes.cjs");
-const {
-  PADDLE_OCR_MODEL_DOWNLOADS
-} = require("./simple-page-defaults.cjs");
-const {
-  runtimeOverrideEnv
-} = require("./simple-page-child-env.cjs");
+const { PADDLE_OCR_MODEL_DOWNLOADS } = require("./simple-page-defaults.cjs");
+const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
 const {
   downloadHfFileWithProgress,
   getFileSize,
   isUsableFile,
-  probeContentLength
+  probeContentLength,
 } = require("./simple-page-download-utils.cjs");
 const {
   findNamedFile,
   findPreferredMmprojFile,
-  listSnapshotDirs
+  listSnapshotDirs,
 } = require("./simple-page-file-search.cjs");
 const {
   repoCacheDir,
   resolveHubCacheDir,
   resolveLlamaCppCacheDir,
-  resolveManagedHfFilePath
+  resolveManagedHfFilePath,
 } = require("./simple-page-cache-paths.cjs");
 const {
   isOpenAICodexProvider,
@@ -44,7 +46,7 @@ const {
   resolveConfiguredModelSource,
   resolveConfiguredMmprojFile,
   resolveConfiguredMmprojRepo,
-  shouldUseConfiguredMmproj
+  shouldUseConfiguredMmproj,
 } = require("./simple-page-model-config.cjs");
 const {
   hasRequiredLlamaRuntimeFiles,
@@ -52,18 +54,16 @@ const {
   resolveLlamaRuntimeSearchDirs,
   resolveManagedToolsDir,
   resolvePreferredLlamaRuntime,
-  resolveToolsDir
+  resolveToolsDir,
 } = require("./simple-page-runtime-paths.cjs");
-const {
-  extractSelectedZipEntries
-} = require("./simple-page-zip-utils.cjs");
+const { extractSelectedZipEntries } = require("./simple-page-zip-utils.cjs");
 const {
   collectRequiredPaddleOcrModelDownloads,
-  resolvePaddleOcrModelCacheDir
+  resolvePaddleOcrModelCacheDir,
 } = require("./simple-page-ocr-model-assets.cjs");
 const {
   createDetailedError,
-  emitRuntimeProgress
+  emitRuntimeProgress,
 } = require("./simple-page-runtime-common.cjs");
 
 function resolveConfiguredMmprojUrl(options = {}) {
@@ -85,7 +85,10 @@ function resolveCachedConfiguredMmprojPath(options = {}) {
   const configuredFile = resolveConfiguredMmprojFile(options);
   const hubCacheDir = resolveHubCacheDir(options);
   if (hubCacheDir) {
-    const repoDir = repoCacheDir(resolveConfiguredMmprojRepo(options), hubCacheDir);
+    const repoDir = repoCacheDir(
+      resolveConfiguredMmprojRepo(options),
+      hubCacheDir,
+    );
     if (existsSync(repoDir)) {
       for (const snapshotDir of listSnapshotDirs(repoDir)) {
         const mmprojPath = path.join(snapshotDir, configuredFile);
@@ -114,7 +117,10 @@ function resolveCachedLlamaCppFile(fileName, options = {}) {
   return findNamedFile(cacheDir, fileName, 2);
 }
 
-function collectRequiredHfDownloads(options = {}, launchTarget = inspectModelLaunch(options)) {
+function collectRequiredHfDownloads(
+  options = {},
+  launchTarget = inspectModelLaunch(options),
+) {
   if (launchTarget.launchMode === "openai-codex") {
     return [];
   }
@@ -126,7 +132,14 @@ function collectRequiredHfDownloads(options = {}, launchTarget = inspectModelLau
     const url = `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(file)}`;
     const destination = resolveManagedHfFilePath(options, repo, file);
     if (repo && file && destination) {
-      tasks.push({ kind: "model", label: "Gemma 모델", repo, file, url, destination });
+      tasks.push({
+        kind: "model",
+        label: "Gemma 모델",
+        repo,
+        file,
+        url,
+        destination,
+      });
     }
   }
 
@@ -135,24 +148,47 @@ function collectRequiredHfDownloads(options = {}, launchTarget = inspectModelLau
     const file = resolveConfiguredMmprojFile(options);
     const destination = resolveManagedHfFilePath(options, repo, file);
     if (repo && file && destination) {
-      tasks.push({ kind: "mmproj", label: "Gemma vision mmproj", repo, file, url: launchTarget.mmprojUrl, destination });
+      tasks.push({
+        kind: "mmproj",
+        label: "Gemma vision mmproj",
+        repo,
+        file,
+        url: launchTarget.mmprojUrl,
+        destination,
+      });
     }
   }
 
-  if (options.useDraft && launchTarget.draftModelUrl && !launchTarget.draftModelPath) {
+  if (
+    options.useDraft &&
+    launchTarget.draftModelUrl &&
+    !launchTarget.draftModelPath
+  ) {
     const repo = resolveConfiguredDraftModelRepo(options);
     const file = resolveConfiguredDraftModelFile(options);
     const destination = resolveManagedHfFilePath(options, repo, file);
     if (repo && file && destination) {
-      tasks.push({ kind: "draft", label: "Gemma draft 모델", repo, file, url: launchTarget.draftModelUrl, destination });
+      tasks.push({
+        kind: "draft",
+        label: "Gemma draft 모델",
+        repo,
+        file,
+        url: launchTarget.draftModelUrl,
+        destination,
+      });
     }
   }
 
   return tasks;
 }
 
-async function ensureHfModelAssetsDownloaded(options = {}, launchTarget = inspectModelLaunch(options)) {
-  const tasks = collectRequiredHfDownloads(options, launchTarget).filter((task) => !isUsableFile(task.destination));
+async function ensureHfModelAssetsDownloaded(
+  options = {},
+  launchTarget = inspectModelLaunch(options),
+) {
+  const tasks = collectRequiredHfDownloads(options, launchTarget).filter(
+    (task) => !isUsableFile(task.destination),
+  );
   if (tasks.length === 0) {
     return;
   }
@@ -169,13 +205,19 @@ async function ensureHfModelAssetsDownloaded(options = {}, launchTarget = inspec
 
   const hasKnownAggregate = knownTotalBytes > 0 && totals.size === tasks.length;
   let completedBytes = 0;
-  emitRuntimeProgress(options, "model_downloading", "Gemma 모델 다운로드 중", `${tasks.length}개 파일 준비`, {
-    progressMode: hasKnownAggregate ? "determinate" : "log-only",
-    progressPercent: hasKnownAggregate ? 0 : undefined,
-    progressBytes: 0,
-    progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
-    installLogLine: `다운로드 대상 ${tasks.length}개 파일을 확인했습니다.`
-  });
+  emitRuntimeProgress(
+    options,
+    "model_downloading",
+    "Gemma 모델 다운로드 중",
+    `${tasks.length}개 파일 준비`,
+    {
+      progressMode: hasKnownAggregate ? "determinate" : "log-only",
+      progressPercent: hasKnownAggregate ? 0 : undefined,
+      progressBytes: 0,
+      progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+      installLogLine: `다운로드 대상 ${tasks.length}개 파일을 확인했습니다.`,
+    },
+  );
 
   for (const task of tasks) {
     const totalBytes = totals.get(task.destination) || 0;
@@ -185,25 +227,37 @@ async function ensureHfModelAssetsDownloaded(options = {}, launchTarget = inspec
       completedBytes,
       onComplete: (bytesWritten) => {
         completedBytes += hasKnownAggregate ? totalBytes : bytesWritten;
-      }
+      },
     });
   }
 
-  emitRuntimeProgress(options, "model_downloading", "Gemma 모델 다운로드 완료", "모든 모델 파일을 로컬 캐시에 저장했습니다.", {
-    progressMode: hasKnownAggregate ? "determinate" : "log-only",
-    progressPercent: hasKnownAggregate ? 1 : undefined,
-    progressBytes: hasKnownAggregate ? knownTotalBytes : undefined,
-    progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
-    installLogLine: "Gemma 모델 파일 다운로드가 완료되었습니다."
-  });
+  emitRuntimeProgress(
+    options,
+    "model_downloading",
+    "Gemma 모델 다운로드 완료",
+    "모든 모델 파일을 로컬 캐시에 저장했습니다.",
+    {
+      progressMode: hasKnownAggregate ? "determinate" : "log-only",
+      progressPercent: hasKnownAggregate ? 1 : undefined,
+      progressBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+      progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+      installLogLine: "Gemma 모델 파일 다운로드가 완료되었습니다.",
+    },
+  );
 }
 
 async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
   const runtime = resolvePreferredLlamaRuntime(options);
   const managedToolsDir = resolveManagedToolsDir(options);
   const runtimeDir = path.join(managedToolsDir, runtime.dir);
-  const serverPath = path.join(runtimeDir, process.platform === "win32" ? "llama-server.exe" : "llama-server");
-  if (isCurrentLlamaRuntime(runtimeDir, runtime) && hasRequiredLlamaRuntimeFiles(runtimeDir, runtime)) {
+  const serverPath = path.join(
+    runtimeDir,
+    process.platform === "win32" ? "llama-server.exe" : "llama-server",
+  );
+  if (
+    isCurrentLlamaRuntime(runtimeDir, runtime) &&
+    hasRequiredLlamaRuntimeFiles(runtimeDir, runtime)
+  ) {
     return;
   }
 
@@ -212,7 +266,9 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
       serverPath,
       toolsDir: resolveToolsDir(options),
       managedToolsDir,
-      checkedServerPaths: resolveLlamaRuntimeSearchDirs(options).flatMap((dir) => bundledServerCandidates(dir))
+      checkedServerPaths: resolveLlamaRuntimeSearchDirs(options).flatMap(
+        (dir) => bundledServerCandidates(dir),
+      ),
     });
   }
 
@@ -221,13 +277,17 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
   const archiveTotals = new Map();
   let knownAggregateBytes = 0;
   for (const archive of archives) {
-    const totalBytes = await probeContentLength(archive.url, options.abortSignal);
+    const totalBytes = await probeContentLength(
+      archive.url,
+      options.abortSignal,
+    );
     if (Number.isFinite(totalBytes) && totalBytes > 0) {
       archiveTotals.set(archive.archive, totalBytes);
       knownAggregateBytes += totalBytes;
     }
   }
-  const hasKnownAggregate = knownAggregateBytes > 0 && archiveTotals.size === archives.length;
+  const hasKnownAggregate =
+    knownAggregateBytes > 0 && archiveTotals.size === archives.length;
   let completedBytes = 0;
   const archivePaths = [];
   for (const archive of archives) {
@@ -243,7 +303,7 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
         destination: archivePath,
         progressPhase: "model_downloading",
         progressTitle: "Gemma 실행 런타임 다운로드 중",
-        completeTitle: "Gemma 실행 런타임 다운로드 완료"
+        completeTitle: "Gemma 실행 런타임 다운로드 완료",
       },
       options,
       {
@@ -252,43 +312,70 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
         completedBytes,
         onComplete: (bytesWritten) => {
           completedBytes += hasKnownAggregate ? totalBytes : bytesWritten;
-        }
-      }
+        },
+      },
     );
   }
 
-  emitRuntimeProgress(options, "model_downloading", "Gemma 실행 런타임 설치 중", runtime.dir, {
-    progressMode: "indeterminate",
-    installLogLine: `Gemma 실행 파일과 ${formatLlamaRuntimeBackend(runtime)} 런타임 파일을 앱 데이터 폴더에 풀고 있습니다.`
-  });
+  emitRuntimeProgress(
+    options,
+    "model_downloading",
+    "Gemma 실행 런타임 설치 중",
+    runtime.dir,
+    {
+      progressMode: "indeterminate",
+      installLogLine: `Gemma 실행 파일과 ${formatLlamaRuntimeBackend(runtime)} 런타임 파일을 앱 데이터 폴더에 풀고 있습니다.`,
+    },
+  );
   await rm(runtimeDir, { recursive: true, force: true }).catch(() => {});
   await mkdir(runtimeDir, { recursive: true });
   for (const archivePath of archivePaths) {
-    await extractSelectedZipEntries(archivePath, runtimeDir, shouldExtractLlamaRuntimeFile);
+    await extractSelectedZipEntries(
+      archivePath,
+      runtimeDir,
+      shouldExtractLlamaRuntimeFile,
+    );
   }
 
   const missingFiles = missingRequiredLlamaRuntimeFiles(runtimeDir, runtime);
   if (missingFiles.length > 0) {
-    throw createDetailedError("Gemma 실행 런타임을 설치했지만 필수 실행 파일 또는 GPU 런타임 파일을 찾지 못했습니다.", {
-      archives: archivePaths,
-      runtimeDir,
-      serverPath,
-      missingFiles
-    });
+    throw createDetailedError(
+      "Gemma 실행 런타임을 설치했지만 필수 실행 파일 또는 GPU 런타임 파일을 찾지 못했습니다.",
+      {
+        archives: archivePaths,
+        runtimeDir,
+        serverPath,
+        missingFiles,
+      },
+    );
   }
-  await writeFile(path.join(runtimeDir, LLAMA_RUNTIME_MARKER_FILE), `${JSON.stringify({
-    id: runtime.id,
-    kind: runtime.kind,
-    dir: runtime.dir,
-    archives,
-    requiredFiles: runtime.requiredFiles,
-    installedAt: new Date().toISOString()
-  }, null, 2)}\n`, "utf8");
-  emitRuntimeProgress(options, "model_downloading", "Gemma 실행 런타임 설치 완료", runtime.dir, {
-    progressMode: "determinate",
-    progressPercent: 1,
-    installLogLine: "Gemma 실행 런타임 준비가 완료되었습니다."
-  });
+  await writeFile(
+    path.join(runtimeDir, LLAMA_RUNTIME_MARKER_FILE),
+    `${JSON.stringify(
+      {
+        id: runtime.id,
+        kind: runtime.kind,
+        dir: runtime.dir,
+        archives,
+        requiredFiles: runtime.requiredFiles,
+        installedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  emitRuntimeProgress(
+    options,
+    "model_downloading",
+    "Gemma 실행 런타임 설치 완료",
+    runtime.dir,
+    {
+      progressMode: "determinate",
+      progressPercent: 1,
+      installLogLine: "Gemma 실행 런타임 준비가 완료되었습니다.",
+    },
+  );
 }
 
 function formatLlamaRuntimeBackend(runtime = {}) {
@@ -302,17 +389,28 @@ function formatLlamaRuntimeBackend(runtime = {}) {
   return "CUDA";
 }
 
-function isCurrentLlamaRuntime(runtimeDir, runtime = resolvePreferredLlamaRuntime({})) {
+function isCurrentLlamaRuntime(
+  runtimeDir,
+  runtime = resolvePreferredLlamaRuntime({}),
+) {
   try {
-    const marker = JSON.parse(readFileSync(path.join(runtimeDir, LLAMA_RUNTIME_MARKER_FILE), "utf8"));
+    const marker = JSON.parse(
+      readFileSync(path.join(runtimeDir, LLAMA_RUNTIME_MARKER_FILE), "utf8"),
+    );
     const expectedArchives = getLlamaRuntimeArchives(runtime);
-    const markerArchives = Array.isArray(marker?.archives) ? marker.archives : [];
+    const markerArchives = Array.isArray(marker?.archives)
+      ? marker.archives
+      : [];
     return (
       marker?.id === runtime.id &&
       marker?.kind === runtime.kind &&
       marker?.dir === runtime.dir &&
       expectedArchives.every((archive) =>
-        markerArchives.some((candidate) => candidate?.archive === archive.archive && candidate?.url === archive.url)
+        markerArchives.some(
+          (candidate) =>
+            candidate?.archive === archive.archive &&
+            candidate?.url === archive.url,
+        ),
       )
     );
   } catch {
@@ -324,22 +422,40 @@ function getLlamaRuntimeArchives(runtime) {
   if (Array.isArray(runtime?.archives) && runtime.archives.length > 0) {
     return runtime.archives;
   }
-  return runtime?.archive && runtime?.url ? [{ archive: runtime.archive, url: runtime.url }] : [];
+  return runtime?.archive && runtime?.url
+    ? [{ archive: runtime.archive, url: runtime.url }]
+    : [];
 }
 
 function shouldExtractLlamaRuntimeFile(fileName, relativePath = fileName) {
-  const normalizedRelativePath = String(relativePath ?? fileName ?? "").replace(/\\/g, "/").toLowerCase();
+  const normalizedRelativePath = String(relativePath ?? fileName ?? "")
+    .replace(/\\/g, "/")
+    .toLowerCase();
   if (
-    (normalizedRelativePath.startsWith("rocblas/") || normalizedRelativePath.startsWith("hipblaslt/")) &&
+    (normalizedRelativePath.startsWith("rocblas/") ||
+      normalizedRelativePath.startsWith("hipblaslt/")) &&
     /\.(?:dat|co|hsaco)$/i.test(normalizedRelativePath)
   ) {
     return true;
   }
-  return LLAMA_RUNTIME_FILES.has(fileName) || /\.(?:dll|so|dylib)$/i.test(String(fileName ?? ""));
+  return (
+    LLAMA_RUNTIME_FILES.has(fileName) ||
+    /\.(?:dll|so|dylib)$/i.test(String(fileName ?? ""))
+  );
 }
 
-async function ensurePaddleOcrModelAssetsDownloaded(options = {}, runtime = null) {
-  if (isTruthy(runtimeOverrideEnv("MANGA_TRANSLATOR_SKIP_PADDLE_MODEL_PREFETCH", options) ?? "false")) {
+async function ensurePaddleOcrModelAssetsDownloaded(
+  options = {},
+  runtime = null,
+) {
+  if (
+    isTruthy(
+      runtimeOverrideEnv(
+        "MANGA_TRANSLATOR_SKIP_PADDLE_MODEL_PREFETCH",
+        options,
+      ) ?? "false",
+    )
+  ) {
     return;
   }
 
@@ -354,10 +470,16 @@ async function ensurePaddleOcrModelAssetsDownloaded(options = {}, runtime = null
     const assetProblem = inspectPaddleOcrAssetFile(task.destination, task.file);
     if (assetProblem) {
       await rm(task.destination, { force: true }).catch(() => {});
-      emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 파일 재검사 중", `${task.label}: ${task.file}`, {
-        progressMode: "log-only",
-        installLogLine: `깨진 OCR 모델 파일을 다시 받습니다: ${task.file} (${assetProblem})`
-      });
+      emitRuntimeProgress(
+        options,
+        "ocr_downloading",
+        "Paddle OCR 모델 파일 재검사 중",
+        `${task.label}: ${task.file}`,
+        {
+          progressMode: "log-only",
+          installLogLine: `깨진 OCR 모델 파일을 다시 받습니다: ${task.file} (${assetProblem})`,
+        },
+      );
       pending.push(task);
       if (totalBytes > 0) {
         totals.set(task.destination, totalBytes);
@@ -385,15 +507,22 @@ async function ensurePaddleOcrModelAssetsDownloaded(options = {}, runtime = null
     return;
   }
 
-  const hasKnownAggregate = knownTotalBytes > 0 && totals.size === pending.length;
+  const hasKnownAggregate =
+    knownTotalBytes > 0 && totals.size === pending.length;
   let completedBytes = 0;
-  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 파일 다운로드 중", `${pending.length}개 파일 준비`, {
-    progressMode: hasKnownAggregate ? "determinate" : "log-only",
-    progressPercent: hasKnownAggregate ? 0 : undefined,
-    progressBytes: 0,
-    progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
-    installLogLine: `Paddle OCR 모델 다운로드 대상 ${pending.length}개 파일을 확인했습니다.`
-  });
+  emitRuntimeProgress(
+    options,
+    "ocr_downloading",
+    "Paddle OCR 모델 파일 다운로드 중",
+    `${pending.length}개 파일 준비`,
+    {
+      progressMode: hasKnownAggregate ? "determinate" : "log-only",
+      progressPercent: hasKnownAggregate ? 0 : undefined,
+      progressBytes: 0,
+      progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+      installLogLine: `Paddle OCR 모델 다운로드 대상 ${pending.length}개 파일을 확인했습니다.`,
+    },
+  );
 
   for (const task of pending) {
     const totalBytes = totals.get(task.destination) || 0;
@@ -403,31 +532,54 @@ async function ensurePaddleOcrModelAssetsDownloaded(options = {}, runtime = null
       completedBytes,
       onComplete: (bytesWritten) => {
         completedBytes += hasKnownAggregate ? totalBytes : bytesWritten;
-      }
+      },
     });
   }
 
-  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 파일 다운로드 완료", "모든 Paddle OCR 모델 파일을 로컬 캐시에 저장했습니다.", {
-    progressMode: hasKnownAggregate ? "determinate" : "log-only",
-    progressPercent: hasKnownAggregate ? 1 : undefined,
-    progressBytes: hasKnownAggregate ? knownTotalBytes : undefined,
-    progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
-    installLogLine: "Paddle OCR 모델 파일 다운로드가 완료되었습니다."
-  });
+  emitRuntimeProgress(
+    options,
+    "ocr_downloading",
+    "Paddle OCR 모델 파일 다운로드 완료",
+    "모든 Paddle OCR 모델 파일을 로컬 캐시에 저장했습니다.",
+    {
+      progressMode: hasKnownAggregate ? "determinate" : "log-only",
+      progressPercent: hasKnownAggregate ? 1 : undefined,
+      progressBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+      progressTotalBytes: hasKnownAggregate ? knownTotalBytes : undefined,
+      installLogLine: "Paddle OCR 모델 파일 다운로드가 완료되었습니다.",
+    },
+  );
 }
 
-async function repairPaddleOcrModelAssetsCache(options = {}, runtime = null, reason = "") {
-  const runtimeDir = runtime?.runtimeDir || options.ocrRuntimeDir || path.join(options.workingDir || process.cwd(), "ocr-runtime");
+async function repairPaddleOcrModelAssetsCache(
+  options = {},
+  runtime = null,
+  reason = "",
+) {
+  const runtimeDir =
+    runtime?.runtimeDir ||
+    options.ocrRuntimeDir ||
+    path.join(options.workingDir || process.cwd(), "ocr-runtime");
   const names = resolvePaddleOcrModelNamesForRepair(reason);
-  emitRuntimeProgress(options, "ocr_downloading", "Paddle OCR 모델 캐시 복구 중", names.join(", "), {
-    progressMode: "log-only",
-    installLogLine: `Paddle OCR 모델 캐시를 다시 준비합니다. reason=${truncateReason(reason)}`
-  });
+  emitRuntimeProgress(
+    options,
+    "ocr_downloading",
+    "Paddle OCR 모델 캐시 복구 중",
+    names.join(", "),
+    {
+      progressMode: "log-only",
+      installLogLine: `Paddle OCR 모델 캐시를 다시 준비합니다. reason=${truncateReason(reason)}`,
+    },
+  );
 
   for (const modelName of names) {
     const modelDir = resolvePaddleOcrModelCacheDir(runtimeDir, modelName);
     if (!isSafePaddleOcrModelCacheDir(runtimeDir, modelDir)) {
-      throw createDetailedError("Unsafe Paddle OCR model cache path.", { runtimeDir, modelDir, modelName });
+      throw createDetailedError("Unsafe Paddle OCR model cache path.", {
+        runtimeDir,
+        modelDir,
+        modelName,
+      });
     }
     await rm(modelDir, { recursive: true, force: true }).catch(() => {});
   }
@@ -437,22 +589,30 @@ async function repairPaddleOcrModelAssetsCache(options = {}, runtime = null, rea
 
 function isPaddleOcrModelAssetLoadFailure(value) {
   const text = stringifyErrorForDetection(value);
-  return /json\.exception\.parse_error\.101|attempting to parse an empty input|Creating model:\s*\('?(PP-DocLayoutV3|PaddleOCR-VL-1\.5|PP-OCRv5_server_det|PP-OCRv5_server_rec)/i.test(text);
+  return /json\.exception\.parse_error\.101|attempting to parse an empty input|Creating model:\s*\('?(PP-DocLayoutV3|PaddleOCR-VL-1\.5|PP-OCRv5_server_det|PP-OCRv5_server_rec)/i.test(
+    text,
+  );
 }
 
 function resolvePaddleOcrModelNamesForRepair(reason = "") {
   const text = stringifyErrorForDetection(reason);
-  const explicit = PADDLE_OCR_MODEL_DOWNLOADS
-    .map((model) => model.name)
-    .filter((name) => text.includes(name));
-  return explicit.length > 0 ? explicit : PADDLE_OCR_MODEL_DOWNLOADS.map((model) => model.name);
+  const explicit = PADDLE_OCR_MODEL_DOWNLOADS.map((model) => model.name).filter(
+    (name) => text.includes(name),
+  );
+  return explicit.length > 0
+    ? explicit
+    : PADDLE_OCR_MODEL_DOWNLOADS.map((model) => model.name);
 }
 
 function isSafePaddleOcrModelCacheDir(runtimeDir, modelDir) {
   const root = path.resolve(runtimeDir, "paddlex-cache", "official_models");
   const resolved = path.resolve(modelDir);
   const relative = path.relative(root, resolved);
-  return Boolean(relative) && !relative.startsWith("..") && !path.isAbsolute(relative);
+  return (
+    Boolean(relative) &&
+    !relative.startsWith("..") &&
+    !path.isAbsolute(relative)
+  );
 }
 
 function inspectPaddleOcrAssetFile(filePath, fileName = "") {
@@ -502,12 +662,10 @@ function stringifyErrorForDetection(value) {
   if (!value || typeof value !== "object") {
     return String(value ?? "");
   }
-  return [
-    value.message,
-    value.stderrPreview,
-    value.stdoutPreview,
-    value.cause
-  ].filter(Boolean).map((part) => String(part)).join(" ");
+  return [value.message, value.stderrPreview, value.stdoutPreview, value.cause]
+    .filter(Boolean)
+    .map((part) => String(part))
+    .join(" ");
 }
 
 function truncateReason(value, maxLength = 500) {
@@ -541,10 +699,16 @@ function resolveCachedConfiguredDraftModelPath(options = {}) {
 function resolveCachedModelAssets(options = {}) {
   const hubCacheDir = resolveHubCacheDir(options);
   const configuredMmprojPath = resolveCachedConfiguredMmprojPath(options);
-  const configuredMmprojUrl = configuredMmprojPath ? null : resolveConfiguredMmprojUrl(options);
+  const configuredMmprojUrl = configuredMmprojPath
+    ? null
+    : resolveConfiguredMmprojUrl(options);
   const draftModelPath = resolveCachedConfiguredDraftModelPath(options);
-  const draftModelUrl = draftModelPath ? null : resolveConfiguredDraftModelUrl(options);
-  const requiresDraftDownload = Boolean(options.useDraft && !draftModelPath && draftModelUrl);
+  const draftModelUrl = draftModelPath
+    ? null
+    : resolveConfiguredDraftModelUrl(options);
+  const requiresDraftDownload = Boolean(
+    options.useDraft && !draftModelPath && draftModelUrl,
+  );
   if (!hubCacheDir) {
     return {
       hubCacheDir: null,
@@ -556,11 +720,14 @@ function resolveCachedModelAssets(options = {}) {
       draftModelPath,
       draftModelUrl,
       launchMode: "huggingface",
-      requiresDownload: true
+      requiresDownload: true,
     };
   }
 
-  const repoDir = repoCacheDir(resolveConfiguredModelRepo(options), hubCacheDir);
+  const repoDir = repoCacheDir(
+    resolveConfiguredModelRepo(options),
+    hubCacheDir,
+  );
   if (!existsSync(repoDir)) {
     return {
       hubCacheDir,
@@ -572,7 +739,7 @@ function resolveCachedModelAssets(options = {}) {
       draftModelPath,
       draftModelUrl,
       launchMode: "huggingface",
-      requiresDownload: true
+      requiresDownload: true,
     };
   }
 
@@ -583,7 +750,8 @@ function resolveCachedModelAssets(options = {}) {
       continue;
     }
 
-    const mmprojPath = configuredMmprojPath || findPreferredMmprojFile(snapshotDir);
+    const mmprojPath =
+      configuredMmprojPath || findPreferredMmprojFile(snapshotDir);
     if (mmprojPath) {
       return {
         hubCacheDir,
@@ -595,7 +763,7 @@ function resolveCachedModelAssets(options = {}) {
         draftModelPath,
         draftModelUrl,
         launchMode: "cached-hf",
-        requiresDownload: requiresDraftDownload
+        requiresDownload: requiresDraftDownload,
       };
     }
 
@@ -610,7 +778,7 @@ function resolveCachedModelAssets(options = {}) {
         draftModelPath,
         draftModelUrl,
         launchMode: "cached-hf",
-        requiresDownload: true
+        requiresDownload: true,
       };
     }
   }
@@ -627,12 +795,13 @@ function resolveCachedModelAssets(options = {}) {
       draftModelPath,
       draftModelUrl,
       launchMode: "huggingface",
-      requiresDownload: true
+      requiresDownload: true,
     };
   }
 
   const snapshotDir = path.dirname(modelPath);
-  const mmprojPath = configuredMmprojPath || findPreferredMmprojFile(snapshotDir);
+  const mmprojPath =
+    configuredMmprojPath || findPreferredMmprojFile(snapshotDir);
   return {
     hubCacheDir,
     repoDir,
@@ -643,7 +812,8 @@ function resolveCachedModelAssets(options = {}) {
     draftModelPath,
     draftModelUrl,
     launchMode: "cached-hf",
-    requiresDownload: (!mmprojPath && Boolean(configuredMmprojUrl)) || requiresDraftDownload
+    requiresDownload:
+      (!mmprojPath && Boolean(configuredMmprojUrl)) || requiresDraftDownload,
   };
 }
 
@@ -653,17 +823,23 @@ function inspectModelLaunch(options = {}) {
       launchMode: "openai-codex",
       model: resolveConfiguredCodexModel(options),
       reasoningEffort: resolveConfiguredCodexReasoningEffort(options),
-      requiresDownload: false
+      requiresDownload: false,
     };
   }
 
   if (resolveConfiguredModelSource(options) === "local") {
     const modelPath = resolveConfiguredLocalModelPath(options);
     const explicitMmprojPath = resolveConfiguredLocalMmprojPath(options);
-    const detectedMmprojPath = modelPath ? findPreferredMmprojFile(path.dirname(modelPath)) : null;
+    const detectedMmprojPath = modelPath
+      ? findPreferredMmprojFile(path.dirname(modelPath))
+      : null;
     const mmprojPath = explicitMmprojPath || detectedMmprojPath;
-    const draftModelPath = options.useDraft ? resolveCachedConfiguredDraftModelPath(options) : null;
-    const draftModelUrl = options.useDraft ? resolveConfiguredDraftModelUrl(options) : null;
+    const draftModelPath = options.useDraft
+      ? resolveCachedConfiguredDraftModelPath(options)
+      : null;
+    const draftModelUrl = options.useDraft
+      ? resolveConfiguredDraftModelUrl(options)
+      : null;
 
     return {
       launchMode: "local",
@@ -671,14 +847,18 @@ function inspectModelLaunch(options = {}) {
       mmprojPath,
       draftModelPath,
       draftModelUrl,
-      requiresDownload: Boolean(options.useDraft && !draftModelPath && draftModelUrl)
+      requiresDownload: Boolean(
+        options.useDraft && !draftModelPath && draftModelUrl,
+      ),
     };
   }
 
   const cachedAssets = resolveCachedModelAssets(options);
   return {
     ...cachedAssets,
-    requiresDownload: Boolean(cachedAssets.requiresDownload ?? cachedAssets.launchMode !== "cached-hf")
+    requiresDownload: Boolean(
+      cachedAssets.requiresDownload ?? cachedAssets.launchMode !== "cached-hf",
+    ),
   };
 }
 
@@ -690,15 +870,19 @@ function isModelCached(options = {}) {
   if (launchTarget.launchMode === "local") {
     return Boolean(
       launchTarget.modelPath &&
-        existsSync(launchTarget.modelPath) &&
-        (!options.useDraft || launchTarget.draftModelPath)
+      existsSync(launchTarget.modelPath) &&
+      (!options.useDraft || launchTarget.draftModelPath),
     );
   }
-  return launchTarget.launchMode === "cached-hf" && !launchTarget.requiresDownload;
+  return (
+    launchTarget.launchMode === "cached-hf" && !launchTarget.requiresDownload
+  );
 }
 
 function isTruthy(value) {
-  const text = String(value ?? "").trim().toLowerCase();
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
   return ["1", "true", "yes", "y", "on"].includes(text);
 }
 
@@ -715,5 +899,5 @@ module.exports = {
   resolveCachedConfiguredMmprojPath,
   resolveCachedLlamaCppFile,
   resolveCachedModelAssets,
-  resolveConfiguredMmprojUrl
+  resolveConfiguredMmprojUrl,
 };

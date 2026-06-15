@@ -1,4 +1,11 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname } from "node:path";
 import { inspect } from "node:util";
 import { getAppPaths } from "./appPaths";
@@ -30,7 +37,11 @@ export function logError(message: string, detail?: unknown): void {
   writeLog("error", message, detail);
 }
 
-export function writeLog(level: LogLevel, message: string, detail?: unknown): void {
+export function writeLog(
+  level: LogLevel,
+  message: string,
+  detail?: unknown,
+): void {
   const logPath = getLogPath();
   const timestamp = new Date().toISOString();
   const suffix = detail === undefined ? "" : ` ${serializeLogDetail(detail)}`;
@@ -78,12 +89,16 @@ export function serializeLogDetail(detail: unknown): string {
       depth: 5,
       breakLength: Infinity,
       maxArrayLength: MAX_SERIALIZED_ARRAY_ITEMS,
-      maxStringLength: MAX_SERIALIZED_STRING_LENGTH
+      maxStringLength: MAX_SERIALIZED_STRING_LENGTH,
     }).replace(/\r?\n/g, "\\n");
   }
 }
 
-function normalizeLogValue(detail: unknown, seen: WeakSet<object>, depth: number): unknown {
+function normalizeLogValue(
+  detail: unknown,
+  seen: WeakSet<object>,
+  depth: number,
+): unknown {
   if (detail === null || detail === undefined) {
     return detail;
   }
@@ -109,7 +124,9 @@ function normalizeLogValue(detail: unknown, seen: WeakSet<object>, depth: number
   }
 
   if (detail instanceof Date) {
-    return Number.isNaN(detail.getTime()) ? "Invalid Date" : detail.toISOString();
+    return Number.isNaN(detail.getTime())
+      ? "Invalid Date"
+      : detail.toISOString();
   }
 
   if (detail instanceof URL) {
@@ -120,7 +137,7 @@ function normalizeLogValue(detail: unknown, seen: WeakSet<object>, depth: number
     return {
       type: "Buffer",
       length: detail.length,
-      utf8Preview: limitString(detail.toString("utf8"), 4000)
+      utf8Preview: limitString(detail.toString("utf8"), 4000),
     };
   }
 
@@ -140,8 +157,11 @@ function normalizeLogValue(detail: unknown, seen: WeakSet<object>, depth: number
       size: detail.size,
       entries: Array.from(detail.entries())
         .slice(0, MAX_SERIALIZED_ARRAY_ITEMS)
-        .map(([key, value]) => [normalizeLogValue(key, seen, depth + 1), normalizeLogValue(value, seen, depth + 1)]),
-      truncatedEntries: Math.max(detail.size - MAX_SERIALIZED_ARRAY_ITEMS, 0)
+        .map(([key, value]) => [
+          normalizeLogValue(key, seen, depth + 1),
+          normalizeLogValue(value, seen, depth + 1),
+        ]),
+      truncatedEntries: Math.max(detail.size - MAX_SERIALIZED_ARRAY_ITEMS, 0),
     };
   }
 
@@ -155,7 +175,7 @@ function normalizeLogValue(detail: unknown, seen: WeakSet<object>, depth: number
       values: Array.from(detail.values())
         .slice(0, MAX_SERIALIZED_ARRAY_ITEMS)
         .map((value) => normalizeLogValue(value, seen, depth + 1)),
-      truncatedEntries: Math.max(detail.size - MAX_SERIALIZED_ARRAY_ITEMS, 0)
+      truncatedEntries: Math.max(detail.size - MAX_SERIALIZED_ARRAY_ITEMS, 0),
     };
   }
 
@@ -169,16 +189,24 @@ function normalizeLogValue(detail: unknown, seen: WeakSet<object>, depth: number
   return String(detail);
 }
 
-function normalizeArray(detail: unknown[], seen: WeakSet<object>, depth: number): unknown[] {
+function normalizeArray(
+  detail: unknown[],
+  seen: WeakSet<object>,
+  depth: number,
+): unknown[] {
   if (seen.has(detail)) {
     return ["[Circular]"];
   }
 
   seen.add(detail);
   try {
-    const values = detail.slice(0, MAX_SERIALIZED_ARRAY_ITEMS).map((value) => normalizeLogValue(value, seen, depth + 1));
+    const values = detail
+      .slice(0, MAX_SERIALIZED_ARRAY_ITEMS)
+      .map((value) => normalizeLogValue(value, seen, depth + 1));
     if (detail.length > MAX_SERIALIZED_ARRAY_ITEMS) {
-      values.push(`... ${detail.length - MAX_SERIALIZED_ARRAY_ITEMS} more items`);
+      values.push(
+        `... ${detail.length - MAX_SERIALIZED_ARRAY_ITEMS} more items`,
+      );
     }
     return values;
   } finally {
@@ -186,7 +214,11 @@ function normalizeArray(detail: unknown[], seen: WeakSet<object>, depth: number)
   }
 }
 
-function normalizeObject(detail: object, seen: WeakSet<object>, depth: number): Record<string, unknown> | string {
+function normalizeObject(
+  detail: object,
+  seen: WeakSet<object>,
+  depth: number,
+): Record<string, unknown> | string {
   if (seen.has(detail)) {
     return "[Circular]";
   }
@@ -216,7 +248,11 @@ function normalizeObject(detail: object, seen: WeakSet<object>, depth: number): 
   }
 }
 
-function normalizeError(detail: Error, seen: WeakSet<object>, depth: number): Record<string, unknown> | string {
+function normalizeError(
+  detail: Error,
+  seen: WeakSet<object>,
+  depth: number,
+): Record<string, unknown> | string {
   if (seen.has(detail)) {
     return "[Circular Error]";
   }
@@ -228,7 +264,9 @@ function normalizeError(detail: Error, seen: WeakSet<object>, depth: number): Re
     const result: Record<string, unknown> = {
       name: error.name,
       message: limitString(error.message),
-      stack: error.stack ? limitString(error.stack, MAX_SERIALIZED_STACK_LENGTH) : undefined
+      stack: error.stack
+        ? limitString(error.stack, MAX_SERIALIZED_STACK_LENGTH)
+        : undefined,
     };
 
     if ("cause" in error && error.cause !== undefined) {
@@ -237,7 +275,12 @@ function normalizeError(detail: Error, seen: WeakSet<object>, depth: number): Re
 
     const ownPropertyNames = Object.getOwnPropertyNames(error);
     for (const key of ownPropertyNames) {
-      if (key === "name" || key === "message" || key === "stack" || key === "cause") {
+      if (
+        key === "name" ||
+        key === "message" ||
+        key === "stack" ||
+        key === "cause"
+      ) {
         continue;
       }
       result[key] = normalizeLogValue(errorRecord[key], seen, depth + 1);
@@ -249,15 +292,22 @@ function normalizeError(detail: Error, seen: WeakSet<object>, depth: number): Re
   }
 }
 
-function stripUndefined(value: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
+function stripUndefined(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  );
 }
 
 function describeObject(detail: object): string {
   return Object.prototype.toString.call(detail).slice(8, -1) || "Object";
 }
 
-function limitString(value: string, maxLength = MAX_SERIALIZED_STRING_LENGTH): string {
+function limitString(
+  value: string,
+  maxLength = MAX_SERIALIZED_STRING_LENGTH,
+): string {
   if (value.length <= maxLength) {
     return value;
   }
@@ -283,9 +333,16 @@ function ensureUtf8Bom(logPath: string): void {
   }
 
   const content = readFileSync(logPath);
-  const hasBom = content.length >= 3 && content[0] === 0xef && content[1] === 0xbb && content[2] === 0xbf;
+  const hasBom =
+    content.length >= 3 &&
+    content[0] === 0xef &&
+    content[1] === 0xbb &&
+    content[2] === 0xbf;
   if (!hasBom) {
-    writeFileSync(logPath, Buffer.concat([Buffer.from(UTF8_BOM, "utf8"), content]));
+    writeFileSync(
+      logPath,
+      Buffer.concat([Buffer.from(UTF8_BOM, "utf8"), content]),
+    );
   }
   ensuredLogPath = logPath;
 }

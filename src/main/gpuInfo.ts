@@ -4,7 +4,14 @@ let cachedGpuInfoPromise: Promise<DetectedGpuInfo | null> | null = null;
 const WINDOWS_AMD_GPU_FIELD_SEPARATOR = "\u001f";
 
 export type GpuVendor = "nvidia" | "amd" | "unknown";
-export type AmdRocmTarget = "gfx908" | "gfx90a" | "gfx103X" | "gfx110X" | "gfx1150" | "gfx1151" | "gfx120X";
+export type AmdRocmTarget =
+  | "gfx908"
+  | "gfx90a"
+  | "gfx103X"
+  | "gfx110X"
+  | "gfx1150"
+  | "gfx1151"
+  | "gfx120X";
 
 export type DetectedGpuInfo = {
   name: string | null;
@@ -43,24 +50,28 @@ async function queryNvidiaGpuInfo(): Promise<DetectedGpuInfo | null> {
     try {
       stdout = await execFileAsync("nvidia-smi", [
         "--query-gpu=name,memory.total,compute_cap",
-        "--format=csv,noheader,nounits"
+        "--format=csv,noheader,nounits",
       ]);
     } catch {
       stdout = await execFileAsync("nvidia-smi", [
         "--query-gpu=name,memory.total",
-        "--format=csv,noheader,nounits"
+        "--format=csv,noheader,nounits",
       ]);
     }
     const values = stdout
       .split(/\r?\n/)
       .map(parseNvidiaSmiGpuLine)
-      .filter((value): value is DetectedGpuInfo => Boolean(value?.memoryMb && value.memoryMb > 0));
+      .filter((value): value is DetectedGpuInfo =>
+        Boolean(value?.memoryMb && value.memoryMb > 0),
+      );
 
     if (values.length === 0) {
       return null;
     }
 
-    return values.sort((left, right) => (right.memoryMb ?? 0) - (left.memoryMb ?? 0))[0];
+    return values.sort(
+      (left, right) => (right.memoryMb ?? 0) - (left.memoryMb ?? 0),
+    )[0];
   } catch {
     return null;
   }
@@ -68,12 +79,15 @@ async function queryNvidiaGpuInfo(): Promise<DetectedGpuInfo | null> {
 
 async function queryAmdGpuInfo(): Promise<DetectedGpuInfo | null> {
   const rocmCandidates = await queryRocmSmiGpuInfo();
-  const candidates = process.platform === "win32"
-    ? [...(await queryWindowsAmdGpuInfo()), ...rocmCandidates]
-    : rocmCandidates.length > 0
-      ? rocmCandidates
-      : await queryLspciAmdGpuInfo();
-  const values = candidates.filter((value): value is DetectedGpuInfo => Boolean(value));
+  const candidates =
+    process.platform === "win32"
+      ? [...(await queryWindowsAmdGpuInfo()), ...rocmCandidates]
+      : rocmCandidates.length > 0
+        ? rocmCandidates
+        : await queryLspciAmdGpuInfo();
+  const values = candidates.filter((value): value is DetectedGpuInfo =>
+    Boolean(value),
+  );
   if (values.length === 0) {
     return null;
   }
@@ -102,11 +116,13 @@ function parseNvidiaSmiGpuLine(line: string): DetectedGpuInfo | null {
     computeCapability,
     vendor: "nvidia",
     supportsRocm: false,
-    supportsVulkan: true
+    supportsVulkan: true,
   };
 }
 
-async function queryWindowsAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
+async function queryWindowsAmdGpuInfo(): Promise<
+  Array<DetectedGpuInfo | null>
+> {
   try {
     const stdout = await execFileAsync("powershell.exe", [
       "-NoProfile",
@@ -118,8 +134,8 @@ async function queryWindowsAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> 
         "$pattern = 'AMD|Radeon|ATI|Advanced Micro Devices|VEN_1002|V710';",
         "$video = Get-CimInstance Win32_VideoController | Where-Object { (($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ') -match $pattern } | ForEach-Object { @($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID, $_.AdapterRAM) -join $sep };",
         "$pnp = Get-CimInstance Win32_PnPEntity | Where-Object { (($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID) -join ' ') -match $pattern } | ForEach-Object { @($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID, '') -join $sep };",
-        "$video; $pnp"
-      ].join(" ")
+        "$video; $pnp",
+      ].join(" "),
     ]);
     return stdout.split(/\r?\n/).map(parseWindowsAmdGpuLine);
   } catch {
@@ -129,7 +145,12 @@ async function queryWindowsAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> 
 
 async function queryRocmSmiGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
   try {
-    const stdout = await execFileAsync("rocm-smi", ["--showproductname", "--showmeminfo", "vram", "--csv"]);
+    const stdout = await execFileAsync("rocm-smi", [
+      "--showproductname",
+      "--showmeminfo",
+      "vram",
+      "--csv",
+    ]);
     return stdout.split(/\r?\n/).map(parseRocmSmiGpuLine);
   } catch {
     return [];
@@ -138,7 +159,10 @@ async function queryRocmSmiGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
 
 async function queryLspciAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
   try {
-    const stdout = await execFileAsync("sh", ["-lc", "lspci | grep -Ei 'VGA|Display|3D' | grep -Ei 'AMD|ATI|Radeon'"]);
+    const stdout = await execFileAsync("sh", [
+      "-lc",
+      "lspci | grep -Ei 'VGA|Display|3D' | grep -Ei 'AMD|ATI|Radeon'",
+    ]);
     return stdout
       .split(/\r?\n/)
       .map((line) => line.trim())
@@ -152,7 +176,7 @@ async function queryLspciAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
         rocmArch: null,
         rocmTarget: inferAmdRocmTargetFromName(name),
         supportsRocm: false,
-        supportsVulkan: true
+        supportsVulkan: true,
       }));
   } catch {
     return [];
@@ -165,13 +189,27 @@ export function parseWindowsAmdGpuLine(line: string): DetectedGpuInfo | null {
     return null;
   }
   const fields = parseWindowsAmdGpuFields(trimmed);
-  const [rawName, rawCompatibility, rawProcessor, rawPnpDeviceId, rawBytes] = fields;
-  const hardwareText = [rawName, rawCompatibility, rawProcessor, rawPnpDeviceId].filter(Boolean).join(" ");
-  const name = pickAmdDisplayName(rawName, rawCompatibility, rawProcessor, rawPnpDeviceId);
+  const [rawName, rawCompatibility, rawProcessor, rawPnpDeviceId, rawBytes] =
+    fields;
+  const hardwareText = [rawName, rawCompatibility, rawProcessor, rawPnpDeviceId]
+    .filter(Boolean)
+    .join(" ");
+  const name = pickAmdDisplayName(
+    rawName,
+    rawCompatibility,
+    rawProcessor,
+    rawPnpDeviceId,
+  );
   const bytes = Number(rawBytes);
-  const parsedMemoryMb = Number.isFinite(bytes) && bytes > 0 ? Math.round(bytes / 1024 / 1024) : null;
+  const parsedMemoryMb =
+    Number.isFinite(bytes) && bytes > 0
+      ? Math.round(bytes / 1024 / 1024)
+      : null;
   const inferredMemoryMb = inferAmdVramMbFromName(hardwareText || name);
-  const memoryMb = parsedMemoryMb && parsedMemoryMb >= 8192 ? parsedMemoryMb : inferredMemoryMb ?? parsedMemoryMb;
+  const memoryMb =
+    parsedMemoryMb && parsedMemoryMb >= 8192
+      ? parsedMemoryMb
+      : (inferredMemoryMb ?? parsedMemoryMb);
   const rocmTarget = inferAmdRocmTargetFromName(hardwareText || name);
   return {
     name,
@@ -182,11 +220,13 @@ export function parseWindowsAmdGpuLine(line: string): DetectedGpuInfo | null {
     rocmArch: null,
     rocmTarget,
     supportsRocm: Boolean(rocmTarget),
-    supportsVulkan: true
+    supportsVulkan: true,
   };
 }
 
-export function inferAmdVramMbFromName(name: string | null | undefined): number | null {
+export function inferAmdVramMbFromName(
+  name: string | null | undefined,
+): number | null {
   const normalized = String(name ?? "").toLowerCase();
   if (!normalized) {
     return null;
@@ -207,7 +247,10 @@ export function inferAmdVramMbFromName(name: string | null | undefined): number 
     [/\b(?:radeon\s+)?pro\s+w\s*7800\b/, 32768],
     [/\b(?:radeon\s+)?pro\s+w\s*7700\b/, 16384],
     [/\b(?:radeon\s+)?pro\s+w\s*(7600|7500)\b/, 8192],
-    [/\b(?:amd\s+)?(?:radeon\s+)?(?:pro\s+)?v\s*710(?:\s*mxgpu)?(?:[-\s]\d+q)?\b|\bven_1002&dev_746[01]\b/, 28672],
+    [
+      /\b(?:amd\s+)?(?:radeon\s+)?(?:pro\s+)?v\s*710(?:\s*mxgpu)?(?:[-\s]\d+q)?\b|\bven_1002&dev_746[01]\b/,
+      28672,
+    ],
     [/\b(?:radeon\s+)?pro\s+v\s*620\b/, 32768],
     [/\b(?:radeon\s+)?pro\s+w\s*6800\b/, 32768],
     [/\b(?:radeon\s+)?pro\s+w\s*6600\b/, 8192],
@@ -230,7 +273,7 @@ export function inferAmdVramMbFromName(name: string | null | undefined): number 
     [/\b(rx\s*)?6600\s*xt\b/, 8192],
     [/\b(rx\s*)?6600\b/, 8192],
     [/\b(rx\s*)?6500\s*xt\b/, 4096],
-    [/\b(rx\s*)?6400\b/, 4096]
+    [/\b(rx\s*)?6400\b/, 4096],
   ];
   return rules.find(([pattern]) => pattern.test(normalized))?.[1] ?? null;
 }
@@ -240,11 +283,18 @@ export function parseRocmSmiGpuLine(line: string): DetectedGpuInfo | null {
   if (!trimmed || /^(card|device)\s*(?:,|$)/i.test(trimmed)) {
     return null;
   }
-  const parts = trimmed.split(",").map((part) => part.trim().replace(/^"|"$/g, ""));
-  const name = parts.find((part) => /radeon|instinct|amd/i.test(part)) || parts[1] || parts[0] || null;
+  const parts = trimmed
+    .split(",")
+    .map((part) => part.trim().replace(/^"|"$/g, ""));
+  const name =
+    parts.find((part) => /radeon|instinct|amd/i.test(part)) ||
+    parts[1] ||
+    parts[0] ||
+    null;
   const memoryMb = parseMemoryMb(parts.join(" "));
   const arch = parseRocmArch(parts.join(" "));
-  const rocmTarget = resolveAmdRocmTargetFromArch(arch) ?? inferAmdRocmTargetFromName(name);
+  const rocmTarget =
+    resolveAmdRocmTargetFromArch(arch) ?? inferAmdRocmTargetFromName(name);
   return {
     name,
     memoryMb,
@@ -254,16 +304,20 @@ export function parseRocmSmiGpuLine(line: string): DetectedGpuInfo | null {
     rocmArch: arch,
     rocmTarget,
     supportsRocm: Boolean(rocmTarget),
-    supportsVulkan: true
+    supportsVulkan: true,
   };
 }
 
-function parseComputeCapability(value: string | null | undefined): number | null {
+function parseComputeCapability(
+  value: string | null | undefined,
+): number | null {
   const parsed = Number(String(value ?? "").trim());
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-export function parseRtxGeneration(name: string | null | undefined): number | null {
+export function parseRtxGeneration(
+  name: string | null | undefined,
+): number | null {
   const normalized = String(name ?? "");
   const match = normalized.match(/\bRTX\s*([2345]\d{3})\b/i);
   if (!match) {
@@ -281,7 +335,9 @@ function parseMemoryMb(value: string): number | null {
   const gib = value.match(/(\d+(?:\.\d+)?)\s*(?:gib|gb)\b/i);
   if (gib) {
     const parsed = Number(gib[1]);
-    return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 1024) : null;
+    return Number.isFinite(parsed) && parsed > 0
+      ? Math.round(parsed * 1024)
+      : null;
   }
   return null;
 }
@@ -292,7 +348,10 @@ export function parseRocmArch(value: string): string | null {
 }
 
 export function normalizeAmdRocmTarget(value: unknown): AmdRocmTarget | null {
-  const normalized = String(value ?? "").trim().toLowerCase().replace(/[-_\s]/g, "");
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[-_\s]/g, "");
   if (!normalized) {
     return null;
   }
@@ -329,12 +388,18 @@ export function normalizeAmdRocmTarget(value: unknown): AmdRocmTarget | null {
   return null;
 }
 
-export function resolveAmdRocmTargetFromArch(arch: string | null | undefined): AmdRocmTarget | null {
+export function resolveAmdRocmTargetFromArch(
+  arch: string | null | undefined,
+): AmdRocmTarget | null {
   return normalizeAmdRocmTarget(parseRocmArch(String(arch ?? "")) ?? arch);
 }
 
-export function inferAmdRocmTargetFromName(name: string | null | undefined): AmdRocmTarget | null {
-  const normalized = String(name ?? "").toLowerCase().replace(/[™®]/g, " ");
+export function inferAmdRocmTargetFromName(
+  name: string | null | undefined,
+): AmdRocmTarget | null {
+  const normalized = String(name ?? "")
+    .toLowerCase()
+    .replace(/[™®]/g, " ");
   if (!normalized.trim()) {
     return null;
   }
@@ -342,7 +407,9 @@ export function inferAmdRocmTargetFromName(name: string | null | undefined): Amd
   if (/\bmi\s*100\b|\binstinct\s+mi100\b/.test(normalized)) {
     return "gfx908";
   }
-  if (/\bmi\s*(200|210|250)\b|\binstinct\s+mi(200|210|250)\b/.test(normalized)) {
+  if (
+    /\bmi\s*(200|210|250)\b|\binstinct\s+mi(200|210|250)\b/.test(normalized)
+  ) {
     return "gfx90a";
   }
   if (
@@ -352,10 +419,14 @@ export function inferAmdRocmTargetFromName(name: string | null | undefined): Amd
     return "gfx120X";
   }
   if (
-    /\b(?:amd\s+)?(?:radeon\s+)?(?:pro\s+)?v\s*710(?:\s*mxgpu)?(?:[-\s]\d+q)?\b/.test(normalized) ||
+    /\b(?:amd\s+)?(?:radeon\s+)?(?:pro\s+)?v\s*710(?:\s*mxgpu)?(?:[-\s]\d+q)?\b/.test(
+      normalized,
+    ) ||
     /\bven_1002&dev_746[01]\b/.test(normalized) ||
     /\bven_1002&dev_7480\b/.test(normalized) ||
-    /\b(rx\s*)?7(600|650|700|800|900)\b|\b(rx\s*)?7(600|650|700|800|900)\s*(xt|xtx|gre)\b/.test(normalized) ||
+    /\b(rx\s*)?7(600|650|700|800|900)\b|\b(rx\s*)?7(600|650|700|800|900)\s*(xt|xtx|gre)\b/.test(
+      normalized,
+    ) ||
     /\b(?:radeon\s+)?(?:pro\s*)?w7(500|600|700|800|900)\b/.test(normalized) ||
     /\bradeon\s+(740m|760m|780m)\b/.test(normalized)
   ) {
@@ -363,14 +434,24 @@ export function inferAmdRocmTargetFromName(name: string | null | undefined): Amd
   }
   if (
     /\b(?:radeon\s+)?pro\s+(v\s*620|w\s*(6600|6800))\b/.test(normalized) ||
-    /\b(rx\s*)?6(400|500|600|650|700|750|800|900|950)\b|\b(rx\s*)?6(400|500|600|650|700|750|800|900|950)\s*(xt|m|s)\b/.test(normalized)
+    /\b(rx\s*)?6(400|500|600|650|700|750|800|900|950)\b|\b(rx\s*)?6(400|500|600|650|700|750|800|900|950)\s*(xt|m|s)\b/.test(
+      normalized,
+    )
   ) {
     return "gfx103X";
   }
-  if (/\bryzen\s+ai\s+max\b|\bstrix\s+halo\b|\bradeon\s+80(50|60)s\b/.test(normalized)) {
+  if (
+    /\bryzen\s+ai\s+max\b|\bstrix\s+halo\b|\bradeon\s+80(50|60)s\b/.test(
+      normalized,
+    )
+  ) {
     return "gfx1151";
   }
-  if (/\bryzen\s+ai\s+9\s+(hx\s*37(0|5)|365)\b|\bradeon\s+(880m|890m)\b/.test(normalized)) {
+  if (
+    /\bryzen\s+ai\s+9\s+(hx\s*37(0|5)|365)\b|\bradeon\s+(880m|890m)\b/.test(
+      normalized,
+    )
+  ) {
     return "gfx1150";
   }
   return null;
@@ -378,13 +459,17 @@ export function inferAmdRocmTargetFromName(name: string | null | undefined): Amd
 
 function parseWindowsAmdGpuFields(line: string): string[] {
   if (line.includes(WINDOWS_AMD_GPU_FIELD_SEPARATOR)) {
-    const fields = line.split(WINDOWS_AMD_GPU_FIELD_SEPARATOR).map((part) => part.trim());
+    const fields = line
+      .split(WINDOWS_AMD_GPU_FIELD_SEPARATOR)
+      .map((part) => part.trim());
     while (fields.length < 5) {
       fields.push("");
     }
     return fields.slice(0, 5);
   }
-  const [rawName = "", rawBytes = ""] = line.split(",").map((part) => part.trim());
+  const [rawName = "", rawBytes = ""] = line
+    .split(",")
+    .map((part) => part.trim());
   return [rawName, "", "", "", rawBytes];
 }
 
@@ -392,24 +477,39 @@ function pickAmdDisplayName(
   rawName: string | null | undefined,
   rawCompatibility: string | null | undefined,
   rawProcessor: string | null | undefined,
-  rawPnpDeviceId: string | null | undefined
+  rawPnpDeviceId: string | null | undefined,
 ): string | null {
   const candidates = [rawName, rawProcessor, rawCompatibility, rawPnpDeviceId]
     .map((value) => String(value ?? "").trim())
     .filter(Boolean);
   return (
-    candidates.find((value) => /\bradeon\b|\binstinct\b|\bryzen\s+ai\b|\bai\s+pro\b|\bpro\s+[rvw]\s*\d+\b|\brx\s*\d+\b|\bmi\s*\d+\b/i.test(value)) ??
-    candidates.find((value) => /amd|advanced micro devices|ven_1002/i.test(value)) ??
+    candidates.find((value) =>
+      /\bradeon\b|\binstinct\b|\bryzen\s+ai\b|\bai\s+pro\b|\bpro\s+[rvw]\s*\d+\b|\brx\s*\d+\b|\bmi\s*\d+\b/i.test(
+        value,
+      ),
+    ) ??
+    candidates.find((value) =>
+      /amd|advanced micro devices|ven_1002/i.test(value),
+    ) ??
     candidates[0] ??
     null
   );
 }
 
-export function resolveAmdRocmTargetFromInfo(info: DetectedGpuInfo | null | undefined): AmdRocmTarget | null {
-  return normalizeAmdRocmTarget(info?.rocmTarget) ?? resolveAmdRocmTargetFromArch(info?.rocmArch) ?? inferAmdRocmTargetFromName(info?.name);
+export function resolveAmdRocmTargetFromInfo(
+  info: DetectedGpuInfo | null | undefined,
+): AmdRocmTarget | null {
+  return (
+    normalizeAmdRocmTarget(info?.rocmTarget) ??
+    resolveAmdRocmTargetFromArch(info?.rocmArch) ??
+    inferAmdRocmTargetFromName(info?.name)
+  );
 }
 
-function compareAmdGpuPriority(left: DetectedGpuInfo, right: DetectedGpuInfo): number {
+function compareAmdGpuPriority(
+  left: DetectedGpuInfo,
+  right: DetectedGpuInfo,
+): number {
   const leftRocm = resolveAmdRocmTargetFromInfo(left) ? 1 : 0;
   const rightRocm = resolveAmdRocmTargetFromInfo(right) ? 1 : 0;
   if (leftRocm !== rightRocm) {

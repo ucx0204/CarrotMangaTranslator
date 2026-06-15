@@ -10,7 +10,10 @@ function createMissingPreloadMethod(property: PropertyKey): unknown {
   if (name === "onJobEvent" || name === "onModelTestEvent") {
     return () => () => undefined;
   }
-  return () => Promise.reject(new Error(`mangaApi preload bridge is not available for ${name}.`));
+  return () =>
+    Promise.reject(
+      new Error(`mangaApi preload bridge is not available for ${name}.`),
+    );
 }
 
 export const mangaGateway: MangaGateway = new Proxy({} as MangaGateway, {
@@ -25,5 +28,5 @@ export const mangaGateway: MangaGateway = new Proxy({} as MangaGateway, {
     }
     const value = Reflect.get(api, property);
     return typeof value === "function" ? value.bind(api) : value;
-  }
+  },
 });

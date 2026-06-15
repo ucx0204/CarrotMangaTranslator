@@ -7,18 +7,27 @@ import { FontsContext, type FontsContextValue } from "./fontsContextValue";
 const STYLE_ELEMENT_ID = "mgt-custom-fonts";
 
 function injectCustomFontFaces(fonts: CustomFont[]): void {
-  let style = document.getElementById(STYLE_ELEMENT_ID) as HTMLStyleElement | null;
+  let style = document.getElementById(
+    STYLE_ELEMENT_ID,
+  ) as HTMLStyleElement | null;
   if (!style) {
     style = document.createElement("style");
     style.id = STYLE_ELEMENT_ID;
     document.head.appendChild(style);
   }
   style.textContent = fonts
-    .map((font) => `@font-face { font-family: "${font.family}"; src: url("mgt-font://${font.id}"); font-display: swap; }`)
+    .map(
+      (font) =>
+        `@font-face { font-family: "${font.family}"; src: url("mgt-font://${font.id}"); font-display: swap; }`,
+    )
     .join("\n");
 }
 
-export function FontsProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
+export function FontsProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element {
   const [customFonts, setFonts] = React.useState<CustomFont[]>([]);
   const [busy, setBusy] = React.useState(false);
 
@@ -74,9 +83,17 @@ export function FontsProvider({ children }: { children: React.ReactNode }): Reac
   );
 
   const value = React.useMemo<FontsContextValue>(
-    () => ({ customFonts, options: getBlockFontOptions(), busy, registerFont, removeFont }),
+    () => ({
+      customFonts,
+      options: getBlockFontOptions(),
+      busy,
+      registerFont,
+      removeFont,
+    }),
     [customFonts, busy, registerFont, removeFont],
   );
 
-  return <FontsContext.Provider value={value}>{children}</FontsContext.Provider>;
+  return (
+    <FontsContext.Provider value={value}>{children}</FontsContext.Provider>
+  );
 }

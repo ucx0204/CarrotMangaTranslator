@@ -9,5 +9,9 @@ export function InpaintingProvider({
   value: InpaintingContextValue;
   children: React.ReactNode;
 }): React.JSX.Element {
-  return <InpaintingContext.Provider value={value}>{children}</InpaintingContext.Provider>;
+  return (
+    <InpaintingContext.Provider value={value}>
+      {children}
+    </InpaintingContext.Provider>
+  );
 }

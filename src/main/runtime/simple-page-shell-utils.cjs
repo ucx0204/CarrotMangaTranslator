@@ -38,7 +38,18 @@ function quoteCommandArg(value) {
   return `"${text.replace(/"/g, '\\"')}"`;
 }
 
-function runShellCommand(command, { timeoutMs, env, signal, onOutput, timeoutMessage, failureMessage, successCodes } = {}) {
+function runShellCommand(
+  command,
+  {
+    timeoutMs,
+    env,
+    signal,
+    onOutput,
+    timeoutMessage,
+    failureMessage,
+    successCodes,
+  } = {},
+) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(createAbortError());
@@ -49,7 +60,7 @@ function runShellCommand(command, { timeoutMs, env, signal, onOutput, timeoutMes
       shell: true,
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
-      env: env || buildUtilityChildEnv({})
+      env: env || buildUtilityChildEnv({}),
     });
     let stdout = "";
     let stderr = "";
@@ -90,12 +101,14 @@ function runShellCommand(command, { timeoutMs, env, signal, onOutput, timeoutMes
     if (timeoutMs > 0) {
       timeout = setTimeout(() => {
         terminateChildProcessTree(child);
-        settleReject(createDetailedError(timeoutMessage || "OCR bbox command timed out.", {
-          command,
-          timeoutMs,
-          stdoutPreview: truncateText(stdout),
-          stderrPreview: truncateText(stderr)
-        }));
+        settleReject(
+          createDetailedError(timeoutMessage || "OCR bbox command timed out.", {
+            command,
+            timeoutMs,
+            stdoutPreview: truncateText(stdout),
+            stderrPreview: truncateText(stderr),
+          }),
+        );
       }, timeoutMs);
     }
 
@@ -120,18 +133,24 @@ function runShellCommand(command, { timeoutMs, env, signal, onOutput, timeoutMes
       }
       stdoutLines.flush();
       stderrLines.flush();
-      const acceptedCodes = Array.isArray(successCodes) && successCodes.length > 0
-        ? successCodes
-        : [0];
+      const acceptedCodes =
+        Array.isArray(successCodes) && successCodes.length > 0
+          ? successCodes
+          : [0];
       if (typeof code === "number" && acceptedCodes.includes(code)) {
         settleResolve({ stdout, stderr });
         return;
       }
-      settleReject(createDetailedError(failureMessage || `OCR bbox command failed (${code ?? "null"}).`, {
-        command,
-        stdoutPreview: truncateText(stdout),
-        stderrPreview: truncateText(stderr)
-      }));
+      settleReject(
+        createDetailedError(
+          failureMessage || `OCR bbox command failed (${code ?? "null"}).`,
+          {
+            command,
+            stdoutPreview: truncateText(stdout),
+            stderrPreview: truncateText(stderr),
+          },
+        ),
+      );
     });
   });
 }
@@ -179,7 +198,7 @@ function createCommandOutputLineEmitter(onOutput) {
       }
       emitLine(pending);
       pending = "";
-    }
+    },
   };
 }
 
@@ -193,7 +212,12 @@ function createAbortError() {
 }
 
 function terminateChildProcessTree(child) {
-  if (!child || child.killed || child.exitCode !== null || child.signalCode !== null) {
+  if (
+    !child ||
+    child.killed ||
+    child.exitCode !== null ||
+    child.signalCode !== null
+  ) {
     return;
   }
 
@@ -201,7 +225,7 @@ function terminateChildProcessTree(child) {
     const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
       stdio: "ignore",
       windowsHide: true,
-      env: buildUtilityChildEnv({})
+      env: buildUtilityChildEnv({}),
     });
     killer.on("error", () => {
       child.kill("SIGKILL");
@@ -223,5 +247,5 @@ module.exports = {
   renderCommandTemplate,
   runShellCommand,
   shrinkBuffer,
-  terminateChildProcessTree
+  terminateChildProcessTree,
 };

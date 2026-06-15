@@ -3,7 +3,10 @@ export function sanitizeTitle(title: string, fallback: string): string {
   return trimmed || fallback;
 }
 
-export function makeUniqueTitleInList(desired: string, used: Set<string>): string {
+export function makeUniqueTitleInList(
+  desired: string,
+  used: Set<string>,
+): string {
   if (!used.has(desired)) {
     used.add(desired);
     return desired;

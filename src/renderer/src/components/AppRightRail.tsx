@@ -1,8 +1,16 @@
 import React from "react";
-import type { ChapterSnapshot, JobState, MangaPage, TranslationBlock } from "../../../shared/types";
+import type {
+  ChapterSnapshot,
+  JobState,
+  MangaPage,
+  TranslationBlock,
+} from "../../../shared/types";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { EditorPanel } from "./EditorPanel";
-import { DisplayControlPanel, InpaintingControlPanel } from "./InpaintingControlPanel";
+import {
+  DisplayControlPanel,
+  InpaintingControlPanel,
+} from "./InpaintingControlPanel";
 import { RunPanel, StatusPanel } from "./RunStatusPanels";
 import { Button } from "./ui";
 
@@ -59,9 +67,10 @@ export function AppRightRail({
   onApplyFont,
   onUpdateBlock,
   onDeleteBlock,
-  onDuplicateBlock
+  onDuplicateBlock,
 }: AppRightRailProps): React.JSX.Element {
-  const editorDisabled = selectedPageEditLocked || (inpaintingMode && jobActive);
+  const editorDisabled =
+    selectedPageEditLocked || (inpaintingMode && jobActive);
   const showAreaTranslationProgress =
     inpaintingMode &&
     jobState.kind === "gemma-analysis" &&
@@ -95,7 +104,11 @@ export function AppRightRail({
               {areaTranslateSelecting ? "선택 취소" : "영역 번역"}
             </button>
             {showAreaTranslationProgress ? (
-              <AreaTranslationProgressCard jobState={jobState} progressSnapshot={progressSnapshot} onCancel={onCancelJob} />
+              <AreaTranslationProgressCard
+                jobState={jobState}
+                progressSnapshot={progressSnapshot}
+                onCancel={onCancelJob}
+              />
             ) : null}
           </section>
         </>
@@ -113,15 +126,24 @@ export function AppRightRail({
             onCancelJob={onCancelJob}
           />
 
-          <DisplayControlPanel showBlockChrome={showBlockChrome} showTextBlocks={showTextBlocks} onToggleChrome={onToggleChrome} onToggleBlocks={onToggleBlocks} />
+          <DisplayControlPanel
+            showBlockChrome={showBlockChrome}
+            showTextBlocks={showTextBlocks}
+            onToggleChrome={onToggleChrome}
+            onToggleBlocks={onToggleBlocks}
+          />
 
-          {!selectedBlock ? <StatusPanel jobState={jobState} statusLines={statusLines} /> : null}
+          {!selectedBlock ? (
+            <StatusPanel jobState={jobState} statusLines={statusLines} />
+          ) : null}
 
           <EditorPanel
             block={selectedBlock}
             disabled={editorDisabled}
             disableChapterFontApply={jobActive}
-            areaTranslateAvailable={Boolean(selectedPage && selectedPageImageDataUrl && !jobActive)}
+            areaTranslateAvailable={Boolean(
+              selectedPage && selectedPageImageDataUrl && !jobActive,
+            )}
             areaTranslateSelecting={areaTranslateSelecting}
             onStartAreaTranslate={onStartAreaTranslate}
             onApplyFont={onApplyFont}
@@ -138,39 +160,59 @@ export function AppRightRail({
 function AreaTranslationProgressCard({
   jobState,
   progressSnapshot,
-  onCancel
+  onCancel,
 }: {
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
   onCancel: () => void;
 }): React.JSX.Element {
-  const current = progressSnapshot?.mode === "determinate" ? progressSnapshot.current : jobState.progressCurrent;
-  const total = progressSnapshot?.mode === "determinate" ? progressSnapshot.total : jobState.progressTotal;
+  const current =
+    progressSnapshot?.mode === "determinate"
+      ? progressSnapshot.current
+      : jobState.progressCurrent;
+  const total =
+    progressSnapshot?.mode === "determinate"
+      ? progressSnapshot.total
+      : jobState.progressTotal;
   const ratio =
     progressSnapshot?.mode === "determinate"
       ? progressSnapshot.ratio
       : Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0
         ? Math.min(1, Math.max(0, (current ?? 0) / (total ?? 1)))
         : 0;
-  const canCancel = jobState.status === "starting" || jobState.status === "running";
+  const canCancel =
+    jobState.status === "starting" || jobState.status === "running";
 
   return (
     <div className={`area-translate-progress-card ${jobState.status}`}>
       <div className="progress-meta">
         <span>{jobState.progressText}</span>
-        {Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0 ? (
+        {Number.isFinite(current) &&
+        Number.isFinite(total) &&
+        (total ?? 0) > 0 ? (
           <strong>
             {current} / {total}
           </strong>
         ) : (
-          <strong>{progressSnapshot?.mode === "indeterminate" ? "준비 중" : "진행 중"}</strong>
+          <strong>
+            {progressSnapshot?.mode === "indeterminate" ? "준비 중" : "진행 중"}
+          </strong>
         )}
       </div>
-      {jobState.detail ? <small className="progress-detail">{jobState.detail}</small> : null}
-      <div className={`progress-track ${progressSnapshot?.mode === "indeterminate" ? "indeterminate" : ""}`} aria-hidden="true">
+      {jobState.detail ? (
+        <small className="progress-detail">{jobState.detail}</small>
+      ) : null}
+      <div
+        className={`progress-track ${progressSnapshot?.mode === "indeterminate" ? "indeterminate" : ""}`}
+        aria-hidden="true"
+      >
         <div
           className={`progress-fill ${progressSnapshot?.mode === "indeterminate" ? "indeterminate" : ""}`}
-          style={progressSnapshot?.mode === "determinate" || ratio > 0 ? { width: `${Math.round(ratio * 100)}%` } : undefined}
+          style={
+            progressSnapshot?.mode === "determinate" || ratio > 0
+              ? { width: `${Math.round(ratio * 100)}%` }
+              : undefined
+          }
         />
       </div>
       {canCancel ? (

@@ -28,7 +28,7 @@ const MAX_TOASTS = 4;
 const DEFAULT_DURATION: Record<ToastVariant, number> = {
   success: 3800,
   info: 4200,
-  error: 6500
+  error: 6500,
 };
 
 let toasts: Toast[] = [];
@@ -64,18 +64,28 @@ function scheduleRemoval(id: string, duration: number): void {
   }
   timers.set(
     id,
-    setTimeout(() => dismissToast(id), duration)
+    setTimeout(() => dismissToast(id), duration),
   );
 }
 
-function push(variant: ToastVariant, message: string, options?: ToastOptions): string {
+function push(
+  variant: ToastVariant,
+  message: string,
+  options?: ToastOptions,
+): string {
   const trimmed = message.trim();
   if (!trimmed) {
     return "";
   }
   const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const duration = options?.duration ?? DEFAULT_DURATION[variant];
-  const next: Toast = { id, variant, message: trimmed, action: options?.action, duration };
+  const next: Toast = {
+    id,
+    variant,
+    message: trimmed,
+    action: options?.action,
+    duration,
+  };
   toasts = [next, ...toasts].slice(0, MAX_TOASTS);
   emit();
   scheduleRemoval(id, duration);
@@ -94,8 +104,11 @@ export function getToasts(): Toast[] {
 }
 
 export const toast = {
-  success: (message: string, options?: ToastOptions): string => push("success", message, options),
-  error: (message: string, options?: ToastOptions): string => push("error", message, options),
-  info: (message: string, options?: ToastOptions): string => push("info", message, options),
-  dismiss: dismissToast
+  success: (message: string, options?: ToastOptions): string =>
+    push("success", message, options),
+  error: (message: string, options?: ToastOptions): string =>
+    push("error", message, options),
+  info: (message: string, options?: ToastOptions): string =>
+    push("info", message, options),
+  dismiss: dismissToast,
 };

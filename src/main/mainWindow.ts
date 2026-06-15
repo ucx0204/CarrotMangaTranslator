@@ -4,9 +4,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { logError, writeLog } from "./logger";
 
 export function createMainWindow(): BrowserWindow {
-  const devRendererUrl = resolveAllowedDevRendererUrl(process.env.ELECTRON_RENDERER_URL);
+  const devRendererUrl = resolveAllowedDevRendererUrl(
+    process.env.ELECTRON_RENDERER_URL,
+  );
   const productionRendererPath = join(__dirname, "../renderer/index.html");
-  const allowedRendererUrl = devRendererUrl ?? pathToFileURL(productionRendererPath).toString();
+  const allowedRendererUrl =
+    devRendererUrl ?? pathToFileURL(productionRendererPath).toString();
   const window = new BrowserWindow({
     width: 1600,
     height: 980,
@@ -18,23 +21,36 @@ export function createMainWindow(): BrowserWindow {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: true,
       contextIsolation: true,
-      nodeIntegration: false
-    }
+      nodeIntegration: false,
+    },
   });
 
   window.webContents.on("console-message", (details) => {
     const level =
-      details.level === "warning" ? "warn" : details.level === "error" ? "error" : details.level === "debug" ? "debug" : "info";
+      details.level === "warning"
+        ? "warn"
+        : details.level === "error"
+          ? "error"
+          : details.level === "debug"
+            ? "debug"
+            : "info";
     writeLog(level, "renderer console", {
       message: details.message,
       line: details.lineNumber,
-      sourceId: details.sourceId
+      sourceId: details.sourceId,
     });
   });
 
-  window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
-    logError("Renderer failed to load", { errorCode, errorDescription, validatedURL });
-  });
+  window.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedURL) => {
+      logError("Renderer failed to load", {
+        errorCode,
+        errorDescription,
+        validatedURL,
+      });
+    },
+  );
 
   window.webContents.setWindowOpenHandler((details) => {
     writeLog("warn", "Blocked renderer window open", { url: details.url });
@@ -60,20 +76,28 @@ export function createMainWindow(): BrowserWindow {
   return window;
 }
 
-function resolveAllowedDevRendererUrl(value: string | undefined): string | null {
+function resolveAllowedDevRendererUrl(
+  value: string | undefined,
+): string | null {
   if (app.isPackaged || !value) {
     return null;
   }
   try {
     const url = new URL(value);
-    const allowedHost = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+    const allowedHost =
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1" ||
+      url.hostname === "::1";
     return url.protocol === "http:" && allowedHost ? url.toString() : null;
   } catch {
     return null;
   }
 }
 
-export function isAllowedMainWindowNavigation(targetUrl: string, allowedRendererUrl: string): boolean {
+export function isAllowedMainWindowNavigation(
+  targetUrl: string,
+  allowedRendererUrl: string,
+): boolean {
   try {
     const target = new URL(targetUrl);
     const allowed = new URL(allowedRendererUrl);
@@ -93,5 +117,7 @@ export function isAllowedMainWindowNavigation(targetUrl: string, allowedRenderer
 
 function isPathInside(rootPath: string, targetPath: string): boolean {
   const child = relative(rootPath, targetPath);
-  return child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child));
+  return (
+    child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child))
+  );
 }

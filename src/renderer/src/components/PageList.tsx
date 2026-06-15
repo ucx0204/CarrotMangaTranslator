@@ -1,7 +1,17 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { closestCenter, DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  closestCenter,
+  DndContext,
+  DragOverlay,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { MangaPage } from "../../../shared/types";
 import { useStandardDndSensors } from "../lib/dnd";
@@ -27,7 +37,7 @@ export function PageList({
   onSelect,
   onRetranslate,
   onRemove,
-  onReorder
+  onReorder,
 }: PageListProps): React.JSX.Element {
   const sensors = useStandardDndSensors();
   const [activePageId, setActivePageId] = React.useState<string | null>(null);
@@ -39,7 +49,7 @@ export function PageList({
       return;
     }
     pageItemRefs.current[selectedPageId]?.scrollIntoView({
-      block: "nearest"
+      block: "nearest",
     });
   }, [selectedPageId]);
 
@@ -55,7 +65,7 @@ export function PageList({
       }
       onReorder(String(event.active.id), String(event.over.id));
     },
-    [jobActive, onReorder]
+    [jobActive, onReorder],
   );
 
   return (
@@ -63,9 +73,20 @@ export function PageList({
       <div className="panel-header">
         <h2>페이지</h2>
       </div>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragCancel={() => setActivePageId(null)} onDragEnd={handleDragEnd}>
-        <SortableContext items={pages.map((page) => page.id)} strategy={verticalListSortingStrategy}>
-          <div className={`page-list-scroll sortable-scroll ${activePageId ? "drag-active" : ""}`}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragCancel={() => setActivePageId(null)}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={pages.map((page) => page.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div
+            className={`page-list-scroll sortable-scroll ${activePageId ? "drag-active" : ""}`}
+          >
             {pages.length ? (
               pages.map((page) => (
                 <SortablePageItem
@@ -88,8 +109,16 @@ export function PageList({
           </div>
         </SortableContext>
         {createPortal(
-          <DragOverlay>{activePage ? <PageDragPreview page={activePage} selected={activePage.id === selectedPageId} statusMode={statusMode} /> : null}</DragOverlay>,
-          document.body
+          <DragOverlay>
+            {activePage ? (
+              <PageDragPreview
+                page={activePage}
+                selected={activePage.id === selectedPageId}
+                statusMode={statusMode}
+              />
+            ) : null}
+          </DragOverlay>,
+          document.body,
         )}
       </DndContext>
     </section>
@@ -104,7 +133,7 @@ function SortablePageItem({
   onSelect,
   onRetranslate,
   onRemove,
-  registerRef
+  registerRef,
 }: {
   page: MangaPage;
   selected: boolean;
@@ -115,14 +144,22 @@ function SortablePageItem({
   onRemove: (pageId: string) => void;
   registerRef: (element: HTMLDivElement | null) => void;
 }): React.JSX.Element {
-  const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: page.id,
     disabled,
-    data: { type: "page" }
+    data: { type: "page" },
   });
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition
+    transition,
   };
 
   return (
@@ -145,21 +182,40 @@ function SortablePageItem({
       >
         <span className="drag-grip" aria-hidden="true" />
       </button>
-      <button className="page-select" onClick={() => onSelect(page.id)} title={page.name}>
+      <button
+        className="page-select"
+        onClick={() => onSelect(page.id)}
+        title={page.name}
+      >
         <span>{page.name}</span>
       </button>
       <div className="page-side">
         {selected && statusMode === "translation" ? (
           <div className="page-actions">
-            <IconButton size="sm" label={`${page.name} 재번역`} title="재번역" onClick={() => onRetranslate(page.id)} disabled={disabled}>
+            <IconButton
+              size="sm"
+              label={`${page.name} 재번역`}
+              title="재번역"
+              onClick={() => onRetranslate(page.id)}
+              disabled={disabled}
+            >
               <RefreshIcon size={15} />
             </IconButton>
-            <IconButton size="sm" variant="danger" label={`${page.name} 삭제`} title="삭제" onClick={() => onRemove(page.id)} disabled={disabled}>
+            <IconButton
+              size="sm"
+              variant="danger"
+              label={`${page.name} 삭제`}
+              title="삭제"
+              onClick={() => onRemove(page.id)}
+              disabled={disabled}
+            >
               <CloseIcon size={15} />
             </IconButton>
           </div>
         ) : (
-          <span className="page-status-badge">{resolveStatusLabel(page, statusMode)}</span>
+          <span className="page-status-badge">
+            {resolveStatusLabel(page, statusMode)}
+          </span>
         )}
       </div>
     </div>
@@ -169,26 +225,33 @@ function SortablePageItem({
 function PageDragPreview({
   page,
   selected,
-  statusMode
+  statusMode,
 }: {
   page: MangaPage;
   selected: boolean;
   statusMode: "translation" | "inpainting";
 }): React.JSX.Element {
   return (
-    <div className={`page-item sortable-item drag-preview ${selected ? "active" : ""}`}>
+    <div
+      className={`page-item sortable-item drag-preview ${selected ? "active" : ""}`}
+    >
       <span className="drag-handle compact preview-handle">
         <span className="drag-grip" aria-hidden="true" />
       </span>
       <div className="page-select preview-select" title={page.name}>
         <span>{page.name}</span>
       </div>
-      <span className="page-status-badge">{resolveStatusLabel(page, statusMode)}</span>
+      <span className="page-status-badge">
+        {resolveStatusLabel(page, statusMode)}
+      </span>
     </div>
   );
 }
 
-function resolveStatusLabel(page: MangaPage, statusMode: "translation" | "inpainting"): string {
+function resolveStatusLabel(
+  page: MangaPage,
+  statusMode: "translation" | "inpainting",
+): string {
   if (statusMode === "inpainting") {
     return page.inpaintedImagePath ? "지움" : "대기";
   }

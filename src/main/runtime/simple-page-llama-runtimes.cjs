@@ -8,20 +8,20 @@ const BEELLAMA_LLAMA_RUNTIME_CUDA12 = {
   archives: [
     {
       archive: "beellama-v0.2.0-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-12.4-x64.zip"
+      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-12.4-x64.zip",
     },
     {
       archive: "cudart-llama-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-12.4-x64.zip"
-    }
+      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-12.4-x64.zip",
+    },
   ],
   requiredFiles: [
     "llama-server.exe",
     ["ggml-cuda.dll", "ggml-cuda-cu12.dll"],
     ["cublas64_12.dll"],
     ["cublasLt64_12.dll"],
-    ["cudart64_12.dll"]
-  ]
+    ["cudart64_12.dll"],
+  ],
 };
 
 const BEELLAMA_LLAMA_RUNTIME_CUDA13 = {
@@ -34,20 +34,20 @@ const BEELLAMA_LLAMA_RUNTIME_CUDA13 = {
   archives: [
     {
       archive: "beellama-v0.2.0-bin-win-cuda-13.1-x64.zip",
-      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-13.1-x64.zip"
+      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-13.1-x64.zip",
     },
     {
       archive: "cudart-llama-bin-win-cuda-13.1-x64.zip",
-      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-13.1-x64.zip"
-    }
+      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-13.1-x64.zip",
+    },
   ],
   requiredFiles: [
     "llama-server.exe",
     ["ggml-cuda.dll", "ggml-cuda-cu13.dll"],
     ["cublas64_13.dll", "cublas64_12.dll"],
     ["cublasLt64_13.dll", "cublasLt64_12.dll"],
-    ["cudart64_13.dll", "cudart64_12.dll"]
-  ]
+    ["cudart64_13.dll", "cudart64_12.dll"],
+  ],
 };
 
 const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
@@ -60,12 +60,12 @@ const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
   archives: [
     {
       archive: "llama-b9547-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-12.4-x64.zip"
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-12.4-x64.zip",
     },
     {
       archive: "cudart-llama-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/cudart-llama-bin-win-cuda-12.4-x64.zip"
-    }
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/cudart-llama-bin-win-cuda-12.4-x64.zip",
+    },
   ],
   requiredFiles: [
     "llama-server.exe",
@@ -73,8 +73,8 @@ const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
     ["ggml-cuda.dll", "ggml-cuda-cu12.dll"],
     ["cublas64_12.dll"],
     ["cublasLt64_12.dll"],
-    ["cudart64_12.dll"]
-  ]
+    ["cudart64_12.dll"],
+  ],
 };
 
 const MAINLINE_LLAMA_RUNTIME_CUDA13 = {
@@ -87,12 +87,12 @@ const MAINLINE_LLAMA_RUNTIME_CUDA13 = {
   archives: [
     {
       archive: "llama-b9547-bin-win-cuda-13.3-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-13.3-x64.zip"
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-13.3-x64.zip",
     },
     {
       archive: "cudart-llama-bin-win-cuda-13.3-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/cudart-llama-bin-win-cuda-13.3-x64.zip"
-    }
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/cudart-llama-bin-win-cuda-13.3-x64.zip",
+    },
   ],
   requiredFiles: [
     "llama-server.exe",
@@ -100,8 +100,8 @@ const MAINLINE_LLAMA_RUNTIME_CUDA13 = {
     ["ggml-cuda.dll", "ggml-cuda-cu13.dll"],
     ["cublas64_13.dll", "cublas64_12.dll"],
     ["cublasLt64_13.dll", "cublasLt64_12.dll"],
-    ["cudart64_13.dll", "cudart64_12.dll"]
-  ]
+    ["cudart64_13.dll", "cudart64_12.dll"],
+  ],
 };
 
 const MAINLINE_LLAMA_RUNTIME_VULKAN = {
@@ -114,14 +114,14 @@ const MAINLINE_LLAMA_RUNTIME_VULKAN = {
   archives: [
     {
       archive: "llama-b9547-bin-win-vulkan-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-vulkan-x64.zip"
-    }
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-vulkan-x64.zip",
+    },
   ],
   requiredFiles: [
     "llama-server.exe",
     "llama-server-impl.dll",
-    ["ggml-vulkan.dll", "libggml-vulkan.so"]
-  ]
+    ["ggml-vulkan.dll", "libggml-vulkan.so"],
+  ],
 };
 
 const LEMONADE_LLAMA_ROCM_RELEASE = "b1291";
@@ -139,15 +139,15 @@ function createLemonadeLlamaRuntimeRocm(target) {
     archives: [
       {
         archive,
-        url: `${LEMONADE_LLAMA_ROCM_BASE_URL}/${archive}`
-      }
+        url: `${LEMONADE_LLAMA_ROCM_BASE_URL}/${archive}`,
+      },
     ],
     requiredFiles: [
       "llama-server.exe",
       ["llama-server-impl.dll", "llama.dll"],
       ["amdhip64.dll", "amdhip64_7.dll"],
-      ["ggml-hip.dll", "ggml-rocm.dll", "libggml-hip.so", "libggml-rocm.so"]
-    ]
+      ["ggml-hip.dll", "ggml-rocm.dll", "libggml-hip.so", "libggml-rocm.so"],
+    ],
   };
 }
 
@@ -217,7 +217,7 @@ const LLAMA_RUNTIME_FILES = new Set([
   "llama-server.exe",
   "llama.dll",
   "mtmd.dll",
-  "rpc-server.exe"
+  "rpc-server.exe",
 ]);
 
 module.exports = {
@@ -228,5 +228,5 @@ module.exports = {
   MAINLINE_LLAMA_RUNTIME_CUDA12,
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   MAINLINE_LLAMA_RUNTIME_VULKAN,
-  resolveLemonadeLlamaRuntimeRocm
+  resolveLemonadeLlamaRuntimeRocm,
 };

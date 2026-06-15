@@ -2,7 +2,7 @@ const {
   readOcrCandidateText,
   readPositiveInteger,
   sanitizeHintLabel,
-  sanitizeOcrTextForPrompt
+  sanitizeOcrTextForPrompt,
 } = require("./simple-page-prompts.cjs");
 
 function extractJsonText(rawText) {
@@ -15,7 +15,11 @@ function extractJsonText(rawText) {
   const lastObject = text.lastIndexOf("}");
   const firstArray = text.indexOf("[");
   const lastArray = text.lastIndexOf("]");
-  if (firstObject !== -1 && lastObject > firstObject && (firstArray === -1 || firstObject < firstArray)) {
+  if (
+    firstObject !== -1 &&
+    lastObject > firstObject &&
+    (firstArray === -1 || firstObject < firstArray)
+  ) {
     return text.slice(firstObject, lastObject + 1);
   }
   if (firstArray !== -1 && lastArray > firstArray) {
@@ -31,11 +35,22 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
   const hints = [];
 
   for (const candidate of candidates) {
-    const box = normalizeOcrBboxCandidate(candidate, originalWidth, originalHeight, payload);
+    const box = normalizeOcrBboxCandidate(
+      candidate,
+      originalWidth,
+      originalHeight,
+      payload,
+    );
     if (!box) {
       continue;
     }
-    const label = candidate.label ?? candidate.type ?? candidate.category ?? candidate.class ?? candidate.class_name ?? "text";
+    const label =
+      candidate.label ??
+      candidate.type ??
+      candidate.category ??
+      candidate.class ??
+      candidate.class_name ??
+      "text";
     if (isIgnoredOcrLabel(label)) {
       continue;
     }
@@ -44,14 +59,16 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
       id: hints.length + 1,
       label: sanitizeHintLabel(label),
       ...box,
-      ...(Number.isFinite(Number(candidate.score ?? candidate.confidence)) ? { score: Number(candidate.score ?? candidate.confidence) } : {}),
-      ...(ocrText ? { ocrText } : {})
+      ...(Number.isFinite(Number(candidate.score ?? candidate.confidence))
+        ? { score: Number(candidate.score ?? candidate.confidence) }
+        : {}),
+      ...(ocrText ? { ocrText } : {}),
     });
   }
 
   return attachOcrGroupingHints(hints, {
     imageWidth: originalWidth,
-    imageHeight: originalHeight
+    imageHeight: originalHeight,
   }).slice(0, 80);
 }
 
@@ -65,23 +82,44 @@ function collectOcrBboxCandidates(payload) {
   if (Array.isArray(payload.items)) return payload.items;
   if (Array.isArray(payload.blocks)) return payload.blocks;
   if (Array.isArray(payload.parsing_res_list)) return payload.parsing_res_list;
-  if (Array.isArray(payload.layout_det_res?.boxes)) return payload.layout_det_res.boxes;
-  if (Array.isArray(payload.pages)) return payload.pages.flatMap(collectOcrBboxCandidates);
-  if (Array.isArray(payload.results)) return payload.results.flatMap(collectOcrBboxCandidates);
-  if (payload.result && typeof payload.result === "object") return collectOcrBboxCandidates(payload.result);
-  if (payload.data && typeof payload.data === "object") return collectOcrBboxCandidates(payload.data);
+  if (Array.isArray(payload.layout_det_res?.boxes))
+    return payload.layout_det_res.boxes;
+  if (Array.isArray(payload.pages))
+    return payload.pages.flatMap(collectOcrBboxCandidates);
+  if (Array.isArray(payload.results))
+    return payload.results.flatMap(collectOcrBboxCandidates);
+  if (payload.result && typeof payload.result === "object")
+    return collectOcrBboxCandidates(payload.result);
+  if (payload.data && typeof payload.data === "object")
+    return collectOcrBboxCandidates(payload.data);
   return [];
 }
 
-function normalizeOcrBboxCandidate(candidate, originalWidth, originalHeight, payload) {
+function normalizeOcrBboxCandidate(
+  candidate,
+  originalWidth,
+  originalHeight,
+  payload,
+) {
   const rawBox = readRawOcrBox(candidate);
   if (!rawBox) {
     return null;
   }
 
-  const payloadSpace = String(payload?.coordinateSpace ?? payload?.bboxCoordinateSpace ?? candidate.coordinateSpace ?? "").toLowerCase();
-  const sourceWidth = readPositiveInteger(payload?.width ?? payload?.imageWidth ?? candidate.imageWidth) || originalWidth;
-  const sourceHeight = readPositiveInteger(payload?.height ?? payload?.imageHeight ?? candidate.imageHeight) || originalHeight;
+  const payloadSpace = String(
+    payload?.coordinateSpace ??
+      payload?.bboxCoordinateSpace ??
+      candidate.coordinateSpace ??
+      "",
+  ).toLowerCase();
+  const sourceWidth =
+    readPositiveInteger(
+      payload?.width ?? payload?.imageWidth ?? candidate.imageWidth,
+    ) || originalWidth;
+  const sourceHeight =
+    readPositiveInteger(
+      payload?.height ?? payload?.imageHeight ?? candidate.imageHeight,
+    ) || originalHeight;
   let { x1, y1, x2, y2 } = rawBox;
 
   if (payloadSpace.includes("1000") && originalWidth && originalHeight) {
@@ -89,7 +127,13 @@ function normalizeOcrBboxCandidate(candidate, originalWidth, originalHeight, pay
     x2 = (x2 / 1000) * originalWidth;
     y1 = (y1 / 1000) * originalHeight;
     y2 = (y2 / 1000) * originalHeight;
-  } else if (sourceWidth && sourceHeight && originalWidth && originalHeight && (sourceWidth !== originalWidth || sourceHeight !== originalHeight)) {
+  } else if (
+    sourceWidth &&
+    sourceHeight &&
+    originalWidth &&
+    originalHeight &&
+    (sourceWidth !== originalWidth || sourceHeight !== originalHeight)
+  ) {
     x1 = (x1 / sourceWidth) * originalWidth;
     x2 = (x2 / sourceWidth) * originalWidth;
     y1 = (y1 / sourceHeight) * originalHeight;
@@ -98,8 +142,12 @@ function normalizeOcrBboxCandidate(candidate, originalWidth, originalHeight, pay
 
   const left = Math.max(0, Math.round(Math.min(x1, x2)));
   const top = Math.max(0, Math.round(Math.min(y1, y2)));
-  const right = originalWidth ? Math.min(originalWidth, Math.round(Math.max(x1, x2))) : Math.round(Math.max(x1, x2));
-  const bottom = originalHeight ? Math.min(originalHeight, Math.round(Math.max(y1, y2))) : Math.round(Math.max(y1, y2));
+  const right = originalWidth
+    ? Math.min(originalWidth, Math.round(Math.max(x1, x2)))
+    : Math.round(Math.max(x1, x2));
+  const bottom = originalHeight
+    ? Math.min(originalHeight, Math.round(Math.max(y1, y2)))
+    : Math.round(Math.max(y1, y2));
   if (right - left < 2 || bottom - top < 2) {
     return null;
   }
@@ -123,7 +171,14 @@ function readRawOcrBox(candidate) {
     }
   }
 
-  for (const key of ["polygon", "poly", "points", "polygon_points", "rec_poly", "det_poly"]) {
+  for (const key of [
+    "polygon",
+    "poly",
+    "points",
+    "polygon_points",
+    "rec_poly",
+    "det_poly",
+  ]) {
     const box = boxFromPolygon(candidate[key]);
     if (box) {
       return box;
@@ -158,10 +213,20 @@ function boxFromArrayOrObject(value) {
     return null;
   }
   if (Array.isArray(value)) {
-    if (value.length >= 4 && value.every((item) => typeof item === "number" || typeof item === "string")) {
+    if (
+      value.length >= 4 &&
+      value.every(
+        (item) => typeof item === "number" || typeof item === "string",
+      )
+    ) {
       const numbers = value.slice(0, 4).map(Number);
       if (numbers.every(Number.isFinite)) {
-        return { x1: numbers[0], y1: numbers[1], x2: numbers[2], y2: numbers[3] };
+        return {
+          x1: numbers[0],
+          y1: numbers[1],
+          x2: numbers[2],
+          y2: numbers[3],
+        };
       }
     }
     return boxFromPolygon(value);
@@ -199,7 +264,7 @@ function boxFromPolygon(value) {
     x1: Math.min(...points.map((point) => point.x)),
     y1: Math.min(...points.map((point) => point.y)),
     x2: Math.max(...points.map((point) => point.x)),
-    y2: Math.max(...points.map((point) => point.y))
+    y2: Math.max(...points.map((point) => point.y)),
   };
 }
 
@@ -218,7 +283,7 @@ function isIgnoredOcrLabel(label) {
     "inline_formula",
     "number",
     "footer",
-    "header"
+    "header",
   ].includes(normalized);
 }
 
@@ -230,7 +295,7 @@ function attachOcrGroupingHints(hints, options = {}) {
   const items = hints.map((hint, index) => ({
     hint,
     index,
-    eligible: isSemanticGroupingCandidate(hint)
+    eligible: isSemanticGroupingCandidate(hint),
   }));
   const parent = items.map((_, index) => index);
 
@@ -253,7 +318,10 @@ function attachOcrGroupingHints(hints, options = {}) {
   for (let left = 0; left < items.length; left += 1) {
     if (!items[left].eligible) continue;
     for (let right = left + 1; right < items.length; right += 1) {
-      if (items[right].eligible && areGroupingCompatible(items[left].hint, items[right].hint, options)) {
+      if (
+        items[right].eligible &&
+        areGroupingCompatible(items[left].hint, items[right].hint, options)
+      ) {
         union(left, right);
       }
     }
@@ -273,7 +341,9 @@ function attachOcrGroupingHints(hints, options = {}) {
     if (group.length < 2 || group.length > 4) {
       continue;
     }
-    group.sort((left, right) => compareJapaneseReadingOrder(left.hint, right.hint));
+    group.sort((left, right) =>
+      compareJapaneseReadingOrder(left.hint, right.hint),
+    );
     const groupId = `G${String(groupNumber).padStart(3, "0")}`;
     groupNumber += 1;
     group.forEach((item, orderIndex) => {
@@ -290,7 +360,12 @@ function attachOcrGroupingHints(hints, options = {}) {
 function isSemanticGroupingCandidate(hint) {
   const label = sanitizeHintLabel(hint?.label);
   const text = sanitizeOcrTextForPrompt(readOcrCandidateText(hint));
-  if (!text || !hasJapaneseTextEvidence(text) || !hasHiragana(text) || hasCjkIdeograph(text)) {
+  if (
+    !text ||
+    !hasJapaneseTextEvidence(text) ||
+    !hasHiragana(text) ||
+    hasCjkIdeograph(text)
+  ) {
     return false;
   }
 
@@ -313,25 +388,38 @@ function areGroupingCompatible(left, right, options = {}) {
   const rightHeight = rightBox.y2 - rightBox.y1;
   const leftWidth = leftBox.x2 - leftBox.x1;
   const rightWidth = rightBox.x2 - rightBox.x1;
-  if (leftHeight <= 0 || rightHeight <= 0 || leftWidth <= 0 || rightWidth <= 0) {
+  if (
+    leftHeight <= 0 ||
+    rightHeight <= 0 ||
+    leftWidth <= 0 ||
+    rightWidth <= 0
+  ) {
     return false;
   }
 
-  const yOverlap = Math.max(0, Math.min(leftBox.y2, rightBox.y2) - Math.max(leftBox.y1, rightBox.y1));
+  const yOverlap = Math.max(
+    0,
+    Math.min(leftBox.y2, rightBox.y2) - Math.max(leftBox.y1, rightBox.y1),
+  );
   const overlapRatio = yOverlap / Math.min(leftHeight, rightHeight);
   const centerYDistance = Math.abs(centerOf(leftBox).y - centerOf(rightBox).y);
-  const sameReadingBand = overlapRatio >= 0.25 || centerYDistance <= Math.max(leftHeight, rightHeight) * 0.75;
+  const sameReadingBand =
+    overlapRatio >= 0.25 ||
+    centerYDistance <= Math.max(leftHeight, rightHeight) * 0.75;
   if (!sameReadingBand) {
     return false;
   }
 
-  const pageWidth = readPositiveInteger(options.imageWidth) || Math.max(leftBox.x2, rightBox.x2);
+  const pageWidth =
+    readPositiveInteger(options.imageWidth) ||
+    Math.max(leftBox.x2, rightBox.x2);
   const centerXDistance = Math.abs(centerOf(leftBox).x - centerOf(rightBox).x);
   if (pageWidth && centerXDistance > pageWidth * 0.85) {
     return false;
   }
 
-  const areaRatio = (leftWidth * leftHeight) / Math.max(1, rightWidth * rightHeight);
+  const areaRatio =
+    (leftWidth * leftHeight) / Math.max(1, rightWidth * rightHeight);
   return areaRatio >= 0.15 && areaRatio <= 6.5;
 }
 
@@ -360,14 +448,14 @@ function readHintBox(hint) {
     x1: Math.min(x1, x2),
     y1: Math.min(y1, y2),
     x2: Math.max(x1, x2),
-    y2: Math.max(y1, y2)
+    y2: Math.max(y1, y2),
   };
 }
 
 function centerOf(box) {
   return {
     x: (box.x1 + box.x2) / 2,
-    y: (box.y1 + box.y2) / 2
+    y: (box.y1 + box.y2) / 2,
   };
 }
 
@@ -377,7 +465,9 @@ function isTallBox(hint) {
 }
 
 function hasJapaneseTextEvidence(text) {
-  return /[\u3040-\u30ff\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3005]/u.test(String(text ?? ""));
+  return /[\u3040-\u30ff\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3005]/u.test(
+    String(text ?? ""),
+  );
 }
 
 function hasHiragana(text) {
@@ -391,5 +481,5 @@ function hasCjkIdeograph(text) {
 module.exports = {
   attachOcrGroupingHints,
   extractJsonText,
-  normalizeOcrBboxHintPayload
+  normalizeOcrBboxHintPayload,
 };

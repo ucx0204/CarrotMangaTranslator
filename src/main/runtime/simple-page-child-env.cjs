@@ -12,7 +12,7 @@ const BASE_CHILD_ENV_KEYS = [
   "PROGRAMDATA",
   "HOME",
   "LANG",
-  "LC_ALL"
+  "LC_ALL",
 ];
 
 const NETWORK_CHILD_ENV_KEYS = [
@@ -24,14 +24,10 @@ const NETWORK_CHILD_ENV_KEYS = [
   "no_proxy",
   "REQUESTS_CA_BUNDLE",
   "SSL_CERT_FILE",
-  "CURL_CA_BUNDLE"
+  "CURL_CA_BUNDLE",
 ];
 
-const HF_CHILD_ENV_KEYS = [
-  "HF_ENDPOINT",
-  "HF_TOKEN",
-  "HUGGING_FACE_HUB_TOKEN"
-];
+const HF_CHILD_ENV_KEYS = ["HF_ENDPOINT", "HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"];
 
 const ROCM_CHILD_ENV_KEYS = [
   "ROCM_PATH",
@@ -43,11 +39,13 @@ const ROCM_CHILD_ENV_KEYS = [
   "HSA_ENABLE_SDMA",
   "PYTORCH_HIP_ALLOC_CONF",
   "LD_LIBRARY_PATH",
-  "LIBRARY_PATH"
+  "LIBRARY_PATH",
 ];
 
 function isTruthy(value) {
-  const text = String(value ?? "").trim().toLowerCase();
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
   return ["1", "true", "yes", "y", "on"].includes(text);
 }
 
@@ -55,14 +53,23 @@ function shouldAllowExternalRuntimeOverrides(options = {}) {
   if (!isLikelyPackagedToolsDir(options.toolsDir)) {
     return true;
   }
-  return isTruthy(process.env.MGT_ALLOW_EXTERNAL_RUNTIME ?? process.env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME);
+  return isTruthy(
+    process.env.MGT_ALLOW_EXTERNAL_RUNTIME ??
+      process.env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME,
+  );
 }
 
 function runtimeOverrideEnv(name, options = {}) {
-  return shouldAllowExternalRuntimeOverrides(options) ? process.env[name] : undefined;
+  return shouldAllowExternalRuntimeOverrides(options)
+    ? process.env[name]
+    : undefined;
 }
 
-function buildWhitelistedChildEnv({ pathDirs = [], includeProcessPath = false, extraKeys = [] } = {}) {
+function buildWhitelistedChildEnv({
+  pathDirs = [],
+  includeProcessPath = false,
+  extraKeys = [],
+} = {}) {
   const env = {};
   for (const key of [...BASE_CHILD_ENV_KEYS, ...extraKeys]) {
     const value = process.env[key];
@@ -82,7 +89,7 @@ function buildUtilityChildEnv(options = {}, pathDirs = []) {
   return buildWhitelistedChildEnv({
     pathDirs,
     includeProcessPath: shouldAllowExternalRuntimeOverrides(options),
-    extraKeys: NETWORK_CHILD_ENV_KEYS
+    extraKeys: NETWORK_CHILD_ENV_KEYS,
   });
 }
 
@@ -94,7 +101,14 @@ function buildChildPathEnv(pathDirs = [], includeProcessPath = false) {
       return;
     }
     const normalized = process.platform === "win32" ? text.toLowerCase() : text;
-    if (!dirs.some((candidate) => (process.platform === "win32" ? candidate.toLowerCase() : candidate) === normalized)) {
+    if (
+      !dirs.some(
+        (candidate) =>
+          (process.platform === "win32"
+            ? candidate.toLowerCase()
+            : candidate) === normalized,
+      )
+    ) {
       dirs.push(text);
     }
   };
@@ -106,7 +120,11 @@ function buildChildPathEnv(pathDirs = [], includeProcessPath = false) {
     const systemRoot = process.env.SystemRoot || process.env.WINDIR;
     addDir(systemRoot ? path.join(systemRoot, "System32") : null);
     addDir(systemRoot);
-    addDir(systemRoot ? path.join(systemRoot, "System32", "WindowsPowerShell", "v1.0") : null);
+    addDir(
+      systemRoot
+        ? path.join(systemRoot, "System32", "WindowsPowerShell", "v1.0")
+        : null,
+    );
   }
   if (includeProcessPath) {
     for (const dir of String(process.env.PATH ?? "").split(path.delimiter)) {
@@ -122,7 +140,10 @@ function isLikelyPackagedToolsDir(toolsDir) {
     return false;
   }
   const normalized = path.resolve(text).replace(/\\/g, "/").toLowerCase();
-  return normalized.endsWith("/resources/tools") || normalized.includes("/resources/tools/");
+  return (
+    normalized.endsWith("/resources/tools") ||
+    normalized.includes("/resources/tools/")
+  );
 }
 
 module.exports = {
@@ -134,5 +155,5 @@ module.exports = {
   buildWhitelistedChildEnv,
   isLikelyPackagedToolsDir,
   runtimeOverrideEnv,
-  shouldAllowExternalRuntimeOverrides
+  shouldAllowExternalRuntimeOverrides,
 };

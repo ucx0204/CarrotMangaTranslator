@@ -24,7 +24,11 @@ type OpenZipEntry = ZipEntryLike & {
 export type ZipArchiveReader = {
   entries: ZipEntryLike[];
   entryMap: Map<string, ZipEntryLike>;
-  readEntry: (entryName: string, maxBytes: number, label: string) => Promise<Buffer>;
+  readEntry: (
+    entryName: string,
+    maxBytes: number,
+    label: string,
+  ) => Promise<Buffer>;
   close: () => void;
 };
 

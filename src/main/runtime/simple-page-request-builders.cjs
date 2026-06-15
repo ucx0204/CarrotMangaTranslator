@@ -2,68 +2,81 @@ const { DEFAULT_API_KEY } = require("./simple-page-defaults.cjs");
 const {
   buildSystemPrompt,
   getOverlayPrompt,
-  readPositiveInteger
+  readPositiveInteger,
 } = require("./simple-page-prompts.cjs");
 const {
   isOpenAICodexProvider,
-  resolveConfiguredCodexReasoningEffort
+  resolveConfiguredCodexReasoningEffort,
 } = require("./simple-page-model-config.cjs");
 
 function buildMessages(options, imageVariants) {
-  const promptText = options.promptOverrideText || getOverlayPrompt(options, imageVariants);
-  const imageParts = imageVariants.flatMap((variant, index) => ([
+  const promptText =
+    options.promptOverrideText || getOverlayPrompt(options, imageVariants);
+  const imageParts = imageVariants.flatMap((variant, index) => [
     {
       type: "image_url",
       image_url: {
-        url: variant.dataUrl
-      }
+        url: variant.dataUrl,
+      },
     },
     {
       type: "text",
-      text: describeImageVariant(variant, index, options)
-    }
-  ]));
+      text: describeImageVariant(variant, index, options),
+    },
+  ]);
 
   return [
     {
       role: "system",
-      content: [{ type: "text", text: buildSystemPrompt(options) }]
+      content: [{ type: "text", text: buildSystemPrompt(options) }],
     },
     {
       role: "user",
-      content: [...imageParts, { type: "text", text: promptText }]
-    }
+      content: [...imageParts, { type: "text", text: promptText }],
+    },
   ];
 }
 
-function buildResponsesInput(options, imageVariants, promptText = options.promptOverrideText || getOverlayPrompt(options, imageVariants)) {
-  const content = imageVariants.flatMap((variant, index) => ([
+function buildResponsesInput(
+  options,
+  imageVariants,
+  promptText = options.promptOverrideText ||
+    getOverlayPrompt(options, imageVariants),
+) {
+  const content = imageVariants.flatMap((variant, index) => [
     {
       type: "input_image",
       image_url: variant.dataUrl,
-      detail: "original"
+      detail: "original",
     },
     {
       type: "input_text",
-      text: describeImageVariant(variant, index, options)
-    }
-  ]));
+      text: describeImageVariant(variant, index, options),
+    },
+  ]);
 
   return [
     {
       role: "user",
-      content: [...content, { type: "input_text", text: promptText }]
-    }
+      content: [...content, { type: "input_text", text: promptText }],
+    },
   ];
 }
 
 function describeImageVariant(variant, index, options = {}) {
-  const originalWidth = readPositiveInteger(options.imageWidth) || readPositiveInteger(variant.originalWidth);
-  const originalHeight = readPositiveInteger(options.imageHeight) || readPositiveInteger(variant.originalHeight);
+  const originalWidth =
+    readPositiveInteger(options.imageWidth) ||
+    readPositiveInteger(variant.originalWidth);
+  const originalHeight =
+    readPositiveInteger(options.imageHeight) ||
+    readPositiveInteger(variant.originalHeight);
   const width = readPositiveInteger(variant.width);
   const height = readPositiveInteger(variant.height);
   const sizeText = width && height ? ` It is ${width}x${height} px.` : "";
-  const originalSizeText = originalWidth && originalHeight ? ` Original page size is ${originalWidth}x${originalHeight} px.` : "";
+  const originalSizeText =
+    originalWidth && originalHeight
+      ? ` Original page size is ${originalWidth}x${originalHeight} px.`
+      : "";
 
   if (variant.role === "openai-vision") {
     return `Image ${index + 1}: the full manga page prepared for OpenAI detail: original vision. Use it as the geometry authority.${sizeText}${originalSizeText}`;
@@ -78,7 +91,7 @@ function describeImageVariant(variant, index, options = {}) {
 
 function buildChatRequestHeaders(options = {}) {
   const headers = {
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
   };
   if (!isOpenAICodexProvider(options)) {
     headers.Authorization = `Bearer ${DEFAULT_API_KEY}`;
@@ -86,13 +99,18 @@ function buildChatRequestHeaders(options = {}) {
   return headers;
 }
 
-function buildChatRequestBodyWithModelResolver(options, messages, maxTokens = options.maxTokens, resolveRequestModelName) {
+function buildChatRequestBodyWithModelResolver(
+  options,
+  messages,
+  maxTokens = options.maxTokens,
+  resolveRequestModelName,
+) {
   if (isOpenAICodexProvider(options)) {
     return {
       model: resolveRequestModelName(options),
       max_tokens: maxTokens,
       reasoning_effort: resolveConfiguredCodexReasoningEffort(options),
-      messages
+      messages,
     };
   }
 
@@ -106,21 +124,27 @@ function buildChatRequestBodyWithModelResolver(options, messages, maxTokens = op
     max_tokens: maxTokens,
     reasoning_budget: 0,
     enable_thinking: false,
-    messages
+    messages,
   };
 }
 
-function buildResponsesRequestBodyWithModelResolver(options, imageVariants, promptText, systemPrompt, resolveRequestModelName) {
+function buildResponsesRequestBodyWithModelResolver(
+  options,
+  imageVariants,
+  promptText,
+  systemPrompt,
+  resolveRequestModelName,
+) {
   return {
     model: resolveRequestModelName(options),
     instructions: systemPrompt || buildSystemPrompt(options),
     input: buildResponsesInput(options, imageVariants, promptText),
     max_output_tokens: options.maxTokens,
     reasoning: {
-      effort: resolveConfiguredCodexReasoningEffort(options)
+      effort: resolveConfiguredCodexReasoningEffort(options),
     },
     stream: true,
-    store: false
+    store: false,
   };
 }
 
@@ -130,5 +154,5 @@ module.exports = {
   buildMessages,
   buildResponsesInput,
   buildResponsesRequestBodyWithModelResolver,
-  describeImageVariant
+  describeImageVariant,
 };

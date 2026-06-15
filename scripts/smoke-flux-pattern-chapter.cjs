@@ -1,6 +1,12 @@
 const { app, BrowserWindow } = require("electron");
 const { execFileSync } = require("node:child_process");
-const { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } = require("node:fs");
+const {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
@@ -11,24 +17,28 @@ const DEFAULT_CHAPTER_DIR = path.join(
   "works",
   "81592b17-9d3c-41e8-b92e-4041a36d286a",
   "chapters",
-  "ff6ff56e-d3d9-4e21-b561-715968b8572a"
+  "ff6ff56e-d3d9-4e21-b561-715968b8572a",
 );
 
-const chapterDir = process.argv[2] ? path.resolve(process.argv[2]) : DEFAULT_CHAPTER_DIR;
+const chapterDir = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : DEFAULT_CHAPTER_DIR;
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const outDir = path.join(ROOT, ".tmp", "flux-pattern-smoke", timestamp);
 const sourceDir = path.join(outDir, "chapter-copy");
 const sourcePagesDir = path.join(sourceDir, "pages");
 const sourceInpaintedDir = path.join(sourceDir, "inpainted");
 
-app.setPath("userData", path.join(ROOT, ".tmp", "flux-pattern-smoke", "electron-user-data"));
+app.setPath(
+  "userData",
+  path.join(ROOT, ".tmp", "flux-pattern-smoke", "electron-user-data"),
+);
 
 async function main() {
   await app.whenReady();
-  const {
-    inpaintPatternPage,
-    prepareFluxInpaintingEngine
-  } = require(path.join(ROOT, "out", "main", "inpainting.js"));
+  const { inpaintPatternPage, prepareFluxInpaintingEngine } = require(
+    path.join(ROOT, "out", "main", "inpainting.js"),
+  );
 
   mkdirSync(outDir, { recursive: true });
   mkdirSync(sourcePagesDir, { recursive: true });
@@ -38,29 +48,45 @@ async function main() {
   const chapter = JSON.parse(readFileSync(chapterPath, "utf8"));
   const pages = chapter.pages ?? [];
   const smokePages = pages.map((page, index) => copyPageForSmoke(page, index));
-  const targetPages = smokePages.filter((page) => (page.blocks ?? []).length > 0);
+  const targetPages = smokePages.filter(
+    (page) => (page.blocks ?? []).length > 0,
+  );
 
   const vram = startVramSampler();
   const progressLog = [];
   const startedAt = performance.now();
-  console.log(`[flux-smoke] chapter=${chapter.title || chapter.id || path.basename(chapterDir)}`);
-  console.log(`[flux-smoke] pages=${pages.length}, pattern-pages=${targetPages.length}, out=${outDir}`);
+  console.log(
+    `[flux-smoke] chapter=${chapter.title || chapter.id || path.basename(chapterDir)}`,
+  );
+  console.log(
+    `[flux-smoke] pages=${pages.length}, pattern-pages=${targetPages.length}, out=${outDir}`,
+  );
 
   if (!process.env.MGT_FLUX_KLEIN_EXE) {
-    const localMgtFlux = path.join(ROOT, "tools", "mgt-flux-klein", "mgt-flux-klein.exe");
+    const localMgtFlux = path.join(
+      ROOT,
+      "tools",
+      "mgt-flux-klein",
+      "mgt-flux-klein.exe",
+    );
     if (existsSync(localMgtFlux)) {
       process.env.MGT_FLUX_KLEIN_EXE = localMgtFlux;
     }
   }
 
   const engine = await prepareFluxInpaintingEngine({
-    runtimeDir: path.join(ROOT, "models", "inpainting", "mgt-flux-klein-runtime"),
+    runtimeDir: path.join(
+      ROOT,
+      "models",
+      "inpainting",
+      "mgt-flux-klein-runtime",
+    ),
     modelDir: path.join(ROOT, "models", "inpainting", "flux-klein-4b"),
     onProgress: (progress) => {
       const line = `${new Date().toISOString()} ${progress.progressText}${progress.detail ? ` - ${progress.detail}` : ""}`;
       progressLog.push(line);
       console.log(`[flux-smoke] ${line}`);
-    }
+    },
   });
 
   const results = [];
@@ -68,10 +94,12 @@ async function main() {
     for (const [targetIndex, page] of targetPages.entries()) {
       const pageStartedAt = performance.now();
       const patternCount = page.blocks.length;
-      console.log(`[flux-smoke] ${targetIndex + 1}/${targetPages.length} ${page.name} pattern=${patternCount}`);
+      console.log(
+        `[flux-smoke] ${targetIndex + 1}/${targetPages.length} ${page.name} pattern=${patternCount}`,
+      );
       const beforeVram = vram.current();
       const result = await inpaintPatternPage(page, {
-        fluxEngine: engine
+        fluxEngine: engine,
       });
       const elapsedMs = performance.now() - pageStartedAt;
       const afterVram = vram.current();
@@ -85,10 +113,10 @@ async function main() {
         blocksErased: result.blocksErased,
         elapsedMs,
         beforeVram,
-        afterVram
+        afterVram,
       });
       console.log(
-        `[flux-smoke] done ${page.name} erased=${result.blocksErased} elapsed=${formatSeconds(elapsedMs)} peakFlux=${vram.peakProcessMiB}MiB peakDelta=${vram.peakDeltaMiB()}MiB`
+        `[flux-smoke] done ${page.name} erased=${result.blocksErased} elapsed=${formatSeconds(elapsedMs)} peakFlux=${vram.peakProcessMiB}MiB peakDelta=${vram.peakDeltaMiB()}MiB`,
       );
     }
   } finally {
@@ -105,8 +133,14 @@ async function main() {
     completedAt: new Date().toISOString(),
     pages: pages.length,
     patternPages: targetPages.length,
-    totalPatternBlocks: targetPages.reduce((sum, page) => sum + page.blocks.length, 0),
-    totalErasedBlocks: results.reduce((sum, result) => sum + result.blocksErased, 0),
+    totalPatternBlocks: targetPages.reduce(
+      (sum, page) => sum + page.blocks.length,
+      0,
+    ),
+    totalErasedBlocks: results.reduce(
+      (sum, result) => sum + result.blocksErased,
+      0,
+    ),
     totalElapsedMs,
     averagePageMs: results.length ? totalElapsedMs / results.length : 0,
     vram: {
@@ -114,33 +148,49 @@ async function main() {
       peakTotalMiB: vram.peakTotalMiB,
       peakDeltaMiB: vram.peakDeltaMiB(),
       peakFluxProcessMiB: vram.peakProcessMiB,
-      samples: vram.samples.length
+      samples: vram.samples.length,
     },
-    results
+    results,
   };
 
-  writeFileSync(path.join(outDir, "progress.log"), progressLog.join("\n"), "utf8");
-  writeFileSync(path.join(outDir, "report.json"), JSON.stringify(summary, null, 2), "utf8");
+  writeFileSync(
+    path.join(outDir, "progress.log"),
+    progressLog.join("\n"),
+    "utf8",
+  );
+  writeFileSync(
+    path.join(outDir, "report.json"),
+    JSON.stringify(summary, null, 2),
+    "utf8",
+  );
   await writeHtmlReport(summary);
   await writeContactSheet(summary);
   console.log(`[flux-smoke] wrote ${outDir}`);
-  console.log(`[flux-smoke] total=${formatSeconds(totalElapsedMs)} avg=${formatSeconds(summary.averagePageMs)} peakFlux=${summary.vram.peakFluxProcessMiB}MiB peakDelta=${summary.vram.peakDeltaMiB}MiB`);
+  console.log(
+    `[flux-smoke] total=${formatSeconds(totalElapsedMs)} avg=${formatSeconds(summary.averagePageMs)} peakFlux=${summary.vram.peakFluxProcessMiB}MiB peakDelta=${summary.vram.peakDeltaMiB}MiB`,
+  );
   app.quit();
 }
 
 function copyPageForSmoke(page, index) {
   const sourceImage = page.imagePath;
-  const copiedImage = path.join(sourcePagesDir, `${String(index + 1).padStart(3, "0")}-${path.basename(sourceImage)}`);
+  const copiedImage = path.join(
+    sourcePagesDir,
+    `${String(index + 1).padStart(3, "0")}-${path.basename(sourceImage)}`,
+  );
   copyFileSync(sourceImage, copiedImage);
   let copiedInpainted;
   if (page.inpaintedImagePath && existsSync(page.inpaintedImagePath)) {
-    copiedInpainted = path.join(sourceInpaintedDir, `${String(index + 1).padStart(3, "0")}-${path.basename(page.inpaintedImagePath)}`);
+    copiedInpainted = path.join(
+      sourceInpaintedDir,
+      `${String(index + 1).padStart(3, "0")}-${path.basename(page.inpaintedImagePath)}`,
+    );
     copyFileSync(page.inpaintedImagePath, copiedInpainted);
   }
   return {
     ...page,
     imagePath: copiedImage,
-    inpaintedImagePath: copiedInpainted
+    inpaintedImagePath: copiedInpainted,
   };
 }
 
@@ -153,14 +203,18 @@ function startVramSampler() {
     peakTotalMiB: baseline.totalMiB,
     peakProcessMiB: baseline.fluxProcessMiB,
     current: () => readVramSample(),
-    peakDeltaMiB: () => Math.max(0, state.peakTotalMiB - state.baselineTotalMiB),
-    stop: () => clearInterval(timer)
+    peakDeltaMiB: () =>
+      Math.max(0, state.peakTotalMiB - state.baselineTotalMiB),
+    stop: () => clearInterval(timer),
   };
   const timer = setInterval(() => {
     const sample = readVramSample();
     samples.push(sample);
     state.peakTotalMiB = Math.max(state.peakTotalMiB, sample.totalMiB);
-    state.peakProcessMiB = Math.max(state.peakProcessMiB, sample.fluxProcessMiB);
+    state.peakProcessMiB = Math.max(
+      state.peakProcessMiB,
+      sample.fluxProcessMiB,
+    );
   }, 500);
   return state;
 }
@@ -169,14 +223,18 @@ function readVramSample() {
   const sample = {
     at: Date.now(),
     totalMiB: 0,
-    fluxProcessMiB: 0
+    fluxProcessMiB: 0,
   };
   try {
-    const total = execFileSync("nvidia-smi", ["--query-gpu=memory.used", "--format=csv,noheader,nounits"], {
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 2500
-    })
+    const total = execFileSync(
+      "nvidia-smi",
+      ["--query-gpu=memory.used", "--format=csv,noheader,nounits"],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 2500,
+      },
+    )
       .trim()
       .split(/\r?\n/)
       .map((line) => Number.parseInt(line.trim(), 10))
@@ -186,11 +244,18 @@ function readVramSample() {
     sample.totalMiB = 0;
   }
   try {
-    const apps = execFileSync("nvidia-smi", ["--query-compute-apps=pid,process_name,used_gpu_memory", "--format=csv,noheader,nounits"], {
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 2500
-    })
+    const apps = execFileSync(
+      "nvidia-smi",
+      [
+        "--query-compute-apps=pid,process_name,used_gpu_memory",
+        "--format=csv,noheader,nounits",
+      ],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 2500,
+      },
+    )
       .trim()
       .split(/\r?\n/)
       .filter(Boolean);
@@ -198,7 +263,10 @@ function readVramSample() {
       const parts = line.split(",").map((part) => part.trim());
       const processName = parts[1] || "";
       const used = Number.parseInt(parts[2] || "0", 10);
-      if (/mgt-flux-klein|electron/i.test(processName) && Number.isFinite(used)) {
+      if (
+        /mgt-flux-klein|electron/i.test(processName) &&
+        Number.isFinite(used)
+      ) {
         sample.fluxProcessMiB += used;
       }
     }
@@ -212,7 +280,9 @@ async function writeHtmlReport(summary) {
   const rows = summary.results
     .map((result) => {
       const source = pathToFileURL(result.sourceImagePath).href;
-      const output = result.outputImagePath ? pathToFileURL(result.outputImagePath).href : "";
+      const output = result.outputImagePath
+        ? pathToFileURL(result.outputImagePath).href
+        : "";
       return `<section class="row">
         <header><strong>${escapeHtml(result.name)}</strong><span>${result.patternBlocks} blocks · erased ${result.blocksErased} · ${formatSeconds(result.elapsedMs)}</span></header>
         <div class="pair">
@@ -259,11 +329,16 @@ async function writeContactSheet(summary) {
     show: false,
     width,
     height,
-    webPreferences: { offscreen: true }
+    webPreferences: { offscreen: true },
   });
   await window.loadFile(htmlPath);
   await new Promise((resolve) => setTimeout(resolve, 500));
-  const image = await window.webContents.capturePage({ x: 0, y: 0, width, height });
+  const image = await window.webContents.capturePage({
+    x: 0,
+    y: 0,
+    width,
+    height,
+  });
   writeFileSync(path.join(outDir, "contact-sheet.png"), image.toPNG());
   window.destroy();
 }

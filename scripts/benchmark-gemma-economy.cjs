@@ -9,13 +9,19 @@ const ROOT = path.join(__dirname, "..");
 const DEFAULT_SAMPLE_PATHS = [
   "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Manga Mura (JA)\\転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～\\第3話_ 第3話\\003.jpeg",
   "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Akuyaku ga Ippai Detekuru Eroge no Kimo Debu Akuyaku Kizoku ni Tensei Shita\\Chapter 3.1\\001.jpeg",
-  "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Danshi Koukousei, Otome Game no Akuyaku Reijou ni Tensei Suru\\Chapter 2\\001.jpeg"
+  "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Rawkuma (JA)\\Danshi Koukousei, Otome Game no Akuyaku Reijou ni Tensei Suru\\Chapter 2\\001.jpeg",
 ];
 
 const RUNS_PER_CANDIDATE = readIntEnv("MANGA_PERF_RUNS", 2);
-const GPU_SAMPLE_INTERVAL_MS = readIntEnv("MANGA_PERF_GPU_SAMPLE_INTERVAL_MS", 1000);
+const GPU_SAMPLE_INTERVAL_MS = readIntEnv(
+  "MANGA_PERF_GPU_SAMPLE_INTERVAL_MS",
+  1000,
+);
 const VRAM_DELTA_LIMIT_MB = readIntEnv("MANGA_PERF_VRAM_DELTA_LIMIT_MB", 300);
-const MIN_WALL_IMPROVEMENT = readNumberEnv("MANGA_PERF_MIN_WALL_IMPROVEMENT", 0.05);
+const MIN_WALL_IMPROVEMENT = readNumberEnv(
+  "MANGA_PERF_MIN_WALL_IMPROVEMENT",
+  0.05,
+);
 const BASE_PORT = readIntEnv("MANGA_PERF_BASE_PORT", 18240);
 const SKIP_OCR = String(process.env.MANGA_PERF_SKIP_OCR || "").trim() === "1";
 const REUSE_OCR_DIR = String(process.env.MANGA_PERF_REUSE_OCR_DIR || "").trim();
@@ -23,8 +29,23 @@ const CPU_THREAD_GUESS = Math.max(4, Math.min(os.cpus().length || 8, 16));
 
 const CANDIDATES = [
   { name: "baseline-b1024-ub1024", batch: 1024, ubatch: 1024 },
-  { name: "gpu-kv-ngl58", batch: 1024, ubatch: 1024, kvOffload: true, gpuLayers: 58, noHost: false },
-  { name: "gpu-kv-ngl58-no-warmup", batch: 1024, ubatch: 1024, kvOffload: true, gpuLayers: 58, noHost: false, extraArgs: ["--no-warmup"] },
+  {
+    name: "gpu-kv-ngl58",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    gpuLayers: 58,
+    noHost: false,
+  },
+  {
+    name: "gpu-kv-ngl58-no-warmup",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    gpuLayers: 58,
+    noHost: false,
+    extraArgs: ["--no-warmup"],
+  },
   {
     name: "beellama-ctx7168-img512-ub512",
     batch: 1024,
@@ -32,7 +53,7 @@ const CANDIDATES = [
     ctx: 7168,
     kvOffload: true,
     imageMinTokens: 512,
-    imageMaxTokens: 512
+    imageMaxTokens: 512,
   },
   {
     name: "beellama-ctx6144-img512-ub512",
@@ -41,7 +62,7 @@ const CANDIDATES = [
     ctx: 6144,
     kvOffload: true,
     imageMinTokens: 512,
-    imageMaxTokens: 512
+    imageMaxTokens: 512,
   },
   {
     name: "beellama-26b-a4b-iq3s-q8-mmproj",
@@ -51,16 +72,22 @@ const CANDIDATES = [
     kvOffload: true,
     imageMinTokens: 512,
     imageMaxTokens: 512,
-    modelRepo: "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF",
+    modelRepo:
+      "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF",
     modelFile: "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf",
     mmprojRepo: "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF",
-    mmprojFile: "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf"
+    mmprojFile: "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf",
   },
   {
     name: "official-llama-b8833-baseline",
     batch: 1024,
     ubatch: 1024,
-    serverPath: path.join(ROOT, "tools", "llama-b8833-cuda12.4", "llama-server.exe")
+    serverPath: path.join(
+      ROOT,
+      "tools",
+      "llama-b8833-cuda12.4",
+      "llama-server.exe",
+    ),
   },
   {
     name: "official-llama-b8833-fit14g",
@@ -69,7 +96,12 @@ const CANDIDATES = [
     fitTargetMb: 9000,
     gpuLayers: "fit",
     extraArgs: ["--fit", "on", "--fit-target", "9000"],
-    serverPath: path.join(ROOT, "tools", "llama-b8833-cuda12.4", "llama-server.exe")
+    serverPath: path.join(
+      ROOT,
+      "tools",
+      "llama-b8833-cuda12.4",
+      "llama-server.exe",
+    ),
   },
   {
     name: "official-llama-b8833-fit13g",
@@ -78,7 +110,12 @@ const CANDIDATES = [
     fitTargetMb: 10000,
     gpuLayers: "fit",
     extraArgs: ["--fit", "on", "--fit-target", "10000"],
-    serverPath: path.join(ROOT, "tools", "llama-b8833-cuda12.4", "llama-server.exe")
+    serverPath: path.join(
+      ROOT,
+      "tools",
+      "llama-b8833-cuda12.4",
+      "llama-server.exe",
+    ),
   },
   {
     name: "official-llama-b8833-fit12g",
@@ -87,7 +124,12 @@ const CANDIDATES = [
     fitTargetMb: 12000,
     gpuLayers: "fit",
     extraArgs: ["--fit", "on", "--fit-target", "12000"],
-    serverPath: path.join(ROOT, "tools", "llama-b8833-cuda12.4", "llama-server.exe")
+    serverPath: path.join(
+      ROOT,
+      "tools",
+      "llama-b8833-cuda12.4",
+      "llama-server.exe",
+    ),
   },
   {
     name: "official-llama-b8833-ngl58",
@@ -96,24 +138,102 @@ const CANDIDATES = [
     kvOffload: true,
     gpuLayers: 58,
     noHost: false,
-    serverPath: path.join(ROOT, "tools", "llama-b8833-cuda12.4", "llama-server.exe")
+    serverPath: path.join(
+      ROOT,
+      "tools",
+      "llama-b8833-cuda12.4",
+      "llama-server.exe",
+    ),
   },
   { name: "b512-ub1024", batch: 512, ubatch: 1024 },
   { name: "b1536-ub1024", batch: 1536, ubatch: 1024 },
   { name: "gpu-kv-b1024-ub1024", batch: 1024, ubatch: 1024, kvOffload: true },
   { name: "gpu-kv-b1024-ub768", batch: 1024, ubatch: 768, kvOffload: true },
   { name: "gpu-kv-b1024-ub512", batch: 1024, ubatch: 512, kvOffload: true },
-  { name: "gpu-kv-vturbo4", batch: 1024, ubatch: 1024, kvOffload: true, cacheTypeK: "q4_0", cacheTypeV: "turbo4" },
-  { name: "gpu-kv-turbo4", batch: 1024, ubatch: 1024, kvOffload: true, cacheTypeK: "turbo4", cacheTypeV: "turbo4" },
-  { name: "gpu-kv-vturbo3", batch: 1024, ubatch: 1024, kvOffload: true, cacheTypeK: "q4_0", cacheTypeV: "turbo3" },
-  { name: "gpu-kv-turbo3", batch: 1024, ubatch: 1024, kvOffload: true, cacheTypeK: "turbo3", cacheTypeV: "turbo3" },
-  { name: "gpu-kv-turbo3-tcq", batch: 1024, ubatch: 1024, kvOffload: true, cacheTypeK: "turbo3_tcq", cacheTypeV: "turbo3_tcq" },
-  { name: "gpu-kv-turbo2", batch: 1024, ubatch: 1024, kvOffload: true, cacheTypeK: "turbo2", cacheTypeV: "turbo2" },
-  { name: "mmproj-gpu-cpu-kv", batch: 1024, ubatch: 1024, kvOffload: false, mmprojOffload: true },
-  { name: "mmproj-gpu-gpu-kv", batch: 1024, ubatch: 1024, kvOffload: true, mmprojOffload: true },
-  { name: "mmproj-gpu-gpu-kv-ub768", batch: 1024, ubatch: 768, kvOffload: true, mmprojOffload: true },
-  { name: "mmproj-gpu-gpu-kv-ub512", batch: 1024, ubatch: 512, kvOffload: true, mmprojOffload: true },
-  { name: "mmproj-gpu-gpu-kv-ctx6144-ub512", batch: 1024, ubatch: 512, ctx: 6144, kvOffload: true, mmprojOffload: true },
+  {
+    name: "gpu-kv-vturbo4",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    cacheTypeK: "q4_0",
+    cacheTypeV: "turbo4",
+  },
+  {
+    name: "gpu-kv-turbo4",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    cacheTypeK: "turbo4",
+    cacheTypeV: "turbo4",
+  },
+  {
+    name: "gpu-kv-vturbo3",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    cacheTypeK: "q4_0",
+    cacheTypeV: "turbo3",
+  },
+  {
+    name: "gpu-kv-turbo3",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    cacheTypeK: "turbo3",
+    cacheTypeV: "turbo3",
+  },
+  {
+    name: "gpu-kv-turbo3-tcq",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    cacheTypeK: "turbo3_tcq",
+    cacheTypeV: "turbo3_tcq",
+  },
+  {
+    name: "gpu-kv-turbo2",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    cacheTypeK: "turbo2",
+    cacheTypeV: "turbo2",
+  },
+  {
+    name: "mmproj-gpu-cpu-kv",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: false,
+    mmprojOffload: true,
+  },
+  {
+    name: "mmproj-gpu-gpu-kv",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    mmprojOffload: true,
+  },
+  {
+    name: "mmproj-gpu-gpu-kv-ub768",
+    batch: 1024,
+    ubatch: 768,
+    kvOffload: true,
+    mmprojOffload: true,
+  },
+  {
+    name: "mmproj-gpu-gpu-kv-ub512",
+    batch: 1024,
+    ubatch: 512,
+    kvOffload: true,
+    mmprojOffload: true,
+  },
+  {
+    name: "mmproj-gpu-gpu-kv-ctx6144-ub512",
+    batch: 1024,
+    ubatch: 512,
+    ctx: 6144,
+    kvOffload: true,
+    mmprojOffload: true,
+  },
   {
     name: "mmproj-gpu-gpu-kv-turbo4",
     batch: 1024,
@@ -121,7 +241,7 @@ const CANDIDATES = [
     kvOffload: true,
     mmprojOffload: true,
     cacheTypeK: "turbo4",
-    cacheTypeV: "turbo4"
+    cacheTypeV: "turbo4",
   },
   {
     name: "mmproj-gpu-gpu-kv-turbo3",
@@ -130,41 +250,113 @@ const CANDIDATES = [
     kvOffload: true,
     mmprojOffload: true,
     cacheTypeK: "turbo3",
-    cacheTypeV: "turbo3"
+    cacheTypeV: "turbo3",
   },
-  { name: "gpu-kv-ctx4096", batch: 1024, ubatch: 1024, ctx: 4096, kvOffload: true },
-  { name: "gpu-kv-ctx5120", batch: 1024, ubatch: 1024, ctx: 5120, kvOffload: true },
-  { name: "gpu-kv-ctx6144", batch: 1024, ubatch: 1024, ctx: 6144, kvOffload: true },
-  { name: "gpu-kv-ctx7168", batch: 1024, ubatch: 1024, ctx: 7168, kvOffload: true },
-  { name: "gpu-kv-ctx7680", batch: 1024, ubatch: 1024, ctx: 7680, kvOffload: true },
-  { name: "gpu-kv-no-warmup", batch: 1024, ubatch: 1024, kvOffload: true, extraArgs: ["--no-warmup"] },
+  {
+    name: "gpu-kv-ctx4096",
+    batch: 1024,
+    ubatch: 1024,
+    ctx: 4096,
+    kvOffload: true,
+  },
+  {
+    name: "gpu-kv-ctx5120",
+    batch: 1024,
+    ubatch: 1024,
+    ctx: 5120,
+    kvOffload: true,
+  },
+  {
+    name: "gpu-kv-ctx6144",
+    batch: 1024,
+    ubatch: 1024,
+    ctx: 6144,
+    kvOffload: true,
+  },
+  {
+    name: "gpu-kv-ctx7168",
+    batch: 1024,
+    ubatch: 1024,
+    ctx: 7168,
+    kvOffload: true,
+  },
+  {
+    name: "gpu-kv-ctx7680",
+    batch: 1024,
+    ubatch: 1024,
+    ctx: 7680,
+    kvOffload: true,
+  },
+  {
+    name: "gpu-kv-no-warmup",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    extraArgs: ["--no-warmup"],
+  },
   {
     name: "gpu-kv-swa768",
     batch: 1024,
     ubatch: 1024,
     kvOffload: true,
-    extraArgs: ["--override-kv", "gemma4.attention.sliding_window=int:768"]
+    extraArgs: ["--override-kv", "gemma4.attention.sliding_window=int:768"],
   },
   {
     name: "gpu-kv-swa512",
     batch: 1024,
     ubatch: 1024,
     kvOffload: true,
-    extraArgs: ["--override-kv", "gemma4.attention.sliding_window=int:512"]
+    extraArgs: ["--override-kv", "gemma4.attention.sliding_window=int:512"],
   },
-  { name: "gpu-kv-no-repack", batch: 1024, ubatch: 1024, kvOffload: true, extraArgs: ["--no-repack"] },
-  { name: "gpu-kv-no-op-offload", batch: 1024, ubatch: 1024, kvOffload: true, extraArgs: ["--no-op-offload"] },
+  {
+    name: "gpu-kv-no-repack",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    extraArgs: ["--no-repack"],
+  },
+  {
+    name: "gpu-kv-no-op-offload",
+    batch: 1024,
+    ubatch: 1024,
+    kvOffload: true,
+    extraArgs: ["--no-op-offload"],
+  },
   {
     name: "gpu-kv-no-repack-no-op-offload",
     batch: 1024,
     ubatch: 1024,
     kvOffload: true,
-    extraArgs: ["--no-repack", "--no-op-offload"]
+    extraArgs: ["--no-repack", "--no-op-offload"],
   },
   { name: "gpu-kv-b512-ub1024", batch: 512, ubatch: 1024, kvOffload: true },
-  { name: "cpu-feed-b1024-ub1024", batch: 1024, ubatch: 1024, poll: 100, pollBatch: true, prioBatch: 2, threadsBatch: CPU_THREAD_GUESS },
-  { name: "cpu-feed-b1536-ub1024", batch: 1536, ubatch: 1024, poll: 100, pollBatch: true, prioBatch: 2, threadsBatch: CPU_THREAD_GUESS },
-  { name: "cpu-feed-b1536-ub1536", batch: 1536, ubatch: 1536, poll: 100, pollBatch: true, prioBatch: 2, threadsBatch: CPU_THREAD_GUESS }
+  {
+    name: "cpu-feed-b1024-ub1024",
+    batch: 1024,
+    ubatch: 1024,
+    poll: 100,
+    pollBatch: true,
+    prioBatch: 2,
+    threadsBatch: CPU_THREAD_GUESS,
+  },
+  {
+    name: "cpu-feed-b1536-ub1024",
+    batch: 1536,
+    ubatch: 1024,
+    poll: 100,
+    pollBatch: true,
+    prioBatch: 2,
+    threadsBatch: CPU_THREAD_GUESS,
+  },
+  {
+    name: "cpu-feed-b1536-ub1536",
+    batch: 1536,
+    ubatch: 1536,
+    poll: 100,
+    pollBatch: true,
+    prioBatch: 2,
+    threadsBatch: CPU_THREAD_GUESS,
+  },
 ];
 const CANDIDATE_FILTER = String(process.env.MANGA_PERF_CANDIDATES || "")
   .split(",")
@@ -172,7 +364,10 @@ const CANDIDATE_FILTER = String(process.env.MANGA_PERF_CANDIDATES || "")
   .filter(Boolean);
 
 async function main() {
-  app.setPath("userData", path.join(ROOT, ".tmp", "perf-gemma-economy", "electron-user-data"));
+  app.setPath(
+    "userData",
+    path.join(ROOT, ".tmp", "perf-gemma-economy", "electron-user-data"),
+  );
   app.commandLine.appendSwitch("disable-gpu");
   app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
   app.commandLine.appendSwitch("disk-cache-size", "0");
@@ -185,12 +380,17 @@ async function main() {
   await mkdir(pagesDir, { recursive: true });
 
   const { getAppPaths } = require("../out/main/appPaths.js");
-  const { normalizeAppSettings, buildBaseTranslationOptions } = require("../out/main/appSettings.js");
+  const {
+    normalizeAppSettings,
+    buildBaseTranslationOptions,
+  } = require("../out/main/appSettings.js");
   const simplePage = require("../out/app-runtime/simple-page-translate.cjs");
   const overlayTools = require("../out/app-runtime/overlay-parser.cjs");
 
   const paths = getAppPaths();
-  const settings = normalizeAppSettings(await readJsonIfExists(paths.settingsPath));
+  const settings = normalizeAppSettings(
+    await readJsonIfExists(paths.settingsPath),
+  );
   settings.modelProvider = "gemma";
   settings.gemma.vramMode = "economy";
 
@@ -198,25 +398,43 @@ async function main() {
     jobId: "perf-gemma-economy",
     runDir: path.join(outDir, "runs"),
     paths,
-    settings
+    settings,
   });
 
-  const samples = resolveSamples().map((imagePath, index) => createPageRecord(imagePath, index));
-  const candidates = (CANDIDATE_FILTER.length > 0
-    ? CANDIDATES.filter((candidate) => CANDIDATE_FILTER.includes(candidate.name))
-    : CANDIDATES).filter((candidate) => candidateKeepsImageTokenBudget(candidate, baseOptions));
+  const samples = resolveSamples().map((imagePath, index) =>
+    createPageRecord(imagePath, index),
+  );
+  const candidates = (
+    CANDIDATE_FILTER.length > 0
+      ? CANDIDATES.filter((candidate) =>
+          CANDIDATE_FILTER.includes(candidate.name),
+        )
+      : CANDIDATES
+  ).filter((candidate) =>
+    candidateKeepsImageTokenBudget(candidate, baseOptions),
+  );
   if (samples.length === 0) {
     throw new Error("No benchmark sample images found.");
   }
   if (candidates.length === 0) {
-    throw new Error(`No benchmark candidates matched: ${CANDIDATE_FILTER.join(", ")}`);
+    throw new Error(
+      `No benchmark candidates matched: ${CANDIDATE_FILTER.join(", ")}`,
+    );
   }
-  await writeFile(path.join(outDir, "samples.json"), `${JSON.stringify(samples, null, 2)}\n`, "utf8");
+  await writeFile(
+    path.join(outDir, "samples.json"),
+    `${JSON.stringify(samples, null, 2)}\n`,
+    "utf8",
+  );
 
   console.log(`[perf] writing ${outDir}`);
-  console.log(`[perf] samples=${samples.length}, candidates=${candidates.length}, runs=${RUNS_PER_CANDIDATE}`);
+  console.log(
+    `[perf] samples=${samples.length}, candidates=${candidates.length}, runs=${RUNS_PER_CANDIDATE}`,
+  );
 
-  const ocrHintsByPath = SKIP_OCR ? new Map() : await prepareCachedOcrHints(simplePage, baseOptions, samples, pagesDir);
+  const ocrHintsByPath = SKIP_OCR
+    ? new Map()
+    : await prepareCachedOcrHints(simplePage, baseOptions, samples, pagesDir);
   const results = [];
   for (const [candidateIndex, candidate] of candidates.entries()) {
     let candidateResult;
@@ -229,38 +447,67 @@ async function main() {
         overlayTools,
         samples,
         ocrHintsByPath,
-        outDir
+        outDir,
       });
     } catch (error) {
       candidateResult = await writeFailedCandidateResult({
         candidate,
         candidateIndex,
         outDir,
-        error
+        error,
       });
     }
     results.push(candidateResult);
-    await writeFile(path.join(outDir, "results.partial.json"), `${JSON.stringify(results, null, 2)}\n`, "utf8");
+    await writeFile(
+      path.join(outDir, "results.partial.json"),
+      `${JSON.stringify(results, null, 2)}\n`,
+      "utf8",
+    );
   }
 
   const summary = summarizeResults(results);
-  await writeFile(path.join(outDir, "results.json"), `${JSON.stringify({ summary, results }, null, 2)}\n`, "utf8");
-  await writeFile(path.join(outDir, "report.md"), buildMarkdownReport(summary, results), "utf8");
-  console.log(`[perf] winner=${summary.winner?.name ?? "none"} baseline=${summary.baseline?.name ?? "none"}`);
+  await writeFile(
+    path.join(outDir, "results.json"),
+    `${JSON.stringify({ summary, results }, null, 2)}\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(outDir, "report.md"),
+    buildMarkdownReport(summary, results),
+    "utf8",
+  );
+  console.log(
+    `[perf] winner=${summary.winner?.name ?? "none"} baseline=${summary.baseline?.name ?? "none"}`,
+  );
   console.log(`[perf] report=${path.join(outDir, "report.md")}`);
   app.quit();
 }
 
-async function prepareCachedOcrHints(simplePage, baseOptions, samples, pagesDir) {
+async function prepareCachedOcrHints(
+  simplePage,
+  baseOptions,
+  samples,
+  pagesDir,
+) {
   const hintsByPath = new Map();
   for (const [index, sample] of samples.entries()) {
-    const outputDir = path.join(pagesDir, String(index + 1).padStart(2, "0"), "ocr");
+    const outputDir = path.join(
+      pagesDir,
+      String(index + 1).padStart(2, "0"),
+      "ocr",
+    );
     const reusedHints = await readReusableOcrHints(index);
     if (reusedHints) {
       hintsByPath.set(sample.imagePath, reusedHints);
       await mkdir(outputDir, { recursive: true });
-      await writeFile(path.join(outputDir, "ocr-hints.json"), `${JSON.stringify({ hints: reusedHints }, null, 2)}\n`, "utf8");
-      console.log(`[perf] reused OCR ${index + 1}/${samples.length}: hints=${reusedHints.length}`);
+      await writeFile(
+        path.join(outputDir, "ocr-hints.json"),
+        `${JSON.stringify({ hints: reusedHints }, null, 2)}\n`,
+        "utf8",
+      );
+      console.log(
+        `[perf] reused OCR ${index + 1}/${samples.length}: hints=${reusedHints.length}`,
+      );
       continue;
     }
     const options = {
@@ -270,13 +517,19 @@ async function prepareCachedOcrHints(simplePage, baseOptions, samples, pagesDir)
       imageHeight: sample.height,
       outputDir,
       label: `perf-ocr-${index + 1}`,
-      ocrProgressDefaultToPage: false
+      ocrProgressDefaultToPage: false,
     };
     const result = await simplePage.collectOcrBboxHints(options);
     hintsByPath.set(sample.imagePath, result.hints);
     await mkdir(outputDir, { recursive: true });
-    await writeFile(path.join(outputDir, "ocr-hints.json"), `${JSON.stringify(result, null, 2)}\n`, "utf8");
-    console.log(`[perf] cached OCR ${index + 1}/${samples.length}: hints=${result.hints.length}`);
+    await writeFile(
+      path.join(outputDir, "ocr-hints.json"),
+      `${JSON.stringify(result, null, 2)}\n`,
+      "utf8",
+    );
+    console.log(
+      `[perf] cached OCR ${index + 1}/${samples.length}: hints=${result.hints.length}`,
+    );
   }
   return hintsByPath;
 }
@@ -285,10 +538,15 @@ async function readReusableOcrHints(sampleIndex) {
   if (!REUSE_OCR_DIR) {
     return null;
   }
-  const pageDir = path.join(REUSE_OCR_DIR, "pages", String(sampleIndex + 1).padStart(2, "0"), "ocr");
+  const pageDir = path.join(
+    REUSE_OCR_DIR,
+    "pages",
+    String(sampleIndex + 1).padStart(2, "0"),
+    "ocr",
+  );
   const candidates = [
     path.join(pageDir, "ocr-bbox-hints.json"),
-    path.join(pageDir, "ocr-hints.json")
+    path.join(pageDir, "ocr-hints.json"),
   ];
   for (const filePath of candidates) {
     try {
@@ -317,7 +575,16 @@ function normalizeReusableOcrHints(payload) {
   return [];
 }
 
-async function runCandidate({ candidate, candidateIndex, baseOptions, simplePage, overlayTools, samples, ocrHintsByPath, outDir }) {
+async function runCandidate({
+  candidate,
+  candidateIndex,
+  baseOptions,
+  simplePage,
+  overlayTools,
+  samples,
+  ocrHintsByPath,
+  outDir,
+}) {
   const candidateDir = path.join(outDir, "candidates", candidate.name);
   await mkdir(candidateDir, { recursive: true });
   const options = {
@@ -353,10 +620,14 @@ async function runCandidate({ candidate, candidateIndex, baseOptions, simplePage
     enablePerf: true,
     useDraft: false,
     gemmaVramMode: "economy",
-    label: `perf-${candidate.name}`
+    label: `perf-${candidate.name}`,
   };
   const launchArgs = simplePage.buildLaunchArgs(options);
-  await writeFile(path.join(candidateDir, "launch-args.txt"), `${launchArgs.join(" ")}\n`, "utf8");
+  await writeFile(
+    path.join(candidateDir, "launch-args.txt"),
+    `${launchArgs.join(" ")}\n`,
+    "utf8",
+  );
 
   console.log(`[perf] start ${candidate.name}`);
   const beforeStart = readGpuSnapshot(null);
@@ -367,7 +638,11 @@ async function runCandidate({ candidate, candidateIndex, baseOptions, simplePage
   try {
     for (let runIndex = 0; runIndex < RUNS_PER_CANDIDATE; runIndex += 1) {
       for (const [sampleIndex, sample] of samples.entries()) {
-        const pageDir = path.join(candidateDir, `run-${runIndex + 1}`, `page-${sampleIndex + 1}`);
+        const pageDir = path.join(
+          candidateDir,
+          `run-${runIndex + 1}`,
+          `page-${sampleIndex + 1}`,
+        );
         await mkdir(pageDir, { recursive: true });
         const pageOptions = {
           ...options,
@@ -376,11 +651,15 @@ async function runCandidate({ candidate, candidateIndex, baseOptions, simplePage
           imageHeight: sample.height,
           outputDir: pageDir,
           label: `perf-${candidate.name}-r${runIndex + 1}-p${sampleIndex + 1}`,
-          ocrBboxHints: ocrHintsByPath.get(sample.imagePath) ?? []
+          ocrBboxHints: ocrHintsByPath.get(sample.imagePath) ?? [],
         };
-        const measured = await measureGpuDuring(pid, () => simplePage.requestTranslation(server, pageOptions));
+        const measured = await measureGpuDuring(pid, () =>
+          simplePage.requestTranslation(server, pageOptions),
+        );
         await simplePage.saveArtifacts(pageOptions, measured.result);
-        const parsed = overlayTools.parseJsonLenient(measured.result.outputText);
+        const parsed = overlayTools.parseJsonLenient(
+          measured.result.outputText,
+        );
         const items = overlayTools.normalizeItems(parsed);
         const timings = measured.result.rawResponse?.timings ?? null;
         const pageResult = {
@@ -390,11 +669,17 @@ async function runCandidate({ candidate, candidateIndex, baseOptions, simplePage
           wallMs: measured.wallMs,
           blockCount: items.length,
           timings,
-          gpu: summarizeGpuSamples(measured.gpuSamples)
+          gpu: summarizeGpuSamples(measured.gpuSamples),
         };
         pages.push(pageResult);
-        await writeFile(path.join(pageDir, "perf.json"), `${JSON.stringify(pageResult, null, 2)}\n`, "utf8");
-        console.log(`[perf] ${candidate.name} r${runIndex + 1} p${sampleIndex + 1}: ${pageResult.wallMs}ms, blocks=${items.length}`);
+        await writeFile(
+          path.join(pageDir, "perf.json"),
+          `${JSON.stringify(pageResult, null, 2)}\n`,
+          "utf8",
+        );
+        console.log(
+          `[perf] ${candidate.name} r${runIndex + 1} p${sampleIndex + 1}: ${pageResult.wallMs}ms, blocks=${items.length}`,
+        );
       }
     }
   } finally {
@@ -407,20 +692,29 @@ async function runCandidate({ candidate, candidateIndex, baseOptions, simplePage
     candidate,
     serverLog: {
       path: options.serverLogPath,
-      ...summarizeServerLog(serverLogText)
+      ...summarizeServerLog(serverLogText),
     },
     beforeStart,
     afterStart,
     afterStop,
     serverPid: pid,
     pages,
-    measured: summarizeMeasuredPages(pages, beforeStart)
+    measured: summarizeMeasuredPages(pages, beforeStart),
   };
-  await writeFile(path.join(candidateDir, "summary.json"), `${JSON.stringify(result, null, 2)}\n`, "utf8");
+  await writeFile(
+    path.join(candidateDir, "summary.json"),
+    `${JSON.stringify(result, null, 2)}\n`,
+    "utf8",
+  );
   return result;
 }
 
-async function writeFailedCandidateResult({ candidate, candidateIndex, outDir, error }) {
+async function writeFailedCandidateResult({
+  candidate,
+  candidateIndex,
+  outDir,
+  error,
+}) {
   const candidateDir = path.join(outDir, "candidates", candidate.name);
   await mkdir(candidateDir, { recursive: true });
   const result = {
@@ -431,7 +725,7 @@ async function writeFailedCandidateResult({ candidate, candidateIndex, outDir, e
     serverLog: {
       path: path.join(candidateDir, "server.log"),
       imageTokenClipped: false,
-      lastCudaMemoryBreakdown: null
+      lastCudaMemoryBreakdown: null,
     },
     beforeStart: null,
     afterStart: null,
@@ -446,15 +740,19 @@ async function writeFailedCandidateResult({ candidate, candidateIndex, outDir, e
       peakGpuDeltaMb: Number.POSITIVE_INFINITY,
       peakGpuUsedMb: null,
       minBlockCount: 0,
-      maxBlockCount: 0
+      maxBlockCount: 0,
     },
     error: {
       message: error?.message ?? String(error),
       stack: error?.stack ?? null,
-      candidateIndex
-    }
+      candidateIndex,
+    },
   };
-  await writeFile(path.join(candidateDir, "summary.json"), `${JSON.stringify(result, null, 2)}\n`, "utf8");
+  await writeFile(
+    path.join(candidateDir, "summary.json"),
+    `${JSON.stringify(result, null, 2)}\n`,
+    "utf8",
+  );
   console.warn(`[perf] ${candidate.name} failed: ${result.error.message}`);
   return result;
 }
@@ -480,7 +778,7 @@ async function measureGpuDuring(pid, run) {
     return {
       wallMs: Date.now() - startedAt,
       result,
-      gpuSamples: samples
+      gpuSamples: samples,
     };
   } finally {
     clearInterval(timer);
@@ -488,14 +786,35 @@ async function measureGpuDuring(pid, run) {
 }
 
 function summarizeMeasuredPages(pages, beforeStart) {
-  const measuredPages = pages.filter((page) => RUNS_PER_CANDIDATE <= 1 || page.runIndex > 0);
-  const wallMsValues = measuredPages.map((page) => page.wallMs).filter(Number.isFinite);
-  const promptPerSecond = measuredPages.map((page) => Number(page.timings?.prompt_per_second)).filter(Number.isFinite);
-  const predictedPerSecond = measuredPages.map((page) => Number(page.timings?.predicted_per_second)).filter(Number.isFinite);
-  const peakProcessVramMb = Math.max(0, ...measuredPages.map((page) => Number(page.gpu.peakProcessVramMb)).filter(Number.isFinite));
-  const peakGpuUsedMb = Math.max(0, ...measuredPages.map((page) => Number(page.gpu.peakGpuUsedMb)).filter(Number.isFinite));
+  const measuredPages = pages.filter(
+    (page) => RUNS_PER_CANDIDATE <= 1 || page.runIndex > 0,
+  );
+  const wallMsValues = measuredPages
+    .map((page) => page.wallMs)
+    .filter(Number.isFinite);
+  const promptPerSecond = measuredPages
+    .map((page) => Number(page.timings?.prompt_per_second))
+    .filter(Number.isFinite);
+  const predictedPerSecond = measuredPages
+    .map((page) => Number(page.timings?.predicted_per_second))
+    .filter(Number.isFinite);
+  const peakProcessVramMb = Math.max(
+    0,
+    ...measuredPages
+      .map((page) => Number(page.gpu.peakProcessVramMb))
+      .filter(Number.isFinite),
+  );
+  const peakGpuUsedMb = Math.max(
+    0,
+    ...measuredPages
+      .map((page) => Number(page.gpu.peakGpuUsedMb))
+      .filter(Number.isFinite),
+  );
   const beforeGpuUsedMb = Number(beforeStart?.gpuUsedMb);
-  const peakGpuDeltaMb = Number.isFinite(beforeGpuUsedMb) && peakGpuUsedMb > 0 ? Math.max(0, peakGpuUsedMb - beforeGpuUsedMb) : null;
+  const peakGpuDeltaMb =
+    Number.isFinite(beforeGpuUsedMb) && peakGpuUsedMb > 0
+      ? Math.max(0, peakGpuUsedMb - beforeGpuUsedMb)
+      : null;
   return {
     measuredPageCount: measuredPages.length,
     meanWallMs: average(wallMsValues),
@@ -505,17 +824,25 @@ function summarizeMeasuredPages(pages, beforeStart) {
     peakGpuDeltaMb,
     peakGpuUsedMb: peakGpuUsedMb || null,
     minBlockCount: Math.min(...measuredPages.map((page) => page.blockCount)),
-    maxBlockCount: Math.max(...measuredPages.map((page) => page.blockCount))
+    maxBlockCount: Math.max(...measuredPages.map((page) => page.blockCount)),
   };
 }
 
 function summarizeResults(results) {
-  const baseline = results.find((result) => result.name === "baseline-b1024-ub1024") ?? results[0] ?? null;
+  const baseline =
+    results.find((result) => result.name === "baseline-b1024-ub1024") ??
+    results[0] ??
+    null;
   if (!baseline) {
     return { baseline: null, winner: null, accepted: [] };
   }
   const baselineWall = Number(baseline.measured.meanWallMs);
-  const baselinePeak = Number(baseline.measured.peakProcessVramMb ?? baseline.measured.peakGpuDeltaMb ?? baseline.measured.peakGpuUsedMb ?? 0);
+  const baselinePeak = Number(
+    baseline.measured.peakProcessVramMb ??
+      baseline.measured.peakGpuDeltaMb ??
+      baseline.measured.peakGpuUsedMb ??
+      0,
+  );
   const baselineMinBlocks = Number(baseline.measured.minBlockCount);
   const accepted = results.filter((result) => {
     if (result === baseline) {
@@ -524,12 +851,25 @@ function summarizeResults(results) {
     if (result.serverLog?.imageTokenClipped) {
       return false;
     }
-    if (Number.isFinite(baselineMinBlocks) && Number(result.measured.minBlockCount) < baselineMinBlocks) {
+    if (
+      Number.isFinite(baselineMinBlocks) &&
+      Number(result.measured.minBlockCount) < baselineMinBlocks
+    ) {
       return false;
     }
     const wall = Number(result.measured.meanWallMs);
-    const peak = Number(result.measured.peakProcessVramMb ?? result.measured.peakGpuDeltaMb ?? result.measured.peakGpuUsedMb ?? 0);
-    if (!Number.isFinite(wall) || !Number.isFinite(baselineWall) || wall <= 0 || baselineWall <= 0) {
+    const peak = Number(
+      result.measured.peakProcessVramMb ??
+        result.measured.peakGpuDeltaMb ??
+        result.measured.peakGpuUsedMb ??
+        0,
+    );
+    if (
+      !Number.isFinite(wall) ||
+      !Number.isFinite(baselineWall) ||
+      wall <= 0 ||
+      baselineWall <= 0
+    ) {
       return false;
     }
     if (baselinePeak > 0 && peak > baselinePeak + VRAM_DELTA_LIMIT_MB) {
@@ -537,22 +877,36 @@ function summarizeResults(results) {
     }
     return wall <= baselineWall * (1 - MIN_WALL_IMPROVEMENT);
   });
-  const winner = [...accepted].sort((a, b) => {
-    const wallDelta = Number(a.measured.meanWallMs) - Number(b.measured.meanWallMs);
-    if (Math.abs(wallDelta) > 500) {
-      return wallDelta;
-    }
-    return Number(a.measured.peakProcessVramMb ?? a.measured.peakGpuDeltaMb ?? a.measured.peakGpuUsedMb ?? 0) -
-      Number(b.measured.peakProcessVramMb ?? b.measured.peakGpuDeltaMb ?? b.measured.peakGpuUsedMb ?? 0);
-  })[0] ?? baseline;
+  const winner =
+    [...accepted].sort((a, b) => {
+      const wallDelta =
+        Number(a.measured.meanWallMs) - Number(b.measured.meanWallMs);
+      if (Math.abs(wallDelta) > 500) {
+        return wallDelta;
+      }
+      return (
+        Number(
+          a.measured.peakProcessVramMb ??
+            a.measured.peakGpuDeltaMb ??
+            a.measured.peakGpuUsedMb ??
+            0,
+        ) -
+        Number(
+          b.measured.peakProcessVramMb ??
+            b.measured.peakGpuDeltaMb ??
+            b.measured.peakGpuUsedMb ??
+            0,
+        )
+      );
+    })[0] ?? baseline;
   return {
     baseline: pickSummary(baseline),
     winner: pickSummary(winner),
     accepted: accepted.map(pickSummary),
     rules: {
       minWallImprovement: MIN_WALL_IMPROVEMENT,
-      vramDeltaLimitMb: VRAM_DELTA_LIMIT_MB
-    }
+      vramDeltaLimitMb: VRAM_DELTA_LIMIT_MB,
+    },
   };
 }
 
@@ -560,7 +914,7 @@ function pickSummary(result) {
   return {
     name: result.name,
     candidate: result.candidate,
-    measured: result.measured
+    measured: result.measured,
   };
 }
 
@@ -574,24 +928,26 @@ function buildMarkdownReport(summary, results) {
     `- Rule: >= ${(MIN_WALL_IMPROVEMENT * 100).toFixed(1)}% mean wall improvement, <= +${VRAM_DELTA_LIMIT_MB} MiB peak VRAM`,
     "",
     "| Candidate | Mean wall ms | Prompt tok/s | Decode tok/s | Server self MiB | Context MiB | Compute MiB | Peak process VRAM MiB | Peak GPU delta MiB | Blocks | Flags |",
-    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |"
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
   ];
   for (const result of results) {
     const measured = result.measured;
     const memory = result.serverLog?.lastCudaMemoryBreakdown;
-    lines.push([
-      result.name,
-      formatNumber(measured.meanWallMs, 0),
-      formatNumber(measured.meanPromptTokensPerSecond, 2),
-      formatNumber(measured.meanPredictedTokensPerSecond, 2),
-      memory?.selfMiB ?? "",
-      memory?.contextMiB ?? "",
-      memory?.computeMiB ?? "",
-      measured.peakProcessVramMb ?? "",
-      measured.peakGpuDeltaMb ?? "",
-      `${measured.minBlockCount}-${measured.maxBlockCount}`,
-      buildResultFlags(result, summary.baseline)
-    ].join(" | "));
+    lines.push(
+      [
+        result.name,
+        formatNumber(measured.meanWallMs, 0),
+        formatNumber(measured.meanPromptTokensPerSecond, 2),
+        formatNumber(measured.meanPredictedTokensPerSecond, 2),
+        memory?.selfMiB ?? "",
+        memory?.contextMiB ?? "",
+        memory?.computeMiB ?? "",
+        measured.peakProcessVramMb ?? "",
+        measured.peakGpuDeltaMb ?? "",
+        `${measured.minBlockCount}-${measured.maxBlockCount}`,
+        buildResultFlags(result, summary.baseline),
+      ].join(" | "),
+    );
   }
   lines.push("");
   lines.push("## Launch Args");
@@ -611,7 +967,10 @@ function buildResultFlags(result, baselineSummary) {
     flags.push("image-token-clipped");
   }
   const baselineMinBlocks = Number(baselineSummary?.measured?.minBlockCount);
-  if (Number.isFinite(baselineMinBlocks) && Number(result.measured?.minBlockCount) < baselineMinBlocks) {
+  if (
+    Number.isFinite(baselineMinBlocks) &&
+    Number(result.measured?.minBlockCount) < baselineMinBlocks
+  ) {
     flags.push("block-count-regression");
   }
   if (result.failed) {
@@ -621,15 +980,21 @@ function buildResultFlags(result, baselineSummary) {
 }
 
 function summarizeGpuSamples(samples) {
-  const gpuUtils = samples.map((sample) => sample.gpuUtilPercent).filter(Number.isFinite);
-  const processVram = samples.map((sample) => sample.processVramMb).filter(Number.isFinite);
-  const gpuUsed = samples.map((sample) => sample.gpuUsedMb).filter(Number.isFinite);
+  const gpuUtils = samples
+    .map((sample) => sample.gpuUtilPercent)
+    .filter(Number.isFinite);
+  const processVram = samples
+    .map((sample) => sample.processVramMb)
+    .filter(Number.isFinite);
+  const gpuUsed = samples
+    .map((sample) => sample.gpuUsedMb)
+    .filter(Number.isFinite);
   return {
     sampleCount: samples.length,
     avgGpuUtilPercent: average(gpuUtils),
     peakGpuUtilPercent: maxOrNull(gpuUtils),
     peakProcessVramMb: maxOrNull(processVram),
-    peakGpuUsedMb: maxOrNull(gpuUsed)
+    peakGpuUsedMb: maxOrNull(gpuUsed),
   };
 }
 
@@ -638,35 +1003,46 @@ function readGpuSnapshot(pid) {
   return {
     ...gpu,
     processVramMb: pid ? readProcessVramMb(pid) : null,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
 
 function readGpuUtilAndMemory() {
   try {
-    const stdout = execFileSync("nvidia-smi", ["--query-gpu=utilization.gpu,memory.used", "--format=csv,noheader,nounits"], {
-      encoding: "utf8",
-      windowsHide: true
-    }).trim();
+    const stdout = execFileSync(
+      "nvidia-smi",
+      [
+        "--query-gpu=utilization.gpu,memory.used",
+        "--format=csv,noheader,nounits",
+      ],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+      },
+    ).trim();
     const [util, used] = stdout.split(/\s*,\s*/);
     return {
       gpuUtilPercent: Number(util),
-      gpuUsedMb: Number(used)
+      gpuUsedMb: Number(used),
     };
   } catch {
     return {
       gpuUtilPercent: null,
-      gpuUsedMb: null
+      gpuUsedMb: null,
     };
   }
 }
 
 function readProcessVramMb(pid) {
   try {
-    const stdout = execFileSync("nvidia-smi", ["--query-compute-apps=pid,used_memory", "--format=csv,noheader,nounits"], {
-      encoding: "utf8",
-      windowsHide: true
-    }).trim();
+    const stdout = execFileSync(
+      "nvidia-smi",
+      ["--query-compute-apps=pid,used_memory", "--format=csv,noheader,nounits"],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+      },
+    ).trim();
     for (const line of stdout.split(/\r?\n/)) {
       const [linePid, used] = line.split(/\s*,\s*/);
       if (Number(linePid) === Number(pid)) {
@@ -691,7 +1067,7 @@ function createPageRecord(imagePath, index) {
     name: path.basename(imagePath),
     imagePath,
     width: size.width,
-    height: size.height
+    height: size.height,
   };
 }
 
@@ -700,21 +1076,35 @@ function resolveSamples() {
     .split(";")
     .map((item) => item.trim())
     .filter(Boolean);
-  const limit = readIntEnv("MANGA_PERF_SAMPLE_LIMIT", configured.length || DEFAULT_SAMPLE_PATHS.length);
-  return (configured.length > 0 ? configured : DEFAULT_SAMPLE_PATHS).filter((item) => existsSync(item)).slice(0, limit);
+  const limit = readIntEnv(
+    "MANGA_PERF_SAMPLE_LIMIT",
+    configured.length || DEFAULT_SAMPLE_PATHS.length,
+  );
+  return (configured.length > 0 ? configured : DEFAULT_SAMPLE_PATHS)
+    .filter((item) => existsSync(item))
+    .slice(0, limit);
 }
 
 function candidateKeepsImageTokenBudget(candidate, baseOptions) {
-  const requiredBatch = Math.max(Number(baseOptions.imageMinTokens) || 0, Number(baseOptions.imageMaxTokens) || 0);
+  const requiredBatch = Math.max(
+    Number(baseOptions.imageMinTokens) || 0,
+    Number(baseOptions.imageMaxTokens) || 0,
+  );
   const batch = Number(candidate.batch) || 0;
   if (requiredBatch > 0 && batch < requiredBatch) {
     console.warn(
-      `[perf] skip ${candidate.name}: batch=${candidate.batch} would clip image token budget ${requiredBatch}`
+      `[perf] skip ${candidate.name}: batch=${candidate.batch} would clip image token budget ${requiredBatch}`,
     );
     return false;
   }
-  if (requiredBatch > 0 && Number(candidate.ubatch) > 0 && Number(candidate.ubatch) < requiredBatch) {
-    console.warn(`[perf] allow ${candidate.name}: ubatch=${candidate.ubatch} is below image token budget; output will be checked for clipping`);
+  if (
+    requiredBatch > 0 &&
+    Number(candidate.ubatch) > 0 &&
+    Number(candidate.ubatch) < requiredBatch
+  ) {
+    console.warn(
+      `[perf] allow ${candidate.name}: ubatch=${candidate.ubatch} is below image token budget; output will be checked for clipping`,
+    );
   }
   return true;
 }
@@ -737,18 +1127,23 @@ async function readTextIfExists(filePath) {
 
 function summarizeServerLog(text) {
   const logText = String(text ?? "");
-  const imageTokenClipped = /clip_set_limit_image_tokens|limiting image_(?:min|max)_tokens/i.test(logText);
-  const memoryBreakdowns = [...logText.matchAll(
-    /\|\s+- CUDA0.*?\|\s+\d+\s*=\s*\d+\s*\+\s*\(\s*(\d+)\s*=\s*(\d+)\s*\+\s*(\d+)\s*\+\s*(\d+)\s*\)/g
-  )].map((match) => ({
+  const imageTokenClipped =
+    /clip_set_limit_image_tokens|limiting image_(?:min|max)_tokens/i.test(
+      logText,
+    );
+  const memoryBreakdowns = [
+    ...logText.matchAll(
+      /\|\s+- CUDA0.*?\|\s+\d+\s*=\s*\d+\s*\+\s*\(\s*(\d+)\s*=\s*(\d+)\s*\+\s*(\d+)\s*\+\s*(\d+)\s*\)/g,
+    ),
+  ].map((match) => ({
     selfMiB: Number(match[1]),
     modelMiB: Number(match[2]),
     contextMiB: Number(match[3]),
-    computeMiB: Number(match[4])
+    computeMiB: Number(match[4]),
   }));
   return {
     imageTokenClipped,
-    lastCudaMemoryBreakdown: memoryBreakdowns.at(-1) ?? null
+    lastCudaMemoryBreakdown: memoryBreakdowns.at(-1) ?? null,
   };
 }
 

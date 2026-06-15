@@ -1,11 +1,20 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import type { ChapterSnapshot, MangaPage, TranslationBlock } from "../../../shared/types";
+import {
+  useCallback,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
+import type {
+  ChapterSnapshot,
+  MangaPage,
+  TranslationBlock,
+} from "../../../shared/types";
 import {
   clampBbox,
   normalizeBlockType,
   normalizeRenderDirection,
   normalizeRotationDeg,
-  offsetBlockBboxes
+  offsetBlockBboxes,
 } from "../../../shared/geometry";
 
 type UseBlockEditingActionsOptions = {
@@ -19,7 +28,10 @@ type UseBlockEditingActionsOptions = {
   selectedPageEditLocked: boolean;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
-  updateCurrentChapter: (pageId: string, updater: (chapter: ChapterSnapshot) => ChapterSnapshot) => void;
+  updateCurrentChapter: (
+    pageId: string,
+    updater: (chapter: ChapterSnapshot) => ChapterSnapshot,
+  ) => void;
 };
 
 export function useBlockEditingActions({
@@ -33,7 +45,7 @@ export function useBlockEditingActions({
   selectedPageEditLocked,
   setCurrentChapter,
   setSelectedBlockId,
-  updateCurrentChapter
+  updateCurrentChapter,
 }: UseBlockEditingActionsOptions): {
   applyFontToScope: (scope: "page" | "chapter", fontFamily?: string) => void;
   deleteSelectedBlock: () => void;
@@ -61,26 +73,36 @@ export function useBlockEditingActions({
                   }
 
                   const nextType = normalizeBlockType(patch.type ?? block.type);
-                  const nextRenderDirection = normalizeRenderDirection(patch.renderDirection ?? block.renderDirection, block.renderDirection);
+                  const nextRenderDirection = normalizeRenderDirection(
+                    patch.renderDirection ?? block.renderDirection,
+                    block.renderDirection,
+                  );
                   return {
                     ...block,
                     ...patch,
                     type: nextType,
                     renderDirection: nextRenderDirection,
-                    rotationDeg: normalizeRotationDeg(patch.rotationDeg ?? block.rotationDeg ?? 0),
-                    backgroundColor: patch.backgroundColor ?? block.backgroundColor,
+                    rotationDeg: normalizeRotationDeg(
+                      patch.rotationDeg ?? block.rotationDeg ?? 0,
+                    ),
+                    backgroundColor:
+                      patch.backgroundColor ?? block.backgroundColor,
                     opacity: patch.opacity ?? block.opacity,
                     bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
                     bboxSpace: patch.bbox ? "normalized_1000" : block.bboxSpace,
-                    renderBbox: patch.renderBbox ? clampBbox(patch.renderBbox) : block.renderBbox,
-                    renderBboxSpace: patch.renderBbox ? "normalized_1000" : block.renderBboxSpace
+                    renderBbox: patch.renderBbox
+                      ? clampBbox(patch.renderBbox)
+                      : block.renderBbox,
+                    renderBboxSpace: patch.renderBbox
+                      ? "normalized_1000"
+                      : block.renderBboxSpace,
                   };
-                })
-              }
-        )
+                }),
+              },
+        ),
       }));
     },
-    [selectedBlock, selectedPage, selectedPageEditLocked, updateCurrentChapter]
+    [selectedBlock, selectedPage, selectedPageEditLocked, updateCurrentChapter],
   );
 
   const toggleBlockInpaintExcluded = useCallback(
@@ -97,13 +119,15 @@ export function useBlockEditingActions({
                 ...page,
                 updatedAt: new Date().toISOString(),
                 blocks: page.blocks.map((block) =>
-                  block.id === blockId ? { ...block, inpaintExcluded: !block.inpaintExcluded } : block
-                )
-              }
-        )
+                  block.id === blockId
+                    ? { ...block, inpaintExcluded: !block.inpaintExcluded }
+                    : block,
+                ),
+              },
+        ),
       }));
     },
-    [jobActive, selectedPage, updateCurrentChapter]
+    [jobActive, selectedPage, updateCurrentChapter],
   );
 
   const applyFontToScope = useCallback(
@@ -112,10 +136,17 @@ export function useBlockEditingActions({
         return;
       }
       if (scope === "chapter" && jobActive) {
-        pushStatus("작업 중에는 전체 페이지 폰트 일괄 적용을 사용할 수 없습니다.");
+        pushStatus(
+          "작업 중에는 전체 페이지 폰트 일괄 적용을 사용할 수 없습니다.",
+        );
         return;
       }
-      const targetPageIds = scope === "page" ? (selectedPage ? [selectedPage.id] : []) : currentChapter.pages.map((page) => page.id);
+      const targetPageIds =
+        scope === "page"
+          ? selectedPage
+            ? [selectedPage.id]
+            : []
+          : currentChapter.pages.map((page) => page.id);
       if (targetPageIds.length === 0) {
         return;
       }
@@ -125,14 +156,34 @@ export function useBlockEditingActions({
       const next = {
         ...currentChapter,
         pages: currentChapter.pages.map((page) =>
-          targetSet.has(page.id) ? { ...page, updatedAt: stamp, blocks: page.blocks.map((block) => ({ ...block, fontFamily })) } : page
-        )
+          targetSet.has(page.id)
+            ? {
+                ...page,
+                updatedAt: stamp,
+                blocks: page.blocks.map((block) => ({ ...block, fontFamily })),
+              }
+            : page,
+        ),
       };
       currentChapterRef.current = next;
       setCurrentChapter(next);
-      pushStatus(scope === "page" ? "이 페이지의 모든 블록에 폰트를 적용했습니다." : "이 화 전체 블록에 폰트를 적용했습니다.");
+      pushStatus(
+        scope === "page"
+          ? "이 페이지의 모든 블록에 폰트를 적용했습니다."
+          : "이 화 전체 블록에 폰트를 적용했습니다.",
+      );
     },
-    [currentChapter, currentChapterRef, jobActive, markDirty, pushStatus, selectedBlock, selectedPage, selectedPageEditLocked, setCurrentChapter]
+    [
+      currentChapter,
+      currentChapterRef,
+      jobActive,
+      markDirty,
+      pushStatus,
+      selectedBlock,
+      selectedPage,
+      selectedPageEditLocked,
+      setCurrentChapter,
+    ],
   );
 
   const deleteSelectedBlock = useCallback(() => {
@@ -146,21 +197,32 @@ export function useBlockEditingActions({
           ? {
               ...page,
               updatedAt: new Date().toISOString(),
-              blocks: page.blocks.filter((block) => block.id !== selectedBlock.id)
+              blocks: page.blocks.filter(
+                (block) => block.id !== selectedBlock.id,
+              ),
             }
-          : page
-      )
+          : page,
+      ),
     }));
     setSelectedBlockId(null);
-  }, [selectedBlock, selectedPage, selectedPageEditLocked, setSelectedBlockId, updateCurrentChapter]);
+  }, [
+    selectedBlock,
+    selectedPage,
+    selectedPageEditLocked,
+    setSelectedBlockId,
+    updateCurrentChapter,
+  ]);
 
   const duplicateSelectedBlock = useCallback(() => {
     if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
       return;
     }
     const copy = {
-      ...offsetBlockBboxes(selectedBlock, 16, 16, { width: selectedPage.width, height: selectedPage.height }),
-      id: `${selectedBlock.id}-copy-${Date.now()}`
+      ...offsetBlockBboxes(selectedBlock, 16, 16, {
+        width: selectedPage.width,
+        height: selectedPage.height,
+      }),
+      id: `${selectedBlock.id}-copy-${Date.now()}`,
     };
     updateCurrentChapter(selectedPage.id, (current) => ({
       ...current,
@@ -169,19 +231,25 @@ export function useBlockEditingActions({
           ? {
               ...page,
               updatedAt: new Date().toISOString(),
-              blocks: [...page.blocks, copy]
+              blocks: [...page.blocks, copy],
             }
-          : page
-      )
+          : page,
+      ),
     }));
     setSelectedBlockId(copy.id);
-  }, [selectedBlock, selectedPage, selectedPageEditLocked, setSelectedBlockId, updateCurrentChapter]);
+  }, [
+    selectedBlock,
+    selectedPage,
+    selectedPageEditLocked,
+    setSelectedBlockId,
+    updateCurrentChapter,
+  ]);
 
   return {
     applyFontToScope,
     deleteSelectedBlock,
     duplicateSelectedBlock,
     toggleBlockInpaintExcluded,
-    updateSelectedBlock
+    updateSelectedBlock,
   };
 }

@@ -10,7 +10,7 @@ export async function cleanupLegacyLogs(): Promise<void> {
     join(logsRoot, "app-jobs"),
     join(logsRoot, "bench"),
     join(logsRoot, "debug"),
-    join(logsRoot, "runtime")
+    join(logsRoot, "runtime"),
   ];
 
   for (const target of targets) {

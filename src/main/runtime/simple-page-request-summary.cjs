@@ -2,11 +2,9 @@ const path = require("node:path");
 
 const {
   readOcrCandidateText,
-  resolvePromptCoordinateFrame
+  resolvePromptCoordinateFrame,
 } = require("./simple-page-prompts.cjs");
-const {
-  mimeFromPath
-} = require("./simple-page-image-utils.cjs");
+const { mimeFromPath } = require("./simple-page-image-utils.cjs");
 const {
   isOpenAICodexProvider,
   resolveConfiguredCodexModel,
@@ -19,28 +17,26 @@ const {
   resolveConfiguredModelSource,
   resolveConfiguredMmprojFile,
   resolveConfiguredMmprojRepo,
-  resolveModelProvider
+  resolveModelProvider,
 } = require("./simple-page-model-config.cjs");
 const {
   resolveHfHomeDir,
-  resolveHubCacheDir
+  resolveHubCacheDir,
 } = require("./simple-page-cache-paths.cjs");
 const {
   inspectModelLaunch,
-  resolveConfiguredMmprojUrl
+  resolveConfiguredMmprojUrl,
 } = require("./simple-page-model-assets.cjs");
 const {
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
-  resolveOcrRuntimeDir
+  resolveOcrRuntimeDir,
 } = require("./simple-page-ocr-runtime-config.cjs");
 const {
-  resolveOcrBboxProvider
+  resolveOcrBboxProvider,
 } = require("./simple-page-ocr-bbox-pipeline.cjs");
-const {
-  truncateText
-} = require("./simple-page-runtime-common.cjs");
+const { truncateText } = require("./simple-page-runtime-common.cjs");
 
 function buildOptionSummary(options = {}) {
   const launchTarget = inspectModelLaunch(options);
@@ -109,7 +105,7 @@ function buildOptionSummary(options = {}) {
     ocrRuntimeDir: resolveOcrRuntimeDir(options),
     launchMode: launchTarget.launchMode,
     hfHomeDir: resolveHfHomeDir(options),
-    hfHubCacheDir: resolveHubCacheDir(options)
+    hfHubCacheDir: resolveHubCacheDir(options),
   };
 }
 
@@ -122,13 +118,21 @@ function summarizeImageVariants(imageVariants) {
     width: variant.width || null,
     height: variant.height || null,
     originalWidth: variant.originalWidth || null,
-    originalHeight: variant.originalHeight || null
+    originalHeight: variant.originalHeight || null,
   }));
 }
 
-function buildRequestSummary(server, options, imageVariants, promptText, systemPrompt) {
+function buildRequestSummary(
+  server,
+  options,
+  imageVariants,
+  promptText,
+  systemPrompt,
+) {
   const coordinateFrame = resolvePromptCoordinateFrame(options, imageVariants);
-  const ocrBboxHints = Array.isArray(options.ocrBboxHints) ? options.ocrBboxHints : [];
+  const ocrBboxHints = Array.isArray(options.ocrBboxHints)
+    ? options.ocrBboxHints
+    : [];
   return {
     endpoint: `${server.baseUrl}/${isOpenAICodexProvider(options) ? "responses" : "chat/completions"}`,
     model: resolveRequestModelName(options),
@@ -151,7 +155,7 @@ function buildRequestSummary(server, options, imageVariants, promptText, systemP
       groupId: hint.groupId ?? null,
       rolePrior: hint.rolePrior ?? null,
       orderInGroup: hint.orderInGroup ?? null,
-      ocrText: truncateText(readOcrCandidateText(hint), 160) || null
+      ocrText: truncateText(readOcrCandidateText(hint), 160) || null,
     })),
     ocrBboxHintsPreview: ocrBboxHints.slice(0, 24).map((hint) => ({
       id: hint.id,
@@ -164,9 +168,9 @@ function buildRequestSummary(server, options, imageVariants, promptText, systemP
       groupId: hint.groupId ?? null,
       rolePrior: hint.rolePrior ?? null,
       orderInGroup: hint.orderInGroup ?? null,
-      ocrText: truncateText(readOcrCandidateText(hint), 160) || null
+      ocrText: truncateText(readOcrCandidateText(hint), 160) || null,
     })),
-    options: buildOptionSummary(options)
+    options: buildOptionSummary(options),
   };
 }
 
@@ -184,5 +188,5 @@ function resolveRequestModelName(options = {}) {
 module.exports = {
   buildOptionSummary,
   buildRequestSummary,
-  resolveRequestModelName
+  resolveRequestModelName,
 };

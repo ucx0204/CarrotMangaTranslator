@@ -17,7 +17,7 @@ export function useJobEvents({
   currentChapterRef,
   mergeLiveChapter,
   refreshLibrary,
-  setJobState
+  setJobState,
 }: UseJobEventsOptions): void {
   React.useEffect(() => {
     let refreshTimer: number | null = null;
@@ -35,41 +35,81 @@ export function useJobEvents({
     const unsubscribe = mangaGateway.onJobEvent((event) => {
       setJobState((current) => {
         const sameJob = current.id === event.id;
-        const logOnlyEvent = Boolean(event.installLogLine && event.progressMode === "log-only");
+        const logOnlyEvent = Boolean(
+          event.installLogLine && event.progressMode === "log-only",
+        );
         const preserveCurrentStatus = sameJob && logOnlyEvent;
-        const friendlyText = preserveCurrentStatus ? current.progressText : formatJobLabel(event);
+        const friendlyText = preserveCurrentStatus
+          ? current.progressText
+          : formatJobLabel(event);
         return {
           id: event.id,
           kind: preserveCurrentStatus ? current.kind : event.kind,
           status: preserveCurrentStatus ? current.status : event.status,
           progressText: friendlyText,
-          detail: preserveCurrentStatus ? current.detail : event.detail ?? current.detail,
-          phase: preserveCurrentStatus ? current.phase : event.phase ?? current.phase,
-          progressMode: preserveCurrentStatus ? current.progressMode : event.progressMode,
-          progressPercent: preserveCurrentStatus ? current.progressPercent : event.progressPercent,
-          progressBytes: preserveCurrentStatus ? current.progressBytes : event.progressBytes,
-          progressTotalBytes: preserveCurrentStatus ? current.progressTotalBytes : event.progressTotalBytes,
-          progressBytesPerSecond: preserveCurrentStatus ? current.progressBytesPerSecond : event.progressBytesPerSecond,
+          detail: preserveCurrentStatus
+            ? current.detail
+            : (event.detail ?? current.detail),
+          phase: preserveCurrentStatus
+            ? current.phase
+            : (event.phase ?? current.phase),
+          progressMode: preserveCurrentStatus
+            ? current.progressMode
+            : event.progressMode,
+          progressPercent: preserveCurrentStatus
+            ? current.progressPercent
+            : event.progressPercent,
+          progressBytes: preserveCurrentStatus
+            ? current.progressBytes
+            : event.progressBytes,
+          progressTotalBytes: preserveCurrentStatus
+            ? current.progressTotalBytes
+            : event.progressTotalBytes,
+          progressBytesPerSecond: preserveCurrentStatus
+            ? current.progressBytesPerSecond
+            : event.progressBytesPerSecond,
           installLogLine: event.installLogLine,
           installLogLines: event.installLogLine
-            ? [...(sameJob ? current.installLogLines ?? [] : []), event.installLogLine].slice(-80)
+            ? [
+                ...(sameJob ? (current.installLogLines ?? []) : []),
+                event.installLogLine,
+              ].slice(-80)
             : sameJob
               ? current.installLogLines
               : undefined,
-          progressCurrent: preserveCurrentStatus ? current.progressCurrent : event.progressCurrent ?? current.progressCurrent,
-          progressTotal: preserveCurrentStatus ? current.progressTotal : event.progressTotal ?? current.progressTotal,
-          pageIndex: preserveCurrentStatus ? current.pageIndex : event.pageIndex ?? current.pageIndex,
-          pageTotal: preserveCurrentStatus ? current.pageTotal : event.pageTotal ?? current.pageTotal,
-          attempt: preserveCurrentStatus ? current.attempt : event.attempt ?? current.attempt,
-          attemptTotal: preserveCurrentStatus ? current.attemptTotal : event.attemptTotal ?? current.attemptTotal
+          progressCurrent: preserveCurrentStatus
+            ? current.progressCurrent
+            : (event.progressCurrent ?? current.progressCurrent),
+          progressTotal: preserveCurrentStatus
+            ? current.progressTotal
+            : (event.progressTotal ?? current.progressTotal),
+          pageIndex: preserveCurrentStatus
+            ? current.pageIndex
+            : (event.pageIndex ?? current.pageIndex),
+          pageTotal: preserveCurrentStatus
+            ? current.pageTotal
+            : (event.pageTotal ?? current.pageTotal),
+          attempt: preserveCurrentStatus
+            ? current.attempt
+            : (event.attempt ?? current.attempt),
+          attemptTotal: preserveCurrentStatus
+            ? current.attemptTotal
+            : (event.attemptTotal ?? current.attemptTotal),
         };
       });
 
       if (!(event.installLogLine && event.progressMode === "log-only")) {
-        appendStatusLine(formatJobEventLine(event), resolveStatusLineReplacement(event));
+        appendStatusLine(
+          formatJobEventLine(event),
+          resolveStatusLineReplacement(event),
+        );
       }
 
-      if (event.phase === "page_done" || event.phase === "page_skipped" || event.phase === "inpainting_done") {
+      if (
+        event.phase === "page_done" ||
+        event.phase === "page_skipped" ||
+        event.phase === "inpainting_done"
+      ) {
         const chapterId = currentChapterRef.current?.id;
         if (!chapterId) {
           return;
@@ -94,5 +134,11 @@ export function useJobEvents({
       }
       unsubscribe();
     };
-  }, [appendStatusLine, currentChapterRef, mergeLiveChapter, refreshLibrary, setJobState]);
+  }, [
+    appendStatusLine,
+    currentChapterRef,
+    mergeLiveChapter,
+    refreshLibrary,
+    setJobState,
+  ]);
 }

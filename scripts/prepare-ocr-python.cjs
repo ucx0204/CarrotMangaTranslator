@@ -1,14 +1,24 @@
-const { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } = require("node:fs");
+const {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} = require("node:fs");
 const { get } = require("node:https");
 const { join } = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const root = join(__dirname, "..");
-const pythonVersion = process.env.MANGA_TRANSLATOR_EMBED_PYTHON_VERSION || "3.12.7";
+const pythonVersion =
+  process.env.MANGA_TRANSLATOR_EMBED_PYTHON_VERSION || "3.12.7";
 const pythonUrl =
   process.env.MANGA_TRANSLATOR_EMBED_PYTHON_URL ||
   `https://www.python.org/ftp/python/${pythonVersion}/python-${pythonVersion}-embed-amd64.zip`;
-const getPipUrl = process.env.MANGA_TRANSLATOR_GET_PIP_URL || "https://bootstrap.pypa.io/get-pip.py";
+const getPipUrl =
+  process.env.MANGA_TRANSLATOR_GET_PIP_URL ||
+  "https://bootstrap.pypa.io/get-pip.py";
 const toolsDir = join(root, "tools");
 const pythonDir = join(toolsDir, "python");
 const tmpDir = join(root, ".tmp", "ocr-python");
@@ -16,7 +26,9 @@ const pythonExe = join(pythonDir, "python.exe");
 
 async function main() {
   if (process.platform !== "win32") {
-    console.log("[ocr-python] skipping embedded Python download on non-Windows host");
+    console.log(
+      "[ocr-python] skipping embedded Python download on non-Windows host",
+    );
     return;
   }
 
@@ -44,14 +56,19 @@ function download(url, outputPath) {
     console.log(`[ocr-python] downloading ${url}`);
     const file = createWriteStream(outputPath);
     get(url, (response) => {
-      if ([301, 302, 303, 307, 308].includes(response.statusCode || 0) && response.headers.location) {
+      if (
+        [301, 302, 303, 307, 308].includes(response.statusCode || 0) &&
+        response.headers.location
+      ) {
         file.close();
         download(response.headers.location, outputPath).then(resolve, reject);
         return;
       }
       if (response.statusCode !== 200) {
         file.close();
-        reject(new Error(`Download failed (${response.statusCode}) for ${url}`));
+        reject(
+          new Error(`Download failed (${response.statusCode}) for ${url}`),
+        );
         return;
       }
       response.pipe(file);
@@ -71,12 +88,14 @@ function expandArchive(zipPath, outputDir) {
     "-ExecutionPolicy",
     "Bypass",
     "-Command",
-    `Expand-Archive -LiteralPath ${JSON.stringify(zipPath)} -DestinationPath ${JSON.stringify(outputDir)} -Force`
+    `Expand-Archive -LiteralPath ${JSON.stringify(zipPath)} -DestinationPath ${JSON.stringify(outputDir)} -Force`,
   ]);
 }
 
 function sanitizePythonPathFile(outputDir) {
-  const pthName = readdirSync(outputDir).find((name) => /^python\d+._pth$/i.test(name));
+  const pthName = readdirSync(outputDir).find((name) =>
+    /^python\d+._pth$/i.test(name),
+  );
   if (!pthName) {
     return;
   }
@@ -141,13 +160,15 @@ function run(command, args) {
       ...env,
       PYTHONNOUSERSITE: "1",
       PYTHONUTF8: "1",
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: "1",
     },
     stdio: "inherit",
-    shell: false
+    shell: false,
   });
   if (result.status !== 0) {
-    throw new Error(`${command} failed with exit code ${result.status ?? "null"}`);
+    throw new Error(
+      `${command} failed with exit code ${result.status ?? "null"}`,
+    );
   }
 }
 

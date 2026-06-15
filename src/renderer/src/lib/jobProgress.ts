@@ -65,7 +65,9 @@ export function formatJobLabel(job: JobWithProgress): string {
     case "inpainting_running":
       return job.progressText?.trim() || formatPageLabel(job, "원문 지우는 중");
     case "inpainting_done":
-      return job.progressText?.trim() || formatPageLabel(job, "원문 지우기 완료");
+      return (
+        job.progressText?.trim() || formatPageLabel(job, "원문 지우기 완료")
+      );
     case "finalizing":
       return job.progressText?.trim() || "결과 정리 중";
     case "done":
@@ -83,7 +85,9 @@ export function formatJobEventLine(event: JobEvent): string {
   return formatJobLabel(event);
 }
 
-export function resolveProgressSnapshot(job: JobWithProgress): ProgressSnapshot | null {
+export function resolveProgressSnapshot(
+  job: JobWithProgress,
+): ProgressSnapshot | null {
   if (job.progressMode === "log-only") {
     return { mode: "log-only" };
   }
@@ -92,13 +96,16 @@ export function resolveProgressSnapshot(job: JobWithProgress): ProgressSnapshot 
     return { mode: "indeterminate" };
   }
 
-  if ((job.progressMode === "determinate" || job.progressMode === undefined) && Number.isFinite(job.progressPercent)) {
+  if (
+    (job.progressMode === "determinate" || job.progressMode === undefined) &&
+    Number.isFinite(job.progressPercent)
+  ) {
     const ratio = Math.max(0, Math.min(1, Number(job.progressPercent)));
     return {
       mode: "determinate",
       current: Math.round(ratio * 100),
       total: 100,
-      ratio
+      ratio,
     };
   }
 
@@ -110,17 +117,24 @@ export function resolveProgressSnapshot(job: JobWithProgress): ProgressSnapshot 
     return { mode: "indeterminate" };
   }
 
-  if (!Number.isFinite(job.progressCurrent) || !Number.isFinite(job.progressTotal) || (job.progressTotal ?? 0) <= 0) {
+  if (
+    !Number.isFinite(job.progressCurrent) ||
+    !Number.isFinite(job.progressTotal) ||
+    (job.progressTotal ?? 0) <= 0
+  ) {
     return null;
   }
 
   const total = Math.max(1, Math.floor(job.progressTotal ?? 0));
-  const current = Math.min(total, Math.max(0, Math.floor(job.progressCurrent ?? 0)));
+  const current = Math.min(
+    total,
+    Math.max(0, Math.floor(job.progressCurrent ?? 0)),
+  );
   return {
     mode: "determinate",
     current,
     total,
-    ratio: current / total
+    ratio: current / total,
   };
 }
 
@@ -144,8 +158,12 @@ export function summarizeWarnings(warnings: string[]): string | null {
     return null;
   }
 
-  const skipped = warnings.filter((warning) => warning.includes("건너뜁니다")).length;
-  const uncertain = warnings.filter((warning) => warning.includes("불확실한 OCR")).length;
+  const skipped = warnings.filter((warning) =>
+    warning.includes("건너뜁니다"),
+  ).length;
+  const uncertain = warnings.filter((warning) =>
+    warning.includes("불확실한 OCR"),
+  ).length;
   if (skipped > 0 && uncertain > 0) {
     return `일부 페이지를 건너뛰었고 OCR 확인이 필요한 블록도 있습니다.`;
   }
@@ -166,11 +184,20 @@ function formatPageLabel(job: JobWithProgress, suffix: string): string {
 }
 
 function hasPageIndex(job: JobWithProgress): boolean {
-  return Number.isFinite(job.pageIndex) && Number.isFinite(job.pageTotal) && (job.pageTotal ?? 0) > 0;
+  return (
+    Number.isFinite(job.pageIndex) &&
+    Number.isFinite(job.pageTotal) &&
+    (job.pageTotal ?? 0) > 0
+  );
 }
 
 function formatRetryLabel(job: JobWithProgress): string {
-  if (Number.isFinite(job.pageIndex) && Number.isFinite(job.pageTotal) && Number.isFinite(job.attempt) && Number.isFinite(job.attemptTotal)) {
+  if (
+    Number.isFinite(job.pageIndex) &&
+    Number.isFinite(job.pageTotal) &&
+    Number.isFinite(job.attempt) &&
+    Number.isFinite(job.attemptTotal)
+  ) {
     return `${job.pageIndex} / ${job.pageTotal} 페이지 재시도 ${job.attempt} / ${job.attemptTotal}`;
   }
   return "페이지 재시도 중";
