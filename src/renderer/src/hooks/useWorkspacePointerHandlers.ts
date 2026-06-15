@@ -8,6 +8,7 @@ import { isUsableRegionBbox } from "../../../shared/region";
 import type { InpaintingTool } from "../inpainting/InpaintingContext";
 import type { RetouchPreviewState } from "./useInpaintingRetouch";
 import { regionSelectionToBbox, type RegionSelectionState } from "../lib/appHelpers";
+import { mangaGateway } from "../api/mangaGateway";
 
 type DragMode = "move" | "resize";
 
@@ -187,7 +188,7 @@ export function useWorkspacePointerHandlers({
         if (inpaintingTool === "picker") {
           const imagePath = selectedPageImagePath ?? selectedPage?.imagePath;
           if (imagePath) {
-            void window.mangaApi
+            void mangaGateway
               .sampleInpaintingColor({ imagePath, x: point.x, y: point.y })
               .then((result) => {
                 setInpaintingPaintColor(result.color);

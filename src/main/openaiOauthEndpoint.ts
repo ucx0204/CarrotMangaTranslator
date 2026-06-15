@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { TranslationOptions } from "./appSettings";
 import { logInfo, logWarn } from "./logger";
+import { importNativeEsm } from "./nativeDynamicImport";
 
 type OpenAIOAuthModule = {
   startOpenAIOAuthServer: (options?: {
@@ -29,9 +30,6 @@ export type OpenAIOAuthEndpoint = {
   closed?: boolean;
 };
 
-const dynamicImport = new Function("specifier", "return import(specifier)") as (
-  specifier: string
-) => Promise<OpenAIOAuthModule>;
 const requireFromHere = createRequire(__filename);
 const OPENAI_OAUTH_RESOURCE_ENTRY = join("openai-oauth", "dist", "index.js");
 
@@ -100,7 +98,7 @@ async function importOpenAIOAuthModule(): Promise<OpenAIOAuthModule> {
   const failures: Array<Record<string, unknown>> = [];
   for (const specifier of resolveOpenAIOAuthImportCandidates()) {
     try {
-      return await dynamicImport(specifier);
+      return await importNativeEsm<OpenAIOAuthModule>(specifier);
     } catch (error) {
       lastError = error;
       failures.push(summarizeImportFailure(specifier, error));

@@ -1,5 +1,5 @@
 import React from "react";
-
+import { mangaGateway } from "../api/mangaGateway";
 type UseStatusLogResult = {
   statusLines: string[];
   appendStatusLine: (line: string, replaceExisting?: (line: string) => boolean) => void;
@@ -26,7 +26,7 @@ export function useStatusLog(): UseStatusLogResult {
 
   const pushStatus = React.useCallback(
     (line: string) => {
-      void window.mangaApi.writeLog("info", "UI status", { line }).catch((error) => console.error(error));
+      void mangaGateway.writeLog("info", "UI status", { line }).catch((error) => console.warn(error));
       appendStatusLine(line);
     },
     [appendStatusLine]

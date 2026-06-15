@@ -35,6 +35,30 @@ import type {
   WorkShareImportResult
 } from "../shared/types";
 
+const JOB_KINDS = new Set(["gemma-analysis", "inpainting"]);
+const JOB_STATUSES = new Set(["idle", "starting", "running", "cancelling", "cancelled", "failed", "completed"]);
+const JOB_PHASES = new Set([
+  "booting",
+  "model_downloading",
+  "ocr_preparing",
+  "ocr_downloading",
+  "ocr_running",
+  "model_requesting",
+  "ready",
+  "page_running",
+  "page_retry",
+  "page_done",
+  "page_skipped",
+  "inpainting_preparing",
+  "inpainting_running",
+  "inpainting_done",
+  "finalizing",
+  "done",
+  "cancelled",
+  "failed"
+]);
+const PROGRESS_MODES = new Set(["determinate", "indeterminate", "log-only"]);
+
 const api = {
   previewImagesImport: (): Promise<ImportPreviewSession | null> => ipcRenderer.invoke("import:preview-images"),
   previewFolderImport: (): Promise<ImportPreviewSession | null> => ipcRenderer.invoke("import:preview-folder"),
@@ -85,14 +109,26 @@ const api = {
   disposeInpaintingEngine: (): Promise<{ disposed: boolean }> => ipcRenderer.invoke("inpainting:dispose-engine"),
   cancelJob: () => ipcRenderer.invoke("job:cancel"),
   onJobEvent: (callback: (event: JobEvent) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, payload: JobEvent) => callback(payload);
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
+      if (isJobEvent(payload)) {
+        callback(payload);
+        return;
+      }
+      console.warn("Invalid job:event payload ignored");
+    };
     ipcRenderer.on("job:event", listener);
     return () => {
       ipcRenderer.removeListener("job:event", listener);
     };
   },
   onModelTestEvent: (callback: (event: ModelTestProgressEvent) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, payload: ModelTestProgressEvent) => callback(payload);
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
+      if (isModelTestProgressEvent(payload)) {
+        callback(payload);
+        return;
+      }
+      console.warn("Invalid settings:model-test-progress payload ignored");
+    };
     ipcRenderer.on("settings:model-test-progress", listener);
     return () => {
       ipcRenderer.removeListener("settings:model-test-progress", listener);
@@ -103,3 +139,77 @@ const api = {
 contextBridge.exposeInMainWorld("mangaApi", api);
 
 export type MangaApi = typeof api;
+
+function isJobEvent(value: unknown): value is JobEvent {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isBoundedString(value.id, 1, 200) &&
+    JOB_KINDS.has(String(value.kind)) &&
+    JOB_STATUSES.has(String(value.status)) &&
+    isBoundedString(value.progressText, 1, 1000) &&
+    isOptionalBoundedString(value.detail, 4000) &&
+    isOptionalEnum(value.phase, JOB_PHASES) &&
+    isOptionalEnum(value.progressMode, PROGRESS_MODES) &&
+    isOptionalFiniteNumber(value.progressPercent, 0, 100) &&
+    isOptionalFiniteNumber(value.progressBytes, 0) &&
+    isOptionalFiniteNumber(value.progressTotalBytes, 0) &&
+    isOptionalFiniteNumber(value.progressBytesPerSecond, 0) &&
+    isOptionalBoundedString(value.installLogLine, 4000) &&
+    isOptionalStringArray(value.installLogLines, 500, 4000) &&
+    isOptionalFiniteNumber(value.progressCurrent, 0) &&
+    isOptionalFiniteNumber(value.progressTotal, 0) &&
+    isOptionalFiniteNumber(value.pageIndex, 0) &&
+    isOptionalFiniteNumber(value.pageTotal, 0) &&
+    isOptionalFiniteNumber(value.attempt, 0) &&
+    isOptionalFiniteNumber(value.attemptTotal, 0)
+  );
+}
+
+function isModelTestProgressEvent(value: unknown): value is ModelTestProgressEvent {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isBoundedString(value.id, 1, 200) &&
+    isBoundedString(value.progressText, 1, 1000) &&
+    isOptionalBoundedString(value.detail, 4000) &&
+    isOptionalEnum(value.phase, JOB_PHASES) &&
+    isOptionalEnum(value.progressMode, PROGRESS_MODES) &&
+    isOptionalFiniteNumber(value.progressPercent, 0, 100) &&
+    isOptionalFiniteNumber(value.progressBytes, 0) &&
+    isOptionalFiniteNumber(value.progressTotalBytes, 0) &&
+    isOptionalFiniteNumber(value.progressBytesPerSecond, 0) &&
+    isOptionalBoundedString(value.installLogLine, 4000)
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isBoundedString(value: unknown, minLength: number, maxLength: number): value is string {
+  return typeof value === "string" && value.length >= minLength && value.length <= maxLength;
+}
+
+function isOptionalBoundedString(value: unknown, maxLength: number): value is string | undefined {
+  return value === undefined || (typeof value === "string" && value.length <= maxLength);
+}
+
+function isOptionalEnum(value: unknown, allowed: Set<string>): boolean {
+  return value === undefined || (typeof value === "string" && allowed.has(value));
+}
+
+function isOptionalFiniteNumber(value: unknown, min: number, max = Number.POSITIVE_INFINITY): value is number | undefined {
+  return value === undefined || (typeof value === "number" && Number.isFinite(value) && value >= min && value <= max);
+}
+
+function isOptionalStringArray(value: unknown, maxItems: number, maxLength: number): value is string[] | undefined {
+  return (
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.length <= maxItems &&
+      value.every((item) => typeof item === "string" && item.length <= maxLength))
+  );
+}

@@ -31,10 +31,13 @@ export type InpaintingArtifactCleanupOptions = {
 };
 
 export type PageAnalysisUpdate = {
+  expectedUpdatedAt?: string;
   page: MangaPage;
   warnings: string[];
   status: "completed" | "failed";
 };
+
+const ANALYSIS_UPDATE_CONFLICT_MESSAGE = "사용자 편집으로 자동 번역 결과를 적용하지 않았습니다.";
 
 export async function savePageBlocksUnlocked(request: SavePageBlocksRequest): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(request.chapterId);
@@ -217,8 +220,7 @@ export async function markChapterPagesRunningUnlocked(chapterId: string, pageIds
       ? {
           ...page,
           analysisStatus: "running",
-          lastError: undefined,
-          updatedAt: now
+          lastError: undefined
         }
       : page
   );
@@ -249,11 +251,25 @@ export async function updatePagesAfterAnalysisUnlocked(chapterId: string, update
     if (!update) {
       return record;
     }
+    if (update.expectedUpdatedAt && record.updatedAt !== update.expectedUpdatedAt) {
+      return {
+        ...record,
+        analysisStatus: "failed",
+        lastError: ANALYSIS_UPDATE_CONFLICT_MESSAGE
+      };
+    }
+    if (update.status === "failed") {
+      return {
+        ...record,
+        analysisStatus: "failed",
+        lastError: update.warnings[update.warnings.length - 1]
+      };
+    }
     return {
       ...record,
-      blocks: update.status === "completed" ? update.page.blocks : record.blocks,
-      analysisStatus: update.status,
-      lastError: update.status === "failed" ? update.warnings[update.warnings.length - 1] : undefined,
+      blocks: update.page.blocks,
+      analysisStatus: "completed",
+      lastError: undefined,
       updatedAt: now
     };
   });
@@ -263,8 +279,14 @@ export async function updatePagesAfterAnalysisUnlocked(chapterId: string, update
   await touchWork(locator.workId, now);
 }
 
-export async function updatePageAfterAnalysisUnlocked(chapterId: string, page: MangaPage, warnings: string[], status: "completed" | "failed"): Promise<void> {
-  await updatePagesAfterAnalysisUnlocked(chapterId, [{ page, warnings, status }]);
+export async function updatePageAfterAnalysisUnlocked(
+  chapterId: string,
+  page: MangaPage,
+  warnings: string[],
+  status: "completed" | "failed",
+  expectedUpdatedAt?: string
+): Promise<void> {
+  await updatePagesAfterAnalysisUnlocked(chapterId, [{ page, warnings, status, expectedUpdatedAt }]);
 }
 
 export async function finalizeRunningPagesUnlocked(
@@ -288,8 +310,7 @@ export async function finalizeRunningPagesUnlocked(
       ? {
           ...page,
           analysisStatus: status,
-          lastError: status === "failed" ? errorMessage : undefined,
-          updatedAt: now
+          lastError: status === "failed" ? errorMessage : undefined
         }
       : page
   );
@@ -330,8 +351,7 @@ export async function updatePagesAfterInpaintingUnlocked(
     }
     return {
       ...record,
-      inpaintedImagePath: resolvedInpaintedPath,
-      updatedAt: now
+      inpaintedImagePath: resolvedInpaintedPath
     };
   });
   chapter.updatedAt = now;
@@ -372,8 +392,7 @@ export async function setPageInpaintingResultUnlocked(
     page.id === pageId
       ? {
           ...page,
-          inpaintedImagePath: resolvedInpaintedPath,
-          updatedAt: now
+          inpaintedImagePath: resolvedInpaintedPath
         }
       : page
   );

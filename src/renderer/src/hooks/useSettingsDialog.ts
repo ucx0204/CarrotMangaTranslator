@@ -1,5 +1,6 @@
 import React from "react";
 import type { AppSettings } from "../../../shared/types";
+import { mangaGateway } from "../api/mangaGateway";
 
 type UseSettingsDialogResult = {
   settings: AppSettings | null;
@@ -18,7 +19,7 @@ export function useSettingsDialog(pushStatus: (line: string) => void): UseSettin
   const [settingsBusy, setSettingsBusy] = React.useState(false);
 
   const refreshSettings = React.useCallback(async () => {
-    const next = await window.mangaApi.getSettings();
+    const next = await mangaGateway.getSettings();
     setSettings(next);
     return next;
   }, []);
@@ -55,7 +56,7 @@ export function useSettingsDialog(pushStatus: (line: string) => void): UseSettin
     async (nextSettings: AppSettings) => {
       setSettingsBusy(true);
       try {
-        const saved = await window.mangaApi.saveSettings(nextSettings);
+        const saved = await mangaGateway.saveSettings(nextSettings);
         setSettings(saved);
         setSettingsOpen(false);
         pushStatus("설정을 저장했습니다. 다음 번 번역 실행부터 적용됩니다.");
@@ -71,7 +72,7 @@ export function useSettingsDialog(pushStatus: (line: string) => void): UseSettin
 
   const saveSettingsQuietly = React.useCallback(async (nextSettings: AppSettings) => {
     try {
-      const saved = await window.mangaApi.saveSettings(nextSettings);
+      const saved = await mangaGateway.saveSettings(nextSettings);
       setSettings(saved);
       return saved;
     } catch (error) {
@@ -83,7 +84,7 @@ export function useSettingsDialog(pushStatus: (line: string) => void): UseSettin
   const resetSettings = React.useCallback(async () => {
     setSettingsBusy(true);
     try {
-      const reset = await window.mangaApi.resetSettings();
+      const reset = await mangaGateway.resetSettings();
       setSettings(reset);
       pushStatus("설정을 기본값으로 복원했습니다. 다음 번 번역 실행부터 적용됩니다.");
     } catch (error) {

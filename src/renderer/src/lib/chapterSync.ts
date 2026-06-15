@@ -63,8 +63,7 @@ export function mergeLiveChapterPreservingDirtyPages(
           ...localPage,
           inpaintedImagePath: page.inpaintedImagePath,
           analysisStatus: page.analysisStatus,
-          lastError: page.lastError,
-          updatedAt: page.updatedAt
+          lastError: page.lastError
         };
       })
     },
@@ -84,18 +83,15 @@ export function markChapterPagesRunning(chapter: ChapterSnapshot, runMode: RunMo
     return chapter;
   }
 
-  const now = new Date().toISOString();
   return {
     ...chapter,
     status: "running",
-    updatedAt: now,
     pages: chapter.pages.map((page) =>
       targetPageIds.has(page.id)
         ? {
             ...page,
             analysisStatus: "running",
-            lastError: undefined,
-            updatedAt: now
+            lastError: undefined
           }
         : page
     )

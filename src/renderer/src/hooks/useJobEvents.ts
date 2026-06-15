@@ -2,6 +2,7 @@ import React from "react";
 import type { ChapterSnapshot, JobState } from "../../../shared/types";
 import { resolveStatusLineReplacement } from "../lib/appHelpers";
 import { formatJobEventLine, formatJobLabel } from "../lib/jobProgress";
+import { mangaGateway } from "../api/mangaGateway";
 
 type UseJobEventsOptions = {
   appendStatusLine: (line: string, replace?: (line: string) => boolean) => void;
@@ -31,7 +32,7 @@ export function useJobEvents({
         });
       }, 250);
     };
-    const unsubscribe = window.mangaApi.onJobEvent((event) => {
+    const unsubscribe = mangaGateway.onJobEvent((event) => {
       setJobState((current) => {
         const sameJob = current.id === event.id;
         const logOnlyEvent = Boolean(event.installLogLine && event.progressMode === "log-only");
@@ -74,7 +75,7 @@ export function useJobEvents({
           return;
         }
 
-        void window.mangaApi
+        void mangaGateway
           .openChapter(chapterId)
           .then((chapter) => {
             if (currentChapterRef.current?.id === chapter.id) {

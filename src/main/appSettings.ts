@@ -635,7 +635,7 @@ function resolveOcrGpuBackend(value: unknown, fallback: OcrGpuBackend = "cuda"):
   if (normalized === "cuda" || normalized === "nvidia") {
     return "cuda";
   }
-  return fallback === "rocm" ? "cuda" : fallback;
+  return fallback;
 }
 
 function resolveFluxBackend(value: unknown, fallback: FluxBackend = "cuda-native"): FluxBackend {

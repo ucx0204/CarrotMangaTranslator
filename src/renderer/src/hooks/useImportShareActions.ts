@@ -4,6 +4,7 @@ import type { ImportModalSubmit } from "../components/ImportModal";
 import type { ShareImportModalSubmit } from "../components/ShareImportModal";
 import type { TranslateSourceMode } from "../components/TranslateSourceModal";
 import { formatErrorMessage } from "../lib/appHelpers";
+import { mangaGateway } from "../api/mangaGateway";
 
 type ImportPreviewMode = TranslateSourceMode | "zip-folder";
 
@@ -29,15 +30,15 @@ type UseImportShareActionsOptions = {
 
 async function requestImportPreview(mode: ImportPreviewMode): Promise<ImportPreviewSession | null> {
   if (mode === "images") {
-    return window.mangaApi.previewImagesImport();
+    return mangaGateway.previewImagesImport();
   }
   if (mode === "folder") {
-    return window.mangaApi.previewFolderImport();
+    return mangaGateway.previewFolderImport();
   }
   if (mode === "zip") {
-    return window.mangaApi.previewZipImport();
+    return mangaGateway.previewZipImport();
   }
-  return window.mangaApi.previewZipFolderImport();
+  return mangaGateway.previewZipFolderImport();
 }
 
 export function useImportShareActions({
@@ -96,7 +97,7 @@ export function useImportShareActions({
         if (dirty) {
           await saveNow();
         }
-        const result = await window.mangaApi.exportWorkShare(request);
+        const result = await mangaGateway.exportWorkShare(request);
         if (result) {
           pushStatus(`${result.workTitle} 공유 파일을 저장했습니다. ${result.chapterCount}개 화, ${result.pageCount}페이지`);
           setShareExportOpen(false);
@@ -116,7 +117,7 @@ export function useImportShareActions({
       if (dirty) {
         await saveNow();
       }
-      const preview = await window.mangaApi.previewWorkShareImport();
+      const preview = await mangaGateway.previewWorkShareImport();
       if (preview) {
         setShareImportPreview(preview);
       }
@@ -159,7 +160,7 @@ export function useImportShareActions({
         if (dirty) {
           await saveNow();
         }
-        const result = await window.mangaApi.importWorkShare({
+        const result = await mangaGateway.importWorkShare({
           previewId: shareImportPreview.previewId,
           target: payload.target,
           entries: payload.entries
@@ -185,7 +186,10 @@ export function useImportShareActions({
 
       setImportBusy(true);
       try {
-        const result = await window.mangaApi.createImport({
+        if (dirty) {
+          await saveNow();
+        }
+        const result = await mangaGateway.createImport({
           previewId: importPreview.previewId,
           target,
           selections
@@ -197,7 +201,7 @@ export function useImportShareActions({
         if (importPreview.mode === "batch") {
           for (const chapterId of result.chapterIds) {
             await openChapter(chapterId);
-            const runResult = await window.mangaApi.startAnalysis({ chapterId, runMode: "pending" });
+            const runResult = await mangaGateway.startAnalysis({ chapterId, runMode: "pending" });
             if (runResult.chapter) {
               mergeLiveChapter(runResult.chapter);
             }
@@ -214,7 +218,7 @@ export function useImportShareActions({
         setImportBusy(false);
       }
     },
-    [applyChapter, importPreview, mergeLiveChapter, openChapter, pushStatus, refreshLibrary, setImportBusy, setImportPreview]
+    [applyChapter, dirty, importPreview, mergeLiveChapter, openChapter, pushStatus, refreshLibrary, saveNow, setImportBusy, setImportPreview]
   );
 
   return {

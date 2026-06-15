@@ -2,6 +2,7 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { ChapterSnapshot, InpaintingMaskStroke, JobState, MangaPage } from "../../../shared/types";
 import type { RegionSelectionState } from "../lib/appHelpers";
 import { formatErrorMessage } from "../lib/appHelpers";
+import { mangaGateway } from "../api/mangaGateway";
 
 type InpaintingScope = "page" | "chapter";
 
@@ -129,7 +130,7 @@ export function useInpaintingActions({
     setPatternMaskStrokesByPage({});
     setSelectedBlockId(null);
     setRegionSelection(null);
-    void window.mangaApi.disposeInpaintingEngine().catch((error) => console.error(error));
+    void mangaGateway.disposeInpaintingEngine().catch((error) => console.error(error));
     pushStatus("인페인팅 모드를 종료했습니다.");
   }, [
     jobActive,
@@ -148,7 +149,10 @@ export function useInpaintingActions({
       if (!currentChapter || jobActive) {
         return;
       }
-      if (scope === "page" && !selectedPage) {
+      const targetChapterId = currentChapter.id;
+      const targetPage = scope === "page" ? selectedPage : null;
+      const targetPageId = targetPage?.id;
+      if (scope === "page" && !targetPageId) {
         return;
       }
       try {
@@ -181,18 +185,10 @@ export function useInpaintingActions({
 
       let result;
       try {
-        result = await window.mangaApi.startInpainting(
-          scope === "page"
-            ? {
-                chapterId: currentChapter.id,
-                mode: "page-pattern",
-                pageId: selectedPage!.id
-              }
-            : {
-                chapterId: currentChapter.id,
-                mode: "chapter-pattern-pending"
-              }
-        );
+        const request = targetPageId
+          ? { chapterId: targetChapterId, mode: "page-pattern" as const, pageId: targetPageId }
+          : { chapterId: targetChapterId, mode: "chapter-pattern-pending" as const };
+        result = await mangaGateway.startInpainting(request);
       } catch (error) {
         console.error(error);
         failInpaintingJob(setJobState, pushStatus, "작업 실패", formatErrorMessage(error, `${targetLabel} 지우기를 시작하지 못했습니다.`));
@@ -234,6 +230,9 @@ export function useInpaintingActions({
     if (!currentChapter || !selectedPage || jobActive || patternMaskStrokes.length === 0) {
       return;
     }
+    const targetChapterId = currentChapter.id;
+    const targetPage = selectedPage;
+    const targetStrokes = patternMaskStrokes;
     try {
       if (dirty) {
         await saveNow();
@@ -263,11 +262,11 @@ export function useInpaintingActions({
     });
     let result;
     try {
-      result = await window.mangaApi.startInpainting({
-        chapterId: currentChapter.id,
+      result = await mangaGateway.startInpainting({
+        chapterId: targetChapterId,
         mode: "page-pattern-drawn",
-        pageId: selectedPage.id,
-        strokes: patternMaskStrokes,
+        pageId: targetPage.id,
+        strokes: targetStrokes,
         featherPx: 8
       });
     } catch (error) {
@@ -287,7 +286,7 @@ export function useInpaintingActions({
     if (result.status === "completed") {
       setPatternMaskStrokesByPage((current) => {
         const next = { ...current };
-        delete next[selectedPage.id];
+        delete next[targetPage.id];
         return next;
       });
       pushStatus(`그린 영역 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}영역`);
@@ -317,7 +316,10 @@ export function useInpaintingActions({
       if (!currentChapter || jobActive) {
         return;
       }
-      if (scope === "page" && !selectedPage) {
+      const targetChapterId = currentChapter.id;
+      const targetPage = scope === "page" ? selectedPage : null;
+      const targetPageId = targetPage?.id;
+      if (scope === "page" && !targetPageId) {
         return;
       }
       const confirmed = await askConfirm(
@@ -329,11 +331,10 @@ export function useInpaintingActions({
         return;
       }
       try {
-        const result = await window.mangaApi.revertInpainting(
-          scope === "page"
-            ? { chapterId: currentChapter.id, scope: "page", pageId: selectedPage!.id }
-            : { chapterId: currentChapter.id, scope: "chapter" }
-        );
+        const request = targetPageId
+          ? { chapterId: targetChapterId, scope: "page" as const, pageId: targetPageId }
+          : { chapterId: targetChapterId, scope: "chapter" as const };
+        const result = await mangaGateway.revertInpainting(request);
         clearPageImageCache();
         mergeLiveChapter(result.chapter);
         clearRetouchHistory();
@@ -351,7 +352,10 @@ export function useInpaintingActions({
       if (!currentChapter || jobActive) {
         return;
       }
-      if (scope === "page" && !selectedPage) {
+      const targetChapterId = currentChapter.id;
+      const targetPage = scope === "page" ? selectedPage : null;
+      const targetPageId = targetPage?.id;
+      if (scope === "page" && !targetPageId) {
         pushStatus("출력할 페이지가 선택되어 있지 않습니다.");
         return;
       }
@@ -382,13 +386,12 @@ export function useInpaintingActions({
           progressCurrent: 0,
           progressTotal: targetTotal,
           pageTotal: targetTotal,
-          detail: scope === "page" ? selectedPage?.name : `${currentChapter.pages.length}페이지`
+          detail: scope === "page" ? targetPage?.name : `${currentChapter.pages.length}페이지`
         });
-        const request =
-          scope === "page"
-            ? { chapterId: currentChapter.id, scope, pageId: selectedPage!.id }
-            : { chapterId: currentChapter.id, scope };
-        const result = await window.mangaApi.exportInpaintingResults(request);
+        const request = targetPageId
+          ? { chapterId: targetChapterId, scope: "page" as const, pageId: targetPageId }
+          : { chapterId: targetChapterId, scope: "chapter" as const };
+        const result = await mangaGateway.exportInpaintingResults(request);
         pushStatus(
           result.openError
             ? `PNG 출력은 완료됐지만 폴더를 열지 못했습니다: ${result.outputDir}`

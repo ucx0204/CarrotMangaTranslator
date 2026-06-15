@@ -1,6 +1,7 @@
 import React from "react";
 import type { CustomFont } from "../../../shared/types";
 import { getBlockFontOptions, setCustomFontOptions, type BlockFontOption } from "../lib/fonts";
+import { mangaGateway } from "../api/mangaGateway";
 
 const STYLE_ELEMENT_ID = "mgt-custom-fonts";
 
@@ -38,7 +39,7 @@ export function FontsProvider({ children }: { children: React.ReactNode }): Reac
 
   React.useEffect(() => {
     let cancelled = false;
-    void window.mangaApi
+    void mangaGateway
       .listCustomFonts()
       .then((fonts) => {
         if (!cancelled) {
@@ -54,9 +55,9 @@ export function FontsProvider({ children }: { children: React.ReactNode }): Reac
   const registerFont = React.useCallback(async () => {
     setBusy(true);
     try {
-      const added = await window.mangaApi.registerCustomFont();
+      const added = await mangaGateway.registerCustomFont();
       if (added) {
-        const fonts = await window.mangaApi.listCustomFonts();
+        const fonts = await mangaGateway.listCustomFonts();
         apply(fonts);
       }
     } catch (error) {
@@ -70,7 +71,7 @@ export function FontsProvider({ children }: { children: React.ReactNode }): Reac
     async (id: string) => {
       setBusy(true);
       try {
-        const remaining = await window.mangaApi.removeCustomFont(id);
+        const remaining = await mangaGateway.removeCustomFont(id);
         apply(remaining);
       } catch (error) {
         console.error(error);

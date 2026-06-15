@@ -2,6 +2,7 @@ import { useCallback, useState, type Dispatch, type MutableRefObject, type SetSt
 import type { ChapterSnapshot, LibraryIndex } from "../../../shared/types";
 import type { RenameTarget } from "../components/AppModals";
 import { formatErrorMessage, reorderByTarget, reorderRecordsByIdOrder } from "../lib/appHelpers";
+import { mangaGateway } from "../api/mangaGateway";
 
 function isSameStringOrder(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((id, index) => id === right[index]);
@@ -56,7 +57,7 @@ export function useLibraryActions({
 
   const refreshLibrary = useCallback(async () => {
     try {
-      const next = await window.mangaApi.getLibrary();
+      const next = await mangaGateway.getLibrary();
       setLibrary(next);
     } catch (error) {
       console.error(error);
@@ -78,7 +79,7 @@ export function useLibraryActions({
         if (dirty) {
           await saveNow();
         }
-        const chapter = await window.mangaApi.openChapter(chapterId);
+        const chapter = await mangaGateway.openChapter(chapterId);
         clearDirtyTracking();
         currentChapterRef.current = chapter;
         setCurrentChapter(chapter);
@@ -128,8 +129,11 @@ export function useLibraryActions({
       }
 
       try {
+        if (dirty) {
+          await saveNow();
+        }
         const previousOrder = currentChapter.pages.map((candidate) => candidate.id);
-        const nextChapter = await window.mangaApi.deletePage(currentChapter.id, pageId);
+        const nextChapter = await mangaGateway.deletePage(currentChapter.id, pageId);
         applyChapter(nextChapter);
         const currentIndex = previousOrder.indexOf(pageId);
         const nextId = previousOrder[currentIndex + 1] ?? previousOrder[currentIndex - 1] ?? null;
@@ -141,7 +145,7 @@ export function useLibraryActions({
         pushStatus(formatErrorMessage(error, "페이지를 삭제하지 못했습니다."));
       }
     },
-    [applyChapter, askConfirm, currentChapter, pushStatus, refreshLibrary, setSelectedPageId]
+    [applyChapter, askConfirm, currentChapter, dirty, pushStatus, refreshLibrary, saveNow, setSelectedPageId]
   );
 
   const renameWork = useCallback(
@@ -177,14 +181,14 @@ export function useLibraryActions({
       setRenameBusy(true);
       try {
         if (renameTarget.kind === "work") {
-          setLibrary(await window.mangaApi.renameWork(renameTarget.id, title));
+          setLibrary(await mangaGateway.renameWork(renameTarget.id, title));
         } else {
           if (currentChapter?.id === renameTarget.id && dirty) {
             await saveNow();
           }
-          setLibrary(await window.mangaApi.renameChapter(renameTarget.id, title));
+          setLibrary(await mangaGateway.renameChapter(renameTarget.id, title));
           if (currentChapter?.id === renameTarget.id) {
-            applyChapter(await window.mangaApi.openChapter(renameTarget.id));
+            applyChapter(await mangaGateway.openChapter(renameTarget.id));
           }
         }
         setRenameTarget(null);
@@ -223,13 +227,13 @@ export function useLibraryActions({
       }
 
       if (renameTarget.kind === "work") {
-        setLibrary(await window.mangaApi.deleteWork(renameTarget.id));
+        setLibrary(await mangaGateway.deleteWork(renameTarget.id));
         if (isCurrentWork) {
           clearCurrentChapter();
         }
         pushStatus(`${renameTarget.title} 작품을 삭제했습니다.`);
       } else {
-        setLibrary(await window.mangaApi.deleteChapter(renameTarget.id));
+        setLibrary(await mangaGateway.deleteChapter(renameTarget.id));
         if (isCurrentChapter) {
           clearCurrentChapter();
         }
@@ -265,7 +269,7 @@ export function useLibraryActions({
             : candidate
         )
       }));
-      void window.mangaApi
+      void mangaGateway
         .reorderChapters(workId, nextOrder)
         .then(setLibrary)
         .catch((error) => {
@@ -290,25 +294,29 @@ export function useLibraryActions({
   );
 
   const reorderPageInChapter = useCallback(
-    (sourcePageId: string, targetPageId: string) => {
+    async (sourcePageId: string, targetPageId: string) => {
       if (!currentChapter) {
+        return;
+      }
+      try {
+        if (dirty) {
+          await saveNow();
+        }
+      } catch (error) {
+        console.error(error);
+        pushStatus(formatErrorMessage(error, "현재 수정사항을 저장하지 못해 페이지 순서를 변경하지 않았습니다."));
         return;
       }
       const previousOrder = currentChapter.pageOrder;
       const nextOrder = reorderByTarget(currentChapter.pageOrder, sourcePageId, targetPageId);
-      setCurrentChapter((chapter) => {
-        if (!chapter || chapter.id !== currentChapter.id) {
-          return chapter;
-        }
-        const nextChapter = {
-          ...chapter,
-          pageOrder: nextOrder,
-          pages: reorderRecordsByIdOrder(chapter.pages, nextOrder)
-        };
-        currentChapterRef.current = nextChapter;
-        return nextChapter;
-      });
-      void window.mangaApi
+      const nextChapter = {
+        ...currentChapter,
+        pageOrder: nextOrder,
+        pages: reorderRecordsByIdOrder(currentChapter.pages, nextOrder)
+      };
+      currentChapterRef.current = nextChapter;
+      setCurrentChapter(nextChapter);
+      void mangaGateway
         .reorderPages(currentChapter.id, nextOrder)
         .then((chapter) => {
           applyChapter(chapter);
@@ -319,23 +327,21 @@ export function useLibraryActions({
         })
         .catch((error) => {
           console.error(error);
-          setCurrentChapter((chapter) => {
-            if (!chapter || chapter.id !== currentChapter.id || !isSameStringOrder(chapter.pageOrder, nextOrder)) {
-              return chapter;
-            }
+          const latestChapter = currentChapterRef.current;
+          if (latestChapter?.id === currentChapter.id && isSameStringOrder(latestChapter.pageOrder, nextOrder)) {
             const rolledBackChapter = {
-              ...chapter,
+              ...latestChapter,
               pageOrder: previousOrder,
-              pages: reorderRecordsByIdOrder(chapter.pages, previousOrder)
+              pages: reorderRecordsByIdOrder(latestChapter.pages, previousOrder)
             };
             currentChapterRef.current = rolledBackChapter;
-            return rolledBackChapter;
-          });
+            setCurrentChapter(rolledBackChapter);
+          }
           const message = formatErrorMessage(error, "페이지 순서를 저장하지 못했습니다.");
           pushStatus(`${message} 이전 순서로 되돌렸습니다.`);
         });
     },
-    [applyChapter, currentChapter, currentChapterRef, pushStatus, refreshLibrary, setCurrentChapter]
+    [applyChapter, currentChapter, currentChapterRef, dirty, pushStatus, refreshLibrary, saveNow, setCurrentChapter]
   );
 
   return {

@@ -16,7 +16,7 @@ const title = z.string().max(MAX_TITLE_LENGTH);
 const filePath = z.string().min(1).max(MAX_PATH_LENGTH);
 const boundedText = z.string().max(MAX_TEXT_LENGTH);
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i);
-const RenderDirectionSchema = z
+const LegacyRenderDirectionSchema = z
   .custom<"horizontal" | "vertical" | "rotated" | "hidden">((value) =>
     ["horizontal", "vertical", "rotated", "hidden"].includes(String(value ?? "").trim().toLowerCase())
   )
@@ -96,18 +96,15 @@ const FluxBackendSchema = z.preprocess((value) => {
     return "zluda-native";
   }
   return value;
-}, z.enum(["cuda-native", "zluda-native", "python-rocm", "python-cpu"]));
+}, z.enum(["cuda-native", "zluda-native", "python-cpu"]));
 
 const OcrGpuBackendSchema = z.preprocess((value) => {
   const normalized = String(value ?? "").trim().toLowerCase();
-  if (["rocm", "hip", "amd"].includes(normalized)) {
-    return "rocm";
-  }
-  if (["auto", "", "cuda", "nvidia"].includes(normalized)) {
+  if (["auto", "", "cuda", "nvidia", "rocm", "hip", "amd"].includes(normalized)) {
     return "cuda";
   }
   return value;
-}, z.enum(["cuda", "rocm"]));
+}, z.enum(["cuda"]));
 
 export const BBoxSchema = z
   .object({
@@ -138,7 +135,7 @@ export const TranslationBlockSchema = z
     translatedText: boundedText,
     confidence: finiteNumber.min(0).max(1),
     sourceDirection: z.enum(["horizontal", "vertical"]),
-    renderDirection: RenderDirectionSchema,
+    renderDirection: LegacyRenderDirectionSchema,
     rotationDeg: finiteNumber.min(-30).max(30).optional(),
     fontFamily: z.string().max(120).optional(),
     fontSizePx: finiteNumber.min(1).max(512),
@@ -159,6 +156,65 @@ export const TranslationBlockSchema = z
 const PageAnalysisStatusSchema = z.enum(["idle", "running", "completed", "failed"]);
 const ChapterStatusSchema = z.enum(["idle", "running", "completed", "partial", "failed"]);
 const ImportSourceKindSchema = z.enum(["images", "folder", "zip", "zip-folder"]);
+const JobKindSchema = z.enum(["gemma-analysis", "inpainting"]);
+const JobStatusSchema = z.enum(["idle", "starting", "running", "cancelling", "cancelled", "failed", "completed"]);
+const JobPhaseSchema = z.enum([
+  "booting",
+  "model_downloading",
+  "ocr_preparing",
+  "ocr_downloading",
+  "ocr_running",
+  "model_requesting",
+  "ready",
+  "page_running",
+  "page_retry",
+  "page_done",
+  "page_skipped",
+  "inpainting_preparing",
+  "inpainting_running",
+  "inpainting_done",
+  "finalizing",
+  "done",
+  "cancelled",
+  "failed"
+]);
+
+const JobProgressFieldsSchema = {
+  phase: JobPhaseSchema.optional(),
+  progressMode: z.enum(["determinate", "indeterminate", "log-only"]).optional(),
+  progressPercent: finiteNumber.min(0).max(100).optional(),
+  progressBytes: finiteNumber.min(0).optional(),
+  progressTotalBytes: finiteNumber.min(0).optional(),
+  progressBytesPerSecond: finiteNumber.min(0).optional(),
+  installLogLine: z.string().max(4000).optional()
+};
+
+export const JobEventSchema = z
+  .object({
+    id: z.string().min(1).max(200),
+    kind: JobKindSchema,
+    status: JobStatusSchema,
+    progressText: z.string().min(1).max(1000),
+    detail: z.string().max(4000).optional(),
+    ...JobProgressFieldsSchema,
+    installLogLines: z.array(z.string().max(4000)).max(500).optional(),
+    progressCurrent: finiteNumber.min(0).optional(),
+    progressTotal: finiteNumber.min(0).optional(),
+    pageIndex: finiteNumber.min(0).optional(),
+    pageTotal: finiteNumber.min(0).optional(),
+    attempt: finiteNumber.min(0).optional(),
+    attemptTotal: finiteNumber.min(0).optional()
+  })
+  .strict();
+
+export const ModelTestProgressEventSchema = z
+  .object({
+    id: z.string().min(1).max(200),
+    progressText: z.string().min(1).max(1000),
+    detail: z.string().max(4000).optional(),
+    ...JobProgressFieldsSchema
+  })
+  .strict();
 
 export const MangaPageSchema = z
   .object({

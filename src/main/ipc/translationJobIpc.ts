@@ -45,7 +45,10 @@ export function registerTranslationJobIpc(context: IpcContext): void {
       }
 
       pageIds = resolved.pages.map((page) => page.id);
-      await markChapterPagesRunning(request.chapterId, pageIds);
+      const runningChapter = await markChapterPagesRunning(request.chapterId, pageIds);
+      const expectedUpdatedAtByPageId = new Map(
+        runningChapter.pages.filter((page) => pageIds.includes(page.id)).map((page) => [page.id, page.updatedAt])
+      );
       runPaths = await getRunPaths(request.chapterId, id);
       const result = await runWholePagePipeline({
         jobId: id,
@@ -54,16 +57,21 @@ export function registerTranslationJobIpc(context: IpcContext): void {
           context.jobs.setCleanup(id, cleanup);
         },
         onPageComplete: async (page) => {
-          await updatePageAfterAnalysis(request.chapterId, page, [], "completed");
+          await updatePageAfterAnalysis(request.chapterId, page, [], "completed", expectedUpdatedAtByPageId.get(page.id));
         },
         onPagesComplete: async (pages) => {
           await updatePagesAfterAnalysis(
             request.chapterId,
-            pages.map((page) => ({ page, warnings: [], status: "completed" as const }))
+            pages.map((page) => ({
+              page,
+              warnings: [],
+              status: "completed" as const,
+              expectedUpdatedAt: expectedUpdatedAtByPageId.get(page.id)
+            }))
           );
         },
         onPageFailed: async (page, errorMessage) => {
-          await updatePageAfterAnalysis(request.chapterId, page, [errorMessage], "failed");
+          await updatePageAfterAnalysis(request.chapterId, page, [errorMessage], "failed", expectedUpdatedAtByPageId.get(page.id));
         },
         pages: resolved.pages,
         runPaths,
@@ -176,6 +184,7 @@ export function registerTranslationJobIpc(context: IpcContext): void {
       if (!page) {
         return { status: "failed", chapter, error: "선택한 페이지를 찾지 못했습니다." };
       }
+      const expectedUpdatedAt = page.updatedAt;
       runPaths = await getRunPaths(request.chapterId, id);
       const { cropPage, cropRect } = await createRegionCropPage(page, request.bbox, id, runPaths.runDir, context.decodeImage);
       emit({
@@ -208,7 +217,7 @@ export function registerTranslationJobIpc(context: IpcContext): void {
 
       const analyzedCrop = result.pages[0];
       const mappedBlocks = analyzedCrop ? mapRegionBlocksToPageBlocks(analyzedCrop.blocks, page, cropRect) : [];
-      const saved = await saveMappedRegionBlocks(request.chapterId, request.pageId, mappedBlocks);
+      const saved = await saveMappedRegionBlocks(request.chapterId, request.pageId, mappedBlocks, expectedUpdatedAt);
 
       emit({
         id,
@@ -306,12 +315,15 @@ async function finalizeRunningPagesSafely(
   }
 }
 
-async function saveMappedRegionBlocks(chapterId: string, pageId: string, mappedBlocks: MangaPage["blocks"]) {
+async function saveMappedRegionBlocks(chapterId: string, pageId: string, mappedBlocks: MangaPage["blocks"], expectedUpdatedAt: string) {
   const latest = await openChapter(chapterId);
   const page = latest.pages.find((candidate) => candidate.id === pageId);
   if (!page) {
     throw new Error("저장할 페이지를 찾지 못했습니다.");
   }
-  await updatePageAfterAnalysis(chapterId, { ...page, blocks: [...page.blocks, ...mappedBlocks] }, [], "completed");
+  if (page.updatedAt !== expectedUpdatedAt) {
+    throw new Error("선택 영역 번역 중 페이지가 변경되었습니다. 최신 내용을 확인한 뒤 다시 시도해 주세요.");
+  }
+  await updatePageAfterAnalysis(chapterId, { ...page, blocks: [...page.blocks, ...mappedBlocks] }, [], "completed", expectedUpdatedAt);
   return openChapter(chapterId);
 }

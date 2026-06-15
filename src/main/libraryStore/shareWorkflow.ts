@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, rename, rm, rmdir, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  rmdir,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, extname, join, resolve } from "node:path";
 import type {
   LibraryPageRecord,
@@ -8,11 +16,15 @@ import type {
   WorkShareExportResult,
   WorkShareImportFromPackageRequest,
   WorkShareImportPreviewView,
-  WorkShareImportResult
+  WorkShareImportResult,
 } from "../../shared/types";
 import { reorderRecords, resolveChapterStatus } from "./chapterRecords";
 import { hydrateChapter } from "./chapterSnapshots";
-import { readDecodedImportImageSize, shouldNormalizeImportImageToPng, writeNormalizedWebpImportImage } from "./importImages";
+import {
+  readDecodedImportImageSize,
+  shouldNormalizeImportImageToPng,
+  writeNormalizedWebpImportImage,
+} from "./importImages";
 import {
   WORKS_ROOT,
   createWork,
@@ -23,7 +35,7 @@ import {
   writeChapterFile,
   writeWorkFile,
   type ChapterFile,
-  type WorkFile
+  type WorkFile,
 } from "./libraryFiles";
 import {
   SHARE_FORMAT,
@@ -31,7 +43,7 @@ import {
   assertPackageOnlyEntries,
   readSharePackage,
   type ShareManifest,
-  type SharePackage
+  type SharePackage,
 } from "./sharePackage";
 import { isPathInside, isSupportedImagePath, safeUnlink } from "./storage";
 import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
@@ -39,16 +51,19 @@ import {
   AdmZip,
   MAX_SHARE_IMAGE_BYTES,
   normalizeShareRelativePath,
-  readZipEntryData,
-  type ZipEntryLike
+  openZipArchiveReader,
+  type ZipArchiveReader,
+  type ZipEntryLike,
 } from "./zipSafety";
 
 export async function exportWorkShareToFile(
-  request: WorkShareExportRequest & { outputPath: string }
+  request: WorkShareExportRequest & { outputPath: string },
 ): Promise<WorkShareExportResult> {
   const work = await ensureExistingWork(request.workId);
   const requestedIds = new Set(request.chapterIds);
-  const chapterIds = work.chapterOrder.filter((chapterId) => requestedIds.has(chapterId));
+  const chapterIds = work.chapterOrder.filter((chapterId) =>
+    requestedIds.has(chapterId),
+  );
   if (chapterIds.length === 0) {
     throw new Error("공유할 화를 선택해 주세요.");
   }
@@ -60,12 +75,15 @@ export async function exportWorkShareToFile(
     exportedAt: new Date().toISOString(),
     work: {
       id: work.id,
-      title: work.title
+      title: work.title,
     },
-    chapterOrder: chapterIds
+    chapterOrder: chapterIds,
   };
 
-  zip.addFile("manifest.json", Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8"));
+  zip.addFile(
+    "manifest.json",
+    Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8"),
+  );
 
   let pageCount = 0;
   for (const chapterId of chapterIds) {
@@ -84,26 +102,27 @@ export async function exportWorkShareToFile(
         sourcePath: page.imagePath,
         packagePath: packageImagePath,
         displayName: page.name,
-        missingMessage: `원본 이미지를 찾지 못했습니다: ${page.name}`
+        missingMessage: `원본 이미지를 찾지 못했습니다: ${page.name}`,
       });
 
       let packageInpaintedImagePath: string | undefined;
       if (page.inpaintedImagePath) {
-        const inpaintedExt = extname(page.inpaintedImagePath).toLowerCase() || ".png";
+        const inpaintedExt =
+          extname(page.inpaintedImagePath).toLowerCase() || ".png";
         packageInpaintedImagePath = `chapters/${chapter.id}/inpainted/${String(pageIndex + 1).padStart(3, "0")}-${page.id}-inpainted${inpaintedExt}`;
         await addImageFileToShare({
           zip,
           sourcePath: page.inpaintedImagePath,
           packagePath: packageInpaintedImagePath,
           displayName: `${page.name} 인페인팅 결과`,
-          missingMessage: `인페인팅 결과 이미지를 찾지 못했습니다: ${page.name}`
+          missingMessage: `인페인팅 결과 이미지를 찾지 못했습니다: ${page.name}`,
         });
       }
 
       packagePages.push({
         ...page,
         imagePath: packageImagePath,
-        inpaintedImagePath: packageInpaintedImagePath
+        inpaintedImagePath: packageInpaintedImagePath,
       });
       pageCount += 1;
     }
@@ -111,9 +130,12 @@ export async function exportWorkShareToFile(
     const packageChapter: ChapterFile = {
       ...chapter,
       pageOrder: orderedPages.map((page) => page.id),
-      pages: packagePages
+      pages: packagePages,
     };
-    zip.addFile(`chapters/${chapter.id}/chapter.json`, Buffer.from(`${JSON.stringify(packageChapter, null, 2)}\n`, "utf8"));
+    zip.addFile(
+      `chapters/${chapter.id}/chapter.json`,
+      Buffer.from(`${JSON.stringify(packageChapter, null, 2)}\n`, "utf8"),
+    );
   }
 
   await mkdir(dirname(request.outputPath), { recursive: true });
@@ -123,7 +145,7 @@ export async function exportWorkShareToFile(
     filePath: request.outputPath,
     workTitle: work.title,
     chapterCount: chapterIds.length,
-    pageCount
+    pageCount,
   };
 }
 
@@ -132,7 +154,7 @@ async function addImageFileToShare({
   sourcePath,
   packagePath,
   displayName,
-  missingMessage
+  missingMessage,
 }: {
   zip: { addFile: (entryName: string, content: Buffer | string) => void };
   sourcePath: string;
@@ -153,39 +175,57 @@ async function addImageFileToShare({
   zip.addFile(packagePath, await readFile(sourcePath));
 }
 
-export async function previewWorkShareImport(packagePath: string): Promise<WorkShareImportPreviewView> {
-  const sharePackage = readSharePackage(packagePath);
+export async function previewWorkShareImport(
+  packagePath: string,
+): Promise<WorkShareImportPreviewView> {
+  const sharePackage = await readSharePackage(packagePath);
   return {
     workTitle: sharePackage.manifest.work.title,
     chapters: sharePackage.chapters.map(({ packageChapterId, chapter }) => ({
       packageChapterId,
       title: chapter.title,
-      pageCount: chapter.pages.length
-    }))
+      pageCount: chapter.pages.length,
+    })),
   };
 }
 
-export async function importWorkShareUnlocked(request: WorkShareImportFromPackageRequest): Promise<WorkShareImportResult> {
-  const sharePackage = readSharePackage(request.packagePath);
+export async function importWorkShareUnlocked(
+  request: WorkShareImportFromPackageRequest,
+): Promise<WorkShareImportResult> {
+  const sharePackage = await readSharePackage(request.packagePath);
+  const archiveReader = await openZipArchiveReader(request.packagePath, "공유 파일");
   if (request.entries.length === 0) {
+    archiveReader.close();
     throw new Error("가져올 화가 없습니다.");
   }
 
-  if (request.target.mode === "new") {
-    return importWorkShareAsNewWork(sharePackage, request);
-  }
+  try {
+    if (request.target.mode === "new") {
+      return await importWorkShareAsNewWork(sharePackage, archiveReader, request);
+    }
 
-  return importWorkShareIntoExistingWork(sharePackage, request);
+    return await importWorkShareIntoExistingWork(sharePackage, archiveReader, request);
+  } finally {
+    archiveReader.close();
+  }
 }
 
-async function importWorkShareAsNewWork(sharePackage: SharePackage, request: WorkShareImportFromPackageRequest): Promise<WorkShareImportResult> {
+async function importWorkShareAsNewWork(
+  sharePackage: SharePackage,
+  archiveReader: ZipArchiveReader,
+  request: WorkShareImportFromPackageRequest,
+): Promise<WorkShareImportResult> {
   if (request.target.mode !== "new") {
     throw new Error("새 작품 가져오기 요청이 아닙니다.");
   }
   assertPackageOnlyEntries(request.entries);
 
-  const work = await createWork(request.target.title || sharePackage.manifest.work.title);
-  const chapterByPackageId = new Map(sharePackage.chapters.map((item) => [item.packageChapterId, item.chapter]));
+  const work = await createWork(
+    request.target.title || sharePackage.manifest.work.title,
+  );
+  const chapterByPackageId = new Map(
+    sharePackage.chapters.map((item) => [item.packageChapterId, item.chapter]),
+  );
   const usedTitles = new Set<string>();
   const createdChapters: ChapterFile[] = [];
 
@@ -195,12 +235,16 @@ async function importWorkShareAsNewWork(sharePackage: SharePackage, request: Wor
       if (!packageChapter) {
         throw new Error("공유 파일에서 가져올 화를 찾지 못했습니다.");
       }
-      const title = makeUniqueTitleInList(sanitizeTitle(entry.title || packageChapter.title, "제목없음"), usedTitles);
+      const title = makeUniqueTitleInList(
+        sanitizeTitle(entry.title || packageChapter.title, "제목없음"),
+        usedTitles,
+      );
       const chapter = await materializeSharedChapter({
         workId: work.id,
         packageChapter,
         entries: sharePackage.entries,
-        requestedTitle: title
+        archiveReader,
+        requestedTitle: title,
       });
       createdChapters.push(chapter);
     }
@@ -214,10 +258,15 @@ async function importWorkShareAsNewWork(sharePackage: SharePackage, request: Wor
     work.updatedAt = new Date().toISOString();
     await writeWorkFile(work);
 
+    const openedChapter = createdChapters[0];
+    if (!openedChapter) {
+      throw new Error("가져온 화를 열지 못했습니다.");
+    }
+
     return {
       workId: work.id,
       chapterIds,
-      openedChapter: hydrateChapter(createdChapters[0]!)
+      openedChapter: hydrateChapter(openedChapter),
     };
   } catch (error) {
     for (const chapter of createdChapters) {
@@ -228,7 +277,11 @@ async function importWorkShareAsNewWork(sharePackage: SharePackage, request: Wor
   }
 }
 
-async function importWorkShareIntoExistingWork(sharePackage: SharePackage, request: WorkShareImportFromPackageRequest): Promise<WorkShareImportResult> {
+async function importWorkShareIntoExistingWork(
+  sharePackage: SharePackage,
+  archiveReader: ZipArchiveReader,
+  request: WorkShareImportFromPackageRequest,
+): Promise<WorkShareImportResult> {
   if (request.target.mode !== "existing") {
     throw new Error("기존 작품 가져오기 요청이 아닙니다.");
   }
@@ -236,7 +289,7 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
   const work = await ensureExistingWork(request.target.workId);
   const originalWork: WorkFile = {
     ...work,
-    chapterOrder: [...work.chapterOrder]
+    chapterOrder: [...work.chapterOrder],
   };
   const currentChapters = new Map<string, ChapterFile>();
   for (const chapterId of work.chapterOrder) {
@@ -246,7 +299,9 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
     }
   }
 
-  const chapterByPackageId = new Map(sharePackage.chapters.map((item) => [item.packageChapterId, item.chapter]));
+  const chapterByPackageId = new Map(
+    sharePackage.chapters.map((item) => [item.packageChapterId, item.chapter]),
+  );
   const usedTitles = new Set<string>();
   const usedExistingIds = new Set<string>();
   const usedPackageIds = new Set<string>();
@@ -268,8 +323,11 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
         }
         const chapter = {
           ...currentChapter,
-          title: makeUniqueTitleInList(sanitizeTitle(entry.title || currentChapter.title, "제목없음"), usedTitles),
-          updatedAt: now
+          title: makeUniqueTitleInList(
+            sanitizeTitle(entry.title || currentChapter.title, "제목없음"),
+            usedTitles,
+          ),
+          updatedAt: now,
         };
         updatedExistingChapters.push(chapter);
         usedExistingIds.add(chapter.id);
@@ -284,12 +342,16 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
       if (!packageChapter) {
         throw new Error("공유 파일에서 가져올 화를 찾지 못했습니다.");
       }
-      const title = makeUniqueTitleInList(sanitizeTitle(entry.title || packageChapter.title, "제목없음"), usedTitles);
+      const title = makeUniqueTitleInList(
+        sanitizeTitle(entry.title || packageChapter.title, "제목없음"),
+        usedTitles,
+      );
       const chapter = await materializeSharedChapter({
         workId: work.id,
         packageChapter,
         entries: sharePackage.entries,
-        requestedTitle: title
+        archiveReader,
+        requestedTitle: title,
       });
       createdPackageChapters.push(chapter);
       usedPackageIds.add(entry.packageChapterId);
@@ -304,7 +366,7 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
     const nextWork: WorkFile = {
       ...work,
       chapterOrder: finalChapterIds,
-      updatedAt: now
+      updatedAt: now,
     };
 
     for (const chapter of updatedExistingChapters) {
@@ -313,9 +375,19 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
 
     await writeWorkFile(nextWork);
 
-    trashedExistingChapters.push(...(await moveOmittedExistingChaptersToTrash(work.id, previousChapterIds, finalChapterIds)));
+    trashedExistingChapters.push(
+      ...(await moveOmittedExistingChaptersToTrash(
+        work.id,
+        previousChapterIds,
+        finalChapterIds,
+      )),
+    );
 
-    const openedChapter = await readChapterFile(work.id, finalChapterIds[0]!);
+    const firstChapterId = finalChapterIds[0];
+    if (!firstChapterId) {
+      throw new Error("가져온 화를 열지 못했습니다.");
+    }
+    const openedChapter = await readChapterFile(work.id, firstChapterId);
     if (!openedChapter) {
       throw new Error("가져온 화를 열지 못했습니다.");
     }
@@ -325,10 +397,13 @@ async function importWorkShareIntoExistingWork(sharePackage: SharePackage, reque
     return {
       workId: work.id,
       chapterIds: finalChapterIds,
-      openedChapter: hydrateChapter(openedChapter)
+      openedChapter: hydrateChapter(openedChapter),
     };
   } catch (error) {
-    await restoreTrashedChapterDirectories(work.id, trashedExistingChapters).catch(() => {});
+    await restoreTrashedChapterDirectories(
+      work.id,
+      trashedExistingChapters,
+    ).catch(() => {});
     for (const chapter of createdPackageChapters) {
       await removeChapterDirectory(chapter.workId, chapter.id);
     }
@@ -353,7 +428,7 @@ type TrashedChapterDirectory = {
 async function moveOmittedExistingChaptersToTrash(
   workId: string,
   previousChapterIds: string[],
-  finalChapterIds: string[]
+  finalChapterIds: string[],
 ): Promise<TrashedChapterDirectory[]> {
   const finalChapterIdSet = new Set(finalChapterIds);
   const operationId = randomUUID();
@@ -371,19 +446,30 @@ async function moveOmittedExistingChaptersToTrash(
 
     const operationTrashRoot = resolveOperationTrashRoot(workId, operationId);
     const trashDir = resolve(join(operationTrashRoot, chapterId));
-    if (!isPathInside(operationTrashRoot, trashDir) || trashDir === operationTrashRoot) {
+    if (
+      !isPathInside(operationTrashRoot, trashDir) ||
+      trashDir === operationTrashRoot
+    ) {
       throw new Error("공유 가져오기 임시 보관 위치가 올바르지 않습니다.");
     }
 
     await mkdir(operationTrashRoot, { recursive: true });
     await rename(sourceDir, trashDir);
-    trashedChapters.push({ chapterId, sourceDir, trashDir, operationTrashRoot });
+    trashedChapters.push({
+      chapterId,
+      sourceDir,
+      trashDir,
+      operationTrashRoot,
+    });
   }
 
   return trashedChapters;
 }
 
-async function restoreTrashedChapterDirectories(workId: string, trashedChapters: TrashedChapterDirectory[]): Promise<void> {
+async function restoreTrashedChapterDirectories(
+  workId: string,
+  trashedChapters: TrashedChapterDirectory[],
+): Promise<void> {
   for (const trashedChapter of [...trashedChapters].reverse()) {
     if (!existsSync(trashedChapter.trashDir)) {
       continue;
@@ -398,16 +484,26 @@ async function restoreTrashedChapterDirectories(workId: string, trashedChapters:
   await pruneTrashRoots(workId, trashedChapters);
 }
 
-async function discardTrashedChapterDirectories(workId: string, trashedChapters: TrashedChapterDirectory[]): Promise<void> {
-  const operationTrashRoots = new Set(trashedChapters.map((trashedChapter) => trashedChapter.operationTrashRoot));
+async function discardTrashedChapterDirectories(
+  workId: string,
+  trashedChapters: TrashedChapterDirectory[],
+): Promise<void> {
+  const operationTrashRoots = new Set(
+    trashedChapters.map((trashedChapter) => trashedChapter.operationTrashRoot),
+  );
   for (const operationTrashRoot of operationTrashRoots) {
     await rm(operationTrashRoot, { recursive: true, force: true });
   }
   await pruneTrashRoots(workId, trashedChapters);
 }
 
-async function pruneTrashRoots(workId: string, trashedChapters: TrashedChapterDirectory[]): Promise<void> {
-  const operationTrashRoots = new Set(trashedChapters.map((trashedChapter) => trashedChapter.operationTrashRoot));
+async function pruneTrashRoots(
+  workId: string,
+  trashedChapters: TrashedChapterDirectory[],
+): Promise<void> {
+  const operationTrashRoots = new Set(
+    trashedChapters.map((trashedChapter) => trashedChapter.operationTrashRoot),
+  );
   for (const operationTrashRoot of operationTrashRoots) {
     await rmdir(operationTrashRoot).catch(() => {});
   }
@@ -423,10 +519,16 @@ function resolveChapterDirectory(workId: string, chapterId: string): string {
   return chapterDir;
 }
 
-function resolveOperationTrashRoot(workId: string, operationId: string): string {
+function resolveOperationTrashRoot(
+  workId: string,
+  operationId: string,
+): string {
   const trashRoot = resolveTrashRoot(workId);
   const operationTrashRoot = resolve(join(trashRoot, operationId));
-  if (!isPathInside(trashRoot, operationTrashRoot) || operationTrashRoot === trashRoot) {
+  if (
+    !isPathInside(trashRoot, operationTrashRoot) ||
+    operationTrashRoot === trashRoot
+  ) {
     throw new Error("공유 가져오기 임시 보관 위치가 올바르지 않습니다.");
   }
   return operationTrashRoot;
@@ -445,11 +547,13 @@ async function materializeSharedChapter({
   workId,
   packageChapter,
   entries,
-  requestedTitle
+  archiveReader,
+  requestedTitle,
 }: {
   workId: string;
   packageChapter: ChapterFile;
   entries: Map<string, ZipEntryLike>;
+  archiveReader: ZipArchiveReader;
   requestedTitle: string;
 }): Promise<ChapterFile> {
   const now = new Date().toISOString();
@@ -461,30 +565,46 @@ async function materializeSharedChapter({
     await mkdir(pagesDir, { recursive: true });
 
     const pages: LibraryPageRecord[] = [];
-    for (const [index, packagePage] of reorderRecords(packageChapter.pages, packageChapter.pageOrder).entries()) {
-      const packageImagePath = normalizeShareRelativePath(packagePage.imagePath, "페이지 이미지 경로가 올바르지 않습니다.");
+    for (const [index, packagePage] of reorderRecords(
+      packageChapter.pages,
+      packageChapter.pageOrder,
+    ).entries()) {
+      const packageImagePath = normalizeShareRelativePath(
+        packagePage.imagePath,
+        "페이지 이미지 경로가 올바르지 않습니다.",
+      );
 
       const pageId = randomUUID();
       const sourceExt = extname(packageImagePath).toLowerCase() || ".png";
-      const targetExt = shouldNormalizeImportImageToPng(sourceExt) ? ".png" : sourceExt;
-      const outputPath = join(pagesDir, `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`);
+      const targetExt = shouldNormalizeImportImageToPng(sourceExt)
+        ? ".png"
+        : sourceExt;
+      const outputPath = join(
+        pagesDir,
+        `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`,
+      );
       await writePackageImageEntry({
         entries,
+        archiveReader,
         packageImagePath,
         outputPath,
         displayName: packagePage.name,
-        missingMessage: `공유 파일에 이미지가 없습니다: ${packagePage.name}`
+        missingMessage: `공유 파일에 이미지가 없습니다: ${packagePage.name}`,
       });
 
       const inpaintedImagePath = await materializeSharedInpaintedImage({
         entries,
+        archiveReader,
         packagePage,
         pageId,
         index,
-        inpaintedDir
+        inpaintedDir,
       });
 
-      const size = await readDecodedImportImageSize(outputPath, packagePage.name);
+      const size = await readDecodedImportImageSize(
+        outputPath,
+        packagePage.name,
+      );
       pages.push({
         ...packagePage,
         id: pageId,
@@ -494,10 +614,10 @@ async function materializeSharedChapter({
         height: size.height || packagePage.height || 1400,
         blocks: packagePage.blocks.map((block, blockIndex) => ({
           ...block,
-          id: `${pageId}-block-${blockIndex + 1}`
+          id: `${pageId}-block-${blockIndex + 1}`,
         })),
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       });
     }
 
@@ -510,7 +630,7 @@ async function materializeSharedChapter({
       pageOrder: pages.map((page) => page.id),
       pages,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
     await writeChapterFile(chapter);
     return chapter;
@@ -522,12 +642,14 @@ async function materializeSharedChapter({
 
 async function materializeSharedInpaintedImage({
   entries,
+  archiveReader,
   packagePage,
   pageId,
   index,
-  inpaintedDir
+  inpaintedDir,
 }: {
   entries: Map<string, ZipEntryLike>;
+  archiveReader: ZipArchiveReader;
   packagePage: LibraryPageRecord;
   pageId: string;
   index: number;
@@ -539,31 +661,39 @@ async function materializeSharedInpaintedImage({
 
   const packageInpaintedPath = normalizeShareRelativePath(
     packagePage.inpaintedImagePath,
-    "인페인팅 결과 이미지 경로가 올바르지 않습니다."
+    "인페인팅 결과 이미지 경로가 올바르지 않습니다.",
   );
   const sourceExt = extname(packageInpaintedPath).toLowerCase() || ".png";
-  const targetExt = shouldNormalizeImportImageToPng(sourceExt) ? ".png" : sourceExt;
-  const outputPath = join(inpaintedDir, `${String(index + 1).padStart(3, "0")}-${pageId}-inpainted${targetExt}`);
+  const targetExt = shouldNormalizeImportImageToPng(sourceExt)
+    ? ".png"
+    : sourceExt;
+  const outputPath = join(
+    inpaintedDir,
+    `${String(index + 1).padStart(3, "0")}-${pageId}-inpainted${targetExt}`,
+  );
 
   await mkdir(inpaintedDir, { recursive: true });
   await writePackageImageEntry({
     entries,
+    archiveReader,
     packageImagePath: packageInpaintedPath,
     outputPath,
     displayName: `${packagePage.name} 인페인팅 결과`,
-    missingMessage: `공유 파일에 인페인팅 결과 이미지가 없습니다: ${packagePage.name}`
+    missingMessage: `공유 파일에 인페인팅 결과 이미지가 없습니다: ${packagePage.name}`,
   });
   return outputPath;
 }
 
 async function writePackageImageEntry({
   entries,
+  archiveReader,
   packageImagePath,
   outputPath,
   displayName,
-  missingMessage
+  missingMessage,
 }: {
   entries: Map<string, ZipEntryLike>;
+  archiveReader: ZipArchiveReader;
   packageImagePath: string;
   outputPath: string;
   displayName: string;
@@ -580,12 +710,23 @@ async function writePackageImageEntry({
 
   await mkdir(dirname(outputPath), { recursive: true });
   const sourceExt = extname(packageImagePath).toLowerCase() || ".png";
-  const sourceBytes = readZipEntryData(entry, MAX_SHARE_IMAGE_BYTES, packageImagePath);
+  const sourceBytes = await archiveReader.readEntry(
+    entry.entryName,
+    MAX_SHARE_IMAGE_BYTES,
+    packageImagePath,
+  );
   if (shouldNormalizeImportImageToPng(sourceExt)) {
-    const tempSourcePath = join(dirname(outputPath), `.${randomUUID()}.share-source${sourceExt}`);
+    const tempSourcePath = join(
+      dirname(outputPath),
+      `.${randomUUID()}.share-source${sourceExt}`,
+    );
     try {
       await writeFile(tempSourcePath, sourceBytes);
-      await writeNormalizedWebpImportImage(tempSourcePath, outputPath, displayName);
+      await writeNormalizedWebpImportImage(
+        tempSourcePath,
+        outputPath,
+        displayName,
+      );
     } finally {
       await safeUnlink(tempSourcePath);
     }

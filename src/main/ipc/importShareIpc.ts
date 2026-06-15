@@ -25,11 +25,13 @@ import {
   previewZip,
   previewZipFolder
 } from "../library";
+import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../libraryStore/importSources";
 import type { IpcContext } from "./context";
 import { trustedHandle } from "./trustedIpc";
 
 const PREVIEW_SESSION_TTL_MS = 30 * 60 * 1000;
 const MAX_PREVIEW_SESSIONS = 20;
+const SUPPORTED_ARCHIVE_DIALOG_EXTENSIONS = SUPPORTED_ARCHIVE_EXTENSIONS.map((extension) => extension.slice(1));
 
 const importPreviewSessions = new Map<string, { preview: ImportPreviewResult; createdAt: number }>();
 const workSharePreviewSessions = new Map<string, { packagePath: string; preview: WorkShareImportPreviewView; createdAt: number }>();
@@ -68,7 +70,7 @@ export function registerImportShareIpc(context: IpcContext): void {
     const options = {
       title: "압축파일 열기",
       properties: ["openFile"],
-      filters: [{ name: "ZIP Archive", extensions: ["zip"] }]
+      filters: [{ name: "ZIP/CBZ Archive", extensions: SUPPORTED_ARCHIVE_DIALOG_EXTENSIONS }]
     } satisfies Electron.OpenDialogOptions;
     const window = context.getMainWindow();
     const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);

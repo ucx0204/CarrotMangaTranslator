@@ -1,5 +1,6 @@
 import React from "react";
 import type { MangaPage } from "../../../shared/types";
+import { mangaGateway } from "../api/mangaGateway";
 
 const PAGE_IMAGE_CACHE_LIMIT = 3;
 
@@ -53,7 +54,7 @@ export function usePageImageDataUrls({
 
     let cancelled = false;
     setSelectedPageImageDataUrl("");
-    void window.mangaApi
+    void mangaGateway
       .getPageImageDataUrl(imagePath)
       .then((dataUrl) => {
         if (cancelled) {
@@ -94,7 +95,7 @@ export function usePageImageDataUrls({
 
     let cancelled = false;
     setSelectedPageOriginalImageDataUrl("");
-    void window.mangaApi
+    void mangaGateway
       .getPageImageDataUrl(imagePath)
       .then((dataUrl) => {
         if (cancelled) {

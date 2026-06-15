@@ -73,8 +73,8 @@ export function registerSettingsIpc(context: IpcContext): void {
       event.sender.send("settings:model-test-progress", payload);
       logInfo("Settings model/runtime check progress", summarizeModelTestProgress(payload));
     };
-    const port = await reserveFreePort();
-    const options = {
+    let port = await reserveFreePort();
+    let options = {
       ...buildBaseTranslationOptions({
         jobId: `settings-test-${testId}`,
         runDir: join(context.appPaths.dataRoot, "model-tests", testId),
@@ -129,7 +129,26 @@ export function registerSettingsIpc(context: IpcContext): void {
           });
         }
       }
-      server = options.modelProvider === "openai-codex" ? await startOpenAIOAuthEndpoint(options) : await runtime.startServer(options);
+      if (options.modelProvider === "openai-codex") {
+        server = await startOpenAIOAuthEndpoint(options);
+      } else {
+        try {
+          server = await runtime.startServer(options);
+        } catch (error) {
+          if (!isPortBindError(error)) {
+            throw error;
+          }
+          port = await reserveFreePort();
+          options = { ...options, port };
+          sendProgress({
+            phase: "booting",
+            progressText: "모델/런타임 확인 포트 재시도 중",
+            detail: `이전 포트가 이미 사용 중이라 ${port}번 포트로 다시 시작합니다.`,
+            installLogLine: `모델 테스트 포트 충돌을 감지해 ${port}번 포트로 재시도합니다.`
+          });
+          server = await runtime.startServer(options);
+        }
+      }
       sendProgress({
         phase: "ready",
         progressText: "런타임 서버 준비 완료",
@@ -283,6 +302,17 @@ async function reserveFreePort(): Promise<number> {
       });
     });
   });
+}
+
+function isPortBindError(error: unknown): boolean {
+  const text = formatModelTestError(error).toLowerCase();
+  return (
+    text.includes("eaddrinuse") ||
+    text.includes("address already in use") ||
+    text.includes("bind failed") ||
+    text.includes("failed to bind") ||
+    text.includes("only one usage of each socket address")
+  );
 }
 
 function formatModelTestError(error: unknown): string {

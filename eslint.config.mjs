@@ -83,9 +83,11 @@ export default tseslint.config(
     files: ["**/*.{js,cjs,mjs,ts,tsx}"],
     rules: {
       "no-control-regex": "off",
+      "no-new-func": "error",
       "no-redeclare": "error",
       "no-this-alias": "off",
       "@typescript-eslint/no-this-alias": "off",
+      "@typescript-eslint/no-non-null-assertion": "warn",
       "no-useless-assignment": "warn",
       "preserve-caught-error": "warn"
     }

@@ -25,6 +25,7 @@ import {
 } from "./settingsOptions";
 import { buildSettingsFromForm } from "./settingsFormBuilder";
 import { Button, Modal } from "./ui";
+import { mangaGateway } from "../api/mangaGateway";
 
 const MODEL_PRESET_BUTTON_IDS = [
   ...Object.keys(MODEL_PRESETS),
@@ -169,7 +170,7 @@ export function SettingsModal({
       setFluxBackend(preferredBackend);
       return;
     }
-    if (usesNvidiaHardware && (fluxBackend === "python-rocm" || fluxBackend === "zluda-native")) {
+    if (usesNvidiaHardware && fluxBackend === "zluda-native") {
       setFluxBackend("cuda-native");
     }
   }, [fluxBackend, initialSettings.inpainting?.fluxBackend, usesAmdHardware, usesNvidiaHardware]);
@@ -206,7 +207,7 @@ export function SettingsModal({
     (backend: FluxBackend) =>
       controlsBusy ||
       (usesAmdHardware && backend === "cuda-native") ||
-      (usesNvidiaHardware && (backend === "python-rocm" || backend === "zluda-native")),
+      (usesNvidiaHardware && backend === "zluda-native"),
     [controlsBusy, usesAmdHardware, usesNvidiaHardware]
   );
 
@@ -290,7 +291,7 @@ export function SettingsModal({
   const pickLocalModelFile = async () => {
     setLocalActionBusy(true);
     try {
-      const picked = await window.mangaApi.pickLocalModelFile();
+      const picked = await mangaGateway.pickLocalModelFile();
       if (!picked) {
         return;
       }
@@ -307,7 +308,7 @@ export function SettingsModal({
   const pickLocalMmprojFile = async () => {
     setLocalActionBusy(true);
     try {
-      const picked = await window.mangaApi.pickLocalMmprojFile();
+      const picked = await mangaGateway.pickLocalMmprojFile();
       if (!picked) {
         return;
       }
@@ -334,7 +335,7 @@ export function SettingsModal({
           ? "Paddle OCR과 Gemma 실행 런타임 준비 로그를 함께 표시합니다."
           : "Paddle OCR과 Codex 엔드포인트 준비 상태를 함께 확인합니다."
     });
-    const unsubscribe = window.mangaApi.onModelTestEvent((event) => {
+    const unsubscribe = mangaGateway.onModelTestEvent((event) => {
       if (event.id !== testId) {
         return;
       }
@@ -350,7 +351,7 @@ export function SettingsModal({
       );
     });
     try {
-      const result = await window.mangaApi.testModelSettings(nextSettings, testId);
+      const result = await mangaGateway.testModelSettings(nextSettings, testId);
       appendTestLogLine(result.ok ? "Paddle OCR과 번역 엔진 확인이 완료되었습니다." : "Paddle OCR과 번역 엔진 확인이 실패했습니다.");
       setTestState({
         status: result.ok ? "success" : "error",

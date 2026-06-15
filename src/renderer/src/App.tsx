@@ -42,6 +42,7 @@ import { resolveProgressSnapshot } from "./lib/jobProgress";
 import { countChapterBlocks, countInpaintedPages } from "./lib/inpaintingStats";
 import { usePageNavigationHandlers } from "./hooks/usePageNavigationHandlers";
 import "./styles.css";
+import { mangaGateway } from "./api/mangaGateway";
 
 const EMPTY_JOB: JobState = {
   id: "idle",
@@ -110,6 +111,7 @@ export default function App(): React.JSX.Element {
   const { clearDirtyTracking, dirty, dirtyPageIdsRef, markDirty, replaceDirtyPageIds, saveNow } = useChapterPersistence({
     currentChapter,
     currentChapterRef,
+    onSaveError: (message) => pushStatus(`저장 실패: ${message}`),
     setCurrentChapter
   });
   const selectedPageEditLocked = Boolean(jobActive && selectedPage && selectedPage.analysisStatus !== "completed");
@@ -125,19 +127,19 @@ export default function App(): React.JSX.Element {
   const inpaintedPageCount = useMemo(() => countInpaintedPages(currentChapter), [currentChapter]);
   const inpaintingToolActive = inpaintingMode && inpaintingTool !== "none";
   const cancelJob = React.useCallback(() => {
-    void window.mangaApi.cancelJob().catch((error) => {
+    void mangaGateway.cancelJob().catch((error) => {
       console.error(error);
       pushStatus(formatErrorMessage(error, "작업 취소 요청을 보내지 못했습니다."));
     });
   }, [pushStatus]);
   const openLibraryFolder = React.useCallback(() => {
-    void window.mangaApi.openLibraryFolder().catch((error) => {
+    void mangaGateway.openLibraryFolder().catch((error) => {
       console.error(error);
       pushStatus(formatErrorMessage(error, "보관함 폴더를 열지 못했습니다."));
     });
   }, [pushStatus]);
   const openLogFolder = React.useCallback(() => {
-    void window.mangaApi.openLogFolder().catch((error) => {
+    void mangaGateway.openLogFolder().catch((error) => {
       console.error(error);
       pushStatus(formatErrorMessage(error, "로그 폴더를 열지 못했습니다."));
     });
@@ -262,6 +264,7 @@ export default function App(): React.JSX.Element {
     beforeTranslateRegion: prepareRegionTranslation,
     clearStatusLines,
     currentChapter,
+    currentChapterRef,
     jobActive,
     mergeLiveChapter,
     pushStatus,

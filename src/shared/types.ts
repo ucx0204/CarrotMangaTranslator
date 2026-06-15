@@ -9,10 +9,10 @@ export type ModelSource = "huggingface" | "local";
 export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
 export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
-export type OcrGpuBackend = "cuda" | "rocm";
+export type OcrGpuBackend = "cuda";
 export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
 export type AmdRocmTarget = "gfx908" | "gfx90a" | "gfx103X" | "gfx110X" | "gfx1150" | "gfx1151" | "gfx120X";
-export type FluxBackend = "cuda-native" | "zluda-native" | "python-rocm" | "python-cpu";
+export type FluxBackend = "cuda-native" | "zluda-native" | "python-cpu";
 export type RuntimeGpuVendor = "nvidia" | "amd" | "unknown";
 
 export type RuntimeHardwareInfo = {

@@ -3,16 +3,21 @@ import { extname, join } from "node:path";
 import { assertImportImageFileBudget } from "./importImages";
 import { isSupportedImagePath, sortNaturally } from "./storage";
 import {
-  AdmZip,
   MAX_IMPORT_IMAGE_BYTES,
   assertZipEntryBudget,
   assertZipEntrySize,
+  readZipEntries,
   type ZipEntryLike
 } from "./zipSafety";
 
 const MAX_NESTED_IMAGE_FOLDER_DEPTH = 8;
 const MAX_NESTED_IMAGE_FOLDERS = 500;
 const MAX_NESTED_IMAGE_FOLDER_PAGES = 5000;
+export const SUPPORTED_ARCHIVE_EXTENSIONS = [".zip", ".cbz"] as const;
+
+export function isSupportedArchivePath(filePath: string): boolean {
+  return SUPPORTED_ARCHIVE_EXTENSIONS.includes(extname(filePath).toLowerCase() as (typeof SUPPORTED_ARCHIVE_EXTENSIONS)[number]);
+}
 
 export async function listImageFiles(folderPath: string): Promise<string[]> {
   const entries = await readdir(folderPath, { withFileTypes: true });
@@ -25,9 +30,7 @@ export async function listImageFiles(folderPath: string): Promise<string[]> {
 
 export async function listZipFiles(folderPath: string): Promise<string[]> {
   const entries = await readdir(folderPath, { withFileTypes: true });
-  return sortNaturally(
-    entries.filter((entry) => entry.isFile() && extname(entry.name).toLowerCase() === ".zip").map((entry) => join(folderPath, entry.name))
-  );
+  return sortNaturally(entries.filter((entry) => entry.isFile() && isSupportedArchivePath(entry.name)).map((entry) => join(folderPath, entry.name)));
 }
 
 export async function listNestedImageFolders(rootPath: string): Promise<string[]> {
@@ -59,9 +62,8 @@ export async function listNestedImageFolders(rootPath: string): Promise<string[]
   return found;
 }
 
-export function listImageEntriesInZip(zipPath: string): ZipEntryLike[] {
-  const zip = new AdmZip(zipPath);
-  const entries = zip.getEntries();
+export async function listImageEntriesInZip(zipPath: string): Promise<ZipEntryLike[]> {
+  const entries = await readZipEntries(zipPath, "ZIP 파일");
   assertZipEntryBudget(entries, "ZIP 파일");
   const imageEntries = entries
     .filter((entry) => !entry.isDirectory && isSupportedImagePath(entry.entryName))

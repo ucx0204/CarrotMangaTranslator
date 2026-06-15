@@ -163,6 +163,7 @@ type FluxPythonRuntimeLayout = {
 };
 
 type FluxPythonBackend = "python-rocm" | "python-cpu";
+type FluxRuntimeBackend = FluxBackend | FluxPythonBackend;
 
 export async function ensureMgtFluxKleinRuntime(options: {
   runtimeDir: string;
@@ -184,7 +185,7 @@ export async function ensureMgtFluxKleinRuntime(options: {
 export async function ensureFluxWorkerLaunch(options: {
   runtimeDir: string;
   modelDir: string;
-  backend: FluxBackend;
+  backend: FluxRuntimeBackend;
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<FluxWorkerLaunchSpec> {
@@ -999,7 +1000,7 @@ function runtimeMarkerPath(cudaDir: string): string {
   return join(cudaDir, FLUX_CUDA_RUNTIME_MARKER);
 }
 
-function resolveFluxWorkerBackend(backend: FluxBackend): FluxWorkerBackend {
+function resolveFluxWorkerBackend(backend: FluxRuntimeBackend): FluxWorkerBackend {
   if (backend === "python-cpu") {
     return backend;
   }

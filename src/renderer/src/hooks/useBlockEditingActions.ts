@@ -121,6 +121,7 @@ export function useBlockEditingActions({
       }
       const targetSet = new Set(targetPageIds);
       const stamp = new Date().toISOString();
+      targetPageIds.forEach((id) => markDirty(id));
       const next = {
         ...currentChapter,
         pages: currentChapter.pages.map((page) =>
@@ -129,7 +130,6 @@ export function useBlockEditingActions({
       };
       currentChapterRef.current = next;
       setCurrentChapter(next);
-      targetPageIds.forEach((id) => markDirty(id));
       pushStatus(scope === "page" ? "이 페이지의 모든 블록에 폰트를 적용했습니다." : "이 화 전체 블록에 폰트를 적용했습니다.");
     },
     [currentChapter, currentChapterRef, jobActive, markDirty, pushStatus, selectedBlock, selectedPage, selectedPageEditLocked, setCurrentChapter]

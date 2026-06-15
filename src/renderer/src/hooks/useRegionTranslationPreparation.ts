@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { mangaGateway } from "../api/mangaGateway";
 
 type UseRegionTranslationPreparationOptions = {
   inpaintingMode: boolean;
@@ -14,6 +15,6 @@ export function useRegionTranslationPreparation({
       return;
     }
     pushStatus("영역 번역을 위해 Flux 인페인팅 런타임을 정리합니다.");
-    await window.mangaApi.disposeInpaintingEngine();
+    await mangaGateway.disposeInpaintingEngine();
   }, [inpaintingMode, pushStatus]);
 }

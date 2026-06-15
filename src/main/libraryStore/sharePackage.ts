@@ -1,15 +1,15 @@
 import type { LibraryChapter, WorkShareImportEntry } from "../../shared/types";
 import { isSupportedImagePath } from "./storage";
 import {
-  AdmZip,
   MAX_SHARE_IMAGE_BYTES,
   MAX_SHARE_JSON_BYTES,
   assertZipEntrySize,
   buildSafeShareEntryMap,
   normalizeSharePathSegment,
   normalizeShareRelativePath,
-  readZipEntryData,
-  type ZipEntryLike
+  readZipEntries,
+  readZipEntryDataFromFile,
+  type ZipEntryLike,
 } from "./zipSafety";
 
 export const SHARE_FORMAT = "manga-gemma-translator-share";
@@ -27,6 +27,7 @@ export type ShareManifest = {
 };
 
 export type SharePackage = {
+  packagePath: string;
   entries: Map<string, ZipEntryLike>;
   manifest: ShareManifest;
   chapters: Array<{
@@ -35,47 +36,81 @@ export type SharePackage = {
   }>;
 };
 
-export function readSharePackage(packagePath: string): SharePackage {
-  const zip = new AdmZip(packagePath);
-  const entries = buildSafeShareEntryMap(zip.getEntries());
-  const manifest = readRequiredShareJson<ShareManifest>(entries, "manifest.json");
+export async function readSharePackage(
+  packagePath: string,
+): Promise<SharePackage> {
+  const entries = buildSafeShareEntryMap(
+    await readZipEntries(packagePath, "공유 파일"),
+  );
+  const manifest = await readRequiredShareJson<ShareManifest>(
+    packagePath,
+    entries,
+    "manifest.json",
+  );
   validateShareManifest(manifest);
 
-  const chapters = manifest.chapterOrder.map((packageChapterId) => {
-    const safeChapterId = normalizeSharePathSegment(packageChapterId, "공유 파일의 화 ID가 올바르지 않습니다.");
-    const chapter = readRequiredShareJson<LibraryChapter>(entries, `chapters/${safeChapterId}/chapter.json`);
-    validateShareChapter(chapter, safeChapterId, entries);
-    return {
-      packageChapterId: safeChapterId,
-      chapter
-    };
-  });
+  const chapters = await Promise.all(
+    manifest.chapterOrder.map(async (packageChapterId) => {
+      const safeChapterId = normalizeSharePathSegment(
+        packageChapterId,
+        "공유 파일의 화 ID가 올바르지 않습니다.",
+      );
+      const chapter = await readRequiredShareJson<LibraryChapter>(
+        packagePath,
+        entries,
+        `chapters/${safeChapterId}/chapter.json`,
+      );
+      validateShareChapter(chapter, safeChapterId, entries);
+      return {
+        packageChapterId: safeChapterId,
+        chapter,
+      };
+    }),
+  );
 
   return {
+    packagePath,
     entries,
     manifest: {
       ...manifest,
-      chapterOrder: chapters.map((chapter) => chapter.packageChapterId)
+      chapterOrder: chapters.map((chapter) => chapter.packageChapterId),
     },
-    chapters
+    chapters,
   };
 }
 
 export function assertPackageOnlyEntries(
-  entries: WorkShareImportEntry[]
-): asserts entries is Array<Extract<WorkShareImportEntry, { source: "package" }>> {
+  entries: WorkShareImportEntry[],
+): asserts entries is Array<
+  Extract<WorkShareImportEntry, { source: "package" }>
+> {
   if (entries.some((entry) => entry.source !== "package")) {
-    throw new Error("새 작품으로 가져올 때는 공유 파일의 화만 선택할 수 있습니다.");
+    throw new Error(
+      "새 작품으로 가져올 때는 공유 파일의 화만 선택할 수 있습니다.",
+    );
   }
 }
 
-function readRequiredShareJson<T>(entries: Map<string, ZipEntryLike>, path: string): T {
+async function readRequiredShareJson<T>(
+  packagePath: string,
+  entries: Map<string, ZipEntryLike>,
+  path: string,
+): Promise<T> {
   const entry = entries.get(path);
   if (!entry) {
     throw new Error(`공유 파일에 필요한 정보가 없습니다: ${path}`);
   }
   try {
-    return JSON.parse(readZipEntryData(entry, MAX_SHARE_JSON_BYTES, path).toString("utf8")) as T;
+    return JSON.parse(
+      (
+        await readZipEntryDataFromFile(
+          packagePath,
+          entry.entryName,
+          MAX_SHARE_JSON_BYTES,
+          path,
+        )
+      ).toString("utf8"),
+    ) as T;
   } catch {
     throw new Error(`공유 파일의 JSON을 읽지 못했습니다: ${path}`);
   }
@@ -88,13 +123,24 @@ function validateShareManifest(manifest: ShareManifest): void {
   if (!manifest.work || typeof manifest.work.title !== "string") {
     throw new Error("공유 파일의 작품 정보가 올바르지 않습니다.");
   }
-  if (!Array.isArray(manifest.chapterOrder) || manifest.chapterOrder.length === 0) {
+  if (
+    !Array.isArray(manifest.chapterOrder) ||
+    manifest.chapterOrder.length === 0
+  ) {
     throw new Error("공유 파일에 화 정보가 없습니다.");
   }
 }
 
-function validateShareChapter(chapter: LibraryChapter, packageChapterId: string, entries: Map<string, ZipEntryLike>): void {
-  if (chapter.id !== packageChapterId || !Array.isArray(chapter.pages) || !Array.isArray(chapter.pageOrder)) {
+function validateShareChapter(
+  chapter: LibraryChapter,
+  packageChapterId: string,
+  entries: Map<string, ZipEntryLike>,
+): void {
+  if (
+    chapter.id !== packageChapterId ||
+    !Array.isArray(chapter.pages) ||
+    !Array.isArray(chapter.pageOrder)
+  ) {
     throw new Error("공유 파일의 화 정보가 올바르지 않습니다.");
   }
   const pageIds = new Set(chapter.pages.map((page) => page.id));
@@ -104,7 +150,10 @@ function validateShareChapter(chapter: LibraryChapter, packageChapterId: string,
     }
   }
   for (const page of chapter.pages) {
-    const imagePath = normalizeShareRelativePath(page.imagePath, "공유 파일의 이미지 경로가 올바르지 않습니다.");
+    const imagePath = normalizeShareRelativePath(
+      page.imagePath,
+      "공유 파일의 이미지 경로가 올바르지 않습니다.",
+    );
     if (!imagePath.startsWith(`chapters/${packageChapterId}/pages/`)) {
       throw new Error("공유 파일의 이미지 위치가 올바르지 않습니다.");
     }
@@ -118,12 +167,21 @@ function validateShareChapter(chapter: LibraryChapter, packageChapterId: string,
     assertZipEntrySize(imageEntry, MAX_SHARE_IMAGE_BYTES, imagePath);
 
     if (page.inpaintedImagePath) {
-      const inpaintedPath = normalizeShareRelativePath(page.inpaintedImagePath, "공유 파일의 인페인팅 이미지 경로가 올바르지 않습니다.");
-      if (!inpaintedPath.startsWith(`chapters/${packageChapterId}/inpainted/`)) {
-        throw new Error("공유 파일의 인페인팅 이미지 위치가 올바르지 않습니다.");
+      const inpaintedPath = normalizeShareRelativePath(
+        page.inpaintedImagePath,
+        "공유 파일의 인페인팅 이미지 경로가 올바르지 않습니다.",
+      );
+      if (
+        !inpaintedPath.startsWith(`chapters/${packageChapterId}/inpainted/`)
+      ) {
+        throw new Error(
+          "공유 파일의 인페인팅 이미지 위치가 올바르지 않습니다.",
+        );
       }
       if (!isSupportedImagePath(inpaintedPath)) {
-        throw new Error(`지원하지 않는 인페인팅 이미지 형식입니다: ${page.name}`);
+        throw new Error(
+          `지원하지 않는 인페인팅 이미지 형식입니다: ${page.name}`,
+        );
       }
       const inpaintedEntry = entries.get(inpaintedPath);
       if (!inpaintedEntry) {

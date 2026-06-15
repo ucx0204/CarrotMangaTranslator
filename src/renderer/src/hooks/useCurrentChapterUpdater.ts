@@ -16,15 +16,15 @@ export function useCurrentChapterUpdater({
 }: UseCurrentChapterUpdaterOptions): UpdateCurrentChapter {
   return useCallback(
     (pageId, updater) => {
-      setCurrentChapter((current) => {
-        if (!current) {
-          return current;
-        }
-        const next = updater(current);
-        currentChapterRef.current = next;
-        markDirty(pageId);
-        return next;
-      });
+      const current = currentChapterRef.current;
+      if (!current) {
+        return;
+      }
+
+      markDirty(pageId);
+      const next = updater(current);
+      currentChapterRef.current = next;
+      setCurrentChapter(next);
     },
     [currentChapterRef, markDirty, setCurrentChapter]
   );

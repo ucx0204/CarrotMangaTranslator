@@ -168,7 +168,7 @@ describe("chapter sync helpers", () => {
 
     expect(merged.preservedDirtyPageIds).toEqual(["page-1"]);
     expect(merged.chapter.pages[0]?.analysisStatus).toBe("completed");
-    expect(merged.chapter.pages[0]?.updatedAt).toBe("2026-04-19T00:01:00.000Z");
+    expect(merged.chapter.pages[0]?.updatedAt).toBe("2026-04-19T00:00:00.000Z");
     expect(merged.chapter.pages[0]?.blocks[0]?.translatedText).toBe("수정된 번역문");
   });
 });

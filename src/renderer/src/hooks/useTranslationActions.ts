@@ -1,15 +1,17 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { BBox, ChapterSnapshot, JobState, MangaPage, StartAnalysisRequest } from "../../../shared/types";
 import { isUsableRegionBbox } from "../../../shared/region";
 import { formatErrorMessage } from "../lib/appHelpers";
 import { markChapterPagesRunning } from "../lib/chapterSync";
 import { summarizeWarnings } from "../lib/jobProgress";
+import { mangaGateway } from "../api/mangaGateway";
 
 type RunAnalysisMode = "pending" | "all" | "single-page";
 
 type UseTranslationActionsOptions = {
   clearStatusLines: () => void;
   currentChapter: ChapterSnapshot | null;
+  currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
   jobActive: boolean;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
   beforeTranslateRegion?: () => Promise<void>;
@@ -52,6 +54,7 @@ function makeStartAnalysisRequest(chapterId: string, runMode: RunAnalysisMode, p
 export function useTranslationActions({
   clearStatusLines,
   currentChapter,
+  currentChapterRef,
   jobActive,
   mergeLiveChapter,
   beforeTranslateRegion,
@@ -82,9 +85,11 @@ export function useTranslationActions({
           progressText: "모델 준비 중",
           phase: "booting"
         });
-        setCurrentChapter((chapter) => (chapter ? markChapterPagesRunning(chapter, runMode, pageId) : chapter));
+        const optimisticChapter = markChapterPagesRunning(currentChapter, runMode, pageId);
+        currentChapterRef.current = optimisticChapter;
+        setCurrentChapter(optimisticChapter);
 
-        const result = await window.mangaApi.startAnalysis(makeStartAnalysisRequest(currentChapter.id, runMode, pageId));
+        const result = await mangaGateway.startAnalysis(makeStartAnalysisRequest(currentChapter.id, runMode, pageId));
         if (result.chapter) {
           mergeLiveChapter(result.chapter);
         }
@@ -109,7 +114,18 @@ export function useTranslationActions({
         failAnalysisJob(setJobState, pushStatus, "번역 작업 실패", formatErrorMessage(error, "번역 작업을 시작하지 못했습니다."));
       }
     },
-    [clearStatusLines, currentChapter, jobActive, mergeLiveChapter, pushStatus, refreshLibrary, saveNow, setCurrentChapter, setJobState]
+    [
+      clearStatusLines,
+      currentChapter,
+      currentChapterRef,
+      jobActive,
+      mergeLiveChapter,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      setCurrentChapter,
+      setJobState
+    ]
   );
 
   const translateSelectedRegion = useCallback(
@@ -138,7 +154,7 @@ export function useTranslationActions({
         });
 
         await beforeTranslateRegion?.();
-        const result = await window.mangaApi.translateRegion({
+        const result = await mangaGateway.translateRegion({
           chapterId: currentChapter.id,
           pageId: selectedPage.id,
           bbox

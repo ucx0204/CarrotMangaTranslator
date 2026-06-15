@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/types";
+import { mangaGateway } from "../api/mangaGateway";
 
 export type RetouchPreviewState = {
   mode: "brush" | "eraser" | "mask";
@@ -186,7 +187,7 @@ export function useInpaintingRetouch({
       setCurrentChapter(nextChapter);
       currentChapterRef.current = nextChapter;
       try {
-        const result = await window.mangaApi.setPageInpaintingResult({
+        const result = await mangaGateway.setPageInpaintingResult({
           chapterId: chapter.id,
           pageId,
           inpaintedImagePath: inpaintedImagePath ?? null,
@@ -218,7 +219,7 @@ export function useInpaintingRetouch({
         [beforePath]
       );
       try {
-        const result = await window.mangaApi.applyInpaintingRetouch({
+        const result = await mangaGateway.applyInpaintingRetouch({
           chapterId: currentChapter.id,
           pageId: selectedPage.id,
           mode: tool === "brush" ? "paint" : "restore",
