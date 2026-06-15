@@ -107,6 +107,7 @@ const api = {
     ipcRenderer.invoke("settings:pick-local-model"),
   pickLocalMmprojFile: (): Promise<string | null> =>
     ipcRenderer.invoke("settings:pick-local-mmproj"),
+  openAmdHipSdkDownload: () => ipcRenderer.invoke("external:open-amd-hip-sdk"),
   testModelSettings: (
     settings: AppSettings,
     testId?: string,

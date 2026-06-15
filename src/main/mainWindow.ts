@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from "electron";
+import { existsSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { logError, writeLog } from "./logger";
@@ -10,11 +11,13 @@ export function createMainWindow(): BrowserWindow {
   const productionRendererPath = join(__dirname, "../renderer/index.html");
   const allowedRendererUrl =
     devRendererUrl ?? pathToFileURL(productionRendererPath).toString();
+  const windowIconPath = resolveWindowIconPath();
   const window = new BrowserWindow({
     width: 1600,
     height: 980,
     minWidth: 1240,
     minHeight: 760,
+    ...(windowIconPath ? { icon: windowIconPath } : {}),
     backgroundColor: "#101114",
     autoHideMenuBar: true,
     webPreferences: {
@@ -74,6 +77,14 @@ export function createMainWindow(): BrowserWindow {
   }
 
   return window;
+}
+
+function resolveWindowIconPath(): string | null {
+  const candidates = [
+    join(process.cwd(), "build", "icon.ico"),
+    join(__dirname, "../../build/icon.ico"),
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
 function resolveAllowedDevRendererUrl(

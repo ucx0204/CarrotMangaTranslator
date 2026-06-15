@@ -4,6 +4,7 @@ import type {
   OcrDevice,
   OcrGpuBackend,
 } from "../../../../shared/types";
+import { mangaGateway } from "../../api/mangaGateway";
 import { FLUX_BACKEND_OPTIONS, OCR_DEVICE_OPTIONS } from "../settingsOptions";
 
 type HardwareSettingsPanelProps = {
@@ -121,6 +122,22 @@ export function HardwareSettingsPanel({
               ?.description
           }
         </p>
+        {fluxBackend === "zluda-native" ? (
+          <button
+            type="button"
+            className="settings-external-link"
+            onClick={() => {
+              void mangaGateway.openAmdHipSdkDownload().catch((error) => {
+                console.error(
+                  "Failed to open AMD HIP SDK download page",
+                  error,
+                );
+              });
+            }}
+          >
+            AMD HIP SDK 다운로드 (ROCm 7.1.1)
+          </button>
+        ) : null}
         {usesAmdHardware ? (
           <p className="muted-line modal-note">
             감지된 AMD GPU에서는 CUDA 네이티브 백엔드를 쓸 수 없어 ZLUDA 또는

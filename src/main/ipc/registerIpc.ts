@@ -1,4 +1,5 @@
 import type { IpcContext } from "./context";
+import { registerExternalLinksIpc } from "./externalLinksIpc";
 import { registerFontsIpc } from "./fontsIpc";
 import { registerImportShareIpc } from "./importShareIpc";
 import { registerInpaintingIpc } from "./inpaintingIpc";
@@ -9,6 +10,7 @@ import { registerSettingsIpc } from "./settingsIpc";
 import { registerTranslationJobIpc } from "./translationJobIpc";
 
 export function registerIpc(context: IpcContext): void {
+  registerExternalLinksIpc(context);
   registerLogsIpc(context);
   registerSettingsIpc(context);
   registerLibraryIpc(context);

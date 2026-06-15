@@ -3128,6 +3128,24 @@ kbd {
   margin: 0;
 }
 
+.settings-external-link {
+  justify-self: start;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.settings-external-link:hover {
+  color: var(--accent-hi);
+}
+
 .source-choice-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
