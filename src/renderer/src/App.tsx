@@ -11,6 +11,8 @@ import { AppModals } from "./components/AppModals";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppRightRail } from "./components/AppRightRail";
 import { AppWorkspace } from "./components/AppWorkspace";
+import { ToastViewport } from "./components/ui/ToastViewport";
+import { toast } from "./lib/toastStore";
 import type { InpaintingTool } from "./inpainting/InpaintingContext";
 import { InpaintingProvider } from "./inpainting/InpaintingContext";
 import { FontsProvider } from "./fonts/FontsContext";
@@ -88,6 +90,7 @@ export default function App(): React.JSX.Element {
   const currentChapterRef = useRef<ChapterSnapshot | null>(null);
   const selectedPageIdRef = useRef<string | null>(null);
   const selectedBlockIdRef = useRef<string | null>(null);
+  const prevJobStatusRef = useRef<JobState["status"]>("idle");
 
   const selectedPage = useMemo(
     () => currentChapter?.pages.find((page) => page.id === selectedPageId) ?? currentChapter?.pages[0] ?? null,
@@ -111,7 +114,10 @@ export default function App(): React.JSX.Element {
   const { clearDirtyTracking, dirty, dirtyPageIdsRef, markDirty, replaceDirtyPageIds, saveNow } = useChapterPersistence({
     currentChapter,
     currentChapterRef,
-    onSaveError: (message) => pushStatus(`저장 실패: ${message}`),
+    onSaveError: (message) => {
+      pushStatus(`저장 실패: ${message}`);
+      toast.error(`저장 실패: ${message}`);
+    },
     setCurrentChapter
   });
   const selectedPageEditLocked = Boolean(jobActive && selectedPage && selectedPage.analysisStatus !== "completed");
@@ -211,6 +217,24 @@ export default function App(): React.JSX.Element {
       });
     }
   }, [saveSettingsQuietly, settings]);
+
+  React.useEffect(() => {
+    const previous = prevJobStatusRef.current;
+    const next = jobState.status;
+    if (previous === next) {
+      return;
+    }
+    prevJobStatusRef.current = next;
+    if (next === "completed") {
+      toast.success(jobState.progressText || "작업이 완료되었습니다.");
+    } else if (next === "failed") {
+      toast.error(jobState.progressText || "작업에 실패했습니다.", {
+        action: { label: "로그 폴더 열기", onClick: openLogFolder }
+      });
+    } else if (next === "cancelled") {
+      toast.info("작업이 취소되었습니다.");
+    }
+  }, [jobState.status, jobState.progressText, openLogFolder]);
 
   const mergeLiveChapter = useLiveChapterSync({
     currentChapter,
@@ -612,6 +636,7 @@ export default function App(): React.JSX.Element {
         }}
       />
     </main>
+    <ToastViewport />
     </FontsProvider>
   );
 }

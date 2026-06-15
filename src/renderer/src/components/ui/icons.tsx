@@ -42,6 +42,21 @@ export const WarnIcon = createIcon(
   </>
 );
 
+export const CheckCircleIcon = createIcon(
+  <>
+    <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    <path d="m8.5 12 2.5 2.5 4.5-5" />
+  </>
+);
+
+export const InfoIcon = createIcon(
+  <>
+    <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    <path d="M12 11v5" />
+    <path d="M12 8h.01" />
+  </>
+);
+
 export const UndoIcon = createIcon(
   <>
     <path d="M9 14 4 9l5-5" />

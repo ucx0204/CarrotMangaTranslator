@@ -32,6 +32,14 @@ const MODEL_PRESET_BUTTON_IDS = [
   "custom"
 ] as ModelPresetId[];
 
+type SettingsTabId = "engine" | "hardware" | "test";
+
+const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
+  { id: "engine", label: "번역 엔진" },
+  { id: "hardware", label: "하드웨어 · OCR" },
+  { id: "test", label: "설치 / 확인" }
+];
+
 type TestState =
   | {
       status: "idle";
@@ -86,6 +94,7 @@ export function SettingsModal({
     initialSettings.inpainting?.fluxBackend ?? "cuda-native"
   );
   const [maxTokens, setMaxTokens] = React.useState(String(initialSettings.maxTokens));
+  const [activeTab, setActiveTab] = React.useState<SettingsTabId>("engine");
   const [localActionBusy, setLocalActionBusy] = React.useState(false);
   const [testState, setTestState] = React.useState<TestState>({ status: "idle", message: null, detail: null });
   const [testLogLines, setTestLogLines] = React.useState<string[]>([]);
@@ -372,7 +381,7 @@ export function SettingsModal({
 
   return (
     <Modal
-      width="min(680px, 100%)"
+      width="min(720px, 100%)"
       ariaLabel="설정"
       title="설정"
       onClose={onCancel}
@@ -394,8 +403,32 @@ export function SettingsModal({
         </>
       }
     >
-        <section className="modal-section">
+        <div className="settings-layout">
+          <nav className="settings-tabs" role="tablist" aria-label="설정 영역">
+            {SETTINGS_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`settings-tab-${tab.id}`}
+                aria-selected={activeTab === tab.id}
+                aria-controls={`settings-panel-${tab.id}`}
+                className={`settings-tab ${activeTab === tab.id ? "active" : ""}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+          <div
+            className="settings-tabpanel modal-section"
+            role="tabpanel"
+            id={`settings-panel-${activeTab}`}
+            aria-labelledby={`settings-tab-${activeTab}`}
+          >
           <p className="muted-line modal-note">다음 번 번역 실행부터 적용됩니다.</p>
+          {activeTab === "engine" ? (
+            <>
           <div className="settings-field-stack">
             <span>번역 엔진</span>
             <div className="settings-mode-group" role="tablist" aria-label="번역 엔진">
@@ -443,7 +476,11 @@ export function SettingsModal({
           <p className="muted-line modal-note">
             출력이 길어지는 페이지에서 말풍선 누락을 줄입니다. 기본값은 12000입니다.
           </p>
+            </>
+          ) : null}
 
+          {activeTab === "hardware" ? (
+            <>
           <div className="settings-field-stack">
             <span>Paddle OCR 장치</span>
             <div className="settings-mode-group" role="tablist" aria-label="Paddle OCR 장치">
@@ -492,8 +529,21 @@ export function SettingsModal({
             <p className="muted-line modal-note">
               {FLUX_BACKEND_OPTIONS.find((option) => option.id === fluxBackend)?.description}
             </p>
+            {usesAmdHardware ? (
+              <p className="muted-line modal-note">
+                감지된 AMD GPU에서는 CUDA 네이티브 백엔드를 쓸 수 없어 ZLUDA 또는 CPU 중에서 선택합니다.
+              </p>
+            ) : usesNvidiaHardware ? (
+              <p className="muted-line modal-note">
+                감지된 NVIDIA GPU에서는 ZLUDA 백엔드 대신 CUDA 네이티브를 사용합니다.
+              </p>
+            ) : null}
           </div>
+            </>
+          ) : null}
 
+          {activeTab === "engine" ? (
+            <>
           {modelProvider === "gemma" ? (
             <>
           <div className="settings-field-stack">
@@ -609,6 +659,15 @@ export function SettingsModal({
                 <p className="muted-line modal-note">
                   {LLAMA_RUNTIME_PROFILE_OPTIONS.find((option) => option.id === llamaRuntimeProfile)?.description}
                 </p>
+                {usesAmdHardware ? (
+                  <p className="muted-line modal-note">
+                    감지된 AMD GPU에서는 CUDA·RTX 런타임이 비활성화되고 ROCm·Vulkan 중에서 선택합니다.
+                  </p>
+                ) : usesNvidiaHardware ? (
+                  <p className="muted-line modal-note">
+                    감지된 NVIDIA GPU에서는 ROCm·Vulkan 런타임이 비활성화됩니다.
+                  </p>
+                ) : null}
               </div>
             </>
           ) : (
@@ -732,7 +791,11 @@ export function SettingsModal({
               </label>
             </>
           )}
+            </>
+          ) : null}
 
+          {activeTab === "test" ? (
+            <>
           <div className="settings-field-stack">
             <span>설치/작동 확인</span>
             <div className="settings-inline-actions">
@@ -762,6 +825,8 @@ export function SettingsModal({
               </div>
             ) : null}
           </div>
+            </>
+          ) : null}
 
           {modelProvider === "openai-codex" && !codexOauthPortValid ? (
             <p className="muted-line">openai-oauth 포트는 1 이상 65535 이하의 정수여야 합니다.</p>
@@ -769,7 +834,8 @@ export function SettingsModal({
           {!maxTokensValid ? (
             <p className="muted-line">최대 출력 토큰은 {MIN_MAX_TOKENS} 이상 {MAX_MAX_TOKENS} 이하의 정수여야 합니다.</p>
           ) : null}
-        </section>
+          </div>
+        </div>
     </Modal>
   );
 }

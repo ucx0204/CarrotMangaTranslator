@@ -6,7 +6,6 @@
   place-items: center;
   padding: var(--sp-6);
   background: var(--bg-overlay);
-  backdrop-filter: blur(2px);
 }
 
 .card {
@@ -16,8 +15,7 @@
   max-height: calc(100vh - 2 * var(--sp-6));
   border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  background: rgba(28, 32, 40, 0.88);
-  backdrop-filter: blur(var(--glass-blur));
+  background: #1f232b;
   box-shadow: var(--shadow-overlay), var(--glass-highlight);
   overflow: hidden;
 }
