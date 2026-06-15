@@ -11,7 +11,10 @@ import { AppModals } from "./components/AppModals";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppRightRail } from "./components/AppRightRail";
 import { AppWorkspace } from "./components/AppWorkspace";
+import { CommandPalette, type Command } from "./components/CommandPalette";
+import { ShortcutHelp } from "./components/ShortcutHelp";
 import { ToastViewport } from "./components/ui/ToastViewport";
+import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
 import { toast } from "./lib/toastStore";
 import type { InpaintingTool } from "./inpainting/InpaintingContext";
 import { InpaintingProvider } from "./inpainting/InpaintingContext";
@@ -83,6 +86,8 @@ export default function App(): React.JSX.Element {
   const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<Record<string, InpaintingMaskStroke[]>>({});
   const [showBlockChrome, setShowBlockChrome] = useState(true);
   const [showTextBlocks, setShowTextBlocks] = useState(true);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const { settings, settingsOpen, settingsBusy, openSettings, closeSettings, submitSettings, resetSettings, saveSettingsQuietly } = useSettingsDialog(pushStatus);
   const workspacePanelRef = useRef<HTMLElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -179,9 +184,10 @@ export default function App(): React.JSX.Element {
     setSelectedBlockId,
     setSelectedPageId
   });
-  const modalOpen = Boolean(
+  const overlayModalsOpen = Boolean(
     translationSourceOpen || importPreview || shareExportOpen || shareImportPreview || renameTarget || settingsOpen || confirmDialog || inpaintingGuideOpen
   );
+  const modalOpen = overlayModalsOpen || commandPaletteOpen || shortcutHelpOpen;
 
   React.useEffect(() => {
     void refreshLibrary();
@@ -483,6 +489,52 @@ export default function App(): React.JSX.Element {
     undoRetouch
   });
 
+  const togglePalette = React.useCallback(() => setCommandPaletteOpen((open) => !open), []);
+  const toggleHelp = React.useCallback(() => setShortcutHelpOpen((open) => !open), []);
+  useGlobalHotkeys({
+    blockingModalOpen: overlayModalsOpen,
+    paletteOpen: commandPaletteOpen,
+    onTogglePalette: togglePalette,
+    onToggleHelp: toggleHelp
+  });
+
+  const commands = useMemo<Command[]>(() => {
+    const list: Command[] = [];
+    if (currentChapter && !jobActive && !inpaintingMode) {
+      list.push({ id: "translate-pending", label: "이어서 번역", hint: "남은 페이지", keywords: "translate resume ieoseo", run: () => void runAnalysis("pending") });
+      list.push({ id: "translate-all", label: "전체 다시 번역", hint: "모든 페이지", keywords: "translate all retranslate jeonche", run: () => void runAnalysis("all") });
+      list.push({ id: "enter-inpainting", label: "인페인팅 시작", keywords: "inpaint", run: () => void enterInpaintingMode() });
+    }
+    if (inpaintingMode) {
+      list.push({ id: "exit-inpainting", label: "인페인팅 종료", keywords: "inpaint exit", run: () => exitInpaintingMode() });
+    }
+    if (jobActive) {
+      list.push({ id: "cancel-job", label: "작업 취소", keywords: "cancel stop", run: cancelJob });
+    }
+    list.push({ id: "open-translate-source", label: "번역 소스 가져오기", hint: "이미지·폴더·ZIP", keywords: "import source", run: () => setTranslationSourceOpen(true) });
+    list.push({ id: "open-batch", label: "작품 일괄 번역", keywords: "batch import", run: () => void openImportPreview("zip-folder") });
+    list.push({ id: "open-share-import", label: "공유본 가져오기", keywords: "share import", run: () => void openShareImportPreview() });
+    list.push({ id: "open-share-export", label: "공유로 내보내기", keywords: "share export", run: () => setShareExportOpen(true) });
+    list.push({ id: "open-settings", label: "설정 열기", keywords: "settings", run: () => void openSettings() });
+    list.push({ id: "open-library-folder", label: "보관함 폴더 열기", keywords: "library folder", run: openLibraryFolder });
+    list.push({ id: "open-log-folder", label: "로그 폴더 열기", keywords: "log folder", run: openLogFolder });
+    list.push({ id: "show-shortcuts", label: "단축키 도움말", keywords: "shortcut help", run: () => setShortcutHelpOpen(true) });
+    return list;
+  }, [
+    currentChapter,
+    jobActive,
+    inpaintingMode,
+    runAnalysis,
+    enterInpaintingMode,
+    exitInpaintingMode,
+    cancelJob,
+    openImportPreview,
+    openShareImportPreview,
+    openSettings,
+    openLibraryFolder,
+    openLogFolder
+  ]);
+
   return (
     <FontsProvider>
     <main className={`app-shell ${inpaintingMode ? "inpainting-mode" : ""}`}>
@@ -540,6 +592,7 @@ export default function App(): React.JSX.Element {
         onOpenTranslationSource={() => setTranslationSourceOpen(true)}
         onOpenBatchImport={() => void openImportPreview("zip-folder")}
         onOpenShareImport={() => void openShareImportPreview()}
+        onOpenSettings={() => void openSettings()}
       />
 
       <InpaintingProvider value={inpaintingContextValue}>
@@ -636,6 +689,8 @@ export default function App(): React.JSX.Element {
         }}
       />
     </main>
+    <CommandPalette open={commandPaletteOpen} commands={commands} onClose={() => setCommandPaletteOpen(false)} />
+    <ShortcutHelp open={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
     <ToastViewport />
     </FontsProvider>
   );

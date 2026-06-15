@@ -60,6 +60,17 @@ export function InpaintingControlPanel(): React.JSX.Element {
   const pageTargetCount = blockCounts.selectedPage;
   const pendingTargetCount = blockCounts.pendingTotal;
   const stepIndex = STEP_ORDER.indexOf(step);
+  const activeToolLabel =
+    tool === "mask"
+      ? "마스크 붓"
+      : tool === "brush"
+        ? "붓"
+        : tool === "eraser"
+          ? "복원"
+          : tool === "picker"
+            ? "색 뽑기"
+            : "도구를 선택하세요";
+  const sizableTool = tool === "mask" || tool === "brush" || tool === "eraser";
 
   return (
     <section className="inpainting-panel inpaint-flow">
@@ -127,6 +138,17 @@ export function InpaintingControlPanel(): React.JSX.Element {
             </button>
             <p className="inpainting-hint">블록 모서리의 ‘제외’ 버튼으로 해당 블록을 인페인팅에서 빼거나 다시 넣을 수 있어요.</p>
           </div>
+          <div className="inpaint-revert">
+            <span className="inpaint-revert-label">인페인팅 되돌리기</span>
+            <div className="inpaint-revert-row">
+              <Button size="sm" variant="ghost" disabled={!selectedPage?.inpaintedImagePath || jobActive} onClick={onRevertPage}>
+                이 페이지
+              </Button>
+              <Button size="sm" variant="ghost" disabled={!inpaintedPageCount || jobActive} onClick={onRevertChapter}>
+                전체
+              </Button>
+            </div>
+          </div>
           <div className="inpaint-step-nav">
             <span />
             <Button variant="primary" onClick={() => goToStep("retouch")} disabled={jobActive}>
@@ -139,6 +161,36 @@ export function InpaintingControlPanel(): React.JSX.Element {
       {step === "retouch" ? (
         <div className="inpaint-step-body">
           <p className="inpaint-step-lead">남은 자국을 직접 다듬습니다. 효과음은 그려서 지우고, 자잘한 부분은 붓·복원으로 정리하세요.</p>
+
+          <div className="retouch-tools-bar">
+            <div className="retouch-tools-bar-head">
+              <span className="retouch-active-tool">{activeToolLabel}</span>
+              <div className="retouch-undo-redo">
+                <IconButton size="sm" label="되돌리기 (Ctrl+Z)" title="되돌리기 (Ctrl+Z)" disabled={!canUndo || jobActive} onClick={onUndoRetouch}>
+                  <UndoIcon size={16} />
+                </IconButton>
+                <IconButton size="sm" label="다시 실행 (Ctrl+Y)" title="다시 실행 (Ctrl+Y / Ctrl+Shift+Z)" disabled={!canRedo || jobActive} onClick={onRedoRetouch}>
+                  <RedoIcon size={16} />
+                </IconButton>
+              </div>
+            </div>
+            {sizableTool ? (
+              <div className="retouch-tool-settings">
+                <label className="brush-size-control">
+                  <span className="brush-size-label">크기</span>
+                  <RangeInput min={4} max={90} value={brushRadius} disabled={jobActive} onChange={(event) => onBrushRadiusChange(Number(event.target.value))} />
+                  <strong>{brushRadius}px</strong>
+                </label>
+                {tool === "brush" ? (
+                  <label className="brush-color-control" title="붓 색상">
+                    <input type="color" value={brushColor} disabled={jobActive} onChange={(event) => onBrushColorChange(event.target.value)} />
+                  </label>
+                ) : null}
+              </div>
+            ) : (
+              <p className="retouch-tool-hint">아래에서 도구를 선택하면 붓 크기·색상을 조절할 수 있어요. 마스크 붓·붓·복원은 모두 같은 크기를 사용합니다.</p>
+            )}
+          </div>
 
           <div className="inpaint-group">
             <div className="inpaint-group-head">
@@ -162,7 +214,7 @@ export function InpaintingControlPanel(): React.JSX.Element {
           <div className="inpaint-group">
             <div className="inpaint-group-head">
               <h3>수동 보정</h3>
-              <small>Ctrl+Z / Ctrl+Y</small>
+              <small>붓 · 복원 · 색 뽑기</small>
             </div>
             <div className="retouch-toolbar">
               <button className={tool === "brush" ? "active" : ""} disabled={jobActive} onClick={() => onSelectTool(tool === "brush" ? "none" : "brush")}>
@@ -178,29 +230,6 @@ export function InpaintingControlPanel(): React.JSX.Element {
                 <PickerIcon size={18} />
                 <span>색 뽑기</span>
               </button>
-            </div>
-            <div className="retouch-control-strip">
-              <label className="brush-color-control" title="붓 색상">
-                <input type="color" value={brushColor} disabled={jobActive} onChange={(event) => onBrushColorChange(event.target.value)} />
-              </label>
-              <label className="brush-size-control compact">
-                <RangeInput min={4} max={90} value={brushRadius} disabled={jobActive} onChange={(event) => onBrushRadiusChange(Number(event.target.value))} />
-                <strong>{brushRadius}px</strong>
-              </label>
-              <IconButton size="sm" label="되돌리기 (Ctrl+Z)" title="되돌리기 (Ctrl+Z)" disabled={!canUndo || jobActive} onClick={onUndoRetouch}>
-                <UndoIcon size={16} />
-              </IconButton>
-              <IconButton size="sm" label="다시 실행 (Ctrl+Y)" title="다시 실행 (Ctrl+Y / Ctrl+Shift+Z)" disabled={!canRedo || jobActive} onClick={onRedoRetouch}>
-                <RedoIcon size={16} />
-              </IconButton>
-            </div>
-            <div className="retouch-revert-row">
-              <Button size="sm" disabled={!selectedPage?.inpaintedImagePath || jobActive} onClick={onRevertPage}>
-                페이지 되돌리기
-              </Button>
-              <Button size="sm" disabled={!inpaintedPageCount || jobActive} onClick={onRevertChapter}>
-                전체 되돌리기
-              </Button>
             </div>
           </div>
 

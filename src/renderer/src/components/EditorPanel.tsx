@@ -59,6 +59,10 @@ export function EditorPanel({
   return (
     <section className="editor-panel has-block">
       <h2>블록</h2>
+      <div className="editor-group">
+        <div className="editor-group-head">
+          <h3>텍스트</h3>
+        </div>
       <label>
         한국어
         <textarea value={block.translatedText} disabled={disabled} onChange={(event) => onUpdate({ translatedText: event.target.value })} />
@@ -67,6 +71,11 @@ export function EditorPanel({
         OCR
         <textarea value={block.sourceText} disabled={disabled} onChange={(event) => onUpdate({ sourceText: event.target.value })} />
       </label>
+      </div>
+      <div className="editor-group">
+        <div className="editor-group-head">
+          <h3>서식</h3>
+        </div>
       <label>
         방향
         <select
@@ -184,6 +193,11 @@ export function EditorPanel({
           />
         </div>
       </div>
+      </div>
+      <div className="editor-group">
+        <div className="editor-group-head">
+          <h3>색상</h3>
+        </div>
       <div className="color-row" aria-label="블록 색상">
         <ColorField label="글자색" value={resolveColor(block.textColor, "#111111")} disabled={disabled} onChange={(textColor) => onUpdate({ textColor })} />
         <ColorField label="외곽선" value={outlineColor} disabled={disabled} onChange={(nextOutlineColor) => onUpdate({ outlineColor: nextOutlineColor })} />
@@ -199,6 +213,7 @@ export function EditorPanel({
           onChange={(event) => onUpdate({ outlineWidthScale: Number(event.target.value) })}
         />
       </label>
+      </div>
       <div className="block-actions">
         <Button fullWidth onClick={onDuplicate} disabled={disabled}>
           복제

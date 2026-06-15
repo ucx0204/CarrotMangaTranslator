@@ -1,4 +1,4 @@
-import { useCallback, useRef, type Dispatch, type MutableRefObject, type PointerEvent, type RefObject, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type PointerEvent, type RefObject, type SetStateAction } from "react";
 import type { ChapterSnapshot, InpaintingMaskStroke, MangaPage, TranslationBlock } from "../../../shared/types";
 import {
   applyEditableBlockBbox,
@@ -90,6 +90,47 @@ export function useWorkspacePointerHandlers({
 } {
   const dragRef = useRef<DragState | null>(null);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      const drag = dragRef.current;
+      if (drag) {
+        const page = selectedPage;
+        if (page && currentChapter) {
+          updateCurrentChapter(page.id, (chapter) => ({
+            ...chapter,
+            pages: chapter.pages.map((candidate) =>
+              candidate.id !== page.id
+                ? candidate
+                : {
+                    ...candidate,
+                    updatedAt: new Date().toISOString(),
+                    blocks: candidate.blocks.map((block) =>
+                      block.id === drag.blockId
+                        ? applyEditableBlockBbox(block, drag.startBbox, { width: page.width, height: page.height }, block.translatedText || block.sourceText || "...")
+                        : block
+                    )
+                  }
+            )
+          }));
+        }
+        dragRef.current = null;
+        if (stageRef.current) {
+          stageRef.current.style.cursor = "";
+        }
+        return;
+      }
+      if (regionSelection?.active) {
+        setRegionSelection(null);
+        pushStatus("영역 번역 선택을 취소했습니다.");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [currentChapter, pushStatus, regionSelection?.active, selectedPage, setRegionSelection, stageRef, updateCurrentChapter]);
+
   const startRegionTranslationSelection = useCallback(() => {
     if (!selectedPage || !selectedPageImageDataUrl || jobActive) {
       return;
@@ -167,6 +208,7 @@ export function useWorkspacePointerHandlers({
         startY: event.clientY,
         startBbox: target.bbox
       };
+      stageRef.current.style.cursor = mode === "move" ? "grabbing" : "nwse-resize";
       capturePointerSafely(stageRef.current, event.pointerId);
     },
     [inpaintingToolActive, regionSelection?.active, selectedPage, selectedPageEditLocked, setSelectedBlockId, stageRef]
@@ -373,6 +415,9 @@ export function useWorkspacePointerHandlers({
         releasePointerCaptureSafely(stageRef.current, event.pointerId);
       }
       dragRef.current = null;
+      if (stageRef.current) {
+        stageRef.current.style.cursor = "";
+      }
     },
     [
       applyRetouchPoints,

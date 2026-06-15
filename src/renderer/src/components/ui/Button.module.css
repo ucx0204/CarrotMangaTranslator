@@ -21,7 +21,7 @@
 }
 
 .button:hover:not(:disabled) {
-  border-color: var(--border-strong);
+  border-color: var(--border-hover);
   background: var(--bg-hover);
 }
 
@@ -92,6 +92,6 @@
 
 .ghost:hover:not(:disabled) {
   background: var(--bg-raised);
-  border-color: var(--border-strong);
+  border-color: var(--border-hover);
   color: var(--text);
 }

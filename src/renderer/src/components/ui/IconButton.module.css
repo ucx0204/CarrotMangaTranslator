@@ -16,7 +16,7 @@
 }
 
 .iconButton:hover:not(:disabled) {
-  border-color: var(--focus);
+  border-color: var(--border-hover);
   background: var(--bg-hover);
   color: var(--text);
 }

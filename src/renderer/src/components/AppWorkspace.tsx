@@ -35,6 +35,7 @@ type AppWorkspaceProps = {
   onOpenTranslationSource: () => void;
   onOpenBatchImport: () => void;
   onOpenShareImport: () => void;
+  onOpenSettings: () => void;
 };
 
 export function AppWorkspace({
@@ -65,7 +66,8 @@ export function AppWorkspace({
   onToggleBlockExcluded,
   onOpenTranslationSource,
   onOpenBatchImport,
-  onOpenShareImport
+  onOpenShareImport,
+  onOpenSettings
 }: AppWorkspaceProps): React.JSX.Element {
   // Subscribe to custom-font changes so overlay text re-resolves families when fonts load/register.
   useFonts();
@@ -106,14 +108,48 @@ export function AppWorkspace({
         </div>
       ) : (
         <div className="empty-state">
-          <h2>보관함에서 화를 열거나 새로 가져오세요.</h2>
-          <p>작품과 화 단위로 저장해두고, 이어서 번역하거나 페이지별로 다시 번역할 수 있습니다.</p>
-          <div className="empty-actions">
-            <Button variant="primary" onClick={onOpenTranslationSource}>
-              번역
-            </Button>
-            <Button onClick={onOpenBatchImport}>작품 일괄 번역</Button>
-            <Button onClick={onOpenShareImport}>가져오기</Button>
+          <div className="empty-card">
+            <h2>망가 번역을 시작해요</h2>
+            <p>이미지·폴더·ZIP을 가져와 작품과 화 단위로 저장하고, 페이지별로 번역·인페인팅·편집할 수 있어요.</p>
+            <ol className="empty-steps">
+              <li>
+                <span className="empty-step-num">1</span>
+                <div className="empty-step-body">
+                  <strong>번역 엔진 설정</strong>
+                  <span>모델·OCR·하드웨어를 먼저 확인하세요.</span>
+                </div>
+                <Button size="sm" onClick={onOpenSettings}>
+                  설정 열기
+                </Button>
+              </li>
+              <li>
+                <span className="empty-step-num">2</span>
+                <div className="empty-step-body">
+                  <strong>원본 가져오기</strong>
+                  <span>이미지·폴더·ZIP에서 페이지를 불러옵니다.</span>
+                </div>
+                <Button size="sm" onClick={onOpenTranslationSource}>
+                  가져오기
+                </Button>
+              </li>
+              <li>
+                <span className="empty-step-num">3</span>
+                <div className="empty-step-body">
+                  <strong>번역 &amp; 편집</strong>
+                  <span>이어서 번역하고 블록을 다듬으세요.</span>
+                </div>
+              </li>
+            </ol>
+            <div className="empty-actions">
+              <Button variant="primary" onClick={onOpenTranslationSource}>
+                번역 시작
+              </Button>
+              <Button onClick={onOpenBatchImport}>작품 일괄 번역</Button>
+              <Button onClick={onOpenShareImport}>공유본 가져오기</Button>
+            </div>
+            <p className="empty-hints">
+              <kbd>←</kbd> <kbd>→</kbd> 페이지 이동 · <kbd>Ctrl</kbd>+<kbd>K</kbd> 명령 팔레트 · <kbd>?</kbd> 단축키
+            </p>
           </div>
         </div>
       )}
