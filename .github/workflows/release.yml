@@ -94,9 +94,9 @@ jobs:
             $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$owner/$repo/releases" -Headers $headers -Body $releaseBody -ContentType "application/json"
           }
 
-          $files = Get-ChildItem -Path "dist" -Filter "망가번역기 Setup *.exe"
+          $files = Get-ChildItem -Path "dist" -Filter "* Setup *.exe"
           if (-not $files) {
-            throw "No Windows installer matched dist/망가번역기 Setup *.exe"
+            throw "No Windows installer matched dist/* Setup *.exe"
           }
 
           $release = Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/$owner/$repo/releases/$($release.id)" -Headers $headers -Body $releaseUpdateBody -ContentType "application/json"

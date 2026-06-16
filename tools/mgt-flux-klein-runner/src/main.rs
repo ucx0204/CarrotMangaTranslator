@@ -14,7 +14,7 @@ use tracing_subscriber::{EnvFilter, fmt};
 
 #[derive(Parser, Debug)]
 #[command(name = "mgt-flux-klein")]
-#[command(about = "Gemma Manga Translator Flux.2 Klein inpainting runner")]
+#[command(about = "Carrot Manga Translator Flux.2 Klein inpainting runner")]
 struct Cli {
     #[arg(long, value_name = "FILE")]
     transformer_path: PathBuf,

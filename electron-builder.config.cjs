@@ -45,7 +45,7 @@ if (existsSync(fluxKleinRunnerPath)) {
 
 module.exports = {
   appId: "com.sam40.mangagemma.translator",
-  productName: "당근 만화 번역기",
+  productName: "당근망가번역기",
   directories: {
     output: "dist",
   },

@@ -93,7 +93,7 @@ export const FLUX_EMBED_PYTHON_VERSION = "3.12.7";
 
 export const FLUX_ROCM_PREBUILT_RUNTIME_FILE = `mgt-flux-rocm-win-x64-rocm${FLUX_ROCM_WINDOWS_VERSION}-py${FLUX_EMBED_PYTHON_VERSION}-sdcpp.zip`;
 
-export const FLUX_ROCM_PREBUILT_RUNTIME_URL = `https://github.com/ucx0204/Gemma4MangaTranslatorForKorean/releases/download/flux-runtime/${FLUX_ROCM_PREBUILT_RUNTIME_FILE}`;
+export const FLUX_ROCM_PREBUILT_RUNTIME_URL = `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/flux-runtime/${FLUX_ROCM_PREBUILT_RUNTIME_FILE}`;
 
 export const FLUX_GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py";
 

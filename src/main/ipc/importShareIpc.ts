@@ -182,7 +182,7 @@ export function registerImportShareIpc(context: IpcContext): void {
       const options = {
         title: "공유 파일 저장",
         defaultPath: defaultName,
-        filters: [{ name: "Manga Gemma Share", extensions: ["mgtshare"] }],
+        filters: [{ name: "Carrot Manga Share", extensions: ["mgtshare"] }],
       } satisfies Electron.SaveDialogOptions;
       const window = context.getMainWindow();
       const result = window
@@ -207,7 +207,7 @@ export function registerImportShareIpc(context: IpcContext): void {
       const options = {
         title: "공유 파일 가져오기",
         properties: ["openFile"],
-        filters: [{ name: "Manga Gemma Share", extensions: ["mgtshare"] }],
+        filters: [{ name: "Carrot Manga Share", extensions: ["mgtshare"] }],
       } satisfies Electron.OpenDialogOptions;
       const window = context.getMainWindow();
       const result = window

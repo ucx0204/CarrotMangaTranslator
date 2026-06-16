@@ -261,6 +261,7 @@ FunctionEnd
   Delete "$INSTDIR\*.json"
   Delete "$INSTDIR\*.ico"
   Delete "$INSTDIR\LICENSE*"
+  Delete "$INSTDIR\당근망가번역기.exe"
   Delete "$INSTDIR\당근 만화 번역기.exe"
   Delete "$INSTDIR\망가번역기.exe"
   Delete "$INSTDIR\Uninstall *.exe"

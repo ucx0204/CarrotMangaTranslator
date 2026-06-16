@@ -50,7 +50,7 @@ export async function readJsonUrl(
   throwIfAborted(signal);
   const response = await fetch(url, {
     signal,
-    headers: { "User-Agent": "manga-gemma-translator" },
+    headers: { "User-Agent": "carrot-manga-translator" },
   });
   if (!response.ok) {
     throw new Error(`${url} 요청에 실패했습니다 (${response.status}).`);
@@ -253,7 +253,7 @@ export async function downloadToFile(options: {
 
   const response = await fetch(options.url, {
     signal: options.signal,
-    headers: { "User-Agent": "manga-gemma-translator" },
+    headers: { "User-Agent": "carrot-manga-translator" },
   });
   if (!response.ok || !response.body) {
     throw new Error(

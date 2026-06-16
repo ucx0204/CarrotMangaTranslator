@@ -1,8 +1,8 @@
 {
-  "name": "manga-gemma-translator",
-  "version": "0.5.1",
-  "description": "Thin desktop manga translation overlay editor powered by whole-page Gemma 4 OCR and bbox overlays.",
-  "license": "MIT",
+  "name": "carrot-manga-translator",
+  "version": "0.6.0",
+  "description": "Windows desktop manga translation, editing, and inpainting tool powered by Gemma 4 and OpenAI Codex.",
+  "license": "GPL-3.0-only",
   "type": "commonjs",
   "main": "out/main/bootstrap.js",
   "scripts": {

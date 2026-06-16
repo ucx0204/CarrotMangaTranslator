@@ -1,4 +1,4 @@
-# 당근 만화 번역기
+# 당근망가번역기
 
 일본어 만화 이미지를 한국어로 번역하고, 번역 블록 편집, 원문 지우기, PNG 출력까지 한 앱에서 처리하는 **Windows 데스크톱 만화 번역 도구**입니다.
 
@@ -22,8 +22,8 @@
 
 일반 사용자는 GitHub Releases에서 Windows 설치 파일을 받으면 됩니다.
 
-- 다운로드: https://github.com/ucx0204/Gemma4MangaTranslatorForKorean/releases
-- 설치 파일 예시: `당근 만화 번역기 Setup 0.5.1.exe`
+- 다운로드: https://github.com/ucx0204/CarrotMangaTranslator/releases
+- 설치 파일 예시: `당근망가번역기 Setup 0.6.0.exe`
 
 현재 설치 파일은 얇은 설치 파일을 지향합니다. 앱 본체와 기본 실행 파일만 먼저 설치하고, Gemma 모델, OCR 런타임, Flux 모델/런타임처럼 큰 파일은 처음 사용할 때 앱 데이터 폴더로 내려받습니다.
 
@@ -446,4 +446,6 @@ UI나 렌더링을 크게 바꿨다면 실제 앱에서 이미지/폴더/압축�
 
 ## 라이선스
 
-MIT License입니다. 자세한 내용은 [LICENSE](LICENSE)를 확인하세요.
+이 프로젝트는 `GPL-3.0-only` 라이선스로 배포합니다. 자세한 내용은 [LICENSE](LICENSE)를 확인하세요.
+
+앱 안에서 내려받거나 함께 쓰는 모델, Python 런타임, OCR 패키지, ffmpeg, llama.cpp/beellama/Lemonade ROCm, Flux 관련 런타임은 각각 별도 라이선스와 배포 조건을 가질 수 있습니다. 릴리즈 빌드와 런타임을 재배포하거나 수정 배포할 때는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)와 해당 구성요소의 라이선스도 함께 확인해야 합니다.
