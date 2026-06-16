@@ -109,7 +109,8 @@ jobs:
 
           $uploadUrl = $release.upload_url -replace "\{\?name,label\}", ""
           foreach ($file in $files) {
-            $encodedName = [uri]::EscapeDataString($file.Name)
+            $assetName = "CarrotMangaTranslator-Setup-$env:RELEASE_TAG.exe"
+            $encodedName = [uri]::EscapeDataString($assetName)
             $assetUploadUri = "$($uploadUrl)?name=$encodedName"
             Invoke-RestMethod `
               -Method Post `
@@ -118,5 +119,5 @@ jobs:
               -ContentType "application/octet-stream" `
               -InFile $file.FullName `
               -TimeoutSec 3600
-            Write-Host "Uploaded $($file.Name)"
+            Write-Host "Uploaded $assetName from $($file.Name)"
           }
