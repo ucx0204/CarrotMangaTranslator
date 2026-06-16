@@ -37,6 +37,7 @@ IGNORED_LABELS = {
 
 
 DLL_DIRECTORY_HANDLES = []
+TORCH_ROCM_SAFE_MODE_CONFIGURED = False
 
 
 def configure_windows_dll_search_path() -> None:
@@ -59,8 +60,13 @@ def main() -> int:
     parser.add_argument("--device", default=None, help="Optional Paddle device, e.g. gpu:0 or cpu.")
     parser.add_argument("--bbox-mode", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE", "vl"), choices=["vl", "ocr"])
     parser.add_argument("--engine", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", "paddle"))
-    parser.add_argument("--dtype", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", "float16"))
+    parser.add_argument("--dtype", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", "float32"))
     parser.add_argument("--ocr-version", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_VERSION", "PP-OCRv6"))
+    parser.add_argument(
+        "--merge-mode",
+        default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE"),
+        choices=["legacy", "conservative", "none"],
+    )
     args = parser.parse_args()
     if args.device:
       os.environ["MANGA_TRANSLATOR_PADDLEOCR_DEVICE"] = args.device
@@ -97,6 +103,7 @@ def main() -> int:
               output_path=Path(item["output"]),
               ocr=textline_detector,
               source=source,
+              merge_mode=resolve_textline_merge_mode(args, default="conservative"),
           )
           summaries.append(summary)
           emit_progress(
@@ -233,6 +240,137 @@ def parse_device_id(device: str | None) -> int:
       return 0
 
 
+def resolve_transformers_attention_implementation() -> str:
+    value = os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ATTN", "eager")
+    return str(value or "eager").strip() or "eager"
+
+
+def is_truthy_env(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+      return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def configure_torch_for_transformers_ocr(args: argparse.Namespace | None) -> None:
+    """Apply conservative ROCm/PyTorch settings before model construction."""
+
+    if not args or not is_transformers_engine(args):
+      return
+
+    try:
+      import torch
+    except Exception:
+      return
+
+    torch.set_grad_enabled(False)
+
+    device = str(getattr(args, "device", "") or "").lower()
+    is_gpu = device.startswith("gpu")
+    is_rocm = bool(getattr(torch.version, "hip", None))
+    if not is_gpu or not is_rocm:
+      return
+
+    if not is_truthy_env("MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN", True):
+      return
+
+    global TORCH_ROCM_SAFE_MODE_CONFIGURED
+    try:
+      torch.backends.cudnn.enabled = False
+      torch.backends.cudnn.benchmark = False
+      torch.backends.cudnn.deterministic = True
+      miopen_backend = getattr(torch.backends, "miopen", None)
+      if miopen_backend is not None and hasattr(miopen_backend, "enabled"):
+        miopen_backend.enabled = False
+    except Exception as exc:
+      print(
+          f"[paddleocr-vl-bboxes] warning: could not disable MIOpen/cuDNN backend: {exc}",
+          file=sys.stderr,
+      )
+      return
+
+    if not TORCH_ROCM_SAFE_MODE_CONFIGURED:
+      print(
+          "[paddleocr-vl-bboxes] ROCm safe GPU mode: disabled MIOpen/cuDNN convolution backend for PaddleOCR Transformers.",
+          file=sys.stderr,
+      )
+      TORCH_ROCM_SAFE_MODE_CONFIGURED = True
+
+
+def resolve_text_det_limit(args: argparse.Namespace | None) -> int:
+    transformers_engine = bool(args and is_transformers_engine(args))
+    fallback = "1600"
+    try:
+      return max(
+          320,
+          int(os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT", fallback)),
+      )
+    except Exception:
+      return int(fallback)
+
+
+def predict_with_torch_inference_mode(ocr: object, image_path: Path, transformers_engine: bool) -> object:
+    if not transformers_engine:
+      return ocr.predict(str(image_path))
+    try:
+      import torch
+      with torch.inference_mode():
+        return ocr.predict(str(image_path))
+    except ImportError:
+      return ocr.predict(str(image_path))
+
+
+def should_retry_with_eager_attention(exc: Exception, ocr_kwargs: dict) -> bool:
+    engine_config = ocr_kwargs.get("engine_config")
+    if not isinstance(engine_config, dict):
+      return False
+    if has_eager_attention_config(engine_config):
+      return False
+    return is_unsupported_attention_implementation_error(exc)
+
+
+def has_eager_attention_config(engine_config: dict) -> bool:
+    top_level = str(engine_config.get("attn_implementation") or "").strip().lower()
+    model_kwargs = engine_config.get("model_kwargs")
+    model_level = ""
+    if isinstance(model_kwargs, dict):
+      model_level = str(model_kwargs.get("attn_implementation") or "").strip().lower()
+    return top_level == "eager" and model_level == "eager"
+
+
+def apply_attention_implementation_to_engine_config(engine_config: dict, attn_implementation: str) -> None:
+    value = str(attn_implementation or "eager").strip() or "eager"
+    engine_config["attn_implementation"] = value
+    model_kwargs = engine_config.get("model_kwargs")
+    if not isinstance(model_kwargs, dict):
+      model_kwargs = {}
+      engine_config["model_kwargs"] = model_kwargs
+    model_kwargs["attn_implementation"] = value
+
+
+def describe_transformers_attention_config(ocr_kwargs: dict) -> str:
+    engine_config = ocr_kwargs.get("engine_config")
+    if not isinstance(engine_config, dict):
+      return "attention config unavailable"
+    model_kwargs = engine_config.get("model_kwargs")
+    model_level = None
+    if isinstance(model_kwargs, dict):
+      model_level = model_kwargs.get("attn_implementation")
+    return (
+        f"attn_implementation={engine_config.get('attn_implementation')!r}, "
+        f"model_kwargs.attn_implementation={model_level!r}"
+    )
+
+
+def is_unsupported_attention_implementation_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return (
+        "attn_implementation" in text
+        or "scaled_dot_product_attention" in text
+        or "does not support an attention implementation" in text
+    )
+
+
 def write_page_bboxes(image_path: Path, output_path: Path, pipeline: object, textline_detector: object) -> dict:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -298,7 +436,7 @@ def write_page_bboxes(image_path: Path, output_path: Path, pipeline: object, tex
     return {"output": str(output_path), "count": len(items)}
 
 
-def write_page_bboxes_from_ocr(image_path: Path, output_path: Path, ocr: object, source: str) -> dict:
+def write_page_bboxes_from_ocr(image_path: Path, output_path: Path, ocr: object, source: str, merge_mode: str = "conservative") -> dict:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with Image.open(image_path) as image:
@@ -308,7 +446,11 @@ def write_page_bboxes_from_ocr(image_path: Path, output_path: Path, ocr: object,
       raise RuntimeError("PaddleOCR textline detector is unavailable.")
 
     raw_candidates: list[dict] = []
-    results = ocr.predict(str(image_path))
+    results = predict_with_torch_inference_mode(
+        ocr,
+        image_path,
+        source == "paddleocr-ppocrv6-transformers",
+    )
     for result in results:
       data = dict(result)
       rec_texts = data.get("rec_texts") or data.get("texts") or []
@@ -342,7 +484,7 @@ def write_page_bboxes_from_ocr(image_path: Path, output_path: Path, ocr: object,
             }
         )
 
-    items = merge_textline_candidates(raw_candidates, width, height)
+    items = merge_textline_candidates(raw_candidates, width, height, mode=merge_mode)
     for index, item in enumerate(items):
       item["id"] = index + 1
       score = item.pop("_score", None)
@@ -392,6 +534,8 @@ def ensure_requested_device(args: argparse.Namespace) -> None:
             file=sys.stderr,
         )
 
+      configure_torch_for_transformers_ocr(args)
+
       _probe = torch.ones((1,), device="cuda")
       torch.cuda.synchronize()
 
@@ -431,36 +575,58 @@ def create_textline_detector(args: argparse.Namespace | None = None) -> object:
     if os.environ.get("MANGA_TRANSLATOR_DISABLE_PADDLEOCR_LINES", "").lower() in {"1", "true", "yes", "on"}:
       return None
 
+    ocr_kwargs = {}
+    transformers_engine = False
     try:
       from paddleocr import PaddleOCR
       device = getattr(args, "device", None) if args else None
       if not device and os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_DEVICE"):
         device = os.environ["MANGA_TRANSLATOR_PADDLEOCR_DEVICE"]
+      transformers_engine = bool(args and is_transformers_engine(args))
+      configure_torch_for_transformers_ocr(args)
       ocr_kwargs = {
           "lang": "japan",
           "ocr_version": getattr(args, "ocr_version", None) or os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_VERSION", "PP-OCRv6"),
           "use_doc_orientation_classify": False,
           "use_doc_unwarping": False,
           "use_textline_orientation": False,
-          "text_det_limit_side_len": int(os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT", "1600")),
+          "text_det_limit_side_len": resolve_text_det_limit(args),
           "text_det_limit_type": "max",
           "text_recognition_batch_size": int(os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH", "1")),
       }
       if device:
         ocr_kwargs["device"] = device
-      if args and is_transformers_engine(args):
+      if transformers_engine:
         device_type = "gpu" if device and str(device).lower().startswith("gpu") else "cpu"
+        attn_implementation = resolve_transformers_attention_implementation()
         ocr_kwargs["engine"] = "transformers"
-        ocr_kwargs["engine_config"] = {
-            "dtype": getattr(args, "dtype", "float16"),
+        engine_config = {
+            "dtype": getattr(args, "dtype", "float32"),
             "device_type": device_type,
             "device_id": parse_device_id(device),
-            "attn_implementation": os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ATTN", "sdpa"),
             "trust_remote_code": True,
+            "model_kwargs": {
+                "trust_remote_code": True,
+            },
         }
-      return PaddleOCR(**ocr_kwargs)
+        apply_attention_implementation_to_engine_config(engine_config, attn_implementation)
+        ocr_kwargs["engine_config"] = engine_config
+      try:
+        return PaddleOCR(**ocr_kwargs)
+      except Exception as exc:
+        if transformers_engine and should_retry_with_eager_attention(exc, ocr_kwargs):
+          print(
+              "[paddleocr-vl-bboxes] Transformers attention implementation is not supported; retrying with attn_implementation='eager'.",
+              file=sys.stderr,
+          )
+          apply_attention_implementation_to_engine_config(ocr_kwargs["engine_config"], "eager")
+          return PaddleOCR(**ocr_kwargs)
+        raise
     except Exception as exc:
-      print(f"[paddleocr-vl-bboxes] textline detector unavailable: {exc}", file=sys.stderr)
+      detail = ""
+      if transformers_engine:
+        detail = f" ({describe_transformers_attention_config(ocr_kwargs)})"
+      print(f"[paddleocr-vl-bboxes] textline detector unavailable{detail}: {exc}", file=sys.stderr)
       return None
 
 
@@ -484,7 +650,11 @@ def collect_textline_candidates(image_path: Path, existing_items: list[dict], wi
 
     raw_candidates: list[dict] = []
     try:
-      results = ocr.predict(str(image_path))
+      results = predict_with_torch_inference_mode(
+          ocr,
+          image_path,
+          os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", "").strip().lower() == "transformers",
+      )
       for result in results:
         data = dict(result)
         rec_texts = data.get("rec_texts") or data.get("texts") or []
@@ -525,7 +695,12 @@ def collect_textline_candidates(image_path: Path, existing_items: list[dict], wi
     except Exception as exc:
       print(f"[paddleocr-vl-bboxes] textline detector failed: {exc}", file=sys.stderr)
 
-    grouped = merge_textline_candidates(raw_candidates, width, height)
+    grouped = merge_textline_candidates(
+        raw_candidates,
+        width,
+        height,
+        mode=resolve_textline_merge_mode(None, default="legacy"),
+    )
     for index, item in enumerate(grouped):
       item["id"] = len(existing_items) + index + 1
       score = item.pop("_score", None)
@@ -630,7 +805,7 @@ def count_japanese_chars(text: str) -> int:
     return count
 
 
-def merge_textline_candidates(candidates: list[dict], width: int, height: int) -> list[dict]:
+def merge_textline_candidates(candidates: list[dict], width: int, height: int, mode: str = "legacy") -> list[dict]:
     """Merge low-level OCR text lines into cleaner geometry hints.
 
     The ordinary OCR detector is intentionally used only as a fallback for
@@ -640,7 +815,8 @@ def merge_textline_candidates(candidates: list[dict], width: int, height: int) -
     while still preserving the OCR-detected source area.
     """
 
-    if len(candidates) < 2:
+    normalized_mode = normalize_textline_merge_mode(mode)
+    if len(candidates) < 2 or normalized_mode == "none":
       return candidates
 
     parent = list(range(len(candidates)))
@@ -659,7 +835,7 @@ def merge_textline_candidates(candidates: list[dict], width: int, height: int) -
 
     for left in range(len(candidates)):
       for right in range(left + 1, len(candidates)):
-        if should_merge_textline_boxes(candidates[left], candidates[right], width, height):
+        if should_merge_textline_boxes(candidates[left], candidates[right], width, height, mode=normalized_mode):
           union(left, right)
 
     groups: dict[int, list[dict]] = {}
@@ -695,7 +871,22 @@ def merge_textline_candidates(candidates: list[dict], width: int, height: int) -
     return merged
 
 
-def should_merge_textline_boxes(a: dict, b: dict, page_width: int, page_height: int) -> bool:
+def normalize_textline_merge_mode(value: object) -> str:
+    text = str(value or "legacy").strip().lower()
+    return text if text in {"legacy", "conservative", "none"} else "legacy"
+
+
+def resolve_textline_merge_mode(args: argparse.Namespace | None, default: str = "legacy") -> str:
+    value = getattr(args, "merge_mode", None) if args is not None else None
+    if value:
+      return normalize_textline_merge_mode(value)
+    return normalize_textline_merge_mode(os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE", default))
+
+
+def should_merge_textline_boxes(a: dict, b: dict, page_width: int, page_height: int, mode: str = "legacy") -> bool:
+    if normalize_textline_merge_mode(mode) == "conservative":
+      return should_merge_textline_boxes_conservative(a, b, page_width, page_height)
+
     ax1, ay1, ax2, ay2 = box_tuple(a)
     bx1, by1, bx2, by2 = box_tuple(b)
     aw = ax2 - ax1
@@ -751,6 +942,59 @@ def should_merge_textline_boxes(a: dict, b: dict, page_width: int, page_height: 
     if overlap > 0.22:
       return True
     return gap_x <= 16 and gap_y <= 16
+
+
+def should_merge_textline_boxes_conservative(a: dict, b: dict, page_width: int, page_height: int) -> bool:
+    """Merge OCR lines conservatively for OCR-only AMD/Transformers mode."""
+
+    ax1, ay1, ax2, ay2 = box_tuple(a)
+    bx1, by1, bx2, by2 = box_tuple(b)
+    aw = ax2 - ax1
+    ah = ay2 - ay1
+    bw = bx2 - bx1
+    bh = by2 - by1
+    if aw <= 0 or ah <= 0 or bw <= 0 or bh <= 0:
+      return False
+
+    union_x1 = min(ax1, bx1)
+    union_y1 = min(ay1, by1)
+    union_x2 = max(ax2, bx2)
+    union_y2 = max(ay2, by2)
+    union_w = union_x2 - union_x1
+    union_h = union_y2 - union_y1
+    if union_w * union_h > page_width * page_height * 0.055:
+      return False
+    if union_h > page_height * 0.24 or union_w > page_width * 0.32:
+      return False
+
+    gap_x = max(0, max(ax1, bx1) - min(ax2, bx2))
+    gap_y = max(0, max(ay1, by1) - min(ay2, by2))
+    x_overlap = axis_overlap_ratio(ax1, ax2, bx1, bx2)
+    y_overlap = axis_overlap_ratio(ay1, ay2, by1, by2)
+
+    horizontal_a = aw >= ah * 0.75
+    horizontal_b = bw >= bh * 0.75
+    vertical_a = ah > aw * 1.25
+    vertical_b = bh > bw * 1.25
+
+    if horizontal_a and horizontal_b:
+      if y_overlap >= 0.62 and gap_x <= max(10, min(ah, bh) * 0.45):
+        return True
+      if x_overlap >= 0.38 and gap_y <= max(14, min(ah, bh) * 0.65):
+        return True
+      return False
+
+    if vertical_a and vertical_b:
+      if y_overlap >= 0.58 and gap_x <= max(12, min(aw, bw) * 0.75):
+        return True
+      if x_overlap >= 0.48 and gap_y <= max(16, min(aw, bw) * 1.2):
+        return True
+      return False
+
+    overlap = overlap_ratio((ax1, ay1, ax2, ay2), (bx1, by1, bx2, by2))
+    if overlap > 0.34:
+      return True
+    return gap_x <= 8 and gap_y <= 8
 
 
 def box_tuple(item: dict) -> tuple[int, int, int, int]:

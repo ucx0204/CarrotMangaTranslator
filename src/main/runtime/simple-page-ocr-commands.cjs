@@ -98,10 +98,13 @@ function buildPaddleOcrBboxModeArgs(options = {}) {
     "transformers";
   const dtype =
     runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", options) ||
-    "float16";
+    "float32";
   const ocrVersion =
     runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VERSION", options) ||
     "PP-OCRv6";
+  const mergeMode =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE", options) ||
+    "conservative";
   return [
     " --bbox-mode ",
     quoteCommandArg(bboxMode),
@@ -111,6 +114,8 @@ function buildPaddleOcrBboxModeArgs(options = {}) {
     quoteCommandArg(dtype),
     " --ocr-version ",
     quoteCommandArg(ocrVersion),
+    " --merge-mode ",
+    quoteCommandArg(mergeMode),
   ].join("");
 }
 

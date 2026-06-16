@@ -27,19 +27,24 @@ const {
   isPaddleNativeDllLoadFailureText,
   isOcrGpuRequested,
   resolveBootstrapPython,
-  resolveInstallProgressDir,
   resolveOcrDeviceLabel,
   resolveOcrGpuBackend,
+  resolveOcrInstallBatchLabel,
   resolveOcrInstallSignature,
   resolveOcrPipInstallBatches,
+  resolveOcrPipCacheDir,
   resolveOcrPythonPackageDir,
   resolveOcrRuntimeDir,
   resolveOcrRuntimeVariant,
+  resolveOcrTempDir,
+  resolveOcrVenvDir,
   resolvePaddlexCacheAliasRoot,
   resolvePaddlexCacheHome,
   resolvePaddleOcrImportCheckTimeoutMs,
   resolveRealPaddlexCacheHome,
   resolveVenvPythonPath,
+  isWindowsRocmOcrRuntimePathShortEnough,
+  shouldUseWindowsShortRocmOcrLayout,
   summarizeOcrErrorMessage,
   summarizeOcrInstallBatches,
 } = require("./simple-page-ocr-runtime-config.cjs");
@@ -76,12 +81,41 @@ async function ensurePaddleOcrRuntime(options = {}) {
   const diagnostics = [];
   const runtimeDir = resolveOcrRuntimeDir(options);
   const runtimeVariant = resolveOcrRuntimeVariant(options);
-  const venvDir = path.join(runtimeDir, `.venv-${runtimeVariant}`);
+  const venvDir = resolveOcrVenvDir(runtimeDir, runtimeVariant, options);
   const venvPython = resolveVenvPythonPath(venvDir);
   const packageDir = resolveOcrPythonPackageDir(runtimeDir, options);
+  if (
+    shouldUseWindowsShortRocmOcrLayout(options) &&
+    !isWindowsRocmOcrRuntimePathShortEnough(runtimeDir)
+  ) {
+    throw createOcrRuntimeError(
+      [
+        "AMD ROCm OCR 런타임 경로가 Windows 경로 제한에 비해 너무 깁니다.",
+        `runtimeDir=${runtimeDir}`,
+        "MANGA_TRANSLATOR_OCR_ROCM_RUNTIME_DIR 또는 MANGA_TRANSLATOR_OCR_RUNTIME_DIR을 C:\\MGTOCR 같은 짧은 경로로 지정하세요.",
+      ].join(" "),
+      {
+        step: "rocm-ocr-runtime-path-too-long",
+        runtimeDir,
+        packageDir,
+      },
+    );
+  }
+  if (shouldUseWindowsShortRocmOcrLayout(options)) {
+    emitRuntimeProgress(
+      options,
+      "ocr_preparing",
+      "AMD ROCm OCR 런타임 경로 선택",
+      runtimeDir,
+      {
+        progressMode: "log-only",
+        installLogLine: `AMD ROCm OCR short runtime: ${runtimeDir}`,
+      },
+    );
+  }
   await mkdir(runtimeDir, { recursive: true });
-  await mkdir(path.join(runtimeDir, "pip-cache"), { recursive: true });
-  await mkdir(path.join(runtimeDir, "tmp"), { recursive: true });
+  await mkdir(resolveOcrPipCacheDir(runtimeDir, options), { recursive: true });
+  await mkdir(resolveOcrTempDir(runtimeDir, options), { recursive: true });
   const cachePaths = await preparePaddlexCacheHome(options, runtimeDir);
 
   emitRuntimeProgress(
@@ -524,7 +558,7 @@ async function ensureManagedBootstrapPython(options = {}, runtimeDir) {
     `${quoteCommandArg(pythonExe)} ${quoteCommandArg(getPipPath)} --no-warn-script-location`,
     {
       timeoutMs: 300000,
-      env: buildBootstrapPythonEnv(runtimeDir),
+      env: buildBootstrapPythonEnv(runtimeDir, options),
       signal: options.abortSignal,
       onOutput: (line) =>
         emitRuntimeProgress(
@@ -732,7 +766,10 @@ async function extractZipWithPowerShell(zipPath, destinationDir, options = {}) {
   ].join(" ");
   await runShellCommand(command, {
     timeoutMs: 300000,
-    env: buildBootstrapPythonEnv(path.dirname(path.dirname(destinationDir))),
+    env: buildBootstrapPythonEnv(
+      path.dirname(path.dirname(destinationDir)),
+      options,
+    ),
     signal: options.abortSignal,
   });
 }
@@ -745,15 +782,16 @@ function escapePowerShellSingleQuoted(value) {
  * @param {string} runtimeDir
  * @returns {NodeJS.ProcessEnv}
  */
-function buildBootstrapPythonEnv(runtimeDir) {
+function buildBootstrapPythonEnv(runtimeDir, options = {}) {
+  const tempDir = resolveOcrTempDir(runtimeDir, options);
   /** @type {NodeJS.ProcessEnv} */
   const env = {
     ...process.env,
     PYTHONNOUSERSITE: "1",
     PYTHONUTF8: "1",
     PYTHONUNBUFFERED: "1",
-    TMP: path.join(runtimeDir, "tmp"),
-    TEMP: path.join(runtimeDir, "tmp"),
+    TMP: tempDir,
+    TEMP: tempDir,
   };
   delete env.PYTHONHOME;
   delete env.PYTHONPATH;
@@ -977,13 +1015,18 @@ function isManagedOcrPackagePathLine(line, pythonDir, runtimeDir) {
     return false;
   }
   const base = path.basename(resolved);
-  if (!base.startsWith("python-packages")) {
-    return false;
-  }
   const normalized = resolved.replace(/\\/g, "/").toLowerCase();
   const normalizedRuntimeDir = runtimeDir
     ? path.resolve(runtimeDir).replace(/\\/g, "/").toLowerCase()
     : "";
+  const isManagedPackageDir =
+    base.startsWith("python-packages") ||
+    (base === "p" &&
+      normalizedRuntimeDir &&
+      normalized.startsWith(normalizedRuntimeDir));
+  if (!isManagedPackageDir) {
+    return false;
+  }
   return (
     (normalizedRuntimeDir && normalized.startsWith(normalizedRuntimeDir)) ||
     normalized.includes("/manga-gemma-translator/ocr-runtime/") ||
@@ -999,11 +1042,11 @@ async function installOcrPythonPackages(
   options,
   runtimeDir,
 ) {
-  const progressDir =
-    runtimeDir || targetDir || resolveInstallProgressDir(pythonPath);
-  const pipCacheDir = path.join(progressDir, "pip-cache");
+  const runtimeRoot = runtimeDir || resolveOcrRuntimeDir(options);
+  const pipCacheDir = resolveOcrPipCacheDir(runtimeRoot, options);
+  const tempDir = resolveOcrTempDir(runtimeRoot, options);
   await mkdir(pipCacheDir, { recursive: true });
-  await mkdir(path.join(progressDir, "tmp"), { recursive: true });
+  await mkdir(tempDir, { recursive: true });
   const monitor = startTaskProgressMonitor(options, {
     phase: "ocr_downloading",
     progressText: "Paddle OCR 패키지 다운로드/설치 중",
@@ -1013,20 +1056,37 @@ async function installOcrPythonPackages(
   });
   try {
     const pipProgressArgs = `--cache-dir ${quoteCommandArg(pipCacheDir)} --progress-bar raw`;
-    monitor.setStep("pip 업데이트", 0.04, 0.1);
+    const pipBuildEnv = buildOcrRuntimeEnv(options, {
+      runtimeDir: runtimeRoot,
+      includePackageDir: false,
+    });
+    if (targetDir) {
+      await mkdir(targetDir, { recursive: true });
+    }
+    const pipInstallEnv = buildOcrRuntimeEnv(options, {
+      runtimeDir: runtimeRoot,
+      packageDir: targetDir || undefined,
+      includePackageDir: Boolean(targetDir),
+    });
+    monitor.setStep("pip/build 도구 업데이트", 0.04, 0.1);
     await runShellCommand(
-      `${quoteCommandArg(pythonPath)} -m pip install --upgrade ${pipProgressArgs} pip`,
+      buildOcrPipBuildToolUpgradeCommand(pythonPath, pipProgressArgs),
       {
         timeoutMs: 300000,
-        env: buildOcrRuntimeEnv(options, {
-          runtimeDir,
-          includePackageDir: false,
-        }),
+        env: pipBuildEnv,
         signal: options.abortSignal,
         onOutput: (line) => monitor.log(line),
       },
     );
-    monitor.completeStep("pip 업데이트 완료");
+    await runShellCommand(buildOcrPythonBuildToolCheckCommand(pythonPath), {
+      timeoutMs: 60000,
+      env: pipBuildEnv,
+      signal: options.abortSignal,
+      onOutput: (line) => monitor.log(line),
+      failureMessage:
+        "OCR Python build tooling check failed after installing pip/setuptools/wheel.",
+    });
+    monitor.completeStep("pip/build 도구 업데이트 완료");
     const batchRanges = resolveOcrInstallBatchProgressRanges(
       installBatches,
       0.1,
@@ -1035,13 +1095,22 @@ async function installOcrPythonPackages(
     for (let index = 0; index < installBatches.length; index += 1) {
       const packages = installBatches[index];
       const range = batchRanges[index] || { start: 0.1, end: 0.86 };
+      const batchLabel = resolveOcrInstallBatchLabel(packages, options);
       monitor.setStep(
-        `패키지 설치 ${index + 1}/${installBatches.length}`,
+        [`패키지 설치 ${index + 1}/${installBatches.length}`, batchLabel]
+          .filter(Boolean)
+          .join(": "),
         range.start,
         range.end,
       );
       await runShellCommand(
-        `${quoteCommandArg(pythonPath)} -m pip install --upgrade ${pipProgressArgs} ${targetDir ? `--target ${quoteCommandArg(targetDir)} ` : ""}${packages.map(quoteCommandArg).join(" ")}`,
+        buildOcrPipInstallCommand(
+          pythonPath,
+          packages,
+          targetDir,
+          options,
+          pipProgressArgs,
+        ),
         {
           timeoutMs:
             readPositiveInteger(
@@ -1050,10 +1119,7 @@ async function installOcrPythonPackages(
                 options,
               ),
             ) || 1800000,
-          env: buildOcrRuntimeEnv(options, {
-            runtimeDir,
-            includePackageDir: false,
-          }),
+          env: pipInstallEnv,
           signal: options.abortSignal,
           onOutput: (line) => monitor.log(line),
         },
@@ -1065,6 +1131,88 @@ async function installOcrPythonPackages(
   } finally {
     monitor.stop();
   }
+}
+
+function buildOcrPipBuildToolUpgradeCommand(pythonPath, pipProgressArgs = "") {
+  return [
+    quoteCommandArg(pythonPath),
+    "-m pip install --upgrade",
+    pipProgressArgs,
+    "pip",
+    "setuptools",
+    "wheel",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function buildOcrPythonBuildToolCheckCommand(pythonPath) {
+  return `${quoteCommandArg(pythonPath)} -c ${quoteCommandArg("import pip, setuptools, wheel; import setuptools.build_meta; print('python build tooling ok')")}`;
+}
+
+function buildOcrPipInstallCommand(
+  pythonPath,
+  packages,
+  targetDir,
+  options = {},
+  pipProgressArgs = "",
+) {
+  const extraPipArgs = resolveOcrPipInstallExtraArgs(packages, options)
+    .map(quoteCommandArg)
+    .join(" ");
+  return [
+    quoteCommandArg(pythonPath),
+    "-m pip install --upgrade",
+    pipProgressArgs,
+    extraPipArgs,
+    targetDir ? `--target ${quoteCommandArg(targetDir)}` : "",
+    (Array.isArray(packages) ? packages : []).map(quoteCommandArg).join(" "),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function resolveOcrPipInstallExtraArgs(packages, options = {}) {
+  const texts = Array.isArray(packages)
+    ? packages.map((item) => String(item || "").toLowerCase())
+    : [];
+
+  const containsSourceArchive = texts.some((text) =>
+    /\.(?:tar\.gz|zip)(?:[?#].*)?$/.test(text),
+  );
+  const containsRocmSdist = texts.some(isAmdRocmMetaPackageText);
+  const containsRocmTorchWheel = texts.some(isAmdRocmTorchWheelText);
+  const isRocmTransformersBackend =
+    resolveOcrGpuBackend(options) === "rocm-transformers";
+  const args = [];
+
+  if (
+    containsRocmSdist ||
+    (isRocmTransformersBackend && containsSourceArchive)
+  ) {
+    args.push("--no-build-isolation");
+  }
+
+  if (
+    isRocmTransformersBackend &&
+    (containsRocmSdist || containsRocmTorchWheel)
+  ) {
+    args.push("--no-deps");
+  }
+
+  return args;
+}
+
+function isAmdRocmMetaPackageText(text) {
+  return /(?:^|[/\\])rocm-\d+(?:\.\d+)*\.tar\.gz(?:[?#].*)?$/i.test(
+    String(text ?? ""),
+  );
+}
+
+function isAmdRocmTorchWheelText(text) {
+  return /(?:^|[/\\])(?:torch|torchaudio|torchvision)-[^/\\]*rocm[^/\\]*\.whl(?:[?#].*)?$/i.test(
+    String(text ?? ""),
+  );
 }
 
 function resolveOcrInstallBatchProgressRanges(
@@ -1209,8 +1357,12 @@ function isTruthy(value) {
 }
 
 module.exports = {
+  buildOcrPipBuildToolUpgradeCommand,
+  buildOcrPipInstallCommand,
+  buildOcrPythonBuildToolCheckCommand,
   canImportPaddleOcr,
   createOcrRuntimeError,
   ensurePaddleOcrRuntime,
   resolveOcrInstallBatchProgressRanges,
+  resolveOcrPipInstallExtraArgs,
 };

@@ -1,4 +1,6 @@
 // @ts-check
+const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
+
 const DEFAULT_MODEL_HF =
   "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
 const DEFAULT_HF_FILE =
@@ -17,16 +19,33 @@ const DEFAULT_OCR_CPU_PIP_PACKAGES = [
 const DEFAULT_OCR_GPU_PADDLE_PACKAGE = "paddlepaddle-gpu==3.3.1";
 const DEFAULT_OCR_GPU_EXTRA_PACKAGES = ["paddleocr[doc-parser]==3.7.0"];
 const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
-const AMD_ROCM_721_SDK_PACKAGES = [
+const AMD_ROCM_721_SDK_WHEEL_PACKAGES = [
   "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/rocm_sdk_core-7.2.1-py3-none-win_amd64.whl",
   "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/rocm_sdk_devel-7.2.1-py3-none-win_amd64.whl",
   "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/rocm_sdk_libraries_custom-7.2.1-py3-none-win_amd64.whl",
+];
+const AMD_ROCM_721_META_PACKAGES = [
   "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/rocm-7.2.1.tar.gz",
+];
+const AMD_ROCM_721_SDK_PACKAGES = [
+  ...AMD_ROCM_721_SDK_WHEEL_PACKAGES,
+  ...AMD_ROCM_721_META_PACKAGES,
 ];
 const AMD_ROCM_721_TORCH_PACKAGES = [
   "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
   "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torchaudio-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
   "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torchvision-0.24.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
+];
+const AMD_ROCM_721_TORCH_DEP_PACKAGES = [
+  "filelock",
+  "typing-extensions>=4.10.0",
+  "setuptools",
+  "sympy>=1.13.3",
+  "networkx>=2.5.1",
+  "jinja2",
+  "fsspec>=0.8.5",
+  "numpy",
+  "pillow",
 ];
 const DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES = [
   "paddleocr==3.7.0",
@@ -113,8 +132,50 @@ const PADDLE_OCR_MODEL_DOWNLOADS = [
   },
 ];
 
+function resolveAmdRocmSdkPackages(options = {}) {
+  if (
+    isTruthy(
+      runtimeOverrideEnv(
+        "MANGA_TRANSLATOR_OCR_ROCM_SKIP_META_PACKAGE",
+        options,
+      ),
+    )
+  ) {
+    return AMD_ROCM_721_SDK_PACKAGES.filter(
+      (item) => !isAmdRocmMetaPackage(item),
+    );
+  }
+  return AMD_ROCM_721_SDK_PACKAGES;
+}
+
+function resolveAmdRocmSdkWheelPackages(options = {}) {
+  return resolveAmdRocmSdkPackages(options).filter(
+    (item) => !isAmdRocmMetaPackage(item),
+  );
+}
+
+function resolveAmdRocmMetaPackage(options = {}) {
+  return resolveAmdRocmSdkPackages(options).filter(isAmdRocmMetaPackage);
+}
+
+function isAmdRocmMetaPackage(item) {
+  return /(?:^|[/\\])rocm-\d+(?:\.\d+)*\.tar\.gz(?:[?#].*)?$/i.test(
+    String(item ?? ""),
+  );
+}
+
+function isTruthy(value) {
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  return ["1", "true", "yes", "y", "on"].includes(text);
+}
+
 module.exports = {
+  AMD_ROCM_721_META_PACKAGES,
   AMD_ROCM_721_SDK_PACKAGES,
+  AMD_ROCM_721_SDK_WHEEL_PACKAGES,
+  AMD_ROCM_721_TORCH_DEP_PACKAGES,
   AMD_ROCM_721_TORCH_PACKAGES,
   CROP_RETRY_MARGIN_RATIO,
   CROP_RETRY_MIN_MARGIN_PX,
@@ -142,4 +203,7 @@ module.exports = {
   OCR_INSTALL_MARKER_FILE,
   PADDLE_OCR_MODEL_DOWNLOADS,
   PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL,
+  resolveAmdRocmMetaPackage,
+  resolveAmdRocmSdkPackages,
+  resolveAmdRocmSdkWheelPackages,
 };

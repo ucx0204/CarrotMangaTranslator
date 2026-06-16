@@ -37,6 +37,17 @@ const runtimeHelpers = {
   ...require("../../src/main/runtime/simple-page-server-lifecycle.cjs"),
   ...require("../../src/main/runtime/simple-page-translation-requests.cjs"),
 } as {
+  buildOcrPipBuildToolUpgradeCommand: (
+    pythonPath: string,
+    pipProgressArgs?: string,
+  ) => string;
+  buildOcrPipInstallCommand: (
+    pythonPath: string,
+    packages: string[],
+    targetDir: string | null,
+    options?: { [key: string]: unknown },
+    pipProgressArgs?: string,
+  ) => string;
   buildLaunchArgs: (options: { [key: string]: unknown }) => string[];
   buildMessages: (
     options: { [key: string]: unknown },
@@ -188,10 +199,41 @@ const runtimeHelpers = {
   resolveOcrGpuPackageIndexUrl: (options?: {
     [key: string]: unknown;
   }) => string;
+  resolveOcrInstallBatchLabel: (
+    packages: string[],
+    options?: { [key: string]: unknown },
+  ) => string;
+  isWindowsRocmOcrRuntimePathShortEnough: (runtimeDir: string) => boolean;
   resolveOcrPipInstallBatches: (options?: {
     [key: string]: unknown;
   }) => string[][];
+  resolveOcrPipCacheDir: (
+    runtimeDir: string,
+    options?: { [key: string]: unknown },
+  ) => string;
+  resolveOcrPipInstallExtraArgs: (
+    packages: string[],
+    options?: { [key: string]: unknown },
+  ) => string[];
+  resolveOcrPythonPackageDir: (
+    runtimeDir: string,
+    options?: { [key: string]: unknown },
+  ) => string;
+  resolveOcrPythonUserBaseDir: (
+    runtimeDir: string,
+    options?: { [key: string]: unknown },
+  ) => string;
+  resolveOcrRuntimeDir: (options?: { [key: string]: unknown }) => string;
   resolveOcrRuntimeVariant: (options?: { [key: string]: unknown }) => string;
+  resolveOcrTempDir: (
+    runtimeDir: string,
+    options?: { [key: string]: unknown },
+  ) => string;
+  resolveOcrVenvDir: (
+    runtimeDir: string,
+    runtimeVariant: string,
+    options?: { [key: string]: unknown },
+  ) => string;
   resolvePaddleOcrImportCheckTimeoutMs: (options?: {
     [key: string]: unknown;
   }) => number;
@@ -210,6 +252,10 @@ const runtimeHelpers = {
     repo: string,
     file: string,
   ) => string | null;
+  summarizeOcrInstallBatches: (
+    batches: string[][],
+    options?: { [key: string]: unknown },
+  ) => string;
 };
 export const runtimeDefaults =
   require("../../src/main/runtime/simple-page-defaults.cjs") as {
@@ -240,6 +286,8 @@ const llamaRuntimeContracts =
     ) => boolean;
   };
 export const {
+  buildOcrPipBuildToolUpgradeCommand,
+  buildOcrPipInstallCommand,
   buildLaunchArgs,
   buildMessages,
   buildOcrRuntimeEnv,
@@ -269,9 +317,19 @@ export const {
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
+  resolveOcrInstallBatchLabel,
+  isWindowsRocmOcrRuntimePathShortEnough,
   resolveOcrPipInstallBatches,
+  resolveOcrPipCacheDir,
+  resolveOcrPipInstallExtraArgs,
+  resolveOcrPythonPackageDir,
+  resolveOcrPythonUserBaseDir,
+  resolveOcrRuntimeDir,
   resolveOcrRuntimeVariant,
+  resolveOcrTempDir,
+  resolveOcrVenvDir,
   resolvePaddleOcrImportCheckTimeoutMs,
+  summarizeOcrInstallBatches,
 } = runtimeHelpers;
 export const { bundledServerCandidates, resolveBundledServerPath } =
   llamaRuntimeResolver;
