@@ -75,6 +75,7 @@ module.exports = {
   asar: true,
   win: {
     icon: "icon.ico",
+    artifactName: "${productName} Setup ${version}.${ext}",
     target: [
       {
         target: "nsis",
