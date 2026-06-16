@@ -2,9 +2,11 @@
 
 일본어 만화 이미지를 한국어로 번역하고, 번역 블록 편집, 원문 지우기, PNG 출력까지 한 앱에서 처리하는 **Windows 데스크톱 만화 번역 도구**입니다.
 
-원본을 불러오고, OCR과 AI 번역으로 말풍선/효과음 후보를 만들고, 필요한 만큼 직접 손본 뒤 Flux 인페인팅으로 원문을 지우는 흐름을 한 화면에서 끝내는 것을 목표로 합니다.
+원본 이미지를 불러오면 OCR과 AI 번역으로 말풍선/효과음 후보를 만들고, 사용자가 문장과 위치를 손본 뒤 Flux 인페인팅으로 원문을 지우고 PNG로 저장할 수 있습니다.
 
-![메인 화면 안내](docs/images/main-screen-guide.png)
+README의 예시 화면은 주로 **AMD PRO V710 환경**에서 촬영했습니다. NVIDIA 환경은 사용자가 이미 더 좋은 조건에서 돌리는 경우가 많아, 설정과 런타임 안내는 AMD 사용자가 헷갈릴 수 있는 부분을 조금 더 자세히 보여주는 방향으로 구성했습니다.
+
+![메인 화면 안내](docs/images/10-main-screen-guide.png)
 
 ## 주요 기능
 
@@ -23,22 +25,42 @@
 일반 사용자는 GitHub Releases에서 Windows 설치 파일을 받으면 됩니다.
 
 - 다운로드: https://github.com/ucx0204/CarrotMangaTranslator/releases
-- 설치 파일 예시: `당근망가번역기 Setup 0.6.0.exe`
+- 설치 파일 예시: `CarrotMangaTranslator-Setup-v0.6.0.exe`
+
+설치 첫 단계에서는 현재 Windows 사용자만 쓸지, 모든 사용자에게 설치할지 고릅니다. 잘 모르겠으면 기본값인 현재 사용자 설치를 그대로 두면 됩니다.
+
+![설치 사용자 선택](docs/images/01-installer-scope.png)
+
+다음으로 앱 설치 폴더를 고릅니다. C드라이브가 부족하면 D드라이브 같은 여유 있는 드라이브를 선택해도 됩니다.
+
+![설치 폴더 선택](docs/images/02-installer-app-location.png)
+
+모델, Paddle OCR, 보관함, 로그처럼 용량이 커질 수 있는 데이터 저장 위치도 지정할 수 있습니다. 새 설치에서는 설치 폴더 안의 `data` 폴더를 기본으로 쓰며, 기존 데이터가 있다면 찾아보기로 해당 폴더를 선택할 수 있습니다.
+
+![데이터 저장 위치 선택](docs/images/03-installer-data-location.png)
 
 현재 설치 파일은 얇은 설치 파일을 지향합니다. 앱 본체와 기본 실행 파일만 먼저 설치하고, Gemma 모델, OCR 런타임, Flux 모델/런타임처럼 큰 파일은 처음 사용할 때 앱 데이터 폴더로 내려받습니다.
 
-C드라이브 용량이 부족하면 설치 또는 데이터 저장 위치를 여유 있는 드라이브로 잡는 것을 권장합니다.
-
 ## 처음 실행할 때
+
+처음 실행하면 보관함이 비어 있고, 가운데에는 시작 안내가 보입니다.
+
+![처음 실행 화면](docs/images/04-first-launch.png)
+
+한 화만 바로 번역하려면 `번역`을 누르면 됩니다. 여러 화가 들어 있는 작품 폴더를 한 번에 넣고 싶다면 `작품 일괄 번역`을 쓰면 됩니다.
 
 처음 번역하거나 처음 인페인팅을 실행하면 필요한 파일을 다운로드하고 검증합니다. 이 과정은 PC 성능과 인터넷 속도에 따라 꽤 오래 걸릴 수 있습니다.
 
 - Gemma 4: GGUF 모델, mmproj, llama.cpp/beellama/Lemonade ROCm 런타임
-- Paddle OCR: Python 런타임, PaddleOCR/PaddleOCR-VL 또는 AMD ROCm Transformers OCR 패키지, OCR 모델 캐시
+- Paddle OCR: Python 런타임, PaddleOCR/PaddleOCR-VL 또는 AMD ROCm OCR 패키지, OCR 모델 캐시
 - Flux 인페인팅: Flux Klein 모델, VAE, Flux 실행기, GPU 백엔드 준비
 - OpenAI Codex: 로컬 Codex 로그인 토큰을 사용하는 openai-oauth 연결
 
 다운로드 진행률을 알 수 있는 파일은 받은 용량 기준으로 표시합니다. pip 설치나 런타임 검증처럼 정확한 퍼센트를 알 수 없는 구간은 로그 중심으로 표시합니다.
+
+![OCR 런타임 설치](docs/images/11-ocr-runtime-install.png)
+
+![Gemma 실행 런타임 설치](docs/images/13-gemma-runtime-install.png)
 
 ## 빠른 시작
 
@@ -60,7 +82,7 @@ C드라이브 용량이 부족하면 설치 또는 데이터 저장 위치를 �
 | ------------------- | -------------------------------- | --------------------- | ------------------------------- |
 | NVIDIA RTX 20/30/40 | CUDA 12 계열 llama 런타임        | CUDA `cu126`          | CUDA native                     |
 | NVIDIA RTX 50       | CUDA 13 계열 llama 런타임        | CUDA `cu129`          | CUDA native                     |
-| AMD Radeon/Instinct | ROCm 런타임 우선, 필요 시 Vulkan | ROCm Transformers OCR | ZLUDA native                    |
+| AMD Radeon/Instinct | ROCm 런타임 우선, 필요 시 Vulkan | CPU 또는 ROCm OCR     | ZLUDA native                    |
 | GPU 미확인/부족     | Codex 기본, Gemma 후보는 12B     | CPU OCR               | CPU 또는 사용자가 선택한 백엔드 |
 
 VRAM 기준 기본 프리셋은 대략 아래처럼 잡습니다.
@@ -70,105 +92,40 @@ VRAM 기준 기본 프리셋은 대략 아래처럼 잡습니다.
 - 8GB 이상: `Gemma 4` + `12B 최소`
 - GPU 정보를 확실히 알 수 없거나 8GB 미만: `OpenAI Codex` + CPU OCR
 
-## AMD 지원
-
-AMD 지원은 이제 번역, OCR, 인페인팅이 각각 다른 경로로 준비됩니다. 한 곳이 실패해도 나머지를 CPU나 다른 런타임으로 돌릴 수 있게 분리되어 있습니다.
-
-### Gemma 4 on AMD
-
-지원되는 AMD GPU에서는 `AMD ROCm` Gemma 런타임을 우선 사용합니다. 앱은 GPU 이름, `rocm-smi`, Windows 장치 정보를 보고 ROCm target을 추정합니다.
-
-지원 target 그룹은 다음과 같습니다.
-
-- `gfx908`
-- `gfx90a`
-- `gfx103X`
-- `gfx110X`
-- `gfx1150`
-- `gfx1151`
-- `gfx120X`
-
-ROCm target을 알 수 있으면 `lemonade-llama-b1291-rocm-<target>` 런타임을 앱 데이터의 `tools/` 아래로 내려받아 사용합니다. target을 못 잡는 AMD GPU에서는 `AMD Vulkan` llama.cpp 런타임을 예비 경로로 쓸 수 있습니다.
-
-자동 감지가 틀리면 고급 사용자는 환경 변수로 target을 지정할 수 있습니다.
-
-```powershell
-$env:MANGA_TRANSLATOR_AMD_ROCM_TARGET = "gfx110X"
-```
-
-### AMD OCR GPU
-
-기본값은 `float16`이고, 지원 GPU/드라이버가 맞지 않거나 첫 import 검증이 실패하면 OCR 장치만 `CPU`로 바꿔도 번역은 계속 사용할 수 있습니다. 번역 모델은 AMD ROCm/Vulkan으로 두고 OCR만 CPU로 쓰는 조합도 가능합니다.
-
-### AMD ZLUDA 인페인팅
-
-AMD에서 `AMD ZLUDA` 인페인팅을 쓰려면 AMD HIP SDK가 필요합니다. AMD 공식 HIP SDK 페이지에서 Windows용 최신 버전인 **ROCm 7.1.1 HIP SDK**를 설치하세요.
-
-- 다운로드: https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html
-
-설치 후 앱을 다시 실행하고 `Flux 인페인팅 백엔드`를 `AMD ZLUDA`로 둔 뒤 인페인팅을 실행하면 됩니다. ZLUDA가 계속 실패하면 작업을 이어가기 위해 백엔드를 `CPU`로 바꿔 확인하세요.
-
-## 화면 구성
-
-메인 화면은 크게 다섯 영역입니다.
-
-- 왼쪽 위: 번역, 일괄 번역, 설정, 공유/가져오기 버튼
-- 왼쪽 중간: 보관함의 작품과 화 목록
-- 왼쪽 아래: 현재 화의 페이지 목록
-- 가운데: 현재 페이지 이미지와 번역 블록
-- 오른쪽: 작업 버튼, 표시 옵션, 상태 로그, 블록 편집 패널
-
-가운데 이미지 영역에서는 마우스 휠로 페이지를 넘길 수 있고, 번역 블록을 클릭하면 오른쪽 패널에서 바로 수정할 수 있습니다.
-
-## 원본 불러오기
-
-`번역` 버튼을 누르면 원본 선택 창이 뜹니다.
-
-![번역 원본 선택](docs/images/translate-source-select-guide.png)
-
-- `이미지 열기`: 한 장짜리 이미지 파일을 불러옵니다.
-- `폴더 열기`: 폴더 안의 여러 이미지를 한 화로 불러옵니다.
-- `압축파일 열기`: ZIP/CBZ 같은 압축 파일을 풀지 않고 한 화로 불러옵니다.
-
-폴더나 압축파일을 불러오면 페이지 순서대로 보관함에 저장됩니다. 파일명이 `001.jpg`, `002.jpg`처럼 정렬 가능한 형태면 가장 안정적입니다.
-
-## 작품 일괄 번역
-
-`작품 일괄 번역`은 여러 화를 한 번에 추가하고 번역할 때 쓰는 기능입니다.
-
-예를 들어 폴더 안에 여러 압축파일이 있거나, 여러 하위 폴더가 각각 한 화라면 이 기능으로 한 번에 보관함에 넣을 수 있습니다. 체크한 화만 생성되며, 적용 전에 화 제목을 바꿀 수 있습니다.
-
-일괄 번역 중에는 한 화 단위로 Paddle OCR 선분석을 먼저 돌고, 그 다음 AI 번역 단계로 넘어갑니다. Gemma와 Paddle OCR이 동시에 VRAM을 잡아먹지 않도록 순서를 분리해 처리합니다.
-
 ## 설정
 
 설정은 저장한 뒤 다음 작업부터 적용됩니다. `OCR/모델 확인`을 누르면 선택한 조합이 실제로 준비되는지 확인할 수 있습니다.
 
 ### Gemma 4
 
-Gemma 4는 내 PC에서 로컬 모델 서버를 실행하는 방식입니다.
+Gemma 4는 내 PC에서 로컬 모델 서버를 실행하는 방식입니다. 인터넷 연결 없이 돌리고 싶거나, OpenAI Codex를 쓰고 싶지 않은 경우에 사용합니다.
 
-![Gemma 설정](docs/images/settings-gemma-guide.png)
+![Gemma 설정 전체](docs/images/05-settings-gemma-overview.png)
 
-- `최대 출력 토큰`: 긴 페이지에서 말풍선 누락을 줄이기 위한 출력 한도입니다.
+주요 항목은 다음과 같습니다.
+
+- `최대 출력 토큰`: 긴 페이지에서 말풍선 누락을 줄이기 위한 출력 한도입니다. 잘 모르겠으면 기본값을 유지하세요.
 - `모델 소스`: 기본 Hugging Face repo 또는 직접 받은 로컬 GGUF 파일을 고릅니다.
 - `모델 / 실행 모드`: `12B 최소`, `26B 절약`, `31B 풀로드`, `커스텀` 중 하나를 고릅니다.
 - `Gemma GPU 런타임`: NVIDIA CUDA 12, RTX 50, AMD Vulkan, AMD ROCm 중 하드웨어에 맞는 런타임을 고릅니다.
-- `Paddle OCR 장치`: NVIDIA CUDA, AMD ROCm, CPU 중에서 고릅니다.
+- `Paddle OCR 장치`: GPU가 안정적으로 지원되면 GPU, 아니면 CPU를 고릅니다.
 - `Flux 인페인팅 백엔드`: NVIDIA CUDA, AMD ZLUDA, CPU 중에서 고릅니다.
 
-감지된 AMD GPU에서는 CUDA/RTX 런타임이 비활성화되고 ROCm/Vulkan/ZLUDA 계열만 선택할 수 있습니다. 감지된 NVIDIA GPU에서는 ROCm/Vulkan/ZLUDA 대신 CUDA 계열을 사용합니다.
+8GB급 VRAM 환경에서는 `12B 최소`부터 시도하는 것이 가장 안전합니다. 16GB급은 `26B 절약`, 24GB 이상은 `31B 풀로드`가 기본 권장값입니다.
+
+![12B 최소 모드](docs/images/06-settings-12b-minimum.png)
+
+AMD GPU에서는 CUDA/RTX 런타임 대신 AMD ROCm 또는 AMD Vulkan 경로를 사용합니다. README 예시는 AMD PRO V710 환경에서 찍은 화면이며, 일반 Radeon 사용자는 본인 GPU와 드라이버에 따라 표시가 다를 수 있습니다.
+
+![AMD 런타임 설정](docs/images/07-settings-amd-runtime.png)
+
+`OCR/모델 확인`은 선택한 번역 엔진만 보는 것이 아니라, 실제 번역에 필요한 OCR과 모델 준비 상태를 함께 확인합니다. 여기서 실패하면 로그 폴더를 열어 원인을 확인하세요.
+
+![OCR/모델 확인](docs/images/08-settings-model-check.png)
 
 ### OpenAI Codex
 
 OpenAI Codex는 OpenAI 계정의 Codex 로그인 정보를 사용해 번역 요청을 보내는 방식입니다. 고성능 로컬 GPU가 없어도 사용할 수 있습니다.
-
-![Codex 설정](docs/images/settings-codex-guide.png)
-
-- `Codex 모델`: 사용할 모델 이름입니다.
-- `생각`: 모델이 답을 만들기 전에 더 검토할 정도입니다.
-- `openai-oauth 포트`: Codex 로그인 토큰을 요청하는 로컬 포트입니다.
-- `OCR/모델 확인`: Paddle OCR과 Codex 엔진 연결을 함께 확인합니다.
 
 Codex 엔진은 앱에 API 키를 붙여 넣는 방식이 아닙니다. Windows 사용자 계정에 저장된 Codex CLI 로그인 정보를 사용합니다.
 
@@ -185,11 +142,95 @@ npx @openai/codex --login
 
 로그인 후 앱 설정에서 `OpenAI Codex`를 선택하고 `OCR/모델 확인`을 누르세요.
 
+## AMD 지원
+
+AMD 지원은 번역, OCR, 인페인팅이 각각 다른 경로로 준비됩니다. 한 곳이 실패해도 나머지를 CPU나 다른 런타임으로 돌릴 수 있게 분리되어 있습니다.
+
+### Gemma 4 on AMD
+
+지원되는 AMD GPU에서는 `AMD ROCm` Gemma 런타임을 우선 사용합니다. 앱은 GPU 이름, `rocm-smi`, Windows 장치 정보를 보고 ROCm target을 추정합니다.
+
+지원 target 그룹은 다음과 같습니다.
+
+- `gfx908`
+- `gfx90a`
+- `gfx103X`
+- `gfx110X`
+- `gfx1150`
+- `gfx1151`
+- `gfx120X`
+
+자동 감지가 틀리면 고급 사용자는 환경 변수로 target을 지정할 수 있습니다.
+
+```powershell
+$env:MANGA_TRANSLATOR_AMD_ROCM_TARGET = "gfx110X"
+```
+
+### AMD OCR
+
+AMD 환경에서는 PaddleOCR GPU 경로가 하드웨어와 드라이버 조합을 많이 탑니다. 번역 모델은 AMD ROCm/Vulkan으로 두고 OCR만 CPU로 쓰는 조합도 가능합니다. OCR만 CPU여도 Gemma 번역 자체는 GPU로 계속 실행할 수 있습니다.
+
+### AMD ZLUDA 인페인팅
+
+AMD에서 `AMD ZLUDA` 인페인팅을 쓰려면 AMD HIP SDK가 필요합니다. AMD 공식 HIP SDK 페이지에서 Windows용 최신 버전인 **ROCm 7.1.1 HIP SDK**를 설치하세요.
+
+- 다운로드: https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html
+
+아래 화면처럼 HIP SDK 설치 파일을 받은 뒤, HIP SDK Core와 HIP Libraries를 설치합니다.
+
+![AMD HIP SDK 다운로드](docs/images/21-amd-hip-sdk-page.png)
+
+![AMD HIP SDK 설치](docs/images/22-amd-hip-sdk-installer.png)
+
+설치 후 앱을 다시 실행하고 `Flux 인페인팅 백엔드`를 `AMD ZLUDA`로 둔 뒤 인페인팅을 실행하면 됩니다. ZLUDA가 계속 실패하면 작업을 이어가기 위해 백엔드를 `CPU`로 바꿔 확인하세요.
+
+## 원본 불러오기
+
+`번역` 버튼을 누르면 원본 선택 창이 뜹니다.
+
+- `이미지 열기`: 한 장짜리 이미지 파일을 불러옵니다.
+- `폴더 열기`: 폴더 안의 여러 이미지를 한 화로 불러옵니다.
+- `압축파일 열기`: ZIP/CBZ 같은 압축 파일을 풀지 않고 한 화로 불러옵니다.
+
+폴더나 압축파일을 불러오면 페이지 순서대로 보관함에 저장됩니다. 파일명이 `001.jpg`, `002.jpg`처럼 정렬 가능한 형태면 가장 안정적입니다.
+
+새 작품을 만들거나 기존 작품에 화를 추가할 때는 보관함 추가 창에서 작품 제목과 화 제목을 정합니다.
+
+![보관함 추가](docs/images/09-add-work-dialog.png)
+
+## 작품 일괄 번역
+
+`작품 일괄 번역`은 여러 화를 한 번에 추가하고 번역할 때 쓰는 기능입니다.
+
+예를 들어 폴더 안에 여러 압축파일이 있거나, 여러 하위 폴더가 각각 한 화라면 이 기능으로 한 번에 보관함에 넣을 수 있습니다. 체크한 화만 생성되며, 적용 전에 화 제목을 바꿀 수 있습니다.
+
+일괄 번역 중에는 한 화 단위로 Paddle OCR 선분석을 먼저 돌고, 그 다음 AI 번역 단계로 넘어갑니다. Gemma와 Paddle OCR이 동시에 VRAM을 잡아먹지 않도록 순서를 분리해 처리합니다.
+
+번역 작업 중에는 오른쪽 작업 카드와 상태 로그에서 현재 어느 페이지가 OCR 중인지, 어느 페이지가 AI 번역 요청 중인지 볼 수 있습니다.
+
+![OCR 진행 상태](docs/images/12-translation-ocr-progress.png)
+
+![Gemma 번역 진행 상태](docs/images/14-translation-gemma-progress.png)
+
+## 화면 구성
+
+메인 화면은 크게 다섯 영역입니다.
+
+- 왼쪽 위: 번역, 일괄 번역, 설정, 공유/가져오기 버튼
+- 왼쪽 중간: 보관함의 작품과 화 목록
+- 왼쪽 아래: 현재 화의 페이지 목록
+- 가운데: 현재 페이지 이미지와 번역 블록
+- 오른쪽: 작업 버튼, 표시 옵션, 상태 로그, 블록 편집 패널
+
+가운데 이미지 영역에서는 마우스 휠로 페이지를 넘길 수 있고, 번역 블록을 클릭하면 오른쪽 패널에서 바로 수정할 수 있습니다.
+
+![메인 화면 설명](docs/images/10-main-screen-guide.png)
+
 ## 번역 블록 편집
 
 번역이 끝난 뒤 가운데 페이지의 블록을 클릭하면 오른쪽 `블록` 패널에서 내용을 수정할 수 있습니다.
 
-![블록 편집 안내](docs/images/block-panel-guide.png)
+![블록 편집 안내](docs/images/15-block-panel-guide.png)
 
 자주 쓰는 항목은 다음과 같습니다.
 
@@ -220,7 +261,15 @@ npx @openai/codex --login
 
 인페인팅은 원문 글자를 지우고 PNG로 저장하기 위한 별도 작업 모드입니다.
 
-![인페인팅 단계 안내](docs/images/inpainting-steps-guide.png)
+![인페인팅 안내](docs/images/16-inpainting-guide.png)
+
+인페인팅 버튼을 누르면 현재 화 전체를 대상으로 원문 지우기 흐름에 들어갑니다. 긴 작업이 될 수 있으므로 먼저 안내 창이 뜹니다.
+
+![인페인팅 시작 확인](docs/images/18-inpainting-confirm.png)
+
+처음 안내가 다시 나오지 않게 설정했다면 간단한 안내 모달만 보고 넘어갈 수 있습니다.
+
+![인페인팅 안내 모달](docs/images/23-inpainting-notice.png)
 
 ### 1. 자동
 
@@ -230,6 +279,18 @@ npx @openai/codex --login
 - `남은 페이지`: 아직 지우지 않은 페이지를 이어서 처리합니다.
 - 처리된 페이지는 바로 화면에 반영됩니다.
 - 자동 결과가 어색하면 `원본 비교`로 확인합니다.
+
+![인페인팅 전체 화면](docs/images/17-inpainting-overview.png)
+
+Flux 모델을 처음 쓸 때는 필요한 모델과 런타임을 다운로드합니다.
+
+![Flux 다운로드 진행](docs/images/19-flux-download-progress.png)
+
+자동 지우기를 실행하면 페이지에 반영된 결과를 확인할 수 있습니다.
+
+![현재 페이지 원문 지우기](docs/images/25-inpainting-auto-page.png)
+
+![원문 지우기 결과](docs/images/26-inpainting-result-page.png)
 
 ### 2. 보정
 
@@ -242,6 +303,20 @@ npx @openai/codex --login
 - `복원 붓`: 편집 전 원본 상태로 되돌립니다.
 - `Ctrl+Z`, `Ctrl+Y`: 수동 보정을 되돌리거나 다시 적용합니다.
 
+보정 단계에서도 오른쪽 패널에서 선택한 블록의 문장과 폰트를 수정할 수 있습니다.
+
+![인페인팅 보정 패널](docs/images/20-inpainting-side-panel.png)
+
+![인페인팅 블록 제어](docs/images/27-inpainting-block-controls.png)
+
+마스크 붓은 Flux로 다시 지울 영역을 그릴 때 사용합니다.
+
+![마스크 붓](docs/images/28-inpainting-brush-mask.png)
+
+색 붓과 복원 붓은 작은 자국을 사람이 직접 정리할 때 씁니다.
+
+![수동 보정 도구](docs/images/29-inpainting-manual-tools.png)
+
 ### 3. 출력
 
 인페인팅과 보정이 끝난 뒤 PNG를 저장합니다.
@@ -251,20 +326,21 @@ npx @openai/codex --login
 
 출력 PNG에는 텍스트 블록의 폰트, 색상, 위치, 방향, 기울기 설정이 반영됩니다.
 
+![출력 패널](docs/images/24-inpainting-output-panel.png)
+
+![출력 완료](docs/images/30-inpainting-export-finished.png)
+
 ## 공유하기와 가져오기
 
 `공유하기`는 완성 이미지를 내보내는 기능이 아니라, 앱에서 다시 열 수 있는 작품 데이터 패키지를 만드는 기능입니다.
 
-![공유하기 안내](docs/images/share-export-guide.png)
-
 - 공유 파일 확장자는 `*.mgtshare`입니다.
 - 선택한 작품과 화만 포함합니다.
 - 원본 페이지 이미지, 번역 블록, 좌표, 폰트/색상 같은 스타일 정보가 포함됩니다.
+- 인페인팅 결과가 있으면 함께 포함됩니다.
 - 설정, 로그인 정보, 모델 파일, 로그, 임시 분석 파일은 포함하지 않습니다.
 
 다른 사람이 보낸 `*.mgtshare` 파일은 `가져오기`로 열 수 있습니다.
-
-![가져오기 병합 안내](docs/images/import-merge-guide.png)
 
 - `새 작품 만들기`: 공유 파일을 새 작품으로 추가합니다.
 - `기존 작품에 적용`: 기존 작품에 공유받은 화를 추가하거나, 순서를 바꾸거나, 일부 화를 교체합니다.
@@ -314,7 +390,7 @@ data/
 
 ### AMD OCR GPU가 실패합니다.
 
-AMD OCR GPU는 Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 드라이버가 필요합니다. 첫 import 검증이 오래 걸릴 수 있지만 반복해서 실패하면 설정에서 `Paddle OCR 장치`만 `CPU`로 바꾸면 됩니다.
+AMD OCR GPU는 Windows ROCm 환경과 GPU 지원 범위가 민감합니다. 반복해서 실패하면 설정에서 `Paddle OCR 장치`만 `CPU`로 바꾸면 됩니다. 번역 모델은 계속 AMD GPU로 둘 수 있습니다.
 
 ### AMD ZLUDA 인페인팅이 실패합니다.
 
@@ -429,7 +505,7 @@ tools/         ffmpeg, Flux runner, 개발용 네이티브 도구
 - Gemma CUDA/ROCm/Vulkan 런타임 선택은 `simple-page-runtime-paths.cjs`, `simple-page-llama-runtimes.cjs`, `simple-page-amd-rocm-target.cjs`에서 관리합니다.
 - OCR 런타임은 `ocr-runtime` 아래에 variant별로 격리됩니다.
 - NVIDIA OCR GPU는 PaddlePaddle CUDA + PaddleOCR/PaddleOCR-VL 경로를 씁니다.
-- AMD OCR GPU는 `gpu-rocm-transformers` variant이며 PyTorch ROCm + PaddleOCR Transformers engine을 씁니다.
+- AMD OCR GPU는 아직 GPU/드라이버 조합이 민감하므로 CPU OCR을 기본 예비 경로로 둡니다.
 - Flux 인페인팅은 `src/main/inpainting`과 `src/main/inpainting/fluxAssets` 아래에서 관리합니다.
 - AMD ZLUDA Flux를 확인할 때는 AMD HIP SDK 7.1.1 설치 상태를 먼저 봅니다.
 - 설치형 앱에서는 패키지 외부 런타임 override가 기본 차단되며, AMD ROCm target override만 허용됩니다.
@@ -444,8 +520,19 @@ npm run build
 
 UI나 렌더링을 크게 바꿨다면 실제 앱에서 이미지/폴더/압축파일 번역, Gemma/Codex 모델 확인, 인페인팅 자동/보정/출력, 공유하기/가져오기를 함께 확인하세요.
 
+## 데모 이미지 출처
+
+README의 만화 예시 화면은 [IDPF EPUB 3 Samples Project](https://github.com/idpf/epub3-samples)의 `Haruko` 샘플을 바탕으로 만들었습니다.
+
+- 원본 저장소: [idpf/epub3-samples](https://github.com/idpf/epub3-samples)
+- 샘플 경로: [`30/haruko-jpeg`](https://github.com/idpf/epub3-samples/tree/main/30/haruko-jpeg)
+- 원본 라이선스: [Creative Commons Attribution-ShareAlike 3.0](https://creativecommons.org/licenses/by-sa/3.0/)
+- 변경 사항: CarrotMangaTranslator로 한국어 번역, 원문 제거, 번역 블록 재배치, README 설명용 주석 추가
+
+`idpf/epub3-samples` 저장소 README는 샘플 표에서 별도로 지정하지 않은 샘플은 CC BY-SA 3.0으로 배포한다고 안내합니다. 따라서 README에 포함된 데모 이미지와 그 번역/주석 결과물은 앱 소스코드의 GPL-3.0-only 라이선스와 별도로 **CC BY-SA 3.0** 조건을 따릅니다.
+
 ## 라이선스
 
-이 프로젝트는 `GPL-3.0-only` 라이선스로 배포합니다. 자세한 내용은 [LICENSE](LICENSE)를 확인하세요.
+이 프로젝트의 앱 소스코드는 `GPL-3.0-only` 라이선스로 배포합니다. 자세한 내용은 [LICENSE](LICENSE)를 확인하세요.
 
 앱 안에서 내려받거나 함께 쓰는 모델, Python 런타임, OCR 패키지, ffmpeg, llama.cpp/beellama/Lemonade ROCm, Flux 관련 런타임은 각각 별도 라이선스와 배포 조건을 가질 수 있습니다. 릴리즈 빌드와 런타임을 재배포하거나 수정 배포할 때는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)와 해당 구성요소의 라이선스도 함께 확인해야 합니다.
