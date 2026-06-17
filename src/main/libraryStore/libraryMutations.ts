@@ -5,6 +5,7 @@ import type {
   MangaPage,
   SavePageBlocksRequest,
 } from "../../shared/types";
+import { hashTranslationBlocks } from "../../shared/blockFingerprint";
 import { normalizeBlockType } from "../../shared/geometry";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
@@ -70,7 +71,11 @@ export async function savePageBlocksUnlocked(
   if (!page) {
     throw new Error("저장할 페이지를 찾지 못했습니다.");
   }
-  if (request.baseUpdatedAt && page.updatedAt !== request.baseUpdatedAt) {
+  if (
+    request.baseUpdatedAt &&
+    page.updatedAt !== request.baseUpdatedAt &&
+    !canRebasePageBlockSave(page, request)
+  ) {
     throw new Error(
       "페이지가 다른 작업으로 갱신되었습니다. 최신 내용을 다시 불러온 뒤 저장해 주세요.",
     );
@@ -98,6 +103,16 @@ export async function savePageBlocksUnlocked(
   await writeChapterFile(nextChapter);
   await touchWork(locator.workId, now);
   return hydrateChapter(nextChapter);
+}
+
+function canRebasePageBlockSave(
+  page: { blocks: SavePageBlocksRequest["blocks"] },
+  request: SavePageBlocksRequest,
+): boolean {
+  return (
+    Boolean(request.baseBlocksHash) &&
+    hashTranslationBlocks(page.blocks) === request.baseBlocksHash
+  );
 }
 
 export async function renameWorkUnlocked(

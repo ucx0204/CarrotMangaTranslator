@@ -33,6 +33,7 @@ type UseLibraryActionsOptions = {
   dirty: boolean;
   library: LibraryIndex;
   pushStatus: (line: string) => void;
+  resetSaveBaseline: (chapter?: ChapterSnapshot | null) => void;
   saveNow: () => Promise<void>;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setLibrary: Dispatch<SetStateAction<LibraryIndex>>;
@@ -48,6 +49,7 @@ export function useLibraryActions({
   dirty,
   library,
   pushStatus,
+  resetSaveBaseline,
   saveNow,
   setCurrentChapter,
   setLibrary,
@@ -97,9 +99,11 @@ export function useLibraryActions({
     setSelectedPageId(null);
     setSelectedBlockId(null);
     clearDirtyTracking();
+    resetSaveBaseline(null);
   }, [
     clearDirtyTracking,
     currentChapterRef,
+    resetSaveBaseline,
     setCurrentChapter,
     setSelectedBlockId,
     setSelectedPageId,
@@ -114,6 +118,7 @@ export function useLibraryActions({
         const chapter = await mangaGateway.openChapter(chapterId);
         clearDirtyTracking();
         currentChapterRef.current = chapter;
+        resetSaveBaseline(chapter);
         setCurrentChapter(chapter);
         setSelectedPageId(chapter.pages[0]?.id ?? null);
         setSelectedBlockId(null);
@@ -127,6 +132,7 @@ export function useLibraryActions({
       currentChapterRef,
       dirty,
       pushStatus,
+      resetSaveBaseline,
       saveNow,
       setCurrentChapter,
       setSelectedBlockId,
@@ -141,6 +147,7 @@ export function useLibraryActions({
       }
       clearDirtyTracking();
       currentChapterRef.current = chapter;
+      resetSaveBaseline(chapter);
       setCurrentChapter(chapter);
       setSelectedPageId((current) =>
         chapter.pages.some((page) => page.id === current)
@@ -156,6 +163,7 @@ export function useLibraryActions({
       clearDirtyTracking,
       currentChapterRef,
       pushStatus,
+      resetSaveBaseline,
       setCurrentChapter,
       setSelectedBlockId,
       setSelectedPageId,

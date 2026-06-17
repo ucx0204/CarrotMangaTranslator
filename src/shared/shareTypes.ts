@@ -5,6 +5,7 @@ export type SavePageBlocksRequest = {
   chapterId: string;
   pageId: string;
   baseUpdatedAt?: string;
+  baseBlocksHash?: string;
   blocks: TranslationBlock[];
 };
 

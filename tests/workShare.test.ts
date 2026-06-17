@@ -12,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LibraryChapter, LibraryWork } from "../src/shared/types";
+import { hashTranslationBlocks } from "../src/shared/blockFingerprint";
 import { MAX_SHARE_IMAGE_BYTES } from "../src/main/libraryStore/zipSafety";
 
 type AdmZipInstance = {
@@ -744,12 +745,56 @@ describe("work share packages", () => {
     expect(work?.updatedAt).not.toBe("2026-01-01T00:00:00.000Z");
   });
 
+  it("rebases stale page block saves when server blocks still match the baseline", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+    const originalPage = firstPage(chapter);
+    const baseBlocksHash = hashTranslationBlocks(originalPage.blocks);
+    const touchedChapter = makeChapter(
+      rootDir,
+      "chapter-a",
+      "1화",
+      "page-a",
+      "block-a",
+    );
+    touchedChapter.pages[0] = {
+      ...firstPage(touchedChapter),
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    };
+    touchedChapter.updatedAt = "2026-01-02T00:00:00.000Z";
+    await writeJson(
+      join(rootDir, "works", "work-1", "chapters", "chapter-a", "chapter.json"),
+      touchedChapter,
+    );
+
+    const saved = await library.savePageBlocks({
+      chapterId: chapter.id,
+      pageId: originalPage.id,
+      baseUpdatedAt: originalPage.updatedAt,
+      baseBlocksHash,
+      blocks: [
+        {
+          ...firstBlock(originalPage),
+          translatedText: "오래됐지만 안전한 저장",
+        },
+      ],
+    });
+
+    expect(saved.pages[0]?.blocks[0]?.id).toBe("block-a");
+    expect(saved.pages[0]?.blocks[0]?.translatedText).toBe(
+      "오래됐지만 안전한 저장",
+    );
+  });
+
   it("rejects stale page block saves after another job updates the page", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);
     await seedLibrary(rootDir);
     const chapter = await library.openChapter("chapter-a");
     const originalPage = firstPage(chapter);
+    const baseBlocksHash = hashTranslationBlocks(originalPage.blocks);
 
     await library.updatePagesAfterAnalysis("chapter-a", [
       {
@@ -773,6 +818,7 @@ describe("work share packages", () => {
         chapterId: chapter.id,
         pageId: originalPage.id,
         baseUpdatedAt: originalPage.updatedAt,
+        baseBlocksHash,
         blocks: [
           {
             ...firstBlock(originalPage),

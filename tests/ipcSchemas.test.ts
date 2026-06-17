@@ -67,11 +67,13 @@ describe("IPC schemas", () => {
         chapterId,
         pageId,
         baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+        baseBlocksHash: "0123456789abcdef",
         blocks: makeChapterSnapshot().pages[0].blocks,
       },
       "페이지 블록 저장",
     );
     expect(parsed.baseUpdatedAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(parsed.baseBlocksHash).toBe("0123456789abcdef");
   });
 
   it("rejects unknown fields in full chapter snapshots", () => {

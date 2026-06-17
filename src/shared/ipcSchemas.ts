@@ -528,6 +528,7 @@ export const SavePageBlocksRequestSchema = z
     chapterId: uuid,
     pageId: uuid,
     baseUpdatedAt: z.string().max(80).optional(),
+    baseBlocksHash: z.string().min(1).max(80).optional(),
     blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
   })
   .strict();

@@ -189,6 +189,7 @@ export function AppSession(): React.JSX.Element {
     dirtyPageIdsRef,
     markDirty,
     replaceDirtyPageIds,
+    resetSaveBaseline,
     saveNow,
   } = useChapterPersistence({
     currentChapter,
@@ -275,6 +276,7 @@ export function AppSession(): React.JSX.Element {
     dirty,
     library,
     pushStatus,
+    resetSaveBaseline,
     saveNow,
     setCurrentChapter,
     setLibrary,
