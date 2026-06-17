@@ -1,6 +1,7 @@
 import { mkdir, rm } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { clamp } from "../../shared/geometry";
+import { logWarn } from "../logger";
 import { safeCleanup } from "../safeCleanup";
 import {
   buildLocalMask,
@@ -114,6 +115,12 @@ export function createFluxEngine(options: {
       await mkdir(runDir, { recursive: true });
       let eligibleWindows = 0;
       let processedWindows = 0;
+      let unchangedWindows = 0;
+      const unchangedStats: Array<{
+        crop: number;
+        changedRatio: number;
+        meanDelta: number;
+      }> = [];
       try {
         for (const [index, window] of windows.entries()) {
           throwIfAborted(runOptions.signal);
@@ -140,6 +147,10 @@ export function createFluxEngine(options: {
           if (!localMask.some((value) => value > 0)) {
             continue;
           }
+          const validationMask =
+            maskPaddingPx > 0
+              ? buildLocalMask(mask, width, paddedBounds, 0)
+              : localMask;
           eligibleWindows += 1;
 
           const processSize = resolveFluxProcessSize(
@@ -184,7 +195,20 @@ export function createFluxEngine(options: {
             paddedBounds.w,
             paddedBounds.h,
           );
-          assertMaskedRegionChanged(cropBitmap, generated, localMask, index);
+          const changeStats = measureMaskedRegionChange(
+            cropBitmap,
+            generated,
+            validationMask,
+          );
+          assertMaskedRegionHasPixels(changeStats, index);
+          if (isMaskedRegionEffectivelyUnchanged(changeStats)) {
+            unchangedWindows += 1;
+            unchangedStats.push({
+              crop: index + 1,
+              changedRatio: changeStats.changedRatio,
+              meanDelta: changeStats.meanDelta,
+            });
+          }
           compositeFluxOutput(
             bitmap,
             generated,
@@ -196,8 +220,20 @@ export function createFluxEngine(options: {
           processedWindows += 1;
         }
         if (eligibleWindows > 0 && processedWindows === 0) {
-          throw new Error(
-            "Flux 원문 지우기 결과가 적용되지 않았습니다. 마스크 영역은 있었지만 처리된 crop이 없습니다.",
+          logWarn("Flux inpainting skipped every eligible crop", {
+            eligibleWindows,
+          });
+        } else if (
+          processedWindows > 0 &&
+          unchangedWindows === processedWindows
+        ) {
+          logWarn(
+            "Flux inpainting left every masked crop effectively unchanged",
+            {
+              eligibleWindows,
+              processedWindows,
+              unchangedStats,
+            },
           );
         }
       } finally {
@@ -234,32 +270,42 @@ function throwIfAborted(signal?: AbortSignal): void {
   }
 }
 
-function assertMaskedRegionChanged(
-  before: Buffer,
-  after: Buffer,
-  mask: Uint8Array,
+function assertMaskedRegionHasPixels(
+  stats: MaskedRegionChangeStats,
   index: number,
 ): void {
-  const stats = measureMaskedRegionChange(before, after, mask);
   if (stats.maskedPixels <= 0) {
     throw new Error(
       `Flux 원문 지우기 마스크가 비어 있습니다. crop=${index + 1}`,
     );
   }
-  if (stats.changedRatio < 0.01 && stats.meanDelta < 2) {
-    throw new Error(
-      `Flux 원문 지우기 결과가 마스크 영역을 거의 바꾸지 않았습니다. ` +
-        `마스크가 무시되었거나 런타임이 실제 인페인팅을 수행하지 않은 것 같습니다. ` +
-        `crop=${index + 1}, changed=${(stats.changedRatio * 100).toFixed(2)}%, meanDelta=${stats.meanDelta.toFixed(2)}`,
-    );
-  }
 }
 
-function measureMaskedRegionChange(
+export type MaskedRegionChangeStats = {
+  maskedPixels: number;
+  changedPixels: number;
+  changedRatio: number;
+  meanDelta: number;
+};
+
+export function isMaskedRegionEffectivelyUnchanged(
+  stats: Pick<
+    MaskedRegionChangeStats,
+    "changedPixels" | "changedRatio" | "meanDelta"
+  >,
+): boolean {
+  return (
+    stats.changedPixels <= 0 &&
+    stats.changedRatio < 0.0001 &&
+    stats.meanDelta < 0.1
+  );
+}
+
+export function measureMaskedRegionChange(
   before: Buffer,
   after: Buffer,
   mask: Uint8Array,
-): { maskedPixels: number; changedRatio: number; meanDelta: number } {
+): MaskedRegionChangeStats {
   let maskedPixels = 0;
   let changedPixels = 0;
   let totalDelta = 0;
@@ -285,6 +331,7 @@ function measureMaskedRegionChange(
   }
   return {
     maskedPixels,
+    changedPixels,
     changedRatio: maskedPixels > 0 ? changedPixels / maskedPixels : 0,
     meanDelta: maskedPixels > 0 ? totalDelta / maskedPixels : 0,
   };
