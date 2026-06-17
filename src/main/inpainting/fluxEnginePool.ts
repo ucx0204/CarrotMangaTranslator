@@ -7,6 +7,7 @@ import {
   type InpaintingRuntimeProgress,
 } from "../inpainting";
 import type { FluxBackend } from "../../shared/types";
+import { detectBestGpuInfo } from "../gpuInfo";
 
 const FLUX_ENGINE_IDLE_TTL_MS = 5 * 60 * 1000;
 
@@ -48,7 +49,11 @@ export async function acquireFluxInpaintingEngine(options: {
     "flux-inpainting",
   );
   const fluxBackend = options.fluxBackend ?? "cuda-native";
-  const key = `${fluxBackend}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
+  const nvidiaComputeCapability =
+    fluxBackend === "cuda-native"
+      ? await detectNvidiaComputeCapability()
+      : null;
+  const key = `${fluxBackend}\n${nvidiaComputeCapability ?? "generic"}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
 
   if (
     cachedEngine?.key === key &&
@@ -76,6 +81,7 @@ export async function acquireFluxInpaintingEngine(options: {
     runtimeDir,
     modelDir,
     fluxBackend,
+    nvidiaComputeCapability,
     runRootDir,
     signal: options.signal,
     onProgress: options.onProgress,
@@ -129,4 +135,9 @@ function clearIdleTimer(engine: CachedFluxEngine): void {
     clearTimeout(engine.idleTimer);
     engine.idleTimer = null;
   }
+}
+
+async function detectNvidiaComputeCapability(): Promise<number | null> {
+  const gpu = await detectBestGpuInfo();
+  return gpu?.vendor === "nvidia" ? (gpu.computeCapability ?? null) : null;
 }

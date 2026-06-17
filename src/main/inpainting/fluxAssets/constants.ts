@@ -12,6 +12,8 @@ export const FLUX_VAE_FILE = "diffusion_pytorch_model.safetensors";
 
 export const FLUX_RUNNER_DIR = "mgt-flux-klein";
 
+export const FLUX_NVIDIA_RUNNER_COMPUTE_CAPS = ["75", "86", "89", "90", "120"];
+
 export const FLUX_CUDA_RUNTIME_DIR = "mgt-flux-cuda12.9";
 
 export const FLUX_ZLUDA_SUPPORT_RUNTIME_DIR = "mgt-flux-zluda-support";

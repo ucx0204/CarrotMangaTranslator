@@ -405,6 +405,11 @@ function buildFluxRuntimeExitError(
       `RTX 50번대/Blackwell에서 Flux CUDA 커널 실행에 실패했습니다. Flux는 앱이 준비한 CUDA 12.9/cuDNN 9.21 런타임만 사용해야 합니다. 앱을 최신 설치 파일로 업데이트하고 Flux 런타임 캐시를 다시 준비하세요. ${detail}`,
     );
   }
+  if (isFluxInvalidPtxRuntimeError(stderr)) {
+    return new Error(
+      `Flux CUDA 커널이 현재 NVIDIA GPU 아키텍처와 맞지 않아 실행되지 않았습니다. 앱을 최신 설치 파일로 업데이트해 GPU별 Flux 실행 파일을 받거나, 설정에서 인페인팅 Flux 백엔드를 CPU로 바꾼 뒤 앱을 다시 시작해 주세요. ${detail}`,
+    );
+  }
   return new Error(
     `Flux 인페인팅 런타임이 종료되었습니다 (${code}). ${detail}`,
   );
@@ -449,6 +454,12 @@ function buildFluxWorkerResponseError(
 
 function isFluxBlackwellRuntimeError(stderr: string): boolean {
   return /SM\s*120|sm[_\s-]*120|compute capability\s*12(?:\.0)?|no kernel image is available|invalid device function|unsupported gpu architecture|invalid device kernel image|named symbol not found/i.test(
+    stderr,
+  );
+}
+
+function isFluxInvalidPtxRuntimeError(stderr: string): boolean {
+  return /CUDA_ERROR_INVALID_PTX|PTX JIT compilation failed|invalid ptx/i.test(
     stderr,
   );
 }

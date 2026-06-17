@@ -268,6 +268,7 @@ export async function prepareFluxInpaintingEngine(options: {
   runtimeDir: string;
   modelDir: string;
   fluxBackend?: FluxBackend;
+  nvidiaComputeCapability?: number | null;
   runRootDir?: string;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
@@ -276,6 +277,7 @@ export async function prepareFluxInpaintingEngine(options: {
     runtimeDir: options.runtimeDir,
     modelDir: options.modelDir,
     backend: options.fluxBackend ?? "cuda-native",
+    nvidiaComputeCapability: options.nvidiaComputeCapability,
     signal: options.signal,
     onProgress: options.onProgress,
   });

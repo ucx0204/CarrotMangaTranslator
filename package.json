@@ -1,6 +1,6 @@
 {
   "name": "carrot-manga-translator",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Windows desktop manga translation, editing, and inpainting tool powered by Gemma 4 and OpenAI Codex.",
   "license": "GPL-3.0-only",
   "type": "commonjs",

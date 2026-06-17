@@ -17,6 +17,7 @@ import {
   FLUX_ZLUDA_SUPPORT_RUNTIME_DIR,
 } from "../src/main/inpainting/fluxAssets/constants";
 import { ensureManagedFluxRunner } from "../src/main/inpainting/fluxAssets/cudaRuntime";
+import { resolveFluxRunnerDirForComputeCapability } from "../src/main/inpainting/fluxAssets/cudaRuntime";
 import {
   resolveFluxPythonWorkerFile,
   ensureFluxPythonWorker,
@@ -45,6 +46,7 @@ afterEach(() => {
   delete process.env.CUDA_PATH_V12_9;
   delete process.env.MGT_FLUX_ALLOW_SYSTEM_CUDA;
   delete process.env.MGT_FLUX_KLEIN_EXE;
+  delete process.env.MGT_FLUX_KLEIN_TOOLS_DIR;
   delete process.env.CUDA_PATH;
   delete process.env.ROCM_PATH;
   delete process.env.HIP_PATH;
@@ -261,6 +263,75 @@ describe("Flux worker runtime helpers", () => {
     );
   });
 
+  it("prefers the bundled Flux runner matching the NVIDIA compute capability", async () => {
+    const runtimeDir = createTempDir("mgt-flux-runner-sm-runtime-");
+    const toolsDir = createTempDir("mgt-flux-runner-sm-tools-");
+    const genericDir = join(toolsDir, "mgt-flux-klein");
+    const sm86Dir = join(toolsDir, "mgt-flux-klein-sm86");
+    mkdirSync(genericDir, { recursive: true });
+    mkdirSync(sm86Dir, { recursive: true });
+    writeFileSync(join(genericDir, "mgt-flux-klein.exe"), "generic-runner");
+    writeFileSync(join(sm86Dir, "mgt-flux-klein.exe"), "sm86-runner");
+    process.env.MGT_FLUX_KLEIN_TOOLS_DIR = toolsDir;
+    const progress: Array<Record<string, unknown>> = [];
+
+    const managedPath = await ensureManagedFluxRunner({
+      runtimeDir,
+      nvidiaComputeCapability: 8.6,
+      onProgress: (event) => progress.push(event),
+    });
+
+    expect(managedPath).toBe(
+      join(runtimeDir, "mgt-flux-klein-sm86", "mgt-flux-klein.exe"),
+    );
+    expect(readFileSync(managedPath, "utf8")).toBe("sm86-runner");
+    expect(progress).toContainEqual(
+      expect.objectContaining({
+        progressText: "Flux 실행 파일 준비 중",
+        installLogLine:
+          "Flux 실행 파일을 앱 데이터 캐시에 갱신했습니다: mgt-flux-klein-sm86/mgt-flux-klein.exe",
+      }),
+    );
+  });
+
+  it("falls back to a lower compatible Flux runner before the generic runner", async () => {
+    const runtimeDir = createTempDir("mgt-flux-runner-lower-runtime-");
+    const toolsDir = createTempDir("mgt-flux-runner-lower-tools-");
+    const genericDir = join(toolsDir, "mgt-flux-klein");
+    const sm75Dir = join(toolsDir, "mgt-flux-klein-sm75");
+    mkdirSync(genericDir, { recursive: true });
+    mkdirSync(sm75Dir, { recursive: true });
+    writeFileSync(join(genericDir, "mgt-flux-klein.exe"), "generic-runner");
+    writeFileSync(join(sm75Dir, "mgt-flux-klein.exe"), "sm75-runner");
+    process.env.MGT_FLUX_KLEIN_TOOLS_DIR = toolsDir;
+
+    const managedPath = await ensureManagedFluxRunner({
+      runtimeDir,
+      nvidiaComputeCapability: 8.6,
+    });
+
+    expect(managedPath).toBe(
+      join(runtimeDir, "mgt-flux-klein-sm75", "mgt-flux-klein.exe"),
+    );
+    expect(readFileSync(managedPath, "utf8")).toBe("sm75-runner");
+  });
+
+  it("maps NVIDIA compute capability to the closest packaged Flux runner", () => {
+    expect(resolveFluxRunnerDirForComputeCapability(7.5)).toBe(
+      "mgt-flux-klein-sm75",
+    );
+    expect(resolveFluxRunnerDirForComputeCapability(8.6)).toBe(
+      "mgt-flux-klein-sm86",
+    );
+    expect(resolveFluxRunnerDirForComputeCapability(8.7)).toBe(
+      "mgt-flux-klein-sm86",
+    );
+    expect(resolveFluxRunnerDirForComputeCapability(12)).toBe(
+      "mgt-flux-klein-sm120",
+    );
+    expect(resolveFluxRunnerDirForComputeCapability(7)).toBeNull();
+  });
+
   it("keeps Flux scratch run directories under app tmp runtime instead of the model cache", () => {
     const dataRoot = join("C:", "mgt", "data");
     const runtimeDir = join(
@@ -414,6 +485,21 @@ describe("Flux worker runtime helpers", () => {
       expect(script).toContain(target);
       expect(DEFAULT_AMD_GPU_TARGETS).toContain(target);
     }
+  });
+
+  it("builds Flux Klein CUDA runners with explicit compute-capability variants", () => {
+    const script = readFileSync(
+      join(repoRoot, "scripts", "prepare-flux-klein-runner.cjs"),
+      "utf8",
+    );
+
+    expect(script).toContain("MGT_FLUX_KLEIN_COMPUTE_CAPS");
+    expect(script).toContain("CUDA_COMPUTE_CAP");
+    expect(script).toContain("${runnerDirName}-sm");
+    expect(script).toContain("index === 0 ? [{ outDir, outExe }] : []");
+    expect(script.indexOf("CUDA_PATH_V12_9")).toBeLessThan(
+      script.indexOf("MGT_FLUX_ALLOW_CUDA13_BUILD"),
+    );
   });
 
   it("discovers Windows SDK and MSVC import libraries for ROCm source builds", () => {

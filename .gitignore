@@ -20,6 +20,7 @@ tools/llama-b8833-cuda13.1/
 tools/beellama*/
 tools/mgt-flux-cuda12.*/
 tools/mgt-flux-klein-runner/target/
+tools/mgt-flux-klein-sm*/
 tools/mgt-flux-klein/*.exe
 !tools/mgt-flux-klein/mgt-flux-klein.exe
 tools/python/

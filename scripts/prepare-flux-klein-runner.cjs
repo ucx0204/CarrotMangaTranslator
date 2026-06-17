@@ -12,17 +12,30 @@ const { spawnSync } = require("node:child_process");
 
 const root = join(__dirname, "..");
 const manifestPath = join(root, "tools", "mgt-flux-klein-runner", "Cargo.toml");
-const outDir = join(root, "tools", "mgt-flux-klein");
-const outExe = join(outDir, "mgt-flux-klein.exe");
+const runnerDirName = "mgt-flux-klein";
+const runnerExeName = "mgt-flux-klein.exe";
+const outDir = join(root, "tools", runnerDirName);
+const outExe = join(outDir, runnerExeName);
 const cargoTargetDir =
   process.env.MGT_FLUX_KLEIN_TARGET_DIR ||
   join(tmpdir(), "mgt-flux-klein-target");
-const builtExe = join(cargoTargetDir, "release", "mgt-flux-klein.exe");
 const cudaRoot = process.env.MGT_FLUX_KLEIN_CUDA_ROOT || findCudaRoot();
 const forceRebuild = process.env.MGT_FORCE_REBUILD_FLUX_RUNNER === "1";
+const buildPlan = resolveBuildPlan();
 
-if (!forceRebuild && isUsableFile(outExe)) {
-  console.log(`mgt-flux-klein already exists: ${outExe}`);
+if (
+  !forceRebuild &&
+  buildPlan.every(
+    (entry) =>
+      isUsableFile(entry.outExe) &&
+      entry.aliases.every((alias) => isUsableFile(alias.outExe)),
+  )
+) {
+  console.log(
+    `mgt-flux-klein already exists: ${buildPlan
+      .map((entry) => entry.outExe)
+      .join(", ")}`,
+  );
   process.exit(0);
 }
 
@@ -32,17 +45,27 @@ if (!existsSync(manifestPath)) {
 }
 
 patchKoharuFluxSources();
-runCargo(["build", "--release", "--manifest-path", manifestPath]);
-if (!isUsableFile(builtExe)) {
-  console.error(`Flux runner build did not produce ${builtExe}`);
-  process.exit(1);
+for (const entry of buildPlan) {
+  runCargo(["build", "--release", "--manifest-path", manifestPath], entry);
+  const builtExe = join(entry.cargoTargetDir, "release", runnerExeName);
+  if (!isUsableFile(builtExe)) {
+    console.error(`Flux runner build did not produce ${builtExe}`);
+    process.exit(1);
+  }
+
+  mkdirSync(entry.outDir, { recursive: true });
+  copyFileSync(builtExe, entry.outExe);
+  console.log(
+    `Prepared Flux runner${entry.computeCap ? ` sm_${entry.computeCap}` : ""}: ${entry.outExe}`,
+  );
+  for (const alias of entry.aliases) {
+    mkdirSync(alias.outDir, { recursive: true });
+    copyFileSync(builtExe, alias.outExe);
+    console.log(`Prepared Flux runner alias: ${alias.outExe}`);
+  }
 }
 
-mkdirSync(outDir, { recursive: true });
-copyFileSync(builtExe, outExe);
-console.log(`Prepared Flux runner: ${outExe}`);
-
-function runCargo(args) {
+function runCargo(args, buildTarget) {
   const msvcBin = process.platform === "win32" ? findMsvcClBin() : null;
   const pathParts = [
     cudaRoot ? join(cudaRoot, "bin") : null,
@@ -51,10 +74,18 @@ function runCargo(args) {
   ].filter(
     (candidate) => typeof candidate === "string" && candidate.length > 0,
   );
+  if (buildTarget.computeCap) {
+    console.log(`CUDA_COMPUTE_CAP=${buildTarget.computeCap}`);
+  }
   run("cargo", args, {
-    CARGO_TARGET_DIR: cargoTargetDir,
+    CARGO_TARGET_DIR: buildTarget.cargoTargetDir,
     LLAMA_CPP_TAG: "b-mgt-unused",
     RUSTFLAGS: buildRustFlags(),
+    ...(buildTarget.computeCap
+      ? {
+          CUDA_COMPUTE_CAP: buildTarget.computeCap,
+        }
+      : {}),
     ...(cudaRoot
       ? {
           CUDA_PATH: cudaRoot,
@@ -65,6 +96,61 @@ function runCargo(args) {
       : {}),
     PATH: pathParts.join(delimiter),
   });
+}
+
+function resolveBuildPlan() {
+  const requestedCaps = parseComputeCaps(
+    process.env.MGT_FLUX_KLEIN_COMPUTE_CAPS,
+  );
+  if (requestedCaps.length > 0) {
+    return requestedCaps.map((computeCap, index) =>
+      makeBuildTarget(computeCap, index === 0 ? [{ outDir, outExe }] : []),
+    );
+  }
+
+  const singleComputeCap = normalizeComputeCap(process.env.CUDA_COMPUTE_CAP);
+  if (singleComputeCap) {
+    return [makeBuildTarget(singleComputeCap, [{ outDir, outExe }])];
+  }
+
+  return [
+    {
+      computeCap: null,
+      cargoTargetDir,
+      outDir,
+      outExe,
+      aliases: [],
+    },
+  ];
+}
+
+function makeBuildTarget(computeCap, aliases) {
+  const dirName = `${runnerDirName}-sm${computeCap}`;
+  return {
+    computeCap,
+    cargoTargetDir: join(cargoTargetDir, `sm${computeCap}`),
+    outDir: join(root, "tools", dirName),
+    outExe: join(root, "tools", dirName, runnerExeName),
+    aliases,
+  };
+}
+
+function parseComputeCaps(value) {
+  return String(value ?? "")
+    .split(/[,\s;]+/)
+    .map(normalizeComputeCap)
+    .filter(Boolean)
+    .filter((cap, index, values) => values.indexOf(cap) === index);
+}
+
+function normalizeComputeCap(value) {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^sm[_-]?/, "")
+    .replace(/^compute[_-]?/, "")
+    .replace(/\./g, "");
+  return /^\d{2,3}$/.test(normalized) ? normalized : null;
 }
 
 function run(command, args, extraEnv = {}) {
@@ -146,22 +232,6 @@ function findMsvcClBin() {
 
 function findCudaRoot() {
   const rawCandidates = [
-    process.env.CUDA_PATH_V13_0,
-    join(
-      "C:",
-      "Program Files",
-      "NVIDIA GPU Computing Toolkit",
-      "CUDA",
-      "v13.0",
-    ),
-    process.env.CUDA_PATH_V13_1,
-    join(
-      "C:",
-      "Program Files",
-      "NVIDIA GPU Computing Toolkit",
-      "CUDA",
-      "v13.1",
-    ),
     process.env.CUDA_PATH_V12_9,
     join(
       "C:",
@@ -198,6 +268,26 @@ function findCudaRoot() {
           ),
           process.env.CUDA_PATH,
           process.env.CUDA_HOME,
+        ]
+      : []),
+    ...(process.env.MGT_FLUX_ALLOW_CUDA13_BUILD === "1"
+      ? [
+          process.env.CUDA_PATH_V13_1,
+          join(
+            "C:",
+            "Program Files",
+            "NVIDIA GPU Computing Toolkit",
+            "CUDA",
+            "v13.1",
+          ),
+          process.env.CUDA_PATH_V13_0,
+          join(
+            "C:",
+            "Program Files",
+            "NVIDIA GPU Computing Toolkit",
+            "CUDA",
+            "v13.0",
+          ),
         ]
       : []),
   ];

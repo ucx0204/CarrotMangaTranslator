@@ -8,6 +8,7 @@ import { ensureFluxPythonRuntime } from "./pythonRuntime";
 
 export async function ensureMgtFluxKleinRuntime(options: {
   runtimeDir: string;
+  nvidiaComputeCapability?: number | null;
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<string> {
@@ -27,6 +28,7 @@ export async function ensureFluxWorkerLaunch(options: {
   runtimeDir: string;
   modelDir: string;
   backend: FluxRuntimeBackend;
+  nvidiaComputeCapability?: number | null;
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<FluxWorkerLaunchSpec> {

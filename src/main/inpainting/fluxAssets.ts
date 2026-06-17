@@ -10,6 +10,7 @@ export {
   ensureFluxWorkerLaunch,
   ensureMgtFluxKleinRuntime,
 } from "./fluxAssets/workerLaunch";
+export { resolveFluxRunnerDirForComputeCapability } from "./fluxAssets/cudaRuntime";
 export { resolveFluxPythonRuntimeLayout } from "./fluxAssets/pythonRuntimeLayout";
 export { resolveWindowsNativeBuildEnv } from "./fluxAssets/windowsBuildEnv";
 export { parsePipDownloadProgressLine } from "./fluxAssets/progress";

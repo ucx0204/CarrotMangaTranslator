@@ -43,6 +43,16 @@ if (existsSync(fluxKleinRunnerPath)) {
   );
 }
 
+for (const computeCap of ["75", "86", "89", "90", "120"]) {
+  const runnerDir = `mgt-flux-klein-sm${computeCap}`;
+  if (existsSync(join(__dirname, "tools", runnerDir, "mgt-flux-klein.exe"))) {
+    extraResources.push({
+      from: `tools/${runnerDir}`,
+      to: `tools/${runnerDir}`,
+    });
+  }
+}
+
 module.exports = {
   appId: "com.sam40.mangagemma.translator",
   productName: "당근망가번역기",
