@@ -46,7 +46,12 @@ export type LocalModelPickResult = {
 export type ModelTestResult = {
   ok: boolean;
   message: string;
-  launchMode: "huggingface" | "cached-hf" | "local" | "openai-codex";
+  launchMode:
+    | "huggingface"
+    | "cached-hf"
+    | "local"
+    | "openai-codex"
+    | "openai-api";
   resolvedModelPath?: string | null;
   resolvedMmprojPath?: string | null;
   resolvedEndpoint?: string | null;

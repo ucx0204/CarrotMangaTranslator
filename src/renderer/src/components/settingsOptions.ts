@@ -1,4 +1,5 @@
 import type {
+  ApiReasoningEffort,
   CodexReasoningEffort,
   FluxBackend,
   LlamaRuntimeProfile,
@@ -77,6 +78,11 @@ type CodexReasoningOption = {
   description: string;
 };
 
+type ApiReasoningOption = {
+  id: ApiReasoningEffort | "";
+  label: string;
+};
+
 export type OcrRuntimeOptionId = OcrGpuBackend | "cpu";
 
 type OcrDeviceOption = {
@@ -124,6 +130,11 @@ export const MODEL_PROVIDER_OPTIONS: ModelProviderOption[] = [
     description:
       "Codex 로그인 토큰을 쓰는 openai-oauth 엔드포인트로 요청합니다.",
   },
+  {
+    id: "openai-api",
+    label: "API",
+    description: "OpenAI 호환 /chat/completions API 엔드포인트로 요청합니다.",
+  },
 ];
 
 export const CODEX_REASONING_OPTIONS: CodexReasoningOption[] = [
@@ -152,6 +163,16 @@ export const CODEX_REASONING_OPTIONS: CodexReasoningOption[] = [
     label: "최고",
     description: "가장 넉넉한 생각 예산을 사용합니다.",
   },
+];
+
+export const API_REASONING_OPTIONS: ApiReasoningOption[] = [
+  { id: "", label: "보내지 않음" },
+  { id: "none", label: "none" },
+  { id: "minimal", label: "minimal" },
+  { id: "low", label: "low" },
+  { id: "medium", label: "medium" },
+  { id: "high", label: "high" },
+  { id: "xhigh", label: "xhigh" },
 ];
 
 export const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [

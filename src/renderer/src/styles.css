@@ -3617,9 +3617,14 @@ kbd {
 }
 
 .settings-mode-group {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.settings-mode-group > button {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .settings-preset-group {
@@ -3643,6 +3648,31 @@ kbd {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+}
+
+.settings-advanced {
+  display: grid;
+  gap: 12px;
+  padding: 10px 0 0;
+}
+
+.settings-advanced summary {
+  cursor: pointer;
+  color: #e6ddcf;
+}
+
+.settings-advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-json-textarea {
+  min-height: 92px;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  resize: vertical;
 }
 
 .settings-inline-actions {
@@ -3787,13 +3817,17 @@ kbd {
     flex-basis: 100%;
   }
 
-  .settings-mode-group,
   .settings-preset-group,
+  .settings-advanced-grid,
   .settings-file-row,
   .source-choice-grid,
   .share-target-grid,
   .share-merge-grid {
     grid-template-columns: 1fr;
+  }
+
+  .settings-mode-group {
+    flex-direction: column;
   }
 
   .settings-layout {

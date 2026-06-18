@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildResponsesRequestBody,
+  buildChatRequestBody,
+  buildChatRequestHeaders,
+  buildHttpFailureMessage,
+  extractModelOutputFailure,
   extractModelOutputText,
   inspectModelLaunch,
   isModelCached,
@@ -22,6 +26,240 @@ describe("runtime Responses request body contracts", () => {
       requiresDownload: false,
     });
     expect(isModelCached({ modelProvider: "openai-codex" })).toBe(true);
+  });
+
+  it("treats OpenAI-compatible API as a direct remote endpoint", () => {
+    const launch = inspectModelLaunch({
+      modelProvider: "openai-api",
+      apiBaseUrl: "http://127.0.0.1:1234/v1",
+      apiModel: "local-vision-model",
+    });
+
+    expect(launch).toEqual({
+      launchMode: "openai-api",
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: "local-vision-model",
+      requiresDownload: false,
+    });
+    expect(isModelCached({ modelProvider: "openai-api" })).toBe(true);
+  });
+
+  it("builds API chat requests without Gemma-only fields", () => {
+    const messages = [
+      {
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      },
+    ];
+    const requestBody = buildChatRequestBody(
+      {
+        modelProvider: "openai-api",
+        apiModel: "local-vision-model",
+        temperature: 0.2,
+        topP: 0.95,
+        topK: 64,
+      },
+      messages,
+      256,
+    );
+
+    expect(requestBody).toMatchObject({
+      model: "local-vision-model",
+      temperature: 0.2,
+      top_p: 0.95,
+      max_tokens: 256,
+      messages,
+    });
+    expect(requestBody).not.toHaveProperty("top_k");
+    expect(requestBody).not.toHaveProperty("reasoning_budget");
+    expect(requestBody).not.toHaveProperty("enable_thinking");
+  });
+
+  it("omits nullable API fields and merges extra request body without overriding locked fields", () => {
+    const messages = [
+      {
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      },
+    ];
+    const requestBody = buildChatRequestBody(
+      {
+        modelProvider: "openai-api",
+        apiModel: "locked-model",
+        apiTemperature: null,
+        apiTopP: null,
+        apiTopK: 7,
+        apiReasoningEffort: "minimal",
+        apiExtraBodyJson:
+          '{"model":"wrong","messages":[],"max_tokens":999,"top_k":1,"provider":{"sort":"throughput"}}',
+      },
+      messages,
+      256,
+    );
+
+    expect(requestBody).toMatchObject({
+      model: "locked-model",
+      messages,
+      max_tokens: 256,
+      top_k: 1,
+      reasoning_effort: "minimal",
+      provider: { sort: "throughput" },
+    });
+    expect(requestBody).not.toHaveProperty("temperature");
+    expect(requestBody).not.toHaveProperty("top_p");
+  });
+
+  it("throws readable errors for invalid API extra body JSON", () => {
+    expect(() =>
+      buildChatRequestBody(
+        {
+          modelProvider: "openai-api",
+          apiExtraBodyJson: "[]",
+        },
+        [{ role: "user", content: [] }],
+        256,
+      ),
+    ).toThrow(/API extra request body JSON은 JSON 객체/);
+  });
+
+  it("adds API authorization headers only when a key is configured", () => {
+    const originalApiKey = process.env.MANGA_TRANSLATOR_API_KEY;
+    const originalOpenAiKey = process.env.OPENAI_API_KEY;
+    delete process.env.MANGA_TRANSLATOR_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+
+    try {
+      expect(
+        buildChatRequestHeaders({
+          modelProvider: "openai-api",
+          apiKey: "",
+        }),
+      ).toEqual({ "Content-Type": "application/json" });
+      expect(
+        buildChatRequestHeaders({
+          modelProvider: "openai-api",
+          apiKey: "sk-test",
+        }),
+      ).toEqual({
+        "Content-Type": "application/json",
+        Authorization: "Bearer sk-test",
+      });
+    } finally {
+      if (originalApiKey === undefined) {
+        delete process.env.MANGA_TRANSLATOR_API_KEY;
+      } else {
+        process.env.MANGA_TRANSLATOR_API_KEY = originalApiKey;
+      }
+      if (originalOpenAiKey === undefined) {
+        delete process.env.OPENAI_API_KEY;
+      } else {
+        process.env.OPENAI_API_KEY = originalOpenAiKey;
+      }
+    }
+  });
+
+  it("adds custom API headers without allowing protected header overrides", () => {
+    expect(
+      buildChatRequestHeaders({
+        modelProvider: "openai-api",
+        apiKey: "sk-test",
+        apiCustomHeadersJson:
+          '{"HTTP-Referer":"https://example.invalid","X-Flag":true}',
+      }),
+    ).toEqual({
+      "Content-Type": "application/json",
+      Authorization: "Bearer sk-test",
+      "HTTP-Referer": "https://example.invalid",
+      "X-Flag": "true",
+    });
+
+    expect(() =>
+      buildChatRequestHeaders({
+        modelProvider: "openai-api",
+        apiCustomHeadersJson: '{"Authorization":"Bearer nope"}',
+      }),
+    ).toThrow(/덮어쓸 수 없습니다/);
+    expect(() =>
+      buildChatRequestHeaders({
+        modelProvider: "openai-api",
+        apiCustomHeadersJson: '{"X-Bad":{"nested":true}}',
+      }),
+    ).toThrow(/문자열, 숫자, boolean/);
+  });
+
+  it("uses OPENAI_API_KEY only for the official OpenAI API endpoint", () => {
+    const originalApiKey = process.env.MANGA_TRANSLATOR_API_KEY;
+    const originalOpenAiKey = process.env.OPENAI_API_KEY;
+    delete process.env.MANGA_TRANSLATOR_API_KEY;
+    process.env.OPENAI_API_KEY = "openai-env-key";
+
+    try {
+      expect(
+        buildChatRequestHeaders({
+          modelProvider: "openai-api",
+          apiBaseUrl: "https://api.openai.com/v1",
+        }),
+      ).toEqual({
+        "Content-Type": "application/json",
+        Authorization: "Bearer openai-env-key",
+      });
+      expect(
+        buildChatRequestHeaders({
+          modelProvider: "openai-api",
+          apiBaseUrl: "https://integrate.api.nvidia.com/v1",
+        }),
+      ).toEqual({ "Content-Type": "application/json" });
+      expect(
+        buildChatRequestHeaders({
+          modelProvider: "openai-api",
+          apiBaseUrl: "https://integrate.api.nvidia.com/v1",
+          apiKey: "saved-provider-key",
+        }),
+      ).toEqual({
+        "Content-Type": "application/json",
+        Authorization: "Bearer saved-provider-key",
+      });
+
+      process.env.MANGA_TRANSLATOR_API_KEY = "provider-env-key";
+      expect(
+        buildChatRequestHeaders({
+          modelProvider: "openai-api",
+          apiBaseUrl: "https://integrate.api.nvidia.com/v1",
+          apiKey: "saved-provider-key",
+        }),
+      ).toEqual({
+        "Content-Type": "application/json",
+        Authorization: "Bearer provider-env-key",
+      });
+    } finally {
+      if (originalApiKey === undefined) {
+        delete process.env.MANGA_TRANSLATOR_API_KEY;
+      } else {
+        process.env.MANGA_TRANSLATOR_API_KEY = originalApiKey;
+      }
+      if (originalOpenAiKey === undefined) {
+        delete process.env.OPENAI_API_KEY;
+      } else {
+        process.env.OPENAI_API_KEY = originalOpenAiKey;
+      }
+    }
+  });
+
+  it("describes API HTTP failures with status and setup hints", () => {
+    expect(
+      buildHttpFailureMessage(
+        { modelProvider: "openai-api" },
+        401,
+        "Unauthorized",
+      ),
+    ).toContain("API 오류 401 Unauthorized: 인증에 실패했습니다.");
+    expect(
+      buildHttpFailureMessage(
+        { modelProvider: "openai-api" },
+        400,
+        "Bad Request",
+      ),
+    ).toContain("선택한 모델이 이미지 입력을 지원하는지");
   });
 
   it("builds Codex Responses requests with input_image data URLs", () => {
@@ -155,6 +393,26 @@ describe("runtime Responses request body contracts", () => {
         ],
       }),
     ).toBe("id: 1\nko: 테스트");
+  });
+
+  it("classifies reasoning-only chat responses without using thoughts as output", () => {
+    const parsed = {
+      choices: [
+        {
+          finish_reason: "stop",
+          message: {
+            content: null,
+            reasoning_content: "internal thoughts",
+          },
+        },
+      ],
+    };
+
+    expect(extractModelOutputText(parsed)).toBe("");
+    expect(extractModelOutputFailure(parsed)).toMatchObject({
+      failureCategory: "empty-model-response",
+      nonRetriable: true,
+    });
   });
 
   it("collects Responses API streaming text deltas", () => {

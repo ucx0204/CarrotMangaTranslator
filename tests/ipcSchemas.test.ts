@@ -196,6 +196,17 @@ describe("IPC schemas", () => {
         reasoningEffort: "medium",
         oauthPort: 10531,
       },
+      api: {
+        baseUrl: "http://127.0.0.1:1234/v1/chat/completions/",
+        model: "local-vision-model",
+        apiKey: "sk-test",
+        temperature: null,
+        topP: 0.8,
+        topK: 8,
+        reasoningEffort: "minimal",
+        extraBodyJson: '{"provider":{"sort":"throughput"}}',
+        customHeadersJson: '{"X-OpenRouter-Title":"Manga Translator"}',
+      },
       ocr: {
         device: "cpu",
         gpuBackend: "rocm",
@@ -203,14 +214,17 @@ describe("IPC schemas", () => {
       inpainting: {
         fluxBackend: "rocm",
       },
-      maxTokens: 12000,
+      maxTokens: 32768,
     };
 
     const parsed = parseIpcPayload(AppSettingsSchema, payload, "설정 저장");
-    expect(parsed.maxTokens).toBe(12000);
+    expect(parsed.maxTokens).toBe(32768);
     expect(parsed.gemma.vramMode).toBe("economy26b");
     expect(parsed.gemma.llamaRuntimeProfile).toBe("rtx50");
     expect(parsed.gemma.llamaRocmTarget).toBe("gfx110X");
+    expect(parsed.api.baseUrl).toBe("http://127.0.0.1:1234/v1");
+    expect(parsed.api.temperature).toBeNull();
+    expect(parsed.api.reasoningEffort).toBe("minimal");
     expect(parsed.ocr.gpuBackend).toBe("rocm-transformers");
     expect(parsed.inpainting?.fluxBackend).toBe("zluda-native");
     expect(
@@ -226,7 +240,7 @@ describe("IPC schemas", () => {
     expect(() =>
       parseIpcPayload(
         AppSettingsSchema,
-        { ...payload, maxTokens: 12001 },
+        { ...payload, maxTokens: 32769 },
         "설정 저장",
       ),
     ).toThrow(/요청 형식/);
@@ -251,6 +265,33 @@ describe("IPC schemas", () => {
       parseIpcPayload(
         AppSettingsSchema,
         { ...payload, codex: { ...payload.codex, oauthPort: 0 } },
+        "설정 저장",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        AppSettingsSchema,
+        { ...payload, api: { ...payload.api, baseUrl: "file:///tmp/model" } },
+        "설정 저장",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        AppSettingsSchema,
+        { ...payload, api: { ...payload.api, extraBodyJson: "[]" } },
+        "설정 저장",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        AppSettingsSchema,
+        {
+          ...payload,
+          api: {
+            ...payload.api,
+            customHeadersJson: '{"Authorization":"Bearer nope"}',
+          },
+        },
         "설정 저장",
       ),
     ).toThrow(/요청 형식/);

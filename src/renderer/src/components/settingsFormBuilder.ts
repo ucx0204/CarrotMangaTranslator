@@ -1,5 +1,6 @@
 import type {
   AppSettings,
+  ApiReasoningEffort,
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
@@ -29,6 +30,15 @@ type BuildSettingsFromFormInput = {
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   codexOauthPort: number;
+  apiBaseUrl: string;
+  apiModel: string;
+  apiKey: string;
+  apiTemperature: number | null;
+  apiTopP: number | null;
+  apiTopK: number | null;
+  apiReasoningEffort: ApiReasoningEffort | null;
+  apiExtraBodyJson: string;
+  apiCustomHeadersJson: string;
   ocrDevice: OcrDevice;
   ocrGpuBackend: OcrGpuBackend;
   fluxBackend: FluxBackend;
@@ -38,11 +48,31 @@ type BuildSettingsFromFormInput = {
 export function buildSettingsFromForm(
   input: BuildSettingsFromFormInput,
 ): AppSettings {
+  return {
+    modelProvider: input.modelProvider,
+    gemma: buildGemmaSettings(input),
+    codex: {
+      model: input.codexModel || input.initialSettings.codex.model,
+      reasoningEffort: input.codexReasoningEffort,
+      oauthPort: input.codexOauthPort,
+    },
+    api: buildApiSettings(input),
+    ocr: buildOcrSettings(input),
+    ui: input.initialSettings.ui,
+    inpainting: {
+      ...input.initialSettings.inpainting,
+      fluxBackend: input.fluxBackend,
+    },
+    maxTokens: input.maxTokens,
+  };
+}
+
+function buildGemmaSettings(input: BuildSettingsFromFormInput) {
   const llamaRocmTarget =
     input.initialSettings.gemma.llamaRocmTarget ??
     input.initialSettings.runtimeHardware?.llamaRocmTarget ??
     undefined;
-  const gemma = {
+  return {
     modelSource: input.modelSource,
     modelRepo: input.modelRepo || DEFAULT_GEMMA_MODEL_REPO,
     modelFile: input.modelFile || DEFAULT_GEMMA_MODEL_FILE,
@@ -56,28 +86,28 @@ export function buildSettingsFromForm(
     llamaRuntimeProfile: input.llamaRuntimeProfile,
     ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
   };
-  const ocr = {
+}
+
+function buildOcrSettings(input: BuildSettingsFromFormInput) {
+  return {
     device: input.ocrDevice,
     gpuBackend: input.ocrGpuBackend,
     ...(input.initialSettings.ocr.gpuCudaTag
       ? { gpuCudaTag: input.initialSettings.ocr.gpuCudaTag }
       : {}),
   };
+}
 
+function buildApiSettings(input: BuildSettingsFromFormInput) {
   return {
-    modelProvider: input.modelProvider,
-    gemma,
-    codex: {
-      model: input.codexModel || input.initialSettings.codex.model,
-      reasoningEffort: input.codexReasoningEffort,
-      oauthPort: input.codexOauthPort,
-    },
-    ocr,
-    ui: input.initialSettings.ui,
-    inpainting: {
-      ...input.initialSettings.inpainting,
-      fluxBackend: input.fluxBackend,
-    },
-    maxTokens: input.maxTokens,
+    baseUrl: input.apiBaseUrl || input.initialSettings.api.baseUrl,
+    model: input.apiModel || input.initialSettings.api.model,
+    ...(input.apiKey ? { apiKey: input.apiKey } : {}),
+    temperature: input.apiTemperature,
+    topP: input.apiTopP,
+    topK: input.apiTopK,
+    reasoningEffort: input.apiReasoningEffort,
+    extraBodyJson: input.apiExtraBodyJson,
+    customHeadersJson: input.apiCustomHeadersJson,
   };
 }

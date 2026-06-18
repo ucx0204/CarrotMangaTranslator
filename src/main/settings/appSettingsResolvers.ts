@@ -1,6 +1,11 @@
 import { MAX_MAX_TOKENS, MIN_MAX_TOKENS } from "../../shared/modelPresets";
+import {
+  isOfficialOpenAiApiBaseUrl,
+  resolveOpenAiCompatibleBaseUrl,
+} from "../../shared/apiSettings";
 import type {
   AppSettings,
+  ApiReasoningEffort,
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
@@ -19,8 +24,13 @@ export function resolveModelProvider(
   value: unknown,
   fallback: ModelProvider,
 ): ModelProvider {
-  return value === "openai-codex" || value === "gemma" ? value : fallback;
+  return value === "openai-api" || value === "openai-codex" || value === "gemma"
+    ? value
+    : fallback;
 }
+
+export { resolveOpenAiCompatibleBaseUrl };
+export { isOfficialOpenAiApiBaseUrl };
 
 export function resolveModelSource(
   value: unknown,
@@ -168,6 +178,27 @@ export function resolveCodexReasoningEffort(
     : fallback;
 }
 
+export function resolveNullableReasoningEffort(
+  value: unknown,
+  fallback: ApiReasoningEffort | null,
+): ApiReasoningEffort | null {
+  if (value === null || value === "") {
+    return null;
+  }
+  if (value === undefined) {
+    return fallback;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === "none" ||
+    normalized === "minimal" ||
+    normalized === "low" ||
+    normalized === "medium" ||
+    normalized === "high" ||
+    normalized === "xhigh"
+    ? normalized
+    : fallback;
+}
+
 export function resolveNonEmptyString(
   value: unknown,
   fallback: string,
@@ -193,6 +224,69 @@ export function resolveMaxTokens(value: unknown, fallback: number): number {
     return fallback;
   }
   return clampInteger(parsed, MIN_MAX_TOKENS, MAX_MAX_TOKENS);
+}
+
+export function resolveNullableNumberRange(
+  value: unknown,
+  fallback: number | null,
+  min: number,
+  max: number,
+): number | null {
+  if (value === null || value === "") {
+    return null;
+  }
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, parsed));
+}
+
+export function resolveNullableIntegerRange(
+  value: unknown,
+  fallback: number | null,
+  min: number,
+  max: number,
+): number | null {
+  if (value === null || value === "") {
+    return null;
+  }
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed)) {
+    return fallback;
+  }
+  return clampInteger(parsed, min, max);
+}
+
+export function resolveOptionalJsonObjectString(
+  value: unknown,
+  fallback = "",
+): string {
+  if (value === undefined) {
+    return fallback;
+  }
+  if (value === null) {
+    return "";
+  }
+  const text = String(value).trim();
+  if (!text) {
+    return "";
+  }
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return text;
+    }
+  } catch (_error) {
+    return fallback;
+  }
+  return fallback;
 }
 
 function clampInteger(value: number, min: number, max: number): number {

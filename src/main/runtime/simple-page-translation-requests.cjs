@@ -4,12 +4,14 @@ const {
   getOverlayPrompt,
 } = require("./simple-page-prompts.cjs");
 const {
+  isOpenAIApiProvider,
   isOpenAICodexProvider,
   resolveConfiguredCodexModel,
   resolveConfiguredCodexReasoningEffort,
   resolveProviderDisplayName,
 } = require("./simple-page-model-config.cjs");
 const {
+  extractModelOutputFailure,
   extractModelOutputText,
   parseResponsesSseText,
 } = require("./simple-page-response-text.cjs");
@@ -25,6 +27,8 @@ const {
   buildChatRequestHeaders,
   buildMessages,
   buildResponsesRequestBodyWithModelResolver,
+  resolveConfiguredApiCustomHeaders,
+  resolveConfiguredApiExtraBody,
 } = require("./simple-page-request-builders.cjs");
 const {
   createDetailedError,
@@ -58,6 +62,133 @@ function buildResponsesRequestBody(
     promptText,
     systemPrompt,
     resolveRequestModelName,
+  );
+}
+
+function createHttpFailureError(options, requestSummary, response, rawText) {
+  const nonRetriable = isNonRetriableHttpStatus(response.status);
+  const message = buildHttpFailureMessage(
+    options,
+    response.status,
+    response.statusText,
+  );
+  return createDetailedError(message, {
+    requestSummary,
+    status: response.status,
+    statusText: response.statusText,
+    rawTextPreview: truncateSensitiveText(rawText, options, 4000),
+    ...(nonRetriable
+      ? { nonRetriable: true, failureCategory: "model-request" }
+      : {}),
+  });
+}
+
+function buildHttpFailureMessage(options, status, statusText) {
+  const providerName = resolveProviderDisplayName(options);
+  const statusLabel = formatHttpStatus(status, statusText);
+  if (isOpenAIApiProvider(options)) {
+    if (status === 401 || status === 403) {
+      return `API 오류 ${statusLabel}: 인증에 실패했습니다. API 키가 잘못됐거나 만료됐을 수 있습니다. 키가 맞다면 선택한 모델이 이미지 입력을 지원하는지 확인하세요. 자세한 내용은 로그를 확인하세요.`;
+    }
+    if (isNonRetriableHttpStatus(status)) {
+      return `API 오류 ${statusLabel}: 요청이 거부되었습니다. API 키 또는 Base URL이 맞는지, 선택한 모델이 이미지 입력을 지원하는지 확인하세요. 자세한 내용은 로그를 확인하세요.`;
+    }
+    return `API 오류 ${statusLabel}: 요청이 실패했습니다. 잠시 후 다시 시도하거나 로그를 확인하세요.`;
+  }
+
+  return `${providerName} request failed (${status}).`;
+}
+
+function formatHttpStatus(status, statusText) {
+  const suffix = String(statusText ?? "").trim();
+  return suffix ? `${status} ${suffix}` : String(status);
+}
+
+function isNonRetriableHttpStatus(status) {
+  return (
+    status >= 400 &&
+    status < 500 &&
+    status !== 408 &&
+    status !== 409 &&
+    status !== 425 &&
+    status !== 429
+  );
+}
+
+function truncateSensitiveText(value, options, maxLength) {
+  return truncateText(redactConfiguredApiKeys(value, options), maxLength);
+}
+
+function redactConfiguredApiKeys(value, options) {
+  let text = String(value ?? "");
+  const keys = [
+    options.apiKey,
+    process.env.MANGA_TRANSLATOR_API_KEY,
+    process.env.OPENAI_API_KEY,
+    ...collectSensitiveConfiguredValues(options),
+  ]
+    .map((key) => String(key ?? "").trim())
+    .filter((key) => key.length >= 6);
+  for (const key of new Set(keys)) {
+    text = text.split(key).join("[redacted-api-key]");
+  }
+  return text;
+}
+
+function collectSensitiveConfiguredValues(options) {
+  const values = [];
+  try {
+    for (const [key, value] of Object.entries(
+      resolveConfiguredApiCustomHeaders(options),
+    )) {
+      if (isSensitiveConfigKey(key)) {
+        values.push(value);
+      }
+    }
+  } catch (_error) {
+    // The original settings parse error will be reported by the request path.
+  }
+  try {
+    collectSensitiveObjectValues(
+      resolveConfiguredApiExtraBody(options),
+      values,
+    );
+  } catch (_error) {
+    // The original settings parse error will be reported by the request path.
+  }
+  return values;
+}
+
+function collectSensitiveObjectValues(value, values, keyName = "") {
+  if (value === null || value === undefined) {
+    return;
+  }
+  if (
+    isSensitiveConfigKey(keyName) &&
+    (typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean")
+  ) {
+    values.push(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) =>
+      collectSensitiveObjectValues(item, values, keyName),
+    );
+    return;
+  }
+  if (typeof value !== "object") {
+    return;
+  }
+  for (const [key, nestedValue] of Object.entries(value)) {
+    collectSensitiveObjectValues(nestedValue, values, key);
+  }
+}
+
+function isSensitiveConfigKey(key) {
+  return /api[-_ ]?key|token|secret|authorization|auth|password/i.test(
+    String(key ?? ""),
   );
 }
 
@@ -159,7 +290,9 @@ async function requestTranslation(server, options) {
     emitRuntimeProgress(
       promptOptions,
       "model_requesting",
-      "Gemma 4 번역 요청 중",
+      isOpenAIApiProvider(promptOptions)
+        ? "API 번역 요청 중"
+        : "Gemma 4 번역 요청 중",
       resolveRequestModelName(promptOptions),
     );
     response = await fetch(`${server.baseUrl}/chat/completions`, {
@@ -188,14 +321,11 @@ async function requestTranslation(server, options) {
   };
 
   if (!response.ok) {
-    throw createDetailedError(
-      `${resolveProviderDisplayName(promptOptions)} request failed (${response.status}).`,
-      {
-        requestSummary,
-        status: response.status,
-        statusText: response.statusText,
-        rawTextPreview: truncateText(rawText, 4000),
-      },
+    throw createHttpFailureError(
+      promptOptions,
+      requestSummary,
+      response,
+      rawText,
     );
   }
 
@@ -207,7 +337,7 @@ async function requestTranslation(server, options) {
       `${resolveProviderDisplayName(promptOptions)} response JSON parse failed.`,
       {
         requestSummary,
-        rawTextPreview: truncateText(rawText, 4000),
+        rawTextPreview: truncateSensitiveText(rawText, promptOptions, 4000),
       },
       error,
     );
@@ -216,10 +346,12 @@ async function requestTranslation(server, options) {
   const outputText = extractModelOutputText(parsed);
 
   if (!outputText.trim()) {
-    throw createDetailedError("Model returned an empty response.", {
+    throw createEmptyOutputError(
+      parsed,
+      rawText,
       requestSummary,
-      rawTextPreview: truncateText(rawText, 4000),
-    });
+      promptOptions,
+    );
   }
 
   return {
@@ -253,15 +385,7 @@ async function requestCodexResponsesText(
 
   if (!response.ok) {
     const rawText = await readResponseText(response, requestSummary, options);
-    throw createDetailedError(
-      `${resolveProviderDisplayName(options)} request failed (${response.status}).`,
-      {
-        requestSummary,
-        status: response.status,
-        statusText: response.statusText,
-        rawTextPreview: truncateText(rawText, 4000),
-      },
-    );
+    throw createHttpFailureError(options, requestSummary, response, rawText);
   }
 
   const streamResult = await readCodexResponsesStream(
@@ -270,10 +394,12 @@ async function requestCodexResponsesText(
     options,
   );
   if (!streamResult.outputText.trim()) {
-    throw createDetailedError("Model returned an empty response.", {
+    throw createEmptyOutputError(
+      streamResult.rawResponse,
+      JSON.stringify(streamResult.rawResponse),
       requestSummary,
-      rawResponse: streamResult.rawResponse,
-    });
+      options,
+    );
   }
 
   return streamResult;
@@ -300,11 +426,12 @@ async function readCodexResponsesStream(response, requestSummary, options) {
   const parsed = parseResponsesSseText(rawText);
   const outputText = parsed.outputText.trim();
   if (!outputText) {
-    throw createDetailedError("Model returned an empty response.", {
+    throw createEmptyOutputError(
+      parsed.rawResponse,
+      rawText,
       requestSummary,
-      rawTextPreview: truncateText(rawText, 4000),
-      rawResponse: parsed.rawResponse,
-    });
+      options,
+    );
   }
 
   return {
@@ -357,14 +484,7 @@ async function testModelReply(server, options) {
 
   const rawText = await response.text();
   if (!response.ok) {
-    throw createDetailedError(
-      `모델 테스트 응답이 실패했습니다 (${response.status}).`,
-      {
-        status: response.status,
-        statusText: response.statusText,
-        rawTextPreview: truncateText(rawText, 4000),
-      },
-    );
+    throw createHttpFailureError(options, {}, response, rawText);
   }
 
   let parsed;
@@ -374,7 +494,7 @@ async function testModelReply(server, options) {
     throw createDetailedError(
       "모델 테스트 응답을 JSON으로 읽지 못했습니다.",
       {
-        rawTextPreview: truncateText(rawText, 4000),
+        rawTextPreview: truncateSensitiveText(rawText, options, 4000),
       },
       error,
     );
@@ -392,15 +512,32 @@ async function testModelReply(server, options) {
         : "";
 
   if (!outputText) {
-    throw createDetailedError("모델 테스트 응답이 비어 있습니다.", {
-      rawResponse: parsed,
-    });
+    throw createEmptyOutputError(parsed, rawText, {}, options);
   }
 
   return {
     outputText,
     launchTarget: inspectModelLaunch(options),
   };
+}
+
+function createEmptyOutputError(parsed, rawText, requestSummary, options) {
+  const failure = extractModelOutputFailure(parsed);
+  if (failure) {
+    return createDetailedError(failure.message, {
+      requestSummary,
+      rawTextPreview: truncateSensitiveText(rawText, options, 4000),
+      rawResponse: parsed,
+      failureCategory: failure.failureCategory,
+      ...(failure.nonRetriable ? { nonRetriable: true } : {}),
+    });
+  }
+  return createDetailedError("Model returned an empty response.", {
+    requestSummary,
+    rawTextPreview: truncateSensitiveText(rawText, options, 4000),
+    rawResponse: parsed,
+    failureCategory: "empty-model-response",
+  });
 }
 
 async function testCodexResponsesReply(server, options) {
@@ -440,14 +577,7 @@ async function testCodexResponsesReply(server, options) {
 
   if (!response.ok) {
     const rawText = await readResponseText(response, {}, options);
-    throw createDetailedError(
-      `모델 테스트 응답이 실패했습니다 (${response.status}).`,
-      {
-        status: response.status,
-        statusText: response.statusText,
-        rawTextPreview: truncateText(rawText, 4000),
-      },
-    );
+    throw createHttpFailureError(options, {}, response, rawText);
   }
 
   const result = await readCodexResponsesStream(response, {}, options);
@@ -461,6 +591,7 @@ async function testCodexResponsesReply(server, options) {
 module.exports = {
   buildChatRequestBody,
   buildResponsesRequestBody,
+  buildHttpFailureMessage,
   requestTranslation,
   testModelReply,
 };

@@ -131,12 +131,23 @@ export async function startAnalysisJob(
     if (abortController.signal.aborted) {
       throw new DOMException("Aborted", "AbortError");
     }
+    const failedPageCount = result.pages.filter(
+      (page) => page.analysisStatus === "failed",
+    ).length;
+    if (failedPageCount === result.pages.length) {
+      throw new Error(
+        `번역 작업 실패: 모든 페이지가 실패했습니다. 마지막 오류는 각 페이지 상태와 로그를 확인하세요.`,
+      );
+    }
 
     emit({
       id,
       kind: "gemma-analysis",
       status: "completed",
-      progressText: "번역 작업 완료",
+      progressText:
+        failedPageCount > 0
+          ? `번역 완료 - ${failedPageCount}페이지 실패`
+          : "번역 작업 완료",
       phase: "done",
       progressCurrent: resolved.pages.length,
       progressTotal: resolved.pages.length,

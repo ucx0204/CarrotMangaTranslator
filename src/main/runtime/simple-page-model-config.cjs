@@ -2,6 +2,14 @@
 const path = require("node:path");
 
 const {
+  DEFAULT_API_BASE_URL,
+  DEFAULT_API_CUSTOM_HEADERS_JSON,
+  DEFAULT_API_EXTRA_BODY_JSON,
+  DEFAULT_API_MODEL,
+  DEFAULT_API_REASONING_EFFORT,
+  DEFAULT_API_TEMPERATURE,
+  DEFAULT_API_TOP_K,
+  DEFAULT_API_TOP_P,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
   DEFAULT_HF_FILE,
@@ -17,17 +25,29 @@ function resolveConfiguredModelSource(options = {}) {
 }
 
 function resolveModelProvider(options = {}) {
-  return String(options.modelProvider ?? "").trim() === "openai-codex"
-    ? "openai-codex"
-    : "gemma";
+  const value = String(options.modelProvider ?? "").trim();
+  if (value === "openai-codex" || value === "openai-api") {
+    return value;
+  }
+  return "gemma";
 }
 
 function isOpenAICodexProvider(options = {}) {
   return resolveModelProvider(options) === "openai-codex";
 }
 
+function isOpenAIApiProvider(options = {}) {
+  return resolveModelProvider(options) === "openai-api";
+}
+
 function resolveProviderDisplayName(options = {}) {
-  return isOpenAICodexProvider(options) ? "OpenAI Codex" : "Gemma";
+  if (isOpenAICodexProvider(options)) {
+    return "OpenAI Codex";
+  }
+  if (isOpenAIApiProvider(options)) {
+    return "API";
+  }
+  return "Gemma";
 }
 
 function resolveConfiguredCodexModel(options = {}) {
@@ -50,6 +70,178 @@ function resolveConfiguredCodexReasoningEffort(options = {}) {
   return ["none", "low", "medium", "high", "xhigh"].includes(value)
     ? value
     : DEFAULT_CODEX_REASONING_EFFORT;
+}
+
+function coerceOpenAiCompatibleBaseUrl(value) {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return null;
+  }
+  let url;
+  try {
+    url = new URL(text);
+  } catch (_error) {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return null;
+  }
+  url.hash = "";
+  url.search = "";
+  url.pathname = url.pathname
+    .replace(/\/+$/g, "")
+    .replace(/\/chat\/completions$/i, "")
+    .replace(/\/+$/g, "");
+  return url.toString().replace(/\/$/g, "");
+}
+
+function resolveConfiguredApiBaseUrl(options = {}) {
+  return (
+    coerceOpenAiCompatibleBaseUrl(
+      process.env.MANGA_TRANSLATOR_API_BASE_URL ?? options.apiBaseUrl,
+    ) || DEFAULT_API_BASE_URL
+  );
+}
+
+function isOfficialOpenAiApiBaseUrl(value) {
+  const baseUrl = coerceOpenAiCompatibleBaseUrl(value);
+  if (!baseUrl) {
+    return false;
+  }
+  try {
+    const url = new URL(baseUrl);
+    return url.protocol === "https:" && url.hostname === "api.openai.com";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function resolveConfiguredApiModel(options = {}) {
+  return (
+    String(
+      process.env.MANGA_TRANSLATOR_API_MODEL ?? options.apiModel ?? "",
+    ).trim() || DEFAULT_API_MODEL
+  );
+}
+
+function resolveConfiguredApiKey(options = {}) {
+  const explicitApiKey = String(
+    process.env.MANGA_TRANSLATOR_API_KEY ?? "",
+  ).trim();
+  if (explicitApiKey) {
+    return explicitApiKey;
+  }
+
+  const configuredApiKey = String(options.apiKey ?? "").trim();
+  if (configuredApiKey) {
+    return configuredApiKey;
+  }
+
+  if (isOfficialOpenAiApiBaseUrl(resolveConfiguredApiBaseUrl(options))) {
+    return String(process.env.OPENAI_API_KEY ?? "").trim();
+  }
+
+  return "";
+}
+
+function resolveConfiguredApiTemperature(options = {}) {
+  return resolveNullableNumber(
+    process.env.MANGA_TRANSLATOR_API_TEMPERATURE,
+    options.apiTemperature,
+    DEFAULT_API_TEMPERATURE,
+    0,
+    2,
+  );
+}
+
+function resolveConfiguredApiTopP(options = {}) {
+  return resolveNullableNumber(
+    process.env.MANGA_TRANSLATOR_API_TOP_P,
+    options.apiTopP,
+    DEFAULT_API_TOP_P,
+    0,
+    1,
+  );
+}
+
+function resolveConfiguredApiTopK(options = {}) {
+  return resolveNullableInteger(
+    process.env.MANGA_TRANSLATOR_API_TOP_K,
+    options.apiTopK,
+    DEFAULT_API_TOP_K,
+    1,
+    1000,
+  );
+}
+
+function resolveConfiguredApiReasoningEffort(options = {}) {
+  return resolveNullableReasoningEffort(
+    process.env.MANGA_TRANSLATOR_API_REASONING_EFFORT,
+    options.apiReasoningEffort,
+    DEFAULT_API_REASONING_EFFORT,
+  );
+}
+
+function resolveConfiguredApiExtraBodyJson(options = {}) {
+  return String(
+    process.env.MANGA_TRANSLATOR_API_EXTRA_BODY ??
+      options.apiExtraBodyJson ??
+      DEFAULT_API_EXTRA_BODY_JSON,
+  ).trim();
+}
+
+function resolveConfiguredApiCustomHeadersJson(options = {}) {
+  return String(
+    process.env.MANGA_TRANSLATOR_API_HEADERS ??
+      options.apiCustomHeadersJson ??
+      DEFAULT_API_CUSTOM_HEADERS_JSON,
+  ).trim();
+}
+
+function resolveNullableNumber(envValue, optionValue, fallback, min, max) {
+  const value = envValue !== undefined ? envValue : optionValue;
+  if (value === null || value === "") {
+    return null;
+  }
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function resolveNullableInteger(envValue, optionValue, fallback, min, max) {
+  const value = envValue !== undefined ? envValue : optionValue;
+  if (value === null || value === "") {
+    return null;
+  }
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function resolveNullableReasoningEffort(envValue, optionValue, fallback) {
+  const value = envValue !== undefined ? envValue : optionValue;
+  if (value === null || value === "") {
+    return null;
+  }
+  if (value === undefined) {
+    return fallback;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  return ["none", "minimal", "low", "medium", "high", "xhigh"].includes(
+    normalized,
+  )
+    ? normalized
+    : fallback;
 }
 
 function resolveConfiguredLocalModelPath(options = {}) {
@@ -130,7 +322,18 @@ function shouldUseConfiguredMmproj(options = {}) {
 }
 
 module.exports = {
+  isOfficialOpenAiApiBaseUrl,
+  isOpenAIApiProvider,
   isOpenAICodexProvider,
+  resolveConfiguredApiBaseUrl,
+  resolveConfiguredApiCustomHeadersJson,
+  resolveConfiguredApiExtraBodyJson,
+  resolveConfiguredApiKey,
+  resolveConfiguredApiModel,
+  resolveConfiguredApiReasoningEffort,
+  resolveConfiguredApiTemperature,
+  resolveConfiguredApiTopK,
+  resolveConfiguredApiTopP,
   resolveConfiguredCodexModel,
   resolveConfiguredCodexReasoningEffort,
   resolveConfiguredDraftModelFile,

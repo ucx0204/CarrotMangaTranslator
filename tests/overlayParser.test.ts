@@ -196,4 +196,16 @@ ko: 생긋
 
     expect(items.map((item: { id: number }) => item.id)).toEqual([6, 10]);
   });
+
+  it("parses loose records when multiple key-value fields are on one line", () => {
+    const items = normalizeItems(
+      parseJsonLenient(
+        "Result: id: 1 type: nonsolid textRole: ordinary x1: 10 y1: 20 x2: 110 y2: 80 jp: はい ko: 네 id: 2 type: solid x1: 120 y1: 90 x2: 200 y2: 160 jp: ドン ko: 쾅",
+      ),
+    );
+
+    expect(items).toHaveLength(2);
+    expect(items[0].bbox).toEqual({ x: 10, y: 20, w: 100, h: 60 });
+    expect(items[1].bbox).toEqual({ x: 120, y: 90, w: 80, h: 70 });
+  });
 });

@@ -23,6 +23,7 @@ export type AnalysisRun = {
   baseOptions: TranslationOptions;
   progressContext: ProgressContext;
   codexSelected: boolean;
+  apiSelected: boolean;
   modelCached: boolean;
   localModelSelected: boolean;
 };
@@ -52,9 +53,12 @@ export async function prepareAnalysisRun({
     paths,
   );
   const codexSelected = baseOptions.modelProvider === "openai-codex";
-  const modelCached = codexSelected || runtime.isModelCached(baseOptions);
+  const apiSelected = baseOptions.modelProvider === "openai-api";
+  const remoteProviderSelected = codexSelected || apiSelected;
+  const modelCached =
+    remoteProviderSelected || runtime.isModelCached(baseOptions);
   const localModelSelected =
-    !codexSelected && baseOptions.modelSource === "local";
+    !remoteProviderSelected && baseOptions.modelSource === "local";
   const progressContext = {
     jobId,
     emit,
@@ -81,6 +85,7 @@ export async function prepareAnalysisRun({
     baseOptions,
     progressContext,
     codexSelected,
+    apiSelected,
     modelCached,
     localModelSelected,
   };

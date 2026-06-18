@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { coerceOpenAiCompatibleBaseUrl } from "./apiSettings";
+import { MAX_MAX_TOKENS, MIN_MAX_TOKENS } from "./modelPresets";
 import {
   JobKindSchema,
   JobPhaseSchema,
@@ -184,6 +186,39 @@ const OcrGpuBackendSchema = z.preprocess(
   },
   z.enum(["cuda", "rocm-transformers"]),
 );
+
+const OpenAiCompatibleBaseUrlSchema = z.preprocess(
+  (value) => coerceOpenAiCompatibleBaseUrl(value) ?? value,
+  z
+    .string()
+    .min(1)
+    .max(1000)
+    .refine(
+      (value) => coerceOpenAiCompatibleBaseUrl(value) !== null,
+      "invalid API base URL",
+    ),
+);
+const ApiReasoningEffortSchema = z.enum([
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+]);
+const JsonObjectStringSchema = z
+  .string()
+  .max(MAX_TEXT_LENGTH)
+  .refine((value) => !value.trim() || isJsonObjectString(value), {
+    message: "must be a JSON object string",
+  });
+const CustomHeadersJsonObjectStringSchema = z
+  .string()
+  .max(MAX_TEXT_LENGTH)
+  .refine((value) => !value.trim() || isValidCustomHeadersJson(value), {
+    message:
+      "must be a JSON object with string, number, or boolean header values",
+  });
 
 export const BBoxSchema = z
   .object({
@@ -544,7 +579,7 @@ export const DeletePageRequestSchema = z
 
 export const AppSettingsSchema = z
   .object({
-    modelProvider: z.enum(["gemma", "openai-codex"]),
+    modelProvider: z.enum(["gemma", "openai-codex", "openai-api"]),
     gemma: z
       .object({
         modelSource: z.enum(["huggingface", "local"]),
@@ -564,6 +599,19 @@ export const AppSettingsSchema = z
         model: z.string().min(1).max(120),
         reasoningEffort: z.enum(["none", "low", "medium", "high", "xhigh"]),
         oauthPort: z.number().int().min(1).max(65535),
+      })
+      .strict(),
+    api: z
+      .object({
+        baseUrl: OpenAiCompatibleBaseUrlSchema,
+        model: z.string().min(1).max(200),
+        apiKey: z.string().max(4000).optional(),
+        temperature: z.number().min(0).max(2).nullable().optional(),
+        topP: z.number().min(0).max(1).nullable().optional(),
+        topK: z.number().int().min(1).max(1000).nullable().optional(),
+        reasoningEffort: ApiReasoningEffortSchema.nullable().optional(),
+        extraBodyJson: JsonObjectStringSchema.optional(),
+        customHeadersJson: CustomHeadersJsonObjectStringSchema.optional(),
       })
       .strict(),
     ocr: z
@@ -598,7 +646,7 @@ export const AppSettingsSchema = z
       })
       .strict()
       .optional(),
-    maxTokens: z.number().int().min(300).max(12000),
+    maxTokens: z.number().int().min(MIN_MAX_TOKENS).max(MAX_MAX_TOKENS),
   })
   .strict();
 
@@ -626,6 +674,49 @@ export function parseIpcPayload<TSchema extends z.ZodType>(
     ? `${path}: ${firstIssue.message}`
     : "unknown validation error";
   throw new Error(`${label} 요청 형식이 올바르지 않습니다. ${message}`);
+}
+
+function isJsonObjectString(value: string): boolean {
+  try {
+    const parsed = JSON.parse(value);
+    return Boolean(
+      parsed && typeof parsed === "object" && !Array.isArray(parsed),
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isValidCustomHeadersJson(value: string): boolean {
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return false;
+    }
+    return Object.entries(parsed).every(([key, headerValue]) => {
+      if (isForbiddenCustomHeader(key)) {
+        return false;
+      }
+      return (
+        typeof headerValue === "string" ||
+        typeof headerValue === "number" ||
+        typeof headerValue === "boolean"
+      );
+    });
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isForbiddenCustomHeader(name: string): boolean {
+  return [
+    "authorization",
+    "content-type",
+    "host",
+    "content-length",
+    "cookie",
+    "set-cookie",
+  ].includes(name.trim().toLowerCase());
 }
 
 function clampNormalizedBbox(bbox: {

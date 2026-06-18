@@ -6,6 +6,10 @@ import {
   stopOpenAIOAuthEndpoint,
 } from "../openaiOauthEndpoint";
 import type { OpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
+import {
+  createOpenAICompatibleApiEndpoint,
+  isOpenAICompatibleApiEndpoint,
+} from "../openaiApiEndpoint";
 import type { ModelEndpointHandle, RuntimeModules } from "./types";
 
 let cachedRuntimeDir: string | null = null;
@@ -78,6 +82,9 @@ export async function startModelEndpoint(
   if (options.modelProvider === "openai-codex") {
     return startOpenAIOAuthEndpoint(options);
   }
+  if (options.modelProvider === "openai-api") {
+    return createOpenAICompatibleApiEndpoint(options);
+  }
   return runtime.simplePage.startServer(options);
 }
 
@@ -126,6 +133,9 @@ export async function stopModelEndpoint(
 ): Promise<void> {
   if (isOpenAIOAuthEndpoint(endpoint)) {
     await stopOpenAIOAuthEndpoint(endpoint);
+    return;
+  }
+  if (isOpenAICompatibleApiEndpoint(endpoint)) {
     return;
   }
   await runtime.simplePage.stopServer(endpoint);

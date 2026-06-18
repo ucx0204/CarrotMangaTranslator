@@ -97,7 +97,100 @@ function extractModelOutputText(parsed) {
   return parts.join("\n").trim();
 }
 
+function extractModelOutputFailure(parsed) {
+  const choice = parsed?.choices?.[0];
+  const refusal = choice?.message?.refusal;
+  if (typeof refusal === "string" && refusal.trim()) {
+    return {
+      message: `모델이 요청을 거부했습니다: ${truncateInline(refusal, 500)}`,
+      failureCategory: "model-refusal",
+      nonRetriable: true,
+    };
+  }
+
+  if (choice?.finish_reason === "length") {
+    return {
+      message:
+        "모델 응답이 max_tokens 제한으로 잘렸습니다. 최대 출력 토큰을 늘리거나 요청 설정을 조정하세요.",
+      failureCategory: "empty-model-response",
+    };
+  }
+
+  if (choice?.finish_reason === "content_filter") {
+    return {
+      message: "모델 응답이 content_filter로 차단되었습니다.",
+      failureCategory: "model-refusal",
+      nonRetriable: true,
+    };
+  }
+
+  if (hasReasoningOnlyPayload(parsed)) {
+    return {
+      message:
+        "모델이 최종 content 없이 reasoning/thoughts만 반환했습니다. reasoning_effort 또는 extra body 설정을 조정하세요.",
+      failureCategory: "empty-model-response",
+      nonRetriable: true,
+    };
+  }
+
+  return null;
+}
+
+function hasReasoningOnlyPayload(parsed) {
+  const message = parsed?.choices?.[0]?.message;
+  if (hasReasoningText(message)) {
+    return true;
+  }
+  if (hasReasoningText(parsed)) {
+    return true;
+  }
+  if (!Array.isArray(parsed?.output)) {
+    return false;
+  }
+  let sawReasoning = false;
+  let sawText = false;
+  for (const item of parsed.output) {
+    if (item?.type === "reasoning") {
+      sawReasoning = true;
+    }
+    const content = Array.isArray(item?.content) ? item.content : [];
+    for (const part of content) {
+      if (typeof part?.text === "string" && part.text.trim()) {
+        sawText = true;
+      }
+      if (
+        part?.type === "reasoning" ||
+        typeof part?.reasoning === "string" ||
+        typeof part?.thoughts === "string"
+      ) {
+        sawReasoning = true;
+      }
+    }
+  }
+  return sawReasoning && !sawText;
+}
+
+function hasReasoningText(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  return [
+    value.reasoning,
+    value.reasoning_content,
+    value.thoughts,
+    value.thinking,
+  ].some((item) => typeof item === "string" && item.trim());
+}
+
+function truncateInline(value, maxLength) {
+  const text = String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length <= maxLength ? text : `${text.slice(0, maxLength)}...`;
+}
+
 module.exports = {
+  extractModelOutputFailure,
   extractModelOutputText,
   parseResponsesSseText,
 };

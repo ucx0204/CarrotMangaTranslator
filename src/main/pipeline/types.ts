@@ -1,4 +1,5 @@
 import type { TranslationOptions } from "../appSettings";
+import type { OpenAICompatibleApiEndpoint } from "../openaiApiEndpoint";
 import type { OpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
 import type {
   BBox,
@@ -27,7 +28,10 @@ export type ServerHandle = {
   startedByScript: boolean;
 };
 
-export type ModelEndpointHandle = ServerHandle | OpenAIOAuthEndpoint;
+export type ModelEndpointHandle =
+  | ServerHandle
+  | OpenAIOAuthEndpoint
+  | OpenAICompatibleApiEndpoint;
 
 export type TranslationResult = {
   outputText: string;

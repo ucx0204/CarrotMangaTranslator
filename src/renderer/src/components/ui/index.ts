@@ -20,6 +20,7 @@ export {
   CloseIcon,
   EditIcon,
   EyeIcon,
+  EyeOffIcon,
   InfoIcon,
   ItalicIcon,
   MaskIcon,

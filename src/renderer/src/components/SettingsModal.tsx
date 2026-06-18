@@ -1,6 +1,7 @@
 import React from "react";
 import type {
   AppSettings,
+  ApiReasoningEffort,
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
@@ -10,6 +11,7 @@ import type {
   OcrDevice,
   OcrGpuBackend,
 } from "../../../shared/types";
+import { coerceOpenAiCompatibleBaseUrl } from "../../../shared/apiSettings";
 import {
   MAX_MAX_TOKENS,
   MIN_MAX_TOKENS,
@@ -95,6 +97,29 @@ export function SettingsModal({
   const [codexOauthPort, setCodexOauthPort] = React.useState(
     String(initialSettings.codex.oauthPort),
   );
+  const [apiBaseUrl, setApiBaseUrl] = React.useState(
+    initialSettings.api.baseUrl,
+  );
+  const [apiModel, setApiModel] = React.useState(initialSettings.api.model);
+  const [apiKey, setApiKey] = React.useState(initialSettings.api.apiKey ?? "");
+  const [apiTemperature, setApiTemperature] = React.useState(
+    formatNullableNumberInput(initialSettings.api.temperature),
+  );
+  const [apiTopP, setApiTopP] = React.useState(
+    formatNullableNumberInput(initialSettings.api.topP),
+  );
+  const [apiTopK, setApiTopK] = React.useState(
+    formatNullableNumberInput(initialSettings.api.topK),
+  );
+  const [apiReasoningEffort, setApiReasoningEffort] = React.useState<
+    ApiReasoningEffort | ""
+  >(initialSettings.api.reasoningEffort ?? "");
+  const [apiExtraBodyJson, setApiExtraBodyJson] = React.useState(
+    initialSettings.api.extraBodyJson ?? "",
+  );
+  const [apiCustomHeadersJson, setApiCustomHeadersJson] = React.useState(
+    initialSettings.api.customHeadersJson ?? "",
+  );
   const [ocrDevice, setOcrDevice] = React.useState<OcrDevice>(
     initialSettings.ocr.device,
   );
@@ -143,6 +168,17 @@ export function SettingsModal({
     setCodexModel(initialSettings.codex.model);
     setCodexReasoningEffort(initialSettings.codex.reasoningEffort);
     setCodexOauthPort(String(initialSettings.codex.oauthPort));
+    setApiBaseUrl(initialSettings.api.baseUrl);
+    setApiModel(initialSettings.api.model);
+    setApiKey(initialSettings.api.apiKey ?? "");
+    setApiTemperature(
+      formatNullableNumberInput(initialSettings.api.temperature),
+    );
+    setApiTopP(formatNullableNumberInput(initialSettings.api.topP));
+    setApiTopK(formatNullableNumberInput(initialSettings.api.topK));
+    setApiReasoningEffort(initialSettings.api.reasoningEffort ?? "");
+    setApiExtraBodyJson(initialSettings.api.extraBodyJson ?? "");
+    setApiCustomHeadersJson(initialSettings.api.customHeadersJson ?? "");
     setOcrDevice(initialSettings.ocr.device);
     setOcrGpuBackend(initialSettings.ocr.gpuBackend ?? "cuda");
     setFluxBackend(initialSettings.inpainting?.fluxBackend ?? "cuda-native");
@@ -159,7 +195,7 @@ export function SettingsModal({
   }, [testLogLines]);
 
   React.useEffect(() => {
-    if (modelProvider === "openai-codex") {
+    if (modelProvider !== "gemma") {
       return;
     }
     if (modelSource === "local") {
@@ -256,12 +292,28 @@ export function SettingsModal({
   const trimmedLocalModelPath = localModelPath.trim();
   const trimmedLocalMmprojPath = localMmprojPath.trim();
   const trimmedCodexModel = codexModel.trim();
+  const normalizedApiBaseUrl = coerceOpenAiCompatibleBaseUrl(apiBaseUrl);
+  const trimmedApiModel = apiModel.trim();
+  const trimmedApiKey = apiKey.trim();
+  const parsedApiTemperature = parseNullableNumberInput(apiTemperature, 0, 2);
+  const parsedApiTopP = parseNullableNumberInput(apiTopP, 0, 1);
+  const parsedApiTopK = parseNullableIntegerInput(apiTopK, 1, 1000);
+  const apiExtraBodyValidation = validateJsonObjectInput(apiExtraBodyJson);
+  const apiCustomHeadersValidation =
+    validateCustomHeadersInput(apiCustomHeadersJson);
   const parsedCodexOauthPort = Number(codexOauthPort);
   const parsedMaxTokens = Number(maxTokens);
   const codexOauthPortValid =
     Number.isInteger(parsedCodexOauthPort) &&
     parsedCodexOauthPort >= 1 &&
     parsedCodexOauthPort <= 65535;
+  const apiBaseUrlValid = Boolean(normalizedApiBaseUrl);
+  const apiAdvancedSettingsValid =
+    parsedApiTemperature.valid &&
+    parsedApiTopP.valid &&
+    parsedApiTopK.valid &&
+    apiExtraBodyValidation.valid &&
+    apiCustomHeadersValidation.valid;
   const maxTokensValid =
     Number.isInteger(parsedMaxTokens) &&
     parsedMaxTokens >= MIN_MAX_TOKENS &&
@@ -274,7 +326,9 @@ export function SettingsModal({
     maxTokensValid &&
     (modelProvider === "openai-codex"
       ? trimmedCodexModel && codexOauthPortValid
-      : gemmaSettingsReady),
+      : modelProvider === "openai-api"
+        ? apiBaseUrlValid && trimmedApiModel && apiAdvancedSettingsValid
+        : gemmaSettingsReady),
   );
   const isLlamaRuntimeOptionDisabled = React.useCallback(
     (profile: LlamaRuntimeProfile) =>
@@ -303,6 +357,13 @@ export function SettingsModal({
       return null;
     }
 
+    if (
+      modelProvider === "openai-api" &&
+      (!normalizedApiBaseUrl || !trimmedApiModel || !apiAdvancedSettingsValid)
+    ) {
+      return null;
+    }
+
     return buildSettingsFromForm({
       initialSettings,
       modelProvider,
@@ -320,6 +381,15 @@ export function SettingsModal({
       codexOauthPort: codexOauthPortValid
         ? parsedCodexOauthPort
         : initialSettings.codex.oauthPort,
+      apiBaseUrl: normalizedApiBaseUrl ?? initialSettings.api.baseUrl,
+      apiModel: trimmedApiModel,
+      apiKey: trimmedApiKey,
+      apiTemperature: parsedApiTemperature.value,
+      apiTopP: parsedApiTopP.value,
+      apiTopK: parsedApiTopK.value,
+      apiReasoningEffort: apiReasoningEffort || null,
+      apiExtraBodyJson: apiExtraBodyJson.trim(),
+      apiCustomHeadersJson: apiCustomHeadersJson.trim(),
       ocrDevice,
       ocrGpuBackend,
       fluxBackend,
@@ -337,6 +407,16 @@ export function SettingsModal({
     trimmedLocalModelPath,
     trimmedLocalMmprojPath,
     trimmedCodexModel,
+    normalizedApiBaseUrl,
+    trimmedApiModel,
+    trimmedApiKey,
+    parsedApiTemperature,
+    parsedApiTopP,
+    parsedApiTopK,
+    apiReasoningEffort,
+    apiExtraBodyJson,
+    apiCustomHeadersJson,
+    apiAdvancedSettingsValid,
     parsedCodexOauthPort,
     parsedMaxTokens,
     selectedVramMode,
@@ -420,7 +500,9 @@ export function SettingsModal({
       detail:
         modelProvider === "gemma"
           ? "Paddle OCR과 Gemma 실행 런타임 준비 로그를 함께 표시합니다."
-          : "Paddle OCR과 Codex 엔드포인트 준비 상태를 함께 확인합니다.",
+          : modelProvider === "openai-codex"
+            ? "Paddle OCR과 Codex 엔드포인트 준비 상태를 함께 확인합니다."
+            : "Paddle OCR과 API 엔드포인트 응답을 함께 확인합니다.",
     });
     const unsubscribe = mangaGateway.onModelTestEvent((event) => {
       if (event.id !== testId) {
@@ -515,6 +597,15 @@ export function SettingsModal({
           {activeTab === "engine" ? (
             <EngineSettingsPanel
               clearTestState={clearTestState}
+              apiBaseUrl={apiBaseUrl}
+              apiKey={apiKey}
+              apiModel={apiModel}
+              apiTemperature={apiTemperature}
+              apiTopP={apiTopP}
+              apiTopK={apiTopK}
+              apiReasoningEffort={apiReasoningEffort}
+              apiExtraBodyJson={apiExtraBodyJson}
+              apiCustomHeadersJson={apiCustomHeadersJson}
               codexModel={codexModel}
               codexOauthPort={codexOauthPort}
               codexReasoningEffort={codexReasoningEffort}
@@ -533,6 +624,15 @@ export function SettingsModal({
               pickLocalMmprojFile={pickLocalMmprojFile}
               pickLocalModelFile={pickLocalModelFile}
               selectedPreset={selectedPreset}
+              setApiBaseUrl={setApiBaseUrl}
+              setApiCustomHeadersJson={setApiCustomHeadersJson}
+              setApiExtraBodyJson={setApiExtraBodyJson}
+              setApiKey={setApiKey}
+              setApiModel={setApiModel}
+              setApiReasoningEffort={setApiReasoningEffort}
+              setApiTemperature={setApiTemperature}
+              setApiTopK={setApiTopK}
+              setApiTopP={setApiTopP}
               setCodexModel={setCodexModel}
               setCodexOauthPort={setCodexOauthPort}
               setCodexReasoningEffort={setCodexReasoningEffort}
@@ -583,6 +683,15 @@ export function SettingsModal({
           ) : null}
 
           <SettingsValidationMessages
+            apiBaseUrlValid={apiBaseUrlValid}
+            apiAdvancedSettingsValid={apiAdvancedSettingsValid}
+            apiAdvancedSettingsMessage={
+              parsedApiTemperature.message ??
+              parsedApiTopP.message ??
+              parsedApiTopK.message ??
+              apiExtraBodyValidation.message ??
+              apiCustomHeadersValidation.message
+            }
             codexOauthPortValid={codexOauthPortValid}
             maxTokensValid={maxTokensValid}
             modelProvider={modelProvider}
@@ -591,4 +700,109 @@ export function SettingsModal({
       </div>
     </Modal>
   );
+}
+
+function formatNullableNumberInput(value: number | null | undefined): string {
+  return value === null || value === undefined ? "" : String(value);
+}
+
+function parseNullableNumberInput(
+  value: string,
+  min: number,
+  max: number,
+): { valid: boolean; value: number | null; message?: string } {
+  const text = value.trim();
+  if (!text) {
+    return { valid: true, value: null };
+  }
+  const parsed = Number(text);
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+    return {
+      valid: false,
+      value: null,
+      message: `API 숫자 설정은 ${min} 이상 ${max} 이하이어야 합니다.`,
+    };
+  }
+  return { valid: true, value: parsed };
+}
+
+function parseNullableIntegerInput(
+  value: string,
+  min: number,
+  max: number,
+): { valid: boolean; value: number | null; message?: string } {
+  const parsed = parseNullableNumberInput(value, min, max);
+  if (!parsed.valid || parsed.value === null) {
+    return parsed;
+  }
+  if (!Number.isInteger(parsed.value)) {
+    return {
+      valid: false,
+      value: null,
+      message: `API 정수 설정은 ${min} 이상 ${max} 이하의 정수여야 합니다.`,
+    };
+  }
+  return parsed;
+}
+
+function validateJsonObjectInput(value: string): {
+  valid: boolean;
+  message?: string;
+} {
+  const text = value.trim();
+  if (!text) {
+    return { valid: true };
+  }
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return { valid: true };
+    }
+  } catch (_error) {
+    return {
+      valid: false,
+      message: "API JSON 설정은 올바른 객체 JSON이어야 합니다.",
+    };
+  }
+  return { valid: false, message: "API JSON 설정은 객체 JSON이어야 합니다." };
+}
+
+function validateCustomHeadersInput(value: string): {
+  valid: boolean;
+  message?: string;
+} {
+  const base = validateJsonObjectInput(value);
+  if (!base.valid || !value.trim()) {
+    return base;
+  }
+  const parsed = JSON.parse(value) as Record<string, unknown>;
+  for (const [name, headerValue] of Object.entries(parsed)) {
+    const normalized = name.trim().toLowerCase();
+    if (
+      [
+        "authorization",
+        "content-type",
+        "host",
+        "content-length",
+        "cookie",
+        "set-cookie",
+      ].includes(normalized)
+    ) {
+      return {
+        valid: false,
+        message: `${name} 헤더는 Custom headers에서 덮어쓸 수 없습니다.`,
+      };
+    }
+    if (
+      typeof headerValue !== "string" &&
+      typeof headerValue !== "number" &&
+      typeof headerValue !== "boolean"
+    ) {
+      return {
+        valid: false,
+        message: "Custom headers 값은 문자열, 숫자, boolean만 허용됩니다.",
+      };
+    }
+  }
+  return { valid: true };
 }

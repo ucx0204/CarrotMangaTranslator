@@ -75,6 +75,7 @@ export async function runWholePagePipeline({
 
   const endpoint = await startAnalysisEndpointSession({
     baseOptions: run.baseOptions,
+    apiSelected: run.apiSelected,
     codexSelected: run.codexSelected,
     formatGemmaVramMode,
     localModelSelected: run.localModelSelected,

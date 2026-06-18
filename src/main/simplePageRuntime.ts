@@ -1,5 +1,6 @@
 import { join, resolve } from "node:path";
 import type { ModelTestResult } from "../shared/types";
+import type { OpenAICompatibleApiEndpoint } from "./openaiApiEndpoint";
 import type { OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
 
 export type SimplePageRuntime = {
@@ -96,6 +97,7 @@ export async function decodeImageThroughRuntime(
 export function isOpenAIOAuthEndpoint(
   server:
     | Awaited<ReturnType<SimplePageRuntime["startServer"]>>
+    | OpenAICompatibleApiEndpoint
     | OpenAIOAuthEndpoint
     | null,
 ): server is OpenAIOAuthEndpoint {

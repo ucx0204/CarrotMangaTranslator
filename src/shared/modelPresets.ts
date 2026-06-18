@@ -1,4 +1,5 @@
 import type {
+  ApiReasoningEffort,
   CodexReasoningEffort,
   GemmaVramMode,
   ModelProvider,
@@ -46,9 +47,17 @@ export const DEFAULT_MODEL_SOURCE: ModelSource = "huggingface";
 export const DEFAULT_CODEX_MODEL = "gpt-5.5";
 export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = "low";
 export const DEFAULT_CODEX_OAUTH_PORT = 10531;
+export const DEFAULT_API_BASE_URL = "https://api.openai.com/v1";
+export const DEFAULT_API_MODEL = DEFAULT_CODEX_MODEL;
+export const DEFAULT_API_TEMPERATURE = 0.2;
+export const DEFAULT_API_TOP_P = 0.95;
+export const DEFAULT_API_TOP_K: number | null = null;
+export const DEFAULT_API_REASONING_EFFORT: ApiReasoningEffort | null = null;
+export const DEFAULT_API_EXTRA_BODY_JSON = "";
+export const DEFAULT_API_CUSTOM_HEADERS_JSON = "";
 export const DEFAULT_MAX_TOKENS = 12000;
 export const MIN_MAX_TOKENS = 300;
-export const MAX_MAX_TOKENS = 12000;
+export const MAX_MAX_TOKENS = 32768;
 export const DEFAULT_OCR_DEVICE: OcrDevice = "cpu";
 export const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
 export const RTX_50_OCR_GPU_CUDA_TAG = "cu129";

@@ -7,7 +7,17 @@ const {
 } = require("./simple-page-prompts.cjs");
 const { mimeFromPath } = require("./simple-page-image-utils.cjs");
 const {
+  isOpenAIApiProvider,
   isOpenAICodexProvider,
+  resolveConfiguredApiBaseUrl,
+  resolveConfiguredApiCustomHeadersJson,
+  resolveConfiguredApiExtraBodyJson,
+  resolveConfiguredApiKey,
+  resolveConfiguredApiModel,
+  resolveConfiguredApiReasoningEffort,
+  resolveConfiguredApiTemperature,
+  resolveConfiguredApiTopK,
+  resolveConfiguredApiTopP,
   resolveConfiguredCodexModel,
   resolveConfiguredCodexReasoningEffort,
   resolveConfiguredDraftModelFile,
@@ -38,6 +48,10 @@ const {
   resolveOcrBboxProvider,
 } = require("./simple-page-ocr-bbox-pipeline.cjs");
 const { truncateText } = require("./simple-page-runtime-common.cjs");
+const {
+  resolveConfiguredApiCustomHeaders,
+  resolveConfiguredApiExtraBody,
+} = require("./simple-page-request-builders.cjs");
 
 function buildOptionSummary(options = {}) {
   const launchTarget = inspectModelLaunch(options);
@@ -99,6 +113,21 @@ function buildOptionSummary(options = {}) {
     codexModel: resolveConfiguredCodexModel(options),
     codexReasoningEffort: resolveConfiguredCodexReasoningEffort(options),
     codexOauthPort: options.codexOauthPort,
+    apiBaseUrl: resolveConfiguredApiBaseUrl(options),
+    apiModel: resolveConfiguredApiModel(options),
+    apiKeyConfigured: Boolean(resolveConfiguredApiKey(options)),
+    apiTemperature: resolveConfiguredApiTemperature(options),
+    apiTopP: resolveConfiguredApiTopP(options),
+    apiTopK: resolveConfiguredApiTopK(options),
+    apiReasoningEffort: resolveConfiguredApiReasoningEffort(options),
+    apiExtraBodyConfigured: Boolean(resolveConfiguredApiExtraBodyJson(options)),
+    apiExtraBodyKeys: Object.keys(resolveConfiguredApiExtraBody(options)),
+    apiCustomHeadersConfigured: Boolean(
+      resolveConfiguredApiCustomHeadersJson(options),
+    ),
+    apiCustomHeaderKeys: Object.keys(
+      resolveConfiguredApiCustomHeaders(options),
+    ),
     ocrBboxProvider: resolveOcrBboxProvider(options),
     ocrDevice: resolveOcrDevice(options),
     ocrGpuBackend: resolveOcrGpuBackend(options),
@@ -178,6 +207,9 @@ function buildRequestSummary(
 function resolveRequestModelName(options = {}) {
   if (isOpenAICodexProvider(options)) {
     return resolveConfiguredCodexModel(options);
+  }
+  if (isOpenAIApiProvider(options)) {
+    return resolveConfiguredApiModel(options);
   }
   const launchTarget = inspectModelLaunch(options);
   if (launchTarget.launchMode === "local" && launchTarget.modelPath) {

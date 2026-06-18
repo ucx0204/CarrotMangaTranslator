@@ -67,6 +67,22 @@ const runtimeHelpers = {
       image_url?: { url: string };
     }>;
   }>;
+  buildChatRequestBody: (
+    options: { [key: string]: unknown },
+    messages: Array<{
+      role: string;
+      content: Array<Record<string, unknown>>;
+    }>,
+    maxTokens?: number,
+  ) => Record<string, unknown>;
+  buildChatRequestHeaders: (options?: {
+    [key: string]: unknown;
+  }) => Record<string, string>;
+  buildHttpFailureMessage: (
+    options: { [key: string]: unknown },
+    status: number,
+    statusText?: string,
+  ) => string;
   buildResponsesRequestBody: (
     options: { [key: string]: unknown },
     imageVariants: Array<{
@@ -164,6 +180,11 @@ const runtimeHelpers = {
     url: string;
   }>;
   extractModelOutputText: (parsed: unknown) => string;
+  extractModelOutputFailure: (parsed: unknown) => null | {
+    message: string;
+    failureCategory: string;
+    nonRetriable?: boolean;
+  };
   inspectModelLaunch: (options: { [key: string]: unknown }) => {
     launchMode: string;
     model?: string;
@@ -290,6 +311,9 @@ export const {
   buildOcrPipInstallCommand,
   buildLaunchArgs,
   buildMessages,
+  buildChatRequestBody,
+  buildChatRequestHeaders,
+  buildHttpFailureMessage,
   buildOcrRuntimeEnv,
   buildOcrBboxBatchCommand,
   buildOcrBboxCommand,
@@ -301,6 +325,7 @@ export const {
   collectRequiredHfDownloads,
   collectRequiredPaddleOcrModelDownloads,
   getOverlayPrompt,
+  extractModelOutputFailure,
   extractModelOutputText,
   inspectModelLaunch,
   isModelCached,

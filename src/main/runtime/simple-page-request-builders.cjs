@@ -6,9 +6,26 @@ const {
   readPositiveInteger,
 } = require("./simple-page-prompts.cjs");
 const {
+  isOpenAIApiProvider,
   isOpenAICodexProvider,
+  resolveConfiguredApiCustomHeadersJson,
+  resolveConfiguredApiExtraBodyJson,
+  resolveConfiguredApiKey,
+  resolveConfiguredApiReasoningEffort,
+  resolveConfiguredApiTemperature,
+  resolveConfiguredApiTopK,
+  resolveConfiguredApiTopP,
   resolveConfiguredCodexReasoningEffort,
 } = require("./simple-page-model-config.cjs");
+
+const FORBIDDEN_CUSTOM_HEADER_NAMES = new Set([
+  "authorization",
+  "content-type",
+  "host",
+  "content-length",
+  "cookie",
+  "set-cookie",
+]);
 
 function buildMessages(options, imageVariants) {
   const promptText =
@@ -94,9 +111,20 @@ function buildChatRequestHeaders(options = {}) {
   const headers = {
     "Content-Type": "application/json",
   };
-  if (!isOpenAICodexProvider(options)) {
-    headers.Authorization = `Bearer ${DEFAULT_API_KEY}`;
+  if (isOpenAICodexProvider(options)) {
+    return headers;
   }
+  if (isOpenAIApiProvider(options)) {
+    const apiKey = resolveConfiguredApiKey(options);
+    if (apiKey) {
+      headers.Authorization = `Bearer ${apiKey}`;
+    }
+    return {
+      ...headers,
+      ...resolveConfiguredApiCustomHeaders(options),
+    };
+  }
+  headers.Authorization = `Bearer ${DEFAULT_API_KEY}`;
   return headers;
 }
 
@@ -113,6 +141,34 @@ function buildChatRequestBodyWithModelResolver(
       reasoning_effort: resolveConfiguredCodexReasoningEffort(options),
       messages,
     };
+  }
+
+  if (isOpenAIApiProvider(options)) {
+    const body = {
+      model: resolveRequestModelName(options),
+      max_tokens: maxTokens,
+      messages,
+    };
+    addOptionalField(
+      body,
+      "temperature",
+      resolveConfiguredApiTemperature(options),
+    );
+    addOptionalField(body, "top_p", resolveConfiguredApiTopP(options));
+    addOptionalField(body, "top_k", resolveConfiguredApiTopK(options));
+    addOptionalField(
+      body,
+      "reasoning_effort",
+      resolveConfiguredApiReasoningEffort(options),
+    );
+    const merged = {
+      ...body,
+      ...resolveConfiguredApiExtraBody(options),
+      model: body.model,
+      messages: body.messages,
+      max_tokens: body.max_tokens,
+    };
+    return merged;
   }
 
   return {
@@ -149,6 +205,87 @@ function buildResponsesRequestBodyWithModelResolver(
   };
 }
 
+function addOptionalField(target, key, value) {
+  if (value !== null && value !== undefined) {
+    target[key] = value;
+  }
+}
+
+function resolveConfiguredApiExtraBody(options = {}) {
+  return parseJsonObjectString(
+    resolveConfiguredApiExtraBodyJson(options),
+    "API extra request body JSON",
+  );
+}
+
+function resolveConfiguredApiCustomHeaders(options = {}) {
+  return sanitizeCustomHeaders(
+    parseJsonObjectString(
+      resolveConfiguredApiCustomHeadersJson(options),
+      "API custom headers JSON",
+    ),
+  );
+}
+
+function parseJsonObjectString(raw, label) {
+  const text = String(raw ?? "").trim();
+  if (!text) {
+    return {};
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    throw createApiSettingsError(`${label}을 JSON 객체로 읽지 못했습니다.`, {
+      label,
+      cause: error,
+    });
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw createApiSettingsError(`${label}은 JSON 객체여야 합니다.`, { label });
+  }
+  return parsed;
+}
+
+function sanitizeCustomHeaders(headers) {
+  const sanitized = {};
+  for (const [rawName, rawValue] of Object.entries(headers)) {
+    const name = String(rawName).trim();
+    const normalized = name.toLowerCase();
+    if (!name) {
+      continue;
+    }
+    if (FORBIDDEN_CUSTOM_HEADER_NAMES.has(normalized)) {
+      throw createApiSettingsError(
+        `API custom headers JSON에서 ${name} 헤더는 덮어쓸 수 없습니다.`,
+        { headerName: name },
+      );
+    }
+    if (
+      typeof rawValue !== "string" &&
+      typeof rawValue !== "number" &&
+      typeof rawValue !== "boolean"
+    ) {
+      throw createApiSettingsError(
+        `API custom headers JSON의 ${name} 값은 문자열, 숫자, boolean만 허용됩니다.`,
+        { headerName: name },
+      );
+    }
+    sanitized[name] = String(rawValue);
+  }
+  return sanitized;
+}
+
+function createApiSettingsError(message, detail = {}) {
+  const error = new Error(message);
+  Object.assign(error, {
+    ...detail,
+    failureCategory: "model-request",
+    nonRetriable: true,
+  });
+  return error;
+}
+
 module.exports = {
   buildChatRequestBodyWithModelResolver,
   buildChatRequestHeaders,
@@ -156,4 +293,8 @@ module.exports = {
   buildResponsesInput,
   buildResponsesRequestBodyWithModelResolver,
   describeImageVariant,
+  parseJsonObjectString,
+  resolveConfiguredApiCustomHeaders,
+  resolveConfiguredApiExtraBody,
+  sanitizeCustomHeaders,
 };

@@ -187,6 +187,41 @@ describe("settings IPC model/runtime check", () => {
     );
     expect(oauthMock.stop).toHaveBeenCalledWith(endpoint);
   });
+
+  it("tests API settings through the direct compatible endpoint", async () => {
+    const runtime = createRuntime({
+      cached: true,
+    });
+
+    const { result, progressEvents } = await invokeSettingsModelTest({
+      runtime,
+      settings: createApiSettings(),
+      testId: "api-direct",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      launchMode: "openai-api",
+      resolvedEndpoint: "http://127.0.0.1:1234/v1",
+    });
+    expect(runtime.startServer).not.toHaveBeenCalled();
+    expect(runtime.stopServer).not.toHaveBeenCalled();
+    expect(oauthMock.start).not.toHaveBeenCalled();
+    expect(oauthMock.stop).not.toHaveBeenCalled();
+    expect(runtime.testModelReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: "http://127.0.0.1:1234/v1",
+        provider: "openai-api",
+      }),
+      expect.objectContaining({
+        modelProvider: "openai-api",
+        apiModel: "local-vision-model",
+      }),
+    );
+    expect(progressEvents.map((event) => event.progressText)).toContain(
+      "API 엔드포인트 확인 중",
+    );
+  });
 });
 
 async function invokeSettingsModelTest({
@@ -337,6 +372,10 @@ function createGemmaSettings(): AppSettings {
       reasoningEffort: "low",
       oauthPort: 10531,
     },
+    api: {
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-5.5",
+    },
     ocr: {
       device: "cpu",
       gpuCudaTag: "cu126",
@@ -353,6 +392,18 @@ function createCodexSettings(): AppSettings {
       model: "gpt-5.5",
       reasoningEffort: "low",
       oauthPort: 10531,
+    },
+  };
+}
+
+function createApiSettings(): AppSettings {
+  return {
+    ...createGemmaSettings(),
+    modelProvider: "openai-api",
+    api: {
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: "local-vision-model",
+      apiKey: "sk-test",
     },
   };
 }

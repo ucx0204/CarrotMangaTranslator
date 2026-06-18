@@ -1,6 +1,15 @@
 import { join } from "node:path";
-import { DEFAULT_OCR_GPU_CUDA_TAG } from "../../shared/modelPresets";
+import {
+  DEFAULT_API_CUSTOM_HEADERS_JSON,
+  DEFAULT_API_EXTRA_BODY_JSON,
+  DEFAULT_API_REASONING_EFFORT,
+  DEFAULT_API_TEMPERATURE,
+  DEFAULT_API_TOP_K,
+  DEFAULT_API_TOP_P,
+  DEFAULT_OCR_GPU_CUDA_TAG,
+} from "../../shared/modelPresets";
 import type {
+  ApiReasoningEffort,
   AppSettings,
   LlamaRuntimeProfile,
   OcrDevice,
@@ -18,10 +27,16 @@ import {
 import {
   resolveCodexReasoningEffort,
   resolveGemmaVramMode,
+  isOfficialOpenAiApiBaseUrl,
   resolveMaxTokens,
+  resolveNullableIntegerRange,
+  resolveNullableNumberRange,
+  resolveNullableReasoningEffort,
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOpenAiCompatibleBaseUrl,
+  resolveOptionalJsonObjectString,
   resolveOptionalString,
 } from "./appSettingsResolvers";
 import {
@@ -105,6 +120,48 @@ export function buildBaseTranslationOptions({
     ) ??
     normalizeAmdRocmTarget(settings.gemma.llamaRocmTarget) ??
     normalizeAmdRocmTarget(settings.runtimeHardware?.llamaRocmTarget);
+  const apiBaseUrl = resolveOpenAiCompatibleBaseUrl(
+    runtimeEnv.MANGA_TRANSLATOR_API_BASE_URL,
+    settings.api.baseUrl,
+  );
+  const apiKey = resolveApiKey(runtimeEnv, settings, apiBaseUrl);
+  const apiModel =
+    resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_API_MODEL) ??
+    settings.api.model;
+  const apiTemperature = resolveApiNullableNumber({
+    envValue: runtimeEnv.MANGA_TRANSLATOR_API_TEMPERATURE,
+    settingsValue: settings.api.temperature,
+    fallback: DEFAULT_API_TEMPERATURE,
+    min: 0,
+    max: 2,
+  });
+  const apiTopP = resolveApiNullableNumber({
+    envValue: runtimeEnv.MANGA_TRANSLATOR_API_TOP_P,
+    settingsValue: settings.api.topP,
+    fallback: DEFAULT_API_TOP_P,
+    min: 0,
+    max: 1,
+  });
+  const apiTopK = resolveApiNullableInteger({
+    envValue: runtimeEnv.MANGA_TRANSLATOR_API_TOP_K,
+    settingsValue: settings.api.topK,
+    fallback: DEFAULT_API_TOP_K,
+    min: 1,
+    max: 1000,
+  });
+  const apiReasoningEffort = resolveApiReasoningEffort({
+    envValue: runtimeEnv.MANGA_TRANSLATOR_API_REASONING_EFFORT,
+    settingsValue: settings.api.reasoningEffort,
+    fallback: DEFAULT_API_REASONING_EFFORT,
+  });
+  const apiExtraBodyJson = resolveOptionalJsonObjectString(
+    runtimeEnv.MANGA_TRANSLATOR_API_EXTRA_BODY,
+    settings.api.extraBodyJson ?? DEFAULT_API_EXTRA_BODY_JSON,
+  );
+  const apiCustomHeadersJson = resolveOptionalJsonObjectString(
+    runtimeEnv.MANGA_TRANSLATOR_API_HEADERS,
+    settings.api.customHeadersJson ?? DEFAULT_API_CUSTOM_HEADERS_JSON,
+  );
   return {
     imagePath: "",
     outputDir: runDir,
@@ -339,6 +396,15 @@ export function buildBaseTranslationOptions({
       settings.codex.reasoningEffort,
     ),
     codexOauthPort: settings.codex.oauthPort,
+    apiBaseUrl,
+    apiModel,
+    ...(apiKey ? { apiKey } : {}),
+    apiTemperature,
+    apiTopP,
+    apiTopK,
+    apiReasoningEffort,
+    apiExtraBodyJson,
+    apiCustomHeadersJson,
     ocrDevice,
     ocrGpuBackend,
     ocrGpuCudaTag,
@@ -359,6 +425,73 @@ export function buildBaseTranslationOptions({
   };
 }
 
+function resolveApiKey(
+  runtimeEnv: NodeJS.ProcessEnv,
+  settings: AppSettings,
+  apiBaseUrl: string,
+): string | undefined {
+  return (
+    resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_API_KEY) ??
+    resolveOptionalString(settings.api.apiKey) ??
+    (isOfficialOpenAiApiBaseUrl(apiBaseUrl)
+      ? resolveOptionalString(runtimeEnv.OPENAI_API_KEY)
+      : undefined)
+  );
+}
+
+function resolveApiNullableNumber({
+  envValue,
+  settingsValue,
+  fallback,
+  min,
+  max,
+}: {
+  envValue: unknown;
+  settingsValue: number | null | undefined;
+  fallback: number | null;
+  min: number;
+  max: number;
+}): number | null {
+  if (envValue !== undefined) {
+    return resolveNullableNumberRange(envValue, fallback, min, max);
+  }
+  return resolveNullableNumberRange(settingsValue, fallback, min, max);
+}
+
+function resolveApiNullableInteger({
+  envValue,
+  settingsValue,
+  fallback,
+  min,
+  max,
+}: {
+  envValue: unknown;
+  settingsValue: number | null | undefined;
+  fallback: number | null;
+  min: number;
+  max: number;
+}): number | null {
+  if (envValue !== undefined) {
+    return resolveNullableIntegerRange(envValue, fallback, min, max);
+  }
+  return resolveNullableIntegerRange(settingsValue, fallback, min, max);
+}
+
+function resolveApiReasoningEffort({
+  envValue,
+  settingsValue,
+  fallback,
+}: {
+  envValue: unknown;
+  settingsValue: ApiReasoningEffort | null | undefined;
+  fallback: ApiReasoningEffort | null;
+}): ApiReasoningEffort | null {
+  if (envValue !== undefined) {
+    return resolveNullableReasoningEffort(envValue, fallback);
+  }
+  return resolveNullableReasoningEffort(settingsValue, fallback);
+}
+
 export function filterPackagedRuntimeEnv(
   env: NodeJS.ProcessEnv,
   paths: Pick<TranslationOptionPaths, "isPackaged">,
@@ -373,6 +506,42 @@ export function filterPackagedRuntimeEnv(
     return env;
   }
   return {
+    ...(env.MANGA_TRANSLATOR_API_BASE_URL
+      ? { MANGA_TRANSLATOR_API_BASE_URL: env.MANGA_TRANSLATOR_API_BASE_URL }
+      : {}),
+    ...(env.MANGA_TRANSLATOR_API_MODEL
+      ? { MANGA_TRANSLATOR_API_MODEL: env.MANGA_TRANSLATOR_API_MODEL }
+      : {}),
+    ...(env.MANGA_TRANSLATOR_API_KEY
+      ? { MANGA_TRANSLATOR_API_KEY: env.MANGA_TRANSLATOR_API_KEY }
+      : {}),
+    ...(env.MANGA_TRANSLATOR_API_TEMPERATURE
+      ? {
+          MANGA_TRANSLATOR_API_TEMPERATURE:
+            env.MANGA_TRANSLATOR_API_TEMPERATURE,
+        }
+      : {}),
+    ...(env.MANGA_TRANSLATOR_API_TOP_P
+      ? { MANGA_TRANSLATOR_API_TOP_P: env.MANGA_TRANSLATOR_API_TOP_P }
+      : {}),
+    ...(env.MANGA_TRANSLATOR_API_TOP_K
+      ? { MANGA_TRANSLATOR_API_TOP_K: env.MANGA_TRANSLATOR_API_TOP_K }
+      : {}),
+    ...(env.MANGA_TRANSLATOR_API_REASONING_EFFORT
+      ? {
+          MANGA_TRANSLATOR_API_REASONING_EFFORT:
+            env.MANGA_TRANSLATOR_API_REASONING_EFFORT,
+        }
+      : {}),
+    ...(env.MANGA_TRANSLATOR_API_EXTRA_BODY
+      ? {
+          MANGA_TRANSLATOR_API_EXTRA_BODY: env.MANGA_TRANSLATOR_API_EXTRA_BODY,
+        }
+      : {}),
+    ...(env.MANGA_TRANSLATOR_API_HEADERS
+      ? { MANGA_TRANSLATOR_API_HEADERS: env.MANGA_TRANSLATOR_API_HEADERS }
+      : {}),
+    ...(env.OPENAI_API_KEY ? { OPENAI_API_KEY: env.OPENAI_API_KEY } : {}),
     ...(env.MANGA_TRANSLATOR_AMD_ROCM_TARGET
       ? {
           MANGA_TRANSLATOR_AMD_ROCM_TARGET:

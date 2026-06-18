@@ -36,6 +36,7 @@ const requestSummaryRuntime =
       bboxCoordinateFrame: { width: number; height: number };
       ocrBboxHintCount: number;
       ocrBboxHints: Array<{ id: number; ocrText: string | null }>;
+      options?: Record<string, unknown>;
     };
   };
 
@@ -272,5 +273,38 @@ describe("prompt contracts", () => {
     expect(summary.ocrBboxHintCount).toBe(2);
     expect(summary.ocrBboxHints.map((hint) => hint.id)).toEqual([1, 2]);
     expect(summary.ocrBboxHints[0]?.ocrText).toBe("いえ…資金はこちらも");
+  });
+
+  it("summarizes API chat endpoints without leaking API keys", () => {
+    const options = {
+      modelProvider: "openai-api",
+      apiBaseUrl: "http://127.0.0.1:1234/v1",
+      apiModel: "local-vision-model",
+      apiKey: "sk-secret-value",
+      imageWidth: 1200,
+      imageHeight: 1600,
+    };
+    const imageVariants = [
+      {
+        role: "original",
+        dataUrl: "data:image/png;base64,abc123",
+        path: "page.png",
+        width: 1200,
+        height: 1600,
+      },
+    ];
+    const prompt = getOverlayPrompt(options, imageVariants);
+    const systemPrompt = buildSystemPrompt(options);
+    const summary = buildRequestSummary(
+      { baseUrl: "http://127.0.0.1:1234/v1" },
+      options,
+      imageVariants,
+      prompt,
+      systemPrompt,
+    );
+
+    expect(summary.endpoint).toBe("http://127.0.0.1:1234/v1/chat/completions");
+    expect(summary.options?.apiKeyConfigured).toBe(true);
+    expect(JSON.stringify(summary)).not.toContain("sk-secret-value");
   });
 });

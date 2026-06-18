@@ -12,6 +12,14 @@ export function summarizePage(page: MangaPage): Record<string, unknown> {
 }
 
 export function classifyFailure(error: unknown): string {
+  if (
+    error &&
+    typeof error === "object" &&
+    "failureCategory" in error &&
+    typeof (error as { failureCategory?: unknown }).failureCategory === "string"
+  ) {
+    return (error as { failureCategory: string }).failureCategory;
+  }
   if (isNonRetriableRuntimeError(error)) {
     return "runtime";
   }
@@ -32,6 +40,7 @@ export function classifyFailure(error: unknown): string {
   if (
     message.includes("gemma request failed") ||
     message.includes("openai codex request failed") ||
+    message.includes("api 오류") ||
     message.includes("request transport failed") ||
     message.includes("openai-oauth")
   ) {

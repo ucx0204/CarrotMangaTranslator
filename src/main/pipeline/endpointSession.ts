@@ -15,6 +15,7 @@ export type AnalysisEndpointSession = {
 };
 
 export async function startAnalysisEndpointSession({
+  apiSelected,
   baseOptions,
   codexSelected,
   formatGemmaVramMode,
@@ -25,6 +26,7 @@ export async function startAnalysisEndpointSession({
   runtime,
 }: {
   baseOptions: TranslationOptions;
+  apiSelected: boolean;
   codexSelected: boolean;
   formatGemmaVramMode: (mode: TranslationOptions["gemmaVramMode"]) => string;
   localModelSelected: boolean;
@@ -35,6 +37,7 @@ export async function startAnalysisEndpointSession({
 }): Promise<AnalysisEndpointSession> {
   emitEndpointStarting(progressContext, {
     baseOptions,
+    apiSelected,
     codexSelected,
     formatGemmaVramMode,
     localModelSelected,
@@ -55,6 +58,7 @@ export async function startAnalysisEndpointSession({
 
   emitEndpointReady(progressContext, {
     server,
+    apiSelected,
     baseOptions,
     codexSelected,
   });

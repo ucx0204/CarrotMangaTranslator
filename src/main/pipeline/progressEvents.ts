@@ -103,6 +103,7 @@ export function attachPageProgress(
 export function emitEndpointStarting(
   context: ProgressContext,
   options: {
+    apiSelected: boolean;
     baseOptions: TranslationOptions;
     codexSelected: boolean;
     localModelSelected: boolean;
@@ -110,40 +111,74 @@ export function emitEndpointStarting(
     formatGemmaVramMode: (mode: TranslationOptions["gemmaVramMode"]) => string;
   },
 ): void {
-  const { baseOptions, codexSelected, localModelSelected, modelCached } =
-    options;
   context.emit({
     id: context.jobId,
     kind: "gemma-analysis",
     status: "starting",
-    progressText: localModelSelected
-      ? "로컬 모델/서버 준비 중"
-      : codexSelected
-        ? "OpenAI Codex 엔드포인트 준비 중"
-        : modelCached
-          ? "Gemma 4 서버 시작 중"
-          : "모델 다운로드/서버 준비 중",
-    phase:
-      localModelSelected || modelCached || codexSelected
-        ? "booting"
-        : "model_downloading",
+    progressText: resolveEndpointStartingText(options),
+    phase: resolveEndpointStartingPhase(options),
     progressCurrent: 0,
     progressTotal: context.progressTotal,
     pageTotal: context.pageTotal,
-    detail: localModelSelected
-      ? "선택한 로컬 모델을 불러오는 중입니다. 큰 모델은 시작까지 시간이 걸릴 수 있습니다."
-      : codexSelected
-        ? `${baseOptions.codexModel}, thinking ${baseOptions.codexReasoningEffort}`
-        : modelCached
-          ? `${options.formatGemmaVramMode(baseOptions.gemmaVramMode)}, ${baseOptions.modelFile}`
-          : "로컬 모델 자산이 없거나 부족해 다운로드/갱신이 필요할 수 있습니다.",
+    detail: resolveEndpointStartingDetail(options),
   });
+}
+
+type EndpointStartingOptions = Parameters<typeof emitEndpointStarting>[1];
+
+function resolveEndpointStartingText(options: EndpointStartingOptions): string {
+  if (options.localModelSelected) {
+    return "로컬 모델/서버 준비 중";
+  }
+  if (options.codexSelected) {
+    return "OpenAI Codex 엔드포인트 준비 중";
+  }
+  if (options.apiSelected) {
+    return "API 엔드포인트 확인 중";
+  }
+  return options.modelCached
+    ? "Gemma 4 서버 시작 중"
+    : "모델 다운로드/서버 준비 중";
+}
+
+function resolveEndpointStartingPhase(
+  options: EndpointStartingOptions,
+): "booting" | "model_downloading" {
+  if (
+    options.localModelSelected ||
+    options.modelCached ||
+    options.codexSelected ||
+    options.apiSelected
+  ) {
+    return "booting";
+  }
+  return "model_downloading";
+}
+
+function resolveEndpointStartingDetail(
+  options: EndpointStartingOptions,
+): string {
+  const { baseOptions } = options;
+  if (options.localModelSelected) {
+    return "선택한 로컬 모델을 불러오는 중입니다. 큰 모델은 시작까지 시간이 걸릴 수 있습니다.";
+  }
+  if (options.codexSelected) {
+    return `${baseOptions.codexModel}, thinking ${baseOptions.codexReasoningEffort}`;
+  }
+  if (options.apiSelected) {
+    return `${baseOptions.apiModel} @ ${baseOptions.apiBaseUrl}`;
+  }
+  if (options.modelCached) {
+    return `${options.formatGemmaVramMode(baseOptions.gemmaVramMode)}, ${baseOptions.modelFile}`;
+  }
+  return "로컬 모델 자산이 없거나 부족해 다운로드/갱신이 필요할 수 있습니다.";
 }
 
 export function emitEndpointReady(
   context: ProgressContext,
   options: {
     server: ModelEndpointHandle;
+    apiSelected: boolean;
     baseOptions: TranslationOptions;
     codexSelected: boolean;
   },
@@ -159,7 +194,9 @@ export function emitEndpointReady(
     pageTotal: context.pageTotal,
     detail: options.codexSelected
       ? `openai-oauth ready at ${options.server.baseUrl}`
-      : `server ready on port ${options.baseOptions.port}`,
+      : options.apiSelected
+        ? `API ready at ${options.server.baseUrl}`
+        : `server ready on port ${options.baseOptions.port}`,
   });
 }
 

@@ -2,6 +2,7 @@
 /** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 /**
  * @typedef {{
+ *   baseUrl?: string;
  *   draftModelPath?: string | null;
  *   draftModelUrl?: string | null;
  *   hubCacheDir?: string | null;
@@ -51,7 +52,10 @@ const {
   resolveManagedHfFilePath,
 } = require("./simple-page-cache-paths.cjs");
 const {
+  isOpenAIApiProvider,
   isOpenAICodexProvider,
+  resolveConfiguredApiBaseUrl,
+  resolveConfiguredApiModel,
   resolveConfiguredCodexModel,
   resolveConfiguredCodexReasoningEffort,
   resolveConfiguredDraftModelFile,
@@ -141,6 +145,9 @@ function collectRequiredHfDownloads(
   launchTarget = inspectModelLaunch(options),
 ) {
   if (launchTarget.launchMode === "openai-codex") {
+    return [];
+  }
+  if (launchTarget.launchMode === "openai-api") {
     return [];
   }
 
@@ -853,6 +860,15 @@ function inspectModelLaunch(options = {}) {
     };
   }
 
+  if (isOpenAIApiProvider(options)) {
+    return {
+      launchMode: "openai-api",
+      baseUrl: resolveConfiguredApiBaseUrl(options),
+      model: resolveConfiguredApiModel(options),
+      requiresDownload: false,
+    };
+  }
+
   if (resolveConfiguredModelSource(options) === "local") {
     const modelPath = resolveConfiguredLocalModelPath(options);
     const explicitMmprojPath = resolveConfiguredLocalMmprojPath(options);
@@ -891,6 +907,9 @@ function inspectModelLaunch(options = {}) {
 function isModelCached(options = {}) {
   const launchTarget = inspectModelLaunch(options);
   if (launchTarget.launchMode === "openai-codex") {
+    return true;
+  }
+  if (launchTarget.launchMode === "openai-api") {
     return true;
   }
   if (launchTarget.launchMode === "local") {

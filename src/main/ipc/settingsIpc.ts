@@ -22,6 +22,11 @@ import {
   type OpenAIOAuthEndpoint,
 } from "../openaiOauthEndpoint";
 import {
+  createOpenAICompatibleApiEndpoint,
+  isOpenAICompatibleApiEndpoint,
+  type OpenAICompatibleApiEndpoint,
+} from "../openaiApiEndpoint";
+import {
   getAppSettings,
   resetAppSettings,
   saveAppSettings,
@@ -36,6 +41,9 @@ import { trustedHandle } from "./trustedIpc";
 const MAX_MODEL_TEST_ID_LENGTH = 200;
 const SAFE_MODEL_TEST_ID_PATTERN = /^(?=.*[A-Za-z0-9_-])[A-Za-z0-9._-]+$/;
 const MODEL_TEST_PORT_ATTEMPTS = 4;
+type SendModelTestProgress = (
+  progress: Omit<ModelTestProgressEvent, "id">,
+) => void;
 
 export function registerSettingsIpc(context: IpcContext): void {
   trustedHandle(context, "settings:get", async () => getAppSettings());
@@ -141,6 +149,7 @@ export function registerSettingsIpc(context: IpcContext): void {
       let server:
         | Awaited<ReturnType<SimplePageRuntime["startServer"]>>
         | OpenAIOAuthEndpoint
+        | OpenAICompatibleApiEndpoint
         | null = null;
       try {
         sendProgress({
@@ -149,42 +158,7 @@ export function registerSettingsIpc(context: IpcContext): void {
           installLogLine: "Paddle OCR과 번역 엔진 확인을 시작합니다.",
         });
         await verifyPaddleOcrRuntime(runtime, options, sendProgress);
-        if (options.modelProvider === "openai-codex") {
-          sendProgress({
-            phase: "booting",
-            progressText: "OpenAI Codex 런타임 엔드포인트 준비 중",
-            detail: `${options.codexModel}, port ${options.codexOauthPort}`,
-            installLogLine: "openai-oauth 엔드포인트를 시작합니다.",
-          });
-        } else {
-          sendProgress({
-            phase: "booting",
-            progressText: "Gemma 실행 런타임 준비 중",
-            detail:
-              options.modelSource === "local"
-                ? options.localModelPath
-                : `${options.modelRepo} / ${options.modelFile}`,
-            progressMode: "indeterminate",
-            installLogLine: "Gemma 실행 런타임과 모델 자산을 확인합니다.",
-          });
-          if (runtime.isModelCached(options)) {
-            sendProgress({
-              phase: "booting",
-              progressText: "캐시된 Gemma 모델 확인됨",
-              detail: options.modelFile,
-              installLogLine: "캐시된 모델 파일을 사용합니다.",
-            });
-          } else {
-            sendProgress({
-              phase: "model_downloading",
-              progressText: "Gemma 모델 다운로드/런타임 준비 중",
-              detail: `${options.modelRepo} / ${options.modelFile}`,
-              progressMode: "log-only",
-              installLogLine:
-                "캐시된 모델이 없어서 다운로드 또는 갱신을 시작합니다.",
-            });
-          }
-        }
+        sendEnginePreparationProgress(runtime, options, sendProgress);
         const started = await startModelTestServerWithRetry(
           runtime,
           options,
@@ -211,11 +185,16 @@ export function registerSettingsIpc(context: IpcContext): void {
           launchMode:
             options.modelProvider === "openai-codex"
               ? "openai-codex"
-              : result.launchTarget.launchMode,
+              : options.modelProvider === "openai-api"
+                ? "openai-api"
+                : result.launchTarget.launchMode,
           resolvedModelPath: result.launchTarget.modelPath ?? null,
           resolvedMmprojPath: result.launchTarget.mmprojPath ?? null,
           resolvedEndpoint:
-            options.modelProvider === "openai-codex" ? server.baseUrl : null,
+            options.modelProvider === "openai-codex" ||
+            options.modelProvider === "openai-api"
+              ? server.baseUrl
+              : null,
         };
       } catch (error) {
         logError("Settings model/runtime check failed", {
@@ -236,7 +215,7 @@ export function registerSettingsIpc(context: IpcContext): void {
       } finally {
         if (isOpenAIOAuthEndpoint(server)) {
           await stopOpenAIOAuthEndpoint(server);
-        } else {
+        } else if (!isOpenAICompatibleApiEndpoint(server)) {
           await runtime.stopServer(server);
         }
       }
@@ -273,10 +252,71 @@ function resolveModelTestId(providedTestId: unknown): string {
   return randomUUID();
 }
 
+function sendEnginePreparationProgress(
+  runtime: SimplePageRuntime,
+  options: TranslationOptions,
+  sendProgress: SendModelTestProgress,
+): void {
+  if (options.modelProvider === "openai-codex") {
+    sendProgress({
+      phase: "booting",
+      progressText: "OpenAI Codex 런타임 엔드포인트 준비 중",
+      detail: `${options.codexModel}, port ${options.codexOauthPort}`,
+      installLogLine: "openai-oauth 엔드포인트를 시작합니다.",
+    });
+    return;
+  }
+  if (options.modelProvider === "openai-api") {
+    sendProgress({
+      phase: "booting",
+      progressText: "API 엔드포인트 확인 중",
+      detail: `${options.apiModel} @ ${options.apiBaseUrl}`,
+      installLogLine:
+        "OpenAI 호환 API 엔드포인트로 직접 테스트 요청을 보냅니다.",
+    });
+    return;
+  }
+
+  sendGemmaPreparationProgress(runtime, options, sendProgress);
+}
+
+function sendGemmaPreparationProgress(
+  runtime: SimplePageRuntime,
+  options: TranslationOptions,
+  sendProgress: SendModelTestProgress,
+): void {
+  sendProgress({
+    phase: "booting",
+    progressText: "Gemma 실행 런타임 준비 중",
+    detail:
+      options.modelSource === "local"
+        ? options.localModelPath
+        : `${options.modelRepo} / ${options.modelFile}`,
+    progressMode: "indeterminate",
+    installLogLine: "Gemma 실행 런타임과 모델 자산을 확인합니다.",
+  });
+  if (runtime.isModelCached(options)) {
+    sendProgress({
+      phase: "booting",
+      progressText: "캐시된 Gemma 모델 확인됨",
+      detail: options.modelFile,
+      installLogLine: "캐시된 모델 파일을 사용합니다.",
+    });
+    return;
+  }
+  sendProgress({
+    phase: "model_downloading",
+    progressText: "Gemma 모델 다운로드/런타임 준비 중",
+    detail: `${options.modelRepo} / ${options.modelFile}`,
+    progressMode: "log-only",
+    installLogLine: "캐시된 모델이 없어서 다운로드 또는 갱신을 시작합니다.",
+  });
+}
+
 async function verifyPaddleOcrRuntime(
   runtime: SimplePageRuntime,
   options: Record<string, unknown>,
-  sendProgress: (progress: Omit<ModelTestProgressEvent, "id">) => void,
+  sendProgress: SendModelTestProgress,
 ): Promise<void> {
   sendProgress({
     phase: "ocr_preparing",
@@ -341,6 +381,9 @@ function resolveSettingsLaunchMode(
   if (settings.modelProvider === "openai-codex") {
     return "openai-codex";
   }
+  if (settings.modelProvider === "openai-api") {
+    return "openai-api";
+  }
   return settings.gemma.modelSource === "local" ? "local" : "huggingface";
 }
 
@@ -370,13 +413,21 @@ async function reserveFreePort(): Promise<number> {
 async function startModelTestServerWithRetry(
   runtime: SimplePageRuntime,
   initialOptions: TranslationOptions,
-  sendProgress: (progress: Omit<ModelTestProgressEvent, "id">) => void,
+  sendProgress: SendModelTestProgress,
 ): Promise<{
   server:
     | Awaited<ReturnType<SimplePageRuntime["startServer"]>>
-    | OpenAIOAuthEndpoint;
+    | OpenAIOAuthEndpoint
+    | OpenAICompatibleApiEndpoint;
   options: TranslationOptions;
 }> {
+  if (initialOptions.modelProvider === "openai-api") {
+    return {
+      server: createOpenAICompatibleApiEndpoint(initialOptions),
+      options: initialOptions,
+    };
+  }
+
   let options = initialOptions;
   for (let attempt = 1; attempt <= MODEL_TEST_PORT_ATTEMPTS; attempt += 1) {
     try {

@@ -14,6 +14,11 @@
     "reasoningEffort": "medium",
     "oauthPort": 10531
   },
+  "api": {
+    "baseUrl": "https://api.openai.com/v1",
+    "model": "gpt-5.5",
+    "apiKey": ""
+  },
   "ocr": {
     "device": "gpu",
     "gpuBackend": "cuda",

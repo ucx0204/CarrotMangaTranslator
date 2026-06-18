@@ -7,6 +7,15 @@ const {
   getOverlayPrompt,
 } = require("./simple-page-prompts.cjs");
 const {
+  resolveConfiguredApiBaseUrl,
+  resolveConfiguredApiCustomHeadersJson,
+  resolveConfiguredApiExtraBodyJson,
+  resolveConfiguredApiKey,
+  resolveConfiguredApiModel,
+  resolveConfiguredApiReasoningEffort,
+  resolveConfiguredApiTemperature,
+  resolveConfiguredApiTopK,
+  resolveConfiguredApiTopP,
   resolveConfiguredCodexModel,
   resolveConfiguredCodexReasoningEffort,
   resolveConfiguredLocalMmprojPath,
@@ -25,6 +34,10 @@ const {
 const {
   resolveConfiguredMmprojUrl,
 } = require("./simple-page-model-assets.cjs");
+const {
+  resolveConfiguredApiCustomHeaders,
+  resolveConfiguredApiExtraBody,
+} = require("./simple-page-request-builders.cjs");
 
 async function saveArtifacts(options, result) {
   await mkdir(options.outputDir, { recursive: true });
@@ -74,6 +87,23 @@ async function saveArtifacts(options, result) {
       codexModel: resolveConfiguredCodexModel(options),
       codexReasoningEffort: resolveConfiguredCodexReasoningEffort(options),
       codexOauthPort: options.codexOauthPort,
+      apiBaseUrl: resolveConfiguredApiBaseUrl(options),
+      apiModel: resolveConfiguredApiModel(options),
+      apiKeyConfigured: Boolean(resolveConfiguredApiKey(options)),
+      apiTemperature: resolveConfiguredApiTemperature(options),
+      apiTopP: resolveConfiguredApiTopP(options),
+      apiTopK: resolveConfiguredApiTopK(options),
+      apiReasoningEffort: resolveConfiguredApiReasoningEffort(options),
+      apiExtraBodyConfigured: Boolean(
+        resolveConfiguredApiExtraBodyJson(options),
+      ),
+      apiExtraBodyKeys: Object.keys(resolveConfiguredApiExtraBody(options)),
+      apiCustomHeadersConfigured: Boolean(
+        resolveConfiguredApiCustomHeadersJson(options),
+      ),
+      apiCustomHeaderKeys: Object.keys(
+        resolveConfiguredApiCustomHeaders(options),
+      ),
       fitTargetMb: options.fitTargetMb,
       imageMinTokens: options.imageMinTokens,
       imageMaxTokens: options.imageMaxTokens,

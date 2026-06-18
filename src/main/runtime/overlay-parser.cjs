@@ -182,7 +182,7 @@ function parseLooseItemList(rawText, options = {}) {
     .replace(/```(?:json)?/gi, "")
     .replace(/```/g, "")
     .trim();
-  const lines = cleaned.split(/\r?\n/);
+  const lines = expandLooseRecordLines(cleaned);
   /** @type {LooseParsedOutput[]} */
   const items = [];
   /** @type {LooseParsedItem | null} */
@@ -342,6 +342,32 @@ function parseLooseItemList(rawText, options = {}) {
 
   pushCurrent();
   return items;
+}
+
+function expandLooseRecordLines(text) {
+  const rawLines = text.split(/\r?\n/);
+  const expanded = [];
+  const keyPattern =
+    /(?:^|\s)(id|type|textRole|text_role|role|direction|angle|fontSize|font_size|font|confidence|x1|y1|x2|y2|jp|ko)\s*:/gi;
+  for (const rawLine of rawLines) {
+    const matches = [...rawLine.matchAll(keyPattern)];
+    if (matches.length <= 1) {
+      expanded.push(rawLine);
+      continue;
+    }
+    for (let index = 0; index < matches.length; index += 1) {
+      const start = matches[index].index ?? 0;
+      const end =
+        index + 1 < matches.length
+          ? (matches[index + 1].index ?? rawLine.length)
+          : rawLine.length;
+      const segment = rawLine.slice(start, end).trim();
+      if (segment) {
+        expanded.push(segment);
+      }
+    }
+  }
+  return expanded;
 }
 
 function toNumber(value) {

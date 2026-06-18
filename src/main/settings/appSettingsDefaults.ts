@@ -1,4 +1,12 @@
 import {
+  DEFAULT_API_BASE_URL,
+  DEFAULT_API_CUSTOM_HEADERS_JSON,
+  DEFAULT_API_EXTRA_BODY_JSON,
+  DEFAULT_API_MODEL,
+  DEFAULT_API_REASONING_EFFORT,
+  DEFAULT_API_TEMPERATURE,
+  DEFAULT_API_TOP_K,
+  DEFAULT_API_TOP_P,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_OAUTH_PORT,
   DEFAULT_CODEX_REASONING_EFFORT,
@@ -29,10 +37,14 @@ import {
   resolveGemmaVramMode,
   resolveMaxTokens,
   resolveModelProvider,
+  resolveNullableIntegerRange,
+  resolveNullableNumberRange,
+  resolveNullableReasoningEffort,
   resolveNonEmptyString,
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOpenAiCompatibleBaseUrl,
   resolveOptionalString,
   resolvePortNumber,
 } from "./appSettingsResolvers";
@@ -103,6 +115,42 @@ export function resolveDefaultAppSettings(
         env.MANGA_TRANSLATOR_CODEX_OAUTH_PORT,
         DEFAULT_CODEX_OAUTH_PORT,
       ),
+    },
+    api: {
+      baseUrl: resolveOpenAiCompatibleBaseUrl(
+        env.MANGA_TRANSLATOR_API_BASE_URL,
+        DEFAULT_API_BASE_URL,
+      ),
+      model: resolveNonEmptyString(
+        env.MANGA_TRANSLATOR_API_MODEL,
+        DEFAULT_API_MODEL,
+      ),
+      temperature: resolveNullableNumberRange(
+        env.MANGA_TRANSLATOR_API_TEMPERATURE,
+        DEFAULT_API_TEMPERATURE,
+        0,
+        2,
+      ),
+      topP: resolveNullableNumberRange(
+        env.MANGA_TRANSLATOR_API_TOP_P,
+        DEFAULT_API_TOP_P,
+        0,
+        1,
+      ),
+      topK: resolveNullableIntegerRange(
+        env.MANGA_TRANSLATOR_API_TOP_K,
+        DEFAULT_API_TOP_K,
+        1,
+        1000,
+      ),
+      reasoningEffort: resolveNullableReasoningEffort(
+        env.MANGA_TRANSLATOR_API_REASONING_EFFORT,
+        DEFAULT_API_REASONING_EFFORT,
+      ),
+      extraBodyJson:
+        env.MANGA_TRANSLATOR_API_EXTRA_BODY ?? DEFAULT_API_EXTRA_BODY_JSON,
+      customHeadersJson:
+        env.MANGA_TRANSLATOR_API_HEADERS ?? DEFAULT_API_CUSTOM_HEADERS_JSON,
     },
     ocr: {
       device: resolveOcrDevice(

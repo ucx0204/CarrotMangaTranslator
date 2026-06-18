@@ -68,6 +68,34 @@ describe("whole page pipeline", () => {
     expect(runtime.disposeEndpoint).toHaveBeenCalledTimes(1);
   });
 
+  it("propagates non-retriable API failures without skipping the page", async () => {
+    process.env.MANGA_TRANSLATOR_PAGE_RETRIES = "5";
+    const apiError = Object.assign(
+      new Error(
+        "API 오류 401 Unauthorized: 인증에 실패했습니다. API 키가 잘못됐거나 만료됐을 수 있습니다. 키가 맞다면 선택한 모델이 이미지 입력을 지원하는지 확인하세요. 자세한 내용은 로그를 확인하세요.",
+      ),
+      { failureCategory: "model-request", nonRetriable: true },
+    );
+    const requestTranslation = vi.fn().mockRejectedValue(apiError);
+    const onPageFailed = vi.fn();
+    const events: JobEvent[] = [];
+    const { runWholePagePipeline, runtime } = await loadPipeline({
+      requestTranslation,
+    });
+
+    await expect(
+      runWholePagePipeline({
+        ...basePipelineOptions([makePage("page-a", "001.png")], events),
+        onPageFailed,
+      }),
+    ).rejects.toBe(apiError);
+
+    expect(requestTranslation).toHaveBeenCalledTimes(1);
+    expect(onPageFailed).not.toHaveBeenCalled();
+    expect(events.map((event) => event.phase)).not.toContain("page_skipped");
+    expect(runtime.disposeEndpoint).toHaveBeenCalledTimes(1);
+  });
+
   it("skips model calls when OCR prepass reports no text", async () => {
     const page = makePage("page-a", "001.png");
     const requestTranslation = vi.fn();
@@ -332,6 +360,8 @@ function makeBaseOptions(runDir: string): TranslationOptions {
     codexModel: "gpt-5",
     codexReasoningEffort: "medium",
     codexOauthPort: 10531,
+    apiBaseUrl: "https://api.openai.com/v1",
+    apiModel: "gpt-5",
     ocrDevice: "cpu",
     label: "base",
   };

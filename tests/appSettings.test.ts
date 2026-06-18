@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBaseTranslationOptions,
+  DEFAULT_API_BASE_URL,
+  DEFAULT_API_CUSTOM_HEADERS_JSON,
+  DEFAULT_API_EXTRA_BODY_JSON,
+  DEFAULT_API_MODEL,
+  DEFAULT_API_REASONING_EFFORT,
+  DEFAULT_API_TEMPERATURE,
+  DEFAULT_API_TOP_K,
+  DEFAULT_API_TOP_P,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_OAUTH_PORT,
   DEFAULT_CODEX_REASONING_EFFORT,
@@ -36,6 +44,17 @@ describe("app settings helpers", () => {
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
     expect(defaults.codex.reasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(defaults.codex.oauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
+    expect(defaults.api.baseUrl).toBe(DEFAULT_API_BASE_URL);
+    expect(defaults.api.model).toBe(DEFAULT_API_MODEL);
+    expect(defaults.api.apiKey).toBeUndefined();
+    expect(defaults.api.temperature).toBe(DEFAULT_API_TEMPERATURE);
+    expect(defaults.api.topP).toBe(DEFAULT_API_TOP_P);
+    expect(defaults.api.topK).toBe(DEFAULT_API_TOP_K);
+    expect(defaults.api.reasoningEffort).toBe(DEFAULT_API_REASONING_EFFORT);
+    expect(defaults.api.extraBodyJson).toBe(DEFAULT_API_EXTRA_BODY_JSON);
+    expect(defaults.api.customHeadersJson).toBe(
+      DEFAULT_API_CUSTOM_HEADERS_JSON,
+    );
     expect(defaults.ocr.device).toBe(DEFAULT_OCR_DEVICE);
     expect(defaults.ocr.gpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
     expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
@@ -102,6 +121,7 @@ describe("app settings helpers", () => {
         llamaRuntimeProfile: defaults.gemma.llamaRuntimeProfile,
       },
       codex: defaults.codex,
+      api: defaults.api,
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
@@ -126,6 +146,7 @@ describe("app settings helpers", () => {
       modelProvider: defaults.modelProvider,
       gemma: defaults.gemma,
       codex: defaults.codex,
+      api: defaults.api,
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
@@ -138,6 +159,7 @@ describe("app settings helpers", () => {
       modelProvider: defaults.modelProvider,
       gemma: defaults.gemma,
       codex: defaults.codex,
+      api: defaults.api,
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
@@ -158,6 +180,10 @@ describe("app settings helpers", () => {
         model: DEFAULT_CODEX_MODEL,
         reasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
         oauthPort: DEFAULT_CODEX_OAUTH_PORT,
+      },
+      api: {
+        baseUrl: "https://api.openai.com/v1",
+        model: DEFAULT_CODEX_MODEL,
       },
       ocr: {
         device: "gpu",
@@ -189,6 +215,9 @@ describe("app settings helpers", () => {
     expect(options.codexModel).toBe(DEFAULT_CODEX_MODEL);
     expect(options.codexReasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(options.codexOauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
+    expect(options.apiBaseUrl).toBe("https://api.openai.com/v1");
+    expect(options.apiModel).toBe(DEFAULT_CODEX_MODEL);
+    expect(options.apiKey).toBeUndefined();
     expect(options.ocrDevice).toBe("gpu");
     expect(options.ocrGpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
     expect(options.gemmaVramMode).toBe("economy26b");
@@ -833,6 +862,7 @@ describe("app settings helpers", () => {
         llamaRuntimeProfile: defaults.gemma.llamaRuntimeProfile,
       },
       codex: defaults.codex,
+      api: defaults.api,
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
@@ -863,11 +893,219 @@ describe("app settings helpers", () => {
         reasoningEffort: "xhigh",
         oauthPort: 10532,
       },
+      api: defaults.api,
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens,
     });
+  });
+
+  it("normalizes API provider settings", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          modelProvider: "openai-api",
+          api: {
+            baseUrl: "http://127.0.0.1:1234/v1/chat/completions/",
+            model: "local-vision-model",
+            apiKey: "sk-test",
+          },
+        }),
+        defaults,
+      ),
+    ).toEqual({
+      modelProvider: "openai-api",
+      gemma: defaults.gemma,
+      codex: defaults.codex,
+      api: {
+        baseUrl: "http://127.0.0.1:1234/v1",
+        model: "local-vision-model",
+        apiKey: "sk-test",
+        temperature: DEFAULT_API_TEMPERATURE,
+        topP: DEFAULT_API_TOP_P,
+        topK: DEFAULT_API_TOP_K,
+        reasoningEffort: DEFAULT_API_REASONING_EFFORT,
+        extraBodyJson: DEFAULT_API_EXTRA_BODY_JSON,
+        customHeadersJson: DEFAULT_API_CUSTOM_HEADERS_JSON,
+      },
+      ocr: defaults.ocr,
+      inpainting: defaults.inpainting,
+      ui: defaults.ui,
+      maxTokens: defaults.maxTokens,
+    });
+
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          modelProvider: "openai-api",
+          api: {
+            baseUrl: "ftp://example.test/v1",
+            model: "",
+          },
+        }),
+        defaults,
+      ).api,
+    ).toEqual(defaults.api);
+  });
+
+  it("applies API runtime environment overrides", () => {
+    const defaults = resolveDefaultAppSettings();
+    const options = buildBaseTranslationOptions({
+      jobId: "job-api",
+      runDir: "C:/runs/job-api",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+      },
+      settings: {
+        ...defaults,
+        modelProvider: "openai-api",
+        api: {
+          baseUrl: "https://api.openai.com/v1",
+          model: "saved-model",
+          apiKey: "saved-key",
+        },
+      },
+      env: {
+        MANGA_TRANSLATOR_API_BASE_URL:
+          "http://127.0.0.1:1234/v1/chat/completions",
+        MANGA_TRANSLATOR_API_MODEL: "env-model",
+        OPENAI_API_KEY: "env-key",
+      } satisfies NodeJS.ProcessEnv,
+    });
+
+    expect(options.modelProvider).toBe("openai-api");
+    expect(options.apiBaseUrl).toBe("http://127.0.0.1:1234/v1");
+    expect(options.apiModel).toBe("env-model");
+    expect(options.apiKey).toBe("saved-key");
+  });
+
+  it("normalizes and preserves API advanced settings", () => {
+    const defaults = resolveDefaultAppSettings();
+    const stored = parseStoredAppSettings(
+      JSON.stringify({
+        modelProvider: "openai-api",
+        api: {
+          baseUrl: "https://openrouter.ai/api/v1",
+          model: "vision/model",
+          temperature: null,
+          topP: null,
+          topK: 2048,
+          reasoningEffort: "minimal",
+          extraBodyJson: '{"provider":{"sort":"throughput"}}',
+          customHeadersJson: '{"X-OpenRouter-Title":"Manga Translator"}',
+        },
+      }),
+      defaults,
+    );
+
+    expect(stored.api.temperature).toBeNull();
+    expect(stored.api.topP).toBeNull();
+    expect(stored.api.topK).toBe(1000);
+    expect(stored.api.reasoningEffort).toBe("minimal");
+    expect(stored.api.extraBodyJson).toBe('{"provider":{"sort":"throughput"}}');
+    expect(stored.api.customHeadersJson).toBe(
+      '{"X-OpenRouter-Title":"Manga Translator"}',
+    );
+
+    const options = buildBaseTranslationOptions({
+      jobId: "job-api-advanced",
+      runDir: "C:/runs/job-api-advanced",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+      },
+      settings: stored,
+      env: {
+        MANGA_TRANSLATOR_API_TEMPERATURE: "",
+        MANGA_TRANSLATOR_API_TOP_K: "5",
+        MANGA_TRANSLATOR_API_REASONING_EFFORT: "high",
+        MANGA_TRANSLATOR_API_EXTRA_BODY: '{"top_k":1}',
+        MANGA_TRANSLATOR_API_HEADERS: '{"X-Test":"yes"}',
+      } satisfies NodeJS.ProcessEnv,
+    });
+
+    expect(options.apiTemperature).toBeNull();
+    expect(options.apiTopP).toBeNull();
+    expect(options.apiTopK).toBe(5);
+    expect(options.apiReasoningEffort).toBe("high");
+    expect(options.apiExtraBodyJson).toBe('{"top_k":1}');
+    expect(options.apiCustomHeadersJson).toBe('{"X-Test":"yes"}');
+  });
+
+  it("uses OPENAI_API_KEY only when API settings target the official endpoint", () => {
+    const defaults = resolveDefaultAppSettings();
+    const officialOptions = buildBaseTranslationOptions({
+      jobId: "job-api-openai",
+      runDir: "C:/runs/job-api-openai",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+      },
+      settings: {
+        ...defaults,
+        modelProvider: "openai-api",
+        api: {
+          baseUrl: "https://api.openai.com/v1",
+          model: "gpt-5.5",
+        },
+      },
+      env: {
+        OPENAI_API_KEY: "openai-env-key",
+      } satisfies NodeJS.ProcessEnv,
+    });
+    const compatibleOptions = buildBaseTranslationOptions({
+      jobId: "job-api-compatible",
+      runDir: "C:/runs/job-api-compatible",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+      },
+      settings: {
+        ...defaults,
+        modelProvider: "openai-api",
+        api: {
+          baseUrl: "https://integrate.api.nvidia.com/v1",
+          model: "nvidia/nemotron-3-ultra-550b-a55b",
+        },
+      },
+      env: {
+        OPENAI_API_KEY: "openai-env-key",
+      } satisfies NodeJS.ProcessEnv,
+    });
+    const explicitCompatibleOptions = buildBaseTranslationOptions({
+      jobId: "job-api-compatible-explicit",
+      runDir: "C:/runs/job-api-compatible-explicit",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+      },
+      settings: {
+        ...defaults,
+        modelProvider: "openai-api",
+        api: {
+          baseUrl: "https://integrate.api.nvidia.com/v1",
+          model: "nvidia/nemotron-3-ultra-550b-a55b",
+          apiKey: "saved-provider-key",
+        },
+      },
+      env: {
+        MANGA_TRANSLATOR_API_KEY: "provider-env-key",
+        OPENAI_API_KEY: "openai-env-key",
+      } satisfies NodeJS.ProcessEnv,
+    });
+
+    expect(officialOptions.apiKey).toBe("openai-env-key");
+    expect(compatibleOptions.apiKey).toBeUndefined();
+    expect(explicitCompatibleOptions.apiKey).toBe("provider-env-key");
   });
 
   it("persists UI settings such as hidden inpainting guide", () => {
@@ -1139,7 +1377,10 @@ describe("app settings helpers", () => {
     ).toBe(9000);
     expect(
       parseStoredAppSettings('{"maxTokens":16000}', defaults).maxTokens,
-    ).toBe(12000);
+    ).toBe(16000);
+    expect(
+      parseStoredAppSettings('{"maxTokens":40000}', defaults).maxTokens,
+    ).toBe(32768);
     expect(
       parseStoredAppSettings('{"maxTokens":"bad"}', defaults).maxTokens,
     ).toBe(defaults.maxTokens);

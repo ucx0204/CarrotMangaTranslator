@@ -22,10 +22,15 @@ import {
   resolveMaxTokens,
   resolveModelProvider,
   resolveModelSource,
+  resolveNullableIntegerRange,
+  resolveNullableNumberRange,
+  resolveNullableReasoningEffort,
   resolveNonEmptyString,
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOpenAiCompatibleBaseUrl,
+  resolveOptionalJsonObjectString,
   resolveOptionalString,
   resolvePortNumber,
 } from "./appSettingsResolvers";
@@ -51,6 +56,7 @@ export function normalizeAppSettings(
   const record = asRecord(raw);
   const gemma = record?.gemma;
   const codex = record?.codex;
+  const api = record?.api;
   const ocr = record?.ocr;
   const ui = asRecord(record?.ui);
   const inpainting = asRecord(record?.inpainting);
@@ -138,6 +144,46 @@ export function normalizeAppSettings(
       oauthPort: resolvePortNumber(
         asRecord(codex)?.oauthPort,
         defaults.codex.oauthPort,
+      ),
+    },
+    api: {
+      baseUrl: resolveOpenAiCompatibleBaseUrl(
+        asRecord(api)?.baseUrl,
+        defaults.api.baseUrl,
+      ),
+      model: resolveNonEmptyString(asRecord(api)?.model, defaults.api.model),
+      ...(resolveOptionalString(asRecord(api)?.apiKey)
+        ? { apiKey: resolveOptionalString(asRecord(api)?.apiKey) }
+        : {}),
+      temperature: resolveNullableNumberRange(
+        asRecord(api)?.temperature,
+        defaults.api.temperature ?? null,
+        0,
+        2,
+      ),
+      topP: resolveNullableNumberRange(
+        asRecord(api)?.topP,
+        defaults.api.topP ?? null,
+        0,
+        1,
+      ),
+      topK: resolveNullableIntegerRange(
+        asRecord(api)?.topK,
+        defaults.api.topK ?? null,
+        1,
+        1000,
+      ),
+      reasoningEffort: resolveNullableReasoningEffort(
+        asRecord(api)?.reasoningEffort,
+        defaults.api.reasoningEffort ?? null,
+      ),
+      extraBodyJson: resolveOptionalJsonObjectString(
+        asRecord(api)?.extraBodyJson,
+        defaults.api.extraBodyJson ?? "",
+      ),
+      customHeadersJson: resolveOptionalJsonObjectString(
+        asRecord(api)?.customHeadersJson,
+        defaults.api.customHeadersJson ?? "",
       ),
     },
     ocr: {

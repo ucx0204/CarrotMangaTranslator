@@ -1,5 +1,6 @@
 import type {
   CodexReasoningEffort,
+  ApiReasoningEffort,
   GemmaVramMode,
   JobPhase,
   ModelProvider,
@@ -67,6 +68,15 @@ export type TranslationOptions = {
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   codexOauthPort: number;
+  apiBaseUrl: string;
+  apiModel: string;
+  apiKey?: string;
+  apiTemperature?: number | null;
+  apiTopP?: number | null;
+  apiTopK?: number | null;
+  apiReasoningEffort?: ApiReasoningEffort | null;
+  apiExtraBodyJson?: string;
+  apiCustomHeadersJson?: string;
   ocrDevice: OcrDevice;
   ocrGpuBackend?: OcrGpuBackend;
   ocrGpuCudaTag?: string;

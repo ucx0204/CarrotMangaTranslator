@@ -7,6 +7,8 @@ export type {
 } from "./textTypes";
 export type {
   AmdRocmTarget,
+  ApiReasoningEffort,
+  ApiSettings,
   AppSettings,
   CodexReasoningEffort,
   CodexSettings,

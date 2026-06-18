@@ -1,7 +1,14 @@
-export type ModelProvider = "gemma" | "openai-codex";
+export type ModelProvider = "gemma" | "openai-codex" | "openai-api";
 export type ModelSource = "huggingface" | "local";
 export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
 export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
+export type ApiReasoningEffort =
+  | "none"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm-transformers";
 export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
@@ -43,6 +50,18 @@ export type CodexSettings = {
   oauthPort: number;
 };
 
+export type ApiSettings = {
+  baseUrl: string;
+  model: string;
+  apiKey?: string;
+  temperature?: number | null;
+  topP?: number | null;
+  topK?: number | null;
+  reasoningEffort?: ApiReasoningEffort | null;
+  extraBodyJson?: string;
+  customHeadersJson?: string;
+};
+
 export type OcrSettings = {
   device: OcrDevice;
   gpuCudaTag?: string;
@@ -61,6 +80,7 @@ export type AppSettings = {
   modelProvider: ModelProvider;
   gemma: GemmaSettings;
   codex: CodexSettings;
+  api: ApiSettings;
   ocr: OcrSettings;
   ui?: UiSettings;
   inpainting?: InpaintingSettings;
