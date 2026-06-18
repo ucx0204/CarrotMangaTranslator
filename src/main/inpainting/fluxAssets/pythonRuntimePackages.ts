@@ -103,8 +103,9 @@ export async function ensureFluxPythonModelCache(options: {
     "from huggingface_hub import snapshot_download",
     "import json, sys",
     "ignore_patterns = json.loads(sys.argv[3])",
-    "snapshot_download(repo_id=sys.argv[1], cache_dir=sys.argv[2], resume_download=True, ignore_patterns=ignore_patterns or None)",
+    "snapshot_download(repo_id=sys.argv[1], cache_dir=sys.argv[2], ignore_patterns=ignore_patterns or None)",
   ].join("\n");
+  let emittedSymlinkWarning = false;
   await runCommand(
     options.pythonRuntime.executable,
     [
@@ -121,14 +122,29 @@ export async function ensureFluxPythonModelCache(options: {
         ...options.pythonRuntime.env,
         HF_HOME: options.modelDir,
         HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub"),
+        HF_HUB_DISABLE_SYMLINKS_WARNING: "1",
       },
-      onLine: (line) =>
+      onLine: (line) => {
+        const installLogLine = normalizeHuggingFaceModelCacheLogLine(
+          line,
+          () => {
+            if (emittedSymlinkWarning) {
+              return null;
+            }
+            emittedSymlinkWarning = true;
+            return "Windows 심볼릭 링크 경고입니다. 다운로드는 계속됩니다. 개발자 모드를 켜지 않아도 되지만 디스크 사용량이 더 늘 수 있습니다.";
+          },
+        );
+        if (!installLogLine) {
+          return;
+        }
         options.onProgress?.({
           progressText: "Flux Diffusers 모델 준비 중",
           detail: options.modelId,
           progressMode: "indeterminate",
-          installLogLine: line,
-        }),
+          installLogLine,
+        });
+      },
     },
   );
   await writeFile(
@@ -151,4 +167,25 @@ function resolveHuggingFaceRepoCacheDir(
   repoId: string,
 ): string {
   return join(cacheDir, "hub", `models--${repoId.replace(/[\\/]/g, "--")}`);
+}
+
+function normalizeHuggingFaceModelCacheLogLine(
+  line: string,
+  onSymlinkWarning: () => string | null,
+): string | null {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/resume_download.*deprecated|warnings\.warn\(/i.test(trimmed)) {
+    return null;
+  }
+  if (
+    /cache-system uses symlinks|support symlinks on Windows|enable-your-device-for-development|warnings\.warn\(message\)/i.test(
+      trimmed,
+    )
+  ) {
+    return onSymlinkWarning();
+  }
+  return trimmed;
 }

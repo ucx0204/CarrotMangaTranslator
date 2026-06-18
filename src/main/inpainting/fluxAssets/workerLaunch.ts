@@ -1,5 +1,5 @@
 import { mkdir } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import type { FluxWorkerBackend, FluxWorkerLaunchSpec } from "../fluxWorker";
 import type { FluxAssetProgress, FluxRuntimeBackend } from "./types";
 import { ensureFluxCudaRuntime, ensureManagedFluxRunner } from "./cudaRuntime";
@@ -15,11 +15,12 @@ export async function ensureMgtFluxKleinRuntime(options: {
   await mkdir(options.runtimeDir, { recursive: true });
   const runtimePath = await ensureManagedFluxRunner(options);
   await ensureFluxCudaRuntime(options);
+  const runtimeLabel = formatRuntimePathLabel(runtimePath);
   options.onProgress?.({
     progressText: "Flux 런타임 캐시 사용",
-    detail: basename(runtimePath),
+    detail: runtimeLabel,
     progressMode: "log-only",
-    installLogLine: `MGT Flux Klein 런타임을 사용합니다: ${basename(runtimePath)}`,
+    installLogLine: `MGT Flux Klein 런타임을 사용합니다: ${runtimeLabel}`,
   });
   return runtimePath;
 }
@@ -88,4 +89,8 @@ function resolveFluxWorkerBackend(
     return "zluda-native";
   }
   return "cuda-native";
+}
+
+function formatRuntimePathLabel(runtimePath: string): string {
+  return `${basename(dirname(runtimePath))}/${basename(runtimePath)}`;
 }

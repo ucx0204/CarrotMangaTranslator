@@ -340,6 +340,7 @@ export async function ensureFluxPythonRuntime(options: {
         ...pythonRuntime.env,
         HF_HOME: options.modelDir,
         HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub"),
+        HF_HUB_DISABLE_SYMLINKS_WARNING: "1",
       },
     };
   }
@@ -385,6 +386,7 @@ export async function ensureFluxPythonRuntime(options: {
       ...pythonRuntime.env,
       HF_HOME: options.modelDir,
       HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub"),
+      HF_HUB_DISABLE_SYMLINKS_WARNING: "1",
     },
   };
 }

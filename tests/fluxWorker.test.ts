@@ -32,6 +32,7 @@ import {
 } from "../src/main/inpainting/fluxAssets/manifests";
 import { resolveDefaultFluxRunRootDir } from "../src/main/inpainting/fluxEngine";
 import {
+  buildFluxWorkerResponseError,
   buildRuntimePathEnv,
   sanitizeFluxRuntimeStderr,
 } from "../src/main/inpainting/fluxWorker";
@@ -197,6 +198,18 @@ describe("Flux worker runtime helpers", () => {
     expect(sanitized).toContain("<flux-runner-source>:42:1");
   });
 
+  it("explains CUDA kernel symbol failures as runner architecture mismatches", () => {
+    const error = buildFluxWorkerResponseError(
+      'Flux.2 Klein inpainting failed: DriverError(CUDA_ERROR_NOT_FOUND, "named symbol not found")',
+      "mgt-flux-klein: worker ready",
+      "cuda-native",
+    );
+
+    expect(error.message).toContain("Flux CUDA 커널/심볼");
+    expect(error.message).toContain("compute capability");
+    expect(error.message).toContain("sm86");
+  });
+
   it("passes the managed ZLUDA CUDA support runtime explicitly to the Flux launcher", async () => {
     const runtimeDir = createTempDir("mgt-flux-zluda-");
     const modelDir = createTempDir("mgt-flux-model-");
@@ -304,16 +317,26 @@ describe("Flux worker runtime helpers", () => {
     writeFileSync(join(genericDir, "mgt-flux-klein.exe"), "generic-runner");
     writeFileSync(join(sm75Dir, "mgt-flux-klein.exe"), "sm75-runner");
     process.env.MGT_FLUX_KLEIN_TOOLS_DIR = toolsDir;
+    const progress: Array<Record<string, unknown>> = [];
 
     const managedPath = await ensureManagedFluxRunner({
       runtimeDir,
       nvidiaComputeCapability: 8.6,
+      onProgress: (event) => progress.push(event),
     });
 
     expect(managedPath).toBe(
       join(runtimeDir, "mgt-flux-klein-sm75", "mgt-flux-klein.exe"),
     );
     expect(readFileSync(managedPath, "utf8")).toBe("sm75-runner");
+    expect(progress).toContainEqual(
+      expect.objectContaining({
+        progressText: "Flux 실행 파일 호환 fallback 사용",
+        installLogLine: expect.stringContaining(
+          "mgt-flux-klein-sm86/mgt-flux-klein.exe를 찾지 못해",
+        ),
+      }),
+    );
   });
 
   it("maps NVIDIA compute capability to the closest packaged Flux runner", () => {
@@ -499,6 +522,28 @@ describe("Flux worker runtime helpers", () => {
     expect(script).toContain("index === 0 ? [{ outDir, outExe }] : []");
     expect(script.indexOf("CUDA_PATH_V12_9")).toBeLessThan(
       script.indexOf("MGT_FLUX_ALLOW_CUDA13_BUILD"),
+    );
+  });
+
+  it("prepares CUDA 12.9 NVIDIA Flux runners before Windows NVIDIA packaging", () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(repoRoot, "package.json"), "utf8"),
+    ) as { scripts?: Record<string, string> };
+    const script = readFileSync(
+      join(repoRoot, "scripts", "dist-win-thin.cjs"),
+      "utf8",
+    );
+
+    expect(packageJson.scripts?.["dist:win"]).toContain("--with-flux-nvidia");
+    expect(packageJson.scripts?.["dist:win:nvidia"]).toContain(
+      "--with-flux-nvidia",
+    );
+    expect(script).toContain("MGT_BUILD_FLUX_NVIDIA_RUNNERS");
+    expect(script).toContain("MGT_FLUX_KLEIN_COMPUTE_CAPS");
+    expect(script).toContain("75,86,89,90,120");
+    expect(script).toContain("command !== process.execPath");
+    expect(script.indexOf("prepare-flux-klein-runner.cjs")).toBeLessThan(
+      script.indexOf('run("npm", ["run", "build"])'),
     );
   });
 

@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       tag_name:
@@ -40,7 +37,7 @@ jobs:
         env:
           MGT_THIN_INSTALLER: "1"
           MGT_ALLOW_MISSING_FLUX_RUNNER: "1"
-        run: npm run build && npx electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never
+        run: npm run dist:win
 
       - name: Resolve release metadata
         id: release_meta

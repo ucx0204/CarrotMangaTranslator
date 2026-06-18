@@ -26,6 +26,7 @@ import { throwIfAborted } from "./errors";
 
 type FluxRunnerSource = {
   dirName: string;
+  fallbackLabel?: string;
   label: string;
   path: string;
 };
@@ -46,6 +47,15 @@ export async function ensureManagedFluxRunner(options: {
 
   const managedDir = join(options.runtimeDir, source.dirName);
   const managedPath = join(managedDir, FLUX_RUNTIME_EXECUTABLE);
+
+  if (source.fallbackLabel) {
+    options.onProgress?.({
+      progressText: "Flux 실행 파일 호환 fallback 사용",
+      detail: source.label,
+      progressMode: "log-only",
+      installLogLine: source.fallbackLabel,
+    });
+  }
 
   throwIfAborted(options.signal);
   await mkdir(managedDir, { recursive: true });
@@ -89,16 +99,22 @@ function resolveFluxRunnerSource(
     ...resolveFluxRunnerDirsForComputeCapability(nvidiaComputeCapability),
     FLUX_RUNNER_DIR,
   ]);
+  const preferredDirName = dirs[0] === FLUX_RUNNER_DIR ? null : dirs[0];
   for (const toolsRoot of resolveFluxRunnerToolsRoots()) {
     for (const dirName of dirs) {
       const path = join(toolsRoot, dirName, FLUX_RUNTIME_EXECUTABLE);
       if (isExecutableFile(path)) {
+        const label =
+          dirName === FLUX_RUNNER_DIR
+            ? FLUX_RUNTIME_EXECUTABLE
+            : `${dirName}/${FLUX_RUNTIME_EXECUTABLE}`;
         return {
           dirName,
-          label:
-            dirName === FLUX_RUNNER_DIR
-              ? FLUX_RUNTIME_EXECUTABLE
-              : `${dirName}/${FLUX_RUNTIME_EXECUTABLE}`,
+          fallbackLabel:
+            preferredDirName && dirName !== preferredDirName
+              ? `${preferredDirName}/${FLUX_RUNTIME_EXECUTABLE}를 찾지 못해 ${label}을 사용합니다. 최신 설치 파일에는 GPU별 Flux 실행 파일이 포함되어야 합니다.`
+              : undefined,
+          label,
           path,
         };
       }

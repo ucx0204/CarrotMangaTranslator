@@ -415,13 +415,23 @@ function buildFluxRuntimeExitError(
   );
 }
 
-function buildFluxWorkerResponseError(
+export function buildFluxWorkerResponseError(
   message: string,
   stderr: string,
   backend: FluxWorkerBackend,
 ): Error {
   const detail = formatFluxRuntimeDetail(stderr);
   const combined = `${message}\n${stderr}`;
+  if (backend === "cuda-native") {
+    const cudaError = buildCudaNativeWorkerResponseError(
+      message,
+      detail,
+      combined,
+    );
+    if (cudaError) {
+      return cudaError;
+    }
+  }
   if (backend === "zluda-native") {
     if (
       /Unable to dynamically load the "curand"|curand64_10\.dll|curand\.dll|curand64\.dll/i.test(
@@ -452,6 +462,24 @@ function buildFluxWorkerResponseError(
   );
 }
 
+function buildCudaNativeWorkerResponseError(
+  message: string,
+  detail: string,
+  combined: string,
+): Error | null {
+  if (isFluxInvalidPtxRuntimeError(combined)) {
+    return new Error(
+      `Flux CUDA 커널이 현재 NVIDIA GPU 아키텍처와 맞지 않아 실행되지 않았습니다. 앱을 최신 설치 파일로 업데이트해 GPU별 Flux 실행 파일을 받거나, 설정에서 인페인팅 Flux 백엔드를 CPU로 바꾼 뒤 앱을 다시 시작해 주세요. 원인=${message}${detail ? ` ${detail}` : ""}`,
+    );
+  }
+  if (!isFluxCudaKernelSymbolError(combined)) {
+    return null;
+  }
+  return new Error(
+    `Flux CUDA 커널/심볼을 현재 NVIDIA GPU에서 찾지 못했습니다. 배포된 Flux 실행 파일이 이 GPU의 compute capability와 맞지 않거나 앱 데이터의 Flux runner 캐시가 오래됐을 수 있습니다. 최신 설치 파일로 업데이트한 뒤 Flux runner 캐시를 갱신하세요. RTX 30번대/Ampere 계열은 sm86용 Flux 실행 파일이 필요합니다. 원인=${message}${detail ? ` ${detail}` : ""}`,
+  );
+}
+
 function isFluxBlackwellRuntimeError(stderr: string): boolean {
   return /SM\s*120|sm[_\s-]*120|compute capability\s*12(?:\.0)?|no kernel image is available|invalid device function|unsupported gpu architecture|invalid device kernel image|named symbol not found/i.test(
     stderr,
@@ -460,6 +488,12 @@ function isFluxBlackwellRuntimeError(stderr: string): boolean {
 
 function isFluxInvalidPtxRuntimeError(stderr: string): boolean {
   return /CUDA_ERROR_INVALID_PTX|PTX JIT compilation failed|invalid ptx/i.test(
+    stderr,
+  );
+}
+
+function isFluxCudaKernelSymbolError(stderr: string): boolean {
+  return /CUDA_ERROR_NOT_FOUND|named symbol not found|CUDA_ERROR_NO_BINARY_FOR_GPU|no kernel image is available|invalid device function|CUDA_ERROR_INVALID_IMAGE|invalid device kernel image|unsupported gpu architecture/i.test(
     stderr,
   );
 }
@@ -488,6 +522,10 @@ function buildFluxWorkerEnv(launch: FluxWorkerLaunchSpec): NodeJS.ProcessEnv {
     PYTHONIOENCODING: "utf-8",
     PYTHONUNBUFFERED: "1",
   };
+  if (launch.backend === "python-rocm" || launch.backend === "python-cpu") {
+    env.HF_HUB_DISABLE_SYMLINKS_WARNING =
+      env.HF_HUB_DISABLE_SYMLINKS_WARNING || "1";
+  }
   for (const key of [
     "SystemRoot",
     "WINDIR",
