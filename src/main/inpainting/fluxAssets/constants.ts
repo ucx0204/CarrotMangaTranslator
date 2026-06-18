@@ -12,7 +12,14 @@ export const FLUX_VAE_FILE = "diffusion_pytorch_model.safetensors";
 
 export const FLUX_RUNNER_DIR = "mgt-flux-klein";
 
-export const FLUX_NVIDIA_RUNNER_COMPUTE_CAPS = ["75", "86", "89", "90", "120"];
+export const FLUX_NVIDIA_RUNNER_COMPUTE_CAPS = [
+  "75",
+  "80",
+  "86",
+  "89",
+  "90",
+  "120",
+];
 
 export const FLUX_NVIDIA_RUNNER_RELEASE_TAG = "flux-runners-cuda12.9";
 
@@ -24,6 +31,10 @@ export const FLUX_NVIDIA_RUNNER_ASSETS = {
   "75": {
     fileName: "mgt-flux-klein-sm75-cuda12.9-win-x64.zip",
     sha256: "a7bba0b864db463113efe898b29308cedd877a09c8f370dd142f105aa0eba253",
+  },
+  "80": {
+    fileName: "mgt-flux-klein-sm80-cuda12.9-win-x64.zip",
+    sha256: "6e48bcf36c27fd1c61b92d76533b3763ffa530f647d68a36960b992c65e49d2b",
   },
   "86": {
     fileName: "mgt-flux-klein-sm86-cuda12.9-win-x64.zip",

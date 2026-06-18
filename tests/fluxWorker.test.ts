@@ -396,6 +396,9 @@ describe("Flux worker runtime helpers", () => {
     expect(resolveFluxRunnerDirForComputeCapability(7.5)).toBe(
       "mgt-flux-klein-sm75",
     );
+    expect(resolveFluxRunnerDirForComputeCapability(8.0)).toBe(
+      "mgt-flux-klein-sm80",
+    );
     expect(resolveFluxRunnerDirForComputeCapability(8.6)).toBe(
       "mgt-flux-klein-sm86",
     );
@@ -594,7 +597,7 @@ describe("Flux worker runtime helpers", () => {
     expect(script).toContain("MGT_BUILD_FLUX_NVIDIA_RUNNERS");
     expect(script).toContain("MGT_BUNDLE_FLUX_NVIDIA_RUNNERS");
     expect(script).toContain("MGT_FLUX_KLEIN_COMPUTE_CAPS");
-    expect(script).toContain("75,86,89,90,120");
+    expect(script).toContain("75,80,86,89,90,120");
     expect(script).toContain("command !== process.execPath");
     expect(script.indexOf("prepare-flux-klein-runner.cjs")).toBeLessThan(
       script.indexOf('run("npm", ["run", "build"])'),

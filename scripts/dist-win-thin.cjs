@@ -28,7 +28,7 @@ function run(command, args, extraEnv = {}) {
 if (withFluxNvidia) {
   run(process.execPath, ["scripts/prepare-flux-klein-runner.cjs"], {
     MGT_FLUX_KLEIN_COMPUTE_CAPS:
-      process.env.MGT_FLUX_KLEIN_COMPUTE_CAPS || "75,86,89,90,120",
+      process.env.MGT_FLUX_KLEIN_COMPUTE_CAPS || "75,80,86,89,90,120",
     MGT_FORCE_REBUILD_FLUX_RUNNER:
       process.env.MGT_FORCE_REBUILD_FLUX_RUNNER || "1",
   });

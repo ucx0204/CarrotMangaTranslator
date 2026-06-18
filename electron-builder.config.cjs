@@ -46,7 +46,7 @@ if (existsSync(fluxKleinRunnerPath)) {
 }
 
 if (bundleFluxNvidiaRunners) {
-  for (const computeCap of ["75", "86", "89", "90", "120"]) {
+  for (const computeCap of ["75", "80", "86", "89", "90", "120"]) {
     const runnerDir = `mgt-flux-klein-sm${computeCap}`;
     if (existsSync(join(__dirname, "tools", runnerDir, "mgt-flux-klein.exe"))) {
       extraResources.push({
