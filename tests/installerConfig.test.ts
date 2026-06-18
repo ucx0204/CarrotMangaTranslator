@@ -35,7 +35,7 @@ describe("Windows installer clean uninstall option", () => {
     );
 
     expect(packageJson.scripts["dist:win"]).toBe(
-      "node scripts/dist-win-thin.cjs --with-flux-nvidia",
+      "node scripts/dist-win-thin.cjs",
     );
     expect(packageJson.scripts["dist:win:nvidia"]).toBe(
       "node scripts/dist-win-thin.cjs --with-flux-nvidia",

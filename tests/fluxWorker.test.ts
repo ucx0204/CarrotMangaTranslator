@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import {
@@ -39,6 +41,7 @@ import {
 
 const tempDirs: string[] = [];
 const repoRoot = join(__dirname, "..");
+const AdmZip = require("adm-zip");
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
@@ -48,6 +51,9 @@ afterEach(() => {
   delete process.env.MGT_FLUX_ALLOW_SYSTEM_CUDA;
   delete process.env.MGT_FLUX_KLEIN_EXE;
   delete process.env.MGT_FLUX_KLEIN_TOOLS_DIR;
+  delete process.env.MGT_FLUX_DISABLE_REMOTE_RUNNER_DOWNLOAD;
+  delete process.env.MGT_FLUX_KLEIN_RUNNER_BASE_URL;
+  delete process.env.MGT_FLUX_KLEIN_RUNNER_SHA256_SM86;
   delete process.env.CUDA_PATH;
   delete process.env.ROCM_PATH;
   delete process.env.HIP_PATH;
@@ -307,7 +313,7 @@ describe("Flux worker runtime helpers", () => {
     );
   });
 
-  it("falls back to a lower compatible Flux runner before the generic runner", async () => {
+  it("does not use lower or generic Flux runners for a detected NVIDIA GPU", async () => {
     const runtimeDir = createTempDir("mgt-flux-runner-lower-runtime-");
     const toolsDir = createTempDir("mgt-flux-runner-lower-tools-");
     const genericDir = join(toolsDir, "mgt-flux-klein");
@@ -317,38 +323,83 @@ describe("Flux worker runtime helpers", () => {
     writeFileSync(join(genericDir, "mgt-flux-klein.exe"), "generic-runner");
     writeFileSync(join(sm75Dir, "mgt-flux-klein.exe"), "sm75-runner");
     process.env.MGT_FLUX_KLEIN_TOOLS_DIR = toolsDir;
-    const progress: Array<Record<string, unknown>> = [];
+    process.env.MGT_FLUX_DISABLE_REMOTE_RUNNER_DOWNLOAD = "1";
 
-    const managedPath = await ensureManagedFluxRunner({
-      runtimeDir,
-      nvidiaComputeCapability: 8.6,
-      onProgress: (event) => progress.push(event),
-    });
-
-    expect(managedPath).toBe(
-      join(runtimeDir, "mgt-flux-klein-sm75", "mgt-flux-klein.exe"),
-    );
-    expect(readFileSync(managedPath, "utf8")).toBe("sm75-runner");
-    expect(progress).toContainEqual(
-      expect.objectContaining({
-        progressText: "Flux 실행 파일 호환 fallback 사용",
-        installLogLine: expect.stringContaining(
-          "mgt-flux-klein-sm86/mgt-flux-klein.exe를 찾지 못해",
-        ),
+    await expect(
+      ensureManagedFluxRunner({
+        runtimeDir,
+        nvidiaComputeCapability: 8.6,
       }),
+    ).rejects.toThrow("mgt-flux-klein-sm86/mgt-flux-klein.exe");
+    expect(readFileSync(join(sm75Dir, "mgt-flux-klein.exe"), "utf8")).toBe(
+      "sm75-runner",
     );
   });
 
-  it("maps NVIDIA compute capability to the closest packaged Flux runner", () => {
+  it("downloads and verifies the exact NVIDIA Flux runner when it is not bundled", async () => {
+    const runtimeDir = createTempDir("mgt-flux-runner-remote-runtime-");
+    const toolsDir = createTempDir("mgt-flux-runner-remote-tools-");
+    const assetDir = createTempDir("mgt-flux-runner-remote-assets-");
+    const fileName = "mgt-flux-klein-sm86-cuda12.9-win-x64.zip";
+    const archivePath = join(assetDir, fileName);
+    const zip = new AdmZip();
+    zip.addFile("mgt-flux-klein.exe", Buffer.from("remote-sm86-runner"));
+    zip.writeZip(archivePath);
+    const archive = readFileSync(archivePath);
+    const archiveSha256 = createHash("sha256").update(archive).digest("hex");
+    const server = createServer((request, response) => {
+      const requestPath = new URL(request.url || "/", "http://127.0.0.1")
+        .pathname;
+      if (requestPath !== `/${fileName}`) {
+        response.writeHead(404);
+        response.end();
+        return;
+      }
+      response.setHeader("Content-Length", String(archive.length));
+      if (request.method === "HEAD") {
+        response.writeHead(200);
+        response.end();
+        return;
+      }
+      response.writeHead(200);
+      response.end(archive);
+    });
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      server.close();
+      throw new Error("test HTTP server did not bind to a TCP port");
+    }
+    process.env.MGT_FLUX_KLEIN_TOOLS_DIR = toolsDir;
+    process.env.MGT_FLUX_KLEIN_RUNNER_BASE_URL = `http://127.0.0.1:${address.port}`;
+    process.env.MGT_FLUX_KLEIN_RUNNER_SHA256_SM86 = archiveSha256;
+
+    try {
+      const managedPath = await ensureManagedFluxRunner({
+        runtimeDir,
+        nvidiaComputeCapability: 8.6,
+      });
+
+      expect(managedPath).toBe(
+        join(runtimeDir, "mgt-flux-klein-sm86", "mgt-flux-klein.exe"),
+      );
+      expect(readFileSync(managedPath, "utf8")).toBe("remote-sm86-runner");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("maps NVIDIA compute capability only to exact packaged Flux runners", () => {
     expect(resolveFluxRunnerDirForComputeCapability(7.5)).toBe(
       "mgt-flux-klein-sm75",
     );
     expect(resolveFluxRunnerDirForComputeCapability(8.6)).toBe(
       "mgt-flux-klein-sm86",
     );
-    expect(resolveFluxRunnerDirForComputeCapability(8.7)).toBe(
-      "mgt-flux-klein-sm86",
-    );
+    expect(resolveFluxRunnerDirForComputeCapability(8.7)).toBeNull();
     expect(resolveFluxRunnerDirForComputeCapability(12)).toBe(
       "mgt-flux-klein-sm120",
     );
@@ -534,11 +585,14 @@ describe("Flux worker runtime helpers", () => {
       "utf8",
     );
 
-    expect(packageJson.scripts?.["dist:win"]).toContain("--with-flux-nvidia");
+    expect(packageJson.scripts?.["dist:win"]).not.toContain(
+      "--with-flux-nvidia",
+    );
     expect(packageJson.scripts?.["dist:win:nvidia"]).toContain(
       "--with-flux-nvidia",
     );
     expect(script).toContain("MGT_BUILD_FLUX_NVIDIA_RUNNERS");
+    expect(script).toContain("MGT_BUNDLE_FLUX_NVIDIA_RUNNERS");
     expect(script).toContain("MGT_FLUX_KLEIN_COMPUTE_CAPS");
     expect(script).toContain("75,86,89,90,120");
     expect(script).toContain("command !== process.execPath");

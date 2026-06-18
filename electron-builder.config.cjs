@@ -2,6 +2,8 @@ const { existsSync } = require("node:fs");
 const { join } = require("node:path");
 
 const thinInstaller = process.env.MGT_THIN_INSTALLER === "1";
+const bundleFluxNvidiaRunners =
+  process.env.MGT_BUNDLE_FLUX_NVIDIA_RUNNERS === "1";
 const extraResources = [
   {
     from: "out/app-runtime",
@@ -43,13 +45,15 @@ if (existsSync(fluxKleinRunnerPath)) {
   );
 }
 
-for (const computeCap of ["75", "86", "89", "90", "120"]) {
-  const runnerDir = `mgt-flux-klein-sm${computeCap}`;
-  if (existsSync(join(__dirname, "tools", runnerDir, "mgt-flux-klein.exe"))) {
-    extraResources.push({
-      from: `tools/${runnerDir}`,
-      to: `tools/${runnerDir}`,
-    });
+if (bundleFluxNvidiaRunners) {
+  for (const computeCap of ["75", "86", "89", "90", "120"]) {
+    const runnerDir = `mgt-flux-klein-sm${computeCap}`;
+    if (existsSync(join(__dirname, "tools", runnerDir, "mgt-flux-klein.exe"))) {
+      extraResources.push({
+        from: `tools/${runnerDir}`,
+        to: `tools/${runnerDir}`,
+      });
+    }
   }
 }
 

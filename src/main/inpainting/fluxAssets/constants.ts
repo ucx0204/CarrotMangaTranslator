@@ -14,6 +14,35 @@ export const FLUX_RUNNER_DIR = "mgt-flux-klein";
 
 export const FLUX_NVIDIA_RUNNER_COMPUTE_CAPS = ["75", "86", "89", "90", "120"];
 
+export const FLUX_NVIDIA_RUNNER_RELEASE_TAG = "flux-runners-cuda12.9";
+
+export const FLUX_NVIDIA_RUNNER_BASE_URL = `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/${FLUX_NVIDIA_RUNNER_RELEASE_TAG}`;
+
+export const FLUX_NVIDIA_RUNNER_MARKER = ".mgt-flux-runner.json";
+
+export const FLUX_NVIDIA_RUNNER_ASSETS = {
+  "75": {
+    fileName: "mgt-flux-klein-sm75-cuda12.9-win-x64.zip",
+    sha256: "a7bba0b864db463113efe898b29308cedd877a09c8f370dd142f105aa0eba253",
+  },
+  "86": {
+    fileName: "mgt-flux-klein-sm86-cuda12.9-win-x64.zip",
+    sha256: "5139be04ecf1c9c5d8659a0fcce869a4176a6403a3a401e6130e44e29268f29f",
+  },
+  "89": {
+    fileName: "mgt-flux-klein-sm89-cuda12.9-win-x64.zip",
+    sha256: "37b54975db701869ebfddec2d0b94fca3c87291bddcda932f4e864e3782672d3",
+  },
+  "90": {
+    fileName: "mgt-flux-klein-sm90-cuda12.9-win-x64.zip",
+    sha256: "b54467516d7f132986c2d6ce9e33c045941facfe27705ce280d61e8792d562c2",
+  },
+  "120": {
+    fileName: "mgt-flux-klein-sm120-cuda12.9-win-x64.zip",
+    sha256: "dd55fa4adeca466da0c99febab1e98acfe9d68199e331fe3561dc2d72bfa10e2",
+  },
+} as const;
+
 export const FLUX_CUDA_RUNTIME_DIR = "mgt-flux-cuda12.9";
 
 export const FLUX_ZLUDA_SUPPORT_RUNTIME_DIR = "mgt-flux-zluda-support";

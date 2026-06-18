@@ -35,11 +35,17 @@ if (withFluxNvidia) {
 }
 
 run("npm", ["run", "build"]);
-run(process.execPath, [
-  electronBuilderCli,
-  "--config",
-  "electron-builder.config.cjs",
-  "--win",
-  "nsis",
-  "--x64",
-]);
+run(
+  process.execPath,
+  [
+    electronBuilderCli,
+    "--config",
+    "electron-builder.config.cjs",
+    "--win",
+    "nsis",
+    "--x64",
+  ],
+  {
+    MGT_BUNDLE_FLUX_NVIDIA_RUNNERS: withFluxNvidia ? "1" : "0",
+  },
+);
