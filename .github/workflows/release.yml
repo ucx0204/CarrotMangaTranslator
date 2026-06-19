@@ -17,12 +17,9 @@ jobs:
 
     steps:
       - name: Check out repository
-        shell: pwsh
-        run: |
-          git init .
-          git remote add origin "https://github.com/${{ github.repository }}.git"
-          git -c credential.helper= -c http.extraheader= fetch --no-tags --depth=1 origin "+${{ github.ref }}:${{ github.ref }}"
-          git checkout --detach "${{ github.sha }}"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
