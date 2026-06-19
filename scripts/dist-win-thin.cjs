@@ -44,6 +44,8 @@ run(
     "--win",
     "nsis",
     "--x64",
+    "--publish",
+    "never",
   ],
   {
     MGT_BUNDLE_FLUX_NVIDIA_RUNNERS: withFluxNvidia ? "1" : "0",
