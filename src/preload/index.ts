@@ -29,6 +29,8 @@ import type {
   RegionAnalysisRequest,
   RegionAnalysisResult,
   SavePageBlocksRequest,
+  SaveTextFileRequest,
+  SaveTextFileResult,
   SetPageInpaintingResultRequest,
   SetPageInpaintingResultResult,
   StartInpaintingRequest,
@@ -72,6 +74,10 @@ const api = {
     ipcRenderer.invoke("library:get-page-image-data-url", imagePath),
   savePageBlocks: (request: SavePageBlocksRequest): Promise<ChapterSnapshot> =>
     ipcRenderer.invoke("library:save-page-blocks", request),
+  saveTextFile: (
+    request: SaveTextFileRequest,
+  ): Promise<SaveTextFileResult | null> =>
+    ipcRenderer.invoke("text:save-file", request),
   renameWork: (workId: string, title: string): Promise<LibraryIndex> =>
     ipcRenderer.invoke("library:rename-work", workId, title),
   renameChapter: (chapterId: string, title: string): Promise<LibraryIndex> =>

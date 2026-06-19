@@ -21,6 +21,8 @@ import type {
   RegionAnalysisRequest,
   RegionAnalysisResult,
   SavePageBlocksRequest,
+  SaveTextFileRequest,
+  SaveTextFileResult,
   SetPageInpaintingResultRequest,
   SetPageInpaintingResultResult,
   StartAnalysisRequest,
@@ -52,6 +54,9 @@ export type MangaApi = {
   openChapter: (chapterId: string) => Promise<ChapterSnapshot>;
   getPageImageDataUrl: (imagePath: string) => Promise<string>;
   savePageBlocks: (request: SavePageBlocksRequest) => Promise<ChapterSnapshot>;
+  saveTextFile: (
+    request: SaveTextFileRequest,
+  ) => Promise<SaveTextFileResult | null>;
   renameWork: (workId: string, title: string) => Promise<LibraryIndex>;
   renameChapter: (chapterId: string, title: string) => Promise<LibraryIndex>;
   deleteWork: (workId: string) => Promise<LibraryIndex>;

@@ -54,6 +54,10 @@ export type ChildEnvironment = Record<string, string>;
 
 export type DetailedError = Error & {
   baseUrl?: string;
+  range?: string;
+  rangeEnd?: unknown;
+  rangeFallbackFailed?: boolean;
+  rangeStart?: unknown;
   rangeUnsupported?: boolean;
   optionSummary?: unknown;
   rawTextPreview?: unknown;
@@ -61,6 +65,7 @@ export type DetailedError = Error & {
   serverPath?: string;
   status?: unknown;
   statusText?: unknown;
+  stallTimeoutMs?: unknown;
 };
 
 declare module "adm-zip" {

@@ -7,6 +7,7 @@ import { registerJobControlIpc } from "./jobControlIpc";
 import { registerLibraryIpc } from "./libraryIpc";
 import { registerLogsIpc } from "./logsIpc";
 import { registerSettingsIpc } from "./settingsIpc";
+import { registerTextExportIpc } from "./textExportIpc";
 import { registerTranslationJobIpc } from "./translationJobIpc";
 
 export function registerIpc(context: IpcContext): void {
@@ -16,6 +17,7 @@ export function registerIpc(context: IpcContext): void {
   registerLibraryIpc(context);
   registerFontsIpc(context);
   registerImportShareIpc(context);
+  registerTextExportIpc(context);
   registerTranslationJobIpc(context);
   registerInpaintingIpc(context);
   registerJobControlIpc(context);

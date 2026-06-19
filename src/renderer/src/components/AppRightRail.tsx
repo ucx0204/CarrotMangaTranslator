@@ -31,6 +31,7 @@ type AppRightRailProps = {
   areaTranslateSelecting: boolean;
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
+  onOpenTextView: () => void;
   onRunPending: () => void;
   onRunAll: () => void;
   onEnterInpainting: () => void;
@@ -59,6 +60,7 @@ export function AppRightRail({
   areaTranslateSelecting,
   onToggleChrome,
   onToggleBlocks,
+  onOpenTextView,
   onRunPending,
   onRunAll,
   onEnterInpainting,
@@ -129,8 +131,10 @@ export function AppRightRail({
           <DisplayControlPanel
             showBlockChrome={showBlockChrome}
             showTextBlocks={showTextBlocks}
+            canOpenTextView={Boolean(currentChapter)}
             onToggleChrome={onToggleChrome}
             onToggleBlocks={onToggleBlocks}
+            onOpenTextView={onOpenTextView}
           />
 
           {!selectedBlock ? (

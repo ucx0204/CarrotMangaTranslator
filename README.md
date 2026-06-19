@@ -16,7 +16,7 @@ README의 예시 화면은 주로 **AMD PRO V710 환경**에서 촬영했습니�
 
 - 이미지 한 장, 이미지 폴더, ZIP/CBZ 압축파일을 작품/화 단위로 보관합니다.
 - 여러 화를 한 번에 가져오고 이어서 번역할 수 있습니다.
-- `Gemma 4` 로컬 모델 또는 `OpenAI Codex` 엔진으로 번역합니다.
+- `Gemma 4` 로컬 모델, `OpenAI Codex`, OpenAI 호환 `API` 엔진으로 번역합니다.
 - Paddle OCR 선분석 결과를 AI 번역 엔진에 전달해 한국어 번역 블록을 만듭니다.
 - 번역문, OCR 원문, 위치, 크기, 방향, 기울기, 폰트, 색상, 외곽선을 직접 수정합니다.
 - 페이지 일부만 다시 분석하는 영역 번역을 지원합니다.
@@ -100,6 +100,16 @@ npm install -g @openai/codex
 
 공식 안내: [OpenAI Codex Quickstart](https://developers.openai.com/codex/quickstart)
 
+## API 엔진 준비
+
+번역 엔진을 `API`로 고르면 OpenAI 호환 `/chat/completions` 엔드포인트로 직접 요청합니다. Codex CLI 로그인이나 `openai-oauth` 실행은 필요하지 않습니다.
+
+설정에서 `API Base URL`, `API 모델`, `API 키`를 입력합니다. Base URL은 보통 `https://api.openai.com/v1` 또는 `https://integrate.api.nvidia.com/v1`처럼 `/v1`까지 넣으면 되고, 앱이 실제 요청할 때는 `/chat/completions`를 붙여 호출합니다. 사용자가 실수로 `/chat/completions`까지 넣어도 저장 시 Base URL 형태로 정리됩니다.
+
+API 키가 필요한 서비스는 키를 입력해야 합니다. LM Studio처럼 로컬 OpenAI 호환 서버를 쓰는 경우에는 API 키를 비워 둘 수 있습니다. OpenAI 공식 엔드포인트를 쓰면서 앱 설정에 키를 저장하고 싶지 않다면 `OPENAI_API_KEY` 환경 변수를 사용할 수 있고, 다른 호환 서버는 `MANGA_TRANSLATOR_API_BASE_URL`, `MANGA_TRANSLATOR_API_MODEL`, `MANGA_TRANSLATOR_API_KEY`로 실행 시 값을 덮어쓸 수 있습니다.
+
+이 앱은 페이지 이미지와 OCR 힌트를 함께 보내므로, 선택한 API 모델이 이미지 입력을 지원해야 합니다. `401`, `403`, `404` 같은 오류가 나면 API 키, Base URL, 모델 이름을 먼저 확인하고, 키가 맞는데도 실패하면 해당 모델이 이미지 입력을 받는 모델인지 확인하세요. 자세한 요청 정보와 원인은 앱 로그에 남습니다.
+
 ## 설정
 
 설정은 저장한 뒤 다음 작업부터 적용됩니다. 처음 설치했다면 먼저 `설정`에서 번역 엔진, 모델 모드, OCR 장치, Gemma/Flux GPU 런타임을 확인하세요.
@@ -110,7 +120,7 @@ Gemma 4는 내 PC에서 로컬 모델 서버를 실행하는 방식입니다. �
 
 주요 항목은 다음과 같습니다.
 
-- `번역 엔진`: `Gemma 4` 또는 `OpenAI Codex`를 고릅니다.
+- `번역 엔진`: `Gemma 4`, `OpenAI Codex`, `API` 중 하나를 고릅니다.
 - `최대 출력 토큰`: 긴 페이지에서 말풍선 누락을 줄이기 위한 출력 한도입니다. 잘 모르겠으면 기본값을 유지하세요.
 - `모델 소스`: 기본 Hugging Face repo 또는 직접 받은 로컬 GGUF 파일을 고릅니다.
 - `모델 / 실행 모드`: `12B 최소`, `26B 절약`, `31B 풀로드`, `커스텀` 중 하나를 고릅니다.
@@ -126,7 +136,7 @@ AMD GPU에서는 CUDA/RTX 런타임 대신 AMD ROCm 또는 AMD Vulkan 경로를 
 
 ![AMD 런타임 설정](docs/images/07-settings-amd-runtime.png)
 
-Codex를 선택할 예정이라면 위의 `OpenAI Codex 엔진 준비` 섹션에서 먼저 설치와 로그인부터 끝내 주세요.
+Codex를 선택할 예정이라면 위의 `OpenAI Codex 엔진 준비` 섹션에서 먼저 설치와 로그인부터 끝내 주세요. API를 선택할 예정이라면 `API 엔진 준비` 섹션에서 Base URL, 모델, 키 설정을 확인하세요.
 
 ## 원본 불러오기와 보관함 추가
 
@@ -166,6 +176,7 @@ Codex를 선택할 예정이라면 위의 `OpenAI Codex 엔진 준비` 섹션에
 - Paddle OCR: Python 런타임, PaddleOCR/PaddleOCR-VL 또는 AMD ROCm OCR 패키지, OCR 모델 캐시
 - Flux 인페인팅: Flux Klein 모델, VAE, Flux 실행기, GPU 백엔드 준비
 - OpenAI Codex: 로컬 Codex 로그인 토큰을 사용하는 openai-oauth 연결
+- API: OpenAI 호환 Chat Completions 엔드포인트 연결
 
 다운로드 진행률을 알 수 있는 파일은 받은 용량 기준으로 표시합니다. pip 설치나 런타임 검증처럼 정확한 퍼센트를 알 수 없는 구간은 억지 퍼센트를 올리지 않고 로그 중심으로 표시합니다.
 
@@ -396,6 +407,10 @@ RTX 50번대는 CUDA/Paddle 조합이 민감합니다. 앱은 RTX 50번대용 `c
 
 PowerShell에서 `codex`를 실행해 로그인이 되어 있는지 먼저 확인하고, 앱 설정에서 `OpenAI Codex`를 선택한 뒤 다시 `OCR/모델 확인`을 눌러 보세요. `codex` 명령 자체가 없다고 나오면 위의 `OpenAI Codex 엔진 준비` 섹션대로 Codex CLI부터 설치해야 합니다. 포트 충돌이 의심되면 `openai-oauth 포트` 값을 바꿔 저장하면 됩니다.
 
+### API 연결이 안 됩니다.
+
+앱 설정에서 `API Base URL`, `API 모델`, `API 키`를 확인하고 다시 `OCR/모델 확인`을 눌러 보세요. 인증 오류가 계속 나면 키가 잘못됐거나 만료됐을 수 있고, 키가 맞다면 선택한 모델이 이미지 입력을 지원하지 않는 모델일 수 있습니다. 자세한 상태 코드와 요청 요약은 로그에서 확인할 수 있습니다.
+
 ### 출력 PNG에 텍스트가 다르게 보입니다.
 
 앱 화면과 PNG 출력은 같은 렌더링 규칙을 맞추도록 되어 있지만, 폰트 파일이 없거나 블록 방향/기울기/자동 맞춤 설정이 다르면 차이가 날 수 있습니다. 출력 전 보정 단계에서 페이지를 확인하고, 필요하면 폰트를 일괄 적용해 주세요.
@@ -411,8 +426,9 @@ Paddle OCR에서 일본어 텍스트 근거가 없으면 모델 호출을 생략
 - 앱 버전
 - Windows 버전
 - GPU 모델과 VRAM
-- 선택한 번역 엔진: Gemma 4 또는 OpenAI Codex
+- 선택한 번역 엔진: Gemma 4, OpenAI Codex, API
 - Gemma라면 모델 프리셋과 Gemma GPU 런타임
+- API라면 Base URL과 모델 이름
 - Paddle OCR 장치: NVIDIA CUDA, AMD ROCm, CPU
 - Flux 인페인팅 백엔드: NVIDIA CUDA, AMD ZLUDA, CPU
 - 문제가 난 페이지 이미지 또는 재현 가능한 작품/화

@@ -81,3 +81,13 @@ export type WorkShareImportResult = {
   chapterIds: string[];
   openedChapter?: ChapterSnapshot;
 };
+
+export type SaveTextFileRequest = {
+  defaultName: string;
+  content: string;
+};
+
+export type SaveTextFileResult = {
+  saved: boolean;
+  path?: string;
+};

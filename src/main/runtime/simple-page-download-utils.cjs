@@ -138,6 +138,52 @@ function hasRangeUnsupported(error) {
   );
 }
 
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function hasRangeFallbackFailed(error) {
+  return (
+    error instanceof Error &&
+    /** @type {DetailedError} */ (error).rangeFallbackFailed === true
+  );
+}
+
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isRangeFallbackCandidate(error) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  if (hasRangeUnsupported(error)) {
+    return true;
+  }
+  const detail = /** @type {DetailedError} */ (error);
+  const status = Number(detail.status);
+  if (Number.isInteger(status)) {
+    if (status === 401 || status === 403 || status === 404) {
+      return false;
+    }
+    return status === 416 || status === 429 || status >= 500 || status !== 206;
+  }
+  if (Number.isFinite(Number(detail.stallTimeoutMs))) {
+    return true;
+  }
+  return true;
+}
+
+/**
+ * @param {unknown} error
+ */
+function markRangeFallbackFailed(error) {
+  if (error instanceof Error) {
+    Object.assign(error, { rangeFallbackFailed: true });
+  }
+  return error;
+}
+
 function readContentLength(response) {
   const value = Number(response.headers?.get?.("content-length"));
   return Number.isFinite(value) && value > 0 ? value : 0;
@@ -179,17 +225,22 @@ function finishWriteStream(writer) {
 async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
   const maxAttempts = resolveDownloadRetryCount();
   let lastError = null;
+  const rangeFallbackState = { used: false };
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       return await downloadHfFileWithProgressAttempt(task, options, progress, {
         attempt,
         maxAttempts,
+        rangeFallbackState,
       });
     } catch (error) {
       if (options.abortSignal?.aborted || isAbortError(error)) {
         throw error;
       }
       lastError = error;
+      if (hasRangeFallbackFailed(error)) {
+        break;
+      }
       if (attempt >= maxAttempts) {
         break;
       }
@@ -249,6 +300,11 @@ async function downloadHfFileWithProgressAttempt(
 
   const startedAt = Date.now();
   const totalBytes = progress.totalBytes || 0;
+  const rangeFallbackState =
+    attemptState.rangeFallbackState ||
+    /** @type {{ used: boolean }} */ ({
+      used: false,
+    });
 
   try {
     const receivedBytes =
@@ -260,6 +316,7 @@ async function downloadHfFileWithProgressAttempt(
             partPath,
             totalBytes,
             startedAt,
+            rangeFallbackState,
           )
         : await downloadHfFileByStream(
             task,
@@ -294,6 +351,7 @@ async function downloadHfFileByRanges(
   partPath,
   totalBytes,
   startedAt,
+  rangeFallbackState,
 ) {
   let file = null;
   try {
@@ -309,19 +367,30 @@ async function downloadHfFileByRanges(
       try {
         chunk = await fetchRangeBufferWithRetry(task, options, start, end);
       } catch (error) {
-        if (hasRangeUnsupported(error) && start === 0) {
+        if (
+          !rangeFallbackState.used &&
+          !options.abortSignal?.aborted &&
+          !isAbortError(error) &&
+          isRangeFallbackCandidate(error)
+        ) {
+          rangeFallbackState.used = true;
           await file.close();
           file = null;
           await safeCleanup("remove partial ranged HF download", () =>
             rm(partPath, { force: true }),
           );
-          return await downloadHfFileByStream(
-            task,
-            options,
-            progress,
-            partPath,
-            startedAt,
-          );
+          emitRangeFallbackProgress(options, task, error);
+          try {
+            return await downloadHfFileByStream(
+              task,
+              options,
+              progress,
+              partPath,
+              startedAt,
+            );
+          } catch (fallbackError) {
+            throw markRangeFallbackFailed(fallbackError);
+          }
         }
         throw error;
       }
@@ -571,6 +640,19 @@ function emitDownloadRetryProgress(
     {
       progressMode: "log-only",
       installLogLine: `${task.label} 다운로드 재시도 ${nextAttempt}/${maxAttempts}${suffix}: ${error instanceof Error ? error.message : String(error)}`,
+    },
+  );
+}
+
+function emitRangeFallbackProgress(options, task, error) {
+  emitRuntimeProgress(
+    options,
+    task.progressPhase || "model_downloading",
+    resolveDownloadProgressTitle(task, false),
+    `${task.label}: ${task.file}`,
+    {
+      progressMode: "log-only",
+      installLogLine: `${task.label} 범위 다운로드 실패로 일반 다운로드로 전환합니다: ${error instanceof Error ? error.message : String(error)}`,
     },
   );
 }

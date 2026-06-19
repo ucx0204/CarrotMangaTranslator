@@ -87,6 +87,8 @@ export type {
 } from "./inpaintingTypes";
 export type {
   SavePageBlocksRequest,
+  SaveTextFileRequest,
+  SaveTextFileResult,
   WorkShareExportRequest,
   WorkShareExportResult,
   WorkShareImportEntry,

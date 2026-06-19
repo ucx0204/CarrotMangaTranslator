@@ -18,6 +18,7 @@ type UseAppCommandsOptions = {
   openTranslationSource: () => void;
   openShareExport: () => void;
   openShortcutHelp: () => void;
+  openTextView: () => void;
 };
 
 export function useAppCommands({
@@ -36,6 +37,7 @@ export function useAppCommands({
   openTranslationSource,
   openShareExport,
   openShortcutHelp,
+  openTextView,
 }: UseAppCommandsOptions): Command[] {
   return useMemo(() => {
     const list: Command[] = [];
@@ -75,6 +77,15 @@ export function useAppCommands({
         label: "작업 취소",
         keywords: "cancel stop",
         run: cancelJob,
+      });
+    }
+    if (currentChapter) {
+      list.push({
+        id: "gather-text",
+        label: "텍스트 모아보기",
+        hint: "페이지·전체 화",
+        keywords: "text copy gather moaboki 복사 모아보기",
+        run: openTextView,
       });
     }
     list.push({
@@ -143,5 +154,6 @@ export function useAppCommands({
     openTranslationSource,
     openShareExport,
     openShortcutHelp,
+    openTextView,
   ]);
 }

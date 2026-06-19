@@ -10,6 +10,7 @@ import { AppSidebar } from "./components/AppSidebar";
 import { AppRightRail } from "./components/AppRightRail";
 import { AppWorkspace } from "./components/AppWorkspace";
 import { CommandPalette } from "./components/CommandPalette";
+import { GatherTextModal } from "./components/GatherTextModal";
 import { ShortcutHelp } from "./components/ShortcutHelp";
 import { ToastViewport } from "./components/ui/ToastViewport";
 import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
@@ -108,6 +109,7 @@ export function AppSession(): React.JSX.Element {
   const [showTextBlocks, setShowTextBlocks] = useState(true);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
+  const [textViewOpen, setTextViewOpen] = useState(false);
   const {
     settings,
     settingsOpen,
@@ -291,7 +293,8 @@ export function AppSession(): React.JSX.Element {
     renameTarget ||
     settingsOpen ||
     confirmDialog ||
-    inpaintingGuideOpen,
+    inpaintingGuideOpen ||
+    textViewOpen,
   );
   const modalOpen = overlayModalsOpen || commandPaletteOpen || shortcutHelpOpen;
 
@@ -649,6 +652,7 @@ export function AppSession(): React.JSX.Element {
     openTranslationSource: () => setTranslationSourceOpen(true),
     openShareExport: () => setShareExportOpen(true),
     openShortcutHelp: () => setShortcutHelpOpen(true),
+    openTextView: () => setTextViewOpen(true),
   });
 
   return (
@@ -730,6 +734,7 @@ export function AppSession(): React.JSX.Element {
             areaTranslateSelecting={Boolean(regionSelection?.active)}
             onToggleChrome={() => setShowBlockChrome((value) => !value)}
             onToggleBlocks={() => setShowTextBlocks((value) => !value)}
+            onOpenTextView={() => setTextViewOpen(true)}
             onRunPending={() => void runAnalysis("pending")}
             onRunAll={() => void runAnalysis("all")}
             onEnterInpainting={() => void enterInpaintingMode()}
@@ -815,6 +820,13 @@ export function AppSession(): React.JSX.Element {
         open={shortcutHelpOpen}
         onClose={() => setShortcutHelpOpen(false)}
       />
+      {textViewOpen ? (
+        <GatherTextModal
+          chapter={currentChapter}
+          page={selectedPage}
+          onClose={() => setTextViewOpen(false)}
+        />
+      ) : null}
       <ToastViewport />
     </>
   );

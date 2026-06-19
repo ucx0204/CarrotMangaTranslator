@@ -1,17 +1,22 @@
 import React from "react";
+import { Button } from "../ui";
 
 type DisplayControlPanelProps = {
   showBlockChrome: boolean;
   showTextBlocks: boolean;
+  canOpenTextView: boolean;
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
+  onOpenTextView: () => void;
 };
 
 export function DisplayControlPanel({
   showBlockChrome,
   showTextBlocks,
+  canOpenTextView,
   onToggleChrome,
   onToggleBlocks,
+  onOpenTextView,
 }: DisplayControlPanelProps): React.JSX.Element {
   return (
     <section className="display-panel">
@@ -30,6 +35,9 @@ export function DisplayControlPanel({
           블록 표시
         </button>
       </div>
+      <Button fullWidth onClick={onOpenTextView} disabled={!canOpenTextView}>
+        텍스트 모아보기
+      </Button>
     </section>
   );
 }

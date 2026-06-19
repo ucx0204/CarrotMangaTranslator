@@ -17,6 +17,7 @@ const MAX_BLOCKS_PER_PAGE = 500;
 const MAX_MASK_STROKES = 200;
 const MAX_STROKE_POINTS = 1200;
 const MAX_RETAINED_INPAINTING_ARTIFACTS = 200;
+const MAX_GATHERED_TEXT_LENGTH = 5_000_000;
 
 const finiteNumber = z.number().finite();
 const uuid = z.string().uuid();
@@ -418,6 +419,13 @@ export const WorkShareExportRequestSchema = z
   .object({
     workId: uuid,
     chapterIds: z.array(uuid).min(1).max(MAX_ID_LIST_LENGTH),
+  })
+  .strict();
+
+export const SaveTextFileRequestSchema = z
+  .object({
+    defaultName: z.string().min(1).max(260),
+    content: z.string().max(MAX_GATHERED_TEXT_LENGTH),
   })
   .strict();
 

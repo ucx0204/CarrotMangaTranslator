@@ -5,6 +5,7 @@ import type {
 } from "../../../shared/types";
 import { normalizeRenderDirection } from "../../../shared/geometry";
 import { FontSelect } from "./FontSelect";
+import { useStickyTextareaHeight } from "../hooks/useStickyTextareaHeight";
 import { Button, IconButton, RangeInput } from "./ui";
 import {
   AlignCenterIcon,
@@ -12,6 +13,7 @@ import {
   AlignRightIcon,
   BoldIcon,
   ItalicIcon,
+  RestoreIcon,
 } from "./ui/icons";
 
 type EditorPanelProps = {
@@ -47,6 +49,15 @@ export function EditorPanel({
     setFontFamilyDraft(block?.fontFamily);
   }, [block?.id, block?.fontFamily]);
 
+  const { refCallback: translatedTextareaRef, reset: resetTranslatedHeight } =
+    useStickyTextareaHeight("editor.textareaHeight.translated");
+  const { refCallback: sourceTextareaRef, reset: resetSourceHeight } =
+    useStickyTextareaHeight("editor.textareaHeight.source");
+  const resetTextareaHeights = React.useCallback(() => {
+    resetTranslatedHeight();
+    resetSourceHeight();
+  }, [resetTranslatedHeight, resetSourceHeight]);
+
   if (!block) {
     return (
       <section className="editor-panel muted">
@@ -76,10 +87,19 @@ export function EditorPanel({
       <div className="editor-group">
         <div className="editor-group-head">
           <h3>텍스트</h3>
+          <IconButton
+            size="sm"
+            label="입력칸 높이 초기화"
+            title="입력칸 높이 초기화"
+            onClick={resetTextareaHeights}
+          >
+            <RestoreIcon size={14} />
+          </IconButton>
         </div>
         <label>
           한국어
           <textarea
+            ref={translatedTextareaRef}
             value={block.translatedText}
             disabled={disabled}
             onChange={(event) =>
@@ -90,6 +110,7 @@ export function EditorPanel({
         <label>
           OCR
           <textarea
+            ref={sourceTextareaRef}
             value={block.sourceText}
             disabled={disabled}
             onChange={(event) => onUpdate({ sourceText: event.target.value })}
