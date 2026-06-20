@@ -3848,20 +3848,19 @@ kbd {
   }
 }
 
-/* Gather-text modal: sticky controls over a scrolling per-page text list. */
+/* Gather-text modal: fixed controls + scrolling list with sticky page headers. */
 .gather-text-body {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding: 0;
+  overflow: hidden;
 }
 
 .gather-text-controls {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   display: grid;
   gap: var(--sp-3);
   padding: var(--sp-5) var(--sp-6);
-  background: #1f232b;
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -3876,9 +3875,9 @@ kbd {
 }
 
 .gather-text-list {
-  display: grid;
-  gap: var(--sp-4);
-  padding: var(--sp-5) var(--sp-6);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .gather-text-empty {
@@ -3887,12 +3886,18 @@ kbd {
 }
 
 .gather-text-page {
-  display: grid;
-  gap: var(--sp-2);
+  display: flex;
+  flex-direction: column;
 }
 
 .gather-text-page-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   margin: 0;
+  padding: var(--sp-3) var(--sp-6);
+  background: #1f232b;
+  border-bottom: 1px solid var(--border-soft);
   font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -3902,6 +3907,7 @@ kbd {
 .gather-text-blocks {
   display: grid;
   gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-6) var(--sp-4);
 }
 
 .gather-text-block {
@@ -3927,4 +3933,53 @@ kbd {
   color: var(--text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.gather-text-mark {
+  padding: 0 1px;
+  border-radius: 3px;
+  /* Clearly visible "found" highlight (vermilion at ~45% over the dark bg). */
+  background: rgba(193, 95, 65, 0.45);
+  color: #fbf3ef;
+}
+
+.gather-text-mark.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.gather-text-footer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.gather-text-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 320px;
+}
+
+.gather-text-search input {
+  min-width: 0;
+}
+
+.gather-text-search-count {
+  flex: 0 0 auto;
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.gather-text-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 0 0 auto;
 }
