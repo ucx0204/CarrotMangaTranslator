@@ -1,0 +1,25 @@
+.row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.row input[type="range"] {
+  min-width: 0;
+  padding: 0;
+}
+
+.value {
+  font-size: var(--font-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-dim);
+}

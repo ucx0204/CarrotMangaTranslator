@@ -53,11 +53,12 @@ export function RetouchInpaintingStep({
   sizableTool,
   tool,
 }: RetouchInpaintingStepProps): React.JSX.Element {
+  const maskActive = tool === "mask" || maskStrokeCount > 0;
   return (
     <div className="inpaint-step-body">
       <p className="inpaint-step-lead">
-        남은 자국을 직접 다듬습니다. 효과음은 그려서 지우고, 자잘한 부분은
-        붓·복원으로 정리하세요.
+        효과음은 마스크 붓으로 그려 지우고, 자잘한 자국은 붓·복원으로
+        다듬으세요.
       </p>
 
       <div className="retouch-tools-bar">
@@ -84,82 +85,15 @@ export function RetouchInpaintingStep({
             </IconButton>
           </div>
         </div>
-        {sizableTool ? (
-          <div className="retouch-tool-settings">
-            <label className="brush-size-control">
-              <span className="brush-size-label">크기</span>
-              <RangeInput
-                min={4}
-                max={90}
-                value={brushRadius}
-                disabled={jobActive}
-                onChange={(event) =>
-                  onBrushRadiusChange(Number(event.target.value))
-                }
-              />
-              <strong>{brushRadius}px</strong>
-            </label>
-            {tool === "brush" ? (
-              <label className="brush-color-control" title="붓 색상">
-                <input
-                  type="color"
-                  value={brushColor}
-                  disabled={jobActive}
-                  onChange={(event) => onBrushColorChange(event.target.value)}
-                />
-              </label>
-            ) : null}
-          </div>
-        ) : (
-          <p className="retouch-tool-hint">
-            아래에서 도구를 선택하면 붓 크기·색상을 조절할 수 있어요. 마스크
-            붓·붓·복원은 모두 같은 크기를 사용합니다.
-          </p>
-        )}
-      </div>
-
-      <div className="inpaint-group">
-        <div className="inpaint-group-head">
-          <h3>그려서 지우기</h3>
-          <small>
-            {maskStrokeCount > 0
-              ? `그린 영역 ${maskStrokeCount}개`
-              : "효과음 보정"}
-          </small>
-        </div>
-        <div className="retouch-toolbar compact-toolbar">
+        <div className="retouch-toolbar tools-grid">
           <button
-            className={tool === "mask" ? "active mask-tool" : "mask-tool"}
+            className={tool === "mask" ? "active" : ""}
             disabled={jobActive}
             onClick={() => onSelectTool(tool === "mask" ? "none" : "mask")}
           >
             <MaskIcon size={18} />
             <span>마스크 붓</span>
           </button>
-          <Button
-            size="sm"
-            disabled={jobActive || maskStrokeCount === 0}
-            onClick={onClearPatternMask}
-          >
-            비우기
-          </Button>
-        </div>
-        <Button
-          variant="primary"
-          fullWidth
-          disabled={jobActive || !hasSelectedPage || maskStrokeCount === 0}
-          onClick={onRunDrawnPattern}
-        >
-          그린 영역 지우기
-        </Button>
-      </div>
-
-      <div className="inpaint-group">
-        <div className="inpaint-group-head">
-          <h3>수동 보정</h3>
-          <small>붓 · 복원 · 색 뽑기</small>
-        </div>
-        <div className="retouch-toolbar">
           <button
             className={tool === "brush" ? "active" : ""}
             disabled={jobActive}
@@ -190,7 +124,64 @@ export function RetouchInpaintingStep({
             <span>색 뽑기</span>
           </button>
         </div>
+        {sizableTool ? (
+          <div className="retouch-tool-settings">
+            <label className="brush-size-control">
+              <span className="brush-size-label">크기</span>
+              <RangeInput
+                min={4}
+                max={90}
+                value={brushRadius}
+                disabled={jobActive}
+                onChange={(event) =>
+                  onBrushRadiusChange(Number(event.target.value))
+                }
+              />
+              <strong>{brushRadius}px</strong>
+            </label>
+            {tool === "brush" ? (
+              <label className="brush-color-control" title="붓 색상">
+                <input
+                  type="color"
+                  value={brushColor}
+                  disabled={jobActive}
+                  onChange={(event) => onBrushColorChange(event.target.value)}
+                />
+              </label>
+            ) : null}
+          </div>
+        ) : null}
       </div>
+
+      {maskActive ? (
+        <div className="inpaint-group">
+          <div className="inpaint-group-head">
+            <h3>그려서 지우기</h3>
+            <small>
+              {maskStrokeCount > 0
+                ? `그린 영역 ${maskStrokeCount}개`
+                : "효과음 보정"}
+            </small>
+          </div>
+          <div className="mask-action-row">
+            <Button
+              size="sm"
+              disabled={jobActive || maskStrokeCount === 0}
+              onClick={onClearPatternMask}
+            >
+              비우기
+            </Button>
+            <Button
+              variant="primary"
+              fullWidth
+              disabled={jobActive || !hasSelectedPage || maskStrokeCount === 0}
+              onClick={onRunDrawnPattern}
+            >
+              그린 영역 지우기
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="inpaint-step-nav">
         <Button variant="ghost" onClick={onGoToAuto}>

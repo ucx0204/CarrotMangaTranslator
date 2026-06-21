@@ -163,6 +163,7 @@ function doesTextFit(
   innerWidth: number,
   innerHeight: number,
 ): boolean {
+  const letterSpacingPx = resolveLetterSpacingPx(block, fontSize);
   if (
     normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
   ) {
@@ -171,12 +172,13 @@ function doesTextFit(
       fontSize,
       innerWidth,
       innerHeight,
-      fontSize * block.lineHeight,
+      fontSize * block.lineHeight + letterSpacingPx,
     ).fits;
   }
 
   const context = getMeasureContext();
   context.font = buildFont(fontSize, block);
+  applyLetterSpacing(context, letterSpacingPx);
   const measured = measureWrappedText(
     context,
     text,
@@ -186,6 +188,26 @@ function doesTextFit(
   return (
     measured.totalHeight <= innerHeight && measured.maxLineWidth <= innerWidth
   );
+}
+
+function resolveLetterSpacingPx(
+  block: TranslationBlock,
+  fontSize: number,
+): number {
+  const em = block.letterSpacing;
+  if (!em || !Number.isFinite(em)) {
+    return 0;
+  }
+  return em * fontSize;
+}
+
+function applyLetterSpacing(
+  context: CanvasRenderingContext2D,
+  px: number,
+): void {
+  (
+    context as CanvasRenderingContext2D & { letterSpacing?: string }
+  ).letterSpacing = `${px}px`;
 }
 
 function wrapTextToWidth(

@@ -18,6 +18,7 @@ export {
   BrushIcon,
   CheckCircleIcon,
   CloseIcon,
+  CopyIcon,
   EditIcon,
   EyeIcon,
   EyeOffIcon,
@@ -35,3 +36,5 @@ export {
   WarnIcon,
 } from "./icons";
 export type { IconProps } from "./icons";
+export { FieldSlider } from "./FieldSlider";
+export type { FieldSliderProps } from "./FieldSlider";

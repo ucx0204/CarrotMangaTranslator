@@ -20,6 +20,7 @@ type RenderBboxBlock = Pick<TranslationBlock, "bbox" | "renderBbox"> &
       | "renderBboxSpace"
       | "renderDirection"
       | "lineHeight"
+      | "letterSpacing"
       | "fontSizePx"
       | "autoFitText"
     >
@@ -298,13 +299,15 @@ function estimateReadableTextBoxSizePx(
     [...text.replace(/\r/g, "").replace(/\n/g, " ")].length,
   );
   const fontSizePx = MIN_READABLE_FONT_SIZE_PX;
+  const letterSpacingPx = (block.letterSpacing ?? 0) * fontSizePx;
   const lineHeightPx = fontSizePx * Math.max(1, block.lineHeight ?? 1.18);
 
   if (block.renderDirection === "vertical") {
+    const verticalAdvancePx = Math.max(1, lineHeightPx + letterSpacingPx);
     const availableHeight = Math.max(1, basePx.h);
     const charsPerColumn = Math.max(
       1,
-      Math.floor(availableHeight / lineHeightPx),
+      Math.floor(availableHeight / verticalAdvancePx),
     );
     const columnCount = Math.min(
       READABLE_MAX_VERTICAL_COLUMNS,
@@ -312,18 +315,20 @@ function estimateReadableTextBoxSizePx(
     );
     return {
       width: columnCount * fontSizePx * READABLE_VERTICAL_COLUMN_WIDTH_RATIO,
-      height: Math.min(compactLength, charsPerColumn) * lineHeightPx,
+      height: Math.min(compactLength, charsPerColumn) * verticalAdvancePx,
     };
   }
 
+  const charAdvancePx = Math.max(
+    1,
+    fontSizePx * READABLE_AVERAGE_CHAR_WIDTH_RATIO + letterSpacingPx,
+  );
   const availableWidth = Math.max(1, basePx.w);
   const naturalCharsPerLine =
     resolveNaturalHorizontalCharsPerLine(compactLength);
   const widthLimitedCharsPerLine = Math.max(
     1,
-    Math.floor(
-      availableWidth / (fontSizePx * READABLE_AVERAGE_CHAR_WIDTH_RATIO),
-    ),
+    Math.floor(availableWidth / charAdvancePx),
   );
   const charsPerLine = Math.max(
     Math.min(compactLength, naturalCharsPerLine),
@@ -331,7 +336,7 @@ function estimateReadableTextBoxSizePx(
   );
   const lineCount = Math.max(1, Math.ceil(compactLength / charsPerLine));
   return {
-    width: charsPerLine * fontSizePx * READABLE_AVERAGE_CHAR_WIDTH_RATIO,
+    width: charsPerLine * charAdvancePx,
     height: lineCount * lineHeightPx,
   };
 }

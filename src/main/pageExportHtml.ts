@@ -71,6 +71,12 @@ function blockFontWeight(block) {
   return block.bold ? 800 : 400;
 }
 
+function letterSpacingPxFor(block, fontSize) {
+  const em = Number(block.letterSpacing);
+  if (!em || !Number.isFinite(em)) return 0;
+  return em * fontSize;
+}
+
 function wrapTextToWidth(text, maxWidth, fontSize, fontFamily, weight, italic) {
   context.font = buildFont(fontSize, fontFamily, weight, italic);
   const paragraphs = String(text).replace(/\\r/g, "").split("\\n");
@@ -99,6 +105,7 @@ function wrapTextToWidth(text, maxWidth, fontSize, fontFamily, weight, italic) {
 
 function measureHorizontal(block, fontSize, innerWidth) {
   const weight = blockFontWeight(block);
+  context.letterSpacing = letterSpacingPxFor(block, fontSize) + "px";
   const lines = wrapTextToWidth(block.text, innerWidth, fontSize, block.fontFamily, weight, block.italic);
   context.font = buildFont(fontSize, block.fontFamily, weight, block.italic);
   return {
@@ -112,7 +119,8 @@ function fits(block, fontSize, innerWidth, innerHeight) {
   if (block.renderDirection === "vertical") {
     if (!block.text.trim()) return true;
     const verticalSlots = Array.from(block.text.replace(/\\r/g, "").replace(/\\n/g, " "));
-    const charsPerColumn = Math.max(1, Math.floor(innerHeight / Math.max(fontSize, fontSize * block.lineHeight)));
+    const verticalAdvance = fontSize * block.lineHeight + letterSpacingPxFor(block, fontSize);
+    const charsPerColumn = Math.max(1, Math.floor(innerHeight / Math.max(fontSize, verticalAdvance)));
     const columnCount = Math.max(1, Math.ceil(verticalSlots.length / charsPerColumn));
     return columnCount <= 2 && columnCount * fontSize * 1.15 <= innerWidth;
   }
@@ -169,6 +177,7 @@ function drawHorizontalText(ctx, block, rect, fontSize) {
   const align = block.textAlign || "center";
   const x = align === "left" ? rect.left + 1 : align === "right" ? rect.left + rect.width - 1 : rect.left + rect.width / 2;
   ctx.font = buildFont(fontSize, block.fontFamily, blockFontWeight(block), block.italic);
+  ctx.letterSpacing = letterSpacingPxFor(block, fontSize) + "px";
   ctx.textAlign = align;
   ctx.textBaseline = "top";
   for (const [index, line] of measured.lines.entries()) {
@@ -181,7 +190,7 @@ function drawVerticalText(ctx, block, rect, fontSize) {
     return;
   }
   const chars = Array.from(block.text.replace(/\\r/g, "").replace(/\\n/g, " "));
-  const lineHeightPx = fontSize * block.lineHeight;
+  const lineHeightPx = fontSize * block.lineHeight + letterSpacingPxFor(block, fontSize);
   const charsPerColumn = Math.max(1, Math.floor(Math.max(1, rect.height - 2) / lineHeightPx));
   const columns = [];
   for (let index = 0; index < chars.length; index += charsPerColumn) {

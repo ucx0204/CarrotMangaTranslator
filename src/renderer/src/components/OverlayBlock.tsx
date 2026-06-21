@@ -72,6 +72,7 @@ export function OverlayBlock({
     fontFamily: resolveBlockFontFamily(block.fontFamily),
     fontSize: `${layout.fontSizePx}px`,
     lineHeight: block.lineHeight,
+    letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
     textAlign: block.textAlign,
     transform: block.rotationDeg
       ? `rotate(${block.rotationDeg}deg)`

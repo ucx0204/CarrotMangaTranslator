@@ -256,6 +256,7 @@ export const TranslationBlockSchema = z
     fontFamily: z.string().max(120).optional(),
     fontSizePx: finiteNumber.min(1).max(512),
     lineHeight: finiteNumber.min(0.5).max(4),
+    letterSpacing: finiteNumber.min(-0.5).max(2).optional(),
     textAlign: z.enum(["left", "center", "right"]),
     textColor: hexColor,
     outlineColor: hexColor.optional(),

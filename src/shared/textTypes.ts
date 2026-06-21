@@ -27,6 +27,7 @@ export type TranslationBlock = {
   fontFamily?: string;
   fontSizePx: number;
   lineHeight: number;
+  letterSpacing?: number;
   textAlign: "left" | "center" | "right";
   textColor: string;
   outlineColor?: string;

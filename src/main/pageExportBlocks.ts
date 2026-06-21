@@ -14,6 +14,7 @@ export type PageExportBlock = {
   fontFamily: string;
   fontSizePx: number;
   lineHeight: number;
+  letterSpacing: number;
   textAlign: "left" | "center" | "right";
   textColor: string;
   outlineColor: string;
@@ -84,6 +85,9 @@ function buildPageExportBlock(
     ),
     fontSizePx: Math.max(10, Math.round((block.fontSizePx || 20) * fontScale)),
     lineHeight: Math.max(1, block.lineHeight || 1.18),
+    letterSpacing: Number.isFinite(block.letterSpacing)
+      ? (block.letterSpacing as number)
+      : 0,
     textAlign: block.textAlign || "center",
     textColor: normalizeExportColor(block.textColor, "#000000"),
     outlineColor: normalizeExportColor(block.outlineColor, "#ffffff"),
