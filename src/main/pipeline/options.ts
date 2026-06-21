@@ -33,6 +33,8 @@ export function buildPageOptions(
     imagePath: page.imagePath,
     imageWidth: page.width,
     imageHeight: page.height,
+    pageId: page.id,
+    pageIndex: index,
     outputDir: join(
       baseOptions.outputDir,
       "pages",
@@ -119,6 +121,14 @@ export function summarizeTranslationOptions(
     ocrGpuCudaTag: options.ocrGpuCudaTag,
     hfHomeDir: options.hfHomeDir ?? null,
     hfHubCacheDir: options.hfHubCacheDir ?? null,
+    workContext: options.workContext
+      ? {
+          glossaryCount: options.workContext.styleGuide.glossary.length,
+          characterCount: options.workContext.styleGuide.characters.length,
+          storyPageCount: options.workContext.storyMemory.pages.length,
+          recentPageCount: options.workContext.recentPageCount,
+        }
+      : undefined,
   };
 }
 

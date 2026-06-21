@@ -18,8 +18,10 @@ import type {
   ModelEndpointHandle,
   OcrBboxResult,
   OverlayItem,
+  PipelineWorkContext,
   TranslationResult,
 } from "./types";
+import { buildPromptWorkContextForPage } from "./workContextPrompt";
 import { isRequestNoTextDetected } from "./noText";
 import type { ProgressContext } from "./progressEvents";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
@@ -46,6 +48,7 @@ export function buildRequestPageOptions({
   pageIndex,
   signal,
   skipOcrPrepass,
+  workContext,
 }: {
   attempt: number;
   baseOptions: TranslationOptions;
@@ -56,8 +59,18 @@ export function buildRequestPageOptions({
   pageIndex: number;
   signal: AbortSignal;
   skipOcrPrepass: boolean;
+  workContext?: PipelineWorkContext;
 }): TranslationOptions {
   const pageOptions = buildPageOptions(baseOptions, page, pageIndex, attempt);
+  if (workContext) {
+    pageOptions.workContext = buildPromptWorkContextForPage({
+      baseStyleGuide: workContext.styleGuide,
+      storyMemory: workContext.storyMemory,
+      pageId: page.id,
+      pageIndex,
+      recentPageCount: workContext.recentPageCount,
+    });
+  }
   if (skipOcrPrepass) {
     pageOptions.skipOcrBboxHints = true;
     pageOptions.regionCropMode = true;

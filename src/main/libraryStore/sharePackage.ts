@@ -1,6 +1,13 @@
-import type { LibraryChapter, WorkShareImportEntry } from "../../shared/types";
+import type {
+  LibraryChapter,
+  WorkShareImportEntry,
+  WorkStyleGuide,
+} from "../../shared/types";
 import { z } from "zod";
-import { LibraryChapterFileSchema } from "../../shared/ipcSchemas";
+import {
+  LibraryChapterFileSchema,
+  WorkStyleGuideSchema,
+} from "../../shared/ipcSchemas";
 import { isSupportedImagePath } from "./storage";
 import {
   MAX_SHARE_IMAGE_BYTES,
@@ -32,6 +39,7 @@ export type SharePackage = {
   packagePath: string;
   entries: Map<string, ZipEntryLike>;
   manifest: ShareManifest;
+  styleGuide?: WorkStyleGuide;
   chapters: Array<{
     packageChapterId: string;
     chapter: LibraryChapter;
@@ -65,6 +73,12 @@ export async function readSharePackage(
     "manifest.json",
     ShareManifestSchema,
   );
+  const styleGuide = await readOptionalShareJson(
+    packagePath,
+    entries,
+    "style-guide.json",
+    WorkStyleGuideSchema,
+  );
 
   const chapters = await Promise.all(
     manifest.chapterOrder.map(async (packageChapterId) => {
@@ -93,6 +107,7 @@ export async function readSharePackage(
       ...manifest,
       chapterOrder: chapters.map((chapter) => chapter.packageChapterId),
     },
+    styleGuide,
     chapters,
   };
 }
@@ -131,8 +146,10 @@ async function readRequiredShareJson<TSchema extends z.ZodTypeAny>(
         )
       ).toString("utf8"),
     );
-  } catch (_error) {
-    throw new Error(`공유 파일의 JSON을 읽지 못했습니다: ${path}`);
+  } catch (error) {
+    throw new Error(`공유 파일의 JSON을 읽지 못했습니다: ${path}`, {
+      cause: error,
+    });
   }
 
   const result = schema.safeParse(parsedJson);
@@ -148,6 +165,18 @@ async function readRequiredShareJson<TSchema extends z.ZodTypeAny>(
   throw new Error(
     `공유 파일의 JSON 형식이 올바르지 않습니다: ${path} (${message})`,
   );
+}
+
+async function readOptionalShareJson<TSchema extends z.ZodTypeAny>(
+  packagePath: string,
+  entries: Map<string, ZipEntryLike>,
+  path: string,
+  schema: TSchema,
+): Promise<z.output<TSchema> | undefined> {
+  if (!entries.has(path)) {
+    return undefined;
+  }
+  return readRequiredShareJson(packagePath, entries, path, schema);
 }
 
 function validateShareChapter(

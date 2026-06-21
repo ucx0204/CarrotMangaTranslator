@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AppSettingsSchema,
+  AnalyzeWorkContextRequestSchema,
   ChapterSnapshotSchema,
   JobEventSchema,
   ModelTestProgressEventSchema,
@@ -8,6 +9,7 @@ import {
   SavePageBlocksRequestSchema,
   StartAnalysisRequestSchema,
   StartInpaintingRequestSchema,
+  TranslationBlockSchema,
   WorkShareImportRequestSchema,
 } from "../src/shared/ipcSchemas";
 
@@ -74,6 +76,30 @@ describe("IPC schemas", () => {
     );
     expect(parsed.baseUpdatedAt).toBe("2026-01-01T00:00:00.000Z");
     expect(parsed.baseBlocksHash).toBe("0123456789abcdef");
+  });
+
+  it("accepts bounded AI work context analysis requests", () => {
+    const parsed = parseIpcPayload(
+      AnalyzeWorkContextRequestSchema,
+      { chapterId, maxInputChars: 12000 },
+      "AI 용어/기억 분석",
+    );
+    expect(parsed.chapterId).toBe(chapterId);
+    expect(parsed.maxInputChars).toBe(12000);
+    expect(() =>
+      parseIpcPayload(
+        AnalyzeWorkContextRequestSchema,
+        { chapterId: "../outside" },
+        "AI 용어/기억 분석",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        AnalyzeWorkContextRequestSchema,
+        { chapterId, maxInputChars: 999 },
+        "AI 용어/기억 분석",
+      ),
+    ).toThrow(/요청 형식/);
   });
 
   it("rejects unknown fields in full chapter snapshots", () => {
@@ -366,6 +392,46 @@ describe("IPC schemas", () => {
       w: 1,
       h: 1,
     });
+  });
+
+  it("accepts optional review/name memory fields on translation blocks", () => {
+    const block = makeChapterSnapshot().pages[0].blocks[0];
+    expect(TranslationBlockSchema.safeParse(block).success).toBe(true);
+
+    const parsed = parseIpcPayload(
+      TranslationBlockSchema,
+      {
+        ...block,
+        reviewStatus: "needs_review",
+        reviewNote: "말투 확인",
+        speakerId: "hero",
+        glossaryEntryIds: ["glossary-1"],
+      },
+      "블록",
+    );
+
+    expect(parsed.reviewStatus).toBe("needs_review");
+    expect(parsed.reviewNote).toBe("말투 확인");
+    expect(parsed.speakerId).toBe("hero");
+    expect(parsed.glossaryEntryIds).toEqual(["glossary-1"]);
+  });
+
+  it("rejects invalid review block metadata", () => {
+    const block = makeChapterSnapshot().pages[0].blocks[0];
+    expect(() =>
+      parseIpcPayload(
+        TranslationBlockSchema,
+        { ...block, reviewStatus: "done" },
+        "블록",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        TranslationBlockSchema,
+        { ...block, reviewNote: "x".repeat(4001) },
+        "블록",
+      ),
+    ).toThrow(/요청 형식/);
   });
 });
 

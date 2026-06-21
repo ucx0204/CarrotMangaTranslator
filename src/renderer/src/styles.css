@@ -3880,6 +3880,29 @@ kbd {
   overflow-y: auto;
 }
 
+.gather-review-warnings {
+  flex: 0 0 auto;
+  max-height: 140px;
+  overflow: auto;
+  padding: var(--sp-3) var(--sp-6);
+  border-bottom: 1px solid var(--border-soft);
+  border-left: 3px solid var(--warn);
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.gather-review-warnings summary {
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.gather-review-warnings ul {
+  margin: var(--sp-2) 0 0;
+  padding-left: var(--sp-5);
+}
+
 .gather-text-empty {
   padding: var(--sp-6);
   text-align: center;
@@ -3980,6 +4003,258 @@ kbd {
 .gather-text-footer-actions {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--sp-4);
+  flex-wrap: wrap;
   flex: 0 0 auto;
+}
+
+/* Group related actions so the footer reads as clusters, not a wall of buttons. */
+.gather-text-action-group {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.gather-text-action-group.review {
+  padding-left: var(--sp-4);
+  border-left: 1px solid var(--border-soft);
+}
+
+.gather-text-group-label {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.style-guide-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Compact analysis toolbar: a labelled scope row, not two billboards. */
+.style-guide-analysis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-6);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-raised);
+  flex: 0 0 auto;
+}
+
+.style-guide-analysis-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.style-guide-analysis-info h3 {
+  margin: 0;
+  font-size: var(--font-md);
+  color: var(--text-head);
+}
+
+.style-guide-analysis-info p {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+}
+
+.style-guide-analysis-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+}
+
+.style-guide-analysis-scope {
+  margin-right: var(--sp-1);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+/* Tabs mirror the settings-modal tab styling so the two read as one app. */
+.style-guide-tabs {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-6);
+  border-bottom: 1px solid var(--border-soft);
+  overflow-x: auto;
+  flex: 0 0 auto;
+}
+
+.style-guide-tabs button {
+  min-height: var(--ctl-h);
+  padding: var(--ctl-pad-y) var(--ctl-pad-x);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.style-guide-tabs button:hover:not(.active) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.style-guide-tabs button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-bd);
+  color: var(--accent-hi);
+  font-weight: 600;
+}
+
+/* Single scroll area shared by every tab. */
+.style-guide-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--sp-5) var(--sp-6);
+}
+
+.style-guide-section {
+  display: grid;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+
+.style-guide-section:last-child {
+  margin-bottom: 0;
+}
+
+.style-guide-section.rules {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-5);
+}
+
+.style-guide-section.rules label {
+  display: grid;
+  gap: var(--sp-2);
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+}
+
+.style-guide-section h3 {
+  margin: 0;
+  font-size: var(--font-md);
+  color: var(--text-head);
+}
+
+.style-guide-section-head,
+.style-guide-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.style-guide-footer {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.style-memory-list {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.style-memory-item {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.style-guide-table {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 760px;
+}
+
+.style-guide-row {
+  display: grid;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.style-guide-row.glossary {
+  grid-template-columns: 28px 1.1fr 1.1fr 120px 1fr 1fr 60px;
+}
+
+.style-guide-row.character {
+  grid-template-columns: 28px 1fr 1.2fr 1fr 110px 1fr 1fr 60px;
+}
+
+/* Column-label header that sits above the editable rows. */
+.style-guide-row.head {
+  padding: 0 var(--sp-1) var(--sp-2);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.style-guide-row.head span {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.style-guide-row .inline-toggle {
+  justify-self: center;
+}
+
+.style-guide-table-empty {
+  margin: 0;
+  padding: var(--sp-6) var(--sp-5);
+  text-align: center;
+  border: 1px dashed var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
+
+.style-guide-empty {
+  padding: var(--sp-6);
+  text-align: center;
+}
+
+.style-memory-item {
+  padding: var(--sp-3);
+}
+
+.style-memory-item h3 {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+.style-memory-item p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+@media (max-width: 720px) {
+  .style-guide-analysis {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-3);
+  }
+
+  .style-guide-analysis-actions {
+    justify-content: flex-end;
+  }
+
+  .style-guide-section.rules {
+    grid-template-columns: 1fr;
+  }
 }

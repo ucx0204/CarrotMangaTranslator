@@ -218,6 +218,56 @@ describe("work share packages", () => {
     );
   });
 
+  it("exports and imports style guide for a new shared work", async () => {
+    const rootDir = await createTempLibrary();
+    const sharePath = join(rootDir, "style-guide.mgtshare");
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const guide = await library.getWorkStyleGuide("work-1");
+    await library.saveWorkStyleGuide({
+      ...guide,
+      glossary: [
+        {
+          id: "glossary-1",
+          source: "魔王",
+          target: "마왕",
+          category: "term",
+          enabled: true,
+          createdAt: guide.createdAt,
+          updatedAt: guide.updatedAt,
+        },
+      ],
+    });
+
+    await library.exportWorkShareToFile({
+      workId: "work-1",
+      chapterIds: ["chapter-a"],
+      outputPath: sharePath,
+    });
+
+    const zip = new AdmZip(sharePath);
+    const entryNames = zip
+      .getEntries()
+      .map((entry) => entry.entryName.replace(/\\/g, "/"));
+    expect(entryNames).toContain("style-guide.json");
+
+    const result = await library.importWorkShare({
+      packagePath: sharePath,
+      target: { mode: "new", title: "용어 포함 작품" },
+      entries: [
+        {
+          source: "package",
+          packageChapterId: "chapter-a",
+          title: "용어 포함 1화",
+        },
+      ],
+    });
+    const importedGuide = await library.getWorkStyleGuide(result.workId);
+
+    expect(importedGuide.workId).toBe(result.workId);
+    expect(importedGuide.glossary[0]?.target).toBe("마왕");
+  });
+
   it("merges into an existing work in final order and deletes omitted existing chapters", async () => {
     const rootDir = await createTempLibrary();
     const sharePath = join(rootDir, "merge.mgtshare");

@@ -8,11 +8,15 @@ import {
 } from "../shared/jobContracts";
 import type {
   AppSettings,
+  AnalyzeWorkContextRequest,
+  AnalyzeWorkContextResult,
   ChapterSnapshot,
   CreateImportRequest,
   CreateImportResult,
   CustomFont,
   ImportPreviewSession,
+  ImportReviewTextRequest,
+  ImportReviewTextResult,
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
   InpaintingExportRequest,
@@ -42,6 +46,9 @@ import type {
   WorkShareImportPreview,
   WorkShareImportRequest,
   WorkShareImportResult,
+  WorkStyleGuide,
+  ChapterStoryMemory,
+  ExportReviewTextRequest,
 } from "../shared/types";
 
 const api = {
@@ -70,6 +77,20 @@ const api = {
   openLibraryFolder: () => ipcRenderer.invoke("library:open-folder"),
   openChapter: (chapterId: string): Promise<ChapterSnapshot> =>
     ipcRenderer.invoke("library:open-chapter", chapterId),
+  getWorkStyleGuide: (workId: string): Promise<WorkStyleGuide> =>
+    ipcRenderer.invoke("context:get-work-style-guide", workId),
+  saveWorkStyleGuide: (guide: WorkStyleGuide): Promise<WorkStyleGuide> =>
+    ipcRenderer.invoke("context:save-work-style-guide", guide),
+  getChapterStoryMemory: (chapterId: string): Promise<ChapterStoryMemory> =>
+    ipcRenderer.invoke("context:get-chapter-story-memory", chapterId),
+  saveChapterStoryMemory: (
+    memory: ChapterStoryMemory,
+  ): Promise<ChapterStoryMemory> =>
+    ipcRenderer.invoke("context:save-chapter-story-memory", memory),
+  analyzeWorkContext: (
+    request: AnalyzeWorkContextRequest,
+  ): Promise<AnalyzeWorkContextResult> =>
+    ipcRenderer.invoke("context:analyze-work-context", request),
   getPageImageDataUrl: (imagePath: string): Promise<string> =>
     ipcRenderer.invoke("library:get-page-image-data-url", imagePath),
   savePageBlocks: (request: SavePageBlocksRequest): Promise<ChapterSnapshot> =>
@@ -78,6 +99,14 @@ const api = {
     request: SaveTextFileRequest,
   ): Promise<SaveTextFileResult | null> =>
     ipcRenderer.invoke("text:save-file", request),
+  exportReviewText: (
+    request: ExportReviewTextRequest,
+  ): Promise<SaveTextFileResult | null> =>
+    ipcRenderer.invoke("review:export-text", request),
+  importReviewText: (
+    request: ImportReviewTextRequest,
+  ): Promise<ImportReviewTextResult> =>
+    ipcRenderer.invoke("review:import-text", request),
   renameWork: (workId: string, title: string): Promise<LibraryIndex> =>
     ipcRenderer.invoke("library:rename-work", workId, title),
   renameChapter: (chapterId: string, title: string): Promise<LibraryIndex> =>

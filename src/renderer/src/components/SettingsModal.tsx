@@ -159,8 +159,8 @@ export function SettingsModal({
     );
     setCustomModelRepo(initialSettings.gemma.modelRepo);
     setCustomModelFile(initialSettings.gemma.modelFile);
-    setLocalModelPath(initialSettings.gemma.localModelPath ?? "");
-    setLocalMmprojPath(initialSettings.gemma.localMmprojPath ?? "");
+    setLocalModelPath(resolveInitialLocalModelPath(initialSettings));
+    setLocalMmprojPath(resolveInitialLocalMmprojPath(initialSettings));
     setCustomVramMode(initialSettings.gemma.vramMode);
     setLlamaRuntimeProfile(
       initialSettings.gemma.llamaRuntimeProfile ?? "cuda12",
@@ -170,18 +170,18 @@ export function SettingsModal({
     setCodexOauthPort(String(initialSettings.codex.oauthPort));
     setApiBaseUrl(initialSettings.api.baseUrl);
     setApiModel(initialSettings.api.model);
-    setApiKey(initialSettings.api.apiKey ?? "");
+    setApiKey(resolveInitialApiKey(initialSettings));
     setApiTemperature(
       formatNullableNumberInput(initialSettings.api.temperature),
     );
     setApiTopP(formatNullableNumberInput(initialSettings.api.topP));
     setApiTopK(formatNullableNumberInput(initialSettings.api.topK));
-    setApiReasoningEffort(initialSettings.api.reasoningEffort ?? "");
+    setApiReasoningEffort(resolveInitialApiReasoningEffort(initialSettings));
     setApiExtraBodyJson(initialSettings.api.extraBodyJson ?? "");
     setApiCustomHeadersJson(initialSettings.api.customHeadersJson ?? "");
     setOcrDevice(initialSettings.ocr.device);
-    setOcrGpuBackend(initialSettings.ocr.gpuBackend ?? "cuda");
-    setFluxBackend(initialSettings.inpainting?.fluxBackend ?? "cuda-native");
+    setOcrGpuBackend(resolveInitialOcrGpuBackend(initialSettings));
+    setFluxBackend(resolveInitialFluxBackend(initialSettings));
     setMaxTokens(String(initialSettings.maxTokens));
     setTestState({ status: "idle", message: null, detail: null });
     setTestLogLines([]);
@@ -346,20 +346,27 @@ export function SettingsModal({
   );
 
   const buildSettings = React.useCallback((): AppSettings | null => {
-    if (!maxTokensValid) {
+    if (!baseTokenSettingsValid(maxTokensValid)) {
       return null;
     }
 
     if (
-      modelProvider === "openai-codex" &&
-      (!trimmedCodexModel || !codexOauthPortValid)
+      codexSettingsIncomplete(
+        modelProvider,
+        trimmedCodexModel,
+        codexOauthPortValid,
+      )
     ) {
       return null;
     }
 
     if (
-      modelProvider === "openai-api" &&
-      (!normalizedApiBaseUrl || !trimmedApiModel || !apiAdvancedSettingsValid)
+      apiSettingsIncomplete(
+        modelProvider,
+        normalizedApiBaseUrl,
+        trimmedApiModel,
+        apiAdvancedSettingsValid,
+      )
     ) {
       return null;
     }
@@ -699,6 +706,56 @@ export function SettingsModal({
         </div>
       </div>
     </Modal>
+  );
+}
+
+function resolveInitialLocalModelPath(settings: AppSettings): string {
+  return settings.gemma.localModelPath ?? "";
+}
+
+function resolveInitialLocalMmprojPath(settings: AppSettings): string {
+  return settings.gemma.localMmprojPath ?? "";
+}
+
+function resolveInitialApiKey(settings: AppSettings): string {
+  return settings.api.apiKey ?? "";
+}
+
+function resolveInitialApiReasoningEffort(
+  settings: AppSettings,
+): ApiReasoningEffort | "" {
+  return settings.api.reasoningEffort ?? "";
+}
+
+function resolveInitialOcrGpuBackend(settings: AppSettings): OcrGpuBackend {
+  return settings.ocr.gpuBackend ?? "cuda";
+}
+
+function resolveInitialFluxBackend(settings: AppSettings): FluxBackend {
+  return settings.inpainting?.fluxBackend ?? "cuda-native";
+}
+
+function baseTokenSettingsValid(maxTokensValid: boolean): boolean {
+  return maxTokensValid;
+}
+
+function codexSettingsIncomplete(
+  modelProvider: ModelProvider,
+  model: string,
+  oauthPortValid: boolean,
+): boolean {
+  return modelProvider === "openai-codex" && (!model || !oauthPortValid);
+}
+
+function apiSettingsIncomplete(
+  modelProvider: ModelProvider,
+  baseUrl: string | null,
+  model: string,
+  advancedSettingsValid: boolean,
+): boolean {
+  return (
+    modelProvider === "openai-api" &&
+    (!baseUrl || !model || !advancedSettingsValid)
   );
 }
 

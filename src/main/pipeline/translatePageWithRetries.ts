@@ -27,6 +27,7 @@ import type {
   ModelEndpointHandle,
   OcrBboxResult,
   PipelineOptions,
+  PipelineWorkContext,
 } from "./types";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { WarningCollector } from "./warningCollector";
@@ -48,6 +49,7 @@ export async function translatePageWithRetries({
   signal,
   skipOcrPrepass,
   warningCollector,
+  workContext,
 }: {
   baseOptions: TranslationOptions;
   completedPagesById: Map<string, MangaPage>;
@@ -64,6 +66,7 @@ export async function translatePageWithRetries({
   signal: AbortSignal;
   skipOcrPrepass: boolean;
   warningCollector: WarningCollector;
+  workContext?: PipelineWorkContext;
 }): Promise<void> {
   let successPage: MangaPage | null = null;
   let lastErrorMessage = "";
@@ -82,6 +85,7 @@ export async function translatePageWithRetries({
       pageIndex,
       signal,
       skipOcrPrepass,
+      workContext,
     });
     lastPageOptions = pageOptions;
     emitPageRunning(context, page, pageIndex, attempt, maxAttempts);

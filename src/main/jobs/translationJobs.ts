@@ -19,6 +19,7 @@ import {
   markChapterPagesRunning,
   openChapter,
   resolvePagesForRun,
+  resolveWorkContextForChapter,
   updatePageAfterAnalysis,
   updatePagesAfterAnalysis,
 } from "../library";
@@ -47,6 +48,7 @@ export async function startAnalysisJob(
   let resolved: Awaited<ReturnType<typeof resolvePagesForRun>> | null = null;
   let pageIds: string[] = [];
   let runPaths: Awaited<ReturnType<typeof getRunPaths>> | null = null;
+  let workContext: Awaited<ReturnType<typeof resolveWorkContextForChapter>>;
 
   const emit = (event: JobEvent) =>
     emitJobEvent(context.jobs, context.getMainWindow(), event);
@@ -78,6 +80,7 @@ export async function startAnalysisJob(
     }
 
     pageIds = resolved.pages.map((page) => page.id);
+    workContext = await resolveWorkContextForChapter(request.chapterId);
     const runningChapter = await markChapterPagesRunning(
       request.chapterId,
       pageIds,
@@ -126,6 +129,11 @@ export async function startAnalysisJob(
       pages: resolved.pages,
       runPaths,
       signal: abortController.signal,
+      workContext: {
+        ...workContext,
+        chapterId: request.chapterId,
+        recentPageCount: 6,
+      },
     });
 
     if (abortController.signal.aborted) {

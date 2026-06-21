@@ -5,6 +5,8 @@ import type {
   BBox,
   JobEvent,
   MangaPage,
+  ChapterStoryMemory,
+  WorkStyleGuide,
   SourceTextDirection,
 } from "../../shared/types";
 import type { ChapterRunPaths } from "../library";
@@ -20,6 +22,15 @@ export type PipelineOptions = {
   onPageComplete?: (page: MangaPage) => Promise<void>;
   onPagesComplete?: (pages: MangaPage[]) => Promise<void>;
   onPageFailed?: (page: MangaPage, errorMessage: string) => Promise<void>;
+  workContext?: PipelineWorkContext;
+};
+
+export type PipelineWorkContext = {
+  workId: string;
+  chapterId: string;
+  styleGuide: WorkStyleGuide;
+  storyMemory: ChapterStoryMemory;
+  recentPageCount?: number;
 };
 
 export type ServerHandle = {

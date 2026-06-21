@@ -2,6 +2,7 @@ export type {
   BBox,
   BlockType,
   RenderTextDirection,
+  ReviewStatus,
   SourceTextDirection,
   TranslationBlock,
 } from "./textTypes";
@@ -99,3 +100,27 @@ export type {
   WorkShareImportResult,
   WorkSharePreviewChapter,
 } from "./shareTypes";
+export type {
+  ExportReviewTextRequest,
+  ImportReviewTextRequest,
+  ImportReviewTextResult,
+  ReviewExportFormat,
+} from "./reviewTypes";
+export type {
+  AnalyzeWorkContextRequest,
+  AnalyzeWorkContextResult,
+  WorkContextAnalysisCounts,
+  WorkContextAnalysisCoverage,
+  WorkContextAnalysisScope,
+} from "./workContextAnalysisTypes";
+export type {
+  ChapterStoryMemory,
+  CharacterProfile,
+  CharacterSpeechStyle,
+  GlossaryEntry,
+  GlossaryEntryCategory,
+  PageStoryMemory,
+  PromptWorkContext,
+  WorkStyleGuide,
+  WorkTranslationRules,
+} from "./workContextTypes";

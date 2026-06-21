@@ -220,6 +220,17 @@ function buildOverlayPrompt(options = {}, imageVariants = []) {
   if (coordinateSection.length > 1) {
     sections.splice(2, 0, coordinateSection);
   }
+  const workContextSection = buildWorkContextSection(options);
+  if (workContextSection.length > 1) {
+    const coordinateIndex = sections.findIndex(
+      (section) => section[0] === "Coordinate calibration",
+    );
+    sections.splice(
+      coordinateIndex === -1 ? 2 : coordinateIndex + 1,
+      0,
+      workContextSection,
+    );
+  }
   const ocrHintSection = buildOcrBboxHintSection(options, imageVariants);
   if (ocrHintSection.length > 1) {
     const coordinateIndex = sections.findIndex(
@@ -299,6 +310,93 @@ function buildTaskSection(options = {}, imageVariants = []) {
     "Before reading dialogue text, segment the visible speech balloons themselves. Each distinct balloon lobe and each separated dialogue text cluster becomes a separate dialogue record.",
     "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text.",
   ];
+}
+
+function buildWorkContextSection(options = {}) {
+  const context = options.workContext;
+  if (!context || !context.styleGuide) {
+    return [];
+  }
+
+  const guide = context.styleGuide;
+  const glossary = Array.isArray(guide.glossary)
+    ? guide.glossary.filter((entry) => entry && entry.enabled !== false)
+    : [];
+  const characters = Array.isArray(guide.characters)
+    ? guide.characters.filter((entry) => entry && entry.enabled !== false)
+    : [];
+  const recentPages = Array.isArray(context.storyMemory?.pages)
+    ? context.storyMemory.pages
+    : [];
+  const rules = guide.rules || {};
+  const lines = [
+    "Work glossary and story memory",
+    "Do not output these notes as records.",
+  ];
+
+  if (glossary.length > 0) {
+    lines.push(
+      "Use these glossary entries for consistency. If the source text matches an entry or alias, prefer the target Korean exactly unless Image 1 clearly proves a different meaning.",
+    );
+    for (const entry of glossary.slice(0, 80)) {
+      lines.push(formatGlossaryEntry(entry));
+    }
+  }
+
+  if (characters.length > 0) {
+    lines.push(
+      "Character/name memory. Keep names and speech style consistent when translating dialogue.",
+    );
+    for (const character of characters.slice(0, 40)) {
+      lines.push(formatCharacterEntry(character));
+    }
+  }
+
+  if (recentPages.length > 0) {
+    lines.push(
+      "Recent story context from previous pages. Use it only to resolve pronouns, omitted subjects, relationships, tone, and continuity. Do not output these notes as records.",
+    );
+    for (const page of recentPages.slice(-6)) {
+      lines.push(
+        `- p${Number(page.pageIndex) + 1} ${sanitizePromptLine(page.pageName)}: ${sanitizePromptLine(page.summary || page.translatedDigest || "")}`,
+      );
+    }
+  }
+
+  lines.push(
+    `Rules: honorifics=${rules.honorifics || "adapt"}, sfxMode=${rules.sfxMode || "translate"}, defaultTone=${rules.defaultTone || "natural_korean"}.`,
+  );
+  return lines.length > 1 ? lines : [];
+}
+
+function formatGlossaryEntry(entry) {
+  const aliases =
+    Array.isArray(entry.aliases) && entry.aliases.length
+      ? ` aliases=${entry.aliases.map((value) => sanitizePromptLine(value, 80)).join(", ")}`
+      : "";
+  const note = entry.note ? ` note=${sanitizePromptLine(entry.note, 160)}` : "";
+  return `- [${entry.category || "term"}] ${sanitizePromptLine(entry.source, 80)} => ${sanitizePromptLine(entry.target, 80)}${aliases}${note}`;
+}
+
+function formatCharacterEntry(character) {
+  const sourceNames = Array.isArray(character.sourceNames)
+    ? character.sourceNames.join(", ")
+    : "";
+  const style =
+    character.speechStyle === "custom"
+      ? character.customSpeechStyle || "custom"
+      : character.speechStyle || "neutral";
+  return `- ${sanitizePromptLine(character.displayName || character.targetName, 80)}: sourceNames=${sanitizePromptLine(sourceNames, 160)} targetName=${sanitizePromptLine(character.targetName, 80)} speechStyle=${sanitizePromptLine(style, 160)}`;
+}
+
+function sanitizePromptLine(value, max = 240) {
+  const text = String(value ?? "")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length <= max
+    ? text
+    : `${text.slice(0, Math.max(0, max - 3))}...`;
 }
 
 function buildRegionCropSection(options = {}) {
@@ -701,6 +799,7 @@ function readPositiveInteger(value) {
 module.exports = {
   PROMPT_KO_BBOX_LINES_MULTIVIEW,
   buildSystemPrompt,
+  buildWorkContextSection,
   getOverlayPrompt,
   readOcrCandidateText,
   readPositiveInteger,

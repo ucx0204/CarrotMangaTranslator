@@ -3,8 +3,12 @@ import type {
   ChapterSnapshot,
   CreateImportRequest,
   CreateImportResult,
+  AnalyzeWorkContextRequest,
+  AnalyzeWorkContextResult,
   CustomFont,
   ImportPreviewSession,
+  ImportReviewTextRequest,
+  ImportReviewTextResult,
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
   InpaintingExportRequest,
@@ -34,6 +38,9 @@ import type {
   WorkShareImportPreview,
   WorkShareImportRequest,
   WorkShareImportResult,
+  WorkStyleGuide,
+  ChapterStoryMemory,
+  ExportReviewTextRequest,
 } from "./types";
 
 export type MangaApi = {
@@ -52,11 +59,26 @@ export type MangaApi = {
   getLibrary: () => Promise<LibraryIndex>;
   openLibraryFolder: () => Promise<unknown>;
   openChapter: (chapterId: string) => Promise<ChapterSnapshot>;
+  getWorkStyleGuide: (workId: string) => Promise<WorkStyleGuide>;
+  saveWorkStyleGuide: (guide: WorkStyleGuide) => Promise<WorkStyleGuide>;
+  getChapterStoryMemory: (chapterId: string) => Promise<ChapterStoryMemory>;
+  saveChapterStoryMemory: (
+    memory: ChapterStoryMemory,
+  ) => Promise<ChapterStoryMemory>;
+  analyzeWorkContext: (
+    request: AnalyzeWorkContextRequest,
+  ) => Promise<AnalyzeWorkContextResult>;
   getPageImageDataUrl: (imagePath: string) => Promise<string>;
   savePageBlocks: (request: SavePageBlocksRequest) => Promise<ChapterSnapshot>;
   saveTextFile: (
     request: SaveTextFileRequest,
   ) => Promise<SaveTextFileResult | null>;
+  exportReviewText: (
+    request: ExportReviewTextRequest,
+  ) => Promise<SaveTextFileResult | null>;
+  importReviewText: (
+    request: ImportReviewTextRequest,
+  ) => Promise<ImportReviewTextResult>;
   renameWork: (workId: string, title: string) => Promise<LibraryIndex>;
   renameChapter: (chapterId: string, title: string) => Promise<LibraryIndex>;
   deleteWork: (workId: string) => Promise<LibraryIndex>;

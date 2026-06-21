@@ -7,12 +7,15 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
+  PromptWorkContext,
 } from "../../shared/types";
 
 export type TranslationOptions = {
   imagePath: string;
   imageWidth?: number;
   imageHeight?: number;
+  pageId?: string;
+  pageIndex?: number;
   outputDir: string;
   modelProvider: ModelProvider;
   port: number;
@@ -117,6 +120,7 @@ export type TranslationOptions = {
   llamaCacheDir?: string;
   label: string;
   abortSignal?: AbortSignal;
+  workContext?: PromptWorkContext;
 };
 
 export type TranslationOptionPaths = {

@@ -17,6 +17,11 @@ import { emitFinalizing } from "./pipeline/progressEvents";
 import { translatePageWithRetries } from "./pipeline/translatePageWithRetries";
 import type { OcrBboxResult, PipelineOptions } from "./pipeline/types";
 import { createWarningCollector } from "./pipeline/warningCollector";
+import {
+  buildPageStoryMemory,
+  upsertPageStoryMemory,
+} from "./pipeline/storyMemoryBuilder";
+import { writeChapterStoryMemory } from "./libraryStore/workContextFiles";
 
 export async function runWholePagePipeline({
   jobId,
@@ -29,6 +34,7 @@ export async function runWholePagePipeline({
   runPaths,
   signal,
   skipOcrPrepass = false,
+  workContext,
 }: PipelineOptions): Promise<{ pages: MangaPage[]; warnings: string[] }> {
   if (pages.length === 0) {
     return { pages: [], warnings: [] };
@@ -97,6 +103,7 @@ export async function runWholePagePipeline({
       signal,
       skipOcrPrepass,
       warningCollector,
+      workContext,
     });
     emitFinalizing(run.progressContext, `${pages.length} pages ready`);
     return {
@@ -152,6 +159,7 @@ async function translatePages({
   signal,
   skipOcrPrepass,
   warningCollector,
+  workContext,
 }: {
   endpoint: AnalysisEndpointSession;
   filtered: ReturnType<typeof filterPagesByOcrText>;
@@ -163,6 +171,7 @@ async function translatePages({
   signal: AbortSignal;
   skipOcrPrepass: boolean;
   warningCollector: ReturnType<typeof createWarningCollector>;
+  workContext?: PipelineOptions["workContext"];
 }): Promise<void> {
   for (const page of filtered.pagesToTranslate) {
     const pageIndex = filtered.pageIndexById.get(page.id) ?? 0;
@@ -183,6 +192,40 @@ async function translatePages({
       signal,
       skipOcrPrepass,
       warningCollector,
+      workContext,
+    });
+    await updateStoryMemoryAfterPage({
+      completedPagesById: filtered.completedPagesById,
+      pageId: page.id,
+      pageIndex,
+      workContext,
     });
   }
+}
+
+async function updateStoryMemoryAfterPage({
+  completedPagesById,
+  pageId,
+  pageIndex,
+  workContext,
+}: {
+  completedPagesById: Map<string, MangaPage>;
+  pageId: string;
+  pageIndex: number;
+  workContext?: PipelineOptions["workContext"];
+}): Promise<void> {
+  if (!workContext) {
+    return;
+  }
+  const completedPage = completedPagesById.get(pageId);
+  if (!completedPage || completedPage.analysisStatus !== "completed") {
+    return;
+  }
+  workContext.storyMemory = upsertPageStoryMemory(
+    workContext.storyMemory,
+    buildPageStoryMemory({ page: completedPage, pageIndex }),
+  );
+  workContext.storyMemory = await writeChapterStoryMemory(
+    workContext.storyMemory,
+  );
 }

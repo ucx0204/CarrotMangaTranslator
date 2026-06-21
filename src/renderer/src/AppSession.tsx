@@ -12,6 +12,7 @@ import { AppWorkspace } from "./components/AppWorkspace";
 import { CommandPalette } from "./components/CommandPalette";
 import { GatherTextModal } from "./components/GatherTextModal";
 import { ShortcutHelp } from "./components/ShortcutHelp";
+import { StyleGuideModal } from "./components/StyleGuideModal";
 import { ToastViewport } from "./components/ui/ToastViewport";
 import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
 import { toast } from "./lib/toastStore";
@@ -110,6 +111,7 @@ export function AppSession(): React.JSX.Element {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [textViewOpen, setTextViewOpen] = useState(false);
+  const [styleGuideOpen, setStyleGuideOpen] = useState(false);
   const {
     settings,
     settingsOpen,
@@ -294,7 +296,8 @@ export function AppSession(): React.JSX.Element {
     settingsOpen ||
     confirmDialog ||
     inpaintingGuideOpen ||
-    textViewOpen,
+    textViewOpen ||
+    styleGuideOpen,
   );
   const modalOpen = overlayModalsOpen || commandPaletteOpen || shortcutHelpOpen;
 
@@ -310,6 +313,7 @@ export function AppSession(): React.JSX.Element {
     if (!currentChapter) {
       setInpaintingMode(false);
       setInpaintingGuideOpen(false);
+      setStyleGuideOpen(false);
       setPatternMaskStrokesByPage({});
     }
   }, [currentChapter]);
@@ -735,6 +739,7 @@ export function AppSession(): React.JSX.Element {
             onToggleChrome={() => setShowBlockChrome((value) => !value)}
             onToggleBlocks={() => setShowTextBlocks((value) => !value)}
             onOpenTextView={() => setTextViewOpen(true)}
+            onOpenStyleGuide={() => setStyleGuideOpen(true)}
             onRunPending={() => void runAnalysis("pending")}
             onRunAll={() => void runAnalysis("all")}
             onEnterInpainting={() => void enterInpaintingMode()}
@@ -824,7 +829,14 @@ export function AppSession(): React.JSX.Element {
         <GatherTextModal
           chapter={currentChapter}
           page={selectedPage}
+          onChapterUpdated={(chapter) => applyChapter(chapter)}
           onClose={() => setTextViewOpen(false)}
+        />
+      ) : null}
+      {styleGuideOpen && currentChapter ? (
+        <StyleGuideModal
+          chapter={currentChapter}
+          onClose={() => setStyleGuideOpen(false)}
         />
       ) : null}
       <ToastViewport />

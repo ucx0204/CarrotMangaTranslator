@@ -2,6 +2,7 @@ export type BlockType = "nonsolid";
 
 export type SourceTextDirection = "horizontal" | "vertical";
 export type RenderTextDirection = "horizontal" | "vertical";
+export type ReviewStatus = "draft" | "needs_review" | "reviewed";
 
 export type BBox = {
   x: number;
@@ -36,4 +37,8 @@ export type TranslationBlock = {
   opacity: number;
   autoFitText?: boolean;
   inpaintExcluded?: boolean;
+  reviewStatus?: ReviewStatus;
+  reviewNote?: string;
+  speakerId?: string;
+  glossaryEntryIds?: string[];
 };

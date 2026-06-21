@@ -8,6 +8,7 @@ type DisplayControlPanelProps = {
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
   onOpenTextView: () => void;
+  onOpenStyleGuide: () => void;
 };
 
 export function DisplayControlPanel({
@@ -17,6 +18,7 @@ export function DisplayControlPanel({
   onToggleChrome,
   onToggleBlocks,
   onOpenTextView,
+  onOpenStyleGuide,
 }: DisplayControlPanelProps): React.JSX.Element {
   return (
     <section className="display-panel">
@@ -37,6 +39,9 @@ export function DisplayControlPanel({
       </div>
       <Button fullWidth onClick={onOpenTextView} disabled={!canOpenTextView}>
         텍스트 모아보기
+      </Button>
+      <Button fullWidth onClick={onOpenStyleGuide} disabled={!canOpenTextView}>
+        용어/기억
       </Button>
     </section>
   );

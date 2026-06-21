@@ -10,6 +10,10 @@ import type {
   WorkShareExportResult,
   WorkShareImportFromPackageRequest,
   WorkShareImportResult,
+  WorkStyleGuide,
+  ChapterStoryMemory,
+  ImportReviewTextRequest,
+  ImportReviewTextResult,
 } from "../shared/types";
 import {
   listLibrary as listLibraryUnlocked,
@@ -49,6 +53,14 @@ import {
   exportWorkShareToFile as exportWorkShareToFileUnlocked,
   importWorkShareUnlocked,
 } from "./libraryStore/shareWorkflow";
+import {
+  readChapterStoryMemory,
+  readWorkStyleGuide,
+  resolveWorkContextForChapter as resolveWorkContextForChapterUnlocked,
+  writeChapterStoryMemory,
+  writeWorkStyleGuide,
+} from "./libraryStore/workContextFiles";
+import { applyReviewImportUnlocked } from "./libraryStore/reviewImport";
 
 export { pathExists } from "./libraryStore/storage";
 export {
@@ -80,6 +92,44 @@ export async function listLibrary(): Promise<LibraryIndex> {
 
 export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
   return withLibraryRead(() => openChapterUnlocked(chapterId));
+}
+
+export async function getWorkStyleGuide(
+  workId: string,
+): Promise<WorkStyleGuide> {
+  return withLibraryRead(() => readWorkStyleGuide(workId));
+}
+
+export async function saveWorkStyleGuide(
+  guide: WorkStyleGuide,
+): Promise<WorkStyleGuide> {
+  return withLibraryMutation(() => writeWorkStyleGuide(guide));
+}
+
+export async function getChapterStoryMemory(
+  chapterId: string,
+): Promise<ChapterStoryMemory> {
+  return withLibraryRead(() => readChapterStoryMemory(chapterId));
+}
+
+export async function resolveWorkContextForChapter(chapterId: string): Promise<{
+  workId: string;
+  styleGuide: WorkStyleGuide;
+  storyMemory: ChapterStoryMemory;
+}> {
+  return withLibraryRead(() => resolveWorkContextForChapterUnlocked(chapterId));
+}
+
+export async function saveChapterStoryMemory(
+  memory: ChapterStoryMemory,
+): Promise<ChapterStoryMemory> {
+  return withLibraryMutation(() => writeChapterStoryMemory(memory));
+}
+
+export async function importReviewText(
+  request: ImportReviewTextRequest,
+): Promise<ImportReviewTextResult> {
+  return withLibraryMutation(() => applyReviewImportUnlocked(request));
 }
 
 export async function resolvePagesForRun(

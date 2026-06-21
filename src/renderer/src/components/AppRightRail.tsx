@@ -32,6 +32,7 @@ type AppRightRailProps = {
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
   onOpenTextView: () => void;
+  onOpenStyleGuide: () => void;
   onRunPending: () => void;
   onRunAll: () => void;
   onEnterInpainting: () => void;
@@ -61,6 +62,7 @@ export function AppRightRail({
   onToggleChrome,
   onToggleBlocks,
   onOpenTextView,
+  onOpenStyleGuide,
   onRunPending,
   onRunAll,
   onEnterInpainting,
@@ -135,6 +137,7 @@ export function AppRightRail({
             onToggleChrome={onToggleChrome}
             onToggleBlocks={onToggleBlocks}
             onOpenTextView={onOpenTextView}
+            onOpenStyleGuide={onOpenStyleGuide}
           />
 
           {!selectedBlock ? (

@@ -38,6 +38,7 @@ import {
   type ChapterFile,
   type WorkFile,
 } from "./libraryFiles";
+import { readWorkStyleGuide, writeWorkStyleGuide } from "./workContextFiles";
 import {
   SHARE_FORMAT,
   SHARE_VERSION,
@@ -84,6 +85,13 @@ export async function exportWorkShareToFile(
   zip.addFile(
     "manifest.json",
     Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8"),
+  );
+  zip.addFile(
+    "style-guide.json",
+    Buffer.from(
+      `${JSON.stringify(await readWorkStyleGuide(work.id), null, 2)}\n`,
+      "utf8",
+    ),
   );
 
   let pageCount = 0;
@@ -269,6 +277,12 @@ async function importWorkShareAsNewWork(
     work.chapterOrder = chapterIds;
     work.updatedAt = new Date().toISOString();
     await writeWorkFile(work);
+    if (sharePackage.styleGuide) {
+      await writeWorkStyleGuide({
+        ...sharePackage.styleGuide,
+        workId: work.id,
+      });
+    }
 
     const openedChapter = createdChapters[0];
     if (!openedChapter) {
