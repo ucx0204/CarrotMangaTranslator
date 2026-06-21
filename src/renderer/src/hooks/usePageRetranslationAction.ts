@@ -8,7 +8,7 @@ type UsePageRetranslationActionOptions = {
     detail?: string,
   ) => Promise<boolean>;
   currentChapter: ChapterSnapshot | null;
-  runAnalysis: (runMode: RunMode, pageId?: string) => Promise<void>;
+  runAnalysis: (runMode: RunMode, pageId?: string) => Promise<unknown>;
 };
 
 export function usePageRetranslationAction({

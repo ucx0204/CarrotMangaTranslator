@@ -12,6 +12,7 @@ import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_OAUTH_PORT,
   DEFAULT_CODEX_REASONING_EFFORT,
+  DEFAULT_CONTEXT_TOKENS,
   DEFAULT_GEMMA_MODEL_FILE,
   DEFAULT_MAX_TOKENS,
   DEFAULT_OCR_DEVICE,
@@ -58,6 +59,7 @@ describe("app settings helpers", () => {
     expect(defaults.ocr.device).toBe(DEFAULT_OCR_DEVICE);
     expect(defaults.ocr.gpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
     expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
+    expect(defaults.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
   });
 
   it("uses hardware-based provider and VRAM mode defaults when no override is provided", () => {
@@ -126,6 +128,7 @@ describe("app settings helpers", () => {
       inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens,
+      ctx: defaults.ctx,
     });
   });
 
@@ -151,6 +154,7 @@ describe("app settings helpers", () => {
       inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens,
+      ctx: defaults.ctx,
     });
 
     expect(
@@ -164,6 +168,7 @@ describe("app settings helpers", () => {
       inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens,
+      ctx: defaults.ctx,
     });
   });
 
@@ -190,6 +195,7 @@ describe("app settings helpers", () => {
         gpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       },
       maxTokens: DEFAULT_MAX_TOKENS,
+      ctx: DEFAULT_CONTEXT_TOKENS,
     };
 
     const options = buildBaseTranslationOptions({
@@ -296,7 +302,7 @@ describe("app settings helpers", () => {
     expect(blocked.serverPath).toBe(paths.llamaServerPath);
     expect(blocked.modelRepo).toBe("saved/repo");
     expect(blocked.modelFile).toBe("saved-model.gguf");
-    expect(blocked.ctx).toBe(8192);
+    expect(blocked.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
     expect(blocked.ocrBboxCommand).toBeUndefined();
     expect(blocked.llamaCacheDir).toBe(paths.llamaCacheDir);
 
@@ -371,7 +377,7 @@ describe("app settings helpers", () => {
     });
 
     expect(options.gemmaVramMode).toBe("economy26b");
-    expect(options.ctx).toBe(8192);
+    expect(options.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
     expect(options.batch).toBe(1024);
     expect(options.ubatch).toBe(1024);
     expect(options.cacheTypeK).toBe("q4_0");
@@ -416,7 +422,7 @@ describe("app settings helpers", () => {
     });
 
     expect(options.gemmaVramMode).toBe("full31b");
-    expect(options.ctx).toBe(8192);
+    expect(options.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
     expect(options.batch).toBe(1024);
     expect(options.ubatch).toBe(1024);
     expect(options.cacheTypeK).toBe("q4_0");
@@ -867,6 +873,7 @@ describe("app settings helpers", () => {
       inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens,
+      ctx: defaults.ctx,
     });
   });
 
@@ -898,6 +905,7 @@ describe("app settings helpers", () => {
       inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens,
+      ctx: defaults.ctx,
     });
   });
 
@@ -935,6 +943,7 @@ describe("app settings helpers", () => {
       inpainting: defaults.inpainting,
       ui: defaults.ui,
       maxTokens: defaults.maxTokens,
+      ctx: defaults.ctx,
     });
 
     expect(
@@ -1384,6 +1393,23 @@ describe("app settings helpers", () => {
     expect(
       parseStoredAppSettings('{"maxTokens":"bad"}', defaults).maxTokens,
     ).toBe(defaults.maxTokens);
+  });
+
+  it("normalizes context length settings without an upper cap", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(parseStoredAppSettings("{}", defaults).ctx).toBe(
+      DEFAULT_CONTEXT_TOKENS,
+    );
+    expect(parseStoredAppSettings('{"ctx":8192}', defaults).ctx).toBe(8192);
+    expect(parseStoredAppSettings('{"ctx":512}', defaults).ctx).toBe(1024);
+    expect(parseStoredAppSettings('{"ctx":131072}', defaults).ctx).toBe(131072);
+    expect(parseStoredAppSettings('{"ctx":"bad"}', defaults).ctx).toBe(
+      defaults.ctx,
+    );
+    expect(
+      resolveDefaultAppSettings({ MANGA_TRANSLATOR_CTX: "32768" }).ctx,
+    ).toBe(32768);
   });
 
   it("maps the old Codex minimal value to low", () => {

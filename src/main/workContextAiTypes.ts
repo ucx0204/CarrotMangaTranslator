@@ -14,7 +14,6 @@ export type AiGlossarySuggestion = {
   category?: GlossaryEntryCategory;
   aliases?: string[];
   note?: string;
-  confidence?: number;
 };
 
 export type AiCharacterSuggestion = {
@@ -25,7 +24,6 @@ export type AiCharacterSuggestion = {
   speechStyle?: CharacterSpeechStyle;
   customSpeechStyle?: string;
   note?: string;
-  confidence?: number;
 };
 
 export type AiPageSummarySuggestion = {

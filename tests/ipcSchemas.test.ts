@@ -241,10 +241,12 @@ describe("IPC schemas", () => {
         fluxBackend: "rocm",
       },
       maxTokens: 32768,
+      ctx: 131072,
     };
 
     const parsed = parseIpcPayload(AppSettingsSchema, payload, "설정 저장");
     expect(parsed.maxTokens).toBe(32768);
+    expect(parsed.ctx).toBe(131072);
     expect(parsed.gemma.vramMode).toBe("economy26b");
     expect(parsed.gemma.llamaRuntimeProfile).toBe("rtx50");
     expect(parsed.gemma.llamaRocmTarget).toBe("gfx110X");
@@ -269,6 +271,9 @@ describe("IPC schemas", () => {
         { ...payload, maxTokens: 32769 },
         "설정 저장",
       ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(AppSettingsSchema, { ...payload, ctx: 512 }, "설정 저장"),
     ).toThrow(/요청 형식/);
     expect(() =>
       parseIpcPayload(

@@ -15,8 +15,10 @@ import { normalizeAmdRocmTarget } from "../gpuInfo";
 import {
   asRecord,
   inferHardwareVendorFromDefaults,
+  resolveAnalysisScopeDefault,
   resolveBoolean,
   resolveCodexReasoningEffort,
+  resolveContextTokens,
   resolveFluxBackend,
   resolveGemmaVramMode,
   resolveMaxTokens,
@@ -196,11 +198,20 @@ export function normalizeAppSettings(
         ui?.inpaintingGuideHidden,
         defaults.ui?.inpaintingGuideHidden ?? false,
       ),
+      twoPassByDefault: resolveBoolean(
+        ui?.twoPassByDefault,
+        defaults.ui?.twoPassByDefault ?? true,
+      ),
+      analysisScopeDefault: resolveAnalysisScopeDefault(
+        ui?.analysisScopeDefault,
+        defaults.ui?.analysisScopeDefault ?? "missing",
+      ),
     },
     inpainting: {
       fluxBackend: resolveStoredFluxBackend(inpainting, defaults),
     },
     maxTokens: resolveMaxTokens(record?.maxTokens, defaults.maxTokens),
+    ctx: resolveContextTokens(record?.ctx, defaults.ctx),
   };
 }
 

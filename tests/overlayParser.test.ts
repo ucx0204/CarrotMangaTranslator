@@ -197,6 +197,18 @@ ko: 생긋
     expect(items.map((item: { id: number }) => item.id)).toEqual([6, 10]);
   });
 
+  it("strips leaked special tokens so blocks are not dropped or polluted", () => {
+    const items = normalizeItems(
+      parseJsonLenient(
+        '{"items":[{"id":1,"x1":10,"y1":20,"x2":110,"y2":80,"jp":"日本","ko":"안녕<unused49>하세요"},{"id":2,"x1":120,"y1":90,"x2":200,"y2":160,"jp":"ドン","ko":"<unused3>쾅"}]}',
+      ),
+    );
+
+    expect(items).toHaveLength(2);
+    expect(items[0].ko).toBe("안녕하세요");
+    expect(items[1].ko).toBe("쾅");
+  });
+
   it("parses loose records when multiple key-value fields are on one line", () => {
     const items = normalizeItems(
       parseJsonLenient(

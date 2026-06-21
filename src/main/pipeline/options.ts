@@ -129,6 +129,17 @@ export function summarizeTranslationOptions(
           recentPageCount: options.workContext.recentPageCount,
         }
       : undefined,
+    workContextBudget: options.workContextBudget
+      ? {
+          originalTokens: options.workContextBudget.original.totalTokens,
+          effectiveTokens: options.workContextBudget.effective.totalTokens,
+          outputHeadroomTokens:
+            options.workContextBudget.effective.outputHeadroomTokens,
+          outputHeadroomPercent:
+            options.workContextBudget.effective.outputHeadroomPercent,
+          omittedParts: options.workContextBudget.omittedParts,
+        }
+      : undefined,
   };
 }
 

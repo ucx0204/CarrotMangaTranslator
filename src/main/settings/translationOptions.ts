@@ -6,7 +6,9 @@ import {
   DEFAULT_API_TEMPERATURE,
   DEFAULT_API_TOP_K,
   DEFAULT_API_TOP_P,
+  DEFAULT_CONTEXT_TOKENS,
   DEFAULT_OCR_GPU_CUDA_TAG,
+  MIN_CONTEXT_TOKENS,
 } from "../../shared/modelPresets";
 import type {
   ApiReasoningEffort,
@@ -26,6 +28,7 @@ import {
 } from "./gemmaRuntimePresets";
 import {
   resolveCodexReasoningEffort,
+  resolveContextTokens,
   resolveGemmaVramMode,
   isOfficialOpenAiApiBaseUrl,
   resolveMaxTokens,
@@ -89,6 +92,10 @@ export function buildBaseTranslationOptions({
     settings.gemma.vramMode,
   );
   const gemmaRuntimePreset = GEMMA_RUNTIME_PRESETS[gemmaVramMode];
+  const settingsCtx = resolveContextTokens(
+    settings.ctx,
+    gemmaRuntimePreset.ctx || DEFAULT_CONTEXT_TOKENS,
+  );
   const runtimeGemma = resolveRuntimeGemmaSettings(
     settings.gemma,
     gemmaVramMode,
@@ -191,12 +198,10 @@ export function buildBaseTranslationOptions({
       runtimeEnv.MANGA_TRANSLATOR_MAX_TOKENS,
       settings.maxTokens,
     ),
-    ctx: readNumberEnv(
-      runtimeEnv,
-      "MANGA_TRANSLATOR_CTX",
-      gemmaRuntimePreset.ctx,
-      { min: 1024, max: 32768, integer: true },
-    ),
+    ctx: readNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_CTX", settingsCtx, {
+      min: MIN_CONTEXT_TOKENS,
+      integer: true,
+    }),
     batch: readNumberEnv(
       runtimeEnv,
       "MANGA_TRANSLATOR_BATCH",

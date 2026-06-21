@@ -30,5 +30,6 @@
   "inpainting": {
     "fluxBackend": "cuda-native"
   },
-  "maxTokens": 12000
+  "maxTokens": 12000,
+  "ctx": 16384
 }

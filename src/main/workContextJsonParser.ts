@@ -6,7 +6,6 @@ const JSON_KEY_NAMES = [
   "characterNames",
   "character_names",
   "characters",
-  "confidence",
   "customSpeechStyle",
   "custom_speech_style",
   "defaultTone",
@@ -42,9 +41,15 @@ const SINGLE_QUOTED_VALUE_PATTERN = /:\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g;
 const SINGLE_QUOTED_ARRAY_VALUE_PATTERN =
   /((?:\[|,)\s*)'([^'\\]*(?:\\.[^'\\]*)*)'/g;
 const LANGUAGE_PREFIX_PATTERN = /^(?:json|javascript|js)\s*\n/i;
+// Gemma models sometimes emit reserved special tokens (e.g. `<unused49>`) into
+// their text output, which corrupts the JSON and breaks the whole analysis.
+const SPECIAL_TOKEN_PATTERN =
+  /<\/?(?:unused\d+|start_of_turn|end_of_turn|eos|bos|pad|mask|unk)>/gi;
 
 export function parseWorkContextModelJson(rawText: string): unknown {
-  const candidate = extractJsonCandidate(rawText);
+  const candidate = extractJsonCandidate(
+    rawText.replace(SPECIAL_TOKEN_PATTERN, ""),
+  );
   const attempts = uniqueAttempts([
     candidate,
     stripLanguagePrefix(candidate),

@@ -1,5 +1,6 @@
 import type { GemmaVramMode } from "../../shared/types";
 import {
+  DEFAULT_CONTEXT_TOKENS,
   DEFAULT_GEMMA_DRAFT_MODEL_FILE,
   DEFAULT_GEMMA_DRAFT_MODEL_REPO,
 } from "../../shared/modelPresets";
@@ -34,7 +35,7 @@ export type GemmaRuntimePreset = {
 export const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> =
   {
     minimum12b: {
-      ctx: 8192,
+      ctx: DEFAULT_CONTEXT_TOKENS,
       batch: 1024,
       ubatch: 1024,
       fitTargetMb: 2048,
@@ -49,7 +50,7 @@ export const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> =
       useDraft: false,
     },
     economy26b: {
-      ctx: 8192,
+      ctx: DEFAULT_CONTEXT_TOKENS,
       batch: 1024,
       ubatch: 1024,
       fitTargetMb: 2048,
@@ -64,7 +65,7 @@ export const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> =
       useDraft: false,
     },
     full31b: {
-      ctx: 8192,
+      ctx: DEFAULT_CONTEXT_TOKENS,
       batch: 1024,
       ubatch: 1024,
       fitTargetMb: 1024,

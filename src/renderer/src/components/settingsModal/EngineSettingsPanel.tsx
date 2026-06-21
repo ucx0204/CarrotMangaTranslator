@@ -13,6 +13,7 @@ import {
   CODEX_REASONING_OPTIONS,
   LLAMA_RUNTIME_PROFILE_OPTIONS,
   MAX_MAX_TOKENS,
+  MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
   MODEL_PRESETS,
   MODEL_PROVIDER_OPTIONS,
@@ -39,6 +40,7 @@ type EngineSettingsPanelProps = {
   codexModel: string;
   codexOauthPort: string;
   codexReasoningEffort: CodexReasoningEffort;
+  contextTokens: string;
   controlsBusy: boolean;
   customModelFile: string;
   customModelRepo: string;
@@ -59,6 +61,7 @@ type EngineSettingsPanelProps = {
   setCodexReasoningEffort: React.Dispatch<
     React.SetStateAction<CodexReasoningEffort>
   >;
+  setContextTokens: React.Dispatch<React.SetStateAction<string>>;
   setCustomModelFile: React.Dispatch<React.SetStateAction<string>>;
   setCustomModelRepo: React.Dispatch<React.SetStateAction<string>>;
   setCustomVramMode: React.Dispatch<React.SetStateAction<GemmaVramMode>>;
@@ -101,6 +104,7 @@ export function EngineSettingsPanel({
   codexModel,
   codexOauthPort,
   codexReasoningEffort,
+  contextTokens,
   controlsBusy,
   customModelFile,
   customModelRepo,
@@ -119,6 +123,7 @@ export function EngineSettingsPanel({
   setCodexModel,
   setCodexOauthPort,
   setCodexReasoningEffort,
+  setContextTokens,
   setCustomModelFile,
   setCustomModelRepo,
   setCustomVramMode,
@@ -155,6 +160,13 @@ export function EngineSettingsPanel({
         controlsBusy={controlsBusy}
         maxTokens={maxTokens}
         setMaxTokens={setMaxTokens}
+        submit={submit}
+      />
+      <ContextTokensField
+        clearTestState={clearTestState}
+        contextTokens={contextTokens}
+        controlsBusy={controlsBusy}
+        setContextTokens={setContextTokens}
         submit={submit}
       />
 
@@ -308,6 +320,51 @@ function MaxTokensField({
       </label>
       <p className="muted-line modal-note">
         출력이 길어지는 페이지에서 말풍선 누락을 줄입니다. 기본값은 12000입니다.
+      </p>
+    </>
+  );
+}
+
+type ContextTokensFieldProps = Pick<
+  EngineSettingsPanelProps,
+  | "clearTestState"
+  | "contextTokens"
+  | "controlsBusy"
+  | "setContextTokens"
+  | "submit"
+>;
+
+function ContextTokensField({
+  clearTestState,
+  contextTokens,
+  controlsBusy,
+  setContextTokens,
+  submit,
+}: ContextTokensFieldProps): React.JSX.Element {
+  return (
+    <>
+      <label>
+        컨텍스트 길이
+        <input
+          type="number"
+          min={MIN_CONTEXT_TOKENS}
+          step={1024}
+          value={contextTokens}
+          disabled={controlsBusy}
+          onChange={(event) => {
+            clearTestState();
+            setContextTokens(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              submit();
+            }
+          }}
+        />
+      </label>
+      <p className="muted-line modal-note">
+        입력, 이미지, 출력이 함께 들어가는 전체 토큰 공간입니다. 긴 페이지가
+        중간에서 끊기면 이 값을 올리세요. 기본값은 16384입니다.
       </p>
     </>
   );

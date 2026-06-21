@@ -1,6 +1,6 @@
 import type { ChapterStoryMemory, WorkStyleGuide } from "./workContextTypes";
 
-export type WorkContextAnalysisScope = "chapter" | "work";
+export type WorkContextAnalysisScope = "chapter" | "work" | "missing";
 
 export type AnalyzeWorkContextRequest = {
   chapterId: string;

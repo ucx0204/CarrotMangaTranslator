@@ -1,6 +1,7 @@
 /* eslint-disable max-lines, max-lines-per-function */
 import React from "react";
 import type {
+  AppSettings,
   ChapterSnapshot,
   ChapterStoryMemory,
   CharacterProfile,
@@ -11,6 +12,16 @@ import type {
   WorkContextAnalysisScope,
   WorkStyleGuide,
 } from "../../../shared/types";
+import {
+  DEFAULT_CONTEXT_TOKENS,
+  DEFAULT_MAX_TOKENS,
+} from "../../../shared/modelPresets";
+import {
+  buildWorkContextBudgetPreview,
+  WORK_CONTEXT_RECENT_PAGE_COUNT,
+  type WorkContextBudgetOmittedPart,
+  type WorkContextBudgetPlan,
+} from "../../../shared/workContextBudget";
 import { mangaGateway } from "../api/mangaGateway";
 import { toast } from "../lib/toastStore";
 import { Button, Modal } from "./ui";
@@ -19,6 +30,7 @@ type StyleGuideTab = "glossary" | "characters" | "rules" | "memory";
 
 type StyleGuideModalProps = {
   chapter: ChapterSnapshot;
+  settings: AppSettings | null;
   onClose: () => void;
 };
 
@@ -27,7 +39,6 @@ const CATEGORY_OPTIONS: Array<{ id: GlossaryEntryCategory; label: string }> = [
   { id: "alias", label: "별명" },
   { id: "place", label: "장소" },
   { id: "term", label: "용어" },
-  { id: "sfx", label: "효과음" },
   { id: "honorific", label: "호칭" },
   { id: "other", label: "기타" },
 ];
@@ -48,6 +59,7 @@ const SPEECH_STYLE_OPTIONS: Array<{
 
 export function StyleGuideModal({
   chapter,
+  settings,
   onClose,
 }: StyleGuideModalProps): React.JSX.Element {
   const [tab, setTab] = React.useState<StyleGuideTab>("glossary");
@@ -136,6 +148,19 @@ export function StyleGuideModal({
   );
 
   const working = busy || analyzingScope !== null;
+  const budget = React.useMemo(
+    () =>
+      guide && memory
+        ? buildWorkContextBudgetPreview({
+            ctx: settings?.ctx ?? DEFAULT_CONTEXT_TOKENS,
+            maxTokens: settings?.maxTokens ?? DEFAULT_MAX_TOKENS,
+            recentPageCount: WORK_CONTEXT_RECENT_PAGE_COUNT,
+            storyMemory: memory,
+            styleGuide: guide,
+          })
+        : null,
+    [guide, memory, settings?.ctx, settings?.maxTokens],
+  );
 
   return (
     <Modal
@@ -146,13 +171,16 @@ export function StyleGuideModal({
       bodyClassName="style-guide-body"
       footer={
         <div className="style-guide-footer">
-          <Button
-            variant="primary"
-            onClick={() => void saveGuide()}
-            disabled={!guide || saving || analyzingScope !== null}
-          >
-            저장
-          </Button>
+          <StyleGuideBudgetSummary budget={budget} />
+          <div className="style-guide-footer-actions">
+            <Button
+              variant="primary"
+              onClick={() => void saveGuide()}
+              disabled={!guide || saving || analyzingScope !== null}
+            >
+              저장
+            </Button>
+          </div>
         </div>
       }
     >
@@ -179,6 +207,38 @@ export function StyleGuideModal({
         </>
       )}
     </Modal>
+  );
+}
+
+function StyleGuideBudgetSummary({
+  budget,
+}: {
+  budget: WorkContextBudgetPlan | null;
+}): React.JSX.Element {
+  if (!budget) {
+    return <span className="style-guide-budget-placeholder" />;
+  }
+
+  const hasWarning = budget.omittedParts.length > 0;
+  return (
+    <div className="style-guide-budget" aria-live="polite">
+      <div className="style-guide-budget-main">
+        <strong>
+          용어/기억 {formatTokenCount(budget.original.totalTokens)}
+        </strong>
+        <span>출력 여유 {budget.original.outputHeadroomPercent}%</span>
+      </div>
+      <div className="style-guide-budget-detail">
+        스토리 {formatTokenCount(budget.original.storyMemoryTokens)} · 용어집{" "}
+        {formatTokenCount(budget.original.glossaryTokens)} · 캐릭터{" "}
+        {formatTokenCount(budget.original.characterTokens)}
+      </div>
+      {hasWarning ? (
+        <p className="style-guide-budget-warning">
+          {buildBudgetWarningText(budget)}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -386,6 +446,32 @@ function GlossaryTab({
 
 function countAnalysisChanges(counts: WorkContextAnalysisCounts): number {
   return Object.values(counts).reduce((sum, value) => sum + value, 0);
+}
+
+function formatTokenCount(tokens: number): string {
+  return `${Math.max(0, Math.round(tokens)).toLocaleString("ko-KR")}토큰`;
+}
+
+function formatOmittedParts(parts: WorkContextBudgetOmittedPart[]): string {
+  const labels: Record<WorkContextBudgetOmittedPart, string> = {
+    storyMemory: "스토리 메모리",
+    glossary: "용어집",
+    characters: "캐릭터 기억",
+  };
+  return parts.map((part) => labels[part]).join(", ");
+}
+
+function buildBudgetWarningText(budget: WorkContextBudgetPlan): string {
+  const base =
+    `출력 여유가 ${formatTokenCount(budget.minOutputHeadroomTokens)} 미만이면 ` +
+    "번역 때 스토리 메모리부터 제외합니다. 그래도 부족하면 용어집, 마지막으로 캐릭터 기억까지 제외합니다.";
+  const effective =
+    `${formatTokenCount(budget.effective.outputHeadroomTokens)} · ` +
+    `${budget.effective.outputHeadroomPercent}%`;
+  if (budget.effective.outputHeadroomTokens < budget.minOutputHeadroomTokens) {
+    return `${base} 현재 설정에서는 ${formatOmittedParts(budget.omittedParts)}을 빼도 예상 여유가 ${effective}뿐이라 응답이 중간에 끊길 수 있습니다.`;
+  }
+  return `${base} 현재 설정에서는 ${formatOmittedParts(budget.omittedParts)}을 빼서 예상 여유를 ${effective}까지 확보합니다.`;
 }
 
 function CharactersTab({

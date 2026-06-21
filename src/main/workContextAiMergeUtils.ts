@@ -14,15 +14,11 @@ export function createEmptyCounts(): WorkContextAnalysisCounts {
 export function mergeNote(
   current: string | undefined,
   next: string | undefined,
-  confidence: number | undefined,
 ): string {
   const pieces = [cleanText(current, 2000)];
   const note = cleanText(next, 1800);
   if (note && !pieces.some((piece) => piece.includes(note))) {
     pieces.push(note);
-  }
-  if (confidence !== undefined) {
-    pieces.push(`AI confidence ${confidence.toFixed(2)}`);
   }
   return cleanText(pieces.filter(Boolean).join(" / "), 2000);
 }

@@ -1,4 +1,8 @@
-import { MAX_MAX_TOKENS, MIN_MAX_TOKENS } from "../../shared/modelPresets";
+import {
+  MAX_MAX_TOKENS,
+  MIN_CONTEXT_TOKENS,
+  MIN_MAX_TOKENS,
+} from "../../shared/modelPresets";
 import {
   isOfficialOpenAiApiBaseUrl,
   resolveOpenAiCompatibleBaseUrl,
@@ -148,6 +152,15 @@ export function resolveBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
+export function resolveAnalysisScopeDefault(
+  value: unknown,
+  fallback: "work" | "missing" | "chapter",
+): "work" | "missing" | "chapter" {
+  return value === "work" || value === "missing" || value === "chapter"
+    ? value
+    : fallback;
+}
+
 export function resolveOcrGpuCudaTag(value: unknown, fallback: string): string {
   const text = String(value ?? "")
     .trim()
@@ -224,6 +237,14 @@ export function resolveMaxTokens(value: unknown, fallback: number): number {
     return fallback;
   }
   return clampInteger(parsed, MIN_MAX_TOKENS, MAX_MAX_TOKENS);
+}
+
+export function resolveContextTokens(value: unknown, fallback: number): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed)) {
+    return fallback;
+  }
+  return Math.max(MIN_CONTEXT_TOKENS, parsed);
 }
 
 export function resolveNullableNumberRange(

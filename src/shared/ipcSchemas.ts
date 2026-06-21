@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { coerceOpenAiCompatibleBaseUrl } from "./apiSettings";
-import { MAX_MAX_TOKENS, MIN_MAX_TOKENS } from "./modelPresets";
+import {
+  MAX_MAX_TOKENS,
+  MIN_CONTEXT_TOKENS,
+  MIN_MAX_TOKENS,
+} from "./modelPresets";
 import {
   JobKindSchema,
   JobPhaseSchema,
@@ -374,6 +378,7 @@ export const ChapterStoryMemorySchema = z
       )
       .max(MAX_STORY_MEMORY_PAGES),
     updatedAt: z.string().max(80),
+    aiAnalyzedAt: z.string().max(80).optional(),
   })
   .strict();
 
@@ -554,7 +559,7 @@ export const ChapterStoryMemoryRequestSchema = z
 export const AnalyzeWorkContextRequestSchema = z
   .object({
     chapterId: uuid,
-    scope: z.enum(["chapter", "work"]).optional(),
+    scope: z.enum(["chapter", "work", "missing"]).optional(),
     maxInputChars: z.number().int().min(4000).max(500000).optional(),
   })
   .strict();
@@ -783,6 +788,8 @@ export const AppSettingsSchema = z
     ui: z
       .object({
         inpaintingGuideHidden: z.boolean().optional(),
+        twoPassByDefault: z.boolean().optional(),
+        analysisScopeDefault: z.enum(["work", "missing", "chapter"]).optional(),
       })
       .strict()
       .optional(),
@@ -803,6 +810,7 @@ export const AppSettingsSchema = z
       .strict()
       .optional(),
     maxTokens: z.number().int().min(MIN_MAX_TOKENS).max(MAX_MAX_TOKENS),
+    ctx: z.number().int().min(MIN_CONTEXT_TOKENS),
   })
   .strict();
 

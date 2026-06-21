@@ -173,9 +173,12 @@ function mergeStoryMemories(
     );
     counts.pageSummariesUpserted += 1;
   }
-  return Array.from(memoryIndex.values()).sort((left, right) =>
-    left.chapterId.localeCompare(right.chapterId),
-  );
+  // Every chapter included in this analysis run is now "AI 분석됨" — stamp the
+  // marker so the "비어있는 화만" scope can skip them next time. This is the only
+  // place aiAnalyzedAt is set; translation-time memory writes never touch it.
+  return Array.from(memoryIndex.values())
+    .map((memory) => ({ ...memory, aiAnalyzedAt: now }))
+    .sort((left, right) => left.chapterId.localeCompare(right.chapterId));
 }
 
 function updateGlossaryEntry(
@@ -191,7 +194,7 @@ function updateGlossaryEntry(
           target: cleanText(suggestion.target, 400) || entry.target,
           category: suggestion.category ?? entry.category,
           aliases: mergeLists(entry.aliases, suggestion.aliases, 50),
-          note: mergeNote(entry.note, suggestion.note, suggestion.confidence),
+          note: mergeNote(entry.note, suggestion.note),
           updatedAt: now,
         }
       : entry,
@@ -208,7 +211,7 @@ function makeGlossaryEntry(
     target: cleanText(suggestion.target, 400),
     category: suggestion.category ?? "term",
     aliases: sanitizeList(suggestion.aliases, 50, 200),
-    note: mergeNote("", suggestion.note, suggestion.confidence),
+    note: mergeNote("", suggestion.note),
     enabled: true,
     createdAt: now,
     updatedAt: now,
@@ -239,11 +242,7 @@ function updateCharacterProfile(
           customSpeechStyle:
             cleanText(suggestion.customSpeechStyle, 1000) ||
             character.customSpeechStyle,
-          note: mergeNote(
-            character.note,
-            suggestion.note,
-            suggestion.confidence,
-          ),
+          note: mergeNote(character.note, suggestion.note),
           updatedAt: now,
         }
       : character,
@@ -263,7 +262,7 @@ function makeCharacterProfile(
     aliases: sanitizeList(suggestion.aliases, 50, 200),
     speechStyle: suggestion.speechStyle ?? "neutral",
     customSpeechStyle: cleanText(suggestion.customSpeechStyle, 1000),
-    note: mergeNote("", suggestion.note, suggestion.confidence),
+    note: mergeNote("", suggestion.note),
     enabled: true,
     createdAt: now,
     updatedAt: now,

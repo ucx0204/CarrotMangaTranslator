@@ -19,6 +19,9 @@ const { inspectModelLaunch } = require("./simple-page-model-assets.cjs");
 const { prepareImageVariants } = require("./simple-page-image-variants.cjs");
 const { collectOcrBboxHints } = require("./simple-page-ocr-bbox-pipeline.cjs");
 const {
+  applyLocalForbiddenTokenBias,
+} = require("./simple-page-logit-bias.cjs");
+const {
   buildRequestSummary,
   resolveRequestModelName,
 } = require("./simple-page-request-summary.cjs");
@@ -285,6 +288,14 @@ async function requestTranslation(server, options) {
     };
   }
 
+  if (!isOpenAIApiProvider(promptOptions)) {
+    requestSummary.localForbiddenTokenBias = await applyLocalForbiddenTokenBias(
+      server,
+      promptOptions,
+      requestBody,
+    );
+  }
+
   let response;
   try {
     emitRuntimeProgress(
@@ -460,6 +471,9 @@ async function testModelReply(server, options) {
     },
   ];
   const requestBody = buildChatRequestBody(options, messages, 48);
+  if (!isOpenAIApiProvider(options)) {
+    await applyLocalForbiddenTokenBias(server, options, requestBody);
+  }
 
   let response;
   try {

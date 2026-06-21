@@ -29,6 +29,10 @@ import {
   type WorkTextSelection,
 } from "./workContextAnalysisPrompt";
 import { mergeAiWorkContextSuggestions } from "./workContextAiMerge";
+import {
+  buildAlreadyAnalyzedResult,
+  filterUnanalyzedChapters,
+} from "./workContextMissingScope";
 import { normalizeAiWorkContextSuggestions } from "./workContextAiNormalize";
 import { parseWorkContextModelJson } from "./workContextJsonParser";
 import { requestWorkContextAnalysisText } from "./workContextModelRequest";
@@ -63,6 +67,27 @@ export async function analyzeWorkContextWithAi(
       guide,
       request,
       chapters,
+      workId: currentChapter.workId,
+      options,
+      maxInputChars,
+      runChapterAnalysis: runAiAnalysisWithEndpoint,
+    });
+  }
+  if (request.scope === "missing") {
+    const unanalyzed = await filterUnanalyzedChapters(chapters);
+    if (unanalyzed.length === 0) {
+      return buildAlreadyAnalyzedResult({
+        guide,
+        chapterId: request.chapterId,
+        workId: currentChapter.workId,
+        totalChapters: chapters.length,
+        maxInputChars,
+      });
+    }
+    return runSequentialWorkAnalysis({
+      guide,
+      request,
+      chapters: unanalyzed,
       workId: currentChapter.workId,
       options,
       maxInputChars,

@@ -27,14 +27,14 @@ type AppRightRailProps = {
   showBlockChrome: boolean;
   showTextBlocks: boolean;
   jobActive: boolean;
+  flowActive: boolean;
   statusLines: string[];
   areaTranslateSelecting: boolean;
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
   onOpenTextView: () => void;
   onOpenStyleGuide: () => void;
-  onRunPending: () => void;
-  onRunAll: () => void;
+  onOpenTranslateOptions: () => void;
   onEnterInpainting: () => void;
   onCancelJob: () => void;
   onStartAreaTranslate: () => void;
@@ -57,14 +57,14 @@ export function AppRightRail({
   showBlockChrome,
   showTextBlocks,
   jobActive,
+  flowActive,
   statusLines,
   areaTranslateSelecting,
   onToggleChrome,
   onToggleBlocks,
   onOpenTextView,
   onOpenStyleGuide,
-  onRunPending,
-  onRunAll,
+  onOpenTranslateOptions,
   onEnterInpainting,
   onCancelJob,
   onStartAreaTranslate,
@@ -121,11 +121,11 @@ export function AppRightRail({
           <RunPanel
             currentChapter={currentChapter}
             jobActive={jobActive}
+            flowActive={flowActive}
             showProgressBar={showProgressBar}
             progressSnapshot={progressSnapshot}
             jobState={jobState}
-            onRunPending={onRunPending}
-            onRunAll={onRunAll}
+            onOpenTranslateOptions={onOpenTranslateOptions}
             onEnterInpainting={onEnterInpainting}
             onCancelJob={onCancelJob}
           />

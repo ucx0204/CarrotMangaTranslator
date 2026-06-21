@@ -14,6 +14,7 @@ import type {
 import { coerceOpenAiCompatibleBaseUrl } from "../../../shared/apiSettings";
 import {
   MAX_MAX_TOKENS,
+  MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
   MODEL_PRESETS,
   resolveModelPreset,
@@ -132,6 +133,9 @@ export function SettingsModal({
   const [maxTokens, setMaxTokens] = React.useState(
     String(initialSettings.maxTokens),
   );
+  const [contextTokens, setContextTokens] = React.useState(
+    String(initialSettings.ctx),
+  );
   const [activeTab, setActiveTab] = React.useState<SettingsTabId>("engine");
   const [localActionBusy, setLocalActionBusy] = React.useState(false);
   const [testState, setTestState] = React.useState<TestState>({
@@ -183,6 +187,7 @@ export function SettingsModal({
     setOcrGpuBackend(resolveInitialOcrGpuBackend(initialSettings));
     setFluxBackend(resolveInitialFluxBackend(initialSettings));
     setMaxTokens(String(initialSettings.maxTokens));
+    setContextTokens(String(initialSettings.ctx));
     setTestState({ status: "idle", message: null, detail: null });
     setTestLogLines([]);
   }, [initialSettings]);
@@ -303,6 +308,7 @@ export function SettingsModal({
     validateCustomHeadersInput(apiCustomHeadersJson);
   const parsedCodexOauthPort = Number(codexOauthPort);
   const parsedMaxTokens = Number(maxTokens);
+  const parsedContextTokens = Number(contextTokens);
   const codexOauthPortValid =
     Number.isInteger(parsedCodexOauthPort) &&
     parsedCodexOauthPort >= 1 &&
@@ -318,12 +324,16 @@ export function SettingsModal({
     Number.isInteger(parsedMaxTokens) &&
     parsedMaxTokens >= MIN_MAX_TOKENS &&
     parsedMaxTokens <= MAX_MAX_TOKENS;
+  const contextTokensValid =
+    Number.isInteger(parsedContextTokens) &&
+    parsedContextTokens >= MIN_CONTEXT_TOKENS;
   const gemmaSettingsReady =
     modelSource === "local"
       ? Boolean(trimmedLocalModelPath)
       : Boolean(trimmedModelRepo && trimmedModelFile);
   const canSubmit = Boolean(
     maxTokensValid &&
+    contextTokensValid &&
     (modelProvider === "openai-codex"
       ? trimmedCodexModel && codexOauthPortValid
       : modelProvider === "openai-api"
@@ -346,7 +356,7 @@ export function SettingsModal({
   );
 
   const buildSettings = React.useCallback((): AppSettings | null => {
-    if (!baseTokenSettingsValid(maxTokensValid)) {
+    if (!baseTokenSettingsValid(maxTokensValid, contextTokensValid)) {
       return null;
     }
 
@@ -401,6 +411,7 @@ export function SettingsModal({
       ocrGpuBackend,
       fluxBackend,
       maxTokens: parsedMaxTokens,
+      ctx: parsedContextTokens,
     });
   }, [
     modelProvider,
@@ -426,6 +437,7 @@ export function SettingsModal({
     apiAdvancedSettingsValid,
     parsedCodexOauthPort,
     parsedMaxTokens,
+    parsedContextTokens,
     selectedVramMode,
     llamaRuntimeProfile,
     codexReasoningEffort,
@@ -433,6 +445,7 @@ export function SettingsModal({
     ocrGpuBackend,
     fluxBackend,
     maxTokensValid,
+    contextTokensValid,
   ]);
 
   const clearTestState = React.useCallback(() => {
@@ -616,6 +629,7 @@ export function SettingsModal({
               codexModel={codexModel}
               codexOauthPort={codexOauthPort}
               codexReasoningEffort={codexReasoningEffort}
+              contextTokens={contextTokens}
               controlsBusy={controlsBusy}
               customModelFile={customModelFile}
               customModelRepo={customModelRepo}
@@ -643,6 +657,7 @@ export function SettingsModal({
               setCodexModel={setCodexModel}
               setCodexOauthPort={setCodexOauthPort}
               setCodexReasoningEffort={setCodexReasoningEffort}
+              setContextTokens={setContextTokens}
               setCustomModelFile={setCustomModelFile}
               setCustomModelRepo={setCustomModelRepo}
               setCustomVramMode={setCustomVramMode}
@@ -700,6 +715,7 @@ export function SettingsModal({
               apiCustomHeadersValidation.message
             }
             codexOauthPortValid={codexOauthPortValid}
+            contextTokensValid={contextTokensValid}
             maxTokensValid={maxTokensValid}
             modelProvider={modelProvider}
           />
@@ -735,8 +751,11 @@ function resolveInitialFluxBackend(settings: AppSettings): FluxBackend {
   return settings.inpainting?.fluxBackend ?? "cuda-native";
 }
 
-function baseTokenSettingsValid(maxTokensValid: boolean): boolean {
-  return maxTokensValid;
+function baseTokenSettingsValid(
+  maxTokensValid: boolean,
+  contextTokensValid: boolean,
+): boolean {
+  return maxTokensValid && contextTokensValid;
 }
 
 function codexSettingsIncomplete(

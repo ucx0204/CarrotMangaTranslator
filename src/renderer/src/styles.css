@@ -4159,7 +4159,53 @@ kbd {
 
 .style-guide-footer {
   flex: 1;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.style-guide-footer-actions {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.style-guide-budget {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  margin-right: auto;
+  font-size: var(--font-xs);
+  color: var(--text-dim);
+}
+
+.style-guide-budget-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  color: var(--text);
+}
+
+.style-guide-budget-main strong {
+  color: var(--text-head);
+  font-weight: 700;
+}
+
+.style-guide-budget-detail {
+  overflow-wrap: anywhere;
+}
+
+.style-guide-budget-warning {
+  max-width: 760px;
+  margin: var(--sp-1) 0 0;
+  color: #f6bc7b;
+  overflow-wrap: anywhere;
+}
+
+.style-guide-budget-placeholder {
+  min-width: 1px;
 }
 
 .style-memory-list {
@@ -4257,4 +4303,64 @@ kbd {
   .style-guide-section.rules {
     grid-template-columns: 1fr;
   }
+
+  .style-guide-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .style-guide-footer-actions {
+    justify-content: flex-end;
+  }
+}
+
+/* Translate options modal */
+.translate-options {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.translate-options-context {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+}
+
+.translate-options-context strong {
+  color: var(--text);
+}
+
+.translate-options-row {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.translate-options-label {
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+}
+
+.translate-options-row.disabled .translate-options-label {
+  opacity: 0.5;
+}
+
+.translate-options-twopass {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.translate-options-toggle {
+  font-size: var(--font-md);
+  color: var(--text);
+}
+
+.translate-options-hint {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+  line-height: 1.5;
 }

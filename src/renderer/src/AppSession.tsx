@@ -13,6 +13,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { GatherTextModal } from "./components/GatherTextModal";
 import { ShortcutHelp } from "./components/ShortcutHelp";
 import { StyleGuideModal } from "./components/StyleGuideModal";
+import { TranslationOptionsModal } from "./components/TranslationOptionsModal";
 import { ToastViewport } from "./components/ui/ToastViewport";
 import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
 import { toast } from "./lib/toastStore";
@@ -112,6 +113,8 @@ export function AppSession(): React.JSX.Element {
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [textViewOpen, setTextViewOpen] = useState(false);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
+  const [translateOptionsOpen, setTranslateOptionsOpen] = useState(false);
+  const [translationFlowActive, setTranslationFlowActive] = useState(false);
   const {
     settings,
     settingsOpen,
@@ -297,7 +300,8 @@ export function AppSession(): React.JSX.Element {
     confirmDialog ||
     inpaintingGuideOpen ||
     textViewOpen ||
-    styleGuideOpen,
+    styleGuideOpen ||
+    translateOptionsOpen,
   );
   const modalOpen = overlayModalsOpen || commandPaletteOpen || shortcutHelpOpen;
 
@@ -314,6 +318,7 @@ export function AppSession(): React.JSX.Element {
       setInpaintingMode(false);
       setInpaintingGuideOpen(false);
       setStyleGuideOpen(false);
+      setTranslateOptionsOpen(false);
       setPatternMaskStrokesByPage({});
     }
   }, [currentChapter]);
@@ -346,7 +351,11 @@ export function AppSession(): React.JSX.Element {
     }
     prevJobStatusRef.current = next;
     if (next === "completed") {
-      toast.success(jobState.progressText || "작업이 완료되었습니다.");
+      // During a guided flow each pass completes; suppress the per-pass toast
+      // and let runTranslationFlow emit a single summary toast at the end.
+      if (!translationFlowActive) {
+        toast.success(jobState.progressText || "작업이 완료되었습니다.");
+      }
     } else if (next === "failed") {
       toast.error(jobState.progressText || "작업에 실패했습니다.", {
         action: { label: "로그 폴더 열기", onClick: openLogFolder },
@@ -354,7 +363,12 @@ export function AppSession(): React.JSX.Element {
     } else if (next === "cancelled") {
       toast.info("작업이 취소되었습니다.");
     }
-  }, [jobState.status, jobState.progressText, openLogFolder]);
+  }, [
+    jobState.status,
+    jobState.progressText,
+    openLogFolder,
+    translationFlowActive,
+  ]);
 
   const mergeLiveChapter = useLiveChapterSync({
     currentChapter,
@@ -410,21 +424,24 @@ export function AppSession(): React.JSX.Element {
     pushStatus,
   });
 
-  const { runAnalysis, translateSelectedRegion } = useTranslationActions({
-    beforeTranslateRegion: prepareRegionTranslation,
-    clearStatusLines,
-    currentChapter,
-    currentChapterRef,
-    jobActive,
-    mergeLiveChapter,
-    pushStatus,
-    refreshLibrary,
-    saveNow,
-    selectedPage,
-    setCurrentChapter,
-    setJobState,
-    setSelectedBlockId,
-  });
+  const { runAnalysis, runTranslationFlow, translateSelectedRegion } =
+    useTranslationActions({
+      beforeTranslateRegion: prepareRegionTranslation,
+      clearStatusLines,
+      currentChapter,
+      currentChapterRef,
+      jobActive,
+      library,
+      mergeLiveChapter,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      selectedPage,
+      setCurrentChapter,
+      setFlowActive: setTranslationFlowActive,
+      setJobState,
+      setSelectedBlockId,
+    });
 
   const updateCurrentChapter = useCurrentChapterUpdater({
     currentChapterRef,
@@ -644,7 +661,8 @@ export function AppSession(): React.JSX.Element {
     currentChapter,
     jobActive,
     inpaintingMode,
-    runAnalysis: (runMode) => runAnalysis(runMode),
+    runAnalysis: (runMode) => void runAnalysis(runMode),
+    openTranslateOptions: () => setTranslateOptionsOpen(true),
     enterInpaintingMode,
     exitInpaintingMode,
     cancelJob,
@@ -734,14 +752,14 @@ export function AppSession(): React.JSX.Element {
             showBlockChrome={showBlockChrome}
             showTextBlocks={showTextBlocks}
             jobActive={jobActive}
+            flowActive={translationFlowActive}
             statusLines={statusLines}
             areaTranslateSelecting={Boolean(regionSelection?.active)}
             onToggleChrome={() => setShowBlockChrome((value) => !value)}
             onToggleBlocks={() => setShowTextBlocks((value) => !value)}
             onOpenTextView={() => setTextViewOpen(true)}
             onOpenStyleGuide={() => setStyleGuideOpen(true)}
-            onRunPending={() => void runAnalysis("pending")}
-            onRunAll={() => void runAnalysis("all")}
+            onOpenTranslateOptions={() => setTranslateOptionsOpen(true)}
             onEnterInpainting={() => void enterInpaintingMode()}
             onCancelJob={cancelJob}
             onStartAreaTranslate={startRegionTranslationSelection}
@@ -836,7 +854,24 @@ export function AppSession(): React.JSX.Element {
       {styleGuideOpen && currentChapter ? (
         <StyleGuideModal
           chapter={currentChapter}
+          settings={settings}
           onClose={() => setStyleGuideOpen(false)}
+        />
+      ) : null}
+      {translateOptionsOpen && currentChapter ? (
+        <TranslationOptionsModal
+          chapter={currentChapter}
+          uiSettings={settings?.ui}
+          onStart={(flowOptions) => void runTranslationFlow(flowOptions)}
+          onPersistDefaults={(patch) => {
+            if (settings) {
+              void saveSettingsQuietly({
+                ...settings,
+                ui: { ...settings.ui, ...patch },
+              });
+            }
+          }}
+          onClose={() => setTranslateOptionsOpen(false)}
         />
       ) : null}
       <ToastViewport />

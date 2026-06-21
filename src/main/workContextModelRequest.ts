@@ -31,9 +31,18 @@ type ResponseTextModule = {
   };
 };
 
+type LogitBiasModule = {
+  applyLocalForbiddenTokenBias: (
+    server: { baseUrl: string },
+    options: TranslationOptions,
+    requestBody: unknown,
+  ) => Promise<unknown>;
+};
+
 let cachedRequestBuilders: RequestBuildersModule | null = null;
 let cachedRequestSummary: RequestSummaryModule | null = null;
 let cachedResponseText: ResponseTextModule | null = null;
+let cachedLogitBias: LogitBiasModule | null = null;
 
 export async function requestWorkContextAnalysisText({
   endpoint,
@@ -96,6 +105,13 @@ async function requestChatText(
     maxOutputTokens,
     summary.resolveRequestModelName,
   );
+  if (options.modelProvider !== "openai-api") {
+    await getLogitBiasModule().applyLocalForbiddenTokenBias(
+      endpoint,
+      options,
+      body,
+    );
+  }
   const response = await fetch(`${endpoint.baseUrl}/chat/completions`, {
     method: "POST",
     headers: builders.buildChatRequestHeaders(options),
@@ -191,6 +207,15 @@ function getResponseTextModule(): ResponseTextModule {
     );
   }
   return cachedResponseText;
+}
+
+function getLogitBiasModule(): LogitBiasModule {
+  if (!cachedLogitBias) {
+    cachedLogitBias = requireRuntimeModule<LogitBiasModule>(
+      "simple-page-logit-bias.cjs",
+    );
+  }
+  return cachedLogitBias;
 }
 
 function requireRuntimeModule<TModule>(fileName: string): TModule {

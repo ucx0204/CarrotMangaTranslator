@@ -24,6 +24,9 @@ describe("AI work context analysis prompt", () => {
     expect(prompt.userPrompt).toContain(
       "출력이 길어질 것 같으면 pageSummaries보다 glossary와 characters를 우선하라",
     );
+    expect(prompt.userPrompt).toContain("AI confidence, confidence 1.00");
+    expect(prompt.userPrompt).not.toContain('"confidence"');
+    expect(prompt.userPrompt).not.toContain("confidence: 0.9");
   });
 });
 

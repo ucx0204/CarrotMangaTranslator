@@ -15,7 +15,6 @@ const GLOSSARY_CATEGORIES: readonly GlossaryEntryCategory[] = [
   "alias",
   "place",
   "term",
-  "sfx",
   "honorific",
   "other",
 ];
@@ -54,7 +53,6 @@ function normalizeGlossarySuggestion(value: unknown): AiGlossarySuggestion {
     category: parseGlossaryCategory(record?.category),
     aliases: pickList(record, ["aliases"], 50, 200),
     note: pickText(record, ["note", "reason"], 2000),
-    confidence: clampConfidence(record?.confidence),
   };
 }
 
@@ -72,7 +70,6 @@ function normalizeCharacterSuggestion(value: unknown): AiCharacterSuggestion {
       1000,
     ),
     note: pickText(record, ["note", "role", "relationship"], 2000),
-    confidence: clampConfidence(record?.confidence),
   };
 }
 
@@ -192,14 +189,6 @@ function sanitizeList(
         .map((item) => [normalizeKey(item), item]),
     ).values(),
   ].slice(0, maxItems);
-}
-
-function clampConfidence(value: unknown): number | undefined {
-  const number = Number(value);
-  if (!Number.isFinite(number)) {
-    return undefined;
-  }
-  return Math.max(0, Math.min(1, number));
 }
 
 function cleanText(value: unknown, maxLength: number): string {

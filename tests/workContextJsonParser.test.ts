@@ -36,6 +36,20 @@ describe("AI work context JSON parser", () => {
     });
   });
 
+  it("strips leaked Gemma special tokens that would corrupt the JSON", () => {
+    expect(
+      parseWorkContextModelJson(
+        '{"glossary":[{"source":"四<unused49>天王","target":"사천<unused49>왕"}],"characters":[],"rules":{},"pageSummaries":[]}',
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        glossary: [
+          expect.objectContaining({ source: "四天王", target: "사천왕" }),
+        ],
+      }),
+    );
+  });
+
   it("repairs common loose JSON from compatible model endpoints", () => {
     expect(
       parseWorkContextModelJson(

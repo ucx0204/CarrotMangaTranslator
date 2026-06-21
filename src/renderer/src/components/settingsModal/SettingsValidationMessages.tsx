@@ -1,12 +1,17 @@
 import React from "react";
 import type { ModelProvider } from "../../../../shared/types";
-import { MAX_MAX_TOKENS, MIN_MAX_TOKENS } from "../settingsOptions";
+import {
+  MAX_MAX_TOKENS,
+  MIN_CONTEXT_TOKENS,
+  MIN_MAX_TOKENS,
+} from "../settingsOptions";
 
 type SettingsValidationMessagesProps = {
   apiAdvancedSettingsMessage?: string;
   apiAdvancedSettingsValid: boolean;
   apiBaseUrlValid: boolean;
   codexOauthPortValid: boolean;
+  contextTokensValid: boolean;
   maxTokensValid: boolean;
   modelProvider: ModelProvider;
 };
@@ -16,6 +21,7 @@ export function SettingsValidationMessages({
   apiAdvancedSettingsValid,
   apiBaseUrlValid,
   codexOauthPortValid,
+  contextTokensValid,
   maxTokensValid,
   modelProvider,
 }: SettingsValidationMessagesProps): React.JSX.Element {
@@ -40,6 +46,11 @@ export function SettingsValidationMessages({
         <p className="muted-line">
           최대 출력 토큰은 {MIN_MAX_TOKENS} 이상 {MAX_MAX_TOKENS} 이하의
           정수여야 합니다.
+        </p>
+      ) : null}
+      {!contextTokensValid ? (
+        <p className="muted-line">
+          컨텍스트 길이는 {MIN_CONTEXT_TOKENS} 이상의 정수여야 합니다.
         </p>
       ) : null}
     </>

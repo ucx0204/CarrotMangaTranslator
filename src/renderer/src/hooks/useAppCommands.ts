@@ -6,7 +6,8 @@ type UseAppCommandsOptions = {
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
   inpaintingMode: boolean;
-  runAnalysis: (runMode: "pending" | "all") => Promise<void>;
+  runAnalysis: (runMode: "pending" | "all") => void;
+  openTranslateOptions: () => void;
   enterInpaintingMode: () => Promise<void>;
   exitInpaintingMode: () => void;
   cancelJob: () => void;
@@ -26,6 +27,7 @@ export function useAppCommands({
   jobActive,
   inpaintingMode,
   runAnalysis,
+  openTranslateOptions,
   enterInpaintingMode,
   exitInpaintingMode,
   cancelJob,
@@ -43,9 +45,16 @@ export function useAppCommands({
     const list: Command[] = [];
     if (currentChapter && !jobActive && !inpaintingMode) {
       list.push({
+        id: "open-translate-options",
+        label: "번역…",
+        hint: "옵션·2차 번역·일괄",
+        keywords: "translate options beonyeok 번역 옵션",
+        run: openTranslateOptions,
+      });
+      list.push({
         id: "translate-pending",
         label: "이어서 번역",
-        hint: "남은 페이지",
+        hint: "남은 페이지 (바로)",
         keywords: "translate resume ieoseo",
         run: () => void runAnalysis("pending"),
       });
@@ -143,6 +152,7 @@ export function useAppCommands({
     jobActive,
     inpaintingMode,
     runAnalysis,
+    openTranslateOptions,
     enterInpaintingMode,
     exitInpaintingMode,
     cancelJob,

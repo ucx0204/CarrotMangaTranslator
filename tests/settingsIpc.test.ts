@@ -381,6 +381,7 @@ function createGemmaSettings(): AppSettings {
       gpuCudaTag: "cu126",
     },
     maxTokens: 12000,
+    ctx: 16384,
   };
 }
 

@@ -7,21 +7,21 @@ import { Button } from "./ui";
 export function RunPanel({
   currentChapter,
   jobActive,
+  flowActive,
   showProgressBar,
   progressSnapshot,
   jobState,
-  onRunPending,
-  onRunAll,
+  onOpenTranslateOptions,
   onEnterInpainting,
   onCancelJob,
 }: {
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
+  flowActive: boolean;
   showProgressBar: boolean;
   progressSnapshot: ProgressSnapshot | null;
   jobState: JobState;
-  onRunPending: () => void;
-  onRunAll: () => void;
+  onOpenTranslateOptions: () => void;
   onEnterInpainting: () => void;
   onCancelJob: () => void;
 }): React.JSX.Element {
@@ -38,22 +38,15 @@ export function RunPanel({
       <Button
         variant="primary"
         fullWidth
-        onClick={onRunPending}
-        disabled={!currentChapter || jobActive}
+        onClick={onOpenTranslateOptions}
+        disabled={!currentChapter || jobActive || flowActive}
       >
-        이어서 번역
-      </Button>
-      <Button
-        fullWidth
-        onClick={onRunAll}
-        disabled={!currentChapter || jobActive}
-      >
-        전체 다시 번역
+        번역
       </Button>
       <Button
         fullWidth
         onClick={onEnterInpainting}
-        disabled={!currentChapter || jobActive}
+        disabled={!currentChapter || jobActive || flowActive}
       >
         인페인팅
       </Button>

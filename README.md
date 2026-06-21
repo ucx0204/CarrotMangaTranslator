@@ -111,6 +111,56 @@ API 키가 필요한 서비스는 키를 입력해야 합니다. LM Studio처럼
 
 이 앱은 페이지 이미지와 OCR 힌트를 함께 보내므로, 선택한 API 모델이 이미지 입력을 지원해야 합니다. `401`, `403`, `404` 같은 오류가 나면 API 키, Base URL, 모델 이름을 먼저 확인하고, 키가 맞는데도 실패하면 해당 모델이 이미지 입력을 받는 모델인지 확인하세요. 자세한 요청 정보와 원인은 앱 로그에 남습니다.
 
+### NVIDIA NIM으로 API 엔진 쓰기
+
+NVIDIA NIM은 OpenAI 호환 API를 제공하므로 앱의 `API` 엔진에 바로 연결할 수 있습니다. [NVIDIA Build Models](https://build.nvidia.com/models?filters=nimType%3Anim_type_preview%2Cusecase%3Ausecase_image_to_text)에서 회원가입과 전화번호 인증을 마친 뒤, 이미지 입력이 되는 무료 엔드포인트 모델을 고르면 됩니다.
+
+Kimi-K2.6을 쓰는 경우 앱 설정에는 아래 값을 넣으면 됩니다.
+
+- `API Base URL`: `https://integrate.api.nvidia.com/v1`
+- `API 모델`: `moonshotai/kimi-k2.6`
+- `API 키`: NVIDIA Build에서 발급한 `nvapi--...` 형식의 키
+
+먼저 NVIDIA Build의 Models 페이지에서 `Free Endpoint`와 `Image-to-Text` 조건을 켠 뒤, `kimi-k2.6`처럼 이미지 입력을 받는 모델을 선택합니다. 텍스트만 받는 LLM은 이 앱의 페이지 이미지 번역 요청을 처리할 수 없습니다.
+
+![NVIDIA NIM 모델 선택](docs/images/31-api-nim-models.png)
+
+오른쪽 위 프로필 메뉴나 [API Keys 페이지](https://build.nvidia.com/settings/api-keys)에서 새 API 키를 만듭니다. 무료 엔드포인트의 분당 요청 한도도 여기서 확인할 수 있습니다.
+
+![NVIDIA API Keys 화면](docs/images/32-api-nim-api-keys.png)
+
+키는 생성 직후에만 전체 값을 볼 수 있으니, 앱 설정에 붙여넣기 전까지 따로 보관하세요. 잃어버렸다면 기존 키를 삭제하고 새로 만들면 됩니다.
+
+![NVIDIA API 키 발급 화면](docs/images/33-api-nim-key-generated.png)
+
+모델 페이지의 예제 코드에서 호출 URL과 모델 이름을 확인합니다. 예제에는 `/v1/chat/completions`처럼 전체 요청 주소가 보이지만, 앱의 `API Base URL`에는 `/chat/completions`를 빼고 `/v1`까지만 넣으면 됩니다.
+
+![NVIDIA NIM 엔드포인트 URL 확인](docs/images/34-api-nim-endpoint-url.png)
+
+같은 예제 코드의 `model` 값이 앱 설정의 `API 모델`에 들어갈 값입니다.
+
+![NVIDIA NIM 모델 이름 확인](docs/images/35-api-nim-model-name.png)
+
+마지막으로 앱 설정에서 번역 엔진을 `API`로 바꾸고 Base URL, 모델, 키를 넣은 뒤 저장합니다.
+
+![NVIDIA NIM 앱 설정](docs/images/36-api-nim-app-settings.png)
+
+### Gemini API로 API 엔진 쓰기
+
+Gemini도 OpenAI 호환 엔드포인트를 제공하므로 같은 `API` 엔진으로 사용할 수 있습니다. API 키는 [Google AI Studio](https://aistudio.google.com/)에서 발급합니다.
+
+앱 설정에는 아래 값을 넣으면 됩니다.
+
+- `API Base URL`: `https://generativelanguage.googleapis.com/v1beta/openai`
+- `API 모델`: `gemini-3.5-flash`
+- `API 키`: Google AI Studio에서 발급한 Gemini API 키
+
+![Gemini API 앱 설정](docs/images/37-api-gemini-app-settings.png)
+
+저장 후 번역을 실행하면 아래처럼 API 모델 이름으로 진행 상태가 표시됩니다. Gemini 모델명이나 무료 한도는 Google 정책에 따라 바뀔 수 있으니, 갑자기 실패하면 AI Studio에서 키와 사용 가능한 모델을 먼저 확인하세요.
+
+![Gemini API 번역 진행](docs/images/38-api-gemini-result.png)
+
 ## 설정
 
 설정은 저장한 뒤 다음 작업부터 적용됩니다. 처음 설치했다면 먼저 `설정`에서 번역 엔진, 모델 모드, OCR 장치, Gemma/Flux GPU 런타임을 확인하세요.

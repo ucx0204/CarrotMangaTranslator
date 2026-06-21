@@ -136,6 +136,17 @@ function buildOptionSummary(options = {}) {
     launchMode: launchTarget.launchMode,
     hfHomeDir: resolveHfHomeDir(options),
     hfHubCacheDir: resolveHubCacheDir(options),
+    workContextBudget: options.workContextBudget
+      ? {
+          originalTokens: options.workContextBudget.original?.totalTokens,
+          effectiveTokens: options.workContextBudget.effective?.totalTokens,
+          outputHeadroomTokens:
+            options.workContextBudget.effective?.outputHeadroomTokens,
+          outputHeadroomPercent:
+            options.workContextBudget.effective?.outputHeadroomPercent,
+          omittedParts: options.workContextBudget.omittedParts || [],
+        }
+      : undefined,
   };
 }
 

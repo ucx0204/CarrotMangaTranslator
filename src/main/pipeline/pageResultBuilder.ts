@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/types";
+import { prunePromptWorkContextForBudget } from "../../shared/workContextBudget";
 import { buildNoTextCompletedPage } from "./noText";
 import {
   applyOcrCandidateGeometryLocks,
@@ -63,13 +64,22 @@ export function buildRequestPageOptions({
 }): TranslationOptions {
   const pageOptions = buildPageOptions(baseOptions, page, pageIndex, attempt);
   if (workContext) {
-    pageOptions.workContext = buildPromptWorkContextForPage({
+    const promptWorkContext = buildPromptWorkContextForPage({
       baseStyleGuide: workContext.styleGuide,
       storyMemory: workContext.storyMemory,
       pageId: page.id,
       pageIndex,
       recentPageCount: workContext.recentPageCount,
     });
+    const budgetedWorkContext = prunePromptWorkContextForBudget(
+      promptWorkContext,
+      {
+        ctx: pageOptions.ctx,
+        maxTokens: pageOptions.maxTokens,
+      },
+    );
+    pageOptions.workContext = budgetedWorkContext.workContext;
+    pageOptions.workContextBudget = budgetedWorkContext.budget;
   }
   if (skipOcrPrepass) {
     pageOptions.skipOcrBboxHints = true;

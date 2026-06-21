@@ -3,6 +3,7 @@ export type GlossaryEntryCategory =
   | "alias"
   | "place"
   | "term"
+  // "sfx" is deprecated (handled by the sfxMode rule); kept for reading old data.
   | "sfx"
   | "honorific"
   | "other";
@@ -76,6 +77,8 @@ export type ChapterStoryMemory = {
   chapterId: string;
   pages: PageStoryMemory[];
   updatedAt: string;
+  /** Set only by AI 용어/기억 analysis (not by translation-time memory writes). */
+  aiAnalyzedAt?: string;
 };
 
 export type PromptWorkContext = {

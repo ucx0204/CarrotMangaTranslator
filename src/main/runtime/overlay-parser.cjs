@@ -31,6 +31,19 @@
  *   confidence?: number;
  * }} LooseParsedOutput
  */
+// Gemma (and similar) models occasionally emit reserved/special tokens such as
+// `<unused49>` straight into their text output. These corrupt the structured
+// JSON (breaking parsing or polluting block text), which drops translations.
+// Strip them before any parsing.
+const SPECIAL_TOKEN_PATTERN =
+  /<\/?(?:unused\d+|start_of_turn|end_of_turn|eos|bos|pad|mask|unk)>/gi;
+
+function stripModelSpecialTokens(rawText) {
+  return typeof rawText === "string"
+    ? rawText.replace(SPECIAL_TOKEN_PATTERN, "")
+    : rawText;
+}
+
 function extractJsonCandidate(rawText) {
   const trimmed = rawText.trim();
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
@@ -58,11 +71,12 @@ function extractJsonCandidate(rawText) {
 }
 
 function parseJsonLenient(rawText) {
+  const text = stripModelSpecialTokens(rawText);
   let candidate;
   try {
-    candidate = extractJsonCandidate(rawText);
+    candidate = extractJsonCandidate(text);
   } catch (_error) {
-    const looseItems = parseLooseItemList(rawText);
+    const looseItems = parseLooseItemList(text);
     if (looseItems.length > 0) {
       return { items: looseItems };
     }
@@ -88,7 +102,7 @@ function parseJsonLenient(rawText) {
     }
   }
 
-  const looseItems = parseLooseItemList(rawText);
+  const looseItems = parseLooseItemList(text);
   if (looseItems.length > 0) {
     return { items: looseItems };
   }
@@ -597,4 +611,5 @@ module.exports = {
   normalizeItems,
   parseJsonLenient,
   repairBrokenJson,
+  stripModelSpecialTokens,
 };

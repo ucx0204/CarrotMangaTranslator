@@ -84,6 +84,9 @@ describe("AI work context merge", () => {
         speechStyle: "rough",
       }),
     );
+    expect(result.styleGuide.glossary[0].note).toBe("주요 인물");
+    expect(result.styleGuide.glossary[0].note).not.toContain("AI confidence");
+    expect(result.styleGuide.characters[0].note).toBe("명령조");
     expect(result.memories[0].pages[0]).toEqual(
       expect.objectContaining({
         pageId: "page-a",

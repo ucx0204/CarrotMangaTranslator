@@ -10,6 +10,7 @@ import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_OAUTH_PORT,
   DEFAULT_CODEX_REASONING_EFFORT,
+  DEFAULT_CONTEXT_TOKENS,
   DEFAULT_MAX_TOKENS,
   DEFAULT_MODEL_SOURCE,
   DEFAULT_OCR_GPU_CUDA_TAG,
@@ -33,6 +34,7 @@ import {
 import { getDefaultGemmaPresetForVramMode } from "./gemmaModelPresets";
 import {
   resolveCodexReasoningEffort,
+  resolveContextTokens,
   resolveFluxBackend,
   resolveGemmaVramMode,
   resolveMaxTokens,
@@ -170,6 +172,8 @@ export function resolveDefaultAppSettings(
     },
     ui: {
       inpaintingGuideHidden: false,
+      twoPassByDefault: true,
+      analysisScopeDefault: "missing",
     },
     inpainting: {
       fluxBackend: resolveFluxBackend(
@@ -181,6 +185,7 @@ export function resolveDefaultAppSettings(
       env.MANGA_TRANSLATOR_MAX_TOKENS,
       DEFAULT_MAX_TOKENS,
     ),
+    ctx: resolveContextTokens(env.MANGA_TRANSLATOR_CTX, DEFAULT_CONTEXT_TOKENS),
   };
 }
 

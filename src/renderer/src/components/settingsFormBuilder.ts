@@ -43,6 +43,7 @@ type BuildSettingsFromFormInput = {
   ocrGpuBackend: OcrGpuBackend;
   fluxBackend: FluxBackend;
   maxTokens: number;
+  ctx: number;
 };
 
 export function buildSettingsFromForm(
@@ -64,6 +65,7 @@ export function buildSettingsFromForm(
       fluxBackend: input.fluxBackend,
     },
     maxTokens: input.maxTokens,
+    ctx: input.ctx,
   };
 }
 

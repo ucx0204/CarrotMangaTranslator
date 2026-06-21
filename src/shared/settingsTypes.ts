@@ -70,6 +70,10 @@ export type OcrSettings = {
 
 export type UiSettings = {
   inpaintingGuideHidden?: boolean;
+  /** Default for the "2차 번역(품질 향상)" checkbox in the translate options modal. */
+  twoPassByDefault?: boolean;
+  /** Default AI 분석 범위 for the 2-pass flow. Mirrors WorkContextAnalysisScope. */
+  analysisScopeDefault?: "work" | "missing" | "chapter";
 };
 
 export type InpaintingSettings = {
@@ -86,4 +90,5 @@ export type AppSettings = {
   inpainting?: InpaintingSettings;
   runtimeHardware?: RuntimeHardwareInfo;
   maxTokens: number;
+  ctx: number;
 };

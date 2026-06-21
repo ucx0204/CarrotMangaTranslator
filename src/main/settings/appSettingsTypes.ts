@@ -9,6 +9,7 @@ import type {
   OcrGpuBackend,
   PromptWorkContext,
 } from "../../shared/types";
+import type { WorkContextBudgetPlan } from "../../shared/workContextBudget";
 
 export type TranslationOptions = {
   imagePath: string;
@@ -121,6 +122,7 @@ export type TranslationOptions = {
   label: string;
   abortSignal?: AbortSignal;
   workContext?: PromptWorkContext;
+  workContextBudget?: WorkContextBudgetPlan;
 };
 
 export type TranslationOptionPaths = {
