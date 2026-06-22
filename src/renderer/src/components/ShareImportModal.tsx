@@ -34,6 +34,9 @@ export function ShareImportModal({
       title="가져오기"
       onClose={onCancel}
       closeDisabled={busy}
+      bodyClassName={
+        state.targetMode === "existing" ? "share-import-modal-body" : undefined
+      }
       footer={
         <>
           <Button variant="ghost" onClick={onCancel} disabled={busy}>
@@ -77,8 +80,11 @@ export function ShareImportModal({
           busy={busy}
           deletedExistingChapters={state.deletedExistingChapters}
           leftItems={state.leftItems}
-          previewChapters={preview.chapters}
+          removeFinalItem={state.removeFinalItem}
+          resetMerge={state.resetMerge}
+          restoreExistingChapter={state.restoreExistingChapter}
           setActiveDrag={state.setActiveDrag}
+          setCandidateItems={state.setCandidateItems}
           setLeftItems={state.setLeftItems}
         />
       )}

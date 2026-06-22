@@ -7,6 +7,7 @@ import type {
 } from "../../../../shared/shareTypes";
 import {
   buildExistingItems,
+  toExistingItem,
   toImportEntry,
   toLeftPackageItem,
 } from "./shareImportHelpers";
@@ -25,7 +26,7 @@ type ShareImportModalStateInput = {
 type SelectedWork = LibraryIndex["works"][number] | null;
 
 type ShareImportSubmitInput = {
-  availablePackageChapters: WorkSharePreviewChapter[];
+  candidateItems: LeftItem[];
   deletedExistingChapters: Array<{ id: string; title: string }>;
   existingWorkId: string;
   leftItems: LeftItem[];
@@ -53,26 +54,33 @@ export function useShareImportModalState({
   const [leftItems, setLeftItems] = React.useState<LeftItem[]>(() =>
     buildExistingItems(selectedWork),
   );
+  const [candidateItems, setCandidateItems] = React.useState<LeftItem[]>(() =>
+    preview.chapters.map(toLeftPackageItem),
+  );
   const [activeDrag, setActiveDrag] = React.useState<ActiveDrag | null>(null);
 
   React.useEffect(() => {
     if (targetMode === "existing") {
       setLeftItems(buildExistingItems(selectedWork));
+      setCandidateItems(preview.chapters.map(toLeftPackageItem));
     }
-  }, [selectedWork, targetMode]);
+  }, [preview.chapters, selectedWork, targetMode]);
 
-  const availablePackageChapters = useAvailablePackageChapters(
-    leftItems,
-    preview.chapters,
-  );
   const deletedExistingChapters = useDeletedExistingChapters(
     leftItems,
     selectedWork,
   );
   const { appendAllPackageChapters, appendPackageChapter } =
-    usePackageChapterAppenders(preview.chapters, setLeftItems);
+    usePackageChapterAppenders(candidateItems, setCandidateItems, setLeftItems);
+  const { removeFinalItem, resetMerge, restoreExistingChapter } =
+    useMergeListActions(
+      selectedWork,
+      preview.chapters,
+      setCandidateItems,
+      setLeftItems,
+    );
   const { buildSubmitPayload, canSubmit } = useShareImportSubmitState({
-    availablePackageChapters,
+    candidateItems,
     deletedExistingChapters,
     existingWorkId,
     leftItems,
@@ -85,7 +93,7 @@ export function useShareImportModalState({
     activeDrag,
     appendAllPackageChapters,
     appendPackageChapter,
-    availablePackageChapters,
+    availablePackageChapters: candidateItems,
     buildSubmitPayload,
     canSubmit,
     deletedExistingChapters,
@@ -93,7 +101,11 @@ export function useShareImportModalState({
     leftItems,
     newSelections,
     newWorkTitle,
+    removeFinalItem,
+    resetMerge,
+    restoreExistingChapter,
     setActiveDrag,
+    setCandidateItems,
     setExistingWorkId,
     setLeftItems,
     setNewSelections,
@@ -111,24 +123,6 @@ function createNewSelections(
     title: chapter.title,
     enabled: true,
   }));
-}
-
-function useAvailablePackageChapters(
-  leftItems: LeftItem[],
-  chapters: WorkSharePreviewChapter[],
-): WorkSharePreviewChapter[] {
-  return React.useMemo(
-    () =>
-      chapters.filter(
-        (chapter) =>
-          !leftItems.some(
-            (item) =>
-              item.source === "package" &&
-              item.packageChapterId === chapter.packageChapterId,
-          ),
-      ),
-    [chapters, leftItems],
-  );
 }
 
 function useDeletedExistingChapters(
@@ -151,7 +145,8 @@ function useDeletedExistingChapters(
 }
 
 function usePackageChapterAppenders(
-  chapters: WorkSharePreviewChapter[],
+  candidateItems: LeftItem[],
+  setCandidateItems: React.Dispatch<React.SetStateAction<LeftItem[]>>,
   setLeftItems: React.Dispatch<React.SetStateAction<LeftItem[]>>,
 ): {
   appendAllPackageChapters: () => void;
@@ -159,58 +154,89 @@ function usePackageChapterAppenders(
 } {
   const appendPackageChapter = React.useCallback(
     (packageChapterId: string) => {
+      const item = candidateItems.find(
+        (candidate) =>
+          candidate.source === "package" &&
+          candidate.packageChapterId === packageChapterId,
+      );
+      if (!item) {
+        return;
+      }
+      setCandidateItems((current) =>
+        current.filter((candidate) => candidate.key !== item.key),
+      );
       setLeftItems((current) =>
-        appendPackageChapterItem(current, chapters, packageChapterId),
+        current.some((existing) => existing.key === item.key)
+          ? current
+          : [...current, item],
       );
     },
-    [chapters, setLeftItems],
+    [candidateItems, setCandidateItems, setLeftItems],
   );
   const appendAllPackageChapters = React.useCallback(() => {
-    setLeftItems((current) => appendMissingPackageChapters(current, chapters));
-  }, [chapters, setLeftItems]);
+    setLeftItems((current) => [
+      ...current,
+      ...candidateItems.filter(
+        (candidate) =>
+          !current.some((existing) => existing.key === candidate.key),
+      ),
+    ]);
+    setCandidateItems([]);
+  }, [candidateItems, setCandidateItems, setLeftItems]);
   return { appendAllPackageChapters, appendPackageChapter };
 }
 
-function appendPackageChapterItem(
-  current: LeftItem[],
-  chapters: WorkSharePreviewChapter[],
-  packageChapterId: string,
-): LeftItem[] {
-  const chapter = chapters.find(
-    (candidate) => candidate.packageChapterId === packageChapterId,
+function useMergeListActions(
+  selectedWork: SelectedWork,
+  previewChapters: WorkSharePreviewChapter[],
+  setCandidateItems: React.Dispatch<React.SetStateAction<LeftItem[]>>,
+  setLeftItems: React.Dispatch<React.SetStateAction<LeftItem[]>>,
+): {
+  removeFinalItem: (item: LeftItem) => void;
+  resetMerge: () => void;
+  restoreExistingChapter: (chapterId: string) => void;
+} {
+  const removeFinalItem = React.useCallback(
+    (item: LeftItem) => {
+      setLeftItems((current) =>
+        current.filter((candidate) => candidate.key !== item.key),
+      );
+      if (item.source === "package") {
+        setCandidateItems((current) =>
+          current.some((candidate) => candidate.key === item.key)
+            ? current
+            : [...current, item],
+        );
+      }
+    },
+    [setCandidateItems, setLeftItems],
   );
-  if (!chapter || hasPackageChapter(current, packageChapterId)) {
-    return current;
-  }
-  return [...current, toLeftPackageItem(chapter)];
-}
-
-function appendMissingPackageChapters(
-  current: LeftItem[],
-  chapters: WorkSharePreviewChapter[],
-): LeftItem[] {
-  return [
-    ...current,
-    ...chapters
-      .filter(
-        (chapter) => !hasPackageChapter(current, chapter.packageChapterId),
-      )
-      .map(toLeftPackageItem),
-  ];
-}
-
-function hasPackageChapter(
-  items: LeftItem[],
-  packageChapterId: string,
-): boolean {
-  return items.some(
-    (item) =>
-      item.source === "package" && item.packageChapterId === packageChapterId,
+  const restoreExistingChapter = React.useCallback(
+    (chapterId: string) => {
+      const chapter = selectedWork?.chapters.find(
+        (candidate) => candidate.id === chapterId,
+      );
+      if (!chapter) {
+        return;
+      }
+      const restored = toExistingItem(chapter);
+      setLeftItems((current) =>
+        current.some((item) => item.key === restored.key)
+          ? current
+          : [...current, restored],
+      );
+    },
+    [selectedWork, setLeftItems],
   );
+  const resetMerge = React.useCallback(() => {
+    setLeftItems(buildExistingItems(selectedWork));
+    setCandidateItems(previewChapters.map(toLeftPackageItem));
+  }, [previewChapters, selectedWork, setCandidateItems, setLeftItems]);
+  return { removeFinalItem, resetMerge, restoreExistingChapter };
 }
 
 function useShareImportSubmitState({
-  availablePackageChapters,
+  candidateItems,
   deletedExistingChapters,
   existingWorkId,
   leftItems,
@@ -231,7 +257,7 @@ function useShareImportSubmitState({
   const buildSubmitPayload = React.useCallback(
     () =>
       buildShareImportPayload({
-        availablePackageChapters,
+        candidateItems,
         deletedExistingChapters,
         existingWorkId,
         leftItems,
@@ -240,7 +266,7 @@ function useShareImportSubmitState({
         targetMode,
       }),
     [
-      availablePackageChapters,
+      candidateItems,
       deletedExistingChapters,
       existingWorkId,
       leftItems,
@@ -274,7 +300,7 @@ function canSubmitExistingWork(
 }
 
 function buildShareImportPayload({
-  availablePackageChapters,
+  candidateItems,
   deletedExistingChapters,
   existingWorkId,
   leftItems,
@@ -288,7 +314,17 @@ function buildShareImportPayload({
   return {
     target: { mode: "existing", workId: existingWorkId },
     entries: leftItems.map(toImportEntry),
-    remainingPackageChapters: availablePackageChapters,
+    remainingPackageChapters: candidateItems.flatMap((item) =>
+      item.source === "package"
+        ? [
+            {
+              packageChapterId: item.packageChapterId,
+              title: item.title,
+              pageCount: item.pageCount,
+            },
+          ]
+        : [],
+    ),
     deletedExistingChapters,
   };
 }

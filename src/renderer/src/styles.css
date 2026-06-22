@@ -3286,9 +3286,68 @@ kbd {
 }
 
 .share-warning-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
   border-color: #8d6841;
   background: rgba(111, 75, 39, 0.22);
   overflow-wrap: anywhere;
+}
+
+.share-warning-label {
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.share-deleted-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.share-restore-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.share-restore-chip:hover:not(:disabled) {
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
+  color: var(--accent-hi);
+}
+
+.share-restore-chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.share-restore-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-merge-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
 .share-package-title {
@@ -3336,11 +3395,27 @@ kbd {
   background: var(--danger-soft);
 }
 
+/* Make the import modal body fill the dialog so only the two panes scroll
+   internally (avoids a second outer scrollbar). */
+.share-import-modal-body.share-import-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  align-content: stretch;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.share-merge-section {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+}
+
 .share-merge-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.85fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 12px;
-  min-height: 360px;
+  min-height: 0;
 }
 
 .share-pane {
@@ -3348,6 +3423,7 @@ kbd {
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   min-height: 0;
+  overflow: hidden;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: var(--r-lg);

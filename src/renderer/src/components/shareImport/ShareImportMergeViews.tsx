@@ -1,18 +1,21 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
+import { DragOverlay, useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import type { WorkSharePreviewChapter } from "../../../../shared/shareTypes";
 import { Button } from "../ui";
-import { PlusIcon, TrashIcon } from "../ui/icons";
+import { RefreshIcon, RestoreIcon } from "../ui/icons";
 import {
-  CANDIDATE_PREFIX,
-  LEFT_DROPZONE_ID,
+  CandidateChapterCard,
+  CandidatePreview,
+  FinalChapterPreview,
+  SortableFinalChapterCard,
+} from "./ShareImportMergeCards";
+import {
+  CANDIDATE_CONTAINER_ID,
+  FINAL_CONTAINER_ID,
   type ActiveDrag,
   type LeftItem,
 } from "./shareImportTypes";
@@ -23,12 +26,14 @@ export function ShareMergeToolbar({
   deletedCount,
   finalCount,
   onAppendAll,
+  onReset,
 }: {
   availableCount: number;
   busy: boolean;
   deletedCount: number;
   finalCount: number;
   onAppendAll: () => void;
+  onReset: () => void;
 }): React.JSX.Element {
   return (
     <div className="share-merge-toolbar">
@@ -39,14 +44,26 @@ export function ShareMergeToolbar({
         </span>
         <span>남은 후보 {availableCount}개</span>
       </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onAppendAll}
-        disabled={busy || availableCount === 0}
-      >
-        모두 추가
-      </Button>
+      <div className="share-merge-actions">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onReset}
+          disabled={busy}
+          title="기존 작품 상태로 되돌립니다"
+        >
+          <RefreshIcon size={14} />
+          초기화
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onAppendAll}
+          disabled={busy || availableCount === 0}
+        >
+          모두 추가
+        </Button>
+      </div>
     </div>
   );
 }
@@ -55,15 +72,17 @@ export function ShareFinalPane({
   activeDrag,
   busy,
   items,
+  onRemoveItem,
   setLeftItems,
 }: {
   activeDrag: ActiveDrag | null;
   busy: boolean;
   items: LeftItem[];
+  onRemoveItem: (item: LeftItem) => void;
   setLeftItems: React.Dispatch<React.SetStateAction<LeftItem[]>>;
 }): React.JSX.Element {
   const { isOver, setNodeRef } = useDroppable({
-    id: LEFT_DROPZONE_ID,
+    id: FINAL_CONTAINER_ID,
     disabled: busy,
   });
 
@@ -77,6 +96,7 @@ export function ShareFinalPane({
         <span>드래그로 순서 변경</span>
       </div>
       <SortableContext
+        id={FINAL_CONTAINER_ID}
         items={items.map((item) => item.key)}
         strategy={verticalListSortingStrategy}
       >
@@ -92,11 +112,7 @@ export function ShareFinalPane({
                   updateLeftItemTitle(current, item.key, title),
                 )
               }
-              onDelete={() =>
-                setLeftItems((current) =>
-                  current.filter((candidate) => candidate.key !== item.key),
-                )
-              }
+              onDelete={() => onRemoveItem(item)}
             />
           ))}
           {items.length === 0 ? (
@@ -109,33 +125,53 @@ export function ShareFinalPane({
 }
 
 export function ShareCandidatePane({
-  availablePackageChapters,
+  activeDrag,
   busy,
+  items,
   onAppendPackageChapter,
 }: {
-  availablePackageChapters: WorkSharePreviewChapter[];
+  activeDrag: ActiveDrag | null;
   busy: boolean;
+  items: LeftItem[];
   onAppendPackageChapter: (packageChapterId: string) => void;
 }): React.JSX.Element {
+  const { isOver, setNodeRef } = useDroppable({
+    id: CANDIDATE_CONTAINER_ID,
+    disabled: busy,
+  });
+
   return (
-    <div className="share-pane candidate-pane">
+    <div
+      ref={setNodeRef}
+      className={`share-pane candidate-pane ${isOver || activeDrag ? "drop-ready" : ""}`}
+    >
       <div className="share-pane-header">
         <strong>공유 파일 후보</strong>
-        <span>{availablePackageChapters.length}개 남음</span>
+        <span>{items.length}개 남음</span>
       </div>
-      <div className="share-item-list candidate-list">
-        {availablePackageChapters.map((chapter) => (
-          <CandidateChapterCard
-            key={chapter.packageChapterId}
-            chapter={chapter}
-            busy={busy}
-            onAdd={() => onAppendPackageChapter(chapter.packageChapterId)}
-          />
-        ))}
-        {availablePackageChapters.length === 0 ? (
-          <p className="panel-empty">모든 공유 화가 최종 목록에 있습니다.</p>
-        ) : null}
-      </div>
+      <SortableContext
+        id={CANDIDATE_CONTAINER_ID}
+        items={items.map((item) => item.key)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="share-item-list candidate-list">
+          {items.map((item) => (
+            <CandidateChapterCard
+              key={item.key}
+              item={item}
+              busy={busy}
+              onAdd={() =>
+                item.source === "package"
+                  ? onAppendPackageChapter(item.packageChapterId)
+                  : undefined
+              }
+            />
+          ))}
+          {items.length === 0 ? (
+            <p className="panel-empty">모든 공유 화가 최종 목록에 있습니다.</p>
+          ) : null}
+        </div>
+      </SortableContext>
     </div>
   );
 }
@@ -150,13 +186,13 @@ export function ShareMergeDragOverlay({
   return createPortal(
     <DragOverlay>
       {activeDrag ? (
-        activeDrag.type === "left" ? (
+        activeDrag.container === "final" ? (
           <FinalChapterPreview
             item={activeDrag.item}
             index={resolveActiveLeftIndex(leftItems, activeDrag.item.key)}
           />
         ) : (
-          <CandidatePreview chapter={activeDrag.chapter} />
+          <CandidatePreview item={activeDrag.item} />
         )
       ) : null}
     </DragOverlay>,
@@ -165,184 +201,35 @@ export function ShareMergeDragOverlay({
 }
 
 export function DeletedExistingChaptersWarning({
+  busy,
   deletedExistingChapters,
+  onRestore,
 }: {
+  busy: boolean;
   deletedExistingChapters: Array<{ id: string; title: string }>;
+  onRestore: (chapterId: string) => void;
 }): React.JSX.Element | null {
   if (deletedExistingChapters.length === 0) {
     return null;
   }
   return (
     <div className="share-warning-strip">
-      삭제 예정:{" "}
-      {deletedExistingChapters.map((chapter) => chapter.title).join(", ")}
-    </div>
-  );
-}
-
-function SortableFinalChapterCard({
-  busy,
-  index,
-  item,
-  onDelete,
-  onTitleChange,
-}: {
-  busy: boolean;
-  index: number;
-  item: LeftItem;
-  onDelete: () => void;
-  onTitleChange: (title: string) => void;
-}): React.JSX.Element {
-  const {
-    attributes,
-    listeners,
-    setActivatorNodeRef,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: item.key,
-    disabled: busy,
-    data: { type: "left" },
-  });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`share-final-item ${item.source} ${isDragging ? "dragging" : ""}`}
-      style={style}
-    >
-      <button
-        ref={setActivatorNodeRef}
-        className="drag-handle"
-        disabled={busy}
-        aria-label={`${item.title} 순서 이동`}
-        title="드래그해서 이동"
-        {...attributes}
-        {...listeners}
-      >
-        <span className="drag-grip" aria-hidden="true" />
-      </button>
-      <span className="item-order">{index + 1}</span>
-      <span className={`source-badge ${item.source}`}>
-        {item.source === "existing" ? "기존" : "공유"}
-      </span>
-      <input
-        className="share-title-input"
-        value={item.title}
-        disabled={busy}
-        onChange={(event) => onTitleChange(event.target.value)}
-      />
-      <span className="page-count-chip">{item.pageCount}p</span>
-      <button
-        className="icon-danger-button"
-        disabled={busy}
-        onClick={onDelete}
-        aria-label={`${item.title} 삭제`}
-        title="삭제"
-      >
-        <TrashIcon size={15} />
-      </button>
-    </div>
-  );
-}
-
-function CandidateChapterCard({
-  busy,
-  chapter,
-  onAdd,
-}: {
-  busy: boolean;
-  chapter: WorkSharePreviewChapter;
-  onAdd: () => void;
-}): React.JSX.Element {
-  const { attributes, listeners, setActivatorNodeRef, setNodeRef, isDragging } =
-    useDraggable({
-      id: `${CANDIDATE_PREFIX}${chapter.packageChapterId}`,
-      disabled: busy,
-      data: {
-        type: "candidate",
-        packageChapterId: chapter.packageChapterId,
-      },
-    });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`candidate-card ${isDragging ? "dragging" : ""}`}
-    >
-      <button
-        ref={setActivatorNodeRef}
-        className="drag-handle"
-        disabled={busy}
-        aria-label={`${chapter.title} 최종 목록에 추가`}
-        title="드래그해서 추가"
-        {...attributes}
-        {...listeners}
-      >
-        <span className="drag-grip" aria-hidden="true" />
-      </button>
-      <div className="candidate-main">
-        <strong>{chapter.title}</strong>
-        <small>{chapter.pageCount}페이지</small>
+      <span className="share-warning-label">삭제 예정</span>
+      <div className="share-deleted-chips">
+        {deletedExistingChapters.map((chapter) => (
+          <button
+            key={chapter.id}
+            type="button"
+            className="share-restore-chip"
+            disabled={busy}
+            onClick={() => onRestore(chapter.id)}
+            title={`${chapter.title} 되살리기`}
+          >
+            <span className="share-restore-title">{chapter.title}</span>
+            <RestoreIcon size={14} />
+          </button>
+        ))}
       </div>
-      <button
-        className="icon-add-button"
-        disabled={busy}
-        onClick={onAdd}
-        aria-label={`${chapter.title} 추가`}
-        title="추가"
-      >
-        <PlusIcon size={16} />
-      </button>
-    </div>
-  );
-}
-
-function FinalChapterPreview({
-  index,
-  item,
-}: {
-  index: number;
-  item: LeftItem;
-}): React.JSX.Element {
-  return (
-    <div className={`share-final-item drag-preview ${item.source}`}>
-      <span className="drag-handle preview-handle">
-        <span className="drag-grip" aria-hidden="true" />
-      </span>
-      <span className="item-order">{index}</span>
-      <span className={`source-badge ${item.source}`}>
-        {item.source === "existing" ? "기존" : "공유"}
-      </span>
-      <strong className="preview-title">{item.title}</strong>
-      <span className="page-count-chip">{item.pageCount}p</span>
-    </div>
-  );
-}
-
-function CandidatePreview({
-  chapter,
-}: {
-  chapter: WorkSharePreviewChapter;
-}): React.JSX.Element {
-  return (
-    <div className="candidate-card drag-preview">
-      <span className="drag-handle preview-handle">
-        <span className="drag-grip" aria-hidden="true" />
-      </span>
-      <div className="candidate-main">
-        <strong>{chapter.title}</strong>
-        <small>{chapter.pageCount}페이지</small>
-      </div>
-      <span className="icon-add-button preview-icon">
-        <PlusIcon size={16} />
-      </span>
     </div>
   );
 }

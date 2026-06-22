@@ -1,153 +1,234 @@
 import React from "react";
-import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
-import type { WorkSharePreviewChapter } from "../../../../shared/shareTypes";
+import type {
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+} from "@dnd-kit/core";
 import {
   insertItemAt,
   moveItemById,
   useStandardDndSensors,
 } from "../../lib/dnd";
-import { toLeftPackageItem } from "./shareImportHelpers";
 import {
-  CANDIDATE_PREFIX,
-  LEFT_DROPZONE_ID,
+  CANDIDATE_CONTAINER_ID,
+  FINAL_CONTAINER_ID,
   type ActiveDrag,
   type LeftItem,
+  type MergeContainer,
 } from "./shareImportTypes";
 
-type ShareImportMergeDndInput = {
-  busy: boolean;
+type Lists = {
+  candidateItems: LeftItem[];
   leftItems: LeftItem[];
-  previewChapters: WorkSharePreviewChapter[];
-  setActiveDrag: React.Dispatch<React.SetStateAction<ActiveDrag | null>>;
+};
+
+type Setters = {
+  setCandidateItems: React.Dispatch<React.SetStateAction<LeftItem[]>>;
   setLeftItems: React.Dispatch<React.SetStateAction<LeftItem[]>>;
 };
 
+type ShareImportMergeDndInput = {
+  busy: boolean;
+  candidateItems: LeftItem[];
+  leftItems: LeftItem[];
+  setActiveDrag: React.Dispatch<React.SetStateAction<ActiveDrag | null>>;
+} & Setters;
+
 export function useShareImportMergeDnd({
   busy,
+  candidateItems,
   leftItems,
-  previewChapters,
   setActiveDrag,
+  setCandidateItems,
   setLeftItems,
 }: ShareImportMergeDndInput) {
   const sensors = useStandardDndSensors();
+  // Cross-list moves happen during onDragOver, so handlers must read the freshest
+  // lists; a stale closure would corrupt indices. Keep them in a ref synced here.
+  const listsRef = React.useRef<Lists>({ candidateItems, leftItems });
+  React.useEffect(() => {
+    listsRef.current = { candidateItems, leftItems };
+  }, [candidateItems, leftItems]);
+
   const onDragStart = React.useCallback(
     (event: DragStartEvent) => {
-      const activeDrag = resolveActiveDrag(
-        String(event.active.id),
-        leftItems,
-        previewChapters,
-      );
-      if (activeDrag) {
-        setActiveDrag(activeDrag);
+      applyDragStart(event, listsRef.current, setActiveDrag);
+    },
+    [setActiveDrag],
+  );
+  const onDragOver = React.useCallback(
+    (event: DragOverEvent) => {
+      if (!busy) {
+        applyDragOver(event, listsRef.current, {
+          setCandidateItems,
+          setLeftItems,
+        });
       }
     },
-    [leftItems, previewChapters, setActiveDrag],
+    [busy, setCandidateItems, setLeftItems],
   );
   const onDragEnd = React.useCallback(
     (event: DragEndEvent) => {
-      const activeId = String(event.active.id);
-      const overId = event.over ? String(event.over.id) : null;
-      const activeType = event.active.data.current?.type;
       setActiveDrag(null);
-      if (!overId || busy) {
-        return;
-      }
-      if (activeType === "left") {
-        moveLeftItem(activeId, overId, setLeftItems);
-        return;
-      }
-      if (activeType === "candidate") {
-        addCandidateItem(event, overId, previewChapters, setLeftItems);
+      if (!busy) {
+        applyDragEnd(event, listsRef.current, {
+          setCandidateItems,
+          setLeftItems,
+        });
       }
     },
-    [busy, previewChapters, setActiveDrag, setLeftItems],
+    [busy, setActiveDrag, setCandidateItems, setLeftItems],
   );
-  return { onDragEnd, onDragStart, sensors };
+  const onDragCancel = React.useCallback(() => {
+    setActiveDrag(null);
+  }, [setActiveDrag]);
+
+  return { onDragCancel, onDragEnd, onDragOver, onDragStart, sensors };
 }
 
-function resolveActiveDrag(
-  activeId: string,
-  leftItems: LeftItem[],
-  previewChapters: WorkSharePreviewChapter[],
-): ActiveDrag | null {
-  if (activeId.startsWith(CANDIDATE_PREFIX)) {
-    const packageChapterId = activeId.slice(CANDIDATE_PREFIX.length);
-    const chapter = previewChapters.find(
-      (candidate) => candidate.packageChapterId === packageChapterId,
-    );
-    return chapter ? { type: "candidate", chapter } : null;
-  }
-  const item = leftItems.find((candidate) => candidate.key === activeId);
-  return item ? { type: "left", item } : null;
-}
-
-function moveLeftItem(
-  activeId: string,
-  overId: string,
-  setLeftItems: React.Dispatch<React.SetStateAction<LeftItem[]>>,
+function applyDragStart(
+  event: DragStartEvent,
+  lists: Lists,
+  setActiveDrag: React.Dispatch<React.SetStateAction<ActiveDrag | null>>,
 ): void {
-  if (overId === LEFT_DROPZONE_ID || overId.startsWith(CANDIDATE_PREFIX)) {
+  const activeId = String(event.active.id);
+  const finalItem = lists.leftItems.find((item) => item.key === activeId);
+  if (finalItem) {
+    setActiveDrag({ container: "final", item: finalItem });
     return;
   }
-  setLeftItems((current) =>
-    moveItemById(current, activeId, overId, (item) => item.key),
+  const candidate = lists.candidateItems.find((item) => item.key === activeId);
+  if (candidate) {
+    setActiveDrag({ container: "candidate", item: candidate });
+  }
+}
+
+function applyDragOver(
+  event: DragOverEvent,
+  lists: Lists,
+  setters: Setters,
+): void {
+  const overId = event.over ? String(event.over.id) : null;
+  if (!overId) {
+    return;
+  }
+  const activeId = String(event.active.id);
+  const activeContainer = findItemContainer(activeId, lists);
+  const overContainer = findOverContainer(overId, lists);
+  if (!activeContainer || !overContainer || activeContainer === overContainer) {
+    return;
+  }
+  const item = listFor(activeContainer, lists).find(
+    (candidate) => candidate.key === activeId,
+  );
+  if (!item) {
+    return;
+  }
+  // Existing chapters cannot become shared-file candidates.
+  if (overContainer === "candidate" && item.source !== "package") {
+    return;
+  }
+  const insertIndex = resolveInsertIndex(
+    event,
+    overId,
+    listFor(overContainer, lists),
+  );
+  setterFor(
+    activeContainer,
+    setters,
+  )((current) => current.filter((candidate) => candidate.key !== item.key));
+  setterFor(
+    overContainer,
+    setters,
+  )((current) =>
+    insertItemAt(
+      current.filter((candidate) => candidate.key !== item.key),
+      item,
+      insertIndex,
+    ),
   );
 }
 
-function addCandidateItem(
+function applyDragEnd(
   event: DragEndEvent,
-  overId: string,
-  previewChapters: WorkSharePreviewChapter[],
-  setLeftItems: React.Dispatch<React.SetStateAction<LeftItem[]>>,
+  lists: Lists,
+  setters: Setters,
 ): void {
-  if (overId.startsWith(CANDIDATE_PREFIX)) {
+  const overId = event.over ? String(event.over.id) : null;
+  if (!overId) {
     return;
   }
-  const packageChapterId = event.active.data.current?.packageChapterId;
-  if (typeof packageChapterId !== "string") {
+  const activeId = String(event.active.id);
+  const activeContainer = findItemContainer(activeId, lists);
+  const overContainer = findOverContainer(overId, lists);
+  if (
+    !activeContainer ||
+    !overContainer ||
+    activeContainer !== overContainer ||
+    activeId === overId
+  ) {
+    // Cross-container drops were already applied during onDragOver.
     return;
   }
-  setLeftItems((current) =>
-    insertCandidateChapter(current, previewChapters, packageChapterId, overId),
-  );
+  setterFor(
+    activeContainer,
+    setters,
+  )((current) => moveItemById(current, activeId, overId, (item) => item.key));
 }
 
-function insertCandidateChapter(
-  current: LeftItem[],
-  previewChapters: WorkSharePreviewChapter[],
-  packageChapterId: string,
-  overId: string,
-): LeftItem[] {
-  const chapter = previewChapters.find(
-    (candidate) => candidate.packageChapterId === packageChapterId,
-  );
-  if (!chapter || hasPackageChapter(current, packageChapterId)) {
-    return current;
+function setterFor(
+  container: MergeContainer,
+  setters: Setters,
+): React.Dispatch<React.SetStateAction<LeftItem[]>> {
+  return container === "final"
+    ? setters.setLeftItems
+    : setters.setCandidateItems;
+}
+
+function listFor(container: MergeContainer, lists: Lists): LeftItem[] {
+  return container === "final" ? lists.leftItems : lists.candidateItems;
+}
+
+function findItemContainer(id: string, lists: Lists): MergeContainer | null {
+  if (lists.leftItems.some((item) => item.key === id)) {
+    return "final";
   }
-  return insertItemAt(
-    current,
-    toLeftPackageItem(chapter),
-    resolveCandidateInsertIndex(current, overId),
-  );
+  if (lists.candidateItems.some((item) => item.key === id)) {
+    return "candidate";
+  }
+  return null;
 }
 
-function hasPackageChapter(
-  items: LeftItem[],
-  packageChapterId: string,
-): boolean {
-  return items.some(
-    (item) =>
-      item.source === "package" && item.packageChapterId === packageChapterId,
-  );
-}
-
-function resolveCandidateInsertIndex(
-  current: LeftItem[],
+function findOverContainer(
   overId: string,
+  lists: Lists,
+): MergeContainer | null {
+  if (overId === FINAL_CONTAINER_ID) {
+    return "final";
+  }
+  if (overId === CANDIDATE_CONTAINER_ID) {
+    return "candidate";
+  }
+  return findItemContainer(overId, lists);
+}
+
+function resolveInsertIndex(
+  event: DragOverEvent,
+  overId: string,
+  targetList: LeftItem[],
 ): number {
-  if (overId === LEFT_DROPZONE_ID) {
-    return current.length;
+  if (overId === FINAL_CONTAINER_ID || overId === CANDIDATE_CONTAINER_ID) {
+    return targetList.length;
   }
-  const overIndex = current.findIndex((item) => item.key === overId);
-  return overIndex < 0 ? current.length : overIndex;
+  const overIndex = targetList.findIndex((item) => item.key === overId);
+  if (overIndex < 0) {
+    return targetList.length;
+  }
+  const activeRect = event.active.rect.current.translated;
+  const overRect = event.over?.rect;
+  const isBelow =
+    activeRect && overRect
+      ? activeRect.top > overRect.top + overRect.height / 2
+      : false;
+  return overIndex + (isBelow ? 1 : 0);
 }

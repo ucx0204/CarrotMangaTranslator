@@ -1,6 +1,5 @@
 import React from "react";
-import { closestCenter, DndContext } from "@dnd-kit/core";
-import type { WorkSharePreviewChapter } from "../../../../shared/shareTypes";
+import { closestCorners, DndContext, MeasuringStrategy } from "@dnd-kit/core";
 import {
   DeletedExistingChaptersWarning,
   ShareCandidatePane,
@@ -15,14 +14,21 @@ type ShareImportExistingMergeSectionProps = {
   activeDrag: ActiveDrag | null;
   appendAllPackageChapters: () => void;
   appendPackageChapter: (packageChapterId: string) => void;
-  availablePackageChapters: WorkSharePreviewChapter[];
+  availablePackageChapters: LeftItem[];
   busy: boolean;
   deletedExistingChapters: Array<{ id: string; title: string }>;
   leftItems: LeftItem[];
-  previewChapters: WorkSharePreviewChapter[];
+  removeFinalItem: (item: LeftItem) => void;
+  resetMerge: () => void;
+  restoreExistingChapter: (chapterId: string) => void;
   setActiveDrag: React.Dispatch<React.SetStateAction<ActiveDrag | null>>;
+  setCandidateItems: React.Dispatch<React.SetStateAction<LeftItem[]>>;
   setLeftItems: React.Dispatch<React.SetStateAction<LeftItem[]>>;
 };
+
+const MEASURING = {
+  droppable: { strategy: MeasuringStrategy.Always },
+} as const;
 
 export function ShareImportExistingMergeSection({
   activeDrag,
@@ -32,33 +38,41 @@ export function ShareImportExistingMergeSection({
   busy,
   deletedExistingChapters,
   leftItems,
-  previewChapters,
+  removeFinalItem,
+  resetMerge,
+  restoreExistingChapter,
   setActiveDrag,
+  setCandidateItems,
   setLeftItems,
 }: ShareImportExistingMergeSectionProps): React.JSX.Element {
-  const { onDragEnd, onDragStart, sensors } = useShareImportMergeDnd({
-    busy,
-    leftItems,
-    previewChapters,
-    setActiveDrag,
-    setLeftItems,
-  });
+  const { onDragCancel, onDragEnd, onDragOver, onDragStart, sensors } =
+    useShareImportMergeDnd({
+      busy,
+      candidateItems: availablePackageChapters,
+      leftItems,
+      setActiveDrag,
+      setCandidateItems,
+      setLeftItems,
+    });
 
   return (
-    <section className="modal-section">
+    <section className="modal-section share-merge-section">
       <ShareMergeToolbar
         availableCount={availablePackageChapters.length}
         busy={busy}
         deletedCount={deletedExistingChapters.length}
         finalCount={leftItems.length}
         onAppendAll={appendAllPackageChapters}
+        onReset={resetMerge}
       />
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={closestCorners}
+        measuring={MEASURING}
         onDragStart={onDragStart}
-        onDragCancel={() => setActiveDrag(null)}
+        onDragOver={onDragOver}
+        onDragCancel={onDragCancel}
         onDragEnd={onDragEnd}
       >
         <div className="share-merge-grid">
@@ -66,11 +80,13 @@ export function ShareImportExistingMergeSection({
             activeDrag={activeDrag}
             busy={busy}
             items={leftItems}
+            onRemoveItem={removeFinalItem}
             setLeftItems={setLeftItems}
           />
           <ShareCandidatePane
-            availablePackageChapters={availablePackageChapters}
+            activeDrag={activeDrag}
             busy={busy}
+            items={availablePackageChapters}
             onAppendPackageChapter={appendPackageChapter}
           />
         </div>
@@ -78,7 +94,9 @@ export function ShareImportExistingMergeSection({
       </DndContext>
 
       <DeletedExistingChaptersWarning
+        busy={busy}
         deletedExistingChapters={deletedExistingChapters}
+        onRestore={restoreExistingChapter}
       />
     </section>
   );

@@ -8,15 +8,21 @@ import type { LeftItem } from "./shareImportTypes";
 export function buildExistingItems(
   work: LibraryWorkSummary | null,
 ): LeftItem[] {
-  return (
-    work?.chapters.map((chapter) => ({
-      key: `existing:${chapter.id}`,
-      source: "existing" as const,
-      chapterId: chapter.id,
-      title: chapter.title,
-      pageCount: chapter.pageCount,
-    })) ?? []
-  );
+  return work?.chapters.map(toExistingItem) ?? [];
+}
+
+export function toExistingItem(chapter: {
+  id: string;
+  title: string;
+  pageCount: number;
+}): LeftItem {
+  return {
+    key: `existing:${chapter.id}`,
+    source: "existing",
+    chapterId: chapter.id,
+    title: chapter.title,
+    pageCount: chapter.pageCount,
+  };
 }
 
 export function toLeftPackageItem(chapter: WorkSharePreviewChapter): LeftItem {

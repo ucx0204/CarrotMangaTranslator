@@ -33,15 +33,12 @@ export type NewSelection = {
   enabled: boolean;
 };
 
-export type ActiveDrag =
-  | {
-      type: "left";
-      item: LeftItem;
-    }
-  | {
-      type: "candidate";
-      chapter: WorkSharePreviewChapter;
-    };
+export type MergeContainer = "final" | "candidate";
 
-export const LEFT_DROPZONE_ID = "share-left-dropzone";
-export const CANDIDATE_PREFIX = "candidate:";
+export type ActiveDrag = {
+  container: MergeContainer;
+  item: LeftItem;
+};
+
+export const FINAL_CONTAINER_ID = "final";
+export const CANDIDATE_CONTAINER_ID = "candidate";
