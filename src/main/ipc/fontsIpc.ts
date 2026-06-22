@@ -1,23 +1,24 @@
 import { dialog } from "electron";
-import type { CustomFont } from "../../shared/types";
+import { fontIpcContracts } from "../../shared/ipcContracts";
+import type { CustomFont } from "../../shared/libraryTypes";
 import {
   listCustomFonts,
   registerCustomFontFromFile,
   removeCustomFont,
 } from "../customFonts";
 import type { IpcContext } from "./context";
-import { trustedHandle } from "./trustedIpc";
+import { trustedHandleContract } from "./trustedIpc";
 
 export function registerFontsIpc(context: IpcContext): void {
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "fonts:list",
+    fontIpcContracts.listCustomFonts,
     async (): Promise<CustomFont[]> => listCustomFonts(),
   );
 
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "fonts:register",
+    fontIpcContracts.registerCustomFont,
     async (): Promise<CustomFont | null> => {
       const options = {
         title: "폰트 파일 등록 (TTF/OTF)",
@@ -35,9 +36,9 @@ export function registerFontsIpc(context: IpcContext): void {
     },
   );
 
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "fonts:remove",
+    fontIpcContracts.removeCustomFont,
     async (_event, id: unknown): Promise<CustomFont[]> => {
       if (typeof id !== "string" || !id) {
         return listCustomFonts();

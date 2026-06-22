@@ -1,4 +1,10 @@
 // @ts-check
+/**
+ * @param {number} width
+ * @param {number} height
+ * @param {number} maxLongSide
+ * @returns {{ width: number; height: number }}
+ */
 function getScaledSize(width, height, maxLongSide) {
   const longSide = Math.max(width, height);
   if (longSide <= 0 || longSide <= maxLongSide) {
@@ -12,10 +18,20 @@ function getScaledSize(width, height, maxLongSide) {
   };
 }
 
+/**
+ * @param {number} value
+ * @returns {number}
+ */
 function clampByte(value) {
   return Math.max(0, Math.min(255, Math.round(value)));
 }
 
+/**
+ * @param {Buffer} bitmap
+ * @param {number} [contrast]
+ * @param {boolean} [grayscale]
+ * @returns {Buffer}
+ */
 function enhanceBitmapBuffer(bitmap, contrast = 1, grayscale = false) {
   const output = Buffer.from(bitmap);
   const translation = ((1 - contrast) / 2) * 255;
@@ -42,6 +58,10 @@ function enhanceBitmapBuffer(bitmap, contrast = 1, grayscale = false) {
   return output;
 }
 
+/**
+ * @param {string} filePath
+ * @returns {string}
+ */
 function mimeFromPath(filePath) {
   const lower = filePath.toLowerCase();
   if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
@@ -53,11 +73,20 @@ const OPENAI_ORIGINAL_DETAIL_PATCH_SIZE = 32;
 const OPENAI_ORIGINAL_DETAIL_PATCH_BUDGET = 10000;
 const OPENAI_ORIGINAL_DETAIL_MAX_DIMENSION = 6000;
 
+/**
+ * @param {number} width
+ * @param {number} height
+ * @returns {{ width: number; height: number }}
+ */
 function calculateOpenAIOriginalDetailSize(width, height) {
   if (!width || !height) {
     return { width, height };
   }
 
+  /**
+   * @param {number} imageWidth
+   * @param {number} imageHeight
+   */
   const patchCount = (imageWidth, imageHeight) =>
     Math.ceil(imageWidth / OPENAI_ORIGINAL_DETAIL_PATCH_SIZE) *
     Math.ceil(imageHeight / OPENAI_ORIGINAL_DETAIL_PATCH_SIZE);

@@ -1,6 +1,9 @@
 const { copyFileSync, existsSync, mkdirSync, readdirSync } = require("node:fs");
 const { join } = require("node:path");
 
+/** @typedef {{ root?: string; outputDir?: string }} PrepareRuntimeAssetsOptions */
+
+/** @param {PrepareRuntimeAssetsOptions} [options] */
 function prepareRuntimeAssets(options = {}) {
   const root = options.root ?? join(__dirname, "..");
   const sourceDir = join(root, "src", "main", "runtime");

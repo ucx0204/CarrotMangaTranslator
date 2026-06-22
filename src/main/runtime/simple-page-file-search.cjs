@@ -4,6 +4,14 @@ const path = require("node:path");
 
 const { MM_PROJ_CANDIDATE_NAMES } = require("./simple-page-defaults.cjs");
 
+/**
+ * @typedef {(name: string, fullPath: string) => boolean} FilePredicate
+ */
+
+/**
+ * @param {string} filePath
+ * @returns {number}
+ */
 function safeMtimeMs(filePath) {
   try {
     return statSync(filePath).mtimeMs;
@@ -12,6 +20,12 @@ function safeMtimeMs(filePath) {
   }
 }
 
+/**
+ * @param {string | null | undefined} rootDir
+ * @param {string} expectedName
+ * @param {number} [maxDepth]
+ * @returns {string | null}
+ */
 function findNamedFile(rootDir, expectedName, maxDepth = 6) {
   if (!rootDir || !existsSync(rootDir)) {
     return null;
@@ -39,6 +53,12 @@ function findNamedFile(rootDir, expectedName, maxDepth = 6) {
   return null;
 }
 
+/**
+ * @param {string | null | undefined} rootDir
+ * @param {FilePredicate} predicate
+ * @param {number} [maxDepth]
+ * @returns {string | null}
+ */
 function findMatchingFile(rootDir, predicate, maxDepth = 6) {
   if (!rootDir || !existsSync(rootDir)) {
     return null;
@@ -66,6 +86,10 @@ function findMatchingFile(rootDir, predicate, maxDepth = 6) {
   return null;
 }
 
+/**
+ * @param {string} repoDir
+ * @returns {string[]}
+ */
 function listSnapshotDirs(repoDir) {
   const snapshotsDir = path.join(repoDir, "snapshots");
   if (!existsSync(snapshotsDir)) {
@@ -81,6 +105,10 @@ function listSnapshotDirs(repoDir) {
     );
 }
 
+/**
+ * @param {string | null | undefined} rootDir
+ * @returns {string | null}
+ */
 function findPreferredMmprojFile(rootDir) {
   for (const candidateName of MM_PROJ_CANDIDATE_NAMES) {
     const match = findNamedFile(rootDir, candidateName, 2);

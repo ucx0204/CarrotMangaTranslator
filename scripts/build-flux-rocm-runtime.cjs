@@ -1,4 +1,18 @@
 #!/usr/bin/env node
+/**
+ * @typedef {{ [key: string]: string | boolean | undefined; out?: string; force?: boolean; "work-dir"?: string; "runtime-dir"?: string; "keep-work"?: boolean; "gpu-targets"?: string }} BuildArgs
+ * @typedef {{ line(text: string): void; raw(text: string): void; close(): void }} BuildLogger
+ * @typedef {{ sdkVersion?: string; pathEntries: string[]; includePaths: string[]; libPaths: string[] }} NativeBuildEnv
+ * @typedef {{ root: string; version?: string; umLibPath: string; ucrtLibPath: string; includePaths: string[]; binPath?: string }} WindowsSdkLayout
+ * @typedef {{ root: string; version?: string; libPath: string; includePath: string; binPath?: string }} MsvcToolsLayout
+ * @typedef {{ coreRoot: string; develRoot: string; librariesRoot: string; rocmRoot: string; hipRoot: string; hipCmakeDir: string; cmakePrefixPaths: string[]; clang: string; clangxx: string; deviceLibPath: string; llvmRc: string; llvmMt: string }} RocmPaths
+ * @typedef {{ env: NodeJS.ProcessEnv; logger: BuildLogger; cwd?: string }} RunOptions
+ * @typedef {{ pythonDir: string; pythonExe: string; packageDir: string; downloadsDir: string; logger: BuildLogger }} PreparePythonOptions
+ * @typedef {{ pythonExe: string; packageDir: string; runtimeDir: string; logger: BuildLogger }} InitializeRocmOptions
+ * @typedef {{ pythonExe: string; packageDir: string; env: NodeJS.ProcessEnv; logger: BuildLogger }} VerifyRuntimeOptions
+ * @typedef {{ runtimeDir: string; gpuTargets: string; nativeBuildEnv: NativeBuildEnv; logger: BuildLogger }} RuntimeManifestOptions
+ * @typedef {{ runtimeDir: string; outputPath: string; logger: BuildLogger }} RuntimeZipOptions
+ */
 const { spawn } = require("node:child_process");
 const { createHash } = require("node:crypto");
 const {
@@ -123,6 +137,9 @@ function formatUnknownError(error) {
   return String(error);
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -284,7 +301,12 @@ async function main() {
   }
 }
 
+/**
+ * @param {string[]} argv
+ * @returns {BuildArgs}
+ */
 function parseArgs(argv) {
+  /** @type {BuildArgs} */
   const result = {};
   for (let index = 0; index < argv.length; index += 1) {
     const item = argv[index];
@@ -303,6 +325,11 @@ function parseArgs(argv) {
   return result;
 }
 
+/**
+ * @param {string} stamp
+ * @param {string} outputPath
+ * @returns {string}
+ */
 function resolveDefaultWorkDir(stamp, outputPath) {
   const explicitRoot =
     process.env.MGT_FLUX_ROCM_BUILD_ROOT || process.env.MGT_FLUX_BUILD_ROOT;
@@ -353,12 +380,21 @@ function hasFreeBytes(item) {
   return item.freeBytes !== null;
 }
 
+/**
+ * @param {string} pathValue
+ * @returns {boolean}
+ */
 function isAsciiPath(pathValue) {
   return /^[\x00-\x7F]+$/.test(String(pathValue));
 }
 
+/**
+ * @param {Iterable<unknown>} values
+ * @returns {string[]}
+ */
 function uniqueTruthy(values) {
   const seen = new Set();
+  /** @type {string[]} */
   const result = [];
   for (const value of values) {
     if (!value) {
@@ -369,11 +405,14 @@ function uniqueTruthy(values) {
       continue;
     }
     seen.add(key);
-    result.push(value);
+    result.push(String(value));
   }
   return result;
 }
 
+/**
+ * @returns {string[]}
+ */
 function resolveWindowsScratchDriveCandidates() {
   if (process.platform !== "win32") {
     return [];
@@ -388,6 +427,10 @@ function resolveWindowsScratchDriveCandidates() {
   return result;
 }
 
+/**
+ * @param {{ workDir: string; outputPath: string; logger: BuildLogger }} options
+ * @returns {void}
+ */
 function ensureBuildDiskSpace({ workDir, outputPath, logger }) {
   const workFreeBytes = getPathFreeBytes(workDir);
   const outputFreeBytes = getPathFreeBytes(dirname(outputPath));
@@ -417,6 +460,10 @@ function ensureBuildDiskSpace({ workDir, outputPath, logger }) {
   }
 }
 
+/**
+ * @param {string} pathValue
+ * @returns {number | null}
+ */
 function getPathFreeBytes(pathValue) {
   let current = resolve(pathValue);
   while (!existsSync(current)) {
@@ -434,19 +481,29 @@ function getPathFreeBytes(pathValue) {
   }
 }
 
+/**
+ * @param {number | null} bytes
+ * @returns {string}
+ */
 function formatOptionalBytes(bytes) {
   return bytes === null ? "unknown" : formatBytes(bytes);
 }
 
+/**
+ * @param {string} logPath
+ * @returns {BuildLogger}
+ */
 function createLogger(logPath) {
   mkdirSync(dirname(logPath), { recursive: true });
   const stream = createWriteStream(logPath, { flags: "a" });
   return {
+    /** @param {string} text */
     line(text) {
       const line = `[${new Date().toISOString()}] ${text}`;
       console.log(line);
       stream.write(`${line}\n`);
     },
+    /** @param {string} text */
     raw(text) {
       process.stdout.write(text);
       stream.write(text);
@@ -457,6 +514,10 @@ function createLogger(logPath) {
   };
 }
 
+/**
+ * @param {PreparePythonOptions} options
+ * @returns {Promise<void>}
+ */
 async function prepareEmbeddedPython({
   pythonDir,
   pythonExe,
@@ -486,6 +547,11 @@ async function prepareEmbeddedPython({
   });
 }
 
+/**
+ * @param {string} runtimeDir
+ * @param {string} packageDir
+ * @returns {NodeJS.ProcessEnv}
+ */
 function buildPythonPackageInstallEnv(runtimeDir, packageDir) {
   const pathEntries = [
     join(runtimeDir, "bootstrap-python", `python-${pythonVersion}`),
@@ -511,6 +577,10 @@ function buildPythonPackageInstallEnv(runtimeDir, packageDir) {
   };
 }
 
+/**
+ * @param {InitializeRocmOptions} options
+ * @returns {Promise<void>}
+ */
 async function initializeRocmSdk({
   pythonExe,
   packageDir,
@@ -531,6 +601,14 @@ async function initializeRocmSdk({
   });
 }
 
+/**
+ * @param {string} runtimeDir
+ * @param {string} packageDir
+ * @param {NativeBuildEnv} nativeBuildEnv
+ * @param {string} gpuTargets
+ * @param {BuildLogger} logger
+ * @returns {NodeJS.ProcessEnv}
+ */
 function buildRuntimeEnv(
   runtimeDir,
   packageDir,
@@ -672,7 +750,7 @@ function buildRuntimeEnv(
     CMAKE_GENERATOR: process.env.CMAKE_GENERATOR || "Ninja",
     CC: process.env.CC || rocmPaths.clang,
     CXX: process.env.CXX || rocmPaths.clangxx,
-    RC: process.env.RC || rcCompiler,
+    RC: process.env.RC || rcCompiler || undefined,
     ROCM_PATH: process.env.ROCM_PATH || rocmPaths.rocmRoot,
     HIP_PATH: process.env.HIP_PATH || rocmPaths.hipRoot,
     HIP_DEVICE_LIB_PATH:
@@ -693,6 +771,10 @@ function buildRuntimeEnv(
   return env;
 }
 
+/**
+ * @param {VerifyRuntimeOptions} options
+ * @returns {Promise<void>}
+ */
 async function verifyRuntime({ pythonExe, packageDir, env, logger }) {
   const script = [
     "import importlib",
@@ -712,6 +794,10 @@ async function verifyRuntime({ pythonExe, packageDir, env, logger }) {
   }
 }
 
+/**
+ * @param {RuntimeManifestOptions} options
+ * @returns {Promise<void>}
+ */
 async function writeRuntimeManifest({
   runtimeDir,
   gpuTargets,
@@ -743,6 +829,10 @@ async function writeRuntimeManifest({
   logger.line(`manifest written: ${join(runtimeDir, manifestFile)}`);
 }
 
+/**
+ * @param {RuntimeZipOptions} options
+ * @returns {Promise<void>}
+ */
 async function createRuntimeZip({ runtimeDir, outputPath, logger }) {
   logger.line(`creating zip with Windows bsdtar: ${outputPath}`);
   if (existsSync(outputPath)) {
@@ -762,6 +852,9 @@ async function createRuntimeZip({ runtimeDir, outputPath, logger }) {
 }
 
 /**
+ * @param {string} command
+ * @param {string[]} args
+ * @param {RunOptions} options
  * @returns {Promise<void>}
  */
 function run(command, args, options) {
@@ -795,6 +888,12 @@ function run(command, args, options) {
   });
 }
 
+/**
+ * @param {string} url
+ * @param {string} outputPath
+ * @param {BuildLogger} logger
+ * @returns {Promise<void>}
+ */
 async function downloadFile(url, outputPath, logger) {
   if (isFile(outputPath) && statSync(outputPath).size > 0) {
     logger.line(`download cache: ${outputPath}`);
@@ -836,6 +935,11 @@ async function downloadFile(url, outputPath, logger) {
   );
 }
 
+/**
+ * @param {string} archivePath
+ * @param {string} outputDir
+ * @returns {void}
+ */
 function extractZipSafely(archivePath, outputDir) {
   const zip = new AdmZip(archivePath);
   const root = resolve(outputDir);
@@ -859,6 +963,10 @@ function extractZipSafely(archivePath, outputDir) {
   }
 }
 
+/**
+ * @param {string} outputDir
+ * @returns {void}
+ */
 function sanitizeStandaloneEmbeddedPythonPathFile(outputDir) {
   const pthName =
     readdirSync(outputDir).find((name) => /^python\d+._pth$/i.test(name)) || "";
@@ -877,6 +985,11 @@ function sanitizeStandaloneEmbeddedPythonPathFile(outputDir) {
   writeFileSync(pthPath, `${lines.join("\n")}\n`, "utf8");
 }
 
+/**
+ * @param {string} pythonPath
+ * @param {string} packageDir
+ * @returns {void}
+ */
 function ensureEmbeddedPythonPackagePath(pythonPath, packageDir) {
   const pythonDir = dirname(resolve(pythonPath));
   const pthName =
@@ -906,6 +1019,10 @@ function ensureEmbeddedPythonPackagePath(pythonPath, packageDir) {
   );
 }
 
+/**
+ * @param {string} packageDir
+ * @returns {RocmPaths}
+ */
 function resolveWindowsRocmSdkPaths(packageDir) {
   const coreRoot = join(packageDir, "_rocm_sdk_core");
   const develRoot = join(packageDir, "_rocm_sdk_devel");
@@ -949,6 +1066,12 @@ function resolveWindowsRocmSdkPaths(packageDir) {
   };
 }
 
+/**
+ * @param {string} packageDir
+ * @param {string} coreRoot
+ * @param {string} develRoot
+ * @returns {string}
+ */
 function resolveRocmDeviceLibPath(packageDir, coreRoot, develRoot) {
   const candidates = [
     join(coreRoot, "lib", "llvm", "amdgcn", "bitcode"),
@@ -967,6 +1090,12 @@ function resolveRocmDeviceLibPath(packageDir, coreRoot, develRoot) {
   return candidates[0];
 }
 
+/**
+ * @param {string} packageDir
+ * @param {string} packageName
+ * @param {string[]} candidates
+ * @returns {string}
+ */
 function resolveCmakePackageDir(packageDir, packageName, candidates) {
   const configNames = [
     `${packageName}-config.cmake`,
@@ -995,12 +1124,22 @@ function resolveCmakePackageDir(packageDir, packageName, candidates) {
   );
 }
 
+/**
+ * @param {string} cmakeDir
+ * @param {string} fallbackRoot
+ * @returns {string}
+ */
 function resolveRocmRootForCmakePackage(cmakeDir, fallbackRoot) {
   const normalized = resolve(cmakeDir).replace(/\\/g, "/");
   const markerIndex = normalized.toLowerCase().lastIndexOf("/lib/cmake");
   return markerIndex > 0 ? normalized.slice(0, markerIndex) : fallbackRoot;
 }
 
+/**
+ * @param {RocmPaths} rocmPaths
+ * @param {NativeBuildEnv} nativeBuildEnv
+ * @returns {string | null}
+ */
 function resolveWindowsResourceCompiler(rocmPaths, nativeBuildEnv) {
   if (isFile(rocmPaths.llvmRc)) {
     return rocmPaths.llvmRc;
@@ -1008,6 +1147,11 @@ function resolveWindowsResourceCompiler(rocmPaths, nativeBuildEnv) {
   return findFileInPathList(nativeBuildEnv.pathEntries, "rc.exe");
 }
 
+/**
+ * @param {string} runtimeDir
+ * @param {string | null} rcCompiler
+ * @returns {string | null}
+ */
 function stageWindowsResourceCompiler(runtimeDir, rcCompiler) {
   if (!rcCompiler) {
     return rcCompiler;
@@ -1019,6 +1163,11 @@ function stageWindowsResourceCompiler(runtimeDir, rcCompiler) {
   return stagedPath;
 }
 
+/**
+ * @param {string} runtimeDir
+ * @param {string[]} libraryPaths
+ * @returns {string[]}
+ */
 function stageWindowsRuntimeLibraries(runtimeDir, libraryPaths) {
   if (!libraryPaths.length) {
     return [];
@@ -1032,12 +1181,20 @@ function stageWindowsRuntimeLibraries(runtimeDir, libraryPaths) {
   });
 }
 
+/**
+ * @param {RocmPaths} rocmPaths
+ * @param {string} packageDir
+ * @param {BuildLogger | null} logger
+ * @param {string | null} rcCompiler
+ * @returns {void}
+ */
 function validateWindowsRocmSdkPaths(
   rocmPaths,
   packageDir,
   logger,
   rcCompiler,
 ) {
+  /** @type {[string, string | null][]} */
   const requiredFiles = [
     ["ROCm clang", rocmPaths.clang],
     ["ROCm clang++", rocmPaths.clangxx],
@@ -1070,6 +1227,13 @@ function validateWindowsRocmSdkPaths(
   }
 }
 
+/**
+ * @param {string} packageDir
+ * @param {string} packageName
+ * @param {string[]} configNames
+ * @param {string[]} candidates
+ * @returns {string}
+ */
 function formatMissingCmakePackageMessage(
   packageDir,
   packageName,
@@ -1087,6 +1251,10 @@ function formatMissingCmakePackageMessage(
   ].join("\n");
 }
 
+/**
+ * @param {string} packageDir
+ * @returns {string}
+ */
 function formatRocmTreeSummary(packageDir) {
   const roots = [
     packageDir,
@@ -1135,6 +1303,10 @@ function formatRocmTreeSummary(packageDir) {
   return lines.join("\n");
 }
 
+/**
+ * @param {string} dir
+ * @returns {import("node:fs").Dirent[]}
+ */
 function safeReadDir(dir) {
   try {
     return readdirSync(dir, { withFileTypes: true });
@@ -1143,6 +1315,12 @@ function safeReadDir(dir) {
   }
 }
 
+/**
+ * @param {string} root
+ * @param {Set<string>} lowerCaseNames
+ * @param {number} maxDepth
+ * @returns {string | null}
+ */
 function findFirstFileRecursive(root, lowerCaseNames, maxDepth) {
   if (!isDirectory(root)) {
     return null;
@@ -1154,6 +1332,7 @@ function findFirstFileRecursive(root, lowerCaseNames, maxDepth) {
       break;
     }
     const { dir, depth } = current;
+    /** @type {import("node:fs").Dirent[]} */
     let entries;
     try {
       entries = readdirSync(dir, { withFileTypes: true });
@@ -1177,10 +1356,18 @@ function findFirstFileRecursive(root, lowerCaseNames, maxDepth) {
   return null;
 }
 
+/**
+ * @param {string} root
+ * @param {(entry: import("node:fs").Dirent, fullPath: string) => boolean} predicate
+ * @param {number} maxDepth
+ * @param {number} limit
+ * @returns {string[]}
+ */
 function findFilesRecursive(root, predicate, maxDepth, limit) {
   if (!isDirectory(root)) {
     return [];
   }
+  /** @type {string[]} */
   const results = [];
   const queue = [{ dir: root, depth: 0 }];
   while (queue.length && results.length < limit) {
@@ -1189,6 +1376,7 @@ function findFilesRecursive(root, predicate, maxDepth, limit) {
       break;
     }
     const { dir, depth } = current;
+    /** @type {import("node:fs").Dirent[]} */
     let entries;
     try {
       entries = readdirSync(dir, { withFileTypes: true });
@@ -1215,6 +1403,9 @@ function findFilesRecursive(root, predicate, maxDepth, limit) {
   return results;
 }
 
+/**
+ * @returns {NativeBuildEnv | null}
+ */
 function resolveWindowsNativeBuildEnv() {
   const sdk = resolveWindowsSdkLayout();
   const msvc = resolveMsvcToolsLayout();
@@ -1257,6 +1448,10 @@ function resolveWindowsNativeBuildEnv() {
   return { sdkVersion: sdk?.version, pathEntries, includePaths, libPaths };
 }
 
+/**
+ * @param {string[]} libPaths
+ * @returns {string[]}
+ */
 function resolveWindowsRuntimeLibraryPaths(libPaths) {
   return [...windowsDynamicRuntimeLibNames, ...windowsSystemImportLibNames].map(
     (fileName) => {
@@ -1276,6 +1471,10 @@ function resolveWindowsRuntimeLibraryPaths(libPaths) {
   );
 }
 
+/**
+ * @param {string} filePath
+ * @returns {boolean}
+ */
 function isX86WindowsLibraryPath(filePath) {
   const normalized = filePath.replace(/\\/g, "/").toLowerCase();
   return (
@@ -1284,6 +1483,9 @@ function isX86WindowsLibraryPath(filePath) {
   );
 }
 
+/**
+ * @returns {string}
+ */
 function formatWindowsNativeBuildToolsMissingMessage() {
   return [
     "Windows SDK and Microsoft C++ Build Tools were not found.",
@@ -1292,6 +1494,9 @@ function formatWindowsNativeBuildToolsMissingMessage() {
   ].join(" ");
 }
 
+/**
+ * @returns {WindowsSdkLayout | null}
+ */
 function resolveWindowsSdkLayout() {
   const roots = uniquePaths([
     process.env.MANGA_TRANSLATOR_WINDOWS_KITS_ROOT,
@@ -1335,6 +1540,9 @@ function resolveWindowsSdkLayout() {
   return null;
 }
 
+/**
+ * @returns {MsvcToolsLayout | null}
+ */
 function resolveMsvcToolsLayout() {
   const directRoots = uniquePaths([
     process.env.MANGA_TRANSLATOR_MSVC_TOOLS_ROOT,
@@ -1386,6 +1594,11 @@ function resolveMsvcToolsLayout() {
   return null;
 }
 
+/**
+ * @param {string} root
+ * @param {string} [version]
+ * @returns {MsvcToolsLayout | null}
+ */
 function toMsvcToolsLayout(root, version) {
   const libPath = join(root, "lib", "x64");
   const includePath = join(root, "include");
@@ -1402,6 +1615,10 @@ function toMsvcToolsLayout(root, version) {
   };
 }
 
+/**
+ * @param {BuildArgs} args
+ * @returns {string}
+ */
 function resolveGpuTargets(args) {
   const value =
     args["gpu-targets"] ||
@@ -1418,6 +1635,11 @@ function resolveGpuTargets(args) {
   return targets || defaultAmdGpuTargets.join(";");
 }
 
+/**
+ * @param {NativeBuildEnv} nativeBuildEnv
+ * @param {string} gpuTargets
+ * @returns {Record<string, unknown>}
+ */
 function snapshotEnvironment(nativeBuildEnv, gpuTargets) {
   const runtimeLibraries = (() => {
     try {
@@ -1448,6 +1670,9 @@ function snapshotEnvironment(nativeBuildEnv, gpuTargets) {
   };
 }
 
+/**
+ * @returns {string | null}
+ */
 function readGitRevision() {
   try {
     const { execFileSync } = require("node:child_process");
@@ -1460,14 +1685,26 @@ function readGitRevision() {
   }
 }
 
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function quoteArg(value) {
   return /\s/.test(value) ? JSON.stringify(value) : value;
 }
 
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function quoteCmakeArg(value) {
   return /\s/.test(value) ? `"${value.replace(/"/g, '\\"')}"` : value;
 }
 
+/**
+ * @param {string} filePath
+ * @returns {Promise<string>}
+ */
 function sha256File(filePath) {
   return new Promise((resolveHash, rejectHash) => {
     const hash = createHash("sha256");
@@ -1478,6 +1715,10 @@ function sha256File(filePath) {
   });
 }
 
+/**
+ * @param {number} bytes
+ * @returns {string}
+ */
 function formatBytes(bytes) {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
@@ -1489,11 +1730,20 @@ function formatBytes(bytes) {
   return `${value >= 10 || index === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[index]}`;
 }
 
+/**
+ * @param {string} child
+ * @param {string} parent
+ * @returns {boolean}
+ */
 function isPathInside(child, parent) {
   const rel = relative(resolve(parent), resolve(child));
   return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
 function splitPathList(value) {
   return String(value || "")
     .split(delimiter)
@@ -1501,7 +1751,12 @@ function splitPathList(value) {
     .filter(Boolean);
 }
 
+/**
+ * @param {...unknown} values
+ * @returns {string}
+ */
 function mergePathList(...values) {
+  /** @type {string[]} */
   const entries = [];
   for (const value of values) {
     if (!value) {
@@ -1516,6 +1771,10 @@ function mergePathList(...values) {
   return uniquePaths(entries).join(delimiter);
 }
 
+/**
+ * @param {...unknown} values
+ * @returns {string}
+ */
 function mergeWords(...values) {
   return values
     .flatMap((value) => (Array.isArray(value) ? value : [value]))
@@ -1524,12 +1783,21 @@ function mergeWords(...values) {
     .join(" ");
 }
 
+/**
+ * @param {Iterable<unknown>} paths
+ * @returns {string[]}
+ */
 function uniqueExistingDirs(paths) {
   return uniquePaths(paths).filter(isDirectory);
 }
 
+/**
+ * @param {Iterable<unknown>} paths
+ * @returns {string[]}
+ */
 function uniquePaths(paths) {
   const seen = new Set();
+  /** @type {string[]} */
   const result = [];
   for (const rawPath of paths) {
     const value = String(rawPath || "").trim();
@@ -1547,6 +1815,10 @@ function uniquePaths(paths) {
   return result;
 }
 
+/**
+ * @param {string} root
+ * @returns {string[]}
+ */
 function readChildDirectories(root) {
   try {
     return readdirSync(root)
@@ -1558,10 +1830,20 @@ function readChildDirectories(root) {
   }
 }
 
+/**
+ * @param {string} left
+ * @param {string} right
+ * @returns {number}
+ */
 function compareVersionDesc(left, right) {
   return compareVersionStrings(right, left);
 }
 
+/**
+ * @param {string} left
+ * @param {string} right
+ * @returns {number}
+ */
 function compareVersionStrings(left, right) {
   const leftParts = left
     .split(/[^\d]+/)
@@ -1581,10 +1863,20 @@ function compareVersionStrings(left, right) {
   return left.localeCompare(right);
 }
 
+/**
+ * @param {string[]} paths
+ * @param {string} fileName
+ * @returns {boolean}
+ */
 function pathListContainsFile(paths, fileName) {
   return paths.some((dir) => isFile(join(dir, fileName)));
 }
 
+/**
+ * @param {string[]} paths
+ * @param {string} fileName
+ * @returns {string | null}
+ */
 function findFileInPathList(paths, fileName) {
   for (const dir of paths) {
     const candidate = join(dir, fileName);
@@ -1595,22 +1887,34 @@ function findFileInPathList(paths, fileName) {
   return null;
 }
 
+/**
+ * @param {unknown} pathValue
+ * @returns {boolean}
+ */
 function isDirectory(pathValue) {
   try {
-    return statSync(pathValue).isDirectory();
+    return statSync(String(pathValue || "")).isDirectory();
   } catch (_error) {
     return false;
   }
 }
 
+/**
+ * @param {unknown} pathValue
+ * @returns {boolean}
+ */
 function isFile(pathValue) {
   try {
-    return statSync(pathValue).isFile();
+    return statSync(String(pathValue || "")).isFile();
   } catch (_error) {
     return false;
   }
 }
 
+/**
+ * @param {unknown} pathValue
+ * @returns {string}
+ */
 function toCmakePath(pathValue) {
-  return resolve(pathValue).replace(/\\/g, "/");
+  return resolve(String(pathValue || "")).replace(/\\/g, "/");
 }

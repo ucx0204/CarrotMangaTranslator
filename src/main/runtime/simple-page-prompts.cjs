@@ -1,4 +1,25 @@
 // @ts-check
+/**
+ * @typedef {{ modelProvider?: string; modelRepo?: unknown; modelFile?: unknown; localModelPath?: unknown; regionCropMode?: unknown; workContext?: PromptWorkContext | null; imageWidth?: unknown; imageHeight?: unknown; ocrBboxHints?: OcrHint[]; [key: string]: unknown }} PromptOptions
+ * @typedef {{ role?: string; width?: unknown; height?: unknown; [key: string]: unknown }} ImageVariant
+ * @typedef {string[]} PromptSection
+ * @typedef {{ styleGuide?: PromptStyleGuide | null; storyMemory?: { pages?: PromptStoryPage[] } | null }} PromptWorkContext
+ * @typedef {{ glossary?: PromptGlossaryEntry[]; characters?: PromptCharacterEntry[]; rules?: PromptRules }} PromptStyleGuide
+ * @typedef {{ enabled?: boolean; aliases?: unknown[]; note?: unknown; category?: unknown; source?: unknown; target?: unknown }} PromptGlossaryEntry
+ * @typedef {{ enabled?: boolean; sourceNames?: unknown[]; speechStyle?: unknown; customSpeechStyle?: unknown; displayName?: unknown; targetName?: unknown }} PromptCharacterEntry
+ * @typedef {{ honorifics?: unknown; sfxMode?: unknown; defaultTone?: unknown }} PromptRules
+ * @typedef {{ pageIndex?: unknown; pageName?: unknown; summary?: unknown; translatedDigest?: unknown }} PromptStoryPage
+ * @typedef {{ id?: unknown; label?: unknown; x1?: unknown; y1?: unknown; x2?: unknown; y2?: unknown; score?: unknown; groupId?: unknown; orderInGroup?: unknown; rolePrior?: unknown; containerType?: unknown; [key: string]: unknown }} OcrHint
+ * @typedef {{ groupId: string; rolePrior: string; containerType: string; hints: OcrHint[] }} OcrHintGroup
+ * @typedef {{ x1: number; y1: number; x2: number; y2: number }} PromptBox
+ * @typedef {{ space: "pixels" | "normalized_1000"; frame: { width: number; height: number } }} PromptCoordinateFrame
+ */
+
+/**
+ * @param {unknown} value
+ * @param {number} maxLength
+ * @returns {string}
+ */
 function truncateText(value, maxLength) {
   const text = String(value ?? "");
   if (text.length <= maxLength) {
@@ -7,10 +28,18 @@ function truncateText(value, maxLength) {
   return `${text.slice(0, maxLength)}... [truncated ${text.length - maxLength} chars]`;
 }
 
+/**
+ * @param {PromptOptions} [options]
+ * @returns {boolean}
+ */
 function isOpenAICodexProvider(options = {}) {
   return String(options.modelProvider ?? "").trim() === "openai-codex";
 }
 
+/**
+ * @param {PromptOptions} [options]
+ * @returns {boolean}
+ */
 function shouldUseSmallGemmaDuplicatePromptProfile(options = {}) {
   if (isOpenAICodexProvider(options)) {
     return false;
@@ -68,6 +97,7 @@ const OVERLAY_OUTPUT_SCHEMA = [
   "ko: <concise Korean translation>",
 ].join("\n");
 
+/** @type {PromptSection[]} */
 const OVERLAY_PROMPT_SECTIONS = [
   [
     "Task",
@@ -173,6 +203,10 @@ const OVERLAY_PROMPT_SECTIONS = [
 
 const PROMPT_KO_BBOX_LINES_MULTIVIEW = buildOverlayPrompt();
 
+/**
+ * @param {PromptOptions} [options]
+ * @returns {string}
+ */
 function buildSystemPrompt(options = {}) {
   const lines = [
     "You are an OCR and manga-translation engine.",
@@ -202,6 +236,11 @@ function buildSystemPrompt(options = {}) {
   return lines.join("\n\n");
 }
 
+/**
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {string}
+ */
 function buildOverlayPrompt(options = {}, imageVariants = []) {
   const sections = OVERLAY_PROMPT_SECTIONS.map(([title, ...lines]) => [
     title,
@@ -248,6 +287,11 @@ function buildOverlayPrompt(options = {}, imageVariants = []) {
     .join("\n\n");
 }
 
+/**
+ * @param {PromptSection[]} sections
+ * @param {PromptOptions} [options]
+ * @returns {void}
+ */
 function applyModelSpecificPromptProfile(sections, options = {}) {
   if (!shouldUseSmallGemmaDuplicatePromptProfile(options)) {
     return;
@@ -267,6 +311,13 @@ function applyModelSpecificPromptProfile(sections, options = {}) {
   );
 }
 
+/**
+ * @param {PromptSection[]} sections
+ * @param {string} title
+ * @param {string} anchorLine
+ * @param {string[]} lines
+ * @returns {void}
+ */
 function insertSectionLinesBefore(sections, title, anchorLine, lines) {
   const section = sections.find((candidate) => candidate[0] === title);
   if (!section) {
@@ -276,6 +327,13 @@ function insertSectionLinesBefore(sections, title, anchorLine, lines) {
   section.splice(index === -1 ? section.length : index, 0, ...lines);
 }
 
+/**
+ * @param {PromptSection[]} sections
+ * @param {string} title
+ * @param {string} anchorLine
+ * @param {string[]} lines
+ * @returns {void}
+ */
 function insertSectionLinesAfter(sections, title, anchorLine, lines) {
   const section = sections.find((candidate) => candidate[0] === title);
   if (!section) {
@@ -285,10 +343,20 @@ function insertSectionLinesAfter(sections, title, anchorLine, lines) {
   section.splice(index === -1 ? section.length : index + 1, 0, ...lines);
 }
 
+/**
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {string}
+ */
 function getOverlayPrompt(options = {}, imageVariants = []) {
   return buildOverlayPrompt(options, imageVariants);
 }
 
+/**
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {PromptSection}
+ */
 function buildTaskSection(options = {}, imageVariants = []) {
   const hasAssistImages = imageVariants.length > 1;
   const regionCropMode = Boolean(options.regionCropMode);
@@ -312,6 +380,10 @@ function buildTaskSection(options = {}, imageVariants = []) {
   ];
 }
 
+/**
+ * @param {PromptOptions} [options]
+ * @returns {PromptSection}
+ */
 function buildWorkContextSection(options = {}) {
   const context = options.workContext;
   if (!context || !context.styleGuide) {
@@ -369,6 +441,10 @@ function buildWorkContextSection(options = {}) {
   return lines.length > 1 ? lines : [];
 }
 
+/**
+ * @param {PromptGlossaryEntry} entry
+ * @returns {string}
+ */
 function formatGlossaryEntry(entry) {
   const aliases =
     Array.isArray(entry.aliases) && entry.aliases.length
@@ -378,6 +454,10 @@ function formatGlossaryEntry(entry) {
   return `- [${entry.category || "term"}] ${sanitizePromptLine(entry.source, 80)} => ${sanitizePromptLine(entry.target, 80)}${aliases}${note}`;
 }
 
+/**
+ * @param {PromptCharacterEntry} character
+ * @returns {string}
+ */
 function formatCharacterEntry(character) {
   const sourceNames = Array.isArray(character.sourceNames)
     ? character.sourceNames.join(", ")
@@ -389,6 +469,11 @@ function formatCharacterEntry(character) {
   return `- ${sanitizePromptLine(character.displayName || character.targetName, 80)}: sourceNames=${sanitizePromptLine(sourceNames, 160)} targetName=${sanitizePromptLine(character.targetName, 80)} speechStyle=${sanitizePromptLine(style, 160)}`;
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} [max]
+ * @returns {string}
+ */
 function sanitizePromptLine(value, max = 240) {
   const text = String(value ?? "")
     .replace(/[\r\n\t]+/g, " ")
@@ -399,6 +484,10 @@ function sanitizePromptLine(value, max = 240) {
     : `${text.slice(0, Math.max(0, max - 3))}...`;
 }
 
+/**
+ * @param {PromptOptions} [options]
+ * @returns {PromptSection}
+ */
 function buildRegionCropSection(options = {}) {
   if (!options.regionCropMode) {
     return [];
@@ -416,6 +505,11 @@ function buildRegionCropSection(options = {}) {
   ];
 }
 
+/**
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {PromptSection}
+ */
 function buildCoordinateCalibrationSection(options = {}, imageVariants = []) {
   const originalWidth = readPositiveInteger(options.imageWidth);
   const originalHeight = readPositiveInteger(options.imageHeight);
@@ -465,6 +559,11 @@ function buildCoordinateCalibrationSection(options = {}, imageVariants = []) {
   return lines;
 }
 
+/**
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {PromptSection}
+ */
 function buildOcrBboxHintSection(options = {}, imageVariants = []) {
   const hints = Array.isArray(options.ocrBboxHints) ? options.ocrBboxHints : [];
   if (hints.length === 0) {
@@ -553,6 +652,10 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
   ];
 }
 
+/**
+ * @param {OcrHint[]} hints
+ * @returns {PromptSection}
+ */
 function buildOcrGroupContextLines(hints) {
   const groups = collectOcrHintGroups(hints);
   if (groups.length === 0) {
@@ -569,7 +672,12 @@ function buildOcrGroupContextLines(hints) {
   ];
 }
 
+/**
+ * @param {OcrHint[]} hints
+ * @returns {OcrHintGroup[]}
+ */
 function collectOcrHintGroups(hints) {
+  /** @type {Map<string, OcrHintGroup>} */
   const grouped = new Map();
   for (const hint of Array.isArray(hints) ? hints : []) {
     const groupId = sanitizeOcrGroupId(hint?.groupId);
@@ -600,6 +708,10 @@ function collectOcrHintGroups(hints) {
     .slice(0, 12);
 }
 
+/**
+ * @param {OcrHintGroup} group
+ * @returns {string}
+ */
 function formatOcrGroupForPrompt(group) {
   const candidateIds = group.hints
     .map((hint) => readPositiveInteger(hint.id))
@@ -617,6 +729,14 @@ function formatOcrGroupForPrompt(group) {
   return `group ${group.groupId}: rolePrior:${group.rolePrior} containerType:${group.containerType} candidateIds:[${candidateIds.join(",")}] readingOrder:[${readingOrder.join(",")}]${preview}`;
 }
 
+/**
+ * @param {OcrHint} hint
+ * @param {number} fallbackId
+ * @param {PromptCoordinateFrame} frame
+ * @param {number | null} originalWidth
+ * @param {number | null} originalHeight
+ * @returns {string}
+ */
 function formatOcrBboxHintForPrompt(
   hint,
   fallbackId,
@@ -640,8 +760,9 @@ function formatOcrBboxHintForPrompt(
     originalWidth,
     originalHeight,
   );
-  const score = Number.isFinite(hint.score)
-    ? ` score:${Math.round(hint.score * 100) / 100}`
+  const scoreValue = Number(hint.score);
+  const score = Number.isFinite(scoreValue)
+    ? ` score:${Math.round(scoreValue * 100) / 100}`
     : "";
   const ocrText = sanitizeOcrTextForPrompt(readOcrCandidateText(hint));
   const textHint = ocrText ? ` ocrText:${JSON.stringify(ocrText)}` : "";
@@ -654,6 +775,10 @@ function formatOcrBboxHintForPrompt(
   return `candidate ${id}: label:${label} x1:${converted.x1} y1:${converted.y1} x2:${converted.x2} y2:${converted.y2}${score}${group}${role}${textHint}`;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function sanitizeOcrGroupId(value) {
   const text = String(value ?? "")
     .trim()
@@ -661,6 +786,10 @@ function sanitizeOcrGroupId(value) {
   return /^G\d{3,4}$/.test(text) ? text : "";
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function sanitizeOcrGroupValue(value) {
   const text = String(value ?? "")
     .trim()
@@ -669,6 +798,13 @@ function sanitizeOcrGroupValue(value) {
   return text.slice(0, 48);
 }
 
+/**
+ * @param {PromptBox} box
+ * @param {PromptCoordinateFrame} frame
+ * @param {number | null} originalWidth
+ * @param {number | null} originalHeight
+ * @returns {PromptBox}
+ */
 function convertOriginalPixelBoxToPromptFrame(
   box,
   frame,
@@ -703,6 +839,10 @@ function convertOriginalPixelBoxToPromptFrame(
   };
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function sanitizeHintLabel(value) {
   const text = String(value ?? "text")
     .trim()
@@ -711,10 +851,15 @@ function sanitizeHintLabel(value) {
   return text || "text";
 }
 
+/**
+ * @param {unknown} candidate
+ * @returns {string}
+ */
 function readOcrCandidateText(candidate) {
   if (!candidate || typeof candidate !== "object") {
     return "";
   }
+  const record = /** @type {Record<string, unknown>} */ (candidate);
   for (const key of [
     "ocrText",
     "ocr_text",
@@ -724,7 +869,7 @@ function readOcrCandidateText(candidate) {
     "rec_text",
     "transcription",
   ]) {
-    const text = normalizeOcrTextValue(candidate[key]);
+    const text = normalizeOcrTextValue(record[key]);
     if (text) {
       return text;
     }
@@ -732,6 +877,10 @@ function readOcrCandidateText(candidate) {
   return "";
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function normalizeOcrTextValue(value) {
   if (typeof value === "string") {
     return value.replace(/\s+/g, " ").trim();
@@ -740,6 +889,7 @@ function normalizeOcrTextValue(value) {
     return value.map(normalizeOcrTextValue).filter(Boolean).join(" ").trim();
   }
   if (value && typeof value === "object") {
+    const record = /** @type {Record<string, unknown>} */ (value);
     for (const key of [
       "text",
       "content",
@@ -747,7 +897,7 @@ function normalizeOcrTextValue(value) {
       "rec_text",
       "transcription",
     ]) {
-      const text = normalizeOcrTextValue(value[key]);
+      const text = normalizeOcrTextValue(record[key]);
       if (text) {
         return text;
       }
@@ -756,6 +906,10 @@ function normalizeOcrTextValue(value) {
   return "";
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function sanitizeOcrTextForPrompt(value) {
   return truncateText(
     normalizeOcrTextValue(value)
@@ -766,6 +920,11 @@ function sanitizeOcrTextForPrompt(value) {
   );
 }
 
+/**
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {PromptCoordinateFrame}
+ */
 function resolvePromptCoordinateFrame(options = {}, imageVariants = []) {
   if (isOpenAICodexProvider(options)) {
     const geometryVariant =
@@ -791,6 +950,10 @@ function resolvePromptCoordinateFrame(options = {}, imageVariants = []) {
   };
 }
 
+/**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
 function readPositiveInteger(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;

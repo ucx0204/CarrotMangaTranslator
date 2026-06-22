@@ -1,12 +1,7 @@
 import React from "react";
-import type { WorkShareImportPreview } from "../../../../shared/types";
+import type { WorkShareImportPreview } from "../../../../shared/shareTypes";
 import { Button } from "../ui";
-
-type NewSelection = {
-  packageChapterId: string;
-  title: string;
-  enabled: boolean;
-};
+import type { NewSelection } from "./shareImportTypes";
 
 type ShareImportNewWorkSectionProps = {
   busy: boolean;
@@ -21,33 +16,22 @@ export function ShareImportNewWorkSection({
   preview,
   setNewSelections,
 }: ShareImportNewWorkSectionProps): React.JSX.Element {
+  const selectAll = (): void => {
+    setNewSelections((current) => updateAllSelections(current, true));
+  };
+  const clearAll = (): void => {
+    setNewSelections((current) => updateAllSelections(current, false));
+  };
+
   return (
     <section className="modal-section">
       <div className="modal-subheader">
         <h3>가져올 화</h3>
         <div className="inline-actions">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() =>
-              setNewSelections((current) =>
-                current.map((item) => ({ ...item, enabled: true })),
-              )
-            }
-            disabled={busy}
-          >
+          <Button variant="ghost" size="sm" onClick={selectAll} disabled={busy}>
             전체 선택
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() =>
-              setNewSelections((current) =>
-                current.map((item) => ({ ...item, enabled: false })),
-              )
-            }
-            disabled={busy}
-          >
+          <Button variant="ghost" size="sm" onClick={clearAll} disabled={busy}>
             전체 해제
           </Button>
         </div>
@@ -61,42 +45,89 @@ export function ShareImportNewWorkSection({
             return null;
           }
           return (
-            <div key={chapter.packageChapterId} className="draft-item">
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={selection.enabled}
-                  disabled={busy}
-                  onChange={(event) => {
-                    setNewSelections((current) =>
-                      current.map((item) =>
-                        item.packageChapterId === chapter.packageChapterId
-                          ? { ...item, enabled: event.target.checked }
-                          : item,
-                      ),
-                    );
-                  }}
-                />
-                <span>{chapter.pageCount}페이지</span>
-              </label>
-              <input
-                value={selection.title}
-                disabled={busy || !selection.enabled}
-                onChange={(event) => {
-                  const title = event.target.value;
-                  setNewSelections((current) =>
-                    current.map((item) =>
-                      item.packageChapterId === chapter.packageChapterId
-                        ? { ...item, title }
-                        : item,
-                    ),
-                  );
-                }}
-              />
-            </div>
+            <ShareImportNewWorkItem
+              key={chapter.packageChapterId}
+              busy={busy}
+              packageChapterId={chapter.packageChapterId}
+              pageCount={chapter.pageCount}
+              selection={selection}
+              setNewSelections={setNewSelections}
+            />
           );
         })}
       </div>
     </section>
+  );
+}
+
+function ShareImportNewWorkItem({
+  busy,
+  packageChapterId,
+  pageCount,
+  selection,
+  setNewSelections,
+}: {
+  busy: boolean;
+  packageChapterId: string;
+  pageCount: number;
+  selection: NewSelection;
+  setNewSelections: React.Dispatch<React.SetStateAction<NewSelection[]>>;
+}): React.JSX.Element {
+  return (
+    <div className="draft-item">
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={selection.enabled}
+          disabled={busy}
+          onChange={(event) => {
+            setNewSelections((current) =>
+              updateSelectionEnabled(
+                current,
+                packageChapterId,
+                event.target.checked,
+              ),
+            );
+          }}
+        />
+        <span>{pageCount}페이지</span>
+      </label>
+      <input
+        value={selection.title}
+        disabled={busy || !selection.enabled}
+        onChange={(event) => {
+          setNewSelections((current) =>
+            updateSelectionTitle(current, packageChapterId, event.target.value),
+          );
+        }}
+      />
+    </div>
+  );
+}
+
+function updateAllSelections(
+  selections: NewSelection[],
+  enabled: boolean,
+): NewSelection[] {
+  return selections.map((item) => ({ ...item, enabled }));
+}
+
+function updateSelectionEnabled(
+  selections: NewSelection[],
+  packageChapterId: string,
+  enabled: boolean,
+): NewSelection[] {
+  return selections.map((item) =>
+    item.packageChapterId === packageChapterId ? { ...item, enabled } : item,
+  );
+}
+
+function updateSelectionTitle(
+  selections: NewSelection[],
+  packageChapterId: string,
+  title: string,
+): NewSelection[] {
+  return selections.map((item) =>
+    item.packageChapterId === packageChapterId ? { ...item, title } : item,
   );
 }

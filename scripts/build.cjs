@@ -12,6 +12,10 @@ const { prepareRuntimeAssets } = require("./prepare-runtime.cjs");
 const root = join(__dirname, "..");
 const rendererOutDir = join(root, "out", "renderer");
 
+/**
+ * @param {string} command
+ * @param {string[]} args
+ */
 function run(command, args) {
   console.log(`> ${command} ${args.join(" ")}`);
   const result = spawnSync(command, args, {
@@ -27,6 +31,7 @@ function run(command, args) {
   }
 }
 
+/** @param {string} dir */
 function cleanDirectoryContents(dir) {
   const resolvedDir = resolve(dir);
   const expectedDir = resolve(root, "out", "renderer");
@@ -41,6 +46,7 @@ function cleanDirectoryContents(dir) {
   }
 }
 
+/** @param {string} targetPath */
 function removePath(targetPath) {
   const stat = lstatSync(targetPath);
   if (stat.isDirectory() && !stat.isSymbolicLink()) {
@@ -64,6 +70,10 @@ run(process.execPath, [
 ]);
 prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
 
+/**
+ * @param {string} packageName
+ * @param {...string} parts
+ */
 function nodeBin(packageName, ...parts) {
   return join(root, "node_modules", packageName, ...parts);
 }

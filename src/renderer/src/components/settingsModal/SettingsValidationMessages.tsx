@@ -1,5 +1,5 @@
 import React from "react";
-import type { ModelProvider } from "../../../../shared/types";
+import type { ModelProvider } from "../../../../shared/settingsTypes";
 import {
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,

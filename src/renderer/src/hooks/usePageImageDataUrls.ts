@@ -1,5 +1,5 @@
 import React from "react";
-import type { MangaPage } from "../../../shared/types";
+import type { MangaPage } from "../../../shared/libraryTypes";
 import { mangaGateway } from "../api/mangaGateway";
 
 const PAGE_IMAGE_CACHE_LIMIT = 6;
@@ -18,6 +18,8 @@ type UsePageImageDataUrlsResult = {
   clearPageImageCache: () => void;
 };
 
+type ImageDataUrlSetter = React.Dispatch<React.SetStateAction<string>>;
+
 export function usePageImageDataUrls({
   chapterId,
   selectedPage,
@@ -35,17 +37,89 @@ export function usePageImageDataUrls({
   const selectedPageId = selectedPage?.id ?? null;
   const selectedPageOriginalImagePath = selectedPage?.imagePath ?? null;
 
+  const clearPageImageCache = useClearPageImageCache({
+    chapterId,
+    pageImageCacheRef,
+    setCacheRevision,
+    setSelectedPageImageDataUrl,
+    setSelectedPageOriginalImageDataUrl,
+  });
+  useSelectedPageImageEffect({
+    cacheRevision,
+    pageImageCacheRef,
+    selectedPageId,
+    selectedPageImagePath,
+    selectedPageOriginalImagePath,
+    setSelectedPageImageDataUrl,
+    setSelectedPageOriginalImageDataUrl,
+  });
+  useOriginalPageImageEffect({
+    cacheRevision,
+    pageImageCacheRef,
+    selectedPageId,
+    selectedPageImageDataUrl,
+    selectedPageImagePath,
+    selectedPageOriginalImagePath,
+    setSelectedPageOriginalImageDataUrl,
+  });
+  useNeighborPagePrefetch(neighborTargets, pageImageCacheRef);
+
+  return {
+    selectedPageImageDataUrl,
+    selectedPageOriginalImageDataUrl,
+    clearPageImageCache,
+  };
+}
+
+function useClearPageImageCache({
+  chapterId,
+  pageImageCacheRef,
+  setCacheRevision,
+  setSelectedPageImageDataUrl,
+  setSelectedPageOriginalImageDataUrl,
+}: {
+  chapterId: string | null;
+  pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
+  setCacheRevision: React.Dispatch<React.SetStateAction<number>>;
+  setSelectedPageImageDataUrl: ImageDataUrlSetter;
+  setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
+}): () => void {
   const clearPageImageCache = React.useCallback(() => {
     pageImageCacheRef.current.clear();
     setSelectedPageImageDataUrl("");
     setSelectedPageOriginalImageDataUrl("");
     setCacheRevision((revision) => revision + 1);
-  }, []);
+  }, [
+    pageImageCacheRef,
+    setCacheRevision,
+    setSelectedPageImageDataUrl,
+    setSelectedPageOriginalImageDataUrl,
+  ]);
 
   React.useEffect(() => {
     clearPageImageCache();
   }, [chapterId, clearPageImageCache]);
 
+  return clearPageImageCache;
+}
+
+function useSelectedPageImageEffect({
+  cacheRevision,
+  pageImageCacheRef,
+  selectedPageId,
+  selectedPageImagePath,
+  selectedPageOriginalImagePath,
+  setSelectedPageImageDataUrl,
+  setSelectedPageOriginalImageDataUrl,
+}: {
+  cacheRevision: number;
+  pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
+  selectedPageId: string | null;
+  selectedPageImagePath: string | null;
+  selectedPageOriginalImagePath: string | null;
+  setSelectedPageImageDataUrl: ImageDataUrlSetter;
+  setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
+}): void {
   React.useEffect(() => {
     if (!selectedPageId || !selectedPageOriginalImagePath) {
       setSelectedPageImageDataUrl("");
@@ -61,8 +135,6 @@ export function usePageImageDataUrls({
       return;
     }
 
-    // Keep the previous page visible until the next one resolves so flipping
-    // pages never flashes the dark placeholder.
     let cancelled = false;
     void mangaGateway
       .getPageImageDataUrl(imagePath)
@@ -85,11 +157,32 @@ export function usePageImageDataUrls({
     };
   }, [
     cacheRevision,
+    pageImageCacheRef,
     selectedPageId,
     selectedPageImagePath,
     selectedPageOriginalImagePath,
+    setSelectedPageImageDataUrl,
+    setSelectedPageOriginalImageDataUrl,
   ]);
+}
 
+function useOriginalPageImageEffect({
+  cacheRevision,
+  pageImageCacheRef,
+  selectedPageId,
+  selectedPageImageDataUrl,
+  selectedPageImagePath,
+  selectedPageOriginalImagePath,
+  setSelectedPageOriginalImageDataUrl,
+}: {
+  cacheRevision: number;
+  pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
+  selectedPageId: string | null;
+  selectedPageImageDataUrl: string;
+  selectedPageImagePath: string | null;
+  selectedPageOriginalImagePath: string | null;
+  setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
+}): void {
   React.useEffect(() => {
     if (!selectedPageId || !selectedPageOriginalImagePath) {
       setSelectedPageOriginalImageDataUrl("");
@@ -103,8 +196,7 @@ export function usePageImageDataUrls({
       return;
     }
 
-    const imagePath = selectedPageOriginalImagePath;
-    const cacheKey = `${selectedPageId}:original:${imagePath}`;
+    const cacheKey = `${selectedPageId}:original:${selectedPageOriginalImagePath}`;
     const cached = pageImageCacheRef.current.get(cacheKey);
     if (cached) {
       setSelectedPageOriginalImageDataUrl(cached);
@@ -114,7 +206,7 @@ export function usePageImageDataUrls({
     let cancelled = false;
     setSelectedPageOriginalImageDataUrl("");
     void mangaGateway
-      .getPageImageDataUrl(imagePath)
+      .getPageImageDataUrl(selectedPageOriginalImagePath)
       .then((dataUrl) => {
         if (cancelled) {
           return;
@@ -134,12 +226,19 @@ export function usePageImageDataUrls({
     };
   }, [
     cacheRevision,
+    pageImageCacheRef,
     selectedPageId,
     selectedPageImageDataUrl,
     selectedPageImagePath,
     selectedPageOriginalImagePath,
+    setSelectedPageOriginalImageDataUrl,
   ]);
+}
 
+function useNeighborPagePrefetch(
+  neighborTargets: Array<{ pageId: string; imagePath: string }>,
+  pageImageCacheRef: React.MutableRefObject<Map<string, string>>,
+): void {
   React.useEffect(() => {
     if (neighborTargets.length === 0) {
       return;
@@ -164,13 +263,7 @@ export function usePageImageDataUrls({
     return () => {
       cancelled = true;
     };
-  }, [neighborTargets]);
-
-  return {
-    selectedPageImageDataUrl,
-    selectedPageOriginalImageDataUrl,
-    clearPageImageCache,
-  };
+  }, [neighborTargets, pageImageCacheRef]);
 }
 
 function setCachedImageDataUrl(

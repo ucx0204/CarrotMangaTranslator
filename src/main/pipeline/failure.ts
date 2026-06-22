@@ -1,4 +1,44 @@
-import type { MangaPage } from "../../shared/types";
+import type { MangaPage } from "../../shared/libraryTypes";
+
+const FAILURE_MESSAGE_RULES = [
+  {
+    category: "image-preprocessing",
+    terms: ["build-page-variant"],
+  },
+  {
+    category: "server-startup",
+    terms: ["llama-server", "bundled llama-server", "timed out while waiting"],
+  },
+  {
+    category: "model-request",
+    terms: [
+      "gemma request failed",
+      "openai codex request failed",
+      "api 오류",
+      "request transport failed",
+      "openai-oauth",
+    ],
+  },
+  {
+    category: "response-json-parse",
+    terms: ["json parse failed"],
+  },
+  {
+    category: "overlay-parse",
+    terms: [
+      "구조화 형식으로 해석하지 못했습니다",
+      "parseable structured payload",
+    ],
+  },
+  {
+    category: "empty-model-response",
+    terms: ["empty response"],
+  },
+  {
+    category: "empty-overlay-items",
+    terms: ["bbox 결과를 만들지 못했습니다"],
+  },
+] as const;
 
 export function summarizePage(page: MangaPage): Record<string, unknown> {
   return {
@@ -12,6 +52,20 @@ export function summarizePage(page: MangaPage): Record<string, unknown> {
 }
 
 export function classifyFailure(error: unknown): string {
+  const explicitCategory = readFailureCategory(error);
+  if (explicitCategory) {
+    return explicitCategory;
+  }
+  if (isNonRetriableRuntimeError(error)) {
+    return "runtime";
+  }
+  const message = (
+    error instanceof Error ? error.message : String(error)
+  ).toLowerCase();
+  return classifyFailureMessage(message);
+}
+
+function readFailureCategory(error: unknown): string | null {
   if (
     error &&
     typeof error === "object" &&
@@ -20,48 +74,15 @@ export function classifyFailure(error: unknown): string {
   ) {
     return (error as { failureCategory: string }).failureCategory;
   }
-  if (isNonRetriableRuntimeError(error)) {
-    return "runtime";
-  }
-  const message = (
-    error instanceof Error ? error.message : String(error)
-  ).toLowerCase();
+  return null;
+}
 
-  if (message.includes("build-page-variant")) {
-    return "image-preprocessing";
-  }
-  if (
-    message.includes("llama-server") ||
-    message.includes("bundled llama-server") ||
-    message.includes("timed out while waiting")
-  ) {
-    return "server-startup";
-  }
-  if (
-    message.includes("gemma request failed") ||
-    message.includes("openai codex request failed") ||
-    message.includes("api 오류") ||
-    message.includes("request transport failed") ||
-    message.includes("openai-oauth")
-  ) {
-    return "model-request";
-  }
-  if (message.includes("json parse failed")) {
-    return "response-json-parse";
-  }
-  if (
-    message.includes("구조화 형식으로 해석하지 못했습니다") ||
-    message.includes("parseable structured payload")
-  ) {
-    return "overlay-parse";
-  }
-  if (message.includes("empty response")) {
-    return "empty-model-response";
-  }
-  if (message.includes("bbox 결과를 만들지 못했습니다")) {
-    return "empty-overlay-items";
-  }
-  return "unknown";
+function classifyFailureMessage(message: string): string {
+  return (
+    FAILURE_MESSAGE_RULES.find((rule) =>
+      rule.terms.some((term) => message.includes(term)),
+    )?.category ?? "unknown"
+  );
 }
 
 export function isNonRetriableRuntimeError(error: unknown): boolean {

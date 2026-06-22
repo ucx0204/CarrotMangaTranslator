@@ -1,4 +1,30 @@
 // @ts-check
+/**
+ * @typedef {{
+ *   apiBaseUrl?: unknown;
+ *   apiCustomHeadersJson?: unknown;
+ *   apiExtraBodyJson?: unknown;
+ *   apiKey?: unknown;
+ *   apiModel?: unknown;
+ *   apiReasoningEffort?: unknown;
+ *   apiTemperature?: unknown;
+ *   apiTopK?: unknown;
+ *   apiTopP?: unknown;
+ *   codexModel?: unknown;
+ *   codexReasoningEffort?: unknown;
+ *   draftModelFile?: unknown;
+ *   draftModelRepo?: unknown;
+ *   localMmprojPath?: unknown;
+ *   localModelPath?: unknown;
+ *   mmprojFile?: unknown;
+ *   mmprojRepo?: unknown;
+ *   modelFile?: unknown;
+ *   modelProvider?: unknown;
+ *   modelRepo?: unknown;
+ *   modelSource?: unknown;
+ *   [key: string]: unknown;
+ * }} ModelConfigOptions
+ */
 const path = require("node:path");
 
 const {
@@ -18,13 +44,17 @@ const {
   DEFAULT_MODEL_HF,
 } = require("./simple-page-defaults.cjs");
 
-function resolveConfiguredModelSource(options = {}) {
+function resolveConfiguredModelSource(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return String(options.modelSource ?? "").trim() === "local"
     ? "local"
     : "huggingface";
 }
 
-function resolveModelProvider(options = {}) {
+function resolveModelProvider(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   const value = String(options.modelProvider ?? "").trim();
   if (value === "openai-codex" || value === "openai-api") {
     return value;
@@ -32,15 +62,19 @@ function resolveModelProvider(options = {}) {
   return "gemma";
 }
 
-function isOpenAICodexProvider(options = {}) {
+function isOpenAICodexProvider(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return resolveModelProvider(options) === "openai-codex";
 }
 
-function isOpenAIApiProvider(options = {}) {
+function isOpenAIApiProvider(options = /** @type {ModelConfigOptions} */ ({})) {
   return resolveModelProvider(options) === "openai-api";
 }
 
-function resolveProviderDisplayName(options = {}) {
+function resolveProviderDisplayName(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   if (isOpenAICodexProvider(options)) {
     return "OpenAI Codex";
   }
@@ -50,7 +84,9 @@ function resolveProviderDisplayName(options = {}) {
   return "Gemma";
 }
 
-function resolveConfiguredCodexModel(options = {}) {
+function resolveConfiguredCodexModel(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return (
     String(
       options.codexModel ?? process.env.MANGA_TRANSLATOR_CODEX_MODEL ?? "",
@@ -58,7 +94,9 @@ function resolveConfiguredCodexModel(options = {}) {
   );
 }
 
-function resolveConfiguredCodexReasoningEffort(options = {}) {
+function resolveConfiguredCodexReasoningEffort(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   const value = String(
     process.env.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT ??
       options.codexReasoningEffort ??
@@ -72,6 +110,7 @@ function resolveConfiguredCodexReasoningEffort(options = {}) {
     : DEFAULT_CODEX_REASONING_EFFORT;
 }
 
+/** @param {unknown} value */
 function coerceOpenAiCompatibleBaseUrl(value) {
   const text = String(value ?? "").trim();
   if (!text) {
@@ -95,7 +134,9 @@ function coerceOpenAiCompatibleBaseUrl(value) {
   return url.toString().replace(/\/$/g, "");
 }
 
-function resolveConfiguredApiBaseUrl(options = {}) {
+function resolveConfiguredApiBaseUrl(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return (
     coerceOpenAiCompatibleBaseUrl(
       process.env.MANGA_TRANSLATOR_API_BASE_URL ?? options.apiBaseUrl,
@@ -103,6 +144,7 @@ function resolveConfiguredApiBaseUrl(options = {}) {
   );
 }
 
+/** @param {unknown} value */
 function isOfficialOpenAiApiBaseUrl(value) {
   const baseUrl = coerceOpenAiCompatibleBaseUrl(value);
   if (!baseUrl) {
@@ -116,7 +158,9 @@ function isOfficialOpenAiApiBaseUrl(value) {
   }
 }
 
-function resolveConfiguredApiModel(options = {}) {
+function resolveConfiguredApiModel(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return (
     String(
       process.env.MANGA_TRANSLATOR_API_MODEL ?? options.apiModel ?? "",
@@ -124,7 +168,9 @@ function resolveConfiguredApiModel(options = {}) {
   );
 }
 
-function resolveConfiguredApiKey(options = {}) {
+function resolveConfiguredApiKey(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   const explicitApiKey = String(
     process.env.MANGA_TRANSLATOR_API_KEY ?? "",
   ).trim();
@@ -144,7 +190,9 @@ function resolveConfiguredApiKey(options = {}) {
   return "";
 }
 
-function resolveConfiguredApiTemperature(options = {}) {
+function resolveConfiguredApiTemperature(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return resolveNullableNumber(
     process.env.MANGA_TRANSLATOR_API_TEMPERATURE,
     options.apiTemperature,
@@ -154,7 +202,9 @@ function resolveConfiguredApiTemperature(options = {}) {
   );
 }
 
-function resolveConfiguredApiTopP(options = {}) {
+function resolveConfiguredApiTopP(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return resolveNullableNumber(
     process.env.MANGA_TRANSLATOR_API_TOP_P,
     options.apiTopP,
@@ -164,7 +214,9 @@ function resolveConfiguredApiTopP(options = {}) {
   );
 }
 
-function resolveConfiguredApiTopK(options = {}) {
+function resolveConfiguredApiTopK(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return resolveNullableInteger(
     process.env.MANGA_TRANSLATOR_API_TOP_K,
     options.apiTopK,
@@ -174,7 +226,9 @@ function resolveConfiguredApiTopK(options = {}) {
   );
 }
 
-function resolveConfiguredApiReasoningEffort(options = {}) {
+function resolveConfiguredApiReasoningEffort(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return resolveNullableReasoningEffort(
     process.env.MANGA_TRANSLATOR_API_REASONING_EFFORT,
     options.apiReasoningEffort,
@@ -182,7 +236,9 @@ function resolveConfiguredApiReasoningEffort(options = {}) {
   );
 }
 
-function resolveConfiguredApiExtraBodyJson(options = {}) {
+function resolveConfiguredApiExtraBodyJson(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return String(
     process.env.MANGA_TRANSLATOR_API_EXTRA_BODY ??
       options.apiExtraBodyJson ??
@@ -190,7 +246,9 @@ function resolveConfiguredApiExtraBodyJson(options = {}) {
   ).trim();
 }
 
-function resolveConfiguredApiCustomHeadersJson(options = {}) {
+function resolveConfiguredApiCustomHeadersJson(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return String(
     process.env.MANGA_TRANSLATOR_API_HEADERS ??
       options.apiCustomHeadersJson ??
@@ -198,6 +256,13 @@ function resolveConfiguredApiCustomHeadersJson(options = {}) {
   ).trim();
 }
 
+/**
+ * @param {unknown} envValue
+ * @param {unknown} optionValue
+ * @param {number | null} fallback
+ * @param {number} min
+ * @param {number} max
+ */
 function resolveNullableNumber(envValue, optionValue, fallback, min, max) {
   const value = envValue !== undefined ? envValue : optionValue;
   if (value === null || value === "") {
@@ -213,6 +278,13 @@ function resolveNullableNumber(envValue, optionValue, fallback, min, max) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+/**
+ * @param {unknown} envValue
+ * @param {unknown} optionValue
+ * @param {number | null} fallback
+ * @param {number} min
+ * @param {number} max
+ */
 function resolveNullableInteger(envValue, optionValue, fallback, min, max) {
   const value = envValue !== undefined ? envValue : optionValue;
   if (value === null || value === "") {
@@ -228,6 +300,11 @@ function resolveNullableInteger(envValue, optionValue, fallback, min, max) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+/**
+ * @param {unknown} envValue
+ * @param {unknown} optionValue
+ * @param {string | null} fallback
+ */
 function resolveNullableReasoningEffort(envValue, optionValue, fallback) {
   const value = envValue !== undefined ? envValue : optionValue;
   if (value === null || value === "") {
@@ -244,17 +321,23 @@ function resolveNullableReasoningEffort(envValue, optionValue, fallback) {
     : fallback;
 }
 
-function resolveConfiguredLocalModelPath(options = {}) {
+function resolveConfiguredLocalModelPath(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   const value = String(options.localModelPath ?? "").trim();
   return value ? path.resolve(value) : null;
 }
 
-function resolveConfiguredLocalMmprojPath(options = {}) {
+function resolveConfiguredLocalMmprojPath(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   const value = String(options.localMmprojPath ?? "").trim();
   return value ? path.resolve(value) : null;
 }
 
-function resolveConfiguredModelRepo(options = {}) {
+function resolveConfiguredModelRepo(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return (
     String(
       options.modelRepo ?? process.env.MANGA_TRANSLATOR_MODEL_HF ?? "",
@@ -262,14 +345,18 @@ function resolveConfiguredModelRepo(options = {}) {
   );
 }
 
-function resolveConfiguredModelFile(options = {}) {
+function resolveConfiguredModelFile(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return (
     String(options.modelFile ?? process.env.LLAMA_ARG_HF_FILE ?? "").trim() ||
     DEFAULT_HF_FILE
   );
 }
 
-function resolveConfiguredMmprojRepo(options = {}) {
+function resolveConfiguredMmprojRepo(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return (
     String(
       options.mmprojRepo ?? process.env.MANGA_TRANSLATOR_MMPROJ_HF ?? "",
@@ -277,7 +364,9 @@ function resolveConfiguredMmprojRepo(options = {}) {
   );
 }
 
-function resolveConfiguredMmprojFile(options = {}) {
+function resolveConfiguredMmprojFile(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return (
     String(
       options.mmprojFile ?? process.env.LLAMA_ARG_MMPROJ_FILE ?? "",
@@ -285,13 +374,17 @@ function resolveConfiguredMmprojFile(options = {}) {
   );
 }
 
-function resolveConfiguredDraftModelRepo(options = {}) {
+function resolveConfiguredDraftModelRepo(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return String(
     options.draftModelRepo ?? process.env.MANGA_TRANSLATOR_DRAFT_MODEL_HF ?? "",
   ).trim();
 }
 
-function resolveConfiguredDraftModelFile(options = {}) {
+function resolveConfiguredDraftModelFile(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   return String(
     options.draftModelFile ??
       process.env.MANGA_TRANSLATOR_DRAFT_MODEL_FILE ??
@@ -299,7 +392,9 @@ function resolveConfiguredDraftModelFile(options = {}) {
   ).trim();
 }
 
-function resolveConfiguredDraftModelUrl(options = {}) {
+function resolveConfiguredDraftModelUrl(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   const repo = resolveConfiguredDraftModelRepo(options);
   const file = resolveConfiguredDraftModelFile(options);
   if (!repo || !file) {
@@ -308,7 +403,9 @@ function resolveConfiguredDraftModelUrl(options = {}) {
   return `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(file)}`;
 }
 
-function shouldUseConfiguredMmproj(options = {}) {
+function shouldUseConfiguredMmproj(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
   const explicitRepo = String(
     options.mmprojRepo ?? process.env.MANGA_TRANSLATOR_MMPROJ_HF ?? "",
   ).trim();

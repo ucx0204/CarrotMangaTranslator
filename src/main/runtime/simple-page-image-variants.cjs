@@ -1,4 +1,21 @@
 // @ts-check
+/**
+ * @typedef {import("./runtime-jsdoc-types").RuntimeOptions & {
+ *   enhancedContrast?: unknown;
+ *   enhancedMaxLongSide?: unknown;
+ *   imageHeight?: unknown;
+ *   imagePath: string;
+ *   imageWidth?: unknown;
+ *   includeEnhancedVariant?: boolean | null;
+ *   label?: string | null;
+ *   outputDir: string;
+ * }} ImageVariantOptions
+ * @typedef {{ width: number; height: number }} ImageSize
+ * @typedef {{ role: string; path: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number; mime?: string; convertedFromMime?: string | null; dataUrl?: string }} ImageVariant
+ * @typedef {{ name: string; message: string; imagePath?: string; format?: string | null; reason: string; cause?: unknown }} ImageVariantDiagnostic
+ * @typedef {{ isEmpty(): boolean; getSize(): ImageSize; resize(options: { width: number; height: number; quality?: "good" | "better" | "best" }): NativeImageInstance; toBitmap(): Buffer; toPNG(): Buffer }} NativeImageInstance
+ * @typedef {{ createFromPath(filePath: string): NativeImageInstance; createFromBitmap(buffer: Buffer, size: ImageSize): NativeImageInstance }} NativeImageModule
+ */
 const { spawn } = require("node:child_process");
 const { mkdir, readFile, writeFile } = require("node:fs/promises");
 const path = require("node:path");
@@ -20,6 +37,11 @@ const {
   truncateText,
 } = require("./simple-page-runtime-common.cjs");
 
+/**
+ * @param {unknown} error
+ * @param {Partial<ImageVariantOptions>} [options]
+ * @returns {ImageVariantDiagnostic}
+ */
 function buildEnhancedVariantFailureDetail(error, options = {}) {
   if (error instanceof Error) {
     return {
@@ -41,6 +63,7 @@ function buildEnhancedVariantFailureDetail(error, options = {}) {
   };
 }
 
+/** @returns {NativeImageModule | null} */
 function resolveElectronNativeImage() {
   try {
     const electronModule = require("electron");
@@ -50,7 +73,7 @@ function resolveElectronNativeImage() {
       electronModule.nativeImage &&
       typeof electronModule.nativeImage.createFromPath === "function"
     ) {
-      return electronModule.nativeImage;
+      return /** @type {NativeImageModule} */ (electronModule.nativeImage);
     }
   } catch (_error) {
     // Ignore node-only contexts and fall back to the PowerShell pipeline.
@@ -59,10 +82,17 @@ function resolveElectronNativeImage() {
   return null;
 }
 
-async function convertImageToPngBufferWithFfmpeg(filePath, options = {}) {
+/**
+ * @param {string} filePath
+ * @param {ImageVariantOptions} options
+ * @returns {Promise<Buffer>}
+ */
+async function convertImageToPngBufferWithFfmpeg(filePath, options) {
   const ffmpegPath = resolveFfmpegPath(options);
   return new Promise((resolve, reject) => {
+    /** @type {Buffer[]} */
     const stdoutChunks = [];
+    /** @type {Buffer[]} */
     const stderrChunks = [];
     const child = spawn(
       ffmpegPath,
@@ -145,7 +175,11 @@ async function convertImageToPngBufferWithFfmpeg(filePath, options = {}) {
   });
 }
 
-async function fileToModelAsset(filePath, options = {}) {
+/**
+ * @param {string} filePath
+ * @param {ImageVariantOptions} options
+ */
+async function fileToModelAsset(filePath, options) {
   const sourceMime = mimeFromPath(filePath);
 
   if (sourceMime === "image/webp") {
@@ -168,6 +202,7 @@ async function fileToModelAsset(filePath, options = {}) {
   };
 }
 
+/** @param {ImageVariantOptions} options */
 async function buildEnhancedVariant(options) {
   const nativeImage = resolveElectronNativeImage();
   let electronError = null;
@@ -199,6 +234,10 @@ async function buildEnhancedVariant(options) {
   }
 }
 
+/**
+ * @param {Partial<ImageVariantOptions>} [options]
+ * @returns {ImageSize}
+ */
 function resolveImageSize(options = {}) {
   const configuredWidth = readPositiveInteger(options.imageWidth);
   const configuredHeight = readPositiveInteger(options.imageHeight);
@@ -219,6 +258,10 @@ function resolveImageSize(options = {}) {
   };
 }
 
+/**
+ * @param {ImageVariantOptions} options
+ * @returns {Promise<ImageVariant>}
+ */
 async function buildOpenAIVisionVariant(options) {
   const sourceSize = resolveImageSize(options);
   const targetSize = calculateOpenAIOriginalDetailSize(
@@ -288,6 +331,10 @@ async function buildOpenAIVisionVariant(options) {
   return { ...base, path: outputPath };
 }
 
+/**
+ * @param {ImageVariantOptions} options
+ * @param {NativeImageModule} nativeImage
+ */
 async function buildEnhancedVariantWithElectron(options, nativeImage) {
   const outputPath = path.join(options.outputDir, "input-enhanced.png");
   const image = nativeImage.createFromPath(options.imagePath);
@@ -315,10 +362,13 @@ async function buildEnhancedVariantWithElectron(options, nativeImage) {
     );
   }
 
+  const enhancedMaxLongSide =
+    readPositiveInteger(options.enhancedMaxLongSide) ||
+    Math.max(sourceSize.width, sourceSize.height);
   const scaled = getScaledSize(
     sourceSize.width,
     sourceSize.height,
-    options.enhancedMaxLongSide,
+    enhancedMaxLongSide,
   );
   const resized =
     scaled.width === sourceSize.width && scaled.height === sourceSize.height
@@ -356,9 +406,10 @@ async function buildEnhancedVariantWithElectron(options, nativeImage) {
     );
   }
 
+  const configuredContrast = Number(options.enhancedContrast);
   const enhancedBitmap = enhanceBitmapBuffer(
     bitmap,
-    options.enhancedContrast,
+    Number.isFinite(configuredContrast) ? configuredContrast : 1,
     true,
   );
   const enhancedImage = nativeImage.createFromBitmap(enhancedBitmap, {
@@ -383,6 +434,7 @@ async function buildEnhancedVariantWithElectron(options, nativeImage) {
   return outputPath;
 }
 
+/** @param {ImageVariantOptions} options */
 async function buildEnhancedVariantWithPowerShell(options) {
   const outputPath = path.join(options.outputDir, "input-enhanced.png");
   const scriptPath = path.join(__dirname, "build-page-variant.ps1");
@@ -471,6 +523,10 @@ async function buildEnhancedVariantWithPowerShell(options) {
   return outputPath;
 }
 
+/**
+ * @param {ImageVariantOptions} options
+ * @returns {Promise<{ imageVariants: ImageVariant[]; diagnostics: ImageVariantDiagnostic[] }>}
+ */
 async function prepareImageVariants(options) {
   const sourceSize = resolveImageSize(options);
   const variants = isOpenAICodexProvider(options)
@@ -489,6 +545,7 @@ async function prepareImageVariants(options) {
           height: sourceSize.height,
         },
       ];
+  /** @type {ImageVariantDiagnostic[]} */
   let diagnostics = [];
   if (options.includeEnhancedVariant) {
     try {

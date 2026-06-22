@@ -1,5 +1,6 @@
 import React from "react";
-import type { ChapterSnapshot, JobState } from "../../../shared/types";
+import type { ChapterSnapshot } from "../../../shared/libraryTypes";
+import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { useEtaText } from "../hooks/useEtaText";
 import { Button } from "./ui";

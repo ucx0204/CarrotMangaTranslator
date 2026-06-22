@@ -49,6 +49,11 @@ function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
   return tasks;
 }
 
+/**
+ * @param {string} runtimeDir
+ * @param {string} modelName
+ * @returns {string}
+ */
 function resolvePaddleOcrModelCacheDir(runtimeDir, modelName) {
   return path.join(runtimeDir, "paddlex-cache", "official_models", modelName);
 }

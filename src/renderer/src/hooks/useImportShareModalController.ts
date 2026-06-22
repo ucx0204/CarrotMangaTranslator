@@ -1,8 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
-import type {
-  ImportPreviewSession,
-  WorkShareImportPreview,
-} from "../../../shared/types";
+import type { ImportPreviewSession } from "../../../shared/importTypes";
+import type { WorkShareImportPreview } from "../../../shared/shareTypes";
 
 export function useImportShareModalController(): {
   translationSourceOpen: boolean;

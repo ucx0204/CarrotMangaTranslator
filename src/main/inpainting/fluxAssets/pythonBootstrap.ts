@@ -1,6 +1,6 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, join, normalize, resolve } from "node:path";
+import { basename, join, normalize } from "node:path";
 import {
   FLUX_BOOTSTRAP_PYTHON_MARKER,
   FLUX_EMBED_PYTHON_VERSION,
@@ -11,7 +11,22 @@ import type { FluxAssetProgress, PythonCommand } from "./types";
 import { downloadToFile, extractZipSafely } from "./downloads";
 import { runCommand } from "./errors";
 import { emitPythonInstallLog } from "./progress";
-import { isExecutableFile, isPathInside } from "./fileProbe";
+import { isExecutableFile } from "./fileProbe";
+import { sanitizeStandaloneEmbeddedPythonPathFile } from "./pythonPathFile";
+
+export { ensureEmbeddedPythonPackagePath } from "./pythonPathFile";
+
+type PythonBootstrapOptions = {
+  runtimeDir: string;
+  signal?: AbortSignal;
+  onProgress?: (progress: FluxAssetProgress) => void;
+};
+
+type ManagedBootstrapPythonConfig = {
+  version: string;
+  pythonUrl: string;
+  getPipUrl: string;
+};
 
 export async function findPythonCommand(options: {
   runtimeDir: string;
@@ -54,40 +69,65 @@ export async function findPythonCommand(options: {
   );
 }
 
-async function ensureManagedFluxBootstrapPython(options: {
-  runtimeDir: string;
-  signal?: AbortSignal;
-  onProgress?: (progress: FluxAssetProgress) => void;
-}): Promise<string> {
+async function ensureManagedFluxBootstrapPython(
+  options: PythonBootstrapOptions,
+): Promise<string> {
   if (process.platform !== "win32") {
     throw new Error("Flux Python 런타임에는 Python 3.11 이상이 필요합니다.");
   }
-  const version =
-    process.env.MANGA_TRANSLATOR_FLUX_PYTHON_VERSION ??
-    process.env.MGT_FLUX_PYTHON_VERSION ??
-    FLUX_EMBED_PYTHON_VERSION;
-  const pythonUrl =
-    process.env.MANGA_TRANSLATOR_FLUX_PYTHON_URL ??
-    process.env.MGT_FLUX_PYTHON_URL ??
-    `https://www.python.org/ftp/python/${version}/python-${version}-embed-amd64.zip`;
-  const getPipUrl =
-    process.env.MANGA_TRANSLATOR_FLUX_GET_PIP_URL ??
-    process.env.MGT_FLUX_GET_PIP_URL ??
-    FLUX_GET_PIP_URL;
-  const pythonDir = managedFluxBootstrapPythonDir(options.runtimeDir, version);
+  const config = resolveManagedBootstrapPythonConfig();
+  const pythonDir = managedFluxBootstrapPythonDir(
+    options.runtimeDir,
+    config.version,
+  );
   const pythonExe = join(pythonDir, "python.exe");
   const markerPath = join(pythonDir, FLUX_BOOTSTRAP_PYTHON_MARKER);
-  if (
-    isCurrentManagedFluxBootstrapPython(pythonExe, markerPath, {
-      version,
-      pythonUrl,
-      getPipUrl,
-    })
-  ) {
+  if (isCurrentManagedFluxBootstrapPython(pythonExe, markerPath, config)) {
     sanitizeStandaloneEmbeddedPythonPathFile(pythonDir);
     return pythonExe;
   }
 
+  const { getPipPath, zipName, zipPath } = await prepareBootstrapPythonInstall(
+    options,
+    pythonDir,
+    config,
+  );
+  await installBootstrapPythonArchive(
+    options,
+    pythonDir,
+    pythonExe,
+    zipName,
+    zipPath,
+    config,
+  );
+  await installBootstrapPythonPip(options, pythonExe, getPipPath, config);
+  await writeBootstrapPythonMarker(markerPath, config);
+  return pythonExe;
+}
+
+function resolveManagedBootstrapPythonConfig(): ManagedBootstrapPythonConfig {
+  const version =
+    process.env.MANGA_TRANSLATOR_FLUX_PYTHON_VERSION ??
+    process.env.MGT_FLUX_PYTHON_VERSION ??
+    FLUX_EMBED_PYTHON_VERSION;
+  return {
+    version,
+    pythonUrl:
+      process.env.MANGA_TRANSLATOR_FLUX_PYTHON_URL ??
+      process.env.MGT_FLUX_PYTHON_URL ??
+      `https://www.python.org/ftp/python/${version}/python-${version}-embed-amd64.zip`,
+    getPipUrl:
+      process.env.MANGA_TRANSLATOR_FLUX_GET_PIP_URL ??
+      process.env.MGT_FLUX_GET_PIP_URL ??
+      FLUX_GET_PIP_URL,
+  };
+}
+
+async function prepareBootstrapPythonInstall(
+  options: PythonBootstrapOptions,
+  pythonDir: string,
+  config: ManagedBootstrapPythonConfig,
+): Promise<{ getPipPath: string; zipName: string; zipPath: string }> {
   await rm(pythonDir, { recursive: true, force: true });
   await mkdir(pythonDir, { recursive: true });
   await mkdir(resolveFluxRuntimeTempDir(options.runtimeDir), {
@@ -96,13 +136,23 @@ async function ensureManagedFluxBootstrapPython(options: {
   const downloadsDir = join(options.runtimeDir, ".downloads", "python");
   await mkdir(downloadsDir, { recursive: true });
   const zipName =
-    basename(new URL(pythonUrl).pathname) ||
-    `python-${version}-embed-amd64.zip`;
+    basename(new URL(config.pythonUrl).pathname) ||
+    `python-${config.version}-embed-amd64.zip`;
   const zipPath = join(downloadsDir, zipName);
   const getPipPath = join(downloadsDir, "get-pip.py");
+  return { getPipPath, zipName, zipPath };
+}
 
+async function installBootstrapPythonArchive(
+  options: PythonBootstrapOptions,
+  pythonDir: string,
+  pythonExe: string,
+  zipName: string,
+  zipPath: string,
+  config: ManagedBootstrapPythonConfig,
+): Promise<void> {
   await downloadToFile({
-    url: pythonUrl,
+    url: config.pythonUrl,
     outputPath: zipPath,
     signal: options.signal,
     progressText: "Flux Python 다운로드 중",
@@ -122,9 +172,16 @@ async function ensureManagedFluxBootstrapPython(options: {
     );
   }
   sanitizeStandaloneEmbeddedPythonPathFile(pythonDir);
+}
 
+async function installBootstrapPythonPip(
+  options: PythonBootstrapOptions,
+  pythonExe: string,
+  getPipPath: string,
+  config: ManagedBootstrapPythonConfig,
+): Promise<void> {
   await downloadToFile({
-    url: getPipUrl,
+    url: config.getPipUrl,
     outputPath: getPipPath,
     signal: options.signal,
     progressText: "Flux pip 다운로드 중",
@@ -133,7 +190,7 @@ async function ensureManagedFluxBootstrapPython(options: {
   });
   options.onProgress?.({
     progressText: "Flux pip 설치 중",
-    detail: `Python ${version}`,
+    detail: `Python ${config.version}`,
     progressMode: "indeterminate",
     installLogLine: "Flux 런타임용 Python에 pip를 설치합니다.",
   });
@@ -142,12 +199,17 @@ async function ensureManagedFluxBootstrapPython(options: {
     env: buildBootstrapPythonEnv(options.runtimeDir),
     onLine: (line) => emitPythonInstallLog(options, line),
   });
+}
+
+async function writeBootstrapPythonMarker(
+  markerPath: string,
+  config: ManagedBootstrapPythonConfig,
+): Promise<void> {
   await writeFile(
     markerPath,
-    `${JSON.stringify({ version, pythonUrl, getPipUrl, installedAt: new Date().toISOString() }, null, 2)}\n`,
+    `${JSON.stringify({ ...config, installedAt: new Date().toISOString() }, null, 2)}\n`,
     "utf8",
   );
-  return pythonExe;
 }
 
 function managedFluxBootstrapPythonDir(
@@ -218,161 +280,4 @@ export function buildBootstrapPythonEnv(runtimeDir: string): NodeJS.ProcessEnv {
   delete env.PYTHONPATH;
   delete env.PYTHONUSERBASE;
   return env;
-}
-
-export function ensureEmbeddedPythonPackagePath(
-  pythonPath: string,
-  packageDir: string,
-): void {
-  if (basename(pythonPath).toLowerCase() !== "python.exe") {
-    return;
-  }
-  const pythonDir = dirname(resolve(pythonPath));
-  let pthName: string | undefined;
-  try {
-    pthName = readdirSync(pythonDir).find((name) =>
-      /^python\d+._pth$/i.test(name),
-    );
-  } catch (_error) {
-    return;
-  }
-  if (!pthName) {
-    return;
-  }
-  const pthPath = join(pythonDir, pthName);
-  try {
-    const normalizedPackageDir = resolve(packageDir);
-    const text = readFileSync(pthPath, "utf8");
-    const nextLines = text
-      .split(/\r?\n/)
-      .filter(
-        (line) =>
-          !isManagedFluxPackagePathLine(line, pythonDir, normalizedPackageDir),
-      )
-      .map((line) => (line.trim() === "#import site" ? "import site" : line));
-    const importSiteIndex = nextLines.findIndex(
-      (line) => line.trim() === "import site",
-    );
-    if (importSiteIndex === -1) {
-      nextLines.push(normalizedPackageDir, "import site");
-    } else {
-      nextLines.splice(importSiteIndex, 0, normalizedPackageDir);
-    }
-    const nextText = `${nextLines.filter((line, index, array) => index < array.length - 1 || line.trim()).join("\n")}\n`;
-    if (nextText !== text) {
-      writeFileSync(pthPath, nextText, "utf8");
-    }
-  } catch (_error) {
-    // If the ._pth file cannot be updated, PYTHONPATH still helps non-isolated Python builds.
-  }
-}
-
-export function sanitizeStandaloneEmbeddedPythonPathFile(
-  outputDir: string,
-): void {
-  let pthName: string | undefined;
-  try {
-    pthName = readdirSync(outputDir).find((name) =>
-      /^python\d+._pth$/i.test(name),
-    );
-  } catch (_error) {
-    return;
-  }
-  if (!pthName) {
-    return;
-  }
-  const pthPath = join(outputDir, pthName);
-  try {
-    const text = readFileSync(pthPath, "utf8");
-    const sanitized: string[] = [];
-    for (const line of text.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (trimmed === "#import site" || trimmed === "import site") {
-        continue;
-      }
-      if (isManagedFluxPackagePathLine(trimmed, outputDir)) {
-        continue;
-      }
-      if (!trimmed && sanitized[sanitized.length - 1] === "") {
-        continue;
-      }
-      sanitized.push(line);
-    }
-    const nextText = buildStandaloneEmbeddedPythonPathText(
-      outputDir,
-      pthName,
-      sanitized,
-    );
-    if (nextText !== text) {
-      writeFileSync(pthPath, nextText, "utf8");
-    }
-  } catch (_error) {
-    // The runtime can still fail with a clear pip/import error later.
-  }
-}
-
-function buildStandaloneEmbeddedPythonPathText(
-  outputDir: string,
-  pthName: string,
-  lines: string[],
-): string {
-  const normalizedLines = lines
-    .map((line) => line.trim())
-    .filter(
-      (line) => line && line !== "import site" && line !== "#import site",
-    );
-  const pthEntries: string[] = [];
-  const addEntry = (entry: string) => {
-    if (
-      !entry ||
-      pthEntries.some((line) => line.toLowerCase() === entry.toLowerCase())
-    ) {
-      return;
-    }
-    pthEntries.push(entry);
-  };
-
-  const stdlibZipName = pthName.replace(/._pth$/i, ".zip");
-  if (existsSync(join(outputDir, stdlibZipName))) {
-    addEntry(stdlibZipName);
-  }
-  addEntry(".");
-  for (const line of normalizedLines) {
-    addEntry(line);
-  }
-  addEntry("import site");
-  return `${pthEntries.join("\n")}\n`;
-}
-
-function isManagedFluxPackagePathLine(
-  line: string,
-  pythonDir: string,
-  packageDir?: string,
-): boolean {
-  const trimmed = line.trim();
-  if (
-    !trimmed ||
-    trimmed === "." ||
-    trimmed === "import site" ||
-    trimmed.startsWith("#")
-  ) {
-    return false;
-  }
-  try {
-    const resolvedLine = resolve(pythonDir, trimmed);
-    if (packageDir && isPathInside(resolvedLine, packageDir)) {
-      return true;
-    }
-    const baseName = basename(resolvedLine).toLowerCase();
-    if (!baseName.startsWith("python-packages")) {
-      return false;
-    }
-    const normalized = resolvedLine.replace(/\\/g, "/").toLowerCase();
-    return (
-      normalized.includes("/mgt-flux-python-") ||
-      normalized.includes("/models/inpainting/")
-    );
-  } catch (_error) {
-    return false;
-  }
 }

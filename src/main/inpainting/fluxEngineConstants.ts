@@ -1,0 +1,5 @@
+export const FLUX_INPAINT_CONTEXT_PX = 160;
+export const FLUX_INPAINT_MASK_PADDING_PX = 16;
+export const FLUX_INPAINT_FEATHER_PX = 8;
+export const FLUX_INPAINT_MAX_PIXELS = 1024 * 1024;
+export const FLUX_INPAINT_MULTIPLE = 16;

@@ -1,11 +1,11 @@
 import React from "react";
+import type { ImportPreviewResult } from "../../../shared/importTypes";
+import type { LibraryIndex } from "../../../shared/libraryTypes";
+import type { AppSettings } from "../../../shared/settingsTypes";
 import type {
-  AppSettings,
-  ImportPreviewResult,
-  LibraryIndex,
   WorkShareExportRequest,
   WorkShareImportPreview,
-} from "../../../shared/types";
+} from "../../../shared/shareTypes";
 import { ConfirmModal } from "./ConfirmModal";
 import { InpaintingGuideModal } from "./InpaintingGuideModal";
 import { ImportModal, type ImportModalSubmit } from "./ImportModal";
@@ -71,42 +71,37 @@ type AppModalsProps = {
   onCloseInpaintingGuide: (hideNextTime: boolean) => void;
 };
 
-export function AppModals({
-  library,
-  currentWorkId,
-  translationSourceOpen,
-  importPreview,
+export function AppModals(props: AppModalsProps): React.JSX.Element {
+  return (
+    <>
+      <ImportFlowModals {...props} />
+      <ShareFlowModals {...props} />
+      <EditAndSettingsModals {...props} />
+      <SystemModals {...props} />
+    </>
+  );
+}
+
+function ImportFlowModals({
   importBusy,
-  shareExportOpen,
-  shareExportBusy,
-  shareImportPreview,
-  shareImportBusy,
-  renameTarget,
-  renameBusy,
-  settingsOpen,
-  settings,
-  settingsBusy,
-  jobActive,
-  confirmDialog,
-  inpaintingGuideOpen,
+  importPreview,
+  library,
+  onCancelImport,
   onCancelTranslationSource,
   onSelectTranslationSource,
-  onCancelImport,
   onSubmitImport,
-  onCancelShareExport,
-  onSubmitShareExport,
-  onCancelShareImport,
-  onSubmitShareImport,
-  onCancelRename,
-  onDeleteRename,
-  onSubmitRename,
-  onCancelSettings,
-  onOpenLogFolder,
-  onResetSettings,
-  onSubmitSettings,
-  onResolveConfirm,
-  onCloseInpaintingGuide,
-}: AppModalsProps): React.JSX.Element {
+  translationSourceOpen,
+}: Pick<
+  AppModalsProps,
+  | "importBusy"
+  | "importPreview"
+  | "library"
+  | "onCancelImport"
+  | "onCancelTranslationSource"
+  | "onSelectTranslationSource"
+  | "onSubmitImport"
+  | "translationSourceOpen"
+>): React.JSX.Element {
   return (
     <>
       {translationSourceOpen ? (
@@ -116,7 +111,6 @@ export function AppModals({
           onSelect={onSelectTranslationSource}
         />
       ) : null}
-
       {importPreview ? (
         <ImportModal
           library={library}
@@ -126,7 +120,36 @@ export function AppModals({
           onSubmit={onSubmitImport}
         />
       ) : null}
+    </>
+  );
+}
 
+function ShareFlowModals({
+  currentWorkId,
+  library,
+  onCancelShareExport,
+  onCancelShareImport,
+  onSubmitShareExport,
+  onSubmitShareImport,
+  shareExportBusy,
+  shareExportOpen,
+  shareImportBusy,
+  shareImportPreview,
+}: Pick<
+  AppModalsProps,
+  | "currentWorkId"
+  | "library"
+  | "onCancelShareExport"
+  | "onCancelShareImport"
+  | "onSubmitShareExport"
+  | "onSubmitShareImport"
+  | "shareExportBusy"
+  | "shareExportOpen"
+  | "shareImportBusy"
+  | "shareImportPreview"
+>): React.JSX.Element {
+  return (
+    <>
       {shareExportOpen ? (
         <ShareExportModal
           library={library}
@@ -136,7 +159,6 @@ export function AppModals({
           onSubmit={onSubmitShareExport}
         />
       ) : null}
-
       {shareImportPreview ? (
         <ShareImportModal
           library={library}
@@ -146,7 +168,42 @@ export function AppModals({
           onSubmit={onSubmitShareImport}
         />
       ) : null}
+    </>
+  );
+}
 
+function EditAndSettingsModals({
+  jobActive,
+  onCancelRename,
+  onCancelSettings,
+  onDeleteRename,
+  onOpenLogFolder,
+  onResetSettings,
+  onSubmitRename,
+  onSubmitSettings,
+  renameBusy,
+  renameTarget,
+  settings,
+  settingsBusy,
+  settingsOpen,
+}: Pick<
+  AppModalsProps,
+  | "jobActive"
+  | "onCancelRename"
+  | "onCancelSettings"
+  | "onDeleteRename"
+  | "onOpenLogFolder"
+  | "onResetSettings"
+  | "onSubmitRename"
+  | "onSubmitSettings"
+  | "renameBusy"
+  | "renameTarget"
+  | "settings"
+  | "settingsBusy"
+  | "settingsOpen"
+>): React.JSX.Element {
+  return (
+    <>
       {renameTarget ? (
         <RenameModal
           kind={renameTarget.kind}
@@ -157,7 +214,6 @@ export function AppModals({
           onSubmit={onSubmitRename}
         />
       ) : null}
-
       {settingsOpen && settings ? (
         <SettingsModal
           initialSettings={settings}
@@ -169,7 +225,24 @@ export function AppModals({
           onSubmit={onSubmitSettings}
         />
       ) : null}
+    </>
+  );
+}
 
+function SystemModals({
+  confirmDialog,
+  inpaintingGuideOpen,
+  onCloseInpaintingGuide,
+  onResolveConfirm,
+}: Pick<
+  AppModalsProps,
+  | "confirmDialog"
+  | "inpaintingGuideOpen"
+  | "onCloseInpaintingGuide"
+  | "onResolveConfirm"
+>): React.JSX.Element {
+  return (
+    <>
       {confirmDialog ? (
         <ConfirmModal
           title={confirmDialog.title}
@@ -179,7 +252,6 @@ export function AppModals({
           onCancel={() => onResolveConfirm(false)}
         />
       ) : null}
-
       {inpaintingGuideOpen ? (
         <InpaintingGuideModal onClose={onCloseInpaintingGuide} />
       ) : null}

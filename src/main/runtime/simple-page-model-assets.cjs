@@ -1,5 +1,13 @@
 // @ts-check
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
+/**
+ * @typedef {RuntimeOptions & { useDraft?: boolean | null }} ModelAssetOptions
+ * @typedef {{ kind: string; label: string; repo?: string; file: string; url: string; destination: string; progressPhase?: string; progressTitle?: string; completeTitle?: string }} DownloadTask
+ * @typedef {{ archive: string; url: string }} LlamaRuntimeArchive
+ * @typedef {{ archive?: string; archives?: LlamaRuntimeArchive[]; backend?: string; dir: string; id?: string; kind?: string; requiredFiles?: Array<string | string[]>; url?: string }} LlamaRuntimeDescriptor
+ * @typedef {{ archive?: unknown; url?: unknown }} MarkerArchive
+ */
 /**
  * @typedef {{
  *   baseUrl?: string;
@@ -89,6 +97,7 @@ const {
   safeCleanup,
 } = require("./simple-page-runtime-common.cjs");
 
+/** @param {ModelAssetOptions} [options] */
 function resolveConfiguredMmprojUrl(options = {}) {
   if (!shouldUseConfiguredMmproj(options)) {
     return null;
@@ -101,6 +110,7 @@ function resolveConfiguredMmprojUrl(options = {}) {
   return `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(file)}`;
 }
 
+/** @param {ModelAssetOptions} [options] */
 function resolveCachedConfiguredMmprojPath(options = {}) {
   if (!shouldUseConfiguredMmproj(options)) {
     return null;
@@ -128,6 +138,10 @@ function resolveCachedConfiguredMmprojPath(options = {}) {
   return resolveCachedLlamaCppFile(configuredFile, options);
 }
 
+/**
+ * @param {string} fileName
+ * @param {ModelAssetOptions} [options]
+ */
 function resolveCachedLlamaCppFile(fileName, options = {}) {
   const cacheDir = resolveLlamaCppCacheDir(options);
   if (!cacheDir || !fileName || !existsSync(cacheDir)) {
@@ -140,6 +154,11 @@ function resolveCachedLlamaCppFile(fileName, options = {}) {
   return findNamedFile(cacheDir, fileName, 2);
 }
 
+/**
+ * @param {ModelAssetOptions} [options]
+ * @param {ModelLaunchTarget} [launchTarget]
+ * @returns {DownloadTask[]}
+ */
 function collectRequiredHfDownloads(
   options = {},
   launchTarget = inspectModelLaunch(options),
@@ -151,6 +170,7 @@ function collectRequiredHfDownloads(
     return [];
   }
 
+  /** @type {DownloadTask[]} */
   const tasks = [];
   if (launchTarget.launchMode !== "local" && !launchTarget.modelPath) {
     const repo = resolveConfiguredModelRepo(options);
@@ -208,6 +228,10 @@ function collectRequiredHfDownloads(
   return tasks;
 }
 
+/**
+ * @param {ModelAssetOptions} [options]
+ * @param {ModelLaunchTarget} [launchTarget]
+ */
 async function ensureHfModelAssetsDownloaded(
   options = {},
   launchTarget = inspectModelLaunch(options),
@@ -251,6 +275,7 @@ async function ensureHfModelAssetsDownloaded(
       totalBytes,
       knownAggregateBytes: hasKnownAggregate ? knownTotalBytes : 0,
       completedBytes,
+      /** @param {number} bytesWritten */
       onComplete: (bytesWritten) => {
         completedBytes += hasKnownAggregate ? totalBytes : bytesWritten;
       },
@@ -272,6 +297,7 @@ async function ensureHfModelAssetsDownloaded(
   );
 }
 
+/** @param {ModelAssetOptions} [options] */
 async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
   const runtime = resolvePreferredLlamaRuntime(options);
   const managedToolsDir = resolveManagedToolsDir(options);
@@ -300,6 +326,7 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
 
   const downloadsDir = path.join(managedToolsDir, ".downloads");
   const archives = getLlamaRuntimeArchives(runtime);
+  /** @type {Map<string, number>} */
   const archiveTotals = new Map();
   let knownAggregateBytes = 0;
   for (const archive of archives) {
@@ -315,6 +342,7 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
   const hasKnownAggregate =
     knownAggregateBytes > 0 && archiveTotals.size === archives.length;
   let completedBytes = 0;
+  /** @type {string[]} */
   const archivePaths = [];
   for (const archive of archives) {
     const archivePath = path.join(downloadsDir, archive.archive);
@@ -336,6 +364,7 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
         totalBytes,
         knownAggregateBytes: hasKnownAggregate ? knownAggregateBytes : 0,
         completedBytes,
+        /** @param {number} bytesWritten */
         onComplete: (bytesWritten) => {
           completedBytes += hasKnownAggregate ? totalBytes : bytesWritten;
         },
@@ -406,6 +435,7 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
   );
 }
 
+/** @param {Partial<LlamaRuntimeDescriptor>} [runtime] */
 function formatLlamaRuntimeBackend(runtime = {}) {
   const backend = String(runtime.backend || "cuda").toLowerCase();
   if (backend === "vulkan") {
@@ -418,13 +448,21 @@ function formatLlamaRuntimeBackend(runtime = {}) {
 }
 
 function isCurrentLlamaRuntime(
+  /** @type {string} */
   runtimeDir,
+  /** @type {LlamaRuntimeDescriptor} */
   runtime = resolvePreferredLlamaRuntime({}),
 ) {
   try {
-    const marker = JSON.parse(
-      readFileSync(path.join(runtimeDir, LLAMA_RUNTIME_MARKER_FILE), "utf8"),
-    );
+    const marker =
+      /** @type {{ id?: unknown; kind?: unknown; dir?: unknown; archives?: MarkerArchive[] }} */ (
+        JSON.parse(
+          readFileSync(
+            path.join(runtimeDir, LLAMA_RUNTIME_MARKER_FILE),
+            "utf8",
+          ),
+        )
+      );
     const expectedArchives = getLlamaRuntimeArchives(runtime);
     const markerArchives = Array.isArray(marker?.archives)
       ? marker.archives
@@ -446,6 +484,10 @@ function isCurrentLlamaRuntime(
   }
 }
 
+/**
+ * @param {LlamaRuntimeDescriptor | null | undefined} runtime
+ * @returns {LlamaRuntimeArchive[]}
+ */
 function getLlamaRuntimeArchives(runtime) {
   if (Array.isArray(runtime?.archives) && runtime.archives.length > 0) {
     return runtime.archives;
@@ -456,7 +498,7 @@ function getLlamaRuntimeArchives(runtime) {
 }
 
 /**
- * @param {import("./runtime-jsdoc-types").RuntimeOptions} [options]
+ * @param {ModelAssetOptions} [options]
  * @param {OcrRuntimeLayout | null} [runtime]
  * @returns {Promise<void>}
  */
@@ -476,7 +518,9 @@ async function ensurePaddleOcrModelAssetsDownloaded(
   }
 
   const allTasks = collectRequiredPaddleOcrModelDownloads(options, runtime);
+  /** @type {DownloadTask[]} */
   const pending = [];
+  /** @type {Map<string, number>} */
   const totals = new Map();
   let knownTotalBytes = 0;
 
@@ -550,6 +594,7 @@ async function ensurePaddleOcrModelAssetsDownloaded(
       totalBytes,
       knownAggregateBytes: hasKnownAggregate ? knownTotalBytes : 0,
       completedBytes,
+      /** @param {number} bytesWritten */
       onComplete: (bytesWritten) => {
         completedBytes += hasKnownAggregate ? totalBytes : bytesWritten;
       },
@@ -572,7 +617,7 @@ async function ensurePaddleOcrModelAssetsDownloaded(
 }
 
 /**
- * @param {import("./runtime-jsdoc-types").RuntimeOptions} [options]
+ * @param {ModelAssetOptions} [options]
  * @param {OcrRuntimeLayout | null} [runtime]
  * @param {unknown} [reason]
  */
@@ -614,6 +659,7 @@ async function repairPaddleOcrModelAssetsCache(
   await ensurePaddleOcrModelAssetsDownloaded(options, runtime);
 }
 
+/** @param {unknown} value */
 function isPaddleOcrModelAssetLoadFailure(value) {
   const text = stringifyErrorForDetection(value);
   return /json\.exception\.parse_error\.101|attempting to parse an empty input|Creating model:\s*\('?(PP-DocLayoutV3|PaddleOCR-VL-1\.[56]|PP-OCRv[56]_(server|medium)_det|PP-OCRv[56]_(server|medium)_rec)/i.test(
@@ -621,6 +667,7 @@ function isPaddleOcrModelAssetLoadFailure(value) {
   );
 }
 
+/** @param {unknown} [reason] */
 function resolvePaddleOcrModelNamesForRepair(reason = "") {
   const text = stringifyErrorForDetection(reason);
   const explicit = PADDLE_OCR_MODEL_DOWNLOADS.map((model) => model.name).filter(
@@ -631,6 +678,10 @@ function resolvePaddleOcrModelNamesForRepair(reason = "") {
     : PADDLE_OCR_MODEL_DOWNLOADS.map((model) => model.name);
 }
 
+/**
+ * @param {string} runtimeDir
+ * @param {string} modelDir
+ */
 function isSafePaddleOcrModelCacheDir(runtimeDir, modelDir) {
   const root = path.resolve(runtimeDir, "paddlex-cache", "official_models");
   const resolved = path.resolve(modelDir);
@@ -642,6 +693,10 @@ function isSafePaddleOcrModelCacheDir(runtimeDir, modelDir) {
   );
 }
 
+/**
+ * @param {string} filePath
+ * @param {string} [fileName]
+ */
 function inspectPaddleOcrAssetFile(filePath, fileName = "") {
   if (!existsSync(filePath)) {
     return null;
@@ -665,6 +720,10 @@ function inspectPaddleOcrAssetFile(filePath, fileName = "") {
   return null;
 }
 
+/**
+ * @param {string} filePath
+ * @param {number} maxLength
+ */
 function readFileHead(filePath, maxLength) {
   let fd = null;
   try {
@@ -685,21 +744,36 @@ function readFileHead(filePath, maxLength) {
   }
 }
 
+/** @param {unknown} value */
 function stringifyErrorForDetection(value) {
   if (!value || typeof value !== "object") {
     return String(value ?? "");
   }
-  return [value.message, value.stderrPreview, value.stdoutPreview, value.cause]
+  const record =
+    /** @type {{ message?: unknown; stderrPreview?: unknown; stdoutPreview?: unknown; cause?: unknown }} */ (
+      value
+    );
+  return [
+    record.message,
+    record.stderrPreview,
+    record.stdoutPreview,
+    record.cause,
+  ]
     .filter(Boolean)
     .map((part) => String(part))
     .join(" ");
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} [maxLength]
+ */
 function truncateReason(value, maxLength = 500) {
   const text = stringifyErrorForDetection(value).replace(/\s+/g, " ").trim();
   return text.length <= maxLength ? text : `${text.slice(0, maxLength)}...`;
 }
 
+/** @param {ModelAssetOptions} [options] */
 function resolveCachedConfiguredDraftModelPath(options = {}) {
   const repo = resolveConfiguredDraftModelRepo(options);
   const file = resolveConfiguredDraftModelFile(options);
@@ -726,6 +800,7 @@ function resolveCachedConfiguredDraftModelPath(options = {}) {
 /**
  * @returns {ModelLaunchTarget}
  */
+/** @param {ModelAssetOptions} [options] */
 function resolveCachedModelAssets(options = {}) {
   const hubCacheDir = resolveHubCacheDir(options);
   const configuredMmprojPath = resolveCachedConfiguredMmprojPath(options);
@@ -849,6 +924,7 @@ function resolveCachedModelAssets(options = {}) {
 
 /**
  * @returns {ModelLaunchTarget}
+ * @param {ModelAssetOptions} [options]
  */
 function inspectModelLaunch(options = {}) {
   if (isOpenAICodexProvider(options)) {
@@ -904,6 +980,7 @@ function inspectModelLaunch(options = {}) {
   };
 }
 
+/** @param {ModelAssetOptions} [options] */
 function isModelCached(options = {}) {
   const launchTarget = inspectModelLaunch(options);
   if (launchTarget.launchMode === "openai-codex") {
@@ -924,6 +1001,7 @@ function isModelCached(options = {}) {
   );
 }
 
+/** @param {unknown} value */
 function isTruthy(value) {
   const text = String(value ?? "")
     .trim()

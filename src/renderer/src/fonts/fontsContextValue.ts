@@ -1,5 +1,5 @@
 import React from "react";
-import type { CustomFont } from "../../../shared/types";
+import type { CustomFont } from "../../../shared/libraryTypes";
 import type { BlockFontOption } from "../lib/fonts";
 
 export type FontsContextValue = {

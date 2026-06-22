@@ -10,6 +10,28 @@ import type { OcrBboxResult } from "./types";
 
 const OCR_HINT_CACHE_SCHEMA_VERSION = 2;
 
+type PrepareOcrHintsOptions = {
+  runtime: TranslationRuntimePort;
+  baseOptions: TranslationOptions;
+  pages: MangaPage[];
+  runPaths: ChapterRunPaths;
+  emit: (event: JobEvent) => void;
+  jobId: string;
+  signal: AbortSignal;
+};
+
+type PendingOcrPage = {
+  page: MangaPage;
+  index: number;
+  options: TranslationOptions;
+  cachePath: string;
+};
+
+type OcrHintsProgressContext = PrepareOcrHintsOptions & {
+  results: Map<string, OcrBboxResult>;
+  total: number;
+};
+
 export async function prepareOcrHintsForPages({
   runtime,
   baseOptions,
@@ -18,42 +40,38 @@ export async function prepareOcrHintsForPages({
   emit,
   jobId,
   signal,
-}: {
-  runtime: TranslationRuntimePort;
-  baseOptions: TranslationOptions;
-  pages: MangaPage[];
-  runPaths: ChapterRunPaths;
-  emit: (event: JobEvent) => void;
-  jobId: string;
-  signal: AbortSignal;
-}): Promise<Map<string, OcrBboxResult>> {
+}: PrepareOcrHintsOptions): Promise<Map<string, OcrBboxResult>> {
   const results = new Map<string, OcrBboxResult>();
-  const total = pages.length;
-  const pendingPages: Array<{
-    page: MangaPage;
-    index: number;
-    options: TranslationOptions;
-    cachePath: string;
-  }> = [];
+  const progressContext = {
+    baseOptions,
+    emit,
+    jobId,
+    pages,
+    results,
+    runPaths,
+    runtime,
+    signal,
+    total: pages.length,
+  } satisfies OcrHintsProgressContext;
+  const pendingPages = await collectPendingOcrPages(progressContext);
+  await collectPendingOcrHintsBatch(progressContext, pendingPages);
+  emitOcrHintsCompleted(progressContext);
+  return results;
+}
 
+async function collectPendingOcrPages(
+  progressContext: OcrHintsProgressContext,
+): Promise<PendingOcrPage[]> {
+  const { baseOptions, pages, results, runPaths, signal, total } =
+    progressContext;
+  const pendingPages: PendingOcrPage[] = [];
   for (const [index, page] of pages.entries()) {
     throwIfAborted(signal);
     const cachePath = getOcrHintsCachePath(runPaths, page);
     const cached = await readCachedOcrHints(cachePath, page);
     if (cached) {
       results.set(page.id, cached);
-      emit({
-        id: jobId,
-        kind: "gemma-analysis",
-        status: "running",
-        progressText: `${page.name} OCR 재사용`,
-        phase: "ocr_running",
-        progressCurrent: index + 1,
-        progressTotal: total,
-        pageIndex: index + 1,
-        pageTotal: total,
-        detail: formatOcrHintDetail(cached),
-      });
+      emitCachedOcrHintProgress(progressContext, page, index, total, cached);
       continue;
     }
 
@@ -65,91 +83,167 @@ export async function prepareOcrHintsForPages({
       total,
     );
     ocrOptions.abortSignal = signal;
-    ocrOptions.onProgress = (progress) => {
-      const hasExplicitPageProgress =
-        Number.isFinite(progress.pageIndex) &&
-        Number.isFinite(progress.pageTotal);
-      const suppressDefaultPageProgress =
-        progress.pageIndex === null || progress.pageTotal === null;
-      const shouldDefaultToPage =
-        Boolean(ocrOptions.ocrProgressDefaultToPage) &&
-        !suppressDefaultPageProgress;
-      emit({
-        id: jobId,
-        kind: "gemma-analysis",
-        status: "running",
-        progressText: progress.progressText,
-        phase: progress.phase,
-        progressCurrent:
-          progress.progressCurrent ??
-          (shouldDefaultToPage ? index + 1 : results.size),
-        progressTotal: progress.progressTotal ?? total,
-        pageIndex: hasExplicitPageProgress
-          ? Number(progress.pageIndex)
-          : shouldDefaultToPage
-            ? index + 1
-            : undefined,
-        pageTotal: hasExplicitPageProgress
-          ? Number(progress.pageTotal)
-          : shouldDefaultToPage
-            ? total
-            : undefined,
-        detail: progress.detail,
-        progressMode: progress.progressMode,
-        progressPercent: progress.progressPercent,
-        progressBytes: progress.progressBytes,
-        progressTotalBytes: progress.progressTotalBytes,
-        progressBytesPerSecond: progress.progressBytesPerSecond,
-        installLogLine: progress.installLogLine,
-      });
-    };
+    ocrOptions.onProgress = createOcrPageProgressHandler({
+      index,
+      options: ocrOptions,
+      progressContext: { ...progressContext, results, total },
+    });
     pendingPages.push({ page, index, options: ocrOptions, cachePath });
   }
+  return pendingPages;
+}
 
-  if (pendingPages.length > 0) {
-    pendingPages.forEach((entry) => {
-      entry.options.ocrBatchCompletedBefore = results.size;
-      entry.options.ocrBatchTotal = total;
-    });
-    emit({
-      id: jobId,
+function emitCachedOcrHintProgress(
+  { emit, jobId }: Pick<OcrHintsProgressContext, "emit" | "jobId">,
+  page: MangaPage,
+  index: number,
+  total: number,
+  cached: OcrBboxResult,
+): void {
+  emit({
+    id: jobId,
+    kind: "gemma-analysis",
+    status: "running",
+    progressText: `${page.name} OCR 재사용`,
+    phase: "ocr_running",
+    progressCurrent: index + 1,
+    progressTotal: total,
+    pageIndex: index + 1,
+    pageTotal: total,
+    detail: formatOcrHintDetail(cached),
+  });
+}
+
+function createOcrPageProgressHandler({
+  index,
+  options,
+  progressContext,
+}: {
+  index: number;
+  options: TranslationOptions;
+  progressContext: OcrHintsProgressContext;
+}): NonNullable<TranslationOptions["onProgress"]> {
+  return (progress) => {
+    const hasExplicitPageProgress =
+      Number.isFinite(progress.pageIndex) &&
+      Number.isFinite(progress.pageTotal);
+    const suppressDefaultPageProgress =
+      progress.pageIndex === null || progress.pageTotal === null;
+    const shouldDefaultToPage =
+      Boolean(options.ocrProgressDefaultToPage) && !suppressDefaultPageProgress;
+    progressContext.emit({
+      id: progressContext.jobId,
       kind: "gemma-analysis",
       status: "running",
-      progressText: "Paddle OCR 배치 선분석 중",
-      phase: "ocr_running",
-      progressCurrent: 0,
-      progressTotal: pendingPages.length,
-      pageTotal: total,
-      detail: `${pendingPages.length}페이지를 한 번에 처리합니다. OCR 프로세스는 이 구간 끝에서 종료됩니다.`,
+      progressText: progress.progressText,
+      phase: progress.phase,
+      progressCurrent:
+        progress.progressCurrent ??
+        (shouldDefaultToPage ? index + 1 : progressContext.results.size),
+      progressTotal: progress.progressTotal ?? progressContext.total,
+      pageIndex: hasExplicitPageProgress
+        ? Number(progress.pageIndex)
+        : shouldDefaultToPage
+          ? index + 1
+          : undefined,
+      pageTotal: hasExplicitPageProgress
+        ? Number(progress.pageTotal)
+        : shouldDefaultToPage
+          ? progressContext.total
+          : undefined,
+      detail: progress.detail,
+      progressMode: progress.progressMode,
+      progressPercent: progress.progressPercent,
+      progressBytes: progress.progressBytes,
+      progressTotalBytes: progress.progressTotalBytes,
+      progressBytesPerSecond: progress.progressBytesPerSecond,
+      installLogLine: progress.installLogLine,
     });
+  };
+}
 
-    const batchResults = await runtime.collectOcrHintsBatch(
-      pendingPages.map((entry) => entry.options),
-    );
-
-    for (const [batchIndex, result] of batchResults.entries()) {
-      throwIfAborted(signal);
-      const entry = pendingPages[batchIndex];
-      if (!entry) {
-        continue;
-      }
-      await writeCachedOcrHints(entry.cachePath, entry.page, result);
-      results.set(entry.page.id, result);
-      emit({
-        id: jobId,
-        kind: "gemma-analysis",
-        status: "running",
-        progressText: `${entry.page.name} OCR 완료`,
-        phase: "ocr_running",
-        progressCurrent: batchIndex + 1,
-        progressTotal: pendingPages.length,
-        pageIndex: entry.index + 1,
-        pageTotal: total,
-        detail: formatOcrHintDetail(result),
-      });
+async function collectPendingOcrHintsBatch(
+  progressContext: OcrHintsProgressContext,
+  pendingPages: PendingOcrPage[],
+): Promise<void> {
+  if (pendingPages.length === 0) {
+    return;
+  }
+  preparePendingOcrBatchOptions(progressContext, pendingPages);
+  emitOcrBatchStarted(progressContext, pendingPages.length);
+  const batchResults = await progressContext.runtime.collectOcrHintsBatch(
+    pendingPages.map((entry) => entry.options),
+  );
+  for (const [batchIndex, result] of batchResults.entries()) {
+    throwIfAborted(progressContext.signal);
+    const entry = pendingPages[batchIndex];
+    if (entry) {
+      await saveOcrBatchResult(
+        progressContext,
+        pendingPages,
+        entry,
+        batchIndex,
+        result,
+      );
     }
   }
+}
 
+function preparePendingOcrBatchOptions(
+  { results, total }: OcrHintsProgressContext,
+  pendingPages: PendingOcrPage[],
+): void {
+  pendingPages.forEach((entry) => {
+    entry.options.ocrBatchCompletedBefore = results.size;
+    entry.options.ocrBatchTotal = total;
+  });
+}
+
+function emitOcrBatchStarted(
+  { emit, jobId, total }: OcrHintsProgressContext,
+  pendingCount: number,
+): void {
+  emit({
+    id: jobId,
+    kind: "gemma-analysis",
+    status: "running",
+    progressText: "Paddle OCR 배치 선분석 중",
+    phase: "ocr_running",
+    progressCurrent: 0,
+    progressTotal: pendingCount,
+    pageTotal: total,
+    detail: `${pendingCount}페이지를 한 번에 처리합니다. OCR 프로세스는 이 구간 끝에서 종료됩니다.`,
+  });
+}
+
+async function saveOcrBatchResult(
+  { emit, jobId, results, total }: OcrHintsProgressContext,
+  pendingPages: PendingOcrPage[],
+  entry: PendingOcrPage,
+  batchIndex: number,
+  result: OcrBboxResult,
+): Promise<void> {
+  await writeCachedOcrHints(entry.cachePath, entry.page, result);
+  results.set(entry.page.id, result);
+  emit({
+    id: jobId,
+    kind: "gemma-analysis",
+    status: "running",
+    progressText: `${entry.page.name} OCR 완료`,
+    phase: "ocr_running",
+    progressCurrent: batchIndex + 1,
+    progressTotal: pendingPages.length,
+    pageIndex: entry.index + 1,
+    pageTotal: total,
+    detail: formatOcrHintDetail(result),
+  });
+}
+
+function emitOcrHintsCompleted({
+  emit,
+  jobId,
+  total,
+}: OcrHintsProgressContext): void {
   emit({
     id: jobId,
     kind: "gemma-analysis",
@@ -161,8 +255,6 @@ export async function prepareOcrHintsForPages({
     pageTotal: total,
     detail: "OCR 프로세스를 종료하고 AI 번역 단계로 넘어갑니다.",
   });
-
-  return results;
 }
 
 function formatOcrHintDetail(result: OcrBboxResult): string {

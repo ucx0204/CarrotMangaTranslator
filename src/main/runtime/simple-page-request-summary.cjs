@@ -1,6 +1,15 @@
 // @ts-check
 const path = require("node:path");
 
+/**
+ * @typedef {{ totalTokens?: unknown; outputHeadroomTokens?: unknown; outputHeadroomPercent?: unknown }} TokenBudgetDetail
+ * @typedef {{ original?: TokenBudgetDetail; effective?: TokenBudgetDetail; omittedParts?: unknown[] }} WorkContextBudget
+ * @typedef {{ id?: unknown; label?: unknown; x1?: unknown; y1?: unknown; x2?: unknown; y2?: unknown; score?: unknown; groupId?: unknown; rolePrior?: unknown; orderInGroup?: unknown; [key: string]: unknown }} OcrBboxHint
+ * @typedef {{ role?: string; path: string; mime?: string; convertedFromMime?: unknown; width?: unknown; height?: unknown; originalWidth?: unknown; originalHeight?: unknown; [key: string]: unknown }} ImageVariantSummaryInput
+ * @typedef {{ baseUrl: string }} RequestServer
+ * @typedef {{ label?: unknown; imagePath?: string | null; outputDir?: string | null; port?: unknown; promptMode?: unknown; temperature?: unknown; topP?: unknown; topK?: unknown; maxTokens?: unknown; ctx?: unknown; batch?: unknown; ubatch?: unknown; gemmaVramMode?: unknown; fitTargetMb?: unknown; cacheTypeK?: unknown; cacheTypeV?: unknown; ctxCheckpoints?: unknown; kvOffload?: unknown; mmprojOffload?: unknown; threads?: unknown; threadsBatch?: unknown; poll?: unknown; pollBatch?: unknown; prioBatch?: unknown; cacheIdleSlots?: unknown; cacheReuse?: unknown; enableMetrics?: unknown; enablePerf?: unknown; useDraft?: boolean | null; imageMinTokens?: unknown; imageMaxTokens?: unknown; includeEnhancedVariant?: unknown; enhancedMaxLongSide?: unknown; enhancedContrast?: unknown; imageFirst?: unknown; reuseServer?: unknown; llamaRuntimeProfile?: unknown; llamaRocmTarget?: unknown; workingDir?: string | null; toolsDir?: string | null; serverPath?: string | null; modelRepo?: unknown; modelFile?: unknown; codexOauthPort?: unknown; workContextBudget?: WorkContextBudget; ocrBboxHints?: OcrBboxHint[]; [key: string]: unknown }} RequestSummaryOptions
+ */
+
 const {
   readOcrCandidateText,
   resolvePromptCoordinateFrame,
@@ -53,6 +62,10 @@ const {
   resolveConfiguredApiExtraBody,
 } = require("./simple-page-request-builders.cjs");
 
+/**
+ * @param {RequestSummaryOptions} [options]
+ * @returns {Record<string, unknown>}
+ */
 function buildOptionSummary(options = {}) {
   const launchTarget = inspectModelLaunch(options);
   return {
@@ -150,6 +163,10 @@ function buildOptionSummary(options = {}) {
   };
 }
 
+/**
+ * @param {ImageVariantSummaryInput[]} imageVariants
+ * @returns {Array<Record<string, unknown>>}
+ */
 function summarizeImageVariants(imageVariants) {
   return imageVariants.map((variant) => ({
     role: variant.role,
@@ -163,6 +180,14 @@ function summarizeImageVariants(imageVariants) {
   }));
 }
 
+/**
+ * @param {RequestServer} server
+ * @param {RequestSummaryOptions} options
+ * @param {ImageVariantSummaryInput[]} imageVariants
+ * @param {string} promptText
+ * @param {string} systemPrompt
+ * @returns {Record<string, unknown>}
+ */
 function buildRequestSummary(
   server,
   options,
@@ -215,6 +240,10 @@ function buildRequestSummary(
   };
 }
 
+/**
+ * @param {RequestSummaryOptions} [options]
+ * @returns {string}
+ */
 function resolveRequestModelName(options = {}) {
   if (isOpenAICodexProvider(options)) {
     return resolveConfiguredCodexModel(options);

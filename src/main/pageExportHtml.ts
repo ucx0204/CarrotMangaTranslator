@@ -53,6 +53,13 @@ body {
 <script>
 const EXPORT_BLOCKS = ${safeScriptJson(blocks)};
 const EXPORT_IMAGE_DATA_URL = ${safeScriptJson(imageDataUrl)};
+${PAGE_EXPORT_RENDER_SCRIPT}
+</script>
+</body>
+</html>`;
+}
+
+const PAGE_EXPORT_RENDER_SCRIPT = `
 const MIN_FONT_SIZE = 10;
 const MAX_AUTOFIT_FONT_SIZE = 256;
 const canvas = document.createElement("canvas");
@@ -293,10 +300,7 @@ window.addEventListener("load", async () => {
     document.body.dataset.ready = "1";
   }));
 });
-</script>
-</body>
-</html>`;
-}
+`;
 
 function buildCustomFontFaces(fonts: CustomFont[]): string {
   return fonts

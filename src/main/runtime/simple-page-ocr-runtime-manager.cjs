@@ -1,6 +1,12 @@
 // @ts-check
 /** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
+/**
+ * @typedef {{ ok: boolean; message: string; error?: unknown }} ImportCheckResult
+ * @typedef {{ version: string; pythonUrl: string; getPipUrl: string }} ManagedPythonMarker
+ * @typedef {{ label: string; file: string; url: string; destination: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} RuntimeDownloadTask
+ * @typedef {{ start: number; end: number }} ProgressRange
+ */
 const {
   existsSync,
   readFileSync,
@@ -75,9 +81,10 @@ const DEFAULT_VCREDIST_X64_URL =
 const PYTHON_RUNTIME_MARKER_FILE = ".mgt-bootstrap-python.json";
 
 /**
- * @param {RuntimeOptions} [options]
+ * @param {RuntimeOptions} options
  */
 async function ensurePaddleOcrRuntime(options = {}) {
+  /** @type {unknown[]} */
   const diagnostics = [];
   const runtimeDir = resolveOcrRuntimeDir(options);
   const runtimeVariant = resolveOcrRuntimeVariant(options);
@@ -441,6 +448,11 @@ async function ensurePaddleOcrRuntime(options = {}) {
   });
 }
 
+/**
+ * @param {RuntimeOptions} options
+ * @param {string} runtimeDir
+ * @returns {Promise<string>}
+ */
 async function ensureManagedBootstrapPython(options = {}, runtimeDir) {
   if (process.platform !== "win32") {
     throw new Error(
@@ -602,6 +614,11 @@ async function ensureManagedBootstrapPython(options = {}, runtimeDir) {
   return pythonExe;
 }
 
+/**
+ * @param {RuntimeOptions} options
+ * @param {string} runtimeDir
+ * @returns {Promise<void>}
+ */
 async function ensureMicrosoftVisualCppRuntimeForPaddle(
   options = {},
   runtimeDir,
@@ -709,12 +726,22 @@ async function ensureMicrosoftVisualCppRuntimeForPaddle(
   }
 }
 
+/**
+ * @param {ImportCheckResult} importCheck
+ * @returns {string}
+ */
 function summarizeImportCheckFailure(importCheck) {
   return summarizeOcrErrorMessage(
     importCheck?.error || importCheck?.message || "",
   );
 }
 
+/**
+ * @param {string} pythonExe
+ * @param {string} markerPath
+ * @param {ManagedPythonMarker} expected
+ * @returns {boolean}
+ */
 function isCurrentManagedBootstrapPython(pythonExe, markerPath, expected) {
   try {
     if (!existsSync(pythonExe)) {
@@ -731,6 +758,11 @@ function isCurrentManagedBootstrapPython(pythonExe, markerPath, expected) {
   }
 }
 
+/**
+ * @param {RuntimeDownloadTask} task
+ * @param {RuntimeOptions} [options]
+ * @returns {Promise<void>}
+ */
 async function downloadGenericFileWithRuntimeProgress(task, options = {}) {
   const totalBytes = await probeContentLength(task.url, options.abortSignal);
   await downloadHfFileWithProgress(
@@ -748,6 +780,12 @@ async function downloadGenericFileWithRuntimeProgress(task, options = {}) {
   );
 }
 
+/**
+ * @param {string} zipPath
+ * @param {string} destinationDir
+ * @param {RuntimeOptions} [options]
+ * @returns {Promise<void>}
+ */
 async function extractZipWithPowerShell(zipPath, destinationDir, options = {}) {
   if (process.platform !== "win32") {
     throw new Error(
@@ -774,12 +812,17 @@ async function extractZipWithPowerShell(zipPath, destinationDir, options = {}) {
   });
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function escapePowerShellSingleQuoted(value) {
   return String(value).replace(/'/g, "''");
 }
 
 /**
  * @param {string} runtimeDir
+ * @param {RuntimeOptions} [options]
  * @returns {NodeJS.ProcessEnv}
  */
 function buildBootstrapPythonEnv(runtimeDir, options = {}) {
@@ -799,6 +842,10 @@ function buildBootstrapPythonEnv(runtimeDir, options = {}) {
   return env;
 }
 
+/**
+ * @param {string} outputDir
+ * @returns {void}
+ */
 function sanitizeStandaloneEmbeddedPythonPathFile(outputDir) {
   let pthName;
   try {
@@ -906,6 +953,12 @@ async function preparePaddlexCacheHome(options, runtimeDir) {
   }
 }
 
+/**
+ * @param {string} aliasPath
+ * @param {string} targetPath
+ * @param {RuntimeOptions} [options]
+ * @returns {Promise<void>}
+ */
 async function replaceStalePaddlexCacheAlias(
   aliasPath,
   targetPath,
@@ -938,6 +991,11 @@ async function replaceStalePaddlexCacheAlias(
   await rm(aliasPath, { recursive: true, force: true });
 }
 
+/**
+ * @param {string} aliasPath
+ * @param {RuntimeOptions} [options]
+ * @returns {boolean}
+ */
 function isSafePaddlexCacheAliasPath(aliasPath, options = {}) {
   const root = path.resolve(resolvePaddlexCacheAliasRoot(options));
   const resolved = path.resolve(aliasPath);
@@ -1003,6 +1061,12 @@ function ensureEmbeddedPythonPackagePath(
   }
 }
 
+/**
+ * @param {unknown} line
+ * @param {string} pythonDir
+ * @param {string} runtimeDir
+ * @returns {boolean}
+ */
 function isManagedOcrPackagePathLine(line, pythonDir, runtimeDir) {
   const raw = String(line ?? "").trim();
   if (!raw || raw.startsWith("#")) {
@@ -1035,6 +1099,14 @@ function isManagedOcrPackagePathLine(line, pythonDir, runtimeDir) {
   );
 }
 
+/**
+ * @param {string} pythonPath
+ * @param {string[][]} installBatches
+ * @param {string | null} targetDir
+ * @param {RuntimeOptions} options
+ * @param {string | null | undefined} runtimeDir
+ * @returns {Promise<void>}
+ */
 async function installOcrPythonPackages(
   pythonPath,
   installBatches,
@@ -1133,6 +1205,11 @@ async function installOcrPythonPackages(
   }
 }
 
+/**
+ * @param {string} pythonPath
+ * @param {string} [pipProgressArgs]
+ * @returns {string}
+ */
 function buildOcrPipBuildToolUpgradeCommand(pythonPath, pipProgressArgs = "") {
   return [
     quoteCommandArg(pythonPath),
@@ -1146,10 +1223,22 @@ function buildOcrPipBuildToolUpgradeCommand(pythonPath, pipProgressArgs = "") {
     .join(" ");
 }
 
+/**
+ * @param {string} pythonPath
+ * @returns {string}
+ */
 function buildOcrPythonBuildToolCheckCommand(pythonPath) {
   return `${quoteCommandArg(pythonPath)} -c ${quoteCommandArg("import pip, setuptools, wheel; import setuptools.build_meta; print('python build tooling ok')")}`;
 }
 
+/**
+ * @param {string} pythonPath
+ * @param {string[]} packages
+ * @param {string | null} targetDir
+ * @param {RuntimeOptions} [options]
+ * @param {string} [pipProgressArgs]
+ * @returns {string}
+ */
 function buildOcrPipInstallCommand(
   pythonPath,
   packages,
@@ -1172,6 +1261,11 @@ function buildOcrPipInstallCommand(
     .join(" ");
 }
 
+/**
+ * @param {string[]} packages
+ * @param {RuntimeOptions} [options]
+ * @returns {string[]}
+ */
 function resolveOcrPipInstallExtraArgs(packages, options = {}) {
   const texts = Array.isArray(packages)
     ? packages.map((item) => String(item || "").toLowerCase())
@@ -1184,6 +1278,7 @@ function resolveOcrPipInstallExtraArgs(packages, options = {}) {
   const containsRocmTorchWheel = texts.some(isAmdRocmTorchWheelText);
   const isRocmTransformersBackend =
     resolveOcrGpuBackend(options) === "rocm-transformers";
+  /** @type {string[]} */
   const args = [];
 
   if (
@@ -1203,18 +1298,32 @@ function resolveOcrPipInstallExtraArgs(packages, options = {}) {
   return args;
 }
 
+/**
+ * @param {unknown} text
+ * @returns {boolean}
+ */
 function isAmdRocmMetaPackageText(text) {
   return /(?:^|[/\\])rocm-\d+(?:\.\d+)*\.tar\.gz(?:[?#].*)?$/i.test(
     String(text ?? ""),
   );
 }
 
+/**
+ * @param {unknown} text
+ * @returns {boolean}
+ */
 function isAmdRocmTorchWheelText(text) {
   return /(?:^|[/\\])(?:torch|torchaudio|torchvision)-[^/\\]*rocm[^/\\]*\.whl(?:[?#].*)?$/i.test(
     String(text ?? ""),
   );
 }
 
+/**
+ * @param {string[][]} installBatches
+ * @param {number} startPercent
+ * @param {number} endPercent
+ * @returns {ProgressRange[]}
+ */
 function resolveOcrInstallBatchProgressRanges(
   installBatches,
   startPercent,
@@ -1271,6 +1380,7 @@ async function canImportPaddleOcr(pythonPath, options = {}) {
  * @param {string} pythonPath
  * @param {RuntimeOptions} [options]
  * @param {OcrRuntimeLayout | null} [runtime]
+ * @returns {Promise<ImportCheckResult>}
  */
 async function checkPaddleOcrImport(pythonPath, options = {}, runtime = null) {
   try {
@@ -1297,6 +1407,12 @@ async function checkPaddleOcrImport(pythonPath, options = {}, runtime = null) {
   }
 }
 
+/**
+ * @param {string} message
+ * @param {Record<string, unknown>} [detail]
+ * @param {unknown} [cause]
+ * @returns {Error}
+ */
 function createOcrRuntimeError(message, detail = {}, cause) {
   return createDetailedError(
     message,
@@ -1309,6 +1425,12 @@ function createOcrRuntimeError(message, detail = {}, cause) {
   );
 }
 
+/**
+ * @param {string} packageDir
+ * @param {string} runtimeVariant
+ * @param {RuntimeOptions} [options]
+ * @returns {boolean}
+ */
 function hasOcrInstallMarker(packageDir, runtimeVariant, options = {}) {
   try {
     const marker = JSON.parse(
@@ -1323,6 +1445,11 @@ function hasOcrInstallMarker(packageDir, runtimeVariant, options = {}) {
   }
 }
 
+/**
+ * @param {string} packageDir
+ * @param {Record<string, unknown>} payload
+ * @returns {Promise<void>}
+ */
 async function writeOcrInstallMarker(packageDir, payload) {
   await mkdir(packageDir, { recursive: true });
   await writeFile(
@@ -1332,6 +1459,11 @@ async function writeOcrInstallMarker(packageDir, payload) {
   );
 }
 
+/**
+ * @param {string} packageDir
+ * @param {RuntimeOptions} [options]
+ * @returns {boolean}
+ */
 function hasExpectedOcrPackages(packageDir, options = {}) {
   if (!packageDir || !existsSync(packageDir)) {
     return false;
@@ -1349,6 +1481,10 @@ function hasExpectedOcrPackages(packageDir, options = {}) {
   return required.every((name) => existsSync(path.join(packageDir, name)));
 }
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isTruthy(value) {
   const text = String(value ?? "")
     .trim()

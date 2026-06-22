@@ -33,6 +33,37 @@ import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { WarningCollector } from "./warningCollector";
 import type { ChapterRunPaths } from "../library";
 
+type TranslatePageWithRetriesOptions = {
+  baseOptions: TranslationOptions;
+  completedPagesById: Map<string, MangaPage>;
+  context: ProgressContext;
+  maxAttempts: number;
+  ocrHintsByPageId: Map<string, OcrBboxResult>;
+  onPageComplete?: PipelineOptions["onPageComplete"];
+  onPageFailed?: PipelineOptions["onPageFailed"];
+  page: MangaPage;
+  pageIndex: number;
+  runPaths: ChapterRunPaths;
+  runtime: TranslationRuntimePort;
+  server: ModelEndpointHandle;
+  signal: AbortSignal;
+  skipOcrPrepass: boolean;
+  warningCollector: WarningCollector;
+  workContext?: PipelineWorkContext;
+};
+
+type PageTranslationAttemptResult = {
+  lastError?: unknown;
+  lastErrorMessage: string;
+  lastPageOptions: TranslationOptions | null;
+  successPage: MangaPage | null;
+};
+
+type PageTranslationAttemptState = Omit<
+  PageTranslationAttemptResult,
+  "successPage"
+>;
+
 export async function translatePageWithRetries({
   baseOptions,
   completedPagesById,
@@ -50,28 +81,64 @@ export async function translatePageWithRetries({
   skipOcrPrepass,
   warningCollector,
   workContext,
-}: {
-  baseOptions: TranslationOptions;
-  completedPagesById: Map<string, MangaPage>;
-  context: ProgressContext;
-  maxAttempts: number;
-  ocrHintsByPageId: Map<string, OcrBboxResult>;
-  onPageComplete?: PipelineOptions["onPageComplete"];
-  onPageFailed?: PipelineOptions["onPageFailed"];
-  page: MangaPage;
-  pageIndex: number;
-  runPaths: ChapterRunPaths;
-  runtime: TranslationRuntimePort;
-  server: ModelEndpointHandle;
-  signal: AbortSignal;
-  skipOcrPrepass: boolean;
-  warningCollector: WarningCollector;
-  workContext?: PipelineWorkContext;
-}): Promise<void> {
+}: TranslatePageWithRetriesOptions): Promise<void> {
+  const result = await runPageTranslationAttempts({
+    baseOptions,
+    context,
+    maxAttempts,
+    ocrHintsByPageId,
+    onPageComplete,
+    page,
+    pageIndex,
+    runPaths,
+    runtime,
+    server,
+    signal,
+    skipOcrPrepass,
+    warningCollector,
+    workContext,
+  });
+  if (result.successPage) {
+    completedPagesById.set(page.id, result.successPage);
+    return;
+  }
+  await saveFailedPageAfterRetries({
+    completedPagesById,
+    context,
+    maxAttempts,
+    onPageFailed,
+    page,
+    pageIndex,
+    result,
+    runPaths,
+    warningCollector,
+  });
+}
+
+async function runPageTranslationAttempts({
+  baseOptions,
+  context,
+  maxAttempts,
+  ocrHintsByPageId,
+  onPageComplete,
+  page,
+  pageIndex,
+  runPaths,
+  runtime,
+  server,
+  signal,
+  skipOcrPrepass,
+  warningCollector,
+  workContext,
+}: Omit<
+  TranslatePageWithRetriesOptions,
+  "completedPagesById" | "onPageFailed"
+>): Promise<PageTranslationAttemptResult> {
   let successPage: MangaPage | null = null;
-  let lastErrorMessage = "";
-  let lastError: unknown;
-  let lastPageOptions: TranslationOptions | null = null;
+  const state: PageTranslationAttemptState = {
+    lastErrorMessage: "",
+    lastPageOptions: null,
+  };
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     throwIfAborted(signal);
@@ -87,7 +154,7 @@ export async function translatePageWithRetries({
       skipOcrPrepass,
       workContext,
     });
-    lastPageOptions = pageOptions;
+    state.lastPageOptions = pageOptions;
     emitPageRunning(context, page, pageIndex, attempt, maxAttempts);
 
     try {
@@ -107,54 +174,113 @@ export async function translatePageWithRetries({
       if (isAbortErrorLike(error) || isNonRetriableRuntimeError(error)) {
         throw error;
       }
-      lastError = error;
-      lastErrorMessage = error instanceof Error ? error.message : String(error);
-      warningCollector.addAttemptFailure({
-        pageName: page.name,
+      handlePageAttemptFailure({
         attempt,
-        maxAttempts,
-        message: lastErrorMessage,
-      });
-      logAttemptFailure({
-        attempt,
+        context,
         error,
-        lastPageOptions: pageOptions,
         maxAttempts,
         page,
         pageIndex,
+        pageOptions,
         runPaths,
-        context,
+        state,
+        warningCollector,
       });
-
-      if (attempt < maxAttempts) {
-        emitPageRetry(context, page, pageIndex, attempt, maxAttempts);
-      }
     }
   }
 
-  if (successPage) {
-    completedPagesById.set(page.id, successPage);
-    return;
-  }
+  return {
+    ...state,
+    successPage,
+  };
+}
 
-  warningCollector.addPageSkipped({
+function handlePageAttemptFailure({
+  attempt,
+  context,
+  error,
+  maxAttempts,
+  page,
+  pageIndex,
+  pageOptions,
+  runPaths,
+  state,
+  warningCollector,
+}: {
+  attempt: number;
+  context: ProgressContext;
+  error: unknown;
+  maxAttempts: number;
+  page: MangaPage;
+  pageIndex: number;
+  pageOptions: TranslationOptions;
+  runPaths: ChapterRunPaths;
+  state: PageTranslationAttemptState;
+  warningCollector: WarningCollector;
+}): void {
+  state.lastError = error;
+  state.lastErrorMessage =
+    error instanceof Error ? error.message : String(error);
+  warningCollector.addAttemptFailure({
     pageName: page.name,
+    attempt,
     maxAttempts,
-    message: lastErrorMessage,
+    message: state.lastErrorMessage,
   });
-  logSkippedPage({
+  logAttemptFailure({
+    attempt,
     context,
-    lastError,
-    lastErrorMessage,
-    lastPageOptions,
+    error,
+    lastPageOptions: pageOptions,
     maxAttempts,
     page,
     pageIndex,
     runPaths,
   });
-  const failedPage = buildFailedPage(page, lastErrorMessage);
+  if (attempt < maxAttempts) {
+    emitPageRetry(context, page, pageIndex, attempt, maxAttempts);
+  }
+}
+
+async function saveFailedPageAfterRetries({
+  completedPagesById,
+  context,
+  maxAttempts,
+  onPageFailed,
+  page,
+  pageIndex,
+  result,
+  runPaths,
+  warningCollector,
+}: {
+  completedPagesById: Map<string, MangaPage>;
+  context: ProgressContext;
+  maxAttempts: number;
+  onPageFailed?: PipelineOptions["onPageFailed"];
+  page: MangaPage;
+  pageIndex: number;
+  result: PageTranslationAttemptResult;
+  runPaths: ChapterRunPaths;
+  warningCollector: WarningCollector;
+}): Promise<void> {
+  warningCollector.addPageSkipped({
+    pageName: page.name,
+    maxAttempts,
+    message: result.lastErrorMessage,
+  });
+  logSkippedPage({
+    context,
+    lastError: result.lastError,
+    lastErrorMessage: result.lastErrorMessage,
+    lastPageOptions: result.lastPageOptions,
+    maxAttempts,
+    page,
+    pageIndex,
+    runPaths,
+  });
+  const failedPage = buildFailedPage(page, result.lastErrorMessage);
   completedPagesById.set(page.id, failedPage);
-  await onPageFailed?.(failedPage, lastErrorMessage);
+  await onPageFailed?.(failedPage, result.lastErrorMessage);
   emitPageSkipped(context, page, pageIndex, maxAttempts);
 }
 

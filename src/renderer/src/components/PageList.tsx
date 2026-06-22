@@ -13,16 +13,18 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { MangaPage } from "../../../shared/types";
+import type { MangaPage } from "../../../shared/libraryTypes";
 import { useStandardDndSensors } from "../lib/dnd";
 import { IconButton } from "./ui";
 import { CloseIcon, RefreshIcon } from "./ui/icons";
+
+type PageStatusMode = "translation" | "inpainting";
 
 type PageListProps = {
   pages: MangaPage[];
   selectedPageId: string | null;
   jobActive: boolean;
-  statusMode?: "translation" | "inpainting";
+  statusMode?: PageStatusMode;
   onSelect: (pageId: string) => void;
   onRetranslate: (pageId: string) => void;
   onRemove: (pageId: string) => void;
@@ -80,48 +82,89 @@ export function PageList({
         onDragCancel={() => setActivePageId(null)}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext
-          items={pages.map((page) => page.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div
-            className={`page-list-scroll sortable-scroll ${activePageId ? "drag-active" : ""}`}
-          >
-            {pages.length ? (
-              pages.map((page) => (
-                <SortablePageItem
-                  key={page.id}
-                  page={page}
-                  selected={page.id === selectedPageId}
-                  disabled={jobActive}
-                  statusMode={statusMode}
-                  onSelect={onSelect}
-                  onRetranslate={onRetranslate}
-                  onRemove={onRemove}
-                  registerRef={(element) => {
-                    pageItemRefs.current[page.id] = element;
-                  }}
-                />
-              ))
-            ) : (
-              <p className="panel-empty">불러온 페이지가 없습니다.</p>
-            )}
-          </div>
-        </SortableContext>
-        {createPortal(
-          <DragOverlay>
-            {activePage ? (
-              <PageDragPreview
-                page={activePage}
-                selected={activePage.id === selectedPageId}
-                statusMode={statusMode}
-              />
-            ) : null}
-          </DragOverlay>,
-          document.body,
-        )}
+        <PageSortableContent
+          activePage={activePage}
+          activePageId={activePageId}
+          disabled={jobActive}
+          onRemove={onRemove}
+          onRetranslate={onRetranslate}
+          onSelect={onSelect}
+          pageItemRefs={pageItemRefs}
+          pages={pages}
+          selectedPageId={selectedPageId}
+          statusMode={statusMode}
+        />
       </DndContext>
     </section>
+  );
+}
+
+function PageSortableContent({
+  activePage,
+  activePageId,
+  disabled,
+  onRemove,
+  onRetranslate,
+  onSelect,
+  pageItemRefs,
+  pages,
+  selectedPageId,
+  statusMode,
+}: {
+  activePage: MangaPage | null;
+  activePageId: string | null;
+  disabled: boolean;
+  onRemove: (pageId: string) => void;
+  onRetranslate: (pageId: string) => void;
+  onSelect: (pageId: string) => void;
+  pageItemRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+  pages: MangaPage[];
+  selectedPageId: string | null;
+  statusMode: PageStatusMode;
+}): React.JSX.Element {
+  return (
+    <>
+      <SortableContext
+        items={pages.map((page) => page.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div
+          className={`page-list-scroll sortable-scroll ${activePageId ? "drag-active" : ""}`}
+        >
+          {pages.length ? (
+            pages.map((page) => (
+              <SortablePageItem
+                key={page.id}
+                disabled={disabled}
+                onRemove={onRemove}
+                onRetranslate={onRetranslate}
+                onSelect={onSelect}
+                page={page}
+                registerRef={(element) => {
+                  pageItemRefs.current[page.id] = element;
+                }}
+                selected={page.id === selectedPageId}
+                statusMode={statusMode}
+              />
+            ))
+          ) : (
+            <p className="panel-empty">불러온 페이지가 없습니다.</p>
+          )}
+        </div>
+      </SortableContext>
+      {createPortal(
+        <DragOverlay>
+          {activePage ? (
+            <PageDragPreview
+              page={activePage}
+              selected={activePage.id === selectedPageId}
+              statusMode={statusMode}
+            />
+          ) : null}
+        </DragOverlay>,
+        document.body,
+      )}
+    </>
   );
 }
 
@@ -138,7 +181,7 @@ function SortablePageItem({
   page: MangaPage;
   selected: boolean;
   disabled: boolean;
-  statusMode: "translation" | "inpainting";
+  statusMode: PageStatusMode;
   onSelect: (pageId: string) => void;
   onRetranslate: (pageId: string) => void;
   onRemove: (pageId: string) => void;
@@ -189,35 +232,65 @@ function SortablePageItem({
       >
         <span>{page.name}</span>
       </button>
+      <PageItemSide
+        disabled={disabled}
+        onRemove={onRemove}
+        onRetranslate={onRetranslate}
+        page={page}
+        selected={selected}
+        statusMode={statusMode}
+      />
+    </div>
+  );
+}
+
+function PageItemSide({
+  disabled,
+  onRemove,
+  onRetranslate,
+  page,
+  selected,
+  statusMode,
+}: {
+  disabled: boolean;
+  onRemove: (pageId: string) => void;
+  onRetranslate: (pageId: string) => void;
+  page: MangaPage;
+  selected: boolean;
+  statusMode: PageStatusMode;
+}): React.JSX.Element {
+  if (selected && statusMode === "translation") {
+    return (
       <div className="page-side">
-        {selected && statusMode === "translation" ? (
-          <div className="page-actions">
-            <IconButton
-              size="sm"
-              label={`${page.name} 재번역`}
-              title="재번역"
-              onClick={() => onRetranslate(page.id)}
-              disabled={disabled}
-            >
-              <RefreshIcon size={15} />
-            </IconButton>
-            <IconButton
-              size="sm"
-              variant="danger"
-              label={`${page.name} 삭제`}
-              title="삭제"
-              onClick={() => onRemove(page.id)}
-              disabled={disabled}
-            >
-              <CloseIcon size={15} />
-            </IconButton>
-          </div>
-        ) : (
-          <span className="page-status-badge">
-            {resolveStatusLabel(page, statusMode)}
-          </span>
-        )}
+        <div className="page-actions">
+          <IconButton
+            size="sm"
+            label={`${page.name} 재번역`}
+            title="재번역"
+            onClick={() => onRetranslate(page.id)}
+            disabled={disabled}
+          >
+            <RefreshIcon size={15} />
+          </IconButton>
+          <IconButton
+            size="sm"
+            variant="danger"
+            label={`${page.name} 삭제`}
+            title="삭제"
+            onClick={() => onRemove(page.id)}
+            disabled={disabled}
+          >
+            <CloseIcon size={15} />
+          </IconButton>
+        </div>
       </div>
+    );
+  }
+  return (
+    <div className="page-side">
+      <span className="page-status-badge">
+        {resolveStatusLabel(page, statusMode)}
+      </span>
     </div>
   );
 }
@@ -229,7 +302,7 @@ function PageDragPreview({
 }: {
   page: MangaPage;
   selected: boolean;
-  statusMode: "translation" | "inpainting";
+  statusMode: PageStatusMode;
 }): React.JSX.Element {
   return (
     <div
@@ -250,7 +323,7 @@ function PageDragPreview({
 
 function resolveStatusLabel(
   page: MangaPage,
-  statusMode: "translation" | "inpainting",
+  statusMode: PageStatusMode,
 ): string {
   if (statusMode === "inpainting") {
     return page.inpaintedImagePath ? "지움" : "대기";

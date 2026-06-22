@@ -6,10 +6,10 @@
  *   id?: number;
  *   type?: string;
  *   textRole?: string;
- *   direction?: string;
+ *   direction?: "horizontal" | "vertical";
  *   angle?: number;
- *   fontSize?: number;
- *   confidence?: number;
+ *   fontSize?: number | null;
+ *   confidence?: number | null;
  *   partialBbox?: PartialParsedBbox;
  *   bbox?: ParsedBbox | null;
  *   jp?: string;
@@ -25,11 +25,12 @@
  *   jp: string;
  *   ko: string;
  *   textRole?: string;
- *   direction?: string;
+ *   direction?: "horizontal" | "vertical";
  *   angle?: number;
- *   fontSize?: number;
- *   confidence?: number;
+ *   fontSize?: number | null;
+ *   confidence?: number | null;
  * }} LooseParsedOutput
+ * @typedef {{ requireBbox?: boolean }} LooseParseOptions
  */
 // Gemma (and similar) models occasionally emit reserved/special tokens such as
 // `<unused49>` straight into their text output. These corrupt the structured
@@ -38,12 +39,18 @@
 const SPECIAL_TOKEN_PATTERN =
   /<\/?(?:unused\d+|start_of_turn|end_of_turn|eos|bos|pad|mask|unk)>/gi;
 
+/**
+ * @param {string} rawText
+ * @returns {string}
+ */
 function stripModelSpecialTokens(rawText) {
-  return typeof rawText === "string"
-    ? rawText.replace(SPECIAL_TOKEN_PATTERN, "")
-    : rawText;
+  return rawText.replace(SPECIAL_TOKEN_PATTERN, "");
 }
 
+/**
+ * @param {string} rawText
+ * @returns {string}
+ */
 function extractJsonCandidate(rawText) {
   const trimmed = rawText.trim();
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
@@ -70,18 +77,23 @@ function extractJsonCandidate(rawText) {
   throw new Error("Could not find a JSON object in the model output.");
 }
 
+/**
+ * @param {string} rawText
+ * @returns {unknown}
+ */
 function parseJsonLenient(rawText) {
   const text = stripModelSpecialTokens(rawText);
   let candidate;
   try {
     candidate = extractJsonCandidate(text);
-  } catch (_error) {
+  } catch (error) {
     const looseItems = parseLooseItemList(text);
     if (looseItems.length > 0) {
       return { items: looseItems };
     }
     throw new Error(
       "Failed to find a parseable structured payload in the model output.",
+      { cause: error },
     );
   }
 
@@ -115,14 +127,26 @@ function parseJsonLenient(rawText) {
   throw new Error("Failed to parse model output as JSON.");
 }
 
+/**
+ * @param {unknown} parsed
+ * @returns {boolean}
+ */
 function hasStructuredItems(parsed) {
+  const record =
+    parsed && typeof parsed === "object"
+      ? /** @type {{ items?: unknown; blocks?: unknown }} */ (parsed)
+      : {};
   return (
     Array.isArray(parsed) ||
-    Array.isArray(parsed?.items) ||
-    Array.isArray(parsed?.blocks)
+    Array.isArray(record.items) ||
+    Array.isArray(record.blocks)
   );
 }
 
+/**
+ * @param {string} candidate
+ * @returns {string}
+ */
 function repairBrokenJson(candidate) {
   let repaired = candidate.trim();
   repaired = repaired
@@ -131,11 +155,13 @@ function repairBrokenJson(candidate) {
     .trim();
   repaired = repaired.replace(
     /"?(id|type|textRole|text_role|bbox|jp|ko|direction|angle|fontSize|confidence|x1|y1|x2|y2)(?::|\s*:)/gi,
+    /** @param {string} _ @param {string} key */
     (_, key) =>
       `"${key === "fontSize" ? "fontSize" : key === "textRole" || key === "text_role" ? "textRole" : key.toLowerCase()}":`,
   );
   repaired = repaired.replace(
     /([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g,
+    /** @param {string} _ @param {string} prefix @param {string} key */
     (_, prefix, key) => `${prefix}"${key}":`,
   );
   repaired = repaired.replace(/:\s*'([^']*)'/g, ': "$1"');
@@ -145,6 +171,7 @@ function repairBrokenJson(candidate) {
   );
   repaired = repaired.replace(
     /("(?:jp|ko|type)"\s*:\s*)([^"{[\n][^,\n}]*)/g,
+    /** @param {string} _match @param {string} prefix @param {string} value */
     (_match, prefix, value) => {
       const trimmed = String(value).trim();
       if (!trimmed || /^"/.test(trimmed)) {
@@ -160,6 +187,10 @@ function repairBrokenJson(candidate) {
   return repaired;
 }
 
+/**
+ * @param {string} line
+ * @returns {string}
+ */
 function normalizeLooseLine(line) {
   return line
     .replace(/"(x1|y1|x2|y2)\s*:/g, '"$1":')
@@ -167,21 +198,27 @@ function normalizeLooseLine(line) {
     .trim();
 }
 
+/**
+ * @param {PartialParsedBbox | null | undefined} partialBbox
+ * @returns {ParsedBbox | null}
+ */
 function bboxFromPartial(partialBbox) {
   if (!partialBbox) {
     return null;
   }
 
-  if (
-    !["x1", "y1", "x2", "y2"].every((key) => Number.isFinite(partialBbox[key]))
-  ) {
+  const x1 = Number(partialBbox.x1);
+  const y1 = Number(partialBbox.y1);
+  const x2 = Number(partialBbox.x2);
+  const y2 = Number(partialBbox.y2);
+  if (![x1, y1, x2, y2].every(Number.isFinite)) {
     return null;
   }
 
-  const left = Math.min(partialBbox.x1, partialBbox.x2);
-  const top = Math.min(partialBbox.y1, partialBbox.y2);
-  const right = Math.max(partialBbox.x1, partialBbox.x2);
-  const bottom = Math.max(partialBbox.y1, partialBbox.y2);
+  const left = Math.min(x1, x2);
+  const top = Math.min(y1, y2);
+  const right = Math.max(x1, x2);
+  const bottom = Math.max(y1, y2);
   return {
     x: left,
     y: top,
@@ -190,6 +227,11 @@ function bboxFromPartial(partialBbox) {
   };
 }
 
+/**
+ * @param {string} rawText
+ * @param {LooseParseOptions} [options]
+ * @returns {LooseParsedOutput[]}
+ */
 function parseLooseItemList(rawText, options = {}) {
   const requireBbox = options.requireBbox !== false;
   const cleaned = rawText
@@ -288,7 +330,7 @@ function parseLooseItemList(rawText, options = {}) {
     );
     if (directionMatch) {
       currentTextKey = null;
-      current.direction = directionMatch[1];
+      current.direction = normalizeDirection(directionMatch[1]);
       continue;
     }
 
@@ -358,8 +400,13 @@ function parseLooseItemList(rawText, options = {}) {
   return items;
 }
 
+/**
+ * @param {string} text
+ * @returns {string[]}
+ */
 function expandLooseRecordLines(text) {
   const rawLines = text.split(/\r?\n/);
+  /** @type {string[]} */
   const expanded = [];
   const keyPattern =
     /(?:^|\s)(id|type|textRole|text_role|role|direction|angle|fontSize|font_size|font|confidence|x1|y1|x2|y2|jp|ko)\s*:/gi;
@@ -384,15 +431,29 @@ function expandLooseRecordLines(text) {
   return expanded;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
 function toNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * @param {number} value
+ * @returns {number}
+ */
 function roundCoordinate(value) {
   return Math.round(value);
 }
 
+/**
+ * @param {number} value
+ * @param {number} min
+ * @param {number} [max]
+ * @returns {number}
+ */
 function clampCoordinate(value, min, max = Number.POSITIVE_INFINITY) {
   if (!Number.isFinite(value)) {
     return min;
@@ -400,6 +461,10 @@ function clampCoordinate(value, min, max = Number.POSITIVE_INFINITY) {
   return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * @param {ParsedBbox} bbox
+ * @returns {ParsedBbox}
+ */
 function clampBbox(bbox) {
   const x = clampCoordinate(bbox.x, 0);
   const y = clampCoordinate(bbox.y, 0);
@@ -408,6 +473,10 @@ function clampBbox(bbox) {
   return { x, y, w, h };
 }
 
+/**
+ * @param {unknown} value
+ * @returns {"horizontal" | "vertical"}
+ */
 function normalizeDirection(value) {
   const text = String(value ?? "")
     .trim()
@@ -415,6 +484,10 @@ function normalizeDirection(value) {
   return text === "vertical" ? "vertical" : "horizontal";
 }
 
+/**
+ * @param {unknown} value
+ * @returns {"" | "sound" | "ordinary" | "nontext"}
+ */
 function normalizeTextRole(value) {
   const text = String(value ?? "")
     .trim()
@@ -467,6 +540,10 @@ function normalizeTextRole(value) {
   return "";
 }
 
+/**
+ * @param {unknown} value
+ * @returns {number}
+ */
 function normalizeAngle(value) {
   const parsed = toNumber(value);
   if (parsed === null) {
@@ -475,6 +552,10 @@ function normalizeAngle(value) {
   return Math.min(30, Math.max(-30, Math.round(parsed)));
 }
 
+/**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
 function normalizeFontSize(value) {
   const parsed = toNumber(value);
   if (parsed === null) {
@@ -483,6 +564,10 @@ function normalizeFontSize(value) {
   return Math.min(160, Math.max(6, Math.round(parsed)));
 }
 
+/**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
 function normalizeConfidence(value) {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -495,24 +580,31 @@ function normalizeConfidence(value) {
   return Math.min(1, Math.max(0, normalized));
 }
 
+/**
+ * @param {unknown} item
+ * @returns {ParsedBbox | null}
+ */
 function normalizeBBox(item) {
-  const box = item;
+  const box =
+    item && typeof item === "object"
+      ? /** @type {Record<string, unknown>} */ (item)
+      : null;
   if (!box || typeof box !== "object") {
     return null;
   }
 
   const cornerBbox = bboxFromPartial({
-    x1: toNumber(box.x1),
-    y1: toNumber(box.y1),
-    x2: toNumber(box.x2),
-    y2: toNumber(box.y2),
+    x1: toNumber(box.x1) ?? undefined,
+    y1: toNumber(box.y1) ?? undefined,
+    x2: toNumber(box.x2) ?? undefined,
+    y2: toNumber(box.y2) ?? undefined,
   });
   const x = toNumber(cornerBbox?.x);
   const y = toNumber(cornerBbox?.y);
   const w = toNumber(cornerBbox?.w);
   const h = toNumber(cornerBbox?.h);
 
-  if (![x, y, w, h].every((value) => value !== null)) {
+  if (x === null || y === null || w === null || h === null) {
     return null;
   }
 
@@ -524,19 +616,32 @@ function normalizeBBox(item) {
   });
 }
 
+/**
+ * @param {unknown} item
+ * @param {number} index
+ * @returns {(LooseParsedOutput & { bbox: ParsedBbox }) | null}
+ */
 function normalizeItem(item, index) {
+  const record =
+    item && typeof item === "object"
+      ? /** @type {Record<string, unknown>} */ (item)
+      : {};
   const ko = [
-    item?.ko,
-    item?.korean,
-    item?.translation,
-    item?.translated,
-    item?.text_ko,
+    record.ko,
+    record.korean,
+    record.translation,
+    record.translated,
+    record.text_ko,
   ].find((value) => typeof value === "string" && value.trim());
   const jp =
-    [item?.jp, item?.japanese, item?.source, item?.ocr, item?.text_jp].find(
-      (value) => typeof value === "string" && value.trim(),
-    ) || "";
-  const bbox = normalizeBBox(item);
+    [
+      record.jp,
+      record.japanese,
+      record.source,
+      record.ocr,
+      record.text_jp,
+    ].find((value) => typeof value === "string" && value.trim()) || "";
+  const bbox = normalizeBBox(record);
   const normalizedKo = normalizeTextField(ko);
   const normalizedJp = normalizeTextField(jp);
 
@@ -552,12 +657,12 @@ function normalizeItem(item, index) {
   }
 
   return {
-    id: toNumber(item?.id) ?? index + 1,
-    type: normalizeParsedType(item?.type),
-    ...(normalizeTextRole(item?.textRole ?? item?.text_role ?? item?.role)
+    id: toNumber(record.id) ?? index + 1,
+    type: normalizeParsedType(record.type),
+    ...(normalizeTextRole(record.textRole ?? record.text_role ?? record.role)
       ? {
           textRole: normalizeTextRole(
-            item?.textRole ?? item?.text_role ?? item?.role,
+            record.textRole ?? record.text_role ?? record.role,
           ),
         }
       : {}),
@@ -565,16 +670,22 @@ function normalizeItem(item, index) {
     jp: normalizedJp,
     ko: normalizedKo,
     direction: normalizeDirection(
-      item?.direction ?? item?.sourceDirection ?? item?.writingDirection,
+      record.direction ?? record.sourceDirection ?? record.writingDirection,
     ),
-    angle: normalizeAngle(item?.angle ?? item?.rotation ?? item?.rotationDeg),
+    angle: normalizeAngle(
+      record.angle ?? record.rotation ?? record.rotationDeg,
+    ),
     fontSize: normalizeFontSize(
-      item?.fontSize ?? item?.font_size ?? item?.font,
+      record.fontSize ?? record.font_size ?? record.font,
     ),
-    confidence: normalizeConfidence(item?.confidence ?? item?.score),
+    confidence: normalizeConfidence(record.confidence ?? record.score),
   };
 }
 
+/**
+ * @param {unknown} value
+ * @returns {"reject" | "nonsolid"}
+ */
 function normalizeParsedType(value) {
   return String(value ?? "")
     .trim()
@@ -583,27 +694,47 @@ function normalizeParsedType(value) {
     : "nonsolid";
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function normalizeTextField(value) {
   return String(value ?? "")
     .replace(/\\n/g, "\n")
     .trim();
 }
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isPlaceholderOnly(value) {
   const compact = String(value ?? "").replace(/\s+/g, "");
   return compact === "[?]" || compact === "？" || compact === "?";
 }
 
+/**
+ * @param {unknown} parsed
+ * @returns {Array<LooseParsedOutput & { bbox: ParsedBbox }>}
+ */
 function normalizeItems(parsed) {
-  const items = Array.isArray(parsed)
-    ? parsed
-    : Array.isArray(parsed?.items)
-      ? parsed.items
-      : Array.isArray(parsed?.blocks)
-        ? parsed.blocks
-        : [];
+  const record =
+    parsed && typeof parsed === "object"
+      ? /** @type {{ items?: unknown; blocks?: unknown }} */ (parsed)
+      : {};
+  const items = /** @type {unknown[]} */ (
+    Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(record.items)
+        ? record.items
+        : Array.isArray(record.blocks)
+          ? record.blocks
+          : []
+  );
 
-  return items.map((item, index) => normalizeItem(item, index)).filter(Boolean);
+  return items
+    .map((item, index) => normalizeItem(item, index))
+    .filter((item) => item !== null);
 }
 
 module.exports = {

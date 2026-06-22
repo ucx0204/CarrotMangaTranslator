@@ -2,7 +2,7 @@
 // Decoupled from the status log: use for single-shot feedback
 // (save/delete/export/job complete or fail), not progress spam.
 
-export type ToastVariant = "success" | "error" | "info";
+export type ToastVariant = "success" | "error" | "warn" | "info";
 
 export type ToastAction = {
   label: string;
@@ -27,6 +27,7 @@ type Listener = (toasts: Toast[]) => void;
 const MAX_TOASTS = 4;
 const DEFAULT_DURATION: Record<ToastVariant, number> = {
   success: 3800,
+  warn: 5200,
   info: 4200,
   error: 6500,
 };
@@ -108,6 +109,8 @@ export const toast = {
     push("success", message, options),
   error: (message: string, options?: ToastOptions): string =>
     push("error", message, options),
+  warn: (message: string, options?: ToastOptions): string =>
+    push("warn", message, options),
   info: (message: string, options?: ToastOptions): string =>
     push("info", message, options),
   dismiss: dismissToast,

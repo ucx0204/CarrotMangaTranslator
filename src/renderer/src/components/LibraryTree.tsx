@@ -9,14 +9,12 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import type {
   LibraryChapterSummary,
   LibraryIndex,
-} from "../../../shared/types";
+} from "../../../shared/libraryTypes";
 import { useStandardDndSensors } from "../lib/dnd";
 import { filterLibraryIndex } from "../lib/libraryFilter";
 import {
@@ -25,6 +23,7 @@ import {
   writeLibrarySort,
   type LibrarySort,
 } from "../lib/librarySort";
+import { ChapterDragPreview, SortableChapterItem } from "./libraryTreeItems";
 import { LibrarySortMenu } from "./LibrarySortMenu";
 import { IconButton } from "./ui";
 import { EditIcon } from "./ui/icons";
@@ -48,6 +47,15 @@ type ActiveChapterDrag = {
   chapter: LibraryChapterSummary;
 };
 
+type ChapterDragController = {
+  activeDrag: ActiveChapterDrag | null;
+  dragEnabled: boolean;
+  handleDragCancel: () => void;
+  handleDragEnd: (event: DragEndEvent) => void;
+  handleDragStart: (event: DragStartEvent) => void;
+  sensors: ReturnType<typeof useStandardDndSensors>;
+};
+
 export function LibraryTree({
   library,
   currentChapterId,
@@ -57,10 +65,6 @@ export function LibraryTree({
   onRenameChapter,
   onReorderChapter,
 }: LibraryTreeProps): React.JSX.Element {
-  const sensors = useStandardDndSensors();
-  const [activeDrag, setActiveDrag] = React.useState<ActiveChapterDrag | null>(
-    null,
-  );
   const [searchQuery, setSearchQuery] = React.useState("");
   const deferredSearchQuery = React.useDeferredValue(searchQuery);
   const [sort, setSort] = React.useState<LibrarySort>(() => readLibrarySort());
@@ -77,8 +81,65 @@ export function LibraryTree({
     [filteredLibrary, sort],
   );
   const searchActive = searchQuery.trim().length > 0;
-  const dragEnabled = !jobActive && !searchActive;
+  const drag = useChapterDragController({
+    jobActive,
+    onReorderChapter,
+    searchActive,
+    visibleLibrary,
+  });
 
+  return (
+    <section className="library-panel">
+      <LibraryPanelHeader
+        onSearchChange={setSearchQuery}
+        onSortChange={handleSortChange}
+        searchQuery={searchQuery}
+        sort={sort}
+      />
+      <DndContext
+        sensors={drag.sensors}
+        collisionDetection={closestCenter}
+        onDragStart={drag.handleDragStart}
+        onDragCancel={drag.handleDragCancel}
+        onDragEnd={drag.handleDragEnd}
+      >
+        <LibraryWorksList
+          activeDrag={drag.activeDrag}
+          currentChapterId={currentChapterId}
+          dragEnabled={drag.dragEnabled}
+          jobActive={jobActive}
+          onOpenChapter={onOpenChapter}
+          onRenameChapter={onRenameChapter}
+          onRenameWork={onRenameWork}
+          searchActive={searchActive}
+          visibleLibrary={visibleLibrary}
+        />
+        <ChapterDragPortal
+          activeDrag={drag.activeDrag}
+          currentChapterId={currentChapterId}
+        />
+      </DndContext>
+    </section>
+  );
+}
+
+function useChapterDragController({
+  jobActive,
+  onReorderChapter,
+  searchActive,
+  visibleLibrary,
+}: {
+  jobActive: boolean;
+  onReorderChapter: LibraryTreeProps["onReorderChapter"];
+  searchActive: boolean;
+  visibleLibrary: LibraryIndex;
+}): ChapterDragController {
+  const sensors = useStandardDndSensors();
+  const [activeDrag, setActiveDrag] = React.useState<ActiveChapterDrag | null>(
+    null,
+  );
+  const dragEnabled = !jobActive && !searchActive;
+  const handleDragCancel = React.useCallback(() => setActiveDrag(null), []);
   const handleDragStart = React.useCallback(
     (event: DragStartEvent) => {
       const workId = event.active.data.current?.workId;
@@ -95,7 +156,6 @@ export function LibraryTree({
     },
     [visibleLibrary.works],
   );
-
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent) => {
       setActiveDrag(null);
@@ -116,216 +176,170 @@ export function LibraryTree({
     [dragEnabled, onReorderChapter],
   );
 
+  return {
+    activeDrag,
+    dragEnabled,
+    handleDragCancel,
+    handleDragEnd,
+    handleDragStart,
+    sensors,
+  };
+}
+
+function LibraryPanelHeader({
+  onSearchChange,
+  onSortChange,
+  searchQuery,
+  sort,
+}: {
+  onSearchChange: (query: string) => void;
+  onSortChange: (sort: LibrarySort) => void;
+  searchQuery: string;
+  sort: LibrarySort;
+}): React.JSX.Element {
   return (
-    <section className="library-panel">
-      <div className="panel-header library-panel-header">
-        <h2>보관함</h2>
-        <label className="library-search-shell" aria-label="보관함 검색">
-          <SearchIcon />
-          <input
-            className="library-search-input"
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="작품/화 검색"
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
-        <LibrarySortMenu value={sort} onChange={handleSortChange} />
-      </div>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragCancel={() => setActiveDrag(null)}
-        onDragEnd={handleDragEnd}
-      >
-        <div
-          className={`library-scroll sortable-scroll ${activeDrag ? "drag-active" : ""}`}
-        >
-          {visibleLibrary.works.length ? (
-            visibleLibrary.works.map((work) => (
-              <div key={work.id} className="work-group">
-                <div className="work-row">
-                  <strong title={work.title}>{work.title}</strong>
-                  <IconButton
-                    size="sm"
-                    label={`${work.title} 이름 변경`}
-                    title="이름 변경"
-                    onClick={() => onRenameWork(work.id)}
-                    disabled={jobActive}
-                  >
-                    <EditIcon size={14} />
-                  </IconButton>
-                </div>
-                <SortableContext
-                  items={work.chapters.map((chapter) => chapter.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="chapter-list">
-                    {work.chapters.map((chapter) => (
-                      <SortableChapterItem
-                        key={chapter.id}
-                        workId={work.id}
-                        chapter={chapter}
-                        active={chapter.id === currentChapterId}
-                        disabled={!dragEnabled}
-                        jobActive={jobActive}
-                        onOpenChapter={onOpenChapter}
-                        onRenameChapter={onRenameChapter}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </div>
-            ))
-          ) : searchActive ? (
-            <p className="panel-empty">검색 결과가 없습니다.</p>
-          ) : (
-            <p className="panel-empty">아직 보관함에 저장된 작품이 없습니다.</p>
-          )}
-        </div>
-        {createPortal(
-          <DragOverlay>
-            {activeDrag ? (
-              <ChapterDragPreview
-                chapter={activeDrag.chapter}
-                active={activeDrag.chapter.id === currentChapterId}
-              />
-            ) : null}
-          </DragOverlay>,
-          document.body,
-        )}
-      </DndContext>
-    </section>
+    <div className="panel-header library-panel-header">
+      <h2>보관함</h2>
+      <label className="library-search-shell" aria-label="보관함 검색">
+        <SearchIcon />
+        <input
+          className="library-search-input"
+          type="text"
+          value={searchQuery}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="작품/화 검색"
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </label>
+      <LibrarySortMenu value={sort} onChange={onSortChange} />
+    </div>
   );
 }
 
-function SortableChapterItem({
-  workId,
-  chapter,
-  active,
-  disabled,
+function LibraryWorksList({
+  activeDrag,
+  currentChapterId,
+  dragEnabled,
   jobActive,
   onOpenChapter,
   onRenameChapter,
+  onRenameWork,
+  searchActive,
+  visibleLibrary,
 }: {
-  workId: string;
-  chapter: LibraryChapterSummary;
-  active: boolean;
-  disabled: boolean;
+  activeDrag: ActiveChapterDrag | null;
+  currentChapterId: string | null;
+  dragEnabled: boolean;
   jobActive: boolean;
-  onOpenChapter: (chapterId: string) => void;
-  onRenameChapter: (chapterId: string) => void;
+  onOpenChapter: LibraryTreeProps["onOpenChapter"];
+  onRenameChapter: LibraryTreeProps["onRenameChapter"];
+  onRenameWork: LibraryTreeProps["onRenameWork"];
+  searchActive: boolean;
+  visibleLibrary: LibraryIndex;
 }): React.JSX.Element {
-  const {
-    attributes,
-    listeners,
-    setActivatorNodeRef,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: chapter.id,
-    disabled,
-    data: {
-      type: "chapter",
-      workId,
-    },
-  });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
   return (
     <div
-      ref={setNodeRef}
-      className={`chapter-item sortable-item ${active ? "active" : ""} ${isDragging ? "dragging" : ""}`}
-      style={style}
+      className={`library-scroll sortable-scroll ${activeDrag ? "drag-active" : ""}`}
     >
-      <button
-        ref={setActivatorNodeRef}
-        className="drag-handle compact"
-        disabled={disabled}
-        aria-label={`${chapter.title} 순서 이동`}
-        title={
-          disabled
-            ? "검색 중이거나 작업 중에는 이동할 수 없습니다."
-            : "드래그해서 이동"
-        }
-        {...attributes}
-        {...listeners}
-      >
-        <span className="drag-grip" aria-hidden="true" />
-      </button>
-      <button
-        className="chapter-select"
-        onClick={() => onOpenChapter(chapter.id)}
-        title={chapter.title}
-      >
-        <span>{chapter.title}</span>
-        <small>
-          {chapter.pageCount}페이지 ·{" "}
-          {resolveChapterStatusLabel(chapter.status)}
-        </small>
-      </button>
-      <IconButton
-        size="sm"
-        label={`${chapter.title} 이름 변경`}
-        title="이름 변경"
-        onClick={() => onRenameChapter(chapter.id)}
-        disabled={jobActive}
-      >
-        <EditIcon size={14} />
-      </IconButton>
+      {visibleLibrary.works.length ? (
+        visibleLibrary.works.map((work) => (
+          <LibraryWorkGroup
+            key={work.id}
+            currentChapterId={currentChapterId}
+            dragEnabled={dragEnabled}
+            jobActive={jobActive}
+            onOpenChapter={onOpenChapter}
+            onRenameChapter={onRenameChapter}
+            onRenameWork={onRenameWork}
+            work={work}
+          />
+        ))
+      ) : (
+        <p className="panel-empty">{resolveLibraryEmptyLabel(searchActive)}</p>
+      )}
     </div>
   );
 }
 
-function ChapterDragPreview({
-  chapter,
-  active,
+function LibraryWorkGroup({
+  currentChapterId,
+  dragEnabled,
+  jobActive,
+  onOpenChapter,
+  onRenameChapter,
+  onRenameWork,
+  work,
 }: {
-  chapter: LibraryChapterSummary;
-  active: boolean;
+  currentChapterId: string | null;
+  dragEnabled: boolean;
+  jobActive: boolean;
+  onOpenChapter: LibraryTreeProps["onOpenChapter"];
+  onRenameChapter: LibraryTreeProps["onRenameChapter"];
+  onRenameWork: LibraryTreeProps["onRenameWork"];
+  work: LibraryIndex["works"][number];
 }): React.JSX.Element {
   return (
-    <div
-      className={`chapter-item sortable-item drag-preview ${active ? "active" : ""}`}
-    >
-      <span className="drag-handle compact preview-handle">
-        <span className="drag-grip" aria-hidden="true" />
-      </span>
-      <div className="chapter-select preview-select" title={chapter.title}>
-        <span>{chapter.title}</span>
-        <small>
-          {chapter.pageCount}페이지 ·{" "}
-          {resolveChapterStatusLabel(chapter.status)}
-        </small>
+    <div className="work-group">
+      <div className="work-row">
+        <strong title={work.title}>{work.title}</strong>
+        <IconButton
+          size="sm"
+          label={`${work.title} 이름 변경`}
+          title="이름 변경"
+          onClick={() => onRenameWork(work.id)}
+          disabled={jobActive}
+        >
+          <EditIcon size={14} />
+        </IconButton>
       </div>
-      <span className="library-icon-button preview-edit" aria-hidden="true">
-        <EditIcon size={14} />
-      </span>
+      <SortableContext
+        items={work.chapters.map((chapter) => chapter.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="chapter-list">
+          {work.chapters.map((chapter) => (
+            <SortableChapterItem
+              key={chapter.id}
+              workId={work.id}
+              chapter={chapter}
+              active={chapter.id === currentChapterId}
+              disabled={!dragEnabled}
+              jobActive={jobActive}
+              onOpenChapter={onOpenChapter}
+              onRenameChapter={onRenameChapter}
+            />
+          ))}
+        </div>
+      </SortableContext>
     </div>
   );
 }
 
-function resolveChapterStatusLabel(status: string): string {
-  switch (status) {
-    case "completed":
-      return "완료";
-    case "running":
-      return "진행 중";
-    case "failed":
-      return "실패";
-    case "partial":
-      return "부분 완료";
-    default:
-      return "대기";
-  }
+function ChapterDragPortal({
+  activeDrag,
+  currentChapterId,
+}: {
+  activeDrag: ActiveChapterDrag | null;
+  currentChapterId: string | null;
+}): React.ReactPortal {
+  return createPortal(
+    <DragOverlay>
+      {activeDrag ? (
+        <ChapterDragPreview
+          chapter={activeDrag.chapter}
+          active={activeDrag.chapter.id === currentChapterId}
+        />
+      ) : null}
+    </DragOverlay>,
+    document.body,
+  );
+}
+
+function resolveLibraryEmptyLabel(searchActive: boolean): string {
+  return searchActive
+    ? "검색 결과가 없습니다."
+    : "아직 보관함에 저장된 작품이 없습니다.";
 }
 
 function SearchIcon(): React.JSX.Element {

@@ -3,7 +3,7 @@ import type {
   FluxBackend,
   OcrDevice,
   OcrGpuBackend,
-} from "../../../../shared/types";
+} from "../../../../shared/settingsTypes";
 import { mangaGateway } from "../../api/mangaGateway";
 import { FLUX_BACKEND_OPTIONS, OCR_DEVICE_OPTIONS } from "../settingsOptions";
 
@@ -38,6 +38,50 @@ export function HardwareSettingsPanel({
   usesNvidiaHardware,
   usesNvidiaOcrContext,
 }: HardwareSettingsPanelProps): React.JSX.Element {
+  return (
+    <>
+      <OcrDeviceSettings
+        clearTestState={clearTestState}
+        controlsBusy={controlsBusy}
+        ocrDevice={ocrDevice}
+        ocrGpuBackend={ocrGpuBackend}
+        setOcrDevice={setOcrDevice}
+        setOcrGpuBackend={setOcrGpuBackend}
+        usesAmdOcrContext={usesAmdOcrContext}
+        usesNvidiaOcrContext={usesNvidiaOcrContext}
+      />
+      <FluxBackendSettings
+        clearTestState={clearTestState}
+        fluxBackend={fluxBackend}
+        isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
+        setFluxBackend={setFluxBackend}
+        usesAmdHardware={usesAmdHardware}
+        usesNvidiaHardware={usesNvidiaHardware}
+      />
+    </>
+  );
+}
+
+function OcrDeviceSettings({
+  clearTestState,
+  controlsBusy,
+  ocrDevice,
+  ocrGpuBackend,
+  setOcrDevice,
+  setOcrGpuBackend,
+  usesAmdOcrContext,
+  usesNvidiaOcrContext,
+}: Pick<
+  HardwareSettingsPanelProps,
+  | "clearTestState"
+  | "controlsBusy"
+  | "ocrDevice"
+  | "ocrGpuBackend"
+  | "setOcrDevice"
+  | "setOcrGpuBackend"
+  | "usesAmdOcrContext"
+  | "usesNvidiaOcrContext"
+>): React.JSX.Element {
   const activeOcrOptionId = ocrDevice === "cpu" ? "cpu" : ocrGpuBackend;
   const activeOcrOption = OCR_DEVICE_OPTIONS.find(
     (option) => option.id === activeOcrOptionId,
@@ -48,108 +92,175 @@ export function HardwareSettingsPanel({
       : activeOcrOption?.description;
 
   return (
-    <>
-      <div className="settings-field-stack">
-        <span>Paddle OCR 장치</span>
-        <div
-          className="settings-preset-group"
-          role="tablist"
-          aria-label="Paddle OCR 장치"
-        >
-          {OCR_DEVICE_OPTIONS.map((option) => {
-            const disabled =
-              controlsBusy ||
-              (option.id === "cuda" && usesAmdOcrContext) ||
-              (option.id === "rocm-transformers" && usesNvidiaOcrContext);
-            return (
-              <button
-                key={option.id}
-                type="button"
-                className={`settings-preset-button ${activeOcrOptionId === option.id ? "active" : ""}`}
-                onClick={() => {
-                  clearTestState();
-                  setOcrDevice(option.device);
-                  if (option.gpuBackend) {
-                    setOcrGpuBackend(option.gpuBackend);
-                  }
-                }}
-                disabled={disabled}
-                aria-pressed={activeOcrOptionId === option.id}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-        <p className="muted-line modal-note">{ocrDescription}</p>
-        {usesAmdOcrContext ? (
-          <p className="muted-line modal-note">
-            AMD 환경에서는 NVIDIA CUDA OCR을 선택할 수 없습니다.
-          </p>
-        ) : usesNvidiaOcrContext ? (
-          <p className="muted-line modal-note">
-            NVIDIA 환경에서는 AMD ROCm OCR을 선택할 수 없습니다.
-          </p>
-        ) : null}
-      </div>
-
-      <div className="settings-field-stack">
-        <span>Flux 인페인팅 백엔드</span>
-        <div
-          className="settings-preset-group"
-          role="tablist"
-          aria-label="Flux 인페인팅 백엔드"
-        >
-          {FLUX_BACKEND_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={`settings-preset-button ${fluxBackend === option.id ? "active" : ""}`}
-              onClick={() => {
-                clearTestState();
-                setFluxBackend(option.id);
-              }}
-              disabled={isFluxBackendOptionDisabled(option.id)}
-              aria-pressed={fluxBackend === option.id}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <p className="muted-line modal-note">
-          {
-            FLUX_BACKEND_OPTIONS.find((option) => option.id === fluxBackend)
-              ?.description
-          }
-        </p>
-        {fluxBackend === "zluda-native" ? (
+    <div className="settings-field-stack">
+      <span>Paddle OCR 장치</span>
+      <div
+        className="settings-preset-group"
+        role="tablist"
+        aria-label="Paddle OCR 장치"
+      >
+        {OCR_DEVICE_OPTIONS.map((option) => (
           <button
+            key={option.id}
             type="button"
-            className="settings-external-link"
+            className={`settings-preset-button ${activeOcrOptionId === option.id ? "active" : ""}`}
             onClick={() => {
-              void mangaGateway.openAmdHipSdkDownload().catch((error) => {
-                console.error(
-                  "Failed to open AMD HIP SDK download page",
-                  error,
-                );
-              });
+              clearTestState();
+              setOcrDevice(option.device);
+              if (option.gpuBackend) {
+                setOcrGpuBackend(option.gpuBackend);
+              }
             }}
+            disabled={isOcrOptionDisabled(
+              option.id,
+              controlsBusy,
+              usesAmdOcrContext,
+              usesNvidiaOcrContext,
+            )}
+            aria-pressed={activeOcrOptionId === option.id}
           >
-            AMD HIP SDK 다운로드 (ROCm 7.1.1)
+            {option.label}
           </button>
-        ) : null}
-        {usesAmdHardware ? (
-          <p className="muted-line modal-note">
-            감지된 AMD GPU에서는 CUDA 네이티브 백엔드를 쓸 수 없어 ZLUDA 또는
-            CPU 중에서 선택합니다.
-          </p>
-        ) : usesNvidiaHardware ? (
-          <p className="muted-line modal-note">
-            감지된 NVIDIA GPU에서는 ZLUDA 백엔드 대신 CUDA 네이티브를
-            사용합니다.
-          </p>
-        ) : null}
+        ))}
       </div>
-    </>
+      <p className="muted-line modal-note">{ocrDescription}</p>
+      <OcrHardwareContextNote
+        usesAmdOcrContext={usesAmdOcrContext}
+        usesNvidiaOcrContext={usesNvidiaOcrContext}
+      />
+    </div>
+  );
+}
+
+function FluxBackendSettings({
+  clearTestState,
+  fluxBackend,
+  isFluxBackendOptionDisabled,
+  setFluxBackend,
+  usesAmdHardware,
+  usesNvidiaHardware,
+}: Pick<
+  HardwareSettingsPanelProps,
+  | "clearTestState"
+  | "fluxBackend"
+  | "isFluxBackendOptionDisabled"
+  | "setFluxBackend"
+  | "usesAmdHardware"
+  | "usesNvidiaHardware"
+>): React.JSX.Element {
+  return (
+    <div className="settings-field-stack">
+      <span>Flux 인페인팅 백엔드</span>
+      <div
+        className="settings-preset-group"
+        role="tablist"
+        aria-label="Flux 인페인팅 백엔드"
+      >
+        {FLUX_BACKEND_OPTIONS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className={`settings-preset-button ${fluxBackend === option.id ? "active" : ""}`}
+            onClick={() => {
+              clearTestState();
+              setFluxBackend(option.id);
+            }}
+            disabled={isFluxBackendOptionDisabled(option.id)}
+            aria-pressed={fluxBackend === option.id}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <p className="muted-line modal-note">
+        {
+          FLUX_BACKEND_OPTIONS.find((option) => option.id === fluxBackend)
+            ?.description
+        }
+      </p>
+      {fluxBackend === "zluda-native" ? <AmdHipSdkDownloadButton /> : null}
+      <FluxHardwareContextNote
+        usesAmdHardware={usesAmdHardware}
+        usesNvidiaHardware={usesNvidiaHardware}
+      />
+    </div>
+  );
+}
+
+function OcrHardwareContextNote({
+  usesAmdOcrContext,
+  usesNvidiaOcrContext,
+}: Pick<
+  HardwareSettingsPanelProps,
+  "usesAmdOcrContext" | "usesNvidiaOcrContext"
+>): React.JSX.Element | null {
+  if (usesAmdOcrContext) {
+    return (
+      <p className="muted-line modal-note">
+        AMD 환경에서는 NVIDIA CUDA OCR을 선택할 수 없습니다.
+      </p>
+    );
+  }
+  if (usesNvidiaOcrContext) {
+    return (
+      <p className="muted-line modal-note">
+        NVIDIA 환경에서는 AMD ROCm OCR을 선택할 수 없습니다.
+      </p>
+    );
+  }
+  return null;
+}
+
+function FluxHardwareContextNote({
+  usesAmdHardware,
+  usesNvidiaHardware,
+}: Pick<
+  HardwareSettingsPanelProps,
+  "usesAmdHardware" | "usesNvidiaHardware"
+>): React.JSX.Element | null {
+  if (usesAmdHardware) {
+    return (
+      <p className="muted-line modal-note">
+        감지된 AMD GPU에서는 CUDA 네이티브 백엔드를 쓸 수 없어 ZLUDA 또는 CPU
+        중에서 선택합니다.
+      </p>
+    );
+  }
+  if (usesNvidiaHardware) {
+    return (
+      <p className="muted-line modal-note">
+        감지된 NVIDIA GPU에서는 ZLUDA 백엔드 대신 CUDA 네이티브를 사용합니다.
+      </p>
+    );
+  }
+  return null;
+}
+
+function AmdHipSdkDownloadButton(): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="settings-external-link"
+      onClick={() => {
+        void mangaGateway.openAmdHipSdkDownload().catch((error) => {
+          console.error("Failed to open AMD HIP SDK download page", error);
+        });
+      }}
+    >
+      AMD HIP SDK 다운로드 (ROCm 7.1.1)
+    </button>
+  );
+}
+
+function isOcrOptionDisabled(
+  optionId: string,
+  controlsBusy: boolean,
+  usesAmdOcrContext: boolean,
+  usesNvidiaOcrContext: boolean,
+): boolean {
+  return (
+    controlsBusy ||
+    (optionId === "cuda" && usesAmdOcrContext) ||
+    (optionId === "rocm-transformers" && usesNvidiaOcrContext)
   );
 }

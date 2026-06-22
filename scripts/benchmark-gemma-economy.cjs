@@ -5,6 +5,28 @@ const os = require("node:os");
 const path = require("node:path");
 const { app, nativeImage } = require("electron");
 
+/**
+ * @typedef {{ name: string; batch?: number; ubatch?: number; ctx?: number; fitTargetMb?: number; imageMinTokens?: number; imageMaxTokens?: number; kvOffload?: boolean; mmprojOffload?: boolean; gpuLayers?: number | string; noHost?: boolean; serverPath?: string; modelRepo?: string; modelFile?: string; mmprojRepo?: string; mmprojFile?: string; cacheTypeK?: string; cacheTypeV?: string; extraArgs?: string[]; threads?: number; threadsBatch?: number; poll?: number; pollBatch?: boolean; prioBatch?: number; cacheIdleSlots?: unknown; cacheReuse?: unknown; [key: string]: unknown }} BenchmarkCandidate
+ * @typedef {{ id: string; name: string; imagePath: string; width: number; height: number }} BenchmarkSample
+ * @typedef {{ ctx?: unknown; batch?: unknown; ubatch?: unknown; fitTargetMb?: unknown; imageMinTokens?: unknown; imageMaxTokens?: unknown; kvOffload?: unknown; mmprojOffload?: unknown; gpuLayers?: unknown; noHost?: unknown; serverPath?: unknown; modelRepo?: unknown; modelFile?: unknown; mmprojRepo?: unknown; mmprojFile?: unknown; cacheTypeK?: unknown; cacheTypeV?: unknown; serverLogPath?: string; [key: string]: unknown }} BenchmarkOptions
+ * @typedef {{ prompt_per_second?: unknown; predicted_per_second?: unknown; [key: string]: unknown }} BenchmarkTimings
+ * @typedef {{ gpuUtilPercent: number | null; gpuUsedMb: number | null; processVramMb: number | null; timestamp: string }} GpuSnapshot
+ * @typedef {{ sampleCount: number; avgGpuUtilPercent: number | null; peakGpuUtilPercent: number | null; peakProcessVramMb: number | null; peakGpuUsedMb: number | null }} GpuSummary
+ * @typedef {{ runIndex: number; sampleIndex: number; imagePath: string; wallMs: number; blockCount: number; timings: BenchmarkTimings | null; gpu: GpuSummary }} MeasuredPage
+ * @typedef {{ measuredPageCount: number; meanWallMs: number | null; meanPromptTokensPerSecond: number | null; meanPredictedTokensPerSecond: number | null; peakProcessVramMb: number | null; peakGpuDeltaMb: number | null; peakGpuUsedMb: number | null; minBlockCount: number; maxBlockCount: number }} MeasuredSummary
+ * @typedef {{ imageTokenClipped: boolean; lastCudaMemoryBreakdown: null | { selfMiB: number; modelMiB: number; contextMiB: number; computeMiB: number } }} ServerLogSummary
+ * @typedef {{ name: string; candidate: BenchmarkCandidate; failed?: boolean; serverPid: number | null; serverLog?: ServerLogSummary & { path: string }; beforeStart: GpuSnapshot | null; afterStart?: GpuSnapshot | null; afterStop: GpuSnapshot | null; pages: MeasuredPage[]; measured: MeasuredSummary; error?: { message: string; stack: unknown; candidateIndex: number } }} BenchmarkResult
+ * @typedef {{ name: string; candidate: BenchmarkCandidate; measured: MeasuredSummary }} ResultSummary
+ * @typedef {{ baseline: ResultSummary | null; winner: ResultSummary | null; accepted: ResultSummary[]; rules?: { minWallImprovement: number; vramDeltaLimitMb: number } }} BenchmarkSummary
+ * @typedef {{ outputText: string; rawResponse?: { timings?: BenchmarkTimings } | null; [key: string]: unknown }} TranslationResultLike
+ * @typedef {{ child?: { pid?: number | null } | null; [key: string]: unknown }} ServerLike
+ * @typedef {{ buildLaunchArgs(options: BenchmarkOptions): string[]; collectOcrBboxHints(options: BenchmarkOptions): Promise<{ hints: unknown[] }>; requestTranslation(server: ServerLike, options: BenchmarkOptions): Promise<TranslationResultLike>; saveArtifacts(options: BenchmarkOptions, result: TranslationResultLike): Promise<void>; startServer(options: BenchmarkOptions): Promise<ServerLike>; stopServer(server: ServerLike): Promise<void> }} SimplePageModule
+ * @typedef {{ parseJsonLenient(rawText: string): unknown; normalizeItems(parsed: unknown): unknown[] }} OverlayToolsModule
+ * @typedef {{ simplePage: SimplePageModule; baseOptions: BenchmarkOptions; samples: BenchmarkSample[]; pagesDir: string }} PrepareOcrOptions
+ * @typedef {{ candidate: BenchmarkCandidate; candidateIndex: number; baseOptions: BenchmarkOptions; simplePage: SimplePageModule; overlayTools: OverlayToolsModule; samples: BenchmarkSample[]; ocrHintsByPath: Map<string, unknown[]>; outDir: string }} RunCandidateOptions
+ * @typedef {{ candidate: BenchmarkCandidate; candidateIndex: number; outDir: string; error: unknown }} FailedCandidateOptions
+ */
+
 const ROOT = path.join(__dirname, "..");
 const DEFAULT_SAMPLE_PATHS = [
   "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas\\Manga Mura (JA)\\転生しました、サラナ・キンジェです。ごきげんよう。 ～優雅なスローライフで大忙し～ 転生しました、サラナ・キンジェです。ごきげんよう。 ～婚約破棄されたので田舎で気ままに暮らしたいと思います～\\第3話_ 第3話\\003.jpeg",
@@ -27,6 +49,7 @@ const SKIP_OCR = String(process.env.MANGA_PERF_SKIP_OCR || "").trim() === "1";
 const REUSE_OCR_DIR = String(process.env.MANGA_PERF_REUSE_OCR_DIR || "").trim();
 const CPU_THREAD_GUESS = Math.max(4, Math.min(os.cpus().length || 8, 16));
 
+/** @type {BenchmarkCandidate[]} */
 const CANDIDATES = [
   { name: "baseline-b1024-ub1024", batch: 1024, ubatch: 1024 },
   {
@@ -363,6 +386,9 @@ const CANDIDATE_FILTER = String(process.env.MANGA_PERF_CANDIDATES || "")
   .map((item) => item.trim())
   .filter(Boolean);
 
+/**
+ * @returns {Promise<void>}
+ */
 async function main() {
   app.setPath(
     "userData",
@@ -371,7 +397,7 @@ async function main() {
   app.commandLine.appendSwitch("disable-gpu");
   app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
   app.commandLine.appendSwitch("disk-cache-size", "0");
-  app.on("window-all-closed", (event) => event.preventDefault());
+  app.on("window-all-closed", () => {});
   await app.whenReady();
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -386,14 +412,12 @@ async function main() {
     /** @type {typeof import("../src/main/appSettings")} */ (
       loadBuiltModule("out/main/appSettings.js")
     );
-  const simplePage =
-    /** @type {typeof import("../src/main/runtime/simple-page-translate.cjs")} */ (
-      loadBuiltModule("out/app-runtime/simple-page-translate.cjs")
-    );
-  const overlayTools =
-    /** @type {typeof import("../src/main/runtime/overlay-parser.cjs")} */ (
-      loadBuiltModule("out/app-runtime/overlay-parser.cjs")
-    );
+  const simplePage = /** @type {SimplePageModule} */ (
+    loadBuiltModule("out/app-runtime/simple-page-translate.cjs")
+  );
+  const overlayTools = /** @type {OverlayToolsModule} */ (
+    loadBuiltModule("out/app-runtime/overlay-parser.cjs")
+  );
 
   const paths = getAppPaths();
   const settings = normalizeAppSettings(
@@ -443,6 +467,7 @@ async function main() {
   const ocrHintsByPath = SKIP_OCR
     ? new Map()
     : await prepareCachedOcrHints(simplePage, baseOptions, samples, pagesDir);
+  /** @type {BenchmarkResult[]} */
   const results = [];
   for (const [candidateIndex, candidate] of candidates.entries()) {
     let candidateResult;
@@ -499,12 +524,20 @@ function loadBuiltModule(relativePath) {
   return require(path.join(ROOT, relativePath));
 }
 
+/**
+ * @param {SimplePageModule} simplePage
+ * @param {BenchmarkOptions} baseOptions
+ * @param {BenchmarkSample[]} samples
+ * @param {string} pagesDir
+ * @returns {Promise<Map<string, unknown[]>>}
+ */
 async function prepareCachedOcrHints(
   simplePage,
   baseOptions,
   samples,
   pagesDir,
 ) {
+  /** @type {Map<string, unknown[]>} */
   const hintsByPath = new Map();
   for (const [index, sample] of samples.entries()) {
     const outputDir = path.join(
@@ -550,6 +583,10 @@ async function prepareCachedOcrHints(
   return hintsByPath;
 }
 
+/**
+ * @param {number} sampleIndex
+ * @returns {Promise<unknown[] | null>}
+ */
 async function readReusableOcrHints(sampleIndex) {
   if (!REUSE_OCR_DIR) {
     return null;
@@ -578,19 +615,31 @@ async function readReusableOcrHints(sampleIndex) {
   return null;
 }
 
+/**
+ * @param {unknown} payload
+ * @returns {unknown[]}
+ */
 function normalizeReusableOcrHints(payload) {
   if (Array.isArray(payload)) {
     return payload;
   }
-  if (Array.isArray(payload?.items)) {
-    return payload.items;
+  const record =
+    payload && typeof payload === "object"
+      ? /** @type {{ items?: unknown; hints?: unknown }} */ (payload)
+      : {};
+  if (Array.isArray(record.items)) {
+    return record.items;
   }
-  if (Array.isArray(payload?.hints)) {
-    return payload.hints;
+  if (Array.isArray(record.hints)) {
+    return record.hints;
   }
   return [];
 }
 
+/**
+ * @param {RunCandidateOptions} options
+ * @returns {Promise<BenchmarkResult>}
+ */
 async function runCandidate({
   candidate,
   candidateIndex,
@@ -650,6 +699,7 @@ async function runCandidate({
   const server = await simplePage.startServer(options);
   const pid = server.child?.pid ?? null;
   const afterStart = readGpuSnapshot(pid);
+  /** @type {MeasuredPage[]} */
   const pages = [];
   try {
     for (let runIndex = 0; runIndex < RUNS_PER_CANDIDATE; runIndex += 1) {
@@ -725,6 +775,10 @@ async function runCandidate({
   return result;
 }
 
+/**
+ * @param {FailedCandidateOptions} options
+ * @returns {Promise<BenchmarkResult>}
+ */
 async function writeFailedCandidateResult({
   candidate,
   candidateIndex,
@@ -759,8 +813,14 @@ async function writeFailedCandidateResult({
       maxBlockCount: 0,
     },
     error: {
-      message: error?.message ?? String(error),
-      stack: error?.stack ?? null,
+      message:
+        error && typeof error === "object" && "message" in error
+          ? String(/** @type {{ message?: unknown }} */ (error).message)
+          : String(error),
+      stack:
+        error && typeof error === "object" && "stack" in error
+          ? /** @type {{ stack?: unknown }} */ (error.stack ?? null)
+          : null,
       candidateIndex,
     },
   };
@@ -773,7 +833,14 @@ async function writeFailedCandidateResult({
   return result;
 }
 
+/**
+ * @template T
+ * @param {number | null} pid
+ * @param {() => Promise<T>} run
+ * @returns {Promise<{ wallMs: number; result: T; gpuSamples: GpuSnapshot[] }>}
+ */
 async function measureGpuDuring(pid, run) {
+  /** @type {GpuSnapshot[]} */
   const samples = [];
   let sampling = false;
   const timer = setInterval(() => {
@@ -801,30 +868,35 @@ async function measureGpuDuring(pid, run) {
   }
 }
 
+/**
+ * @param {MeasuredPage[]} pages
+ * @param {GpuSnapshot | null} beforeStart
+ * @returns {MeasuredSummary}
+ */
 function summarizeMeasuredPages(pages, beforeStart) {
   const measuredPages = pages.filter(
     (page) => RUNS_PER_CANDIDATE <= 1 || page.runIndex > 0,
   );
   const wallMsValues = measuredPages
     .map((page) => page.wallMs)
-    .filter(Number.isFinite);
+    .filter(isFiniteNumber);
   const promptPerSecond = measuredPages
     .map((page) => Number(page.timings?.prompt_per_second))
-    .filter(Number.isFinite);
+    .filter(isFiniteNumber);
   const predictedPerSecond = measuredPages
     .map((page) => Number(page.timings?.predicted_per_second))
-    .filter(Number.isFinite);
+    .filter(isFiniteNumber);
   const peakProcessVramMb = Math.max(
     0,
     ...measuredPages
       .map((page) => Number(page.gpu.peakProcessVramMb))
-      .filter(Number.isFinite),
+      .filter(isFiniteNumber),
   );
   const peakGpuUsedMb = Math.max(
     0,
     ...measuredPages
       .map((page) => Number(page.gpu.peakGpuUsedMb))
-      .filter(Number.isFinite),
+      .filter(isFiniteNumber),
   );
   const beforeGpuUsedMb = Number(beforeStart?.gpuUsedMb);
   const peakGpuDeltaMb =
@@ -844,6 +916,10 @@ function summarizeMeasuredPages(pages, beforeStart) {
   };
 }
 
+/**
+ * @param {BenchmarkResult[]} results
+ * @returns {BenchmarkSummary}
+ */
 function summarizeResults(results) {
   const baseline =
     results.find((result) => result.name === "baseline-b1024-ub1024") ??
@@ -926,6 +1002,10 @@ function summarizeResults(results) {
   };
 }
 
+/**
+ * @param {BenchmarkResult} result
+ * @returns {ResultSummary}
+ */
 function pickSummary(result) {
   return {
     name: result.name,
@@ -934,6 +1014,11 @@ function pickSummary(result) {
   };
 }
 
+/**
+ * @param {BenchmarkSummary} summary
+ * @param {BenchmarkResult[]} results
+ * @returns {string}
+ */
 function buildMarkdownReport(summary, results) {
   const lines = [
     "# Gemma Economy Performance Benchmark",
@@ -977,7 +1062,13 @@ function buildMarkdownReport(summary, results) {
   return `${lines.join("\n")}\n`;
 }
 
+/**
+ * @param {BenchmarkResult} result
+ * @param {ResultSummary | null | undefined} baselineSummary
+ * @returns {string}
+ */
 function buildResultFlags(result, baselineSummary) {
+  /** @type {string[]} */
   const flags = [];
   if (result.serverLog?.imageTokenClipped) {
     flags.push("image-token-clipped");
@@ -995,16 +1086,20 @@ function buildResultFlags(result, baselineSummary) {
   return flags.join(", ");
 }
 
+/**
+ * @param {GpuSnapshot[]} samples
+ * @returns {GpuSummary}
+ */
 function summarizeGpuSamples(samples) {
   const gpuUtils = samples
     .map((sample) => sample.gpuUtilPercent)
-    .filter(Number.isFinite);
+    .filter(isFiniteNumber);
   const processVram = samples
     .map((sample) => sample.processVramMb)
-    .filter(Number.isFinite);
+    .filter(isFiniteNumber);
   const gpuUsed = samples
     .map((sample) => sample.gpuUsedMb)
-    .filter(Number.isFinite);
+    .filter(isFiniteNumber);
   return {
     sampleCount: samples.length,
     avgGpuUtilPercent: average(gpuUtils),
@@ -1014,6 +1109,10 @@ function summarizeGpuSamples(samples) {
   };
 }
 
+/**
+ * @param {number | null} pid
+ * @returns {GpuSnapshot}
+ */
 function readGpuSnapshot(pid) {
   const gpu = readGpuUtilAndMemory();
   return {
@@ -1023,6 +1122,9 @@ function readGpuSnapshot(pid) {
   };
 }
 
+/**
+ * @returns {{ gpuUtilPercent: number | null; gpuUsedMb: number | null }}
+ */
 function readGpuUtilAndMemory() {
   try {
     const stdout = execFileSync(
@@ -1049,6 +1151,10 @@ function readGpuUtilAndMemory() {
   }
 }
 
+/**
+ * @param {number} pid
+ * @returns {number | null}
+ */
 function readProcessVramMb(pid) {
   try {
     const stdout = execFileSync(
@@ -1072,6 +1178,11 @@ function readProcessVramMb(pid) {
   }
 }
 
+/**
+ * @param {string} imagePath
+ * @param {number} index
+ * @returns {BenchmarkSample}
+ */
 function createPageRecord(imagePath, index) {
   const image = nativeImage.createFromPath(imagePath);
   const size = image.getSize();
@@ -1087,6 +1198,9 @@ function createPageRecord(imagePath, index) {
   };
 }
 
+/**
+ * @returns {string[]}
+ */
 function resolveSamples() {
   const configured = String(process.env.MANGA_PERF_SAMPLE_PATHS || "")
     .split(";")
@@ -1101,6 +1215,11 @@ function resolveSamples() {
     .slice(0, limit);
 }
 
+/**
+ * @param {BenchmarkCandidate} candidate
+ * @param {BenchmarkOptions} baseOptions
+ * @returns {boolean}
+ */
 function candidateKeepsImageTokenBudget(candidate, baseOptions) {
   const requiredBatch = Math.max(
     Number(baseOptions.imageMinTokens) || 0,
@@ -1125,6 +1244,10 @@ function candidateKeepsImageTokenBudget(candidate, baseOptions) {
   return true;
 }
 
+/**
+ * @param {string} filePath
+ * @returns {Promise<unknown>}
+ */
 async function readJsonIfExists(filePath) {
   try {
     return JSON.parse(await readFile(filePath, "utf8"));
@@ -1133,6 +1256,10 @@ async function readJsonIfExists(filePath) {
   }
 }
 
+/**
+ * @param {string} filePath
+ * @returns {Promise<string>}
+ */
 async function readTextIfExists(filePath) {
   try {
     return await readFile(filePath, "utf8");
@@ -1141,6 +1268,10 @@ async function readTextIfExists(filePath) {
   }
 }
 
+/**
+ * @param {unknown} text
+ * @returns {ServerLogSummary}
+ */
 function summarizeServerLog(text) {
   const logText = String(text ?? "");
   const imageTokenClipped =
@@ -1163,28 +1294,59 @@ function summarizeServerLog(text) {
   };
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is number}
+ */
+function isFiniteNumber(value) {
+  return Number.isFinite(value);
+}
+
+/**
+ * @param {number[]} values
+ * @returns {number | null}
+ */
 function average(values) {
-  const filtered = values.filter(Number.isFinite);
+  const filtered = values.filter(isFiniteNumber);
   if (filtered.length === 0) {
     return null;
   }
   return filtered.reduce((sum, value) => sum + value, 0) / filtered.length;
 }
 
+/**
+ * @param {number[]} values
+ * @returns {number | null}
+ */
 function maxOrNull(values) {
-  const filtered = values.filter(Number.isFinite);
+  const filtered = values.filter(isFiniteNumber);
   return filtered.length > 0 ? Math.max(...filtered) : null;
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} digits
+ * @returns {string}
+ */
 function formatNumber(value, digits) {
   return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "";
 }
 
+/**
+ * @param {string} name
+ * @param {number} fallback
+ * @returns {number}
+ */
 function readIntEnv(name, fallback) {
   const value = Number(process.env[name]);
   return Number.isFinite(value) ? Math.round(value) : fallback;
 }
 
+/**
+ * @param {string} name
+ * @param {number} fallback
+ * @returns {number}
+ */
 function readNumberEnv(name, fallback) {
   const value = Number(process.env[name]);
   return Number.isFinite(value) ? value : fallback;

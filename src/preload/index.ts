@@ -1,22 +1,32 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { MangaApi } from "../shared/mangaApi";
 import {
-  isJobKind,
-  isJobPhase,
-  isJobStatus,
-  isProgressMode,
-} from "../shared/jobContracts";
+  externalIpcContracts,
+  fontIpcContracts,
+  importShareIpcContracts,
+  inpaintingIpcContracts,
+  ipcEventContracts,
+  jobControlIpcContracts,
+  libraryIpcContracts,
+  logsIpcContracts,
+  settingsIpcContracts,
+  textReviewIpcContracts,
+  translationJobIpcContracts,
+  workContextIpcContracts,
+} from "../shared/ipcContracts";
+import { invokeContract } from "./ipcContracts";
 import type {
-  AppSettings,
-  AnalyzeWorkContextRequest,
-  AnalyzeWorkContextResult,
-  ChapterSnapshot,
+  RegionAnalysisRequest,
+  RegionAnalysisResult,
+  StartAnalysisRequest,
+  StartAnalysisResult,
+} from "../shared/analysisTypes";
+import type {
   CreateImportRequest,
   CreateImportResult,
-  CustomFont,
   ImportPreviewSession,
-  ImportReviewTextRequest,
-  ImportReviewTextResult,
+} from "../shared/importTypes";
+import type {
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
   InpaintingExportRequest,
@@ -25,307 +35,222 @@ import type {
   InpaintingRetouchResult,
   InpaintingRevertRequest,
   InpaintingRevertResult,
-  JobEvent,
-  LibraryIndex,
-  LocalModelPickResult,
-  ModelTestProgressEvent,
-  ModelTestResult,
-  RegionAnalysisRequest,
-  RegionAnalysisResult,
-  SavePageBlocksRequest,
-  SaveTextFileRequest,
-  SaveTextFileResult,
   SetPageInpaintingResultRequest,
   SetPageInpaintingResultResult,
   StartInpaintingRequest,
   StartInpaintingResult,
-  StartAnalysisRequest,
-  StartAnalysisResult,
+} from "../shared/inpaintingTypes";
+import type {
+  JobEvent,
+  LocalModelPickResult,
+  ModelTestProgressEvent,
+  ModelTestResult,
+} from "../shared/jobTypes";
+import type {
+  ChapterSnapshot,
+  CustomFont,
+  LibraryIndex,
+} from "../shared/libraryTypes";
+import type {
+  ExportReviewTextRequest,
+  ImportReviewTextRequest,
+  ImportReviewTextResult,
+} from "../shared/reviewTypes";
+import type { AppSettings } from "../shared/settingsTypes";
+import type {
+  SavePageBlocksRequest,
+  SaveTextFileRequest,
+  SaveTextFileResult,
   WorkShareExportRequest,
   WorkShareExportResult,
   WorkShareImportPreview,
   WorkShareImportRequest,
   WorkShareImportResult,
-  WorkStyleGuide,
+} from "../shared/shareTypes";
+import type {
+  AnalyzeWorkContextRequest,
+  AnalyzeWorkContextResult,
+} from "../shared/workContextAnalysisTypes";
+import type {
   ChapterStoryMemory,
-  ExportReviewTextRequest,
-} from "../shared/types";
+  WorkStyleGuide,
+} from "../shared/workContextTypes";
 
 const api = {
   previewImagesImport: (): Promise<ImportPreviewSession | null> =>
-    ipcRenderer.invoke("import:preview-images"),
+    invokeContract(importShareIpcContracts.previewImagesImport),
   previewFolderImport: (): Promise<ImportPreviewSession | null> =>
-    ipcRenderer.invoke("import:preview-folder"),
+    invokeContract(importShareIpcContracts.previewFolderImport),
   previewZipImport: (): Promise<ImportPreviewSession | null> =>
-    ipcRenderer.invoke("import:preview-zip"),
+    invokeContract(importShareIpcContracts.previewZipImport),
   previewZipFolderImport: (): Promise<ImportPreviewSession | null> =>
-    ipcRenderer.invoke("import:preview-zip-folder"),
+    invokeContract(importShareIpcContracts.previewZipFolderImport),
   createImport: (request: CreateImportRequest): Promise<CreateImportResult> =>
-    ipcRenderer.invoke("import:create", request),
+    invokeContract(importShareIpcContracts.createImport, request),
   exportWorkShare: (
     request: WorkShareExportRequest,
   ): Promise<WorkShareExportResult | null> =>
-    ipcRenderer.invoke("share:export-work", request),
+    invokeContract(importShareIpcContracts.exportWorkShare, request),
   previewWorkShareImport: (): Promise<WorkShareImportPreview | null> =>
-    ipcRenderer.invoke("share:preview-import"),
+    invokeContract(importShareIpcContracts.previewWorkShareImport),
   importWorkShare: (
     request: WorkShareImportRequest,
   ): Promise<WorkShareImportResult> =>
-    ipcRenderer.invoke("share:import", request),
+    invokeContract(importShareIpcContracts.importWorkShare, request),
   getLibrary: (): Promise<LibraryIndex> =>
-    ipcRenderer.invoke("library:get-index"),
-  openLibraryFolder: () => ipcRenderer.invoke("library:open-folder"),
+    invokeContract(libraryIpcContracts.getLibrary),
+  openLibraryFolder: () =>
+    invokeContract(libraryIpcContracts.openLibraryFolder),
   openChapter: (chapterId: string): Promise<ChapterSnapshot> =>
-    ipcRenderer.invoke("library:open-chapter", chapterId),
+    invokeContract(libraryIpcContracts.openChapter, chapterId),
   getWorkStyleGuide: (workId: string): Promise<WorkStyleGuide> =>
-    ipcRenderer.invoke("context:get-work-style-guide", workId),
+    invokeContract(workContextIpcContracts.getWorkStyleGuide, workId),
   saveWorkStyleGuide: (guide: WorkStyleGuide): Promise<WorkStyleGuide> =>
-    ipcRenderer.invoke("context:save-work-style-guide", guide),
+    invokeContract(workContextIpcContracts.saveWorkStyleGuide, guide),
   getChapterStoryMemory: (chapterId: string): Promise<ChapterStoryMemory> =>
-    ipcRenderer.invoke("context:get-chapter-story-memory", chapterId),
+    invokeContract(workContextIpcContracts.getChapterStoryMemory, chapterId),
   saveChapterStoryMemory: (
     memory: ChapterStoryMemory,
   ): Promise<ChapterStoryMemory> =>
-    ipcRenderer.invoke("context:save-chapter-story-memory", memory),
+    invokeContract(workContextIpcContracts.saveChapterStoryMemory, memory),
   analyzeWorkContext: (
     request: AnalyzeWorkContextRequest,
   ): Promise<AnalyzeWorkContextResult> =>
-    ipcRenderer.invoke("context:analyze-work-context", request),
+    invokeContract(workContextIpcContracts.analyzeWorkContext, request),
   getPageImageDataUrl: (imagePath: string): Promise<string> =>
-    ipcRenderer.invoke("library:get-page-image-data-url", imagePath),
+    invokeContract(libraryIpcContracts.getPageImageDataUrl, imagePath),
   savePageBlocks: (request: SavePageBlocksRequest): Promise<ChapterSnapshot> =>
-    ipcRenderer.invoke("library:save-page-blocks", request),
+    invokeContract(libraryIpcContracts.savePageBlocks, request),
   saveTextFile: (
     request: SaveTextFileRequest,
   ): Promise<SaveTextFileResult | null> =>
-    ipcRenderer.invoke("text:save-file", request),
+    invokeContract(textReviewIpcContracts.saveTextFile, request),
   exportReviewText: (
     request: ExportReviewTextRequest,
   ): Promise<SaveTextFileResult | null> =>
-    ipcRenderer.invoke("review:export-text", request),
+    invokeContract(textReviewIpcContracts.exportReviewText, request),
   importReviewText: (
     request: ImportReviewTextRequest,
   ): Promise<ImportReviewTextResult> =>
-    ipcRenderer.invoke("review:import-text", request),
+    invokeContract(textReviewIpcContracts.importReviewText, request),
   renameWork: (workId: string, title: string): Promise<LibraryIndex> =>
-    ipcRenderer.invoke("library:rename-work", workId, title),
+    invokeContract(libraryIpcContracts.renameWork, workId, title),
   renameChapter: (chapterId: string, title: string): Promise<LibraryIndex> =>
-    ipcRenderer.invoke("library:rename-chapter", chapterId, title),
+    invokeContract(libraryIpcContracts.renameChapter, chapterId, title),
   deleteWork: (workId: string): Promise<LibraryIndex> =>
-    ipcRenderer.invoke("library:delete-work", workId),
+    invokeContract(libraryIpcContracts.deleteWork, workId),
   deleteChapter: (chapterId: string): Promise<LibraryIndex> =>
-    ipcRenderer.invoke("library:delete-chapter", chapterId),
+    invokeContract(libraryIpcContracts.deleteChapter, chapterId),
   reorderChapters: (
     workId: string,
     chapterIds: string[],
   ): Promise<LibraryIndex> =>
-    ipcRenderer.invoke("library:reorder-chapters", workId, chapterIds),
+    invokeContract(libraryIpcContracts.reorderChapters, workId, chapterIds),
   reorderPages: (
     chapterId: string,
     pageIds: string[],
   ): Promise<ChapterSnapshot> =>
-    ipcRenderer.invoke("library:reorder-pages", chapterId, pageIds),
+    invokeContract(libraryIpcContracts.reorderPages, chapterId, pageIds),
   deletePage: (chapterId: string, pageId: string): Promise<ChapterSnapshot> =>
-    ipcRenderer.invoke("library:delete-page", chapterId, pageId),
+    invokeContract(libraryIpcContracts.deletePage, chapterId, pageId),
   listCustomFonts: (): Promise<CustomFont[]> =>
-    ipcRenderer.invoke("fonts:list"),
+    invokeContract(fontIpcContracts.listCustomFonts),
   registerCustomFont: (): Promise<CustomFont | null> =>
-    ipcRenderer.invoke("fonts:register"),
+    invokeContract(fontIpcContracts.registerCustomFont),
   removeCustomFont: (id: string): Promise<CustomFont[]> =>
-    ipcRenderer.invoke("fonts:remove", id),
-  getSettings: (): Promise<AppSettings> => ipcRenderer.invoke("settings:get"),
+    invokeContract(fontIpcContracts.removeCustomFont, id),
+  getSettings: (): Promise<AppSettings> =>
+    invokeContract(settingsIpcContracts.getSettings),
   saveSettings: (settings: AppSettings): Promise<AppSettings> =>
-    ipcRenderer.invoke("settings:save", settings),
+    invokeContract(settingsIpcContracts.saveSettings, settings),
   resetSettings: (): Promise<AppSettings> =>
-    ipcRenderer.invoke("settings:reset"),
+    invokeContract(settingsIpcContracts.resetSettings),
   pickLocalModelFile: (): Promise<LocalModelPickResult | null> =>
-    ipcRenderer.invoke("settings:pick-local-model"),
+    invokeContract(settingsIpcContracts.pickLocalModelFile),
   pickLocalMmprojFile: (): Promise<string | null> =>
-    ipcRenderer.invoke("settings:pick-local-mmproj"),
-  openAmdHipSdkDownload: () => ipcRenderer.invoke("external:open-amd-hip-sdk"),
+    invokeContract(settingsIpcContracts.pickLocalMmprojFile),
+  openAmdHipSdkDownload: () =>
+    invokeContract(externalIpcContracts.openAmdHipSdkDownload),
   testModelSettings: (
     settings: AppSettings,
     testId?: string,
   ): Promise<ModelTestResult> =>
-    ipcRenderer.invoke("settings:test-model", settings, testId),
-  getLogPath: (): Promise<string> => ipcRenderer.invoke("logs:get-path"),
-  openLogFolder: () => ipcRenderer.invoke("logs:open-folder"),
+    invokeContract(settingsIpcContracts.testModelSettings, settings, testId),
+  getLogPath: (): Promise<string> =>
+    invokeContract(logsIpcContracts.getLogPath),
+  openLogFolder: () => invokeContract(logsIpcContracts.openLogFolder),
   writeLog: (
     level: "debug" | "info" | "warn" | "error",
     message: string,
     detail?: unknown,
-  ) => ipcRenderer.invoke("logs:write", level, message, detail),
+  ) => invokeContract(logsIpcContracts.writeLog, level, message, detail),
   startAnalysis: (
     request: StartAnalysisRequest,
   ): Promise<StartAnalysisResult> =>
-    ipcRenderer.invoke("job:start-analysis", request),
+    invokeContract(translationJobIpcContracts.startAnalysis, request),
   translateRegion: (
     request: RegionAnalysisRequest,
   ): Promise<RegionAnalysisResult> =>
-    ipcRenderer.invoke("job:translate-region", request),
+    invokeContract(translationJobIpcContracts.translateRegion, request),
   startInpainting: (
     request: StartInpaintingRequest,
   ): Promise<StartInpaintingResult> =>
-    ipcRenderer.invoke("job:start-inpainting", request),
+    invokeContract(inpaintingIpcContracts.startInpainting, request),
   applyInpaintingRetouch: (
     request: InpaintingRetouchRequest,
   ): Promise<InpaintingRetouchResult> =>
-    ipcRenderer.invoke("inpainting:apply-retouch", request),
+    invokeContract(inpaintingIpcContracts.applyInpaintingRetouch, request),
   setPageInpaintingResult: (
     request: SetPageInpaintingResultRequest,
   ): Promise<SetPageInpaintingResultResult> =>
-    ipcRenderer.invoke("inpainting:set-page-result", request),
+    invokeContract(inpaintingIpcContracts.setPageInpaintingResult, request),
   revertInpainting: (
     request: InpaintingRevertRequest,
   ): Promise<InpaintingRevertResult> =>
-    ipcRenderer.invoke("inpainting:revert", request),
+    invokeContract(inpaintingIpcContracts.revertInpainting, request),
   sampleInpaintingColor: (
     request: InpaintingColorSampleRequest,
   ): Promise<InpaintingColorSampleResult> =>
-    ipcRenderer.invoke("inpainting:sample-color", request),
+    invokeContract(inpaintingIpcContracts.sampleInpaintingColor, request),
   exportInpaintingResults: (
     request: InpaintingExportRequest,
   ): Promise<InpaintingExportResult> =>
-    ipcRenderer.invoke("inpainting:export-results", request),
+    invokeContract(inpaintingIpcContracts.exportInpaintingResults, request),
   disposeInpaintingEngine: (): Promise<{ disposed: boolean }> =>
-    ipcRenderer.invoke("inpainting:dispose-engine"),
-  cancelJob: () => ipcRenderer.invoke("job:cancel"),
+    invokeContract(inpaintingIpcContracts.disposeInpaintingEngine),
+  cancelJob: () => invokeContract(jobControlIpcContracts.cancelJob),
   onJobEvent: (callback: (event: JobEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
-      if (isJobEvent(payload)) {
-        callback(payload);
+      const result = ipcEventContracts.jobEvent.payload.safeParse(payload);
+      if (result.success) {
+        callback(result.data as JobEvent);
         return;
       }
-      console.warn("Invalid job:event payload ignored");
+      console.warn("Invalid job event payload ignored");
     };
-    ipcRenderer.on("job:event", listener);
+    ipcRenderer.on(ipcEventContracts.jobEvent.channel, listener);
     return () => {
-      ipcRenderer.removeListener("job:event", listener);
+      ipcRenderer.removeListener(ipcEventContracts.jobEvent.channel, listener);
     };
   },
   onModelTestEvent: (callback: (event: ModelTestProgressEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
-      if (isModelTestProgressEvent(payload)) {
-        callback(payload);
+      const result =
+        ipcEventContracts.modelTestProgress.payload.safeParse(payload);
+      if (result.success) {
+        callback(result.data as ModelTestProgressEvent);
         return;
       }
-      console.warn("Invalid settings:model-test-progress payload ignored");
+      console.warn("Invalid model test progress payload ignored");
     };
-    ipcRenderer.on("settings:model-test-progress", listener);
+    ipcRenderer.on(ipcEventContracts.modelTestProgress.channel, listener);
     return () => {
-      ipcRenderer.removeListener("settings:model-test-progress", listener);
+      ipcRenderer.removeListener(
+        ipcEventContracts.modelTestProgress.channel,
+        listener,
+      );
     };
   },
 } satisfies MangaApi;
 
 contextBridge.exposeInMainWorld("mangaApi", api);
-
-function isJobEvent(value: unknown): value is JobEvent {
-  if (!isRecord(value)) {
-    return false;
-  }
-  return (
-    isBoundedString(value.id, 1, 200) &&
-    isJobKind(value.kind) &&
-    isJobStatus(value.status) &&
-    isBoundedString(value.progressText, 1, 1000) &&
-    isOptionalBoundedString(value.detail, 4000) &&
-    isOptionalJobPhase(value.phase) &&
-    isOptionalProgressMode(value.progressMode) &&
-    isOptionalFiniteNumber(value.progressPercent, 0, 1) &&
-    isOptionalFiniteNumber(value.progressBytes, 0) &&
-    isOptionalFiniteNumber(value.progressTotalBytes, 0) &&
-    isOptionalFiniteNumber(value.progressBytesPerSecond, 0) &&
-    isOptionalBoundedString(value.installLogLine, 4000) &&
-    isOptionalStringArray(value.installLogLines, 500, 4000) &&
-    isOptionalFiniteNumber(value.progressCurrent, 0) &&
-    isOptionalFiniteNumber(value.progressTotal, 0) &&
-    isOptionalFiniteNumber(value.pageIndex, 0) &&
-    isOptionalFiniteNumber(value.pageTotal, 0) &&
-    isOptionalFiniteNumber(value.attempt, 0) &&
-    isOptionalFiniteNumber(value.attemptTotal, 0)
-  );
-}
-
-function isModelTestProgressEvent(
-  value: unknown,
-): value is ModelTestProgressEvent {
-  if (!isRecord(value)) {
-    return false;
-  }
-  return (
-    isBoundedString(value.id, 1, 200) &&
-    isBoundedString(value.progressText, 1, 1000) &&
-    isOptionalBoundedString(value.detail, 4000) &&
-    isOptionalJobPhase(value.phase) &&
-    isOptionalProgressMode(value.progressMode) &&
-    isOptionalFiniteNumber(value.progressPercent, 0, 1) &&
-    isOptionalFiniteNumber(value.progressBytes, 0) &&
-    isOptionalFiniteNumber(value.progressTotalBytes, 0) &&
-    isOptionalFiniteNumber(value.progressBytesPerSecond, 0) &&
-    isOptionalBoundedString(value.installLogLine, 4000)
-  );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isBoundedString(
-  value: unknown,
-  minLength: number,
-  maxLength: number,
-): value is string {
-  return (
-    typeof value === "string" &&
-    value.length >= minLength &&
-    value.length <= maxLength
-  );
-}
-
-function isOptionalBoundedString(
-  value: unknown,
-  maxLength: number,
-): value is string | undefined {
-  return (
-    value === undefined ||
-    (typeof value === "string" && value.length <= maxLength)
-  );
-}
-
-function isOptionalJobPhase(value: unknown): boolean {
-  return value === undefined || isJobPhase(value);
-}
-
-function isOptionalProgressMode(value: unknown): boolean {
-  return value === undefined || isProgressMode(value);
-}
-
-function isOptionalFiniteNumber(
-  value: unknown,
-  min: number,
-  max = Number.POSITIVE_INFINITY,
-): value is number | undefined {
-  return (
-    value === undefined ||
-    (typeof value === "number" &&
-      Number.isFinite(value) &&
-      value >= min &&
-      value <= max)
-  );
-}
-
-function isOptionalStringArray(
-  value: unknown,
-  maxItems: number,
-  maxLength: number,
-): value is string[] | undefined {
-  return (
-    value === undefined ||
-    (Array.isArray(value) &&
-      value.length <= maxItems &&
-      value.every(
-        (item) => typeof item === "string" && item.length <= maxLength,
-      ))
-  );
-}

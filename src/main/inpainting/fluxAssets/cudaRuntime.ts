@@ -24,31 +24,67 @@ export {
   resolveFluxRunnerDirForComputeCapability,
 } from "./runner";
 
-export async function ensureFluxCudaRuntime(options: {
+type EnsureFluxCudaRuntimeOptions = {
   runtimeDir: string;
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
-}): Promise<void> {
+};
+
+export async function ensureFluxCudaRuntime(
+  options: EnsureFluxCudaRuntimeOptions,
+): Promise<void> {
   const cudaDir = join(options.runtimeDir, FLUX_CUDA_RUNTIME_DIR);
   if (await isCurrentFluxCudaRuntime(cudaDir)) {
-    options.onProgress?.({
-      progressText: "Flux CUDA 런타임 캐시 사용",
-      detail: FLUX_CUDA_RUNTIME_DIR,
-      progressMode: "log-only",
-      installLogLine: "캐시된 Flux CUDA/cuDNN 런타임을 사용합니다.",
-    });
+    reportCachedFluxCudaRuntime(options);
     return;
   }
 
+  const downloadsDir = await prepareFluxCudaRuntimeDirs(options, cudaDir);
+  await installFluxCudaPackages(
+    options,
+    downloadsDir,
+    cudaDir,
+    await resolveCudaRedistPackages(options.signal),
+  );
+  await installFluxCudnnPackage(
+    options,
+    downloadsDir,
+    cudaDir,
+    await resolveCudnnRedistPackage(options.signal),
+  );
+  if (!(await hasFluxCudaRuntimeFiles(cudaDir))) {
+    throw new Error("Flux CUDA/cuDNN 런타임 설치가 완료되지 않았습니다.");
+  }
+  await writeFluxCudaRuntimeMarker(cudaDir);
+  reportInstalledFluxCudaRuntime(options);
+}
+
+function reportCachedFluxCudaRuntime(
+  options: EnsureFluxCudaRuntimeOptions,
+): void {
+  options.onProgress?.({
+    progressText: "Flux CUDA 런타임 캐시 사용",
+    detail: FLUX_CUDA_RUNTIME_DIR,
+    progressMode: "log-only",
+    installLogLine: "캐시된 Flux CUDA/cuDNN 런타임을 사용합니다.",
+  });
+}
+
+async function prepareFluxCudaRuntimeDirs(
+  options: EnsureFluxCudaRuntimeOptions,
+  cudaDir: string,
+): Promise<string> {
   await rm(cudaDir, { recursive: true, force: true });
   await mkdir(cudaDir, { recursive: true });
   const downloadsDir = join(options.runtimeDir, ".downloads");
   await mkdir(downloadsDir, { recursive: true });
+  return downloadsDir;
+}
 
-  const cudaManifest = await readJsonUrl(
-    CUDA_REDIST_MANIFEST_URL,
-    options.signal,
-  );
+async function resolveCudaRedistPackages(
+  signal: AbortSignal | undefined,
+): Promise<NvidiaRedistPackage[]> {
+  const cudaManifest = await readJsonUrl(CUDA_REDIST_MANIFEST_URL, signal);
   const cudaPackages: NvidiaRedistPackage[] = [
     readNvidiaRedistPackage(cudaManifest, "libcublas", "windows-x86_64"),
     readNvidiaRedistPackage(cudaManifest, "cuda_cudart", "windows-x86_64"),
@@ -59,11 +95,13 @@ export async function ensureFluxCudaRuntime(options: {
       "NVIDIA CUDA 12.9 런타임 목록에서 필요한 DLL 패키지를 찾지 못했습니다.",
     );
   }
+  return cudaPackages;
+}
 
-  const cudnnManifest = await readJsonUrl(
-    CUDNN_REDIST_MANIFEST_URL,
-    options.signal,
-  );
+async function resolveCudnnRedistPackage(
+  signal: AbortSignal | undefined,
+): Promise<NvidiaRedistPackage> {
+  const cudnnManifest = await readJsonUrl(CUDNN_REDIST_MANIFEST_URL, signal);
   const cudnnPackage = readNvidiaRedistPackage(
     cudnnManifest,
     "cudnn",
@@ -75,7 +113,15 @@ export async function ensureFluxCudaRuntime(options: {
       "NVIDIA cuDNN 9.21 CUDA 12 런타임 패키지를 찾지 못했습니다.",
     );
   }
+  return cudnnPackage;
+}
 
+async function installFluxCudaPackages(
+  options: EnsureFluxCudaRuntimeOptions,
+  downloadsDir: string,
+  cudaDir: string,
+  cudaPackages: NvidiaRedistPackage[],
+): Promise<void> {
   for (const entry of cudaPackages) {
     const archivePath = await downloadRuntimeArchive({
       ...options,
@@ -88,7 +134,14 @@ export async function ensureFluxCudaRuntime(options: {
       FLUX_CUDA_DLLS.has(fileName),
     );
   }
+}
 
+async function installFluxCudnnPackage(
+  options: EnsureFluxCudaRuntimeOptions,
+  downloadsDir: string,
+  cudaDir: string,
+  cudnnPackage: NvidiaRedistPackage,
+): Promise<void> {
   const cudnnArchivePath = await downloadRuntimeArchive({
     ...options,
     downloadsDir,
@@ -99,10 +152,9 @@ export async function ensureFluxCudaRuntime(options: {
   extractSelectedZipEntries(cudnnArchivePath, cudaDir, (fileName) =>
     FLUX_CUDNN_DLLS.has(fileName),
   );
+}
 
-  if (!(await hasFluxCudaRuntimeFiles(cudaDir))) {
-    throw new Error("Flux CUDA/cuDNN 런타임 설치가 완료되지 않았습니다.");
-  }
+async function writeFluxCudaRuntimeMarker(cudaDir: string): Promise<void> {
   await writeFile(
     runtimeMarkerPath(cudaDir),
     `${JSON.stringify(
@@ -116,6 +168,11 @@ export async function ensureFluxCudaRuntime(options: {
     )}\n`,
     "utf8",
   );
+}
+
+function reportInstalledFluxCudaRuntime(
+  options: EnsureFluxCudaRuntimeOptions,
+): void {
   options.onProgress?.({
     progressText: "Flux CUDA 런타임 설치 완료",
     detail: FLUX_CUDA_RUNTIME_DIR,

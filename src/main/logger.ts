@@ -19,6 +19,11 @@ const MAX_SERIALIZATION_DEPTH = 8;
 let ensuredLogPath: string | null = null;
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
+type NormalizedLogValueResult =
+  | { handled: true; value: unknown }
+  | { handled: false };
+
+const UNHANDLED_LOG_VALUE: NormalizedLogValueResult = { handled: false };
 
 export function getLogPath(): string {
   const configured = process.env.MANGA_TRANSLATOR_LOG_PATH?.trim();
@@ -99,94 +104,142 @@ function normalizeLogValue(
   seen: WeakSet<object>,
   depth: number,
 ): unknown {
+  const primitive = normalizePrimitiveLogValue(detail);
+  if (primitive.handled) {
+    return primitive.value;
+  }
+
+  const objectValue = detail as object;
+  const knownObject = normalizeKnownObjectLogValue(objectValue, seen, depth);
+  if (knownObject.handled) {
+    return knownObject.value;
+  }
+
+  if (depth >= MAX_SERIALIZATION_DEPTH) {
+    return `[${describeObject(objectValue)}]`;
+  }
+  return normalizeObject(objectValue, seen, depth);
+}
+
+function normalizePrimitiveLogValue(detail: unknown): NormalizedLogValueResult {
   if (detail === null || detail === undefined) {
-    return detail;
+    return { handled: true, value: detail };
   }
 
   if (typeof detail === "string") {
-    return limitString(detail);
+    return { handled: true, value: limitString(detail) };
   }
 
   if (typeof detail === "number" || typeof detail === "boolean") {
-    return detail;
+    return { handled: true, value: detail };
   }
 
   if (typeof detail === "bigint") {
-    return `${detail}n`;
+    return { handled: true, value: `${detail}n` };
   }
 
   if (typeof detail === "symbol" || typeof detail === "function") {
-    return String(detail);
+    return { handled: true, value: String(detail) };
   }
 
+  return UNHANDLED_LOG_VALUE;
+}
+
+function normalizeKnownObjectLogValue(
+  detail: object,
+  seen: WeakSet<object>,
+  depth: number,
+): NormalizedLogValueResult {
   if (detail instanceof Error) {
-    return normalizeError(detail, seen, depth);
+    return { handled: true, value: normalizeError(detail, seen, depth) };
   }
 
   if (detail instanceof Date) {
-    return Number.isNaN(detail.getTime())
+    const value = Number.isNaN(detail.getTime())
       ? "Invalid Date"
       : detail.toISOString();
+    return { handled: true, value };
   }
 
   if (detail instanceof URL) {
-    return detail.toString();
+    return { handled: true, value: detail.toString() };
   }
 
   if (Buffer.isBuffer(detail)) {
     return {
-      type: "Buffer",
-      length: detail.length,
-      utf8Preview: limitString(detail.toString("utf8"), 4000),
+      handled: true,
+      value: {
+        type: "Buffer",
+        length: detail.length,
+        utf8Preview: limitString(detail.toString("utf8"), 4000),
+      },
     };
   }
 
   if (Array.isArray(detail)) {
-    if (depth >= MAX_SERIALIZATION_DEPTH) {
-      return `[Array(${detail.length})]`;
-    }
-    return normalizeArray(detail, seen, depth);
+    return {
+      handled: true,
+      value:
+        depth >= MAX_SERIALIZATION_DEPTH
+          ? `[Array(${detail.length})]`
+          : normalizeArray(detail, seen, depth),
+    };
   }
 
   if (detail instanceof Map) {
-    if (depth >= MAX_SERIALIZATION_DEPTH) {
-      return `[Map(${detail.size})]`;
-    }
     return {
-      type: "Map",
-      size: detail.size,
-      entries: Array.from(detail.entries())
-        .slice(0, MAX_SERIALIZED_ARRAY_ITEMS)
-        .map(([key, value]) => [
-          normalizeLogValue(key, seen, depth + 1),
-          normalizeLogValue(value, seen, depth + 1),
-        ]),
-      truncatedEntries: Math.max(detail.size - MAX_SERIALIZED_ARRAY_ITEMS, 0),
+      handled: true,
+      value:
+        depth >= MAX_SERIALIZATION_DEPTH
+          ? `[Map(${detail.size})]`
+          : normalizeMap(detail, seen, depth),
     };
   }
 
   if (detail instanceof Set) {
-    if (depth >= MAX_SERIALIZATION_DEPTH) {
-      return `[Set(${detail.size})]`;
-    }
     return {
-      type: "Set",
-      size: detail.size,
-      values: Array.from(detail.values())
-        .slice(0, MAX_SERIALIZED_ARRAY_ITEMS)
-        .map((value) => normalizeLogValue(value, seen, depth + 1)),
-      truncatedEntries: Math.max(detail.size - MAX_SERIALIZED_ARRAY_ITEMS, 0),
+      handled: true,
+      value:
+        depth >= MAX_SERIALIZATION_DEPTH
+          ? `[Set(${detail.size})]`
+          : normalizeSet(detail, seen, depth),
     };
   }
 
-  if (typeof detail === "object") {
-    if (depth >= MAX_SERIALIZATION_DEPTH) {
-      return `[${describeObject(detail)}]`;
-    }
-    return normalizeObject(detail, seen, depth);
-  }
+  return UNHANDLED_LOG_VALUE;
+}
 
-  return String(detail);
+function normalizeMap(
+  detail: Map<unknown, unknown>,
+  seen: WeakSet<object>,
+  depth: number,
+): Record<string, unknown> {
+  return {
+    type: "Map",
+    size: detail.size,
+    entries: Array.from(detail.entries())
+      .slice(0, MAX_SERIALIZED_ARRAY_ITEMS)
+      .map(([key, value]) => [
+        normalizeLogValue(key, seen, depth + 1),
+        normalizeLogValue(value, seen, depth + 1),
+      ]),
+    truncatedEntries: Math.max(detail.size - MAX_SERIALIZED_ARRAY_ITEMS, 0),
+  };
+}
+
+function normalizeSet(
+  detail: Set<unknown>,
+  seen: WeakSet<object>,
+  depth: number,
+): Record<string, unknown> {
+  return {
+    type: "Set",
+    size: detail.size,
+    values: Array.from(detail.values())
+      .slice(0, MAX_SERIALIZED_ARRAY_ITEMS)
+      .map((value) => normalizeLogValue(value, seen, depth + 1)),
+    truncatedEntries: Math.max(detail.size - MAX_SERIALIZED_ARRAY_ITEMS, 0),
+  };
 }
 
 function normalizeArray(
@@ -260,7 +313,6 @@ function normalizeError(
   seen.add(detail);
   try {
     const error = detail as Error & { cause?: unknown };
-    const errorRecord = error as unknown as Record<string, unknown>;
     const result: Record<string, unknown> = {
       name: error.name,
       message: limitString(error.message),
@@ -283,7 +335,7 @@ function normalizeError(
       ) {
         continue;
       }
-      result[key] = normalizeLogValue(errorRecord[key], seen, depth + 1);
+      result[key] = normalizeLogValue(Reflect.get(error, key), seen, depth + 1);
     }
 
     return stripUndefined(result);

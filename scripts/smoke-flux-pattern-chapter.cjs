@@ -10,6 +10,15 @@ const {
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
+/**
+ * @typedef {{ id: string; name: string; imagePath: string; inpaintedImagePath?: string; blocks: unknown[]; [key: string]: unknown }} SmokePage
+ * @typedef {{ progressText?: string; detail?: string }} FluxProgress
+ * @typedef {{ at: number; totalMiB: number; fluxProcessMiB: number }} VramSample
+ * @typedef {{ samples: VramSample[]; baselineTotalMiB: number; peakTotalMiB: number; peakProcessMiB: number; current(): VramSample; peakDeltaMiB(): number; stop(): void }} VramSampler
+ * @typedef {{ pageId: string; name: string; sourceImagePath: string; outputImagePath?: string; blocksTotal: number; patternBlocks: number; blocksErased: number; elapsedMs: number; beforeVram: VramSample; afterVram: VramSample }} SmokeResult
+ * @typedef {{ chapterDir: string; chapterTitle?: string; outputDir: string; startedAt: string; completedAt: string; pages: number; patternPages: number; totalPatternBlocks: number; totalErasedBlocks: number; totalElapsedMs: number; averagePageMs: number; vram: { baselineTotalMiB: number; peakTotalMiB: number; peakDeltaMiB: number; peakFluxProcessMiB: number; samples: number }; results: SmokeResult[] }} SmokeSummary
+ */
+
 const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_CHAPTER_DIR = path.join(
   ROOT,
@@ -46,6 +55,7 @@ async function main() {
 
   const chapterPath = path.join(chapterDir, "chapter.json");
   const chapter = JSON.parse(readFileSync(chapterPath, "utf8"));
+  /** @type {SmokePage[]} */
   const pages = chapter.pages ?? [];
   const smokePages = pages.map((page, index) => copyPageForSmoke(page, index));
   const targetPages = smokePages.filter(
@@ -53,6 +63,7 @@ async function main() {
   );
 
   const vram = startVramSampler();
+  /** @type {string[]} */
   const progressLog = [];
   const startedAt = performance.now();
   console.log(
@@ -82,13 +93,16 @@ async function main() {
       "mgt-flux-klein-runtime",
     ),
     modelDir: path.join(ROOT, "models", "inpainting", "flux-klein-4b"),
-    onProgress: (progress) => {
-      const line = `${new Date().toISOString()} ${progress.progressText}${progress.detail ? ` - ${progress.detail}` : ""}`;
-      progressLog.push(line);
-      console.log(`[flux-smoke] ${line}`);
-    },
+    onProgress:
+      /** @param {FluxProgress} progress */
+      (progress) => {
+        const line = `${new Date().toISOString()} ${progress.progressText}${progress.detail ? ` - ${progress.detail}` : ""}`;
+        progressLog.push(line);
+        console.log(`[flux-smoke] ${line}`);
+      },
   });
 
+  /** @type {SmokeResult[]} */
   const results = [];
   try {
     for (const [targetIndex, page] of targetPages.entries()) {
@@ -172,6 +186,11 @@ async function main() {
   app.quit();
 }
 
+/**
+ * @param {SmokePage} page
+ * @param {number} index
+ * @returns {SmokePage}
+ */
 function copyPageForSmoke(page, index) {
   const sourceImage = page.imagePath;
   const copiedImage = path.join(
@@ -194,7 +213,9 @@ function copyPageForSmoke(page, index) {
   };
 }
 
+/** @returns {VramSampler} */
 function startVramSampler() {
+  /** @type {VramSample[]} */
   const samples = [];
   const baseline = readVramSample();
   const state = {
@@ -219,6 +240,7 @@ function startVramSampler() {
   return state;
 }
 
+/** @returns {VramSample} */
 function readVramSample() {
   const sample = {
     at: Date.now(),
@@ -276,6 +298,7 @@ function readVramSample() {
   return sample;
 }
 
+/** @param {SmokeSummary} summary */
 async function writeHtmlReport(summary) {
   const rows = summary.results
     .map((result) => {
@@ -317,6 +340,7 @@ ${rows}`;
   writeFileSync(path.join(outDir, "report.html"), html, "utf8");
 }
 
+/** @param {SmokeSummary} summary */
 async function writeContactSheet(summary) {
   if (summary.results.length === 0) {
     return;
@@ -343,6 +367,7 @@ async function writeContactSheet(summary) {
   window.destroy();
 }
 
+/** @param {number} ms */
 function formatSeconds(ms) {
   if (!Number.isFinite(ms)) {
     return "0.0s";
@@ -350,6 +375,7 @@ function formatSeconds(ms) {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+/** @param {unknown} value */
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")

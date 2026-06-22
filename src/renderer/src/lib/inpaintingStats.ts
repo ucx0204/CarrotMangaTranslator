@@ -1,4 +1,4 @@
-import type { ChapterSnapshot } from "../../../shared/types";
+import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { BlockCounts } from "../inpainting/inpaintingTypes";
 
 export function countChapterBlocks(

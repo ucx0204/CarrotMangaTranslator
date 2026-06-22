@@ -1,5 +1,14 @@
 // @ts-check
 /** @typedef {import("./runtime-jsdoc-types").DetailedError} DetailedError */
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+/**
+ * @typedef {{ url: string; file: string; destination: string; label: string; progressPhase?: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} HfDownloadTask
+ * @typedef {RuntimeOptions & { abortSignal?: AbortSignal | null; [key: string]: unknown }} DownloadOptions
+ * @typedef {{ knownAggregateBytes?: number; totalBytes?: number; completedBytes?: number; onComplete?: (receivedBytes: number) => void }} DownloadProgress
+ * @typedef {{ used: boolean }} RangeFallbackState
+ * @typedef {{ attempt?: number; maxAttempts?: number; rangeFallbackState?: RangeFallbackState }} DownloadAttemptState
+ * @typedef {{ receivedBytes: number; totalBytes?: number; knownAggregateBytes?: number; aggregateCompletedBytes?: number; startedAt: number; completed?: boolean }} HfDownloadProgressState
+ */
 const { createWriteStream, statSync } = require("node:fs");
 const { mkdir, open: fsOpen, rename, rm } = require("node:fs/promises");
 const path = require("node:path");
@@ -18,17 +27,30 @@ const {
   safeCleanup,
 } = require("./simple-page-runtime-common.cjs");
 
+/**
+ * @param {unknown} value
+ * @returns {number}
+ */
 function readPositiveInteger(value) {
   const number = Number(value);
   return Number.isInteger(number) && number > 0 ? number : 0;
 }
 
+/**
+ * @returns {Error}
+ */
 function createAbortError() {
   const error = new Error("작업이 취소되었습니다.");
   error.name = "AbortError";
   return error;
 }
 
+/**
+ * @param {unknown} endpoint
+ * @param {string} repo
+ * @param {unknown} file
+ * @returns {string}
+ */
 function buildHfResolveUrl(endpoint, repo, file) {
   const filePath = String(file ?? "")
     .replace(/\\/g, "/")
@@ -38,6 +60,10 @@ function buildHfResolveUrl(endpoint, repo, file) {
   return `${String(endpoint || "https://huggingface.co").replace(/\/+$/, "")}/${repo}/resolve/main/${filePath}`;
 }
 
+/**
+ * @param {string} filePath
+ * @returns {number}
+ */
 function getFileSize(filePath) {
   try {
     return statSync(filePath).size;
@@ -46,6 +72,10 @@ function getFileSize(filePath) {
   }
 }
 
+/**
+ * @param {string} filePath
+ * @returns {boolean}
+ */
 function isUsableFile(filePath) {
   try {
     const stats = statSync(filePath);
@@ -55,6 +85,11 @@ function isUsableFile(filePath) {
   }
 }
 
+/**
+ * @param {string} url
+ * @param {AbortSignal | null | undefined} signal
+ * @returns {Promise<number>}
+ */
 async function probeContentLength(url, signal) {
   if (signal?.aborted) {
     throw createAbortError();
@@ -92,6 +127,9 @@ async function probeContentLength(url, signal) {
   }
 }
 
+/**
+ * @returns {number}
+ */
 function resolveDownloadRetryCount() {
   return (
     readPositiveInteger(
@@ -101,6 +139,9 @@ function resolveDownloadRetryCount() {
   );
 }
 
+/**
+ * @returns {number}
+ */
 function resolveDownloadStallTimeoutMs() {
   return (
     readPositiveInteger(
@@ -109,6 +150,10 @@ function resolveDownloadStallTimeoutMs() {
   );
 }
 
+/**
+ * @param {AbortSignal | null | undefined} parentSignal
+ * @returns {{ controller: AbortController; cleanup: () => void }}
+ */
 function createLinkedAbortController(parentSignal) {
   const controller = new AbortController();
   if (parentSignal?.aborted) {
@@ -123,8 +168,16 @@ function createLinkedAbortController(parentSignal) {
   };
 }
 
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
 function isAbortError(error) {
-  return error?.name === "AbortError";
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    /** @type {{ name?: unknown }} */ (error).name === "AbortError",
+  );
 }
 
 /**
@@ -184,16 +237,23 @@ function markRangeFallbackFailed(error) {
   return error;
 }
 
+/**
+ * @param {Response} response
+ * @returns {number}
+ */
 function readContentLength(response) {
   const value = Number(response.headers?.get?.("content-length"));
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 /**
+ * @param {import("node:fs").WriteStream} writer
+ * @param {Uint8Array | Buffer} chunk
  * @returns {Promise<void>}
  */
 function writeStreamChunk(writer, chunk) {
   return new Promise((resolve, reject) => {
+    /** @param {unknown} error */
     const onError = (error) => {
       writer.off("drain", onDrain);
       reject(error);
@@ -213,6 +273,7 @@ function writeStreamChunk(writer, chunk) {
 }
 
 /**
+ * @param {import("node:fs").WriteStream} writer
  * @returns {Promise<void>}
  */
 function finishWriteStream(writer) {
@@ -222,7 +283,17 @@ function finishWriteStream(writer) {
   });
 }
 
-async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
+/**
+ * @param {HfDownloadTask} task
+ * @param {DownloadOptions} [options]
+ * @param {DownloadProgress} [progress]
+ * @returns {Promise<void>}
+ */
+async function downloadHfFileWithProgress(
+  task,
+  options = /** @type {DownloadOptions} */ ({}),
+  progress = /** @type {DownloadProgress} */ ({}),
+) {
   const maxAttempts = resolveDownloadRetryCount();
   let lastError = null;
   const rangeFallbackState = { used: false };
@@ -246,7 +317,7 @@ async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
       }
       emitDownloadRetryProgress(options, task, error, attempt + 1, maxAttempts);
       await delay(Math.min(30000, 1000 * 2 ** (attempt - 1)), undefined, {
-        signal: options.abortSignal,
+        signal: options.abortSignal ?? undefined,
       });
     }
   }
@@ -259,15 +330,24 @@ async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
   );
 }
 
+/**
+ * @param {HfDownloadTask} task
+ * @param {DownloadOptions} [options]
+ * @param {DownloadProgress} [progress]
+ * @param {DownloadAttemptState} [attemptState]
+ * @returns {Promise<void>}
+ */
 async function downloadHfFileWithProgressAttempt(
   task,
-  options = {},
-  progress = {},
-  attemptState = {},
+  options = /** @type {DownloadOptions} */ ({}),
+  progress = /** @type {DownloadProgress} */ ({}),
+  attemptState = /** @type {DownloadAttemptState} */ ({}),
 ) {
   const partPath = `${task.destination}.part`;
   await mkdir(pathDirname(task.destination), { recursive: true });
   await rm(partPath, { force: true });
+  const attempt = attemptState.attempt || 1;
+  const maxAttempts = attemptState.maxAttempts || 1;
 
   emitRuntimeProgress(
     options,
@@ -280,20 +360,20 @@ async function downloadHfFileWithProgressAttempt(
           ? "determinate"
           : "log-only",
       progressPercent: progress.knownAggregateBytes
-        ? progress.completedBytes / progress.knownAggregateBytes
+        ? (progress.completedBytes || 0) / progress.knownAggregateBytes
         : progress.totalBytes
           ? 0
           : undefined,
       progressBytes: progress.knownAggregateBytes
-        ? progress.completedBytes
+        ? progress.completedBytes || 0
         : progress.totalBytes
           ? 0
           : undefined,
       progressTotalBytes:
         progress.knownAggregateBytes || progress.totalBytes || undefined,
       installLogLine:
-        attemptState.attempt > 1
-          ? `${task.label} 다운로드 재시도 ${attemptState.attempt}/${attemptState.maxAttempts}: ${task.file}`
+        attempt > 1
+          ? `${task.label} 다운로드 재시도 ${attempt}/${maxAttempts}: ${task.file}`
           : `${task.label} 다운로드 시작: ${task.file}`,
     },
   );
@@ -344,6 +424,16 @@ async function downloadHfFileWithProgressAttempt(
   }
 }
 
+/**
+ * @param {HfDownloadTask} task
+ * @param {DownloadOptions} options
+ * @param {DownloadProgress} progress
+ * @param {string} partPath
+ * @param {number} totalBytes
+ * @param {number} startedAt
+ * @param {RangeFallbackState} rangeFallbackState
+ * @returns {Promise<number>}
+ */
 async function downloadHfFileByRanges(
   task,
   options,
@@ -353,6 +443,7 @@ async function downloadHfFileByRanges(
   startedAt,
   rangeFallbackState,
 ) {
+  /** @type {import("node:fs/promises").FileHandle | null} */
   let file = null;
   try {
     file = await fsOpen(partPath, "w");
@@ -424,12 +515,22 @@ async function downloadHfFileByRanges(
     }
     return receivedBytes;
   } finally {
-    if (file) {
-      await safeCleanup("close ranged HF download file", () => file.close());
+    const openFile = file;
+    if (openFile) {
+      await safeCleanup("close ranged HF download file", () =>
+        openFile.close(),
+      );
     }
   }
 }
 
+/**
+ * @param {HfDownloadTask} task
+ * @param {DownloadOptions} options
+ * @param {number} start
+ * @param {number} end
+ * @returns {Promise<Buffer>}
+ */
 async function fetchRangeBufferWithRetry(task, options, start, end) {
   const maxAttempts = resolveDownloadRetryCount();
   let lastError = null;
@@ -457,7 +558,7 @@ async function fetchRangeBufferWithRetry(task, options, start, end) {
         `bytes=${start}-${end}`,
       );
       await delay(Math.min(30000, 1000 * 2 ** (attempt - 1)), undefined, {
-        signal: options.abortSignal,
+        signal: options.abortSignal ?? undefined,
       });
     }
   }
@@ -472,6 +573,13 @@ async function fetchRangeBufferWithRetry(task, options, start, end) {
   );
 }
 
+/**
+ * @param {HfDownloadTask} task
+ * @param {DownloadOptions} options
+ * @param {number} start
+ * @param {number} end
+ * @returns {Promise<Buffer>}
+ */
 async function fetchRangeBuffer(task, options, start, end) {
   const range = `bytes=${start}-${end}`;
   const stallTimeoutMs = resolveDownloadStallTimeoutMs();
@@ -530,6 +638,14 @@ async function fetchRangeBuffer(task, options, start, end) {
   }
 }
 
+/**
+ * @param {HfDownloadTask} task
+ * @param {DownloadOptions} options
+ * @param {DownloadProgress} progress
+ * @param {string} partPath
+ * @param {number} startedAt
+ * @returns {Promise<number>}
+ */
 async function downloadHfFileByStream(
   task,
   options,
@@ -540,6 +656,7 @@ async function downloadHfFileByStream(
   const stallTimeoutMs = resolveDownloadStallTimeoutMs();
   const linked = createLinkedAbortController(options.abortSignal);
   let timedOut = false;
+  /** @type {ReturnType<typeof setTimeout> | null} */
   let timeout = null;
   const resetTimeout = () => {
     if (timeout) {
@@ -623,6 +740,15 @@ async function downloadHfFileByStream(
   }
 }
 
+/**
+ * @param {DownloadOptions} options
+ * @param {HfDownloadTask} task
+ * @param {unknown} error
+ * @param {number} nextAttempt
+ * @param {number} maxAttempts
+ * @param {string} [range]
+ * @returns {void}
+ */
 function emitDownloadRetryProgress(
   options,
   task,
@@ -644,6 +770,12 @@ function emitDownloadRetryProgress(
   );
 }
 
+/**
+ * @param {DownloadOptions} options
+ * @param {HfDownloadTask} task
+ * @param {unknown} error
+ * @returns {void}
+ */
 function emitRangeFallbackProgress(options, task, error) {
   emitRuntimeProgress(
     options,
@@ -657,6 +789,12 @@ function emitRangeFallbackProgress(options, task, error) {
   );
 }
 
+/**
+ * @param {DownloadOptions} options
+ * @param {HfDownloadTask} task
+ * @param {HfDownloadProgressState} state
+ * @returns {void}
+ */
 function emitHfDownloadProgress(options, task, state) {
   const knownAggregateBytes = state.knownAggregateBytes || 0;
   const aggregateBytes = knownAggregateBytes
@@ -698,6 +836,11 @@ function emitHfDownloadProgress(options, task, state) {
   );
 }
 
+/**
+ * @param {HfDownloadTask} task
+ * @param {boolean} completed
+ * @returns {string}
+ */
 function resolveDownloadProgressTitle(task, completed) {
   if (completed) {
     return task.completeTitle || `${task.label} 다운로드 완료`;
@@ -705,6 +848,10 @@ function resolveDownloadProgressTitle(task, completed) {
   return task.progressTitle || `${task.label} 다운로드 중`;
 }
 
+/**
+ * @param {string} filePath
+ * @returns {string}
+ */
 function pathDirname(filePath) {
   return path.dirname(filePath);
 }

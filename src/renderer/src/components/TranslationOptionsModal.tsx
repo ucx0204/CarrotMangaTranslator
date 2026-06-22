@@ -1,10 +1,8 @@
 /* eslint-disable max-lines-per-function */
 import React from "react";
-import type {
-  ChapterSnapshot,
-  UiSettings,
-  WorkContextAnalysisScope,
-} from "../../../shared/types";
+import type { ChapterSnapshot } from "../../../shared/libraryTypes";
+import type { UiSettings } from "../../../shared/settingsTypes";
+import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
 import { Button, Modal } from "./ui";
 

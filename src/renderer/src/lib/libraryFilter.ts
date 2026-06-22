@@ -1,4 +1,4 @@
-import type { LibraryIndex } from "../../../shared/types";
+import type { LibraryIndex } from "../../../shared/libraryTypes";
 
 export function filterLibraryIndex(
   library: LibraryIndex,

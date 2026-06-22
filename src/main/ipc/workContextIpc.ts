@@ -6,6 +6,7 @@ import {
   WorkStyleGuideSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
+import { workContextIpcContracts } from "../../shared/ipcContracts";
 import { analyzeWorkContextWithAi } from "../workContextAnalysis";
 import {
   getChapterStoryMemory,
@@ -14,12 +15,12 @@ import {
   saveWorkStyleGuide,
 } from "../library";
 import type { IpcContext } from "./context";
-import { trustedHandle } from "./trustedIpc";
+import { trustedHandleContract } from "./trustedIpc";
 
 export function registerWorkContextIpc(context: IpcContext): void {
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "context:get-work-style-guide",
+    workContextIpcContracts.getWorkStyleGuide,
     async (_event, workId: unknown) => {
       const request = parseIpcPayload(
         WorkStyleGuideRequestSchema,
@@ -29,17 +30,17 @@ export function registerWorkContextIpc(context: IpcContext): void {
       return getWorkStyleGuide(request.workId);
     },
   );
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "context:save-work-style-guide",
+    workContextIpcContracts.saveWorkStyleGuide,
     async (_event, raw: unknown) =>
       saveWorkStyleGuide(
         parseIpcPayload(WorkStyleGuideSchema, raw, "작품 용어집 저장"),
       ),
   );
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "context:get-chapter-story-memory",
+    workContextIpcContracts.getChapterStoryMemory,
     async (_event, chapterId: unknown) => {
       const request = parseIpcPayload(
         ChapterStoryMemoryRequestSchema,
@@ -49,17 +50,17 @@ export function registerWorkContextIpc(context: IpcContext): void {
       return getChapterStoryMemory(request.chapterId);
     },
   );
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "context:save-chapter-story-memory",
+    workContextIpcContracts.saveChapterStoryMemory,
     async (_event, raw: unknown) =>
       saveChapterStoryMemory(
         parseIpcPayload(ChapterStoryMemorySchema, raw, "스토리 메모리 저장"),
       ),
   );
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "context:analyze-work-context",
+    workContextIpcContracts.analyzeWorkContext,
     async (_event, raw: unknown) =>
       analyzeWorkContextWithAi(
         parseIpcPayload(

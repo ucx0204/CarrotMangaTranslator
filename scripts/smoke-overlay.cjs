@@ -9,6 +9,19 @@ const {
 const { existsSync } = require("node:fs");
 const path = require("node:path");
 
+/**
+ * @typedef {import("../src/shared/types").MangaPage} MangaPage
+ * @typedef {import("../src/shared/types").TranslationBlock} TranslationBlock
+ * @typedef {{ pattern: number; other: number }} BlockTypeCounts
+ * @typedef {{ filePath: string; groupKey: string; hash: number }} SmokeSample
+ * @typedef {{ index: number; sample: SmokeSample; geometryPath: string; overlayPath: string; blockCount: number; typeCounts: BlockTypeCounts; elapsedMs: number }} RenderedSmokeItem
+ * @typedef {{ sample: SmokeSample; message: string; status?: unknown; statusText?: unknown; rawTextPreview?: unknown; requestSummary?: unknown }} SkippedSmokeItem
+ * @typedef {{ modelProvider?: string; gemmaVramMode?: unknown; modelRepo?: unknown; modelFile?: unknown; mmprojRepo?: unknown; mmprojFile?: unknown; ctx?: unknown; batch?: unknown; ubatch?: unknown; kvOffload?: unknown; mmprojOffload?: unknown; fitTargetMb?: unknown; useDraft?: unknown; imageMinTokens?: unknown; imageMaxTokens?: unknown; codexModel?: unknown; codexReasoningEffort?: unknown; ocrBboxHints?: unknown; serverLogPath?: string; label?: string; imagePath?: string; imageWidth?: number; imageHeight?: number; outputDir?: string; abortSignal?: AbortSignal; [key: string]: unknown }} SmokeOptions
+ * @typedef {TranslationBlock & { direction?: string; angle?: number; fontSize?: number; sourceDirection?: string; sourceType?: string }} GeometryBlock
+ * @typedef {TranslationBlock & { rect: { left: number; top: number; width: number; height: number }; fontSize: number; text: string }} RenderBlock
+ * @typedef {RenderedSmokeItem & { imageSrc: string }} ContactSheetItem
+ */
+
 const ROOT = path.join(__dirname, "..");
 const DEFAULT_MANGA_ROOT =
   "C:\\Users\\sam40\\AppData\\Local\\Tachidesk\\downloads\\mangas";
@@ -22,8 +35,12 @@ const REUSE_OCR_DIR = process.env.MANGA_SMOKE_REUSE_OCR_DIR || "";
 const SAMPLE_OFFSET = readIntEnv("MANGA_SMOKE_SAMPLE_OFFSET", 0);
 const MAX_CAPTURE_LONG_SIDE = readIntEnv("MANGA_SMOKE_MAX_LONG_SIDE", 1400);
 const PAGE_TIMEOUT_MS = readIntEnv("MANGA_SMOKE_PAGE_TIMEOUT_MS", 120000);
+/** @type {typeof import("../src/shared/geometry") | null} */
 let sharedGeometry = null;
 
+/**
+ * @returns {Promise<void>}
+ */
 async function main() {
   app.setPath(
     "userData",
@@ -32,9 +49,7 @@ async function main() {
   app.commandLine.appendSwitch("disable-gpu");
   app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
   app.commandLine.appendSwitch("disk-cache-size", "0");
-  app.on("window-all-closed", (event) => {
-    event.preventDefault();
-  });
+  app.on("window-all-closed", () => {});
   await app.whenReady();
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -130,9 +145,15 @@ async function main() {
   const smokeStartedAt = Date.now();
   const server =
     baseOptions.modelProvider === "openai-codex"
-      ? await startOpenAIOAuthEndpoint(baseOptions)
+      ? await startOpenAIOAuthEndpoint(
+          /** @type {Parameters<typeof startOpenAIOAuthEndpoint>[0]} */ (
+            baseOptions
+          ),
+        )
       : await simplePage.startServer(baseOptions);
+  /** @type {RenderedSmokeItem[]} */
   const rendered = [];
+  /** @type {SkippedSmokeItem[]} */
   const skipped = [];
   try {
     for (const [candidateIndex, sample] of samples.entries()) {
@@ -210,12 +231,12 @@ async function main() {
           overlayItemToBlock(item, page, itemIndex),
         );
         const typeCounts = countBlockTypes(blocks);
-        const analyzedPage = {
+        const analyzedPage = /** @type {MangaPage} */ ({
           ...page,
           blocks,
           analysisStatus: "completed",
           updatedAt: new Date().toISOString(),
-        };
+        });
 
         const pageJsonPath = path.join(pageOutDir, "page.json");
         const geometryPath = path.join(pageOutDir, "geometry.png");
@@ -320,6 +341,10 @@ function loadBuiltModule(relativePath) {
   return require(path.join(ROOT, relativePath));
 }
 
+/**
+ * @param {TranslationBlock[]} blocks
+ * @returns {BlockTypeCounts}
+ */
 function countBlockTypes(blocks) {
   return blocks.reduce(
     (counts, block) => {
@@ -334,6 +359,10 @@ function countBlockTypes(blocks) {
   );
 }
 
+/**
+ * @param {SmokeOptions} options
+ * @returns {SmokeOptions}
+ */
 function applySmokeOptionOverrides(options) {
   const next = { ...options };
   setStringOption(next, "modelRepo", "MANGA_TRANSLATOR_MODEL_HF");
@@ -361,6 +390,12 @@ function applySmokeOptionOverrides(options) {
   return next;
 }
 
+/**
+ * @param {SmokeOptions} target
+ * @param {string} key
+ * @param {string} envName
+ * @returns {void}
+ */
 function setStringOption(target, key, envName) {
   const value = String(process.env[envName] ?? "").trim();
   if (value) {
@@ -368,6 +403,12 @@ function setStringOption(target, key, envName) {
   }
 }
 
+/**
+ * @param {SmokeOptions} target
+ * @param {string} key
+ * @param {string} envName
+ * @returns {void}
+ */
 function setNumberOption(target, key, envName) {
   const value = Number(process.env[envName]);
   if (Number.isFinite(value) && value > 0) {
@@ -375,6 +416,12 @@ function setNumberOption(target, key, envName) {
   }
 }
 
+/**
+ * @param {SmokeOptions} target
+ * @param {string} key
+ * @param {string} envName
+ * @returns {void}
+ */
 function setBooleanOption(target, key, envName) {
   const value = String(process.env[envName] ?? "")
     .trim()
@@ -386,6 +433,11 @@ function setBooleanOption(target, key, envName) {
   }
 }
 
+/**
+ * @param {string} rootDir
+ * @param {number} pageIndex
+ * @returns {Promise<unknown[] | undefined>}
+ */
 async function readReusableOcrHints(rootDir, pageIndex) {
   const padded = String(pageIndex).padStart(2, "0");
   const candidates = [
@@ -442,6 +494,11 @@ function createPageRecord(imagePath, index) {
   };
 }
 
+/**
+ * @param {string} root
+ * @param {number} count
+ * @returns {Promise<SmokeSample[]>}
+ */
 async function selectSmokeSamples(root, count) {
   const targetListText =
     TARGET_IMAGE_LIST ||
@@ -504,6 +561,10 @@ async function selectSmokeSamples(root, count) {
   return selected.slice(0, count);
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
 function parseTargetImageList(value) {
   const text = String(value || "")
     .replace(/^\uFEFF/, "")
@@ -531,6 +592,10 @@ function parseTargetImageList(value) {
     .filter(Boolean);
 }
 
+/**
+ * @param {string} filePath
+ * @returns {Promise<string>}
+ */
 async function readTextIfExists(filePath) {
   try {
     return await readFile(filePath, "utf8");
@@ -539,6 +604,12 @@ async function readTextIfExists(filePath) {
   }
 }
 
+/**
+ * @template T
+ * @param {T[]} items
+ * @param {number} offset
+ * @returns {T[]}
+ */
 function rotateItems(items, offset) {
   if (items.length === 0) {
     return items;
@@ -551,12 +622,22 @@ function rotateItems(items, offset) {
   ];
 }
 
+/**
+ * @param {string} root
+ * @returns {Promise<string[]>}
+ */
 async function collectImageFiles(root) {
+  /** @type {string[]} */
   const result = [];
+  /** @type {string[]} */
   const stack = [root];
   const extensions = new Set([".jpg", ".jpeg", ".png"]);
   while (stack.length) {
     const dir = stack.pop();
+    if (!dir) {
+      continue;
+    }
+    /** @type {import("node:fs").Dirent[]} */
     let entries;
     try {
       entries = await readdir(dir, { withFileTypes: true });
@@ -579,6 +660,11 @@ async function collectImageFiles(root) {
   return result;
 }
 
+/**
+ * @param {string} root
+ * @param {string} filePath
+ * @returns {boolean}
+ */
 function isOriginalMangaPageCandidate(root, filePath) {
   const relativeParts = path
     .relative(root, filePath)
@@ -607,11 +693,20 @@ function isOriginalMangaPageCandidate(root, filePath) {
   );
 }
 
+/**
+ * @param {string} root
+ * @param {string} filePath
+ * @returns {string}
+ */
 function resolveGroupKey(root, filePath) {
   const relative = path.relative(root, filePath).split(path.sep);
   return relative.slice(0, Math.min(3, relative.length - 1)).join("/");
 }
 
+/**
+ * @param {string} value
+ * @returns {number}
+ */
 function stableHash(value) {
   let hash = 2166136261;
   for (const char of value) {
@@ -621,6 +716,11 @@ function stableHash(value) {
   return hash >>> 0;
 }
 
+/**
+ * @param {MangaPage} page
+ * @param {string} outputPath
+ * @returns {Promise<void>}
+ */
 async function renderOverlayPng(page, outputPath) {
   const scale = Math.min(
     1,
@@ -649,6 +749,12 @@ async function renderOverlayPng(page, outputPath) {
   }
 }
 
+/**
+ * @param {MangaPage} page
+ * @param {GeometryBlock[]} items
+ * @param {string} outputPath
+ * @returns {Promise<void>}
+ */
 async function renderGeometryPng(page, items, outputPath) {
   const scale = Math.min(
     1,
@@ -677,6 +783,13 @@ async function renderGeometryPng(page, items, outputPath) {
   }
 }
 
+/**
+ * @param {MangaPage} page
+ * @param {GeometryBlock[]} items
+ * @param {number} scale
+ * @param {string} imageDataUrl
+ * @returns {string}
+ */
 function buildGeometryHtml(page, items, scale, imageDataUrl) {
   const rows = items.map((item, index) => {
     const left = (item.bbox.x / 1000) * page.width * scale;
@@ -726,7 +839,14 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
 </html>`;
 }
 
+/**
+ * @param {MangaPage} page
+ * @param {number} scale
+ * @param {string} imageDataUrl
+ * @returns {string}
+ */
 function buildOverlayHtml(page, scale, imageDataUrl) {
+  /** @type {RenderBlock[]} */
   const blocks = page.blocks.map((block) => {
     const text = block.translatedText || block.sourceText || "...";
     const box = sharedGeometry?.resolveEffectiveRenderBbox
@@ -807,6 +927,10 @@ window.addEventListener("load", () => {
 </html>`;
 }
 
+/**
+ * @param {RenderBlock} block
+ * @returns {string}
+ */
 function renderBlockHtml(block) {
   const bg = hexToRgba(block.backgroundColor, block.opacity);
   const color = block.textColor;
@@ -821,6 +945,10 @@ function renderBlockHtml(block) {
   return `<div class="block" data-font-size="${block.fontSize}" data-line-height="${block.lineHeight}" style="left:${block.rect.left}px;top:${block.rect.top}px;width:${block.rect.width}px;height:${block.rect.height}px;background:${bg};color:${color};${transform}"><span class="text" style="${writing}${shadow}">${escapeHtml(block.text)}</span></div>`;
 }
 
+/**
+ * @param {number} fontSize
+ * @returns {string}
+ */
 function buildTextOutlineShadow(fontSize) {
   const radius =
     Math.round(Math.min(4, Math.max(0.35, fontSize * 0.055)) * 10) / 10;
@@ -844,6 +972,12 @@ function buildTextOutlineShadow(fontSize) {
     .join(", ");
 }
 
+/**
+ * @param {RenderedSmokeItem[]} items
+ * @param {string} outputPath
+ * @param {"geometryPath" | "overlayPath"} imagePathKey
+ * @returns {Promise<void>}
+ */
 async function renderContactSheet(items, outputPath, imagePathKey) {
   const thumbWidth = 320;
   const cols = 5;
@@ -880,6 +1014,12 @@ async function renderContactSheet(items, outputPath, imagePathKey) {
   }
 }
 
+/**
+ * @param {ContactSheetItem[]} items
+ * @param {number} thumbWidth
+ * @param {number} cols
+ * @returns {string}
+ */
 function buildContactSheetHtml(items, thumbWidth, cols) {
   return `<!doctype html><html><head><meta charset="utf-8" /><style>
 body { margin: 0; background: #101114; color: #f3efe7; font-family: "Malgun Gothic", sans-serif; }
@@ -892,6 +1032,16 @@ ${items.map((item) => `<div class="cell"><div class="label">${item.index}. ${esc
 </div><script>window.addEventListener("load", () => setTimeout(() => document.body.dataset.ready = "1", 200));</script></body></html>`;
 }
 
+/**
+ * @param {string} outDir
+ * @param {RenderedSmokeItem[]} rendered
+ * @param {SkippedSmokeItem[]} skipped
+ * @param {string} geometrySheetPath
+ * @param {string} overlaySheetPath
+ * @param {SmokeOptions} baseOptions
+ * @param {number} elapsedMs
+ * @returns {Promise<void>}
+ */
 async function writeReport(
   outDir,
   rendered,
@@ -950,6 +1100,10 @@ async function writeReport(
   );
 }
 
+/**
+ * @param {number} ms
+ * @returns {string}
+ */
 function formatDuration(ms) {
   const safeMs = Math.max(0, Number(ms) || 0);
   if (safeMs < 1000) {
@@ -963,6 +1117,10 @@ function formatDuration(ms) {
   return `${minutes}m ${(seconds - minutes * 60).toFixed(1)}s`;
 }
 
+/**
+ * @param {import("electron").BrowserWindow} win
+ * @returns {Promise<unknown>}
+ */
 function waitForReady(win) {
   return win.webContents.executeJavaScript(`
     new Promise((resolve) => {
@@ -982,7 +1140,16 @@ function waitForReady(win) {
   `);
 }
 
+/**
+ * @template T
+ * @param {Promise<T>} promise
+ * @param {number} timeoutMs
+ * @param {string} message
+ * @param {AbortController} [abortController]
+ * @returns {Promise<T>}
+ */
 function withTimeout(promise, timeoutMs, message, abortController) {
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
   let timer;
   return Promise.race([
     promise.finally(() => {
@@ -999,6 +1166,10 @@ function withTimeout(promise, timeoutMs, message, abortController) {
   ]);
 }
 
+/**
+ * @param {string} filePath
+ * @returns {Promise<unknown | undefined>}
+ */
 async function readJsonIfExists(filePath) {
   if (!existsSync(filePath)) {
     return undefined;
@@ -1006,11 +1177,19 @@ async function readJsonIfExists(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
 
+/**
+ * @param {string} filePath
+ * @returns {Promise<string>}
+ */
 async function readImageDataUrl(filePath) {
   const buffer = await readFile(filePath);
   return `data:${mimeFromPath(filePath)};base64,${buffer.toString("base64")}`;
 }
 
+/**
+ * @param {string} filePath
+ * @returns {string}
+ */
 function mimeFromPath(filePath) {
   const lower = filePath.toLowerCase();
   if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
@@ -1022,6 +1201,11 @@ function mimeFromPath(filePath) {
   return "image/png";
 }
 
+/**
+ * @param {unknown} hex
+ * @param {unknown} alpha
+ * @returns {string}
+ */
 function hexToRgba(hex, alpha) {
   const value = String(hex || "#ffffff").replace("#", "");
   const r = Number.parseInt(value.slice(0, 2), 16);
@@ -1030,6 +1214,10 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, Number(alpha) || 0))})`;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -1038,11 +1226,20 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * @param {string} name
+ * @param {number} fallback
+ * @returns {number}
+ */
 function readIntEnv(name, fallback) {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? Math.round(value) : fallback;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {"" | "gemma" | "openai-codex"}
+ */
 function normalizeSmokeProvider(value) {
   const text = String(value ?? "")
     .trim()

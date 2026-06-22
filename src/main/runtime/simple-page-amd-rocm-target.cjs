@@ -13,6 +13,14 @@ const AMD_ROCM_TARGETS = new Set([
   "gfx120X",
 ]);
 
+/**
+ * @typedef {Record<string, any>} RocmTargetOptions
+ */
+
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
 function normalizeAmdRocmTarget(value) {
   const normalized = String(value ?? "")
     .trim()
@@ -45,6 +53,10 @@ function normalizeAmdRocmTarget(value) {
   return null;
 }
 
+/**
+ * @param {RocmTargetOptions} [options]
+ * @returns {string | null}
+ */
 function resolveAmdRocmTargetFromOptions(options = {}) {
   return (
     normalizeAmdRocmTarget(
@@ -109,6 +121,10 @@ function detectRocmSmiTarget() {
   }
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
 function inferAmdRocmTargetFromText(value) {
   const normalized = String(value ?? "")
     .toLowerCase()

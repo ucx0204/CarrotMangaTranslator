@@ -1,8 +1,6 @@
 import React from "react";
-import type {
-  LibraryIndex,
-  WorkShareImportPreview,
-} from "../../../../shared/types";
+import type { LibraryIndex } from "../../../../shared/libraryTypes";
+import type { WorkShareImportPreview } from "../../../../shared/shareTypes";
 import { TextField } from "../ui";
 
 type ShareImportTargetSectionProps = {

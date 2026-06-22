@@ -1,0 +1,136 @@
+import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { mkdir, rename, rm, rmdir } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { safeCleanup } from "../safeCleanup";
+import { WORKS_ROOT } from "./libraryFiles";
+import { isPathInside } from "./storage";
+
+export type TrashedChapterDirectory = {
+  chapterId: string;
+  sourceDir: string;
+  trashDir: string;
+  operationTrashRoot: string;
+};
+
+export async function moveOmittedExistingChaptersToTrash(
+  workId: string,
+  previousChapterIds: string[],
+  finalChapterIds: string[],
+): Promise<TrashedChapterDirectory[]> {
+  const finalChapterIdSet = new Set(finalChapterIds);
+  const operationId = randomUUID();
+  const trashedChapters: TrashedChapterDirectory[] = [];
+
+  for (const chapterId of previousChapterIds) {
+    if (finalChapterIdSet.has(chapterId)) {
+      continue;
+    }
+
+    const sourceDir = resolveChapterDirectory(workId, chapterId);
+    if (!existsSync(sourceDir)) {
+      continue;
+    }
+
+    const operationTrashRoot = resolveOperationTrashRoot(workId, operationId);
+    const trashDir = resolve(join(operationTrashRoot, chapterId));
+    if (
+      !isPathInside(operationTrashRoot, trashDir) ||
+      trashDir === operationTrashRoot
+    ) {
+      throw new Error("공유 가져오기 임시 보관 위치가 올바르지 않습니다.");
+    }
+
+    await mkdir(operationTrashRoot, { recursive: true });
+    await rename(sourceDir, trashDir);
+    trashedChapters.push({
+      chapterId,
+      sourceDir,
+      trashDir,
+      operationTrashRoot,
+    });
+  }
+
+  return trashedChapters;
+}
+
+export async function restoreTrashedChapterDirectories(
+  workId: string,
+  trashedChapters: TrashedChapterDirectory[],
+): Promise<void> {
+  for (const trashedChapter of [...trashedChapters].reverse()) {
+    if (!existsSync(trashedChapter.trashDir)) {
+      continue;
+    }
+    await mkdir(dirname(trashedChapter.sourceDir), { recursive: true });
+    if (existsSync(trashedChapter.sourceDir)) {
+      continue;
+    }
+    await rename(trashedChapter.trashDir, trashedChapter.sourceDir);
+  }
+
+  await pruneTrashRoots(workId, trashedChapters);
+}
+
+export async function discardTrashedChapterDirectories(
+  workId: string,
+  trashedChapters: TrashedChapterDirectory[],
+): Promise<void> {
+  const operationTrashRoots = new Set(
+    trashedChapters.map((trashedChapter) => trashedChapter.operationTrashRoot),
+  );
+  for (const operationTrashRoot of operationTrashRoots) {
+    await rm(operationTrashRoot, { recursive: true, force: true });
+  }
+  await pruneTrashRoots(workId, trashedChapters);
+}
+
+async function pruneTrashRoots(
+  workId: string,
+  trashedChapters: TrashedChapterDirectory[],
+): Promise<void> {
+  const operationTrashRoots = new Set(
+    trashedChapters.map((trashedChapter) => trashedChapter.operationTrashRoot),
+  );
+  for (const operationTrashRoot of operationTrashRoots) {
+    await safeCleanup("prune-share-operation-trash", () =>
+      rmdir(operationTrashRoot),
+    );
+  }
+  await safeCleanup("prune-share-trash-root", () =>
+    rmdir(resolveTrashRoot(workId)),
+  );
+}
+
+function resolveChapterDirectory(workId: string, chapterId: string): string {
+  const chaptersRoot = resolve(join(WORKS_ROOT, workId, "chapters"));
+  const chapterDir = resolve(join(chaptersRoot, chapterId));
+  if (!isPathInside(chaptersRoot, chapterDir) || chapterDir === chaptersRoot) {
+    throw new Error("화 정보의 보관함 위치가 올바르지 않습니다.");
+  }
+  return chapterDir;
+}
+
+function resolveOperationTrashRoot(
+  workId: string,
+  operationId: string,
+): string {
+  const trashRoot = resolveTrashRoot(workId);
+  const operationTrashRoot = resolve(join(trashRoot, operationId));
+  if (
+    !isPathInside(trashRoot, operationTrashRoot) ||
+    operationTrashRoot === trashRoot
+  ) {
+    throw new Error("공유 가져오기 임시 보관 위치가 올바르지 않습니다.");
+  }
+  return operationTrashRoot;
+}
+
+function resolveTrashRoot(workId: string): string {
+  const chaptersRoot = resolve(join(WORKS_ROOT, workId, "chapters"));
+  const trashRoot = resolve(join(chaptersRoot, ".trash"));
+  if (!isPathInside(chaptersRoot, trashRoot) || trashRoot === chaptersRoot) {
+    throw new Error("공유 가져오기 임시 보관 위치가 올바르지 않습니다.");
+  }
+  return trashRoot;
+}

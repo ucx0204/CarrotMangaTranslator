@@ -24,6 +24,10 @@ export function CommandPalette({
   const [activeIndex, setActiveIndex] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
+  const filtered = React.useMemo(
+    () => filterCommands(commands, query),
+    [commands, query],
+  );
 
   React.useEffect(() => {
     if (!open) {
@@ -34,18 +38,6 @@ export function CommandPalette({
     const id = window.setTimeout(() => inputRef.current?.focus(), 0);
     return () => window.clearTimeout(id);
   }, [open]);
-
-  const filtered = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      return commands;
-    }
-    return commands.filter((command) =>
-      `${command.label} ${command.hint ?? ""} ${command.keywords ?? ""}`
-        .toLowerCase()
-        .includes(q),
-    );
-  }, [commands, query]);
 
   React.useEffect(() => {
     setActiveIndex((index) =>
@@ -72,19 +64,14 @@ export function CommandPalette({
     onClose();
     command.run();
   };
-
-  const onInputKeyDown = (event: React.KeyboardEvent): void => {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActiveIndex((index) => Math.min(index + 1, filtered.length - 1));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveIndex((index) => Math.max(index - 1, 0));
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      runIndex(activeIndex);
-    }
-  };
+  const onInputKeyDown = (event: React.KeyboardEvent): void =>
+    handleCommandPaletteKeyDown({
+      activeIndex,
+      event,
+      filteredCount: filtered.length,
+      runIndex,
+      setActiveIndex,
+    });
 
   return (
     <Modal
@@ -94,45 +81,153 @@ export function CommandPalette({
       onClose={onClose}
       bodyClassName="command-palette-body"
     >
-      <input
+      <CommandPaletteInput
         ref={inputRef}
-        className="command-palette-input"
-        placeholder="명령 검색…"
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setActiveIndex(0);
-        }}
         onKeyDown={onInputKeyDown}
-        aria-label="명령 검색"
+        setActiveIndex={setActiveIndex}
+        setQuery={setQuery}
+        value={query}
       />
-      <div
-        className="command-palette-list"
-        ref={listRef}
-        role="listbox"
-        aria-label="명령 목록"
-      >
-        {filtered.length === 0 ? (
-          <p className="command-palette-empty">일치하는 명령이 없습니다.</p>
-        ) : (
-          filtered.map((command, index) => (
-            <button
-              key={command.id}
-              type="button"
-              role="option"
-              aria-selected={index === activeIndex}
-              className={`command-palette-item ${index === activeIndex ? "active" : ""}`}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => runIndex(index)}
-            >
-              <span className="command-palette-label">{command.label}</span>
-              {command.hint ? (
-                <span className="command-palette-hint">{command.hint}</span>
-              ) : null}
-            </button>
-          ))
-        )}
-      </div>
+      <CommandPaletteList
+        activeIndex={activeIndex}
+        commands={filtered}
+        listRef={listRef}
+        runIndex={runIndex}
+        setActiveIndex={setActiveIndex}
+      />
     </Modal>
+  );
+}
+
+const CommandPaletteInput = React.forwardRef<
+  HTMLInputElement,
+  {
+    onKeyDown: (event: React.KeyboardEvent) => void;
+    setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
+    setQuery: React.Dispatch<React.SetStateAction<string>>;
+    value: string;
+  }
+>(function CommandPaletteInput(
+  { onKeyDown, setActiveIndex, setQuery, value },
+  ref,
+) {
+  return (
+    <input
+      ref={ref}
+      className="command-palette-input"
+      placeholder="명령 검색…"
+      value={value}
+      onChange={(event) => {
+        setQuery(event.target.value);
+        setActiveIndex(0);
+      }}
+      onKeyDown={onKeyDown}
+      aria-label="명령 검색"
+    />
+  );
+});
+
+function filterCommands(commands: Command[], query: string): Command[] {
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    return commands;
+  }
+  return commands.filter((command) =>
+    `${command.label} ${command.hint ?? ""} ${command.keywords ?? ""}`
+      .toLowerCase()
+      .includes(q),
+  );
+}
+
+function handleCommandPaletteKeyDown({
+  activeIndex,
+  event,
+  filteredCount,
+  runIndex,
+  setActiveIndex,
+}: {
+  activeIndex: number;
+  event: React.KeyboardEvent;
+  filteredCount: number;
+  runIndex: (index: number) => void;
+  setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
+}): void {
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    setActiveIndex((index) => Math.min(index + 1, filteredCount - 1));
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    setActiveIndex((index) => Math.max(index - 1, 0));
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    runIndex(activeIndex);
+  }
+}
+
+function CommandPaletteList({
+  activeIndex,
+  commands,
+  listRef,
+  runIndex,
+  setActiveIndex,
+}: {
+  activeIndex: number;
+  commands: Command[];
+  listRef: React.RefObject<HTMLDivElement | null>;
+  runIndex: (index: number) => void;
+  setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
+}): React.JSX.Element {
+  return (
+    <div
+      className="command-palette-list"
+      ref={listRef}
+      role="listbox"
+      aria-label="명령 목록"
+    >
+      {commands.length === 0 ? (
+        <p className="command-palette-empty">일치하는 명령이 없습니다.</p>
+      ) : (
+        commands.map((command, index) => (
+          <CommandPaletteItem
+            key={command.id}
+            active={index === activeIndex}
+            command={command}
+            index={index}
+            runIndex={runIndex}
+            setActiveIndex={setActiveIndex}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+function CommandPaletteItem({
+  active,
+  command,
+  index,
+  runIndex,
+  setActiveIndex,
+}: {
+  active: boolean;
+  command: Command;
+  index: number;
+  runIndex: (index: number) => void;
+  setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={active}
+      className={`command-palette-item ${active ? "active" : ""}`}
+      onMouseEnter={() => setActiveIndex(index)}
+      onClick={() => runIndex(index)}
+    >
+      <span className="command-palette-label">{command.label}</span>
+      {command.hint ? (
+        <span className="command-palette-hint">{command.hint}</span>
+      ) : null}
+    </button>
   );
 }

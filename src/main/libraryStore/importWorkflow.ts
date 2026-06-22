@@ -1,24 +1,20 @@
 import { randomUUID } from "node:crypto";
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { basename, extname, join, relative } from "node:path";
 import type {
   CreateImportFromPreviewRequest,
   CreateImportResult,
   ImportChapterDraft,
-  ImportPageDraft,
   ImportPreviewResult,
   LibraryChapter,
   LibraryPageRecord,
 } from "../../shared/types";
 import { resolveChapterStatus } from "./chapterRecords";
 import {
-  assertImportImageFileBudget,
   filterImportImageFiles,
   normalizeImportPageName,
-  readDecodedImportImageSize,
-  shouldNormalizeImportImageToPng,
-  writeNormalizedWebpImportImage,
 } from "./importImages";
+import { materializePageRecord } from "./importPageMaterialize";
 import {
   listImageEntriesInZip,
   listImageFiles,
@@ -36,13 +32,8 @@ import {
   writeChapterFile,
   writeWorkFile,
 } from "./libraryFiles";
-import { safeUnlink } from "./storage";
 import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
-import {
-  MAX_IMPORT_IMAGE_BYTES,
-  openZipArchiveReader,
-  type ZipArchiveReader,
-} from "./zipSafety";
+import type { ZipArchiveReader } from "./zipSafety";
 import { hydrateChapter } from "./chapterSnapshots";
 
 export async function previewImages(
@@ -200,39 +191,12 @@ export async function createImportFromPreviewUnlocked(
   const createdChapters: LibraryChapter[] = [];
 
   try {
-    const selections = new Map(
-      request.selections.map((selection) => [selection.draftId, selection]),
+    await materializeSelectedDrafts(
+      target.id,
+      selectedDrafts,
+      request.selections,
+      createdChapters,
     );
-    const usedTitles = await collectUsedChapterTitles(target.id);
-    const zipReaderCache = new Map<string, ZipArchiveReader>();
-
-    try {
-      for (const draft of selectedDrafts) {
-        const selection = selections.get(draft.draftId);
-        if (!selection) {
-          continue;
-        }
-
-        const title = makeUniqueTitleInList(
-          sanitizeTitle(selection.title || draft.title, "제목없음"),
-          usedTitles,
-        );
-        usedTitles.add(title);
-        createdChapters.push(
-          await materializeChapterFromDraft(
-            target.id,
-            draft,
-            title,
-            zipReaderCache,
-          ),
-        );
-      }
-    } finally {
-      for (const reader of zipReaderCache.values()) {
-        reader.close();
-      }
-    }
-
     if (createdChapters.length === 0) {
       throw new Error("생성할 화가 없습니다.");
     }
@@ -263,6 +227,40 @@ export async function createImportFromPreviewUnlocked(
       await removeWorkFromIndexAndDisk(createdWorkId);
     }
     throw error;
+  }
+}
+
+async function materializeSelectedDrafts(
+  workId: string,
+  selectedDrafts: ImportChapterDraft[],
+  requestSelections: CreateImportFromPreviewRequest["selections"],
+  createdChapters: LibraryChapter[],
+): Promise<void> {
+  const selections = new Map(
+    requestSelections.map((selection) => [selection.draftId, selection]),
+  );
+  const usedTitles = await collectUsedChapterTitles(workId);
+  const zipReaderCache = new Map<string, ZipArchiveReader>();
+
+  try {
+    for (const draft of selectedDrafts) {
+      const selection = selections.get(draft.draftId);
+      if (!selection) {
+        continue;
+      }
+      const title = makeUniqueTitleInList(
+        sanitizeTitle(selection.title || draft.title, "제목없음"),
+        usedTitles,
+      );
+      usedTitles.add(title);
+      createdChapters.push(
+        await materializeChapterFromDraft(workId, draft, title, zipReaderCache),
+      );
+    }
+  } finally {
+    for (const reader of zipReaderCache.values()) {
+      reader.close();
+    }
   }
 }
 
@@ -307,99 +305,4 @@ async function materializeChapterFromDraft(
     await removeChapterDirectory(workId, chapterId);
     throw error;
   }
-}
-
-async function materializePageRecord(
-  pageDraft: ImportPageDraft,
-  pagesDir: string,
-  index: number,
-  zipReaderCache: Map<string, ZipArchiveReader>,
-): Promise<LibraryPageRecord> {
-  const pageId = randomUUID();
-  const sourceExt =
-    pageDraft.sourceKind === "zip-entry"
-      ? extname(pageDraft.zipEntryName ?? "").toLowerCase() || ".png"
-      : extname(pageDraft.sourcePath).toLowerCase() || ".png";
-  const targetExt = shouldNormalizeImportImageToPng(sourceExt)
-    ? ".png"
-    : sourceExt;
-  const outputPath = join(
-    pagesDir,
-    `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`,
-  );
-
-  if (pageDraft.sourceKind === "zip-entry") {
-    const reader = await getCachedZipReader(
-      pageDraft.sourcePath,
-      zipReaderCache,
-    );
-    const entry = reader.entryMap.get(pageDraft.zipEntryName ?? "");
-    if (!entry) {
-      throw new Error(
-        `ZIP 항목을 찾지 못했습니다: ${pageDraft.zipEntryName ?? pageDraft.sourcePath}`,
-      );
-    }
-    const sourceBytes = await reader.readEntry(
-      entry.entryName,
-      MAX_IMPORT_IMAGE_BYTES,
-      pageDraft.zipEntryName ?? pageDraft.sourcePath,
-    );
-    if (shouldNormalizeImportImageToPng(sourceExt)) {
-      const tempSourcePath = join(
-        pagesDir,
-        `.${pageId}.import-source${sourceExt}`,
-      );
-      try {
-        await writeFile(tempSourcePath, sourceBytes);
-        await writeNormalizedWebpImportImage(
-          tempSourcePath,
-          outputPath,
-          pageDraft.name,
-        );
-      } finally {
-        await safeUnlink(tempSourcePath);
-      }
-    } else {
-      await writeFile(outputPath, sourceBytes);
-    }
-  } else {
-    await assertImportImageFileBudget(pageDraft.sourcePath);
-    if (shouldNormalizeImportImageToPng(sourceExt)) {
-      await writeNormalizedWebpImportImage(
-        pageDraft.sourcePath,
-        outputPath,
-        pageDraft.name,
-      );
-    } else {
-      await copyFile(pageDraft.sourcePath, outputPath);
-    }
-  }
-
-  const size = await readDecodedImportImageSize(outputPath, pageDraft.name);
-  const now = new Date().toISOString();
-
-  return {
-    id: pageId,
-    name: pageDraft.name,
-    imagePath: outputPath,
-    width: size.width || 1000,
-    height: size.height || 1400,
-    blocks: [],
-    analysisStatus: "idle",
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-async function getCachedZipReader(
-  zipPath: string,
-  cache: Map<string, ZipArchiveReader>,
-): Promise<ZipArchiveReader> {
-  const cached = cache.get(zipPath);
-  if (cached) {
-    return cached;
-  }
-  const reader = await openZipArchiveReader(zipPath, "ZIP 파일");
-  cache.set(zipPath, reader);
-  return reader;
 }

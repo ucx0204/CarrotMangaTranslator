@@ -7,13 +7,14 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
-import type { ChapterSnapshot } from "../../../shared/types";
 import { isEditableTarget } from "../lib/appHelpers";
 import {
   resolveAdjacentPageId,
   resolveKeyboardPageNavigation,
+  resolveRetouchHistoryShortcut,
   resolveWheelPageNavigation,
 } from "../lib/pageNavigation";
+import type { ChapterSnapshot } from "./hookLibraryTypes";
 
 type UsePageNavigationHandlersOptions = {
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
@@ -28,24 +29,41 @@ type UsePageNavigationHandlersOptions = {
   redoRetouch: () => Promise<void>;
 };
 
-export function usePageNavigationHandlers({
-  currentChapterRef,
-  selectedPageIdRef,
-  selectedBlockIdRef,
-  workspacePanelRef,
-  modalOpen,
-  inpaintingMode,
-  setSelectedPageId,
-  setSelectedBlockId,
-  undoRetouch,
-  redoRetouch,
-}: UsePageNavigationHandlersOptions): {
-  selectPageForReading: (pageId: string | null) => void;
+type SelectPageForReading = (pageId: string | null) => void;
+type SelectAdjacentPageForReading = (direction: "previous" | "next") => boolean;
+
+export function usePageNavigationHandlers(
+  options: UsePageNavigationHandlersOptions,
+): {
+  selectPageForReading: SelectPageForReading;
 } {
   const lastWheelNavigationAtRef = useRef(0);
+  const selectPageForReading = useSelectPageForReading(options);
+  const selectAdjacentPageForReading = useSelectAdjacentPageForReading(
+    options,
+    selectPageForReading,
+  );
+  useKeyboardPageNavigationEffect(options, selectAdjacentPageForReading);
+  const handleWorkspaceWheel = useWorkspaceWheelHandler(
+    options,
+    selectAdjacentPageForReading,
+    lastWheelNavigationAtRef,
+  );
+  useWorkspaceWheelEffect(options.workspacePanelRef, handleWorkspaceWheel);
 
-  const selectPageForReading = useCallback(
-    (pageId: string | null) => {
+  return {
+    selectPageForReading,
+  };
+}
+
+function useSelectPageForReading({
+  selectedBlockIdRef,
+  selectedPageIdRef,
+  setSelectedBlockId,
+  setSelectedPageId,
+}: UsePageNavigationHandlersOptions): SelectPageForReading {
+  return useCallback(
+    (pageId) => {
       if (!pageId) {
         return;
       }
@@ -61,11 +79,16 @@ export function usePageNavigationHandlers({
       setSelectedPageId,
     ],
   );
+}
 
-  const selectAdjacentPageForReading = useCallback(
-    (direction: "previous" | "next") => {
-      const chapter = currentChapterRef.current;
-      const pageIds = chapter?.pages.map((page) => page.id) ?? [];
+function useSelectAdjacentPageForReading(
+  { currentChapterRef, selectedPageIdRef }: UsePageNavigationHandlersOptions,
+  selectPageForReading: SelectPageForReading,
+): SelectAdjacentPageForReading {
+  return useCallback(
+    (direction) => {
+      const pageIds =
+        currentChapterRef.current?.pages.map((page) => page.id) ?? [];
       const nextPageId = resolveAdjacentPageId(
         pageIds,
         selectedPageIdRef.current,
@@ -74,58 +97,29 @@ export function usePageNavigationHandlers({
       if (!nextPageId) {
         return false;
       }
-
       selectPageForReading(nextPageId);
       return true;
     },
     [currentChapterRef, selectPageForReading, selectedPageIdRef],
   );
+}
 
+function useKeyboardPageNavigationEffect(
+  options: UsePageNavigationHandlersOptions,
+  selectAdjacentPageForReading: SelectAdjacentPageForReading,
+): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const pageIds =
-        currentChapterRef.current?.pages.map((page) => page.id) ?? [];
-      const activeElement =
-        typeof document !== "undefined" ? document.activeElement : null;
-      const editableTarget = isEditableTarget(event.target);
-      if (
-        inpaintingMode &&
-        !modalOpen &&
-        !editableTarget &&
-        (event.ctrlKey || event.metaKey)
-      ) {
-        const key = event.key.toLowerCase();
-        if (key === "z" && !event.shiftKey) {
-          event.preventDefault();
-          void undoRetouch();
-          return;
-        }
-        if (key === "y" || (key === "z" && event.shiftKey)) {
-          event.preventDefault();
-          void redoRetouch();
-          return;
-        }
+      if (handleRetouchShortcut(event, options)) {
+        return;
       }
-      const navigation = resolveKeyboardPageNavigation({
-        key: event.key,
-        hasPages: pageIds.length > 0,
-        modalOpen,
-        editableTarget,
-        centerPanelFocused: Boolean(
-          workspacePanelRef.current &&
-          activeElement &&
-          workspacePanelRef.current.contains(activeElement),
-        ),
-      });
-
+      const navigation = resolveKeyboardNavigationForEvent(event, options);
       if (!navigation) {
         return;
       }
-
       if (!selectAdjacentPageForReading(navigation.direction)) {
         return;
       }
-
       if (navigation.preventDefault) {
         event.preventDefault();
       }
@@ -135,18 +129,20 @@ export function usePageNavigationHandlers({
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [
-    currentChapterRef,
-    inpaintingMode,
-    modalOpen,
-    redoRetouch,
-    selectAdjacentPageForReading,
-    undoRetouch,
-    workspacePanelRef,
-  ]);
+  }, [options, selectAdjacentPageForReading]);
+}
 
-  const handleWorkspaceWheel = useCallback(
-    (event: WheelEvent) => {
+function useWorkspaceWheelHandler(
+  {
+    currentChapterRef,
+    modalOpen,
+    workspacePanelRef,
+  }: UsePageNavigationHandlersOptions,
+  selectAdjacentPageForReading: SelectAdjacentPageForReading,
+  lastWheelNavigationAtRef: MutableRefObject<number>,
+): (event: WheelEvent) => void {
+  return useCallback(
+    (event) => {
       const pageIds =
         currentChapterRef.current?.pages.map((page) => page.id) ?? [];
       const direction = resolveWheelPageNavigation({
@@ -156,34 +152,34 @@ export function usePageNavigationHandlers({
         modalOpen,
         editableTarget: isEditableTarget(event.target),
       });
-
       if (!direction) {
         return;
       }
-
-      const now =
-        typeof performance !== "undefined" ? performance.now() : Date.now();
-      if (now - lastWheelNavigationAtRef.current < 320) {
+      if (resolveWheelThrottle(lastWheelNavigationAtRef)) {
         event.preventDefault();
         return;
       }
-
       if (!selectAdjacentPageForReading(direction)) {
         return;
       }
-
-      lastWheelNavigationAtRef.current = now;
+      lastWheelNavigationAtRef.current = nowMs();
       workspacePanelRef.current?.focus();
       event.preventDefault();
     },
     [
       currentChapterRef,
+      lastWheelNavigationAtRef,
       modalOpen,
       selectAdjacentPageForReading,
       workspacePanelRef,
     ],
   );
+}
 
+function useWorkspaceWheelEffect(
+  workspacePanelRef: RefObject<HTMLElement | null>,
+  handleWorkspaceWheel: (event: WheelEvent) => void,
+): void {
   useEffect(() => {
     const panel = workspacePanelRef.current;
     if (!panel) {
@@ -194,8 +190,64 @@ export function usePageNavigationHandlers({
       panel.removeEventListener("wheel", handleWorkspaceWheel);
     };
   }, [handleWorkspaceWheel, workspacePanelRef]);
+}
 
-  return {
-    selectPageForReading,
-  };
+function handleRetouchShortcut(
+  event: KeyboardEvent,
+  {
+    inpaintingMode,
+    modalOpen,
+    redoRetouch,
+    undoRetouch,
+  }: UsePageNavigationHandlersOptions,
+): boolean {
+  const shortcut = resolveRetouchHistoryShortcut({
+    key: event.key,
+    ctrlKey: event.ctrlKey,
+    metaKey: event.metaKey,
+    shiftKey: event.shiftKey,
+    inpaintingMode,
+    modalOpen,
+    editableTarget: isEditableTarget(event.target),
+  });
+  if (!shortcut) {
+    return false;
+  }
+  event.preventDefault();
+  void (shortcut === "undo" ? undoRetouch() : redoRetouch());
+  return true;
+}
+
+function resolveKeyboardNavigationForEvent(
+  event: KeyboardEvent,
+  {
+    currentChapterRef,
+    modalOpen,
+    workspacePanelRef,
+  }: UsePageNavigationHandlersOptions,
+): ReturnType<typeof resolveKeyboardPageNavigation> {
+  const activeElement =
+    typeof document !== "undefined" ? document.activeElement : null;
+  const pageIds = currentChapterRef.current?.pages.map((page) => page.id) ?? [];
+  return resolveKeyboardPageNavigation({
+    key: event.key,
+    hasPages: pageIds.length > 0,
+    modalOpen,
+    editableTarget: isEditableTarget(event.target),
+    centerPanelFocused: Boolean(
+      workspacePanelRef.current &&
+      activeElement &&
+      workspacePanelRef.current.contains(activeElement),
+    ),
+  });
+}
+
+function resolveWheelThrottle(
+  lastWheelNavigationAtRef: MutableRefObject<number>,
+): boolean {
+  return nowMs() - lastWheelNavigationAtRef.current < 320;
+}
+
+function nowMs(): number {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
 }

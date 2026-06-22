@@ -19,6 +19,9 @@ function ToastGlyph({
   if (variant === "error") {
     return <WarnIcon size={17} />;
   }
+  if (variant === "warn") {
+    return <WarnIcon size={17} />;
+  }
   return <InfoIcon size={17} />;
 }
 

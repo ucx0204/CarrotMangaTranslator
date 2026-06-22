@@ -4,9 +4,10 @@ import {
   SaveTextFileRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
-import type { SaveTextFileResult } from "../../shared/types";
+import { textReviewIpcContracts } from "../../shared/ipcContracts";
+import type { SaveTextFileResult } from "../../shared/shareTypes";
 import type { IpcContext } from "./context";
-import { trustedHandle } from "./trustedIpc";
+import { trustedHandleContract } from "./trustedIpc";
 
 function sanitizeTextFileName(name: string): string {
   const base = name
@@ -18,9 +19,9 @@ function sanitizeTextFileName(name: string): string {
 }
 
 export function registerTextExportIpc(context: IpcContext): void {
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "text:save-file",
+    textReviewIpcContracts.saveTextFile,
     async (_event, rawRequest: unknown): Promise<SaveTextFileResult | null> => {
       const request = parseIpcPayload(
         SaveTextFileRequestSchema,

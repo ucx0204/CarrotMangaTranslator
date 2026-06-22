@@ -10,6 +10,12 @@ const { tmpdir } = require("node:os");
 const { delimiter, join } = require("node:path");
 const { spawnSync } = require("node:child_process");
 
+/**
+ * @typedef {{ outDir: string; outExe: string }} BuildAlias
+ * @typedef {{ computeCap: string | null; cargoTargetDir: string; outDir: string; outExe: string; aliases: BuildAlias[] }} BuildTarget
+ * @typedef {{ packages: Array<{ name?: string; manifest_path?: string }> }} CargoMetadata
+ */
+
 const root = join(__dirname, "..");
 const manifestPath = join(root, "tools", "mgt-flux-klein-runner", "Cargo.toml");
 const runnerDirName = "mgt-flux-klein";
@@ -21,6 +27,7 @@ const cargoTargetDir =
   join(tmpdir(), "mgt-flux-klein-target");
 const cudaRoot = process.env.MGT_FLUX_KLEIN_CUDA_ROOT || findCudaRoot();
 const forceRebuild = process.env.MGT_FORCE_REBUILD_FLUX_RUNNER === "1";
+/** @type {BuildTarget[]} */
 const buildPlan = resolveBuildPlan();
 
 if (
@@ -65,6 +72,10 @@ for (const entry of buildPlan) {
   }
 }
 
+/**
+ * @param {string[]} args
+ * @param {BuildTarget} buildTarget
+ */
 function runCargo(args, buildTarget) {
   const msvcBin = process.platform === "win32" ? findMsvcClBin() : null;
   const pathParts = [
@@ -98,6 +109,7 @@ function runCargo(args, buildTarget) {
   });
 }
 
+/** @returns {BuildTarget[]} */
 function resolveBuildPlan() {
   const requestedCaps = parseComputeCaps(
     process.env.MGT_FLUX_KLEIN_COMPUTE_CAPS,
@@ -124,6 +136,11 @@ function resolveBuildPlan() {
   ];
 }
 
+/**
+ * @param {string} computeCap
+ * @param {BuildAlias[]} aliases
+ * @returns {BuildTarget}
+ */
 function makeBuildTarget(computeCap, aliases) {
   const dirName = `${runnerDirName}-sm${computeCap}`;
   return {
@@ -135,14 +152,22 @@ function makeBuildTarget(computeCap, aliases) {
   };
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
 function parseComputeCaps(value) {
   return String(value ?? "")
     .split(/[,\s;]+/)
     .map(normalizeComputeCap)
-    .filter(Boolean)
+    .filter((cap) => typeof cap === "string")
     .filter((cap, index, values) => values.indexOf(cap) === index);
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
 function normalizeComputeCap(value) {
   const normalized = String(value ?? "")
     .trim()
@@ -153,6 +178,11 @@ function normalizeComputeCap(value) {
   return /^\d{2,3}$/.test(normalized) ? normalized : null;
 }
 
+/**
+ * @param {string} command
+ * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} [extraEnv]
+ */
 function run(command, args, extraEnv = {}) {
   console.log(`> ${command} ${args.join(" ")}`);
   const result = spawnSync(command, args, {
@@ -172,6 +202,7 @@ function run(command, args, extraEnv = {}) {
   }
 }
 
+/** @returns {string | null} */
 function findMsvcClBin() {
   const candidates = [
     join(
@@ -230,6 +261,7 @@ function findMsvcClBin() {
   return null;
 }
 
+/** @returns {string | null} */
 function findCudaRoot() {
   const rawCandidates = [
     process.env.CUDA_PATH_V12_9,
@@ -338,6 +370,7 @@ function patchKoharuFluxSources() {
   );
 }
 
+/** @returns {CargoMetadata} */
 function readCargoMetadata() {
   const result = spawnSync(
     "cargo",
@@ -372,6 +405,11 @@ function readCargoMetadata() {
   return JSON.parse(stdout.slice(jsonStart));
 }
 
+/**
+ * @param {string} path
+ * @param {Array<[string, string]>} replacements
+ * @param {string} label
+ */
 function patchFile(path, replacements, label) {
   let text = readFileSync(path, "utf8");
   const newline = text.includes("\r\n") ? "\r\n" : "\n";
@@ -396,6 +434,7 @@ function patchFile(path, replacements, label) {
   }
 }
 
+/** @param {string} path */
 function isUsableFile(path) {
   try {
     return (

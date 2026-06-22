@@ -25,6 +25,50 @@ module.exports = {
       from: { path: "^src/main/(ipc|jobs)/" },
       to: { path: "^src/main/libraryStore/" },
     },
+    {
+      name: "main-ipc-uses-facades-not-runtime-or-pipeline",
+      severity: "error",
+      from: { path: "^src/main/ipc/" },
+      to: { path: "^src/main/(runtime|pipeline)/" },
+    },
+    {
+      name: "main-jobs-do-not-import-ipc",
+      severity: "error",
+      from: { path: "^src/main/jobs/" },
+      to: { path: "^src/main/ipc/" },
+    },
+    {
+      name: "library-store-stays-below-ipc-and-jobs",
+      severity: "error",
+      from: { path: "^src/main/libraryStore/" },
+      to: { path: "^src/main/(ipc|jobs)/" },
+    },
+    {
+      name: "renderer-lib-does-not-import-app-components-or-hooks",
+      severity: "error",
+      from: { path: "^src/renderer/src/lib/" },
+      to: { path: "^src/renderer/src/(app|components|hooks)/" },
+    },
+    {
+      name: "renderer-api-does-not-import-app-components-or-hooks",
+      severity: "error",
+      from: { path: "^src/renderer/src/api/" },
+      to: { path: "^src/renderer/src/(app|components|hooks|lib)/" },
+    },
+    {
+      name: "renderer-ui-components-stay-leaf-level",
+      severity: "error",
+      from: { path: "^src/renderer/src/components/ui/" },
+      to: {
+        path: "^src/renderer/src/(app|hooks|inpainting|components/(?!ui/))",
+      },
+    },
+    {
+      name: "runtime-cjs-does-not-import-electron",
+      severity: "error",
+      from: { path: "^src/main/runtime/.*\\.cjs$" },
+      to: { path: "^electron$" },
+    },
   ],
   options: {
     doNotFollow: {

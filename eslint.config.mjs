@@ -76,6 +76,47 @@ export default tseslint.config(
     },
   },
   {
+    files: [
+      "src/renderer/src/app/session/**/*.{ts,tsx}",
+      "src/shared/ipcContracts.ts",
+      "src/preload/ipcContracts.ts",
+      "tests/appSessionSelectors.test.ts",
+      "tests/ipcContracts.test.ts",
+      "tests/mangaGateway.test.ts",
+      "tests/translationRefreshFailure.test.ts",
+    ],
+    rules: {
+      complexity: ["error", 12],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": [
+        "error",
+        { max: 80, skipBlankLines: true, skipComments: true },
+      ],
+    },
+  },
+  {
+    files: ["src/renderer/src/app/session/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "../../../shared/types",
+              message:
+                "Use domain shared imports such as libraryTypes, jobTypes, textTypes, or inpaintingTypes.",
+            },
+            {
+              name: "../../../../shared/types",
+              message:
+                "Use domain shared imports such as libraryTypes, jobTypes, textTypes, or inpaintingTypes.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/main/{ipc,jobs}/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
@@ -108,6 +149,16 @@ export default tseslint.config(
           patterns: [
             {
               group: [
+                "../shared/types",
+                "../shared/types/*",
+                "../../shared/types",
+                "../../shared/types/*",
+                "../../../shared/types",
+                "../../../shared/types/*",
+                "../../../../shared/types",
+                "../../../../shared/types/*",
+                "**/shared/types",
+                "**/shared/types/*",
                 "../preload",
                 "../preload/*",
                 "../../preload",

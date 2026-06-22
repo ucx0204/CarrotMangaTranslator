@@ -5,7 +5,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import type { ChapterSnapshot } from "../../../shared/types";
+import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import {
   mergeLiveChapterPreservingDirtyPages,
   resolveSelectionAfterChapterSync,

@@ -2811,6 +2811,10 @@ kbd {
   border-left-color: var(--danger-bd);
 }
 
+.toast.warn {
+  border-left-color: #d6a23f;
+}
+
 .toast.info {
   border-left-color: var(--accent-bd);
 }
@@ -2826,6 +2830,10 @@ kbd {
 
 .toast.error .toast-icon {
   color: var(--danger-bd);
+}
+
+.toast.warn .toast-icon {
+  color: #d6a23f;
 }
 
 .toast.info .toast-icon {

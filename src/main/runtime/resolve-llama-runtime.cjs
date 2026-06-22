@@ -6,6 +6,10 @@ function binaryName() {
   return process.platform === "win32" ? "llama-server.exe" : "llama-server";
 }
 
+/**
+ * @param {string} toolsDir
+ * @returns {string[]}
+ */
 function bundledServerCandidates(toolsDir) {
   const serverBinary = binaryName();
   const knownRuntimeDirs = [
@@ -39,6 +43,7 @@ function bundledServerCandidates(toolsDir) {
   return uniquePaths(candidates);
 }
 
+/** @param {string} serverPath */
 function hasCudaBackend(serverPath) {
   const runtimeDir = dirname(serverPath);
   return ["ggml-cuda.dll", "ggml-cuda-cu12.dll", "ggml-cuda-cu13.dll"].some(
@@ -46,6 +51,7 @@ function hasCudaBackend(serverPath) {
   );
 }
 
+/** @param {string} serverPath */
 function hasRocmBackend(serverPath) {
   const runtimeDir = dirname(serverPath);
   return [
@@ -56,6 +62,7 @@ function hasRocmBackend(serverPath) {
   ].some((fileName) => existsSync(join(runtimeDir, fileName)));
 }
 
+/** @param {string} serverPath */
 function hasVulkanBackend(serverPath) {
   const runtimeDir = dirname(serverPath);
   return ["ggml-vulkan.dll", "libggml-vulkan.so"].some((fileName) =>
@@ -63,6 +70,7 @@ function hasVulkanBackend(serverPath) {
   );
 }
 
+/** @param {string} serverPath */
 function hasGpuBackend(serverPath) {
   return (
     hasCudaBackend(serverPath) ||
@@ -71,6 +79,7 @@ function hasGpuBackend(serverPath) {
   );
 }
 
+/** @param {string} toolsDir */
 function resolveBundledServerPath(toolsDir) {
   const candidates = bundledServerCandidates(toolsDir).filter((candidate) =>
     existsSync(candidate),
@@ -82,6 +91,10 @@ function resolveBundledServerPath(toolsDir) {
   );
 }
 
+/**
+ * @param {string} toolsDir
+ * @returns {string[]}
+ */
 function listRuntimeDirs(toolsDir) {
   try {
     return readdirSync(toolsDir, { withFileTypes: true })
@@ -93,8 +106,14 @@ function listRuntimeDirs(toolsDir) {
   }
 }
 
+/**
+ * @param {string[]} paths
+ * @returns {string[]}
+ */
 function uniquePaths(paths) {
+  /** @type {Set<string>} */
   const seen = new Set();
+  /** @type {string[]} */
   const result = [];
   for (const candidate of paths) {
     if (seen.has(candidate)) {

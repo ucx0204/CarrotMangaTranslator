@@ -1,10 +1,7 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import type {
-  ChapterSnapshot,
-  InpaintingMaskStroke,
-  JobState,
-  MangaPage,
-} from "../../../shared/types";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
+import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
+import type { JobState } from "../../../shared/jobTypes";
 import type {
   BlockCounts,
   InpaintingContextValue,
@@ -52,82 +49,118 @@ type UseInpaintingContextBridgeOptions = {
   undoRetouch: () => Promise<void>;
 };
 
-export function useInpaintingContextBridge({
+type RetouchCursorMode = "brush" | "eraser" | "mask";
+
+type RetouchCursor = {
+  color: string;
+  mode: RetouchCursorMode;
+  point: { x: number; y: number } | null;
+  radiusPx: number;
+} | null;
+
+type RetouchPreviewLayer =
+  | (RetouchPreviewState & { originalImageDataUrl: string })
+  | null;
+
+type InpaintingContextState = Pick<
+  InpaintingContextValue,
+  | "blockCounts"
+  | "brushColor"
+  | "brushRadius"
+  | "canRedo"
+  | "canUndo"
+  | "currentChapter"
+  | "inpaintedPageCount"
+  | "jobActive"
+  | "jobState"
+  | "maskStrokeCount"
+  | "peekAvailable"
+  | "peeking"
+  | "progressSnapshot"
+  | "selectedPage"
+  | "showBlockChrome"
+  | "showTextBlocks"
+  | "tool"
+>;
+
+type InpaintingContextActions = Omit<
+  InpaintingContextValue,
+  keyof InpaintingContextState
+>;
+
+type InpaintingBridgeResult = {
+  contextValue: InpaintingContextValue;
+  retouchCursor: RetouchCursor;
+  retouchPreviewLayer: RetouchPreviewLayer;
+};
+
+const RETOUCH_CURSOR_COLORS: Record<
+  Exclude<RetouchCursorMode, "brush">,
+  string
+> = {
+  eraser: "#70b7ff",
+  mask: "#ff9f1c",
+};
+
+function isRetouchCursorMode(tool: InpaintingTool): tool is RetouchCursorMode {
+  return tool === "brush" || tool === "eraser" || tool === "mask";
+}
+
+function resolveRetouchCursor({
+  brushColor,
+  brushRadius,
+  retouchCursorPoint,
+  tool,
+}: Pick<
+  UseInpaintingContextBridgeOptions,
+  "brushColor" | "brushRadius" | "retouchCursorPoint" | "tool"
+>): RetouchCursor {
+  if (!isRetouchCursorMode(tool)) {
+    return null;
+  }
+  return {
+    point: retouchCursorPoint,
+    radiusPx: brushRadius,
+    mode: tool,
+    color: tool === "brush" ? brushColor : RETOUCH_CURSOR_COLORS[tool],
+  };
+}
+
+function resolveRetouchPreviewLayer(
+  retouchPreview: RetouchPreviewState | null,
+  selectedPageOriginalImageDataUrl: string,
+): RetouchPreviewLayer {
+  if (!retouchPreview || retouchPreview.points.length === 0) {
+    return null;
+  }
+  return {
+    ...retouchPreview,
+    originalImageDataUrl:
+      retouchPreview.mode === "eraser" ? selectedPageOriginalImageDataUrl : "",
+  };
+}
+
+function useInpaintingContextState({
   blockCounts,
   brushColor,
   brushRadius,
   canRedo,
   canUndo,
   currentChapter,
-  exportInpaintingResults,
   inpaintedPageCount,
   jobActive,
   jobState,
   maskStrokes,
-  onCancelJob,
-  onClearPatternMask,
-  onShowGuide,
   peekAvailable,
   peeking,
   progressSnapshot,
-  redoRetouch,
   retouchBusy,
-  retouchCursorPoint,
-  retouchPreview,
-  revertInpainting,
-  runDrawnPatternInpainting,
-  runInpainting,
   selectedPage,
-  selectedPageOriginalImageDataUrl,
-  setBrushColor,
-  setBrushRadius,
-  setPeeking,
-  setShowBlockChrome,
-  setShowTextBlocks,
-  setTool,
   showBlockChrome,
   showTextBlocks,
   tool,
-  undoRetouch,
-}: UseInpaintingContextBridgeOptions): {
-  contextValue: InpaintingContextValue;
-  retouchCursor: {
-    color: string;
-    mode: "brush" | "eraser" | "mask";
-    point: { x: number; y: number } | null;
-    radiusPx: number;
-  } | null;
-  retouchPreviewLayer:
-    | (RetouchPreviewState & { originalImageDataUrl: string })
-    | null;
-} {
-  const retouchCursor =
-    tool === "brush" || tool === "eraser" || tool === "mask"
-      ? {
-          point: retouchCursorPoint,
-          radiusPx: brushRadius,
-          mode: tool,
-          color:
-            tool === "brush"
-              ? brushColor
-              : tool === "mask"
-                ? "#ff9f1c"
-                : "#70b7ff",
-        }
-      : null;
-
-  const retouchPreviewLayer =
-    retouchPreview && retouchPreview.points.length > 0
-      ? {
-          ...retouchPreview,
-          originalImageDataUrl:
-            retouchPreview.mode === "eraser"
-              ? selectedPageOriginalImageDataUrl
-              : "",
-        }
-      : null;
-
-  const contextValue = useMemo<InpaintingContextValue>(
+}: UseInpaintingContextBridgeOptions): InpaintingContextState {
+  return useMemo<InpaintingContextState>(
     () => ({
       currentChapter,
       selectedPage,
@@ -146,6 +179,49 @@ export function useInpaintingContextBridge({
       jobActive,
       peekAvailable,
       peeking,
+    }),
+    [
+      blockCounts,
+      brushColor,
+      brushRadius,
+      canRedo,
+      canUndo,
+      currentChapter,
+      inpaintedPageCount,
+      jobActive,
+      jobState,
+      maskStrokes.length,
+      peekAvailable,
+      peeking,
+      progressSnapshot,
+      retouchBusy,
+      selectedPage,
+      showBlockChrome,
+      showTextBlocks,
+      tool,
+    ],
+  );
+}
+
+function useInpaintingContextActions({
+  exportInpaintingResults,
+  onCancelJob,
+  onClearPatternMask,
+  onShowGuide,
+  redoRetouch,
+  revertInpainting,
+  runDrawnPatternInpainting,
+  runInpainting,
+  setBrushColor,
+  setBrushRadius,
+  setPeeking,
+  setShowBlockChrome,
+  setShowTextBlocks,
+  setTool,
+  undoRetouch,
+}: UseInpaintingContextBridgeOptions): InpaintingContextActions {
+  return useMemo<InpaintingContextActions>(
+    () => ({
       onSelectTool: setTool,
       onBrushRadiusChange: setBrushRadius,
       onBrushColorChange: setBrushColor,
@@ -165,41 +241,49 @@ export function useInpaintingContextBridge({
       onCancelJob,
     }),
     [
-      blockCounts,
-      brushColor,
-      brushRadius,
-      canRedo,
-      canUndo,
-      currentChapter,
       exportInpaintingResults,
-      inpaintedPageCount,
-      jobActive,
-      jobState,
-      maskStrokes.length,
       onCancelJob,
       onClearPatternMask,
       onShowGuide,
-      peekAvailable,
-      peeking,
-      progressSnapshot,
       redoRetouch,
-      retouchBusy,
       revertInpainting,
       runDrawnPatternInpainting,
       runInpainting,
-      selectedPage,
       setBrushColor,
       setBrushRadius,
       setPeeking,
       setShowBlockChrome,
       setShowTextBlocks,
       setTool,
-      showBlockChrome,
-      showTextBlocks,
-      tool,
       undoRetouch,
     ],
   );
+}
+
+function useInpaintingContextValue(
+  options: UseInpaintingContextBridgeOptions,
+): InpaintingContextValue {
+  const state = useInpaintingContextState(options);
+  const actions = useInpaintingContextActions(options);
+
+  return useMemo(
+    () => ({
+      ...state,
+      ...actions,
+    }),
+    [actions, state],
+  );
+}
+
+export function useInpaintingContextBridge(
+  options: UseInpaintingContextBridgeOptions,
+): InpaintingBridgeResult {
+  const retouchCursor = resolveRetouchCursor(options);
+  const retouchPreviewLayer = resolveRetouchPreviewLayer(
+    options.retouchPreview,
+    options.selectedPageOriginalImageDataUrl,
+  );
+  const contextValue = useInpaintingContextValue(options);
 
   return { contextValue, retouchCursor, retouchPreviewLayer };
 }

@@ -4,6 +4,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import type { RemoteFileMetadata } from "./types";
 
+type Dirent = import("node:fs").Dirent;
+
 export function safeReadDir(dir: string): import("node:fs").Dirent[] {
   try {
     return readdirSync(dir, { withFileTypes: true });
@@ -53,7 +55,7 @@ export function findFirstFileRecursive(
 
 export function findFilesRecursive(
   root: string,
-  predicate: (entry: import("node:fs").Dirent, fullPath: string) => boolean,
+  predicate: (entry: Dirent, fullPath: string) => boolean,
   maxDepth: number,
   limit: number,
 ): string[] {
@@ -77,11 +79,8 @@ export function findFilesRecursive(
     }
     for (const entry of entries) {
       const fullPath = join(current.dir, entry.name);
-      if (predicate(entry, fullPath)) {
-        results.push(fullPath);
-        if (results.length >= limit) {
-          break;
-        }
+      if (appendMatchingFile(results, limit, entry, fullPath, predicate)) {
+        break;
       }
       if (
         entry.isDirectory() &&
@@ -93,6 +92,20 @@ export function findFilesRecursive(
     }
   }
   return results;
+}
+
+function appendMatchingFile(
+  results: string[],
+  limit: number,
+  entry: Dirent,
+  fullPath: string,
+  predicate: (entry: Dirent, fullPath: string) => boolean,
+): boolean {
+  if (!predicate(entry, fullPath)) {
+    return false;
+  }
+  results.push(fullPath);
+  return results.length >= limit;
 }
 
 export function isPathInside(child: string, parent: string): boolean {

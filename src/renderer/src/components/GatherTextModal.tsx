@@ -1,10 +1,7 @@
 /* eslint-disable max-lines, max-lines-per-function */
 import React from "react";
-import type {
-  ChapterSnapshot,
-  MangaPage,
-  ReviewExportFormat,
-} from "../../../shared/types";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
+import type { ReviewExportFormat } from "../../../shared/reviewTypes";
 import { mangaGateway } from "../api/mangaGateway";
 import { toast } from "../lib/toastStore";
 import {

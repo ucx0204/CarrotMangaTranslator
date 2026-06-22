@@ -1,6 +1,17 @@
 // @ts-check
 /** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
+/**
+ * @typedef {RuntimeOptions & {
+ *   ocrDevice?: unknown;
+ *   ocrGpuBackend?: unknown;
+ *   ocrGpuCudaTag?: unknown;
+ *   ocrRuntimeDir?: string | null;
+ *   toolsDir?: string | null;
+ *   workingDir?: string | null;
+ *   [key: string]: unknown;
+ * }} OcrConfigOptions
+ */
 const nodeCrypto = require("node:crypto");
 const { existsSync } = require("node:fs");
 const os = require("node:os");
@@ -50,6 +61,10 @@ const OCR_ROCM_LONGEST_PIP_TEMP_ENTRY = path.join(
   OCR_ROCM_LONGEST_LIBRARY_ENTRY,
 );
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isTruthy(value) {
   const text = String(value ?? "")
     .trim()
@@ -57,11 +72,20 @@ function isTruthy(value) {
   return ["1", "true", "yes", "y", "on"].includes(text);
 }
 
+/**
+ * @param {unknown} value
+ * @returns {number}
+ */
 function readPositiveInteger(value) {
   const parsed = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} [maxLength]
+ * @returns {string}
+ */
 function truncateText(value, maxLength = 1200) {
   const text = String(value ?? "");
   if (text.length <= maxLength) {
@@ -70,6 +94,10 @@ function truncateText(value, maxLength = 1200) {
   return `${text.slice(0, maxLength)}... [truncated ${text.length - maxLength} chars]`;
 }
 
+/**
+ * @param {string} pythonPath
+ * @returns {string}
+ */
 function resolveInstallProgressDir(pythonPath) {
   const resolved = path.resolve(String(pythonPath || ""));
   if (
@@ -84,7 +112,7 @@ function resolveInstallProgressDir(pythonPath) {
  * @param {RuntimeOptions} [options]
  * @returns {string}
  */
-function resolveOcrRuntimeDir(options = {}) {
+function resolveOcrRuntimeDir(options = /** @type {OcrConfigOptions} */ ({})) {
   const explicitGlobal = runtimeOverrideEnv(
     "MANGA_TRANSLATOR_OCR_RUNTIME_DIR",
     options,
@@ -105,7 +133,9 @@ function resolveOcrRuntimeDir(options = {}) {
   );
 }
 
-function shouldUseWindowsShortRocmOcrLayout(options = {}) {
+function shouldUseWindowsShortRocmOcrLayout(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   return (
     process.platform === "win32" &&
     isOcrGpuRequested(options) &&
@@ -113,7 +143,9 @@ function shouldUseWindowsShortRocmOcrLayout(options = {}) {
   );
 }
 
-function resolveWindowsRocmOcrRuntimeDir(options = {}) {
+function resolveWindowsRocmOcrRuntimeDir(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const explicit =
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_ROCM_RUNTIME_DIR", options) ??
     runtimeOverrideEnv("MGT_OCR_ROCM_RUNTIME_DIR", options);
@@ -152,6 +184,10 @@ function resolveWindowsRocmOcrRuntimeDir(options = {}) {
   );
 }
 
+/**
+ * @param {string} runtimeDir
+ * @returns {boolean}
+ */
 function isWindowsRocmOcrRuntimePathShortEnough(runtimeDir) {
   const longestRuntimePath = Math.max(
     path.join(runtimeDir, OCR_ROCM_LONGEST_FINAL_ENTRY).length,
@@ -162,19 +198,43 @@ function isWindowsRocmOcrRuntimePathShortEnough(runtimeDir) {
   );
 }
 
-function resolveOcrTempDir(runtimeDir, options = {}) {
+/**
+ * @param {string} runtimeDir
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function resolveOcrTempDir(
+  runtimeDir,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   return shouldUseWindowsShortRocmOcrLayout(options)
     ? path.join(runtimeDir, "t")
     : path.join(runtimeDir, "tmp");
 }
 
-function resolveOcrPipCacheDir(runtimeDir, options = {}) {
+/**
+ * @param {string} runtimeDir
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function resolveOcrPipCacheDir(
+  runtimeDir,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   return shouldUseWindowsShortRocmOcrLayout(options)
     ? path.join(runtimeDir, "c")
     : path.join(runtimeDir, "pip-cache");
 }
 
-function resolveOcrPythonUserBaseDir(runtimeDir, options = {}) {
+/**
+ * @param {string} runtimeDir
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function resolveOcrPythonUserBaseDir(
+  runtimeDir,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   return shouldUseWindowsShortRocmOcrLayout(options)
     ? path.join(runtimeDir, "u")
     : path.join(runtimeDir, "python-user-base");
@@ -186,7 +246,11 @@ function resolveOcrPythonUserBaseDir(runtimeDir, options = {}) {
  * @param {OcrRuntimeLayout | null} [runtime]
  * @returns {string}
  */
-function resolvePaddlexCacheHome(runtimeDir, options = {}, runtime = null) {
+function resolvePaddlexCacheHome(
+  runtimeDir,
+  options = /** @type {OcrConfigOptions} */ ({}),
+  runtime = null,
+) {
   const explicit = runtimeOverrideEnv("PADDLE_PDX_CACHE_HOME", options);
   if (explicit) {
     return path.resolve(String(explicit));
@@ -210,6 +274,10 @@ function resolvePaddlexCacheHome(runtimeDir, options = {}, runtime = null) {
   );
 }
 
+/**
+ * @param {string} runtimeDir
+ * @returns {string}
+ */
 function resolveRealPaddlexCacheHome(runtimeDir) {
   return path.join(runtimeDir, "paddlex-cache");
 }
@@ -218,7 +286,9 @@ function resolveRealPaddlexCacheHome(runtimeDir) {
  * @param {RuntimeOptions} [options]
  * @returns {string}
  */
-function resolvePaddlexCacheAliasRoot(options = {}) {
+function resolvePaddlexCacheAliasRoot(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const explicit = runtimeOverrideEnv(
     "MANGA_TRANSLATOR_OCR_CACHE_ALIAS_ROOT",
     options,
@@ -230,17 +300,27 @@ function resolvePaddlexCacheAliasRoot(options = {}) {
   return path.join(base || process.cwd(), "mgt-ocr-cache-links");
 }
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function hasNonAsciiPath(value) {
   return /[^\x00-\x7f]/.test(String(value ?? ""));
 }
 
+/**
+ * @param {string} venvDir
+ * @returns {string}
+ */
 function resolveVenvPythonPath(venvDir) {
   return process.platform === "win32"
     ? path.join(venvDir, "Scripts", "python.exe")
     : path.join(venvDir, "bin", "python");
 }
 
-function resolveBootstrapPython(options = {}) {
+function resolveBootstrapPython(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const explicitCandidates = [
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PYTHON", options),
     runtimeOverrideEnv("MANGA_TRANSLATOR_PYTHON", options),
@@ -272,7 +352,9 @@ function resolveBootstrapPython(options = {}) {
   return null;
 }
 
-function shouldAllowSystemPythonFallback(options = {}) {
+function shouldAllowSystemPythonFallback(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const explicit =
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_ALLOW_SYSTEM_PYTHON", options) ??
     runtimeOverrideEnv("MANGA_TRANSLATOR_ALLOW_SYSTEM_PYTHON", options);
@@ -282,7 +364,9 @@ function shouldAllowSystemPythonFallback(options = {}) {
   return !isLikelyPackagedToolsDir(options.toolsDir);
 }
 
-function resolveOcrPipInstallBatches(options = {}) {
+function resolveOcrPipInstallBatches(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const explicit = splitShellLikeEnv(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", options),
   );
@@ -332,7 +416,9 @@ function resolveOcrPipInstallBatches(options = {}) {
   ]);
 }
 
-function resolveOcrGpuPaddleInstallBatch(options = {}) {
+function resolveOcrGpuPaddleInstallBatch(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const explicitWheel = String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_WHEEL", options) ?? "",
   ).trim();
@@ -347,6 +433,10 @@ function resolveOcrGpuPaddleInstallBatch(options = {}) {
   ];
 }
 
+/**
+ * @param {unknown} installBatches
+ * @returns {string[][]}
+ */
 function withPaddleOcrVlSafetensorsBatch(installBatches) {
   const batches = Array.isArray(installBatches)
     ? installBatches.map((batch) => (Array.isArray(batch) ? [...batch] : []))
@@ -355,9 +445,11 @@ function withPaddleOcrVlSafetensorsBatch(installBatches) {
     return batches;
   }
 
+  /** @type {string[]} */
   const safetensorsPackages = [];
   const normalizedBatches = batches
     .map((batch) => {
+      /** @type {string[]} */
       const normalPackages = [];
       for (const item of batch) {
         const text = String(item ?? "").trim();
@@ -384,11 +476,16 @@ function withPaddleOcrVlSafetensorsBatch(installBatches) {
   return [...normalizedBatches, safetensorsBatch];
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
 function splitShellLikeEnv(value) {
   const raw = String(value ?? "").trim();
   if (!raw) {
     return [];
   }
+  /** @type {string[]} */
   const parts = [];
   let current = "";
   let quote = "";
@@ -433,7 +530,15 @@ function splitShellLikeEnv(value) {
   return parts;
 }
 
-function summarizeOcrInstallBatches(installBatches, options = {}) {
+/**
+ * @param {unknown} installBatches
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function summarizeOcrInstallBatches(
+  installBatches,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const packageNames = (Array.isArray(installBatches) ? installBatches : [])
     .map((batch) => resolveOcrInstallBatchLabel(batch, options))
     .filter(Boolean);
@@ -447,7 +552,15 @@ function summarizeOcrInstallBatches(installBatches, options = {}) {
   return `${packageNames.join(", ") || "Paddle OCR packages"}${suffix}`;
 }
 
-function resolveOcrInstallBatchLabel(packages, options = {}) {
+/**
+ * @param {unknown} packages
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function resolveOcrInstallBatchLabel(
+  packages,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const batch = Array.isArray(packages) ? packages : [];
   const packageText = batch.join(" ").toLowerCase();
   if (
@@ -500,18 +613,18 @@ function resolveOcrInstallBatchLabel(packages, options = {}) {
   return urlNames.join(", ");
 }
 
-function isOcrGpuRequested(options = {}) {
+function isOcrGpuRequested(options = /** @type {OcrConfigOptions} */ ({})) {
   return resolveOcrDevice(options).startsWith("gpu");
 }
 
-function isOcrBlackwellCudaTag(options = {}) {
+function isOcrBlackwellCudaTag(options = /** @type {OcrConfigOptions} */ ({})) {
   return (
     resolveOcrGpuBackend(options) === "cuda" &&
     resolveOcrGpuCudaTag(options) === "cu129"
   );
 }
 
-function resolveOcrGpuBackend(options = {}) {
+function resolveOcrGpuBackend(options = /** @type {OcrConfigOptions} */ ({})) {
   const normalized = String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_BACKEND", options) ??
       options.ocrGpuBackend ??
@@ -534,7 +647,7 @@ function resolveOcrGpuBackend(options = {}) {
   return "cuda";
 }
 
-function resolveOcrGpuCudaTag(options = {}) {
+function resolveOcrGpuCudaTag(options = /** @type {OcrConfigOptions} */ ({})) {
   const raw = String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG", options) ??
       runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_CUDA_TAG", options) ??
@@ -551,7 +664,9 @@ function resolveOcrGpuCudaTag(options = {}) {
   return digits ? `cu${digits}` : DEFAULT_OCR_GPU_CUDA_TAG;
 }
 
-function resolveOcrGpuPackageIndexUrl(options = {}) {
+function resolveOcrGpuPackageIndexUrl(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   return String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_PADDLE_INDEX_URL", options) ??
       runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL", options) ??
@@ -559,7 +674,9 @@ function resolveOcrGpuPackageIndexUrl(options = {}) {
   ).trim();
 }
 
-function resolveOcrRuntimeVariant(options = {}) {
+function resolveOcrRuntimeVariant(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   if (!isOcrGpuRequested(options)) {
     return "cpu";
   }
@@ -571,7 +688,15 @@ function resolveOcrRuntimeVariant(options = {}) {
     .toLowerCase();
 }
 
-function resolveOcrPythonPackageDir(runtimeDir, options = {}) {
+/**
+ * @param {string} runtimeDir
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function resolveOcrPythonPackageDir(
+  runtimeDir,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   if (shouldUseWindowsShortRocmOcrLayout(options)) {
     return path.join(runtimeDir, "p");
   }
@@ -582,14 +707,24 @@ function resolveOcrPythonPackageDir(runtimeDir, options = {}) {
   );
 }
 
-function resolveOcrVenvDir(runtimeDir, runtimeVariant, options = {}) {
+/**
+ * @param {string} runtimeDir
+ * @param {string} runtimeVariant
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function resolveOcrVenvDir(
+  runtimeDir,
+  runtimeVariant,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   if (shouldUseWindowsShortRocmOcrLayout(options)) {
     return path.join(runtimeDir, "v");
   }
   return path.join(runtimeDir, `.venv-${runtimeVariant}`);
 }
 
-function resolveOcrDevice(options = {}) {
+function resolveOcrDevice(options = /** @type {OcrConfigOptions} */ ({})) {
   const explicitDevice = String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_DEVICE", options) ?? "",
   ).trim();
@@ -612,12 +747,14 @@ function resolveOcrDevice(options = {}) {
   return "cpu";
 }
 
-function resolveOcrDeviceLabel(options = {}) {
+function resolveOcrDeviceLabel(options = /** @type {OcrConfigOptions} */ ({})) {
   const device = resolveOcrDevice(options);
   return device === "cpu" ? "CPU" : device.toUpperCase();
 }
 
-function resolvePaddleOcrImportCheckTimeoutMs(options = {}) {
+function resolvePaddleOcrImportCheckTimeoutMs(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const explicit = readPositiveInteger(
     process.env.MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS,
   );
@@ -633,7 +770,15 @@ function resolvePaddleOcrImportCheckTimeoutMs(options = {}) {
   return 120000;
 }
 
-function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
+/**
+ * @param {unknown} importMessage
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function buildPaddleOcrImportFailureMessage(
+  importMessage,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   if (
     isOcrGpuRequested(options) &&
     resolveOcrGpuBackend(options) === "rocm-transformers"
@@ -671,7 +816,9 @@ function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
   return `PaddleOCR-VL runtime was installed but paddleocr/paddlex/paddle imports still fail.${suffix}${detail}`;
 }
 
-function resolvePaddleOcrTimeoutSuffix(options = {}) {
+function resolvePaddleOcrTimeoutSuffix(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   if (!isOcrGpuRequested(options)) {
     return " CPU 런타임 검증이 제한 시간 안에 끝나지 않았습니다.";
   }
@@ -681,7 +828,15 @@ function resolvePaddleOcrTimeoutSuffix(options = {}) {
   return ` CUDA GPU 검증이 제한 시간 안에 끝나지 않았습니다. RTX 50번대는 cu129 런타임을 사용하며 첫 실행 검증이 오래 걸릴 수 있지만, 반복되면 NVIDIA 드라이버/CUDA 12.9용 Paddle 런타임 호환성을 확인해야 합니다.`;
 }
 
-function buildPaddleOcrGpuFailureMessage(error, options = {}) {
+/**
+ * @param {unknown} error
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function buildPaddleOcrGpuFailureMessage(
+  error,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const text = summarizeOcrErrorMessage(error);
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return `AMD OCR GPU 실행에 실패했습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 Python 3.12가 필요합니다. AMD ROCm 지원 GPU/드라이버와 OCR 안전 모드 설정을 확인하세요. detail=${truncateText(text, 1200)}`;
@@ -695,15 +850,39 @@ function buildPaddleOcrGpuFailureMessage(error, options = {}) {
   return `Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 NVIDIA GPU Paddle 런타임이 필요합니다. OCR 장치를 CPU로 바꾸거나 NVIDIA 드라이버/CUDA용 Paddle 런타임을 확인하세요. detail=${truncateText(text, 1200)}`;
 }
 
-function buildPaddleOcrSm120FailureMessage(detail, options = {}) {
+/**
+ * @param {unknown} detail
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function buildPaddleOcrSm120FailureMessage(
+  detail,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   return `RTX 50번대/SM120에서 현재 Paddle OCR GPU 런타임이 맞지 않습니다. RTX 50번대는 CUDA 12.9용 Paddle OCR 런타임(cu129)을 사용해야 합니다. 설정값은 현재 ${resolveOcrGpuCudaTag(options)}입니다. 기존 gpu-cu126 런타임이 남아 있으면 OCR 런타임을 삭제하고 다시 시도하세요. detail=${truncateText(detail, 1200)}`;
 }
 
-function buildPaddleOcrBfloat16SafetensorsFailureMessage(detail, options = {}) {
+/**
+ * @param {unknown} detail
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function buildPaddleOcrBfloat16SafetensorsFailureMessage(
+  detail,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   return `PaddleOCR-VL 모델 가중치(bfloat16)를 현재 OCR 런타임이 읽지 못했습니다. Windows에서는 PaddleOCR-VL용 special safetensors 휠과 공식 ${resolveOcrGpuCudaTag(options)} Paddle 런타임이 같이 필요합니다. OCR 런타임 패키지가 다시 설치되도록 앱을 업데이트한 뒤 재시도하세요. detail=${truncateText(detail, 1200)}`;
 }
 
-function buildPaddleOcrNativeDllFailureMessage(detail, options = {}) {
+/**
+ * @param {unknown} detail
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function buildPaddleOcrNativeDllFailureMessage(
+  detail,
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   if (
     isOcrGpuRequested(options) &&
     resolveOcrGpuBackend(options) === "rocm-transformers"
@@ -714,52 +893,80 @@ function buildPaddleOcrNativeDllFailureMessage(detail, options = {}) {
   return `Paddle OCR ${runtimeLabel} 런타임의 네이티브 DLL을 불러오지 못했습니다. 앱이 Paddle 패키지 내부 DLL 경로를 다시 잡도록 수정했지만, 같은 오류가 반복되면 OCR 런타임을 삭제하고 재설치하거나 Microsoft Visual C++ 2015-2022 재배포 패키지가 설치되어 있는지 확인하세요. detail=${truncateText(detail, 1200)}`;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isPaddleSm120UnsupportedText(value) {
   return /not compiled for\s+SM\s*120|sm[_\s-]*120|compute capability:\s*12(?:\.0)?|mismatched gpu architecture/i.test(
     String(value ?? ""),
   );
 }
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isPaddleBfloat16SafetensorsText(value) {
   return /data type ['"]?bfloat16['"]? not understood|_load_part_state_dict_from_safetensors/i.test(
     String(value ?? ""),
   );
 }
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isPaddleNativeDllLoadFailureText(value) {
   return /can not import paddle core|libpaddle\.pyd|dll load failed while importing libpaddle|the specified module could not be found/i.test(
     String(value ?? ""),
   );
 }
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isPaddleOcrVerificationTimeoutText(value) {
   return /Paddle OCR runtime verification timed out|OCR bbox command timed out/i.test(
     String(value ?? ""),
   );
 }
 
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
 function summarizeOcrErrorMessage(error) {
   if (!error || typeof error !== "object") {
     return String(error ?? "");
   }
+  const summary =
+    /** @type {{ message?: unknown; stderrPreview?: unknown; stdoutPreview?: unknown; cause?: unknown }} */ (
+      error
+    );
   const parts = [
-    error.message,
-    error.stderrPreview,
-    error.stdoutPreview,
-    error.cause instanceof Error ? error.cause.message : error.cause,
+    summary.message,
+    summary.stderrPreview,
+    summary.stdoutPreview,
+    summary.cause instanceof Error ? summary.cause.message : summary.cause,
   ].filter(Boolean);
   return parts.length > 0
     ? parts.map((part) => String(part)).join(" ")
     : String(error);
 }
 
-function resolveOcrInstallSignature(options = {}) {
+function resolveOcrInstallSignature(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   return resolveOcrPipInstallBatches(options)
     .map((batch) => batch.join(" "))
     .join(" | ");
 }
 
-function buildPaddleOcrImportCheckScript(options = {}) {
+function buildPaddleOcrImportCheckScript(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
   const device = resolveOcrDevice(options);
   if (
     device.startsWith("gpu") &&
@@ -810,7 +1017,10 @@ function buildPaddleOcrImportCheckScript(options = {}) {
  * @param {OcrRuntimeLayout | null} [runtime]
  * @returns {NodeJS.ProcessEnv}
  */
-function buildOcrRuntimeEnv(options = {}, runtime = null) {
+function buildOcrRuntimeEnv(
+  options = /** @type {OcrConfigOptions} */ ({}),
+  runtime = null,
+) {
   const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);
   const hfHomeDir =
     options.hfHomeDir ||
@@ -940,7 +1150,7 @@ function buildOcrRuntimeEnv(options = {}, runtime = null) {
  * @returns {Array<string | null | undefined>}
  */
 function buildOcrRuntimePathDirs(
-  options = {},
+  options = /** @type {OcrConfigOptions} */ ({}),
   runtime = null,
   runtimeDir = resolveOcrRuntimeDir(options),
 ) {
@@ -969,7 +1179,7 @@ function buildOcrRuntimePathDirs(
  * @returns {string[]}
  */
 function buildOcrRuntimeDllSearchDirs(
-  options = {},
+  options = /** @type {OcrConfigOptions} */ ({}),
   runtime = null,
   runtimeDir = resolveOcrRuntimeDir(options),
 ) {

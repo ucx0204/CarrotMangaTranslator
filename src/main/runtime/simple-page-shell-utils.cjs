@@ -9,12 +9,18 @@
  *   timeoutMessage?: string;
  *   timeoutMs?: number;
  * }} RunShellCommandOptions
+ * @typedef {{ write(chunk: unknown): void; flush(): void }} CommandOutputLineEmitter
  */
 const { spawn } = require("node:child_process");
 
 const { buildUtilityChildEnv } = require("./simple-page-child-env.cjs");
 const { sanitizeInstallLogLine } = require("./simple-page-progress.cjs");
 
+/**
+ * @param {unknown} value
+ * @param {number} [maxLength]
+ * @returns {string}
+ */
 function truncateText(value, maxLength = 8000) {
   const text = String(value ?? "");
   if (text.length <= maxLength) {
@@ -23,6 +29,12 @@ function truncateText(value, maxLength = 8000) {
   return `${text.slice(0, maxLength)}... [truncated ${text.length - maxLength} chars]`;
 }
 
+/**
+ * @param {string} message
+ * @param {Record<string, unknown>} [detail]
+ * @param {unknown} [cause]
+ * @returns {Error}
+ */
 function createDetailedError(message, detail = {}, cause) {
   const error = new Error(message);
   if (cause !== undefined) {
@@ -32,11 +44,22 @@ function createDetailedError(message, detail = {}, cause) {
   return error;
 }
 
+/**
+ * @param {string} current
+ * @param {unknown} chunk
+ * @param {number} [maxLength]
+ * @returns {string}
+ */
 function shrinkBuffer(current, chunk, maxLength = 12000) {
   const next = `${current}${String(chunk)}`;
   return next.length > maxLength ? next.slice(next.length - maxLength) : next;
 }
 
+/**
+ * @param {string} template
+ * @param {Record<string, string>} replacements
+ * @returns {string}
+ */
 function renderCommandTemplate(template, replacements) {
   let rendered = template;
   for (const [key, value] of Object.entries(replacements)) {
@@ -45,6 +68,10 @@ function renderCommandTemplate(template, replacements) {
   return rendered;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function quoteCommandArg(value) {
   const text = String(value ?? "");
   return `"${text.replace(/"/g, '\\"')}"`;
@@ -81,6 +108,7 @@ function runShellCommand(
     });
     let stdout = "";
     let stderr = "";
+    /** @type {ReturnType<typeof setTimeout> | null} */
     let timeout = null;
     let settled = false;
     const stdoutLines = createCommandOutputLineEmitter(onOutput);
@@ -91,6 +119,7 @@ function runShellCommand(
       signal?.removeEventListener?.("abort", onAbort);
     };
 
+    /** @param {unknown} error */
     const settleReject = (error) => {
       if (settled) {
         return;
@@ -100,6 +129,7 @@ function runShellCommand(
       reject(error);
     };
 
+    /** @param {{ stdout: string; stderr: string }} result */
     const settleResolve = (result) => {
       if (settled) {
         return;
@@ -172,8 +202,13 @@ function runShellCommand(
   });
 }
 
+/**
+ * @param {RunShellCommandOptions["onOutput"]} onOutput
+ * @returns {CommandOutputLineEmitter}
+ */
 function createCommandOutputLineEmitter(onOutput) {
   let pending = "";
+  /** @param {string} line */
   const emitLine = (line) => {
     if (typeof onOutput !== "function") {
       return;
@@ -185,6 +220,7 @@ function createCommandOutputLineEmitter(onOutput) {
   };
 
   return {
+    /** @param {unknown} chunk */
     write(chunk) {
       if (typeof onOutput !== "function") {
         return;
@@ -219,6 +255,7 @@ function createCommandOutputLineEmitter(onOutput) {
   };
 }
 
+/** @returns {Error | DOMException} */
 function createAbortError() {
   if (typeof DOMException === "function") {
     return new DOMException("Aborted", "AbortError");
@@ -228,6 +265,7 @@ function createAbortError() {
   return error;
 }
 
+/** @param {import("node:child_process").ChildProcess} child */
 function terminateChildProcessTree(child) {
   if (
     !child ||

@@ -1,17 +1,25 @@
 import { execFile } from "node:child_process";
+import {
+  inferAmdRocmTargetFromName,
+  parseRocmArch,
+  resolveAmdRocmTargetFromArch,
+  resolveAmdRocmTargetFromInfo,
+} from "./amdRocmTargets";
+import type { AmdRocmTarget } from "./amdRocmTargets";
+
+export {
+  inferAmdRocmTargetFromName,
+  normalizeAmdRocmTarget,
+  parseRocmArch,
+  resolveAmdRocmTargetFromArch,
+  resolveAmdRocmTargetFromInfo,
+} from "./amdRocmTargets";
+export type { AmdRocmTarget } from "./amdRocmTargets";
 
 let cachedGpuInfoPromise: Promise<DetectedGpuInfo | null> | null = null;
 const WINDOWS_AMD_GPU_FIELD_SEPARATOR = "\u001f";
 
 export type GpuVendor = "nvidia" | "amd" | "unknown";
-export type AmdRocmTarget =
-  | "gfx908"
-  | "gfx90a"
-  | "gfx103X"
-  | "gfx110X"
-  | "gfx1150"
-  | "gfx1151"
-  | "gfx120X";
 
 export type DetectedGpuInfo = {
   name: string | null;
@@ -342,121 +350,6 @@ function parseMemoryMb(value: string): number | null {
   return null;
 }
 
-export function parseRocmArch(value: string): string | null {
-  const match = value.match(/\bgfx[0-9a-f]+(?:[:_a-z0-9.-]*)?\b/i);
-  return match ? match[0].toLowerCase() : null;
-}
-
-export function normalizeAmdRocmTarget(value: unknown): AmdRocmTarget | null {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[-_\s]/g, "");
-  if (!normalized) {
-    return null;
-  }
-  if (normalized === "gfx908") {
-    return "gfx908";
-  }
-  if (normalized === "gfx90a") {
-    return "gfx90a";
-  }
-  if (/^gfx103[0-9a-fx]*$/.test(normalized)) {
-    return "gfx103X";
-  }
-  if (/^gfx110[0-9a-fx]*$/.test(normalized)) {
-    return "gfx110X";
-  }
-  if (normalized === "gfx1150") {
-    return "gfx1150";
-  }
-  if (normalized === "gfx1151") {
-    return "gfx1151";
-  }
-  if (/^gfx120[0-9a-fx]*$/.test(normalized)) {
-    return "gfx120X";
-  }
-  if (normalized === "gfx103x") {
-    return "gfx103X";
-  }
-  if (normalized === "gfx110x") {
-    return "gfx110X";
-  }
-  if (normalized === "gfx120x") {
-    return "gfx120X";
-  }
-  return null;
-}
-
-export function resolveAmdRocmTargetFromArch(
-  arch: string | null | undefined,
-): AmdRocmTarget | null {
-  return normalizeAmdRocmTarget(parseRocmArch(String(arch ?? "")) ?? arch);
-}
-
-export function inferAmdRocmTargetFromName(
-  name: string | null | undefined,
-): AmdRocmTarget | null {
-  const normalized = String(name ?? "")
-    .toLowerCase()
-    .replace(/[™®]/g, " ");
-  if (!normalized.trim()) {
-    return null;
-  }
-
-  if (/\bmi\s*100\b|\binstinct\s+mi100\b/.test(normalized)) {
-    return "gfx908";
-  }
-  if (
-    /\bmi\s*(200|210|250)\b|\binstinct\s+mi(200|210|250)\b/.test(normalized)
-  ) {
-    return "gfx90a";
-  }
-  if (
-    /\b(?:amd\s+)?(?:radeon\s+)?(?:ai\s+)?pro\s+r\s*9700\b/.test(normalized) ||
-    /\b(rx\s*)?90(60|70)\b|\b(rx\s*)?90(60|70)\s*(xt|gre)\b/.test(normalized)
-  ) {
-    return "gfx120X";
-  }
-  if (
-    /\b(?:amd\s+)?(?:radeon\s+)?(?:pro\s+)?v\s*710(?:\s*mxgpu)?(?:[-\s]\d+q)?\b/.test(
-      normalized,
-    ) ||
-    /\bven_1002&dev_746[01]\b/.test(normalized) ||
-    /\bven_1002&dev_7480\b/.test(normalized) ||
-    /\b(rx\s*)?7(600|650|700|800|900)\b|\b(rx\s*)?7(600|650|700|800|900)\s*(xt|xtx|gre)\b/.test(
-      normalized,
-    ) ||
-    /\b(?:radeon\s+)?(?:pro\s*)?w7(500|600|700|800|900)\b/.test(normalized) ||
-    /\bradeon\s+(740m|760m|780m)\b/.test(normalized)
-  ) {
-    return "gfx110X";
-  }
-  if (
-    /\b(?:radeon\s+)?pro\s+(v\s*620|w\s*(6600|6800))\b/.test(normalized) ||
-    /\b(rx\s*)?6(400|500|600|650|700|750|800|900|950)\b|\b(rx\s*)?6(400|500|600|650|700|750|800|900|950)\s*(xt|m|s)\b/.test(
-      normalized,
-    )
-  ) {
-    return "gfx103X";
-  }
-  if (
-    /\bryzen\s+ai\s+max\b|\bstrix\s+halo\b|\bradeon\s+80(50|60)s\b/.test(
-      normalized,
-    )
-  ) {
-    return "gfx1151";
-  }
-  if (
-    /\bryzen\s+ai\s+9\s+(hx\s*37(0|5)|365)\b|\bradeon\s+(880m|890m)\b/.test(
-      normalized,
-    )
-  ) {
-    return "gfx1150";
-  }
-  return null;
-}
-
 function parseWindowsAmdGpuFields(line: string): string[] {
   if (line.includes(WINDOWS_AMD_GPU_FIELD_SEPARATOR)) {
     const fields = line
@@ -493,16 +386,6 @@ function pickAmdDisplayName(
     ) ??
     candidates[0] ??
     null
-  );
-}
-
-export function resolveAmdRocmTargetFromInfo(
-  info: DetectedGpuInfo | null | undefined,
-): AmdRocmTarget | null {
-  return (
-    normalizeAmdRocmTarget(info?.rocmTarget) ??
-    resolveAmdRocmTargetFromArch(info?.rocmArch) ??
-    inferAmdRocmTargetFromName(info?.name)
   );
 }
 

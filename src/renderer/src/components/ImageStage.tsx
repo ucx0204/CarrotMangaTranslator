@@ -1,282 +1,223 @@
 import React from "react";
-import type {
-  BBox,
-  InpaintingMaskStroke,
-  MangaPage,
-  TranslationBlock,
-} from "../../../shared/types";
-import type { ViewportSize } from "../lib/overlayLayout";
-import type { DragHud } from "../hooks/useWorkspacePointerHandlers";
-import { OverlayBlock } from "./OverlayBlock";
+import {
+  CommittedMaskLayer,
+  OverlayBlockLayer,
+  RegionSelectionLayer,
+  RetouchCursorLayer,
+  RetouchPreviewLayer,
+  StageDragHud,
+  StageImage,
+} from "./imageStageLayers";
+import {
+  resolveRetouchStageModel,
+  resolveStageClassName,
+} from "./imageStageModel";
+import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
 
-export type ImageStageProps = {
-  page: MangaPage;
-  imageDataUrl: string;
-  imageRef: React.RefObject<HTMLImageElement | null>;
-  stageRef: React.RefObject<HTMLDivElement | null>;
-  stageSize: ViewportSize | null;
-  selectedBlockId: string | null;
-  showTextBlocks: boolean;
-  showBlockChrome: boolean;
-  inpaintingMode?: boolean;
-  blockPointerDisabled?: boolean;
-  retouchCursor?: {
-    point: { x: number; y: number } | null;
-    radiusPx: number;
-    mode: "brush" | "eraser" | "mask";
-    color: string;
-  } | null;
-  retouchPreview?: {
-    mode: "brush" | "eraser" | "mask";
-    points: Array<{ x: number; y: number }>;
-    radiusPx: number;
-    color: string;
-    originalImageDataUrl: string;
-  } | null;
-  maskStrokes?: InpaintingMaskStroke[];
-  regionSelectionActive: boolean;
-  regionSelectionRect: BBox | null;
-  dragHud?: DragHud | null;
-  onStagePointerMove: (event: React.PointerEvent) => void;
-  onStagePointerUp: (event: React.PointerEvent) => void;
-  onStagePointerDown: (event: React.PointerEvent) => void;
-  onStagePointerLeave?: (event: React.PointerEvent) => void;
-  onBlockPointerDown: (
-    event: React.PointerEvent,
-    block: TranslationBlock,
-    mode: "move" | "resize",
-  ) => void;
-  onToggleBlockExcluded?: (blockId: string) => void;
-};
+export type { ImageStageProps } from "./imageStageTypes";
 
 export function ImageStage({
-  page,
+  blockPointerDisabled = false,
+  dragHud = null,
   imageDataUrl,
   imageRef,
-  stageRef,
-  stageSize,
-  selectedBlockId,
-  showTextBlocks,
-  showBlockChrome,
   inpaintingMode = false,
-  blockPointerDisabled = false,
-  retouchCursor = null,
-  retouchPreview = null,
   maskStrokes = [],
-  regionSelectionActive,
-  regionSelectionRect,
-  dragHud = null,
-  onStagePointerMove,
-  onStagePointerUp,
+  onBlockPointerDown,
   onStagePointerDown,
   onStagePointerLeave,
-  onBlockPointerDown,
+  onStagePointerMove,
+  onStagePointerUp,
   onToggleBlockExcluded,
+  page,
+  regionSelectionActive,
+  regionSelectionRect,
+  retouchCursor = null,
+  retouchPreview = null,
+  selectedBlockId,
+  showBlockChrome,
+  showTextBlocks,
+  stageRef,
+  stageSize,
 }: ImageStageProps): React.JSX.Element {
   const clipId = React.useId();
-  const cursorVisible = Boolean(retouchCursor?.point && stageSize);
-  const cursorScaleX = stageSize
-    ? stageSize.width / Math.max(1, page.width)
-    : 1;
-  const cursorScaleY = stageSize
-    ? stageSize.height / Math.max(1, page.height)
-    : 1;
-  const cursorRadius = retouchCursor
-    ? Math.max(3, retouchCursor.radiusPx * Math.min(cursorScaleX, cursorScaleY))
-    : 0;
-  const previewPath = retouchPreview?.points.length
-    ? pointsToPath(retouchPreview.points)
-    : "";
-  const previewStrokeWidth = retouchPreview
-    ? Math.max(1, retouchPreview.radiusPx * 2)
-    : 0;
-  const maskStrokePaths = maskStrokes
-    .map((stroke) => ({
-      path: pointsToPath(stroke.points),
-      width: Math.max(1, stroke.radiusPx * 2),
-    }))
-    .filter((stroke) => stroke.path);
+  const retouchModel = resolveRetouchStageModel({
+    maskStrokes,
+    page,
+    retouchCursor,
+    retouchPreview,
+    stageSize,
+  });
 
+  return (
+    <ImageStageFrame
+      blockPointerDisabled={blockPointerDisabled}
+      clipId={clipId}
+      dragHud={dragHud}
+      imageDataUrl={imageDataUrl}
+      imageRef={imageRef}
+      inpaintingMode={inpaintingMode}
+      onBlockPointerDown={onBlockPointerDown}
+      onStagePointerDown={onStagePointerDown}
+      onStagePointerLeave={onStagePointerLeave}
+      onStagePointerMove={onStagePointerMove}
+      onStagePointerUp={onStagePointerUp}
+      onToggleBlockExcluded={onToggleBlockExcluded}
+      page={page}
+      regionSelectionActive={regionSelectionActive}
+      regionSelectionRect={regionSelectionRect}
+      retouchCursor={retouchCursor}
+      retouchModel={retouchModel}
+      retouchPreview={retouchPreview}
+      selectedBlockId={selectedBlockId}
+      showBlockChrome={showBlockChrome}
+      showTextBlocks={showTextBlocks}
+      stageRef={stageRef}
+      stageSize={stageSize}
+    />
+  );
+}
+
+function ImageStageFrame({
+  blockPointerDisabled = false,
+  clipId,
+  dragHud = null,
+  imageDataUrl,
+  imageRef,
+  inpaintingMode = false,
+  onBlockPointerDown,
+  onStagePointerDown,
+  onStagePointerLeave,
+  onStagePointerMove,
+  onStagePointerUp,
+  onToggleBlockExcluded,
+  page,
+  regionSelectionActive,
+  regionSelectionRect,
+  retouchCursor = null,
+  retouchModel,
+  retouchPreview = null,
+  selectedBlockId,
+  showBlockChrome,
+  showTextBlocks,
+  stageRef,
+  stageSize,
+}: ImageStageProps & {
+  clipId: string;
+  retouchModel: RetouchStageModel;
+}): React.JSX.Element {
   return (
     <div className="stage-wrap">
       <div
         ref={stageRef}
-        className={[
-          "image-stage",
-          regionSelectionActive ? "selecting-region" : "",
-          blockPointerDisabled ? "editing-mask" : "",
-          retouchCursor ? "retouch-tool-enabled" : "",
-          cursorVisible ? "retouch-cursor-active" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
+        className={resolveStageClassName({
+          blockPointerDisabled,
+          cursorVisible: retouchModel.cursorVisible,
+          regionSelectionActive,
+          retouchCursor,
+        })}
         onPointerMove={onStagePointerMove}
         onPointerUp={onStagePointerUp}
         onPointerCancel={onStagePointerUp}
         onPointerLeave={onStagePointerLeave}
         onPointerDown={onStagePointerDown}
       >
-        {imageDataUrl ? (
-          <img
-            ref={imageRef}
-            className="page-image"
-            src={imageDataUrl}
-            alt={page.name}
-            draggable={false}
-          />
-        ) : (
-          <div
-            className="page-image-placeholder"
-            style={{ aspectRatio: `${page.width} / ${page.height}` }}
-          >
-            이미지 불러오는 중
-          </div>
-        )}
-        {imageDataUrl && stageSize && showTextBlocks
-          ? page.blocks.map((block) => (
-              <OverlayBlock
-                key={block.id}
-                block={block}
-                pageSize={{ width: page.width, height: page.height }}
-                stageSize={stageSize}
-                selected={block.id === selectedBlockId}
-                showChrome={showBlockChrome}
-                showExcluded={inpaintingMode}
-                pointerDisabled={blockPointerDisabled}
-                onPointerDown={(event) =>
-                  onBlockPointerDown(event, block, "move")
-                }
-                onResizePointerDown={(event) =>
-                  onBlockPointerDown(event, block, "resize")
-                }
-                onToggleExcluded={
-                  onToggleBlockExcluded
-                    ? () => onToggleBlockExcluded(block.id)
-                    : undefined
-                }
-              />
-            ))
-          : null}
-        {imageDataUrl && stageSize && maskStrokePaths.length > 0 ? (
-          <svg
-            className="retouch-preview-layer retouch-preview-mask retouch-preview-committed-mask"
-            viewBox={`0 0 ${page.width} ${page.height}`}
-            preserveAspectRatio="none"
-            aria-hidden="true"
-            focusable="false"
-          >
-            {maskStrokePaths.map((stroke, index) => (
-              <path
-                key={index}
-                d={stroke.path}
-                strokeWidth={stroke.width}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            ))}
-          </svg>
-        ) : null}
-        {imageDataUrl && stageSize && retouchPreview && previewPath ? (
-          <svg
-            className={`retouch-preview-layer retouch-preview-${retouchPreview.mode}`}
-            viewBox={`0 0 ${page.width} ${page.height}`}
-            preserveAspectRatio="none"
-            aria-hidden="true"
-            focusable="false"
-          >
-            {retouchPreview.mode === "eraser" &&
-            retouchPreview.originalImageDataUrl ? (
-              <>
-                <defs>
-                  <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
-                    <path
-                      d={previewPath}
-                      stroke="#fff"
-                      strokeWidth={previewStrokeWidth}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  </clipPath>
-                </defs>
-                <image
-                  href={retouchPreview.originalImageDataUrl}
-                  x="0"
-                  y="0"
-                  width={page.width}
-                  height={page.height}
-                  clipPath={`url(#${clipId})`}
-                />
-                <path
-                  className="retouch-preview-outline"
-                  d={previewPath}
-                  strokeWidth={previewStrokeWidth}
-                />
-              </>
-            ) : (
-              <path
-                d={previewPath}
-                stroke={retouchPreview.color}
-                strokeWidth={previewStrokeWidth}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            )}
-          </svg>
-        ) : null}
-        {cursorVisible && retouchCursor?.point && stageSize ? (
-          <div
-            className={`retouch-cursor retouch-cursor-${retouchCursor.mode}`}
-            style={
-              {
-                left: `${retouchCursor.point.x * cursorScaleX}px`,
-                top: `${retouchCursor.point.y * cursorScaleY}px`,
-                width: `${cursorRadius * 2}px`,
-                height: `${cursorRadius * 2}px`,
-                marginLeft: `${-cursorRadius}px`,
-                marginTop: `${-cursorRadius}px`,
-                "--retouch-cursor-color": retouchCursor.color,
-              } as React.CSSProperties
-            }
-          >
-            <span />
-          </div>
-        ) : null}
-        {imageDataUrl &&
-        stageSize &&
-        regionSelectionActive &&
-        regionSelectionRect ? (
-          <div
-            className="region-selection-box"
-            style={{
-              left: `${(regionSelectionRect.x / 1000) * stageSize.width}px`,
-              top: `${(regionSelectionRect.y / 1000) * stageSize.height}px`,
-              width: `${(regionSelectionRect.w / 1000) * stageSize.width}px`,
-              height: `${(regionSelectionRect.h / 1000) * stageSize.height}px`,
-            }}
-          />
-        ) : null}
-        {dragHud ? (
-          <div className={`stage-drag-hud ${dragHud.mode}`}>
-            {dragHud.label}
-          </div>
-        ) : null}
+        <ImageStageLayerSet
+          blockPointerDisabled={blockPointerDisabled}
+          clipId={clipId}
+          dragHud={dragHud}
+          imageDataUrl={imageDataUrl}
+          imageRef={imageRef}
+          inpaintingMode={inpaintingMode}
+          onBlockPointerDown={onBlockPointerDown}
+          onToggleBlockExcluded={onToggleBlockExcluded}
+          page={page}
+          regionSelectionActive={regionSelectionActive}
+          regionSelectionRect={regionSelectionRect}
+          retouchCursor={retouchCursor}
+          retouchModel={retouchModel}
+          retouchPreview={retouchPreview}
+          selectedBlockId={selectedBlockId}
+          showBlockChrome={showBlockChrome}
+          showTextBlocks={showTextBlocks}
+          stageSize={stageSize}
+        />
       </div>
     </div>
   );
 }
 
-function pointsToPath(points: Array<{ x: number; y: number }>): string {
-  if (points.length === 0) {
-    return "";
-  }
-  if (points.length === 1) {
-    const point = points[0];
-    return `M ${point.x} ${point.y} L ${point.x + 0.01} ${point.y}`;
-  }
-  return points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
+function ImageStageLayerSet({
+  blockPointerDisabled = false,
+  clipId,
+  dragHud = null,
+  imageDataUrl,
+  imageRef,
+  inpaintingMode = false,
+  onBlockPointerDown,
+  onToggleBlockExcluded,
+  page,
+  regionSelectionActive,
+  regionSelectionRect,
+  retouchCursor = null,
+  retouchModel,
+  retouchPreview = null,
+  selectedBlockId,
+  showBlockChrome,
+  showTextBlocks,
+  stageSize,
+}: Omit<
+  ImageStageProps,
+  | "onStagePointerDown"
+  | "onStagePointerLeave"
+  | "onStagePointerMove"
+  | "onStagePointerUp"
+  | "stageRef"
+> & {
+  clipId: string;
+  retouchModel: RetouchStageModel;
+}): React.JSX.Element {
+  return (
+    <>
+      <StageImage imageDataUrl={imageDataUrl} imageRef={imageRef} page={page} />
+      <OverlayBlockLayer
+        blockPointerDisabled={blockPointerDisabled}
+        imageDataUrl={imageDataUrl}
+        inpaintingMode={inpaintingMode}
+        onBlockPointerDown={onBlockPointerDown}
+        onToggleBlockExcluded={onToggleBlockExcluded}
+        page={page}
+        selectedBlockId={selectedBlockId}
+        showBlockChrome={showBlockChrome}
+        showTextBlocks={showTextBlocks}
+        stageSize={stageSize}
+      />
+      <CommittedMaskLayer
+        imageDataUrl={imageDataUrl}
+        page={page}
+        retouchModel={retouchModel}
+        stageSize={stageSize}
+      />
+      <RetouchPreviewLayer
+        clipId={clipId}
+        imageDataUrl={imageDataUrl}
+        page={page}
+        retouchModel={retouchModel}
+        retouchPreview={retouchPreview}
+        stageSize={stageSize}
+      />
+      <RetouchCursorLayer
+        retouchCursor={retouchCursor}
+        retouchModel={retouchModel}
+        stageSize={stageSize}
+      />
+      <RegionSelectionLayer
+        imageDataUrl={imageDataUrl}
+        regionSelectionActive={regionSelectionActive}
+        regionSelectionRect={regionSelectionRect}
+        stageSize={stageSize}
+      />
+      <StageDragHud dragHud={dragHud} />
+    </>
+  );
 }

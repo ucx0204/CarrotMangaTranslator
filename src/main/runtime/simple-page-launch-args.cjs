@@ -25,6 +25,14 @@ const { inspectModelLaunch } = require("./simple-page-model-assets.cjs");
 const { buildOptionSummary } = require("./simple-page-request-summary.cjs");
 const { createDetailedError } = require("./simple-page-runtime-common.cjs");
 
+/**
+ * @typedef {Record<string, any>} LaunchOptions
+ */
+
+/**
+ * @param {LaunchOptions} options
+ * @returns {string[]}
+ */
 function buildLaunchArgs(options) {
   const launchTarget = inspectModelLaunch(options);
   if (launchTarget.launchMode === "local" && !launchTarget.modelPath) {
@@ -237,6 +245,10 @@ function buildLaunchArgs(options) {
   return args;
 }
 
+/**
+ * @param {LaunchOptions} [options]
+ * @returns {string}
+ */
 function resolveDraftModelRepoArg(options = {}) {
   const repo = resolveConfiguredDraftModelRepo(options);
   const file = resolveConfiguredDraftModelFile(options);
@@ -244,6 +256,10 @@ function resolveDraftModelRepoArg(options = {}) {
   return quant ? `${repo}:${quant}` : repo;
 }
 
+/**
+ * @param {LaunchOptions} [options]
+ * @returns {boolean}
+ */
 function shouldUseBeellamaGemmaLaunch(options = {}) {
   const profile = String(
     options.llamaRuntimeProfile ??
@@ -286,6 +302,10 @@ function shouldUseBeellamaGemmaLaunch(options = {}) {
   );
 }
 
+/**
+ * @param {LaunchOptions} [options]
+ * @returns {boolean}
+ */
 function looksLikeGemma4Model(options = {}) {
   const parts = [
     resolveConfiguredModelRepo(options),
@@ -297,6 +317,11 @@ function looksLikeGemma4Model(options = {}) {
   return parts.some((part) => /gemma[-_]?4/i.test(String(part || "")));
 }
 
+/**
+ * @param {string | null | undefined} serverPath
+ * @param {LaunchOptions} [options]
+ * @returns {boolean}
+ */
 function isServerRuntimeCompatibleWithModel(serverPath, options = {}) {
   if (!serverPath || !looksLikeGemma4Model(options)) {
     return true;

@@ -121,26 +121,38 @@ export function summarizeTranslationOptions(
     ocrGpuCudaTag: options.ocrGpuCudaTag,
     hfHomeDir: options.hfHomeDir ?? null,
     hfHubCacheDir: options.hfHubCacheDir ?? null,
-    workContext: options.workContext
-      ? {
-          glossaryCount: options.workContext.styleGuide.glossary.length,
-          characterCount: options.workContext.styleGuide.characters.length,
-          storyPageCount: options.workContext.storyMemory.pages.length,
-          recentPageCount: options.workContext.recentPageCount,
-        }
-      : undefined,
-    workContextBudget: options.workContextBudget
-      ? {
-          originalTokens: options.workContextBudget.original.totalTokens,
-          effectiveTokens: options.workContextBudget.effective.totalTokens,
-          outputHeadroomTokens:
-            options.workContextBudget.effective.outputHeadroomTokens,
-          outputHeadroomPercent:
-            options.workContextBudget.effective.outputHeadroomPercent,
-          omittedParts: options.workContextBudget.omittedParts,
-        }
-      : undefined,
+    workContext: summarizeWorkContext(options),
+    workContextBudget: summarizeWorkContextBudget(options),
   };
+}
+
+function summarizeWorkContext(
+  options: TranslationOptions,
+): Record<string, unknown> | undefined {
+  return options.workContext
+    ? {
+        glossaryCount: options.workContext.styleGuide.glossary.length,
+        characterCount: options.workContext.styleGuide.characters.length,
+        storyPageCount: options.workContext.storyMemory.pages.length,
+        recentPageCount: options.workContext.recentPageCount,
+      }
+    : undefined;
+}
+
+function summarizeWorkContextBudget(
+  options: TranslationOptions,
+): Record<string, unknown> | undefined {
+  return options.workContextBudget
+    ? {
+        originalTokens: options.workContextBudget.original.totalTokens,
+        effectiveTokens: options.workContextBudget.effective.totalTokens,
+        outputHeadroomTokens:
+          options.workContextBudget.effective.outputHeadroomTokens,
+        outputHeadroomPercent:
+          options.workContextBudget.effective.outputHeadroomPercent,
+        omittedParts: options.workContextBudget.omittedParts,
+      }
+    : undefined;
 }
 
 export function summarizePreview(text: string, maxLength = 240): string {

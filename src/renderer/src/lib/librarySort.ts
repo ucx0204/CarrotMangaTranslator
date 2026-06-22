@@ -1,4 +1,7 @@
-import type { LibraryIndex, LibraryWorkSummary } from "../../../shared/types";
+import type {
+  LibraryIndex,
+  LibraryWorkSummary,
+} from "../../../shared/libraryTypes";
 
 export type LibrarySortKey = "updated" | "title" | "created" | "chapters";
 export type LibrarySortDirection = "asc" | "desc";

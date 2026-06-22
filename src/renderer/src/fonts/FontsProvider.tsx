@@ -1,5 +1,5 @@
 import React from "react";
-import type { CustomFont } from "../../../shared/types";
+import type { CustomFont } from "../../../shared/libraryTypes";
 import { mangaGateway } from "../api/mangaGateway";
 import { getBlockFontOptions, setCustomFontOptions } from "../lib/fonts";
 import { FontsContext, type FontsContextValue } from "./fontsContextValue";

@@ -10,6 +10,11 @@ const {
 } = require("node:fs");
 const https = require("node:https");
 const { basename, join } = require("node:path");
+/**
+ * @typedef {{ isDirectory: boolean; entryName: string; getData(): Buffer }} ZipEntry
+ * @typedef {new (path: string) => { getEntries(): ZipEntry[] }} AdmZipConstructor
+ */
+/** @type {AdmZipConstructor} */
 const AdmZip = require("adm-zip");
 
 const root = join(__dirname, "..");
@@ -81,6 +86,15 @@ async function main() {
   console.log(`Prepared Flux CUDA 12.9 runtime: ${outDir}`);
 }
 
+/**
+ * @typedef {{ relative_path: string; size: number | string; sha256: string }} RedistPackageEntry
+ * @typedef {{ baseUrl: string; label: string; shouldExtract(name: string): boolean }} DownloadAndExtractOptions
+ */
+
+/**
+ * @param {RedistPackageEntry} entry
+ * @param {DownloadAndExtractOptions} options
+ */
 async function downloadAndExtract(entry, options) {
   const url = `${options.baseUrl}/${entry.relative_path}`;
   const archivePath = join(cacheDir, basename(entry.relative_path));
@@ -124,11 +138,19 @@ async function downloadAndExtract(entry, options) {
   }
 }
 
+/**
+ * @param {string} url
+ * @returns {Promise<any>}
+ */
 async function readJson(url) {
   const text = await readUrl(url);
   return JSON.parse(text);
 }
 
+/**
+ * @param {string} url
+ * @returns {Promise<string>}
+ */
 function readUrl(url) {
   return new Promise((resolve, reject) => {
     https
@@ -141,7 +163,7 @@ function readUrl(url) {
         let text = "";
         response.setEncoding("utf8");
         response.on("data", (chunk) => {
-          text += chunk;
+          text += String(chunk);
         });
         response.on("end", () => resolve(text));
       })
@@ -149,6 +171,11 @@ function readUrl(url) {
   });
 }
 
+/**
+ * @param {string} url
+ * @param {string} destination
+ * @returns {Promise<void>}
+ */
 async function downloadFile(url, destination) {
   return new Promise((resolve, reject) => {
     https
@@ -160,7 +187,11 @@ async function downloadFile(url, destination) {
         }
         const output = createWriteStream(destination);
         response.pipe(output);
-        output.on("finish", () => output.close(resolve));
+        output.on("finish", () => {
+          output.close(() => {
+            resolve();
+          });
+        });
         output.on("error", reject);
         response.on("error", reject);
       })
@@ -168,10 +199,12 @@ async function downloadFile(url, destination) {
   });
 }
 
+/** @param {string} path */
 function hashFile(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
+/** @param {string} dir */
 function hasRequiredDlls(dir) {
   const hasCudaDlls = [...requiredCudaDlls].every((file) => {
     try {
@@ -183,6 +216,7 @@ function hasRequiredDlls(dir) {
   return hasCudaDlls && hasCudnnDll(dir);
 }
 
+/** @param {string} dir */
 function hasCudnnDll(dir) {
   try {
     const cudnnPath = join(dir, "cudnn64_9.dll");
@@ -209,6 +243,7 @@ function hasCudnnDll(dir) {
   }
 }
 
+/** @param {string} path */
 function unlinkIfExists(path) {
   if (existsSync(path)) {
     unlinkSync(path);

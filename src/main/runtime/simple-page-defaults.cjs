@@ -166,12 +166,20 @@ function resolveAmdRocmMetaPackage(options = {}) {
   return resolveAmdRocmSdkPackages(options).filter(isAmdRocmMetaPackage);
 }
 
+/**
+ * @param {unknown} item
+ * @returns {boolean}
+ */
 function isAmdRocmMetaPackage(item) {
   return /(?:^|[/\\])rocm-\d+(?:\.\d+)*\.tar\.gz(?:[?#].*)?$/i.test(
     String(item ?? ""),
   );
 }
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isTruthy(value) {
   const text = String(value ?? "")
     .trim()

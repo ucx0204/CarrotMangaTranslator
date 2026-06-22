@@ -1,8 +1,8 @@
+import type { ModelTestProgressEvent } from "../../../shared/jobTypes";
 import type {
   AppSettings,
   LlamaRuntimeProfile,
-  ModelTestProgressEvent,
-} from "../../../shared/types";
+} from "../../../shared/settingsTypes";
 
 export function buildTestDetail(
   modelPath: string | null | undefined,

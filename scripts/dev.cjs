@@ -12,15 +12,21 @@ const devSessionData = join(
   devStorageRoot,
   `session-${process.pid}-${Date.now()}`,
 );
+/** @type {import("node:child_process").ChildProcess[]} */
 const children = [];
 let shuttingDown = false;
 
 delete process.env.ELECTRON_RUN_AS_NODE;
 
+/** @param {string} message */
 function log(message) {
   console.log(`[dev] ${message}`);
 }
 
+/**
+ * @param {string} command
+ * @param {string[]} args
+ */
 function runSync(command, args) {
   const result = spawnSync(command, args, {
     cwd: root,
@@ -32,7 +38,14 @@ function runSync(command, args) {
   }
 }
 
+/**
+ * @param {string} label
+ * @param {string} command
+ * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} [env]
+ */
 function spawnChild(label, command, args, env = {}) {
+  /** @type {NodeJS.ProcessEnv} */
   const mergedEnv = { ...process.env, ...env };
   for (const [key, value] of Object.entries(mergedEnv)) {
     if (value === undefined) {
@@ -77,6 +90,10 @@ function spawnChild(label, command, args, env = {}) {
   return child;
 }
 
+/**
+ * @param {string} url
+ * @param {number} [timeoutMs]
+ */
 async function waitForUrl(url, timeoutMs = 30000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
@@ -88,6 +105,10 @@ async function waitForUrl(url, timeoutMs = 30000) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
+/**
+ * @param {string} url
+ * @returns {Promise<boolean>}
+ */
 function canReach(url) {
   return new Promise((resolve) => {
     const req = http.get(url, (res) => {
@@ -103,6 +124,12 @@ function canReach(url) {
   });
 }
 
+/**
+ * @param {number} startPort
+ * @param {string} [host]
+ * @param {number} [maxAttempts]
+ * @returns {Promise<number>}
+ */
 async function findAvailablePort(
   startPort,
   host = "127.0.0.1",
@@ -119,6 +146,11 @@ async function findAvailablePort(
   );
 }
 
+/**
+ * @param {string} host
+ * @param {number} port
+ * @returns {Promise<boolean>}
+ */
 function canListen(host, port) {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -129,6 +161,10 @@ function canListen(host, port) {
   });
 }
 
+/**
+ * @param {string} packageName
+ * @param {...string} parts
+ */
 function nodeBin(packageName, ...parts) {
   return join(root, "node_modules", packageName, ...parts);
 }

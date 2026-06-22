@@ -1,4 +1,12 @@
 // @ts-check
+/**
+ * @typedef {Record<string, any>} JsonRecord
+ */
+
+/**
+ * @param {string} rawText
+ * @returns {{ outputText: string; rawResponse: unknown; eventCount: number }}
+ */
 function parseResponsesSseText(rawText) {
   const deltas = [];
   let rawResponse = null;
@@ -58,6 +66,10 @@ function parseResponsesSseText(rawText) {
   };
 }
 
+/**
+ * @param {JsonRecord} parsed
+ * @returns {string}
+ */
 function extractModelOutputText(parsed) {
   if (typeof parsed?.output_text === "string") {
     return parsed.output_text.trim();
@@ -97,6 +109,10 @@ function extractModelOutputText(parsed) {
   return parts.join("\n").trim();
 }
 
+/**
+ * @param {JsonRecord} parsed
+ * @returns {{ message: string; failureCategory: string; nonRetriable?: boolean } | null}
+ */
 function extractModelOutputFailure(parsed) {
   const choice = parsed?.choices?.[0];
   const refusal = choice?.message?.refusal;
@@ -136,6 +152,10 @@ function extractModelOutputFailure(parsed) {
   return null;
 }
 
+/**
+ * @param {JsonRecord} parsed
+ * @returns {boolean}
+ */
 function hasReasoningOnlyPayload(parsed) {
   const message = parsed?.choices?.[0]?.message;
   if (hasReasoningText(message)) {
@@ -170,6 +190,10 @@ function hasReasoningOnlyPayload(parsed) {
   return sawReasoning && !sawText;
 }
 
+/**
+ * @param {JsonRecord | null | undefined} value
+ * @returns {boolean}
+ */
 function hasReasoningText(value) {
   if (!value || typeof value !== "object") {
     return false;
@@ -182,6 +206,11 @@ function hasReasoningText(value) {
   ].some((item) => typeof item === "string" && item.trim());
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} maxLength
+ * @returns {string}
+ */
 function truncateInline(value, maxLength) {
   const text = String(value ?? "")
     .replace(/\s+/g, " ")

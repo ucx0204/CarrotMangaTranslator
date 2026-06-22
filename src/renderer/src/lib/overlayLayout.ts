@@ -1,4 +1,4 @@
-import type { TranslationBlock } from "../../../shared/types";
+import type { TranslationBlock } from "../../../shared/textTypes";
 import {
   bboxToPixels,
   clamp,

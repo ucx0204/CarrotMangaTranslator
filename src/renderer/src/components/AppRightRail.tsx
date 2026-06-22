@@ -1,18 +1,9 @@
 import React from "react";
-import type {
-  ChapterSnapshot,
-  JobState,
-  MangaPage,
-  TranslationBlock,
-} from "../../../shared/types";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
+import type { JobState } from "../../../shared/jobTypes";
+import type { TranslationBlock } from "../../../shared/textTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
-import { EditorPanel } from "./EditorPanel";
-import {
-  DisplayControlPanel,
-  InpaintingControlPanel,
-} from "./InpaintingControlPanel";
-import { RunPanel, StatusPanel } from "./RunStatusPanels";
-import { Button } from "./ui";
+import { InpaintingRightRail, TranslationRightRail } from "./rightRailPanels";
 
 type AppRightRailProps = {
   inpaintingMode: boolean;
@@ -44,189 +35,91 @@ type AppRightRailProps = {
   onDuplicateBlock: () => void;
 };
 
-export function AppRightRail({
-  inpaintingMode,
-  currentChapter,
-  selectedPage,
-  selectedBlock,
-  selectedPageImageDataUrl,
-  selectedPageEditLocked,
-  jobState,
-  progressSnapshot,
-  showProgressBar,
-  showBlockChrome,
-  showTextBlocks,
-  jobActive,
-  flowActive,
-  statusLines,
-  areaTranslateSelecting,
-  onToggleChrome,
-  onToggleBlocks,
-  onOpenTextView,
-  onOpenStyleGuide,
-  onOpenTranslateOptions,
-  onEnterInpainting,
-  onCancelJob,
-  onStartAreaTranslate,
-  onApplyFont,
-  onUpdateBlock,
-  onDeleteBlock,
-  onDuplicateBlock,
-}: AppRightRailProps): React.JSX.Element {
+export function AppRightRail(props: AppRightRailProps): React.JSX.Element {
   const editorDisabled =
-    selectedPageEditLocked || (inpaintingMode && jobActive);
-  const showAreaTranslationProgress =
-    inpaintingMode &&
-    jobState.kind === "gemma-analysis" &&
-    jobState.status !== "idle" &&
-    jobState.status !== "completed" &&
-    jobState.status !== "cancelled";
+    props.selectedPageEditLocked || (props.inpaintingMode && props.jobActive);
 
   return (
-    <aside className={`right-rail ${inpaintingMode ? "inpainting-rail" : ""}`}>
-      {inpaintingMode ? (
-        <>
-          <InpaintingControlPanel />
-          {selectedBlock ? (
-            <EditorPanel
-              block={selectedBlock}
-              disabled={editorDisabled}
-              disableChapterFontApply={jobActive}
-              onApplyFont={onApplyFont}
-              onUpdate={onUpdateBlock}
-              onDelete={onDeleteBlock}
-              onDuplicate={onDuplicateBlock}
-            />
-          ) : null}
-          <section className="inpainting-area-translate-panel">
-            <h2>영역 번역</h2>
-            <button
-              className={`area-translate-button ${areaTranslateSelecting ? "active" : ""}`}
-              disabled={!selectedPage || !selectedPageImageDataUrl || jobActive}
-              onClick={onStartAreaTranslate}
-            >
-              {areaTranslateSelecting ? "선택 취소" : "영역 번역"}
-            </button>
-            {showAreaTranslationProgress ? (
-              <AreaTranslationProgressCard
-                jobState={jobState}
-                progressSnapshot={progressSnapshot}
-                onCancel={onCancelJob}
-              />
-            ) : null}
-          </section>
-        </>
+    <aside
+      className={`right-rail ${props.inpaintingMode ? "inpainting-rail" : ""}`}
+    >
+      {props.inpaintingMode ? (
+        <InpaintingRailContent
+          editorDisabled={editorDisabled}
+          railProps={props}
+        />
       ) : (
-        <>
-          <RunPanel
-            currentChapter={currentChapter}
-            jobActive={jobActive}
-            flowActive={flowActive}
-            showProgressBar={showProgressBar}
-            progressSnapshot={progressSnapshot}
-            jobState={jobState}
-            onOpenTranslateOptions={onOpenTranslateOptions}
-            onEnterInpainting={onEnterInpainting}
-            onCancelJob={onCancelJob}
-          />
-
-          <DisplayControlPanel
-            showBlockChrome={showBlockChrome}
-            showTextBlocks={showTextBlocks}
-            canOpenTextView={Boolean(currentChapter)}
-            onToggleChrome={onToggleChrome}
-            onToggleBlocks={onToggleBlocks}
-            onOpenTextView={onOpenTextView}
-            onOpenStyleGuide={onOpenStyleGuide}
-          />
-
-          {!selectedBlock ? (
-            <StatusPanel jobState={jobState} statusLines={statusLines} />
-          ) : null}
-
-          <EditorPanel
-            block={selectedBlock}
-            disabled={editorDisabled}
-            disableChapterFontApply={jobActive}
-            areaTranslateAvailable={Boolean(
-              selectedPage && selectedPageImageDataUrl && !jobActive,
-            )}
-            areaTranslateSelecting={areaTranslateSelecting}
-            onStartAreaTranslate={onStartAreaTranslate}
-            onApplyFont={onApplyFont}
-            onUpdate={onUpdateBlock}
-            onDelete={onDeleteBlock}
-            onDuplicate={onDuplicateBlock}
-          />
-        </>
+        <TranslationRailContent
+          editorDisabled={editorDisabled}
+          railProps={props}
+        />
       )}
     </aside>
   );
 }
 
-function AreaTranslationProgressCard({
-  jobState,
-  progressSnapshot,
-  onCancel,
+function InpaintingRailContent({
+  editorDisabled,
+  railProps,
 }: {
-  jobState: JobState;
-  progressSnapshot: ProgressSnapshot | null;
-  onCancel: () => void;
+  editorDisabled: boolean;
+  railProps: AppRightRailProps;
 }): React.JSX.Element {
-  const current =
-    progressSnapshot?.mode === "determinate"
-      ? progressSnapshot.current
-      : jobState.progressCurrent;
-  const total =
-    progressSnapshot?.mode === "determinate"
-      ? progressSnapshot.total
-      : jobState.progressTotal;
-  const ratio =
-    progressSnapshot?.mode === "determinate"
-      ? progressSnapshot.ratio
-      : Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0
-        ? Math.min(1, Math.max(0, (current ?? 0) / (total ?? 1)))
-        : 0;
-  const canCancel =
-    jobState.status === "starting" || jobState.status === "running";
-
   return (
-    <div className={`area-translate-progress-card ${jobState.status}`}>
-      <div className="progress-meta">
-        <span>{jobState.progressText}</span>
-        {Number.isFinite(current) &&
-        Number.isFinite(total) &&
-        (total ?? 0) > 0 ? (
-          <strong>
-            {current} / {total}
-          </strong>
-        ) : (
-          <strong>
-            {progressSnapshot?.mode === "indeterminate" ? "준비 중" : "진행 중"}
-          </strong>
-        )}
-      </div>
-      {jobState.detail ? (
-        <small className="progress-detail">{jobState.detail}</small>
-      ) : null}
-      <div
-        className={`progress-track ${progressSnapshot?.mode === "indeterminate" ? "indeterminate" : ""}`}
-        aria-hidden="true"
-      >
-        <div
-          className={`progress-fill ${progressSnapshot?.mode === "indeterminate" ? "indeterminate" : ""}`}
-          style={
-            progressSnapshot?.mode === "determinate" || ratio > 0
-              ? { width: `${Math.round(ratio * 100)}%` }
-              : undefined
-          }
-        />
-      </div>
-      {canCancel ? (
-        <Button variant="danger" size="sm" fullWidth onClick={onCancel}>
-          취소
-        </Button>
-      ) : null}
-    </div>
+    <InpaintingRightRail
+      areaTranslateSelecting={railProps.areaTranslateSelecting}
+      editorDisabled={editorDisabled}
+      jobActive={railProps.jobActive}
+      jobState={railProps.jobState}
+      onApplyFont={railProps.onApplyFont}
+      onBlockDelete={railProps.onDeleteBlock}
+      onBlockDuplicate={railProps.onDuplicateBlock}
+      onBlockUpdate={railProps.onUpdateBlock}
+      onCancelJob={railProps.onCancelJob}
+      onStartAreaTranslate={railProps.onStartAreaTranslate}
+      progressSnapshot={railProps.progressSnapshot}
+      selectedBlock={railProps.selectedBlock}
+      selectedPage={railProps.selectedPage}
+      selectedPageImageDataUrl={railProps.selectedPageImageDataUrl}
+    />
+  );
+}
+
+function TranslationRailContent({
+  editorDisabled,
+  railProps,
+}: {
+  editorDisabled: boolean;
+  railProps: AppRightRailProps;
+}): React.JSX.Element {
+  return (
+    <TranslationRightRail
+      areaTranslateSelecting={railProps.areaTranslateSelecting}
+      currentChapter={railProps.currentChapter}
+      editorDisabled={editorDisabled}
+      flowActive={railProps.flowActive}
+      jobActive={railProps.jobActive}
+      jobState={railProps.jobState}
+      onApplyFont={railProps.onApplyFont}
+      onBlockDelete={railProps.onDeleteBlock}
+      onBlockDuplicate={railProps.onDuplicateBlock}
+      onBlockUpdate={railProps.onUpdateBlock}
+      onCancelJob={railProps.onCancelJob}
+      onEnterInpainting={railProps.onEnterInpainting}
+      onOpenStyleGuide={railProps.onOpenStyleGuide}
+      onOpenTextView={railProps.onOpenTextView}
+      onOpenTranslateOptions={railProps.onOpenTranslateOptions}
+      onStartAreaTranslate={railProps.onStartAreaTranslate}
+      onToggleBlocks={railProps.onToggleBlocks}
+      onToggleChrome={railProps.onToggleChrome}
+      progressSnapshot={railProps.progressSnapshot}
+      selectedBlock={railProps.selectedBlock}
+      selectedPage={railProps.selectedPage}
+      selectedPageImageDataUrl={railProps.selectedPageImageDataUrl}
+      showBlockChrome={railProps.showBlockChrome}
+      showProgressBar={railProps.showProgressBar}
+      showTextBlocks={railProps.showTextBlocks}
+      statusLines={railProps.statusLines}
+    />
   );
 }

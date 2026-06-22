@@ -11,6 +11,10 @@ const forbiddenPatterns = [
   /src[\\/]preload/i,
 ];
 
+/**
+ * @param {string} dir
+ * @returns {string[]}
+ */
 function listFiles(dir) {
   const entries = readdirSync(dir, { withFileTypes: true });
   return entries.flatMap((entry) => {

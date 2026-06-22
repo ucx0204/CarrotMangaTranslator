@@ -7,6 +7,16 @@ const path = require("node:path");
 const { buildUtilityChildEnv } = require("./simple-page-child-env.cjs");
 const { safeCleanup } = require("./simple-page-runtime-common.cjs");
 
+/**
+ * @typedef {{ filePath: string; outputName: string }} SelectedRuntimeFile
+ * @typedef {(name: string, relativePath: string) => boolean} RuntimeEntryFilter
+ */
+
+/**
+ * @param {unknown} value
+ * @param {number} [maxLength]
+ * @returns {string}
+ */
 function truncateText(value, maxLength = 4000) {
   const text = String(value ?? "");
   if (text.length <= maxLength) {
@@ -15,8 +25,16 @@ function truncateText(value, maxLength = 4000) {
   return `${text.slice(0, maxLength)}... [truncated ${text.length - maxLength} chars]`;
 }
 
+/**
+ * @param {string} message
+ * @param {Record<string, unknown>} [detail]
+ * @param {unknown} [cause]
+ * @returns {Error & Record<string, unknown>}
+ */
 function createDetailedError(message, detail = {}, cause) {
-  const error = new Error(message);
+  const error = /** @type {Error & Record<string, unknown>} */ (
+    new Error(message)
+  );
   if (cause !== undefined) {
     error.cause = cause;
   }
@@ -24,11 +42,23 @@ function createDetailedError(message, detail = {}, cause) {
   return error;
 }
 
+/**
+ * @param {string} current
+ * @param {unknown} chunk
+ * @param {number} [maxLength]
+ * @returns {string}
+ */
 function shrinkBuffer(current, chunk, maxLength = 12000) {
   const next = `${current}${chunk}`;
   return next.length > maxLength ? next.slice(next.length - maxLength) : next;
 }
 
+/**
+ * @param {string} archivePath
+ * @param {string} outputDir
+ * @param {RuntimeEntryFilter} shouldExtract
+ * @returns {Promise<void>}
+ */
 async function extractSelectedZipEntries(
   archivePath,
   outputDir,
@@ -71,6 +101,11 @@ async function extractSelectedZipEntries(
   }
 }
 
+/**
+ * @param {string} archivePath
+ * @param {string} outputDir
+ * @returns {Promise<void>}
+ */
 async function expandZipArchive(archivePath, outputDir) {
   if (process.platform !== "win32") {
     throw new Error(
@@ -140,7 +175,13 @@ async function expandZipArchive(archivePath, outputDir) {
   await completed;
 }
 
+/**
+ * @param {string} rootDir
+ * @param {RuntimeEntryFilter} shouldExtract
+ * @returns {SelectedRuntimeFile[]}
+ */
 function collectSelectedFiles(rootDir, shouldExtract) {
+  /** @type {SelectedRuntimeFile[]} */
   const selected = [];
   const stack = [{ dir: rootDir, relativeDir: "" }];
   while (stack.length > 0) {
@@ -177,6 +218,10 @@ function collectSelectedFiles(rootDir, shouldExtract) {
   return selected;
 }
 
+/**
+ * @param {string} relativePath
+ * @returns {boolean}
+ */
 function shouldPreserveRuntimeRelativePath(relativePath) {
   const normalized = String(relativePath || "")
     .replace(/\\/g, "/")
@@ -186,6 +231,11 @@ function shouldPreserveRuntimeRelativePath(relativePath) {
   );
 }
 
+/**
+ * @param {string} childPath
+ * @param {string} parentPath
+ * @returns {boolean}
+ */
 function isPathInside(childPath, parentPath) {
   const relative = path.relative(parentPath, childPath);
   return (

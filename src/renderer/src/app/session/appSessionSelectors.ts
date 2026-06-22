@@ -1,0 +1,90 @@
+import type {
+  ChapterSnapshot,
+  MangaPage,
+} from "../../../../shared/libraryTypes";
+import type { JobState } from "../../../../shared/jobTypes";
+
+export type NeighborImageTarget = {
+  pageId: string;
+  imagePath: string;
+};
+
+export type WorkspaceImageResolution = {
+  imageDataUrl: string;
+  peekAvailable: boolean;
+  showingOriginalPeek: boolean;
+};
+
+export function resolveSelectedPage(
+  currentChapter: ChapterSnapshot | null,
+  selectedPageId: string | null,
+): MangaPage | null {
+  return (
+    currentChapter?.pages.find((page) => page.id === selectedPageId) ??
+    currentChapter?.pages[0] ??
+    null
+  );
+}
+
+export function resolveNeighborImageTargets(
+  pages: MangaPage[] | undefined,
+  selectedPage: MangaPage | null,
+): NeighborImageTarget[] {
+  if (!pages || !selectedPage) {
+    return [];
+  }
+  const index = pages.findIndex((page) => page.id === selectedPage.id);
+  if (index < 0) {
+    return [];
+  }
+
+  const targets: NeighborImageTarget[] = [];
+  for (const offset of [1, -1]) {
+    const neighbor = pages[index + offset];
+    if (neighbor) {
+      targets.push({
+        pageId: neighbor.id,
+        imagePath: neighbor.inpaintedImagePath ?? neighbor.imagePath,
+      });
+    }
+  }
+  return targets;
+}
+
+export function resolveModalOpen(
+  modalValues: readonly unknown[],
+  commandPaletteOpen: boolean,
+  shortcutHelpOpen: boolean,
+): boolean {
+  return modalValues.some(Boolean) || commandPaletteOpen || shortcutHelpOpen;
+}
+
+export function resolveJobActive(status: JobState["status"]): boolean {
+  return ["starting", "running", "cancelling"].includes(status);
+}
+
+export function resolveWorkspaceImageDataUrl({
+  inpaintingMode,
+  peekOriginal,
+  selectedPage,
+  selectedPageImageDataUrl,
+  selectedPageOriginalImageDataUrl,
+}: {
+  inpaintingMode: boolean;
+  peekOriginal: boolean;
+  selectedPage: MangaPage | null;
+  selectedPageImageDataUrl: string;
+  selectedPageOriginalImageDataUrl: string;
+}): WorkspaceImageResolution {
+  const peekAvailable = Boolean(
+    selectedPage?.inpaintedImagePath && selectedPageOriginalImageDataUrl,
+  );
+  const showingOriginalPeek = inpaintingMode && peekOriginal && peekAvailable;
+  return {
+    imageDataUrl: showingOriginalPeek
+      ? selectedPageOriginalImageDataUrl
+      : selectedPageImageDataUrl,
+    peekAvailable,
+    showingOriginalPeek,
+  };
+}

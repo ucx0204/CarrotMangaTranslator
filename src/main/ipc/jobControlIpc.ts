@@ -1,15 +1,19 @@
-import type { JobEvent } from "../../shared/types";
+import type { JobEvent } from "../../shared/jobTypes";
+import {
+  ipcEventContracts,
+  jobControlIpcContracts,
+} from "../../shared/ipcContracts";
 import type { IpcContext } from "./context";
-import { trustedHandle } from "./trustedIpc";
+import { trustedHandleContract } from "./trustedIpc";
 
 export function registerJobControlIpc(context: IpcContext): void {
-  trustedHandle(context, "job:cancel", async () => {
+  trustedHandleContract(context, jobControlIpcContracts.cancelJob, async () => {
     const job = context.jobs.current;
     if (!job) {
       return { cancelled: false };
     }
 
-    context.getMainWindow()?.webContents.send("job:event", {
+    const payload = {
       id: job.id,
       kind: job.kind,
       status: "cancelling",
@@ -20,7 +24,13 @@ export function registerJobControlIpc(context: IpcContext): void {
       pageTotal: job.lastEvent?.pageTotal,
       attempt: job.lastEvent?.attempt,
       attemptTotal: job.lastEvent?.attemptTotal,
-    } satisfies JobEvent);
+    } satisfies JobEvent;
+    context
+      .getMainWindow()
+      ?.webContents.send(
+        ipcEventContracts.jobEvent.channel,
+        ipcEventContracts.jobEvent.payload.parse(payload),
+      );
     job.abortController.abort();
     await context.jobs.runCleanup(job, "cancel");
     return { cancelled: true };

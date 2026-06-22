@@ -1,5 +1,5 @@
 import React from "react";
-import type { TranslationBlock } from "../../../shared/types";
+import type { TranslationBlock } from "../../../shared/textTypes";
 import { FieldSlider } from "./ui";
 
 type BlockSpacingFieldsProps = {

@@ -1,4 +1,11 @@
 // @ts-check
+/**
+ * @typedef {Record<string, unknown>} JsonRecord
+ * @typedef {{ x1: number; y1: number; x2: number; y2: number }} OcrBox
+ * @typedef {OcrBox & { id?: number; label?: string; ocrText?: string; score?: number; groupId?: string; orderInGroup?: number; rolePrior?: string; containerType?: string; [key: string]: unknown }} OcrHint
+ * @typedef {{ imageWidth?: unknown; imageHeight?: unknown; [key: string]: unknown }} OcrHintOptions
+ * @typedef {{ hint: OcrHint; index: number; eligible: boolean }} GroupItem
+ */
 const {
   readOcrCandidateText,
   readPositiveInteger,
@@ -6,6 +13,7 @@ const {
   sanitizeOcrTextForPrompt,
 } = require("./simple-page-prompts.cjs");
 
+/** @param {unknown} rawText */
 function extractJsonText(rawText) {
   const text = String(rawText ?? "").trim();
   if (text.startsWith("{") || text.startsWith("[")) {
@@ -29,13 +37,20 @@ function extractJsonText(rawText) {
   return "";
 }
 
+/**
+ * @param {unknown} payload
+ * @param {OcrHintOptions} [options]
+ * @returns {OcrHint[]}
+ */
 function normalizeOcrBboxHintPayload(payload, options = {}) {
   const originalWidth = readPositiveInteger(options.imageWidth);
   const originalHeight = readPositiveInteger(options.imageHeight);
   const candidates = collectOcrBboxCandidates(payload);
+  /** @type {OcrHint[]} */
   const hints = [];
 
   for (const candidate of candidates) {
+    const candidateRecord = asRecord(candidate);
     const box = normalizeOcrBboxCandidate(
       candidate,
       originalWidth,
@@ -46,11 +61,11 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
       continue;
     }
     const label =
-      candidate.label ??
-      candidate.type ??
-      candidate.category ??
-      candidate.class ??
-      candidate.class_name ??
+      candidateRecord.label ??
+      candidateRecord.type ??
+      candidateRecord.category ??
+      candidateRecord.class ??
+      candidateRecord.class_name ??
       "text";
     if (isIgnoredOcrLabel(label)) {
       continue;
@@ -60,8 +75,10 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
       id: hints.length + 1,
       label: sanitizeHintLabel(label),
       ...box,
-      ...(Number.isFinite(Number(candidate.score ?? candidate.confidence))
-        ? { score: Number(candidate.score ?? candidate.confidence) }
+      ...(Number.isFinite(
+        Number(candidateRecord.score ?? candidateRecord.confidence),
+      )
+        ? { score: Number(candidateRecord.score ?? candidateRecord.confidence) }
         : {}),
       ...(ocrText ? { ocrText } : {}),
     });
@@ -73,6 +90,10 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
   }).slice(0, 80);
 }
 
+/**
+ * @param {unknown} payload
+ * @returns {unknown[]}
+ */
 function collectOcrBboxCandidates(payload) {
   if (!payload) {
     return [];
@@ -80,46 +101,57 @@ function collectOcrBboxCandidates(payload) {
   if (Array.isArray(payload)) {
     return payload;
   }
-  if (Array.isArray(payload.items)) return payload.items;
-  if (Array.isArray(payload.blocks)) return payload.blocks;
-  if (Array.isArray(payload.parsing_res_list)) return payload.parsing_res_list;
-  if (Array.isArray(payload.layout_det_res?.boxes))
-    return payload.layout_det_res.boxes;
-  if (Array.isArray(payload.pages))
-    return payload.pages.flatMap(collectOcrBboxCandidates);
-  if (Array.isArray(payload.results))
-    return payload.results.flatMap(collectOcrBboxCandidates);
-  if (payload.result && typeof payload.result === "object")
-    return collectOcrBboxCandidates(payload.result);
-  if (payload.data && typeof payload.data === "object")
-    return collectOcrBboxCandidates(payload.data);
+  const record = asRecord(payload);
+  const layout = asRecord(record.layout_det_res);
+  if (Array.isArray(record.items)) return record.items;
+  if (Array.isArray(record.blocks)) return record.blocks;
+  if (Array.isArray(record.parsing_res_list)) return record.parsing_res_list;
+  if (Array.isArray(layout.boxes)) return layout.boxes;
+  if (Array.isArray(record.pages))
+    return record.pages.flatMap(collectOcrBboxCandidates);
+  if (Array.isArray(record.results))
+    return record.results.flatMap(collectOcrBboxCandidates);
+  if (record.result && typeof record.result === "object")
+    return collectOcrBboxCandidates(record.result);
+  if (record.data && typeof record.data === "object")
+    return collectOcrBboxCandidates(record.data);
   return [];
 }
 
 function normalizeOcrBboxCandidate(
+  /** @type {unknown} */
   candidate,
+  /** @type {number | null | undefined} */
   originalWidth,
+  /** @type {number | null | undefined} */
   originalHeight,
+  /** @type {unknown} */
   payload,
 ) {
+  const candidateRecord = asRecord(candidate);
+  const payloadRecord = asRecord(payload);
   const rawBox = readRawOcrBox(candidate);
   if (!rawBox) {
     return null;
   }
 
   const payloadSpace = String(
-    payload?.coordinateSpace ??
-      payload?.bboxCoordinateSpace ??
-      candidate.coordinateSpace ??
+    payloadRecord.coordinateSpace ??
+      payloadRecord.bboxCoordinateSpace ??
+      candidateRecord.coordinateSpace ??
       "",
   ).toLowerCase();
   const sourceWidth =
     readPositiveInteger(
-      payload?.width ?? payload?.imageWidth ?? candidate.imageWidth,
+      payloadRecord.width ??
+        payloadRecord.imageWidth ??
+        candidateRecord.imageWidth,
     ) || originalWidth;
   const sourceHeight =
     readPositiveInteger(
-      payload?.height ?? payload?.imageHeight ?? candidate.imageHeight,
+      payloadRecord.height ??
+        payloadRecord.imageHeight ??
+        candidateRecord.imageHeight,
     ) || originalHeight;
   let { x1, y1, x2, y2 } = rawBox;
 
@@ -155,18 +187,20 @@ function normalizeOcrBboxCandidate(
   return { x1: left, y1: top, x2: right, y2: bottom };
 }
 
+/** @param {unknown} candidate */
 function readRawOcrBox(candidate) {
   if (!candidate || typeof candidate !== "object") {
     return null;
   }
 
+  const record = asRecord(candidate);
   const direct = boxFromNumericFields(candidate);
   if (direct) {
     return direct;
   }
 
   for (const key of ["bbox", "box", "rect", "rectangle", "position"]) {
-    const box = boxFromArrayOrObject(candidate[key]);
+    const box = boxFromArrayOrObject(record[key]);
     if (box) {
       return box;
     }
@@ -180,7 +214,7 @@ function readRawOcrBox(candidate) {
     "rec_poly",
     "det_poly",
   ]) {
-    const box = boxFromPolygon(candidate[key]);
+    const box = boxFromPolygon(record[key]);
     if (box) {
       return box;
     }
@@ -189,19 +223,24 @@ function readRawOcrBox(candidate) {
   return null;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {OcrBox | null}
+ */
 function boxFromNumericFields(value) {
-  const x1 = Number(value.x1 ?? value.left);
-  const y1 = Number(value.y1 ?? value.top);
-  const x2 = Number(value.x2 ?? value.right);
-  const y2 = Number(value.y2 ?? value.bottom);
+  const record = asRecord(value);
+  const x1 = Number(record.x1 ?? record.left);
+  const y1 = Number(record.y1 ?? record.top);
+  const x2 = Number(record.x2 ?? record.right);
+  const y2 = Number(record.y2 ?? record.bottom);
   if ([x1, y1, x2, y2].every(Number.isFinite)) {
     return { x1, y1, x2, y2 };
   }
 
-  const x = Number(value.x);
-  const y = Number(value.y);
-  const w = Number(value.w ?? value.width);
-  const h = Number(value.h ?? value.height);
+  const x = Number(record.x);
+  const y = Number(record.y);
+  const w = Number(record.w ?? record.width);
+  const h = Number(record.h ?? record.height);
   if ([x, y, w, h].every(Number.isFinite)) {
     return { x1: x, y1: y, x2: x + w, y2: y + h };
   }
@@ -209,6 +248,10 @@ function boxFromNumericFields(value) {
   return null;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {OcrBox | null}
+ */
 function boxFromArrayOrObject(value) {
   if (!value) {
     return null;
@@ -238,10 +281,15 @@ function boxFromArrayOrObject(value) {
   return null;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {OcrBox | null}
+ */
 function boxFromPolygon(value) {
   if (!Array.isArray(value)) {
     return null;
   }
+  /** @type {Array<{ x: number; y: number }>} */
   const points = [];
   for (const point of value) {
     if (Array.isArray(point) && point.length >= 2) {
@@ -251,8 +299,9 @@ function boxFromPolygon(value) {
         points.push({ x, y });
       }
     } else if (point && typeof point === "object") {
-      const x = Number(point.x);
-      const y = Number(point.y);
+      const record = asRecord(point);
+      const x = Number(record.x);
+      const y = Number(record.y);
       if (Number.isFinite(x) && Number.isFinite(y)) {
         points.push({ x, y });
       }
@@ -269,6 +318,7 @@ function boxFromPolygon(value) {
   };
 }
 
+/** @param {unknown} label */
 function isIgnoredOcrLabel(label) {
   const normalized = sanitizeHintLabel(label);
   return [
@@ -288,6 +338,11 @@ function isIgnoredOcrLabel(label) {
   ].includes(normalized);
 }
 
+/**
+ * @param {OcrHint[]} hints
+ * @param {OcrHintOptions} [options]
+ * @returns {OcrHint[]}
+ */
 function attachOcrGroupingHints(hints, options = {}) {
   if (!Array.isArray(hints) || hints.length < 2) {
     return Array.isArray(hints) ? hints : [];
@@ -298,8 +353,10 @@ function attachOcrGroupingHints(hints, options = {}) {
     index,
     eligible: isSemanticGroupingCandidate(hint),
   }));
+  /** @type {number[]} */
   const parent = items.map((_, index) => index);
 
+  /** @param {number} index */
   function find(index) {
     while (parent[index] !== index) {
       parent[index] = parent[parent[index]];
@@ -308,6 +365,10 @@ function attachOcrGroupingHints(hints, options = {}) {
     return index;
   }
 
+  /**
+   * @param {number} left
+   * @param {number} right
+   */
   function union(left, right) {
     const leftRoot = find(left);
     const rightRoot = find(right);
@@ -328,6 +389,7 @@ function attachOcrGroupingHints(hints, options = {}) {
     }
   }
 
+  /** @type {Map<number, GroupItem[]>} */
   const groups = new Map();
   for (const item of items) {
     if (!item.eligible) continue;
@@ -358,6 +420,7 @@ function attachOcrGroupingHints(hints, options = {}) {
   return hints;
 }
 
+/** @param {OcrHint} hint */
 function isSemanticGroupingCandidate(hint) {
   const label = sanitizeHintLabel(hint?.label);
   const text = sanitizeOcrTextForPrompt(readOcrCandidateText(hint));
@@ -378,6 +441,11 @@ function isSemanticGroupingCandidate(hint) {
   return label.includes("vertical") || isTallBox(hint);
 }
 
+/**
+ * @param {OcrHint} left
+ * @param {OcrHint} right
+ * @param {OcrHintOptions} [options]
+ */
 function areGroupingCompatible(left, right, options = {}) {
   const leftBox = readHintBox(left);
   const rightBox = readHintBox(right);
@@ -424,6 +492,10 @@ function areGroupingCompatible(left, right, options = {}) {
   return areaRatio >= 0.15 && areaRatio <= 6.5;
 }
 
+/**
+ * @param {OcrHint} left
+ * @param {OcrHint} right
+ */
 function compareJapaneseReadingOrder(left, right) {
   const leftBox = readHintBox(left);
   const rightBox = readHintBox(right);
@@ -437,11 +509,13 @@ function compareJapaneseReadingOrder(left, right) {
   return leftCenter.y - rightCenter.y;
 }
 
+/** @param {unknown} hint */
 function readHintBox(hint) {
-  const x1 = Number(hint?.x1);
-  const y1 = Number(hint?.y1);
-  const x2 = Number(hint?.x2);
-  const y2 = Number(hint?.y2);
+  const record = asRecord(hint);
+  const x1 = Number(record.x1);
+  const y1 = Number(record.y1);
+  const x2 = Number(record.x2);
+  const y2 = Number(record.y2);
   if (![x1, y1, x2, y2].every(Number.isFinite)) {
     return null;
   }
@@ -453,6 +527,7 @@ function readHintBox(hint) {
   };
 }
 
+/** @param {OcrBox} box */
 function centerOf(box) {
   return {
     x: (box.x1 + box.x2) / 2,
@@ -460,23 +535,37 @@ function centerOf(box) {
   };
 }
 
+/** @param {OcrHint} hint */
 function isTallBox(hint) {
   const box = readHintBox(hint);
   return Boolean(box && box.y2 - box.y1 > (box.x2 - box.x1) * 1.2);
 }
 
+/** @param {unknown} text */
 function hasJapaneseTextEvidence(text) {
   return /[\u3040-\u30ff\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3005]/u.test(
     String(text ?? ""),
   );
 }
 
+/** @param {unknown} text */
 function hasHiragana(text) {
   return /[\u3040-\u309f]/u.test(String(text ?? ""));
 }
 
+/** @param {unknown} text */
 function hasCjkIdeograph(text) {
   return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(String(text ?? ""));
+}
+
+/**
+ * @param {unknown} value
+ * @returns {JsonRecord}
+ */
+function asRecord(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? /** @type {JsonRecord} */ (value)
+    : {};
 }
 
 module.exports = {

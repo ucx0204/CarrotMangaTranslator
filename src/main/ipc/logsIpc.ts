@@ -3,21 +3,24 @@ import {
   RendererLogRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
+import { logsIpcContracts } from "../../shared/ipcContracts";
 import { getLogPath, writeLog } from "../logger";
 import type { IpcContext } from "./context";
-import { trustedHandle } from "./trustedIpc";
+import { trustedHandleContract } from "./trustedIpc";
 
 export function registerLogsIpc(context: IpcContext): void {
-  trustedHandle(context, "logs:get-path", () => getLogPath());
+  trustedHandleContract(context, logsIpcContracts.getLogPath, () =>
+    getLogPath(),
+  );
 
-  trustedHandle(context, "logs:open-folder", async () => {
+  trustedHandleContract(context, logsIpcContracts.openLogFolder, async () => {
     await shell.showItemInFolder(getLogPath());
     return { opened: true, logPath: getLogPath() };
   });
 
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "logs:write",
+    logsIpcContracts.writeLog,
     async (_event, level: unknown, message: unknown, detail?: unknown) => {
       const payload = parseIpcPayload(
         RendererLogRequestSchema,

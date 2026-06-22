@@ -1,5 +1,11 @@
 // @ts-check
-/** @typedef {{ detail?: string; [key: string]: unknown }} FinalProgress */
+/**
+ * @typedef {{ detail?: string; [key: string]: unknown }} FinalProgress
+ * @typedef {{ onProgress?: ((progress: Record<string, unknown>) => void) | null; [key: string]: unknown }} RuntimeProgressOptions
+ * @typedef {{ phase?: string; progressText?: string; detailPrefix?: string; startPercent?: unknown; endPercent?: unknown }} TaskProgressConfig
+ * @typedef {{ setStep(text: string, startPercent: unknown, endPercent: unknown): void; completeStep(text?: string): void; log(line: unknown): void; stop(finalProgress?: FinalProgress | null): void }} TaskProgressMonitor
+ * @typedef {{ progressText?: string; progressCurrent?: unknown; progressTotal?: unknown }} OcrCommandProgressConfig
+ */
 const {
   clampProgressRatio,
   formatBytes,
@@ -10,6 +16,13 @@ const {
   sanitizeInstallLogLine,
 } = require("./simple-page-progress.cjs");
 
+/**
+ * @param {RuntimeProgressOptions} options
+ * @param {string} phase
+ * @param {string} progressText
+ * @param {unknown} detail
+ * @param {Record<string, unknown>} [progress]
+ */
 function emitRuntimeProgress(
   options = {},
   phase,
@@ -27,6 +40,11 @@ function emitRuntimeProgress(
   }
 }
 
+/**
+ * @param {RuntimeProgressOptions} [options]
+ * @param {TaskProgressConfig} [config]
+ * @returns {TaskProgressMonitor}
+ */
 function startTaskProgressMonitor(options = {}, config = {}) {
   const phase = config.phase || "ocr_downloading";
   const progressText = config.progressText || "설치 중";
@@ -50,6 +68,11 @@ function startTaskProgressMonitor(options = {}, config = {}) {
 
   emit({ installLogLine: "설치 작업을 시작합니다." });
   return {
+    /**
+     * @param {string} text
+     * @param {unknown} startPercent
+     * @param {unknown} endPercent
+     */
     setStep(text, startPercent, endPercent) {
       stepText = text;
       stepStart = Math.max(
@@ -59,6 +82,7 @@ function startTaskProgressMonitor(options = {}, config = {}) {
       stepEnd = Math.max(stepStart, clampProgressRatio(endPercent, stepStart));
       emit({ progressMode: "indeterminate", installLogLine: text });
     },
+    /** @param {string} [text] */
     completeStep(text = "") {
       lastRatio = Math.max(lastRatio, stepEnd);
       emit({
@@ -67,6 +91,7 @@ function startTaskProgressMonitor(options = {}, config = {}) {
         installLogLine: text || `${stepText} 완료`,
       });
     },
+    /** @param {unknown} line */
     log(line) {
       const logLine = sanitizeInstallLogLine(line);
       if (!logLine) {
@@ -102,6 +127,11 @@ function startTaskProgressMonitor(options = {}, config = {}) {
   };
 }
 
+/**
+ * @param {RuntimeProgressOptions} [options]
+ * @param {OcrCommandProgressConfig} [config]
+ * @returns {(line: unknown) => void}
+ */
 function createOcrCommandProgressHandler(options = {}, config = {}) {
   let lastDetail = "";
   let lastAt = 0;

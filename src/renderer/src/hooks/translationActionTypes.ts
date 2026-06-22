@@ -1,0 +1,47 @@
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { JobState } from "../../../shared/jobTypes";
+import type {
+  ChapterSnapshot,
+  LibraryIndex,
+  MangaPage,
+} from "../../../shared/libraryTypes";
+import type { BBox } from "../../../shared/textTypes";
+import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
+import type { RunAnalysisOutcome } from "./translationFlowHelpers";
+
+export type RunAnalysisMode = "pending" | "all" | "single-page";
+
+export type TranslationFlowOptions = {
+  scope: "pending" | "all";
+  target: "chapter" | "work";
+  twoPass: boolean;
+  analysisScope: WorkContextAnalysisScope;
+};
+
+export type UseTranslationActionsOptions = {
+  clearStatusLines: () => void;
+  currentChapter: ChapterSnapshot | null;
+  currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
+  jobActive: boolean;
+  library: LibraryIndex;
+  mergeLiveChapter: (chapter: ChapterSnapshot) => void;
+  beforeTranslateRegion?: () => Promise<void>;
+  pushStatus: (line: string) => void;
+  refreshLibrary: () => Promise<void>;
+  saveNow: () => Promise<void>;
+  selectedPage: MangaPage | null;
+  setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
+  setFlowActive: (active: boolean) => void;
+  setJobState: Dispatch<SetStateAction<JobState>>;
+  setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
+};
+
+export type TranslationActions = {
+  runAnalysis: (
+    runMode: RunAnalysisMode,
+    pageId?: string,
+    chapterId?: string,
+  ) => Promise<RunAnalysisOutcome>;
+  runTranslationFlow: (options: TranslationFlowOptions) => Promise<void>;
+  translateSelectedRegion: (bbox: BBox) => Promise<void>;
+};

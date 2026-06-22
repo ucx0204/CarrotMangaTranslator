@@ -74,12 +74,7 @@ export function maskComponents(
       y1 = Math.min(y1, y);
       x2 = Math.max(x2, x + 1);
       y2 = Math.max(y2, y + 1);
-      for (const neighbor of maskNeighbors(x, y, width, height)) {
-        if (mask[neighbor] && !visited[neighbor]) {
-          visited[neighbor] = 1;
-          queue.push(neighbor);
-        }
-      }
+      enqueueUnvisitedMaskNeighbors(mask, visited, queue, x, y, width, height);
     }
     if (area >= minArea) {
       components.push({
@@ -96,99 +91,22 @@ export function maskComponents(
   return components.sort((left, right) => right.area - left.area);
 }
 
-export function buildPatternTextMask(
-  bitmap: Buffer,
+function enqueueUnvisitedMaskNeighbors(
+  mask: Uint8Array,
+  visited: Uint8Array,
+  queue: number[],
+  x: number,
+  y: number,
   width: number,
-  _height: number,
-  rect: PixelRect,
-  dilationRadius: number,
-): { mask: Uint8Array; count: number } {
-  const pixelCount = rect.w * rect.h;
-  const luminances = new Float32Array(pixelCount);
-  const luminanceSamples: number[] = [];
-  const redSamples: number[] = [];
-  const greenSamples: number[] = [];
-  const blueSamples: number[] = [];
-  const sampleStep = Math.max(1, Math.floor(Math.max(rect.w, rect.h) / 140));
-
-  for (let y = 0; y < rect.h; y += 1) {
-    for (let x = 0; x < rect.w; x += 1) {
-      const color = readRgb(bitmap, width, rect.x + x, rect.y + y);
-      const lum = luminance(color);
-      luminances[y * rect.w + x] = lum;
-      if (x % sampleStep === 0 && y % sampleStep === 0) {
-        luminanceSamples.push(lum);
-        redSamples.push(color.r);
-        greenSamples.push(color.g);
-        blueSamples.push(color.b);
-      }
+  height: number,
+): void {
+  for (const neighbor of maskNeighbors(x, y, width, height)) {
+    if (!mask[neighbor] || visited[neighbor]) {
+      continue;
     }
+    visited[neighbor] = 1;
+    queue.push(neighbor);
   }
-
-  if (luminanceSamples.length < 8) {
-    return { mask: new Uint8Array(pixelCount), count: 0 };
-  }
-
-  const sortedLum = luminanceSamples.sort((left, right) => left - right);
-  const p12 = percentile(sortedLum, 0.12);
-  const p25 = percentile(sortedLum, 0.25);
-  const p50 = percentile(sortedLum, 0.5);
-  const p75 = percentile(sortedLum, 0.75);
-  const p88 = percentile(sortedLum, 0.88);
-  const medianColor = {
-    r: median(redSamples),
-    g: median(greenSamples),
-    b: median(blueSamples),
-  };
-  const darkCutoff = Math.min(p50 - 18, p25 + 10);
-  const brightCutoff = Math.max(p50 + 24, p75 - 6);
-  const edgeThreshold = Math.max(18, Math.min(38, (p88 - p12) * 0.2));
-  const mask = new Uint8Array(pixelCount);
-  let initialCount = 0;
-
-  for (let y = 0; y < rect.h; y += 1) {
-    for (let x = 0; x < rect.w; x += 1) {
-      const index = y * rect.w + x;
-      const lum = luminances[index] ?? 0;
-      const color = readRgb(bitmap, width, rect.x + x, rect.y + y);
-      const localEdge = localLuminanceEdge(luminances, rect.w, rect.h, x, y);
-      const colorOutlier = colorDistance(color, medianColor) >= 34;
-      const darkStroke = lum <= darkCutoff;
-      const brightStroke = lum >= brightCutoff && localEdge >= edgeThreshold;
-      if (
-        (darkStroke || brightStroke) &&
-        (localEdge >= edgeThreshold || colorOutlier)
-      ) {
-        mask[index] = 1;
-        initialCount += 1;
-      }
-    }
-  }
-
-  const coverage = initialCount / Math.max(1, pixelCount);
-  if (initialCount === 0 || coverage < 0.0015 || coverage > 0.42) {
-    return { mask: new Uint8Array(pixelCount), count: 0 };
-  }
-
-  const connected = removeTinyMaskComponents(
-    mask,
-    rect.w,
-    rect.h,
-    Math.max(4, Math.round(pixelCount * 0.00035)),
-  );
-  const dilated = dilateMask(connected.mask, rect.w, rect.h, dilationRadius);
-  let count = 0;
-  for (const value of dilated) {
-    if (value) {
-      count += 1;
-    }
-  }
-
-  const finalCoverage = count / Math.max(1, pixelCount);
-  if (connected.count === 0 || finalCoverage > 0.52) {
-    return { mask: new Uint8Array(pixelCount), count: 0 };
-  }
-  return { mask: dilated, count };
 }
 
 export function readRgb(
@@ -311,83 +229,6 @@ function drawMaskCircle(
   }
 }
 
-function dilateMask(
-  mask: Uint8Array,
-  width: number,
-  height: number,
-  radius: number,
-): Uint8Array {
-  if (radius <= 0) {
-    return mask;
-  }
-  const output = new Uint8Array(mask.length);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (!mask[y * width + x]) {
-        continue;
-      }
-      for (let dy = -radius; dy <= radius; dy += 1) {
-        for (let dx = -radius; dx <= radius; dx += 1) {
-          if (dx * dx + dy * dy > radius * radius) {
-            continue;
-          }
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-            output[ny * width + nx] = 1;
-          }
-        }
-      }
-    }
-  }
-  return output;
-}
-
-function removeTinyMaskComponents(
-  mask: Uint8Array,
-  width: number,
-  height: number,
-  minArea: number,
-): { mask: Uint8Array; count: number } {
-  const output = new Uint8Array(mask.length);
-  const visited = new Uint8Array(mask.length);
-  const queue: number[] = [];
-  let keptCount = 0;
-
-  for (let index = 0; index < mask.length; index += 1) {
-    if (!mask[index] || visited[index]) {
-      continue;
-    }
-
-    queue.length = 0;
-    const component: number[] = [];
-    visited[index] = 1;
-    queue.push(index);
-
-    for (let cursor = 0; cursor < queue.length; cursor += 1) {
-      const current = queue[cursor];
-      component.push(current);
-      const x = current % width;
-      const y = Math.floor(current / width);
-      for (const neighbor of maskNeighbors(x, y, width, height)) {
-        if (mask[neighbor] && !visited[neighbor]) {
-          visited[neighbor] = 1;
-          queue.push(neighbor);
-        }
-      }
-    }
-
-    if (component.length >= minArea) {
-      for (const pixel of component) {
-        output[pixel] = 1;
-      }
-      keptCount += component.length;
-    }
-  }
-
-  return { mask: output, count: keptCount };
-}
-
 function maskNeighbors(
   x: number,
   y: number,
@@ -408,34 +249,6 @@ function maskNeighbors(
     }
   }
   return neighbors;
-}
-
-function localLuminanceEdge(
-  luminances: Float32Array,
-  width: number,
-  height: number,
-  x: number,
-  y: number,
-): number {
-  const center = luminances[y * width + x] ?? 0;
-  let maxDiff = 0;
-  for (let dy = -1; dy <= 1; dy += 1) {
-    for (let dx = -1; dx <= 1; dx += 1) {
-      if (dx === 0 && dy === 0) {
-        continue;
-      }
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
-        continue;
-      }
-      maxDiff = Math.max(
-        maxDiff,
-        Math.abs(center - (luminances[ny * width + nx] ?? center)),
-      );
-    }
-  }
-  return maxDiff;
 }
 
 function toHex(value: number): string {
@@ -468,32 +281,4 @@ function copyPixel(
   target[offset + 1] = source[offset + 1] ?? 0;
   target[offset + 2] = source[offset + 2] ?? 0;
   target[offset + 3] = source[offset + 3] ?? 255;
-}
-
-function median(values: number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  return Math.round(sorted[Math.floor(sorted.length / 2)] ?? 0);
-}
-
-function percentile(sortedValues: number[], ratio: number): number {
-  if (sortedValues.length === 0) {
-    return 0;
-  }
-  const index = clamp(
-    Math.round((sortedValues.length - 1) * ratio),
-    0,
-    sortedValues.length - 1,
-  );
-  return sortedValues[index] ?? 0;
-}
-
-function colorDistance(left: Rgb, right: Rgb): number {
-  const dr = left.r - right.r;
-  const dg = left.g - right.g;
-  const db = left.b - right.b;
-  return Math.sqrt(dr * dr + dg * dg + db * db);
-}
-
-function luminance(color: Rgb): number {
-  return color.r * 0.299 + color.g * 0.587 + color.b * 0.114;
 }

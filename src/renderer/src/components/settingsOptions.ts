@@ -7,7 +7,7 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
-} from "../../../shared/types";
+} from "../../../shared/settingsTypes";
 import {
   GEMMA_MODEL_PRESETS,
   type GemmaModelPresetId,

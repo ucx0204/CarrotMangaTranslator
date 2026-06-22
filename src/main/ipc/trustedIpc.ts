@@ -1,4 +1,5 @@
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
+import type { IpcContract } from "../../shared/ipcContracts";
 import { isAllowedMainWindowNavigation } from "../mainWindow";
 import type { IpcContext } from "./context";
 
@@ -14,6 +15,21 @@ export function trustedHandle(
       return listener(event, ...args);
     },
   );
+}
+
+export function trustedHandleContract<TArgs extends unknown[], TResult>(
+  context: IpcContext,
+  contract: IpcContract<TArgs, TResult>,
+  listener: (
+    event: IpcMainInvokeEvent,
+    ...args: TArgs
+  ) => Promise<TResult> | TResult,
+): void {
+  trustedHandle(context, contract.channel, async (event, ...args) => {
+    const parsedArgs = contract.args.parse(args) as TArgs;
+    const result = await listener(event, ...parsedArgs);
+    return contract.result.parse(result) as TResult;
+  });
 }
 
 export function assertTrustedIpcSender(

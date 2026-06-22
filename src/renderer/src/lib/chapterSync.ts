@@ -1,4 +1,4 @@
-import type { ChapterSnapshot, RunMode } from "../../../shared/types";
+import type { ChapterSnapshot, RunMode } from "../../../shared/libraryTypes";
 
 type ChapterSelection = {
   selectedPageId: string | null;

@@ -1,5 +1,5 @@
 import React from "react";
-import type { TranslationBlock } from "../../../shared/types";
+import type { TranslationBlock } from "../../../shared/textTypes";
 import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
 import { normalizeRenderDirection } from "../../../shared/geometry";
 import { resolveBlockFontFamily } from "../lib/fonts";
@@ -34,10 +34,6 @@ export function OverlayBlock({
   onResizePointerDown,
   onToggleExcluded,
 }: OverlayBlockProps): React.JSX.Element | null {
-  const renderDirection = normalizeRenderDirection(
-    block.renderDirection,
-    "horizontal",
-  );
   const displayText = block.translatedText || block.sourceText || "...";
   const layout = resolveBlockTextLayout(
     block,
@@ -45,17 +41,138 @@ export function OverlayBlock({
     pageSize,
     stageSize,
   );
-  const outlineScale = block.outlineWidthScale ?? 1;
-  const textOutlineShadow =
-    outlineScale <= 0
-      ? "none"
-      : resolveTextOutlineShadow(
-          layout.fontSizePx,
-          resolveCssColor(block.outlineColor, "#ffffff"),
-          outlineScale,
-        );
+  const renderDirection = normalizeRenderDirection(
+    block.renderDirection,
+    "horizontal",
+  );
+  const excluded = showExcluded && Boolean(block.inpaintExcluded);
+
+  return (
+    <div
+      className={resolveOverlayBlockClassName(
+        block.type,
+        selected,
+        excluded,
+        showChrome,
+      )}
+      style={resolveOverlayBlockStyle(
+        block,
+        layout,
+        showChrome,
+        pointerDisabled,
+      )}
+      onPointerDown={pointerDisabled ? undefined : onPointerDown}
+    >
+      <OverlayText
+        block={block}
+        displayText={displayText}
+        layout={layout}
+        renderDirection={renderDirection}
+      />
+      <OverlayExcludeControl
+        block={block}
+        excluded={excluded}
+        onToggleExcluded={onToggleExcluded}
+        pointerDisabled={pointerDisabled}
+        showExcluded={showExcluded}
+      />
+      <OverlayResizeHandle
+        onResizePointerDown={onResizePointerDown}
+        pointerDisabled={pointerDisabled}
+        selected={selected}
+      />
+    </div>
+  );
+}
+
+function OverlayText({
+  block,
+  displayText,
+  layout,
+  renderDirection,
+}: {
+  block: TranslationBlock;
+  displayText: string;
+  layout: ReturnType<typeof resolveBlockTextLayout>;
+  renderDirection: ReturnType<typeof normalizeRenderDirection>;
+}): React.JSX.Element {
+  return (
+    <div className="overlay-text" style={resolveOverlayTextWrapStyle(layout)}>
+      <span
+        className="overlay-text-content"
+        style={resolveOverlayTextContentStyle(block, layout, renderDirection)}
+      >
+        {displayText}
+      </span>
+    </div>
+  );
+}
+
+function OverlayExcludeControl({
+  block,
+  excluded,
+  onToggleExcluded,
+  pointerDisabled,
+  showExcluded,
+}: {
+  block: TranslationBlock;
+  excluded: boolean;
+  onToggleExcluded: (() => void) | undefined;
+  pointerDisabled: boolean;
+  showExcluded: boolean;
+}): React.JSX.Element | null {
+  if (!showExcluded) {
+    return null;
+  }
+  if (onToggleExcluded && !pointerDisabled) {
+    return (
+      <button
+        type="button"
+        className={`overlay-exclude-toggle ${block.inpaintExcluded ? "excluded" : ""}`}
+        title={resolveExcludeToggleTitle(block.inpaintExcluded)}
+        onPointerDown={stopOverlayControlEvent}
+        onClick={(event) => {
+          stopOverlayControlEvent(event);
+          onToggleExcluded();
+        }}
+      >
+        {block.inpaintExcluded ? "제외됨" : "제외"}
+      </button>
+    );
+  }
+  return excluded ? (
+    <span className="overlay-excluded-badge" aria-hidden="true">
+      제외
+    </span>
+  ) : null;
+}
+
+function OverlayResizeHandle({
+  onResizePointerDown,
+  pointerDisabled,
+  selected,
+}: {
+  onResizePointerDown: (event: React.PointerEvent) => void;
+  pointerDisabled: boolean;
+  selected: boolean;
+}): React.JSX.Element | null {
+  return selected && !pointerDisabled ? (
+    <button
+      className="resize-handle"
+      onPointerDown={onResizePointerDown}
+      aria-label="Resize"
+    />
+  ) : null;
+}
+
+function resolveOverlayBlockStyle(
+  block: TranslationBlock,
+  layout: ReturnType<typeof resolveBlockTextLayout>,
+  showChrome: boolean,
+  pointerDisabled: boolean,
+): React.CSSProperties {
   const visualStyle = resolveBlockVisualStyle(block.type);
-  const style: React.CSSProperties = {
+  return {
     left: layout.rect.left,
     top: layout.rect.top,
     width: layout.rect.width,
@@ -80,7 +197,12 @@ export function OverlayBlock({
     transformOrigin: "center center",
     pointerEvents: pointerDisabled ? "none" : undefined,
   };
-  const textWrapStyle: React.CSSProperties = {
+}
+
+function resolveOverlayTextWrapStyle(
+  layout: ReturnType<typeof resolveBlockTextLayout>,
+): React.CSSProperties {
+  return {
     boxSizing: "border-box",
     width: layout.innerWidth,
     maxWidth: "100%",
@@ -89,7 +211,14 @@ export function OverlayBlock({
     justifyContent: "center",
     overflow: "visible",
   };
-  const contentStyle: React.CSSProperties = {
+}
+
+function resolveOverlayTextContentStyle(
+  block: TranslationBlock,
+  layout: ReturnType<typeof resolveBlockTextLayout>,
+  renderDirection: ReturnType<typeof normalizeRenderDirection>,
+): React.CSSProperties {
+  return {
     boxSizing: "border-box",
     writingMode:
       renderDirection === "vertical" ? "vertical-rl" : "horizontal-tb",
@@ -106,63 +235,50 @@ export function OverlayBlock({
     fontWeight: block.bold ? 800 : 400,
     fontStyle: block.italic ? "italic" : "normal",
     fontSynthesis: "weight style",
-    textShadow: textOutlineShadow,
+    textShadow: resolveBlockTextOutlineShadow(block, layout.fontSizePx),
   };
+}
 
-  const excluded = showExcluded && Boolean(block.inpaintExcluded);
+function resolveBlockTextOutlineShadow(
+  block: TranslationBlock,
+  fontSizePx: number,
+): string {
+  const outlineScale = block.outlineWidthScale ?? 1;
+  return outlineScale <= 0
+    ? "none"
+    : resolveTextOutlineShadow(
+        fontSizePx,
+        resolveCssColor(block.outlineColor, "#ffffff"),
+        outlineScale,
+      );
+}
 
-  return (
-    <div
-      className={[
-        "overlay-block",
-        `block-${block.type}`,
-        selected ? "selected" : "",
-        excluded ? "excluded" : "",
-        showChrome ? "" : "chrome-hidden",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      style={style}
-      onPointerDown={pointerDisabled ? undefined : onPointerDown}
-    >
-      <div className="overlay-text" style={textWrapStyle}>
-        <span className="overlay-text-content" style={contentStyle}>
-          {displayText}
-        </span>
-      </div>
-      {showExcluded && onToggleExcluded && !pointerDisabled ? (
-        <button
-          type="button"
-          className={`overlay-exclude-toggle ${block.inpaintExcluded ? "excluded" : ""}`}
-          title={
-            block.inpaintExcluded ? "인페인팅에 다시 포함" : "인페인팅에서 제외"
-          }
-          onPointerDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-          }}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onToggleExcluded();
-          }}
-        >
-          {block.inpaintExcluded ? "제외됨" : "제외"}
-        </button>
-      ) : excluded ? (
-        <span className="overlay-excluded-badge" aria-hidden="true">
-          제외
-        </span>
-      ) : null}
-      {selected && !pointerDisabled ? (
-        <button
-          className="resize-handle"
-          onPointerDown={onResizePointerDown}
-          aria-label="Resize"
-        />
-      ) : null}
-    </div>
-  );
+function resolveOverlayBlockClassName(
+  blockType: TranslationBlock["type"],
+  selected: boolean,
+  excluded: boolean,
+  showChrome: boolean,
+): string {
+  return [
+    "overlay-block",
+    `block-${blockType}`,
+    selected ? "selected" : "",
+    excluded ? "excluded" : "",
+    showChrome ? "" : "chrome-hidden",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function resolveExcludeToggleTitle(excluded: boolean | undefined): string {
+  return excluded ? "인페인팅에 다시 포함" : "인페인팅에서 제외";
+}
+
+function stopOverlayControlEvent(
+  event: React.MouseEvent | React.PointerEvent,
+): void {
+  event.preventDefault();
+  event.stopPropagation();
 }
 
 function resolveTextOutlineShadow(

@@ -51,6 +51,11 @@ async function main() {
   console.log(`[ocr-python] prepared: ${pythonExe}`);
 }
 
+/**
+ * @param {string} url
+ * @param {string} outputPath
+ * @returns {Promise<void>}
+ */
 function download(url, outputPath) {
   return new Promise((resolve, reject) => {
     console.log(`[ocr-python] downloading ${url}`);
@@ -73,7 +78,9 @@ function download(url, outputPath) {
       }
       response.pipe(file);
       file.on("finish", () => {
-        file.close(resolve);
+        file.close(() => {
+          resolve();
+        });
       });
     }).on("error", (error) => {
       file.close();
@@ -82,6 +89,10 @@ function download(url, outputPath) {
   });
 }
 
+/**
+ * @param {string} zipPath
+ * @param {string} outputDir
+ */
 function expandArchive(zipPath, outputDir) {
   run("powershell.exe", [
     "-NoProfile",
@@ -92,6 +103,7 @@ function expandArchive(zipPath, outputDir) {
   ]);
 }
 
+/** @param {string} outputDir */
 function sanitizePythonPathFile(outputDir) {
   const pthName = readdirSync(outputDir).find((name) =>
     /^python\d+._pth$/i.test(name),
@@ -133,6 +145,7 @@ function sanitizePythonPathFile(outputDir) {
   }
 }
 
+/** @param {string} line */
 function isManagedOcrPackagePath(line) {
   if (!line || line.startsWith("#")) {
     return false;
@@ -148,6 +161,10 @@ function isManagedOcrPackagePath(line) {
   );
 }
 
+/**
+ * @param {string} command
+ * @param {string[]} args
+ */
 function run(command, args) {
   console.log(`> ${command} ${args.join(" ")}`);
   const env = { ...process.env };

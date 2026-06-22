@@ -39,6 +39,11 @@ const {
   resolveConfiguredApiExtraBody,
 } = require("./simple-page-request-builders.cjs");
 
+/**
+ * @param {Record<string, any>} options
+ * @param {{ requestBody?: Record<string, any>; outputText: string; rawResponse?: unknown }} result
+ * @returns {Promise<void>}
+ */
 async function saveArtifacts(options, result) {
   await mkdir(options.outputDir, { recursive: true });
   const systemPrompt = buildSystemPrompt(options);

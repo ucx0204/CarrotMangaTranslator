@@ -1,4 +1,13 @@
 // @ts-check
+/**
+ * @typedef {import("./runtime-jsdoc-types").RuntimeOptions & {
+ *   ffmpegPath?: string | null;
+ *   llamaRuntimeProfile?: string | null;
+ *   managedToolsDir?: string | null;
+ *   toolsDir?: string | null;
+ * }} RuntimePathOptions
+ * @typedef {{ backend?: string; dir: string; id?: string; kind?: string; requiredFiles?: Array<string | string[]> }} LlamaRuntimeDescriptor
+ */
 const { existsSync, readdirSync } = require("node:fs");
 const path = require("node:path");
 
@@ -30,6 +39,11 @@ const {
 } = require("./simple-page-child-env.cjs");
 const { resolveWorkingDir } = require("./simple-page-cache-paths.cjs");
 
+/**
+ * @param {string} message
+ * @param {Record<string, unknown>} [detail]
+ * @param {unknown} [cause]
+ */
 function createDetailedError(message, detail = {}, cause) {
   const error = new Error(message);
   if (cause !== undefined) {
@@ -39,17 +53,29 @@ function createDetailedError(message, detail = {}, cause) {
   return error;
 }
 
+/**
+ * @param {RuntimePathOptions} [options]
+ * @returns {string}
+ */
 function resolveToolsDir(options = {}) {
-  const candidates = [
-    options.toolsDir,
-    runtimeOverrideEnv("MANGA_TRANSLATOR_TOOLS_DIR", options),
-    path.resolve(__dirname, "..", "tools"),
-    path.resolve(__dirname, "..", "..", "tools"),
-  ].filter(Boolean);
+  const candidates = /** @type {string[]} */ (
+    [
+      options.toolsDir,
+      runtimeOverrideEnv("MANGA_TRANSLATOR_TOOLS_DIR", options),
+      path.resolve(__dirname, "..", "tools"),
+      path.resolve(__dirname, "..", "..", "tools"),
+    ].filter(
+      (candidate) => typeof candidate === "string" && candidate.length > 0,
+    )
+  );
 
   return candidates.find((candidate) => existsSync(candidate)) || candidates[0];
 }
 
+/**
+ * @param {RuntimePathOptions} [options]
+ * @returns {string}
+ */
 function resolveManagedToolsDir(options = {}) {
   const explicit = String(
     options.managedToolsDir ??
@@ -62,6 +88,10 @@ function resolveManagedToolsDir(options = {}) {
   return path.join(resolveWorkingDir(options), "tools");
 }
 
+/**
+ * @param {RuntimePathOptions} [options]
+ * @returns {string[]}
+ */
 function resolveLlamaRuntimeSearchDirs(options = {}) {
   const dirs = [resolveManagedToolsDir(options), resolveToolsDir(options)];
   const seen = new Set();
@@ -82,6 +112,7 @@ function serverBinaryName() {
   return process.platform === "win32" ? "llama-server.exe" : "llama-server";
 }
 
+/** @param {string} runtimeDir */
 function hasCudaRuntimeBackend(runtimeDir) {
   try {
     return ["ggml-cuda.dll", "ggml-cuda-cu12.dll", "ggml-cuda-cu13.dll"].some(
@@ -92,6 +123,10 @@ function hasCudaRuntimeBackend(runtimeDir) {
   }
 }
 
+/**
+ * @param {string} runtimeDir
+ * @param {unknown} [backend]
+ */
 function hasLlamaRuntimeBackend(runtimeDir, backend = "cuda") {
   const normalized = String(backend || "cuda")
     .trim()
@@ -116,6 +151,7 @@ function hasLlamaRuntimeBackend(runtimeDir, backend = "cuda") {
   }
 }
 
+/** @param {string} dir */
 function hasAnyRuntimeLibraryFile(dir) {
   try {
     return readdirSync(dir, { withFileTypes: true }).some(
@@ -126,6 +162,7 @@ function hasAnyRuntimeLibraryFile(dir) {
   }
 }
 
+/** @param {string} runtimeDir */
 function missingRocmRuntimeLibraryDirs(runtimeDir) {
   const missing = [];
   const rocblasLibraryDir = path.join(runtimeDir, "rocblas", "library");
@@ -139,6 +176,10 @@ function missingRocmRuntimeLibraryDirs(runtimeDir) {
   return missing;
 }
 
+/**
+ * @param {string | null | undefined} runtimeDir
+ * @param {LlamaRuntimeDescriptor | null | undefined} runtime
+ */
 function hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
   if (!runtimeDir || !runtime) {
     return false;
@@ -169,6 +210,11 @@ function hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
   }
 }
 
+/**
+ * @param {string} runtimeDir
+ * @param {LlamaRuntimeDescriptor | null | undefined} runtime
+ * @returns {string[]}
+ */
 function missingRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
   const missing = [];
   for (const requirement of runtime?.requiredFiles || [serverBinaryName()]) {
@@ -200,6 +246,10 @@ function missingRequiredLlamaRuntimeFiles(runtimeDir, runtime) {
   return missing;
 }
 
+/**
+ * @param {string} serverPath
+ * @param {LlamaRuntimeDescriptor} runtime
+ */
 function isRuntimeCandidate(serverPath, runtime) {
   try {
     const runtimeDir = path.dirname(serverPath);
@@ -212,6 +262,7 @@ function isRuntimeCandidate(serverPath, runtime) {
   }
 }
 
+/** @param {RuntimePathOptions} [options] */
 function shouldUseRtx50LlamaRuntime(options = {}) {
   const profile = String(
     options.llamaRuntimeProfile ??
@@ -243,6 +294,7 @@ function shouldUseRtx50LlamaRuntime(options = {}) {
   );
 }
 
+/** @param {RuntimePathOptions} [options] */
 function resolveLlamaRuntimeProfile(options = {}) {
   const profile = String(
     options.llamaRuntimeProfile ??
@@ -265,6 +317,7 @@ function resolveLlamaRuntimeProfile(options = {}) {
   return "cuda12";
 }
 
+/** @param {RuntimePathOptions} [options] */
 function isGemma26BModel(options = {}) {
   const parts = [
     resolveConfiguredModelRepo(options),
@@ -276,6 +329,7 @@ function isGemma26BModel(options = {}) {
   return parts.some((part) => /gemma[-_]?4[-_]?26b/i.test(String(part || "")));
 }
 
+/** @param {RuntimePathOptions} [options] */
 function isGemma12BModel(options = {}) {
   const parts = [
     resolveConfiguredModelRepo(options),
@@ -287,6 +341,7 @@ function isGemma12BModel(options = {}) {
   return parts.some((part) => /gemma[-_]?4[-_]?12b/i.test(String(part || "")));
 }
 
+/** @param {RuntimePathOptions} [options] */
 function isGemma31BModel(options = {}) {
   const parts = [
     resolveConfiguredModelRepo(options),
@@ -298,14 +353,20 @@ function isGemma31BModel(options = {}) {
   return parts.some((part) => /gemma[-_]?4[-_]?31b/i.test(String(part || "")));
 }
 
+/** @param {RuntimePathOptions} [options] */
 function isMainlineGemmaModel(options = {}) {
   return isGemma12BModel(options) || isGemma26BModel(options);
 }
 
+/** @param {RuntimePathOptions} [options] */
 function isBuiltInGemmaRuntimeModel(options = {}) {
   return isMainlineGemmaModel(options) || isGemma31BModel(options);
 }
 
+/**
+ * @param {RuntimePathOptions} [options]
+ * @returns {LlamaRuntimeDescriptor}
+ */
 function resolvePreferredLlamaRuntime(options = {}) {
   const profile = resolveLlamaRuntimeProfile(options);
   if (profile === "rocm") {
@@ -335,6 +396,10 @@ function resolvePreferredLlamaRuntime(options = {}) {
     : BEELLAMA_LLAMA_RUNTIME_CUDA12;
 }
 
+/**
+ * @param {RuntimePathOptions} [options]
+ * @returns {string}
+ */
 function defaultServerPath(options = {}) {
   const dirs = resolveLlamaRuntimeSearchDirs(options);
   const existingCandidates = dirs.flatMap((dir) =>
@@ -370,6 +435,7 @@ function defaultServerPath(options = {}) {
   );
 }
 
+/** @param {string} toolsDir */
 function bundledFfmpegCandidates(toolsDir) {
   const binaryName = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
   return [
@@ -379,6 +445,10 @@ function bundledFfmpegCandidates(toolsDir) {
   ];
 }
 
+/**
+ * @param {RuntimePathOptions} [options]
+ * @returns {string}
+ */
 function resolveFfmpegPath(options = {}) {
   const toolsDir = resolveToolsDir(options);
   const bundledCandidates = bundledFfmpegCandidates(toolsDir);
@@ -400,10 +470,14 @@ function resolveFfmpegPath(options = {}) {
     );
   }
 
-  const explicitCandidates = [
-    options.ffmpegPath,
-    runtimeOverrideEnv("MANGA_TRANSLATOR_FFMPEG_PATH", options),
-  ].filter(Boolean);
+  const explicitCandidates = /** @type {string[]} */ (
+    [
+      options.ffmpegPath,
+      runtimeOverrideEnv("MANGA_TRANSLATOR_FFMPEG_PATH", options),
+    ].filter(
+      (candidate) => typeof candidate === "string" && candidate.length > 0,
+    )
+  );
   const explicitPath = explicitCandidates.find((candidate) =>
     existsSync(candidate),
   );

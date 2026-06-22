@@ -9,7 +9,7 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
-} from "../../../shared/types";
+} from "../../../shared/settingsTypes";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
   DEFAULT_GEMMA_MODEL_REPO,

@@ -198,44 +198,71 @@ function validateShareChapter(
     }
   }
   for (const page of chapter.pages) {
-    const imagePath = normalizeShareRelativePath(
-      page.imagePath,
-      "공유 파일의 이미지 경로가 올바르지 않습니다.",
-    );
-    if (!imagePath.startsWith(`chapters/${packageChapterId}/pages/`)) {
-      throw new Error("공유 파일의 이미지 위치가 올바르지 않습니다.");
-    }
-    if (!isSupportedImagePath(imagePath)) {
-      throw new Error(`지원하지 않는 이미지 형식입니다: ${page.name}`);
-    }
-    const imageEntry = entries.get(imagePath);
-    if (!imageEntry) {
-      throw new Error(`공유 파일에 이미지가 없습니다: ${page.name}`);
-    }
-    assertZipEntrySize(imageEntry, MAX_SHARE_IMAGE_BYTES, imagePath);
-
-    if (page.inpaintedImagePath) {
-      const inpaintedPath = normalizeShareRelativePath(
-        page.inpaintedImagePath,
-        "공유 파일의 인페인팅 이미지 경로가 올바르지 않습니다.",
-      );
-      if (
-        !inpaintedPath.startsWith(`chapters/${packageChapterId}/inpainted/`)
-      ) {
-        throw new Error(
-          "공유 파일의 인페인팅 이미지 위치가 올바르지 않습니다.",
-        );
-      }
-      if (!isSupportedImagePath(inpaintedPath)) {
-        throw new Error(
-          `지원하지 않는 인페인팅 이미지 형식입니다: ${page.name}`,
-        );
-      }
-      const inpaintedEntry = entries.get(inpaintedPath);
-      if (!inpaintedEntry) {
-        throw new Error(`공유 파일에 인페인팅 이미지가 없습니다: ${page.name}`);
-      }
-      assertZipEntrySize(inpaintedEntry, MAX_SHARE_IMAGE_BYTES, inpaintedPath);
-    }
+    validateSharePageImage(page, packageChapterId, entries);
+    validateSharePageInpaintedImage(page, packageChapterId, entries);
   }
+}
+
+function validateSharePageImage(
+  page: LibraryChapter["pages"][number],
+  packageChapterId: string,
+  entries: Map<string, ZipEntryLike>,
+): void {
+  const imagePath = normalizeShareRelativePath(
+    page.imagePath,
+    "공유 파일의 이미지 경로가 올바르지 않습니다.",
+  );
+  if (!imagePath.startsWith(`chapters/${packageChapterId}/pages/`)) {
+    throw new Error("공유 파일의 이미지 위치가 올바르지 않습니다.");
+  }
+  assertSupportedShareImageEntry({
+    entries,
+    missingMessage: `공유 파일에 이미지가 없습니다: ${page.name}`,
+    path: imagePath,
+    unsupportedMessage: `지원하지 않는 이미지 형식입니다: ${page.name}`,
+  });
+}
+
+function validateSharePageInpaintedImage(
+  page: LibraryChapter["pages"][number],
+  packageChapterId: string,
+  entries: Map<string, ZipEntryLike>,
+): void {
+  if (!page.inpaintedImagePath) {
+    return;
+  }
+  const inpaintedPath = normalizeShareRelativePath(
+    page.inpaintedImagePath,
+    "공유 파일의 인페인팅 이미지 경로가 올바르지 않습니다.",
+  );
+  if (!inpaintedPath.startsWith(`chapters/${packageChapterId}/inpainted/`)) {
+    throw new Error("공유 파일의 인페인팅 이미지 위치가 올바르지 않습니다.");
+  }
+  assertSupportedShareImageEntry({
+    entries,
+    missingMessage: `공유 파일에 인페인팅 이미지가 없습니다: ${page.name}`,
+    path: inpaintedPath,
+    unsupportedMessage: `지원하지 않는 인페인팅 이미지 형식입니다: ${page.name}`,
+  });
+}
+
+function assertSupportedShareImageEntry({
+  entries,
+  missingMessage,
+  path,
+  unsupportedMessage,
+}: {
+  entries: Map<string, ZipEntryLike>;
+  missingMessage: string;
+  path: string;
+  unsupportedMessage: string;
+}): void {
+  if (!isSupportedImagePath(path)) {
+    throw new Error(unsupportedMessage);
+  }
+  const entry = entries.get(path);
+  if (!entry) {
+    throw new Error(missingMessage);
+  }
+  assertZipEntrySize(entry, MAX_SHARE_IMAGE_BYTES, path);
 }

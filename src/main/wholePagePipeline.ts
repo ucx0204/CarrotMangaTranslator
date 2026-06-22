@@ -79,16 +79,9 @@ export async function runWholePagePipeline({
     };
   }
 
-  const endpoint = await startAnalysisEndpointSession({
-    baseOptions: run.baseOptions,
-    apiSelected: run.apiSelected,
-    codexSelected: run.codexSelected,
-    formatGemmaVramMode,
-    localModelSelected: run.localModelSelected,
-    modelCached: run.modelCached,
+  const endpoint = await startWholePageEndpoint({
     onCleanupReady,
-    progressContext: run.progressContext,
-    runtime: run.runtime,
+    run,
   });
 
   try {
@@ -113,6 +106,26 @@ export async function runWholePagePipeline({
   } finally {
     await endpoint.disposeEndpointSession();
   }
+}
+
+async function startWholePageEndpoint({
+  onCleanupReady,
+  run,
+}: {
+  onCleanupReady?: PipelineOptions["onCleanupReady"];
+  run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
+}): Promise<AnalysisEndpointSession> {
+  return startAnalysisEndpointSession({
+    baseOptions: run.baseOptions,
+    apiSelected: run.apiSelected,
+    codexSelected: run.codexSelected,
+    formatGemmaVramMode,
+    localModelSelected: run.localModelSelected,
+    modelCached: run.modelCached,
+    onCleanupReady,
+    progressContext: run.progressContext,
+    runtime: run.runtime,
+  });
 }
 
 async function preparePageOcrHints({

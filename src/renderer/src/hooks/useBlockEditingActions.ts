@@ -4,11 +4,8 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import type {
-  ChapterSnapshot,
-  MangaPage,
-  TranslationBlock,
-} from "../../../shared/types";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
+import type { TranslationBlock } from "../../../shared/textTypes";
 import {
   clampBbox,
   normalizeBlockType,
@@ -34,26 +31,40 @@ type UseBlockEditingActionsOptions = {
   ) => void;
 };
 
-export function useBlockEditingActions({
-  currentChapter,
-  currentChapterRef,
-  jobActive,
-  markDirty,
-  pushStatus,
-  selectedBlock,
-  selectedPage,
-  selectedPageEditLocked,
-  setCurrentChapter,
-  setSelectedBlockId,
-  updateCurrentChapter,
-}: UseBlockEditingActionsOptions): {
+type BlockEditingActions = {
   applyFontToScope: (scope: "page" | "chapter", fontFamily?: string) => void;
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
   toggleBlockInpaintExcluded: (blockId: string) => void;
   updateSelectedBlock: (patch: Partial<TranslationBlock>) => void;
-} {
-  const updateSelectedBlock = useCallback(
+};
+
+export function useBlockEditingActions(
+  options: UseBlockEditingActionsOptions,
+): BlockEditingActions {
+  const updateSelectedBlock = useUpdateSelectedBlockAction(options);
+  const toggleBlockInpaintExcluded =
+    useToggleBlockInpaintExcludedAction(options);
+  const applyFontToScope = useApplyFontToScopeAction(options);
+  const deleteSelectedBlock = useDeleteSelectedBlockAction(options);
+  const duplicateSelectedBlock = useDuplicateSelectedBlockAction(options);
+
+  return {
+    applyFontToScope,
+    deleteSelectedBlock,
+    duplicateSelectedBlock,
+    toggleBlockInpaintExcluded,
+    updateSelectedBlock,
+  };
+}
+
+function useUpdateSelectedBlockAction({
+  selectedBlock,
+  selectedPage,
+  selectedPageEditLocked,
+  updateCurrentChapter,
+}: UseBlockEditingActionsOptions): BlockEditingActions["updateSelectedBlock"] {
+  return useCallback(
     (patch: Partial<TranslationBlock>) => {
       if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
         return;
@@ -104,8 +115,14 @@ export function useBlockEditingActions({
     },
     [selectedBlock, selectedPage, selectedPageEditLocked, updateCurrentChapter],
   );
+}
 
-  const toggleBlockInpaintExcluded = useCallback(
+function useToggleBlockInpaintExcludedAction({
+  jobActive,
+  selectedPage,
+  updateCurrentChapter,
+}: UseBlockEditingActionsOptions): BlockEditingActions["toggleBlockInpaintExcluded"] {
+  return useCallback(
     (blockId: string) => {
       if (!selectedPage || jobActive) {
         return;
@@ -129,8 +146,20 @@ export function useBlockEditingActions({
     },
     [jobActive, selectedPage, updateCurrentChapter],
   );
+}
 
-  const applyFontToScope = useCallback(
+function useApplyFontToScopeAction({
+  currentChapter,
+  currentChapterRef,
+  jobActive,
+  markDirty,
+  pushStatus,
+  selectedBlock,
+  selectedPage,
+  selectedPageEditLocked,
+  setCurrentChapter,
+}: UseBlockEditingActionsOptions): BlockEditingActions["applyFontToScope"] {
+  return useCallback(
     (scope: "page" | "chapter", fontFamily?: string) => {
       if (!currentChapter || !selectedBlock || selectedPageEditLocked) {
         return;
@@ -185,8 +214,16 @@ export function useBlockEditingActions({
       setCurrentChapter,
     ],
   );
+}
 
-  const deleteSelectedBlock = useCallback(() => {
+function useDeleteSelectedBlockAction({
+  selectedBlock,
+  selectedPage,
+  selectedPageEditLocked,
+  setSelectedBlockId,
+  updateCurrentChapter,
+}: UseBlockEditingActionsOptions): BlockEditingActions["deleteSelectedBlock"] {
+  return useCallback(() => {
     if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
       return;
     }
@@ -212,8 +249,16 @@ export function useBlockEditingActions({
     setSelectedBlockId,
     updateCurrentChapter,
   ]);
+}
 
-  const duplicateSelectedBlock = useCallback(() => {
+function useDuplicateSelectedBlockAction({
+  selectedBlock,
+  selectedPage,
+  selectedPageEditLocked,
+  setSelectedBlockId,
+  updateCurrentChapter,
+}: UseBlockEditingActionsOptions): BlockEditingActions["duplicateSelectedBlock"] {
+  return useCallback(() => {
     if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
       return;
     }
@@ -244,12 +289,4 @@ export function useBlockEditingActions({
     setSelectedBlockId,
     updateCurrentChapter,
   ]);
-
-  return {
-    applyFontToScope,
-    deleteSelectedBlock,
-    duplicateSelectedBlock,
-    toggleBlockInpaintExcluded,
-    updateSelectedBlock,
-  };
 }

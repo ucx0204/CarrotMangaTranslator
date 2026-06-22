@@ -1,217 +1,173 @@
 import React from "react";
-import { useFonts } from "../fonts/useFonts";
+import { resolveBlockFontFamily } from "../lib/fonts";
 import {
-  normalizeBlockFontFamily,
-  resolveBlockFontFamily,
-  resolveBlockFontOption,
-} from "../lib/fonts";
+  resolveFontOptionClassName,
+  useFontSelectModel,
+  type FontOption,
+  type FontSelectModel,
+  type FontSelectProps,
+} from "./fontSelectModel";
 
-type FontSelectProps = {
-  value: string | undefined;
-  disabled?: boolean;
-  onChange: (fontFamily: string | undefined) => void;
-};
+export function FontSelect(props: FontSelectProps): React.JSX.Element {
+  const { listRef, model, rootRef } = useFontSelectModel(props);
+  return <FontSelectView listRef={listRef} model={model} rootRef={rootRef} />;
+}
 
-export function FontSelect({
-  value,
-  disabled = false,
-  onChange,
-}: FontSelectProps): React.JSX.Element {
-  const { options, customFonts, registerFont, removeFont, busy } = useFonts();
-  const customIds = React.useMemo(
-    () => new Set(customFonts.map((font) => font.id)),
-    [customFonts],
-  );
-  const selected = resolveBlockFontOption(value);
-  const [open, setOpen] = React.useState(false);
-  const [activeIndex, setActiveIndex] = React.useState(() =>
-    Math.max(
-      0,
-      options.findIndex((option) => option.id === selected.id),
-    ),
-  );
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const listRef = React.useRef<HTMLDivElement | null>(null);
-
-  const close = React.useCallback(() => setOpen(false), []);
-
-  React.useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        close();
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () =>
-      document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [open, close]);
-
-  React.useEffect(() => {
-    if (open) {
-      setActiveIndex(
-        Math.max(
-          0,
-          options.findIndex((option) => option.id === selected.id),
-        ),
-      );
-    }
-  }, [open, selected.id, options]);
-
-  React.useEffect(() => {
-    if (!open || !listRef.current) {
-      return;
-    }
-    const node = listRef.current.children[activeIndex] as
-      | HTMLElement
-      | undefined;
-    node?.scrollIntoView({ block: "nearest" });
-  }, [open, activeIndex]);
-
-  const commit = React.useCallback(
-    (id: string) => {
-      onChange(normalizeBlockFontFamily(id));
-      close();
-    },
-    [onChange, close],
-  );
-
-  const onTriggerKeyDown = (event: React.KeyboardEvent) => {
-    if (disabled) {
-      return;
-    }
-    if (
-      event.key === "ArrowDown" ||
-      event.key === "ArrowUp" ||
-      event.key === "Enter" ||
-      event.key === " "
-    ) {
-      event.preventDefault();
-      setOpen(true);
-    }
-  };
-
-  const onListKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      close();
-      return;
-    }
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActiveIndex((index) => Math.min(options.length - 1, index + 1));
-      return;
-    }
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveIndex((index) => Math.max(0, index - 1));
-      return;
-    }
-    if (event.key === "Home") {
-      event.preventDefault();
-      setActiveIndex(0);
-      return;
-    }
-    if (event.key === "End") {
-      event.preventDefault();
-      setActiveIndex(options.length - 1);
-      return;
-    }
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      const option = options[activeIndex];
-      if (option) {
-        commit(option.id);
-      }
-    }
-  };
-
+function FontSelectView({
+  listRef,
+  model,
+  rootRef,
+}: {
+  listRef: React.RefObject<HTMLDivElement | null>;
+  model: FontSelectModel;
+  rootRef: React.RefObject<HTMLDivElement | null>;
+}): React.JSX.Element {
   return (
-    <div className={`font-select ${open ? "open" : ""}`} ref={rootRef}>
+    <div className={`font-select ${model.open ? "open" : ""}`} ref={rootRef}>
+      <FontSelectTrigger model={model} />
+      {model.open ? <FontSelectMenu listRef={listRef} model={model} /> : null}
+    </div>
+  );
+}
+
+function FontSelectTrigger({
+  model,
+}: {
+  model: FontSelectModel;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="font-select-trigger"
+      disabled={model.disabled}
+      aria-haspopup="listbox"
+      aria-expanded={model.open}
+      onClick={() => model.setOpen((current) => !current)}
+      onKeyDown={model.onTriggerKeyDown}
+    >
+      <span className="font-select-name">{model.selected.label}</span>
+      <span
+        className="font-select-sample"
+        style={{ fontFamily: resolveBlockFontFamily(model.selected.id) }}
+      >
+        {model.selected.sample}
+      </span>
+      <ChevronIcon />
+    </button>
+  );
+}
+
+function FontSelectMenu({
+  listRef,
+  model,
+}: {
+  listRef: React.RefObject<HTMLDivElement | null>;
+  model: FontSelectModel;
+}): React.JSX.Element {
+  return (
+    <div className="font-select-menu">
+      <div
+        className="font-select-options"
+        role="listbox"
+        tabIndex={-1}
+        ref={listRef}
+        onKeyDown={model.onListKeyDown}
+      >
+        {model.options.map((option, index) => (
+          <FontSelectOption
+            key={option.id}
+            active={index === model.activeIndex}
+            busy={model.busy}
+            custom={model.customIds.has(option.id)}
+            onCommit={model.onOptionCommit}
+            onHover={() => model.onOptionHover(index)}
+            onRemove={model.onRemoveFont}
+            option={option}
+            selected={option.id === model.selected.id}
+          />
+        ))}
+      </div>
       <button
         type="button"
-        className="font-select-trigger"
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-        onKeyDown={onTriggerKeyDown}
+        className="font-select-add"
+        disabled={model.busy}
+        onClick={model.onAddFont}
       >
-        <span className="font-select-name">{selected.label}</span>
-        <span
-          className="font-select-sample"
-          style={{ fontFamily: resolveBlockFontFamily(selected.id) }}
-        >
-          {selected.sample}
-        </span>
-        <ChevronIcon />
+        + TTF/OTF 폰트 등록
       </button>
-      {open ? (
-        <div className="font-select-menu">
-          <div
-            className="font-select-options"
-            role="listbox"
-            tabIndex={-1}
-            ref={listRef}
-            onKeyDown={onListKeyDown}
-          >
-            {options.map((option, index) => (
-              <div
-                key={option.id}
-                role="option"
-                aria-selected={option.id === selected.id}
-                className={[
-                  "font-select-option",
-                  option.id === selected.id ? "selected" : "",
-                  index === activeIndex ? "active" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onPointerEnter={() => setActiveIndex(index)}
-                onClick={() => commit(option.id)}
-              >
-                <span className="font-select-option-label">{option.label}</span>
-                <span
-                  className="font-select-option-sample"
-                  style={{ fontFamily: resolveBlockFontFamily(option.id) }}
-                >
-                  {option.sample}
-                </span>
-                {customIds.has(option.id) ? (
-                  <button
-                    type="button"
-                    className="font-select-remove"
-                    title="이 폰트 삭제"
-                    aria-label={`${option.label} 삭제`}
-                    disabled={busy}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      void removeFont(option.id);
-                    }}
-                  >
-                    ×
-                  </button>
-                ) : null}
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="font-select-add"
-            disabled={busy}
-            onClick={() => {
-              close();
-              void registerFont();
-            }}
-          >
-            + TTF/OTF 폰트 등록
-          </button>
-        </div>
+    </div>
+  );
+}
+
+function FontSelectOption({
+  active,
+  busy,
+  custom,
+  onCommit,
+  onHover,
+  onRemove,
+  option,
+  selected,
+}: {
+  active: boolean;
+  busy: boolean;
+  custom: boolean;
+  onCommit: (id: string) => void;
+  onHover: () => void;
+  onRemove: (id: string) => void;
+  option: FontOption;
+  selected: boolean;
+}): React.JSX.Element {
+  return (
+    <div
+      role="option"
+      aria-selected={selected}
+      className={resolveFontOptionClassName(selected, active)}
+      onPointerEnter={onHover}
+      onClick={() => onCommit(option.id)}
+    >
+      <span className="font-select-option-label">{option.label}</span>
+      <span
+        className="font-select-option-sample"
+        style={{ fontFamily: resolveBlockFontFamily(option.id) }}
+      >
+        {option.sample}
+      </span>
+      {custom ? (
+        <CustomFontRemoveButton
+          busy={busy}
+          label={option.label}
+          onRemove={() => onRemove(option.id)}
+        />
       ) : null}
     </div>
+  );
+}
+
+function CustomFontRemoveButton({
+  busy,
+  label,
+  onRemove,
+}: {
+  busy: boolean;
+  label: string;
+  onRemove: () => void;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="font-select-remove"
+      title="이 폰트 삭제"
+      aria-label={`${label} 삭제`}
+      disabled={busy}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onRemove();
+      }}
+    >
+      ×
+    </button>
   );
 }
 

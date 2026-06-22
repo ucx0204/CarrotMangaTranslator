@@ -1,5 +1,5 @@
 import React from "react";
-import type { AppSettings } from "../../../shared/types";
+import type { AppSettings } from "../../../shared/settingsTypes";
 import { mangaGateway } from "../api/mangaGateway";
 
 type UseSettingsDialogResult = {
@@ -21,12 +21,27 @@ export function useSettingsDialog(
   const [settings, setSettings] = React.useState<AppSettings | null>(null);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [settingsBusy, setSettingsBusy] = React.useState(false);
-
-  const refreshSettings = React.useCallback(async () => {
-    const next = await mangaGateway.getSettings();
-    setSettings(next);
-    return next;
-  }, []);
+  const refreshSettings = useSettingsRefresh(setSettings);
+  const openSettings = useOpenSettingsAction({
+    pushStatus,
+    refreshSettings,
+    setSettingsBusy,
+    setSettingsOpen,
+    settings,
+  });
+  const closeSettings = useCloseSettingsAction(settingsBusy, setSettingsOpen);
+  const submitSettings = useSubmitSettingsAction({
+    pushStatus,
+    setSettings,
+    setSettingsBusy,
+    setSettingsOpen,
+  });
+  const saveSettingsQuietly = useQuietSettingsSaveAction(setSettings);
+  const resetSettings = useResetSettingsAction({
+    pushStatus,
+    setSettings,
+    setSettingsBusy,
+  });
 
   React.useEffect(() => {
     void refreshSettings().catch((error) => {
@@ -34,7 +49,44 @@ export function useSettingsDialog(
     });
   }, [refreshSettings]);
 
-  const openSettings = React.useCallback(async () => {
+  return {
+    settings,
+    settingsOpen,
+    settingsBusy,
+    openSettings,
+    closeSettings,
+    submitSettings,
+    resetSettings,
+    saveSettingsQuietly,
+  };
+}
+
+function useSettingsRefresh(
+  setSettings: React.Dispatch<React.SetStateAction<AppSettings | null>>,
+): () => Promise<AppSettings> {
+  return React.useCallback(async () => {
+    const next = await mangaGateway.getSettings();
+    setSettings(next);
+    return next;
+  }, [setSettings]);
+}
+
+type OpenSettingsActionOptions = {
+  pushStatus: (line: string) => void;
+  refreshSettings: () => Promise<AppSettings>;
+  setSettingsBusy: React.Dispatch<React.SetStateAction<boolean>>;
+  setSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  settings: AppSettings | null;
+};
+
+function useOpenSettingsAction({
+  pushStatus,
+  refreshSettings,
+  setSettingsBusy,
+  setSettingsOpen,
+  settings,
+}: OpenSettingsActionOptions): () => Promise<void> {
+  return React.useCallback(async () => {
     if (settings) {
       setSettingsOpen(true);
       return;
@@ -50,14 +102,35 @@ export function useSettingsDialog(
     } finally {
       setSettingsBusy(false);
     }
-  }, [pushStatus, refreshSettings, settings]);
+  }, [pushStatus, refreshSettings, setSettingsBusy, setSettingsOpen, settings]);
+}
 
-  const closeSettings = React.useCallback(() => {
+function useCloseSettingsAction(
+  settingsBusy: boolean,
+  setSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>,
+): () => void {
+  return React.useCallback(() => {
     setSettingsOpen((open) => (settingsBusy ? open : false));
-  }, [settingsBusy]);
+  }, [settingsBusy, setSettingsOpen]);
+}
 
-  const submitSettings = React.useCallback(
-    async (nextSettings: AppSettings) => {
+type SettingsMutationOptions = {
+  pushStatus: (line: string) => void;
+  setSettings: React.Dispatch<React.SetStateAction<AppSettings | null>>;
+  setSettingsBusy: React.Dispatch<React.SetStateAction<boolean>>;
+  setSettingsOpen?: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+function useSubmitSettingsAction({
+  pushStatus,
+  setSettings,
+  setSettingsBusy,
+  setSettingsOpen,
+}: Required<SettingsMutationOptions>): (
+  nextSettings: AppSettings,
+) => Promise<void> {
+  return React.useCallback(
+    async (nextSettings) => {
       setSettingsBusy(true);
       try {
         const saved = await mangaGateway.saveSettings(nextSettings);
@@ -71,11 +144,15 @@ export function useSettingsDialog(
         setSettingsBusy(false);
       }
     },
-    [pushStatus],
+    [pushStatus, setSettings, setSettingsBusy, setSettingsOpen],
   );
+}
 
-  const saveSettingsQuietly = React.useCallback(
-    async (nextSettings: AppSettings) => {
+function useQuietSettingsSaveAction(
+  setSettings: React.Dispatch<React.SetStateAction<AppSettings | null>>,
+): (nextSettings: AppSettings) => Promise<AppSettings | null> {
+  return React.useCallback(
+    async (nextSettings) => {
       try {
         const saved = await mangaGateway.saveSettings(nextSettings);
         setSettings(saved);
@@ -85,10 +162,16 @@ export function useSettingsDialog(
         return null;
       }
     },
-    [],
+    [setSettings],
   );
+}
 
-  const resetSettings = React.useCallback(async () => {
+function useResetSettingsAction({
+  pushStatus,
+  setSettings,
+  setSettingsBusy,
+}: SettingsMutationOptions): () => Promise<void> {
+  return React.useCallback(async () => {
     setSettingsBusy(true);
     try {
       const reset = await mangaGateway.resetSettings();
@@ -102,16 +185,5 @@ export function useSettingsDialog(
     } finally {
       setSettingsBusy(false);
     }
-  }, [pushStatus]);
-
-  return {
-    settings,
-    settingsOpen,
-    settingsBusy,
-    openSettings,
-    closeSettings,
-    submitSettings,
-    resetSettings,
-    saveSettingsQuietly,
-  };
+  }, [pushStatus, setSettings, setSettingsBusy]);
 }

@@ -1,6 +1,6 @@
 import { nativeImage } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, join } from "node:path";
+import { dirname } from "node:path";
 import { clamp } from "../shared/geometry";
 import type {
   FluxBackend,
@@ -27,24 +27,10 @@ import {
   type FluxInpaintingEngine,
   type InpaintingRuntimeProgress,
 } from "./inpainting/fluxEngine";
-import {
-  bboxToPixelRect,
-  expandRect,
-  hasUsableBbox,
-  mergeFilledRectIntoPage,
-  mergeMaskIntoPage,
-  mergeRects,
-  rectHasMask,
-  resolvePatternBlockMarginPx,
-  resolvePatternDilationRadius,
-  resolvePatternRegionPaddingPx,
-  resolvePatternWindowMarginPx,
-  type PixelRect,
-} from "./inpainting/maskGeometry";
+import { expandRect, mergeRects, rectHasMask } from "./inpainting/maskGeometry";
 import {
   applyRetouchCircle,
   buildMaskFromStrokes,
-  buildPatternTextMask,
   interpolatePoints,
   maskComponents,
   parseHexColor,
@@ -53,131 +39,19 @@ import {
   sanitizeMaskStrokes,
   sanitizePoints,
 } from "./inpainting/rasterMasks";
+import { loadPageImage, resolveInpaintedImagePath } from "./inpainting/imageIO";
+import type {
+  ImageDecodeFallback,
+  PatternPageInpaintingResult,
+} from "./inpainting/inpaintingTypes";
 
-export type { FluxInpaintingEngine, InpaintingRuntimeProgress };
-
-export type PatternPageInpaintingResult = {
-  page: MangaPage;
-  blocksErased: number;
+export type {
+  FluxInpaintingEngine,
+  ImageDecodeFallback,
+  InpaintingRuntimeProgress,
+  PatternPageInpaintingResult,
 };
-
-export type ImageDecodeFallback = (filePath: string) => Promise<Buffer | null>;
-
-export async function inpaintPatternPage(
-  page: MangaPage,
-  options: {
-    signal?: AbortSignal;
-    decodeFallback?: ImageDecodeFallback;
-    fluxEngine?: FluxInpaintingEngine;
-  } = {},
-): Promise<PatternPageInpaintingResult> {
-  const patternBlocks = page.blocks.filter(
-    (block) => hasUsableBbox(block.bbox) && !block.inpaintExcluded,
-  );
-  if (patternBlocks.length === 0) {
-    return { page, blocksErased: 0 };
-  }
-
-  const image = await loadPageImage(
-    page.inpaintedImagePath ?? page.imagePath,
-    options.decodeFallback,
-  );
-  const size = image.getSize();
-  if (!size.width || !size.height) {
-    throw new Error(`페이지 이미지를 읽지 못했습니다: ${page.name}`);
-  }
-
-  const bitmap = Buffer.from(image.toBitmap());
-  if (bitmap.length < size.width * size.height * 4) {
-    throw new Error(`페이지 이미지 비트맵을 만들지 못했습니다: ${page.name}`);
-  }
-
-  const pageMask = new Uint8Array(size.width * size.height);
-  const inpaintWindows: PixelRect[] = [];
-  let blocksErased = 0;
-
-  for (const block of patternBlocks) {
-    throwIfAborted(options.signal);
-    const sourceRect = bboxToPixelRect(block.bbox, page);
-    const supportRect = expandRect(
-      sourceRect,
-      size.width,
-      size.height,
-      resolvePatternRegionPaddingPx(block, page),
-    );
-    const detectRect = expandRect(
-      sourceRect,
-      size.width,
-      size.height,
-      resolvePatternBlockMarginPx(block, page),
-    );
-    const detectedMask = buildPatternTextMask(
-      bitmap,
-      size.width,
-      size.height,
-      detectRect,
-      resolvePatternDilationRadius(block),
-    );
-
-    mergeFilledRectIntoPage(pageMask, size.width, supportRect);
-    if (detectedMask.count > 0) {
-      mergeMaskIntoPage(pageMask, size.width, detectRect, detectedMask.mask);
-    }
-    inpaintWindows.push(
-      expandRect(
-        supportRect,
-        size.width,
-        size.height,
-        resolvePatternWindowMarginPx(block, page),
-      ),
-    );
-    blocksErased += 1;
-  }
-
-  if (blocksErased === 0) {
-    return { page, blocksErased: 0 };
-  }
-
-  if (!options.fluxEngine) {
-    throw new Error("Flux 원문 지우기 엔진이 준비되지 않았습니다.");
-  }
-
-  await options.fluxEngine.inpaint(
-    bitmap,
-    size.width,
-    size.height,
-    pageMask,
-    mergeRects(inpaintWindows),
-    {
-      signal: options.signal,
-      featherPx: FLUX_INPAINT_FEATHER_PX,
-      contextPx: FLUX_INPAINT_CONTEXT_PX,
-      maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
-      maxPixels: FLUX_INPAINT_MAX_PIXELS,
-    },
-  );
-
-  const outputImage = nativeImage.createFromBitmap(bitmap, {
-    width: size.width,
-    height: size.height,
-  });
-  if (outputImage.isEmpty()) {
-    throw new Error(`인페인팅 결과 이미지를 만들지 못했습니다: ${page.name}`);
-  }
-
-  const outputPath = resolveInpaintedImagePath(page.imagePath, "pattern");
-  await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, outputImage.toPNG());
-
-  return {
-    blocksErased,
-    page: {
-      ...page,
-      inpaintedImagePath: outputPath,
-      updatedAt: new Date().toISOString(),
-    },
-  };
-}
+export { inpaintPatternPage } from "./inpainting/patternPage";
 
 export async function inpaintDrawnPatternPage(
   page: MangaPage,
@@ -421,41 +295,4 @@ export async function sampleImageColor(
   const px = clamp(Math.round(x), 0, Math.max(0, size.width - 1));
   const py = clamp(Math.round(y), 0, Math.max(0, size.height - 1));
   return rgbToHex(readRgb(bitmap, size.width, px, py));
-}
-
-async function loadPageImage(
-  filePath: string,
-  decodeFallback?: ImageDecodeFallback,
-): Promise<Electron.NativeImage> {
-  const direct = nativeImage.createFromPath(filePath);
-  if (!direct.isEmpty()) {
-    return direct;
-  }
-
-  const fallbackBuffer = decodeFallback ? await decodeFallback(filePath) : null;
-  if (fallbackBuffer?.length) {
-    const fallback = nativeImage.createFromBuffer(fallbackBuffer);
-    if (!fallback.isEmpty()) {
-      return fallback;
-    }
-  }
-
-  throw new Error("인페인팅할 이미지를 읽지 못했습니다.");
-}
-
-function resolveInpaintedImagePath(
-  imagePath: string,
-  suffix = "pattern",
-): string {
-  const imageDir = dirname(imagePath);
-  const chapterDir = dirname(imageDir);
-  const name = basename(imagePath, extname(imagePath));
-  const safeSuffix = suffix.replace(/[^a-z0-9_-]/gi, "-");
-  return join(chapterDir, "inpainted", `${name}-${safeSuffix}.png`);
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) {
-    throw new DOMException("Aborted", "AbortError");
-  }
 }

@@ -24,6 +24,34 @@ import { buildTargetPythonEnv } from "./rocmRuntime";
 import { hasUsablePackageDir } from "./pythonRuntimePackages";
 import { isExecutableFile, sha256FileSync } from "./fileProbe";
 
+type FluxPythonRuntimeMarker = {
+  backend: FluxPythonBackend;
+  runtimeInstallBatches: Array<{ id: string; pipArgs: string[] }>;
+  buildPackages: string[];
+  packages: string[];
+  worker: string;
+  workerHash: string;
+};
+
+type CurrentFluxPythonRuntimeOptions = {
+  runtimeDir: string;
+  venvPythonPath: string;
+  packageDir: string;
+  markerPath: string;
+  expectedMarker: FluxPythonRuntimeMarker;
+};
+
+type StoredFluxPythonRuntimeMarker = Partial<FluxPythonRuntimeMarker> & {
+  runtimeMode?: "venv" | "target";
+  pythonPath?: string;
+  packageDir?: string;
+};
+
+type CurrentRuntimePaths = {
+  packageDir: string;
+  pythonPath: string;
+};
+
 export function resolveFluxPythonRuntimeLayout(
   baseRuntimeDir: string,
   backend: FluxPythonBackend,
@@ -140,83 +168,115 @@ export function findFluxPythonWorkerSource(workerFile: string): string | null {
   return null;
 }
 
-export async function resolveCurrentFluxPythonRuntime(options: {
-  runtimeDir: string;
-  venvPythonPath: string;
-  packageDir: string;
-  markerPath: string;
-  expectedMarker: {
-    backend: FluxPythonBackend;
-    runtimeInstallBatches: Array<{ id: string; pipArgs: string[] }>;
-    buildPackages: string[];
-    packages: string[];
-    worker: string;
-    workerHash: string;
-  };
-}): Promise<FluxPythonRuntime | null> {
+export async function resolveCurrentFluxPythonRuntime(
+  options: CurrentFluxPythonRuntimeOptions,
+): Promise<FluxPythonRuntime | null> {
   try {
+    if (!hasExpectedFluxPythonWorker(options)) {
+      return null;
+    }
+    const marker = await readCurrentFluxPythonRuntimeMarker(options.markerPath);
     if (
-      !isExecutableFile(
-        join(dirname(options.markerPath), options.expectedMarker.worker),
-      )
+      !matchesCurrentFluxPythonRuntimeMarker(marker, options.expectedMarker)
     ) {
       return null;
     }
-    const marker = JSON.parse(
-      await readFile(options.markerPath, "utf8"),
-    ) as Partial<typeof options.expectedMarker> & {
-      runtimeMode?: "venv" | "target";
-      pythonPath?: string;
-      packageDir?: string;
-    };
-    if (
-      marker.backend !== options.expectedMarker.backend ||
-      JSON.stringify(marker.runtimeInstallBatches ?? null) !==
-        JSON.stringify(options.expectedMarker.runtimeInstallBatches) ||
-      JSON.stringify(marker.buildPackages ?? null) !==
-        JSON.stringify(options.expectedMarker.buildPackages) ||
-      JSON.stringify(marker.packages ?? null) !==
-        JSON.stringify(options.expectedMarker.packages) ||
-      marker.worker !== options.expectedMarker.worker ||
-      marker.workerHash !== options.expectedMarker.workerHash
-    ) {
+    const runtimePaths = resolveCurrentRuntimePaths(options, marker);
+    if (!canUseCurrentRuntimePaths(options, runtimePaths)) {
       return null;
     }
-    if (marker.runtimeMode !== "target") {
-      return null;
+    if (isAbsolute(runtimePaths.pythonPath)) {
+      ensureEmbeddedPythonPackagePath(
+        runtimePaths.pythonPath,
+        runtimePaths.packageDir,
+      );
     }
-    const pythonPath =
-      typeof marker.pythonPath === "string"
-        ? marker.pythonPath
-        : managedFluxBootstrapPythonPath(options.runtimeDir);
-    const packageDir =
-      typeof marker.packageDir === "string"
-        ? marker.packageDir
-        : options.packageDir;
-    if (
-      !isExecutableFile(pythonPath) ||
-      !hasUsablePackageDir(packageDir, options.expectedMarker.backend)
-    ) {
-      return null;
-    }
-    if (isAbsolute(pythonPath)) {
-      ensureEmbeddedPythonPackagePath(pythonPath, packageDir);
-    }
-    return {
-      mode: "target",
-      command: pythonPath,
-      executable: pythonPath,
-      args: [],
-      env: buildTargetPythonEnv(
-        options.runtimeDir,
-        packageDir,
-        options.expectedMarker.backend,
-      ),
-      packageDir,
-    };
+    return buildCurrentFluxPythonRuntime(options, runtimePaths);
   } catch (_error) {
     return null;
   }
+}
+
+function hasExpectedFluxPythonWorker(
+  options: CurrentFluxPythonRuntimeOptions,
+): boolean {
+  return isExecutableFile(
+    join(dirname(options.markerPath), options.expectedMarker.worker),
+  );
+}
+
+async function readCurrentFluxPythonRuntimeMarker(
+  markerPath: string,
+): Promise<StoredFluxPythonRuntimeMarker> {
+  return JSON.parse(
+    await readFile(markerPath, "utf8"),
+  ) as StoredFluxPythonRuntimeMarker;
+}
+
+function matchesCurrentFluxPythonRuntimeMarker(
+  marker: StoredFluxPythonRuntimeMarker,
+  expected: FluxPythonRuntimeMarker,
+): boolean {
+  return (
+    marker.runtimeMode === "target" &&
+    marker.backend === expected.backend &&
+    marker.worker === expected.worker &&
+    marker.workerHash === expected.workerHash &&
+    sameJson(
+      marker.runtimeInstallBatches ?? null,
+      expected.runtimeInstallBatches,
+    ) &&
+    sameJson(marker.buildPackages ?? null, expected.buildPackages) &&
+    sameJson(marker.packages ?? null, expected.packages)
+  );
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function resolveCurrentRuntimePaths(
+  options: CurrentFluxPythonRuntimeOptions,
+  marker: StoredFluxPythonRuntimeMarker,
+): CurrentRuntimePaths {
+  return {
+    pythonPath:
+      typeof marker.pythonPath === "string"
+        ? marker.pythonPath
+        : managedFluxBootstrapPythonPath(options.runtimeDir),
+    packageDir:
+      typeof marker.packageDir === "string"
+        ? marker.packageDir
+        : options.packageDir,
+  };
+}
+
+function canUseCurrentRuntimePaths(
+  options: CurrentFluxPythonRuntimeOptions,
+  paths: CurrentRuntimePaths,
+): boolean {
+  return (
+    isExecutableFile(paths.pythonPath) &&
+    hasUsablePackageDir(paths.packageDir, options.expectedMarker.backend)
+  );
+}
+
+function buildCurrentFluxPythonRuntime(
+  options: CurrentFluxPythonRuntimeOptions,
+  paths: CurrentRuntimePaths,
+): FluxPythonRuntime {
+  return {
+    mode: "target",
+    command: paths.pythonPath,
+    executable: paths.pythonPath,
+    args: [],
+    env: buildTargetPythonEnv(
+      options.runtimeDir,
+      paths.packageDir,
+      options.expectedMarker.backend,
+    ),
+    packageDir: paths.packageDir,
+  };
 }
 
 function pythonExecutablePath(venvDir: string): string {

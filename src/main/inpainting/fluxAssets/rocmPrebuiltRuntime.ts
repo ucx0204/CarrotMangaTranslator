@@ -30,7 +30,7 @@ import {
   verifyFluxPythonRuntime,
 } from "./pythonRuntimePackages";
 
-export async function ensurePrebuiltFluxRocmPythonRuntime(options: {
+type PrebuiltFluxRocmRuntimeOptions = {
   layout: FluxPythonRuntimeLayout;
   expectedMarker: {
     backend: FluxPythonBackend;
@@ -42,12 +42,35 @@ export async function ensurePrebuiltFluxRocmPythonRuntime(options: {
   };
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
-}): Promise<FluxPythonRuntime | null> {
+};
+
+type PrebuiltArchiveInfo = {
+  archiveName: string;
+  archivePath: string;
+  archiveUrl: string;
+};
+
+export async function ensurePrebuiltFluxRocmPythonRuntime(
+  options: PrebuiltFluxRocmRuntimeOptions,
+): Promise<FluxPythonRuntime | null> {
   const archiveUrl = resolveFluxRocmPrebuiltRuntimeUrl();
   if (!archiveUrl || !shouldUsePrebuiltFluxRocmRuntime()) {
     return null;
   }
 
+  const archiveInfo = await resolvePrebuiltFluxRocmArchive(options, archiveUrl);
+  await extractPrebuiltFluxRocmRuntime(options, archiveInfo.archivePath);
+  const pythonRuntime = buildPrebuiltFluxRocmPythonRuntime(options);
+  await verifyFluxPythonRuntime(pythonRuntime, "python-rocm", options.signal);
+  await writePrebuiltFluxRocmMarker(options, archiveInfo, pythonRuntime);
+  reportPrebuiltFluxRocmReady(options, archiveInfo.archiveName);
+  return pythonRuntime;
+}
+
+async function resolvePrebuiltFluxRocmArchive(
+  options: PrebuiltFluxRocmRuntimeOptions,
+  archiveUrl: string,
+): Promise<PrebuiltArchiveInfo> {
   const archiveName = resolveArchiveFileName(
     archiveUrl,
     FLUX_ROCM_PREBUILT_RUNTIME_FILE,
@@ -69,7 +92,13 @@ export async function ensurePrebuiltFluxRocmPythonRuntime(options: {
     label: archiveName,
     onProgress: options.onProgress,
   });
+  return { archiveName, archivePath, archiveUrl };
+}
 
+async function extractPrebuiltFluxRocmRuntime(
+  options: PrebuiltFluxRocmRuntimeOptions,
+  archivePath: string,
+): Promise<void> {
   await rm(options.layout.runtimeDir, { recursive: true, force: true });
   await mkdir(options.layout.runtimeDir, { recursive: true });
   await extractLargeZipSafely(archivePath, options.layout.runtimeDir);
@@ -78,21 +107,15 @@ export async function ensurePrebuiltFluxRocmPythonRuntime(options: {
     options.expectedMarker.worker,
   );
   await validatePrebuiltFluxRocmRuntime(options.layout.runtimeDir);
+}
 
+function buildPrebuiltFluxRocmPythonRuntime(
+  options: PrebuiltFluxRocmRuntimeOptions,
+): FluxPythonRuntime {
   const pythonPath = managedFluxBootstrapPythonPath(options.layout.runtimeDir);
-  if (!isExecutableFile(pythonPath)) {
-    throw new Error(
-      `Flux ROCm prebuilt 런타임에 Python 실행 파일이 없습니다: ${pythonPath}`,
-    );
-  }
-  if (!hasUsablePackageDir(options.layout.packageDir, "python-rocm")) {
-    throw new Error(
-      `Flux ROCm prebuilt 런타임에 필요한 Python 패키지가 없습니다: ${options.layout.packageDir}`,
-    );
-  }
+  assertPrebuiltFluxRocmPythonRuntimeFiles(options, pythonPath);
   ensureEmbeddedPythonPackagePath(pythonPath, options.layout.packageDir);
-
-  const pythonRuntime: FluxPythonRuntime = {
+  return {
     mode: "target",
     command: pythonPath,
     executable: pythonPath,
@@ -104,7 +127,29 @@ export async function ensurePrebuiltFluxRocmPythonRuntime(options: {
     ),
     packageDir: options.layout.packageDir,
   };
-  await verifyFluxPythonRuntime(pythonRuntime, "python-rocm", options.signal);
+}
+
+function assertPrebuiltFluxRocmPythonRuntimeFiles(
+  options: PrebuiltFluxRocmRuntimeOptions,
+  pythonPath: string,
+): void {
+  if (!isExecutableFile(pythonPath)) {
+    throw new Error(
+      `Flux ROCm prebuilt 런타임에 Python 실행 파일이 없습니다: ${pythonPath}`,
+    );
+  }
+  if (!hasUsablePackageDir(options.layout.packageDir, "python-rocm")) {
+    throw new Error(
+      `Flux ROCm prebuilt 런타임에 필요한 Python 패키지가 없습니다: ${options.layout.packageDir}`,
+    );
+  }
+}
+
+async function writePrebuiltFluxRocmMarker(
+  options: PrebuiltFluxRocmRuntimeOptions,
+  archiveInfo: PrebuiltArchiveInfo,
+  pythonRuntime: FluxPythonRuntime,
+): Promise<void> {
   await writeFile(
     options.layout.markerPath,
     `${JSON.stringify(
@@ -113,8 +158,8 @@ export async function ensurePrebuiltFluxRocmPythonRuntime(options: {
         runtimeMode: "target",
         pythonPath: pythonRuntime.executable,
         packageDir: pythonRuntime.packageDir,
-        prebuiltRuntimeUrl: archiveUrl,
-        prebuiltRuntimeFile: archiveName,
+        prebuiltRuntimeUrl: archiveInfo.archiveUrl,
+        prebuiltRuntimeFile: archiveInfo.archiveName,
         installedAt: new Date().toISOString(),
       },
       null,
@@ -122,13 +167,18 @@ export async function ensurePrebuiltFluxRocmPythonRuntime(options: {
     )}\n`,
     "utf8",
   );
+}
+
+function reportPrebuiltFluxRocmReady(
+  options: PrebuiltFluxRocmRuntimeOptions,
+  archiveName: string,
+): void {
   options.onProgress?.({
     progressText: "Flux ROCm prebuilt 런타임 준비 완료",
     detail: archiveName,
     progressMode: "log-only",
     installLogLine: "Flux ROCm prebuilt 런타임 검증이 완료되었습니다.",
   });
-  return pythonRuntime;
 }
 
 async function ensurePrebuiltFluxRocmRuntimeArchive(options: {

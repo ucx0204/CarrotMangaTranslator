@@ -6,6 +6,11 @@ const withFluxNvidia =
   process.argv.includes("--with-flux-nvidia") ||
   process.env.MGT_BUILD_FLUX_NVIDIA_RUNNERS === "1";
 
+/**
+ * @param {string} command
+ * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} [extraEnv]
+ */
 function run(command, args, extraEnv = {}) {
   const result = spawnSync(command, args, {
     stdio: "inherit",

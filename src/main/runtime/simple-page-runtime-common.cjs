@@ -8,6 +8,11 @@ function nowMs() {
     : Date.now();
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} [maxLength]
+ * @returns {string}
+ */
 function truncateText(value, maxLength = MAX_LOG_PREVIEW_LENGTH) {
   const text = String(value ?? "");
   if (text.length <= maxLength) {
@@ -16,8 +21,16 @@ function truncateText(value, maxLength = MAX_LOG_PREVIEW_LENGTH) {
   return `${text.slice(0, maxLength)}... [truncated ${text.length - maxLength} chars]`;
 }
 
+/**
+ * @param {string} message
+ * @param {Record<string, unknown>} [detail]
+ * @param {unknown} [cause]
+ * @returns {Error & Record<string, unknown>}
+ */
 function createDetailedError(message, detail = {}, cause) {
-  const error = new Error(message);
+  const error = /** @type {Error & Record<string, unknown>} */ (
+    new Error(message)
+  );
   if (cause !== undefined) {
     error.cause = cause;
   }
@@ -38,6 +51,14 @@ async function safeCleanup(label, cleanup) {
   }
 }
 
+/**
+ * @param {object} options
+ * @param {string} phase
+ * @param {string} progressText
+ * @param {string | undefined} [detail]
+ * @param {Record<string, unknown>} [progress]
+ * @returns {void}
+ */
 function emitRuntimeProgress(
   options = {},
   phase,
@@ -45,11 +66,17 @@ function emitRuntimeProgress(
   detail,
   progress = {},
 ) {
-  if (typeof options.onProgress !== "function") {
+  const onProgress =
+    "onProgress" in options && typeof options.onProgress === "function"
+      ? /** @type {(progress: Record<string, unknown>) => void} */ (
+          options.onProgress
+        )
+      : null;
+  if (!onProgress) {
     return;
   }
   try {
-    options.onProgress({ phase, progressText, detail, ...progress });
+    onProgress({ phase, progressText, detail, ...progress });
   } catch (_error) {
     // Progress reporting must never interrupt translation.
   }

@@ -1,4 +1,19 @@
 // @ts-check
+/**
+ * @typedef {{
+ *   imageHeight?: unknown;
+ *   imageWidth?: unknown;
+ *   maxTokens?: unknown;
+ *   promptOverrideText?: string | null;
+ *   temperature?: unknown;
+ *   topK?: unknown;
+ *   topP?: unknown;
+ *   [key: string]: unknown;
+ * }} RequestOptions
+ * @typedef {{ dataUrl?: string; height?: unknown; originalHeight?: unknown; originalWidth?: unknown; role: string; width?: unknown }} ImageVariant
+ * @typedef {Record<string, unknown>} JsonRecord
+ * @typedef {(options: RequestOptions) => string} ResolveRequestModelName
+ */
 const { DEFAULT_API_KEY } = require("./simple-page-defaults.cjs");
 const {
   buildSystemPrompt,
@@ -27,6 +42,10 @@ const FORBIDDEN_CUSTOM_HEADER_NAMES = new Set([
   "set-cookie",
 ]);
 
+/**
+ * @param {RequestOptions} options
+ * @param {ImageVariant[]} imageVariants
+ */
 function buildMessages(options, imageVariants) {
   const promptText =
     options.promptOverrideText || getOverlayPrompt(options, imageVariants);
@@ -55,6 +74,11 @@ function buildMessages(options, imageVariants) {
   ];
 }
 
+/**
+ * @param {RequestOptions} options
+ * @param {ImageVariant[]} imageVariants
+ * @param {string} [promptText]
+ */
 function buildResponsesInput(
   options,
   imageVariants,
@@ -81,6 +105,11 @@ function buildResponsesInput(
   ];
 }
 
+/**
+ * @param {ImageVariant} variant
+ * @param {number} index
+ * @param {RequestOptions} [options]
+ */
 function describeImageVariant(variant, index, options = {}) {
   const originalWidth =
     readPositiveInteger(options.imageWidth) ||
@@ -107,7 +136,12 @@ function describeImageVariant(variant, index, options = {}) {
   return `Image ${index + 1}: the original full manga page. Use it as the geometry authority.${sizeText}${originalSizeText}`;
 }
 
+/**
+ * @param {RequestOptions} [options]
+ * @returns {Record<string, string>}
+ */
 function buildChatRequestHeaders(options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {
     "Content-Type": "application/json",
   };
@@ -128,6 +162,12 @@ function buildChatRequestHeaders(options = {}) {
   return headers;
 }
 
+/**
+ * @param {RequestOptions} options
+ * @param {unknown[]} messages
+ * @param {unknown} maxTokens
+ * @param {ResolveRequestModelName} resolveRequestModelName
+ */
 function buildChatRequestBodyWithModelResolver(
   options,
   messages,
@@ -185,6 +225,13 @@ function buildChatRequestBodyWithModelResolver(
   };
 }
 
+/**
+ * @param {RequestOptions} options
+ * @param {ImageVariant[]} imageVariants
+ * @param {string} promptText
+ * @param {string} systemPrompt
+ * @param {ResolveRequestModelName} resolveRequestModelName
+ */
 function buildResponsesRequestBodyWithModelResolver(
   options,
   imageVariants,
@@ -205,12 +252,18 @@ function buildResponsesRequestBodyWithModelResolver(
   };
 }
 
+/**
+ * @param {JsonRecord} target
+ * @param {string} key
+ * @param {unknown} value
+ */
 function addOptionalField(target, key, value) {
   if (value !== null && value !== undefined) {
     target[key] = value;
   }
 }
 
+/** @param {RequestOptions} [options] */
 function resolveConfiguredApiExtraBody(options = {}) {
   return parseJsonObjectString(
     resolveConfiguredApiExtraBodyJson(options),
@@ -218,6 +271,7 @@ function resolveConfiguredApiExtraBody(options = {}) {
   );
 }
 
+/** @param {RequestOptions} [options] */
 function resolveConfiguredApiCustomHeaders(options = {}) {
   return sanitizeCustomHeaders(
     parseJsonObjectString(
@@ -227,6 +281,11 @@ function resolveConfiguredApiCustomHeaders(options = {}) {
   );
 }
 
+/**
+ * @param {unknown} raw
+ * @param {string} label
+ * @returns {JsonRecord}
+ */
 function parseJsonObjectString(raw, label) {
   const text = String(raw ?? "").trim();
   if (!text) {
@@ -244,10 +303,15 @@ function parseJsonObjectString(raw, label) {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw createApiSettingsError(`${label}은 JSON 객체여야 합니다.`, { label });
   }
-  return parsed;
+  return /** @type {JsonRecord} */ (parsed);
 }
 
+/**
+ * @param {JsonRecord} headers
+ * @returns {Record<string, string>}
+ */
 function sanitizeCustomHeaders(headers) {
+  /** @type {Record<string, string>} */
   const sanitized = {};
   for (const [rawName, rawValue] of Object.entries(headers)) {
     const name = String(rawName).trim();
@@ -276,6 +340,10 @@ function sanitizeCustomHeaders(headers) {
   return sanitized;
 }
 
+/**
+ * @param {string} message
+ * @param {JsonRecord} [detail]
+ */
 function createApiSettingsError(message, detail = {}) {
   const error = new Error(message);
   Object.assign(error, {

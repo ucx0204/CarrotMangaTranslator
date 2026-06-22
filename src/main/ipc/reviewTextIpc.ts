@@ -5,16 +5,17 @@ import {
   ImportReviewTextRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
+import { textReviewIpcContracts } from "../../shared/ipcContracts";
 import { buildReviewRows, serializeReviewRows } from "../../shared/reviewTable";
-import type { SaveTextFileResult } from "../../shared/types";
+import type { SaveTextFileResult } from "../../shared/shareTypes";
 import { importReviewText, openChapter } from "../library";
 import type { IpcContext } from "./context";
-import { trustedHandle } from "./trustedIpc";
+import { trustedHandleContract } from "./trustedIpc";
 
 export function registerReviewTextIpc(context: IpcContext): void {
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "review:export-text",
+    textReviewIpcContracts.exportReviewText,
     async (_event, raw: unknown): Promise<SaveTextFileResult | null> => {
       const request = parseIpcPayload(
         ExportReviewTextRequestSchema,
@@ -50,10 +51,13 @@ export function registerReviewTextIpc(context: IpcContext): void {
     },
   );
 
-  trustedHandle(context, "review:import-text", async (_event, raw: unknown) =>
-    importReviewText(
-      parseIpcPayload(ImportReviewTextRequestSchema, raw, "검수표 가져오기"),
-    ),
+  trustedHandleContract(
+    context,
+    textReviewIpcContracts.importReviewText,
+    async (_event, raw: unknown) =>
+      importReviewText(
+        parseIpcPayload(ImportReviewTextRequestSchema, raw, "검수표 가져오기"),
+      ),
   );
 }
 

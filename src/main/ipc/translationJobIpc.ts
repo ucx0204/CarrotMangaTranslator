@@ -3,18 +3,19 @@ import {
   StartAnalysisRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
+import { translationJobIpcContracts } from "../../shared/ipcContracts";
 import type {
   RegionAnalysisResult,
   StartAnalysisResult,
-} from "../../shared/types";
+} from "../../shared/analysisTypes";
 import { startAnalysisJob, translateRegionJob } from "../jobs/translationJobs";
 import type { IpcContext } from "./context";
-import { trustedHandle } from "./trustedIpc";
+import { trustedHandleContract } from "./trustedIpc";
 
 export function registerTranslationJobIpc(context: IpcContext): void {
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "job:start-analysis",
+    translationJobIpcContracts.startAnalysis,
     async (_event, rawRequest: unknown): Promise<StartAnalysisResult> =>
       startAnalysisJob(
         context,
@@ -22,9 +23,9 @@ export function registerTranslationJobIpc(context: IpcContext): void {
       ),
   );
 
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "job:translate-region",
+    translationJobIpcContracts.translateRegion,
     async (_event, rawRequest: unknown): Promise<RegionAnalysisResult> =>
       translateRegionJob(
         context,

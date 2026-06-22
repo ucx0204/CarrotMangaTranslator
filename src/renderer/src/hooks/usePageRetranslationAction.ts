@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { ChapterSnapshot, RunMode } from "../../../shared/types";
+import type { ChapterSnapshot, RunMode } from "../../../shared/libraryTypes";
 
 type UsePageRetranslationActionOptions = {
   askConfirm: (

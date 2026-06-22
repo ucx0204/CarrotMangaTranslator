@@ -1,6 +1,17 @@
 // @ts-check
 /** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("./runtime-jsdoc-types").DetailedError} DetailedError */
+/**
+ * @typedef {RuntimeOptions & {
+ *   label?: string | null;
+ *   onProgress?: ((progress: Record<string, unknown>) => void) | null;
+ *   port?: unknown;
+ *   reuseServer?: boolean | null;
+ *   serverPath?: string | null;
+ * }} ServerRuntimeOptions
+ * @typedef {{ baseUrl: string; child: import("node:child_process").ChildProcess | null; startedByScript: boolean; serverLogPath?: string | null }} StartedServer
+ * @typedef {{ code: number; stdout: string; stderr: string }} RuntimeProbeResult
+ */
 const { spawn } = require("node:child_process");
 const { createWriteStream, existsSync, mkdirSync } = require("node:fs");
 const path = require("node:path");
@@ -55,6 +66,7 @@ const {
   truncateText,
 } = require("./simple-page-runtime-common.cjs");
 
+/** @param {unknown} value */
 function isTruthy(value) {
   const text = String(value ?? "")
     .trim()
@@ -62,6 +74,11 @@ function isTruthy(value) {
   return ["1", "true", "yes", "y", "on"].includes(text);
 }
 
+/**
+ * @param {string} serverPath
+ * @param {ServerRuntimeOptions} options
+ * @returns {NodeJS.ProcessEnv}
+ */
 function buildLlamaServerEnv(serverPath, options = {}) {
   const preferredRuntime = resolvePreferredLlamaRuntime(options);
   const backend = String(preferredRuntime.backend || "cuda").toLowerCase();
@@ -125,6 +142,10 @@ function buildLlamaServerEnv(serverPath, options = {}) {
   return env;
 }
 
+/**
+ * @param {string} baseUrl
+ * @returns {Promise<boolean>}
+ */
 async function isReachable(baseUrl) {
   try {
     const response = await fetch(`${baseUrl}/models`, {
@@ -136,6 +157,12 @@ async function isReachable(baseUrl) {
   }
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {import("node:child_process").ChildProcess} child
+ * @param {number} [timeoutMs]
+ * @param {AbortSignal | null} [signal]
+ */
 async function waitForReadyOrExit(
   baseUrl,
   child,
@@ -161,6 +188,10 @@ async function waitForReadyOrExit(
   throw new Error(`Timed out while waiting for llama-server at ${baseUrl}`);
 }
 
+/**
+ * @param {ServerRuntimeOptions} options
+ * @returns {Promise<StartedServer>}
+ */
 async function startServer(options) {
   const baseUrl = `http://127.0.0.1:${options.port}/v1`;
   if (
@@ -331,6 +362,7 @@ async function startServer(options) {
   };
 }
 
+/** @param {RuntimeOptions} [options] */
 function shouldAllowExistingLlamaServerReuse(options = {}) {
   return isTruthy(
     runtimeOverrideEnv("MGT_ALLOW_LLAMA_SERVER_REUSE", options) ??
@@ -338,6 +370,10 @@ function shouldAllowExistingLlamaServerReuse(options = {}) {
   );
 }
 
+/**
+ * @param {string | null | undefined} serverPath
+ * @param {RuntimeOptions} [options]
+ */
 function isIncompleteManagedLlamaRuntime(serverPath, options = {}) {
   if (!serverPath || !isBuiltInGemmaRuntimeModel(options)) {
     return false;
@@ -353,6 +389,10 @@ function isIncompleteManagedLlamaRuntime(serverPath, options = {}) {
   return !hasRequiredLlamaRuntimeFiles(runtimeDir, preferredRuntime);
 }
 
+/**
+ * @param {string} serverPath
+ * @param {RuntimeOptions} [options]
+ */
 async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
   if (!looksLikeGemma4Model(options)) {
     return;
@@ -427,6 +467,7 @@ async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
   }
 }
 
+/** @param {unknown} [backend] */
 function formatLlamaBackendLabel(backend = "cuda") {
   const normalized = String(backend || "cuda").toLowerCase();
   if (normalized === "vulkan") {
@@ -438,6 +479,10 @@ function formatLlamaBackendLabel(backend = "cuda") {
   return "CUDA";
 }
 
+/**
+ * @param {unknown} output
+ * @param {unknown} [backend]
+ */
 function llamaRuntimeProbeLooksGpuBacked(output, backend = "cuda") {
   const text = String(output || "");
   const normalizedBackend = String(backend || "cuda").toLowerCase();
@@ -450,6 +495,13 @@ function llamaRuntimeProbeLooksGpuBacked(output, backend = "cuda") {
   return /(cuda|nvidia|geforce|rtx|gpu)/i.test(text);
 }
 
+/**
+ * @param {string} serverPath
+ * @param {RuntimeOptions} [options]
+ * @param {string[]} [args]
+ * @param {number} [timeoutMs]
+ * @returns {Promise<RuntimeProbeResult>}
+ */
 function runLlamaRuntimeProbe(
   serverPath,
   options = {},
@@ -493,6 +545,12 @@ function runLlamaRuntimeProbe(
   });
 }
 
+/**
+ * @param {ServerRuntimeOptions} options
+ * @param {string} serverPath
+ * @param {string[]} launchArgs
+ * @returns {import("node:fs").WriteStream | null}
+ */
 function createServerLogStream(options, serverPath, launchArgs) {
   const logPath = String(options.serverLogPath ?? "").trim();
   if (!logPath) {
@@ -510,7 +568,14 @@ function createServerLogStream(options, serverPath, launchArgs) {
   }
 }
 
-function emitServerInstallLog(options = {}, chunk) {
+/**
+ * @param {ServerRuntimeOptions} options
+ * @param {unknown} chunk
+ */
+function emitServerInstallLog(
+  /** @type {ServerRuntimeOptions} */ options = {},
+  chunk,
+) {
   for (const part of String(chunk ?? "").split(/[\r\n]+/)) {
     const line = sanitizeInstallLogLine(part);
     if (!line) {
@@ -529,6 +594,7 @@ function emitServerInstallLog(options = {}, chunk) {
   }
 }
 
+/** @param {StartedServer | null | undefined} server */
 async function stopServer(server) {
   if (!server?.child) {
     return;

@@ -9,6 +9,10 @@ const { join, relative, resolve } = require("node:path");
 
 const repoRoot = resolve(__dirname, "..");
 
+/**
+ * @param {string} target
+ * @returns {string}
+ */
 function assertInsideRepo(target) {
   const resolved = resolve(target);
   const rel = relative(repoRoot, resolved);
@@ -18,6 +22,7 @@ function assertInsideRepo(target) {
   return resolved;
 }
 
+/** @param {string} target */
 function removeFile(target) {
   const resolved = assertInsideRepo(target);
   if (!existsSync(resolved)) {
@@ -27,6 +32,7 @@ function removeFile(target) {
   console.log(`removed ${relative(repoRoot, resolved)}`);
 }
 
+/** @param {string} target */
 function removeDirectory(target) {
   const resolved = assertInsideRepo(target);
   if (!existsSync(resolved)) {

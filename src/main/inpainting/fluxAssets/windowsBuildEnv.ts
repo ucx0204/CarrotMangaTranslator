@@ -16,12 +16,43 @@ import {
   uniquePaths,
 } from "./fileProbe";
 
+const WINDOWS_SDK_IMPORT_LIB_NAMES = [
+  "kernel32.lib",
+  "user32.lib",
+  "gdi32.lib",
+  "shell32.lib",
+  "ole32.lib",
+  "uuid.lib",
+  "advapi32.lib",
+];
+
+type WindowsBuildPathGroups = Pick<
+  WindowsNativeBuildEnv,
+  "includePaths" | "libPaths" | "pathEntries"
+>;
+type WindowsSdkLayout = NonNullable<ReturnType<typeof resolveWindowsSdkLayout>>;
+type MsvcToolsLayout = NonNullable<ReturnType<typeof resolveMsvcToolsLayout>>;
+
 export function resolveWindowsNativeBuildEnv(): WindowsNativeBuildEnv | null {
   if (process.platform !== "win32") {
     return null;
   }
   const sdk = resolveWindowsSdkLayout();
   const msvc = resolveMsvcToolsLayout();
+  const pathGroups = resolveWindowsBuildPathGroups(sdk, msvc);
+  if (!hasRequiredWindowsLibraries(pathGroups.libPaths)) {
+    return null;
+  }
+  return {
+    sdkVersion: sdk?.version,
+    ...pathGroups,
+  };
+}
+
+function resolveWindowsBuildPathGroups(
+  sdk: WindowsSdkLayout | null,
+  msvc: MsvcToolsLayout | null,
+): WindowsBuildPathGroups {
   const envLibPaths = splitPathList(process.env.LIB).filter(
     (item) => !isX86WindowsLibraryPath(item),
   );
@@ -42,30 +73,26 @@ export function resolveWindowsNativeBuildEnv(): WindowsNativeBuildEnv | null {
     ...(msvc?.binPath ? [msvc.binPath] : []),
     ...envPathEntries,
   ]);
-  const hasWindowsSdkLibs = [
-    "kernel32.lib",
-    "user32.lib",
-    "gdi32.lib",
-    "shell32.lib",
-    "ole32.lib",
-    "uuid.lib",
-    "advapi32.lib",
-  ].every((file) => pathListContainsFile(libPaths, file));
+
+  return { includePaths, libPaths, pathEntries };
+}
+
+function hasRequiredWindowsLibraries(libPaths: string[]): boolean {
+  const hasWindowsSdkLibs = hasAllPathListFiles(
+    libPaths,
+    WINDOWS_SDK_IMPORT_LIB_NAMES,
+  );
   const hasUcrtLibs = pathListContainsFile(libPaths, "ucrt.lib");
   const hasMsvcLibs =
     pathListContainsFile(libPaths, "oldnames.lib") &&
     pathListContainsFile(libPaths, "vcruntime.lib") &&
     (pathListContainsFile(libPaths, "msvcrt.lib") ||
       pathListContainsFile(libPaths, "msvcrtd.lib"));
-  if (!hasWindowsSdkLibs || !hasUcrtLibs || !hasMsvcLibs) {
-    return null;
-  }
-  return {
-    sdkVersion: sdk?.version,
-    pathEntries,
-    includePaths,
-    libPaths,
-  };
+  return hasWindowsSdkLibs && hasUcrtLibs && hasMsvcLibs;
+}
+
+function hasAllPathListFiles(paths: string[], fileNames: string[]): boolean {
+  return fileNames.every((fileName) => pathListContainsFile(paths, fileName));
 }
 
 export function resolveWindowsRuntimeLibraryPaths(

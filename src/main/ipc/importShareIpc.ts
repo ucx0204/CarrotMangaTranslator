@@ -6,15 +6,18 @@ import {
   WorkShareImportRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
+import { importShareIpcContracts } from "../../shared/ipcContracts";
 import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../../shared/archive";
 import type {
   ImportPreviewResult,
   ImportPreviewSession,
+} from "../../shared/importTypes";
+import type {
   WorkShareExportResult,
   WorkShareImportPreview,
   WorkShareImportPreviewView,
   WorkShareImportResult,
-} from "../../shared/types";
+} from "../../shared/shareTypes";
 import {
   createImport,
   exportWorkShareToFile,
@@ -27,7 +30,7 @@ import {
   previewZipFolder,
 } from "../library";
 import type { IpcContext } from "./context";
-import { trustedHandle } from "./trustedIpc";
+import { trustedHandleContract } from "./trustedIpc";
 
 const PREVIEW_SESSION_TTL_MS = 30 * 60 * 1000;
 const MAX_PREVIEW_SESSIONS = 20;
@@ -49,9 +52,20 @@ const workSharePreviewSessions = new Map<
 >();
 
 export function registerImportShareIpc(context: IpcContext): void {
-  trustedHandle(
+  registerImageImportPreviewIpc(context);
+  registerFolderImportPreviewIpc(context);
+  registerZipImportPreviewIpc(context);
+  registerZipFolderImportPreviewIpc(context);
+  registerCreateImportIpc(context);
+  registerExportWorkShareIpc(context);
+  registerPreviewWorkShareIpc(context);
+  registerImportWorkShareIpc(context);
+}
+
+function registerImageImportPreviewIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "import:preview-images",
+    importShareIpcContracts.previewImagesImport,
     async (): Promise<ImportPreviewSession | null> => {
       const options = {
         title: "이미지 열기",
@@ -73,10 +87,12 @@ export function registerImportShareIpc(context: IpcContext): void {
         : null;
     },
   );
+}
 
-  trustedHandle(
+function registerFolderImportPreviewIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "import:preview-folder",
+    importShareIpcContracts.previewFolderImport,
     async (): Promise<ImportPreviewSession | null> => {
       const options = {
         title: "이미지 폴더 열기",
@@ -95,10 +111,12 @@ export function registerImportShareIpc(context: IpcContext): void {
         : null;
     },
   );
+}
 
-  trustedHandle(
+function registerZipImportPreviewIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "import:preview-zip",
+    importShareIpcContracts.previewZipImport,
     async (): Promise<ImportPreviewSession | null> => {
       const options = {
         title: "압축파일 열기",
@@ -123,10 +141,12 @@ export function registerImportShareIpc(context: IpcContext): void {
         : null;
     },
   );
+}
 
-  trustedHandle(
+function registerZipFolderImportPreviewIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "import:preview-zip-folder",
+    importShareIpcContracts.previewZipFolderImport,
     async (): Promise<ImportPreviewSession | null> => {
       const options = {
         title: "작품 일괄 번역",
@@ -145,26 +165,34 @@ export function registerImportShareIpc(context: IpcContext): void {
         : null;
     },
   );
+}
 
-  trustedHandle(context, "import:create", async (_event, request: unknown) => {
-    const command = parseIpcPayload(
-      CreateImportRequestSchema,
-      request,
-      "가져오기 적용",
-    );
-    const session = getImportPreviewSession(command.previewId);
-    const result = await createImport({
-      preview: session.preview,
-      target: command.target,
-      selections: command.selections,
-    });
-    importPreviewSessions.delete(command.previewId);
-    return result;
-  });
-
-  trustedHandle(
+function registerCreateImportIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "share:export-work",
+    importShareIpcContracts.createImport,
+    async (_event, request: unknown) => {
+      const command = parseIpcPayload(
+        CreateImportRequestSchema,
+        request,
+        "가져오기 적용",
+      );
+      const session = getImportPreviewSession(command.previewId);
+      const result = await createImport({
+        preview: session.preview,
+        target: command.target,
+        selections: command.selections,
+      });
+      importPreviewSessions.delete(command.previewId);
+      return result;
+    },
+  );
+}
+
+function registerExportWorkShareIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    importShareIpcContracts.exportWorkShare,
     async (
       _event,
       rawRequest: unknown,
@@ -199,10 +227,12 @@ export function registerImportShareIpc(context: IpcContext): void {
       });
     },
   );
+}
 
-  trustedHandle(
+function registerPreviewWorkShareIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "share:preview-import",
+    importShareIpcContracts.previewWorkShareImport,
     async (): Promise<WorkShareImportPreview | null> => {
       const options = {
         title: "공유 파일 가져오기",
@@ -220,10 +250,12 @@ export function registerImportShareIpc(context: IpcContext): void {
       return createWorkSharePreviewSession(result.filePaths[0], preview);
     },
   );
+}
 
-  trustedHandle(
+function registerImportWorkShareIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "share:import",
+    importShareIpcContracts.importWorkShare,
     async (_event, request: unknown): Promise<WorkShareImportResult> => {
       const command = parseIpcPayload(
         WorkShareImportRequestSchema,

@@ -1,4 +1,4 @@
-import type { CustomFont } from "../../../shared/types";
+import type { CustomFont } from "../../../shared/libraryTypes";
 
 export const DEFAULT_BLOCK_FONT_ID = "default";
 

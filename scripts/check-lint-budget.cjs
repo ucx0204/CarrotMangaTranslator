@@ -1,4 +1,5 @@
 const { execFileSync } = require("node:child_process");
+const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 
 const eslintBin = join(
@@ -9,13 +10,10 @@ const eslintBin = join(
   "eslint.js",
 );
 
-const warningBudgets = {
-  complexity: 61,
-  "max-depth": 13,
-  "max-lines": 19,
-  "max-lines-per-function": 85,
-  "preserve-caught-error": 2,
-};
+/** @type {Record<string, number>} */
+const warningBudgets = JSON.parse(
+  readFileSync(join(__dirname, "lint-warning-baseline.json"), "utf8"),
+);
 
 function readEslintReport() {
   try {
@@ -39,6 +37,7 @@ function readEslintReport() {
 }
 
 const report = JSON.parse(readEslintReport());
+/** @type {Record<string, number>} */
 const warningCounts = {};
 let errorCount = 0;
 

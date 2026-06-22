@@ -7,6 +7,18 @@ const {
 } = require("./simple-page-defaults.cjs");
 const { readPositiveInteger } = require("./simple-page-prompts.cjs");
 
+/**
+ * @typedef {{ current: number; total: number }} PipRawProgress
+ * @typedef {{ phase: "start" | "done"; index: number; total: number; count: number }} OcrBatchProgress
+ * @typedef {{ totalFiles: number; currentFiles: number | null; percent: number | null }} PaddleModelFetchProgress
+ * @typedef {{ start(): void; stop(): void }} OcrBatchProgressPoller
+ */
+
+/**
+ * @param {unknown} value
+ * @param {number} maxLength
+ * @returns {string}
+ */
 function truncateText(value, maxLength) {
   const text = String(value ?? "");
   if (text.length <= maxLength) {
@@ -15,6 +27,11 @@ function truncateText(value, maxLength) {
   return `${text.slice(0, maxLength)}... [truncated ${text.length - maxLength} chars]`;
 }
 
+/**
+ * @param {unknown} value
+ * @param {unknown} [fallback]
+ * @returns {number}
+ */
 function clampProgressRatio(value, fallback = 0) {
   const number = Number(value);
   if (!Number.isFinite(number)) {
@@ -23,6 +40,10 @@ function clampProgressRatio(value, fallback = 0) {
   return Math.max(0, Math.min(1, number));
 }
 
+/**
+ * @param {unknown} line
+ * @returns {PipRawProgress | null}
+ */
 function parsePipRawProgress(line) {
   const text = String(line ?? "");
   const progressMatch = text.match(/\bProgress\s+(\d+)\s+of\s+(\d+)\b/i);
@@ -36,12 +57,17 @@ function parsePipRawProgress(line) {
   return null;
 }
 
+/**
+ * @param {unknown} line
+ * @returns {OcrBatchProgress | null}
+ */
 function parseOcrBatchProgressLine(line) {
   const text = String(line ?? "").trim();
   if (!text.startsWith("{") || !text.endsWith("}")) {
     return null;
   }
   try {
+    /** @type {{ index?: unknown; total?: unknown; phase?: unknown; count?: unknown }} */
     const payload = JSON.parse(text);
     const index = Number(payload?.index);
     const total = Number(payload?.total);
@@ -70,6 +96,10 @@ function parseOcrBatchProgressLine(line) {
   }
 }
 
+/**
+ * @param {unknown} line
+ * @returns {PaddleModelFetchProgress | null}
+ */
 function parsePaddleModelFetchProgress(line) {
   const text = String(line ?? "");
   const fetchMatch = text.match(/\bFetching\s+(\d+)\s+files:\s+(\d+)%/i);
@@ -97,6 +127,10 @@ function parsePaddleModelFetchProgress(line) {
   };
 }
 
+/**
+ * @param {PaddleModelFetchProgress} progress
+ * @returns {string}
+ */
 function formatPaddleModelFetchProgress(progress) {
   const countText = Number.isFinite(progress.currentFiles)
     ? `${progress.currentFiles} / ${progress.totalFiles}개`
@@ -107,6 +141,10 @@ function formatPaddleModelFetchProgress(progress) {
   return `Paddle OCR 모델 파일 다운로드 중: ${countText}${percentText}`;
 }
 
+/**
+ * @param {unknown} [pageCount]
+ * @returns {number}
+ */
 function resolveOcrBboxTimeoutMs(pageCount = 1) {
   const explicit = readPositiveInteger(
     process.env.MANGA_TRANSLATOR_OCR_BBOX_TIMEOUT_MS,
@@ -121,7 +159,13 @@ function resolveOcrBboxTimeoutMs(pageCount = 1) {
   );
 }
 
+/**
+ * @param {string} progressPath
+ * @param {(line: string) => void} onLine
+ * @returns {OcrBatchProgressPoller}
+ */
 function createOcrBatchProgressFilePoller(progressPath, onLine) {
+  /** @type {ReturnType<typeof setInterval> | null} */
   let timer = null;
   let consumedLines = 0;
   const readProgressFile = () => {
@@ -166,6 +210,10 @@ function createOcrBatchProgressFilePoller(progressPath, onLine) {
   };
 }
 
+/**
+ * @param {unknown} line
+ * @returns {string}
+ */
 function sanitizeInstallLogLine(line) {
   const text = String(line ?? "")
     .replace(/\u001b\[[0-9;]*m/g, "")
@@ -174,6 +222,10 @@ function sanitizeInstallLogLine(line) {
   return truncateText(text, 220);
 }
 
+/**
+ * @param {unknown} bytes
+ * @returns {string}
+ */
 function formatBytes(bytes) {
   const value = Math.max(0, Number(bytes) || 0);
   const units = ["B", "KB", "MB", "GB", "TB"];

@@ -128,6 +128,9 @@ const MAINLINE_LLAMA_RUNTIME_VULKAN = {
 const LEMONADE_LLAMA_ROCM_RELEASE = "b1291";
 const LEMONADE_LLAMA_ROCM_BASE_URL = `https://github.com/lemonade-sdk/llamacpp-rocm/releases/download/${LEMONADE_LLAMA_ROCM_RELEASE}`;
 
+/**
+ * @param {string} target
+ */
 function createLemonadeLlamaRuntimeRocm(target) {
   const archive = `llama-${LEMONADE_LLAMA_ROCM_RELEASE}-windows-rocm-${target}-x64.zip`;
   return {
@@ -152,6 +155,9 @@ function createLemonadeLlamaRuntimeRocm(target) {
   };
 }
 
+/**
+ * @param {unknown} target
+ */
 function resolveLemonadeLlamaRuntimeRocm(target) {
   const normalized = String(target || "").trim();
   if (!normalized) {
@@ -221,6 +227,11 @@ const LLAMA_RUNTIME_FILES = new Set([
   "rpc-server.exe",
 ]);
 
+/**
+ * @param {string} fileName
+ * @param {string} [relativePath]
+ * @returns {boolean}
+ */
 function shouldExtractLlamaRuntimeFile(fileName, relativePath = fileName) {
   const normalizedRelativePath = String(relativePath ?? fileName ?? "")
     .replace(/\\/g, "/")

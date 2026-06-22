@@ -28,6 +28,10 @@ const preloadOutDir = join(root, "out", "preload");
  * @typedef {ViteChunkOutput | ViteAssetOutput} ViteOutput
  */
 
+/**
+ * @param {string} command
+ * @param {string[]} args
+ */
 function run(command, args) {
   console.log(`> ${command} ${args.join(" ")}`);
   const result = spawnSync(command, args, {
@@ -43,6 +47,10 @@ function run(command, args) {
   }
 }
 
+/**
+ * @param {string} packageName
+ * @param {...string} parts
+ */
 function nodeBin(packageName, ...parts) {
   return join(root, "node_modules", packageName, ...parts);
 }
@@ -63,6 +71,7 @@ function cleanPreloadOutDir() {
   }
 }
 
+/** @param {string} targetPath */
 function removePath(targetPath) {
   const stat = lstatSync(targetPath);
   if (stat.isDirectory() && !stat.isSymbolicLink()) {

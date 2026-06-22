@@ -1,10 +1,10 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
+import type { ChapterSnapshot } from "../../../shared/libraryTypes";
+import type { ImportPreviewSession } from "../../../shared/importTypes";
 import type {
-  ChapterSnapshot,
-  ImportPreviewSession,
   WorkShareExportRequest,
   WorkShareImportPreview,
-} from "../../../shared/types";
+} from "../../../shared/shareTypes";
 import type { ImportModalSubmit } from "../components/ImportModal";
 import type { ShareImportModalSubmit } from "../components/ShareImportModal";
 import type { TranslateSourceMode } from "../components/TranslateSourceModal";
@@ -42,6 +42,15 @@ type UseImportShareActionsOptions = {
   shareImportPreview: WorkShareImportPreview | null;
 };
 
+type ImportShareActions = {
+  openImportPreview: (mode: ImportPreviewMode) => Promise<void>;
+  openShareImportPreview: () => Promise<void>;
+  selectTranslateSource: (mode: TranslateSourceMode) => Promise<void>;
+  submitImport: (payload: ImportModalSubmit) => Promise<void>;
+  submitShareExport: (request: WorkShareExportRequest) => Promise<void>;
+  submitShareImport: (payload: ShareImportModalSubmit) => Promise<void>;
+};
+
 async function requestImportPreview(
   mode: ImportPreviewMode,
 ): Promise<ImportPreviewSession | null> {
@@ -57,33 +66,34 @@ async function requestImportPreview(
   return mangaGateway.previewZipFolderImport();
 }
 
-export function useImportShareActions({
-  applyChapter,
-  askConfirm,
-  dirty,
-  importPreview,
-  mergeLiveChapter,
-  openChapter,
+export function useImportShareActions(
+  options: UseImportShareActionsOptions,
+): ImportShareActions {
+  const openImportPreview = useOpenImportPreviewAction(options);
+  const selectTranslateSource = useSelectTranslateSourceAction({
+    ...options,
+    openImportPreview,
+  });
+  const openShareImportPreview = useOpenShareImportPreviewAction(options);
+  const submitImport = useSubmitImportAction(options);
+  const submitShareExport = useSubmitShareExportAction(options);
+  const submitShareImport = useSubmitShareImportAction(options);
+
+  return {
+    openImportPreview,
+    openShareImportPreview,
+    selectTranslateSource,
+    submitImport,
+    submitShareExport,
+    submitShareImport,
+  };
+}
+
+function useOpenImportPreviewAction({
   pushStatus,
-  refreshLibrary,
-  saveNow,
-  setImportBusy,
   setImportPreview,
-  setShareExportBusy,
-  setShareExportOpen,
-  setShareImportBusy,
-  setShareImportPreview,
-  setTranslationSourceOpen,
-  shareImportPreview,
-}: UseImportShareActionsOptions): {
-  openImportPreview: (mode: ImportPreviewMode) => Promise<void>;
-  openShareImportPreview: () => Promise<void>;
-  selectTranslateSource: (mode: TranslateSourceMode) => Promise<void>;
-  submitImport: (payload: ImportModalSubmit) => Promise<void>;
-  submitShareExport: (request: WorkShareExportRequest) => Promise<void>;
-  submitShareImport: (payload: ShareImportModalSubmit) => Promise<void>;
-} {
-  const openImportPreview = useCallback(
+}: UseImportShareActionsOptions): ImportShareActions["openImportPreview"] {
+  return useCallback(
     async (mode: ImportPreviewMode) => {
       try {
         const preview = await requestImportPreview(mode);
@@ -97,16 +107,31 @@ export function useImportShareActions({
     },
     [pushStatus, setImportPreview],
   );
+}
 
-  const selectTranslateSource = useCallback(
+function useSelectTranslateSourceAction({
+  openImportPreview,
+  setTranslationSourceOpen,
+}: UseImportShareActionsOptions & {
+  openImportPreview: ImportShareActions["openImportPreview"];
+}): ImportShareActions["selectTranslateSource"] {
+  return useCallback(
     async (mode: TranslateSourceMode) => {
       setTranslationSourceOpen(false);
       await openImportPreview(mode);
     },
     [openImportPreview, setTranslationSourceOpen],
   );
+}
 
-  const submitShareExport = useCallback(
+function useSubmitShareExportAction({
+  dirty,
+  pushStatus,
+  saveNow,
+  setShareExportBusy,
+  setShareExportOpen,
+}: UseImportShareActionsOptions): ImportShareActions["submitShareExport"] {
+  return useCallback(
     async (request: WorkShareExportRequest) => {
       setShareExportBusy(true);
       try {
@@ -131,8 +156,15 @@ export function useImportShareActions({
     },
     [dirty, pushStatus, saveNow, setShareExportBusy, setShareExportOpen],
   );
+}
 
-  const openShareImportPreview = useCallback(async () => {
+function useOpenShareImportPreviewAction({
+  dirty,
+  pushStatus,
+  saveNow,
+  setShareImportPreview,
+}: UseImportShareActionsOptions): ImportShareActions["openShareImportPreview"] {
+  return useCallback(async () => {
     try {
       if (dirty) {
         await saveNow();
@@ -146,8 +178,20 @@ export function useImportShareActions({
       pushStatus(formatErrorMessage(error, "공유 파일을 읽지 못했습니다."));
     }
   }, [dirty, pushStatus, saveNow, setShareImportPreview]);
+}
 
-  const submitShareImport = useCallback(
+function useSubmitShareImportAction({
+  applyChapter,
+  askConfirm,
+  dirty,
+  pushStatus,
+  refreshLibrary,
+  saveNow,
+  setShareImportBusy,
+  setShareImportPreview,
+  shareImportPreview,
+}: UseImportShareActionsOptions): ImportShareActions["submitShareImport"] {
+  return useCallback(
     async (payload: ShareImportModalSubmit) => {
       if (!shareImportPreview) {
         return;
@@ -216,8 +260,21 @@ export function useImportShareActions({
       shareImportPreview,
     ],
   );
+}
 
-  const submitImport = useCallback(
+function useSubmitImportAction({
+  applyChapter,
+  dirty,
+  importPreview,
+  mergeLiveChapter,
+  openChapter,
+  pushStatus,
+  refreshLibrary,
+  saveNow,
+  setImportBusy,
+  setImportPreview,
+}: UseImportShareActionsOptions): ImportShareActions["submitImport"] {
+  return useCallback(
     async ({ target, selections }: ImportModalSubmit) => {
       if (!importPreview) {
         return;
@@ -241,20 +298,12 @@ export function useImportShareActions({
         setImportPreview(null);
 
         if (importPreview.mode === "batch") {
-          for (const chapterId of result.chapterIds) {
-            await openChapter(chapterId);
-            const runResult = await mangaGateway.startAnalysis({
-              chapterId,
-              runMode: "pending",
-            });
-            if (runResult.chapter) {
-              mergeLiveChapter(runResult.chapter);
-            }
-            await refreshLibrary();
-            if (runResult.status !== "completed") {
-              break;
-            }
-          }
+          await runImportedBatchAnalysis({
+            chapterIds: result.chapterIds,
+            mergeLiveChapter,
+            openChapter,
+            refreshLibrary,
+          });
         }
       } catch (error) {
         console.error(error);
@@ -278,13 +327,31 @@ export function useImportShareActions({
       setImportPreview,
     ],
   );
+}
 
-  return {
-    openImportPreview,
-    openShareImportPreview,
-    selectTranslateSource,
-    submitImport,
-    submitShareExport,
-    submitShareImport,
-  };
+async function runImportedBatchAnalysis({
+  chapterIds,
+  mergeLiveChapter,
+  openChapter,
+  refreshLibrary,
+}: {
+  chapterIds: string[];
+  mergeLiveChapter: UseImportShareActionsOptions["mergeLiveChapter"];
+  openChapter: UseImportShareActionsOptions["openChapter"];
+  refreshLibrary: UseImportShareActionsOptions["refreshLibrary"];
+}): Promise<void> {
+  for (const chapterId of chapterIds) {
+    await openChapter(chapterId);
+    const runResult = await mangaGateway.startAnalysis({
+      chapterId,
+      runMode: "pending",
+    });
+    if (runResult.chapter) {
+      mergeLiveChapter(runResult.chapter);
+    }
+    await refreshLibrary();
+    if (runResult.status !== "completed") {
+      return;
+    }
+  }
 }

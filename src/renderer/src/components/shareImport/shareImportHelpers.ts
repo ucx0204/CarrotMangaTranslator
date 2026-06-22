@@ -1,8 +1,8 @@
+import type { LibraryWorkSummary } from "../../../../shared/libraryTypes";
 import type {
-  LibraryWorkSummary,
   WorkShareImportEntry,
   WorkSharePreviewChapter,
-} from "../../../../shared/types";
+} from "../../../../shared/shareTypes";
 import type { LeftItem } from "./shareImportTypes";
 
 export function buildExistingItems(

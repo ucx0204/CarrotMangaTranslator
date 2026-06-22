@@ -16,6 +16,7 @@ if (!existsSync(electronExe)) {
   throw new Error(`Electron executable is missing: ${electronExe}`);
 }
 
+/** @type {NodeJS.ProcessEnv} */
 const env = {
   ...process.env,
   ELECTRON_ENABLE_LOGGING: "1",

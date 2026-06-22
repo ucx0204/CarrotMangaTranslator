@@ -220,27 +220,64 @@ export async function ensureRemoteFile(options: {
   return filePath;
 }
 
-export async function downloadToFile(options: {
+type DownloadToFileOptions = {
   url: string;
   outputPath: string;
   signal?: AbortSignal;
   progressText: string;
   label: string;
   onProgress?: (progress: FluxAssetProgress) => void;
-}): Promise<void> {
+};
+
+type DownloadWriteResult = {
+  receivedBytes: number;
+  responseTotalBytes: number;
+};
+
+type DownloadResponse = Response & {
+  body: ReadableStream<Uint8Array>;
+};
+
+export async function downloadToFile(
+  options: DownloadToFileOptions,
+): Promise<void> {
   if (await isUsableRemoteFile(options.outputPath, options.url)) {
-    options.onProgress?.({
-      progressText: `${options.label} 캐시 사용`,
-      detail: options.label,
-      progressMode: "log-only",
-      installLogLine: `캐시된 파일을 사용합니다: ${options.label}`,
-    });
+    reportDownloadCacheHit(options);
     return;
   }
-  await mkdir(dirname(options.outputPath), { recursive: true });
-  const partPath = `${options.outputPath}.part`;
-  await rm(partPath, { force: true });
+  const partPath = await prepareDownloadTarget(options.outputPath);
   const totalBytes = await probeContentLength(options.url, options.signal);
+  reportDownloadStart(options, totalBytes);
+  const response = await fetchDownloadResponse(options);
+  const result = await writeDownloadResponseToPartFile(
+    options,
+    partPath,
+    response,
+    totalBytes,
+  );
+  await finalizeDownload(options, partPath, result);
+}
+
+function reportDownloadCacheHit(options: DownloadToFileOptions): void {
+  options.onProgress?.({
+    progressText: `${options.label} 캐시 사용`,
+    detail: options.label,
+    progressMode: "log-only",
+    installLogLine: `캐시된 파일을 사용합니다: ${options.label}`,
+  });
+}
+
+async function prepareDownloadTarget(outputPath: string): Promise<string> {
+  await mkdir(dirname(outputPath), { recursive: true });
+  const partPath = `${outputPath}.part`;
+  await rm(partPath, { force: true });
+  return partPath;
+}
+
+function reportDownloadStart(
+  options: DownloadToFileOptions,
+  totalBytes: number,
+): void {
   options.onProgress?.({
     progressText: options.progressText,
     detail: options.label,
@@ -250,7 +287,11 @@ export async function downloadToFile(options: {
     progressTotalBytes: totalBytes > 0 ? totalBytes : undefined,
     installLogLine: `${options.label} 다운로드 시작`,
   });
+}
 
+async function fetchDownloadResponse(
+  options: DownloadToFileOptions,
+): Promise<DownloadResponse> {
   const response = await fetch(options.url, {
     signal: options.signal,
     headers: { "User-Agent": "carrot-manga-translator" },
@@ -260,7 +301,15 @@ export async function downloadToFile(options: {
       `${options.label} 다운로드에 실패했습니다 (${response.status}).`,
     );
   }
+  return response as DownloadResponse;
+}
 
+async function writeDownloadResponseToPartFile(
+  options: DownloadToFileOptions,
+  partPath: string,
+  response: DownloadResponse,
+  totalBytes: number,
+): Promise<DownloadWriteResult> {
   const responseTotalBytes = totalBytes || readContentLength(response);
   const reader = response.body.getReader();
   const writer = createWriteStream(partPath, { flags: "wx" });
@@ -288,19 +337,7 @@ export async function downloadToFile(options: {
         `${options.label} 다운로드 크기가 맞지 않습니다 (${formatBytes(receivedBytes)} / ${formatBytes(responseTotalBytes)}).`,
       );
     }
-    await rm(options.outputPath, { force: true });
-    await rename(partPath, options.outputPath);
-    await writeRemoteFileMetadata(options.outputPath, {
-      url: options.url,
-      bytes: receivedBytes,
-      downloadedAt: new Date().toISOString(),
-    });
-    emitDownloadProgress(
-      options,
-      responseTotalBytes > 0 ? responseTotalBytes : receivedBytes,
-      responseTotalBytes || receivedBytes,
-      true,
-    );
+    return { receivedBytes, responseTotalBytes };
   } catch (error) {
     writer.destroy();
     await safeCleanup("remove partial Flux download", () =>
@@ -308,6 +345,27 @@ export async function downloadToFile(options: {
     );
     throw error;
   }
+}
+
+async function finalizeDownload(
+  options: DownloadToFileOptions,
+  partPath: string,
+  result: DownloadWriteResult,
+): Promise<void> {
+  const { receivedBytes, responseTotalBytes } = result;
+  await rm(options.outputPath, { force: true });
+  await rename(partPath, options.outputPath);
+  await writeRemoteFileMetadata(options.outputPath, {
+    url: options.url,
+    bytes: receivedBytes,
+    downloadedAt: new Date().toISOString(),
+  });
+  emitDownloadProgress(
+    options,
+    responseTotalBytes > 0 ? responseTotalBytes : receivedBytes,
+    responseTotalBytes || receivedBytes,
+    true,
+  );
 }
 
 async function probeContentLength(

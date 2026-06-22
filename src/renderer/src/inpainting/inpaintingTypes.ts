@@ -1,8 +1,5 @@
-import type {
-  ChapterSnapshot,
-  JobState,
-  MangaPage,
-} from "../../../shared/types";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
+import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 
 export type InpaintingTool = "none" | "brush" | "eraser" | "picker" | "mask";

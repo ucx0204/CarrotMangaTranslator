@@ -4,7 +4,8 @@ import {
   normalizeRenderDirection,
   resolveEffectiveRenderBbox,
 } from "../shared/geometry";
-import type { MangaPage, TranslationBlock } from "../shared/types";
+import type { MangaPage } from "../shared/libraryTypes";
+import type { TranslationBlock } from "../shared/textTypes";
 
 export type PageExportBlock = {
   text: string;
@@ -23,6 +24,30 @@ export type PageExportBlock = {
   outlineWidthScale: number;
   autoFitText: boolean;
 };
+
+const DEFAULT_EXPORT_FONT_FAMILY =
+  '"Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif';
+
+const EXPORT_FONT_FAMILY_BY_ID: ReadonlyMap<string, string> = new Map([
+  ["mongtori", '"MGT Mongtori", "Malgun Gothic", sans-serif'],
+  ["chosun-gungseo", '"MGT Chosun Gungseo", "Malgun Gothic", serif'],
+  [
+    "griun-pol-sensibility",
+    '"MGT Griun Pol Sensibility", "Malgun Gothic", sans-serif',
+  ],
+  ["nanum-gothic", '"MGT Nanum Gothic", "Malgun Gothic", sans-serif'],
+  ["nanum-myeongjo", '"MGT Nanum Myeongjo", "Malgun Gothic", serif'],
+  [
+    "nanum-barun-gothic",
+    '"MGT Nanum Barun Gothic", "Malgun Gothic", sans-serif',
+  ],
+  ["seoul-namsan", '"MGT Seoul Namsan", "Malgun Gothic", sans-serif'],
+  [
+    "seoul-namsan-vertical",
+    '"MGT Seoul Namsan Vertical", "Malgun Gothic", sans-serif',
+  ],
+  ["seoul-hangang", '"MGT Seoul Hangang", "Malgun Gothic", serif'],
+]);
 
 export function buildPageExportBlocks(
   page: MangaPage,
@@ -108,28 +133,9 @@ function resolveExportBlockFontFamily(
   if (value && customFamilyById?.has(value)) {
     return `"${customFamilyById.get(value)}", "Malgun Gothic", sans-serif`;
   }
-  switch (value) {
-    case "mongtori":
-      return '"MGT Mongtori", "Malgun Gothic", sans-serif';
-    case "chosun-gungseo":
-      return '"MGT Chosun Gungseo", "Malgun Gothic", serif';
-    case "griun-pol-sensibility":
-      return '"MGT Griun Pol Sensibility", "Malgun Gothic", sans-serif';
-    case "nanum-gothic":
-      return '"MGT Nanum Gothic", "Malgun Gothic", sans-serif';
-    case "nanum-myeongjo":
-      return '"MGT Nanum Myeongjo", "Malgun Gothic", serif';
-    case "nanum-barun-gothic":
-      return '"MGT Nanum Barun Gothic", "Malgun Gothic", sans-serif';
-    case "seoul-namsan":
-      return '"MGT Seoul Namsan", "Malgun Gothic", sans-serif';
-    case "seoul-namsan-vertical":
-      return '"MGT Seoul Namsan Vertical", "Malgun Gothic", sans-serif';
-    case "seoul-hangang":
-      return '"MGT Seoul Hangang", "Malgun Gothic", serif';
-    default:
-      return '"Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif';
-  }
+  return (
+    EXPORT_FONT_FAMILY_BY_ID.get(value ?? "") ?? DEFAULT_EXPORT_FONT_FAMILY
+  );
 }
 
 function normalizeExportColor(

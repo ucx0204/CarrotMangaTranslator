@@ -206,29 +206,72 @@ function maskSoftAlphaAt(
   if (featherPx <= 0) {
     return 0;
   }
-  let bestDistanceSq = Number.POSITIVE_INFINITY;
-  const radius = Math.max(1, featherPx);
-  for (let dy = -radius; dy <= radius; dy += 1) {
-    for (let dx = -radius; dx <= radius; dx += 1) {
-      const distanceSq = dx * dx + dy * dy;
-      if (distanceSq > radius * radius || distanceSq >= bestDistanceSq) {
-        continue;
-      }
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx < 0 || ny < 0) {
-        continue;
-      }
-      const index = ny * width + nx;
-      if (index >= 0 && index < mask.length && mask[index]) {
-        bestDistanceSq = distanceSq;
-      }
-    }
-  }
+  const bestDistanceSq = findNearestMaskDistanceSq(
+    mask,
+    width,
+    x,
+    y,
+    Math.max(1, featherPx),
+  );
   if (!Number.isFinite(bestDistanceSq)) {
     return 0;
   }
   return clamp(1 - Math.sqrt(bestDistanceSq) / Math.max(1, featherPx), 0, 1);
+}
+
+function findNearestMaskDistanceSq(
+  mask: Uint8Array,
+  width: number,
+  x: number,
+  y: number,
+  radius: number,
+): number {
+  let bestDistanceSq = Number.POSITIVE_INFINITY;
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      const distanceSq = dx * dx + dy * dy;
+      if (
+        shouldUseMaskDistance(mask, width, x + dx, y + dy, distanceSq, {
+          bestDistanceSq,
+          radius,
+        })
+      ) {
+        bestDistanceSq = distanceSq;
+      }
+    }
+  }
+  return bestDistanceSq;
+}
+
+function shouldUseMaskDistance(
+  mask: Uint8Array,
+  width: number,
+  x: number,
+  y: number,
+  distanceSq: number,
+  limits: { bestDistanceSq: number; radius: number },
+): boolean {
+  return (
+    distanceSq <= limits.radius * limits.radius &&
+    distanceSq < limits.bestDistanceSq &&
+    maskHasValueAt(mask, width, x, y)
+  );
+}
+
+function maskHasValueAt(
+  mask: Uint8Array,
+  width: number,
+  x: number,
+  y: number,
+): boolean {
+  const index = y * width + x;
+  return (
+    x >= 0 &&
+    y >= 0 &&
+    index >= 0 &&
+    index < mask.length &&
+    Boolean(mask[index])
+  );
 }
 
 function dilateMaskSquare(
@@ -240,49 +283,93 @@ function dilateMaskSquare(
   if (radius <= 0) {
     return mask;
   }
-  const horizontal = new Uint8Array(mask.length);
+  return dilateMaskVertically(
+    dilateMaskHorizontally(mask, width, height, radius),
+    width,
+    height,
+    radius,
+  );
+}
+
+function dilateMaskHorizontally(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+): Uint8Array {
+  const output = new Uint8Array(mask.length);
   for (let y = 0; y < height; y += 1) {
-    let count = 0;
-    for (let x = -radius; x <= radius; x += 1) {
-      if (x >= 0 && x < width && mask[y * width + x]) {
-        count += 1;
-      }
-    }
+    let count = countHorizontalMaskWindow(mask, width, height, y, radius);
     for (let x = 0; x < width; x += 1) {
       if (count > 0) {
-        horizontal[y * width + x] = 1;
+        output[y * width + x] = 1;
       }
-      const removeX = x - radius;
-      const addX = x + radius + 1;
-      if (removeX >= 0 && removeX < width && mask[y * width + removeX]) {
-        count -= 1;
-      }
-      if (addX >= 0 && addX < width && mask[y * width + addX]) {
-        count += 1;
-      }
+      count +=
+        readMaskValue(mask, width, height, x + radius + 1, y) -
+        readMaskValue(mask, width, height, x - radius, y);
     }
   }
+  return output;
+}
+
+function dilateMaskVertically(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+): Uint8Array {
   const output = new Uint8Array(mask.length);
   for (let x = 0; x < width; x += 1) {
-    let count = 0;
-    for (let y = -radius; y <= radius; y += 1) {
-      if (y >= 0 && y < height && horizontal[y * width + x]) {
-        count += 1;
-      }
-    }
+    let count = countVerticalMaskWindow(mask, width, height, x, radius);
     for (let y = 0; y < height; y += 1) {
       if (count > 0) {
         output[y * width + x] = 1;
       }
-      const removeY = y - radius;
-      const addY = y + radius + 1;
-      if (removeY >= 0 && removeY < height && horizontal[removeY * width + x]) {
-        count -= 1;
-      }
-      if (addY >= 0 && addY < height && horizontal[addY * width + x]) {
-        count += 1;
-      }
+      count +=
+        readMaskValue(mask, width, height, x, y + radius + 1) -
+        readMaskValue(mask, width, height, x, y - radius);
     }
   }
   return output;
+}
+
+function countHorizontalMaskWindow(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  y: number,
+  radius: number,
+): number {
+  let count = 0;
+  for (let x = -radius; x <= radius; x += 1) {
+    count += readMaskValue(mask, width, height, x, y);
+  }
+  return count;
+}
+
+function countVerticalMaskWindow(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  x: number,
+  radius: number,
+): number {
+  let count = 0;
+  for (let y = -radius; y <= radius; y += 1) {
+    count += readMaskValue(mask, width, height, x, y);
+  }
+  return count;
+}
+
+function readMaskValue(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): number {
+  if (x < 0 || x >= width || y < 0 || y >= height) {
+    return 0;
+  }
+  return mask[y * width + x] ? 1 : 0;
 }

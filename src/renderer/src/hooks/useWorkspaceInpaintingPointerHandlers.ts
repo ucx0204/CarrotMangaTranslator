@@ -6,16 +6,22 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
-import type { InpaintingMaskStroke, MangaPage } from "../../../shared/types";
-import { mangaGateway } from "../api/mangaGateway";
+import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { InpaintingTool } from "../inpainting/inpaintingTypes";
+import type { MangaPage } from "./hookLibraryTypes";
+import { libraryGateway } from "./libraryGateway";
 import type { RetouchPreviewState } from "./useInpaintingRetouch";
+import {
+  appendMaskStroke,
+  isRetouchDrawTool,
+  resolveImagePixelPoint,
+  type ImagePoint,
+  type RetouchDrawTool,
+} from "./workspaceInpaintingPointerState";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
 } from "./workspacePointerCapture";
-
-type ImagePoint = { x: number; y: number };
 
 type UseWorkspaceInpaintingPointerHandlersOptions = {
   appendRetouchPoint: (
@@ -47,214 +53,21 @@ type UseWorkspaceInpaintingPointerHandlersOptions = {
   stageRef: RefObject<HTMLDivElement | null>;
 };
 
-export function useWorkspaceInpaintingPointerHandlers({
-  appendRetouchPoint,
-  applyRetouchPoints,
-  imageRef,
-  inpaintingBrushRadius,
-  inpaintingRetouchDrawingRef,
-  inpaintingRetouchPointsRef,
-  inpaintingTool,
-  inpaintingToolActive,
-  lastInpaintingRetouchPointRef,
-  pushStatus,
-  selectedPage,
-  selectedPageIdRef,
-  selectedPageImagePath,
-  setInpaintingPaintColor,
-  setPatternMaskStrokesByPage,
-  setRetouchCursorPoint,
-  setRetouchPreview,
-  setSelectedBlockId,
-  stageRef,
-}: UseWorkspaceInpaintingPointerHandlersOptions): {
+type InpaintingPointerHandlers = {
   onPointerDown: (event: PointerEvent) => boolean;
   onPointerLeave: () => void;
   onPointerMove: (event: PointerEvent) => boolean;
   onPointerUp: (event: PointerEvent) => boolean;
-} {
-  const getImagePixelPoint = useCallback(
-    (event: PointerEvent): ImagePoint | null => {
-      const stage = stageRef.current;
-      const page = selectedPage;
-      if (!stage || !page) {
-        return null;
-      }
-      const rect =
-        imageRef.current?.getBoundingClientRect() ??
-        stage.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) {
-        return null;
-      }
-      return {
-        x: Math.max(
-          0,
-          Math.min(
-            page.width - 1,
-            ((event.clientX - rect.left) / rect.width) * page.width,
-          ),
-        ),
-        y: Math.max(
-          0,
-          Math.min(
-            page.height - 1,
-            ((event.clientY - rect.top) / rect.height) * page.height,
-          ),
-        ),
-      };
-    },
-    [imageRef, selectedPage, stageRef],
-  );
+};
 
-  const onPointerDown = useCallback(
-    (event: PointerEvent): boolean => {
-      if (!inpaintingToolActive) {
-        return false;
-      }
-
-      const point = getImagePixelPoint(event);
-      if (!point || !stageRef.current) {
-        return true;
-      }
-      if (
-        inpaintingTool === "brush" ||
-        inpaintingTool === "eraser" ||
-        inpaintingTool === "mask"
-      ) {
-        setRetouchCursorPoint(point);
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      setSelectedBlockId(null);
-      if (inpaintingTool === "picker") {
-        const imagePath = selectedPageImagePath ?? selectedPage?.imagePath;
-        if (imagePath) {
-          void mangaGateway
-            .sampleInpaintingColor({ imagePath, x: point.x, y: point.y })
-            .then((result) => {
-              setInpaintingPaintColor(result.color);
-              pushStatus(
-                `붓 색상을 ${result.color}로 선택했습니다. 계속 다른 색을 뽑거나 붓으로 전환하세요.`,
-              );
-            })
-            .catch((error) => {
-              console.error(error);
-              pushStatus("색상을 가져오지 못했습니다.");
-            });
-        }
-        return true;
-      }
-      if (
-        inpaintingTool === "brush" ||
-        inpaintingTool === "eraser" ||
-        inpaintingTool === "mask"
-      ) {
-        inpaintingRetouchDrawingRef.current = true;
-        inpaintingRetouchPointsRef.current = [];
-        lastInpaintingRetouchPointRef.current = null;
-        setRetouchPreview(null);
-        appendRetouchPoint(point, inpaintingTool);
-        capturePointerSafely(stageRef.current, event.pointerId);
-      }
-      return true;
-    },
-    [
-      appendRetouchPoint,
-      getImagePixelPoint,
-      inpaintingRetouchDrawingRef,
-      inpaintingRetouchPointsRef,
-      inpaintingTool,
-      inpaintingToolActive,
-      lastInpaintingRetouchPointRef,
-      pushStatus,
-      selectedPage,
-      selectedPageImagePath,
-      setInpaintingPaintColor,
-      setRetouchCursorPoint,
-      setRetouchPreview,
-      setSelectedBlockId,
-      stageRef,
-    ],
-  );
-
-  const onPointerMove = useCallback(
-    (event: PointerEvent): boolean => {
-      if (!inpaintingToolActive) {
-        return false;
-      }
-
-      const point = getImagePixelPoint(event);
-      if (
-        point &&
-        (inpaintingTool === "brush" ||
-          inpaintingTool === "eraser" ||
-          inpaintingTool === "mask")
-      ) {
-        setRetouchCursorPoint(point);
-      }
-      if (
-        point &&
-        inpaintingRetouchDrawingRef.current &&
-        (inpaintingTool === "brush" ||
-          inpaintingTool === "eraser" ||
-          inpaintingTool === "mask")
-      ) {
-        appendRetouchPoint(point, inpaintingTool);
-      }
-      return true;
-    },
-    [
-      appendRetouchPoint,
-      getImagePixelPoint,
-      inpaintingRetouchDrawingRef,
-      inpaintingTool,
-      inpaintingToolActive,
-      setRetouchCursorPoint,
-    ],
-  );
-
-  const onPointerUp = useCallback(
-    (event: PointerEvent): boolean => {
-      if (!inpaintingRetouchDrawingRef.current) {
-        return false;
-      }
-
-      releasePointerCaptureSafely(stageRef.current, event.pointerId);
-      inpaintingRetouchDrawingRef.current = false;
-      lastInpaintingRetouchPointRef.current = null;
-      const points = inpaintingRetouchPointsRef.current;
-      inpaintingRetouchPointsRef.current = [];
-      if (inpaintingTool === "brush" || inpaintingTool === "eraser") {
-        void applyRetouchPoints(inpaintingTool, points);
-      } else if (inpaintingTool === "mask" && points.length > 0) {
-        const pageId = selectedPageIdRef.current;
-        if (pageId) {
-          setPatternMaskStrokesByPage((current) => ({
-            ...current,
-            [pageId]: [
-              ...(current[pageId] ?? []),
-              { points, radiusPx: inpaintingBrushRadius },
-            ].slice(-200),
-          }));
-        }
-      }
-      window.setTimeout(() => setRetouchPreview(null), 180);
-      return true;
-    },
-    [
-      applyRetouchPoints,
-      inpaintingBrushRadius,
-      inpaintingRetouchDrawingRef,
-      inpaintingRetouchPointsRef,
-      inpaintingTool,
-      lastInpaintingRetouchPointRef,
-      selectedPageIdRef,
-      setPatternMaskStrokesByPage,
-      setRetouchPreview,
-      stageRef,
-    ],
-  );
-
+export function useWorkspaceInpaintingPointerHandlers(
+  options: UseWorkspaceInpaintingPointerHandlersOptions,
+): InpaintingPointerHandlers {
+  const getImagePixelPoint = useImagePixelPoint(options);
+  const onPointerDown = useInpaintingPointerDown(options, getImagePixelPoint);
+  const onPointerMove = useInpaintingPointerMove(options, getImagePixelPoint);
+  const onPointerUp = useInpaintingPointerUp(options);
+  const { inpaintingRetouchDrawingRef, setRetouchCursorPoint } = options;
   const onPointerLeave = useCallback(() => {
     if (!inpaintingRetouchDrawingRef.current) {
       setRetouchCursorPoint(null);
@@ -267,4 +80,174 @@ export function useWorkspaceInpaintingPointerHandlers({
     onPointerMove,
     onPointerUp,
   };
+}
+
+function useImagePixelPoint({
+  imageRef,
+  selectedPage,
+  stageRef,
+}: UseWorkspaceInpaintingPointerHandlersOptions): (
+  event: PointerEvent,
+) => ImagePoint | null {
+  return useCallback(
+    (event) => {
+      const stage = stageRef.current;
+      const page = selectedPage;
+      if (!stage || !page) {
+        return null;
+      }
+      const rect =
+        imageRef.current?.getBoundingClientRect() ??
+        stage.getBoundingClientRect();
+      return resolveImagePixelPoint(event, rect, page);
+    },
+    [imageRef, selectedPage, stageRef],
+  );
+}
+
+function useInpaintingPointerDown(
+  options: UseWorkspaceInpaintingPointerHandlersOptions,
+  getImagePixelPoint: (event: PointerEvent) => ImagePoint | null,
+): (event: PointerEvent) => boolean {
+  return useCallback(
+    (event) => {
+      if (!options.inpaintingToolActive) {
+        return false;
+      }
+      const point = getImagePixelPoint(event);
+      if (!point || !options.stageRef.current) {
+        return true;
+      }
+      if (isRetouchDrawTool(options.inpaintingTool)) {
+        options.setRetouchCursorPoint(point);
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      options.setSelectedBlockId(null);
+      if (options.inpaintingTool === "picker") {
+        sampleInpaintingColor(options, point);
+      } else if (isRetouchDrawTool(options.inpaintingTool)) {
+        startRetouchDrawing(options, point, event, options.inpaintingTool);
+      }
+      return true;
+    },
+    [getImagePixelPoint, options],
+  );
+}
+
+function useInpaintingPointerMove(
+  options: UseWorkspaceInpaintingPointerHandlersOptions,
+  getImagePixelPoint: (event: PointerEvent) => ImagePoint | null,
+): (event: PointerEvent) => boolean {
+  return useCallback(
+    (event) => {
+      if (!options.inpaintingToolActive) {
+        return false;
+      }
+      const point = getImagePixelPoint(event);
+      if (point && isRetouchDrawTool(options.inpaintingTool)) {
+        options.setRetouchCursorPoint(point);
+      }
+      if (
+        point &&
+        options.inpaintingRetouchDrawingRef.current &&
+        isRetouchDrawTool(options.inpaintingTool)
+      ) {
+        options.appendRetouchPoint(point, options.inpaintingTool);
+      }
+      return true;
+    },
+    [getImagePixelPoint, options],
+  );
+}
+
+function useInpaintingPointerUp(
+  options: UseWorkspaceInpaintingPointerHandlersOptions,
+): (event: PointerEvent) => boolean {
+  return useCallback(
+    (event) => {
+      if (!options.inpaintingRetouchDrawingRef.current) {
+        return false;
+      }
+      releasePointerCaptureSafely(options.stageRef.current, event.pointerId);
+      options.inpaintingRetouchDrawingRef.current = false;
+      options.lastInpaintingRetouchPointRef.current = null;
+      const points = options.inpaintingRetouchPointsRef.current;
+      options.inpaintingRetouchPointsRef.current = [];
+      commitRetouchPoints(options, points);
+      window.setTimeout(() => options.setRetouchPreview(null), 180);
+      return true;
+    },
+    [options],
+  );
+}
+
+function sampleInpaintingColor(
+  {
+    pushStatus,
+    selectedPage,
+    selectedPageImagePath,
+    setInpaintingPaintColor,
+  }: UseWorkspaceInpaintingPointerHandlersOptions,
+  point: ImagePoint,
+): void {
+  const imagePath = selectedPageImagePath ?? selectedPage?.imagePath;
+  if (!imagePath) {
+    return;
+  }
+  void libraryGateway
+    .sampleInpaintingColor({ imagePath, x: point.x, y: point.y })
+    .then((result) => {
+      setInpaintingPaintColor(result.color);
+      pushStatus(
+        `붓 색상을 ${result.color}로 선택했습니다. 계속 다른 색을 뽑거나 붓으로 전환하세요.`,
+      );
+    })
+    .catch((error) => {
+      console.error(error);
+      pushStatus("색상을 가져오지 못했습니다.");
+    });
+}
+
+function startRetouchDrawing(
+  {
+    appendRetouchPoint,
+    inpaintingRetouchDrawingRef,
+    inpaintingRetouchPointsRef,
+    lastInpaintingRetouchPointRef,
+    setRetouchPreview,
+    stageRef,
+  }: UseWorkspaceInpaintingPointerHandlersOptions,
+  point: ImagePoint,
+  event: PointerEvent,
+  tool: RetouchDrawTool,
+): void {
+  inpaintingRetouchDrawingRef.current = true;
+  inpaintingRetouchPointsRef.current = [];
+  lastInpaintingRetouchPointRef.current = null;
+  setRetouchPreview(null);
+  appendRetouchPoint(point, tool);
+  capturePointerSafely(stageRef.current, event.pointerId);
+}
+
+function commitRetouchPoints(
+  {
+    applyRetouchPoints,
+    inpaintingBrushRadius,
+    inpaintingTool,
+    selectedPageIdRef,
+    setPatternMaskStrokesByPage,
+  }: UseWorkspaceInpaintingPointerHandlersOptions,
+  points: ImagePoint[],
+): void {
+  if (inpaintingTool === "brush" || inpaintingTool === "eraser") {
+    void applyRetouchPoints(inpaintingTool, points);
+  } else if (inpaintingTool === "mask" && points.length > 0) {
+    const pageId = selectedPageIdRef.current;
+    if (pageId) {
+      setPatternMaskStrokesByPage((current) =>
+        appendMaskStroke(current, pageId, points, inpaintingBrushRadius),
+      );
+    }
+  }
 }

@@ -1,17 +1,19 @@
 /* eslint-disable max-lines, max-lines-per-function */
 import React from "react";
+import type { AppSettings } from "../../../shared/settingsTypes";
+import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type {
-  AppSettings,
-  ChapterSnapshot,
   ChapterStoryMemory,
   CharacterProfile,
   CharacterSpeechStyle,
   GlossaryEntry,
   GlossaryEntryCategory,
+  WorkStyleGuide,
+} from "../../../shared/workContextTypes";
+import type {
   WorkContextAnalysisCounts,
   WorkContextAnalysisScope,
-  WorkStyleGuide,
-} from "../../../shared/types";
+} from "../../../shared/workContextAnalysisTypes";
 import {
   DEFAULT_CONTEXT_TOKENS,
   DEFAULT_MAX_TOKENS,

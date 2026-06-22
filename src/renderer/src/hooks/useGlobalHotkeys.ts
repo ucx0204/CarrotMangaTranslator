@@ -9,6 +9,47 @@ type UseGlobalHotkeysOptions = {
   onToggleHelp: () => void;
 };
 
+function hasCommandModifier(event: KeyboardEvent): boolean {
+  return event.ctrlKey || event.metaKey;
+}
+
+function isPaletteShortcut(event: KeyboardEvent): boolean {
+  return hasCommandModifier(event) && event.key.toLowerCase() === "k";
+}
+
+function isHelpShortcut(event: KeyboardEvent): boolean {
+  return event.key === "?" || (hasCommandModifier(event) && event.key === "/");
+}
+
+function shouldIgnoreHelpShortcut(
+  event: KeyboardEvent,
+  { blockingModalOpen, paletteOpen }: UseGlobalHotkeysOptions,
+): boolean {
+  return (
+    blockingModalOpen ||
+    paletteOpen ||
+    (event.key === "?" && isEditableTarget(event.target))
+  );
+}
+
+function handleGlobalHotkey(
+  event: KeyboardEvent,
+  options: UseGlobalHotkeysOptions,
+): void {
+  if (isPaletteShortcut(event)) {
+    if (!options.blockingModalOpen) {
+      event.preventDefault();
+      options.onTogglePalette();
+    }
+    return;
+  }
+
+  if (isHelpShortcut(event) && !shouldIgnoreHelpShortcut(event, options)) {
+    event.preventDefault();
+    options.onToggleHelp();
+  }
+}
+
 /**
  * Global keyboard shortcuts not tied to page reading:
  * - Ctrl/Cmd+K toggles the command palette
@@ -22,30 +63,12 @@ export function useGlobalHotkeys({
 }: UseGlobalHotkeysOptions): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      const key = event.key;
-      const withCtrl = event.ctrlKey || event.metaKey;
-
-      if (withCtrl && (key === "k" || key === "K")) {
-        if (blockingModalOpen) {
-          return;
-        }
-        event.preventDefault();
-        onTogglePalette();
-        return;
-      }
-
-      const isHelpKey = key === "?" || (withCtrl && key === "/");
-      if (isHelpKey) {
-        if (blockingModalOpen || paletteOpen) {
-          return;
-        }
-        // Let users type "?" inside text fields.
-        if (key === "?" && isEditableTarget(event.target)) {
-          return;
-        }
-        event.preventDefault();
-        onToggleHelp();
-      }
+      handleGlobalHotkey(event, {
+        blockingModalOpen,
+        onToggleHelp,
+        onTogglePalette,
+        paletteOpen,
+      });
     };
 
     window.addEventListener("keydown", onKeyDown);

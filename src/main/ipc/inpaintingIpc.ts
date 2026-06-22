@@ -7,6 +7,7 @@ import {
   StartInpaintingRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
+import { inpaintingIpcContracts } from "../../shared/ipcContracts";
 import type {
   InpaintingColorSampleResult,
   InpaintingExportResult,
@@ -14,7 +15,7 @@ import type {
   InpaintingRevertResult,
   SetPageInpaintingResultResult,
   StartInpaintingResult,
-} from "../../shared/types";
+} from "../../shared/inpaintingTypes";
 import { applyInpaintingRetouch, sampleImageColor } from "../inpainting";
 import { disposeCachedFluxInpaintingEngine } from "../inpainting/fluxEnginePool";
 import {
@@ -28,7 +29,7 @@ import {
   updatePagesAfterInpainting,
 } from "../library";
 import type { IpcContext } from "./context";
-import { trustedHandle } from "./trustedIpc";
+import { trustedHandleContract } from "./trustedIpc";
 
 function assertNoActiveJob(context: IpcContext): void {
   if (context.jobs.hasActive) {
@@ -37,9 +38,17 @@ function assertNoActiveJob(context: IpcContext): void {
 }
 
 export function registerInpaintingIpc(context: IpcContext): void {
-  trustedHandle(
+  registerInpaintingJobIpc(context);
+  registerInpaintingRetouchIpc(context);
+  registerInpaintingResultIpc(context);
+  registerInpaintingRevertIpc(context);
+  registerInpaintingUtilityIpc(context);
+}
+
+function registerInpaintingJobIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "job:start-inpainting",
+    inpaintingIpcContracts.startInpainting,
     async (_event, rawRequest: unknown): Promise<StartInpaintingResult> =>
       startInpaintingJob(
         context,
@@ -51,17 +60,19 @@ export function registerInpaintingIpc(context: IpcContext): void {
       ),
   );
 
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "inpainting:dispose-engine",
+    inpaintingIpcContracts.disposeInpaintingEngine,
     async (): Promise<{ disposed: boolean }> => ({
       disposed: await disposeCachedFluxInpaintingEngine("renderer-exit"),
     }),
   );
+}
 
-  trustedHandle(
+function registerInpaintingRetouchIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "inpainting:apply-retouch",
+    inpaintingIpcContracts.applyInpaintingRetouch,
     async (_event, rawRequest: unknown): Promise<InpaintingRetouchResult> => {
       const request = parseIpcPayload(
         InpaintingRetouchRequestSchema,
@@ -97,10 +108,12 @@ export function registerInpaintingIpc(context: IpcContext): void {
       };
     },
   );
+}
 
-  trustedHandle(
+function registerInpaintingResultIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "inpainting:set-page-result",
+    inpaintingIpcContracts.setPageInpaintingResult,
     async (
       _event,
       rawRequest: unknown,
@@ -126,10 +139,12 @@ export function registerInpaintingIpc(context: IpcContext): void {
       };
     },
   );
+}
 
-  trustedHandle(
+function registerInpaintingRevertIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "inpainting:revert",
+    inpaintingIpcContracts.revertInpainting,
     async (_event, rawRequest: unknown): Promise<InpaintingRevertResult> => {
       const request = parseIpcPayload(
         InpaintingRevertRequestSchema,
@@ -165,10 +180,12 @@ export function registerInpaintingIpc(context: IpcContext): void {
       };
     },
   );
+}
 
-  trustedHandle(
+function registerInpaintingUtilityIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "inpainting:sample-color",
+    inpaintingIpcContracts.sampleInpaintingColor,
     async (
       _event,
       rawRequest: unknown,
@@ -190,9 +207,9 @@ export function registerInpaintingIpc(context: IpcContext): void {
     },
   );
 
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "inpainting:export-results",
+    inpaintingIpcContracts.exportInpaintingResults,
     async (_event, rawRequest: unknown): Promise<InpaintingExportResult> =>
       exportInpaintingResults(
         context,

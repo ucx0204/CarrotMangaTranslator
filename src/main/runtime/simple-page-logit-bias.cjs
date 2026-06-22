@@ -16,10 +16,22 @@ const MAX_TOKENIZE_TIMEOUT_MS = 60000;
  * @property {string | null | undefined} [skippedReason]
  * @property {Array<Record<string, unknown>> | undefined} [diagnostics]
  */
+/**
+ * @typedef {{ baseUrl?: string | null }} LlamaServerRef
+ * @typedef {{ abortSignal?: AbortSignal | null; disableUnused49LogitBias?: unknown; forbiddenTokenBias?: unknown; forbiddenTokenIds?: unknown; forbiddenTokenTexts?: unknown; tokenizeTimeoutMs?: unknown; [key: string]: unknown }} LogitBiasOptions
+ * @typedef {Record<string, unknown> & { logit_bias?: unknown }} RequestBody
+ * @typedef {{ tokenIds: number[]; endpoint: string | null; error: string | null }} TokenizeResult
+ * @typedef {"disableUnused49LogitBias" | "forbiddenTokenBias" | "forbiddenTokenIds" | "forbiddenTokenTexts" | "tokenizeTimeoutMs"} LogitBiasOptionName
+ */
 
 /** @type {Map<string, ForbiddenTokenBiasResolution>} */
 const forbiddenTokenBiasCache = new Map();
 
+/**
+ * @param {LlamaServerRef | null | undefined} server
+ * @param {LogitBiasOptions} options
+ * @param {RequestBody | null | undefined} requestBody
+ */
 async function applyLocalForbiddenTokenBias(server, options = {}, requestBody) {
   if (
     !requestBody ||
@@ -62,6 +74,11 @@ async function applyLocalForbiddenTokenBias(server, options = {}, requestBody) {
   };
 }
 
+/**
+ * @param {LlamaServerRef | null | undefined} server
+ * @param {LogitBiasOptions} [options]
+ * @returns {Promise<ForbiddenTokenBiasResolution>}
+ */
 async function resolveLocalForbiddenTokenBias(server, options = {}) {
   const explicitIds = resolveConfiguredForbiddenTokenIds(options);
   if (explicitIds.length > 0) {
@@ -100,17 +117,22 @@ async function resolveLocalForbiddenTokenBias(server, options = {}) {
 }
 
 async function resolveForbiddenTokenIdsFromTokenize(
+  /** @type {string} */
   baseUrl,
+  /** @type {string[]} */
   tokenTexts,
+  /** @type {LogitBiasOptions} */
   options = {},
 ) {
+  /** @type {Set<number>} */
   const tokenIds = new Set();
+  /** @type {Array<Record<string, unknown>>} */
   const diagnostics = [];
   for (const tokenText of tokenTexts) {
     const result = await tokenizeText(baseUrl, tokenText, options);
     const singleToken =
       result.tokenIds.length === 1 ? result.tokenIds[0] : null;
-    if (Number.isInteger(singleToken)) {
+    if (singleToken !== null && Number.isInteger(singleToken)) {
       tokenIds.add(singleToken);
     }
     diagnostics.push({
@@ -131,6 +153,12 @@ async function resolveForbiddenTokenIdsFromTokenize(
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} tokenText
+ * @param {LogitBiasOptions} [options]
+ * @returns {Promise<TokenizeResult>}
+ */
 async function tokenizeText(baseUrl, tokenText, options = {}) {
   const endpoints = buildTokenizeEndpoints(baseUrl);
   const bodies = [
@@ -177,7 +205,13 @@ async function tokenizeText(baseUrl, tokenText, options = {}) {
   };
 }
 
+/**
+ * @param {unknown} existing
+ * @param {number[]} tokenIds
+ * @param {number} biasValue
+ */
 function mergeLogitBias(existing, tokenIds, biasValue) {
+  /** @type {Record<string, unknown>} */
   const merged =
     existing && typeof existing === "object" && !Array.isArray(existing)
       ? { ...existing }
@@ -188,6 +222,7 @@ function mergeLogitBias(existing, tokenIds, biasValue) {
   return merged;
 }
 
+/** @param {string} baseUrl */
 function buildTokenizeEndpoints(baseUrl) {
   const normalized = normalizeBaseUrl(baseUrl);
   if (!normalized) {
@@ -197,19 +232,28 @@ function buildTokenizeEndpoints(baseUrl) {
   return [...new Set([`${rootUrl}/tokenize`, `${normalized}/tokenize`])];
 }
 
+/**
+ * @param {unknown} payload
+ * @returns {number[]}
+ */
 function extractTokenIds(payload) {
+  const record =
+    payload && typeof payload === "object"
+      ? /** @type {{ tokens?: unknown; token_ids?: unknown }} */ (payload)
+      : {};
   const rawTokens = Array.isArray(payload)
     ? payload
-    : Array.isArray(payload?.tokens)
-      ? payload.tokens
-      : Array.isArray(payload?.token_ids)
-        ? payload.token_ids
+    : Array.isArray(record.tokens)
+      ? record.tokens
+      : Array.isArray(record.token_ids)
+        ? record.token_ids
         : [];
   return rawTokens
     .map(readTokenId)
     .filter((tokenId) => Number.isInteger(tokenId));
 }
 
+/** @param {unknown} token */
 function readTokenId(token) {
   if (Number.isInteger(token)) {
     return token;
@@ -221,7 +265,7 @@ function readTokenId(token) {
     return null;
   }
   for (const key of ["id", "token", "token_id"]) {
-    const value = token[key];
+    const value = /** @type {Record<string, unknown>} */ (token)[key];
     if (Number.isInteger(value)) {
       return value;
     }
@@ -229,16 +273,22 @@ function readTokenId(token) {
   return null;
 }
 
+/** @param {LogitBiasOptions} [options] */
 function resolveConfiguredForbiddenTokenTexts(options = {}) {
   const raw = readOptionOrEnv(options, "forbiddenTokenTexts");
   const parsed = parseDelimitedTextList(raw);
   return parsed.length > 0 ? parsed : DEFAULT_FORBIDDEN_TOKEN_TEXTS;
 }
 
+/** @param {LogitBiasOptions} [options] */
 function resolveConfiguredForbiddenTokenIds(options = {}) {
   return parseTokenIdList(readOptionOrEnv(options, "forbiddenTokenIds"));
 }
 
+/**
+ * @param {LogitBiasOptions} options
+ * @param {LogitBiasOptionName} optionName
+ */
 function readOptionOrEnv(options, optionName) {
   const envName = {
     disableUnused49LogitBias: "MANGA_TRANSLATOR_DISABLE_UNUSED49_LOGIT_BIAS",
@@ -253,6 +303,10 @@ function readOptionOrEnv(options, optionName) {
   return options[optionName];
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
 function parseDelimitedTextList(value) {
   if (Array.isArray(value)) {
     return uniqueTexts(value);
@@ -274,6 +328,10 @@ function parseDelimitedTextList(value) {
   return uniqueTexts(text.split(/[\r\n,]+/g));
 }
 
+/**
+ * @param {unknown[]} values
+ * @returns {string[]}
+ */
 function uniqueTexts(values) {
   return [
     ...new Set(
@@ -284,25 +342,29 @@ function uniqueTexts(values) {
   ];
 }
 
+/**
+ * @param {unknown} value
+ * @returns {number[]}
+ */
 function parseTokenIdList(value) {
   const values = Array.isArray(value)
     ? value
     : String(value ?? "")
         .split(/[\s,;]+/g)
         .filter(Boolean);
-  return [
-    ...new Set(
-      values
-        .map((item) => {
-          const tokenId =
-            typeof item === "number" ? item : Number(String(item).trim());
-          return Number.isInteger(tokenId) && tokenId >= 0 ? tokenId : null;
-        })
-        .filter((tokenId) => Number.isInteger(tokenId)),
-    ),
-  ];
+  /** @type {number[]} */
+  const tokenIds = [];
+  for (const item of values) {
+    const tokenId =
+      typeof item === "number" ? item : Number(String(item).trim());
+    if (Number.isInteger(tokenId) && tokenId >= 0) {
+      tokenIds.push(tokenId);
+    }
+  }
+  return [...new Set(tokenIds)];
 }
 
+/** @param {LogitBiasOptions} [options] */
 function resolveForbiddenTokenBias(options = {}) {
   const value = Number(readOptionOrEnv(options, "forbiddenTokenBias"));
   if (!Number.isFinite(value)) {
@@ -311,7 +373,9 @@ function resolveForbiddenTokenBias(options = {}) {
   return Math.max(-100, Math.min(0, value));
 }
 
+/** @param {LogitBiasOptions} [options] */
 function createTokenizeSignal(options = {}) {
+  /** @type {AbortSignal[]} */
   const signals = [];
   if (options.abortSignal) {
     signals.push(options.abortSignal);
@@ -328,6 +392,7 @@ function createTokenizeSignal(options = {}) {
   return AbortSignal.any(signals);
 }
 
+/** @param {LogitBiasOptions} [options] */
 function resolveTokenizeTimeoutMs(options = {}) {
   const value = Number(readOptionOrEnv(options, "tokenizeTimeoutMs"));
   if (!Number.isFinite(value)) {
@@ -339,12 +404,14 @@ function resolveTokenizeTimeoutMs(options = {}) {
   );
 }
 
+/** @param {unknown} value */
 function normalizeBaseUrl(value) {
   return String(value ?? "")
     .trim()
     .replace(/\/+$/g, "");
 }
 
+/** @param {unknown} value */
 function isTruthy(value) {
   return ["1", "true", "yes", "y", "on"].includes(
     String(value ?? "")
@@ -353,15 +420,25 @@ function isTruthy(value) {
   );
 }
 
+/**
+ * @param {unknown} error
+ * @param {LogitBiasOptions} [options]
+ */
 function isUserAbortError(error, options = {}) {
+  const errorRecord =
+    error && typeof error === "object"
+      ? /** @type {{ name?: unknown }} */ (error)
+      : {};
   return Boolean(
     options.abortSignal?.aborted &&
-    error &&
-    typeof error === "object" &&
-    (error.name === "AbortError" || error.name === "TimeoutError"),
+    (errorRecord.name === "AbortError" || errorRecord.name === "TimeoutError"),
   );
 }
 
+/**
+ * @param {string} endpoint
+ * @param {unknown} error
+ */
 function formatTokenizeError(endpoint, error) {
   if (error instanceof Error) {
     return `${endpoint} ${error.name}: ${truncateText(error.message, 240)}`;
@@ -369,6 +446,7 @@ function formatTokenizeError(endpoint, error) {
   return `${endpoint} ${truncateText(String(error), 240)}`;
 }
 
+/** @param {ForbiddenTokenBiasResolution} value */
 function cloneBiasResolution(value) {
   return {
     ...value,

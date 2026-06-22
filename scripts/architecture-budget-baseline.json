@@ -1,0 +1,24 @@
+{
+  "defaultMaxImports": 25,
+  "defaultMaxImportedBy": 25,
+  "allow": {
+    "src/shared/types.ts": {
+      "maxImportedBy": 66
+    },
+    "src/shared/libraryTypes.ts": {
+      "maxImportedBy": 72
+    },
+    "src/shared/jobTypes.ts": {
+      "maxImportedBy": 35
+    },
+    "src/shared/settingsTypes.ts": {
+      "maxImportedBy": 31
+    },
+    "src/renderer/src/components/ui/index.ts": {
+      "maxImportedBy": 33
+    },
+    "src/renderer/src/lib/appHelpers.ts": {
+      "maxImportedBy": 26
+    }
+  }
+}

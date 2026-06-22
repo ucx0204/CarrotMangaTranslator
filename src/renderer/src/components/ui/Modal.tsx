@@ -50,63 +50,11 @@ export function Modal({
   children,
 }: ModalProps): React.JSX.Element {
   const cardRef = React.useRef<HTMLDivElement | null>(null);
-
-  React.useEffect(() => {
-    if (!closeOnEsc || !onClose) {
-      return;
-    }
-    const handle = (event: KeyboardEvent): void => {
-      if (event.key === "Escape" && !closeDisabled) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handle);
-    return () => window.removeEventListener("keydown", handle);
-  }, [closeOnEsc, onClose, closeDisabled]);
-
-  React.useEffect(() => {
-    const previouslyFocused =
-      typeof document !== "undefined"
-        ? (document.activeElement as HTMLElement | null)
-        : null;
-    const card = cardRef.current;
-    if (card) {
-      const focusable = getFocusable(card);
-      (focusable[0] ?? card).focus();
-    }
-    return () => {
-      previouslyFocused?.focus?.();
-    };
-  }, []);
-
-  const handleCardKeyDown = (
-    event: React.KeyboardEvent<HTMLDivElement>,
-  ): void => {
-    if (event.key !== "Tab") {
-      return;
-    }
-    const card = cardRef.current;
-    if (!card) {
-      return;
-    }
-    const focusable = getFocusable(card);
-    if (focusable.length === 0) {
-      event.preventDefault();
-      return;
-    }
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const active = document.activeElement;
-    if (event.shiftKey && active === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
-
   const showHeader = Boolean(title) || Boolean(headerExtra) || Boolean(onClose);
+  const handleCardKeyDown = useModalFocusTrap(cardRef);
+
+  useModalEscapeClose({ closeDisabled, closeOnEsc, onClose });
+  useModalInitialFocus(cardRef);
 
   return (
     <div
@@ -114,10 +62,8 @@ export function Modal({
       role="presentation"
       onMouseDown={(event) => {
         if (
-          closeOnBackdrop &&
-          !closeDisabled &&
           onClose &&
-          event.target === event.currentTarget
+          shouldCloseFromBackdrop(event, { closeDisabled, closeOnBackdrop })
         ) {
           onClose();
         }
@@ -137,23 +83,12 @@ export function Modal({
         onMouseDown={(event) => event.stopPropagation()}
       >
         {showHeader ? (
-          <div className={styles.header}>
-            {title ? <h2 className={styles.title}>{title}</h2> : <span />}
-            <div className={styles.headerActions}>
-              {headerExtra}
-              {onClose ? (
-                <IconButton
-                  label="닫기"
-                  variant="default"
-                  size="sm"
-                  onClick={onClose}
-                  disabled={closeDisabled}
-                >
-                  <CloseIcon size={16} />
-                </IconButton>
-              ) : null}
-            </div>
-          </div>
+          <ModalHeader
+            closeDisabled={closeDisabled}
+            headerExtra={headerExtra}
+            onClose={onClose}
+            title={title}
+          />
         ) : null}
         <div
           className={[styles.body, bodyClassName ?? ""]
@@ -163,6 +98,126 @@ export function Modal({
           {children}
         </div>
         {footer ? <div className={styles.footer}>{footer}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+function useModalEscapeClose({
+  closeDisabled,
+  closeOnEsc,
+  onClose,
+}: Pick<ModalProps, "closeDisabled" | "closeOnEsc" | "onClose">): void {
+  React.useEffect(() => {
+    if (!closeOnEsc || !onClose) {
+      return;
+    }
+    const handle = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && !closeDisabled) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handle);
+    return () => window.removeEventListener("keydown", handle);
+  }, [closeOnEsc, onClose, closeDisabled]);
+}
+
+function useModalInitialFocus(
+  cardRef: React.RefObject<HTMLDivElement | null>,
+): void {
+  React.useEffect(() => {
+    const previouslyFocused =
+      typeof document !== "undefined"
+        ? (document.activeElement as HTMLElement | null)
+        : null;
+    const card = cardRef.current;
+    if (card) {
+      const focusable = getFocusable(card);
+      (focusable[0] ?? card).focus();
+    }
+    return () => {
+      previouslyFocused?.focus?.();
+    };
+  }, [cardRef]);
+}
+
+function useModalFocusTrap(
+  cardRef: React.RefObject<HTMLDivElement | null>,
+): (event: React.KeyboardEvent<HTMLDivElement>) => void {
+  return React.useCallback(
+    (event) => {
+      if (event.key !== "Tab") {
+        return;
+      }
+      const card = cardRef.current;
+      if (!card) {
+        return;
+      }
+      trapTabFocus(event, getFocusable(card));
+    },
+    [cardRef],
+  );
+}
+
+function trapTabFocus(
+  event: React.KeyboardEvent<HTMLDivElement>,
+  focusable: HTMLElement[],
+): void {
+  if (focusable.length === 0) {
+    event.preventDefault();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement;
+  if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function shouldCloseFromBackdrop(
+  event: React.MouseEvent<HTMLDivElement>,
+  {
+    closeDisabled,
+    closeOnBackdrop,
+  }: Pick<ModalProps, "closeDisabled" | "closeOnBackdrop">,
+): boolean {
+  return (
+    Boolean(closeOnBackdrop) &&
+    !closeDisabled &&
+    event.target === event.currentTarget
+  );
+}
+
+function ModalHeader({
+  closeDisabled,
+  headerExtra,
+  onClose,
+  title,
+}: Pick<
+  ModalProps,
+  "closeDisabled" | "headerExtra" | "onClose" | "title"
+>): React.JSX.Element {
+  return (
+    <div className={styles.header}>
+      {title ? <h2 className={styles.title}>{title}</h2> : <span />}
+      <div className={styles.headerActions}>
+        {headerExtra}
+        {onClose ? (
+          <IconButton
+            label="닫기"
+            variant="default"
+            size="sm"
+            onClick={onClose}
+            disabled={closeDisabled}
+          >
+            <CloseIcon size={16} />
+          </IconButton>
+        ) : null}
       </div>
     </div>
   );

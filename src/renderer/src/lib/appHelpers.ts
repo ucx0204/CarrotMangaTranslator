@@ -1,5 +1,6 @@
 import { clampBbox } from "../../../shared/geometry";
-import type { BBox, JobEvent } from "../../../shared/types";
+import type { BBox } from "../../../shared/textTypes";
+import type { JobEvent } from "../../../shared/jobTypes";
 
 export type RegionSelectionState = {
   active: boolean;

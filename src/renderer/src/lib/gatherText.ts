@@ -1,8 +1,5 @@
-import type {
-  ChapterSnapshot,
-  MangaPage,
-  TranslationBlock,
-} from "../../../shared/types";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
+import type { TranslationBlock } from "../../../shared/textTypes";
 
 export type GatherScope = "page" | "chapter";
 export type GatherField = "both" | "translated" | "source";

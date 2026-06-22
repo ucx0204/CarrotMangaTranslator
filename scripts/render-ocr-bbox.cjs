@@ -2,6 +2,12 @@ const { app, BrowserWindow } = require("electron");
 const { readFile, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
+/**
+ * @typedef {{ image?: string; json?: string; output?: string; maxLongSide?: string; [key: string]: string | undefined }} RenderArgs
+ * @typedef {{ id?: string | number; label?: string; x1?: number | string; y1?: number | string; x2?: number | string; y2?: number | string }} BboxItem
+ * @typedef {{ width?: number | string; height?: number | string; items?: BboxItem[] }} BboxPayload
+ */
+
 const ROOT = path.join(__dirname, "..");
 
 async function main() {
@@ -14,7 +20,7 @@ async function main() {
 
   app.setPath("userData", path.join(ROOT, ".tmp", "ocr-bbox-render-user-data"));
   app.commandLine.appendSwitch("disable-gpu");
-  app.on("window-all-closed", (event) => event.preventDefault());
+  app.on("window-all-closed", () => {});
   await app.whenReady();
 
   const payload = JSON.parse(await readFile(args.json, "utf8"));
@@ -46,6 +52,11 @@ async function main() {
   }
 }
 
+/**
+ * @param {BboxPayload} payload
+ * @param {number} scale
+ * @param {string} imageDataUrl
+ */
 function buildHtml(payload, scale, imageDataUrl) {
   const width = Math.round(Number(payload.width) * scale);
   const height = Math.round(Number(payload.height) * scale);
@@ -91,11 +102,13 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
 </body></html>`;
 }
 
+/** @param {string} filePath */
 async function readImageDataUrl(filePath) {
   const buffer = await readFile(filePath);
   return `data:${mimeFromPath(filePath)};base64,${buffer.toString("base64")}`;
 }
 
+/** @param {string} filePath */
 function mimeFromPath(filePath) {
   const lower = filePath.toLowerCase();
   if (lower.endsWith(".png")) {
@@ -107,6 +120,7 @@ function mimeFromPath(filePath) {
   return "image/jpeg";
 }
 
+/** @param {import("electron").BrowserWindow} win */
 function waitForReady(win) {
   return win.webContents.executeJavaScript(`
     new Promise((resolve) => {
@@ -125,7 +139,12 @@ function waitForReady(win) {
   `);
 }
 
+/**
+ * @param {string[]} argv
+ * @returns {RenderArgs}
+ */
 function parseArgs(argv) {
+  /** @type {RenderArgs} */
   const result = {};
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
@@ -138,6 +157,7 @@ function parseArgs(argv) {
   return result;
 }
 
+/** @param {unknown} value */
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")

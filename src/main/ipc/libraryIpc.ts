@@ -12,6 +12,7 @@ import {
   SavePageBlocksRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
+import { libraryIpcContracts } from "../../shared/ipcContracts";
 import {
   deleteChapter,
   deletePage,
@@ -27,21 +28,34 @@ import {
 } from "../library";
 import { createLibraryImageUrl } from "../imageProtocol";
 import type { IpcContext } from "./context";
-import { trustedHandle } from "./trustedIpc";
+import { trustedHandleContract } from "./trustedIpc";
 
 export function registerLibraryIpc(context: IpcContext): void {
-  trustedHandle(context, "library:get-index", async () => listLibrary());
-  trustedHandle(context, "library:open-folder", async () => {
-    const error = await shell.openPath(getLibraryRoot());
-    return {
-      opened: !error,
-      libraryPath: getLibraryRoot(),
-      ...(error ? { error } : {}),
-    };
-  });
-  trustedHandle(
+  registerLibraryReadIpc(context);
+  registerLibraryRenameIpc(context);
+  registerLibraryDeleteIpc(context);
+  registerLibraryReorderIpc(context);
+}
+
+function registerLibraryReadIpc(context: IpcContext): void {
+  trustedHandleContract(context, libraryIpcContracts.getLibrary, async () =>
+    listLibrary(),
+  );
+  trustedHandleContract(
     context,
-    "library:open-chapter",
+    libraryIpcContracts.openLibraryFolder,
+    async () => {
+      const error = await shell.openPath(getLibraryRoot());
+      return {
+        opened: !error,
+        libraryPath: getLibraryRoot(),
+        ...(error ? { error } : {}),
+      };
+    },
+  );
+  trustedHandleContract(
+    context,
+    libraryIpcContracts.openChapter,
     async (_event, chapterId: unknown) => {
       const request = parseIpcPayload(
         OpenChapterRequestSchema,
@@ -51,9 +65,9 @@ export function registerLibraryIpc(context: IpcContext): void {
       return openChapter(request.chapterId);
     },
   );
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "library:get-page-image-data-url",
+    libraryIpcContracts.getPageImageDataUrl,
     async (_event, imagePath: unknown) => {
       const request = parseIpcPayload(
         ImageDataUrlRequestSchema,
@@ -63,17 +77,20 @@ export function registerLibraryIpc(context: IpcContext): void {
       return createLibraryImageUrl(request.imagePath);
     },
   );
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "library:save-page-blocks",
+    libraryIpcContracts.savePageBlocks,
     async (_event, raw: unknown) =>
       savePageBlocks(
         parseIpcPayload(SavePageBlocksRequestSchema, raw, "페이지 블록 저장"),
       ),
   );
-  trustedHandle(
+}
+
+function registerLibraryRenameIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "library:rename-work",
+    libraryIpcContracts.renameWork,
     async (_event, workId: unknown, title: unknown) => {
       const request = parseIpcPayload(
         RenameWorkRequestSchema,
@@ -83,9 +100,9 @@ export function registerLibraryIpc(context: IpcContext): void {
       return renameWork(request.workId, request.title);
     },
   );
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "library:rename-chapter",
+    libraryIpcContracts.renameChapter,
     async (_event, chapterId: unknown, title: unknown) => {
       const request = parseIpcPayload(
         RenameChapterRequestSchema,
@@ -95,9 +112,12 @@ export function registerLibraryIpc(context: IpcContext): void {
       return renameChapter(request.chapterId, request.title);
     },
   );
-  trustedHandle(
+}
+
+function registerLibraryDeleteIpc(context: IpcContext): void {
+  trustedHandleContract(
     context,
-    "library:delete-work",
+    libraryIpcContracts.deleteWork,
     async (_event, workId: unknown) => {
       const request = parseIpcPayload(
         DeleteWorkRequestSchema,
@@ -107,9 +127,9 @@ export function registerLibraryIpc(context: IpcContext): void {
       return deleteWork(request.workId);
     },
   );
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "library:delete-chapter",
+    libraryIpcContracts.deleteChapter,
     async (_event, chapterId: unknown) => {
       const request = parseIpcPayload(
         DeleteChapterRequestSchema,
@@ -119,9 +139,24 @@ export function registerLibraryIpc(context: IpcContext): void {
       return deleteChapter(request.chapterId);
     },
   );
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "library:reorder-chapters",
+    libraryIpcContracts.deletePage,
+    async (_event, chapterId: unknown, pageId: unknown) => {
+      const request = parseIpcPayload(
+        DeletePageRequestSchema,
+        { chapterId, pageId },
+        "페이지 삭제",
+      );
+      return deletePage(request.chapterId, request.pageId);
+    },
+  );
+}
+
+function registerLibraryReorderIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    libraryIpcContracts.reorderChapters,
     async (_event, workId: unknown, chapterIds: unknown) => {
       const request = parseIpcPayload(
         ReorderChaptersRequestSchema,
@@ -131,9 +166,9 @@ export function registerLibraryIpc(context: IpcContext): void {
       return reorderChapters(request.workId, request.chapterIds);
     },
   );
-  trustedHandle(
+  trustedHandleContract(
     context,
-    "library:reorder-pages",
+    libraryIpcContracts.reorderPages,
     async (_event, chapterId: unknown, pageIds: unknown) => {
       const request = parseIpcPayload(
         ReorderPagesRequestSchema,
@@ -141,18 +176,6 @@ export function registerLibraryIpc(context: IpcContext): void {
         "페이지 순서 변경",
       );
       return reorderPages(request.chapterId, request.pageIds);
-    },
-  );
-  trustedHandle(
-    context,
-    "library:delete-page",
-    async (_event, chapterId: unknown, pageId: unknown) => {
-      const request = parseIpcPayload(
-        DeletePageRequestSchema,
-        { chapterId, pageId },
-        "페이지 삭제",
-      );
-      return deletePage(request.chapterId, request.pageId);
     },
   );
 }

@@ -35,56 +35,36 @@ export type AppPaths = {
   llamaCacheDir?: string;
 };
 
+type AppPathRoots = Pick<
+  AppPaths,
+  "dataRoot" | "executableDir" | "isPackaged" | "repoRoot" | "resourcesDir"
+>;
+
+type ModelCachePaths = Pick<
+  AppPaths,
+  "hfHomeDir" | "hfHubCacheDir" | "llamaCacheDir"
+>;
+
 function isRunningPackaged(): boolean {
   return app.isPackaged || __dirname.includes("app.asar");
 }
 
 export function getAppPaths(): AppPaths {
-  const isPackaged = isRunningPackaged();
-  const repoRoot = resolve(__dirname, "../..");
-  const executableDir = dirname(process.execPath);
-  const resourcesDir = process.resourcesPath;
-  const dataRoot = isPackaged
-    ? resolvePackagedDataRoot(executableDir)
-    : repoRoot;
-  const libraryDir = isPackaged
-    ? join(dataRoot, "library")
-    : join(repoRoot, "library");
-  const logsDir = isPackaged ? join(dataRoot, "logs") : join(repoRoot, "logs");
-  const runtimeDir = isPackaged
-    ? join(resourcesDir, "app-runtime")
-    : join(repoRoot, "out", "app-runtime");
-  const toolsDir = isPackaged
-    ? join(resourcesDir, "tools")
-    : join(repoRoot, "tools");
-  const allowExternalRuntime = allowExternalRuntimeOverrides(isPackaged);
-  const explicitOcrRuntimeDir = allowExternalRuntime
-    ? process.env.MANGA_TRANSLATOR_OCR_RUNTIME_DIR?.trim()
-    : undefined;
-  const ocrRuntimeDir = explicitOcrRuntimeDir || join(dataRoot, "ocr-runtime");
+  const roots = resolveAppPathRoots();
+  const libraryDir = resolveWritableDataDir(roots, "library");
+  const logsDir = resolveWritableDataDir(roots, "logs");
+  const runtimeDir = resolveRuntimeDir(roots);
+  const toolsDir = resolveToolsDir(roots);
+  const ocrRuntimeDir = resolveOcrRuntimeDir(roots);
   const llamaServerPath = resolveBundledLlamaServerPath(toolsDir);
   const llamaRuntimeDir = dirname(llamaServerPath);
-  const explicitHfHome = process.env.MANGA_TRANSLATOR_HF_HOME?.trim();
-  const explicitHubCache =
-    process.env.HF_HUB_CACHE?.trim() ||
-    process.env.HUGGINGFACE_HUB_CACHE?.trim();
-  const hfHomeDir = isPackaged
-    ? join(dataRoot, "hf-cache")
-    : explicitHfHome || undefined;
-  const hfHubCacheDir = isPackaged
-    ? join(dataRoot, "hf-cache", "hub")
-    : explicitHubCache || undefined;
-  const llamaCacheDir = isPackaged ? join(dataRoot, "llama.cpp") : undefined;
+  const modelCachePaths = resolveModelCachePaths(roots);
 
   return {
-    isPackaged,
-    repoRoot,
-    executableDir,
-    resourcesDir,
-    dataRoot,
-    settingsPath: join(dataRoot, "settings.json"),
+    ...roots,
+    settingsPath: join(roots.dataRoot, "settings.json"),
     libraryDir,
-    fontsDir: join(dataRoot, "fonts"),
+    fontsDir: join(roots.dataRoot, "fonts"),
     logsDir,
     logFile: join(logsDir, "app.log"),
     runtimeDir,
@@ -92,9 +72,65 @@ export function getAppPaths(): AppPaths {
     ocrRuntimeDir,
     llamaRuntimeDir,
     llamaServerPath,
-    hfHomeDir,
-    hfHubCacheDir,
-    llamaCacheDir,
+    ...modelCachePaths,
+  };
+}
+
+function resolveAppPathRoots(): AppPathRoots {
+  const isPackaged = isRunningPackaged();
+  const repoRoot = resolve(__dirname, "../..");
+  const executableDir = dirname(process.execPath);
+  const resourcesDir = process.resourcesPath;
+  const dataRoot = isPackaged
+    ? resolvePackagedDataRoot(executableDir)
+    : repoRoot;
+
+  return { dataRoot, executableDir, isPackaged, repoRoot, resourcesDir };
+}
+
+function resolveWritableDataDir(
+  paths: Pick<AppPathRoots, "dataRoot" | "isPackaged" | "repoRoot">,
+  name: string,
+): string {
+  return join(paths.isPackaged ? paths.dataRoot : paths.repoRoot, name);
+}
+
+function resolveRuntimeDir(paths: AppPathRoots): string {
+  return paths.isPackaged
+    ? join(paths.resourcesDir, "app-runtime")
+    : join(paths.repoRoot, "out", "app-runtime");
+}
+
+function resolveToolsDir(paths: AppPathRoots): string {
+  return paths.isPackaged
+    ? join(paths.resourcesDir, "tools")
+    : join(paths.repoRoot, "tools");
+}
+
+function resolveOcrRuntimeDir(paths: AppPathRoots): string {
+  const dataRoot = paths.dataRoot;
+  const explicitOcrRuntimeDir = allowExternalRuntimeOverrides(paths.isPackaged)
+    ? process.env.MANGA_TRANSLATOR_OCR_RUNTIME_DIR?.trim()
+    : undefined;
+  const ocrRuntimeDir = explicitOcrRuntimeDir || join(dataRoot, "ocr-runtime");
+  return ocrRuntimeDir;
+}
+
+function resolveModelCachePaths(paths: AppPathRoots): ModelCachePaths {
+  const explicitHfHome = process.env.MANGA_TRANSLATOR_HF_HOME?.trim();
+  const explicitHubCache =
+    process.env.HF_HUB_CACHE?.trim() ||
+    process.env.HUGGINGFACE_HUB_CACHE?.trim();
+  return {
+    hfHomeDir: paths.isPackaged
+      ? join(paths.dataRoot, "hf-cache")
+      : explicitHfHome || undefined,
+    hfHubCacheDir: paths.isPackaged
+      ? join(paths.dataRoot, "hf-cache", "hub")
+      : explicitHubCache || undefined,
+    llamaCacheDir: paths.isPackaged
+      ? join(paths.dataRoot, "llama.cpp")
+      : undefined,
   };
 }
 

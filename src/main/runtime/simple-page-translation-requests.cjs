@@ -1,4 +1,13 @@
 // @ts-check
+/** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+/**
+ * @typedef {RuntimeOptions & { apiKey?: unknown; maxTokens?: unknown; promptMode?: unknown; promptOverrideText?: string | null; abortSignal?: AbortSignal | null; ocrBboxHints?: unknown; [key: string]: unknown }} TranslationRequestOptions
+ * @typedef {{ baseUrl: string; [key: string]: unknown }} ModelServer
+ * @typedef {{ role?: string; content?: unknown; [key: string]: unknown }} ChatMessage
+ * @typedef {{ role: string; path: string; mime?: string; width?: unknown; height?: unknown; [key: string]: unknown }} ImageVariant
+ * @typedef {Record<string, unknown>} RequestSummary
+ * @typedef {{ outputText: string; rawResponse: unknown }} OutputResult
+ */
 const {
   buildSystemPrompt,
   getOverlayPrompt,
@@ -40,6 +49,12 @@ const {
   truncateText,
 } = require("./simple-page-runtime-common.cjs");
 
+/**
+ * @param {TranslationRequestOptions} options
+ * @param {ChatMessage[]} messages
+ * @param {unknown} [maxTokens]
+ * @returns {Record<string, unknown>}
+ */
 function buildChatRequestBody(
   options,
   messages,
@@ -53,6 +68,13 @@ function buildChatRequestBody(
   );
 }
 
+/**
+ * @param {TranslationRequestOptions} options
+ * @param {ImageVariant[]} imageVariants
+ * @param {string} promptText
+ * @param {string} systemPrompt
+ * @returns {Record<string, unknown>}
+ */
 function buildResponsesRequestBody(
   options,
   imageVariants,
@@ -68,6 +90,13 @@ function buildResponsesRequestBody(
   );
 }
 
+/**
+ * @param {TranslationRequestOptions} options
+ * @param {RequestSummary} requestSummary
+ * @param {Response} response
+ * @param {string} rawText
+ * @returns {Error}
+ */
 function createHttpFailureError(options, requestSummary, response, rawText) {
   const nonRetriable = isNonRetriableHttpStatus(response.status);
   const message = buildHttpFailureMessage(
@@ -86,6 +115,12 @@ function createHttpFailureError(options, requestSummary, response, rawText) {
   });
 }
 
+/**
+ * @param {TranslationRequestOptions} options
+ * @param {number} status
+ * @param {string} statusText
+ * @returns {string}
+ */
 function buildHttpFailureMessage(options, status, statusText) {
   const providerName = resolveProviderDisplayName(options);
   const statusLabel = formatHttpStatus(status, statusText);
@@ -102,11 +137,20 @@ function buildHttpFailureMessage(options, status, statusText) {
   return `${providerName} request failed (${status}).`;
 }
 
+/**
+ * @param {number} status
+ * @param {unknown} statusText
+ * @returns {string}
+ */
 function formatHttpStatus(status, statusText) {
   const suffix = String(statusText ?? "").trim();
   return suffix ? `${status} ${suffix}` : String(status);
 }
 
+/**
+ * @param {number} status
+ * @returns {boolean}
+ */
 function isNonRetriableHttpStatus(status) {
   return (
     status >= 400 &&
@@ -118,10 +162,21 @@ function isNonRetriableHttpStatus(status) {
   );
 }
 
+/**
+ * @param {unknown} value
+ * @param {TranslationRequestOptions} options
+ * @param {number} maxLength
+ * @returns {string}
+ */
 function truncateSensitiveText(value, options, maxLength) {
   return truncateText(redactConfiguredApiKeys(value, options), maxLength);
 }
 
+/**
+ * @param {unknown} value
+ * @param {TranslationRequestOptions} options
+ * @returns {string}
+ */
 function redactConfiguredApiKeys(value, options) {
   let text = String(value ?? "");
   const keys = [
@@ -138,7 +193,12 @@ function redactConfiguredApiKeys(value, options) {
   return text;
 }
 
+/**
+ * @param {TranslationRequestOptions} options
+ * @returns {unknown[]}
+ */
 function collectSensitiveConfiguredValues(options) {
+  /** @type {unknown[]} */
   const values = [];
   try {
     for (const [key, value] of Object.entries(
@@ -162,6 +222,12 @@ function collectSensitiveConfiguredValues(options) {
   return values;
 }
 
+/**
+ * @param {unknown} value
+ * @param {unknown[]} values
+ * @param {string} [keyName]
+ * @returns {void}
+ */
 function collectSensitiveObjectValues(value, values, keyName = "") {
   if (value === null || value === undefined) {
     return;
@@ -189,19 +255,31 @@ function collectSensitiveObjectValues(value, values, keyName = "") {
   }
 }
 
+/**
+ * @param {unknown} key
+ * @returns {boolean}
+ */
 function isSensitiveConfigKey(key) {
   return /api[-_ ]?key|token|secret|authorization|auth|password/i.test(
     String(key ?? ""),
   );
 }
 
+/**
+ * @param {ModelServer} server
+ * @param {TranslationRequestOptions} options
+ * @returns {Promise<{ requestBody: RequestSummary; rawResponse: unknown; outputText: string }>}
+ */
 async function requestTranslation(server, options) {
   const requestStartedAt = nowMs();
   const ocrBboxResult = await collectOcrBboxHints(options);
-  const promptOptions = {
-    ...options,
-    ocrBboxHints: ocrBboxResult.hints,
-  };
+  const promptOptions =
+    /** @type {TranslationRequestOptions & { ocrBboxHints: Record<string, unknown>[] }} */ ({
+      ...options,
+      ocrBboxHints: /** @type {Record<string, unknown>[]} */ (
+        ocrBboxResult.hints
+      ),
+    });
 
   if (ocrBboxResult.noTextDetected) {
     const systemPrompt = buildSystemPrompt(promptOptions);
@@ -235,7 +313,9 @@ async function requestTranslation(server, options) {
     };
   }
 
-  const preparedVariants = await prepareImageVariants(options);
+  const preparedVariants = await prepareImageVariants(
+    /** @type {Parameters<typeof prepareImageVariants>[0]} */ (options),
+  );
   const imageVariants = preparedVariants.imageVariants;
   const promptText =
     promptOptions.promptOverrideText ||
@@ -372,6 +452,13 @@ async function requestTranslation(server, options) {
   };
 }
 
+/**
+ * @param {ModelServer} server
+ * @param {TranslationRequestOptions} options
+ * @param {Record<string, unknown>} requestBody
+ * @param {RequestSummary} requestSummary
+ * @returns {Promise<OutputResult>}
+ */
 async function requestCodexResponsesText(
   server,
   options,
@@ -416,6 +503,12 @@ async function requestCodexResponsesText(
   return streamResult;
 }
 
+/**
+ * @param {Response} response
+ * @param {RequestSummary} requestSummary
+ * @param {TranslationRequestOptions} options
+ * @returns {Promise<string>}
+ */
 async function readResponseText(response, requestSummary, options) {
   try {
     return await response.text();
@@ -432,6 +525,12 @@ async function readResponseText(response, requestSummary, options) {
   }
 }
 
+/**
+ * @param {Response} response
+ * @param {RequestSummary} requestSummary
+ * @param {TranslationRequestOptions} options
+ * @returns {Promise<OutputResult>}
+ */
 async function readCodexResponsesStream(response, requestSummary, options) {
   const rawText = await readResponseText(response, requestSummary, options);
   const parsed = parseResponsesSseText(rawText);
@@ -448,13 +547,18 @@ async function readCodexResponsesStream(response, requestSummary, options) {
   return {
     outputText,
     rawResponse: {
-      ...parsed.rawResponse,
+      ...(parsed.rawResponse ?? {}),
       output_text: outputText,
       streamEventCount: parsed.eventCount,
     },
   };
 }
 
+/**
+ * @param {ModelServer} server
+ * @param {TranslationRequestOptions} options
+ * @returns {Promise<Record<string, unknown>>}
+ */
 async function testModelReply(server, options) {
   if (isOpenAICodexProvider(options)) {
     return testCodexResponsesReply(server, options);
@@ -535,8 +639,19 @@ async function testModelReply(server, options) {
   };
 }
 
+/**
+ * @param {unknown} parsed
+ * @param {string} rawText
+ * @param {RequestSummary} requestSummary
+ * @param {TranslationRequestOptions} options
+ * @returns {Error}
+ */
 function createEmptyOutputError(parsed, rawText, requestSummary, options) {
-  const failure = extractModelOutputFailure(parsed);
+  const failure = extractModelOutputFailure(
+    /** @type {Record<string, unknown>} */ (
+      parsed && typeof parsed === "object" ? parsed : {}
+    ),
+  );
   if (failure) {
     return createDetailedError(failure.message, {
       requestSummary,
@@ -554,9 +669,16 @@ function createEmptyOutputError(parsed, rawText, requestSummary, options) {
   });
 }
 
+/**
+ * @param {ModelServer} server
+ * @param {TranslationRequestOptions} options
+ * @returns {Promise<Record<string, unknown>>}
+ */
 async function testCodexResponsesReply(server, options) {
   const requestBody = {
-    model: resolveRequestModelName(options),
+    model: resolveRequestModelName(
+      /** @type {Parameters<typeof resolveRequestModelName>[0]} */ (options),
+    ),
     instructions: "Reply in one short sentence.",
     input: [
       {

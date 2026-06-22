@@ -1,5 +1,6 @@
 import type { BrowserWindow } from "electron";
-import type { JobEvent } from "../../shared/types";
+import { ipcEventContracts } from "../../shared/ipcContracts";
+import type { JobEvent } from "../../shared/jobTypes";
 import { writeLog } from "../logger";
 import type { ActiveJobStore } from "./activeJob";
 
@@ -35,7 +36,10 @@ export function emitJobEvent(
       detail: event.detail,
     },
   );
-  mainWindow?.webContents.send("job:event", event);
+  mainWindow?.webContents.send(
+    ipcEventContracts.jobEvent.channel,
+    ipcEventContracts.jobEvent.payload.parse(event),
+  );
 }
 
 export function isAbortError(error: unknown): boolean {

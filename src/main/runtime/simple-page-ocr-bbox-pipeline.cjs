@@ -1,6 +1,20 @@
 // @ts-check
 /** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
+/**
+ * @typedef {RuntimeOptions & {
+ *   ocrBboxHints?: unknown;
+ *   ocrBboxHintsPath?: string | null;
+ *   ocrBboxProvider?: string | null;
+ *   ocrBboxResult?: unknown;
+ *   skipOcrBboxHints?: boolean | null;
+ * }} OcrBboxOptions
+ * @typedef {Record<string, unknown>} OcrBboxHint
+ * @typedef {Record<string, unknown>} OcrBboxDiagnostic
+ * @typedef {{ noTextDetected?: boolean; textEvidenceCount?: number }} OcrBboxResultOptions
+ * @typedef {{ hints: unknown[]; diagnostics: unknown[]; noTextDetected: boolean; textEvidenceCount: number }} OcrBboxResult
+ * @typedef {{ timeoutMs?: number; onOutput?: ((line: string) => void) | null }} OcrShellRunOptions
+ */
 const { existsSync, readFileSync } = require("node:fs");
 const { mkdir, readFile, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
@@ -49,6 +63,10 @@ const {
 } = require("./simple-page-model-assets.cjs");
 const { runShellCommand } = require("./simple-page-shell-utils.cjs");
 
+/**
+ * @param {OcrBboxOptions} [options]
+ * @returns {string}
+ */
 function resolveOcrBboxProvider(options = {}) {
   const explicit = String(
     options.ocrBboxProvider ??
@@ -83,7 +101,12 @@ function resolveOcrBboxProvider(options = {}) {
   return "paddleocr-vl";
 }
 
+/**
+ * @param {OcrBboxOptions} [options]
+ * @returns {Promise<OcrBboxResult>}
+ */
 async function collectOcrBboxHints(options = {}) {
+  /** @type {OcrBboxDiagnostic[]} */
   const diagnostics = [];
   if (options.skipOcrBboxHints) {
     return buildOcrBboxResult(
@@ -194,11 +217,19 @@ async function collectOcrBboxHints(options = {}) {
   }
 }
 
+/**
+ * @param {unknown[]} [hints]
+ * @param {unknown[]} [diagnostics]
+ * @param {OcrBboxResultOptions} [options]
+ * @returns {OcrBboxResult}
+ */
 function buildOcrBboxResult(hints = [], diagnostics = [], options = {}) {
   const normalizedHints = Array.isArray(hints) ? hints : [];
+  const configuredTextEvidenceCount = Number(options.textEvidenceCount);
   const textEvidenceCount =
-    Number.isFinite(options.textEvidenceCount) && options.textEvidenceCount >= 0
-      ? Number(options.textEvidenceCount)
+    Number.isFinite(configuredTextEvidenceCount) &&
+    configuredTextEvidenceCount >= 0
+      ? configuredTextEvidenceCount
       : countOcrTextEvidence(normalizedHints);
   const noTextDetected =
     typeof options.noTextDetected === "boolean"
@@ -212,9 +243,19 @@ function buildOcrBboxResult(hints = [], diagnostics = [], options = {}) {
   };
 }
 
+/**
+ * @param {unknown} value
+ * @param {OcrBboxOptions} [options]
+ */
 function normalizeOcrBboxResultPayload(value, options = {}) {
-  const record = value && typeof value === "object" ? value : {};
+  const record =
+    value && typeof value === "object"
+      ? /** @type {{ hints?: unknown; diagnostics?: unknown; noTextDetected?: unknown; textEvidenceCount?: unknown }} */ (
+          value
+        )
+      : {};
   const hints = normalizeOcrBboxHintPayload(record.hints, options);
+  const textEvidenceCount = Number(record.textEvidenceCount);
   return {
     hints,
     diagnostics: Array.isArray(record.diagnostics) ? record.diagnostics : [],
@@ -223,20 +264,24 @@ function normalizeOcrBboxResultPayload(value, options = {}) {
         ? record.noTextDetected
         : undefined,
     textEvidenceCount:
-      Number.isFinite(record.textEvidenceCount) && record.textEvidenceCount >= 0
-        ? Number(record.textEvidenceCount)
+      Number.isFinite(textEvidenceCount) && textEvidenceCount >= 0
+        ? textEvidenceCount
         : undefined,
   };
 }
 
+/** @param {unknown[]} [hints] */
 function countOcrTextEvidence(hints = []) {
-  return hints.reduce(
-    (count, hint) =>
-      count + (hasJapaneseTextEvidence(readOcrCandidateText(hint)) ? 1 : 0),
-    0,
-  );
+  let count = 0;
+  for (const hint of hints) {
+    if (hasJapaneseTextEvidence(readOcrCandidateText(hint))) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
+/** @param {unknown} value */
 function hasJapaneseTextEvidence(value) {
   const text = String(value ?? "");
   for (const char of text) {
@@ -274,7 +319,7 @@ function buildOcrBboxDiagnostic(provider, error, extra = {}) {
 }
 
 /**
- * @param {RuntimeOptions} [options]
+ * @param {OcrBboxOptions} [options]
  * @param {string} [provider]
  */
 async function runOcrBboxCommand(options = {}, provider = "external-command") {
@@ -334,6 +379,10 @@ async function runOcrBboxCommand(options = {}, provider = "external-command") {
   };
 }
 
+/**
+ * @param {OcrBboxOptions[]} [pageOptionsList]
+ * @returns {Promise<OcrBboxResult[]>}
+ */
 async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   const normalizedOptions = pageOptionsList.filter(Boolean);
   if (normalizedOptions.length === 0) {
@@ -404,6 +453,7 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
     progressTotal:
       readPositiveInteger(firstOptions.ocrBatchTotal) || items.length,
   });
+  /** @param {string} line */
   const handleProgressLine = (line) => {
     const progress = parseOcrBatchProgressLine(line);
     if (!progress) {
@@ -504,8 +554,9 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
 
 /**
  * @param {string} command
- * @param {RuntimeOptions} options
+ * @param {OcrBboxOptions} options
  * @param {OcrRuntimeLayout | null} runtime
+ * @param {OcrShellRunOptions} [runOptions]
  */
 async function runOcrShellCommandWithModelRepair(
   command,
@@ -559,6 +610,7 @@ function withoutPageProgressOptions(options = {}) {
   return next;
 }
 
+/** @param {unknown} value */
 function isTruthy(value) {
   const text = String(value ?? "")
     .trim()
@@ -566,6 +618,11 @@ function isTruthy(value) {
   return ["1", "true", "yes", "y", "on"].includes(text);
 }
 
+/**
+ * @param {string} batchPath
+ * @param {string} progressPath
+ * @param {OcrBboxOptions} [options]
+ */
 async function cleanupOcrBatchControlFiles(
   batchPath,
   progressPath,

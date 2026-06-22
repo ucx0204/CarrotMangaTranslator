@@ -2,7 +2,7 @@ import type {
   WorkShareImportEntry,
   WorkShareImportRequest,
   WorkSharePreviewChapter,
-} from "../../../../shared/types";
+} from "../../../../shared/shareTypes";
 
 export type LeftItem =
   | {
@@ -25,6 +25,12 @@ export type ShareImportModalSubmit = {
   entries: WorkShareImportEntry[];
   remainingPackageChapters: WorkSharePreviewChapter[];
   deletedExistingChapters: Array<{ id: string; title: string }>;
+};
+
+export type NewSelection = {
+  packageChapterId: string;
+  title: string;
+  enabled: boolean;
 };
 
 export type ActiveDrag =
