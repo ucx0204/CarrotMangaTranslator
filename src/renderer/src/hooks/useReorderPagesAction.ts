@@ -21,7 +21,16 @@ type ReorderPagesActionOptions = Pick<
   refreshLibrary: () => Promise<void>;
 };
 
-async function saveBeforePageReorder(
+type PersistPageOrderAfterOptimisticReorderOptions = Omit<
+  ReorderPagesActionOptions,
+  "currentChapter"
+> & {
+  currentChapter: ChapterSnapshot;
+  nextOrder: string[];
+  previousOrder: string[];
+};
+
+async function saveDirtyPagesBeforePersistingPageOrder(
   dirty: boolean,
   saveNow: () => Promise<void>,
   pushStatus: (line: string) => void,
@@ -36,11 +45,34 @@ async function saveBeforePageReorder(
     pushStatus(
       formatErrorMessage(
         error,
-        "현재 수정사항을 저장하지 못해 페이지 순서를 변경하지 않았습니다.",
+        "현재 수정사항을 저장하지 못해 페이지 순서를 저장하지 않았습니다.",
       ),
     );
     return false;
   }
+}
+
+function applyOptimisticPageOrder({
+  currentChapter,
+  currentChapterRef,
+  nextOrder,
+  setCurrentChapter,
+}: Pick<
+  ReorderPagesActionOptions,
+  "currentChapter" | "currentChapterRef" | "setCurrentChapter"
+> & {
+  nextOrder: string[];
+}): void {
+  if (!currentChapter) {
+    return;
+  }
+  const baseChapter =
+    currentChapterRef.current?.id === currentChapter.id
+      ? currentChapterRef.current
+      : currentChapter;
+  const nextChapter = reorderChapterPages(baseChapter, nextOrder);
+  currentChapterRef.current = nextChapter;
+  setCurrentChapter(nextChapter);
 }
 
 function rollbackPageOrderIfStillOptimistic(
@@ -84,16 +116,8 @@ export function useReorderPagesAction({
   targetPageId: string,
 ) => void {
   return useCallback(
-    async (sourcePageId, targetPageId) => {
+    (sourcePageId, targetPageId) => {
       if (!currentChapter) {
-        return;
-      }
-      const canReorder = await saveBeforePageReorder(
-        dirty,
-        saveNow,
-        pushStatus,
-      );
-      if (!canReorder) {
         return;
       }
 
@@ -103,33 +127,29 @@ export function useReorderPagesAction({
         sourcePageId,
         targetPageId,
       );
-      const nextChapter = reorderChapterPages(currentChapter, nextOrder);
-      currentChapterRef.current = nextChapter;
-      setCurrentChapter(nextChapter);
-      void libraryGateway
-        .reorderPages(currentChapter.id, nextOrder)
-        .then((chapter) => {
-          applyChapter(chapter);
-          refreshLibraryAfterPageReorder(refreshLibrary, pushStatus);
-        })
-        .catch((error) => {
-          console.error(error);
-          const rolledBackChapter = rollbackPageOrderIfStillOptimistic(
-            currentChapterRef.current,
-            currentChapter.id,
-            nextOrder,
-            previousOrder,
-          );
-          if (rolledBackChapter) {
-            currentChapterRef.current = rolledBackChapter;
-            setCurrentChapter(rolledBackChapter);
-          }
-          const message = formatErrorMessage(
-            error,
-            "페이지 순서를 저장하지 못했습니다.",
-          );
-          pushStatus(`${message} 이전 순서로 되돌렸습니다.`);
-        });
+      if (isSameStringOrder(previousOrder, nextOrder)) {
+        return;
+      }
+
+      applyOptimisticPageOrder({
+        currentChapter,
+        currentChapterRef,
+        nextOrder,
+        setCurrentChapter,
+      });
+
+      void persistPageOrderAfterOptimisticReorder({
+        applyChapter,
+        currentChapter,
+        currentChapterRef,
+        dirty,
+        nextOrder,
+        previousOrder,
+        pushStatus,
+        refreshLibrary,
+        saveNow,
+        setCurrentChapter,
+      });
     },
     [
       applyChapter,
@@ -142,4 +162,85 @@ export function useReorderPagesAction({
       setCurrentChapter,
     ],
   );
+}
+
+async function persistPageOrderAfterOptimisticReorder({
+  applyChapter,
+  currentChapter,
+  currentChapterRef,
+  dirty,
+  nextOrder,
+  previousOrder,
+  pushStatus,
+  refreshLibrary,
+  saveNow,
+  setCurrentChapter,
+}: PersistPageOrderAfterOptimisticReorderOptions): Promise<void> {
+  try {
+    const canPersist = await saveDirtyPagesBeforePersistingPageOrder(
+      dirty,
+      saveNow,
+      pushStatus,
+    );
+    if (!canPersist) {
+      rollbackOptimisticPageOrder({
+        currentChapter,
+        currentChapterRef,
+        nextOrder,
+        previousOrder,
+        setCurrentChapter,
+      });
+      pushStatus("페이지 순서를 이전 순서로 되돌렸습니다.");
+      return;
+    }
+
+    const chapter = await libraryGateway.reorderPages(
+      currentChapter.id,
+      nextOrder,
+    );
+    applyChapter(chapter);
+    refreshLibraryAfterPageReorder(refreshLibrary, pushStatus);
+  } catch (error) {
+    console.error(error);
+    rollbackOptimisticPageOrder({
+      currentChapter,
+      currentChapterRef,
+      nextOrder,
+      previousOrder,
+      setCurrentChapter,
+    });
+    const message = formatErrorMessage(
+      error,
+      "페이지 순서를 저장하지 못했습니다.",
+    );
+    pushStatus(`${message} 이전 순서로 되돌렸습니다.`);
+  }
+}
+
+function rollbackOptimisticPageOrder({
+  currentChapter,
+  currentChapterRef,
+  nextOrder,
+  previousOrder,
+  setCurrentChapter,
+}: Pick<
+  ReorderPagesActionOptions,
+  "currentChapter" | "currentChapterRef" | "setCurrentChapter"
+> & {
+  nextOrder: string[];
+  previousOrder: string[];
+}): void {
+  if (!currentChapter) {
+    return;
+  }
+  const rolledBackChapter = rollbackPageOrderIfStillOptimistic(
+    currentChapterRef.current,
+    currentChapter.id,
+    nextOrder,
+    previousOrder,
+  );
+  if (rolledBackChapter) {
+    currentChapterRef.current = rolledBackChapter;
+    setCurrentChapter(rolledBackChapter);
+  }
 }

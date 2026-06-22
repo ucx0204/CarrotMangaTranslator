@@ -51,6 +51,30 @@ function collectDirtyPages(
     .filter((page): page is MangaPage => Boolean(page));
 }
 
+function preserveChapterPageOrder(
+  chapter: ChapterSnapshot,
+  pageOrder: string[],
+): ChapterSnapshot {
+  return {
+    ...chapter,
+    pageOrder,
+    pages: reorderPagesByIdOrder(chapter.pages, pageOrder),
+  };
+}
+
+function reorderPagesByIdOrder(
+  pages: MangaPage[],
+  pageOrder: string[],
+): MangaPage[] {
+  const pageMap = new Map(pages.map((page) => [page.id, page]));
+  const ordered = pageOrder.flatMap((pageId) => {
+    const page = pageMap.get(pageId);
+    return page ? [page] : [];
+  });
+  const orderedIds = new Set(ordered.map((page) => page.id));
+  return [...ordered, ...pages.filter((page) => !orderedIds.has(page.id))];
+}
+
 type PersistPageBlocks = (
   chapter: ChapterSnapshot,
   page: MangaPage,
@@ -251,6 +275,7 @@ function usePersistChapter({
       for (const page of dirtyPages) {
         saved = await persistPageBlocks(saved, page);
       }
+      saved = preserveChapterPageOrder(saved, chapter.pageOrder);
       if (
         options.syncState !== false &&
         currentChapterRef.current?.id === saved.id

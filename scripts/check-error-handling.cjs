@@ -39,6 +39,14 @@ function listCandidateFiles() {
     .filter((file) => /\.(cjs|mjs|js|ts|tsx)$/.test(file));
 }
 
+/**
+ * @param {string} line
+ * @returns {string}
+ */
+function stripInlineStringLiterals(line) {
+  return line.replace(/(["'`])(?:\\.|(?!\1).)*\1/g, "$1$1");
+}
+
 const violations = [];
 for (const file of listCandidateFiles()) {
   const absolutePath = join(process.cwd(), file);
@@ -48,8 +56,9 @@ for (const file of listCandidateFiles()) {
   const text = readFileSync(absolutePath, "utf8");
   const lines = text.split(/\r?\n/);
   for (const [index, line] of lines.entries()) {
+    const searchableLine = stripInlineStringLiterals(line);
     for (const rule of forbiddenPatterns) {
-      if (rule.pattern.test(line)) {
+      if (rule.pattern.test(searchableLine)) {
         violations.push({
           file: relative(process.cwd(), absolutePath),
           line: index + 1,
