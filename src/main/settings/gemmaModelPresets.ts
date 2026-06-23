@@ -107,7 +107,7 @@ function is12BGemmaModel(
   );
 }
 
-function is31BGemmaModel(
+export function is31BGemmaModel(
   model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">,
 ): boolean {
   return (

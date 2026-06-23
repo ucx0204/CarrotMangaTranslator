@@ -3,6 +3,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import {
+  DEFAULT_GEMMA_MODEL_FILE,
+  DEFAULT_GEMMA_MODEL_REPO,
+  GEMMA_26B_MODEL_FILE_IQ3_S,
+  GEMMA_26B_MODEL_REPO,
+} from "../src/shared/modelPresets";
 
 const require = createRequire(import.meta.url);
 const { inferAmdRocmTargetFromText } =
@@ -37,6 +43,13 @@ const {
     backend: string;
   };
 };
+const { resolveLlamaRuntimePreflightTimeoutMs } =
+  require("../src/main/runtime/simple-page-server-lifecycle.cjs") as {
+    resolveLlamaRuntimePreflightTimeoutMs: (
+      runtime?: Record<string, unknown>,
+      options?: Record<string, unknown>,
+    ) => number;
+  };
 
 describe("llama runtime path selection", () => {
   it("infers Azure AMD Radeon PRO V710 style hardware text as gfx110X", () => {
@@ -52,6 +65,8 @@ describe("llama runtime path selection", () => {
     const runtime = resolvePreferredLlamaRuntime({
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx1201",
+      modelRepo: GEMMA_26B_MODEL_REPO,
+      modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
     });
 
     expect(runtime.backend).toBe("rocm");
@@ -63,10 +78,75 @@ describe("llama runtime path selection", () => {
     );
   });
 
+  it("selects BeeLlama HIP Radeon for the 31B ROCm DFlash preset", () => {
+    const runtime = resolvePreferredLlamaRuntime({
+      llamaRuntimeProfile: "rocm",
+      llamaRocmTarget: "gfx110X",
+      modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+      modelFile: DEFAULT_GEMMA_MODEL_FILE,
+    });
+
+    expect(runtime.backend).toBe("rocm");
+    expect(runtime.id).toBe("beellama-v0.3.1-hip-radeon");
+    expect(runtime.dir).toBe("beellama-v0.3.1-hip-radeon");
+    expect(runtime.archive).toBe("beellama-v0.3.1-bin-win-hip-radeon-x64.zip");
+    expect(runtime.url).toBe(
+      "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.3.1/beellama-v0.3.1-bin-win-hip-radeon-x64.zip",
+    );
+  });
+
+  it("does not require a target-specific Lemonade archive for 31B ROCm DFlash", () => {
+    const runtime = resolvePreferredLlamaRuntime({
+      llamaRuntimeProfile: "rocm",
+      modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+      modelFile: DEFAULT_GEMMA_MODEL_FILE,
+      disableHostRocmTargetDetection: true,
+    });
+
+    expect(runtime.id).toBe("beellama-v0.3.1-hip-radeon");
+    expect(runtime.archive).toBe("beellama-v0.3.1-bin-win-hip-radeon-x64.zip");
+  });
+
+  it("accepts BeeLlama HIP Radeon runtime files for DFlash", () => {
+    const runtime = resolvePreferredLlamaRuntime({
+      llamaRuntimeProfile: "rocm",
+      llamaRocmTarget: "gfx110X",
+      modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+      modelFile: DEFAULT_GEMMA_MODEL_FILE,
+    });
+    const runtimeDir = mkdtempSync(join(tmpdir(), "mgt-beellama-hip-"));
+    try {
+      const rocblasDir = join(runtimeDir, "rocblas", "library");
+      const hipblasltDir = join(runtimeDir, "hipblaslt", "library");
+      mkdirSync(rocblasDir, { recursive: true });
+      mkdirSync(hipblasltDir, { recursive: true });
+      for (const fileName of [
+        "llama-server.exe",
+        "llama-server-impl.dll",
+        "llama.dll",
+        "ggml-hip.dll",
+        "rocblas.dll",
+        "libhipblas.dll",
+        "libhipblaslt.dll",
+      ]) {
+        writeFileSync(join(runtimeDir, fileName), "");
+      }
+      writeFileSync(join(rocblasDir, "TensileLibrary_Type_HH_gfx1101.dat"), "");
+      writeFileSync(join(hipblasltDir, "Kernels.so-000-gfx1101.hsaco"), "");
+
+      expect(missingRequiredLlamaRuntimeFiles(runtimeDir, runtime)).toEqual([]);
+      expect(hasRequiredLlamaRuntimeFiles(runtimeDir, runtime)).toBe(true);
+    } finally {
+      rmSync(runtimeDir, { recursive: true, force: true });
+    }
+  });
+
   it("accepts ROCm 7 HIP runtime DLL names from Lemonade archives", () => {
     const runtime = resolvePreferredLlamaRuntime({
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X",
+      modelRepo: GEMMA_26B_MODEL_REPO,
+      modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
     });
     const runtimeDir = mkdtempSync(join(tmpdir(), "mgt-rocm-runtime-"));
     try {
@@ -96,6 +176,8 @@ describe("llama runtime path selection", () => {
     const runtime = resolvePreferredLlamaRuntime({
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X",
+      modelRepo: GEMMA_26B_MODEL_REPO,
+      modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
     });
     const runtimeDir = mkdtempSync(
       join(tmpdir(), "mgt-rocm-runtime-missing-kernels-"),
@@ -163,7 +245,30 @@ describe("llama runtime path selection", () => {
 
   it("does not guess an AMD ROCm runtime when the GPU target is unknown", () => {
     expect(() =>
-      resolvePreferredLlamaRuntime({ llamaRuntimeProfile: "rocm" }),
+      resolvePreferredLlamaRuntime({
+        llamaRuntimeProfile: "rocm",
+        modelRepo: GEMMA_26B_MODEL_REPO,
+        modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+        disableHostRocmTargetDetection: true,
+      }),
     ).toThrow(/AMD GPU/);
+  });
+
+  it("gives ROCm/HIP runtime probes enough time for first-load initialization", () => {
+    expect(
+      resolveLlamaRuntimePreflightTimeoutMs({ backend: "rocm" }),
+    ).toBeGreaterThanOrEqual(120000);
+    expect(
+      resolveLlamaRuntimePreflightTimeoutMs({ backend: "hip" }),
+    ).toBeGreaterThanOrEqual(120000);
+    expect(resolveLlamaRuntimePreflightTimeoutMs({ backend: "vulkan" })).toBe(
+      20000,
+    );
+    expect(
+      resolveLlamaRuntimePreflightTimeoutMs(
+        { backend: "rocm" },
+        { llamaRuntimePreflightTimeoutMs: 45000 },
+      ),
+    ).toBe(45000);
   });
 });

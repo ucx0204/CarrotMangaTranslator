@@ -18,6 +18,7 @@ const {
 const {
   BEELLAMA_LLAMA_RUNTIME_CUDA12,
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
+  BEELLAMA_LLAMA_RUNTIME_HIP_RADEON,
   MAINLINE_LLAMA_RUNTIME_CUDA12,
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   MAINLINE_LLAMA_RUNTIME_VULKAN,
@@ -28,10 +29,10 @@ const {
 } = require("./simple-page-amd-rocm-target.cjs");
 const {
   resolveConfiguredLocalModelPath,
+  resolveConfiguredLocalMmprojPath,
   resolveConfiguredModelFile,
   resolveConfiguredModelRepo,
-  resolveConfiguredMmprojFile,
-  resolveConfiguredMmprojRepo,
+  resolveConfiguredModelSource,
 } = require("./simple-page-model-config.cjs");
 const {
   isLikelyPackagedToolsDir,
@@ -318,38 +319,34 @@ function resolveLlamaRuntimeProfile(options = {}) {
 }
 
 /** @param {RuntimePathOptions} [options] */
-function isGemma26BModel(options = {}) {
-  const parts = [
+function configuredGemmaModelParts(options = {}) {
+  if (resolveConfiguredModelSource(options) === "local") {
+    return [
+      resolveConfiguredLocalModelPath(options),
+      resolveConfiguredLocalMmprojPath(options),
+    ];
+  }
+  return [
     resolveConfiguredModelRepo(options),
     resolveConfiguredModelFile(options),
-    resolveConfiguredLocalModelPath(options),
-    resolveConfiguredMmprojRepo(options),
-    resolveConfiguredMmprojFile(options),
   ];
+}
+
+/** @param {RuntimePathOptions} [options] */
+function isGemma26BModel(options = {}) {
+  const parts = configuredGemmaModelParts(options);
   return parts.some((part) => /gemma[-_]?4[-_]?26b/i.test(String(part || "")));
 }
 
 /** @param {RuntimePathOptions} [options] */
 function isGemma12BModel(options = {}) {
-  const parts = [
-    resolveConfiguredModelRepo(options),
-    resolveConfiguredModelFile(options),
-    resolveConfiguredLocalModelPath(options),
-    resolveConfiguredMmprojRepo(options),
-    resolveConfiguredMmprojFile(options),
-  ];
+  const parts = configuredGemmaModelParts(options);
   return parts.some((part) => /gemma[-_]?4[-_]?12b/i.test(String(part || "")));
 }
 
 /** @param {RuntimePathOptions} [options] */
 function isGemma31BModel(options = {}) {
-  const parts = [
-    resolveConfiguredModelRepo(options),
-    resolveConfiguredModelFile(options),
-    resolveConfiguredLocalModelPath(options),
-    resolveConfiguredMmprojRepo(options),
-    resolveConfiguredMmprojFile(options),
-  ];
+  const parts = configuredGemmaModelParts(options);
   return parts.some((part) => /gemma[-_]?4[-_]?31b/i.test(String(part || "")));
 }
 
@@ -370,6 +367,9 @@ function isBuiltInGemmaRuntimeModel(options = {}) {
 function resolvePreferredLlamaRuntime(options = {}) {
   const profile = resolveLlamaRuntimeProfile(options);
   if (profile === "rocm") {
+    if (isGemma31BModel(options)) {
+      return BEELLAMA_LLAMA_RUNTIME_HIP_RADEON;
+    }
     const rocmTarget = resolveAmdRocmTargetFromOptions(options);
     if (!rocmTarget) {
       throw createDetailedError(

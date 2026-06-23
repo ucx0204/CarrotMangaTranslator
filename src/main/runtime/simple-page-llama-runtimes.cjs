@@ -51,6 +51,30 @@ const BEELLAMA_LLAMA_RUNTIME_CUDA13 = {
   ],
 };
 
+const BEELLAMA_LLAMA_RUNTIME_HIP_RADEON = {
+  id: "beellama-v0.3.1-hip-radeon",
+  kind: "beellama-hip",
+  backend: "rocm",
+  dir: "beellama-v0.3.1-hip-radeon",
+  archive: "beellama-v0.3.1-bin-win-hip-radeon-x64.zip",
+  url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.3.1/beellama-v0.3.1-bin-win-hip-radeon-x64.zip",
+  archives: [
+    {
+      archive: "beellama-v0.3.1-bin-win-hip-radeon-x64.zip",
+      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.3.1/beellama-v0.3.1-bin-win-hip-radeon-x64.zip",
+    },
+  ],
+  requiredFiles: [
+    "llama-server.exe",
+    "llama-server-impl.dll",
+    "llama.dll",
+    "ggml-hip.dll",
+    "rocblas.dll",
+    ["libhipblas.dll", "hipblas.dll"],
+    "libhipblaslt.dll",
+  ],
+};
+
 const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
   id: "llama-b9547-cuda12.4",
   kind: "mainline",
@@ -203,6 +227,8 @@ const LLAMA_RUNTIME_FILES = new Set([
   "ggml-vulkan.so",
   "ggml.dll",
   "hipblas.dll",
+  "libhipblas.dll",
+  "libhipblaslt.dll",
   "hiprtc0506.dll",
   "hiprtc-builtins.dll",
   "amdhip64.dll",
@@ -252,6 +278,7 @@ function shouldExtractLlamaRuntimeFile(fileName, relativePath = fileName) {
 module.exports = {
   BEELLAMA_LLAMA_RUNTIME_CUDA12,
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
+  BEELLAMA_LLAMA_RUNTIME_HIP_RADEON,
   LLAMA_RUNTIME_FILES,
   LLAMA_RUNTIME_MARKER_FILE,
   MAINLINE_LLAMA_RUNTIME_CUDA12,

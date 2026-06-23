@@ -268,12 +268,14 @@ function shouldUseBeellamaGemmaLaunch(options = {}) {
   )
     .trim()
     .toLowerCase();
-  if (
-    ["rocm", "hip", "amd", "amd-rocm", "vulkan", "vk", "amd-vulkan"].includes(
-      profile,
-    )
-  ) {
+  if (["vulkan", "vk", "amd-vulkan"].includes(profile)) {
     return false;
+  }
+  if (resolveConfiguredModelSource(options) === "local") {
+    const localModelPath = resolveConfiguredLocalModelPath(options);
+    if (!/gemma[-_]?4/i.test(path.basename(localModelPath || ""))) {
+      return false;
+    }
   }
   if (isMainlineGemmaModel(options)) {
     return false;
@@ -284,13 +286,16 @@ function shouldUseBeellamaGemmaLaunch(options = {}) {
       defaultServerPath(options) ||
       "",
   );
-  if (/rocm|hip|vulkan/i.test(serverPath)) {
-    return false;
-  }
   const isBeellamaRuntime = /beellama/i.test(serverPath);
   const isGemma4Model = looksLikeGemma4Model(options);
   if (isBeellamaRuntime && isGemma4Model) {
     return true;
+  }
+  if (
+    ["rocm", "hip", "amd", "amd-rocm"].includes(profile) ||
+    /rocm|hip|vulkan/i.test(serverPath)
+  ) {
+    return false;
   }
   if (resolveConfiguredModelSource(options) === "local") {
     const localModelPath = resolveConfiguredLocalModelPath(options);
@@ -307,13 +312,15 @@ function shouldUseBeellamaGemmaLaunch(options = {}) {
  * @returns {boolean}
  */
 function looksLikeGemma4Model(options = {}) {
-  const parts = [
-    resolveConfiguredModelRepo(options),
-    resolveConfiguredModelFile(options),
-    resolveConfiguredLocalModelPath(options),
-    resolveConfiguredMmprojRepo(options),
-    resolveConfiguredMmprojFile(options),
-  ];
+  const parts =
+    resolveConfiguredModelSource(options) === "local"
+      ? [resolveConfiguredLocalModelPath(options)]
+      : [
+          resolveConfiguredModelRepo(options),
+          resolveConfiguredModelFile(options),
+          resolveConfiguredMmprojRepo(options),
+          resolveConfiguredMmprojFile(options),
+        ];
   return parts.some((part) => /gemma[-_]?4/i.test(String(part || "")));
 }
 

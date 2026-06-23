@@ -375,6 +375,47 @@ describe("runtime launch argument contracts", () => {
     expect(args).not.toContain("--chat-template-kwargs");
   });
 
+  it("keeps BeeLlama DFlash launch flags for the ROCm HIP runtime", () => {
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 4096,
+      ctx: 16384,
+      batch: 2048,
+      ubatch: 1536,
+      cacheTypeK: "q4_0",
+      cacheTypeV: "q4_0",
+      ctxCheckpoints: 0,
+      mmprojOffload: false,
+      enableMetrics: true,
+      enablePerf: true,
+      llamaRuntimeProfile: "rocm",
+      serverPath:
+        "C:/app-data/tools/beellama-v0.3.1-hip-radeon/llama-server.exe",
+      useDraft: true,
+      draftModelRepo: DEFAULT_DRAFT_REPO,
+      draftModelFile: DEFAULT_DRAFT_FILE,
+      imageMinTokens: 1024,
+      imageMaxTokens: 1024,
+      modelRepo: DEFAULT_31B_REPO,
+      modelFile: DEFAULT_31B_FILE,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE,
+    });
+
+    expect(args).toContain("--spec-type");
+    expect(args).toContain("dflash");
+    expect(args).toContain("--spec-dflash-cross-ctx");
+    expect(args).toContain("--spec-branch-budget");
+    expect(args).toContain("--kv-unified");
+    expect(args).toContain("--jinja");
+    expect(args).toContain("--no-mmap");
+    expect(args).toContain("--mlock");
+    expect(args).toContain("--no-host");
+    expect(args).not.toContain("--fit");
+    expect(args).not.toContain("--no-cache-prompt");
+    expect(args).not.toContain("--no-warmup");
+  });
+
   it("launches from app-managed HF cache files after direct download", () => {
     const hubCacheDir = createTempDir("hf-managed-cache-");
     const options = {

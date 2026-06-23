@@ -159,6 +159,7 @@ function llamaServerBinaryName(): string {
 function bundledLlamaServerCandidates(toolsDir: string): string[] {
   const serverBinary = llamaServerBinaryName();
   const knownRuntimeDirs = [
+    "beellama-v0.3.1-hip-radeon",
     "beellama-v0.2.0-cuda13.1",
     "beellama-v0.2.0-cuda12.4",
     "llama-b9547-cuda13.3",
