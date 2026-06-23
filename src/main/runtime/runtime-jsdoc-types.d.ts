@@ -52,6 +52,22 @@ export type ChildEnvBuildOptions = {
 
 export type ChildEnvironment = Record<string, string>;
 
+export type LlamaRuntimeArchive = {
+  archive: string;
+  url: string;
+};
+
+export type LlamaRuntimeDescriptor = {
+  archive?: string;
+  archives?: LlamaRuntimeArchive[];
+  backend?: string;
+  dir: string;
+  id?: string;
+  kind?: string;
+  requiredFiles?: Array<string | string[]>;
+  url?: string;
+};
+
 export type DetailedError = Error & {
   baseUrl?: string;
   range?: string;

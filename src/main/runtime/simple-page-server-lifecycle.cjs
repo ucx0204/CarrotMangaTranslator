@@ -1,6 +1,7 @@
 // @ts-check
 /** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("./runtime-jsdoc-types").DetailedError} DetailedError */
+/** @typedef {import("./runtime-jsdoc-types").LlamaRuntimeDescriptor} LlamaRuntimeDescriptor */
 /**
  * @typedef {RuntimeOptions & {
  *   label?: string | null;
