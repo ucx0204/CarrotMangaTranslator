@@ -42,6 +42,7 @@ export function buildSettingsFromDraft({
     apiCustomHeadersJson: values.apiCustomHeadersJson.trim(),
     ocrDevice: values.ocrDevice,
     ocrGpuBackend: values.ocrGpuBackend,
+    inpaintingModel: values.inpaintingModel,
     fluxBackend: values.fluxBackend,
     maxTokens: draft.parsedMaxTokens,
     ctx: draft.parsedContextTokens,

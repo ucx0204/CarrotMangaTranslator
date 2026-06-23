@@ -23,6 +23,8 @@ import {
   resolveContextTokens,
   resolveFluxBackend,
   resolveGemmaVramMode,
+  resolveInpaintingModel,
+  resolveKoharuInpaintingBackend,
   resolveMaxTokens,
   resolveModelProvider,
   resolveNullableIntegerRange,
@@ -200,9 +202,18 @@ function resolveDefaultInpaintingSettings(
   hardwareDefaults: HardwareDefaults,
 ): NonNullable<AppSettings["inpainting"]> {
   return {
+    model: resolveInpaintingModel(
+      env.MANGA_TRANSLATOR_INPAINTING_MODEL ?? env.MGT_INPAINTING_MODEL,
+      "flux-klein",
+    ),
     fluxBackend: resolveFluxBackend(
       env.MANGA_TRANSLATOR_FLUX_BACKEND ?? env.MGT_FLUX_BACKEND,
       hardwareDefaults.fluxBackend,
+    ),
+    koharuBackend: resolveKoharuInpaintingBackend(
+      env.MANGA_TRANSLATOR_KOHARU_INPAINT_BACKEND ??
+        env.MGT_KOHARU_INPAINT_BACKEND,
+      "auto",
     ),
   };
 }

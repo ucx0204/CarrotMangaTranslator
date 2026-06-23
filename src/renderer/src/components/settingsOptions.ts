@@ -3,6 +3,7 @@ import type {
   CodexReasoningEffort,
   FluxBackend,
   LlamaRuntimeProfile,
+  InpaintingModel,
   ModelProvider,
   ModelSource,
   OcrDevice,
@@ -102,6 +103,12 @@ type LlamaRuntimeProfileOption = {
 
 type FluxBackendOption = {
   id: FluxBackend;
+  label: string;
+  description: string;
+};
+
+type InpaintingModelOption = {
+  id: InpaintingModel;
   label: string;
   description: string;
 };
@@ -245,6 +252,27 @@ export const FLUX_BACKEND_OPTIONS: FluxBackendOption[] = [
     label: "CPU",
     description:
       "GPU 런타임이 맞지 않는 환경에서 직접 선택하는 CPU 호환 모드입니다. 처리 속도는 많이 느립니다.",
+  },
+];
+
+export const INPAINTING_MODEL_OPTIONS: InpaintingModelOption[] = [
+  {
+    id: "aot-inpainting",
+    label: "AOT 최소",
+    description:
+      "가장 가벼운 Koharu AOT 인페인팅입니다. 실행 가능성과 낮은 사용량을 우선합니다.",
+  },
+  {
+    id: "lama-manga",
+    label: "LaMa 절약",
+    description:
+      "Koharu의 manga 특화 LaMa 인페인팅입니다. 말풍선/작은 글자 제거를 빠르고 가볍게 처리합니다.",
+  },
+  {
+    id: "flux-klein",
+    label: "Flux 풀로드",
+    description:
+      "기본 인페인팅 모델입니다. 품질 우선이며 기존 CUDA/ZLUDA/CPU Flux 백엔드를 그대로 사용합니다.",
   },
 ];
 

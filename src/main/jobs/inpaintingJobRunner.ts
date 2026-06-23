@@ -6,7 +6,7 @@ import type {
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { inpaintDrawnPatternPage, inpaintPatternPage } from "../inpainting";
-import { acquireFluxInpaintingEngine } from "../inpainting/fluxEnginePool";
+import { acquireInpaintingEngine } from "../inpainting/inpaintingEnginePool";
 import { openChapter, updatePagesAfterInpainting } from "../library";
 import { logError } from "../logger";
 import { getAppSettings } from "../settingsStore";
@@ -23,12 +23,14 @@ import {
 
 type EmitJobEvent = (event: JobEvent) => void;
 type OpenedChapter = Awaited<ReturnType<typeof openChapter>>;
-type FluxEngineLease = Awaited<ReturnType<typeof acquireFluxInpaintingEngine>>;
+type InpaintingEngineLease = Awaited<
+  ReturnType<typeof acquireInpaintingEngine>
+>;
 type InpaintingPageResult = Awaited<ReturnType<typeof inpaintPatternPage>>;
 
 export type InpaintingJobState = {
   chapter: OpenedChapter | null;
-  fluxEngineLease: FluxEngineLease | null;
+  inpaintingEngineLease: InpaintingEngineLease | null;
 };
 
 type InpaintingTarget = {
@@ -186,7 +188,7 @@ async function processInpaintingPages({
   let blocksErased = 0;
   let savedChapter = state.chapter;
   let pagesChanged = 0;
-  state.fluxEngineLease = await acquireInpaintingEngineIfNeeded({
+  state.inpaintingEngineLease = await acquireInpaintingEngineIfNeeded({
     abortController,
     context,
     emit,
@@ -237,14 +239,16 @@ async function acquireInpaintingEngineIfNeeded({
   id: string;
   pageCount: number;
   totalTargetBlocks: number;
-}): Promise<FluxEngineLease | null> {
+}): Promise<InpaintingEngineLease | null> {
   if (totalTargetBlocks <= 0) {
     return null;
   }
   const appSettings = await getAppSettings(context.appPaths);
-  return acquireFluxInpaintingEngine({
+  return acquireInpaintingEngine({
     appPaths: context.appPaths,
+    model: appSettings.inpainting?.model ?? "flux-klein",
     fluxBackend: appSettings.inpainting?.fluxBackend,
+    koharuBackend: appSettings.inpainting?.koharuBackend,
     signal: abortController.signal,
     onProgress: (progress) =>
       emit({
@@ -302,14 +306,14 @@ async function processInpaintingPage({
     ? await inpaintDrawnPatternPage(page, {
         signal: abortController.signal,
         decodeFallback: context.decodeImage,
-        fluxEngine: state.fluxEngineLease?.engine,
+        inpaintingEngine: state.inpaintingEngineLease?.engine,
         strokes: target.drawnStrokes,
         featherPx: target.drawnFeatherPx,
       })
     : await inpaintPatternPage(page, {
         signal: abortController.signal,
         decodeFallback: context.decodeImage,
-        fluxEngine: state.fluxEngineLease?.engine,
+        inpaintingEngine: state.inpaintingEngineLease?.engine,
       });
   emitInpaintingPageDone(
     id,

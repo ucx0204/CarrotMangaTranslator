@@ -1,20 +1,27 @@
 import React from "react";
 import type {
   FluxBackend,
+  InpaintingModel,
   OcrDevice,
   OcrGpuBackend,
 } from "../../../../shared/settingsTypes";
 import { mangaGateway } from "../../api/mangaGateway";
-import { FLUX_BACKEND_OPTIONS, OCR_DEVICE_OPTIONS } from "../settingsOptions";
+import {
+  FLUX_BACKEND_OPTIONS,
+  INPAINTING_MODEL_OPTIONS,
+  OCR_DEVICE_OPTIONS,
+} from "../settingsOptions";
 
 type HardwareSettingsPanelProps = {
   clearTestState: () => void;
   controlsBusy: boolean;
   fluxBackend: FluxBackend;
+  inpaintingModel: InpaintingModel;
   isFluxBackendOptionDisabled: (backend: FluxBackend) => boolean;
   ocrGpuBackend: OcrGpuBackend;
   ocrDevice: OcrDevice;
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
+  setInpaintingModel: React.Dispatch<React.SetStateAction<InpaintingModel>>;
   setOcrDevice: React.Dispatch<React.SetStateAction<OcrDevice>>;
   setOcrGpuBackend: React.Dispatch<React.SetStateAction<OcrGpuBackend>>;
   usesAmdHardware: boolean;
@@ -27,10 +34,12 @@ export function HardwareSettingsPanel({
   clearTestState,
   controlsBusy,
   fluxBackend,
+  inpaintingModel,
   isFluxBackendOptionDisabled,
   ocrGpuBackend,
   ocrDevice,
   setFluxBackend,
+  setInpaintingModel,
   setOcrDevice,
   setOcrGpuBackend,
   usesAmdHardware,
@@ -50,9 +59,15 @@ export function HardwareSettingsPanel({
         usesAmdOcrContext={usesAmdOcrContext}
         usesNvidiaOcrContext={usesNvidiaOcrContext}
       />
+      <InpaintingModelSettings
+        clearTestState={clearTestState}
+        inpaintingModel={inpaintingModel}
+        setInpaintingModel={setInpaintingModel}
+      />
       <FluxBackendSettings
         clearTestState={clearTestState}
         fluxBackend={fluxBackend}
+        inpaintingModel={inpaintingModel}
         isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
         setFluxBackend={setFluxBackend}
         usesAmdHardware={usesAmdHardware}
@@ -135,6 +150,7 @@ function OcrDeviceSettings({
 function FluxBackendSettings({
   clearTestState,
   fluxBackend,
+  inpaintingModel,
   isFluxBackendOptionDisabled,
   setFluxBackend,
   usesAmdHardware,
@@ -143,6 +159,7 @@ function FluxBackendSettings({
   HardwareSettingsPanelProps,
   | "clearTestState"
   | "fluxBackend"
+  | "inpaintingModel"
   | "isFluxBackendOptionDisabled"
   | "setFluxBackend"
   | "usesAmdHardware"
@@ -173,16 +190,60 @@ function FluxBackendSettings({
         ))}
       </div>
       <p className="muted-line modal-note">
-        {
-          FLUX_BACKEND_OPTIONS.find((option) => option.id === fluxBackend)
-            ?.description
-        }
+        {inpaintingModel === "flux-klein"
+          ? FLUX_BACKEND_OPTIONS.find((option) => option.id === fluxBackend)
+              ?.description
+          : "이 백엔드 설정은 Flux Klein 모델에서만 적용됩니다."}
       </p>
-      {fluxBackend === "zluda-native" ? <AmdHipSdkDownloadButton /> : null}
+      {inpaintingModel === "flux-klein" && fluxBackend === "zluda-native" ? (
+        <AmdHipSdkDownloadButton />
+      ) : null}
       <FluxHardwareContextNote
         usesAmdHardware={usesAmdHardware}
         usesNvidiaHardware={usesNvidiaHardware}
       />
+    </div>
+  );
+}
+
+function InpaintingModelSettings({
+  clearTestState,
+  inpaintingModel,
+  setInpaintingModel,
+}: Pick<
+  HardwareSettingsPanelProps,
+  "clearTestState" | "inpaintingModel" | "setInpaintingModel"
+>): React.JSX.Element {
+  return (
+    <div className="settings-field-stack">
+      <span>인페인팅 모델</span>
+      <div
+        className="settings-preset-group"
+        role="tablist"
+        aria-label="인페인팅 모델"
+      >
+        {INPAINTING_MODEL_OPTIONS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className={`settings-preset-button ${inpaintingModel === option.id ? "active" : ""}`}
+            onClick={() => {
+              clearTestState();
+              setInpaintingModel(option.id);
+            }}
+            aria-pressed={inpaintingModel === option.id}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <p className="muted-line modal-note">
+        {
+          INPAINTING_MODEL_OPTIONS.find(
+            (option) => option.id === inpaintingModel,
+          )?.description
+        }
+      </p>
     </div>
   );
 }

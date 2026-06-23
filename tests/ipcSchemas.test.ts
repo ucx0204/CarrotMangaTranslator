@@ -238,7 +238,9 @@ describe("IPC schemas", () => {
         gpuBackend: "rocm",
       },
       inpainting: {
+        model: "lama",
         fluxBackend: "rocm",
+        koharuBackend: "amd",
       },
       maxTokens: 32768,
       ctx: 131072,
@@ -254,7 +256,9 @@ describe("IPC schemas", () => {
     expect(parsed.api.temperature).toBeNull();
     expect(parsed.api.reasoningEffort).toBe("minimal");
     expect(parsed.ocr.gpuBackend).toBe("rocm-transformers");
+    expect(parsed.inpainting?.model).toBe("lama-manga");
     expect(parsed.inpainting?.fluxBackend).toBe("zluda-native");
+    expect(parsed.inpainting?.koharuBackend).toBe("zluda-native");
     expect(
       parseIpcPayload(
         AppSettingsSchema,

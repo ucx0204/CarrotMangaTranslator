@@ -1,0 +1,224 @@
+import { join } from "node:path";
+import type { AppPaths } from "../appPaths";
+import { detectBestGpuInfo } from "../gpuInfo";
+import { logError, logInfo } from "../logger";
+import type {
+  InpaintingModel,
+  KoharuInpaintingBackend,
+} from "../../shared/inpaintingSettingsTypes";
+import type {
+  InpaintingEngine,
+  InpaintingRuntimeProgress,
+} from "./inpaintingEngine";
+import {
+  prepareKoharuInpaintingEngine,
+  type KoharuInpaintingEngine,
+} from "./koharuEngine";
+
+const KOHARU_ENGINE_IDLE_TTL_MS = 5 * 60 * 1000;
+
+type KoharuEngineLease = {
+  engine: InpaintingEngine;
+  release: () => void;
+};
+
+type CachedKoharuEngine = {
+  key: string;
+  engine: KoharuInpaintingEngine;
+  idleTimer: ReturnType<typeof setTimeout> | null;
+};
+
+let cachedEngine: CachedKoharuEngine | null = null;
+
+export async function acquireKoharuInpaintingEngine(options: {
+  appPaths: AppPaths;
+  model: Exclude<InpaintingModel, "flux-klein">;
+  backend: KoharuInpaintingBackend;
+  signal?: AbortSignal;
+  onProgress?: (progress: InpaintingRuntimeProgress) => void;
+}): Promise<KoharuEngineLease> {
+  const runtimeDir = join(
+    options.appPaths.dataRoot,
+    "runtime",
+    "koharu-inpainting",
+  );
+  const modelDir = join(
+    options.appPaths.dataRoot,
+    "models",
+    "inpainting",
+    options.model,
+  );
+  const runRootDir = join(
+    options.appPaths.dataRoot,
+    "tmp",
+    "runtime",
+    "koharu-inpainting",
+  );
+  const candidates = await resolveBackendCandidates(options.backend);
+  const errors: string[] = [];
+
+  for (const backend of candidates) {
+    const key = `${options.model}\n${backend}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
+    const cached = await tryAcquireCachedKoharuEngine(key, options.onProgress);
+    if (cached) {
+      return cached;
+    }
+
+    await disposeCachedKoharuInpaintingEngine("replace");
+    let engine: KoharuInpaintingEngine | null = null;
+    try {
+      engine = await prepareKoharuInpaintingEngine({
+        runtimeDir,
+        modelDir,
+        model: options.model,
+        backend,
+        runRootDir,
+        signal: options.signal,
+        onProgress: options.onProgress,
+      });
+      await smokeTestKoharuEngine(engine, options.signal);
+      cachedEngine = {
+        key,
+        engine,
+        idleTimer: null,
+      };
+      logInfo("Koharu inpainting engine cached", {
+        model: options.model,
+        backend,
+        ttlMs: KOHARU_ENGINE_IDLE_TTL_MS,
+      });
+      return {
+        engine,
+        release: scheduleCachedKoharuEngineDispose,
+      };
+    } catch (error) {
+      errors.push(
+        `${backend}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      if (engine) {
+        await engine.dispose().catch((disposeError) => {
+          logError("Failed to dispose failed Koharu engine", {
+            backend,
+            disposeError,
+          });
+        });
+      }
+    }
+  }
+
+  throw new Error(
+    `Koharu 인페인팅 런타임을 준비하지 못했습니다.\n${errors.join("\n")}`,
+  );
+}
+
+export async function disposeCachedKoharuInpaintingEngine(
+  reason: string,
+): Promise<boolean> {
+  const current = cachedEngine;
+  if (!current) {
+    return false;
+  }
+  cachedEngine = null;
+  clearIdleTimer(current);
+  try {
+    await current.engine.dispose();
+    logInfo("Koharu inpainting engine disposed", { reason });
+  } catch (error) {
+    logError("Failed to dispose cached Koharu inpainting engine", {
+      reason,
+      error,
+    });
+  }
+  return true;
+}
+
+async function tryAcquireCachedKoharuEngine(
+  key: string,
+  onProgress?: (progress: InpaintingRuntimeProgress) => void,
+): Promise<KoharuEngineLease | null> {
+  if (cachedEngine?.key !== key) {
+    return null;
+  }
+  if (cachedEngine.engine.isHealthy?.() === false) {
+    await disposeCachedKoharuInpaintingEngine("unhealthy-worker");
+    return null;
+  }
+  clearIdleTimer(cachedEngine);
+  onProgress?.({
+    progressText: "Koharu 인페인팅 준비 완료",
+    detail: "캐시된 Koharu 엔진 사용",
+    progressMode: "log-only",
+    installLogLine: "캐시된 Koharu 인페인팅 엔진을 재사용합니다.",
+  });
+  return {
+    engine: cachedEngine.engine,
+    release: scheduleCachedKoharuEngineDispose,
+  };
+}
+
+async function resolveBackendCandidates(
+  requested: KoharuInpaintingBackend,
+): Promise<Array<Exclude<KoharuInpaintingBackend, "auto">>> {
+  if (requested === "cpu") {
+    return ["cpu"];
+  }
+  if (requested === "cuda-native") {
+    return ["cuda-native", "cpu"];
+  }
+  if (requested === "zluda-native") {
+    return ["zluda-native", "cpu"];
+  }
+
+  const gpu = await detectBestGpuInfo();
+  if (gpu?.vendor === "amd") {
+    return ["zluda-native", "cpu"];
+  }
+  if (gpu?.vendor === "nvidia") {
+    return ["cuda-native", "cpu"];
+  }
+  return ["cpu"];
+}
+
+async function smokeTestKoharuEngine(
+  engine: KoharuInpaintingEngine,
+  signal?: AbortSignal,
+): Promise<void> {
+  const width = 128;
+  const height = 128;
+  const bitmap = Buffer.alloc(width * height * 4, 255);
+  const mask = new Uint8Array(width * height);
+  for (let y = 48; y < 80; y += 1) {
+    for (let x = 48; x < 80; x += 1) {
+      mask[y * width + x] = 1;
+    }
+  }
+  await engine.inpaint(
+    bitmap,
+    width,
+    height,
+    mask,
+    [{ x: 32, y: 32, w: 64, h: 64 }],
+    {
+      signal,
+      bubbleMask: new Uint8Array(width * height),
+      maxPixels: width * height,
+    },
+  );
+}
+
+function scheduleCachedKoharuEngineDispose(): void {
+  if (!cachedEngine) {
+    return;
+  }
+  clearIdleTimer(cachedEngine);
+  cachedEngine.idleTimer = setTimeout(() => {
+    void disposeCachedKoharuInpaintingEngine("idle-ttl");
+  }, KOHARU_ENGINE_IDLE_TTL_MS);
+}
+
+function clearIdleTimer(engine: CachedKoharuEngine): void {
+  if (engine.idleTimer) {
+    clearTimeout(engine.idleTimer);
+    engine.idleTimer = null;
+  }
+}

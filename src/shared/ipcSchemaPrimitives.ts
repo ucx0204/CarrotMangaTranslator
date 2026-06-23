@@ -170,12 +170,54 @@ export const FluxBackendSchema = z.preprocess(
     if (["python-cpu", "cpu"].includes(normalized)) {
       return "python-cpu";
     }
-    if (["candle-cpu", "candle", "koharu"].includes(normalized)) {
-      return "zluda-native";
-    }
     return value;
   },
   z.enum(["cuda-native", "zluda-native", "python-cpu"]),
+);
+
+export const InpaintingModelSchema = z.preprocess(
+  (value) => {
+    const normalized = String(value ?? "")
+      .trim()
+      .toLowerCase();
+    if (
+      ["", "auto", "flux", "flux-klein", "klein", "default"].includes(
+        normalized,
+      )
+    ) {
+      return "flux-klein";
+    }
+    if (["koharu", "lama", "lama-manga", "lama_manga"].includes(normalized)) {
+      return "lama-manga";
+    }
+    if (["aot", "aot-inpainting", "aot_inpainting"].includes(normalized)) {
+      return "aot-inpainting";
+    }
+    return value;
+  },
+  z.enum(["flux-klein", "lama-manga", "aot-inpainting"]),
+);
+
+export const KoharuInpaintingBackendSchema = z.preprocess(
+  (value) => {
+    const normalized = String(value ?? "")
+      .trim()
+      .toLowerCase();
+    if (["", "auto", "default"].includes(normalized)) {
+      return "auto";
+    }
+    if (["cuda", "cuda-native", "nvidia"].includes(normalized)) {
+      return "cuda-native";
+    }
+    if (["zluda", "zluda-native", "amd"].includes(normalized)) {
+      return "zluda-native";
+    }
+    if (["cpu", "python-cpu"].includes(normalized)) {
+      return "cpu";
+    }
+    return value;
+  },
+  z.enum(["auto", "cuda-native", "zluda-native", "cpu"]),
 );
 
 export const OcrGpuBackendSchema = z.preprocess(

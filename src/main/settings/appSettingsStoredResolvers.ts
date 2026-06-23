@@ -9,12 +9,16 @@ import type {
   AppSettings,
   FluxBackend,
   GemmaVramMode,
+  InpaintingModel,
+  KoharuInpaintingBackend,
   LlamaRuntimeProfile,
 } from "../../shared/types";
 import { normalizeAmdRocmTarget } from "../gpuInfo";
 import {
   inferHardwareVendorFromDefaults,
   resolveFluxBackend,
+  resolveInpaintingModel,
+  resolveKoharuInpaintingBackend,
   resolveNonEmptyString,
   resolveOcrGpuCudaTag,
   resolveOptionalString,
@@ -99,6 +103,26 @@ export function resolveStoredFluxBackend(
     return resolveNvidiaStoredFluxBackend(rawRequested, requested, defaults);
   }
   return requested;
+}
+
+export function resolveStoredInpaintingModel(
+  inpainting: Record<string, unknown> | null,
+  defaults: AppSettings,
+): InpaintingModel {
+  return resolveInpaintingModel(
+    inpainting?.model,
+    defaults.inpainting?.model ?? "flux-klein",
+  );
+}
+
+export function resolveStoredKoharuInpaintingBackend(
+  inpainting: Record<string, unknown> | null,
+  defaults: AppSettings,
+): KoharuInpaintingBackend {
+  return resolveKoharuInpaintingBackend(
+    inpainting?.koharuBackend,
+    defaults.inpainting?.koharuBackend ?? "auto",
+  );
 }
 
 function resolveAmdStoredFluxBackend(

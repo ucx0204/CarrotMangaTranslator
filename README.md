@@ -178,6 +178,7 @@ Gemma 4는 내 PC에서 로컬 모델 서버를 실행하는 방식입니다. �
 - `모델 / 실행 모드`: `12B 최소`, `26B 절약`, `31B 풀로드`, `커스텀` 중 하나를 고릅니다.
 - `Gemma GPU 런타임`: NVIDIA CUDA 12, RTX 50, AMD Vulkan, AMD ROCm 중 하드웨어에 맞는 런타임을 고릅니다.
 - `Paddle OCR 장치`: GPU가 안정적으로 지원되면 GPU, 아니면 CPU를 고릅니다.
+- `인페인팅 모델`: `AOT 최소`, `LaMa 절약`, `Flux 풀로드` 중 하나를 고릅니다. 기본값은 `Flux 풀로드`입니다.
 - `Flux 인페인팅 백엔드`: NVIDIA CUDA, AMD ZLUDA, CPU 중에서 고릅니다.
 
 8GB급 VRAM 환경에서는 `12B 최소`부터 시도하는 것이 가장 안전합니다. 16GB급은 `26B 절약`, 24GB 이상은 `31B 풀로드`가 기본 권장값입니다.
@@ -237,7 +238,7 @@ Codex를 선택할 예정이라면 위의 `OpenAI Codex 엔진 준비` 섹션에
 
 - Gemma 4: GGUF 모델, mmproj, llama.cpp/beellama/Lemonade ROCm 런타임
 - Paddle OCR: Python 런타임, PaddleOCR/PaddleOCR-VL 또는 AMD ROCm OCR 패키지, OCR 모델 캐시
-- Flux 인페인팅: Flux Klein 모델, VAE, Flux 실행기, GPU 백엔드 준비
+- 인페인팅: Flux Klein 모델/VAE/실행기 또는 Koharu LaMa/AOT 모델과 runner 준비
 - OpenAI Codex: 로컬 Codex 로그인 토큰을 사용하는 openai-oauth 연결
 - API: OpenAI 호환 Chat Completions 엔드포인트 연결
 
@@ -516,6 +517,7 @@ Paddle OCR에서 일본어 텍스트 근거가 없으면 모델 호출을 생략
 - Gemma라면 모델 프리셋과 Gemma GPU 런타임
 - API라면 Base URL과 모델 이름
 - Paddle OCR 장치: NVIDIA CUDA, AMD ROCm, CPU
+- 인페인팅 모델: AOT 최소, LaMa 절약, Flux 풀로드
 - Flux 인페인팅 백엔드: NVIDIA CUDA, AMD ZLUDA, CPU
 - 문제가 난 페이지 이미지 또는 재현 가능한 작품/화
 - `로그 폴더 열기`에서 나온 `app.log`
@@ -598,7 +600,7 @@ tools/         ffmpeg, Flux runner, 개발용 네이티브 도구
 - OCR 런타임은 `ocr-runtime` 아래에 variant별로 격리됩니다.
 - NVIDIA OCR GPU는 PaddlePaddle CUDA + PaddleOCR/PaddleOCR-VL 경로를 씁니다.
 - AMD OCR GPU는 아직 GPU/드라이버 조합이 민감하므로 CPU OCR을 기본 예비 경로로 둡니다.
-- Flux 인페인팅은 `src/main/inpainting`과 `src/main/inpainting/fluxAssets` 아래에서 관리합니다.
+- 인페인팅은 `src/main/inpainting` 아래에서 관리합니다. Flux 자산은 `fluxAssets`, Koharu LaMa/AOT 자산과 runner wrapper는 `koharu*` 파일에 있습니다.
 - AMD ZLUDA Flux를 확인할 때는 AMD HIP SDK 설치 상태를 먼저 봅니다.
 - 설치형 앱에서는 패키지 외부 런타임 override가 기본 차단되며, AMD ROCm target override만 허용됩니다.
 

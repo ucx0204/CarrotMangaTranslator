@@ -1,8 +1,11 @@
 import { basename, dirname, join, resolve } from "node:path";
 import { safeCleanup } from "../safeCleanup";
-import type { PixelRect } from "./maskGeometry";
 import { FluxWorker, type FluxWorkerLaunchSpec } from "./fluxWorker";
 import { runFluxInpaint } from "./fluxEngineRunner";
+import type {
+  InpaintingEngine,
+  InpaintingRuntimeProgress,
+} from "./inpaintingEngine";
 export {
   FLUX_INPAINT_CONTEXT_PX,
   FLUX_INPAINT_FEATHER_PX,
@@ -15,38 +18,11 @@ export {
   type MaskedRegionChangeStats,
 } from "./fluxChangeStats";
 
-export type InpaintingRuntimeProgress = {
-  progressText: string;
-  detail?: string;
-  progressMode?: "determinate" | "indeterminate" | "log-only";
-  progressPercent?: number;
-  progressBytes?: number;
-  progressTotalBytes?: number;
-  installLogLine?: string;
-};
+export type { InpaintingRuntimeProgress };
 
-export type FluxInpaintingEngine = {
-  runtimePath: string;
-  modelPath?: string;
+export type FluxInpaintingEngine = InpaintingEngine & {
+  model: "flux-klein";
   vaePath?: string;
-  backend: string;
-  runRootDir: string;
-  isHealthy?: () => boolean;
-  inpaint: (
-    bitmap: Buffer,
-    width: number,
-    height: number,
-    mask: Uint8Array,
-    windows: PixelRect[],
-    options?: {
-      signal?: AbortSignal;
-      featherPx?: number;
-      contextPx?: number;
-      maskPaddingPx?: number;
-      maxPixels?: number;
-    },
-  ) => Promise<void>;
-  dispose: () => Promise<void>;
 };
 
 export function createFluxEngine(options: {
@@ -67,6 +43,7 @@ export function createFluxEngine(options: {
     return worker;
   };
   return {
+    model: "flux-klein",
     runtimePath: options.launch.runtimePath,
     modelPath: options.modelPath,
     vaePath: options.vaePath,

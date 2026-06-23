@@ -4,6 +4,7 @@ import type {
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
+  InpaintingModel,
   LlamaRuntimeProfile,
   ModelProvider,
   ModelSource,
@@ -44,6 +45,7 @@ export type SettingsFormValues = {
   apiCustomHeadersJson: string;
   ocrDevice: OcrDevice;
   ocrGpuBackend: OcrGpuBackend;
+  inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
   maxTokens: string;
   contextTokens: string;
@@ -81,9 +83,18 @@ export function createSettingsFormValues(
     apiCustomHeadersJson: settings.api.customHeadersJson ?? "",
     ocrDevice: settings.ocr.device,
     ocrGpuBackend: settings.ocr.gpuBackend ?? "cuda",
-    fluxBackend: settings.inpainting?.fluxBackend ?? "cuda-native",
+    ...resolveInpaintingFormValues(settings),
     maxTokens: String(settings.maxTokens),
     contextTokens: String(settings.ctx),
+  };
+}
+
+function resolveInpaintingFormValues(
+  settings: AppSettings,
+): Pick<SettingsFormValues, "inpaintingModel" | "fluxBackend"> {
+  return {
+    inpaintingModel: settings.inpainting?.model ?? "flux-klein",
+    fluxBackend: settings.inpainting?.fluxBackend ?? "cuda-native",
   };
 }
 

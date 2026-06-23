@@ -172,7 +172,7 @@ const OVERLAY_PROMPT_SECTIONS = [
   ],
   [
     "Rendering hints",
-    "type must always be nonsolid. The app uses one Flux-based inpainting path for every text block, including speech bubbles, captions, labels, handwriting, and SFX.",
+    "type must always be nonsolid. The app uses one inpainting path for every text block, including speech bubbles, captions, labels, handwriting, and SFX.",
     "textRole must be ordinary for speech bubbles, captions, narration, labels, signs, and notes. textRole must be sound only for standalone printed sound/reaction lettering.",
     "For ordinary textRole, write ko as natural horizontal Korean. Do not keep Japanese vertical line breaks and do not force Korean vertical reading.",
     "For ordinary textRole, translate the Japanese lexical meaning. Never replace an ordinary word, noun, label, or dialogue fragment with a Korean sound effect.",

@@ -28,7 +28,9 @@
     "inpaintingGuideHidden": false
   },
   "inpainting": {
-    "fluxBackend": "cuda-native"
+    "model": "flux-klein",
+    "fluxBackend": "cuda-native",
+    "koharuBackend": "auto"
   },
   "maxTokens": 12000,
   "ctx": 16384

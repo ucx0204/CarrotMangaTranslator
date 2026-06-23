@@ -7,8 +7,8 @@ import {
   FLUX_INPAINT_FEATHER_PX,
   FLUX_INPAINT_MASK_PADDING_PX,
   FLUX_INPAINT_MAX_PIXELS,
-  type FluxInpaintingEngine,
 } from "./fluxEngine";
+import type { InpaintingEngine } from "./inpaintingEngine";
 import {
   bboxToPixelRect,
   expandRect,
@@ -34,7 +34,7 @@ export async function inpaintPatternPage(
   options: {
     signal?: AbortSignal;
     decodeFallback?: ImageDecodeFallback;
-    fluxEngine?: FluxInpaintingEngine;
+    inpaintingEngine?: InpaintingEngine;
   } = {},
 ): Promise<PatternPageInpaintingResult> {
   const patternBlocks = page.blocks.filter(
@@ -64,16 +64,20 @@ export async function inpaintPatternPage(
     width: size.width,
     height: size.height,
     signal: options.signal,
+    maskMode:
+      options.inpaintingEngine?.model === "flux-klein"
+        ? "flux-region"
+        : "koharu-glyph",
   });
   if (maskContext.blocksErased === 0) {
     return { page, blocksErased: 0 };
   }
 
-  if (!options.fluxEngine) {
-    throw new Error("Flux 원문 지우기 엔진이 준비되지 않았습니다.");
+  if (!options.inpaintingEngine) {
+    throw new Error("원문 지우기 엔진이 준비되지 않았습니다.");
   }
 
-  await options.fluxEngine.inpaint(
+  await options.inpaintingEngine.inpaint(
     bitmap,
     size.width,
     size.height,
@@ -85,6 +89,10 @@ export async function inpaintPatternPage(
       contextPx: FLUX_INPAINT_CONTEXT_PX,
       maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
       maxPixels: FLUX_INPAINT_MAX_PIXELS,
+      bubbleMask:
+        options.inpaintingEngine.model === "flux-klein"
+          ? undefined
+          : buildBlankBubbleMask(size.width, size.height),
     },
   );
 
@@ -99,18 +107,22 @@ export async function inpaintPatternPage(
   };
 }
 
+type InpaintingMaskMode = "flux-region" | "koharu-glyph";
+
 function buildPatternPageMask({
   page,
   bitmap,
   width,
   height,
   signal,
+  maskMode,
 }: {
   page: MangaPage;
   bitmap: Buffer;
   width: number;
   height: number;
   signal?: AbortSignal;
+  maskMode: InpaintingMaskMode;
 }): {
   pageMask: Uint8Array;
   inpaintWindows: PixelRect[];
@@ -141,6 +153,7 @@ function buildPatternPageMask({
       sourceRect,
       supportRect,
       pageMask,
+      maskMode,
     });
     inpaintWindows.push(
       expandRect(
@@ -165,6 +178,7 @@ function mergePatternDetectionMask({
   sourceRect,
   supportRect,
   pageMask,
+  maskMode,
 }: {
   page: MangaPage;
   block: MangaPage["blocks"][number];
@@ -174,6 +188,7 @@ function mergePatternDetectionMask({
   sourceRect: PixelRect;
   supportRect: PixelRect;
   pageMask: Uint8Array;
+  maskMode: InpaintingMaskMode;
 }): void {
   const detectRect = expandRect(
     sourceRect,
@@ -189,10 +204,24 @@ function mergePatternDetectionMask({
     resolvePatternDilationRadius(block),
   );
 
-  mergeFilledRectIntoPage(pageMask, width, supportRect);
+  if (maskMode === "flux-region") {
+    mergeFilledRectIntoPage(pageMask, width, supportRect);
+  }
   if (detectedMask.count > 0) {
     mergeMaskIntoPage(pageMask, width, detectRect, detectedMask.mask);
+    return;
   }
+  if (maskMode === "koharu-glyph") {
+    mergeFilledRectIntoPage(
+      pageMask,
+      width,
+      expandRect(sourceRect, width, height, 2),
+    );
+  }
+}
+
+function buildBlankBubbleMask(width: number, height: number): Uint8Array {
+  return new Uint8Array(width * height);
 }
 
 async function writePatternInpaintedImage(

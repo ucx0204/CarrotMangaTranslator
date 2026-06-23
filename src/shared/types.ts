@@ -17,6 +17,8 @@ export type {
   GemmaSettings,
   GemmaVramMode,
   InpaintingSettings,
+  InpaintingModel,
+  KoharuInpaintingBackend,
   LlamaRuntimeProfile,
   ModelProvider,
   ModelSource,

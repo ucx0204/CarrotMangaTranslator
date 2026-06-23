@@ -5,6 +5,8 @@ import {
   CustomHeadersJsonObjectStringSchema,
   FluxBackendSchema,
   GemmaVramModeSchema,
+  InpaintingModelSchema,
+  KoharuInpaintingBackendSchema,
   JsonObjectStringSchema,
   LlamaRuntimeProfileSchema,
   MAX_MAX_TOKENS,
@@ -72,7 +74,9 @@ export const AppSettingsSchema = z
       .optional(),
     inpainting: z
       .object({
+        model: InpaintingModelSchema.optional(),
         fluxBackend: FluxBackendSchema.optional(),
+        koharuBackend: KoharuInpaintingBackendSchema.optional(),
       })
       .strict()
       .optional(),

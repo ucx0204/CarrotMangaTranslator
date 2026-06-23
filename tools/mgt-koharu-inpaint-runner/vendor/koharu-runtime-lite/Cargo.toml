@@ -1,0 +1,8 @@
+[package]
+name = "koharu-runtime"
+version = "0.61.1"
+edition = "2024"
+publish = false
+
+[dependencies]
+anyhow = "1"

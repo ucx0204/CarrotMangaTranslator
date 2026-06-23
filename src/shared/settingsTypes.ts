@@ -1,3 +1,15 @@
+import type {
+  FluxBackend,
+  InpaintingModel,
+  KoharuInpaintingBackend,
+} from "./inpaintingSettingsTypes";
+
+export type {
+  FluxBackend,
+  InpaintingModel,
+  KoharuInpaintingBackend,
+} from "./inpaintingSettingsTypes";
+
 export type ModelProvider = "gemma" | "openai-codex" | "openai-api";
 export type ModelSource = "huggingface" | "local";
 export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
@@ -20,7 +32,6 @@ export type AmdRocmTarget =
   | "gfx1150"
   | "gfx1151"
   | "gfx120X";
-export type FluxBackend = "cuda-native" | "zluda-native" | "python-cpu";
 export type RuntimeGpuVendor = "nvidia" | "amd" | "unknown";
 
 export type RuntimeHardwareInfo = {
@@ -77,7 +88,9 @@ export type UiSettings = {
 };
 
 export type InpaintingSettings = {
+  model?: InpaintingModel;
   fluxBackend?: FluxBackend;
+  koharuBackend?: KoharuInpaintingBackend;
 };
 
 export type AppSettings = {

@@ -28,7 +28,11 @@ import {
   resolveDefaultAppSettings,
   RTX_50_OCR_GPU_CUDA_TAG,
 } from "../src/main/appSettings";
-import { resolveOcrGpuBackend } from "../src/main/settings/appSettingsResolvers";
+import {
+  resolveInpaintingModel,
+  resolveKoharuInpaintingBackend,
+  resolveOcrGpuBackend,
+} from "../src/main/settings/appSettingsResolvers";
 import type { AppSettings } from "../src/shared/types";
 import { join } from "node:path";
 
@@ -58,6 +62,8 @@ describe("app settings helpers", () => {
     );
     expect(defaults.ocr.device).toBe(DEFAULT_OCR_DEVICE);
     expect(defaults.ocr.gpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
+    expect(defaults.inpainting?.model).toBe("flux-klein");
+    expect(defaults.inpainting?.koharuBackend).toBe("auto");
     expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
     expect(defaults.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
   });
@@ -1185,6 +1191,21 @@ describe("app settings helpers", () => {
     expect(resolveOcrGpuBackend("mps", "rocm-transformers")).toBe(
       "rocm-transformers",
     );
+  });
+
+  it("normalizes inpainting model and Koharu backend aliases", () => {
+    expect(resolveInpaintingModel("flux")).toBe("flux-klein");
+    expect(resolveInpaintingModel("koharu")).toBe("lama-manga");
+    expect(resolveInpaintingModel("lama_manga")).toBe("lama-manga");
+    expect(resolveInpaintingModel("aot")).toBe("aot-inpainting");
+    expect(resolveInpaintingModel("unknown", "aot-inpainting")).toBe(
+      "aot-inpainting",
+    );
+
+    expect(resolveKoharuInpaintingBackend("default")).toBe("auto");
+    expect(resolveKoharuInpaintingBackend("nvidia")).toBe("cuda-native");
+    expect(resolveKoharuInpaintingBackend("amd")).toBe("zluda-native");
+    expect(resolveKoharuInpaintingBackend("python-cpu")).toBe("cpu");
   });
 
   it("chooses first-run defaults from detected GPU generation and VRAM", () => {

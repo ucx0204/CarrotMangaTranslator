@@ -26,6 +26,8 @@ import {
   resolveStoredFluxBackend,
   resolveStoredGemmaMmproj,
   resolveStoredGemmaModel,
+  resolveStoredInpaintingModel,
+  resolveStoredKoharuInpaintingBackend,
   resolveStoredLlamaRocmTarget,
   resolveStoredLlamaRuntimeProfile,
   resolveStoredOcrGpuCudaTag,
@@ -256,7 +258,9 @@ function normalizeInpaintingSettings(
   defaults: AppSettings,
 ): NonNullable<AppSettings["inpainting"]> {
   return {
+    model: resolveStoredInpaintingModel(inpainting, defaults),
     fluxBackend: resolveStoredFluxBackend(inpainting, defaults),
+    koharuBackend: resolveStoredKoharuInpaintingBackend(inpainting, defaults),
   };
 }
 

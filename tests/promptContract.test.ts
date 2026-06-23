@@ -143,7 +143,7 @@ function expectTightJapaneseGlyphRules(text: string): void {
 
 function expectRenderingRoleRules(text: string): void {
   expect(text).toContain(
-    "The app uses one Flux-based inpainting path for every text block",
+    "The app uses one inpainting path for every text block",
   );
   expect(text).toContain(
     "textRole must be ordinary for speech bubbles, captions, narration, labels, signs, and notes.",

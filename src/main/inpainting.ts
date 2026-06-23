@@ -27,6 +27,8 @@ import {
   type FluxInpaintingEngine,
   type InpaintingRuntimeProgress,
 } from "./inpainting/fluxEngine";
+import type { InpaintingEngine } from "./inpainting/inpaintingEngine";
+export { prepareKoharuInpaintingEngine } from "./inpainting/koharuEngine";
 import { expandRect, mergeRects, rectHasMask } from "./inpainting/maskGeometry";
 import {
   applyRetouchCircle,
@@ -48,6 +50,7 @@ import type {
 export type {
   FluxInpaintingEngine,
   ImageDecodeFallback,
+  InpaintingEngine,
   InpaintingRuntimeProgress,
   PatternPageInpaintingResult,
 };
@@ -59,7 +62,7 @@ export async function inpaintDrawnPatternPage(
     strokes: InpaintingMaskStroke[];
     signal?: AbortSignal;
     decodeFallback?: ImageDecodeFallback;
-    fluxEngine?: FluxInpaintingEngine;
+    inpaintingEngine?: InpaintingEngine;
     featherPx?: number;
   },
 ): Promise<PatternPageInpaintingResult> {
@@ -97,11 +100,11 @@ export async function inpaintDrawnPatternPage(
     return { page, blocksErased: 0 };
   }
 
-  if (!options.fluxEngine) {
-    throw new Error("Flux 원문 지우기 엔진이 준비되지 않았습니다.");
+  if (!options.inpaintingEngine) {
+    throw new Error("원문 지우기 엔진이 준비되지 않았습니다.");
   }
 
-  await options.fluxEngine.inpaint(
+  await options.inpaintingEngine.inpaint(
     bitmap,
     size.width,
     size.height,
@@ -113,6 +116,10 @@ export async function inpaintDrawnPatternPage(
       contextPx: FLUX_INPAINT_CONTEXT_PX,
       maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
       maxPixels: FLUX_INPAINT_MAX_PIXELS,
+      bubbleMask:
+        options.inpaintingEngine.model === "flux-klein"
+          ? undefined
+          : new Uint8Array(size.width * size.height),
     },
   );
 

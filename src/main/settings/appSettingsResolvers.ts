@@ -13,6 +13,8 @@ import type {
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
+  InpaintingModel,
+  KoharuInpaintingBackend,
   ModelProvider,
   ModelSource,
   OcrDevice,
@@ -123,8 +125,46 @@ export function resolveFluxBackend(
   if (["python-cpu", "cpu"].includes(normalized)) {
     return "python-cpu";
   }
-  if (["candle-cpu", "candle", "koharu"].includes(normalized)) {
+  return fallback;
+}
+
+export function resolveInpaintingModel(
+  value: unknown,
+  fallback: InpaintingModel = "flux-klein",
+): InpaintingModel {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (["flux", "flux-klein", "klein", "default"].includes(normalized)) {
+    return "flux-klein";
+  }
+  if (["koharu", "lama", "lama-manga", "lama_manga"].includes(normalized)) {
+    return "lama-manga";
+  }
+  if (["aot", "aot-inpainting", "aot_inpainting"].includes(normalized)) {
+    return "aot-inpainting";
+  }
+  return fallback;
+}
+
+export function resolveKoharuInpaintingBackend(
+  value: unknown,
+  fallback: KoharuInpaintingBackend = "auto",
+): KoharuInpaintingBackend {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (["auto", "default"].includes(normalized)) {
+    return "auto";
+  }
+  if (["cuda", "cuda-native", "nvidia"].includes(normalized)) {
+    return "cuda-native";
+  }
+  if (["zluda", "zluda-native", "amd"].includes(normalized)) {
     return "zluda-native";
+  }
+  if (["cpu", "python-cpu"].includes(normalized)) {
+    return "cpu";
   }
   return fallback;
 }

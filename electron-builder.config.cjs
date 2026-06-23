@@ -57,6 +57,19 @@ if (bundleFluxNvidiaRunners) {
   }
 }
 
+const koharuRunnerPath = join(
+  __dirname,
+  "tools",
+  "mgt-koharu-inpaint-runner",
+  "mgt-koharu-inpaint-runner.exe",
+);
+if (existsSync(koharuRunnerPath)) {
+  extraResources.push({
+    from: "tools/mgt-koharu-inpaint-runner/mgt-koharu-inpaint-runner.exe",
+    to: "tools/mgt-koharu-inpaint-runner/mgt-koharu-inpaint-runner.exe",
+  });
+}
+
 module.exports = {
   appId: "com.sam40.mangagemma.translator",
   productName: "당근망가번역기",

@@ -31,7 +31,10 @@ export async function startInpaintingJob(
 
   const id = randomUUID();
   const abortController = new AbortController();
-  const state: InpaintingJobState = { chapter: null, fluxEngineLease: null };
+  const state: InpaintingJobState = {
+    chapter: null,
+    inpaintingEngineLease: null,
+  };
   context.jobs.start({ id, kind: "inpainting", abortController });
   const emit = (event: JobEvent) =>
     emitJobEvent(context.jobs, context.getMainWindow(), event);
@@ -80,7 +83,7 @@ export async function startInpaintingJob(
       context,
     });
   } finally {
-    state.fluxEngineLease?.release();
+    state.inpaintingEngineLease?.release();
     context.jobs.clearIfCurrent(id);
   }
 }

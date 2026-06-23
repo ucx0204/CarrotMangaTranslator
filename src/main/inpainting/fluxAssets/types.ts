@@ -1,4 +1,4 @@
-import type { FluxBackend } from "../../../shared/types";
+import type { FluxBackend } from "../../../shared/inpaintingSettingsTypes";
 
 export type FluxAssetProgress = {
   progressText: string;

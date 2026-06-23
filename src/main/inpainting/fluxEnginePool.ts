@@ -6,7 +6,7 @@ import {
   type FluxInpaintingEngine,
   type InpaintingRuntimeProgress,
 } from "../inpainting";
-import type { FluxBackend } from "../../shared/types";
+import type { FluxBackend } from "../../shared/inpaintingSettingsTypes";
 import { detectBestGpuInfo } from "../gpuInfo";
 
 const FLUX_ENGINE_IDLE_TTL_MS = 5 * 60 * 1000;

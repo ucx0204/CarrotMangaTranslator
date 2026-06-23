@@ -4,6 +4,7 @@ import type {
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
+  InpaintingModel,
   LlamaRuntimeProfile,
   ModelProvider,
   ModelSource,
@@ -41,6 +42,7 @@ type BuildSettingsFromFormInput = {
   apiCustomHeadersJson: string;
   ocrDevice: OcrDevice;
   ocrGpuBackend: OcrGpuBackend;
+  inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
   maxTokens: number;
   ctx: number;
@@ -62,7 +64,9 @@ export function buildSettingsFromForm(
     ui: input.initialSettings.ui,
     inpainting: {
       ...input.initialSettings.inpainting,
+      model: input.inpaintingModel,
       fluxBackend: input.fluxBackend,
+      koharuBackend: input.initialSettings.inpainting?.koharuBackend ?? "auto",
     },
     maxTokens: input.maxTokens,
     ctx: input.ctx,

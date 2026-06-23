@@ -2,6 +2,7 @@ node_modules
 out
 dist
 release
+tools/mgt-koharu-inpaint-runner/target
 library
 data
 .tmp
@@ -12,4 +13,3 @@ coverage
 *.exe
 *.gguf
 *.safetensors
-

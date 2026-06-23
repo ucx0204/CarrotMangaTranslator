@@ -17,7 +17,7 @@ import type {
   StartInpaintingResult,
 } from "../../shared/inpaintingTypes";
 import { applyInpaintingRetouch, sampleImageColor } from "../inpainting";
-import { disposeCachedFluxInpaintingEngine } from "../inpainting/fluxEnginePool";
+import { disposeCachedInpaintingEngines } from "../inpainting/inpaintingEnginePool";
 import {
   exportInpaintingResults,
   startInpaintingJob,
@@ -64,7 +64,7 @@ function registerInpaintingJobIpc(context: IpcContext): void {
     context,
     inpaintingIpcContracts.disposeInpaintingEngine,
     async (): Promise<{ disposed: boolean }> => ({
-      disposed: await disposeCachedFluxInpaintingEngine("renderer-exit"),
+      disposed: await disposeCachedInpaintingEngines("renderer-exit"),
     }),
   );
 }
