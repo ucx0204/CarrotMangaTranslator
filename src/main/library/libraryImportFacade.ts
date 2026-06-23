@@ -11,12 +11,7 @@ import {
 } from "../libraryStore/importWorkflow";
 import { withLibraryMutation } from "./lock";
 
-export {
-  previewFolder,
-  previewImages,
-  previewZip,
-  previewZipFolder,
-};
+export { previewFolder, previewImages, previewZip, previewZipFolder };
 
 export async function createImport(
   request: CreateImportFromPreviewRequest,
