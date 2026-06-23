@@ -28,6 +28,8 @@ export type AppSessionCoreState = {
   regionSelection: RegionSelectionState | null;
   selectedBlockId: string | null;
   selectedBlockIdRef: RefObject<string | null>;
+  /** Multi-selection (Ctrl/⌘+click) within the current page, for batch format apply. */
+  selectedBlockIds: string[];
   selectedPageId: string | null;
   selectedPageIdRef: RefObject<string | null>;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
@@ -35,6 +37,7 @@ export type AppSessionCoreState = {
   setLibrary: Dispatch<SetStateAction<LibraryIndex>>;
   setRegionSelection: Dispatch<SetStateAction<RegionSelectionState | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
+  setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
   setSelectedPageId: Dispatch<SetStateAction<string | null>>;
   stageRef: RefObject<HTMLDivElement | null>;
   workspacePanelRef: RefObject<HTMLElement | null>;
@@ -50,6 +53,7 @@ export function useAppSessionCoreState(): AppSessionCoreState {
   );
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
   const [regionSelection, setRegionSelection] =
     useState<RegionSelectionState | null>(null);
   const [jobState, setJobState] = useState<JobState>(EMPTY_JOB);
@@ -69,6 +73,7 @@ export function useAppSessionCoreState(): AppSessionCoreState {
     regionSelection,
     selectedBlockId,
     selectedBlockIdRef,
+    selectedBlockIds,
     selectedPageId,
     selectedPageIdRef,
     setCurrentChapter,
@@ -76,6 +81,7 @@ export function useAppSessionCoreState(): AppSessionCoreState {
     setLibrary,
     setRegionSelection,
     setSelectedBlockId,
+    setSelectedBlockIds,
     setSelectedPageId,
     stageRef,
     workspacePanelRef,

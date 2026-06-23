@@ -1,8 +1,10 @@
 import React from "react";
 import type {
   AppSettings,
+  BlockFormatDefaults,
   KeybindingOverrides,
 } from "../../../../shared/settingsTypes";
+import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../../../shared/blockFormat";
 import { buildSettingsFromDraft } from "./settingsModalBuildSettings";
 import {
   getApiAdvancedSettingsMessage,
@@ -44,6 +46,8 @@ export function useSettingsModalController({
 }: SettingsModalControllerInput): SettingsModalViewProps {
   const [activeTab, setActiveTab] = React.useState<SettingsTabId>("engine");
   const [keybindings, setKeybindings] = useKeybindingsDraft(initialSettings);
+  const [blockFormatDefaults, updateBlockFormatDefaults] =
+    useBlockFormatDefaultsDraft(initialSettings);
   const form = useSettingsFormState(initialSettings);
   const test = useSettingsTestState(initialSettings, form.refs.testLogRef);
   const localActions = useSettingsLocalModelActions({
@@ -59,32 +63,13 @@ export function useSettingsModalController({
     setters: form.setters,
     values: form.values,
   });
-  const draft = React.useMemo(
-    () => resolveSettingsDraft(form.values),
-    [form.values],
-  );
-  const canSubmit = React.useMemo(
-    () => isSettingsFormSubmittable(form.values, draft),
-    [draft, form.values],
-  );
-  const buildSettings = React.useCallback(
-    () =>
-      canSubmit
-        ? buildSettingsFromDraft({
-            draft,
-            initialSettings,
-            keybindings,
-            values: form.values,
-          })
-        : null,
-    [canSubmit, draft, form.values, initialSettings, keybindings],
-  );
-  const submit = React.useCallback(() => {
-    const nextSettings = buildSettings();
-    if (nextSettings && canSubmit) {
-      onSubmit(nextSettings);
-    }
-  }, [buildSettings, canSubmit, onSubmit]);
+  const { draft, canSubmit, buildSettings, submit } = useSettingsSubmission({
+    blockFormatDefaults,
+    form,
+    initialSettings,
+    keybindings,
+    onSubmit,
+  });
   const runModelTest = useSettingsModelTest({
     appendTestLogLine: test.appendTestLogLine,
     buildSettings,
@@ -100,6 +85,10 @@ export function useSettingsModalController({
     controlsBusy,
     draft,
     form,
+    formatPanelProps: {
+      value: blockFormatDefaults,
+      onChange: updateBlockFormatDefaults,
+    },
     jobActive,
     keybindings,
     localActions,
@@ -113,6 +102,80 @@ export function useSettingsModalController({
     submit,
     test,
   });
+}
+
+function useSettingsSubmission({
+  blockFormatDefaults,
+  form,
+  initialSettings,
+  keybindings,
+  onSubmit,
+}: {
+  blockFormatDefaults: BlockFormatDefaults;
+  form: ReturnType<typeof useSettingsFormState>;
+  initialSettings: AppSettings;
+  keybindings: KeybindingOverrides;
+  onSubmit: (settings: AppSettings) => void;
+}): {
+  draft: SettingsDraft;
+  canSubmit: boolean;
+  buildSettings: () => AppSettings | null;
+  submit: () => void;
+} {
+  const draft = React.useMemo(
+    () => resolveSettingsDraft(form.values),
+    [form.values],
+  );
+  const canSubmit = React.useMemo(
+    () => isSettingsFormSubmittable(form.values, draft),
+    [draft, form.values],
+  );
+  const buildSettings = React.useCallback(
+    () =>
+      canSubmit
+        ? buildSettingsFromDraft({
+            draft,
+            initialSettings,
+            keybindings,
+            blockFormatDefaults,
+            values: form.values,
+          })
+        : null,
+    [
+      blockFormatDefaults,
+      canSubmit,
+      draft,
+      form.values,
+      initialSettings,
+      keybindings,
+    ],
+  );
+  const submit = React.useCallback(() => {
+    const nextSettings = buildSettings();
+    if (nextSettings && canSubmit) {
+      onSubmit(nextSettings);
+    }
+  }, [buildSettings, canSubmit, onSubmit]);
+  return { draft, canSubmit, buildSettings, submit };
+}
+
+function useBlockFormatDefaultsDraft(
+  initialSettings: AppSettings,
+): [BlockFormatDefaults, (patch: Partial<BlockFormatDefaults>) => void] {
+  const [draft, setDraft] = React.useState<BlockFormatDefaults>(
+    () => initialSettings.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS,
+  );
+  React.useEffect(() => {
+    setDraft(
+      initialSettings.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS,
+    );
+  }, [initialSettings]);
+  const update = React.useCallback(
+    (patch: Partial<BlockFormatDefaults>) =>
+      setDraft((current) => ({ ...current, ...patch })),
+    [],
+  );
+  return [draft, update];
 }
 
 function useKeybindingsDraft(
@@ -136,6 +199,7 @@ function buildSettingsModalViewProps({
   controlsBusy,
   draft,
   form,
+  formatPanelProps,
   jobActive,
   keybindings,
   localActions,
@@ -154,6 +218,7 @@ function buildSettingsModalViewProps({
   controlsBusy: boolean;
   draft: SettingsDraft;
   form: ReturnType<typeof useSettingsFormState>;
+  formatPanelProps: SettingsModalViewProps["formatPanelProps"];
   jobActive: boolean;
   keybindings: KeybindingOverrides;
   localActions: ReturnType<typeof useSettingsLocalModelActions>;
@@ -185,6 +250,7 @@ function buildSettingsModalViewProps({
       runtime,
       test,
     }),
+    formatPanelProps,
     onCancel,
     onOpenLogFolder,
     onReset,

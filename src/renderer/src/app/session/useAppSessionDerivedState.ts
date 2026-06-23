@@ -34,6 +34,7 @@ type UseAppSessionDerivedStateArgs = {
   peekOriginal: boolean;
   regionSelection: RegionSelectionState | null;
   selectedBlockId: string | null;
+  selectedBlockIds: string[];
   selectedPageId: string | null;
 };
 
@@ -47,12 +48,14 @@ export function useAppSessionDerivedState({
   peekOriginal,
   regionSelection,
   selectedBlockId,
+  selectedBlockIds,
   selectedPageId,
 }: UseAppSessionDerivedStateArgs) {
   const pageState = useSelectedPageState({
     currentChapter,
     patternMaskStrokesByPage,
     selectedBlockId,
+    selectedBlockIds,
     selectedPageId,
   });
   const {
@@ -97,12 +100,14 @@ function useSelectedPageState({
   currentChapter,
   patternMaskStrokesByPage,
   selectedBlockId,
+  selectedBlockIds,
   selectedPageId,
 }: Pick<
   UseAppSessionDerivedStateArgs,
   | "currentChapter"
   | "patternMaskStrokesByPage"
   | "selectedBlockId"
+  | "selectedBlockIds"
   | "selectedPageId"
 >) {
   const selectedPage = useMemo(
@@ -120,6 +125,11 @@ function useSelectedPageState({
   );
   const selectedBlock =
     selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
+  const effectiveSelectedBlockIds = resolveEffectiveSelectedBlockIds(
+    selectedPage,
+    selectedBlockId,
+    selectedBlockIds,
+  );
 
   return {
     blockCounts: countChapterBlocks(currentChapter, selectedPage?.id ?? null),
@@ -127,10 +137,33 @@ function useSelectedPageState({
     neighborTargets,
     patternMaskStrokes,
     selectedBlock,
+    selectedBlockIds: effectiveSelectedBlockIds,
     selectedPage,
     selectedPageImagePath:
       selectedPage?.inpaintedImagePath ?? selectedPage?.imagePath ?? null,
   };
+}
+
+/**
+ * The multi-selection is honored only when the active block is part of it and
+ * more than one block is selected; otherwise it collapses to the single active
+ * block. Stale ids from other pages are dropped.
+ */
+function resolveEffectiveSelectedBlockIds(
+  selectedPage: MangaPage | null,
+  selectedBlockId: string | null,
+  selectedBlockIds: string[],
+): string[] {
+  const pageBlockIds = new Set(selectedPage?.blocks.map((block) => block.id));
+  const onPage = selectedBlockIds.filter((id) => pageBlockIds.has(id));
+  if (
+    selectedBlockId &&
+    onPage.length > 1 &&
+    onPage.includes(selectedBlockId)
+  ) {
+    return onPage;
+  }
+  return selectedBlockId ? [selectedBlockId] : [];
 }
 
 function useWorkspaceImageState({

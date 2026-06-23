@@ -13,6 +13,12 @@ import {
   normalizeRotationDeg,
   offsetBlockBboxes,
 } from "../../../shared/geometry";
+import {
+  pickBlockFormat,
+  type BlockFormatGroupId,
+} from "../../../shared/blockFormat";
+
+export type FormatApplyScope = "selection" | "page" | "chapter";
 
 type UseBlockEditingActionsOptions = {
   currentChapter: ChapterSnapshot | null;
@@ -21,6 +27,7 @@ type UseBlockEditingActionsOptions = {
   markDirty: (pageId?: string) => void;
   pushStatus: (line: string) => void;
   selectedBlock: TranslationBlock | null;
+  selectedBlockIds: string[];
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
@@ -32,7 +39,10 @@ type UseBlockEditingActionsOptions = {
 };
 
 type BlockEditingActions = {
-  applyFontToScope: (scope: "page" | "chapter", fontFamily?: string) => void;
+  applyFormatToScope: (
+    scope: FormatApplyScope,
+    groupIds: BlockFormatGroupId[],
+  ) => void;
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
   toggleBlockInpaintExcluded: (blockId: string) => void;
@@ -45,12 +55,12 @@ export function useBlockEditingActions(
   const updateSelectedBlock = useUpdateSelectedBlockAction(options);
   const toggleBlockInpaintExcluded =
     useToggleBlockInpaintExcludedAction(options);
-  const applyFontToScope = useApplyFontToScopeAction(options);
+  const applyFormatToScope = useApplyFormatToScopeAction(options);
   const deleteSelectedBlock = useDeleteSelectedBlockAction(options);
   const duplicateSelectedBlock = useDuplicateSelectedBlockAction(options);
 
   return {
-    applyFontToScope,
+    applyFormatToScope,
     deleteSelectedBlock,
     duplicateSelectedBlock,
     toggleBlockInpaintExcluded,
@@ -148,59 +158,56 @@ function useToggleBlockInpaintExcludedAction({
   );
 }
 
-function useApplyFontToScopeAction({
+function useApplyFormatToScopeAction({
   currentChapter,
   currentChapterRef,
   jobActive,
   markDirty,
   pushStatus,
   selectedBlock,
+  selectedBlockIds,
   selectedPage,
   selectedPageEditLocked,
   setCurrentChapter,
-}: UseBlockEditingActionsOptions): BlockEditingActions["applyFontToScope"] {
+}: UseBlockEditingActionsOptions): BlockEditingActions["applyFormatToScope"] {
   return useCallback(
-    (scope: "page" | "chapter", fontFamily?: string) => {
-      if (!currentChapter || !selectedBlock || selectedPageEditLocked) {
+    (scope: FormatApplyScope, groupIds: BlockFormatGroupId[]) => {
+      if (
+        !currentChapter ||
+        !selectedBlock ||
+        selectedPageEditLocked ||
+        groupIds.length === 0
+      ) {
         return;
       }
       if (scope === "chapter" && jobActive) {
         pushStatus(
-          "작업 중에는 전체 페이지 폰트 일괄 적용을 사용할 수 없습니다.",
+          "작업 중에는 이 화 전체 서식 일괄 적용을 사용할 수 없습니다.",
         );
         return;
       }
-      const targetPageIds =
-        scope === "page"
-          ? selectedPage
-            ? [selectedPage.id]
-            : []
-          : currentChapter.pages.map((page) => page.id);
+      const targetPageIds = resolveFormatTargetPageIds(
+        scope,
+        currentChapter,
+        selectedPage,
+      );
       if (targetPageIds.length === 0) {
         return;
       }
-      const targetSet = new Set(targetPageIds);
-      const stamp = new Date().toISOString();
+      // For "selection" scope, only the multi-selected block ids are touched.
+      const blockIdFilter =
+        scope === "selection" ? new Set(selectedBlockIds) : null;
+      const patch = pickBlockFormat(selectedBlock, groupIds);
       targetPageIds.forEach((id) => markDirty(id));
-      const next = {
-        ...currentChapter,
-        pages: currentChapter.pages.map((page) =>
-          targetSet.has(page.id)
-            ? {
-                ...page,
-                updatedAt: stamp,
-                blocks: page.blocks.map((block) => ({ ...block, fontFamily })),
-              }
-            : page,
-        ),
-      };
+      const next = applyFormatToChapterPages(
+        currentChapter,
+        new Set(targetPageIds),
+        blockIdFilter,
+        patch,
+      );
       currentChapterRef.current = next;
       setCurrentChapter(next);
-      pushStatus(
-        scope === "page"
-          ? "이 페이지의 모든 블록에 폰트를 적용했습니다."
-          : "이 화 전체 블록에 폰트를 적용했습니다.",
-      );
+      pushStatus(resolveFormatApplyStatus(scope, blockIdFilter?.size ?? 0));
     },
     [
       currentChapter,
@@ -209,11 +216,78 @@ function useApplyFontToScopeAction({
       markDirty,
       pushStatus,
       selectedBlock,
+      selectedBlockIds,
       selectedPage,
       selectedPageEditLocked,
       setCurrentChapter,
     ],
   );
+}
+
+function resolveFormatTargetPageIds(
+  scope: FormatApplyScope,
+  currentChapter: ChapterSnapshot,
+  selectedPage: MangaPage | null,
+): string[] {
+  if (scope === "chapter") {
+    return currentChapter.pages.map((page) => page.id);
+  }
+  return selectedPage ? [selectedPage.id] : [];
+}
+
+function applyFormatToChapterPages(
+  currentChapter: ChapterSnapshot,
+  targetPageIds: Set<string>,
+  blockIdFilter: Set<string> | null,
+  patch: Partial<TranslationBlock>,
+): ChapterSnapshot {
+  const stamp = new Date().toISOString();
+  return {
+    ...currentChapter,
+    pages: currentChapter.pages.map((page) =>
+      targetPageIds.has(page.id)
+        ? {
+            ...page,
+            updatedAt: stamp,
+            blocks: page.blocks.map((block) =>
+              blockIdFilter && !blockIdFilter.has(block.id)
+                ? block
+                : applyFormatPatchToBlock(block, patch),
+            ),
+          }
+        : page,
+    ),
+  };
+}
+
+function applyFormatPatchToBlock(
+  block: TranslationBlock,
+  patch: Partial<TranslationBlock>,
+): TranslationBlock {
+  const next = { ...block, ...patch };
+  if (patch.renderDirection !== undefined) {
+    next.renderDirection = normalizeRenderDirection(
+      patch.renderDirection,
+      block.renderDirection,
+    );
+  }
+  if (patch.rotationDeg !== undefined) {
+    next.rotationDeg = normalizeRotationDeg(patch.rotationDeg);
+  }
+  return next;
+}
+
+function resolveFormatApplyStatus(
+  scope: FormatApplyScope,
+  selectionCount: number,
+): string {
+  if (scope === "selection") {
+    return `선택한 블록 ${selectionCount}개에 서식을 적용했습니다.`;
+  }
+  if (scope === "page") {
+    return "이 페이지의 모든 블록에 서식을 적용했습니다.";
+  }
+  return "이 화 전체 블록에 서식을 적용했습니다.";
 }
 
 function useDeleteSelectedBlockAction({

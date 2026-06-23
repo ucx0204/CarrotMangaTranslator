@@ -183,6 +183,7 @@ function usePointerController(
     setRetouchCursorPoint: retouch.setRetouchCursorPoint,
     setRetouchPreview: retouch.setRetouchPreview,
     setSelectedBlockId: core.setSelectedBlockId,
+    setSelectedBlockIds: core.setSelectedBlockIds,
     stageRef: core.stageRef,
     translateSelectedRegion,
     updateCurrentChapter,

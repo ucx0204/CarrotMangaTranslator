@@ -1,6 +1,7 @@
 import type {
   AppSettings,
   ApiReasoningEffort,
+  BlockFormatDefaults,
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
@@ -46,6 +47,7 @@ type BuildSettingsFromFormInput = {
   inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
   keybindings: KeybindingOverrides;
+  blockFormatDefaults: BlockFormatDefaults;
   maxTokens: number;
   ctx: number;
 };
@@ -71,6 +73,7 @@ export function buildSettingsFromForm(
       koharuBackend: input.initialSettings.inpainting?.koharuBackend ?? "auto",
     },
     keybindings: input.keybindings,
+    blockFormatDefaults: input.blockFormatDefaults,
     maxTokens: input.maxTokens,
     ctx: input.ctx,
   };

@@ -41,6 +41,7 @@ export function OverlayBlockLayer({
   onToggleBlockExcluded,
   page,
   selectedBlockId,
+  selectedBlockIds,
   showBlockChrome,
   showTextBlocks,
   stageSize,
@@ -53,6 +54,7 @@ export function OverlayBlockLayer({
   | "onToggleBlockExcluded"
   | "page"
   | "selectedBlockId"
+  | "selectedBlockIds"
   | "showBlockChrome"
   | "showTextBlocks"
   | "stageSize"
@@ -60,6 +62,8 @@ export function OverlayBlockLayer({
   if (!imageDataUrl || !stageSize || !showTextBlocks) {
     return null;
   }
+  const multiSelection = selectedBlockIds && selectedBlockIds.length > 1;
+  const multiSelectedIds = multiSelection ? new Set(selectedBlockIds) : null;
   return (
     <>
       {page.blocks.map((block) => (
@@ -69,6 +73,7 @@ export function OverlayBlockLayer({
           pageSize={{ width: page.width, height: page.height }}
           stageSize={stageSize}
           selected={block.id === selectedBlockId}
+          multiSelected={multiSelectedIds?.has(block.id) ?? false}
           showChrome={showBlockChrome}
           showExcluded={inpaintingMode ?? false}
           pointerDisabled={blockPointerDisabled ?? false}

@@ -33,6 +33,7 @@ export function useChapterSessionController() {
     peekOriginal: uiState.peekOriginal,
     regionSelection: core.regionSelection,
     selectedBlockId: core.selectedBlockId,
+    selectedBlockIds: core.selectedBlockIds,
     selectedPageId: core.selectedPageId,
   });
   const runtime = useChapterRuntimeController({

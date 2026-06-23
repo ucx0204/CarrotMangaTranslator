@@ -1,4 +1,9 @@
-import type { AppSettings, GemmaVramMode } from "../../shared/types";
+import type {
+  AppSettings,
+  BlockFormatDefaults,
+  GemmaVramMode,
+} from "../../shared/types";
+import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
 import {
   asRecord,
   inferHardwareVendorFromDefaults,
@@ -7,6 +12,7 @@ import {
   resolveCodexReasoningEffort,
   resolveContextTokens,
   resolveGemmaVramMode,
+  resolveHexColor,
   resolveMaxTokens,
   resolveModelProvider,
   resolveModelSource,
@@ -14,6 +20,7 @@ import {
   resolveNullableNumberRange,
   resolveNullableReasoningEffort,
   resolveNonEmptyString,
+  resolveNumberRange,
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOpenAiCompatibleBaseUrl,
@@ -38,26 +45,28 @@ export function normalizeAppSettings(
   raw: unknown,
   defaults = resolveDefaultAppSettings(),
 ): AppSettings {
-  const record = asRecord(raw);
-  const gemma = asRecord(record?.gemma);
-  const api = asRecord(record?.api);
-  const ocr = asRecord(record?.ocr);
-  const ui = asRecord(record?.ui);
-  const inpainting = asRecord(record?.inpainting);
+  const record = asRecord(raw) ?? {};
   return {
     modelProvider: resolveModelProvider(
-      record?.modelProvider,
+      record.modelProvider,
       defaults.modelProvider,
     ),
-    gemma: normalizeGemmaSettings(gemma, defaults),
-    codex: normalizeCodexSettings(asRecord(record?.codex), defaults),
-    api: normalizeApiSettings(api, defaults),
-    ocr: normalizeOcrSettings(ocr, defaults),
-    ui: normalizeUiSettings(ui, defaults),
-    inpainting: normalizeInpaintingSettings(inpainting, defaults),
-    keybindings: normalizeKeybindings(record?.keybindings, defaults),
-    maxTokens: resolveMaxTokens(record?.maxTokens, defaults.maxTokens),
-    ctx: resolveContextTokens(record?.ctx, defaults.ctx),
+    gemma: normalizeGemmaSettings(asRecord(record.gemma), defaults),
+    codex: normalizeCodexSettings(asRecord(record.codex), defaults),
+    api: normalizeApiSettings(asRecord(record.api), defaults),
+    ocr: normalizeOcrSettings(asRecord(record.ocr), defaults),
+    ui: normalizeUiSettings(asRecord(record.ui), defaults),
+    inpainting: normalizeInpaintingSettings(
+      asRecord(record.inpainting),
+      defaults,
+    ),
+    blockFormatDefaults: normalizeBlockFormatDefaults(
+      asRecord(record.blockFormatDefaults),
+      defaults,
+    ),
+    keybindings: normalizeKeybindings(record.keybindings, defaults),
+    maxTokens: resolveMaxTokens(record.maxTokens, defaults.maxTokens),
+    ctx: resolveContextTokens(record.ctx, defaults.ctx),
   };
 }
 
@@ -269,6 +278,63 @@ function normalizeUiSettings(
       defaults.ui?.analysisScopeDefault ?? "missing",
     ),
   };
+}
+
+function normalizeBlockFormatDefaults(
+  raw: Record<string, unknown> | null,
+  defaults: AppSettings,
+): NonNullable<AppSettings["blockFormatDefaults"]> {
+  const base = defaults.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS;
+  const data = raw ?? {};
+  const fontFamily = resolveOptionalString(data.fontFamily);
+  return {
+    renderDirection: resolveBlockFormatDirection(
+      data.renderDirection,
+      base.renderDirection,
+    ),
+    textAlign: resolveTextAlign(data.textAlign, base.textAlign),
+    ...(fontFamily ? { fontFamily } : {}),
+    autoFitText: resolveBoolean(data.autoFitText, base.autoFitText),
+    fontSizePx: Math.round(
+      resolveNumberRange(data.fontSizePx, base.fontSizePx, 1, 512),
+    ),
+    lineHeight: resolveNumberRange(data.lineHeight, base.lineHeight, 0.5, 4),
+    letterSpacing: resolveNumberRange(
+      data.letterSpacing,
+      base.letterSpacing,
+      -0.5,
+      2,
+    ),
+    textColor: resolveHexColor(data.textColor, base.textColor),
+    outlineEnabled: resolveBoolean(data.outlineEnabled, base.outlineEnabled),
+    outlineColor: resolveHexColor(data.outlineColor, base.outlineColor),
+    outlineWidthScale: resolveNumberRange(
+      data.outlineWidthScale,
+      base.outlineWidthScale,
+      0,
+      8,
+    ),
+    bold: resolveBoolean(data.bold, base.bold),
+    italic: resolveBoolean(data.italic, base.italic),
+  };
+}
+
+function resolveBlockFormatDirection(
+  value: unknown,
+  fallback: BlockFormatDefaults["renderDirection"],
+): BlockFormatDefaults["renderDirection"] {
+  return value === "auto" || value === "horizontal" || value === "vertical"
+    ? value
+    : fallback;
+}
+
+function resolveTextAlign(
+  value: unknown,
+  fallback: BlockFormatDefaults["textAlign"],
+): BlockFormatDefaults["textAlign"] {
+  return value === "left" || value === "center" || value === "right"
+    ? value
+    : fallback;
 }
 
 function normalizeInpaintingSettings(

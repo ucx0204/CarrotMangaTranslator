@@ -1,6 +1,8 @@
 import React from "react";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import { normalizeRenderDirection } from "../../../shared/geometry";
+import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
 import {
   BlockActionButtons,
   ColorEditorGroup,
@@ -19,9 +21,13 @@ type EditorPanelProps = {
   disabled: boolean;
   areaTranslateAvailable?: boolean;
   areaTranslateSelecting?: boolean;
-  disableChapterFontApply?: boolean;
+  disableChapterApply?: boolean;
+  selectedBlockCount?: number;
   onStartAreaTranslate?: () => void;
-  onApplyFont?: (scope: "page" | "chapter", fontFamily?: string) => void;
+  onApplyFormat?: (
+    scope: FormatApplyScope,
+    groupIds: BlockFormatGroupId[],
+  ) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -32,9 +38,10 @@ export function EditorPanel({
   disabled,
   areaTranslateAvailable = false,
   areaTranslateSelecting = false,
-  disableChapterFontApply = false,
+  disableChapterApply = false,
+  selectedBlockCount = 0,
   onStartAreaTranslate,
-  onApplyFont,
+  onApplyFormat,
   onUpdate,
   onDelete,
   onDuplicate,
@@ -66,12 +73,13 @@ export function EditorPanel({
       <FormatEditorGroup
         block={block}
         disabled={disabled}
-        disableChapterFontApply={disableChapterFontApply}
+        disableChapterApply={disableChapterApply}
         fontFamilyDraft={fontFamilyDraft}
         model={model}
-        onApplyFont={onApplyFont}
+        onApplyFormat={onApplyFormat}
         onFontFamilyDraftChange={setFontFamilyDraft}
         onUpdate={onUpdate}
+        selectedBlockCount={selectedBlockCount}
       />
       <ColorEditorGroup
         block={block}

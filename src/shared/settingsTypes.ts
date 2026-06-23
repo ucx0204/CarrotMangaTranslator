@@ -3,12 +3,17 @@ import type {
   InpaintingModel,
   KoharuInpaintingBackend,
 } from "./inpaintingSettingsTypes";
+import type { BlockFormatDefaults } from "./blockFormat";
 
 export type {
   FluxBackend,
   InpaintingModel,
   KoharuInpaintingBackend,
 } from "./inpaintingSettingsTypes";
+export type {
+  BlockFormatDefaults,
+  BlockFormatDirectionDefault,
+} from "./blockFormat";
 
 export type ModelProvider = "gemma" | "openai-codex" | "openai-api";
 export type ModelSource = "huggingface" | "local";
@@ -110,6 +115,8 @@ export type AppSettings = {
   ocr: OcrSettings;
   ui?: UiSettings;
   inpainting?: InpaintingSettings;
+  /** Default text-block formatting applied to newly created blocks. */
+  blockFormatDefaults?: BlockFormatDefaults;
   keybindings?: KeybindingOverrides;
   runtimeHardware?: RuntimeHardwareInfo;
   maxTokens: number;

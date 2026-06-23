@@ -6,6 +6,7 @@ export type {
   SourceTextDirection,
   TranslationBlock,
 } from "./textTypes";
+export type { BlockFormatDefaults } from "./blockFormat";
 export type {
   AmdRocmTarget,
   ApiReasoningEffort,

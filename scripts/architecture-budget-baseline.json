@@ -11,11 +11,14 @@
     "src/shared/jobTypes.ts": {
       "maxImportedBy": 35
     },
+    "src/shared/textTypes.ts": {
+      "maxImportedBy": 26
+    },
     "src/shared/settingsTypes.ts": {
-      "maxImportedBy": 31
+      "maxImportedBy": 32
     },
     "src/renderer/src/components/ui/index.ts": {
-      "maxImportedBy": 33
+      "maxImportedBy": 35
     },
     "src/renderer/src/lib/appHelpers.ts": {
       "maxImportedBy": 26

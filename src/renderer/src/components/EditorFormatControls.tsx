@@ -1,7 +1,10 @@
 import React from "react";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import { BlockSpacingFields } from "./BlockSpacingFields";
 import { FontSelect } from "./FontSelect";
+import { FormatBatchApplyModal } from "./FormatBatchApplyModal";
+import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
 import { Button, FieldSlider, IconButton, RangeInput } from "./ui";
 import {
   AlignCenterIcon,
@@ -13,9 +16,9 @@ import {
 import { clampFontSize, type EditorPanelModel } from "./editorPanelUtils";
 
 type BlockPatchHandler = (patch: Partial<TranslationBlock>) => void;
-type ApplyFontHandler = (
-  scope: "page" | "chapter",
-  fontFamily?: string,
+type ApplyFormatHandler = (
+  scope: FormatApplyScope,
+  groupIds: BlockFormatGroupId[],
 ) => void;
 
 type BlockSectionProps = {
@@ -27,24 +30,46 @@ type BlockSectionProps = {
 export function FormatEditorGroup({
   block,
   disabled,
-  disableChapterFontApply,
+  disableChapterApply,
   fontFamilyDraft,
   model,
-  onApplyFont,
+  onApplyFormat,
   onFontFamilyDraftChange,
   onUpdate,
+  selectedBlockCount,
 }: BlockSectionProps & {
-  disableChapterFontApply: boolean;
+  disableChapterApply: boolean;
   fontFamilyDraft?: string;
   model: EditorPanelModel;
-  onApplyFont?: ApplyFontHandler;
+  onApplyFormat?: ApplyFormatHandler;
   onFontFamilyDraftChange: (fontFamily?: string) => void;
+  selectedBlockCount: number;
 }): React.JSX.Element {
+  const [applyOpen, setApplyOpen] = React.useState(false);
   return (
     <div className="editor-group">
       <div className="editor-group-head">
         <h3>서식</h3>
+        {onApplyFormat ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            onClick={() => setApplyOpen(true)}
+            title="이 블록의 서식을 다른 블록에 일괄 적용"
+          >
+            일괄 적용
+          </Button>
+        ) : null}
       </div>
+      {applyOpen && onApplyFormat ? (
+        <FormatBatchApplyModal
+          selectedBlockCount={selectedBlockCount}
+          disableChapterApply={disableChapterApply}
+          onApply={onApplyFormat}
+          onClose={() => setApplyOpen(false)}
+        />
+      ) : null}
       <StyleToolbar
         block={block}
         disabled={disabled}
@@ -53,9 +78,7 @@ export function FormatEditorGroup({
       />
       <FontField
         disabled={disabled}
-        disableChapterFontApply={disableChapterFontApply}
         fontFamilyDraft={fontFamilyDraft}
-        onApplyFont={onApplyFont}
         onFontFamilyDraftChange={onFontFamilyDraftChange}
         onUpdate={onUpdate}
       />
@@ -204,16 +227,12 @@ function DirectionToggle({
 
 function FontField({
   disabled,
-  disableChapterFontApply,
   fontFamilyDraft,
-  onApplyFont,
   onFontFamilyDraftChange,
   onUpdate,
 }: {
   disabled: boolean;
-  disableChapterFontApply: boolean;
   fontFamilyDraft?: string;
-  onApplyFont?: ApplyFontHandler;
   onFontFamilyDraftChange: (fontFamily?: string) => void;
   onUpdate: BlockPatchHandler;
 }): React.JSX.Element {
@@ -227,50 +246,6 @@ function FontField({
           onUpdate({ fontFamily });
         }}
       />
-      {onApplyFont ? (
-        <FontApplyButtons
-          disabled={disabled}
-          disableChapterFontApply={disableChapterFontApply}
-          fontFamilyDraft={fontFamilyDraft}
-          onApplyFont={onApplyFont}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function FontApplyButtons({
-  disabled,
-  disableChapterFontApply,
-  fontFamilyDraft,
-  onApplyFont,
-}: {
-  disabled: boolean;
-  disableChapterFontApply: boolean;
-  fontFamilyDraft?: string;
-  onApplyFont: ApplyFontHandler;
-}): React.JSX.Element {
-  return (
-    <div className="font-apply-row">
-      <span className="font-apply-label">일괄 적용</span>
-      <div className="font-apply-buttons">
-        <Button
-          size="sm"
-          disabled={disabled}
-          onClick={() => onApplyFont("page", fontFamilyDraft)}
-          title="이 폰트를 이 페이지의 모든 블록에 적용"
-        >
-          페이지
-        </Button>
-        <Button
-          size="sm"
-          disabled={disabled || disableChapterFontApply}
-          onClick={() => onApplyFont("chapter", fontFamilyDraft)}
-          title="이 폰트를 이 화의 모든 페이지·블록에 적용"
-        >
-          전체
-        </Button>
-      </div>
     </div>
   );
 }

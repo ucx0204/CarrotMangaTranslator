@@ -55,6 +55,9 @@ export function buildBaseTranslationOptions({
     hfHomeDir: paths.hfHomeDir,
     hfHubCacheDir: paths.hfHubCacheDir,
     llamaCacheDir: paths.llamaCacheDir,
+    ...(settings.blockFormatDefaults
+      ? { blockFormatDefaults: settings.blockFormatDefaults }
+      : {}),
     label: `app-${jobId}`,
   };
 }

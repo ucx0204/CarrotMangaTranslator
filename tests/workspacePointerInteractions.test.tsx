@@ -134,6 +134,7 @@ function WorkspacePointerHarness({
   const [regionSelection, setRegionSelection] =
     useState<RegionSelectionState | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [, setSelectedBlockIds] = useState<string[]>([]);
   const [, setRetouchCursorPoint] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -179,6 +180,7 @@ function WorkspacePointerHarness({
     setRetouchCursorPoint,
     setRetouchPreview,
     setSelectedBlockId,
+    setSelectedBlockIds,
     stageRef,
     translateSelectedRegion,
     updateCurrentChapter,

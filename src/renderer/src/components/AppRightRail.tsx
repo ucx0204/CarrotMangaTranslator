@@ -2,6 +2,8 @@ import React from "react";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import type { BlockFormatGroupId } from "../../../shared/blockFormat";
+import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { InpaintingRightRail, TranslationRightRail } from "./rightRailPanels";
 
@@ -10,6 +12,7 @@ type AppRightRailProps = {
   currentChapter: ChapterSnapshot | null;
   selectedPage: MangaPage | null;
   selectedBlock: TranslationBlock | null;
+  selectedBlockCount: number;
   selectedPageImageDataUrl: string;
   selectedPageEditLocked: boolean;
   jobState: JobState;
@@ -29,7 +32,10 @@ type AppRightRailProps = {
   onEnterInpainting: () => void;
   onCancelJob: () => void;
   onStartAreaTranslate: () => void;
-  onApplyFont: (scope: "page" | "chapter", fontFamily?: string) => void;
+  onApplyFormat: (
+    scope: FormatApplyScope,
+    groupIds: BlockFormatGroupId[],
+  ) => void;
   onUpdateBlock: (patch: Partial<TranslationBlock>) => void;
   onDeleteBlock: () => void;
   onDuplicateBlock: () => void;
@@ -71,7 +77,7 @@ function InpaintingRailContent({
       editorDisabled={editorDisabled}
       jobActive={railProps.jobActive}
       jobState={railProps.jobState}
-      onApplyFont={railProps.onApplyFont}
+      onApplyFormat={railProps.onApplyFormat}
       onBlockDelete={railProps.onDeleteBlock}
       onBlockDuplicate={railProps.onDuplicateBlock}
       onBlockUpdate={railProps.onUpdateBlock}
@@ -79,6 +85,7 @@ function InpaintingRailContent({
       onStartAreaTranslate={railProps.onStartAreaTranslate}
       progressSnapshot={railProps.progressSnapshot}
       selectedBlock={railProps.selectedBlock}
+      selectedBlockCount={railProps.selectedBlockCount}
       selectedPage={railProps.selectedPage}
       selectedPageImageDataUrl={railProps.selectedPageImageDataUrl}
     />
@@ -100,7 +107,7 @@ function TranslationRailContent({
       flowActive={railProps.flowActive}
       jobActive={railProps.jobActive}
       jobState={railProps.jobState}
-      onApplyFont={railProps.onApplyFont}
+      onApplyFormat={railProps.onApplyFormat}
       onBlockDelete={railProps.onDeleteBlock}
       onBlockDuplicate={railProps.onDuplicateBlock}
       onBlockUpdate={railProps.onUpdateBlock}
@@ -114,6 +121,7 @@ function TranslationRailContent({
       onToggleChrome={railProps.onToggleChrome}
       progressSnapshot={railProps.progressSnapshot}
       selectedBlock={railProps.selectedBlock}
+      selectedBlockCount={railProps.selectedBlockCount}
       selectedPage={railProps.selectedPage}
       selectedPageImageDataUrl={railProps.selectedPageImageDataUrl}
       showBlockChrome={railProps.showBlockChrome}

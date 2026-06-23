@@ -3,6 +3,8 @@ import type { CSSProperties } from "react";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import type { BlockFormatGroupId } from "../../../shared/blockFormat";
+import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { EditorPanel } from "./EditorPanel";
 import {
@@ -13,10 +15,14 @@ import { RunPanel, StatusPanel } from "./RunStatusPanels";
 import { Button } from "./ui";
 
 type SharedRailActions = {
-  onApplyFont: (scope: "page" | "chapter", fontFamily?: string) => void;
+  onApplyFormat: (
+    scope: FormatApplyScope,
+    groupIds: BlockFormatGroupId[],
+  ) => void;
   onBlockDelete: () => void;
   onBlockDuplicate: () => void;
   onBlockUpdate: (patch: Partial<TranslationBlock>) => void;
+  selectedBlockCount: number;
 };
 
 type AreaTranslationProps = {
@@ -64,7 +70,7 @@ export function InpaintingRightRail({
   editorDisabled,
   jobActive,
   jobState,
-  onApplyFont,
+  onApplyFormat,
   onBlockDelete,
   onBlockDuplicate,
   onBlockUpdate,
@@ -72,6 +78,7 @@ export function InpaintingRightRail({
   onStartAreaTranslate,
   progressSnapshot,
   selectedBlock,
+  selectedBlockCount,
   selectedPage,
   selectedPageImageDataUrl,
 }: InpaintingRightRailProps): React.JSX.Element {
@@ -82,8 +89,9 @@ export function InpaintingRightRail({
         <EditorPanel
           block={selectedBlock}
           disabled={editorDisabled}
-          disableChapterFontApply={jobActive}
-          onApplyFont={onApplyFont}
+          disableChapterApply={jobActive}
+          onApplyFormat={onApplyFormat}
+          selectedBlockCount={selectedBlockCount}
           onUpdate={onBlockUpdate}
           onDelete={onBlockDelete}
           onDuplicate={onBlockDuplicate}
@@ -161,12 +169,13 @@ function TranslationEditorPanel({
   areaTranslateSelecting,
   editorDisabled,
   jobActive,
-  onApplyFont,
+  onApplyFormat,
   onBlockDelete,
   onBlockDuplicate,
   onBlockUpdate,
   onStartAreaTranslate,
   selectedBlock,
+  selectedBlockCount,
   selectedPage,
   selectedPageImageDataUrl,
 }: SharedRailActions & {
@@ -182,13 +191,14 @@ function TranslationEditorPanel({
     <EditorPanel
       block={selectedBlock}
       disabled={editorDisabled}
-      disableChapterFontApply={jobActive}
+      disableChapterApply={jobActive}
       areaTranslateAvailable={Boolean(
         selectedPage && selectedPageImageDataUrl && !jobActive,
       )}
       areaTranslateSelecting={areaTranslateSelecting}
       onStartAreaTranslate={onStartAreaTranslate}
-      onApplyFont={onApplyFont}
+      onApplyFormat={onApplyFormat}
+      selectedBlockCount={selectedBlockCount}
       onUpdate={onBlockUpdate}
       onDelete={onBlockDelete}
       onDuplicate={onBlockDuplicate}

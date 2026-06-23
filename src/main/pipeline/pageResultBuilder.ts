@@ -145,7 +145,13 @@ export async function buildPageResult({
   const normalizedItems = buildNormalizedItems(page, result, items);
   const soundFiltered = filterRejectedOrUncertainSoundItems(normalizedItems);
   const blocks = soundFiltered.items.map((item, itemIndex) =>
-    overlayItemToBlock(item, page, itemIndex, jobId),
+    overlayItemToBlock(
+      item,
+      page,
+      itemIndex,
+      jobId,
+      pageOptions.blockFormatDefaults,
+    ),
   );
   return {
     kind: "completed",

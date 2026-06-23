@@ -1,5 +1,6 @@
 import type {
   AppSettings,
+  BlockFormatDefaults,
   KeybindingOverrides,
 } from "../../../../shared/settingsTypes";
 import { buildSettingsFromForm } from "../settingsFormBuilder";
@@ -12,16 +13,19 @@ export function buildSettingsFromDraft({
   draft,
   initialSettings,
   keybindings,
+  blockFormatDefaults,
   values,
 }: {
   draft: SettingsDraft;
   initialSettings: AppSettings;
   keybindings: KeybindingOverrides;
+  blockFormatDefaults: BlockFormatDefaults;
   values: SettingsFormValues;
 }): AppSettings {
   return buildSettingsFromForm({
     initialSettings,
     keybindings,
+    blockFormatDefaults,
     modelProvider: values.modelProvider,
     modelSource: values.modelSource,
     modelRepo: draft.trimmedModelRepo,

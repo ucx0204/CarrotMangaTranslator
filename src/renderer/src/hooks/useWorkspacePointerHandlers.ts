@@ -63,6 +63,7 @@ type UseWorkspacePointerHandlersOptions = {
   >;
   setRetouchPreview: Dispatch<SetStateAction<RetouchPreviewState | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
+  setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
   stageRef: RefObject<HTMLDivElement | null>;
   translateSelectedRegion: (bbox: {
     x: number;
@@ -106,6 +107,7 @@ export function useWorkspacePointerHandlers(
     selectedPage: options.selectedPage,
     selectedPageEditLocked: options.selectedPageEditLocked,
     setSelectedBlockId: options.setSelectedBlockId,
+    setSelectedBlockIds: options.setSelectedBlockIds,
     stageRef: options.stageRef,
     updateCurrentChapter: options.updateCurrentChapter,
   });
@@ -131,6 +133,7 @@ export function useWorkspacePointerHandlers(
     inpaintingHandlers,
     regionSelectionHandlers,
     setSelectedBlockId: options.setSelectedBlockId,
+    setSelectedBlockIds: options.setSelectedBlockIds,
   });
 
   return {
@@ -212,6 +215,7 @@ function useStagePointerRouter({
   inpaintingHandlers,
   regionSelectionHandlers,
   setSelectedBlockId,
+  setSelectedBlockIds,
 }: {
   blockDrag: ReturnType<typeof useWorkspaceBlockDragHandlers>;
   inpaintingHandlers: ReturnType<typeof useWorkspaceInpaintingPointerHandlers>;
@@ -219,6 +223,7 @@ function useStagePointerRouter({
     typeof useWorkspaceRegionSelectionHandlers
   >;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
+  setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
 }): {
   onStagePointerDown: (event: PointerEvent) => void;
   onStagePointerLeave: () => void;
@@ -234,8 +239,14 @@ function useStagePointerRouter({
         return;
       }
       setSelectedBlockId(null);
+      setSelectedBlockIds([]);
     },
-    [inpaintingHandlers, regionSelectionHandlers, setSelectedBlockId],
+    [
+      inpaintingHandlers,
+      regionSelectionHandlers,
+      setSelectedBlockId,
+      setSelectedBlockIds,
+    ],
   );
   const onStagePointerMove = useCallback(
     (event: PointerEvent) => {

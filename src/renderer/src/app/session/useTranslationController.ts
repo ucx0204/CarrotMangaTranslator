@@ -26,6 +26,7 @@ export function useTranslationController(chapter: ChapterSessionController) {
     markDirty: chapter.persistence.markDirty,
     pushStatus: chapter.statusLog.pushStatus,
     selectedBlock: chapter.derivedState.selectedBlock,
+    selectedBlockIds: chapter.derivedState.selectedBlockIds,
     selectedPage: chapter.derivedState.selectedPage,
     selectedPageEditLocked: chapter.derivedState.selectedPageEditLocked,
     setCurrentChapter: chapter.core.setCurrentChapter,

@@ -15,6 +15,7 @@ import {
   OcrGpuBackendSchema,
   OpenAiCompatibleBaseUrlSchema,
   filePath,
+  hexColor,
 } from "./ipcSchemaPrimitives";
 
 export const AppSettingsSchema = z
@@ -77,6 +78,24 @@ export const AppSettingsSchema = z
         model: InpaintingModelSchema.optional(),
         fluxBackend: FluxBackendSchema.optional(),
         koharuBackend: KoharuInpaintingBackendSchema.optional(),
+      })
+      .strict()
+      .optional(),
+    blockFormatDefaults: z
+      .object({
+        renderDirection: z.enum(["auto", "horizontal", "vertical"]),
+        textAlign: z.enum(["left", "center", "right"]),
+        fontFamily: z.string().max(120).optional(),
+        autoFitText: z.boolean(),
+        fontSizePx: z.number().min(1).max(512),
+        lineHeight: z.number().min(0.5).max(4),
+        letterSpacing: z.number().min(-0.5).max(2),
+        textColor: hexColor,
+        outlineEnabled: z.boolean(),
+        outlineColor: hexColor,
+        outlineWidthScale: z.number().min(0).max(8),
+        bold: z.boolean(),
+        italic: z.boolean(),
       })
       .strict()
       .optional(),

@@ -1,4 +1,5 @@
 import type {
+  BlockFormatDefaults,
   CodexReasoningEffort,
   ApiReasoningEffort,
   GemmaVramMode,
@@ -27,6 +28,8 @@ export type TranslationOptions = {
   topK: number;
   maxTokens: number;
   ctx: number;
+  /** User default formatting applied to blocks created from this run. */
+  blockFormatDefaults?: BlockFormatDefaults;
   batch: number;
   ubatch: number;
   gemmaVramMode: GemmaVramMode;

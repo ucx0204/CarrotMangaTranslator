@@ -35,6 +35,7 @@ export function ImageStage({
   retouchCursor = null,
   retouchPreview = null,
   selectedBlockId,
+  selectedBlockIds,
   showBlockChrome,
   showTextBlocks,
   stageRef,
@@ -70,6 +71,7 @@ export function ImageStage({
       retouchModel={retouchModel}
       retouchPreview={retouchPreview}
       selectedBlockId={selectedBlockId}
+      selectedBlockIds={selectedBlockIds}
       showBlockChrome={showBlockChrome}
       showTextBlocks={showTextBlocks}
       stageRef={stageRef}
@@ -98,6 +100,7 @@ function ImageStageFrame({
   retouchModel,
   retouchPreview = null,
   selectedBlockId,
+  selectedBlockIds,
   showBlockChrome,
   showTextBlocks,
   stageRef,
@@ -138,6 +141,7 @@ function ImageStageFrame({
           retouchModel={retouchModel}
           retouchPreview={retouchPreview}
           selectedBlockId={selectedBlockId}
+          selectedBlockIds={selectedBlockIds}
           showBlockChrome={showBlockChrome}
           showTextBlocks={showTextBlocks}
           stageSize={stageSize}
@@ -163,6 +167,7 @@ function ImageStageLayerSet({
   retouchModel,
   retouchPreview = null,
   selectedBlockId,
+  selectedBlockIds,
   showBlockChrome,
   showTextBlocks,
   stageSize,
@@ -188,6 +193,7 @@ function ImageStageLayerSet({
         onToggleBlockExcluded={onToggleBlockExcluded}
         page={page}
         selectedBlockId={selectedBlockId}
+        selectedBlockIds={selectedBlockIds}
         showBlockChrome={showBlockChrome}
         showTextBlocks={showTextBlocks}
         stageSize={stageSize}

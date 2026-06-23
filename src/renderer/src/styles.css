@@ -1704,21 +1704,86 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   font-size: var(--font-sm);
 }
 
-.font-apply-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--sp-3);
+/* 서식 일괄 적용 modal */
+.format-apply-section {
+  margin-top: var(--sp-4);
 }
 
-.font-apply-label {
+.format-apply-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
   font-size: var(--font-xs);
   color: var(--text-muted);
 }
 
-.font-apply-buttons {
+.format-apply-toggle-all {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent-fg, var(--accent-bd));
+  font-size: var(--font-xs);
+  cursor: pointer;
+}
+
+.format-apply-toggle-all:hover {
+  text-decoration: underline;
+}
+
+.format-apply-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2) var(--sp-4);
+}
+
+.format-apply-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+/* The global `input { width: 100% }` rule otherwise stretches the checkbox. */
+.format-apply-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.format-apply-scope {
   display: flex;
   gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.format-apply-scope-button {
+  flex: 1 1 auto;
+  min-height: var(--ctl-h);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--surface-1, transparent);
+  color: inherit;
+  cursor: pointer;
+}
+
+.format-apply-scope-button:hover:not(:disabled) {
+  border-color: var(--accent-bd);
+}
+
+.format-apply-scope-button[aria-pressed="true"] {
+  border-color: var(--accent-bd);
+  background: var(--accent-bg, rgba(239, 68, 68, 0.12));
+}
+
+.format-apply-scope-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* Compact single-row toolbar grouping text style, alignment and writing direction */
@@ -2346,6 +2411,11 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 
 .overlay-block.selected {
   outline: 2px solid var(--accent-bd);
+  outline-offset: 2px;
+}
+
+.overlay-block.multi-selected:not(.selected) {
+  outline: 2px dashed var(--accent-bd);
   outline-offset: 2px;
 }
 

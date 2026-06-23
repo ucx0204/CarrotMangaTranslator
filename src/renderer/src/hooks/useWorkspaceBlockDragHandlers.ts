@@ -34,6 +34,7 @@ type UseWorkspaceBlockDragHandlersOptions = {
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
   setSelectedBlockId: (blockId: string | null) => void;
+  setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
   stageRef: RefObject<HTMLDivElement | null>;
   updateCurrentChapter: (
     pageId: string,
@@ -119,6 +120,7 @@ function useBlockPointerDown(
     selectedPage,
     selectedPageEditLocked,
     setSelectedBlockId,
+    setSelectedBlockIds,
     stageRef,
   }: UseWorkspaceBlockDragHandlersOptions,
   dragRef: BlockDragRef,
@@ -136,7 +138,18 @@ function useBlockPointerDown(
       }
       event.preventDefault();
       event.stopPropagation();
+      // Ctrl/⌘+click toggles multi-selection without starting a drag.
+      if (event.ctrlKey || event.metaKey) {
+        setSelectedBlockId(block.id);
+        setSelectedBlockIds((current) =>
+          current.includes(block.id)
+            ? current.filter((id) => id !== block.id)
+            : [...current, block.id],
+        );
+        return;
+      }
       setSelectedBlockId(block.id);
+      setSelectedBlockIds([block.id]);
       startBlockDrag({ block, dragRef, event, mode, selectedPage, setDragHud });
       stageRef.current.style.cursor =
         mode === "move" ? "grabbing" : "nwse-resize";
@@ -150,6 +163,7 @@ function useBlockPointerDown(
       selectedPageEditLocked,
       setDragHud,
       setSelectedBlockId,
+      setSelectedBlockIds,
       stageRef,
     ],
   );

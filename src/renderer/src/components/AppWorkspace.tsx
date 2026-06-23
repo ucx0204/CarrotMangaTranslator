@@ -15,6 +15,7 @@ type AppWorkspaceProps = {
   stageRef: ImageStageProps["stageRef"];
   stageSize: ImageStageProps["stageSize"];
   selectedBlockId: string | null;
+  selectedBlockIds: string[];
   showTextBlocks: boolean;
   showBlockChrome: boolean;
   inpaintingMode: boolean;
@@ -40,39 +41,10 @@ type AppWorkspaceProps = {
   onOpenSettings: () => void;
 };
 
-export function AppWorkspace({
-  workspacePanelRef,
-  selectedPage,
-  selectedPageImageDataUrl,
-  imageRef,
-  stageRef,
-  stageSize,
-  selectedBlockId,
-  showTextBlocks,
-  showBlockChrome,
-  inpaintingMode,
-  showingOriginalPeek,
-  inpaintingToolActive,
-  retouchCursor,
-  retouchPreviewLayer,
-  maskStrokes,
-  regionSelectionActive,
-  regionSelectionRect,
-  dragHud,
-  jobState,
-  progressSnapshot,
-  onStagePointerMove,
-  onStagePointerUp,
-  onStagePointerDown,
-  onStagePointerLeave,
-  onBlockPointerDown,
-  onToggleBlockExcluded,
-  onOpenTranslationSource,
-  onOpenBatchImport,
-  onOpenShareImport,
-  onOpenSettings,
-}: AppWorkspaceProps): React.JSX.Element {
-  // Subscribe to custom-font changes so overlay text re-resolves families when fonts load/register.
+// useFonts() subscribes to custom-font changes so overlay text re-resolves
+// families when fonts load/register.
+export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
+  const { workspacePanelRef } = props;
   useFonts();
   return (
     <section
@@ -82,41 +54,45 @@ export function AppWorkspace({
       aria-label="읽기 영역"
       onMouseDown={() => workspacePanelRef.current?.focus()}
     >
-      {selectedPage ? (
+      {props.selectedPage ? (
         <WorkspacePane
-          blockPointerDisabled={inpaintingToolActive}
-          dragHud={dragHud}
-          imageDataUrl={selectedPageImageDataUrl}
-          imageRef={imageRef}
-          inpaintingMode={inpaintingMode}
-          maskStrokes={maskStrokes}
-          onBlockPointerDown={onBlockPointerDown}
-          onStagePointerDown={onStagePointerDown}
-          onStagePointerLeave={onStagePointerLeave}
-          onStagePointerMove={onStagePointerMove}
-          onStagePointerUp={onStagePointerUp}
-          onToggleBlockExcluded={onToggleBlockExcluded}
-          page={selectedPage}
-          regionSelectionActive={regionSelectionActive}
-          regionSelectionRect={regionSelectionRect}
-          retouchCursor={retouchCursor}
-          retouchPreview={retouchPreviewLayer}
-          selectedBlockId={selectedBlockId}
-          showBlockChrome={showBlockChrome && !inpaintingToolActive}
-          showingOriginalPeek={showingOriginalPeek}
-          showTextBlocks={showTextBlocks}
-          stageRef={stageRef}
-          stageSize={stageSize}
+          blockPointerDisabled={props.inpaintingToolActive}
+          dragHud={props.dragHud}
+          imageDataUrl={props.selectedPageImageDataUrl}
+          imageRef={props.imageRef}
+          inpaintingMode={props.inpaintingMode}
+          maskStrokes={props.maskStrokes}
+          onBlockPointerDown={props.onBlockPointerDown}
+          onStagePointerDown={props.onStagePointerDown}
+          onStagePointerLeave={props.onStagePointerLeave}
+          onStagePointerMove={props.onStagePointerMove}
+          onStagePointerUp={props.onStagePointerUp}
+          onToggleBlockExcluded={props.onToggleBlockExcluded}
+          page={props.selectedPage}
+          regionSelectionActive={props.regionSelectionActive}
+          regionSelectionRect={props.regionSelectionRect}
+          retouchCursor={props.retouchCursor}
+          retouchPreview={props.retouchPreviewLayer}
+          selectedBlockId={props.selectedBlockId}
+          selectedBlockIds={props.selectedBlockIds}
+          showBlockChrome={props.showBlockChrome && !props.inpaintingToolActive}
+          showingOriginalPeek={props.showingOriginalPeek}
+          showTextBlocks={props.showTextBlocks}
+          stageRef={props.stageRef}
+          stageSize={props.stageSize}
         />
       ) : (
         <EmptyWorkspace
-          onOpenBatchImport={onOpenBatchImport}
-          onOpenSettings={onOpenSettings}
-          onOpenShareImport={onOpenShareImport}
-          onOpenTranslationSource={onOpenTranslationSource}
+          onOpenBatchImport={props.onOpenBatchImport}
+          onOpenSettings={props.onOpenSettings}
+          onOpenShareImport={props.onOpenShareImport}
+          onOpenTranslationSource={props.onOpenTranslationSource}
         />
       )}
-      <InstallProgressOverlay job={jobState} snapshot={progressSnapshot} />
+      <InstallProgressOverlay
+        job={props.jobState}
+        snapshot={props.progressSnapshot}
+      />
     </section>
   );
 }

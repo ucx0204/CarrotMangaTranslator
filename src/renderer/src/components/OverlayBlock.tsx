@@ -14,6 +14,7 @@ type OverlayBlockProps = {
   pageSize: ViewportSize;
   stageSize: ViewportSize;
   selected: boolean;
+  multiSelected?: boolean;
   showChrome: boolean;
   showExcluded?: boolean;
   pointerDisabled?: boolean;
@@ -27,6 +28,7 @@ export function OverlayBlock({
   pageSize,
   stageSize,
   selected,
+  multiSelected = false,
   showChrome,
   showExcluded = false,
   pointerDisabled = false,
@@ -52,6 +54,7 @@ export function OverlayBlock({
       className={resolveOverlayBlockClassName(
         block.type,
         selected,
+        multiSelected,
         excluded,
         showChrome,
       )}
@@ -256,6 +259,7 @@ function resolveBlockTextOutlineShadow(
 function resolveOverlayBlockClassName(
   blockType: TranslationBlock["type"],
   selected: boolean,
+  multiSelected: boolean,
   excluded: boolean,
   showChrome: boolean,
 ): string {
@@ -263,6 +267,7 @@ function resolveOverlayBlockClassName(
     "overlay-block",
     `block-${blockType}`,
     selected ? "selected" : "",
+    multiSelected ? "multi-selected" : "",
     excluded ? "excluded" : "",
     showChrome ? "" : "chrome-hidden",
   ]

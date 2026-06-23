@@ -10,12 +10,14 @@ import {
 } from "../../shared/geometry";
 import type {
   BBox,
+  BlockFormatDefaults,
   BlockType,
   MangaPage,
   RenderTextDirection,
   SourceTextDirection,
   TranslationBlock,
 } from "../../shared/types";
+import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
 import type {
   BboxNormalizationOptions,
   OverlayItem,
@@ -38,6 +40,7 @@ export function overlayItemToBlock(
   page: MangaPage,
   index: number,
   runId?: string,
+  formatDefaults?: BlockFormatDefaults,
 ): TranslationBlock {
   const type = mapOverlayType(item.type);
   const textRole = normalizeOverlayTextRole(item.textRole);
@@ -66,7 +69,7 @@ export function overlayItemToBlock(
   );
   const rotationDeg = enforceRotationDeg(type, item.angle ?? 0);
   const visualStyle = resolveBlockVisualStyle(type);
-  return {
+  const block: TranslationBlock = {
     id: `${page.id}-${normalizeBlockRunId(runId)}-block-${index + 1}`,
     type,
     bbox,
@@ -86,6 +89,7 @@ export function overlayItemToBlock(
     opacity: visualStyle.defaultOpacity,
     autoFitText: true,
   };
+  return applyFormatDefaultsToBlock(block, formatDefaults);
 }
 
 function normalizeBlockRunId(runId: string | undefined): string {

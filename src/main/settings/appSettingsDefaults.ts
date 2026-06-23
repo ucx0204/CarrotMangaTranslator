@@ -15,6 +15,7 @@ import {
   DEFAULT_MODEL_SOURCE,
 } from "../../shared/modelPresets";
 import type { AppSettings } from "../../shared/types";
+import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
 import type { DetectedGpuInfo } from "../gpuInfo";
 import { normalizeAmdRocmTarget } from "../gpuInfo";
 import { getDefaultGemmaPresetForVramMode } from "./gemmaModelPresets";
@@ -62,6 +63,7 @@ export function resolveDefaultAppSettings(
     ocr: resolveDefaultOcrSettings(env, hardwareDefaults),
     ui: resolveDefaultUiSettings(),
     inpainting: resolveDefaultInpaintingSettings(env, hardwareDefaults),
+    blockFormatDefaults: { ...DEFAULT_BLOCK_FORMAT_DEFAULTS },
     keybindings: {},
     maxTokens: resolveMaxTokens(
       env.MANGA_TRANSLATOR_MAX_TOKENS,

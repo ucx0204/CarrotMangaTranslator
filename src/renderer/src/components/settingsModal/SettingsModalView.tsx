@@ -2,6 +2,7 @@ import React from "react";
 import type { ModelProvider } from "../../../../shared/settingsTypes";
 import { Button, Modal } from "../ui";
 import { EngineSettingsPanel } from "./EngineSettingsPanel";
+import { FormatDefaultsPanel } from "./FormatDefaultsPanel";
 import { HardwareSettingsPanel } from "./HardwareSettingsPanel";
 import { SettingsTabs } from "./SettingsTabs";
 import { SettingsValidationMessages } from "./SettingsValidationMessages";
@@ -15,6 +16,7 @@ export type SettingsModalViewProps = {
   controlsBusy: boolean;
   enginePanelProps: React.ComponentProps<typeof EngineSettingsPanel>;
   hardwarePanelProps: React.ComponentProps<typeof HardwareSettingsPanel>;
+  formatPanelProps: React.ComponentProps<typeof FormatDefaultsPanel>;
   onCancel: () => void;
   onOpenLogFolder: () => void;
   onReset: () => void;
@@ -39,6 +41,7 @@ export function SettingsModalView({
   controlsBusy,
   enginePanelProps,
   hardwarePanelProps,
+  formatPanelProps,
   onCancel,
   onOpenLogFolder,
   onReset,
@@ -72,6 +75,7 @@ export function SettingsModalView({
           activeTab={activeTab}
           enginePanelProps={enginePanelProps}
           hardwarePanelProps={hardwarePanelProps}
+          formatPanelProps={formatPanelProps}
           shortcutsPanelProps={shortcutsPanelProps}
           testPanelProps={testPanelProps}
           validationProps={validationProps}
@@ -128,6 +132,7 @@ function SettingsModalTabPanel({
   activeTab,
   enginePanelProps,
   hardwarePanelProps,
+  formatPanelProps,
   shortcutsPanelProps,
   testPanelProps,
   validationProps,
@@ -136,6 +141,7 @@ function SettingsModalTabPanel({
   | "activeTab"
   | "enginePanelProps"
   | "hardwarePanelProps"
+  | "formatPanelProps"
   | "shortcutsPanelProps"
   | "testPanelProps"
   | "validationProps"
@@ -158,6 +164,9 @@ function SettingsModalTabPanel({
       ) : null}
       {activeTab === "hardware" ? (
         <HardwareSettingsPanel {...hardwarePanelProps} />
+      ) : null}
+      {activeTab === "format" ? (
+        <FormatDefaultsPanel {...formatPanelProps} />
       ) : null}
       {activeTab === "shortcuts" ? (
         <ShortcutsSettingsPanel {...shortcutsPanelProps} />

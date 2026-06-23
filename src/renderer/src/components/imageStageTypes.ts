@@ -11,6 +11,7 @@ export type ImageStageProps = {
   stageRef: React.RefObject<HTMLDivElement | null>;
   stageSize: ViewportSize | null;
   selectedBlockId: string | null;
+  selectedBlockIds?: string[];
   showTextBlocks: boolean;
   showBlockChrome: boolean;
   inpaintingMode?: boolean;
