@@ -194,11 +194,13 @@ function createRightRailProps({
 }
 
 function createShortcutHelpProps({
+  settingsDialog,
   uiState,
 }: AppSessionViewModel): AppSessionViewProps["shortcutHelpProps"] {
   return {
     onClose: () => uiState.setShortcutHelpOpen(false),
     open: uiState.shortcutHelpOpen,
+    overrides: settingsDialog.settings?.keybindings ?? {},
   };
 }
 

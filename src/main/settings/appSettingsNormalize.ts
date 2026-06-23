@@ -55,9 +55,27 @@ export function normalizeAppSettings(
     ocr: normalizeOcrSettings(ocr, defaults),
     ui: normalizeUiSettings(ui, defaults),
     inpainting: normalizeInpaintingSettings(inpainting, defaults),
+    keybindings: normalizeKeybindings(record?.keybindings, defaults),
     maxTokens: resolveMaxTokens(record?.maxTokens, defaults.maxTokens),
     ctx: resolveContextTokens(record?.ctx, defaults.ctx),
   };
+}
+
+function normalizeKeybindings(
+  keybindings: unknown,
+  defaults: AppSettings,
+): NonNullable<AppSettings["keybindings"]> {
+  const record = asRecord(keybindings);
+  if (!record) {
+    return { ...(defaults.keybindings ?? {}) };
+  }
+  const normalized: Record<string, string> = {};
+  for (const [actionId, combo] of Object.entries(record)) {
+    if (typeof actionId === "string" && typeof combo === "string") {
+      normalized[actionId] = combo;
+    }
+  }
+  return normalized;
 }
 
 function normalizeGemmaSettings(

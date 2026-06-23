@@ -11,7 +11,6 @@ import { isEditableTarget } from "../lib/appHelpers";
 import {
   resolveAdjacentPageId,
   resolveKeyboardPageNavigation,
-  resolveRetouchHistoryShortcut,
   resolveWheelPageNavigation,
 } from "../lib/pageNavigation";
 import type { ChapterSnapshot } from "./hookLibraryTypes";
@@ -22,11 +21,8 @@ type UsePageNavigationHandlersOptions = {
   selectedBlockIdRef: MutableRefObject<string | null>;
   workspacePanelRef: RefObject<HTMLElement | null>;
   modalOpen: boolean;
-  inpaintingMode: boolean;
   setSelectedPageId: Dispatch<SetStateAction<string | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
-  undoRetouch: () => Promise<void>;
-  redoRetouch: () => Promise<void>;
 };
 
 type SelectPageForReading = (pageId: string | null) => void;
@@ -110,9 +106,6 @@ function useKeyboardPageNavigationEffect(
 ): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (handleRetouchShortcut(event, options)) {
-        return;
-      }
       const navigation = resolveKeyboardNavigationForEvent(event, options);
       if (!navigation) {
         return;
@@ -190,32 +183,6 @@ function useWorkspaceWheelEffect(
       panel.removeEventListener("wheel", handleWorkspaceWheel);
     };
   }, [handleWorkspaceWheel, workspacePanelRef]);
-}
-
-function handleRetouchShortcut(
-  event: KeyboardEvent,
-  {
-    inpaintingMode,
-    modalOpen,
-    redoRetouch,
-    undoRetouch,
-  }: UsePageNavigationHandlersOptions,
-): boolean {
-  const shortcut = resolveRetouchHistoryShortcut({
-    key: event.key,
-    ctrlKey: event.ctrlKey,
-    metaKey: event.metaKey,
-    shiftKey: event.shiftKey,
-    inpaintingMode,
-    modalOpen,
-    editableTarget: isEditableTarget(event.target),
-  });
-  if (!shortcut) {
-    return false;
-  }
-  event.preventDefault();
-  void (shortcut === "undo" ? undoRetouch() : redoRetouch());
-  return true;
 }
 
 function resolveKeyboardNavigationForEvent(

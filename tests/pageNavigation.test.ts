@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   resolveAdjacentPageId,
   resolveKeyboardPageNavigation,
-  resolveRetouchHistoryShortcut,
   resolveWheelPageNavigation,
 } from "../src/renderer/src/lib/pageNavigation";
 
@@ -193,51 +192,6 @@ describe("page navigation helpers", () => {
         deltaY: 80,
         hasPages: false,
       }),
-    ).toBeNull();
-  });
-
-  it("maps inpainting retouch undo and redo shortcuts", () => {
-    const base = {
-      ctrlKey: true,
-      editableTarget: false,
-      inpaintingMode: true,
-      metaKey: false,
-      modalOpen: false,
-    };
-
-    expect(
-      resolveRetouchHistoryShortcut({ ...base, key: "z", shiftKey: false }),
-    ).toBe("undo");
-    expect(
-      resolveRetouchHistoryShortcut({ ...base, key: "z", shiftKey: true }),
-    ).toBe("redo");
-    expect(
-      resolveRetouchHistoryShortcut({ ...base, key: "y", shiftKey: false }),
-    ).toBe("redo");
-  });
-
-  it("ignores retouch shortcuts outside inpainting or inside blocking targets", () => {
-    const base = {
-      ctrlKey: true,
-      editableTarget: false,
-      inpaintingMode: true,
-      key: "z",
-      metaKey: false,
-      modalOpen: false,
-      shiftKey: false,
-    };
-
-    expect(
-      resolveRetouchHistoryShortcut({ ...base, inpaintingMode: false }),
-    ).toBeNull();
-    expect(
-      resolveRetouchHistoryShortcut({ ...base, modalOpen: true }),
-    ).toBeNull();
-    expect(
-      resolveRetouchHistoryShortcut({ ...base, editableTarget: true }),
-    ).toBeNull();
-    expect(
-      resolveRetouchHistoryShortcut({ ...base, ctrlKey: false }),
     ).toBeNull();
   });
 });

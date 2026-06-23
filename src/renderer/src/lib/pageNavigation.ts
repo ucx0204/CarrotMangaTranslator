@@ -21,18 +21,6 @@ type WheelPageNavigationOptions = {
   editableTarget: boolean;
 };
 
-type RetouchHistoryShortcutOptions = {
-  key: string;
-  ctrlKey: boolean;
-  metaKey: boolean;
-  shiftKey: boolean;
-  inpaintingMode: boolean;
-  modalOpen: boolean;
-  editableTarget: boolean;
-};
-
-export type RetouchHistoryShortcut = "undo" | "redo";
-
 const MIN_WHEEL_PAGE_DELTA = 18;
 
 export function resolveAdjacentPageId(
@@ -103,31 +91,4 @@ export function resolveWheelPageNavigation({
   }
 
   return deltaY > 0 ? "next" : "previous";
-}
-
-export function resolveRetouchHistoryShortcut({
-  key,
-  ctrlKey,
-  metaKey,
-  shiftKey,
-  inpaintingMode,
-  modalOpen,
-  editableTarget,
-}: RetouchHistoryShortcutOptions): RetouchHistoryShortcut | null {
-  if (
-    !inpaintingMode ||
-    modalOpen ||
-    editableTarget ||
-    (!ctrlKey && !metaKey)
-  ) {
-    return null;
-  }
-  const normalizedKey = key.toLowerCase();
-  if (normalizedKey === "z" && !shiftKey) {
-    return "undo";
-  }
-  if (normalizedKey === "y" || (normalizedKey === "z" && shiftKey)) {
-    return "redo";
-  }
-  return null;
 }

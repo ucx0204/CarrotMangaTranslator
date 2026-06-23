@@ -1,13 +1,10 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { type Dispatch, type SetStateAction } from "react";
 import type { ChapterSnapshot } from "../../../../shared/libraryTypes";
 import type { Command } from "../../components/CommandPalette";
 import { useAppCommands } from "../../hooks/useAppCommands";
-import { useGlobalHotkeys } from "../../hooks/useGlobalHotkeys";
 
 type UseAppSessionCommandControllerArgs = {
-  blockingModalOpen: boolean;
   cancelJob: () => void;
-  commandPaletteOpen: boolean;
   currentChapter: ChapterSnapshot | null;
   enterInpaintingMode: () => Promise<void>;
   exitInpaintingMode: () => void;
@@ -19,7 +16,6 @@ type UseAppSessionCommandControllerArgs = {
   openSettings: () => Promise<void> | void;
   openShareImportPreview: () => Promise<void>;
   runAnalysis: (runMode: "pending" | "all") => void;
-  setCommandPaletteOpen: Dispatch<SetStateAction<boolean>>;
   setShareExportOpen: Dispatch<SetStateAction<boolean>>;
   setShortcutHelpOpen: Dispatch<SetStateAction<boolean>>;
   setTextViewOpen: Dispatch<SetStateAction<boolean>>;
@@ -28,9 +24,7 @@ type UseAppSessionCommandControllerArgs = {
 };
 
 export function useAppSessionCommandController({
-  blockingModalOpen,
   cancelJob,
-  commandPaletteOpen,
   currentChapter,
   enterInpaintingMode,
   exitInpaintingMode,
@@ -42,29 +36,12 @@ export function useAppSessionCommandController({
   openSettings,
   openShareImportPreview,
   runAnalysis,
-  setCommandPaletteOpen,
   setShareExportOpen,
   setShortcutHelpOpen,
   setTextViewOpen,
   setTranslateOptionsOpen,
   setTranslationSourceOpen,
 }: UseAppSessionCommandControllerArgs): Command[] {
-  const togglePalette = useCallback(
-    () => setCommandPaletteOpen((open) => !open),
-    [setCommandPaletteOpen],
-  );
-  const toggleHelp = useCallback(
-    () => setShortcutHelpOpen((open) => !open),
-    [setShortcutHelpOpen],
-  );
-
-  useGlobalHotkeys({
-    blockingModalOpen,
-    onToggleHelp: toggleHelp,
-    onTogglePalette: togglePalette,
-    paletteOpen: commandPaletteOpen,
-  });
-
   return useAppCommands({
     cancelJob,
     currentChapter,

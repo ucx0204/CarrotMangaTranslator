@@ -93,6 +93,15 @@ export type InpaintingSettings = {
   koharuBackend?: KoharuInpaintingBackend;
 };
 
+/**
+ * User overrides for keyboard shortcuts, keyed by shortcut action id.
+ * Value is a normalized combo string (e.g. "ctrl+shift+b", "delete", "1");
+ * an empty string means the action is intentionally unbound. Actions absent
+ * from this map fall back to their built-in default combo (defined in the
+ * renderer's shortcutActions registry).
+ */
+export type KeybindingOverrides = Record<string, string>;
+
 export type AppSettings = {
   modelProvider: ModelProvider;
   gemma: GemmaSettings;
@@ -101,6 +110,7 @@ export type AppSettings = {
   ocr: OcrSettings;
   ui?: UiSettings;
   inpainting?: InpaintingSettings;
+  keybindings?: KeybindingOverrides;
   runtimeHardware?: RuntimeHardwareInfo;
   maxTokens: number;
   ctx: number;

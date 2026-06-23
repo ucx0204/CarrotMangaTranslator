@@ -62,6 +62,7 @@ export function resolveDefaultAppSettings(
     ocr: resolveDefaultOcrSettings(env, hardwareDefaults),
     ui: resolveDefaultUiSettings(),
     inpainting: resolveDefaultInpaintingSettings(env, hardwareDefaults),
+    keybindings: {},
     maxTokens: resolveMaxTokens(
       env.MANGA_TRANSLATOR_MAX_TOKENS,
       DEFAULT_MAX_TOKENS,

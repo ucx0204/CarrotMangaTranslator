@@ -1,5 +1,8 @@
 import React from "react";
-import type { AppSettings } from "../../../../shared/settingsTypes";
+import type {
+  AppSettings,
+  KeybindingOverrides,
+} from "../../../../shared/settingsTypes";
 import { buildSettingsFromDraft } from "./settingsModalBuildSettings";
 import {
   getApiAdvancedSettingsMessage,
@@ -40,6 +43,7 @@ export function useSettingsModalController({
   onSubmit,
 }: SettingsModalControllerInput): SettingsModalViewProps {
   const [activeTab, setActiveTab] = React.useState<SettingsTabId>("engine");
+  const [keybindings, setKeybindings] = useKeybindingsDraft(initialSettings);
   const form = useSettingsFormState(initialSettings);
   const test = useSettingsTestState(initialSettings, form.refs.testLogRef);
   const localActions = useSettingsLocalModelActions({
@@ -69,10 +73,11 @@ export function useSettingsModalController({
         ? buildSettingsFromDraft({
             draft,
             initialSettings,
+            keybindings,
             values: form.values,
           })
         : null,
-    [canSubmit, draft, form.values, initialSettings],
+    [canSubmit, draft, form.values, initialSettings, keybindings],
   );
   const submit = React.useCallback(() => {
     const nextSettings = buildSettings();
@@ -96,6 +101,7 @@ export function useSettingsModalController({
     draft,
     form,
     jobActive,
+    keybindings,
     localActions,
     onCancel,
     onOpenLogFolder,
@@ -103,9 +109,25 @@ export function useSettingsModalController({
     runModelTest,
     runtime,
     setActiveTab,
+    setKeybindings,
     submit,
     test,
   });
+}
+
+function useKeybindingsDraft(
+  initialSettings: AppSettings,
+): [
+  KeybindingOverrides,
+  React.Dispatch<React.SetStateAction<KeybindingOverrides>>,
+] {
+  const [keybindings, setKeybindings] = React.useState<KeybindingOverrides>(
+    () => initialSettings.keybindings ?? {},
+  );
+  React.useEffect(() => {
+    setKeybindings(initialSettings.keybindings ?? {});
+  }, [initialSettings]);
+  return [keybindings, setKeybindings];
 }
 
 function buildSettingsModalViewProps({
@@ -115,6 +137,7 @@ function buildSettingsModalViewProps({
   draft,
   form,
   jobActive,
+  keybindings,
   localActions,
   onCancel,
   onOpenLogFolder,
@@ -122,6 +145,7 @@ function buildSettingsModalViewProps({
   runModelTest,
   runtime,
   setActiveTab,
+  setKeybindings,
   submit,
   test,
 }: {
@@ -131,6 +155,7 @@ function buildSettingsModalViewProps({
   draft: SettingsDraft;
   form: ReturnType<typeof useSettingsFormState>;
   jobActive: boolean;
+  keybindings: KeybindingOverrides;
   localActions: ReturnType<typeof useSettingsLocalModelActions>;
   onCancel: () => void;
   onOpenLogFolder: () => void;
@@ -138,6 +163,7 @@ function buildSettingsModalViewProps({
   runModelTest: () => Promise<void>;
   runtime: SettingsRuntimeGuards;
   setActiveTab: React.Dispatch<React.SetStateAction<SettingsTabId>>;
+  setKeybindings: React.Dispatch<React.SetStateAction<KeybindingOverrides>>;
   submit: () => void;
   test: ReturnType<typeof useSettingsTestState>;
 }): SettingsModalViewProps {
@@ -163,6 +189,10 @@ function buildSettingsModalViewProps({
     onOpenLogFolder,
     onReset,
     setActiveTab,
+    shortcutsPanelProps: {
+      onChange: setKeybindings,
+      overrides: keybindings,
+    },
     submit,
     testPanelProps: {
       canSubmit,

@@ -47,7 +47,7 @@ export function useAppSessionInpaintingController(
 } {
   const retouch = useRetouchController(args);
   const inpaintingActions = useInpaintingRunController(args, retouch);
-  const pageNavigationHandlers = useNavigationController(args, retouch);
+  const pageNavigationHandlers = useNavigationController(args);
   const pointerHandlers = usePointerController(args, retouch);
   const inpaintingBridge = useInpaintingBridgeController(
     args,
@@ -129,21 +129,20 @@ function useInpaintingRunController(
   });
 }
 
-function useNavigationController(
-  { core, modalOpen, uiState }: AppSessionInpaintingControllerArgs,
-  retouch: ReturnType<typeof useInpaintingRetouch>,
-): ReturnType<typeof usePageNavigationHandlers> {
+function useNavigationController({
+  core,
+  modalOpen,
+}: AppSessionInpaintingControllerArgs): ReturnType<
+  typeof usePageNavigationHandlers
+> {
   return usePageNavigationHandlers({
     currentChapterRef: core.currentChapterRef,
     selectedPageIdRef: core.selectedPageIdRef,
     selectedBlockIdRef: core.selectedBlockIdRef,
     workspacePanelRef: core.workspacePanelRef,
     modalOpen,
-    inpaintingMode: uiState.inpaintingMode,
     setSelectedPageId: core.setSelectedPageId,
     setSelectedBlockId: core.setSelectedBlockId,
-    undoRetouch: retouch.undoRetouch,
-    redoRetouch: retouch.redoRetouch,
   });
 }
 

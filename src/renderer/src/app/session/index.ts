@@ -28,5 +28,6 @@ export { useAppSessionBridgeActions } from "./useAppSessionBridgeActions";
 export { useAppSessionCommandController } from "./useAppSessionCommandController";
 export { useAppSessionDerivedState } from "./useAppSessionDerivedState";
 export { useAppSessionLifecycleEffects } from "./useAppSessionLifecycleEffects";
+export { useAppSessionShortcuts } from "./useAppSessionShortcuts";
 export { useAppSessionUiState } from "./useAppSessionUiState";
 export { useInpaintingGuidePreference } from "./useInpaintingGuidePreference";

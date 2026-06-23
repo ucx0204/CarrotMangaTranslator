@@ -5,6 +5,7 @@ import { EngineSettingsPanel } from "./EngineSettingsPanel";
 import { HardwareSettingsPanel } from "./HardwareSettingsPanel";
 import { SettingsTabs } from "./SettingsTabs";
 import { SettingsValidationMessages } from "./SettingsValidationMessages";
+import { ShortcutsSettingsPanel } from "./ShortcutsSettingsPanel";
 import { TestSettingsPanel } from "./TestSettingsPanel";
 import type { SettingsTabId } from "../settingsModalTypes";
 
@@ -18,6 +19,7 @@ export type SettingsModalViewProps = {
   onOpenLogFolder: () => void;
   onReset: () => void;
   setActiveTab: React.Dispatch<React.SetStateAction<SettingsTabId>>;
+  shortcutsPanelProps: React.ComponentProps<typeof ShortcutsSettingsPanel>;
   submit: () => void;
   testPanelProps: React.ComponentProps<typeof TestSettingsPanel>;
   validationProps: {
@@ -41,6 +43,7 @@ export function SettingsModalView({
   onOpenLogFolder,
   onReset,
   setActiveTab,
+  shortcutsPanelProps,
   submit,
   testPanelProps,
   validationProps,
@@ -69,6 +72,7 @@ export function SettingsModalView({
           activeTab={activeTab}
           enginePanelProps={enginePanelProps}
           hardwarePanelProps={hardwarePanelProps}
+          shortcutsPanelProps={shortcutsPanelProps}
           testPanelProps={testPanelProps}
           validationProps={validationProps}
         />
@@ -124,6 +128,7 @@ function SettingsModalTabPanel({
   activeTab,
   enginePanelProps,
   hardwarePanelProps,
+  shortcutsPanelProps,
   testPanelProps,
   validationProps,
 }: Pick<
@@ -131,9 +136,11 @@ function SettingsModalTabPanel({
   | "activeTab"
   | "enginePanelProps"
   | "hardwarePanelProps"
+  | "shortcutsPanelProps"
   | "testPanelProps"
   | "validationProps"
 >): React.JSX.Element {
+  const showApplyNote = activeTab !== "shortcuts";
   return (
     <div
       className="settings-tabpanel modal-section"
@@ -141,12 +148,19 @@ function SettingsModalTabPanel({
       id={`settings-panel-${activeTab}`}
       aria-labelledby={`settings-tab-${activeTab}`}
     >
-      <p className="muted-line modal-note">다음 번 번역 실행부터 적용됩니다.</p>
+      {showApplyNote ? (
+        <p className="muted-line modal-note">
+          다음 번 번역 실행부터 적용됩니다.
+        </p>
+      ) : null}
       {activeTab === "engine" ? (
         <EngineSettingsPanel {...enginePanelProps} />
       ) : null}
       {activeTab === "hardware" ? (
         <HardwareSettingsPanel {...hardwarePanelProps} />
+      ) : null}
+      {activeTab === "shortcuts" ? (
+        <ShortcutsSettingsPanel {...shortcutsPanelProps} />
       ) : null}
       {activeTab === "test" ? <TestSettingsPanel {...testPanelProps} /> : null}
       <SettingsValidationMessages {...validationProps} />

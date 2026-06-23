@@ -25,9 +25,7 @@ export function useInpaintingController(
     updateCurrentChapter: translation.updateCurrentChapter,
   });
   const commands = useAppSessionCommandController({
-    blockingModalOpen: chapter.overlayModalsOpen,
     cancelJob: chapter.bridgeActions.cancelJob,
-    commandPaletteOpen: chapter.uiState.commandPaletteOpen,
     currentChapter: chapter.core.currentChapter,
     enterInpaintingMode: inpainting.inpaintingActions.enterInpaintingMode,
     exitInpaintingMode: inpainting.inpaintingActions.exitInpaintingMode,
@@ -41,7 +39,6 @@ export function useInpaintingController(
       translation.importShareActions.openShareImportPreview,
     runAnalysis: (runMode) =>
       void translation.translationActions.runAnalysis(runMode),
-    setCommandPaletteOpen: chapter.uiState.setCommandPaletteOpen,
     setShareExportOpen: chapter.importShareModal.setShareExportOpen,
     setShortcutHelpOpen: chapter.uiState.setShortcutHelpOpen,
     setTextViewOpen: chapter.uiState.setTextViewOpen,

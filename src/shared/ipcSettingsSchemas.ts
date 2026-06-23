@@ -80,6 +80,7 @@ export const AppSettingsSchema = z
       })
       .strict()
       .optional(),
+    keybindings: z.record(z.string().max(80), z.string().max(60)).optional(),
     runtimeHardware: z
       .object({
         gpuVendor: z.enum(["nvidia", "amd", "unknown"]),

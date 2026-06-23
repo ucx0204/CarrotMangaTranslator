@@ -133,6 +133,7 @@ describe("app settings helpers", () => {
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
+      keybindings: defaults.keybindings,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });
@@ -159,6 +160,7 @@ describe("app settings helpers", () => {
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
+      keybindings: defaults.keybindings,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });
@@ -173,6 +175,7 @@ describe("app settings helpers", () => {
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
+      keybindings: defaults.keybindings,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });
@@ -878,6 +881,7 @@ describe("app settings helpers", () => {
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
+      keybindings: defaults.keybindings,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });
@@ -910,6 +914,7 @@ describe("app settings helpers", () => {
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
+      keybindings: defaults.keybindings,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });
@@ -948,6 +953,7 @@ describe("app settings helpers", () => {
       ocr: defaults.ocr,
       inpainting: defaults.inpainting,
       ui: defaults.ui,
+      keybindings: defaults.keybindings,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });

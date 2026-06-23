@@ -2763,6 +2763,86 @@ kbd {
   text-align: right;
 }
 
+.shortcut-help {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.shortcut-help-section {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.shortcut-help-title,
+.shortcut-binding-group-title {
+  margin: 0;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.shortcut-binding-group {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.shortcut-binding-list {
+  display: grid;
+  gap: 6px;
+}
+
+.shortcut-binding-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, auto) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.shortcut-binding-label {
+  color: #e6ddcf;
+  font-size: var(--font-sm);
+}
+
+.shortcut-binding-combo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  cursor: pointer;
+}
+
+.shortcut-binding-combo.capturing {
+  border-color: var(--accent-bd);
+  background: var(--accent-hover);
+}
+
+.shortcut-binding-waiting {
+  color: var(--accent-text);
+  font-size: var(--font-sm);
+}
+
+.shortcut-binding-empty {
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
+
+.shortcut-binding-action {
+  padding: 4px 10px;
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.shortcut-binding-note {
+  color: var(--accent-text);
+}
+
 .toast-viewport {
   position: fixed;
   right: 18px;

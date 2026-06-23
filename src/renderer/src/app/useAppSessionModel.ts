@@ -1,6 +1,7 @@
 import {
   createAppSessionViewProps,
   type AppSessionViewProps,
+  useAppSessionShortcuts,
   useChapterSessionController,
   useInpaintingController,
   useTranslationController,
@@ -10,6 +11,8 @@ export function useAppSessionModel(): AppSessionViewProps {
   const chapter = useChapterSessionController();
   const translation = useTranslationController(chapter);
   const inpainting = useInpaintingController(chapter, translation);
+
+  useAppSessionShortcuts({ chapter, inpainting, translation });
 
   return createAppSessionViewProps({
     blockEditingActions: translation.blockEditingActions,

@@ -5,6 +5,7 @@ import type {
   FluxBackend,
   GemmaVramMode,
   InpaintingModel,
+  KeybindingOverrides,
   LlamaRuntimeProfile,
   ModelProvider,
   ModelSource,
@@ -44,6 +45,7 @@ type BuildSettingsFromFormInput = {
   ocrGpuBackend: OcrGpuBackend;
   inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
+  keybindings: KeybindingOverrides;
   maxTokens: number;
   ctx: number;
 };
@@ -68,6 +70,7 @@ export function buildSettingsFromForm(
       fluxBackend: input.fluxBackend,
       koharuBackend: input.initialSettings.inpainting?.koharuBackend ?? "auto",
     },
+    keybindings: input.keybindings,
     maxTokens: input.maxTokens,
     ctx: input.ctx,
   };
