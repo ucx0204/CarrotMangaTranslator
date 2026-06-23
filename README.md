@@ -223,7 +223,7 @@ Codex를 선택할 예정이라면 위의 `OpenAI Codex 엔진 준비` 섹션에
 
 처음 번역하거나 처음 인페인팅을 실행하면 필요한 파일을 다운로드하고 검증합니다. 이 과정은 PC 성능과 인터넷 속도에 따라 꽤 오래 걸릴 수 있습니다.
 
-- Gemma 4: GGUF 모델, mmproj, llama.cpp/beellama/Lemonade ROCm 런타임
+- Gemma 4: GGUF 모델, mmproj, llama.cpp/beellama/BeeLlama HIP/Lemonade ROCm 런타임
 - Paddle OCR: Python 런타임, PaddleOCR/PaddleOCR-VL 또는 AMD ROCm OCR 패키지, OCR 모델 캐시
 - Flux 인페인팅: Flux Klein 모델, VAE, Flux 실행기, GPU 백엔드 준비
 - OpenAI Codex: 로컬 Codex 로그인 토큰을 사용하는 openai-oauth 연결
@@ -237,7 +237,7 @@ Codex를 선택할 예정이라면 위의 `OpenAI Codex 엔진 준비` 섹션에
 
 ![OCR 진행 상태](docs/images/12-translation-ocr-progress.png)
 
-Gemma를 처음 쓰는 경우에는 모델 파일과 실행 런타임을 준비합니다. AMD 환경에서는 Lemonade ROCm 런타임을 내려받는 화면이 보일 수 있습니다.
+Gemma를 처음 쓰는 경우에는 모델 파일과 실행 런타임을 준비합니다. AMD 환경에서는 31B DFlash preset에 BeeLlama HIP 런타임을, 12B/26B mainline preset에 Lemonade ROCm 런타임을 내려받는 화면이 보일 수 있습니다.
 
 ![Gemma 실행 런타임 설치](docs/images/13-gemma-runtime-install.png)
 
@@ -355,7 +355,7 @@ AMD 지원은 번역, OCR, 인페인팅이 각각 다른 경로로 준비됩니�
 
 ### Gemma 4 on AMD
 
-지원되는 AMD GPU에서는 `AMD ROCm` Gemma 런타임을 우선 사용합니다. 앱은 GPU 이름, `rocm-smi`, Windows 장치 정보를 보고 ROCm target을 추정합니다.
+지원되는 AMD GPU에서는 `AMD ROCm` Gemma 런타임을 우선 사용합니다. 31B DFlash preset은 BeeLlama HIP/Radeon 런타임을 사용하고, 12B/26B mainline preset은 ROCm target별 Lemonade 런타임을 사용합니다. 앱은 GPU 이름, `rocm-smi`, Windows 장치 정보를 보고 ROCm target을 추정합니다.
 
 지원 target 그룹은 다음과 같습니다.
 
@@ -603,4 +603,4 @@ README의 만화 예시 화면은 [IDPF EPUB 3 Samples Project](https://github.c
 
 이 프로젝트의 앱 소스코드는 `GPL-3.0-only` 라이선스로 배포합니다. 자세한 내용은 [LICENSE](LICENSE)를 확인하세요.
 
-앱 안에서 내려받거나 함께 쓰는 모델, Python 런타임, OCR 패키지, ffmpeg, llama.cpp/beellama/Lemonade ROCm, Flux 관련 런타임은 각각 별도 라이선스와 배포 조건을 가질 수 있습니다. 릴리즈 빌드와 런타임을 재배포하거나 수정 배포할 때는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)와 해당 구성요소의 라이선스도 함께 확인해야 합니다.
+앱 안에서 내려받거나 함께 쓰는 모델, Python 런타임, OCR 패키지, ffmpeg, llama.cpp/beellama/BeeLlama HIP/Lemonade ROCm, Flux 관련 런타임은 각각 별도 라이선스와 배포 조건을 가질 수 있습니다. 릴리즈 빌드와 런타임을 재배포하거나 수정 배포할 때는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)와 해당 구성요소의 라이선스도 함께 확인해야 합니다.

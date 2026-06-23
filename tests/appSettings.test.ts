@@ -511,7 +511,7 @@ describe("app settings helpers", () => {
     );
   });
 
-  it("routes known AMD GPUs to Lemonade ROCm runtime targets", () => {
+  it("routes known AMD GPUs with the full DFlash preset to BeeLlama HIP", () => {
     const amdDefaults = resolveDefaultAppSettings(
       {},
       {
@@ -548,7 +548,7 @@ describe("app settings helpers", () => {
       join(
         "C:/app-data",
         "tools",
-        "lemonade-llama-b1291-rocm-gfx110X",
+        "beellama-v0.3.1-hip-radeon",
         "llama-server.exe",
       ),
     );

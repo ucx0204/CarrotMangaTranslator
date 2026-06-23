@@ -2,7 +2,11 @@ import { join } from "node:path";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { normalizeAmdRocmTarget } from "../gpuInfo";
 import type { TranslationOptionPaths } from "./appSettingsTypes";
-import { isBuiltInGemmaModel, isMainlineGemmaModel } from "./gemmaModelPresets";
+import {
+  is31BGemmaModel,
+  isBuiltInGemmaModel,
+  isMainlineGemmaModel,
+} from "./gemmaModelPresets";
 import {
   isRocmLlamaRuntimeProfile,
   isRtx50LlamaRuntimeProfile,
@@ -11,6 +15,7 @@ import {
 
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12 = "beellama-v0.2.0-cuda12.4";
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 = "beellama-v0.2.0-cuda13.1";
+const BEELLAMA_LLAMA_RUNTIME_DIR_HIP_RADEON = "beellama-v0.3.1-hip-radeon";
 const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b9547-cuda12.4";
 const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9547-cuda13.3";
 const LEMONADE_LLAMA_RUNTIME_ROCM_RELEASE = "b1291";
@@ -28,7 +33,12 @@ export function resolveDefaultLlamaServerPathForGemma(
   const binaryName =
     process.platform === "win32" ? "llama-server.exe" : "llama-server";
   if (isRocmLlamaRuntimeProfile(llamaRuntimeProfile)) {
-    return resolveRocmLlamaServerPath(paths, binaryName, llamaRocmTarget);
+    return resolveRocmLlamaServerPath(
+      paths,
+      binaryName,
+      gemma,
+      llamaRocmTarget,
+    );
   }
   if (isVulkanLlamaRuntimeProfile(llamaRuntimeProfile)) {
     return join(
@@ -59,8 +69,17 @@ function shouldUseBundledLlamaServer(gemma: AppSettings["gemma"]): boolean {
 function resolveRocmLlamaServerPath(
   paths: TranslationOptionPaths,
   binaryName: string,
+  gemma: AppSettings["gemma"],
   llamaRocmTarget?: string,
 ): string {
+  if (is31BGemmaModel(gemma)) {
+    return join(
+      paths.dataRoot,
+      "tools",
+      BEELLAMA_LLAMA_RUNTIME_DIR_HIP_RADEON,
+      binaryName,
+    );
+  }
   const rocmTarget = normalizeAmdRocmTarget(llamaRocmTarget) ?? "unknown";
   return join(
     paths.dataRoot,

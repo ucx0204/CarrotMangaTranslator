@@ -433,7 +433,7 @@ async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
     serverPath,
     options,
     ["--list-devices"],
-    20000,
+    resolveLlamaRuntimePreflightTimeoutMs(preferredRuntime, options),
   );
   const output = `${result.stdout}\n${result.stderr}`;
   if (result.code !== 0) {
@@ -465,6 +465,30 @@ async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
       },
     );
   }
+}
+
+/**
+ * @param {Partial<LlamaRuntimeDescriptor>} [runtime]
+ * @param {RuntimeOptions & { llamaRuntimePreflightTimeoutMs?: unknown }} [options]
+ * @returns {number}
+ */
+function resolveLlamaRuntimePreflightTimeoutMs(runtime = {}, options = {}) {
+  const configured = Number(
+    options.llamaRuntimePreflightTimeoutMs ??
+      runtimeOverrideEnv("MGT_LLAMA_RUNTIME_PREFLIGHT_TIMEOUT_MS", options) ??
+      runtimeOverrideEnv(
+        "MANGA_TRANSLATOR_LLAMA_RUNTIME_PREFLIGHT_TIMEOUT_MS",
+        options,
+      ),
+  );
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.max(1000, Math.round(configured));
+  }
+  const backend = String(runtime.backend || "cuda").toLowerCase();
+  if (backend === "rocm" || backend === "hip") {
+    return 120000;
+  }
+  return 20000;
 }
 
 /** @param {unknown} [backend] */
@@ -621,6 +645,7 @@ async function stopServer(server) {
 module.exports = {
   buildLaunchArgs,
   buildLlamaServerEnv,
+  resolveLlamaRuntimePreflightTimeoutMs,
   startServer,
   stopServer,
 };
