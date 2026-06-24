@@ -13,6 +13,31 @@ const {
   resolveOcrRuntimeDir,
 } = require("./simple-page-ocr-runtime-config.cjs");
 
+const PADDLE_OCR_TEXTLINE_MODEL_FILES = [
+  ".gitattributes",
+  "README.md",
+  "inference.json",
+  "inference.pdiparams",
+  "inference.yml",
+];
+const PADDLE_OCR_TEXTLINE_MODEL_DOWNLOADS = new Map(
+  [
+    "PP-OCRv6_medium_det",
+    "PP-OCRv6_medium_rec",
+    "PP-OCRv6_small_det",
+    "PP-OCRv6_small_rec",
+    "PP-OCRv6_tiny_det",
+    "PP-OCRv6_tiny_rec",
+  ].map((name) => [
+    name,
+    {
+      name,
+      repo: `PaddlePaddle/${name}`,
+      files: PADDLE_OCR_TEXTLINE_MODEL_FILES,
+    },
+  ]),
+);
+
 /**
  * @param {RuntimeOptions} [options]
  * @param {OcrRuntimeLayout | null} [runtime]
@@ -30,7 +55,7 @@ function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
       "https://huggingface.co",
   ).replace(/\/+$/, "");
   const tasks = [];
-  for (const model of PADDLE_OCR_MODEL_DOWNLOADS) {
+  for (const model of resolveRequiredPaddleOcrModelDownloads(options)) {
     const modelDir = resolvePaddleOcrModelCacheDir(runtimeDir, model.name);
     for (const file of model.files) {
       tasks.push({
@@ -50,6 +75,43 @@ function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
 }
 
 /**
+ * @param {RuntimeOptions} [options]
+ * @returns {Array<{ name: string; repo: string; files: string[] }>}
+ */
+function resolveRequiredPaddleOcrModelDownloads(options = {}) {
+  const textDetectionModelName =
+    runtimeOverrideEnv(
+      "MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME",
+      options,
+    ) || readOptionString(options.ocrTextDetectionModelName);
+  const textRecognitionModelName =
+    runtimeOverrideEnv(
+      "MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME",
+      options,
+    ) || readOptionString(options.ocrTextRecognitionModelName);
+  if (!textDetectionModelName && !textRecognitionModelName) {
+    return PADDLE_OCR_MODEL_DOWNLOADS;
+  }
+
+  const models = [];
+  for (const modelName of [textDetectionModelName, textRecognitionModelName]) {
+    const model = PADDLE_OCR_TEXTLINE_MODEL_DOWNLOADS.get(modelName);
+    if (model) {
+      models.push(model);
+    }
+  }
+  return models.length > 0 ? models : PADDLE_OCR_MODEL_DOWNLOADS;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function readOptionString(value) {
+  return String(value ?? "").trim();
+}
+
+/**
  * @param {string} runtimeDir
  * @param {string} modelName
  * @returns {string}
@@ -61,4 +123,5 @@ function resolvePaddleOcrModelCacheDir(runtimeDir, modelName) {
 module.exports = {
   collectRequiredPaddleOcrModelDownloads,
   resolvePaddleOcrModelCacheDir,
+  resolveRequiredPaddleOcrModelDownloads,
 };

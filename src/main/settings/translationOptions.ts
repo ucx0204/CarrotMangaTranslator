@@ -50,6 +50,7 @@ export function buildBaseTranslationOptions({
       runtimeEnv,
       settings,
       runtimeState.llamaRuntimeProfile,
+      runtimeState.gemmaVramMode,
     ),
     ocrRuntimeDir: paths.ocrRuntimeDir,
     hfHomeDir: paths.hfHomeDir,

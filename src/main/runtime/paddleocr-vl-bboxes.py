@@ -63,6 +63,14 @@ def main() -> int:
     parser.add_argument("--dtype", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", "float32"))
     parser.add_argument("--ocr-version", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_VERSION", "PP-OCRv6"))
     parser.add_argument(
+        "--text-detection-model-name",
+        default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME"),
+    )
+    parser.add_argument(
+        "--text-recognition-model-name",
+        default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME"),
+    )
+    parser.add_argument(
         "--merge-mode",
         default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE"),
         choices=["legacy", "conservative", "none"],
@@ -596,6 +604,12 @@ def create_textline_detector(args: argparse.Namespace | None = None) -> object:
       }
       if device:
         ocr_kwargs["device"] = device
+      text_detection_model_name = str(getattr(args, "text_detection_model_name", "") or "").strip()
+      text_recognition_model_name = str(getattr(args, "text_recognition_model_name", "") or "").strip()
+      if text_detection_model_name:
+        ocr_kwargs["text_detection_model_name"] = text_detection_model_name
+      if text_recognition_model_name:
+        ocr_kwargs["text_recognition_model_name"] = text_recognition_model_name
       if transformers_engine:
         device_type = "gpu" if device and str(device).lower().startswith("gpu") else "cpu"
         attn_implementation = resolve_transformers_attention_implementation()
@@ -611,6 +625,10 @@ def create_textline_detector(args: argparse.Namespace | None = None) -> object:
         }
         apply_attention_implementation_to_engine_config(engine_config, attn_implementation)
         ocr_kwargs["engine_config"] = engine_config
+      else:
+        engine = str(getattr(args, "engine", "") or "").strip()
+        if engine and engine != "paddle":
+          ocr_kwargs["engine"] = engine
       try:
         return PaddleOCR(**ocr_kwargs)
       except Exception as exc:
@@ -945,7 +963,7 @@ def should_merge_textline_boxes(a: dict, b: dict, page_width: int, page_height: 
 
 
 def should_merge_textline_boxes_conservative(a: dict, b: dict, page_width: int, page_height: int) -> bool:
-    """Merge OCR lines conservatively for OCR-only AMD/Transformers mode."""
+    """Merge nearby OCR fragments without bridging adjacent speech bubbles."""
 
     ax1, ay1, ax2, ay2 = box_tuple(a)
     bx1, by1, bx2, by2 = box_tuple(b)
@@ -962,9 +980,9 @@ def should_merge_textline_boxes_conservative(a: dict, b: dict, page_width: int, 
     union_y2 = max(ay2, by2)
     union_w = union_x2 - union_x1
     union_h = union_y2 - union_y1
-    if union_w * union_h > page_width * page_height * 0.055:
+    if union_w * union_h > page_width * page_height * 0.045:
       return False
-    if union_h > page_height * 0.24 or union_w > page_width * 0.32:
+    if union_h > page_height * 0.22 or union_w > page_width * 0.26:
       return False
 
     gap_x = max(0, max(ax1, bx1) - min(ax2, bx2))
@@ -978,23 +996,23 @@ def should_merge_textline_boxes_conservative(a: dict, b: dict, page_width: int, 
     vertical_b = bh > bw * 1.25
 
     if horizontal_a and horizontal_b:
-      if y_overlap >= 0.62 and gap_x <= max(10, min(ah, bh) * 0.45):
+      if y_overlap >= 0.72 and gap_x <= max(8, min(ah, bh) * 0.35):
         return True
-      if x_overlap >= 0.38 and gap_y <= max(14, min(ah, bh) * 0.65):
+      if x_overlap >= 0.62 and gap_y <= max(14, min(ah, bh) * 0.55):
         return True
       return False
 
     if vertical_a and vertical_b:
-      if y_overlap >= 0.58 and gap_x <= max(12, min(aw, bw) * 0.75):
+      if y_overlap >= 0.72 and gap_x <= max(10, min(aw, bw) * 0.48):
         return True
-      if x_overlap >= 0.48 and gap_y <= max(16, min(aw, bw) * 1.2):
+      if x_overlap >= 0.62 and gap_y <= max(14, min(aw, bw) * 0.9):
         return True
       return False
 
     overlap = overlap_ratio((ax1, ay1, ax2, ay2), (bx1, by1, bx2, by2))
-    if overlap > 0.34:
+    if overlap > 0.42:
       return True
-    return gap_x <= 8 and gap_y <= 8
+    return gap_x <= 6 and gap_y <= 6
 
 
 def box_tuple(item: dict) -> tuple[int, int, int, int]:

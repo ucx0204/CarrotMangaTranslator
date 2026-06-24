@@ -102,6 +102,15 @@ export type TranslationOptions = {
   ocrGpuBackend?: OcrGpuBackend;
   ocrGpuCudaTag?: string;
   ocrBboxProvider?: string;
+  ocrBboxMode?: string;
+  ocrEngine?: string;
+  ocrEngineDtype?: string;
+  ocrVersion?: string;
+  ocrTextDetectionModelName?: string;
+  ocrTextRecognitionModelName?: string;
+  ocrMergeMode?: string;
+  ocrDetLimit?: string;
+  ocrRecBatch?: string;
   ocrBboxCommand?: string;
   ocrBboxHintsPath?: string;
   ocrBboxHints?: unknown;

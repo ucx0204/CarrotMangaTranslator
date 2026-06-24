@@ -238,6 +238,15 @@ describe("app settings helpers", () => {
     expect(options.apiKey).toBeUndefined();
     expect(options.ocrDevice).toBe("gpu");
     expect(options.ocrGpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
+    expect(options.ocrBboxMode).toBe("ocr");
+    expect(options.ocrEngine).toBe("paddle_static");
+    expect(options.ocrEngineDtype).toBe("float32");
+    expect(options.ocrVersion).toBe("PP-OCRv6");
+    expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
+    expect(options.ocrTextRecognitionModelName).toBe("PP-OCRv6_small_rec");
+    expect(options.ocrMergeMode).toBe("conservative");
+    expect(options.ocrDetLimit).toBe("1600");
+    expect(options.ocrRecBatch).toBe("1");
     expect(options.gemmaVramMode).toBe("economy26b");
     expect(options.cacheTypeK).toBe("q4_0");
     expect(options.cacheTypeV).toBe("q4_0");
@@ -402,11 +411,48 @@ describe("app settings helpers", () => {
     expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(false);
     expect(options.fitTargetMb).toBe(2048);
+    expect(options.ocrBboxMode).toBe("ocr");
+    expect(options.ocrEngine).toBe("paddle_static");
+    expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
+    expect(options.ocrTextRecognitionModelName).toBe("PP-OCRv6_small_rec");
+    expect(options.ocrMergeMode).toBe("conservative");
     expect(options.imageMinTokens).toBe(1024);
     expect(options.imageMaxTokens).toBe(1024);
     expect(options.serverPath).toBe(
       join("C:/app-data", "tools", "llama-b9547-cuda12.4", "llama-server.exe"),
     );
+  });
+
+  it("uses a small detector and tiny recognizer for the minimum Gemma VRAM mode", () => {
+    const defaults = resolveDefaultAppSettings();
+    const options = buildBaseTranslationOptions({
+      jobId: "job-minimum",
+      runDir: "C:/runs/job-minimum",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub",
+      },
+      settings: {
+        ...defaults,
+        gemma: {
+          ...defaults.gemma,
+          vramMode: "minimum12b",
+        },
+      },
+      env: {},
+    });
+
+    expect(options.gemmaVramMode).toBe("minimum12b");
+    expect(options.ocrBboxMode).toBe("ocr");
+    expect(options.ocrEngine).toBe("paddle_static");
+    expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
+    expect(options.ocrTextRecognitionModelName).toBe("PP-OCRv6_tiny_rec");
+    expect(options.ocrMergeMode).toBe("conservative");
+    expect(options.ocrDetLimit).toBe("1600");
+    expect(options.ocrRecBatch).toBe("1");
   });
 
   it("uses the full VRAM smoke preset with DFlash draft enabled", () => {
@@ -448,6 +494,10 @@ describe("app settings helpers", () => {
     expect(options.draftModelRepo).toBeTruthy();
     expect(options.draftModelFile).toBeTruthy();
     expect(options.fitTargetMb).toBe(1024);
+    expect(options.ocrBboxMode).toBeUndefined();
+    expect(options.ocrEngine).toBeUndefined();
+    expect(options.ocrTextDetectionModelName).toBeUndefined();
+    expect(options.ocrTextRecognitionModelName).toBeUndefined();
     expect(options.llamaRuntimeProfile).toBe("cuda12");
     expect(options.serverPath).toBe(
       join(
@@ -556,6 +606,13 @@ describe("app settings helpers", () => {
     expect(options.llamaRocmTarget).toBe("gfx110X");
     expect(options.ocrDevice).toBe("gpu");
     expect(options.ocrGpuBackend).toBe("rocm-transformers");
+    expect(options.ocrBboxMode).toBe("ocr");
+    expect(options.ocrEngine).toBe("transformers");
+    expect(options.ocrEngineDtype).toBe("float32");
+    expect(options.ocrVersion).toBe("PP-OCRv6");
+    expect(options.ocrMergeMode).toBe("conservative");
+    expect(options.ocrDetLimit).toBe("1600");
+    expect(options.ocrRecBatch).toBe("1");
     expect(options.serverPath).toBe(
       join(
         "C:/app-data",

@@ -228,6 +228,40 @@ describe("runtime model support helpers", () => {
     expect(tasks).toEqual([]);
   });
 
+  it("predownloads selected low-VRAM PaddleOCR textline models only", () => {
+    const runtimeDir = createTempDir("ocr-runtime-");
+    const economyTasks = collectRequiredPaddleOcrModelDownloads(
+      {
+        ocrTextDetectionModelName: "PP-OCRv6_small_det",
+        ocrTextRecognitionModelName: "PP-OCRv6_small_rec",
+      },
+      { runtimeDir },
+    );
+    const minimumTasks = collectRequiredPaddleOcrModelDownloads(
+      {
+        ocrTextDetectionModelName: "PP-OCRv6_small_det",
+        ocrTextRecognitionModelName: "PP-OCRv6_tiny_rec",
+      },
+      { runtimeDir },
+    );
+
+    expect(economyTasks.map((task) => task.repo)).toEqual(
+      expect.arrayContaining([
+        "PaddlePaddle/PP-OCRv6_small_det",
+        "PaddlePaddle/PP-OCRv6_small_rec",
+      ]),
+    );
+    expect(economyTasks.map((task) => task.repo)).not.toContain(
+      "PaddlePaddle/PaddleOCR-VL-1.6",
+    );
+    expect(minimumTasks.map((task) => task.repo)).toEqual(
+      expect.arrayContaining([
+        "PaddlePaddle/PP-OCRv6_small_det",
+        "PaddlePaddle/PP-OCRv6_tiny_rec",
+      ]),
+    );
+  });
+
   it("disables hf-xet for Paddle OCR Python downloads by default", () => {
     const runtimeDir = createTempDir("ocr-runtime-");
     const previousDisableXet = process.env.HF_HUB_DISABLE_XET;
@@ -503,7 +537,10 @@ describe("runtime model support helpers", () => {
         ocrGpuBackend: "rocm-transformers",
       });
 
+      expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE).toBe("ocr");
+      expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_ENGINE).toBe("transformers");
       expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE).toBe("float32");
+      expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_VERSION).toBe("PP-OCRv6");
       expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_ATTN).toBe("eager");
       expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE).toBe(
         "conservative",
@@ -517,6 +554,24 @@ describe("runtime model support helpers", () => {
       ).toBeUndefined();
       expect(
         buildOcrRuntimeEnv({ ocrDevice: "cpu" })
+          .MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE,
+      ).toBeUndefined();
+      expect(
+        buildOcrRuntimeEnv({ ocrDevice: "cpu" })
+          .MANGA_TRANSLATOR_PADDLEOCR_ENGINE,
+      ).toBeUndefined();
+      expect(buildOcrRuntimeEnv({ ocrDevice: "cpu" }).OMP_NUM_THREADS).toBe(
+        "2",
+      );
+      expect(buildOcrRuntimeEnv({ ocrDevice: "cpu" }).MKL_NUM_THREADS).toBe(
+        "2",
+      );
+      expect(
+        buildOcrRuntimeEnv({ ocrDevice: "cpu", ocrWorkerThreads: 3 })
+          .OMP_NUM_THREADS,
+      ).toBe("3");
+      expect(
+        buildOcrRuntimeEnv({ ocrDevice: "cpu" })
           .MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN,
       ).toBeUndefined();
       const cudaEnv = buildOcrRuntimeEnv({
@@ -524,6 +579,11 @@ describe("runtime model support helpers", () => {
         ocrGpuBackend: "cuda",
       });
       expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_ATTN).toBeUndefined();
+      expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE).toBeUndefined();
+      expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_ENGINE).toBeUndefined();
+      expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE).toBeUndefined();
+      expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_VERSION).toBeUndefined();
+      expect(cudaEnv.OMP_NUM_THREADS).toBeUndefined();
       expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE).toBeUndefined();
       expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN).toBeUndefined();
 
@@ -865,10 +925,10 @@ describe("runtime model support helpers", () => {
       runtime,
     );
 
-    expect(cpuCommand).not.toContain("--engine");
     expect(cpuCommand).not.toContain("--bbox-mode");
-    expect(cudaCommand).not.toContain("--engine");
+    expect(cpuCommand).not.toContain("--engine");
     expect(cudaCommand).not.toContain("--bbox-mode");
+    expect(cudaCommand).not.toContain("--engine");
     expect(amdCommand).toContain("--bbox-mode");
     expect(amdCommand).toContain("ocr");
     expect(amdCommand).toContain("--engine");
@@ -879,6 +939,57 @@ describe("runtime model support helpers", () => {
     expect(amdCommand).toContain("PP-OCRv6");
     expect(amdCommand).toContain("--merge-mode");
     expect(amdCommand).toContain("conservative");
+  });
+
+  it("passes low-VRAM OCR textline model overrides without changing full defaults", () => {
+    const runtime = { pythonPath: "python" };
+    const economyCommand = buildOcrBboxCommand(
+      {
+        imagePath: "page.png",
+        ocrDevice: "gpu",
+        ocrGpuBackend: "cuda",
+        ocrBboxMode: "ocr",
+        ocrEngine: "paddle_static",
+        ocrEngineDtype: "float32",
+        ocrVersion: "PP-OCRv6",
+        ocrTextDetectionModelName: "PP-OCRv6_small_det",
+        ocrTextRecognitionModelName: "PP-OCRv6_small_rec",
+        ocrMergeMode: "conservative",
+        ocrDetLimit: "1600",
+        ocrRecBatch: "1",
+      },
+      "paddleocr-vl",
+      "out.json",
+      runtime,
+    );
+    const env = buildOcrRuntimeEnv({
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+      ocrBboxMode: "ocr",
+      ocrEngine: "paddle_static",
+      ocrTextDetectionModelName: "PP-OCRv6_small_det",
+      ocrTextRecognitionModelName: "PP-OCRv6_small_rec",
+      ocrMergeMode: "conservative",
+    });
+
+    expect(economyCommand).toContain("--bbox-mode");
+    expect(economyCommand).toContain("ocr");
+    expect(economyCommand).toContain("--engine");
+    expect(economyCommand).toContain("paddle_static");
+    expect(economyCommand).toContain("--text-detection-model-name");
+    expect(economyCommand).toContain("PP-OCRv6_small_det");
+    expect(economyCommand).toContain("--text-recognition-model-name");
+    expect(economyCommand).toContain("PP-OCRv6_small_rec");
+    expect(economyCommand).toContain("--merge-mode");
+    expect(economyCommand).toContain("conservative");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE).toBe("ocr");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE).toBe("paddle_static");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME).toBe(
+      "PP-OCRv6_small_det",
+    );
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME).toBe(
+      "PP-OCRv6_small_rec",
+    );
   });
 
   it("adds Paddle native DLL directories for isolated Windows OCR runtimes", () => {
@@ -1183,6 +1294,82 @@ describe("runtime model support helpers", () => {
         progressCurrent: 7,
       }),
     );
+  });
+
+  it("splits CPU PaddleOCR batches across workers with two threads each", async () => {
+    const outputDir = createTempDir("ocr-cpu-parallel-");
+    const commandBatchPaths = new Map<string, string>();
+    const commandEnvs: Array<Record<string, string> | undefined> = [];
+    const batchSizes: number[] = [];
+    let commandIndex = 0;
+
+    await withOcrBatchPipelineStubs(
+      {
+        ensurePaddleOcrRuntime() {
+          return {
+            pythonPath: "python",
+            runtimeDir: join(outputDir, "runtime"),
+            prepared: true,
+            diagnostics: [],
+          };
+        },
+        buildOcrBboxBatchCommand(_options, batchPath) {
+          const command = `ocr-cpu-batch-${++commandIndex}`;
+          commandBatchPaths.set(command, batchPath);
+          return command;
+        },
+        async runShellCommand(command, options) {
+          commandEnvs.push(options.env);
+          const batchPath = commandBatchPaths.get(command);
+          if (!batchPath) {
+            throw new Error(`Missing batch path for ${command}`);
+          }
+          const batch = JSON.parse(readFileSync(batchPath, "utf8")) as {
+            items: Array<{ output: string }>;
+          };
+          batchSizes.push(batch.items.length);
+          for (const [index, item] of batch.items.entries()) {
+            writeFileSync(
+              item.output,
+              JSON.stringify([
+                {
+                  label: "text",
+                  bbox: [10 + index, 20, 40 + index, 60],
+                  text: "日本語",
+                },
+              ]),
+              "utf8",
+            );
+          }
+          return { stdout: "", stderr: "" };
+        },
+      },
+      async ({ collectOcrBboxHintsBatch }) => {
+        const pages = Array.from({ length: 5 }, (_, index) => ({
+          imagePath: join(outputDir, `page-${index + 1}.png`),
+          outputDir: join(outputDir, `page-${index + 1}`),
+          imageWidth: 100,
+          imageHeight: 100,
+          ocrBboxProvider: "paddleocr-vl",
+          ocrDevice: "cpu",
+          ocrCpuWorkers: 2,
+          ocrCpuWorkerStartDelayMs: 0,
+        }));
+        const results = await collectOcrBboxHintsBatch(pages);
+
+        expect(results).toHaveLength(5);
+        expect(results.every((result) => result.hints.length === 1)).toBe(true);
+      },
+    );
+
+    expect(commandIndex).toBe(2);
+    expect(batchSizes).toEqual([3, 2]);
+    expect(commandEnvs).toHaveLength(2);
+    for (const env of commandEnvs) {
+      expect(env?.OMP_NUM_THREADS).toBe("2");
+      expect(env?.MKL_NUM_THREADS).toBe("2");
+      expect(env?.FLAGS_cpu_math_library_num_threads).toBe("2");
+    }
   });
 
   it("keeps the CUDA 13 llama-server implementation DLL in the managed runtime", () => {

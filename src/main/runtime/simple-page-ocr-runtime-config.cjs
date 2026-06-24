@@ -1045,6 +1045,8 @@ function buildOcrRuntimeEnv(
   );
   const ocrDevice = resolveOcrDevice(options);
   const ocrGpuBackend = resolveOcrGpuBackend(options);
+  const paddleOcrEnv = buildPaddleOcrModeEnv(options, ocrDevice, ocrGpuBackend);
+  const cpuThreadEnv = buildPaddleOcrCpuThreadEnv(options, ocrDevice);
   const pipCacheDir = resolveOcrPipCacheDir(runtimeDir, options);
   const tempDir = resolveOcrTempDir(runtimeDir, options);
   const pythonUserBase = resolveOcrPythonUserBaseDir(runtimeDir, options);
@@ -1072,45 +1074,16 @@ function buildOcrRuntimeEnv(
     MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG: resolveOcrGpuCudaTag(options),
     MANGA_TRANSLATOR_OCR_DLL_DIRS: dllSearchDirs.join(path.delimiter),
     MANGA_TRANSLATOR_PADDLEOCR_DEVICE: ocrDevice,
+    ...paddleOcrEnv,
+    ...cpuThreadEnv,
     ...(ocrGpuBackend === "rocm-transformers" && ocrDevice.startsWith("gpu")
       ? {
-          MANGA_TRANSLATOR_PADDLEOCR_ENGINE:
-            runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", options) ||
-            "transformers",
-          MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE:
-            runtimeOverrideEnv(
-              "MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE",
-              options,
-            ) || "float32",
-          MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE:
-            runtimeOverrideEnv(
-              "MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE",
-              options,
-            ) || "ocr",
-          MANGA_TRANSLATOR_PADDLEOCR_VERSION:
-            runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VERSION", options) ||
-            "PP-OCRv6",
           MANGA_TRANSLATOR_PADDLEOCR_ATTN:
             runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ATTN", options) ||
             "eager",
-          MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE:
-            runtimeOverrideEnv(
-              "MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE",
-              options,
-            ) || "conservative",
           MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN:
             runtimeOverrideEnv(
               "MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN",
-              options,
-            ) || "1",
-          MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT:
-            runtimeOverrideEnv(
-              "MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT",
-              options,
-            ) || "1600",
-          MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH:
-            runtimeOverrideEnv(
-              "MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH",
               options,
             ) || "1",
         }
@@ -1141,6 +1114,151 @@ function buildOcrRuntimeEnv(
     PYTHONUTF8: "1",
     PYTHONUNBUFFERED: "1",
   };
+}
+
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {string} ocrDevice
+ * @returns {Record<string, string>}
+ */
+function buildPaddleOcrCpuThreadEnv(options = {}, ocrDevice = "") {
+  if (ocrDevice !== "cpu") {
+    return {};
+  }
+  const threads = String(resolvePaddleOcrWorkerThreadCount(options));
+  return {
+    FLAGS_cpu_math_library_num_threads: threads,
+    MKL_NUM_THREADS: threads,
+    NUMEXPR_NUM_THREADS: threads,
+    OMP_NUM_THREADS: threads,
+    OPENBLAS_NUM_THREADS: threads,
+    PADDLE_NUM_THREADS: threads,
+    VECLIB_MAXIMUM_THREADS: threads,
+  };
+}
+
+/**
+ * @param {RuntimeOptions} [options]
+ * @returns {number}
+ */
+function resolvePaddleOcrWorkerThreadCount(options = {}) {
+  return (
+    readPositiveIntegerOption(
+      runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_WORKER_THREADS", options),
+    ) ||
+    readPositiveIntegerOption(
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_WORKER_THREADS", options),
+    ) ||
+    readPositiveIntegerOption(options.ocrWorkerThreads) ||
+    2
+  );
+}
+
+/**
+ * @param {RuntimeOptions} [options]
+ * @param {string} ocrDevice
+ * @param {string} ocrGpuBackend
+ * @returns {Record<string, string>}
+ */
+function buildPaddleOcrModeEnv(
+  options = {},
+  ocrDevice = "",
+  ocrGpuBackend = "",
+) {
+  const rocmTransformers =
+    String(ocrDevice).startsWith("gpu") &&
+    ocrGpuBackend === "rocm-transformers";
+  const engine =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", options) ||
+    readOptionString(options.ocrEngine) ||
+    (rocmTransformers ? "transformers" : "");
+  const dtype =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", options) ||
+    readOptionString(options.ocrEngineDtype) ||
+    (rocmTransformers ? "float32" : "");
+  const bboxMode =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE", options) ||
+    readOptionString(options.ocrBboxMode) ||
+    (rocmTransformers ? "ocr" : "");
+  const version =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VERSION", options) ||
+    readOptionString(options.ocrVersion) ||
+    (rocmTransformers ? "PP-OCRv6" : "");
+  const textDetectionModelName =
+    runtimeOverrideEnv(
+      "MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME",
+      options,
+    ) ||
+    readOptionString(options.ocrTextDetectionModelName) ||
+    "";
+  const textRecognitionModelName =
+    runtimeOverrideEnv(
+      "MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME",
+      options,
+    ) ||
+    readOptionString(options.ocrTextRecognitionModelName) ||
+    "";
+  const mergeMode =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE", options) ||
+    readOptionString(options.ocrMergeMode) ||
+    (rocmTransformers ? "conservative" : "");
+  const detLimit =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT", options) ||
+    readOptionString(options.ocrDetLimit) ||
+    (rocmTransformers ? "1600" : "");
+  const recBatch =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH", options) ||
+    readOptionString(options.ocrRecBatch) ||
+    (rocmTransformers ? "1" : "");
+  /** @type {Record<string, string>} */
+  const env = {};
+  if (engine) {
+    env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE = engine;
+  }
+  if (dtype) {
+    env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE = dtype;
+  }
+  if (bboxMode) {
+    env.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE = bboxMode;
+  }
+  if (version) {
+    env.MANGA_TRANSLATOR_PADDLEOCR_VERSION = version;
+  }
+  if (textDetectionModelName) {
+    env.MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME =
+      textDetectionModelName;
+  }
+  if (textRecognitionModelName) {
+    env.MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME =
+      textRecognitionModelName;
+  }
+  if (mergeMode) {
+    env.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE = mergeMode;
+  }
+  if (detLimit) {
+    env.MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT = detLimit;
+  }
+  if (recBatch) {
+    env.MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH = recBatch;
+  }
+  return env;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function readOptionString(value) {
+  return String(value ?? "").trim();
+}
+
+/**
+ * @param {unknown} value
+ * @returns {number}
+ */
+function readPositiveIntegerOption(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 0;
 }
 
 /**
@@ -1234,6 +1352,7 @@ module.exports = {
   WINDOWS_LEGACY_MAX_PATH,
   WINDOWS_PATH_SAFETY_MARGIN,
   buildOcrRuntimeEnv,
+  buildPaddleOcrCpuThreadEnv,
   buildPaddleOcrGpuFailureMessage,
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
@@ -1262,6 +1381,7 @@ module.exports = {
   resolveOcrVenvDir,
   resolvePaddlexCacheAliasRoot,
   resolvePaddlexCacheHome,
+  resolvePaddleOcrWorkerThreadCount,
   resolvePaddleOcrImportCheckTimeoutMs,
   resolveRealPaddlexCacheHome,
   resolveVenvPythonPath,

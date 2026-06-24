@@ -384,8 +384,14 @@ function applySmokeOptionOverrides(options) {
   const vramMode = String(process.env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE || "")
     .trim()
     .toLowerCase();
-  if (vramMode === "full" || vramMode === "economy") {
-    next.gemmaVramMode = vramMode;
+  if (["full", "full31b", "31b"].includes(vramMode)) {
+    next.gemmaVramMode = "full31b";
+  } else if (["economy", "economy26b", "eco", "26b"].includes(vramMode)) {
+    next.gemmaVramMode = "economy26b";
+  } else if (
+    ["minimum", "minimum12b", "minimal", "min", "12b"].includes(vramMode)
+  ) {
+    next.gemmaVramMode = "minimum12b";
   }
   return next;
 }

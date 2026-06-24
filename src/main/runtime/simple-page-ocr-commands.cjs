@@ -84,39 +84,91 @@ function buildOcrBboxBatchCommand(
  */
 function buildPaddleOcrBboxModeArgs(options = {}) {
   const device = resolveOcrDevice(options);
+  const rocmTransformers =
+    device.startsWith("gpu") &&
+    resolveOcrGpuBackend(options) === "rocm-transformers";
+  const bboxMode =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE", options) ||
+    readOptionString(options.ocrBboxMode) ||
+    (rocmTransformers ? "ocr" : "");
+  const engine =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", options) ||
+    readOptionString(options.ocrEngine) ||
+    (rocmTransformers ? "transformers" : "");
+  const dtype =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", options) ||
+    readOptionString(options.ocrEngineDtype) ||
+    (rocmTransformers ? "float32" : "");
+  const ocrVersion =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VERSION", options) ||
+    readOptionString(options.ocrVersion) ||
+    (rocmTransformers ? "PP-OCRv6" : "");
+  const textDetectionModelName =
+    runtimeOverrideEnv(
+      "MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME",
+      options,
+    ) ||
+    readOptionString(options.ocrTextDetectionModelName) ||
+    "";
+  const textRecognitionModelName =
+    runtimeOverrideEnv(
+      "MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME",
+      options,
+    ) ||
+    readOptionString(options.ocrTextRecognitionModelName) ||
+    "";
+  const mergeMode =
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE", options) ||
+    readOptionString(options.ocrMergeMode) ||
+    (rocmTransformers ? "conservative" : "");
   if (
-    !device.startsWith("gpu") ||
-    resolveOcrGpuBackend(options) !== "rocm-transformers"
+    !bboxMode &&
+    !engine &&
+    !dtype &&
+    !ocrVersion &&
+    !textDetectionModelName &&
+    !textRecognitionModelName &&
+    !mergeMode
   ) {
     return "";
   }
-  const bboxMode =
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE", options) ||
-    "ocr";
-  const engine =
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", options) ||
-    "transformers";
-  const dtype =
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", options) ||
-    "float32";
-  const ocrVersion =
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VERSION", options) ||
-    "PP-OCRv6";
-  const mergeMode =
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE", options) ||
-    "conservative";
-  return [
-    " --bbox-mode ",
-    quoteCommandArg(bboxMode),
-    " --engine ",
-    quoteCommandArg(engine),
-    " --dtype ",
-    quoteCommandArg(dtype),
-    " --ocr-version ",
-    quoteCommandArg(ocrVersion),
-    " --merge-mode ",
-    quoteCommandArg(mergeMode),
-  ].join("");
+  const args = [];
+  if (bboxMode) {
+    args.push(" --bbox-mode ", quoteCommandArg(bboxMode));
+  }
+  if (engine) {
+    args.push(" --engine ", quoteCommandArg(engine));
+  }
+  if (dtype) {
+    args.push(" --dtype ", quoteCommandArg(dtype));
+  }
+  if (ocrVersion) {
+    args.push(" --ocr-version ", quoteCommandArg(ocrVersion));
+  }
+  if (textDetectionModelName) {
+    args.push(
+      " --text-detection-model-name ",
+      quoteCommandArg(textDetectionModelName),
+    );
+  }
+  if (textRecognitionModelName) {
+    args.push(
+      " --text-recognition-model-name ",
+      quoteCommandArg(textRecognitionModelName),
+    );
+  }
+  if (mergeMode) {
+    args.push(" --merge-mode ", quoteCommandArg(mergeMode));
+  }
+  return args.join("");
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function readOptionString(value) {
+  return String(value ?? "").trim();
 }
 
 /**

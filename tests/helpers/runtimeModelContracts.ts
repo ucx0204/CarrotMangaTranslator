@@ -464,7 +464,10 @@ export async function withOcrBatchPipelineStubs<T>(
     ensurePaddleOcrRuntime: (options: Record<string, unknown>) => unknown;
     runShellCommand: (
       command: string,
-      options: { onOutput?: (line: string) => void },
+      options: {
+        env?: Record<string, string>;
+        onOutput?: (line: string) => void;
+      },
     ) => Promise<{ stdout: string; stderr: string }>;
     buildOcrBboxBatchCommand: (
       options: Record<string, unknown>,

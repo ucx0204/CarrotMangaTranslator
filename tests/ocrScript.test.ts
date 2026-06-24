@@ -34,6 +34,14 @@ describe("PaddleOCR-VL bbox script", () => {
     expect(script).toContain(
       'parser.add_argument("--dtype", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", "float32"))',
     );
+    expect(script).toContain('"--text-detection-model-name"');
+    expect(script).toContain(
+      'os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME")',
+    );
+    expect(script).toContain('"--text-recognition-model-name"');
+    expect(script).toContain(
+      'os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME")',
+    );
     expect(script).toContain('parser.add_argument(\n        "--merge-mode"');
     expect(script).toContain('if args.bbox_mode == "ocr":');
     expect(script).toContain("write_page_bboxes_from_ocr");
@@ -42,6 +50,9 @@ describe("PaddleOCR-VL bbox script", () => {
     );
     expect(script).toContain("should_merge_textline_boxes_conservative");
     expect(script).toContain('ocr_kwargs["engine"] = "transformers"');
+    expect(script).toContain('ocr_kwargs["engine"] = engine');
+    expect(script).toContain('ocr_kwargs["text_detection_model_name"]');
+    expect(script).toContain('ocr_kwargs["text_recognition_model_name"]');
     expect(script).toContain(
       'os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ATTN", "eager")',
     );
