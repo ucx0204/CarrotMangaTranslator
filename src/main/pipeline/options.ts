@@ -67,6 +67,8 @@ export function summarizeTranslationOptions(
     modelProvider: options.modelProvider,
     port: options.port,
     promptMode: options.promptMode,
+    strictRefineMode: options.strictRefineMode,
+    previousBlocksForPrompt: options.previousBlocksForPrompt?.length,
     promptOverrideText: options.promptOverrideText
       ? summarizePreview(options.promptOverrideText, 600)
       : undefined,

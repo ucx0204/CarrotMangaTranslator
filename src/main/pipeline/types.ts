@@ -1,4 +1,5 @@
 import type { TranslationOptions } from "../appSettings";
+import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import type { OpenAICompatibleApiEndpoint } from "../openaiApiEndpoint";
 import type { OpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
 import type {
@@ -87,7 +88,13 @@ export type RequestSummary = {
     y2?: number;
     ocrText?: string;
     score?: number | null;
+    groupId?: string | null;
+    rolePrior?: string | null;
+    containerType?: string | null;
+    orderInGroup?: number | null;
   }>;
+  previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];
+  strictRefineMode?: boolean;
   noTextDetected?: boolean;
   ocrTextEvidenceCount?: number;
 };

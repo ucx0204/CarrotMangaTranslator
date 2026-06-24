@@ -2,6 +2,7 @@ import type {
   BlockFormatDefaults,
   CodexReasoningEffort,
   ApiReasoningEffort,
+  BBox,
   GemmaVramMode,
   JobPhase,
   ModelProvider,
@@ -12,12 +13,25 @@ import type {
 } from "../../shared/types";
 import type { WorkContextBudgetPlan } from "../../shared/workContextBudget";
 
+export type PreviousOverlayBlockForPrompt = {
+  previousId: string;
+  index: number;
+  candidateId?: number;
+  bbox: BBox;
+  textRole?: "ordinary" | "sound" | string;
+  sourceText: string;
+  translatedText: string;
+  confidence?: number;
+};
+
 export type TranslationOptions = {
   imagePath: string;
   imageWidth?: number;
   imageHeight?: number;
   pageId?: string;
   pageIndex?: number;
+  strictRefineMode?: boolean;
+  previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];
   outputDir: string;
   modelProvider: ModelProvider;
   port: number;

@@ -52,6 +52,7 @@ export {
   filterPackagedRuntimeEnv,
 } from "./settings/translationOptions";
 export type {
+  PreviousOverlayBlockForPrompt,
   TranslationOptionPaths,
   TranslationOptions,
 } from "./settings/appSettingsTypes";

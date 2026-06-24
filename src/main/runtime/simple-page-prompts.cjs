@@ -1,6 +1,8 @@
 // @ts-check
 /**
- * @typedef {{ modelProvider?: string; modelRepo?: unknown; modelFile?: unknown; localModelPath?: unknown; regionCropMode?: unknown; workContext?: PromptWorkContext | null; imageWidth?: unknown; imageHeight?: unknown; ocrBboxHints?: OcrHint[]; [key: string]: unknown }} PromptOptions
+ * @typedef {{ x?: unknown; y?: unknown; w?: unknown; h?: unknown }} PromptBbox
+ * @typedef {{ previousId?: unknown; index?: unknown; candidateId?: unknown; bbox?: PromptBbox; textRole?: unknown; sourceText?: unknown; translatedText?: unknown; confidence?: unknown }} PreviousPromptBlock
+ * @typedef {{ modelProvider?: string; modelRepo?: unknown; modelFile?: unknown; localModelPath?: unknown; regionCropMode?: unknown; strictRefineMode?: unknown; previousBlocksForPrompt?: PreviousPromptBlock[]; workContext?: PromptWorkContext | null; imageWidth?: unknown; imageHeight?: unknown; ocrBboxHints?: OcrHint[]; [key: string]: unknown }} PromptOptions
  * @typedef {{ role?: string; width?: unknown; height?: unknown; [key: string]: unknown }} ImageVariant
  * @typedef {string[]} PromptSection
  * @typedef {{ styleGuide?: PromptStyleGuide | null; storyMemory?: { pages?: PromptStoryPage[] } | null }} PromptWorkContext
@@ -118,7 +120,7 @@ const OVERLAY_PROMPT_SECTIONS = [
     "A word or phrase inside a speech bubble, caption, note, sign, or label remains ordinary even when it is short, vertical, handwritten, or visually casual.",
     "confidence is your confidence from 0.00 to 1.00 that the item is real Japanese text, correctly read, correctly typed, and correctly translated.",
     "Use confidence below 0.72 when the crop is hard to read, partly clipped, possibly decorative, or the translation may be uncertain.",
-    "For textRole sound, use confidence 1.00 only when the whole sound effect is unquestionably real Japanese text and every glyph, including final/trailing kana, is read correctly. If there is any doubt, use confidence below 1.00; the app will discard uncertain sound-effect records.",
+    "For textRole sound, default to confidence below 1.00. Use confidence 1.00 only for complete, common, unmistakable SFX where the Japanese reading and Korean sound lettering are both certain. If any part is doubtful, use confidence below 1.00; the app will discard uncertain sound-effect records.",
     "If jp has multiple visible source lines, put every readable source line in jp. Continuation lines after jp: belong to jp until the ko: key.",
     "Write ko as natural Korean for horizontal reading. Do not mirror Japanese vertical line breaks; use commas or short Korean phrases unless a real list or dialogue pause needs a line break.",
     "If the entire jp or ko would be only [?], skip that record instead of outputting an unreadable placeholder.",
@@ -180,14 +182,24 @@ const OVERLAY_PROMPT_SECTIONS = [
     "For sound-effect or reaction lettering, ko must be bare Korean effect lettering only: no parentheses, brackets, quotes, stage directions, action descriptions, or explanatory notes.",
     "For sound-effect or reaction lettering, translate the visual sound/reaction text itself, not the character's motion or the scene description.",
     "First decide whether the source is ordinary language or standalone printed sound/reaction lettering. Ordinary language can be translated as Korean text; printed sound/reaction lettering must stay as sound lettering.",
+    "For every SFX, accuracy and omission are more important than coverage. Most SFX should be omitted or set below confidence 1.00 unless the exact source glyphs, the sound class, and the Korean effect lettering are all clear.",
+    "This uncertainty rule applies to all SFX: small, large, outlined, gray, slanted, handwritten, background, UI-adjacent, repeated, or partly hidden. Do not limit caution to large bold SFX.",
+    "Never give confidence 1.00 to an SFX by guessing from scene context alone, by reading a stylized mark as a familiar kana shape without certainty, or by choosing a generic Korean effect word.",
+    "When reviewing a previous-pass SFX, do not preserve its Korean wording for stability. Re-read the image from scratch; if the previous SFX sounds clumsy, too long, generic, or merely possible, lower confidence below 1.00 or skip it.",
+    "Do not output confidence 1.00 for SFX translations like 달그락달그락, 덜그럭덜그럭, 쿵, 툭, or 고오 unless the exact source glyph and scene clearly demand that Korean sound. A plausible guess is not enough.",
     "SFX translation priority: choose compact Korean effect lettering that fits the scene and visible rhythm. Do not mechanically transliterate Japanese kana when that would sound awkward in Korean.",
     "Do not force every SFX into semantic Korean. Avoid action verbs, adverbs, and explanations; when no clean localized effect word exists, use the shortest Korean sound lettering that still feels natural on the page.",
+    "Large bold SFX should stay short and punchy. Do not replace one large visual SFX glyph group with a long repeated Korean phrase just because the Japanese hint is repeated.",
+    "Avoid long Korean clatter words such as 달그락달그락 or 덜그럭덜그럭 unless the image clearly shows small hard objects continuously clattering. For dramatic impact, shock, pressure, or a sudden UI/body reaction, choose a shorter force sound.",
+    "For ガタ, ガタッ, or ガタガタ, choose by scene: trembling/shock can be 덜덜 or 덜컥, sudden movement can be 덜컹, but do not default to 달그락달그락.",
+    "For ゴ, ゴッ, ゴゴ, or other large heavy black impact lettering, use a short heavy sound such as 쿵, 쿠궁, or 고오 when context supports it; do not soften it into 툭 or stretch it into a clatter phrase.",
     "Do not translate ambient SFX as spoken dialogue. Treat it as printed sound/reaction lettering unless the visible text is clearly an actual spoken line.",
     "For motion, impact, cutting, texture, and ambient SFX, infer the sound class from image context and lettering shape. If the scene is unclear, keep the sound texture instead of choosing an unrelated meaning.",
     "For repeated or lengthened SFX, preserve the visible rhythm and duration in compact Korean instead of collapsing it into a generic word.",
+    "Repeated Japanese SFX does not automatically mean repeated Korean syllables. If the visual lettering is one large impact group, one compact Korean sound is usually better than a long repeated phrase.",
     "For printed sound/reaction lettering, ko should be readable aloud as a sound printed on the page. It must not be an adverbial phrase, narration, action description, emotion description, or sentence.",
     "For printed sound/reaction lettering, avoid Korean grammar endings, particles, connective endings, and explanatory spacing. Prefer one compact sound string over a phrase.",
-    "For printed sound/reaction lettering, confidence must be 1.00 only for a complete, clearly read SFX. Any clipped, decorative, ambiguous, or partially read SFX must have confidence below 1.00.",
+    "For printed sound/reaction lettering, confidence must be below 1.00 by default. It may be 1.00 only for a complete, clearly read SFX with a clearly correct Korean sound. Any clipped, decorative, ambiguous, partially read, style-uncertain, or translation-uncertain SFX must have confidence below 1.00.",
     "If the source lettering includes a grammatical connector after a sound, translate only the sound value unless the entire visible source is ordinary language.",
     "Do not translate a single SFX by describing the surrounding action, emotion, or speaker. The overlay text should read like a sound printed on the page.",
     "Do not output isolated fragments as separate records. Skip punctuation, decorative marks, digits, page numbers, lone Latin letters, isolated small kana/sokuon, or clipped single-character scraps unless they are clearly a complete visible text item.",
@@ -197,7 +209,7 @@ const OVERLAY_PROMPT_SECTIONS = [
     "Use angle 0 for ordinary upright speech and captions; use a nonzero angle only when the source glyphs are visibly slanted.",
     "Keep Korean short enough for an on-image overlay while preserving meaning.",
     "For handwritten diagrams and search-word lists, translate the whole note as one compact Korean phrase or comma-separated list when possible.",
-    "If OCR is uncertain, write [?] only for the uncertain fragment and still output the item.",
+    "If OCR is uncertain for ordinary text, write [?] only for the uncertain fragment and still output the item. For SFX, do not output a guessed [?] record; skip it or use confidence below 1.00.",
   ],
 ];
 
@@ -213,17 +225,17 @@ function buildSystemPrompt(options = {}) {
     "Return only the machine-readable record format requested by the user prompt.",
     "Geometry accuracy comes before Korean text fit: preserve the original Japanese glyph position and apparent size.",
     "Never merge separate speech bubbles, including touching or stacked balloon lobes.",
+    "Never output duplicate or overlapping records for the same physical Japanese text area. One glyph cluster/container must become one record, not stacked blocks.",
     "Render ordinary speech/caption/label Korean horizontally by default; source Japanese vertical direction is not a reason to make Korean vertical.",
     "For SFX records, output bare Korean effect lettering only; do not wrap it in parentheses/brackets/quotes or turn it into a stage direction.",
     "For SFX records, choose compact Korean effect lettering that fits the scene and rhythm. Do not mechanically transliterate Japanese kana, and do not force ambient sounds into dialogue words or action descriptions.",
-    "For SFX records, confidence must be 1.00 only when the complete sound effect is unquestionably real Japanese text and fully read; otherwise use confidence below 1.00.",
+    "For SFX records, confidence is below 1.00 by default. Use confidence 1.00 only when the complete sound effect is unquestionably real Japanese text, fully read, and clearly translated into a fitting Korean sound; otherwise use confidence below 1.00 so the app drops it.",
   ];
 
-  if (shouldUseSmallGemmaDuplicatePromptProfile(options)) {
-    lines.splice(
-      4,
-      0,
-      "Never output duplicate or overlapping records for the same physical Japanese text area. One glyph cluster/container must become one record, not stacked blocks.",
+  if (options.strictRefineMode) {
+    lines.push(
+      "Strict refinement pass: previous Korean blocks are weak review hints only, not source text. Correct an existing physical text area in place; do not add a second record for it.",
+      "In strict refinement, new ids are exceptional and valid only for complete visible Japanese glyph groups clearly outside every OCR candidate.",
     );
   }
 
@@ -259,24 +271,82 @@ function buildOverlayPrompt(options = {}, imageVariants = []) {
   if (coordinateSection.length > 1) {
     sections.splice(2, 0, coordinateSection);
   }
-  const workContextSection = buildWorkContextSection(options);
-  if (workContextSection.length > 1) {
+  const strictRefineSection = buildStrictRefineSection(options);
+  if (strictRefineSection.length > 1) {
     const coordinateIndex = sections.findIndex(
       (section) => section[0] === "Coordinate calibration",
     );
     sections.splice(
       coordinateIndex === -1 ? 2 : coordinateIndex + 1,
       0,
-      workContextSection,
+      strictRefineSection,
     );
   }
-  const ocrHintSection = buildOcrBboxHintSection(options, imageVariants);
-  if (ocrHintSection.length > 1) {
+  const workContextSection = buildWorkContextSection(options);
+  if (workContextSection.length > 1) {
+    const strictIndex = sections.findIndex(
+      (section) => section[0] === "Strict refinement mode",
+    );
     const coordinateIndex = sections.findIndex(
       (section) => section[0] === "Coordinate calibration",
     );
     sections.splice(
-      coordinateIndex === -1 ? 2 : coordinateIndex + 1,
+      strictIndex === -1
+        ? coordinateIndex === -1
+          ? 2
+          : coordinateIndex + 1
+        : strictIndex + 1,
+      0,
+      workContextSection,
+    );
+  }
+  const previousPassSection = buildPreviousPassSection(options, imageVariants);
+  if (previousPassSection.length > 1) {
+    const workContextIndex = sections.findIndex(
+      (section) => section[0] === "Work glossary and story memory",
+    );
+    const strictIndex = sections.findIndex(
+      (section) => section[0] === "Strict refinement mode",
+    );
+    const coordinateIndex = sections.findIndex(
+      (section) => section[0] === "Coordinate calibration",
+    );
+    sections.splice(
+      workContextIndex === -1
+        ? strictIndex === -1
+          ? coordinateIndex === -1
+            ? 2
+            : coordinateIndex + 1
+          : strictIndex + 1
+        : workContextIndex + 1,
+      0,
+      previousPassSection,
+    );
+  }
+  const ocrHintSection = buildOcrBboxHintSection(options, imageVariants);
+  if (ocrHintSection.length > 1) {
+    const previousIndex = sections.findIndex(
+      (section) => section[0] === "Previous pass blocks",
+    );
+    const workContextIndex = sections.findIndex(
+      (section) => section[0] === "Work glossary and story memory",
+    );
+    const strictIndex = sections.findIndex(
+      (section) => section[0] === "Strict refinement mode",
+    );
+    const coordinateIndex = sections.findIndex(
+      (section) => section[0] === "Coordinate calibration",
+    );
+    sections.splice(
+      previousIndex === -1
+        ? workContextIndex === -1
+          ? strictIndex === -1
+            ? coordinateIndex === -1
+              ? 2
+              : coordinateIndex + 1
+            : strictIndex + 1
+          : workContextIndex + 1
+        : previousIndex + 1,
       0,
       ocrHintSection,
     );
@@ -293,10 +363,6 @@ function buildOverlayPrompt(options = {}, imageVariants = []) {
  * @returns {void}
  */
 function applyModelSpecificPromptProfile(sections, options = {}) {
-  if (!shouldUseSmallGemmaDuplicatePromptProfile(options)) {
-    return;
-  }
-
   insertSectionLinesBefore(
     sections,
     "Output",
@@ -309,6 +375,10 @@ function applyModelSpecificPromptProfile(sections, options = {}) {
     "Inside one speech bubble, group all Japanese glyph lines from that same bubble into one item.",
     SMALL_GEMMA_DUPLICATE_SEGMENTATION_LINES,
   );
+
+  if (!shouldUseSmallGemmaDuplicatePromptProfile(options)) {
+    return;
+  }
 }
 
 /**
@@ -360,6 +430,7 @@ function getOverlayPrompt(options = {}, imageVariants = []) {
 function buildTaskSection(options = {}, imageVariants = []) {
   const hasAssistImages = imageVariants.length > 1;
   const regionCropMode = Boolean(options.regionCropMode);
+  const strictRefineMode = Boolean(options.strictRefineMode);
   return [
     "Task",
     hasAssistImages
@@ -373,10 +444,67 @@ function buildTaskSection(options = {}, imageVariants = []) {
         ? "Image 1 is the coordinate-authority selected crop."
         : "Image 1 is the coordinate-authority full page.",
     "Detect every visible Japanese text group and translate it into concise Korean.",
+    ...(strictRefineMode
+      ? [
+          "This is a strict second-pass refinement. Treat OCR candidate slots as the main output slots, and use previous pass blocks only as weak review hints.",
+          "Do not re-detect the page from scratch in a way that duplicates existing OCR candidates or previous physical text areas.",
+        ]
+      : []),
     "Scan the entire page before writing records; do not stop after the first obvious text.",
     "First identify the exact Japanese glyph strokes for each item, then write the record. Do not estimate from the speech bubble or panel shape.",
     "Before reading dialogue text, segment the visible speech balloons themselves. Each distinct balloon lobe and each separated dialogue text cluster becomes a separate dialogue record.",
     "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text.",
+  ];
+}
+
+/**
+ * @param {PromptOptions} [options]
+ * @returns {PromptSection}
+ */
+function buildStrictRefineSection(options = {}) {
+  if (!options.strictRefineMode) {
+    return [];
+  }
+
+  return [
+    "Strict refinement mode",
+    "This pass improves an existing Korean overlay result. It should be conservative and stable.",
+    "Priority order: 1. Image 1 visible Japanese glyphs, 2. OCR candidate bbox/id/group, 3. work glossary/story memory, 4. previous pass jp/ko.",
+    "Existing OCR candidate ids are the main output slots. For the same physical Japanese text area, keep the same candidate id whenever an OCR candidate exists.",
+    "Previous pass blocks are weak review hints only. They are not visible Japanese source text and must never create a record by themselves.",
+    "Use previous Korean wording only when it naturally matches the same visible Japanese glyph area. Correct it when Image 1, OCR, glossary, story memory, or SFX context proves a better result.",
+    "For previous-pass SFX, do not preserve Korean wording for stability. Re-read the source glyphs from Image 1. If the SFX reading or Korean sound choice is not clearly right, output confidence below 1.00 or omit it.",
+    "Never add a new record to correct, restate, enlarge, re-read, or provide an alternate translation for an existing OCR candidate or previous physical text area. Correct the existing record instead.",
+    "New ids are exceptional. A new id is valid only when a complete Japanese glyph cluster is clearly visible outside every OCR candidate box and is not a duplicate of any previous block.",
+    "A new SFX record is valid only when the complete source glyph group is clearly Japanese kana/kanji, fully visible, outside OCR candidates, and output as textRole sound. Dots, dashes, Latin letters, digits, panel lines, and decorative strokes are invalid.",
+  ];
+}
+
+/**
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {PromptSection}
+ */
+function buildPreviousPassSection(options = {}, imageVariants = []) {
+  const blocks = Array.isArray(options.previousBlocksForPrompt)
+    ? options.previousBlocksForPrompt
+    : [];
+  if (!options.strictRefineMode || blocks.length === 0) {
+    return [];
+  }
+
+  return [
+    "Previous pass blocks",
+    "These are weak review hints from the previous Korean overlay pass. Do not output them as records unless Image 1 shows real Japanese glyphs at the same physical area.",
+    "They are useful for preserving good Korean wording, spotting bad splits/merges, and avoiding accidental deletion, but they are lower priority than Image 1 and OCR candidates.",
+    "If a previous block and an OCR candidate describe the same physical area, output the OCR candidate id, not a separate previous-block record.",
+    "If Image 1 does not show Japanese glyphs at a previous block location, ignore that previous block.",
+    ...blocks
+      .slice(0, 80)
+      .map((block, index) =>
+        formatPreviousPassBlock(block, index + 1, options, imageVariants),
+      )
+      .filter(Boolean),
   ];
 }
 
@@ -467,6 +595,85 @@ function formatCharacterEntry(character) {
       ? character.customSpeechStyle || "custom"
       : character.speechStyle || "neutral";
   return `- ${sanitizePromptLine(character.displayName || character.targetName, 80)}: sourceNames=${sanitizePromptLine(sourceNames, 160)} targetName=${sanitizePromptLine(character.targetName, 80)} speechStyle=${sanitizePromptLine(style, 160)}`;
+}
+
+/**
+ * @param {PreviousPromptBlock} block
+ * @param {number} fallbackIndex
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {string}
+ */
+function formatPreviousPassBlock(
+  block,
+  fallbackIndex,
+  options = {},
+  imageVariants = [],
+) {
+  if (!block || typeof block !== "object") {
+    return "";
+  }
+  const index = readPositiveInteger(block.index) || fallbackIndex;
+  const bbox = convertPreviousBboxToPromptFrame(
+    block.bbox,
+    options,
+    imageVariants,
+  );
+  if (!bbox) {
+    return "";
+  }
+  const candidateId = readPositiveInteger(block.candidateId);
+  const candidate = candidateId ? ` candidateId:${candidateId}` : "";
+  const role = sanitizePromptLine(block.textRole || "ordinary", 40);
+  const confidence = Number(block.confidence);
+  const confidenceText = Number.isFinite(confidence)
+    ? ` confidence:${Math.round(confidence * 100) / 100}`
+    : "";
+  const jp = sanitizePromptLine(block.sourceText, 160);
+  const ko = sanitizePromptLine(block.translatedText, 160);
+  return `previous ${index}:${candidate} bbox:[${bbox.x1},${bbox.y1},${bbox.x2},${bbox.y2}] role:${role}${confidenceText} jp:${JSON.stringify(jp)} ko:${JSON.stringify(ko)}`;
+}
+
+/**
+ * @param {PromptBbox | undefined} bbox
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {{ x1: number; y1: number; x2: number; y2: number } | null}
+ */
+function convertPreviousBboxToPromptFrame(
+  bbox,
+  options = {},
+  imageVariants = [],
+) {
+  if (!bbox || typeof bbox !== "object") {
+    return null;
+  }
+  const x = Number(bbox.x);
+  const y = Number(bbox.y);
+  const w = Number(bbox.w);
+  const h = Number(bbox.h);
+  if (![x, y, w, h].every(Number.isFinite)) {
+    return null;
+  }
+  const frame = resolvePromptCoordinateFrame(options, imageVariants);
+  const left = Math.min(x, x + w);
+  const top = Math.min(y, y + h);
+  const right = Math.max(x, x + w);
+  const bottom = Math.max(y, y + h);
+  if (frame.space === "pixels") {
+    return {
+      x1: Math.round((left / 1000) * frame.frame.width),
+      y1: Math.round((top / 1000) * frame.frame.height),
+      x2: Math.round((right / 1000) * frame.frame.width),
+      y2: Math.round((bottom / 1000) * frame.frame.height),
+    };
+  }
+  return {
+    x1: Math.round(left),
+    y1: Math.round(top),
+    x2: Math.round(right),
+    y2: Math.round(bottom),
+  };
 }
 
 /**
@@ -599,19 +806,30 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
 
   const useSmallGemmaDuplicateProfile =
     shouldUseSmallGemmaDuplicatePromptProfile(options);
-  const ocrAnchorLines = useSmallGemmaDuplicateProfile
+  const strictRefineMode = Boolean(options.strictRefineMode);
+  const useStrictDuplicateRules =
+    strictRefineMode || useSmallGemmaDuplicateProfile;
+  const ocrAnchorLines = useStrictDuplicateRules
     ? SMALL_GEMMA_OCR_ANCHOR_LINES
     : [
         "OCR text hints may be wrong, incomplete, or split strangely. Use Image 1 as the authority for the actual Japanese text and Korean translation.",
         "Use the OCR text hint to keep each translated record attached to the correct candidate id, especially when nearby candidates are close together.",
       ];
-  const candidateChangeLine = useSmallGemmaDuplicateProfile
+  const candidateChangeLine = useStrictDuplicateRules
     ? "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes or includes non-text art; then change the minimum amount needed and keep the same id."
     : "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes or includes non-text art; then change the minimum amount needed.";
-  const missingTextIntroLines = useSmallGemmaDuplicateProfile
+  const missingTextIntroLines = strictRefineMode
     ? [
-        "OCR candidates are the normal source of output records. After processing candidates, inspect Image 1 only for obvious missing Japanese text that is clearly outside all candidate rectangles.",
-        `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle, and never add a new id for text already covered by a candidate.`,
+        "In strict refinement, OCR candidates are the main output slots. After processing candidates, inspect Image 1 only for obvious missing Japanese text that is fully outside all candidate rectangles.",
+        `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. New ids are exceptional and must never correct, restate, enlarge, or duplicate an existing candidate.`,
+        "A new record is invalid if its bbox overlaps an OCR candidate, its center sits inside an OCR candidate, or its jp repeats text already assigned to a candidate or earlier record.",
+        "For new missing SFX records, be very conservative: add them only when the complete kana/SFX glyph group is clearly visible, fully outside every candidate, the exact source reading is clear, and the Korean sound choice is certain enough for confidence 1.00.",
+        "Never add new ordinary records for dots, dashes, ellipses, Latin letters, digits, UI fragments, panel trim, furniture lines, wall patterns, or isolated strokes.",
+      ]
+    : useSmallGemmaDuplicateProfile
+      ? [
+          "OCR candidates are the normal source of output records. After processing candidates, inspect Image 1 only for obvious missing Japanese text that is clearly outside all candidate rectangles.",
+          `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle, and never add a new id for text already covered by a candidate.`,
         "New records are allowed only for clear Japanese glyphs whose bbox does not overlap existing candidate rectangles except for a tiny edge touch.",
         "For new missing SFX records, be conservative: add them only when the complete kana/SFX glyph group is clearly visible and not covered by any candidate. The bbox must visibly cover kana/SFX glyph strokes.",
       ]
@@ -627,23 +845,25 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
     "An external OCR geometry detector has already proposed bbox candidates. Some candidates include low-trust OCR text hints for slot matching only.",
     ...ocrAnchorLines,
     "Treat each candidate as a locked geometry slot. For every candidate that contains Japanese glyphs, output one record with that same id and the exact x1, y1, x2, y2 numbers shown below.",
-    ...(useSmallGemmaDuplicateProfile
+    ...(useStrictDuplicateRules
       ? [SMALL_GEMMA_OCR_DUPLICATE_LINES[0]]
       : []),
     `Required candidate ids: ${candidateIds.join(", ")}.`,
     ...groupContextLines,
     "Read and translate only the text inside that candidate rectangle plus a tiny visual margin; do not move the rectangle to a different nearby text group.",
-    ...(useSmallGemmaDuplicateProfile
+    ...(useStrictDuplicateRules
       ? SMALL_GEMMA_OCR_DUPLICATE_LINES.slice(1)
       : []),
     "For each candidate, read every visible Japanese line inside the rectangle. A candidate record is incomplete if jp or ko contains only the first line while lower or side lines remain readable.",
     "If a candidate is a handwritten note or diagram label, preserve all readable words, but translate ko compactly for horizontal Korean reading rather than copying the Japanese vertical line breaks.",
     "For every accepted candidate, output type nonsolid and set textRole to ordinary or sound.",
     "If a candidate is a sweat drop, texture, decoration, panel trim, or other non-text mark, skip it instead of inventing text.",
-    "For candidate SFX, confidence must be 1.00 only when the complete effect text is clearly read; otherwise use confidence below 1.00.",
+    "For candidate SFX, confidence is below 1.00 by default. Use confidence 1.00 only when the complete effect text is clearly read and the Korean sound choice is clearly right; otherwise use confidence below 1.00 so the app drops it.",
     candidateChangeLine,
     "Do not merge two candidates into one record, even when the sentence continues across them. Candidate rectangles are separate output records.",
     "If two candidates are stacked or touching speech bubbles, output two separate dialogue records with their original ids.",
+    "For phone/game/menu UI candidates: keep only compact labels such as MENU, Quests, SAVE, or DELETE when they fit the candidate. Do not translate a multi-row UI list or save-slot table as one large Korean block.",
+    "For containerType ui_list, phone_ui, menu, settings, or game_ui: keep each candidate compact, treat it as an ordinary UI label, and never create a large new dialogue record covering the UI panel or list.",
     ...missingTextIntroLines,
     "Never add SFX on panel trim, furniture lines, wall patterns, or isolated vertical strokes.",
     "The candidate coordinates below are already converted into the same coordinate frame required for your output.",
@@ -772,7 +992,9 @@ function formatOcrBboxHintForPrompt(
     : "";
   const rolePrior = sanitizeOcrGroupValue(hint.rolePrior);
   const role = rolePrior ? ` rolePrior:${rolePrior}` : "";
-  return `candidate ${id}: label:${label} x1:${converted.x1} y1:${converted.y1} x2:${converted.x2} y2:${converted.y2}${score}${group}${role}${textHint}`;
+  const containerType = sanitizeOcrGroupValue(hint.containerType);
+  const container = containerType ? ` containerType:${containerType}` : "";
+  return `candidate ${id}: label:${label} x1:${converted.x1} y1:${converted.y1} x2:${converted.x2} y2:${converted.y2}${score}${group}${role}${container}${textHint}`;
 }
 
 /**

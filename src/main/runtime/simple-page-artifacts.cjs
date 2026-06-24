@@ -58,6 +58,12 @@ async function saveArtifacts(options, result) {
     createdAt: new Date().toISOString(),
     settings: {
       port: options.port,
+      strictRefineMode: Boolean(options.strictRefineMode),
+      previousBlocksForPromptCount: Array.isArray(
+        options.previousBlocksForPrompt,
+      )
+        ? options.previousBlocksForPrompt.length
+        : 0,
       temperature: options.temperature,
       topP: options.topP,
       topK: options.topK,

@@ -7,7 +7,7 @@ const path = require("node:path");
  * @typedef {{ id?: unknown; label?: unknown; x1?: unknown; y1?: unknown; x2?: unknown; y2?: unknown; score?: unknown; groupId?: unknown; rolePrior?: unknown; orderInGroup?: unknown; [key: string]: unknown }} OcrBboxHint
  * @typedef {{ role?: string; path: string; mime?: string; convertedFromMime?: unknown; width?: unknown; height?: unknown; originalWidth?: unknown; originalHeight?: unknown; [key: string]: unknown }} ImageVariantSummaryInput
  * @typedef {{ baseUrl: string }} RequestServer
- * @typedef {{ label?: unknown; imagePath?: string | null; outputDir?: string | null; port?: unknown; promptMode?: unknown; temperature?: unknown; topP?: unknown; topK?: unknown; maxTokens?: unknown; ctx?: unknown; batch?: unknown; ubatch?: unknown; gemmaVramMode?: unknown; fitTargetMb?: unknown; cacheTypeK?: unknown; cacheTypeV?: unknown; ctxCheckpoints?: unknown; kvOffload?: unknown; mmprojOffload?: unknown; threads?: unknown; threadsBatch?: unknown; poll?: unknown; pollBatch?: unknown; prioBatch?: unknown; cacheIdleSlots?: unknown; cacheReuse?: unknown; enableMetrics?: unknown; enablePerf?: unknown; useDraft?: boolean | null; imageMinTokens?: unknown; imageMaxTokens?: unknown; includeEnhancedVariant?: unknown; enhancedMaxLongSide?: unknown; enhancedContrast?: unknown; imageFirst?: unknown; reuseServer?: unknown; llamaRuntimeProfile?: unknown; llamaRocmTarget?: unknown; workingDir?: string | null; toolsDir?: string | null; serverPath?: string | null; modelRepo?: unknown; modelFile?: unknown; codexOauthPort?: unknown; workContextBudget?: WorkContextBudget; ocrBboxHints?: OcrBboxHint[]; [key: string]: unknown }} RequestSummaryOptions
+ * @typedef {{ label?: unknown; imagePath?: string | null; outputDir?: string | null; port?: unknown; promptMode?: unknown; strictRefineMode?: unknown; previousBlocksForPrompt?: unknown[]; temperature?: unknown; topP?: unknown; topK?: unknown; maxTokens?: unknown; ctx?: unknown; batch?: unknown; ubatch?: unknown; gemmaVramMode?: unknown; fitTargetMb?: unknown; cacheTypeK?: unknown; cacheTypeV?: unknown; ctxCheckpoints?: unknown; kvOffload?: unknown; mmprojOffload?: unknown; threads?: unknown; threadsBatch?: unknown; poll?: unknown; pollBatch?: unknown; prioBatch?: unknown; cacheIdleSlots?: unknown; cacheReuse?: unknown; enableMetrics?: unknown; enablePerf?: unknown; useDraft?: boolean | null; imageMinTokens?: unknown; imageMaxTokens?: unknown; includeEnhancedVariant?: unknown; enhancedMaxLongSide?: unknown; enhancedContrast?: unknown; imageFirst?: unknown; reuseServer?: unknown; llamaRuntimeProfile?: unknown; llamaRocmTarget?: unknown; workingDir?: string | null; toolsDir?: string | null; serverPath?: string | null; modelRepo?: unknown; modelFile?: unknown; codexOauthPort?: unknown; workContextBudget?: WorkContextBudget; ocrBboxHints?: OcrBboxHint[]; [key: string]: unknown }} RequestSummaryOptions
  */
 
 const {
@@ -75,6 +75,10 @@ function buildOptionSummary(options = {}) {
     modelProvider: resolveModelProvider(options),
     port: options.port,
     promptMode: options.promptMode,
+    strictRefineMode: Boolean(options.strictRefineMode),
+    previousBlocksForPromptCount: Array.isArray(options.previousBlocksForPrompt)
+      ? options.previousBlocksForPrompt.length
+      : 0,
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
@@ -206,6 +210,10 @@ function buildRequestSummary(
     promptMode: options.promptMode,
     promptPreview: truncateText(promptText, 2400),
     systemPromptPreview: truncateText(systemPrompt, 2400),
+    strictRefineMode: Boolean(options.strictRefineMode),
+    previousBlocksForPrompt: Array.isArray(options.previousBlocksForPrompt)
+      ? options.previousBlocksForPrompt.slice(0, 80)
+      : [],
     imageVariants: summarizeImageVariants(imageVariants),
     bboxCoordinateSpace: coordinateFrame.space,
     bboxCoordinateFrame: coordinateFrame.frame,
@@ -220,6 +228,7 @@ function buildRequestSummary(
       score: hint.score ?? null,
       groupId: hint.groupId ?? null,
       rolePrior: hint.rolePrior ?? null,
+      containerType: hint.containerType ?? null,
       orderInGroup: hint.orderInGroup ?? null,
       ocrText: truncateText(readOcrCandidateText(hint), 160) || null,
     })),
@@ -233,6 +242,7 @@ function buildRequestSummary(
       score: hint.score ?? null,
       groupId: hint.groupId ?? null,
       rolePrior: hint.rolePrior ?? null,
+      containerType: hint.containerType ?? null,
       orderInGroup: hint.orderInGroup ?? null,
       ocrText: truncateText(readOcrCandidateText(hint), 160) || null,
     })),
