@@ -112,6 +112,7 @@ def main() -> int:
               ocr=textline_detector,
               source=source,
               merge_mode=resolve_textline_merge_mode(args, default="conservative"),
+              args=args,
           )
           summaries.append(summary)
           emit_progress(
@@ -162,6 +163,7 @@ def main() -> int:
             output_path=Path(item["output"]),
             pipeline=pipeline,
             textline_detector=textline_detector,
+            args=args,
         )
         summaries.append(summary)
         emit_progress(
@@ -379,7 +381,13 @@ def is_unsupported_attention_implementation_error(exc: Exception) -> bool:
     )
 
 
-def write_page_bboxes(image_path: Path, output_path: Path, pipeline: object, textline_detector: object) -> dict:
+def write_page_bboxes(
+    image_path: Path,
+    output_path: Path,
+    pipeline: object,
+    textline_detector: object,
+    args: argparse.Namespace | None = None,
+) -> dict:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with Image.open(image_path) as image:
@@ -428,6 +436,7 @@ def write_page_bboxes(image_path: Path, output_path: Path, pipeline: object, tex
             width=width,
             height=height,
             ocr=textline_detector,
+            args=args,
         )
     )
     finalize_ocr_text_fields(items)
@@ -444,7 +453,14 @@ def write_page_bboxes(image_path: Path, output_path: Path, pipeline: object, tex
     return {"output": str(output_path), "count": len(items)}
 
 
-def write_page_bboxes_from_ocr(image_path: Path, output_path: Path, ocr: object, source: str, merge_mode: str = "conservative") -> dict:
+def write_page_bboxes_from_ocr(
+    image_path: Path,
+    output_path: Path,
+    ocr: object,
+    source: str,
+    merge_mode: str = "conservative",
+    args: argparse.Namespace | None = None,
+) -> dict:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with Image.open(image_path) as image:
@@ -480,6 +496,7 @@ def write_page_bboxes_from_ocr(image_path: Path, output_path: Path, ocr: object,
           score = float(rec_scores[index]) if index < len(rec_scores) else None
         except Exception:
           score = None
+        text = filter_candidate_ocr_text(text, score, args)
         raw_candidates.append(
             {
                 "label": "ocr_textline",
@@ -499,6 +516,7 @@ def write_page_bboxes_from_ocr(image_path: Path, output_path: Path, ocr: object,
       single_text = item.pop("_text", "")
       grouped_texts = item.pop("_texts", [])
       ocr_text = clean_ocr_text(single_text or merge_ocr_texts(grouped_texts))
+      ocr_text = filter_candidate_ocr_text(ocr_text, score, args)
       if ocr_text:
         item["ocrText"] = ocr_text
       if isinstance(score, float):
@@ -654,7 +672,14 @@ def close_textline_detector(ocr: object) -> None:
       close()
 
 
-def collect_textline_candidates(image_path: Path, existing_items: list[dict], width: int, height: int, ocr: object = None) -> list[dict]:
+def collect_textline_candidates(
+    image_path: Path,
+    existing_items: list[dict],
+    width: int,
+    height: int,
+    ocr: object = None,
+    args: argparse.Namespace | None = None,
+) -> list[dict]:
     """Add ordinary OCR detection boxes that are not covered by VL layout.
 
     PaddleOCR-VL is good at grouping dialogue/caption text, but it can miss
@@ -699,6 +724,7 @@ def collect_textline_candidates(image_path: Path, existing_items: list[dict], wi
             score = float(rec_scores[index]) if index < len(rec_scores) else None
           except Exception:
             score = None
+          text = filter_candidate_ocr_text(text, score, args)
           raw_candidates.append(
               {
                   "label": "ocr_textline",
@@ -725,6 +751,7 @@ def collect_textline_candidates(image_path: Path, existing_items: list[dict], wi
       single_text = item.pop("_text", "")
       grouped_texts = item.pop("_texts", [])
       ocr_text = clean_ocr_text(single_text or merge_ocr_texts(grouped_texts))
+      ocr_text = filter_candidate_ocr_text(ocr_text, score, args)
       if ocr_text:
         item["ocrText"] = ocr_text
       if isinstance(score, float):
@@ -790,6 +817,81 @@ def merge_ocr_texts(texts: list[object]) -> str:
       if value:
         cleaned.append(value)
     return " ".join(cleaned)
+
+
+def filter_candidate_ocr_text(
+    text: str,
+    score: float | None,
+    args: argparse.Namespace | None = None,
+) -> str:
+    cleaned = clean_ocr_text(text)
+    if not cleaned:
+      return ""
+    if not is_tiny_recognition_model(args):
+      return cleaned
+    if is_suspicious_tiny_rec_text(cleaned, score):
+      return ""
+    return cleaned
+
+
+def is_tiny_recognition_model(args: argparse.Namespace | None = None) -> bool:
+    value = ""
+    if args is not None:
+      value = str(getattr(args, "text_recognition_model_name", "") or "")
+    if not value:
+      value = os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME", "")
+    return "tiny_rec" in value.strip().lower()
+
+
+def is_suspicious_tiny_rec_text(text: str, score: float | None) -> bool:
+    normalized = "".join(char for char in text.strip() if not char.isspace())
+    if not normalized:
+      return True
+    kana_count = count_kana_chars(normalized)
+    if isinstance(score, float) and score < 0.55:
+      return True
+    if len(normalized) <= 1 and kana_count == 0:
+      return True
+    if contains_common_simplified_chinese_artifact(normalized):
+      return True
+    ascii_letter_count = sum(1 for char in normalized if char.isascii() and char.isalpha())
+    if ascii_letter_count > 0:
+      return True
+    if kana_count == 0:
+      return not is_reliable_tiny_no_kana_text(normalized, score)
+    return False
+
+
+def is_reliable_tiny_no_kana_text(text: str, score: float | None) -> bool:
+    if not isinstance(score, float) or score < 0.93:
+      return False
+    if len(text) < 2 or len(text) > 8:
+      return False
+    return all(is_japanese_text_char(char) or char.isdigit() for char in text)
+
+
+def is_japanese_text_char(char: str) -> bool:
+    code = ord(char)
+    if 0x3040 <= code <= 0x30FF:
+      return True
+    if 0x3400 <= code <= 0x4DBF or 0x4E00 <= code <= 0x9FFF:
+      return True
+    if char in "々〆ヶ〇ー・、。！？!?:：…":
+      return True
+    return False
+
+
+def count_kana_chars(text: str) -> int:
+    count = 0
+    for char in text:
+      code = ord(char)
+      if 0x3040 <= code <= 0x30FF:
+        count += 1
+    return count
+
+
+def contains_common_simplified_chinese_artifact(text: str) -> bool:
+    return any(char in text for char in "飞仗办们门说这过见长敌应历歷赵场样與与为间它恶兒儿")
 
 
 def renumber_items(items: list[dict]) -> None:

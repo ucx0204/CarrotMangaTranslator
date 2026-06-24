@@ -73,4 +73,17 @@ describe("PaddleOCR-VL bbox script", () => {
     expect(script).toContain("import paddle");
     expect(script).toContain("paddle.device.is_compiled_with_cuda()");
   });
+
+  it("filters unreliable OCR text only for the tiny recognizer", () => {
+    const script = readFileSync(scriptPath, "utf8");
+
+    expect(script).toContain("def filter_candidate_ocr_text(");
+    expect(script).toContain("def is_tiny_recognition_model(");
+    expect(script).toContain('return "tiny_rec" in value.strip().lower()');
+    expect(script).toContain("if not is_tiny_recognition_model(args):");
+    expect(script).toContain("return cleaned");
+    expect(script).toContain("def is_suspicious_tiny_rec_text(");
+    expect(script).toContain("contains_common_simplified_chinese_artifact");
+    expect(script).toContain("def is_reliable_tiny_no_kana_text(");
+  });
 });
