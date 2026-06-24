@@ -12,6 +12,8 @@ export type RuntimeOptions = {
   ocrBboxCommand?: string | null;
   ocrBboxMode?: string | null;
   ocrBboxProvider?: string | null;
+  ocrCpuWorkerMinFreeRamPercent?: number | string | null;
+  ocrCpuWorkerRamPollMs?: number | string | null;
   ocrCpuWorkers?: number | string | null;
   ocrCpuWorkerStartDelayMs?: number | string | null;
   ocrDevice?: string | null;

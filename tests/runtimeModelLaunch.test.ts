@@ -22,6 +22,7 @@ import {
   collectOcrBboxHints,
   collectRequiredPaddleOcrModelDownloads,
   createTempDir,
+  hasOcrCpuWorkerRamHeadroom,
   parseOcrBatchProgressLine,
   parsePaddleModelFetchProgress,
   parsePipRawProgress,
@@ -32,6 +33,7 @@ import {
   resolveOcrBboxTimeoutMs,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOcrCpuWorkerMinFreeRamRatio,
   resolveOcrGpuPackageIndexUrl,
   resolveOcrInstallBatchLabel,
   resolveOcrInstallBatchProgressRanges,
@@ -1353,6 +1355,7 @@ describe("runtime model support helpers", () => {
           ocrBboxProvider: "paddleocr-vl",
           ocrDevice: "cpu",
           ocrCpuWorkers: 2,
+          ocrCpuWorkerMinFreeRamPercent: 0,
           ocrCpuWorkerStartDelayMs: 0,
         }));
         const results = await collectOcrBboxHintsBatch(pages);
@@ -1370,6 +1373,32 @@ describe("runtime model support helpers", () => {
       expect(env?.MKL_NUM_THREADS).toBe("2");
       expect(env?.FLAGS_cpu_math_library_num_threads).toBe("2");
     }
+  });
+
+  it("uses a 20 percent free-RAM floor for extra CPU OCR workers", () => {
+    expect(resolveOcrCpuWorkerMinFreeRamRatio()).toBe(0.2);
+    expect(
+      resolveOcrCpuWorkerMinFreeRamRatio({
+        ocrCpuWorkerMinFreeRamPercent: 0,
+      }),
+    ).toBe(0);
+    expect(
+      resolveOcrCpuWorkerMinFreeRamRatio({
+        ocrCpuWorkerMinFreeRamPercent: 35,
+      }),
+    ).toBe(0.35);
+    expect(
+      hasOcrCpuWorkerRamHeadroom(
+        { freeBytes: 199, totalBytes: 1000, freeRatio: 0.199 },
+        0.2,
+      ),
+    ).toBe(false);
+    expect(
+      hasOcrCpuWorkerRamHeadroom(
+        { freeBytes: 200, totalBytes: 1000, freeRatio: 0.2 },
+        0.2,
+      ),
+    ).toBe(true);
   });
 
   it("keeps the CUDA 13 llama-server implementation DLL in the managed runtime", () => {

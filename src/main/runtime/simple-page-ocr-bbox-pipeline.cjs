@@ -630,22 +630,24 @@ async function collectOcrBboxHintsBatchInCpuWorkers({
   );
 
   const workerStartDelayMs = resolveOcrCpuWorkerStartDelayMs(batchOptions);
-  const chunkRuns = await Promise.all(
-    chunks.map(async (chunk, chunkIndex) => {
-      await delayForOcrWorkerStart(
-        chunkIndex * workerStartDelayMs,
-        batchOptions.abortSignal,
-      );
-      return await runOcrBboxBatchChunk({
-        batchOptions,
-        chunk,
-        chunkIndex,
-        firstOptions,
-        normalizedOptions,
-        runtime,
-      });
-    }),
-  );
+  const chunkRunPromises = [];
+  for (const [chunkIndex, chunk] of chunks.entries()) {
+    if (chunkIndex > 0) {
+      await delayForOcrWorkerStart(workerStartDelayMs, batchOptions.abortSignal);
+    }
+    await waitForOcrCpuWorkerRamHeadroom(batchOptions, chunkIndex);
+    const runPromise = runOcrBboxBatchChunk({
+      batchOptions,
+      chunk,
+      chunkIndex,
+      firstOptions,
+      normalizedOptions,
+      runtime,
+    });
+    runPromise.catch(() => {});
+    chunkRunPromises.push(runPromise);
+  }
+  const chunkRuns = await Promise.all(chunkRunPromises);
   const runByItemIndex = new Map();
   for (const run of chunkRuns) {
     for (const itemIndex of run.itemIndexes) {
@@ -927,6 +929,131 @@ function resolveOcrCpuWorkerStartDelayMs(options = {}) {
 }
 
 /**
+ * @param {OcrBboxOptions} [options]
+ * @param {number} chunkIndex
+ * @returns {Promise<void>}
+ */
+async function waitForOcrCpuWorkerRamHeadroom(options = {}, chunkIndex = 0) {
+  if (chunkIndex <= 0) {
+    return;
+  }
+  const minFreeRatio = resolveOcrCpuWorkerMinFreeRamRatio(options);
+  if (minFreeRatio <= 0) {
+    return;
+  }
+  const pollMs = resolveOcrCpuWorkerRamPollMs(options);
+  let reported = false;
+  while (!hasOcrCpuWorkerRamHeadroom(readSystemRamInfo(), minFreeRatio)) {
+    if (!reported) {
+      const info = readSystemRamInfo();
+      emitRuntimeProgress(
+        options,
+        "ocr_running",
+        "Paddle OCR CPU 워커 RAM 대기 중",
+        `여유 RAM ${formatPercent(info.freeRatio)} / 목표 ${formatPercent(minFreeRatio)}`,
+        {
+          pageIndex: null,
+          pageTotal: null,
+          progressMode: "log-only",
+        },
+      );
+      reported = true;
+    }
+    await delayForOcrWorkerStart(pollMs, options.abortSignal);
+  }
+}
+
+/**
+ * @param {{ freeBytes: number; totalBytes: number; freeRatio: number }} info
+ * @param {number} minFreeRatio
+ * @returns {boolean}
+ */
+function hasOcrCpuWorkerRamHeadroom(info, minFreeRatio) {
+  if (!Number.isFinite(minFreeRatio) || minFreeRatio <= 0) {
+    return true;
+  }
+  if (!info || !Number.isFinite(info.freeRatio)) {
+    return true;
+  }
+  return info.freeRatio >= minFreeRatio;
+}
+
+/**
+ * @returns {{ freeBytes: number; totalBytes: number; freeRatio: number }}
+ */
+function readSystemRamInfo() {
+  const freeBytes = Number(os.freemem());
+  const totalBytes = Number(os.totalmem());
+  const freeRatio =
+    Number.isFinite(freeBytes) && Number.isFinite(totalBytes) && totalBytes > 0
+      ? freeBytes / totalBytes
+      : Number.NaN;
+  return { freeBytes, totalBytes, freeRatio };
+}
+
+/**
+ * @param {OcrBboxOptions} [options]
+ * @returns {number}
+ */
+function resolveOcrCpuWorkerMinFreeRamRatio(options = {}) {
+  const explicit =
+    readOptionalNumber(
+      runtimeOverrideEnv(
+        "MANGA_TRANSLATOR_PADDLEOCR_CPU_WORKER_MIN_FREE_RAM_PERCENT",
+        options,
+      ),
+    ) ??
+    readOptionalNumber(
+      runtimeOverrideEnv(
+        "MANGA_TRANSLATOR_OCR_CPU_WORKER_MIN_FREE_RAM_PERCENT",
+        options,
+      ),
+    ) ??
+    readOptionalNumber(options.ocrCpuWorkerMinFreeRamPercent);
+  const percent = explicit ?? 20;
+  return Math.max(0, Math.min(95, percent)) / 100;
+}
+
+/**
+ * @param {OcrBboxOptions} [options]
+ * @returns {number}
+ */
+function resolveOcrCpuWorkerRamPollMs(options = {}) {
+  const explicit =
+    readPositiveInteger(
+      runtimeOverrideEnv(
+        "MANGA_TRANSLATOR_PADDLEOCR_CPU_WORKER_RAM_POLL_MS",
+        options,
+      ),
+    ) ||
+    readPositiveInteger(
+      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_CPU_WORKER_RAM_POLL_MS", options),
+    ) ||
+    readPositiveInteger(options.ocrCpuWorkerRamPollMs);
+  return explicit || 1000;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
+function readOptionalNumber(value) {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * @param {number} value
+ * @returns {string}
+ */
+function formatPercent(value) {
+  return `${Math.round(value * 1000) / 10}%`;
+}
+
+/**
  * @param {string} outputPath
  * @returns {unknown}
  */
@@ -1070,6 +1197,8 @@ async function cleanupOcrBatchControlFiles(
 module.exports = {
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
+  hasOcrCpuWorkerRamHeadroom,
   resolveOcrCpuWorkerCount,
+  resolveOcrCpuWorkerMinFreeRamRatio,
   resolveOcrBboxProvider,
 };

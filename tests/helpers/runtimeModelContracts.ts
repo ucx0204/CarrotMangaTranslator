@@ -166,6 +166,13 @@ const runtimeHelpers = {
     noTextDetected: boolean;
     textEvidenceCount: number;
   }>;
+  hasOcrCpuWorkerRamHeadroom: (
+    info: { freeBytes: number; totalBytes: number; freeRatio: number },
+    minFreeRatio: number,
+  ) => boolean;
+  resolveOcrCpuWorkerMinFreeRamRatio: (options?: {
+    [key: string]: unknown;
+  }) => number;
   collectRequiredHfDownloads: (options: {
     [key: string]: unknown;
   }) => Array<{ kind: string; file: string; destination: string }>;
@@ -327,6 +334,7 @@ export const {
   getOverlayPrompt,
   extractModelOutputFailure,
   extractModelOutputText,
+  hasOcrCpuWorkerRamHeadroom,
   inspectModelLaunch,
   isModelCached,
   parseOcrBatchProgressLine,
@@ -341,6 +349,7 @@ export const {
   requestTranslation,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOcrCpuWorkerMinFreeRamRatio,
   resolveOcrGpuPackageIndexUrl,
   resolveOcrInstallBatchLabel,
   isWindowsRocmOcrRuntimePathShortEnough,
