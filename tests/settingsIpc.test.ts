@@ -378,6 +378,7 @@ function createGemmaSettings(): AppSettings {
     },
     ocr: {
       device: "cpu",
+      qualityMode: "economy",
       gpuCudaTag: "cu126",
     },
     maxTokens: 12000,

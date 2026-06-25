@@ -9,6 +9,7 @@ import type {
   MangaPage,
 } from "../shared/types";
 import {
+  createCombinedDownloadProgress,
   ensureFluxWorkerLaunch,
   ensureRemoteFile,
   FLUX_MODEL_FILE,
@@ -165,15 +166,21 @@ export async function prepareFluxInpaintingEngine(options: {
   let modelPath: string | undefined;
   let vaePath: string | undefined;
   if (launch.backend === "cuda-native" || launch.backend === "zluda-native") {
+    const download = createCombinedDownloadProgress(
+      options.onProgress,
+      "Flux 모델",
+    );
     [modelPath, vaePath] = await Promise.all([
       ensureRemoteFile({
         ...options,
+        onProgress: download.forFile(),
         fileName: FLUX_MODEL_FILE,
         label: "Flux Klein 4B",
         url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE),
       }),
       ensureRemoteFile({
         ...options,
+        onProgress: download.forFile(),
         fileName: FLUX_VAE_FILE,
         label: "Flux small decoder",
         url: hfResolveUrl(FLUX_VAE_REPO, FLUX_VAE_FILE),

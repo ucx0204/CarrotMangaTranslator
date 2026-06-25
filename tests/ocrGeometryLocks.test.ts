@@ -76,4 +76,44 @@ describe("OCR candidate geometry locks", () => {
 
     expect(result[0]?.bbox).toEqual(originalBbox);
   });
+
+  it("preserves a model bbox that intentionally merges same-container OCR candidates", () => {
+    const mergedBbox = { x: 100, y: 100, w: 102, h: 180 };
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 2,
+          type: "nonsolid",
+          bbox: mergedBbox,
+          jp: "ゴミはどいつもこいつも\n考えることが一緒だな！",
+          ko: "쓰레기들은 하나같이 생각하는 게 똑같네!",
+        },
+      ],
+      page,
+      [
+        {
+          id: 1,
+          label: "ocr_textline",
+          x1: 100,
+          y1: 100,
+          x2: 150,
+          y2: 280,
+          groupId: "G001",
+          containerType: "same_text_container",
+        },
+        {
+          id: 2,
+          label: "ocr_textline",
+          x1: 152,
+          y1: 100,
+          x2: 202,
+          y2: 280,
+          groupId: "G001",
+          containerType: "same_text_container",
+        },
+      ],
+    );
+
+    expect(result[0]?.bbox).toEqual(mergedBbox);
+  });
 });

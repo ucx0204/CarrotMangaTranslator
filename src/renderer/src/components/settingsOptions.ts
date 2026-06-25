@@ -8,6 +8,7 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
+  OcrQualityMode,
 } from "../../../shared/settingsTypes";
 import {
   GEMMA_MODEL_PRESETS,
@@ -93,6 +94,12 @@ type OcrDeviceOption = {
   description: string;
   device: OcrDevice;
   gpuBackend?: OcrGpuBackend;
+};
+
+type OcrQualityOption = {
+  id: OcrQualityMode;
+  label: string;
+  description: string;
 };
 
 type LlamaRuntimeProfileOption = {
@@ -206,6 +213,27 @@ export const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [
     description:
       "느리지만 별도 GPU OCR 런타임 없이 가장 안정적으로 동작합니다.",
     device: "cpu",
+  },
+];
+
+export const OCR_QUALITY_OPTIONS: OcrQualityOption[] = [
+  {
+    id: "minimum",
+    label: "최소",
+    description:
+      "PP-OCRv6 small detector + tiny recognizer 조합입니다. 선택하면 OCR 장치를 CPU로 전환합니다.",
+  },
+  {
+    id: "economy",
+    label: "절약",
+    description:
+      "PP-OCRv6 small detector + small recognizer 조합입니다. 선택하면 OCR 장치를 CPU로 전환합니다.",
+  },
+  {
+    id: "full",
+    label: "풀로드",
+    description:
+      "PaddleOCR-VL 기본 경로를 사용합니다. 선택하면 OCR 장치를 GPU로 전환합니다.",
   },
 ];
 

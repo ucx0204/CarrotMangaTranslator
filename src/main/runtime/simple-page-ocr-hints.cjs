@@ -348,11 +348,93 @@ function attachOcrGroupingHints(hints, options = {}) {
     return Array.isArray(hints) ? hints : [];
   }
 
+  const nextGroupNumber = attachAdjacentTextContainerGroups(hints, options, 1);
+  attachSoftSemanticGroups(hints, options, nextGroupNumber);
+  return hints;
+}
+
+/**
+ * @param {OcrHint[]} hints
+ * @param {OcrHintOptions} [options]
+ * @param {number} [startGroupNumber]
+ * @returns {number}
+ */
+function attachAdjacentTextContainerGroups(
+  hints,
+  options = {},
+  startGroupNumber = 1,
+) {
   const items = hints.map((hint, index) => ({
     hint,
     index,
-    eligible: isSemanticGroupingCandidate(hint),
+    eligible: isAdjacentTextContainerCandidate(hint),
   }));
+  const groups = collectCompatibleHintGroups(items, (left, right) =>
+    areAdjacentTextContainerCompatible(left, right, options),
+  );
+
+  let groupNumber = startGroupNumber;
+  for (const group of groups.values()) {
+    if (group.length < 2 || group.length > 4) {
+      continue;
+    }
+    group.sort((left, right) =>
+      compareJapaneseReadingOrder(left.hint, right.hint),
+    );
+    const groupId = `G${String(groupNumber).padStart(3, "0")}`;
+    groupNumber += 1;
+    group.forEach((item, orderIndex) => {
+      item.hint.groupId = groupId;
+      item.hint.orderInGroup = orderIndex + 1;
+      item.hint.rolePrior = "ordinary_mergeable";
+      item.hint.containerType = "same_text_container";
+    });
+  }
+  return groupNumber;
+}
+
+/**
+ * @param {OcrHint[]} hints
+ * @param {OcrHintOptions} [options]
+ * @param {number} [startGroupNumber]
+ * @returns {number}
+ */
+function attachSoftSemanticGroups(hints, options = {}, startGroupNumber = 1) {
+  const items = hints.map((hint, index) => ({
+    hint,
+    index,
+    eligible: !hint.groupId && isSemanticGroupingCandidate(hint),
+  }));
+  const groups = collectCompatibleHintGroups(items, (left, right) =>
+    areGroupingCompatible(left, right, options),
+  );
+
+  let groupNumber = startGroupNumber;
+  for (const group of groups.values()) {
+    if (group.length < 2 || group.length > 4) {
+      continue;
+    }
+    group.sort((left, right) =>
+      compareJapaneseReadingOrder(left.hint, right.hint),
+    );
+    const groupId = `G${String(groupNumber).padStart(3, "0")}`;
+    groupNumber += 1;
+    group.forEach((item, orderIndex) => {
+      item.hint.groupId = groupId;
+      item.hint.orderInGroup = orderIndex + 1;
+      item.hint.rolePrior = "ordinary_soft";
+      item.hint.containerType = "possible_continuing_text";
+    });
+  }
+  return groupNumber;
+}
+
+/**
+ * @param {GroupItem[]} items
+ * @param {(left: OcrHint, right: OcrHint) => boolean} isCompatible
+ * @returns {Map<number, GroupItem[]>}
+ */
+function collectCompatibleHintGroups(items, isCompatible) {
   /** @type {number[]} */
   const parent = items.map((_, index) => index);
 
@@ -382,7 +464,7 @@ function attachOcrGroupingHints(hints, options = {}) {
     for (let right = left + 1; right < items.length; right += 1) {
       if (
         items[right].eligible &&
-        areGroupingCompatible(items[left].hint, items[right].hint, options)
+        isCompatible(items[left].hint, items[right].hint)
       ) {
         union(left, right);
       }
@@ -399,25 +481,79 @@ function attachOcrGroupingHints(hints, options = {}) {
     groups.set(root, group);
   }
 
-  let groupNumber = 1;
-  for (const group of groups.values()) {
-    if (group.length < 2 || group.length > 4) {
-      continue;
-    }
-    group.sort((left, right) =>
-      compareJapaneseReadingOrder(left.hint, right.hint),
-    );
-    const groupId = `G${String(groupNumber).padStart(3, "0")}`;
-    groupNumber += 1;
-    group.forEach((item, orderIndex) => {
-      item.hint.groupId = groupId;
-      item.hint.orderInGroup = orderIndex + 1;
-      item.hint.rolePrior = "ordinary_soft";
-      item.hint.containerType = "possible_continuing_text";
-    });
+  return groups;
+}
+
+/** @param {OcrHint} hint */
+function isAdjacentTextContainerCandidate(hint) {
+  const label = sanitizeHintLabel(hint?.label);
+  const text = sanitizeOcrTextForPrompt(readOcrCandidateText(hint));
+  if (!text || !hasJapaneseTextEvidence(text) || !isTallBox(hint)) {
+    return false;
+  }
+  if (!label.includes("textline") && !label.includes("vertical")) {
+    return false;
   }
 
-  return hints;
+  const japaneseLength = [...text.replace(/\s+/g, "")].filter((char) =>
+    hasJapaneseTextEvidence(char),
+  ).length;
+  return japaneseLength >= 2 && japaneseLength <= 40;
+}
+
+/**
+ * @param {OcrHint} left
+ * @param {OcrHint} right
+ * @param {OcrHintOptions} [options]
+ */
+function areAdjacentTextContainerCompatible(left, right, options = {}) {
+  const leftBox = readHintBox(left);
+  const rightBox = readHintBox(right);
+  if (!leftBox || !rightBox) {
+    return false;
+  }
+
+  const leftHeight = leftBox.y2 - leftBox.y1;
+  const rightHeight = rightBox.y2 - rightBox.y1;
+  const leftWidth = leftBox.x2 - leftBox.x1;
+  const rightWidth = rightBox.x2 - rightBox.x1;
+  if (
+    leftHeight <= 0 ||
+    rightHeight <= 0 ||
+    leftWidth <= 0 ||
+    rightWidth <= 0
+  ) {
+    return false;
+  }
+
+  const heightRatio =
+    Math.min(leftHeight, rightHeight) / Math.max(leftHeight, rightHeight);
+  if (heightRatio < 0.55) {
+    return false;
+  }
+
+  const yOverlap = Math.max(
+    0,
+    Math.min(leftBox.y2, rightBox.y2) - Math.max(leftBox.y1, rightBox.y1),
+  );
+  const yOverlapRatio = yOverlap / Math.min(leftHeight, rightHeight);
+  if (yOverlapRatio < 0.62) {
+    return false;
+  }
+
+  const xGap = Math.max(
+    0,
+    Math.max(leftBox.x1, rightBox.x1) - Math.min(leftBox.x2, rightBox.x2),
+  );
+  if (xGap > Math.max(12, Math.min(leftWidth, rightWidth) * 0.45)) {
+    return false;
+  }
+
+  const pageWidth =
+    readPositiveInteger(options.imageWidth) ||
+    Math.max(leftBox.x2, rightBox.x2);
+  const centerXDistance = Math.abs(centerOf(leftBox).x - centerOf(rightBox).x);
+  return !pageWidth || centerXDistance <= pageWidth * 0.25;
 }
 
 /** @param {OcrHint} hint */

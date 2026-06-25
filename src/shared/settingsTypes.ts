@@ -28,6 +28,7 @@ export type ApiReasoningEffort =
   | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm-transformers";
+export type OcrQualityMode = "minimum" | "economy" | "full";
 export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
 export type AmdRocmTarget =
   | "gfx908"
@@ -80,6 +81,7 @@ export type ApiSettings = {
 
 export type OcrSettings = {
   device: OcrDevice;
+  qualityMode: OcrQualityMode;
   gpuCudaTag?: string;
   gpuBackend?: OcrGpuBackend;
 };

@@ -70,13 +70,13 @@ const SMALL_GEMMA_DUPLICATE_SEGMENTATION_LINES = [
 
 const SMALL_GEMMA_OCR_ANCHOR_LINES = [
   "OCR text hints may be wrong, incomplete, or split strangely, but treat the OCR candidate rectangles as your primary geometry anchors unless Image 1 clearly proves otherwise.",
-  "Compared with pure visual guessing, trust the OCR candidate placement and grouping more strongly: about 70% OCR geometry anchor, 30% visual correction from Image 1.",
+  "Compared with pure visual guessing, trust the OCR candidate placement and grouping more strongly: about 70% OCR geometry anchor, 30% visual correction from Image 1. This ratio is for geometry/grouping only; the actual jp/ko text must be freshly checked against Image 1.",
   "Use the OCR text hint and candidate rectangle together to keep each translated record attached to the correct candidate id, especially when nearby candidates are close together.",
 ];
 
 const SMALL_GEMMA_OCR_DUPLICATE_LINES = [
   "Each candidate id is single-use. A candidate rectangle can produce at most one output record, even when the text has several vertical columns or several visible lines.",
-  "Do not create another record whose bbox sits on the same place as an accepted candidate. If the text is inside or mostly inside a candidate rectangle, it belongs to that candidate id.",
+  "Do not create another record whose bbox sits on the same place as an accepted candidate. If the text is inside or mostly inside a candidate rectangle, it belongs to that candidate id, or to the representative first reading-order id when same-container candidates are merged.",
   "Before adding any new record, compare it against every candidate bbox. If the new bbox would cover the same glyph cluster or the same visual text area as a candidate, keep the candidate record only.",
   "If one OCR candidate covers several Japanese lines or columns inside the same visual container, keep them as one record for that candidate; do not split them into multiple overlapping records.",
   "New ids are for genuinely missed text only, not for correcting, enlarging, summarizing, or re-reading an existing candidate. If a candidate needs a better jp/ko, fix that candidate record with the same id.",
@@ -123,6 +123,7 @@ const OVERLAY_PROMPT_SECTIONS = [
     "For textRole sound, default to confidence below 1.00. Use confidence 1.00 only for complete, common, unmistakable SFX where the Japanese reading and Korean sound lettering are both certain. If any part is doubtful, use confidence below 1.00; the app will discard uncertain sound-effect records.",
     "If jp has multiple visible source lines, put every readable source line in jp. Continuation lines after jp: belong to jp until the ko: key.",
     "Write ko as natural Korean for horizontal reading. Do not mirror Japanese vertical line breaks; use commas or short Korean phrases unless a real list or dialogue pause needs a line break.",
+    "Preserve numeric matchups, ratios, counts, and ordinals exactly in ko. For patterns like 二対三, 2対3, 一対一, or 3人, keep both sides and translate them as 2대3, 1대1, 3명, etc.; never drop or collapse one number.",
     "If the entire jp or ko would be only [?], skip that record instead of outputting an unreadable placeholder.",
     "Skip records whose jp is only punctuation, decorative marks, page numbers, a lone Latin letter, or a clipped one-character fragment. Do not output such scraps as standalone records.",
     "If a stylized SFX looks like a Latin letter but is probably Japanese kana, re-read it as kana. If you still cannot read it as Japanese, skip it rather than translating the Latin letter.",
@@ -234,7 +235,9 @@ function buildSystemPrompt(options = {}) {
 
   if (options.strictRefineMode) {
     lines.push(
-      "Strict refinement pass: previous Korean blocks are weak review hints only, not source text. Correct an existing physical text area in place; do not add a second record for it.",
+      "Strict refinement pass: previous jp/ko blocks and story memory are weak review hints only, not source text. Keep ids and geometry stable, but aggressively correct OCR, ruby, and previous-translation mistakes in the existing record.",
+      "If OCR split one speech bubble or caption into adjacent same-container candidates, merge those fragments into one ordinary record using the first reading-order candidate id.",
+      "If a previous block contains Latin garbage, romanized ruby, stray katakana, or wording not supported by the visible glyphs, discard that wording and re-read Image 1.",
       "In strict refinement, new ids are exceptional and valid only for complete visible Japanese glyph groups clearly outside every OCR candidate.",
     );
   }
@@ -446,7 +449,9 @@ function buildTaskSection(options = {}, imageVariants = []) {
     "Detect every visible Japanese text group and translate it into concise Korean.",
     ...(strictRefineMode
       ? [
-          "This is a strict second-pass refinement. Treat OCR candidate slots as the main output slots, and use previous pass blocks only as weak review hints.",
+          "This is a strict second-pass refinement. Treat OCR candidates as the main geometry anchors, and use previous pass blocks only as weak review hints, never as trusted source text.",
+          "When OCR split one visual text container into adjacent line/column candidates, collapse those fragments into one corrected ordinary record instead of preserving the bad split.",
+          "After collapsing split candidates, re-translate the combined Japanese from Image 1 and the corrected group text; do not stitch together the old Korean fragments.",
           "Do not re-detect the page from scratch in a way that duplicates existing OCR candidates or previous physical text areas.",
         ]
       : []),
@@ -468,11 +473,16 @@ function buildStrictRefineSection(options = {}) {
 
   return [
     "Strict refinement mode",
-    "This pass improves an existing Korean overlay result. It should be conservative and stable.",
-    "Priority order: 1. Image 1 visible Japanese glyphs, 2. OCR candidate bbox/id/group, 3. work glossary/story memory, 4. previous pass jp/ko.",
-    "Existing OCR candidate ids are the main output slots. For the same physical Japanese text area, keep the same candidate id whenever an OCR candidate exists.",
-    "Previous pass blocks are weak review hints only. They are not visible Japanese source text and must never create a record by themselves.",
+    "This pass improves an existing Korean overlay result. It should be conservative for ids, geometry, and duplicate avoidance, but assertive about correcting OCR and previous-pass text mistakes.",
+    "Priority order: 1. Image 1 visible Japanese glyphs, 2. OCR candidate bbox/id/group, 3. style-guide glossary and character memory, 4. story memory, 5. previous pass jp/ko.",
+    "Existing OCR candidate ids are the main anchors. For the same physical Japanese text area, keep the same candidate id whenever an OCR candidate exists.",
+    "If two or more adjacent OCR candidates are clearly columns/lines/fragments inside one speech bubble, caption, note, or sign, output one merged ordinary record using the first candidate id in Japanese reading order. The merged bbox should cover the union of the visible glyph ink from those candidates, and the swallowed candidate ids should not be output separately.",
+    "For same-container merged candidates, previous-pass blocks for the individual candidate ids are usually split artifacts. Recompute one jp and one ko from the grouped visible text instead of preserving the old separate translations.",
+    "Do not merge separate speech bubbles, stacked balloon lobes, separate caption plates, UI/menu/list rows, or unrelated nearby text just because the sentence continues.",
+    "Previous pass blocks are weak review hints only. Their jp/sourceText can also be OCR or model output, not visible Japanese source text, and must never create a record by themselves.",
     "Use previous Korean wording only when it naturally matches the same visible Japanese glyph area. Correct it when Image 1, OCR, glossary, story memory, or SFX context proves a better result.",
+    "Do not import Korean meanings for words absent from the corrected jp just because an earlier pass suggested them.",
+    "Story memory can contain earlier machine-translation mistakes. Use it only for continuity and pronouns; never copy a story-memory term or wording that conflicts with Image 1, glossary entries, or the visible source text.",
     "For previous-pass SFX, do not preserve Korean wording for stability. Re-read the source glyphs from Image 1. If the SFX reading or Korean sound choice is not clearly right, output confidence below 1.00 or omit it.",
     "Never add a new record to correct, restate, enlarge, re-read, or provide an alternate translation for an existing OCR candidate or previous physical text area. Correct the existing record instead.",
     "New ids are exceptional. A new id is valid only when a complete Japanese glyph cluster is clearly visible outside every OCR candidate box and is not a duplicate of any previous block.",
@@ -496,8 +506,10 @@ function buildPreviousPassSection(options = {}, imageVariants = []) {
   return [
     "Previous pass blocks",
     "These are weak review hints from the previous Korean overlay pass. Do not output them as records unless Image 1 shows real Japanese glyphs at the same physical area.",
-    "They are useful for preserving good Korean wording, spotting bad splits/merges, and avoiding accidental deletion, but they are lower priority than Image 1 and OCR candidates.",
-    "If a previous block and an OCR candidate describe the same physical area, output the OCR candidate id, not a separate previous-block record.",
+    "They are useful for preserving good Korean wording, spotting bad splits/merges, and avoiding accidental deletion, but they are lower priority than Image 1, OCR candidates, and glossary entries.",
+    "Previous jp/sourceText may be an OCR-derived hallucination too. If it contains Latin garbage, romanized ruby, odd stray katakana, duplicated aliases, or particles that do not match Image 1, ignore that text and re-read the glyphs.",
+    "When adjacent previous blocks match one same-container OCR group, treat the earlier separate translations as split artifacts and produce one fresh combined translation.",
+    "If a previous block and one or more OCR candidates describe the same physical area, output the OCR candidate id or merged representative candidate id, not a separate previous-block record.",
     "If Image 1 does not show Japanese glyphs at a previous block location, ignore that previous block.",
     ...blocks
       .slice(0, 80)
@@ -532,11 +544,13 @@ function buildWorkContextSection(options = {}) {
   const lines = [
     "Work glossary and story memory",
     "Do not output these notes as records.",
+    "Glossary and character entries are stronger than story memory. Story memory may contain earlier OCR or translation mistakes, so use it only for context unless the visible source text supports it.",
   ];
 
   if (glossary.length > 0) {
     lines.push(
       "Use these glossary entries for consistency. If the source text matches an entry or alias, prefer the target Korean exactly unless Image 1 clearly proves a different meaning.",
+      "When a glossary term is written as kanji with furigana/ruby, the kanji and ruby are one term. Translate that term once using the glossary target, and do not treat ruby as an extra name after particles like の.",
     );
     for (const entry of glossary.slice(0, 80)) {
       lines.push(formatGlossaryEntry(entry));
@@ -629,9 +643,128 @@ function formatPreviousPassBlock(
   const confidenceText = Number.isFinite(confidence)
     ? ` confidence:${Math.round(confidence * 100) / 100}`
     : "";
+  const review = classifyPreviousPassTextForPrompt(block, options);
+  const oldText =
+    review.reasons.length > 0
+      ? ` oldText:${review.omitSource && review.omitTranslation ? "omitted" : "partial"} reason:${JSON.stringify(review.reasons.join(";"))}`
+      : "";
   const jp = sanitizePromptLine(block.sourceText, 160);
   const ko = sanitizePromptLine(block.translatedText, 160);
-  return `previous ${index}:${candidate} bbox:[${bbox.x1},${bbox.y1},${bbox.x2},${bbox.y2}] role:${role}${confidenceText} jp:${JSON.stringify(jp)} ko:${JSON.stringify(ko)}`;
+  const jpText = !review.omitSource && jp ? ` jp:${JSON.stringify(jp)}` : "";
+  const koText =
+    !review.omitTranslation && ko ? ` ko:${JSON.stringify(ko)}` : "";
+  return `previous ${index}:${candidate} bbox:[${bbox.x1},${bbox.y1},${bbox.x2},${bbox.y2}] role:${role}${confidenceText}${oldText}${jpText}${koText}`;
+}
+
+/**
+ * @param {PreviousPromptBlock} block
+ * @param {PromptOptions} [options]
+ * @returns {{ omitSource: boolean; omitTranslation: boolean; reasons: string[] }}
+ */
+function classifyPreviousPassTextForPrompt(block, options = {}) {
+  const reasons = [];
+  const candidateId = readPositiveInteger(block?.candidateId);
+  if (
+    candidateId &&
+    isSameTextContainerOcrCandidate(candidateId, options.ocrBboxHints)
+  ) {
+    reasons.push("same_container_split");
+  }
+
+  const sourceText = normalizePromptAuditText(block?.sourceText);
+  const translatedText = normalizePromptAuditText(block?.translatedText);
+  const glossaryConflict = findPreviousGlossaryConflict(
+    sourceText,
+    translatedText,
+    options.workContext,
+  );
+  if (glossaryConflict) {
+    reasons.push(`glossary_conflict:${glossaryConflict}`);
+  }
+  if (hasMixedJapaneseLatinNoise(sourceText)) {
+    reasons.push("mixed_latin_ocr_noise");
+  }
+
+  return {
+    omitSource: reasons.length > 0,
+    omitTranslation: reasons.length > 0,
+    reasons,
+  };
+}
+
+/**
+ * @param {number} candidateId
+ * @param {unknown[] | undefined} hints
+ * @returns {boolean}
+ */
+function isSameTextContainerOcrCandidate(candidateId, hints) {
+  if (!Array.isArray(hints)) {
+    return false;
+  }
+  return hints.some((hint) => {
+    if (!hint || typeof hint !== "object") {
+      return false;
+    }
+    const record = /** @type {Record<string, unknown>} */ (hint);
+    return (
+      readPositiveInteger(record.id) === candidateId &&
+      sanitizeOcrGroupValue(record.containerType) === "same_text_container"
+    );
+  });
+}
+
+/**
+ * @param {string} sourceText
+ * @param {string} translatedText
+ * @param {PromptWorkContext | null | undefined} context
+ * @returns {string}
+ */
+function findPreviousGlossaryConflict(sourceText, translatedText, context) {
+  const glossary = Array.isArray(context?.styleGuide?.glossary)
+    ? context.styleGuide.glossary
+    : [];
+  if (!sourceText || glossary.length === 0) {
+    return "";
+  }
+  const compactKo = compactPromptAuditText(translatedText);
+  for (const entry of glossary) {
+    if (!entry || entry.enabled === false) {
+      continue;
+    }
+    const target = normalizePromptAuditText(entry.target);
+    const compactTarget = compactPromptAuditText(target);
+    if (!target || !compactTarget || compactKo.includes(compactTarget)) {
+      continue;
+    }
+    const terms = [
+      entry.source,
+      ...(Array.isArray(entry.aliases) ? entry.aliases : []),
+    ]
+      .map(normalizePromptAuditText)
+      .filter(Boolean);
+    if (terms.some((term) => sourceText.includes(term))) {
+      return sanitizePromptLine(target, 80);
+    }
+  }
+  return "";
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function normalizePromptAuditText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function compactPromptAuditText(value) {
+  return normalizePromptAuditText(value).replace(/\s+/g, "");
 }
 
 /**
@@ -789,6 +922,7 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
         frame,
         originalWidth,
         originalHeight,
+        options,
       ),
     )
     .filter(Boolean);
@@ -798,6 +932,7 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
   const maxCandidateId = Math.max(...candidateIds, 0);
   const groupContextLines = buildOcrGroupContextLines(
     hints.slice(0, formattedHints.length),
+    options,
   );
 
   if (formattedHints.length === 0) {
@@ -816,8 +951,8 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
         "Use the OCR text hint to keep each translated record attached to the correct candidate id, especially when nearby candidates are close together.",
       ];
   const candidateChangeLine = useStrictDuplicateRules
-    ? "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes or includes non-text art; then change the minimum amount needed and keep the same id."
-    : "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes or includes non-text art; then change the minimum amount needed.";
+    ? "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes, includes non-text art, or must be merged with adjacent same-container candidates; then change the minimum amount needed and keep the representative candidate id."
+    : "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes, includes non-text art, or must be merged with adjacent same-container candidates; then change the minimum amount needed.";
   const missingTextIntroLines = strictRefineMode
     ? [
         "In strict refinement, OCR candidates are the main output slots. After processing candidates, inspect Image 1 only for obvious missing Japanese text that is fully outside all candidate rectangles.",
@@ -830,38 +965,41 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
       ? [
           "OCR candidates are the normal source of output records. After processing candidates, inspect Image 1 only for obvious missing Japanese text that is clearly outside all candidate rectangles.",
           `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle, and never add a new id for text already covered by a candidate.`,
-        "New records are allowed only for clear Japanese glyphs whose bbox does not overlap existing candidate rectangles except for a tiny edge touch.",
-        "For new missing SFX records, be conservative: add them only when the complete kana/SFX glyph group is clearly visible and not covered by any candidate. The bbox must visibly cover kana/SFX glyph strokes.",
-      ]
-    : [
-        "OCR candidates are a floor, not a ceiling. After processing candidates, inspect the whole Image 1 again for missing Japanese text.",
-        `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle.`,
-        "New records are allowed only for clear Japanese glyphs that are not covered by any candidate.",
-        "For new missing SFX records, search especially near character bodies, panel edges, and lower panels where OCR often misses gray or outlined kana. The bbox must visibly cover kana/SFX glyph strokes.",
-      ];
+          "New records are allowed only for clear Japanese glyphs whose bbox does not overlap existing candidate rectangles except for a tiny edge touch.",
+          "For new missing SFX records, be conservative: add them only when the complete kana/SFX glyph group is clearly visible and not covered by any candidate. The bbox must visibly cover kana/SFX glyph strokes.",
+        ]
+      : [
+          "OCR candidates are a floor, not a ceiling. After processing candidates, inspect the whole Image 1 again for missing Japanese text.",
+          `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle.`,
+          "New records are allowed only for clear Japanese glyphs that are not covered by any candidate.",
+          "For new missing SFX records, search especially near character bodies, panel edges, and lower panels where OCR often misses gray or outlined kana. The bbox must visibly cover kana/SFX glyph strokes.",
+        ];
 
   return [
     "OCR bbox candidates",
     "An external OCR geometry detector has already proposed bbox candidates. Some candidates include low-trust OCR text hints for slot matching only.",
     ...ocrAnchorLines,
-    "Treat each candidate as a locked geometry slot. For every candidate that contains Japanese glyphs, output one record with that same id and the exact x1, y1, x2, y2 numbers shown below.",
-    ...(useStrictDuplicateRules
-      ? [SMALL_GEMMA_OCR_DUPLICATE_LINES[0]]
-      : []),
-    `Required candidate ids: ${candidateIds.join(", ")}.`,
+    "Treat each candidate as a geometry anchor. Normally, for every candidate that contains Japanese glyphs, output one record with that same id and the exact x1, y1, x2, y2 numbers shown below.",
+    "Same-container merge exception: if adjacent ordinary candidates are clearly separate OCR slices of one speech bubble, caption, note, sign, or label, output one merged ordinary record using the first candidate id in Japanese reading order. Its jp must include all visible source text from the merged candidates, its ko must translate the combined expression naturally, and the swallowed candidate ids must not be output separately. Do not import words from previous pass or story memory that are not visible in the corrected merged jp.",
+    ...(useStrictDuplicateRules ? [SMALL_GEMMA_OCR_DUPLICATE_LINES[0]] : []),
+    `Candidate ids to review: ${candidateIds.join(", ")}.`,
     ...groupContextLines,
-    "Read and translate only the text inside that candidate rectangle plus a tiny visual margin; do not move the rectangle to a different nearby text group.",
+    "Read and translate only the text inside that candidate rectangle plus a tiny visual margin, except for the same-container merge exception above. Do not move the rectangle to a different nearby text group.",
     ...(useStrictDuplicateRules
       ? SMALL_GEMMA_OCR_DUPLICATE_LINES.slice(1)
       : []),
     "For each candidate, read every visible Japanese line inside the rectangle. A candidate record is incomplete if jp or ko contains only the first line while lower or side lines remain readable.",
+    "OCR hints may include Latin garbage, OCR-recognized furigana/ruby, romanized readings, duplicated aliases, or stray syllables mixed into the main text. Re-read Image 1 and translate the visible main Japanese text; use furigana only as pronunciation help, not as extra words or names.",
+    "If OCR or previous jp contains Latin letters or odd katakana inside ordinary Japanese dialogue and Image 1 does not show those glyphs as main text, treat them as OCR noise. Do not translate them into names, aliases, or Korean words.",
+    "When a term has kanji with furigana, translate the main term once. If the glossary contains the kanji term or its alias, prefer the glossary target over OCR hint spelling, story memory spelling, or previous Korean wording.",
+    "Do not turn a visible kana sequence into a more common-looking phrase from previous context. Preserve the actual kana order; for example, どいつもこいつも means every one of them/all alike, not いつも (always) or こいつと (with this one).",
     "If a candidate is a handwritten note or diagram label, preserve all readable words, but translate ko compactly for horizontal Korean reading rather than copying the Japanese vertical line breaks.",
     "For every accepted candidate, output type nonsolid and set textRole to ordinary or sound.",
     "If a candidate is a sweat drop, texture, decoration, panel trim, or other non-text mark, skip it instead of inventing text.",
     "For candidate SFX, confidence is below 1.00 by default. Use confidence 1.00 only when the complete effect text is clearly read and the Korean sound choice is clearly right; otherwise use confidence below 1.00 so the app drops it.",
     candidateChangeLine,
-    "Do not merge two candidates into one record, even when the sentence continues across them. Candidate rectangles are separate output records.",
-    "If two candidates are stacked or touching speech bubbles, output two separate dialogue records with their original ids.",
+    "Do not merge two separate speech bubbles into one record, even when the sentence continues across them. Separate balloon lobes, stacked bubbles, captions, UI rows, and unrelated nearby text stay separate.",
+    "If two candidates are stacked or touching speech bubbles rather than columns inside one container, output two separate dialogue records with their original ids.",
     "For phone/game/menu UI candidates: keep only compact labels such as MENU, Quests, SAVE, or DELETE when they fit the candidate. Do not translate a multi-row UI list or save-slot table as one large Korean block.",
     "For containerType ui_list, phone_ui, menu, settings, or game_ui: keep each candidate compact, treat it as an ordinary UI label, and never create a large new dialogue record covering the UI panel or list.",
     ...missingTextIntroLines,
@@ -874,9 +1012,10 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
 
 /**
  * @param {OcrHint[]} hints
+ * @param {PromptOptions} [options]
  * @returns {PromptSection}
  */
-function buildOcrGroupContextLines(hints) {
+function buildOcrGroupContextLines(hints, options = {}) {
   const groups = collectOcrHintGroups(hints);
   if (groups.length === 0) {
     return [];
@@ -884,11 +1023,12 @@ function buildOcrGroupContextLines(hints) {
 
   return [
     "Group context hints:",
-    "Some OCR candidates may be separate geometry slots but parts of the same visible utterance or related printed text. Use group context only to read and translate them coherently.",
-    "Even inside a group, keep one output record per candidate id; never merge grouped candidate boxes into one record and never move one candidate to another candidate's position.",
-    "For grouped candidates, translate each candidate's visible source text as the appropriate part of the group, informed by the whole group reading order.",
-    "For grouped ordinary text, first understand the combined Japanese expression in reading order, then split the Korean naturally across the original candidate ids. Do not translate each fragment syllable-by-syllable in isolation.",
-    ...groups.map(formatOcrGroupForPrompt),
+    "Some OCR candidates may be parts of the same visible utterance or related printed text. Use group context to read them in Japanese reading order before translating.",
+    "For group containerType same_text_container, treat the grouped ordinary candidates as one visual text container unless Image 1 clearly shows separate bubbles/lobes/plates. Output one merged record with the first reading-order candidate id and omit the other grouped ids.",
+    "For same_text_container groups, the textPreview in reading order is stronger than previous-pass jp/ko for those candidate ids. Verify it against Image 1, then translate the corrected combined expression from scratch.",
+    "For group containerType possible_continuing_text, use the group mainly for coherent reading. Merge only if Image 1 clearly shows one speech bubble/caption/container; otherwise keep separate candidate records.",
+    "For grouped ordinary text, first understand the combined Japanese expression in reading order. Do not translate each fragment syllable-by-syllable in isolation, and do not add meaning from earlier separate Korean fragments.",
+    ...groups.map((group) => formatOcrGroupForPrompt(group, options)),
   ];
 }
 
@@ -930,9 +1070,10 @@ function collectOcrHintGroups(hints) {
 
 /**
  * @param {OcrHintGroup} group
+ * @param {PromptOptions} [options]
  * @returns {string}
  */
-function formatOcrGroupForPrompt(group) {
+function formatOcrGroupForPrompt(group, options = {}) {
   const candidateIds = group.hints
     .map((hint) => readPositiveInteger(hint.id))
     .filter(Boolean);
@@ -940,7 +1081,9 @@ function formatOcrGroupForPrompt(group) {
     .map((hint) => readPositiveInteger(hint.id))
     .filter(Boolean);
   const textPreview = group.hints
-    .map((hint) => sanitizeOcrTextForPrompt(readOcrCandidateText(hint)))
+    .map((hint) =>
+      sanitizeOcrTextForPrompt(readOcrCandidateText(hint), options),
+    )
     .filter(Boolean)
     .join(" / ");
   const preview = textPreview
@@ -955,6 +1098,7 @@ function formatOcrGroupForPrompt(group) {
  * @param {PromptCoordinateFrame} frame
  * @param {number | null} originalWidth
  * @param {number | null} originalHeight
+ * @param {PromptOptions} [options]
  * @returns {string}
  */
 function formatOcrBboxHintForPrompt(
@@ -963,6 +1107,7 @@ function formatOcrBboxHintForPrompt(
   frame,
   originalWidth,
   originalHeight,
+  options = {},
 ) {
   const x1 = Number(hint?.x1);
   const y1 = Number(hint?.y1);
@@ -984,7 +1129,7 @@ function formatOcrBboxHintForPrompt(
   const score = Number.isFinite(scoreValue)
     ? ` score:${Math.round(scoreValue * 100) / 100}`
     : "";
-  const ocrText = sanitizeOcrTextForPrompt(readOcrCandidateText(hint));
+  const ocrText = sanitizeOcrTextForPrompt(readOcrCandidateText(hint), options);
   const textHint = ocrText ? ` ocrText:${JSON.stringify(ocrText)}` : "";
   const groupId = sanitizeOcrGroupId(hint.groupId);
   const group = groupId
@@ -1130,16 +1275,186 @@ function normalizeOcrTextValue(value) {
 
 /**
  * @param {unknown} value
+ * @param {PromptOptions} [options]
  * @returns {string}
  */
-function sanitizeOcrTextForPrompt(value) {
+function sanitizeOcrTextForPrompt(value, options = {}) {
   return truncateText(
-    normalizeOcrTextValue(value)
+    removeGlossaryDuplicateRubyNoise(
+      removeMixedJapaneseLatinNoise(normalizeOcrTextValue(value)),
+      options.workContext,
+    )
       .replace(/[\u0000-\u001F\u007F]+/g, " ")
       .replace(/\s+/g, " ")
       .trim(),
     160,
   );
+}
+
+/**
+ * @param {string} text
+ * @param {PromptWorkContext | null | undefined} context
+ * @returns {string}
+ */
+function removeGlossaryDuplicateRubyNoise(text, context) {
+  const normalized = String(text || "");
+  if (!normalized || !/\s/.test(normalized)) {
+    return normalized;
+  }
+  const glossary = Array.isArray(context?.styleGuide?.glossary)
+    ? context.styleGuide.glossary
+    : [];
+  if (glossary.length === 0) {
+    return normalized;
+  }
+
+  let tokens = normalized.split(/\s+/).filter(Boolean);
+  for (const entry of glossary) {
+    if (!entry || entry.enabled === false) {
+      continue;
+    }
+    const terms = [
+      entry.source,
+      ...(Array.isArray(entry.aliases) ? entry.aliases : []),
+    ]
+      .map(normalizePromptAuditText)
+      .filter(Boolean);
+    const nonKatakanaTerms = terms.filter((term) => !isKatakanaHeavy(term));
+    const matchedMainTerm = nonKatakanaTerms.some((term) =>
+      normalized.includes(term),
+    );
+    if (!matchedMainTerm) {
+      continue;
+    }
+    const katakanaTerms = terms.filter(isKatakanaHeavy);
+    if (katakanaTerms.length === 0) {
+      continue;
+    }
+    let removedDuplicateRuby = false;
+    tokens = tokens.filter(
+      (token) =>
+        !(
+          isKatakanaHeavy(token) &&
+          katakanaTerms.some((term) => areSimilarKatakanaTokens(token, term)) &&
+          (removedDuplicateRuby = true)
+        ),
+    );
+    if (removedDuplicateRuby) {
+      tokens = removeTrailingRubyOrphanKanaTokens(tokens, nonKatakanaTerms);
+    }
+  }
+  return tokens.join(" ");
+}
+
+/**
+ * @param {string[]} tokens
+ * @param {string[]} mainTerms
+ * @returns {string[]}
+ */
+function removeTrailingRubyOrphanKanaTokens(tokens, mainTerms) {
+  if (tokens.length < 2) {
+    return tokens;
+  }
+  const tail = tokens[tokens.length - 1] || "";
+  const beforeTail = tokens[tokens.length - 2] || "";
+  if (!isShortHiraganaOnlyToken(tail)) {
+    return tokens;
+  }
+  if (!/[のがはをにへともで]$/.test(beforeTail)) {
+    return tokens;
+  }
+  if (!mainTerms.some((term) => beforeTail.includes(term))) {
+    return tokens;
+  }
+  return tokens.slice(0, -1);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isShortHiraganaOnlyToken(value) {
+  const text = normalizePromptAuditText(value);
+  return /^[\u3040-\u309f]{2,3}$/.test(text);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isKatakanaHeavy(value) {
+  const text = normalizePromptAuditText(value);
+  const katakanaChars = (text.match(/[\u30a0-\u30ff]/g) || []).length;
+  return katakanaChars >= 3 && katakanaChars / Math.max(1, text.length) >= 0.6;
+}
+
+/**
+ * @param {string} left
+ * @param {string} right
+ * @returns {boolean}
+ */
+function areSimilarKatakanaTokens(left, right) {
+  const a = normalizeKatakanaForComparison(left);
+  const b = normalizeKatakanaForComparison(right);
+  if (!a || !b) {
+    return false;
+  }
+  if (a.includes(b) || b.includes(a)) {
+    return true;
+  }
+  const aChars = [...a];
+  const bChars = [...b];
+  const remaining = [...bChars];
+  let common = 0;
+  for (const char of aChars) {
+    const index = remaining.indexOf(char);
+    if (index >= 0) {
+      common += 1;
+      remaining.splice(index, 1);
+    }
+  }
+  return common / Math.max(1, Math.min(aChars.length, bChars.length)) >= 0.75;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function normalizeKatakanaForComparison(value) {
+  return String(value || "")
+    .replace(/[^\u30a0-\u30ff]/g, "")
+    .replace(/[ー・]/g, "")
+    .trim();
+}
+
+/**
+ * @param {string} text
+ * @returns {string}
+ */
+function removeMixedJapaneseLatinNoise(text) {
+  const normalized = String(text || "");
+  if (!hasMixedJapaneseLatinNoise(normalized)) {
+    return normalized;
+  }
+  return normalized
+    .replace(/\b[A-Za-z][A-Za-z0-9'_-]{0,24}\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function hasMixedJapaneseLatinNoise(value) {
+  const text = String(value || "");
+  if (!/[A-Za-z]/.test(text) || !/[\u3040-\u30ff\u3400-\u9fff]/.test(text)) {
+    return false;
+  }
+  const latinChars = (text.match(/[A-Za-z]/g) || []).length;
+  const japaneseChars = (text.match(/[\u3040-\u30ff\u3400-\u9fff]/g) || [])
+    .length;
+  return japaneseChars >= 2 && latinChars <= Math.max(24, japaneseChars * 2);
 }
 
 /**

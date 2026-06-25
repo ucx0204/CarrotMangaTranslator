@@ -943,7 +943,7 @@ describe("runtime model support helpers", () => {
     expect(amdCommand).toContain("conservative");
   });
 
-  it("passes low-VRAM OCR textline model overrides without changing full defaults", () => {
+  it("passes smoke OCR presets for economy and full modes", () => {
     const runtime = { pythonPath: "python" };
     const economyCommand = buildOcrBboxCommand(
       {
@@ -957,6 +957,21 @@ describe("runtime model support helpers", () => {
         ocrTextDetectionModelName: "PP-OCRv6_small_det",
         ocrTextRecognitionModelName: "PP-OCRv6_small_rec",
         ocrMergeMode: "conservative",
+        ocrDetLimit: "1600",
+        ocrRecBatch: "1",
+      },
+      "paddleocr-vl",
+      "out.json",
+      runtime,
+    );
+    const fullCommand = buildOcrBboxCommand(
+      {
+        imagePath: "page.png",
+        ocrDevice: "gpu",
+        ocrGpuBackend: "cuda",
+        ocrBboxMode: "vl",
+        ocrVersion: "PP-OCRv6",
+        ocrMergeMode: "legacy",
         ocrDetLimit: "1600",
         ocrRecBatch: "1",
       },
@@ -992,6 +1007,15 @@ describe("runtime model support helpers", () => {
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME).toBe(
       "PP-OCRv6_small_rec",
     );
+    expect(fullCommand).toContain("--bbox-mode");
+    expect(fullCommand).toContain("vl");
+    expect(fullCommand).toContain("--ocr-version");
+    expect(fullCommand).toContain("PP-OCRv6");
+    expect(fullCommand).toContain("--merge-mode");
+    expect(fullCommand).toContain("legacy");
+    expect(fullCommand).not.toContain("--engine");
+    expect(fullCommand).not.toContain("--text-detection-model-name");
+    expect(fullCommand).not.toContain("--text-recognition-model-name");
   });
 
   it("adds Paddle native DLL directories for isolated Windows OCR runtimes", () => {

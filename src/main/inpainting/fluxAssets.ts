@@ -14,5 +14,8 @@ export { ensureFluxZludaSupportRuntime } from "./fluxAssets/zludaRuntime";
 export { resolveFluxRunnerDirForComputeCapability } from "./fluxAssets/cudaRuntime";
 export { resolveFluxPythonRuntimeLayout } from "./fluxAssets/pythonRuntimeLayout";
 export { resolveWindowsNativeBuildEnv } from "./fluxAssets/windowsBuildEnv";
-export { parsePipDownloadProgressLine } from "./fluxAssets/progress";
+export {
+  createCombinedDownloadProgress,
+  parsePipDownloadProgressLine,
+} from "./fluxAssets/progress";
 export { ensureRemoteFile, hfResolveUrl } from "./fluxAssets/downloads";

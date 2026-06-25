@@ -17,6 +17,7 @@ import {
   DEFAULT_MAX_TOKENS,
   DEFAULT_OCR_DEVICE,
   DEFAULT_OCR_GPU_CUDA_TAG,
+  DEFAULT_OCR_QUALITY_MODE,
   GEMMA_12B_MMPROJ_FILE,
   GEMMA_12B_MMPROJ_REPO,
   GEMMA_12B_MODEL_FILE_Q4_K_M,
@@ -32,6 +33,7 @@ import {
   resolveInpaintingModel,
   resolveKoharuInpaintingBackend,
   resolveOcrGpuBackend,
+  resolveOcrQualityMode,
 } from "../src/main/settings/appSettingsResolvers";
 import type { AppSettings } from "../src/shared/types";
 import { join } from "node:path";
@@ -61,6 +63,7 @@ describe("app settings helpers", () => {
       DEFAULT_API_CUSTOM_HEADERS_JSON,
     );
     expect(defaults.ocr.device).toBe(DEFAULT_OCR_DEVICE);
+    expect(defaults.ocr.qualityMode).toBe(DEFAULT_OCR_QUALITY_MODE);
     expect(defaults.ocr.gpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
     expect(defaults.inpainting?.model).toBe("flux-klein");
     expect(defaults.inpainting?.koharuBackend).toBe("auto");
@@ -204,6 +207,7 @@ describe("app settings helpers", () => {
       },
       ocr: {
         device: "gpu",
+        qualityMode: "economy",
         gpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       },
       maxTokens: DEFAULT_MAX_TOKENS,
@@ -393,6 +397,10 @@ describe("app settings helpers", () => {
           ...defaults.gemma,
           vramMode: "economy26b",
         },
+        ocr: {
+          ...defaults.ocr,
+          qualityMode: "economy",
+        },
       },
       env: {},
     });
@@ -494,10 +502,14 @@ describe("app settings helpers", () => {
     expect(options.draftModelRepo).toBeTruthy();
     expect(options.draftModelFile).toBeTruthy();
     expect(options.fitTargetMb).toBe(1024);
-    expect(options.ocrBboxMode).toBeUndefined();
+    expect(options.ocrBboxMode).toBe("vl");
     expect(options.ocrEngine).toBeUndefined();
+    expect(options.ocrVersion).toBe("PP-OCRv6");
     expect(options.ocrTextDetectionModelName).toBeUndefined();
     expect(options.ocrTextRecognitionModelName).toBeUndefined();
+    expect(options.ocrMergeMode).toBe("legacy");
+    expect(options.ocrDetLimit).toBe("1600");
+    expect(options.ocrRecBatch).toBe("1");
     expect(options.llamaRuntimeProfile).toBe("cuda12");
     expect(options.serverPath).toBe(
       join(
@@ -765,6 +777,7 @@ describe("app settings helpers", () => {
         llamaRuntimeProfile: "rocm",
       },
       ocr: {
+        ...defaults.ocr,
         device: "gpu",
         gpuBackend: "cuda",
         gpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
@@ -800,6 +813,7 @@ describe("app settings helpers", () => {
         llamaRuntimeProfile: "rocm",
       },
       ocr: {
+        ...defaults.ocr,
         device: "gpu",
         gpuBackend: "rocm-transformers",
         gpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
@@ -842,6 +856,7 @@ describe("app settings helpers", () => {
         llamaRuntimeProfile: "cuda12",
       },
       ocr: {
+        ...defaults.ocr,
         device: "gpu",
         gpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
       },
@@ -1260,6 +1275,11 @@ describe("app settings helpers", () => {
     expect(resolveOcrGpuBackend("mps", "rocm-transformers")).toBe(
       "rocm-transformers",
     );
+    expect(resolveOcrQualityMode("min", "full")).toBe("minimum");
+    expect(resolveOcrQualityMode("tiny", "full")).toBe("minimum");
+    expect(resolveOcrQualityMode("small", "full")).toBe("economy");
+    expect(resolveOcrQualityMode("vl", "minimum")).toBe("full");
+    expect(resolveOcrQualityMode("unknown", "economy")).toBe("economy");
   });
 
   it("normalizes inpainting model and Koharu backend aliases", () => {
@@ -1289,6 +1309,7 @@ describe("app settings helpers", () => {
       modelProvider: "gemma",
       gemmaVramMode: "full31b",
       ocrDevice: "gpu",
+      ocrQualityMode: "full",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
       fluxBackend: "cuda-native",
@@ -1305,6 +1326,7 @@ describe("app settings helpers", () => {
       modelProvider: "gemma",
       gemmaVramMode: "economy26b",
       ocrDevice: "gpu",
+      ocrQualityMode: "economy",
       ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
       fluxBackend: "cuda-native",
@@ -1321,6 +1343,7 @@ describe("app settings helpers", () => {
       modelProvider: "gemma",
       gemmaVramMode: "full31b",
       ocrDevice: "gpu",
+      ocrQualityMode: "full",
       ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
       fluxBackend: "cuda-native",
@@ -1337,6 +1360,7 @@ describe("app settings helpers", () => {
       modelProvider: "gemma",
       gemmaVramMode: "minimum12b",
       ocrDevice: "gpu",
+      ocrQualityMode: "minimum",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
       fluxBackend: "cuda-native",
@@ -1353,6 +1377,7 @@ describe("app settings helpers", () => {
       modelProvider: "gemma",
       gemmaVramMode: "minimum12b",
       ocrDevice: "gpu",
+      ocrQualityMode: "minimum",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
       fluxBackend: "cuda-native",
@@ -1369,6 +1394,7 @@ describe("app settings helpers", () => {
       modelProvider: "gemma",
       gemmaVramMode: "economy26b",
       ocrDevice: "gpu",
+      ocrQualityMode: "economy",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
       fluxBackend: "cuda-native",
@@ -1388,6 +1414,7 @@ describe("app settings helpers", () => {
       modelProvider: "gemma",
       gemmaVramMode: "full31b",
       ocrDevice: "gpu",
+      ocrQualityMode: "full",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "rocm-transformers",
       fluxBackend: "zluda-native",
@@ -1408,6 +1435,7 @@ describe("app settings helpers", () => {
       modelProvider: "gemma",
       gemmaVramMode: "economy26b",
       ocrDevice: "gpu",
+      ocrQualityMode: "economy",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "rocm-transformers",
       fluxBackend: "zluda-native",
@@ -1418,6 +1446,7 @@ describe("app settings helpers", () => {
       modelProvider: "openai-codex",
       gemmaVramMode: "minimum12b",
       ocrDevice: "cpu",
+      ocrQualityMode: "minimum",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
       fluxBackend: "cuda-native",

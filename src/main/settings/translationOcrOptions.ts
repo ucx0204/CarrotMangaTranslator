@@ -5,12 +5,14 @@ import type {
   LlamaRuntimeProfile,
   OcrDevice,
   OcrGpuBackend,
+  OcrQualityMode,
 } from "../../shared/settingsTypes";
 import type { TranslationOptions } from "./appSettingsTypes";
 import {
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOcrQualityMode,
   resolveOptionalString,
 } from "./appSettingsResolvers";
 import {
@@ -53,6 +55,13 @@ export function resolveOcrTranslationOptions(
     llamaRuntimeProfile,
     ocrGpuBackend,
   );
+  const ocrQualityMode = resolveOcrQualityMode(
+    runtimeEnv.MANGA_TRANSLATOR_OCR_QUALITY_MODE ??
+      runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE ??
+      runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_PRESET,
+    settings.ocr.qualityMode ??
+      resolveOcrQualityModeFromGemmaVramMode(gemmaVramMode),
+  );
   return {
     ocrDevice,
     ocrGpuBackend,
@@ -66,7 +75,7 @@ export function resolveOcrTranslationOptions(
       runtimeEnv,
       ocrDevice,
       ocrGpuBackend,
-      gemmaVramMode,
+      ocrQualityMode,
     ),
     ocrBboxProvider: resolveOptionalString(
       runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER,
@@ -80,12 +89,7 @@ export function resolveOcrTranslationOptions(
   };
 }
 
-function resolvePaddleOcrModeOptions(
-  env: NodeJS.ProcessEnv,
-  ocrDevice: OcrDevice,
-  ocrGpuBackend: OcrGpuBackend,
-  gemmaVramMode: GemmaVramMode,
-): Pick<
+type PaddleOcrModeOptions = Pick<
   OcrTranslationOptions,
   | "ocrBboxMode"
   | "ocrEngine"
@@ -96,103 +100,135 @@ function resolvePaddleOcrModeOptions(
   | "ocrMergeMode"
   | "ocrDetLimit"
   | "ocrRecBatch"
-> {
-  const rocmTransformers =
-    ocrDevice === "gpu" && ocrGpuBackend === "rocm-transformers";
-  const lowVramModelNames = resolveLowVramOcrModelNames(gemmaVramMode);
-  const shouldForceOcrOnly = Boolean(lowVramModelNames) || rocmTransformers;
+>;
 
-  const options: Pick<
-    OcrTranslationOptions,
-    | "ocrBboxMode"
-    | "ocrEngine"
-    | "ocrEngineDtype"
-    | "ocrVersion"
-    | "ocrTextDetectionModelName"
-    | "ocrTextRecognitionModelName"
-    | "ocrMergeMode"
-    | "ocrDetLimit"
-    | "ocrRecBatch"
-  > = {};
-  const bboxMode =
-    resolveOptionalString(env.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE) ??
-    (shouldForceOcrOnly ? "ocr" : undefined);
-  const engine =
-    resolveOptionalString(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE) ??
-    (rocmTransformers
-      ? "transformers"
-      : lowVramModelNames
-        ? "paddle_static"
-        : undefined);
-  const dtype =
-    resolveOptionalString(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE) ??
-    (shouldForceOcrOnly ? "float32" : undefined);
-  const ocrVersion =
-    resolveOptionalString(env.MANGA_TRANSLATOR_PADDLEOCR_VERSION) ??
-    (shouldForceOcrOnly ? "PP-OCRv6" : undefined);
-  const textDetectionModelName =
-    resolveOptionalString(
-      env.MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME,
-    ) ?? lowVramModelNames?.det;
-  const textRecognitionModelName =
-    resolveOptionalString(
-      env.MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME,
-    ) ?? lowVramModelNames?.rec;
-  const mergeMode =
-    resolveOptionalString(env.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE) ??
-    (shouldForceOcrOnly ? "conservative" : undefined);
-  const detLimit =
-    resolveOptionalString(env.MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT) ??
-    (shouldForceOcrOnly ? "1600" : undefined);
-  const recBatch =
-    resolveOptionalString(env.MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH) ??
-    (shouldForceOcrOnly ? "1" : undefined);
-  if (bboxMode) {
-    options.ocrBboxMode = bboxMode;
-  }
-  if (engine) {
-    options.ocrEngine = engine;
-  }
-  if (dtype) {
-    options.ocrEngineDtype = dtype;
-  }
-  if (ocrVersion) {
-    options.ocrVersion = ocrVersion;
-  }
-  if (textDetectionModelName) {
-    options.ocrTextDetectionModelName = textDetectionModelName;
-  }
-  if (textRecognitionModelName) {
-    options.ocrTextRecognitionModelName = textRecognitionModelName;
-  }
-  if (mergeMode) {
-    options.ocrMergeMode = mergeMode;
-  }
-  if (detLimit) {
-    options.ocrDetLimit = detLimit;
-  }
-  if (recBatch) {
-    options.ocrRecBatch = recBatch;
+type PaddleOcrModeContext = {
+  rocmTransformers: boolean;
+  lowVramModelNames: { det: string; rec: string } | undefined;
+  fullVramVlDefaults: boolean;
+  shouldForceOcrOnly: boolean;
+};
+
+const PADDLE_OCR_MODE_ENV_KEYS: Record<keyof PaddleOcrModeOptions, string> = {
+  ocrBboxMode: "MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE",
+  ocrEngine: "MANGA_TRANSLATOR_PADDLEOCR_ENGINE",
+  ocrEngineDtype: "MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE",
+  ocrVersion: "MANGA_TRANSLATOR_PADDLEOCR_VERSION",
+  ocrTextDetectionModelName:
+    "MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME",
+  ocrTextRecognitionModelName:
+    "MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME",
+  ocrMergeMode: "MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE",
+  ocrDetLimit: "MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT",
+  ocrRecBatch: "MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH",
+};
+
+function resolvePaddleOcrModeOptions(
+  env: NodeJS.ProcessEnv,
+  ocrDevice: OcrDevice,
+  ocrGpuBackend: OcrGpuBackend,
+  ocrQualityMode: OcrQualityMode,
+): PaddleOcrModeOptions {
+  const context = resolvePaddleOcrModeContext(
+    ocrDevice,
+    ocrGpuBackend,
+    ocrQualityMode,
+  );
+  const defaults = resolvePaddleOcrModeDefaults(context);
+  const options: PaddleOcrModeOptions = {};
+  for (const key of Object.keys(defaults) as Array<
+    keyof PaddleOcrModeOptions
+  >) {
+    const value =
+      resolveOptionalString(env[PADDLE_OCR_MODE_ENV_KEYS[key]]) ??
+      defaults[key];
+    if (value) {
+      options[key] = value;
+    }
   }
   return options;
 }
 
+function resolvePaddleOcrModeContext(
+  ocrDevice: OcrDevice,
+  ocrGpuBackend: OcrGpuBackend,
+  ocrQualityMode: OcrQualityMode,
+): PaddleOcrModeContext {
+  const rocmTransformers =
+    ocrDevice === "gpu" && ocrGpuBackend === "rocm-transformers";
+  const lowVramModelNames = resolveLowVramOcrModelNames(ocrQualityMode);
+  return {
+    rocmTransformers,
+    lowVramModelNames,
+    fullVramVlDefaults: ocrQualityMode === "full" && !rocmTransformers,
+    shouldForceOcrOnly: Boolean(lowVramModelNames) || rocmTransformers,
+  };
+}
+
+function resolvePaddleOcrModeDefaults(
+  context: PaddleOcrModeContext,
+): Record<keyof PaddleOcrModeOptions, string | undefined> {
+  const { rocmTransformers, lowVramModelNames, shouldForceOcrOnly } = context;
+  const ocrOnlyOrVl = shouldForceOcrOnly || context.fullVramVlDefaults;
+  return {
+    ocrBboxMode: forcedOrVlDefault(context, "ocr", "vl"),
+    ocrEngine: rocmTransformers
+      ? "transformers"
+      : lowVramModelNames
+        ? "paddle_static"
+        : undefined,
+    ocrEngineDtype: shouldForceOcrOnly ? "float32" : undefined,
+    ocrVersion: ocrOnlyOrVl ? "PP-OCRv6" : undefined,
+    ocrTextDetectionModelName: lowVramModelNames?.det,
+    ocrTextRecognitionModelName: lowVramModelNames?.rec,
+    ocrMergeMode: forcedOrVlDefault(context, "conservative", "legacy"),
+    ocrDetLimit: ocrOnlyOrVl ? "1600" : undefined,
+    ocrRecBatch: ocrOnlyOrVl ? "1" : undefined,
+  };
+}
+
+function forcedOrVlDefault(
+  context: PaddleOcrModeContext,
+  forcedValue: string,
+  vlValue: string,
+): string | undefined {
+  if (context.shouldForceOcrOnly) {
+    return forcedValue;
+  }
+  if (context.fullVramVlDefaults) {
+    return vlValue;
+  }
+  return undefined;
+}
+
 function resolveLowVramOcrModelNames(
-  gemmaVramMode: GemmaVramMode,
+  ocrQualityMode: OcrQualityMode,
 ): { det: string; rec: string } | undefined {
-  if (gemmaVramMode === "economy26b") {
+  if (ocrQualityMode === "economy") {
     return {
       det: "PP-OCRv6_small_det",
       rec: "PP-OCRv6_small_rec",
     };
   }
-  if (gemmaVramMode === "minimum12b") {
+  if (ocrQualityMode === "minimum") {
     return {
       det: "PP-OCRv6_small_det",
       rec: "PP-OCRv6_tiny_rec",
     };
   }
   return undefined;
+}
+
+function resolveOcrQualityModeFromGemmaVramMode(
+  gemmaVramMode: GemmaVramMode,
+): OcrQualityMode {
+  if (gemmaVramMode === "full31b") {
+    return "full";
+  }
+  if (gemmaVramMode === "economy26b") {
+    return "economy";
+  }
+  return "minimum";
 }
 
 function resolveRuntimeOcrDevice(

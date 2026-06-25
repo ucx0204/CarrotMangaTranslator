@@ -4,12 +4,14 @@ import type {
   InpaintingModel,
   OcrDevice,
   OcrGpuBackend,
+  OcrQualityMode,
 } from "../../../../shared/settingsTypes";
 import { mangaGateway } from "../../api/mangaGateway";
 import {
   FLUX_BACKEND_OPTIONS,
   INPAINTING_MODEL_OPTIONS,
   OCR_DEVICE_OPTIONS,
+  OCR_QUALITY_OPTIONS,
 } from "../settingsOptions";
 
 type HardwareSettingsPanelProps = {
@@ -20,10 +22,12 @@ type HardwareSettingsPanelProps = {
   isFluxBackendOptionDisabled: (backend: FluxBackend) => boolean;
   ocrGpuBackend: OcrGpuBackend;
   ocrDevice: OcrDevice;
+  ocrQualityMode: OcrQualityMode;
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
   setInpaintingModel: React.Dispatch<React.SetStateAction<InpaintingModel>>;
   setOcrDevice: React.Dispatch<React.SetStateAction<OcrDevice>>;
   setOcrGpuBackend: React.Dispatch<React.SetStateAction<OcrGpuBackend>>;
+  setOcrQualityMode: React.Dispatch<React.SetStateAction<OcrQualityMode>>;
   usesAmdHardware: boolean;
   usesAmdOcrContext: boolean;
   usesNvidiaHardware: boolean;
@@ -38,10 +42,12 @@ export function HardwareSettingsPanel({
   isFluxBackendOptionDisabled,
   ocrGpuBackend,
   ocrDevice,
+  ocrQualityMode,
   setFluxBackend,
   setInpaintingModel,
   setOcrDevice,
   setOcrGpuBackend,
+  setOcrQualityMode,
   usesAmdHardware,
   usesAmdOcrContext,
   usesNvidiaHardware,
@@ -49,6 +55,16 @@ export function HardwareSettingsPanel({
 }: HardwareSettingsPanelProps): React.JSX.Element {
   return (
     <>
+      <OcrQualitySettings
+        clearTestState={clearTestState}
+        controlsBusy={controlsBusy}
+        ocrQualityMode={ocrQualityMode}
+        setOcrDevice={setOcrDevice}
+        setOcrGpuBackend={setOcrGpuBackend}
+        setOcrQualityMode={setOcrQualityMode}
+        usesAmdOcrContext={usesAmdOcrContext}
+        usesNvidiaOcrContext={usesNvidiaOcrContext}
+      />
       <OcrDeviceSettings
         clearTestState={clearTestState}
         controlsBusy={controlsBusy}
@@ -74,6 +90,68 @@ export function HardwareSettingsPanel({
         usesNvidiaHardware={usesNvidiaHardware}
       />
     </>
+  );
+}
+
+function OcrQualitySettings({
+  clearTestState,
+  controlsBusy,
+  ocrQualityMode,
+  setOcrDevice,
+  setOcrGpuBackend,
+  setOcrQualityMode,
+  usesAmdOcrContext,
+  usesNvidiaOcrContext,
+}: Pick<
+  HardwareSettingsPanelProps,
+  | "clearTestState"
+  | "controlsBusy"
+  | "ocrQualityMode"
+  | "setOcrDevice"
+  | "setOcrGpuBackend"
+  | "setOcrQualityMode"
+  | "usesAmdOcrContext"
+  | "usesNvidiaOcrContext"
+>): React.JSX.Element {
+  const activeOption = OCR_QUALITY_OPTIONS.find(
+    (option) => option.id === ocrQualityMode,
+  );
+  return (
+    <div className="settings-field-stack">
+      <span>Paddle OCR 품질</span>
+      <div
+        className="settings-preset-group"
+        role="tablist"
+        aria-label="Paddle OCR 품질"
+      >
+        {OCR_QUALITY_OPTIONS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className={`settings-preset-button ${ocrQualityMode === option.id ? "active" : ""}`}
+            onClick={() => {
+              clearTestState();
+              if (option.id === "full") {
+                setOcrDevice("gpu");
+                if (usesAmdOcrContext) {
+                  setOcrGpuBackend("rocm-transformers");
+                } else if (usesNvidiaOcrContext) {
+                  setOcrGpuBackend("cuda");
+                }
+              } else {
+                setOcrDevice("cpu");
+              }
+              setOcrQualityMode(option.id);
+            }}
+            disabled={controlsBusy}
+            aria-pressed={ocrQualityMode === option.id}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <p className="muted-line modal-note">{activeOption?.description}</p>
+    </div>
   );
 }
 

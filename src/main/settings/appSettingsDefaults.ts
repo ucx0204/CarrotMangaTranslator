@@ -35,6 +35,7 @@ import {
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOcrQualityMode,
   resolveOpenAiCompatibleBaseUrl,
   resolveOptionalString,
   resolvePortNumber,
@@ -178,6 +179,12 @@ function resolveDefaultOcrSettings(
     device: resolveOcrDevice(
       env.MANGA_TRANSLATOR_OCR_DEVICE,
       hardwareDefaults.ocrDevice,
+    ),
+    qualityMode: resolveOcrQualityMode(
+      env.MANGA_TRANSLATOR_OCR_QUALITY_MODE ??
+        env.MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE ??
+        env.MANGA_TRANSLATOR_PADDLEOCR_PRESET,
+      hardwareDefaults.ocrQualityMode,
     ),
     gpuBackend: resolveOcrGpuBackend(
       env.MANGA_TRANSLATOR_OCR_GPU_BACKEND,

@@ -25,6 +25,7 @@ export type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
+  OcrQualityMode,
   OcrSettings,
   RuntimeGpuVendor,
   RuntimeHardwareInfo,

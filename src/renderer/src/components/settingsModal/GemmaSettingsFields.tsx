@@ -9,7 +9,9 @@ import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 import { LocalModelFields } from "./GemmaLocalModelFields";
 
 const MODEL_PRESET_BUTTON_IDS = [
-  ...Object.keys(MODEL_PRESETS),
+  "minimum12b",
+  "economy26b",
+  "full31b",
   "custom",
 ] as ModelPresetId[];
 

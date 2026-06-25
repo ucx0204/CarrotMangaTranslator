@@ -165,7 +165,7 @@ function expectRenderingRoleRules(text: string): void {
     "Do not mechanically transliterate Japanese kana when that would sound awkward in Korean.",
   );
   expect(text).toContain(
-    "confidence must be 1.00 only for a complete, clearly read SFX",
+    "It may be 1.00 only for a complete, clearly read SFX with a clearly correct Korean sound.",
   );
   expect(text).toContain("Do not force every SFX into semantic Korean");
   expect(text).toContain(
@@ -200,8 +200,9 @@ describe("prompt contracts", () => {
     expect(prompt).toContain("OCR bbox candidates");
     expect(prompt).toContain("low-trust OCR text hints for slot matching only");
     expect(prompt).toContain("Use Image 1 as the authority");
-    expect(prompt).toContain("Treat each candidate as a locked geometry slot.");
-    expect(prompt).toContain("Do not merge two candidates into one record");
+    expect(prompt).toContain("Treat each candidate as a geometry anchor.");
+    expect(prompt).toContain("Same-container merge exception");
+    expect(prompt).toContain("OCR hints may include Latin garbage");
     expect(prompt).toContain(
       "For every accepted candidate, output type nonsolid and set textRole to ordinary or sound.",
     );

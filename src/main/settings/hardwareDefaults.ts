@@ -10,6 +10,7 @@ import type {
   ModelProvider,
   OcrDevice,
   OcrGpuBackend,
+  OcrQualityMode,
 } from "../../shared/types";
 import type { DetectedGpuInfo } from "../gpuInfo";
 import {
@@ -28,6 +29,7 @@ export type HardwareDefaults = {
   modelProvider: ModelProvider;
   gemmaVramMode: GemmaVramMode;
   ocrDevice: OcrDevice;
+  ocrQualityMode: OcrQualityMode;
   ocrGpuCudaTag: string;
   ocrGpuBackend: OcrGpuBackend;
   llamaRuntimeProfile: LlamaRuntimeProfile;
@@ -37,7 +39,7 @@ export type HardwareDefaults = {
 
 type HardwareBaseDefaults = Omit<
   HardwareDefaults,
-  "gemmaVramMode" | "modelProvider" | "ocrDevice"
+  "gemmaVramMode" | "modelProvider" | "ocrDevice" | "ocrQualityMode"
 >;
 
 export function resolveHardwareDefaults(
@@ -150,8 +152,21 @@ function buildHardwareDefaults(
     modelProvider,
     gemmaVramMode,
     ocrDevice,
+    ocrQualityMode: resolveHardwareOcrQualityMode(gemmaVramMode),
     ...baseDefaults,
   };
+}
+
+function resolveHardwareOcrQualityMode(
+  gemmaVramMode: GemmaVramMode,
+): OcrQualityMode {
+  if (gemmaVramMode === "full31b") {
+    return "full";
+  }
+  if (gemmaVramMode === "economy26b") {
+    return "economy";
+  }
+  return "minimum";
 }
 
 function resolveHardwareOcrGpuCudaTag(info: DetectedGpuInfo | null): string {

@@ -160,6 +160,7 @@ const runtimeHelpers = {
       ocrText?: string;
       groupId?: string;
       rolePrior?: string;
+      containerType?: string;
       orderInGroup?: number;
     }>;
     diagnostics: unknown[];

@@ -112,6 +112,51 @@ export function emitDownloadProgress(
   });
 }
 
+/**
+ * Aggregates progress from several files downloaded concurrently into a single
+ * combined byte/percent stream. Without this, two parallel downloads sharing one
+ * `onProgress` callback make the displayed percentage flip-flop between files.
+ * Call `forFile()` once per parallel download and pass the returned callback as
+ * that download's `onProgress`.
+ */
+export function createCombinedDownloadProgress(
+  onProgress: ((progress: FluxAssetProgress) => void) | undefined,
+  label: string,
+): { forFile: () => (progress: FluxAssetProgress) => void } {
+  const slots: Array<{ received: number; total: number }> = [];
+  const forFile = () => {
+    const slot = { received: 0, total: 0 };
+    slots.push(slot);
+    return (progress: FluxAssetProgress) => {
+      if (
+        Number.isFinite(progress.progressBytes) &&
+        Number.isFinite(progress.progressTotalBytes)
+      ) {
+        slot.received = Number(progress.progressBytes);
+        slot.total = Number(progress.progressTotalBytes);
+      }
+      const received = slots.reduce((sum, file) => sum + file.received, 0);
+      const total = slots.reduce((sum, file) => sum + file.total, 0);
+      onProgress?.({
+        progressText: `${label} 다운로드 중`,
+        detail:
+          total > 0
+            ? `${formatBytes(received)} / ${formatBytes(total)}`
+            : progress.detail,
+        progressMode:
+          total > 0
+            ? "determinate"
+            : (progress.progressMode ?? "indeterminate"),
+        progressPercent: total > 0 ? Math.min(1, received / total) : undefined,
+        progressBytes: total > 0 ? received : undefined,
+        progressTotalBytes: total > 0 ? total : undefined,
+        installLogLine: progress.installLogLine,
+      });
+    };
+  };
+  return { forFile };
+}
+
 export function formatBytes(bytes: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;

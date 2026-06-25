@@ -476,6 +476,11 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
     progressTotal:
       readPositiveInteger(firstOptions.ocrBatchTotal) || items.length,
   });
+  const emitPageProgress = createOcrBatchProgressEmitter(
+    batchOptions,
+    firstOptions,
+    normalizedOptions,
+  );
   /** @param {string} line */
   const handleProgressLine = (line) => {
     const progress = parseOcrBatchProgressLine(line);
@@ -489,32 +494,11 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
       return;
     }
     seenProgressEvents.add(eventKey);
-    const pageOptions = normalizedOptions[progress.index - 1] || firstOptions;
-    const completedBefore =
-      readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0;
-    const batchTotal =
-      readPositiveInteger(firstOptions.ocrBatchTotal) || progress.total;
-    const pageIndex =
-      readPositiveInteger(pageOptions.ocrPageIndex) ||
-      completedBefore + progress.index;
-    const pageTotal =
-      readPositiveInteger(pageOptions.ocrPageTotal) || batchTotal;
-    const completedCount =
-      phase === "start"
-        ? Math.max(0, completedBefore + progress.index - 1)
-        : completedBefore + progress.index;
-    emitRuntimeProgress(
-      batchOptions,
-      "ocr_running",
-      `${pageIndex} / ${pageTotal} 페이지 Paddle OCR 분석 중`,
-      phase === "start" ? "페이지 처리 시작" : `${progress.count}개 후보`,
-      {
-        progressCurrent: Math.min(pageTotal, completedCount),
-        progressTotal: pageTotal,
-        pageIndex,
-        pageTotal,
-      },
-    );
+    emitPageProgress({
+      itemIndex: progress.index - 1,
+      phase,
+      count: Number(progress.count) || 0,
+    });
   };
   const progressPoller = createOcrBatchProgressFilePoller(
     progressPath,
@@ -629,22 +613,33 @@ async function collectOcrBboxHintsBatchInCpuWorkers({
     },
   );
 
+  const emitPageProgress = createOcrBatchProgressEmitter(
+    batchOptions,
+    firstOptions,
+    normalizedOptions,
+  );
   const workerStartDelayMs = resolveOcrCpuWorkerStartDelayMs(batchOptions);
   const chunkRunPromises = [];
   for (const [chunkIndex, chunk] of chunks.entries()) {
     if (chunkIndex > 0) {
-      await delayForOcrWorkerStart(workerStartDelayMs, batchOptions.abortSignal);
+      await delayForOcrWorkerStart(
+        workerStartDelayMs,
+        batchOptions.abortSignal,
+      );
     }
     await waitForOcrCpuWorkerRamHeadroom(batchOptions, chunkIndex);
     const runPromise = runOcrBboxBatchChunk({
       batchOptions,
       chunk,
       chunkIndex,
+      emitPageProgress,
       firstOptions,
-      normalizedOptions,
       runtime,
     });
-    runPromise.catch(() => {});
+    runPromise.catch(() => {
+      // Rejections are surfaced by the Promise.all below; this guard only
+      // prevents an unhandledRejection during the staggered worker-start waits.
+    });
     chunkRunPromises.push(runPromise);
   }
   const chunkRuns = await Promise.all(chunkRunPromises);
@@ -696,8 +691,8 @@ async function collectOcrBboxHintsBatchInCpuWorkers({
  *   batchOptions: OcrBboxOptions;
  *   chunk: { items: Array<{ image: unknown; output: string }>; itemIndexes: number[] };
  *   chunkIndex: number;
+ *   emitPageProgress: (progress: { itemIndex: number; phase: string; count: number }) => void;
  *   firstOptions: OcrBboxOptions;
- *   normalizedOptions: OcrBboxOptions[];
  *   runtime: OcrRuntimeLayout | null;
  * }} params
  * @returns {Promise<{ command: string; itemIndexes: number[]; stdout: string; stderr: string }>}
@@ -706,8 +701,8 @@ async function runOcrBboxBatchChunk({
   batchOptions,
   chunk,
   chunkIndex,
+  emitPageProgress,
   firstOptions,
-  normalizedOptions,
   runtime,
 }) {
   const baseDir = firstOptions.outputDir || process.cwd();
@@ -757,10 +752,7 @@ async function runOcrBboxBatchChunk({
       return;
     }
     seenProgressEvents.add(eventKey);
-    emitOcrBatchPageProgress({
-      batchOptions,
-      firstOptions,
-      normalizedOptions,
+    emitPageProgress({
       itemIndex,
       phase,
       count: Number(progress.count) || 0,
@@ -770,11 +762,9 @@ async function runOcrBboxBatchChunk({
     progressPath,
     handleProgressLine,
   );
-  let stdout = "";
-  let stderr = "";
   try {
     progressPoller.start();
-    ({ stdout, stderr } = await runOcrShellCommandWithModelRepair(
+    const { stdout, stderr } = await runOcrShellCommandWithModelRepair(
       command,
       {
         ...batchOptions,
@@ -785,7 +775,7 @@ async function runOcrBboxBatchChunk({
         timeoutMs: resolveOcrBboxTimeoutMs(chunk.items.length),
         onOutput: handleProgressLine,
       },
-    ));
+    );
     return { command, itemIndexes: chunk.itemIndexes, stdout, stderr };
   } finally {
     progressPoller.stop();
@@ -794,49 +784,49 @@ async function runOcrBboxBatchChunk({
 }
 
 /**
- * @param {{
- *   batchOptions: OcrBboxOptions;
- *   firstOptions: OcrBboxOptions;
- *   normalizedOptions: OcrBboxOptions[];
- *   itemIndex: number;
- *   phase: string;
- *   count: number;
- * }} params
- * @returns {void}
+ * Builds a stateful progress emitter for a single OCR batch. It tracks how many
+ * pages have *completed* (a monotonically increasing counter) rather than which
+ * page index just finished, so parallel CPU workers — or out-of-order completions
+ * within one process — never make the displayed counter jump backwards.
+ * @param {OcrBboxOptions} batchOptions
+ * @param {OcrBboxOptions} firstOptions
+ * @param {OcrBboxOptions[]} normalizedOptions
+ * @returns {(progress: { itemIndex: number; phase: string; count: number }) => void}
  */
-function emitOcrBatchPageProgress({
+function createOcrBatchProgressEmitter(
   batchOptions,
   firstOptions,
   normalizedOptions,
-  itemIndex,
-  phase,
-  count,
-}) {
-  const pageOptions = normalizedOptions[itemIndex] || firstOptions;
+) {
   const completedBefore =
     readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0;
   const batchTotal =
     readPositiveInteger(firstOptions.ocrBatchTotal) || normalizedOptions.length;
-  const pageIndex =
-    readPositiveInteger(pageOptions.ocrPageIndex) ||
-    completedBefore + itemIndex + 1;
-  const pageTotal = readPositiveInteger(pageOptions.ocrPageTotal) || batchTotal;
-  const completedCount =
-    phase === "start"
-      ? Math.max(0, completedBefore + itemIndex)
-      : completedBefore + itemIndex + 1;
-  emitRuntimeProgress(
-    batchOptions,
-    "ocr_running",
-    `${pageIndex} / ${pageTotal} 페이지 Paddle OCR 분석 중`,
-    phase === "start" ? "페이지 처리 시작" : `${count}개 후보`,
-    {
-      progressCurrent: Math.min(pageTotal, completedCount),
-      progressTotal: pageTotal,
-      pageIndex,
+  let completed = completedBefore;
+  return ({ itemIndex, phase, count }) => {
+    const pageOptions = normalizedOptions[itemIndex] || firstOptions;
+    const pageTotal =
+      readPositiveInteger(pageOptions.ocrPageTotal) || batchTotal;
+    if (phase !== "start") {
+      completed = Math.min(pageTotal, completed + 1);
+    }
+    const label = Math.min(
       pageTotal,
-    },
-  );
+      phase === "start" ? completed + 1 : completed,
+    );
+    emitRuntimeProgress(
+      batchOptions,
+      "ocr_running",
+      `${label} / ${pageTotal} 페이지 Paddle OCR 분석 중`,
+      phase === "start" ? "페이지 처리 시작" : `${count}개 후보`,
+      {
+        progressCurrent: completed,
+        progressTotal: pageTotal,
+        pageIndex: label,
+        pageTotal,
+      },
+    );
+  };
 }
 
 /**
@@ -874,7 +864,8 @@ function resolveOcrCpuWorkerCount(options = {}, pageCount = 1) {
     readPositiveInteger(
       runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_CPU_WORKERS", options),
     ) ||
-    readPositiveInteger(options.ocrCpuWorkers);
+    readPositiveInteger(options.ocrCpuWorkers) ||
+    0;
   if (explicit > 0) {
     return Math.max(1, Math.min(pageCount, explicit));
   }
@@ -1027,7 +1018,10 @@ function resolveOcrCpuWorkerRamPollMs(options = {}) {
       ),
     ) ||
     readPositiveInteger(
-      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_CPU_WORKER_RAM_POLL_MS", options),
+      runtimeOverrideEnv(
+        "MANGA_TRANSLATOR_OCR_CPU_WORKER_RAM_POLL_MS",
+        options,
+      ),
     ) ||
     readPositiveInteger(options.ocrCpuWorkerRamPollMs);
   return explicit || 1000;

@@ -12,6 +12,7 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
+  OcrQualityMode,
 } from "../../../shared/settingsTypes";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
@@ -44,6 +45,7 @@ type BuildSettingsFromFormInput = {
   apiCustomHeadersJson: string;
   ocrDevice: OcrDevice;
   ocrGpuBackend: OcrGpuBackend;
+  ocrQualityMode: OcrQualityMode;
   inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
   keybindings: KeybindingOverrides;
@@ -103,6 +105,7 @@ function buildGemmaSettings(input: BuildSettingsFromFormInput) {
 function buildOcrSettings(input: BuildSettingsFromFormInput) {
   return {
     device: input.ocrDevice,
+    qualityMode: input.ocrQualityMode,
     gpuBackend: input.ocrGpuBackend,
     ...(input.initialSettings.ocr.gpuCudaTag
       ? { gpuCudaTag: input.initialSettings.ocr.gpuCudaTag }

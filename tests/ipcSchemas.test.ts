@@ -235,6 +235,7 @@ describe("IPC schemas", () => {
       },
       ocr: {
         device: "cpu",
+        qualityMode: "economy",
         gpuBackend: "rocm",
       },
       inpainting: {
@@ -255,6 +256,7 @@ describe("IPC schemas", () => {
     expect(parsed.api.baseUrl).toBe("http://127.0.0.1:1234/v1");
     expect(parsed.api.temperature).toBeNull();
     expect(parsed.api.reasoningEffort).toBe("minimal");
+    expect(parsed.ocr.qualityMode).toBe("economy");
     expect(parsed.ocr.gpuBackend).toBe("rocm-transformers");
     expect(parsed.inpainting?.model).toBe("lama-manga");
     expect(parsed.inpainting?.fluxBackend).toBe("zluda-native");

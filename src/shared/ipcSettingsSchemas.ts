@@ -13,6 +13,7 @@ import {
   MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
   OcrGpuBackendSchema,
+  OcrQualityModeSchema,
   OpenAiCompatibleBaseUrlSchema,
   filePath,
   hexColor,
@@ -58,6 +59,7 @@ export const AppSettingsSchema = z
     ocr: z
       .object({
         device: z.enum(["cpu", "gpu"]),
+        qualityMode: OcrQualityModeSchema,
         gpuCudaTag: z
           .string()
           .regex(/^cu\d+$/i)

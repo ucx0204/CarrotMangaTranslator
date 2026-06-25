@@ -10,6 +10,7 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
+  OcrQualityMode,
 } from "../../../../shared/settingsTypes";
 import { coerceOpenAiCompatibleBaseUrl } from "../../../../shared/apiSettings";
 import {
@@ -45,6 +46,7 @@ export type SettingsFormValues = {
   apiCustomHeadersJson: string;
   ocrDevice: OcrDevice;
   ocrGpuBackend: OcrGpuBackend;
+  ocrQualityMode: OcrQualityMode;
   inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
   maxTokens: string;
@@ -83,6 +85,7 @@ export function createSettingsFormValues(
     apiCustomHeadersJson: settings.api.customHeadersJson ?? "",
     ocrDevice: settings.ocr.device,
     ocrGpuBackend: settings.ocr.gpuBackend ?? "cuda",
+    ocrQualityMode: settings.ocr.qualityMode ?? "minimum",
     ...resolveInpaintingFormValues(settings),
     maxTokens: String(settings.maxTokens),
     contextTokens: String(settings.ctx),

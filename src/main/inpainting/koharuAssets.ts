@@ -6,7 +6,11 @@ import type {
   KoharuInpaintingBackend,
 } from "../../shared/inpaintingSettingsTypes";
 import { ensureFluxZludaSupportRuntime } from "./fluxAssets";
-import { ensureRemoteFile, hfResolveUrl } from "./fluxAssets";
+import {
+  createCombinedDownloadProgress,
+  ensureRemoteFile,
+  hfResolveUrl,
+} from "./fluxAssets";
 import type { InpaintingRuntimeProgress } from "./inpaintingEngine";
 import type { KoharuWorkerLaunchSpec } from "./koharuWorkerTypes";
 
@@ -74,6 +78,10 @@ export async function ensureKoharuModelAssets(options: {
   }
 
   const [configFile, weightsFile] = modelFiles.files;
+  const download = createCombinedDownloadProgress(
+    options.onProgress,
+    "AOT 인페인팅",
+  );
   const [configPath, weightsPath] = await Promise.all([
     ensureRemoteFile({
       modelDir: options.modelDir,
@@ -81,7 +89,7 @@ export async function ensureKoharuModelAssets(options: {
       label: "AOT Inpainting config",
       url: hfResolveUrl(modelFiles.repo, configFile),
       signal: options.signal,
-      onProgress: options.onProgress,
+      onProgress: download.forFile(),
     }),
     ensureRemoteFile({
       modelDir: options.modelDir,
@@ -89,7 +97,7 @@ export async function ensureKoharuModelAssets(options: {
       label: "AOT Inpainting",
       url: hfResolveUrl(modelFiles.repo, weightsFile),
       signal: options.signal,
-      onProgress: options.onProgress,
+      onProgress: download.forFile(),
     }),
   ]);
   return {

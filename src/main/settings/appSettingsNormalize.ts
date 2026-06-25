@@ -23,6 +23,7 @@ import {
   resolveNumberRange,
   resolveOcrDevice,
   resolveOcrGpuBackend,
+  resolveOcrQualityMode,
   resolveOpenAiCompatibleBaseUrl,
   resolveOptionalJsonObjectString,
   resolveOptionalString,
@@ -255,6 +256,10 @@ function normalizeOcrSettings(
       hardwareVendor === "amd" && gpuBackend !== "rocm-transformers"
         ? "cpu"
         : resolveOcrDevice(ocr?.device, defaults.ocr.device),
+    qualityMode: resolveOcrQualityMode(
+      ocr?.qualityMode,
+      defaults.ocr.qualityMode,
+    ),
     gpuBackend,
     gpuCudaTag: resolveStoredOcrGpuCudaTag(ocr, defaults),
   };

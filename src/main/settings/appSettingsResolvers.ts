@@ -19,6 +19,7 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
+  OcrQualityMode,
 } from "../../shared/types";
 import {
   isAmdLlamaRuntimeProfile,
@@ -102,6 +103,50 @@ export function resolveOcrGpuBackend(
     normalized === "transformers-rocm"
   ) {
     return "rocm-transformers";
+  }
+  return fallback;
+}
+
+export function resolveOcrQualityMode(
+  value: unknown,
+  fallback: OcrQualityMode,
+): OcrQualityMode {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (
+    [
+      "minimum",
+      "minimal",
+      "min",
+      "tiny",
+      "tiny_rec",
+      "tiny-rec",
+      "12b",
+      "최소",
+    ].includes(normalized)
+  ) {
+    return "minimum";
+  }
+  if (
+    [
+      "economy",
+      "eco",
+      "small",
+      "small_rec",
+      "small-rec",
+      "26b",
+      "절약",
+    ].includes(normalized)
+  ) {
+    return "economy";
+  }
+  if (
+    ["full", "quality", "vl", "paddleocr-vl", "31b", "풀로드"].includes(
+      normalized,
+    )
+  ) {
+    return "full";
   }
   return fallback;
 }

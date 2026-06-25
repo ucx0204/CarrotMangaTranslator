@@ -89,6 +89,7 @@ function useSettingsFormSetters(
     ),
     setOcrDevice: useFormFieldDispatch(setValues, "ocrDevice"),
     setOcrGpuBackend: useFormFieldDispatch(setValues, "ocrGpuBackend"),
+    setOcrQualityMode: useFormFieldDispatch(setValues, "ocrQualityMode"),
     setInpaintingModel: useFormFieldDispatch(setValues, "inpaintingModel"),
     setFluxBackend: useFormFieldDispatch(setValues, "fluxBackend"),
     setMaxTokens: useFormFieldDispatch(setValues, "maxTokens"),

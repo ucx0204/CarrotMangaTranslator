@@ -8,7 +8,7 @@ import { isOcrResultNoTextDetected } from "./noText";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { OcrBboxResult } from "./types";
 
-const OCR_HINT_CACHE_SCHEMA_VERSION = 2;
+const OCR_HINT_CACHE_SCHEMA_VERSION = 3;
 
 type PrepareOcrHintsOptions = {
   runtime: TranslationRuntimePort;
