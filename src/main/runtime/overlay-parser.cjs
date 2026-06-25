@@ -128,6 +128,63 @@ function parseJsonLenient(rawText) {
 }
 
 /**
+ * @param {string} rawText
+ * @returns {{ item: unknown | null }}
+ */
+function parseRegionSingleItem(rawText) {
+  const text = stripModelSpecialTokens(rawText);
+  let candidate;
+  try {
+    candidate = extractJsonCandidate(text);
+  } catch (error) {
+    throw new Error("Region response contract violation: JSON object missing.", {
+      cause: error,
+    });
+  }
+
+  const attempts = [
+    candidate,
+    candidate.replace(/,\s*([}\]])/g, "$1"),
+    repairBrokenJson(candidate),
+  ];
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      return validateRegionSingleItemPayload(JSON.parse(attempt));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(
+    "Region response contract violation: expected { \"item\": {...} } or { \"item\": null }.",
+    { cause: lastError },
+  );
+}
+
+/**
+ * @param {unknown} parsed
+ * @returns {{ item: unknown | null }}
+ */
+function validateRegionSingleItemPayload(parsed) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Region response contract violation: top-level object required.");
+  }
+  const record = /** @type {Record<string, unknown>} */ (parsed);
+  const keys = Object.keys(record);
+  if (keys.length !== 1 || keys[0] !== "item") {
+    throw new Error("Region response contract violation: exactly one item key required.");
+  }
+  if (record.item === null) {
+    return { item: null };
+  }
+  if (!record.item || typeof record.item !== "object" || Array.isArray(record.item)) {
+    throw new Error("Region response contract violation: item must be an object or null.");
+  }
+  return { item: record.item };
+}
+
+/**
  * @param {unknown} parsed
  * @returns {boolean}
  */
@@ -737,10 +794,44 @@ function normalizeItems(parsed) {
     .filter((item) => item !== null);
 }
 
+/**
+ * @param {unknown} parsed
+ * @returns {Array<LooseParsedOutput & { bbox: ParsedBbox }>}
+ */
+function normalizeRegionSingleItem(parsed) {
+  const payload = validateRegionSingleItemPayload(parsed);
+  if (payload.item === null) {
+    return [];
+  }
+  const itemRecord = /** @type {Record<string, unknown>} */ (payload.item);
+  const normalized = normalizeItem(
+    {
+      ...itemRecord,
+      id: 1,
+      type: itemRecord.type || "nonsolid",
+      textRole: itemRecord.textRole || itemRecord.text_role || "ordinary",
+    },
+    0,
+  );
+  if (!normalized) {
+    throw new Error("Region response contract violation: item object is incomplete.");
+  }
+  return [
+    {
+      ...normalized,
+      id: 1,
+      type: "nonsolid",
+      textRole: normalized.textRole || "ordinary",
+    },
+  ];
+}
+
 module.exports = {
   extractJsonCandidate,
   normalizeItems,
+  normalizeRegionSingleItem,
   parseJsonLenient,
+  parseRegionSingleItem,
   repairBrokenJson,
   stripModelSpecialTokens,
 };

@@ -310,13 +310,28 @@ describe("runtime prompt message contracts", () => {
     );
   });
 
-  it("uses container-level grouping for selected-region crop translation", () => {
+  it("uses a single-object contract for selected-region crop translation", () => {
     const prompt = getOverlayPrompt(
       {
+        modelProvider: "openai-codex",
         regionCropMode: true,
-        skipOcrBboxHints: true,
         imageWidth: 420,
         imageHeight: 320,
+        ocrBboxHints: [
+          {
+            id: 10,
+            label: "ocr_textline",
+            x1: 60,
+            y1: 80,
+            x2: 210,
+            y2: 260,
+            ocrText: "考えることが一緒だな！",
+            groupId: "G001",
+            containerType: "same_text_container",
+            rolePrior: "ordinary_mergeable",
+            orderInGroup: 1,
+          },
+        ],
       },
       [
         {
@@ -331,18 +346,77 @@ describe("runtime prompt message contracts", () => {
     );
 
     expect(prompt).toContain(
-      "You are given one user-selected crop from a Japanese manga page.",
-    );
-    expect(prompt).toContain("# Selected region grouping");
-    expect(prompt).toContain("Do not treat the whole crop as one text item.");
-    expect(prompt).toContain(
-      "If the crop contains one speech bubble or one caption plate, output exactly one record",
+      "You are given Image 1, a user-selected crop from a Japanese manga page.",
     );
     expect(prompt).toContain(
-      "Inside one speech bubble, never split by Japanese vertical column, text line, word, sentence fragment, punctuation gap, or line break.",
+      "Return exactly one JSON object with one key named item.",
+    );
+    expect(prompt).toContain('"item": {');
+    expect(prompt).toContain('"item": null');
+    expect(prompt).toContain("# OCR reading hints");
+    expect(prompt).toContain(
+      'hint 1: box:[60,80,210,260] group:G001 order:1 role:ordinary_mergeable container:same_text_container text:"考えることが一緒だな！"',
+    );
+    expect(prompt).not.toMatch(/\bitems\b/i);
+    expect(prompt).not.toMatch(/\bblocks\b/i);
+    expect(prompt).not.toMatch(/\brecords\b/i);
+    expect(prompt).not.toMatch(/\bcandidate\b/i);
+  });
+
+  it("keeps selected-region full-page context as a non-authority assist image", () => {
+    const options = {
+      regionCropMode: true,
+      imageWidth: 420,
+      imageHeight: 320,
+      regionContextImagePath: "page.png",
+      regionContextImageWidth: 1200,
+      regionContextImageHeight: 1800,
+      regionContextCropRect: { x: 320, y: 480, w: 420, h: 320 },
+    };
+    const variants = [
+      {
+        role: "original",
+        dataUrl: "data:image/png;base64,crop",
+        width: 420,
+        height: 320,
+        originalWidth: 420,
+        originalHeight: 320,
+      },
+      {
+        role: "full-page-context",
+        dataUrl: "data:image/png;base64,page",
+        width: 1200,
+        height: 1800,
+        originalWidth: 1200,
+        originalHeight: 1800,
+      },
+    ];
+    const prompt = getOverlayPrompt(options, variants);
+    const messages = buildMessages(options, variants);
+    const image2Description =
+      messages[1]?.content.find(
+        (part) =>
+          part.type === "text" &&
+          part.text?.includes("Image 2: the original full manga page"),
+      )?.text ?? "";
+
+    expect(prompt).toContain(
+      "Image 1 is the coordinate-authority selected crop",
     );
     expect(prompt).toContain(
-      "jp must include all columns in natural Japanese reading order",
+      "Use Image 2 only to understand the speaker",
+    );
+    expect(prompt).toContain(
+      "The bbox coordinates belong to Image 1.",
+    );
+    expect(image2Description).toContain(
+      "selected-region context only",
+    );
+    expect(image2Description).toContain(
+      "Do not use it as the coordinate authority",
+    );
+    expect(image2Description).toContain(
+      "x=320, y=480, w=420, h=320",
     );
   });
 

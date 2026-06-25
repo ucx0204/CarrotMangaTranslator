@@ -8,7 +8,12 @@ import {
   createRegionCropPage,
   mapRegionBlocksToPageBlocks,
 } from "../regionCrop";
-import { getRunPaths, openChapter, updatePageAfterAnalysis } from "../library";
+import {
+  getRunPaths,
+  openChapter,
+  resolveWorkContextForChapter,
+  updatePageAfterAnalysis,
+} from "../library";
 import { logError } from "../logger";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { isAbortError } from "./jobEvents";
@@ -43,6 +48,9 @@ export async function runRegionTranslationJob({
   const page = state.chapter.pages.find(
     (candidate) => candidate.id === request.pageId,
   );
+  const pageIndex = state.chapter.pages.findIndex(
+    (candidate) => candidate.id === request.pageId,
+  );
   if (!page) {
     return emitMissingRegionPage(id, emit, state.chapter);
   }
@@ -61,8 +69,12 @@ export async function runRegionTranslationJob({
     abortController,
     context,
     cropPage,
+    cropRect,
     emit,
     id,
+    page,
+    pageIndex: Math.max(0, pageIndex),
+    request,
     runPaths: state.runPaths,
   });
 
@@ -146,28 +158,48 @@ function runRegionPipeline({
   abortController,
   context,
   cropPage,
+  cropRect,
   emit,
   id,
+  page,
+  pageIndex,
+  request,
   runPaths,
 }: {
   abortController: AbortController;
   context: TranslationJobContext;
   cropPage: MangaPage;
+  cropRect: Parameters<typeof mapRegionBlocksToPageBlocks>[2];
   emit: EmitJobEvent;
   id: string;
+  page: MangaPage;
+  pageIndex: number;
+  request: RegionAnalysisRequest;
   runPaths: ChapterRunPaths;
 }): Promise<PipelineResult> {
-  return runWholePagePipeline({
-    jobId: id,
-    emit,
-    onCleanupReady: (cleanup) => {
-      context.jobs.setCleanup(id, cleanup);
-    },
-    pages: [cropPage],
-    runPaths,
-    signal: abortController.signal,
-    skipOcrPrepass: true,
-  });
+  return resolveWorkContextForChapter(request.chapterId).then((workContext) =>
+    runWholePagePipeline({
+      jobId: id,
+      emit,
+      onCleanupReady: (cleanup) => {
+        context.jobs.setCleanup(id, cleanup);
+      },
+      pages: [cropPage],
+      runPaths,
+      signal: abortController.signal,
+      regionContext: {
+        sourcePage: page,
+        sourcePageIndex: pageIndex,
+        cropRect,
+      },
+      workContext: {
+        ...workContext,
+        chapterId: request.chapterId,
+        recentPageCount: 6,
+      },
+      writeStoryMemory: false,
+    }),
+  );
 }
 
 async function completeRegionTranslation({

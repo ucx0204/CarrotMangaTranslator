@@ -29,7 +29,9 @@ export type TranslationRuntimePort = {
     result: TranslationResult,
   ) => Promise<void>;
   parseJsonLenient: (rawText: string) => unknown;
+  parseRegionSingleItem: (rawText: string) => unknown;
   normalizeItems: (parsed: unknown) => OverlayItem[];
+  normalizeRegionSingleItem: (parsed: unknown) => OverlayItem[];
 };
 
 let cachedPort: TranslationRuntimePort | null = null;
@@ -62,7 +64,11 @@ export function loadTranslationRuntimePort(): TranslationRuntimePort {
       runtime.simplePage.saveArtifacts(options, result),
     parseJsonLenient: (rawText) =>
       runtime.overlayTools.parseJsonLenient(rawText),
+    parseRegionSingleItem: (rawText) =>
+      runtime.overlayTools.parseRegionSingleItem(rawText),
     normalizeItems: (parsed) => runtime.overlayTools.normalizeItems(parsed),
+    normalizeRegionSingleItem: (parsed) =>
+      runtime.overlayTools.normalizeRegionSingleItem(parsed),
   };
 
   cachedPort = port;

@@ -64,8 +64,16 @@ function assertRuntimeModules(runtime: RuntimeModules): void {
     "overlay-parser.cjs normalizeItems",
   );
   assertFunction(
+    runtime.overlayTools?.normalizeRegionSingleItem,
+    "overlay-parser.cjs normalizeRegionSingleItem",
+  );
+  assertFunction(
     runtime.overlayTools?.parseJsonLenient,
     "overlay-parser.cjs parseJsonLenient",
+  );
+  assertFunction(
+    runtime.overlayTools?.parseRegionSingleItem,
+    "overlay-parser.cjs parseRegionSingleItem",
   );
 }
 

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 const {
   normalizeItems,
+  normalizeRegionSingleItem,
   parseJsonLenient,
+  parseRegionSingleItem,
 } = require("../src/main/runtime/overlay-parser.cjs");
 
 describe("overlay parser", () => {
@@ -219,5 +221,65 @@ ko: 생긋
     expect(items).toHaveLength(2);
     expect(items[0].bbox).toEqual({ x: 10, y: 20, w: 100, h: 60 });
     expect(items[1].bbox).toEqual({ x: 120, y: 90, w: 80, h: 70 });
+  });
+
+  it("parses selected-region single item JSON", () => {
+    const items = normalizeRegionSingleItem(
+      parseRegionSingleItem(
+        JSON.stringify({
+          item: {
+            type: "nonsolid",
+            textRole: "ordinary",
+            x1: 10,
+            y1: 20,
+            x2: 110,
+            y2: 160,
+            direction: "vertical",
+            angle: 0,
+            fontSize: 24,
+            confidence: 0.95,
+            jp: "考えることが一緒だな！",
+            ko: "생각하는 게 똑같네!",
+          },
+        }),
+      ),
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: 1,
+      type: "nonsolid",
+      textRole: "ordinary",
+      bbox: { x: 10, y: 20, w: 100, h: 140 },
+      jp: "考えることが一緒だな！",
+      ko: "생각하는 게 똑같네!",
+    });
+  });
+
+  it("parses selected-region null item as no text", () => {
+    const items = normalizeRegionSingleItem(
+      parseRegionSingleItem(JSON.stringify({ item: null })),
+    );
+
+    expect(items).toEqual([]);
+  });
+
+  it("accepts only the selected-region single item payload shape", () => {
+    expect(() => parseRegionSingleItem("[]")).toThrow(
+      /Region response contract violation/,
+    );
+    expect(() =>
+      parseRegionSingleItem(JSON.stringify({ item: null, extra: true })),
+    ).toThrow(/Region response contract violation/);
+    expect(() =>
+      parseRegionSingleItem(JSON.stringify({ text: "こんにちは" })),
+    ).toThrow(/Region response contract violation/);
+    expect(() =>
+      parseRegionSingleItem(
+        JSON.stringify({
+          item: [],
+        }),
+      ),
+    ).toThrow(/Region response contract violation/);
   });
 });

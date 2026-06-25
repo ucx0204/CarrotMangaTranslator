@@ -27,6 +27,7 @@ import type {
   ModelEndpointHandle,
   OcrBboxResult,
   PipelineOptions,
+  PipelineRegionContext,
   PipelineWorkContext,
 } from "./types";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
@@ -50,6 +51,7 @@ type TranslatePageWithRetriesOptions = {
   skipOcrPrepass: boolean;
   warningCollector: WarningCollector;
   workContext?: PipelineWorkContext;
+  regionContext?: PipelineRegionContext;
 };
 
 type PageTranslationAttemptResult = {
@@ -81,6 +83,7 @@ export async function translatePageWithRetries({
   skipOcrPrepass,
   warningCollector,
   workContext,
+  regionContext,
 }: TranslatePageWithRetriesOptions): Promise<void> {
   const result = await runPageTranslationAttempts({
     baseOptions,
@@ -97,6 +100,7 @@ export async function translatePageWithRetries({
     skipOcrPrepass,
     warningCollector,
     workContext,
+    regionContext,
   });
   if (result.successPage) {
     completedPagesById.set(page.id, result.successPage);
@@ -130,6 +134,7 @@ async function runPageTranslationAttempts({
   skipOcrPrepass,
   warningCollector,
   workContext,
+  regionContext,
 }: Omit<
   TranslatePageWithRetriesOptions,
   "completedPagesById" | "onPageFailed"
@@ -153,6 +158,7 @@ async function runPageTranslationAttempts({
       signal,
       skipOcrPrepass,
       workContext,
+      regionContext,
     });
     state.lastPageOptions = pageOptions;
     emitPageRunning(context, page, pageIndex, attempt, maxAttempts);

@@ -9,6 +9,9 @@
  *   includeEnhancedVariant?: boolean | null;
  *   label?: string | null;
  *   outputDir: string;
+ *   regionContextImageHeight?: unknown;
+ *   regionContextImagePath?: string | null;
+ *   regionContextImageWidth?: unknown;
  * }} ImageVariantOptions
  * @typedef {{ width: number; height: number }} ImageSize
  * @typedef {{ role: string; path: string; width?: number; height?: number; originalWidth?: number; originalHeight?: number; mime?: string; convertedFromMime?: string | null; dataUrl?: string }} ImageVariant
@@ -545,6 +548,21 @@ async function prepareImageVariants(options) {
           height: sourceSize.height,
         },
       ];
+  const regionContextPath = String(options.regionContextImagePath || "").trim();
+  if (regionContextPath) {
+    variants.push({
+      role: "full-page-context",
+      path: regionContextPath,
+      width:
+        readPositiveInteger(options.regionContextImageWidth) || undefined,
+      height:
+        readPositiveInteger(options.regionContextImageHeight) || undefined,
+      originalWidth:
+        readPositiveInteger(options.regionContextImageWidth) || undefined,
+      originalHeight:
+        readPositiveInteger(options.regionContextImageHeight) || undefined,
+    });
+  }
   /** @type {ImageVariantDiagnostic[]} */
   let diagnostics = [];
   if (options.includeEnhancedVariant) {

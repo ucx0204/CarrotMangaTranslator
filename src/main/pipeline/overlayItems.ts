@@ -98,10 +98,14 @@ function normalizeBlockRunId(runId: string | undefined): string {
   return normalized || "analysis";
 }
 
-export function filterRejectedOrUncertainSoundItems(items: OverlayItem[]): {
+export function filterRejectedOrUncertainSoundItems(
+  items: OverlayItem[],
+  options: { dropUncertainSound?: boolean } = {},
+): {
   items: OverlayItem[];
   droppedCount: number;
 } {
+  const dropUncertainSound = options.dropUncertainSound ?? true;
   const filtered: OverlayItem[] = [];
   let droppedCount = 0;
 
@@ -112,6 +116,7 @@ export function filterRejectedOrUncertainSoundItems(items: OverlayItem[]): {
       continue;
     }
     if (
+      dropUncertainSound &&
       textRole === "sound" &&
       normalizeConfidence(item.confidence, 0) < REQUIRED_SOUND_CONFIDENCE
     ) {

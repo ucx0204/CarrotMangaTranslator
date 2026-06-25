@@ -66,6 +66,27 @@ describe("overlay item conversion", () => {
     expect(result.droppedCount).toBe(1);
     expect(result.items.map((item) => item.id)).toEqual([2, 3]);
   });
+
+  it("can preserve manually selected sound-effect items below full-page confidence", () => {
+    const items: OverlayItem[] = [
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "sound",
+        bbox: { x: 10, y: 10, w: 80, h: 80 },
+        jp: "スタコラサッサ",
+        ko: "후다닥",
+        confidence: 0.95,
+      },
+    ];
+
+    const result = filterRejectedOrUncertainSoundItems(items, {
+      dropUncertainSound: false,
+    });
+
+    expect(result.droppedCount).toBe(0);
+    expect(result.items.map((item) => item.id)).toEqual([1]);
+  });
 });
 
 function makePage(): MangaPage {

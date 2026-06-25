@@ -21,6 +21,7 @@ import type {
   ModelEndpointHandle,
   OcrBboxResult,
   OverlayItem,
+  PipelineRegionContext,
   PipelineWorkContext,
   TranslationResult,
 } from "./types";
@@ -52,6 +53,7 @@ export function buildRequestPageOptions({
   signal,
   skipOcrPrepass,
   workContext,
+  regionContext,
 }: {
   attempt: number;
   baseOptions: TranslationOptions;
@@ -63,14 +65,16 @@ export function buildRequestPageOptions({
   signal: AbortSignal;
   skipOcrPrepass: boolean;
   workContext?: PipelineWorkContext;
+  regionContext?: PipelineRegionContext;
 }): TranslationOptions {
   const pageOptions = buildPageOptions(baseOptions, page, pageIndex, attempt);
   if (workContext) {
+    const promptPageIndex = regionContext?.sourcePageIndex ?? pageIndex;
     const promptWorkContext = buildPromptWorkContextForPage({
       baseStyleGuide: workContext.styleGuide,
       storyMemory: workContext.storyMemory,
-      pageId: page.id,
-      pageIndex,
+      pageId: regionContext?.sourcePage.id ?? page.id,
+      pageIndex: promptPageIndex,
       recentPageCount: workContext.recentPageCount,
     });
     const budgetedWorkContext = prunePromptWorkContextForBudget(
@@ -83,9 +87,21 @@ export function buildRequestPageOptions({
     pageOptions.workContext = budgetedWorkContext.workContext;
     pageOptions.workContextBudget = budgetedWorkContext.budget;
   }
-  if (skipOcrPrepass) {
-    pageOptions.skipOcrBboxHints = true;
+  if (regionContext) {
     pageOptions.regionCropMode = true;
+    pageOptions.regionContextImagePath = regionContext.sourcePage.imagePath;
+    pageOptions.regionContextImageWidth = regionContext.sourcePage.width;
+    pageOptions.regionContextImageHeight = regionContext.sourcePage.height;
+    pageOptions.regionContextCropRect = regionContext.cropRect;
+    pageOptions.ocrBboxResult = ocrHintsByPageId.get(page.id) ?? {
+      hints: [],
+      diagnostics: [{ provider: "region-context", reason: "missing-result" }],
+      noTextDetected: false,
+      textEvidenceCount: 0,
+    };
+    pageOptions.ocrBboxHints = pageOptions.ocrBboxResult.hints ?? [];
+  } else if (skipOcrPrepass) {
+    pageOptions.skipOcrBboxHints = true;
     pageOptions.ocrBboxProvider = "none";
     delete pageOptions.ocrBboxHints;
     delete pageOptions.ocrBboxResult;
@@ -132,6 +148,9 @@ export async function buildPageResult({
   runtime: TranslationRuntimePort;
 }): Promise<PageBuildResult> {
   const items = parseOverlayItems(runtime, result, page, pageOptions);
+  if (items.length === 0 && pageOptions.regionCropMode) {
+    return { kind: "no-text", page: buildNoTextCompletedPage(page) };
+  }
   if (items.length === 0 && isRequestNoTextDetected(result.requestBody)) {
     return { kind: "no-text", page: buildNoTextCompletedPage(page) };
   }
@@ -144,7 +163,7 @@ export async function buildPageResult({
     throw bboxError;
   }
 
-  await writeOverlayItems(pageOptions.outputDir, items);
+  await writeOverlayItems(pageOptions.outputDir, items, pageOptions);
   const normalizedItems = buildNormalizedItems(page, result, items);
   const validated = validateOverlayItemsAgainstReferences(
     normalizedItems,
@@ -152,7 +171,9 @@ export async function buildPageResult({
     getOcrBboxHints(result.requestBody),
     pageOptions.previousBlocksForPrompt,
   );
-  const soundFiltered = filterRejectedOrUncertainSoundItems(validated.items);
+  const soundFiltered = filterRejectedOrUncertainSoundItems(validated.items, {
+    dropUncertainSound: !pageOptions.regionCropMode,
+  });
   const blocks = soundFiltered.items.map((item, itemIndex) =>
     overlayItemToBlock(
       item,
@@ -196,8 +217,17 @@ export function buildFailedPage(
 async function writeOverlayItems(
   outputDir: string,
   items: OverlayItem[],
+  pageOptions: TranslationOptions,
 ): Promise<void> {
   await mkdir(outputDir, { recursive: true });
+  if (pageOptions.regionCropMode) {
+    await writeFile(
+      join(outputDir, "region-item.json"),
+      `${JSON.stringify({ item: items[0] ?? null }, null, 2)}\n`,
+      "utf8",
+    );
+    return;
+  }
   await writeFile(
     join(outputDir, "overlay-items.json"),
     `${JSON.stringify({ items }, null, 2)}\n`,
@@ -212,6 +242,11 @@ function parseOverlayItems(
   pageOptions: TranslationOptions,
 ): OverlayItem[] {
   try {
+    if (pageOptions.regionCropMode) {
+      return runtime.normalizeRegionSingleItem(
+        runtime.parseRegionSingleItem(result.outputText),
+      );
+    }
     return runtime.normalizeItems(runtime.parseJsonLenient(result.outputText));
   } catch (error) {
     throw buildParseError(page, pageOptions, result, error);
@@ -232,7 +267,9 @@ function buildParseError(
   Object.assign(parseError, {
     outputPreview: preview,
     outputDir: pageOptions.outputDir,
-    responseFormat: "structured-overlay",
+    responseFormat: pageOptions.regionCropMode
+      ? "region-single-item"
+      : "structured-overlay",
   });
   return parseError;
 }

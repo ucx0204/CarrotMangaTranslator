@@ -111,6 +111,10 @@ function buildResponsesInput(
  * @param {RequestOptions} [options]
  */
 function describeImageVariant(variant, index, options = {}) {
+  if (variant.role === "full-page-context") {
+    return describeFullPageContextVariant(variant, index, options);
+  }
+
   const originalWidth =
     readPositiveInteger(options.imageWidth) ||
     readPositiveInteger(variant.originalWidth);
@@ -125,6 +129,10 @@ function describeImageVariant(variant, index, options = {}) {
       ? ` Original page size is ${originalWidth}x${originalHeight} px.`
       : "";
 
+  if (options.regionCropMode && index === 0) {
+    return `Image ${index + 1}: the selected manga crop. Use it as the geometry authority.${sizeText}${originalSizeText}`;
+  }
+
   if (variant.role === "openai-vision") {
     return `Image ${index + 1}: the full manga page prepared for OpenAI detail: original vision. Use it as the geometry authority.${sizeText}${originalSizeText}`;
   }
@@ -134,6 +142,41 @@ function describeImageVariant(variant, index, options = {}) {
   }
 
   return `Image ${index + 1}: the original full manga page. Use it as the geometry authority.${sizeText}${originalSizeText}`;
+}
+
+/**
+ * @param {ImageVariant} variant
+ * @param {number} index
+ * @param {RequestOptions} [options]
+ */
+function describeFullPageContextVariant(variant, index, options = {}) {
+  const width = readPositiveInteger(variant.width);
+  const height = readPositiveInteger(variant.height);
+  const crop = readRegionContextCropRect(options.regionContextCropRect);
+  const sizeText = width && height ? ` It is ${width}x${height} px.` : "";
+  const cropText = crop
+    ? ` The selected Image 1 crop comes from this full page at x=${crop.x}, y=${crop.y}, w=${crop.w}, h=${crop.h} original-page pixels.`
+    : "";
+  return `Image ${index + 1}: the original full manga page for selected-region context only. Use it to understand speaker, surrounding scene, nearby dialogue flow, and whether Image 1 is part of a larger balloon. Do not use it as the coordinate authority, and do not output text visible only outside Image 1.${sizeText}${cropText}`;
+}
+
+/** @param {unknown} value */
+function readRegionContextCropRect(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const record = /** @type {Record<string, unknown>} */ (value);
+  const x = readNonNegativeInteger(record.x);
+  const y = readNonNegativeInteger(record.y);
+  const w = readPositiveInteger(record.w);
+  const h = readPositiveInteger(record.h);
+  return x !== null && y !== null && w && h ? { x, y, w, h } : null;
+}
+
+/** @param {unknown} value */
+function readNonNegativeInteger(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : null;
 }
 
 /**

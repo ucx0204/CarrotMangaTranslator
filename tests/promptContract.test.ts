@@ -36,6 +36,7 @@ const requestSummaryRuntime =
       bboxCoordinateFrame: { width: number; height: number };
       ocrBboxHintCount: number;
       ocrBboxHints: Array<{ id: number; ocrText: string | null }>;
+      imageVariants?: ImageVariant[];
       options?: Record<string, unknown>;
     };
   };
@@ -274,6 +275,60 @@ describe("prompt contracts", () => {
     expect(summary.ocrBboxHintCount).toBe(2);
     expect(summary.ocrBboxHints.map((hint) => hint.id)).toEqual([1, 2]);
     expect(summary.ocrBboxHints[0]?.ocrText).toBe("いえ…資金はこちらも");
+  });
+
+  it("keeps selected-region context images out of the coordinate frame", () => {
+    const options = {
+      modelProvider: "openai-codex",
+      codexModel: "gpt-5.5",
+      codexReasoningEffort: "medium",
+      regionCropMode: true,
+      imageWidth: 420,
+      imageHeight: 320,
+      regionContextImagePath: "page.png",
+      regionContextImageWidth: 1200,
+      regionContextImageHeight: 1800,
+      regionContextCropRect: { x: 320, y: 480, w: 420, h: 320 },
+    };
+    const imageVariants: ImageVariant[] = [
+      {
+        role: "openai-vision",
+        dataUrl: "data:image/png;base64,crop",
+        path: "crop.png",
+        width: 420,
+        height: 320,
+        originalWidth: 420,
+        originalHeight: 320,
+      },
+      {
+        role: "full-page-context",
+        dataUrl: "data:image/png;base64,page",
+        path: "page.png",
+        width: 1200,
+        height: 1800,
+        originalWidth: 1200,
+        originalHeight: 1800,
+      },
+    ];
+    const prompt = getOverlayPrompt(options, imageVariants);
+    const systemPrompt = buildSystemPrompt(options);
+    const summary = buildRequestSummary(
+      { baseUrl: "https://codex.example.test" },
+      options,
+      imageVariants,
+      prompt,
+      systemPrompt,
+    );
+
+    expect(prompt).toContain(
+      "Image 1 is the coordinate-authority selected crop",
+    );
+    expect(summary.bboxCoordinateSpace).toBe("pixels");
+    expect(summary.bboxCoordinateFrame).toEqual({ width: 420, height: 320 });
+    expect(summary.imageVariants?.map((variant) => variant.role)).toEqual([
+      "openai-vision",
+      "full-page-context",
+    ]);
   });
 
   it("summarizes API chat endpoints without leaking API keys", () => {

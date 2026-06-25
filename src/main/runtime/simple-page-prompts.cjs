@@ -221,6 +221,16 @@ const PROMPT_KO_BBOX_LINES_MULTIVIEW = buildOverlayPrompt();
  * @returns {string}
  */
 function buildSystemPrompt(options = {}) {
+  if (options.regionCropMode) {
+    return [
+      "You are an OCR and manga-translation engine.",
+      "Return only the single JSON object format requested by the user prompt.",
+      "Image 1 is the coordinate authority. Geometry accuracy comes before Korean text fit.",
+      "Use the full-page context image, glossary, and story memory only to understand speaker, tone, terms, and continuity for the visible Japanese inside Image 1.",
+      "Render ordinary speech, captions, labels, and notes in natural horizontal Korean by default.",
+    ].join("\n\n");
+  }
+
   const lines = [
     "You are an OCR and manga-translation engine.",
     "Return only the machine-readable record format requested by the user prompt.",
@@ -257,16 +267,16 @@ function buildSystemPrompt(options = {}) {
  * @returns {string}
  */
 function buildOverlayPrompt(options = {}, imageVariants = []) {
+  if (options.regionCropMode) {
+    return buildRegionOverlayPrompt(options, imageVariants);
+  }
+
   const sections = OVERLAY_PROMPT_SECTIONS.map(([title, ...lines]) => [
     title,
     ...lines,
   ]);
   sections[0] = buildTaskSection(options, imageVariants);
   applyModelSpecificPromptProfile(sections, options);
-  const regionCropSection = buildRegionCropSection(options);
-  if (regionCropSection.length > 1) {
-    sections.splice(1, 0, regionCropSection);
-  }
   const coordinateSection = buildCoordinateCalibrationSection(
     options,
     imageVariants,
@@ -361,6 +371,25 @@ function buildOverlayPrompt(options = {}, imageVariants = []) {
 }
 
 /**
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {string}
+ */
+function buildRegionOverlayPrompt(options = {}, imageVariants = []) {
+  const sections = [
+    buildRegionTaskSection(options, imageVariants),
+    buildCoordinateCalibrationSection(options, imageVariants),
+    buildRegionOutputSection(options),
+    buildWorkContextSection(options),
+    buildRegionOcrReadingHintSection(options, imageVariants),
+  ].filter((section) => section.length > 1);
+
+  return sections
+    .map(([title, ...lines]) => [`# ${title}`, ...lines].join("\n"))
+    .join("\n\n");
+}
+
+/**
  * @param {PromptSection[]} sections
  * @param {PromptOptions} [options]
  * @returns {void}
@@ -433,15 +462,22 @@ function getOverlayPrompt(options = {}, imageVariants = []) {
 function buildTaskSection(options = {}, imageVariants = []) {
   const hasAssistImages = imageVariants.length > 1;
   const regionCropMode = Boolean(options.regionCropMode);
+  const hasRegionContextImage =
+    regionCropMode &&
+    imageVariants.some((variant) => variant.role === "full-page-context");
   const strictRefineMode = Boolean(options.strictRefineMode);
   return [
     "Task",
-    hasAssistImages
+    hasRegionContextImage
+      ? "You are given Image 1, a user-selected crop from a Japanese manga page, plus a full-page context image."
+      : hasAssistImages
       ? "You are given the same Japanese manga page in multiple full-page renderings."
       : regionCropMode
         ? "You are given one user-selected crop from a Japanese manga page."
         : "You are given one full-page Japanese manga image.",
-    hasAssistImages
+    hasRegionContextImage
+      ? "Image 1 is the coordinate-authority selected crop. The full-page context image is only for understanding the same page, never for output coordinates or extra records."
+      : hasAssistImages
       ? "Image 1 is the coordinate-authority full page. Assist images are only for reading the same page."
       : regionCropMode
         ? "Image 1 is the coordinate-authority selected crop."
@@ -455,7 +491,9 @@ function buildTaskSection(options = {}, imageVariants = []) {
           "Do not re-detect the page from scratch in a way that duplicates existing OCR candidates or previous physical text areas.",
         ]
       : []),
-    "Scan the entire page before writing records; do not stop after the first obvious text.",
+    regionCropMode
+      ? "Scan the entire selected crop before writing records; do not stop after the first obvious text."
+      : "Scan the entire page before writing records; do not stop after the first obvious text.",
     "First identify the exact Japanese glyph strokes for each item, then write the record. Do not estimate from the speech bubble or panel shape.",
     "Before reading dialogue text, segment the visible speech balloons themselves. Each distinct balloon lobe and each separated dialogue text cluster becomes a separate dialogue record.",
     "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text.",
@@ -541,9 +579,12 @@ function buildWorkContextSection(options = {}) {
     ? context.storyMemory.pages
     : [];
   const rules = guide.rules || {};
+  const regionCropMode = Boolean(options.regionCropMode);
   const lines = [
     "Work glossary and story memory",
-    "Do not output these notes as records.",
+    regionCropMode
+      ? "Use these notes only as translation context for the visible Japanese inside Image 1."
+      : "Do not output these notes as records.",
     "Glossary and character entries are stronger than story memory. Story memory may contain earlier OCR or translation mistakes, so use it only for context unless the visible source text supports it.",
   ];
 
@@ -568,7 +609,9 @@ function buildWorkContextSection(options = {}) {
 
   if (recentPages.length > 0) {
     lines.push(
-      "Recent story context from previous pages. Use it only to resolve pronouns, omitted subjects, relationships, tone, and continuity. Do not output these notes as records.",
+      regionCropMode
+        ? "Recent story context from previous pages. Use it only to resolve pronouns, omitted subjects, relationships, tone, and continuity for Image 1."
+        : "Recent story context from previous pages. Use it only to resolve pronouns, omitted subjects, relationships, tone, and continuity. Do not output these notes as records.",
     );
     for (const page of recentPages.slice(-6)) {
       lines.push(
@@ -826,23 +869,151 @@ function sanitizePromptLine(value, max = 240) {
 
 /**
  * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
  * @returns {PromptSection}
  */
-function buildRegionCropSection(options = {}) {
-  if (!options.regionCropMode) {
+function buildRegionTaskSection(options = {}, imageVariants = []) {
+  const hasFullPageContext = imageVariants.some(
+    (variant) => variant.role === "full-page-context",
+  );
+  return [
+    "Task",
+    hasFullPageContext
+      ? "You are given Image 1, a user-selected crop from a Japanese manga page, plus Image 2, the original full page for context."
+      : "You are given Image 1, a user-selected crop from a Japanese manga page.",
+    "Image 1 is the coordinate-authority selected crop.",
+    ...(hasFullPageContext
+      ? [
+          "Use Image 2 only to understand the speaker, surrounding scene, nearby dialogue flow, and whether Image 1 is part of a larger balloon.",
+        ]
+      : []),
+    "Translate the readable Japanese visible inside Image 1 into concise natural Korean.",
+    "Read the whole selected crop before deciding the final Japanese source string.",
+    "For one speech bubble, caption plate, note, sign, label, or continuous SFX shape, gather its visible columns and lines in natural Japanese reading order.",
+    "The bbox coordinates belong to Image 1.",
+  ];
+}
+
+/**
+ * @param {PromptOptions} [options]
+ * @returns {PromptSection}
+ */
+function buildRegionOutputSection(options = {}) {
+  void options;
+  return [
+    "Output",
+    "Return exactly one JSON object with one key named item.",
+    "When readable Japanese exists, use this shape:",
+    "{",
+    '  "item": {',
+    '    "type": "nonsolid",',
+    '    "textRole": "ordinary",',
+    '    "x1": 10,',
+    '    "y1": 20,',
+    '    "x2": 110,',
+    '    "y2": 160,',
+    '    "direction": "vertical",',
+    '    "angle": 0,',
+    '    "fontSize": 24,',
+    '    "confidence": 0.95,',
+    '    "jp": "見える日本語",',
+    '    "ko": "자연스러운 한국어"',
+    "  }",
+    "}",
+    "When no readable Japanese exists, use this shape:",
+    "{",
+    '  "item": null',
+    "}",
+    "Use type nonsolid. Use textRole ordinary for speech, captions, labels, signs, and notes; use textRole sound only for standalone printed SFX or reaction lettering.",
+    "x1, y1, x2, y2 tightly cover the visible Japanese glyph ink and outline inside Image 1.",
+    "jp contains the visible Japanese source from Image 1 in natural reading order. ko contains one coherent Korean translation.",
+    "Use horizontal Korean for ordinary speech, captions, labels, signs, and notes.",
+  ];
+}
+
+/**
+ * @param {PromptOptions} [options]
+ * @param {ImageVariant[]} [imageVariants]
+ * @returns {PromptSection}
+ */
+function buildRegionOcrReadingHintSection(options = {}, imageVariants = []) {
+  const hints = Array.isArray(options.ocrBboxHints) ? options.ocrBboxHints : [];
+  if (hints.length === 0) {
+    return [];
+  }
+
+  const frame = resolvePromptCoordinateFrame(options, imageVariants);
+  const originalWidth = readPositiveInteger(options.imageWidth);
+  const originalHeight = readPositiveInteger(options.imageHeight);
+  const formattedHints = hints
+    .slice(0, 80)
+    .map((hint, index) =>
+      formatRegionOcrReadingHintForPrompt(
+        hint,
+        index + 1,
+        frame,
+        originalWidth,
+        originalHeight,
+        options,
+      ),
+    )
+    .filter(Boolean);
+  if (formattedHints.length === 0) {
     return [];
   }
 
   return [
-    "Selected region grouping",
-    "This image is a crop selected by the user, so there may be one speech bubble, part of one bubble, multiple bubbles, captions, or SFX inside it.",
-    "Do not treat the whole crop as one text item. Create multiple records only for multiple visually separate containers: separate speech bubbles/lobes, separate caption plates, or separate SFX glyph groups.",
-    "If the crop contains one speech bubble or one caption plate, output exactly one record for all readable Japanese in that container.",
-    "Inside one speech bubble, never split by Japanese vertical column, text line, word, sentence fragment, punctuation gap, or line break.",
-    "For vertical dialogue in one bubble, jp must include all columns in natural Japanese reading order, and ko must be one coherent Korean translation for that bubble.",
-    "Only split a dialogue item when there is a visible separate speech bubble/lobe or clearly separate dialogue container, not merely because columns are separated by blank paper.",
-    "The bbox for that one record should tightly cover the union of all visible Japanese glyph ink belonging to the same bubble/caption, not the whole bubble paper.",
+    "OCR reading hints",
+    "Use these crop-local OCR readings only as reference while reading Image 1.",
+    "Image 1 is the authority for the actual Japanese text, bbox, and Korean translation.",
+    "The box numbers below already use the Image 1 coordinate frame.",
+    "",
+    ...formattedHints,
   ];
+}
+
+/**
+ * @param {OcrHint} hint
+ * @param {number} fallbackIndex
+ * @param {PromptCoordinateFrame} frame
+ * @param {number | null} originalWidth
+ * @param {number | null} originalHeight
+ * @param {PromptOptions} [options]
+ * @returns {string}
+ */
+function formatRegionOcrReadingHintForPrompt(
+  hint,
+  fallbackIndex,
+  frame,
+  originalWidth,
+  originalHeight,
+  options = {},
+) {
+  const x1 = Number(hint?.x1);
+  const y1 = Number(hint?.y1);
+  const x2 = Number(hint?.x2);
+  const y2 = Number(hint?.y2);
+  if (![x1, y1, x2, y2].every(Number.isFinite)) {
+    return "";
+  }
+
+  const converted = convertOriginalPixelBoxToPromptFrame(
+    { x1, y1, x2, y2 },
+    frame,
+    originalWidth,
+    originalHeight,
+  );
+  const ocrText = sanitizeOcrTextForPrompt(readOcrCandidateText(hint), options);
+  const textHint = ocrText ? ` text:${JSON.stringify(ocrText)}` : "";
+  const groupId = sanitizeOcrGroupId(hint.groupId);
+  const group = groupId ? ` group:${groupId}` : "";
+  const order = readPositiveInteger(hint.orderInGroup);
+  const orderText = order ? ` order:${order}` : "";
+  const rolePrior = sanitizeOcrGroupValue(hint.rolePrior);
+  const role = rolePrior ? ` role:${rolePrior}` : "";
+  const containerType = sanitizeOcrGroupValue(hint.containerType);
+  const container = containerType ? ` container:${containerType}` : "";
+  return `hint ${fallbackIndex}: box:[${converted.x1},${converted.y1},${converted.x2},${converted.y2}]${group}${orderText}${role}${container}${textHint}`;
 }
 
 /**

@@ -122,6 +122,15 @@ export type TranslationOptions = {
   };
   skipOcrBboxHints?: boolean;
   regionCropMode?: boolean;
+  regionContextImagePath?: string;
+  regionContextImageWidth?: number;
+  regionContextImageHeight?: number;
+  regionContextCropRect?: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
   ocrPageIndex?: number;
   ocrPageTotal?: number;
   ocrProgressDefaultToPage?: boolean;

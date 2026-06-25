@@ -10,6 +10,7 @@ import type {
   WorkStyleGuide,
   SourceTextDirection,
 } from "../../shared/types";
+import type { PixelRect } from "../../shared/region";
 import type { ChapterRunPaths } from "../library";
 
 export type PipelineOptions = {
@@ -24,6 +25,14 @@ export type PipelineOptions = {
   onPagesComplete?: (pages: MangaPage[]) => Promise<void>;
   onPageFailed?: (page: MangaPage, errorMessage: string) => Promise<void>;
   workContext?: PipelineWorkContext;
+  regionContext?: PipelineRegionContext;
+  writeStoryMemory?: boolean;
+};
+
+export type PipelineRegionContext = {
+  sourcePage: MangaPage;
+  sourcePageIndex: number;
+  cropRect: PixelRect;
 };
 
 export type PipelineWorkContext = {
@@ -127,6 +136,8 @@ export type RuntimeModules = {
   };
   overlayTools: {
     normalizeItems: (parsed: unknown) => OverlayItem[];
+    normalizeRegionSingleItem: (parsed: unknown) => OverlayItem[];
     parseJsonLenient: (rawText: string) => unknown;
+    parseRegionSingleItem: (rawText: string) => unknown;
   };
 };
