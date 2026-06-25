@@ -1,6 +1,10 @@
 import type { PixelRect } from "../../shared/region";
-import type { MangaPage } from "../../shared/types";
 import type { OcrBboxResult } from "./types";
+
+type PageSize = {
+  width: number;
+  height: number;
+};
 
 type OcrHintRecord = Record<string, unknown> & {
   x1?: unknown;
@@ -23,7 +27,7 @@ export function mapPageOcrResultToRegionCrop({
   cropRect,
   sourceResult,
 }: {
-  cropPage: MangaPage;
+  cropPage: PageSize;
   cropRect: PixelRect;
   sourceResult?: OcrBboxResult | null;
 }): OcrBboxResult {

@@ -20,13 +20,13 @@ import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
 import type { OverlayItem } from "./types";
 
 export {
-  applyOcrCandidateGeometryLocks,
   getBboxNormalizationOptions,
   getOcrBboxHints,
   normalizeOverlayItemBboxes,
   validateOverlayItemsAgainstReferences,
   type OverlayValidationResult,
 } from "./overlayItemReferences";
+export { applyOcrCandidateGeometryLocks } from "./overlayOcrGeometryLocks";
 
 const DEFAULT_TEXT_COLOR = "#111111";
 const DEFAULT_OUTLINE_COLOR = "#ffffff";

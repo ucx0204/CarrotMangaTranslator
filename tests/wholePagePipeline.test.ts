@@ -333,8 +333,9 @@ describe("whole page pipeline", () => {
     ]);
     expect(JSON.stringify(options?.ocrBboxHints)).not.toContain("外");
     expect(options?.workContext?.styleGuide.glossary[0]?.target).toBe("마왕");
-    expect(options?.workContext?.storyMemory.pages.map((page) => page.pageId))
-      .toEqual(["memory-0", "memory-1"]);
+    expect(
+      options?.workContext?.storyMemory.pages.map((page) => page.pageId),
+    ).toEqual(["memory-0", "memory-1"]);
   });
 
   it("completes selected-region crop without adding blocks when item is null", async () => {
@@ -826,7 +827,9 @@ function parseRegionSingleItemForTest(rawText: string): unknown {
   }
   if (
     record.item !== null &&
-    (!record.item || typeof record.item !== "object" || Array.isArray(record.item))
+    (!record.item ||
+      typeof record.item !== "object" ||
+      Array.isArray(record.item))
   ) {
     throw new Error("Region response contract violation");
   }

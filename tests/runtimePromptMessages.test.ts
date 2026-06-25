@@ -403,21 +403,13 @@ describe("runtime prompt message contracts", () => {
     expect(prompt).toContain(
       "Image 1 is the coordinate-authority selected crop",
     );
-    expect(prompt).toContain(
-      "Use Image 2 only to understand the speaker",
-    );
-    expect(prompt).toContain(
-      "The bbox coordinates belong to Image 1.",
-    );
-    expect(image2Description).toContain(
-      "selected-region context only",
-    );
+    expect(prompt).toContain("Use Image 2 only to understand the speaker");
+    expect(prompt).toContain("The bbox coordinates belong to Image 1.");
+    expect(image2Description).toContain("selected-region context only");
     expect(image2Description).toContain(
       "Do not use it as the coordinate authority",
     );
-    expect(image2Description).toContain(
-      "x=320, y=480, w=420, h=320",
-    );
+    expect(image2Description).toContain("x=320, y=480, w=420, h=320");
   });
 
   it("normalizes bbox hint JSON with low-trust OCR text", async () => {

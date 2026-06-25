@@ -95,11 +95,7 @@ export function summarizeTranslationOptions(
     includeEnhancedVariant: options.includeEnhancedVariant,
     enhancedMaxLongSide: options.enhancedMaxLongSide,
     enhancedContrast: options.enhancedContrast,
-    regionCropMode: options.regionCropMode,
-    regionContextImagePath: options.regionContextImagePath,
-    regionContextImageWidth: options.regionContextImageWidth,
-    regionContextImageHeight: options.regionContextImageHeight,
-    regionContextCropRect: options.regionContextCropRect,
+    ...summarizeRegionOptions(options),
     imageFirst: options.imageFirst,
     reuseServer: options.reuseServer,
     llamaRuntimeProfile: options.llamaRuntimeProfile,
@@ -139,6 +135,18 @@ export function summarizeTranslationOptions(
     hfHubCacheDir: options.hfHubCacheDir ?? null,
     workContext: summarizeWorkContext(options),
     workContextBudget: summarizeWorkContextBudget(options),
+  };
+}
+
+function summarizeRegionOptions(
+  options: TranslationOptions,
+): Record<string, unknown> {
+  return {
+    regionCropMode: options.regionCropMode,
+    regionContextImagePath: options.regionContextImagePath,
+    regionContextImageWidth: options.regionContextImageWidth,
+    regionContextImageHeight: options.regionContextImageHeight,
+    regionContextCropRect: options.regionContextCropRect,
   };
 }
 

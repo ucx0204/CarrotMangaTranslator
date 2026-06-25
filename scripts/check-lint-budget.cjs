@@ -22,6 +22,7 @@ function readEslintReport() {
       [eslintBin, ".", "--format", "json"],
       {
         encoding: "utf8",
+        maxBuffer: 32 * 1024 * 1024,
         stdio: ["ignore", "pipe", "pipe"],
       },
     );

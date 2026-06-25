@@ -44,24 +44,16 @@ export async function runWholePagePipeline({
   }
 
   throwIfAborted(signal);
-  const run = await prepareAnalysisRun({
+  const { ocrHintsByPageId, run } = await prepareWholePageRun({
     jobId,
     emit,
     pages,
     runPaths,
     signal,
     skipOcrPrepass,
-  });
-  const warningCollector = createWarningCollector();
-  const ocrHintsByPageId = await preparePageOcrHints({
-    jobId,
-    pages,
-    run,
-    runPaths,
-    signal,
-    skipOcrPrepass,
     regionContext,
   });
+  const warningCollector = createWarningCollector();
   throwIfAborted(signal);
 
   const filtered = filterPagesByOcrText(pages, ocrHintsByPageId);
@@ -112,6 +104,43 @@ export async function runWholePagePipeline({
   } finally {
     await endpoint.disposeEndpointSession();
   }
+}
+
+async function prepareWholePageRun({
+  jobId,
+  emit,
+  pages,
+  regionContext,
+  runPaths,
+  signal,
+  skipOcrPrepass,
+}: Pick<
+  PipelineOptions,
+  "emit" | "jobId" | "pages" | "regionContext" | "runPaths" | "signal"
+> & {
+  skipOcrPrepass: boolean;
+}): Promise<{
+  ocrHintsByPageId: Map<string, OcrBboxResult>;
+  run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
+}> {
+  const run = await prepareAnalysisRun({
+    jobId,
+    emit,
+    pages,
+    runPaths,
+    signal,
+    skipOcrPrepass,
+  });
+  const ocrHintsByPageId = await preparePageOcrHints({
+    jobId,
+    pages,
+    run,
+    runPaths,
+    signal,
+    skipOcrPrepass,
+    regionContext,
+  });
+  return { ocrHintsByPageId, run };
 }
 
 async function startWholePageEndpoint({

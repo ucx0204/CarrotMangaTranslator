@@ -553,8 +553,7 @@ async function prepareImageVariants(options) {
     variants.push({
       role: "full-page-context",
       path: regionContextPath,
-      width:
-        readPositiveInteger(options.regionContextImageWidth) || undefined,
+      width: readPositiveInteger(options.regionContextImageWidth) || undefined,
       height:
         readPositiveInteger(options.regionContextImageHeight) || undefined,
       originalWidth:

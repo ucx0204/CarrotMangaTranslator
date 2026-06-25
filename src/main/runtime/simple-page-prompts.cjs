@@ -377,9 +377,9 @@ function buildOverlayPrompt(options = {}, imageVariants = []) {
  */
 function buildRegionOverlayPrompt(options = {}, imageVariants = []) {
   const sections = [
-    buildRegionTaskSection(options, imageVariants),
+    buildRegionTaskSection(imageVariants),
     buildCoordinateCalibrationSection(options, imageVariants),
-    buildRegionOutputSection(options),
+    buildRegionOutputSection(),
     buildWorkContextSection(options),
     buildRegionOcrReadingHintSection(options, imageVariants),
   ].filter((section) => section.length > 1);
@@ -471,17 +471,17 @@ function buildTaskSection(options = {}, imageVariants = []) {
     hasRegionContextImage
       ? "You are given Image 1, a user-selected crop from a Japanese manga page, plus a full-page context image."
       : hasAssistImages
-      ? "You are given the same Japanese manga page in multiple full-page renderings."
-      : regionCropMode
-        ? "You are given one user-selected crop from a Japanese manga page."
-        : "You are given one full-page Japanese manga image.",
+        ? "You are given the same Japanese manga page in multiple full-page renderings."
+        : regionCropMode
+          ? "You are given one user-selected crop from a Japanese manga page."
+          : "You are given one full-page Japanese manga image.",
     hasRegionContextImage
       ? "Image 1 is the coordinate-authority selected crop. The full-page context image is only for understanding the same page, never for output coordinates or extra records."
       : hasAssistImages
-      ? "Image 1 is the coordinate-authority full page. Assist images are only for reading the same page."
-      : regionCropMode
-        ? "Image 1 is the coordinate-authority selected crop."
-        : "Image 1 is the coordinate-authority full page.",
+        ? "Image 1 is the coordinate-authority full page. Assist images are only for reading the same page."
+        : regionCropMode
+          ? "Image 1 is the coordinate-authority selected crop."
+          : "Image 1 is the coordinate-authority full page.",
     "Detect every visible Japanese text group and translate it into concise Korean.",
     ...(strictRefineMode
       ? [
@@ -868,11 +868,10 @@ function sanitizePromptLine(value, max = 240) {
 }
 
 /**
- * @param {PromptOptions} [options]
  * @param {ImageVariant[]} [imageVariants]
  * @returns {PromptSection}
  */
-function buildRegionTaskSection(options = {}, imageVariants = []) {
+function buildRegionTaskSection(imageVariants = []) {
   const hasFullPageContext = imageVariants.some(
     (variant) => variant.role === "full-page-context",
   );
@@ -895,11 +894,9 @@ function buildRegionTaskSection(options = {}, imageVariants = []) {
 }
 
 /**
- * @param {PromptOptions} [options]
  * @returns {PromptSection}
  */
-function buildRegionOutputSection(options = {}) {
-  void options;
+function buildRegionOutputSection() {
   return [
     "Output",
     "Return exactly one JSON object with one key named item.",

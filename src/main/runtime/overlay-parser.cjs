@@ -137,9 +137,12 @@ function parseRegionSingleItem(rawText) {
   try {
     candidate = extractJsonCandidate(text);
   } catch (error) {
-    throw new Error("Region response contract violation: JSON object missing.", {
-      cause: error,
-    });
+    throw new Error(
+      "Region response contract violation: JSON object missing.",
+      {
+        cause: error,
+      },
+    );
   }
 
   const attempts = [
@@ -157,7 +160,7 @@ function parseRegionSingleItem(rawText) {
   }
 
   throw new Error(
-    "Region response contract violation: expected { \"item\": {...} } or { \"item\": null }.",
+    'Region response contract violation: expected { "item": {...} } or { "item": null }.',
     { cause: lastError },
   );
 }
@@ -168,18 +171,28 @@ function parseRegionSingleItem(rawText) {
  */
 function validateRegionSingleItemPayload(parsed) {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Region response contract violation: top-level object required.");
+    throw new Error(
+      "Region response contract violation: top-level object required.",
+    );
   }
   const record = /** @type {Record<string, unknown>} */ (parsed);
   const keys = Object.keys(record);
   if (keys.length !== 1 || keys[0] !== "item") {
-    throw new Error("Region response contract violation: exactly one item key required.");
+    throw new Error(
+      "Region response contract violation: exactly one item key required.",
+    );
   }
   if (record.item === null) {
     return { item: null };
   }
-  if (!record.item || typeof record.item !== "object" || Array.isArray(record.item)) {
-    throw new Error("Region response contract violation: item must be an object or null.");
+  if (
+    !record.item ||
+    typeof record.item !== "object" ||
+    Array.isArray(record.item)
+  ) {
+    throw new Error(
+      "Region response contract violation: item must be an object or null.",
+    );
   }
   return { item: record.item };
 }
@@ -814,7 +827,9 @@ function normalizeRegionSingleItem(parsed) {
     0,
   );
   if (!normalized) {
-    throw new Error("Region response contract violation: item object is incomplete.");
+    throw new Error(
+      "Region response contract violation: item object is incomplete.",
+    );
   }
   return [
     {
