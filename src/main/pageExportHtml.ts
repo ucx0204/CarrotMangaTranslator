@@ -78,6 +78,12 @@ function blockFontWeight(block) {
   return block.bold ? 800 : 400;
 }
 
+function fontWidthScaleFor(block) {
+  const value = Number(block.fontWidthScale);
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(1.5, Math.max(0.5, value));
+}
+
 function letterSpacingPxFor(block, fontSize) {
   const em = Number(block.letterSpacing);
   if (!em || !Number.isFinite(em)) return 0;
@@ -123,16 +129,18 @@ function measureHorizontal(block, fontSize, innerWidth) {
 }
 
 function fits(block, fontSize, innerWidth, innerHeight) {
+  const scaleX = fontWidthScaleFor(block);
   if (block.renderDirection === "vertical") {
     if (!block.text.trim()) return true;
     const verticalSlots = Array.from(block.text.replace(/\\r/g, "").replace(/\\n/g, " "));
     const verticalAdvance = fontSize * block.lineHeight + letterSpacingPxFor(block, fontSize);
     const charsPerColumn = Math.max(1, Math.floor(innerHeight / Math.max(fontSize, verticalAdvance)));
     const columnCount = Math.max(1, Math.ceil(verticalSlots.length / charsPerColumn));
-    return columnCount <= 2 && columnCount * fontSize * 1.15 <= innerWidth;
+    return columnCount <= 2 && columnCount * fontSize * 1.15 * scaleX <= innerWidth;
   }
-  const measured = measureHorizontal(block, fontSize, innerWidth);
-  return measured.totalHeight <= innerHeight && measured.maxLineWidth <= innerWidth;
+  const effectiveWidth = innerWidth / scaleX;
+  const measured = measureHorizontal(block, fontSize, effectiveWidth);
+  return measured.totalHeight <= innerHeight && measured.maxLineWidth <= effectiveWidth;
 }
 
 function resolveFontSize(block, innerWidth, innerHeight) {
@@ -141,7 +149,7 @@ function resolveFontSize(block, innerWidth, innerHeight) {
     return preferred;
   }
   const heightBound = Math.floor(innerHeight / Math.max(1, block.lineHeight || 1));
-  const widthBound = block.renderDirection === "vertical" ? Math.floor(innerWidth / 1.15) : MAX_AUTOFIT_FONT_SIZE;
+  const widthBound = block.renderDirection === "vertical" ? Math.floor(innerWidth / (1.15 * fontWidthScaleFor(block))) : MAX_AUTOFIT_FONT_SIZE;
   const capped = clamp(Math.max(MIN_FONT_SIZE, heightBound, widthBound), MIN_FONT_SIZE, MAX_AUTOFIT_FONT_SIZE);
   let low = MIN_FONT_SIZE;
   let high = Math.floor(capped);
@@ -176,7 +184,8 @@ function drawOutlinedText(ctx, text, x, y, block, fontSize) {
 }
 
 function drawHorizontalText(ctx, block, rect, fontSize) {
-  const innerWidth = Math.max(1, rect.width);
+  const scaleX = fontWidthScaleFor(block);
+  const innerWidth = Math.max(1, rect.width) / scaleX;
   const measured = measureHorizontal(block, fontSize, innerWidth);
   const lineHeightPx = fontSize * block.lineHeight;
   const totalHeight = measured.lines.length * lineHeightPx;
@@ -187,15 +196,21 @@ function drawHorizontalText(ctx, block, rect, fontSize) {
   ctx.letterSpacing = letterSpacingPxFor(block, fontSize) + "px";
   ctx.textAlign = align;
   ctx.textBaseline = "top";
+  ctx.save();
+  ctx.translate(x, 0);
+  ctx.scale(scaleX, 1);
+  ctx.translate(-x, 0);
   for (const [index, line] of measured.lines.entries()) {
     drawOutlinedText(ctx, line, x, startY + index * lineHeightPx, block, fontSize);
   }
+  ctx.restore();
 }
 
 function drawVerticalText(ctx, block, rect, fontSize) {
   if (!block.text.trim()) {
     return;
   }
+  const scaleX = fontWidthScaleFor(block);
   const chars = Array.from(block.text.replace(/\\r/g, "").replace(/\\n/g, " "));
   const lineHeightPx = fontSize * block.lineHeight + letterSpacingPxFor(block, fontSize);
   const charsPerColumn = Math.max(1, Math.floor(Math.max(1, rect.height) / lineHeightPx));
@@ -203,7 +218,7 @@ function drawVerticalText(ctx, block, rect, fontSize) {
   for (let index = 0; index < chars.length; index += charsPerColumn) {
     columns.push(chars.slice(index, index + charsPerColumn));
   }
-  const columnGap = fontSize * 1.15;
+  const columnGap = fontSize * 1.15 * scaleX;
   const totalWidth = Math.max(columnGap, columns.length * columnGap);
   const firstX = rect.left + rect.width / 2 + totalWidth / 2 - columnGap / 2;
   ctx.font = buildFont(fontSize, block.fontFamily, blockFontWeight(block), block.italic);
@@ -213,11 +228,16 @@ function drawVerticalText(ctx, block, rect, fontSize) {
     const x = firstX - columnIndex * columnGap;
     const columnHeight = column.length * lineHeightPx;
     const startY = rect.top + Math.max(0, (rect.height - columnHeight) / 2);
+    ctx.save();
+    ctx.translate(x, 0);
+    ctx.scale(scaleX, 1);
+    ctx.translate(-x, 0);
     for (const [rowIndex, char] of column.entries()) {
       if (!/\\s/u.test(char)) {
         drawOutlinedText(ctx, char, x, startY + rowIndex * lineHeightPx, block, fontSize);
       }
     }
+    ctx.restore();
   }
 }
 

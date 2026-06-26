@@ -6,6 +6,7 @@ import {
   normalizeRenderDirection,
   resolveBlockRenderBbox,
   resolveEffectiveRenderBbox,
+  resolveFontWidthScale,
 } from "../../../shared/geometry";
 import { resolveBlockFontFamily } from "./fonts";
 
@@ -158,6 +159,7 @@ function doesTextFit(
   innerHeight: number,
 ): boolean {
   const letterSpacingPx = resolveLetterSpacingPx(block, fontSize);
+  const scaleX = resolveFontWidthScale(block.fontWidthScale);
   if (
     normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
   ) {
@@ -167,20 +169,25 @@ function doesTextFit(
       innerWidth,
       innerHeight,
       fontSize * block.lineHeight + letterSpacingPx,
+      scaleX,
     ).fits;
   }
 
+  // 장평 squeezes/expands glyphs horizontally, so the usable measurement width
+  // is the box width divided by the scale; wrapped widths are then scaled back.
+  const effectiveWidth = innerWidth / scaleX;
   const context = getMeasureContext();
   context.font = buildFont(fontSize, block);
   applyLetterSpacing(context, letterSpacingPx);
   const measured = measureWrappedText(
     context,
     text,
-    innerWidth,
+    effectiveWidth,
     fontSize * block.lineHeight,
   );
   return (
-    measured.totalHeight <= innerHeight && measured.maxLineWidth <= innerWidth
+    measured.totalHeight <= innerHeight &&
+    measured.maxLineWidth <= effectiveWidth
   );
 }
 
@@ -268,9 +275,10 @@ function resolveAutoFitUpperBound(
   const heightBound = Math.floor(
     innerHeight / Math.max(1, block.lineHeight || 1),
   );
+  const scaleX = resolveFontWidthScale(block.fontWidthScale);
   const widthBound =
     normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
-      ? Math.floor(innerWidth / 1.15)
+      ? Math.floor(innerWidth / (1.15 * scaleX))
       : MAX_AUTOFIT_FONT_SIZE_PX;
   return clamp(
     Math.max(MIN_FONT_SIZE_PX, heightBound, widthBound),
@@ -285,6 +293,7 @@ function measureVerticalText(
   maxWidth: number,
   maxHeight: number,
   lineHeight: number,
+  fontWidthScale = 1,
 ): { columnCount: number; fits: boolean } {
   if (!text.trim()) {
     return { columnCount: 0, fits: true };
@@ -299,7 +308,7 @@ function measureVerticalText(
     1,
     Math.ceil(verticalSlots.length / charsPerColumn),
   );
-  const estimatedColumnWidth = fontSize * 1.15;
+  const estimatedColumnWidth = fontSize * 1.15 * fontWidthScale;
   return {
     columnCount,
     fits:

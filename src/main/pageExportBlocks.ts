@@ -3,6 +3,7 @@ import {
   clamp,
   normalizeRenderDirection,
   resolveEffectiveRenderBbox,
+  resolveFontWidthScale,
 } from "../shared/geometry";
 import type { MangaPage } from "../shared/libraryTypes";
 import type { TranslationBlock } from "../shared/textTypes";
@@ -16,6 +17,7 @@ export type PageExportBlock = {
   fontSizePx: number;
   lineHeight: number;
   letterSpacing: number;
+  fontWidthScale: number;
   textAlign: "left" | "center" | "right";
   textColor: string;
   outlineColor: string;
@@ -115,6 +117,7 @@ function buildPageExportBlock(
     letterSpacing: Number.isFinite(block.letterSpacing)
       ? (block.letterSpacing as number)
       : 0,
+    fontWidthScale: resolveFontWidthScale(block.fontWidthScale),
     textAlign: block.textAlign || "center",
     textColor: normalizeExportColor(block.textColor, "#000000"),
     outlineColor: normalizeExportColor(block.outlineColor, "#ffffff"),

@@ -92,6 +92,7 @@ export const AppSettingsSchema = z
         fontSizePx: z.number().min(1).max(512),
         lineHeight: z.number().min(0.5).max(4),
         letterSpacing: z.number().min(-0.5).max(2),
+        fontWidthScale: z.number().min(0.5).max(1.5),
         textColor: hexColor,
         outlineEnabled: z.boolean(),
         outlineColor: hexColor,

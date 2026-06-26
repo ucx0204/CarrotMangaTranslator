@@ -1,7 +1,10 @@
 import React from "react";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
-import { normalizeRenderDirection } from "../../../shared/geometry";
+import {
+  normalizeRenderDirection,
+  resolveFontWidthScale,
+} from "../../../shared/geometry";
 import { resolveBlockFontFamily } from "../lib/fonts";
 import {
   hexToRgba,
@@ -232,6 +235,7 @@ function resolveOverlayTextContentStyle(
   layout: ReturnType<typeof resolveBlockTextLayout>,
   renderDirection: ReturnType<typeof normalizeRenderDirection>,
 ): React.CSSProperties {
+  const scaleX = resolveFontWidthScale(block.fontWidthScale);
   return {
     boxSizing: "border-box",
     writingMode:
@@ -250,7 +254,27 @@ function resolveOverlayTextContentStyle(
     fontStyle: block.italic ? "italic" : "normal",
     fontSynthesis: "weight style",
     textShadow: resolveBlockTextOutlineShadow(block, layout.fontSizePx),
+    // 장평: squeeze/stretch only the glyphs, never the block box. Anchor the
+    // scale to the text alignment so left/right text stays put.
+    transform: scaleX === 1 ? undefined : `scaleX(${scaleX})`,
+    transformOrigin: resolveFontWidthOrigin(renderDirection, block.textAlign),
   };
+}
+
+function resolveFontWidthOrigin(
+  renderDirection: ReturnType<typeof normalizeRenderDirection>,
+  textAlign: TranslationBlock["textAlign"],
+): string {
+  if (renderDirection === "vertical") {
+    return "center center";
+  }
+  if (textAlign === "left") {
+    return "left center";
+  }
+  if (textAlign === "right") {
+    return "right center";
+  }
+  return "center center";
 }
 
 function resolveBlockTextOutlineShadow(

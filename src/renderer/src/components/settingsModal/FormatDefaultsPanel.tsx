@@ -3,6 +3,10 @@ import type {
   BlockFormatDefaults,
   BlockFormatDirectionDefault,
 } from "../../../../shared/settingsTypes";
+import {
+  MAX_FONT_WIDTH_SCALE,
+  MIN_FONT_WIDTH_SCALE,
+} from "../../../../shared/geometry";
 import { ColorField } from "../ColorField";
 import { FontSelect } from "../FontSelect";
 import { FieldSlider, IconButton, RangeInput } from "../ui";
@@ -181,6 +185,17 @@ function SpacingSection({ value, onChange }: SectionProps): React.JSX.Element {
         value={value.letterSpacing}
         onChange={(event) =>
           onChange({ letterSpacing: round2(Number(event.target.value)) })
+        }
+      />
+      <FieldSlider
+        label="장평"
+        valueLabel={`${Math.round(value.fontWidthScale * 100)}%`}
+        min={MIN_FONT_WIDTH_SCALE}
+        max={MAX_FONT_WIDTH_SCALE}
+        step={0.01}
+        value={value.fontWidthScale}
+        onChange={(event) =>
+          onChange({ fontWidthScale: round2(Number(event.target.value)) })
         }
       />
     </div>

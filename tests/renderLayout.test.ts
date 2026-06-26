@@ -228,6 +228,45 @@ describe("render layout padding", () => {
     expect(layout.overflow).toBe(true);
   });
 
+  it("lets a narrower 장평 (fontWidthScale) auto-fit a larger font than a wider one", () => {
+    installCanvasMeasureMock();
+
+    const base: TranslationBlock = {
+      id: "block-1",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 200, h: 200 },
+      sourceText: "가나다라마바사",
+      translatedText: "가나다라마바사",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 12,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true,
+    };
+
+    const narrow = resolveBlockTextLayout(
+      { ...base, fontWidthScale: 0.6 },
+      base.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+    const wide = resolveBlockTextLayout(
+      { ...base, fontWidthScale: 1.4 },
+      base.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(narrow.fontSizePx).toBeGreaterThan(wide.fontSizePx);
+    expect(narrow.overflow).toBe(false);
+    expect(wide.overflow).toBe(false);
+  });
+
   it("places pixel-space blocks on the same scaled image plane", () => {
     const block: TranslationBlock = {
       id: "block-1",

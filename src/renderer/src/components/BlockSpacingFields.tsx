@@ -1,5 +1,10 @@
 import React from "react";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import {
+  MAX_FONT_WIDTH_SCALE,
+  MIN_FONT_WIDTH_SCALE,
+  resolveFontWidthScale,
+} from "../../../shared/geometry";
 import { FieldSlider } from "./ui";
 
 type BlockSpacingFieldsProps = {
@@ -15,6 +20,7 @@ export function BlockSpacingFields({
 }: BlockSpacingFieldsProps): React.JSX.Element {
   const lineHeight = clampLineHeight(block.lineHeight);
   const letterSpacing = clampLetterSpacing(block.letterSpacing);
+  const fontWidthScale = resolveFontWidthScale(block.fontWidthScale);
   return (
     <>
       <FieldSlider
@@ -42,6 +48,20 @@ export function BlockSpacingFields({
         onChange={(event) =>
           onUpdate({
             letterSpacing: clampLetterSpacing(Number(event.target.value)),
+          })
+        }
+      />
+      <FieldSlider
+        label="장평"
+        valueLabel={`${Math.round(fontWidthScale * 100)}%`}
+        min={MIN_FONT_WIDTH_SCALE}
+        max={MAX_FONT_WIDTH_SCALE}
+        step={0.01}
+        value={fontWidthScale}
+        disabled={disabled}
+        onChange={(event) =>
+          onUpdate({
+            fontWidthScale: resolveFontWidthScale(Number(event.target.value)),
           })
         }
       />

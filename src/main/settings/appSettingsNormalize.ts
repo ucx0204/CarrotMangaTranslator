@@ -310,6 +310,12 @@ function normalizeBlockFormatDefaults(
       -0.5,
       2,
     ),
+    fontWidthScale: resolveNumberRange(
+      data.fontWidthScale,
+      base.fontWidthScale,
+      0.5,
+      1.5,
+    ),
     textColor: resolveHexColor(data.textColor, base.textColor),
     outlineEnabled: resolveBoolean(data.outlineEnabled, base.outlineEnabled),
     outlineColor: resolveHexColor(data.outlineColor, base.outlineColor),

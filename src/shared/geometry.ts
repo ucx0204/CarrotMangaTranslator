@@ -28,6 +28,11 @@ type RenderBboxBlock = Pick<TranslationBlock, "bbox" | "renderBbox"> &
 
 export const MIN_READABLE_FONT_SIZE_PX = 10;
 
+/** 장평 (horizontal glyph scale) bounds, shared by editor preview and export. */
+export const MIN_FONT_WIDTH_SCALE = 0.5;
+export const MAX_FONT_WIDTH_SCALE = 1.5;
+export const DEFAULT_FONT_WIDTH_SCALE = 1;
+
 const READABLE_AVERAGE_CHAR_WIDTH_RATIO = 0.95;
 const READABLE_VERTICAL_COLUMN_WIDTH_RATIO = 1.15;
 const READABLE_MAX_VERTICAL_COLUMNS = 2;
@@ -37,6 +42,17 @@ export function clamp(value: number, min: number, max: number): number {
     return min;
   }
   return Math.min(max, Math.max(min, value));
+}
+
+/** Clamp a 장평 value to the supported range; undefined/invalid means 1. */
+export function resolveFontWidthScale(
+  value: number | undefined | null,
+): number {
+  return clamp(
+    Number(value ?? DEFAULT_FONT_WIDTH_SCALE),
+    MIN_FONT_WIDTH_SCALE,
+    MAX_FONT_WIDTH_SCALE,
+  );
 }
 
 export function clampBbox(bbox: BBox): BBox {

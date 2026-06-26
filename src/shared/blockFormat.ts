@@ -22,6 +22,7 @@ export type BlockFormatGroupId =
   | "emphasis"
   | "lineSpacing"
   | "letterSpacing"
+  | "fontWidth"
   | "color"
   | "outline"
   | "transform";
@@ -43,6 +44,7 @@ export const BLOCK_FORMAT_GROUPS: readonly BlockFormatGroup[] = [
   { id: "emphasis", label: "굵게·기울임", keys: ["bold", "italic"] },
   { id: "lineSpacing", label: "줄 간격", keys: ["lineHeight"] },
   { id: "letterSpacing", label: "자간", keys: ["letterSpacing"] },
+  { id: "fontWidth", label: "장평", keys: ["fontWidthScale"] },
   { id: "color", label: "글자색", keys: ["textColor"] },
   {
     id: "outline",
@@ -89,6 +91,7 @@ export type BlockFormatDefaults = {
   fontSizePx: number;
   lineHeight: number;
   letterSpacing: number;
+  fontWidthScale: number;
   textColor: string;
   outlineEnabled: boolean;
   outlineColor: string;
@@ -105,6 +108,7 @@ export const DEFAULT_BLOCK_FORMAT_DEFAULTS: BlockFormatDefaults = {
   fontSizePx: 24,
   lineHeight: 1.18,
   letterSpacing: 0,
+  fontWidthScale: 1,
   textColor: "#111111",
   outlineEnabled: true,
   outlineColor: "#ffffff",
@@ -130,6 +134,7 @@ export function applyFormatDefaultsToBlock(
     textAlign: defaults.textAlign,
     lineHeight: defaults.lineHeight,
     letterSpacing: defaults.letterSpacing,
+    fontWidthScale: defaults.fontWidthScale,
     textColor: defaults.textColor,
     bold: defaults.bold,
     italic: defaults.italic,

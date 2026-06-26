@@ -28,6 +28,8 @@ export type TranslationBlock = {
   fontSizePx: number;
   lineHeight: number;
   letterSpacing?: number;
+  /** Horizontal glyph scale (장평). 1 = natural width. Undefined means 1. */
+  fontWidthScale?: number;
   textAlign: "left" | "center" | "right";
   textColor: string;
   outlineColor?: string;

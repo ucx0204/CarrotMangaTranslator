@@ -427,6 +427,27 @@ describe("IPC schemas", () => {
     expect(parsed.glossaryEntryIds).toEqual(["glossary-1"]);
   });
 
+  it("accepts an in-range 장평 (fontWidthScale) on translation blocks", () => {
+    const block = makeChapterSnapshot().pages[0].blocks[0];
+    const parsed = parseIpcPayload(
+      TranslationBlockSchema,
+      { ...block, fontWidthScale: 0.8 },
+      "블록",
+    );
+    expect(parsed.fontWidthScale).toBe(0.8);
+  });
+
+  it("rejects an out-of-range 장평 (fontWidthScale)", () => {
+    const block = makeChapterSnapshot().pages[0].blocks[0];
+    expect(() =>
+      parseIpcPayload(
+        TranslationBlockSchema,
+        { ...block, fontWidthScale: 3 },
+        "블록",
+      ),
+    ).toThrow(/요청 형식/);
+  });
+
   it("rejects invalid review block metadata", () => {
     const block = makeChapterSnapshot().pages[0].blocks[0];
     expect(() =>
