@@ -109,7 +109,9 @@ function buildPageExportBlock(
       customFamilyById,
     ),
     fontSizePx: Math.max(10, Math.round((block.fontSizePx || 20) * fontScale)),
-    lineHeight: Math.max(1, block.lineHeight || 1.18),
+    // Keep parity with the editor preview, which allows a 0.8–3 line-height
+    // range. Clamping the floor to 1 here silently reset tight line spacing.
+    lineHeight: clamp(Number(block.lineHeight ?? 1.18), 0.8, 3),
     letterSpacing: Number.isFinite(block.letterSpacing)
       ? (block.letterSpacing as number)
       : 0,
