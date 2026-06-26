@@ -267,6 +267,46 @@ describe("render layout padding", () => {
     expect(wide.overflow).toBe(false);
   });
 
+  it("excludes inline markup markers from the measured text width", () => {
+    installCanvasMeasureMock();
+
+    const base: TranslationBlock = {
+      id: "block-1",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 120, h: 60 },
+      sourceText: "가나다",
+      translatedText: "가나다",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 12,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true,
+    };
+
+    const plain = resolveBlockTextLayout(
+      base,
+      base.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+    const marked = resolveBlockTextLayout(
+      { ...base, translatedText: "**가나다**" },
+      "**가나다**",
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    // The two extra `**` pairs must not shrink the auto-fit font or trigger
+    // overflow — only the three visible glyphs count.
+    expect(marked.fontSizePx).toBe(plain.fontSizePx);
+    expect(marked.overflow).toBe(plain.overflow);
+  });
+
   it("places pixel-space blocks on the same scaled image plane", () => {
     const block: TranslationBlock = {
       id: "block-1",

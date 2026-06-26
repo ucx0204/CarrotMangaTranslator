@@ -5,6 +5,7 @@ import {
   normalizeRenderDirection,
   resolveFontWidthScale,
 } from "../../../shared/geometry";
+import { parseRichText } from "../../../shared/richTextMarkup";
 import { resolveBlockFontFamily } from "../lib/fonts";
 import {
   hexToRgba,
@@ -103,6 +104,11 @@ function OverlayText({
   layout: ReturnType<typeof resolveBlockTextLayout>;
   renderDirection: ReturnType<typeof normalizeRenderDirection>;
 }): React.JSX.Element {
+  const { runs } = parseRichText(
+    displayText,
+    Boolean(block.bold),
+    Boolean(block.italic),
+  );
   return (
     <div
       className="overlay-text"
@@ -112,7 +118,17 @@ function OverlayText({
         className="overlay-text-content"
         style={resolveOverlayTextContentStyle(block, layout, renderDirection)}
       >
-        {displayText}
+        {runs.map((run, index) => (
+          <span
+            key={index}
+            style={{
+              fontWeight: run.bold ? 800 : 400,
+              fontStyle: run.italic ? "italic" : "normal",
+            }}
+          >
+            {run.text}
+          </span>
+        ))}
       </span>
     </div>
   );

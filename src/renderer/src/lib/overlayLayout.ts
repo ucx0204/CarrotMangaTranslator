@@ -8,6 +8,10 @@ import {
   resolveEffectiveRenderBbox,
   resolveFontWidthScale,
 } from "../../../shared/geometry";
+import {
+  parseRichText,
+  type TextStyleRun,
+} from "../../../shared/richTextMarkup";
 import { resolveBlockFontFamily } from "./fonts";
 
 const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
@@ -160,11 +164,18 @@ function doesTextFit(
 ): boolean {
   const letterSpacingPx = resolveLetterSpacingPx(block, fontSize);
   const scaleX = resolveFontWidthScale(block.fontWidthScale);
+  const { runs, plainText } = parseRichText(
+    text,
+    Boolean(block.bold),
+    Boolean(block.italic),
+  );
   if (
     normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
   ) {
+    // Vertical advance is style-independent, so the marker-free text length is
+    // what matters for column counting.
     return measureVerticalText(
-      text,
+      plainText,
       fontSize,
       innerWidth,
       innerHeight,
@@ -177,13 +188,14 @@ function doesTextFit(
   // is the box width divided by the scale; wrapped widths are then scaled back.
   const effectiveWidth = innerWidth / scaleX;
   const context = getMeasureContext();
-  context.font = buildFont(fontSize, block);
-  applyLetterSpacing(context, letterSpacingPx);
-  const measured = measureWrappedText(
+  const measured = measureStyledWrappedText(
     context,
-    text,
+    runs,
     effectiveWidth,
     fontSize * block.lineHeight,
+    fontSize,
+    resolveBlockFontFamily(block.fontFamily),
+    letterSpacingPx,
   );
   return (
     measured.totalHeight <= innerHeight &&
@@ -202,63 +214,60 @@ function resolveLetterSpacingPx(
   return em * fontSize;
 }
 
-function applyLetterSpacing(
+// Wrap and measure styled runs grapheme-by-grapheme so each run is measured
+// with its own weight/style and inline markup never counts toward width. CSS
+// performs the actual wrapping at render time; this only drives auto-fit and
+// overflow detection.
+function measureStyledWrappedText(
   context: CanvasRenderingContext2D,
-  px: number,
-): void {
-  (
-    context as CanvasRenderingContext2D & { letterSpacing?: string }
-  ).letterSpacing = `${px}px`;
-}
-
-function wrapTextToWidth(
-  context: CanvasRenderingContext2D,
-  text: string,
+  runs: TextStyleRun[],
   maxWidth: number,
-): string[] {
-  const paragraphs = text.replace(/\r/g, "").split("\n");
-  const lines: string[] = [];
+  lineHeightPx: number,
+  fontSize: number,
+  fontFamily: string,
+  letterSpacingPx: number,
+): { lineCount: number; totalHeight: number; maxLineWidth: number } {
+  let lineCount = 0;
+  let lineWidth = 0;
+  let maxLineWidth = 0;
+  let lineHasContent = false;
 
-  for (const paragraph of paragraphs) {
-    if (!paragraph) {
-      lines.push("");
-      continue;
-    }
+  const breakLine = (): void => {
+    maxLineWidth = Math.max(maxLineWidth, lineWidth);
+    lineCount += 1;
+    lineWidth = 0;
+    lineHasContent = false;
+  };
 
-    let current = "";
-    for (const char of [...paragraph]) {
-      const candidate = `${current}${char}`;
-      if (!current || context.measureText(candidate).width <= maxWidth) {
-        current = candidate;
+  for (const run of runs) {
+    context.font = buildFontForStyle(
+      fontSize,
+      fontFamily,
+      run.bold,
+      run.italic,
+    );
+    for (const char of [...run.text]) {
+      if (char === "\n") {
+        breakLine();
         continue;
       }
-
-      lines.push(current);
-      current = char;
-    }
-
-    if (current) {
-      lines.push(current);
+      const charWidth = context.measureText(char).width;
+      const advance = charWidth + (lineHasContent ? letterSpacingPx : 0);
+      if (lineHasContent && lineWidth + advance > maxWidth) {
+        breakLine();
+        lineWidth = charWidth;
+      } else {
+        lineWidth += advance;
+      }
+      lineHasContent = true;
     }
   }
+  breakLine();
 
-  return lines.length > 0 ? lines : [text];
-}
-
-function measureWrappedText(
-  context: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number,
-  lineHeight: number,
-): { lines: string[]; totalHeight: number; maxLineWidth: number } {
-  const lines = wrapTextToWidth(context, text, maxWidth);
   return {
-    lines,
-    totalHeight: lines.length * lineHeight,
-    maxLineWidth: lines.reduce(
-      (widest, line) => Math.max(widest, context.measureText(line).width),
-      0,
-    ),
+    lineCount,
+    totalHeight: lineCount * lineHeightPx,
+    maxLineWidth,
   };
 }
 
@@ -330,8 +339,13 @@ function getMeasureContext(): CanvasRenderingContext2D {
   return context;
 }
 
-function buildFont(fontSize: number, block: TranslationBlock): string {
-  const style = block.italic ? "italic " : "";
-  const weight = block.bold ? 800 : 400;
-  return `${style}${weight} ${fontSize}px ${resolveBlockFontFamily(block.fontFamily)}`;
+function buildFontForStyle(
+  fontSize: number,
+  fontFamily: string,
+  bold: boolean,
+  italic: boolean,
+): string {
+  const style = italic ? "italic " : "";
+  const weight = bold ? 800 : 400;
+  return `${style}${weight} ${fontSize}px ${fontFamily}`;
 }

@@ -6,10 +6,12 @@ import {
   resolveFontWidthScale,
 } from "../shared/geometry";
 import type { MangaPage } from "../shared/libraryTypes";
+import { parseRichText, type TextStyleRun } from "../shared/richTextMarkup";
 import type { TranslationBlock } from "../shared/textTypes";
 
 export type PageExportBlock = {
   text: string;
+  runs: TextStyleRun[];
   rect: { left: number; top: number; width: number; height: number };
   renderDirection: "horizontal" | "vertical";
   rotationDeg: number;
@@ -84,14 +86,20 @@ function buildPageExportBlock(
   fontScale: number,
   customFamilyById: Map<string, string>,
 ): PageExportBlock | null {
-  const text = block.translatedText || block.sourceText || "";
-  if (!text.trim()) {
+  const rawText = block.translatedText || block.sourceText || "";
+  if (!rawText.trim()) {
     return null;
   }
-  const renderBbox = resolveEffectiveRenderBbox(block, pageSize, text);
+  const { runs, plainText } = parseRichText(
+    rawText,
+    Boolean(block.bold),
+    Boolean(block.italic),
+  );
+  const renderBbox = resolveEffectiveRenderBbox(block, pageSize, plainText);
   const rect = bboxToPixels(renderBbox, pageSize.width, pageSize.height);
   return {
-    text,
+    text: plainText,
+    runs,
     rect: {
       left: rect.x * scaleX,
       top: rect.y * scaleY,

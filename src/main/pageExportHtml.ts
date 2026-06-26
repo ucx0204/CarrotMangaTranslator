@@ -74,10 +74,6 @@ function buildFont(size, family, weight, italic) {
   return (italic ? "italic " : "") + (weight || 600) + " " + size + "px " + family;
 }
 
-function blockFontWeight(block) {
-  return block.bold ? 800 : 400;
-}
-
 function fontWidthScaleFor(block) {
   const value = Number(block.fontWidthScale);
   if (!Number.isFinite(value)) return 1;
@@ -90,41 +86,68 @@ function letterSpacingPxFor(block, fontSize) {
   return em * fontSize;
 }
 
-function wrapTextToWidth(text, maxWidth, fontSize, fontFamily, weight, italic) {
-  context.font = buildFont(fontSize, fontFamily, weight, italic);
-  const paragraphs = String(text).replace(/\\r/g, "").split("\\n");
-  const lines = [];
-  for (const paragraph of paragraphs) {
-    if (!paragraph) {
-      lines.push("");
-      continue;
-    }
-    let current = "";
-    for (const char of Array.from(paragraph)) {
-      const candidate = current + char;
-      if (!current || context.measureText(candidate).width <= maxWidth) {
-        current = candidate;
-        continue;
-      }
-      lines.push(current);
-      current = char;
-    }
-    if (current) {
-      lines.push(current);
+// Flatten inline-style runs into per-grapheme {ch,bold,italic}. Falls back to
+// the plain block text when no runs were serialized.
+function styledGraphemes(block) {
+  const runs = (block.runs && block.runs.length)
+    ? block.runs
+    : [{ text: block.text, bold: block.bold, italic: block.italic }];
+  const out = [];
+  for (const run of runs) {
+    const text = run && run.text != null ? String(run.text) : "";
+    for (const ch of Array.from(text)) {
+      out.push({ ch: ch, bold: !!(run && run.bold), italic: !!(run && run.italic) });
     }
   }
-  return lines.length ? lines : [String(text)];
+  return out;
+}
+
+function graphemeFont(g, fontSize, fontFamily) {
+  return buildFont(fontSize, fontFamily, g.bold ? 800 : 400, g.italic);
+}
+
+function wrapStyledGraphemes(graphemes, maxWidth, fontSize, fontFamily, letterSpacingPx) {
+  const lines = [];
+  let current = [];
+  let lineWidth = 0;
+  const pushLine = function () {
+    lines.push({ graphemes: current, width: lineWidth });
+    current = [];
+    lineWidth = 0;
+  };
+  for (const g of graphemes) {
+    if (g.ch === "\\n") {
+      pushLine();
+      continue;
+    }
+    context.font = graphemeFont(g, fontSize, fontFamily);
+    const w = context.measureText(g.ch).width;
+    const advance = w + (current.length ? letterSpacingPx : 0);
+    if (current.length && lineWidth + advance > maxWidth) {
+      pushLine();
+      current.push({ ch: g.ch, bold: g.bold, italic: g.italic, w: w });
+      lineWidth = w;
+    } else {
+      current.push({ ch: g.ch, bold: g.bold, italic: g.italic, w: w });
+      lineWidth += advance;
+    }
+  }
+  pushLine();
+  return lines;
 }
 
 function measureHorizontal(block, fontSize, innerWidth) {
-  const weight = blockFontWeight(block);
-  context.letterSpacing = letterSpacingPxFor(block, fontSize) + "px";
-  const lines = wrapTextToWidth(block.text, innerWidth, fontSize, block.fontFamily, weight, block.italic);
-  context.font = buildFont(fontSize, block.fontFamily, weight, block.italic);
+  const graphemes = styledGraphemes(block);
+  const letterSpacingPx = letterSpacingPxFor(block, fontSize);
+  const lines = wrapStyledGraphemes(graphemes, innerWidth, fontSize, block.fontFamily, letterSpacingPx);
+  let maxLineWidth = 0;
+  for (const line of lines) {
+    if (line.width > maxLineWidth) maxLineWidth = line.width;
+  }
   return {
-    lines,
+    lines: lines,
     totalHeight: lines.length * fontSize * block.lineHeight,
-    maxLineWidth: lines.reduce((widest, line) => Math.max(widest, context.measureText(line).width), 0)
+    maxLineWidth: maxLineWidth
   };
 }
 
@@ -191,37 +214,49 @@ function drawHorizontalText(ctx, block, rect, fontSize) {
   const totalHeight = measured.lines.length * lineHeightPx;
   const startY = rect.top + Math.max(0, (rect.height - totalHeight) / 2);
   const align = block.textAlign || "center";
-  const x = align === "left" ? rect.left : align === "right" ? rect.left + rect.width : rect.left + rect.width / 2;
-  ctx.font = buildFont(fontSize, block.fontFamily, blockFontWeight(block), block.italic);
-  ctx.letterSpacing = letterSpacingPxFor(block, fontSize) + "px";
-  ctx.textAlign = align;
+  const letterSpacingPx = letterSpacingPxFor(block, fontSize);
+  const anchorX = align === "left" ? rect.left : align === "right" ? rect.left + rect.width : rect.left + rect.width / 2;
+  ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.save();
-  ctx.translate(x, 0);
-  ctx.scale(scaleX, 1);
-  ctx.translate(-x, 0);
   for (const [index, line] of measured.lines.entries()) {
-    drawOutlinedText(ctx, line, x, startY + index * lineHeightPx, block, fontSize);
+    const y = startY + index * lineHeightPx;
+    let x = align === "left" ? rect.left : align === "right" ? rect.left + rect.width - line.width : rect.left + (rect.width - line.width) / 2;
+    ctx.save();
+    ctx.translate(anchorX, 0);
+    ctx.scale(scaleX, 1);
+    ctx.translate(-anchorX, 0);
+    for (const g of line.graphemes) {
+      ctx.font = buildFont(fontSize, block.fontFamily, g.bold ? 800 : 400, g.italic);
+      if (g.ch.trim()) {
+        drawOutlinedText(ctx, g.ch, x, y, block, fontSize);
+      }
+      x += g.w + letterSpacingPx;
+    }
+    ctx.restore();
   }
-  ctx.restore();
 }
 
 function drawVerticalText(ctx, block, rect, fontSize) {
-  if (!block.text.trim()) {
+  const scaleX = fontWidthScaleFor(block);
+  const graphemes = styledGraphemes(block).map(function (g) {
+    return g.ch === "\\n" ? { ch: " ", bold: g.bold, italic: g.italic } : g;
+  });
+  let hasInk = false;
+  for (const g of graphemes) {
+    if (g.ch.trim()) { hasInk = true; break; }
+  }
+  if (!hasInk) {
     return;
   }
-  const scaleX = fontWidthScaleFor(block);
-  const chars = Array.from(block.text.replace(/\\r/g, "").replace(/\\n/g, " "));
   const lineHeightPx = fontSize * block.lineHeight + letterSpacingPxFor(block, fontSize);
   const charsPerColumn = Math.max(1, Math.floor(Math.max(1, rect.height) / lineHeightPx));
   const columns = [];
-  for (let index = 0; index < chars.length; index += charsPerColumn) {
-    columns.push(chars.slice(index, index + charsPerColumn));
+  for (let index = 0; index < graphemes.length; index += charsPerColumn) {
+    columns.push(graphemes.slice(index, index + charsPerColumn));
   }
   const columnGap = fontSize * 1.15 * scaleX;
   const totalWidth = Math.max(columnGap, columns.length * columnGap);
   const firstX = rect.left + rect.width / 2 + totalWidth / 2 - columnGap / 2;
-  ctx.font = buildFont(fontSize, block.fontFamily, blockFontWeight(block), block.italic);
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   for (const [columnIndex, column] of columns.entries()) {
@@ -232,9 +267,10 @@ function drawVerticalText(ctx, block, rect, fontSize) {
     ctx.translate(x, 0);
     ctx.scale(scaleX, 1);
     ctx.translate(-x, 0);
-    for (const [rowIndex, char] of column.entries()) {
-      if (!/\\s/u.test(char)) {
-        drawOutlinedText(ctx, char, x, startY + rowIndex * lineHeightPx, block, fontSize);
+    for (const [rowIndex, g] of column.entries()) {
+      if (!/\\s/u.test(g.ch)) {
+        ctx.font = buildFont(fontSize, block.fontFamily, g.bold ? 800 : 400, g.italic);
+        drawOutlinedText(ctx, g.ch, x, startY + rowIndex * lineHeightPx, block, fontSize);
       }
     }
     ctx.restore();

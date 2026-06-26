@@ -112,8 +112,47 @@ describe("page export BrowserWindow security", () => {
     });
 
     expect(latestWindow?.loadedHtml).not.toContain('replace(/\\s+/g, "")');
-    expect(latestWindow?.loadedHtml).toContain('replace(/\\n/g, " ")');
-    expect(latestWindow?.loadedHtml).toContain("if (!/\\s/u.test(char))");
+    expect(latestWindow?.loadedHtml).toContain('? { ch: " ", bold: g.bold');
+    expect(latestWindow?.loadedHtml).toContain("if (!/\\s/u.test(g.ch))");
+  });
+
+  it("escapes user text with markup so it can never become live HTML", async () => {
+    const rootDir = await createTempRoot();
+    const { renderPageWithTranslationBlocksForExport } =
+      await loadPageExport(rootDir);
+
+    const page = makePage(rootDir);
+    page.blocks = [
+      {
+        id: "block-xss",
+        type: "nonsolid",
+        bbox: { x: 0, y: 0, w: 1000, h: 1000 },
+        sourceText: "",
+        translatedText: "<script>alert(1)</script> **굵게**",
+        confidence: 1,
+        sourceDirection: "horizontal",
+        renderDirection: "horizontal",
+        fontSizePx: 20,
+        lineHeight: 1.2,
+        textAlign: "center",
+        textColor: "#111111",
+        backgroundColor: "#ffffff",
+        opacity: 1,
+      },
+    ];
+
+    await renderPageWithTranslationBlocksForExport(page, {
+      dataRoot: rootDir,
+      decodeFallback: async () => null,
+    });
+
+    const html = latestWindow?.loadedHtml ?? "";
+    // The raw closing tag from user text must never appear verbatim.
+    expect(html).not.toContain("<script>alert(1)</script>");
+    // It is serialized into the canvas data block as escaped JSON instead.
+    expect(html).toContain("\\u003cscript\\u003ealert(1)\\u003c/script\\u003e");
+    // Markup is parsed into safe style runs (the bold marker is stripped).
+    expect(html).toContain('"text":"굵게","bold":true');
   });
 });
 
