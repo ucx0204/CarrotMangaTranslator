@@ -1,4 +1,5 @@
 import { useBlockEditingActions } from "../../hooks/useBlockEditingActions";
+import { useChapterHistory } from "../../hooks/useChapterHistory";
 import { useCurrentChapterUpdater } from "../../hooks/useCurrentChapterUpdater";
 import { useImportShareActions } from "../../hooks/useImportShareActions";
 import { usePageRetranslationAction } from "../../hooks/usePageRetranslationAction";
@@ -9,10 +10,23 @@ import type { ChapterSessionController } from "./useChapterSessionController";
 export function useTranslationController(chapter: ChapterSessionController) {
   const importShareActions = useImportShareController(chapter);
   const translationActions = useTranslationActionController(chapter);
+  const chapterHistory = useChapterHistory({
+    currentChapterRef: chapter.core.currentChapterRef,
+    chapterId: chapter.core.currentChapter?.id ?? null,
+    setCurrentChapter: chapter.core.setCurrentChapter,
+    selectedPageId: chapter.core.selectedPageId,
+    selectedBlockId: chapter.core.selectedBlockId,
+    selectedBlockIds: chapter.core.selectedBlockIds,
+    setSelectedPageId: chapter.core.setSelectedPageId,
+    setSelectedBlockId: chapter.core.setSelectedBlockId,
+    setSelectedBlockIds: chapter.core.setSelectedBlockIds,
+    markDirty: chapter.persistence.markDirty,
+  });
   const updateCurrentChapter = useCurrentChapterUpdater({
     currentChapterRef: chapter.core.currentChapterRef,
     markDirty: chapter.persistence.markDirty,
     setCurrentChapter: chapter.core.setCurrentChapter,
+    recordChange: chapterHistory.recordChange,
   });
   const retranslatePage = usePageRetranslationAction({
     askConfirm: chapter.confirmController.askConfirm,
@@ -25,6 +39,7 @@ export function useTranslationController(chapter: ChapterSessionController) {
     jobActive: chapter.derivedState.jobActive,
     markDirty: chapter.persistence.markDirty,
     pushStatus: chapter.statusLog.pushStatus,
+    recordChange: chapterHistory.recordChange,
     selectedBlock: chapter.derivedState.selectedBlock,
     selectedBlockIds: chapter.derivedState.selectedBlockIds,
     selectedPage: chapter.derivedState.selectedPage,
@@ -36,6 +51,7 @@ export function useTranslationController(chapter: ChapterSessionController) {
 
   return {
     blockEditingActions,
+    chapterHistory,
     importShareActions,
     retranslatePage,
     translationActions,

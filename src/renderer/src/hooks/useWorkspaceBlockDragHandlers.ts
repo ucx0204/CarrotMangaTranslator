@@ -39,6 +39,7 @@ type UseWorkspaceBlockDragHandlersOptions = {
   updateCurrentChapter: (
     pageId: string,
     updater: (chapter: ChapterSnapshot) => ChapterSnapshot,
+    options?: { mergeKey?: string; skipHistory?: boolean },
   ) => void;
 };
 
@@ -104,8 +105,11 @@ function useCancelBlockDrag(
       return false;
     }
     if (selectedPage && currentChapter) {
-      updateCurrentChapter(selectedPage.id, (chapter) =>
-        applyDraggedBlockBbox(chapter, selectedPage, drag, drag.startBbox),
+      updateCurrentChapter(
+        selectedPage.id,
+        (chapter) =>
+          applyDraggedBlockBbox(chapter, selectedPage, drag, drag.startBbox),
+        { mergeKey: `drag:${drag.blockId}` },
       );
     }
     clearDrag();
@@ -207,8 +211,10 @@ function useBlockPointerMove(
           height: page.height,
         }),
       });
-      updateCurrentChapter(page.id, (chapter) =>
-        applyDraggedBlockBbox(chapter, page, drag, next),
+      updateCurrentChapter(
+        page.id,
+        (chapter) => applyDraggedBlockBbox(chapter, page, drag, next),
+        { mergeKey: `drag:${drag.blockId}` },
       );
     },
     [

@@ -24,7 +24,8 @@ export function useAppSessionShortcuts({
   inpainting,
 }: AppSessionShortcutsArgs): void {
   const { core, derivedState, uiState } = chapter;
-  const { blockEditingActions, translationActions } = translation;
+  const { blockEditingActions, chapterHistory, translationActions } =
+    translation;
   const { inpaintingActions, inpaintingBridge } = inpainting;
 
   const context: ShortcutContext = {
@@ -53,7 +54,22 @@ export function useAppSessionShortcuts({
         void inpaintingActions.enterInpaintingMode();
       }
     },
-    "retouch-undo": () => inpaintingBridge.contextValue.onUndoRetouch(),
+    // Ctrl+Z / Ctrl+Shift+Z: inpainting retouch owns them while in inpainting
+    // mode, otherwise they drive the chapter edit history.
+    "history-undo": () => {
+      if (uiState.inpaintingMode) {
+        inpaintingBridge.contextValue.onUndoRetouch();
+      } else {
+        chapterHistory.undo();
+      }
+    },
+    "history-redo": () => {
+      if (uiState.inpaintingMode) {
+        inpaintingBridge.contextValue.onRedoRetouch();
+      } else {
+        chapterHistory.redo();
+      }
+    },
     "retouch-redo": () => inpaintingBridge.contextValue.onRedoRetouch(),
     "delete-block": () => blockEditingActions.deleteSelectedBlock(),
     "duplicate-block": () => blockEditingActions.duplicateSelectedBlock(),

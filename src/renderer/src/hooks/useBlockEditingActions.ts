@@ -17,6 +17,8 @@ import {
   pickBlockFormat,
   type BlockFormatGroupId,
 } from "../../../shared/blockFormat";
+import type { RecordChapterChangeOptions } from "./useChapterHistory";
+import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 
 export type FormatApplyScope = "selection" | "page" | "chapter";
 
@@ -26,17 +28,24 @@ type UseBlockEditingActionsOptions = {
   jobActive: boolean;
   markDirty: (pageId?: string) => void;
   pushStatus: (line: string) => void;
+  recordChange: (options?: RecordChapterChangeOptions) => void;
   selectedBlock: TranslationBlock | null;
   selectedBlockIds: string[];
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
-  updateCurrentChapter: (
-    pageId: string,
-    updater: (chapter: ChapterSnapshot) => ChapterSnapshot,
-  ) => void;
+  updateCurrentChapter: UpdateCurrentChapter;
 };
+
+/** Text edits coalesce per block; style edits coalesce separately per block. */
+function resolveBlockEditMergeKey(
+  blockId: string,
+  patch: Partial<TranslationBlock>,
+): string {
+  const isTextEdit = "translatedText" in patch || "sourceText" in patch;
+  return `${isTextEdit ? "text" : "style"}:${blockId}`;
+}
 
 type BlockEditingActions = {
   applyFormatToScope: (
@@ -80,48 +89,57 @@ function useUpdateSelectedBlockAction({
         return;
       }
 
-      updateCurrentChapter(selectedPage.id, (current) => ({
-        ...current,
-        pages: current.pages.map((page) =>
-          page.id !== selectedPage.id
-            ? page
-            : {
-                ...page,
-                updatedAt: new Date().toISOString(),
-                blocks: page.blocks.map((block) => {
-                  if (block.id !== selectedBlock.id) {
-                    return block;
-                  }
+      const mergeKey = resolveBlockEditMergeKey(selectedBlock.id, patch);
+      updateCurrentChapter(
+        selectedPage.id,
+        (current) => ({
+          ...current,
+          pages: current.pages.map((page) =>
+            page.id !== selectedPage.id
+              ? page
+              : {
+                  ...page,
+                  updatedAt: new Date().toISOString(),
+                  blocks: page.blocks.map((block) => {
+                    if (block.id !== selectedBlock.id) {
+                      return block;
+                    }
 
-                  const nextType = normalizeBlockType(patch.type ?? block.type);
-                  const nextRenderDirection = normalizeRenderDirection(
-                    patch.renderDirection ?? block.renderDirection,
-                    block.renderDirection,
-                  );
-                  return {
-                    ...block,
-                    ...patch,
-                    type: nextType,
-                    renderDirection: nextRenderDirection,
-                    rotationDeg: normalizeRotationDeg(
-                      patch.rotationDeg ?? block.rotationDeg ?? 0,
-                    ),
-                    backgroundColor:
-                      patch.backgroundColor ?? block.backgroundColor,
-                    opacity: patch.opacity ?? block.opacity,
-                    bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
-                    bboxSpace: patch.bbox ? "normalized_1000" : block.bboxSpace,
-                    renderBbox: patch.renderBbox
-                      ? clampBbox(patch.renderBbox)
-                      : block.renderBbox,
-                    renderBboxSpace: patch.renderBbox
-                      ? "normalized_1000"
-                      : block.renderBboxSpace,
-                  };
-                }),
-              },
-        ),
-      }));
+                    const nextType = normalizeBlockType(
+                      patch.type ?? block.type,
+                    );
+                    const nextRenderDirection = normalizeRenderDirection(
+                      patch.renderDirection ?? block.renderDirection,
+                      block.renderDirection,
+                    );
+                    return {
+                      ...block,
+                      ...patch,
+                      type: nextType,
+                      renderDirection: nextRenderDirection,
+                      rotationDeg: normalizeRotationDeg(
+                        patch.rotationDeg ?? block.rotationDeg ?? 0,
+                      ),
+                      backgroundColor:
+                        patch.backgroundColor ?? block.backgroundColor,
+                      opacity: patch.opacity ?? block.opacity,
+                      bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
+                      bboxSpace: patch.bbox
+                        ? "normalized_1000"
+                        : block.bboxSpace,
+                      renderBbox: patch.renderBbox
+                        ? clampBbox(patch.renderBbox)
+                        : block.renderBbox,
+                      renderBboxSpace: patch.renderBbox
+                        ? "normalized_1000"
+                        : block.renderBboxSpace,
+                    };
+                  }),
+                },
+          ),
+        }),
+        { mergeKey },
+      );
     },
     [selectedBlock, selectedPage, selectedPageEditLocked, updateCurrentChapter],
   );
@@ -164,6 +182,7 @@ function useApplyFormatToScopeAction({
   jobActive,
   markDirty,
   pushStatus,
+  recordChange,
   selectedBlock,
   selectedBlockIds,
   selectedPage,
@@ -198,6 +217,7 @@ function useApplyFormatToScopeAction({
       const blockIdFilter =
         scope === "selection" ? new Set(selectedBlockIds) : null;
       const patch = pickBlockFormat(selectedBlock, groupIds);
+      recordChange();
       targetPageIds.forEach((id) => markDirty(id));
       const next = applyFormatToChapterPages(
         currentChapter,
@@ -215,6 +235,7 @@ function useApplyFormatToScopeAction({
       jobActive,
       markDirty,
       pushStatus,
+      recordChange,
       selectedBlock,
       selectedBlockIds,
       selectedPage,

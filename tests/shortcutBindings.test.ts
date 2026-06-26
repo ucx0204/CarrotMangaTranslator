@@ -96,6 +96,12 @@ describe("shortcut binding resolution", () => {
     expect([...bindings.values()]).not.toContain("translate-all");
   });
 
+  it("binds chapter undo/redo to ctrl+z and ctrl+shift+z by default", () => {
+    const bindings = resolveBindings({});
+    expect(bindings.get("ctrl+z")).toBe("history-undo");
+    expect(bindings.get("ctrl+shift+z")).toBe("history-redo");
+  });
+
   it("displaces a conflicting action when assigning a combo", () => {
     const { next, displacedLabel } = assignBinding(
       {},

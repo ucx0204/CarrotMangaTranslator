@@ -51,7 +51,8 @@ export type ShortcutActionId =
   | "gather-text"
   | "cancel-job"
   | "toggle-inpainting"
-  | "retouch-undo"
+  | "history-undo"
+  | "history-redo"
   | "retouch-redo"
   | "delete-block"
   | "duplicate-block"
@@ -155,11 +156,20 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     enabled: (c) => c.inpaintingMode || (c.chapterOpen && !c.jobActive),
   },
   {
-    id: "retouch-undo",
-    label: "보정 실행 취소",
-    category: "inpaint",
+    id: "history-undo",
+    label: "실행 취소",
+    category: "edit",
     defaultCombo: "ctrl+z",
-    enabled: (c) => c.inpaintingMode,
+    allowInEditable: true,
+    enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "history-redo",
+    label: "다시 실행",
+    category: "edit",
+    defaultCombo: "ctrl+shift+z",
+    allowInEditable: true,
+    enabled: (c) => c.chapterOpen,
   },
   {
     id: "retouch-redo",
