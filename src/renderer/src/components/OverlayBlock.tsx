@@ -58,14 +58,15 @@ export function OverlayBlock({
         excluded,
         showChrome,
       )}
-      style={resolveOverlayBlockStyle(
-        block,
-        layout,
-        showChrome,
-        pointerDisabled,
-      )}
+      style={resolveOverlayBlockStyle(block, layout, pointerDisabled)}
       onPointerDown={pointerDisabled ? undefined : onPointerDown}
     >
+      {showChrome || excluded ? (
+        <div
+          className="overlay-block-chrome"
+          style={resolveOverlayChromeStyle(block, showChrome, excluded)}
+        />
+      ) : null}
       <OverlayText
         block={block}
         displayText={displayText}
@@ -100,7 +101,10 @@ function OverlayText({
   renderDirection: ReturnType<typeof normalizeRenderDirection>;
 }): React.JSX.Element {
   return (
-    <div className="overlay-text" style={resolveOverlayTextWrapStyle(layout)}>
+    <div
+      className="overlay-text"
+      style={resolveOverlayTextWrapStyle(block, layout)}
+    >
       <span
         className="overlay-text-content"
         style={resolveOverlayTextContentStyle(block, layout, renderDirection)}
@@ -168,32 +172,21 @@ function OverlayResizeHandle({
   ) : null;
 }
 
+// The block element owns only position, size, rotation, and the pointer
+// hitbox. Editor chrome (border/background) lives in a separate absolute layer
+// so toggling it never perturbs the text content box. Outline is a text-shadow
+// effect on the content and likewise never affects layout.
 function resolveOverlayBlockStyle(
   block: TranslationBlock,
   layout: ReturnType<typeof resolveBlockTextLayout>,
-  showChrome: boolean,
   pointerDisabled: boolean,
 ): React.CSSProperties {
-  const visualStyle = resolveBlockVisualStyle(block.type);
   return {
     left: layout.rect.left,
     top: layout.rect.top,
     width: layout.rect.width,
     height: layout.rect.height,
-    boxSizing: "border-box",
-    padding: layout.paddingPx,
     overflow: "visible",
-    color: block.textColor,
-    borderWidth: showChrome ? 2 : 0,
-    borderColor: showChrome ? visualStyle.borderColor : "transparent",
-    backgroundColor: showChrome
-      ? hexToRgba(visualStyle.backgroundColor, block.opacity)
-      : "transparent",
-    fontFamily: resolveBlockFontFamily(block.fontFamily),
-    fontSize: `${layout.fontSizePx}px`,
-    lineHeight: block.lineHeight,
-    letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
-    textAlign: block.textAlign,
     transform: block.rotationDeg
       ? `rotate(${block.rotationDeg}deg)`
       : undefined,
@@ -202,17 +195,35 @@ function resolveOverlayBlockStyle(
   };
 }
 
+// Returns inline overrides only for the editor chrome appearance. When the
+// block is excluded the styling comes purely from CSS so the red indicator can
+// win regardless of chrome visibility.
+function resolveOverlayChromeStyle(
+  block: TranslationBlock,
+  showChrome: boolean,
+  excluded: boolean,
+): React.CSSProperties | undefined {
+  if (!showChrome || excluded) {
+    return undefined;
+  }
+  const visualStyle = resolveBlockVisualStyle(block.type);
+  return {
+    borderColor: visualStyle.borderColor,
+    backgroundColor: hexToRgba(visualStyle.backgroundColor, block.opacity),
+  };
+}
+
 function resolveOverlayTextWrapStyle(
+  block: TranslationBlock,
   layout: ReturnType<typeof resolveBlockTextLayout>,
 ): React.CSSProperties {
   return {
-    boxSizing: "border-box",
-    width: layout.innerWidth,
-    maxWidth: "100%",
-    height: layout.innerHeight,
-    maxHeight: "100%",
-    justifyContent: "center",
-    overflow: "visible",
+    color: block.textColor,
+    fontFamily: resolveBlockFontFamily(block.fontFamily),
+    fontSize: `${layout.fontSizePx}px`,
+    lineHeight: block.lineHeight,
+    letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
+    textAlign: block.textAlign,
   };
 }
 

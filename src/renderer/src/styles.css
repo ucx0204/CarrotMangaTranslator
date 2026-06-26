@@ -2394,18 +2394,24 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 
 .overlay-block {
   position: absolute;
-  display: grid;
-  place-items: center;
   overflow: visible;
-  border: 2px solid rgba(50, 50, 50, 0.32);
-  border-radius: 4px;
-  font-weight: 700;
-  white-space: pre-wrap;
   cursor: move;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 }
 
-.overlay-block.chrome-hidden {
+/* Editor chrome lives in its own absolute layer so showing/hiding it never
+   shifts the text content box. */
+.overlay-block-chrome {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(50, 50, 50, 0.32);
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+
+.overlay-block.chrome-hidden .overlay-block-chrome {
+  border-color: transparent;
+  background: transparent;
   box-shadow: none;
 }
 
@@ -2420,6 +2426,11 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 }
 
 .overlay-block.excluded {
+  filter: grayscale(0.5);
+  opacity: 0.85;
+}
+
+.overlay-block.excluded .overlay-block-chrome {
   border-color: rgba(239, 68, 68, 0.85) !important;
   border-style: dashed;
   background-image: repeating-linear-gradient(
@@ -2429,8 +2440,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
     rgba(239, 68, 68, 0) 6px,
     rgba(239, 68, 68, 0) 12px
   );
-  filter: grayscale(0.5);
-  opacity: 0.85;
+  box-shadow: none;
 }
 
 .overlay-excluded-badge {
@@ -2570,8 +2580,9 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 }
 
 .overlay-text {
-  max-width: 100%;
-  max-height: 100%;
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;

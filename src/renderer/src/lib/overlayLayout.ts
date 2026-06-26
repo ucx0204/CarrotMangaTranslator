@@ -12,7 +12,6 @@ import { resolveBlockFontFamily } from "./fonts";
 const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
 const MAX_AUTOFIT_FONT_SIZE_PX = 256;
 const MIN_INNER_SIZE_PX = 1;
-const BLOCK_BORDER_PX = 1;
 const MAX_VERTICAL_COLUMNS = 2;
 
 let measureCanvas: HTMLCanvasElement | null = null;
@@ -53,15 +52,10 @@ export function resolveBlockTextLayout(
 ): BlockTextLayout {
   const rect = resolveBlockRectPx(block, pageSize, stageSize, text);
   const paddingPx = resolveBlockPaddingPx(rect);
-  const borderInsetPx = BLOCK_BORDER_PX * 2;
-  const innerWidth = Math.max(
-    MIN_INNER_SIZE_PX,
-    rect.width - paddingPx * 2 - borderInsetPx,
-  );
-  const innerHeight = Math.max(
-    MIN_INNER_SIZE_PX,
-    rect.height - paddingPx * 2 - borderInsetPx,
-  );
+  // The text layer is borderless and fills the block (inset: 0), so the usable
+  // box is the full rect. The PNG exporter uses the same full-rect box model.
+  const innerWidth = Math.max(MIN_INNER_SIZE_PX, rect.width - paddingPx * 2);
+  const innerHeight = Math.max(MIN_INNER_SIZE_PX, rect.height - paddingPx * 2);
   const fitInnerWidth = innerWidth;
   const fitInnerHeight = innerHeight;
   const scale = Math.min(
