@@ -6,9 +6,11 @@ import { ImageStage, type ImageStageProps } from "./ImageStage";
 import { InstallProgressOverlay } from "./InstallProgressOverlay";
 import { Button } from "./ui";
 import { useFonts } from "../fonts/useFonts";
+import { useWorkspaceZoomStyle } from "../hooks/useWorkspaceZoomStyle";
 
 type AppWorkspaceProps = {
   workspacePanelRef: React.RefObject<HTMLElement | null>;
+  workspaceZoom: number;
   selectedPage: MangaPage | null;
   selectedPageImageDataUrl: string;
   imageRef: ImageStageProps["imageRef"];
@@ -46,10 +48,16 @@ type AppWorkspaceProps = {
 export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
   const { workspacePanelRef } = props;
   useFonts();
+  const zoomStyle = useWorkspaceZoomStyle(
+    props.workspaceZoom,
+    props.selectedPage,
+    workspacePanelRef,
+  );
   return (
     <section
       ref={workspacePanelRef}
-      className="workspace"
+      className={`workspace ${zoomStyle.className}`.trim()}
+      style={zoomStyle.style}
       tabIndex={0}
       aria-label="읽기 영역"
       onMouseDown={() => workspacePanelRef.current?.focus()}

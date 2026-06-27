@@ -1,6 +1,10 @@
 import { useCallback, useState } from "react";
 import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
 import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
+import {
+  clampWorkspaceZoom,
+  WORKSPACE_ZOOM_STEP,
+} from "../../lib/workspaceZoom";
 
 export function useAppSessionUiState() {
   const [inpaintingMode, setInpaintingMode] = useState(false);
@@ -20,6 +24,23 @@ export function useAppSessionUiState() {
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
   const [translateOptionsOpen, setTranslateOptionsOpen] = useState(false);
   const [translationFlowActive, setTranslationFlowActive] = useState(false);
+  const [workspaceZoom, setWorkspaceZoom] = useState(1);
+
+  const zoomInWorkspace = useCallback(
+    () =>
+      setWorkspaceZoom((zoom) =>
+        clampWorkspaceZoom(zoom + WORKSPACE_ZOOM_STEP),
+      ),
+    [],
+  );
+  const zoomOutWorkspace = useCallback(
+    () =>
+      setWorkspaceZoom((zoom) =>
+        clampWorkspaceZoom(zoom - WORKSPACE_ZOOM_STEP),
+      ),
+    [],
+  );
+  const resetWorkspaceZoom = useCallback(() => setWorkspaceZoom(1), []);
 
   const resetChapterScopedUi = useCallback(() => {
     setInpaintingMode(false);
@@ -27,6 +48,7 @@ export function useAppSessionUiState() {
     setStyleGuideOpen(false);
     setTranslateOptionsOpen(false);
     setPatternMaskStrokesByPage({});
+    setWorkspaceZoom(1);
   }, []);
 
   return {
@@ -61,5 +83,9 @@ export function useAppSessionUiState() {
     textViewOpen,
     translateOptionsOpen,
     translationFlowActive,
+    workspaceZoom,
+    zoomInWorkspace,
+    zoomOutWorkspace,
+    resetWorkspaceZoom,
   };
 }

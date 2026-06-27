@@ -528,6 +528,34 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   outline: none;
 }
 
+/* Workspace zoom: the page image is sized explicitly so it (and its overlays)
+   scale together and can be scrolled. `safe center` keeps the content centered
+   while it fits but avoids clipping the scrollable edge once it overflows. */
+.workspace.is-zoomed {
+  place-items: safe center;
+}
+
+.workspace.is-zoomed .stage-wrap {
+  width: auto;
+  max-width: none;
+}
+
+.workspace.is-zoomed .workspace-pane {
+  width: auto;
+  max-width: none;
+}
+
+.workspace.is-zoomed .image-stage {
+  max-width: none;
+}
+
+.workspace.is-zoomed .page-image {
+  width: var(--page-display-w);
+  height: var(--page-display-h);
+  max-width: none;
+  max-height: none;
+}
+
 .toolbar {
   display: grid;
   grid-template-columns: 1fr 1fr;

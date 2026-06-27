@@ -331,5 +331,6 @@ function createWorkspaceProps({
     stageRef: core.stageRef,
     stageSize: derivedState.stageSize,
     workspacePanelRef: core.workspacePanelRef,
+    workspaceZoom: uiState.workspaceZoom,
   };
 }

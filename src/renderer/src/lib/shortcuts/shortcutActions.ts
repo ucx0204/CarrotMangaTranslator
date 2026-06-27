@@ -45,6 +45,9 @@ export type ShortcutActionId =
   | "toggle-block-chrome"
   | "toggle-text-blocks"
   | "toggle-peek-original"
+  | "zoom-in"
+  | "zoom-out"
+  | "zoom-reset"
   | "open-translate-options"
   | "translate-pending"
   | "translate-all"
@@ -111,6 +114,30 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "원본 미리보기 전환",
     category: "view",
     defaultCombo: "o",
+    enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "zoom-in",
+    label: "이미지 확대",
+    category: "view",
+    defaultCombo: "ctrl+=",
+    allowInEditable: true,
+    enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "zoom-out",
+    label: "이미지 축소",
+    category: "view",
+    defaultCombo: "ctrl+-",
+    allowInEditable: true,
+    enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "zoom-reset",
+    label: "확대 초기화",
+    category: "view",
+    defaultCombo: "ctrl+0",
+    allowInEditable: true,
     enabled: (c) => c.chapterOpen,
   },
   {

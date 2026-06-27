@@ -102,6 +102,13 @@ describe("shortcut binding resolution", () => {
     expect(bindings.get("ctrl+shift+z")).toBe("history-redo");
   });
 
+  it("binds workspace zoom to ctrl+= / ctrl+- / ctrl+0", () => {
+    const bindings = resolveBindings({});
+    expect(bindings.get("ctrl+=")).toBe("zoom-in");
+    expect(bindings.get("ctrl+-")).toBe("zoom-out");
+    expect(bindings.get("ctrl+0")).toBe("zoom-reset");
+  });
+
   it("displaces a conflicting action when assigning a combo", () => {
     const { next, displacedLabel } = assignBinding(
       {},
