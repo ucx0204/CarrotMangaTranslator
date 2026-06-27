@@ -12,6 +12,7 @@ import {
   resolveBlockTextLayout,
   type ViewportSize,
 } from "../lib/overlayLayout";
+import type { BlockTextLine } from "../lib/overlayTextWrapping";
 
 type OverlayBlockProps = {
   block: TranslationBlock;
@@ -21,6 +22,7 @@ type OverlayBlockProps = {
   multiSelected?: boolean;
   showChrome: boolean;
   showExcluded?: boolean;
+  textLayoutStageSize: ViewportSize | null;
   pointerDisabled?: boolean;
   onPointerDown: (event: React.PointerEvent) => void;
   onResizePointerDown: (event: React.PointerEvent) => void;
@@ -35,6 +37,7 @@ export function OverlayBlock({
   multiSelected = false,
   showChrome,
   showExcluded = false,
+  textLayoutStageSize,
   pointerDisabled = false,
   onPointerDown,
   onResizePointerDown,
@@ -46,6 +49,7 @@ export function OverlayBlock({
     displayText,
     pageSize,
     stageSize,
+    { textLayoutStageSize: textLayoutStageSize ?? undefined },
   );
   const renderDirection = normalizeRenderDirection(
     block.renderDirection,
@@ -118,19 +122,42 @@ function OverlayText({
         className="overlay-text-content"
         style={resolveOverlayTextContentStyle(block, layout, renderDirection)}
       >
-        {runs.map((run, index) => (
-          <span
-            key={index}
-            style={{
-              fontWeight: run.bold ? 800 : 400,
-              fontStyle: run.italic ? "italic" : "normal",
-            }}
-          >
-            {run.text}
-          </span>
-        ))}
+        {layout.lines
+          ? renderFixedHorizontalLines(layout.lines)
+          : runs.map((run, index) => renderTextRun(run, index))}
       </span>
     </div>
+  );
+}
+
+function renderFixedHorizontalLines(lines: BlockTextLine[]): React.ReactNode {
+  return lines.map((line, lineIndex) => (
+    <span
+      className="overlay-text-line"
+      key={lineIndex}
+      style={{ display: "block", whiteSpace: "pre" }}
+    >
+      {line.runs.length > 0
+        ? line.runs.map((run, runIndex) => renderTextRun(run, runIndex))
+        : "\u00a0"}
+    </span>
+  ));
+}
+
+function renderTextRun(
+  run: { text: string; bold: boolean; italic: boolean },
+  key: React.Key,
+): React.JSX.Element {
+  return (
+    <span
+      key={key}
+      style={{
+        fontWeight: run.bold ? 800 : 400,
+        fontStyle: run.italic ? "italic" : "normal",
+      }}
+    >
+      {run.text}
+    </span>
   );
 }
 
@@ -237,12 +264,23 @@ function resolveOverlayTextWrapStyle(
   layout: ReturnType<typeof resolveBlockTextLayout>,
 ): React.CSSProperties {
   return {
+    bottom: "auto",
     color: block.textColor,
     fontFamily: resolveBlockFontFamily(block.fontFamily),
     fontSize: `${layout.fontSizePx}px`,
+    height: `${layout.layoutHeight}px`,
+    left: 0,
     lineHeight: block.lineHeight,
     letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
+    right: "auto",
     textAlign: block.textAlign,
+    top: 0,
+    transform:
+      layout.textScaleX === 1 && layout.textScaleY === 1
+        ? undefined
+        : `scale(${layout.textScaleX}, ${layout.textScaleY})`,
+    transformOrigin: "top left",
+    width: `${layout.layoutWidth}px`,
   };
 }
 
@@ -260,12 +298,15 @@ function resolveOverlayTextContentStyle(
     width:
       renderDirection === "vertical"
         ? "max-content"
-        : `${layout.fitInnerWidth}px`,
+        : `${layout.textContentWidth}px`,
     height:
       renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
     maxWidth: "100%",
     maxHeight: "100%",
     overflow: "visible",
+    overflowWrap: layout.lines ? "normal" : undefined,
+    wordBreak: layout.lines ? "normal" : undefined,
+    whiteSpace: layout.lines ? "normal" : undefined,
     fontWeight: block.bold ? 800 : 400,
     fontStyle: block.italic ? "italic" : "normal",
     fontSynthesis: "weight style",

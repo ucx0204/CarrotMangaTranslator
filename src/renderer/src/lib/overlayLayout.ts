@@ -8,11 +8,12 @@ import {
   resolveEffectiveRenderBbox,
   resolveFontWidthScale,
 } from "../../../shared/geometry";
-import {
-  parseRichText,
-  type TextStyleRun,
-} from "../../../shared/richTextMarkup";
+import { parseRichText } from "../../../shared/richTextMarkup";
 import { resolveBlockFontFamily } from "./fonts";
+import {
+  measureStyledWrappedText,
+  type BlockTextLine,
+} from "./overlayTextWrapping";
 
 const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
 const MAX_AUTOFIT_FONT_SIZE_PX = 256;
@@ -36,12 +37,23 @@ export type PixelRect = {
 export type BlockTextLayout = {
   rect: PixelRect;
   paddingPx: number;
+  layoutWidth: number;
+  layoutHeight: number;
   innerWidth: number;
   innerHeight: number;
   fitInnerWidth: number;
   fitInnerHeight: number;
   fontSizePx: number;
+  textContentWidth: number;
+  lines: BlockTextLine[] | null;
+  textScaleX: number;
+  textScaleY: number;
   overflow: boolean;
+};
+
+type BlockTextLayoutOptions = {
+  textLayoutScale?: number;
+  textLayoutStageSize?: ViewportSize;
 };
 
 export function resolveBlockPaddingPx(rect: PixelRect): number {
@@ -54,18 +66,35 @@ export function resolveBlockTextLayout(
   text: string,
   pageSize: ViewportSize,
   stageSize: ViewportSize,
+  options: BlockTextLayoutOptions = {},
 ): BlockTextLayout {
-  const rect = resolveBlockRectPx(block, pageSize, stageSize, text);
-  const paddingPx = resolveBlockPaddingPx(rect);
+  const { plainText } = parseRichText(
+    text,
+    Boolean(block.bold),
+    Boolean(block.italic),
+  );
+  const rect = resolveBlockRectPx(block, pageSize, stageSize, plainText);
+  const layoutStageSize =
+    options.textLayoutStageSize ??
+    resolveTextLayoutStageSize(stageSize, options.textLayoutScale);
+  const layoutRect = resolveBlockRectPx(
+    block,
+    pageSize,
+    layoutStageSize,
+    plainText,
+  );
+  const paddingPx = resolveBlockPaddingPx(layoutRect);
   // The text layer is borderless and fills the block (inset: 0), so the usable
   // box is the full rect. The PNG exporter uses the same full-rect box model.
-  const innerWidth = Math.max(MIN_INNER_SIZE_PX, rect.width - paddingPx * 2);
-  const innerHeight = Math.max(MIN_INNER_SIZE_PX, rect.height - paddingPx * 2);
+  const layoutWidth = Math.max(MIN_INNER_SIZE_PX, layoutRect.width);
+  const layoutHeight = Math.max(MIN_INNER_SIZE_PX, layoutRect.height);
+  const innerWidth = Math.max(MIN_INNER_SIZE_PX, layoutWidth - paddingPx * 2);
+  const innerHeight = Math.max(MIN_INNER_SIZE_PX, layoutHeight - paddingPx * 2);
   const fitInnerWidth = innerWidth;
   const fitInnerHeight = innerHeight;
   const scale = Math.min(
-    stageSize.width / Math.max(1, pageSize.width),
-    stageSize.height / Math.max(1, pageSize.height),
+    layoutStageSize.width / Math.max(1, pageSize.width),
+    layoutStageSize.height / Math.max(1, pageSize.height),
   );
   const preferredFontSize = Math.max(
     MIN_FONT_SIZE_PX,
@@ -84,18 +113,89 @@ export function resolveBlockTextLayout(
     fitInnerWidth,
     fitInnerHeight,
   );
+  const textContentWidth = resolveHorizontalTextContentWidth(
+    block,
+    fitInnerWidth,
+  );
+  const lines = resolveFixedHorizontalTextLines(
+    block,
+    text,
+    fontSizePx,
+    textContentWidth,
+  );
 
   return {
     rect,
     paddingPx,
+    layoutWidth,
+    layoutHeight,
     innerWidth,
     innerHeight,
     fitInnerWidth,
     fitInnerHeight,
     fontSizePx,
+    textContentWidth,
+    lines,
+    textScaleX: rect.width / layoutWidth,
+    textScaleY: rect.height / layoutHeight,
     overflow: text.trim()
       ? !doesTextFit(block, text, fontSizePx, fitInnerWidth, fitInnerHeight)
       : false,
+  };
+}
+
+function resolveHorizontalTextContentWidth(
+  block: TranslationBlock,
+  innerWidth: number,
+): number {
+  if (
+    normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
+  ) {
+    return innerWidth;
+  }
+  return innerWidth / resolveFontWidthScale(block.fontWidthScale);
+}
+
+function resolveFixedHorizontalTextLines(
+  block: TranslationBlock,
+  text: string,
+  fontSize: number,
+  contentWidth: number,
+): BlockTextLine[] | null {
+  if (
+    !text.trim() ||
+    normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
+  ) {
+    return null;
+  }
+  const letterSpacingPx = resolveLetterSpacingPx(block, fontSize);
+  const { runs } = parseRichText(
+    text,
+    Boolean(block.bold),
+    Boolean(block.italic),
+  );
+  return measureStyledWrappedText(
+    getMeasureContext(),
+    runs,
+    contentWidth,
+    fontSize * block.lineHeight,
+    fontSize,
+    resolveBlockFontFamily(block.fontFamily),
+    letterSpacingPx,
+  ).lines;
+}
+
+function resolveTextLayoutStageSize(
+  stageSize: ViewportSize,
+  textLayoutScale: number | undefined,
+): ViewportSize {
+  const scale =
+    Number.isFinite(textLayoutScale) && Number(textLayoutScale) > 0
+      ? Number(textLayoutScale)
+      : 1;
+  return {
+    width: Math.max(MIN_INNER_SIZE_PX, stageSize.width / scale),
+    height: Math.max(MIN_INNER_SIZE_PX, stageSize.height / scale),
   };
 }
 
@@ -214,63 +314,6 @@ function resolveLetterSpacingPx(
   return em * fontSize;
 }
 
-// Wrap and measure styled runs grapheme-by-grapheme so each run is measured
-// with its own weight/style and inline markup never counts toward width. CSS
-// performs the actual wrapping at render time; this only drives auto-fit and
-// overflow detection.
-function measureStyledWrappedText(
-  context: CanvasRenderingContext2D,
-  runs: TextStyleRun[],
-  maxWidth: number,
-  lineHeightPx: number,
-  fontSize: number,
-  fontFamily: string,
-  letterSpacingPx: number,
-): { lineCount: number; totalHeight: number; maxLineWidth: number } {
-  let lineCount = 0;
-  let lineWidth = 0;
-  let maxLineWidth = 0;
-  let lineHasContent = false;
-
-  const breakLine = (): void => {
-    maxLineWidth = Math.max(maxLineWidth, lineWidth);
-    lineCount += 1;
-    lineWidth = 0;
-    lineHasContent = false;
-  };
-
-  for (const run of runs) {
-    context.font = buildFontForStyle(
-      fontSize,
-      fontFamily,
-      run.bold,
-      run.italic,
-    );
-    for (const char of [...run.text]) {
-      if (char === "\n") {
-        breakLine();
-        continue;
-      }
-      const charWidth = context.measureText(char).width;
-      const advance = charWidth + (lineHasContent ? letterSpacingPx : 0);
-      if (lineHasContent && lineWidth + advance > maxWidth) {
-        breakLine();
-        lineWidth = charWidth;
-      } else {
-        lineWidth += advance;
-      }
-      lineHasContent = true;
-    }
-  }
-  breakLine();
-
-  return {
-    lineCount,
-    totalHeight: lineCount * lineHeightPx,
-    maxLineWidth,
-  };
-}
-
 function resolveAutoFitUpperBound(
   block: TranslationBlock,
   preferredFontSize: number,
@@ -337,15 +380,4 @@ function getMeasureContext(): CanvasRenderingContext2D {
     throw new Error("Canvas context is not available");
   }
   return context;
-}
-
-function buildFontForStyle(
-  fontSize: number,
-  fontFamily: string,
-  bold: boolean,
-  italic: boolean,
-): string {
-  const style = italic ? "italic " : "";
-  const weight = bold ? 800 : 400;
-  return `${style}${weight} ${fontSize}px ${fontFamily}`;
 }

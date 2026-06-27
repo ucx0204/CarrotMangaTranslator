@@ -10,6 +10,7 @@ export type ImageStageProps = {
   imageRef: React.RefObject<HTMLImageElement | null>;
   stageRef: React.RefObject<HTMLDivElement | null>;
   stageSize: ViewportSize | null;
+  textLayoutStageSize: ViewportSize | null;
   selectedBlockId: string | null;
   selectedBlockIds?: string[];
   showTextBlocks: boolean;

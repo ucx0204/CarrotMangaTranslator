@@ -61,7 +61,9 @@ export function useAppSessionDerivedState({
   const {
     clearPageImageCache,
     selectedPageImageDataUrl,
+    selectedPageImageDataUrlPageId,
     selectedPageOriginalImageDataUrl,
+    selectedPageOriginalImageDataUrlPageId,
   } = usePageImageDataUrls({
     chapterId: currentChapter?.id ?? null,
     neighborTargets: pageState.neighborTargets,
@@ -74,7 +76,9 @@ export function useAppSessionDerivedState({
     peekOriginal,
     selectedPage: pageState.selectedPage,
     selectedPageImageDataUrl,
+    selectedPageImageDataUrlPageId,
     selectedPageOriginalImageDataUrl,
+    selectedPageOriginalImageDataUrlPageId,
   });
   const progressState = useProgressState(jobState);
 
@@ -172,14 +176,18 @@ function useWorkspaceImageState({
   peekOriginal,
   selectedPage,
   selectedPageImageDataUrl,
+  selectedPageImageDataUrlPageId,
   selectedPageOriginalImageDataUrl,
+  selectedPageOriginalImageDataUrlPageId,
 }: {
   imageRef: RefObject<HTMLImageElement | null>;
   inpaintingMode: boolean;
   peekOriginal: boolean;
   selectedPage: MangaPage | null;
   selectedPageImageDataUrl: string;
+  selectedPageImageDataUrlPageId: string | null;
   selectedPageOriginalImageDataUrl: string;
+  selectedPageOriginalImageDataUrlPageId: string | null;
 }) {
   const workspaceImage = useMemo(
     () =>
@@ -207,12 +215,16 @@ function useWorkspaceImageState({
     selectedPageSize,
     selectedPageImageDataUrl,
   );
+  const workspaceImagePageId = workspaceImage.showingOriginalPeek
+    ? selectedPageOriginalImageDataUrlPageId
+    : selectedPageImageDataUrlPageId;
 
   return {
     peekAvailable: workspaceImage.peekAvailable,
     showingOriginalPeek: workspaceImage.showingOriginalPeek,
     stageSize,
     workspaceImageDataUrl: workspaceImage.imageDataUrl,
+    workspaceImagePageId,
   };
 }
 

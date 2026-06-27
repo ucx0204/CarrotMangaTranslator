@@ -325,6 +325,7 @@ function createWorkspaceProps({
     selectedBlockIds: derivedState.selectedBlockIds,
     selectedPage: derivedState.selectedPage,
     selectedPageImageDataUrl: derivedState.workspaceImageDataUrl,
+    selectedPageImagePageId: derivedState.workspaceImagePageId,
     showBlockChrome: uiState.showBlockChrome,
     showTextBlocks: uiState.showTextBlocks,
     showingOriginalPeek: derivedState.showingOriginalPeek,

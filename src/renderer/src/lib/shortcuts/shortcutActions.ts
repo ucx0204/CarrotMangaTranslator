@@ -85,6 +85,8 @@ export type ShortcutActionDef = {
   category: ShortcutCategory;
   /** Built-in combo; "" means unbound by default. */
   defaultCombo: string;
+  /** Extra built-in combos accepted while the action has no user override. */
+  defaultAlternateCombos?: string[];
   /** When true, the action still fires while a text input is focused. */
   allowInEditable?: boolean;
   /** Contextual availability beyond the global guards. */
@@ -121,6 +123,7 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "이미지 확대",
     category: "view",
     defaultCombo: "ctrl+=",
+    defaultAlternateCombos: ["ctrl+numpadadd", "ctrl+add", "ctrl++"],
     allowInEditable: true,
     enabled: (c) => c.chapterOpen,
   },
@@ -278,8 +281,7 @@ export function resolveBindings(
 ): Map<string, ShortcutActionId> {
   const bindings = new Map<string, ShortcutActionId>();
   for (const action of SHORTCUT_ACTIONS) {
-    const combo = effectiveCombo(action.id, overrides);
-    if (combo) {
+    for (const combo of effectiveCombos(action, overrides)) {
       bindings.set(combo, action.id);
     }
   }
@@ -299,7 +301,10 @@ export function assignBinding(
   let displacedLabel: string | null = null;
   if (combo) {
     for (const action of SHORTCUT_ACTIONS) {
-      if (action.id !== actionId && effectiveCombo(action.id, next) === combo) {
+      if (
+        action.id !== actionId &&
+        effectiveCombos(action, next).includes(combo)
+      ) {
         next[action.id] = "";
         displacedLabel = action.label;
       }
@@ -317,4 +322,25 @@ export function resetBinding(
   const next: KeybindingOverrides = { ...overrides };
   delete next[actionId];
   return next;
+}
+
+function effectiveCombos(
+  action: ShortcutActionDef,
+  overrides: KeybindingOverrides,
+): string[] {
+  const override = overrides[action.id];
+  if (override !== undefined) {
+    if (!override) {
+      return [];
+    }
+    if (override === action.defaultCombo) {
+      return [override, ...(action.defaultAlternateCombos ?? [])].filter(
+        Boolean,
+      );
+    }
+    return [override];
+  }
+  return [action.defaultCombo, ...(action.defaultAlternateCombos ?? [])].filter(
+    Boolean,
+  );
 }

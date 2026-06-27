@@ -40,6 +40,7 @@ export function ImageStage({
   showTextBlocks,
   stageRef,
   stageSize,
+  textLayoutStageSize,
 }: ImageStageProps): React.JSX.Element {
   const clipId = React.useId();
   const retouchModel = resolveRetouchStageModel({
@@ -76,6 +77,7 @@ export function ImageStage({
       showTextBlocks={showTextBlocks}
       stageRef={stageRef}
       stageSize={stageSize}
+      textLayoutStageSize={textLayoutStageSize}
     />
   );
 }
@@ -105,6 +107,7 @@ function ImageStageFrame({
   showTextBlocks,
   stageRef,
   stageSize,
+  textLayoutStageSize,
 }: ImageStageProps & {
   clipId: string;
   retouchModel: RetouchStageModel;
@@ -145,6 +148,7 @@ function ImageStageFrame({
           showBlockChrome={showBlockChrome}
           showTextBlocks={showTextBlocks}
           stageSize={stageSize}
+          textLayoutStageSize={textLayoutStageSize}
         />
       </div>
     </div>
@@ -171,6 +175,7 @@ function ImageStageLayerSet({
   showBlockChrome,
   showTextBlocks,
   stageSize,
+  textLayoutStageSize,
 }: Omit<
   ImageStageProps,
   | "onStagePointerDown"
@@ -197,6 +202,7 @@ function ImageStageLayerSet({
         showBlockChrome={showBlockChrome}
         showTextBlocks={showTextBlocks}
         stageSize={stageSize}
+        textLayoutStageSize={textLayoutStageSize}
       />
       <CommittedMaskLayer
         imageDataUrl={imageDataUrl}

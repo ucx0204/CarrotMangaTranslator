@@ -10,6 +10,7 @@ import { parseRichText, type TextStyleRun } from "../shared/richTextMarkup";
 import type { TranslationBlock } from "../shared/textTypes";
 
 export type PageExportBlock = {
+  type: TranslationBlock["type"];
   text: string;
   runs: TextStyleRun[];
   rect: { left: number; top: number; width: number; height: number };
@@ -98,6 +99,7 @@ function buildPageExportBlock(
   const renderBbox = resolveEffectiveRenderBbox(block, pageSize, plainText);
   const rect = bboxToPixels(renderBbox, pageSize.width, pageSize.height);
   return {
+    type: block.type,
     text: plainText,
     runs,
     rect: {
@@ -118,7 +120,7 @@ function buildPageExportBlock(
       block.fontFamily,
       customFamilyById,
     ),
-    fontSizePx: Math.max(10, Math.round((block.fontSizePx || 20) * fontScale)),
+    fontSizePx: Math.max(10, Math.floor((block.fontSizePx || 20) * fontScale)),
     // Keep parity with the editor preview, which allows a 0.8–3 line-height
     // range. Clamping the floor to 1 here silently reset tight line spacing.
     lineHeight: clamp(Number(block.lineHeight ?? 1.18), 0.8, 3),

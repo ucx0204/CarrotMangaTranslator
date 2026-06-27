@@ -45,6 +45,7 @@ export function OverlayBlockLayer({
   showBlockChrome,
   showTextBlocks,
   stageSize,
+  textLayoutStageSize,
 }: Pick<
   ImageStageProps,
   | "blockPointerDisabled"
@@ -58,6 +59,7 @@ export function OverlayBlockLayer({
   | "showBlockChrome"
   | "showTextBlocks"
   | "stageSize"
+  | "textLayoutStageSize"
 >): React.JSX.Element | null {
   if (!imageDataUrl || !stageSize || !showTextBlocks) {
     return null;
@@ -76,6 +78,7 @@ export function OverlayBlockLayer({
           multiSelected={multiSelectedIds?.has(block.id) ?? false}
           showChrome={showBlockChrome}
           showExcluded={inpaintingMode ?? false}
+          textLayoutStageSize={textLayoutStageSize}
           pointerDisabled={blockPointerDisabled ?? false}
           onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
           onResizePointerDown={(event) =>

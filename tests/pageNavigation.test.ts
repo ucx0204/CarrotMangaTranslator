@@ -156,6 +156,53 @@ describe("page navigation helpers", () => {
     ).toBe("next");
   });
 
+  it("lets a scrollable workspace consume wheel movement before page navigation", () => {
+    const base = {
+      deltaX: 0,
+      hasPages: true,
+      modalOpen: false,
+      editableTarget: false,
+      verticalScroll: {
+        scrollTop: 100,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      },
+    };
+
+    expect(resolveWheelPageNavigation({ ...base, deltaY: 80 })).toBeNull();
+    expect(resolveWheelPageNavigation({ ...base, deltaY: -80 })).toBeNull();
+  });
+
+  it("moves pages only after wheel movement reaches the scroll boundary", () => {
+    const base = {
+      deltaX: 0,
+      hasPages: true,
+      modalOpen: false,
+      editableTarget: false,
+      verticalScroll: {
+        scrollTop: 0,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      },
+    };
+
+    expect(resolveWheelPageNavigation({ ...base, deltaY: -80 })).toBe(
+      "previous",
+    );
+    expect(resolveWheelPageNavigation({ ...base, deltaY: 80 })).toBeNull();
+    expect(
+      resolveWheelPageNavigation({
+        ...base,
+        deltaY: 80,
+        verticalScroll: {
+          scrollTop: 600,
+          scrollHeight: 1000,
+          clientHeight: 400,
+        },
+      }),
+    ).toBe("next");
+  });
+
   it("ignores tiny, horizontal, modal, editable, and empty wheel navigation", () => {
     const base = {
       hasPages: true,

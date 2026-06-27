@@ -14,6 +14,7 @@
 
 type ComboEventLike = {
   key: string;
+  code?: string;
   ctrlKey: boolean;
   metaKey: boolean;
   altKey: boolean;
@@ -32,7 +33,7 @@ const MODIFIER_KEYS = new Set([
 ]);
 
 export function comboFromEvent(event: ComboEventLike): string | null {
-  const { key } = event;
+  const key = normalizeKeyboardKey(event);
   if (!key || MODIFIER_KEYS.has(key)) {
     return null;
   }
@@ -63,6 +64,13 @@ export function comboFromEvent(event: ComboEventLike): string | null {
   return parts.join("+");
 }
 
+function normalizeKeyboardKey(event: ComboEventLike): string {
+  if (event.code === "NumpadAdd") {
+    return "NumpadAdd";
+  }
+  return event.key;
+}
+
 const NAMED_KEY_LABELS: Record<string, string> = {
   ctrl: "Ctrl",
   alt: "Alt",
@@ -75,6 +83,7 @@ const NAMED_KEY_LABELS: Record<string, string> = {
   backspace: "Backspace",
   enter: "Enter",
   escape: "Esc",
+  numpadadd: "+",
   tab: "Tab",
   " ": "Space",
 };

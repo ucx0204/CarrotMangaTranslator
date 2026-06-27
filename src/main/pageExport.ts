@@ -27,8 +27,8 @@ export async function renderPageWithTranslationBlocksForExport(
   const htmlPath = join(renderDir, `${page.id}-${randomUUID()}.html`);
   const htmlUrl = pathToFileURL(htmlPath).toString();
   const win = new BrowserWindow({
-    width: Math.min(1200, width),
-    height: Math.min(1000, height),
+    width,
+    height,
     show: false,
     useContentSize: true,
     backgroundColor: "#ffffff",
@@ -53,20 +53,13 @@ export async function renderPageWithTranslationBlocksForExport(
     await writeFile(htmlPath, html, "utf8");
     await win.loadFile(htmlPath);
     await waitForExportRenderReady(win);
-    const pngDataUrl = await win.webContents.executeJavaScript(
-      "window.__exportPngDataUrl",
-      true,
-    );
-    if (
-      typeof pngDataUrl !== "string" ||
-      !pngDataUrl.startsWith("data:image/png;base64,")
-    ) {
-      throw new Error(`출력 PNG 데이터를 만들지 못했습니다: ${page.name}`);
-    }
-    const png = Buffer.from(
-      pngDataUrl.slice("data:image/png;base64,".length),
-      "base64",
-    );
+    const captured = await win.webContents.capturePage({
+      x: 0,
+      y: 0,
+      width,
+      height,
+    });
+    const png = captured.toPNG();
     if (!png.length) {
       throw new Error(`출력 PNG를 만들지 못했습니다: ${page.name}`);
     }

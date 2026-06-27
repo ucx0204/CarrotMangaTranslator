@@ -307,6 +307,43 @@ describe("render layout padding", () => {
     expect(marked.overflow).toBe(plain.overflow);
   });
 
+  it("excludes inline markup markers from automatic render-box growth", () => {
+    installCanvasMeasureMock();
+
+    const base: TranslationBlock = {
+      id: "block-1",
+      type: "nonsolid",
+      bbox: { x: 100, y: 100, w: 4, h: 4 },
+      sourceText: "",
+      translatedText: "가나다",
+      confidence: 1,
+      sourceDirection: "vertical",
+      renderDirection: "horizontal",
+      fontSizePx: 12,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true,
+    };
+
+    const plain = resolveBlockTextLayout(
+      base,
+      "가나다",
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+    const marked = resolveBlockTextLayout(
+      { ...base, translatedText: "**가나다**" },
+      "**가나다**",
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(marked.rect).toEqual(plain.rect);
+  });
+
   it("places pixel-space blocks on the same scaled image plane", () => {
     const block: TranslationBlock = {
       id: "block-1",
@@ -339,7 +376,76 @@ describe("render layout padding", () => {
       height: 75,
     });
   });
+
+  it("keeps text layout stable against the original stage while workspace zoom changes", () => {
+    installCanvasMeasureMock();
+
+    const block: TranslationBlock = {
+      id: "block-1",
+      type: "nonsolid",
+      bbox: { x: 100, y: 120, w: 260, h: 180 },
+      sourceText: "source",
+      translatedText: "가나다라마바사아자차카타파하",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 24,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true,
+    };
+    const pageSize = { width: 1000, height: 1500 };
+    const fittedStage = { width: 500, height: 750 };
+
+    const normal = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      pageSize,
+      fittedStage,
+      { textLayoutStageSize: fittedStage },
+    );
+    const zoomedIn = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      pageSize,
+      { width: fittedStage.width * 2.5, height: fittedStage.height * 2.5 },
+      { textLayoutStageSize: fittedStage },
+    );
+    const zoomedOut = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      pageSize,
+      { width: fittedStage.width * 0.4, height: fittedStage.height * 0.4 },
+      { textLayoutStageSize: fittedStage },
+    );
+
+    expect(zoomedIn.fontSizePx).toBe(normal.fontSizePx);
+    expect(zoomedIn.fitInnerWidth).toBe(normal.fitInnerWidth);
+    expect(zoomedIn.fitInnerHeight).toBe(normal.fitInnerHeight);
+    expect(lineTexts(zoomedIn)).toEqual(lineTexts(normal));
+    expect(zoomedIn.textScaleX).toBeCloseTo(2.5);
+    expect(zoomedIn.textScaleY).toBeCloseTo(2.5);
+    expect(zoomedIn.rect.width).toBeCloseTo(normal.rect.width * 2.5);
+    expect(zoomedOut.fontSizePx).toBe(normal.fontSizePx);
+    expect(zoomedOut.fitInnerWidth).toBe(normal.fitInnerWidth);
+    expect(zoomedOut.fitInnerHeight).toBe(normal.fitInnerHeight);
+    expect(lineTexts(zoomedOut)).toEqual(lineTexts(normal));
+    expect(zoomedOut.textScaleX).toBeCloseTo(0.4);
+    expect(zoomedOut.textScaleY).toBeCloseTo(0.4);
+    expect(zoomedOut.rect.width).toBeCloseTo(normal.rect.width * 0.4);
+  });
 });
+
+function lineTexts(
+  layout: ReturnType<typeof resolveBlockTextLayout>,
+): string[] {
+  return (
+    layout.lines?.map((line) => line.runs.map((run) => run.text).join("")) ?? []
+  );
+}
 
 function installCanvasMeasureMock(): void {
   const context = {

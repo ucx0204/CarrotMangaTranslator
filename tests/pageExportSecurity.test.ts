@@ -29,11 +29,12 @@ class FakeExportWindow {
       this.listeners.set(event, listener);
     }),
     executeJavaScript: vi.fn(async (script: string) => {
-      if (script.trim() === "window.__exportPngDataUrl") {
-        return "data:image/png;base64,b3V0";
-      }
+      void script;
       return true;
     }),
+    capturePage: vi.fn(async () => ({
+      toPNG: () => Buffer.from("out"),
+    })),
   };
 
   constructor(options: ExportWindowOptions) {
@@ -99,9 +100,15 @@ describe("page export BrowserWindow security", () => {
     expect(latestWindow?.loadedHtml).not.toContain(
       "src/renderer/src/styles.css",
     );
+    expect(latestWindow?.webContents.capturePage).toHaveBeenCalledWith({
+      x: 0,
+      y: 0,
+      width: 16,
+      height: 16,
+    });
   });
 
-  it("preserves whitespace slots for vertical text in PNG export rendering", async () => {
+  it("renders export text through the same safe DOM overlay shape as the editor", async () => {
     const rootDir = await createTempRoot();
     const { renderPageWithTranslationBlocksForExport } =
       await loadPageExport(rootDir);
@@ -112,8 +119,10 @@ describe("page export BrowserWindow security", () => {
     });
 
     expect(latestWindow?.loadedHtml).not.toContain('replace(/\\s+/g, "")');
-    expect(latestWindow?.loadedHtml).toContain('? { ch: " ", bold: g.bold');
-    expect(latestWindow?.loadedHtml).toContain("if (!/\\s/u.test(g.ch))");
+    expect(latestWindow?.loadedHtml).not.toContain("<canvas");
+    expect(latestWindow?.loadedHtml).toContain("overlay-text-content");
+    expect(latestWindow?.loadedHtml).toContain("span.textContent");
+    expect(latestWindow?.loadedHtml).toContain('"renderDirection":"vertical"');
   });
 
   it("escapes user text with markup so it can never become live HTML", async () => {
@@ -149,7 +158,7 @@ describe("page export BrowserWindow security", () => {
     const html = latestWindow?.loadedHtml ?? "";
     // The raw closing tag from user text must never appear verbatim.
     expect(html).not.toContain("<script>alert(1)</script>");
-    // It is serialized into the canvas data block as escaped JSON instead.
+    // It is serialized into the data block as escaped JSON instead.
     expect(html).toContain("\\u003cscript\\u003ealert(1)\\u003c/script\\u003e");
     // Markup is parsed into safe style runs (the bold marker is stripped).
     expect(html).toContain('"text":"굵게","bold":true');

@@ -5,7 +5,7 @@ import type { CustomFont, MangaPage } from "../shared/types";
 import { getAppPaths } from "./appPaths";
 import { listCustomFonts, resolveCustomFontFilePath } from "./customFonts";
 import { buildPageExportBlocks } from "./pageExportBlocks";
-import { PAGE_EXPORT_RENDER_SCRIPT } from "./pageExportRenderScript";
+import { PAGE_EXPORT_DOM_SCRIPT } from "./pageExportDomScript";
 
 export function buildPageExportHtml(
   page: MangaPage,
@@ -27,7 +27,27 @@ export function buildPageExportHtml(
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: file:; font-src data: file:; style-src 'unsafe-inline' file:; script-src 'unsafe-inline';" />
 ${rendererCssHref ? `<link rel="stylesheet" href="${escapeHtml(rendererCssHref)}" />` : ""}
 <style>
-${customFontFaces}
+${buildPageExportInlineCss(customFontFaces, width, height)}
+</style>
+</head>
+<body>
+<div class="page-export-stage image-stage" id="stage"></div>
+<script>
+const EXPORT_BLOCKS = ${safeScriptJson(blocks)};
+const EXPORT_IMAGE_DATA_URL = ${safeScriptJson(imageDataUrl)};
+const EXPORT_PAGE_NAME = ${safeScriptJson(page.name)};
+${PAGE_EXPORT_DOM_SCRIPT}
+</script>
+</body>
+</html>`;
+}
+
+function buildPageExportInlineCss(
+  customFontFaces: string,
+  width: number,
+  height: number,
+): string {
+  return `${customFontFaces}
 html, body {
   margin: 0;
   width: ${width}px;
@@ -44,20 +64,44 @@ body {
   height: ${height}px;
   overflow: hidden;
   background: #fff;
+  line-height: 0;
 }
-</style>
-</head>
-<body>
-<div class="page-export-stage" id="stage">
-  <canvas id="exportCanvas" width="${width}" height="${height}" style="display:block;width:${width}px;height:${height}px"></canvas>
-</div>
-<script>
-const EXPORT_BLOCKS = ${safeScriptJson(blocks)};
-const EXPORT_IMAGE_DATA_URL = ${safeScriptJson(imageDataUrl)};
-${PAGE_EXPORT_RENDER_SCRIPT}
-</script>
-</body>
-</html>`;
+.page-export-stage .page-image {
+  display: block;
+  width: ${width}px;
+  height: ${height}px;
+  max-width: none;
+  max-height: none;
+  object-fit: fill;
+  box-shadow: none;
+}
+.page-export-stage .overlay-block {
+  position: absolute;
+  overflow: visible;
+  cursor: default;
+  pointer-events: none;
+}
+.page-export-stage .overlay-text {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  text-align: inherit;
+}
+.page-export-stage .overlay-text-content {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  white-space: pre-wrap;
+  text-align: inherit;
+  line-height: inherit;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}`;
 }
 
 function buildCustomFontFaces(fonts: CustomFont[]): string {

@@ -13,6 +13,7 @@ import {
 function event(
   overrides: Partial<{
     key: string;
+    code: string;
     ctrlKey: boolean;
     metaKey: boolean;
     altKey: boolean;
@@ -58,6 +59,12 @@ describe("comboFromEvent", () => {
     expect(comboFromEvent(event({ key: "ArrowLeft" }))).toBe("arrowleft");
   });
 
+  it("keeps numpad plus distinct so it can be bound as a shortcut alias", () => {
+    expect(
+      comboFromEvent(event({ key: "+", code: "NumpadAdd", ctrlKey: true })),
+    ).toBe("ctrl+numpadadd");
+  });
+
   it("ignores pure modifier presses", () => {
     expect(comboFromEvent(event({ key: "Shift", shiftKey: true }))).toBeNull();
     expect(comboFromEvent(event({ key: "Control", ctrlKey: true }))).toBeNull();
@@ -69,6 +76,7 @@ describe("formatCombo", () => {
     expect(formatCombo("ctrl+shift+t")).toEqual(["Ctrl", "Shift", "T"]);
     expect(formatCombo("?")).toEqual(["?"]);
     expect(formatCombo("ctrl+,")).toEqual(["Ctrl", ","]);
+    expect(formatCombo("ctrl+numpadadd")).toEqual(["Ctrl", "+"]);
     expect(formatCombo("delete")).toEqual(["Del"]);
     expect(formatCombo("")).toEqual([]);
   });
@@ -105,8 +113,27 @@ describe("shortcut binding resolution", () => {
   it("binds workspace zoom to ctrl+= / ctrl+- / ctrl+0", () => {
     const bindings = resolveBindings({});
     expect(bindings.get("ctrl+=")).toBe("zoom-in");
+    expect(bindings.get("ctrl+numpadadd")).toBe("zoom-in");
     expect(bindings.get("ctrl+-")).toBe("zoom-out");
     expect(bindings.get("ctrl+0")).toBe("zoom-reset");
+  });
+
+  it("keeps zoom-in numpad plus when the saved override matches its default", () => {
+    const bindings = resolveBindings({ "zoom-in": "ctrl+=" });
+    expect(bindings.get("ctrl+=")).toBe("zoom-in");
+    expect(bindings.get("ctrl+numpadadd")).toBe("zoom-in");
+  });
+
+  it("displaces zoom-in when assigning its numpad plus alias elsewhere", () => {
+    const { next, displacedLabel } = assignBinding(
+      {},
+      "toggle-text-blocks",
+      "ctrl+numpadadd",
+    );
+
+    expect(next["toggle-text-blocks"]).toBe("ctrl+numpadadd");
+    expect(next["zoom-in"]).toBe("");
+    expect(displacedLabel).toBe("이미지 확대");
   });
 
   it("displaces a conflicting action when assigning a combo", () => {

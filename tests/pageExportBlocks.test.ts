@@ -67,4 +67,15 @@ describe("buildPageExportBlocks lineHeight parity", () => {
     expect(tooSmall.lineHeight).toBe(0.8);
     expect(tooLarge.lineHeight).toBe(3);
   });
+
+  it("scales font size with the same floor rule as the editor layout", () => {
+    const [exported] = buildPageExportBlocks(
+      makePage(makeBlock({ fontSizePx: 25, autoFitText: false })),
+      500,
+      500,
+      new Map(),
+    );
+
+    expect(exported.fontSizePx).toBe(12);
+  });
 });

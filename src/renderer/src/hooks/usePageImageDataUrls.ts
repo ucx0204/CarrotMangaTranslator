@@ -14,11 +14,16 @@ type UsePageImageDataUrlsOptions = {
 
 type UsePageImageDataUrlsResult = {
   selectedPageImageDataUrl: string;
+  selectedPageImageDataUrlPageId: string | null;
   selectedPageOriginalImageDataUrl: string;
+  selectedPageOriginalImageDataUrlPageId: string | null;
   clearPageImageCache: () => void;
 };
 
 type ImageDataUrlSetter = React.Dispatch<React.SetStateAction<string>>;
+type PageImagePageIdSetter = React.Dispatch<
+  React.SetStateAction<string | null>
+>;
 
 export function usePageImageDataUrls({
   chapterId,
@@ -32,6 +37,12 @@ export function usePageImageDataUrls({
     selectedPageOriginalImageDataUrl,
     setSelectedPageOriginalImageDataUrl,
   ] = React.useState("");
+  const [selectedPageImageDataUrlPageId, setSelectedPageImageDataUrlPageId] =
+    React.useState<string | null>(null);
+  const [
+    selectedPageOriginalImageDataUrlPageId,
+    setSelectedPageOriginalImageDataUrlPageId,
+  ] = React.useState<string | null>(null);
   const [cacheRevision, setCacheRevision] = React.useState(0);
   const pageImageCacheRef = React.useRef<Map<string, string>>(new Map());
   const selectedPageId = selectedPage?.id ?? null;
@@ -42,7 +53,9 @@ export function usePageImageDataUrls({
     pageImageCacheRef,
     setCacheRevision,
     setSelectedPageImageDataUrl,
+    setSelectedPageImageDataUrlPageId,
     setSelectedPageOriginalImageDataUrl,
+    setSelectedPageOriginalImageDataUrlPageId,
   });
   useSelectedPageImageEffect({
     cacheRevision,
@@ -51,22 +64,28 @@ export function usePageImageDataUrls({
     selectedPageImagePath,
     selectedPageOriginalImagePath,
     setSelectedPageImageDataUrl,
+    setSelectedPageImageDataUrlPageId,
     setSelectedPageOriginalImageDataUrl,
+    setSelectedPageOriginalImageDataUrlPageId,
   });
   useOriginalPageImageEffect({
     cacheRevision,
     pageImageCacheRef,
     selectedPageId,
     selectedPageImageDataUrl,
+    selectedPageImageDataUrlPageId,
     selectedPageImagePath,
     selectedPageOriginalImagePath,
     setSelectedPageOriginalImageDataUrl,
+    setSelectedPageOriginalImageDataUrlPageId,
   });
   useNeighborPagePrefetch(neighborTargets, pageImageCacheRef);
 
   return {
     selectedPageImageDataUrl,
+    selectedPageImageDataUrlPageId,
     selectedPageOriginalImageDataUrl,
+    selectedPageOriginalImageDataUrlPageId,
     clearPageImageCache,
   };
 }
@@ -76,24 +95,32 @@ function useClearPageImageCache({
   pageImageCacheRef,
   setCacheRevision,
   setSelectedPageImageDataUrl,
+  setSelectedPageImageDataUrlPageId,
   setSelectedPageOriginalImageDataUrl,
+  setSelectedPageOriginalImageDataUrlPageId,
 }: {
   chapterId: string | null;
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
   setCacheRevision: React.Dispatch<React.SetStateAction<number>>;
   setSelectedPageImageDataUrl: ImageDataUrlSetter;
+  setSelectedPageImageDataUrlPageId: PageImagePageIdSetter;
   setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
+  setSelectedPageOriginalImageDataUrlPageId: PageImagePageIdSetter;
 }): () => void {
   const clearPageImageCache = React.useCallback(() => {
     pageImageCacheRef.current.clear();
     setSelectedPageImageDataUrl("");
+    setSelectedPageImageDataUrlPageId(null);
     setSelectedPageOriginalImageDataUrl("");
+    setSelectedPageOriginalImageDataUrlPageId(null);
     setCacheRevision((revision) => revision + 1);
   }, [
     pageImageCacheRef,
     setCacheRevision,
     setSelectedPageImageDataUrl,
+    setSelectedPageImageDataUrlPageId,
     setSelectedPageOriginalImageDataUrl,
+    setSelectedPageOriginalImageDataUrlPageId,
   ]);
 
   React.useEffect(() => {
@@ -110,7 +137,9 @@ function useSelectedPageImageEffect({
   selectedPageImagePath,
   selectedPageOriginalImagePath,
   setSelectedPageImageDataUrl,
+  setSelectedPageImageDataUrlPageId,
   setSelectedPageOriginalImageDataUrl,
+  setSelectedPageOriginalImageDataUrlPageId,
 }: {
   cacheRevision: number;
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
@@ -118,20 +147,26 @@ function useSelectedPageImageEffect({
   selectedPageImagePath: string | null;
   selectedPageOriginalImagePath: string | null;
   setSelectedPageImageDataUrl: ImageDataUrlSetter;
+  setSelectedPageImageDataUrlPageId: PageImagePageIdSetter;
   setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
+  setSelectedPageOriginalImageDataUrlPageId: PageImagePageIdSetter;
 }): void {
   React.useEffect(() => {
     if (!selectedPageId || !selectedPageOriginalImagePath) {
       setSelectedPageImageDataUrl("");
+      setSelectedPageImageDataUrlPageId(null);
       setSelectedPageOriginalImageDataUrl("");
+      setSelectedPageOriginalImageDataUrlPageId(null);
       return;
     }
 
     const imagePath = selectedPageImagePath ?? selectedPageOriginalImagePath;
+    setSelectedPageImageDataUrlPageId(null);
     const cacheKey = `${selectedPageId}:${imagePath}`;
     const cached = pageImageCacheRef.current.get(cacheKey);
     if (cached) {
       setSelectedPageImageDataUrl(cached);
+      setSelectedPageImageDataUrlPageId(selectedPageId);
       return;
     }
 
@@ -144,11 +179,13 @@ function useSelectedPageImageEffect({
         }
         setCachedImageDataUrl(pageImageCacheRef.current, cacheKey, dataUrl);
         setSelectedPageImageDataUrl(dataUrl);
+        setSelectedPageImageDataUrlPageId(selectedPageId);
       })
       .catch((error) => {
         if (!cancelled) {
           console.error(error);
           setSelectedPageImageDataUrl("");
+          setSelectedPageImageDataUrlPageId(null);
         }
       });
 
@@ -162,7 +199,9 @@ function useSelectedPageImageEffect({
     selectedPageImagePath,
     selectedPageOriginalImagePath,
     setSelectedPageImageDataUrl,
+    setSelectedPageImageDataUrlPageId,
     setSelectedPageOriginalImageDataUrl,
+    setSelectedPageOriginalImageDataUrlPageId,
   ]);
 }
 
@@ -171,35 +210,44 @@ function useOriginalPageImageEffect({
   pageImageCacheRef,
   selectedPageId,
   selectedPageImageDataUrl,
+  selectedPageImageDataUrlPageId,
   selectedPageImagePath,
   selectedPageOriginalImagePath,
   setSelectedPageOriginalImageDataUrl,
+  setSelectedPageOriginalImageDataUrlPageId,
 }: {
   cacheRevision: number;
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
   selectedPageId: string | null;
   selectedPageImageDataUrl: string;
+  selectedPageImageDataUrlPageId: string | null;
   selectedPageImagePath: string | null;
   selectedPageOriginalImagePath: string | null;
   setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
+  setSelectedPageOriginalImageDataUrlPageId: PageImagePageIdSetter;
 }): void {
   React.useEffect(() => {
     if (!selectedPageId || !selectedPageOriginalImagePath) {
       setSelectedPageOriginalImageDataUrl("");
+      setSelectedPageOriginalImageDataUrlPageId(null);
       return;
     }
     if (
       selectedPageImagePath === selectedPageOriginalImagePath &&
-      selectedPageImageDataUrl
+      selectedPageImageDataUrl &&
+      selectedPageImageDataUrlPageId === selectedPageId
     ) {
       setSelectedPageOriginalImageDataUrl(selectedPageImageDataUrl);
+      setSelectedPageOriginalImageDataUrlPageId(selectedPageId);
       return;
     }
 
+    setSelectedPageOriginalImageDataUrlPageId(null);
     const cacheKey = `${selectedPageId}:original:${selectedPageOriginalImagePath}`;
     const cached = pageImageCacheRef.current.get(cacheKey);
     if (cached) {
       setSelectedPageOriginalImageDataUrl(cached);
+      setSelectedPageOriginalImageDataUrlPageId(selectedPageId);
       return;
     }
 
@@ -213,11 +261,13 @@ function useOriginalPageImageEffect({
         }
         setCachedImageDataUrl(pageImageCacheRef.current, cacheKey, dataUrl);
         setSelectedPageOriginalImageDataUrl(dataUrl);
+        setSelectedPageOriginalImageDataUrlPageId(selectedPageId);
       })
       .catch((error) => {
         if (!cancelled) {
           console.error(error);
           setSelectedPageOriginalImageDataUrl("");
+          setSelectedPageOriginalImageDataUrlPageId(null);
         }
       });
 
@@ -229,9 +279,11 @@ function useOriginalPageImageEffect({
     pageImageCacheRef,
     selectedPageId,
     selectedPageImageDataUrl,
+    selectedPageImageDataUrlPageId,
     selectedPageImagePath,
     selectedPageOriginalImagePath,
     setSelectedPageOriginalImageDataUrl,
+    setSelectedPageOriginalImageDataUrlPageId,
   ]);
 }
 

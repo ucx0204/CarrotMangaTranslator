@@ -144,6 +144,9 @@ function useWorkspaceWheelHandler(
         hasPages: pageIds.length > 0,
         modalOpen,
         editableTarget: isEditableTarget(event.target),
+        verticalScroll: resolveWorkspaceVerticalScrollState(
+          workspacePanelRef.current,
+        ),
       });
       if (!direction) {
         return;
@@ -167,6 +170,21 @@ function useWorkspaceWheelHandler(
       workspacePanelRef,
     ],
   );
+}
+
+function resolveWorkspaceVerticalScrollState(panel: HTMLElement | null): {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+} | null {
+  if (!panel) {
+    return null;
+  }
+  return {
+    scrollTop: panel.scrollTop,
+    scrollHeight: panel.scrollHeight,
+    clientHeight: panel.clientHeight,
+  };
 }
 
 function useWorkspaceWheelEffect(

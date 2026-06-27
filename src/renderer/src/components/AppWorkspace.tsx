@@ -13,6 +13,7 @@ type AppWorkspaceProps = {
   workspaceZoom: number;
   selectedPage: MangaPage | null;
   selectedPageImageDataUrl: string;
+  selectedPageImagePageId: string | null;
   imageRef: ImageStageProps["imageRef"];
   stageRef: ImageStageProps["stageRef"];
   stageSize: ImageStageProps["stageSize"];
@@ -53,6 +54,16 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
     props.selectedPage,
     workspacePanelRef,
   );
+  const textLayoutStageSize = useStableTextLayoutStageSize({
+    pageId: props.selectedPage?.id ?? null,
+    stageSize: props.stageSize,
+    workspaceZoom: props.workspaceZoom,
+  });
+  useResetWorkspaceScrollOnRenderedPage({
+    pageId: props.selectedPage?.id ?? null,
+    renderedImagePageId: props.selectedPageImagePageId,
+    workspacePanelRef,
+  });
   return (
     <section
       ref={workspacePanelRef}
@@ -88,6 +99,7 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
           showTextBlocks={props.showTextBlocks}
           stageRef={props.stageRef}
           stageSize={props.stageSize}
+          textLayoutStageSize={textLayoutStageSize}
         />
       ) : (
         <EmptyWorkspace
@@ -103,6 +115,72 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
       />
     </section>
   );
+}
+
+function useStableTextLayoutStageSize({
+  pageId,
+  stageSize,
+  workspaceZoom,
+}: {
+  pageId: string | null;
+  stageSize: ImageStageProps["stageSize"];
+  workspaceZoom: number;
+}): ImageStageProps["stageSize"] {
+  const [baseStageSizeByPage, setBaseStageSizeByPage] = React.useState<
+    Record<string, NonNullable<ImageStageProps["stageSize"]>>
+  >({});
+
+  React.useLayoutEffect(() => {
+    if (!pageId || !stageSize || workspaceZoom !== 1) {
+      return;
+    }
+    setBaseStageSizeByPage((current) => {
+      const previous = current[pageId];
+      if (
+        previous &&
+        Math.abs(previous.width - stageSize.width) < 0.5 &&
+        Math.abs(previous.height - stageSize.height) < 0.5
+      ) {
+        return current;
+      }
+      return { ...current, [pageId]: stageSize };
+    });
+  }, [pageId, stageSize, workspaceZoom]);
+
+  if (!pageId) {
+    return stageSize;
+  }
+  return baseStageSizeByPage[pageId] ?? stageSize;
+}
+
+function useResetWorkspaceScrollOnRenderedPage({
+  pageId,
+  renderedImagePageId,
+  workspacePanelRef,
+}: {
+  pageId: string | null;
+  renderedImagePageId: string | null;
+  workspacePanelRef: React.RefObject<HTMLElement | null>;
+}): void {
+  const lastResetPageIdRef = React.useRef<string | null>(null);
+
+  React.useLayoutEffect(() => {
+    if (!pageId) {
+      lastResetPageIdRef.current = null;
+      return;
+    }
+    if (renderedImagePageId !== pageId) {
+      return;
+    }
+    if (lastResetPageIdRef.current === pageId) {
+      return;
+    }
+    const panel = workspacePanelRef.current;
+    if (panel) {
+      panel.scrollTop = 0;
+    }
+    lastResetPageIdRef.current = pageId;
+  }, [pageId, renderedImagePageId, workspacePanelRef]);
 }
 
 function WorkspacePane({
