@@ -7,15 +7,26 @@ import type { MangaPage } from "../src/shared/types";
 
 type Listener = (...args: unknown[]) => void;
 type ExportWindowOptions = {
+  width?: number;
+  height?: number;
   webPreferences?: Record<string, unknown>;
+};
+type DevToolsScreenshotResponse = {
+  data?: string;
 };
 
 const tempDirs: string[] = [];
+const devToolsOutput = Buffer.from("out").toString("base64");
 let latestWindow: FakeExportWindow | null = null;
+let sourceImageSize = { width: 16, height: 16 };
+let devToolsScreenshotResult: DevToolsScreenshotResponse | Error = {
+  data: devToolsOutput,
+};
 
 class FakeExportWindow {
   options: ExportWindowOptions;
   loadedHtml = "";
+  debuggerAttached = false;
   listeners = new Map<string, Listener>();
   windowOpenHandler: (() => { action: "deny" | "allow" }) | null = null;
   destroy = vi.fn();
@@ -33,8 +44,26 @@ class FakeExportWindow {
       return true;
     }),
     capturePage: vi.fn(async () => ({
-      toPNG: () => Buffer.from("out"),
+      toPNG: () => Buffer.from("fallback"),
     })),
+    debugger: {
+      isAttached: vi.fn(() => this.debuggerAttached),
+      attach: vi.fn(() => {
+        this.debuggerAttached = true;
+      }),
+      sendCommand: vi.fn(async (method: string) => {
+        if (method !== "Page.captureScreenshot") {
+          return {};
+        }
+        if (devToolsScreenshotResult instanceof Error) {
+          throw devToolsScreenshotResult;
+        }
+        return devToolsScreenshotResult;
+      }),
+      detach: vi.fn(() => {
+        this.debuggerAttached = false;
+      }),
+    },
   };
 
   constructor(options: ExportWindowOptions) {
@@ -52,6 +81,8 @@ describe("page export BrowserWindow security", () => {
     vi.resetModules();
     vi.clearAllMocks();
     latestWindow = null;
+    sourceImageSize = { width: 16, height: 16 };
+    devToolsScreenshotResult = { data: devToolsOutput };
     while (tempDirs.length > 0) {
       const dir = tempDirs.pop();
       if (dir) {
@@ -100,6 +131,71 @@ describe("page export BrowserWindow security", () => {
     expect(latestWindow?.loadedHtml).not.toContain(
       "src/renderer/src/styles.css",
     );
+    expect(latestWindow?.webContents.capturePage).not.toHaveBeenCalled();
+    expect(latestWindow?.webContents.debugger.sendCommand).toHaveBeenCalledWith(
+      "Page.captureScreenshot",
+      {
+        format: "png",
+        fromSurface: true,
+        captureBeyondViewport: true,
+        clip: {
+          x: 0,
+          y: 0,
+          width: 16,
+          height: 16,
+          scale: 1,
+        },
+      },
+    );
+  });
+
+  it("keeps the hidden export window bounded but captures the full page clip", async () => {
+    sourceImageSize = { width: 5000, height: 12000 };
+    const rootDir = await createTempRoot();
+    const { renderPageWithTranslationBlocksForExport } =
+      await loadPageExport(rootDir);
+
+    const png = await renderPageWithTranslationBlocksForExport(
+      makePage(rootDir),
+      {
+        dataRoot: rootDir,
+        decodeFallback: async () => null,
+      },
+    );
+
+    expect(png.toString()).toBe("out");
+    expect(latestWindow?.options.width).toBe(4096);
+    expect(latestWindow?.options.height).toBe(4096);
+    expect(latestWindow?.webContents.debugger.sendCommand).toHaveBeenCalledWith(
+      "Page.captureScreenshot",
+      expect.objectContaining({
+        captureBeyondViewport: true,
+        clip: {
+          x: 0,
+          y: 0,
+          width: 5000,
+          height: 12000,
+          scale: 1,
+        },
+      }),
+    );
+  });
+
+  it("falls back to capturePage if DevTools capture is unavailable", async () => {
+    devToolsScreenshotResult = new Error("capture failed");
+    const rootDir = await createTempRoot();
+    const { renderPageWithTranslationBlocksForExport } =
+      await loadPageExport(rootDir);
+
+    const png = await renderPageWithTranslationBlocksForExport(
+      makePage(rootDir),
+      {
+        dataRoot: rootDir,
+        decodeFallback: async () => null,
+      },
+    );
+
+    expect(png.toString()).toBe("fallback");
     expect(latestWindow?.webContents.capturePage).toHaveBeenCalledWith({
       x: 0,
       y: 0,
@@ -181,7 +277,7 @@ async function loadPageExport(
     nativeImage: {
       createFromPath: () => ({
         isEmpty: () => false,
-        getSize: () => ({ width: 16, height: 16 }),
+        getSize: () => sourceImageSize,
         toPNG: () => Buffer.from("source"),
       }),
     },

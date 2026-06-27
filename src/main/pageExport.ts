@@ -8,6 +8,12 @@ import { buildPageExportHtml } from "./pageExportHtml";
 import type { ImageDecodeFallback } from "./regionCrop";
 import { safeCleanup } from "./safeCleanup";
 
+const MAX_EXPORT_VIEWPORT_SIDE_PX = 4096;
+
+type DevToolsScreenshotResult = {
+  data?: unknown;
+};
+
 export async function renderPageWithTranslationBlocksForExport(
   page: MangaPage,
   options: {
@@ -26,9 +32,10 @@ export async function renderPageWithTranslationBlocksForExport(
   await mkdir(renderDir, { recursive: true });
   const htmlPath = join(renderDir, `${page.id}-${randomUUID()}.html`);
   const htmlUrl = pathToFileURL(htmlPath).toString();
+  const viewport = resolveExportViewportSize(width, height);
   const win = new BrowserWindow({
-    width,
-    height,
+    width: viewport.width,
+    height: viewport.height,
     show: false,
     useContentSize: true,
     backgroundColor: "#ffffff",
@@ -53,13 +60,7 @@ export async function renderPageWithTranslationBlocksForExport(
     await writeFile(htmlPath, html, "utf8");
     await win.loadFile(htmlPath);
     await waitForExportRenderReady(win);
-    const captured = await win.webContents.capturePage({
-      x: 0,
-      y: 0,
-      width,
-      height,
-    });
-    const png = captured.toPNG();
+    const png = await captureExportPagePng(win, width, height);
     if (!png.length) {
       throw new Error(`출력 PNG를 만들지 못했습니다: ${page.name}`);
     }
@@ -68,6 +69,16 @@ export async function renderPageWithTranslationBlocksForExport(
     win.destroy();
     await safeCleanup("page-export-html", () => rm(htmlPath, { force: true }));
   }
+}
+
+function resolveExportViewportSize(
+  width: number,
+  height: number,
+): { width: number; height: number } {
+  return {
+    width: Math.min(width, MAX_EXPORT_VIEWPORT_SIDE_PX),
+    height: Math.min(height, MAX_EXPORT_VIEWPORT_SIDE_PX),
+  };
 }
 
 export function sanitizeOutputBaseName(value: string): string {
@@ -94,6 +105,71 @@ async function loadImageForPngExport(
   }
 
   throw new Error(`출력할 이미지를 읽지 못했습니다: ${imagePath}`);
+}
+
+async function captureExportPagePng(
+  win: BrowserWindow,
+  width: number,
+  height: number,
+): Promise<Buffer> {
+  const devToolsPng = await captureExportPagePngWithDevTools(
+    win,
+    width,
+    height,
+  );
+  if (devToolsPng) {
+    return devToolsPng;
+  }
+
+  const captured = await win.webContents.capturePage({
+    x: 0,
+    y: 0,
+    width,
+    height,
+  });
+  return captured.toPNG();
+}
+
+async function captureExportPagePngWithDevTools(
+  win: BrowserWindow,
+  width: number,
+  height: number,
+): Promise<Buffer | null> {
+  const debuggerApi = win.webContents.debugger;
+  let attachedByExport = false;
+
+  try {
+    if (!debuggerApi.isAttached()) {
+      debuggerApi.attach("1.3");
+      attachedByExport = true;
+    }
+
+    await debuggerApi.sendCommand("Page.enable");
+    const result = (await debuggerApi.sendCommand("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+      captureBeyondViewport: true,
+      clip: {
+        x: 0,
+        y: 0,
+        width,
+        height,
+        scale: 1,
+      },
+    })) as DevToolsScreenshotResult;
+
+    if (typeof result.data !== "string" || result.data.length === 0) {
+      return null;
+    }
+
+    return Buffer.from(result.data, "base64");
+  } catch (_error) {
+    return null;
+  } finally {
+    if (attachedByExport && debuggerApi.isAttached()) {
+      await safeCleanup("page-export-debugger", () => debuggerApi.detach());
+    }
+  }
 }
 
 async function waitForExportRenderReady(win: BrowserWindow): Promise<void> {
