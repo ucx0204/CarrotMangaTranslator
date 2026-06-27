@@ -76,6 +76,16 @@ module.exports = {
   directories: {
     output: "dist",
   },
+  // Generates update metadata (latest.yml + .blockmap) alongside the installer
+  // and points update checks at the GitHub Releases for this repo. Publishing
+  // itself is still driven by the release workflow, not by `electron-builder`.
+  publish: [
+    {
+      provider: "github",
+      owner: "ucx0204",
+      repo: "CarrotMangaTranslator",
+    },
+  ],
   files: [
     "**/*",
     "!src{,/**/*}",

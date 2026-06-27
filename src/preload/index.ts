@@ -171,6 +171,8 @@ const api = {
     invokeContract(settingsIpcContracts.pickLocalMmprojFile),
   openAmdHipSdkDownload: () =>
     invokeContract(externalIpcContracts.openAmdHipSdkDownload),
+  getAppUpdateInfo: () => invokeContract(externalIpcContracts.getAppUpdateInfo),
+  openReleasesPage: () => invokeContract(externalIpcContracts.openReleasesPage),
   testModelSettings: (
     settings: AppSettings,
     testId?: string,

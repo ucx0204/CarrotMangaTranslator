@@ -13,6 +13,10 @@ describe("Windows installer clean uninstall option", () => {
 
     expect(config).toContain('include: "build/installer.nsh"');
     expect(config).toContain("MGT_THIN_INSTALLER");
+    // Update metadata: publish target drives latest.yml/blockmap generation.
+    expect(config).toContain('provider: "github"');
+    expect(config).toContain('owner: "ucx0204"');
+    expect(config).toContain('repo: "CarrotMangaTranslator"');
     expect(config).toContain('from: "tools/ffmpeg"');
     expect(config).toContain('to: "tools/ffmpeg"');
     expect(config).toContain("!dist{,/**/*}");

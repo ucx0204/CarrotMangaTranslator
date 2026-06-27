@@ -101,6 +101,11 @@ export type MangaApi = {
   pickLocalModelFile: () => Promise<LocalModelPickResult | null>;
   pickLocalMmprojFile: () => Promise<string | null>;
   openAmdHipSdkDownload: () => Promise<unknown>;
+  getAppUpdateInfo: () => Promise<{
+    currentVersion: string;
+    releasesUrl: string;
+  }>;
+  openReleasesPage: () => Promise<unknown>;
   testModelSettings: (
     settings: AppSettings,
     testId?: string,

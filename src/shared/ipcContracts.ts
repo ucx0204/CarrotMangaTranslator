@@ -150,6 +150,13 @@ const openedUrlResultSchema = z
   })
   .strict();
 
+const appUpdateInfoResultSchema = z
+  .object({
+    currentVersion: z.string().min(1).max(64),
+    releasesUrl: z.string().min(1).max(2000),
+  })
+  .strict();
+
 const openLogFolderResultSchema = z
   .object({
     opened: z.boolean(),
@@ -165,6 +172,7 @@ const disposeInpaintingResultSchema = z
 
 type OpenLibraryFolderResult = z.output<typeof openLibraryFolderResultSchema>;
 type OpenExternalResult = z.output<typeof openedUrlResultSchema>;
+type AppUpdateInfoResult = z.output<typeof appUpdateInfoResultSchema>;
 type OpenLogFolderResult = z.output<typeof openLogFolderResultSchema>;
 type WriteLogResult = z.output<typeof loggedResultSchema>;
 type CancelJobResult = z.output<typeof cancelJobResultSchema>;
@@ -657,6 +665,18 @@ export const externalIpcContracts = {
   openAmdHipSdkDownload: defineIpcContract<[], OpenExternalResult>({
     apiKey: "openAmdHipSdkDownload",
     channel: "external:open-amd-hip-sdk",
+    args: z.tuple([]),
+    result: openedUrlResultSchema,
+  }),
+  getAppUpdateInfo: defineIpcContract<[], AppUpdateInfoResult>({
+    apiKey: "getAppUpdateInfo",
+    channel: "external:get-update-info",
+    args: z.tuple([]),
+    result: appUpdateInfoResultSchema,
+  }),
+  openReleasesPage: defineIpcContract<[], OpenExternalResult>({
+    apiKey: "openReleasesPage",
+    channel: "external:open-releases",
     args: z.tuple([]),
     result: openedUrlResultSchema,
   }),
