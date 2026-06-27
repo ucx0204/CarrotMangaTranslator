@@ -1,7 +1,6 @@
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import { detectBestGpuInfo } from "../gpuInfo";
-import { logError, logInfo } from "../logger";
 import type {
   InpaintingModel,
   KoharuInpaintingBackend,
@@ -14,12 +13,25 @@ import {
   prepareKoharuInpaintingEngine,
   type KoharuInpaintingEngine,
 } from "./koharuEngine";
+import {
+  logInpaintingRuntimeError,
+  logInpaintingRuntimeInfo,
+  logInpaintingRuntimeWarn,
+} from "./inpaintingRuntimeLogger";
 
 const KOHARU_ENGINE_IDLE_TTL_MS = 5 * 60 * 1000;
 
 type KoharuEngineLease = {
   engine: InpaintingEngine;
   release: () => void;
+};
+
+type ResolvedKoharuBackend = Exclude<KoharuInpaintingBackend, "auto">;
+
+type KoharuEnginePaths = {
+  runtimeDir: string;
+  modelDir: string;
+  runRootDir: string;
 };
 
 type CachedKoharuEngine = {
@@ -37,27 +49,19 @@ export async function acquireKoharuInpaintingEngine(options: {
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
 }): Promise<KoharuEngineLease> {
-  const runtimeDir = join(
-    options.appPaths.dataRoot,
-    "runtime",
-    "koharu-inpainting",
-  );
-  const modelDir = join(
-    options.appPaths.dataRoot,
-    "models",
-    "inpainting",
+  const { runtimeDir, modelDir, runRootDir } = resolveKoharuEnginePaths(
+    options.appPaths,
     options.model,
   );
-  const runRootDir = join(
-    options.appPaths.dataRoot,
-    "tmp",
-    "runtime",
-    "koharu-inpainting",
-  );
   const candidates = await resolveBackendCandidates(options.backend);
+  logKoharuBackendCandidatesResolved(
+    options.model,
+    options.backend,
+    candidates,
+  );
   const errors: string[] = [];
 
-  for (const backend of candidates) {
+  for (const [candidateIndex, backend] of candidates.entries()) {
     const key = `${options.model}\n${backend}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
     const cached = await tryAcquireCachedKoharuEngine(key, options.onProgress);
     if (cached) {
@@ -82,7 +86,7 @@ export async function acquireKoharuInpaintingEngine(options: {
         engine,
         idleTimer: null,
       };
-      logInfo("Koharu inpainting engine cached", {
+      logInpaintingRuntimeInfo("Koharu inpainting engine cached", {
         model: options.model,
         backend,
         ttlMs: KOHARU_ENGINE_IDLE_TTL_MS,
@@ -95,9 +99,16 @@ export async function acquireKoharuInpaintingEngine(options: {
       errors.push(
         `${backend}: ${error instanceof Error ? error.message : String(error)}`,
       );
+      logKoharuBackendFailure(
+        options.model,
+        options.backend,
+        backend,
+        candidates[candidateIndex + 1] ?? null,
+        error,
+      );
       if (engine) {
         await engine.dispose().catch((disposeError) => {
-          logError("Failed to dispose failed Koharu engine", {
+          logInpaintingRuntimeError("Failed to dispose failed Koharu engine", {
             backend,
             disposeError,
           });
@@ -111,6 +122,17 @@ export async function acquireKoharuInpaintingEngine(options: {
   );
 }
 
+function resolveKoharuEnginePaths(
+  appPaths: AppPaths,
+  model: Exclude<InpaintingModel, "flux-klein">,
+): KoharuEnginePaths {
+  return {
+    runtimeDir: join(appPaths.dataRoot, "runtime", "koharu-inpainting"),
+    modelDir: join(appPaths.dataRoot, "models", "inpainting", model),
+    runRootDir: join(appPaths.dataRoot, "tmp", "runtime", "koharu-inpainting"),
+  };
+}
+
 export async function disposeCachedKoharuInpaintingEngine(
   reason: string,
 ): Promise<boolean> {
@@ -122,12 +144,15 @@ export async function disposeCachedKoharuInpaintingEngine(
   clearIdleTimer(current);
   try {
     await current.engine.dispose();
-    logInfo("Koharu inpainting engine disposed", { reason });
+    logInpaintingRuntimeInfo("Koharu inpainting engine disposed", { reason });
   } catch (error) {
-    logError("Failed to dispose cached Koharu inpainting engine", {
-      reason,
-      error,
-    });
+    logInpaintingRuntimeError(
+      "Failed to dispose cached Koharu inpainting engine",
+      {
+        reason,
+        error,
+      },
+    );
   }
   return true;
 }
@@ -158,7 +183,7 @@ async function tryAcquireCachedKoharuEngine(
 
 async function resolveBackendCandidates(
   requested: KoharuInpaintingBackend,
-): Promise<Array<Exclude<KoharuInpaintingBackend, "auto">>> {
+): Promise<ResolvedKoharuBackend[]> {
   if (requested === "cpu") {
     return ["cpu"];
   }
@@ -177,6 +202,34 @@ async function resolveBackendCandidates(
     return ["cuda-native", "cpu"];
   }
   return ["cpu"];
+}
+
+function logKoharuBackendCandidatesResolved(
+  model: Exclude<InpaintingModel, "flux-klein">,
+  requestedBackend: KoharuInpaintingBackend,
+  candidates: ResolvedKoharuBackend[],
+): void {
+  logInpaintingRuntimeInfo("Koharu backend candidates resolved", {
+    model,
+    requestedBackend,
+    candidates,
+  });
+}
+
+function logKoharuBackendFailure(
+  model: Exclude<InpaintingModel, "flux-klein">,
+  requestedBackend: KoharuInpaintingBackend,
+  backend: ResolvedKoharuBackend,
+  fallbackBackend: ResolvedKoharuBackend | null,
+  error: unknown,
+): void {
+  logInpaintingRuntimeWarn("Koharu inpainting backend failed", {
+    model,
+    requestedBackend,
+    backend,
+    fallbackBackend,
+    error,
+  });
 }
 
 async function smokeTestKoharuEngine(

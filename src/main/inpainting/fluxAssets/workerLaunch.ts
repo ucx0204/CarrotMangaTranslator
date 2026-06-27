@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { FluxWorkerBackend, FluxWorkerLaunchSpec } from "../fluxWorker";
+import { logInpaintingRuntimeInfo } from "../inpaintingRuntimeLogger";
 import type { FluxAssetProgress, FluxRuntimeBackend } from "./types";
 import { ensureFluxCudaRuntime, ensureManagedFluxRunner } from "./cudaRuntime";
 import { ensureFluxZludaSupportRuntime } from "./zludaRuntime";
@@ -36,6 +37,11 @@ export async function ensureFluxWorkerLaunch(options: {
   const backend = resolveFluxWorkerBackend(options.backend);
   if (backend === "cuda-native") {
     const runtimePath = await ensureMgtFluxKleinRuntime(options);
+    logFluxRuntimeSelected({
+      backend,
+      nvidiaComputeCapability: options.nvidiaComputeCapability,
+      runtimePath,
+    });
     return {
       backend,
       executable: runtimePath,
@@ -56,6 +62,13 @@ export async function ensureFluxWorkerLaunch(options: {
       installLogLine:
         "AMD GPU에서는 NVIDIA와 같은 Flux Klein 실행기를 ZLUDA/HIP 경로로 실행하고, 필요한 CUDA 보조 DLL만 함께 준비합니다.",
     });
+    logFluxRuntimeSelected({
+      backend,
+      nvidiaComputeCapability: options.nvidiaComputeCapability,
+      runtimePath,
+      cudaRuntimeDir,
+      zludaRuntimeRoot,
+    });
     return {
       backend,
       executable: runtimePath,
@@ -74,9 +87,27 @@ export async function ensureFluxWorkerLaunch(options: {
     };
   }
   if (backend === "python-rocm" || backend === "python-cpu") {
-    return ensureFluxPythonRuntime({ ...options, backend });
+    const launch = await ensureFluxPythonRuntime({ ...options, backend });
+    logFluxRuntimeSelected({
+      backend,
+      nvidiaComputeCapability: options.nvidiaComputeCapability,
+      runtimePath: launch.runtimePath,
+      executable: launch.executable,
+    });
+    return launch;
   }
   throw new Error(`지원하지 않는 Flux 런타임입니다: ${backend}`);
+}
+
+function logFluxRuntimeSelected(detail: {
+  backend: FluxWorkerBackend;
+  cudaRuntimeDir?: string;
+  executable?: string;
+  nvidiaComputeCapability?: number | null;
+  runtimePath: string;
+  zludaRuntimeRoot?: string;
+}): void {
+  logInpaintingRuntimeInfo("Flux runtime selected", detail);
 }
 
 function resolveFluxWorkerBackend(

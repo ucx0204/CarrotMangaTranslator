@@ -69,6 +69,7 @@ afterEach(() => {
   delete process.env.MGT_WINDOWS_KITS_ROOT;
   delete process.env.MANGA_TRANSLATOR_MSVC_TOOLS_ROOT;
   delete process.env.MGT_MSVC_TOOLS_ROOT;
+  delete process.env.MANGA_TRANSLATOR_LOG_PATH;
 });
 
 function createTempToolsLayout(): {
@@ -222,6 +223,7 @@ describe("Flux worker runtime helpers", () => {
     const supportDir = writeCachedZludaSupportRuntime(runtimeDir);
     const { exe } = createTempToolsLayout();
     process.env.MGT_FLUX_KLEIN_EXE = exe;
+    process.env.MANGA_TRANSLATOR_LOG_PATH = join(runtimeDir, "app.log");
 
     const launch = await ensureFluxWorkerLaunch({
       runtimeDir,

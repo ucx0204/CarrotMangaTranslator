@@ -18,9 +18,10 @@ afterEach(() => {
 
 describe("Flux inpainting engine change detection", () => {
   it("warns instead of failing when every crop comes back unchanged", async () => {
+    const logInfo = vi.fn();
     const logWarn = vi.fn();
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
-    vi.doMock("../src/main/logger", () => ({ logWarn }));
+    vi.doMock("../src/main/logger", () => ({ logInfo, logWarn }));
 
     const { createFluxEngine } =
       await import("../src/main/inpainting/fluxEngine");
@@ -59,7 +60,10 @@ describe("Flux inpainting engine change detection", () => {
 
   it("does not treat small real pixel changes as a true no-op", async () => {
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
-    vi.doMock("../src/main/logger", () => ({ logWarn: vi.fn() }));
+    vi.doMock("../src/main/logger", () => ({
+      logInfo: vi.fn(),
+      logWarn: vi.fn(),
+    }));
 
     const { isMaskedRegionEffectivelyUnchanged } =
       await import("../src/main/inpainting/fluxEngine");

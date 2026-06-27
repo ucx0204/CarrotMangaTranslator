@@ -11,6 +11,7 @@ import {
   ensureRemoteFile,
   hfResolveUrl,
 } from "./fluxAssets";
+import { logInpaintingRuntimeInfo } from "./inpaintingRuntimeLogger";
 import type { InpaintingRuntimeProgress } from "./inpaintingEngine";
 import type { KoharuWorkerLaunchSpec } from "./koharuWorkerTypes";
 
@@ -132,9 +133,11 @@ export async function ensureKoharuWorkerLaunch(options: {
   const env: NodeJS.ProcessEnv = {
     KOHARU_DATA_ROOT: join(options.runtimeDir, "koharu-data"),
   };
+  let cudaRuntimeDir: string | undefined;
+  let zludaRuntimeRoot: string | undefined;
   if (options.backend === "zluda-native") {
-    const cudaRuntimeDir = await ensureFluxZludaSupportRuntime(options);
-    const zludaRuntimeRoot = join(options.runtimeDir, "koharu-zluda");
+    cudaRuntimeDir = await ensureFluxZludaSupportRuntime(options);
+    zludaRuntimeRoot = join(options.runtimeDir, "koharu-zluda");
     args.push(
       "--require-zluda",
       "--zluda-runtime-root",
@@ -150,6 +153,16 @@ export async function ensureKoharuWorkerLaunch(options: {
     detail: `${options.model} / ${options.backend}`,
     progressMode: "log-only",
     installLogLine: `Koharu ${options.model} 인페인팅 런타임을 사용합니다: ${basename(runtimePath)}`,
+  });
+  logInpaintingRuntimeInfo("Koharu runtime selected", {
+    model: options.model,
+    backend: options.backend,
+    computePolicy: describeKoharuComputePolicy(options.backend),
+    runtimePath,
+    weightsPath: options.modelFiles.weightsPath,
+    configPath: options.modelFiles.configPath ?? null,
+    cudaRuntimeDir,
+    zludaRuntimeRoot,
   });
 
   return {
@@ -217,6 +230,15 @@ function resolveKoharuRunnerToolsRoots(): string[] {
     process.resourcesPath ? join(process.resourcesPath, "tools") : undefined,
     join(process.cwd(), "tools"),
   ].filter((value): value is string => Boolean(value));
+}
+
+function describeKoharuComputePolicy(
+  backend: KoharuInpaintingBackend,
+): "Auto" | "CpuOnly" | "PreferGpu" {
+  if (backend === "auto") {
+    return "Auto";
+  }
+  return backend === "cpu" ? "CpuOnly" : "PreferGpu";
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
