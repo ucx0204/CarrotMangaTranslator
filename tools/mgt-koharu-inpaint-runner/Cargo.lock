@@ -1548,6 +1548,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "cudarc 0.19.7",
  "image",
  "koharu-ml",
  "koharu-runtime",

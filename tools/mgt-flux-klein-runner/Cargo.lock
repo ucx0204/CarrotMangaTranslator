@@ -2405,9 +2405,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "cudarc 0.19.7",
  "image",
  "koharu-ml",
  "koharu-runtime",
+ "libloading 0.9.0",
  "serde",
  "serde_json",
  "tokio",

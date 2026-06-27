@@ -1,4 +1,5 @@
 use std::{
+    ffi::CStr,
     fs,
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
@@ -11,6 +12,24 @@ use koharu_ml::flux2_klein::{Flux2InpaintOptions, Flux2Klein, Flux2KleinPaths};
 use koharu_runtime::{Catalog, ComputePolicy, RuntimeManager};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{EnvFilter, fmt};
+
+const CUDA_REQUIRED_DLLS: &[&str] = &[
+    "cudart64_12.dll",
+    "cublas64_12.dll",
+    "cublasLt64_12.dll",
+    "curand64_10.dll",
+];
+const CUDA_OPTIONAL_DLLS: &[&str] = &[
+    "cudnn64_9.dll",
+    "cudnn_adv64_9.dll",
+    "cudnn_cnn64_9.dll",
+    "cudnn_engines_precompiled64_9.dll",
+    "cudnn_engines_runtime_compiled64_9.dll",
+    "cudnn_engines_tensor_ir64_9.dll",
+    "cudnn_graph64_9.dll",
+    "cudnn_heuristic64_9.dll",
+    "cudnn_ops64_9.dll",
+];
 
 #[derive(Parser, Debug)]
 #[command(name = "mgt-flux-klein")]
@@ -78,7 +97,10 @@ async fn main() -> Result<()> {
 
     if cli.require_zluda {
         prepare_zluda_runtime(&cli).await?;
+    } else {
+        prepare_cuda_runtime(cli.cuda_runtime_dir.as_deref())?;
     }
+    log_cuda_runtime_probe();
 
     let load_started = Instant::now();
     let model = Flux2Klein::load_from_paths(Flux2KleinPaths {
@@ -208,6 +230,64 @@ fn ensure_zluda_dll_aliases(runtime_root: &Path, cuda_runtime_dir: Option<&Path>
     .with_context(|| "failed to prepare ZLUDA cuRAND support DLL")?;
 
     eprintln!("mgt-flux-klein: ZLUDA DLL aliases ready");
+    Ok(())
+}
+
+fn prepare_cuda_runtime(cuda_runtime_dir: Option<&Path>) -> Result<()> {
+    let Some(cuda_runtime_dir) = cuda_runtime_dir else {
+        return Ok(());
+    };
+    if !cuda_runtime_dir.exists() {
+        bail!(
+            "CUDA runtime directory does not exist: {}",
+            cuda_runtime_dir.display()
+        );
+    }
+
+    prepend_path(cuda_runtime_dir);
+    let missing_required = CUDA_REQUIRED_DLLS
+        .iter()
+        .filter(|dll| !cuda_runtime_dir.join(dll).exists())
+        .copied()
+        .collect::<Vec<_>>();
+    if !missing_required.is_empty() {
+        bail!(
+            "CUDA runtime directory is missing required DLLs: {} ({})",
+            missing_required.join(", "),
+            cuda_runtime_dir.display()
+        );
+    }
+
+    let mut preloaded = 0usize;
+    for dll in CUDA_REQUIRED_DLLS.iter().chain(CUDA_OPTIONAL_DLLS.iter()) {
+        let path = cuda_runtime_dir.join(dll);
+        if path.exists() {
+            preload_library(&path)?;
+            preloaded += 1;
+        }
+    }
+    eprintln!(
+        "mgt-flux-klein: CUDA runtime DLLs preloaded path=\"{}\" count={preloaded}",
+        cuda_runtime_dir.display()
+    );
+    Ok(())
+}
+
+fn prepend_path(path: &Path) {
+    let current = std::env::var_os("PATH").unwrap_or_default();
+    let mut paths = std::env::split_paths(&current).collect::<Vec<_>>();
+    if !paths.iter().any(|candidate| candidate == path) {
+        paths.insert(0, path.to_path_buf());
+    }
+    if let Ok(joined) = std::env::join_paths(paths) {
+        unsafe { std::env::set_var("PATH", joined) };
+    }
+}
+
+fn preload_library(path: &Path) -> Result<()> {
+    let library = unsafe { libloading::Library::new(path) }
+        .with_context(|| format!("failed to preload {}", path.display()))?;
+    std::mem::forget(library);
     Ok(())
 }
 
@@ -374,6 +454,34 @@ fn run_inpaint(
 fn init_logging() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
     let _ = fmt().with_env_filter(filter).with_target(false).try_init();
+}
+
+fn log_cuda_runtime_probe() {
+    match cudarc::runtime::result::device::get_count() {
+        Ok(count) => {
+            eprintln!("mgt-flux-klein: CUDA runtime device count {count}");
+            for ordinal in 0..count.min(4) {
+                match cudarc::runtime::result::device::get_device_prop(ordinal) {
+                    Ok(prop) => eprintln!(
+                        "mgt-flux-klein: CUDA device {ordinal}: name=\"{}\" compute_capability={}.{} total_global_mem_mib={} multiprocessors={}",
+                        cuda_device_name(&prop.name),
+                        prop.major,
+                        prop.minor,
+                        prop.totalGlobalMem / 1024 / 1024,
+                        prop.multiProcessorCount
+                    ),
+                    Err(error) => {
+                        eprintln!("mgt-flux-klein: CUDA device {ordinal} probe failed: {error:?}")
+                    }
+                }
+            }
+        }
+        Err(error) => eprintln!("mgt-flux-klein: CUDA runtime probe failed: {error:?}"),
+    }
+}
+
+fn cuda_device_name(name: &[std::os::raw::c_char]) -> String {
+    unsafe { CStr::from_ptr(name.as_ptr()).to_string_lossy().into_owned() }
 }
 
 fn install_panic_hook() {

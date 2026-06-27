@@ -11,9 +11,13 @@ import {
   resolveWindowsNativeBuildEnv,
 } from "../src/main/inpainting/fluxAssets";
 import {
+  CUDNN_REDIST_MANIFEST_URL,
   CUDA_REDIST_MANIFEST_URL,
   DEFAULT_AMD_GPU_TARGETS,
+  FLUX_CUDA_DLLS,
+  FLUX_CUDA_RUNTIME_DIR,
   FLUX_CUDA_RUNTIME_MARKER,
+  FLUX_CUDNN_DLLS,
   FLUX_ROCM_PREBUILT_RUNTIME_MANIFEST,
   FLUX_SDCPP_WORKER,
   FLUX_ZLUDA_SUPPORT_RUNTIME_DIR,
@@ -120,6 +124,19 @@ function writeCachedZludaSupportRuntime(runtimeDir: string): string {
     `${JSON.stringify({ cudaManifest: CUDA_REDIST_MANIFEST_URL })}\n`,
   );
   return supportDir;
+}
+
+function writeCachedFluxCudaRuntime(runtimeDir: string): string {
+  const cudaDir = join(runtimeDir, FLUX_CUDA_RUNTIME_DIR);
+  mkdirSync(cudaDir, { recursive: true });
+  for (const fileName of [...FLUX_CUDA_DLLS, ...FLUX_CUDNN_DLLS]) {
+    writeFileSync(join(cudaDir, fileName), fileName);
+  }
+  writeFileSync(
+    join(cudaDir, FLUX_CUDA_RUNTIME_MARKER),
+    `${JSON.stringify({ cudnnManifest: CUDNN_REDIST_MANIFEST_URL })}\n`,
+  );
+  return cudaDir;
 }
 
 describe("Flux worker runtime helpers", () => {
@@ -243,6 +260,24 @@ describe("Flux worker runtime helpers", () => {
     expect(launch.env).toEqual({
       KOHARU_DATA_ROOT: join(runtimeDir, "koharu-zluda"),
     });
+  });
+
+  it("passes the managed CUDA runtime explicitly to the native Flux launcher", async () => {
+    const runtimeDir = createTempDir("mgt-flux-cuda-");
+    const modelDir = createTempDir("mgt-flux-model-");
+    const cudaDir = writeCachedFluxCudaRuntime(runtimeDir);
+    const { exe } = createTempToolsLayout();
+    process.env.MGT_FLUX_KLEIN_EXE = exe;
+    process.env.MANGA_TRANSLATOR_LOG_PATH = join(runtimeDir, "app.log");
+
+    const launch = await ensureFluxWorkerLaunch({
+      runtimeDir,
+      modelDir,
+      backend: "cuda-native",
+    });
+
+    expect(launch.backend).toBe("cuda-native");
+    expect(launch.args).toEqual(["--cuda-runtime-dir", cudaDir]);
   });
 
   it("keeps NVIDIA CUDA support DLLs out of the ZLUDA PATH and passes them explicitly", () => {

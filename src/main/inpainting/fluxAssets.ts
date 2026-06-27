@@ -1,4 +1,5 @@
 export {
+  FLUX_CUDA_RUNTIME_DIR,
   FLUX_MODEL_FILE,
   FLUX_MODEL_REPO,
   FLUX_RUNTIME_EXECUTABLE,
@@ -11,7 +12,10 @@ export {
   ensureMgtFluxKleinRuntime,
 } from "./fluxAssets/workerLaunch";
 export { ensureFluxZludaSupportRuntime } from "./fluxAssets/zludaRuntime";
-export { resolveFluxRunnerDirForComputeCapability } from "./fluxAssets/cudaRuntime";
+export {
+  ensureFluxCudaRuntime,
+  resolveFluxRunnerDirForComputeCapability,
+} from "./fluxAssets/cudaRuntime";
 export { resolveFluxPythonRuntimeLayout } from "./fluxAssets/pythonRuntimeLayout";
 export { resolveWindowsNativeBuildEnv } from "./fluxAssets/windowsBuildEnv";
 export {

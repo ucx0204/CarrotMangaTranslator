@@ -7,6 +7,7 @@ publish = false
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
+cudarc = { version = "0.19.7", default-features = false, features = ["fallback-dynamic-loading", "runtime", "std"] }
 image = "0.25"
 koharu-ml = { git = "https://github.com/mayocream/koharu", package = "koharu-ml", default-features = false, features = ["cuda"] }
 koharu-runtime = { path = "vendor/koharu-runtime-lite" }

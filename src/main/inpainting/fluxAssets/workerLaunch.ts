@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { FluxWorkerBackend, FluxWorkerLaunchSpec } from "../fluxWorker";
 import { logInpaintingRuntimeInfo } from "../inpaintingRuntimeLogger";
+import { FLUX_CUDA_RUNTIME_DIR } from "./constants";
 import type { FluxAssetProgress, FluxRuntimeBackend } from "./types";
 import { ensureFluxCudaRuntime, ensureManagedFluxRunner } from "./cudaRuntime";
 import { ensureFluxZludaSupportRuntime } from "./zludaRuntime";
@@ -37,17 +38,19 @@ export async function ensureFluxWorkerLaunch(options: {
   const backend = resolveFluxWorkerBackend(options.backend);
   if (backend === "cuda-native") {
     const runtimePath = await ensureMgtFluxKleinRuntime(options);
+    const cudaRuntimeDir = join(options.runtimeDir, FLUX_CUDA_RUNTIME_DIR);
     logFluxRuntimeSelected({
       backend,
       nvidiaComputeCapability: options.nvidiaComputeCapability,
       runtimePath,
+      cudaRuntimeDir,
     });
     return {
       backend,
       executable: runtimePath,
       runtimePath,
       label: "Flux Klein CUDA",
-      args: [],
+      args: ["--cuda-runtime-dir", cudaRuntimeDir],
     };
   }
   if (backend === "zluda-native") {

@@ -248,9 +248,9 @@ function buildKoharuWorkerEnv(
   return {
     ...launch.env,
     PATH: [
+      launch.env?.PATH,
       buildRuntimePathEnv(launch.executable, backend),
       dirname(launch.executable),
-      launch.env?.PATH,
       process.env.PATH,
     ]
       .filter(Boolean)

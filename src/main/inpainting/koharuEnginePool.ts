@@ -29,6 +29,7 @@ type KoharuEngineLease = {
 type ResolvedKoharuBackend = Exclude<KoharuInpaintingBackend, "auto">;
 
 type KoharuEnginePaths = {
+  cudaRuntimeDir: string;
   runtimeDir: string;
   modelDir: string;
   runRootDir: string;
@@ -49,10 +50,8 @@ export async function acquireKoharuInpaintingEngine(options: {
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
 }): Promise<KoharuEngineLease> {
-  const { runtimeDir, modelDir, runRootDir } = resolveKoharuEnginePaths(
-    options.appPaths,
-    options.model,
-  );
+  const { cudaRuntimeDir, runtimeDir, modelDir, runRootDir } =
+    resolveKoharuEnginePaths(options.appPaths, options.model);
   const candidates = await resolveBackendCandidates(options.backend);
   logKoharuBackendCandidatesResolved(
     options.model,
@@ -62,7 +61,7 @@ export async function acquireKoharuInpaintingEngine(options: {
   const errors: string[] = [];
 
   for (const [candidateIndex, backend] of candidates.entries()) {
-    const key = `${options.model}\n${backend}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
+    const key = `${options.model}\n${backend}\n${runtimeDir}\n${modelDir}\n${runRootDir}\n${cudaRuntimeDir}`;
     const cached = await tryAcquireCachedKoharuEngine(key, options.onProgress);
     if (cached) {
       return cached;
@@ -73,6 +72,7 @@ export async function acquireKoharuInpaintingEngine(options: {
     try {
       engine = await prepareKoharuInpaintingEngine({
         runtimeDir,
+        cudaRuntimeDir,
         modelDir,
         model: options.model,
         backend,
@@ -127,6 +127,12 @@ function resolveKoharuEnginePaths(
   model: Exclude<InpaintingModel, "flux-klein">,
 ): KoharuEnginePaths {
   return {
+    cudaRuntimeDir: join(
+      appPaths.dataRoot,
+      "models",
+      "inpainting",
+      "mgt-flux-klein-runtime",
+    ),
     runtimeDir: join(appPaths.dataRoot, "runtime", "koharu-inpainting"),
     modelDir: join(appPaths.dataRoot, "models", "inpainting", model),
     runRootDir: join(appPaths.dataRoot, "tmp", "runtime", "koharu-inpainting"),

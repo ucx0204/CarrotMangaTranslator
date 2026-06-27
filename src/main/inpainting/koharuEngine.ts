@@ -22,6 +22,7 @@ export type KoharuInpaintingEngine = InpaintingEngine & {
 
 export async function prepareKoharuInpaintingEngine(options: {
   runtimeDir: string;
+  cudaRuntimeDir?: string;
   modelDir: string;
   model: Exclude<InpaintingModel, "flux-klein">;
   backend: KoharuInpaintingBackend;
@@ -37,6 +38,7 @@ export async function prepareKoharuInpaintingEngine(options: {
   });
   const launch = await ensureKoharuWorkerLaunch({
     runtimeDir: options.runtimeDir,
+    cudaRuntimeDir: options.cudaRuntimeDir,
     model: options.model,
     modelFiles,
     backend: options.backend,
