@@ -81,7 +81,9 @@ function UpdateSection(): React.JSX.Element {
           setInfo(result);
         }
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        console.error("Failed to read app update info", error);
+      });
     return () => {
       active = false;
     };
@@ -96,9 +98,11 @@ function UpdateSection(): React.JSX.Element {
       <div className="settings-inline-actions">
         <button
           type="button"
-          onClick={() =>
-            void mangaGateway.openReleasesPage().catch(() => undefined)
-          }
+          onClick={() => {
+            void mangaGateway.openReleasesPage().catch((error) => {
+              console.error("Failed to open releases page", error);
+            });
+          }}
         >
           업데이트 확인 (릴리스 페이지 열기)
         </button>

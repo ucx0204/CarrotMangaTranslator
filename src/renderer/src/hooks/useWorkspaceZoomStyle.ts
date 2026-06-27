@@ -4,10 +4,10 @@ import {
   type CSSProperties,
   type RefObject,
 } from "react";
-import type { MangaPage } from "../../../shared/libraryTypes";
 import {
   computeWorkspaceImageSize,
   type ContainerSize,
+  type PageAspect,
 } from "../lib/workspaceZoom";
 
 type WorkspaceZoomStyle = {
@@ -23,7 +23,7 @@ type WorkspaceZoomStyle = {
  */
 export function useWorkspaceZoomStyle(
   zoom: number,
-  page: MangaPage | null,
+  page: PageAspect | null,
   containerRef: RefObject<HTMLElement | null>,
 ): WorkspaceZoomStyle {
   const [container, setContainer] = useState<ContainerSize | null>(null);
@@ -51,11 +51,7 @@ export function useWorkspaceZoomStyle(
     return () => observer.disconnect();
   }, [containerRef]);
 
-  const imageSize = computeWorkspaceImageSize(
-    zoom,
-    page ? { width: page.width, height: page.height } : null,
-    container,
-  );
+  const imageSize = computeWorkspaceImageSize(zoom, page, container);
   if (!imageSize) {
     return { className: "", style: undefined };
   }

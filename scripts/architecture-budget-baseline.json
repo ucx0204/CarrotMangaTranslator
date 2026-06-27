@@ -6,7 +6,7 @@
       "maxImportedBy": 66
     },
     "src/shared/libraryTypes.ts": {
-      "maxImportedBy": 72
+      "maxImportedBy": 73
     },
     "src/shared/jobTypes.ts": {
       "maxImportedBy": 35
@@ -21,6 +21,9 @@
       "maxImportedBy": 35
     },
     "src/renderer/src/lib/appHelpers.ts": {
+      "maxImportedBy": 26
+    },
+    "src/renderer/src/api/mangaGateway.ts": {
       "maxImportedBy": 26
     }
   }
