@@ -54,11 +54,13 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
     props.selectedPage,
     workspacePanelRef,
   );
-  const textLayoutStageSize = useStableTextLayoutStageSize({
-    pageId: props.selectedPage?.id ?? null,
-    stageSize: props.stageSize,
-    workspaceZoom: props.workspaceZoom,
-  });
+  const textLayoutStageSize = React.useMemo<ImageStageProps["stageSize"]>(
+    () =>
+      props.selectedPage
+        ? { width: props.selectedPage.width, height: props.selectedPage.height }
+        : props.stageSize,
+    [props.selectedPage, props.stageSize],
+  );
   useResetWorkspaceScrollOnRenderedPage({
     pageId: props.selectedPage?.id ?? null,
     renderedImagePageId: props.selectedPageImagePageId,
@@ -115,42 +117,6 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
       />
     </section>
   );
-}
-
-function useStableTextLayoutStageSize({
-  pageId,
-  stageSize,
-  workspaceZoom,
-}: {
-  pageId: string | null;
-  stageSize: ImageStageProps["stageSize"];
-  workspaceZoom: number;
-}): ImageStageProps["stageSize"] {
-  const [baseStageSizeByPage, setBaseStageSizeByPage] = React.useState<
-    Record<string, NonNullable<ImageStageProps["stageSize"]>>
-  >({});
-
-  React.useLayoutEffect(() => {
-    if (!pageId || !stageSize || workspaceZoom !== 1) {
-      return;
-    }
-    setBaseStageSizeByPage((current) => {
-      const previous = current[pageId];
-      if (
-        previous &&
-        Math.abs(previous.width - stageSize.width) < 0.5 &&
-        Math.abs(previous.height - stageSize.height) < 0.5
-      ) {
-        return current;
-      }
-      return { ...current, [pageId]: stageSize };
-    });
-  }, [pageId, stageSize, workspaceZoom]);
-
-  if (!pageId) {
-    return stageSize;
-  }
-  return baseStageSizeByPage[pageId] ?? stageSize;
 }
 
 function useResetWorkspaceScrollOnRenderedPage({

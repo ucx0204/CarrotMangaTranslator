@@ -30,65 +30,106 @@ function letterSpacingPxFor(block, fontSize) {
   return em * fontSize;
 }
 
-function styledGraphemes(block) {
+function styledRuns(block) {
   const runs = block.runs && block.runs.length
     ? block.runs
     : [{ text: block.text, bold: block.bold, italic: block.italic }];
-  const out = [];
-  for (const run of runs) {
+  return runs.map(function (run) {
     const text = run && run.text != null ? String(run.text) : "";
-    for (const ch of Array.from(text)) {
-      out.push({ ch: ch, bold: !!(run && run.bold), italic: !!(run && run.italic) });
+    return {
+      text: text,
+      bold: !!(run && run.bold),
+      italic: !!(run && run.italic)
+    };
+  });
+}
+
+function measureStyledWrappedText(runs, maxWidth, lineHeightPx, fontSize, fontFamily, letterSpacingPx) {
+  const lines = [];
+  let lineRuns = [];
+  let lineCount = 0;
+  let lineWidth = 0;
+  let maxLineWidth = 0;
+  let lineHasContent = false;
+
+  const breakLine = function () {
+    lines.push({ runs: lineRuns, width: lineWidth });
+    maxLineWidth = Math.max(maxLineWidth, lineWidth);
+    lineCount += 1;
+    lineRuns = [];
+    lineWidth = 0;
+    lineHasContent = false;
+  };
+
+  const appendChar = function (char, bold, italic) {
+    const lastRun = lineRuns[lineRuns.length - 1];
+    if (lastRun && lastRun.bold === bold && lastRun.italic === italic) {
+      lastRun.text += char;
+      return;
+    }
+    lineRuns.push({ text: char, bold: bold, italic: italic });
+  };
+
+  for (const run of runs) {
+    context.font = graphemeFont(run, fontSize, fontFamily);
+    for (const char of Array.from(run.text)) {
+      if (char === "\\n") {
+        breakLine();
+        continue;
+      }
+      const charWidth = context.measureText(char).width;
+      const advance = charWidth + (lineHasContent ? letterSpacingPx : 0);
+      if (lineHasContent && lineWidth + advance > maxWidth) {
+        breakLine();
+        appendChar(char, run.bold, run.italic);
+        lineWidth = charWidth;
+      } else {
+        appendChar(char, run.bold, run.italic);
+        lineWidth += advance;
+      }
+      lineHasContent = true;
     }
   }
-  return out;
+  breakLine();
+
+  return {
+    lines: lines,
+    lineCount: lineCount,
+    totalHeight: lineCount * lineHeightPx,
+    maxLineWidth: maxLineWidth
+  };
+}
+
+function resolveFixedHorizontalTextLines(block, fontSize, contentWidth) {
+  if (!block.text.trim() || block.renderDirection === "vertical") {
+    return null;
+  }
+  return measureStyledWrappedText(
+    styledRuns(block),
+    contentWidth,
+    fontSize * block.lineHeight,
+    fontSize,
+    block.fontFamily,
+    letterSpacingPxFor(block, fontSize)
+  ).lines;
 }
 
 function graphemeFont(g, fontSize, fontFamily) {
   return buildFont(fontSize, fontFamily, g.bold ? 800 : 400, g.italic);
 }
 
-function wrapStyledGraphemes(graphemes, maxWidth, fontSize, fontFamily, letterSpacingPx) {
-  const lines = [];
-  let current = [];
-  let lineWidth = 0;
-  const pushLine = function () {
-    lines.push({ graphemes: current, width: lineWidth });
-    current = [];
-    lineWidth = 0;
-  };
-  for (const g of graphemes) {
-    if (g.ch === "\\n") {
-      pushLine();
-      continue;
-    }
-    context.font = graphemeFont(g, fontSize, fontFamily);
-    const w = context.measureText(g.ch).width;
-    const advance = w + (current.length ? letterSpacingPx : 0);
-    if (current.length && lineWidth + advance > maxWidth) {
-      pushLine();
-      current.push({ ch: g.ch, bold: g.bold, italic: g.italic, w: w });
-      lineWidth = w;
-    } else {
-      current.push({ ch: g.ch, bold: g.bold, italic: g.italic, w: w });
-      lineWidth += advance;
-    }
-  }
-  pushLine();
-  return lines;
-}
-
 function measureHorizontal(block, fontSize, innerWidth) {
-  const graphemes = styledGraphemes(block);
-  const letterSpacingPx = letterSpacingPxFor(block, fontSize);
-  const lines = wrapStyledGraphemes(graphemes, innerWidth, fontSize, block.fontFamily, letterSpacingPx);
-  let maxLineWidth = 0;
-  for (const line of lines) {
-    if (line.width > maxLineWidth) maxLineWidth = line.width;
-  }
+  const measured = measureStyledWrappedText(
+    styledRuns(block),
+    innerWidth,
+    fontSize * block.lineHeight,
+    fontSize,
+    block.fontFamily,
+    letterSpacingPxFor(block, fontSize)
+  );
   return {
-    totalHeight: lines.length * fontSize * block.lineHeight,
-    maxLineWidth: maxLineWidth
+    totalHeight: measured.totalHeight,
+    maxLineWidth: measured.maxLineWidth
   };
 }
 
@@ -177,6 +218,10 @@ function applyTextLayout(block, textWrap, textContent) {
   const rect = block.rect;
   const fontSize = resolveFontSize(block, Math.max(1, rect.width), Math.max(1, rect.height));
   const scaleX = fontWidthScaleFor(block);
+  const textContentWidth = block.renderDirection === "vertical"
+    ? Math.max(1, rect.width)
+    : Math.max(1, rect.width / scaleX);
+  const fixedLines = resolveFixedHorizontalTextLines(block, fontSize, textContentWidth);
 
   textWrap.style.color = block.textColor;
   textWrap.style.fontFamily = block.fontFamily;
@@ -188,29 +233,56 @@ function applyTextLayout(block, textWrap, textContent) {
   textContent.style.boxSizing = "border-box";
   textContent.style.writingMode = block.renderDirection === "vertical" ? "vertical-rl" : "horizontal-tb";
   textContent.style.textOrientation = block.renderDirection === "vertical" ? "upright" : "";
-  textContent.style.width = block.renderDirection === "vertical" ? "max-content" : Math.max(1, rect.width) + "px";
+  textContent.style.width = block.renderDirection === "vertical" ? "max-content" : textContentWidth + "px";
   textContent.style.height = block.renderDirection === "vertical" ? Math.max(1, rect.height) + "px" : "";
   textContent.style.maxWidth = "100%";
   textContent.style.maxHeight = "100%";
   textContent.style.overflow = "visible";
+  textContent.style.overflowWrap = fixedLines ? "normal" : "";
+  textContent.style.wordBreak = fixedLines ? "normal" : "";
+  textContent.style.whiteSpace = fixedLines ? "normal" : "";
   textContent.style.fontWeight = block.bold ? "800" : "400";
   textContent.style.fontStyle = block.italic ? "italic" : "normal";
   textContent.style.fontSynthesis = "weight style";
   textContent.style.textShadow = resolveTextOutlineShadow(block, fontSize);
   textContent.style.transform = scaleX === 1 ? "" : "scaleX(" + scaleX + ")";
   textContent.style.transformOrigin = resolveFontWidthOrigin(block);
+  renderTextContent(block, textContent, fixedLines);
 }
 
-function renderTextRuns(block, textContent) {
-  const runs = block.runs && block.runs.length
-    ? block.runs
-    : [{ text: block.text, bold: block.bold, italic: block.italic }];
+function renderTextContent(block, textContent, fixedLines) {
+  while (textContent.firstChild) {
+    textContent.removeChild(textContent.firstChild);
+  }
+  if (fixedLines) {
+    renderFixedHorizontalLines(fixedLines, textContent);
+    return;
+  }
+  renderTextRuns(styledRuns(block), textContent);
+}
+
+function renderFixedHorizontalLines(lines, textContent) {
+  for (const line of lines) {
+    const lineSpan = document.createElement("span");
+    lineSpan.className = "overlay-text-line";
+    lineSpan.style.display = "block";
+    lineSpan.style.whiteSpace = "pre";
+    if (line.runs.length > 0) {
+      renderTextRuns(line.runs, lineSpan);
+    } else {
+      lineSpan.textContent = "\\u00a0";
+    }
+    textContent.appendChild(lineSpan);
+  }
+}
+
+function renderTextRuns(runs, parent) {
   for (const run of runs) {
     const span = document.createElement("span");
     span.style.fontWeight = run && run.bold ? "800" : "400";
     span.style.fontStyle = run && run.italic ? "italic" : "normal";
     span.textContent = run && run.text != null ? String(run.text) : "";
-    textContent.appendChild(span);
+    parent.appendChild(span);
   }
 }
 
@@ -234,7 +306,6 @@ function renderExportBlocks(stage) {
 
     const textContent = document.createElement("span");
     textContent.className = "overlay-text-content";
-    renderTextRuns(block, textContent);
 
     textWrap.appendChild(textContent);
     outer.appendChild(textWrap);

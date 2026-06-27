@@ -218,6 +218,11 @@ describe("page export BrowserWindow security", () => {
     expect(latestWindow?.loadedHtml).not.toContain("<canvas");
     expect(latestWindow?.loadedHtml).toContain("overlay-text-content");
     expect(latestWindow?.loadedHtml).toContain("span.textContent");
+    expect(latestWindow?.loadedHtml).toContain("overlay-text-line");
+    expect(latestWindow?.loadedHtml).toContain("rect.width / scaleX");
+    expect(latestWindow?.loadedHtml).toContain(
+      'textContent.style.overflowWrap = fixedLines ? "normal" : "";',
+    );
     expect(latestWindow?.loadedHtml).toContain('"renderDirection":"vertical"');
   });
 
