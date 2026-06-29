@@ -6,6 +6,7 @@ import type {
 } from "../../shared/types";
 import { hashTranslationBlocks } from "../../shared/blockFingerprint";
 import { normalizeBlockType } from "../../shared/geometry";
+import { logWarn } from "../logger";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
   reorderIds,
@@ -65,11 +66,22 @@ export async function savePageBlocksUnlocked(
   if (!page) {
     throw new Error("저장할 페이지를 찾지 못했습니다.");
   }
+  const currentBlocksHash = hashTranslationBlocks(page.blocks);
   if (
     request.baseUpdatedAt &&
     page.updatedAt !== request.baseUpdatedAt &&
-    !canRebasePageBlockSave(page, request)
+    !canRebasePageBlockSave(currentBlocksHash, request)
   ) {
+    logWarn("Page block save conflict", {
+      chapterId: request.chapterId,
+      pageId: request.pageId,
+      baseUpdatedAt: request.baseUpdatedAt,
+      currentUpdatedAt: page.updatedAt,
+      baseBlocksHash: request.baseBlocksHash,
+      currentBlocksHash,
+      dirtyVersion: request.dirtyVersion,
+      saveReason: request.saveReason,
+    });
     throw new Error(
       "페이지가 다른 작업으로 갱신되었습니다. 최신 내용을 다시 불러온 뒤 저장해 주세요.",
     );
@@ -100,12 +112,12 @@ export async function savePageBlocksUnlocked(
 }
 
 function canRebasePageBlockSave(
-  page: { blocks: SavePageBlocksRequest["blocks"] },
+  currentBlocksHash: string,
   request: SavePageBlocksRequest,
 ): boolean {
   return (
     Boolean(request.baseBlocksHash) &&
-    hashTranslationBlocks(page.blocks) === request.baseBlocksHash
+    currentBlocksHash === request.baseBlocksHash
   );
 }
 

@@ -4,14 +4,19 @@ import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
 import { clampBbox } from "../../../shared/geometry";
 import { mangaGateway } from "../api/mangaGateway";
 import { useDirtyTrackingActions } from "./useChapterPersistenceActions";
+import { useQueuedChapterSave } from "./useQueuedChapterSave";
 import type {
   ChapterPersistenceRefs,
   ChapterPersistenceResult,
   PersistChapter,
+  QueuedSaveRunner,
+  SaveReason,
   ServerPageVersion,
   ServerVersionSyncActions,
   UseChapterPersistenceOptions,
 } from "./chapterPersistenceTypes";
+
+const SAVE_ERROR_DEDUPE_MS = 5000;
 
 function isStalePageSaveError(error: unknown): boolean {
   return (
@@ -41,16 +46,6 @@ function serializePageBlocks(page: MangaPage): MangaPage["blocks"] {
   }));
 }
 
-function collectDirtyPages(
-  chapter: ChapterSnapshot,
-  dirtyPageIds: string[],
-): MangaPage[] {
-  const pagesById = new Map(chapter.pages.map((page) => [page.id, page]));
-  return dirtyPageIds
-    .map((pageId) => pagesById.get(pageId))
-    .filter((page): page is MangaPage => Boolean(page));
-}
-
 function preserveChapterPageOrder(
   chapter: ChapterSnapshot,
   pageOrder: string[],
@@ -78,6 +73,7 @@ function reorderPagesByIdOrder(
 type PersistPageBlocks = (
   chapter: ChapterSnapshot,
   page: MangaPage,
+  context: { dirtyVersion?: number; saveReason?: SaveReason },
 ) => Promise<ChapterSnapshot>;
 
 export type {
@@ -111,22 +107,27 @@ export function useChapterPersistence({
     refs,
     setCurrentChapter,
   });
-
-  useAutosaveEffect({
-    currentChapter,
+  const runQueuedSave = useQueuedChapterSave({
     currentChapterRef,
-    dirty,
-    onSaveError,
     persistChapter,
     refs,
     setCurrentChapter,
     setDirty,
+    syncServerPageVersions,
+  });
+
+  useAutosaveEffect({
+    currentChapter,
+    dirty,
+    onSaveError,
+    refs,
+    runQueuedSave,
   });
 
   const actions = useDirtyTrackingActions({
     currentChapterRef,
-    persistChapter,
     refs,
+    runQueuedSave,
     setDirty,
     syncServerPageVersions,
   });
@@ -143,6 +144,14 @@ function useChapterPersistenceRefs(): ChapterPersistenceRefs {
     blockedAutoSaveVersionRef: useRef<number | null>(null),
     dirtyPageIdsRef: useRef<Set<string>>(new Set()),
     dirtyVersionRef: useRef(0),
+    lastSaveErrorRef: useRef<{
+      message: string;
+      shownAt: number;
+    } | null>(null),
+    saveAgainRequestedRef: useRef(false),
+    saveAgainReasonRef: useRef<SaveReason | null>(null),
+    saveInFlightRef: useRef(false),
+    saveQueuePromiseRef: useRef<Promise<void> | null>(null),
     saveTimerRef: useRef<number | null>(null),
     serverVersionByPageIdRef: useRef<Map<string, ServerPageVersion>>(new Map()),
     serverVersionChapterIdRef: useRef<string | null>(null),
@@ -227,7 +236,11 @@ function usePersistPageBlocks({
 }): PersistPageBlocks {
   const { serverVersionByPageIdRef } = refs;
   return useCallback<PersistPageBlocks>(
-    async (chapter: ChapterSnapshot, page: MangaPage) => {
+    async (
+      chapter: ChapterSnapshot,
+      page: MangaPage,
+      context: { dirtyVersion?: number; saveReason?: SaveReason },
+    ) => {
       const baseVersion = serverVersionByPageIdRef.current.get(page.id);
       try {
         const saved = await mangaGateway.savePageBlocks({
@@ -236,6 +249,8 @@ function usePersistPageBlocks({
           baseUpdatedAt: baseVersion?.updatedAt ?? page.updatedAt,
           baseBlocksHash:
             baseVersion?.blocksHash ?? hashTranslationBlocks(page.blocks),
+          dirtyVersion: context.dirtyVersion,
+          saveReason: context.saveReason,
           blocks: serializePageBlocks(page),
         });
         syncSavedPageVersion(saved, page.id);
@@ -266,16 +281,35 @@ function usePersistChapter({
   return useCallback<PersistChapter>(
     async (
       chapter: ChapterSnapshot,
-      options: { syncState?: boolean } = {},
+      options: {
+        dirtyVersion?: number;
+        saveReason?: SaveReason;
+        syncState?: boolean;
+      } = {},
     ): Promise<ChapterSnapshot> => {
-      const dirtyPages = collectDirtyPages(chapter, [
-        ...dirtyPageIdsRef.current,
-      ]);
+      const dirtyPageIds = [...dirtyPageIdsRef.current];
       let saved = chapter;
-      for (const page of dirtyPages) {
-        saved = await persistPageBlocks(saved, page);
+      for (const pageId of dirtyPageIds) {
+        const sourceChapter =
+          currentChapterRef.current?.id === chapter.id
+            ? currentChapterRef.current
+            : saved;
+        const page =
+          sourceChapter.pages.find((candidate) => candidate.id === pageId) ??
+          saved.pages.find((candidate) => candidate.id === pageId);
+        if (!page) {
+          continue;
+        }
+        saved = await persistPageBlocks(saved, page, {
+          dirtyVersion: options.dirtyVersion,
+          saveReason: options.saveReason,
+        });
       }
-      saved = preserveChapterPageOrder(saved, chapter.pageOrder);
+      const latestChapter =
+        currentChapterRef.current?.id === chapter.id
+          ? currentChapterRef.current
+          : chapter;
+      saved = preserveChapterPageOrder(saved, latestChapter.pageOrder);
       if (
         options.syncState !== false &&
         currentChapterRef.current?.id === saved.id
@@ -291,23 +325,21 @@ function usePersistChapter({
 
 function useAutosaveEffect({
   currentChapter,
-  currentChapterRef,
   dirty,
   onSaveError,
-  persistChapter,
   refs,
-  setCurrentChapter,
-  setDirty,
-}: UseChapterPersistenceOptions & {
+  runQueuedSave,
+}: {
+  currentChapter: ChapterSnapshot | null;
   dirty: boolean;
-  persistChapter: PersistChapter;
+  onSaveError?: UseChapterPersistenceOptions["onSaveError"];
   refs: ChapterPersistenceRefs;
-  setDirty: React.Dispatch<React.SetStateAction<boolean>>;
+  runQueuedSave: QueuedSaveRunner;
 }): void {
   const {
     blockedAutoSaveVersionRef,
-    dirtyPageIdsRef,
     dirtyVersionRef,
+    lastSaveErrorRef,
     saveTimerRef,
   } = refs;
   React.useEffect(() => {
@@ -321,21 +353,17 @@ function useAutosaveEffect({
     const version = dirtyVersionRef.current;
     saveTimerRef.current = window.setTimeout(async () => {
       try {
-        const saved = await persistChapter(currentChapter, {
-          syncState: false,
-        });
-        if (dirtyVersionRef.current === version) {
-          currentChapterRef.current = saved;
-          setCurrentChapter(saved);
-          dirtyPageIdsRef.current.clear();
-          setDirty(false);
-        }
+        await runQueuedSave("autosave");
       } catch (error) {
         if (isPageSaveConflictError(error)) {
           blockedAutoSaveVersionRef.current = version;
         }
         console.error(error);
-        onSaveError?.(error instanceof Error ? error.message : String(error));
+        notifySaveErrorDeduped(
+          lastSaveErrorRef,
+          onSaveError,
+          error instanceof Error ? error.message : String(error),
+        );
       } finally {
         saveTimerRef.current = null;
       }
@@ -348,15 +376,30 @@ function useAutosaveEffect({
     };
   }, [
     currentChapter,
-    currentChapterRef,
     dirty,
     blockedAutoSaveVersionRef,
-    dirtyPageIdsRef,
     dirtyVersionRef,
+    lastSaveErrorRef,
     onSaveError,
-    persistChapter,
+    runQueuedSave,
     saveTimerRef,
-    setCurrentChapter,
-    setDirty,
   ]);
+}
+
+function notifySaveErrorDeduped(
+  lastSaveErrorRef: ChapterPersistenceRefs["lastSaveErrorRef"],
+  onSaveError: UseChapterPersistenceOptions["onSaveError"],
+  message: string,
+): void {
+  const now = Date.now();
+  const last = lastSaveErrorRef.current;
+  if (
+    last &&
+    last.message === message &&
+    now - last.shownAt < SAVE_ERROR_DEDUPE_MS
+  ) {
+    return;
+  }
+  lastSaveErrorRef.current = { message, shownAt: now };
+  onSaveError?.(message);
 }

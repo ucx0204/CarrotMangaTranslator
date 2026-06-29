@@ -178,6 +178,8 @@ export const SavePageBlocksRequestSchema = z
     pageId: uuid,
     baseUpdatedAt: z.string().max(80).optional(),
     baseBlocksHash: z.string().min(1).max(80).optional(),
+    dirtyVersion: z.number().int().nonnegative().optional(),
+    saveReason: z.enum(["autosave", "manual"]).optional(),
     blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
   })
   .strict();

@@ -9,20 +9,20 @@ import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type {
   ChapterPersistenceRefs,
   DirtyTrackingActions,
-  PersistChapter,
+  QueuedSaveRunner,
   ServerVersionSyncActions,
 } from "./chapterPersistenceTypes";
 
 export function useDirtyTrackingActions({
   currentChapterRef,
-  persistChapter,
   refs,
+  runQueuedSave,
   setDirty,
   syncServerPageVersions,
 }: {
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
-  persistChapter: PersistChapter;
   refs: ChapterPersistenceRefs;
+  runQueuedSave: QueuedSaveRunner;
   setDirty: Dispatch<SetStateAction<boolean>>;
   syncServerPageVersions: ServerVersionSyncActions["syncServerPageVersions"];
 }): DirtyTrackingActions {
@@ -39,10 +39,8 @@ export function useDirtyTrackingActions({
   const replaceDirtyPageIds = useReplaceDirtyPageIdsAction({ refs, setDirty });
   const saveNow = useSaveNowAction({
     currentChapterRef,
-    persistChapter,
     refs,
-    setDirty,
-    syncServerPageVersions,
+    runQueuedSave,
   });
 
   return {
@@ -172,18 +170,14 @@ function useReplaceDirtyPageIdsAction({
 
 function useSaveNowAction({
   currentChapterRef,
-  persistChapter,
   refs,
-  setDirty,
-  syncServerPageVersions,
+  runQueuedSave,
 }: {
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
-  persistChapter: PersistChapter;
   refs: ChapterPersistenceRefs;
-  setDirty: Dispatch<SetStateAction<boolean>>;
-  syncServerPageVersions: ServerVersionSyncActions["syncServerPageVersions"];
+  runQueuedSave: QueuedSaveRunner;
 }): DirtyTrackingActions["saveNow"] {
-  const { blockedAutoSaveVersionRef, dirtyPageIdsRef, saveTimerRef } = refs;
+  const { blockedAutoSaveVersionRef, saveTimerRef } = refs;
   return useCallback(async () => {
     const chapter = currentChapterRef.current;
     if (!chapter) {
@@ -194,17 +188,11 @@ function useSaveNowAction({
       saveTimerRef.current = null;
     }
     blockedAutoSaveVersionRef.current = null;
-    await persistChapter(chapter);
-    dirtyPageIdsRef.current.clear();
-    syncServerPageVersions(currentChapterRef.current);
-    setDirty(false);
+    await runQueuedSave("manual");
   }, [
     blockedAutoSaveVersionRef,
     currentChapterRef,
-    dirtyPageIdsRef,
-    persistChapter,
+    runQueuedSave,
     saveTimerRef,
-    setDirty,
-    syncServerPageVersions,
   ]);
 }

@@ -1,6 +1,8 @@
 import type React from "react";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 
+export type SaveReason = "autosave" | "manual";
+
 export type UseChapterPersistenceOptions = {
   currentChapter: ChapterSnapshot | null;
   currentChapterRef: React.MutableRefObject<ChapterSnapshot | null>;
@@ -29,6 +31,14 @@ export type ChapterPersistenceRefs = {
   blockedAutoSaveVersionRef: React.MutableRefObject<number | null>;
   dirtyPageIdsRef: React.MutableRefObject<Set<string>>;
   dirtyVersionRef: React.MutableRefObject<number>;
+  lastSaveErrorRef: React.MutableRefObject<{
+    message: string;
+    shownAt: number;
+  } | null>;
+  saveAgainRequestedRef: React.MutableRefObject<boolean>;
+  saveAgainReasonRef: React.MutableRefObject<SaveReason | null>;
+  saveInFlightRef: React.MutableRefObject<boolean>;
+  saveQueuePromiseRef: React.MutableRefObject<Promise<void> | null>;
   saveTimerRef: React.MutableRefObject<number | null>;
   serverVersionByPageIdRef: React.MutableRefObject<
     Map<string, ServerPageVersion>
@@ -46,8 +56,14 @@ export type ServerVersionSyncActions = {
 
 export type PersistChapter = (
   chapter: ChapterSnapshot,
-  options?: { syncState?: boolean },
+  options?: {
+    dirtyVersion?: number;
+    saveReason?: SaveReason;
+    syncState?: boolean;
+  },
 ) => Promise<ChapterSnapshot>;
+
+export type QueuedSaveRunner = (reason: SaveReason) => Promise<void>;
 
 export type DirtyTrackingActions = Pick<
   ChapterPersistenceResult,

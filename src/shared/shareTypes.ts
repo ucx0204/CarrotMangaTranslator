@@ -6,6 +6,8 @@ export type SavePageBlocksRequest = {
   pageId: string;
   baseUpdatedAt?: string;
   baseBlocksHash?: string;
+  dirtyVersion?: number;
+  saveReason?: "autosave" | "manual";
   blocks: TranslationBlock[];
 };
 

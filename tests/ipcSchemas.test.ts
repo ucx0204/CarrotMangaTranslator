@@ -70,12 +70,16 @@ describe("IPC schemas", () => {
         pageId,
         baseUpdatedAt: "2026-01-01T00:00:00.000Z",
         baseBlocksHash: "0123456789abcdef",
+        dirtyVersion: 3,
+        saveReason: "autosave",
         blocks: makeChapterSnapshot().pages[0].blocks,
       },
       "페이지 블록 저장",
     );
     expect(parsed.baseUpdatedAt).toBe("2026-01-01T00:00:00.000Z");
     expect(parsed.baseBlocksHash).toBe("0123456789abcdef");
+    expect(parsed.dirtyVersion).toBe(3);
+    expect(parsed.saveReason).toBe("autosave");
   });
 
   it("accepts bounded AI work context analysis requests", () => {

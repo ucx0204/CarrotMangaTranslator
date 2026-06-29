@@ -17,6 +17,9 @@
     "src/shared/settingsTypes.ts": {
       "maxImportedBy": 32
     },
+    "src/main/logger.ts": {
+      "maxImportedBy": 26
+    },
     "src/renderer/src/components/ui/index.ts": {
       "maxImportedBy": 35
     },
