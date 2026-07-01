@@ -23,6 +23,8 @@ type EditorPanelProps = {
   areaTranslateSelecting?: boolean;
   disableChapterApply?: boolean;
   selectedBlockCount?: number;
+  /** Optional actions (e.g. float/dock toggle) rendered in the panel header. */
+  headerActions?: React.ReactNode;
   onStartAreaTranslate?: () => void;
   onApplyFormat?: (
     scope: FormatApplyScope,
@@ -40,6 +42,7 @@ export function EditorPanel({
   areaTranslateSelecting = false,
   disableChapterApply = false,
   selectedBlockCount = 0,
+  headerActions,
   onStartAreaTranslate,
   onApplyFormat,
   onUpdate,
@@ -60,6 +63,7 @@ export function EditorPanel({
         areaTranslateAvailable={areaTranslateAvailable}
         areaTranslateSelecting={areaTranslateSelecting}
         disabled={disabled}
+        headerActions={headerActions}
         onStartAreaTranslate={onStartAreaTranslate}
       />
     );
@@ -68,7 +72,12 @@ export function EditorPanel({
   const model = resolveEditorPanelModel(block);
   return (
     <section className="editor-panel has-block">
-      <h2>블록</h2>
+      <header className="editor-panel-header">
+        <h2>블록</h2>
+        {headerActions ? (
+          <div className="editor-panel-header-actions">{headerActions}</div>
+        ) : null}
+      </header>
       <TextEditorGroup block={block} disabled={disabled} onUpdate={onUpdate} />
       <FormatEditorGroup
         block={block}

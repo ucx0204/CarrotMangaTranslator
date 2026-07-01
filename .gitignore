@@ -35,3 +35,4 @@ logs/app.log
 /library/
 /fonts/
 settings.json
+panel-window-bounds.json

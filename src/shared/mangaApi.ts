@@ -22,6 +22,9 @@ import type {
   LocalModelPickResult,
   ModelTestProgressEvent,
   ModelTestResult,
+  PanelCommand,
+  PanelId,
+  PanelSyncState,
   RegionAnalysisRequest,
   RegionAnalysisResult,
   SavePageBlocksRequest,
@@ -143,8 +146,18 @@ export type MangaApi = {
   ) => Promise<InpaintingExportResult>;
   disposeInpaintingEngine: () => Promise<{ disposed: boolean }>;
   cancelJob: () => Promise<unknown>;
+  getPanelState: () => Promise<PanelSyncState | null>;
+  openPanelWindow: (panelId: PanelId) => Promise<{ opened: boolean }>;
+  closePanelWindow: (panelId: PanelId) => Promise<{ closed: boolean }>;
+  publishPanelState: (state: PanelSyncState) => Promise<{ published: boolean }>;
+  sendPanelCommand: (command: PanelCommand) => Promise<{ sent: boolean }>;
   onJobEvent: (callback: (event: JobEvent) => void) => () => void;
   onModelTestEvent: (
     callback: (event: ModelTestProgressEvent) => void,
+  ) => () => void;
+  onPanelState: (callback: (state: PanelSyncState) => void) => () => void;
+  onPanelCommand: (callback: (command: PanelCommand) => void) => () => void;
+  onPanelWindowsChanged: (
+    callback: (openPanelIds: PanelId[]) => void,
   ) => () => void;
 };

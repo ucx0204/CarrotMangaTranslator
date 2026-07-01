@@ -11,6 +11,9 @@ import type { useSettingsDialog } from "../../hooks/useSettingsDialog";
 import type { useStatusLog } from "../../hooks/useStatusLog";
 import type { useTranslationActions } from "../../hooks/useTranslationActions";
 import type { useWorkspacePointerHandlers } from "../../hooks/useWorkspacePointerHandlers";
+import type { PanelSessionValue } from "../../panels/panelSession";
+import type { usePanelBridgeHost } from "../../panels/usePanelBridgeHost";
+import type { PanelSyncState } from "../../../../shared/panelBridgeTypes";
 import type { AppSessionViewProps } from "./AppSessionView";
 import type { useAppSessionBridgeActions } from "./useAppSessionBridgeActions";
 import type { AppSessionCoreState } from "./useAppSessionCoreState";
@@ -31,6 +34,7 @@ type AppSessionViewModel = {
   inpaintingActions: ReturnType<typeof useInpaintingActions>;
   inpaintingBridge: ReturnType<typeof useInpaintingContextBridge>;
   libraryActions: ReturnType<typeof useLibraryActions>;
+  panelBridge: ReturnType<typeof usePanelBridgeHost>;
   pageNavigationHandlers: ReturnType<typeof usePageNavigationHandlers>;
   pointerHandlers: ReturnType<typeof useWorkspacePointerHandlers>;
   retranslatePage: ReturnType<typeof usePageRetranslationAction>;
@@ -49,6 +53,7 @@ export function createAppSessionViewProps(
     inpaintingContextValue: model.inpaintingBridge.contextValue,
     inpaintingMode: model.uiState.inpaintingMode,
     modalsProps: createModalsProps(model),
+    panelSessionValue: createPanelSessionValue(model),
     rightRailProps: createRightRailProps(model),
     shortcutHelpProps: createShortcutHelpProps(model),
     sidebarProps: createSidebarProps(model),
@@ -152,8 +157,51 @@ function createModalsProps({
   };
 }
 
+export function buildPanelSyncState({
+  core,
+  derivedState,
+  uiState,
+}: Pick<
+  AppSessionViewModel,
+  "core" | "derivedState" | "uiState"
+>): PanelSyncState {
+  return {
+    areaTranslateAvailable: Boolean(
+      derivedState.selectedPage &&
+      derivedState.selectedPageImageDataUrl &&
+      !derivedState.jobActive,
+    ),
+    areaTranslateSelecting: Boolean(core.regionSelection?.active),
+    disableChapterApply: derivedState.jobActive,
+    editorDisabled:
+      derivedState.selectedPageEditLocked ||
+      (uiState.inpaintingMode && derivedState.jobActive),
+    selectedBlock: derivedState.selectedBlock,
+    selectedBlockCount: derivedState.selectedBlockIds.length,
+  };
+}
+
+function createPanelSessionValue(
+  model: AppSessionViewModel,
+): PanelSessionValue {
+  const { blockEditingActions, panelBridge, pointerHandlers, uiState } = model;
+  return {
+    ...buildPanelSyncState(model),
+    editorFloating: uiState.editorFloating,
+    editorPoppedOut: panelBridge.openPanelIds.includes("editor"),
+    showDetachControls: true,
+    onApplyFormat: blockEditingActions.applyFormatToScope,
+    onToggleEditorFloat: uiState.toggleEditorFloat,
+    onPopOutEditor: panelBridge.openEditorWindow,
+    onDockEditorWindow: panelBridge.closeEditorWindow,
+    onDeleteBlock: blockEditingActions.deleteSelectedBlock,
+    onDuplicateBlock: blockEditingActions.duplicateSelectedBlock,
+    onStartAreaTranslate: pointerHandlers.startRegionTranslationSelection,
+    onUpdateBlock: blockEditingActions.updateSelectedBlock,
+  };
+}
+
 function createRightRailProps({
-  blockEditingActions,
   bridgeActions,
   core,
   derivedState,
@@ -169,10 +217,7 @@ function createRightRailProps({
     inpaintingMode: uiState.inpaintingMode,
     jobActive: derivedState.jobActive,
     jobState: core.jobState,
-    onApplyFormat: blockEditingActions.applyFormatToScope,
     onCancelJob: bridgeActions.cancelJob,
-    onDeleteBlock: blockEditingActions.deleteSelectedBlock,
-    onDuplicateBlock: blockEditingActions.duplicateSelectedBlock,
     onEnterInpainting: () => void inpaintingActions.enterInpaintingMode(),
     onOpenStyleGuide: () => uiState.setStyleGuideOpen(true),
     onOpenTextView: () => uiState.setTextViewOpen(true),
@@ -180,12 +225,9 @@ function createRightRailProps({
     onStartAreaTranslate: pointerHandlers.startRegionTranslationSelection,
     onToggleBlocks: () => uiState.setShowTextBlocks((value) => !value),
     onToggleChrome: () => uiState.setShowBlockChrome((value) => !value),
-    onUpdateBlock: blockEditingActions.updateSelectedBlock,
     progressSnapshot: derivedState.progressSnapshot,
     selectedBlock: derivedState.selectedBlock,
-    selectedBlockCount: derivedState.selectedBlockIds.length,
     selectedPage: derivedState.selectedPage,
-    selectedPageEditLocked: derivedState.selectedPageEditLocked,
     selectedPageImageDataUrl: derivedState.selectedPageImageDataUrl,
     showBlockChrome: uiState.showBlockChrome,
     showProgressBar: derivedState.showProgressBar,

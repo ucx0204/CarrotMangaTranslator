@@ -6,6 +6,7 @@ import { registerInpaintingIpc } from "./inpaintingIpc";
 import { registerJobControlIpc } from "./jobControlIpc";
 import { registerLibraryIpc } from "./libraryIpc";
 import { registerLogsIpc } from "./logsIpc";
+import { registerPanelWindowsIpc } from "./panelWindowsIpc";
 import { registerSettingsIpc } from "./settingsIpc";
 import { registerTextExportIpc } from "./textExportIpc";
 import { registerTranslationJobIpc } from "./translationJobIpc";
@@ -25,4 +26,5 @@ export function registerIpc(context: IpcContext): void {
   registerTranslationJobIpc(context);
   registerInpaintingIpc(context);
   registerJobControlIpc(context);
+  registerPanelWindowsIpc(context);
 }

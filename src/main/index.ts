@@ -11,6 +11,7 @@ import { ActiveJobStore } from "./jobs/activeJob";
 import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
 import { getLogPath, logError, logInfo, logWarn, resetAppLog } from "./logger";
 import { createMainWindow } from "./mainWindow";
+import { PanelWindowRegistry } from "./panelWindows";
 import {
   decodeImageThroughRuntime,
   loadSimplePageRuntime,
@@ -21,6 +22,10 @@ const BEFORE_QUIT_CLEANUP_TIMEOUT_MS = 5000;
 const appPaths = ensureWritableAppDirectories();
 const jobs = new ActiveJobStore();
 let mainWindow: BrowserWindow | null = null;
+const panelWindows = new PanelWindowRegistry(
+  () => mainWindow,
+  appPaths.dataRoot,
+);
 let quitCleanupStarted = false;
 
 registerImageProtocolScheme();
@@ -65,6 +70,7 @@ app.whenReady().then(async () => {
     appPaths,
     jobs,
     getMainWindow: () => mainWindow,
+    panelWindows,
     loadSimplePageRuntime: () => loadSimplePageRuntime(appPaths.runtimeDir),
     decodeImage: (filePath) =>
       decodeImageThroughRuntime(appPaths.runtimeDir, filePath),
@@ -99,6 +105,7 @@ function openMainWindow(): void {
   mainWindow = createMainWindow();
   mainWindow.on("closed", () => {
     mainWindow = null;
+    panelWindows.closeAll();
   });
 }
 

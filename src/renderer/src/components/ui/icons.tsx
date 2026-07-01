@@ -203,3 +203,29 @@ export const CopyIcon = createIcon(
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </>,
 );
+
+export const FloatIcon = createIcon(
+  <>
+    <path d="M14 4h6v6" />
+    <path d="M20 4l-7 7" />
+    <path d="M19 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
+  </>,
+);
+
+export const DockIcon = createIcon(
+  <>
+    <path d="M9 9H4V4" />
+    <path d="M4 4l6 6" />
+    <path d="M19 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3" />
+    <path d="M14 4h3a2 2 0 0 1 2 2v3" />
+  </>,
+);
+
+export const ExpandIcon = createIcon(
+  <>
+    <path d="M15 3h6v6" />
+    <path d="M9 21H3v-6" />
+    <path d="M21 3l-7 7" />
+    <path d="M3 21l7-7" />
+  </>,
+);

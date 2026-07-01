@@ -25,16 +25,23 @@ export function EmptyEditorPanel({
   areaTranslateAvailable,
   areaTranslateSelecting,
   disabled,
+  headerActions,
   onStartAreaTranslate,
 }: {
   areaTranslateAvailable: boolean;
   areaTranslateSelecting: boolean;
   disabled: boolean;
+  headerActions?: React.ReactNode;
   onStartAreaTranslate?: () => void;
 }): React.JSX.Element {
   return (
     <section className="editor-panel muted">
-      <h2>블록</h2>
+      <header className="editor-panel-header">
+        <h2>블록</h2>
+        {headerActions ? (
+          <div className="editor-panel-header-actions">{headerActions}</div>
+        ) : null}
+      </header>
       <button
         className={`area-translate-button ${areaTranslateSelecting ? "active" : ""}`}
         disabled={disabled || !areaTranslateAvailable}
@@ -56,6 +63,8 @@ export function TextEditorGroup({
   const { refCallback: sourceTextareaRef, reset: resetSourceHeight } =
     useStickyTextareaHeight("editor.textareaHeight.source");
   const translatedRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const sourceRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const drafts = useBlockTextDrafts(block, onUpdate, translatedRef, sourceRef);
   const setTranslatedRef = React.useCallback(
     (element: HTMLTextAreaElement | null) => {
       translatedRef.current = element;
@@ -63,31 +72,17 @@ export function TextEditorGroup({
     },
     [translatedTextareaRef],
   );
+  const setSourceRef = React.useCallback(
+    (element: HTMLTextAreaElement | null) => {
+      sourceRef.current = element;
+      sourceTextareaRef(element);
+    },
+    [sourceTextareaRef],
+  );
   const resetTextareaHeights = React.useCallback(() => {
     resetTranslatedHeight();
     resetSourceHeight();
   }, [resetTranslatedHeight, resetSourceHeight]);
-
-  const wrapTranslatedSelection = React.useCallback(
-    (marker: string) => {
-      const element = translatedRef.current;
-      if (!element) {
-        return;
-      }
-      const result = applyInlineMarkup(
-        element.value,
-        element.selectionStart ?? element.value.length,
-        element.selectionEnd ?? element.value.length,
-        marker,
-      );
-      onUpdate({ translatedText: result.value });
-      requestAnimationFrame(() => {
-        element.focus();
-        element.setSelectionRange(result.selectionStart, result.selectionEnd);
-      });
-    },
-    [onUpdate],
-  );
 
   return (
     <div className="editor-group">
@@ -95,7 +90,7 @@ export function TextEditorGroup({
         <h3>텍스트</h3>
         <TextMarkupToolbar
           disabled={disabled}
-          onWrap={wrapTranslatedSelection}
+          onWrap={drafts.wrapTranslatedSelection}
           onResetHeights={resetTextareaHeights}
         />
       </div>
@@ -103,9 +98,9 @@ export function TextEditorGroup({
         한국어
         <textarea
           ref={setTranslatedRef}
-          value={block.translatedText}
+          value={drafts.translated}
           disabled={disabled}
-          onChange={(event) => onUpdate({ translatedText: event.target.value })}
+          onChange={(event) => drafts.changeTranslated(event.target.value)}
         />
       </label>
       <p className="muted-line markup-hint">
@@ -115,14 +110,88 @@ export function TextEditorGroup({
       <label>
         OCR
         <textarea
-          ref={sourceTextareaRef}
-          value={block.sourceText}
+          ref={setSourceRef}
+          value={drafts.source}
           disabled={disabled}
-          onChange={(event) => onUpdate({ sourceText: event.target.value })}
+          onChange={(event) => drafts.changeSource(event.target.value)}
         />
       </label>
     </div>
   );
+}
+
+/**
+ * Local, optimistic text state for the editor textareas so typing stays instant
+ * and cursor-stable even when updates round-trip through the panel bridge (in a
+ * popped-out window). Upstream values re-sync on block switch, or on external
+ * edits while the field is not focused — never clobbering an active edit.
+ */
+function useBlockTextDrafts(
+  block: TranslationBlock,
+  onUpdate: BlockPatchHandler,
+  translatedRef: React.RefObject<HTMLTextAreaElement | null>,
+  sourceRef: React.RefObject<HTMLTextAreaElement | null>,
+): {
+  translated: string;
+  source: string;
+  changeTranslated: (value: string) => void;
+  changeSource: (value: string) => void;
+  wrapTranslatedSelection: (marker: string) => void;
+} {
+  const [translated, setTranslated] = React.useState(block.translatedText);
+  const [source, setSource] = React.useState(block.sourceText);
+  const blockIdRef = React.useRef(block.id);
+
+  React.useEffect(() => {
+    const switched = blockIdRef.current !== block.id;
+    blockIdRef.current = block.id;
+    if (switched || document.activeElement !== translatedRef.current) {
+      setTranslated(block.translatedText);
+    }
+    if (switched || document.activeElement !== sourceRef.current) {
+      setSource(block.sourceText);
+    }
+  }, [
+    block.id,
+    block.translatedText,
+    block.sourceText,
+    translatedRef,
+    sourceRef,
+  ]);
+
+  const changeTranslated = (value: string): void => {
+    setTranslated(value);
+    onUpdate({ translatedText: value });
+  };
+  const changeSource = (value: string): void => {
+    setSource(value);
+    onUpdate({ sourceText: value });
+  };
+  const wrapTranslatedSelection = (marker: string): void => {
+    const element = translatedRef.current;
+    if (!element) {
+      return;
+    }
+    const result = applyInlineMarkup(
+      element.value,
+      element.selectionStart ?? element.value.length,
+      element.selectionEnd ?? element.value.length,
+      marker,
+    );
+    changeTranslated(result.value);
+    requestAnimationFrame(() => {
+      element.focus();
+      element.setSelectionRange(result.selectionStart, result.selectionEnd);
+    });
+  };
+
+  return {
+    translated,
+    source,
+    changeTranslated,
+    changeSource,
+    wrapTranslatedSelection,
+  };
 }
 
 function TextMarkupToolbar({

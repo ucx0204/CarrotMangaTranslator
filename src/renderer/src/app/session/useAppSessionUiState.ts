@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
 import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
 import {
@@ -24,23 +24,13 @@ export function useAppSessionUiState() {
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
   const [translateOptionsOpen, setTranslateOptionsOpen] = useState(false);
   const [translationFlowActive, setTranslationFlowActive] = useState(false);
-  const [workspaceZoom, setWorkspaceZoom] = useState(1);
+  const [editorFloating, setEditorFloating] = useState(false);
+  const zoom = useWorkspaceZoomControls();
 
-  const zoomInWorkspace = useCallback(
-    () =>
-      setWorkspaceZoom((zoom) =>
-        clampWorkspaceZoom(zoom + WORKSPACE_ZOOM_STEP),
-      ),
+  const toggleEditorFloat = useCallback(
+    () => setEditorFloating((floating) => !floating),
     [],
   );
-  const zoomOutWorkspace = useCallback(
-    () =>
-      setWorkspaceZoom((zoom) =>
-        clampWorkspaceZoom(zoom - WORKSPACE_ZOOM_STEP),
-      ),
-    [],
-  );
-  const resetWorkspaceZoom = useCallback(() => setWorkspaceZoom(1), []);
 
   const resetChapterScopedUi = useCallback(() => {
     setInpaintingMode(false);
@@ -48,11 +38,13 @@ export function useAppSessionUiState() {
     setStyleGuideOpen(false);
     setTranslateOptionsOpen(false);
     setPatternMaskStrokesByPage({});
-    setWorkspaceZoom(1);
-  }, []);
+    zoom.resetWorkspaceZoom();
+  }, [zoom]);
 
   return {
+    ...zoom,
     commandPaletteOpen,
+    editorFloating,
     inpaintingBrushRadius,
     inpaintingGuideOpen,
     inpaintingMode,
@@ -62,6 +54,8 @@ export function useAppSessionUiState() {
     peekOriginal,
     resetChapterScopedUi,
     setCommandPaletteOpen,
+    setEditorFloating,
+    toggleEditorFloat,
     setInpaintingBrushRadius,
     setInpaintingGuideOpen,
     setInpaintingMode,
@@ -83,9 +77,33 @@ export function useAppSessionUiState() {
     textViewOpen,
     translateOptionsOpen,
     translationFlowActive,
-    workspaceZoom,
-    zoomInWorkspace,
-    zoomOutWorkspace,
-    resetWorkspaceZoom,
   };
+}
+
+function useWorkspaceZoomControls() {
+  const [workspaceZoom, setWorkspaceZoom] = useState(1);
+  const zoomInWorkspace = useCallback(
+    () =>
+      setWorkspaceZoom((zoom) =>
+        clampWorkspaceZoom(zoom + WORKSPACE_ZOOM_STEP),
+      ),
+    [],
+  );
+  const zoomOutWorkspace = useCallback(
+    () =>
+      setWorkspaceZoom((zoom) =>
+        clampWorkspaceZoom(zoom - WORKSPACE_ZOOM_STEP),
+      ),
+    [],
+  );
+  const resetWorkspaceZoom = useCallback(() => setWorkspaceZoom(1), []);
+  return useMemo(
+    () => ({
+      workspaceZoom,
+      zoomInWorkspace,
+      zoomOutWorkspace,
+      resetWorkspaceZoom,
+    }),
+    [workspaceZoom, zoomInWorkspace, zoomOutWorkspace, resetWorkspaceZoom],
+  );
 }

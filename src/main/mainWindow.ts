@@ -4,30 +4,43 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { logError, writeLog } from "./logger";
 
-export function createMainWindow(): BrowserWindow {
+export type RendererLoadTarget = {
+  devRendererUrl: string | null;
+  productionRendererPath: string;
+  allowedRendererUrl: string;
+  windowIconPath: string | null;
+};
+
+export function resolveRendererLoadTarget(): RendererLoadTarget {
   const devRendererUrl = resolveAllowedDevRendererUrl(
     process.env.ELECTRON_RENDERER_URL,
   );
   const productionRendererPath = join(__dirname, "../renderer/index.html");
   const allowedRendererUrl =
     devRendererUrl ?? pathToFileURL(productionRendererPath).toString();
-  const windowIconPath = resolveWindowIconPath();
-  const window = new BrowserWindow({
-    width: 1600,
-    height: 980,
-    minWidth: 1240,
-    minHeight: 760,
-    ...(windowIconPath ? { icon: windowIconPath } : {}),
-    backgroundColor: "#101114",
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: join(__dirname, "../preload/index.js"),
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
+  return {
+    devRendererUrl,
+    productionRendererPath,
+    allowedRendererUrl,
+    windowIconPath: resolveWindowIconPath(),
+  };
+}
 
+/** Shared web preferences for any renderer window (main or popped-out panel). */
+export function rendererWebPreferences(): Electron.WebPreferences {
+  return {
+    preload: join(__dirname, "../preload/index.js"),
+    sandbox: true,
+    contextIsolation: true,
+    nodeIntegration: false,
+  };
+}
+
+/** Applies the logging + navigation guards shared by all renderer windows. */
+export function applyRendererWindowGuards(
+  window: BrowserWindow,
+  allowedRendererUrl: string,
+): void {
   window.webContents.on("console-message", (details) => {
     const level =
       details.level === "warning"
@@ -67,15 +80,42 @@ export function createMainWindow(): BrowserWindow {
     event.preventDefault();
     writeLog("warn", "Blocked renderer navigation", { url });
   });
+}
 
-  window.setMenuBarVisibility(false);
-
-  if (devRendererUrl) {
-    void window.loadURL(devRendererUrl);
+/** Loads the renderer HTML into a window, optionally at a route hash. */
+export function loadRendererIntoWindow(
+  window: BrowserWindow,
+  target: RendererLoadTarget,
+  hash?: string,
+): void {
+  if (target.devRendererUrl) {
+    void window.loadURL(
+      hash ? `${target.devRendererUrl}#${hash}` : target.devRendererUrl,
+    );
   } else {
-    void window.loadFile(productionRendererPath);
+    void window.loadFile(
+      target.productionRendererPath,
+      hash ? { hash } : undefined,
+    );
   }
+}
 
+export function createMainWindow(): BrowserWindow {
+  const target = resolveRendererLoadTarget();
+  const window = new BrowserWindow({
+    width: 1600,
+    height: 980,
+    minWidth: 1240,
+    minHeight: 760,
+    ...(target.windowIconPath ? { icon: target.windowIconPath } : {}),
+    backgroundColor: "#101114",
+    autoHideMenuBar: true,
+    webPreferences: rendererWebPreferences(),
+  });
+
+  applyRendererWindowGuards(window, target.allowedRendererUrl);
+  window.setMenuBarVisibility(false);
+  loadRendererIntoWindow(window, target);
   return window;
 }
 

@@ -298,6 +298,15 @@ function createContext(
         isDestroyed: () => false,
         webContents: { id: 1, getURL: () => "http://127.0.0.1:5173/" },
       }) as ReturnType<IpcContext["getMainWindow"]>,
+    panelWindows: {
+      open: () => true,
+      close: () => true,
+      publishState: () => undefined,
+      getOpenPanelIds: () => [],
+      getLastState: () => null,
+      isPanelSender: () => false,
+      closeAll: () => undefined,
+    } as unknown as IpcContext["panelWindows"],
     loadSimplePageRuntime: () => runtime,
     decodeImage: vi.fn(),
   };

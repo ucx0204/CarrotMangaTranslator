@@ -74,6 +74,12 @@ import {
   WorkShareImportRequestSchema,
   WorkStyleGuideSchema,
 } from "./ipcSchemas";
+import {
+  PanelCommandSchema,
+  PanelIdSchema,
+  PanelSyncStateSchema,
+} from "./panelBridgeSchemas";
+import type { PanelCommand, PanelId, PanelSyncState } from "./panelBridgeTypes";
 import type {
   AnalyzeWorkContextRequest,
   AnalyzeWorkContextResult,
@@ -166,6 +172,12 @@ const openLogFolderResultSchema = z
 
 const loggedResultSchema = z.object({ logged: z.boolean() }).strict();
 const cancelJobResultSchema = z.object({ cancelled: z.boolean() }).strict();
+const openPanelWindowResultSchema = z.object({ opened: z.boolean() }).strict();
+const closePanelWindowResultSchema = z.object({ closed: z.boolean() }).strict();
+const publishPanelStateResultSchema = z
+  .object({ published: z.boolean() })
+  .strict();
+const sendPanelCommandResultSchema = z.object({ sent: z.boolean() }).strict();
 const disposeInpaintingResultSchema = z
   .object({ disposed: z.boolean() })
   .strict();
@@ -177,6 +189,10 @@ type OpenLogFolderResult = z.output<typeof openLogFolderResultSchema>;
 type WriteLogResult = z.output<typeof loggedResultSchema>;
 type CancelJobResult = z.output<typeof cancelJobResultSchema>;
 type DisposeInpaintingResult = z.output<typeof disposeInpaintingResultSchema>;
+type OpenPanelWindowResult = z.output<typeof openPanelWindowResultSchema>;
+type ClosePanelWindowResult = z.output<typeof closePanelWindowResultSchema>;
+type PublishPanelStateResult = z.output<typeof publishPanelStateResultSchema>;
+type SendPanelCommandResult = z.output<typeof sendPanelCommandResultSchema>;
 
 const importPageDraftSchema = z
   .object({
@@ -802,6 +818,42 @@ export const jobControlIpcContracts = {
   }),
 } as const;
 
+export const panelWindowIpcContracts = {
+  getPanelState: defineIpcContract<[], PanelSyncState | null>({
+    apiKey: "getPanelState",
+    channel: "panel:get-state",
+    args: z.tuple([]),
+    result: PanelSyncStateSchema.nullable(),
+  }),
+  openPanelWindow: defineIpcContract<[PanelId], OpenPanelWindowResult>({
+    apiKey: "openPanelWindow",
+    channel: "panel:open-window",
+    args: z.tuple([PanelIdSchema]),
+    result: openPanelWindowResultSchema,
+  }),
+  closePanelWindow: defineIpcContract<[PanelId], ClosePanelWindowResult>({
+    apiKey: "closePanelWindow",
+    channel: "panel:close-window",
+    args: z.tuple([PanelIdSchema]),
+    result: closePanelWindowResultSchema,
+  }),
+  publishPanelState: defineIpcContract<
+    [PanelSyncState],
+    PublishPanelStateResult
+  >({
+    apiKey: "publishPanelState",
+    channel: "panel:publish-state",
+    args: z.tuple([PanelSyncStateSchema]),
+    result: publishPanelStateResultSchema,
+  }),
+  sendPanelCommand: defineIpcContract<[PanelCommand], SendPanelCommandResult>({
+    apiKey: "sendPanelCommand",
+    channel: "panel:send-command",
+    args: z.tuple([PanelCommandSchema]),
+    result: sendPanelCommandResultSchema,
+  }),
+} as const;
+
 export const ipcInvokeContracts = {
   ...importShareIpcContracts,
   ...libraryIpcContracts,
@@ -814,6 +866,7 @@ export const ipcInvokeContracts = {
   ...translationJobIpcContracts,
   ...inpaintingIpcContracts,
   ...jobControlIpcContracts,
+  ...panelWindowIpcContracts,
 } as const;
 
 export const ipcEventContracts = {
@@ -826,6 +879,21 @@ export const ipcEventContracts = {
     eventKey: "modelTestProgress",
     channel: "settings:model-test-progress",
     payload: ModelTestProgressEventSchema,
+  }),
+  panelState: defineIpcEventContract<PanelSyncState>({
+    eventKey: "panelState",
+    channel: "panel:state",
+    payload: PanelSyncStateSchema,
+  }),
+  panelCommand: defineIpcEventContract<PanelCommand>({
+    eventKey: "panelCommand",
+    channel: "panel:command",
+    payload: PanelCommandSchema,
+  }),
+  panelWindowsChanged: defineIpcEventContract<PanelId[]>({
+    eventKey: "panelWindowsChanged",
+    channel: "panel:windows-changed",
+    payload: z.array(PanelIdSchema).max(32),
   }),
 } as const;
 

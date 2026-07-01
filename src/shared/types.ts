@@ -8,6 +8,12 @@ export type {
 } from "./textTypes";
 export type { BlockFormatDefaults } from "./blockFormat";
 export type {
+  PanelCommand,
+  PanelFormatScope,
+  PanelId,
+  PanelSyncState,
+} from "./panelBridgeTypes";
+export type {
   AmdRocmTarget,
   ApiReasoningEffort,
   ApiSettings,

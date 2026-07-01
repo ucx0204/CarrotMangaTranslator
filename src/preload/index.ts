@@ -9,11 +9,18 @@ import {
   jobControlIpcContracts,
   libraryIpcContracts,
   logsIpcContracts,
+  panelWindowIpcContracts,
   settingsIpcContracts,
   textReviewIpcContracts,
   translationJobIpcContracts,
   workContextIpcContracts,
+  type IpcEventContract,
 } from "../shared/ipcContracts";
+import type {
+  PanelCommand,
+  PanelId,
+  PanelSyncState,
+} from "../shared/panelBridgeTypes";
 import { invokeContract } from "./ipcContracts";
 import type {
   RegionAnalysisRequest,
@@ -75,6 +82,24 @@ import type {
   ChapterStoryMemory,
   WorkStyleGuide,
 } from "../shared/workContextTypes";
+
+function subscribeToIpcEvent<TPayload>(
+  contract: IpcEventContract<TPayload>,
+  callback: (payload: TPayload) => void,
+): () => void {
+  const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
+    const result = contract.payload.safeParse(payload);
+    if (result.success) {
+      callback(result.data as TPayload);
+      return;
+    }
+    console.warn(`Invalid ${contract.eventKey} payload ignored`);
+  };
+  ipcRenderer.on(contract.channel, listener);
+  return () => {
+    ipcRenderer.removeListener(contract.channel, listener);
+  };
+}
 
 const api = {
   previewImagesImport: (): Promise<ImportPreviewSession | null> =>
@@ -221,6 +246,21 @@ const api = {
   disposeInpaintingEngine: (): Promise<{ disposed: boolean }> =>
     invokeContract(inpaintingIpcContracts.disposeInpaintingEngine),
   cancelJob: () => invokeContract(jobControlIpcContracts.cancelJob),
+  getPanelState: () => invokeContract(panelWindowIpcContracts.getPanelState),
+  openPanelWindow: (panelId: PanelId) =>
+    invokeContract(panelWindowIpcContracts.openPanelWindow, panelId),
+  closePanelWindow: (panelId: PanelId) =>
+    invokeContract(panelWindowIpcContracts.closePanelWindow, panelId),
+  publishPanelState: (state: PanelSyncState) =>
+    invokeContract(panelWindowIpcContracts.publishPanelState, state),
+  sendPanelCommand: (command: PanelCommand) =>
+    invokeContract(panelWindowIpcContracts.sendPanelCommand, command),
+  onPanelState: (callback: (state: PanelSyncState) => void) =>
+    subscribeToIpcEvent(ipcEventContracts.panelState, callback),
+  onPanelCommand: (callback: (command: PanelCommand) => void) =>
+    subscribeToIpcEvent(ipcEventContracts.panelCommand, callback),
+  onPanelWindowsChanged: (callback: (openPanelIds: PanelId[]) => void) =>
+    subscribeToIpcEvent(ipcEventContracts.panelWindowsChanged, callback),
   onJobEvent: (callback: (event: JobEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
       const result = ipcEventContracts.jobEvent.payload.safeParse(payload);

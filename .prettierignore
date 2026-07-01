@@ -13,3 +13,4 @@ coverage
 *.exe
 *.gguf
 *.safetensors
+panel-window-bounds.json

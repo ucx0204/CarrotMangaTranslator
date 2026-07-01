@@ -3,27 +3,14 @@ import type { CSSProperties } from "react";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
-import type { BlockFormatGroupId } from "../../../shared/blockFormat";
-import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
 import type { ProgressSnapshot } from "../lib/jobProgress";
-import { EditorPanel } from "./EditorPanel";
+import { EditorPanelSlot } from "../panels/EditorPanelSlot";
 import {
   DisplayControlPanel,
   InpaintingControlPanel,
 } from "./InpaintingControlPanel";
 import { RunPanel, StatusPanel } from "./RunStatusPanels";
 import { Button } from "./ui";
-
-type SharedRailActions = {
-  onApplyFormat: (
-    scope: FormatApplyScope,
-    groupIds: BlockFormatGroupId[],
-  ) => void;
-  onBlockDelete: () => void;
-  onBlockDuplicate: () => void;
-  onBlockUpdate: (patch: Partial<TranslationBlock>) => void;
-  selectedBlockCount: number;
-};
 
 type AreaTranslationProps = {
   areaTranslateSelecting: boolean;
@@ -36,28 +23,29 @@ type AreaTranslationProps = {
   selectedPageImageDataUrl: string;
 };
 
-type InpaintingRightRailProps = SharedRailActions & {
-  editorDisabled: boolean;
+type InpaintingRightRailProps = AreaTranslationProps & {
   selectedBlock: TranslationBlock | null;
-} & AreaTranslationProps;
+};
 
-type TranslationRightRailProps = SharedRailActions &
-  AreaTranslationProps & {
-    currentChapter: ChapterSnapshot | null;
-    editorDisabled: boolean;
-    flowActive: boolean;
-    onEnterInpainting: () => void;
-    onOpenStyleGuide: () => void;
-    onOpenTextView: () => void;
-    onOpenTranslateOptions: () => void;
-    onToggleBlocks: () => void;
-    onToggleChrome: () => void;
-    selectedBlock: TranslationBlock | null;
-    showBlockChrome: boolean;
-    showProgressBar: boolean;
-    showTextBlocks: boolean;
-    statusLines: string[];
-  };
+type TranslationRightRailProps = {
+  currentChapter: ChapterSnapshot | null;
+  flowActive: boolean;
+  jobActive: boolean;
+  jobState: JobState;
+  onCancelJob: () => void;
+  onEnterInpainting: () => void;
+  onOpenStyleGuide: () => void;
+  onOpenTextView: () => void;
+  onOpenTranslateOptions: () => void;
+  onToggleBlocks: () => void;
+  onToggleChrome: () => void;
+  progressSnapshot: ProgressSnapshot | null;
+  selectedBlock: TranslationBlock | null;
+  showBlockChrome: boolean;
+  showProgressBar: boolean;
+  showTextBlocks: boolean;
+  statusLines: string[];
+};
 
 type AreaProgressNumbers = {
   current: number | undefined;
@@ -67,36 +55,19 @@ type AreaProgressNumbers = {
 
 export function InpaintingRightRail({
   areaTranslateSelecting,
-  editorDisabled,
   jobActive,
   jobState,
-  onApplyFormat,
-  onBlockDelete,
-  onBlockDuplicate,
-  onBlockUpdate,
   onCancelJob,
   onStartAreaTranslate,
   progressSnapshot,
   selectedBlock,
-  selectedBlockCount,
   selectedPage,
   selectedPageImageDataUrl,
 }: InpaintingRightRailProps): React.JSX.Element {
   return (
     <>
       <InpaintingControlPanel />
-      {selectedBlock ? (
-        <EditorPanel
-          block={selectedBlock}
-          disabled={editorDisabled}
-          disableChapterApply={jobActive}
-          onApplyFormat={onApplyFormat}
-          selectedBlockCount={selectedBlockCount}
-          onUpdate={onBlockUpdate}
-          onDelete={onBlockDelete}
-          onDuplicate={onBlockDuplicate}
-        />
-      ) : null}
+      {selectedBlock ? <EditorPanelSlot /> : null}
       <AreaTranslationPanel
         areaTranslateSelecting={areaTranslateSelecting}
         jobActive={jobActive}
@@ -129,7 +100,6 @@ export function TranslationRightRail({
   onOpenStyleGuide,
   selectedBlock,
   statusLines,
-  ...editorProps
 }: TranslationRightRailProps): React.JSX.Element {
   return (
     <>
@@ -156,53 +126,8 @@ export function TranslationRightRail({
       {!selectedBlock ? (
         <StatusPanel jobState={jobState} statusLines={statusLines} />
       ) : null}
-      <TranslationEditorPanel
-        jobActive={jobActive}
-        selectedBlock={selectedBlock}
-        {...editorProps}
-      />
+      <EditorPanelSlot />
     </>
-  );
-}
-
-function TranslationEditorPanel({
-  areaTranslateSelecting,
-  editorDisabled,
-  jobActive,
-  onApplyFormat,
-  onBlockDelete,
-  onBlockDuplicate,
-  onBlockUpdate,
-  onStartAreaTranslate,
-  selectedBlock,
-  selectedBlockCount,
-  selectedPage,
-  selectedPageImageDataUrl,
-}: SharedRailActions & {
-  areaTranslateSelecting: boolean;
-  editorDisabled: boolean;
-  jobActive: boolean;
-  onStartAreaTranslate: () => void;
-  selectedBlock: TranslationBlock | null;
-  selectedPage: MangaPage | null;
-  selectedPageImageDataUrl: string;
-}): React.JSX.Element {
-  return (
-    <EditorPanel
-      block={selectedBlock}
-      disabled={editorDisabled}
-      disableChapterApply={jobActive}
-      areaTranslateAvailable={Boolean(
-        selectedPage && selectedPageImageDataUrl && !jobActive,
-      )}
-      areaTranslateSelecting={areaTranslateSelecting}
-      onStartAreaTranslate={onStartAreaTranslate}
-      onApplyFormat={onApplyFormat}
-      selectedBlockCount={selectedBlockCount}
-      onUpdate={onBlockUpdate}
-      onDelete={onBlockDelete}
-      onDuplicate={onBlockDuplicate}
-    />
   );
 }
 

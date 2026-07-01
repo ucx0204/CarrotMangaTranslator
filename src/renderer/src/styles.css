@@ -614,6 +614,105 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   padding-right: var(--sp-3);
 }
 
+.editor-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.editor-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.editor-float-placeholder {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border: 1px dashed var(--glass-border);
+  border-radius: 10px;
+  background: var(--glass-rail);
+  color: var(--text-muted);
+}
+
+.panel-window {
+  height: 100vh;
+  overflow-y: auto;
+  padding: var(--sp-5);
+  background: var(--glass-rail);
+}
+
+.panel-window-loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+}
+
+.floating-panel {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  min-height: 280px;
+  background: var(--glass-panel);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-overlay);
+  overflow: hidden;
+}
+
+.floating-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--glass-rail);
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+.floating-panel-title {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text-head);
+}
+
+.floating-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-5);
+}
+
+.floating-panel-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.floating-panel-resize::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  opacity: 0.6;
+}
+
 .editor-group {
   display: grid;
   gap: var(--sp-3);

@@ -6,7 +6,10 @@ export type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
 export type { JobState } from "../../../../shared/jobTypes";
 export { AppSessionView } from "./AppSessionView";
 export type { AppSessionViewProps } from "./AppSessionView";
-export { createAppSessionViewProps } from "./createAppSessionViewProps";
+export {
+  buildPanelSyncState,
+  createAppSessionViewProps,
+} from "./createAppSessionViewProps";
 export { useChapterSessionController } from "./useChapterSessionController";
 export type { ChapterSessionController } from "./useChapterSessionController";
 export { useInpaintingController } from "./useInpaintingController";

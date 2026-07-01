@@ -10,6 +10,11 @@ import { StyleGuideModal } from "../../components/StyleGuideModal";
 import { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
 import { ToastViewport } from "../../components/ui/ToastViewport";
 import { InpaintingSessionProvider } from "../../inpainting/InpaintingSessionProvider";
+import { EditorFloatingLayer } from "../../panels/EditorFloatingLayer";
+import {
+  PanelSessionContext,
+  type PanelSessionValue,
+} from "../../panels/panelSession";
 
 export type AppSessionViewProps = {
   commandPaletteProps: React.ComponentProps<typeof CommandPalette>;
@@ -19,6 +24,7 @@ export type AppSessionViewProps = {
   >["value"];
   inpaintingMode: boolean;
   modalsProps: React.ComponentProps<typeof AppModals>;
+  panelSessionValue: PanelSessionValue;
   rightRailProps: React.ComponentProps<typeof AppRightRail>;
   shortcutHelpProps: React.ComponentProps<typeof ShortcutHelp>;
   sidebarProps: React.ComponentProps<typeof AppSidebar>;
@@ -35,6 +41,7 @@ export function AppSessionView({
   inpaintingContextValue,
   inpaintingMode,
   modalsProps,
+  panelSessionValue,
   rightRailProps,
   shortcutHelpProps,
   sidebarProps,
@@ -43,7 +50,7 @@ export function AppSessionView({
   workspaceProps,
 }: AppSessionViewProps): React.JSX.Element {
   return (
-    <>
+    <PanelSessionContext.Provider value={panelSessionValue}>
       <main className={`app-shell ${inpaintingMode ? "inpainting-mode" : ""}`}>
         <AppSidebar {...sidebarProps} />
         <AppWorkspace {...workspaceProps} />
@@ -52,6 +59,7 @@ export function AppSessionView({
         </InpaintingSessionProvider>
         <AppModals {...modalsProps} />
       </main>
+      <EditorFloatingLayer />
       <SessionFloatingOverlays
         commandPaletteProps={commandPaletteProps}
         gatherTextProps={gatherTextProps}
@@ -59,7 +67,7 @@ export function AppSessionView({
         styleGuideProps={styleGuideProps}
         translationOptionsProps={translationOptionsProps}
       />
-    </>
+    </PanelSessionContext.Provider>
   );
 }
 
