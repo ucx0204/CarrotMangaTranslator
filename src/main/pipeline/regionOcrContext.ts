@@ -1,5 +1,11 @@
 import type { PixelRect } from "../../shared/region";
-import type { OcrBboxResult } from "./types";
+import type { TranslationOptions } from "../appSettings";
+import type { ChapterRunPaths } from "../library";
+import type { JobEvent, MangaPage } from "../../shared/types";
+import { logWarn } from "../logger";
+import { prepareOcrHintsForPages } from "./ocrHints";
+import type { OcrBboxResult, PipelineRegionContext } from "./types";
+import type { TranslationRuntimePort } from "./translationRuntimePort";
 
 type PageSize = {
   width: number;
@@ -21,6 +27,78 @@ type OcrBox = {
 };
 
 const MIN_INTERSECTION_RATIO = 0.25;
+
+/**
+ * 영역 번역용 OCR 준비: 원본 페이지 전체를 OCR한 뒤 크롭 좌표계로 사상한다.
+ * OCR 실패는 치명적이지 않다 — 힌트 없이 진행한다.
+ */
+export async function prepareRegionContextOcrHints({
+  runtime,
+  baseOptions,
+  emit,
+  jobId,
+  pages,
+  regionContext,
+  runPaths,
+  signal,
+}: {
+  runtime: TranslationRuntimePort;
+  baseOptions: TranslationOptions;
+  emit: (event: JobEvent) => void;
+  jobId: string;
+  pages: MangaPage[];
+  regionContext: PipelineRegionContext;
+  runPaths: ChapterRunPaths;
+  signal: AbortSignal;
+}): Promise<Map<string, OcrBboxResult>> {
+  try {
+    const sourceResults = await prepareOcrHintsForPages({
+      runtime,
+      baseOptions,
+      pages: [regionContext.sourcePage],
+      runPaths,
+      emit,
+      jobId,
+      signal,
+    });
+    const sourceResult =
+      sourceResults.get(regionContext.sourcePage.id) ??
+      sourceResults.values().next().value;
+    return new Map(
+      pages.map((page) => [
+        page.id,
+        mapPageOcrResultToRegionCrop({
+          cropPage: page,
+          cropRect: regionContext.cropRect,
+          sourceResult,
+        }),
+      ]),
+    );
+  } catch (error) {
+    logWarn("Region OCR context unavailable; continuing without OCR hints", {
+      jobId,
+      sourcePageId: regionContext.sourcePage.id,
+      error,
+    });
+    return new Map(
+      pages.map((page) => [
+        page.id,
+        {
+          hints: [],
+          diagnostics: [
+            {
+              provider: "region-context",
+              reason: "source-ocr-failed",
+              message: error instanceof Error ? error.message : String(error),
+            },
+          ],
+          noTextDetected: false,
+          textEvidenceCount: 0,
+        },
+      ]),
+    );
+  }
+}
 
 export function mapPageOcrResultToRegionCrop({
   cropPage,

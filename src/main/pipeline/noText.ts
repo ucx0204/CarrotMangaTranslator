@@ -17,10 +17,13 @@ export function isRequestNoTextDetected(
   );
 }
 
-export function buildNoTextCompletedPage(page: MangaPage): MangaPage {
+export function buildNoTextCompletedPage(
+  page: MangaPage,
+  options: { keepBlocks?: boolean } = {},
+): MangaPage {
   return {
     ...page,
-    blocks: [],
+    blocks: options.keepBlocks ? page.blocks : [],
     analysisStatus: "completed",
     lastError: undefined,
     updatedAt: new Date().toISOString(),

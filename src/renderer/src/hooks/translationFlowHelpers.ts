@@ -1,3 +1,4 @@
+import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { LibraryIndex } from "../../../shared/libraryTypes";
 
 export type RunAnalysisOutcome = "completed" | "cancelled" | "failed" | "no-op";
@@ -6,6 +7,7 @@ export type ExecuteAnalysisJob = (
   runMode: "pending" | "all" | "single-page",
   pageId?: string,
   chapterId?: string,
+  blockMode?: AnalysisBlockMode,
 ) => Promise<RunAnalysisOutcome>;
 
 /** Canonical chapter id order for a work (chapterOrder, with any strays appended). */
@@ -37,6 +39,7 @@ export async function runChaptersSequentially(
   mode: "pending" | "all",
   pushStatus: (line: string) => void,
   passLabel: string,
+  blockMode?: AnalysisBlockMode,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
   let anyAttempted = false;
@@ -44,7 +47,12 @@ export async function runChaptersSequentially(
     if (chapterIds.length > 1) {
       pushStatus(`${passLabel} 번역 ${index + 1}/${chapterIds.length}화`);
     }
-    const outcome = await execute(mode, undefined, chapterIds[index]);
+    const outcome = await execute(
+      mode,
+      undefined,
+      chapterIds[index],
+      blockMode,
+    );
     if (outcome === "cancelled") {
       return "cancelled";
     }

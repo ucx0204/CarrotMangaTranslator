@@ -1,51 +1,14 @@
 import { applyTranslatedTextUpdates } from "./applyTranslatedTextUpdates";
-import type { useBlockEditingActions } from "../../hooks/useBlockEditingActions";
-import type { useConfirmDialog } from "../../hooks/useConfirmDialog";
-import type { UpdateCurrentChapter } from "../../hooks/useCurrentChapterUpdater";
-import type { useImportShareActions } from "../../hooks/useImportShareActions";
-import type { useImportShareModalController } from "../../hooks/useImportShareModalController";
-import type { useInpaintingActions } from "../../hooks/useInpaintingActions";
-import type { useInpaintingContextBridge } from "../../hooks/useInpaintingContextBridge";
-import type { useLibraryActions } from "../../hooks/useLibraryActions";
-import type { usePageNavigationHandlers } from "../../hooks/usePageNavigationHandlers";
-import type { usePageRetranslationAction } from "../../hooks/usePageRetranslationAction";
-import type { useSettingsDialog } from "../../hooks/useSettingsDialog";
-import type { useStatusLog } from "../../hooks/useStatusLog";
-import type { useTranslationActions } from "../../hooks/useTranslationActions";
-import type { useWorkspacePointerHandlers } from "../../hooks/useWorkspacePointerHandlers";
 import type { PanelSessionValue } from "../../panels/panelSession";
-import type { usePanelBridgeHost } from "../../panels/usePanelBridgeHost";
 import type { PanelSyncState } from "../../../../shared/panelBridgeTypes";
 import type { AppSessionViewProps } from "./AppSessionView";
-import type { useAppSessionBridgeActions } from "./useAppSessionBridgeActions";
-import type { AppSessionCoreState } from "./useAppSessionCoreState";
-import type { useAppSessionDerivedState } from "./useAppSessionDerivedState";
-import type { useAppSessionUiState } from "./useAppSessionUiState";
-import type { useInpaintingGuidePreference } from "./useInpaintingGuidePreference";
+import type { AppSessionViewModel } from "./appSessionViewModel";
+import {
+  createPageRetranslateProps,
+  createTranslationOptionsProps,
+} from "./createTranslationModalProps";
 
-type AppSessionViewModel = {
-  blockEditingActions: ReturnType<typeof useBlockEditingActions>;
-  bridgeActions: ReturnType<typeof useAppSessionBridgeActions>;
-  commands: AppSessionViewProps["commandPaletteProps"]["commands"];
-  confirmController: ReturnType<typeof useConfirmDialog>;
-  core: AppSessionCoreState;
-  derivedState: ReturnType<typeof useAppSessionDerivedState>;
-  guidePreference: ReturnType<typeof useInpaintingGuidePreference>;
-  importShareActions: ReturnType<typeof useImportShareActions>;
-  importShareModal: ReturnType<typeof useImportShareModalController>;
-  inpaintingActions: ReturnType<typeof useInpaintingActions>;
-  inpaintingBridge: ReturnType<typeof useInpaintingContextBridge>;
-  libraryActions: ReturnType<typeof useLibraryActions>;
-  panelBridge: ReturnType<typeof usePanelBridgeHost>;
-  pageNavigationHandlers: ReturnType<typeof usePageNavigationHandlers>;
-  pointerHandlers: ReturnType<typeof useWorkspacePointerHandlers>;
-  retranslatePage: ReturnType<typeof usePageRetranslationAction>;
-  settingsDialog: ReturnType<typeof useSettingsDialog>;
-  statusLog: ReturnType<typeof useStatusLog>;
-  translationActions: ReturnType<typeof useTranslationActions>;
-  uiState: ReturnType<typeof useAppSessionUiState>;
-  updateCurrentChapter: UpdateCurrentChapter;
-};
+export type { AppSessionViewModel } from "./appSessionViewModel";
 
 export function createAppSessionViewProps(
   model: AppSessionViewModel,
@@ -56,6 +19,7 @@ export function createAppSessionViewProps(
     inpaintingContextValue: model.inpaintingBridge.contextValue,
     inpaintingMode: model.uiState.inpaintingMode,
     modalsProps: createModalsProps(model),
+    pageRetranslateProps: createPageRetranslateProps(model),
     panelSessionValue: createPanelSessionValue(model),
     rightRailProps: createRightRailProps(model),
     shortcutHelpProps: createShortcutHelpProps(model),
@@ -313,31 +277,6 @@ function createStyleGuideProps({
         chapter: core.currentChapter,
         onClose: () => uiState.setStyleGuideOpen(false),
         settings: settingsDialog.settings,
-      }
-    : null;
-}
-
-function createTranslationOptionsProps({
-  core,
-  settingsDialog,
-  translationActions,
-  uiState,
-}: AppSessionViewModel): AppSessionViewProps["translationOptionsProps"] {
-  return uiState.translateOptionsOpen && core.currentChapter
-    ? {
-        chapter: core.currentChapter,
-        onClose: () => uiState.setTranslateOptionsOpen(false),
-        onPersistDefaults: (patch) => {
-          if (settingsDialog.settings) {
-            void settingsDialog.saveSettingsQuietly({
-              ...settingsDialog.settings,
-              ui: { ...settingsDialog.settings.ui, ...patch },
-            });
-          }
-        },
-        onStart: (flowOptions) =>
-          void translationActions.runTranslationFlow(flowOptions),
-        uiSettings: settingsDialog.settings?.ui,
       }
     : null;
 }

@@ -23,7 +23,7 @@ export function useAppSessionUiState() {
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [textViewOpen, setTextViewOpen] = useState(false);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
-  const [translateOptionsOpen, setTranslateOptionsOpen] = useState(false);
+  const translateModals = useTranslateModalUiState();
   const [translationFlowActive, setTranslationFlowActive] = useState(false);
   const [editorFloating, setEditorFloating] = useState(false);
   const [stageTool, setStageTool] = useState<StageTool>("select");
@@ -39,14 +39,15 @@ export function useAppSessionUiState() {
     setInpaintingMode(false);
     setInpaintingGuideOpen(false);
     setStyleGuideOpen(false);
-    setTranslateOptionsOpen(false);
+    translateModals.resetTranslateModals();
     setPatternMaskStrokesByPage({});
     setStageTool("select");
     zoom.resetWorkspaceZoom();
-  }, [zoom]);
+  }, [translateModals, zoom]);
 
   return {
     ...zoom,
+    ...translateModals,
     commandPaletteOpen,
     editorFloating,
     inpaintingBrushRadius,
@@ -74,7 +75,6 @@ export function useAppSessionUiState() {
     setStageToolbarHidden,
     setStyleGuideOpen,
     setTextViewOpen,
-    setTranslateOptionsOpen,
     setTranslationFlowActive,
     shortcutHelpOpen,
     showBlockChrome,
@@ -83,9 +83,29 @@ export function useAppSessionUiState() {
     stageToolbarHidden,
     styleGuideOpen,
     textViewOpen,
-    translateOptionsOpen,
     translationFlowActive,
   };
+}
+
+function useTranslateModalUiState() {
+  const [translateOptionsOpen, setTranslateOptionsOpen] = useState(false);
+  const [retranslatePageId, setRetranslatePageId] = useState<string | null>(
+    null,
+  );
+  const resetTranslateModals = useCallback(() => {
+    setTranslateOptionsOpen(false);
+    setRetranslatePageId(null);
+  }, []);
+  return useMemo(
+    () => ({
+      resetTranslateModals,
+      retranslatePageId,
+      setRetranslatePageId,
+      setTranslateOptionsOpen,
+      translateOptionsOpen,
+    }),
+    [resetTranslateModals, retranslatePageId, translateOptionsOpen],
+  );
 }
 
 function useWorkspaceZoomControls() {

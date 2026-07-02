@@ -1,5 +1,5 @@
 import type { MangaPage } from "../shared/types";
-import { logInfo, logWarn } from "./logger";
+import { logInfo } from "./logger";
 import {
   startAnalysisEndpointSession,
   type AnalysisEndpointSession,
@@ -10,13 +10,18 @@ import {
   completePrepassNoTextPages,
   filterPagesByOcrText,
 } from "./pipeline/pageFiltering";
+import { prepareKeepBlockHints } from "./pipeline/keepBlocksOcr";
+import {
+  buildKeepBlocksOcrResult,
+  shouldKeepExistingBlocks,
+} from "./pipeline/keepBlocksResult";
 import { prepareOcrHintsForPages } from "./pipeline/ocrHints";
 import { formatGemmaVramMode } from "./pipeline/options";
 import { prepareAnalysisRun } from "./pipeline/prepareAnalysisRun";
 import { emitFinalizing } from "./pipeline/progressEvents";
 import { translatePageWithRetries } from "./pipeline/translatePageWithRetries";
 import type { OcrBboxResult, PipelineOptions } from "./pipeline/types";
-import { mapPageOcrResultToRegionCrop } from "./pipeline/regionOcrContext";
+import { prepareRegionContextOcrHints } from "./pipeline/regionOcrContext";
 import { createWarningCollector } from "./pipeline/warningCollector";
 import {
   buildPageStoryMemory,
@@ -35,6 +40,8 @@ export async function runWholePagePipeline({
   runPaths,
   signal,
   skipOcrPrepass = false,
+  blockMode,
+  decodeImage,
   workContext,
   regionContext,
   writeStoryMemory = true,
@@ -51,6 +58,8 @@ export async function runWholePagePipeline({
     runPaths,
     signal,
     skipOcrPrepass,
+    blockMode,
+    decodeImage,
     regionContext,
   });
   const warningCollector = createWarningCollector();
@@ -69,10 +78,7 @@ export async function runWholePagePipeline({
       run.progressContext,
       `${pages.length} pages ready, 모델 호출 없음`,
     );
-    return {
-      pages: buildPipelinePages(pages, filtered.completedPagesById),
-      warnings: warningCollector.warnings,
-    };
+    return buildPipelineResult(pages, filtered, warningCollector);
   }
 
   const endpoint = await startWholePageEndpoint({
@@ -91,19 +97,28 @@ export async function runWholePagePipeline({
       runPaths,
       signal,
       skipOcrPrepass,
+      blockMode,
       warningCollector,
       workContext,
       regionContext,
       writeStoryMemory,
     });
     emitFinalizing(run.progressContext, `${pages.length} pages ready`);
-    return {
-      pages: buildPipelinePages(pages, filtered.completedPagesById),
-      warnings: warningCollector.warnings,
-    };
+    return buildPipelineResult(pages, filtered, warningCollector);
   } finally {
     await endpoint.disposeEndpointSession();
   }
+}
+
+function buildPipelineResult(
+  pages: MangaPage[],
+  filtered: ReturnType<typeof filterPagesByOcrText>,
+  warningCollector: ReturnType<typeof createWarningCollector>,
+): { pages: MangaPage[]; warnings: string[] } {
+  return {
+    pages: buildPipelinePages(pages, filtered.completedPagesById),
+    warnings: warningCollector.warnings,
+  };
 }
 
 async function prepareWholePageRun({
@@ -114,9 +129,18 @@ async function prepareWholePageRun({
   runPaths,
   signal,
   skipOcrPrepass,
+  blockMode,
+  decodeImage,
 }: Pick<
   PipelineOptions,
-  "emit" | "jobId" | "pages" | "regionContext" | "runPaths" | "signal"
+  | "blockMode"
+  | "decodeImage"
+  | "emit"
+  | "jobId"
+  | "pages"
+  | "regionContext"
+  | "runPaths"
+  | "signal"
 > & {
   skipOcrPrepass: boolean;
 }): Promise<{
@@ -138,6 +162,8 @@ async function prepareWholePageRun({
     runPaths,
     signal,
     skipOcrPrepass,
+    blockMode,
+    decodeImage,
     regionContext,
   });
   return { ocrHintsByPageId, run };
@@ -170,6 +196,8 @@ async function preparePageOcrHints({
   runPaths,
   signal,
   skipOcrPrepass,
+  blockMode,
+  decodeImage,
   regionContext,
 }: {
   jobId: string;
@@ -178,14 +206,18 @@ async function preparePageOcrHints({
   runPaths: PipelineOptions["runPaths"];
   signal: AbortSignal;
   skipOcrPrepass: boolean;
+  blockMode?: PipelineOptions["blockMode"];
+  decodeImage?: PipelineOptions["decodeImage"];
   regionContext?: PipelineOptions["regionContext"];
 }): Promise<Map<string, OcrBboxResult>> {
   if (regionContext) {
     return prepareRegionContextOcrHints({
+      runtime: run.runtime,
+      baseOptions: run.baseOptions,
+      emit: run.progressContext.emit,
       jobId,
       pages,
       regionContext,
-      run,
       runPaths,
       signal,
     });
@@ -195,81 +227,39 @@ async function preparePageOcrHints({
       jobId,
       pageCount: pages.length,
     });
-    return new Map<string, OcrBboxResult>();
+    return new Map<string, OcrBboxResult>(
+      pages
+        .filter((page) => shouldKeepExistingBlocks(blockMode, page))
+        .map((page) => [page.id, buildKeepBlocksOcrResult(page)]),
+    );
   }
-  return prepareOcrHintsForPages({
+  const keepBlockHints = await prepareKeepBlockHints({
     runtime: run.runtime,
     baseOptions: run.baseOptions,
-    pages,
+    keepPages: pages.filter((page) =>
+      shouldKeepExistingBlocks(blockMode, page),
+    ),
+    pageCount: pages.length,
+    runPaths,
+    emit: run.progressContext.emit,
+    jobId,
+    signal,
+    decodeImage,
+  });
+  const prepassPages = pages.filter((page) => !keepBlockHints.has(page.id));
+  if (prepassPages.length === 0) {
+    return keepBlockHints;
+  }
+  const prepassHints = await prepareOcrHintsForPages({
+    runtime: run.runtime,
+    baseOptions: run.baseOptions,
+    pages: prepassPages,
     runPaths,
     emit: run.progressContext.emit,
     jobId,
     signal,
   });
-}
-
-async function prepareRegionContextOcrHints({
-  jobId,
-  pages,
-  regionContext,
-  run,
-  runPaths,
-  signal,
-}: {
-  jobId: string;
-  pages: MangaPage[];
-  regionContext: NonNullable<PipelineOptions["regionContext"]>;
-  run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
-  runPaths: PipelineOptions["runPaths"];
-  signal: AbortSignal;
-}): Promise<Map<string, OcrBboxResult>> {
-  try {
-    const sourceResults = await prepareOcrHintsForPages({
-      runtime: run.runtime,
-      baseOptions: run.baseOptions,
-      pages: [regionContext.sourcePage],
-      runPaths,
-      emit: run.progressContext.emit,
-      jobId,
-      signal,
-    });
-    const sourceResult =
-      sourceResults.get(regionContext.sourcePage.id) ??
-      sourceResults.values().next().value;
-    return new Map(
-      pages.map((page) => [
-        page.id,
-        mapPageOcrResultToRegionCrop({
-          cropPage: page,
-          cropRect: regionContext.cropRect,
-          sourceResult,
-        }),
-      ]),
-    );
-  } catch (error) {
-    logWarn("Region OCR context unavailable; continuing without OCR hints", {
-      jobId,
-      sourcePageId: regionContext.sourcePage.id,
-      error,
-    });
-    return new Map(
-      pages.map((page) => [
-        page.id,
-        {
-          hints: [],
-          diagnostics: [
-            {
-              provider: "region-context",
-              reason: "source-ocr-failed",
-              message: error instanceof Error ? error.message : String(error),
-            },
-          ],
-          noTextDetected: false,
-          textEvidenceCount: 0,
-        },
-      ]),
-    );
-  }
+  return new Map([...keepBlockHints, ...prepassHints]);
 }
 
 async function translatePages({
@@ -282,6 +272,7 @@ async function translatePages({
   runPaths,
   signal,
   skipOcrPrepass,
+  blockMode,
   warningCollector,
   workContext,
   regionContext,
@@ -296,6 +287,7 @@ async function translatePages({
   runPaths: PipelineOptions["runPaths"];
   signal: AbortSignal;
   skipOcrPrepass: boolean;
+  blockMode?: PipelineOptions["blockMode"];
   warningCollector: ReturnType<typeof createWarningCollector>;
   workContext?: PipelineOptions["workContext"];
   regionContext?: PipelineOptions["regionContext"];
@@ -319,6 +311,7 @@ async function translatePages({
       server: endpoint.server,
       signal,
       skipOcrPrepass,
+      blockMode,
       warningCollector,
       workContext,
       regionContext,

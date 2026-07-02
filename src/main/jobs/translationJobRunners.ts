@@ -66,6 +66,8 @@ export async function runResolvedAnalysisJob({
     pages: resolved.pages,
     runPaths: state.runPaths,
     signal: abortController.signal,
+    blockMode: request.blockMode,
+    decodeImage: context.decodeImage,
     workContext: {
       ...workContext,
       chapterId: request.chapterId,

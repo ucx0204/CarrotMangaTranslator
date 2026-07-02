@@ -5,6 +5,7 @@ import { AppSidebar } from "../../components/AppSidebar";
 import { AppWorkspace } from "../../components/AppWorkspace";
 import { CommandPalette } from "../../components/CommandPalette";
 import { GatherTextModal } from "../../components/GatherTextModal";
+import { PageRetranslateModal } from "../../components/PageRetranslateModal";
 import { ShortcutHelp } from "../../components/ShortcutHelp";
 import { StyleGuideModal } from "../../components/StyleGuideModal";
 import { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
@@ -24,6 +25,9 @@ export type AppSessionViewProps = {
   >["value"];
   inpaintingMode: boolean;
   modalsProps: React.ComponentProps<typeof AppModals>;
+  pageRetranslateProps: React.ComponentProps<
+    typeof PageRetranslateModal
+  > | null;
   panelSessionValue: PanelSessionValue;
   rightRailProps: React.ComponentProps<typeof AppRightRail>;
   shortcutHelpProps: React.ComponentProps<typeof ShortcutHelp>;
@@ -41,6 +45,7 @@ export function AppSessionView({
   inpaintingContextValue,
   inpaintingMode,
   modalsProps,
+  pageRetranslateProps,
   panelSessionValue,
   rightRailProps,
   shortcutHelpProps,
@@ -63,6 +68,7 @@ export function AppSessionView({
       <SessionFloatingOverlays
         commandPaletteProps={commandPaletteProps}
         gatherTextProps={gatherTextProps}
+        pageRetranslateProps={pageRetranslateProps}
         shortcutHelpProps={shortcutHelpProps}
         styleGuideProps={styleGuideProps}
         translationOptionsProps={translationOptionsProps}
@@ -74,6 +80,7 @@ export function AppSessionView({
 function SessionFloatingOverlays({
   commandPaletteProps,
   gatherTextProps,
+  pageRetranslateProps,
   shortcutHelpProps,
   styleGuideProps,
   translationOptionsProps,
@@ -81,6 +88,7 @@ function SessionFloatingOverlays({
   AppSessionViewProps,
   | "commandPaletteProps"
   | "gatherTextProps"
+  | "pageRetranslateProps"
   | "shortcutHelpProps"
   | "styleGuideProps"
   | "translationOptionsProps"
@@ -93,6 +101,9 @@ function SessionFloatingOverlays({
       {styleGuideProps ? <StyleGuideModal {...styleGuideProps} /> : null}
       {translationOptionsProps ? (
         <TranslationOptionsModal {...translationOptionsProps} />
+      ) : null}
+      {pageRetranslateProps ? (
+        <PageRetranslateModal {...pageRetranslateProps} />
       ) : null}
       <ToastViewport />
     </>

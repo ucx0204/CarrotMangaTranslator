@@ -2,7 +2,7 @@
 /**
  * @typedef {{ x?: unknown; y?: unknown; w?: unknown; h?: unknown }} PromptBbox
  * @typedef {{ previousId?: unknown; index?: unknown; candidateId?: unknown; bbox?: PromptBbox; textRole?: unknown; sourceText?: unknown; translatedText?: unknown; confidence?: unknown }} PreviousPromptBlock
- * @typedef {{ modelProvider?: string; modelRepo?: unknown; modelFile?: unknown; localModelPath?: unknown; regionCropMode?: unknown; strictRefineMode?: unknown; previousBlocksForPrompt?: PreviousPromptBlock[]; workContext?: PromptWorkContext | null; imageWidth?: unknown; imageHeight?: unknown; ocrBboxHints?: OcrHint[]; [key: string]: unknown }} PromptOptions
+ * @typedef {{ modelProvider?: string; modelRepo?: unknown; modelFile?: unknown; localModelPath?: unknown; regionCropMode?: unknown; strictRefineMode?: unknown; keepBlocksMode?: unknown; previousBlocksForPrompt?: PreviousPromptBlock[]; workContext?: PromptWorkContext | null; imageWidth?: unknown; imageHeight?: unknown; ocrBboxHints?: OcrHint[]; [key: string]: unknown }} PromptOptions
  * @typedef {{ role?: string; width?: unknown; height?: unknown; [key: string]: unknown }} ImageVariant
  * @typedef {string[]} PromptSection
  * @typedef {{ styleGuide?: PromptStyleGuide | null; storyMemory?: { pages?: PromptStoryPage[] } | null }} PromptWorkContext
@@ -246,9 +246,19 @@ function buildSystemPrompt(options = {}) {
   if (options.strictRefineMode) {
     lines.push(
       "Strict refinement pass: previous jp/ko blocks and story memory are weak review hints only, not source text. Keep ids and geometry stable, but aggressively correct OCR, ruby, and previous-translation mistakes in the existing record.",
-      "If OCR split one speech bubble or caption into adjacent same-container candidates, merge those fragments into one ordinary record using the first reading-order candidate id.",
+      ...(options.keepBlocksMode
+        ? [
+            "Fixed-blocks pass: the OCR candidates are user-defined block slots. Output at most one record per candidate id, never merge candidates, and never invent a new id.",
+          ]
+        : [
+            "If OCR split one speech bubble or caption into adjacent same-container candidates, merge those fragments into one ordinary record using the first reading-order candidate id.",
+          ]),
       "If a previous block contains Latin garbage, romanized ruby, stray katakana, or wording not supported by the visible glyphs, discard that wording and re-read Image 1.",
-      "In strict refinement, new ids are exceptional and valid only for complete visible Japanese glyph groups clearly outside every OCR candidate.",
+      ...(options.keepBlocksMode
+        ? []
+        : [
+            "In strict refinement, new ids are exceptional and valid only for complete visible Japanese glyph groups clearly outside every OCR candidate.",
+          ]),
     );
   }
 
@@ -484,12 +494,17 @@ function buildTaskSection(options = {}, imageVariants = []) {
           : "Image 1 is the coordinate-authority full page.",
     "Detect every visible Japanese text group and translate it into concise Korean.",
     ...(strictRefineMode
-      ? [
-          "This is a strict second-pass refinement. Treat OCR candidates as the main geometry anchors, and use previous pass blocks only as weak review hints, never as trusted source text.",
-          "When OCR split one visual text container into adjacent line/column candidates, collapse those fragments into one corrected ordinary record instead of preserving the bad split.",
-          "After collapsing split candidates, re-translate the combined Japanese from Image 1 and the corrected group text; do not stitch together the old Korean fragments.",
-          "Do not re-detect the page from scratch in a way that duplicates existing OCR candidates or previous physical text areas.",
-        ]
+      ? options.keepBlocksMode
+        ? [
+            "This is a fixed-blocks refinement. The OCR candidates are user-defined block regions; translate the Japanese visible inside each candidate rectangle and output one record per candidate id.",
+            "Do not merge, split, move, or resize candidate regions, and do not add records outside them.",
+          ]
+        : [
+            "This is a strict second-pass refinement. Treat OCR candidates as the main geometry anchors, and use previous pass blocks only as weak review hints, never as trusted source text.",
+            "When OCR split one visual text container into adjacent line/column candidates, collapse those fragments into one corrected ordinary record instead of preserving the bad split.",
+            "After collapsing split candidates, re-translate the combined Japanese from Image 1 and the corrected group text; do not stitch together the old Korean fragments.",
+            "Do not re-detect the page from scratch in a way that duplicates existing OCR candidates or previous physical text areas.",
+          ]
       : []),
     regionCropMode
       ? "Scan the entire selected crop before writing records; do not stop after the first obvious text."
@@ -507,6 +522,22 @@ function buildTaskSection(options = {}, imageVariants = []) {
 function buildStrictRefineSection(options = {}) {
   if (!options.strictRefineMode) {
     return [];
+  }
+
+  if (options.keepBlocksMode) {
+    return [
+      "Strict refinement mode",
+      "Fixed-blocks refinement: every OCR candidate below is a user-defined block slot, and each previous pass block lists its matching candidateId.",
+      "Output exactly one record per candidate id whose rectangle contains readable Japanese, reusing that candidate id and the exact rectangle numbers shown for it.",
+      "Never merge two candidates into one record, even when the sentence continues across them, they touch, or they sit inside one speech bubble. Each candidate keeps its own record and id.",
+      "Never output a new id. If Japanese text is visible outside every candidate rectangle, ignore it completely.",
+      "Previous pass blocks are weak wording hints only. Re-read the visible Japanese inside each candidate rectangle from Image 1 and correct OCR, ruby, and previous-translation mistakes.",
+      "Decide textRole from the visible glyphs and container: text inside a speech bubble, caption, note, or sign is ordinary even when short or vertical.",
+      "Never invent onomatopoeia or mood words. If a candidate rectangle contains no readable Japanese glyphs, omit that id instead of guessing from the artwork, darkness, or scene mood.",
+      "When a candidate includes an ocrText hint, treat it as the primary reading evidence: verify it against Image 1 and translate that text.",
+      "For real sound-effect lettering, use confidence 1.00 only when the reading and Korean sound choice are certain; otherwise output confidence below 1.00 so the app drops it.",
+      "Story memory can contain earlier machine-translation mistakes. Use it only for continuity and pronouns; never copy a story-memory term or wording that conflicts with Image 1, glossary entries, or the visible source text.",
+    ];
   }
 
   return [
@@ -546,8 +577,14 @@ function buildPreviousPassSection(options = {}, imageVariants = []) {
     "These are weak review hints from the previous Korean overlay pass. Do not output them as records unless Image 1 shows real Japanese glyphs at the same physical area.",
     "They are useful for preserving good Korean wording, spotting bad splits/merges, and avoiding accidental deletion, but they are lower priority than Image 1, OCR candidates, and glossary entries.",
     "Previous jp/sourceText may be an OCR-derived hallucination too. If it contains Latin garbage, romanized ruby, odd stray katakana, duplicated aliases, or particles that do not match Image 1, ignore that text and re-read the glyphs.",
-    "When adjacent previous blocks match one same-container OCR group, treat the earlier separate translations as split artifacts and produce one fresh combined translation.",
-    "If a previous block and one or more OCR candidates describe the same physical area, output the OCR candidate id or merged representative candidate id, not a separate previous-block record.",
+    ...(options.keepBlocksMode
+      ? [
+          "Each previous block lists the candidateId of its own user-defined slot. Output that candidate id for that block's record; never merge blocks or reassign text between slots.",
+        ]
+      : [
+          "When adjacent previous blocks match one same-container OCR group, treat the earlier separate translations as split artifacts and produce one fresh combined translation.",
+          "If a previous block and one or more OCR candidates describe the same physical area, output the OCR candidate id or merged representative candidate id, not a separate previous-block record.",
+        ]),
     "If Image 1 does not show Japanese glyphs at a previous block location, ignore that previous block.",
     ...blocks
       .slice(0, 80)
@@ -1110,6 +1147,7 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
   const useSmallGemmaDuplicateProfile =
     shouldUseSmallGemmaDuplicatePromptProfile(options);
   const strictRefineMode = Boolean(options.strictRefineMode);
+  const keepBlocksMode = Boolean(options.keepBlocksMode);
   const useStrictDuplicateRules =
     strictRefineMode || useSmallGemmaDuplicateProfile;
   const ocrAnchorLines = useStrictDuplicateRules
@@ -1118,41 +1156,51 @@ function buildOcrBboxHintSection(options = {}, imageVariants = []) {
         "OCR text hints may be wrong, incomplete, or split strangely. Use Image 1 as the authority for the actual Japanese text and Korean translation.",
         "Use the OCR text hint to keep each translated record attached to the correct candidate id, especially when nearby candidates are close together.",
       ];
-  const candidateChangeLine = useStrictDuplicateRules
-    ? "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes, includes non-text art, or must be merged with adjacent same-container candidates; then change the minimum amount needed and keep the representative candidate id."
-    : "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes, includes non-text art, or must be merged with adjacent same-container candidates; then change the minimum amount needed.";
-  const missingTextIntroLines = strictRefineMode
+  const candidateChangeLine = keepBlocksMode
+    ? "Never change a candidate bbox: output the exact x1, y1, x2, y2 numbers shown below for each candidate id."
+    : useStrictDuplicateRules
+      ? "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes, includes non-text art, or must be merged with adjacent same-container candidates; then change the minimum amount needed and keep the representative candidate id."
+      : "You may change a candidate bbox only when Image 1 clearly proves the candidate clips visible glyph strokes, includes non-text art, or must be merged with adjacent same-container candidates; then change the minimum amount needed.";
+  const missingTextIntroLines = keepBlocksMode
     ? [
-        "In strict refinement, OCR candidates are the main output slots. After processing candidates, inspect Image 1 only for obvious missing Japanese text that is fully outside all candidate rectangles.",
-        `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. New ids are exceptional and must never correct, restate, enlarge, or duplicate an existing candidate.`,
-        "A new record is invalid if its bbox overlaps an OCR candidate, its center sits inside an OCR candidate, or its jp repeats text already assigned to a candidate or earlier record.",
-        "For new missing SFX records, be very conservative: add them only when the complete kana/SFX glyph group is clearly visible, fully outside every candidate, the exact source reading is clear, and the Korean sound choice is certain enough for confidence 1.00.",
-        "Never add new ordinary records for dots, dashes, ellipses, Latin letters, digits, UI fragments, panel trim, furniture lines, wall patterns, or isolated strokes.",
+        "The candidates are user-defined block slots and the complete set of output slots. Never add a record with a new id, even for clearly visible Japanese text outside every candidate rectangle.",
       ]
-    : useSmallGemmaDuplicateProfile
+    : strictRefineMode
       ? [
-          "OCR candidates are the normal source of output records. After processing candidates, inspect Image 1 only for obvious missing Japanese text that is clearly outside all candidate rectangles.",
-          `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle, and never add a new id for text already covered by a candidate.`,
-          "New records are allowed only for clear Japanese glyphs whose bbox does not overlap existing candidate rectangles except for a tiny edge touch.",
-          "For new missing SFX records, be conservative: add them only when the complete kana/SFX glyph group is clearly visible and not covered by any candidate. The bbox must visibly cover kana/SFX glyph strokes.",
+          "In strict refinement, OCR candidates are the main output slots. After processing candidates, inspect Image 1 only for obvious missing Japanese text that is fully outside all candidate rectangles.",
+          `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. New ids are exceptional and must never correct, restate, enlarge, or duplicate an existing candidate.`,
+          "A new record is invalid if its bbox overlaps an OCR candidate, its center sits inside an OCR candidate, or its jp repeats text already assigned to a candidate or earlier record.",
+          "For new missing SFX records, be very conservative: add them only when the complete kana/SFX glyph group is clearly visible, fully outside every candidate, the exact source reading is clear, and the Korean sound choice is certain enough for confidence 1.00.",
+          "Never add new ordinary records for dots, dashes, ellipses, Latin letters, digits, UI fragments, panel trim, furniture lines, wall patterns, or isolated strokes.",
         ]
-      : [
-          "OCR candidates are a floor, not a ceiling. After processing candidates, inspect the whole Image 1 again for missing Japanese text.",
-          `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle.`,
-          "New records are allowed only for clear Japanese glyphs that are not covered by any candidate.",
-          "For new missing SFX records, search especially near character bodies, panel edges, and lower panels where OCR often misses gray or outlined kana. The bbox must visibly cover kana/SFX glyph strokes.",
-        ];
+      : useSmallGemmaDuplicateProfile
+        ? [
+            "OCR candidates are the normal source of output records. After processing candidates, inspect Image 1 only for obvious missing Japanese text that is clearly outside all candidate rectangles.",
+            `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle, and never add a new id for text already covered by a candidate.`,
+            "New records are allowed only for clear Japanese glyphs whose bbox does not overlap existing candidate rectangles except for a tiny edge touch.",
+            "For new missing SFX records, be conservative: add them only when the complete kana/SFX glyph group is clearly visible and not covered by any candidate. The bbox must visibly cover kana/SFX glyph strokes.",
+          ]
+        : [
+            "OCR candidates are a floor, not a ceiling. After processing candidates, inspect the whole Image 1 again for missing Japanese text.",
+            `If the detector missed visible Japanese text, add a new record with id greater than ${maxCandidateId}. Never reuse a candidate id for missing text outside that candidate rectangle.`,
+            "New records are allowed only for clear Japanese glyphs that are not covered by any candidate.",
+            "For new missing SFX records, search especially near character bodies, panel edges, and lower panels where OCR often misses gray or outlined kana. The bbox must visibly cover kana/SFX glyph strokes.",
+          ];
 
   return [
     "OCR bbox candidates",
     "An external OCR geometry detector has already proposed bbox candidates. Some candidates include low-trust OCR text hints for slot matching only.",
     ...ocrAnchorLines,
     "Treat each candidate as a geometry anchor. Normally, for every candidate that contains Japanese glyphs, output one record with that same id and the exact x1, y1, x2, y2 numbers shown below.",
-    "Same-container merge exception: if adjacent ordinary candidates are clearly separate OCR slices of one speech bubble, caption, note, sign, or label, output one merged ordinary record using the first candidate id in Japanese reading order. Its jp must include all visible source text from the merged candidates, its ko must translate the combined expression naturally, and the swallowed candidate ids must not be output separately. Do not import words from previous pass or story memory that are not visible in the corrected merged jp.",
+    keepBlocksMode
+      ? "No merge exception applies: the candidates are user-defined block slots, so adjacent, touching, or same-container candidates always stay separate records with their own ids."
+      : "Same-container merge exception: if adjacent ordinary candidates are clearly separate OCR slices of one speech bubble, caption, note, sign, or label, output one merged ordinary record using the first candidate id in Japanese reading order. Its jp must include all visible source text from the merged candidates, its ko must translate the combined expression naturally, and the swallowed candidate ids must not be output separately. Do not import words from previous pass or story memory that are not visible in the corrected merged jp.",
     ...(useStrictDuplicateRules ? [SMALL_GEMMA_OCR_DUPLICATE_LINES[0]] : []),
     `Candidate ids to review: ${candidateIds.join(", ")}.`,
     ...groupContextLines,
-    "Read and translate only the text inside that candidate rectangle plus a tiny visual margin, except for the same-container merge exception above. Do not move the rectangle to a different nearby text group.",
+    keepBlocksMode
+      ? "Read and translate only the text inside that candidate rectangle plus a tiny visual margin. Do not move the rectangle to a different nearby text group."
+      : "Read and translate only the text inside that candidate rectangle plus a tiny visual margin, except for the same-container merge exception above. Do not move the rectangle to a different nearby text group.",
     ...(useStrictDuplicateRules
       ? SMALL_GEMMA_OCR_DUPLICATE_LINES.slice(1)
       : []),

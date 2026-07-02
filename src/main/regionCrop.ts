@@ -87,7 +87,7 @@ export function mapRegionBlocksToPageBlocks(
   });
 }
 
-async function loadImageForRegionCrop(
+export async function loadImageForRegionCrop(
   imagePath: string,
   decodeFallback: ImageDecodeFallback,
 ): Promise<Electron.NativeImage> {

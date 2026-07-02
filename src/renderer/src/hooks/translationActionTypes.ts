@@ -1,4 +1,5 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type {
   ChapterSnapshot,
@@ -16,6 +17,7 @@ export type TranslationFlowOptions = {
   target: "chapter" | "work";
   twoPass: boolean;
   analysisScope: WorkContextAnalysisScope;
+  blockMode: AnalysisBlockMode;
 };
 
 export type UseTranslationActionsOptions = {
@@ -41,6 +43,7 @@ export type TranslationActions = {
     runMode: RunAnalysisMode,
     pageId?: string,
     chapterId?: string,
+    blockMode?: AnalysisBlockMode,
   ) => Promise<RunAnalysisOutcome>;
   runTranslationFlow: (options: TranslationFlowOptions) => Promise<void>;
   translateSelectedRegion: (bbox: BBox) => Promise<void>;

@@ -4,6 +4,10 @@ import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/types";
 import { prunePromptWorkContextForBudget } from "../../shared/workContextBudget";
 import { buildNoTextCompletedPage } from "./noText";
+import {
+  buildKeepBlocksCompletedPage,
+  shouldKeepExistingBlocks,
+} from "./keepBlocksResult";
 import { buildPreviousBlocksForPrompt } from "./previousBlocksForPrompt";
 import {
   applyOcrCandidateGeometryLocks,
@@ -45,6 +49,7 @@ export type PageBuildResult =
 export function buildRequestPageOptions({
   attempt,
   baseOptions,
+  blockMode,
   context,
   maxAttempts,
   ocrHintsByPageId,
@@ -57,6 +62,7 @@ export function buildRequestPageOptions({
 }: {
   attempt: number;
   baseOptions: TranslationOptions;
+  blockMode?: "auto" | "keep";
   context: ProgressContext;
   maxAttempts: number;
   ocrHintsByPageId: Map<string, OcrBboxResult>;
@@ -87,6 +93,36 @@ export function buildRequestPageOptions({
     pageOptions.workContext = budgetedWorkContext.workContext;
     pageOptions.workContextBudget = budgetedWorkContext.budget;
   }
+  applyOcrHintPageOptions({
+    ocrHintsByPageId,
+    page,
+    pageOptions,
+    regionContext,
+    skipOcrPrepass,
+  });
+  applyStrictRefineOptions(
+    pageOptions,
+    page,
+    shouldKeepExistingBlocks(blockMode, page),
+  );
+  pageOptions.abortSignal = signal;
+  attachPageProgress(context, pageOptions, pageIndex, attempt, maxAttempts);
+  return pageOptions;
+}
+
+function applyOcrHintPageOptions({
+  ocrHintsByPageId,
+  page,
+  pageOptions,
+  regionContext,
+  skipOcrPrepass,
+}: {
+  ocrHintsByPageId: Map<string, OcrBboxResult>;
+  page: MangaPage;
+  pageOptions: TranslationOptions;
+  regionContext?: PipelineRegionContext;
+  skipOcrPrepass: boolean;
+}): void {
   if (regionContext) {
     pageOptions.regionCropMode = true;
     pageOptions.regionContextImagePath = regionContext.sourcePage.imagePath;
@@ -100,24 +136,22 @@ export function buildRequestPageOptions({
       textEvidenceCount: 0,
     };
     pageOptions.ocrBboxHints = pageOptions.ocrBboxResult.hints ?? [];
-  } else if (skipOcrPrepass) {
+    return;
+  }
+  if (skipOcrPrepass) {
     pageOptions.skipOcrBboxHints = true;
     pageOptions.ocrBboxProvider = "none";
     delete pageOptions.ocrBboxHints;
     delete pageOptions.ocrBboxResult;
-  } else {
-    pageOptions.ocrBboxResult = ocrHintsByPageId.get(page.id) ?? {
-      hints: [],
-      diagnostics: [{ provider: "prepass", reason: "missing-result" }],
-      noTextDetected: false,
-      textEvidenceCount: 0,
-    };
-    pageOptions.ocrBboxHints = pageOptions.ocrBboxResult.hints ?? [];
+    return;
   }
-  applyStrictRefineOptions(pageOptions, page);
-  pageOptions.abortSignal = signal;
-  attachPageProgress(context, pageOptions, pageIndex, attempt, maxAttempts);
-  return pageOptions;
+  pageOptions.ocrBboxResult = ocrHintsByPageId.get(page.id) ?? {
+    hints: [],
+    diagnostics: [{ provider: "prepass", reason: "missing-result" }],
+    noTextDetected: false,
+    textEvidenceCount: 0,
+  };
+  pageOptions.ocrBboxHints = pageOptions.ocrBboxResult.hints ?? [];
 }
 
 export async function requestPageTranslation({
@@ -148,19 +182,8 @@ export async function buildPageResult({
   runtime: TranslationRuntimePort;
 }): Promise<PageBuildResult> {
   const items = parseOverlayItems(runtime, result, page, pageOptions);
-  if (items.length === 0 && pageOptions.regionCropMode) {
-    return { kind: "no-text", page: buildNoTextCompletedPage(page) };
-  }
-  if (items.length === 0 && isRequestNoTextDetected(result.requestBody)) {
-    return { kind: "no-text", page: buildNoTextCompletedPage(page) };
-  }
   if (items.length === 0) {
-    const bboxError = new Error(`${page.name}: bbox 결과를 만들지 못했습니다.`);
-    Object.assign(bboxError, {
-      outputDir: pageOptions.outputDir,
-      outputPreview: summarizePreview(result.outputText),
-    });
-    throw bboxError;
+    return buildEmptyItemsResult(page, pageOptions, result);
   }
 
   await writeOverlayItems(pageOptions.outputDir, items, pageOptions);
@@ -174,6 +197,17 @@ export async function buildPageResult({
   const soundFiltered = filterRejectedOrUncertainSoundItems(validated.items, {
     dropUncertainSound: !pageOptions.regionCropMode,
   });
+  if (pageOptions.keepBlocksMode) {
+    return {
+      kind: "completed",
+      ...buildKeepBlocksCompletedPage({
+        page,
+        items: soundFiltered.items,
+        previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
+        soundDroppedCount: soundFiltered.droppedCount,
+      }),
+    };
+  }
   const blocks = soundFiltered.items.map((item, itemIndex) =>
     overlayItemToBlock(
       item,
@@ -200,6 +234,30 @@ export async function buildPageResult({
       validated.reasons,
     ),
   };
+}
+
+function buildEmptyItemsResult(
+  page: MangaPage,
+  pageOptions: TranslationOptions,
+  result: TranslationResult,
+): PageBuildResult {
+  if (pageOptions.regionCropMode) {
+    return { kind: "no-text", page: buildNoTextCompletedPage(page) };
+  }
+  if (isRequestNoTextDetected(result.requestBody)) {
+    return {
+      kind: "no-text",
+      page: buildNoTextCompletedPage(page, {
+        keepBlocks: Boolean(pageOptions.keepBlocksMode),
+      }),
+    };
+  }
+  const bboxError = new Error(`${page.name}: bbox 결과를 만들지 못했습니다.`);
+  Object.assign(bboxError, {
+    outputDir: pageOptions.outputDir,
+    outputPreview: summarizePreview(result.outputText),
+  });
+  throw bboxError;
 }
 
 export function buildFailedPage(
@@ -318,15 +376,18 @@ function formatValidationReasons(reasons: Record<string, number>): string {
 function applyStrictRefineOptions(
   pageOptions: TranslationOptions,
   page: MangaPage,
+  keepBlocks = false,
 ): void {
   if (!page.blocks.length) {
     return;
   }
 
   pageOptions.strictRefineMode = true;
+  pageOptions.keepBlocksMode = keepBlocks || undefined;
   pageOptions.previousBlocksForPrompt = buildPreviousBlocksForPrompt(
     page,
     Array.isArray(pageOptions.ocrBboxHints) ? pageOptions.ocrBboxHints : [],
+    { assignSequentialCandidateIds: keepBlocks },
   );
 
   pageOptions.temperature = Math.min(pageOptions.temperature, 0.1);

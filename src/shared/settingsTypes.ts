@@ -92,6 +92,8 @@ export type UiSettings = {
   twoPassByDefault?: boolean;
   /** Default AI 분석 범위 for the 2-pass flow. Mirrors WorkContextAnalysisScope. */
   analysisScopeDefault?: "work" | "missing" | "chapter";
+  /** Default 블록 mode for translate: auto-detect blocks or keep existing block regions. */
+  blockModeDefault?: "auto" | "keep";
 };
 
 export type InpaintingSettings = {

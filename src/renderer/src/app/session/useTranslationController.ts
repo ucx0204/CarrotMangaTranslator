@@ -31,6 +31,7 @@ export function useTranslationController(chapter: ChapterSessionController) {
   const retranslatePage = usePageRetranslationAction({
     askConfirm: chapter.confirmController.askConfirm,
     currentChapter: chapter.core.currentChapter,
+    openRetranslateOptions: chapter.uiState.setRetranslatePageId,
     runAnalysis: translationActions.runAnalysis,
   });
   const blockEditingActions = useBlockEditingActions({

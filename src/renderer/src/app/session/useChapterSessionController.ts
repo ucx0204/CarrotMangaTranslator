@@ -168,6 +168,7 @@ function resolveOverlayModalsOpen({
       uiState.textViewOpen,
       uiState.styleGuideOpen,
       uiState.translateOptionsOpen,
+      uiState.retranslatePageId,
     ],
     false,
     false,

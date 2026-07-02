@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type {
+  AnalysisBlockMode,
   StartAnalysisRequest,
   StartAnalysisResult,
 } from "../../../shared/analysisTypes";
@@ -45,14 +46,15 @@ export function makeStartAnalysisRequest(
   chapterId: string,
   runMode: RunAnalysisMode,
   pageId?: string,
+  blockMode?: AnalysisBlockMode,
 ): StartAnalysisRequest {
   if (runMode === "single-page") {
     if (!pageId) {
       throw new Error("다시 번역할 페이지를 찾지 못했습니다.");
     }
-    return { chapterId, runMode, pageId };
+    return { chapterId, runMode, pageId, blockMode };
   }
-  return { chapterId, runMode };
+  return { chapterId, runMode, blockMode };
 }
 
 export function startingJobState(): JobState {
@@ -154,6 +156,7 @@ export async function runSecondTranslationPass(
   executeAnalysisJob: ExecuteAnalysisJob,
   chapterIds: string[],
   pushStatus: UseTranslationActionsOptions["pushStatus"],
+  blockMode?: AnalysisBlockMode,
 ): Promise<void> {
   const pass2 = await runChaptersSequentially(
     executeAnalysisJob,
@@ -161,6 +164,7 @@ export async function runSecondTranslationPass(
     "all",
     pushStatus,
     "2차",
+    blockMode,
   );
   if (pass2 === "completed") {
     toast.success("2차 번역까지 완료했습니다.");

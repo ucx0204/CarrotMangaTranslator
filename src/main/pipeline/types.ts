@@ -20,6 +20,9 @@ export type PipelineOptions = {
   emit: (event: JobEvent) => void;
   signal: AbortSignal;
   skipOcrPrepass?: boolean;
+  blockMode?: "auto" | "keep";
+  /** webp 등 nativeImage가 못 읽는 이미지의 PNG 디코더 (keep 모드 블록 크롭 OCR용). */
+  decodeImage?: (filePath: string) => Promise<Buffer | null>;
   onCleanupReady?: (cleanup: () => Promise<void>) => void;
   onPageComplete?: (page: MangaPage) => Promise<void>;
   onPagesComplete?: (pages: MangaPage[]) => Promise<void>;

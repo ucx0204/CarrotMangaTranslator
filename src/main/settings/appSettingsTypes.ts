@@ -31,6 +31,7 @@ export type TranslationOptions = {
   pageId?: string;
   pageIndex?: number;
   strictRefineMode?: boolean;
+  keepBlocksMode?: boolean;
   previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];
   outputDir: string;
   modelProvider: ModelProvider;

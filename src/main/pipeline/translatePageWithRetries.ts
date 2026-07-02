@@ -49,6 +49,7 @@ type TranslatePageWithRetriesOptions = {
   server: ModelEndpointHandle;
   signal: AbortSignal;
   skipOcrPrepass: boolean;
+  blockMode?: PipelineOptions["blockMode"];
   warningCollector: WarningCollector;
   workContext?: PipelineWorkContext;
   regionContext?: PipelineRegionContext;
@@ -81,6 +82,7 @@ export async function translatePageWithRetries({
   server,
   signal,
   skipOcrPrepass,
+  blockMode,
   warningCollector,
   workContext,
   regionContext,
@@ -98,6 +100,7 @@ export async function translatePageWithRetries({
     server,
     signal,
     skipOcrPrepass,
+    blockMode,
     warningCollector,
     workContext,
     regionContext,
@@ -132,6 +135,7 @@ async function runPageTranslationAttempts({
   server,
   signal,
   skipOcrPrepass,
+  blockMode,
   warningCollector,
   workContext,
   regionContext,
@@ -150,6 +154,7 @@ async function runPageTranslationAttempts({
     const pageOptions = buildRequestPageOptions({
       attempt,
       baseOptions,
+      blockMode,
       context,
       maxAttempts,
       ocrHintsByPageId,

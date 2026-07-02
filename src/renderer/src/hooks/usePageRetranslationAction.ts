@@ -8,12 +8,14 @@ type UsePageRetranslationActionOptions = {
     detail?: string,
   ) => Promise<boolean>;
   currentChapter: ChapterSnapshot | null;
+  openRetranslateOptions: (pageId: string) => void;
   runAnalysis: (runMode: RunMode, pageId?: string) => Promise<unknown>;
 };
 
 export function usePageRetranslationAction({
   askConfirm,
   currentChapter,
+  openRetranslateOptions,
   runAnalysis,
 }: UsePageRetranslationActionOptions): (pageId: string) => Promise<void> {
   return useCallback(
@@ -22,6 +24,10 @@ export function usePageRetranslationAction({
         (candidate) => candidate.id === pageId,
       );
       if (!page || !currentChapter) {
+        return;
+      }
+      if (page.blocks.length > 0) {
+        openRetranslateOptions(page.id);
         return;
       }
       const confirmed = await askConfirm(
@@ -34,6 +40,6 @@ export function usePageRetranslationAction({
       }
       await runAnalysis("single-page", pageId);
     },
-    [askConfirm, currentChapter, runAnalysis],
+    [askConfirm, currentChapter, openRetranslateOptions, runAnalysis],
   );
 }

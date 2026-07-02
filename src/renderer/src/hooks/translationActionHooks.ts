@@ -1,4 +1,5 @@
 import { useCallback, useRef, type MutableRefObject } from "react";
+import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type {
   ChapterSnapshot,
   LibraryIndex,
@@ -70,7 +71,7 @@ function useExecuteAnalysisJob({
   setJobState,
 }: UseTranslationActionsOptions): ExecuteAnalysisJob {
   return useCallback<ExecuteAnalysisJob>(
-    async (runMode, pageId, chapterId) => {
+    async (runMode, pageId, chapterId, blockMode) => {
       const openChapterId = currentChapter?.id;
       const targetChapterId = chapterId ?? openChapterId;
       if (!targetChapterId) {
@@ -92,7 +93,7 @@ function useExecuteAnalysisJob({
         });
 
         const result = await mangaGateway.startAnalysis(
-          makeStartAnalysisRequest(targetChapterId, runMode, pageId),
+          makeStartAnalysisRequest(targetChapterId, runMode, pageId, blockMode),
         );
         if (result.chapter && result.chapter.id === openChapterId) {
           mergeLiveChapter(result.chapter);
@@ -165,6 +166,7 @@ function useRunAnalysisAction({
       runMode: RunAnalysisMode,
       pageId?: string,
       chapterId?: string,
+      blockMode?: AnalysisBlockMode,
     ): Promise<RunAnalysisOutcome> => {
       if (jobActive || flowActiveRef.current) {
         return "no-op";
@@ -172,7 +174,7 @@ function useRunAnalysisAction({
       if (!chapterId && !currentChapter) {
         return "no-op";
       }
-      return executeAnalysisJob(runMode, pageId, chapterId);
+      return executeAnalysisJob(runMode, pageId, chapterId, blockMode);
     },
     [currentChapter, executeAnalysisJob, flowActiveRef, jobActive],
   );
@@ -210,35 +212,15 @@ function useRunTranslationFlowAction({
         if (chapterIds.length === 0) {
           return;
         }
-        const pass1 = await runChaptersSequentially(
-          executeAnalysisJob,
-          chapterIds,
-          options.scope,
-          pushStatus,
-          "1차",
-        );
-        if (pass1 !== "completed") {
-          return;
-        }
-        if (!options.twoPass) {
-          toast.success("번역을 완료했습니다.");
-          return;
-        }
-        const contextReady = await runWorkContextAnalysis({
-          analysisScope: options.analysisScope,
+        await runTranslationFlowPasses({
           chapterId: currentChapter.id,
+          chapterIds,
+          executeAnalysisJob,
+          options,
           pushStatus,
           refreshLibrary,
           setJobState,
         });
-        if (!contextReady) {
-          return;
-        }
-        await runSecondTranslationPass(
-          executeAnalysisJob,
-          chapterIds,
-          pushStatus,
-        );
       } finally {
         flowActiveRef.current = false;
         setFlowActive(false);
@@ -256,6 +238,56 @@ function useRunTranslationFlowAction({
       setFlowActive,
       setJobState,
     ],
+  );
+}
+
+async function runTranslationFlowPasses({
+  chapterId,
+  chapterIds,
+  executeAnalysisJob,
+  options,
+  pushStatus,
+  refreshLibrary,
+  setJobState,
+}: {
+  chapterId: string;
+  chapterIds: string[];
+  executeAnalysisJob: ExecuteAnalysisJob;
+  options: TranslationFlowOptions;
+  pushStatus: UseTranslationActionsOptions["pushStatus"];
+  refreshLibrary: UseTranslationActionsOptions["refreshLibrary"];
+  setJobState: UseTranslationActionsOptions["setJobState"];
+}): Promise<void> {
+  const pass1 = await runChaptersSequentially(
+    executeAnalysisJob,
+    chapterIds,
+    options.scope,
+    pushStatus,
+    "1차",
+    options.blockMode,
+  );
+  if (pass1 !== "completed") {
+    return;
+  }
+  if (!options.twoPass) {
+    toast.success("번역을 완료했습니다.");
+    return;
+  }
+  const contextReady = await runWorkContextAnalysis({
+    analysisScope: options.analysisScope,
+    chapterId,
+    pushStatus,
+    refreshLibrary,
+    setJobState,
+  });
+  if (!contextReady) {
+    return;
+  }
+  await runSecondTranslationPass(
+    executeAnalysisJob,
+    chapterIds,
+    pushStatus,
+    options.blockMode,
   );
 }
 

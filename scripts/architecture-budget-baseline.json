@@ -3,7 +3,7 @@
   "defaultMaxImportedBy": 25,
   "allow": {
     "src/shared/types.ts": {
-      "maxImportedBy": 66
+      "maxImportedBy": 69
     },
     "src/shared/libraryTypes.ts": {
       "maxImportedBy": 73
@@ -15,13 +15,16 @@
       "maxImportedBy": 29
     },
     "src/shared/settingsTypes.ts": {
-      "maxImportedBy": 32
+      "maxImportedBy": 34
     },
     "src/main/logger.ts": {
-      "maxImportedBy": 27
+      "maxImportedBy": 29
+    },
+    "src/shared/geometry.ts": {
+      "maxImportedBy": 26
     },
     "src/renderer/src/components/ui/index.ts": {
-      "maxImportedBy": 39
+      "maxImportedBy": 40
     },
     "src/renderer/src/lib/appHelpers.ts": {
       "maxImportedBy": 27

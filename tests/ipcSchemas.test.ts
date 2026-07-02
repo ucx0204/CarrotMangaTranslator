@@ -62,6 +62,30 @@ describe("IPC schemas", () => {
     expect(parsed.pageId).toBe(pageId);
   });
 
+  it("accepts an optional keep-blocks mode for analysis requests", () => {
+    expect(
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "all", blockMode: "keep" },
+        "번역 작업",
+      ).blockMode,
+    ).toBe("keep");
+    expect(
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "single-page", pageId, blockMode: "auto" },
+        "번역 작업",
+      ).blockMode,
+    ).toBe("auto");
+    expect(() =>
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "pending", blockMode: "merge" },
+        "번역 작업",
+      ),
+    ).toThrow(/요청 형식/);
+  });
+
   it("accepts a base page timestamp for conflict-aware block saves", () => {
     const parsed = parseIpcPayload(
       SavePageBlocksRequestSchema,

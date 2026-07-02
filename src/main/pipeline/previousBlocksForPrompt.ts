@@ -4,13 +4,18 @@ import type { BBox, MangaPage } from "../../shared/types";
 export function buildPreviousBlocksForPrompt(
   page: MangaPage,
   ocrHints: unknown[],
+  options: { assignSequentialCandidateIds?: boolean } = {},
 ): PreviousOverlayBlockForPrompt[] {
   return page.blocks.slice(0, 80).map((block, index) => {
     const bbox = normalizeBlockBboxForPrompt(block.bbox, block.bboxSpace, page);
     return {
       previousId: block.id,
       index: index + 1,
-      candidateId: findMatchingOcrCandidateId(bbox, ocrHints, page),
+      // Keep-blocks mode synthesizes hint id i+1 from page.blocks[i], so the
+      // overlap heuristic would misassign ids between overlapping blocks.
+      candidateId: options.assignSequentialCandidateIds
+        ? index + 1
+        : findMatchingOcrCandidateId(bbox, ocrHints, page),
       bbox,
       textRole: inferPreviousBlockTextRole(block.translatedText),
       sourceText: block.sourceText,
@@ -127,8 +132,15 @@ function bboxOverlapRatio(a: BBox, b: BBox): number {
   return overlap / minArea;
 }
 
-function inferPreviousBlockTextRole(text: string): "ordinary" | "sound" {
+function inferPreviousBlockTextRole(
+  text: string,
+): "ordinary" | "sound" | undefined {
   const compact = text.replace(/\s+/g, "");
+  if (!compact) {
+    // 새로 그린 빈 블록에는 역할 힌트를 주지 않는다 — "sound"로 추론하면
+    // 모델이 의성어를 지어내는 원인이 된다 (프롬프트 기본값은 ordinary).
+    return undefined;
+  }
   return compact.length <= 6 && !/[.!?。！？]/.test(compact)
     ? "sound"
     : "ordinary";

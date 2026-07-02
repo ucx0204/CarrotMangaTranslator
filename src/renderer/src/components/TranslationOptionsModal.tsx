@@ -1,9 +1,11 @@
 /* eslint-disable max-lines-per-function */
 import React from "react";
+import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { UiSettings } from "../../../shared/settingsTypes";
 import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
+import { BLOCK_MODE_OPTIONS } from "../lib/blockModeOptions";
 import { Button, Modal } from "./ui";
 
 type Scope = "pending" | "all";
@@ -36,7 +38,10 @@ export function TranslationOptionsModal({
   uiSettings: UiSettings | undefined;
   onStart: (options: TranslationFlowOptions) => void;
   onPersistDefaults: (
-    patch: Pick<UiSettings, "twoPassByDefault" | "analysisScopeDefault">,
+    patch: Pick<
+      UiSettings,
+      "twoPassByDefault" | "analysisScopeDefault" | "blockModeDefault"
+    >,
   ) => void;
   onClose: () => void;
 }): React.JSX.Element {
@@ -49,13 +54,17 @@ export function TranslationOptionsModal({
     React.useState<WorkContextAnalysisScope>(
       uiSettings?.analysisScopeDefault ?? "missing",
     );
+  const [blockMode, setBlockMode] = React.useState<AnalysisBlockMode>(
+    uiSettings?.blockModeDefault ?? "auto",
+  );
 
   const handleStart = (): void => {
     onPersistDefaults({
       twoPassByDefault: twoPass,
       analysisScopeDefault: analysisScope,
+      blockModeDefault: blockMode,
     });
-    onStart({ scope, target, twoPass, analysisScope });
+    onStart({ scope, target, twoPass, analysisScope, blockMode });
     onClose();
   };
 
@@ -90,6 +99,18 @@ export function TranslationOptionsModal({
           value={target}
           onChange={setTarget}
         />
+        <OptionRow
+          label="블록"
+          options={BLOCK_MODE_OPTIONS}
+          value={blockMode}
+          onChange={setBlockMode}
+        />
+        {blockMode === "keep" ? (
+          <p className="translate-options-hint">
+            블록이 있는 페이지는 영역·서식을 그대로 두고 텍스트만 다시 채웁니다.
+            블록이 없는 페이지는 자동 생성됩니다.
+          </p>
+        ) : null}
         <div className="translate-options-twopass">
           <label className="inline-toggle translate-options-toggle">
             <input
@@ -116,7 +137,7 @@ export function TranslationOptionsModal({
   );
 }
 
-function OptionRow<T extends string>({
+export function OptionRow<T extends string>({
   label,
   options,
   value,

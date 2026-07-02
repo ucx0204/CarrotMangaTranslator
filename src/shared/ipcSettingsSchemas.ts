@@ -72,6 +72,7 @@ export const AppSettingsSchema = z
         inpaintingGuideHidden: z.boolean().optional(),
         twoPassByDefault: z.boolean().optional(),
         analysisScopeDefault: z.enum(["work", "missing", "chapter"]).optional(),
+        blockModeDefault: z.enum(["auto", "keep"]).optional(),
       })
       .strict()
       .optional(),

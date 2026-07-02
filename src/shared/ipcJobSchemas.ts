@@ -53,14 +53,29 @@ export const ModelTestProgressEventSchema = z
   })
   .strict();
 
+export const AnalysisBlockModeSchema = z.enum(["auto", "keep"]);
+
 export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
-  z.object({ chapterId: uuid, runMode: z.literal("pending") }).strict(),
-  z.object({ chapterId: uuid, runMode: z.literal("all") }).strict(),
+  z
+    .object({
+      chapterId: uuid,
+      runMode: z.literal("pending"),
+      blockMode: AnalysisBlockModeSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      chapterId: uuid,
+      runMode: z.literal("all"),
+      blockMode: AnalysisBlockModeSchema.optional(),
+    })
+    .strict(),
   z
     .object({
       chapterId: uuid,
       runMode: z.literal("single-page"),
       pageId: uuid,
+      blockMode: AnalysisBlockModeSchema.optional(),
     })
     .strict(),
 ]);

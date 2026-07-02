@@ -77,6 +77,7 @@ function buildOptionSummary(options = {}) {
     port: options.port,
     promptMode: options.promptMode,
     strictRefineMode: Boolean(options.strictRefineMode),
+    keepBlocksMode: Boolean(options.keepBlocksMode),
     previousBlocksForPromptCount: Array.isArray(options.previousBlocksForPrompt)
       ? options.previousBlocksForPrompt.length
       : 0,
@@ -229,6 +230,7 @@ function buildRequestSummary(
     promptPreview: truncateText(promptText, 2400),
     systemPromptPreview: truncateText(systemPrompt, 2400),
     strictRefineMode: Boolean(options.strictRefineMode),
+    keepBlocksMode: Boolean(options.keepBlocksMode),
     previousBlocksForPrompt: Array.isArray(options.previousBlocksForPrompt)
       ? options.previousBlocksForPrompt.slice(0, 80)
       : [],
