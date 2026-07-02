@@ -251,7 +251,40 @@ export function RetouchCursorLayer({
   );
 }
 
-export function RegionSelectionLayer({
+/** Region-translate marquee plus the block tool's create marquee. */
+export function StageMarqueeLayers({
+  blockCreateRect = null,
+  imageDataUrl,
+  regionSelectionActive,
+  regionSelectionRect,
+  stageSize,
+}: Pick<
+  ImageStageProps,
+  | "blockCreateRect"
+  | "imageDataUrl"
+  | "regionSelectionActive"
+  | "regionSelectionRect"
+  | "stageSize"
+>): React.JSX.Element {
+  return (
+    <>
+      <RegionSelectionLayer
+        imageDataUrl={imageDataUrl}
+        regionSelectionActive={regionSelectionActive}
+        regionSelectionRect={regionSelectionRect}
+        stageSize={stageSize}
+      />
+      <RegionSelectionLayer
+        imageDataUrl={imageDataUrl}
+        regionSelectionActive={Boolean(blockCreateRect)}
+        regionSelectionRect={blockCreateRect ?? null}
+        stageSize={stageSize}
+      />
+    </>
+  );
+}
+
+function RegionSelectionLayer({
   imageDataUrl,
   regionSelectionActive,
   regionSelectionRect,

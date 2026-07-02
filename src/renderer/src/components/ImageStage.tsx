@@ -2,11 +2,11 @@ import React from "react";
 import {
   CommittedMaskLayer,
   OverlayBlockLayer,
-  RegionSelectionLayer,
   RetouchCursorLayer,
   RetouchPreviewLayer,
   StageDragHud,
   StageImage,
+  StageMarqueeLayers,
 } from "./imageStageLayers";
 import {
   resolveRetouchStageModel,
@@ -17,6 +17,7 @@ import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
 export type { ImageStageProps } from "./imageStageTypes";
 
 export function ImageStage({
+  blockCreateRect = null,
   blockPointerDisabled = false,
   dragHud = null,
   imageDataUrl,
@@ -40,6 +41,7 @@ export function ImageStage({
   showTextBlocks,
   stageRef,
   stageSize,
+  stageTool,
   textLayoutStageSize,
 }: ImageStageProps): React.JSX.Element {
   const clipId = React.useId();
@@ -53,6 +55,7 @@ export function ImageStage({
 
   return (
     <ImageStageFrame
+      blockCreateRect={blockCreateRect}
       blockPointerDisabled={blockPointerDisabled}
       clipId={clipId}
       dragHud={dragHud}
@@ -77,12 +80,14 @@ export function ImageStage({
       showTextBlocks={showTextBlocks}
       stageRef={stageRef}
       stageSize={stageSize}
+      stageTool={stageTool}
       textLayoutStageSize={textLayoutStageSize}
     />
   );
 }
 
 function ImageStageFrame({
+  blockCreateRect = null,
   blockPointerDisabled = false,
   clipId,
   dragHud = null,
@@ -107,6 +112,7 @@ function ImageStageFrame({
   showTextBlocks,
   stageRef,
   stageSize,
+  stageTool,
   textLayoutStageSize,
 }: ImageStageProps & {
   clipId: string;
@@ -121,6 +127,7 @@ function ImageStageFrame({
           cursorVisible: retouchModel.cursorVisible,
           regionSelectionActive,
           retouchCursor,
+          stageTool,
         })}
         onPointerMove={onStagePointerMove}
         onPointerUp={onStagePointerUp}
@@ -129,6 +136,7 @@ function ImageStageFrame({
         onPointerDown={onStagePointerDown}
       >
         <ImageStageLayerSet
+          blockCreateRect={blockCreateRect}
           blockPointerDisabled={blockPointerDisabled}
           clipId={clipId}
           dragHud={dragHud}
@@ -156,6 +164,7 @@ function ImageStageFrame({
 }
 
 function ImageStageLayerSet({
+  blockCreateRect = null,
   blockPointerDisabled = false,
   clipId,
   dragHud = null,
@@ -223,7 +232,8 @@ function ImageStageLayerSet({
         retouchModel={retouchModel}
         stageSize={stageSize}
       />
-      <RegionSelectionLayer
+      <StageMarqueeLayers
+        blockCreateRect={blockCreateRect}
         imageDataUrl={imageDataUrl}
         regionSelectionActive={regionSelectionActive}
         regionSelectionRect={regionSelectionRect}

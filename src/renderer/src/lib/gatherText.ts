@@ -157,6 +157,267 @@ export function formatGatheredText(
   return chunks.join("\n\n");
 }
 
+export function decodeImportedTextContent(buffer: ArrayBuffer): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch (_error) {
+    return new TextDecoder("windows-949").decode(buffer);
+  }
+}
+
+export type TranslatedTextImportUpdate = {
+  pageId: string;
+  blockId: string;
+  translatedText: string;
+};
+
+export type TranslatedTextImportResult = {
+  updates: TranslatedTextImportUpdate[];
+  matchedPageCount: number;
+  warnings: string[];
+};
+
+type ParsedTextSection = {
+  pageNumber: number | null;
+  pageName: string | null;
+  lines: string[];
+  groups: string[][];
+};
+
+/** Matches the exported page header, e.g. `# 3쪽 · page-003.png`. */
+const PAGE_HEADER_PATTERN = /^#\s*(\d+)\s*쪽(?:\s*·\s*(.*))?$/;
+
+function parseTextSections(content: string): {
+  sections: ParsedTextSection[];
+  hasHeaders: boolean;
+} {
+  const sections: ParsedTextSection[] = [];
+  let current: ParsedTextSection | null = null;
+  let currentGroup: string[] = [];
+  let hasHeaders = false;
+
+  const flushGroup = (): void => {
+    if (current && currentGroup.length > 0) {
+      current.groups.push(currentGroup);
+    }
+    currentGroup = [];
+  };
+
+  const startSection = (
+    pageNumber: number | null,
+    pageName: string | null,
+  ): ParsedTextSection => {
+    flushGroup();
+    const section = { pageNumber, pageName, lines: [], groups: [] };
+    sections.push(section);
+    current = section;
+    return section;
+  };
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    const header = PAGE_HEADER_PATTERN.exec(line);
+    if (header) {
+      hasHeaders = true;
+      startSection(Number(header[1]), header[2]?.trim() || null);
+      continue;
+    }
+    if (!line) {
+      flushGroup();
+      continue;
+    }
+    const section = current ?? startSection(null, null);
+    section.lines.push(line);
+    currentGroup.push(line);
+  }
+  flushGroup();
+  return { sections, hasHeaders };
+}
+
+function resolveSectionPage(
+  section: ParsedTextSection,
+  pages: GatheredPage[],
+): GatheredPage | null {
+  if (section.pageNumber !== null) {
+    const targetIndex = section.pageNumber - 1;
+    const byIndex = pages.find((page) => page.index === targetIndex);
+    if (byIndex) {
+      return byIndex;
+    }
+    if (section.pageName) {
+      return pages.find((page) => page.pageName === section.pageName) ?? null;
+    }
+    return null;
+  }
+  return pages.length === 1 ? pages[0] : null;
+}
+
+/**
+ * Matches a .txt export back onto the gathered pages. It accepts both the
+ * default OCR + Korean export and the Korean-only export, in reading order,
+ * optionally grouped under `# n쪽 · 이름` headers. Pages whose text shape no
+ * longer matches the block list are skipped with a warning instead of guessing.
+ */
+export function buildTranslatedTextImport(
+  pages: GatheredPage[],
+  content: string,
+): TranslatedTextImportResult {
+  const { sections, hasHeaders } = parseTextSections(content);
+  const warnings: string[] = [];
+  const updates: TranslatedTextImportUpdate[] = [];
+  let matchedPageCount = 0;
+
+  if (sections.length === 0) {
+    return {
+      updates,
+      matchedPageCount,
+      warnings: ["불러온 파일에 텍스트가 없습니다."],
+    };
+  }
+  if (!hasHeaders && pages.length !== 1) {
+    return {
+      updates,
+      matchedPageCount,
+      warnings: [
+        "페이지 머리말(# n쪽)이 없어 어느 페이지의 텍스트인지 알 수 없습니다. 머리말을 포함해 저장한 txt를 사용하세요.",
+      ],
+    };
+  }
+
+  for (const section of sections) {
+    const page = resolveSectionPage(section, pages);
+    if (!page) {
+      warnings.push(
+        `${section.pageNumber !== null ? `${section.pageNumber}쪽` : "머리말 없는 구간"}: 해당 페이지를 찾을 수 없어 건너뜁니다.`,
+      );
+      continue;
+    }
+    const importedTexts = resolveImportedTranslatedTexts(section, page);
+    if (!importedTexts) {
+      warnings.push(
+        `${page.index + 1}쪽: 텍스트 줄 구성과 번역 블록 ${page.blocks.length}개가 맞지 않아 건너뜁니다.`,
+      );
+      continue;
+    }
+    matchedPageCount += 1;
+    importedTexts.forEach((line, index) => {
+      const block = page.blocks[index];
+      if (line !== block.translatedText) {
+        updates.push({
+          pageId: page.pageId,
+          blockId: block.id,
+          translatedText: line,
+        });
+      }
+    });
+  }
+  return { updates, matchedPageCount, warnings };
+}
+
+function resolveImportedTranslatedTexts(
+  section: ParsedTextSection,
+  page: GatheredPage,
+): string[] | null {
+  return (
+    resolveBothFieldGroups(section, page) ??
+    resolveTranslatedFieldLines(section.lines, page) ??
+    resolveBothFieldLines(section.lines, page)
+  );
+}
+
+function resolveBothFieldGroups(
+  section: ParsedTextSection,
+  page: GatheredPage,
+): string[] | null {
+  if (section.groups.length !== page.blocks.length) {
+    return null;
+  }
+  const texts: string[] = [];
+  for (const [index, group] of section.groups.entries()) {
+    const sourceLines = splitMeaningfulLines(page.blocks[index]?.sourceText);
+    if (!startsWithLines(group, sourceLines)) {
+      return null;
+    }
+    const translatedLines = group.slice(sourceLines.length);
+    if (translatedLines.length === 0) {
+      return null;
+    }
+    texts.push(translatedLines.join("\n"));
+  }
+  return texts;
+}
+
+function resolveTranslatedFieldLines(
+  lines: string[],
+  page: GatheredPage,
+): string[] | null {
+  if (lines.length === page.blocks.length) {
+    return [...lines];
+  }
+
+  const texts: string[] = [];
+  let cursor = 0;
+  for (const block of page.blocks) {
+    const lineCount = Math.max(
+      1,
+      splitMeaningfulLines(block.translatedText).length,
+    );
+    const nextLines = lines.slice(cursor, cursor + lineCount);
+    if (nextLines.length !== lineCount) {
+      return null;
+    }
+    texts.push(nextLines.join("\n"));
+    cursor += lineCount;
+  }
+  return cursor === lines.length ? texts : null;
+}
+
+function resolveBothFieldLines(
+  lines: string[],
+  page: GatheredPage,
+): string[] | null {
+  const texts: string[] = [];
+  let cursor = 0;
+  for (const block of page.blocks) {
+    const sourceLines = splitMeaningfulLines(block.sourceText);
+    if (sourceLines.length > 0) {
+      const candidateSource = lines.slice(cursor, cursor + sourceLines.length);
+      if (!areSameLines(candidateSource, sourceLines)) {
+        return null;
+      }
+      cursor += sourceLines.length;
+    }
+    const translatedLine = lines[cursor];
+    if (translatedLine === undefined) {
+      return null;
+    }
+    texts.push(translatedLine);
+    cursor += 1;
+  }
+  return cursor === lines.length ? texts : null;
+}
+
+function splitMeaningfulLines(text: string | undefined): string[] {
+  return String(text ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+function startsWithLines(lines: string[], prefix: string[]): boolean {
+  if (prefix.length === 0) {
+    return true;
+  }
+  return areSameLines(lines.slice(0, prefix.length), prefix);
+}
+
+function areSameLines(left: string[], right: string[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((line, index) => line === right[index])
+  );
+}
+
 export type HighlightSegment = { text: string; match: boolean };
 
 export type VisibleLine = {

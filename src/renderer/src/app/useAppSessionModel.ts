@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { PanelCommand } from "../../../shared/panelBridgeTypes";
+import { useWorkspaceWheelZoom } from "../hooks/useWorkspaceWheelZoom";
 import { usePanelBridgeHost } from "../panels/usePanelBridgeHost";
 import {
   buildPanelSyncState,
@@ -17,6 +18,11 @@ export function useAppSessionModel(): AppSessionViewProps {
   const inpainting = useInpaintingController(chapter, translation);
 
   useAppSessionShortcuts({ chapter, inpainting, translation });
+  useWorkspaceWheelZoom({
+    workspacePanelRef: chapter.core.workspacePanelRef,
+    zoomIn: chapter.uiState.zoomInWorkspace,
+    zoomOut: chapter.uiState.zoomOutWorkspace,
+  });
 
   const applyPanelCommand = useCallback(
     (command: PanelCommand) => {
@@ -66,5 +72,6 @@ export function useAppSessionModel(): AppSessionViewProps {
     statusLog: chapter.statusLog,
     translationActions: translation.translationActions,
     uiState: chapter.uiState,
+    updateCurrentChapter: translation.updateCurrentChapter,
   });
 }

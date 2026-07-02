@@ -45,6 +45,11 @@ export function useAppSessionShortcuts({
     "zoom-in": () => uiState.zoomInWorkspace(),
     "zoom-out": () => uiState.zoomOutWorkspace(),
     "zoom-reset": () => uiState.resetWorkspaceZoom(),
+    "stage-tool-select": () => uiState.setStageTool("select"),
+    "stage-tool-block": () => uiState.setStageTool("block"),
+    "stage-tool-hand": () => uiState.setStageTool("hand"),
+    "toggle-stage-toolbar": () =>
+      uiState.setStageToolbarHidden((hidden) => !hidden),
     "open-translate-options": () => uiState.setTranslateOptionsOpen(true),
     "translate-pending": () => void translationActions.runAnalysis("pending"),
     "translate-all": () => void translationActions.runAnalysis("all"),

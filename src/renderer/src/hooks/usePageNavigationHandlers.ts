@@ -136,6 +136,10 @@ function useWorkspaceWheelHandler(
 ): (event: WheelEvent) => void {
   return useCallback(
     (event) => {
+      // Ctrl+wheel is the workspace zoom gesture, never page navigation.
+      if (event.ctrlKey) {
+        return;
+      }
       const pageIds =
         currentChapterRef.current?.pages.map((page) => page.id) ?? [];
       const direction = resolveWheelPageNavigation({

@@ -6,6 +6,8 @@ import { mangaGateway } from "../api/mangaGateway";
 import { toast } from "../lib/toastStore";
 import {
   buildMatchOffsets,
+  buildTranslatedTextImport,
+  decodeImportedTextContent,
   filterPagesByField,
   formatGatheredText,
   gatherText,
@@ -13,6 +15,7 @@ import {
   type GatherField,
   type GatherScope,
   type GatheredPage,
+  type TranslatedTextImportUpdate,
 } from "../lib/gatherText";
 import {
   useGatherTextSearch,
@@ -37,6 +40,8 @@ type GatherTextModalProps = {
   page: MangaPage | null;
   onClose: () => void;
   onChapterUpdated?: (chapter: ChapterSnapshot) => void;
+  onApplyTranslatedText?: (updates: TranslatedTextImportUpdate[]) => void;
+  onNavigateToBlock?: (pageId: string, blockId: string) => void;
 };
 
 export function GatherTextModal({
@@ -44,6 +49,8 @@ export function GatherTextModal({
   page,
   onClose,
   onChapterUpdated,
+  onApplyTranslatedText,
+  onNavigateToBlock,
 }: GatherTextModalProps): React.JSX.Element {
   const [scope, setScope] = React.useState<GatherScope>("page");
   const [field, setField] = React.useState<GatherField>("both");
@@ -51,6 +58,7 @@ export function GatherTextModal({
   const [reviewWarnings, setReviewWarnings] = React.useState<string[]>([]);
   const [reviewBusy, setReviewBusy] = React.useState(false);
   const reviewFileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const txtFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const pages = React.useMemo(
     () => filterPagesByField(gatherText({ chapter, page, scope }), field),
@@ -69,6 +77,13 @@ export function GatherTextModal({
     setReviewBusy,
     setReviewWarnings,
   });
+  const handleImportTxtFile = useTxtImportAction({
+    chapter,
+    page,
+    scope,
+    onApplyTranslatedText,
+    setReviewWarnings,
+  });
   const search = useGatherTextSearch(pages, field);
 
   return (
@@ -85,11 +100,13 @@ export function GatherTextModal({
           onToggleExcludeHeaders={setExcludeHeaders}
           hasContent={hasContent}
           hasChapter={Boolean(chapter)}
+          canImportTxt={Boolean(onApplyTranslatedText)}
           reviewBusy={reviewBusy}
           onSave={() => void handleSave()}
           onCopy={() => void handleCopy()}
           onExportReview={(format) => void handleExportReview(format)}
           onImportReview={() => reviewFileInputRef.current?.click()}
+          onImportTxt={() => txtFileInputRef.current?.click()}
         />
       }
     >
@@ -103,6 +120,19 @@ export function GatherTextModal({
           event.target.value = "";
           if (file) {
             void handleImportReviewFile(file);
+          }
+        }}
+      />
+      <input
+        ref={txtFileInputRef}
+        type="file"
+        accept=".txt,text/plain"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) {
+            void handleImportTxtFile(file);
           }
         }}
       />
@@ -130,8 +160,76 @@ export function GatherTextModal({
           </ul>
         </details>
       ) : null}
-      <GatheredPageList pages={pages} field={field} search={search} />
+      <GatheredPageList
+        pages={pages}
+        field={field}
+        search={search}
+        onNavigateToBlock={onNavigateToBlock}
+      />
     </Modal>
+  );
+}
+
+/**
+ * Re-imports a "한국어만" txt export: parses the page headers, maps each line
+ * back onto the translated blocks in reading order, and overwrites only the
+ * lines that changed.
+ */
+function useTxtImportAction({
+  chapter,
+  page,
+  scope,
+  onApplyTranslatedText,
+  setReviewWarnings,
+}: {
+  chapter: ChapterSnapshot | null;
+  page: MangaPage | null;
+  scope: GatherScope;
+  onApplyTranslatedText?: (updates: TranslatedTextImportUpdate[]) => void;
+  setReviewWarnings: (warnings: string[]) => void;
+}): (file: File) => Promise<void> {
+  return React.useCallback(
+    async (file: File) => {
+      if (!chapter || !onApplyTranslatedText) {
+        return;
+      }
+      try {
+        const content = decodeImportedTextContent(await file.arrayBuffer());
+        const translatedPages = filterPagesByField(
+          gatherText({ chapter, page, scope }),
+          "translated",
+        );
+        const result = buildTranslatedTextImport(translatedPages, content);
+        setReviewWarnings(result.warnings);
+        if (result.updates.length === 0) {
+          toast.info(
+            result.matchedPageCount > 0
+              ? "변경된 번역문이 없습니다."
+              : "적용할 수 있는 텍스트가 없습니다. 경고를 확인하세요.",
+          );
+          return;
+        }
+        const confirmed = window.confirm(
+          `번역문 ${result.updates.length}개를 txt 내용으로 덮어씁니다.\n줄 순서 기준으로 반영되며 OCR 원문은 바뀌지 않습니다. 계속할까요?`,
+        );
+        if (!confirmed) {
+          return;
+        }
+        onApplyTranslatedText(result.updates);
+        toast.success(
+          `${result.updates.length}개 블록의 번역문을 업데이트했습니다.`,
+        );
+        if (result.warnings.length > 0) {
+          toast.info(
+            `txt 불러오기 경고 ${result.warnings.length}개가 있습니다.`,
+          );
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("txt 파일 불러오기에 실패했습니다.");
+      }
+    },
+    [chapter, onApplyTranslatedText, page, scope, setReviewWarnings],
   );
 }
 
@@ -221,7 +319,7 @@ function useReviewTextActions({
       setReviewBusy(true);
       setReviewWarnings([]);
       try {
-        const content = await file.text();
+        const content = decodeImportedTextContent(await file.arrayBuffer());
         const result = await mangaGateway.importReviewText({
           chapterId: chapter.id,
           content,
@@ -254,22 +352,26 @@ function GatherTextFooter({
   onToggleExcludeHeaders,
   hasContent,
   hasChapter,
+  canImportTxt,
   reviewBusy,
   onSave,
   onCopy,
   onExportReview,
   onImportReview,
+  onImportTxt,
 }: {
   search: GatherTextSearch;
   excludeHeaders: boolean;
   onToggleExcludeHeaders: (value: boolean) => void;
   hasContent: boolean;
   hasChapter: boolean;
+  canImportTxt: boolean;
   reviewBusy: boolean;
   onSave: () => void;
   onCopy: () => void;
   onExportReview: (format: ReviewExportFormat) => void;
   onImportReview: () => void;
+  onImportTxt: () => void;
 }): React.JSX.Element {
   return (
     <div className="gather-text-footer">
@@ -306,6 +408,13 @@ function GatherTextFooter({
         <div className="gather-text-action-group">
           <Button onClick={onSave} disabled={!hasContent}>
             .txt 저장
+          </Button>
+          <Button
+            onClick={onImportTxt}
+            disabled={!hasChapter || !canImportTxt}
+            title="한국어만 형식으로 저장한 txt의 번역문을 줄 순서대로 다시 불러옵니다."
+          >
+            .txt 불러오기
           </Button>
           <Button variant="primary" onClick={onCopy} disabled={!hasContent}>
             복사
@@ -389,10 +498,12 @@ function GatheredPageList({
   pages,
   field,
   search,
+  onNavigateToBlock,
 }: {
   pages: GatheredPage[];
   field: GatherField;
   search: GatherTextSearch;
+  onNavigateToBlock?: (pageId: string, blockId: string) => void;
 }): React.JSX.Element {
   const offsets = React.useMemo(
     () => buildMatchOffsets(pages, field, search.query),
@@ -418,6 +529,11 @@ function GatheredPageList({
                 field={field}
                 search={search}
                 offsets={offsets}
+                onNavigate={
+                  onNavigateToBlock
+                    ? () => onNavigateToBlock(page.pageId, block.id)
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -432,14 +548,16 @@ function GatheredBlock({
   field,
   search,
   offsets,
+  onNavigate,
 }: {
   block: GatheredPage["blocks"][number];
   field: GatherField;
   search: GatherTextSearch;
   offsets: Map<string, number>;
+  onNavigate?: () => void;
 }): React.JSX.Element {
-  return (
-    <div className="gather-text-block">
+  const content = (
+    <>
       {field !== "translated" && block.sourceText ? (
         <p className="gather-text-source">
           <HighlightedText
@@ -464,7 +582,20 @@ function GatheredBlock({
           />
         </p>
       ) : null}
-    </div>
+    </>
+  );
+  if (!onNavigate) {
+    return <div className="gather-text-block">{content}</div>;
+  }
+  return (
+    <button
+      type="button"
+      className="gather-text-block clickable"
+      title="클릭하면 해당 페이지로 이동합니다."
+      onClick={onNavigate}
+    >
+      {content}
+    </button>
   );
 }
 

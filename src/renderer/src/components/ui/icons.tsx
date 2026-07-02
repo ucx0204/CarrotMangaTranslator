@@ -229,3 +229,38 @@ export const ExpandIcon = createIcon(
     <path d="M3 21l7-7" />
   </>,
 );
+
+export const CursorIcon = createIcon(
+  <>
+    <path d="M5 3l7 17 2.5-7L21 10.5 5 3Z" />
+  </>,
+);
+
+export const BlockPlusIcon = createIcon(
+  <>
+    <rect x="3" y="5" width="13" height="13" rx="2" />
+    <path d="M19 13v6" />
+    <path d="M16 16h6" />
+  </>,
+);
+
+export const HandIcon = createIcon(
+  <>
+    <path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11" />
+    <path d="M11 11V4.5a1.5 1.5 0 0 1 3 0V11" />
+    <path d="M14 11V6a1.5 1.5 0 0 1 3 0v7" />
+    <path d="M8 12v1.5L6 11.5a1.6 1.6 0 0 0-2.3 2.2l4.5 6A5 5 0 0 0 12.2 22H13a4 4 0 0 0 4-4v-5" />
+  </>,
+);
+
+export const ChevronLeftIcon = createIcon(
+  <>
+    <path d="m14 6-6 6 6 6" />
+  </>,
+);
+
+export const ChevronRightIcon = createIcon(
+  <>
+    <path d="m10 6 6 6-6 6" />
+  </>,
+);

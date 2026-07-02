@@ -149,6 +149,7 @@ function makeWorkspaceProps({
   selectedPageImagePageId: string | null;
 }): AppWorkspaceProps {
   return {
+    blockCreateRect: null,
     dragHud: null,
     imageRef: refs.imageRef,
     inpaintingMode: false,
@@ -165,11 +166,13 @@ function makeWorkspaceProps({
     onOpenSettings: () => undefined,
     onOpenShareImport: () => undefined,
     onOpenTranslationSource: () => undefined,
+    onSelectStageTool: () => undefined,
     onStagePointerDown: () => undefined,
     onStagePointerLeave: () => undefined,
     onStagePointerMove: () => undefined,
     onStagePointerUp: () => undefined,
     onToggleBlockExcluded: () => undefined,
+    onToggleStageToolbarHidden: () => undefined,
     progressSnapshot: null,
     regionSelectionActive: false,
     regionSelectionRect: null,
@@ -185,6 +188,8 @@ function makeWorkspaceProps({
     showingOriginalPeek: false,
     stageRef: refs.stageRef,
     stageSize: null,
+    stageTool: "select",
+    stageToolbarHidden: false,
     workspacePanelRef: refs.workspacePanelRef,
     workspaceZoom: 1,
   };

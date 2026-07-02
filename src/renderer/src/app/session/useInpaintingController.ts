@@ -9,6 +9,7 @@ export function useInpaintingController(
 ) {
   const inpainting = useAppSessionInpaintingController({
     askConfirm: chapter.confirmController.askConfirm,
+    blockFormatDefaults: chapter.settingsDialog.settings?.blockFormatDefaults,
     bridgeActions: chapter.bridgeActions,
     core: chapter.core,
     derivedState: chapter.derivedState,

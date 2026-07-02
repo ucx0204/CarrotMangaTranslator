@@ -2,8 +2,10 @@ import React from "react";
 import type { JobState } from "../../../shared/jobTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
+import type { StageTool } from "../lib/stageTool";
 import { ImageStage, type ImageStageProps } from "./ImageStage";
 import { InstallProgressOverlay } from "./InstallProgressOverlay";
+import { StageToolbar } from "./StageToolbar";
 import { Button } from "./ui";
 import { useFonts } from "../fonts/useFonts";
 import { useWorkspaceZoomStyle } from "../hooks/useWorkspaceZoomStyle";
@@ -29,9 +31,14 @@ type AppWorkspaceProps = {
   maskStrokes: ImageStageProps["maskStrokes"];
   regionSelectionActive: boolean;
   regionSelectionRect: ImageStageProps["regionSelectionRect"];
+  blockCreateRect: ImageStageProps["blockCreateRect"];
+  stageTool: StageTool;
+  stageToolbarHidden: boolean;
   dragHud: ImageStageProps["dragHud"];
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
+  onSelectStageTool: (tool: StageTool) => void;
+  onToggleStageToolbarHidden: () => void;
   onStagePointerMove: ImageStageProps["onStagePointerMove"];
   onStagePointerUp: ImageStageProps["onStagePointerUp"];
   onStagePointerDown: ImageStageProps["onStagePointerDown"];
@@ -54,6 +61,40 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
     props.selectedPage,
     workspacePanelRef,
   );
+  useResetWorkspaceScrollOnRenderedPage({
+    pageId: props.selectedPage?.id ?? null,
+    renderedImagePageId: props.selectedPageImagePageId,
+    workspacePanelRef,
+  });
+  return (
+    <section className="workspace-shell">
+      <div
+        ref={workspacePanelRef as React.RefObject<HTMLDivElement | null>}
+        className={`workspace ${zoomStyle.className}`.trim()}
+        style={zoomStyle.style}
+        tabIndex={0}
+        aria-label="읽기 영역"
+        onMouseDown={() => workspacePanelRef.current?.focus()}
+      >
+        <WorkspaceContent {...props} />
+        <InstallProgressOverlay
+          job={props.jobState}
+          snapshot={props.progressSnapshot}
+        />
+      </div>
+      {props.selectedPage && !props.inpaintingMode ? (
+        <StageToolbar
+          hidden={props.stageToolbarHidden}
+          onSelectTool={props.onSelectStageTool}
+          onToggleHidden={props.onToggleStageToolbarHidden}
+          tool={props.stageTool}
+        />
+      ) : null}
+    </section>
+  );
+}
+
+function WorkspaceContent(props: AppWorkspaceProps): React.JSX.Element {
   const textLayoutStageSize = React.useMemo<ImageStageProps["stageSize"]>(
     () =>
       props.selectedPage
@@ -61,61 +102,49 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
         : props.stageSize,
     [props.selectedPage, props.stageSize],
   );
-  useResetWorkspaceScrollOnRenderedPage({
-    pageId: props.selectedPage?.id ?? null,
-    renderedImagePageId: props.selectedPageImagePageId,
-    workspacePanelRef,
-  });
-  return (
-    <section
-      ref={workspacePanelRef}
-      className={`workspace ${zoomStyle.className}`.trim()}
-      style={zoomStyle.style}
-      tabIndex={0}
-      aria-label="읽기 영역"
-      onMouseDown={() => workspacePanelRef.current?.focus()}
-    >
-      {props.selectedPage ? (
-        <WorkspacePane
-          blockPointerDisabled={props.inpaintingToolActive}
-          dragHud={props.dragHud}
-          imageDataUrl={props.selectedPageImageDataUrl}
-          imageRef={props.imageRef}
-          inpaintingMode={props.inpaintingMode}
-          maskStrokes={props.maskStrokes}
-          onBlockPointerDown={props.onBlockPointerDown}
-          onStagePointerDown={props.onStagePointerDown}
-          onStagePointerLeave={props.onStagePointerLeave}
-          onStagePointerMove={props.onStagePointerMove}
-          onStagePointerUp={props.onStagePointerUp}
-          onToggleBlockExcluded={props.onToggleBlockExcluded}
-          page={props.selectedPage}
-          regionSelectionActive={props.regionSelectionActive}
-          regionSelectionRect={props.regionSelectionRect}
-          retouchCursor={props.retouchCursor}
-          retouchPreview={props.retouchPreviewLayer}
-          selectedBlockId={props.selectedBlockId}
-          selectedBlockIds={props.selectedBlockIds}
-          showBlockChrome={props.showBlockChrome && !props.inpaintingToolActive}
-          showingOriginalPeek={props.showingOriginalPeek}
-          showTextBlocks={props.showTextBlocks}
-          stageRef={props.stageRef}
-          stageSize={props.stageSize}
-          textLayoutStageSize={textLayoutStageSize}
-        />
-      ) : (
-        <EmptyWorkspace
-          onOpenBatchImport={props.onOpenBatchImport}
-          onOpenSettings={props.onOpenSettings}
-          onOpenShareImport={props.onOpenShareImport}
-          onOpenTranslationSource={props.onOpenTranslationSource}
-        />
-      )}
-      <InstallProgressOverlay
-        job={props.jobState}
-        snapshot={props.progressSnapshot}
+  if (!props.selectedPage) {
+    return (
+      <EmptyWorkspace
+        onOpenBatchImport={props.onOpenBatchImport}
+        onOpenSettings={props.onOpenSettings}
+        onOpenShareImport={props.onOpenShareImport}
+        onOpenTranslationSource={props.onOpenTranslationSource}
       />
-    </section>
+    );
+  }
+  return (
+    <WorkspacePane
+      blockCreateRect={props.blockCreateRect}
+      blockPointerDisabled={
+        props.inpaintingToolActive ||
+        (!props.inpaintingMode && props.stageTool !== "select")
+      }
+      dragHud={props.dragHud}
+      imageDataUrl={props.selectedPageImageDataUrl}
+      imageRef={props.imageRef}
+      inpaintingMode={props.inpaintingMode}
+      maskStrokes={props.maskStrokes}
+      onBlockPointerDown={props.onBlockPointerDown}
+      onStagePointerDown={props.onStagePointerDown}
+      onStagePointerLeave={props.onStagePointerLeave}
+      onStagePointerMove={props.onStagePointerMove}
+      onStagePointerUp={props.onStagePointerUp}
+      onToggleBlockExcluded={props.onToggleBlockExcluded}
+      page={props.selectedPage}
+      regionSelectionActive={props.regionSelectionActive}
+      regionSelectionRect={props.regionSelectionRect}
+      retouchCursor={props.retouchCursor}
+      retouchPreview={props.retouchPreviewLayer}
+      selectedBlockId={props.selectedBlockId}
+      selectedBlockIds={props.selectedBlockIds}
+      showBlockChrome={props.showBlockChrome && !props.inpaintingToolActive}
+      showingOriginalPeek={props.showingOriginalPeek}
+      showTextBlocks={props.showTextBlocks}
+      stageRef={props.stageRef}
+      stageSize={props.stageSize}
+      stageTool={props.inpaintingMode ? undefined : props.stageTool}
+      textLayoutStageSize={textLayoutStageSize}
+    />
   );
 }
 

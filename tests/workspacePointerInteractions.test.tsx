@@ -123,6 +123,7 @@ function WorkspacePointerHarness({
 }): React.JSX.Element {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const workspacePanelRef = useRef<HTMLElement | null>(null);
   const selectedPageIdRef = useRef<string | null>("page-1");
   const inpaintingRetouchDrawingRef = useRef(false);
   const inpaintingRetouchPointsRef = useRef<Array<{ x: number; y: number }>>(
@@ -182,8 +183,10 @@ function WorkspacePointerHarness({
     setSelectedBlockId,
     setSelectedBlockIds,
     stageRef,
+    stageTool: "select",
     translateSelectedRegion,
     updateCurrentChapter,
+    workspacePanelRef,
   });
 
   useLayoutEffect(() => {

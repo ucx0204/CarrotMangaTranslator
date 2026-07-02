@@ -20,6 +20,7 @@ export type KeybindingOverrides = Record<string, string>;
 
 export type ShortcutCategory =
   | "view"
+  | "tool"
   | "translate"
   | "inpaint"
   | "edit"
@@ -27,6 +28,7 @@ export type ShortcutCategory =
 
 export const SHORTCUT_CATEGORY_LABELS: Record<ShortcutCategory, string> = {
   view: "표시 / 보기",
+  tool: "도구",
   translate: "번역",
   inpaint: "인페인팅",
   edit: "블록 편집",
@@ -35,6 +37,7 @@ export const SHORTCUT_CATEGORY_LABELS: Record<ShortcutCategory, string> = {
 
 export const SHORTCUT_CATEGORY_ORDER: ShortcutCategory[] = [
   "view",
+  "tool",
   "translate",
   "edit",
   "inpaint",
@@ -48,6 +51,10 @@ export type ShortcutActionId =
   | "zoom-in"
   | "zoom-out"
   | "zoom-reset"
+  | "stage-tool-select"
+  | "stage-tool-block"
+  | "stage-tool-hand"
+  | "toggle-stage-toolbar"
   | "open-translate-options"
   | "translate-pending"
   | "translate-all"
@@ -142,6 +149,34 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     defaultCombo: "ctrl+0",
     allowInEditable: true,
     enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "stage-tool-select",
+    label: "선택 도구",
+    category: "tool",
+    defaultCombo: "1",
+    enabled: (c) => c.chapterOpen && !c.inpaintingMode,
+  },
+  {
+    id: "stage-tool-block",
+    label: "블록 도구 (드래그로 블록 추가)",
+    category: "tool",
+    defaultCombo: "2",
+    enabled: (c) => c.chapterOpen && !c.inpaintingMode,
+  },
+  {
+    id: "stage-tool-hand",
+    label: "손바닥 도구 (드래그로 이동)",
+    category: "tool",
+    defaultCombo: "3",
+    enabled: (c) => c.chapterOpen && !c.inpaintingMode,
+  },
+  {
+    id: "toggle-stage-toolbar",
+    label: "도구 모음 표시 전환",
+    category: "tool",
+    defaultCombo: "4",
+    enabled: (c) => c.chapterOpen && !c.inpaintingMode,
   },
   {
     id: "open-translate-options",

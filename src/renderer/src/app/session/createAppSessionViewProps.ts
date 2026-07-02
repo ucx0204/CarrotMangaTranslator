@@ -1,5 +1,7 @@
+import { applyTranslatedTextUpdates } from "./applyTranslatedTextUpdates";
 import type { useBlockEditingActions } from "../../hooks/useBlockEditingActions";
 import type { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import type { UpdateCurrentChapter } from "../../hooks/useCurrentChapterUpdater";
 import type { useImportShareActions } from "../../hooks/useImportShareActions";
 import type { useImportShareModalController } from "../../hooks/useImportShareModalController";
 import type { useInpaintingActions } from "../../hooks/useInpaintingActions";
@@ -42,6 +44,7 @@ type AppSessionViewModel = {
   statusLog: ReturnType<typeof useStatusLog>;
   translationActions: ReturnType<typeof useTranslationActions>;
   uiState: ReturnType<typeof useAppSessionUiState>;
+  updateCurrentChapter: UpdateCurrentChapter;
 };
 
 export function createAppSessionViewProps(
@@ -78,13 +81,24 @@ function createGatherTextProps({
   core,
   derivedState,
   libraryActions,
+  pageNavigationHandlers,
   uiState,
+  updateCurrentChapter,
 }: AppSessionViewModel): AppSessionViewProps["gatherTextProps"] {
   return uiState.textViewOpen
     ? {
         chapter: core.currentChapter,
+        onApplyTranslatedText: (updates) =>
+          applyTranslatedTextUpdates(updates, updateCurrentChapter),
         onChapterUpdated: (chapter) => libraryActions.applyChapter(chapter),
         onClose: () => uiState.setTextViewOpen(false),
+        onNavigateToBlock: (pageId, blockId) => {
+          pageNavigationHandlers.selectPageForReading(pageId);
+          core.selectedBlockIdRef.current = blockId;
+          core.setSelectedBlockId(blockId);
+          core.setSelectedBlockIds([blockId]);
+          uiState.setTextViewOpen(false);
+        },
         page: derivedState.selectedPage,
       }
     : null;
@@ -340,6 +354,7 @@ function createWorkspaceProps({
   uiState,
 }: AppSessionViewModel): AppSessionViewProps["workspaceProps"] {
   return {
+    blockCreateRect: pointerHandlers.blockCreateRect,
     dragHud: pointerHandlers.dragHud,
     imageRef: core.imageRef,
     inpaintingMode: uiState.inpaintingMode,
@@ -353,11 +368,14 @@ function createWorkspaceProps({
     onOpenShareImport: () => void importShareActions.openShareImportPreview(),
     onOpenTranslationSource: () =>
       importShareModal.setTranslationSourceOpen(true),
+    onSelectStageTool: uiState.setStageTool,
     onStagePointerDown: pointerHandlers.onStagePointerDown,
     onStagePointerLeave: pointerHandlers.onStagePointerLeave,
     onStagePointerMove: pointerHandlers.onStagePointerMove,
     onStagePointerUp: pointerHandlers.onStagePointerUp,
     onToggleBlockExcluded: blockEditingActions.toggleBlockInpaintExcluded,
+    onToggleStageToolbarHidden: () =>
+      uiState.setStageToolbarHidden((hidden) => !hidden),
     progressSnapshot: derivedState.progressSnapshot,
     regionSelectionActive: Boolean(core.regionSelection?.active),
     regionSelectionRect: derivedState.regionSelectionRect,
@@ -373,6 +391,8 @@ function createWorkspaceProps({
     showingOriginalPeek: derivedState.showingOriginalPeek,
     stageRef: core.stageRef,
     stageSize: derivedState.stageSize,
+    stageTool: uiState.stageTool,
+    stageToolbarHidden: uiState.stageToolbarHidden,
     workspacePanelRef: core.workspacePanelRef,
     workspaceZoom: uiState.workspaceZoom,
   };

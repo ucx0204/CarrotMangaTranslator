@@ -46,11 +46,13 @@ export function resolveStageClassName({
   cursorVisible,
   regionSelectionActive,
   retouchCursor,
+  stageTool,
 }: {
   blockPointerDisabled: boolean;
   cursorVisible: boolean;
   regionSelectionActive: boolean;
   retouchCursor: ImageStageProps["retouchCursor"];
+  stageTool?: ImageStageProps["stageTool"];
 }): string {
   return [
     "image-stage",
@@ -58,6 +60,8 @@ export function resolveStageClassName({
     blockPointerDisabled ? "editing-mask" : "",
     retouchCursor ? "retouch-tool-enabled" : "",
     cursorVisible ? "retouch-cursor-active" : "",
+    stageTool === "hand" ? "stage-tool-hand" : "",
+    stageTool === "block" ? "stage-tool-block" : "",
   ]
     .filter(Boolean)
     .join(" ");

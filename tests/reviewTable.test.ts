@@ -83,6 +83,32 @@ describe("review CSV/TSV tables", () => {
     );
   });
 
+  it("uses page_id to import rows when block_id is duplicated across pages", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir, { duplicateBlockIdsAcrossPages: true });
+    const chapter = await library.openChapter("chapter-a");
+    const rows = buildReviewRows(chapter);
+    const secondPageRow = rows.find((row) => row.page_id === "page-b");
+    expect(secondPageRow).toBeDefined();
+    secondPageRow!.translated_text = "둘째 페이지 수정";
+
+    const result = await library.importReviewText({
+      chapterId: "chapter-a",
+      content: serializeReviewRows(rows, "csv"),
+      format: "csv",
+      updateSourceText: false,
+      requireSourceMatch: false,
+    });
+
+    expect(result.warnings).toEqual([]);
+    expect(result.updatedBlockCount).toBe(1);
+    expect(result.chapter.pages[0]?.blocks[0]?.translatedText).toBe("안녕");
+    expect(result.chapter.pages[1]?.blocks[0]?.translatedText).toBe(
+      "둘째 페이지 수정",
+    );
+  });
+
   it("skips source mismatches when requireSourceMatch is true and warns invalid statuses", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);
@@ -170,7 +196,14 @@ async function loadLibrary(
   return import("../src/main/library");
 }
 
-async function seedLibrary(rootDir: string): Promise<void> {
+type SeedLibraryOptions = {
+  duplicateBlockIdsAcrossPages?: boolean;
+};
+
+async function seedLibrary(
+  rootDir: string,
+  options: SeedLibraryOptions = {},
+): Promise<void> {
   const work: LibraryWork = {
     id: "work-1",
     title: "원본 작품",
@@ -178,7 +211,7 @@ async function seedLibrary(rootDir: string): Promise<void> {
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
-  const chapter = makeStoredChapter(rootDir);
+  const chapter = makeStoredChapter(rootDir, options);
   await mkdir(
     join(rootDir, "works", "work-1", "chapters", "chapter-a", "pages"),
     {
@@ -197,6 +230,20 @@ async function seedLibrary(rootDir: string): Promise<void> {
     ),
     "image",
   );
+  if (options.duplicateBlockIdsAcrossPages) {
+    await writeFile(
+      join(
+        rootDir,
+        "works",
+        "work-1",
+        "chapters",
+        "chapter-a",
+        "pages",
+        "002.png",
+      ),
+      "image",
+    );
+  }
   await writeJson(join(rootDir, "index.json"), { workOrder: ["work-1"] });
   await writeJson(join(rootDir, "works", "work-1", "work.json"), work);
   await writeJson(
@@ -206,35 +253,66 @@ async function seedLibrary(rootDir: string): Promise<void> {
   expect(existsSync(join(rootDir, "index.json"))).toBe(true);
 }
 
-function makeStoredChapter(rootDir: string): LibraryChapter {
+function makeStoredChapter(
+  rootDir: string,
+  options: SeedLibraryOptions = {},
+): LibraryChapter {
+  const pages: LibraryChapter["pages"] = [
+    {
+      id: "page-a",
+      name: "001.png",
+      imagePath: join(
+        rootDir,
+        "works",
+        "work-1",
+        "chapters",
+        "chapter-a",
+        "pages",
+        "001.png",
+      ),
+      width: 100,
+      height: 120,
+      blocks: makeBlocks(),
+      analysisStatus: "completed",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+  if (options.duplicateBlockIdsAcrossPages) {
+    pages.push({
+      id: "page-b",
+      name: "002.png",
+      imagePath: join(
+        rootDir,
+        "works",
+        "work-1",
+        "chapters",
+        "chapter-a",
+        "pages",
+        "002.png",
+      ),
+      width: 100,
+      height: 120,
+      blocks: [
+        {
+          ...makeBlocks()[0]!,
+          sourceText: "こんばんは",
+          translatedText: "좋은 저녁",
+        },
+      ],
+      analysisStatus: "completed",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+  }
   return {
     id: "chapter-a",
     workId: "work-1",
     title: "1화",
     sourceKind: "folder",
     status: "completed",
-    pageOrder: ["page-a"],
-    pages: [
-      {
-        id: "page-a",
-        name: "001.png",
-        imagePath: join(
-          rootDir,
-          "works",
-          "work-1",
-          "chapters",
-          "chapter-a",
-          "pages",
-          "001.png",
-        ),
-        width: 100,
-        height: 120,
-        blocks: makeBlocks(),
-        analysisStatus: "completed",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-    ],
+    pageOrder: pages.map((page) => page.id),
+    pages,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };

@@ -70,9 +70,16 @@ export async function applyReviewImportUnlocked(
 }
 
 type ImportContext = {
-  blockById: Map<string, { pageId: string; block: TranslationBlock }>;
+  blockById: Map<
+    string,
+    { key: string; pageId: string; block: TranslationBlock }[]
+  >;
+  blockByScopedId: Map<
+    string,
+    { key: string; pageId: string; block: TranslationBlock }
+  >;
   pageIds: Set<string>;
-  seenBlockIds: Set<string>;
+  seenBlockKeys: Set<string>;
   warnings: string[];
 };
 
@@ -88,19 +95,27 @@ type ApplyRowInput = {
 function createImportContext(chapter: ChapterFile): ImportContext {
   const blockById = new Map<
     string,
-    { pageId: string; block: TranslationBlock }
+    { key: string; pageId: string; block: TranslationBlock }[]
+  >();
+  const blockByScopedId = new Map<
+    string,
+    { key: string; pageId: string; block: TranslationBlock }
   >();
   const pageIds = new Set<string>();
   for (const page of chapter.pages) {
     pageIds.add(page.id);
     for (const block of page.blocks) {
-      blockById.set(block.id, { pageId: page.id, block });
+      const key = makeBlockKey(page.id, block.id);
+      const target = { key, pageId: page.id, block };
+      blockByScopedId.set(key, target);
+      blockById.set(block.id, [...(blockById.get(block.id) ?? []), target]);
     }
   }
   return {
     blockById,
+    blockByScopedId,
     pageIds,
-    seenBlockIds: new Set<string>(),
+    seenBlockKeys: new Set<string>(),
     warnings: [],
   };
 }
@@ -121,36 +136,28 @@ function applyReviewRow({
     context.warnings.push(`${rowNumber}행: block_id가 비어 있어 건너뜁니다.`);
     return "skipped";
   }
-  if (context.seenBlockIds.has(blockId)) {
+
+  const target = resolveReviewRowTarget(row, context, rowNumber);
+  if (!target) {
+    return "skipped";
+  }
+  if (context.seenBlockKeys.has(target.key)) {
     context.warnings.push(
       `${rowNumber}행: 중복 block_id ${blockId}를 건너뜁니다.`,
     );
     return "skipped";
   }
-  context.seenBlockIds.add(blockId);
+  context.seenBlockKeys.add(target.key);
 
   if (row.chapter_id.trim() && row.chapter_id.trim() !== chapter.id) {
     context.warnings.push(`${rowNumber}행: 다른 화의 행이라 건너뜁니다.`);
     return "skipped";
   }
 
-  if (row.page_id.trim() && !context.pageIds.has(row.page_id.trim())) {
-    context.warnings.push(`${rowNumber}행: 없는 page_id ${row.page_id}입니다.`);
-  }
-
-  const target = context.blockById.get(blockId);
-  if (!target) {
-    context.warnings.push(`${rowNumber}행: 없는 block_id ${blockId}입니다.`);
-    return "skipped";
-  }
-  if (row.page_id.trim() && row.page_id.trim() !== target.pageId) {
-    context.warnings.push(
-      `${rowNumber}행: page_id가 현재 블록 위치와 다릅니다. block_id 기준으로 적용합니다.`,
-    );
-  }
-
   const sourceMismatch =
-    row.source_text !== "" && row.source_text !== target.block.sourceText;
+    row.source_text !== "" &&
+    normalizeReviewCompareText(row.source_text) !==
+      normalizeReviewCompareText(target.block.sourceText);
   if (sourceMismatch) {
     context.warnings.push(
       `${rowNumber}행: OCR 원문이 현재 블록과 다릅니다. block_id=${blockId}`,
@@ -174,6 +181,58 @@ function applyReviewRow({
   target.block = nextBlock;
   changedPageIds.add(target.pageId);
   return "updated";
+}
+
+function resolveReviewRowTarget(
+  row: ReviewRow,
+  context: ImportContext,
+  rowNumber: number,
+): { key: string; pageId: string; block: TranslationBlock } | null {
+  const blockId = row.block_id.trim();
+  const pageId = row.page_id.trim();
+  if (pageId) {
+    if (!context.pageIds.has(pageId)) {
+      context.warnings.push(
+        `${rowNumber}행: 없는 page_id ${row.page_id}입니다.`,
+      );
+    }
+    const scopedTarget = context.blockByScopedId.get(
+      makeBlockKey(pageId, blockId),
+    );
+    if (scopedTarget) {
+      return scopedTarget;
+    }
+  }
+
+  const targets = context.blockById.get(blockId) ?? [];
+  if (targets.length === 0) {
+    context.warnings.push(`${rowNumber}행: 없는 block_id ${blockId}입니다.`);
+    return null;
+  }
+  if (targets.length > 1) {
+    context.warnings.push(
+      `${rowNumber}행: block_id ${blockId}가 여러 페이지에 있어 page_id와 함께 찾지 못하면 건너뜁니다.`,
+    );
+    return null;
+  }
+  const [target] = targets;
+  if (pageId && pageId !== target.pageId) {
+    context.warnings.push(
+      `${rowNumber}행: page_id가 현재 블록 위치와 다릅니다. block_id 기준으로 적용합니다.`,
+    );
+  }
+  return target;
+}
+
+function makeBlockKey(pageId: string, blockId: string): string {
+  return `${pageId}\u0000${blockId}`;
+}
+
+function normalizeReviewCompareText(value: string): string {
+  return value
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n?/g, "\n")
+    .normalize("NFC");
 }
 
 function buildImportedBlock(

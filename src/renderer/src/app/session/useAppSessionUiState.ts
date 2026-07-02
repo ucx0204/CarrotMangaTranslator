@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
 import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
+import type { StageTool } from "../../lib/stageTool";
 import {
   clampWorkspaceZoom,
   WORKSPACE_ZOOM_STEP,
@@ -25,6 +26,8 @@ export function useAppSessionUiState() {
   const [translateOptionsOpen, setTranslateOptionsOpen] = useState(false);
   const [translationFlowActive, setTranslationFlowActive] = useState(false);
   const [editorFloating, setEditorFloating] = useState(false);
+  const [stageTool, setStageTool] = useState<StageTool>("select");
+  const [stageToolbarHidden, setStageToolbarHidden] = useState(false);
   const zoom = useWorkspaceZoomControls();
 
   const toggleEditorFloat = useCallback(
@@ -38,6 +41,7 @@ export function useAppSessionUiState() {
     setStyleGuideOpen(false);
     setTranslateOptionsOpen(false);
     setPatternMaskStrokesByPage({});
+    setStageTool("select");
     zoom.resetWorkspaceZoom();
   }, [zoom]);
 
@@ -66,6 +70,8 @@ export function useAppSessionUiState() {
     setShortcutHelpOpen,
     setShowBlockChrome,
     setShowTextBlocks,
+    setStageTool,
+    setStageToolbarHidden,
     setStyleGuideOpen,
     setTextViewOpen,
     setTranslateOptionsOpen,
@@ -73,6 +79,8 @@ export function useAppSessionUiState() {
     shortcutHelpOpen,
     showBlockChrome,
     showTextBlocks,
+    stageTool,
+    stageToolbarHidden,
     styleGuideOpen,
     textViewOpen,
     translateOptionsOpen,

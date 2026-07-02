@@ -3,6 +3,7 @@ import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { DragHud } from "../hooks/useWorkspacePointerHandlers";
 import type { ViewportSize } from "../lib/overlayLayout";
+import type { StageTool } from "../lib/stageTool";
 
 export type ImageStageProps = {
   page: MangaPage;
@@ -33,6 +34,8 @@ export type ImageStageProps = {
   maskStrokes?: InpaintingMaskStroke[];
   regionSelectionActive: boolean;
   regionSelectionRect: BBox | null;
+  blockCreateRect?: BBox | null;
+  stageTool?: StageTool;
   dragHud?: DragHud | null;
   onStagePointerMove: (event: React.PointerEvent) => void;
   onStagePointerUp: (event: React.PointerEvent) => void;

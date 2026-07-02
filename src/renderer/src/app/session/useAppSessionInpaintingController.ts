@@ -1,3 +1,4 @@
+import type { BlockFormatDefaults } from "../../../../shared/blockFormat";
 import type { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import type { useCurrentChapterUpdater } from "../../hooks/useCurrentChapterUpdater";
 import type { useLiveChapterSync } from "../../hooks/useLiveChapterSync";
@@ -18,6 +19,7 @@ import type { useInpaintingGuidePreference } from "./useInpaintingGuidePreferenc
 
 type AppSessionInpaintingControllerArgs = {
   askConfirm: ReturnType<typeof useConfirmDialog>["askConfirm"];
+  blockFormatDefaults?: BlockFormatDefaults;
   bridgeActions: ReturnType<typeof useAppSessionBridgeActions>;
   core: AppSessionCoreState;
   derivedState: ReturnType<typeof useAppSessionDerivedState>;
@@ -148,6 +150,7 @@ function useNavigationController({
 
 function usePointerController(
   {
+    blockFormatDefaults,
     core,
     derivedState,
     pushStatus,
@@ -160,6 +163,7 @@ function usePointerController(
   return useWorkspacePointerHandlers({
     appendRetouchPoint: retouch.appendRetouchPoint,
     applyRetouchPoints: retouch.applyRetouchPoints,
+    blockFormatDefaults,
     currentChapter: core.currentChapter,
     imageRef: core.imageRef,
     inpaintingBrushRadius: uiState.inpaintingBrushRadius,
@@ -185,8 +189,11 @@ function usePointerController(
     setSelectedBlockId: core.setSelectedBlockId,
     setSelectedBlockIds: core.setSelectedBlockIds,
     stageRef: core.stageRef,
+    // Inpainting mode has its own tools; the stage tools stay neutral there.
+    stageTool: uiState.inpaintingMode ? "select" : uiState.stageTool,
     translateSelectedRegion,
     updateCurrentChapter,
+    workspacePanelRef: core.workspacePanelRef,
   });
 }
 
