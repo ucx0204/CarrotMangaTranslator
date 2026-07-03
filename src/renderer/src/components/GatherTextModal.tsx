@@ -5,18 +5,17 @@ import type { ReviewExportFormat } from "../../../shared/reviewTypes";
 import { mangaGateway } from "../api/mangaGateway";
 import { toast } from "../lib/toastStore";
 import {
-  buildMatchOffsets,
   buildTranslatedTextImport,
   decodeImportedTextContent,
   filterPagesByField,
   formatGatheredText,
   gatherText,
-  matchOffsetKey,
   type GatherField,
   type GatherScope,
   type GatheredPage,
   type TranslatedTextImportUpdate,
 } from "../lib/gatherText";
+import { buildMatchOffsets, matchOffsetKey } from "../lib/gatherTextSearch";
 import {
   useGatherTextSearch,
   type GatherTextSearch,

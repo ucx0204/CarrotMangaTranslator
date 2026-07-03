@@ -86,6 +86,43 @@ describe("IPC schemas", () => {
     ).toThrow(/요청 형식/);
   });
 
+  it("accepts a bounded page-set analysis request and rejects malformed ones", () => {
+    const parsed = parseIpcPayload(
+      StartAnalysisRequestSchema,
+      { chapterId, runMode: "page-set", pageIds: [pageId] },
+      "번역 작업",
+    );
+    expect(parsed.runMode).toBe("page-set");
+    if (parsed.runMode !== "page-set") {
+      throw new Error("page-set request was not parsed as page-set");
+    }
+    expect(parsed.pageIds).toEqual([pageId]);
+
+    expect(() =>
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "page-set", pageIds: [] },
+        "번역 작업",
+      ),
+    ).toThrow(/요청 형식/);
+
+    expect(() =>
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "page-set", pageIds: ["../escape"] },
+        "번역 작업",
+      ),
+    ).toThrow(/요청 형식/);
+
+    expect(() =>
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "page-set", pageIds: [pageId], pageId },
+        "번역 작업",
+      ),
+    ).toThrow(/요청 형식/);
+  });
+
   it("accepts a base page timestamp for conflict-aware block saves", () => {
     const parsed = parseIpcPayload(
       SavePageBlocksRequestSchema,

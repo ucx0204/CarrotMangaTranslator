@@ -24,9 +24,10 @@ export async function resolvePagesForRun(
   chapterId: string,
   runMode: Parameters<typeof resolvePagesForRunUnlocked>[1],
   pageId?: string,
+  pageIds?: string[],
 ): Promise<Awaited<ReturnType<typeof resolvePagesForRunUnlocked>>> {
   return withLibraryRead(() =>
-    resolvePagesForRunUnlocked(chapterId, runMode, pageId),
+    resolvePagesForRunUnlocked(chapterId, runMode, pageId, pageIds),
   );
 }
 

@@ -8,13 +8,13 @@ import type {
 } from "../../../shared/libraryTypes";
 import type { BBox } from "../../../shared/textTypes";
 import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
+import type { ChapterRunSelection } from "../lib/translationSelection";
 import type { RunAnalysisOutcome } from "./translationFlowHelpers";
 
-export type RunAnalysisMode = "pending" | "all" | "single-page";
+export type RunAnalysisMode = "pending" | "all" | "single-page" | "page-set";
 
 export type TranslationFlowOptions = {
-  scope: "pending" | "all";
-  target: "chapter" | "work";
+  selection: ChapterRunSelection[];
   twoPass: boolean;
   analysisScope: WorkContextAnalysisScope;
   blockMode: AnalysisBlockMode;

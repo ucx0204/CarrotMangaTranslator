@@ -78,6 +78,14 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       blockMode: AnalysisBlockModeSchema.optional(),
     })
     .strict(),
+  z
+    .object({
+      chapterId: uuid,
+      runMode: z.literal("page-set"),
+      pageIds: z.array(uuid).min(1),
+      blockMode: AnalysisBlockModeSchema.optional(),
+    })
+    .strict(),
 ]);
 
 const InpaintingPointSchema = z

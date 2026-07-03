@@ -54,22 +54,38 @@ export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
 
 export async function resolvePagesForRun(
   chapterId: string,
-  runMode: "pending" | "all" | "single-page",
+  runMode: "pending" | "all" | "single-page" | "page-set",
   pageId?: string,
+  pageIds?: string[],
 ): Promise<{
   chapter: ChapterSnapshot;
   pages: MangaPage[];
 }> {
   const chapter = await openChapter(chapterId);
-  const pages =
-    runMode === "all"
-      ? chapter.pages
-      : runMode === "single-page"
-        ? chapter.pages.filter((page) => page.id === pageId)
-        : chapter.pages.filter((page) => page.analysisStatus !== "completed");
-
   return {
     chapter,
-    pages,
+    pages: selectRunPages(chapter, runMode, pageId, pageIds),
   };
+}
+
+function selectRunPages(
+  chapter: ChapterSnapshot,
+  runMode: "pending" | "all" | "single-page" | "page-set",
+  pageId: string | undefined,
+  pageIds: string[] | undefined,
+): MangaPage[] {
+  switch (runMode) {
+    case "all":
+      return chapter.pages;
+    case "single-page":
+      return chapter.pages.filter((page) => page.id === pageId);
+    case "page-set": {
+      const ids = new Set(pageIds ?? []);
+      return chapter.pages.filter((page) => ids.has(page.id));
+    }
+    default:
+      return chapter.pages.filter(
+        (page) => page.analysisStatus !== "completed",
+      );
+  }
 }

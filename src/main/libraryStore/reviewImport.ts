@@ -122,7 +122,6 @@ function createImportContext(chapter: ChapterFile): ImportContext {
 
 // CSV/TSV import has several independent validation exits; keeping them local
 // makes the row policy easier to audit than scattering it across tiny wrappers.
-// eslint-disable-next-line complexity
 function applyReviewRow({
   chapter,
   changedPageIds,

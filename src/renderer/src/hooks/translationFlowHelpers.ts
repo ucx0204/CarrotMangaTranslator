@@ -1,58 +1,47 @@
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
-import type { LibraryIndex } from "../../../shared/libraryTypes";
+import type { ChapterRunSelection } from "../lib/translationSelection";
 
 export type RunAnalysisOutcome = "completed" | "cancelled" | "failed" | "no-op";
 
+export type ExecuteAnalysisArgs = {
+  runMode: "pending" | "all" | "single-page" | "page-set";
+  chapterId?: string;
+  pageId?: string;
+  pageIds?: string[];
+  blockMode?: AnalysisBlockMode;
+};
+
 export type ExecuteAnalysisJob = (
-  runMode: "pending" | "all" | "single-page",
-  pageId?: string,
-  chapterId?: string,
-  blockMode?: AnalysisBlockMode,
+  args: ExecuteAnalysisArgs,
 ) => Promise<RunAnalysisOutcome>;
 
-/** Canonical chapter id order for a work (chapterOrder, with any strays appended). */
-export function enumerateWorkChapterIds(
-  library: LibraryIndex,
-  workId: string,
-): string[] {
-  const work = library.works.find((item) => item.id === workId);
-  if (!work) {
-    return [];
-  }
-  const existing = new Set(work.chapters.map((chapter) => chapter.id));
-  const ordered = work.chapterOrder.filter((id) => existing.has(id));
-  const orderedSet = new Set(ordered);
-  const strays = work.chapters
-    .map((chapter) => chapter.id)
-    .filter((id) => !orderedSet.has(id));
-  return [...ordered, ...strays];
-}
-
 /**
- * Translate a list of chapters in order. Stops on cancellation; tolerates an
- * individual chapter failing. Returns "completed" if at least one chapter
- * finished, "failed" if all attempted chapters failed, "cancelled" on cancel.
+ * Translate a list of chapter selections in order, each with its own scope
+ * (whole chapter, pending pages, or an explicit page subset). Stops on
+ * cancellation; tolerates an individual chapter failing. Returns "completed" if
+ * at least one chapter finished, "failed" if all attempted chapters failed,
+ * "cancelled" on cancel.
  */
-export async function runChaptersSequentially(
+export async function runSelectionsSequentially(
   execute: ExecuteAnalysisJob,
-  chapterIds: string[],
-  mode: "pending" | "all",
+  selections: ChapterRunSelection[],
   pushStatus: (line: string) => void,
   passLabel: string,
   blockMode?: AnalysisBlockMode,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
   let anyAttempted = false;
-  for (let index = 0; index < chapterIds.length; index += 1) {
-    if (chapterIds.length > 1) {
-      pushStatus(`${passLabel} 번역 ${index + 1}/${chapterIds.length}화`);
+  for (let index = 0; index < selections.length; index += 1) {
+    if (selections.length > 1) {
+      pushStatus(`${passLabel} 번역 ${index + 1}/${selections.length}화`);
     }
-    const outcome = await execute(
-      mode,
-      undefined,
-      chapterIds[index],
+    const selection = selections[index];
+    const outcome = await execute({
+      runMode: selection.mode,
+      chapterId: selection.chapterId,
+      pageIds: selection.mode === "page-set" ? selection.pageIds : undefined,
       blockMode,
-    );
+    });
     if (outcome === "cancelled") {
       return "cancelled";
     }

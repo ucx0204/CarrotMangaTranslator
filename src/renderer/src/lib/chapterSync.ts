@@ -83,17 +83,14 @@ export function markChapterPagesRunning(
   chapter: ChapterSnapshot,
   runMode: RunMode,
   pageId?: string,
+  pageIds?: string[],
 ): ChapterSnapshot {
-  const targetPageIds =
-    runMode === "all"
-      ? new Set(chapter.pages.map((page) => page.id))
-      : runMode === "single-page"
-        ? new Set(pageId ? [pageId] : [])
-        : new Set(
-            chapter.pages
-              .filter((page) => page.analysisStatus !== "completed")
-              .map((page) => page.id),
-          );
+  const targetPageIds = resolveRunningPageIds(
+    chapter,
+    runMode,
+    pageId,
+    pageIds,
+  );
 
   if (targetPageIds.size === 0) {
     return chapter;
@@ -112,4 +109,26 @@ export function markChapterPagesRunning(
         : page,
     ),
   };
+}
+
+function resolveRunningPageIds(
+  chapter: ChapterSnapshot,
+  runMode: RunMode,
+  pageId: string | undefined,
+  pageIds: string[] | undefined,
+): Set<string> {
+  switch (runMode) {
+    case "all":
+      return new Set(chapter.pages.map((page) => page.id));
+    case "single-page":
+      return new Set(pageId ? [pageId] : []);
+    case "page-set":
+      return new Set(pageIds ?? []);
+    default:
+      return new Set(
+        chapter.pages
+          .filter((page) => page.analysisStatus !== "completed")
+          .map((page) => page.id),
+      );
+  }
 }

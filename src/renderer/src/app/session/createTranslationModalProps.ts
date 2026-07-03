@@ -11,6 +11,7 @@ export function createTranslationOptionsProps({
   return uiState.translateOptionsOpen && core.currentChapter
     ? {
         chapter: core.currentChapter,
+        library: core.library,
         onClose: () => uiState.setTranslateOptionsOpen(false),
         onPersistDefaults: createPersistUiDefaults(settingsDialog),
         onStart: (flowOptions) =>

@@ -5,8 +5,8 @@ import {
   matchOffsetKey,
   splitHighlightSegments,
   visibleLines,
-  type GatheredPage,
-} from "../src/renderer/src/lib/gatherText";
+} from "../src/renderer/src/lib/gatherTextSearch";
+import type { GatheredPage } from "../src/renderer/src/lib/gatherText";
 
 const pages: GatheredPage[] = [
   {

@@ -91,7 +91,10 @@ describe("review CSV/TSV tables", () => {
     const rows = buildReviewRows(chapter);
     const secondPageRow = rows.find((row) => row.page_id === "page-b");
     expect(secondPageRow).toBeDefined();
-    secondPageRow!.translated_text = "둘째 페이지 수정";
+    if (!secondPageRow) {
+      throw new Error("expected a review row for page-b");
+    }
+    secondPageRow.translated_text = "둘째 페이지 수정";
 
     const result = await library.importReviewText({
       chapterId: "chapter-a",
@@ -295,7 +298,7 @@ function makeStoredChapter(
       height: 120,
       blocks: [
         {
-          ...makeBlocks()[0]!,
+          ...firstBlock(),
           sourceText: "こんばんは",
           translatedText: "좋은 저녁",
         },
@@ -316,6 +319,14 @@ function makeStoredChapter(
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
+}
+
+function firstBlock(): ReturnType<typeof makeBlocks>[number] {
+  const [block] = makeBlocks();
+  if (!block) {
+    throw new Error("makeBlocks() returned no blocks");
+  }
+  return block;
 }
 
 function makeBlocks(): LibraryChapter["pages"][number]["blocks"] {

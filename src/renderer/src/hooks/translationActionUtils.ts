@@ -10,7 +10,11 @@ import { formatErrorMessage } from "../lib/appHelpers";
 import { summarizeWarnings } from "../lib/jobProgress";
 import { toast } from "../lib/toastStore";
 import {
-  runChaptersSequentially,
+  toSecondPassSelection,
+  type ChapterRunSelection,
+} from "../lib/translationSelection";
+import {
+  runSelectionsSequentially,
   type ExecuteAnalysisJob,
   type RunAnalysisOutcome,
 } from "./translationFlowHelpers";
@@ -44,15 +48,25 @@ export function failAnalysisJob(
 
 export function makeStartAnalysisRequest(
   chapterId: string,
-  runMode: RunAnalysisMode,
-  pageId?: string,
-  blockMode?: AnalysisBlockMode,
+  args: {
+    runMode: RunAnalysisMode;
+    pageId?: string;
+    pageIds?: string[];
+    blockMode?: AnalysisBlockMode;
+  },
 ): StartAnalysisRequest {
+  const { runMode, pageId, pageIds, blockMode } = args;
   if (runMode === "single-page") {
     if (!pageId) {
       throw new Error("다시 번역할 페이지를 찾지 못했습니다.");
     }
     return { chapterId, runMode, pageId, blockMode };
+  }
+  if (runMode === "page-set") {
+    if (!pageIds || pageIds.length === 0) {
+      throw new Error("번역할 페이지를 찾지 못했습니다.");
+    }
+    return { chapterId, runMode, pageIds, blockMode };
   }
   return { chapterId, runMode, blockMode };
 }
@@ -154,14 +168,13 @@ export async function runWorkContextAnalysis({
 
 export async function runSecondTranslationPass(
   executeAnalysisJob: ExecuteAnalysisJob,
-  chapterIds: string[],
+  selection: ChapterRunSelection[],
   pushStatus: UseTranslationActionsOptions["pushStatus"],
   blockMode?: AnalysisBlockMode,
 ): Promise<void> {
-  const pass2 = await runChaptersSequentially(
+  const pass2 = await runSelectionsSequentially(
     executeAnalysisJob,
-    chapterIds,
-    "all",
+    selection.map(toSecondPassSelection),
     pushStatus,
     "2차",
     blockMode,

@@ -9,7 +9,7 @@ export type ChapterStatus =
   | "partial"
   | "failed";
 
-export type RunMode = "pending" | "all" | "single-page";
+export type RunMode = "pending" | "all" | "single-page" | "page-set";
 
 export type ImportSourceKind = "images" | "folder" | "zip" | "zip-folder";
 

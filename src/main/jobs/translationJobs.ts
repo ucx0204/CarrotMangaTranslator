@@ -44,10 +44,13 @@ export async function startAnalysisJob(
   try {
     const requestedPageId =
       request.runMode === "single-page" ? request.pageId : undefined;
+    const requestedPageIds =
+      request.runMode === "page-set" ? request.pageIds : undefined;
     state.resolved = await resolvePagesForRun(
       request.chapterId,
       request.runMode,
       requestedPageId,
+      requestedPageIds,
     );
     if (state.resolved.pages.length === 0) {
       emit({

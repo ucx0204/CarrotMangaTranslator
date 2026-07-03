@@ -1,5 +1,5 @@
 import React from "react";
-import { splitHighlightSegments } from "../lib/gatherText";
+import { splitHighlightSegments } from "../lib/gatherTextSearch";
 
 type HighlightedTextProps = {
   text: string;

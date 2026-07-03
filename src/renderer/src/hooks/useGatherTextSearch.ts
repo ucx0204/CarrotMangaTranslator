@@ -1,9 +1,6 @@
 import React from "react";
-import {
-  countMatches,
-  type GatherField,
-  type GatheredPage,
-} from "../lib/gatherText";
+import type { GatherField, GatheredPage } from "../lib/gatherText";
+import { countMatches } from "../lib/gatherTextSearch";
 
 export type GatherTextSearch = {
   query: string;

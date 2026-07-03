@@ -19,6 +19,12 @@ export type StartAnalysisRequest =
       runMode: "single-page";
       pageId: string;
       blockMode?: AnalysisBlockMode;
+    }
+  | {
+      chapterId: string;
+      runMode: "page-set";
+      pageIds: string[];
+      blockMode?: AnalysisBlockMode;
     };
 
 export type StartAnalysisResult = {

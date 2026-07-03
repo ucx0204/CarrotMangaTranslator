@@ -116,6 +116,25 @@ describe("chapter sync helpers", () => {
     ]);
   });
 
+  it("marks only the requested pages as running for a page-set run", () => {
+    const next = markChapterPagesRunning(makeChapter(), "page-set", undefined, [
+      "page-2",
+    ]);
+
+    expect(next.status).toBe("running");
+    expect(next.pages.map((page) => page.analysisStatus)).toEqual([
+      "completed",
+      "running",
+    ]);
+  });
+
+  it("leaves the chapter untouched for an empty page-set", () => {
+    const chapter = makeChapter();
+    const next = markChapterPagesRunning(chapter, "page-set", undefined, []);
+
+    expect(next).toBe(chapter);
+  });
+
   it("preserves local edits for dirty completed pages during live refresh", () => {
     const local = makeChapter();
     local.pages[0] = {
