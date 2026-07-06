@@ -32,6 +32,7 @@ const {
 const {
   HF_CHILD_ENV_KEYS,
   NETWORK_CHILD_ENV_KEYS,
+  ROCM_CHILD_ENV_KEYS,
   buildWhitelistedChildEnv,
   isLikelyPackagedToolsDir,
   runtimeOverrideEnv,
@@ -747,9 +748,34 @@ function resolveOcrDevice(options = /** @type {OcrConfigOptions} */ ({})) {
   return "cpu";
 }
 
+/**
+ * Execution device for spawned OCR commands. `ocrDeviceOverride` lets the
+ * CPU fallback rerun on CPU while the configured device (and therefore the
+ * runtime variant/layout resolution) stays GPU.
+ * @param {OcrConfigOptions} [options]
+ * @returns {string}
+ */
+function resolveEffectiveOcrDevice(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
+  const override = String(options.ocrDeviceOverride ?? "")
+    .trim()
+    .toLowerCase();
+  if (override === "cpu") {
+    return "cpu";
+  }
+  if (override.startsWith("gpu")) {
+    return override === "gpu" ? "gpu:0" : override;
+  }
+  return resolveOcrDevice(options);
+}
+
 function resolveOcrDeviceLabel(options = /** @type {OcrConfigOptions} */ ({})) {
-  const device = resolveOcrDevice(options);
-  return device === "cpu" ? "CPU" : device.toUpperCase();
+  const device = resolveEffectiveOcrDevice(options);
+  if (device === "cpu") {
+    return device !== resolveOcrDevice(options) ? "CPU(GPU 폴백)" : "CPU";
+  }
+  return device.toUpperCase();
 }
 
 function resolvePaddleOcrImportCheckTimeoutMs(
@@ -838,7 +864,18 @@ function buildPaddleOcrGpuFailureMessage(
   options = /** @type {OcrConfigOptions} */ ({}),
 ) {
   const text = summarizeOcrErrorMessage(error);
-  if (resolveOcrGpuBackend(options) === "rocm-transformers") {
+  const rocmTransformers =
+    resolveOcrGpuBackend(options) === "rocm-transformers";
+  if (isGpuOutOfMemoryText(text)) {
+    return `GPU 메모리(VRAM) 부족으로 OCR이 실패했습니다. 큰 페이지가 이어지거나 인페인팅 등 다른 GPU 작업과 겹치면 발생할 수 있습니다. GPU를 쓰는 다른 앱을 닫거나 OCR 장치를 CPU로 바꾸면 안정적입니다. detail=${truncateText(text, 1200)}`;
+  }
+  if (isGpuDeviceLostOrTdrText(text)) {
+    return `GPU 드라이버가 재설정되어 OCR이 중단됐습니다. 디스플레이 겸용 GPU에서 오래 걸리는 연산은 Windows TDR(기본 2초)로 끊길 수 있습니다. AMD/NVIDIA 드라이버를 최신으로 유지하고, 반복되면 README의 TdrDelay 안내를 참고하거나 OCR 장치를 CPU로 바꾸세요. detail=${truncateText(text, 1200)}`;
+  }
+  if (rocmTransformers) {
+    if (isRocmHipAccessViolationText(text)) {
+      return `Windows ROCm HIP 런타임의 알려진 간헐 크래시로 보입니다(amdhip64 access violation). AMD Adrenalin 드라이버를 최신으로 유지하고, 내장 GPU(iGPU)가 함께 있는 시스템이라면 BIOS에서 iGPU를 비활성화하면 도움이 될 수 있습니다. detail=${truncateText(text, 1200)}`;
+    }
     return `AMD OCR GPU 실행에 실패했습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 Python 3.12가 필요합니다. AMD ROCm 지원 GPU/드라이버와 OCR 안전 모드 설정을 확인하세요. detail=${truncateText(text, 1200)}`;
   }
   if (isPaddleSm120UnsupportedText(text)) {
@@ -919,6 +956,36 @@ function isPaddleBfloat16SafetensorsText(value) {
  */
 function isPaddleNativeDllLoadFailureText(value) {
   return /can not import paddle core|libpaddle\.pyd|dll load failed while importing libpaddle|the specified module could not be found/i.test(
+    String(value ?? ""),
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isGpuOutOfMemoryText(value) {
+  return /out of memory|hipErrorOutOfMemory|OutOfMemoryError|CUDA error: out of memory|ResourceExhausted/i.test(
+    String(value ?? ""),
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isGpuDeviceLostOrTdrText(value) {
+  return /device lost|hipErrorDeviceLost|device removed|gpu hang|driver timed out|\btdr\b|hipErrorLaunchTimeOut|launch timed out/i.test(
+    String(value ?? ""),
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isRocmHipAccessViolationText(value) {
+  return /access violation|amdhip64|0xc0000005|-1073741819|3221225477|windows fatal exception/i.test(
     String(value ?? ""),
   );
 }
@@ -1050,10 +1117,16 @@ function buildOcrRuntimeEnv(
   const pipCacheDir = resolveOcrPipCacheDir(runtimeDir, options);
   const tempDir = resolveOcrTempDir(runtimeDir, options);
   const pythonUserBase = resolveOcrPythonUserBaseDir(runtimeDir, options);
+  const rocmGpuRequested =
+    ocrGpuBackend === "rocm-transformers" && ocrDevice.startsWith("gpu");
   const env = buildWhitelistedChildEnv({
     pathDirs: buildOcrRuntimePathDirs(options, runtime, runtimeDir),
     includeProcessPath: shouldAllowExternalRuntimeOverrides(options),
-    extraKeys: [...NETWORK_CHILD_ENV_KEYS, ...HF_CHILD_ENV_KEYS],
+    extraKeys: [
+      ...NETWORK_CHILD_ENV_KEYS,
+      ...HF_CHILD_ENV_KEYS,
+      ...(rocmGpuRequested ? ROCM_CHILD_ENV_KEYS : []),
+    ],
   });
   return {
     ...env,
@@ -1073,10 +1146,10 @@ function buildOcrRuntimeEnv(
     MANGA_TRANSLATOR_OCR_GPU_BACKEND: ocrGpuBackend,
     MANGA_TRANSLATOR_OCR_GPU_CUDA_TAG: resolveOcrGpuCudaTag(options),
     MANGA_TRANSLATOR_OCR_DLL_DIRS: dllSearchDirs.join(path.delimiter),
-    MANGA_TRANSLATOR_PADDLEOCR_DEVICE: ocrDevice,
+    MANGA_TRANSLATOR_PADDLEOCR_DEVICE: resolveEffectiveOcrDevice(options),
     ...paddleOcrEnv,
     ...cpuThreadEnv,
-    ...(ocrGpuBackend === "rocm-transformers" && ocrDevice.startsWith("gpu")
+    ...(rocmGpuRequested
       ? {
           MANGA_TRANSLATOR_PADDLEOCR_ATTN:
             runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ATTN", options) ||
@@ -1086,6 +1159,13 @@ function buildOcrRuntimeEnv(
               "MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN",
               options,
             ) || "1",
+          // Curb HIP allocator fragmentation on long manga batches. Users can
+          // override via PYTORCH_HIP_ALLOC_CONF; expandable_segments is not
+          // used because its Windows ROCm support is unverified.
+          PYTORCH_HIP_ALLOC_CONF:
+            process.env.PYTORCH_HIP_ALLOC_CONF ||
+            runtimeOverrideEnv("PYTORCH_HIP_ALLOC_CONF", options) ||
+            "garbage_collection_threshold:0.8,max_split_size_mb:512",
         }
       : {}),
     PYTHONPATH: pythonPath,
@@ -1357,12 +1437,16 @@ module.exports = {
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
   hasNonAsciiPath,
+  isGpuDeviceLostOrTdrText,
+  isGpuOutOfMemoryText,
   isOcrGpuRequested,
   isPaddleBfloat16SafetensorsText,
   isPaddleNativeDllLoadFailureText,
   isPaddleSm120UnsupportedText,
+  isRocmHipAccessViolationText,
   isWindowsRocmOcrRuntimePathShortEnough,
   resolveBootstrapPython,
+  resolveEffectiveOcrDevice,
   resolveInstallProgressDir,
   resolveOcrDevice,
   resolveOcrDeviceLabel,

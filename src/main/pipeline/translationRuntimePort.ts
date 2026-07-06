@@ -1,4 +1,5 @@
 import type { TranslationOptions } from "../appSettings";
+import { disposeCachedInpaintingEngines } from "../inpainting/inpaintingEnginePool";
 import type {
   ModelEndpointHandle,
   OcrBboxResult,
@@ -36,6 +37,26 @@ export type TranslationRuntimePort = {
 
 let cachedPort: TranslationRuntimePort | null = null;
 
+async function releaseGpuBeforeOcr(
+  optionsList: TranslationOptions[],
+): Promise<void> {
+  const gpuOptions = optionsList.find(
+    (options) => options.ocrDevice === "gpu" && !options.skipOcrBboxHints,
+  );
+  if (!gpuOptions) {
+    return;
+  }
+  const disposed = await disposeCachedInpaintingEngines("ocr-gpu-start");
+  if (disposed) {
+    gpuOptions.onProgress?.({
+      phase: "ocr_running",
+      progressText: "GPU OCR을 위해 인페인팅 엔진 캐시를 해제했습니다",
+      detail: "GPU 메모리(VRAM) 확보",
+      progressMode: "log-only",
+    });
+  }
+}
+
 export function loadTranslationRuntimePort(): TranslationRuntimePort {
   if (cachedPort) {
     return cachedPort;
@@ -46,9 +67,12 @@ export function loadTranslationRuntimePort(): TranslationRuntimePort {
     isModelCached: (options) => runtime.simplePage.isModelCached(options),
     startEndpointSession: (options) =>
       startModelEndpointSession(runtime, options),
-    collectOcrHints: (options) =>
-      runtime.simplePage.collectOcrBboxHints(options),
+    collectOcrHints: async (options) => {
+      await releaseGpuBeforeOcr([options]);
+      return runtime.simplePage.collectOcrBboxHints(options);
+    },
     collectOcrHintsBatch: async (optionsList) => {
+      await releaseGpuBeforeOcr(optionsList);
       if (runtime.simplePage.collectOcrBboxHintsBatch) {
         return runtime.simplePage.collectOcrBboxHintsBatch(optionsList);
       }

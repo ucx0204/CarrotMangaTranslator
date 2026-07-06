@@ -707,6 +707,102 @@ describe("app settings helpers", () => {
     );
   });
 
+  it("keeps GPU OCR off for AMD GPUs Windows ROCm PyTorch does not support", () => {
+    const rx7600Defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon RX 7600",
+        memoryMb: 8192,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: false,
+      },
+    );
+    // The llama target keeps working through its own runtimes...
+    expect(rx7600Defaults.gemma.llamaRocmTarget).toBe("gfx110X");
+    // ...but OCR must not default to the Windows ROCm PyTorch backend.
+    expect(rx7600Defaults.ocr.gpuBackend).not.toBe("rocm-transformers");
+    expect(rx7600Defaults.ocr.device).toBe("cpu");
+
+    const igpuDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon 780M",
+        memoryMb: 16384,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: false,
+      },
+    );
+    expect(igpuDefaults.gemma.llamaRocmTarget).toBe("gfx110X");
+    expect(igpuDefaults.ocr.gpuBackend).not.toBe("rocm-transformers");
+    expect(igpuDefaults.ocr.device).toBe("cpu");
+
+    const rx6800Defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon RX 6800 XT",
+        memoryMb: 16384,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: false,
+      },
+    );
+    expect(rx6800Defaults.gemma.llamaRocmTarget).toBe("gfx103X");
+    expect(rx6800Defaults.ocr.gpuBackend).not.toBe("rocm-transformers");
+    expect(rx6800Defaults.ocr.device).toBe("cpu");
+  });
+
+  it("drops a stored rocm-transformers OCR backend on unsupported AMD GPUs", () => {
+    const igpuDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon 780M",
+        memoryMb: 16384,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: false,
+      },
+    );
+    const restored = parseStoredAppSettings(
+      JSON.stringify({
+        ocr: { device: "gpu", gpuBackend: "rocm-transformers" },
+      }),
+      igpuDefaults,
+    );
+    expect(restored.ocr.gpuBackend).not.toBe("rocm-transformers");
+    expect(restored.ocr.device).toBe("cpu");
+
+    const supportedDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon RX 7900 XTX",
+        memoryMb: 24576,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: false,
+      },
+    );
+    const supportedRestored = parseStoredAppSettings(
+      JSON.stringify({
+        ocr: { device: "gpu", gpuBackend: "rocm-transformers" },
+      }),
+      supportedDefaults,
+    );
+    expect(supportedRestored.ocr.gpuBackend).toBe("rocm-transformers");
+    expect(supportedRestored.ocr.device).toBe("gpu");
+  });
+
   it("coerces saved runtime backends that do not match the detected GPU vendor", () => {
     const amdDefaults = resolveDefaultAppSettings(
       {},

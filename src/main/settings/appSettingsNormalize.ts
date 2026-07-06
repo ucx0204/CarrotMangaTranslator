@@ -247,10 +247,17 @@ function normalizeOcrSettings(
   defaults: AppSettings,
 ): AppSettings["ocr"] {
   const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
-  const gpuBackend = resolveOcrGpuBackend(
-    ocr?.gpuBackend,
-    defaults.ocr.gpuBackend ?? "cuda",
-  );
+  // On AMD hardware the ROCm OCR backend is only trusted when the current
+  // hardware defaults grant it (Windows-ROCm-supported GPU). A stored
+  // "rocm-transformers" from an older app version is ignored otherwise, so
+  // the device downgrade below kicks in.
+  const gpuBackend =
+    hardwareVendor === "amd" && defaults.ocr.gpuBackend !== "rocm-transformers"
+      ? resolveOcrGpuBackend(defaults.ocr.gpuBackend, "cuda")
+      : resolveOcrGpuBackend(
+          ocr?.gpuBackend,
+          defaults.ocr.gpuBackend ?? "cuda",
+        );
   return {
     device:
       hardwareVendor === "amd" && gpuBackend !== "rocm-transformers"

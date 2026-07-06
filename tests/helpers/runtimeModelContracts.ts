@@ -140,6 +140,14 @@ const runtimeHelpers = {
     message: string,
     options?: { [key: string]: unknown },
   ) => string;
+  buildPaddleOcrGpuFailureMessage: (
+    error: unknown,
+    options?: { [key: string]: unknown },
+  ) => string;
+  isGpuOutOfMemoryText: (value: unknown) => boolean;
+  isGpuDeviceLostOrTdrText: (value: unknown) => boolean;
+  isRocmHipAccessViolationText: (value: unknown) => boolean;
+  resolveEffectiveOcrDevice: (options?: { [key: string]: unknown }) => string;
   getOverlayPrompt: (
     options: { [key: string]: unknown },
     imageVariants: Array<{
@@ -328,6 +336,7 @@ export const {
   buildLlamaServerEnv,
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
+  buildPaddleOcrGpuFailureMessage,
   buildResponsesRequestBody,
   collectOcrBboxHints,
   collectRequiredHfDownloads,
@@ -337,7 +346,10 @@ export const {
   extractModelOutputText,
   hasOcrCpuWorkerRamHeadroom,
   inspectModelLaunch,
+  isGpuDeviceLostOrTdrText,
+  isGpuOutOfMemoryText,
   isModelCached,
+  isRocmHipAccessViolationText,
   parseOcrBatchProgressLine,
   parsePaddleModelFetchProgress,
   parsePipRawProgress,
@@ -348,6 +360,7 @@ export const {
   resolveLlamaCppCacheDir,
   parseResponsesSseText,
   requestTranslation,
+  resolveEffectiveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrCpuWorkerMinFreeRamRatio,
@@ -449,6 +462,14 @@ type OcrBatchPipelineModule = {
       textEvidenceCount: number;
     }>
   >;
+  collectOcrBboxHints: (options: Record<string, unknown>) => Promise<{
+    hints: unknown[];
+    diagnostics: unknown[];
+    noTextDetected: boolean;
+    textEvidenceCount: number;
+  }>;
+  isOcrGpuDisabledForSession: () => boolean;
+  resetOcrGpuSessionState: () => void;
 };
 
 type ModuleCacheEntry = NodeJS.Module | undefined;

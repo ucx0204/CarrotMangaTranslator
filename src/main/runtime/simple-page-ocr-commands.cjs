@@ -9,6 +9,7 @@ const {
 } = require("./simple-page-shell-utils.cjs");
 const {
   resolveBootstrapPython,
+  resolveEffectiveOcrDevice,
   resolveOcrDevice,
   resolveOcrGpuBackend,
 } = require("./simple-page-ocr-runtime-config.cjs");
@@ -49,7 +50,7 @@ function buildOcrBboxCommand(
     const scriptPath = quoteCommandArg(
       path.join(__dirname, "paddleocr-vl-bboxes.py"),
     );
-    return `${python} -u ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveOcrDevice(options))}${buildPaddleOcrBboxModeArgs(options)}`;
+    return `${python} -u ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveEffectiveOcrDevice(options))}${buildPaddleOcrBboxModeArgs(options)}`;
   }
 
   throw new Error("OCR bbox provider requires MANGA_TRANSLATOR_OCR_BBOX_CMD.");
@@ -75,7 +76,7 @@ function buildOcrBboxBatchCommand(
   const progressArg = progressPath
     ? ` --progress ${quoteCommandArg(progressPath)}`
     : "";
-  return `${python} -u ${scriptPath} --batch ${quoteCommandArg(batchPath)}${progressArg} --device ${quoteCommandArg(resolveOcrDevice(options))}${buildPaddleOcrBboxModeArgs(options)}`;
+  return `${python} -u ${scriptPath} --batch ${quoteCommandArg(batchPath)}${progressArg} --device ${quoteCommandArg(resolveEffectiveOcrDevice(options))}${buildPaddleOcrBboxModeArgs(options)}`;
 }
 
 /**

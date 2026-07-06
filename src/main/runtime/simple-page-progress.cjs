@@ -9,7 +9,7 @@ const { readPositiveInteger } = require("./simple-page-prompts.cjs");
 
 /**
  * @typedef {{ current: number; total: number }} PipRawProgress
- * @typedef {{ phase: "start" | "done"; index: number; total: number; count: number }} OcrBatchProgress
+ * @typedef {{ phase: "start" | "done" | "error"; index: number; total: number; count: number }} OcrBatchProgress
  * @typedef {{ totalFiles: number; currentFiles: number | null; percent: number | null }} PaddleModelFetchProgress
  * @typedef {{ start(): void; stop(): void }} OcrBatchProgressPoller
  */
@@ -82,7 +82,8 @@ function parseOcrBatchProgressLine(line) {
     const rawPhase = String(payload?.phase ?? "done")
       .trim()
       .toLowerCase();
-    const phase = rawPhase === "start" ? "start" : "done";
+    const phase =
+      rawPhase === "start" ? "start" : rawPhase === "error" ? "error" : "done";
     return {
       phase,
       index: Math.max(1, Math.min(Math.floor(index), Math.floor(total))),

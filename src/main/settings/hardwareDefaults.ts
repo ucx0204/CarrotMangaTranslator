@@ -18,6 +18,7 @@ import {
   resolveAmdRocmTargetFromInfo,
 } from "../gpuInfo";
 import { resolveHardwareLlamaRuntimeProfile } from "./llamaRuntimeProfile";
+import { supportsWindowsRocmOcrGpu } from "./ocrRocmSupport";
 
 const GEMMA_MINIMUM_VRAM_MB = 8000;
 const GEMMA_ECONOMY_VRAM_MB = 16000;
@@ -185,7 +186,10 @@ function resolveHardwareOcrGpuCudaTag(info: DetectedGpuInfo | null): string {
 function resolveHardwareOcrGpuBackend(
   info: DetectedGpuInfo | null,
 ): OcrGpuBackend {
-  if (info?.vendor === "amd" && (info.supportsRocm || info.rocmTarget)) {
+  // Only GPUs Windows PyTorch ROCm actually supports get the ROCm OCR
+  // backend; other AMD cards fall through to "cuda", which the settings
+  // normalizer then downgrades to CPU OCR for AMD hardware.
+  if (info?.vendor === "amd" && supportsWindowsRocmOcrGpu(info)) {
     return "rocm-transformers";
   }
   return "cuda";

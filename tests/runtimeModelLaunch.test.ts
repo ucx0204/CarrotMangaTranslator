@@ -17,9 +17,14 @@ import {
   buildOcrBboxBatchCommand,
   buildOcrBboxCommand,
   buildOcrRuntimeEnv,
+  buildPaddleOcrGpuFailureMessage,
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
   collectOcrBboxHints,
+  isGpuDeviceLostOrTdrText,
+  isGpuOutOfMemoryText,
+  isRocmHipAccessViolationText,
+  resolveEffectiveOcrDevice,
   collectRequiredPaddleOcrModelDownloads,
   createTempDir,
   hasOcrCpuWorkerRamHeadroom,
@@ -624,6 +629,245 @@ describe("runtime model support helpers", () => {
       restoreEnv("MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH", previousRecBatch);
       restoreEnv("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE", previousMergeMode);
     }
+  });
+
+  it("hardens the ROCm OCR child environment against VRAM fragmentation", () => {
+    const previousAllocConf = process.env.PYTORCH_HIP_ALLOC_CONF;
+    const previousVisibleDevices = process.env.HIP_VISIBLE_DEVICES;
+    try {
+      delete process.env.PYTORCH_HIP_ALLOC_CONF;
+      delete process.env.HIP_VISIBLE_DEVICES;
+      const rocmEnv = buildOcrRuntimeEnv({
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+      });
+      expect(rocmEnv.PYTORCH_HIP_ALLOC_CONF).toBe(
+        "garbage_collection_threshold:0.8,max_split_size_mb:512",
+      );
+      expect(
+        buildOcrRuntimeEnv({ ocrDevice: "cpu" }).PYTORCH_HIP_ALLOC_CONF,
+      ).toBeUndefined();
+      expect(
+        buildOcrRuntimeEnv({ ocrDevice: "gpu", ocrGpuBackend: "cuda" })
+          .PYTORCH_HIP_ALLOC_CONF,
+      ).toBeUndefined();
+
+      process.env.PYTORCH_HIP_ALLOC_CONF = "max_split_size_mb:128";
+      process.env.HIP_VISIBLE_DEVICES = "1";
+      const overriddenEnv = buildOcrRuntimeEnv({
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+      });
+      expect(overriddenEnv.PYTORCH_HIP_ALLOC_CONF).toBe(
+        "max_split_size_mb:128",
+      );
+      expect(overriddenEnv.HIP_VISIBLE_DEVICES).toBe("1");
+      expect(
+        buildOcrRuntimeEnv({ ocrDevice: "cpu" }).HIP_VISIBLE_DEVICES,
+      ).toBeUndefined();
+    } finally {
+      restoreEnv("PYTORCH_HIP_ALLOC_CONF", previousAllocConf);
+      restoreEnv("HIP_VISIBLE_DEVICES", previousVisibleDevices);
+    }
+  });
+
+  it("reruns OCR commands on CPU when ocrDeviceOverride is set", () => {
+    expect(resolveEffectiveOcrDevice({ ocrDevice: "gpu" })).toBe("gpu:0");
+    expect(
+      resolveEffectiveOcrDevice({ ocrDevice: "gpu", ocrDeviceOverride: "cpu" }),
+    ).toBe("cpu");
+    expect(resolveEffectiveOcrDevice({ ocrDevice: "cpu" })).toBe("cpu");
+
+    const runtime = { pythonPath: "python" };
+    const gpuCommand = buildOcrBboxBatchCommand(
+      { ocrDevice: "gpu", ocrGpuBackend: "rocm-transformers" },
+      "C:/batch.json",
+      runtime,
+    );
+    expect(gpuCommand).toContain('--device "gpu:0"');
+    const fallbackCommand = buildOcrBboxBatchCommand(
+      {
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+        ocrDeviceOverride: "cpu",
+      },
+      "C:/batch.json",
+      runtime,
+    );
+    expect(fallbackCommand).toContain('--device "cpu"');
+    // The transformers engine arguments stay tied to the configured device so
+    // the GPU (rocm) runtime keeps working during a CPU fallback rerun.
+    expect(fallbackCommand).toContain('--engine "transformers"');
+    const singleFallbackCommand = buildOcrBboxCommand(
+      {
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+        ocrDeviceOverride: "cpu",
+        imagePath: "C:/page.png",
+      },
+      "paddleocr-vl",
+      "C:/out.json",
+      runtime,
+    );
+    expect(singleFallbackCommand).toContain('--device "cpu"');
+    expect(
+      buildOcrRuntimeEnv({
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+        ocrDeviceOverride: "cpu",
+      }).MANGA_TRANSLATOR_PADDLEOCR_DEVICE,
+    ).toBe("cpu");
+  });
+
+  it("classifies GPU OCR failures for actionable Korean guidance", () => {
+    expect(isGpuOutOfMemoryText("hipErrorOutOfMemory: out of memory")).toBe(
+      true,
+    );
+    expect(isGpuOutOfMemoryText("torch.cuda.OutOfMemoryError")).toBe(true);
+    expect(isGpuOutOfMemoryText("dll load failed")).toBe(false);
+    expect(isGpuDeviceLostOrTdrText("hipErrorDeviceLost")).toBe(true);
+    expect(
+      isGpuDeviceLostOrTdrText("the launch timed out and was terminated"),
+    ).toBe(true);
+    expect(isGpuDeviceLostOrTdrText("out of memory")).toBe(false);
+    expect(
+      isRocmHipAccessViolationText(
+        "Windows fatal exception: access violation in amdhip64_7.dll",
+      ),
+    ).toBe(true);
+    expect(isRocmHipAccessViolationText("exit code 0xc0000005")).toBe(true);
+    expect(isRocmHipAccessViolationText("out of memory")).toBe(false);
+
+    const rocmOptions = {
+      ocrDevice: "gpu",
+      ocrGpuBackend: "rocm-transformers",
+    };
+    expect(
+      buildPaddleOcrGpuFailureMessage(
+        new Error("hipErrorOutOfMemory"),
+        rocmOptions,
+      ),
+    ).toContain("VRAM");
+    expect(
+      buildPaddleOcrGpuFailureMessage(
+        new Error("access violation amdhip64_7.dll"),
+        rocmOptions,
+      ),
+    ).toContain("iGPU");
+    expect(
+      buildPaddleOcrGpuFailureMessage(
+        new Error("hipErrorDeviceLost"),
+        rocmOptions,
+      ),
+    ).toContain("TDR");
+    expect(
+      buildPaddleOcrGpuFailureMessage(new Error("something odd"), rocmOptions),
+    ).toContain("AMD OCR GPU 실행에 실패했습니다");
+  });
+
+  it("parses the error phase from OCR batch progress lines", () => {
+    expect(
+      parseOcrBatchProgressLine(
+        JSON.stringify({ phase: "error", index: 2, total: 3, count: 0 }),
+      ),
+    ).toMatchObject({ phase: "error", index: 2, total: 3, count: 0 });
+    expect(
+      parseOcrBatchProgressLine(
+        JSON.stringify({ phase: "done", index: 2, total: 3, count: 4 }),
+      ),
+    ).toMatchObject({ phase: "done" });
+  });
+
+  it("resumes a failed GPU OCR batch on CPU and keeps completed pages", async () => {
+    const outputDir = createTempDir("ocr-gpu-fallback-");
+    const commandBatchPaths = new Map<string, string>();
+    const commandOptions: Array<Record<string, unknown>> = [];
+    let commandIndex = 0;
+
+    await withOcrBatchPipelineStubs(
+      {
+        ensurePaddleOcrRuntime() {
+          return {
+            pythonPath: "python",
+            runtimeDir: join(outputDir, "runtime"),
+            prepared: true,
+            diagnostics: [],
+          };
+        },
+        buildOcrBboxBatchCommand(options, batchPath) {
+          commandOptions.push({ ...options });
+          const command = `ocr-gpu-fallback-${++commandIndex}`;
+          commandBatchPaths.set(command, batchPath);
+          return command;
+        },
+        async runShellCommand(command, options) {
+          const batchPath = commandBatchPaths.get(command);
+          if (!batchPath) {
+            throw new Error(`Missing batch path for ${command}`);
+          }
+          const batch = JSON.parse(readFileSync(batchPath, "utf8")) as {
+            items: Array<{ image: string; output: string }>;
+          };
+          if (command === "ocr-gpu-fallback-1") {
+            // GPU run finishes page 1, then the HIP runtime dies.
+            writeFileSync(
+              batch.items[0].output,
+              JSON.stringify([
+                { label: "text", bbox: [10, 20, 40, 60], text: "日本語" },
+              ]),
+              "utf8",
+            );
+            options.onOutput?.(
+              JSON.stringify({ phase: "done", index: 1, total: 3, count: 1 }),
+            );
+            throw new Error("hipErrorOutOfMemory: HIP out of memory");
+          }
+          // CPU resume run: page 2 succeeds, page 3 stays failed (no output).
+          writeFileSync(
+            batch.items[0].output,
+            JSON.stringify([
+              { label: "text", bbox: [11, 21, 41, 61], text: "日本語" },
+            ]),
+            "utf8",
+          );
+          return { stdout: "", stderr: "cpu page failed" };
+        },
+      },
+      async ({
+        collectOcrBboxHintsBatch,
+        isOcrGpuDisabledForSession,
+        resetOcrGpuSessionState,
+      }) => {
+        const pages = Array.from({ length: 3 }, (_, index) => ({
+          imagePath: join(outputDir, `page-${index + 1}.png`),
+          outputDir: join(outputDir, `page-${index + 1}`),
+          imageWidth: 100,
+          imageHeight: 100,
+          ocrBboxProvider: "paddleocr-vl",
+          ocrDevice: "gpu",
+          ocrGpuBackend: "rocm-transformers",
+        }));
+        const results = await collectOcrBboxHintsBatch(pages);
+
+        expect(results).toHaveLength(3);
+        expect(results[0]?.hints).toHaveLength(1);
+        expect(results[0]?.diagnostics).toContainEqual(
+          expect.objectContaining({ resumedFrom: "gpu" }),
+        );
+        expect(results[1]?.hints).toHaveLength(1);
+        expect(results[2]?.hints).toHaveLength(0);
+        expect(results[2]?.noTextDetected).toBe(false);
+        expect(results[2]?.diagnostics).toContainEqual(
+          expect.objectContaining({ reason: "page-ocr-failed" }),
+        );
+        expect(isOcrGpuDisabledForSession()).toBe(true);
+        resetOcrGpuSessionState();
+      },
+    );
+
+    expect(commandIndex).toBe(2);
+    expect(commandOptions[0]?.ocrDeviceOverride).toBeUndefined();
+    expect(commandOptions[1]?.ocrDeviceOverride).toBe("cpu");
   });
 
   it("prepares build tooling before OCR package installs", () => {

@@ -74,6 +74,42 @@ describe("PaddleOCR-VL bbox script", () => {
     expect(script).toContain("paddle.device.is_compiled_with_cuda()");
   });
 
+  it("isolates OOM pages and releases GPU memory between batch pages", () => {
+    const script = readFileSync(scriptPath, "utf8");
+
+    expect(script).toContain("def run_batch_pages(");
+    expect(script).toContain("def process_page_with_oom_retry(");
+    expect(script).toContain("def release_gpu_memory(");
+    expect(script).toContain("torch.cuda.empty_cache()");
+    expect(script).toContain("paddle.device.cuda.empty_cache()");
+    expect(script).toContain("def is_oom_error(");
+    expect(script).toContain("torch.cuda.OutOfMemoryError");
+    expect(script).toContain("hiperroroutofmemory");
+    expect(script).toContain('"phase": "error"');
+    expect(script).toContain("MAX_CONSECUTIVE_PAGE_FAILURES = 3");
+    expect(script).toContain(
+      "consecutive_failures >= MAX_CONSECUTIVE_PAGE_FAILURES",
+    );
+    expect(script).toContain("aborting so the caller can fall back to CPU");
+  });
+
+  it("prefers the largest-VRAM GPU when several HIP devices are visible", () => {
+    const script = readFileSync(scriptPath, "utf8");
+
+    expect(script).toContain("def select_preferred_cuda_device(");
+    expect(script).toContain("def has_visible_devices_override(");
+    expect(script).toContain('"HIP_VISIBLE_DEVICES"');
+    expect(script).toContain('"ROCR_VISIBLE_DEVICES"');
+    expect(script).toContain('"CUDA_VISIBLE_DEVICES"');
+    expect(script).toContain(
+      "torch.cuda.get_device_properties(index).total_memory",
+    );
+    expect(script).toContain("torch.cuda.set_device(");
+    expect(script).toContain("select_preferred_cuda_device(args)");
+    expect(script).toContain("def resolve_engine_device_id(");
+    expect(script).toContain('"device_id": resolve_engine_device_id(device)');
+  });
+
   it("filters unreliable OCR text only for the tiny recognizer", () => {
     const script = readFileSync(scriptPath, "utf8");
 

@@ -8,6 +8,7 @@ translation model still reads the source image as the authority.
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import os
 import sys
@@ -38,6 +39,8 @@ IGNORED_LABELS = {
 
 DLL_DIRECTORY_HANDLES = []
 TORCH_ROCM_SAFE_MODE_CONFIGURED = False
+SELECTED_CUDA_DEVICE_INDEX = None
+MAX_CONSECUTIVE_PAGE_FAILURES = 3
 
 
 def configure_windows_dll_search_path() -> None:
@@ -93,38 +96,18 @@ def main() -> int:
       textline_detector = create_textline_detector(args)
       source = "paddleocr-ppocrv6-transformers" if is_transformers_engine(args) else "paddleocr-ppocrv6"
       try:
-        summaries = []
-        total = len(batch_items)
-        for index, item in enumerate(batch_items, start=1):
-          emit_progress(
-              args.progress,
-              {
-                  "phase": "start",
-                  "index": index,
-                  "total": total,
-                  "output": str(item["output"]),
-                  "count": 0,
-              },
-          )
-          summary = write_page_bboxes_from_ocr(
-              image_path=Path(item["image"]),
-              output_path=Path(item["output"]),
-              ocr=textline_detector,
-              source=source,
-              merge_mode=resolve_textline_merge_mode(args, default="conservative"),
-              args=args,
-          )
-          summaries.append(summary)
-          emit_progress(
-              args.progress,
-              {
-                  "phase": "done",
-                  "index": index,
-                  "total": total,
-                  "output": summary["output"],
-                  "count": summary["count"],
-              },
-          )
+        summaries = run_batch_pages(
+            args,
+            batch_items,
+            lambda item: write_page_bboxes_from_ocr(
+                image_path=Path(item["image"]),
+                output_path=Path(item["output"]),
+                ocr=textline_detector,
+                source=source,
+                merge_mode=resolve_textline_merge_mode(args, default="conservative"),
+                args=args,
+            ),
+        )
       finally:
         close_textline_detector(textline_detector)
 
@@ -145,37 +128,17 @@ def main() -> int:
     pipeline = PaddleOCRVL(**build_pipeline_kwargs(args))
     textline_detector = create_textline_detector(args)
     try:
-      summaries = []
-      total = len(batch_items)
-      for index, item in enumerate(batch_items, start=1):
-        emit_progress(
-            args.progress,
-            {
-                "phase": "start",
-                "index": index,
-                "total": total,
-                "output": str(item["output"]),
-                "count": 0,
-            },
-        )
-        summary = write_page_bboxes(
-            image_path=Path(item["image"]),
-            output_path=Path(item["output"]),
-            pipeline=pipeline,
-            textline_detector=textline_detector,
-            args=args,
-        )
-        summaries.append(summary)
-        emit_progress(
-            args.progress,
-            {
-                "phase": "done",
-                "index": index,
-                "total": total,
-                "output": summary["output"],
-                "count": summary["count"],
-            },
-        )
+      summaries = run_batch_pages(
+          args,
+          batch_items,
+          lambda item: write_page_bboxes(
+              image_path=Path(item["image"]),
+              output_path=Path(item["output"]),
+              pipeline=pipeline,
+              textline_detector=textline_detector,
+              args=args,
+          ),
+      )
     finally:
       close = getattr(pipeline, "close", None)
       if callable(close):
@@ -198,6 +161,128 @@ def emit_progress(progress_path: str | None, payload: dict) -> None:
       file.write(line)
       file.write("\n")
       file.flush()
+
+
+def run_batch_pages(args: argparse.Namespace, batch_items: list[dict], process_page) -> list[dict]:
+    """Process pages with OOM isolation so one bad page cannot kill the batch.
+
+    An OOM page gets one retry after releasing cached GPU memory; if it still
+    fails it is reported via the progress protocol (phase "error") and skipped.
+    Repeated consecutive failures abort the process so the Node side can fall
+    back to CPU for the remaining pages.
+    """
+
+    summaries = []
+    total = len(batch_items)
+    consecutive_failures = 0
+    gpu_transformers = is_gpu_transformers_run(args)
+    for index, item in enumerate(batch_items, start=1):
+      emit_progress(
+          args.progress,
+          {
+              "phase": "start",
+              "index": index,
+              "total": total,
+              "output": str(item["output"]),
+              "count": 0,
+          },
+      )
+      try:
+        summary = process_page_with_oom_retry(item, process_page)
+      except Exception as exc:
+        if not is_oom_error(exc):
+          raise
+        release_gpu_memory()
+        consecutive_failures += 1
+        message = str(exc)[:400]
+        print(
+            f"[paddleocr-vl-bboxes] page {index}/{total} failed after OOM retry: {message}",
+            file=sys.stderr,
+        )
+        emit_progress(
+            args.progress,
+            {
+                "phase": "error",
+                "index": index,
+                "total": total,
+                "output": str(item["output"]),
+                "count": 0,
+            },
+        )
+        summaries.append({"output": str(item["output"]), "count": 0, "error": message})
+        if consecutive_failures >= MAX_CONSECUTIVE_PAGE_FAILURES:
+          raise RuntimeError(
+              f"GPU OCR failed on {consecutive_failures} consecutive pages; aborting so the caller can fall back to CPU."
+          ) from exc
+        continue
+      consecutive_failures = 0
+      summaries.append(summary)
+      emit_progress(
+          args.progress,
+          {
+              "phase": "done",
+              "index": index,
+              "total": total,
+              "output": summary["output"],
+              "count": summary["count"],
+          },
+      )
+      if gpu_transformers:
+        release_gpu_memory()
+    return summaries
+
+
+def process_page_with_oom_retry(item: dict, process_page) -> dict:
+    try:
+      return process_page(item)
+    except Exception as exc:
+      if not is_oom_error(exc):
+        raise
+      print(
+          "[paddleocr-vl-bboxes] GPU out of memory; releasing cached memory and retrying page once.",
+          file=sys.stderr,
+      )
+      release_gpu_memory()
+      return process_page(item)
+
+
+def is_gpu_transformers_run(args: argparse.Namespace | None) -> bool:
+    device = str(getattr(args, "device", "") or "").lower()
+    return device.startswith("gpu") and bool(args and is_transformers_engine(args))
+
+
+def release_gpu_memory() -> None:
+    """Best-effort GPU allocator cleanup between pages (torch and paddle)."""
+
+    gc.collect()
+    try:
+      import torch
+      if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    except Exception:
+      pass
+    try:
+      import paddle
+      if paddle.device.is_compiled_with_cuda():
+        paddle.device.cuda.empty_cache()
+    except Exception:
+      pass
+
+
+def is_oom_error(exc: BaseException) -> bool:
+    try:
+      import torch
+      if isinstance(exc, torch.cuda.OutOfMemoryError):
+        return True
+    except Exception:
+      pass
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return (
+        "out of memory" in text
+        or "hiperroroutofmemory" in text
+        or "outofmemoryerror" in text
+        or "resource exhausted" in text
+    )
 
 
 def load_batch_items(args: argparse.Namespace) -> list[dict]:
@@ -248,6 +333,71 @@ def parse_device_id(device: str | None) -> int:
       return max(0, int(text.rsplit(":", 1)[1]))
     except Exception:
       return 0
+
+
+def has_visible_devices_override() -> bool:
+    return any(
+        os.environ.get(name)
+        for name in (
+            "HIP_VISIBLE_DEVICES",
+            "ROCR_VISIBLE_DEVICES",
+            "CUDA_VISIBLE_DEVICES",
+            "GPU_DEVICE_ORDINAL",
+        )
+    )
+
+
+def select_preferred_cuda_device(args: argparse.Namespace) -> int:
+    """Pick the largest-VRAM CUDA/HIP device when several are visible.
+
+    Windows ROCm enumerates iGPUs next to the discrete GPU and device 0 is
+    not guaranteed to be the discrete card, so default runs pick by VRAM.
+    Explicit --device gpu:N (N > 0) or visible-devices env vars win.
+    """
+
+    global SELECTED_CUDA_DEVICE_INDEX
+    explicit_index = parse_device_id(getattr(args, "device", None))
+    try:
+      import torch
+
+      if has_visible_devices_override() or explicit_index > 0:
+        torch.cuda.set_device(explicit_index)
+        SELECTED_CUDA_DEVICE_INDEX = explicit_index
+        return explicit_index
+
+      best_index = 0
+      count = int(torch.cuda.device_count())
+      if count > 1:
+        best_bytes = -1
+        for index in range(count):
+          total_bytes = int(torch.cuda.get_device_properties(index).total_memory)
+          if total_bytes > best_bytes:
+            best_bytes = total_bytes
+            best_index = index
+        if best_index != 0:
+          print(
+              f"[paddleocr-vl-bboxes] selected CUDA/HIP device {best_index} (largest VRAM) out of {count} visible devices.",
+              file=sys.stderr,
+          )
+      torch.cuda.set_device(best_index)
+      SELECTED_CUDA_DEVICE_INDEX = best_index
+      return best_index
+    except Exception as exc:
+      print(
+          f"[paddleocr-vl-bboxes] warning: could not select preferred GPU device: {exc}",
+          file=sys.stderr,
+      )
+      SELECTED_CUDA_DEVICE_INDEX = explicit_index
+      return explicit_index
+
+
+def resolve_engine_device_id(device: str | None) -> int:
+    explicit = parse_device_id(device)
+    if explicit > 0:
+      return explicit
+    if isinstance(SELECTED_CUDA_DEVICE_INDEX, int):
+      return SELECTED_CUDA_DEVICE_INDEX
+    return explicit
 
 
 def resolve_transformers_attention_implementation() -> str:
@@ -561,6 +711,7 @@ def ensure_requested_device(args: argparse.Namespace) -> None:
         )
 
       configure_torch_for_transformers_ocr(args)
+      select_preferred_cuda_device(args)
 
       _probe = torch.ones((1,), device="cuda")
       torch.cuda.synchronize()
@@ -635,7 +786,7 @@ def create_textline_detector(args: argparse.Namespace | None = None) -> object:
         engine_config = {
             "dtype": getattr(args, "dtype", "float32"),
             "device_type": device_type,
-            "device_id": parse_device_id(device),
+            "device_id": resolve_engine_device_id(device),
             "trust_remote_code": True,
             "model_kwargs": {
                 "trust_remote_code": True,

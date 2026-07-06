@@ -38,6 +38,7 @@ const {
   buildOcrRuntimeEnv,
   buildPaddleOcrGpuFailureMessage,
   isOcrGpuRequested,
+  resolveEffectiveOcrDevice,
   resolveOcrDevice,
   resolveOcrDeviceLabel,
   summarizeOcrErrorMessage,
@@ -64,6 +65,98 @@ const {
   repairPaddleOcrModelAssetsCache,
 } = require("./simple-page-model-assets.cjs");
 const { runShellCommand } = require("./simple-page-shell-utils.cjs");
+
+/**
+ * Once GPU OCR fails in this process, the rest of the session runs OCR on
+ * CPU instead of retrying a GPU stack that already proved unstable.
+ */
+const ocrGpuSessionState = { disabled: false, reason: "" };
+
+/** @param {unknown} reason */
+function disableOcrGpuForSession(reason) {
+  ocrGpuSessionState.disabled = true;
+  ocrGpuSessionState.reason = String(reason ?? "");
+}
+
+function isOcrGpuDisabledForSession() {
+  return ocrGpuSessionState.disabled;
+}
+
+function resetOcrGpuSessionState() {
+  ocrGpuSessionState.disabled = false;
+  ocrGpuSessionState.reason = "";
+}
+
+/**
+ * @param {OcrBboxOptions} [options]
+ * @returns {boolean}
+ */
+function isOcrGpuCpuFallbackDisabled(options = {}) {
+  return isTruthy(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_NO_CPU_FALLBACK", options),
+  );
+}
+
+/**
+ * @param {OcrBboxOptions} options
+ * @param {string} provider
+ * @returns {boolean}
+ */
+function shouldApplySessionCpuOverride(options, provider) {
+  return (
+    provider === "paddleocr-vl" &&
+    ocrGpuSessionState.disabled &&
+    isOcrGpuRequested(options) &&
+    !String(options.ocrDeviceOverride ?? "").trim() &&
+    !isOcrGpuCpuFallbackDisabled(options)
+  );
+}
+
+/**
+ * @param {OcrBboxOptions} options
+ * @param {string} provider
+ * @returns {OcrBboxOptions}
+ */
+function applyOcrGpuSessionCpuOverride(options, provider) {
+  if (!shouldApplySessionCpuOverride(options, provider)) {
+    return options;
+  }
+  const next = { ...options, ocrDeviceOverride: "cpu" };
+  emitRuntimeProgress(
+    next,
+    "ocr_running",
+    "이전 GPU OCR 실패로 이 세션에서는 CPU로 OCR을 실행합니다",
+    truncateText(ocrGpuSessionState.reason, 600),
+    { progressMode: "log-only" },
+  );
+  return next;
+}
+
+/**
+ * @param {OcrBboxOptions} options
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function canFallBackToCpuAfterGpuFailure(options, error) {
+  if (isOcrGpuCpuFallbackDisabled(options)) {
+    return false;
+  }
+  if (options.abortSignal?.aborted || isAbortError(error)) {
+    return false;
+  }
+  // Model cache corruption is not a GPU problem; the model-repair retry
+  // already handled it once and rerunning on CPU would hit the same error.
+  return !isPaddleOcrModelAssetLoadFailure(error);
+}
+
+/** @param {unknown} error */
+function isAbortError(error) {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    /** @type {{ name?: unknown }} */ (error).name === "AbortError",
+  );
+}
 
 /**
  * @param {OcrBboxOptions} [options]
@@ -166,57 +259,101 @@ async function collectOcrBboxHints(options = {}) {
     return buildOcrBboxResult([], diagnostics, { noTextDetected: false });
   }
 
+  const runOptions = applyOcrGpuSessionCpuOverride(options, provider);
   try {
-    emitRuntimeProgress(
-      options,
-      "ocr_preparing",
-      "Paddle OCR 준비 중",
-      `장치: ${resolveOcrDeviceLabel(options)}`,
-    );
-    const commandResult = await runOcrBboxCommand(options, provider);
-    const hints = normalizeOcrBboxHintPayload(commandResult.payload, options);
-    const result = buildOcrBboxResult(hints, [
-      {
-        provider,
-        command: commandResult.command,
-        outputPath: commandResult.outputPath,
-        runtimeDir: commandResult.runtimeDir || null,
-        runtimeVariant: commandResult.runtimeVariant || null,
-        packageDir: commandResult.packageDir || null,
-        pythonPath: commandResult.pythonPath || null,
-        runtimePrepared: commandResult.runtimePrepared || false,
-        hintCount: hints.length,
-        stdoutPreview: truncateText(commandResult.stdout.trim(), 1200),
-        stderrPreview: truncateText(commandResult.stderr.trim(), 1200),
-        runtimeDiagnostics: commandResult.runtimeDiagnostics || [],
-      },
-    ]);
-    emitRuntimeProgress(
-      options,
-      "ocr_running",
-      result.noTextDetected
-        ? "Paddle OCR 텍스트 없음"
-        : `Paddle OCR 후보 ${hints.length}개 감지`,
-      result.noTextDetected
-        ? `장치: ${resolveOcrDeviceLabel(options)}, 텍스트 근거 없음`
-        : `장치: ${resolveOcrDeviceLabel(options)}`,
-    );
-    return result;
+    return await runProviderOcrBbox(runOptions, provider);
   } catch (error) {
-    const diagnostic = buildOcrBboxDiagnostic(provider, error);
-    diagnostics.push(diagnostic);
-    if (provider === "paddleocr-vl" && isOcrGpuRequested(options)) {
-      const failureMessage = buildPaddleOcrGpuFailureMessage(error, options);
+    diagnostics.push(buildOcrBboxDiagnostic(provider, error));
+    const gpuExecutionFailed =
+      provider === "paddleocr-vl" &&
+      isOcrGpuRequested(runOptions) &&
+      resolveEffectiveOcrDevice(runOptions) !== "cpu";
+    if (!gpuExecutionFailed) {
+      return buildOcrBboxResult([], diagnostics, { noTextDetected: false });
+    }
+    const failureMessage = buildPaddleOcrGpuFailureMessage(error, runOptions);
+    if (!canFallBackToCpuAfterGpuFailure(runOptions, error)) {
       emitRuntimeProgress(
-        options,
+        runOptions,
         "ocr_running",
         "Paddle OCR GPU 실행 실패",
         failureMessage,
       );
       throw createOcrRuntimeError(failureMessage, { diagnostics }, error);
     }
-    return buildOcrBboxResult([], diagnostics, { noTextDetected: false });
+    disableOcrGpuForSession(failureMessage);
+    emitRuntimeProgress(
+      runOptions,
+      "ocr_running",
+      "Paddle OCR GPU 실행 실패 — CPU로 다시 시도합니다",
+      failureMessage,
+      { progressMode: "log-only" },
+    );
+    try {
+      return await runProviderOcrBbox(
+        { ...runOptions, ocrDeviceOverride: "cpu" },
+        provider,
+      );
+    } catch (cpuError) {
+      diagnostics.push(
+        buildOcrBboxDiagnostic(provider, cpuError, { stage: "cpu-fallback" }),
+      );
+      emitRuntimeProgress(
+        runOptions,
+        "ocr_running",
+        "Paddle OCR GPU/CPU 실행 실패",
+        failureMessage,
+      );
+      throw createOcrRuntimeError(
+        `${failureMessage} CPU 폴백 실행도 실패했습니다. cpuDetail=${truncateText(summarizeOcrErrorMessage(cpuError), 800)}`,
+        { diagnostics },
+        cpuError,
+      );
+    }
   }
+}
+
+/**
+ * @param {OcrBboxOptions} options
+ * @param {string} provider
+ * @returns {Promise<OcrBboxResult>}
+ */
+async function runProviderOcrBbox(options, provider) {
+  emitRuntimeProgress(
+    options,
+    "ocr_preparing",
+    "Paddle OCR 준비 중",
+    `장치: ${resolveOcrDeviceLabel(options)}`,
+  );
+  const commandResult = await runOcrBboxCommand(options, provider);
+  const hints = normalizeOcrBboxHintPayload(commandResult.payload, options);
+  const result = buildOcrBboxResult(hints, [
+    {
+      provider,
+      command: commandResult.command,
+      outputPath: commandResult.outputPath,
+      runtimeDir: commandResult.runtimeDir || null,
+      runtimeVariant: commandResult.runtimeVariant || null,
+      packageDir: commandResult.packageDir || null,
+      pythonPath: commandResult.pythonPath || null,
+      runtimePrepared: commandResult.runtimePrepared || false,
+      hintCount: hints.length,
+      stdoutPreview: truncateText(commandResult.stdout.trim(), 1200),
+      stderrPreview: truncateText(commandResult.stderr.trim(), 1200),
+      runtimeDiagnostics: commandResult.runtimeDiagnostics || [],
+    },
+  ]);
+  emitRuntimeProgress(
+    options,
+    "ocr_running",
+    result.noTextDetected
+      ? "Paddle OCR 텍스트 없음"
+      : `Paddle OCR 후보 ${hints.length}개 감지`,
+    result.noTextDetected
+      ? `장치: ${resolveOcrDeviceLabel(options)}, 텍스트 근거 없음`
+      : `장치: ${resolveOcrDeviceLabel(options)}`,
+  );
+  return result;
 }
 
 /**
@@ -386,9 +523,28 @@ async function runOcrBboxCommand(options = {}, provider = "external-command") {
  * @returns {Promise<OcrBboxResult[]>}
  */
 async function collectOcrBboxHintsBatch(pageOptionsList = []) {
-  const normalizedOptions = pageOptionsList.filter(Boolean);
+  let normalizedOptions = pageOptionsList.filter(Boolean);
   if (normalizedOptions.length === 0) {
     return [];
+  }
+
+  if (
+    shouldApplySessionCpuOverride(
+      normalizedOptions[0] || {},
+      resolveOcrBboxProvider(normalizedOptions[0] || {}),
+    )
+  ) {
+    normalizedOptions = normalizedOptions.map((options) => ({
+      ...options,
+      ocrDeviceOverride: "cpu",
+    }));
+    emitRuntimeProgress(
+      normalizedOptions[0],
+      "ocr_running",
+      "이전 GPU OCR 실패로 이 세션에서는 CPU로 OCR을 실행합니다",
+      truncateText(ocrGpuSessionState.reason, 600),
+      { progressMode: "log-only" },
+    );
   }
 
   const firstOptions = normalizedOptions[0] || {};
@@ -423,6 +579,11 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
   await mkdir(path.dirname(batchPath), { recursive: true });
   for (const item of items) {
     await mkdir(path.dirname(item.output), { recursive: true });
+  }
+  // Remove stale outputs from an earlier run so the CPU-fallback resume scan
+  // cannot mistake them for pages completed by this run.
+  for (const item of items) {
+    await rm(item.output, { force: true });
   }
 
   const cpuWorkerCount = resolveOcrCpuWorkerCount(
@@ -504,6 +665,10 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
     progressPath,
     handleProgressLine,
   );
+  const cpuFallbackRun =
+    String(batchOptions.ocrDeviceOverride ?? "")
+      .trim()
+      .toLowerCase() === "cpu";
   let stdout = "";
   let stderr = "";
   try {
@@ -525,6 +690,23 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
         payload = JSON.parse(readFileSync(outputPath, "utf8"));
       }
       if (!payload) {
+        if (cpuFallbackRun) {
+          // A page that still failed on CPU is skipped instead of failing the
+          // whole batch. noTextDetected stays false so downstream does not
+          // treat the page as "no text on page".
+          return buildOcrBboxResult(
+            [],
+            [
+              {
+                provider,
+                reason: "page-ocr-failed",
+                message: truncateText(stderr.trim() || stdout.trim(), 800),
+                outputPath,
+              },
+            ],
+            { noTextDetected: false },
+          );
+        }
         throw createDetailedError(
           "OCR bbox batch command did not produce JSON.",
           {
@@ -553,9 +735,149 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
         },
       ]);
     });
+  } catch (error) {
+    progressPoller.stop();
+    const fallbackResults = await recoverOcrBatchWithCpuFallback({
+      error,
+      batchOptions,
+      firstOptions,
+      items,
+      normalizedOptions,
+      provider,
+      runtime,
+    });
+    if (fallbackResults) {
+      return fallbackResults;
+    }
+    throw error;
   } finally {
     progressPoller.stop();
     await cleanupOcrBatchControlFiles(batchPath, progressPath, batchOptions);
+  }
+}
+
+/**
+ * Resumes a GPU batch that died midway: pages whose output JSON already
+ * exists are kept, the remaining pages rerun on CPU via a recursive batch
+ * call, and the merged results come back in the original page order.
+ * Returns null when the failure should propagate instead of falling back.
+ * @param {{
+ *   error: unknown;
+ *   batchOptions: OcrBboxOptions;
+ *   firstOptions: OcrBboxOptions;
+ *   items: Array<{ image: unknown; output: string }>;
+ *   normalizedOptions: OcrBboxOptions[];
+ *   provider: string;
+ *   runtime: OcrRuntimeLayout | null;
+ * }} params
+ * @returns {Promise<OcrBboxResult[] | null>}
+ */
+async function recoverOcrBatchWithCpuFallback({
+  error,
+  batchOptions,
+  firstOptions,
+  items,
+  normalizedOptions,
+  provider,
+  runtime,
+}) {
+  if (
+    !isOcrGpuRequested(batchOptions) ||
+    resolveEffectiveOcrDevice(batchOptions) === "cpu" ||
+    !canFallBackToCpuAfterGpuFailure(batchOptions, error)
+  ) {
+    return null;
+  }
+
+  const failureMessage = buildPaddleOcrGpuFailureMessage(error, batchOptions);
+  disableOcrGpuForSession(failureMessage);
+
+  const completedPayloads = new Map();
+  for (const [index, item] of items.entries()) {
+    const payload = readCompletedOcrBatchOutputPayload(item.output);
+    if (payload !== null) {
+      completedPayloads.set(index, payload);
+    }
+  }
+
+  const completedBefore =
+    readPositiveInteger(firstOptions.ocrBatchCompletedBefore) || 0;
+  const batchTotal =
+    readPositiveInteger(firstOptions.ocrBatchTotal) || normalizedOptions.length;
+  const remaining = [];
+  for (const [index, options] of normalizedOptions.entries()) {
+    if (completedPayloads.has(index)) {
+      continue;
+    }
+    remaining.push({
+      index,
+      options: {
+        ...options,
+        ocrDeviceOverride: "cpu",
+        outputDir: path.dirname(items[index].output),
+        ocrBatchCompletedBefore: completedBefore + completedPayloads.size,
+        ocrBatchTotal: batchTotal,
+      },
+    });
+  }
+
+  emitRuntimeProgress(
+    batchOptions,
+    "ocr_running",
+    `Paddle OCR GPU 실행 실패 — 남은 ${remaining.length}페이지를 CPU로 이어서 처리합니다`,
+    failureMessage,
+    { progressMode: "log-only" },
+  );
+
+  const fallbackResults =
+    remaining.length > 0
+      ? await collectOcrBboxHintsBatch(remaining.map((entry) => entry.options))
+      : [];
+  const resultByIndex = new Map();
+  for (const [position, entry] of remaining.entries()) {
+    resultByIndex.set(entry.index, fallbackResults[position]);
+  }
+
+  return normalizedOptions.map((options, index) => {
+    const fallbackResult = resultByIndex.get(index);
+    if (fallbackResult) {
+      return fallbackResult;
+    }
+    const hints = normalizeOcrBboxHintPayload(
+      completedPayloads.get(index),
+      options,
+    );
+    return buildOcrBboxResult(hints, [
+      {
+        provider,
+        outputPath: items[index].output,
+        runtimeDir: runtime?.runtimeDir || null,
+        runtimeVariant: runtime?.runtimeVariant || null,
+        packageDir: runtime?.packageDir || null,
+        pythonPath: runtime?.pythonPath || null,
+        runtimePrepared: Boolean(runtime?.prepared),
+        hintCount: hints.length,
+        resumedFrom: "gpu",
+        runtimeDiagnostics: runtime?.diagnostics || [],
+      },
+    ]);
+  });
+}
+
+/**
+ * Reads a per-page batch output written by the Python side. Partial files
+ * left by a crashed process fail JSON.parse and count as incomplete.
+ * @param {string} outputPath
+ * @returns {unknown}
+ */
+function readCompletedOcrBatchOutputPayload(outputPath) {
+  if (!existsSync(outputPath)) {
+    return null;
+  }
+  try {
+    return JSON.parse(readFileSync(outputPath, "utf8"));
+  } catch (_error) {
+    return null;
   }
 }
 
@@ -817,8 +1139,14 @@ function createOcrBatchProgressEmitter(
     emitRuntimeProgress(
       batchOptions,
       "ocr_running",
-      `${label} / ${pageTotal} 페이지 Paddle OCR 분석 중`,
-      phase === "start" ? "페이지 처리 시작" : `${count}개 후보`,
+      phase === "error"
+        ? `${label} / ${pageTotal} 페이지 OCR 실패 (건너뜀)`
+        : `${label} / ${pageTotal} 페이지 Paddle OCR 분석 중`,
+      phase === "start"
+        ? "페이지 처리 시작"
+        : phase === "error"
+          ? "GPU 메모리 부족 등으로 이 페이지를 건너뛰었습니다"
+          : `${count}개 후보`,
       {
         progressCurrent: completed,
         progressTotal: pageTotal,
@@ -1189,10 +1517,16 @@ async function cleanupOcrBatchControlFiles(
 }
 
 module.exports = {
+  canFallBackToCpuAfterGpuFailure,
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
+  disableOcrGpuForSession,
   hasOcrCpuWorkerRamHeadroom,
+  isOcrGpuDisabledForSession,
+  readCompletedOcrBatchOutputPayload,
+  resetOcrGpuSessionState,
   resolveOcrCpuWorkerCount,
   resolveOcrCpuWorkerMinFreeRamRatio,
   resolveOcrBboxProvider,
+  shouldApplySessionCpuOverride,
 };
