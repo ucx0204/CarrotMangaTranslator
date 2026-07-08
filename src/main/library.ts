@@ -12,6 +12,7 @@ export {
   resolvePagesForRun,
 } from "./library/libraryReadFacade";
 export {
+  appendAnalyzedPageBlocks,
   cleanupLibraryOrphans,
   deleteChapter,
   deletePage,

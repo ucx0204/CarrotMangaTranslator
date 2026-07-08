@@ -258,15 +258,20 @@ function normalizeOcrSettings(
           ocr?.gpuBackend,
           defaults.ocr.gpuBackend ?? "cuda",
         );
+  const device =
+    hardwareVendor === "amd" && gpuBackend !== "rocm-transformers"
+      ? "cpu"
+      : resolveOcrDevice(ocr?.device, defaults.ocr.device);
+  const qualityMode = resolveOcrQualityMode(
+    ocr?.qualityMode,
+    defaults.ocr.qualityMode,
+  );
   return {
-    device:
-      hardwareVendor === "amd" && gpuBackend !== "rocm-transformers"
-        ? "cpu"
-        : resolveOcrDevice(ocr?.device, defaults.ocr.device),
-    qualityMode: resolveOcrQualityMode(
-      ocr?.qualityMode,
-      defaults.ocr.qualityMode,
-    ),
+    device,
+    // 풀로드(PaddleOCR-VL) 품질은 CPU에서 못 쓸 만큼 느리므로 CPU 장치에서는
+    // 절약 품질로 강제한다.
+    qualityMode:
+      device === "cpu" && qualityMode === "full" ? "economy" : qualityMode,
     gpuBackend,
     gpuCudaTag: resolveStoredOcrGpuCudaTag(ocr, defaults),
   };

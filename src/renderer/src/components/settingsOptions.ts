@@ -233,7 +233,7 @@ export const OCR_QUALITY_OPTIONS: OcrQualityOption[] = [
     id: "full",
     label: "풀로드",
     description:
-      "PaddleOCR-VL 기본 경로를 사용합니다. 선택하면 OCR 장치를 GPU로 전환합니다.",
+      "PaddleOCR-VL 기본 경로를 사용합니다. 선택하면 OCR 장치를 GPU로 전환하며, CPU에서는 너무 느려 사용할 수 없습니다(장치를 CPU로 바꾸면 절약 품질로 전환됩니다).",
   },
 ];
 

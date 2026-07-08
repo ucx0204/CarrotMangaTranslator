@@ -803,6 +803,85 @@ describe("app settings helpers", () => {
     expect(supportedRestored.ocr.device).toBe("gpu");
   });
 
+  it("never pairs the full OCR quality with the CPU device", () => {
+    const nvidiaDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 4090",
+        memoryMb: 24564,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+      },
+    );
+    // Stored cpu+full combos are normalized down to economy quality.
+    const restored = parseStoredAppSettings(
+      JSON.stringify({ ocr: { device: "cpu", qualityMode: "full" } }),
+      nvidiaDefaults,
+    );
+    expect(restored.ocr.device).toBe("cpu");
+    expect(restored.ocr.qualityMode).toBe("economy");
+    // GPU keeps the full quality.
+    expect(nvidiaDefaults.ocr.device).toBe("gpu");
+    expect(nvidiaDefaults.ocr.qualityMode).toBe("full");
+
+    // Hardware defaults: a 32GB AMD card without Windows ROCm OCR support
+    // gets CPU OCR, so the full31b tier must not select the full VL quality.
+    const w6800Defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon PRO W6800",
+        memoryMb: 32768,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: false,
+      },
+    );
+    expect(w6800Defaults.gemma.vramMode).toBe("full31b");
+    expect(w6800Defaults.ocr.device).toBe("cpu");
+    expect(w6800Defaults.ocr.qualityMode).toBe("economy");
+  });
+
+  it("runs economy OCR when the runtime resolves full quality onto the CPU", () => {
+    const nvidiaDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 4090",
+        memoryMb: 24564,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+      },
+    );
+    const settings: AppSettings = {
+      ...nvidiaDefaults,
+      ocr: {
+        ...nvidiaDefaults.ocr,
+        device: "cpu",
+        qualityMode: "full",
+      },
+    };
+    const options = buildBaseTranslationOptions({
+      jobId: "job-cpu-full-cap",
+      runDir: "C:/runs/job-cpu-full-cap",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub",
+      },
+      settings,
+      env: {},
+    });
+
+    expect(options.ocrDevice).toBe("cpu");
+    expect(options.ocrBboxMode).toBe("ocr");
+    expect(options.ocrEngine).toBe("paddle_static");
+    expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
+    expect(options.ocrTextRecognitionModelName).toBe("PP-OCRv6_small_rec");
+  });
+
   it("coerces saved runtime backends that do not match the detected GPU vendor", () => {
     const amdDefaults = resolveDefaultAppSettings(
       {},

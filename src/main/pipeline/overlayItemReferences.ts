@@ -18,11 +18,16 @@ export type OverlayValidationResult = {
   reasons: Record<string, number>;
 };
 
+export type OverlayValidationOptions = {
+  regionCropMode?: boolean;
+};
+
 export function validateOverlayItemsAgainstReferences(
   items: OverlayItem[],
   page: MangaPage,
   hints: NonNullable<RequestSummary["ocrBboxHints"]>,
   _previousBlocks: PreviousOverlayBlockForPrompt[] = [],
+  options: OverlayValidationOptions = {},
 ): OverlayValidationResult {
   const candidateBoxes = buildCandidateReferenceBoxes(hints, page);
   const candidateIds = new Set(candidateBoxes.map((candidate) => candidate.id));
@@ -30,12 +35,9 @@ export function validateOverlayItemsAgainstReferences(
   const reasons: Record<string, number> = {};
 
   for (const item of items) {
-    const reason = resolveOverlayDropReason(
-      item,
-      accepted,
-      candidateBoxes,
-      candidateIds,
-    );
+    const reason = options.regionCropMode
+      ? resolveRegionCropDropReason(item)
+      : resolveOverlayDropReason(item, accepted, candidateBoxes, candidateIds);
     if (reason) {
       reasons[reason] = (reasons[reason] ?? 0) + 1;
       continue;
@@ -127,6 +129,15 @@ type CandidateReferenceBox = {
   groupId?: string;
   containerType?: string;
 };
+
+/**
+ * 영역 번역 크롭은 사용자가 직접 지정한 영역이라 페이지용 잡음 휴리스틱
+ * (merged_ui_list, 짧은 텍스트, OCR 후보 겹침 등)을 적용하면 유일한 결과
+ * 블록까지 버려진다. 원문이 완전히 비어 있을 때만 제외한다.
+ */
+function resolveRegionCropDropReason(item: OverlayItem): string | null {
+  return item.jp.replace(/\s+/g, "") ? null : "empty_source";
+}
 
 function resolveOverlayDropReason(
   item: OverlayItem,

@@ -16,6 +16,7 @@ import {
   buildLlamaServerEnv,
   buildOcrBboxBatchCommand,
   buildOcrBboxCommand,
+  buildCpuFallbackOcrOptions,
   buildOcrRuntimeEnv,
   buildPaddleOcrGpuFailureMessage,
   buildPaddleOcrImportCheckScript,
@@ -776,6 +777,38 @@ describe("runtime model support helpers", () => {
         JSON.stringify({ phase: "done", index: 2, total: 3, count: 4 }),
       ),
     ).toMatchObject({ phase: "done" });
+  });
+
+  it("downgrades VL-mode CPU fallbacks to the PP-OCRv6 text-line path", () => {
+    const vlFallback = buildCpuFallbackOcrOptions({
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+      ocrBboxMode: "vl",
+      ocrMergeMode: "legacy",
+    });
+    expect(vlFallback.ocrDeviceOverride).toBe("cpu");
+    expect(vlFallback.ocrBboxMode).toBe("ocr");
+    expect(vlFallback.ocrMergeMode).toBe("conservative");
+    expect(vlFallback.ocrVersion).toBe("PP-OCRv6");
+
+    // Unset mode defaults to VL on the CUDA path, so it is downgraded too.
+    const implicitVlFallback = buildCpuFallbackOcrOptions({
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+    });
+    expect(implicitVlFallback.ocrBboxMode).toBe("ocr");
+
+    // The rocm-transformers path never runs VL, so its mode stays untouched.
+    const rocmFallback = buildCpuFallbackOcrOptions({
+      ocrDevice: "gpu",
+      ocrGpuBackend: "rocm-transformers",
+      ocrBboxMode: "ocr",
+      ocrEngine: "transformers",
+    });
+    expect(rocmFallback.ocrDeviceOverride).toBe("cpu");
+    expect(rocmFallback.ocrBboxMode).toBe("ocr");
+    expect(rocmFallback.ocrEngine).toBe("transformers");
+    expect(rocmFallback.ocrMergeMode).toBeUndefined();
   });
 
   it("resumes a failed GPU OCR batch on CPU and keeps completed pages", async () => {

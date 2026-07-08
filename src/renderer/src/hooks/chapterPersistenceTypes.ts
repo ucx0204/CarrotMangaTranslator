@@ -25,6 +25,7 @@ export type ChapterPersistenceResult = {
   markDirty: (pageId?: string) => void;
   replaceDirtyPageIds: (pageIds: string[]) => void;
   saveNow: () => Promise<void>;
+  syncSavedPageVersion: (chapter: ChapterSnapshot, pageId: string) => void;
 };
 
 export type ChapterPersistenceRefs = {

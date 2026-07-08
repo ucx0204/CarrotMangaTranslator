@@ -33,6 +33,7 @@ import {
 import { safeUnlink } from "./storage";
 import { sanitizeTitle } from "./titles";
 
+export { appendAnalyzedPageBlocksUnlocked } from "./libraryAnalysisMutations";
 export {
   setPageInpaintingResultUnlocked,
   updatePagesAfterInpaintingUnlocked,

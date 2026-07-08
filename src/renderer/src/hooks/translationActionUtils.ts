@@ -7,6 +7,7 @@ import type {
 import type { JobState } from "../../../shared/jobTypes";
 import { mangaGateway } from "../api/mangaGateway";
 import { formatErrorMessage } from "../lib/appHelpers";
+import type { LiveChapterMergeOptions } from "../lib/chapterSync";
 import { summarizeWarnings } from "../lib/jobProgress";
 import { toast } from "../lib/toastStore";
 import {
@@ -195,6 +196,29 @@ export function regionTranslationStartingState(): JobState {
     progressTotal: 1,
     pageIndex: 1,
     pageTotal: 1,
+  };
+}
+
+/**
+ * 영역 번역 완료 시 라이브 병합 옵션: 페이지가 로컬에서 dirty 상태여도
+ * 새로 만든 영역 블록이 유실되지 않도록 append 대상을 알려 준다.
+ */
+export function regionLiveMergeOptions(
+  result: TranslateRegionResult,
+): LiveChapterMergeOptions | undefined {
+  if (
+    result.status !== "completed" ||
+    !result.pageId ||
+    !result.blockIds ||
+    result.blockIds.length === 0
+  ) {
+    return undefined;
+  }
+  return {
+    appendLiveBlocks: {
+      pageId: result.pageId,
+      blockIds: result.blockIds,
+    },
   };
 }
 

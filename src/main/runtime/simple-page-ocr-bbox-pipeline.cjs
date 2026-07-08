@@ -41,6 +41,7 @@ const {
   resolveEffectiveOcrDevice,
   resolveOcrDevice,
   resolveOcrDeviceLabel,
+  resolveOcrGpuBackend,
   summarizeOcrErrorMessage,
 } = require("./simple-page-ocr-runtime-config.cjs");
 const {
@@ -98,6 +99,48 @@ function isOcrGpuCpuFallbackDisabled(options = {}) {
 }
 
 /**
+ * The full-quality VL layout pipeline is unusably slow on CPU, so a CPU
+ * fallback of a VL run downgrades to the plain PP-OCRv6 text-line path.
+ * The PP-OCRv6 server det/rec models are already cached because the VL run
+ * uses them as its text-line detector, so no new downloads are needed.
+ */
+const CPU_FALLBACK_VL_MODE_FIELDS = {
+  ocrBboxMode: "ocr",
+  ocrVersion: "PP-OCRv6",
+  ocrMergeMode: "conservative",
+  ocrDetLimit: "1600",
+  ocrRecBatch: "1",
+};
+
+/**
+ * @param {OcrBboxOptions} [options]
+ * @returns {boolean}
+ */
+function isVlModeOcrOptions(options = {}) {
+  const bboxMode = String(options.ocrBboxMode ?? "")
+    .trim()
+    .toLowerCase();
+  if (bboxMode) {
+    return bboxMode === "vl";
+  }
+  // Unset mode defaults to VL except on the rocm-transformers path, which
+  // always forces the ocr-only text-line mode.
+  return resolveOcrGpuBackend(options) !== "rocm-transformers";
+}
+
+/**
+ * @param {OcrBboxOptions} options
+ * @returns {OcrBboxOptions}
+ */
+function buildCpuFallbackOcrOptions(options) {
+  return {
+    ...options,
+    ...(isVlModeOcrOptions(options) ? CPU_FALLBACK_VL_MODE_FIELDS : {}),
+    ocrDeviceOverride: "cpu",
+  };
+}
+
+/**
  * @param {OcrBboxOptions} options
  * @param {string} provider
  * @returns {boolean}
@@ -121,7 +164,7 @@ function applyOcrGpuSessionCpuOverride(options, provider) {
   if (!shouldApplySessionCpuOverride(options, provider)) {
     return options;
   }
-  const next = { ...options, ocrDeviceOverride: "cpu" };
+  const next = buildCpuFallbackOcrOptions(options);
   emitRuntimeProgress(
     next,
     "ocr_running",
@@ -291,7 +334,7 @@ async function collectOcrBboxHints(options = {}) {
     );
     try {
       return await runProviderOcrBbox(
-        { ...runOptions, ocrDeviceOverride: "cpu" },
+        buildCpuFallbackOcrOptions(runOptions),
         provider,
       );
     } catch (cpuError) {
@@ -534,10 +577,9 @@ async function collectOcrBboxHintsBatch(pageOptionsList = []) {
       resolveOcrBboxProvider(normalizedOptions[0] || {}),
     )
   ) {
-    normalizedOptions = normalizedOptions.map((options) => ({
-      ...options,
-      ocrDeviceOverride: "cpu",
-    }));
+    normalizedOptions = normalizedOptions.map((options) =>
+      buildCpuFallbackOcrOptions(options),
+    );
     emitRuntimeProgress(
       normalizedOptions[0],
       "ocr_running",
@@ -812,8 +854,7 @@ async function recoverOcrBatchWithCpuFallback({
     remaining.push({
       index,
       options: {
-        ...options,
-        ocrDeviceOverride: "cpu",
+        ...buildCpuFallbackOcrOptions(options),
         outputDir: path.dirname(items[index].output),
         ocrBatchCompletedBefore: completedBefore + completedPayloads.size,
         ocrBatchTotal: batchTotal,
@@ -1517,6 +1558,7 @@ async function cleanupOcrBatchControlFiles(
 }
 
 module.exports = {
+  buildCpuFallbackOcrOptions,
   canFallBackToCpuAfterGpuFailure,
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,

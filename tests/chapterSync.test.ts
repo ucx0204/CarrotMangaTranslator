@@ -183,6 +183,53 @@ describe("chapter sync helpers", () => {
     expect(merged.chapter.pages[1]?.blocks[0]?.translatedText).toBe("KO2");
   });
 
+  it("appends new live blocks to a preserved dirty page when requested (영역 번역 결과)", () => {
+    const local = makeChapter();
+    local.pages[0] = {
+      ...local.pages[0],
+      blocks: [
+        {
+          ...local.pages[0].blocks[0],
+          translatedText: "수정된 번역문",
+        },
+      ],
+    };
+
+    const live = makeChapter();
+    const regionBlock = {
+      ...live.pages[0].blocks[0],
+      id: "page-1-region-block-1",
+      sourceText: "JP-REGION",
+      translatedText: "영역 번역",
+    };
+    live.pages[0] = {
+      ...live.pages[0],
+      updatedAt: "2026-04-19T00:01:00.000Z",
+      blocks: [...live.pages[0].blocks, regionBlock],
+    };
+
+    const merged = mergeLiveChapterPreservingDirtyPages(
+      live,
+      local,
+      ["page-1"],
+      {
+        appendLiveBlocks: {
+          pageId: "page-1",
+          blockIds: ["page-1-region-block-1"],
+        },
+      },
+    );
+
+    expect(merged.preservedDirtyPageIds).toEqual(["page-1"]);
+    const blocks = merged.chapter.pages[0]?.blocks ?? [];
+    expect(blocks.map((block) => block.id)).toEqual([
+      "block-1",
+      "page-1-region-block-1",
+    ]);
+    expect(blocks[0]?.translatedText).toBe("수정된 번역문");
+    expect(blocks[1]?.translatedText).toBe("영역 번역");
+  });
+
   it("preserves local block edits made while a translated page is running and adopts live status", () => {
     const local = makeChapter();
     local.pages[0] = {

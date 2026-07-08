@@ -24,6 +24,7 @@ import {
   handleTranslateRegionResult,
   makeStartAnalysisRequest,
   refreshLibraryWithWarning,
+  regionLiveMergeOptions,
   regionTranslationStartingState,
   reportRefreshLibraryFailure,
   resolveStartOutcome,
@@ -293,6 +294,7 @@ function useTranslateSelectedRegionAction({
   beforeTranslateRegion,
   clearStatusLines,
   currentChapter,
+  currentChapterRef,
   jobActive,
   mergeLiveChapter,
   pushStatus,
@@ -301,6 +303,7 @@ function useTranslateSelectedRegionAction({
   selectedPage,
   setJobState,
   setSelectedBlockId,
+  syncSavedPageVersion,
 }: UseTranslationActionsOptions): TranslationActions["translateSelectedRegion"] {
   return useCallback(
     async (bbox: BBox) => {
@@ -323,7 +326,19 @@ function useTranslateSelectedRegionAction({
           bbox,
         });
         if (result.chapter) {
-          mergeLiveChapter(result.chapter);
+          mergeLiveChapter(result.chapter, regionLiveMergeOptions(result));
+          if (
+            result.status === "completed" &&
+            currentChapterRef.current?.id === result.chapter.id
+          ) {
+            // 작업 중 편집으로 페이지가 dirty면 버전 동기화 효과가 이 페이지를
+            // 건너뛰므로, append된 디스크 상태를 저장 기준선으로 직접 반영해
+            // 다음 자동 저장이 충돌하지 않게 한다.
+            syncSavedPageVersion(
+              result.chapter,
+              result.pageId ?? selectedPage.id,
+            );
+          }
         }
         await refreshLibraryWithWarning(refreshLibrary, pushStatus);
         handleTranslateRegionResult(result, {
@@ -345,6 +360,7 @@ function useTranslateSelectedRegionAction({
       beforeTranslateRegion,
       clearStatusLines,
       currentChapter,
+      currentChapterRef,
       jobActive,
       mergeLiveChapter,
       pushStatus,
@@ -353,6 +369,7 @@ function useTranslateSelectedRegionAction({
       selectedPage,
       setJobState,
       setSelectedBlockId,
+      syncSavedPageVersion,
     ],
   );
 }

@@ -106,5 +106,6 @@ function useTranslationActionController(chapter: ChapterSessionController) {
     setFlowActive: chapter.uiState.setTranslationFlowActive,
     setJobState: chapter.core.setJobState,
     setSelectedBlockId: chapter.core.setSelectedBlockId,
+    syncSavedPageVersion: chapter.persistence.syncSavedPageVersion,
   });
 }

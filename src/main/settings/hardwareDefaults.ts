@@ -153,16 +153,18 @@ function buildHardwareDefaults(
     modelProvider,
     gemmaVramMode,
     ocrDevice,
-    ocrQualityMode: resolveHardwareOcrQualityMode(gemmaVramMode),
+    ocrQualityMode: resolveHardwareOcrQualityMode(gemmaVramMode, ocrDevice),
     ...baseDefaults,
   };
 }
 
 function resolveHardwareOcrQualityMode(
   gemmaVramMode: GemmaVramMode,
+  ocrDevice: OcrDevice,
 ): OcrQualityMode {
   if (gemmaVramMode === "full31b") {
-    return "full";
+    // 풀로드(PaddleOCR-VL) 품질은 CPU에서 못 쓸 만큼 느리다.
+    return ocrDevice === "gpu" ? "full" : "economy";
   }
   if (gemmaVramMode === "economy26b") {
     return "economy";

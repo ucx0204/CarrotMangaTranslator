@@ -45,6 +45,7 @@ export function useSettingsRuntimeGuards({
 
   useSettingsFocusEffect(values, refs);
   useOcrBackendGuard(values, setters, runtime);
+  useOcrQualityDeviceGuard(values, setters);
   useLlamaRuntimeGuard(values, setters, initialSettings, runtime);
   useFluxBackendGuard(values, setters, initialSettings, runtime);
 
@@ -143,6 +144,19 @@ function useOcrBackendGuard(
     values.ocrDevice,
     values.ocrGpuBackend,
   ]);
+}
+
+function useOcrQualityDeviceGuard(
+  values: SettingsFormValues,
+  setters: SettingsFormSetters,
+): void {
+  React.useEffect(() => {
+    // 풀로드(PaddleOCR-VL) 품질은 CPU에서 못 쓸 만큼 느리므로 CPU 장치와
+    // 조합되지 않도록 절약 품질로 강제한다.
+    if (values.ocrDevice === "cpu" && values.ocrQualityMode === "full") {
+      setters.setOcrQualityMode("economy");
+    }
+  }, [setters, values.ocrDevice, values.ocrQualityMode]);
 }
 
 function useLlamaRuntimeGuard(

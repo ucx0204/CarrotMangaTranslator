@@ -55,13 +55,20 @@ export function resolveOcrTranslationOptions(
     llamaRuntimeProfile,
     ocrGpuBackend,
   );
-  const ocrQualityMode = resolveOcrQualityMode(
+  const configuredQualityMode = resolveOcrQualityMode(
     runtimeEnv.MANGA_TRANSLATOR_OCR_QUALITY_MODE ??
       runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE ??
       runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_PRESET,
     settings.ocr.qualityMode ??
       resolveOcrQualityModeFromGemmaVramMode(gemmaVramMode),
   );
+  // 풀로드(PaddleOCR-VL) 품질은 CPU에서 못 쓸 만큼 느리므로, 장치가 CPU로
+  // 내려간 경로(env 강제, AMD llama 자동 다운그레이드 등)에서는 절약 품질로
+  // 실행한다.
+  const ocrQualityMode =
+    ocrDevice === "cpu" && configuredQualityMode === "full"
+      ? "economy"
+      : configuredQualityMode;
   return {
     ocrDevice,
     ocrGpuBackend,

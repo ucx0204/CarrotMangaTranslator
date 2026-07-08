@@ -1,4 +1,8 @@
-import type { ChapterSnapshot, RunMode } from "../../../shared/libraryTypes";
+import type {
+  ChapterSnapshot,
+  MangaPage,
+  RunMode,
+} from "../../../shared/libraryTypes";
 
 type ChapterSelection = {
   selectedPageId: string | null;
@@ -8,6 +12,18 @@ type ChapterSelection = {
 export type LiveChapterMergeResult = {
   chapter: ChapterSnapshot;
   preservedDirtyPageIds: string[];
+};
+
+export type LiveChapterMergeOptions = {
+  /**
+   * 라이브 챕터에만 존재하는 새 블록(예: 영역 번역 결과)을 dirty로 보존된
+   * 로컬 페이지에도 덧붙인다. 지정하지 않으면 dirty 페이지의 블록은 로컬
+   * 상태 그대로 유지된다.
+   */
+  appendLiveBlocks?: {
+    pageId: string;
+    blockIds: string[];
+  };
 };
 
 export function resolveSelectionAfterChapterSync(
@@ -38,6 +54,7 @@ export function mergeLiveChapterPreservingDirtyPages(
   liveChapter: ChapterSnapshot,
   localChapter: ChapterSnapshot | null,
   dirtyPageIds: Iterable<string>,
+  options: LiveChapterMergeOptions = {},
 ): LiveChapterMergeResult {
   if (!localChapter || localChapter.id !== liveChapter.id) {
     return {
@@ -69,6 +86,7 @@ export function mergeLiveChapterPreservingDirtyPages(
         preservedDirtyPageIds.push(page.id);
         return {
           ...localPage,
+          blocks: mergeAppendedLiveBlocks(localPage, page, options),
           inpaintedImagePath: page.inpaintedImagePath,
           analysisStatus: page.analysisStatus,
           lastError: page.lastError,
@@ -77,6 +95,25 @@ export function mergeLiveChapterPreservingDirtyPages(
     },
     preservedDirtyPageIds,
   };
+}
+
+function mergeAppendedLiveBlocks(
+  localPage: MangaPage,
+  livePage: MangaPage,
+  options: LiveChapterMergeOptions,
+): MangaPage["blocks"] {
+  const appendLiveBlocks = options.appendLiveBlocks;
+  if (!appendLiveBlocks || appendLiveBlocks.pageId !== livePage.id) {
+    return localPage.blocks;
+  }
+  const appendIds = new Set(appendLiveBlocks.blockIds);
+  const localIds = new Set(localPage.blocks.map((block) => block.id));
+  const appended = livePage.blocks.filter(
+    (block) => appendIds.has(block.id) && !localIds.has(block.id),
+  );
+  return appended.length
+    ? [...localPage.blocks, ...appended]
+    : localPage.blocks;
 }
 
 export function markChapterPagesRunning(

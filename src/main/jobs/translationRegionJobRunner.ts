@@ -9,10 +9,10 @@ import {
   mapRegionBlocksToPageBlocks,
 } from "../regionCrop";
 import {
+  appendAnalyzedPageBlocks,
   getRunPaths,
   openChapter,
   resolveWorkContextForChapter,
-  updatePageAfterAnalysis,
 } from "../library";
 import { logError } from "../logger";
 import { runWholePagePipeline } from "../wholePagePipeline";
@@ -55,7 +55,6 @@ export async function runRegionTranslationJob({
     return emitMissingRegionPage(id, emit, state.chapter);
   }
 
-  const expectedUpdatedAt = page.updatedAt;
   state.runPaths = await getRunPaths(request.chapterId, id);
   const { cropPage, cropRect } = await createRegionCropPage(
     page,
@@ -84,7 +83,6 @@ export async function runRegionTranslationJob({
   return completeRegionTranslation({
     cropRect,
     emit,
-    expectedUpdatedAt,
     id,
     page,
     request,
@@ -205,7 +203,6 @@ function runRegionPipeline({
 async function completeRegionTranslation({
   cropRect,
   emit,
-  expectedUpdatedAt,
   id,
   page,
   request,
@@ -213,7 +210,6 @@ async function completeRegionTranslation({
 }: {
   cropRect: Parameters<typeof mapRegionBlocksToPageBlocks>[2];
   emit: EmitJobEvent;
-  expectedUpdatedAt: string;
   id: string;
   page: MangaPage;
   request: RegionAnalysisRequest;
@@ -223,11 +219,12 @@ async function completeRegionTranslation({
   const mappedBlocks = analyzedCrop
     ? mapRegionBlocksToPageBlocks(analyzedCrop.blocks, page, cropRect)
     : [];
-  const saved = await saveMappedRegionBlocks(
+  // 영역 번역은 새 블록을 덧붙이기만 하므로, 작업 중 사용자 편집이 저장됐어도
+  // 최신 페이지 상태 위에 원자적으로 append해 충돌 없이 반영한다.
+  const saved = await appendAnalyzedPageBlocks(
     request.chapterId,
     request.pageId,
     mappedBlocks,
-    expectedUpdatedAt,
   );
   emitRegionCompleted(id, emit, mappedBlocks.length);
   return {
@@ -333,32 +330,6 @@ function emitFailedRegionJob(
     attemptTotal: lastEvent?.attemptTotal,
     detail: message,
   });
-}
-
-async function saveMappedRegionBlocks(
-  chapterId: string,
-  pageId: string,
-  mappedBlocks: MangaPage["blocks"],
-  expectedUpdatedAt: string,
-) {
-  const latest = await openChapter(chapterId);
-  const page = latest.pages.find((candidate) => candidate.id === pageId);
-  if (!page) {
-    throw new Error("저장할 페이지를 찾지 못했습니다.");
-  }
-  if (page.updatedAt !== expectedUpdatedAt) {
-    throw new Error(
-      "선택 영역 번역 중 페이지가 변경되었습니다. 최신 내용을 확인한 뒤 다시 시도해 주세요.",
-    );
-  }
-  await updatePageAfterAnalysis(
-    chapterId,
-    { ...page, blocks: [...page.blocks, ...mappedBlocks] },
-    [],
-    "completed",
-    expectedUpdatedAt,
-  );
-  return openChapter(chapterId);
 }
 
 function getLastJobEvent(

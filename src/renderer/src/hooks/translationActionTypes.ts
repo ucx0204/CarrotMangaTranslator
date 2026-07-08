@@ -8,6 +8,7 @@ import type {
 } from "../../../shared/libraryTypes";
 import type { BBox } from "../../../shared/textTypes";
 import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
+import type { LiveChapterMergeOptions } from "../lib/chapterSync";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 import type { RunAnalysisOutcome } from "./translationFlowHelpers";
 
@@ -26,11 +27,15 @@ export type UseTranslationActionsOptions = {
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
   jobActive: boolean;
   library: LibraryIndex;
-  mergeLiveChapter: (chapter: ChapterSnapshot) => void;
+  mergeLiveChapter: (
+    chapter: ChapterSnapshot,
+    options?: LiveChapterMergeOptions,
+  ) => void;
   beforeTranslateRegion?: () => Promise<void>;
   pushStatus: (line: string) => void;
   refreshLibrary: () => Promise<void>;
   saveNow: () => Promise<void>;
+  syncSavedPageVersion: (chapter: ChapterSnapshot, pageId: string) => void;
   selectedPage: MangaPage | null;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setFlowActive: (active: boolean) => void;

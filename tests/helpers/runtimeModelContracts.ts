@@ -148,6 +148,9 @@ const runtimeHelpers = {
   isGpuDeviceLostOrTdrText: (value: unknown) => boolean;
   isRocmHipAccessViolationText: (value: unknown) => boolean;
   resolveEffectiveOcrDevice: (options?: { [key: string]: unknown }) => string;
+  buildCpuFallbackOcrOptions: (options: {
+    [key: string]: unknown;
+  }) => Record<string, unknown>;
   getOverlayPrompt: (
     options: { [key: string]: unknown },
     imageVariants: Array<{
@@ -334,6 +337,7 @@ export const {
   buildOcrBboxBatchCommand,
   buildOcrBboxCommand,
   buildLlamaServerEnv,
+  buildCpuFallbackOcrOptions,
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
   buildPaddleOcrGpuFailureMessage,

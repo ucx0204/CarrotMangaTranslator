@@ -9,6 +9,7 @@ import {
   type LibraryCleanupResult,
 } from "../libraryStore/libraryCleanup";
 import {
+  appendAnalyzedPageBlocksUnlocked,
   deleteChapterUnlocked,
   deletePageUnlocked,
   deleteWorkUnlocked,
@@ -32,6 +33,16 @@ export async function savePageBlocks(
   request: SavePageBlocksRequest,
 ): Promise<ChapterSnapshot> {
   return withLibraryMutation(() => savePageBlocksUnlocked(request));
+}
+
+export async function appendAnalyzedPageBlocks(
+  chapterId: string,
+  pageId: string,
+  blocks: MangaPage["blocks"],
+): Promise<ChapterSnapshot> {
+  return withLibraryMutation(() =>
+    appendAnalyzedPageBlocksUnlocked(chapterId, pageId, blocks),
+  );
 }
 
 export async function renameWork(

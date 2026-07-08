@@ -136,6 +136,7 @@ export function useChapterPersistence({
     ...actions,
     dirty,
     dirtyPageIdsRef,
+    syncSavedPageVersion,
   };
 }
 

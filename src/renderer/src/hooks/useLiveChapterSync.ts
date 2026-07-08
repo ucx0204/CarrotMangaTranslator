@@ -9,6 +9,7 @@ import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import {
   mergeLiveChapterPreservingDirtyPages,
   resolveSelectionAfterChapterSync,
+  type LiveChapterMergeOptions,
 } from "../lib/chapterSync";
 
 type UseLiveChapterSyncOptions = {
@@ -37,7 +38,10 @@ export function useLiveChapterSync({
   setCurrentChapter,
   setSelectedBlockId,
   setSelectedPageId,
-}: UseLiveChapterSyncOptions): (chapter: ChapterSnapshot) => void {
+}: UseLiveChapterSyncOptions): (
+  chapter: ChapterSnapshot,
+  options?: LiveChapterMergeOptions,
+) => void {
   useEffect(() => {
     currentChapterRef.current = currentChapter;
   }, [currentChapter, currentChapterRef]);
@@ -51,7 +55,7 @@ export function useLiveChapterSync({
   }, [selectedBlockId, selectedBlockIdRef]);
 
   return useCallback(
-    (chapter: ChapterSnapshot) => {
+    (chapter: ChapterSnapshot, options?: LiveChapterMergeOptions) => {
       const current = currentChapterRef.current;
       if (current && current.id !== chapter.id) {
         return;
@@ -61,6 +65,7 @@ export function useLiveChapterSync({
         chapter,
         current,
         dirtyPageIdsRef.current,
+        options,
       );
       replaceDirtyPageIds(mergeResult.preservedDirtyPageIds);
       currentChapterRef.current = mergeResult.chapter;
