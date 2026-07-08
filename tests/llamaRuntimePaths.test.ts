@@ -11,16 +11,27 @@ import {
 } from "../src/shared/modelPresets";
 
 const require = createRequire(import.meta.url);
+const AdmZip = require("adm-zip") as {
+  new (): {
+    addFile: (name: string, data: Buffer) => void;
+    writeZip: (path: string) => void;
+  };
+};
 const { inferAmdRocmTargetFromText } =
   require("../src/main/runtime/simple-page-amd-rocm-target.cjs") as {
     inferAmdRocmTargetFromText: (value: string) => string | null;
   };
-const { collectSelectedFiles } =
+const { collectSelectedFiles, extractSelectedZipEntries } =
   require("../src/main/runtime/simple-page-zip-utils.cjs") as {
     collectSelectedFiles: (
       rootDir: string,
       shouldExtract: (fileName: string, relativePath?: string) => boolean,
     ) => Array<{ filePath: string; outputName: string }>;
+    extractSelectedZipEntries: (
+      archivePath: string,
+      outputDir: string,
+      shouldExtract: (fileName: string, relativePath: string) => boolean,
+    ) => Promise<void>;
   };
 const {
   hasRequiredLlamaRuntimeFiles,
@@ -240,6 +251,43 @@ describe("llama runtime path selection", () => {
       ]);
     } finally {
       rmSync(runtimeDir, { recursive: true, force: true });
+    }
+  });
+
+  it("includes extraction diagnostics when no runtime files match", async () => {
+    if (process.platform !== "win32") {
+      return;
+    }
+    const tempDir = mkdtempSync(join(tmpdir(), "mgt-runtime-zip-empty-"));
+    try {
+      const archivePath = join(tempDir, "runtime.zip");
+      const outputDir = join(tempDir, "runtime");
+      mkdirSync(outputDir, { recursive: true });
+      const zip = new AdmZip();
+      zip.addFile("docs/readme.txt", Buffer.from("no runtime files here"));
+      zip.writeZip(archivePath);
+
+      let caught: unknown;
+      try {
+        await extractSelectedZipEntries(archivePath, outputDir, () => false);
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(Error);
+      expect((caught as Error).message).toContain("No runtime files matched");
+      expect(caught).toMatchObject({
+        archivePath,
+        extractionMethod: expect.stringMatching(/^(powershell|tar)$/),
+        extractedTopLevelEntries: ["docs/"],
+      });
+      expect(
+        Array.isArray(
+          (caught as { extractionAttempts?: unknown }).extractionAttempts,
+        ),
+      ).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
