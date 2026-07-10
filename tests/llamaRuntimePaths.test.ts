@@ -11,11 +11,18 @@ import {
 } from "../src/shared/modelPresets";
 
 const require = createRequire(import.meta.url);
-const AdmZip = require("adm-zip") as {
-  new (): {
-    addFile: (name: string, data: Buffer) => void;
-    writeZip: (path: string) => void;
-  };
+type ArchiveExtractionResult = {
+  method: "powershell" | "tar";
+  stdout: string;
+  stderr: string;
+  attempts: Array<{
+    command: string;
+    args: string[];
+    code: number | null;
+    stdout: string;
+    stderr: string;
+    error?: string;
+  }>;
 };
 const { inferAmdRocmTargetFromText } =
   require("../src/main/runtime/simple-page-amd-rocm-target.cjs") as {
@@ -31,6 +38,12 @@ const { collectSelectedFiles, extractSelectedZipEntries } =
       archivePath: string,
       outputDir: string,
       shouldExtract: (fileName: string, relativePath: string) => boolean,
+      options?: {
+        extractArchive?: (
+          archivePath: string,
+          outputDir: string,
+        ) => Promise<ArchiveExtractionResult>;
+      },
     ) => Promise<void>;
   };
 const {
@@ -255,21 +268,35 @@ describe("llama runtime path selection", () => {
   });
 
   it("includes extraction diagnostics when no runtime files match", async () => {
-    if (process.platform !== "win32") {
-      return;
-    }
     const tempDir = mkdtempSync(join(tmpdir(), "mgt-runtime-zip-empty-"));
     try {
       const archivePath = join(tempDir, "runtime.zip");
       const outputDir = join(tempDir, "runtime");
       mkdirSync(outputDir, { recursive: true });
-      const zip = new AdmZip();
-      zip.addFile("docs/readme.txt", Buffer.from("no runtime files here"));
-      zip.writeZip(archivePath);
 
       let caught: unknown;
       try {
-        await extractSelectedZipEntries(archivePath, outputDir, () => false);
+        await extractSelectedZipEntries(archivePath, outputDir, () => false, {
+          extractArchive: async (_archivePath, extractDir) => {
+            const docsDir = join(extractDir, "docs");
+            mkdirSync(docsDir, { recursive: true });
+            writeFileSync(join(docsDir, "readme.txt"), "no runtime files here");
+            return {
+              method: "powershell",
+              stdout: "fixture extraction",
+              stderr: "",
+              attempts: [
+                {
+                  command: "powershell",
+                  args: [],
+                  code: 0,
+                  stdout: "fixture extraction",
+                  stderr: "",
+                },
+              ],
+            };
+          },
+        });
       } catch (error) {
         caught = error;
       }
@@ -278,7 +305,7 @@ describe("llama runtime path selection", () => {
       expect((caught as Error).message).toContain("No runtime files matched");
       expect(caught).toMatchObject({
         archivePath,
-        extractionMethod: expect.stringMatching(/^(powershell|tar)$/),
+        extractionMethod: "powershell",
         extractedTopLevelEntries: ["docs/"],
       });
       expect(
@@ -289,7 +316,7 @@ describe("llama runtime path selection", () => {
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
-  }, 30_000);
+  });
 
   it("does not guess an AMD ROCm runtime when the GPU target is unknown", () => {
     expect(() =>

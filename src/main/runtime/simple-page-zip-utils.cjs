@@ -12,6 +12,8 @@ const { safeCleanup } = require("./simple-page-runtime-common.cjs");
  * @typedef {(name: string, relativePath: string) => boolean} RuntimeEntryFilter
  * @typedef {{ command: string, args: string[], code: number | null, stdout: string, stderr: string, error?: string }} ArchiveCommandAttempt
  * @typedef {{ method: "powershell" | "tar", stdout: string, stderr: string, attempts: ArchiveCommandAttempt[] }} ArchiveExtractionResult
+ * @typedef {(archivePath: string, outputDir: string) => Promise<ArchiveExtractionResult>} ArchiveExtractor
+ * @typedef {{ extractArchive?: ArchiveExtractor }} ExtractSelectedZipOptions
  */
 
 /**
@@ -59,12 +61,14 @@ function shrinkBuffer(current, chunk, maxLength = 12000) {
  * @param {string} archivePath
  * @param {string} outputDir
  * @param {RuntimeEntryFilter} shouldExtract
+ * @param {ExtractSelectedZipOptions} [options]
  * @returns {Promise<void>}
  */
 async function extractSelectedZipEntries(
   archivePath,
   outputDir,
   shouldExtract,
+  options = {},
 ) {
   const extractDir = path.join(
     path.dirname(outputDir),
@@ -76,7 +80,8 @@ async function extractSelectedZipEntries(
   );
   await mkdir(extractDir, { recursive: true });
   try {
-    const extraction = await expandZipArchive(archivePath, extractDir);
+    const extractArchive = options.extractArchive ?? expandZipArchive;
+    const extraction = await extractArchive(archivePath, extractDir);
     const selectedFiles = collectSelectedFiles(extractDir, shouldExtract);
     if (selectedFiles.length === 0) {
       throw createDetailedError(
