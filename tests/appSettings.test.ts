@@ -49,10 +49,12 @@ describe("app settings helpers", () => {
     expect(defaults.modelProvider).toBe("openai-codex");
     expect(defaults.gemma.vramMode).toBe("minimum12b");
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
+    expect(defaults.codex.model).toBe("gpt-5.6-sol");
     expect(defaults.codex.reasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(defaults.codex.oauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
     expect(defaults.api.baseUrl).toBe(DEFAULT_API_BASE_URL);
     expect(defaults.api.model).toBe(DEFAULT_API_MODEL);
+    expect(defaults.api.model).toBe("gpt-5.5");
     expect(defaults.api.apiKey).toBeUndefined();
     expect(defaults.api.temperature).toBe(DEFAULT_API_TEMPERATURE);
     expect(defaults.api.topP).toBe(DEFAULT_API_TOP_P);
@@ -273,7 +275,7 @@ describe("app settings helpers", () => {
       },
       api: {
         baseUrl: "https://api.openai.com/v1",
-        model: DEFAULT_CODEX_MODEL,
+        model: DEFAULT_API_MODEL,
       },
       ocr: {
         device: "gpu",
@@ -308,7 +310,7 @@ describe("app settings helpers", () => {
     expect(options.codexReasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
     expect(options.codexOauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
     expect(options.apiBaseUrl).toBe("https://api.openai.com/v1");
-    expect(options.apiModel).toBe(DEFAULT_CODEX_MODEL);
+    expect(options.apiModel).toBe(DEFAULT_API_MODEL);
     expect(options.apiKey).toBeUndefined();
     expect(options.ocrDevice).toBe("gpu");
     expect(options.ocrGpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
@@ -1217,8 +1219,8 @@ describe("app settings helpers", () => {
         JSON.stringify({
           modelProvider: "openai-codex",
           codex: {
-            model: "gpt-5.5",
-            reasoningEffort: "xhigh",
+            model: "gpt-5.6-sol",
+            reasoningEffort: "ultra",
             oauthPort: 10532,
           },
         }),
@@ -1229,8 +1231,8 @@ describe("app settings helpers", () => {
       translation: defaults.translation,
       gemma: defaults.gemma,
       codex: {
-        model: "gpt-5.5",
-        reasoningEffort: "xhigh",
+        model: "gpt-5.6-sol",
+        reasoningEffort: "ultra",
         oauthPort: 10532,
       },
       api: defaults.api,

@@ -7,6 +7,7 @@ import {
   isOfficialOpenAiApiBaseUrl,
   resolveOpenAiCompatibleBaseUrl,
 } from "../../shared/apiSettings";
+import { CODEX_REASONING_EFFORTS } from "../../shared/codexSettings";
 import type {
   AppSettings,
   ApiReasoningEffort,
@@ -285,12 +286,8 @@ export function resolveCodexReasoningEffort(
   if (value === "minimal") {
     return "low";
   }
-  return value === "none" ||
-    value === "low" ||
-    value === "medium" ||
-    value === "high" ||
-    value === "xhigh"
-    ? value
+  return CODEX_REASONING_EFFORTS.some((effort) => effort === value)
+    ? (value as CodexReasoningEffort)
     : fallback;
 }
 

@@ -4,6 +4,7 @@ import type {
   KoharuInpaintingBackend,
 } from "./inpaintingSettingsTypes";
 import type { BlockFormatDefaults } from "./blockFormat";
+import type { CodexReasoningEffort } from "./codexSettings";
 import type { TranslationLanguageSettings } from "./translationLanguages";
 
 export type {
@@ -15,6 +16,7 @@ export type {
   BlockFormatDefaults,
   BlockFormatDirectionDefault,
 } from "./blockFormat";
+export type { CodexReasoningEffort } from "./codexSettings";
 export type {
   LanguageCode,
   TranslationLanguageSettings,
@@ -23,7 +25,6 @@ export type {
 export type ModelProvider = "gemma" | "openai-codex" | "openai-api";
 export type ModelSource = "huggingface" | "local";
 export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
-export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type ApiReasoningEffort =
   | "none"
   | "minimal"

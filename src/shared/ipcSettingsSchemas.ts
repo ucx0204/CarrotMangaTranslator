@@ -19,6 +19,7 @@ import {
   hexColor,
 } from "./ipcSchemaPrimitives";
 import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
+import { CODEX_REASONING_EFFORTS } from "./codexSettings";
 
 const LanguageCodeSchema = z
   .string()
@@ -52,7 +53,7 @@ export const AppSettingsSchema = z
     codex: z
       .object({
         model: z.string().min(1).max(120),
-        reasoningEffort: z.enum(["none", "low", "medium", "high", "xhigh"]),
+        reasoningEffort: z.enum(CODEX_REASONING_EFFORTS),
         oauthPort: z.number().int().min(1).max(65535),
       })
       .strict(),

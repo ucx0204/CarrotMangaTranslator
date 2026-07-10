@@ -9,10 +9,10 @@ const DEFAULT_MMPROJ_HF =
   "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF";
 const DEFAULT_MMPROJ_FILE =
   "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
-const DEFAULT_CODEX_MODEL = "gpt-5.5";
+const DEFAULT_CODEX_MODEL = "gpt-5.6-sol";
 const DEFAULT_CODEX_REASONING_EFFORT = "low";
 const DEFAULT_API_BASE_URL = "https://api.openai.com/v1";
-const DEFAULT_API_MODEL = DEFAULT_CODEX_MODEL;
+const DEFAULT_API_MODEL = "gpt-5.5";
 const DEFAULT_API_KEY = "local-llama-server";
 const DEFAULT_API_TEMPERATURE = 0.2;
 const DEFAULT_API_TOP_P = 0.95;

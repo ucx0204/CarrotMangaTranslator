@@ -1,12 +1,12 @@
 import type {
   ApiReasoningEffort,
-  CodexReasoningEffort,
   GemmaVramMode,
   ModelProvider,
   ModelSource,
   OcrDevice,
   OcrQualityMode,
 } from "./types";
+import type { CodexReasoningEffort } from "./codexSettings";
 
 export const GEMMA_31B_MODEL_REPO =
   "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
@@ -42,14 +42,70 @@ export const DEFAULT_GEMMA_DRAFT_MODEL_REPO =
 export const DEFAULT_GEMMA_DRAFT_MODEL_FILE =
   "gemma4-31b-it-dflash-IQ4_XS.gguf";
 
+export type CodexModelPreset = {
+  id: string;
+  label: string;
+  defaultReasoningEffort: CodexReasoningEffort;
+  reasoningEfforts: readonly CodexReasoningEffort[];
+};
+
+/**
+ * Models advertised by the visible Codex model catalog. Keep Custom available
+ * in the UI because catalog visibility can vary by account and rollout.
+ */
+export const CODEX_MODEL_PRESETS = [
+  {
+    id: "gpt-5.6-sol",
+    label: "GPT-5.6-Sol",
+    defaultReasoningEffort: "low",
+    reasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
+  },
+  {
+    id: "gpt-5.6-terra",
+    label: "GPT-5.6-Terra",
+    defaultReasoningEffort: "medium",
+    reasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
+  },
+  {
+    id: "gpt-5.6-luna",
+    label: "GPT-5.6-Luna",
+    defaultReasoningEffort: "medium",
+    reasoningEfforts: ["low", "medium", "high", "xhigh", "max"],
+  },
+  {
+    id: "gpt-5.5",
+    label: "GPT-5.5",
+    defaultReasoningEffort: "medium",
+    reasoningEfforts: ["low", "medium", "high", "xhigh"],
+  },
+  {
+    id: "gpt-5.4",
+    label: "GPT-5.4",
+    defaultReasoningEffort: "medium",
+    reasoningEfforts: ["low", "medium", "high", "xhigh"],
+  },
+  {
+    id: "gpt-5.4-mini",
+    label: "GPT-5.4-Mini",
+    defaultReasoningEffort: "medium",
+    reasoningEfforts: ["low", "medium", "high", "xhigh"],
+  },
+  {
+    id: "gpt-5.3-codex-spark",
+    label: "GPT-5.3-Codex-Spark",
+    defaultReasoningEffort: "high",
+    reasoningEfforts: ["low", "medium", "high", "xhigh"],
+  },
+] as const satisfies readonly CodexModelPreset[];
+
 export const DEFAULT_GEMMA_VRAM_MODE: GemmaVramMode = "full31b";
 export const DEFAULT_MODEL_PROVIDER: ModelProvider = "gemma";
 export const DEFAULT_MODEL_SOURCE: ModelSource = "huggingface";
-export const DEFAULT_CODEX_MODEL = "gpt-5.5";
+export const DEFAULT_CODEX_MODEL = CODEX_MODEL_PRESETS[0].id;
 export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = "low";
 export const DEFAULT_CODEX_OAUTH_PORT = 10531;
 export const DEFAULT_API_BASE_URL = "https://api.openai.com/v1";
-export const DEFAULT_API_MODEL = DEFAULT_CODEX_MODEL;
+export const DEFAULT_API_MODEL = "gpt-5.5";
 export const DEFAULT_API_TEMPERATURE = 0.2;
 export const DEFAULT_API_TOP_P = 0.95;
 export const DEFAULT_API_TOP_K: number | null = null;

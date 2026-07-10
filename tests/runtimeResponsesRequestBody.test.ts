@@ -15,14 +15,14 @@ describe("runtime Responses request body contracts", () => {
   it("treats OpenAI Codex as a remote OAuth-backed endpoint", () => {
     const launch = inspectModelLaunch({
       modelProvider: "openai-codex",
-      codexModel: "gpt-5.5",
-      codexReasoningEffort: "high",
+      codexModel: "gpt-5.6-luna",
+      codexReasoningEffort: "max",
     });
 
     expect(launch).toEqual({
       launchMode: "openai-codex",
-      model: "gpt-5.5",
-      reasoningEffort: "high",
+      model: "gpt-5.6-luna",
+      reasoningEffort: "max",
       requiresDownload: false,
     });
     expect(isModelCached({ modelProvider: "openai-codex" })).toBe(true);
@@ -266,8 +266,8 @@ describe("runtime Responses request body contracts", () => {
     const requestBody = buildResponsesRequestBody(
       {
         modelProvider: "openai-codex",
-        codexModel: "gpt-5.5",
-        codexReasoningEffort: "xhigh",
+        codexModel: "gpt-5.6-sol",
+        codexReasoningEffort: "ultra",
         imageWidth: 836,
         imageHeight: 1188,
       },
@@ -283,8 +283,8 @@ describe("runtime Responses request body contracts", () => {
       ],
     );
 
-    expect(requestBody.model).toBe("gpt-5.5");
-    expect(requestBody.reasoning.effort).toBe("xhigh");
+    expect(requestBody.model).toBe("gpt-5.6-sol");
+    expect(requestBody.reasoning.effort).toBe("ultra");
     expect(requestBody.stream).toBe(true);
     expect(requestBody.store).toBe(false);
     expect(

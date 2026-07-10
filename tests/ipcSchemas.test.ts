@@ -287,8 +287,8 @@ describe("IPC schemas", () => {
         llamaRocmTarget: "gfx1100",
       },
       codex: {
-        model: "gpt-5.5",
-        reasoningEffort: "medium",
+        model: "gpt-5.6-sol",
+        reasoningEffort: "ultra",
         oauthPort: 10531,
       },
       api: {
@@ -328,6 +328,7 @@ describe("IPC schemas", () => {
     expect(parsed.gemma.llamaRocmTarget).toBe("gfx110X");
     expect(parsed.api.baseUrl).toBe("http://127.0.0.1:1234/v1");
     expect(parsed.api.temperature).toBeNull();
+    expect(parsed.codex.reasoningEffort).toBe("ultra");
     expect(parsed.api.reasoningEffort).toBe("minimal");
     expect(parsed.ocr.qualityMode).toBe("economy");
     expect(parsed.ocr.gpuBackend).toBe("rocm-transformers");

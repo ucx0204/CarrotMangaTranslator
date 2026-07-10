@@ -10,7 +10,7 @@
     "llamaRuntimeProfile": "cuda12"
   },
   "codex": {
-    "model": "gpt-5.5",
+    "model": "gpt-5.6-sol",
     "reasoningEffort": "medium",
     "oauthPort": 10531
   },

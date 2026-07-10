@@ -105,7 +105,9 @@ function resolveConfiguredCodexReasoningEffort(
   if (value === "minimal") {
     return "low";
   }
-  return ["none", "low", "medium", "high", "xhigh"].includes(value)
+  return ["none", "low", "medium", "high", "xhigh", "max", "ultra"].includes(
+    value,
+  )
     ? value
     : DEFAULT_CODEX_REASONING_EFFORT;
 }

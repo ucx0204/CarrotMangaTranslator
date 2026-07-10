@@ -11,7 +11,9 @@ import type {
   OcrQualityMode,
 } from "../../../shared/settingsTypes";
 import {
+  CODEX_MODEL_PRESETS,
   GEMMA_MODEL_PRESETS,
+  type CodexModelPreset,
   type GemmaModelPresetId,
 } from "../../../shared/modelPresets";
 
@@ -80,6 +82,11 @@ type CodexReasoningOption = {
   label: string;
   description: string;
 };
+
+export type CodexModelOption = CodexModelPreset;
+
+export const CODEX_MODEL_OPTIONS: readonly CodexModelOption[] =
+  CODEX_MODEL_PRESETS;
 
 type ApiReasoningOption = {
   id: ApiReasoningEffort | "";
@@ -175,10 +182,44 @@ export const CODEX_REASONING_OPTIONS: CodexReasoningOption[] = [
   },
   {
     id: "xhigh",
-    label: "최고",
-    description: "가장 넉넉한 생각 예산을 사용합니다.",
+    label: "매우 높음",
+    description: "high보다 더 넉넉한 생각 예산을 사용합니다.",
+  },
+  {
+    id: "max",
+    label: "최대",
+    description: "지원 모델에서 xhigh보다 더 큰 생각 예산을 사용합니다.",
+  },
+  {
+    id: "ultra",
+    label: "Ultra",
+    description: "지원 모델에서 가장 큰 Ultra 생각 예산을 사용합니다.",
   },
 ];
+
+export function findCodexModelOption(
+  model: string,
+): CodexModelOption | undefined {
+  const normalized = model.trim();
+  return CODEX_MODEL_OPTIONS.find((option) => option.id === normalized);
+}
+
+export function supportsCodexReasoningEffort(
+  model: CodexModelOption,
+  effort: CodexReasoningEffort,
+): boolean {
+  return model.reasoningEfforts.some((candidate) => candidate === effort);
+}
+
+export function resolveCodexReasoningEffortForModel(
+  model: string,
+  effort: CodexReasoningEffort,
+): CodexReasoningEffort {
+  const option = findCodexModelOption(model);
+  return option && !supportsCodexReasoningEffort(option, effort)
+    ? option.defaultReasoningEffort
+    : effort;
+}
 
 export const API_REASONING_OPTIONS: ApiReasoningOption[] = [
   { id: "", label: "보내지 않음" },

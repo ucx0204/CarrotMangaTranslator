@@ -24,6 +24,7 @@ import {
   MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
   MODEL_PRESETS,
+  resolveCodexReasoningEffortForModel,
   resolveModelPreset,
   type ModelPresetId,
 } from "../settingsOptions";
@@ -88,7 +89,10 @@ export function createSettingsFormValues(
     customVramMode: settings.gemma.vramMode,
     llamaRuntimeProfile: settings.gemma.llamaRuntimeProfile ?? "cuda12",
     codexModel: settings.codex.model,
-    codexReasoningEffort: settings.codex.reasoningEffort,
+    codexReasoningEffort: resolveCodexReasoningEffortForModel(
+      settings.codex.model,
+      settings.codex.reasoningEffort,
+    ),
     codexOauthPort: String(settings.codex.oauthPort),
     apiBaseUrl: settings.api.baseUrl,
     apiModel: settings.api.model,
