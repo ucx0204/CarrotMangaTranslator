@@ -24,6 +24,8 @@
  *   y2?: number;
  *   jp: string;
  *   ko: string;
+ *   sourceText?: string;
+ *   translatedText?: string;
  *   textRole?: string;
  *   direction?: "horizontal" | "vertical";
  *   angle?: number;
@@ -224,10 +226,9 @@ function repairBrokenJson(candidate) {
     .replace(/```/g, "")
     .trim();
   repaired = repaired.replace(
-    /"?(id|type|textRole|text_role|bbox|jp|ko|direction|angle|fontSize|confidence|x1|y1|x2|y2)(?::|\s*:)/gi,
+    /"?(id|type|textRole|text_role|bbox|jp|ko|sourceText|translatedText|source|target|direction|angle|fontSize|confidence|x1|y1|x2|y2)(?::|\s*:)/gi,
     /** @param {string} _ @param {string} key */
-    (_, key) =>
-      `"${key === "fontSize" ? "fontSize" : key === "textRole" || key === "text_role" ? "textRole" : key.toLowerCase()}":`,
+    (_, key) => `"${normalizeRepairedJsonKey(key)}":`,
   );
   repaired = repaired.replace(
     /([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g,
@@ -240,7 +241,7 @@ function repairBrokenJson(candidate) {
     '$1"$2"$3',
   );
   repaired = repaired.replace(
-    /("(?:jp|ko|type)"\s*:\s*)([^"{[\n][^,\n}]*)/g,
+    /("(?:jp|ko|source|target|sourceText|translatedText|type)"\s*:\s*)([^"{[\n][^,\n}]*)/g,
     /** @param {string} _match @param {string} prefix @param {string} value */
     (_match, prefix, value) => {
       const trimmed = String(value).trim();
@@ -255,6 +256,27 @@ function repairBrokenJson(candidate) {
   repaired = repaired.replace(/"ko\s*:/g, '"ko":');
   repaired = repaired.replace(/,\s*([}\]])/g, "$1");
   return repaired;
+}
+
+/**
+ * @param {string} key
+ * @returns {string}
+ */
+function normalizeRepairedJsonKey(key) {
+  const lower = key.toLowerCase();
+  if (lower === "fontsize") {
+    return "fontSize";
+  }
+  if (lower === "textrole" || lower === "text_role") {
+    return "textRole";
+  }
+  if (lower === "sourcetext") {
+    return "sourceText";
+  }
+  if (lower === "translatedtext") {
+    return "translatedText";
+  }
+  return lower;
 }
 
 /**
@@ -442,14 +464,18 @@ function parseLooseItemList(rawText, options = {}) {
       continue;
     }
 
-    const jpMatch = line.match(/^"?jp"?\s*:\s*["']?(.+?)["']?[,]?$/i);
+    const jpMatch = line.match(
+      /^"?(?:jp|source|sourceText|source_text)"?\s*:\s*["']?(.+?)["']?[,]?$/i,
+    );
     if (jpMatch) {
       current.jp = jpMatch[1];
       currentTextKey = "jp";
       continue;
     }
 
-    const koMatch = line.match(/^"?ko"?\s*:\s*["']?(.+?)["']?[,]?$/i);
+    const koMatch = line.match(
+      /^"?(?:ko|target|translatedText|translated_text)"?\s*:\s*["']?(.+?)["']?[,]?$/i,
+    );
     if (koMatch) {
       current.ko = koMatch[1];
       currentTextKey = "ko";
@@ -479,7 +505,7 @@ function expandLooseRecordLines(text) {
   /** @type {string[]} */
   const expanded = [];
   const keyPattern =
-    /(?:^|\s)(id|type|textRole|text_role|role|direction|angle|fontSize|font_size|font|confidence|x1|y1|x2|y2|jp|ko)\s*:/gi;
+    /(?:^|\s)(id|type|textRole|text_role|role|direction|angle|fontSize|font_size|font|confidence|x1|y1|x2|y2|jp|ko|sourceText|source_text|source|translatedText|translated_text|target)\s*:/gi;
   for (const rawLine of rawLines) {
     const matches = [...rawLine.matchAll(keyPattern)];
     if (matches.length <= 1) {
@@ -698,6 +724,8 @@ function normalizeItem(item, index) {
       : {};
   const ko = [
     record.ko,
+    record.target,
+    record.translatedText,
     record.korean,
     record.translation,
     record.translated,
@@ -706,8 +734,9 @@ function normalizeItem(item, index) {
   const jp =
     [
       record.jp,
-      record.japanese,
       record.source,
+      record.sourceText,
+      record.japanese,
       record.ocr,
       record.text_jp,
     ].find((value) => typeof value === "string" && value.trim()) || "";
@@ -737,8 +766,12 @@ function normalizeItem(item, index) {
         }
       : {}),
     bbox,
+    // jp/ko는 하위 호환 별칭이고 sourceText/translatedText가 중립 명칭이다.
+    // 두 쌍 모두 항상 같은 값으로 채워진다.
     jp: normalizedJp,
     ko: normalizedKo,
+    sourceText: normalizedJp,
+    translatedText: normalizedKo,
     direction: normalizeDirection(
       record.direction ?? record.sourceDirection ?? record.writingDirection,
     ),

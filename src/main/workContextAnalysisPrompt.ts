@@ -5,6 +5,10 @@ import type {
   WorkContextAnalysisCoverage,
   WorkStyleGuide,
 } from "../shared/types";
+import {
+  resolveLanguagePair,
+  type ResolvedLanguagePair,
+} from "../shared/translationLanguages";
 import { buildPageStoryMemory } from "./pipeline/storyMemoryBuilder";
 import type { BasePageMemory } from "./workContextAiMerge";
 
@@ -34,16 +38,19 @@ export function selectWorkTextForAnalysis({
   chapters,
   scope,
   maxInputChars,
+  languagePair,
 }: {
   workId: string;
   requestedChapterId: string;
   chapters: ChapterSnapshot[];
   scope: WorkContextAnalysisScope;
   maxInputChars: number;
+  languagePair?: ResolvedLanguagePair;
 }): WorkTextSelection {
+  const pair = languagePair ?? resolveLanguagePair(null);
   const pages = chapters.flatMap((chapter, chapterIndex) =>
     chapter.pages.map((page, pageIndex) =>
-      makeWorkTextPage(chapter, chapterIndex, page, pageIndex),
+      makeWorkTextPage(chapter, chapterIndex, page, pageIndex, pair),
     ),
   );
   const candidatePages =
@@ -81,21 +88,30 @@ export function selectWorkTextForAnalysis({
 export function buildWorkContextAnalysisPrompt({
   guide,
   selection,
+  languagePair,
 }: {
   guide: WorkStyleGuide;
   selection: WorkTextSelection;
+  languagePair?: ResolvedLanguagePair;
 }): { systemPrompt: string; userPrompt: string } {
+  const pair = languagePair ?? resolveLanguagePair(null);
+  const isDefault = pair.isDefaultJapaneseToKorean;
+  const targetLabel = pair.target.labelKo;
   return {
     systemPrompt: [
       "너는 만화 번역 프로젝트의 작품 메모리 편집자다.",
-      "일본어/원문과 기존 한국어 번역을 함께 읽고, 번역 일관성을 높일 용어집, 캐릭터 이름/말투, 스토리 메모리를 구조화한다.",
+      isDefault
+        ? "일본어/원문과 기존 한국어 번역을 함께 읽고, 번역 일관성을 높일 용어집, 캐릭터 이름/말투, 스토리 메모리를 구조화한다."
+        : `원문(${pair.source.labelKo})과 기존 번역(${targetLabel})을 함께 읽고, 번역 일관성을 높일 용어집, 캐릭터 이름/말투, 스토리 메모리를 구조화한다.`,
       "추측이 약한 항목은 제외하고, 출력은 설명 없이 JSON 객체 하나만 반환한다.",
     ].join("\n"),
     userPrompt: [
-      "아래 작품 텍스트를 분석해서 한국어 번역용 작품 메모리를 만들어라.",
+      isDefault
+        ? "아래 작품 텍스트를 분석해서 한국어 번역용 작품 메모리를 만들어라."
+        : `아래 작품 텍스트를 분석해서 ${targetLabel} 번역용 작품 메모리를 만들어라.`,
       "",
       "반드시 이 JSON 스키마로만 답해라:",
-      makeOutputSchemaText(),
+      makeOutputSchemaText(pair),
       "",
       "분류 enum:",
       "glossary.category = character | alias | place | term | sfx | honorific | other",
@@ -103,16 +119,27 @@ export function buildWorkContextAnalysisPrompt({
       "rules.honorifics = preserve | adapt | drop",
       "rules.sfxMode = preserve | translate | note",
       "rules.defaultTone = natural_korean | literal",
+      ...(!isDefault
+        ? [
+            "- natural_korean은 저장 호환용 이름이며, 이 언어쌍에서는 자연스러운 번역 언어 문체를 뜻한다.",
+          ]
+        : []),
       "",
       "작성 기준:",
       `- glossary와 characters는 ${formatExtractionScope(selection.coverage.scope)}에서 추출하라.`,
       "- 이 분석은 여러 화를 반복 실행해 작품 용어집과 캐릭터 메모리에 계속 병합되는 흐름이다.",
       "- pageSummaries만 requestedChapterId와 같은 화로 제한하라.",
-      "- source는 원문에 등장한 표기를 그대로 적고, target은 기존 ko 번역 표기가 있으면 그 표기를 우선 사용하라.",
+      isDefault
+        ? "- source는 원문에 등장한 표기를 그대로 적고, target은 기존 ko 번역 표기가 있으면 그 표기를 우선 사용하라."
+        : "- source는 원문에 등장한 표기를 그대로 적어라. 기존 작품 메모리의 target은 다른 번역 언어로 작성됐을 수 있으므로, 현재 번역 언어 표기일 때만 우선하고 아니면 현재 번역 언어로 새로 번역하라.",
       "- 인명, 별명, 호칭, 장소명, 조직명, 왕국명, 학교명, 연구회명, 마법/속성/아이템/신물처럼 이후 번역 통일에 필요한 항목을 적극적으로 담아라.",
       "- 한 번만 등장해도 고유명사이거나 세계관 용어이면 포함하라. 단순 일반명사만 제외하라.",
-      "- 원문 이름에 様/君/さん/ちゃん/先生/王/神이 붙거나, 한국어가 ~님/선생님/왕/여신으로 번역된 개별 인물·신격은 characters 후보로 우선 등록하라.",
-      "- 캐릭터는 같은 인물의 원문 이름/별명/한국어 이름/말투를 묶고, 말투를 모르겠으면 neutral로 두어라.",
+      isDefault
+        ? "- 원문 이름에 様/君/さん/ちゃん/先生/王/神이 붙거나, 한국어가 ~님/선생님/왕/여신으로 번역된 개별 인물·신격은 characters 후보로 우선 등록하라."
+        : "- 원문 이름에 존칭·경칭이 붙거나 번역에서 존칭으로 옮겨진 개별 인물·신격은 characters 후보로 우선 등록하라.",
+      isDefault
+        ? "- 캐릭터는 같은 인물의 원문 이름/별명/한국어 이름/말투를 묶고, 말투를 모르겠으면 neutral로 두어라."
+        : "- 캐릭터는 같은 인물의 원문 이름/별명/번역 이름/말투를 묶고, 말투를 모르겠으면 neutral로 두어라.",
       "- note에는 번역에 도움이 되는 역할, 관계, 말투, 의미 설명만 짧게 적어라.",
       "- note, target, aliases, displayName, targetName 안에 Page 11, 11쪽, pageId, chapterId, AI confidence, confidence 1.00, 확신도, 출처, 근거 페이지 같은 분석 메타데이터를 절대 쓰지 마라.",
       "- 신뢰도 숫자는 어떤 필드에도 쓰지 마라. 확실하지 않은 항목은 confidence를 낮추는 대신 아예 제외하라.",
@@ -127,7 +154,9 @@ export function buildWorkContextAnalysisPrompt({
       `requestedChapterId: ${selection.coverage.requestedChapterId}`,
       `truncated: ${selection.coverage.truncated ? "true" : "false"}`,
       "",
-      "기존 작품 메모리:",
+      isDefault
+        ? "기존 작품 메모리:"
+        : "기존 작품 메모리(다른 언어쌍 데이터일 수 있으므로 의미와 항목 식별 힌트로만 사용):",
       summarizeExistingGuide(guide),
       "",
       "작품 텍스트:",
@@ -140,7 +169,10 @@ function formatExtractionScope(scope: WorkContextAnalysisScope): string {
   return scope === "work" ? "포함된 모든 화" : "현재 화";
 }
 
-export function buildWorkContextJsonRepairPrompt(rawText: string): {
+export function buildWorkContextJsonRepairPrompt(
+  rawText: string,
+  languagePair?: ResolvedLanguagePair,
+): {
   systemPrompt: string;
   userPrompt: string;
 } {
@@ -155,7 +187,7 @@ export function buildWorkContextJsonRepairPrompt(rawText: string): {
       "문자열 따옴표/이스케이프/후행 콤마/잘린 항목을 정리하되, 불완전한 항목은 삭제하라.",
       "",
       "반드시 이 JSON 스키마로만 답해라:",
-      makeOutputSchemaText(),
+      makeOutputSchemaText(languagePair ?? resolveLanguagePair(null)),
       "",
       "깨진 응답:",
       capText(rawText, MAX_REPAIR_OUTPUT_CHARS),
@@ -204,9 +236,12 @@ function makeWorkTextPage(
   chapterIndex: number,
   page: MangaPage,
   pageIndex: number,
+  languagePair: ResolvedLanguagePair,
 ): WorkTextPage {
   const blockLines = page.blocks
-    .map((block, blockIndex) => formatBlockLine(blockIndex, block))
+    .map((block, blockIndex) =>
+      formatBlockLine(blockIndex, block, languagePair),
+    )
     .filter(Boolean);
   const header = [
     `CHAPTER ${chapterIndex + 1}: ${chapter.title}`,
@@ -229,13 +264,16 @@ function makeWorkTextPage(
 function formatBlockLine(
   blockIndex: number,
   block: MangaPage["blocks"][number],
+  languagePair: ResolvedLanguagePair,
 ): string {
   const source = capText(block.sourceText, MAX_BLOCK_TEXT_CHARS);
   const translated = capText(block.translatedText, MAX_BLOCK_TEXT_CHARS);
   if (!source && !translated) {
     return "";
   }
-  return `B${blockIndex + 1}: source="${source}" | ko="${translated}"`;
+  // ja→ko 기본에서는 기존 프롬프트와 동일하게 ko= 라벨을 유지한다.
+  const targetLabel = languagePair.isDefaultJapaneseToKorean ? "ko" : "target";
+  return `B${blockIndex + 1}: source="${source}" | ${targetLabel}="${translated}"`;
 }
 
 function makeBasePageMemory(page: WorkTextPage): BasePageMemory {
@@ -281,13 +319,15 @@ function summarizeExistingGuide(guide: WorkStyleGuide): string {
   });
 }
 
-function makeOutputSchemaText(): string {
+function makeOutputSchemaText(pair: ResolvedLanguagePair): string {
+  const isDefault = pair.isDefaultJapaneseToKorean;
+  const targetLabel = pair.target.labelKo;
   return JSON.stringify(
     {
       glossary: [
         {
-          source: "原文表記",
-          target: "한국어 확정 번역",
+          source: isDefault ? "原文表記" : "원문 표기",
+          target: isDefault ? "한국어 확정 번역" : `${targetLabel} 확정 번역`,
           category: "character",
           aliases: ["다른 원문 표기"],
           note: "번역에 필요한 의미/역할 메모",
@@ -295,9 +335,9 @@ function makeOutputSchemaText(): string {
       ],
       characters: [
         {
-          displayName: "한국어 표시명",
-          sourceNames: ["原文名"],
-          targetName: "한국어 이름",
+          displayName: isDefault ? "한국어 표시명" : `${targetLabel} 표시명`,
+          sourceNames: [isDefault ? "原文名" : "원문 이름"],
+          targetName: isDefault ? "한국어 이름" : `${targetLabel} 이름`,
           aliases: ["별명"],
           speechStyle: "casual",
           customSpeechStyle: "custom일 때만 구체적으로",

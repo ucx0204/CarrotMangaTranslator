@@ -13,6 +13,9 @@ const {
   getOverlayPrompt,
 } = require("./simple-page-prompts.cjs");
 const {
+  allowOcrNoTextDetectedSkip,
+} = require("./simple-page-language-profile.cjs");
+const {
   isOpenAIApiProvider,
   isOpenAICodexProvider,
   resolveConfiguredCodexModel,
@@ -281,7 +284,9 @@ async function requestTranslation(server, options) {
       ),
     });
 
-  if (ocrBboxResult.noTextDetected) {
+  // OCR "텍스트 없음" 스킵 최적화는 일본어 원문에서만 안전하다. 다른 원문
+  // 언어는 OCR false negative가 더 위험하므로 항상 모델을 호출한다.
+  if (ocrBboxResult.noTextDetected && allowOcrNoTextDetectedSkip(options)) {
     const systemPrompt = buildSystemPrompt(promptOptions);
     const requestSummary = buildRequestSummary(
       server,

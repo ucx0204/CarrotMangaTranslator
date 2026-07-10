@@ -4,6 +4,7 @@ import type {
   KoharuInpaintingBackend,
 } from "./inpaintingSettingsTypes";
 import type { BlockFormatDefaults } from "./blockFormat";
+import type { TranslationLanguageSettings } from "./translationLanguages";
 
 export type {
   FluxBackend,
@@ -14,6 +15,10 @@ export type {
   BlockFormatDefaults,
   BlockFormatDirectionDefault,
 } from "./blockFormat";
+export type {
+  LanguageCode,
+  TranslationLanguageSettings,
+} from "./translationLanguages";
 
 export type ModelProvider = "gemma" | "openai-codex" | "openai-api";
 export type ModelSource = "huggingface" | "local";
@@ -113,6 +118,11 @@ export type KeybindingOverrides = Record<string, string>;
 
 export type AppSettings = {
   modelProvider: ModelProvider;
+  /**
+   * 작품 번역 언어쌍(원문 -> 번역). 모델 제공자와 독립인 번역 도메인 설정.
+   * 저장 설정에 없으면 normalize에서 일본어 -> 한국어로 채워진다.
+   */
+  translation?: TranslationLanguageSettings;
   gemma: GemmaSettings;
   codex: CodexSettings;
   api: ApiSettings;

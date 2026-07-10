@@ -74,6 +74,8 @@ function buildOptionSummary(options = {}) {
     imagePath: options.imagePath,
     outputDir: options.outputDir,
     modelProvider: resolveModelProvider(options),
+    sourceLanguage: options.sourceLanguage,
+    targetLanguage: options.targetLanguage,
     port: options.port,
     promptMode: options.promptMode,
     strictRefineMode: Boolean(options.strictRefineMode),

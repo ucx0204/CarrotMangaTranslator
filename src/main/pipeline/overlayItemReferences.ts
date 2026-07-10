@@ -7,6 +7,7 @@ import type {
   TranslationResult,
 } from "./types";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
+import { isJapaneseLanguageCode } from "../../shared/translationLanguages";
 import {
   hasPixelCoordinateEvidence,
   inferDetectedBboxSpace,
@@ -20,6 +21,7 @@ export type OverlayValidationResult = {
 
 export type OverlayValidationOptions = {
   regionCropMode?: boolean;
+  sourceLanguage?: string;
 };
 
 export function validateOverlayItemsAgainstReferences(
@@ -37,7 +39,13 @@ export function validateOverlayItemsAgainstReferences(
   for (const item of items) {
     const reason = options.regionCropMode
       ? resolveRegionCropDropReason(item)
-      : resolveOverlayDropReason(item, accepted, candidateBoxes, candidateIds);
+      : resolveOverlayDropReason(
+          item,
+          accepted,
+          candidateBoxes,
+          candidateIds,
+          options,
+        );
     if (reason) {
       reasons[reason] = (reasons[reason] ?? 0) + 1;
       continue;
@@ -144,8 +152,9 @@ function resolveOverlayDropReason(
   accepted: OverlayItem[],
   candidateBoxes: CandidateReferenceBox[],
   candidateIds: Set<number>,
+  options: OverlayValidationOptions,
 ): string | null {
-  if (isFragmentNoise(item.jp, item.ko)) {
+  if (isFragmentNoise(item.jp, item.ko, options.sourceLanguage)) {
     return "fragment_noise";
   }
   if (isMergedUiListBlock(item)) {
@@ -212,7 +221,11 @@ function normalizeReferenceText(value: unknown): string {
     .replace(/[^a-z0-9_-]+/g, "_");
 }
 
-function isFragmentNoise(jp: string, ko: string): boolean {
+function isFragmentNoise(
+  jp: string,
+  ko: string,
+  sourceLanguage?: string,
+): boolean {
   const source = jp.replace(/\s+/g, "");
   const target = ko.replace(/\s+/g, "");
 
@@ -224,7 +237,8 @@ function isFragmentNoise(jp: string, ko: string): boolean {
   }
 
   const hasJapanese = /[぀-ヿ㐀-䶿一-鿿豈-﫿々ー]/.test(source);
-  if (!hasJapanese && source.length <= 3) {
+  const usesJapaneseFragmentHeuristic = isJapaneseLanguageCode(sourceLanguage);
+  if (usesJapaneseFragmentHeuristic && !hasJapanese && source.length <= 3) {
     return true;
   }
   return /^[.。．・…⋯･\-‐‑–—―~〜～_＿]+$/.test(target);

@@ -56,6 +56,10 @@ export type EngineSettingsPanelProps = {
   setMaxTokens: React.Dispatch<React.SetStateAction<string>>;
   setModelProvider: React.Dispatch<React.SetStateAction<ModelProvider>>;
   setModelSource: React.Dispatch<React.SetStateAction<ModelSource>>;
+  setSourceLanguage: React.Dispatch<React.SetStateAction<string>>;
+  setTargetLanguage: React.Dispatch<React.SetStateAction<string>>;
+  sourceLanguage: string;
+  targetLanguage: string;
   setSelectedPreset: React.Dispatch<React.SetStateAction<ModelPresetId>>;
   setApiBaseUrl: React.Dispatch<React.SetStateAction<string>>;
   setApiCustomHeadersJson: React.Dispatch<React.SetStateAction<string>>;

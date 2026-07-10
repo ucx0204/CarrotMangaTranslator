@@ -55,6 +55,8 @@ function useSettingsFormSetters(
 ): SettingsFormSetters {
   return {
     setModelProvider: useFormFieldDispatch(setValues, "modelProvider"),
+    setSourceLanguage: useFormFieldDispatch(setValues, "sourceLanguage"),
+    setTargetLanguage: useFormFieldDispatch(setValues, "targetLanguage"),
     setModelSource: useFormFieldDispatch(setValues, "modelSource"),
     setSelectedPreset: useFormFieldDispatch(setValues, "selectedPreset"),
     setCustomModelRepo: useFormFieldDispatch(setValues, "customModelRepo"),

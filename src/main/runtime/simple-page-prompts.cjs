@@ -2,7 +2,7 @@
 /**
  * @typedef {{ x?: unknown; y?: unknown; w?: unknown; h?: unknown }} PromptBbox
  * @typedef {{ previousId?: unknown; index?: unknown; candidateId?: unknown; bbox?: PromptBbox; textRole?: unknown; sourceText?: unknown; translatedText?: unknown; confidence?: unknown }} PreviousPromptBlock
- * @typedef {{ modelProvider?: string; modelRepo?: unknown; modelFile?: unknown; localModelPath?: unknown; regionCropMode?: unknown; strictRefineMode?: unknown; keepBlocksMode?: unknown; previousBlocksForPrompt?: PreviousPromptBlock[]; workContext?: PromptWorkContext | null; imageWidth?: unknown; imageHeight?: unknown; ocrBboxHints?: OcrHint[]; [key: string]: unknown }} PromptOptions
+ * @typedef {{ modelProvider?: string; sourceLanguage?: unknown; targetLanguage?: unknown; modelRepo?: unknown; modelFile?: unknown; localModelPath?: unknown; regionCropMode?: unknown; strictRefineMode?: unknown; keepBlocksMode?: unknown; previousBlocksForPrompt?: PreviousPromptBlock[]; workContext?: PromptWorkContext | null; imageWidth?: unknown; imageHeight?: unknown; ocrBboxHints?: OcrHint[]; [key: string]: unknown }} PromptOptions
  * @typedef {{ role?: string; width?: unknown; height?: unknown; [key: string]: unknown }} ImageVariant
  * @typedef {string[]} PromptSection
  * @typedef {{ styleGuide?: PromptStyleGuide | null; storyMemory?: { pages?: PromptStoryPage[] } | null }} PromptWorkContext
@@ -15,7 +15,136 @@
  * @typedef {{ groupId: string; rolePrior: string; containerType: string; hints: OcrHint[] }} OcrHintGroup
  * @typedef {{ x1: number; y1: number; x2: number; y2: number }} PromptBox
  * @typedef {{ space: "pixels" | "normalized_1000"; frame: { width: number; height: number } }} PromptCoordinateFrame
+ * @typedef {import("./simple-page-language-profile.cjs").PromptLanguageProfile} PromptLanguageProfile
  */
+const {
+  resolvePromptLanguageProfile,
+} = require("./simple-page-language-profile.cjs");
+
+// The canonical prompt text below is written and tuned for the default
+// Japanese -> Korean manga profile. For any other language pair the final
+// prompt is localized: Japanese/Korean words and jp/ko record keys become the
+// profile's language names and source/target keys, and lines that only make
+// sense for Japanese source glyphs (kana rules) or Korean target examples
+// (Hangul SFX samples) are dropped. Kana is the drop signal for Japanese, not
+// CJK ideographs, because ideographs are shared with Chinese source pages.
+const JAPANESE_KANA_LINE_PATTERN = /[぀-ヿ]/;
+const HANGUL_LINE_PATTERN = /[가-힯ᄀ-ᇿ]/;
+const JAPANESE_TERM_LINE_PATTERN =
+  /\b(kana|katakana|hiragana|furigana|ruby|dakuten|sokuon)\b/i;
+
+/**
+ * @param {string} line
+ * @param {PromptLanguageProfile} profile
+ * @returns {boolean}
+ */
+function isLanguagePairSpecificPromptLine(line, profile) {
+  const sourceIsJapanese = profile.sourceBaseCode === "ja";
+  const targetIsKorean = profile.targetBaseCode === "ko";
+  if (
+    !sourceIsJapanese &&
+    (JAPANESE_KANA_LINE_PATTERN.test(line) ||
+      JAPANESE_TERM_LINE_PATTERN.test(line))
+  ) {
+    return true;
+  }
+  if (!targetIsKorean && HANGUL_LINE_PATTERN.test(line)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * @param {string} line
+ * @param {PromptLanguageProfile} profile
+ * @returns {string}
+ */
+function substitutePromptLanguageTokens(line, profile) {
+  return line
+    .replace(/\b(?:Japanese|Korean)\b/g, (token) =>
+      token === "Japanese" ? profile.sourceName : profile.targetName,
+    )
+    .replace(/\b(?:jp|ko)\b/g, (token) =>
+      token === "jp" ? profile.sourceKey : profile.targetKey,
+    );
+}
+
+/**
+ * 사용자 OCR/용어집/이전 블록 데이터는 이미 한 줄로 정규화되어 있다. 이 줄을
+ * 정적 프롬프트 현지화에 통과시키면 비기본 언어쌍에서 실제 원문이 삭제되거나
+ * "Japanese Breakfast" 같은 고유 텍스트가 바뀔 수 있으므로 불투명하게 둔다.
+ * @param {string} line
+ * @returns {boolean}
+ */
+function isDynamicPromptDataLine(line) {
+  return (
+    line.startsWith("- ") ||
+    /^previous \d+:/.test(line) ||
+    /^candidate \d+:/.test(line) ||
+    /^group G\d{3,4}:/.test(line) ||
+    /^hint \d+:/.test(line) ||
+    /^\s+"(?:source|target)":/.test(line)
+  );
+}
+
+/**
+ * 일본어 만화 전용 잡음/읽기 순서 규칙을 다른 원문 언어에 맞게 중립화한다.
+ * @param {string} line
+ * @param {PromptLanguageProfile} profile
+ * @returns {string}
+ */
+function adaptStaticPromptLineForProfile(line, profile) {
+  if (profile.sourceBaseCode === "ja") {
+    return line;
+  }
+  if (
+    line.startsWith(
+      "Skip records whose jp is only punctuation, decorative marks, page numbers, a lone Latin letter",
+    )
+  ) {
+    return "Skip records whose jp is only punctuation, decorative marks, or an unreadable clipped glyph. Meaningful single letters, digits, and compact labels are valid source text.";
+  }
+  if (
+    line.startsWith(
+      "Never add new ordinary records for dots, dashes, ellipses, Latin letters, digits, UI fragments",
+    )
+  ) {
+    return "Never add new ordinary records for decorative dots, dashes, panel trim, furniture lines, wall patterns, or unreadable isolated strokes. Meaningful single letters, digits, and compact UI labels are valid source text.";
+  }
+  if (
+    line ===
+    "Process panels and bubbles exhaustively from top to bottom and right to left."
+  ) {
+    return profile.sourceIsRtl
+      ? "Process panels and bubbles exhaustively from top to bottom and right to left."
+      : "Process panels and bubbles exhaustively from top to bottom and left to right.";
+  }
+  return line;
+}
+
+/**
+ * @param {string} text
+ * @param {PromptLanguageProfile} profile
+ * @returns {string}
+ */
+function localizePromptTextForProfile(text, profile) {
+  if (profile.isDefaultJapaneseToKorean) {
+    return text;
+  }
+  const localized = [];
+  for (const line of text.split("\n")) {
+    if (isDynamicPromptDataLine(line)) {
+      localized.push(line);
+      continue;
+    }
+    const adaptedLine = adaptStaticPromptLineForProfile(line, profile);
+    if (isLanguagePairSpecificPromptLine(adaptedLine, profile)) {
+      continue;
+    }
+    localized.push(substitutePromptLanguageTokens(adaptedLine, profile));
+  }
+  return localized.join("\n").replace(/\n{3,}/g, "\n\n");
+}
 
 /**
  * @param {unknown} value
@@ -221,14 +350,18 @@ const PROMPT_KO_BBOX_LINES_MULTIVIEW = buildOverlayPrompt();
  * @returns {string}
  */
 function buildSystemPrompt(options = {}) {
+  const languageProfile = resolvePromptLanguageProfile(options);
   if (options.regionCropMode) {
-    return [
-      "You are an OCR and manga-translation engine.",
-      "Return only the single JSON object format requested by the user prompt.",
-      "Image 1 is the coordinate authority. Geometry accuracy comes before Korean text fit.",
-      "Use the full-page context image, glossary, and story memory only to understand speaker, tone, terms, and continuity for the visible Japanese inside Image 1.",
-      "Render ordinary speech, captions, labels, and notes in natural horizontal Korean by default.",
-    ].join("\n\n");
+    return localizePromptTextForProfile(
+      [
+        "You are an OCR and manga-translation engine.",
+        "Return only the single JSON object format requested by the user prompt.",
+        "Image 1 is the coordinate authority. Geometry accuracy comes before Korean text fit.",
+        "Use the full-page context image, glossary, and story memory only to understand speaker, tone, terms, and continuity for the visible Japanese inside Image 1.",
+        "Render ordinary speech, captions, labels, and notes in natural horizontal Korean by default.",
+      ].join("\n\n"),
+      languageProfile,
+    );
   }
 
   const lines = [
@@ -268,7 +401,7 @@ function buildSystemPrompt(options = {}) {
     );
   }
 
-  return lines.join("\n\n");
+  return localizePromptTextForProfile(lines.join("\n\n"), languageProfile);
 }
 
 /**
@@ -375,9 +508,12 @@ function buildOverlayPrompt(options = {}, imageVariants = []) {
     );
   }
 
-  return sections
-    .map(([title, ...lines]) => [`# ${title}`, ...lines].join("\n"))
-    .join("\n\n");
+  return localizePromptTextForProfile(
+    sections
+      .map(([title, ...lines]) => [`# ${title}`, ...lines].join("\n"))
+      .join("\n\n"),
+    resolvePromptLanguageProfile(options),
+  );
 }
 
 /**
@@ -386,17 +522,21 @@ function buildOverlayPrompt(options = {}, imageVariants = []) {
  * @returns {string}
  */
 function buildRegionOverlayPrompt(options = {}, imageVariants = []) {
+  const languageProfile = resolvePromptLanguageProfile(options);
   const sections = [
     buildRegionTaskSection(imageVariants),
     buildCoordinateCalibrationSection(options, imageVariants),
-    buildRegionOutputSection(),
+    buildRegionOutputSection(languageProfile),
     buildWorkContextSection(options),
     buildRegionOcrReadingHintSection(options, imageVariants),
   ].filter((section) => section.length > 1);
 
-  return sections
-    .map(([title, ...lines]) => [`# ${title}`, ...lines].join("\n"))
-    .join("\n\n");
+  return localizePromptTextForProfile(
+    sections
+      .map(([title, ...lines]) => [`# ${title}`, ...lines].join("\n"))
+      .join("\n\n"),
+    languageProfile,
+  );
 }
 
 /**
@@ -617,6 +757,8 @@ function buildWorkContextSection(options = {}) {
     : [];
   const rules = guide.rules || {};
   const regionCropMode = Boolean(options.regionCropMode);
+  const languageProfile = resolvePromptLanguageProfile(options);
+  const targetIsKorean = languageProfile.targetBaseCode === "ko";
   const lines = [
     "Work glossary and story memory",
     regionCropMode
@@ -627,7 +769,9 @@ function buildWorkContextSection(options = {}) {
 
   if (glossary.length > 0) {
     lines.push(
-      "Use these glossary entries for consistency. If the source text matches an entry or alias, prefer the target Korean exactly unless Image 1 clearly proves a different meaning.",
+      targetIsKorean
+        ? "Use these glossary entries for consistency. If the source text matches an entry or alias, prefer the target Korean exactly unless Image 1 clearly proves a different meaning."
+        : "Use glossary source terms and aliases for identity and meaning. Stored target values may come from an earlier target language: reuse one exactly only when it is already written in the requested target language; otherwise translate or localize it into the requested target language.",
       "When a glossary term is written as kanji with furigana/ruby, the kanji and ruby are one term. Translate that term once using the glossary target, and do not treat ruby as an extra name after particles like の.",
     );
     for (const entry of glossary.slice(0, 80)) {
@@ -637,7 +781,9 @@ function buildWorkContextSection(options = {}) {
 
   if (characters.length > 0) {
     lines.push(
-      "Character/name memory. Keep names and speech style consistent when translating dialogue.",
+      targetIsKorean
+        ? "Character/name memory. Keep names and speech style consistent when translating dialogue."
+        : "Character/name memory. Stored display and target names may come from an earlier target language; use them as identity hints and render names and dialogue in the requested target language.",
     );
     for (const character of characters.slice(0, 40)) {
       lines.push(formatCharacterEntry(character));
@@ -657,8 +803,13 @@ function buildWorkContextSection(options = {}) {
     }
   }
 
+  const defaultTone =
+    !targetIsKorean &&
+    (!rules.defaultTone || rules.defaultTone === "natural_korean")
+      ? "natural_target"
+      : rules.defaultTone || "natural_korean";
   lines.push(
-    `Rules: honorifics=${rules.honorifics || "adapt"}, sfxMode=${rules.sfxMode || "translate"}, defaultTone=${rules.defaultTone || "natural_korean"}.`,
+    `Rules: honorifics=${rules.honorifics || "adapt"}, sfxMode=${rules.sfxMode || "translate"}, defaultTone=${defaultTone}.`,
   );
   return lines.length > 1 ? lines : [];
 }
@@ -724,15 +875,21 @@ function formatPreviousPassBlock(
     ? ` confidence:${Math.round(confidence * 100) / 100}`
     : "";
   const review = classifyPreviousPassTextForPrompt(block, options);
+  const languageProfile = resolvePromptLanguageProfile(options);
   const oldText =
     review.reasons.length > 0
       ? ` oldText:${review.omitSource && review.omitTranslation ? "omitted" : "partial"} reason:${JSON.stringify(review.reasons.join(";"))}`
       : "";
   const jp = sanitizePromptLine(block.sourceText, 160);
   const ko = sanitizePromptLine(block.translatedText, 160);
-  const jpText = !review.omitSource && jp ? ` jp:${JSON.stringify(jp)}` : "";
+  const jpText =
+    !review.omitSource && jp
+      ? ` ${languageProfile.sourceKey}:${JSON.stringify(jp)}`
+      : "";
   const koText =
-    !review.omitTranslation && ko ? ` ko:${JSON.stringify(ko)}` : "";
+    !review.omitTranslation && ko
+      ? ` ${languageProfile.targetKey}:${JSON.stringify(ko)}`
+      : "";
   return `previous ${index}:${candidate} bbox:[${bbox.x1},${bbox.y1},${bbox.x2},${bbox.y2}] role:${role}${confidenceText}${oldText}${jpText}${koText}`;
 }
 
@@ -753,15 +910,22 @@ function classifyPreviousPassTextForPrompt(block, options = {}) {
 
   const sourceText = normalizePromptAuditText(block?.sourceText);
   const translatedText = normalizePromptAuditText(block?.translatedText);
-  const glossaryConflict = findPreviousGlossaryConflict(
-    sourceText,
-    translatedText,
-    options.workContext,
-  );
+  const languageProfile = resolvePromptLanguageProfile(options);
+  const glossaryConflict =
+    languageProfile.targetBaseCode === "ko"
+      ? findPreviousGlossaryConflict(
+          sourceText,
+          translatedText,
+          options.workContext,
+        )
+      : "";
   if (glossaryConflict) {
     reasons.push(`glossary_conflict:${glossaryConflict}`);
   }
-  if (hasMixedJapaneseLatinNoise(sourceText)) {
+  if (
+    languageProfile.sourceBaseCode === "ja" &&
+    hasMixedJapaneseLatinNoise(sourceText)
+  ) {
     reasons.push("mixed_latin_ocr_noise");
   }
 
@@ -931,9 +1095,18 @@ function buildRegionTaskSection(imageVariants = []) {
 }
 
 /**
+ * @param {PromptLanguageProfile} profile
  * @returns {PromptSection}
  */
-function buildRegionOutputSection() {
+function buildRegionOutputSection(profile) {
+  // The generic profile keeps the JSON example ASCII-only so the language
+  // localization line filter can never break the example structure.
+  const sourceExample = profile.isDefaultJapaneseToKorean
+    ? "見える日本語"
+    : `visible ${profile.sourceName} text`;
+  const targetExample = profile.isDefaultJapaneseToKorean
+    ? "자연스러운 한국어"
+    : `natural ${profile.targetName} translation`;
   return [
     "Output",
     "Return exactly one JSON object with one key named item.",
@@ -950,8 +1123,8 @@ function buildRegionOutputSection() {
     '    "angle": 0,',
     '    "fontSize": 24,',
     '    "confidence": 0.95,',
-    '    "jp": "見える日本語",',
-    '    "ko": "자연스러운 한국어"',
+    `    "${profile.sourceKey}": "${sourceExample}",`,
+    `    "${profile.targetKey}": "${targetExample}"`,
     "  }",
     "}",
     "When no readable Japanese exists, use this shape:",
@@ -1495,11 +1668,16 @@ function normalizeOcrTextValue(value) {
  * @returns {string}
  */
 function sanitizeOcrTextForPrompt(value, options = {}) {
+  const normalized = normalizeOcrTextValue(value);
+  const sourceText =
+    resolvePromptLanguageProfile(options).sourceBaseCode === "ja"
+      ? removeGlossaryDuplicateRubyNoise(
+          removeMixedJapaneseLatinNoise(normalized),
+          options.workContext,
+        )
+      : normalized;
   return truncateText(
-    removeGlossaryDuplicateRubyNoise(
-      removeMixedJapaneseLatinNoise(normalizeOcrTextValue(value)),
-      options.workContext,
-    )
+    sourceText
       .replace(/[\u0000-\u001F\u007F]+/g, " ")
       .replace(/\s+/g, " ")
       .trim(),

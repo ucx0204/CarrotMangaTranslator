@@ -14,6 +14,12 @@ import type {
 } from "../../../../shared/settingsTypes";
 import { coerceOpenAiCompatibleBaseUrl } from "../../../../shared/apiSettings";
 import {
+  DEFAULT_SOURCE_LANGUAGE,
+  DEFAULT_TARGET_LANGUAGE,
+  isValidLanguageCodeInput,
+  normalizeLanguageCode,
+} from "../../../../shared/translationLanguages";
+import {
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
@@ -24,6 +30,8 @@ import {
 
 export type SettingsFormValues = {
   modelProvider: ModelProvider;
+  sourceLanguage: string;
+  targetLanguage: string;
   modelSource: ModelSource;
   selectedPreset: ModelPresetId;
   customModelRepo: string;
@@ -60,6 +68,14 @@ export function createSettingsFormValues(
 ): SettingsFormValues {
   return {
     modelProvider: settings.modelProvider,
+    sourceLanguage: normalizeLanguageCode(
+      settings.translation?.sourceLanguage,
+      DEFAULT_SOURCE_LANGUAGE,
+    ),
+    targetLanguage: normalizeLanguageCode(
+      settings.translation?.targetLanguage,
+      DEFAULT_TARGET_LANGUAGE,
+    ),
     modelSource: settings.gemma.modelSource,
     selectedPreset: resolveModelPreset(
       settings.gemma.modelRepo,
@@ -121,6 +137,8 @@ export function resolveSettingsDraft(values: SettingsFormValues) {
     codexOauthPortValid: isValidPort(parsedCodexOauthPort),
     maxTokensValid: isValidMaxTokens(parsedMaxTokens),
     contextTokensValid: isValidContextTokens(parsedContextTokens),
+    sourceLanguageValid: isValidLanguageCodeInput(values.sourceLanguage),
+    targetLanguageValid: isValidLanguageCodeInput(values.targetLanguage),
   };
 }
 
@@ -226,6 +244,10 @@ export function isSettingsFormSubmittable(
   draft: SettingsDraft,
 ): boolean {
   if (!draft.maxTokensValid || !draft.contextTokensValid) {
+    return false;
+  }
+  // 잘못된 언어 코드는 normalize가 조용히 되돌리므로 저장 전에 막는다.
+  if (!draft.sourceLanguageValid || !draft.targetLanguageValid) {
     return false;
   }
   if (values.modelProvider === "openai-codex") {

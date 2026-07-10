@@ -3,12 +3,16 @@ import { dirname, join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
 import type { ChapterRunPaths } from "../library";
 import type { JobEvent, MangaPage } from "../../shared/types";
+import {
+  DEFAULT_SOURCE_LANGUAGE,
+  normalizeLanguageCode,
+} from "../../shared/translationLanguages";
 import { throwIfAborted } from "./failure";
 import { isOcrResultNoTextDetected } from "./noText";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { OcrBboxResult } from "./types";
 
-const OCR_HINT_CACHE_SCHEMA_VERSION = 3;
+const OCR_HINT_CACHE_SCHEMA_VERSION = 4;
 
 type PrepareOcrHintsOptions = {
   runtime: TranslationRuntimePort;
@@ -68,7 +72,11 @@ async function collectPendingOcrPages(
   for (const [index, page] of pages.entries()) {
     throwIfAborted(signal);
     const cachePath = getOcrHintsCachePath(runPaths, page);
-    const cached = await readCachedOcrHints(cachePath, page);
+    const cached = await readCachedOcrHints(
+      cachePath,
+      page,
+      baseOptions.sourceLanguage,
+    );
     if (cached) {
       results.set(page.id, cached);
       emitCachedOcrHintProgress(progressContext, page, index, total, cached);
@@ -223,7 +231,12 @@ async function saveOcrBatchResult(
   batchIndex: number,
   result: OcrBboxResult,
 ): Promise<void> {
-  await writeCachedOcrHints(entry.cachePath, entry.page, result);
+  await writeCachedOcrHints(
+    entry.cachePath,
+    entry.page,
+    result,
+    entry.options.sourceLanguage,
+  );
   results.set(entry.page.id, result);
   emit({
     id: jobId,
@@ -305,6 +318,7 @@ function getOcrHintsCachePath(
 async function readCachedOcrHints(
   cachePath: string,
   page: MangaPage,
+  sourceLanguage?: string,
 ): Promise<OcrBboxResult | null> {
   try {
     const raw = JSON.parse(await readFile(cachePath, "utf8")) as {
@@ -312,6 +326,7 @@ async function readCachedOcrHints(
       imagePath?: string;
       width?: number;
       height?: number;
+      sourceLanguage?: string;
       hints?: unknown[];
       diagnostics?: unknown[];
       noTextDetected?: boolean;
@@ -322,6 +337,7 @@ async function readCachedOcrHints(
       raw.imagePath !== page.imagePath ||
       raw.width !== page.width ||
       raw.height !== page.height ||
+      raw.sourceLanguage !== normalizeOcrCacheLanguage(sourceLanguage) ||
       !Array.isArray(raw.hints)
     ) {
       return null;
@@ -343,6 +359,7 @@ async function writeCachedOcrHints(
   cachePath: string,
   page: MangaPage,
   result: OcrBboxResult,
+  sourceLanguage?: string,
 ): Promise<void> {
   await mkdir(dirname(cachePath), { recursive: true });
   await writeFile(
@@ -352,6 +369,7 @@ async function writeCachedOcrHints(
         imagePath: page.imagePath,
         width: page.width,
         height: page.height,
+        sourceLanguage: normalizeOcrCacheLanguage(sourceLanguage),
         schemaVersion: OCR_HINT_CACHE_SCHEMA_VERSION,
         hints: result.hints,
         diagnostics: result.diagnostics,
@@ -366,4 +384,8 @@ async function writeCachedOcrHints(
     )}\n`,
     "utf8",
   );
+}
+
+function normalizeOcrCacheLanguage(sourceLanguage?: string): string {
+  return normalizeLanguageCode(sourceLanguage, DEFAULT_SOURCE_LANGUAGE);
 }

@@ -66,6 +66,31 @@ describe("keep-blocks translation mode", () => {
     expect(joined).toBe("一行目 二行目");
   });
 
+  it("orders non-Japanese OCR left to right and then top to bottom", () => {
+    const joined = joinCropOcrTexts(
+      [
+        { x1: 110, y1: 10, x2: 200, y2: 40, ocrText: "world" },
+        { x1: 10, y1: 60, x2: 200, y2: 90, ocrText: "second line" },
+        { x1: 10, y1: 10, x2: 100, y2: 40, ocrText: "Hello" },
+      ],
+      "en",
+    );
+
+    expect(joined).toBe("Hello world second line");
+  });
+
+  it("orders right-to-left OCR within each line", () => {
+    const joined = joinCropOcrTexts(
+      [
+        { x1: 10, y1: 10, x2: 100, y2: 40, ocrText: "العالم" },
+        { x1: 110, y1: 10, x2: 200, y2: 40, ocrText: "مرحبا" },
+      ],
+      "ar-SA",
+    );
+
+    expect(joined).toBe("مرحبا العالم");
+  });
+
   it("omits the sound role hint for freshly drawn empty blocks", () => {
     const page = makePage([
       makeBlock("b-1", { x: 100, y: 100, w: 200, h: 100 }),

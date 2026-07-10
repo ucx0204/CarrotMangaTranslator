@@ -5,6 +5,7 @@ import type {
   BBox,
   GemmaVramMode,
   JobPhase,
+  LanguageCode,
   ModelProvider,
   ModelSource,
   OcrDevice,
@@ -35,7 +36,14 @@ export type TranslationOptions = {
   previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];
   outputDir: string;
   modelProvider: ModelProvider;
+  /**
+   * 번역 언어쌍. 모델 제공자와 독립이며, 비어 있으면 런타임이 일본어 -> 한국어
+   * 기본 프로필로 동작한다.
+   */
+  sourceLanguage?: LanguageCode;
+  targetLanguage?: LanguageCode;
   port: number;
+  /** 오버레이 검출/좌표 출력 방식 식별자. 언어 의미는 갖지 않는다. */
   promptMode: string;
   promptOverrideText?: string;
   temperature: number;

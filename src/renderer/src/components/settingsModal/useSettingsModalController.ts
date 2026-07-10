@@ -349,5 +349,7 @@ function buildValidationProps(
     contextTokensValid: draft.contextTokensValid,
     maxTokensValid: draft.maxTokensValid,
     modelProvider: values.modelProvider,
+    sourceLanguageValid: draft.sourceLanguageValid,
+    targetLanguageValid: draft.targetLanguageValid,
   };
 }

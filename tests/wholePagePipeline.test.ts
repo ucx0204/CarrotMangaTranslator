@@ -143,6 +143,44 @@ describe("whole page pipeline", () => {
     );
   });
 
+  it("still calls the model for non-Japanese pages when OCR reports no text", async () => {
+    const page = makePage("page-a", "001.png");
+    const requestTranslation = vi
+      .fn()
+      .mockResolvedValue(successTranslationResult());
+    const startEndpointSession = vi.fn(async () => ({
+      handle: {
+        baseUrl: "http://127.0.0.1:39281",
+        child: null,
+        startedByScript: false,
+      },
+      dispose: vi.fn(async () => undefined),
+    }));
+    const { runWholePagePipeline } = await loadPipeline({
+      sourceLanguage: "en-US",
+      ocrHintsByPageId: new Map([
+        [
+          page.id,
+          {
+            hints: [],
+            diagnostics: [],
+            noTextDetected: true,
+            textEvidenceCount: 0,
+          },
+        ],
+      ]),
+      requestTranslation,
+      startEndpointSession,
+    });
+
+    await runWholePagePipeline({
+      ...basePipelineOptions([page], []),
+    });
+
+    expect(startEndpointSession).toHaveBeenCalledTimes(1);
+    expect(requestTranslation).toHaveBeenCalledTimes(1);
+  });
+
   it("returns completed and failed pages for a partial page failure", async () => {
     process.env.MANGA_TRANSLATOR_PAGE_RETRIES = "1";
     const firstPage = makePage("page-a", "001.png");
@@ -507,10 +545,12 @@ describe("whole page pipeline", () => {
 async function loadPipeline({
   ocrHintsByPageId = new Map<string, OcrBboxResult>(),
   requestTranslation = vi.fn().mockResolvedValue(successTranslationResult()),
+  sourceLanguage = "ja",
   startEndpointSession,
 }: {
   ocrHintsByPageId?: Map<string, OcrBboxResult>;
   requestTranslation?: ReturnType<typeof vi.fn>;
+  sourceLanguage?: string;
   startEndpointSession?: ReturnType<typeof vi.fn>;
 } = {}): Promise<{
   runWholePagePipeline: (typeof import("../src/main/wholePagePipeline"))["runWholePagePipeline"];
@@ -561,8 +601,10 @@ async function loadPipeline({
     prepareOcrHintsForPages: vi.fn(async () => ocrHintsByPageId),
   }));
   vi.doMock("../src/main/pipeline/options", () => ({
-    buildBaseOptions: (_jobId: string, runDir: string) =>
-      makeBaseOptions(runDir),
+    buildBaseOptions: (_jobId: string, runDir: string) => ({
+      ...makeBaseOptions(runDir),
+      sourceLanguage,
+    }),
     buildPageOptions: (
       baseOptions: TranslationOptions,
       page: MangaPage,

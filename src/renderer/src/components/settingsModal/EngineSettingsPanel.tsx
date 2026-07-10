@@ -8,6 +8,7 @@ import {
 } from "./EngineCommonFields";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 import { GemmaSettingsFields } from "./GemmaSettingsFields";
+import { TranslationLanguageFields } from "./TranslationLanguageFields";
 
 export function EngineSettingsPanel(
   props: EngineSettingsPanelProps,
@@ -15,6 +16,7 @@ export function EngineSettingsPanel(
   return (
     <>
       <TranslationEngineSelector {...props} />
+      <TranslationLanguageFields {...props} />
       <MaxTokensField {...props} />
       <ContextTokensField {...props} />
       <ProviderSettingsFields {...props} />

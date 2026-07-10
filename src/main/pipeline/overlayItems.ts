@@ -44,8 +44,8 @@ export function overlayItemToBlock(
   const type = mapOverlayType(item.type);
   const textRole = normalizeOverlayTextRole(item.textRole);
   const rawBbox = clampBbox(item.bbox);
-  const translatedText = item.ko.trim();
-  const sourceText = item.jp.trim();
+  const translatedText = (item.translatedText ?? item.ko).trim();
+  const sourceText = (item.sourceText ?? item.jp).trim();
   const textForSizing = translatedText || sourceText || "...";
   const lineHeight = 1.18;
   const fontSizePx = resolveOverlayFontSizePx(

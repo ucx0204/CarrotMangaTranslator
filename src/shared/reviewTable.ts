@@ -19,10 +19,13 @@ export type ReviewRow = Record<ReviewColumn, string>;
 
 const BOM = "\uFEFF";
 
-export function buildReviewRows(chapter: ChapterSnapshot): ReviewRow[] {
+export function buildReviewRows(
+  chapter: ChapterSnapshot,
+  direction: "ltr" | "rtl" = "rtl",
+): ReviewRow[] {
   const rows: ReviewRow[] = [];
   for (const [pageIndex, page] of chapter.pages.entries()) {
-    const orderedBlocks = sortBlocksForReview(page.blocks);
+    const orderedBlocks = sortBlocksForReview(page.blocks, direction);
     for (const [blockIndex, block] of orderedBlocks.entries()) {
       rows.push({
         chapter_id: chapter.id,
@@ -90,7 +93,10 @@ export function parseReviewTable(
   });
 }
 
-function sortBlocksForReview(blocks: TranslationBlock[]): TranslationBlock[] {
+function sortBlocksForReview(
+  blocks: TranslationBlock[],
+  direction: "ltr" | "rtl",
+): TranslationBlock[] {
   return [...blocks].sort((left, right) => {
     const leftRow = left.bbox.y + left.bbox.h / 2;
     const rightRow = right.bbox.y + right.bbox.h / 2;
@@ -98,7 +104,9 @@ function sortBlocksForReview(blocks: TranslationBlock[]): TranslationBlock[] {
     if (Math.abs(leftRow - rightRow) > threshold) {
       return left.bbox.y - right.bbox.y;
     }
-    return right.bbox.x - left.bbox.x;
+    return direction === "rtl"
+      ? right.bbox.x - left.bbox.x
+      : left.bbox.x - right.bbox.x;
   });
 }
 

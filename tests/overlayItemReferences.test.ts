@@ -80,6 +80,41 @@ describe("validateOverlayItemsAgainstReferences", () => {
     expect(regionMode.items).toHaveLength(1);
   });
 
+  it("keeps short text in whole-page mode for non-Japanese source languages", () => {
+    const englishItem: OverlayItem = {
+      id: 1,
+      type: "nonsolid",
+      bbox: { x: 100, y: 100, w: 200, h: 100 },
+      jp: "Hi",
+      ko: "안녕",
+    };
+    const koreanItem: OverlayItem = {
+      id: 2,
+      type: "nonsolid",
+      bbox: { x: 400, y: 100, w: 200, h: 100 },
+      jp: "응",
+      ko: "Yes",
+    };
+
+    const english = validateOverlayItemsAgainstReferences(
+      [englishItem],
+      makePage(),
+      [],
+      [],
+      { sourceLanguage: "en" },
+    );
+    const korean = validateOverlayItemsAgainstReferences(
+      [koreanItem],
+      makePage(),
+      [],
+      [],
+      { sourceLanguage: "ko" },
+    );
+
+    expect(english.items).toHaveLength(1);
+    expect(korean.items).toHaveLength(1);
+  });
+
   it("still drops an empty-source item in region crop mode", () => {
     const item: OverlayItem = {
       id: 1,

@@ -3,7 +3,7 @@
  * @typedef {Record<string, unknown>} JsonRecord
  * @typedef {{ x1: number; y1: number; x2: number; y2: number }} OcrBox
  * @typedef {OcrBox & { id?: number; label?: string; ocrText?: string; score?: number; groupId?: string; orderInGroup?: number; rolePrior?: string; containerType?: string; [key: string]: unknown }} OcrHint
- * @typedef {{ imageWidth?: unknown; imageHeight?: unknown; [key: string]: unknown }} OcrHintOptions
+ * @typedef {{ imageWidth?: unknown; imageHeight?: unknown; sourceLanguage?: unknown; [key: string]: unknown }} OcrHintOptions
  * @typedef {{ hint: OcrHint; index: number; eligible: boolean }} GroupItem
  */
 const {
@@ -12,6 +12,9 @@ const {
   sanitizeHintLabel,
   sanitizeOcrTextForPrompt,
 } = require("./simple-page-prompts.cjs");
+const {
+  resolvePromptLanguageProfile,
+} = require("./simple-page-language-profile.cjs");
 
 /** @param {unknown} rawText */
 function extractJsonText(rawText) {
@@ -70,7 +73,10 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
     if (isIgnoredOcrLabel(label)) {
       continue;
     }
-    const ocrText = sanitizeOcrTextForPrompt(readOcrCandidateText(candidate));
+    const ocrText = sanitizeOcrTextForPrompt(
+      readOcrCandidateText(candidate),
+      options,
+    );
     hints.push({
       id: hints.length + 1,
       label: sanitizeHintLabel(label),
@@ -87,6 +93,7 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
   return attachOcrGroupingHints(hints, {
     imageWidth: originalWidth,
     imageHeight: originalHeight,
+    sourceLanguage: options.sourceLanguage,
   }).slice(0, 80);
 }
 
@@ -346,6 +353,11 @@ function isIgnoredOcrLabel(label) {
 function attachOcrGroupingHints(hints, options = {}) {
   if (!Array.isArray(hints) || hints.length < 2) {
     return Array.isArray(hints) ? hints : [];
+  }
+  // 그룹 병합과 읽기 순서는 일본어 세로쓰기 전용 휴리스틱이다. 다른 원문
+  // 언어에서는 잘못된 읽기 순서나 병합이 실제 텍스트를 섞을 수 있다.
+  if (resolvePromptLanguageProfile(options).sourceBaseCode !== "ja") {
+    return hints;
   }
 
   const nextGroupNumber = attachAdjacentTextContainerGroups(hints, options, 1);

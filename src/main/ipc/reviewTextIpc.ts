@@ -8,7 +8,9 @@ import {
 import { textReviewIpcContracts } from "../../shared/ipcContracts";
 import { buildReviewRows, serializeReviewRows } from "../../shared/reviewTable";
 import type { SaveTextFileResult } from "../../shared/shareTypes";
+import { resolveSourceReadingDirection } from "../../shared/translationLanguages";
 import { importReviewText, openChapter } from "../library";
+import { getAppSettings } from "../settingsStore";
 import type { IpcContext } from "./context";
 import { trustedHandleContract } from "./trustedIpc";
 
@@ -23,8 +25,12 @@ export function registerReviewTextIpc(context: IpcContext): void {
         "검수표 내보내기",
       );
       const chapter = await openChapter(request.chapterId);
+      const settings = await getAppSettings();
       const content = serializeReviewRows(
-        buildReviewRows(chapter),
+        buildReviewRows(
+          chapter,
+          resolveSourceReadingDirection(settings.translation?.sourceLanguage),
+        ),
         request.format,
         request.includeBom ?? true,
       );

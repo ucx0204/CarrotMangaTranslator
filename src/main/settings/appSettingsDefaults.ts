@@ -16,6 +16,11 @@ import {
 } from "../../shared/modelPresets";
 import type { AppSettings } from "../../shared/types";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
+import {
+  DEFAULT_SOURCE_LANGUAGE,
+  DEFAULT_TARGET_LANGUAGE,
+  normalizeLanguageCode,
+} from "../../shared/translationLanguages";
 import type { DetectedGpuInfo } from "../gpuInfo";
 import { normalizeAmdRocmTarget } from "../gpuInfo";
 import { getDefaultGemmaPresetForVramMode } from "./gemmaModelPresets";
@@ -58,6 +63,7 @@ export function resolveDefaultAppSettings(
       env.MANGA_TRANSLATOR_MODEL_PROVIDER,
       hardwareDefaults.modelProvider,
     ),
+    translation: resolveDefaultTranslationLanguageSettings(env),
     gemma: resolveDefaultGemmaSettings(env, hardwareDefaults),
     codex: resolveDefaultCodexSettings(env),
     api: resolveDefaultApiSettings(env),
@@ -71,6 +77,21 @@ export function resolveDefaultAppSettings(
       DEFAULT_MAX_TOKENS,
     ),
     ctx: resolveContextTokens(env.MANGA_TRANSLATOR_CTX, DEFAULT_CONTEXT_TOKENS),
+  };
+}
+
+function resolveDefaultTranslationLanguageSettings(
+  env: NodeJS.ProcessEnv,
+): NonNullable<AppSettings["translation"]> {
+  return {
+    sourceLanguage: normalizeLanguageCode(
+      env.MANGA_TRANSLATOR_SOURCE_LANGUAGE,
+      DEFAULT_SOURCE_LANGUAGE,
+    ),
+    targetLanguage: normalizeLanguageCode(
+      env.MANGA_TRANSLATOR_TARGET_LANGUAGE,
+      DEFAULT_TARGET_LANGUAGE,
+    ),
   };
 }
 

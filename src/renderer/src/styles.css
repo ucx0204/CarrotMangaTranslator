@@ -4099,6 +4099,35 @@ kbd {
   color: #e6ddcf;
 }
 
+/* 번역 언어쌍: 원문 [⇄] 번역 2열 + 필요할 때만 나타나는 코드 직접 입력. */
+.settings-language-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.settings-language-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings-language-swap {
+  /* 라벨 텍스트 한 줄만큼 내려서 두 select와 같은 줄에 놓는다. */
+  margin-top: 1.5em;
+  min-height: var(--ctl-h);
+  padding: 0 10px;
+  line-height: 1;
+  font-size: 16px;
+}
+
+.settings-language-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--accent-hi);
+}
+
 .settings-mode-group {
   display: flex;
   flex-wrap: wrap;

@@ -7,6 +7,7 @@ import type {
   WorkContextAnalysisScope,
   WorkStyleGuide,
 } from "../shared/types";
+import { resolveLanguagePair } from "../shared/translationLanguages";
 import { getAppPaths } from "./appPaths";
 import { getAppSettings } from "./settingsStore";
 import {
@@ -100,6 +101,7 @@ export async function analyzeWorkContextWithAi(
     chapters,
     scope: "chapter",
     maxInputChars,
+    languagePair: resolveLanguagePair(options),
   });
   logAnalysisSelection(selection);
   if (!selection.text.trim()) {
@@ -152,7 +154,11 @@ async function runAiAnalysisWithEndpoint({
   options: Awaited<ReturnType<typeof buildAnalysisOptions>>;
   endpoint: ModelEndpointHandle;
 }): Promise<AnalyzeWorkContextResult> {
-  const prompt = buildWorkContextAnalysisPrompt({ guide, selection });
+  const prompt = buildWorkContextAnalysisPrompt({
+    guide,
+    selection,
+    languagePair: resolveLanguagePair(options),
+  });
   const rawText = await requestWorkContextAnalysisText({
     endpoint,
     options,
@@ -376,7 +382,10 @@ async function repairAnalysisResponse({
   options: Awaited<ReturnType<typeof buildAnalysisOptions>>;
   parseError: unknown;
 }): Promise<unknown> {
-  const prompt = buildWorkContextJsonRepairPrompt(rawText);
+  const prompt = buildWorkContextJsonRepairPrompt(
+    rawText,
+    resolveLanguagePair(options),
+  );
   const repairedText = await requestWorkContextAnalysisText({
     endpoint,
     options,

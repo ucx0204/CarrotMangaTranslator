@@ -331,6 +331,230 @@ describe("prompt contracts", () => {
     ]);
   });
 
+  it("keeps the default Japanese -> Korean prompt when a ja/ko pair is passed explicitly", () => {
+    const options = createPromptContractOptions();
+    const imageVariants = createPromptContractVariants();
+    const basePrompt = getOverlayPrompt(options, imageVariants);
+    const explicitPrompt = getOverlayPrompt(
+      { ...options, sourceLanguage: "ja", targetLanguage: "ko" },
+      imageVariants,
+    );
+
+    expect(explicitPrompt).toBe(basePrompt);
+    expect(
+      buildSystemPrompt({
+        ...options,
+        sourceLanguage: "ja",
+        targetLanguage: "ko",
+      }),
+    ).toBe(buildSystemPrompt(options));
+  });
+
+  it("localizes the overlay prompt for generic language pairs", () => {
+    const options = {
+      ...createPromptContractOptions(),
+      sourceLanguage: "en",
+      targetLanguage: "fr",
+    };
+    const imageVariants = createPromptContractVariants();
+    const prompt = getOverlayPrompt(options, imageVariants);
+    const systemPrompt = buildSystemPrompt(options);
+
+    expect(prompt).toContain(
+      "Detect every visible English text group and translate it into concise French.",
+    );
+    expect(prompt).toContain(
+      "Use exactly these keys, one per line: id, type, textRole, x1, y1, x2, y2, direction, angle, fontSize, confidence, source, target.",
+    );
+    expect(prompt).toContain("source: <visible English source text>");
+    expect(prompt).toContain("target: <concise French translation>");
+    expect(prompt).not.toContain("Japanese");
+    expect(prompt).not.toContain("Korean");
+    expect(prompt).not.toMatch(/kana|furigana/i);
+    expect(prompt).not.toMatch(/[가-힣]/);
+    expect(prompt).toContain("top to bottom and left to right");
+    expect(prompt).toContain(
+      "Meaningful single letters, digits, and compact labels are valid source text.",
+    );
+    expect(prompt).not.toContain("a lone Latin letter");
+    expect(systemPrompt).toContain(
+      "Geometry accuracy comes before French text fit",
+    );
+    expect(systemPrompt).not.toContain("Japanese");
+    expect(systemPrompt).not.toContain("Korean");
+  });
+
+  it("uses right-to-left page order for RTL source languages", () => {
+    const prompt = getOverlayPrompt(
+      {
+        ...createPromptContractOptions(),
+        sourceLanguage: "ar-SA",
+        targetLanguage: "en-US",
+      },
+      createPromptContractVariants(),
+    );
+
+    expect(prompt).toContain(
+      "Detect every visible Arabic text group and translate it into concise English.",
+    );
+    expect(prompt).toContain("top to bottom and right to left");
+  });
+
+  it("preserves dynamic multilingual context while localizing prompt instructions", () => {
+    const options = {
+      ...createPromptContractOptions(),
+      sourceLanguage: "ko",
+      targetLanguage: "en",
+      strictRefineMode: true,
+      ocrBboxHints: [
+        {
+          id: 1,
+          label: "text",
+          x1: 67,
+          y1: 589,
+          x2: 267,
+          y2: 760,
+          ocrText: "안녕하세요",
+        },
+      ],
+      previousBlocksForPrompt: [
+        {
+          index: 1,
+          bbox: { x: 67, y: 589, w: 200, h: 171 },
+          sourceText: "안녕하세요",
+          translatedText: "Hello",
+        },
+      ],
+      workContext: {
+        styleGuide: {
+          glossary: [
+            {
+              enabled: true,
+              category: "term",
+              source: "마왕",
+              target: "Demon King",
+              aliases: ["마왕님"],
+              note: "한국어 원문 용어",
+            },
+          ],
+          characters: [],
+          rules: {},
+        },
+        storyMemory: {
+          pages: [
+            {
+              pageIndex: 0,
+              pageName: "첫 장",
+              summary: "용사가 출발하는 한국어 요약",
+            },
+          ],
+        },
+      },
+    };
+    const imageVariants = createPromptContractVariants();
+    const prompt = getOverlayPrompt(options, imageVariants);
+    const systemPrompt = buildSystemPrompt(options);
+    const regionPrompt = getOverlayPrompt(
+      { ...options, regionCropMode: true },
+      imageVariants,
+    );
+
+    expect(prompt).toContain(
+      "Detect every visible Korean text group and translate it into concise English.",
+    );
+    expect(systemPrompt).toContain(
+      "preserve the original Korean glyph position and apparent size",
+    );
+    expect(prompt).toContain('ocrText:"안녕하세요"');
+    expect(prompt).toContain("마왕 => Demon King");
+    expect(prompt).toContain("용사가 출발하는 한국어 요약");
+    expect(prompt).toContain(
+      "Stored target values may come from an earlier target language",
+    );
+    expect(prompt).not.toContain("prefer the target English exactly");
+    expect(prompt).toContain("defaultTone=natural_target");
+    expect(prompt).not.toContain("defaultTone=natural_korean");
+    expect(prompt).toContain('source:"안녕하세요"');
+    expect(prompt).toContain('target:"Hello"');
+    expect(regionPrompt).toContain('text:"안녕하세요"');
+    expect(regionPrompt).toContain('"source": "visible Korean text"');
+    expect(regionPrompt).toContain('"target": "natural English translation"');
+  });
+
+  it("does not rewrite or drop non-Japanese OCR source text", () => {
+    const imageVariants = createPromptContractVariants();
+    const englishPrompt = getOverlayPrompt(
+      {
+        ...createPromptContractOptions(),
+        sourceLanguage: "en",
+        targetLanguage: "fr",
+        ocrBboxHints: [
+          {
+            id: 1,
+            label: "text",
+            x1: 67,
+            y1: 589,
+            x2: 267,
+            y2: 760,
+            ocrText: "Japanese Breakfast",
+          },
+        ],
+      },
+      imageVariants,
+    );
+    const chinesePrompt = getOverlayPrompt(
+      {
+        ...createPromptContractOptions(),
+        sourceLanguage: "zh-Hans",
+        targetLanguage: "en",
+        strictRefineMode: true,
+        ocrBboxHints: [
+          {
+            id: 1,
+            label: "text",
+            x1: 67,
+            y1: 589,
+            x2: 267,
+            y2: 760,
+            ocrText: "AI 技术",
+          },
+        ],
+        previousBlocksForPrompt: [
+          {
+            index: 1,
+            bbox: { x: 67, y: 589, w: 200, h: 171 },
+            sourceText: "AI 技术",
+            translatedText: "AI technology",
+          },
+        ],
+      },
+      imageVariants,
+    );
+
+    expect(englishPrompt).toContain('ocrText:"Japanese Breakfast"');
+    expect(englishPrompt).not.toContain('ocrText:"English Breakfast"');
+    expect(chinesePrompt).toContain('ocrText:"AI 技术"');
+    expect(chinesePrompt).toContain('source:"AI 技术"');
+    expect(chinesePrompt).toContain('target:"AI technology"');
+  });
+
+  it("keeps Japanese source guidance when only the target language changes", () => {
+    const options = {
+      ...createPromptContractOptions(),
+      sourceLanguage: "ja",
+      targetLanguage: "en",
+    };
+    const prompt = getOverlayPrompt(options, createPromptContractVariants());
+
+    expect(prompt).toContain(
+      "Detect every visible Japanese text group and translate it into concise English.",
+    );
+    // 원문이 일본어이므로 가나/후리가나 규칙은 유지된다.
+    expect(prompt).toMatch(/kana/i);
+    // 한국어 전용 SFX 예시는 도착어가 영어이므로 제거된다.
+    expect(prompt).not.toMatch(/[가-힣]/);
+  });
+
   it("summarizes API chat endpoints without leaking API keys", () => {
     const options = {
       modelProvider: "openai-api",

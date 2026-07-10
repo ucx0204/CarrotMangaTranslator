@@ -18,10 +18,23 @@ import {
   filePath,
   hexColor,
 } from "./ipcSchemaPrimitives";
+import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
+
+const LanguageCodeSchema = z
+  .string()
+  .max(MAX_LANGUAGE_CODE_LENGTH)
+  .regex(/^[a-z]{2,3}(-[a-zA-Z0-9]{1,16})*$/);
 
 export const AppSettingsSchema = z
   .object({
     modelProvider: z.enum(["gemma", "openai-codex", "openai-api"]),
+    translation: z
+      .object({
+        sourceLanguage: LanguageCodeSchema,
+        targetLanguage: LanguageCodeSchema,
+      })
+      .strict()
+      .optional(),
     gemma: z
       .object({
         modelSource: z.enum(["huggingface", "local"]),

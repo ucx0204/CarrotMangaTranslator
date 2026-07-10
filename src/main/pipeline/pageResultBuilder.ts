@@ -193,7 +193,10 @@ export async function buildPageResult({
     page,
     getOcrBboxHints(result.requestBody),
     pageOptions.previousBlocksForPrompt,
-    { regionCropMode: Boolean(pageOptions.regionCropMode) },
+    {
+      regionCropMode: Boolean(pageOptions.regionCropMode),
+      sourceLanguage: pageOptions.sourceLanguage,
+    },
   );
   const soundFiltered = filterRejectedOrUncertainSoundItems(validated.items, {
     dropUncertainSound: !pageOptions.regionCropMode,

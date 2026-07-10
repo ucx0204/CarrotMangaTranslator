@@ -29,8 +29,8 @@ const SCOPE_OPTIONS: { id: GatherScope; label: string }[] = [
 ];
 
 const FIELD_OPTIONS: { id: GatherField; label: string }[] = [
-  { id: "both", label: "한국어+OCR" },
-  { id: "translated", label: "한국어만" },
+  { id: "both", label: "번역문+OCR" },
+  { id: "translated", label: "번역문만" },
   { id: "source", label: "OCR만" },
 ];
 
@@ -41,6 +41,7 @@ type GatherTextModalProps = {
   onChapterUpdated?: (chapter: ChapterSnapshot) => void;
   onApplyTranslatedText?: (updates: TranslatedTextImportUpdate[]) => void;
   onNavigateToBlock?: (pageId: string, blockId: string) => void;
+  readingDirection?: "ltr" | "rtl";
 };
 
 export function GatherTextModal({
@@ -50,6 +51,7 @@ export function GatherTextModal({
   onChapterUpdated,
   onApplyTranslatedText,
   onNavigateToBlock,
+  readingDirection = "rtl",
 }: GatherTextModalProps): React.JSX.Element {
   const [scope, setScope] = React.useState<GatherScope>("page");
   const [field, setField] = React.useState<GatherField>("both");
@@ -60,8 +62,12 @@ export function GatherTextModal({
   const txtFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const pages = React.useMemo(
-    () => filterPagesByField(gatherText({ chapter, page, scope }), field),
-    [chapter, page, scope, field],
+    () =>
+      filterPagesByField(
+        gatherText({ chapter, page, scope, direction: readingDirection }),
+        field,
+      ),
+    [chapter, page, scope, field, readingDirection],
   );
   const text = React.useMemo(
     () => formatGatheredText(pages, field, !excludeHeaders),
@@ -80,6 +86,7 @@ export function GatherTextModal({
     chapter,
     page,
     scope,
+    readingDirection,
     onApplyTranslatedText,
     setReviewWarnings,
   });
@@ -170,7 +177,7 @@ export function GatherTextModal({
 }
 
 /**
- * Re-imports a "한국어만" txt export: parses the page headers, maps each line
+ * Re-imports a "번역문만" txt export: parses the page headers, maps each line
  * back onto the translated blocks in reading order, and overwrites only the
  * lines that changed.
  */
@@ -178,12 +185,14 @@ function useTxtImportAction({
   chapter,
   page,
   scope,
+  readingDirection,
   onApplyTranslatedText,
   setReviewWarnings,
 }: {
   chapter: ChapterSnapshot | null;
   page: MangaPage | null;
   scope: GatherScope;
+  readingDirection: "ltr" | "rtl";
   onApplyTranslatedText?: (updates: TranslatedTextImportUpdate[]) => void;
   setReviewWarnings: (warnings: string[]) => void;
 }): (file: File) => Promise<void> {
@@ -195,7 +204,7 @@ function useTxtImportAction({
       try {
         const content = decodeImportedTextContent(await file.arrayBuffer());
         const translatedPages = filterPagesByField(
-          gatherText({ chapter, page, scope }),
+          gatherText({ chapter, page, scope, direction: readingDirection }),
           "translated",
         );
         const result = buildTranslatedTextImport(translatedPages, content);
@@ -228,7 +237,14 @@ function useTxtImportAction({
         toast.error("txt 파일 불러오기에 실패했습니다.");
       }
     },
-    [chapter, onApplyTranslatedText, page, scope, setReviewWarnings],
+    [
+      chapter,
+      onApplyTranslatedText,
+      page,
+      readingDirection,
+      scope,
+      setReviewWarnings,
+    ],
   );
 }
 
@@ -411,7 +427,7 @@ function GatherTextFooter({
           <Button
             onClick={onImportTxt}
             disabled={!hasChapter || !canImportTxt}
-            title="한국어만 형식으로 저장한 txt의 번역문을 줄 순서대로 다시 불러옵니다."
+            title="번역문만 형식으로 저장한 txt의 번역문을 줄 순서대로 다시 불러옵니다."
           >
             .txt 불러오기
           </Button>

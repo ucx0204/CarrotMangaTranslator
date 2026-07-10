@@ -1,4 +1,5 @@
 import type { AppSettings } from "../../shared/settingsTypes";
+import { resolveTranslationLanguageSettings } from "../../shared/translationLanguages";
 import type {
   TranslationOptionPaths,
   TranslationOptions,
@@ -37,7 +38,8 @@ export function buildBaseTranslationOptions({
     imagePath: "",
     outputDir: runDir,
     modelProvider: settings.modelProvider,
-    promptMode: "ko_bbox_lines_multiview",
+    ...resolveTranslationLanguageSettings(settings.translation),
+    promptMode: "overlay_bbox_lines_multiview",
     ...resolveGemmaTranslationOptions({
       runtimeEnv,
       paths,

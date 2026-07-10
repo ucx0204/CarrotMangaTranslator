@@ -10,6 +10,7 @@ import { getChapterStoryMemory } from "./library";
 import { logWarn } from "./logger";
 import { loadTranslationRuntimePort } from "./pipeline/translationRuntimePort";
 import type { ModelEndpointHandle } from "./pipeline/types";
+import { resolveLanguagePair } from "../shared/translationLanguages";
 import {
   selectWorkTextForAnalysis,
   type WorkTextSelection,
@@ -151,6 +152,7 @@ async function analyzeSequentialChapter({
     chapters,
     scope: "chapter",
     maxInputChars,
+    languagePair: resolveLanguagePair(options),
   });
   mergeCoverage(state.coverage, selection.coverage);
   if (selection.coverage.truncated) {

@@ -95,7 +95,7 @@ export function TextEditorGroup({
         />
       </div>
       <label>
-        한국어
+        번역문
         <textarea
           ref={setTranslatedRef}
           value={drafts.translated}

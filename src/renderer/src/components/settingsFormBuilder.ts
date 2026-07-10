@@ -18,10 +18,13 @@ import {
   DEFAULT_GEMMA_MODEL_FILE,
   DEFAULT_GEMMA_MODEL_REPO,
 } from "../../../shared/modelPresets";
+import { resolveTranslationLanguageSettings } from "../../../shared/translationLanguages";
 
 type BuildSettingsFromFormInput = {
   initialSettings: AppSettings;
   modelProvider: ModelProvider;
+  sourceLanguage: string;
+  targetLanguage: string;
   modelSource: ModelSource;
   modelRepo: string;
   modelFile: string;
@@ -59,6 +62,13 @@ export function buildSettingsFromForm(
 ): AppSettings {
   return {
     modelProvider: input.modelProvider,
+    translation: resolveTranslationLanguageSettings(
+      {
+        sourceLanguage: input.sourceLanguage,
+        targetLanguage: input.targetLanguage,
+      },
+      resolveTranslationLanguageSettings(input.initialSettings.translation),
+    ),
     gemma: buildGemmaSettings(input),
     codex: {
       model: input.codexModel || input.initialSettings.codex.model,

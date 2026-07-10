@@ -30,6 +30,25 @@ describe("overlay item conversion", () => {
     expect(block.renderDirection).toBe("horizontal");
   });
 
+  it("prefers language-neutral text aliases when creating a block", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        bbox: { x: 10, y: 10, w: 180, h: 80 },
+        jp: "legacy source",
+        ko: "legacy target",
+        sourceText: "Hello",
+        translatedText: "Bonjour",
+      },
+      makePage(),
+      0,
+    );
+
+    expect(block.sourceText).toBe("Hello");
+    expect(block.translatedText).toBe("Bonjour");
+  });
+
   it("drops sound-effect items unless confidence is exactly 1", () => {
     const items: OverlayItem[] = [
       {

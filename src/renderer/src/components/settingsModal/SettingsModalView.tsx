@@ -32,6 +32,8 @@ export type SettingsModalViewProps = {
     contextTokensValid: boolean;
     maxTokensValid: boolean;
     modelProvider: ModelProvider;
+    sourceLanguageValid: boolean;
+    targetLanguageValid: boolean;
   };
 };
 

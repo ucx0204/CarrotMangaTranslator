@@ -5,6 +5,10 @@ import type {
 } from "../../shared/types";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
 import {
+  DEFAULT_TRANSLATION_LANGUAGE_SETTINGS,
+  resolveTranslationLanguageSettings,
+} from "../../shared/translationLanguages";
+import {
   asRecord,
   inferHardwareVendorFromDefaults,
   resolveAnalysisScopeDefault,
@@ -51,6 +55,11 @@ export function normalizeAppSettings(
     modelProvider: resolveModelProvider(
       record.modelProvider,
       defaults.modelProvider,
+    ),
+    // 언어쌍이 없거나 잘못된 기존 설정은 항상 일본어 -> 한국어로 정규화된다.
+    translation: resolveTranslationLanguageSettings(
+      record.translation,
+      defaults.translation ?? DEFAULT_TRANSLATION_LANGUAGE_SETTINGS,
     ),
     gemma: normalizeGemmaSettings(asRecord(record.gemma), defaults),
     codex: normalizeCodexSettings(asRecord(record.codex), defaults),

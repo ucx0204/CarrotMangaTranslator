@@ -524,7 +524,7 @@ function CharactersTab({
               <span />
               <span>표시 이름</span>
               <span>원문 이름</span>
-              <span>한국어 이름</span>
+              <span>번역 이름</span>
               <span>말투</span>
               <span>커스텀 말투</span>
               <span>메모</span>
@@ -563,7 +563,7 @@ function CharactersTab({
                 />
                 <input
                   value={character.targetName}
-                  placeholder="한국어 이름"
+                  placeholder="번역 이름"
                   onChange={(event) =>
                     updateCharacter(character.id, {
                       targetName: event.target.value,
@@ -649,7 +649,7 @@ function RulesTab({
             }
           >
             <option value="preserve">원문 호칭 느낌 유지</option>
-            <option value="adapt">한국어 호칭으로 자연스럽게 바꿈</option>
+            <option value="adapt">번역 언어의 호칭으로 자연스럽게 바꿈</option>
             <option value="drop">님/씨 같은 호칭은 빼고 이름 위주</option>
           </select>
         </label>
@@ -669,7 +669,7 @@ function RulesTab({
             }
           >
             <option value="preserve">원문 효과음 그대로 둠</option>
-            <option value="translate">한국어 효과음으로 바꿈</option>
+            <option value="translate">번역 언어 효과음으로 바꿈</option>
             <option value="note">원문 효과음에 뜻 설명을 붙임</option>
           </select>
         </label>
@@ -688,7 +688,7 @@ function RulesTab({
               })
             }
           >
-            <option value="natural_korean">자연스러운 한국어 대사</option>
+            <option value="natural_korean">자연스러운 번역 대사</option>
             <option value="literal">원문에 가까운 직역</option>
           </select>
         </label>

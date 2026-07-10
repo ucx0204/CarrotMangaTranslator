@@ -1,4 +1,5 @@
 import type { MangaPage } from "../shared/types";
+import { isJapaneseLanguageCode } from "../shared/translationLanguages";
 import { logInfo } from "./logger";
 import {
   startAnalysisEndpointSession,
@@ -65,7 +66,9 @@ export async function runWholePagePipeline({
   const warningCollector = createWarningCollector();
   throwIfAborted(signal);
 
-  const filtered = filterPagesByOcrText(pages, ocrHintsByPageId);
+  const filtered = filterPagesByOcrText(pages, ocrHintsByPageId, {
+    allowNoTextSkip: allowOcrNoTextSkip(run.baseOptions),
+  });
   await completePrepassNoTextPages({
     context: run.progressContext,
     onPageComplete,
@@ -108,6 +111,11 @@ export async function runWholePagePipeline({
   } finally {
     await endpoint.disposeEndpointSession();
   }
+}
+
+/** OCR "텍스트 없음" 스킵은 일본어 원문에서만 허용한다. */
+function allowOcrNoTextSkip(baseOptions: { sourceLanguage?: string }): boolean {
+  return isJapaneseLanguageCode(baseOptions.sourceLanguage);
 }
 
 function buildPipelineResult(

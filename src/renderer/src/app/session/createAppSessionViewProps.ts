@@ -7,6 +7,7 @@ import {
   createPageRetranslateProps,
   createTranslationOptionsProps,
 } from "./createTranslationModalProps";
+import { resolveSourceReadingDirection } from "../../../../shared/translationLanguages";
 
 export type { AppSessionViewModel } from "./appSessionViewModel";
 
@@ -46,6 +47,7 @@ function createGatherTextProps({
   derivedState,
   libraryActions,
   pageNavigationHandlers,
+  settingsDialog,
   uiState,
   updateCurrentChapter,
 }: AppSessionViewModel): AppSessionViewProps["gatherTextProps"] {
@@ -64,6 +66,9 @@ function createGatherTextProps({
           uiState.setTextViewOpen(false);
         },
         page: derivedState.selectedPage,
+        readingDirection: resolveSourceReadingDirection(
+          settingsDialog.settings?.translation?.sourceLanguage,
+        ),
       }
     : null;
 }

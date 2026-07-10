@@ -47,6 +47,104 @@ ko: 리드
     expect(items[1].bbox).toEqual({ x: 720, y: 700, w: 90, h: 120 });
   });
 
+  it("parses line records that use the neutral source/target keys", () => {
+    const raw = String.raw`
+id: 1
+type: nonsolid
+textRole: ordinary
+x1: 120
+y1: 80
+x2: 280
+y2: 320
+direction: horizontal
+angle: 0
+fontSize: 24
+confidence: 0.9
+source: What are you doing here?
+target: Qu'est-ce que tu fais ici ?
+`;
+
+    const parsed = parseJsonLenient(raw);
+    const items = normalizeItems(parsed);
+
+    expect(items).toHaveLength(1);
+    expect(items[0].jp).toBe("What are you doing here?");
+    expect(items[0].ko).toBe("Qu'est-ce que tu fais ici ?");
+    expect(items[0].sourceText).toBe("What are you doing here?");
+    expect(items[0].translatedText).toBe("Qu'est-ce que tu fais ici ?");
+  });
+
+  it("parses JSON records with source/target and sourceText/translatedText keys", () => {
+    const fromSourceTarget = normalizeItems(
+      parseJsonLenient(
+        JSON.stringify({
+          items: [
+            {
+              id: 1,
+              type: "nonsolid",
+              x1: 10,
+              y1: 20,
+              x2: 110,
+              y2: 220,
+              source: "Hello",
+              target: "Bonjour",
+            },
+          ],
+        }),
+      ),
+    );
+    const fromNeutralNames = normalizeItems(
+      parseJsonLenient(
+        JSON.stringify({
+          items: [
+            {
+              id: 2,
+              type: "nonsolid",
+              x1: 10,
+              y1: 20,
+              x2: 110,
+              y2: 220,
+              sourceText: "犬",
+              translatedText: "개",
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(fromSourceTarget[0].jp).toBe("Hello");
+    expect(fromSourceTarget[0].ko).toBe("Bonjour");
+    expect(fromNeutralNames[0].jp).toBe("犬");
+    expect(fromNeutralNames[0].ko).toBe("개");
+    expect(fromNeutralNames[0].translatedText).toBe("개");
+  });
+
+  it("keeps parsing legacy jp/ko records with neutral aliases mirrored", () => {
+    const items = normalizeItems(
+      parseJsonLenient(
+        JSON.stringify({
+          items: [
+            {
+              id: 1,
+              type: "nonsolid",
+              x1: 1,
+              y1: 2,
+              x2: 30,
+              y2: 40,
+              jp: "こんにちは",
+              ko: "안녕하세요",
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(items[0].jp).toBe("こんにちは");
+    expect(items[0].ko).toBe("안녕하세요");
+    expect(items[0].sourceText).toBe("こんにちは");
+    expect(items[0].translatedText).toBe("안녕하세요");
+  });
+
   it("normalizes reversed corner order and decimal coordinates", () => {
     const raw = String.raw`
 id: 1
@@ -253,6 +351,32 @@ ko: 생긋
       bbox: { x: 10, y: 20, w: 100, h: 140 },
       jp: "考えることが一緒だな！",
       ko: "생각하는 게 똑같네!",
+    });
+  });
+
+  it("parses language-neutral selected-region keys", () => {
+    const items = normalizeRegionSingleItem(
+      parseRegionSingleItem(
+        JSON.stringify({
+          item: {
+            type: "nonsolid",
+            textRole: "ordinary",
+            x1: 10,
+            y1: 20,
+            x2: 110,
+            y2: 80,
+            source: "What is it?",
+            target: "Qu'est-ce que c'est ?",
+          },
+        }),
+      ),
+    );
+
+    expect(items[0]).toMatchObject({
+      jp: "What is it?",
+      ko: "Qu'est-ce que c'est ?",
+      sourceText: "What is it?",
+      translatedText: "Qu'est-ce que c'est ?",
     });
   });
 

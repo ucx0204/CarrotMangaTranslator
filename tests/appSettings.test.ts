@@ -124,6 +124,7 @@ describe("app settings helpers", () => {
       parseStoredAppSettings('{"gemma":{"modelRepo":"custom/repo"}}', defaults),
     ).toEqual({
       modelProvider: defaults.modelProvider,
+      translation: defaults.translation,
       gemma: {
         modelSource: "huggingface",
         modelRepo: "custom/repo",
@@ -158,6 +159,7 @@ describe("app settings helpers", () => {
       parseStoredAppSettings('{"translationMode":"accuracy"}', defaults),
     ).toEqual({
       modelProvider: defaults.modelProvider,
+      translation: defaults.translation,
       gemma: defaults.gemma,
       codex: defaults.codex,
       api: defaults.api,
@@ -174,6 +176,7 @@ describe("app settings helpers", () => {
       parseStoredAppSettings('{"translationMode":"turbo"}', defaults),
     ).toEqual({
       modelProvider: defaults.modelProvider,
+      translation: defaults.translation,
       gemma: defaults.gemma,
       codex: defaults.codex,
       api: defaults.api,
@@ -185,6 +188,73 @@ describe("app settings helpers", () => {
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
     });
+  });
+
+  it("defaults the translation language pair to Japanese -> Korean", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(defaults.translation).toEqual({
+      sourceLanguage: "ja",
+      targetLanguage: "ko",
+    });
+    // 기존 사용자의 저장 설정에는 translation이 없으므로 항상 ja→ko로 채운다.
+    expect(parseStoredAppSettings("{}", defaults).translation).toEqual({
+      sourceLanguage: "ja",
+      targetLanguage: "ko",
+    });
+  });
+
+  it("overrides the translation language pair from environment variables", () => {
+    const defaults = resolveDefaultAppSettings({
+      MANGA_TRANSLATOR_SOURCE_LANGUAGE: "EN",
+      MANGA_TRANSLATOR_TARGET_LANGUAGE: "ZH-HANS",
+    } satisfies NodeJS.ProcessEnv);
+
+    expect(defaults.translation).toEqual({
+      sourceLanguage: "en",
+      targetLanguage: "zh-Hans",
+    });
+  });
+
+  it("normalizes invalid stored translation languages to safe values", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          translation: {
+            sourceLanguage: "definitely not a code!",
+            targetLanguage: "fr",
+          },
+        }),
+        defaults,
+      ).translation,
+    ).toEqual({ sourceLanguage: "ja", targetLanguage: "fr" });
+  });
+
+  it("passes the translation language pair into base translation options", () => {
+    const defaults = resolveDefaultAppSettings();
+    const settings: AppSettings = {
+      ...defaults,
+      translation: { sourceLanguage: "en", targetLanguage: "fr" },
+    };
+
+    const options = buildBaseTranslationOptions({
+      jobId: "job-lang",
+      runDir: "C:/runs/job-lang",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+      },
+      settings,
+      env: {} satisfies NodeJS.ProcessEnv,
+    });
+
+    expect(options.sourceLanguage).toBe("en");
+    expect(options.targetLanguage).toBe("fr");
+    // promptMode는 더 이상 언어 의미를 갖지 않는 중립 식별자다.
+    expect(options.promptMode).toBe("overlay_bbox_lines_multiview");
   });
 
   it("builds translation options from saved model settings while preserving other defaults", () => {
@@ -1117,6 +1187,7 @@ describe("app settings helpers", () => {
       ),
     ).toEqual({
       modelProvider: defaults.modelProvider,
+      translation: defaults.translation,
       gemma: {
         modelSource: "local",
         modelRepo: defaults.gemma.modelRepo,
@@ -1155,6 +1226,7 @@ describe("app settings helpers", () => {
       ),
     ).toEqual({
       modelProvider: "openai-codex",
+      translation: defaults.translation,
       gemma: defaults.gemma,
       codex: {
         model: "gpt-5.5",
@@ -1189,6 +1261,7 @@ describe("app settings helpers", () => {
       ),
     ).toEqual({
       modelProvider: "openai-api",
+      translation: defaults.translation,
       gemma: defaults.gemma,
       codex: defaults.codex,
       api: {

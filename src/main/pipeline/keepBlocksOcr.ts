@@ -4,6 +4,10 @@ import type { TranslationOptions } from "../appSettings";
 import type { ChapterRunPaths } from "../library";
 import type { JobEvent, MangaPage, TranslationBlock } from "../../shared/types";
 import { bboxToPixels } from "../../shared/geometry";
+import {
+  isJapaneseLanguageCode,
+  isRtlLanguageCode,
+} from "../../shared/translationLanguages";
 import type { PixelRect } from "../../shared/region";
 import { logInfo, logWarn } from "../logger";
 import { loadImageForRegionCrop } from "../regionCrop";
@@ -123,7 +127,10 @@ export async function collectKeepBlocksOcrTexts({
     throwIfAborted(signal);
     for (const [index, crop] of crops.entries()) {
       const hints = results[index]?.hints;
-      const text = joinCropOcrTexts(Array.isArray(hints) ? hints : []);
+      const text = joinCropOcrTexts(
+        Array.isArray(hints) ? hints : [],
+        baseOptions.sourceLanguage,
+      );
       if (text) {
         texts.get(crop.pageId)?.splice(crop.blockIndex, 1, text);
       }
@@ -142,9 +149,18 @@ export async function collectKeepBlocksOcrTexts({
   return texts;
 }
 
-/** 크롭 내 OCR 텍스트를 일본어 읽기 순서(오른쪽 단 먼저, 단 안에서 위→아래)로 join. */
-export function joinCropOcrTexts(hints: unknown[]): string {
-  const entries: { text: string; cx: number; cy: number; w: number }[] = [];
+/** 크롭 내 OCR 텍스트를 원문 언어에 맞는 기본 읽기 순서로 join. */
+export function joinCropOcrTexts(
+  hints: unknown[],
+  sourceLanguage?: string,
+): string {
+  const entries: {
+    text: string;
+    cx: number;
+    cy: number;
+    w: number;
+    h: number;
+  }[] = [];
   for (const hint of hints) {
     if (!hint || typeof hint !== "object") {
       continue;
@@ -163,14 +179,24 @@ export function joinCropOcrTexts(hints: unknown[]): string {
       cx: (x1 + x2) / 2,
       cy: (y1 + y2) / 2,
       w: Math.abs(x2 - x1),
+      h: Math.abs(y2 - y1),
     });
   }
+  const japaneseReadingOrder = isJapaneseLanguageCode(sourceLanguage);
+  const rtlReadingOrder = isRtlLanguageCode(sourceLanguage);
   entries.sort((a, b) => {
-    const columnTolerance = Math.max(4, Math.min(a.w, b.w) * 0.5);
-    if (Math.abs(a.cx - b.cx) > columnTolerance) {
-      return b.cx - a.cx;
+    if (japaneseReadingOrder) {
+      const columnTolerance = Math.max(4, Math.min(a.w, b.w) * 0.5);
+      if (Math.abs(a.cx - b.cx) > columnTolerance) {
+        return b.cx - a.cx;
+      }
+      return a.cy - b.cy;
     }
-    return a.cy - b.cy;
+    const lineTolerance = Math.max(4, Math.min(a.h, b.h) * 0.5);
+    if (Math.abs(a.cy - b.cy) > lineTolerance) {
+      return a.cy - b.cy;
+    }
+    return rtlReadingOrder ? b.cx - a.cx : a.cx - b.cx;
   });
   return entries.map((entry) => entry.text).join(" ");
 }

@@ -47,6 +47,12 @@ describe("review CSV/TSV tables", () => {
     );
   });
 
+  it("orders review rows left to right when requested", () => {
+    expect(
+      buildReviewRows(makeChapter(), "ltr").map((row) => row.block_id),
+    ).toEqual(["block-2", "block-1"]);
+  });
+
   it("imports by block_id, warns on duplicate and source mismatch, and preserves OCR by default", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);

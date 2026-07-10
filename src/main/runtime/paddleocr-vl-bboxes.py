@@ -61,6 +61,11 @@ def main() -> int:
     parser.add_argument("--progress", default=None, help="Optional JSONL progress output path.")
     parser.add_argument("--pipeline-version", default="v1.5", choices=["v1", "v1.5"])
     parser.add_argument("--device", default=None, help="Optional Paddle device, e.g. gpu:0 or cpu.")
+    parser.add_argument(
+        "--source-language",
+        default=os.environ.get("MANGA_TRANSLATOR_OCR_SOURCE_LANGUAGE", "ja"),
+        help="Translation source language code, e.g. ja, en, zh-Hans, fr.",
+    )
     parser.add_argument("--bbox-mode", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE", "vl"), choices=["vl", "ocr"])
     parser.add_argument("--engine", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", "paddle"))
     parser.add_argument("--dtype", default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", "float32"))
@@ -748,6 +753,116 @@ def clamp(value: int, lower: int, upper: int) -> int:
     return max(lower, min(upper, value))
 
 
+# PaddleOCR 전용 lang 문자열은 이 어댑터 안에서만 사용한다. 앱 다른 계층에는
+# 언어 코드(ja/en/zh-Hans/...)만 흐른다. 키는 소문자 언어 코드.
+# PaddleOCR 3.7 API에는 스크립트 계열 모델명(latin/arabic/cyrillic)이 아니라
+# 실제 lang 코드(ar/ru/hi 등)를 넘겨야 한다. 알려지지 않은 스크립트는 유효한
+# en 프로필로 폴백해 검출 geometry가 계속 동작하게 한다.
+PADDLE_OCR_LANG_BY_SOURCE_LANGUAGE = {
+    "ja": "japan",
+    "ko": "korean",
+    "en": "en",
+    "fr": "fr",
+    "de": "de",
+    "it": "it",
+    "es": "es",
+    "pt": "pt",
+    "ru": "ru",
+    "ar": "ar",
+    "fa": "fa",
+    "ur": "ur",
+    "hi": "hi",
+    "mr": "mr",
+    "ne": "ne",
+    "uk": "uk",
+    "bg": "bg",
+    "sr": "rs_cyrillic",
+    "be": "be",
+    "mn": "mn",
+    "ta": "ta",
+    "te": "te",
+    "ka": "ka",
+    "th": "th",
+    "el": "el",
+    "fil": "tl",
+}
+
+PADDLE_OCR_V5_LANGS = {
+    "korean",
+    "th",
+    "el",
+    "te",
+    "ta",
+    "ar",
+    "fa",
+    "ur",
+    "ru",
+    "uk",
+    "bg",
+    "rs_cyrillic",
+    "be",
+    "mn",
+    "hi",
+    "mr",
+    "ne",
+}
+
+
+def resolve_source_language(args: argparse.Namespace | None = None) -> str:
+    value = ""
+    if args is not None:
+      value = str(getattr(args, "source_language", "") or "").strip()
+    if not value:
+      value = os.environ.get("MANGA_TRANSLATOR_OCR_SOURCE_LANGUAGE", "").strip()
+    return (value or "ja").lower()
+
+
+def resolve_paddle_ocr_lang(source_language: str) -> str:
+    normalized = str(source_language or "ja").strip().lower()
+    subtags = normalized.split("-")
+    base = subtags[0]
+    if base == "zh":
+      traditional = "hant" in subtags or any(region in subtags for region in ("tw", "hk", "mo"))
+      return "chinese_cht" if traditional else "ch"
+    # 지역 태그(en-US, ja-JP, ar-SA)는 Paddle가 이해하는 기본 코드로 내린다.
+    return PADDLE_OCR_LANG_BY_SOURCE_LANGUAGE.get(base, "en")
+
+
+def resolve_paddle_ocr_version(source_language: str, requested_version: str | None) -> str:
+    lang = resolve_paddle_ocr_lang(source_language)
+    if lang == "ka":
+      return "PP-OCRv3"
+    if lang in PADDLE_OCR_V5_LANGS:
+      return "PP-OCRv5"
+    return requested_version or "PP-OCRv6"
+
+
+def should_use_configured_model_names(
+    ocr_version: str,
+    text_detection_model_name: str,
+    text_recognition_model_name: str,
+) -> bool:
+    names = [name for name in (text_detection_model_name, text_recognition_model_name) if name]
+    if not names:
+      return False
+    if ocr_version == "PP-OCRv6":
+      return True
+    # 저사양 모드가 주입한 v6 고정 모델은 ko/ar/ru/hi 등의 lang을 무시한다.
+    # 명시적인 비-v6 커스텀 모델 이름은 사용자가 의도한 것으로 보고 보존한다.
+    return not any("pp-ocrv6" in name.lower() for name in names)
+
+
+def resolve_source_script(source_language: str) -> str:
+    base = str(source_language or "ja").strip().lower().split("-", 1)[0]
+    if base == "ja":
+      return "japanese"
+    if base == "ko":
+      return "korean"
+    if base == "zh":
+      return "chinese"
+    return "latin"
+
+
 def create_textline_detector(args: argparse.Namespace | None = None) -> object:
     if os.environ.get("MANGA_TRANSLATOR_DISABLE_PADDLEOCR_LINES", "").lower() in {"1", "true", "yes", "on"}:
       return None
@@ -761,9 +876,12 @@ def create_textline_detector(args: argparse.Namespace | None = None) -> object:
         device = os.environ["MANGA_TRANSLATOR_PADDLEOCR_DEVICE"]
       transformers_engine = bool(args and is_transformers_engine(args))
       configure_torch_for_transformers_ocr(args)
+      source_language = resolve_source_language(args)
+      requested_ocr_version = getattr(args, "ocr_version", None) or os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_VERSION", "PP-OCRv6")
+      ocr_version = resolve_paddle_ocr_version(source_language, requested_ocr_version)
       ocr_kwargs = {
-          "lang": "japan",
-          "ocr_version": getattr(args, "ocr_version", None) or os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_VERSION", "PP-OCRv6"),
+          "lang": resolve_paddle_ocr_lang(source_language),
+          "ocr_version": ocr_version,
           "use_doc_orientation_classify": False,
           "use_doc_unwarping": False,
           "use_textline_orientation": False,
@@ -775,10 +893,16 @@ def create_textline_detector(args: argparse.Namespace | None = None) -> object:
         ocr_kwargs["device"] = device
       text_detection_model_name = str(getattr(args, "text_detection_model_name", "") or "").strip()
       text_recognition_model_name = str(getattr(args, "text_recognition_model_name", "") or "").strip()
-      if text_detection_model_name:
-        ocr_kwargs["text_detection_model_name"] = text_detection_model_name
-      if text_recognition_model_name:
-        ocr_kwargs["text_recognition_model_name"] = text_recognition_model_name
+      if should_use_configured_model_names(ocr_version, text_detection_model_name, text_recognition_model_name):
+        if text_detection_model_name:
+          ocr_kwargs["text_detection_model_name"] = text_detection_model_name
+        if text_recognition_model_name:
+          ocr_kwargs["text_recognition_model_name"] = text_recognition_model_name
+      elif text_detection_model_name or text_recognition_model_name:
+        print(
+            f"[paddleocr-vl-bboxes] ignoring incompatible configured PP-OCRv6 model names for lang={ocr_kwargs['lang']} version={ocr_version}.",
+            file=sys.stderr,
+        )
       if transformers_engine:
         device_type = "gpu" if device and str(device).lower().startswith("gpu") else "cpu"
         attn_implementation = resolve_transformers_attention_implementation()
@@ -980,7 +1104,8 @@ def filter_candidate_ocr_text(
       return ""
     if not is_tiny_recognition_model(args):
       return cleaned
-    if is_suspicious_tiny_rec_text(cleaned, score):
+    script = resolve_source_script(resolve_source_language(args))
+    if is_suspicious_tiny_rec_text(cleaned, score, script):
       return ""
     return cleaned
 
@@ -994,13 +1119,21 @@ def is_tiny_recognition_model(args: argparse.Namespace | None = None) -> bool:
     return "tiny_rec" in value.strip().lower()
 
 
-def is_suspicious_tiny_rec_text(text: str, score: float | None) -> bool:
+def is_suspicious_tiny_rec_text(
+    text: str,
+    score: float | None,
+    script: str = "japanese",
+) -> bool:
     normalized = "".join(char for char in text.strip() if not char.isspace())
     if not normalized:
       return True
-    kana_count = count_kana_chars(normalized)
     if isinstance(score, float) and score < 0.55:
       return True
+    if script != "japanese":
+      # kana/ASCII/간체 artifact 필터는 일본어 전용이다. 라틴 문자 원문에서
+      # ASCII를 지우거나 중국어 원문에서 한자를 지우면 정상 텍스트가 사라진다.
+      return False
+    kana_count = count_kana_chars(normalized)
     if len(normalized) <= 1 and kana_count == 0:
       return True
     if contains_common_simplified_chinese_artifact(normalized):

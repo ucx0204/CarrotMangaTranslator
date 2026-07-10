@@ -33,8 +33,10 @@ export type {
   OcrGpuBackend,
   OcrQualityMode,
   OcrSettings,
+  LanguageCode,
   RuntimeGpuVendor,
   RuntimeHardwareInfo,
+  TranslationLanguageSettings,
   UiSettings,
 } from "./settingsTypes";
 export type {

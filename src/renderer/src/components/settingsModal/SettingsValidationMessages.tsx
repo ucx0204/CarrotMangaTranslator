@@ -14,6 +14,8 @@ type SettingsValidationMessagesProps = {
   contextTokensValid: boolean;
   maxTokensValid: boolean;
   modelProvider: ModelProvider;
+  sourceLanguageValid: boolean;
+  targetLanguageValid: boolean;
 };
 
 export function SettingsValidationMessages({
@@ -24,9 +26,16 @@ export function SettingsValidationMessages({
   contextTokensValid,
   maxTokensValid,
   modelProvider,
+  sourceLanguageValid,
+  targetLanguageValid,
 }: SettingsValidationMessagesProps): React.JSX.Element {
   return (
     <>
+      {!sourceLanguageValid || !targetLanguageValid ? (
+        <p className="muted-line">
+          번역 언어 코드는 en, ja, zh-Hans, pt-BR 같은 형식이어야 합니다.
+        </p>
+      ) : null}
       {modelProvider === "openai-codex" && !codexOauthPortValid ? (
         <p className="muted-line">
           openai-oauth 포트는 1 이상 65535 이하의 정수여야 합니다.

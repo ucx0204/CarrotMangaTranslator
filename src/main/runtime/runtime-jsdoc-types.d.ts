@@ -38,6 +38,8 @@ export type RuntimeOptions = {
   pageTotal?: number | null;
   progressMode?: string | null;
   serverLogPath?: string | null;
+  sourceLanguage?: string | null;
+  targetLanguage?: string | null;
   toolsDir?: string | null;
   workingDir?: string | null;
 };

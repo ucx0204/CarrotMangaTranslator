@@ -14,6 +14,9 @@ const {
   resolveOcrGpuBackend,
 } = require("./simple-page-ocr-runtime-config.cjs");
 const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
+const {
+  isJapaneseLanguageCode,
+} = require("./simple-page-language-profile.cjs");
 
 /**
  * @param {RuntimeOptions} [options]
@@ -37,6 +40,8 @@ function buildOcrBboxCommand(
   const replacements = {
     image: quoteCommandArg(image),
     output: quoteCommandArg(outputPath),
+    sourceLanguage: quoteCommandArg(resolveOcrSourceLanguage(options)),
+    source_language: quoteCommandArg(resolveOcrSourceLanguage(options)),
   };
 
   if (template) {
@@ -50,7 +55,7 @@ function buildOcrBboxCommand(
     const scriptPath = quoteCommandArg(
       path.join(__dirname, "paddleocr-vl-bboxes.py"),
     );
-    return `${python} -u ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveEffectiveOcrDevice(options))}${buildPaddleOcrBboxModeArgs(options)}`;
+    return `${python} -u ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveEffectiveOcrDevice(options))}${buildOcrSourceLanguageArg(options)}${buildPaddleOcrBboxModeArgs(options)}`;
   }
 
   throw new Error("OCR bbox provider requires MANGA_TRANSLATOR_OCR_BBOX_CMD.");
@@ -76,7 +81,31 @@ function buildOcrBboxBatchCommand(
   const progressArg = progressPath
     ? ` --progress ${quoteCommandArg(progressPath)}`
     : "";
-  return `${python} -u ${scriptPath} --batch ${quoteCommandArg(batchPath)}${progressArg} --device ${quoteCommandArg(resolveEffectiveOcrDevice(options))}${buildPaddleOcrBboxModeArgs(options)}`;
+  return `${python} -u ${scriptPath} --batch ${quoteCommandArg(batchPath)}${progressArg} --device ${quoteCommandArg(resolveEffectiveOcrDevice(options))}${buildOcrSourceLanguageArg(options)}${buildPaddleOcrBboxModeArgs(options)}`;
+}
+
+/**
+ * OCR 원문 언어 인자. PaddleOCR 전용 lang 문자열 매핑은 Python 어댑터
+ * (paddleocr-vl-bboxes.py) 내부에만 있고, 여기서는 언어 코드만 넘긴다.
+ * 기본값(ja)은 기존 명령과 동일하게 인자를 생략한다.
+ * @param {RuntimeOptions} [options]
+ * @returns {string}
+ */
+function buildOcrSourceLanguageArg(options = {}) {
+  const sourceLanguage = resolveOcrSourceLanguage(options);
+  if (!sourceLanguage || isJapaneseLanguageCode(sourceLanguage)) {
+    return "";
+  }
+  return ` --source-language ${quoteCommandArg(sourceLanguage)}`;
+}
+
+/** @param {RuntimeOptions} [options] @returns {string} */
+function resolveOcrSourceLanguage(options = {}) {
+  return (
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_SOURCE_LANGUAGE", options) ||
+    readOptionString(options.sourceLanguage) ||
+    "ja"
+  );
 }
 
 /**
@@ -191,8 +220,10 @@ function resolveOcrRuntimePythonPath(runtime = null, options = {}) {
 }
 
 module.exports = {
+  buildOcrSourceLanguageArg,
   buildPaddleOcrBboxModeArgs,
   buildOcrBboxBatchCommand,
   buildOcrBboxCommand,
+  resolveOcrSourceLanguage,
   resolveOcrRuntimePythonPath,
 };

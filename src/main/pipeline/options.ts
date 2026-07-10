@@ -64,9 +64,8 @@ export function summarizeTranslationOptions(
     label: options.label,
     imagePath: options.imagePath,
     outputDir: options.outputDir,
-    modelProvider: options.modelProvider,
+    ...summarizeEngineContext(options),
     port: options.port,
-    promptMode: options.promptMode,
     strictRefineMode: options.strictRefineMode,
     previousBlocksForPrompt: options.previousBlocksForPrompt?.length,
     promptOverrideText: options.promptOverrideText
@@ -135,6 +134,17 @@ export function summarizeTranslationOptions(
     hfHubCacheDir: options.hfHubCacheDir ?? null,
     workContext: summarizeWorkContext(options),
     workContextBudget: summarizeWorkContextBudget(options),
+  };
+}
+
+function summarizeEngineContext(
+  options: TranslationOptions,
+): Record<string, unknown> {
+  return {
+    modelProvider: options.modelProvider,
+    sourceLanguage: options.sourceLanguage,
+    targetLanguage: options.targetLanguage,
+    promptMode: options.promptMode,
   };
 }
 

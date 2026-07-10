@@ -27,6 +27,8 @@ export function buildSettingsFromDraft({
     keybindings,
     blockFormatDefaults,
     modelProvider: values.modelProvider,
+    sourceLanguage: values.sourceLanguage,
+    targetLanguage: values.targetLanguage,
     modelSource: values.modelSource,
     modelRepo: draft.trimmedModelRepo,
     modelFile: draft.trimmedModelFile,

@@ -75,8 +75,12 @@ export type OverlayItem = {
   type: string;
   textRole?: "sound" | "ordinary" | "nontext" | string;
   bbox: BBox;
+  /** 하위 호환 별칭. 신규 코드는 sourceText/translatedText를 우선 사용한다. */
   jp: string;
   ko: string;
+  /** 언어 중립 명칭. 파서는 jp/ko와 항상 같은 값으로 채운다. */
+  sourceText?: string;
+  translatedText?: string;
   direction?: SourceTextDirection;
   angle?: number;
   fontSize?: number | null;

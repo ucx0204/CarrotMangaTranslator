@@ -254,7 +254,7 @@ function resolveSectionPage(
 
 /**
  * Matches a .txt export back onto the gathered pages. It accepts both the
- * default OCR + Korean export and the Korean-only export, in reading order,
+ * default OCR + translation export and the translation-only export, in reading order,
  * optionally grouped under `# n쪽 · 이름` headers. Pages whose text shape no
  * longer matches the block list are skipped with a warning instead of guessing.
  */

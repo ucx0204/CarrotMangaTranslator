@@ -274,6 +274,10 @@ describe("IPC schemas", () => {
   it("uses the same max token and OAuth port bounds as app settings normalization", () => {
     const payload = {
       modelProvider: "openai-codex",
+      translation: {
+        sourceLanguage: "zh-Hans",
+        targetLanguage: "en",
+      },
       gemma: {
         modelSource: "huggingface",
         modelRepo: "owner/repo",
@@ -315,6 +319,10 @@ describe("IPC schemas", () => {
     const parsed = parseIpcPayload(AppSettingsSchema, payload, "설정 저장");
     expect(parsed.maxTokens).toBe(32768);
     expect(parsed.ctx).toBe(131072);
+    expect(parsed.translation).toEqual({
+      sourceLanguage: "zh-Hans",
+      targetLanguage: "en",
+    });
     expect(parsed.gemma.vramMode).toBe("economy26b");
     expect(parsed.gemma.llamaRuntimeProfile).toBe("rtx50");
     expect(parsed.gemma.llamaRocmTarget).toBe("gfx110X");
@@ -340,6 +348,19 @@ describe("IPC schemas", () => {
       parseIpcPayload(
         AppSettingsSchema,
         { ...payload, maxTokens: 32769 },
+        "설정 저장",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        AppSettingsSchema,
+        {
+          ...payload,
+          translation: {
+            sourceLanguage: "en-aaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-cc-dd",
+            targetLanguage: "ko",
+          },
+        },
         "설정 저장",
       ),
     ).toThrow(/요청 형식/);

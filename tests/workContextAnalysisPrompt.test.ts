@@ -3,6 +3,7 @@ import {
   buildWorkContextAnalysisPrompt,
   type WorkTextSelection,
 } from "../src/main/workContextAnalysisPrompt";
+import { resolveLanguagePair } from "../src/shared/translationLanguages";
 import type { WorkStyleGuide } from "../src/shared/types";
 
 describe("AI work context analysis prompt", () => {
@@ -27,6 +28,55 @@ describe("AI work context analysis prompt", () => {
     expect(prompt.userPrompt).toContain("AI confidence, confidence 1.00");
     expect(prompt.userPrompt).not.toContain('"confidence"');
     expect(prompt.userPrompt).not.toContain("confidence: 0.9");
+  });
+
+  it("keeps the Japanese -> Korean wording for the default language pair", () => {
+    const prompt = buildWorkContextAnalysisPrompt({
+      guide: makeGuide(),
+      selection: makeSelection(),
+      languagePair: resolveLanguagePair({
+        sourceLanguage: "ja",
+        targetLanguage: "ko",
+      }),
+    });
+
+    expect(prompt.systemPrompt).toContain(
+      "일본어/원문과 기존 한국어 번역을 함께 읽고",
+    );
+    expect(prompt.userPrompt).toContain(
+      "아래 작품 텍스트를 분석해서 한국어 번역용 작품 메모리를 만들어라.",
+    );
+    expect(prompt.userPrompt).toContain("様/君/さん/ちゃん/先生/王/神");
+    expect(prompt.userPrompt).toContain("한국어 확정 번역");
+  });
+
+  it("writes language-neutral instructions for other language pairs", () => {
+    const prompt = buildWorkContextAnalysisPrompt({
+      guide: makeGuide(),
+      selection: makeSelection(),
+      languagePair: resolveLanguagePair({
+        sourceLanguage: "en",
+        targetLanguage: "fr",
+      }),
+    });
+
+    expect(prompt.systemPrompt).toContain(
+      "원문(영어)과 기존 번역(프랑스어)을 함께 읽고",
+    );
+    expect(prompt.userPrompt).toContain(
+      "아래 작품 텍스트를 분석해서 프랑스어 번역용 작품 메모리를 만들어라.",
+    );
+    expect(prompt.userPrompt).not.toContain("様/君/さん");
+    expect(prompt.userPrompt).not.toContain("한국어 확정 번역");
+    expect(prompt.userPrompt).toContain("프랑스어 확정 번역");
+    expect(prompt.userPrompt).toContain(
+      "다른 번역 언어로 작성됐을 수 있으므로",
+    );
+    expect(prompt.userPrompt).toContain("자연스러운 번역 언어 문체를 뜻한다");
+    // 저장 호환을 위해 defaultTone enum 값은 그대로 유지된다.
+    expect(prompt.userPrompt).toContain(
+      "rules.defaultTone = natural_korean | literal",
+    );
   });
 });
 
