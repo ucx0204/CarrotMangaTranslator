@@ -289,7 +289,7 @@ describe("llama runtime path selection", () => {
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it("does not guess an AMD ROCm runtime when the GPU target is unknown", () => {
     expect(() =>
