@@ -32,24 +32,23 @@ README의 예시 화면은 주로 **AMD PRO V710 환경**에서 촬영했습니�
 - 보관함 검색/정렬, 작품/화 이름 변경, 페이지/화 순서 드래그 정리를 지원합니다.
 - 자주 쓰는 보기/번역/인페인팅/블록 편집/작업 도구 단축키를 설정에서 바꿀 수 있습니다.
 
-## v0.10.0에서 달라진 점
+## v0.10.1에서 달라진 점
 
-v0.10.0은 v0.9.3 이후 번역 원문·대상 언어를 직접 고를 수 있게 하고, 최신 Codex 모델과 모델별 생각 단계를 지원하는 기능 릴리즈입니다.
+v0.10.1은 AMD ZLUDA 인페인팅이 CUDA Runtime 진단 단계에서 종료되던 문제를 수정한 패치 릴리즈입니다.
 
-- 설정의 `번역 언어`에서 40개 이상의 원문·번역 언어를 고르고, `⇄` 버튼으로 언어 방향을 바꾸거나 목록에 없는 언어 코드를 직접 입력할 수 있습니다.
-- 선택한 언어쌍을 전체/영역 번역, 기존 블록 유지, 작품 메모리와 스타일 가이드 분석, OCR 힌트까지 일관되게 전달합니다.
-- 기존 기본값인 일본어 → 한국어에서는 만화 특화 프롬프트와 OCR 최적화를 그대로 유지하고, 다른 언어쌍에서는 다국어용 중립 프롬프트와 읽기 순서를 사용합니다.
-- Codex 모델을 GPT-5.6-Sol/Terra/Luna, GPT-5.5, GPT-5.4 계열, GPT-5.3-Codex-Spark 목록에서 고르거나 Custom 모델 ID를 직접 입력할 수 있습니다.
-- 목록에서 선택한 Codex 모델이 지원하는 생각 단계만 표시하며, GPT-5.6 계열의 `max`와 `ultra` 단계까지 처리합니다.
+- AMD ZLUDA에서 `Missing symbol cudaGetDeviceCount` 오류로 Flux 인페인팅이 시작되지 않던 문제를 수정했습니다.
+- ZLUDA에서는 호환되지 않는 CUDA Runtime 진단을 건너뛰고 CUDA Driver API 기반 모델 로딩을 이어갑니다.
+- 같은 진단 경로를 쓰는 AOT 최소·LaMa 절약 인페인팅 실행기에도 수정 사항을 적용했습니다.
+- NVIDIA CUDA 장치 진단과 CPU 인페인팅 동작은 기존대로 유지합니다.
 
-자세한 패치노트는 [docs/release-notes/v0.10.0.md](docs/release-notes/v0.10.0.md)를 확인하세요.
+자세한 패치노트는 [docs/release-notes/v0.10.1.md](docs/release-notes/v0.10.1.md)를 확인하세요.
 
 ## 설치
 
 일반 사용자는 GitHub Releases에서 Windows 설치 파일을 받으면 됩니다.
 
 - 다운로드: https://github.com/ucx0204/CarrotMangaTranslator/releases
-- 설치 파일 예시: `CarrotMangaTranslator-Setup-v0.10.0.exe`
+- 설치 파일 예시: `CarrotMangaTranslator-Setup-v0.10.1.exe`
 
 설치 첫 단계에서는 현재 Windows 사용자만 쓸지, 모든 사용자에게 설치할지 고릅니다. 잘 모르겠으면 기본값인 현재 사용자 설치를 그대로 두면 됩니다.
 
