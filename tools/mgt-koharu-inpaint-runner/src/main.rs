@@ -140,10 +140,12 @@ async fn main() -> Result<()> {
     let uses_zluda = cli.require_zluda || cli.backend == BackendKind::ZludaNative;
     if uses_zluda {
         prepare_zluda_runtime(&cli).await?;
+        // ZLUDA is initialized through the CUDA Driver API. Its hybrid cudart
+        // library does not provide the full CUDA Runtime API surface required
+        // by the diagnostic below, including cudaGetDeviceCount.
+        eprintln!("mgt-koharu-inpaint-runner: CUDA runtime probe skipped for ZLUDA");
     } else if cli.backend != BackendKind::Cpu {
         prepare_cuda_runtime(cli.cuda_runtime_dir.as_deref())?;
-    }
-    if cli.backend != BackendKind::Cpu {
         log_cuda_runtime_probe();
     }
 

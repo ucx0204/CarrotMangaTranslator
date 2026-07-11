@@ -616,6 +616,59 @@ describe("Flux worker runtime helpers", () => {
     );
   });
 
+  it("does not call the CUDA Runtime API diagnostic on the ZLUDA path", () => {
+    const source = readFileSync(
+      join(repoRoot, "tools", "mgt-flux-klein-runner", "src", "main.rs"),
+      "utf8",
+    );
+    const zludaBranchStart = source.indexOf("if cli.require_zluda {");
+    const nativeCudaBranchStart = source.indexOf("} else {", zludaBranchStart);
+    const modelLoadStart = source.indexOf(
+      "let load_started = Instant::now();",
+      nativeCudaBranchStart,
+    );
+    const runtimeProbe = source.indexOf(
+      "log_cuda_runtime_probe();",
+      zludaBranchStart,
+    );
+
+    expect(zludaBranchStart).toBeGreaterThanOrEqual(0);
+    expect(nativeCudaBranchStart).toBeGreaterThan(zludaBranchStart);
+    expect(runtimeProbe).toBeGreaterThan(nativeCudaBranchStart);
+    expect(runtimeProbe).toBeLessThan(modelLoadStart);
+    expect(source.slice(zludaBranchStart, nativeCudaBranchStart)).toContain(
+      "CUDA runtime probe skipped for ZLUDA",
+    );
+  });
+
+  it("keeps the Koharu CUDA Runtime API diagnostic off its ZLUDA path", () => {
+    const source = readFileSync(
+      join(repoRoot, "tools", "mgt-koharu-inpaint-runner", "src", "main.rs"),
+      "utf8",
+    );
+    const zludaBranchStart = source.indexOf("if uses_zluda {");
+    const nativeCudaBranchStart = source.indexOf(
+      "} else if cli.backend != BackendKind::Cpu {",
+      zludaBranchStart,
+    );
+    const modelLoadStart = source.indexOf(
+      "let load_started = Instant::now();",
+      nativeCudaBranchStart,
+    );
+    const runtimeProbe = source.indexOf(
+      "log_cuda_runtime_probe();",
+      zludaBranchStart,
+    );
+
+    expect(zludaBranchStart).toBeGreaterThanOrEqual(0);
+    expect(nativeCudaBranchStart).toBeGreaterThan(zludaBranchStart);
+    expect(runtimeProbe).toBeGreaterThan(nativeCudaBranchStart);
+    expect(runtimeProbe).toBeLessThan(modelLoadStart);
+    expect(source.slice(zludaBranchStart, nativeCudaBranchStart)).toContain(
+      "CUDA runtime probe skipped for ZLUDA",
+    );
+  });
+
   it("prepares CUDA 12.9 NVIDIA Flux runners before Windows NVIDIA packaging", () => {
     const packageJson = JSON.parse(
       readFileSync(join(repoRoot, "package.json"), "utf8"),

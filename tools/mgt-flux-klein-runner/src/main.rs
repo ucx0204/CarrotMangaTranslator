@@ -97,10 +97,16 @@ async fn main() -> Result<()> {
 
     if cli.require_zluda {
         prepare_zluda_runtime(&cli).await?;
+        // ZLUDA's nvcudart_hybrid64.dll is not a complete CUDA Runtime API
+        // implementation and does not export entry points such as
+        // cudaGetDeviceCount. Candle initializes ZLUDA through the CUDA Driver
+        // API instead, so a runtime-only diagnostic would abort before model
+        // loading even though the supported driver path is ready.
+        eprintln!("mgt-flux-klein: CUDA runtime probe skipped for ZLUDA");
     } else {
         prepare_cuda_runtime(cli.cuda_runtime_dir.as_deref())?;
+        log_cuda_runtime_probe();
     }
-    log_cuda_runtime_probe();
 
     let load_started = Instant::now();
     let model = Flux2Klein::load_from_paths(Flux2KleinPaths {
