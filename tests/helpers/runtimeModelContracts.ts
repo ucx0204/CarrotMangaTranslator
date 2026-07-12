@@ -188,6 +188,10 @@ const runtimeHelpers = {
   collectRequiredHfDownloads: (options: {
     [key: string]: unknown;
   }) => Array<{ kind: string; file: string; destination: string }>;
+  ensureHfModelAssetsDownloaded: (
+    options: { [key: string]: unknown },
+    launchTarget?: { [key: string]: unknown },
+  ) => Promise<void>;
   collectRequiredPaddleOcrModelDownloads: (
     options: { [key: string]: unknown },
     runtime?: { runtimeDir?: string },
@@ -205,9 +209,14 @@ const runtimeHelpers = {
     nonRetriable?: boolean;
   };
   inspectModelLaunch: (options: { [key: string]: unknown }) => {
+    [key: string]: unknown;
+    draftModelPath?: string | null;
     launchMode: string;
+    mmprojPath?: string | null;
     model?: string;
+    modelPath?: string | null;
     reasoningEffort?: string;
+    requiresDownload?: boolean;
   };
   isModelCached: (options: { [key: string]: unknown }) => boolean;
   parseOcrBatchProgressLine: (
@@ -281,6 +290,11 @@ const runtimeHelpers = {
   resolveLlamaCppCacheDir: (options?: {
     [key: string]: unknown;
   }) => string | null;
+  resolveLegacyManagedHfFilePath: (
+    options: { [key: string]: unknown },
+    repo: string,
+    file: string,
+  ) => string | null;
   resolveOcrBboxTimeoutMs: (pageCount?: number) => number;
   resolveOcrInstallBatchProgressRanges: (
     batches: string[][],
@@ -345,6 +359,7 @@ export const {
   collectOcrBboxHints,
   collectRequiredHfDownloads,
   collectRequiredPaddleOcrModelDownloads,
+  ensureHfModelAssetsDownloaded,
   getOverlayPrompt,
   extractModelOutputFailure,
   extractModelOutputText,
@@ -362,6 +377,7 @@ export const {
   resolveOcrBboxTimeoutMs,
   resolveFfmpegPath,
   resolveLlamaCppCacheDir,
+  resolveLegacyManagedHfFilePath,
   parseResponsesSseText,
   requestTranslation,
   resolveEffectiveOcrDevice,

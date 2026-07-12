@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   DEFAULT_12B_FILE,
@@ -19,7 +19,10 @@ import {
   buildLaunchArgs,
   collectRequiredHfDownloads,
   createTempDir,
+  ensureHfModelAssetsDownloaded,
+  inspectModelLaunch,
   isModelCached,
+  resolveLegacyManagedHfFilePath,
   resolveManagedHfFilePath,
   writeCachedAssets,
 } from "./helpers/runtimeModelContracts";
@@ -469,6 +472,252 @@ describe("runtime launch argument contracts", () => {
     expect(args).not.toContain("--mmproj-url");
     expect(args).not.toContain("--spec-draft-hf");
     expect(isModelCached(options)).toBe(true);
+  });
+
+  it("keeps the reported 31B Windows cache paths below MAX_PATH", () => {
+    const options = {
+      hfHubCacheDir:
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\carrot-manga-translator\\data\\hf-cache\\hub",
+    };
+    const legacyModelPath = resolveLegacyManagedHfFilePath(
+      options,
+      DEFAULT_31B_REPO,
+      DEFAULT_31B_FILE,
+    );
+    const legacyMmprojPath = resolveLegacyManagedHfFilePath(
+      options,
+      DEFAULT_MMPROJ_REPO,
+      DEFAULT_MMPROJ_FILE,
+    );
+    const modelPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_31B_REPO,
+      DEFAULT_31B_FILE,
+    );
+    const mmprojPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_MMPROJ_REPO,
+      DEFAULT_MMPROJ_FILE,
+    );
+
+    expect(legacyModelPath?.length).toBeGreaterThanOrEqual(260);
+    expect(legacyMmprojPath?.length).toBeGreaterThanOrEqual(260);
+    expect(modelPath?.length).toBeLessThan(260);
+    expect(mmprojPath?.length).toBeLessThan(260);
+    expect(() =>
+      resolveLegacyManagedHfFilePath(
+        options,
+        "owner\\..\\..\\escape",
+        "model.gguf",
+      ),
+    ).toThrow(/Invalid Hugging Face repository ID/);
+  });
+
+  it("migrates legacy managed cache files without downloading them again", async () => {
+    const hubCacheDir = createTempDir("hf-legacy-managed-cache-");
+    const options = {
+      useDraft: true,
+      modelRepo: DEFAULT_31B_REPO,
+      modelFile: DEFAULT_31B_FILE,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE,
+      draftModelRepo: DEFAULT_DRAFT_REPO,
+      draftModelFile: DEFAULT_DRAFT_FILE,
+      hfHubCacheDir: hubCacheDir,
+    };
+    const assets = [
+      [DEFAULT_31B_REPO, DEFAULT_31B_FILE],
+      [DEFAULT_MMPROJ_REPO, DEFAULT_MMPROJ_FILE],
+      [DEFAULT_DRAFT_REPO, DEFAULT_DRAFT_FILE],
+    ] as const;
+    const legacyPaths = assets.map(([repo, file]) =>
+      resolveLegacyManagedHfFilePath(options, repo, file),
+    );
+    const compactPaths = assets.map(([repo, file]) =>
+      resolveManagedHfFilePath(options, repo, file),
+    );
+    for (const filePath of legacyPaths) {
+      if (!filePath) {
+        throw new Error("legacy managed path not resolved");
+      }
+      mkdirSync(join(filePath, ".."), { recursive: true });
+      writeFileSync(filePath, "cached");
+    }
+    const standardSnapshotDir = writeCachedAssets({
+      hubCacheDir,
+      repoId: DEFAULT_31B_REPO,
+      snapshot: "snapshot-newer",
+      modelFile: DEFAULT_31B_FILE,
+      includeMmproj: false,
+    });
+
+    expect(isModelCached(options)).toBe(true);
+    await ensureHfModelAssetsDownloaded(options, inspectModelLaunch(options));
+
+    for (const filePath of legacyPaths) {
+      expect(filePath && existsSync(filePath)).toBe(false);
+    }
+    for (const filePath of compactPaths) {
+      expect(filePath && existsSync(filePath)).toBe(true);
+    }
+    expect(existsSync(join(standardSnapshotDir, DEFAULT_31B_FILE))).toBe(true);
+    const launchTarget = inspectModelLaunch(options);
+    expect(launchTarget.modelPath).toBe(compactPaths[0]);
+    expect(launchTarget.mmprojPath).toBe(compactPaths[1]);
+    expect(launchTarget.draftModelPath).toBe(compactPaths[2]);
+    expect(launchTarget.requiresDownload).toBe(false);
+  });
+
+  it("hard-links long standard HF snapshot paths into the compact cache on Windows", async () => {
+    if (process.platform !== "win32") {
+      return;
+    }
+    const cacheRoot = createTempDir("hf-standard-long-cache-");
+    const hubCacheDir = join(cacheRoot, `nested-${"x".repeat(90)}`);
+    const options = {
+      modelRepo: DEFAULT_31B_REPO,
+      modelFile: DEFAULT_31B_FILE,
+      mmprojRepo: DEFAULT_MMPROJ_REPO,
+      mmprojFile: DEFAULT_MMPROJ_FILE,
+      hfHubCacheDir: hubCacheDir,
+    };
+    const modelSnapshotDir = writeCachedAssets({
+      hubCacheDir,
+      repoId: DEFAULT_31B_REPO,
+      snapshot: "standard-model",
+      modelFile: DEFAULT_31B_FILE,
+      includeMmproj: false,
+    });
+    const mmprojSnapshotDir = writeCachedAssets({
+      hubCacheDir,
+      repoId: DEFAULT_MMPROJ_REPO,
+      snapshot: "standard-mmproj",
+      modelFile: DEFAULT_MMPROJ_FILE,
+      includeMmproj: false,
+    });
+    const standardModelPath = join(modelSnapshotDir, DEFAULT_31B_FILE);
+    const standardMmprojPath = join(mmprojSnapshotDir, DEFAULT_MMPROJ_FILE);
+    const compactModelPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_31B_REPO,
+      DEFAULT_31B_FILE,
+    );
+    const compactMmprojPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_MMPROJ_REPO,
+      DEFAULT_MMPROJ_FILE,
+    );
+
+    expect(standardModelPath.length).toBeGreaterThanOrEqual(260);
+    expect(standardMmprojPath.length).toBeGreaterThanOrEqual(260);
+    await ensureHfModelAssetsDownloaded(options, inspectModelLaunch(options));
+
+    expect(existsSync(standardModelPath)).toBe(true);
+    expect(existsSync(standardMmprojPath)).toBe(true);
+    expect(compactModelPath && existsSync(compactModelPath)).toBe(true);
+    expect(compactMmprojPath && existsSync(compactMmprojPath)).toBe(true);
+    const launchTarget = inspectModelLaunch(options);
+    expect(launchTarget.modelPath).toBe(compactModelPath);
+    expect(launchTarget.mmprojPath).toBe(compactMmprojPath);
+  });
+
+  it("hard-links a long custom HF model without a configured mmproj on Windows", async () => {
+    if (process.platform !== "win32") {
+      return;
+    }
+    const cacheRoot = createTempDir("hf-custom-long-cache-");
+    const hubCacheDir = join(cacheRoot, `nested-${"x".repeat(90)}`);
+    const repoId = `custom-owner/${"r".repeat(40)}`;
+    const modelFile = `custom-${"m".repeat(40)}.gguf`;
+    const options = {
+      modelRepo: repoId,
+      modelFile,
+      hfHubCacheDir: hubCacheDir,
+    };
+    const snapshotDir = writeCachedAssets({
+      hubCacheDir,
+      repoId,
+      snapshot: "custom-text-only",
+      modelFile,
+      includeMmproj: false,
+    });
+    const standardModelPath = join(snapshotDir, modelFile);
+    const compactModelPath = resolveManagedHfFilePath(
+      options,
+      repoId,
+      modelFile,
+    );
+
+    expect(standardModelPath.length).toBeGreaterThanOrEqual(260);
+    expect(compactModelPath?.length).toBeLessThan(260);
+    expect(inspectModelLaunch(options).mmprojPath).toBeNull();
+    await ensureHfModelAssetsDownloaded(options, inspectModelLaunch(options));
+
+    expect(existsSync(standardModelPath)).toBe(true);
+    expect(compactModelPath && existsSync(compactModelPath)).toBe(true);
+    const launchTarget = inspectModelLaunch(options);
+    expect(launchTarget.modelPath).toBe(compactModelPath);
+    expect(launchTarget.mmprojPath).toBeNull();
+  });
+
+  it("migrates an app-managed draft model used with a local main model", async () => {
+    const hubCacheDir = createTempDir("hf-local-draft-cache-");
+    const localDir = createTempDir("local-main-model-");
+    const localModelPath = join(localDir, "model.gguf");
+    writeFileSync(localModelPath, "local model");
+    const options = {
+      modelSource: "local",
+      localModelPath,
+      useDraft: true,
+      draftModelRepo: DEFAULT_DRAFT_REPO,
+      draftModelFile: DEFAULT_DRAFT_FILE,
+      hfHubCacheDir: hubCacheDir,
+    };
+    const legacyDraftPath = resolveLegacyManagedHfFilePath(
+      options,
+      DEFAULT_DRAFT_REPO,
+      DEFAULT_DRAFT_FILE,
+    );
+    const compactDraftPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_DRAFT_REPO,
+      DEFAULT_DRAFT_FILE,
+    );
+    if (!legacyDraftPath || !compactDraftPath) {
+      throw new Error("managed draft path not resolved");
+    }
+    mkdirSync(join(legacyDraftPath, ".."), { recursive: true });
+    writeFileSync(legacyDraftPath, "draft");
+
+    await ensureHfModelAssetsDownloaded(options, inspectModelLaunch(options));
+
+    expect(existsSync(legacyDraftPath)).toBe(false);
+    expect(existsSync(compactDraftPath)).toBe(true);
+    expect(inspectModelLaunch(options).draftModelPath).toBe(compactDraftPath);
+  });
+
+  it("does not accept a zero-byte legacy cache file as a model", () => {
+    const hubCacheDir = createTempDir("hf-empty-legacy-cache-");
+    const options = {
+      modelRepo: "custom/empty-model",
+      modelFile: "empty.gguf",
+      hfHubCacheDir: hubCacheDir,
+    };
+    const legacyModelPath = resolveLegacyManagedHfFilePath(
+      options,
+      options.modelRepo,
+      options.modelFile,
+    );
+    if (!legacyModelPath) {
+      throw new Error("legacy model path not resolved");
+    }
+    mkdirSync(join(legacyModelPath, ".."), { recursive: true });
+    writeFileSync(legacyModelPath, "");
+
+    expect(isModelCached(options)).toBe(false);
+    expect(
+      collectRequiredHfDownloads(options).map((task) => task.kind),
+    ).toEqual(["model"]);
   });
 
   it("collects only the HF files needed by the selected VRAM mode", () => {

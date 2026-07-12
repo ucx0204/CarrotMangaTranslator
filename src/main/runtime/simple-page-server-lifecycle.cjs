@@ -239,9 +239,9 @@ async function startServer(options) {
   const childEnv = buildLlamaServerEnv(serverPath, options);
 
   const launchTarget = inspectModelLaunch(options);
-  if (launchTarget.requiresDownload) {
-    await ensureHfModelAssetsDownloaded(options, launchTarget);
-  }
+  // This also migrates legacy Windows cache paths that native llama builds
+  // cannot open even though Node can see the file.
+  await ensureHfModelAssetsDownloaded(options, launchTarget);
   const launchArgs = buildLaunchArgs({ ...options, serverPath });
   const serverLogStream = createServerLogStream(
     options,

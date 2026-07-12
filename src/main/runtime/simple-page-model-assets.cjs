@@ -32,7 +32,7 @@ const {
   readFileSync,
   readSync,
 } = require("node:fs");
-const { mkdir, rm, writeFile } = require("node:fs/promises");
+const { link, mkdir, rename, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
 const { bundledServerCandidates } = require("./resolve-llama-runtime.cjs");
@@ -56,6 +56,7 @@ const {
 const {
   repoCacheDir,
   resolveHubCacheDir,
+  resolveLegacyManagedHfFilePath,
   resolveLlamaCppCacheDir,
   resolveManagedHfFilePath,
 } = require("./simple-page-cache-paths.cjs");
@@ -110,27 +111,68 @@ function resolveConfiguredMmprojUrl(options = {}) {
   return `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(file)}`;
 }
 
+/**
+ * @param {ModelAssetOptions} options
+ * @param {string} repo
+ * @param {string} file
+ * @returns {string | null}
+ */
+function resolveUsableManagedHfFile(options, repo, file) {
+  const managedPath = resolveManagedHfFilePath(options, repo, file);
+  return usableFileOrNull(managedPath);
+}
+
+/** @param {string | null | undefined} filePath */
+function usableFileOrNull(filePath) {
+  return filePath && isUsableFile(filePath) ? filePath : null;
+}
+
+/**
+ * @param {ModelAssetOptions} options
+ * @param {string} repo
+ * @param {string} file
+ * @returns {string | null}
+ */
+function resolveUsableLegacyManagedHfFile(options, repo, file) {
+  const legacyPath = resolveLegacyManagedHfFilePath(options, repo, file);
+  return usableFileOrNull(legacyPath);
+}
+
 /** @param {ModelAssetOptions} [options] */
 function resolveCachedConfiguredMmprojPath(options = {}) {
   if (!shouldUseConfiguredMmproj(options)) {
     return null;
   }
+  const configuredRepo = resolveConfiguredMmprojRepo(options);
   const configuredFile = resolveConfiguredMmprojFile(options);
+  const managedPath = resolveUsableManagedHfFile(
+    options,
+    configuredRepo,
+    configuredFile,
+  );
+  if (managedPath) {
+    return managedPath;
+  }
+  const legacyManagedPath = resolveUsableLegacyManagedHfFile(
+    options,
+    configuredRepo,
+    configuredFile,
+  );
+  if (legacyManagedPath) {
+    return legacyManagedPath;
+  }
   const hubCacheDir = resolveHubCacheDir(options);
   if (hubCacheDir) {
-    const repoDir = repoCacheDir(
-      resolveConfiguredMmprojRepo(options),
-      hubCacheDir,
-    );
+    const repoDir = repoCacheDir(configuredRepo, hubCacheDir);
     if (existsSync(repoDir)) {
       for (const snapshotDir of listSnapshotDirs(repoDir)) {
         const mmprojPath = path.join(snapshotDir, configuredFile);
-        if (existsSync(mmprojPath)) {
+        if (isUsableFile(mmprojPath)) {
           return mmprojPath;
         }
       }
       const namedMatch = findNamedFile(repoDir, configuredFile);
-      if (namedMatch) {
+      if (namedMatch && isUsableFile(namedMatch)) {
         return namedMatch;
       }
     }
@@ -148,10 +190,10 @@ function resolveCachedLlamaCppFile(fileName, options = {}) {
     return null;
   }
   const directPath = path.join(cacheDir, fileName);
-  if (existsSync(directPath)) {
+  if (isUsableFile(directPath)) {
     return directPath;
   }
-  return findNamedFile(cacheDir, fileName, 2);
+  return usableFileOrNull(findNamedFile(cacheDir, fileName, 2));
 }
 
 /**
@@ -228,6 +270,219 @@ function collectRequiredHfDownloads(
   return tasks;
 }
 
+const WINDOWS_LEGACY_MAX_PATH = 260;
+
+/**
+ * @param {string} left
+ * @param {string} right
+ */
+function pathsEqual(left, right) {
+  /** @param {string} value */
+  const normalize = (value) => {
+    const resolved = path.resolve(value);
+    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  };
+  return normalize(left) === normalize(right);
+}
+
+/** @param {string} filePath */
+function isWindowsLegacyLongPath(filePath) {
+  return (
+    process.platform === "win32" &&
+    path.resolve(filePath).length >= WINDOWS_LEGACY_MAX_PATH
+  );
+}
+
+/**
+ * Move app-managed v0.10.1 files to the compact cache layout. If an in-place
+ * rename is unavailable, create a hard link so the multi-gigabyte model is
+ * not copied or downloaded again.
+ *
+ * @param {ModelAssetOptions} options
+ * @param {{ allowLongAlias?: boolean; file: string; label: string; repo: string; sourcePath?: string | null }} asset
+ */
+async function ensureCompactCachedHfAsset(options, asset) {
+  const sourcePath = asset.sourcePath;
+  if (!sourcePath || !isUsableFile(sourcePath)) {
+    return;
+  }
+  const destinationPath = resolveManagedHfFilePath(
+    options,
+    asset.repo,
+    asset.file,
+  );
+  if (!destinationPath) {
+    return;
+  }
+  if (pathsEqual(sourcePath, destinationPath)) {
+    if (isWindowsLegacyLongPath(destinationPath)) {
+      throw createDetailedError(
+        "Gemma 모델 캐시 루트가 너무 길어 Windows에서 모델을 실행할 수 없습니다.",
+        {
+          assetLabel: asset.label,
+          destinationPath,
+          destinationPathLength: path.resolve(destinationPath).length,
+        },
+      );
+    }
+    return;
+  }
+
+  const legacyPath = resolveLegacyManagedHfFilePath(
+    options,
+    asset.repo,
+    asset.file,
+  );
+  const canMove = Boolean(legacyPath && pathsEqual(sourcePath, legacyPath));
+  const needsLongAlias = Boolean(
+    asset.allowLongAlias && isWindowsLegacyLongPath(sourcePath),
+  );
+  if (!canMove && !needsLongAlias) {
+    return;
+  }
+  if (isWindowsLegacyLongPath(destinationPath)) {
+    throw createDetailedError(
+      "Gemma 모델 캐시 루트가 너무 길어 Windows에서 모델을 실행할 수 없습니다.",
+      {
+        assetLabel: asset.label,
+        sourcePath,
+        sourcePathLength: path.resolve(sourcePath).length,
+        destinationPath,
+        destinationPathLength: path.resolve(destinationPath).length,
+      },
+    );
+  }
+
+  await mkdir(path.dirname(destinationPath), { recursive: true });
+  if (isUsableFile(destinationPath)) {
+    return;
+  }
+  if (existsSync(destinationPath)) {
+    await rm(destinationPath, { force: true });
+  }
+
+  /** @type {unknown} */
+  let lastError;
+  if (canMove) {
+    try {
+      await rename(sourcePath, destinationPath);
+      if (isUsableFile(destinationPath)) {
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+      if (isUsableFile(destinationPath)) {
+        return;
+      }
+    }
+  }
+
+  if (isUsableFile(sourcePath)) {
+    try {
+      await link(sourcePath, destinationPath);
+      if (isUsableFile(destinationPath)) {
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+      if (isUsableFile(destinationPath)) {
+        return;
+      }
+    }
+  }
+
+  throw createDetailedError(
+    "기존 Gemma 모델을 짧은 캐시 경로로 옮기지 못했습니다.",
+    {
+      assetLabel: asset.label,
+      sourcePath,
+      sourcePathLength: path.resolve(sourcePath).length,
+      destinationPath,
+      destinationPathLength: path.resolve(destinationPath).length,
+    },
+    lastError,
+  );
+}
+
+/**
+ * @param {ModelAssetOptions} options
+ * @param {ModelLaunchTarget} launchTarget
+ */
+async function ensureCompactCachedHfAssets(options, launchTarget) {
+  if (
+    launchTarget.launchMode === "openai-codex" ||
+    launchTarget.launchMode === "openai-api"
+  ) {
+    return;
+  }
+
+  const assets = [
+    ...(launchTarget.launchMode !== "local"
+      ? [
+          {
+            allowLongAlias: true,
+            label: "Gemma 모델",
+            repo: resolveConfiguredModelRepo(options),
+            file: resolveConfiguredModelFile(options),
+            sourcePath: launchTarget.modelPath,
+          },
+          ...(shouldUseConfiguredMmproj(options)
+            ? [
+                {
+                  allowLongAlias: true,
+                  label: "Gemma vision mmproj",
+                  repo: resolveConfiguredMmprojRepo(options),
+                  file: resolveConfiguredMmprojFile(options),
+                  sourcePath: launchTarget.mmprojPath,
+                },
+              ]
+            : []),
+        ]
+      : []),
+    ...(options.useDraft
+      ? [
+          {
+            allowLongAlias: true,
+            label: "Gemma draft 모델",
+            repo: resolveConfiguredDraftModelRepo(options),
+            file: resolveConfiguredDraftModelFile(options),
+            sourcePath: launchTarget.draftModelPath,
+          },
+        ]
+      : []),
+  ];
+  for (const asset of assets) {
+    await ensureCompactCachedHfAsset(options, asset);
+  }
+}
+
+/** @param {ModelLaunchTarget} launchTarget */
+function assertWindowsModelLaunchPaths(launchTarget) {
+  if (process.platform !== "win32") {
+    return;
+  }
+  const candidates = [
+    ["Gemma 모델", launchTarget.modelPath],
+    ["Gemma vision mmproj", launchTarget.mmprojPath],
+    ["Gemma draft 모델", launchTarget.draftModelPath],
+  ];
+  const unsafe = candidates.find(
+    (candidate) =>
+      typeof candidate[1] === "string" && isWindowsLegacyLongPath(candidate[1]),
+  );
+  if (!unsafe || typeof unsafe[1] !== "string") {
+    return;
+  }
+  throw createDetailedError(
+    "Gemma 모델 경로가 너무 길어 Windows에서 실행할 수 없습니다. 더 짧은 데이터 저장 위치를 사용해 주세요.",
+    {
+      assetLabel: unsafe[0],
+      modelPath: unsafe[1],
+      modelPathLength: path.resolve(unsafe[1]).length,
+    },
+  );
+}
+
 /**
  * @param {ModelAssetOptions} [options]
  * @param {ModelLaunchTarget} [launchTarget]
@@ -236,9 +491,27 @@ async function ensureHfModelAssetsDownloaded(
   options = {},
   launchTarget = inspectModelLaunch(options),
 ) {
-  const tasks = collectRequiredHfDownloads(options, launchTarget).filter(
-    (task) => !isUsableFile(task.destination),
+  await ensureCompactCachedHfAssets(options, launchTarget);
+  const refreshedLaunchTarget = inspectModelLaunch(options);
+  assertWindowsModelLaunchPaths(refreshedLaunchTarget);
+  const tasks = collectRequiredHfDownloads(
+    options,
+    refreshedLaunchTarget,
+  ).filter((task) => !isUsableFile(task.destination));
+  const unsafeDestination = tasks.find((task) =>
+    isWindowsLegacyLongPath(task.destination),
   );
+  if (unsafeDestination) {
+    throw createDetailedError(
+      "Gemma 모델 캐시 루트가 너무 길어 Windows에서 모델을 실행할 수 없습니다.",
+      {
+        assetLabel: unsafeDestination.label,
+        destinationPath: unsafeDestination.destination,
+        destinationPathLength: path.resolve(unsafeDestination.destination)
+          .length,
+      },
+    );
+  }
   if (tasks.length === 0) {
     return;
   }
@@ -281,6 +554,8 @@ async function ensureHfModelAssetsDownloaded(
       },
     });
   }
+
+  assertWindowsModelLaunchPaths(inspectModelLaunch(options));
 
   emitRuntimeProgress(
     options,
@@ -780,6 +1055,18 @@ function resolveCachedConfiguredDraftModelPath(options = {}) {
   if (!repo || !file) {
     return null;
   }
+  const managedPath = resolveUsableManagedHfFile(options, repo, file);
+  if (managedPath) {
+    return managedPath;
+  }
+  const legacyManagedPath = resolveUsableLegacyManagedHfFile(
+    options,
+    repo,
+    file,
+  );
+  if (legacyManagedPath) {
+    return legacyManagedPath;
+  }
   const hubCacheDir = resolveHubCacheDir(options);
   if (!hubCacheDir) {
     return null;
@@ -790,11 +1077,11 @@ function resolveCachedConfiguredDraftModelPath(options = {}) {
   }
   for (const snapshotDir of listSnapshotDirs(repoDir)) {
     const draftPath = path.join(snapshotDir, file);
-    if (existsSync(draftPath)) {
+    if (isUsableFile(draftPath)) {
       return draftPath;
     }
   }
-  return findNamedFile(repoDir, file);
+  return usableFileOrNull(findNamedFile(repoDir, file));
 }
 
 /**
@@ -829,10 +1116,36 @@ function resolveCachedModelAssets(options = {}) {
     };
   }
 
-  const repoDir = repoCacheDir(
-    resolveConfiguredModelRepo(options),
-    hubCacheDir,
+  const configuredModelRepo = resolveConfiguredModelRepo(options);
+  const configuredModelFile = resolveConfiguredModelFile(options);
+  const repoDir = repoCacheDir(configuredModelRepo, hubCacheDir);
+  const managedModelPath = resolveUsableManagedHfFile(
+    options,
+    configuredModelRepo,
+    configuredModelFile,
   );
+  const legacyManagedModelPath = resolveUsableLegacyManagedHfFile(
+    options,
+    configuredModelRepo,
+    configuredModelFile,
+  );
+  const preferredManagedModelPath = managedModelPath || legacyManagedModelPath;
+  if (preferredManagedModelPath) {
+    return {
+      hubCacheDir,
+      repoDir,
+      snapshotDir: path.dirname(preferredManagedModelPath),
+      modelPath: preferredManagedModelPath,
+      mmprojPath: configuredMmprojPath,
+      mmprojUrl: configuredMmprojPath ? null : configuredMmprojUrl,
+      draftModelPath,
+      draftModelUrl,
+      launchMode: "cached-hf",
+      requiresDownload:
+        (!configuredMmprojPath && Boolean(configuredMmprojUrl)) ||
+        requiresDraftDownload,
+    };
+  }
   if (!existsSync(repoDir)) {
     return {
       hubCacheDir,
@@ -848,15 +1161,15 @@ function resolveCachedModelAssets(options = {}) {
     };
   }
 
-  const configuredModelFile = resolveConfiguredModelFile(options);
   for (const snapshotDir of listSnapshotDirs(repoDir)) {
     const modelPath = path.join(snapshotDir, configuredModelFile);
-    if (!existsSync(modelPath)) {
+    if (!isUsableFile(modelPath)) {
       continue;
     }
 
     const mmprojPath =
-      configuredMmprojPath || findPreferredMmprojFile(snapshotDir);
+      configuredMmprojPath ||
+      usableFileOrNull(findPreferredMmprojFile(snapshotDir));
     if (mmprojPath) {
       return {
         hubCacheDir,
@@ -888,7 +1201,9 @@ function resolveCachedModelAssets(options = {}) {
     }
   }
 
-  const modelPath = findNamedFile(repoDir, configuredModelFile);
+  const modelPath = usableFileOrNull(
+    findNamedFile(repoDir, configuredModelFile),
+  );
   if (!modelPath) {
     return {
       hubCacheDir,
@@ -906,7 +1221,8 @@ function resolveCachedModelAssets(options = {}) {
 
   const snapshotDir = path.dirname(modelPath);
   const mmprojPath =
-    configuredMmprojPath || findPreferredMmprojFile(snapshotDir);
+    configuredMmprojPath ||
+    usableFileOrNull(findPreferredMmprojFile(snapshotDir));
   return {
     hubCacheDir,
     repoDir,
@@ -949,7 +1265,7 @@ function inspectModelLaunch(options = {}) {
     const modelPath = resolveConfiguredLocalModelPath(options);
     const explicitMmprojPath = resolveConfiguredLocalMmprojPath(options);
     const detectedMmprojPath = modelPath
-      ? findPreferredMmprojFile(path.dirname(modelPath))
+      ? usableFileOrNull(findPreferredMmprojFile(path.dirname(modelPath)))
       : null;
     const mmprojPath = explicitMmprojPath || detectedMmprojPath;
     const draftModelPath = options.useDraft
@@ -992,7 +1308,7 @@ function isModelCached(options = {}) {
   if (launchTarget.launchMode === "local") {
     return Boolean(
       launchTarget.modelPath &&
-      existsSync(launchTarget.modelPath) &&
+      isUsableFile(launchTarget.modelPath) &&
       (!options.useDraft || launchTarget.draftModelPath),
     );
   }
