@@ -12,6 +12,7 @@ import { resolveSourceReadingDirection } from "../../shared/translationLanguages
 import { importReviewText, openChapter } from "../library";
 import { getAppSettings } from "../settingsStore";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 export function registerReviewTextIpc(context: IpcContext): void {
@@ -22,7 +23,7 @@ export function registerReviewTextIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         ExportReviewTextRequestSchema,
         raw,
-        "검수표 내보내기",
+        tMain("ipc.labels.reviewExport"),
       );
       const chapter = await openChapter(request.chapterId);
       const settings = await getAppSettings();
@@ -35,7 +36,7 @@ export function registerReviewTextIpc(context: IpcContext): void {
         request.includeBom ?? true,
       );
       const options = {
-        title: "검수표 저장",
+        title: tMain("dialogs.saveReview"),
         defaultPath: sanitizeReviewFileName(chapter.title, request.format),
         filters: [
           {
@@ -62,7 +63,11 @@ export function registerReviewTextIpc(context: IpcContext): void {
     textReviewIpcContracts.importReviewText,
     async (_event, raw: unknown) =>
       importReviewText(
-        parseIpcPayload(ImportReviewTextRequestSchema, raw, "검수표 가져오기"),
+        parseIpcPayload(
+          ImportReviewTextRequestSchema,
+          raw,
+          tMain("ipc.labels.reviewImport"),
+        ),
       ),
   );
 }

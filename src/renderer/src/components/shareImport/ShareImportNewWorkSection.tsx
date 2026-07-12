@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { WorkShareImportPreview } from "../../../../shared/shareTypes";
 import { Button } from "../ui";
 import type { NewSelection } from "./shareImportTypes";
@@ -16,6 +17,7 @@ export function ShareImportNewWorkSection({
   preview,
   setNewSelections,
 }: ShareImportNewWorkSectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const selectAll = (): void => {
     setNewSelections((current) => updateAllSelections(current, true));
   };
@@ -26,13 +28,13 @@ export function ShareImportNewWorkSection({
   return (
     <section className="modal-section">
       <div className="modal-subheader">
-        <h3>가져올 화</h3>
+        <h3>{t("shareImport.chaptersToImport")}</h3>
         <div className="inline-actions">
           <Button variant="ghost" size="sm" onClick={selectAll} disabled={busy}>
-            전체 선택
+            {t("common.selectAll")}
           </Button>
           <Button variant="ghost" size="sm" onClick={clearAll} disabled={busy}>
-            전체 해제
+            {t("common.clearAll")}
           </Button>
         </div>
       </div>
@@ -73,6 +75,7 @@ function ShareImportNewWorkItem({
   selection: NewSelection;
   setNewSelections: React.Dispatch<React.SetStateAction<NewSelection[]>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="draft-item">
       <label className="checkbox-row">
@@ -90,7 +93,7 @@ function ShareImportNewWorkItem({
             );
           }}
         />
-        <span>{pageCount}페이지</span>
+        <span>{t("common.pageCount", { count: pageCount })}</span>
       </label>
       <input
         value={selection.title}

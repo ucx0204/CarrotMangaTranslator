@@ -1,4 +1,7 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
+import { normalizeUiLocale } from "../../../shared/uiLocales";
+import { appI18n } from "../appI18n";
 import type { AppSettings } from "../../../shared/settingsTypes";
 import { mangaGateway } from "../api/mangaGateway";
 
@@ -86,6 +89,7 @@ function useOpenSettingsAction({
   setSettingsOpen,
   settings,
 }: OpenSettingsActionOptions): () => Promise<void> {
+  const { t } = useTranslation("renderer");
   return React.useCallback(async () => {
     if (settings) {
       setSettingsOpen(true);
@@ -98,11 +102,18 @@ function useOpenSettingsAction({
       setSettingsOpen(true);
     } catch (error) {
       console.error(error);
-      pushStatus("설정을 불러오지 못했습니다.");
+      pushStatus(t("settings.loadFailed"));
     } finally {
       setSettingsBusy(false);
     }
-  }, [pushStatus, refreshSettings, setSettingsBusy, setSettingsOpen, settings]);
+  }, [
+    pushStatus,
+    refreshSettings,
+    setSettingsBusy,
+    setSettingsOpen,
+    settings,
+    t,
+  ]);
 }
 
 function useCloseSettingsAction(
@@ -129,6 +140,7 @@ function useSubmitSettingsAction({
 }: Required<SettingsMutationOptions>): (
   nextSettings: AppSettings,
 ) => Promise<void> {
+  const { t } = useTranslation("renderer");
   return React.useCallback(
     async (nextSettings) => {
       setSettingsBusy(true);
@@ -136,15 +148,16 @@ function useSubmitSettingsAction({
         const saved = await mangaGateway.saveSettings(nextSettings);
         setSettings(saved);
         setSettingsOpen(false);
-        pushStatus("설정을 저장했습니다. 다음 번 번역 실행부터 적용됩니다.");
+        await applySettingsLocale(saved);
+        pushStatus(appI18n.t("settings.saved", { ns: "renderer" }));
       } catch (error) {
         console.error(error);
-        pushStatus("설정을 저장하지 못했습니다.");
+        pushStatus(t("settings.saveFailed"));
       } finally {
         setSettingsBusy(false);
       }
     },
-    [pushStatus, setSettings, setSettingsBusy, setSettingsOpen],
+    [pushStatus, setSettings, setSettingsBusy, setSettingsOpen, t],
   );
 }
 
@@ -171,19 +184,26 @@ function useResetSettingsAction({
   setSettings,
   setSettingsBusy,
 }: SettingsMutationOptions): () => Promise<void> {
+  const { t } = useTranslation("renderer");
   return React.useCallback(async () => {
     setSettingsBusy(true);
     try {
       const reset = await mangaGateway.resetSettings();
       setSettings(reset);
-      pushStatus(
-        "설정을 기본값으로 복원했습니다. 다음 번 번역 실행부터 적용됩니다.",
-      );
+      await applySettingsLocale(reset);
+      pushStatus(appI18n.t("settings.reset", { ns: "renderer" }));
     } catch (error) {
       console.error(error);
-      pushStatus("기본 설정을 복원하지 못했습니다.");
+      pushStatus(t("settings.resetFailed"));
     } finally {
       setSettingsBusy(false);
     }
-  }, [pushStatus, setSettings, setSettingsBusy]);
+  }, [pushStatus, setSettings, setSettingsBusy, t]);
+}
+
+async function applySettingsLocale(settings: AppSettings): Promise<void> {
+  const locale = normalizeUiLocale(settings.ui?.locale);
+  if (appI18n.language !== locale) {
+    await appI18n.changeLanguage(locale);
+  }
 }

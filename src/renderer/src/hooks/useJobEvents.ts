@@ -1,7 +1,12 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { JobEvent, JobState } from "../../../shared/jobTypes";
-import { resolveStatusLineReplacement } from "../lib/appHelpers";
+import {
+  resolveStatusLineReplacement,
+  statusLineReplacementGroup,
+} from "../lib/appHelpers";
 import { formatJobEventLine, formatJobLabel } from "../lib/jobProgress";
 import { mangaGateway } from "../api/mangaGateway";
 
@@ -20,11 +25,13 @@ export function useJobEvents({
   refreshLibrary,
   setJobState,
 }: UseJobEventsOptions): void {
+  const { t } = useTranslation("renderer");
   React.useEffect(() => {
     const refreshScheduler = createLibraryRefreshScheduler(refreshLibrary);
+    const previousLineByGroup = new Map<string, string>();
     const unsubscribe = mangaGateway.onJobEvent((event) => {
-      setJobState((current) => reduceJobState(current, event));
-      appendJobStatusLine(event, appendStatusLine);
+      setJobState((current) => reduceJobState(current, event, t));
+      appendJobStatusLine(event, appendStatusLine, previousLineByGroup, t);
       refreshLiveChapterAfterJobEvent({
         event,
         currentChapterRef,
@@ -42,6 +49,7 @@ export function useJobEvents({
     mergeLiveChapter,
     refreshLibrary,
     setJobState,
+    t,
   ]);
 }
 
@@ -67,7 +75,11 @@ function createLibraryRefreshScheduler(refreshLibrary: () => Promise<void>): {
   return { schedule, dispose };
 }
 
-function reduceJobState(current: JobState, event: JobEvent): JobState {
+function reduceJobState(
+  current: JobState,
+  event: JobEvent,
+  t: TFunction<"renderer">,
+): JobState {
   const sameJob = current.id === event.id;
   const preserveCurrentStatus = sameJob && isLogOnlyEvent(event);
   return {
@@ -76,7 +88,7 @@ function reduceJobState(current: JobState, event: JobEvent): JobState {
     status: preserveCurrentStatus ? current.status : event.status,
     progressText: preserveCurrentStatus
       ? current.progressText
-      : formatJobLabel(event),
+      : formatJobLabel(event, t),
     detail: keepOrFallback(preserveCurrentStatus, current.detail, event.detail),
     phase: keepOrFallback(preserveCurrentStatus, current.phase, event.phase),
     progressMode: keepOrEvent(
@@ -168,14 +180,24 @@ function resolveInstallLogLines(
 function appendJobStatusLine(
   event: JobEvent,
   appendStatusLine: UseJobEventsOptions["appendStatusLine"],
+  previousLineByGroup: Map<string, string>,
+  t: TFunction<"renderer">,
 ): void {
   if (isLogOnlyEvent(event)) {
     return;
   }
+  const line = formatJobEventLine(event, t);
+  const group = statusLineReplacementGroup(event);
   appendStatusLine(
-    formatJobEventLine(event),
-    resolveStatusLineReplacement(event),
+    line,
+    resolveStatusLineReplacement(
+      event,
+      group ? previousLineByGroup.get(group) : undefined,
+    ),
   );
+  if (group) {
+    previousLineByGroup.set(group, line);
+  }
 }
 
 function refreshLiveChapterAfterJobEvent({

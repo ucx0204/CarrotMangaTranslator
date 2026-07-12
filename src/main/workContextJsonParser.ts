@@ -65,7 +65,7 @@ export function parseWorkContextModelJson(rawText: string): unknown {
     }
   }
 
-  throw new Error("AI 작품 메모리 분석 응답을 JSON으로 읽지 못했습니다.");
+  throw new Error(tMain("workContext.errors.jsonRead"));
 }
 
 function extractJsonCandidate(rawText: string): string {
@@ -80,7 +80,7 @@ function extractJsonCandidate(rawText: string): string {
     return balancedObject;
   }
 
-  throw new Error("AI 작품 메모리 분석 응답에서 JSON 객체를 찾지 못했습니다.");
+  throw new Error(tMain("workContext.errors.jsonObjectMissing"));
 }
 
 function extractBalancedJson(
@@ -167,3 +167,4 @@ function escapeRegExp(value: string): string {
 function uniqueAttempts(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
+import { tMain } from "./i18n";

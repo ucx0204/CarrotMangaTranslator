@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import { detectBestGpuInfo } from "../gpuInfo";
+import { tMain } from "./localization";
 import type {
   InpaintingModel,
   KoharuInpaintingBackend,
@@ -118,7 +119,7 @@ export async function acquireKoharuInpaintingEngine(options: {
   }
 
   throw new Error(
-    `Koharu 인페인팅 런타임을 준비하지 못했습니다.\n${errors.join("\n")}`,
+    tMain("inpainting.errors.koharuRuntime", { detail: errors.join("\n") }),
   );
 }
 
@@ -176,10 +177,10 @@ async function tryAcquireCachedKoharuEngine(
   }
   clearIdleTimer(cachedEngine);
   onProgress?.({
-    progressText: "Koharu 인페인팅 준비 완료",
-    detail: "캐시된 Koharu 엔진 사용",
+    progressText: tMain("inpainting.runtime.koharuReady"),
+    detail: tMain("inpainting.runtime.cachedKoharu"),
     progressMode: "log-only",
-    installLogLine: "캐시된 Koharu 인페인팅 엔진을 재사용합니다.",
+    installLogLine: tMain("inpainting.runtime.cachedKoharuLog"),
   });
   return {
     engine: cachedEngine.engine,

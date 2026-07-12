@@ -1,5 +1,7 @@
 /* eslint-disable max-lines-per-function */
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type {
   ChapterSnapshot,
   LibraryChapterSummary,
@@ -89,6 +91,7 @@ export function ChapterPagePicker({
   selection,
   onChange,
 }: ChapterPagePickerProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const loader = useChapterPagesLoader(currentChapter);
   const [expanded, setExpanded] = React.useState<Set<string>>(
     () => new Set([currentChapter.id]),
@@ -116,7 +119,9 @@ export function ChapterPagePicker({
       <div className="translate-picker-head">
         <div className="translate-picker-heading">
           <div className="translate-picker-worktitle">{work.title}</div>
-          <div className="translate-picker-subtitle">무엇을 번역할까요?</div>
+          <div className="translate-picker-subtitle">
+            {t("chapterPicker.prompt")}
+          </div>
         </div>
         <div className="translate-picker-actions">
           <Button
@@ -124,17 +129,17 @@ export function ChapterPagePicker({
             size="sm"
             onClick={() => setEveryChapter(() => ({ kind: "all" }))}
           >
-            전체 선택
+            {t("common.selectAll")}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setEveryChapter(() => ({ kind: "pending" }))}
           >
-            미번역만
+            {t("chapterPicker.untranslatedOnly")}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => onChange(new Map())}>
-            전체 해제
+            {t("common.clearAll")}
           </Button>
         </div>
       </div>
@@ -167,12 +172,14 @@ export function ChapterPagePicker({
           />
         ))}
         {work.chapters.length === 0 ? (
-          <p className="translate-picker-note">화가 없습니다.</p>
+          <p className="translate-picker-note">
+            {t("chapterPicker.noChapters")}
+          </p>
         ) : null}
       </div>
 
       <div className="translate-picker-summary">
-        {summarizeSelection(work, selection, loader)}
+        {summarizeSelection(work, selection, loader, t)}
       </div>
     </section>
   );
@@ -201,6 +208,7 @@ function ChapterRow({
   onToggleChapter: () => void;
   onTogglePage: (pageId: string) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const tri = chapterTriState(sel, chapter.pageCount, pages);
   const checkedIds = selectedPageIds(sel, pages ?? []);
 
@@ -223,10 +231,12 @@ function ChapterRow({
           </span>
           <span className="translate-chapter-title">{chapter.title}</span>
           {isCurrent ? (
-            <span className="translate-chapter-tag">현재 화</span>
+            <span className="translate-chapter-tag">
+              {t("chapterPicker.currentChapter")}
+            </span>
           ) : null}
           <span className="translate-chapter-summary">
-            {resolveChapterSummary(chapter, pages)}
+            {resolveChapterSummary(chapter, pages, t)}
           </span>
         </button>
       </div>
@@ -258,16 +268,23 @@ function ChapterPages({
   checkedIds: Set<string>;
   onTogglePage: (pageId: string) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   if (loading || !pages) {
-    return <p className="translate-picker-note">페이지 불러오는 중…</p>;
+    return (
+      <p className="translate-picker-note">{t("chapterPicker.loadingPages")}</p>
+    );
   }
   if (errored) {
     return (
-      <p className="translate-picker-note">페이지를 불러오지 못했습니다.</p>
+      <p className="translate-picker-note">
+        {t("chapterPicker.loadPagesFailed")}
+      </p>
     );
   }
   if (pages.length === 0) {
-    return <p className="translate-picker-note">페이지가 없습니다.</p>;
+    return (
+      <p className="translate-picker-note">{t("chapterPicker.noPages")}</p>
+    );
   }
   return (
     <div className="translate-page-grid">
@@ -287,28 +304,36 @@ function ChapterPages({
 function resolveChapterSummary(
   chapter: LibraryChapterSummary,
   pages: MangaPage[] | undefined,
+  t: TFunction<"components">,
 ): string {
   if (pages) {
     const remaining = pages.filter(
       (page) => page.analysisStatus !== "completed",
     ).length;
     return remaining === 0
-      ? `${pages.length}p · 완료`
-      : `${pages.length}p · ${remaining} 남음`;
+      ? t("chapterPicker.chapterSummaryComplete", { count: pages.length })
+      : t("chapterPicker.chapterSummaryRemaining", {
+          count: pages.length,
+          remaining,
+        });
   }
   const suffix =
     chapter.status === "completed"
-      ? " · 완료"
+      ? t("chapterPicker.statusSuffix.complete")
       : chapter.status === "partial"
-        ? " · 진행 중"
+        ? t("chapterPicker.statusSuffix.inProgress")
         : "";
-  return `${chapter.pageCount}p${suffix}`;
+  return t("chapterPicker.chapterSummary", {
+    count: chapter.pageCount,
+    suffix,
+  });
 }
 
 function summarizeSelection(
   work: LibraryWorkSummary,
   selection: ChapterSelectionMap,
   loader: ChapterPagesLoader,
+  t: TFunction<"components">,
 ): string {
   let chapters = 0;
   let pages = 0;
@@ -334,7 +359,11 @@ function summarizeSelection(
     }
   }
   if (chapters === 0) {
-    return "선택된 페이지가 없습니다.";
+    return t("chapterPicker.noSelectedPages");
   }
-  return `${chapters}개 화 · ${approximate ? "약 " : ""}${pages}페이지`;
+  return t("chapterPicker.selectionSummary", {
+    chapterCount: chapters,
+    pageCount: pages,
+    approximate: approximate ? t("chapterPicker.approximately") : "",
+  });
 }

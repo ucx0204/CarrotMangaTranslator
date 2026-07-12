@@ -37,7 +37,7 @@ type InpaintingTarget = {
   drawnPatternMode: boolean;
   drawnStrokes: InpaintingMaskStroke[];
   drawnFeatherPx?: number;
-  targetLabel: string;
+  targetType: "drawn" | "source";
 };
 
 export async function runInpaintingPagesJob({
@@ -77,7 +77,7 @@ export async function runInpaintingPagesJob({
     emit,
     pages.length,
     result.blocksErased,
-    target.targetLabel,
+    target.targetType,
   );
   return {
     status: "completed",
@@ -140,13 +140,13 @@ function resolveInpaintingTarget(
       drawnPatternMode: true,
       drawnStrokes: request.strokes,
       drawnFeatherPx: request.featherPx,
-      targetLabel: "그린 영역",
+      targetType: "drawn",
     };
   }
   return {
     drawnPatternMode: false,
     drawnStrokes: [],
-    targetLabel: "원문",
+    targetType: "source",
   };
 }
 

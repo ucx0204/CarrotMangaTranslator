@@ -1,5 +1,6 @@
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import type { TFunction } from "i18next";
 
 export type GatherScope = "page" | "chapter";
 export type GatherField = "both" | "translated" | "source";
@@ -184,6 +185,17 @@ type ParsedTextSection = {
   groups: string[][];
 };
 
+const IMPORT_FALLBACKS = {
+  noText: "불러온 파일에 텍스트가 없습니다.",
+  missingHeaders:
+    "페이지 머리말(# n쪽)이 없어 어느 페이지의 텍스트인지 알 수 없습니다. 머리말을 포함해 저장한 txt를 사용하세요.",
+  pageNumber: "{{number}}쪽",
+  headerlessSection: "머리말 없는 구간",
+  pageMissing: "{{page}}: 해당 페이지를 찾을 수 없어 건너뜁니다.",
+  blockMismatch:
+    "{{page}}쪽: 텍스트 줄 구성과 번역 블록 {{count}}개가 맞지 않아 건너뜁니다.",
+} as const;
+
 /** Matches the exported page header, e.g. `# 3쪽 · page-003.png`. */
 const PAGE_HEADER_PATTERN = /^#\s*(\d+)\s*쪽(?:\s*·\s*(.*))?$/;
 
@@ -261,6 +273,7 @@ function resolveSectionPage(
 export function buildTranslatedTextImport(
   pages: GatheredPage[],
   content: string,
+  t?: TFunction<"renderer">,
 ): TranslatedTextImportResult {
   const { sections, hasHeaders } = parseTextSections(content);
   const warnings: string[] = [];
@@ -271,16 +284,14 @@ export function buildTranslatedTextImport(
     return {
       updates,
       matchedPageCount,
-      warnings: ["불러온 파일에 텍스트가 없습니다."],
+      warnings: [importMessage(t, "noText")],
     };
   }
   if (!hasHeaders && pages.length !== 1) {
     return {
       updates,
       matchedPageCount,
-      warnings: [
-        "페이지 머리말(# n쪽)이 없어 어느 페이지의 텍스트인지 알 수 없습니다. 머리말을 포함해 저장한 txt를 사용하세요.",
-      ],
+      warnings: [importMessage(t, "missingHeaders")],
     };
   }
 
@@ -288,14 +299,24 @@ export function buildTranslatedTextImport(
     const page = resolveSectionPage(section, pages);
     if (!page) {
       warnings.push(
-        `${section.pageNumber !== null ? `${section.pageNumber}쪽` : "머리말 없는 구간"}: 해당 페이지를 찾을 수 없어 건너뜁니다.`,
+        importMessage(t, "pageMissing", {
+          page:
+            section.pageNumber !== null
+              ? importMessage(t, "pageNumber", {
+                  number: section.pageNumber,
+                })
+              : importMessage(t, "headerlessSection"),
+        }),
       );
       continue;
     }
     const importedTexts = resolveImportedTranslatedTexts(section, page);
     if (!importedTexts) {
       warnings.push(
-        `${page.index + 1}쪽: 텍스트 줄 구성과 번역 블록 ${page.blocks.length}개가 맞지 않아 건너뜁니다.`,
+        importMessage(t, "blockMismatch", {
+          page: page.index + 1,
+          count: page.blocks.length,
+        }),
       );
       continue;
     }
@@ -312,6 +333,21 @@ export function buildTranslatedTextImport(
     });
   }
   return { updates, matchedPageCount, warnings };
+}
+
+function importMessage(
+  t: TFunction<"renderer"> | undefined,
+  key: keyof typeof IMPORT_FALLBACKS,
+  values?: Record<string, string | number>,
+): string {
+  if (t) {
+    return t(`gatherText.import.${key}`, values);
+  }
+  return Object.entries(values ?? {}).reduce(
+    (message, [name, value]) =>
+      message.replaceAll(`{{${name}}}`, String(value)),
+    IMPORT_FALLBACKS[key] as string,
+  );
 }
 
 function resolveImportedTranslatedTexts(

@@ -1,5 +1,7 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
+  getLibrarySortOptions,
   LIBRARY_SORT_OPTIONS,
   type LibrarySort,
   type LibrarySortDirection,
@@ -13,11 +15,6 @@ type LibrarySortMenuProps = {
   onChange: (sort: LibrarySort) => void;
 };
 
-const DIRECTION_LABEL: Record<LibrarySortDirection, string> = {
-  asc: "오름차순",
-  desc: "내림차순",
-};
-
 function findIndexByKey(key: LibrarySortKey): number {
   return Math.max(
     0,
@@ -29,6 +26,8 @@ export function LibrarySortMenu({
   value,
   onChange,
 }: LibrarySortMenuProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const { t: tRenderer } = useTranslation("renderer");
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
@@ -61,15 +60,18 @@ export function LibrarySortMenu({
   };
 
   const selectedLabel =
-    LIBRARY_SORT_OPTIONS.find((option) => option.key === value.key)?.label ??
-    "";
+    getLibrarySortOptions(tRenderer).find((option) => option.key === value.key)
+      ?.label ?? "";
 
   return (
     <div className={`library-sort ${open ? "open" : ""}`} ref={rootRef}>
       <IconButton
         ref={triggerRef}
         size="sm"
-        label={`정렬: ${selectedLabel} ${DIRECTION_LABEL[value.direction]}`}
+        label={t("library.sort.trigger", {
+          criterion: selectedLabel,
+          direction: t(`library.sort.direction.${value.direction}`),
+        })}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
@@ -102,6 +104,7 @@ function SortPopover({
   onChange,
   onDismiss,
 }: SortPopoverProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const [activeIndex, setActiveIndex] = React.useState(() =>
     findIndexByKey(value.key),
   );
@@ -120,7 +123,7 @@ function SortPopover({
     <div
       className="library-sort-menu"
       role="menu"
-      aria-label="정렬 기준"
+      aria-label={t("library.sort.criteriaLabel")}
       tabIndex={-1}
       ref={menuRef}
       onKeyDown={(event) =>
@@ -214,9 +217,16 @@ function SortCriteriaList({
   onHover: (index: number) => void;
   onSelect: (key: LibrarySortKey) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const { t: tRenderer } = useTranslation("renderer");
+  const options = getLibrarySortOptions(tRenderer);
   return (
-    <div className="library-sort-group" role="group" aria-label="기준">
-      {LIBRARY_SORT_OPTIONS.map((option, index) => {
+    <div
+      className="library-sort-group"
+      role="group"
+      aria-label={t("library.sort.criterion")}
+    >
+      {options.map((option, index) => {
         const selected = option.key === value.key;
         return (
           <button
@@ -252,8 +262,13 @@ function SortDirectionToggle({
   value: LibrarySort;
   onSelect: (direction: LibrarySortDirection) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
-    <div className="library-sort-direction" role="group" aria-label="정렬 방향">
+    <div
+      className="library-sort-direction"
+      role="group"
+      aria-label={t("library.sort.directionLabel")}
+    >
       {(["asc", "desc"] as const).map((direction) => (
         <button
           key={direction}
@@ -263,7 +278,7 @@ function SortDirectionToggle({
           onClick={() => onSelect(direction)}
         >
           <DirectionArrow direction={direction} />
-          <span>{DIRECTION_LABEL[direction]}</span>
+          <span>{t(`library.sort.direction.${direction}`)}</span>
         </button>
       ))}
     </div>

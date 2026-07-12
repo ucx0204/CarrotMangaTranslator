@@ -1,4 +1,6 @@
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
   ModelProvider,
@@ -25,6 +27,7 @@ export function useSettingsModelTest({
   modelProvider: ModelProvider;
   setTestState: SettingsTestStateController["setTestState"];
 }): () => Promise<void> {
+  const { t } = useTranslation("components");
   return React.useCallback(async () => {
     const nextSettings = buildSettings();
     if (!nextSettings || !canSubmit || jobActive) {
@@ -32,12 +35,11 @@ export function useSettingsModelTest({
     }
 
     const testId = `settings-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    appendTestLogLine("Paddle OCR과 번역 엔진 확인을 시작합니다.");
+    appendTestLogLine(t("settings.test.log.start"));
     setTestState({
       status: "running",
-      message:
-        "OCR, 모델 런타임, 간단한 텍스트 응답을 차례대로 확인하는 중입니다...",
-      detail: resolveModelTestRunningDetail(modelProvider),
+      message: t("settings.test.status.running"),
+      detail: resolveModelTestRunningDetail(modelProvider, t),
     });
     const unsubscribe = subscribeModelTestProgress({
       appendTestLogLine,
@@ -50,14 +52,15 @@ export function useSettingsModelTest({
         nextSettings,
         setTestState,
         testId,
+        t,
       });
     } catch (error) {
-      appendTestLogLine(
-        "Paddle OCR과 번역 엔진 확인 요청 중 오류가 발생했습니다.",
-      );
+      console.error(error);
+      const requestError = t("settings.test.log.requestError");
+      appendTestLogLine(requestError);
       setTestState({
         status: "error",
-        message: error instanceof Error ? error.message : String(error),
+        message: requestError,
         detail: null,
       });
     } finally {
@@ -70,17 +73,21 @@ export function useSettingsModelTest({
     jobActive,
     modelProvider,
     setTestState,
+    t,
   ]);
 }
 
-function resolveModelTestRunningDetail(modelProvider: ModelProvider): string {
+function resolveModelTestRunningDetail(
+  modelProvider: ModelProvider,
+  t: TFunction<"components">,
+): string {
   if (modelProvider === "gemma") {
-    return "Paddle OCR과 Gemma 실행 런타임 준비 로그를 함께 표시합니다.";
+    return t("settings.test.status.gemmaDetail");
   }
   if (modelProvider === "openai-codex") {
-    return "Paddle OCR과 Codex 엔드포인트 준비 상태를 함께 확인합니다.";
+    return t("settings.test.status.codexDetail");
   }
-  return "Paddle OCR과 API 엔드포인트 응답을 함께 확인합니다.";
+  return t("settings.test.status.apiDetail");
 }
 
 function subscribeModelTestProgress({
@@ -114,17 +121,17 @@ async function runModelTestRequest({
   nextSettings,
   setTestState,
   testId,
+  t,
 }: {
   appendTestLogLine: SettingsTestStateController["appendTestLogLine"];
   nextSettings: AppSettings;
   setTestState: SettingsTestStateController["setTestState"];
   testId: string;
+  t: TFunction<"components">;
 }): Promise<void> {
   const result = await mangaGateway.testModelSettings(nextSettings, testId);
   appendTestLogLine(
-    result.ok
-      ? "Paddle OCR과 번역 엔진 확인이 완료되었습니다."
-      : "Paddle OCR과 번역 엔진 확인이 실패했습니다.",
+    result.ok ? t("settings.test.log.success") : t("settings.test.log.failure"),
   );
   setTestState({
     status: result.ok ? "success" : "error",
@@ -133,6 +140,7 @@ async function runModelTestRequest({
       result.resolvedModelPath,
       result.resolvedMmprojPath,
       result.resolvedEndpoint,
+      t,
     ),
   });
 }

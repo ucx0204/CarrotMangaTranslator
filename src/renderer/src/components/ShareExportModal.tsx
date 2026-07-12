@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type {
   LibraryIndex,
   LibraryWorkSummary,
@@ -21,6 +22,7 @@ export function ShareExportModal({
   onCancel,
   onSubmit,
 }: ShareExportModalProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const initialWorkId = resolveInitialShareWorkId(library, currentWorkId);
   const [workId, setWorkId] = React.useState(initialWorkId);
   const selectedWork = React.useMemo(
@@ -51,8 +53,8 @@ export function ShareExportModal({
 
   return (
     <Modal
-      ariaLabel="공유하기"
-      title="공유하기"
+      ariaLabel={t("shareExport.title")}
+      title={t("shareExport.title")}
       onClose={onCancel}
       closeDisabled={busy}
       footer={
@@ -80,8 +82,10 @@ export function ShareExportModal({
       />
 
       <div className="modal-summary-line">
-        <strong>{selectedCount}</strong>개 화 · <strong>{pageCount}</strong>
-        페이지
+        {t("shareExport.summary", {
+          chapterCount: selectedCount,
+          pageCount,
+        })}
       </div>
     </Modal>
   );
@@ -100,17 +104,18 @@ function ShareExportFooter({
   selectedChapterCount: number;
   selectedWork: LibraryWorkSummary | null;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <Button variant="ghost" onClick={onCancel} disabled={busy}>
-        취소
+        {t("common.cancel")}
       </Button>
       <Button
         variant="primary"
         disabled={busy || !selectedWork || selectedChapterCount === 0}
         onClick={onSubmit}
       >
-        공유 파일 저장
+        {t("shareExport.saveFile")}
       </Button>
     </>
   );
@@ -127,10 +132,11 @@ function ShareExportWorkSection({
   setWorkId: React.Dispatch<React.SetStateAction<string>>;
   workId: string;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="modal-section share-target-section">
       <label>
-        공유 대상 작품
+        {t("shareExport.targetWork")}
         <select
           value={workId}
           disabled={busy || library.works.length === 0}
@@ -187,10 +193,11 @@ function ShareExportChapterSection({
   selectedWork: LibraryWorkSummary | null;
   setSelectedChapterIds: React.Dispatch<React.SetStateAction<Set<string>>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="modal-section">
       <div className="modal-subheader">
-        <h3>공유할 화</h3>
+        <h3>{t("shareExport.chapters")}</h3>
         <div className="inline-actions">
           <Button
             variant="ghost"
@@ -200,7 +207,7 @@ function ShareExportChapterSection({
             }
             disabled={busy || !selectedWork}
           >
-            전체 선택
+            {t("common.selectAll")}
           </Button>
           <Button
             variant="ghost"
@@ -208,7 +215,7 @@ function ShareExportChapterSection({
             onClick={() => setSelectedChapterIds(new Set())}
             disabled={busy || !selectedWork}
           >
-            전체 해제
+            {t("common.clearAll")}
           </Button>
         </div>
       </div>
@@ -231,9 +238,9 @@ function ShareExportChapterSection({
               }}
             />
             <span>{chapter.title}</span>
-            <small>{chapter.pageCount}페이지</small>
+            <small>{t("common.pageCount", { count: chapter.pageCount })}</small>
           </label>
-        )) ?? <p className="panel-empty">공유할 작품이 없습니다.</p>}
+        )) ?? <p className="panel-empty">{t("shareExport.noWork")}</p>}
       </div>
     </section>
   );

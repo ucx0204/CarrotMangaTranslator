@@ -1,5 +1,6 @@
 import React from "react";
-import { STEP_LABELS, STEP_ORDER, type FlowStep } from "./inpaintingPanelTypes";
+import { useTranslation } from "react-i18next";
+import { STEP_ORDER, type FlowStep } from "./inpaintingPanelTypes";
 
 type InpaintingFlowHeaderProps = {
   onShowGuide: () => void;
@@ -20,6 +21,7 @@ export function InpaintingFlowHeader({
   showTextBlocks,
   step,
 }: InpaintingFlowHeaderProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const stepIndex = STEP_ORDER.indexOf(step);
 
   return (
@@ -27,7 +29,7 @@ export function InpaintingFlowHeader({
       <div
         className="inpaint-stepper"
         role="tablist"
-        aria-label="인페인팅 단계"
+        aria-label={t("inpainting.steps.label")}
       >
         {STEP_ORDER.map((value, index) => (
           <button
@@ -39,7 +41,9 @@ export function InpaintingFlowHeader({
             onClick={() => onStepChange(value)}
           >
             <span className="inpaint-step-num">{index + 1}</span>
-            <span className="inpaint-step-label">{STEP_LABELS[value]}</span>
+            <span className="inpaint-step-label">
+              {t(`inpainting.steps.${value}`)}
+            </span>
           </button>
         ))}
       </div>
@@ -47,23 +51,23 @@ export function InpaintingFlowHeader({
         <button
           className={`chip-toggle ${showTextBlocks ? "active" : ""}`}
           onClick={onToggleBlocks}
-          title="블록 표시 켜기/끄기"
+          title={t("inpainting.steps.toggleBlocks")}
         >
-          블록
+          {t("common.blocks")}
         </button>
         <button
           className={`chip-toggle ${showBlockChrome ? "active" : ""}`}
           onClick={onToggleChrome}
-          title="배경/테두리 표시 켜기/끄기"
+          title={t("inpainting.steps.toggleBorders")}
         >
-          테두리
+          {t("inpainting.steps.borders")}
         </button>
         <button
           className="inpainting-guide-button"
           onClick={onShowGuide}
-          title="인페인팅 사용법"
+          title={t("inpainting.steps.guideTitle")}
         >
-          안내
+          {t("inpainting.steps.guide")}
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { mangaGateway } from "../../api/mangaGateway";
 import { formatErrorMessage } from "../../lib/appHelpers";
 
@@ -9,28 +10,27 @@ export function useAppSessionBridgeActions(
   openLibraryFolder: () => void;
   openLogFolder: () => void;
 } {
+  const { t } = useTranslation("renderer");
   const cancelJob = useCallback(() => {
     void mangaGateway.cancelJob().catch((error) => {
       console.error(error);
-      pushStatus(
-        formatErrorMessage(error, "작업 취소 요청을 보내지 못했습니다."),
-      );
+      pushStatus(formatErrorMessage(error, t("bridge.cancelJobFailed")));
     });
-  }, [pushStatus]);
+  }, [pushStatus, t]);
 
   const openLibraryFolder = useCallback(() => {
     void mangaGateway.openLibraryFolder().catch((error) => {
       console.error(error);
-      pushStatus(formatErrorMessage(error, "보관함 폴더를 열지 못했습니다."));
+      pushStatus(formatErrorMessage(error, t("bridge.openLibraryFailed")));
     });
-  }, [pushStatus]);
+  }, [pushStatus, t]);
 
   const openLogFolder = useCallback(() => {
     void mangaGateway.openLogFolder().catch((error) => {
       console.error(error);
-      pushStatus(formatErrorMessage(error, "로그 폴더를 열지 못했습니다."));
+      pushStatus(formatErrorMessage(error, t("bridge.openLogsFailed")));
     });
-  }, [pushStatus]);
+  }, [pushStatus, t]);
 
   return {
     cancelJob,

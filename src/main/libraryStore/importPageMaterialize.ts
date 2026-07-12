@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { copyFile, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { ImportPageDraft, LibraryPageRecord } from "../../shared/types";
+import { tMain } from "./localization";
 import {
   assertImportImageFileBudget,
   readDecodedImportImageSize,
@@ -89,7 +90,9 @@ async function writeZipImportedPageImage(
   const entry = reader.entryMap.get(pageDraft.zipEntryName ?? "");
   if (!entry) {
     throw new Error(
-      `ZIP 항목을 찾지 못했습니다: ${pageDraft.zipEntryName ?? pageDraft.sourcePath}`,
+      tMain("import.errors.zipEntryMissing", {
+        entry: pageDraft.zipEntryName ?? pageDraft.sourcePath,
+      }),
     );
   }
   const sourceBytes = await reader.readEntry(
@@ -175,7 +178,7 @@ async function getCachedZipReader(
   if (cached) {
     return cached;
   }
-  const reader = await openZipArchiveReader(zipPath, "ZIP 파일");
+  const reader = await openZipArchiveReader(zipPath, tMain("import.zipFile"));
   cache.set(zipPath, reader);
   return reader;
 }

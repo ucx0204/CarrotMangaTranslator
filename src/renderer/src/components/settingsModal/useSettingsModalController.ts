@@ -1,4 +1,6 @@
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
   BlockFormatDefaults,
@@ -44,7 +46,8 @@ export function useSettingsModalController({
   onReset,
   onSubmit,
 }: SettingsModalControllerInput): SettingsModalViewProps {
-  const [activeTab, setActiveTab] = React.useState<SettingsTabId>("engine");
+  const { t } = useTranslation("components");
+  const [activeTab, setActiveTab] = React.useState<SettingsTabId>("general");
   const [keybindings, setKeybindings] = useKeybindingsDraft(initialSettings);
   const [blockFormatDefaults, updateBlockFormatDefaults] =
     useBlockFormatDefaultsDraft(initialSettings);
@@ -101,6 +104,7 @@ export function useSettingsModalController({
     setKeybindings,
     submit,
     test,
+    t,
   });
 }
 
@@ -193,6 +197,28 @@ function useKeybindingsDraft(
   return [keybindings, setKeybindings];
 }
 
+type SettingsModalViewPropsInput = {
+  activeTab: SettingsTabId;
+  canSubmit: boolean;
+  controlsBusy: boolean;
+  draft: SettingsDraft;
+  form: ReturnType<typeof useSettingsFormState>;
+  formatPanelProps: SettingsModalViewProps["formatPanelProps"];
+  jobActive: boolean;
+  keybindings: KeybindingOverrides;
+  localActions: ReturnType<typeof useSettingsLocalModelActions>;
+  onCancel: () => void;
+  onOpenLogFolder: () => void;
+  onReset: () => void;
+  runModelTest: () => Promise<void>;
+  runtime: SettingsRuntimeGuards;
+  setActiveTab: React.Dispatch<React.SetStateAction<SettingsTabId>>;
+  setKeybindings: React.Dispatch<React.SetStateAction<KeybindingOverrides>>;
+  submit: () => void;
+  test: ReturnType<typeof useSettingsTestState>;
+  t: TFunction<"components">;
+};
+
 function buildSettingsModalViewProps({
   activeTab,
   canSubmit,
@@ -212,30 +238,17 @@ function buildSettingsModalViewProps({
   setKeybindings,
   submit,
   test,
-}: {
-  activeTab: SettingsTabId;
-  canSubmit: boolean;
-  controlsBusy: boolean;
-  draft: SettingsDraft;
-  form: ReturnType<typeof useSettingsFormState>;
-  formatPanelProps: SettingsModalViewProps["formatPanelProps"];
-  jobActive: boolean;
-  keybindings: KeybindingOverrides;
-  localActions: ReturnType<typeof useSettingsLocalModelActions>;
-  onCancel: () => void;
-  onOpenLogFolder: () => void;
-  onReset: () => void;
-  runModelTest: () => Promise<void>;
-  runtime: SettingsRuntimeGuards;
-  setActiveTab: React.Dispatch<React.SetStateAction<SettingsTabId>>;
-  setKeybindings: React.Dispatch<React.SetStateAction<KeybindingOverrides>>;
-  submit: () => void;
-  test: ReturnType<typeof useSettingsTestState>;
-}): SettingsModalViewProps {
+  t,
+}: SettingsModalViewPropsInput): SettingsModalViewProps {
   return {
     activeTab,
     canSubmit,
     controlsBusy,
+    generalPanelProps: {
+      disabled: controlsBusy,
+      locale: form.values.uiLocale,
+      onLocaleChange: form.setters.setUiLocale,
+    },
     enginePanelProps: buildEnginePanelProps({
       controlsBusy,
       form,
@@ -269,7 +282,7 @@ function buildSettingsModalViewProps({
       testLogRef: test.testLogRef,
       testState: test.testState,
     },
-    validationProps: buildValidationProps(form.values, draft),
+    validationProps: buildValidationProps(form.values, draft, t),
   };
 }
 
@@ -340,9 +353,10 @@ function buildHardwarePanelProps({
 function buildValidationProps(
   values: SettingsFormValues,
   draft: SettingsDraft,
+  t: TFunction<"components">,
 ): SettingsModalViewProps["validationProps"] {
   return {
-    apiAdvancedSettingsMessage: getApiAdvancedSettingsMessage(draft),
+    apiAdvancedSettingsMessage: getApiAdvancedSettingsMessage(draft, t),
     apiAdvancedSettingsValid: draft.apiAdvancedSettingsValid,
     apiBaseUrlValid: draft.apiBaseUrlValid,
     codexOauthPortValid: draft.codexOauthPortValid,

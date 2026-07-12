@@ -222,6 +222,29 @@ describe("settings IPC model/runtime check", () => {
       "API 엔드포인트 확인 중",
     );
   });
+
+  it("shows a localized failure summary while keeping raw errors out of the UI payload", async () => {
+    const runtime = createRuntime({
+      cached: true,
+      startErrors: [new Error("raw runtime failure")],
+    });
+
+    const { result, progressEvents } = await invokeSettingsModelTest({
+      runtime,
+      settings: createGemmaSettings(),
+      testId: "localized-failure",
+    });
+
+    const expected =
+      "모델/런타임 확인에 실패했습니다. 자세한 원인은 로그에서 확인하세요.";
+    expect(result).toMatchObject({ ok: false, message: expected });
+    expect(
+      progressEvents.find((event) => event.phase === "failed")?.detail,
+    ).toBe(expected);
+    expect(JSON.stringify({ result, progressEvents })).not.toContain(
+      "raw runtime failure",
+    );
+  });
 });
 
 async function invokeSettingsModelTest({

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   LLAMA_RUNTIME_PROFILE_OPTIONS,
   MODEL_PRESETS,
@@ -68,13 +69,17 @@ function ModelSourceSelector({
   GemmaSettingsFieldsProps,
   "clearTestState" | "controlsBusy" | "modelSource" | "setModelSource"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const activeSource = MODEL_SOURCE_OPTIONS.find(
+    (option) => option.id === modelSource,
+  );
   return (
     <div className="settings-field-stack">
-      <span>모델 소스</span>
+      <span>{t("settings.gemma.modelSource.label")}</span>
       <div
         className="settings-mode-group"
         role="tablist"
-        aria-label="모델 소스"
+        aria-label={t("settings.gemma.modelSource.label")}
       >
         {MODEL_SOURCE_OPTIONS.map((option) => (
           <button
@@ -88,15 +93,12 @@ function ModelSourceSelector({
             disabled={controlsBusy}
             aria-pressed={modelSource === option.id}
           >
-            {option.label}
+            {t(option.labelKey)}
           </button>
         ))}
       </div>
       <p className="muted-line modal-note">
-        {
-          MODEL_SOURCE_OPTIONS.find((option) => option.id === modelSource)
-            ?.description
-        }
+        {activeSource ? t(activeSource.descriptionKey) : null}
       </p>
     </div>
   );
@@ -150,13 +152,14 @@ function ModelPresetSelector({
   | "setCustomVramMode"
   | "setSelectedPreset"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="settings-field-stack">
-      <span>모델 / 실행 모드</span>
+      <span>{t("settings.gemma.preset.label")}</span>
       <div
         className="settings-preset-group"
         role="tablist"
-        aria-label="모델 프리셋"
+        aria-label={t("settings.gemma.preset.ariaLabel")}
       >
         {MODEL_PRESET_BUTTON_IDS.map((presetId) => (
           <button
@@ -173,14 +176,16 @@ function ModelPresetSelector({
             disabled={controlsBusy}
             aria-pressed={selectedPreset === presetId}
           >
-            {presetId === "custom" ? "커스텀" : MODEL_PRESETS[presetId].label}
+            {presetId === "custom"
+              ? t("settings.gemma.preset.custom")
+              : t(MODEL_PRESETS[presetId].labelKey)}
           </button>
         ))}
       </div>
       <p className="muted-line modal-note">
         {selectedPreset === "custom"
-          ? "직접 지정한 모델을 사용합니다. 커스텀 모델은 현재 저장된 실행 설정을 유지합니다."
-          : MODEL_PRESETS[selectedPreset].description}
+          ? t("settings.gemma.preset.customDescription")
+          : t(MODEL_PRESETS[selectedPreset].descriptionKey)}
       </p>
     </div>
   );
@@ -206,10 +211,11 @@ function CustomHfModelFields({
   | "setCustomModelRepo"
   | "submit"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <label>
-        HF repo
+        {t("settings.gemma.hfRepo")}
         <input
           ref={modelRepoInputRef}
           value={customModelRepo}
@@ -226,7 +232,7 @@ function CustomHfModelFields({
         />
       </label>
       <label>
-        GGUF 파일명
+        {t("settings.gemma.ggufFile")}
         <input
           value={customModelFile}
           disabled={controlsBusy}
@@ -261,13 +267,17 @@ function LlamaRuntimeSelector({
   | "usesAmdHardware"
   | "usesNvidiaHardware"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const activeRuntime = LLAMA_RUNTIME_PROFILE_OPTIONS.find(
+    (option) => option.id === llamaRuntimeProfile,
+  );
   return (
     <div className="settings-field-stack">
-      <span>Gemma GPU 런타임</span>
+      <span>{t("settings.gemma.runtime.label")}</span>
       <div
         className="settings-preset-group"
         role="tablist"
-        aria-label="Gemma GPU 런타임"
+        aria-label={t("settings.gemma.runtime.label")}
       >
         {LLAMA_RUNTIME_PROFILE_OPTIONS.map((option) => (
           <button
@@ -281,16 +291,12 @@ function LlamaRuntimeSelector({
             disabled={isLlamaRuntimeOptionDisabled(option.id)}
             aria-pressed={llamaRuntimeProfile === option.id}
           >
-            {option.label}
+            {t(option.labelKey)}
           </button>
         ))}
       </div>
       <p className="muted-line modal-note">
-        {
-          LLAMA_RUNTIME_PROFILE_OPTIONS.find(
-            (option) => option.id === llamaRuntimeProfile,
-          )?.description
-        }
+        {activeRuntime ? t(activeRuntime.descriptionKey) : null}
       </p>
       <RuntimeHardwareNote
         usesAmdHardware={usesAmdHardware}
@@ -307,18 +313,18 @@ function RuntimeHardwareNote({
   HuggingFaceModelFieldsProps,
   "usesAmdHardware" | "usesNvidiaHardware"
 >): React.JSX.Element | null {
+  const { t } = useTranslation("components");
   if (usesAmdHardware) {
     return (
       <p className="muted-line modal-note">
-        감지된 AMD GPU에서는 CUDA·RTX 런타임이 비활성화되고 ROCm·Vulkan 중에서
-        선택합니다.
+        {t("settings.gemma.runtime.amdNote")}
       </p>
     );
   }
   if (usesNvidiaHardware) {
     return (
       <p className="muted-line modal-note">
-        감지된 NVIDIA GPU에서는 ROCm·Vulkan 런타임이 비활성화됩니다.
+        {t("settings.gemma.runtime.nvidiaNote")}
       </p>
     );
   }

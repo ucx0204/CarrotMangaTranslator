@@ -6,6 +6,7 @@ import type {
 import type { BlockFormatDefaults } from "./blockFormat";
 import type { CodexReasoningEffort } from "./codexSettings";
 import type { TranslationLanguageSettings } from "./translationLanguages";
+import type { UiLocale } from "./uiLocales";
 
 export type {
   FluxBackend,
@@ -21,6 +22,7 @@ export type {
   LanguageCode,
   TranslationLanguageSettings,
 } from "./translationLanguages";
+export type { UiLocale } from "./uiLocales";
 
 export type ModelProvider = "gemma" | "openai-codex" | "openai-api";
 export type ModelSource = "huggingface" | "local";
@@ -93,6 +95,8 @@ export type OcrSettings = {
 };
 
 export type UiSettings = {
+  /** Application interface language. Independent from the manga translation pair. */
+  locale?: UiLocale;
   inpaintingGuideHidden?: boolean;
   /** Default for the "2차 번역(품질 향상)" checkbox in the translate options modal. */
   twoPassByDefault?: boolean;

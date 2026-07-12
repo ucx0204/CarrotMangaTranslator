@@ -1,4 +1,5 @@
 import type { ModelTestProgressEvent } from "../../../shared/jobTypes";
+import type { TFunction } from "i18next";
 import type {
   AppSettings,
   LlamaRuntimeProfile,
@@ -8,11 +9,12 @@ export function buildTestDetail(
   modelPath: string | null | undefined,
   mmprojPath: string | null | undefined,
   endpoint: string | null | undefined,
+  t: TFunction<"components">,
 ): string | null {
   const lines = [
-    modelPath ? `모델: ${modelPath}` : null,
-    mmprojPath ? `mmproj: ${mmprojPath}` : null,
-    endpoint ? `엔드포인트: ${endpoint}` : null,
+    modelPath ? t("settings.test.detail.model", { path: modelPath }) : null,
+    mmprojPath ? t("settings.test.detail.mmproj", { path: mmprojPath }) : null,
+    endpoint ? t("settings.test.detail.endpoint", { endpoint }) : null,
   ].filter(Boolean);
 
   return lines.length > 0 ? lines.join("\n") : null;

@@ -24,6 +24,7 @@ export function buildSettingsFromDraft({
 }): AppSettings {
   return buildSettingsFromForm({
     initialSettings,
+    uiLocale: values.uiLocale,
     keybindings,
     blockFormatDefaults,
     modelProvider: values.modelProvider,

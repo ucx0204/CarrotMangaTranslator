@@ -6,6 +6,8 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { InpaintingTool } from "../inpainting/inpaintingTypes";
 import type { MangaPage } from "./hookLibraryTypes";
@@ -63,8 +65,13 @@ type InpaintingPointerHandlers = {
 export function useWorkspaceInpaintingPointerHandlers(
   options: UseWorkspaceInpaintingPointerHandlersOptions,
 ): InpaintingPointerHandlers {
+  const { t } = useTranslation("renderer");
   const getImagePixelPoint = useImagePixelPoint(options);
-  const onPointerDown = useInpaintingPointerDown(options, getImagePixelPoint);
+  const onPointerDown = useInpaintingPointerDown(
+    options,
+    getImagePixelPoint,
+    t,
+  );
   const onPointerMove = useInpaintingPointerMove(options, getImagePixelPoint);
   const onPointerUp = useInpaintingPointerUp(options);
   const { inpaintingRetouchDrawingRef, setRetouchCursorPoint } = options;
@@ -108,6 +115,7 @@ function useImagePixelPoint({
 function useInpaintingPointerDown(
   options: UseWorkspaceInpaintingPointerHandlersOptions,
   getImagePixelPoint: (event: PointerEvent) => ImagePoint | null,
+  t: TFunction<"renderer">,
 ): (event: PointerEvent) => boolean {
   return useCallback(
     (event) => {
@@ -125,13 +133,13 @@ function useInpaintingPointerDown(
       event.stopPropagation();
       options.setSelectedBlockId(null);
       if (options.inpaintingTool === "picker") {
-        sampleInpaintingColor(options, point);
+        sampleInpaintingColor(options, point, t);
       } else if (isRetouchDrawTool(options.inpaintingTool)) {
         startRetouchDrawing(options, point, event, options.inpaintingTool);
       }
       return true;
     },
-    [getImagePixelPoint, options],
+    [getImagePixelPoint, options, t],
   );
 }
 
@@ -190,6 +198,7 @@ function sampleInpaintingColor(
     setInpaintingPaintColor,
   }: UseWorkspaceInpaintingPointerHandlersOptions,
   point: ImagePoint,
+  t: TFunction<"renderer">,
 ): void {
   const imagePath = selectedPageImagePath ?? selectedPage?.imagePath;
   if (!imagePath) {
@@ -199,13 +208,11 @@ function sampleInpaintingColor(
     .sampleInpaintingColor({ imagePath, x: point.x, y: point.y })
     .then((result) => {
       setInpaintingPaintColor(result.color);
-      pushStatus(
-        `붓 색상을 ${result.color}로 선택했습니다. 계속 다른 색을 뽑거나 붓으로 전환하세요.`,
-      );
+      pushStatus(t("inpainting.color.selected", { color: result.color }));
     })
     .catch((error) => {
       console.error(error);
-      pushStatus("색상을 가져오지 못했습니다.");
+      pushStatus(t("inpainting.color.sampleFailed"));
     });
 }
 

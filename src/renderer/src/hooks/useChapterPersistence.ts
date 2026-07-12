@@ -1,4 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
 import { clampBbox } from "../../../shared/geometry";
@@ -17,25 +19,39 @@ import type {
 } from "./chapterPersistenceTypes";
 
 const SAVE_ERROR_DEDUPE_MS = 5000;
+const STALE_PAGE_SAVE_ERROR_CODE = "STALE_PAGE_SAVE";
+const PAGE_SAVE_CONFLICT_ERROR_CODE = "PAGE_SAVE_CONFLICT";
+
+function errorCode(error: unknown): string | null {
+  if (!error || typeof error !== "object" || !("code" in error)) {
+    return null;
+  }
+  return typeof error.code === "string" ? error.code : null;
+}
 
 function isStalePageSaveError(error: unknown): boolean {
   return (
-    error instanceof Error &&
-    error.message.includes("페이지가 다른 작업으로 갱신되었습니다")
+    errorCode(error) === STALE_PAGE_SAVE_ERROR_CODE ||
+    (error instanceof Error &&
+      (error.message.includes(`[${STALE_PAGE_SAVE_ERROR_CODE}]`) ||
+        error.message.includes("페이지가 다른 작업으로 갱신되었습니다")))
   );
 }
 
 function isPageSaveConflictError(error: unknown): boolean {
   return (
-    error instanceof Error &&
-    (isStalePageSaveError(error) || error.message.includes("페이지 저장 충돌"))
+    errorCode(error) === PAGE_SAVE_CONFLICT_ERROR_CODE ||
+    (error instanceof Error &&
+      (isStalePageSaveError(error) ||
+        error.message.includes(`[${PAGE_SAVE_CONFLICT_ERROR_CODE}]`) ||
+        error.message.includes("페이지 저장 충돌")))
   );
 }
 
-function makeStalePageSaveConflictError(): Error {
-  return new Error(
-    "페이지 저장 충돌이 발생했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.",
-  );
+function makeStalePageSaveConflictError(t: TFunction<"renderer">): Error {
+  const error = new Error(t("chapter.saveConflict"));
+  Object.assign(error, { code: PAGE_SAVE_CONFLICT_ERROR_CODE });
+  return error;
 }
 
 function serializePageBlocks(page: MangaPage): MangaPage["blocks"] {
@@ -235,6 +251,7 @@ function usePersistPageBlocks({
   refs: ChapterPersistenceRefs;
   syncSavedPageVersion: ServerVersionSyncActions["syncSavedPageVersion"];
 }): PersistPageBlocks {
+  const { t } = useTranslation("renderer");
   const { serverVersionByPageIdRef } = refs;
   return useCallback<PersistPageBlocks>(
     async (
@@ -260,10 +277,10 @@ function usePersistPageBlocks({
         if (!isStalePageSaveError(error)) {
           throw error;
         }
-        throw makeStalePageSaveConflictError();
+        throw makeStalePageSaveConflictError(t);
       }
     },
-    [serverVersionByPageIdRef, syncSavedPageVersion],
+    [serverVersionByPageIdRef, syncSavedPageVersion, t],
   );
 }
 

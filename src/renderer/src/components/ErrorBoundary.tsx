@@ -1,4 +1,5 @@
 import React from "react";
+import { Translation } from "react-i18next";
 import { mangaGateway } from "../api/mangaGateway";
 import { Button } from "./ui";
 
@@ -48,24 +49,27 @@ export class ErrorBoundary extends React.Component<
       return this.props.children;
     }
     return (
-      <div className="app-crash" role="alert">
-        <div className="app-crash-card">
-          <h1>문제가 발생했어요</h1>
-          <p>
-            화면을 그리는 중 오류가 발생했습니다. 작업 내용은 보관함에 저장돼
-            있을 수 있어요. 다시 시작하면 대부분 복구됩니다.
-          </p>
-          {error.message ? (
-            <pre className="app-crash-detail">{error.message}</pre>
-          ) : null}
-          <div className="app-crash-actions">
-            <Button variant="primary" onClick={this.handleReload}>
-              다시 시작
-            </Button>
-            <Button onClick={this.handleOpenLogs}>로그 폴더 열기</Button>
+      <Translation ns="components">
+        {(t) => (
+          <div className="app-crash" role="alert">
+            <div className="app-crash-card">
+              <h1>{t("errorBoundary.title")}</h1>
+              <p>{t("errorBoundary.description")}</p>
+              {error.message ? (
+                <pre className="app-crash-detail">{error.message}</pre>
+              ) : null}
+              <div className="app-crash-actions">
+                <Button variant="primary" onClick={this.handleReload}>
+                  {t("errorBoundary.restart")}
+                </Button>
+                <Button onClick={this.handleOpenLogs}>
+                  {t("errorBoundary.openLogs")}
+                </Button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
+      </Translation>
     );
   }
 }

@@ -1,0 +1,379 @@
+{
+  "common": {
+    "pageCount": "{{count}} pages",
+    "pageCount_one": "{{count}} page",
+    "pageCount_other": "{{count}} pages"
+  },
+  "bridge": {
+    "cancelJobFailed": "Could not send the cancellation request.",
+    "openLibraryFailed": "Could not open the library folder.",
+    "openLogsFailed": "Could not open the log folder."
+  },
+  "panels": {
+    "connecting": "Connecting…",
+    "editor": {
+      "title": "Block editor",
+      "poppedOut": "The editor is open in a separate window.",
+      "closeWindow": "Close editor window",
+      "floating": "The editor is floating.",
+      "dock": "Dock editor",
+      "float": "Float editor",
+      "floatTitle": "Float the editor for a larger workspace",
+      "popOut": "Editor window",
+      "popOutTitle": "Open the editor in a separate window"
+    }
+  },
+  "blockMode": {
+    "auto": "Generate automatically",
+    "keep": "Keep existing blocks"
+  },
+  "librarySort": {
+    "updated": "Modified",
+    "title": "Name",
+    "created": "Added",
+    "chapters": "Chapter count"
+  },
+  "fonts": { "default": "Default", "defaultSample": "Abc 가나다" },
+  "eta": {
+    "seconds": "About {{count}} sec remaining",
+    "minutes": "About {{count}} min remaining",
+    "minutesSeconds": "About {{minutes}} min {{seconds}} sec remaining",
+    "hoursMinutes": "About {{hours}} hr {{minutes}} min remaining"
+  },
+  "job": {
+    "pageProgress": "Page {{current}} / {{total}} · {{status}}",
+    "pageStatus": "Page · {{status}}",
+    "pageRetry": "Page {{current}} / {{total}} · Retry {{attempt}} / {{attemptTotal}}",
+    "phase": {
+      "booting": "Preparing model",
+      "modelDownloading": "Downloading model / preparing server",
+      "inpaintingPreparing": "Preparing inpainting",
+      "finalizing": "Finalizing results",
+      "done": "Job complete",
+      "ocrDownloading": "Downloading/installing Paddle OCR",
+      "ready": "Model ready",
+      "cancelled": "Job cancelled",
+      "failed": "Job failed",
+      "ocrPreparing": "Preparing Paddle OCR",
+      "modelRequesting": "Requesting AI translation",
+      "pageRunning": "Translating",
+      "pageDone": "Complete",
+      "pageSkipped": "Skipped",
+      "inpaintingRunning": "Erasing source text",
+      "inpaintingDone": "Source text erased",
+      "ocrRunning": "Analyzing with Paddle OCR",
+      "ocrPreanalysisDone": "Paddle OCR pre-analysis complete",
+      "pageRetry": "Retrying page"
+    },
+    "status": {
+      "starting": "Preparing model",
+      "running": "Job in progress",
+      "cancelling": "Cancelling job",
+      "cancelled": "Job cancelled",
+      "failed": "Job failed",
+      "completed": "Translation complete",
+      "idle": "Idle"
+    },
+    "warnings": {
+      "skippedAndUncertain": "Some pages were skipped, and some blocks need OCR review.",
+      "skipped": "Some pages were skipped and processing continued with the next page.",
+      "uncertain": "Some blocks need further OCR review.",
+      "generic": "The job continued despite warnings."
+    },
+    "notifications": {
+      "completed": "The job is complete.",
+      "failed": "The job failed.",
+      "cancelled": "The job was cancelled.",
+      "openLogs": "Open log folder"
+    }
+  },
+  "commands": {
+    "translate": {
+      "label": "Translate…",
+      "hint": "Options · second pass · batch",
+      "keywords": "translate options translation"
+    },
+    "translatePending": {
+      "label": "Continue translation",
+      "hint": "Remaining pages (now)",
+      "keywords": "translate resume continue remaining"
+    },
+    "translateAll": {
+      "label": "Retranslate all",
+      "hint": "All pages",
+      "keywords": "translate all retranslate"
+    },
+    "exitInpainting": {
+      "label": "Exit inpainting",
+      "keywords": "inpaint exit"
+    },
+    "enterInpainting": {
+      "label": "Start inpainting",
+      "keywords": "inpaint start"
+    },
+    "cancelJob": { "label": "Cancel job", "keywords": "cancel stop job" },
+    "gatherText": {
+      "label": "Gather text",
+      "hint": "Page · whole chapter",
+      "keywords": "text copy gather"
+    },
+    "importSource": {
+      "label": "Import translation source",
+      "hint": "Images · folder · ZIP",
+      "keywords": "import source images folder zip"
+    },
+    "batchTranslate": {
+      "label": "Batch translate work",
+      "keywords": "batch import translate work"
+    },
+    "importShare": {
+      "label": "Import shared copy",
+      "keywords": "share import"
+    },
+    "exportShare": {
+      "label": "Export for sharing",
+      "keywords": "share export"
+    },
+    "openSettings": {
+      "label": "Open settings",
+      "keywords": "settings preferences"
+    },
+    "openLibrary": {
+      "label": "Open library folder",
+      "keywords": "library folder"
+    },
+    "openLogs": { "label": "Open log folder", "keywords": "log folder" },
+    "shortcutHelp": {
+      "label": "Keyboard shortcuts",
+      "keywords": "shortcut keyboard help"
+    }
+  },
+  "shortcuts": {
+    "categories": {
+      "view": "Display / View",
+      "tool": "Tools",
+      "translate": "Translation",
+      "inpaint": "Inpainting",
+      "edit": "Block editing",
+      "global": "Global"
+    },
+    "actions": {
+      "toggle-block-chrome": "Toggle block backgrounds/borders",
+      "toggle-text-blocks": "Toggle block visibility",
+      "toggle-peek-original": "Toggle original preview",
+      "zoom-in": "Zoom in",
+      "zoom-out": "Zoom out",
+      "zoom-reset": "Reset zoom",
+      "stage-tool-select": "Select tool",
+      "stage-tool-block": "Block tool (drag to add a block)",
+      "stage-tool-hand": "Hand tool (drag to pan)",
+      "toggle-stage-toolbar": "Toggle toolbar",
+      "open-translate-options": "Open translation options",
+      "translate-pending": "Continue translation (remaining pages)",
+      "translate-all": "Retranslate all",
+      "gather-text": "Gather text",
+      "cancel-job": "Cancel job",
+      "toggle-inpainting": "Start/exit inpainting",
+      "history-undo": "Undo",
+      "history-redo": "Redo",
+      "retouch-redo": "Redo retouch",
+      "delete-block": "Delete selected block",
+      "duplicate-block": "Duplicate selected block",
+      "toggle-block-excluded": "Toggle block inpainting exclusion",
+      "toggle-command-palette": "Command palette",
+      "toggle-shortcut-help": "Keyboard shortcuts",
+      "open-settings": "Open settings"
+    }
+  },
+  "blockEditing": {
+    "chapterApplyWhileRunning": "Whole-chapter batch formatting is unavailable while a job is running.",
+    "formatAppliedSelection": "Formatting applied to {{count}} selected blocks.",
+    "formatAppliedSelection_one": "Formatting applied to {{count}} selected block.",
+    "formatAppliedSelection_other": "Formatting applied to {{count}} selected blocks.",
+    "formatAppliedPage": "Formatting applied to every block on this page.",
+    "formatAppliedChapter": "Formatting applied to every block in this chapter."
+  },
+  "chapter": {
+    "saveFailed": "Save failed: {{message}}",
+    "saveConflict": "A page save conflict occurred. Review the latest content, then save again."
+  },
+  "library": {
+    "openChapterFailed": "Could not open the chapter.",
+    "refreshFailed": "Could not load the library.",
+    "refreshAfterJobFailed": "Could not refresh the library.",
+    "renameFailed": "Could not save the name.",
+    "delete": {
+      "workTitle": "Delete work",
+      "chapterTitle": "Delete chapter",
+      "confirm": "Are you sure you want to delete this?",
+      "workDetail": "\"{{title}}\" and all of its chapters, pages, and translation results will be removed from the library.",
+      "chapterDetail": "\"{{title}}\" and all of its pages and translation results will be removed from the library.",
+      "workSuccess": "Deleted the work {{title}}.",
+      "chapterSuccess": "Deleted the chapter {{title}}.",
+      "workFailed": "Could not delete the work.",
+      "chapterFailed": "Could not delete the chapter."
+    },
+    "retranslate": {
+      "title": "Retranslate page",
+      "confirm": "Are you sure you want to retranslate this page?",
+      "detail": "Existing translations and edits on this page will be overwritten."
+    },
+    "removePage": {
+      "title": "Delete page",
+      "confirm": "Are you sure you want to delete this?",
+      "detail": "This page and its translation results will be removed from the library.",
+      "success": "Deleted page {{name}}.",
+      "failed": "Could not delete the page."
+    },
+    "order": {
+      "chapterSaveFailed": "Could not save the chapter order.",
+      "pageSaveFailed": "Could not save the page order.",
+      "saveBeforePageOrderFailed": "The page order was not saved because current edits could not be saved.",
+      "pageRolledBack": "Restored the previous page order.",
+      "rolledBackAfterError": "{{message}} Restored the previous order."
+    }
+  },
+  "inpainting": {
+    "common": {
+      "saveFailedTitle": "Save failed",
+      "jobFailedTitle": "Job failed"
+    },
+    "mode": {
+      "saveBeforeEnterFailed": "Could not save changes before entering inpainting mode.",
+      "entered": "Entered inpainting mode. Start by erasing the source text.",
+      "exited": "Exited inpainting mode."
+    },
+    "drawn": {
+      "title": "Erase painted area",
+      "message": "Erase only the mask area painted in orange with Flux.",
+      "detail": "Paint generously over the text. The cropped background will be restored and saved as a separate image; the original page is preserved.",
+      "preparing": "Preparing to erase painted area",
+      "saveFailed": "Could not save changes before erasing the painted area.",
+      "startFailed": "Could not start erasing the painted area.",
+      "failed": "Failed to erase the painted area.",
+      "success": "Painted area erased · Pages: {{pages}} · Regions: {{regions}}"
+    },
+    "erase": {
+      "title": "Erase source text",
+      "currentPage": "current page",
+      "pendingPages": "pages not yet erased",
+      "message": "Erase source text at translation-block positions on the {{scope}}.",
+      "detail": "Flux inpainting removes text over speech bubbles, tones, backgrounds, and sound effects. Original images are preserved and results are saved separately.",
+      "preparing": "Preparing to erase source text",
+      "saveFailed": "Could not save changes before erasing source text.",
+      "startFailed": "Could not start erasing source text.",
+      "failed": "Failed to erase source text.",
+      "success": "Source text erased · Pages: {{pages}} · Blocks: {{blocks}}"
+    },
+    "export": {
+      "noPage": "No page is selected for export.",
+      "saveFailed": "Could not save changes before PNG export.",
+      "openFolderFailed": "PNG export completed, but the folder could not be opened: {{path}}",
+      "success": "Exported inpainting results as PNG: {{count}} pages",
+      "success_one": "Exported inpainting result as PNG: {{count}} page",
+      "success_other": "Exported inpainting results as PNG: {{count}} pages",
+      "failed": "Could not export the inpainting results.",
+      "failedTitle": "PNG export failed",
+      "preparing": "Preparing PNG export"
+    },
+    "revert": {
+      "pageTitle": "Restore this page's original image",
+      "chapterTitle": "Restore all pages to their original images",
+      "pageMessage": "Restore the original image for the current page.",
+      "chapterMessage": "Restore original images for the current chapter.",
+      "detail": "Translation blocks and coordinates are kept; only erased image results are removed.",
+      "success": "Inpainting reverted: {{count}} pages",
+      "success_one": "Inpainting reverted: {{count}} page",
+      "success_other": "Inpainting reverted: {{count}} pages",
+      "failedTitle": "Revert failed",
+      "failed": "Could not revert the inpainting results."
+    },
+    "retouch": {
+      "applyFailed": "Could not apply the retouch.",
+      "undoFailed": "Could not undo the retouch.",
+      "undoSuccess": "Retouch undone.",
+      "redoFailed": "Could not redo the retouch.",
+      "redoSuccess": "Retouch redone."
+    },
+    "color": {
+      "selected": "Selected {{color}} as the brush color. Keep sampling colors or switch to the brush.",
+      "sampleFailed": "Could not sample the color."
+    }
+  },
+  "regionTranslation": {
+    "disposeInpainting": "Closing the Flux inpainting runtime for region translation.",
+    "cancelledSelection": "Region translation selection cancelled.",
+    "dragPrompt": "Drag over the area to translate.",
+    "tooSmall": "The selected area is too small.",
+    "preparing": "Preparing region translation",
+    "failedTitle": "Region translation failed",
+    "failed": "Could not translate the selected area.",
+    "startFailed": "Could not start region translation.",
+    "success": "Created {{count}} blocks from the selected area.",
+    "success_one": "Created {{count}} block from the selected area.",
+    "success_other": "Created {{count}} blocks from the selected area."
+  },
+  "translation": {
+    "errors": {
+      "retranslatePageMissing": "Could not find the page to retranslate.",
+      "pagesMissing": "Could not find pages to translate.",
+      "jobFailedTitle": "Translation failed",
+      "jobFailed": "The translation job failed.",
+      "startFailed": "Could not start the translation job."
+    },
+    "refreshWarning": "Translation completed, but the library could not be refreshed.",
+    "flow": {
+      "firstPass": "First pass",
+      "secondPass": "Second pass",
+      "chapterProgress": "{{pass}} translation · Chapter {{current}}/{{total}}",
+      "completed": "Translation complete.",
+      "contextAnalysis": "Analyzing AI terminology/memory",
+      "contextSkipped": "First pass complete (AI analysis skipped)",
+      "contextFailed": "AI terminology/memory analysis failed; keeping first-pass results only.",
+      "secondPassCompleted": "Second-pass translation complete."
+    }
+  },
+  "settings": {
+    "loadFailed": "Could not load settings.",
+    "saved": "Settings saved. They will apply from the next translation run.",
+    "saveFailed": "Could not save settings.",
+    "reset": "Settings restored to defaults. They will apply from the next translation run.",
+    "resetFailed": "Could not restore default settings."
+  },
+  "import": {
+    "sourceReadFailed": "Could not read the source to translate.",
+    "added": "Added {{count}} chapters to the library.",
+    "added_one": "Added {{count}} chapter to the library.",
+    "added_other": "Added {{count}} chapters to the library.",
+    "applyFailed": "Could not apply the import."
+  },
+  "share": {
+    "exportSuccess": "Saved the shared file for {{title}} · Chapters: {{chapters}} · Pages: {{pages}}",
+    "exportFailed": "Could not save the shared file.",
+    "readFailed": "Could not read the shared file.",
+    "remainingChaptersTitle": "Some chapters will not be imported",
+    "remainingChaptersMessage": "Shared chapters remaining on the right will not be applied.",
+    "deleteExistingTitle": "Delete existing chapters",
+    "deleteExistingMessage": "Existing chapters omitted from the final list on the left will be deleted from the library.",
+    "importApplied": "Applied {{count}} chapters to the library.",
+    "importApplied_one": "Applied {{count}} chapter to the library.",
+    "importApplied_other": "Applied {{count}} chapters to the library.",
+    "importFailed": "Could not import the shared file."
+  },
+  "blockCreate": {
+    "tooSmall": "The block area is too small.",
+    "added": "Added a new text block."
+  },
+  "gatherText": {
+    "import": {
+      "noText": "The imported file contains no text.",
+      "missingHeaders": "Without page headers (# n쪽), the text cannot be matched to pages. Use a TXT file saved with headers.",
+      "pageNumber": "Page {{number}}",
+      "headerlessSection": "Section without a header",
+      "pageMissing": "{{page}}: page not found; skipped.",
+      "blockMismatch": "Page {{page}}: text lines do not match the {{count}} translation blocks; skipped.",
+      "blockMismatch_one": "Page {{page}}: text lines do not match the {{count}} translation block; skipped.",
+      "blockMismatch_other": "Page {{page}}: text lines do not match the {{count}} translation blocks; skipped."
+    }
+  }
+}

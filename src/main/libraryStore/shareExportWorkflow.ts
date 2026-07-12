@@ -6,6 +6,7 @@ import type {
   WorkShareExportRequest,
   WorkShareExportResult,
 } from "../../shared/types";
+import { tMain } from "./localization";
 import { reorderRecords } from "./chapterRecords";
 import {
   ensureExistingWork,
@@ -30,7 +31,7 @@ export async function exportWorkShareToFile(
     requestedIds.has(chapterId),
   );
   if (chapterIds.length === 0) {
-    throw new Error("공유할 화를 선택해 주세요.");
+    throw new Error(tMain("share.errors.selectChapter"));
   }
 
   const zip = new AdmZip();
@@ -80,7 +81,7 @@ async function addChapterToShare(
 ): Promise<number> {
   const chapter = await readChapterFile(workId, chapterId);
   if (!chapter) {
-    throw new Error("공유할 화를 찾지 못했습니다.");
+    throw new Error(tMain("share.errors.exportChapterNotFound"));
   }
 
   const packagePages: LibraryPageRecord[] = [];
@@ -114,7 +115,9 @@ async function addPageToShare(
     sourcePath: page.imagePath,
     packagePath: packageImagePath,
     displayName: page.name,
-    missingMessage: `원본 이미지를 찾지 못했습니다: ${page.name}`,
+    missingMessage: tMain("share.errors.sourceImageMissing", {
+      page: page.name,
+    }),
   });
   return {
     ...page,
@@ -143,8 +146,10 @@ async function addInpaintedPageToShare(
     zip,
     sourcePath: page.inpaintedImagePath,
     packagePath,
-    displayName: `${page.name} 인페인팅 결과`,
-    missingMessage: `인페인팅 결과 이미지를 찾지 못했습니다: ${page.name}`,
+    displayName: tMain("share.inpaintingResult", { page: page.name }),
+    missingMessage: tMain("share.errors.inpaintingImageMissing", {
+      page: page.name,
+    }),
   });
   return packagePath;
 }
@@ -166,11 +171,13 @@ async function addImageFileToShare({
     throw new Error(missingMessage);
   }
   if (!isSupportedImagePath(sourcePath) || !isSupportedImagePath(packagePath)) {
-    throw new Error(`지원하지 않는 이미지 형식입니다: ${displayName}`);
+    throw new Error(
+      tMain("share.errors.unsupportedImage", { name: displayName }),
+    );
   }
   const sourceStat = await stat(sourcePath);
   if (sourceStat.size > MAX_SHARE_IMAGE_BYTES) {
-    throw new Error(`${displayName} 파일이 너무 큽니다.`);
+    throw new Error(tMain("share.errors.fileTooLarge", { name: displayName }));
   }
   zip.addFile(packagePath, await readFile(sourcePath));
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import styles from "./Modal.module.css";
 import { IconButton } from "./IconButton";
 import { CloseIcon } from "./icons";
@@ -202,6 +203,7 @@ function ModalHeader({
   ModalProps,
   "closeDisabled" | "headerExtra" | "onClose" | "title"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.header}>
       {title ? <h2 className={styles.title}>{title}</h2> : <span />}
@@ -209,7 +211,7 @@ function ModalHeader({
         {headerExtra}
         {onClose ? (
           <IconButton
-            label="닫기"
+            label={t("common.close")}
             variant="default"
             size="sm"
             onClick={onClose}

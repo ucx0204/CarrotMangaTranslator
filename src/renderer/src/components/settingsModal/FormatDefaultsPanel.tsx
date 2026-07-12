@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type {
   BlockFormatDefaults,
   BlockFormatDirectionDefault,
@@ -25,22 +26,24 @@ export type FormatDefaultsPanelProps = {
 
 type SectionProps = FormatDefaultsPanelProps;
 
-const DIRECTION_OPTIONS: { id: BlockFormatDirectionDefault; label: string }[] =
-  [
-    { id: "auto", label: "자동" },
-    { id: "horizontal", label: "가로" },
-    { id: "vertical", label: "세로" },
-  ];
+const DIRECTION_OPTIONS: {
+  id: BlockFormatDirectionDefault;
+  labelKey: string;
+}[] = [
+  { id: "auto", labelKey: "settings.format.direction.auto" },
+  { id: "horizontal", labelKey: "settings.format.direction.horizontal" },
+  { id: "vertical", labelKey: "settings.format.direction.vertical" },
+];
 
 export function FormatDefaultsPanel({
   value,
   onChange,
 }: FormatDefaultsPanelProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="format-defaults">
       <p className="muted-line modal-note">
-        새로 만들어지는 텍스트 블록에 적용할 기본 서식입니다. 기존 블록은 바뀌지
-        않습니다.
+        {t("settings.format.description")}
       </p>
       <DirectionAlignSection value={value} onChange={onChange} />
       <FontSizeSection value={value} onChange={onChange} />
@@ -54,24 +57,25 @@ function DirectionAlignSection({
   value,
   onChange,
 }: SectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="editor-group">
       <div className="editor-group-head">
-        <h3>정렬 · 방향</h3>
+        <h3>{t("settings.format.alignment.title")}</h3>
       </div>
       <div className="format-toolbar">
         <div className="block-style-group">
           <IconButton
-            label="굵게"
-            title="굵게"
+            label={t("settings.format.alignment.bold")}
+            title={t("settings.format.alignment.bold")}
             aria-pressed={value.bold}
             onClick={() => onChange({ bold: !value.bold })}
           >
             <BoldIcon size={18} />
           </IconButton>
           <IconButton
-            label="기울임꼴"
-            title="기울임꼴"
+            label={t("settings.format.alignment.italic")}
+            title={t("settings.format.alignment.italic")}
             aria-pressed={value.italic}
             onClick={() => onChange({ italic: !value.italic })}
           >
@@ -82,8 +86,8 @@ function DirectionAlignSection({
           {(["left", "center", "right"] as const).map((align) => (
             <IconButton
               key={align}
-              label={ALIGN_LABELS[align]}
-              title={ALIGN_LABELS[align]}
+              label={t(ALIGN_LABEL_KEYS[align])}
+              title={t(ALIGN_LABEL_KEYS[align])}
               aria-pressed={value.textAlign === align}
               onClick={() => onChange({ textAlign: align })}
             >
@@ -91,7 +95,11 @@ function DirectionAlignSection({
             </IconButton>
           ))}
         </div>
-        <div className="dir-toggle" role="group" aria-label="쓰기 방향">
+        <div
+          className="dir-toggle"
+          role="group"
+          aria-label={t("settings.format.direction.ariaLabel")}
+        >
           {DIRECTION_OPTIONS.map((option) => (
             <button
               key={option.id}
@@ -99,7 +107,7 @@ function DirectionAlignSection({
               aria-pressed={value.renderDirection === option.id}
               onClick={() => onChange({ renderDirection: option.id })}
             >
-              {option.label}
+              {t(option.labelKey)}
             </button>
           ))}
         </div>
@@ -109,12 +117,13 @@ function DirectionAlignSection({
 }
 
 function FontSizeSection({ value, onChange }: SectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const setSize = (raw: number): void =>
     onChange({ fontSizePx: clampFontSize(raw) });
   return (
     <div className="editor-group">
       <div className="editor-group-head">
-        <h3>글꼴 · 크기</h3>
+        <h3>{t("settings.format.font.title")}</h3>
       </div>
       <div className="font-field">
         <FontSelect
@@ -123,9 +132,11 @@ function FontSizeSection({ value, onChange }: SectionProps): React.JSX.Element {
         />
       </div>
       <div className="font-size-row">
-        <span className="font-size-label">크기</span>
+        <span className="font-size-label">
+          {t("settings.format.font.size")}
+        </span>
         <RangeInput
-          aria-label="기본 글자 크기"
+          aria-label={t("settings.format.font.sizeAria")}
           min={10}
           max={160}
           step={1}
@@ -136,7 +147,7 @@ function FontSizeSection({ value, onChange }: SectionProps): React.JSX.Element {
         <input
           className="font-size-number"
           type="number"
-          aria-label="기본 글자 크기 값"
+          aria-label={t("settings.format.font.sizeValueAria")}
           min={10}
           max={160}
           step={1}
@@ -144,7 +155,10 @@ function FontSizeSection({ value, onChange }: SectionProps): React.JSX.Element {
           disabled={value.autoFitText}
           onChange={(event) => setSize(Number(event.target.value))}
         />
-        <label className="inline-toggle" title="텍스트 상자에 맞춰 자동 크기">
+        <label
+          className="inline-toggle"
+          title={t("settings.format.font.autoFitTitle")}
+        >
           <input
             type="checkbox"
             checked={value.autoFitText}
@@ -152,7 +166,7 @@ function FontSizeSection({ value, onChange }: SectionProps): React.JSX.Element {
               onChange({ autoFitText: event.target.checked })
             }
           />
-          자동
+          {t("settings.format.font.auto")}
         </label>
       </div>
     </div>
@@ -160,13 +174,14 @@ function FontSizeSection({ value, onChange }: SectionProps): React.JSX.Element {
 }
 
 function SpacingSection({ value, onChange }: SectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="editor-group">
       <div className="editor-group-head">
-        <h3>간격</h3>
+        <h3>{t("settings.format.spacing.title")}</h3>
       </div>
       <FieldSlider
-        label="줄 간격"
+        label={t("settings.format.spacing.lineHeight")}
         valueLabel={value.lineHeight.toFixed(2)}
         min={0.8}
         max={3}
@@ -177,7 +192,7 @@ function SpacingSection({ value, onChange }: SectionProps): React.JSX.Element {
         }
       />
       <FieldSlider
-        label="자간"
+        label={t("settings.format.spacing.letterSpacing")}
         valueLabel={value.letterSpacing.toFixed(2)}
         min={-0.1}
         max={0.5}
@@ -188,7 +203,7 @@ function SpacingSection({ value, onChange }: SectionProps): React.JSX.Element {
         }
       />
       <FieldSlider
-        label="장평"
+        label={t("settings.format.spacing.fontWidth")}
         valueLabel={`${Math.round(value.fontWidthScale * 100)}%`}
         min={MIN_FONT_WIDTH_SCALE}
         max={MAX_FONT_WIDTH_SCALE}
@@ -203,26 +218,33 @@ function SpacingSection({ value, onChange }: SectionProps): React.JSX.Element {
 }
 
 function ColorSection({ value, onChange }: SectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="editor-group">
       <div className="editor-group-head">
-        <h3>색상 · 외곽선</h3>
+        <h3>{t("settings.format.color.title")}</h3>
       </div>
-      <div className="color-row" aria-label="기본 색상">
+      <div
+        className="color-row"
+        aria-label={t("settings.format.color.ariaLabel")}
+      >
         <ColorField
-          label="글자색"
+          label={t("settings.format.color.text")}
           value={value.textColor}
           disabled={false}
           onChange={(textColor) => onChange({ textColor })}
         />
         <ColorField
-          label="외곽선"
+          label={t("settings.format.color.outline")}
           value={value.outlineColor}
           disabled={!value.outlineEnabled}
           onChange={(outlineColor) => onChange({ outlineColor })}
         />
       </div>
-      <label className="inline-toggle" title="외곽선 사용 여부">
+      <label
+        className="inline-toggle"
+        title={t("settings.format.color.outlineEnabledTitle")}
+      >
         <input
           type="checkbox"
           checked={value.outlineEnabled}
@@ -230,10 +252,10 @@ function ColorSection({ value, onChange }: SectionProps): React.JSX.Element {
             onChange({ outlineEnabled: event.target.checked })
           }
         />
-        외곽선 사용
+        {t("settings.format.color.outlineEnabled")}
       </label>
       <FieldSlider
-        label="외곽선"
+        label={t("settings.format.color.outlineWidth")}
         valueLabel={`${Math.round(value.outlineWidthScale * 100)}%`}
         min={0}
         max={2.5}
@@ -248,10 +270,10 @@ function ColorSection({ value, onChange }: SectionProps): React.JSX.Element {
   );
 }
 
-const ALIGN_LABELS: Record<"left" | "center" | "right", string> = {
-  left: "왼쪽 정렬",
-  center: "가운데 정렬",
-  right: "오른쪽 정렬",
+const ALIGN_LABEL_KEYS: Record<"left" | "center" | "right", string> = {
+  left: "settings.format.alignment.left",
+  center: "settings.format.alignment.center",
+  right: "settings.format.alignment.right",
 };
 
 function AlignIcon({

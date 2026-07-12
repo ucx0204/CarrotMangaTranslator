@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { PanelId } from "../../../shared/panelBridgeTypes";
 import { FontsProvider } from "../fonts/FontsProvider";
 import "../styles.css";
@@ -20,6 +21,7 @@ export function PanelWindowApp({
 }: {
   panelId: PanelId;
 }): React.JSX.Element {
+  const { t } = useTranslation("renderer");
   const session = useRemotePanelSession();
   const Content = PANEL_CONTENT[panelId];
   return (
@@ -30,7 +32,9 @@ export function PanelWindowApp({
             <Content />
           </PanelSessionContext.Provider>
         ) : (
-          <p className="panel-window-loading muted-line">연결 중…</p>
+          <p className="panel-window-loading muted-line">
+            {t("panels.connecting")}
+          </p>
         )}
       </div>
     </FontsProvider>

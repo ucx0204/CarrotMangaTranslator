@@ -1,4 +1,5 @@
 import { useChapterPersistence } from "../../hooks/useChapterPersistence";
+import { useTranslation } from "react-i18next";
 import { useJobEvents } from "../../hooks/useJobEvents";
 import { useLibraryActions } from "../../hooks/useLibraryActions";
 import { useLiveChapterSync } from "../../hooks/useLiveChapterSync";
@@ -76,12 +77,14 @@ function useChapterRuntimeController({
   statusLog,
   uiState,
 }: ChapterRuntimeArgs) {
+  const { t } = useTranslation("renderer");
   const persistence = useChapterPersistence({
     currentChapter: core.currentChapter,
     currentChapterRef: core.currentChapterRef,
     onSaveError: (message) => {
-      statusLog.pushStatus(`저장 실패: ${message}`);
-      toast.error(`저장 실패: ${message}`);
+      const localized = t("chapter.saveFailed", { message });
+      statusLog.pushStatus(localized);
+      toast.error(localized);
     },
     setCurrentChapter: core.setCurrentChapter,
   });

@@ -30,6 +30,7 @@ import {
   previewZipFolder,
 } from "../library";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 const PREVIEW_SESSION_TTL_MS = 30 * 60 * 1000;
@@ -68,10 +69,13 @@ function registerImageImportPreviewIpc(context: IpcContext): void {
     importShareIpcContracts.previewImagesImport,
     async (): Promise<ImportPreviewSession | null> => {
       const options = {
-        title: "이미지 열기",
+        title: tMain("dialogs.openImages"),
         properties: ["openFile", "multiSelections"],
         filters: [
-          { name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] },
+          {
+            name: tMain("dialogs.filters.images"),
+            extensions: ["png", "jpg", "jpeg", "webp"],
+          },
         ],
       } satisfies Electron.OpenDialogOptions;
       const window = context.getMainWindow();
@@ -95,7 +99,7 @@ function registerFolderImportPreviewIpc(context: IpcContext): void {
     importShareIpcContracts.previewFolderImport,
     async (): Promise<ImportPreviewSession | null> => {
       const options = {
-        title: "이미지 폴더 열기",
+        title: tMain("dialogs.openImageFolder"),
         properties: ["openDirectory"],
       } satisfies Electron.OpenDialogOptions;
       const window = context.getMainWindow();
@@ -119,7 +123,7 @@ function registerZipImportPreviewIpc(context: IpcContext): void {
     importShareIpcContracts.previewZipImport,
     async (): Promise<ImportPreviewSession | null> => {
       const options = {
-        title: "압축파일 열기",
+        title: tMain("dialogs.openArchive"),
         properties: ["openFile"],
         filters: [
           {
@@ -149,7 +153,7 @@ function registerZipFolderImportPreviewIpc(context: IpcContext): void {
     importShareIpcContracts.previewZipFolderImport,
     async (): Promise<ImportPreviewSession | null> => {
       const options = {
-        title: "작품 일괄 번역",
+        title: tMain("dialogs.batchImport"),
         properties: ["openDirectory"],
       } satisfies Electron.OpenDialogOptions;
       const window = context.getMainWindow();
@@ -175,7 +179,7 @@ function registerCreateImportIpc(context: IpcContext): void {
       const command = parseIpcPayload(
         CreateImportRequestSchema,
         request,
-        "가져오기 적용",
+        tMain("ipc.labels.importApply"),
       );
       const session = getImportPreviewSession(command.previewId);
       const result = await createImport({
@@ -200,7 +204,7 @@ function registerExportWorkShareIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         WorkShareExportRequestSchema,
         rawRequest,
-        "공유 파일 저장",
+        tMain("ipc.labels.shareSave"),
       );
       const library = await listLibrary();
       const work = library.works.find(
@@ -208,7 +212,7 @@ function registerExportWorkShareIpc(context: IpcContext): void {
       );
       const defaultName = `${sanitizeShareFileName(work?.title ?? "manga-share")}.mgtshare`;
       const options = {
-        title: "공유 파일 저장",
+        title: tMain("dialogs.saveShare"),
         defaultPath: defaultName,
         filters: [{ name: "Carrot Manga Share", extensions: ["mgtshare"] }],
       } satisfies Electron.SaveDialogOptions;
@@ -235,7 +239,7 @@ function registerPreviewWorkShareIpc(context: IpcContext): void {
     importShareIpcContracts.previewWorkShareImport,
     async (): Promise<WorkShareImportPreview | null> => {
       const options = {
-        title: "공유 파일 가져오기",
+        title: tMain("dialogs.openShare"),
         properties: ["openFile"],
         filters: [{ name: "Carrot Manga Share", extensions: ["mgtshare"] }],
       } satisfies Electron.OpenDialogOptions;
@@ -260,7 +264,7 @@ function registerImportWorkShareIpc(context: IpcContext): void {
       const command = parseIpcPayload(
         WorkShareImportRequestSchema,
         request,
-        "공유 파일 가져오기",
+        tMain("ipc.labels.shareImport"),
       );
       const session = consumeWorkSharePreviewSession(command.previewId);
       return importWorkShare({
@@ -292,7 +296,7 @@ function getImportPreviewSession(previewId: string): {
   prunePreviewSessions(importPreviewSessions);
   const session = importPreviewSessions.get(previewId);
   if (!session) {
-    throw new Error("만료되었거나 유효하지 않은 가져오기 미리보기입니다.");
+    throw new Error(tMain("ipc.errors.invalidImportPreview"));
   }
   return session;
 }
@@ -318,7 +322,7 @@ function consumeWorkSharePreviewSession(previewId: string): {
   prunePreviewSessions(workSharePreviewSessions);
   const session = workSharePreviewSessions.get(previewId);
   if (!session) {
-    throw new Error("만료되었거나 유효하지 않은 공유 파일 미리보기입니다.");
+    throw new Error(tMain("ipc.errors.invalidSharePreview"));
   }
   workSharePreviewSessions.delete(previewId);
   return session;

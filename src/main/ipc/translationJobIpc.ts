@@ -10,6 +10,7 @@ import type {
 } from "../../shared/analysisTypes";
 import { startAnalysisJob, translateRegionJob } from "../jobs/translationJobs";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 export function registerTranslationJobIpc(context: IpcContext): void {
@@ -19,7 +20,11 @@ export function registerTranslationJobIpc(context: IpcContext): void {
     async (_event, rawRequest: unknown): Promise<StartAnalysisResult> =>
       startAnalysisJob(
         context,
-        parseIpcPayload(StartAnalysisRequestSchema, rawRequest, "번역 작업"),
+        parseIpcPayload(
+          StartAnalysisRequestSchema,
+          rawRequest,
+          tMain("ipc.labels.translationJob"),
+        ),
       ),
   );
 
@@ -29,7 +34,11 @@ export function registerTranslationJobIpc(context: IpcContext): void {
     async (_event, rawRequest: unknown): Promise<RegionAnalysisResult> =>
       translateRegionJob(
         context,
-        parseIpcPayload(RegionAnalysisRequestSchema, rawRequest, "영역 번역"),
+        parseIpcPayload(
+          RegionAnalysisRequestSchema,
+          rawRequest,
+          tMain("ipc.labels.regionTranslation"),
+        ),
       ),
   );
 }

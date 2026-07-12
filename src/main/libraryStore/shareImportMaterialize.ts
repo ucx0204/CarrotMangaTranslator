@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import type { LibraryPageRecord } from "../../shared/types";
+import { tMain } from "./localization";
 import { reorderRecords, resolveChapterStatus } from "./chapterRecords";
 import {
   readDecodedImportImageSize,
@@ -120,7 +121,7 @@ async function materializeSharedPage({
 }): Promise<LibraryPageRecord> {
   const packageImagePath = normalizeShareRelativePath(
     packagePage.imagePath,
-    "페이지 이미지 경로가 올바르지 않습니다.",
+    tMain("share.errors.invalidImagePath"),
   );
   const pageId = randomUUID();
   const outputPath = resolveSharedPageOutputPath(
@@ -136,7 +137,9 @@ async function materializeSharedPage({
     packageImagePath,
     outputPath,
     displayName: packagePage.name,
-    missingMessage: `공유 파일에 이미지가 없습니다: ${packagePage.name}`,
+    missingMessage: tMain("share.errors.packageImageMissing", {
+      page: packagePage.name,
+    }),
   });
 
   const inpaintedImagePath = await materializeSharedInpaintedImage({
@@ -229,7 +232,7 @@ async function materializeSharedInpaintedImage({
 
   const packageInpaintedPath = normalizeShareRelativePath(
     packagePage.inpaintedImagePath,
-    "인페인팅 결과 이미지 경로가 올바르지 않습니다.",
+    tMain("share.errors.invalidInpaintingPath"),
   );
   const outputPath = resolveSharedInpaintedOutputPath(
     inpaintedDir,
@@ -244,8 +247,10 @@ async function materializeSharedInpaintedImage({
     archiveReader,
     packageImagePath: packageInpaintedPath,
     outputPath,
-    displayName: `${packagePage.name} 인페인팅 결과`,
-    missingMessage: `공유 파일에 인페인팅 결과 이미지가 없습니다: ${packagePage.name}`,
+    displayName: tMain("share.inpaintingResult", { page: packagePage.name }),
+    missingMessage: tMain("share.errors.packageInpaintingMissing", {
+      page: packagePage.name,
+    }),
   });
   return outputPath;
 }
@@ -282,7 +287,9 @@ async function writePackageImageEntry({
   missingMessage: string;
 }): Promise<void> {
   if (!isSupportedImagePath(packageImagePath)) {
-    throw new Error(`지원하지 않는 이미지 형식입니다: ${displayName}`);
+    throw new Error(
+      tMain("share.errors.unsupportedImage", { name: displayName }),
+    );
   }
 
   const entry = entries.get(packageImagePath);

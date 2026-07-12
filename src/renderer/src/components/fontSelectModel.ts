@@ -54,7 +54,7 @@ export function useFontSelectModel({
     () => new Set(customFonts.map((font) => font.id)),
     [customFonts],
   );
-  const selected = resolveBlockFontOption(value);
+  const selected = resolveBlockFontOption(value, options);
   const [open, setOpen] = React.useState(false);
   const [activeIndex, setActiveIndex] = React.useState(() =>
     Math.max(

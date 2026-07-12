@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Modal } from "./ui";
 
 export type Command = {
@@ -20,6 +21,7 @@ export function CommandPalette({
   commands,
   onClose,
 }: CommandPaletteProps): React.JSX.Element | null {
+  const { t } = useTranslation("components");
   const [query, setQuery] = React.useState("");
   const [activeIndex, setActiveIndex] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
@@ -75,8 +77,8 @@ export function CommandPalette({
 
   return (
     <Modal
-      ariaLabel="명령 팔레트"
-      title="명령 팔레트"
+      ariaLabel={t("commandPalette.title")}
+      title={t("commandPalette.title")}
       size="md"
       onClose={onClose}
       bodyClassName="command-palette-body"
@@ -111,18 +113,19 @@ const CommandPaletteInput = React.forwardRef<
   { onKeyDown, setActiveIndex, setQuery, value },
   ref,
 ) {
+  const { t } = useTranslation("components");
   return (
     <input
       ref={ref}
       className="command-palette-input"
-      placeholder="명령 검색…"
+      placeholder={t("commandPalette.searchPlaceholder")}
       value={value}
       onChange={(event) => {
         setQuery(event.target.value);
         setActiveIndex(0);
       }}
       onKeyDown={onKeyDown}
-      aria-label="명령 검색"
+      aria-label={t("commandPalette.searchLabel")}
     />
   );
 });
@@ -177,15 +180,16 @@ function CommandPaletteList({
   runIndex: (index: number) => void;
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div
       className="command-palette-list"
       ref={listRef}
       role="listbox"
-      aria-label="명령 목록"
+      aria-label={t("commandPalette.listLabel")}
     >
       {commands.length === 0 ? (
-        <p className="command-palette-empty">일치하는 명령이 없습니다.</p>
+        <p className="command-palette-empty">{t("commandPalette.noResults")}</p>
       ) : (
         commands.map((command, index) => (
           <CommandPaletteItem

@@ -1,15 +1,20 @@
 .row {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 44px;
+  grid-template-columns: minmax(112px, 132px) minmax(80px, 1fr) minmax(
+      44px,
+      max-content
+    );
   align-items: center;
   gap: var(--sp-3);
   min-width: 0;
 }
 
 .label {
+  min-width: 0;
   font-size: var(--font-sm);
+  line-height: 1.25;
   color: var(--text-dim);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .row input[type="range"] {

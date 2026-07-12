@@ -1,0 +1,349 @@
+{
+  "settings": {
+    "localModelDialogTitle": "로컬 GGUF 모델 선택",
+    "mmprojDialogTitle": "mmproj 파일 선택",
+    "modelTestBusy": "번역 작업 중에는 모델/런타임 확인을 실행할 수 없습니다.",
+    "modelTestComplete": "Paddle OCR과 번역 엔진 확인 완료: {{output}}",
+    "modelTestLabel": "모델/런타임 확인"
+  },
+  "dialogs": {
+    "openImages": "이미지 열기",
+    "openImageFolder": "이미지 폴더 열기",
+    "openArchive": "압축파일 열기",
+    "batchImport": "작품 일괄 번역",
+    "saveShare": "공유 파일 저장",
+    "openShare": "공유 파일 가져오기",
+    "registerFont": "폰트 파일 등록 (TTF/OTF)",
+    "saveReview": "검수표 저장",
+    "saveText": "텍스트 저장",
+    "filters": {
+      "images": "이미지 파일",
+      "font": "폰트 파일",
+      "text": "텍스트 파일"
+    }
+  },
+  "jobs": {
+    "active": "이미 실행 중인 작업이 있습니다.",
+    "cancelled": "작업이 취소되었습니다.",
+    "failed": "작업 실패",
+    "cancelling": "작업 취소 중"
+  },
+  "ipc": {
+    "errors": {
+      "untrustedPanel": "신뢰할 수 없는 패널 IPC 요청입니다.",
+      "noWindow": "IPC 요청을 받을 앱 창이 없습니다.",
+      "untrusted": "신뢰할 수 없는 IPC 요청입니다.",
+      "invalidImportPreview": "만료되었거나 유효하지 않은 가져오기 미리보기입니다.",
+      "invalidSharePreview": "만료되었거나 유효하지 않은 공유 파일 미리보기입니다."
+    },
+    "labels": {
+      "translationJob": "번역 작업",
+      "regionTranslation": "영역 번역",
+      "inpaintingJob": "인페인팅 작업",
+      "inpaintingRetouch": "인페인팅 보정",
+      "inpaintingApply": "인페인팅 결과 적용",
+      "inpaintingRestore": "인페인팅 되돌리기",
+      "colorSample": "색상 샘플",
+      "resultExport": "결과 출력",
+      "reviewExport": "검수표 내보내기",
+      "reviewImport": "검수표 가져오기",
+      "textSave": "텍스트 저장",
+      "importApply": "가져오기 적용",
+      "shareSave": "공유 파일 저장",
+      "shareImport": "공유 파일 가져오기",
+      "chapterOpen": "화 열기",
+      "pageImageOpen": "페이지 이미지 열기",
+      "pageBlocksSave": "페이지 블록 저장",
+      "workRename": "작품 이름 변경",
+      "chapterRename": "화 이름 변경",
+      "workDelete": "작품 삭제",
+      "chapterDelete": "화 삭제",
+      "pageDelete": "페이지 삭제",
+      "chapterReorder": "화 순서 변경",
+      "pageReorder": "페이지 순서 변경",
+      "styleGuideOpen": "작품 용어집 열기",
+      "styleGuideSave": "작품 용어집 저장",
+      "storyMemoryOpen": "스토리 메모리 열기",
+      "storyMemorySave": "스토리 메모리 저장",
+      "workContextAnalysis": "AI 용어/기억 분석",
+      "logWrite": "로그 기록"
+    }
+  },
+  "units": {
+    "blocks": "{{count}}개 블록",
+    "pagesAndBlocks": "{{pages}}페이지, {{blocks}}개 블록"
+  },
+  "workContext": {
+    "errors": {
+      "chapterNotFound": "AI 분석을 시작할 화를 찾지 못했습니다.",
+      "jsonRead": "AI 작품 메모리 분석 응답을 JSON으로 읽지 못했습니다.",
+      "jsonObjectMissing": "AI 작품 메모리 분석 응답에서 JSON 객체를 찾지 못했습니다.",
+      "requestFailed": "AI 작품 메모리 분석 요청이 실패했습니다.",
+      "emptyResponse": "AI 작품 메모리 분석 응답이 비어 있습니다."
+    },
+    "warnings": {
+      "noText": "분석할 텍스트가 없어 AI 용어/기억 추출을 건너뛰었습니다.",
+      "workTruncated": "작품 텍스트가 길어 현재 토큰 예산 안에서 일부 쪽만 AI 분석에 포함했습니다.",
+      "chapterTruncated": "현재 화 텍스트가 길어 현재 토큰 예산 안에서 일부 쪽만 AI 분석에 포함했습니다.",
+      "chapterNoText": "{{chapter}}: 분석할 텍스트가 없어 건너뛰었습니다.",
+      "chapterFailed": "{{chapter}}: AI 분석에 실패해 건너뛰었습니다.",
+      "prefixed": "{{chapter}}: {{warning}}",
+      "chaptersTruncated": "{{count}}개 화가 길어 각 화의 토큰 예산 안에서 일부 쪽만 AI 분석에 포함했습니다.",
+      "chaptersFailed": "{{count}}개 화는 AI 분석에 실패했습니다. 로그를 확인해 주세요.",
+      "alreadyAnalyzed": "모든 화가 이미 분석되어 AI 용어/기억 분석을 건너뛰었습니다.",
+      "unknownPageId": "AI가 알 수 없는 pageId를 반환했습니다: {{pageId}}"
+    }
+  },
+  "reviewImport": {
+    "chapterNotFound": "검수표를 적용할 화를 찾지 못했습니다.",
+    "warnings": {
+      "emptyBlockId": "{{row}}행: block_id가 비어 있어 건너뜁니다.",
+      "duplicateBlockId": "{{row}}행: 중복 block_id {{blockId}}를 건너뜁니다.",
+      "otherChapter": "{{row}}행: 다른 화의 행이라 건너뜁니다.",
+      "sourceMismatch": "{{row}}행: OCR 원문이 현재 블록과 다릅니다. block_id={{blockId}}",
+      "pageNotFound": "{{row}}행: 없는 page_id {{pageId}}입니다.",
+      "blockNotFound": "{{row}}행: 없는 block_id {{blockId}}입니다.",
+      "ambiguousBlock": "{{row}}행: block_id {{blockId}}가 여러 페이지에 있어 page_id와 함께 찾지 못하면 건너뜁니다.",
+      "pageMismatch": "{{row}}행: page_id가 현재 블록 위치와 다릅니다. block_id 기준으로 적용합니다.",
+      "invalidStatus": "{{row}}행: 검수 상태 {{status}}는 사용할 수 없습니다."
+    }
+  },
+  "import": {
+    "defaultWorkTitle": "미정 작품",
+    "untitled": "제목없음",
+    "zipFile": "ZIP 파일",
+    "errors": {
+      "imageRead": "이미지 파일을 읽지 못했습니다: {{file}}",
+      "fileTooLarge": "{{file}} 파일이 너무 큽니다.",
+      "webpConvert": "WEBP 이미지를 PNG로 변환하지 못했습니다: {{file}}",
+      "resolutionTooLarge": "{{file}} 이미지 해상도가 너무 큽니다.",
+      "tooManySources": "가져올 폴더 또는 이미지가 너무 많습니다.",
+      "zipEntryMissing": "ZIP 항목을 찾지 못했습니다: {{entry}}",
+      "noChapterToCreate": "생성할 화가 없습니다.",
+      "createdChapterOpen": "생성한 화를 열지 못했습니다."
+    }
+  },
+  "share": {
+    "fileLabel": "공유 파일",
+    "inpaintingResult": "{{page}} 인페인팅 결과",
+    "errors": {
+      "noChapters": "가져올 화가 없습니다.",
+      "notNewWorkRequest": "새 작품 가져오기 요청이 아닙니다.",
+      "notExistingWorkRequest": "기존 작품 가져오기 요청이 아닙니다.",
+      "chapterNotFound": "공유 파일에서 가져올 화를 찾지 못했습니다.",
+      "importedChapterOpen": "가져온 화를 열지 못했습니다.",
+      "duplicateExistingChapter": "같은 기존 화가 두 번 포함되어 있습니다.",
+      "existingChapterNotFound": "기존 작품에서 적용할 화를 찾지 못했습니다.",
+      "duplicateSharedChapter": "같은 공유 화가 두 번 포함되어 있습니다.",
+      "noChaptersToApply": "적용할 화가 없습니다.",
+      "selectChapter": "공유할 화를 선택해 주세요.",
+      "exportChapterNotFound": "공유할 화를 찾지 못했습니다.",
+      "sourceImageMissing": "원본 이미지를 찾지 못했습니다: {{page}}",
+      "inpaintingImageMissing": "인페인팅 결과 이미지를 찾지 못했습니다: {{page}}",
+      "unsupportedImage": "지원하지 않는 이미지 형식입니다: {{name}}",
+      "fileTooLarge": "{{name}} 파일이 너무 큽니다.",
+      "invalidChapterId": "공유 파일의 화 ID가 올바르지 않습니다.",
+      "newWorkOnlyShared": "새 작품으로 가져올 때는 공유 파일의 화만 선택할 수 있습니다.",
+      "requiredInfoMissing": "공유 파일에 필요한 정보가 없습니다: {{path}}",
+      "jsonRead": "공유 파일의 JSON을 읽지 못했습니다: {{path}}",
+      "jsonInvalid": "공유 파일의 JSON 형식이 올바르지 않습니다: {{path}} ({{message}})",
+      "invalidChapterInfo": "공유 파일의 화 정보가 올바르지 않습니다.",
+      "invalidPageOrder": "공유 파일의 페이지 순서가 올바르지 않습니다.",
+      "invalidImagePath": "공유 파일의 이미지 경로가 올바르지 않습니다.",
+      "invalidImageLocation": "공유 파일의 이미지 위치가 올바르지 않습니다.",
+      "packageImageMissing": "공유 파일에 이미지가 없습니다: {{page}}",
+      "invalidInpaintingPath": "공유 파일의 인페인팅 이미지 경로가 올바르지 않습니다.",
+      "invalidInpaintingLocation": "공유 파일의 인페인팅 이미지 위치가 올바르지 않습니다.",
+      "packageInpaintingMissing": "공유 파일에 인페인팅 이미지가 없습니다: {{page}}",
+      "unsupportedInpaintingImage": "지원하지 않는 인페인팅 이미지 형식입니다: {{page}}",
+      "invalidTrashLocation": "공유 가져오기 임시 보관 위치가 올바르지 않습니다.",
+      "invalidChapterLocation": "화 정보의 보관함 위치가 올바르지 않습니다."
+    }
+  },
+  "translation": {
+    "noPages": "번역할 페이지가 없습니다.",
+    "allPagesFailed": "번역 작업 실패: 모든 페이지가 실패했습니다. 마지막 오류는 각 페이지 상태와 로그를 확인하세요.",
+    "completedWithFailures": "번역 완료 - {{count}}페이지 실패",
+    "completed": "번역 작업 완료",
+    "vram": {
+      "minimum12b": "12B 최소 모드",
+      "economy26b": "26B 절약 모드",
+      "full31b": "31B 풀로드 모드"
+    },
+    "progress": {
+      "directPreparing": "AI 직접 분석 준비 중",
+      "directPreparingDetail": "선택 영역은 Paddle OCR 선분석 없이 모델이 직접 텍스트 그룹을 찾습니다.",
+      "ocrPreparing": "Paddle OCR 선분석 준비 중",
+      "ocrPreparingDetail": "대상 페이지의 OCR 후보 좌표를 먼저 준비합니다.",
+      "localModelPreparing": "로컬 모델/서버 준비 중",
+      "codexPreparing": "OpenAI Codex 엔드포인트 준비 중",
+      "apiPreparing": "API 엔드포인트 확인 중",
+      "gemmaStarting": "Gemma 4 서버 시작 중",
+      "modelDownloading": "모델 다운로드/서버 준비 중",
+      "localModelPreparingDetail": "선택한 로컬 모델을 불러오는 중입니다. 큰 모델은 시작까지 시간이 걸릴 수 있습니다.",
+      "modelDownloadingDetail": "로컬 모델 자산이 없거나 부족해 다운로드/갱신이 필요할 수 있습니다.",
+      "modelReady": "모델 준비 완료",
+      "oauthReadyDetail": "openai-oauth 준비 완료: {{endpoint}}",
+      "apiReadyDetail": "API 준비 완료: {{endpoint}}",
+      "serverReadyDetail": "서버 준비 완료: 포트 {{port}}",
+      "pageRunning": "{{page}} 분석 중",
+      "pageAttemptDetail": "{{current}}/{{total}}, 시도 {{attempt}}/{{maxAttempts}}",
+      "pageRetry": "{{page}} 재시도",
+      "pageRetryDetail": "{{attempt}}/{{maxAttempts}} 실패, 다시 시도합니다",
+      "pageDone": "{{page}} 완료",
+      "pageNoText": "{{page}} 텍스트 없음",
+      "pageNoTextDetail": "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다.",
+      "pageSkipped": "{{page}} 건너뜀",
+      "pageSkippedDetail": "{{maxAttempts}}회 재시도 후 실패",
+      "finalizing": "결과 정리 중",
+      "pagesReadyNoModel": "{{count}}페이지 준비 완료, 모델 호출 없음",
+      "pagesReady": "{{count}}페이지 준비 완료"
+    },
+    "warnings": {
+      "attemptFailed": "{{page}}: 시도 {{attempt}}/{{maxAttempts}} 실패 - {{message}}",
+      "pageSkipped": "{{page}}: {{maxAttempts}}회 재시도 후 실패하여 이 페이지는 건너뜁니다. 마지막 오류: {{message}}",
+      "uncertainOcr": "{{page}}: 불확실한 OCR 조각이 {{count}}개 있습니다."
+    },
+    "result": {
+      "existingUpdated": "기존 블록 {{count}}개 갱신",
+      "kept": "{{count}}개 유지",
+      "outsideDropped": "블록 밖 결과 {{count}}개 제외",
+      "soundDropped": "불확실한 효과음 {{count}}개 제외",
+      "noiseDropped": "잡음/중복 {{count}}개 제외({{reasons}})"
+    },
+    "errors": {
+      "bboxMissing": "{{page}}: bbox 결과를 만들지 못했습니다.",
+      "responseParse": "{{page}}: 모델 응답을 구조화 형식으로 해석하지 못했습니다. preview={{preview}} cause={{cause}}"
+    }
+  },
+  "region": {
+    "failed": "선택 영역 번역 실패",
+    "pageNotFound": "선택한 페이지를 찾지 못했습니다.",
+    "preparing": "선택 영역 번역 준비 중",
+    "completed": "선택 영역 번역 완료"
+  },
+  "ocr": {
+    "cached": "{{page}} OCR 재사용",
+    "batchRunning": "Paddle OCR 배치 선분석 중",
+    "batchRunningDetail": "{{count}}페이지를 한 번에 처리합니다. OCR 프로세스는 이 구간 끝에서 종료됩니다.",
+    "pageDone": "{{page}} OCR 완료",
+    "prepassDone": "Paddle OCR 선분석 완료",
+    "prepassDoneDetail": "OCR 프로세스를 종료하고 AI 번역 단계로 넘어갑니다.",
+    "hintDetailNoEvidence": "{{count}}개 후보, 텍스트 근거 없음",
+    "hintDetailWithEvidence": "{{count}}개 후보, 텍스트 근거 {{evidence}}개",
+    "hintDetail": "{{count}}개 후보",
+    "blocksDone": "블록 OCR 선분석 완료",
+    "blocksRunning": "블록 OCR 선분석 중",
+    "blocksDetail": "기존 블록 {{count}}개 영역을 잘라 텍스트를 읽습니다.",
+    "gpuCacheReleased": "GPU OCR을 위해 인페인팅 엔진 캐시를 해제했습니다",
+    "gpuCacheReleasedDetail": "GPU 메모리(VRAM) 확보"
+  },
+  "inpainting": {
+    "targets": { "drawn": "그린 영역", "source": "원문" },
+    "preparing": "{{target}} 지우기 준비 중",
+    "pageRunning": "{{current}} / {{total}} 페이지 {{target}} 지우는 중",
+    "drawnDetail": "{{page}} · {{count}}개 그린 영역",
+    "blockDetail": "{{page}} · {{count}}개 블록",
+    "pageDone": "{{current}} / {{total}} 페이지 {{target}} 완료",
+    "completed": "{{target}} 지우기 완료",
+    "cancelled": "인페인팅 작업이 취소되었습니다.",
+    "failed": "인페인팅 작업 실패",
+    "pageNotFound": "인페인팅할 페이지를 찾지 못했습니다.",
+    "assets": { "fluxModel": "Flux 모델", "aot": "AOT 인페인팅" },
+    "runtime": {
+      "fluxReady": "Flux 인페인팅 준비 완료",
+      "fluxReadyLog": "Flux 원문 지우기 엔진 준비가 완료되었습니다.",
+      "cachedFlux": "캐시된 Flux 엔진 사용",
+      "cachedFluxLog": "캐시된 Flux 인페인팅 엔진을 재사용합니다.",
+      "koharuReady": "Koharu 인페인팅 준비 완료",
+      "cachedKoharu": "캐시된 Koharu 엔진 사용",
+      "cachedKoharuLog": "캐시된 Koharu 인페인팅 엔진을 재사용합니다.",
+      "koharuReadyLog": "Koharu {{model}} 인페인팅 런타임을 사용합니다: {{file}}",
+      "koharuExecutablePreparing": "Koharu 실행 파일 준비 중",
+      "koharuExecutableLog": "Koharu 실행 파일을 앱 데이터 캐시에 갱신했습니다: {{file}}",
+      "pythonInstalling": "Flux Python 런타임 설치 중",
+      "fluxRocmInitialized": "Flux ROCm SDK 초기화 완료",
+      "hipCmakeVerified": "HIP/CMake 개발 파일 확인 완료",
+      "fluxModelPreparing": "Flux Diffusers 모델 준비 중",
+      "fluxModelWithoutTransformer": "{{modelId}} · transformer 제외",
+      "fluxRocmInstalling": "Flux ROCm 런타임 설치 중",
+      "fluxCpuInstalling": "Flux CPU 런타임 설치 중",
+      "pythonTargetInstalling": "Python 대상 패키지 설치 중"
+    },
+    "errors": {
+      "pageRead": "페이지 이미지를 읽지 못했습니다: {{page}}",
+      "bitmapCreate": "페이지 이미지 비트맵을 만들지 못했습니다: {{page}}",
+      "engineNotReady": "원문 지우기 엔진이 준비되지 않았습니다.",
+      "resultCreate": "인페인팅 결과 이미지를 만들지 못했습니다: {{page}}",
+      "imageSizeMismatch": "원본 이미지와 편집 이미지 크기가 다릅니다.",
+      "retouchCreate": "리터치 결과 이미지를 만들지 못했습니다: {{page}}",
+      "koharuRuntime": "Koharu 인페인팅 런타임을 준비하지 못했습니다.\n{{detail}}",
+      "notKoharuModel": "Koharu 모델이 아닙니다: {{model}}",
+      "koharuExecutableMissing": "{{executable}}를 찾지 못했습니다. 개발 환경에서는 tools/{{directory}}에서 cargo build --release를 실행하거나 MGT_KOHARU_INPAINT_EXE로 경로를 지정하세요.",
+      "retouchPageNotFound": "리터치할 페이지를 찾지 못했습니다."
+    }
+  },
+  "export": {
+    "noPages": "출력할 페이지가 없습니다.",
+    "cancelled": "PNG 출력이 취소되었습니다.",
+    "failed": "PNG 출력 실패",
+    "preparing": "PNG 출력 준비 중",
+    "completed": "PNG 출력 완료",
+    "page": {
+      "running": "{{current}} / {{total}} 페이지 PNG 출력 중",
+      "done": "{{current}} / {{total}} 페이지 PNG 출력 완료"
+    },
+    "scope": {
+      "page": "이 페이지 · {{count}}페이지",
+      "chapter": "전체 페이지 · {{count}}페이지"
+    }
+  },
+  "modelTest": {
+    "preparing": "모델/런타임 확인 준비 중",
+    "startLog": "Paddle OCR과 번역 엔진 확인을 시작합니다.",
+    "serverReady": "런타임 서버 준비 완료",
+    "serverReadyLog": "서버가 준비되었습니다: {{endpoint}}",
+    "completed": "모델/런타임 확인 완료",
+    "responseLog": "응답 확인 완료: {{output}}",
+    "failed": "모델/런타임 확인 실패",
+    "failedDetail": "모델/런타임 확인에 실패했습니다. 자세한 원인은 로그에서 확인하세요.",
+    "failedLog": "모델/런타임 확인이 실패했습니다.",
+    "portUnavailable": "모델 테스트용 포트를 확보하지 못했습니다.",
+    "portRetry": "모델/런타임 확인 포트 재시도 중",
+    "portRetryDetail": "이전 포트가 이미 사용 중이라 {{port}}번 포트로 다시 시작합니다.",
+    "portRetryLog": "모델 테스트 포트 충돌을 감지해 {{port}}번 포트로 재시도합니다.",
+    "codexPreparing": "OpenAI Codex 런타임 엔드포인트 준비 중",
+    "codexPreparingLog": "openai-oauth 엔드포인트를 시작합니다.",
+    "apiPreparing": "API 엔드포인트 확인 중",
+    "apiPreparingLog": "OpenAI 호환 API 엔드포인트로 직접 테스트 요청을 보냅니다.",
+    "ocrChecking": "Paddle OCR 설치/작동 확인 중",
+    "ocrCheckingLog": "Paddle OCR 런타임과 OCR 모델 파일을 확인합니다.",
+    "ocrSkipped": "Paddle OCR 확인 건너뜀",
+    "ocrSkippedDetail": "현재 런타임이 OCR 사전 확인 API를 제공하지 않습니다.",
+    "ocrSkippedLog": "Paddle OCR 사전 확인 API가 없어 번역 엔진 확인만 진행합니다.",
+    "ocrDone": "Paddle OCR 확인 완료",
+    "ocrDoneLog": "Paddle OCR 런타임 확인이 끝났습니다.",
+    "gemmaPreparing": "Gemma 실행 런타임 준비 중",
+    "gemmaPreparingLog": "Gemma 실행 런타임과 모델 자산을 확인합니다.",
+    "gemmaCached": "캐시된 Gemma 모델 확인됨",
+    "gemmaCachedLog": "캐시된 모델 파일을 사용합니다.",
+    "gemmaDownloading": "Gemma 모델 다운로드/런타임 준비 중",
+    "gemmaDownloadingLog": "캐시된 모델이 없어서 다운로드 또는 갱신을 시작합니다."
+  },
+  "downloads": {
+    "downloading": "{{label}} 다운로드 중",
+    "completed": "{{label}} 다운로드 완료",
+    "cached": "{{label}} 캐시 사용",
+    "cachedDetail": "{{file}} · 캐시 사용",
+    "received": "{{received}} 받음",
+    "requestFailed": "{{url}} 요청에 실패했습니다 ({{status}}).",
+    "runtimeDllMissing": "{{archive}}에서 필요한 런타임 DLL을 찾지 못했습니다.",
+    "unsafeArchivePath": "{{archive}}에 안전하지 않은 경로가 포함되어 있습니다: {{path}}",
+    "archiveEmpty": "{{archive}} 압축 파일이 비어 있습니다.",
+    "cachedFileLog": "캐시된 {{label}} 파일을 사용합니다: {{file}}",
+    "cachedLog": "캐시된 파일을 사용합니다: {{label}}",
+    "startedLog": "{{label}} 다운로드 시작",
+    "failed": "{{label}} 다운로드에 실패했습니다 ({{status}}).",
+    "sizeMismatch": "{{label}} 다운로드 크기가 맞지 않습니다 ({{received}} / {{total}})."
+  }
+}

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   isValidLanguageCodeInput,
   KNOWN_TRANSLATION_LANGUAGES,
@@ -29,9 +30,7 @@ const PRIMARY_LANGUAGES: ResolvedLanguage[] =
 
 const OTHER_LANGUAGES: ResolvedLanguage[] = KNOWN_TRANSLATION_LANGUAGES.filter(
   (language) => !PRIMARY_TRANSLATION_LANGUAGE_CODES.includes(language.code),
-)
-  .slice()
-  .sort((left, right) => left.labelKo.localeCompare(right.labelKo, "ko"));
+);
 
 function isPresetLanguageCode(code: string): boolean {
   return KNOWN_TRANSLATION_LANGUAGES.some((language) => language.code === code);
@@ -61,6 +60,7 @@ export function TranslationLanguageFields({
   sourceLanguage,
   targetLanguage,
 }: TranslationLanguageFieldsProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const swapLanguages = () => {
     setSourceLanguage(targetLanguage);
     setTargetLanguage(sourceLanguage);
@@ -68,10 +68,10 @@ export function TranslationLanguageFields({
 
   return (
     <div className="settings-field-stack">
-      <span>번역 언어</span>
+      <span>{t("settings.translation.title")}</span>
       <div className="settings-language-row">
         <LanguageField
-          label="원문 언어"
+          label={t("settings.translation.source")}
           value={sourceLanguage}
           disabled={controlsBusy}
           onChange={setSourceLanguage}
@@ -81,22 +81,20 @@ export function TranslationLanguageFields({
           className="settings-language-swap"
           onClick={swapLanguages}
           disabled={controlsBusy}
-          title="원문 언어와 번역 언어를 서로 바꿉니다"
-          aria-label="원문 언어와 번역 언어 바꾸기"
+          title={t("settings.translation.swapTitle")}
+          aria-label={t("settings.translation.swapAria")}
         >
           ⇄
         </button>
         <LanguageField
-          label="번역 언어"
+          label={t("settings.translation.target")}
           value={targetLanguage}
           disabled={controlsBusy}
           onChange={setTargetLanguage}
         />
       </div>
       <p className="muted-line modal-note">
-        기본값은 기존과 같은 일본어 → 한국어입니다. 목록에 없는 언어는 직접
-        입력으로 언어 코드를 넣을 수 있고, 언어쌍에 따라 모델의 이미지 입력
-        성능과 OCR 언어 지원에 따른 품질 차이가 있을 수 있습니다.
+        {t("settings.translation.description")}
       </p>
     </div>
   );
@@ -113,6 +111,7 @@ function LanguageField({
   disabled: boolean;
   onChange: (code: string) => void;
 }): React.JSX.Element {
+  const { t, i18n } = useTranslation("components");
   const isPreset = isPresetLanguageCode(value);
   // 프리셋 값에서 "직접 입력"을 고른 순간을 기억한다. 입력 중 값이 우연히
   // 프리셋 코드와 일치해도(예: "ja"까지 타이핑) 입력창이 사라지지 않는다.
@@ -120,40 +119,37 @@ function LanguageField({
     useCustomLanguageMode(value, isPreset);
   const showCustomInput = customPicked || !isPreset;
   const codeValid = isValidLanguageCodeInput(value);
+  const locale = i18n.resolvedLanguage ?? i18n.language;
+  const displayNames = React.useMemo(
+    () => createLanguageDisplayNames(locale),
+    [locale],
+  );
+  const otherLanguages = React.useMemo(() => {
+    const collator = new Intl.Collator(locale);
+    return OTHER_LANGUAGES.slice().sort((left, right) =>
+      collator.compare(
+        getLanguageDisplayName(displayNames, left),
+        getLanguageDisplayName(displayNames, right),
+      ),
+    );
+  }, [displayNames, locale]);
 
   return (
     <div className="settings-language-field">
       <label>
         {label}
-        <select
-          value={showCustomInput ? CUSTOM_LANGUAGE_OPTION : value}
+        <LanguageSelect
+          displayNames={displayNames}
           disabled={disabled}
-          onChange={(event) => {
-            if (event.target.value === CUSTOM_LANGUAGE_OPTION) {
-              setCustomPicked(true);
-              return;
-            }
+          onCustomPick={() => setCustomPicked(true)}
+          onPresetPick={(nextValue) => {
             locallyEditedValue.current = null;
             setCustomPicked(false);
-            onChange(event.target.value);
+            onChange(nextValue);
           }}
-        >
-          <optgroup label="주요 언어">
-            {PRIMARY_LANGUAGES.map((language) => (
-              <option key={language.code} value={language.code}>
-                {language.labelKo}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="기타 언어">
-            {OTHER_LANGUAGES.map((language) => (
-              <option key={language.code} value={language.code}>
-                {language.labelKo}
-              </option>
-            ))}
-          </optgroup>
-          <option value={CUSTOM_LANGUAGE_OPTION}>직접 입력…</option>
-        </select>
+          otherLanguages={otherLanguages}
+          value={showCustomInput ? CUSTOM_LANGUAGE_OPTION : value}
+        />
       </label>
       {showCustomInput ? (
         <>
@@ -163,8 +159,8 @@ function LanguageField({
             disabled={disabled}
             spellCheck={false}
             maxLength={MAX_LANGUAGE_CODE_LENGTH}
-            placeholder="언어 코드 (예: eo, zh-Hans)"
-            aria-label={`${label} 코드 직접 입력`}
+            placeholder={t("settings.translation.codePlaceholder")}
+            aria-label={t("settings.translation.customCodeAria", { label })}
             onChange={(event) => {
               const nextValue = event.target.value.trim();
               locallyEditedValue.current = nextValue;
@@ -173,11 +169,75 @@ function LanguageField({
           />
           {!codeValid ? (
             <p className="muted-line settings-language-error">
-              언어 코드는 en, ja, zh-Hans, pt-BR 같은 형식이어야 합니다.
+              {t("settings.validation.languageCode")}
             </p>
           ) : null}
         </>
       ) : null}
     </div>
   );
+}
+
+function LanguageSelect({
+  displayNames,
+  disabled,
+  onCustomPick,
+  onPresetPick,
+  otherLanguages,
+  value,
+}: {
+  displayNames: Intl.DisplayNames | null;
+  disabled: boolean;
+  onCustomPick: () => void;
+  onPresetPick: (value: string) => void;
+  otherLanguages: ResolvedLanguage[];
+  value: string;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(event) => {
+        if (event.target.value === CUSTOM_LANGUAGE_OPTION) {
+          onCustomPick();
+          return;
+        }
+        onPresetPick(event.target.value);
+      }}
+    >
+      <optgroup label={t("settings.translation.primaryLanguages")}>
+        {PRIMARY_LANGUAGES.map((language) => (
+          <option key={language.code} value={language.code}>
+            {getLanguageDisplayName(displayNames, language)}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label={t("settings.translation.otherLanguages")}>
+        {otherLanguages.map((language) => (
+          <option key={language.code} value={language.code}>
+            {getLanguageDisplayName(displayNames, language)}
+          </option>
+        ))}
+      </optgroup>
+      <option value={CUSTOM_LANGUAGE_OPTION}>
+        {t("settings.translation.custom")}
+      </option>
+    </select>
+  );
+}
+
+function createLanguageDisplayNames(locale: string): Intl.DisplayNames | null {
+  try {
+    return new Intl.DisplayNames([locale], { type: "language" });
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getLanguageDisplayName(
+  displayNames: Intl.DisplayNames | null,
+  language: ResolvedLanguage,
+): string {
+  return displayNames?.of(language.code) ?? language.labelKo ?? language.code;
 }

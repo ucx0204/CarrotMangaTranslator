@@ -1,0 +1,349 @@
+{
+  "settings": {
+    "localModelDialogTitle": "Select Local GGUF Model",
+    "mmprojDialogTitle": "Select mmproj File",
+    "modelTestBusy": "The model and runtime cannot be tested while a translation job is running.",
+    "modelTestComplete": "Paddle OCR and translation engine check complete: {{output}}",
+    "modelTestLabel": "Model/Runtime Check"
+  },
+  "dialogs": {
+    "openImages": "Open Images",
+    "openImageFolder": "Open Image Folder",
+    "openArchive": "Open Archive",
+    "batchImport": "Batch Translate Work",
+    "saveShare": "Save Shared File",
+    "openShare": "Import Shared File",
+    "registerFont": "Register Font File (TTF/OTF)",
+    "saveReview": "Save Review Sheet",
+    "saveText": "Save Text",
+    "filters": {
+      "images": "Image files",
+      "font": "Font files",
+      "text": "Text files"
+    }
+  },
+  "jobs": {
+    "active": "A job is already running.",
+    "cancelled": "The job was cancelled.",
+    "failed": "Job failed",
+    "cancelling": "Cancelling job"
+  },
+  "ipc": {
+    "errors": {
+      "untrustedPanel": "Untrusted panel IPC request.",
+      "noWindow": "No app window is available to receive the IPC request.",
+      "untrusted": "Untrusted IPC request.",
+      "invalidImportPreview": "This import preview is expired or invalid.",
+      "invalidSharePreview": "This shared-file preview is expired or invalid."
+    },
+    "labels": {
+      "translationJob": "Translation job",
+      "regionTranslation": "Region translation",
+      "inpaintingJob": "Inpainting job",
+      "inpaintingRetouch": "Inpainting retouch",
+      "inpaintingApply": "Apply inpainting result",
+      "inpaintingRestore": "Restore inpainting",
+      "colorSample": "Color sample",
+      "resultExport": "Result export",
+      "reviewExport": "Review-sheet export",
+      "reviewImport": "Review-sheet import",
+      "textSave": "Text save",
+      "importApply": "Apply import",
+      "shareSave": "Save shared file",
+      "shareImport": "Import shared file",
+      "chapterOpen": "Open chapter",
+      "pageImageOpen": "Open page image",
+      "pageBlocksSave": "Save page blocks",
+      "workRename": "Rename work",
+      "chapterRename": "Rename chapter",
+      "workDelete": "Delete work",
+      "chapterDelete": "Delete chapter",
+      "pageDelete": "Delete page",
+      "chapterReorder": "Reorder chapters",
+      "pageReorder": "Reorder pages",
+      "styleGuideOpen": "Open work glossary",
+      "styleGuideSave": "Save work glossary",
+      "storyMemoryOpen": "Open story memory",
+      "storyMemorySave": "Save story memory",
+      "workContextAnalysis": "AI glossary/memory analysis",
+      "logWrite": "Log write"
+    }
+  },
+  "units": {
+    "blocks": "Blocks: {{count}}",
+    "pagesAndBlocks": "Pages: {{pages}}, blocks: {{blocks}}"
+  },
+  "workContext": {
+    "errors": {
+      "chapterNotFound": "The chapter to start AI analysis was not found.",
+      "jsonRead": "The AI work-memory response could not be read as JSON.",
+      "jsonObjectMissing": "No JSON object was found in the AI work-memory response.",
+      "requestFailed": "The AI work-memory analysis request failed.",
+      "emptyResponse": "The AI work-memory analysis response was empty."
+    },
+    "warnings": {
+      "noText": "AI glossary/memory extraction was skipped because there was no text to analyze.",
+      "workTruncated": "The work is long, so only some pages were included within the token budget.",
+      "chapterTruncated": "This chapter is long, so only some pages were included within the token budget.",
+      "chapterNoText": "{{chapter}}: skipped because there was no text to analyze.",
+      "chapterFailed": "{{chapter}}: skipped because AI analysis failed.",
+      "prefixed": "{{chapter}}: {{warning}}",
+      "chaptersTruncated": "Chapters partially analyzed within their token budgets: {{count}}.",
+      "chaptersFailed": "Chapters where AI analysis failed: {{count}}. Check the logs.",
+      "alreadyAnalyzed": "AI glossary/memory analysis was skipped because every chapter has already been analyzed.",
+      "unknownPageId": "AI returned an unknown pageId: {{pageId}}"
+    }
+  },
+  "reviewImport": {
+    "chapterNotFound": "The chapter for the review sheet was not found.",
+    "warnings": {
+      "emptyBlockId": "Row {{row}}: skipped because block_id is empty.",
+      "duplicateBlockId": "Row {{row}}: skipped duplicate block_id {{blockId}}.",
+      "otherChapter": "Row {{row}}: skipped because it belongs to another chapter.",
+      "sourceMismatch": "Row {{row}}: OCR source text differs from the current block. block_id={{blockId}}",
+      "pageNotFound": "Row {{row}}: page_id {{pageId}} does not exist.",
+      "blockNotFound": "Row {{row}}: block_id {{blockId}} does not exist.",
+      "ambiguousBlock": "Row {{row}}: block_id {{blockId}} occurs on multiple pages and could not be resolved with page_id; skipped.",
+      "pageMismatch": "Row {{row}}: page_id differs from the current block location; applying by block_id.",
+      "invalidStatus": "Row {{row}}: review status {{status}} cannot be used."
+    }
+  },
+  "import": {
+    "defaultWorkTitle": "Untitled Work",
+    "untitled": "Untitled",
+    "zipFile": "ZIP file",
+    "errors": {
+      "imageRead": "Could not read the image file: {{file}}",
+      "fileTooLarge": "{{file}} is too large.",
+      "webpConvert": "Could not convert the WEBP image to PNG: {{file}}",
+      "resolutionTooLarge": "The image resolution is too large: {{file}}",
+      "tooManySources": "Too many folders or images were selected for import.",
+      "zipEntryMissing": "ZIP entry not found: {{entry}}",
+      "noChapterToCreate": "There are no chapters to create.",
+      "createdChapterOpen": "Could not open the created chapter."
+    }
+  },
+  "share": {
+    "fileLabel": "Shared file",
+    "inpaintingResult": "{{page}} inpainting result",
+    "errors": {
+      "noChapters": "There are no chapters to import.",
+      "notNewWorkRequest": "This is not a new-work import request.",
+      "notExistingWorkRequest": "This is not an existing-work import request.",
+      "chapterNotFound": "The chapter to import was not found in the shared file.",
+      "importedChapterOpen": "Could not open the imported chapter.",
+      "duplicateExistingChapter": "The same existing chapter was included twice.",
+      "existingChapterNotFound": "The chapter to apply was not found in the existing work.",
+      "duplicateSharedChapter": "The same shared chapter was included twice.",
+      "noChaptersToApply": "There are no chapters to apply.",
+      "selectChapter": "Select a chapter to share.",
+      "exportChapterNotFound": "The chapter to share was not found.",
+      "sourceImageMissing": "Source image not found: {{page}}",
+      "inpaintingImageMissing": "Inpainting result image not found: {{page}}",
+      "unsupportedImage": "Unsupported image format: {{name}}",
+      "fileTooLarge": "{{name}} is too large.",
+      "invalidChapterId": "The chapter ID in the shared file is invalid.",
+      "newWorkOnlyShared": "Only chapters from the shared file can be selected when importing as a new work.",
+      "requiredInfoMissing": "Required information is missing from the shared file: {{path}}",
+      "jsonRead": "Could not read JSON from the shared file: {{path}}",
+      "jsonInvalid": "Invalid JSON in the shared file: {{path}} ({{message}})",
+      "invalidChapterInfo": "The chapter information in the shared file is invalid.",
+      "invalidPageOrder": "The page order in the shared file is invalid.",
+      "invalidImagePath": "The image path in the shared file is invalid.",
+      "invalidImageLocation": "The image location in the shared file is invalid.",
+      "packageImageMissing": "The shared file does not contain an image for: {{page}}",
+      "invalidInpaintingPath": "The inpainting image path in the shared file is invalid.",
+      "invalidInpaintingLocation": "The inpainting image location in the shared file is invalid.",
+      "packageInpaintingMissing": "The shared file does not contain an inpainting image for: {{page}}",
+      "unsupportedInpaintingImage": "Unsupported inpainting image format: {{page}}",
+      "invalidTrashLocation": "The temporary shared-import storage location is invalid.",
+      "invalidChapterLocation": "The chapter's library location is invalid."
+    }
+  },
+  "translation": {
+    "noPages": "There are no pages to translate.",
+    "allPagesFailed": "Translation failed: every page failed. Check each page's status and the logs for the latest error.",
+    "completedWithFailures": "Translation complete — Failed pages: {{count}}",
+    "completed": "Translation complete",
+    "vram": {
+      "minimum12b": "12B minimum mode",
+      "economy26b": "26B economy mode",
+      "full31b": "31B full-load mode"
+    },
+    "progress": {
+      "directPreparing": "Preparing direct AI analysis",
+      "directPreparingDetail": "The model finds text groups in the selected region directly, without a Paddle OCR prepass.",
+      "ocrPreparing": "Preparing Paddle OCR prepass",
+      "ocrPreparingDetail": "Preparing OCR candidate coordinates for the target pages first.",
+      "localModelPreparing": "Preparing local model/server",
+      "codexPreparing": "Preparing OpenAI Codex endpoint",
+      "apiPreparing": "Checking API endpoint",
+      "gemmaStarting": "Starting Gemma 4 server",
+      "modelDownloading": "Downloading model/preparing server",
+      "localModelPreparingDetail": "Loading the selected local model. Large models may take time to start.",
+      "modelDownloadingDetail": "Local model assets are missing or incomplete and may need to be downloaded or updated.",
+      "modelReady": "Model ready",
+      "oauthReadyDetail": "openai-oauth ready: {{endpoint}}",
+      "apiReadyDetail": "API ready: {{endpoint}}",
+      "serverReadyDetail": "Server ready on port {{port}}",
+      "pageRunning": "Analyzing {{page}}",
+      "pageAttemptDetail": "{{current}}/{{total}}, attempt {{attempt}}/{{maxAttempts}}",
+      "pageRetry": "Retrying {{page}}",
+      "pageRetryDetail": "Attempt {{attempt}}/{{maxAttempts}} failed; retrying",
+      "pageDone": "{{page}} complete",
+      "pageNoText": "No text on {{page}}",
+      "pageNoTextDetail": "Paddle OCR found no Japanese text evidence, so the model request was skipped.",
+      "pageSkipped": "Skipped {{page}}",
+      "pageSkippedDetail": "Failed after {{maxAttempts}} attempts",
+      "finalizing": "Finalizing results",
+      "pagesReadyNoModel": "Pages ready: {{count}} · No model request",
+      "pagesReady": "Pages ready: {{count}}"
+    },
+    "warnings": {
+      "attemptFailed": "{{page}}: attempt {{attempt}}/{{maxAttempts}} failed — {{message}}",
+      "pageSkipped": "{{page}}: skipped after {{maxAttempts}} failed attempts. Last error: {{message}}",
+      "uncertainOcr": "{{page}}: Uncertain OCR fragments: {{count}}."
+    },
+    "result": {
+      "existingUpdated": "Existing blocks updated: {{count}}",
+      "kept": "Results kept: {{count}}",
+      "outsideDropped": "Results outside blocks excluded: {{count}}",
+      "soundDropped": "Uncertain sound effects excluded: {{count}}",
+      "noiseDropped": "Noise/duplicates excluded: {{count}} ({{reasons}})"
+    },
+    "errors": {
+      "bboxMissing": "{{page}}: Could not produce bounding-box results.",
+      "responseParse": "{{page}}: Could not parse the model response as structured data. preview={{preview}} cause={{cause}}"
+    }
+  },
+  "region": {
+    "failed": "Region translation failed",
+    "pageNotFound": "The selected page was not found.",
+    "preparing": "Preparing region translation",
+    "completed": "Region translation complete"
+  },
+  "ocr": {
+    "cached": "Reusing OCR for {{page}}",
+    "batchRunning": "Running Paddle OCR batch prepass",
+    "batchRunningDetail": "Pages being processed together: {{count}}. The OCR process will close after this stage.",
+    "pageDone": "OCR complete for {{page}}",
+    "prepassDone": "Paddle OCR prepass complete",
+    "prepassDoneDetail": "Closing the OCR process and continuing to AI translation.",
+    "hintDetailNoEvidence": "Candidates: {{count}} · No text evidence",
+    "hintDetailWithEvidence": "Candidates: {{count}} · Text evidence: {{evidence}}",
+    "hintDetail": "Candidates: {{count}}",
+    "blocksDone": "Block OCR prepass complete",
+    "blocksRunning": "Running block OCR prepass",
+    "blocksDetail": "Cropping existing block regions: {{count}}. Reading text next.",
+    "gpuCacheReleased": "Released the inpainting engine cache for GPU OCR",
+    "gpuCacheReleasedDetail": "Freed GPU memory (VRAM)"
+  },
+  "inpainting": {
+    "targets": { "drawn": "drawn regions", "source": "source text" },
+    "preparing": "Preparing to erase {{target}}",
+    "pageRunning": "Erasing {{target}} on page {{current}} / {{total}}",
+    "drawnDetail": "{{page}} · Drawn regions: {{count}}",
+    "blockDetail": "{{page}} · Blocks: {{count}}",
+    "pageDone": "{{target}} complete on page {{current}} / {{total}}",
+    "completed": "Finished erasing {{target}}",
+    "cancelled": "The inpainting job was cancelled.",
+    "failed": "Inpainting job failed",
+    "pageNotFound": "No pages were found to inpaint.",
+    "assets": { "fluxModel": "Flux model", "aot": "AOT inpainting" },
+    "runtime": {
+      "fluxReady": "Flux inpainting ready",
+      "fluxReadyLog": "The Flux source-text removal engine is ready.",
+      "cachedFlux": "Using cached Flux engine",
+      "cachedFluxLog": "Reusing the cached Flux inpainting engine.",
+      "koharuReady": "Koharu inpainting ready",
+      "cachedKoharu": "Using cached Koharu engine",
+      "cachedKoharuLog": "Reusing the cached Koharu inpainting engine.",
+      "koharuReadyLog": "Using the Koharu {{model}} inpainting runtime: {{file}}",
+      "koharuExecutablePreparing": "Preparing Koharu executable",
+      "koharuExecutableLog": "Updated the Koharu executable in the app-data cache: {{file}}",
+      "pythonInstalling": "Installing Flux Python runtime",
+      "fluxRocmInitialized": "Flux ROCm SDK initialized",
+      "hipCmakeVerified": "HIP/CMake development files verified",
+      "fluxModelPreparing": "Preparing Flux Diffusers model",
+      "fluxModelWithoutTransformer": "{{modelId}} · transformer excluded",
+      "fluxRocmInstalling": "Installing Flux ROCm runtime",
+      "fluxCpuInstalling": "Installing Flux CPU runtime",
+      "pythonTargetInstalling": "Installing Python target packages"
+    },
+    "errors": {
+      "pageRead": "Could not read the page image: {{page}}",
+      "bitmapCreate": "Could not create a bitmap for the page image: {{page}}",
+      "engineNotReady": "The source-text removal engine is not ready.",
+      "resultCreate": "Could not create the inpainting result image: {{page}}",
+      "imageSizeMismatch": "The original and edited image sizes differ.",
+      "retouchCreate": "Could not create the retouch result image: {{page}}",
+      "koharuRuntime": "Could not prepare the Koharu inpainting runtime.\n{{detail}}",
+      "notKoharuModel": "This is not a Koharu model: {{model}}",
+      "koharuExecutableMissing": "Could not find {{executable}}. In development, run cargo build --release in tools/{{directory}}, or set MGT_KOHARU_INPAINT_EXE.",
+      "retouchPageNotFound": "The page to retouch was not found."
+    }
+  },
+  "export": {
+    "noPages": "There are no pages to export.",
+    "cancelled": "PNG export was cancelled.",
+    "failed": "PNG export failed",
+    "preparing": "Preparing PNG export",
+    "completed": "PNG export complete",
+    "page": {
+      "running": "Exporting PNG for page {{current}} / {{total}}",
+      "done": "PNG export complete for page {{current}} / {{total}}"
+    },
+    "scope": {
+      "page": "This page · {{count}} page",
+      "chapter": "All pages · Total: {{count}}"
+    }
+  },
+  "modelTest": {
+    "preparing": "Preparing model/runtime check",
+    "startLog": "Starting the Paddle OCR and translation engine check.",
+    "serverReady": "Runtime server ready",
+    "serverReadyLog": "Server ready: {{endpoint}}",
+    "completed": "Model/runtime check complete",
+    "responseLog": "Response verified: {{output}}",
+    "failed": "Model/runtime check failed",
+    "failedDetail": "The model/runtime check failed. See the logs for details.",
+    "failedLog": "The model/runtime check failed.",
+    "portUnavailable": "Could not reserve a port for the model test.",
+    "portRetry": "Retrying model/runtime check on another port",
+    "portRetryDetail": "The previous port was in use; restarting on port {{port}}.",
+    "portRetryLog": "A model-test port conflict was detected; retrying on port {{port}}.",
+    "codexPreparing": "Preparing OpenAI Codex runtime endpoint",
+    "codexPreparingLog": "Starting the openai-oauth endpoint.",
+    "apiPreparing": "Checking API endpoint",
+    "apiPreparingLog": "Sending a test request directly to the OpenAI-compatible API endpoint.",
+    "ocrChecking": "Checking Paddle OCR installation",
+    "ocrCheckingLog": "Checking the Paddle OCR runtime and OCR model files.",
+    "ocrSkipped": "Paddle OCR check skipped",
+    "ocrSkippedDetail": "The current runtime does not provide an OCR preflight API.",
+    "ocrSkippedLog": "No Paddle OCR preflight API is available; checking only the translation engine.",
+    "ocrDone": "Paddle OCR check complete",
+    "ocrDoneLog": "Paddle OCR runtime check finished.",
+    "gemmaPreparing": "Preparing Gemma runtime",
+    "gemmaPreparingLog": "Checking the Gemma runtime and model assets.",
+    "gemmaCached": "Cached Gemma model found",
+    "gemmaCachedLog": "Using the cached model file.",
+    "gemmaDownloading": "Downloading Gemma model/preparing runtime",
+    "gemmaDownloadingLog": "No cached model was found; starting a download or update."
+  },
+  "downloads": {
+    "downloading": "Downloading {{label}}",
+    "completed": "{{label}} download complete",
+    "cached": "Using cached {{label}}",
+    "cachedDetail": "{{file}} · cached",
+    "received": "{{received}} received",
+    "requestFailed": "Request to {{url}} failed ({{status}}).",
+    "runtimeDllMissing": "Required runtime DLLs were not found in {{archive}}.",
+    "unsafeArchivePath": "{{archive}} contains an unsafe path: {{path}}",
+    "archiveEmpty": "Archive {{archive}} is empty.",
+    "cachedFileLog": "Using cached {{label}} file: {{file}}",
+    "cachedLog": "Using cached file: {{label}}",
+    "startedLog": "Started downloading {{label}}",
+    "failed": "Failed to download {{label}} ({{status}}).",
+    "sizeMismatch": "{{label}} download size does not match ({{received}} / {{total}})."
+  }
+}

@@ -1,20 +1,10 @@
 import React from "react";
-import type {
-  InpaintingContextValue,
-  InpaintingTool,
-} from "../../inpainting/inpaintingTypes";
+import { useTranslation } from "react-i18next";
+import type { InpaintingContextValue } from "../../inpainting/inpaintingTypes";
 import { AutoInpaintingStep } from "./AutoInpaintingStep";
 import { ExportInpaintingStep } from "./ExportInpaintingStep";
 import type { FlowStep } from "./inpaintingPanelTypes";
 import { RetouchInpaintingStep } from "./RetouchInpaintingStep";
-
-const INPAINTING_TOOL_LABELS: Record<InpaintingTool, string> = {
-  brush: "붓",
-  eraser: "복원",
-  mask: "마스크 붓",
-  none: "도구를 선택하세요",
-  picker: "색 뽑기",
-};
 
 type InpaintingStepContentProps = {
   context: InpaintingContextValue;
@@ -78,11 +68,12 @@ function RetouchStepPanel({
   counts,
   onStepChange,
 }: InpaintingStepContentProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const { selectedPage, tool } = context;
 
   return (
     <RetouchInpaintingStep
-      activeToolLabel={INPAINTING_TOOL_LABELS[tool]}
+      activeToolLabel={t(`inpainting.tools.${tool}`)}
       brushColor={context.brushColor}
       brushRadius={context.brushRadius}
       canRedo={context.canRedo}

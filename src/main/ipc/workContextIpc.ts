@@ -15,6 +15,7 @@ import {
   saveWorkStyleGuide,
 } from "../library";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 export function registerWorkContextIpc(context: IpcContext): void {
@@ -25,7 +26,7 @@ export function registerWorkContextIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         WorkStyleGuideRequestSchema,
         { workId },
-        "작품 용어집 열기",
+        tMain("ipc.labels.styleGuideOpen"),
       );
       return getWorkStyleGuide(request.workId);
     },
@@ -35,7 +36,11 @@ export function registerWorkContextIpc(context: IpcContext): void {
     workContextIpcContracts.saveWorkStyleGuide,
     async (_event, raw: unknown) =>
       saveWorkStyleGuide(
-        parseIpcPayload(WorkStyleGuideSchema, raw, "작품 용어집 저장"),
+        parseIpcPayload(
+          WorkStyleGuideSchema,
+          raw,
+          tMain("ipc.labels.styleGuideSave"),
+        ),
       ),
   );
   trustedHandleContract(
@@ -45,7 +50,7 @@ export function registerWorkContextIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         ChapterStoryMemoryRequestSchema,
         { chapterId },
-        "스토리 메모리 열기",
+        tMain("ipc.labels.storyMemoryOpen"),
       );
       return getChapterStoryMemory(request.chapterId);
     },
@@ -55,7 +60,11 @@ export function registerWorkContextIpc(context: IpcContext): void {
     workContextIpcContracts.saveChapterStoryMemory,
     async (_event, raw: unknown) =>
       saveChapterStoryMemory(
-        parseIpcPayload(ChapterStoryMemorySchema, raw, "스토리 메모리 저장"),
+        parseIpcPayload(
+          ChapterStoryMemorySchema,
+          raw,
+          tMain("ipc.labels.storyMemorySave"),
+        ),
       ),
   );
   trustedHandleContract(
@@ -66,7 +75,7 @@ export function registerWorkContextIpc(context: IpcContext): void {
         parseIpcPayload(
           AnalyzeWorkContextRequestSchema,
           raw,
-          "AI 용어/기억 분석",
+          tMain("ipc.labels.workContextAnalysis"),
         ),
       ),
   );

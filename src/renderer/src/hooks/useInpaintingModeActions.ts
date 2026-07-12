@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { mangaGateway } from "../api/mangaGateway";
 import { formatErrorMessage } from "../lib/appHelpers";
 import type { UseInpaintingActionsOptions } from "./inpaintingActionTypes";
@@ -30,6 +31,7 @@ function useEnterInpaintingMode({
   setShowBlockChrome,
   setShowTextBlocks,
 }: UseInpaintingActionsOptions): () => Promise<void> {
+  const { t } = useTranslation("renderer");
   const enterInpaintingMode = useCallback(async () => {
     if (!currentChapter || jobActive) {
       return;
@@ -41,10 +43,7 @@ function useEnterInpaintingMode({
     } catch (error) {
       console.error(error);
       pushStatus(
-        formatErrorMessage(
-          error,
-          "인페인팅 모드로 들어가기 전에 변경사항을 저장하지 못했습니다.",
-        ),
+        formatErrorMessage(error, t("inpainting.mode.saveBeforeEnterFailed")),
       );
       return;
     }
@@ -57,7 +56,7 @@ function useEnterInpaintingMode({
     if (!hideInpaintingGuide) {
       setInpaintingGuideOpen(true);
     }
-    pushStatus("인페인팅 모드로 전환했습니다. 원문 지우기부터 시작하세요.");
+    pushStatus(t("inpainting.mode.entered"));
   }, [
     currentChapter,
     dirty,
@@ -72,6 +71,7 @@ function useEnterInpaintingMode({
     setSelectedBlockId,
     setShowBlockChrome,
     setShowTextBlocks,
+    t,
   ]);
 
   return enterInpaintingMode;
@@ -88,6 +88,7 @@ function useExitInpaintingMode({
   setRegionSelection,
   setSelectedBlockId,
 }: UseInpaintingActionsOptions): () => void {
+  const { t } = useTranslation("renderer");
   return useCallback(() => {
     if (jobActive) {
       return;
@@ -102,7 +103,7 @@ function useExitInpaintingMode({
     void mangaGateway
       .disposeInpaintingEngine()
       .catch((error) => console.error(error));
-    pushStatus("인페인팅 모드를 종료했습니다.");
+    pushStatus(t("inpainting.mode.exited"));
   }, [
     jobActive,
     pushStatus,
@@ -113,5 +114,6 @@ function useExitInpaintingMode({
     setPeekOriginal,
     setRegionSelection,
     setSelectedBlockId,
+    t,
   ]);
 }

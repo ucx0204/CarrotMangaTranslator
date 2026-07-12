@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
   closestCenter,
@@ -65,6 +66,7 @@ export function LibraryTree({
   onRenameChapter,
   onReorderChapter,
 }: LibraryTreeProps): React.JSX.Element {
+  const { i18n } = useTranslation("components");
   const [searchQuery, setSearchQuery] = React.useState("");
   const deferredSearchQuery = React.useDeferredValue(searchQuery);
   const [sort, setSort] = React.useState<LibrarySort>(() => readLibrarySort());
@@ -77,8 +79,13 @@ export function LibraryTree({
     [deferredSearchQuery, library],
   );
   const visibleLibrary = React.useMemo(
-    () => sortLibraryIndex(filteredLibrary, sort),
-    [filteredLibrary, sort],
+    () =>
+      sortLibraryIndex(
+        filteredLibrary,
+        sort,
+        i18n.resolvedLanguage ?? i18n.language,
+      ),
+    [filteredLibrary, i18n.language, i18n.resolvedLanguage, sort],
   );
   const searchActive = searchQuery.trim().length > 0;
   const drag = useChapterDragController({
@@ -197,17 +204,21 @@ function LibraryPanelHeader({
   searchQuery: string;
   sort: LibrarySort;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="panel-header library-panel-header">
-      <h2>보관함</h2>
-      <label className="library-search-shell" aria-label="보관함 검색">
+      <h2>{t("library.title")}</h2>
+      <label
+        className="library-search-shell"
+        aria-label={t("library.searchLabel")}
+      >
         <SearchIcon />
         <input
           className="library-search-input"
           type="text"
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="작품/화 검색"
+          placeholder={t("library.searchPlaceholder")}
           autoComplete="off"
           spellCheck={false}
         />
@@ -238,6 +249,7 @@ function LibraryWorksList({
   searchActive: boolean;
   visibleLibrary: LibraryIndex;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div
       className={`library-scroll sortable-scroll ${activeDrag ? "drag-active" : ""}`}
@@ -256,7 +268,9 @@ function LibraryWorksList({
           />
         ))
       ) : (
-        <p className="panel-empty">{resolveLibraryEmptyLabel(searchActive)}</p>
+        <p className="panel-empty">
+          {t(searchActive ? "library.noSearchResults" : "library.empty")}
+        </p>
       )}
     </div>
   );
@@ -279,14 +293,15 @@ function LibraryWorkGroup({
   onRenameWork: LibraryTreeProps["onRenameWork"];
   work: LibraryIndex["works"][number];
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="work-group">
       <div className="work-row">
         <strong title={work.title}>{work.title}</strong>
         <IconButton
           size="sm"
-          label={`${work.title} 이름 변경`}
-          title="이름 변경"
+          label={t("library.renameItem", { title: work.title })}
+          title={t("common.rename")}
           onClick={() => onRenameWork(work.id)}
           disabled={jobActive}
         >
@@ -334,12 +349,6 @@ function ChapterDragPortal({
     </DragOverlay>,
     document.body,
   );
-}
-
-function resolveLibraryEmptyLabel(searchActive: boolean): string {
-  return searchActive
-    ? "검색 결과가 없습니다."
-    : "아직 보관함에 저장된 작품이 없습니다.";
 }
 
 function SearchIcon(): React.JSX.Element {

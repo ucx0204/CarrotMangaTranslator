@@ -1,4 +1,5 @@
 import type { CustomFont } from "../../../shared/libraryTypes";
+import type { TFunction } from "i18next";
 
 export const DEFAULT_BLOCK_FONT_ID = "default";
 
@@ -98,8 +99,21 @@ export function setCustomFontOptions(fonts: CustomFont[]): void {
   }
 }
 
-export function getBlockFontOptions(): BlockFontOption[] {
-  return [...BLOCK_FONT_OPTIONS, ...customFontOptions];
+export function getBlockFontOptions(
+  t?: TFunction<"renderer">,
+): BlockFontOption[] {
+  const builtIns = t
+    ? BLOCK_FONT_OPTIONS.map((option) =>
+        option.id === DEFAULT_BLOCK_FONT_ID
+          ? {
+              ...option,
+              label: t("fonts.default"),
+              sample: t("fonts.defaultSample"),
+            }
+          : option,
+      )
+    : BLOCK_FONT_OPTIONS;
+  return [...builtIns, ...customFontOptions];
 }
 
 export function normalizeBlockFontFamily(
@@ -118,10 +132,12 @@ export function normalizeBlockFontFamily(
 
 export function resolveBlockFontOption(
   value: string | undefined,
+  options: readonly BlockFontOption[] = getBlockFontOptions(),
 ): BlockFontOption {
   const id = normalizeBlockFontFamily(value) ?? DEFAULT_BLOCK_FONT_ID;
   return (
-    getBlockFontOptions().find((option) => option.id === id) ??
+    options.find((option) => option.id === id) ??
+    options[0] ??
     BLOCK_FONT_OPTIONS[0]
   );
 }

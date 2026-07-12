@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { PlusIcon, TrashIcon } from "../ui/icons";
@@ -17,6 +18,7 @@ export function SortableFinalChapterCard({
   onDelete: () => void;
   onTitleChange: (title: string) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const {
     attributes,
     listeners,
@@ -41,8 +43,8 @@ export function SortableFinalChapterCard({
         ref={setActivatorNodeRef}
         className="drag-handle"
         disabled={busy}
-        aria-label={`${item.title} 순서 이동`}
-        title="드래그해서 이동"
+        aria-label={t("shareImport.moveItem", { title: item.title })}
+        title={t("common.dragToMove")}
         {...attributes}
         {...listeners}
       >
@@ -50,7 +52,11 @@ export function SortableFinalChapterCard({
       </button>
       <span className="item-order">{index + 1}</span>
       <span className={`source-badge ${item.source}`}>
-        {item.source === "existing" ? "기존" : "공유"}
+        {t(
+          item.source === "existing"
+            ? "shareImport.source.existing"
+            : "shareImport.source.shared",
+        )}
       </span>
       <input
         className="share-title-input"
@@ -63,8 +69,8 @@ export function SortableFinalChapterCard({
         className="icon-danger-button"
         disabled={busy}
         onClick={onDelete}
-        aria-label={`${item.title} 삭제`}
-        title="삭제"
+        aria-label={t("shareImport.deleteItem", { title: item.title })}
+        title={t("common.delete")}
       >
         <TrashIcon size={15} />
       </button>
@@ -81,6 +87,7 @@ export function CandidateChapterCard({
   item: LeftItem;
   onAdd: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const {
     attributes,
     listeners,
@@ -105,8 +112,8 @@ export function CandidateChapterCard({
         ref={setActivatorNodeRef}
         className="drag-handle"
         disabled={busy}
-        aria-label={`${item.title} 최종 목록에 추가`}
-        title="드래그해서 추가"
+        aria-label={t("shareImport.addToFinal", { title: item.title })}
+        title={t("shareImport.dragToAdd")}
         {...attributes}
         {...listeners}
       >
@@ -114,14 +121,14 @@ export function CandidateChapterCard({
       </button>
       <div className="candidate-main">
         <strong>{item.title}</strong>
-        <small>{item.pageCount}페이지</small>
+        <small>{t("common.pageCount", { count: item.pageCount })}</small>
       </div>
       <button
         className="icon-add-button"
         disabled={busy}
         onClick={onAdd}
-        aria-label={`${item.title} 추가`}
-        title="추가"
+        aria-label={t("shareImport.addItem", { title: item.title })}
+        title={t("common.add")}
       >
         <PlusIcon size={16} />
       </button>
@@ -136,6 +143,7 @@ export function FinalChapterPreview({
   index: number;
   item: LeftItem;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className={`share-final-item drag-preview ${item.source}`}>
       <span className="drag-handle preview-handle">
@@ -143,7 +151,11 @@ export function FinalChapterPreview({
       </span>
       <span className="item-order">{index}</span>
       <span className={`source-badge ${item.source}`}>
-        {item.source === "existing" ? "기존" : "공유"}
+        {t(
+          item.source === "existing"
+            ? "shareImport.source.existing"
+            : "shareImport.source.shared",
+        )}
       </span>
       <strong className="preview-title">{item.title}</strong>
       <span className="page-count-chip">{item.pageCount}p</span>
@@ -156,6 +168,7 @@ export function CandidatePreview({
 }: {
   item: LeftItem;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="candidate-card drag-preview">
       <span className="drag-handle preview-handle">
@@ -163,7 +176,7 @@ export function CandidatePreview({
       </span>
       <div className="candidate-main">
         <strong>{item.title}</strong>
-        <small>{item.pageCount}페이지</small>
+        <small>{t("common.pageCount", { count: item.pageCount })}</small>
       </div>
       <span className="icon-add-button preview-icon">
         <PlusIcon size={16} />

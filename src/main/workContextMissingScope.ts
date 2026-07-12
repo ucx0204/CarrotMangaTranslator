@@ -4,6 +4,7 @@ import type {
   WorkStyleGuide,
 } from "../shared/types";
 import { getChapterStoryMemory } from "./library";
+import { tMain } from "./i18n";
 
 /**
  * Translated chapters whose story memory has never been stamped by AI analysis.
@@ -66,6 +67,6 @@ export async function buildAlreadyAnalyzedResult({
       rulesUpdated: 0,
       pageSummariesUpserted: 0,
     },
-    warnings: ["모든 화가 이미 분석되어 AI 용어/기억 분석을 건너뛰었습니다."],
+    warnings: [tMain("workContext.warnings.alreadyAnalyzed")],
   };
 }

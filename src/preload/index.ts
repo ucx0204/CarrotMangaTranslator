@@ -184,6 +184,7 @@ const api = {
     invokeContract(fontIpcContracts.registerCustomFont),
   removeCustomFont: (id: string): Promise<CustomFont[]> =>
     invokeContract(fontIpcContracts.removeCustomFont, id),
+  getUiLocale: () => invokeContract(settingsIpcContracts.getUiLocale),
   getSettings: (): Promise<AppSettings> =>
     invokeContract(settingsIpcContracts.getSettings),
   saveSettings: (settings: AppSettings): Promise<AppSettings> =>
@@ -293,6 +294,8 @@ const api = {
       );
     };
   },
+  onUiLocaleChanged: (callback) =>
+    subscribeToIpcEvent(ipcEventContracts.uiLocaleChanged, callback),
 } satisfies MangaApi;
 
 contextBridge.exposeInMainWorld("mangaApi", api);

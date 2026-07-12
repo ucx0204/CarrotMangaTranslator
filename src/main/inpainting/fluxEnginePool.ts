@@ -8,6 +8,7 @@ import {
 } from "../inpainting";
 import type { FluxBackend } from "../../shared/inpaintingSettingsTypes";
 import { detectBestGpuInfo } from "../gpuInfo";
+import { tMain } from "./localization";
 
 const FLUX_ENGINE_IDLE_TTL_MS = 5 * 60 * 1000;
 
@@ -61,10 +62,10 @@ export async function acquireFluxInpaintingEngine(options: {
   ) {
     clearIdleTimer(cachedEngine);
     options.onProgress?.({
-      progressText: "Flux 인페인팅 준비 완료",
-      detail: "캐시된 Flux 엔진 사용",
+      progressText: tMain("inpainting.runtime.fluxReady"),
+      detail: tMain("inpainting.runtime.cachedFlux"),
       progressMode: "log-only",
-      installLogLine: "캐시된 Flux 인페인팅 엔진을 재사용합니다.",
+      installLogLine: tMain("inpainting.runtime.cachedFluxLog"),
     });
     return {
       engine: cachedEngine.engine,

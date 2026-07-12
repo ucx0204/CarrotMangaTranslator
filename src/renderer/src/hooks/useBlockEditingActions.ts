@@ -4,6 +4,8 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import {
@@ -189,6 +191,7 @@ function useApplyFormatToScopeAction({
   selectedPageEditLocked,
   setCurrentChapter,
 }: UseBlockEditingActionsOptions): BlockEditingActions["applyFormatToScope"] {
+  const { t } = useTranslation("renderer");
   return useCallback(
     (scope: FormatApplyScope, groupIds: BlockFormatGroupId[]) => {
       if (
@@ -200,9 +203,7 @@ function useApplyFormatToScopeAction({
         return;
       }
       if (scope === "chapter" && jobActive) {
-        pushStatus(
-          "작업 중에는 이 화 전체 서식 일괄 적용을 사용할 수 없습니다.",
-        );
+        pushStatus(t("blockEditing.chapterApplyWhileRunning"));
         return;
       }
       const targetPageIds = resolveFormatTargetPageIds(
@@ -227,7 +228,7 @@ function useApplyFormatToScopeAction({
       );
       currentChapterRef.current = next;
       setCurrentChapter(next);
-      pushStatus(resolveFormatApplyStatus(scope, blockIdFilter?.size ?? 0));
+      pushStatus(resolveFormatApplyStatus(scope, blockIdFilter?.size ?? 0, t));
     },
     [
       currentChapter,
@@ -241,6 +242,7 @@ function useApplyFormatToScopeAction({
       selectedPage,
       selectedPageEditLocked,
       setCurrentChapter,
+      t,
     ],
   );
 }
@@ -301,14 +303,17 @@ function applyFormatPatchToBlock(
 function resolveFormatApplyStatus(
   scope: FormatApplyScope,
   selectionCount: number,
+  t: TFunction<"renderer">,
 ): string {
   if (scope === "selection") {
-    return `선택한 블록 ${selectionCount}개에 서식을 적용했습니다.`;
+    return t("blockEditing.formatAppliedSelection", {
+      count: selectionCount,
+    });
   }
   if (scope === "page") {
-    return "이 페이지의 모든 블록에 서식을 적용했습니다.";
+    return t("blockEditing.formatAppliedPage");
   }
-  return "이 화 전체 블록에 서식을 적용했습니다.";
+  return t("blockEditing.formatAppliedChapter");
 }
 
 function useDeleteSelectedBlockAction({

@@ -2,6 +2,7 @@ import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import type { IpcContract } from "../../shared/ipcContracts";
 import { isAllowedMainWindowNavigation } from "../mainWindow";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 
 export function trustedHandle(
   context: IpcContext,
@@ -38,11 +39,11 @@ export function assertTrustedIpcSender(
 ): void {
   const mainWindow = context.getMainWindow();
   if (!mainWindow || mainWindow.isDestroyed()) {
-    throw new Error("IPC 요청을 받을 앱 창이 없습니다.");
+    throw new Error(tMain("ipc.errors.noWindow"));
   }
 
   if (event.sender.id !== mainWindow.webContents.id) {
-    throw new Error("신뢰할 수 없는 IPC 요청입니다.");
+    throw new Error(tMain("ipc.errors.untrusted"));
   }
 
   const senderFrameUrl = event.senderFrame?.url;
@@ -52,6 +53,6 @@ export function assertTrustedIpcSender(
     !rendererUrl ||
     !isAllowedMainWindowNavigation(senderFrameUrl, rendererUrl)
   ) {
-    throw new Error("신뢰할 수 없는 IPC 요청입니다.");
+    throw new Error(tMain("ipc.errors.untrusted"));
   }
 }

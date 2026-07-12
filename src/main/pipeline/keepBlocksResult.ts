@@ -5,6 +5,7 @@ import {
 } from "../../shared/geometry";
 import type { BBox, MangaPage, TranslationBlock } from "../../shared/types";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
+import { tMain } from "./localization";
 import { buildPageWarnings } from "./overlayItems";
 import type { OcrBboxResult, OverlayItem } from "./types";
 
@@ -95,15 +96,27 @@ function buildKeepBlocksResultDetail(
   mapping: KeepBlocksMappingResult,
   soundDroppedCount: number,
 ): string {
-  const details = [`기존 블록 ${mapping.updatedCount}개 갱신`];
+  const details = [
+    tMain("translation.result.existingUpdated", {
+      count: mapping.updatedCount,
+    }),
+  ];
   if (mapping.keptCount > 0) {
-    details.push(`${mapping.keptCount}개 유지`);
+    details.push(
+      tMain("translation.result.kept", { count: mapping.keptCount }),
+    );
   }
   if (mapping.droppedItemCount > 0) {
-    details.push(`블록 밖 결과 ${mapping.droppedItemCount}개 제외`);
+    details.push(
+      tMain("translation.result.outsideDropped", {
+        count: mapping.droppedItemCount,
+      }),
+    );
   }
   if (soundDroppedCount > 0) {
-    details.push(`불확실한 효과음 ${soundDroppedCount}개 제외`);
+    details.push(
+      tMain("translation.result.soundDropped", { count: soundDroppedCount }),
+    );
   }
   return details.join(", ");
 }

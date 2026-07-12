@@ -1,4 +1,6 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { mangaGateway } from "../api/mangaGateway";
 import { formatErrorMessage } from "../lib/appHelpers";
 import {
@@ -13,17 +15,19 @@ import {
 export function useRunInpaintingAction(
   options: UseInpaintingActionsOptions,
 ): (scope: InpaintingScope) => Promise<void> {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async (scope) => {
-      await runPatternInpainting(options, scope);
+      await runPatternInpainting(options, scope, t);
     },
-    [options],
+    [options, t],
   );
 }
 
 async function runPatternInpainting(
   options: UseInpaintingActionsOptions,
   scope: InpaintingScope,
+  t: TFunction<"renderer">,
 ): Promise<void> {
   const target = resolveInpaintingTarget(
     options.currentChapter,
@@ -33,7 +37,7 @@ async function runPatternInpainting(
   if (!target || options.jobActive) {
     return;
   }
-  const ready = await preparePatternInpainting(options, scope);
+  const ready = await preparePatternInpainting(options, scope, t);
   if (!ready) {
     return;
   }
@@ -52,15 +56,19 @@ async function runPatternInpainting(
       options.clearPageImageCache();
       options.mergeLiveChapter(result.chapter);
     }
-    await refreshLibraryWithStatus(options.refreshLibrary, options.pushStatus);
-    reportPatternInpaintingResult(result, options.pushStatus);
+    await refreshLibraryWithStatus(
+      options.refreshLibrary,
+      options.pushStatus,
+      t("library.refreshAfterJobFailed"),
+    );
+    reportPatternInpaintingResult(result, options.pushStatus, t);
   } catch (error) {
     console.error(error);
     failInpaintingJob(
       options.setJobState,
       options.pushStatus,
-      "작업 실패",
-      formatErrorMessage(error, "원문 지우기를 시작하지 못했습니다."),
+      t("inpainting.common.jobFailedTitle"),
+      formatErrorMessage(error, t("inpainting.erase.startFailed")),
     );
   }
 }
@@ -68,6 +76,7 @@ async function runPatternInpainting(
 async function preparePatternInpainting(
   options: UseInpaintingActionsOptions,
   scope: InpaintingScope,
+  t: TFunction<"renderer">,
 ): Promise<boolean> {
   try {
     await saveDirtyChanges(options.dirty, options.saveNow);
@@ -76,15 +85,16 @@ async function preparePatternInpainting(
     failInpaintingJob(
       options.setJobState,
       options.pushStatus,
-      "저장 실패",
-      formatErrorMessage(
-        error,
-        "원문 지우기 전에 변경사항을 저장하지 못했습니다.",
-      ),
+      t("inpainting.common.saveFailedTitle"),
+      formatErrorMessage(error, t("inpainting.erase.saveFailed")),
     );
     return false;
   }
-  const confirmed = await confirmPatternInpainting(options.askConfirm, scope);
+  const confirmed = await confirmPatternInpainting(
+    options.askConfirm,
+    scope,
+    t,
+  );
   if (!confirmed) {
     return false;
   }
@@ -92,7 +102,7 @@ async function preparePatternInpainting(
     id: "pending-inpainting",
     kind: "inpainting",
     status: "starting",
-    progressText: "원문 지우기 준비 중",
+    progressText: t("inpainting.erase.preparing"),
     phase: "inpainting_preparing",
   });
   return true;
@@ -101,25 +111,34 @@ async function preparePatternInpainting(
 function confirmPatternInpainting(
   askConfirm: UseInpaintingActionsOptions["askConfirm"],
   scope: InpaintingScope,
+  t: TFunction<"renderer">,
 ): Promise<boolean> {
-  const scopeLabel =
-    scope === "page" ? "현재 페이지" : "아직 지우지 않은 페이지";
+  const scopeLabel = t(
+    scope === "page"
+      ? "inpainting.erase.currentPage"
+      : "inpainting.erase.pendingPages",
+  );
   return askConfirm(
-    "원문 지우기",
-    `${scopeLabel}의 번역 블록 위치에 있는 원문을 지웁니다.`,
-    "말풍선, 톤, 배경 그림, 효과음 위 글자까지 모두 Flux 인페인팅으로 지웁니다. 원본 이미지는 유지하고 결과 이미지는 별도로 저장합니다.",
+    t("inpainting.erase.title"),
+    t("inpainting.erase.message", { scope: scopeLabel }),
+    t("inpainting.erase.detail"),
   );
 }
 
 function reportPatternInpaintingResult(
   result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
   pushStatus: (line: string) => void,
+  t: TFunction<"renderer">,
 ): void {
   if (result.status === "completed") {
     pushStatus(
-      `원문 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}블록`,
+      t("inpainting.erase.success", {
+        pages: result.pagesChanged ?? 0,
+        blocks: result.blocksErased ?? 0,
+      }),
     );
   } else if (result.status === "failed" && result.error) {
-    pushStatus(result.error);
+    console.error(result.error);
+    pushStatus(t("inpainting.erase.failed"));
   }
 }

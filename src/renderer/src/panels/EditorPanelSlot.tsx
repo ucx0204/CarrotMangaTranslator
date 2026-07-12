@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "../components/ui";
 import { EditorPanelContainer } from "./EditorPanelContainer";
 import { usePanelSession } from "./panelSession";
@@ -10,13 +11,14 @@ import { usePanelSession } from "./panelSession";
  * {@link EditorFloatingLayer} (in-app) or the pop-out window (OS).
  */
 export function EditorPanelSlot(): React.JSX.Element {
+  const { t } = useTranslation("renderer");
   const session = usePanelSession();
   if (session.editorPoppedOut) {
     return (
       <section className="editor-panel editor-float-placeholder">
-        <p className="muted-line">편집기를 새 창으로 분리했어요.</p>
+        <p className="muted-line">{t("panels.editor.poppedOut")}</p>
         <Button size="sm" onClick={session.onDockEditorWindow}>
-          편집기 창 닫기
+          {t("panels.editor.closeWindow")}
         </Button>
       </section>
     );
@@ -24,9 +26,9 @@ export function EditorPanelSlot(): React.JSX.Element {
   if (session.editorFloating) {
     return (
       <section className="editor-panel editor-float-placeholder">
-        <p className="muted-line">편집기를 띄웠어요.</p>
+        <p className="muted-line">{t("panels.editor.floating")}</p>
         <Button size="sm" onClick={session.onToggleEditorFloat}>
-          편집기 도킹
+          {t("panels.editor.dock")}
         </Button>
       </section>
     );

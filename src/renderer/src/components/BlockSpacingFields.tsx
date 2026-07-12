@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import {
   MAX_FONT_WIDTH_SCALE,
@@ -18,13 +19,14 @@ export function BlockSpacingFields({
   disabled,
   onUpdate,
 }: BlockSpacingFieldsProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const lineHeight = clampLineHeight(block.lineHeight);
   const letterSpacing = clampLetterSpacing(block.letterSpacing);
   const fontWidthScale = resolveFontWidthScale(block.fontWidthScale);
   return (
     <>
       <FieldSlider
-        label="줄 간격"
+        label={t("format.lineHeight")}
         valueLabel={lineHeight.toFixed(2)}
         min={0.8}
         max={3}
@@ -38,7 +40,7 @@ export function BlockSpacingFields({
         }
       />
       <FieldSlider
-        label="자간"
+        label={t("format.letterSpacing")}
         valueLabel={letterSpacing.toFixed(2)}
         min={-0.1}
         max={0.5}
@@ -52,7 +54,7 @@ export function BlockSpacingFields({
         }
       />
       <FieldSlider
-        label="장평"
+        label={t("format.fontWidth")}
         valueLabel={`${Math.round(fontWidthScale * 100)}%`}
         min={MIN_FONT_WIDTH_SCALE}
         max={MAX_FONT_WIDTH_SCALE}

@@ -1,4 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { ImportPreviewSession } from "../../../shared/importTypes";
 import type {
@@ -93,6 +94,7 @@ function useOpenImportPreviewAction({
   pushStatus,
   setImportPreview,
 }: UseImportShareActionsOptions): ImportShareActions["openImportPreview"] {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async (mode: ImportPreviewMode) => {
       try {
@@ -102,10 +104,10 @@ function useOpenImportPreviewAction({
         }
       } catch (error) {
         console.error(error);
-        pushStatus(formatErrorMessage(error, "번역할 원본을 읽지 못했습니다."));
+        pushStatus(formatErrorMessage(error, t("import.sourceReadFailed")));
       }
     },
-    [pushStatus, setImportPreview],
+    [pushStatus, setImportPreview, t],
   );
 }
 
@@ -131,6 +133,7 @@ function useSubmitShareExportAction({
   setShareExportBusy,
   setShareExportOpen,
 }: UseImportShareActionsOptions): ImportShareActions["submitShareExport"] {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async (request: WorkShareExportRequest) => {
       setShareExportBusy(true);
@@ -141,20 +144,22 @@ function useSubmitShareExportAction({
         const result = await mangaGateway.exportWorkShare(request);
         if (result) {
           pushStatus(
-            `${result.workTitle} 공유 파일을 저장했습니다. ${result.chapterCount}개 화, ${result.pageCount}페이지`,
+            t("share.exportSuccess", {
+              title: result.workTitle,
+              chapters: result.chapterCount,
+              pages: result.pageCount,
+            }),
           );
           setShareExportOpen(false);
         }
       } catch (error) {
         console.error(error);
-        pushStatus(
-          formatErrorMessage(error, "공유 파일을 저장하지 못했습니다."),
-        );
+        pushStatus(formatErrorMessage(error, t("share.exportFailed")));
       } finally {
         setShareExportBusy(false);
       }
     },
-    [dirty, pushStatus, saveNow, setShareExportBusy, setShareExportOpen],
+    [dirty, pushStatus, saveNow, setShareExportBusy, setShareExportOpen, t],
   );
 }
 
@@ -164,6 +169,7 @@ function useOpenShareImportPreviewAction({
   saveNow,
   setShareImportPreview,
 }: UseImportShareActionsOptions): ImportShareActions["openShareImportPreview"] {
+  const { t } = useTranslation("renderer");
   return useCallback(async () => {
     try {
       if (dirty) {
@@ -175,9 +181,9 @@ function useOpenShareImportPreviewAction({
       }
     } catch (error) {
       console.error(error);
-      pushStatus(formatErrorMessage(error, "공유 파일을 읽지 못했습니다."));
+      pushStatus(formatErrorMessage(error, t("share.readFailed")));
     }
-  }, [dirty, pushStatus, saveNow, setShareImportPreview]);
+  }, [dirty, pushStatus, saveNow, setShareImportPreview, t]);
 }
 
 function useSubmitShareImportAction({
@@ -191,6 +197,7 @@ function useSubmitShareImportAction({
   setShareImportPreview,
   shareImportPreview,
 }: UseImportShareActionsOptions): ImportShareActions["submitShareImport"] {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async (payload: ShareImportModalSubmit) => {
       if (!shareImportPreview) {
@@ -199,8 +206,8 @@ function useSubmitShareImportAction({
 
       if (payload.remainingPackageChapters.length > 0) {
         const confirmed = await askConfirm(
-          "가져오지 않는 화가 있습니다",
-          "오른쪽에 남은 공유 화는 적용되지 않습니다.",
+          t("share.remainingChaptersTitle"),
+          t("share.remainingChaptersMessage"),
           payload.remainingPackageChapters
             .map((chapter) => chapter.title)
             .join("\n"),
@@ -212,8 +219,8 @@ function useSubmitShareImportAction({
 
       if (payload.deletedExistingChapters.length > 0) {
         const confirmed = await askConfirm(
-          "기존 화 삭제",
-          "왼쪽 최종 목록에서 빠진 기존 화가 보관함에서 삭제됩니다.",
+          t("share.deleteExistingTitle"),
+          t("share.deleteExistingMessage"),
           payload.deletedExistingChapters
             .map((chapter) => chapter.title)
             .join("\n"),
@@ -236,14 +243,12 @@ function useSubmitShareImportAction({
         await refreshLibrary();
         applyChapter(
           result.openedChapter,
-          `${result.chapterIds.length}개 화를 보관함에 적용했습니다.`,
+          t("share.importApplied", { count: result.chapterIds.length }),
         );
         setShareImportPreview(null);
       } catch (error) {
         console.error(error);
-        pushStatus(
-          formatErrorMessage(error, "공유 파일을 가져오지 못했습니다."),
-        );
+        pushStatus(formatErrorMessage(error, t("share.importFailed")));
       } finally {
         setShareImportBusy(false);
       }
@@ -258,6 +263,7 @@ function useSubmitShareImportAction({
       setShareImportBusy,
       setShareImportPreview,
       shareImportPreview,
+      t,
     ],
   );
 }
@@ -274,6 +280,7 @@ function useSubmitImportAction({
   setImportBusy,
   setImportPreview,
 }: UseImportShareActionsOptions): ImportShareActions["submitImport"] {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async ({ target, selections }: ImportModalSubmit) => {
       if (!importPreview) {
@@ -293,7 +300,7 @@ function useSubmitImportAction({
         await refreshLibrary();
         applyChapter(
           result.openedChapter,
-          `${result.chapterIds.length}개 화를 보관함에 추가했습니다.`,
+          t("import.added", { count: result.chapterIds.length }),
         );
         setImportPreview(null);
 
@@ -307,9 +314,7 @@ function useSubmitImportAction({
         }
       } catch (error) {
         console.error(error);
-        pushStatus(
-          formatErrorMessage(error, "가져오기를 적용하지 못했습니다."),
-        );
+        pushStatus(formatErrorMessage(error, t("import.applyFailed")));
       } finally {
         setImportBusy(false);
       }
@@ -325,6 +330,7 @@ function useSubmitImportAction({
       saveNow,
       setImportBusy,
       setImportPreview,
+      t,
     ],
   );
 }

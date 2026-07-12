@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { DragOverlay, useDroppable } from "@dnd-kit/core";
 import {
@@ -35,14 +36,19 @@ export function ShareMergeToolbar({
   onAppendAll: () => void;
   onReset: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="share-merge-toolbar">
       <div className="share-stat-row">
-        <span>최종 {finalCount}개</span>
+        <span>{t("shareImport.stats.final", { count: finalCount })}</span>
         <span className={deletedCount ? "danger-stat" : ""}>
-          삭제 예정 {deletedCount}개
+          {t("shareImport.stats.toDelete", { count: deletedCount })}
         </span>
-        <span>남은 후보 {availableCount}개</span>
+        <span>
+          {t("shareImport.stats.remainingCandidates", {
+            count: availableCount,
+          })}
+        </span>
       </div>
       <div className="share-merge-actions">
         <Button
@@ -50,10 +56,10 @@ export function ShareMergeToolbar({
           size="sm"
           onClick={onReset}
           disabled={busy}
-          title="기존 작품 상태로 되돌립니다"
+          title={t("shareImport.resetTitle")}
         >
           <RefreshIcon size={14} />
-          초기화
+          {t("common.reset")}
         </Button>
         <Button
           variant="ghost"
@@ -61,7 +67,7 @@ export function ShareMergeToolbar({
           onClick={onAppendAll}
           disabled={busy || availableCount === 0}
         >
-          모두 추가
+          {t("shareImport.addAll")}
         </Button>
       </div>
     </div>
@@ -81,6 +87,7 @@ export function ShareFinalPane({
   onRemoveItem: (item: LeftItem) => void;
   setLeftItems: React.Dispatch<React.SetStateAction<LeftItem[]>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const { isOver, setNodeRef } = useDroppable({
     id: FINAL_CONTAINER_ID,
     disabled: busy,
@@ -92,8 +99,8 @@ export function ShareFinalPane({
       className={`share-pane final-pane ${isOver || activeDrag ? "drop-ready" : ""}`}
     >
       <div className="share-pane-header">
-        <strong>최종 적용 목록</strong>
-        <span>드래그로 순서 변경</span>
+        <strong>{t("shareImport.finalList")}</strong>
+        <span>{t("shareImport.dragToReorder")}</span>
       </div>
       <SortableContext
         id={FINAL_CONTAINER_ID}
@@ -116,7 +123,7 @@ export function ShareFinalPane({
             />
           ))}
           {items.length === 0 ? (
-            <p className="panel-empty">왼쪽 목록이 비어 있습니다.</p>
+            <p className="panel-empty">{t("shareImport.finalListEmpty")}</p>
           ) : null}
         </div>
       </SortableContext>
@@ -135,6 +142,7 @@ export function ShareCandidatePane({
   items: LeftItem[];
   onAppendPackageChapter: (packageChapterId: string) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const { isOver, setNodeRef } = useDroppable({
     id: CANDIDATE_CONTAINER_ID,
     disabled: busy,
@@ -146,8 +154,8 @@ export function ShareCandidatePane({
       className={`share-pane candidate-pane ${isOver || activeDrag ? "drop-ready" : ""}`}
     >
       <div className="share-pane-header">
-        <strong>공유 파일 후보</strong>
-        <span>{items.length}개 남음</span>
+        <strong>{t("shareImport.candidates")}</strong>
+        <span>{t("shareImport.remaining", { count: items.length })}</span>
       </div>
       <SortableContext
         id={CANDIDATE_CONTAINER_ID}
@@ -168,7 +176,7 @@ export function ShareCandidatePane({
             />
           ))}
           {items.length === 0 ? (
-            <p className="panel-empty">모든 공유 화가 최종 목록에 있습니다.</p>
+            <p className="panel-empty">{t("shareImport.allChaptersInFinal")}</p>
           ) : null}
         </div>
       </SortableContext>
@@ -209,12 +217,13 @@ export function DeletedExistingChaptersWarning({
   deletedExistingChapters: Array<{ id: string; title: string }>;
   onRestore: (chapterId: string) => void;
 }): React.JSX.Element | null {
+  const { t } = useTranslation("components");
   if (deletedExistingChapters.length === 0) {
     return null;
   }
   return (
     <div className="share-warning-strip">
-      <span className="share-warning-label">삭제 예정</span>
+      <span className="share-warning-label">{t("shareImport.toDelete")}</span>
       <div className="share-deleted-chips">
         {deletedExistingChapters.map((chapter) => (
           <button
@@ -223,7 +232,7 @@ export function DeletedExistingChaptersWarning({
             className="share-restore-chip"
             disabled={busy}
             onClick={() => onRestore(chapter.id)}
-            title={`${chapter.title} 되살리기`}
+            title={t("shareImport.restoreItem", { title: chapter.title })}
           >
             <span className="share-restore-title">{chapter.title}</span>
             <RestoreIcon size={14} />

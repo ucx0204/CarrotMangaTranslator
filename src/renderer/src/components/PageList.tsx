@@ -1,4 +1,6 @@
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
   closestCenter,
@@ -41,6 +43,7 @@ export function PageList({
   onRemove,
   onReorder,
 }: PageListProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const sensors = useStandardDndSensors();
   const [activePageId, setActivePageId] = React.useState<string | null>(null);
   const pageItemRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
@@ -73,7 +76,7 @@ export function PageList({
   return (
     <section className="page-list">
       <div className="panel-header">
-        <h2>페이지</h2>
+        <h2>{t("common.pages")}</h2>
       </div>
       <DndContext
         sensors={sensors}
@@ -122,6 +125,7 @@ function PageSortableContent({
   selectedPageId: string | null;
   statusMode: PageStatusMode;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <SortableContext
@@ -148,7 +152,7 @@ function PageSortableContent({
               />
             ))
           ) : (
-            <p className="panel-empty">불러온 페이지가 없습니다.</p>
+            <p className="panel-empty">{t("pageList.empty")}</p>
           )}
         </div>
       </SortableContext>
@@ -187,6 +191,7 @@ function SortablePageItem({
   onRemove: (pageId: string) => void;
   registerRef: (element: HTMLDivElement | null) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const {
     attributes,
     listeners,
@@ -218,8 +223,8 @@ function SortablePageItem({
         ref={setActivatorNodeRef}
         className="drag-handle compact"
         disabled={disabled}
-        aria-label={`${page.name} 순서 이동`}
-        title="드래그해서 이동"
+        aria-label={t("pageList.moveItem", { name: page.name })}
+        title={t("common.dragToMove")}
         {...attributes}
         {...listeners}
       >
@@ -259,14 +264,15 @@ function PageItemSide({
   selected: boolean;
   statusMode: PageStatusMode;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   if (selected && statusMode === "translation") {
     return (
       <div className="page-side">
         <div className="page-actions">
           <IconButton
             size="sm"
-            label={`${page.name} 재번역`}
-            title="재번역"
+            label={t("pageList.retranslateItem", { name: page.name })}
+            title={t("pageList.retranslate")}
             onClick={() => onRetranslate(page.id)}
             disabled={disabled}
           >
@@ -275,8 +281,8 @@ function PageItemSide({
           <IconButton
             size="sm"
             variant="danger"
-            label={`${page.name} 삭제`}
-            title="삭제"
+            label={t("pageList.deleteItem", { name: page.name })}
+            title={t("common.delete")}
             onClick={() => onRemove(page.id)}
             disabled={disabled}
           >
@@ -289,7 +295,7 @@ function PageItemSide({
   return (
     <div className="page-side">
       <span className="page-status-badge">
-        {resolveStatusLabel(page, statusMode)}
+        {resolveStatusLabel(page, statusMode, t)}
       </span>
     </div>
   );
@@ -304,6 +310,7 @@ function PageDragPreview({
   selected: boolean;
   statusMode: PageStatusMode;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div
       className={`page-item sortable-item drag-preview ${selected ? "active" : ""}`}
@@ -315,7 +322,7 @@ function PageDragPreview({
         <span>{page.name}</span>
       </div>
       <span className="page-status-badge">
-        {resolveStatusLabel(page, statusMode)}
+        {resolveStatusLabel(page, statusMode, t)}
       </span>
     </div>
   );
@@ -324,19 +331,20 @@ function PageDragPreview({
 function resolveStatusLabel(
   page: MangaPage,
   statusMode: PageStatusMode,
+  t: TFunction<"components">,
 ): string {
   if (statusMode === "inpainting") {
-    return page.inpaintedImagePath ? "지움" : "대기";
+    return t(page.inpaintedImagePath ? "status.erased" : "status.waiting");
   }
 
   switch (page.analysisStatus) {
     case "completed":
-      return "완료";
+      return t("status.completed");
     case "running":
-      return "진행";
+      return t("status.inProgressShort");
     case "failed":
-      return "실패";
+      return t("status.failed");
     default:
-      return "대기";
+      return t("status.waiting");
   }
 }

@@ -44,6 +44,7 @@ import type {
   WorkStyleGuide,
   ChapterStoryMemory,
   ExportReviewTextRequest,
+  UiLocale,
 } from "./types";
 
 export type MangaApi = {
@@ -98,6 +99,7 @@ export type MangaApi = {
   listCustomFonts: () => Promise<CustomFont[]>;
   registerCustomFont: () => Promise<CustomFont | null>;
   removeCustomFont: (id: string) => Promise<CustomFont[]>;
+  getUiLocale: () => Promise<UiLocale>;
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: AppSettings) => Promise<AppSettings>;
   resetSettings: () => Promise<AppSettings>;
@@ -155,6 +157,7 @@ export type MangaApi = {
   onModelTestEvent: (
     callback: (event: ModelTestProgressEvent) => void,
   ) => () => void;
+  onUiLocaleChanged: (callback: (locale: UiLocale) => void) => () => void;
   onPanelState: (callback: (state: PanelSyncState) => void) => () => void;
   onPanelCommand: (callback: (command: PanelCommand) => void) => () => void;
   onPanelWindowsChanged: (

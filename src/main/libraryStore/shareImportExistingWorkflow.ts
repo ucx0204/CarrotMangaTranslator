@@ -3,6 +3,7 @@ import type {
   WorkShareImportFromPackageRequest,
   WorkShareImportResult,
 } from "../../shared/types";
+import { tMain } from "./localization";
 import { safeCleanup } from "../safeCleanup";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
@@ -50,7 +51,7 @@ export async function importWorkShareIntoExistingWork(
   request: WorkShareImportFromPackageRequest,
 ): Promise<WorkShareImportResult> {
   if (request.target.mode !== "existing") {
-    throw new Error("기존 작품 가져오기 요청이 아닙니다.");
+    throw new Error(tMain("share.errors.notExistingWorkRequest"));
   }
 
   const work = await ensureExistingWork(request.target.workId);
@@ -182,11 +183,11 @@ function addExistingChapterToPlan(
   plan: ExistingShareImportPlan,
 ): void {
   if (plan.usedExistingIds.has(entry.chapterId)) {
-    throw new Error("같은 기존 화가 두 번 포함되어 있습니다.");
+    throw new Error(tMain("share.errors.duplicateExistingChapter"));
   }
   const currentChapter = plan.currentChapters.get(entry.chapterId);
   if (!currentChapter) {
-    throw new Error("기존 작품에서 적용할 화를 찾지 못했습니다.");
+    throw new Error(tMain("share.errors.existingChapterNotFound"));
   }
 
   const chapter = {
@@ -217,11 +218,11 @@ async function addPackageChapterToPlan({
   archiveReader: ZipArchiveReader;
 }): Promise<void> {
   if (plan.usedPackageIds.has(entry.packageChapterId)) {
-    throw new Error("같은 공유 화가 두 번 포함되어 있습니다.");
+    throw new Error(tMain("share.errors.duplicateSharedChapter"));
   }
   const packageChapter = plan.chapterByPackageId.get(entry.packageChapterId);
   if (!packageChapter) {
-    throw new Error("공유 파일에서 가져올 화를 찾지 못했습니다.");
+    throw new Error(tMain("share.errors.chapterNotFound"));
   }
 
   const chapter = await materializeSharedChapter({
@@ -246,7 +247,7 @@ function makePlannedChapterTitle(
   usedTitles: Set<string>,
 ): string {
   return makeUniqueTitleInList(
-    sanitizeTitle(requestedTitle || fallbackTitle, "제목없음"),
+    sanitizeTitle(requestedTitle || fallbackTitle, tMain("import.untitled")),
     usedTitles,
   );
 }
@@ -261,7 +262,7 @@ async function commitExistingShareImport({
   trashedExistingChapters: TrashedChapterDirectory[];
 }): Promise<WorkShareImportResult> {
   if (plan.finalChapterIds.length === 0) {
-    throw new Error("적용할 화가 없습니다.");
+    throw new Error(tMain("share.errors.noChaptersToApply"));
   }
 
   const previousChapterIds = [...work.chapterOrder];
@@ -306,11 +307,11 @@ async function readOpenedImportedChapter(
 ): Promise<ChapterFile> {
   const firstChapterId = finalChapterIds[0];
   if (!firstChapterId) {
-    throw new Error("가져온 화를 열지 못했습니다.");
+    throw new Error(tMain("share.errors.importedChapterOpen"));
   }
   const openedChapter = await readChapterFile(workId, firstChapterId);
   if (!openedChapter) {
-    throw new Error("가져온 화를 열지 못했습니다.");
+    throw new Error(tMain("share.errors.importedChapterOpen"));
   }
   return openedChapter;
 }

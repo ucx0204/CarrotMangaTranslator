@@ -16,6 +16,7 @@ import {
   type WorkTextSelection,
 } from "./workContextAnalysisPrompt";
 import { createEmptyCounts } from "./workContextAiMergeUtils";
+import { tMain } from "./i18n";
 
 type RunChapterAnalysis = (input: {
   guide: WorkStyleGuide;
@@ -160,7 +161,7 @@ async function analyzeSequentialChapter({
   }
   if (!selection.text.trim()) {
     state.warnings.push(
-      `${chapter.title}: 분석할 텍스트가 없어 건너뛰었습니다.`,
+      tMain("workContext.warnings.chapterNoText", { chapter: chapter.title }),
     );
     return;
   }
@@ -203,7 +204,12 @@ async function persistSequentialChapter({
     state.guide = result.styleGuide;
     addCounts(state.counts, result.counts);
     state.analyzedChapters += 1;
-    state.warnings.push(...prefixWarnings(chapter.title, result.warnings));
+    state.warnings.push(
+      ...prefixWarnings(
+        chapter.title,
+        result.warnings.slice(selection.coverage.truncated ? 1 : 0),
+      ),
+    );
   } catch (error) {
     state.errors.push(error);
     logWarn("AI work context chapter analysis failed", {
@@ -211,7 +217,9 @@ async function persistSequentialChapter({
       chapterTitle: chapter.title,
       error,
     });
-    state.warnings.push(`${chapter.title}: AI 분석에 실패해 건너뛰었습니다.`);
+    state.warnings.push(
+      tMain("workContext.warnings.chapterFailed", { chapter: chapter.title }),
+    );
   }
 }
 
@@ -266,9 +274,12 @@ function addCounts(
 }
 
 function prefixWarnings(chapterTitle: string, warnings: string[]): string[] {
-  return warnings
-    .filter((warning) => !warning.includes("현재 화 텍스트가 길어"))
-    .map((warning) => `${chapterTitle}: ${warning}`);
+  return warnings.map((warning) =>
+    tMain("workContext.warnings.prefixed", {
+      chapter: chapterTitle,
+      warning,
+    }),
+  );
 }
 
 function buildSequentialWarnings({
@@ -283,13 +294,17 @@ function buildSequentialWarnings({
   const result = [
     ...(truncatedChapters > 0
       ? [
-          `${truncatedChapters}개 화가 길어 각 화의 토큰 예산 안에서 일부 쪽만 AI 분석에 포함했습니다.`,
+          tMain("workContext.warnings.chaptersTruncated", {
+            count: truncatedChapters,
+          }),
         ]
       : []),
     ...dedupeWarnings(warnings),
     ...(failedChapters > 0
       ? [
-          `${failedChapters}개 화는 AI 분석에 실패했습니다. 로그를 확인해 주세요.`,
+          tMain("workContext.warnings.chaptersFailed", {
+            count: failedChapters,
+          }),
         ]
       : []),
   ];

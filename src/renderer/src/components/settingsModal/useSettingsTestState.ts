@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../../../../shared/settingsTypes";
 import type { TestState } from "../settingsModalTypes";
 
@@ -21,13 +22,14 @@ export function useSettingsTestState(
   initialSettings: AppSettings,
   testLogRef: React.RefObject<HTMLDivElement | null>,
 ): SettingsTestStateController {
+  const { i18n } = useTranslation("components");
   const [testState, setTestState] = React.useState<TestState>(IDLE_TEST_STATE);
   const [testLogLines, setTestLogLines] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     setTestState(IDLE_TEST_STATE);
     setTestLogLines([]);
-  }, [initialSettings]);
+  }, [i18n.resolvedLanguage, initialSettings]);
 
   React.useEffect(() => {
     if (!testLogRef.current) {

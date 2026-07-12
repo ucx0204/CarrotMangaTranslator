@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { mangaGateway } from "../api/mangaGateway";
 type UseStatusLogResult = {
   statusLines: string[];
@@ -11,7 +12,16 @@ type UseStatusLogResult = {
 };
 
 export function useStatusLog(): UseStatusLogResult {
+  const { i18n } = useTranslation();
   const [statusLines, setStatusLines] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    const clearTranslatedHistory = () => setStatusLines([]);
+    i18n.on("languageChanged", clearTranslatedHistory);
+    return () => {
+      i18n.off("languageChanged", clearTranslatedHistory);
+    };
+  }, [i18n]);
 
   const appendStatusLine = React.useCallback(
     (line: string, replaceExisting?: (line: string) => boolean) => {

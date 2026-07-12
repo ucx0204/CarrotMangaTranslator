@@ -8,6 +8,7 @@ import type {
   WorkContextAnalysisCounts,
   WorkStyleGuide,
 } from "../shared/types";
+import { tMain } from "./i18n";
 import {
   cleanText,
   createEmptyCounts,
@@ -155,7 +156,9 @@ function mergeStoryMemories(
     const basePage = pageIndex.get(suggestion.pageId);
     if (!basePage) {
       warnings.push(
-        `AI가 알 수 없는 pageId를 반환했습니다: ${suggestion.pageId}`,
+        tMain("workContext.warnings.unknownPageId", {
+          pageId: suggestion.pageId,
+        }),
       );
       continue;
     }

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { logError, writeLog } from "./logger";
+import { tMainCommon } from "./i18n";
 
 export type RendererLoadTarget = {
   devRendererUrl: string | null;
@@ -107,6 +108,7 @@ export function createMainWindow(): BrowserWindow {
     height: 980,
     minWidth: 1240,
     minHeight: 760,
+    title: tMainCommon("app.title"),
     ...(target.windowIconPath ? { icon: target.windowIconPath } : {}),
     backgroundColor: "#101114",
     autoHideMenuBar: true,

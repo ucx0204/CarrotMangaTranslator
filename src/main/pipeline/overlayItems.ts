@@ -17,6 +17,7 @@ import type {
   TranslationBlock,
 } from "../../shared/types";
 import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
+import { tMain } from "./localization";
 import type { OverlayItem } from "./types";
 
 export {
@@ -139,7 +140,10 @@ export function buildPageWarnings(
   ).length;
   if (uncertainCount > 0) {
     warnings.push(
-      `${pageName}: 불확실한 OCR 조각이 ${uncertainCount}개 있습니다.`,
+      tMain("translation.warnings.uncertainOcr", {
+        page: pageName,
+        count: uncertainCount,
+      }),
     );
   }
   return warnings;

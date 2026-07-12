@@ -1,4 +1,6 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { mangaGateway } from "../api/mangaGateway";
 import { formatErrorMessage } from "../lib/appHelpers";
 import {
@@ -18,6 +20,7 @@ export function useExportInpaintingResultsAction({
   selectedPage,
   setJobState,
 }: UseInpaintingActionsOptions): (scope: InpaintingScope) => Promise<void> {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async (scope) => {
       const target = resolveInpaintingTarget(
@@ -27,7 +30,7 @@ export function useExportInpaintingResultsAction({
       );
       if (jobActive || !target) {
         if (scope === "page" && currentChapter) {
-          pushStatus("출력할 페이지가 선택되어 있지 않습니다.");
+          pushStatus(t("inpainting.export.noPage"));
         }
         return;
       }
@@ -38,14 +41,18 @@ export function useExportInpaintingResultsAction({
         failExportJob(
           setJobState,
           pushStatus,
-          formatErrorMessage(
-            error,
-            "PNG 출력 전에 변경사항을 저장하지 못했습니다.",
-          ),
+          formatErrorMessage(error, t("inpainting.export.saveFailed")),
+          t("inpainting.export.failedTitle"),
         );
         return;
       }
-      setPendingExportJob({ currentChapter, scope, selectedPage, setJobState });
+      setPendingExportJob({
+        currentChapter,
+        scope,
+        selectedPage,
+        setJobState,
+        t,
+      });
       try {
         const result = await mangaGateway.exportInpaintingResults(
           target.pageId
@@ -56,17 +63,14 @@ export function useExportInpaintingResultsAction({
               }
             : { chapterId: target.chapterId, scope: "chapter" },
         );
-        pushStatus(
-          result.openError
-            ? `PNG 출력은 완료됐지만 폴더를 열지 못했습니다: ${result.outputDir}`
-            : `인페인팅 결과를 PNG로 출력했습니다: ${result.pageCount}페이지`,
-        );
+        reportExportResult(result, pushStatus, t);
       } catch (error) {
         console.error(error);
         failExportJob(
           setJobState,
           pushStatus,
-          formatErrorMessage(error, "인페인팅 결과를 출력하지 못했습니다."),
+          formatErrorMessage(error, t("inpainting.export.failed")),
+          t("inpainting.export.failedTitle"),
         );
       }
     },
@@ -78,7 +82,20 @@ export function useExportInpaintingResultsAction({
       saveNow,
       selectedPage,
       setJobState,
+      t,
     ],
+  );
+}
+
+function reportExportResult(
+  result: Awaited<ReturnType<typeof mangaGateway.exportInpaintingResults>>,
+  pushStatus: UseInpaintingActionsOptions["pushStatus"],
+  t: TFunction<"renderer">,
+): void {
+  pushStatus(
+    result.openError
+      ? t("inpainting.export.openFolderFailed", { path: result.outputDir })
+      : t("inpainting.export.success", { count: result.pageCount }),
   );
 }
 
@@ -87,11 +104,13 @@ function setPendingExportJob({
   scope,
   selectedPage,
   setJobState,
+  t,
 }: Pick<
   UseInpaintingActionsOptions,
   "currentChapter" | "selectedPage" | "setJobState"
 > & {
   scope: InpaintingScope;
+  t: TFunction<"renderer">;
 }): void {
   if (!currentChapter) {
     return;
@@ -101,7 +120,7 @@ function setPendingExportJob({
     id: "pending-export",
     kind: "inpainting",
     status: "starting",
-    progressText: "PNG 출력 준비 중",
+    progressText: t("inpainting.export.preparing"),
     phase: "finalizing",
     progressCurrent: 0,
     progressTotal: targetTotal,
@@ -109,6 +128,6 @@ function setPendingExportJob({
     detail:
       scope === "page"
         ? selectedPage?.name
-        : `${currentChapter.pages.length}페이지`,
+        : t("common.pageCount", { count: currentChapter.pages.length }),
   });
 }

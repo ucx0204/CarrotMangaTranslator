@@ -67,12 +67,13 @@ export function failExportJob(
   setJobState: Dispatch<SetStateAction<JobState>>,
   pushStatus: (line: string) => void,
   message: string,
+  progressText = "PNG 출력 실패",
 ): void {
   setJobState({
     id: "failed-export",
     kind: "inpainting",
     status: "failed",
-    progressText: "PNG 출력 실패",
+    progressText,
     detail: message,
   });
   pushStatus(message);
@@ -111,13 +112,12 @@ export async function saveDirtyChanges(
 export async function refreshLibraryWithStatus(
   refreshLibrary: () => Promise<void>,
   pushStatus: (line: string) => void,
+  fallback = "보관함 목록을 새로고침하지 못했습니다.",
 ): Promise<void> {
   try {
     await refreshLibrary();
   } catch (error) {
     console.error(error);
-    pushStatus(
-      formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."),
-    );
+    pushStatus(formatErrorMessage(error, fallback));
   }
 }

@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/types";
+import { tMain } from "./localization";
 import { prunePromptWorkContextForBudget } from "../../shared/workContextBudget";
 import { buildNoTextCompletedPage } from "./noText";
 import {
@@ -256,7 +257,9 @@ function buildEmptyItemsResult(
       }),
     };
   }
-  const bboxError = new Error(`${page.name}: bbox 결과를 만들지 못했습니다.`);
+  const bboxError = new Error(
+    tMain("translation.errors.bboxMissing", { page: page.name }),
+  );
   Object.assign(bboxError, {
     outputDir: pageOptions.outputDir,
     outputPreview: summarizePreview(result.outputText),
@@ -323,7 +326,11 @@ function buildParseError(
 ): Error {
   const preview = summarizePreview(result.outputText);
   const parseError = new Error(
-    `${page.name}: 모델 응답을 구조화 형식으로 해석하지 못했습니다. preview=${preview} cause=${error instanceof Error ? error.message : String(error)}`,
+    tMain("translation.errors.responseParse", {
+      page: page.name,
+      preview,
+      cause: error instanceof Error ? error.message : String(error),
+    }),
   ) as Error & { cause?: unknown };
   parseError.cause = error;
   Object.assign(parseError, {
@@ -358,14 +365,19 @@ function buildPageResultDetail(
   soundDroppedCount: number,
   validationReasons: Record<string, number>,
 ): string {
-  const details = [`${blockCount}개 블록`];
+  const details = [tMain("units.blocks", { count: blockCount })];
   if (validationDroppedCount > 0) {
     details.push(
-      `잡음/중복 ${validationDroppedCount}개 제외(${formatValidationReasons(validationReasons)})`,
+      tMain("translation.result.noiseDropped", {
+        count: validationDroppedCount,
+        reasons: formatValidationReasons(validationReasons),
+      }),
     );
   }
   if (soundDroppedCount > 0) {
-    details.push(`불확실한 효과음 ${soundDroppedCount}개 제외`);
+    details.push(
+      tMain("translation.result.soundDropped", { count: soundDroppedCount }),
+    );
   }
   return details.join(", ");
 }

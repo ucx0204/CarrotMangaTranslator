@@ -1,125 +1,18 @@
-import type {
-  ApiReasoningEffort,
-  AppSettings,
-  CodexReasoningEffort,
-  FluxBackend,
-  GemmaVramMode,
-  InpaintingModel,
-  LlamaRuntimeProfile,
-  ModelProvider,
-  ModelSource,
-  OcrDevice,
-  OcrGpuBackend,
-  OcrQualityMode,
-} from "../../../../shared/settingsTypes";
+import type { TFunction } from "i18next";
 import { coerceOpenAiCompatibleBaseUrl } from "../../../../shared/apiSettings";
-import {
-  DEFAULT_SOURCE_LANGUAGE,
-  DEFAULT_TARGET_LANGUAGE,
-  isValidLanguageCodeInput,
-  normalizeLanguageCode,
-} from "../../../../shared/translationLanguages";
+import { isValidLanguageCodeInput } from "../../../../shared/translationLanguages";
 import {
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
   MODEL_PRESETS,
-  resolveCodexReasoningEffortForModel,
-  resolveModelPreset,
-  type ModelPresetId,
 } from "../settingsOptions";
+import type { SettingsFormValues } from "./settingsModalFormValues";
 
-export type SettingsFormValues = {
-  modelProvider: ModelProvider;
-  sourceLanguage: string;
-  targetLanguage: string;
-  modelSource: ModelSource;
-  selectedPreset: ModelPresetId;
-  customModelRepo: string;
-  customModelFile: string;
-  localModelPath: string;
-  localMmprojPath: string;
-  customVramMode: GemmaVramMode;
-  llamaRuntimeProfile: LlamaRuntimeProfile;
-  codexModel: string;
-  codexReasoningEffort: CodexReasoningEffort;
-  codexOauthPort: string;
-  apiBaseUrl: string;
-  apiModel: string;
-  apiKey: string;
-  apiTemperature: string;
-  apiTopP: string;
-  apiTopK: string;
-  apiReasoningEffort: ApiReasoningEffort | "";
-  apiExtraBodyJson: string;
-  apiCustomHeadersJson: string;
-  ocrDevice: OcrDevice;
-  ocrGpuBackend: OcrGpuBackend;
-  ocrQualityMode: OcrQualityMode;
-  inpaintingModel: InpaintingModel;
-  fluxBackend: FluxBackend;
-  maxTokens: string;
-  contextTokens: string;
-};
+export { createSettingsFormValues } from "./settingsModalFormValues";
+export type { SettingsFormValues } from "./settingsModalFormValues";
 
 export type SettingsDraft = ReturnType<typeof resolveSettingsDraft>;
-
-export function createSettingsFormValues(
-  settings: AppSettings,
-): SettingsFormValues {
-  return {
-    modelProvider: settings.modelProvider,
-    sourceLanguage: normalizeLanguageCode(
-      settings.translation?.sourceLanguage,
-      DEFAULT_SOURCE_LANGUAGE,
-    ),
-    targetLanguage: normalizeLanguageCode(
-      settings.translation?.targetLanguage,
-      DEFAULT_TARGET_LANGUAGE,
-    ),
-    modelSource: settings.gemma.modelSource,
-    selectedPreset: resolveModelPreset(
-      settings.gemma.modelRepo,
-      settings.gemma.modelFile,
-    ),
-    customModelRepo: settings.gemma.modelRepo,
-    customModelFile: settings.gemma.modelFile,
-    localModelPath: settings.gemma.localModelPath ?? "",
-    localMmprojPath: settings.gemma.localMmprojPath ?? "",
-    customVramMode: settings.gemma.vramMode,
-    llamaRuntimeProfile: settings.gemma.llamaRuntimeProfile ?? "cuda12",
-    codexModel: settings.codex.model,
-    codexReasoningEffort: resolveCodexReasoningEffortForModel(
-      settings.codex.model,
-      settings.codex.reasoningEffort,
-    ),
-    codexOauthPort: String(settings.codex.oauthPort),
-    apiBaseUrl: settings.api.baseUrl,
-    apiModel: settings.api.model,
-    apiKey: settings.api.apiKey ?? "",
-    apiTemperature: formatNullableNumberInput(settings.api.temperature),
-    apiTopP: formatNullableNumberInput(settings.api.topP),
-    apiTopK: formatNullableNumberInput(settings.api.topK),
-    apiReasoningEffort: settings.api.reasoningEffort ?? "",
-    apiExtraBodyJson: settings.api.extraBodyJson ?? "",
-    apiCustomHeadersJson: settings.api.customHeadersJson ?? "",
-    ocrDevice: settings.ocr.device,
-    ocrGpuBackend: settings.ocr.gpuBackend ?? "cuda",
-    ocrQualityMode: settings.ocr.qualityMode ?? "minimum",
-    ...resolveInpaintingFormValues(settings),
-    maxTokens: String(settings.maxTokens),
-    contextTokens: String(settings.ctx),
-  };
-}
-
-function resolveInpaintingFormValues(
-  settings: AppSettings,
-): Pick<SettingsFormValues, "inpaintingModel" | "fluxBackend"> {
-  return {
-    inpaintingModel: settings.inpainting?.model ?? "flux-klein",
-    fluxBackend: settings.inpainting?.fluxBackend ?? "cuda-native",
-  };
-}
 
 export function resolveSettingsDraft(values: SettingsFormValues) {
   const activePreset = resolveActiveModelPreset(values);
@@ -229,18 +122,24 @@ function resolveApiAdvancedSettingsValid({
 
 type ValidationResult = {
   valid: boolean;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
 };
 
 export function getApiAdvancedSettingsMessage(
   draft: SettingsDraft,
+  t: TFunction<"components">,
 ): string | undefined {
-  return (
-    draft.parsedApiTemperature.message ??
-    draft.parsedApiTopP.message ??
-    draft.parsedApiTopK.message ??
-    draft.apiExtraBodyValidation.message ??
-    draft.apiCustomHeadersValidation.message
-  );
+  const invalid = [
+    draft.parsedApiTemperature,
+    draft.parsedApiTopP,
+    draft.parsedApiTopK,
+    draft.apiExtraBodyValidation,
+    draft.apiCustomHeadersValidation,
+  ].find((result) => result.messageKey);
+  return invalid?.messageKey
+    ? t(invalid.messageKey, invalid.messageValues)
+    : undefined;
 }
 
 export function isSettingsFormSubmittable(
@@ -292,15 +191,11 @@ function isValidContextTokens(value: number): boolean {
   return Number.isInteger(value) && value >= MIN_CONTEXT_TOKENS;
 }
 
-function formatNullableNumberInput(value: number | null | undefined): string {
-  return value === null || value === undefined ? "" : String(value);
-}
-
 function parseNullableNumberInput(
   value: string,
   min: number,
   max: number,
-): { valid: boolean; value: number | null; message?: string } {
+): ValidationResult & { value: number | null } {
   const text = value.trim();
   if (!text) {
     return { valid: true, value: null };
@@ -310,7 +205,8 @@ function parseNullableNumberInput(
     return {
       valid: false,
       value: null,
-      message: `API 숫자 설정은 ${min} 이상 ${max} 이하이어야 합니다.`,
+      messageKey: "settings.validation.apiNumberRange",
+      messageValues: { min, max },
     };
   }
   return { valid: true, value: parsed };
@@ -320,7 +216,7 @@ function parseNullableIntegerInput(
   value: string,
   min: number,
   max: number,
-): { valid: boolean; value: number | null; message?: string } {
+): ValidationResult & { value: number | null } {
   const parsed = parseNullableNumberInput(value, min, max);
   if (!parsed.valid || parsed.value === null) {
     return parsed;
@@ -329,7 +225,8 @@ function parseNullableIntegerInput(
     return {
       valid: false,
       value: null,
-      message: `API 정수 설정은 ${min} 이상 ${max} 이하의 정수여야 합니다.`,
+      messageKey: "settings.validation.apiIntegerRange",
+      messageValues: { min, max },
     };
   }
   return parsed;
@@ -337,7 +234,8 @@ function parseNullableIntegerInput(
 
 function validateJsonObjectInput(value: string): {
   valid: boolean;
-  message?: string;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
 } {
   const text = value.trim();
   if (!text) {
@@ -351,15 +249,19 @@ function validateJsonObjectInput(value: string): {
   } catch (_error) {
     return {
       valid: false,
-      message: "API JSON 설정은 올바른 객체 JSON이어야 합니다.",
+      messageKey: "settings.validation.apiJsonInvalid",
     };
   }
-  return { valid: false, message: "API JSON 설정은 객체 JSON이어야 합니다." };
+  return {
+    valid: false,
+    messageKey: "settings.validation.apiJsonObject",
+  };
 }
 
 function validateCustomHeadersInput(value: string): {
   valid: boolean;
-  message?: string;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
 } {
   const base = validateJsonObjectInput(value);
   if (!base.valid || !value.trim()) {
@@ -372,17 +274,22 @@ function validateCustomHeadersInput(value: string): {
 
 function validateCustomHeaderEntries(headers: Record<string, unknown>): {
   valid: boolean;
-  message?: string;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
 } {
   for (const [name, headerValue] of Object.entries(headers)) {
-    const blockedMessage = validateCustomHeaderName(name);
-    if (blockedMessage) {
-      return { valid: false, message: blockedMessage };
+    const blockedHeaderName = validateCustomHeaderName(name);
+    if (blockedHeaderName) {
+      return {
+        valid: false,
+        messageKey: "settings.validation.customHeaderBlocked",
+        messageValues: { name: blockedHeaderName },
+      };
     }
     if (!isCustomHeaderValue(headerValue)) {
       return {
         valid: false,
-        message: "Custom headers 값은 문자열, 숫자, boolean만 허용됩니다.",
+        messageKey: "settings.validation.customHeaderValue",
       };
     }
   }
@@ -401,7 +308,7 @@ function validateCustomHeaderName(name: string): string | null {
       "set-cookie",
     ].includes(normalized)
   ) {
-    return `${name} 헤더는 Custom headers에서 덮어쓸 수 없습니다.`;
+    return name;
   }
   return null;
 }

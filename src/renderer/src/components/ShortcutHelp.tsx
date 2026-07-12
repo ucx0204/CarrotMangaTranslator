@@ -1,9 +1,11 @@
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { formatCombo } from "../lib/shortcuts/comboFromEvent";
 import {
   effectiveCombo,
-  SHORTCUT_ACTIONS,
-  SHORTCUT_CATEGORY_LABELS,
+  getShortcutActions,
+  getShortcutCategoryLabels,
   SHORTCUT_CATEGORY_ORDER,
   type KeybindingOverrides,
 } from "../lib/shortcuts/shortcutActions";
@@ -17,35 +19,27 @@ type ShortcutHelpProps = {
 
 type ShortcutRow = { id: string; keys: string[]; desc: string };
 
-const FIXED_SHORTCUTS: ShortcutRow[] = [
-  { id: "nav-horizontal", keys: ["←", "→"], desc: "이전 / 다음 페이지" },
-  {
-    id: "nav-vertical",
-    keys: ["↑", "↓"],
-    desc: "이전 / 다음 페이지 (중앙 패널)",
-  },
-  {
-    id: "esc",
-    keys: ["Esc"],
-    desc: "모달 닫기 · 드래그 / 영역 선택 취소",
-  },
-];
-
 export function ShortcutHelp({
   open,
   overrides,
   onClose,
 }: ShortcutHelpProps): React.JSX.Element | null {
+  const { t } = useTranslation("components");
+  const { t: tRenderer } = useTranslation("renderer");
   if (!open) {
     return null;
   }
   return (
-    <Modal ariaLabel="단축키" title="단축키" size="md" onClose={onClose}>
+    <Modal
+      ariaLabel={t("shortcuts.title")}
+      title={t("shortcuts.title")}
+      size="md"
+      onClose={onClose}
+    >
       <div className="shortcut-help">
         {SHORTCUT_CATEGORY_ORDER.map((category) => {
-          const rows = SHORTCUT_ACTIONS.filter(
-            (action) => action.category === category,
-          )
+          const rows = getShortcutActions(tRenderer)
+            .filter((action) => action.category === category)
             .map((action) => ({
               id: action.id,
               keys: formatCombo(effectiveCombo(action.id, overrides)),
@@ -59,17 +53,38 @@ export function ShortcutHelp({
             <ShortcutHelpSection
               key={category}
               rows={rows}
-              title={SHORTCUT_CATEGORY_LABELS[category]}
+              title={getShortcutCategoryLabels(tRenderer)[category]}
             />
           );
         })}
-        <ShortcutHelpSection rows={FIXED_SHORTCUTS} title="탐색" />
-        <p className="muted-line modal-note">
-          설정 → 단축키에서 변경할 수 있습니다.
-        </p>
+        <ShortcutHelpSection
+          rows={buildFixedShortcuts(t)}
+          title={t("shortcuts.navigation")}
+        />
+        <p className="muted-line modal-note">{t("shortcuts.settingsHint")}</p>
       </div>
     </Modal>
   );
+}
+
+function buildFixedShortcuts(t: TFunction<"components">): ShortcutRow[] {
+  return [
+    {
+      id: "nav-horizontal",
+      keys: ["←", "→"],
+      desc: t("shortcuts.fixed.previousNextPage"),
+    },
+    {
+      id: "nav-vertical",
+      keys: ["↑", "↓"],
+      desc: t("shortcuts.fixed.previousNextPageCenter"),
+    },
+    {
+      id: "esc",
+      keys: ["Esc"],
+      desc: t("shortcuts.fixed.escape"),
+    },
+  ];
 }
 
 function ShortcutHelpSection({

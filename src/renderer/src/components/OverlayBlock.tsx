@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
 import {
@@ -174,6 +175,7 @@ function OverlayExcludeControl({
   pointerDisabled: boolean;
   showExcluded: boolean;
 }): React.JSX.Element | null {
+  const { t } = useTranslation("components");
   if (!showExcluded) {
     return null;
   }
@@ -182,20 +184,24 @@ function OverlayExcludeControl({
       <button
         type="button"
         className={`overlay-exclude-toggle ${block.inpaintExcluded ? "excluded" : ""}`}
-        title={resolveExcludeToggleTitle(block.inpaintExcluded)}
+        title={t(
+          block.inpaintExcluded
+            ? "overlay.includeInInpainting"
+            : "overlay.excludeFromInpainting",
+        )}
         onPointerDown={stopOverlayControlEvent}
         onClick={(event) => {
           stopOverlayControlEvent(event);
           onToggleExcluded();
         }}
       >
-        {block.inpaintExcluded ? "제외됨" : "제외"}
+        {t(block.inpaintExcluded ? "overlay.excluded" : "overlay.exclude")}
       </button>
     );
   }
   return excluded ? (
     <span className="overlay-excluded-badge" aria-hidden="true">
-      제외
+      {t("overlay.exclude")}
     </span>
   ) : null;
 }
@@ -209,11 +215,12 @@ function OverlayResizeHandle({
   pointerDisabled: boolean;
   selected: boolean;
 }): React.JSX.Element | null {
+  const { t } = useTranslation("components");
   return selected && !pointerDisabled ? (
     <button
       className="resize-handle"
       onPointerDown={onResizePointerDown}
-      aria-label="Resize"
+      aria-label={t("overlay.resize")}
     />
   ) : null;
 }
@@ -365,10 +372,6 @@ function resolveOverlayBlockClassName(
   ]
     .filter(Boolean)
     .join(" ");
-}
-
-function resolveExcludeToggleTitle(excluded: boolean | undefined): string {
-  return excluded ? "인페인팅에 다시 포함" : "인페인팅에서 제외";
 }
 
 function stopOverlayControlEvent(

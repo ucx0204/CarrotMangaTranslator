@@ -1,4 +1,5 @@
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
+import type { TFunction } from "i18next";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 
 export type RunAnalysisOutcome = "completed" | "cancelled" | "failed" | "no-op";
@@ -28,12 +29,21 @@ export async function runSelectionsSequentially(
   pushStatus: (line: string) => void,
   passLabel: string,
   blockMode?: AnalysisBlockMode,
+  t?: TFunction<"renderer">,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
   let anyAttempted = false;
   for (let index = 0; index < selections.length; index += 1) {
     if (selections.length > 1) {
-      pushStatus(`${passLabel} 번역 ${index + 1}/${selections.length}화`);
+      pushStatus(
+        t
+          ? t("translation.flow.chapterProgress", {
+              pass: passLabel,
+              current: index + 1,
+              total: selections.length,
+            })
+          : `${passLabel} 번역 ${index + 1}/${selections.length}화`,
+      );
     }
     const selection = selections[index];
     const outcome = await execute({

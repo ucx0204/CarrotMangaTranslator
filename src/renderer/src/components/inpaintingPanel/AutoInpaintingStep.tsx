@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "../ui";
 import { EyeIcon } from "../ui/icons";
 
@@ -41,12 +42,10 @@ export function AutoInpaintingStep({
   selectedPageInpainted,
   totalPages,
 }: AutoInpaintingStepProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="inpaint-step-body">
-      <p className="inpaint-step-lead">
-        먼저 원문 글자를 자동으로 지웁니다. 한 페이지씩 또는 남은 페이지를 한
-        번에 처리할 수 있어요.
-      </p>
+      <p className="inpaint-step-lead">{t("inpainting.auto.description")}</p>
       <AutoInpaintingRunCard
         hasCurrentChapter={hasCurrentChapter}
         hasSelectedPage={hasSelectedPage}
@@ -71,7 +70,7 @@ export function AutoInpaintingStep({
       <div className="inpaint-step-nav">
         <span />
         <Button variant="primary" onClick={onGoToRetouch} disabled={jobActive}>
-          다음: 보정 →
+          {t("inpainting.auto.nextRetouch")}
         </Button>
       </div>
     </div>
@@ -106,12 +105,17 @@ function AutoInpaintingRunCard({
   | "pendingTargetCount"
   | "totalPages"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="inpainting-run-card">
       <span className="inpainting-run-meta">
         {hasCurrentChapter
-          ? `남은 ${pendingPages} / ${totalPages}페이지 · ${pendingTargetCount}개 블록`
-          : "화가 열려 있지 않습니다."}
+          ? t("inpainting.auto.remainingSummary", {
+              pendingPages,
+              totalPages,
+              blockCount: pendingTargetCount,
+            })
+          : t("inpainting.auto.noOpenChapter")}
       </span>
       <div className="inpainting-action-grid">
         <Button
@@ -120,14 +124,14 @@ function AutoInpaintingRunCard({
           disabled={!hasSelectedPage || jobActive || pageTargetCount === 0}
           onClick={onRunPage}
         >
-          이 페이지
+          {t("common.thisPage")}
         </Button>
         <Button
           fullWidth
           disabled={!hasCurrentChapter || jobActive || pendingTargetCount === 0}
           onClick={onRunChapter}
         >
-          남은 페이지
+          {t("inpainting.auto.remainingPages")}
         </Button>
       </div>
       <button
@@ -138,12 +142,15 @@ function AutoInpaintingRunCard({
         onClick={onPeekToggle}
       >
         <EyeIcon size={16} />
-        <span>{peeking ? "원본 표시 중 (눌러서 끄기)" : "원본 비교"}</span>
+        <span>
+          {t(
+            peeking
+              ? "inpainting.auto.showingOriginal"
+              : "inpainting.auto.compareOriginal",
+          )}
+        </span>
       </button>
-      <p className="inpainting-hint">
-        블록 모서리의 ‘제외’ 버튼으로 해당 블록을 인페인팅에서 빼거나 다시 넣을
-        수 있어요.
-      </p>
+      <p className="inpainting-hint">{t("inpainting.auto.excludeHint")}</p>
     </div>
   );
 }
@@ -162,9 +169,12 @@ function AutoInpaintingRevertActions({
   | "onRevertPage"
   | "selectedPageInpainted"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="inpaint-revert">
-      <span className="inpaint-revert-label">인페인팅 되돌리기</span>
+      <span className="inpaint-revert-label">
+        {t("inpainting.auto.revert")}
+      </span>
       <div className="inpaint-revert-row">
         <Button
           size="sm"
@@ -172,7 +182,7 @@ function AutoInpaintingRevertActions({
           disabled={!selectedPageInpainted || jobActive}
           onClick={onRevertPage}
         >
-          이 페이지
+          {t("common.thisPage")}
         </Button>
         <Button
           size="sm"
@@ -180,7 +190,7 @@ function AutoInpaintingRevertActions({
           disabled={!inpaintedPageCount || jobActive}
           onClick={onRevertChapter}
         >
-          전체
+          {t("common.all")}
         </Button>
       </div>
     </div>

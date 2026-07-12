@@ -1,16 +1,19 @@
 import {
   useRef,
+  useEffect,
   useState,
   type Dispatch,
   type RefObject,
   type SetStateAction,
 } from "react";
+import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../../shared/jobTypes";
 import type {
   ChapterSnapshot,
   LibraryIndex,
 } from "../../../../shared/libraryTypes";
 import type { RegionSelectionState } from "../../lib/appHelpers";
+import { formatJobLabel } from "../../lib/jobProgress";
 
 const EMPTY_JOB: JobState = {
   id: "idle",
@@ -44,6 +47,7 @@ export type AppSessionCoreState = {
 };
 
 export function useAppSessionCoreState(): AppSessionCoreState {
+  const { t } = useTranslation("renderer");
   const [library, setLibrary] = useState<LibraryIndex>({
     workOrder: [],
     works: [],
@@ -56,13 +60,26 @@ export function useAppSessionCoreState(): AppSessionCoreState {
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
   const [regionSelection, setRegionSelection] =
     useState<RegionSelectionState | null>(null);
-  const [jobState, setJobState] = useState<JobState>(EMPTY_JOB);
+  const [jobState, setJobState] = useState<JobState>(() => ({
+    ...EMPTY_JOB,
+    progressText: t("job.status.idle"),
+  }));
   const workspacePanelRef = useRef<HTMLElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const currentChapterRef = useRef<ChapterSnapshot | null>(null);
   const selectedPageIdRef = useRef<string | null>(null);
   const selectedBlockIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setJobState((current) => ({
+      ...current,
+      progressText: formatJobLabel(current, t, {
+        preserveUnknownProgressText: false,
+      }),
+      detail: undefined,
+    }));
+  }, [t]);
 
   return {
     currentChapter,

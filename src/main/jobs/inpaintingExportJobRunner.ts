@@ -9,6 +9,7 @@ import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { openChapter } from "../library";
 import { logError } from "../logger";
+import { tMain } from "./localization";
 import {
   renderPageWithTranslationBlocksForExport,
   sanitizeOutputBaseName,
@@ -37,11 +38,10 @@ export async function runInpaintingExportJob({
       ? chapter.pages.filter((page) => page.id === request.pageId)
       : chapter.pages;
   if (pages.length === 0) {
-    throw new Error("출력할 페이지가 없습니다.");
+    throw new Error(tMain("export.noPages"));
   }
 
-  const targetLabel = request.scope === "page" ? "이 페이지" : "전체 페이지";
-  emitExportStarting(id, emit, pages.length, targetLabel);
+  emitExportStarting(id, emit, pages.length, request.scope);
   const outputDir = await createInpaintingExportOutputDir(pages[0]);
   await writeInpaintingExportPages({
     abortController,
@@ -51,7 +51,7 @@ export async function runInpaintingExportJob({
     outputDir,
     pages,
   });
-  emitExportCompleted(id, emit, pages.length, targetLabel);
+  emitExportCompleted(id, emit, pages.length, request.scope);
   const openError = await shell.openPath(outputDir);
   return {
     outputDir,
@@ -78,10 +78,10 @@ export function handleInpaintingExportError({
       id,
       kind: "inpainting",
       status: "cancelled",
-      progressText: "PNG 출력이 취소되었습니다.",
+      progressText: tMain("export.cancelled"),
       phase: "cancelled",
     });
-    throw new Error("PNG 출력이 취소되었습니다.", { cause: error });
+    throw new Error(tMain("export.cancelled"), { cause: error });
   }
 
   const message = error instanceof Error ? error.message : String(error);
@@ -90,7 +90,7 @@ export function handleInpaintingExportError({
     id,
     kind: "inpainting",
     status: "failed",
-    progressText: "PNG 출력 실패",
+    progressText: tMain("export.failed"),
     phase: "failed",
     detail: message,
   });
@@ -101,18 +101,18 @@ function emitExportStarting(
   id: string,
   emit: EmitJobEvent,
   totalPages: number,
-  targetLabel: string,
+  scope: InpaintingExportRequest["scope"],
 ): void {
   emit({
     id,
     kind: "inpainting",
     status: "starting",
-    progressText: "PNG 출력 준비 중",
+    progressText: tMain("export.preparing"),
     phase: "finalizing",
     progressCurrent: 0,
     progressTotal: totalPages,
     pageTotal: totalPages,
-    detail: `${targetLabel} · ${totalPages}페이지`,
+    detail: formatExportScopeDetail(scope, totalPages),
   });
 }
 
@@ -149,16 +149,17 @@ async function writeInpaintingExportPages({
     if (abortController.signal.aborted) {
       throw new DOMException("Aborted", "AbortError");
     }
-    emitExportPageProgress(id, emit, page, index, pages.length, "PNG 출력 중");
-    await writeInpaintingExportPage(context, outputDir, page, index);
     emitExportPageProgress(
       id,
       emit,
       page,
       index,
       pages.length,
-      "PNG 출력 완료",
+      "running",
+      false,
     );
+    await writeInpaintingExportPage(context, outputDir, page, index);
+    emitExportPageProgress(id, emit, page, index, pages.length, "done", true);
   }
 }
 
@@ -182,15 +183,19 @@ function emitExportPageProgress(
   page: MangaPage,
   index: number,
   totalPages: number,
-  progressText: string,
+  step: "running" | "done",
+  completed: boolean,
 ): void {
   emit({
     id,
     kind: "inpainting",
     status: "running",
-    progressText: `${index + 1} / ${totalPages} 페이지 ${progressText}`,
+    progressText: tMain(`export.page.${step}`, {
+      current: index + 1,
+      total: totalPages,
+    }),
     phase: "finalizing",
-    progressCurrent: progressText.endsWith("완료") ? index + 1 : index,
+    progressCurrent: completed ? index + 1 : index,
     progressTotal: totalPages,
     pageIndex: index + 1,
     pageTotal: totalPages,
@@ -202,17 +207,24 @@ function emitExportCompleted(
   id: string,
   emit: EmitJobEvent,
   totalPages: number,
-  targetLabel: string,
+  scope: InpaintingExportRequest["scope"],
 ): void {
   emit({
     id,
     kind: "inpainting",
     status: "completed",
-    progressText: "PNG 출력 완료",
+    progressText: tMain("export.completed"),
     phase: "done",
     progressCurrent: totalPages,
     progressTotal: totalPages,
     pageTotal: totalPages,
-    detail: `${targetLabel} · ${totalPages}페이지`,
+    detail: formatExportScopeDetail(scope, totalPages),
   });
+}
+
+function formatExportScopeDetail(
+  scope: InpaintingExportRequest["scope"],
+  totalPages: number,
+): string {
+  return tMain(`export.scope.${scope}`, { count: totalPages });
 }

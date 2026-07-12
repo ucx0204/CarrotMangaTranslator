@@ -1,4 +1,6 @@
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { LibraryChapterSummary } from "../../../shared/libraryTypes";
@@ -24,6 +26,7 @@ export function SortableChapterItem({
   onOpenChapter,
   onRenameChapter,
 }: SortableChapterItemProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const {
     attributes,
     listeners,
@@ -61,8 +64,8 @@ export function SortableChapterItem({
       <ChapterSelectButton chapter={chapter} onOpenChapter={onOpenChapter} />
       <IconButton
         size="sm"
-        label={`${chapter.title} 이름 변경`}
-        title="이름 변경"
+        label={t("library.renameItem", { title: chapter.title })}
+        title={t("common.rename")}
         onClick={() => onRenameChapter(chapter.id)}
         disabled={jobActive}
       >
@@ -85,13 +88,14 @@ function ChapterDragHandle({
   listeners: ReturnType<typeof useSortable>["listeners"];
   setActivatorNodeRef: ReturnType<typeof useSortable>["setActivatorNodeRef"];
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <button
       ref={setActivatorNodeRef}
       className="drag-handle compact"
       disabled={disabled}
-      aria-label={`${chapterTitle} 순서 이동`}
-      title={resolveChapterDragHandleTitle(disabled)}
+      aria-label={t("library.moveItem", { title: chapterTitle })}
+      title={t(disabled ? "library.moveDisabled" : "common.dragToMove")}
       {...attributes}
       {...listeners}
     >
@@ -107,6 +111,7 @@ function ChapterSelectButton({
   chapter: LibraryChapterSummary;
   onOpenChapter: (chapterId: string) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <button
       className="chapter-select"
@@ -115,7 +120,8 @@ function ChapterSelectButton({
     >
       <span>{chapter.title}</span>
       <small>
-        {chapter.pageCount}페이지 · {resolveChapterStatusLabel(chapter.status)}
+        {t("common.pageCount", { count: chapter.pageCount })} ·{" "}
+        {resolveChapterStatusLabel(chapter.status, t)}
       </small>
     </button>
   );
@@ -128,6 +134,7 @@ export function ChapterDragPreview({
   chapter: LibraryChapterSummary;
   active: boolean;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div
       className={`chapter-item sortable-item drag-preview ${active ? "active" : ""}`}
@@ -138,8 +145,8 @@ export function ChapterDragPreview({
       <div className="chapter-select preview-select" title={chapter.title}>
         <span>{chapter.title}</span>
         <small>
-          {chapter.pageCount}페이지 ·{" "}
-          {resolveChapterStatusLabel(chapter.status)}
+          {t("common.pageCount", { count: chapter.pageCount })} ·{" "}
+          {resolveChapterStatusLabel(chapter.status, t)}
         </small>
       </div>
       <span className="library-icon-button preview-edit" aria-hidden="true">
@@ -149,23 +156,20 @@ export function ChapterDragPreview({
   );
 }
 
-function resolveChapterStatusLabel(status: string): string {
+function resolveChapterStatusLabel(
+  status: string,
+  t: TFunction<"components">,
+): string {
   switch (status) {
     case "completed":
-      return "완료";
+      return t("status.completed");
     case "running":
-      return "진행 중";
+      return t("common.inProgress");
     case "failed":
-      return "실패";
+      return t("status.failed");
     case "partial":
-      return "부분 완료";
+      return t("status.partiallyCompleted");
     default:
-      return "대기";
+      return t("status.waiting");
   }
-}
-
-function resolveChapterDragHandleTitle(disabled: boolean): string {
-  return disabled
-    ? "검색 중이거나 작업 중에는 이동할 수 없습니다."
-    : "드래그해서 이동";
 }

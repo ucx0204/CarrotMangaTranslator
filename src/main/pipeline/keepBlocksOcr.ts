@@ -10,6 +10,7 @@ import {
 } from "../../shared/translationLanguages";
 import type { PixelRect } from "../../shared/region";
 import { logInfo, logWarn } from "../logger";
+import { tMain } from "./localization";
 import { loadImageForRegionCrop } from "../regionCrop";
 import { throwIfAborted } from "./failure";
 import { buildKeepBlocksOcrResult } from "./keepBlocksResult";
@@ -292,10 +293,10 @@ function emitKeepBlockOcrProgress(
     kind: "gemma-analysis",
     status: "running",
     progressText:
-      current >= total ? "블록 OCR 선분석 완료" : "블록 OCR 선분석 중",
+      current >= total ? tMain("ocr.blocksDone") : tMain("ocr.blocksRunning"),
     phase: "ocr_running",
     progressCurrent: current,
     progressTotal: total,
-    detail: `기존 블록 ${total}개 영역을 잘라 텍스트를 읽습니다.`,
+    detail: tMain("ocr.blocksDetail", { count: total }),
   });
 }

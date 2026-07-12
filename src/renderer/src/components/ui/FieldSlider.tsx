@@ -3,13 +3,13 @@ import { RangeInput, type RangeInputProps } from "./Field";
 import styles from "./FieldSlider.module.css";
 
 export type FieldSliderProps = RangeInputProps & {
-  /** Short Korean label shown at the leading edge. */
+  /** Localized label shown at the leading edge. */
   label: string;
   /** Pre-formatted value text shown at the trailing edge (e.g. "88%", "1.18"). */
   valueLabel: React.ReactNode;
 };
 
-/** A compact, single-row slider: [label] [track] [value]. */
+/** A compact slider whose label column can wrap longer translations. */
 export function FieldSlider({
   label,
   valueLabel,

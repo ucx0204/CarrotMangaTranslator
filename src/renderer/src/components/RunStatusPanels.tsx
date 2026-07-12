@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
@@ -26,14 +27,15 @@ export function RunPanel({
   onEnterInpainting: () => void;
   onCancelJob: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="run-panel">
       <div className="run-title">
-        <h2>{currentChapter?.title ?? "현재 화 없음"}</h2>
+        <h2>{currentChapter?.title ?? t("sidebar.noCurrentChapter")}</h2>
         <small>
           {currentChapter
-            ? `${currentChapter.pages.length}페이지`
-            : "보관함에서 화를 열어 주세요."}
+            ? t("common.pageCount", { count: currentChapter.pages.length })
+            : t("runPanel.openChapterHint")}
         </small>
       </div>
       <Button
@@ -42,18 +44,18 @@ export function RunPanel({
         onClick={onOpenTranslateOptions}
         disabled={!currentChapter || jobActive || flowActive}
       >
-        번역
+        {t("sidebar.translate")}
       </Button>
       <Button
         fullWidth
         onClick={onEnterInpainting}
         disabled={!currentChapter || jobActive || flowActive}
       >
-        인페인팅
+        {t("common.inpainting")}
       </Button>
       {jobActive ? (
         <Button variant="danger" fullWidth onClick={onCancelJob}>
-          취소
+          {t("common.cancel")}
         </Button>
       ) : null}
       {showProgressBar && progressSnapshot ? (
@@ -70,9 +72,10 @@ export function StatusPanel({
   jobState: JobState;
   statusLines: string[];
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="status-panel">
-      <h2>상태</h2>
+      <h2>{t("status.title")}</h2>
       <div
         className={`job-pill ${jobState.status}`}
         role="status"
@@ -86,7 +89,7 @@ export function StatusPanel({
             <p key={`${line}-${index}`}>{line}</p>
           ))
         ) : (
-          <p className="muted-line">아직 표시할 상태가 없습니다.</p>
+          <p className="muted-line">{t("status.empty")}</p>
         )}
       </div>
     </section>
@@ -100,6 +103,7 @@ function ProgressCard({
   jobState: JobState;
   progressSnapshot: ProgressSnapshot;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const etaText = useEtaText(progressSnapshot);
   return (
     <div className="progress-card">
@@ -110,7 +114,7 @@ function ProgressCard({
             {progressSnapshot.current} / {progressSnapshot.total}
           </strong>
         ) : (
-          <strong>준비 중</strong>
+          <strong>{t("common.preparing")}</strong>
         )}
       </div>
       {jobState.detail ? (

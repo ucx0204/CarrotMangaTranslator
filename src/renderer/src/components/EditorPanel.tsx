@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import { normalizeRenderDirection } from "../../../shared/geometry";
@@ -49,6 +50,7 @@ export function EditorPanel({
   onDelete,
   onDuplicate,
 }: EditorPanelProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const [fontFamilyDraft, setFontFamilyDraft] = React.useState<
     string | undefined
   >(block?.fontFamily);
@@ -73,7 +75,7 @@ export function EditorPanel({
   return (
     <section className="editor-panel has-block">
       <header className="editor-panel-header">
-        <h2>블록</h2>
+        <h2>{t("common.blocks")}</h2>
         {headerActions ? (
           <div className="editor-panel-header-actions">{headerActions}</div>
         ) : null}

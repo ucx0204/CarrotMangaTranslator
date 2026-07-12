@@ -77,39 +77,63 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export function formatErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message.trim()
-    ? error.message
-    : fallback;
+  void error;
+  return fallback;
 }
 
 export function resolveStatusLineReplacement(
   event: JobEvent,
+  previousLine?: string,
 ): ((line: string) => boolean) | undefined {
+  const legacyMatcher = resolveLegacyStatusLineReplacement(event);
+  if (previousLine) {
+    return (line) => line === previousLine || Boolean(legacyMatcher?.(line));
+  }
+  return legacyMatcher;
+}
+
+export function statusLineReplacementGroup(event: JobEvent): string | null {
   if (
     event.phase === "ocr_running" &&
     Number.isFinite(event.pageIndex) &&
     Number.isFinite(event.pageTotal) &&
     (event.pageTotal ?? 0) > 0
   ) {
-    return (line) =>
-      /^\d+ \/ \d+ 페이지 Paddle OCR 분석 중$/.test(line) ||
-      line === "페이지 Paddle OCR 분석 중";
+    return "ocr-running";
   }
   if (
     event.phase === "model_requesting" ||
     event.phase === "page_running" ||
     event.phase === "page_retry"
   ) {
-    return (line) =>
-      /^\d+ \/ \d+ 페이지 (AI 번역 요청 중|번역 중|재시도 \d+ \/ \d+)$/.test(
-        line,
-      ) || /^페이지 (AI 번역 요청 중|번역 중|재시도 중)$/.test(line);
+    return "page-running";
   }
   if (
     event.phase === "booting" ||
     event.phase === "model_downloading" ||
     event.phase === "ready"
   ) {
+    return "model-preparing";
+  }
+  return null;
+}
+
+function resolveLegacyStatusLineReplacement(
+  event: JobEvent,
+): ((line: string) => boolean) | undefined {
+  const group = statusLineReplacementGroup(event);
+  if (group === "ocr-running") {
+    return (line) =>
+      /^\d+ \/ \d+ 페이지 Paddle OCR 분석 중$/.test(line) ||
+      line === "페이지 Paddle OCR 분석 중";
+  }
+  if (group === "page-running") {
+    return (line) =>
+      /^\d+ \/ \d+ 페이지 (AI 번역 요청 중|번역 중|재시도 \d+ \/ \d+)$/.test(
+        line,
+      ) || /^페이지 (AI 번역 요청 중|번역 중|재시도 중)$/.test(line);
+  }
+  if (group === "model-preparing") {
     return (line) =>
       line === "모델 준비 중" ||
       line === "모델 준비 완료" ||

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { StageTool } from "../lib/stageTool";
 import {
   BlockPlusIcon,
@@ -18,21 +19,26 @@ type StageToolbarProps = {
 
 const TOOL_BUTTONS: {
   id: StageTool;
-  label: string;
-  title: string;
+  labelKey: string;
+  titleKey: string;
   Icon: (props: IconProps) => React.JSX.Element;
 }[] = [
-  { id: "select", label: "선택", title: "선택 도구 (1)", Icon: CursorIcon },
+  {
+    id: "select",
+    labelKey: "stageToolbar.tools.select.label",
+    titleKey: "stageToolbar.tools.select.title",
+    Icon: CursorIcon,
+  },
   {
     id: "block",
-    label: "블록",
-    title: "블록 도구 (2) — 드래그해서 새 텍스트 블록 추가",
+    labelKey: "stageToolbar.tools.block.label",
+    titleKey: "stageToolbar.tools.block.title",
     Icon: BlockPlusIcon,
   },
   {
     id: "hand",
-    label: "손바닥",
-    title: "손바닥 도구 (3) — 드래그해서 이미지 이동",
+    labelKey: "stageToolbar.tools.hand.label",
+    titleKey: "stageToolbar.tools.hand.title",
     Icon: HandIcon,
   },
 ];
@@ -47,14 +53,15 @@ export function StageToolbar({
   onToggleHidden,
   tool,
 }: StageToolbarProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   if (hidden) {
     return (
       <div className="stage-toolbar collapsed">
         <button
           type="button"
           className="stage-toolbar-toggle"
-          title="도구 모음 표시 (4)"
-          aria-label="도구 모음 표시"
+          title={t("stageToolbar.showTitle")}
+          aria-label={t("stageToolbar.show")}
           onClick={onToggleHidden}
         >
           <ChevronRightIcon size={14} />
@@ -63,14 +70,18 @@ export function StageToolbar({
     );
   }
   return (
-    <div className="stage-toolbar" role="toolbar" aria-label="이미지 도구">
-      {TOOL_BUTTONS.map(({ id, label, title, Icon }) => (
+    <div
+      className="stage-toolbar"
+      role="toolbar"
+      aria-label={t("stageToolbar.imageTools")}
+    >
+      {TOOL_BUTTONS.map(({ id, labelKey, titleKey, Icon }) => (
         <button
           key={id}
           type="button"
           className={`stage-toolbar-button ${tool === id ? "active" : ""}`}
-          title={title}
-          aria-label={label}
+          title={t(titleKey)}
+          aria-label={t(labelKey)}
           aria-pressed={tool === id}
           onClick={() => onSelectTool(id)}
         >
@@ -80,8 +91,8 @@ export function StageToolbar({
       <button
         type="button"
         className="stage-toolbar-toggle"
-        title="도구 모음 숨기기 (4)"
-        aria-label="도구 모음 숨기기"
+        title={t("stageToolbar.hideTitle")}
+        aria-label={t("stageToolbar.hide")}
         onClick={onToggleHidden}
       >
         <ChevronLeftIcon size={14} />

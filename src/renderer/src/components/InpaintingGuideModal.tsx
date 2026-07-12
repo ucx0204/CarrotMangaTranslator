@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import inpaintingGuideImage from "../assets/images/inpainting-guide.png";
 import styles from "./InpaintingGuideModal.module.css";
 import { Button, Modal } from "./ui";
@@ -8,11 +9,12 @@ export function InpaintingGuideModal({
 }: {
   onClose: (hideNextTime: boolean) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const [hideNextTime, setHideNextTime] = useState(false);
 
   return (
     <Modal
-      ariaLabel="인페인팅 안내"
+      ariaLabel={t("inpainting.guide.title")}
       size="xl"
       width="min(1360px, calc(100vw - 24px))"
       bodyClassName={styles.body}
@@ -24,10 +26,10 @@ export function InpaintingGuideModal({
               checked={hideNextTime}
               onChange={(event) => setHideNextTime(event.target.checked)}
             />
-            <span>다시는 보지 않기</span>
+            <span>{t("inpainting.guide.hideNextTime")}</span>
           </label>
           <Button variant="primary" onClick={() => onClose(hideNextTime)}>
-            확인
+            {t("common.confirm")}
           </Button>
         </>
       }
@@ -36,7 +38,7 @@ export function InpaintingGuideModal({
         <img
           className={styles.image}
           src={inpaintingGuideImage}
-          alt="인페인팅 안내. 1단계 자동 배경 지우기, 2단계 남은 자국 보정, 완료 후 출력 단계로 이동."
+          alt={t("inpainting.guide.imageAlt")}
         />
       </div>
     </Modal>

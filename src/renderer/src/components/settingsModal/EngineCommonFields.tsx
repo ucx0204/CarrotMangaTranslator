@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,
@@ -18,13 +19,17 @@ export function TranslationEngineSelector({
   modelProvider,
   setModelProvider,
 }: TranslationEngineSelectorProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const activeProvider = MODEL_PROVIDER_OPTIONS.find(
+    (option) => option.id === modelProvider,
+  );
   return (
     <div className="settings-field-stack">
-      <span>번역 엔진</span>
+      <span>{t("settings.engine.provider.label")}</span>
       <div
         className="settings-mode-group"
         role="tablist"
-        aria-label="번역 엔진"
+        aria-label={t("settings.engine.provider.label")}
       >
         {MODEL_PROVIDER_OPTIONS.map((option) => (
           <button
@@ -38,15 +43,12 @@ export function TranslationEngineSelector({
             disabled={controlsBusy}
             aria-pressed={modelProvider === option.id}
           >
-            {option.label}
+            {t(option.labelKey)}
           </button>
         ))}
       </div>
       <p className="muted-line modal-note">
-        {
-          MODEL_PROVIDER_OPTIONS.find((option) => option.id === modelProvider)
-            ?.description
-        }
+        {activeProvider ? t(activeProvider.descriptionKey) : null}
       </p>
     </div>
   );
@@ -64,10 +66,11 @@ export function MaxTokensField({
   setMaxTokens,
   submit,
 }: MaxTokensFieldProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <label>
-        최대 출력 토큰
+        {t("settings.engine.maxTokens.label")}
         <input
           type="number"
           min={MIN_MAX_TOKENS}
@@ -87,7 +90,7 @@ export function MaxTokensField({
         />
       </label>
       <p className="muted-line modal-note">
-        출력이 길어지는 페이지에서 말풍선 누락을 줄입니다. 기본값은 12000입니다.
+        {t("settings.engine.maxTokens.description")}
       </p>
     </>
   );
@@ -109,10 +112,11 @@ export function ContextTokensField({
   setContextTokens,
   submit,
 }: ContextTokensFieldProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <label>
-        컨텍스트 길이
+        {t("settings.engine.contextTokens.label")}
         <input
           type="number"
           min={MIN_CONTEXT_TOKENS}
@@ -131,8 +135,7 @@ export function ContextTokensField({
         />
       </label>
       <p className="muted-line modal-note">
-        입력, 이미지, 출력이 함께 들어가는 전체 토큰 공간입니다. 긴 페이지가
-        중간에서 끊기면 이 값을 올리세요. 기본값은 16384입니다.
+        {t("settings.engine.contextTokens.description")}
       </p>
     </>
   );

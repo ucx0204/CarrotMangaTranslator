@@ -1,4 +1,5 @@
 import { useCallback, type PointerEvent, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import type { BBox } from "../../../shared/textTypes";
 import { isUsableRegionBbox } from "../../../shared/region";
 import type { InpaintingTool } from "../inpainting/inpaintingTypes";
@@ -65,14 +66,15 @@ function useCancelRegionSelection({
   regionSelection,
   setRegionSelection,
 }: UseWorkspaceRegionSelectionHandlersOptions): () => boolean {
+  const { t } = useTranslation("renderer");
   return useCallback(() => {
     if (!regionSelection?.active) {
       return false;
     }
     setRegionSelection(null);
-    pushStatus("영역 번역 선택을 취소했습니다.");
+    pushStatus(t("regionTranslation.cancelledSelection"));
     return true;
-  }, [pushStatus, regionSelection?.active, setRegionSelection]);
+  }, [pushStatus, regionSelection?.active, setRegionSelection, t]);
 }
 
 function useStartRegionTranslationSelection(
@@ -87,6 +89,7 @@ function useStartRegionTranslationSelection(
   }: UseWorkspaceRegionSelectionHandlersOptions,
   cancelRegionSelection: () => boolean,
 ): () => void {
+  const { t } = useTranslation("renderer");
   return useCallback(() => {
     if (!selectedPage || !selectedPageImageDataUrl || jobActive) {
       return;
@@ -102,7 +105,7 @@ function useStartRegionTranslationSelection(
       start: { x: 0, y: 0 },
       current: { x: 0, y: 0 },
     });
-    pushStatus("번역할 영역을 드래그하세요.");
+    pushStatus(t("regionTranslation.dragPrompt"));
   }, [
     cancelRegionSelection,
     jobActive,
@@ -112,6 +115,7 @@ function useStartRegionTranslationSelection(
     setInpaintingTool,
     setRegionSelection,
     setSelectedBlockId,
+    t,
   ]);
 }
 
@@ -189,6 +193,7 @@ function useRegionPointerUp({
 }: UseWorkspaceRegionSelectionHandlersOptions): (
   event: PointerEvent,
 ) => boolean {
+  const { t } = useTranslation("renderer");
   return useCallback(
     (event) => {
       if (!regionSelection?.active || !regionSelection.dragging) {
@@ -202,7 +207,7 @@ function useRegionPointerUp({
       const bbox = regionSelectionToBbox(completedSelection);
       setRegionSelection(null);
       if (!isUsableRegionBbox(bbox, 10)) {
-        pushStatus("선택 영역이 너무 작습니다.");
+        pushStatus(t("regionTranslation.tooSmall"));
         return true;
       }
       void translateSelectedRegion(bbox);
@@ -215,6 +220,7 @@ function useRegionPointerUp({
       setRegionSelection,
       stageRef,
       translateSelectedRegion,
+      t,
     ],
   );
 }

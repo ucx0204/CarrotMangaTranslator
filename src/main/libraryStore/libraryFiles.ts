@@ -9,6 +9,7 @@ import {
 } from "../../shared/ipcSchemas";
 import type { LibraryChapter, LibraryWork } from "../../shared/types";
 import { getAppPaths } from "../appPaths";
+import { tMain } from "./localization";
 import { relocateCopiedChapterImagePath } from "./chapterImageRelocation";
 import { assertUniqueIds, readLibraryJsonFile } from "./libraryJsonValidation";
 import { assertSafeStoreId } from "./libraryStoreIds";
@@ -23,7 +24,10 @@ import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
 export const LIBRARY_ROOT = getAppPaths().libraryDir;
 export const INDEX_PATH = join(LIBRARY_ROOT, "index.json");
 export const WORKS_ROOT = join(LIBRARY_ROOT, "works");
-export const DEFAULT_WORK_TITLE = "미정 작품";
+
+export function getDefaultWorkTitle(): string {
+  return tMain("import.defaultWorkTitle");
+}
 
 export type StoredIndexFile = {
   workOrder: string[];
@@ -202,7 +206,7 @@ export async function createWork(title: string): Promise<LibraryWork> {
   const now = new Date().toISOString();
   const work: LibraryWork = {
     id: randomUUID(),
-    title: sanitizeTitle(title, DEFAULT_WORK_TITLE),
+    title: sanitizeTitle(title, getDefaultWorkTitle()),
     chapterOrder: [],
     createdAt: now,
     updatedAt: now,

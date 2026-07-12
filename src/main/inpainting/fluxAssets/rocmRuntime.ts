@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { tMain } from "../localization";
 import {
   DEFAULT_AMD_GPU_TARGETS,
   FLUX_EMBED_PYTHON_VERSION,
@@ -71,8 +72,8 @@ export async function initializeWindowsRocmSdk(options: {
     },
   );
   options.onProgress?.({
-    progressText: "Flux ROCm SDK 초기화 완료",
-    detail: "HIP/CMake 개발 파일 확인",
+    progressText: tMain("inpainting.runtime.fluxRocmInitialized"),
+    detail: tMain("inpainting.runtime.hipCmakeVerified"),
     progressMode: "log-only",
     installLogLine: "ROCm SDK 초기화와 CMake 경로 확인이 완료되었습니다.",
   });

@@ -2,6 +2,7 @@ import { nativeImage } from "electron";
 import { stat, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { getAppPaths } from "../appPaths";
+import { tMain } from "./localization";
 import { decodeImageThroughRuntime } from "../simplePageRuntime";
 import { isSupportedImagePath, sortNaturally } from "./storage";
 import { MAX_IMPORT_IMAGE_BYTES, MAX_IMPORT_IMAGE_PIXELS } from "./zipSafety";
@@ -23,10 +24,14 @@ export async function assertImportImageFileBudget(
 ): Promise<void> {
   const info = await stat(filePath);
   if (!info.isFile()) {
-    throw new Error(`이미지 파일을 읽지 못했습니다: ${basename(filePath)}`);
+    throw new Error(
+      tMain("import.errors.imageRead", { file: basename(filePath) }),
+    );
   }
   if (info.size > MAX_IMPORT_IMAGE_BYTES) {
-    throw new Error(`${basename(filePath)} 파일이 너무 큽니다.`);
+    throw new Error(
+      tMain("import.errors.fileTooLarge", { file: basename(filePath) }),
+    );
   }
 }
 
@@ -44,7 +49,7 @@ export async function writeNormalizedWebpImportImage(
     sourcePath,
   );
   if (!converted?.length) {
-    throw new Error(`WEBP 이미지를 PNG로 변환하지 못했습니다: ${label}`);
+    throw new Error(tMain("import.errors.webpConvert", { file: label }));
   }
 
   await writeFile(outputPath, converted);
@@ -64,10 +69,10 @@ export async function readDecodedImportImageSize(
     size.width < 1 ||
     size.height < 1
   ) {
-    throw new Error(`이미지 파일을 읽지 못했습니다: ${label}`);
+    throw new Error(tMain("import.errors.imageRead", { file: label }));
   }
   if (size.width * size.height > MAX_IMPORT_IMAGE_PIXELS) {
-    throw new Error(`${label} 이미지 해상도가 너무 큽니다.`);
+    throw new Error(tMain("import.errors.resolutionTooLarge", { file: label }));
   }
   return size;
 }

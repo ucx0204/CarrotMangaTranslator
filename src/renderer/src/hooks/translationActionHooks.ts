@@ -1,4 +1,6 @@
 import { useCallback, useRef, type MutableRefObject } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { BBox } from "../../../shared/textTypes";
@@ -23,8 +25,8 @@ import {
   failAnalysisJob,
   handleTranslateRegionResult,
   makeStartAnalysisRequest,
+  mergeTranslatedRegionResult,
   refreshLibraryWithWarning,
-  regionLiveMergeOptions,
   regionTranslationStartingState,
   reportRefreshLibraryFailure,
   resolveStartOutcome,
@@ -68,6 +70,7 @@ function useExecuteAnalysisJob({
   setCurrentChapter,
   setJobState,
 }: UseTranslationActionsOptions): ExecuteAnalysisJob {
+  const { t } = useTranslation("renderer");
   return useCallback<ExecuteAnalysisJob>(
     async ({ runMode, pageId, pageIds, chapterId, blockMode }) => {
       const openChapterId = currentChapter?.id;
@@ -81,7 +84,7 @@ function useExecuteAnalysisJob({
           await saveNow();
         }
         clearStatusLines();
-        setJobState(startingJobState());
+        setJobState(startingJobState(t));
         markOpenChapterRunning({
           currentChapter: isOpenChapter ? currentChapter : null,
           currentChapterRef,
@@ -92,25 +95,29 @@ function useExecuteAnalysisJob({
         });
 
         const result = await mangaGateway.startAnalysis(
-          makeStartAnalysisRequest(targetChapterId, {
-            runMode,
-            pageId,
-            pageIds,
-            blockMode,
-          }),
+          makeStartAnalysisRequest(
+            targetChapterId,
+            {
+              runMode,
+              pageId,
+              pageIds,
+              blockMode,
+            },
+            t,
+          ),
         );
         if (result.chapter && result.chapter.id === openChapterId) {
           mergeLiveChapter(result.chapter);
         }
-        await refreshLibraryWithWarning(refreshLibrary, pushStatus);
-        return resolveStartOutcome(result, setJobState, pushStatus);
+        await refreshLibraryWithWarning(refreshLibrary, pushStatus, t);
+        return resolveStartOutcome(result, setJobState, pushStatus, t);
       } catch (error) {
         console.error(error);
         failAnalysisJob(
           setJobState,
           pushStatus,
-          "번역 작업 실패",
-          formatErrorMessage(error, "번역 작업을 시작하지 못했습니다."),
+          t("translation.errors.jobFailedTitle"),
+          formatErrorMessage(error, t("translation.errors.startFailed")),
         );
         return "failed";
       }
@@ -125,6 +132,7 @@ function useExecuteAnalysisJob({
       saveNow,
       setCurrentChapter,
       setJobState,
+      t,
     ],
   );
 }
@@ -201,6 +209,7 @@ function useRunTranslationFlowAction({
   executeAnalysisJob: ExecuteAnalysisJob;
   flowActiveRef: FlowActiveRef;
 }): TranslationActions["runTranslationFlow"] {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async (options: TranslationFlowOptions): Promise<void> => {
       if (!currentChapter || jobActive || flowActiveRef.current) {
@@ -221,6 +230,7 @@ function useRunTranslationFlowAction({
           pushStatus,
           refreshLibrary,
           setJobState,
+          t,
         });
       } finally {
         flowActiveRef.current = false;
@@ -237,6 +247,7 @@ function useRunTranslationFlowAction({
       saveNow,
       setFlowActive,
       setJobState,
+      t,
     ],
   );
 }
@@ -249,6 +260,7 @@ async function runTranslationFlowPasses({
   pushStatus,
   refreshLibrary,
   setJobState,
+  t,
 }: {
   chapterId: string;
   selection: ChapterRunSelection[];
@@ -257,19 +269,21 @@ async function runTranslationFlowPasses({
   pushStatus: UseTranslationActionsOptions["pushStatus"];
   refreshLibrary: UseTranslationActionsOptions["refreshLibrary"];
   setJobState: UseTranslationActionsOptions["setJobState"];
+  t: TFunction<"renderer">;
 }): Promise<void> {
   const pass1 = await runSelectionsSequentially(
     executeAnalysisJob,
     selection,
     pushStatus,
-    "1차",
+    t("translation.flow.firstPass"),
     options.blockMode,
+    t,
   );
   if (pass1 !== "completed") {
     return;
   }
   if (!options.twoPass) {
-    toast.success("번역을 완료했습니다.");
+    toast.success(t("translation.flow.completed"));
     return;
   }
   const contextReady = await runWorkContextAnalysis({
@@ -278,6 +292,7 @@ async function runTranslationFlowPasses({
     pushStatus,
     refreshLibrary,
     setJobState,
+    t,
   });
   if (!contextReady) {
     return;
@@ -287,6 +302,7 @@ async function runTranslationFlowPasses({
     selection,
     pushStatus,
     options.blockMode,
+    t,
   );
 }
 
@@ -305,54 +321,49 @@ function useTranslateSelectedRegionAction({
   setSelectedBlockId,
   syncSavedPageVersion,
 }: UseTranslationActionsOptions): TranslationActions["translateSelectedRegion"] {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async (bbox: BBox) => {
       if (!currentChapter || !selectedPage || jobActive) {
         return;
       }
       if (!isUsableRegionBbox(bbox, 10)) {
-        pushStatus("선택 영역이 너무 작습니다.");
-        return;
+        return void pushStatus(t("regionTranslation.tooSmall"));
       }
 
       try {
         await saveNow();
         clearStatusLines();
-        setJobState(regionTranslationStartingState());
+        setJobState(regionTranslationStartingState(t));
         await beforeTranslateRegion?.();
         const result = await mangaGateway.translateRegion({
           chapterId: currentChapter.id,
           pageId: selectedPage.id,
           bbox,
         });
-        if (result.chapter) {
-          mergeLiveChapter(result.chapter, regionLiveMergeOptions(result));
-          if (
-            result.status === "completed" &&
-            currentChapterRef.current?.id === result.chapter.id
-          ) {
-            // 작업 중 편집으로 페이지가 dirty면 버전 동기화 효과가 이 페이지를
-            // 건너뛰므로, append된 디스크 상태를 저장 기준선으로 직접 반영해
-            // 다음 자동 저장이 충돌하지 않게 한다.
-            syncSavedPageVersion(
-              result.chapter,
-              result.pageId ?? selectedPage.id,
-            );
-          }
-        }
-        await refreshLibraryWithWarning(refreshLibrary, pushStatus);
-        handleTranslateRegionResult(result, {
-          pushStatus,
-          setJobState,
-          setSelectedBlockId,
+        mergeTranslatedRegionResult(result, {
+          currentChapterRef,
+          mergeLiveChapter,
+          selectedPageId: selectedPage.id,
+          syncSavedPageVersion,
         });
+        await refreshLibraryWithWarning(refreshLibrary, pushStatus, t);
+        handleTranslateRegionResult(
+          result,
+          {
+            pushStatus,
+            setJobState,
+            setSelectedBlockId,
+          },
+          t,
+        );
       } catch (error) {
         console.error(error);
         failAnalysisJob(
           setJobState,
           pushStatus,
-          "선택 영역 번역 실패",
-          formatErrorMessage(error, "선택 영역 번역을 시작하지 못했습니다."),
+          t("regionTranslation.failedTitle"),
+          formatErrorMessage(error, t("regionTranslation.startFailed")),
         );
       }
     },
@@ -370,6 +381,7 @@ function useTranslateSelectedRegionAction({
       setJobState,
       setSelectedBlockId,
       syncSavedPageVersion,
+      t,
     ],
   );
 }

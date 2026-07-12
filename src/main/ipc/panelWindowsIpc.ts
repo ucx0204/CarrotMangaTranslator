@@ -6,6 +6,7 @@ import {
 import type { PanelCommand } from "../../shared/panelBridgeTypes";
 import { isAllowedMainWindowNavigation } from "../mainWindow";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 export function registerPanelWindowsIpc(context: IpcContext): void {
@@ -74,7 +75,7 @@ function assertPanelWindowSender(
   context: IpcContext,
 ): void {
   if (!context.panelWindows.isPanelSender(event.sender.id)) {
-    throw new Error("신뢰할 수 없는 패널 IPC 요청입니다.");
+    throw new Error(tMain("ipc.errors.untrustedPanel"));
   }
   const rendererUrl = context.getMainWindow()?.webContents.getURL();
   const senderFrameUrl = event.senderFrame?.url;
@@ -83,6 +84,6 @@ function assertPanelWindowSender(
     !rendererUrl ||
     !isAllowedMainWindowNavigation(senderFrameUrl, rendererUrl)
   ) {
-    throw new Error("신뢰할 수 없는 패널 IPC 요청입니다.");
+    throw new Error(tMain("ipc.errors.untrustedPanel"));
   }
 }

@@ -1,4 +1,6 @@
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
 import { Button, IconButton, RangeInput } from "../ui";
 import {
@@ -35,14 +37,12 @@ type RetouchInpaintingStepProps = {
 export function RetouchInpaintingStep(
   props: RetouchInpaintingStepProps,
 ): React.JSX.Element {
+  const { t } = useTranslation("components");
   const maskActive = props.tool === "mask" || props.maskStrokeCount > 0;
 
   return (
     <div className="inpaint-step-body">
-      <p className="inpaint-step-lead">
-        효과음은 마스크 붓으로 그려 지우고, 자잘한 자국은 붓·복원으로
-        다듬으세요.
-      </p>
+      <p className="inpaint-step-lead">{t("inpainting.retouch.description")}</p>
 
       <RetouchToolsBar {...props} />
 
@@ -71,14 +71,15 @@ function RetouchToolsHeader({
   onRedoRetouch,
   onUndoRetouch,
 }: RetouchInpaintingStepProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="retouch-tools-bar-head">
       <span className="retouch-active-tool">{activeToolLabel}</span>
       <div className="retouch-undo-redo">
         <IconButton
           size="sm"
-          label="되돌리기 (Ctrl+Z)"
-          title="되돌리기 (Ctrl+Z)"
+          label={t("inpainting.retouch.undoLabel")}
+          title={t("inpainting.retouch.undoLabel")}
           disabled={!canUndo || jobActive}
           onClick={onUndoRetouch}
         >
@@ -86,8 +87,8 @@ function RetouchToolsHeader({
         </IconButton>
         <IconButton
           size="sm"
-          label="다시 실행 (Ctrl+Y)"
-          title="다시 실행 (Ctrl+Y / Ctrl+Shift+Z)"
+          label={t("inpainting.retouch.redoLabel")}
+          title={t("inpainting.retouch.redoTitle")}
           disabled={!canRedo || jobActive}
           onClick={onRedoRetouch}
         >
@@ -104,6 +105,7 @@ function RetouchToolButtons({
   onSelectTool,
   tool,
 }: RetouchInpaintingStepProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="retouch-toolbar tools-grid">
       <button
@@ -112,7 +114,7 @@ function RetouchToolButtons({
         onClick={() => onSelectTool(tool === "mask" ? "none" : "mask")}
       >
         <MaskIcon size={18} />
-        <span>마스크 붓</span>
+        <span>{t("inpainting.tools.mask")}</span>
       </button>
       <button
         className={tool === "brush" ? "active" : ""}
@@ -120,7 +122,7 @@ function RetouchToolButtons({
         onClick={() => onSelectTool(tool === "brush" ? "none" : "brush")}
       >
         <BrushIcon size={18} />
-        <span>붓</span>
+        <span>{t("inpainting.tools.brush")}</span>
         <i
           className="brush-swatch"
           style={{ backgroundColor: brushColor }}
@@ -133,7 +135,7 @@ function RetouchToolButtons({
         onClick={() => onSelectTool(tool === "eraser" ? "none" : "eraser")}
       >
         <RestoreIcon size={18} />
-        <span>복원</span>
+        <span>{t("inpainting.tools.eraser")}</span>
       </button>
       <button
         className={tool === "picker" ? "active" : ""}
@@ -141,7 +143,7 @@ function RetouchToolButtons({
         onClick={() => onSelectTool(tool === "picker" ? "none" : "picker")}
       >
         <PickerIcon size={18} />
-        <span>색 뽑기</span>
+        <span>{t("inpainting.tools.picker")}</span>
       </button>
     </div>
   );
@@ -155,10 +157,11 @@ function RetouchToolSettings({
   onBrushRadiusChange,
   tool,
 }: RetouchInpaintingStepProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="retouch-tool-settings">
       <label className="brush-size-control">
-        <span className="brush-size-label">크기</span>
+        <span className="brush-size-label">{t("format.size")}</span>
         <RangeInput
           min={4}
           max={90}
@@ -169,7 +172,10 @@ function RetouchToolSettings({
         <strong>{brushRadius}px</strong>
       </label>
       {tool === "brush" ? (
-        <label className="brush-color-control" title="붓 색상">
+        <label
+          className="brush-color-control"
+          title={t("inpainting.retouch.brushColor")}
+        >
           <input
             type="color"
             value={brushColor}
@@ -189,11 +195,12 @@ function DrawnMaskActionGroup({
   onClearPatternMask,
   onRunDrawnPattern,
 }: RetouchInpaintingStepProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="inpaint-group">
       <div className="inpaint-group-head">
-        <h3>그려서 지우기</h3>
-        <small>{resolveMaskStrokeLabel(maskStrokeCount)}</small>
+        <h3>{t("inpainting.retouch.eraseDrawn")}</h3>
+        <small>{resolveMaskStrokeLabel(maskStrokeCount, t)}</small>
       </div>
       <div className="mask-action-row">
         <Button
@@ -201,7 +208,7 @@ function DrawnMaskActionGroup({
           disabled={jobActive || maskStrokeCount === 0}
           onClick={onClearPatternMask}
         >
-          비우기
+          {t("common.clear")}
         </Button>
         <Button
           variant="primary"
@@ -209,7 +216,7 @@ function DrawnMaskActionGroup({
           disabled={jobActive || !hasSelectedPage || maskStrokeCount === 0}
           onClick={onRunDrawnPattern}
         >
-          그린 영역 지우기
+          {t("inpainting.retouch.eraseDrawnArea")}
         </Button>
       </div>
     </div>
@@ -221,18 +228,24 @@ function RetouchStepNav({
   onGoToAuto,
   onGoToExport,
 }: RetouchInpaintingStepProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="inpaint-step-nav">
       <Button variant="ghost" onClick={onGoToAuto}>
-        ← 자동
+        {t("inpainting.retouch.backAuto")}
       </Button>
       <Button variant="primary" onClick={onGoToExport} disabled={jobActive}>
-        출력 →
+        {t("inpainting.retouch.nextExport")}
       </Button>
     </div>
   );
 }
 
-function resolveMaskStrokeLabel(maskStrokeCount: number): string {
-  return maskStrokeCount > 0 ? `그린 영역 ${maskStrokeCount}개` : "효과음 보정";
+function resolveMaskStrokeLabel(
+  maskStrokeCount: number,
+  t: TFunction<"components">,
+): string {
+  return maskStrokeCount > 0
+    ? t("inpainting.retouch.drawnAreas", { count: maskStrokeCount })
+    : t("inpainting.retouch.soundEffectTouchup");
 }

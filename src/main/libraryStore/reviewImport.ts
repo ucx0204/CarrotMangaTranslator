@@ -6,6 +6,7 @@ import type {
   TranslationBlock,
 } from "../../shared/types";
 import { parseReviewTable, type ReviewRow } from "../../shared/reviewTable";
+import { tMain } from "./localization";
 import { hydrateChapter } from "./chapterSnapshots";
 import { resolveChapterStatus } from "./chapterRecords";
 import {
@@ -27,11 +28,11 @@ export async function applyReviewImportUnlocked(
 ): Promise<ImportReviewTextResult> {
   const locator = await findChapterLocation(request.chapterId);
   if (!locator) {
-    throw new Error("검수표를 적용할 화를 찾지 못했습니다.");
+    throw new Error(tMain("reviewImport.chapterNotFound"));
   }
   const chapter = await readChapterFile(locator.workId, locator.chapterId);
   if (!chapter) {
-    throw new Error("검수표를 적용할 화를 찾지 못했습니다.");
+    throw new Error(tMain("reviewImport.chapterNotFound"));
   }
 
   const rows = parseReviewTable(request.content, request.format);
@@ -132,7 +133,9 @@ function applyReviewRow({
 }: ApplyRowInput): "skipped" | "unchanged" | "updated" {
   const blockId = row.block_id.trim();
   if (!blockId) {
-    context.warnings.push(`${rowNumber}행: block_id가 비어 있어 건너뜁니다.`);
+    context.warnings.push(
+      tMain("reviewImport.warnings.emptyBlockId", { row: rowNumber }),
+    );
     return "skipped";
   }
 
@@ -142,14 +145,19 @@ function applyReviewRow({
   }
   if (context.seenBlockKeys.has(target.key)) {
     context.warnings.push(
-      `${rowNumber}행: 중복 block_id ${blockId}를 건너뜁니다.`,
+      tMain("reviewImport.warnings.duplicateBlockId", {
+        row: rowNumber,
+        blockId,
+      }),
     );
     return "skipped";
   }
   context.seenBlockKeys.add(target.key);
 
   if (row.chapter_id.trim() && row.chapter_id.trim() !== chapter.id) {
-    context.warnings.push(`${rowNumber}행: 다른 화의 행이라 건너뜁니다.`);
+    context.warnings.push(
+      tMain("reviewImport.warnings.otherChapter", { row: rowNumber }),
+    );
     return "skipped";
   }
 
@@ -159,7 +167,10 @@ function applyReviewRow({
       normalizeReviewCompareText(target.block.sourceText);
   if (sourceMismatch) {
     context.warnings.push(
-      `${rowNumber}행: OCR 원문이 현재 블록과 다릅니다. block_id=${blockId}`,
+      tMain("reviewImport.warnings.sourceMismatch", {
+        row: rowNumber,
+        blockId,
+      }),
     );
     if (request.requireSourceMatch) {
       return "skipped";
@@ -192,7 +203,10 @@ function resolveReviewRowTarget(
   if (pageId) {
     if (!context.pageIds.has(pageId)) {
       context.warnings.push(
-        `${rowNumber}행: 없는 page_id ${row.page_id}입니다.`,
+        tMain("reviewImport.warnings.pageNotFound", {
+          row: rowNumber,
+          pageId: row.page_id,
+        }),
       );
     }
     const scopedTarget = context.blockByScopedId.get(
@@ -205,19 +219,27 @@ function resolveReviewRowTarget(
 
   const targets = context.blockById.get(blockId) ?? [];
   if (targets.length === 0) {
-    context.warnings.push(`${rowNumber}행: 없는 block_id ${blockId}입니다.`);
+    context.warnings.push(
+      tMain("reviewImport.warnings.blockNotFound", {
+        row: rowNumber,
+        blockId,
+      }),
+    );
     return null;
   }
   if (targets.length > 1) {
     context.warnings.push(
-      `${rowNumber}행: block_id ${blockId}가 여러 페이지에 있어 page_id와 함께 찾지 못하면 건너뜁니다.`,
+      tMain("reviewImport.warnings.ambiguousBlock", {
+        row: rowNumber,
+        blockId,
+      }),
     );
     return null;
   }
   const [target] = targets;
   if (pageId && pageId !== target.pageId) {
     context.warnings.push(
-      `${rowNumber}행: page_id가 현재 블록 위치와 다릅니다. block_id 기준으로 적용합니다.`,
+      tMain("reviewImport.warnings.pageMismatch", { row: rowNumber }),
     );
   }
   return target;
@@ -244,7 +266,10 @@ function buildImportedBlock(
   const status = normalizeReviewStatus(row.review_status);
   if (row.review_status.trim() && !status) {
     context.warnings.push(
-      `${rowNumber}행: 검수 상태 ${row.review_status}는 사용할 수 없습니다.`,
+      tMain("reviewImport.warnings.invalidStatus", {
+        row: rowNumber,
+        status: row.review_status,
+      }),
     );
   }
 

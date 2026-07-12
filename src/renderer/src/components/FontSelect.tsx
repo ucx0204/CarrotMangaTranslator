@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { resolveBlockFontFamily } from "../lib/fonts";
 import {
   resolveFontOptionClassName,
@@ -64,6 +65,7 @@ function FontSelectMenu({
   listRef: React.RefObject<HTMLDivElement | null>;
   model: FontSelectModel;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="font-select-menu">
       <div
@@ -93,7 +95,7 @@ function FontSelectMenu({
         disabled={model.busy}
         onClick={model.onAddFont}
       >
-        + TTF/OTF 폰트 등록
+        {t("fontSelect.addFont")}
       </button>
     </div>
   );
@@ -153,12 +155,13 @@ function CustomFontRemoveButton({
   label: string;
   onRemove: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <button
       type="button"
       className="font-select-remove"
-      title="이 폰트 삭제"
-      aria-label={`${label} 삭제`}
+      title={t("fontSelect.deleteFont")}
+      aria-label={t("fontSelect.deleteNamedFont", { label })}
       disabled={busy}
       onClick={(event) => {
         event.preventDefault();

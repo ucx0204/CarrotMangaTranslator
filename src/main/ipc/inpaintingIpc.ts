@@ -29,11 +29,12 @@ import {
   updatePagesAfterInpainting,
 } from "../library";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 function assertNoActiveJob(context: IpcContext): void {
   if (context.jobs.hasActive) {
-    throw new Error("이미 실행 중인 작업이 있습니다.");
+    throw new Error(tMain("jobs.active"));
   }
 }
 
@@ -55,7 +56,7 @@ function registerInpaintingJobIpc(context: IpcContext): void {
         parseIpcPayload(
           StartInpaintingRequestSchema,
           rawRequest,
-          "인페인팅 작업",
+          tMain("ipc.labels.inpaintingJob"),
         ),
       ),
   );
@@ -77,7 +78,7 @@ function registerInpaintingRetouchIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         InpaintingRetouchRequestSchema,
         rawRequest,
-        "인페인팅 보정",
+        tMain("ipc.labels.inpaintingRetouch"),
       );
       assertNoActiveJob(context);
       const chapter = await openChapter(request.chapterId);
@@ -85,7 +86,7 @@ function registerInpaintingRetouchIpc(context: IpcContext): void {
         (candidate) => candidate.id === request.pageId,
       );
       if (!page) {
-        throw new Error("리터치할 페이지를 찾지 못했습니다.");
+        throw new Error(tMain("inpainting.errors.retouchPageNotFound"));
       }
       const nextPage = await applyInpaintingRetouch(page, {
         mode: request.mode,
@@ -121,7 +122,7 @@ function registerInpaintingResultIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         SetPageInpaintingResultRequestSchema,
         rawRequest,
-        "인페인팅 결과 적용",
+        tMain("ipc.labels.inpaintingApply"),
       );
       assertNoActiveJob(context);
       const chapter = await setPageInpaintingResult(
@@ -149,7 +150,7 @@ function registerInpaintingRevertIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         InpaintingRevertRequestSchema,
         rawRequest,
-        "인페인팅 되돌리기",
+        tMain("ipc.labels.inpaintingRestore"),
       );
       assertNoActiveJob(context);
       const chapter = await openChapter(request.chapterId);
@@ -193,7 +194,7 @@ function registerInpaintingUtilityIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         InpaintingColorSampleRequestSchema,
         rawRequest,
-        "색상 샘플",
+        tMain("ipc.labels.colorSample"),
       );
       const imagePath = assertLibraryImagePath(request.imagePath);
       return {
@@ -213,7 +214,11 @@ function registerInpaintingUtilityIpc(context: IpcContext): void {
     async (_event, rawRequest: unknown): Promise<InpaintingExportResult> =>
       exportInpaintingResults(
         context,
-        parseIpcPayload(InpaintingExportRequestSchema, rawRequest, "결과 출력"),
+        parseIpcPayload(
+          InpaintingExportRequestSchema,
+          rawRequest,
+          tMain("ipc.labels.resultExport"),
+        ),
       ),
   );
 }

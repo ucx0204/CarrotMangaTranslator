@@ -1,0 +1,941 @@
+{
+  "common": {
+    "add": "Add",
+    "all": "All",
+    "apply": "Apply",
+    "blocks": "Blocks",
+    "cancel": "Cancel",
+    "chapterCount": "Chapters: {{count}}",
+    "clear": "Clear",
+    "clearAll": "Clear all",
+    "close": "Close",
+    "confirm": "Confirm",
+    "copy": "Copy",
+    "delete": "Delete",
+    "dragToMove": "Drag to move",
+    "duplicate": "Duplicate",
+    "import": "Import",
+    "inpainting": "Inpainting",
+    "inProgress": "In progress",
+    "loading": "Loading…",
+    "original": "Original",
+    "pageCount": "Pages: {{count}}",
+    "pages": "Pages",
+    "preparing": "Preparing",
+    "rename": "Rename",
+    "reset": "Reset",
+    "save": "Save",
+    "selectAll": "Select all",
+    "settings": "Settings",
+    "thisPage": "This page",
+    "workTitle": "Work title"
+  },
+  "sidebar": {
+    "exitInpainting": "Exit inpainting",
+    "noCurrentChapter": "No chapter open",
+    "translate": "Translate",
+    "batchTranslate": "Batch translate work",
+    "libraryFolder": "Library folder",
+    "share": "Share"
+  },
+  "workspace": {
+    "readingArea": "Reading area",
+    "empty": {
+      "title": "Start translating manga",
+      "description": "Import images, folders, or ZIP files, organize them by work and chapter, then translate, inpaint, and edit each page.",
+      "startTranslation": "Start translation",
+      "importSharedCopy": "Import shared copy",
+      "openSettings": "Open settings",
+      "hints": {
+        "pageNavigation": "Navigate pages",
+        "commandPalette": "Command palette",
+        "shortcuts": "Shortcuts"
+      },
+      "steps": {
+        "engine": {
+          "title": "Configure translation engine",
+          "description": "Check the model, OCR, and hardware first."
+        },
+        "import": {
+          "title": "Import source",
+          "description": "Load pages from images, a folder, or a ZIP file."
+        },
+        "edit": {
+          "title": "Translate & edit",
+          "description": "Continue translating and refine the blocks."
+        }
+      }
+    }
+  },
+  "commandPalette": {
+    "title": "Command palette",
+    "searchPlaceholder": "Search commands…",
+    "searchLabel": "Search commands",
+    "listLabel": "Command list",
+    "noResults": "No matching commands."
+  },
+  "format": {
+    "title": "Formatting",
+    "batchApply": "Batch apply",
+    "batchApplyTitle": "Apply this block's formatting to other blocks",
+    "bold": "Bold",
+    "italic": "Italic",
+    "italicShort": "Italic",
+    "align": {
+      "left": "Align left",
+      "center": "Align center",
+      "right": "Align right"
+    },
+    "direction": { "horizontal": "Horizontal", "vertical": "Vertical" },
+    "size": "Size",
+    "fontSize": "Font size",
+    "fontSizeValue": "Font size value",
+    "autoFitTitle": "Automatically fit text to the text box",
+    "auto": "Auto",
+    "rotation": "Rotation",
+    "opacity": "Opacity",
+    "lineHeight": "Line spacing",
+    "letterSpacing": "Letter spacing",
+    "fontWidth": "Character width",
+    "color": "Color",
+    "textColor": "Text color",
+    "outline": "Outline"
+  },
+  "editor": {
+    "text": "Text",
+    "translatedText": "Translation",
+    "blockColors": "Block colors",
+    "markupHint": {
+      "emphasis": "Emphasis:",
+      "escape": "To type an asterisk, use"
+    },
+    "markupToolbar": {
+      "boldLabel": "Bold (**bold**)",
+      "boldTitle": "Make selected text bold (**bold**)",
+      "italicLabel": "Italic (*italic*)",
+      "italicTitle": "Italicize selected text (*italic*)",
+      "resetHeight": "Reset input height"
+    }
+  },
+  "formatBatch": {
+    "title": "Batch apply formatting",
+    "description": "Apply the selected block's formatting to the items below.",
+    "items": "Items to apply",
+    "scope": "Apply to",
+    "selectedBlocks": "Selected blocks: {{count}}",
+    "multiSelectHint": "Ctrl-click to select multiple blocks.",
+    "thisPage": "This page",
+    "entireChapter": "Entire chapter",
+    "chapterDisabled": "Whole-chapter formatting is unavailable while a job is running.",
+    "groups": {
+      "font": "Font",
+      "size": "Font size",
+      "align": "Alignment",
+      "direction": "Horizontal/vertical",
+      "emphasis": "Bold & italic",
+      "lineSpacing": "Line spacing",
+      "letterSpacing": "Letter spacing",
+      "fontWidth": "Character width",
+      "color": "Text color",
+      "outline": "Outline",
+      "transform": "Rotation & opacity"
+    }
+  },
+  "fontSelect": {
+    "addFont": "+ Add TTF/OTF font",
+    "deleteFont": "Delete this font",
+    "deleteNamedFont": "Delete {{label}}"
+  },
+  "chapterPicker": {
+    "prompt": "What would you like to translate?",
+    "untranslatedOnly": "Untranslated only",
+    "noChapters": "No chapters.",
+    "currentChapter": "Current chapter",
+    "loadingPages": "Loading pages…",
+    "loadPagesFailed": "Could not load pages.",
+    "noPages": "No pages.",
+    "translated": "Translated",
+    "chapterSummaryComplete": "{{count}}p · Complete",
+    "chapterSummaryRemaining": "{{count}}p · {{remaining}} remaining",
+    "chapterSummary": "{{count}}p{{suffix}}",
+    "statusSuffix": {
+      "complete": " · Complete",
+      "inProgress": " · In progress"
+    },
+    "noSelectedPages": "No pages selected.",
+    "approximately": "about ",
+    "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{approximate}}{{pageCount}}"
+  },
+  "translationOptions": {
+    "start": "Start translation",
+    "workUnavailable": "Could not load work information. Only the current chapter will be translated.",
+    "secondPass": "Second pass (better quality)",
+    "secondPassHint": "After the first pass, AI analyzes terminology, characters, and context, then translates again using that analysis. This takes longer because the selected pages are translated twice.",
+    "analysisScope": "Automatic analysis scope",
+    "analysisOptions": {
+      "work": "Start over",
+      "missing": "Only empty chapters",
+      "chapter": "Current chapter only"
+    },
+    "keepBlocksHint": "Pages with blocks keep their regions and formatting while only the text is replaced. Blocks are generated automatically on pages without them."
+  },
+  "retranslate": {
+    "title": "Retranslate page",
+    "start": "Start retranslation",
+    "context": "Page: {{pageName}} (Blocks: {{count}})",
+    "keepBlocksHint": "Keep the current block regions and formatting, and refill only the text in each region.",
+    "autoBlocksHint": "Remove all existing blocks and detect new ones automatically.",
+    "overwriteWarning": "Existing translations and edits on this page will be overwritten."
+  },
+  "translateSource": {
+    "title": "Choose source to translate",
+    "openImages": "Open images",
+    "openFolder": "Open folder",
+    "openArchive": "Open archive"
+  },
+  "import": {
+    "batchTitle": "Prepare batch translation",
+    "addToLibrary": "Add to library",
+    "createAndTranslate": "Create and start translating",
+    "createNewWork": "Create new work",
+    "addToExistingWork": "Add to existing work",
+    "selectWork": "Select work",
+    "chaptersToCreate": "Chapters to create",
+    "chapterTitle": "Chapter title"
+  },
+  "rename": {
+    "workTitle": "Rename work",
+    "chapterTitle": "Rename chapter",
+    "deleteWork": "Delete work",
+    "deleteChapter": "Delete chapter",
+    "newName": "New name",
+    "deleteWorkWarning": "Deleting this work also removes all of its chapters, pages, and translation results.",
+    "deleteChapterWarning": "Deleting this chapter also removes all of its pages and translation results."
+  },
+  "shareExport": {
+    "title": "Share",
+    "saveFile": "Save shared file",
+    "targetWork": "Work to share",
+    "chapters": "Chapters to share",
+    "noWork": "No work is available to share.",
+    "summary": "Chapters: {{chapterCount}} · Pages: {{pageCount}}"
+  },
+  "shareImport": {
+    "applyImport": "Apply import",
+    "applyToExisting": "Apply to existing work",
+    "newWorkTitle": "New work title",
+    "existingWork": "Existing work",
+    "chaptersToImport": "Chapters to import",
+    "moveItem": "Move {{title}}",
+    "deleteItem": "Delete {{title}}",
+    "addToFinal": "Add {{title}} to the final list",
+    "dragToAdd": "Drag to add",
+    "addItem": "Add {{title}}",
+    "addAll": "Add all",
+    "resetTitle": "Restore the existing work's original state",
+    "finalList": "Final list",
+    "dragToReorder": "Drag to reorder",
+    "finalListEmpty": "The final list is empty.",
+    "candidates": "Shared-file candidates",
+    "remaining": "{{count}} remaining",
+    "allChaptersInFinal": "All shared chapters are in the final list.",
+    "toDelete": "To be deleted",
+    "restoreItem": "Restore {{title}}",
+    "source": { "existing": "Existing", "shared": "Shared" },
+    "stats": {
+      "final": "Final: {{count}}",
+      "toDelete": "To delete: {{count}}",
+      "remainingCandidates": "Candidates left: {{count}}"
+    }
+  },
+  "library": {
+    "title": "Library",
+    "searchLabel": "Search library",
+    "searchPlaceholder": "Search works/chapters",
+    "noSearchResults": "No search results.",
+    "empty": "No works have been saved to the library yet.",
+    "renameItem": "Rename {{title}}",
+    "moveItem": "Move {{title}}",
+    "moveDisabled": "Items cannot be moved while searching or running a job.",
+    "sort": {
+      "trigger": "Sort: {{criterion}} {{direction}}",
+      "criteriaLabel": "Sort criterion",
+      "criterion": "Criterion",
+      "directionLabel": "Sort direction",
+      "direction": { "asc": "Ascending", "desc": "Descending" }
+    }
+  },
+  "pageList": {
+    "empty": "No pages loaded.",
+    "moveItem": "Move {{name}}",
+    "retranslate": "Retranslate",
+    "retranslateItem": "Retranslate {{name}}",
+    "deleteItem": "Delete {{name}}"
+  },
+  "status": {
+    "title": "Status",
+    "empty": "No status to display yet.",
+    "completed": "Complete",
+    "failed": "Failed",
+    "partiallyCompleted": "Partially complete",
+    "waiting": "Waiting",
+    "inProgressShort": "Running",
+    "erased": "Erased"
+  },
+  "runPanel": { "openChapterHint": "Open a chapter from the library." },
+  "areaTranslation": {
+    "title": "Region translation",
+    "cancelSelection": "Cancel selection"
+  },
+  "stageToolbar": {
+    "show": "Show toolbar",
+    "showTitle": "Show toolbar (4)",
+    "hide": "Hide toolbar",
+    "hideTitle": "Hide toolbar (4)",
+    "imageTools": "Image tools",
+    "tools": {
+      "select": { "label": "Select", "title": "Select tool (1)" },
+      "block": {
+        "label": "Block",
+        "title": "Block tool (2) — drag to add a text block"
+      },
+      "hand": {
+        "label": "Hand",
+        "title": "Hand tool (3) — drag to pan the image"
+      }
+    }
+  },
+  "display": {
+    "title": "Display",
+    "backgroundBorders": "Background/borders",
+    "showBlocks": "Show blocks",
+    "gatherText": "Gather text",
+    "styleGuide": "Terminology/memory"
+  },
+  "overlay": {
+    "exclude": "Exclude",
+    "excluded": "Excluded",
+    "resize": "Resize",
+    "includeInInpainting": "Include in inpainting again",
+    "excludeFromInpainting": "Exclude from inpainting"
+  },
+  "imageStage": { "loadingImage": "Loading image" },
+  "install": {
+    "logLabel": "Installation log",
+    "checkingLogs": "Checking logs",
+    "preparingModel": "Preparing Gemma 4 model",
+    "installingOcr": "Installing Paddle OCR"
+  },
+  "toast": { "close": "Close notification", "region": "Notifications" },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "An error occurred while rendering the screen. Your work may already be saved in the library. Restarting usually restores it.",
+    "restart": "Restart",
+    "openLogs": "Open log folder"
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "navigation": "Navigation",
+    "settingsHint": "You can change these under Settings → Shortcuts.",
+    "fixed": {
+      "previousNextPage": "Previous / next page",
+      "previousNextPageCenter": "Previous / next page (center panel)",
+      "escape": "Close modal · cancel drag / region selection"
+    }
+  },
+  "gatherText": {
+    "title": "Gather text",
+    "scope": "Scope",
+    "entireChapter": "Entire chapter",
+    "display": "Display",
+    "fields": {
+      "both": "Translation + OCR",
+      "translated": "Translation only",
+      "source": "OCR only"
+    },
+    "reviewWarnings": "Review-table warnings: {{count}}",
+    "copySuccess": "Text copied to the clipboard.",
+    "copyFailed": "Could not copy to the clipboard.",
+    "saveSuccess": "Text file saved.",
+    "saveFailed": "Could not save the text file.",
+    "searchPlaceholder": "Search, then press Enter",
+    "excludePageHeaders": "Exclude page headers",
+    "saveTxt": "Save .txt",
+    "empty": "No text to display.",
+    "pageHeading": "Page {{index}} · {{pageName}}",
+    "navigateToPage": "Click to go to this page.",
+    "importTxt": {
+      "button": "Import .txt",
+      "title": "Re-import translations from a translation-only TXT file in line order.",
+      "noChanges": "There are no changed translations.",
+      "noApplicableText": "No text can be applied. Check the warnings.",
+      "confirm": "Translations to overwrite: {{count}}. Continue with the TXT contents?\nLines are applied in order, and OCR source text is not changed.",
+      "updated": "Updated translation blocks: {{count}}.",
+      "warnings": "TXT import warnings: {{count}}.",
+      "failed": "Could not import the TXT file."
+    },
+    "review": {
+      "title": "Review table",
+      "saveSuccess": "Review table saved.",
+      "saveFailed": "Could not save the review table.",
+      "importConfirm": "Importing a review table updates only translations, review status, and notes.\nOCR source text is unchanged, and only rows with matching block_id values are applied.",
+      "updated": "Updated blocks: {{count}}.",
+      "warnings": "Review-table warnings: {{count}}.",
+      "importFailed": "Could not import the review table.",
+      "exportCsv": "Export CSV review table",
+      "exportTsv": "Export TSV review table"
+    }
+  },
+  "styleGuide": {
+    "title": "Terminology/memory",
+    "loadFailed": "Could not load terminology and memory.",
+    "saveSuccess": "Terminology and memory saved.",
+    "saveFailed": "Could not save terminology and memory.",
+    "addRow": "Add row",
+    "note": "Note",
+    "analysis": {
+      "ariaLabel": "AI terminology and memory analysis",
+      "title": "Automatic AI analysis",
+      "description": "Analyze source text to fill terminology, character, and story memory.",
+      "scope": "Analysis scope",
+      "analyzing": "Analyzing…",
+      "currentChapter": "Current chapter",
+      "entireWork": "Entire work",
+      "success": "Applied AI analysis for {{scope}}. Chapter coverage: {{included}}/{{total}} · Changes: {{changed}}",
+      "failed": "AI terminology and memory analysis failed."
+    },
+    "tabs": {
+      "ariaLabel": "Terminology and memory tabs",
+      "glossary": "Glossary",
+      "characters": "Characters",
+      "rules": "Translation rules",
+      "memory": "Story memory"
+    },
+    "budget": {
+      "total": "Terminology/memory {{tokens}}",
+      "outputHeadroom": "Output headroom {{percent}}%",
+      "breakdown": "Story {{story}} · glossary {{glossary}} · characters {{characters}}",
+      "tokenCount": "Tokens: {{count}}",
+      "effectiveHeadroom": "{{tokens}} · {{percent}}%",
+      "omittedParts": {
+        "storyMemory": "story memory",
+        "glossary": "glossary",
+        "characters": "character memory"
+      },
+      "warningInsufficient": "When output headroom is below {{minimum}}, story memory is omitted first, followed by the glossary and character memory if needed. Even after omitting {{omitted}}, the estimated headroom is only {{effective}}, so the response may be cut off.",
+      "warningAdjusted": "When output headroom is below {{minimum}}, story memory is omitted first, followed by the glossary and character memory if needed. Omitting {{omitted}} raises the estimated headroom to {{effective}}."
+    },
+    "glossary": {
+      "empty": "No terminology is registered. Start with Current chapter analysis, Entire work, or Add row.",
+      "source": "Source",
+      "translation": "Translation",
+      "category": "Category",
+      "aliases": "Aliases",
+      "categories": {
+        "character": "Character",
+        "alias": "Alias",
+        "place": "Place",
+        "term": "Term",
+        "honorific": "Honorific",
+        "other": "Other"
+      }
+    },
+    "characters": {
+      "title": "Character names/speech",
+      "empty": "No characters are registered. Start with Add row.",
+      "displayName": "Display name",
+      "sourceNames": "Source names",
+      "translatedName": "Translated name",
+      "speechStyle": "Speech style",
+      "customSpeechStyle": "Custom speech style",
+      "speechStyles": {
+        "neutral": "Neutral",
+        "polite": "Polite",
+        "casual": "Casual",
+        "rough": "Rough",
+        "childish": "Childlike",
+        "elderly": "Elderly",
+        "formal": "Formal",
+        "custom": "Custom"
+      }
+    },
+    "rules": {
+      "honorifics": {
+        "label": "Honorifics",
+        "preserve": "Preserve the feel of source honorifics",
+        "adapt": "Adapt naturally to target-language honorifics",
+        "drop": "Prefer names without honorifics"
+      },
+      "sfx": {
+        "label": "Sound effects",
+        "preserve": "Keep source sound effects",
+        "translate": "Translate sound effects",
+        "note": "Add an explanation to source sound effects"
+      },
+      "tone": {
+        "label": "Default tone",
+        "natural": "Natural translated dialogue",
+        "literal": "Literal translation close to the source"
+      }
+    },
+    "memory": {
+      "empty": "No story memory has been saved yet.",
+      "pageHeading": "Page {{index}} · {{pageName}}"
+    }
+  },
+  "inpainting": {
+    "counts": {
+      "thisPage": "This page {{count}}",
+      "remaining": "Remaining {{count}}",
+      "completed": "Complete {{count}}"
+    },
+    "guide": {
+      "title": "Inpainting guide",
+      "hideNextTime": "Don't show again",
+      "imageAlt": "Inpainting guide: first erase backgrounds automatically, then retouch remaining marks, and finally export."
+    },
+    "steps": {
+      "label": "Inpainting steps",
+      "auto": "Auto",
+      "retouch": "Retouch",
+      "export": "Export",
+      "toggleBlocks": "Toggle block visibility",
+      "toggleBorders": "Toggle background/border visibility",
+      "borders": "Borders",
+      "guide": "Guide",
+      "guideTitle": "How to use inpainting"
+    },
+    "tools": {
+      "brush": "Brush",
+      "eraser": "Restore",
+      "mask": "Mask brush",
+      "none": "Select a tool",
+      "picker": "Color picker"
+    },
+    "auto": {
+      "description": "First, erase the source text automatically. Process one page or all remaining pages at once.",
+      "nextRetouch": "Next: Retouch →",
+      "noOpenChapter": "No chapter is open.",
+      "remainingSummary": "Pages remaining: {{pendingPages}}/{{totalPages}} · Blocks: {{blockCount}}",
+      "remainingPages": "Remaining pages",
+      "showingOriginal": "Showing original (click to turn off)",
+      "compareOriginal": "Compare original",
+      "excludeHint": "Use the Exclude button on a block corner to remove that block from inpainting or add it back.",
+      "revert": "Revert inpainting"
+    },
+    "retouch": {
+      "description": "Paint over sound effects with the mask brush, and clean up small marks with the brush and restore tools.",
+      "undoLabel": "Undo (Ctrl+Z)",
+      "redoLabel": "Redo (Ctrl+Y)",
+      "redoTitle": "Redo (Ctrl+Y / Ctrl+Shift+Z)",
+      "brushColor": "Brush color",
+      "eraseDrawn": "Paint to erase",
+      "eraseDrawnArea": "Erase painted area",
+      "drawnAreas": "Painted areas: {{count}}",
+      "soundEffectTouchup": "Sound-effect touch-up",
+      "backAuto": "← Auto",
+      "nextExport": "Export →"
+    },
+    "export": {
+      "description": "Refine block fonts, colors, and positions, then export a PNG with the translation overlaid.",
+      "result": "Export results",
+      "pagesSaved": "Pages saved: {{count}}",
+      "allPages": "All pages",
+      "backRetouch": "← Retouch"
+    },
+    "progress": {
+      "processingPages": "Processing pages: {{count}}",
+      "inProgress": "Inpainting in progress"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "applyNextRun": "Changes apply from the next translation run.",
+    "tabs": {
+      "ariaLabel": "Settings sections",
+      "general": "General",
+      "engine": "Translation engine",
+      "hardware": "Hardware",
+      "format": "Default formatting",
+      "shortcuts": "Shortcuts",
+      "test": "Check/update"
+    },
+    "general": {
+      "language": "Application language",
+      "languageDescription": "Changes the language used throughout the app."
+    },
+    "footer": {
+      "openLogs": "Open log folder",
+      "restoreDefaults": "Restore defaults",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "engine": {
+      "provider": { "label": "Translation engine" },
+      "maxTokens": {
+        "label": "Maximum output tokens",
+        "description": "Maximum number of tokens the model can generate at once."
+      },
+      "contextTokens": {
+        "label": "Context length",
+        "description": "Total number of tokens the model can reference at once."
+      }
+    },
+    "options": {
+      "modelPresets": {
+        "minimum12b": {
+          "label": "12B minimum",
+          "description": "For about 8 GB of VRAM. Prioritizes compatibility and light operation."
+        },
+        "economy26b": {
+          "label": "26B economy",
+          "description": "For about 16 GB of VRAM. Keeps 1024 image tokens and runs the 26B model more safely."
+        },
+        "full31b": {
+          "label": "31B full",
+          "description": "For ample VRAM. Uses the 31B model and DFlash with quality as the priority."
+        }
+      },
+      "modelSources": {
+        "huggingface": {
+          "label": "Hugging Face",
+          "description": "Download the model automatically from a Hugging Face repository."
+        },
+        "local": {
+          "label": "Local files",
+          "description": "Use GGUF and mmproj files you provide."
+        }
+      },
+      "providers": {
+        "gemma": {
+          "label": "Local Gemma",
+          "description": "Run a Gemma model directly on this PC."
+        },
+        "codex": {
+          "label": "Codex",
+          "description": "Translate through a Codex OAuth endpoint."
+        },
+        "api": {
+          "label": "API",
+          "description": "Use an OpenAI-compatible API endpoint."
+        }
+      },
+      "reasoning": {
+        "none": { "label": "None", "description": "Do not use reasoning." },
+        "low": {
+          "label": "Low",
+          "description": "Fast, lightweight reasoning."
+        },
+        "medium": {
+          "label": "Medium",
+          "description": "Balances speed and quality."
+        },
+        "high": {
+          "label": "High",
+          "description": "Uses more reasoning for better quality."
+        },
+        "xhigh": {
+          "label": "Very high",
+          "description": "Uses extra reasoning for complex translations."
+        },
+        "max": {
+          "label": "Maximum",
+          "description": "Uses the highest standard reasoning level supported by the model."
+        },
+        "ultra": {
+          "label": "Ultra",
+          "description": "Requests the model's highest supported reasoning level."
+        }
+      },
+      "apiReasoning": {
+        "omit": "Omit",
+        "none": "None",
+        "minimal": "Minimal",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "xhigh": "Very high"
+      },
+      "ocrDevices": {
+        "cuda": {
+          "label": "NVIDIA CUDA",
+          "description": "Run Paddle OCR on an NVIDIA GPU."
+        },
+        "rocm": {
+          "label": "AMD ROCm",
+          "description": "Use the experimental OCR engine for AMD GPUs."
+        },
+        "cpu": {
+          "label": "CPU",
+          "description": "Run OCR on the CPU without a GPU."
+        }
+      },
+      "ocrQuality": {
+        "minimum": {
+          "label": "Minimum",
+          "description": "A lightweight, fast OCR model."
+        },
+        "economy": {
+          "label": "Economy",
+          "description": "Balances speed and accuracy."
+        },
+        "full": {
+          "label": "Full",
+          "description": "Uses the highest-quality OCR model."
+        }
+      },
+      "llamaRuntimes": {
+        "cuda12": {
+          "label": "CUDA 12",
+          "description": "llama.cpp runtime for NVIDIA CUDA 12."
+        },
+        "rtx50": {
+          "label": "RTX 50",
+          "description": "CUDA runtime tuned for RTX 50-series GPUs."
+        },
+        "vulkan": { "label": "Vulkan", "description": "Vulkan GPU runtime." },
+        "rocm": {
+          "label": "AMD ROCm",
+          "description": "AMD ROCm/HIP llama.cpp runtime."
+        }
+      },
+      "fluxBackends": {
+        "cuda": {
+          "label": "NVIDIA CUDA",
+          "description": "The fastest native Flux runtime on RTX GPUs."
+        },
+        "zluda": {
+          "label": "AMD ZLUDA",
+          "description": "Runs Flux through ZLUDA on AMD GPUs. Requires the AMD HIP SDK."
+        },
+        "cpu": {
+          "label": "CPU",
+          "description": "A slow CPU compatibility mode for systems without a matching GPU runtime."
+        }
+      },
+      "inpaintingModels": {
+        "aot": {
+          "label": "AOT minimum",
+          "description": "The lightest Koharu AOT inpainting model."
+        },
+        "lama": {
+          "label": "LaMa economy",
+          "description": "A lightweight, fast LaMa model specialized for manga."
+        },
+        "flux": {
+          "label": "Flux full",
+          "description": "The default quality-first Flux inpainting model."
+        }
+      }
+    },
+    "translation": {
+      "title": "Translation languages",
+      "source": "Source language",
+      "target": "Target language",
+      "swapTitle": "Swap source and target languages",
+      "swapAria": "Swap source and target languages",
+      "description": "The default remains Japanese → Korean. Enter a language code for languages not in the list. Quality varies by language pair and OCR support.",
+      "primaryLanguages": "Primary languages",
+      "otherLanguages": "Other languages",
+      "custom": "Custom…",
+      "codePlaceholder": "Language code (e.g. eo, zh-Hans)",
+      "customCodeAria": "Enter a custom code for {{label}}"
+    },
+    "gemma": {
+      "modelSource": { "label": "Model source" },
+      "preset": {
+        "label": "Model preset",
+        "ariaLabel": "Model preset",
+        "custom": "Custom",
+        "customDescription": "Specify the model repository and file manually."
+      },
+      "hfRepo": "Hugging Face repository",
+      "ggufFile": "GGUF file",
+      "runtime": {
+        "label": "llama.cpp runtime",
+        "amdNote": "The ROCm runtime is recommended for AMD GPUs.",
+        "nvidiaNote": "The CUDA runtime is recommended for NVIDIA GPUs."
+      },
+      "local": {
+        "modelFile": "Local model file",
+        "chooseFile": "Choose file",
+        "mmprojFile": "mmproj file",
+        "mmprojPlaceholder": "Detected automatically in the same folder, or choose manually",
+        "mmprojDescription": "The app searches the model folder for mmproj automatically; choose it manually if it is not found."
+      }
+    },
+    "codex": {
+      "model": "Codex model",
+      "customModel": "Custom",
+      "customModelAria": "Enter a custom Codex model",
+      "modelPlaceholder": "Model name",
+      "modelDescription": "You can enter a model not shown in the list.",
+      "reasoning": {
+        "label": "Reasoning effort",
+        "ariaLabel": "Codex reasoning effort"
+      },
+      "oauthPort": "openai-oauth port"
+    },
+    "api": {
+      "baseUrl": "API base URL",
+      "model": "API model",
+      "key": "API key",
+      "keyPlaceholder": "Enter API key",
+      "showKey": "Show API key",
+      "hideKey": "Hide API key",
+      "advanced": {
+        "title": "Advanced API settings",
+        "description": "Optional. Empty values are not sent.",
+        "temperature": "Temperature",
+        "topP": "Top P",
+        "topK": "Top K",
+        "reasoningEffort": "Reasoning effort",
+        "extraBody": "Extra body JSON",
+        "customHeaders": "Custom headers JSON"
+      }
+    },
+    "hardware": {
+      "ocrQuality": "Paddle OCR quality",
+      "ocrDevice": "Paddle OCR device",
+      "fluxBackend": "Flux inpainting backend",
+      "inpaintingModel": "Inpainting model",
+      "amdOcrExperimental": "AMD GPU OCR is experimental. If it fails, you can switch only OCR to the CPU.",
+      "ocrAmdNote": "NVIDIA CUDA OCR cannot be selected on AMD systems.",
+      "ocrNvidiaNote": "AMD ROCm OCR cannot be selected on NVIDIA systems.",
+      "fluxAmdNote": "CUDA native is unavailable on the detected AMD GPU; choose ZLUDA or CPU.",
+      "fluxNvidiaNote": "Use CUDA native instead of ZLUDA on the detected NVIDIA GPU.",
+      "fluxOnlyNote": "This backend setting applies only to the Flux Klein model.",
+      "downloadHipSdk": "Download AMD HIP SDK (ROCm 7.1.1)"
+    },
+    "format": {
+      "description": "Default formatting for newly created text blocks.",
+      "alignment": {
+        "title": "Alignment & emphasis",
+        "left": "Align left",
+        "center": "Align center",
+        "right": "Align right",
+        "bold": "Bold",
+        "italic": "Italic"
+      },
+      "direction": {
+        "ariaLabel": "Default text direction",
+        "auto": "Auto",
+        "horizontal": "Horizontal",
+        "vertical": "Vertical"
+      },
+      "font": {
+        "title": "Font & size",
+        "size": "Size",
+        "sizeAria": "Font size",
+        "sizeValueAria": "Font size value",
+        "autoFitTitle": "Automatically fit text to the text box",
+        "auto": "Auto"
+      },
+      "spacing": {
+        "title": "Spacing",
+        "lineHeight": "Line spacing",
+        "letterSpacing": "Letter spacing",
+        "fontWidth": "Character width"
+      },
+      "color": {
+        "title": "Color & outline",
+        "ariaLabel": "Default colors",
+        "text": "Text color",
+        "outline": "Outline",
+        "outlineEnabledTitle": "Whether to use an outline",
+        "outlineEnabled": "Use outline",
+        "outlineWidth": "Outline width"
+      }
+    },
+    "shortcuts": {
+      "description": "Click an item, then press the desired key combination. Press Esc to cancel or Clear to unassign it.",
+      "changeAria": "Change shortcut for {{label}}",
+      "waiting": "Waiting for key input…",
+      "unassigned": "Unassigned",
+      "reset": "Default",
+      "clear": "Clear",
+      "displaced": "Moved the shortcut and unassigned it from ‘{{label}}’.",
+      "categories": {
+        "view": "Display / View",
+        "tool": "Tools",
+        "translate": "Translation",
+        "inpaint": "Inpainting",
+        "edit": "Block editing",
+        "global": "Global"
+      },
+      "actions": {
+        "toggle-block-chrome": "Toggle block backgrounds/borders",
+        "toggle-text-blocks": "Toggle block visibility",
+        "toggle-peek-original": "Toggle original preview",
+        "zoom-in": "Zoom in",
+        "zoom-out": "Zoom out",
+        "zoom-reset": "Reset zoom",
+        "stage-tool-select": "Select tool",
+        "stage-tool-block": "Block tool (drag to add a block)",
+        "stage-tool-hand": "Hand tool (drag to pan)",
+        "toggle-stage-toolbar": "Toggle toolbar",
+        "open-translate-options": "Open translation options",
+        "translate-pending": "Continue translation (remaining pages)",
+        "translate-all": "Retranslate all",
+        "gather-text": "Gather text",
+        "cancel-job": "Cancel job",
+        "toggle-inpainting": "Start/exit inpainting",
+        "history-undo": "Undo",
+        "history-redo": "Redo",
+        "retouch-redo": "Redo retouch",
+        "delete-block": "Delete selected block",
+        "duplicate-block": "Duplicate selected block",
+        "toggle-block-excluded": "Toggle block inpainting exclusion",
+        "toggle-command-palette": "Command palette",
+        "toggle-shortcut-help": "Keyboard shortcuts",
+        "open-settings": "Open settings"
+      }
+    },
+    "test": {
+      "title": "Installation/function check",
+      "run": "Check OCR/model",
+      "running": "Checking…",
+      "description": "Check Paddle OCR readiness and whether the selected translation engine starts correctly.",
+      "jobActive": "The installation/function check is unavailable during translation.",
+      "logAria": "Installation/function check log",
+      "detail": {
+        "model": "Model: {{path}}",
+        "mmproj": "mmproj: {{path}}",
+        "endpoint": "Endpoint: {{endpoint}}"
+      },
+      "status": {
+        "running": "Checking OCR, the model runtime, and a simple text response in sequence…",
+        "gemmaDetail": "Shows readiness logs for Paddle OCR and the Gemma runtime.",
+        "codexDetail": "Checks Paddle OCR and the Codex endpoint together.",
+        "apiDetail": "Checks Paddle OCR and the API endpoint response together."
+      },
+      "log": {
+        "start": "Starting the Paddle OCR and translation engine check.",
+        "requestError": "An error occurred while requesting the Paddle OCR and translation engine check.",
+        "success": "Paddle OCR and translation engine check completed.",
+        "failure": "Paddle OCR and translation engine check failed."
+      }
+    },
+    "update": {
+      "title": "Update",
+      "currentVersion": "Current version: {{version}}",
+      "checkingVersion": "Current version: checking…",
+      "check": "Check for updates (open releases page)",
+      "description": "Installing a new version in the same location preserves models, the library, OCR runtimes, and other data. Data is removed only if you explicitly select the option to delete it during uninstall."
+    },
+    "validation": {
+      "languageCode": "Translation language codes must use a format such as en, ja, zh-Hans, or pt-BR.",
+      "oauthPort": "The openai-oauth port must be an integer from 1 to 65535.",
+      "apiBaseUrl": "The API base URL must be an HTTP or HTTPS URL.",
+      "apiAdvanced": "Check the advanced API settings.",
+      "maxTokens": "Maximum output tokens must be an integer from {{min}} to {{max}}.",
+      "contextTokens": "Context length must be an integer of at least {{min}}.",
+      "apiNumberRange": "The API number setting must be from {{min}} to {{max}}.",
+      "apiIntegerRange": "The API integer setting must be an integer from {{min}} to {{max}}.",
+      "apiJsonInvalid": "The API JSON setting must be a valid JSON object.",
+      "apiJsonObject": "The API JSON setting must be an object.",
+      "customHeaderBlocked": "The {{name}} header cannot be overridden in Custom headers.",
+      "customHeaderValue": "Custom header values may only be strings, numbers, or booleans."
+    }
+  }
+}

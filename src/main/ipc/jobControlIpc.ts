@@ -4,6 +4,7 @@ import {
   jobControlIpcContracts,
 } from "../../shared/ipcContracts";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 export function registerJobControlIpc(context: IpcContext): void {
@@ -17,7 +18,7 @@ export function registerJobControlIpc(context: IpcContext): void {
       id: job.id,
       kind: job.kind,
       status: "cancelling",
-      progressText: "작업 취소 중",
+      progressText: tMain("jobs.cancelling"),
       progressCurrent: job.lastEvent?.progressCurrent,
       progressTotal: job.lastEvent?.progressTotal,
       pageIndex: job.lastEvent?.pageIndex,

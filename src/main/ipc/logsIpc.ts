@@ -6,6 +6,7 @@ import {
 import { logsIpcContracts } from "../../shared/ipcContracts";
 import { getLogPath, writeLog } from "../logger";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 export function registerLogsIpc(context: IpcContext): void {
@@ -25,7 +26,7 @@ export function registerLogsIpc(context: IpcContext): void {
       const payload = parseIpcPayload(
         RendererLogRequestSchema,
         { level, message, detail },
-        "로그 기록",
+        tMain("ipc.labels.logWrite"),
       );
       writeLog(payload.level, `renderer: ${payload.message}`, payload.detail);
       return { logged: true };

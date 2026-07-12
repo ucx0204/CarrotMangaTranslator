@@ -1,4 +1,6 @@
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import * as Progress from "@radix-ui/react-progress";
 import type { JobState } from "../../../shared/jobTypes";
 import { formatBytes, type ProgressSnapshot } from "../lib/jobProgress";
@@ -12,6 +14,7 @@ export function InstallProgressOverlay({
   job,
   snapshot,
 }: InstallProgressOverlayProps): React.JSX.Element | null {
+  const { i18n, t } = useTranslation("components");
   const { logRef, handleLogScroll } = usePinnedInstallLog(job);
 
   if (!isInstallPhase(job.phase)) {
@@ -19,7 +22,10 @@ export function InstallProgressOverlay({
   }
 
   const progress = resolveInstallProgressDisplay(snapshot);
-  const byteStats = formatByteStats(job);
+  const byteStats = formatByteStats(
+    job,
+    i18n.resolvedLanguage ?? i18n.language,
+  );
 
   return (
     <div
@@ -38,7 +44,7 @@ export function InstallProgressOverlay({
       <div className="install-progress-card" onWheel={stopOverlayEvent}>
         <div className="install-progress-header">
           <span className="install-progress-kicker">
-            {resolveKicker(job.phase)}
+            {resolveKicker(job.phase, t)}
           </span>
           <strong>{job.progressText}</strong>
         </div>
@@ -61,7 +67,9 @@ export function InstallProgressOverlay({
         </Progress.Root>
 
         <div className="install-progress-stats">
-          <span>{resolveProgressLabel(progress.mode, progress.percent)}</span>
+          <span>
+            {resolveProgressLabel(progress.mode, progress.percent, t)}
+          </span>
           {byteStats ? <span>{byteStats}</span> : null}
         </div>
 
@@ -140,6 +148,7 @@ function InstallLogPanel({
   logLines: string[];
   logRef: React.RefObject<HTMLDivElement | null>;
 }): React.JSX.Element | null {
+  const { t } = useTranslation("components");
   if (logLines.length === 0) {
     return null;
   }
@@ -147,7 +156,7 @@ function InstallLogPanel({
     <div
       ref={logRef}
       className="install-progress-log"
-      aria-label="설치 로그"
+      aria-label={t("install.logLabel")}
       onScroll={handleLogScroll}
       onWheel={stopOverlayEvent}
     >
@@ -169,19 +178,20 @@ function isScrolledNearBottom(element: HTMLElement): boolean {
 function resolveProgressLabel(
   mode: ProgressSnapshot["mode"] | "log-only",
   percent: number | null,
+  t: TFunction<"components">,
 ): string {
   if (mode === "determinate" && percent !== null) {
     return `${percent}%`;
   }
   if (mode === "indeterminate") {
-    return "진행 중";
+    return t("common.inProgress");
   }
-  return "로그 확인 중";
+  return t("install.checkingLogs");
 }
 
-function formatByteStats(job: JobState): string | null {
-  const current = formatBytes(job.progressBytes);
-  const total = formatBytes(job.progressTotalBytes);
+function formatByteStats(job: JobState, locale: string): string | null {
+  const current = formatBytes(job.progressBytes, locale);
+  const total = formatBytes(job.progressTotalBytes, locale);
   if (current && total) {
     return `${current} / ${total}`;
   }
@@ -195,12 +205,15 @@ function isInstallPhase(phase: JobState["phase"]): boolean {
   return phase === "model_downloading" || phase === "ocr_downloading";
 }
 
-function resolveKicker(phase: JobState["phase"]): string {
+function resolveKicker(
+  phase: JobState["phase"],
+  t: TFunction<"components">,
+): string {
   if (phase === "model_downloading") {
-    return "Gemma 4 모델 준비";
+    return t("install.preparingModel");
   }
   if (phase === "ocr_downloading") {
-    return "Paddle OCR 설치";
+    return t("install.installingOcr");
   }
-  return "Paddle OCR 설치";
+  return t("install.installingOcr");
 }

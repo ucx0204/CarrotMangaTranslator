@@ -1,4 +1,6 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { RenameTarget } from "../components/AppModals";
 import { formatErrorMessage } from "../lib/appHelpers";
 import { libraryGateway } from "./libraryGateway";
@@ -19,22 +21,31 @@ type DeleteRenameTargetActionOptions = Pick<
   setRenameTarget: (target: RenameTarget | null) => void;
 };
 
-function buildDeleteDetail(renameTarget: RenameTarget): string {
+function buildDeleteDetail(
+  renameTarget: RenameTarget,
+  t: TFunction<"renderer">,
+): string {
   return renameTarget.kind === "work"
-    ? `"${renameTarget.title}" 작품과 포함된 모든 화, 페이지, 번역 결과가 보관함에서 삭제됩니다.`
-    : `"${renameTarget.title}" 화와 포함된 모든 페이지, 번역 결과가 보관함에서 삭제됩니다.`;
+    ? t("library.delete.workDetail", { title: renameTarget.title })
+    : t("library.delete.chapterDetail", { title: renameTarget.title });
 }
 
-function deleteSuccessStatus(renameTarget: RenameTarget): string {
+function deleteSuccessStatus(
+  renameTarget: RenameTarget,
+  t: TFunction<"renderer">,
+): string {
   return renameTarget.kind === "work"
-    ? `${renameTarget.title} 작품을 삭제했습니다.`
-    : `${renameTarget.title} 화를 삭제했습니다.`;
+    ? t("library.delete.workSuccess", { title: renameTarget.title })
+    : t("library.delete.chapterSuccess", { title: renameTarget.title });
 }
 
-function deleteFailureStatus(renameTarget: RenameTarget): string {
+function deleteFailureStatus(
+  renameTarget: RenameTarget,
+  t: TFunction<"renderer">,
+): string {
   return renameTarget.kind === "work"
-    ? "작품을 삭제하지 못했습니다."
-    : "화를 삭제하지 못했습니다.";
+    ? t("library.delete.workFailed")
+    : t("library.delete.chapterFailed");
 }
 
 function resolveDeleteContext(
@@ -88,6 +99,7 @@ export function useDeleteRenameTargetAction({
   setRenameBusy,
   setRenameTarget,
 }: DeleteRenameTargetActionOptions): () => Promise<void> {
+  const { t } = useTranslation("renderer");
   const currentChapterId = currentChapter?.id ?? null;
   const currentWorkId = currentChapter?.workId ?? null;
 
@@ -102,9 +114,11 @@ export function useDeleteRenameTargetAction({
       renameTarget,
     );
     const confirmed = await askConfirm(
-      renameTarget.kind === "work" ? "작품 삭제" : "화 삭제",
-      "정말 삭제하시겠습니까?",
-      buildDeleteDetail(renameTarget),
+      renameTarget.kind === "work"
+        ? t("library.delete.workTitle")
+        : t("library.delete.chapterTitle"),
+      t("library.delete.confirm"),
+      buildDeleteDetail(renameTarget, t),
     );
     if (!confirmed) {
       return;
@@ -121,11 +135,13 @@ export function useDeleteRenameTargetAction({
         context,
         clearCurrentChapter,
       );
-      pushStatus(deleteSuccessStatus(renameTarget));
+      pushStatus(deleteSuccessStatus(renameTarget, t));
       setRenameTarget(null);
     } catch (error) {
       console.error(error);
-      pushStatus(formatErrorMessage(error, deleteFailureStatus(renameTarget)));
+      pushStatus(
+        formatErrorMessage(error, deleteFailureStatus(renameTarget, t)),
+      );
     } finally {
       setRenameBusy(false);
     }
@@ -141,5 +157,6 @@ export function useDeleteRenameTargetAction({
     setLibrary,
     setRenameBusy,
     setRenameTarget,
+    t,
   ]);
 }

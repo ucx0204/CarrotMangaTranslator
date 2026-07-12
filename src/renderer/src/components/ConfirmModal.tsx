@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Modal } from "./ui";
 import { WarnIcon } from "./ui/icons";
 
@@ -15,6 +16,7 @@ export function ConfirmModal({
   onConfirm: () => void;
   onCancel: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <Modal
       size="sm"
@@ -31,10 +33,10 @@ export function ConfirmModal({
       footer={
         <>
           <Button variant="ghost" onClick={onCancel}>
-            취소
+            {t("common.cancel")}
           </Button>
           <Button variant="primary" onClick={onConfirm}>
-            확인
+            {t("common.confirm")}
           </Button>
         </>
       }

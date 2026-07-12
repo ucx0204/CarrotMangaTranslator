@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { CSSProperties } from "react";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { JobState } from "../../../shared/jobTypes";
@@ -141,15 +142,20 @@ function AreaTranslationPanel({
   selectedPage,
   selectedPageImageDataUrl,
 }: AreaTranslationProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="inpainting-area-translate-panel">
-      <h2>영역 번역</h2>
+      <h2>{t("areaTranslation.title")}</h2>
       <button
         className={`area-translate-button ${areaTranslateSelecting ? "active" : ""}`}
         disabled={!selectedPage || !selectedPageImageDataUrl || jobActive}
         onClick={onStartAreaTranslate}
       >
-        {areaTranslateSelecting ? "선택 취소" : "영역 번역"}
+        {t(
+          areaTranslateSelecting
+            ? "areaTranslation.cancelSelection"
+            : "areaTranslation.title",
+        )}
       </button>
       {shouldShowAreaTranslationProgress(jobState) ? (
         <AreaTranslationProgressCard
@@ -171,6 +177,7 @@ function AreaTranslationProgressCard({
   progressSnapshot: ProgressSnapshot | null;
   onCancel: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const progress = resolveAreaProgressNumbers(jobState, progressSnapshot);
   const indeterminate = progressSnapshot?.mode === "indeterminate";
 
@@ -192,7 +199,7 @@ function AreaTranslationProgressCard({
       />
       {isCancellableJob(jobState) ? (
         <Button variant="danger" size="sm" fullWidth onClick={onCancel}>
-          취소
+          {t("common.cancel")}
         </Button>
       ) : null}
     </div>
@@ -210,6 +217,7 @@ function ProgressMeta({
   progressText: string;
   total: number | undefined;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="progress-meta">
       <span>{progressText}</span>
@@ -218,7 +226,9 @@ function ProgressMeta({
           {current} / {total}
         </strong>
       ) : (
-        <strong>{indeterminate ? "준비 중" : "진행 중"}</strong>
+        <strong>
+          {t(indeterminate ? "common.preparing" : "common.inProgress")}
+        </strong>
       )}
     </div>
   );

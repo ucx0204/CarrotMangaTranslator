@@ -12,10 +12,14 @@ import {
   PanelWindowBoundsStore,
   type PanelWindowBounds,
 } from "./panelWindowBounds";
+import { tMainCommon } from "./i18n";
 
-const PANEL_WINDOW_TITLES: Record<PanelId, string> = {
-  editor: "블록 편집",
-};
+function resolvePanelWindowTitle(panelId: PanelId): string {
+  switch (panelId) {
+    case "editor":
+      return tMainCommon("panel.editorTitle");
+  }
+}
 
 /**
  * Owns the popped-out panel BrowserWindows and the bridge fan-out. The main
@@ -149,7 +153,7 @@ function createPanelBrowserWindow(
     minWidth: 360,
     minHeight: 320,
     ...(target.windowIconPath ? { icon: target.windowIconPath } : {}),
-    title: PANEL_WINDOW_TITLES[panelId],
+    title: resolvePanelWindowTitle(panelId),
     backgroundColor: "#101114",
     autoHideMenuBar: true,
     webPreferences: rendererWebPreferences(),

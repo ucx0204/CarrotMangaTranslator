@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { LibraryIndex } from "../../../../shared/libraryTypes";
 import type { WorkShareImportPreview } from "../../../../shared/shareTypes";
 import { TextField } from "../ui";
@@ -26,11 +27,14 @@ export function ShareImportTargetSection({
   setTargetMode,
   targetMode,
 }: ShareImportTargetSectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="modal-section share-target-section">
       <div className="share-package-title">
         <strong>{preview.workTitle}</strong>
-        <span>{preview.chapters.length}개 화</span>
+        <span>
+          {t("common.chapterCount", { count: preview.chapters.length })}
+        </span>
       </div>
       <div className="share-target-grid">
         <label
@@ -42,7 +46,7 @@ export function ShareImportTargetSection({
             disabled={busy}
             onChange={() => setTargetMode("new")}
           />
-          <span>새 작품 만들기</span>
+          <span>{t("import.createNewWork")}</span>
         </label>
         <label
           className={`share-target-card ${targetMode === "existing" ? "active" : ""}`}
@@ -53,19 +57,19 @@ export function ShareImportTargetSection({
             disabled={busy || library.works.length === 0}
             onChange={() => setTargetMode("existing")}
           />
-          <span>기존 작품에 적용</span>
+          <span>{t("shareImport.applyToExisting")}</span>
         </label>
       </div>
       {targetMode === "new" ? (
         <TextField
-          label="새 작품 제목"
+          label={t("shareImport.newWorkTitle")}
           value={newWorkTitle}
           disabled={busy}
           onChange={(event) => setNewWorkTitle(event.target.value)}
         />
       ) : (
         <label>
-          기존 작품
+          {t("shareImport.existingWork")}
           <select
             value={existingWorkId}
             disabled={busy || library.works.length === 0}

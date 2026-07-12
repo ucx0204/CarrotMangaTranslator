@@ -8,6 +8,7 @@ import {
   mergeAiWorkContextSuggestions,
   type BasePageMemory,
 } from "../src/main/workContextAiMerge";
+import { setMainLocale } from "../src/main/i18n";
 import { normalizeAiWorkContextSuggestions } from "../src/main/workContextAiNormalize";
 import { selectWorkTextForAnalysis } from "../src/main/workContextAnalysisPrompt";
 
@@ -135,6 +136,32 @@ describe("AI work context merge", () => {
     expect(
       selection.basePages.every((page) => page.chapterId === "chapter-b"),
     ).toBe(true);
+  });
+
+  it("localizes warnings for unknown AI page identifiers", () => {
+    setMainLocale("en");
+    try {
+      const result = mergeAiWorkContextSuggestions({
+        styleGuide: makeGuide(),
+        memories: [makeMemory()],
+        basePages: [makeBasePage()],
+        suggestions: normalizeAiWorkContextSuggestions({
+          page_summaries: [
+            {
+              chapter_id: "chapter-a",
+              page_id: "unknown-page",
+              summary: "ignored",
+            },
+          ],
+        }),
+        now,
+      });
+      expect(result.warnings).toContain(
+        "AI returned an unknown pageId: unknown-page",
+      );
+    } finally {
+      setMainLocale("ko");
+    }
   });
 });
 

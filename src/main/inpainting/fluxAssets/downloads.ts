@@ -1,18 +1,12 @@
 import { once } from "node:events";
 import { createWriteStream } from "node:fs";
 import { mkdir, rename, rm } from "node:fs/promises";
-import {
-  basename,
-  dirname,
-  isAbsolute,
-  join,
-  normalize,
-  resolve,
-} from "node:path";
+import * as path from "node:path";
 import type { FluxAssetProgress, NvidiaRedistPackage } from "./types";
 import { throwIfAborted, runCommand } from "./errors";
 import { emitDownloadProgress, formatBytes } from "./progress";
 import { safeCleanup } from "../../safeCleanup";
+import { tMain } from "../localization";
 import {
   isPathInside,
   isUsableRemoteFile,
@@ -30,13 +24,13 @@ export async function downloadRuntimeArchive(options: {
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<string> {
   const url = `${options.baseUrl}/${options.entry.relative_path}`;
-  const fileName = basename(options.entry.relative_path);
-  const outputPath = join(options.downloadsDir, fileName);
+  const fileName = path.basename(options.entry.relative_path);
+  const outputPath = path.join(options.downloadsDir, fileName);
   await downloadToFile({
     url,
     outputPath,
     signal: options.signal,
-    progressText: `${options.label} 다운로드 중`,
+    progressText: tMain("downloads.downloading", { label: options.label }),
     label: fileName,
     onProgress: options.onProgress,
   });
@@ -53,7 +47,9 @@ export async function readJsonUrl(
     headers: { "User-Agent": "carrot-manga-translator" },
   });
   if (!response.ok) {
-    throw new Error(`${url} 요청에 실패했습니다 (${response.status}).`);
+    throw new Error(
+      tMain("downloads.requestFailed", { url, status: response.status }),
+    );
   }
   return response.json();
 }
@@ -73,10 +69,8 @@ export function readNvidiaRedistPackage(
   if (!relativePath) {
     return null;
   }
-  const size =
-    typeof record.size === "number" && Number.isFinite(record.size)
-      ? record.size
-      : undefined;
+  const rawSize = record.size;
+  const size = Number.isFinite(rawSize) ? (rawSize as number) : undefined;
   return {
     relative_path: relativePath,
     ...(size === undefined ? {} : { size }),
@@ -100,7 +94,7 @@ export function extractSelectedZipEntries(
     if (item.isDirectory) {
       continue;
     }
-    const fileName = basename(item.entryName);
+    const fileName = path.basename(item.entryName);
     if (!fileName || !shouldExtract(fileName)) {
       continue;
     }
@@ -109,28 +103,36 @@ export function extractSelectedZipEntries(
   }
   if (extracted === 0) {
     throw new Error(
-      `${basename(archivePath)}에서 필요한 런타임 DLL을 찾지 못했습니다.`,
+      tMain("downloads.runtimeDllMissing", {
+        archive: path.basename(archivePath),
+      }),
     );
   }
 }
 
 export function extractZipSafely(archivePath: string, outputDir: string): void {
   const zip = new AdmZip(archivePath);
-  const root = resolve(outputDir);
+  const root = path.resolve(outputDir);
   for (const item of zip.getEntries()) {
     if (item.isDirectory) {
       continue;
     }
-    const entryName = normalize(item.entryName).replace(/^([/\\])+/, "");
-    if (!entryName || entryName.startsWith("..") || isAbsolute(entryName)) {
+    const name = path.normalize(item.entryName).replace(/^([/\\])+/, "");
+    if (!name || name.startsWith("..") || path.isAbsolute(name)) {
       throw new Error(
-        `${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${item.entryName}`,
+        tMain("downloads.unsafeArchivePath", {
+          archive: path.basename(archivePath),
+          path: item.entryName,
+        }),
       );
     }
-    const destination = resolve(root, entryName);
+    const destination = path.resolve(root, name);
     if (!isPathInside(destination, root)) {
       throw new Error(
-        `${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${item.entryName}`,
+        tMain("downloads.unsafeArchivePath", {
+          archive: path.basename(archivePath),
+          path: item.entryName,
+        }),
       );
     }
     zip.extractEntryTo(item, root, true, true);
@@ -141,7 +143,7 @@ export async function extractLargeZipSafely(
   archivePath: string,
   outputDir: string,
 ): Promise<void> {
-  const root = resolve(outputDir);
+  const root = path.resolve(outputDir);
   await mkdir(root, { recursive: true });
   const entries: string[] = [];
   await runCommand("tar.exe", ["-tf", archivePath], {
@@ -163,24 +165,33 @@ function validateArchiveEntries(
   outputRoot: string,
 ): void {
   if (entries.length === 0) {
-    throw new Error(`${basename(archivePath)} 압축 파일이 비어 있습니다.`);
+    throw new Error(
+      tMain("downloads.archiveEmpty", { archive: path.basename(archivePath) }),
+    );
   }
   for (const rawEntry of entries) {
-    const entryName = normalize(rawEntry)
+    const entryName = path
+      .normalize(rawEntry)
       .replace(/^([/\\])+/, "")
       .replace(/^\.([/\\])+/, "");
     if (!entryName || entryName === ".") {
       continue;
     }
-    if (entryName.startsWith("..") || isAbsolute(entryName)) {
+    if (entryName.startsWith("..") || path.isAbsolute(entryName)) {
       throw new Error(
-        `${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${rawEntry}`,
+        tMain("downloads.unsafeArchivePath", {
+          archive: path.basename(archivePath),
+          path: rawEntry,
+        }),
       );
     }
-    const destination = resolve(outputRoot, entryName);
+    const destination = path.resolve(outputRoot, entryName);
     if (!isPathInside(destination, outputRoot)) {
       throw new Error(
-        `${basename(archivePath)}에 안전하지 않은 경로가 포함되어 있습니다: ${rawEntry}`,
+        tMain("downloads.unsafeArchivePath", {
+          archive: path.basename(archivePath),
+          path: rawEntry,
+        }),
       );
     }
   }
@@ -198,13 +209,16 @@ export async function ensureRemoteFile(options: {
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<string> {
-  const filePath = join(options.modelDir, options.fileName);
+  const filePath = path.join(options.modelDir, options.fileName);
   if (await isUsableRemoteFile(filePath, options.url)) {
     options.onProgress?.({
-      progressText: `${options.label} 캐시 사용`,
+      progressText: tMain("downloads.cached", { label: options.label }),
       detail: options.fileName,
       progressMode: "log-only",
-      installLogLine: `캐시된 ${options.label} 파일을 사용합니다: ${options.fileName}`,
+      installLogLine: tMain("downloads.cachedFileLog", {
+        label: options.label,
+        file: options.fileName,
+      }),
     });
     return filePath;
   }
@@ -213,7 +227,7 @@ export async function ensureRemoteFile(options: {
     url: options.url,
     outputPath: filePath,
     signal: options.signal,
-    progressText: `${options.label} 다운로드 중`,
+    progressText: tMain("downloads.downloading", { label: options.label }),
     label: options.fileName,
     onProgress: options.onProgress,
   });
@@ -260,15 +274,15 @@ export async function downloadToFile(
 
 function reportDownloadCacheHit(options: DownloadToFileOptions): void {
   options.onProgress?.({
-    progressText: `${options.label} 캐시 사용`,
+    progressText: tMain("downloads.cached", { label: options.label }),
     detail: options.label,
     progressMode: "log-only",
-    installLogLine: `캐시된 파일을 사용합니다: ${options.label}`,
+    installLogLine: tMain("downloads.cachedLog", { label: options.label }),
   });
 }
 
 async function prepareDownloadTarget(outputPath: string): Promise<string> {
-  await mkdir(dirname(outputPath), { recursive: true });
+  await mkdir(path.dirname(outputPath), { recursive: true });
   const partPath = `${outputPath}.part`;
   await rm(partPath, { force: true });
   return partPath;
@@ -285,7 +299,7 @@ function reportDownloadStart(
     progressPercent: totalBytes > 0 ? 0 : undefined,
     progressBytes: totalBytes > 0 ? 0 : undefined,
     progressTotalBytes: totalBytes > 0 ? totalBytes : undefined,
-    installLogLine: `${options.label} 다운로드 시작`,
+    installLogLine: tMain("downloads.startedLog", { label: options.label }),
   });
 }
 
@@ -298,7 +312,10 @@ async function fetchDownloadResponse(
   });
   if (!response.ok || !response.body) {
     throw new Error(
-      `${options.label} 다운로드에 실패했습니다 (${response.status}).`,
+      tMain("downloads.failed", {
+        label: options.label,
+        status: response.status,
+      }),
     );
   }
   return response as DownloadResponse;
@@ -334,7 +351,11 @@ async function writeDownloadResponseToPartFile(
     await finishWriteStream(writer);
     if (responseTotalBytes > 0 && receivedBytes !== responseTotalBytes) {
       throw new Error(
-        `${options.label} 다운로드 크기가 맞지 않습니다 (${formatBytes(receivedBytes)} / ${formatBytes(responseTotalBytes)}).`,
+        tMain("downloads.sizeMismatch", {
+          label: options.label,
+          received: formatBytes(receivedBytes),
+          total: formatBytes(responseTotalBytes),
+        }),
       );
     }
     return { receivedBytes, responseTotalBytes };

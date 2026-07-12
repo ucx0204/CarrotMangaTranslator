@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { mangaGateway } from "../api/mangaGateway";
 
 type UseRegionTranslationPreparationOptions = {
@@ -10,11 +11,12 @@ export function useRegionTranslationPreparation({
   inpaintingMode,
   pushStatus,
 }: UseRegionTranslationPreparationOptions): () => Promise<void> {
+  const { t } = useTranslation("renderer");
   return useCallback(async () => {
     if (!inpaintingMode) {
       return;
     }
-    pushStatus("영역 번역을 위해 Flux 인페인팅 런타임을 정리합니다.");
+    pushStatus(t("regionTranslation.disposeInpainting"));
     await mangaGateway.disposeInpaintingEngine();
-  }, [inpaintingMode, pushStatus]);
+  }, [inpaintingMode, pushStatus, t]);
 }

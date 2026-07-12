@@ -1,0 +1,373 @@
+{
+  "common": {
+    "pageCount": "{{count}}頁",
+    "pageCount_one": "{{count}}頁",
+    "pageCount_other": "{{count}}頁"
+  },
+  "bridge": {
+    "cancelJobFailed": "無法傳送取消工作要求。",
+    "openLibraryFailed": "無法開啟資料庫資料夾。",
+    "openLogsFailed": "無法開啟記錄資料夾。"
+  },
+  "panels": {
+    "connecting": "正在連線…",
+    "editor": {
+      "title": "編輯文字區塊",
+      "poppedOut": "編輯器已在獨立視窗中開啟。",
+      "closeWindow": "關閉編輯器視窗",
+      "floating": "編輯器已浮動顯示。",
+      "dock": "停駐編輯器",
+      "float": "浮動編輯器",
+      "floatTitle": "浮動編輯器以取得更大編輯空間",
+      "popOut": "在新視窗中開啟編輯器",
+      "popOutTitle": "將編輯器分離到新視窗"
+    }
+  },
+  "blockMode": { "auto": "自動產生", "keep": "保留現有文字區塊" },
+  "librarySort": {
+    "updated": "修改日期",
+    "title": "名稱",
+    "created": "加入日期",
+    "chapters": "章節數"
+  },
+  "fonts": { "default": "預設", "defaultSample": "範例 Aa" },
+  "eta": {
+    "seconds": "約剩餘{{count}}秒",
+    "minutes": "約剩餘{{count}}分鐘",
+    "minutesSeconds": "約剩餘{{minutes}}分{{seconds}}秒",
+    "hoursMinutes": "約剩餘{{hours}}小時{{minutes}}分鐘"
+  },
+  "job": {
+    "pageProgress": "第 {{current}} / {{total}} 頁 · {{status}}",
+    "pageStatus": "頁面 · {{status}}",
+    "pageRetry": "第 {{current}} / {{total}} 頁 · 重試 {{attempt}} / {{attemptTotal}}",
+    "phase": {
+      "booting": "正在準備模型",
+      "modelDownloading": "正在下載模型／準備伺服器",
+      "inpaintingPreparing": "正在準備圖像修復",
+      "finalizing": "正在整理結果",
+      "done": "工作完成",
+      "ocrDownloading": "正在下載／安裝 Paddle OCR",
+      "ready": "模型準備完成",
+      "cancelled": "工作已取消",
+      "failed": "工作失敗",
+      "ocrPreparing": "正在準備 Paddle OCR",
+      "modelRequesting": "正在要求 AI 翻譯",
+      "pageRunning": "正在翻譯",
+      "pageDone": "完成",
+      "pageSkipped": "已略過",
+      "inpaintingRunning": "正在清除原文",
+      "inpaintingDone": "原文清除完成",
+      "ocrRunning": "正在使用 Paddle OCR 分析",
+      "ocrPreanalysisDone": "Paddle OCR 預分析完成",
+      "pageRetry": "正在重試頁面"
+    },
+    "status": {
+      "starting": "正在準備模型",
+      "running": "工作進行中",
+      "cancelling": "正在取消工作",
+      "cancelled": "工作已取消",
+      "failed": "工作失敗",
+      "completed": "翻譯完成",
+      "idle": "等待中"
+    },
+    "warnings": {
+      "skippedAndUncertain": "部分頁面已略過，另有文字區塊需要檢查 OCR 結果。",
+      "skipped": "部分頁面已略過，工作已繼續處理下一頁。",
+      "uncertain": "部分文字區塊需要進一步檢查 OCR 結果。",
+      "generic": "工作出現警告，但仍繼續完成處理。"
+    },
+    "notifications": {
+      "completed": "工作已完成。",
+      "failed": "工作失敗。",
+      "cancelled": "工作已取消。",
+      "openLogs": "開啟記錄資料夾"
+    }
+  },
+  "commands": {
+    "translate": {
+      "label": "翻譯…",
+      "hint": "選項 · 二次翻譯 · 批次",
+      "keywords": "translate options 翻譯 選項"
+    },
+    "translatePending": {
+      "label": "繼續翻譯",
+      "hint": "剩餘頁面（立即）",
+      "keywords": "translate resume 繼續 剩餘"
+    },
+    "translateAll": {
+      "label": "全部重新翻譯",
+      "hint": "所有頁面",
+      "keywords": "translate all retranslate 全部 重新翻譯"
+    },
+    "exitInpainting": {
+      "label": "結束圖像修復",
+      "keywords": "inpaint exit 圖像修復 結束"
+    },
+    "enterInpainting": {
+      "label": "開始圖像修復",
+      "keywords": "inpaint start 圖像修復 開始"
+    },
+    "cancelJob": { "label": "取消工作", "keywords": "cancel stop 取消 工作" },
+    "gatherText": {
+      "label": "彙整文字",
+      "hint": "頁面 · 整章",
+      "keywords": "text copy gather 文字 複製 彙整"
+    },
+    "importSource": {
+      "label": "匯入翻譯來源",
+      "hint": "圖像 · 資料夾 · ZIP",
+      "keywords": "import source 匯入 翻譯來源"
+    },
+    "batchTranslate": {
+      "label": "批次翻譯作品",
+      "keywords": "batch import 批次 翻譯"
+    },
+    "importShare": {
+      "label": "匯入共享副本",
+      "keywords": "share import 共享 匯入"
+    },
+    "exportShare": {
+      "label": "匯出共享檔案",
+      "keywords": "share export 共享 匯出"
+    },
+    "openSettings": { "label": "開啟設定", "keywords": "settings 設定" },
+    "openLibrary": {
+      "label": "開啟資料庫資料夾",
+      "keywords": "library folder 資料庫 資料夾"
+    },
+    "openLogs": {
+      "label": "開啟記錄資料夾",
+      "keywords": "log folder 記錄 資料夾"
+    },
+    "shortcutHelp": {
+      "label": "快速鍵說明",
+      "keywords": "shortcut help 快速鍵 說明"
+    }
+  },
+  "shortcuts": {
+    "categories": {
+      "view": "顯示 / 檢視",
+      "tool": "工具",
+      "translate": "翻譯",
+      "inpaint": "圖像修復",
+      "edit": "文字區塊編輯",
+      "global": "全域"
+    },
+    "actions": {
+      "toggle-block-chrome": "切換背景／邊框顯示",
+      "toggle-text-blocks": "切換文字區塊顯示",
+      "toggle-peek-original": "切換原圖預覽",
+      "zoom-in": "放大圖像",
+      "zoom-out": "縮小圖像",
+      "zoom-reset": "重設縮放",
+      "stage-tool-select": "選取工具",
+      "stage-tool-block": "文字區塊工具（拖曳新增）",
+      "stage-tool-hand": "手掌工具（拖曳平移）",
+      "toggle-stage-toolbar": "切換工具列顯示",
+      "open-translate-options": "開啟翻譯選項",
+      "translate-pending": "繼續翻譯（剩餘頁面）",
+      "translate-all": "全部重新翻譯",
+      "gather-text": "彙整文字",
+      "cancel-job": "取消工作",
+      "toggle-inpainting": "開始／結束圖像修復",
+      "history-undo": "復原",
+      "history-redo": "重做",
+      "retouch-redo": "重做潤飾",
+      "delete-block": "刪除所選文字區塊",
+      "duplicate-block": "複製所選文字區塊",
+      "toggle-block-excluded": "切換文字區塊的圖像修復排除狀態",
+      "toggle-command-palette": "命令選擇區",
+      "toggle-shortcut-help": "快速鍵說明",
+      "open-settings": "開啟設定"
+    }
+  },
+  "blockEditing": {
+    "chapterApplyWhileRunning": "工作執行時無法對整章批次套用格式。",
+    "formatAppliedSelection": "已對所選的 {{count}} 個文字區塊套用格式。",
+    "formatAppliedSelection_one": "已對所選的 {{count}} 個文字區塊套用格式。",
+    "formatAppliedSelection_other": "已對所選的 {{count}} 個文字區塊套用格式。",
+    "formatAppliedPage": "已對本頁所有文字區塊套用格式。",
+    "formatAppliedChapter": "已對本章所有文字區塊套用格式。"
+  },
+  "chapter": {
+    "saveFailed": "儲存失敗：{{message}}",
+    "saveConflict": "頁面儲存發生衝突。請檢查最新內容後重新儲存。"
+  },
+  "library": {
+    "openChapterFailed": "無法開啟章節。",
+    "refreshFailed": "無法載入資料庫。",
+    "refreshAfterJobFailed": "無法重新整理資料庫。",
+    "renameFailed": "無法儲存名稱。",
+    "delete": {
+      "workTitle": "刪除作品",
+      "chapterTitle": "刪除章節",
+      "confirm": "確定要刪除嗎？",
+      "workDetail": "作品「{{title}}」及其所有章節、頁面和翻譯結果都將從資料庫中刪除。",
+      "chapterDetail": "章節「{{title}}」及其所有頁面和翻譯結果都將從資料庫中刪除。",
+      "workSuccess": "已刪除作品「{{title}}」。",
+      "chapterSuccess": "已刪除章節「{{title}}」。",
+      "workFailed": "無法刪除作品。",
+      "chapterFailed": "無法刪除章節。"
+    },
+    "retranslate": {
+      "title": "重新翻譯頁面",
+      "confirm": "確定要重新翻譯嗎？",
+      "detail": "本頁現有翻譯結果和編輯內容將被覆寫。"
+    },
+    "removePage": {
+      "title": "刪除頁面",
+      "confirm": "確定要刪除嗎？",
+      "detail": "本頁及其翻譯結果將從資料庫中刪除。",
+      "success": "已刪除頁面「{{name}}」。",
+      "failed": "無法刪除頁面。"
+    },
+    "order": {
+      "chapterSaveFailed": "無法儲存章節順序。",
+      "pageSaveFailed": "無法儲存頁面順序。",
+      "saveBeforePageOrderFailed": "由於無法儲存目前修改，頁面順序未儲存。",
+      "pageRolledBack": "已恢復先前的頁面順序。",
+      "rolledBackAfterError": "{{message}} 已恢復先前的順序。"
+    }
+  },
+  "inpainting": {
+    "common": { "saveFailedTitle": "儲存失敗", "jobFailedTitle": "工作失敗" },
+    "mode": {
+      "saveBeforeEnterFailed": "進入圖像修復模式前無法儲存修改。",
+      "entered": "已進入圖像修復模式。請先清除原文。",
+      "exited": "已結束圖像修復模式。"
+    },
+    "drawn": {
+      "title": "清除繪製區域",
+      "message": "僅使用 Flux 清除以橙色繪製的遮罩區域。",
+      "detail": "請在文字上充分塗抹。系統會裁切並還原背景，將結果另存為圖像，同時保留原始頁面。",
+      "preparing": "正在準備清除繪製區域",
+      "saveFailed": "清除繪製區域前無法儲存修改。",
+      "startFailed": "無法開始清除繪製區域。",
+      "failed": "清除繪製區域失敗。",
+      "success": "繪製區域清除完成：{{pages}}頁，{{regions}}個區域"
+    },
+    "erase": {
+      "title": "清除原文",
+      "currentPage": "目前頁面",
+      "pendingPages": "尚未清除的頁面",
+      "message": "清除{{scope}}中翻譯文字區塊位置的原文。",
+      "detail": "Flux 圖像修復會清除對話框、網點、背景圖和音效上的文字。原圖會保留，結果會另存。",
+      "preparing": "正在準備清除原文",
+      "saveFailed": "清除原文前無法儲存修改。",
+      "startFailed": "無法開始清除原文。",
+      "failed": "清除原文失敗。",
+      "success": "原文清除完成：{{pages}}頁，{{blocks}}個文字區塊"
+    },
+    "export": {
+      "noPage": "尚未選取要匯出的頁面。",
+      "saveFailed": "匯出 PNG 前無法儲存修改。",
+      "openFolderFailed": "PNG 匯出完成，但無法開啟資料夾：{{path}}",
+      "success": "已將圖像修復結果匯出為 PNG：{{count}}頁",
+      "success_one": "已將圖像修復結果匯出為 PNG：{{count}}頁",
+      "success_other": "已將圖像修復結果匯出為 PNG：{{count}}頁",
+      "failed": "無法匯出圖像修復結果。",
+      "failedTitle": "PNG 匯出失敗",
+      "preparing": "正在準備匯出 PNG"
+    },
+    "revert": {
+      "pageTitle": "將本頁恢復為原圖",
+      "chapterTitle": "將所有頁面恢復為原圖",
+      "pageMessage": "將目前頁面的圖像修復結果恢復為原圖。",
+      "chapterMessage": "將目前章節的圖像修復結果恢復為原圖。",
+      "detail": "保留翻譯文字區塊及其座標，只移除清除後的圖像結果。",
+      "success": "圖像修復已還原：{{count}}頁",
+      "success_one": "圖像修復已還原：{{count}}頁",
+      "success_other": "圖像修復已還原：{{count}}頁",
+      "failedTitle": "還原失敗",
+      "failed": "無法還原圖像修復結果。"
+    },
+    "retouch": {
+      "applyFailed": "無法套用潤飾。",
+      "undoFailed": "無法復原潤飾。",
+      "undoSuccess": "已復原潤飾。",
+      "redoFailed": "無法重做潤飾。",
+      "redoSuccess": "已重做潤飾。"
+    },
+    "color": {
+      "selected": "已將 {{color}} 設為筆刷顏色。可繼續取色或切換到筆刷。",
+      "sampleFailed": "無法取得顏色。"
+    }
+  },
+  "regionTranslation": {
+    "disposeInpainting": "正在為區域翻譯關閉 Flux 圖像修復執行環境。",
+    "cancelledSelection": "已取消區域翻譯選取。",
+    "dragPrompt": "請拖曳選取要翻譯的區域。",
+    "tooSmall": "所選區域太小。",
+    "preparing": "正在準備區域翻譯",
+    "failedTitle": "區域翻譯失敗",
+    "failed": "無法翻譯所選區域。",
+    "startFailed": "無法開始區域翻譯。",
+    "success": "已從所選區域建立 {{count}} 個文字區塊。",
+    "success_one": "已從所選區域建立 {{count}} 個文字區塊。",
+    "success_other": "已從所選區域建立 {{count}} 個文字區塊。"
+  },
+  "translation": {
+    "errors": {
+      "retranslatePageMissing": "找不到要重新翻譯的頁面。",
+      "pagesMissing": "找不到要翻譯的頁面。",
+      "jobFailedTitle": "翻譯工作失敗",
+      "jobFailed": "翻譯工作失敗。",
+      "startFailed": "無法開始翻譯工作。"
+    },
+    "refreshWarning": "翻譯已完成，但無法重新整理資料庫。",
+    "flow": {
+      "firstPass": "第一輪",
+      "secondPass": "第二輪",
+      "chapterProgress": "{{pass}}翻譯 {{current}}/{{total}}章",
+      "completed": "翻譯已完成。",
+      "contextAnalysis": "正在分析 AI 術語／記憶",
+      "contextSkipped": "第一輪翻譯完成（已略過 AI 分析）",
+      "contextFailed": "AI 術語／記憶分析失敗，僅保留第一輪翻譯結果。",
+      "secondPassCompleted": "第二輪翻譯已完成。"
+    }
+  },
+  "settings": {
+    "loadFailed": "無法載入設定。",
+    "saved": "設定已儲存，將從下次翻譯工作起生效。",
+    "saveFailed": "無法儲存設定。",
+    "reset": "設定已恢復為預設值，將從下次翻譯工作起生效。",
+    "resetFailed": "無法還原預設設定。"
+  },
+  "import": {
+    "sourceReadFailed": "無法讀取要翻譯的來源檔案。",
+    "added": "已將 {{count}} 個章節加入資料庫。",
+    "added_one": "已將 {{count}} 個章節加入資料庫。",
+    "added_other": "已將 {{count}} 個章節加入資料庫。",
+    "applyFailed": "無法套用匯入內容。"
+  },
+  "share": {
+    "exportSuccess": "已儲存「{{title}}」的共享檔案：{{chapters}}章，{{pages}}頁",
+    "exportFailed": "無法儲存共享檔案。",
+    "readFailed": "無法讀取共享檔案。",
+    "remainingChaptersTitle": "有些章節不會被匯入",
+    "remainingChaptersMessage": "右側剩餘的共享章節不會被套用。",
+    "deleteExistingTitle": "刪除現有章節",
+    "deleteExistingMessage": "未出現在左側最終清單中的現有章節將從資料庫中刪除。",
+    "importApplied": "已將 {{count}} 個章節套用到資料庫。",
+    "importApplied_one": "已將 {{count}} 個章節套用到資料庫。",
+    "importApplied_other": "已將 {{count}} 個章節套用到資料庫。",
+    "importFailed": "無法匯入共享檔案。"
+  },
+  "blockCreate": {
+    "tooSmall": "文字區塊區域太小。",
+    "added": "已新增文字區塊。"
+  },
+  "gatherText": {
+    "import": {
+      "noText": "匯入的檔案中沒有文字。",
+      "missingHeaders": "缺少頁面標題（# n쪽），無法判斷文字所屬頁面。請使用包含標題儲存的 TXT 檔案。",
+      "pageNumber": "第{{number}}頁",
+      "headerlessSection": "無標題區段",
+      "pageMissing": "{{page}}：找不到對應頁面，已略過。",
+      "blockMismatch": "第{{page}}頁：文字行結構與 {{count}} 個翻譯文字區塊不相符，已略過。",
+      "blockMismatch_one": "第{{page}}頁：文字行結構與 {{count}} 個翻譯文字區塊不相符，已略過。",
+      "blockMismatch_other": "第{{page}}頁：文字行結構與 {{count}} 個翻譯文字區塊不相符，已略過。"
+    }
+  }
+}

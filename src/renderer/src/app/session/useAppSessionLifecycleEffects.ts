@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import type { Dispatch, SetStateAction } from "react";
 import type { ChapterSnapshot } from "../../../../shared/libraryTypes";
 import type { JobState } from "../../../../shared/jobTypes";
 import type { RegionSelectionState } from "../../lib/appHelpers";
 import { toast } from "../../lib/toastStore";
+import { formatJobLabel } from "../../lib/jobProgress";
 
 type UseAppSessionLifecycleEffectsArgs = {
   currentChapter: ChapterSnapshot | null;
@@ -26,6 +28,7 @@ export function useAppSessionLifecycleEffects({
   setRegionSelection,
   translationFlowActive,
 }: UseAppSessionLifecycleEffectsArgs): void {
+  const { t } = useTranslation("renderer");
   const prevJobStatusRef = useRef<JobState["status"]>("idle");
 
   useEffect(() => {
@@ -51,19 +54,22 @@ export function useAppSessionLifecycleEffects({
     prevJobStatusRef.current = next;
     if (next === "completed") {
       if (!translationFlowActive) {
-        toast.success(jobState.progressText || "작업이 완료되었습니다.");
+        toast.success(
+          formatJobLabel(jobState, t) || t("job.notifications.completed"),
+        );
       }
     } else if (next === "failed") {
-      toast.error(jobState.progressText || "작업에 실패했습니다.", {
-        action: { label: "로그 폴더 열기", onClick: openLogFolder },
-      });
+      toast.error(
+        formatJobLabel(jobState, t) || t("job.notifications.failed"),
+        {
+          action: {
+            label: t("job.notifications.openLogs"),
+            onClick: openLogFolder,
+          },
+        },
+      );
     } else if (next === "cancelled") {
-      toast.info("작업이 취소되었습니다.");
+      toast.info(t("job.notifications.cancelled"));
     }
-  }, [
-    jobState.status,
-    jobState.progressText,
-    openLogFolder,
-    translationFlowActive,
-  ]);
+  }, [jobState, openLogFolder, translationFlowActive, t]);
 }

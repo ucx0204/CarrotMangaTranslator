@@ -44,9 +44,11 @@
     "@radix-ui/react-progress": "^1.1.8",
     "@types/yauzl": "^3.4.0",
     "adm-zip": "^0.5.17",
+    "i18next": "^26.3.6",
     "openai-oauth": "^1.0.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-i18next": "^17.0.9",
     "yauzl": "^3.4.0",
     "zod": "^3.25.76"
   },

@@ -28,6 +28,7 @@ import {
 } from "../library";
 import { createLibraryImageUrl } from "../imageProtocol";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 export function registerLibraryIpc(context: IpcContext): void {
@@ -60,7 +61,7 @@ function registerLibraryReadIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         OpenChapterRequestSchema,
         { chapterId },
-        "화 열기",
+        tMain("ipc.labels.chapterOpen"),
       );
       return openChapter(request.chapterId);
     },
@@ -72,7 +73,7 @@ function registerLibraryReadIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         ImageDataUrlRequestSchema,
         { imagePath },
-        "페이지 이미지 열기",
+        tMain("ipc.labels.pageImageOpen"),
       );
       return createLibraryImageUrl(request.imagePath);
     },
@@ -82,7 +83,11 @@ function registerLibraryReadIpc(context: IpcContext): void {
     libraryIpcContracts.savePageBlocks,
     async (_event, raw: unknown) =>
       savePageBlocks(
-        parseIpcPayload(SavePageBlocksRequestSchema, raw, "페이지 블록 저장"),
+        parseIpcPayload(
+          SavePageBlocksRequestSchema,
+          raw,
+          tMain("ipc.labels.pageBlocksSave"),
+        ),
       ),
   );
 }
@@ -95,7 +100,7 @@ function registerLibraryRenameIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         RenameWorkRequestSchema,
         { workId, title },
-        "작품 이름 변경",
+        tMain("ipc.labels.workRename"),
       );
       return renameWork(request.workId, request.title);
     },
@@ -107,7 +112,7 @@ function registerLibraryRenameIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         RenameChapterRequestSchema,
         { chapterId, title },
-        "화 이름 변경",
+        tMain("ipc.labels.chapterRename"),
       );
       return renameChapter(request.chapterId, request.title);
     },
@@ -122,7 +127,7 @@ function registerLibraryDeleteIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         DeleteWorkRequestSchema,
         { workId },
-        "작품 삭제",
+        tMain("ipc.labels.workDelete"),
       );
       return deleteWork(request.workId);
     },
@@ -134,7 +139,7 @@ function registerLibraryDeleteIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         DeleteChapterRequestSchema,
         { chapterId },
-        "화 삭제",
+        tMain("ipc.labels.chapterDelete"),
       );
       return deleteChapter(request.chapterId);
     },
@@ -146,7 +151,7 @@ function registerLibraryDeleteIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         DeletePageRequestSchema,
         { chapterId, pageId },
-        "페이지 삭제",
+        tMain("ipc.labels.pageDelete"),
       );
       return deletePage(request.chapterId, request.pageId);
     },
@@ -161,7 +166,7 @@ function registerLibraryReorderIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         ReorderChaptersRequestSchema,
         { workId, chapterIds },
-        "화 순서 변경",
+        tMain("ipc.labels.chapterReorder"),
       );
       return reorderChapters(request.workId, request.chapterIds);
     },
@@ -173,7 +178,7 @@ function registerLibraryReorderIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         ReorderPagesRequestSchema,
         { chapterId, pageIds },
-        "페이지 순서 변경",
+        tMain("ipc.labels.pageReorder"),
       );
       return reorderPages(request.chapterId, request.pageIds);
     },

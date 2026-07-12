@@ -30,6 +30,7 @@ import {
   verifyPaddleOcrRuntime,
   type SendModelTestProgress,
 } from "./settingsModelTestProgress";
+import { tMain } from "./localization";
 
 const MAX_MODEL_TEST_ID_LENGTH = 200;
 const SAFE_MODEL_TEST_ID_PATTERN = /^(?=.*[A-Za-z0-9_-])[A-Za-z0-9._-]+$/;
@@ -57,7 +58,7 @@ export async function handleModelSettingsTest(
   const settings = parseIpcPayload(
     AppSettingsSchema,
     rawSettings,
-    "모델/런타임 확인",
+    tMain("settings.modelTestLabel"),
   );
   if (context.jobs.hasActive) {
     return buildBusyModelTestResult(settings);
@@ -76,7 +77,7 @@ export async function handleModelSettingsTest(
 function buildBusyModelTestResult(settings: AppSettings): ModelTestResult {
   return {
     ok: false,
-    message: "번역 작업 중에는 모델/런타임 확인을 실행할 수 없습니다.",
+    message: tMain("settings.modelTestBusy"),
     launchMode: resolveSettingsLaunchMode(settings),
   };
 }
@@ -153,8 +154,8 @@ function withModelTestProgress(
 function sendModelTestBootProgress(sendProgress: SendModelTestProgress): void {
   sendProgress({
     phase: "booting",
-    progressText: "모델/런타임 확인 준비 중",
-    installLogLine: "Paddle OCR과 번역 엔진 확인을 시작합니다.",
+    progressText: tMain("modelTest.preparing"),
+    installLogLine: tMain("modelTest.startLog"),
   });
 }
 
@@ -166,20 +167,24 @@ async function finishModelRuntimeTest(
 ): Promise<ModelTestResult> {
   sendProgress({
     phase: "ready",
-    progressText: "런타임 서버 준비 완료",
+    progressText: tMain("modelTest.serverReady"),
     detail: server.baseUrl,
-    installLogLine: `서버가 준비되었습니다: ${server.baseUrl}`,
+    installLogLine: tMain("modelTest.serverReadyLog", {
+      endpoint: server.baseUrl,
+    }),
   });
   const result = await runtime.testModelReply(server, options);
   sendProgress({
     phase: "done",
-    progressText: "모델/런타임 확인 완료",
+    progressText: tMain("modelTest.completed"),
     detail: result.outputText,
-    installLogLine: `응답 확인 완료: ${result.outputText}`,
+    installLogLine: tMain("modelTest.responseLog", {
+      output: result.outputText,
+    }),
   });
   return {
     ok: true,
-    message: `Paddle OCR과 번역 엔진 확인 완료: ${result.outputText}`,
+    message: tMain("settings.modelTestComplete", { output: result.outputText }),
     launchMode: resolveModelTestLaunchMode(
       options,
       result.launchTarget.launchMode,
@@ -217,19 +222,21 @@ function handleModelTestFailure(
   sendProgress: SendModelTestProgress,
   testId: string,
 ): ModelTestResult {
+  const technicalError = formatModelTestError(error);
+  const failureMessage = tMain("modelTest.failedDetail");
   logError("Settings model/runtime check failed", {
     testId,
-    error: formatModelTestError(error),
+    error: technicalError,
   });
   sendProgress({
     phase: "failed",
-    progressText: "모델/런타임 확인 실패",
-    detail: formatModelTestError(error),
-    installLogLine: "모델/런타임 확인이 실패했습니다.",
+    progressText: tMain("modelTest.failed"),
+    detail: failureMessage,
+    installLogLine: tMain("modelTest.failedLog"),
   });
   return {
     ok: false,
-    message: formatModelTestError(error),
+    message: failureMessage,
     launchMode: resolveSettingsLaunchMode(settings),
   };
 }
@@ -277,7 +284,7 @@ async function reserveFreePort(): Promise<number> {
       const address = server.address();
       if (!address || typeof address === "string") {
         server.close();
-        reject(new Error("모델 테스트용 포트를 확보하지 못했습니다."));
+        reject(new Error(tMain("modelTest.portUnavailable")));
         return;
       }
       const port = address.port;
@@ -323,14 +330,14 @@ async function startModelTestServerWithRetry(
       options = { ...options, port: nextPort, codexOauthPort: nextPort };
       sendProgress({
         phase: "booting",
-        progressText: "모델/런타임 확인 포트 재시도 중",
-        detail: `이전 포트가 이미 사용 중이라 ${nextPort}번 포트로 다시 시작합니다.`,
-        installLogLine: `모델 테스트 포트 충돌을 감지해 ${nextPort}번 포트로 재시도합니다.`,
+        progressText: tMain("modelTest.portRetry"),
+        detail: tMain("modelTest.portRetryDetail", { port: nextPort }),
+        installLogLine: tMain("modelTest.portRetryLog", { port: nextPort }),
       });
     }
   }
 
-  throw new Error("모델 테스트용 포트를 확보하지 못했습니다.");
+  throw new Error(tMain("modelTest.portUnavailable"));
 }
 
 function isPortBindError(error: unknown): boolean {

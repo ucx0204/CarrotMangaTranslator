@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import { BlockSpacingFields } from "./BlockSpacingFields";
@@ -45,20 +46,21 @@ export function FormatEditorGroup({
   onFontFamilyDraftChange: (fontFamily?: string) => void;
   selectedBlockCount: number;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const [applyOpen, setApplyOpen] = React.useState(false);
   return (
     <div className="editor-group">
       <div className="editor-group-head">
-        <h3>서식</h3>
+        <h3>{t("format.title")}</h3>
         {onApplyFormat ? (
           <Button
             size="sm"
             variant="ghost"
             disabled={disabled}
             onClick={() => setApplyOpen(true)}
-            title="이 블록의 서식을 다른 블록에 일괄 적용"
+            title={t("format.batchApplyTitle")}
           >
-            일괄 적용
+            {t("format.batchApply")}
           </Button>
         ) : null}
       </div>
@@ -132,11 +134,12 @@ function TextEmphasisButtons({
   disabled,
   onUpdate,
 }: BlockSectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="block-style-group">
       <IconButton
-        label="굵게"
-        title="굵게"
+        label={t("format.bold")}
+        title={t("format.bold")}
         aria-pressed={Boolean(block.bold)}
         disabled={disabled}
         onClick={() => onUpdate({ bold: !block.bold })}
@@ -144,8 +147,8 @@ function TextEmphasisButtons({
         <BoldIcon size={18} />
       </IconButton>
       <IconButton
-        label="기울임꼴"
-        title="기울임꼴"
+        label={t("format.italic")}
+        title={t("format.italic")}
         aria-pressed={Boolean(block.italic)}
         disabled={disabled}
         onClick={() => onUpdate({ italic: !block.italic })}
@@ -161,11 +164,12 @@ function TextAlignButtons({
   disabled,
   onUpdate,
 }: BlockSectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="block-style-group">
       <IconButton
-        label="왼쪽 정렬"
-        title="왼쪽 정렬"
+        label={t("format.align.left")}
+        title={t("format.align.left")}
         aria-pressed={block.textAlign === "left"}
         disabled={disabled}
         onClick={() => onUpdate({ textAlign: "left" })}
@@ -173,8 +177,8 @@ function TextAlignButtons({
         <AlignLeftIcon size={18} />
       </IconButton>
       <IconButton
-        label="가운데 정렬"
-        title="가운데 정렬"
+        label={t("format.align.center")}
+        title={t("format.align.center")}
         aria-pressed={block.textAlign === "center"}
         disabled={disabled}
         onClick={() => onUpdate({ textAlign: "center" })}
@@ -182,8 +186,8 @@ function TextAlignButtons({
         <AlignCenterIcon size={18} />
       </IconButton>
       <IconButton
-        label="오른쪽 정렬"
-        title="오른쪽 정렬"
+        label={t("format.align.right")}
+        title={t("format.align.right")}
         aria-pressed={block.textAlign === "right"}
         disabled={disabled}
         onClick={() => onUpdate({ textAlign: "right" })}
@@ -203,6 +207,7 @@ function DirectionToggle({
   onUpdate: BlockPatchHandler;
   renderDirection: EditorPanelModel["renderDirection"];
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="dir-toggle">
       <button
@@ -211,7 +216,7 @@ function DirectionToggle({
         disabled={disabled}
         onClick={() => onUpdate({ renderDirection: "horizontal" })}
       >
-        가로
+        {t("format.direction.horizontal")}
       </button>
       <button
         type="button"
@@ -219,7 +224,7 @@ function DirectionToggle({
         disabled={disabled}
         onClick={() => onUpdate({ renderDirection: "vertical" })}
       >
-        세로
+        {t("format.direction.vertical")}
       </button>
     </div>
   );
@@ -261,13 +266,14 @@ function FontSizeRow({
   fontSizePx: number;
   onUpdate: BlockPatchHandler;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const updateFontSize = (value: number) =>
     onUpdate({ fontSizePx: clampFontSize(value), autoFitText: false });
   return (
     <div className="font-size-row">
-      <span className="font-size-label">크기</span>
+      <span className="font-size-label">{t("format.size")}</span>
       <RangeInput
-        aria-label="글자 크기"
+        aria-label={t("format.fontSize")}
         min={10}
         max={160}
         step={1}
@@ -278,7 +284,7 @@ function FontSizeRow({
       <input
         className="font-size-number"
         type="number"
-        aria-label="글자 크기 값"
+        aria-label={t("format.fontSizeValue")}
         min={10}
         max={160}
         step={1}
@@ -286,14 +292,14 @@ function FontSizeRow({
         disabled={disabled || autoFitText}
         onChange={(event) => updateFontSize(Number(event.target.value))}
       />
-      <label className="inline-toggle" title="텍스트 상자에 맞춰 자동 크기">
+      <label className="inline-toggle" title={t("format.autoFitTitle")}>
         <input
           type="checkbox"
           checked={autoFitText}
           disabled={disabled}
           onChange={(event) => onUpdate({ autoFitText: event.target.checked })}
         />
-        자동
+        {t("format.auto")}
       </label>
     </div>
   );
@@ -304,10 +310,11 @@ function BlockTransformSliders({
   disabled,
   onUpdate,
 }: BlockSectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <FieldSlider
-        label="기울기"
+        label={t("format.rotation")}
         valueLabel={`${block.rotationDeg ?? 0}°`}
         min={-30}
         max={30}
@@ -319,7 +326,7 @@ function BlockTransformSliders({
         }
       />
       <FieldSlider
-        label="투명도"
+        label={t("format.opacity")}
         valueLabel={`${Math.round(block.opacity * 100)}%`}
         min={0.1}
         max={1}

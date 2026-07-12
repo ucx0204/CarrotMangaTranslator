@@ -1,4 +1,6 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { formatErrorMessage, reorderByTarget } from "../lib/appHelpers";
 import { libraryGateway } from "./libraryGateway";
 import type {
@@ -28,12 +30,14 @@ type PersistPageOrderAfterOptimisticReorderOptions = Omit<
   currentChapter: ChapterSnapshot;
   nextOrder: string[];
   previousOrder: string[];
+  t: TFunction<"renderer">;
 };
 
 async function saveDirtyPagesBeforePersistingPageOrder(
   dirty: boolean,
   saveNow: () => Promise<void>,
   pushStatus: (line: string) => void,
+  t: TFunction<"renderer">,
 ): Promise<boolean> {
   try {
     if (dirty) {
@@ -43,10 +47,7 @@ async function saveDirtyPagesBeforePersistingPageOrder(
   } catch (error) {
     console.error(error);
     pushStatus(
-      formatErrorMessage(
-        error,
-        "현재 수정사항을 저장하지 못해 페이지 순서를 저장하지 않았습니다.",
-      ),
+      formatErrorMessage(error, t("library.order.saveBeforePageOrderFailed")),
     );
     return false;
   }
@@ -93,12 +94,11 @@ function rollbackPageOrderIfStillOptimistic(
 function refreshLibraryAfterPageReorder(
   refreshLibrary: () => Promise<void>,
   pushStatus: (line: string) => void,
+  t: TFunction<"renderer">,
 ): void {
   void refreshLibrary().catch((error) => {
     console.error(error);
-    pushStatus(
-      formatErrorMessage(error, "보관함 목록을 새로고침하지 못했습니다."),
-    );
+    pushStatus(formatErrorMessage(error, t("library.refreshFailed")));
   });
 }
 
@@ -115,6 +115,7 @@ export function useReorderPagesAction({
   sourcePageId: string,
   targetPageId: string,
 ) => void {
+  const { t } = useTranslation("renderer");
   return useCallback(
     (sourcePageId, targetPageId) => {
       if (!currentChapter) {
@@ -149,6 +150,7 @@ export function useReorderPagesAction({
         refreshLibrary,
         saveNow,
         setCurrentChapter,
+        t,
       });
     },
     [
@@ -160,6 +162,7 @@ export function useReorderPagesAction({
       refreshLibrary,
       saveNow,
       setCurrentChapter,
+      t,
     ],
   );
 }
@@ -175,12 +178,14 @@ async function persistPageOrderAfterOptimisticReorder({
   refreshLibrary,
   saveNow,
   setCurrentChapter,
+  t,
 }: PersistPageOrderAfterOptimisticReorderOptions): Promise<void> {
   try {
     const canPersist = await saveDirtyPagesBeforePersistingPageOrder(
       dirty,
       saveNow,
       pushStatus,
+      t,
     );
     if (!canPersist) {
       rollbackOptimisticPageOrder({
@@ -190,7 +195,7 @@ async function persistPageOrderAfterOptimisticReorder({
         previousOrder,
         setCurrentChapter,
       });
-      pushStatus("페이지 순서를 이전 순서로 되돌렸습니다.");
+      pushStatus(t("library.order.pageRolledBack"));
       return;
     }
 
@@ -199,7 +204,7 @@ async function persistPageOrderAfterOptimisticReorder({
       nextOrder,
     );
     applyChapter(chapter);
-    refreshLibraryAfterPageReorder(refreshLibrary, pushStatus);
+    refreshLibraryAfterPageReorder(refreshLibrary, pushStatus, t);
   } catch (error) {
     console.error(error);
     rollbackOptimisticPageOrder({
@@ -211,9 +216,9 @@ async function persistPageOrderAfterOptimisticReorder({
     });
     const message = formatErrorMessage(
       error,
-      "페이지 순서를 저장하지 못했습니다.",
+      t("library.order.pageSaveFailed"),
     );
-    pushStatus(`${message} 이전 순서로 되돌렸습니다.`);
+    pushStatus(t("library.order.rolledBackAfterError", { message }));
   }
 }
 

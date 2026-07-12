@@ -3,6 +3,7 @@ import type { ModelTestProgressEvent } from "../../shared/jobTypes";
 import type { TranslationOptions } from "../appSettings";
 import { logInfo } from "../logger";
 import type { SimplePageRuntime } from "../simplePageRuntime";
+import { tMain } from "./localization";
 
 export type SendModelTestProgress = (
   progress: Omit<ModelTestProgressEvent, "id">,
@@ -36,19 +37,18 @@ export function sendEnginePreparationProgress(
   if (options.modelProvider === "openai-codex") {
     sendProgress({
       phase: "booting",
-      progressText: "OpenAI Codex 런타임 엔드포인트 준비 중",
+      progressText: tMain("modelTest.codexPreparing"),
       detail: `${options.codexModel}, port ${options.codexOauthPort}`,
-      installLogLine: "openai-oauth 엔드포인트를 시작합니다.",
+      installLogLine: tMain("modelTest.codexPreparingLog"),
     });
     return;
   }
   if (options.modelProvider === "openai-api") {
     sendProgress({
       phase: "booting",
-      progressText: "API 엔드포인트 확인 중",
+      progressText: tMain("modelTest.apiPreparing"),
       detail: `${options.apiModel} @ ${options.apiBaseUrl}`,
-      installLogLine:
-        "OpenAI 호환 API 엔드포인트로 직접 테스트 요청을 보냅니다.",
+      installLogLine: tMain("modelTest.apiPreparingLog"),
     });
     return;
   }
@@ -63,18 +63,17 @@ export async function verifyPaddleOcrRuntime(
 ): Promise<void> {
   sendProgress({
     phase: "ocr_preparing",
-    progressText: "Paddle OCR 설치/작동 확인 중",
+    progressText: tMain("modelTest.ocrChecking"),
     progressMode: "indeterminate",
-    installLogLine: "Paddle OCR 런타임과 OCR 모델 파일을 확인합니다.",
+    installLogLine: tMain("modelTest.ocrCheckingLog"),
   });
 
   if (!runtime.ensurePaddleOcrRuntime) {
     sendProgress({
       phase: "ocr_preparing",
-      progressText: "Paddle OCR 확인 건너뜀",
-      detail: "현재 런타임이 OCR 사전 확인 API를 제공하지 않습니다.",
-      installLogLine:
-        "Paddle OCR 사전 확인 API가 없어 번역 엔진 확인만 진행합니다.",
+      progressText: tMain("modelTest.ocrSkipped"),
+      detail: tMain("modelTest.ocrSkippedDetail"),
+      installLogLine: tMain("modelTest.ocrSkippedLog"),
     });
     return;
   }
@@ -85,11 +84,11 @@ export async function verifyPaddleOcrRuntime(
     .join(" · ");
   sendProgress({
     phase: "ocr_preparing",
-    progressText: "Paddle OCR 확인 완료",
+    progressText: tMain("modelTest.ocrDone"),
     ...(detail ? { detail } : {}),
     progressMode: "determinate",
     progressPercent: 1,
-    installLogLine: "Paddle OCR 런타임 확인이 끝났습니다.",
+    installLogLine: tMain("modelTest.ocrDoneLog"),
   });
 }
 
@@ -117,28 +116,28 @@ function sendGemmaPreparationProgress(
 ): void {
   sendProgress({
     phase: "booting",
-    progressText: "Gemma 실행 런타임 준비 중",
+    progressText: tMain("modelTest.gemmaPreparing"),
     detail:
       options.modelSource === "local"
         ? options.localModelPath
         : `${options.modelRepo} / ${options.modelFile}`,
     progressMode: "indeterminate",
-    installLogLine: "Gemma 실행 런타임과 모델 자산을 확인합니다.",
+    installLogLine: tMain("modelTest.gemmaPreparingLog"),
   });
   if (runtime.isModelCached(options)) {
     sendProgress({
       phase: "booting",
-      progressText: "캐시된 Gemma 모델 확인됨",
+      progressText: tMain("modelTest.gemmaCached"),
       detail: options.modelFile,
-      installLogLine: "캐시된 모델 파일을 사용합니다.",
+      installLogLine: tMain("modelTest.gemmaCachedLog"),
     });
     return;
   }
   sendProgress({
     phase: "model_downloading",
-    progressText: "Gemma 모델 다운로드/런타임 준비 중",
+    progressText: tMain("modelTest.gemmaDownloading"),
     detail: `${options.modelRepo} / ${options.modelFile}`,
     progressMode: "log-only",
-    installLogLine: "캐시된 모델이 없어서 다운로드 또는 갱신을 시작합니다.",
+    installLogLine: tMain("modelTest.gemmaDownloadingLog"),
   });
 }

@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { mangaGateway } from "../api/mangaGateway";
 import type {
@@ -169,6 +170,7 @@ function useApplyRetouchPointsAction({
   refs: InpaintingRetouchRefs;
   state: InpaintingRetouchState;
 }): RetouchActions["applyRetouchPoints"] {
+  const { t } = useTranslation("renderer");
   const { currentChapter, jobActive, selectedPage } = options;
   return useCallback(
     async (tool: RetouchApplyTool, points: RetouchPoint[]) => {
@@ -205,12 +207,12 @@ function useApplyRetouchPointsAction({
         });
       } catch (error) {
         console.error(error);
-        options.pushStatus("리터치 적용에 실패했습니다.");
+        options.pushStatus(t("inpainting.retouch.applyFailed"));
       } finally {
         setRetouchBusyState(refs, state.setRetouchBusy, false);
       }
     },
-    [currentChapter, jobActive, options, refs, selectedPage, state],
+    [currentChapter, jobActive, options, refs, selectedPage, state, t],
   );
 }
 
@@ -225,8 +227,9 @@ function useUndoRetouchAction({
   saveChapterWithInpaintPath: SaveChapterWithInpaintPath;
   state: InpaintingRetouchState;
 }): RetouchActions["undoRetouch"] {
+  const { t } = useTranslation("renderer");
   return useRetouchHistoryReplayAction({
-    failureMessage: "리터치 되돌리기에 실패했습니다.",
+    failureMessage: t("inpainting.retouch.undoFailed"),
     jobActive: options.jobActive,
     refs,
     resolvePath: (entry) => entry.beforePath,
@@ -235,7 +238,7 @@ function useUndoRetouchAction({
     setSourceStack: state.setRetouchUndoStack,
     setTargetStack: state.setRetouchRedoStack,
     sourceRef: refs.retouchUndoStackRef,
-    successMessage: "리터치를 되돌렸습니다.",
+    successMessage: t("inpainting.retouch.undoSuccess"),
     pushStatus: options.pushStatus,
   });
 }
@@ -251,8 +254,9 @@ function useRedoRetouchAction({
   saveChapterWithInpaintPath: SaveChapterWithInpaintPath;
   state: InpaintingRetouchState;
 }): RetouchActions["redoRetouch"] {
+  const { t } = useTranslation("renderer");
   return useRetouchHistoryReplayAction({
-    failureMessage: "리터치 다시 적용에 실패했습니다.",
+    failureMessage: t("inpainting.retouch.redoFailed"),
     jobActive: options.jobActive,
     refs,
     resolvePath: (entry) => entry.afterPath,
@@ -261,7 +265,7 @@ function useRedoRetouchAction({
     setSourceStack: state.setRetouchRedoStack,
     setTargetStack: state.setRetouchUndoStack,
     sourceRef: refs.retouchRedoStackRef,
-    successMessage: "리터치를 다시 적용했습니다.",
+    successMessage: t("inpainting.retouch.redoSuccess"),
     pushStatus: options.pushStatus,
   });
 }

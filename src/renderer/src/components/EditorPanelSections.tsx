@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { ColorField } from "./ColorField";
 import { useStickyTextareaHeight } from "../hooks/useStickyTextareaHeight";
@@ -34,10 +35,11 @@ export function EmptyEditorPanel({
   headerActions?: React.ReactNode;
   onStartAreaTranslate?: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="editor-panel muted">
       <header className="editor-panel-header">
-        <h2>블록</h2>
+        <h2>{t("common.blocks")}</h2>
         {headerActions ? (
           <div className="editor-panel-header-actions">{headerActions}</div>
         ) : null}
@@ -47,7 +49,11 @@ export function EmptyEditorPanel({
         disabled={disabled || !areaTranslateAvailable}
         onClick={onStartAreaTranslate}
       >
-        {areaTranslateSelecting ? "선택 취소" : "영역 번역"}
+        {t(
+          areaTranslateSelecting
+            ? "areaTranslation.cancelSelection"
+            : "areaTranslation.title",
+        )}
       </button>
     </section>
   );
@@ -58,6 +64,7 @@ export function TextEditorGroup({
   disabled,
   onUpdate,
 }: BlockSectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const { refCallback: translatedTextareaRef, reset: resetTranslatedHeight } =
     useStickyTextareaHeight("editor.textareaHeight.translated");
   const { refCallback: sourceTextareaRef, reset: resetSourceHeight } =
@@ -87,7 +94,7 @@ export function TextEditorGroup({
   return (
     <div className="editor-group">
       <div className="editor-group-head">
-        <h3>텍스트</h3>
+        <h3>{t("editor.text")}</h3>
         <TextMarkupToolbar
           disabled={disabled}
           onWrap={drafts.wrapTranslatedSelection}
@@ -95,7 +102,7 @@ export function TextEditorGroup({
         />
       </div>
       <label>
-        번역문
+        {t("editor.translatedText")}
         <textarea
           ref={setTranslatedRef}
           value={drafts.translated}
@@ -104,8 +111,9 @@ export function TextEditorGroup({
         />
       </label>
       <p className="muted-line markup-hint">
-        일부 강조: <code>**굵게**</code>, <code>*기울임*</code> · 별표 문자는{" "}
-        <code>\*</code>
+        {t("editor.markupHint.emphasis")} <code>**{t("format.bold")}**</code>,{" "}
+        <code>*{t("format.italicShort")}*</code> ·{" "}
+        {t("editor.markupHint.escape")} <code>\*</code>
       </p>
       <label>
         OCR
@@ -203,12 +211,13 @@ function TextMarkupToolbar({
   onWrap: (marker: string) => void;
   onResetHeights: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="block-style-group">
       <IconButton
         size="sm"
-        label="굵게 (**굵게**)"
-        title="선택한 글자를 굵게 (**굵게**)"
+        label={t("editor.markupToolbar.boldLabel")}
+        title={t("editor.markupToolbar.boldTitle")}
         disabled={disabled}
         onClick={() => onWrap("**")}
       >
@@ -216,8 +225,8 @@ function TextMarkupToolbar({
       </IconButton>
       <IconButton
         size="sm"
-        label="기울임 (*기울임*)"
-        title="선택한 글자를 기울임 (*기울임*)"
+        label={t("editor.markupToolbar.italicLabel")}
+        title={t("editor.markupToolbar.italicTitle")}
         disabled={disabled}
         onClick={() => onWrap("*")}
       >
@@ -225,8 +234,8 @@ function TextMarkupToolbar({
       </IconButton>
       <IconButton
         size="sm"
-        label="입력칸 높이 초기화"
-        title="입력칸 높이 초기화"
+        label={t("editor.markupToolbar.resetHeight")}
+        title={t("editor.markupToolbar.resetHeight")}
         onClick={onResetHeights}
       >
         <RestoreIcon size={14} />
@@ -243,27 +252,28 @@ export function ColorEditorGroup({
 }: BlockSectionProps & {
   model: EditorPanelModel;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="editor-group">
       <div className="editor-group-head">
-        <h3>색상</h3>
+        <h3>{t("format.color")}</h3>
       </div>
-      <div className="color-row" aria-label="블록 색상">
+      <div className="color-row" aria-label={t("editor.blockColors")}>
         <ColorField
-          label="글자색"
+          label={t("format.textColor")}
           value={resolveColor(block.textColor, "#111111")}
           disabled={disabled}
           onChange={(textColor) => onUpdate({ textColor })}
         />
         <ColorField
-          label="외곽선"
+          label={t("format.outline")}
           value={model.outlineColor}
           disabled={disabled}
           onChange={(outlineColor) => onUpdate({ outlineColor })}
         />
       </div>
       <FieldSlider
-        label="외곽선"
+        label={t("format.outline")}
         valueLabel={`${Math.round((block.outlineWidthScale ?? 1) * 100)}%`}
         min={0}
         max={2.5}
@@ -287,6 +297,7 @@ export function BlockActionButtons({
   onDelete: () => void;
   onDuplicate: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="block-actions">
       <Button
@@ -295,7 +306,7 @@ export function BlockActionButtons({
         onClick={onDuplicate}
         disabled={disabled}
       >
-        복제
+        {t("common.duplicate")}
       </Button>
       <Button
         variant="danger"
@@ -304,7 +315,7 @@ export function BlockActionButtons({
         onClick={onDelete}
         disabled={disabled}
       >
-        삭제
+        {t("common.delete")}
       </Button>
     </div>
   );

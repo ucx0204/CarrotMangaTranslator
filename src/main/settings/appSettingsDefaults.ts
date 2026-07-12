@@ -50,6 +50,7 @@ import {
   type HardwareDefaults,
 } from "./hardwareDefaults";
 import { resolveLlamaRuntimeProfile } from "./llamaRuntimeProfile";
+import { DEFAULT_UI_LOCALE, normalizeUiLocale } from "../../shared/uiLocales";
 
 export { resolveHardwareDefaults } from "./hardwareDefaults";
 
@@ -68,7 +69,7 @@ export function resolveDefaultAppSettings(
     codex: resolveDefaultCodexSettings(env),
     api: resolveDefaultApiSettings(env),
     ocr: resolveDefaultOcrSettings(env, hardwareDefaults),
-    ui: resolveDefaultUiSettings(),
+    ui: resolveDefaultUiSettings(env),
     inpainting: resolveDefaultInpaintingSettings(env, hardwareDefaults),
     blockFormatDefaults: { ...DEFAULT_BLOCK_FORMAT_DEFAULTS },
     keybindings: {},
@@ -220,8 +221,14 @@ function resolveDefaultOcrSettings(
   };
 }
 
-function resolveDefaultUiSettings(): NonNullable<AppSettings["ui"]> {
+function resolveDefaultUiSettings(
+  env: NodeJS.ProcessEnv,
+): NonNullable<AppSettings["ui"]> {
   return {
+    locale: normalizeUiLocale(
+      env.MANGA_TRANSLATOR_UI_LOCALE,
+      DEFAULT_UI_LOCALE,
+    ),
     inpaintingGuideHidden: false,
     twoPassByDefault: true,
     analysisScopeDefault: "missing",

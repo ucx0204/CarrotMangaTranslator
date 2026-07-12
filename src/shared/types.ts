@@ -37,6 +37,7 @@ export type {
   RuntimeGpuVendor,
   RuntimeHardwareInfo,
   TranslationLanguageSettings,
+  UiLocale,
   UiSettings,
 } from "./settingsTypes";
 export type {

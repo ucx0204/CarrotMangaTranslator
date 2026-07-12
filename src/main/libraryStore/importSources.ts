@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../../shared/archive";
+import { tMain } from "./localization";
 import { assertImportImageFileBudget } from "./importImages";
 import { isSupportedImagePath, sortNaturally } from "./storage";
 import {
@@ -71,7 +72,7 @@ export async function listNestedImageFolders(
         found.length >= MAX_NESTED_IMAGE_FOLDERS ||
         discoveredPages > MAX_NESTED_IMAGE_FOLDER_PAGES
       ) {
-        throw new Error("가져올 폴더 또는 이미지가 너무 많습니다.");
+        throw new Error(tMain("import.errors.tooManySources"));
       }
       found.push(currentPath);
     }
@@ -88,8 +89,9 @@ export async function listNestedImageFolders(
 export async function listImageEntriesInZip(
   zipPath: string,
 ): Promise<ZipEntryLike[]> {
-  const entries = await readZipEntries(zipPath, "ZIP 파일");
-  assertZipEntryBudget(entries, "ZIP 파일");
+  const zipLabel = tMain("import.zipFile");
+  const entries = await readZipEntries(zipPath, zipLabel);
+  assertZipEntryBudget(entries, zipLabel);
   const imageEntries = entries
     .filter(
       (entry) => !entry.isDirectory && isSupportedImagePath(entry.entryName),

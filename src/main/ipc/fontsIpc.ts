@@ -8,6 +8,7 @@ import {
 } from "../customFonts";
 import type { IpcContext } from "./context";
 import { trustedHandleContract } from "./trustedIpc";
+import { tMain } from "./localization";
 
 export function registerFontsIpc(context: IpcContext): void {
   trustedHandleContract(
@@ -21,9 +22,14 @@ export function registerFontsIpc(context: IpcContext): void {
     fontIpcContracts.registerCustomFont,
     async (): Promise<CustomFont | null> => {
       const options = {
-        title: "폰트 파일 등록 (TTF/OTF)",
+        title: tMain("dialogs.registerFont"),
         properties: ["openFile"],
-        filters: [{ name: "Font", extensions: ["ttf", "otf"] }],
+        filters: [
+          {
+            name: tMain("dialogs.filters.font"),
+            extensions: ["ttf", "otf"],
+          },
+        ],
       } satisfies Electron.OpenDialogOptions;
       const window = context.getMainWindow();
       const result = window

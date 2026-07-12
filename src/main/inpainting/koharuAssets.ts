@@ -6,6 +6,7 @@ import type {
   KoharuInpaintingBackend,
 } from "../../shared/inpaintingSettingsTypes";
 import { ensureFluxZludaSupportRuntime } from "./fluxAssets";
+import { tMain } from "./localization";
 import {
   createCombinedDownloadProgress,
   ensureFluxCudaRuntime,
@@ -55,7 +56,7 @@ export function resolveKoharuModelFiles(model: InpaintingModel): {
       files: [LAMA_MODEL_FILE],
     };
   }
-  throw new Error(`Koharu 모델이 아닙니다: ${model}`);
+  throw new Error(tMain("inpainting.errors.notKoharuModel", { model }));
 }
 
 export async function ensureKoharuModelAssets(options: {
@@ -83,7 +84,7 @@ export async function ensureKoharuModelAssets(options: {
   const [configFile, weightsFile] = modelFiles.files;
   const download = createCombinedDownloadProgress(
     options.onProgress,
-    "AOT 인페인팅",
+    tMain("inpainting.assets.aot"),
   );
   const [configPath, weightsPath] = await Promise.all([
     ensureRemoteFile({
@@ -163,10 +164,13 @@ export async function ensureKoharuWorkerLaunch(options: {
   }
 
   options.onProgress?.({
-    progressText: "Koharu 인페인팅 준비 완료",
+    progressText: tMain("inpainting.runtime.koharuReady"),
     detail: `${options.model} / ${options.backend}`,
     progressMode: "log-only",
-    installLogLine: `Koharu ${options.model} 인페인팅 런타임을 사용합니다: ${basename(runtimePath)}`,
+    installLogLine: tMain("inpainting.runtime.koharuReadyLog", {
+      model: options.model,
+      file: basename(runtimePath),
+    }),
   });
   logInpaintingRuntimeInfo("Koharu runtime selected", {
     model: options.model,
@@ -199,7 +203,10 @@ async function ensureManagedKoharuRunner(options: {
   const sourcePath = resolveKoharuRunnerSource();
   if (!sourcePath) {
     throw new Error(
-      `${KOHARU_RUNTIME_EXECUTABLE}를 찾지 못했습니다. 개발 환경에서는 tools/${KOHARU_RUNNER_DIR}에서 cargo build --release를 실행하거나 MGT_KOHARU_INPAINT_EXE로 경로를 지정하세요.`,
+      tMain("inpainting.errors.koharuExecutableMissing", {
+        executable: KOHARU_RUNTIME_EXECUTABLE,
+        directory: KOHARU_RUNNER_DIR,
+      }),
     );
   }
 
@@ -208,10 +215,12 @@ async function ensureManagedKoharuRunner(options: {
   await mkdir(managedDir, { recursive: true });
   await copyFile(sourcePath, managedPath);
   options.onProgress?.({
-    progressText: "Koharu 실행 파일 준비 중",
+    progressText: tMain("inpainting.runtime.koharuExecutablePreparing"),
     detail: basename(sourcePath),
     progressMode: "log-only",
-    installLogLine: `Koharu 실행 파일을 앱 데이터 캐시에 갱신했습니다: ${basename(dirname(sourcePath))}/${basename(sourcePath)}`,
+    installLogLine: tMain("inpainting.runtime.koharuExecutableLog", {
+      file: `${basename(dirname(sourcePath))}/${basename(sourcePath)}`,
+    }),
   });
   return managedPath;
 }

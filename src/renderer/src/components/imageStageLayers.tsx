@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { BBox } from "../../../shared/textTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { DragHud } from "../hooks/useWorkspacePointerHandlers";
@@ -15,6 +16,7 @@ export function StageImage({
   imageRef: React.RefObject<HTMLImageElement | null>;
   page: MangaPage;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return imageDataUrl ? (
     <img
       ref={imageRef}
@@ -28,7 +30,7 @@ export function StageImage({
       className="page-image-placeholder"
       style={{ aspectRatio: `${page.width} / ${page.height}` }}
     >
-      이미지 불러오는 중
+      {t("imageStage.loadingImage")}
     </div>
   );
 }

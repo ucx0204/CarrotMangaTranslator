@@ -1,12 +1,19 @@
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
+import { tMain } from "./localization";
 
 type EmitJobEvent = (event: JobEvent) => void;
 
 export type InpaintingProgressTarget = {
-  targetLabel: string;
+  targetType: "drawn" | "source";
   drawnPatternMode: boolean;
 };
+
+function resolveTargetLabel(
+  targetType: InpaintingProgressTarget["targetType"],
+): string {
+  return tMain(`inpainting.targets.${targetType}`);
+}
 
 export function emitInpaintingStarting(
   id: string,
@@ -15,16 +22,20 @@ export function emitInpaintingStarting(
   totalTargetBlocks: number,
   target: InpaintingProgressTarget,
 ): void {
+  const targetLabel = resolveTargetLabel(target.targetType);
   emit({
     id,
     kind: "inpainting",
     status: "starting",
-    progressText: `${target.targetLabel} 지우기 준비 중`,
+    progressText: tMain("inpainting.preparing", { target: targetLabel }),
     phase: "inpainting_preparing",
     progressCurrent: 0,
     progressTotal: pageCount,
     pageTotal: pageCount,
-    detail: `${pageCount}페이지, ${totalTargetBlocks}개 블록`,
+    detail: tMain("units.pagesAndBlocks", {
+      pages: pageCount,
+      blocks: totalTargetBlocks,
+    }),
   });
 }
 
@@ -39,17 +50,30 @@ export function emitInpaintingPageRunning(
     target: InpaintingProgressTarget;
   },
 ): void {
+  const targetLabel = resolveTargetLabel(detail.target.targetType);
   emit({
     id,
     kind: "inpainting",
     status: "running",
-    progressText: `${pageIndex + 1} / ${pageCount} 페이지 ${detail.target.targetLabel} 지우는 중`,
+    progressText: tMain("inpainting.pageRunning", {
+      current: pageIndex + 1,
+      total: pageCount,
+      target: targetLabel,
+    }),
     phase: "inpainting_running",
     progressCurrent: pageIndex + 1,
     progressTotal: pageCount,
     pageIndex: pageIndex + 1,
     pageTotal: pageCount,
-    detail: `${page.name} · ${detail.pageTargetCount}${detail.target.drawnPatternMode ? "개 그린 영역" : "개 블록"}`,
+    detail: detail.target.drawnPatternMode
+      ? tMain("inpainting.drawnDetail", {
+          page: page.name,
+          count: detail.pageTargetCount,
+        })
+      : tMain("inpainting.blockDetail", {
+          page: page.name,
+          count: detail.pageTargetCount,
+        }),
   });
 }
 
@@ -61,17 +85,22 @@ export function emitInpaintingPageDone(
   target: InpaintingProgressTarget,
   blocksErased: number,
 ): void {
+  const targetLabel = resolveTargetLabel(target.targetType);
   emit({
     id,
     kind: "inpainting",
     status: "running",
-    progressText: `${pageIndex + 1} / ${pageCount} 페이지 ${target.targetLabel} 완료`,
+    progressText: tMain("inpainting.pageDone", {
+      current: pageIndex + 1,
+      total: pageCount,
+      target: targetLabel,
+    }),
     phase: "inpainting_done",
     progressCurrent: pageIndex + 1,
     progressTotal: pageCount,
     pageIndex: pageIndex + 1,
     pageTotal: pageCount,
-    detail: `${blocksErased}개 블록`,
+    detail: tMain("units.blocks", { count: blocksErased }),
   });
 }
 
@@ -80,18 +109,22 @@ export function emitInpaintingCompleted(
   emit: EmitJobEvent,
   pageCount: number,
   blocksErased: number,
-  targetLabel: string,
+  targetType: InpaintingProgressTarget["targetType"],
 ): void {
+  const targetLabel = resolveTargetLabel(targetType);
   emit({
     id,
     kind: "inpainting",
     status: "completed",
-    progressText: `${targetLabel} 지우기 완료`,
+    progressText: tMain("inpainting.completed", { target: targetLabel }),
     phase: "done",
     progressCurrent: pageCount,
     progressTotal: pageCount,
     pageTotal: pageCount,
-    detail: `${pageCount}페이지, ${blocksErased}개 블록`,
+    detail: tMain("units.pagesAndBlocks", {
+      pages: pageCount,
+      blocks: blocksErased,
+    }),
   });
 }
 
@@ -104,7 +137,7 @@ export function emitInpaintingCancelled(
     id,
     kind: "inpainting",
     status: "cancelled",
-    progressText: "인페인팅 작업이 취소되었습니다.",
+    progressText: tMain("inpainting.cancelled"),
     phase: "cancelled",
     progressCurrent: lastEvent?.progressCurrent,
     progressTotal: lastEvent?.progressTotal,
@@ -123,7 +156,7 @@ export function emitInpaintingFailed(
     id,
     kind: "inpainting",
     status: "failed",
-    progressText: "인페인팅 작업 실패",
+    progressText: tMain("inpainting.failed"),
     phase: "failed",
     progressCurrent: lastEvent?.progressCurrent,
     progressTotal: lastEvent?.progressTotal,

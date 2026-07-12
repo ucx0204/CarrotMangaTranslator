@@ -1,23 +1,21 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type {
   ImportCreateSelection,
   ImportPreviewResult,
 } from "../../../shared/importTypes";
 import type { LibraryIndex } from "../../../shared/libraryTypes";
+import {
+  buildImportSubmitPayload,
+  isImportSubmittable,
+  type ImportModalSubmit,
+  type ImportTargetMode,
+  updateSelectionEnabled,
+  updateSelectionTitle,
+} from "./importModalHelpers";
 import { Button, Modal, TextField } from "./ui";
 
-export type ImportModalSubmit = {
-  target:
-    | {
-        mode: "new";
-        title: string;
-      }
-    | {
-        mode: "existing";
-        workId: string;
-      };
-  selections: ImportCreateSelection[];
-};
+export type { ImportModalSubmit } from "./importModalHelpers";
 
 type ImportModalProps = {
   library: LibraryIndex;
@@ -27,8 +25,6 @@ type ImportModalProps = {
   onSubmit: (payload: ImportModalSubmit) => void;
 };
 
-type ImportTargetMode = "new" | "existing";
-
 export function ImportModal({
   library,
   preview,
@@ -36,6 +32,7 @@ export function ImportModal({
   onCancel,
   onSubmit,
 }: ImportModalProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const [targetMode, setTargetMode] = React.useState<"new" | "existing">(
     library.works.length ? "new" : "new",
   );
@@ -53,8 +50,10 @@ export function ImportModal({
     })),
   );
 
-  const modalTitle = resolveImportModalTitle(preview.mode);
-  const submittable = isSubmittable(
+  const modalTitle = t(
+    preview.mode === "batch" ? "import.batchTitle" : "import.addToLibrary",
+  );
+  const submittable = isImportSubmittable(
     targetMode,
     newWorkTitle,
     existingWorkId,
@@ -119,17 +118,22 @@ function ImportModalFooter({
   previewMode: ImportPreviewResult["mode"];
   submittable: boolean;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <Button variant="ghost" onClick={onCancel} disabled={busy}>
-        취소
+        {t("common.cancel")}
       </Button>
       <Button
         variant="primary"
         disabled={busy || !submittable}
         onClick={onSubmit}
       >
-        {previewMode === "batch" ? "생성 후 번역 시작" : "보관함에 추가"}
+        {t(
+          previewMode === "batch"
+            ? "import.createAndTranslate"
+            : "import.addToLibrary",
+        )}
       </Button>
     </>
   );
@@ -154,27 +158,28 @@ function ImportTargetSection({
   setTargetMode: React.Dispatch<React.SetStateAction<ImportTargetMode>>;
   targetMode: ImportTargetMode;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="modal-section share-target-section">
       <div className="share-target-grid">
         <ImportTargetModeCard
           active={targetMode === "new"}
           disabled={busy}
-          label="새 작품 만들기"
+          label={t("import.createNewWork")}
           mode="new"
           onChange={setTargetMode}
         />
         <ImportTargetModeCard
           active={targetMode === "existing"}
           disabled={busy || library.works.length === 0}
-          label="기존 작품에 추가"
+          label={t("import.addToExistingWork")}
           mode="existing"
           onChange={setTargetMode}
         />
       </div>
       {targetMode === "new" ? (
         <TextField
-          label="작품 제목"
+          label={t("common.workTitle")}
           value={newWorkTitle}
           disabled={busy}
           onChange={(event) => setNewWorkTitle(event.target.value)}
@@ -229,9 +234,10 @@ function ImportExistingWorkSelect({
   library: LibraryIndex;
   setExistingWorkId: React.Dispatch<React.SetStateAction<string>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <label>
-      작품 선택
+      {t("import.selectWork")}
       <select
         value={existingWorkId}
         disabled={busy || library.works.length === 0}
@@ -258,9 +264,16 @@ function ImportDraftSection({
   selections: ImportCreateSelection[];
   setSelections: React.Dispatch<React.SetStateAction<ImportCreateSelection[]>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="modal-section">
-      <h3>{preview.mode === "batch" ? "생성할 화" : "화 제목"}</h3>
+      <h3>
+        {t(
+          preview.mode === "batch"
+            ? "import.chaptersToCreate"
+            : "import.chapterTitle",
+        )}
+      </h3>
       <div className="draft-list">
         {preview.chapters.map((chapter) => {
           const selection = selections.find(
@@ -295,6 +308,7 @@ function ImportDraftItem({
   selection: ImportCreateSelection;
   setSelections: React.Dispatch<React.SetStateAction<ImportCreateSelection[]>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="draft-item">
       {previewMode === "batch" ? (
@@ -305,7 +319,9 @@ function ImportDraftItem({
           setSelections={setSelections}
         />
       ) : (
-        <span className="draft-meta">{chapter.pages.length}페이지</span>
+        <span className="draft-meta">
+          {t("common.pageCount", { count: chapter.pages.length })}
+        </span>
       )}
       <input
         value={selection.title}
@@ -333,6 +349,7 @@ function ImportDraftBatchToggle({
   selection: ImportCreateSelection;
   setSelections: React.Dispatch<React.SetStateAction<ImportCreateSelection[]>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <label className="checkbox-row">
       <input
@@ -347,67 +364,7 @@ function ImportDraftBatchToggle({
           )
         }
       />
-      <span>{chapter.pages.length}페이지</span>
+      <span>{t("common.pageCount", { count: chapter.pages.length })}</span>
     </label>
-  );
-}
-
-function updateSelectionEnabled(
-  setSelections: React.Dispatch<React.SetStateAction<ImportCreateSelection[]>>,
-  draftId: string,
-  enabled: boolean,
-): void {
-  setSelections((current) =>
-    current.map((item) =>
-      item.draftId === draftId ? { ...item, enabled } : item,
-    ),
-  );
-}
-
-function updateSelectionTitle(
-  setSelections: React.Dispatch<React.SetStateAction<ImportCreateSelection[]>>,
-  draftId: string,
-  title: string,
-): void {
-  setSelections((current) =>
-    current.map((item) =>
-      item.draftId === draftId ? { ...item, title } : item,
-    ),
-  );
-}
-
-function buildImportSubmitPayload(
-  targetMode: ImportTargetMode,
-  newWorkTitle: string,
-  existingWorkId: string,
-  selections: ImportCreateSelection[],
-): ImportModalSubmit {
-  return {
-    target:
-      targetMode === "new"
-        ? { mode: "new", title: newWorkTitle }
-        : { mode: "existing", workId: existingWorkId },
-    selections,
-  };
-}
-
-function resolveImportModalTitle(mode: ImportPreviewResult["mode"]): string {
-  return mode === "batch" ? "작품 일괄 번역 준비" : "보관함에 추가";
-}
-
-function isSubmittable(
-  targetMode: ImportTargetMode,
-  newWorkTitle: string,
-  existingWorkId: string,
-  selections: ImportCreateSelection[],
-): boolean {
-  if (targetMode === "new" && !newWorkTitle.trim()) {
-    return false;
-  }
-  if (targetMode === "existing" && !existingWorkId) {
-    return false;
-  }
-  return selections.some(
-    (selection) => selection.enabled && selection.title.trim(),
   );
 }

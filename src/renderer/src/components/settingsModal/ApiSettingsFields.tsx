@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { ApiReasoningEffort } from "../../../../shared/settingsTypes";
 import { EyeIcon, EyeOffIcon, IconButton } from "../ui";
 import { API_REASONING_OPTIONS } from "../settingsOptions";
@@ -61,10 +62,11 @@ function ApiConnectionFields({
   showApiKey: boolean;
   setShowApiKey: React.Dispatch<React.SetStateAction<boolean>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <label>
-        API Base URL
+        {t("settings.api.baseUrl")}
         <input
           value={apiBaseUrl}
           disabled={controlsBusy}
@@ -79,7 +81,7 @@ function ApiConnectionFields({
         />
       </label>
       <label>
-        API 모델
+        {t("settings.api.model")}
         <input
           value={apiModel}
           disabled={controlsBusy}
@@ -94,7 +96,7 @@ function ApiConnectionFields({
         />
       </label>
       <label>
-        API 키
+        {t("settings.api.key")}
         <div className="settings-file-row">
           <input
             type={showApiKey ? "text" : "password"}
@@ -104,13 +106,15 @@ function ApiConnectionFields({
               clearTestState();
               setApiKey(event.target.value);
             }}
-            placeholder="로컬 서버는 비워둘 수 있습니다"
+            placeholder={t("settings.api.keyPlaceholder")}
             onKeyDown={(event) => {
               if (event.key === "Enter") submit();
             }}
           />
           <IconButton
-            label={showApiKey ? "API 키 숨기기" : "API 키 표시"}
+            label={
+              showApiKey ? t("settings.api.hideKey") : t("settings.api.showKey")
+            }
             aria-pressed={showApiKey}
             disabled={controlsBusy}
             onClick={() => setShowApiKey((value) => !value)}
@@ -126,11 +130,12 @@ function ApiConnectionFields({
 function ApiAdvancedRequestFields(
   props: ApiSettingsFieldsProps,
 ): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <details className="settings-advanced">
-      <summary>고급 API 요청 설정</summary>
+      <summary>{t("settings.api.advanced.title")}</summary>
       <p className="muted-line modal-note">
-        비워두면 서버 기본값을 사용합니다. 필요한 항목만 채우세요.
+        {t("settings.api.advanced.description")}
       </p>
       <ApiScalarAdvancedFields {...props} />
       <ApiJsonAdvancedFields {...props} />
@@ -150,10 +155,11 @@ function ApiScalarAdvancedFields({
   setApiTopK,
   setApiTopP,
 }: ApiSettingsFieldsProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="settings-advanced-grid">
       <label>
-        Temperature
+        {t("settings.api.advanced.temperature")}
         <input
           type="number"
           min={0}
@@ -168,7 +174,7 @@ function ApiScalarAdvancedFields({
         />
       </label>
       <label>
-        top_p
+        {t("settings.api.advanced.topP")}
         <input
           type="number"
           min={0}
@@ -183,7 +189,7 @@ function ApiScalarAdvancedFields({
         />
       </label>
       <label>
-        top_k
+        {t("settings.api.advanced.topK")}
         <input
           type="number"
           min={1}
@@ -219,9 +225,10 @@ function ApiReasoningEffortField({
   | "controlsBusy"
   | "setApiReasoningEffort"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <label>
-      reasoning_effort
+      {t("settings.api.advanced.reasoningEffort")}
       <select
         value={apiReasoningEffort}
         disabled={controlsBusy}
@@ -232,7 +239,7 @@ function ApiReasoningEffortField({
       >
         {API_REASONING_OPTIONS.map((option) => (
           <option key={option.id || "omit"} value={option.id}>
-            {option.label}
+            {t(option.labelKey)}
           </option>
         ))}
       </select>
@@ -248,10 +255,11 @@ function ApiJsonAdvancedFields({
   setApiCustomHeadersJson,
   setApiExtraBodyJson,
 }: ApiSettingsFieldsProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <label>
-        Extra request body JSON
+        {t("settings.api.advanced.extraBody")}
         <textarea
           className="settings-json-textarea"
           value={apiExtraBodyJson}
@@ -267,7 +275,7 @@ function ApiJsonAdvancedFields({
         />
       </label>
       <label>
-        Custom headers JSON
+        {t("settings.api.advanced.customHeaders")}
         <textarea
           className="settings-json-textarea"
           value={apiCustomHeadersJson}

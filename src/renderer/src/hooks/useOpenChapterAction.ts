@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { formatErrorMessage } from "../lib/appHelpers";
 import { libraryGateway } from "./libraryGateway";
 import type { UseLibraryActionsOptions } from "./libraryActionTypes";
@@ -27,6 +28,7 @@ export function useOpenChapterAction({
   setSelectedBlockId,
   setSelectedPageId,
 }: OpenChapterOptions): (chapterId: string) => Promise<void> {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async (chapterId) => {
       try {
@@ -42,7 +44,7 @@ export function useOpenChapterAction({
         setSelectedBlockId(null);
       } catch (error) {
         console.error(error);
-        pushStatus(formatErrorMessage(error, "화를 열지 못했습니다."));
+        pushStatus(formatErrorMessage(error, t("library.openChapterFailed")));
       }
     },
     [
@@ -55,6 +57,7 @@ export function useOpenChapterAction({
       setCurrentChapter,
       setSelectedBlockId,
       setSelectedPageId,
+      t,
     ],
   );
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   comboFromEvent,
   formatCombo,
@@ -8,7 +9,6 @@ import {
   effectiveCombo,
   resetBinding,
   SHORTCUT_ACTIONS,
-  SHORTCUT_CATEGORY_LABELS,
   SHORTCUT_CATEGORY_ORDER,
   type KeybindingOverrides,
   type ShortcutActionDef,
@@ -24,10 +24,15 @@ export function ShortcutsSettingsPanel({
   overrides,
   onChange,
 }: ShortcutsSettingsPanelProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const [capturingId, setCapturingId] = React.useState<ShortcutActionId | null>(
     null,
   );
   const [note, setNote] = React.useState<string | null>(null);
+  const translateActionLabel = React.useCallback(
+    (actionId: ShortcutActionId) => t(`settings.shortcuts.actions.${actionId}`),
+    [t],
+  );
 
   useCaptureListener({
     capturingId,
@@ -35,13 +40,13 @@ export function ShortcutsSettingsPanel({
     overrides,
     setCapturingId,
     setNote,
+    translateActionLabel,
   });
 
   return (
     <div className="settings-field-stack">
       <p className="muted-line modal-note">
-        항목을 클릭한 뒤 원하는 키 조합을 누르면 지정됩니다. Esc로 취소,
-        “비우기”로 해제할 수 있습니다.
+        {t("settings.shortcuts.description")}
       </p>
       {note ? <p className="muted-line shortcut-binding-note">{note}</p> : null}
       {SHORTCUT_CATEGORY_ORDER.map((category) => (
@@ -49,9 +54,12 @@ export function ShortcutsSettingsPanel({
           key={category}
           actions={SHORTCUT_ACTIONS.filter(
             (action) => action.category === category,
-          )}
+          ).map((action) => ({
+            ...action,
+            label: translateActionLabel(action.id),
+          }))}
           capturingId={capturingId}
-          label={SHORTCUT_CATEGORY_LABELS[category]}
+          label={t(`settings.shortcuts.categories.${category}`)}
           onChange={onChange}
           overrides={overrides}
           setCapturingId={setCapturingId}
@@ -131,6 +139,7 @@ function ShortcutBindingRow({
   onClear,
   onReset,
 }: RowProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const tokens = formatCombo(combo);
   return (
     <div className="shortcut-binding-row">
@@ -139,10 +148,14 @@ function ShortcutBindingRow({
         type="button"
         className={`shortcut-binding-combo ${capturing ? "capturing" : ""}`}
         onClick={onCapture}
-        aria-label={`${action.label} 단축키 변경`}
+        aria-label={t("settings.shortcuts.changeAria", {
+          label: action.label,
+        })}
       >
         {capturing ? (
-          <span className="shortcut-binding-waiting">키 입력 대기…</span>
+          <span className="shortcut-binding-waiting">
+            {t("settings.shortcuts.waiting")}
+          </span>
         ) : tokens.length > 0 ? (
           <span className="shortcut-keys">
             {tokens.map((token, index) => (
@@ -150,7 +163,9 @@ function ShortcutBindingRow({
             ))}
           </span>
         ) : (
-          <span className="shortcut-binding-empty">미지정</span>
+          <span className="shortcut-binding-empty">
+            {t("settings.shortcuts.unassigned")}
+          </span>
         )}
       </button>
       <button
@@ -158,7 +173,7 @@ function ShortcutBindingRow({
         className="shortcut-binding-action"
         onClick={onReset}
       >
-        기본값
+        {t("settings.shortcuts.reset")}
       </button>
       <button
         type="button"
@@ -166,7 +181,7 @@ function ShortcutBindingRow({
         onClick={onClear}
         disabled={combo === ""}
       >
-        비우기
+        {t("settings.shortcuts.clear")}
       </button>
     </div>
   );
@@ -178,13 +193,17 @@ function useCaptureListener({
   overrides,
   setCapturingId,
   setNote,
+  translateActionLabel,
 }: {
   capturingId: ShortcutActionId | null;
   onChange: (next: KeybindingOverrides) => void;
   overrides: KeybindingOverrides;
   setCapturingId: React.Dispatch<React.SetStateAction<ShortcutActionId | null>>;
   setNote: React.Dispatch<React.SetStateAction<string | null>>;
+  translateActionLabel: (actionId: ShortcutActionId) => string;
 }): void {
+  const { t } = useTranslation("components");
+  const { t: tRenderer } = useTranslation("renderer");
   React.useEffect(() => {
     if (!capturingId) {
       return;
@@ -200,15 +219,18 @@ function useCaptureListener({
       if (!combo) {
         return;
       }
-      const { next, displacedLabel } = assignBinding(
+      const { next, displacedActionId } = assignBinding(
         overrides,
         capturingId,
         combo,
+        tRenderer,
       );
       onChange(next);
       setNote(
-        displacedLabel
-          ? `‘${displacedLabel}’에 지정돼 있던 단축키를 해제하고 옮겼습니다.`
+        displacedActionId
+          ? t("settings.shortcuts.displaced", {
+              label: translateActionLabel(displacedActionId),
+            })
           : null,
       );
       setCapturingId(null);
@@ -217,5 +239,14 @@ function useCaptureListener({
     return () => {
       window.removeEventListener("keydown", onKeyDown, true);
     };
-  }, [capturingId, onChange, overrides, setCapturingId, setNote]);
+  }, [
+    capturingId,
+    onChange,
+    overrides,
+    setCapturingId,
+    setNote,
+    t,
+    tRenderer,
+    translateActionLabel,
+  ]);
 }

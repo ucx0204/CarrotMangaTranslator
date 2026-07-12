@@ -38,6 +38,7 @@ import { normalizeAiWorkContextSuggestions } from "./workContextAiNormalize";
 import { parseWorkContextModelJson } from "./workContextJsonParser";
 import { requestWorkContextAnalysisText } from "./workContextModelRequest";
 import { logInfo, logWarn } from "./logger";
+import { tMain } from "./i18n";
 
 const MAX_ANALYSIS_OUTPUT_TOKENS = 4096;
 const MAX_GEMMA_ANALYSIS_OUTPUT_TOKENS = 2048;
@@ -54,7 +55,7 @@ export async function analyzeWorkContextWithAi(
     (chapter) => chapter.id === request.chapterId,
   );
   if (!currentChapter) {
-    throw new Error("AI 분석을 시작할 화를 찾지 못했습니다.");
+    throw new Error(tMain("workContext.errors.chapterNotFound"));
   }
   const guide = await getWorkStyleGuide(currentChapter.workId);
   const settings = await getAppSettings();
@@ -274,7 +275,7 @@ async function buildEmptyAnalysisResult(
       rulesUpdated: 0,
       pageSummariesUpserted: 0,
     },
-    warnings: ["분석할 텍스트가 없어 AI 용어/기억 추출을 건너뛰었습니다."],
+    warnings: [tMain("workContext.warnings.noText")],
   };
 }
 
@@ -327,8 +328,8 @@ function buildResultWarnings(
 
 function buildTruncatedWarning(scope: WorkContextAnalysisScope): string {
   return scope === "work"
-    ? "작품 텍스트가 길어 현재 토큰 예산 안에서 일부 쪽만 AI 분석에 포함했습니다."
-    : "현재 화 텍스트가 길어 현재 토큰 예산 안에서 일부 쪽만 AI 분석에 포함했습니다.";
+    ? tMain("workContext.warnings.workTruncated")
+    : tMain("workContext.warnings.chapterTruncated");
 }
 
 function logAnalysisSelection(selection: WorkTextSelection): void {

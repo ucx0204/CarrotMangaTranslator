@@ -1,5 +1,6 @@
 /* eslint-disable max-lines-per-function */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type {
   ChapterSnapshot,
@@ -8,7 +9,7 @@ import type {
 import type { UiSettings } from "../../../shared/settingsTypes";
 import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
-import { BLOCK_MODE_OPTIONS } from "../lib/blockModeOptions";
+import { getBlockModeOptions } from "../lib/blockModeOptions";
 import {
   buildRunSelection,
   type ChapterSelectionMap,
@@ -16,10 +17,10 @@ import {
 import { ChapterPagePicker } from "./ChapterPagePicker";
 import { Button, Modal } from "./ui";
 
-const ANALYSIS_OPTIONS: { id: WorkContextAnalysisScope; label: string }[] = [
-  { id: "work", label: "처음부터 다시" },
-  { id: "missing", label: "비어있는 화만" },
-  { id: "chapter", label: "현재 화만" },
+const ANALYSIS_OPTION_IDS: WorkContextAnalysisScope[] = [
+  "work",
+  "missing",
+  "chapter",
 ];
 
 export function TranslationOptionsModal({
@@ -42,6 +43,8 @@ export function TranslationOptionsModal({
   ) => void;
   onClose: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const { t: tRenderer } = useTranslation("renderer");
   const work = React.useMemo(
     () => library.works.find((item) => item.id === chapter.workId) ?? null,
     [library.works, chapter.workId],
@@ -84,19 +87,19 @@ export function TranslationOptionsModal({
 
   return (
     <Modal
-      title="번역"
+      title={t("sidebar.translate")}
       size="lg"
       onClose={onClose}
       closeOnBackdrop
       footer={
         <>
-          <Button onClick={onClose}>취소</Button>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
           <Button
             variant="primary"
             onClick={handleStart}
             disabled={runSelection.length === 0}
           >
-            번역 시작
+            {t("translationOptions.start")}
           </Button>
         </>
       }
@@ -111,7 +114,7 @@ export function TranslationOptionsModal({
           />
         ) : (
           <p className="translate-options-hint">
-            작품 정보를 불러오지 못했습니다. 현재 화만 번역합니다.
+            {t("translationOptions.workUnavailable")}
           </p>
         )}
 
@@ -122,30 +125,31 @@ export function TranslationOptionsModal({
               checked={twoPass}
               onChange={(event) => setTwoPass(event.target.checked)}
             />
-            2차 번역 (품질 향상)
+            {t("translationOptions.secondPass")}
           </label>
           <p className="translate-options-hint">
-            1차 번역 후 AI가 용어·캐릭터·맥락을 분석하고, 그 결과로 다시 번역해
-            품질을 높입니다. 선택한 페이지를 다시 번역하므로 시간이 더 걸립니다.
+            {t("translationOptions.secondPassHint")}
           </p>
         </div>
         <OptionRow
-          label="자동 분석 범위"
-          options={ANALYSIS_OPTIONS}
+          label={t("translationOptions.analysisScope")}
+          options={ANALYSIS_OPTION_IDS.map((id) => ({
+            id,
+            label: t(`translationOptions.analysisOptions.${id}`),
+          }))}
           value={analysisScope}
           onChange={setAnalysisScope}
           disabled={!twoPass}
         />
         <OptionRow
-          label="블록"
-          options={BLOCK_MODE_OPTIONS}
+          label={t("common.blocks")}
+          options={getBlockModeOptions(tRenderer)}
           value={blockMode}
           onChange={setBlockMode}
         />
         {blockMode === "keep" ? (
           <p className="translate-options-hint">
-            블록이 있는 페이지는 영역·서식을 그대로 두고 텍스트만 다시 채웁니다.
-            블록이 없는 페이지는 자동 생성됩니다.
+            {t("translationOptions.keepBlocksHint")}
           </p>
         ) : null}
       </div>

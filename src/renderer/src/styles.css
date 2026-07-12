@@ -339,6 +339,19 @@ body {
   overflow: hidden;
 }
 
+html[data-locale="ja"] body {
+  font-family: "Yu Gothic UI", "Meiryo UI", "Meiryo", "Segoe UI", sans-serif;
+}
+
+html[data-locale="zh-Hans"] body {
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+html[data-locale="zh-Hant"] body {
+  font-family:
+    "Microsoft JhengHei UI", "Microsoft JhengHei", "Segoe UI", sans-serif;
+}
+
 button,
 input,
 select,
@@ -1321,11 +1334,16 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 
 .display-toggle-row button {
   min-width: 0;
+  min-height: var(--ctl-h);
   padding: var(--ctl-pad-y) var(--ctl-pad-x);
   border-color: var(--border-soft);
   background: var(--bg-sunken);
   color: var(--text-dim);
   font-weight: 600;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .display-toggle-row button.active {

@@ -1,5 +1,6 @@
 import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/types";
+import { tMain } from "./localization";
 import type { ModelEndpointHandle, PipelineOptions } from "./types";
 
 type Emit = PipelineOptions["emit"];
@@ -20,13 +21,12 @@ export function emitOcrPreparation(
       id: context.jobId,
       kind: "gemma-analysis",
       status: "starting",
-      progressText: "AI 직접 분석 준비 중",
+      progressText: tMain("translation.progress.directPreparing"),
       phase: "booting",
       progressCurrent: 0,
       progressTotal: context.progressTotal,
       pageTotal: context.pageTotal,
-      detail:
-        "선택 영역은 Paddle OCR 선분석 없이 모델이 직접 텍스트 그룹을 찾습니다.",
+      detail: tMain("translation.progress.directPreparingDetail"),
     });
     return;
   }
@@ -35,12 +35,12 @@ export function emitOcrPreparation(
     id: context.jobId,
     kind: "gemma-analysis",
     status: "starting",
-    progressText: "Paddle OCR 선분석 준비 중",
+    progressText: tMain("translation.progress.ocrPreparing"),
     phase: "ocr_preparing",
     progressCurrent: 0,
     progressTotal: context.progressTotal,
     pageTotal: context.pageTotal,
-    detail: "대상 페이지의 OCR 후보 좌표를 먼저 준비합니다.",
+    detail: tMain("translation.progress.ocrPreparingDetail"),
   });
 }
 
@@ -128,17 +128,17 @@ type EndpointStartingOptions = Parameters<typeof emitEndpointStarting>[1];
 
 function resolveEndpointStartingText(options: EndpointStartingOptions): string {
   if (options.localModelSelected) {
-    return "로컬 모델/서버 준비 중";
+    return tMain("translation.progress.localModelPreparing");
   }
   if (options.codexSelected) {
-    return "OpenAI Codex 엔드포인트 준비 중";
+    return tMain("translation.progress.codexPreparing");
   }
   if (options.apiSelected) {
-    return "API 엔드포인트 확인 중";
+    return tMain("translation.progress.apiPreparing");
   }
   return options.modelCached
-    ? "Gemma 4 서버 시작 중"
-    : "모델 다운로드/서버 준비 중";
+    ? tMain("translation.progress.gemmaStarting")
+    : tMain("translation.progress.modelDownloading");
 }
 
 function resolveEndpointStartingPhase(
@@ -160,7 +160,7 @@ function resolveEndpointStartingDetail(
 ): string {
   const { baseOptions } = options;
   if (options.localModelSelected) {
-    return "선택한 로컬 모델을 불러오는 중입니다. 큰 모델은 시작까지 시간이 걸릴 수 있습니다.";
+    return tMain("translation.progress.localModelPreparingDetail");
   }
   if (options.codexSelected) {
     return `${baseOptions.codexModel}, thinking ${baseOptions.codexReasoningEffort}`;
@@ -171,7 +171,7 @@ function resolveEndpointStartingDetail(
   if (options.modelCached) {
     return `${options.formatGemmaVramMode(baseOptions.gemmaVramMode)}, ${baseOptions.modelFile}`;
   }
-  return "로컬 모델 자산이 없거나 부족해 다운로드/갱신이 필요할 수 있습니다.";
+  return tMain("translation.progress.modelDownloadingDetail");
 }
 
 export function emitEndpointReady(
@@ -187,16 +187,22 @@ export function emitEndpointReady(
     id: context.jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: "모델 준비 완료",
+    progressText: tMain("translation.progress.modelReady"),
     phase: "ready",
     progressCurrent: 0,
     progressTotal: context.progressTotal,
     pageTotal: context.pageTotal,
     detail: options.codexSelected
-      ? `openai-oauth ready at ${options.server.baseUrl}`
+      ? tMain("translation.progress.oauthReadyDetail", {
+          endpoint: options.server.baseUrl,
+        })
       : options.apiSelected
-        ? `API ready at ${options.server.baseUrl}`
-        : `server ready on port ${options.baseOptions.port}`,
+        ? tMain("translation.progress.apiReadyDetail", {
+            endpoint: options.server.baseUrl,
+          })
+        : tMain("translation.progress.serverReadyDetail", {
+            port: options.baseOptions.port,
+          }),
   });
 }
 
@@ -211,7 +217,9 @@ export function emitPageRunning(
     id: context.jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: `${page.name} 분석 중`,
+    progressText: tMain("translation.progress.pageRunning", {
+      page: page.name,
+    }),
     phase: "page_running",
     progressCurrent: pageIndex + 1,
     progressTotal: context.progressTotal,
@@ -219,7 +227,12 @@ export function emitPageRunning(
     pageTotal: context.pageTotal,
     attempt,
     attemptTotal: maxAttempts,
-    detail: `${pageIndex + 1}/${context.pageTotal}, 시도 ${attempt}/${maxAttempts}`,
+    detail: tMain("translation.progress.pageAttemptDetail", {
+      current: pageIndex + 1,
+      total: context.pageTotal,
+      attempt,
+      maxAttempts,
+    }),
   });
 }
 
@@ -234,7 +247,7 @@ export function emitPageRetry(
     id: context.jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: `${page.name} 재시도`,
+    progressText: tMain("translation.progress.pageRetry", { page: page.name }),
     phase: "page_retry",
     progressCurrent: pageIndex + 1,
     progressTotal: context.progressTotal,
@@ -242,7 +255,10 @@ export function emitPageRetry(
     pageTotal: context.pageTotal,
     attempt: attempt + 1,
     attemptTotal: maxAttempts,
-    detail: `${attempt}/${maxAttempts} 실패, 다시 시도합니다`,
+    detail: tMain("translation.progress.pageRetryDetail", {
+      attempt,
+      maxAttempts,
+    }),
   });
 }
 
@@ -256,7 +272,7 @@ export function emitPageDone(
     id: context.jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: `${page.name} 완료`,
+    progressText: tMain("translation.progress.pageDone", { page: page.name }),
     phase: "page_done",
     progressCurrent: pageIndex + 1,
     progressTotal: context.progressTotal,
@@ -275,14 +291,15 @@ export function emitNoTextPage(
     id: context.jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: `${page.name} 텍스트 없음`,
+    progressText: tMain("translation.progress.pageNoText", {
+      page: page.name,
+    }),
     phase: "page_done",
     progressCurrent: pageIndex + 1,
     progressTotal: context.progressTotal,
     pageIndex: pageIndex + 1,
     pageTotal: context.pageTotal,
-    detail:
-      "Paddle OCR에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다.",
+    detail: tMain("translation.progress.pageNoTextDetail"),
   });
 }
 
@@ -296,13 +313,15 @@ export function emitPageSkipped(
     id: context.jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: `${page.name} 건너뜀`,
+    progressText: tMain("translation.progress.pageSkipped", {
+      page: page.name,
+    }),
     phase: "page_skipped",
     progressCurrent: pageIndex + 1,
     progressTotal: context.progressTotal,
     pageIndex: pageIndex + 1,
     pageTotal: context.pageTotal,
-    detail: `${maxAttempts}회 재시도 후 실패`,
+    detail: tMain("translation.progress.pageSkippedDetail", { maxAttempts }),
   });
 }
 
@@ -311,7 +330,7 @@ export function emitFinalizing(context: ProgressContext, detail: string): void {
     id: context.jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: "결과 정리 중",
+    progressText: tMain("translation.progress.finalizing"),
     phase: "finalizing",
     progressCurrent: context.progressTotal,
     progressTotal: context.progressTotal,

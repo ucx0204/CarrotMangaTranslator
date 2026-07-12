@@ -45,6 +45,7 @@ import {
   resolveStoredOcrGpuCudaTag,
 } from "./appSettingsStoredResolvers";
 import { getModeAwareGemmaDefaults } from "./gemmaModelPresets";
+import { normalizeUiLocale } from "../../shared/uiLocales";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -290,19 +291,27 @@ function normalizeUiSettings(
   ui: Record<string, unknown> | null,
   defaults: AppSettings,
 ): NonNullable<AppSettings["ui"]> {
+  const data = ui ?? {};
+  const base = defaults.ui ?? {};
+  const blockModeDefault =
+    data.blockModeDefault === "auto" || data.blockModeDefault === "keep"
+      ? data.blockModeDefault
+      : base.blockModeDefault;
   return {
+    locale: normalizeUiLocale(data.locale, base.locale),
     inpaintingGuideHidden: resolveBoolean(
-      ui?.inpaintingGuideHidden,
-      defaults.ui?.inpaintingGuideHidden ?? false,
+      data.inpaintingGuideHidden,
+      base.inpaintingGuideHidden ?? false,
     ),
     twoPassByDefault: resolveBoolean(
-      ui?.twoPassByDefault,
-      defaults.ui?.twoPassByDefault ?? true,
+      data.twoPassByDefault,
+      base.twoPassByDefault ?? true,
     ),
     analysisScopeDefault: resolveAnalysisScopeDefault(
-      ui?.analysisScopeDefault,
-      defaults.ui?.analysisScopeDefault ?? "missing",
+      data.analysisScopeDefault,
+      base.analysisScopeDefault ?? "missing",
     ),
+    ...(blockModeDefault ? { blockModeDefault } : {}),
   };
 }
 

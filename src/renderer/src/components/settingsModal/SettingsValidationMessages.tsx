@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { ModelProvider } from "../../../../shared/settingsTypes";
 import {
   MAX_MAX_TOKENS,
@@ -29,37 +30,36 @@ export function SettingsValidationMessages({
   sourceLanguageValid,
   targetLanguageValid,
 }: SettingsValidationMessagesProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       {!sourceLanguageValid || !targetLanguageValid ? (
-        <p className="muted-line">
-          번역 언어 코드는 en, ja, zh-Hans, pt-BR 같은 형식이어야 합니다.
-        </p>
+        <p className="muted-line">{t("settings.validation.languageCode")}</p>
       ) : null}
       {modelProvider === "openai-codex" && !codexOauthPortValid ? (
-        <p className="muted-line">
-          openai-oauth 포트는 1 이상 65535 이하의 정수여야 합니다.
-        </p>
+        <p className="muted-line">{t("settings.validation.oauthPort")}</p>
       ) : null}
       {modelProvider === "openai-api" && !apiBaseUrlValid ? (
-        <p className="muted-line">
-          API Base URL은 http 또는 https URL이어야 합니다.
-        </p>
+        <p className="muted-line">{t("settings.validation.apiBaseUrl")}</p>
       ) : null}
       {modelProvider === "openai-api" && !apiAdvancedSettingsValid ? (
         <p className="muted-line">
-          {apiAdvancedSettingsMessage ?? "고급 API 설정을 확인해 주세요."}
+          {apiAdvancedSettingsMessage ?? t("settings.validation.apiAdvanced")}
         </p>
       ) : null}
       {!maxTokensValid ? (
         <p className="muted-line">
-          최대 출력 토큰은 {MIN_MAX_TOKENS} 이상 {MAX_MAX_TOKENS} 이하의
-          정수여야 합니다.
+          {t("settings.validation.maxTokens", {
+            min: MIN_MAX_TOKENS,
+            max: MAX_MAX_TOKENS,
+          })}
         </p>
       ) : null}
       {!contextTokensValid ? (
         <p className="muted-line">
-          컨텍스트 길이는 {MIN_CONTEXT_TOKENS} 이상의 정수여야 합니다.
+          {t("settings.validation.contextTokens", {
+            min: MIN_CONTEXT_TOKENS,
+          })}
         </p>
       ) : null}
     </>

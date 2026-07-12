@@ -1,0 +1,349 @@
+{
+  "settings": {
+    "localModelDialogTitle": "ローカルGGUFモデルを選択",
+    "mmprojDialogTitle": "mmprojファイルを選択",
+    "modelTestBusy": "翻訳中はモデル／ランタイムの確認を実行できません。",
+    "modelTestComplete": "Paddle OCRと翻訳エンジンの確認が完了しました：{{output}}",
+    "modelTestLabel": "モデル／ランタイム確認"
+  },
+  "dialogs": {
+    "openImages": "画像を開く",
+    "openImageFolder": "画像フォルダーを開く",
+    "openArchive": "圧縮ファイルを開く",
+    "batchImport": "作品を一括翻訳",
+    "saveShare": "共有ファイルを保存",
+    "openShare": "共有ファイルを読み込む",
+    "registerFont": "フォントファイルを登録（TTF/OTF）",
+    "saveReview": "校正表を保存",
+    "saveText": "テキストを保存",
+    "filters": {
+      "images": "画像ファイル",
+      "font": "フォントファイル",
+      "text": "テキストファイル"
+    }
+  },
+  "jobs": {
+    "active": "すでに実行中のジョブがあります。",
+    "cancelled": "ジョブはキャンセルされました。",
+    "failed": "ジョブが失敗しました",
+    "cancelling": "ジョブをキャンセル中"
+  },
+  "ipc": {
+    "errors": {
+      "untrustedPanel": "信頼できないパネルIPC要求です。",
+      "noWindow": "IPC要求を受信するアプリウィンドウがありません。",
+      "untrusted": "信頼できないIPC要求です。",
+      "invalidImportPreview": "インポートプレビューの期限切れ、または無効です。",
+      "invalidSharePreview": "共有ファイルのプレビューの期限切れ、または無効です。"
+    },
+    "labels": {
+      "translationJob": "翻訳ジョブ",
+      "regionTranslation": "範囲翻訳",
+      "inpaintingJob": "インペインティングジョブ",
+      "inpaintingRetouch": "インペインティング補正",
+      "inpaintingApply": "インペインティング結果を適用",
+      "inpaintingRestore": "インペインティングを元に戻す",
+      "colorSample": "色サンプル",
+      "resultExport": "結果出力",
+      "reviewExport": "校正表エクスポート",
+      "reviewImport": "校正表インポート",
+      "textSave": "テキスト保存",
+      "importApply": "インポートを適用",
+      "shareSave": "共有ファイル保存",
+      "shareImport": "共有ファイル読込",
+      "chapterOpen": "話を開く",
+      "pageImageOpen": "ページ画像を開く",
+      "pageBlocksSave": "ページブロック保存",
+      "workRename": "作品名変更",
+      "chapterRename": "話名変更",
+      "workDelete": "作品削除",
+      "chapterDelete": "話削除",
+      "pageDelete": "ページ削除",
+      "chapterReorder": "話の並べ替え",
+      "pageReorder": "ページの並べ替え",
+      "styleGuideOpen": "作品用語集を開く",
+      "styleGuideSave": "作品用語集を保存",
+      "storyMemoryOpen": "ストーリーメモリを開く",
+      "storyMemorySave": "ストーリーメモリを保存",
+      "workContextAnalysis": "AI用語／記憶分析",
+      "logWrite": "ログ記録"
+    }
+  },
+  "units": {
+    "blocks": "{{count}}個のブロック",
+    "pagesAndBlocks": "{{pages}}ページ、{{blocks}}個のブロック"
+  },
+  "workContext": {
+    "errors": {
+      "chapterNotFound": "AI解析を開始する話が見つかりません。",
+      "jsonRead": "AI作品メモリ解析の応答をJSONとして読み取れませんでした。",
+      "jsonObjectMissing": "AI作品メモリ解析の応答にJSONオブジェクトがありません。",
+      "requestFailed": "AI作品メモリ解析の要求に失敗しました。",
+      "emptyResponse": "AI作品メモリ解析の応答が空です。"
+    },
+    "warnings": {
+      "noText": "解析するテキストがないため、AI用語／記憶抽出をスキップしました。",
+      "workTruncated": "作品が長いため、トークン予算内で一部のページのみAI解析に含めました。",
+      "chapterTruncated": "この話が長いため、トークン予算内で一部のページのみAI解析に含めました。",
+      "chapterNoText": "{{chapter}}：解析するテキストがないためスキップしました。",
+      "chapterFailed": "{{chapter}}：AI解析に失敗したためスキップしました。",
+      "prefixed": "{{chapter}}：{{warning}}",
+      "chaptersTruncated": "{{count}}話が長いため、各話の予算内で一部ページのみ解析しました。",
+      "chaptersFailed": "{{count}}話のAI解析に失敗しました。ログを確認してください。",
+      "alreadyAnalyzed": "すべての話が解析済みのため、AI用語／記憶解析をスキップしました。",
+      "unknownPageId": "AIが不明なpageIdを返しました: {{pageId}}"
+    }
+  },
+  "reviewImport": {
+    "chapterNotFound": "校正表を適用する話が見つかりません。",
+    "warnings": {
+      "emptyBlockId": "{{row}}行：block_idが空のためスキップします。",
+      "duplicateBlockId": "{{row}}行：重複したblock_id {{blockId}}をスキップします。",
+      "otherChapter": "{{row}}行：別の話の行のためスキップします。",
+      "sourceMismatch": "{{row}}行：OCR原文が現在のブロックと異なります。block_id={{blockId}}",
+      "pageNotFound": "{{row}}行：page_id {{pageId}}は存在しません。",
+      "blockNotFound": "{{row}}行：block_id {{blockId}}は存在しません。",
+      "ambiguousBlock": "{{row}}行：block_id {{blockId}}が複数ページにありpage_idで特定できないためスキップします。",
+      "pageMismatch": "{{row}}行：page_idが現在のブロック位置と異なるためblock_idで適用します。",
+      "invalidStatus": "{{row}}行：校正状態 {{status}}は使用できません。"
+    }
+  },
+  "import": {
+    "defaultWorkTitle": "名称未設定の作品",
+    "untitled": "タイトルなし",
+    "zipFile": "ZIPファイル",
+    "errors": {
+      "imageRead": "画像ファイルを読み込めませんでした：{{file}}",
+      "fileTooLarge": "{{file}}は大きすぎます。",
+      "webpConvert": "WEBP画像をPNGに変換できませんでした：{{file}}",
+      "resolutionTooLarge": "画像の解像度が大きすぎます：{{file}}",
+      "tooManySources": "インポートするフォルダーまたは画像が多すぎます。",
+      "zipEntryMissing": "ZIP内の項目が見つかりません：{{entry}}",
+      "noChapterToCreate": "作成する話がありません。",
+      "createdChapterOpen": "作成した話を開けませんでした。"
+    }
+  },
+  "share": {
+    "fileLabel": "共有ファイル",
+    "inpaintingResult": "{{page}}のインペインティング結果",
+    "errors": {
+      "noChapters": "インポートする話がありません。",
+      "notNewWorkRequest": "新規作品のインポート要求ではありません。",
+      "notExistingWorkRequest": "既存作品のインポート要求ではありません。",
+      "chapterNotFound": "共有ファイルにインポート対象の話が見つかりません。",
+      "importedChapterOpen": "インポートした話を開けませんでした。",
+      "duplicateExistingChapter": "同じ既存の話が重複しています。",
+      "existingChapterNotFound": "既存作品に適用する話が見つかりません。",
+      "duplicateSharedChapter": "同じ共有の話が重複しています。",
+      "noChaptersToApply": "適用する話がありません。",
+      "selectChapter": "共有する話を選択してください。",
+      "exportChapterNotFound": "共有する話が見つかりません。",
+      "sourceImageMissing": "元画像が見つかりません：{{page}}",
+      "inpaintingImageMissing": "インペインティング結果画像が見つかりません：{{page}}",
+      "unsupportedImage": "未対応の画像形式です：{{name}}",
+      "fileTooLarge": "{{name}}は大きすぎます。",
+      "invalidChapterId": "共有ファイルの話IDが無効です。",
+      "newWorkOnlyShared": "新規作品としてインポートする場合は共有ファイルの話のみ選択できます。",
+      "requiredInfoMissing": "共有ファイルに必要な情報がありません：{{path}}",
+      "jsonRead": "共有ファイルのJSONを読み込めません：{{path}}",
+      "jsonInvalid": "共有ファイルのJSON形式が無効です：{{path}}（{{message}}）",
+      "invalidChapterInfo": "共有ファイルの話情報が無効です。",
+      "invalidPageOrder": "共有ファイルのページ順が無効です。",
+      "invalidImagePath": "共有ファイルの画像パスが無効です。",
+      "invalidImageLocation": "共有ファイルの画像位置が無効です。",
+      "packageImageMissing": "共有ファイルに画像がありません：{{page}}",
+      "invalidInpaintingPath": "共有ファイルのインペインティング画像パスが無効です。",
+      "invalidInpaintingLocation": "共有ファイルのインペインティング画像位置が無効です。",
+      "packageInpaintingMissing": "共有ファイルにインペインティング画像がありません：{{page}}",
+      "unsupportedInpaintingImage": "未対応のインペインティング画像形式です：{{page}}",
+      "invalidTrashLocation": "共有インポートの一時保管場所が無効です。",
+      "invalidChapterLocation": "話情報のライブラリ位置が無効です。"
+    }
+  },
+  "translation": {
+    "noPages": "翻訳するページがありません。",
+    "allPagesFailed": "翻訳に失敗しました：すべてのページでエラーが発生しました。各ページの状態とログを確認してください。",
+    "completedWithFailures": "翻訳完了（{{count}}ページ失敗）",
+    "completed": "翻訳が完了しました",
+    "vram": {
+      "minimum12b": "12B最小モード",
+      "economy26b": "26B省メモリモード",
+      "full31b": "31Bフルロードモード"
+    },
+    "progress": {
+      "directPreparing": "AI直接解析を準備中",
+      "directPreparingDetail": "選択範囲ではPaddle OCRの事前解析を行わず、モデルが直接テキストグループを検出します。",
+      "ocrPreparing": "Paddle OCR事前解析を準備中",
+      "ocrPreparingDetail": "対象ページのOCR候補座標を先に準備します。",
+      "localModelPreparing": "ローカルモデル／サーバーを準備中",
+      "codexPreparing": "OpenAI Codexエンドポイントを準備中",
+      "apiPreparing": "APIエンドポイントを確認中",
+      "gemmaStarting": "Gemma 4サーバーを起動中",
+      "modelDownloading": "モデルをダウンロード／サーバーを準備中",
+      "localModelPreparingDetail": "選択したローカルモデルを読み込んでいます。大きなモデルは起動に時間がかかる場合があります。",
+      "modelDownloadingDetail": "ローカルモデルファイルがないか不足しているため、ダウンロードまたは更新が必要な場合があります。",
+      "modelReady": "モデルの準備完了",
+      "oauthReadyDetail": "openai-oauth準備完了：{{endpoint}}",
+      "apiReadyDetail": "API準備完了：{{endpoint}}",
+      "serverReadyDetail": "サーバー準備完了：ポート{{port}}",
+      "pageRunning": "{{page}}を解析中",
+      "pageAttemptDetail": "{{current}}/{{total}}、試行 {{attempt}}/{{maxAttempts}}",
+      "pageRetry": "{{page}}を再試行",
+      "pageRetryDetail": "試行 {{attempt}}/{{maxAttempts}} に失敗したため、再試行します",
+      "pageDone": "{{page}}完了",
+      "pageNoText": "{{page}}にテキストなし",
+      "pageNoTextDetail": "Paddle OCRで日本語テキストの根拠が見つからなかったため、モデル呼び出しを省略しました。",
+      "pageSkipped": "{{page}}をスキップ",
+      "pageSkippedDetail": "{{maxAttempts}}回の再試行後に失敗",
+      "finalizing": "結果を整理中",
+      "pagesReadyNoModel": "{{count}}ページ準備完了、モデル呼び出しなし",
+      "pagesReady": "{{count}}ページ準備完了"
+    },
+    "warnings": {
+      "attemptFailed": "{{page}}：試行 {{attempt}}/{{maxAttempts}} に失敗：{{message}}",
+      "pageSkipped": "{{page}}：{{maxAttempts}}回失敗したためスキップします。最後のエラー：{{message}}",
+      "uncertainOcr": "{{page}}：不確かなOCR断片が{{count}}個あります。"
+    },
+    "result": {
+      "existingUpdated": "既存ブロック{{count}}個を更新",
+      "kept": "{{count}}個を保持",
+      "outsideDropped": "ブロック外の結果{{count}}個を除外",
+      "soundDropped": "不確かな効果音{{count}}個を除外",
+      "noiseDropped": "ノイズ／重複{{count}}個を除外（{{reasons}}）"
+    },
+    "errors": {
+      "bboxMissing": "{{page}}：バウンディングボックス結果を作成できませんでした。",
+      "responseParse": "{{page}}：モデル応答を構造化形式として解析できませんでした。preview={{preview}} cause={{cause}}"
+    }
+  },
+  "region": {
+    "failed": "選択範囲の翻訳に失敗しました",
+    "pageNotFound": "選択したページが見つかりません。",
+    "preparing": "選択範囲の翻訳を準備中",
+    "completed": "選択範囲の翻訳が完了しました"
+  },
+  "ocr": {
+    "cached": "{{page}}のOCRを再利用",
+    "batchRunning": "Paddle OCR一括事前解析中",
+    "batchRunningDetail": "{{count}}ページをまとめて処理します。この区間の終了時にOCRプロセスを終了します。",
+    "pageDone": "{{page}}のOCR完了",
+    "prepassDone": "Paddle OCR事前解析完了",
+    "prepassDoneDetail": "OCRプロセスを終了し、AI翻訳へ進みます。",
+    "hintDetailNoEvidence": "候補{{count}}個、テキスト根拠なし",
+    "hintDetailWithEvidence": "候補{{count}}個、テキスト根拠{{evidence}}個",
+    "hintDetail": "候補{{count}}個",
+    "blocksDone": "ブロックOCR事前解析完了",
+    "blocksRunning": "ブロックOCR事前解析中",
+    "blocksDetail": "既存ブロック{{count}}個の領域を切り出してテキストを読み取ります。",
+    "gpuCacheReleased": "GPU OCRのためインペインティングエンジンのキャッシュを解放しました",
+    "gpuCacheReleasedDetail": "GPUメモリ（VRAM）を解放"
+  },
+  "inpainting": {
+    "targets": { "drawn": "描画領域", "source": "原文" },
+    "preparing": "{{target}}の消去を準備中",
+    "pageRunning": "{{current}} / {{total}}ページの{{target}}を消去中",
+    "drawnDetail": "{{page}} · 描画領域{{count}}個",
+    "blockDetail": "{{page}} · ブロック{{count}}個",
+    "pageDone": "{{current}} / {{total}}ページの{{target}}完了",
+    "completed": "{{target}}の消去完了",
+    "cancelled": "インペインティングジョブはキャンセルされました。",
+    "failed": "インペインティングジョブが失敗しました",
+    "pageNotFound": "インペインティングするページが見つかりません。",
+    "assets": { "fluxModel": "Fluxモデル", "aot": "AOTインペインティング" },
+    "runtime": {
+      "fluxReady": "Fluxインペインティング準備完了",
+      "fluxReadyLog": "Flux原文消去エンジンの準備が完了しました。",
+      "cachedFlux": "キャッシュ済みFluxエンジンを使用",
+      "cachedFluxLog": "キャッシュ済みFluxインペインティングエンジンを再利用します。",
+      "koharuReady": "Koharuインペインティング準備完了",
+      "cachedKoharu": "キャッシュ済みKoharuエンジンを使用",
+      "cachedKoharuLog": "キャッシュ済みKoharuエンジンを再利用します。",
+      "koharuReadyLog": "Koharu {{model}}ランタイムを使用：{{file}}",
+      "koharuExecutablePreparing": "Koharu実行ファイルを準備中",
+      "koharuExecutableLog": "Koharu実行ファイルをキャッシュに更新しました：{{file}}",
+      "pythonInstalling": "Flux Pythonランタイムをインストール中",
+      "fluxRocmInitialized": "Flux ROCm SDKの初期化が完了しました",
+      "hipCmakeVerified": "HIP/CMake開発ファイルを確認しました",
+      "fluxModelPreparing": "Flux Diffusersモデルを準備中",
+      "fluxModelWithoutTransformer": "{{modelId}} · transformerを除外",
+      "fluxRocmInstalling": "Flux ROCmランタイムをインストール中",
+      "fluxCpuInstalling": "Flux CPUランタイムをインストール中",
+      "pythonTargetInstalling": "Pythonターゲットパッケージをインストール中"
+    },
+    "errors": {
+      "pageRead": "ページ画像を読み込めませんでした：{{page}}",
+      "bitmapCreate": "ページ画像のビットマップを作成できませんでした：{{page}}",
+      "engineNotReady": "原文消去エンジンの準備ができていません。",
+      "resultCreate": "インペインティング結果画像を作成できませんでした：{{page}}",
+      "imageSizeMismatch": "元画像と編集画像のサイズが異なります。",
+      "retouchCreate": "補正結果画像を作成できませんでした：{{page}}",
+      "koharuRuntime": "Koharuランタイムを準備できませんでした。\n{{detail}}",
+      "notKoharuModel": "Koharuモデルではありません：{{model}}",
+      "koharuExecutableMissing": "{{executable}}が見つかりません。開発環境ではtools/{{directory}}でcargo build --releaseを実行するか、MGT_KOHARU_INPAINT_EXEを設定してください。",
+      "retouchPageNotFound": "補正するページが見つかりません。"
+    }
+  },
+  "export": {
+    "noPages": "出力するページがありません。",
+    "cancelled": "PNG出力はキャンセルされました。",
+    "failed": "PNG出力に失敗しました",
+    "preparing": "PNG出力を準備中",
+    "completed": "PNG出力完了",
+    "page": {
+      "running": "{{current}} / {{total}}ページをPNG出力中",
+      "done": "{{current}} / {{total}}ページのPNG出力完了"
+    },
+    "scope": {
+      "page": "このページ · {{count}}ページ",
+      "chapter": "全ページ · {{count}}ページ"
+    }
+  },
+  "modelTest": {
+    "preparing": "モデル／ランタイム確認を準備中",
+    "startLog": "Paddle OCRと翻訳エンジンの確認を開始します。",
+    "serverReady": "ランタイムサーバー準備完了",
+    "serverReadyLog": "サーバー準備完了：{{endpoint}}",
+    "completed": "モデル／ランタイム確認完了",
+    "responseLog": "応答確認完了：{{output}}",
+    "failed": "モデル／ランタイム確認失敗",
+    "failedDetail": "モデル／ランタイム確認に失敗しました。詳しい原因はログで確認してください。",
+    "failedLog": "モデル／ランタイム確認に失敗しました。",
+    "portUnavailable": "モデルテスト用ポートを確保できませんでした。",
+    "portRetry": "別ポートで再試行中",
+    "portRetryDetail": "以前のポートが使用中のため、ポート{{port}}で再起動します。",
+    "portRetryLog": "ポート競合を検出し、ポート{{port}}で再試行します。",
+    "codexPreparing": "OpenAI Codexランタイムエンドポイントを準備中",
+    "codexPreparingLog": "openai-oauthエンドポイントを開始します。",
+    "apiPreparing": "APIエンドポイントを確認中",
+    "apiPreparingLog": "OpenAI互換APIへ直接テスト要求を送信します。",
+    "ocrChecking": "Paddle OCRのインストール／動作を確認中",
+    "ocrCheckingLog": "Paddle OCRランタイムとモデルファイルを確認します。",
+    "ocrSkipped": "Paddle OCR確認をスキップ",
+    "ocrSkippedDetail": "現在のランタイムはOCR事前確認APIを提供していません。",
+    "ocrSkippedLog": "OCR事前確認APIがないため翻訳エンジンのみ確認します。",
+    "ocrDone": "Paddle OCR確認完了",
+    "ocrDoneLog": "Paddle OCRランタイム確認が終了しました。",
+    "gemmaPreparing": "Gemmaランタイムを準備中",
+    "gemmaPreparingLog": "Gemmaランタイムとモデルファイルを確認します。",
+    "gemmaCached": "キャッシュ済みGemmaモデルを確認",
+    "gemmaCachedLog": "キャッシュ済みモデルを使用します。",
+    "gemmaDownloading": "Gemmaモデルをダウンロード／ランタイムを準備中",
+    "gemmaDownloadingLog": "キャッシュがないためダウンロードまたは更新を開始します。"
+  },
+  "downloads": {
+    "downloading": "{{label}}をダウンロード中",
+    "completed": "{{label}}のダウンロード完了",
+    "cached": "キャッシュ済み{{label}}を使用",
+    "cachedDetail": "{{file}} · キャッシュ使用",
+    "received": "受信済み：{{received}}",
+    "requestFailed": "{{url}}への要求に失敗しました（{{status}}）。",
+    "runtimeDllMissing": "{{archive}}に必要なランタイムDLLがありません。",
+    "unsafeArchivePath": "{{archive}}に安全でないパスがあります：{{path}}",
+    "archiveEmpty": "{{archive}}は空です。",
+    "cachedFileLog": "キャッシュ済み{{label}}ファイルを使用：{{file}}",
+    "cachedLog": "キャッシュ済みファイルを使用：{{label}}",
+    "startedLog": "{{label}}のダウンロードを開始",
+    "failed": "{{label}}のダウンロードに失敗しました（{{status}}）。",
+    "sizeMismatch": "{{label}}のサイズが一致しません（{{received}} / {{total}}）。"
+  }
+}

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   ALL_BLOCK_FORMAT_GROUP_IDS,
   BLOCK_FORMAT_GROUPS,
@@ -20,6 +21,7 @@ export function FormatBatchApplyModal({
   onApply,
   onClose,
 }: FormatBatchApplyModalProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const selectionAvailable = selectedBlockCount > 1;
   const [groupIds, setGroupIds] = React.useState<Set<BlockFormatGroupId>>(
     () => new Set(ALL_BLOCK_FORMAT_GROUP_IDS),
@@ -39,25 +41,23 @@ export function FormatBatchApplyModal({
 
   return (
     <Modal
-      title="서식 일괄 적용"
+      title={t("formatBatch.title")}
       onClose={onClose}
       closeOnBackdrop
       size="sm"
-      ariaLabel="서식 일괄 적용"
+      ariaLabel={t("formatBatch.title")}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            취소
+            {t("common.cancel")}
           </Button>
           <Button variant="primary" onClick={handleApply} disabled={!canApply}>
-            적용
+            {t("common.apply")}
           </Button>
         </>
       }
     >
-      <p className="muted-line modal-note">
-        선택한 블록의 서식을 기준으로 아래 항목을 적용합니다.
-      </p>
+      <p className="muted-line modal-note">{t("formatBatch.description")}</p>
       <FormatGroupChecklist groupIds={groupIds} onChange={setGroupIds} />
       <FormatScopeSelector
         scope={scope}
@@ -77,6 +77,7 @@ function FormatGroupChecklist({
   groupIds: Set<BlockFormatGroupId>;
   onChange: (next: Set<BlockFormatGroupId>) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const allChecked = groupIds.size === BLOCK_FORMAT_GROUPS.length;
   const toggleGroup = (id: BlockFormatGroupId): void => {
     const next = new Set(groupIds);
@@ -90,7 +91,7 @@ function FormatGroupChecklist({
   return (
     <div className="format-apply-section">
       <div className="format-apply-section-head">
-        <span>적용할 항목</span>
+        <span>{t("formatBatch.items")}</span>
         <button
           type="button"
           className="format-apply-toggle-all"
@@ -100,7 +101,7 @@ function FormatGroupChecklist({
             )
           }
         >
-          {allChecked ? "전체 해제" : "전체 선택"}
+          {t(allChecked ? "common.clearAll" : "common.selectAll")}
         </button>
       </div>
       <div className="format-apply-grid">
@@ -111,7 +112,7 @@ function FormatGroupChecklist({
               checked={groupIds.has(group.id)}
               onChange={() => toggleGroup(group.id)}
             />
-            {group.label}
+            {t(`formatBatch.groups.${group.id}`)}
           </label>
         ))}
       </div>
@@ -132,36 +133,35 @@ function FormatScopeSelector({
   disableChapterApply: boolean;
   onChange: (scope: FormatApplyScope) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="format-apply-section">
       <div className="format-apply-section-head">
-        <span>적용 범위</span>
+        <span>{t("formatBatch.scope")}</span>
       </div>
       <div className="format-apply-scope">
         <ScopeButton
           active={scope === "selection"}
           disabled={!selectionAvailable}
-          label={`선택한 블록 ${selectedBlockCount}개`}
+          label={t("formatBatch.selectedBlocks", {
+            count: selectedBlockCount,
+          })}
           title={
-            selectionAvailable
-              ? undefined
-              : "Ctrl+클릭으로 여러 블록을 선택하세요."
+            selectionAvailable ? undefined : t("formatBatch.multiSelectHint")
           }
           onClick={() => onChange("selection")}
         />
         <ScopeButton
           active={scope === "page"}
-          label="이 페이지"
+          label={t("formatBatch.thisPage")}
           onClick={() => onChange("page")}
         />
         <ScopeButton
           active={scope === "chapter"}
           disabled={disableChapterApply}
-          label="이 화 전체"
+          label={t("formatBatch.entireChapter")}
           title={
-            disableChapterApply
-              ? "작업 중에는 이 화 전체 적용을 사용할 수 없습니다."
-              : undefined
+            disableChapterApply ? t("formatBatch.chapterDisabled") : undefined
           }
           onClick={() => onChange("chapter")}
         />

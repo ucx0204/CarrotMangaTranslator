@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "../ui";
 
 type DisplayControlPanelProps = {
@@ -20,28 +21,29 @@ export function DisplayControlPanel({
   onOpenTextView,
   onOpenStyleGuide,
 }: DisplayControlPanelProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="display-panel">
-      <h2>표시</h2>
+      <h2>{t("display.title")}</h2>
       <div className="display-toggle-row">
         <button
           className={showBlockChrome ? "active" : ""}
           onClick={onToggleChrome}
         >
-          배경/테두리
+          {t("display.backgroundBorders")}
         </button>
         <button
           className={showTextBlocks ? "active" : ""}
           onClick={onToggleBlocks}
         >
-          블록 표시
+          {t("display.showBlocks")}
         </button>
       </div>
       <Button fullWidth onClick={onOpenTextView} disabled={!canOpenTextView}>
-        텍스트 모아보기
+        {t("display.gatherText")}
       </Button>
       <Button fullWidth onClick={onOpenStyleGuide} disabled={!canOpenTextView}>
-        용어/기억
+        {t("display.styleGuide")}
       </Button>
     </section>
   );

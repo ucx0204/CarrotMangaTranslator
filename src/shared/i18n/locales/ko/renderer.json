@@ -1,0 +1,382 @@
+{
+  "common": {
+    "pageCount": "{{count}}페이지",
+    "pageCount_one": "{{count}}페이지",
+    "pageCount_other": "{{count}}페이지"
+  },
+  "bridge": {
+    "cancelJobFailed": "작업 취소 요청을 보내지 못했습니다.",
+    "openLibraryFailed": "보관함 폴더를 열지 못했습니다.",
+    "openLogsFailed": "로그 폴더를 열지 못했습니다."
+  },
+  "panels": {
+    "connecting": "연결 중…",
+    "editor": {
+      "title": "블록 편집",
+      "poppedOut": "편집기를 새 창으로 분리했어요.",
+      "closeWindow": "편집기 창 닫기",
+      "floating": "편집기를 띄웠어요.",
+      "dock": "편집기 도킹",
+      "float": "편집기 띄우기",
+      "floatTitle": "편집기를 띄워 크게 편집",
+      "popOut": "편집기 새 창",
+      "popOutTitle": "편집기를 새 창으로 분리"
+    }
+  },
+  "blockMode": {
+    "auto": "자동 생성",
+    "keep": "기존 블록 유지"
+  },
+  "librarySort": {
+    "updated": "수정일",
+    "title": "이름",
+    "created": "추가일",
+    "chapters": "화 개수"
+  },
+  "fonts": {
+    "default": "기본",
+    "defaultSample": "가나다 Aa"
+  },
+  "eta": {
+    "seconds": "약 {{count}}초 남음",
+    "minutes": "약 {{count}}분 남음",
+    "minutesSeconds": "약 {{minutes}}분 {{seconds}}초 남음",
+    "hoursMinutes": "약 {{hours}}시간 {{minutes}}분 남음"
+  },
+  "job": {
+    "pageProgress": "{{current}} / {{total}} 페이지 {{status}}",
+    "pageStatus": "페이지 {{status}}",
+    "pageRetry": "{{current}} / {{total}} 페이지 재시도 {{attempt}} / {{attemptTotal}}",
+    "phase": {
+      "booting": "모델 준비 중",
+      "modelDownloading": "모델 다운로드/서버 준비 중",
+      "inpaintingPreparing": "인페인팅 준비 중",
+      "finalizing": "결과 정리 중",
+      "done": "작업 완료",
+      "ocrDownloading": "Paddle OCR 다운로드/설치 중",
+      "ready": "모델 준비 완료",
+      "cancelled": "작업이 취소됨",
+      "failed": "작업 실패",
+      "ocrPreparing": "Paddle OCR 준비 중",
+      "modelRequesting": "AI 번역 요청 중",
+      "pageRunning": "번역 중",
+      "pageDone": "완료",
+      "pageSkipped": "건너뜀",
+      "inpaintingRunning": "원문 지우는 중",
+      "inpaintingDone": "원문 지우기 완료",
+      "ocrRunning": "Paddle OCR 분석 중",
+      "ocrPreanalysisDone": "Paddle OCR 선분석 완료",
+      "pageRetry": "페이지 재시도 중"
+    },
+    "status": {
+      "starting": "모델 준비 중",
+      "running": "작업 진행 중",
+      "cancelling": "작업 취소 중",
+      "cancelled": "작업이 취소됨",
+      "failed": "작업 실패",
+      "completed": "번역 완료",
+      "idle": "대기 중"
+    },
+    "warnings": {
+      "skippedAndUncertain": "일부 페이지를 건너뛰었고 OCR 확인이 필요한 블록도 있습니다.",
+      "skipped": "일부 페이지는 건너뛰고 다음 페이지로 진행했습니다.",
+      "uncertain": "일부 블록은 OCR 확인이 더 필요합니다.",
+      "generic": "중간 경고가 있었지만 작업은 계속 진행되었습니다."
+    },
+    "notifications": {
+      "completed": "작업이 완료되었습니다.",
+      "failed": "작업에 실패했습니다.",
+      "cancelled": "작업이 취소되었습니다.",
+      "openLogs": "로그 폴더 열기"
+    }
+  },
+  "commands": {
+    "translate": {
+      "label": "번역…",
+      "hint": "옵션·2차 번역·일괄",
+      "keywords": "translate options beonyeok 번역 옵션"
+    },
+    "translatePending": {
+      "label": "이어서 번역",
+      "hint": "남은 페이지 (바로)",
+      "keywords": "translate resume ieoseo 이어서 번역"
+    },
+    "translateAll": {
+      "label": "전체 다시 번역",
+      "hint": "모든 페이지",
+      "keywords": "translate all retranslate jeonche 전체 다시 번역"
+    },
+    "exitInpainting": {
+      "label": "인페인팅 종료",
+      "keywords": "inpaint exit 인페인팅 종료"
+    },
+    "enterInpainting": {
+      "label": "인페인팅 시작",
+      "keywords": "inpaint 인페인팅 시작"
+    },
+    "cancelJob": { "label": "작업 취소", "keywords": "cancel stop 작업 취소" },
+    "gatherText": {
+      "label": "텍스트 모아보기",
+      "hint": "페이지·전체 화",
+      "keywords": "text copy gather moaboki 복사 모아보기"
+    },
+    "importSource": {
+      "label": "번역 소스 가져오기",
+      "hint": "이미지·폴더·ZIP",
+      "keywords": "import source 번역 소스 가져오기"
+    },
+    "batchTranslate": {
+      "label": "작품 일괄 번역",
+      "keywords": "batch import 작품 일괄 번역"
+    },
+    "importShare": {
+      "label": "공유본 가져오기",
+      "keywords": "share import 공유본 가져오기"
+    },
+    "exportShare": {
+      "label": "공유로 내보내기",
+      "keywords": "share export 공유 내보내기"
+    },
+    "openSettings": { "label": "설정 열기", "keywords": "settings 설정" },
+    "openLibrary": {
+      "label": "보관함 폴더 열기",
+      "keywords": "library folder 보관함 폴더"
+    },
+    "openLogs": {
+      "label": "로그 폴더 열기",
+      "keywords": "log folder 로그 폴더"
+    },
+    "shortcutHelp": {
+      "label": "단축키 도움말",
+      "keywords": "shortcut help 단축키 도움말"
+    }
+  },
+  "shortcuts": {
+    "categories": {
+      "view": "표시 / 보기",
+      "tool": "도구",
+      "translate": "번역",
+      "inpaint": "인페인팅",
+      "edit": "블록 편집",
+      "global": "전역"
+    },
+    "actions": {
+      "toggle-block-chrome": "배경/테두리 표시 전환",
+      "toggle-text-blocks": "블록 표시 전환",
+      "toggle-peek-original": "원본 미리보기 전환",
+      "zoom-in": "이미지 확대",
+      "zoom-out": "이미지 축소",
+      "zoom-reset": "확대 초기화",
+      "stage-tool-select": "선택 도구",
+      "stage-tool-block": "블록 도구 (드래그로 블록 추가)",
+      "stage-tool-hand": "손바닥 도구 (드래그로 이동)",
+      "toggle-stage-toolbar": "도구 모음 표시 전환",
+      "open-translate-options": "번역 옵션 열기",
+      "translate-pending": "이어서 번역 (남은 페이지)",
+      "translate-all": "전체 다시 번역",
+      "gather-text": "텍스트 모아보기",
+      "cancel-job": "작업 취소",
+      "toggle-inpainting": "인페인팅 시작/종료",
+      "history-undo": "실행 취소",
+      "history-redo": "다시 실행",
+      "retouch-redo": "보정 다시 실행",
+      "delete-block": "선택한 블록 삭제",
+      "duplicate-block": "선택한 블록 복제",
+      "toggle-block-excluded": "블록 인페인팅 제외 전환",
+      "toggle-command-palette": "명령 팔레트",
+      "toggle-shortcut-help": "단축키 도움말",
+      "open-settings": "설정 열기"
+    }
+  },
+  "blockEditing": {
+    "chapterApplyWhileRunning": "작업 중에는 이 화 전체 서식 일괄 적용을 사용할 수 없습니다.",
+    "formatAppliedSelection": "선택한 블록 {{count}}개에 서식을 적용했습니다.",
+    "formatAppliedSelection_one": "선택한 블록 {{count}}개에 서식을 적용했습니다.",
+    "formatAppliedSelection_other": "선택한 블록 {{count}}개에 서식을 적용했습니다.",
+    "formatAppliedPage": "이 페이지의 모든 블록에 서식을 적용했습니다.",
+    "formatAppliedChapter": "이 화 전체 블록에 서식을 적용했습니다."
+  },
+  "chapter": {
+    "saveFailed": "저장 실패: {{message}}",
+    "saveConflict": "페이지 저장 충돌이 발생했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요."
+  },
+  "library": {
+    "openChapterFailed": "화를 열지 못했습니다.",
+    "refreshFailed": "보관함 목록을 불러오지 못했습니다.",
+    "refreshAfterJobFailed": "보관함 목록을 새로고침하지 못했습니다.",
+    "renameFailed": "이름을 저장하지 못했습니다.",
+    "delete": {
+      "workTitle": "작품 삭제",
+      "chapterTitle": "화 삭제",
+      "confirm": "정말 삭제하시겠습니까?",
+      "workDetail": "\"{{title}}\" 작품과 포함된 모든 화, 페이지, 번역 결과가 보관함에서 삭제됩니다.",
+      "chapterDetail": "\"{{title}}\" 화와 포함된 모든 페이지, 번역 결과가 보관함에서 삭제됩니다.",
+      "workSuccess": "{{title}} 작품을 삭제했습니다.",
+      "chapterSuccess": "{{title}} 화를 삭제했습니다.",
+      "workFailed": "작품을 삭제하지 못했습니다.",
+      "chapterFailed": "화를 삭제하지 못했습니다."
+    },
+    "retranslate": {
+      "title": "페이지 재번역",
+      "confirm": "정말 재번역 하시겠습니까?",
+      "detail": "기존 번역 결과와 수정 내용이 이 페이지에서 덮어써집니다."
+    },
+    "removePage": {
+      "title": "페이지 삭제",
+      "confirm": "정말 삭제하시겠습니까?",
+      "detail": "이 페이지와 해당 번역 결과가 보관함에서 삭제됩니다.",
+      "success": "{{name}} 페이지를 삭제했습니다.",
+      "failed": "페이지를 삭제하지 못했습니다."
+    },
+    "order": {
+      "chapterSaveFailed": "화 순서를 저장하지 못했습니다.",
+      "pageSaveFailed": "페이지 순서를 저장하지 못했습니다.",
+      "saveBeforePageOrderFailed": "현재 수정사항을 저장하지 못해 페이지 순서를 저장하지 않았습니다.",
+      "pageRolledBack": "페이지 순서를 이전 순서로 되돌렸습니다.",
+      "rolledBackAfterError": "{{message}} 이전 순서로 되돌렸습니다."
+    }
+  },
+  "inpainting": {
+    "common": {
+      "saveFailedTitle": "저장 실패",
+      "jobFailedTitle": "작업 실패"
+    },
+    "mode": {
+      "saveBeforeEnterFailed": "인페인팅 모드로 들어가기 전에 변경사항을 저장하지 못했습니다.",
+      "entered": "인페인팅 모드로 전환했습니다. 원문 지우기부터 시작하세요.",
+      "exited": "인페인팅 모드를 종료했습니다."
+    },
+    "drawn": {
+      "title": "그린 영역 지우기",
+      "message": "주황색으로 그린 마스크 영역만 Flux로 지웁니다.",
+      "detail": "글자 위를 넉넉히 문질러 둔 영역을 crop으로 잘라 배경을 복원합니다. 결과는 별도 이미지로 저장되며 원본 페이지는 유지됩니다.",
+      "preparing": "그린 영역 지우기 준비 중",
+      "saveFailed": "그린 영역을 지우기 전에 변경사항을 저장하지 못했습니다.",
+      "startFailed": "그린 영역 지우기를 시작하지 못했습니다.",
+      "failed": "그린 영역 지우기에 실패했습니다.",
+      "success": "그린 영역 지우기 완료: {{pages}}페이지, {{regions}}영역"
+    },
+    "erase": {
+      "title": "원문 지우기",
+      "currentPage": "현재 페이지",
+      "pendingPages": "아직 지우지 않은 페이지",
+      "message": "{{scope}}의 번역 블록 위치에 있는 원문을 지웁니다.",
+      "detail": "말풍선, 톤, 배경 그림, 효과음 위 글자까지 모두 Flux 인페인팅으로 지웁니다. 원본 이미지는 유지하고 결과 이미지는 별도로 저장합니다.",
+      "preparing": "원문 지우기 준비 중",
+      "saveFailed": "원문 지우기 전에 변경사항을 저장하지 못했습니다.",
+      "startFailed": "원문 지우기를 시작하지 못했습니다.",
+      "failed": "원문 지우기에 실패했습니다.",
+      "success": "원문 지우기 완료: {{pages}}페이지, {{blocks}}블록"
+    },
+    "export": {
+      "noPage": "출력할 페이지가 선택되어 있지 않습니다.",
+      "saveFailed": "PNG 출력 전에 변경사항을 저장하지 못했습니다.",
+      "openFolderFailed": "PNG 출력은 완료됐지만 폴더를 열지 못했습니다: {{path}}",
+      "success": "인페인팅 결과를 PNG로 출력했습니다: {{count}}페이지",
+      "success_one": "인페인팅 결과를 PNG로 출력했습니다: {{count}}페이지",
+      "success_other": "인페인팅 결과를 PNG로 출력했습니다: {{count}}페이지",
+      "failed": "인페인팅 결과를 출력하지 못했습니다.",
+      "failedTitle": "PNG 출력 실패",
+      "preparing": "PNG 출력 준비 중"
+    },
+    "revert": {
+      "pageTitle": "이 페이지 원본으로 되돌리기",
+      "chapterTitle": "전체 페이지 원본으로 되돌리기",
+      "pageMessage": "현재 페이지의 인페인팅 결과를 원본 이미지로 되돌립니다.",
+      "chapterMessage": "현재 화의 인페인팅 결과를 원본 이미지로 되돌립니다.",
+      "detail": "번역 블록과 좌표는 유지하고, 지워진 이미지 결과만 해제합니다.",
+      "success": "인페인팅 되돌리기 완료: {{count}}페이지",
+      "success_one": "인페인팅 되돌리기 완료: {{count}}페이지",
+      "success_other": "인페인팅 되돌리기 완료: {{count}}페이지",
+      "failedTitle": "되돌리기 실패",
+      "failed": "인페인팅 결과를 되돌리지 못했습니다."
+    },
+    "retouch": {
+      "applyFailed": "리터치 적용에 실패했습니다.",
+      "undoFailed": "리터치 되돌리기에 실패했습니다.",
+      "undoSuccess": "리터치를 되돌렸습니다.",
+      "redoFailed": "리터치 다시 적용에 실패했습니다.",
+      "redoSuccess": "리터치를 다시 적용했습니다."
+    },
+    "color": {
+      "selected": "붓 색상을 {{color}}로 선택했습니다. 계속 다른 색을 뽑거나 붓으로 전환하세요.",
+      "sampleFailed": "색상을 가져오지 못했습니다."
+    }
+  },
+  "regionTranslation": {
+    "disposeInpainting": "영역 번역을 위해 Flux 인페인팅 런타임을 정리합니다.",
+    "cancelledSelection": "영역 번역 선택을 취소했습니다.",
+    "dragPrompt": "번역할 영역을 드래그하세요.",
+    "tooSmall": "선택 영역이 너무 작습니다.",
+    "preparing": "선택 영역 번역 준비 중",
+    "failedTitle": "선택 영역 번역 실패",
+    "failed": "선택 영역 번역에 실패했습니다.",
+    "startFailed": "선택 영역 번역을 시작하지 못했습니다.",
+    "success": "선택 영역에서 {{count}}개 블록을 만들었습니다.",
+    "success_one": "선택 영역에서 {{count}}개 블록을 만들었습니다.",
+    "success_other": "선택 영역에서 {{count}}개 블록을 만들었습니다."
+  },
+  "translation": {
+    "errors": {
+      "retranslatePageMissing": "다시 번역할 페이지를 찾지 못했습니다.",
+      "pagesMissing": "번역할 페이지를 찾지 못했습니다.",
+      "jobFailedTitle": "번역 작업 실패",
+      "jobFailed": "번역 작업에 실패했습니다.",
+      "startFailed": "번역 작업을 시작하지 못했습니다."
+    },
+    "refreshWarning": "번역은 완료됐지만 보관함 목록 새로고침에 실패했습니다.",
+    "flow": {
+      "firstPass": "1차",
+      "secondPass": "2차",
+      "chapterProgress": "{{pass}} 번역 {{current}}/{{total}}화",
+      "completed": "번역을 완료했습니다.",
+      "contextAnalysis": "AI 용어/기억 분석 중",
+      "contextSkipped": "1차 번역 완료 (AI 분석 건너뜀)",
+      "contextFailed": "AI 용어/기억 분석에 실패해 1차 번역 결과만 유지합니다.",
+      "secondPassCompleted": "2차 번역까지 완료했습니다."
+    }
+  },
+  "settings": {
+    "loadFailed": "설정을 불러오지 못했습니다.",
+    "saved": "설정을 저장했습니다. 다음 번 번역 실행부터 적용됩니다.",
+    "saveFailed": "설정을 저장하지 못했습니다.",
+    "reset": "설정을 기본값으로 복원했습니다. 다음 번 번역 실행부터 적용됩니다.",
+    "resetFailed": "기본 설정을 복원하지 못했습니다."
+  },
+  "import": {
+    "sourceReadFailed": "번역할 원본을 읽지 못했습니다.",
+    "added": "{{count}}개 화를 보관함에 추가했습니다.",
+    "added_one": "{{count}}개 화를 보관함에 추가했습니다.",
+    "added_other": "{{count}}개 화를 보관함에 추가했습니다.",
+    "applyFailed": "가져오기를 적용하지 못했습니다."
+  },
+  "share": {
+    "exportSuccess": "{{title}} 공유 파일을 저장했습니다. {{chapters}}개 화, {{pages}}페이지",
+    "exportFailed": "공유 파일을 저장하지 못했습니다.",
+    "readFailed": "공유 파일을 읽지 못했습니다.",
+    "remainingChaptersTitle": "가져오지 않는 화가 있습니다",
+    "remainingChaptersMessage": "오른쪽에 남은 공유 화는 적용되지 않습니다.",
+    "deleteExistingTitle": "기존 화 삭제",
+    "deleteExistingMessage": "왼쪽 최종 목록에서 빠진 기존 화가 보관함에서 삭제됩니다.",
+    "importApplied": "{{count}}개 화를 보관함에 적용했습니다.",
+    "importApplied_one": "{{count}}개 화를 보관함에 적용했습니다.",
+    "importApplied_other": "{{count}}개 화를 보관함에 적용했습니다.",
+    "importFailed": "공유 파일을 가져오지 못했습니다."
+  },
+  "blockCreate": {
+    "tooSmall": "블록 영역이 너무 작습니다.",
+    "added": "새 텍스트 블록을 추가했습니다."
+  },
+  "gatherText": {
+    "import": {
+      "noText": "불러온 파일에 텍스트가 없습니다.",
+      "missingHeaders": "페이지 머리말(# n쪽)이 없어 어느 페이지의 텍스트인지 알 수 없습니다. 머리말을 포함해 저장한 txt를 사용하세요.",
+      "pageNumber": "{{number}}쪽",
+      "headerlessSection": "머리말 없는 구간",
+      "pageMissing": "{{page}}: 해당 페이지를 찾을 수 없어 건너뜁니다.",
+      "blockMismatch": "{{page}}쪽: 텍스트 줄 구성과 번역 블록 {{count}}개가 맞지 않아 건너뜁니다.",
+      "blockMismatch_one": "{{page}}쪽: 텍스트 줄 구성과 번역 블록 {{count}}개가 맞지 않아 건너뜁니다.",
+      "blockMismatch_other": "{{page}}쪽: 텍스트 줄 구성과 번역 블록 {{count}}개가 맞지 않아 건너뜁니다."
+    }
+  }
+}

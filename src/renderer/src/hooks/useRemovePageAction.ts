@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { formatErrorMessage } from "../lib/appHelpers";
 import { libraryGateway } from "./libraryGateway";
 import type {
@@ -44,6 +45,7 @@ export function useRemovePageAction({
   saveNow,
   setSelectedPageId,
 }: RemovePageActionOptions): (pageId: string) => Promise<void> {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async (pageId) => {
       if (!currentChapter) {
@@ -56,9 +58,9 @@ export function useRemovePageAction({
         return;
       }
       const confirmed = await askConfirm(
-        "페이지 삭제",
-        "정말 삭제하시겠습니까?",
-        "이 페이지와 해당 번역 결과가 보관함에서 삭제됩니다.",
+        t("library.removePage.title"),
+        t("library.removePage.confirm"),
+        t("library.removePage.detail"),
       );
       if (!confirmed) {
         return;
@@ -79,11 +81,11 @@ export function useRemovePageAction({
         setSelectedPageId(
           resolvePageIdAfterRemoval(previousOrder, pageId, nextChapter),
         );
-        pushStatus(`${page.name} 페이지를 삭제했습니다.`);
+        pushStatus(t("library.removePage.success", { name: page.name }));
         await refreshLibrary();
       } catch (error) {
         console.error(error);
-        pushStatus(formatErrorMessage(error, "페이지를 삭제하지 못했습니다."));
+        pushStatus(formatErrorMessage(error, t("library.removePage.failed")));
       }
     },
     [
@@ -95,6 +97,7 @@ export function useRemovePageAction({
       refreshLibrary,
       saveNow,
       setSelectedPageId,
+      t,
     ],
   );
 }

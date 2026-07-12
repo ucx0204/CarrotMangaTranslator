@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { LibraryIndex } from "../../../shared/libraryTypes";
 import type { WorkShareImportPreview } from "../../../shared/shareTypes";
 import { Button, Modal } from "./ui";
@@ -25,13 +26,14 @@ export function ShareImportModal({
   onCancel,
   onSubmit,
 }: ShareImportModalProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const state = useShareImportModalState({ library, preview });
 
   return (
     <Modal
       size="xl"
-      ariaLabel="가져오기"
-      title="가져오기"
+      ariaLabel={t("common.import")}
+      title={t("common.import")}
       onClose={onCancel}
       closeDisabled={busy}
       bodyClassName={
@@ -40,14 +42,14 @@ export function ShareImportModal({
       footer={
         <>
           <Button variant="ghost" onClick={onCancel} disabled={busy}>
-            취소
+            {t("common.cancel")}
           </Button>
           <Button
             variant="primary"
             disabled={busy || !state.canSubmit}
             onClick={() => onSubmit(state.buildSubmitPayload())}
           >
-            가져오기 적용
+            {t("shareImport.applyImport")}
           </Button>
         </>
       }

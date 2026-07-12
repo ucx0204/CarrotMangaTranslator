@@ -1,4 +1,6 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { mangaGateway } from "../api/mangaGateway";
 import { formatErrorMessage } from "../lib/appHelpers";
 import {
@@ -11,13 +13,15 @@ import {
 export function useDrawnPatternInpaintingAction(
   options: UseInpaintingActionsOptions,
 ): () => Promise<void> {
+  const { t } = useTranslation("renderer");
   return useCallback(async () => {
-    await runDrawnPatternInpainting(options);
-  }, [options]);
+    await runDrawnPatternInpainting(options, t);
+  }, [options, t]);
 }
 
 async function runDrawnPatternInpainting(
   options: UseInpaintingActionsOptions,
+  t: TFunction<"renderer">,
 ): Promise<void> {
   const { currentChapter, selectedPage } = options;
   if (
@@ -28,7 +32,7 @@ async function runDrawnPatternInpainting(
   ) {
     return;
   }
-  const ready = await prepareDrawnInpainting(options);
+  const ready = await prepareDrawnInpainting(options, t);
   if (!ready) {
     return;
   }
@@ -43,11 +47,13 @@ async function runDrawnPatternInpainting(
     selectedPageId: selectedPage.id,
     setJobState: options.setJobState,
     setPatternMaskStrokesByPage: options.setPatternMaskStrokesByPage,
+    t,
   });
 }
 
 async function prepareDrawnInpainting(
   options: UseInpaintingActionsOptions,
+  t: TFunction<"renderer">,
 ): Promise<boolean> {
   try {
     await saveDirtyChanges(options.dirty, options.saveNow);
@@ -56,18 +62,15 @@ async function prepareDrawnInpainting(
     failInpaintingJob(
       options.setJobState,
       options.pushStatus,
-      "저장 실패",
-      formatErrorMessage(
-        error,
-        "그린 영역을 지우기 전에 변경사항을 저장하지 못했습니다.",
-      ),
+      t("inpainting.common.saveFailedTitle"),
+      formatErrorMessage(error, t("inpainting.drawn.saveFailed")),
     );
     return false;
   }
   const confirmed = await options.askConfirm(
-    "그린 영역 지우기",
-    "주황색으로 그린 마스크 영역만 Flux로 지웁니다.",
-    "글자 위를 넉넉히 문질러 둔 영역을 crop으로 잘라 배경을 복원합니다. 결과는 별도 이미지로 저장되며 원본 페이지는 유지됩니다.",
+    t("inpainting.drawn.title"),
+    t("inpainting.drawn.message"),
+    t("inpainting.drawn.detail"),
   );
   if (!confirmed) {
     return false;
@@ -77,7 +80,7 @@ async function prepareDrawnInpainting(
     id: "pending-inpainting",
     kind: "inpainting",
     status: "starting",
-    progressText: "그린 영역 지우기 준비 중",
+    progressText: t("inpainting.drawn.preparing"),
     phase: "inpainting_preparing",
     progressCurrent: 0,
     progressTotal: 1,
@@ -96,6 +99,7 @@ async function runDrawnInpaintingRequest({
   selectedPageId,
   setJobState,
   setPatternMaskStrokesByPage,
+  t,
 }: {
   chapterId: string;
   clearPageImageCache: () => void;
@@ -107,6 +111,7 @@ async function runDrawnInpaintingRequest({
   selectedPageId: string;
   setJobState: UseInpaintingActionsOptions["setJobState"];
   setPatternMaskStrokesByPage: UseInpaintingActionsOptions["setPatternMaskStrokesByPage"];
+  t: TFunction<"renderer">;
 }): Promise<void> {
   try {
     const result = await mangaGateway.startInpainting({
@@ -121,8 +126,12 @@ async function runDrawnInpaintingRequest({
       clearPageImageCache();
       mergeLiveChapter(result.chapter);
     }
-    await refreshLibraryWithStatus(refreshLibrary, pushStatus);
-    reportDrawnInpaintingResult(result, selectedPageId, {
+    await refreshLibraryWithStatus(
+      refreshLibrary,
+      pushStatus,
+      t("library.refreshAfterJobFailed"),
+    );
+    reportDrawnInpaintingResult(result, selectedPageId, t, {
       pushStatus,
       setPatternMaskStrokesByPage,
     });
@@ -131,8 +140,8 @@ async function runDrawnInpaintingRequest({
     failInpaintingJob(
       setJobState,
       pushStatus,
-      "작업 실패",
-      formatErrorMessage(error, "그린 영역 지우기를 시작하지 못했습니다."),
+      t("inpainting.common.jobFailedTitle"),
+      formatErrorMessage(error, t("inpainting.drawn.startFailed")),
     );
   }
 }
@@ -140,6 +149,7 @@ async function runDrawnInpaintingRequest({
 function reportDrawnInpaintingResult(
   result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
   selectedPageId: string,
+  t: TFunction<"renderer">,
   {
     pushStatus,
     setPatternMaskStrokesByPage,
@@ -155,9 +165,13 @@ function reportDrawnInpaintingResult(
       return next;
     });
     pushStatus(
-      `그린 영역 지우기 완료: ${result.pagesChanged ?? 0}페이지, ${result.blocksErased ?? 0}영역`,
+      t("inpainting.drawn.success", {
+        pages: result.pagesChanged ?? 0,
+        regions: result.blocksErased ?? 0,
+      }),
     );
   } else if (result.status === "failed" && result.error) {
-    pushStatus(result.error);
+    console.error(result.error);
+    pushStatus(t("inpainting.drawn.failed"));
   }
 }

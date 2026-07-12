@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { EditorPanel } from "../components/EditorPanel";
 import { IconButton } from "../components/ui";
 import { ExpandIcon, FloatIcon } from "../components/ui/icons";
@@ -14,22 +15,23 @@ import { usePanelSession } from "./panelSession";
  * floating panel and pop-out window own their own dock-back affordances.
  */
 export function EditorPanelContainer(): React.JSX.Element {
+  const { t } = useTranslation("renderer");
   const session = usePanelSession();
   const detachControls =
     session.showDetachControls && !session.editorFloating ? (
       <>
         <IconButton
           size="sm"
-          label="편집기 띄우기"
-          title="편집기를 띄워 크게 편집"
+          label={t("panels.editor.float")}
+          title={t("panels.editor.floatTitle")}
           onClick={session.onToggleEditorFloat}
         >
           <ExpandIcon size={15} />
         </IconButton>
         <IconButton
           size="sm"
-          label="편집기 새 창"
-          title="편집기를 새 창으로 분리"
+          label={t("panels.editor.popOut")}
+          title={t("panels.editor.popOutTitle")}
           onClick={session.onPopOutEditor}
         >
           <FloatIcon size={15} />

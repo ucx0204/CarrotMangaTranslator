@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { formatErrorMessage, reorderByTarget } from "../lib/appHelpers";
 import { libraryGateway } from "./libraryGateway";
 import type { UseLibraryActionsOptions } from "./libraryActionTypes";
@@ -21,6 +22,7 @@ export function useReorderChaptersAction({
   sourceChapterId: string,
   targetChapterId: string,
 ) => void {
+  const { t } = useTranslation("renderer");
   return useCallback(
     (workId, sourceChapterId, targetChapterId) => {
       const work = library.works.find((candidate) => candidate.id === workId);
@@ -46,11 +48,11 @@ export function useReorderChaptersAction({
           );
           const message = formatErrorMessage(
             error,
-            "화 순서를 저장하지 못했습니다.",
+            t("library.order.chapterSaveFailed"),
           );
-          pushStatus(`${message} 이전 순서로 되돌렸습니다.`);
+          pushStatus(t("library.order.rolledBackAfterError", { message }));
         });
     },
-    [library.works, pushStatus, setLibrary],
+    [library.works, pushStatus, setLibrary, t],
   );
 }

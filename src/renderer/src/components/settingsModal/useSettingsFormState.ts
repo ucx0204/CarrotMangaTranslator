@@ -54,6 +54,7 @@ function useSettingsFormSetters(
   setValues: React.Dispatch<React.SetStateAction<SettingsFormValues>>,
 ): SettingsFormSetters {
   return {
+    setUiLocale: useFormFieldDispatch(setValues, "uiLocale"),
     setModelProvider: useFormFieldDispatch(setValues, "modelProvider"),
     setSourceLanguage: useFormFieldDispatch(setValues, "sourceLanguage"),
     setTargetLanguage: useFormFieldDispatch(setValues, "targetLanguage"),

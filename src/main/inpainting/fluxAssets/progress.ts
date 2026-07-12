@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import type { FluxAssetProgress } from "./types";
+import { tMain } from "../localization";
 
 export function emitPythonInstallLog(
   options: { onProgress?: (progress: FluxAssetProgress) => void },
@@ -11,7 +12,7 @@ export function emitPythonInstallLog(
   }
   const progress = parsePipDownloadProgressLine(trimmed);
   options.onProgress?.({
-    progressText: "Flux Python 런타임 설치 중",
+    progressText: tMain("inpainting.runtime.pythonInstalling"),
     detail: progress?.detail ?? trimmed.slice(0, 180),
     progressMode: progress ? "determinate" : "indeterminate",
     progressPercent: progress?.progressPercent,
@@ -37,7 +38,9 @@ export function parsePipDownloadProgressLine(
     if (totalBytes > 0) {
       const isCached = action.toLowerCase() === "using cached";
       return {
-        detail: `${basename(fileName)} · ${isCached ? "캐시 사용" : `0 B / ${formatBytes(totalBytes)}`}`,
+        detail: isCached
+          ? tMain("downloads.cachedDetail", { file: basename(fileName) })
+          : `${basename(fileName)} · 0 B / ${formatBytes(totalBytes)}`,
         progressPercent: isCached ? 1 : 0,
         progressBytes: isCached ? totalBytes : 0,
         progressTotalBytes: totalBytes,
@@ -94,12 +97,14 @@ export function emitDownloadProgress(
 ): void {
   options.onProgress?.({
     progressText: done
-      ? `${options.label} 다운로드 완료`
+      ? tMain("downloads.completed", { label: options.label })
       : options.progressText,
     detail:
       totalBytes > 0
         ? `${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}`
-        : `${formatBytes(receivedBytes)} 받음`,
+        : tMain("downloads.received", {
+            received: formatBytes(receivedBytes),
+          }),
     progressMode: totalBytes > 0 ? "determinate" : "log-only",
     progressPercent:
       totalBytes > 0 ? Math.min(1, receivedBytes / totalBytes) : undefined,
@@ -138,7 +143,7 @@ export function createCombinedDownloadProgress(
       const received = slots.reduce((sum, file) => sum + file.received, 0);
       const total = slots.reduce((sum, file) => sum + file.total, 0);
       onProgress?.({
-        progressText: `${label} 다운로드 중`,
+        progressText: tMain("downloads.downloading", { label }),
         detail:
           total > 0
             ? `${formatBytes(received)} / ${formatBytes(total)}`

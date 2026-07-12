@@ -1,4 +1,5 @@
 import type { JobEvent, JobPhase, JobState } from "../../../shared/jobTypes";
+import type { TFunction } from "i18next";
 
 type JobWithProgress = Pick<
   JobState,
@@ -33,69 +34,122 @@ export type ProgressSnapshot =
       ratio: number;
     };
 
-const PROGRESS_TEXT_FALLBACK_BY_PHASE: Partial<Record<JobPhase, string>> = {
-  booting: "모델 준비 중",
-  model_downloading: "모델 다운로드/서버 준비 중",
-  inpainting_preparing: "인페인팅 준비 중",
-  finalizing: "결과 정리 중",
-  done: "작업 완료",
+const PROGRESS_TEXT_FALLBACK_BY_PHASE: Partial<
+  Record<JobPhase, { key: string; fallback: string }>
+> = {
+  booting: { key: "job.phase.booting", fallback: "모델 준비 중" },
+  model_downloading: {
+    key: "job.phase.modelDownloading",
+    fallback: "모델 다운로드/서버 준비 중",
+  },
+  inpainting_preparing: {
+    key: "job.phase.inpaintingPreparing",
+    fallback: "인페인팅 준비 중",
+  },
+  finalizing: { key: "job.phase.finalizing", fallback: "결과 정리 중" },
+  done: { key: "job.phase.done", fallback: "작업 완료" },
 };
 
-const STATIC_LABEL_BY_PHASE: Partial<Record<JobPhase, string>> = {
-  ocr_downloading: "Paddle OCR 다운로드/설치 중",
-  ready: "모델 준비 완료",
-  cancelled: "작업이 취소됨",
-  failed: "작업 실패",
+const STATIC_LABEL_BY_PHASE: Partial<
+  Record<JobPhase, { key: string; fallback: string }>
+> = {
+  ocr_downloading: {
+    key: "job.phase.ocrDownloading",
+    fallback: "Paddle OCR 다운로드/설치 중",
+  },
+  ready: { key: "job.phase.ready", fallback: "모델 준비 완료" },
+  cancelled: { key: "job.phase.cancelled", fallback: "작업이 취소됨" },
+  failed: { key: "job.phase.failed", fallback: "작업 실패" },
 };
 
-const PAGE_SUFFIX_BY_PHASE: Partial<Record<JobPhase, string>> = {
-  ocr_preparing: "Paddle OCR 준비 중",
-  model_requesting: "AI 번역 요청 중",
-  page_running: "번역 중",
-  page_done: "완료",
-  page_skipped: "건너뜀",
+const PAGE_SUFFIX_BY_PHASE: Partial<
+  Record<JobPhase, { key: string; fallback: string }>
+> = {
+  ocr_preparing: {
+    key: "job.phase.ocrPreparing",
+    fallback: "Paddle OCR 준비 중",
+  },
+  model_requesting: {
+    key: "job.phase.modelRequesting",
+    fallback: "AI 번역 요청 중",
+  },
+  page_running: { key: "job.phase.pageRunning", fallback: "번역 중" },
+  page_done: { key: "job.phase.pageDone", fallback: "완료" },
+  page_skipped: { key: "job.phase.pageSkipped", fallback: "건너뜀" },
 };
 
-const PROGRESS_TEXT_OR_PAGE_SUFFIX_BY_PHASE: Partial<Record<JobPhase, string>> =
-  {
-    inpainting_running: "원문 지우는 중",
-    inpainting_done: "원문 지우기 완료",
-  };
+const PROGRESS_TEXT_OR_PAGE_SUFFIX_BY_PHASE: Partial<
+  Record<JobPhase, { key: string; fallback: string }>
+> = {
+  inpainting_running: {
+    key: "job.phase.inpaintingRunning",
+    fallback: "원문 지우는 중",
+  },
+  inpainting_done: {
+    key: "job.phase.inpaintingDone",
+    fallback: "원문 지우기 완료",
+  },
+};
 
-export function formatJobLabel(job: JobWithProgress): string {
+export function formatJobLabel(
+  job: JobWithProgress,
+  t?: TFunction<"renderer">,
+  options: { preserveUnknownProgressText?: boolean } = {},
+): string {
+  const preserveUnknownProgressText =
+    options.preserveUnknownProgressText ?? true;
   if (!job.phase) {
-    return fallbackFromStatus(job.status);
+    return fallbackFromStatus(job.status, t);
   }
   const progressTextFallback = PROGRESS_TEXT_FALLBACK_BY_PHASE[job.phase];
   if (progressTextFallback) {
-    return trimmedProgressText(job) ?? progressTextFallback;
+    return (
+      translatedProgressText(job, t, preserveUnknownProgressText) ??
+      translate(t, progressTextFallback.key, progressTextFallback.fallback)
+    );
   }
   const staticLabel = STATIC_LABEL_BY_PHASE[job.phase];
   if (staticLabel) {
-    return staticLabel;
+    return translate(t, staticLabel.key, staticLabel.fallback);
   }
   if (job.phase === "ocr_running") {
-    return formatOcrRunningLabel(job);
+    return formatOcrRunningLabel(job, t, preserveUnknownProgressText);
   }
   if (job.phase === "page_retry") {
-    return formatRetryLabel(job);
+    return formatRetryLabel(job, t);
   }
   const pageSuffix = PAGE_SUFFIX_BY_PHASE[job.phase];
   if (pageSuffix) {
-    return formatPageLabel(job, pageSuffix);
+    return formatPageLabel(
+      job,
+      translate(t, pageSuffix.key, pageSuffix.fallback),
+      t,
+    );
   }
   const progressTextOrPageSuffix =
     PROGRESS_TEXT_OR_PAGE_SUFFIX_BY_PHASE[job.phase];
   if (progressTextOrPageSuffix) {
     return (
-      trimmedProgressText(job) ?? formatPageLabel(job, progressTextOrPageSuffix)
+      translatedProgressText(job, t, preserveUnknownProgressText) ??
+      formatPageLabel(
+        job,
+        translate(
+          t,
+          progressTextOrPageSuffix.key,
+          progressTextOrPageSuffix.fallback,
+        ),
+        t,
+      )
     );
   }
-  return fallbackFromStatus(job.status);
+  return fallbackFromStatus(job.status, t);
 }
 
-export function formatJobEventLine(event: JobEvent): string {
-  return formatJobLabel(event);
+export function formatJobEventLine(
+  event: JobEvent,
+  t?: TFunction<"renderer">,
+): string {
+  return formatJobLabel(event, t);
 }
 
 export function resolveProgressSnapshot(
@@ -164,7 +218,10 @@ function isIndeterminatePhase(phase: JobPhase | undefined): boolean {
   return phase === "booting" || phase === "model_downloading";
 }
 
-export function formatBytes(bytes: number | null | undefined): string | null {
+export function formatBytes(
+  bytes: number | null | undefined,
+  locale?: string,
+): string | null {
   if (!Number.isFinite(bytes) || (bytes ?? 0) < 0) {
     return null;
   }
@@ -176,49 +233,123 @@ export function formatBytes(bytes: number | null | undefined): string | null {
     unitIndex += 1;
   }
   const digits = unitIndex === 0 ? 0 : value >= 100 ? 0 : value >= 10 ? 1 : 2;
-  return `${value.toFixed(digits)} ${units[unitIndex]}`;
+  const formatted = locale
+    ? new Intl.NumberFormat(locale, {
+        maximumFractionDigits: digits,
+        minimumFractionDigits: digits,
+      }).format(value)
+    : value.toFixed(digits);
+  return `${formatted} ${units[unitIndex]}`;
 }
 
-export function summarizeWarnings(warnings: string[]): string | null {
+export function summarizeWarnings(
+  warnings: string[],
+  t?: TFunction<"renderer">,
+): string | null {
   if (warnings.length === 0) {
     return null;
   }
 
-  const skipped = warnings.filter((warning) =>
-    warning.includes("건너뜁니다"),
-  ).length;
-  const uncertain = warnings.filter((warning) =>
-    warning.includes("불확실한 OCR"),
-  ).length;
+  const skipped = warnings.filter(isSkippedPageWarning).length;
+  const uncertain = warnings.filter(isUncertainOcrWarning).length;
   if (skipped > 0 && uncertain > 0) {
-    return `일부 페이지를 건너뛰었고 OCR 확인이 필요한 블록도 있습니다.`;
+    return translate(
+      t,
+      "job.warnings.skippedAndUncertain",
+      "일부 페이지를 건너뛰었고 OCR 확인이 필요한 블록도 있습니다.",
+    );
   }
   if (skipped > 0) {
-    return `일부 페이지는 건너뛰고 다음 페이지로 진행했습니다.`;
+    return translate(
+      t,
+      "job.warnings.skipped",
+      "일부 페이지는 건너뛰고 다음 페이지로 진행했습니다.",
+    );
   }
   if (uncertain > 0) {
-    return `일부 블록은 OCR 확인이 더 필요합니다.`;
+    return translate(
+      t,
+      "job.warnings.uncertain",
+      "일부 블록은 OCR 확인이 더 필요합니다.",
+    );
   }
-  return `중간 경고가 있었지만 작업은 계속 진행되었습니다.`;
+  return translate(
+    t,
+    "job.warnings.generic",
+    "중간 경고가 있었지만 작업은 계속 진행되었습니다.",
+  );
 }
 
-function formatPageLabel(job: JobWithProgress, suffix: string): string {
+function isSkippedPageWarning(warning: string): boolean {
+  return warning.startsWith("page_skipped:") || warning.includes("건너뜁니다");
+}
+
+function isUncertainOcrWarning(warning: string): boolean {
+  return (
+    warning.startsWith("uncertain_ocr:") || warning.includes("불확실한 OCR")
+  );
+}
+
+function formatPageLabel(
+  job: JobWithProgress,
+  suffix: string,
+  t?: TFunction<"renderer">,
+): string {
   if (hasPageIndex(job)) {
-    return `${job.pageIndex} / ${job.pageTotal} 페이지 ${suffix}`;
+    return t
+      ? t("job.pageProgress", {
+          current: job.pageIndex,
+          total: job.pageTotal,
+          status: suffix,
+        })
+      : `${job.pageIndex} / ${job.pageTotal} 페이지 ${suffix}`;
   }
-  return `페이지 ${suffix}`;
+  return t ? t("job.pageStatus", { status: suffix }) : `페이지 ${suffix}`;
 }
 
-function formatOcrRunningLabel(job: JobWithProgress): string {
+function formatOcrRunningLabel(
+  job: JobWithProgress,
+  t?: TFunction<"renderer">,
+  preserveUnknownProgressText = true,
+): string {
   if (!hasPageIndex(job)) {
-    return trimmedProgressText(job) ?? "Paddle OCR 분석 중";
+    return (
+      translatedProgressText(job, t, preserveUnknownProgressText) ??
+      translate(t, "job.phase.ocrRunning", "Paddle OCR 분석 중")
+    );
   }
-  return formatPageLabel(job, "Paddle OCR 분석 중");
+  return formatPageLabel(
+    job,
+    translate(t, "job.phase.ocrRunning", "Paddle OCR 분석 중"),
+    t,
+  );
 }
 
 function trimmedProgressText(job: JobWithProgress): string | null {
   return job.progressText?.trim() || null;
 }
+
+function translatedProgressText(
+  job: JobWithProgress,
+  t?: TFunction<"renderer">,
+  preserveUnknownProgressText = true,
+): string | null {
+  const text = trimmedProgressText(job);
+  if (!text || !t) {
+    return text;
+  }
+  const key = LEGACY_PROGRESS_TEXT_KEYS[text];
+  return key ? t(key) : preserveUnknownProgressText ? text : null;
+}
+
+const LEGACY_PROGRESS_TEXT_KEYS: Record<string, string> = {
+  "모델 준비 중": "job.phase.booting",
+  "모델 다운로드/서버 준비 중": "job.phase.modelDownloading",
+  "인페인팅 준비 중": "job.phase.inpaintingPreparing",
+  "결과 정리 중": "job.phase.finalizing",
+  "작업 완료": "job.phase.done",
+  "Paddle OCR 선분석 완료": "job.phase.ocrPreanalysisDone",
+};
 
 function hasPageIndex(job: JobWithProgress): boolean {
   return (
@@ -228,33 +359,54 @@ function hasPageIndex(job: JobWithProgress): boolean {
   );
 }
 
-function formatRetryLabel(job: JobWithProgress): string {
+function formatRetryLabel(
+  job: JobWithProgress,
+  t?: TFunction<"renderer">,
+): string {
   if (
     Number.isFinite(job.pageIndex) &&
     Number.isFinite(job.pageTotal) &&
     Number.isFinite(job.attempt) &&
     Number.isFinite(job.attemptTotal)
   ) {
-    return `${job.pageIndex} / ${job.pageTotal} 페이지 재시도 ${job.attempt} / ${job.attemptTotal}`;
+    return t
+      ? t("job.pageRetry", {
+          current: job.pageIndex,
+          total: job.pageTotal,
+          attempt: job.attempt,
+          attemptTotal: job.attemptTotal,
+        })
+      : `${job.pageIndex} / ${job.pageTotal} 페이지 재시도 ${job.attempt} / ${job.attemptTotal}`;
   }
-  return "페이지 재시도 중";
+  return translate(t, "job.phase.pageRetry", "페이지 재시도 중");
 }
 
-function fallbackFromStatus(status: JobState["status"]): string {
+function fallbackFromStatus(
+  status: JobState["status"],
+  t?: TFunction<"renderer">,
+): string {
   switch (status) {
     case "starting":
-      return "모델 준비 중";
+      return translate(t, "job.status.starting", "모델 준비 중");
     case "running":
-      return "작업 진행 중";
+      return translate(t, "job.status.running", "작업 진행 중");
     case "cancelling":
-      return "작업 취소 중";
+      return translate(t, "job.status.cancelling", "작업 취소 중");
     case "cancelled":
-      return "작업이 취소됨";
+      return translate(t, "job.status.cancelled", "작업이 취소됨");
     case "failed":
-      return "작업 실패";
+      return translate(t, "job.status.failed", "작업 실패");
     case "completed":
-      return "번역 완료";
+      return translate(t, "job.status.completed", "번역 완료");
     default:
-      return "대기 중";
+      return translate(t, "job.status.idle", "대기 중");
   }
+}
+
+function translate(
+  t: TFunction<"renderer"> | undefined,
+  key: string,
+  fallback: string,
+): string {
+  return t ? t(key) : fallback;
 }

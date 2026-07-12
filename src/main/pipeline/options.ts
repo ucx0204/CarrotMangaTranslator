@@ -5,6 +5,7 @@ import {
 } from "../appSettings";
 import { getAppPaths, type AppPaths } from "../appPaths";
 import type { AppSettings, MangaPage } from "../../shared/types";
+import { tMain } from "./localization";
 
 export function buildBaseOptions(
   jobId: string,
@@ -49,12 +50,12 @@ export function formatGemmaVramMode(
   mode: TranslationOptions["gemmaVramMode"],
 ): string {
   if (mode === "minimum12b") {
-    return "12B 최소 모드";
+    return tMain("translation.vram.minimum12b");
   }
   if (mode === "economy26b") {
-    return "26B 절약 모드";
+    return tMain("translation.vram.economy26b");
   }
-  return "31B 풀로드 모드";
+  return tMain("translation.vram.full31b");
 }
 
 export function summarizeTranslationOptions(

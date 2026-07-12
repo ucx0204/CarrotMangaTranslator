@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { RenameTarget } from "../components/AppModals";
 import { formatErrorMessage } from "../lib/appHelpers";
 import { libraryGateway } from "./libraryGateway";
@@ -37,6 +38,7 @@ export function useSubmitRenameAction({
   setRenameBusy,
   setRenameTarget,
 }: SubmitRenameActionOptions): (title: string) => Promise<void> {
+  const { t } = useTranslation("renderer");
   const currentChapterId = currentChapter?.id ?? null;
 
   return useCallback(
@@ -63,7 +65,7 @@ export function useSubmitRenameAction({
         setRenameTarget(null);
       } catch (error) {
         console.error(error);
-        pushStatus(formatErrorMessage(error, "이름을 저장하지 못했습니다."));
+        pushStatus(formatErrorMessage(error, t("library.renameFailed")));
       } finally {
         setRenameBusy(false);
       }
@@ -78,6 +80,7 @@ export function useSubmitRenameAction({
       setLibrary,
       setRenameBusy,
       setRenameTarget,
+      t,
     ],
   );
 }

@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { Command } from "../components/CommandPalette";
 
@@ -41,6 +43,7 @@ export function useAppCommands({
   openShortcutHelp,
   openTextView,
 }: UseAppCommandsOptions): Command[] {
+  const { t } = useTranslation("renderer");
   return useMemo(
     () =>
       buildAppCommands({
@@ -61,6 +64,7 @@ export function useAppCommands({
         openShareExport,
         openShortcutHelp,
         openTextView,
+        t,
       }),
     [
       currentChapter,
@@ -80,11 +84,16 @@ export function useAppCommands({
       openShareExport,
       openShortcutHelp,
       openTextView,
+      t,
     ],
   );
 }
 
-function buildAppCommands(options: UseAppCommandsOptions): Command[] {
+type LocalizedCommandOptions = UseAppCommandsOptions & {
+  t: TFunction<"renderer">;
+};
+
+function buildAppCommands(options: LocalizedCommandOptions): Command[] {
   return [
     ...buildTranslationCommands(options),
     ...buildInpaintingCommands(options),
@@ -100,30 +109,31 @@ function buildTranslationCommands({
   inpaintingMode,
   openTranslateOptions,
   runAnalysis,
-}: UseAppCommandsOptions): Command[] {
+  t,
+}: LocalizedCommandOptions): Command[] {
   if (!currentChapter || jobActive || inpaintingMode) {
     return [];
   }
   return [
     {
       id: "open-translate-options",
-      label: "번역…",
-      hint: "옵션·2차 번역·일괄",
-      keywords: "translate options beonyeok 번역 옵션",
+      label: t("commands.translate.label"),
+      hint: t("commands.translate.hint"),
+      keywords: t("commands.translate.keywords"),
       run: openTranslateOptions,
     },
     {
       id: "translate-pending",
-      label: "이어서 번역",
-      hint: "남은 페이지 (바로)",
-      keywords: "translate resume ieoseo",
+      label: t("commands.translatePending.label"),
+      hint: t("commands.translatePending.hint"),
+      keywords: t("commands.translatePending.keywords"),
       run: () => void runAnalysis("pending"),
     },
     {
       id: "translate-all",
-      label: "전체 다시 번역",
-      hint: "모든 페이지",
-      keywords: "translate all retranslate jeonche",
+      label: t("commands.translateAll.label"),
+      hint: t("commands.translateAll.hint"),
+      keywords: t("commands.translateAll.keywords"),
       run: () => void runAnalysis("all"),
     },
   ];
@@ -135,13 +145,14 @@ function buildInpaintingCommands({
   inpaintingMode,
   enterInpaintingMode,
   exitInpaintingMode,
-}: UseAppCommandsOptions): Command[] {
+  t,
+}: LocalizedCommandOptions): Command[] {
   if (inpaintingMode) {
     return [
       {
         id: "exit-inpainting",
-        label: "인페인팅 종료",
-        keywords: "inpaint exit",
+        label: t("commands.exitInpainting.label"),
+        keywords: t("commands.exitInpainting.keywords"),
         run: () => exitInpaintingMode(),
       },
     ];
@@ -152,8 +163,8 @@ function buildInpaintingCommands({
   return [
     {
       id: "enter-inpainting",
-      label: "인페인팅 시작",
-      keywords: "inpaint",
+      label: t("commands.enterInpainting.label"),
+      keywords: t("commands.enterInpainting.keywords"),
       run: () => void enterInpaintingMode(),
     },
   ];
@@ -162,13 +173,14 @@ function buildInpaintingCommands({
 function buildJobCommands({
   jobActive,
   cancelJob,
-}: UseAppCommandsOptions): Command[] {
+  t,
+}: LocalizedCommandOptions): Command[] {
   return jobActive
     ? [
         {
           id: "cancel-job",
-          label: "작업 취소",
-          keywords: "cancel stop",
+          label: t("commands.cancelJob.label"),
+          keywords: t("commands.cancelJob.keywords"),
           run: cancelJob,
         },
       ]
@@ -178,14 +190,15 @@ function buildJobCommands({
 function buildChapterCommands({
   currentChapter,
   openTextView,
-}: UseAppCommandsOptions): Command[] {
+  t,
+}: LocalizedCommandOptions): Command[] {
   return currentChapter
     ? [
         {
           id: "gather-text",
-          label: "텍스트 모아보기",
-          hint: "페이지·전체 화",
-          keywords: "text copy gather moaboki 복사 모아보기",
+          label: t("commands.gatherText.label"),
+          hint: t("commands.gatherText.hint"),
+          keywords: t("commands.gatherText.keywords"),
           run: openTextView,
         },
       ]
@@ -201,55 +214,56 @@ function buildGlobalCommands({
   openTranslationSource,
   openShareExport,
   openShortcutHelp,
-}: UseAppCommandsOptions): Command[] {
+  t,
+}: LocalizedCommandOptions): Command[] {
   return [
     {
       id: "open-translate-source",
-      label: "번역 소스 가져오기",
-      hint: "이미지·폴더·ZIP",
-      keywords: "import source",
+      label: t("commands.importSource.label"),
+      hint: t("commands.importSource.hint"),
+      keywords: t("commands.importSource.keywords"),
       run: openTranslationSource,
     },
     {
       id: "open-batch",
-      label: "작품 일괄 번역",
-      keywords: "batch import",
+      label: t("commands.batchTranslate.label"),
+      keywords: t("commands.batchTranslate.keywords"),
       run: () => void openImportPreview("zip-folder"),
     },
     {
       id: "open-share-import",
-      label: "공유본 가져오기",
-      keywords: "share import",
+      label: t("commands.importShare.label"),
+      keywords: t("commands.importShare.keywords"),
       run: () => void openShareImportPreview(),
     },
     {
       id: "open-share-export",
-      label: "공유로 내보내기",
-      keywords: "share export",
+      label: t("commands.exportShare.label"),
+      keywords: t("commands.exportShare.keywords"),
       run: openShareExport,
     },
     {
       id: "open-settings",
-      label: "설정 열기",
-      keywords: "settings",
+      label: t("commands.openSettings.label"),
+      keywords: t("commands.openSettings.keywords"),
       run: () => void openSettings(),
     },
     {
       id: "open-library-folder",
-      label: "보관함 폴더 열기",
-      keywords: "library folder",
+      label: t("commands.openLibrary.label"),
+      keywords: t("commands.openLibrary.keywords"),
       run: openLibraryFolder,
     },
     {
       id: "open-log-folder",
-      label: "로그 폴더 열기",
-      keywords: "log folder",
+      label: t("commands.openLogs.label"),
+      keywords: t("commands.openLogs.keywords"),
       run: openLogFolder,
     },
     {
       id: "show-shortcuts",
-      label: "단축키 도움말",
-      keywords: "shortcut help",
+      label: t("commands.shortcutHelp.label"),
+      keywords: t("commands.shortcutHelp.keywords"),
       run: openShortcutHelp,
     },
   ];

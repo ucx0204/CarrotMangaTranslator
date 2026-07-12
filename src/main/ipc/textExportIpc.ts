@@ -7,6 +7,7 @@ import {
 import { textReviewIpcContracts } from "../../shared/ipcContracts";
 import type { SaveTextFileResult } from "../../shared/shareTypes";
 import type { IpcContext } from "./context";
+import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
 function sanitizeTextFileName(name: string): string {
@@ -26,12 +27,12 @@ export function registerTextExportIpc(context: IpcContext): void {
       const request = parseIpcPayload(
         SaveTextFileRequestSchema,
         rawRequest,
-        "텍스트 저장",
+        tMain("ipc.labels.textSave"),
       );
       const options = {
-        title: "텍스트 저장",
+        title: tMain("dialogs.saveText"),
         defaultPath: sanitizeTextFileName(request.defaultName),
-        filters: [{ name: "Text", extensions: ["txt"] }],
+        filters: [{ name: tMain("dialogs.filters.text"), extensions: ["txt"] }],
       } satisfies Electron.SaveDialogOptions;
       const window = context.getMainWindow();
       const result = window

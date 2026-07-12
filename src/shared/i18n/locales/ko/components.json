@@ -1,0 +1,929 @@
+{
+  "common": {
+    "add": "추가",
+    "all": "전체",
+    "apply": "적용",
+    "blocks": "블록",
+    "cancel": "취소",
+    "chapterCount": "{{count}}개 화",
+    "clear": "비우기",
+    "clearAll": "전체 해제",
+    "close": "닫기",
+    "confirm": "확인",
+    "copy": "복사",
+    "delete": "삭제",
+    "dragToMove": "드래그해서 이동",
+    "duplicate": "복제",
+    "import": "가져오기",
+    "inpainting": "인페인팅",
+    "inProgress": "진행 중",
+    "loading": "불러오는 중…",
+    "original": "원본",
+    "pageCount": "{{count}}페이지",
+    "pages": "페이지",
+    "preparing": "준비 중",
+    "rename": "이름 변경",
+    "reset": "초기화",
+    "save": "저장",
+    "selectAll": "전체 선택",
+    "settings": "설정",
+    "thisPage": "이 페이지",
+    "workTitle": "작품 제목"
+  },
+  "sidebar": {
+    "exitInpainting": "인페인팅 나가기",
+    "noCurrentChapter": "현재 화 없음",
+    "translate": "번역",
+    "batchTranslate": "작품 일괄 번역",
+    "libraryFolder": "보관함 폴더",
+    "share": "공유하기"
+  },
+  "workspace": {
+    "readingArea": "읽기 영역",
+    "empty": {
+      "title": "망가 번역을 시작해요",
+      "description": "이미지·폴더·ZIP을 가져와 작품과 화 단위로 저장하고, 페이지별로 번역·인페인팅·편집할 수 있어요.",
+      "startTranslation": "번역 시작",
+      "importSharedCopy": "공유본 가져오기",
+      "openSettings": "설정 열기",
+      "hints": {
+        "pageNavigation": "페이지 이동",
+        "commandPalette": "명령 팔레트",
+        "shortcuts": "단축키"
+      },
+      "steps": {
+        "engine": {
+          "title": "번역 엔진 설정",
+          "description": "모델·OCR·하드웨어를 먼저 확인하세요."
+        },
+        "import": {
+          "title": "원본 가져오기",
+          "description": "이미지·폴더·ZIP에서 페이지를 불러옵니다."
+        },
+        "edit": {
+          "title": "번역 & 편집",
+          "description": "이어서 번역하고 블록을 다듬으세요."
+        }
+      }
+    }
+  },
+  "commandPalette": {
+    "title": "명령 팔레트",
+    "searchPlaceholder": "명령 검색…",
+    "searchLabel": "명령 검색",
+    "listLabel": "명령 목록",
+    "noResults": "일치하는 명령이 없습니다."
+  },
+  "format": {
+    "title": "서식",
+    "batchApply": "일괄 적용",
+    "batchApplyTitle": "이 블록의 서식을 다른 블록에 일괄 적용",
+    "bold": "굵게",
+    "italic": "기울임꼴",
+    "italicShort": "기울임",
+    "align": {
+      "left": "왼쪽 정렬",
+      "center": "가운데 정렬",
+      "right": "오른쪽 정렬"
+    },
+    "direction": { "horizontal": "가로", "vertical": "세로" },
+    "size": "크기",
+    "fontSize": "글자 크기",
+    "fontSizeValue": "글자 크기 값",
+    "autoFitTitle": "텍스트 상자에 맞춰 자동 크기",
+    "auto": "자동",
+    "rotation": "기울기",
+    "opacity": "투명도",
+    "lineHeight": "줄 간격",
+    "letterSpacing": "자간",
+    "fontWidth": "장평",
+    "color": "색상",
+    "textColor": "글자색",
+    "outline": "외곽선"
+  },
+  "editor": {
+    "text": "텍스트",
+    "translatedText": "번역문",
+    "blockColors": "블록 색상",
+    "markupHint": { "emphasis": "일부 강조:", "escape": "별표 문자는" },
+    "markupToolbar": {
+      "boldLabel": "굵게 (**굵게**)",
+      "boldTitle": "선택한 글자를 굵게 (**굵게**)",
+      "italicLabel": "기울임 (*기울임*)",
+      "italicTitle": "선택한 글자를 기울임 (*기울임*)",
+      "resetHeight": "입력칸 높이 초기화"
+    }
+  },
+  "formatBatch": {
+    "title": "서식 일괄 적용",
+    "description": "선택한 블록의 서식을 기준으로 아래 항목을 적용합니다.",
+    "items": "적용할 항목",
+    "scope": "적용 범위",
+    "selectedBlocks": "선택한 블록 {{count}}개",
+    "multiSelectHint": "Ctrl+클릭으로 여러 블록을 선택하세요.",
+    "thisPage": "이 페이지",
+    "entireChapter": "이 화 전체",
+    "chapterDisabled": "작업 중에는 이 화 전체 적용을 사용할 수 없습니다.",
+    "groups": {
+      "font": "글꼴",
+      "size": "글자 크기",
+      "align": "정렬",
+      "direction": "가로/세로",
+      "emphasis": "굵게·기울임",
+      "lineSpacing": "줄 간격",
+      "letterSpacing": "자간",
+      "fontWidth": "장평",
+      "color": "글자색",
+      "outline": "외곽선",
+      "transform": "기울기·투명도"
+    }
+  },
+  "fontSelect": {
+    "addFont": "+ TTF/OTF 폰트 등록",
+    "deleteFont": "이 폰트 삭제",
+    "deleteNamedFont": "{{label}} 삭제"
+  },
+  "chapterPicker": {
+    "prompt": "무엇을 번역할까요?",
+    "untranslatedOnly": "미번역만",
+    "noChapters": "화가 없습니다.",
+    "currentChapter": "현재 화",
+    "loadingPages": "페이지 불러오는 중…",
+    "loadPagesFailed": "페이지를 불러오지 못했습니다.",
+    "noPages": "페이지가 없습니다.",
+    "translated": "번역됨",
+    "chapterSummaryComplete": "{{count}}p · 완료",
+    "chapterSummaryRemaining": "{{count}}p · {{remaining}} 남음",
+    "chapterSummary": "{{count}}p{{suffix}}",
+    "statusSuffix": { "complete": " · 완료", "inProgress": " · 진행 중" },
+    "noSelectedPages": "선택된 페이지가 없습니다.",
+    "approximately": "약 ",
+    "selectionSummary": "{{chapterCount}}개 화 · {{approximate}}{{pageCount}}페이지"
+  },
+  "translationOptions": {
+    "start": "번역 시작",
+    "workUnavailable": "작품 정보를 불러오지 못했습니다. 현재 화만 번역합니다.",
+    "secondPass": "2차 번역 (품질 향상)",
+    "secondPassHint": "1차 번역 후 AI가 용어·캐릭터·맥락을 분석하고, 그 결과로 다시 번역해 품질을 높입니다. 선택한 페이지를 다시 번역하므로 시간이 더 걸립니다.",
+    "analysisScope": "자동 분석 범위",
+    "analysisOptions": {
+      "work": "처음부터 다시",
+      "missing": "비어있는 화만",
+      "chapter": "현재 화만"
+    },
+    "keepBlocksHint": "블록이 있는 페이지는 영역·서식을 그대로 두고 텍스트만 다시 채웁니다. 블록이 없는 페이지는 자동 생성됩니다."
+  },
+  "retranslate": {
+    "title": "페이지 재번역",
+    "start": "재번역 시작",
+    "context": "페이지: {{pageName}} (블록 {{count}}개)",
+    "keepBlocksHint": "현재 블록들의 영역·서식을 그대로 두고 각 영역의 텍스트만 다시 채웁니다.",
+    "autoBlocksHint": "기존 블록을 모두 지우고 자동 감지로 새 블록을 만듭니다.",
+    "overwriteWarning": "기존 번역 결과와 수정 내용이 이 페이지에서 덮어써집니다."
+  },
+  "translateSource": {
+    "title": "번역할 원본 선택",
+    "openImages": "이미지 열기",
+    "openFolder": "폴더 열기",
+    "openArchive": "압축파일 열기"
+  },
+  "import": {
+    "batchTitle": "작품 일괄 번역 준비",
+    "addToLibrary": "보관함에 추가",
+    "createAndTranslate": "생성 후 번역 시작",
+    "createNewWork": "새 작품 만들기",
+    "addToExistingWork": "기존 작품에 추가",
+    "selectWork": "작품 선택",
+    "chaptersToCreate": "생성할 화",
+    "chapterTitle": "화 제목"
+  },
+  "rename": {
+    "workTitle": "작품 이름 변경",
+    "chapterTitle": "화 이름 변경",
+    "deleteWork": "작품 삭제",
+    "deleteChapter": "화 삭제",
+    "newName": "새 이름",
+    "deleteWorkWarning": "작품을 삭제하면 포함된 모든 화, 페이지, 번역 결과가 함께 삭제됩니다.",
+    "deleteChapterWarning": "화를 삭제하면 포함된 페이지와 번역 결과가 함께 삭제됩니다."
+  },
+  "shareExport": {
+    "title": "공유하기",
+    "saveFile": "공유 파일 저장",
+    "targetWork": "공유 대상 작품",
+    "chapters": "공유할 화",
+    "noWork": "공유할 작품이 없습니다.",
+    "summary": "{{chapterCount}}개 화 · {{pageCount}}페이지"
+  },
+  "shareImport": {
+    "applyImport": "가져오기 적용",
+    "applyToExisting": "기존 작품에 적용",
+    "newWorkTitle": "새 작품 제목",
+    "existingWork": "기존 작품",
+    "chaptersToImport": "가져올 화",
+    "moveItem": "{{title}} 순서 이동",
+    "deleteItem": "{{title}} 삭제",
+    "addToFinal": "{{title}} 최종 목록에 추가",
+    "dragToAdd": "드래그해서 추가",
+    "addItem": "{{title}} 추가",
+    "addAll": "모두 추가",
+    "resetTitle": "기존 작품 상태로 되돌립니다",
+    "finalList": "최종 적용 목록",
+    "dragToReorder": "드래그로 순서 변경",
+    "finalListEmpty": "왼쪽 목록이 비어 있습니다.",
+    "candidates": "공유 파일 후보",
+    "remaining": "{{count}}개 남음",
+    "allChaptersInFinal": "모든 공유 화가 최종 목록에 있습니다.",
+    "toDelete": "삭제 예정",
+    "restoreItem": "{{title}} 되살리기",
+    "source": { "existing": "기존", "shared": "공유" },
+    "stats": {
+      "final": "최종 {{count}}개",
+      "toDelete": "삭제 예정 {{count}}개",
+      "remainingCandidates": "남은 후보 {{count}}개"
+    }
+  },
+  "library": {
+    "title": "보관함",
+    "searchLabel": "보관함 검색",
+    "searchPlaceholder": "작품/화 검색",
+    "noSearchResults": "검색 결과가 없습니다.",
+    "empty": "아직 보관함에 저장된 작품이 없습니다.",
+    "renameItem": "{{title}} 이름 변경",
+    "moveItem": "{{title}} 순서 이동",
+    "moveDisabled": "검색 중이거나 작업 중에는 이동할 수 없습니다.",
+    "sort": {
+      "trigger": "정렬: {{criterion}} {{direction}}",
+      "criteriaLabel": "정렬 기준",
+      "criterion": "기준",
+      "directionLabel": "정렬 방향",
+      "direction": { "asc": "오름차순", "desc": "내림차순" }
+    }
+  },
+  "pageList": {
+    "empty": "불러온 페이지가 없습니다.",
+    "moveItem": "{{name}} 순서 이동",
+    "retranslate": "재번역",
+    "retranslateItem": "{{name}} 재번역",
+    "deleteItem": "{{name}} 삭제"
+  },
+  "status": {
+    "title": "상태",
+    "empty": "아직 표시할 상태가 없습니다.",
+    "completed": "완료",
+    "failed": "실패",
+    "partiallyCompleted": "부분 완료",
+    "waiting": "대기",
+    "inProgressShort": "진행",
+    "erased": "지움"
+  },
+  "runPanel": { "openChapterHint": "보관함에서 화를 열어 주세요." },
+  "areaTranslation": { "title": "영역 번역", "cancelSelection": "선택 취소" },
+  "stageToolbar": {
+    "show": "도구 모음 표시",
+    "showTitle": "도구 모음 표시 (4)",
+    "hide": "도구 모음 숨기기",
+    "hideTitle": "도구 모음 숨기기 (4)",
+    "imageTools": "이미지 도구",
+    "tools": {
+      "select": { "label": "선택", "title": "선택 도구 (1)" },
+      "block": {
+        "label": "블록",
+        "title": "블록 도구 (2) — 드래그해서 새 텍스트 블록 추가"
+      },
+      "hand": {
+        "label": "손바닥",
+        "title": "손바닥 도구 (3) — 드래그해서 이미지 이동"
+      }
+    }
+  },
+  "display": {
+    "title": "표시",
+    "backgroundBorders": "배경/테두리",
+    "showBlocks": "블록 표시",
+    "gatherText": "텍스트 모아보기",
+    "styleGuide": "용어/기억"
+  },
+  "overlay": {
+    "exclude": "제외",
+    "excluded": "제외됨",
+    "resize": "크기 조절",
+    "includeInInpainting": "인페인팅에 다시 포함",
+    "excludeFromInpainting": "인페인팅에서 제외"
+  },
+  "imageStage": { "loadingImage": "이미지 불러오는 중" },
+  "install": {
+    "logLabel": "설치 로그",
+    "checkingLogs": "로그 확인 중",
+    "preparingModel": "Gemma 4 모델 준비",
+    "installingOcr": "Paddle OCR 설치"
+  },
+  "toast": { "close": "알림 닫기", "region": "알림" },
+  "errorBoundary": {
+    "title": "문제가 발생했어요",
+    "description": "화면을 그리는 중 오류가 발생했습니다. 작업 내용은 보관함에 저장돼 있을 수 있어요. 다시 시작하면 대부분 복구됩니다.",
+    "restart": "다시 시작",
+    "openLogs": "로그 폴더 열기"
+  },
+  "shortcuts": {
+    "title": "단축키",
+    "navigation": "탐색",
+    "settingsHint": "설정 → 단축키에서 변경할 수 있습니다.",
+    "fixed": {
+      "previousNextPage": "이전 / 다음 페이지",
+      "previousNextPageCenter": "이전 / 다음 페이지 (중앙 패널)",
+      "escape": "모달 닫기 · 드래그 / 영역 선택 취소"
+    }
+  },
+  "gatherText": {
+    "title": "텍스트 모아보기",
+    "scope": "범위",
+    "entireChapter": "전체 화",
+    "display": "표시",
+    "fields": {
+      "both": "번역문+OCR",
+      "translated": "번역문만",
+      "source": "OCR만"
+    },
+    "reviewWarnings": "검수표 경고 {{count}}개",
+    "copySuccess": "텍스트를 클립보드에 복사했습니다.",
+    "copyFailed": "클립보드 복사에 실패했습니다.",
+    "saveSuccess": "텍스트 파일을 저장했습니다.",
+    "saveFailed": "텍스트 파일 저장에 실패했습니다.",
+    "searchPlaceholder": "검색 후 Enter",
+    "excludePageHeaders": "페이지 머리말 제외",
+    "saveTxt": ".txt 저장",
+    "empty": "표시할 텍스트가 없습니다.",
+    "pageHeading": "{{index}}쪽 · {{pageName}}",
+    "navigateToPage": "클릭하면 해당 페이지로 이동합니다.",
+    "importTxt": {
+      "button": ".txt 불러오기",
+      "title": "번역문만 형식으로 저장한 txt의 번역문을 줄 순서대로 다시 불러옵니다.",
+      "noChanges": "변경된 번역문이 없습니다.",
+      "noApplicableText": "적용할 수 있는 텍스트가 없습니다. 경고를 확인하세요.",
+      "confirm": "번역문 {{count}}개를 txt 내용으로 덮어씁니다.\n줄 순서 기준으로 반영되며 OCR 원문은 바뀌지 않습니다. 계속할까요?",
+      "updated": "{{count}}개 블록의 번역문을 업데이트했습니다.",
+      "warnings": "txt 불러오기 경고 {{count}}개가 있습니다.",
+      "failed": "txt 파일 불러오기에 실패했습니다."
+    },
+    "review": {
+      "title": "검수표",
+      "saveSuccess": "검수표를 저장했습니다.",
+      "saveFailed": "검수표 저장에 실패했습니다.",
+      "importConfirm": "검수표를 가져오면 번역문, 검수 상태, 메모만 업데이트합니다.\nOCR 원문은 바꾸지 않고 block_id가 맞는 행만 반영합니다.",
+      "updated": "{{count}}개 블록을 업데이트했습니다.",
+      "warnings": "검수표 경고 {{count}}개가 있습니다.",
+      "importFailed": "검수표 가져오기에 실패했습니다.",
+      "exportCsv": "CSV 검수표 내보내기",
+      "exportTsv": "TSV 검수표 내보내기"
+    }
+  },
+  "styleGuide": {
+    "title": "용어/기억",
+    "loadFailed": "용어/기억 정보를 불러오지 못했습니다.",
+    "saveSuccess": "용어/기억을 저장했습니다.",
+    "saveFailed": "용어/기억 저장에 실패했습니다.",
+    "addRow": "행 추가",
+    "note": "메모",
+    "analysis": {
+      "ariaLabel": "AI 용어 기억 분석",
+      "title": "AI 자동 분석",
+      "description": "원문을 분석해 용어·캐릭터·스토리 메모리를 채웁니다.",
+      "scope": "분석 범위",
+      "analyzing": "분석 중…",
+      "currentChapter": "현재 화",
+      "entireWork": "작품 전체",
+      "success": "{{scope}} AI 분석을 반영했습니다. {{included}}/{{total}}화, {{changed}}개 변경",
+      "failed": "AI 용어/기억 분석에 실패했습니다."
+    },
+    "tabs": {
+      "ariaLabel": "용어 기억 탭",
+      "glossary": "용어집",
+      "characters": "캐릭터",
+      "rules": "번역 규칙",
+      "memory": "스토리 메모리"
+    },
+    "budget": {
+      "total": "용어/기억 {{tokens}}",
+      "outputHeadroom": "출력 여유 {{percent}}%",
+      "breakdown": "스토리 {{story}} · 용어집 {{glossary}} · 캐릭터 {{characters}}",
+      "tokenCount": "{{count}}토큰",
+      "effectiveHeadroom": "{{tokens}} · {{percent}}%",
+      "omittedParts": {
+        "storyMemory": "스토리 메모리",
+        "glossary": "용어집",
+        "characters": "캐릭터 기억"
+      },
+      "warningInsufficient": "출력 여유가 {{minimum}} 미만이면 번역 때 스토리 메모리부터 제외하고, 그래도 부족하면 용어집과 캐릭터 기억도 제외합니다. 현재 설정에서는 {{omitted}}을 빼도 예상 여유가 {{effective}}뿐이라 응답이 중간에 끊길 수 있습니다.",
+      "warningAdjusted": "출력 여유가 {{minimum}} 미만이면 번역 때 스토리 메모리부터 제외하고, 그래도 부족하면 용어집과 캐릭터 기억도 제외합니다. 현재 설정에서는 {{omitted}}을 빼서 예상 여유를 {{effective}}까지 확보합니다."
+    },
+    "glossary": {
+      "empty": "등록된 용어가 없습니다. 위의 ‘현재 화 분석’, ‘작품 전체’ 또는 ‘행 추가’로 시작하세요.",
+      "source": "원문",
+      "translation": "번역",
+      "category": "분류",
+      "aliases": "별칭",
+      "categories": {
+        "character": "인물",
+        "alias": "별명",
+        "place": "장소",
+        "term": "용어",
+        "honorific": "호칭",
+        "other": "기타"
+      }
+    },
+    "characters": {
+      "title": "캐릭터 이름/말투",
+      "empty": "등록된 캐릭터가 없습니다. 위의 ‘행 추가’로 시작하세요.",
+      "displayName": "표시 이름",
+      "sourceNames": "원문 이름",
+      "translatedName": "번역 이름",
+      "speechStyle": "말투",
+      "customSpeechStyle": "커스텀 말투",
+      "speechStyles": {
+        "neutral": "중립",
+        "polite": "정중",
+        "casual": "반말",
+        "rough": "거침",
+        "childish": "아이",
+        "elderly": "노년",
+        "formal": "격식",
+        "custom": "직접"
+      }
+    },
+    "rules": {
+      "honorifics": {
+        "label": "호칭 처리",
+        "preserve": "원문 호칭 느낌 유지",
+        "adapt": "번역 언어의 호칭으로 자연스럽게 바꿈",
+        "drop": "님/씨 같은 호칭은 빼고 이름 위주"
+      },
+      "sfx": {
+        "label": "효과음 처리",
+        "preserve": "원문 효과음 그대로 둠",
+        "translate": "번역 언어 효과음으로 바꿈",
+        "note": "원문 효과음에 뜻 설명을 붙임"
+      },
+      "tone": {
+        "label": "기본 톤",
+        "natural": "자연스러운 번역 대사",
+        "literal": "원문에 가까운 직역"
+      }
+    },
+    "memory": {
+      "empty": "아직 저장된 스토리 메모리가 없습니다.",
+      "pageHeading": "{{index}}쪽 · {{pageName}}"
+    }
+  },
+  "inpainting": {
+    "counts": {
+      "thisPage": "이 페이지 {{count}}",
+      "remaining": "남은 {{count}}",
+      "completed": "완료 {{count}}"
+    },
+    "guide": {
+      "title": "인페인팅 안내",
+      "hideNextTime": "다시는 보지 않기",
+      "imageAlt": "인페인팅 안내. 1단계 자동 배경 지우기, 2단계 남은 자국 보정, 완료 후 출력 단계로 이동."
+    },
+    "steps": {
+      "label": "인페인팅 단계",
+      "auto": "자동",
+      "retouch": "보정",
+      "export": "출력",
+      "toggleBlocks": "블록 표시 켜기/끄기",
+      "toggleBorders": "배경/테두리 표시 켜기/끄기",
+      "borders": "테두리",
+      "guide": "안내",
+      "guideTitle": "인페인팅 사용법"
+    },
+    "tools": {
+      "brush": "붓",
+      "eraser": "복원",
+      "mask": "마스크 붓",
+      "none": "도구를 선택하세요",
+      "picker": "색 뽑기"
+    },
+    "auto": {
+      "description": "먼저 원문 글자를 자동으로 지웁니다. 한 페이지씩 또는 남은 페이지를 한 번에 처리할 수 있어요.",
+      "nextRetouch": "다음: 보정 →",
+      "noOpenChapter": "화가 열려 있지 않습니다.",
+      "remainingSummary": "남은 {{pendingPages}} / {{totalPages}}페이지 · {{blockCount}}개 블록",
+      "remainingPages": "남은 페이지",
+      "showingOriginal": "원본 표시 중 (눌러서 끄기)",
+      "compareOriginal": "원본 비교",
+      "excludeHint": "블록 모서리의 ‘제외’ 버튼으로 해당 블록을 인페인팅에서 빼거나 다시 넣을 수 있어요.",
+      "revert": "인페인팅 되돌리기"
+    },
+    "retouch": {
+      "description": "효과음은 마스크 붓으로 그려 지우고, 자잘한 자국은 붓·복원으로 다듬으세요.",
+      "undoLabel": "되돌리기 (Ctrl+Z)",
+      "redoLabel": "다시 실행 (Ctrl+Y)",
+      "redoTitle": "다시 실행 (Ctrl+Y / Ctrl+Shift+Z)",
+      "brushColor": "붓 색상",
+      "eraseDrawn": "그려서 지우기",
+      "eraseDrawnArea": "그린 영역 지우기",
+      "drawnAreas": "그린 영역 {{count}}개",
+      "soundEffectTouchup": "효과음 보정",
+      "backAuto": "← 자동",
+      "nextExport": "출력 →"
+    },
+    "export": {
+      "description": "블록의 폰트·색·위치를 정리한 뒤, 번역이 얹힌 PNG로 내보냅니다.",
+      "result": "결과 출력",
+      "pagesSaved": "{{count}}페이지 저장됨",
+      "allPages": "전체 페이지",
+      "backRetouch": "← 보정"
+    },
+    "progress": {
+      "processingPages": "{{count}}페이지 처리 중",
+      "inProgress": "인페인팅 작업 진행 중"
+    }
+  },
+  "settings": {
+    "title": "설정",
+    "applyNextRun": "다음 번 번역 실행부터 적용됩니다.",
+    "tabs": {
+      "ariaLabel": "설정 영역",
+      "general": "일반",
+      "engine": "번역 엔진",
+      "hardware": "하드웨어",
+      "format": "기본 서식",
+      "shortcuts": "단축키",
+      "test": "확인/업데이트"
+    },
+    "general": {
+      "language": "앱 언어",
+      "languageDescription": "앱 전체에서 사용할 표시 언어를 변경합니다."
+    },
+    "footer": {
+      "openLogs": "로그 폴더 열기",
+      "restoreDefaults": "기본값 복원",
+      "cancel": "취소",
+      "save": "저장"
+    },
+    "engine": {
+      "provider": { "label": "번역 엔진" },
+      "maxTokens": {
+        "label": "최대 출력 토큰",
+        "description": "모델이 한 번에 생성할 수 있는 최대 토큰 수입니다."
+      },
+      "contextTokens": {
+        "label": "컨텍스트 길이",
+        "description": "모델이 한 번에 참고할 수 있는 전체 토큰 수입니다."
+      }
+    },
+    "options": {
+      "modelPresets": {
+        "minimum12b": {
+          "label": "12B 최소",
+          "description": "8GB급 VRAM용입니다. 실행 가능성과 가벼운 구동을 우선합니다."
+        },
+        "economy26b": {
+          "label": "26B 절약",
+          "description": "16GB급 VRAM용입니다. 이미지 토큰 1024를 유지하고 26B 모델을 더 안전하게 실행합니다."
+        },
+        "full31b": {
+          "label": "31B 풀로드",
+          "description": "넉넉한 VRAM용입니다. 31B 모델과 DFlash를 사용해 품질 우선으로 실행합니다."
+        }
+      },
+      "modelSources": {
+        "huggingface": {
+          "label": "Hugging Face",
+          "description": "Hugging Face 저장소에서 모델을 자동으로 받습니다."
+        },
+        "local": {
+          "label": "로컬 파일",
+          "description": "직접 준비한 GGUF와 mmproj 파일을 사용합니다."
+        }
+      },
+      "providers": {
+        "gemma": {
+          "label": "Gemma 로컬",
+          "description": "PC에서 Gemma 모델을 직접 실행합니다."
+        },
+        "codex": {
+          "label": "Codex",
+          "description": "Codex OAuth 엔드포인트로 번역합니다."
+        },
+        "api": {
+          "label": "API",
+          "description": "OpenAI 호환 API 엔드포인트를 사용합니다."
+        }
+      },
+      "reasoning": {
+        "none": { "label": "없음", "description": "추론을 사용하지 않습니다." },
+        "low": { "label": "낮음", "description": "빠르고 간단한 추론입니다." },
+        "medium": {
+          "label": "중간",
+          "description": "속도와 품질의 균형을 맞춥니다."
+        },
+        "high": {
+          "label": "높음",
+          "description": "더 많은 추론으로 품질을 높입니다."
+        },
+        "xhigh": {
+          "label": "매우 높음",
+          "description": "복잡한 번역에 더 많은 추론을 사용합니다."
+        },
+        "max": {
+          "label": "최대",
+          "description": "지원 모델에서 최대 수준의 추론을 사용합니다."
+        },
+        "ultra": {
+          "label": "Ultra",
+          "description": "지원 모델에서 가장 높은 추론 수준을 요청합니다."
+        }
+      },
+      "apiReasoning": {
+        "omit": "보내지 않음",
+        "none": "없음",
+        "minimal": "최소",
+        "low": "낮음",
+        "medium": "중간",
+        "high": "높음",
+        "xhigh": "매우 높음"
+      },
+      "ocrDevices": {
+        "cuda": {
+          "label": "NVIDIA CUDA",
+          "description": "NVIDIA GPU에서 Paddle OCR을 실행합니다."
+        },
+        "rocm": {
+          "label": "AMD ROCm",
+          "description": "AMD GPU용 실험 OCR 엔진을 사용합니다."
+        },
+        "cpu": {
+          "label": "CPU",
+          "description": "GPU 없이 CPU에서 OCR을 실행합니다."
+        }
+      },
+      "ocrQuality": {
+        "minimum": {
+          "label": "최소",
+          "description": "가볍고 빠른 OCR 모델입니다."
+        },
+        "economy": {
+          "label": "절약",
+          "description": "속도와 정확도의 균형을 맞춥니다."
+        },
+        "full": {
+          "label": "풀로드",
+          "description": "가장 높은 품질의 OCR 모델을 사용합니다."
+        }
+      },
+      "llamaRuntimes": {
+        "cuda12": {
+          "label": "CUDA 12",
+          "description": "NVIDIA CUDA 12용 llama.cpp 런타임입니다."
+        },
+        "rtx50": {
+          "label": "RTX 50",
+          "description": "RTX 50 계열에 맞춘 CUDA 런타임입니다."
+        },
+        "vulkan": {
+          "label": "Vulkan",
+          "description": "Vulkan GPU 런타임입니다."
+        },
+        "rocm": {
+          "label": "AMD ROCm",
+          "description": "AMD ROCm/HIP llama.cpp 런타임입니다."
+        }
+      },
+      "fluxBackends": {
+        "cuda": {
+          "label": "NVIDIA CUDA",
+          "description": "RTX 계열에서 가장 빠른 Flux 네이티브 런타임입니다."
+        },
+        "zluda": {
+          "label": "AMD ZLUDA",
+          "description": "AMD GPU에서 Flux 실행기를 ZLUDA로 실행합니다. AMD HIP SDK가 필요합니다."
+        },
+        "cpu": {
+          "label": "CPU",
+          "description": "GPU 런타임이 맞지 않을 때 쓰는 느린 CPU 호환 모드입니다."
+        }
+      },
+      "inpaintingModels": {
+        "aot": {
+          "label": "AOT 최소",
+          "description": "가장 가벼운 Koharu AOT 인페인팅입니다."
+        },
+        "lama": {
+          "label": "LaMa 절약",
+          "description": "망가에 특화된 가볍고 빠른 LaMa 인페인팅입니다."
+        },
+        "flux": {
+          "label": "Flux 풀로드",
+          "description": "품질 우선의 기본 Flux 인페인팅 모델입니다."
+        }
+      }
+    },
+    "translation": {
+      "title": "번역 언어",
+      "source": "원문 언어",
+      "target": "번역 언어",
+      "swapTitle": "원문 언어와 번역 언어를 서로 바꿉니다",
+      "swapAria": "원문 언어와 번역 언어 바꾸기",
+      "description": "기본값은 기존과 같은 일본어 → 한국어입니다. 목록에 없는 언어는 직접 입력할 수 있으며, 언어쌍과 OCR 지원에 따라 품질 차이가 날 수 있습니다.",
+      "primaryLanguages": "주요 언어",
+      "otherLanguages": "기타 언어",
+      "custom": "직접 입력…",
+      "codePlaceholder": "언어 코드 (예: eo, zh-Hans)",
+      "customCodeAria": "{{label}} 코드 직접 입력"
+    },
+    "gemma": {
+      "modelSource": { "label": "모델 소스" },
+      "preset": {
+        "label": "모델 프리셋",
+        "ariaLabel": "모델 프리셋",
+        "custom": "직접 설정",
+        "customDescription": "모델 저장소와 파일을 직접 지정합니다."
+      },
+      "hfRepo": "Hugging Face 저장소",
+      "ggufFile": "GGUF 파일",
+      "runtime": {
+        "label": "llama.cpp 런타임",
+        "amdNote": "AMD GPU에서는 ROCm 런타임을 권장합니다.",
+        "nvidiaNote": "NVIDIA GPU에서는 CUDA 런타임을 권장합니다."
+      },
+      "local": {
+        "modelFile": "로컬 모델 파일",
+        "chooseFile": "파일 선택",
+        "mmprojFile": "mmproj 파일",
+        "mmprojPlaceholder": "같은 폴더면 자동 탐지, 필요하면 직접 지정",
+        "mmprojDescription": "mmproj는 같은 폴더에서 자동으로 찾고, 찾지 못하면 직접 지정할 수 있습니다."
+      }
+    },
+    "codex": {
+      "model": "Codex 모델",
+      "customModel": "직접 입력",
+      "customModelAria": "Codex 모델 직접 입력",
+      "modelPlaceholder": "모델 이름",
+      "modelDescription": "목록에 없는 모델은 직접 입력할 수 있습니다.",
+      "reasoning": { "label": "추론 강도", "ariaLabel": "Codex 추론 강도" },
+      "oauthPort": "openai-oauth 포트"
+    },
+    "api": {
+      "baseUrl": "API Base URL",
+      "model": "API 모델",
+      "key": "API 키",
+      "keyPlaceholder": "API 키 입력",
+      "showKey": "API 키 표시",
+      "hideKey": "API 키 숨기기",
+      "advanced": {
+        "title": "고급 API 설정",
+        "description": "선택 사항입니다. 비워 두면 해당 값을 보내지 않습니다.",
+        "temperature": "Temperature",
+        "topP": "Top P",
+        "topK": "Top K",
+        "reasoningEffort": "Reasoning effort",
+        "extraBody": "Extra body JSON",
+        "customHeaders": "Custom headers JSON"
+      }
+    },
+    "hardware": {
+      "ocrQuality": "Paddle OCR 품질",
+      "ocrDevice": "Paddle OCR 장치",
+      "fluxBackend": "Flux 인페인팅 백엔드",
+      "inpaintingModel": "인페인팅 모델",
+      "amdOcrExperimental": "AMD OCR GPU는 실험 기능입니다. 실패하면 OCR만 CPU로 바꿀 수 있습니다.",
+      "ocrAmdNote": "AMD 환경에서는 NVIDIA CUDA OCR을 선택할 수 없습니다.",
+      "ocrNvidiaNote": "NVIDIA 환경에서는 AMD ROCm OCR을 선택할 수 없습니다.",
+      "fluxAmdNote": "감지된 AMD GPU에서는 CUDA 네이티브 백엔드를 쓸 수 없어 ZLUDA 또는 CPU 중에서 선택합니다.",
+      "fluxNvidiaNote": "감지된 NVIDIA GPU에서는 ZLUDA 대신 CUDA 네이티브를 사용합니다.",
+      "fluxOnlyNote": "이 백엔드 설정은 Flux Klein 모델에서만 적용됩니다.",
+      "downloadHipSdk": "AMD HIP SDK 다운로드 (ROCm 7.1.1)"
+    },
+    "format": {
+      "description": "새로 만드는 텍스트 블록에 적용할 기본 서식입니다.",
+      "alignment": {
+        "title": "정렬 · 강조",
+        "left": "왼쪽 정렬",
+        "center": "가운데 정렬",
+        "right": "오른쪽 정렬",
+        "bold": "굵게",
+        "italic": "기울임꼴"
+      },
+      "direction": {
+        "ariaLabel": "기본 글자 방향",
+        "auto": "자동",
+        "horizontal": "가로",
+        "vertical": "세로"
+      },
+      "font": {
+        "title": "글꼴 · 크기",
+        "size": "크기",
+        "sizeAria": "글자 크기",
+        "sizeValueAria": "글자 크기 값",
+        "autoFitTitle": "텍스트 상자에 맞춰 자동 크기",
+        "auto": "자동"
+      },
+      "spacing": {
+        "title": "간격",
+        "lineHeight": "줄 간격",
+        "letterSpacing": "자간",
+        "fontWidth": "장평"
+      },
+      "color": {
+        "title": "색상 · 외곽선",
+        "ariaLabel": "기본 색상",
+        "text": "글자색",
+        "outline": "외곽선",
+        "outlineEnabledTitle": "외곽선 사용 여부",
+        "outlineEnabled": "외곽선 사용",
+        "outlineWidth": "외곽선"
+      }
+    },
+    "shortcuts": {
+      "description": "항목을 클릭한 뒤 원하는 키 조합을 누르면 지정됩니다. Esc로 취소하고 ‘비우기’로 해제할 수 있습니다.",
+      "changeAria": "{{label}} 단축키 변경",
+      "waiting": "키 입력 대기…",
+      "unassigned": "미지정",
+      "reset": "기본값",
+      "clear": "비우기",
+      "displaced": "‘{{label}}’에 지정돼 있던 단축키를 해제하고 옮겼습니다.",
+      "categories": {
+        "view": "표시 / 보기",
+        "tool": "도구",
+        "translate": "번역",
+        "inpaint": "인페인팅",
+        "edit": "블록 편집",
+        "global": "전역"
+      },
+      "actions": {
+        "toggle-block-chrome": "배경/테두리 표시 전환",
+        "toggle-text-blocks": "블록 표시 전환",
+        "toggle-peek-original": "원본 미리보기 전환",
+        "zoom-in": "이미지 확대",
+        "zoom-out": "이미지 축소",
+        "zoom-reset": "확대 초기화",
+        "stage-tool-select": "선택 도구",
+        "stage-tool-block": "블록 도구 (드래그로 블록 추가)",
+        "stage-tool-hand": "손바닥 도구 (드래그로 이동)",
+        "toggle-stage-toolbar": "도구 모음 표시 전환",
+        "open-translate-options": "번역 옵션 열기",
+        "translate-pending": "이어서 번역 (남은 페이지)",
+        "translate-all": "전체 다시 번역",
+        "gather-text": "텍스트 모아보기",
+        "cancel-job": "작업 취소",
+        "toggle-inpainting": "인페인팅 시작/종료",
+        "history-undo": "실행 취소",
+        "history-redo": "다시 실행",
+        "retouch-redo": "보정 다시 실행",
+        "delete-block": "선택한 블록 삭제",
+        "duplicate-block": "선택한 블록 복제",
+        "toggle-block-excluded": "블록 인페인팅 제외 전환",
+        "toggle-command-palette": "명령 팔레트",
+        "toggle-shortcut-help": "단축키 도움말",
+        "open-settings": "설정 열기"
+      }
+    },
+    "test": {
+      "title": "설치/작동 확인",
+      "run": "OCR/모델 확인",
+      "running": "확인 중…",
+      "description": "Paddle OCR 준비 상태와 선택한 번역 엔진이 실제로 뜨는지 함께 확인합니다.",
+      "jobActive": "번역 작업 중에는 설치/작동 확인을 실행할 수 없습니다.",
+      "logAria": "설치/작동 확인 로그",
+      "detail": {
+        "model": "모델: {{path}}",
+        "mmproj": "mmproj: {{path}}",
+        "endpoint": "엔드포인트: {{endpoint}}"
+      },
+      "status": {
+        "running": "OCR, 모델 런타임, 간단한 텍스트 응답을 차례대로 확인하는 중입니다…",
+        "gemmaDetail": "Paddle OCR과 Gemma 실행 런타임 준비 로그를 함께 표시합니다.",
+        "codexDetail": "Paddle OCR과 Codex 엔드포인트 준비 상태를 함께 확인합니다.",
+        "apiDetail": "Paddle OCR과 API 엔드포인트 응답을 함께 확인합니다."
+      },
+      "log": {
+        "start": "Paddle OCR과 번역 엔진 확인을 시작합니다.",
+        "requestError": "Paddle OCR과 번역 엔진 확인 요청 중 오류가 발생했습니다.",
+        "success": "Paddle OCR과 번역 엔진 확인이 완료되었습니다.",
+        "failure": "Paddle OCR과 번역 엔진 확인이 실패했습니다."
+      }
+    },
+    "update": {
+      "title": "업데이트",
+      "currentVersion": "현재 버전: {{version}}",
+      "checkingVersion": "현재 버전: 확인 중…",
+      "check": "업데이트 확인 (릴리스 페이지 열기)",
+      "description": "새 버전 설치 파일을 같은 위치에 설치해도 모델·보관함·OCR 런타임 등 데이터는 그대로 유지됩니다. 제거할 때 ‘데이터도 함께 삭제’를 직접 선택하지 않으면 데이터는 지워지지 않습니다."
+    },
+    "validation": {
+      "languageCode": "번역 언어 코드는 en, ja, zh-Hans, pt-BR 같은 형식이어야 합니다.",
+      "oauthPort": "openai-oauth 포트는 1 이상 65535 이하의 정수여야 합니다.",
+      "apiBaseUrl": "API Base URL은 http 또는 https URL이어야 합니다.",
+      "apiAdvanced": "고급 API 설정을 확인해 주세요.",
+      "maxTokens": "최대 출력 토큰은 {{min}} 이상 {{max}} 이하의 정수여야 합니다.",
+      "contextTokens": "컨텍스트 길이는 {{min}} 이상의 정수여야 합니다.",
+      "apiNumberRange": "API 숫자 설정은 {{min}} 이상 {{max}} 이하이어야 합니다.",
+      "apiIntegerRange": "API 정수 설정은 {{min}} 이상 {{max}} 이하의 정수여야 합니다.",
+      "apiJsonInvalid": "API JSON 설정은 올바른 객체 JSON이어야 합니다.",
+      "apiJsonObject": "API JSON 설정은 객체 JSON이어야 합니다.",
+      "customHeaderBlocked": "{{name}} 헤더는 Custom headers에서 덮어쓸 수 없습니다.",
+      "customHeaderValue": "Custom headers 값은 문자열, 숫자, boolean만 허용됩니다."
+    }
+  }
+}

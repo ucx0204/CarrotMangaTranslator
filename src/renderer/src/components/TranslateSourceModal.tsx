@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Modal } from "./ui";
 
 export type TranslateSourceMode = "images" | "folder" | "zip";
@@ -14,23 +15,24 @@ export function TranslateSourceModal({
   onCancel,
   onSelect,
 }: TranslateSourceModalProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <Modal
       size="sm"
-      ariaLabel="번역할 원본 선택"
-      title="번역할 원본 선택"
+      ariaLabel={t("translateSource.title")}
+      title={t("translateSource.title")}
       onClose={onCancel}
       closeDisabled={busy}
     >
       <div className="source-choice-grid">
         <Button onClick={() => onSelect("images")} disabled={busy}>
-          이미지 열기
+          {t("translateSource.openImages")}
         </Button>
         <Button onClick={() => onSelect("folder")} disabled={busy}>
-          폴더 열기
+          {t("translateSource.openFolder")}
         </Button>
         <Button onClick={() => onSelect("zip")} disabled={busy}>
-          압축파일 열기
+          {t("translateSource.openArchive")}
         </Button>
       </div>
     </Modal>

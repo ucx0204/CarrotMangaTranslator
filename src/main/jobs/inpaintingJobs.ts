@@ -7,6 +7,7 @@ import type {
 } from "../../shared/inpaintingTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import { openChapter } from "../library";
+import { tMain } from "./localization";
 import {
   handleInpaintingExportError,
   runInpaintingExportJob,
@@ -26,7 +27,7 @@ export async function startInpaintingJob(
   request: StartInpaintingRequest,
 ): Promise<StartInpaintingResult> {
   if (context.jobs.hasActive) {
-    return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
+    return { status: "failed", error: tMain("jobs.active") };
   }
 
   const id = randomUUID();
@@ -50,17 +51,17 @@ export async function startInpaintingJob(
         id,
         kind: "inpainting",
         status: "failed",
-        progressText: "인페인팅 작업 실패",
+        progressText: tMain("inpainting.failed"),
         phase: "failed",
         progressCurrent: 0,
         progressTotal: 0,
         pageTotal: 0,
-        detail: "인페인팅할 페이지를 찾지 못했습니다.",
+        detail: tMain("inpainting.pageNotFound"),
       });
       return {
         status: "failed",
         chapter: state.chapter,
-        error: "인페인팅할 페이지를 찾지 못했습니다.",
+        error: tMain("inpainting.pageNotFound"),
       };
     }
     return await runInpaintingPagesJob({
@@ -123,6 +124,6 @@ export async function exportInpaintingResults(
 
 function assertNoActiveJob(context: Pick<InpaintingJobContext, "jobs">): void {
   if (context.jobs.hasActive) {
-    throw new Error("이미 실행 중인 작업이 있습니다.");
+    throw new Error(tMain("jobs.active"));
   }
 }

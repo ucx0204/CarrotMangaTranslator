@@ -6,6 +6,7 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   applyFormatDefaultsToBlock,
   type BlockFormatDefaults,
@@ -45,19 +46,22 @@ type BlockCreateDraft = {
   current: { x: number; y: number };
 };
 
+type BlockCreateHandlers = {
+  blockCreateRect: BBox | null;
+  cancelBlockCreate: () => boolean;
+  onBlockCreatePointerDown: (event: PointerEvent) => boolean;
+  onBlockCreatePointerMove: (event: PointerEvent) => boolean;
+  onBlockCreatePointerUp: (event: PointerEvent) => boolean;
+};
+
 /**
  * Block tool: dragging on the stage sketches a marquee and, on release,
  * appends a new empty text block covering the dragged area.
  */
 export function useWorkspaceBlockCreateHandlers(
   options: UseWorkspaceBlockCreateHandlersOptions,
-): {
-  blockCreateRect: BBox | null;
-  cancelBlockCreate: () => boolean;
-  onBlockCreatePointerDown: (event: PointerEvent) => boolean;
-  onBlockCreatePointerMove: (event: PointerEvent) => boolean;
-  onBlockCreatePointerUp: (event: PointerEvent) => boolean;
-} {
+): BlockCreateHandlers {
+  const { t } = useTranslation("renderer");
   const [draft, setDraft] = useState<BlockCreateDraft | null>(null);
   const createBlockFromBbox = useCreateBlockFromBbox(options);
 
@@ -109,13 +113,13 @@ export function useWorkspaceBlockCreateHandlers(
       );
       setDraft(null);
       if (!isUsableRegionBbox(bbox, 10)) {
-        options.pushStatus("블록 영역이 너무 작습니다.");
+        options.pushStatus(t("blockCreate.tooSmall"));
         return true;
       }
       createBlockFromBbox(bbox);
       return true;
     },
-    [createBlockFromBbox, draft, options],
+    [createBlockFromBbox, draft, options, t],
   );
 
   const cancelBlockCreate = useCallback(() => {
@@ -152,6 +156,7 @@ function useCreateBlockFromBbox({
   setSelectedBlockIds,
   updateCurrentChapter,
 }: UseWorkspaceBlockCreateHandlersOptions): (bbox: BBox) => void {
+  const { t } = useTranslation("renderer");
   return useCallback(
     (bbox: BBox) => {
       if (!selectedPage) {
@@ -172,7 +177,7 @@ function useCreateBlockFromBbox({
       }));
       setSelectedBlockId(block.id);
       setSelectedBlockIds([block.id]);
-      pushStatus("새 텍스트 블록을 추가했습니다.");
+      pushStatus(t("blockCreate.added"));
     },
     [
       blockFormatDefaults,
@@ -181,6 +186,7 @@ function useCreateBlockFromBbox({
       setSelectedBlockId,
       setSelectedBlockIds,
       updateCurrentChapter,
+      t,
     ],
   );
 }

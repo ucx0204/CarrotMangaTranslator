@@ -25,6 +25,7 @@
     "gpuCudaTag": "cu126"
   },
   "ui": {
+    "locale": "ko",
     "inpaintingGuideHidden": false
   },
   "inpainting": {

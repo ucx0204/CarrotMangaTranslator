@@ -4,6 +4,7 @@ import type {
   WorkStyleGuide,
 } from "../../shared/types";
 import { z } from "zod";
+import { tMain } from "./localization";
 import {
   LibraryChapterFileSchema,
   WorkStyleGuideSchema,
@@ -65,7 +66,7 @@ export async function readSharePackage(
   packagePath: string,
 ): Promise<SharePackage> {
   const entries = buildSafeShareEntryMap(
-    await readZipEntries(packagePath, "공유 파일"),
+    await readZipEntries(packagePath, tMain("share.fileLabel")),
   );
   const manifest = await readRequiredShareJson(
     packagePath,
@@ -84,7 +85,7 @@ export async function readSharePackage(
     manifest.chapterOrder.map(async (packageChapterId) => {
       const safeChapterId = normalizeSharePathSegment(
         packageChapterId,
-        "공유 파일의 화 ID가 올바르지 않습니다.",
+        tMain("share.errors.invalidChapterId"),
       );
       const chapter = await readRequiredShareJson(
         packagePath,
@@ -118,9 +119,7 @@ export function assertPackageOnlyEntries(
   Extract<WorkShareImportEntry, { source: "package" }>
 > {
   if (entries.some((entry) => entry.source !== "package")) {
-    throw new Error(
-      "새 작품으로 가져올 때는 공유 파일의 화만 선택할 수 있습니다.",
-    );
+    throw new Error(tMain("share.errors.newWorkOnlyShared"));
   }
 }
 
@@ -132,7 +131,7 @@ async function readRequiredShareJson<TSchema extends z.ZodTypeAny>(
 ): Promise<z.output<TSchema>> {
   const entry = entries.get(path);
   if (!entry) {
-    throw new Error(`공유 파일에 필요한 정보가 없습니다: ${path}`);
+    throw new Error(tMain("share.errors.requiredInfoMissing", { path }));
   }
   let parsedJson: unknown;
   try {
@@ -147,7 +146,7 @@ async function readRequiredShareJson<TSchema extends z.ZodTypeAny>(
       ).toString("utf8"),
     );
   } catch (error) {
-    throw new Error(`공유 파일의 JSON을 읽지 못했습니다: ${path}`, {
+    throw new Error(tMain("share.errors.jsonRead", { path }), {
       cause: error,
     });
   }
@@ -162,9 +161,7 @@ async function readRequiredShareJson<TSchema extends z.ZodTypeAny>(
   const message = issue
     ? `${issuePath}: ${issue.message}`
     : "unknown validation error";
-  throw new Error(
-    `공유 파일의 JSON 형식이 올바르지 않습니다: ${path} (${message})`,
-  );
+  throw new Error(tMain("share.errors.jsonInvalid", { path, message }));
 }
 
 async function readOptionalShareJson<TSchema extends z.ZodTypeAny>(
@@ -189,12 +186,12 @@ function validateShareChapter(
     !Array.isArray(chapter.pages) ||
     !Array.isArray(chapter.pageOrder)
   ) {
-    throw new Error("공유 파일의 화 정보가 올바르지 않습니다.");
+    throw new Error(tMain("share.errors.invalidChapterInfo"));
   }
   const pageIds = new Set(chapter.pages.map((page) => page.id));
   for (const pageId of chapter.pageOrder) {
     if (!pageIds.has(pageId)) {
-      throw new Error("공유 파일의 페이지 순서가 올바르지 않습니다.");
+      throw new Error(tMain("share.errors.invalidPageOrder"));
     }
   }
   for (const page of chapter.pages) {
@@ -210,16 +207,20 @@ function validateSharePageImage(
 ): void {
   const imagePath = normalizeShareRelativePath(
     page.imagePath,
-    "공유 파일의 이미지 경로가 올바르지 않습니다.",
+    tMain("share.errors.invalidImagePath"),
   );
   if (!imagePath.startsWith(`chapters/${packageChapterId}/pages/`)) {
-    throw new Error("공유 파일의 이미지 위치가 올바르지 않습니다.");
+    throw new Error(tMain("share.errors.invalidImageLocation"));
   }
   assertSupportedShareImageEntry({
     entries,
-    missingMessage: `공유 파일에 이미지가 없습니다: ${page.name}`,
+    missingMessage: tMain("share.errors.packageImageMissing", {
+      page: page.name,
+    }),
     path: imagePath,
-    unsupportedMessage: `지원하지 않는 이미지 형식입니다: ${page.name}`,
+    unsupportedMessage: tMain("share.errors.unsupportedImage", {
+      name: page.name,
+    }),
   });
 }
 
@@ -233,16 +234,20 @@ function validateSharePageInpaintedImage(
   }
   const inpaintedPath = normalizeShareRelativePath(
     page.inpaintedImagePath,
-    "공유 파일의 인페인팅 이미지 경로가 올바르지 않습니다.",
+    tMain("share.errors.invalidInpaintingPath"),
   );
   if (!inpaintedPath.startsWith(`chapters/${packageChapterId}/inpainted/`)) {
-    throw new Error("공유 파일의 인페인팅 이미지 위치가 올바르지 않습니다.");
+    throw new Error(tMain("share.errors.invalidInpaintingLocation"));
   }
   assertSupportedShareImageEntry({
     entries,
-    missingMessage: `공유 파일에 인페인팅 이미지가 없습니다: ${page.name}`,
+    missingMessage: tMain("share.errors.packageInpaintingMissing", {
+      page: page.name,
+    }),
     path: inpaintedPath,
-    unsupportedMessage: `지원하지 않는 인페인팅 이미지 형식입니다: ${page.name}`,
+    unsupportedMessage: tMain("share.errors.unsupportedInpaintingImage", {
+      page: page.name,
+    }),
   });
 }
 

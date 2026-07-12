@@ -2,6 +2,7 @@ import { join } from "node:path";
 import type { TranslationOptions } from "./appSettings";
 import { getAppPaths } from "./appPaths";
 import type { ModelEndpointHandle } from "./pipeline/types";
+import { tMain } from "./i18n";
 
 type ChatMessage = {
   role: "system" | "user";
@@ -121,7 +122,7 @@ async function requestChatText(
   const rawText = await response.text();
   if (!response.ok) {
     throw makeModelError(
-      "AI 작품 메모리 분석 요청이 실패했습니다.",
+      tMain("workContext.errors.requestFailed"),
       response,
       rawText,
     );
@@ -161,14 +162,14 @@ async function requestCodexText(
   const rawText = await response.text();
   if (!response.ok) {
     throw makeModelError(
-      "AI 작품 메모리 분석 요청이 실패했습니다.",
+      tMain("workContext.errors.requestFailed"),
       response,
       rawText,
     );
   }
   const parsed = getResponseTextModule().parseResponsesSseText(rawText);
   if (!parsed.outputText.trim()) {
-    throw new Error("AI 작품 메모리 분석 응답이 비어 있습니다.");
+    throw new Error(tMain("workContext.errors.emptyResponse"));
   }
   return parsed.outputText;
 }
@@ -177,7 +178,7 @@ function extractChatOutput(rawText: string): string {
   const parsed = JSON.parse(rawText) as unknown;
   const outputText = getResponseTextModule().extractModelOutputText(parsed);
   if (!outputText.trim()) {
-    throw new Error("AI 작품 메모리 분석 응답이 비어 있습니다.");
+    throw new Error(tMain("workContext.errors.emptyResponse"));
   }
   return outputText;
 }

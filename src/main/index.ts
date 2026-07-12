@@ -12,6 +12,7 @@ import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
 import { getLogPath, logError, logInfo, logWarn, resetAppLog } from "./logger";
 import { createMainWindow } from "./mainWindow";
 import { PanelWindowRegistry } from "./panelWindows";
+import { initializeMainLocaleFromSettings } from "./i18n";
 import {
   decodeImageThroughRuntime,
   loadSimplePageRuntime,
@@ -54,6 +55,11 @@ process.on("unhandledRejection", (reason) => {
 });
 
 app.whenReady().then(async () => {
+  process.env.MANGA_TRANSLATOR_UI_LOCALE ??= app.getLocale();
+  await initializeMainLocaleFromSettings(
+    appPaths.settingsPath,
+    process.env.MANGA_TRANSLATOR_UI_LOCALE,
+  );
   registerImageProtocolHandler();
   await cleanupLegacyLogs();
   const cleanupResult = await cleanupLibraryOrphans();

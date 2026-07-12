@@ -1,0 +1,349 @@
+{
+  "settings": {
+    "localModelDialogTitle": "选择本地 GGUF 模型",
+    "mmprojDialogTitle": "选择 mmproj 文件",
+    "modelTestBusy": "翻译任务运行期间无法检查模型和运行时。",
+    "modelTestComplete": "Paddle OCR 和翻译引擎检查完成：{{output}}",
+    "modelTestLabel": "模型/运行时检查"
+  },
+  "dialogs": {
+    "openImages": "打开图片",
+    "openImageFolder": "打开图片文件夹",
+    "openArchive": "打开压缩文件",
+    "batchImport": "批量翻译作品",
+    "saveShare": "保存共享文件",
+    "openShare": "导入共享文件",
+    "registerFont": "注册字体文件（TTF/OTF）",
+    "saveReview": "保存校对表",
+    "saveText": "保存文本",
+    "filters": {
+      "images": "图像文件",
+      "font": "字体文件",
+      "text": "文本文件"
+    }
+  },
+  "jobs": {
+    "active": "已有任务正在运行。",
+    "cancelled": "任务已取消。",
+    "failed": "任务失败",
+    "cancelling": "正在取消任务"
+  },
+  "ipc": {
+    "errors": {
+      "untrustedPanel": "不受信任的面板 IPC 请求。",
+      "noWindow": "没有可接收 IPC 请求的应用窗口。",
+      "untrusted": "不受信任的 IPC 请求。",
+      "invalidImportPreview": "导入预览已过期或无效。",
+      "invalidSharePreview": "共享文件预览已过期或无效。"
+    },
+    "labels": {
+      "translationJob": "翻译任务",
+      "regionTranslation": "区域翻译",
+      "inpaintingJob": "修复任务",
+      "inpaintingRetouch": "图像修复修整",
+      "inpaintingApply": "应用修复结果",
+      "inpaintingRestore": "还原修复",
+      "colorSample": "颜色采样",
+      "resultExport": "结果导出",
+      "reviewExport": "校对表导出",
+      "reviewImport": "校对表导入",
+      "textSave": "保存文本",
+      "importApply": "应用导入",
+      "shareSave": "保存共享文件",
+      "shareImport": "导入共享文件",
+      "chapterOpen": "打开章节",
+      "pageImageOpen": "打开页面图片",
+      "pageBlocksSave": "保存页面文本块",
+      "workRename": "重命名作品",
+      "chapterRename": "重命名章节",
+      "workDelete": "删除作品",
+      "chapterDelete": "删除章节",
+      "pageDelete": "删除页面",
+      "chapterReorder": "调整章节顺序",
+      "pageReorder": "调整页面顺序",
+      "styleGuideOpen": "打开作品术语表",
+      "styleGuideSave": "保存作品术语表",
+      "storyMemoryOpen": "打开剧情记忆",
+      "storyMemorySave": "保存剧情记忆",
+      "workContextAnalysis": "AI 术语/记忆分析",
+      "logWrite": "写入日志"
+    }
+  },
+  "units": {
+    "blocks": "{{count}} 个文本块",
+    "pagesAndBlocks": "{{pages}} 页，{{blocks}} 个文本块"
+  },
+  "workContext": {
+    "errors": {
+      "chapterNotFound": "找不到要开始 AI 分析的章节。",
+      "jsonRead": "无法将 AI 作品记忆分析响应读取为 JSON。",
+      "jsonObjectMissing": "AI 作品记忆分析响应中找不到 JSON 对象。",
+      "requestFailed": "AI 作品记忆分析请求失败。",
+      "emptyResponse": "AI 作品记忆分析响应为空。"
+    },
+    "warnings": {
+      "noText": "没有可分析文本，已跳过 AI 术语/记忆提取。",
+      "workTruncated": "作品文本较长，仅在令牌预算内纳入了部分页面。",
+      "chapterTruncated": "当前章节文本较长，仅在令牌预算内纳入了部分页面。",
+      "chapterNoText": "{{chapter}}：没有可分析文本，已跳过。",
+      "chapterFailed": "{{chapter}}：AI 分析失败，已跳过。",
+      "prefixed": "{{chapter}}：{{warning}}",
+      "chaptersTruncated": "{{count}} 个章节较长，仅在各章节令牌预算内分析了部分页面。",
+      "chaptersFailed": "{{count}} 个章节的 AI 分析失败。请检查日志。",
+      "alreadyAnalyzed": "所有章节均已分析，已跳过 AI 术语/记忆分析。",
+      "unknownPageId": "AI 返回了未知的 pageId：{{pageId}}"
+    }
+  },
+  "reviewImport": {
+    "chapterNotFound": "找不到要应用校对表的章节。",
+    "warnings": {
+      "emptyBlockId": "第 {{row}} 行：block_id 为空，已跳过。",
+      "duplicateBlockId": "第 {{row}} 行：重复的 block_id {{blockId}}，已跳过。",
+      "otherChapter": "第 {{row}} 行：属于其他章节，已跳过。",
+      "sourceMismatch": "第 {{row}} 行：OCR 原文与当前文本块不同。block_id={{blockId}}",
+      "pageNotFound": "第 {{row}} 行：page_id {{pageId}} 不存在。",
+      "blockNotFound": "第 {{row}} 行：block_id {{blockId}} 不存在。",
+      "ambiguousBlock": "第 {{row}} 行：block_id {{blockId}} 位于多个页面且无法通过 page_id 确定，已跳过。",
+      "pageMismatch": "第 {{row}} 行：page_id 与当前文本块位置不同，将按 block_id 应用。",
+      "invalidStatus": "第 {{row}} 行：无法使用校对状态 {{status}}。"
+    }
+  },
+  "import": {
+    "defaultWorkTitle": "未命名作品",
+    "untitled": "无标题",
+    "zipFile": "ZIP 文件",
+    "errors": {
+      "imageRead": "无法读取图片文件：{{file}}",
+      "fileTooLarge": "{{file}} 文件过大。",
+      "webpConvert": "无法将 WEBP 图片转换为 PNG：{{file}}",
+      "resolutionTooLarge": "图片分辨率过高：{{file}}",
+      "tooManySources": "要导入的文件夹或图片过多。",
+      "zipEntryMissing": "找不到 ZIP 条目：{{entry}}",
+      "noChapterToCreate": "没有可创建的章节。",
+      "createdChapterOpen": "无法打开已创建的章节。"
+    }
+  },
+  "share": {
+    "fileLabel": "共享文件",
+    "inpaintingResult": "{{page}} 修复结果",
+    "errors": {
+      "noChapters": "没有可导入的章节。",
+      "notNewWorkRequest": "这不是新作品导入请求。",
+      "notExistingWorkRequest": "这不是现有作品导入请求。",
+      "chapterNotFound": "共享文件中找不到要导入的章节。",
+      "importedChapterOpen": "无法打开已导入的章节。",
+      "duplicateExistingChapter": "同一现有章节被重复包含。",
+      "existingChapterNotFound": "现有作品中找不到要应用的章节。",
+      "duplicateSharedChapter": "同一共享章节被重复包含。",
+      "noChaptersToApply": "没有可应用的章节。",
+      "selectChapter": "请选择要共享的章节。",
+      "exportChapterNotFound": "找不到要共享的章节。",
+      "sourceImageMissing": "找不到原图：{{page}}",
+      "inpaintingImageMissing": "找不到修复结果图片：{{page}}",
+      "unsupportedImage": "不支持的图片格式：{{name}}",
+      "fileTooLarge": "{{name}} 文件过大。",
+      "invalidChapterId": "共享文件中的章节 ID 无效。",
+      "newWorkOnlyShared": "作为新作品导入时只能选择共享文件中的章节。",
+      "requiredInfoMissing": "共享文件缺少必要信息：{{path}}",
+      "jsonRead": "无法读取共享文件中的 JSON：{{path}}",
+      "jsonInvalid": "共享文件中的 JSON 格式无效：{{path}}（{{message}}）",
+      "invalidChapterInfo": "共享文件中的章节信息无效。",
+      "invalidPageOrder": "共享文件中的页面顺序无效。",
+      "invalidImagePath": "共享文件中的图片路径无效。",
+      "invalidImageLocation": "共享文件中的图片位置无效。",
+      "packageImageMissing": "共享文件中没有图片：{{page}}",
+      "invalidInpaintingPath": "共享文件中的修复图片路径无效。",
+      "invalidInpaintingLocation": "共享文件中的修复图片位置无效。",
+      "packageInpaintingMissing": "共享文件中没有修复图片：{{page}}",
+      "unsupportedInpaintingImage": "不支持的修复图片格式：{{page}}",
+      "invalidTrashLocation": "共享导入临时存储位置无效。",
+      "invalidChapterLocation": "章节在资料库中的位置无效。"
+    }
+  },
+  "translation": {
+    "noPages": "没有需要翻译的页面。",
+    "allPagesFailed": "翻译失败：所有页面均失败。请检查各页面状态和日志中的最新错误。",
+    "completedWithFailures": "翻译完成（失败页面：{{count}}）",
+    "completed": "翻译任务完成",
+    "vram": {
+      "minimum12b": "12B 最低模式",
+      "economy26b": "26B 经济模式",
+      "full31b": "31B 完整加载模式"
+    },
+    "progress": {
+      "directPreparing": "正在准备 AI 直接分析",
+      "directPreparingDetail": "所选区域不经过 Paddle OCR 预分析，由模型直接查找文本组。",
+      "ocrPreparing": "正在准备 Paddle OCR 预分析",
+      "ocrPreparingDetail": "先为目标页面准备 OCR 候选坐标。",
+      "localModelPreparing": "正在准备本地模型/服务器",
+      "codexPreparing": "正在准备 OpenAI Codex 端点",
+      "apiPreparing": "正在检查 API 端点",
+      "gemmaStarting": "正在启动 Gemma 4 服务器",
+      "modelDownloading": "正在下载模型/准备服务器",
+      "localModelPreparingDetail": "正在加载所选本地模型。大型模型可能需要较长启动时间。",
+      "modelDownloadingDetail": "本地模型资源缺失或不完整，可能需要下载或更新。",
+      "modelReady": "模型准备完成",
+      "oauthReadyDetail": "openai-oauth 准备完成：{{endpoint}}",
+      "apiReadyDetail": "API 准备完成：{{endpoint}}",
+      "serverReadyDetail": "服务器准备完成：端口 {{port}}",
+      "pageRunning": "正在分析 {{page}}",
+      "pageAttemptDetail": "{{current}}/{{total}}，尝试 {{attempt}}/{{maxAttempts}}",
+      "pageRetry": "正在重试 {{page}}",
+      "pageRetryDetail": "第 {{attempt}} 次尝试失败（共 {{maxAttempts}} 次），正在重试",
+      "pageDone": "{{page}} 完成",
+      "pageNoText": "{{page}} 无文本",
+      "pageNoTextDetail": "Paddle OCR 未找到日文文本证据，已跳过模型调用。",
+      "pageSkipped": "已跳过 {{page}}",
+      "pageSkippedDetail": "重试 {{maxAttempts}} 次后失败",
+      "finalizing": "正在整理结果",
+      "pagesReadyNoModel": "{{count}} 页准备完成，无模型调用",
+      "pagesReady": "{{count}} 页准备完成"
+    },
+    "warnings": {
+      "attemptFailed": "{{page}}：第 {{attempt}} 次尝试失败（共 {{maxAttempts}} 次）— {{message}}",
+      "pageSkipped": "{{page}}：重试 {{maxAttempts}} 次失败，已跳过此页。最后错误：{{message}}",
+      "uncertainOcr": "{{page}}：有 {{count}} 个不确定的 OCR 片段。"
+    },
+    "result": {
+      "existingUpdated": "更新了 {{count}} 个现有文本块",
+      "kept": "保留 {{count}} 个",
+      "outsideDropped": "排除文本块外结果 {{count}} 个",
+      "soundDropped": "排除不确定音效 {{count}} 个",
+      "noiseDropped": "排除噪声/重复项 {{count}} 个（{{reasons}}）"
+    },
+    "errors": {
+      "bboxMissing": "{{page}}：无法生成边界框结果。",
+      "responseParse": "{{page}}：无法将模型响应解析为结构化格式。preview={{preview}} cause={{cause}}"
+    }
+  },
+  "region": {
+    "failed": "选区翻译失败",
+    "pageNotFound": "找不到所选页面。",
+    "preparing": "正在准备选区翻译",
+    "completed": "选区翻译完成"
+  },
+  "ocr": {
+    "cached": "复用 {{page}} 的 OCR",
+    "batchRunning": "正在执行 Paddle OCR 批量预分析",
+    "batchRunningDetail": "一次处理 {{count}} 页。此阶段结束时将关闭 OCR 进程。",
+    "pageDone": "{{page}} OCR 完成",
+    "prepassDone": "Paddle OCR 预分析完成",
+    "prepassDoneDetail": "关闭 OCR 进程并进入 AI 翻译阶段。",
+    "hintDetailNoEvidence": "{{count}} 个候选，无文本证据",
+    "hintDetailWithEvidence": "{{count}} 个候选，{{evidence}} 个文本证据",
+    "hintDetail": "{{count}} 个候选",
+    "blocksDone": "文本块 OCR 预分析完成",
+    "blocksRunning": "正在执行文本块 OCR 预分析",
+    "blocksDetail": "裁剪 {{count}} 个现有文本块区域以读取文本。",
+    "gpuCacheReleased": "已为 GPU OCR 释放修复引擎缓存",
+    "gpuCacheReleasedDetail": "已释放 GPU 显存（VRAM）"
+  },
+  "inpainting": {
+    "targets": { "drawn": "绘制区域", "source": "原文" },
+    "preparing": "正在准备擦除{{target}}",
+    "pageRunning": "正在擦除第 {{current}} / {{total}} 页的{{target}}",
+    "drawnDetail": "{{page}} · {{count}} 个绘制区域",
+    "blockDetail": "{{page}} · {{count}} 个文本块",
+    "pageDone": "第 {{current}} / {{total}} 页的{{target}}擦除完成",
+    "completed": "{{target}}擦除完成",
+    "cancelled": "修复任务已取消。",
+    "failed": "修复任务失败",
+    "pageNotFound": "找不到要修复的页面。",
+    "assets": { "fluxModel": "Flux 模型", "aot": "AOT 修复" },
+    "runtime": {
+      "fluxReady": "Flux 修复准备完成",
+      "fluxReadyLog": "Flux 原文擦除引擎准备完成。",
+      "cachedFlux": "使用缓存的 Flux 引擎",
+      "cachedFluxLog": "复用缓存的 Flux 修复引擎。",
+      "koharuReady": "Koharu 修复准备完成",
+      "cachedKoharu": "使用缓存的 Koharu 引擎",
+      "cachedKoharuLog": "复用缓存的 Koharu 修复引擎。",
+      "koharuReadyLog": "使用 Koharu {{model}} 修复运行时：{{file}}",
+      "koharuExecutablePreparing": "正在准备 Koharu 可执行文件",
+      "koharuExecutableLog": "已更新应用数据缓存中的 Koharu 可执行文件：{{file}}",
+      "pythonInstalling": "正在安装 Flux Python 运行时",
+      "fluxRocmInitialized": "Flux ROCm SDK 初始化完成",
+      "hipCmakeVerified": "已检查 HIP/CMake 开发文件",
+      "fluxModelPreparing": "正在准备 Flux Diffusers 模型",
+      "fluxModelWithoutTransformer": "{{modelId}} · 不含 transformer",
+      "fluxRocmInstalling": "正在安装 Flux ROCm 运行时",
+      "fluxCpuInstalling": "正在安装 Flux CPU 运行时",
+      "pythonTargetInstalling": "正在安装 Python 目标包"
+    },
+    "errors": {
+      "pageRead": "无法读取页面图片：{{page}}",
+      "bitmapCreate": "无法创建页面图片位图：{{page}}",
+      "engineNotReady": "原文擦除引擎尚未准备好。",
+      "resultCreate": "无法创建修复结果图片：{{page}}",
+      "imageSizeMismatch": "原图与编辑后图片尺寸不同。",
+      "retouchCreate": "无法创建修整结果图片：{{page}}",
+      "koharuRuntime": "无法准备 Koharu 修复运行时。\n{{detail}}",
+      "notKoharuModel": "这不是 Koharu 模型：{{model}}",
+      "koharuExecutableMissing": "找不到 {{executable}}。开发环境中请在 tools/{{directory}} 运行 cargo build --release，或设置 MGT_KOHARU_INPAINT_EXE。",
+      "retouchPageNotFound": "找不到要修整的页面。"
+    }
+  },
+  "export": {
+    "noPages": "没有可导出的页面。",
+    "cancelled": "PNG 导出已取消。",
+    "failed": "PNG 导出失败",
+    "preparing": "正在准备 PNG 导出",
+    "completed": "PNG 导出完成",
+    "page": {
+      "running": "正在导出第 {{current}} / {{total}} 页 PNG",
+      "done": "第 {{current}} / {{total}} 页 PNG 导出完成"
+    },
+    "scope": {
+      "page": "此页面 · {{count}} 页",
+      "chapter": "全部页面 · {{count}} 页"
+    }
+  },
+  "modelTest": {
+    "preparing": "正在准备模型/运行时检查",
+    "startLog": "开始检查 Paddle OCR 和翻译引擎。",
+    "serverReady": "运行时服务器准备完成",
+    "serverReadyLog": "服务器准备完成：{{endpoint}}",
+    "completed": "模型/运行时检查完成",
+    "responseLog": "响应确认完成：{{output}}",
+    "failed": "模型/运行时检查失败",
+    "failedDetail": "模型/运行时检查失败。请在日志中查看详细原因。",
+    "failedLog": "模型/运行时检查失败。",
+    "portUnavailable": "无法为模型测试保留端口。",
+    "portRetry": "正在使用其他端口重试",
+    "portRetryDetail": "先前端口已被占用，正在端口 {{port}} 重新启动。",
+    "portRetryLog": "检测到端口冲突，正在端口 {{port}} 重试。",
+    "codexPreparing": "正在准备 OpenAI Codex 运行时端点",
+    "codexPreparingLog": "正在启动 openai-oauth 端点。",
+    "apiPreparing": "正在检查 API 端点",
+    "apiPreparingLog": "正在直接向 OpenAI 兼容 API 端点发送测试请求。",
+    "ocrChecking": "正在检查 Paddle OCR 安装/运行",
+    "ocrCheckingLog": "正在检查 Paddle OCR 运行时和 OCR 模型文件。",
+    "ocrSkipped": "跳过 Paddle OCR 检查",
+    "ocrSkippedDetail": "当前运行时不提供 OCR 预检查 API。",
+    "ocrSkippedLog": "没有 OCR 预检查 API，仅检查翻译引擎。",
+    "ocrDone": "Paddle OCR 检查完成",
+    "ocrDoneLog": "Paddle OCR 运行时检查结束。",
+    "gemmaPreparing": "正在准备 Gemma 运行时",
+    "gemmaPreparingLog": "正在检查 Gemma 运行时和模型资源。",
+    "gemmaCached": "发现缓存的 Gemma 模型",
+    "gemmaCachedLog": "使用缓存的模型文件。",
+    "gemmaDownloading": "正在下载 Gemma 模型/准备运行时",
+    "gemmaDownloadingLog": "未找到缓存模型，开始下载或更新。"
+  },
+  "downloads": {
+    "downloading": "正在下载{{label}}",
+    "completed": "{{label}}下载完成",
+    "cached": "使用缓存的{{label}}",
+    "cachedDetail": "{{file}} · 使用缓存",
+    "received": "已接收 {{received}}",
+    "requestFailed": "请求 {{url}} 失败（{{status}}）。",
+    "runtimeDllMissing": "{{archive}} 中找不到所需运行时 DLL。",
+    "unsafeArchivePath": "{{archive}} 包含不安全路径：{{path}}",
+    "archiveEmpty": "压缩文件 {{archive}} 为空。",
+    "cachedFileLog": "使用缓存的{{label}}文件：{{file}}",
+    "cachedLog": "使用缓存文件：{{label}}",
+    "startedLog": "开始下载{{label}}",
+    "failed": "{{label}}下载失败（{{status}}）。",
+    "sizeMismatch": "{{label}}下载大小不匹配（{{received}} / {{total}}）。"
+  }
+}

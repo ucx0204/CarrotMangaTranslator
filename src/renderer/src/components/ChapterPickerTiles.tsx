@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import { mangaGateway } from "../api/mangaGateway";
 import type { TriState } from "../lib/translationSelection";
@@ -14,6 +15,7 @@ export function PageThumb({
   checked: boolean;
   onToggle: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const [url, setUrl] = React.useState<string | undefined>();
   React.useEffect(() => {
     let cancelled = false;
@@ -54,7 +56,10 @@ export function PageThumb({
           <span className="translate-page-thumb-skeleton" />
         )}
         {done ? (
-          <span className="translate-page-thumb-badge" aria-label="번역됨">
+          <span
+            className="translate-page-thumb-badge"
+            aria-label={t("chapterPicker.translated")}
+          >
             ✓
           </span>
         ) : null}

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   CODEX_MODEL_OPTIONS,
   CODEX_REASONING_OPTIONS,
@@ -43,6 +44,7 @@ function CodexModelField({
   setCodexReasoningEffort,
   submit,
 }: CodexSettingsFieldsProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const preset = findCodexModelOption(codexModel);
   const { customPicked, locallyEditedModel, setCustomPicked } =
     useCustomCodexModelMode(codexModel, Boolean(preset));
@@ -51,7 +53,7 @@ function CodexModelField({
   return (
     <div className="settings-field-stack">
       <label>
-        Codex 모델
+        {t("settings.codex.model")}
         <select
           value={showCustomInput ? CUSTOM_CODEX_MODEL_OPTION : codexModel}
           disabled={controlsBusy}
@@ -81,7 +83,9 @@ function CodexModelField({
               {option.label}
             </option>
           ))}
-          <option value={CUSTOM_CODEX_MODEL_OPTION}>Custom (직접 입력)…</option>
+          <option value={CUSTOM_CODEX_MODEL_OPTION}>
+            {t("settings.codex.customModel")}
+          </option>
         </select>
       </label>
       {showCustomInput ? (
@@ -90,14 +94,14 @@ function CodexModelField({
           disabled={controlsBusy}
           spellCheck={false}
           maxLength={120}
-          aria-label="Codex 모델 직접 입력"
+          aria-label={t("settings.codex.customModelAria")}
           onChange={(event) => {
             const nextModel = event.target.value;
             clearTestState();
             locallyEditedModel.current = nextModel;
             setCodexModel(nextModel);
           }}
-          placeholder="예: gpt-5.6-sol"
+          placeholder={t("settings.codex.modelPlaceholder")}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               submit();
@@ -106,8 +110,7 @@ function CodexModelField({
         />
       ) : null}
       <p className="muted-line modal-note">
-        현재 Codex 카탈로그의 표시 모델입니다. 계정이나 배포에 따라 목록에 없는
-        모델은 Custom으로 입력할 수 있습니다.
+        {t("settings.codex.modelDescription")}
       </p>
     </div>
   );
@@ -133,20 +136,24 @@ function CodexReasoningField({
   controlsBusy,
   setCodexReasoningEffort,
 }: CodexSettingsFieldsProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const model = findCodexModelOption(codexModel);
   const reasoningOptions = model
     ? CODEX_REASONING_OPTIONS.filter((option) =>
         supportsCodexReasoningEffort(model, option.id),
       )
     : CODEX_REASONING_OPTIONS;
+  const activeReasoning = reasoningOptions.find(
+    (option) => option.id === codexReasoningEffort,
+  );
 
   return (
     <div className="settings-field-stack">
-      <span>생각</span>
+      <span>{t("settings.codex.reasoning.label")}</span>
       <div
         className="settings-preset-group"
         role="tablist"
-        aria-label="Codex 생각"
+        aria-label={t("settings.codex.reasoning.ariaLabel")}
       >
         {reasoningOptions.map((option) => (
           <button
@@ -160,15 +167,12 @@ function CodexReasoningField({
             disabled={controlsBusy}
             aria-pressed={codexReasoningEffort === option.id}
           >
-            {option.label}
+            {t(option.labelKey)}
           </button>
         ))}
       </div>
       <p className="muted-line modal-note">
-        {
-          reasoningOptions.find((option) => option.id === codexReasoningEffort)
-            ?.description
-        }
+        {activeReasoning ? t(activeReasoning.descriptionKey) : null}
       </p>
     </div>
   );
@@ -181,9 +185,10 @@ function CodexOauthPortField({
   setCodexOauthPort,
   submit,
 }: CodexSettingsFieldsProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <label>
-      openai-oauth 포트
+      {t("settings.codex.oauthPort")}
       <input
         type="number"
         min={1}

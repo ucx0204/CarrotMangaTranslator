@@ -21,13 +21,23 @@ export function createWarningCollector(): WarningCollector {
     add: (...items) => warnings.push(...items),
     addAttemptFailure({ pageName, attempt, maxAttempts, message }) {
       warnings.push(
-        `${pageName}: 시도 ${attempt}/${maxAttempts} 실패 - ${message}`,
+        tMain("translation.warnings.attemptFailed", {
+          page: pageName,
+          attempt,
+          maxAttempts,
+          message,
+        }),
       );
     },
     addPageSkipped({ pageName, maxAttempts, message }) {
       warnings.push(
-        `${pageName}: ${maxAttempts}회 재시도 후 실패하여 이 페이지는 건너뜁니다. 마지막 오류: ${message}`,
+        tMain("translation.warnings.pageSkipped", {
+          page: pageName,
+          maxAttempts,
+          message,
+        }),
       );
     },
   };
 }
+import { tMain } from "./localization";

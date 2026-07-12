@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { SETTINGS_TABS, type SettingsTabId } from "../settingsModalTypes";
 
 type SettingsTabsProps = {
@@ -10,8 +11,13 @@ export function SettingsTabs({
   activeTab,
   onChange,
 }: SettingsTabsProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
-    <nav className="settings-tabs" role="tablist" aria-label="설정 영역">
+    <nav
+      className="settings-tabs"
+      role="tablist"
+      aria-label={t("settings.tabs.ariaLabel")}
+    >
       {SETTINGS_TABS.map((tab) => (
         <button
           key={tab.id}
@@ -23,7 +29,7 @@ export function SettingsTabs({
           className={`settings-tab ${activeTab === tab.id ? "active" : ""}`}
           onClick={() => onChange(tab.id)}
         >
-          {tab.label}
+          {t(tab.labelKey)}
         </button>
       ))}
     </nav>

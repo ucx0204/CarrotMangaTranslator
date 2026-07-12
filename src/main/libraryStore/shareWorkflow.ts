@@ -3,6 +3,7 @@ import type {
   WorkShareImportPreviewView,
   WorkShareImportResult,
 } from "../../shared/types";
+import { tMain } from "./localization";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
   createWork,
@@ -44,11 +45,11 @@ export async function importWorkShareUnlocked(
   const sharePackage = await readSharePackage(request.packagePath);
   const archiveReader = await openZipArchiveReader(
     request.packagePath,
-    "공유 파일",
+    tMain("share.fileLabel"),
   );
   if (request.entries.length === 0) {
     archiveReader.close();
-    throw new Error("가져올 화가 없습니다.");
+    throw new Error(tMain("share.errors.noChapters"));
   }
 
   try {
@@ -76,7 +77,7 @@ async function importWorkShareAsNewWork(
   request: WorkShareImportFromPackageRequest,
 ): Promise<WorkShareImportResult> {
   if (request.target.mode !== "new") {
-    throw new Error("새 작품 가져오기 요청이 아닙니다.");
+    throw new Error(tMain("share.errors.notNewWorkRequest"));
   }
   assertPackageOnlyEntries(request.entries);
 
@@ -93,10 +94,13 @@ async function importWorkShareAsNewWork(
     for (const entry of request.entries) {
       const packageChapter = chapterByPackageId.get(entry.packageChapterId);
       if (!packageChapter) {
-        throw new Error("공유 파일에서 가져올 화를 찾지 못했습니다.");
+        throw new Error(tMain("share.errors.chapterNotFound"));
       }
       const title = makeUniqueTitleInList(
-        sanitizeTitle(entry.title || packageChapter.title, "제목없음"),
+        sanitizeTitle(
+          entry.title || packageChapter.title,
+          tMain("import.untitled"),
+        ),
         usedTitles,
       );
       const chapter = await materializeSharedChapter({
@@ -110,7 +114,7 @@ async function importWorkShareAsNewWork(
     }
 
     if (createdChapters.length === 0) {
-      throw new Error("가져올 화가 없습니다.");
+      throw new Error(tMain("share.errors.noChapters"));
     }
 
     const chapterIds = createdChapters.map((chapter) => chapter.id);
@@ -126,7 +130,7 @@ async function importWorkShareAsNewWork(
 
     const openedChapter = createdChapters[0];
     if (!openedChapter) {
-      throw new Error("가져온 화를 열지 못했습니다.");
+      throw new Error(tMain("share.errors.importedChapterOpen"));
     }
 
     return {

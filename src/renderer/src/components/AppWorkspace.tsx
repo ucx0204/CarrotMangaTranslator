@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
@@ -54,6 +55,7 @@ type AppWorkspaceProps = {
 // useFonts() subscribes to custom-font changes so overlay text re-resolves
 // families when fonts load/register.
 export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const { workspacePanelRef } = props;
   useFonts();
   const zoomStyle = useWorkspaceZoomStyle(
@@ -73,7 +75,7 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
         className={`workspace ${zoomStyle.className}`.trim()}
         style={zoomStyle.style}
         tabIndex={0}
-        aria-label="읽기 영역"
+        aria-label={t("workspace.readingArea")}
         onMouseDown={() => workspacePanelRef.current?.focus()}
       >
         <WorkspaceContent {...props} />
@@ -184,10 +186,11 @@ function WorkspacePane({
 }: ImageStageProps & {
   showingOriginalPeek: boolean;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="workspace-pane">
       {showingOriginalPeek ? (
-        <div className="peek-original-badge">원본</div>
+        <div className="peek-original-badge">{t("common.original")}</div>
       ) : null}
       <ImageStage {...stageProps} />
     </div>
@@ -206,28 +209,32 @@ function EmptyWorkspace({
   | "onOpenShareImport"
   | "onOpenTranslationSource"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="empty-state">
       <div className="empty-card">
-        <h2>망가 번역을 시작해요</h2>
-        <p>
-          이미지·폴더·ZIP을 가져와 작품과 화 단위로 저장하고, 페이지별로
-          번역·인페인팅·편집할 수 있어요.
-        </p>
+        <h2>{t("workspace.empty.title")}</h2>
+        <p>{t("workspace.empty.description")}</p>
         <EmptyWorkspaceSteps
           onOpenSettings={onOpenSettings}
           onOpenTranslationSource={onOpenTranslationSource}
         />
         <div className="empty-actions">
           <Button variant="primary" onClick={onOpenTranslationSource}>
-            번역 시작
+            {t("workspace.empty.startTranslation")}
           </Button>
-          <Button onClick={onOpenBatchImport}>작품 일괄 번역</Button>
-          <Button onClick={onOpenShareImport}>공유본 가져오기</Button>
+          <Button onClick={onOpenBatchImport}>
+            {t("sidebar.batchTranslate")}
+          </Button>
+          <Button onClick={onOpenShareImport}>
+            {t("workspace.empty.importSharedCopy")}
+          </Button>
         </div>
         <p className="empty-hints">
-          <kbd>←</kbd> <kbd>→</kbd> 페이지 이동 · <kbd>Ctrl</kbd>+<kbd>K</kbd>{" "}
-          명령 팔레트 · <kbd>?</kbd> 단축키
+          <kbd>←</kbd> <kbd>→</kbd> {t("workspace.empty.hints.pageNavigation")}{" "}
+          · <kbd>Ctrl</kbd>+<kbd>K</kbd>{" "}
+          {t("workspace.empty.hints.commandPalette")} · <kbd>?</kbd>{" "}
+          {t("workspace.empty.hints.shortcuts")}
         </p>
       </div>
     </div>
@@ -241,33 +248,34 @@ function EmptyWorkspaceSteps({
   AppWorkspaceProps,
   "onOpenSettings" | "onOpenTranslationSource"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <ol className="empty-steps">
       <li>
         <span className="empty-step-num">1</span>
         <div className="empty-step-body">
-          <strong>번역 엔진 설정</strong>
-          <span>모델·OCR·하드웨어를 먼저 확인하세요.</span>
+          <strong>{t("workspace.empty.steps.engine.title")}</strong>
+          <span>{t("workspace.empty.steps.engine.description")}</span>
         </div>
         <Button size="sm" onClick={onOpenSettings}>
-          설정 열기
+          {t("workspace.empty.openSettings")}
         </Button>
       </li>
       <li>
         <span className="empty-step-num">2</span>
         <div className="empty-step-body">
-          <strong>원본 가져오기</strong>
-          <span>이미지·폴더·ZIP에서 페이지를 불러옵니다.</span>
+          <strong>{t("workspace.empty.steps.import.title")}</strong>
+          <span>{t("workspace.empty.steps.import.description")}</span>
         </div>
         <Button size="sm" onClick={onOpenTranslationSource}>
-          가져오기
+          {t("common.import")}
         </Button>
       </li>
       <li>
         <span className="empty-step-num">3</span>
         <div className="empty-step-body">
-          <strong>번역 &amp; 편집</strong>
-          <span>이어서 번역하고 블록을 다듬으세요.</span>
+          <strong>{t("workspace.empty.steps.edit.title")}</strong>
+          <span>{t("workspace.empty.steps.edit.description")}</span>
         </div>
       </li>
     </ol>

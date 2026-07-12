@@ -85,6 +85,7 @@ import type {
   AnalyzeWorkContextResult,
 } from "./workContextAnalysisTypes";
 import type { ChapterStoryMemory, WorkStyleGuide } from "./workContextTypes";
+import { SUPPORTED_UI_LOCALES, type UiLocale } from "./uiLocales";
 
 export type IpcContract<
   TArgs extends unknown[] = unknown[],
@@ -636,6 +637,12 @@ export const fontIpcContracts = {
 } as const;
 
 export const settingsIpcContracts = {
+  getUiLocale: defineIpcContract<[], UiLocale>({
+    apiKey: "getUiLocale",
+    channel: "settings:get-ui-locale",
+    args: z.tuple([]),
+    result: z.enum(SUPPORTED_UI_LOCALES),
+  }),
   getSettings: defineIpcContract<[], AppSettings>({
     apiKey: "getSettings",
     channel: "settings:get",
@@ -870,6 +877,11 @@ export const ipcInvokeContracts = {
 } as const;
 
 export const ipcEventContracts = {
+  uiLocaleChanged: defineIpcEventContract<UiLocale>({
+    eventKey: "uiLocaleChanged",
+    channel: "settings:ui-locale-changed",
+    payload: z.enum(SUPPORTED_UI_LOCALES),
+  }),
   jobEvent: defineIpcEventContract<JobEvent>({
     eventKey: "jobEvent",
     channel: "job:event",

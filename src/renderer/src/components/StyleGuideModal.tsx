@@ -1,5 +1,7 @@
 /* eslint-disable max-lines, max-lines-per-function */
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../../../shared/settingsTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type {
@@ -36,27 +38,24 @@ type StyleGuideModalProps = {
   onClose: () => void;
 };
 
-const CATEGORY_OPTIONS: Array<{ id: GlossaryEntryCategory; label: string }> = [
-  { id: "character", label: "인물" },
-  { id: "alias", label: "별명" },
-  { id: "place", label: "장소" },
-  { id: "term", label: "용어" },
-  { id: "honorific", label: "호칭" },
-  { id: "other", label: "기타" },
+const CATEGORY_IDS: GlossaryEntryCategory[] = [
+  "character",
+  "alias",
+  "place",
+  "term",
+  "honorific",
+  "other",
 ];
 
-const SPEECH_STYLE_OPTIONS: Array<{
-  id: CharacterSpeechStyle;
-  label: string;
-}> = [
-  { id: "neutral", label: "중립" },
-  { id: "polite", label: "정중" },
-  { id: "casual", label: "반말" },
-  { id: "rough", label: "거침" },
-  { id: "childish", label: "아이" },
-  { id: "elderly", label: "노년" },
-  { id: "formal", label: "격식" },
-  { id: "custom", label: "직접" },
+const SPEECH_STYLE_IDS: CharacterSpeechStyle[] = [
+  "neutral",
+  "polite",
+  "casual",
+  "rough",
+  "childish",
+  "elderly",
+  "formal",
+  "custom",
 ];
 
 export function StyleGuideModal({
@@ -64,6 +63,7 @@ export function StyleGuideModal({
   settings,
   onClose,
 }: StyleGuideModalProps): React.JSX.Element {
+  const { i18n, t } = useTranslation("components");
   const [tab, setTab] = React.useState<StyleGuideTab>("glossary");
   const [guide, setGuide] = React.useState<WorkStyleGuide | null>(null);
   const [memory, setMemory] = React.useState<ChapterStoryMemory | null>(null);
@@ -88,7 +88,7 @@ export function StyleGuideModal({
       })
       .catch((error) => {
         console.error(error);
-        toast.error("용어/기억 정보를 불러오지 못했습니다.");
+        toast.error(t("styleGuide.loadFailed"));
       })
       .finally(() => {
         if (alive) {
@@ -98,7 +98,7 @@ export function StyleGuideModal({
     return () => {
       alive = false;
     };
-  }, [chapter.id, chapter.workId]);
+  }, [chapter.id, chapter.workId, t]);
 
   const saveGuide = React.useCallback(async () => {
     if (!guide) {
@@ -110,14 +110,14 @@ export function StyleGuideModal({
         normalizeGuideForSave(guide),
       );
       setGuide(saved);
-      toast.success("용어/기억을 저장했습니다.");
+      toast.success(t("styleGuide.saveSuccess"));
     } catch (error) {
       console.error(error);
-      toast.error("용어/기억 저장에 실패했습니다.");
+      toast.error(t("styleGuide.saveFailed"));
     } finally {
       setSaving(false);
     }
-  }, [guide]);
+  }, [guide, t]);
 
   const analyzeWithAi = React.useCallback(
     async (scope: WorkContextAnalysisScope) => {
@@ -131,22 +131,29 @@ export function StyleGuideModal({
         setMemory(result.storyMemory);
         setTab("glossary");
         const changed = countAnalysisChanges(result.counts);
-        const coverage = `${result.coverage.includedChapters}/${result.coverage.totalChapters}화`;
-        const label = scope === "work" ? "작품 전체" : "현재 화";
         toast.success(
-          `${label} AI 분석을 반영했습니다. ${coverage}, ${changed}개 변경`,
+          t("styleGuide.analysis.success", {
+            scope: t(
+              scope === "work"
+                ? "styleGuide.analysis.entireWork"
+                : "styleGuide.analysis.currentChapter",
+            ),
+            included: result.coverage.includedChapters,
+            total: result.coverage.totalChapters,
+            changed,
+          }),
         );
         for (const warning of result.warnings.slice(0, 2)) {
           toast.info(warning);
         }
       } catch (error) {
         console.error(error);
-        toast.error("AI 용어/기억 분석에 실패했습니다.");
+        toast.error(t("styleGuide.analysis.failed"));
       } finally {
         setAnalyzingScope(null);
       }
     },
-    [chapter.id],
+    [chapter.id, t],
   );
 
   const working = busy || analyzingScope !== null;
@@ -166,21 +173,24 @@ export function StyleGuideModal({
 
   return (
     <Modal
-      title="용어/기억"
+      title={t("styleGuide.title")}
       size="xl"
       onClose={onClose}
       closeOnBackdrop
       bodyClassName="style-guide-body"
       footer={
         <div className="style-guide-footer">
-          <StyleGuideBudgetSummary budget={budget} />
+          <StyleGuideBudgetSummary
+            budget={budget}
+            locale={i18n.resolvedLanguage ?? i18n.language}
+          />
           <div className="style-guide-footer-actions">
             <Button
               variant="primary"
               onClick={() => void saveGuide()}
               disabled={!guide || saving || analyzingScope !== null}
             >
-              저장
+              {t("common.save")}
             </Button>
           </div>
         </div>
@@ -192,31 +202,60 @@ export function StyleGuideModal({
         onAnalyze={(scope) => void analyzeWithAi(scope)}
       />
       <StyleGuideTabs active={tab} onChange={setTab} />
-      {busy || !guide ? (
-        <p className="muted-line style-guide-empty">불러오는 중...</p>
-      ) : (
-        <>
-          {tab === "glossary" ? (
-            <GlossaryTab guide={guide} onGuideChange={setGuide} />
-          ) : null}
-          {tab === "characters" ? (
-            <CharactersTab guide={guide} onGuideChange={setGuide} />
-          ) : null}
-          {tab === "rules" ? (
-            <RulesTab guide={guide} onGuideChange={setGuide} />
-          ) : null}
-          {tab === "memory" ? <MemoryTab memory={memory} /> : null}
-        </>
-      )}
+      <StyleGuideTabContent
+        busy={busy}
+        guide={guide}
+        memory={memory}
+        onGuideChange={setGuide}
+        tab={tab}
+      />
     </Modal>
+  );
+}
+
+function StyleGuideTabContent({
+  busy,
+  guide,
+  memory,
+  onGuideChange,
+  tab,
+}: {
+  busy: boolean;
+  guide: WorkStyleGuide | null;
+  memory: ChapterStoryMemory | null;
+  onGuideChange: (guide: WorkStyleGuide) => void;
+  tab: StyleGuideTab;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  if (busy || !guide) {
+    return (
+      <p className="muted-line style-guide-empty">{t("common.loading")}</p>
+    );
+  }
+  return (
+    <>
+      {tab === "glossary" ? (
+        <GlossaryTab guide={guide} onGuideChange={onGuideChange} />
+      ) : null}
+      {tab === "characters" ? (
+        <CharactersTab guide={guide} onGuideChange={onGuideChange} />
+      ) : null}
+      {tab === "rules" ? (
+        <RulesTab guide={guide} onGuideChange={onGuideChange} />
+      ) : null}
+      {tab === "memory" ? <MemoryTab memory={memory} /> : null}
+    </>
   );
 }
 
 function StyleGuideBudgetSummary({
   budget,
+  locale,
 }: {
   budget: WorkContextBudgetPlan | null;
+  locale: string;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   if (!budget) {
     return <span className="style-guide-budget-placeholder" />;
   }
@@ -226,18 +265,30 @@ function StyleGuideBudgetSummary({
     <div className="style-guide-budget" aria-live="polite">
       <div className="style-guide-budget-main">
         <strong>
-          용어/기억 {formatTokenCount(budget.original.totalTokens)}
+          {t("styleGuide.budget.total", {
+            tokens: formatTokenCount(budget.original.totalTokens, locale, t),
+          })}
         </strong>
-        <span>출력 여유 {budget.original.outputHeadroomPercent}%</span>
+        <span>
+          {t("styleGuide.budget.outputHeadroom", {
+            percent: budget.original.outputHeadroomPercent,
+          })}
+        </span>
       </div>
       <div className="style-guide-budget-detail">
-        스토리 {formatTokenCount(budget.original.storyMemoryTokens)} · 용어집{" "}
-        {formatTokenCount(budget.original.glossaryTokens)} · 캐릭터{" "}
-        {formatTokenCount(budget.original.characterTokens)}
+        {t("styleGuide.budget.breakdown", {
+          story: formatTokenCount(budget.original.storyMemoryTokens, locale, t),
+          glossary: formatTokenCount(budget.original.glossaryTokens, locale, t),
+          characters: formatTokenCount(
+            budget.original.characterTokens,
+            locale,
+            t,
+          ),
+        })}
       </div>
       {hasWarning ? (
         <p className="style-guide-budget-warning">
-          {buildBudgetWarningText(budget)}
+          {buildBudgetWarningText(budget, locale, t)}
         </p>
       ) : null}
     </div>
@@ -253,20 +304,30 @@ function StyleGuideAnalysisActions({
   disabled: boolean;
   onAnalyze: (scope: WorkContextAnalysisScope) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
-    <section className="style-guide-analysis" aria-label="AI 용어 기억 분석">
+    <section
+      className="style-guide-analysis"
+      aria-label={t("styleGuide.analysis.ariaLabel")}
+    >
       <div className="style-guide-analysis-info">
-        <h3>AI 자동 분석</h3>
-        <p>원문을 분석해 용어·캐릭터·스토리 메모리를 채웁니다.</p>
+        <h3>{t("styleGuide.analysis.title")}</h3>
+        <p>{t("styleGuide.analysis.description")}</p>
       </div>
       <div className="style-guide-analysis-actions">
-        <span className="style-guide-analysis-scope">분석 범위</span>
+        <span className="style-guide-analysis-scope">
+          {t("styleGuide.analysis.scope")}
+        </span>
         <Button
           disabled={disabled}
           aria-busy={analyzingScope === "chapter"}
           onClick={() => onAnalyze("chapter")}
         >
-          {analyzingScope === "chapter" ? "분석 중..." : "현재 화"}
+          {t(
+            analyzingScope === "chapter"
+              ? "styleGuide.analysis.analyzing"
+              : "styleGuide.analysis.currentChapter",
+          )}
         </Button>
         <Button
           variant="primary"
@@ -274,7 +335,11 @@ function StyleGuideAnalysisActions({
           aria-busy={analyzingScope === "work"}
           onClick={() => onAnalyze("work")}
         >
-          {analyzingScope === "work" ? "분석 중..." : "작품 전체"}
+          {t(
+            analyzingScope === "work"
+              ? "styleGuide.analysis.analyzing"
+              : "styleGuide.analysis.entireWork",
+          )}
         </Button>
       </div>
     </section>
@@ -288,14 +353,19 @@ function StyleGuideTabs({
   active: StyleGuideTab;
   onChange: (tab: StyleGuideTab) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const tabs: Array<{ id: StyleGuideTab; label: string }> = [
-    { id: "glossary", label: "용어집" },
-    { id: "characters", label: "캐릭터" },
-    { id: "rules", label: "번역 규칙" },
-    { id: "memory", label: "스토리 메모리" },
+    { id: "glossary", label: t("styleGuide.tabs.glossary") },
+    { id: "characters", label: t("styleGuide.tabs.characters") },
+    { id: "rules", label: t("styleGuide.tabs.rules") },
+    { id: "memory", label: t("styleGuide.tabs.memory") },
   ];
   return (
-    <div className="style-guide-tabs" role="tablist" aria-label="용어 기억 탭">
+    <div
+      className="style-guide-tabs"
+      role="tablist"
+      aria-label={t("styleGuide.tabs.ariaLabel")}
+    >
       {tabs.map((item) => (
         <button
           key={item.id}
@@ -319,6 +389,7 @@ function GlossaryTab({
   guide: WorkStyleGuide;
   onGuideChange: (guide: WorkStyleGuide) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const updateEntry = (id: string, patch: Partial<GlossaryEntry>): void => {
     onGuideChange({
       ...guide,
@@ -332,7 +403,7 @@ function GlossaryTab({
     <div className="style-guide-content">
       <section className="style-guide-section">
         <div className="style-guide-section-head">
-          <h3>용어집</h3>
+          <h3>{t("styleGuide.tabs.glossary")}</h3>
           <Button
             size="sm"
             onClick={() =>
@@ -349,23 +420,22 @@ function GlossaryTab({
               })
             }
           >
-            행 추가
+            {t("styleGuide.addRow")}
           </Button>
         </div>
         {guide.glossary.length === 0 ? (
           <p className="style-guide-table-empty">
-            등록된 용어가 없습니다. 위의 “현재 화 분석”, “작품 전체” 또는 “행
-            추가”로 시작하세요.
+            {t("styleGuide.glossary.empty")}
           </p>
         ) : (
           <div className="style-guide-table">
             <div className="style-guide-row glossary head" aria-hidden="true">
               <span />
-              <span>원문</span>
-              <span>번역</span>
-              <span>분류</span>
-              <span>별칭</span>
-              <span>메모</span>
+              <span>{t("styleGuide.glossary.source")}</span>
+              <span>{t("styleGuide.glossary.translation")}</span>
+              <span>{t("styleGuide.glossary.category")}</span>
+              <span>{t("styleGuide.glossary.aliases")}</span>
+              <span>{t("styleGuide.note")}</span>
               <span />
             </div>
             {guide.glossary.map((entry) => (
@@ -381,14 +451,14 @@ function GlossaryTab({
                 </label>
                 <input
                   value={entry.source}
-                  placeholder="원문"
+                  placeholder={t("styleGuide.glossary.source")}
                   onChange={(event) =>
                     updateEntry(entry.id, { source: event.target.value })
                   }
                 />
                 <input
                   value={entry.target}
-                  placeholder="번역"
+                  placeholder={t("styleGuide.glossary.translation")}
                   onChange={(event) =>
                     updateEntry(entry.id, { target: event.target.value })
                   }
@@ -401,15 +471,15 @@ function GlossaryTab({
                     })
                   }
                 >
-                  {CATEGORY_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
+                  {CATEGORY_IDS.map((id) => (
+                    <option key={id} value={id}>
+                      {t(`styleGuide.glossary.categories.${id}`)}
                     </option>
                   ))}
                 </select>
                 <input
                   value={(entry.aliases ?? []).join(", ")}
-                  placeholder="별칭"
+                  placeholder={t("styleGuide.glossary.aliases")}
                   onChange={(event) =>
                     updateEntry(entry.id, {
                       aliases: splitList(event.target.value),
@@ -418,7 +488,7 @@ function GlossaryTab({
                 />
                 <input
                   value={entry.note ?? ""}
-                  placeholder="메모"
+                  placeholder={t("styleGuide.note")}
                   onChange={(event) =>
                     updateEntry(entry.id, { note: event.target.value })
                   }
@@ -435,7 +505,7 @@ function GlossaryTab({
                     })
                   }
                 >
-                  삭제
+                  {t("common.delete")}
                 </Button>
               </div>
             ))}
@@ -450,30 +520,50 @@ function countAnalysisChanges(counts: WorkContextAnalysisCounts): number {
   return Object.values(counts).reduce((sum, value) => sum + value, 0);
 }
 
-function formatTokenCount(tokens: number): string {
-  return `${Math.max(0, Math.round(tokens)).toLocaleString("ko-KR")}토큰`;
+function formatTokenCount(
+  tokens: number,
+  locale: string,
+  t: TFunction<"components">,
+): string {
+  return t("styleGuide.budget.tokenCount", {
+    count: new Intl.NumberFormat(locale).format(
+      Math.max(0, Math.round(tokens)),
+    ),
+  });
 }
 
-function formatOmittedParts(parts: WorkContextBudgetOmittedPart[]): string {
-  const labels: Record<WorkContextBudgetOmittedPart, string> = {
-    storyMemory: "스토리 메모리",
-    glossary: "용어집",
-    characters: "캐릭터 기억",
-  };
-  return parts.map((part) => labels[part]).join(", ");
+function formatOmittedParts(
+  parts: WorkContextBudgetOmittedPart[],
+  t: TFunction<"components">,
+): string {
+  return parts
+    .map((part) => t(`styleGuide.budget.omittedParts.${part}`))
+    .join(", ");
 }
 
-function buildBudgetWarningText(budget: WorkContextBudgetPlan): string {
-  const base =
-    `출력 여유가 ${formatTokenCount(budget.minOutputHeadroomTokens)} 미만이면 ` +
-    "번역 때 스토리 메모리부터 제외합니다. 그래도 부족하면 용어집, 마지막으로 캐릭터 기억까지 제외합니다.";
-  const effective =
-    `${formatTokenCount(budget.effective.outputHeadroomTokens)} · ` +
-    `${budget.effective.outputHeadroomPercent}%`;
+function buildBudgetWarningText(
+  budget: WorkContextBudgetPlan,
+  locale: string,
+  t: TFunction<"components">,
+): string {
+  const minimum = formatTokenCount(budget.minOutputHeadroomTokens, locale, t);
+  const effective = t("styleGuide.budget.effectiveHeadroom", {
+    tokens: formatTokenCount(budget.effective.outputHeadroomTokens, locale, t),
+    percent: budget.effective.outputHeadroomPercent,
+  });
+  const omitted = formatOmittedParts(budget.omittedParts, t);
   if (budget.effective.outputHeadroomTokens < budget.minOutputHeadroomTokens) {
-    return `${base} 현재 설정에서는 ${formatOmittedParts(budget.omittedParts)}을 빼도 예상 여유가 ${effective}뿐이라 응답이 중간에 끊길 수 있습니다.`;
+    return t("styleGuide.budget.warningInsufficient", {
+      minimum,
+      omitted,
+      effective,
+    });
   }
-  return `${base} 현재 설정에서는 ${formatOmittedParts(budget.omittedParts)}을 빼서 예상 여유를 ${effective}까지 확보합니다.`;
+  return t("styleGuide.budget.warningAdjusted", {
+    minimum,
+    omitted,
+    effective,
+  });
 }
 
 function CharactersTab({
@@ -483,6 +573,7 @@ function CharactersTab({
   guide: WorkStyleGuide;
   onGuideChange: (guide: WorkStyleGuide) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const updateCharacter = (
     id: string,
     patch: Partial<CharacterProfile>,
@@ -501,7 +592,7 @@ function CharactersTab({
     <div className="style-guide-content">
       <section className="style-guide-section">
         <div className="style-guide-section-head">
-          <h3>캐릭터 이름/말투</h3>
+          <h3>{t("styleGuide.characters.title")}</h3>
           <Button
             size="sm"
             onClick={() =>
@@ -511,23 +602,23 @@ function CharactersTab({
               })
             }
           >
-            행 추가
+            {t("styleGuide.addRow")}
           </Button>
         </div>
         {guide.characters.length === 0 ? (
           <p className="style-guide-table-empty">
-            등록된 캐릭터가 없습니다. 위의 “행 추가”로 시작하세요.
+            {t("styleGuide.characters.empty")}
           </p>
         ) : (
           <div className="style-guide-table">
             <div className="style-guide-row character head" aria-hidden="true">
               <span />
-              <span>표시 이름</span>
-              <span>원문 이름</span>
-              <span>번역 이름</span>
-              <span>말투</span>
-              <span>커스텀 말투</span>
-              <span>메모</span>
+              <span>{t("styleGuide.characters.displayName")}</span>
+              <span>{t("styleGuide.characters.sourceNames")}</span>
+              <span>{t("styleGuide.characters.translatedName")}</span>
+              <span>{t("styleGuide.characters.speechStyle")}</span>
+              <span>{t("styleGuide.characters.customSpeechStyle")}</span>
+              <span>{t("styleGuide.note")}</span>
               <span />
             </div>
             {guide.characters.map((character) => (
@@ -545,7 +636,7 @@ function CharactersTab({
                 </label>
                 <input
                   value={character.displayName}
-                  placeholder="표시 이름"
+                  placeholder={t("styleGuide.characters.displayName")}
                   onChange={(event) =>
                     updateCharacter(character.id, {
                       displayName: event.target.value,
@@ -554,7 +645,7 @@ function CharactersTab({
                 />
                 <input
                   value={character.sourceNames.join(", ")}
-                  placeholder="원문 이름"
+                  placeholder={t("styleGuide.characters.sourceNames")}
                   onChange={(event) =>
                     updateCharacter(character.id, {
                       sourceNames: splitList(event.target.value),
@@ -563,7 +654,7 @@ function CharactersTab({
                 />
                 <input
                   value={character.targetName}
-                  placeholder="번역 이름"
+                  placeholder={t("styleGuide.characters.translatedName")}
                   onChange={(event) =>
                     updateCharacter(character.id, {
                       targetName: event.target.value,
@@ -578,15 +669,15 @@ function CharactersTab({
                     })
                   }
                 >
-                  {SPEECH_STYLE_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
+                  {SPEECH_STYLE_IDS.map((id) => (
+                    <option key={id} value={id}>
+                      {t(`styleGuide.characters.speechStyles.${id}`)}
                     </option>
                   ))}
                 </select>
                 <input
                   value={character.customSpeechStyle ?? ""}
-                  placeholder="커스텀 말투"
+                  placeholder={t("styleGuide.characters.customSpeechStyle")}
                   onChange={(event) =>
                     updateCharacter(character.id, {
                       customSpeechStyle: event.target.value,
@@ -595,7 +686,7 @@ function CharactersTab({
                 />
                 <input
                   value={character.note ?? ""}
-                  placeholder="메모"
+                  placeholder={t("styleGuide.note")}
                   onChange={(event) =>
                     updateCharacter(character.id, { note: event.target.value })
                   }
@@ -612,7 +703,7 @@ function CharactersTab({
                     })
                   }
                 >
-                  삭제
+                  {t("common.delete")}
                 </Button>
               </div>
             ))}
@@ -630,11 +721,12 @@ function RulesTab({
   guide: WorkStyleGuide;
   onGuideChange: (guide: WorkStyleGuide) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="style-guide-content">
       <section className="style-guide-section rules">
         <label>
-          호칭 처리
+          {t("styleGuide.rules.honorifics.label")}
           <select
             value={guide.rules.honorifics}
             onChange={(event) =>
@@ -648,13 +740,19 @@ function RulesTab({
               })
             }
           >
-            <option value="preserve">원문 호칭 느낌 유지</option>
-            <option value="adapt">번역 언어의 호칭으로 자연스럽게 바꿈</option>
-            <option value="drop">님/씨 같은 호칭은 빼고 이름 위주</option>
+            <option value="preserve">
+              {t("styleGuide.rules.honorifics.preserve")}
+            </option>
+            <option value="adapt">
+              {t("styleGuide.rules.honorifics.adapt")}
+            </option>
+            <option value="drop">
+              {t("styleGuide.rules.honorifics.drop")}
+            </option>
           </select>
         </label>
         <label>
-          효과음 처리
+          {t("styleGuide.rules.sfx.label")}
           <select
             value={guide.rules.sfxMode}
             onChange={(event) =>
@@ -668,13 +766,17 @@ function RulesTab({
               })
             }
           >
-            <option value="preserve">원문 효과음 그대로 둠</option>
-            <option value="translate">번역 언어 효과음으로 바꿈</option>
-            <option value="note">원문 효과음에 뜻 설명을 붙임</option>
+            <option value="preserve">
+              {t("styleGuide.rules.sfx.preserve")}
+            </option>
+            <option value="translate">
+              {t("styleGuide.rules.sfx.translate")}
+            </option>
+            <option value="note">{t("styleGuide.rules.sfx.note")}</option>
           </select>
         </label>
         <label>
-          기본 톤
+          {t("styleGuide.rules.tone.label")}
           <select
             value={guide.rules.defaultTone}
             onChange={(event) =>
@@ -688,8 +790,12 @@ function RulesTab({
               })
             }
           >
-            <option value="natural_korean">자연스러운 번역 대사</option>
-            <option value="literal">원문에 가까운 직역</option>
+            <option value="natural_korean">
+              {t("styleGuide.rules.tone.natural")}
+            </option>
+            <option value="literal">
+              {t("styleGuide.rules.tone.literal")}
+            </option>
           </select>
         </label>
       </section>
@@ -702,11 +808,12 @@ function MemoryTab({
 }: {
   memory: ChapterStoryMemory | null;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   if (!memory || memory.pages.length === 0) {
     return (
       <div className="style-guide-content">
         <p className="muted-line style-guide-empty">
-          아직 저장된 스토리 메모리가 없습니다.
+          {t("styleGuide.memory.empty")}
         </p>
       </div>
     );
@@ -718,7 +825,10 @@ function MemoryTab({
           {memory.pages.map((page) => (
             <article key={page.pageId} className="style-memory-item">
               <h3>
-                {page.pageIndex + 1}쪽 · {page.pageName}
+                {t("styleGuide.memory.pageHeading", {
+                  index: page.pageIndex + 1,
+                  pageName: page.pageName,
+                })}
               </h3>
               <p>
                 {page.summary || page.translatedDigest || page.sourceDigest}

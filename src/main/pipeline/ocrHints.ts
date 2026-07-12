@@ -11,6 +11,7 @@ import { throwIfAborted } from "./failure";
 import { isOcrResultNoTextDetected } from "./noText";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { OcrBboxResult } from "./types";
+import { tMain } from "./localization";
 
 const OCR_HINT_CACHE_SCHEMA_VERSION = 4;
 
@@ -112,7 +113,7 @@ function emitCachedOcrHintProgress(
     id: jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: `${page.name} OCR 재사용`,
+    progressText: tMain("ocr.cached", { page: page.name }),
     phase: "ocr_running",
     progressCurrent: index + 1,
     progressTotal: total,
@@ -215,12 +216,12 @@ function emitOcrBatchStarted(
     id: jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: "Paddle OCR 배치 선분석 중",
+    progressText: tMain("ocr.batchRunning"),
     phase: "ocr_running",
     progressCurrent: 0,
     progressTotal: pendingCount,
     pageTotal: total,
-    detail: `${pendingCount}페이지를 한 번에 처리합니다. OCR 프로세스는 이 구간 끝에서 종료됩니다.`,
+    detail: tMain("ocr.batchRunningDetail", { count: pendingCount }),
   });
 }
 
@@ -242,7 +243,7 @@ async function saveOcrBatchResult(
     id: jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: `${entry.page.name} OCR 완료`,
+    progressText: tMain("ocr.pageDone", { page: entry.page.name }),
     phase: "ocr_running",
     progressCurrent: batchIndex + 1,
     progressTotal: pendingPages.length,
@@ -261,23 +262,26 @@ function emitOcrHintsCompleted({
     id: jobId,
     kind: "gemma-analysis",
     status: "running",
-    progressText: "Paddle OCR 선분석 완료",
+    progressText: tMain("ocr.prepassDone"),
     phase: "ocr_running",
     progressCurrent: total,
     progressTotal: total,
     pageTotal: total,
-    detail: "OCR 프로세스를 종료하고 AI 번역 단계로 넘어갑니다.",
+    detail: tMain("ocr.prepassDoneDetail"),
   });
 }
 
 function formatOcrHintDetail(result: OcrBboxResult): string {
   if (isOcrResultNoTextDetected(result)) {
-    return `${result.hints.length}개 후보, 텍스트 근거 없음`;
+    return tMain("ocr.hintDetailNoEvidence", { count: result.hints.length });
   }
   if (Number.isFinite(result.textEvidenceCount)) {
-    return `${result.hints.length}개 후보, 텍스트 근거 ${result.textEvidenceCount}개`;
+    return tMain("ocr.hintDetailWithEvidence", {
+      count: result.hints.length,
+      evidence: result.textEvidenceCount,
+    });
   }
-  return `${result.hints.length}개 후보`;
+  return tMain("ocr.hintDetail", { count: result.hints.length });
 }
 
 function buildOcrPageOptions(

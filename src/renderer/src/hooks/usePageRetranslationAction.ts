@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, RunMode } from "../../../shared/libraryTypes";
 
 type UsePageRetranslationActionOptions = {
@@ -18,6 +19,7 @@ export function usePageRetranslationAction({
   openRetranslateOptions,
   runAnalysis,
 }: UsePageRetranslationActionOptions): (pageId: string) => Promise<void> {
+  const { t } = useTranslation("renderer");
   return useCallback(
     async (pageId) => {
       const page = currentChapter?.pages.find(
@@ -31,15 +33,15 @@ export function usePageRetranslationAction({
         return;
       }
       const confirmed = await askConfirm(
-        "페이지 재번역",
-        "정말 재번역 하시겠습니까?",
-        "기존 번역 결과와 수정 내용이 이 페이지에서 덮어써집니다.",
+        t("library.retranslate.title"),
+        t("library.retranslate.confirm"),
+        t("library.retranslate.detail"),
       );
       if (!confirmed) {
         return;
       }
       await runAnalysis("single-page", pageId);
     },
-    [askConfirm, currentChapter, openRetranslateOptions, runAnalysis],
+    [askConfirm, currentChapter, openRetranslateOptions, runAnalysis, t],
   );
 }

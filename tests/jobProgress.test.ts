@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { TFunction } from "i18next";
 import {
   formatJobEventLine,
   formatJobLabel,
   resolveProgressSnapshot,
   summarizeWarnings,
 } from "../src/renderer/src/lib/jobProgress";
+
+const testTranslator = ((key: string) =>
+  `translated:${key}`) as TFunction<"renderer">;
 
 describe("job progress helpers", () => {
   it("formats structured page progress into short Korean labels", () => {
@@ -137,6 +141,26 @@ describe("job progress helpers", () => {
     expect(formatJobLabel({ status: "running", phase: "finalizing" })).toBe(
       "결과 정리 중",
     );
+  });
+
+  it("preserves detailed event text while allowing locale refreshes to discard it", () => {
+    const job = {
+      status: "running" as const,
+      phase: "finalizing" as const,
+      progressText: "Exporting page 2 / 4",
+    };
+
+    expect(
+      formatJobEventLine(
+        { id: "job-1", kind: "inpainting", ...job },
+        testTranslator,
+      ),
+    ).toBe("Exporting page 2 / 4");
+    expect(
+      formatJobLabel(job, testTranslator, {
+        preserveUnknownProgressText: false,
+      }),
+    ).toBe("translated:job.phase.finalizing");
   });
 
   it("summarizes warnings into a short user-facing sentence", () => {

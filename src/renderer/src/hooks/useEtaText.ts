@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 
 /**
@@ -7,6 +8,7 @@ import type { ProgressSnapshot } from "../lib/jobProgress";
  * is enough signal, or for indeterminate/log-only progress.
  */
 export function useEtaText(snapshot: ProgressSnapshot | null): string | null {
+  const { t } = useTranslation("renderer");
   const [etaText, setEtaText] = React.useState<string | null>(null);
   const anchorRef = React.useRef<{ time: number; ratio: number } | null>(null);
   const ratio = snapshot?.mode === "determinate" ? snapshot.ratio : null;
@@ -38,25 +40,28 @@ export function useEtaText(snapshot: ProgressSnapshot | null): string | null {
       setEtaText(null);
       return;
     }
-    setEtaText(formatEta(remainingMs));
-  }, [ratio]);
+    setEtaText(formatEta(remainingMs, t));
+  }, [ratio, t]);
 
   return etaText;
 }
 
-function formatEta(ms: number): string {
+function formatEta(
+  ms: number,
+  t: ReturnType<typeof useTranslation<"renderer">>["t"],
+): string {
   const totalSeconds = Math.max(1, Math.round(ms / 1000));
   if (totalSeconds < 60) {
-    return `약 ${totalSeconds}초 남음`;
+    return t("eta.seconds", { count: totalSeconds });
   }
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   if (minutes < 60) {
     return seconds > 0
-      ? `약 ${minutes}분 ${seconds}초 남음`
-      : `약 ${minutes}분 남음`;
+      ? t("eta.minutesSeconds", { minutes, seconds })
+      : t("eta.minutes", { count: minutes });
   }
   const hours = Math.floor(minutes / 60);
   const remainderMinutes = minutes % 60;
-  return `약 ${hours}시간 ${remainderMinutes}분 남음`;
+  return t("eta.hoursMinutes", { hours, minutes: remainderMinutes });
 }

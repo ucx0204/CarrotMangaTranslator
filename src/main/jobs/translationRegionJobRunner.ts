@@ -15,6 +15,7 @@ import {
   resolveWorkContextForChapter,
 } from "../library";
 import { logError } from "../logger";
+import { tMain } from "./localization";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { isAbortError } from "./jobEvents";
 import type { TranslationJobContext } from "./translationJobTypes";
@@ -123,14 +124,14 @@ function emitMissingRegionPage(
     id,
     kind: "gemma-analysis",
     status: "failed",
-    progressText: "선택 영역 번역 실패",
+    progressText: tMain("region.failed"),
     phase: "failed",
-    detail: "선택한 페이지를 찾지 못했습니다.",
+    detail: tMain("region.pageNotFound"),
   });
   return {
     status: "failed",
     chapter,
-    error: "선택한 페이지를 찾지 못했습니다.",
+    error: tMain("region.pageNotFound"),
   };
 }
 
@@ -143,7 +144,7 @@ function emitRegionStarting(
     id,
     kind: "gemma-analysis",
     status: "starting",
-    progressText: "선택 영역 번역 준비 중",
+    progressText: tMain("region.preparing"),
     phase: "booting",
     progressCurrent: 0,
     progressTotal: 1,
@@ -245,12 +246,12 @@ function emitRegionCompleted(
     id,
     kind: "gemma-analysis",
     status: "completed",
-    progressText: "선택 영역 번역 완료",
+    progressText: tMain("region.completed"),
     phase: "done",
     progressCurrent: 1,
     progressTotal: 1,
     pageTotal: 1,
-    detail: `${blockCount}개 블록`,
+    detail: tMain("units.blocks", { count: blockCount }),
   });
 }
 
@@ -265,7 +266,7 @@ async function handleRegionAbort(
     id,
     kind: "gemma-analysis",
     status: "cancelled",
-    progressText: "작업이 취소되었습니다.",
+    progressText: tMain("jobs.cancelled"),
     phase: "cancelled",
     progressCurrent: lastEvent?.progressCurrent,
     progressTotal: lastEvent?.progressTotal,
@@ -320,7 +321,7 @@ function emitFailedRegionJob(
     id,
     kind: "gemma-analysis",
     status: "failed",
-    progressText: "작업 실패",
+    progressText: tMain("jobs.failed"),
     phase: "failed",
     progressCurrent: lastEvent?.progressCurrent,
     progressTotal: lastEvent?.progressTotal,

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
   dismissToast,
@@ -26,6 +27,7 @@ function ToastGlyph({
 }
 
 function ToastCard({ toast }: { toast: Toast }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className={`toast ${toast.variant}`} role="status">
       <span className="toast-icon">
@@ -49,7 +51,7 @@ function ToastCard({ toast }: { toast: Toast }): React.JSX.Element {
       <button
         type="button"
         className="toast-close"
-        aria-label="알림 닫기"
+        aria-label={t("toast.close")}
         onClick={() => dismissToast(toast.id)}
       >
         <CloseIcon size={14} />
@@ -59,6 +61,7 @@ function ToastCard({ toast }: { toast: Toast }): React.JSX.Element {
 }
 
 export function ToastViewport(): React.JSX.Element | null {
+  const { t } = useTranslation("components");
   const toasts = React.useSyncExternalStore(
     subscribeToasts,
     getToasts,
@@ -71,7 +74,7 @@ export function ToastViewport(): React.JSX.Element | null {
     <div
       className="toast-viewport"
       role="region"
-      aria-label="알림"
+      aria-label={t("toast.region")}
       aria-live="polite"
     >
       {toasts.map((toast) => (

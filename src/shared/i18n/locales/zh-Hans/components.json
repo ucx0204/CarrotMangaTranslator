@@ -1,0 +1,898 @@
+{
+  "common": {
+    "add": "添加",
+    "all": "全部",
+    "apply": "应用",
+    "blocks": "文本块",
+    "cancel": "取消",
+    "chapterCount": "{{count}}话",
+    "clear": "清空",
+    "clearAll": "取消全选",
+    "close": "关闭",
+    "confirm": "确认",
+    "copy": "复制",
+    "delete": "删除",
+    "dragToMove": "拖动以移动",
+    "duplicate": "创建副本",
+    "import": "导入",
+    "inpainting": "图像修复",
+    "inProgress": "进行中",
+    "loading": "加载中…",
+    "original": "原图",
+    "pageCount": "{{count}}页",
+    "pages": "页面",
+    "preparing": "准备中",
+    "rename": "重命名",
+    "reset": "重置",
+    "save": "保存",
+    "selectAll": "全选",
+    "settings": "设置",
+    "thisPage": "本页",
+    "workTitle": "作品标题"
+  },
+  "sidebar": {
+    "exitInpainting": "退出图像修复",
+    "noCurrentChapter": "未打开章节",
+    "translate": "翻译",
+    "batchTranslate": "批量翻译作品",
+    "libraryFolder": "资料库文件夹",
+    "share": "分享"
+  },
+  "workspace": {
+    "readingArea": "阅读区域",
+    "empty": {
+      "title": "开始翻译漫画",
+      "description": "导入图片、文件夹或ZIP文件，按作品和章节保存，然后逐页进行翻译、图像修复和编辑。",
+      "startTranslation": "开始翻译",
+      "importSharedCopy": "导入共享副本",
+      "openSettings": "打开设置",
+      "hints": {
+        "pageNavigation": "切换页面",
+        "commandPalette": "命令面板",
+        "shortcuts": "快捷键"
+      },
+      "steps": {
+        "engine": {
+          "title": "设置翻译引擎",
+          "description": "请先检查模型、OCR和硬件。"
+        },
+        "import": {
+          "title": "导入原稿",
+          "description": "从图片、文件夹或ZIP文件加载页面。"
+        },
+        "edit": {
+          "title": "翻译与编辑",
+          "description": "继续翻译并调整文本块。"
+        }
+      }
+    }
+  },
+  "commandPalette": {
+    "title": "命令面板",
+    "searchPlaceholder": "搜索命令…",
+    "searchLabel": "搜索命令",
+    "listLabel": "命令列表",
+    "noResults": "没有匹配的命令。"
+  },
+  "format": {
+    "title": "格式",
+    "batchApply": "批量应用",
+    "batchApplyTitle": "将此文本块的格式批量应用到其他文本块",
+    "bold": "粗体",
+    "italic": "斜体",
+    "italicShort": "斜体",
+    "align": { "left": "左对齐", "center": "居中", "right": "右对齐" },
+    "direction": { "horizontal": "横排", "vertical": "竖排" },
+    "size": "大小",
+    "fontSize": "字号",
+    "fontSizeValue": "字号数值",
+    "autoFitTitle": "自动适应文本框大小",
+    "auto": "自动",
+    "rotation": "旋转",
+    "opacity": "不透明度",
+    "lineHeight": "行距",
+    "letterSpacing": "字距",
+    "fontWidth": "字宽",
+    "color": "颜色",
+    "textColor": "文字颜色",
+    "outline": "描边"
+  },
+  "editor": {
+    "text": "文本",
+    "translatedText": "译文",
+    "blockColors": "文本块颜色",
+    "markupHint": { "emphasis": "局部强调：", "escape": "输入星号请使用" },
+    "markupToolbar": {
+      "boldLabel": "粗体（**粗体**）",
+      "boldTitle": "将所选文字设为粗体（**粗体**）",
+      "italicLabel": "斜体（*斜体*）",
+      "italicTitle": "将所选文字设为斜体（*斜体*）",
+      "resetHeight": "重置输入框高度"
+    }
+  },
+  "formatBatch": {
+    "title": "批量应用格式",
+    "description": "以下项目将以所选文本块的格式为准。",
+    "items": "应用项目",
+    "scope": "应用范围",
+    "selectedBlocks": "已选{{count}}个文本块",
+    "multiSelectHint": "按住Ctrl并单击以选择多个文本块。",
+    "thisPage": "本页",
+    "entireChapter": "整章",
+    "chapterDisabled": "任务进行中时无法应用到整章。",
+    "groups": {
+      "font": "字体",
+      "size": "字号",
+      "align": "对齐",
+      "direction": "横排/竖排",
+      "emphasis": "粗体与斜体",
+      "lineSpacing": "行距",
+      "letterSpacing": "字距",
+      "fontWidth": "字宽",
+      "color": "文字颜色",
+      "outline": "描边",
+      "transform": "旋转与不透明度"
+    }
+  },
+  "fontSelect": {
+    "addFont": "+ 添加TTF/OTF字体",
+    "deleteFont": "删除此字体",
+    "deleteNamedFont": "删除{{label}}"
+  },
+  "chapterPicker": {
+    "prompt": "要翻译哪些内容？",
+    "untranslatedOnly": "仅未翻译",
+    "noChapters": "没有章节。",
+    "currentChapter": "当前章节",
+    "loadingPages": "正在加载页面…",
+    "loadPagesFailed": "无法加载页面。",
+    "noPages": "没有页面。",
+    "translated": "已翻译",
+    "chapterSummaryComplete": "{{count}}页 · 完成",
+    "chapterSummaryRemaining": "{{count}}页 · 剩余{{remaining}}",
+    "chapterSummary": "{{count}}页{{suffix}}",
+    "statusSuffix": { "complete": " · 完成", "inProgress": " · 进行中" },
+    "noSelectedPages": "未选择页面。",
+    "approximately": "约",
+    "selectionSummary": "{{chapterCount}}话 · {{approximate}}{{pageCount}}页"
+  },
+  "translationOptions": {
+    "start": "开始翻译",
+    "workUnavailable": "无法加载作品信息。将只翻译当前章节。",
+    "secondPass": "二次翻译（提升质量）",
+    "secondPassHint": "首次翻译后，AI会分析术语、角色和上下文，再根据分析结果重新翻译。所选页面会翻译两次，因此需要更多时间。",
+    "analysisScope": "自动分析范围",
+    "analysisOptions": {
+      "work": "从头重新分析",
+      "missing": "仅空白章节",
+      "chapter": "仅当前章节"
+    },
+    "keepBlocksHint": "已有文本块的页面会保留区域和格式，只重新填入文本。没有文本块的页面会自动生成。"
+  },
+  "retranslate": {
+    "title": "重新翻译页面",
+    "start": "开始重新翻译",
+    "context": "页面：{{pageName}}（{{count}}个文本块）",
+    "keepBlocksHint": "保留当前文本块的区域和格式，只重新填入各区域的文本。",
+    "autoBlocksHint": "删除所有现有文本块并自动检测新文本块。",
+    "overwriteWarning": "本页现有的翻译结果和编辑内容将被覆盖。"
+  },
+  "translateSource": {
+    "title": "选择翻译原稿",
+    "openImages": "打开图片",
+    "openFolder": "打开文件夹",
+    "openArchive": "打开压缩文件"
+  },
+  "import": {
+    "batchTitle": "准备批量翻译作品",
+    "addToLibrary": "添加到资料库",
+    "createAndTranslate": "创建并开始翻译",
+    "createNewWork": "创建新作品",
+    "addToExistingWork": "添加到现有作品",
+    "selectWork": "选择作品",
+    "chaptersToCreate": "要创建的章节",
+    "chapterTitle": "章节标题"
+  },
+  "rename": {
+    "workTitle": "重命名作品",
+    "chapterTitle": "重命名章节",
+    "deleteWork": "删除作品",
+    "deleteChapter": "删除章节",
+    "newName": "新名称",
+    "deleteWorkWarning": "删除作品时，其中所有章节、页面和翻译结果也会一并删除。",
+    "deleteChapterWarning": "删除章节时，其中所有页面和翻译结果也会一并删除。"
+  },
+  "shareExport": {
+    "title": "分享",
+    "saveFile": "保存共享文件",
+    "targetWork": "要分享的作品",
+    "chapters": "要分享的章节",
+    "noWork": "没有可分享的作品。",
+    "summary": "{{chapterCount}}话 · {{pageCount}}页"
+  },
+  "shareImport": {
+    "applyImport": "应用导入",
+    "applyToExisting": "应用到现有作品",
+    "newWorkTitle": "新作品标题",
+    "existingWork": "现有作品",
+    "chaptersToImport": "要导入的章节",
+    "moveItem": "移动{{title}}",
+    "deleteItem": "删除{{title}}",
+    "addToFinal": "将{{title}}添加到最终列表",
+    "dragToAdd": "拖动以添加",
+    "addItem": "添加{{title}}",
+    "addAll": "全部添加",
+    "resetTitle": "恢复为现有作品的状态",
+    "finalList": "最终应用列表",
+    "dragToReorder": "拖动以排序",
+    "finalListEmpty": "最终列表为空。",
+    "candidates": "共享文件中的候选章节",
+    "remaining": "剩余{{count}}项",
+    "allChaptersInFinal": "所有共享章节都已在最终列表中。",
+    "toDelete": "将删除",
+    "restoreItem": "恢复{{title}}",
+    "source": { "existing": "现有", "shared": "共享" },
+    "stats": {
+      "final": "最终 {{count}}项",
+      "toDelete": "将删除 {{count}}项",
+      "remainingCandidates": "剩余候选 {{count}}项"
+    }
+  },
+  "library": {
+    "title": "资料库",
+    "searchLabel": "搜索资料库",
+    "searchPlaceholder": "搜索作品/章节",
+    "noSearchResults": "没有搜索结果。",
+    "empty": "资料库中还没有保存的作品。",
+    "renameItem": "重命名{{title}}",
+    "moveItem": "移动{{title}}",
+    "moveDisabled": "搜索或任务进行中时无法移动。",
+    "sort": {
+      "trigger": "排序：{{criterion}} {{direction}}",
+      "criteriaLabel": "排序依据",
+      "criterion": "依据",
+      "directionLabel": "排序方向",
+      "direction": { "asc": "升序", "desc": "降序" }
+    }
+  },
+  "pageList": {
+    "empty": "没有已加载的页面。",
+    "moveItem": "移动{{name}}",
+    "retranslate": "重新翻译",
+    "retranslateItem": "重新翻译{{name}}",
+    "deleteItem": "删除{{name}}"
+  },
+  "status": {
+    "title": "状态",
+    "empty": "暂无可显示的状态。",
+    "completed": "完成",
+    "failed": "失败",
+    "partiallyCompleted": "部分完成",
+    "waiting": "等待",
+    "inProgressShort": "进行中",
+    "erased": "已擦除"
+  },
+  "runPanel": { "openChapterHint": "请从资料库打开一个章节。" },
+  "areaTranslation": { "title": "区域翻译", "cancelSelection": "取消选择" },
+  "stageToolbar": {
+    "show": "显示工具栏",
+    "showTitle": "显示工具栏（4）",
+    "hide": "隐藏工具栏",
+    "hideTitle": "隐藏工具栏（4）",
+    "imageTools": "图像工具",
+    "tools": {
+      "select": { "label": "选择", "title": "选择工具（1）" },
+      "block": {
+        "label": "文本块",
+        "title": "文本块工具（2）— 拖动以添加新文本块"
+      },
+      "hand": { "label": "抓手", "title": "抓手工具（3）— 拖动以移动图像" }
+    }
+  },
+  "display": {
+    "title": "显示",
+    "backgroundBorders": "背景/边框",
+    "showBlocks": "显示文本块",
+    "gatherText": "汇总文本",
+    "styleGuide": "术语/记忆"
+  },
+  "overlay": {
+    "exclude": "排除",
+    "excluded": "已排除",
+    "resize": "调整大小",
+    "includeInInpainting": "重新纳入图像修复",
+    "excludeFromInpainting": "从图像修复中排除"
+  },
+  "imageStage": { "loadingImage": "正在加载图像" },
+  "install": {
+    "logLabel": "安装日志",
+    "checkingLogs": "正在检查日志",
+    "preparingModel": "正在准备Gemma 4模型",
+    "installingOcr": "正在安装Paddle OCR"
+  },
+  "toast": { "close": "关闭通知", "region": "通知" },
+  "errorBoundary": {
+    "title": "出现问题",
+    "description": "渲染界面时发生错误。工作内容可能已保存在资料库中。重新启动通常可以恢复。",
+    "restart": "重新启动",
+    "openLogs": "打开日志文件夹"
+  },
+  "shortcuts": {
+    "title": "快捷键",
+    "navigation": "导航",
+    "settingsHint": "可在“设置 → 快捷键”中更改。",
+    "fixed": {
+      "previousNextPage": "上一页 / 下一页",
+      "previousNextPageCenter": "上一页 / 下一页（中央面板）",
+      "escape": "关闭对话框 · 取消拖动 / 区域选择"
+    }
+  },
+  "gatherText": {
+    "title": "汇总文本",
+    "scope": "范围",
+    "entireChapter": "整章",
+    "display": "显示",
+    "fields": {
+      "both": "译文 + OCR",
+      "translated": "仅译文",
+      "source": "仅OCR"
+    },
+    "reviewWarnings": "校对表警告 {{count}}条",
+    "copySuccess": "文本已复制到剪贴板。",
+    "copyFailed": "无法复制到剪贴板。",
+    "saveSuccess": "文本文件已保存。",
+    "saveFailed": "无法保存文本文件。",
+    "searchPlaceholder": "搜索后按Enter",
+    "excludePageHeaders": "排除页面标题",
+    "saveTxt": "保存.txt",
+    "empty": "没有可显示的文本。",
+    "pageHeading": "第{{index}}页 · {{pageName}}",
+    "navigateToPage": "单击以转到该页面。",
+    "importTxt": {
+      "button": "导入.txt",
+      "title": "按行顺序从仅译文格式的TXT文件重新导入译文。",
+      "noChanges": "没有已更改的译文。",
+      "noApplicableText": "没有可应用的文本，请检查警告。",
+      "confirm": "要用TXT内容覆盖{{count}}条译文吗？\n文本将按行顺序应用，OCR原文不会改变。",
+      "updated": "已更新{{count}}个文本块的译文。",
+      "warnings": "TXT导入有{{count}}条警告。",
+      "failed": "无法导入TXT文件。"
+    },
+    "review": {
+      "title": "校对表",
+      "saveSuccess": "校对表已保存。",
+      "saveFailed": "无法保存校对表。",
+      "importConfirm": "导入校对表时只会更新译文、校对状态和备注。\nOCR原文不会改变，仅应用block_id匹配的行。",
+      "updated": "已更新{{count}}个文本块。",
+      "warnings": "校对表有{{count}}条警告。",
+      "importFailed": "无法导入校对表。",
+      "exportCsv": "导出CSV校对表",
+      "exportTsv": "导出TSV校对表"
+    }
+  },
+  "styleGuide": {
+    "title": "术语/记忆",
+    "loadFailed": "无法加载术语和记忆信息。",
+    "saveSuccess": "术语和记忆已保存。",
+    "saveFailed": "无法保存术语和记忆。",
+    "addRow": "添加行",
+    "note": "备注",
+    "analysis": {
+      "ariaLabel": "AI术语与记忆分析",
+      "title": "AI自动分析",
+      "description": "分析原文并填充术语、角色和剧情记忆。",
+      "scope": "分析范围",
+      "analyzing": "分析中…",
+      "currentChapter": "当前章节",
+      "entireWork": "整个作品",
+      "success": "已应用{{scope}}的AI分析。{{included}}/{{total}}话，{{changed}}项更改",
+      "failed": "AI术语/记忆分析失败。"
+    },
+    "tabs": {
+      "ariaLabel": "术语与记忆选项卡",
+      "glossary": "术语表",
+      "characters": "角色",
+      "rules": "翻译规则",
+      "memory": "剧情记忆"
+    },
+    "budget": {
+      "total": "术语/记忆 {{tokens}}",
+      "outputHeadroom": "输出余量 {{percent}}%",
+      "breakdown": "剧情 {{story}} · 术语表 {{glossary}} · 角色 {{characters}}",
+      "tokenCount": "{{count}}个令牌",
+      "effectiveHeadroom": "{{tokens}} · {{percent}}%",
+      "omittedParts": {
+        "storyMemory": "剧情记忆",
+        "glossary": "术语表",
+        "characters": "角色记忆"
+      },
+      "warningInsufficient": "当输出余量低于{{minimum}}时，将依次省略剧情记忆、术语表和角色记忆。即使省略{{omitted}}，预计余量也只有{{effective}}，响应可能会被截断。",
+      "warningAdjusted": "当输出余量低于{{minimum}}时，将依次省略剧情记忆、术语表和角色记忆。省略{{omitted}}后，预计余量可提高到{{effective}}。"
+    },
+    "glossary": {
+      "empty": "尚未登记术语。请从“分析当前章节”“整个作品”或“添加行”开始。",
+      "source": "原文",
+      "translation": "译文",
+      "category": "分类",
+      "aliases": "别名",
+      "categories": {
+        "character": "人物",
+        "alias": "别名",
+        "place": "地点",
+        "term": "术语",
+        "honorific": "称呼",
+        "other": "其他"
+      }
+    },
+    "characters": {
+      "title": "角色名称/语气",
+      "empty": "尚未登记角色。请从“添加行”开始。",
+      "displayName": "显示名称",
+      "sourceNames": "原文名称",
+      "translatedName": "译名",
+      "speechStyle": "语气",
+      "customSpeechStyle": "自定义语气",
+      "speechStyles": {
+        "neutral": "中性",
+        "polite": "礼貌",
+        "casual": "随意",
+        "rough": "粗犷",
+        "childish": "童稚",
+        "elderly": "年长",
+        "formal": "正式",
+        "custom": "自定义"
+      }
+    },
+    "rules": {
+      "honorifics": {
+        "label": "称呼处理",
+        "preserve": "保留原文称呼的感觉",
+        "adapt": "自然改为目标语言的称呼",
+        "drop": "去掉敬称，以姓名为主"
+      },
+      "sfx": {
+        "label": "拟声词处理",
+        "preserve": "保留原文拟声词",
+        "translate": "改为目标语言的拟声词",
+        "note": "为原文拟声词添加含义说明"
+      },
+      "tone": {
+        "label": "默认语气",
+        "natural": "自然的翻译对白",
+        "literal": "接近原文的直译"
+      }
+    },
+    "memory": {
+      "empty": "尚未保存剧情记忆。",
+      "pageHeading": "第{{index}}页 · {{pageName}}"
+    }
+  },
+  "inpainting": {
+    "counts": {
+      "thisPage": "本页 {{count}}",
+      "remaining": "剩余 {{count}}",
+      "completed": "完成 {{count}}"
+    },
+    "guide": {
+      "title": "图像修复指南",
+      "hideNextTime": "不再显示",
+      "imageAlt": "图像修复指南：第一步自动清除背景，第二步修整残留痕迹，最后导出结果。"
+    },
+    "steps": {
+      "label": "图像修复步骤",
+      "auto": "自动",
+      "retouch": "修整",
+      "export": "导出",
+      "toggleBlocks": "切换文本块显示",
+      "toggleBorders": "切换背景/边框显示",
+      "borders": "边框",
+      "guide": "指南",
+      "guideTitle": "图像修复使用方法"
+    },
+    "tools": {
+      "brush": "画笔",
+      "eraser": "恢复",
+      "mask": "蒙版画笔",
+      "none": "请选择工具",
+      "picker": "取色器"
+    },
+    "auto": {
+      "description": "先自动清除原文文字。可以逐页处理，也可以一次处理所有剩余页面。",
+      "nextRetouch": "下一步：修整 →",
+      "noOpenChapter": "未打开章节。",
+      "remainingSummary": "剩余 {{pendingPages}} / {{totalPages}}页 · {{blockCount}}个文本块",
+      "remainingPages": "剩余页面",
+      "showingOriginal": "正在显示原图（单击关闭）",
+      "compareOriginal": "对比原图",
+      "excludeHint": "可使用文本块角落的“排除”按钮将该文本块从图像修复中排除或重新加入。",
+      "revert": "撤销图像修复"
+    },
+    "retouch": {
+      "description": "用蒙版画笔涂抹并清除拟声词，再用画笔和恢复工具修整细小痕迹。",
+      "undoLabel": "撤销（Ctrl+Z）",
+      "redoLabel": "重做（Ctrl+Y）",
+      "redoTitle": "重做（Ctrl+Y / Ctrl+Shift+Z）",
+      "brushColor": "画笔颜色",
+      "eraseDrawn": "涂抹清除",
+      "eraseDrawnArea": "清除涂抹区域",
+      "drawnAreas": "已涂抹{{count}}个区域",
+      "soundEffectTouchup": "拟声词修整",
+      "backAuto": "← 自动",
+      "nextExport": "导出 →"
+    },
+    "export": {
+      "description": "调整文本块的字体、颜色和位置，然后导出叠加译文的PNG。",
+      "result": "导出结果",
+      "pagesSaved": "已保存{{count}}页",
+      "allPages": "全部页面",
+      "backRetouch": "← 修整"
+    },
+    "progress": {
+      "processingPages": "正在处理{{count}}页",
+      "inProgress": "图像修复进行中"
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "applyNextRun": "更改将从下次翻译任务开始应用。",
+    "tabs": {
+      "ariaLabel": "设置区域",
+      "general": "常规",
+      "engine": "翻译引擎",
+      "hardware": "硬件",
+      "format": "默认格式",
+      "shortcuts": "快捷键",
+      "test": "检查/更新"
+    },
+    "general": {
+      "language": "应用语言",
+      "languageDescription": "更改整个应用使用的界面语言。"
+    },
+    "footer": {
+      "openLogs": "打开日志文件夹",
+      "restoreDefaults": "恢复默认值",
+      "cancel": "取消",
+      "save": "保存"
+    },
+    "engine": {
+      "provider": { "label": "翻译引擎" },
+      "maxTokens": {
+        "label": "最大输出令牌数",
+        "description": "模型一次最多可生成的令牌数。"
+      },
+      "contextTokens": {
+        "label": "上下文长度",
+        "description": "模型一次可参考的令牌总数。"
+      }
+    },
+    "options": {
+      "modelPresets": {
+        "minimum12b": {
+          "label": "12B 最低",
+          "description": "适合约8GB显存，优先保证兼容性和轻量运行。"
+        },
+        "economy26b": {
+          "label": "26B 经济",
+          "description": "适合约16GB显存，保留1024个图像令牌并更稳定地运行26B模型。"
+        },
+        "full31b": {
+          "label": "31B 完整",
+          "description": "适合充足显存，使用31B模型和DFlash并优先保证质量。"
+        }
+      },
+      "modelSources": {
+        "huggingface": {
+          "label": "Hugging Face",
+          "description": "从Hugging Face仓库自动下载模型。"
+        },
+        "local": {
+          "label": "本地文件",
+          "description": "使用自行准备的GGUF和mmproj文件。"
+        }
+      },
+      "providers": {
+        "gemma": {
+          "label": "本地Gemma",
+          "description": "直接在此电脑上运行Gemma模型。"
+        },
+        "codex": {
+          "label": "Codex",
+          "description": "通过Codex OAuth端点翻译。"
+        },
+        "api": { "label": "API", "description": "使用兼容OpenAI的API端点。" }
+      },
+      "reasoning": {
+        "none": { "label": "无", "description": "不使用推理。" },
+        "low": { "label": "低", "description": "快速、轻量的推理。" },
+        "medium": { "label": "中", "description": "平衡速度和质量。" },
+        "high": { "label": "高", "description": "使用更多推理以提高质量。" },
+        "xhigh": {
+          "label": "非常高",
+          "description": "为复杂翻译使用更多推理。"
+        },
+        "max": {
+          "label": "最大",
+          "description": "使用模型支持的最高标准推理级别。"
+        },
+        "ultra": {
+          "label": "超高",
+          "description": "请求模型支持的最高推理级别。"
+        }
+      },
+      "apiReasoning": {
+        "omit": "不发送",
+        "none": "无",
+        "minimal": "最小",
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+        "xhigh": "非常高"
+      },
+      "ocrDevices": {
+        "cuda": {
+          "label": "NVIDIA CUDA",
+          "description": "在NVIDIA GPU上运行Paddle OCR。"
+        },
+        "rocm": {
+          "label": "AMD ROCm",
+          "description": "使用面向AMD GPU的实验性OCR引擎。"
+        },
+        "cpu": { "label": "CPU", "description": "不使用GPU，在CPU上运行OCR。" }
+      },
+      "ocrQuality": {
+        "minimum": { "label": "最低", "description": "轻量快速的OCR模型。" },
+        "economy": { "label": "经济", "description": "平衡速度和准确度。" },
+        "full": { "label": "完整", "description": "使用最高质量的OCR模型。" }
+      },
+      "llamaRuntimes": {
+        "cuda12": {
+          "label": "CUDA 12",
+          "description": "适用于NVIDIA CUDA 12的llama.cpp运行时。"
+        },
+        "rtx50": {
+          "label": "RTX 50",
+          "description": "针对RTX 50系列优化的CUDA运行时。"
+        },
+        "vulkan": { "label": "Vulkan", "description": "Vulkan GPU运行时。" },
+        "rocm": {
+          "label": "AMD ROCm",
+          "description": "AMD ROCm/HIP llama.cpp运行时。"
+        }
+      },
+      "fluxBackends": {
+        "cuda": {
+          "label": "NVIDIA CUDA",
+          "description": "RTX GPU上最快的Flux原生运行时。"
+        },
+        "zluda": {
+          "label": "AMD ZLUDA",
+          "description": "在AMD GPU上通过ZLUDA运行Flux，需要AMD HIP SDK。"
+        },
+        "cpu": {
+          "label": "CPU",
+          "description": "没有匹配GPU运行时时使用的较慢CPU兼容模式。"
+        }
+      },
+      "inpaintingModels": {
+        "aot": {
+          "label": "AOT 最低",
+          "description": "最轻量的Koharu AOT图像修复模型。"
+        },
+        "lama": {
+          "label": "LaMa 经济",
+          "description": "针对漫画的轻量快速LaMa模型。"
+        },
+        "flux": {
+          "label": "Flux 完整",
+          "description": "默认的质量优先Flux图像修复模型。"
+        }
+      }
+    },
+    "translation": {
+      "title": "翻译语言",
+      "source": "原文语言",
+      "target": "目标语言",
+      "swapTitle": "交换原文语言和目标语言",
+      "swapAria": "交换原文语言和目标语言",
+      "description": "默认值仍为日语 → 韩语。列表中没有的语言可直接输入语言代码。质量会因语言组合和OCR支持情况而异。",
+      "primaryLanguages": "主要语言",
+      "otherLanguages": "其他语言",
+      "custom": "自定义…",
+      "codePlaceholder": "语言代码（例如eo、zh-Hans）",
+      "customCodeAria": "输入{{label}}的自定义代码"
+    },
+    "gemma": {
+      "modelSource": { "label": "模型来源" },
+      "preset": {
+        "label": "模型预设",
+        "ariaLabel": "模型预设",
+        "custom": "自定义",
+        "customDescription": "手动指定模型仓库和文件。"
+      },
+      "hfRepo": "Hugging Face仓库",
+      "ggufFile": "GGUF文件",
+      "runtime": {
+        "label": "llama.cpp运行时",
+        "amdNote": "AMD GPU建议使用ROCm运行时。",
+        "nvidiaNote": "NVIDIA GPU建议使用CUDA运行时。"
+      },
+      "local": {
+        "modelFile": "本地模型文件",
+        "chooseFile": "选择文件",
+        "mmprojFile": "mmproj文件",
+        "mmprojPlaceholder": "同一文件夹中自动检测，也可手动指定",
+        "mmprojDescription": "应用会在模型文件夹中自动查找mmproj；如果未找到，可以手动指定。"
+      }
+    },
+    "codex": {
+      "model": "Codex模型",
+      "customModel": "自定义",
+      "customModelAria": "输入自定义Codex模型",
+      "modelPlaceholder": "模型名称",
+      "modelDescription": "可以输入列表中没有的模型。",
+      "reasoning": { "label": "推理强度", "ariaLabel": "Codex推理强度" },
+      "oauthPort": "openai-oauth端口"
+    },
+    "api": {
+      "baseUrl": "API Base URL",
+      "model": "API模型",
+      "key": "API密钥",
+      "keyPlaceholder": "输入API密钥",
+      "showKey": "显示API密钥",
+      "hideKey": "隐藏API密钥",
+      "advanced": {
+        "title": "高级API设置",
+        "description": "可选。留空的值不会发送。",
+        "temperature": "Temperature",
+        "topP": "Top P",
+        "topK": "Top K",
+        "reasoningEffort": "Reasoning effort",
+        "extraBody": "Extra body JSON",
+        "customHeaders": "Custom headers JSON"
+      }
+    },
+    "hardware": {
+      "ocrQuality": "Paddle OCR质量",
+      "ocrDevice": "Paddle OCR设备",
+      "fluxBackend": "Flux图像修复后端",
+      "inpaintingModel": "图像修复模型",
+      "amdOcrExperimental": "AMD GPU OCR为实验功能。如失败，可仅将OCR切换到CPU。",
+      "ocrAmdNote": "AMD环境无法选择NVIDIA CUDA OCR。",
+      "ocrNvidiaNote": "NVIDIA环境无法选择AMD ROCm OCR。",
+      "fluxAmdNote": "检测到AMD GPU，无法使用CUDA原生后端；请选择ZLUDA或CPU。",
+      "fluxNvidiaNote": "检测到NVIDIA GPU，将使用CUDA原生后端而不是ZLUDA。",
+      "fluxOnlyNote": "此后端设置仅适用于Flux Klein模型。",
+      "downloadHipSdk": "下载AMD HIP SDK（ROCm 7.1.1）"
+    },
+    "format": {
+      "description": "新建文本块使用的默认格式。",
+      "alignment": {
+        "title": "对齐与强调",
+        "left": "左对齐",
+        "center": "居中",
+        "right": "右对齐",
+        "bold": "粗体",
+        "italic": "斜体"
+      },
+      "direction": {
+        "ariaLabel": "默认文字方向",
+        "auto": "自动",
+        "horizontal": "横排",
+        "vertical": "竖排"
+      },
+      "font": {
+        "title": "字体与字号",
+        "size": "大小",
+        "sizeAria": "字号",
+        "sizeValueAria": "字号数值",
+        "autoFitTitle": "自动适应文本框大小",
+        "auto": "自动"
+      },
+      "spacing": {
+        "title": "间距",
+        "lineHeight": "行距",
+        "letterSpacing": "字距",
+        "fontWidth": "字宽"
+      },
+      "color": {
+        "title": "颜色与描边",
+        "ariaLabel": "默认颜色",
+        "text": "文字颜色",
+        "outline": "描边",
+        "outlineEnabledTitle": "是否使用描边",
+        "outlineEnabled": "使用描边",
+        "outlineWidth": "描边宽度"
+      }
+    },
+    "shortcuts": {
+      "description": "单击项目后按下所需的组合键。按Esc取消，或用“清空”解除绑定。",
+      "changeAria": "更改{{label}}的快捷键",
+      "waiting": "等待按键…",
+      "unassigned": "未指定",
+      "reset": "默认值",
+      "clear": "清空",
+      "displaced": "已移动快捷键，并解除其在“{{label}}”上的绑定。",
+      "categories": {
+        "view": "显示 / 查看",
+        "tool": "工具",
+        "translate": "翻译",
+        "inpaint": "图像修复",
+        "edit": "文本块编辑",
+        "global": "全局"
+      },
+      "actions": {
+        "toggle-block-chrome": "切换文本块背景/边框",
+        "toggle-text-blocks": "切换文本块显示",
+        "toggle-peek-original": "切换原图预览",
+        "zoom-in": "放大图像",
+        "zoom-out": "缩小图像",
+        "zoom-reset": "重置缩放",
+        "stage-tool-select": "选择工具",
+        "stage-tool-block": "文本块工具（拖动以添加）",
+        "stage-tool-hand": "抓手工具（拖动以平移）",
+        "toggle-stage-toolbar": "切换工具栏",
+        "open-translate-options": "打开翻译选项",
+        "translate-pending": "继续翻译（剩余页面）",
+        "translate-all": "全部重新翻译",
+        "gather-text": "汇总文本",
+        "cancel-job": "取消任务",
+        "toggle-inpainting": "开始/退出图像修复",
+        "history-undo": "撤销",
+        "history-redo": "重做",
+        "retouch-redo": "重做修整",
+        "delete-block": "删除所选文本块",
+        "duplicate-block": "创建所选文本块的副本",
+        "toggle-block-excluded": "切换文本块修复排除状态",
+        "toggle-command-palette": "命令面板",
+        "toggle-shortcut-help": "快捷键",
+        "open-settings": "打开设置"
+      }
+    },
+    "test": {
+      "title": "安装/运行检查",
+      "run": "检查OCR/模型",
+      "running": "检查中…",
+      "description": "检查Paddle OCR准备状态以及所选翻译引擎能否正常启动。",
+      "jobActive": "翻译任务进行中时无法运行安装/运行检查。",
+      "logAria": "安装/运行检查日志",
+      "detail": {
+        "model": "模型：{{path}}",
+        "mmproj": "mmproj：{{path}}",
+        "endpoint": "端点：{{endpoint}}"
+      },
+      "status": {
+        "running": "正在依次检查OCR、模型运行时和简单文本响应…",
+        "gemmaDetail": "显示Paddle OCR和Gemma运行时的准备日志。",
+        "codexDetail": "同时检查Paddle OCR和Codex端点。",
+        "apiDetail": "同时检查Paddle OCR和API端点响应。"
+      },
+      "log": {
+        "start": "开始检查Paddle OCR和翻译引擎。",
+        "requestError": "请求检查Paddle OCR和翻译引擎时发生错误。",
+        "success": "Paddle OCR和翻译引擎检查完成。",
+        "failure": "Paddle OCR和翻译引擎检查失败。"
+      }
+    },
+    "update": {
+      "title": "更新",
+      "currentVersion": "当前版本：{{version}}",
+      "checkingVersion": "当前版本：检查中…",
+      "check": "检查更新（打开发布页面）",
+      "description": "在相同位置安装新版本会保留模型、资料库、OCR运行时等数据。只有卸载时明确选择删除数据，数据才会被移除。"
+    },
+    "validation": {
+      "languageCode": "翻译语言代码必须使用en、ja、zh-Hans、pt-BR等格式。",
+      "oauthPort": "openai-oauth端口必须是1到65535之间的整数。",
+      "apiBaseUrl": "API Base URL必须是http或https网址。",
+      "apiAdvanced": "请检查高级API设置。",
+      "maxTokens": "最大输出令牌数必须是{{min}}到{{max}}之间的整数。",
+      "contextTokens": "上下文长度必须是至少{{min}}的整数。",
+      "apiNumberRange": "API数值设置必须在{{min}}到{{max}}之间。",
+      "apiIntegerRange": "API整数设置必须是{{min}}到{{max}}之间的整数。",
+      "apiJsonInvalid": "API JSON设置必须是有效的JSON对象。",
+      "apiJsonObject": "API JSON设置必须是对象。",
+      "customHeaderBlocked": "{{name}}标头不能在Custom headers中覆盖。",
+      "customHeaderValue": "Custom header值只能是字符串、数字或布尔值。"
+    }
+  }
+}

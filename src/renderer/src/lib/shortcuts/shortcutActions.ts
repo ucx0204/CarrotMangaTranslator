@@ -35,6 +35,19 @@ export const SHORTCUT_CATEGORY_LABELS: Record<ShortcutCategory, string> = {
   global: "전역",
 };
 
+export function getShortcutCategoryLabels(
+  t: TFunction<"renderer">,
+): Record<ShortcutCategory, string> {
+  return {
+    view: t("shortcuts.categories.view"),
+    tool: t("shortcuts.categories.tool"),
+    translate: t("shortcuts.categories.translate"),
+    inpaint: t("shortcuts.categories.inpaint"),
+    edit: t("shortcuts.categories.edit"),
+    global: t("shortcuts.categories.global"),
+  };
+}
+
 export const SHORTCUT_CATEGORY_ORDER: ShortcutCategory[] = [
   "view",
   "tool",
@@ -285,6 +298,15 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
   },
 ];
 
+export function getShortcutActions(
+  t: TFunction<"renderer">,
+): ShortcutActionDef[] {
+  return SHORTCUT_ACTIONS.map((action) => ({
+    ...action,
+    label: t(`shortcuts.actions.${action.id}`),
+  }));
+}
+
 const ACTION_BY_ID = new Map<string, ShortcutActionDef>(
   SHORTCUT_ACTIONS.map((action) => [action.id, action]),
 );
@@ -331,8 +353,14 @@ export function assignBinding(
   overrides: KeybindingOverrides,
   actionId: ShortcutActionId,
   combo: string,
-): { next: KeybindingOverrides; displacedLabel: string | null } {
+  t?: TFunction<"renderer">,
+): {
+  next: KeybindingOverrides;
+  displacedActionId: ShortcutActionId | null;
+  displacedLabel: string | null;
+} {
   const next: KeybindingOverrides = { ...overrides };
+  let displacedActionId: ShortcutActionId | null = null;
   let displacedLabel: string | null = null;
   if (combo) {
     for (const action of SHORTCUT_ACTIONS) {
@@ -341,12 +369,13 @@ export function assignBinding(
         effectiveCombos(action, next).includes(combo)
       ) {
         next[action.id] = "";
-        displacedLabel = action.label;
+        displacedActionId = action.id;
+        displacedLabel = t ? t(`shortcuts.actions.${action.id}`) : action.label;
       }
     }
   }
   next[actionId] = combo;
-  return { next, displacedLabel };
+  return { next, displacedActionId, displacedLabel };
 }
 
 /** Reset an action to its built-in default by dropping any override. */
@@ -379,3 +408,4 @@ function effectiveCombos(
     Boolean,
   );
 }
+import type { TFunction } from "i18next";

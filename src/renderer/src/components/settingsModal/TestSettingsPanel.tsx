@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { mangaGateway } from "../../api/mangaGateway";
 import type { TestState } from "../settingsModalTypes";
 
@@ -21,28 +22,28 @@ export function TestSettingsPanel({
   testLogRef,
   testState,
 }: TestSettingsPanelProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <UpdateSection />
       <div className="settings-field-stack">
-        <span>설치/작동 확인</span>
+        <span>{t("settings.test.title")}</span>
         <div className="settings-inline-actions">
           <button
             type="button"
             onClick={() => void runModelTest()}
             disabled={controlsBusy || !canSubmit || jobActive}
           >
-            {testState.status === "running" ? "확인 중..." : "OCR/모델 확인"}
+            {testState.status === "running"
+              ? t("settings.test.running")
+              : t("settings.test.run")}
           </button>
         </div>
         <p className="muted-line modal-note">
-          Paddle OCR 준비 상태와 선택한 번역 엔진이 실제로 뜨는지 함께
-          확인합니다.
+          {t("settings.test.description")}
         </p>
         {jobActive ? (
-          <p className="muted-line">
-            번역 작업 중에는 설치/작동 확인을 실행할 수 없습니다.
-          </p>
+          <p className="muted-line">{t("settings.test.jobActive")}</p>
         ) : null}
         {testState.status !== "idle" ? (
           <div className={`settings-test-result ${testState.status}`}>
@@ -54,7 +55,7 @@ export function TestSettingsPanel({
           <div
             className="settings-test-log"
             ref={testLogRef}
-            aria-label="설치/작동 확인 로그"
+            aria-label={t("settings.test.logAria")}
           >
             {testLogLines.map((line, index) => (
               <code key={`${index}-${line}`}>{line}</code>
@@ -67,6 +68,7 @@ export function TestSettingsPanel({
 }
 
 function UpdateSection(): React.JSX.Element {
+  const { t } = useTranslation("components");
   const [info, setInfo] = React.useState<{
     currentVersion: string;
     releasesUrl: string;
@@ -91,9 +93,13 @@ function UpdateSection(): React.JSX.Element {
 
   return (
     <div className="settings-field-stack">
-      <span>업데이트</span>
+      <span>{t("settings.update.title")}</span>
       <p className="muted-line">
-        현재 버전: {info?.currentVersion ?? "확인 중..."}
+        {info
+          ? t("settings.update.currentVersion", {
+              version: info.currentVersion,
+            })
+          : t("settings.update.checkingVersion")}
       </p>
       <div className="settings-inline-actions">
         <button
@@ -104,13 +110,11 @@ function UpdateSection(): React.JSX.Element {
             });
           }}
         >
-          업데이트 확인 (릴리스 페이지 열기)
+          {t("settings.update.check")}
         </button>
       </div>
       <p className="muted-line modal-note">
-        새 버전 설치 파일을 같은 위치에 설치해도 모델·보관함·OCR 런타임 등
-        데이터는 그대로 유지됩니다. 제거할 때 “데이터도 함께 삭제” 항목을 직접
-        선택하지 않으면 데이터는 지워지지 않습니다.
+        {t("settings.update.description")}
       </p>
     </div>
   );

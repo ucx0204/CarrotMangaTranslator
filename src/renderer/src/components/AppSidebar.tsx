@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type {
   ChapterSnapshot,
   LibraryIndex,
@@ -59,6 +60,7 @@ function InpaintingSidebarContent({
   onSelectPage,
   selectedPageId,
 }: AppSidebarProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <section className="inpainting-exit-panel">
@@ -68,9 +70,13 @@ function InpaintingSidebarContent({
           onClick={onExitInpainting}
           disabled={jobActive}
         >
-          인페인팅 나가기
+          {t("sidebar.exitInpainting")}
         </Button>
-        <small>{currentChapter ? currentChapter.title : "현재 화 없음"}</small>
+        <small>
+          {currentChapter
+            ? currentChapter.title
+            : t("sidebar.noCurrentChapter")}
+        </small>
       </section>
 
       <PageList
@@ -171,6 +177,7 @@ function SidebarToolbar({
   | "settingsBusy"
   | "settingsOpen"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <section className="toolbar">
       <Button
@@ -179,30 +186,30 @@ function SidebarToolbar({
         onClick={onOpenTranslationSource}
         disabled={jobActive}
       >
-        번역
+        {t("sidebar.translate")}
       </Button>
       <Button fullWidth onClick={onOpenBatchImport} disabled={jobActive}>
-        작품 일괄 번역
+        {t("sidebar.batchTranslate")}
       </Button>
       <Button
         fullWidth
         onClick={onOpenSettings}
         disabled={settingsBusy && !settingsOpen}
       >
-        설정
+        {t("common.settings")}
       </Button>
       <Button fullWidth onClick={onOpenLibraryFolder}>
-        보관함 폴더
+        {t("sidebar.libraryFolder")}
       </Button>
       <Button
         fullWidth
         onClick={onOpenShareExport}
         disabled={jobActive || library.works.length === 0}
       >
-        공유하기
+        {t("sidebar.share")}
       </Button>
       <Button fullWidth onClick={onOpenShareImport} disabled={jobActive}>
-        가져오기
+        {t("common.import")}
       </Button>
     </section>
   );

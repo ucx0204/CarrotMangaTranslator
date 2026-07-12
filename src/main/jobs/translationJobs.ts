@@ -7,6 +7,7 @@ import type {
 } from "../../shared/analysisTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import { resolvePagesForRun } from "../library";
+import { tMain } from "./localization";
 import { emitJobEvent } from "./jobEvents";
 import {
   type AnalysisJobState,
@@ -27,7 +28,7 @@ export async function startAnalysisJob(
   request: StartAnalysisRequest,
 ): Promise<StartAnalysisResult> {
   if (context.jobs.hasActive) {
-    return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
+    return { status: "failed", error: tMain("jobs.active") };
   }
 
   const id = randomUUID();
@@ -57,7 +58,7 @@ export async function startAnalysisJob(
         id,
         kind: "gemma-analysis",
         status: "completed",
-        progressText: "번역할 페이지가 없습니다.",
+        progressText: tMain("translation.noPages"),
         phase: "done",
         progressCurrent: 0,
         progressTotal: 0,
@@ -102,7 +103,7 @@ export async function translateRegionJob(
   request: RegionAnalysisRequest,
 ): Promise<RegionAnalysisResult> {
   if (context.jobs.hasActive) {
-    return { status: "failed", error: "이미 실행 중인 작업이 있습니다." };
+    return { status: "failed", error: tMain("jobs.active") };
   }
 
   const id = randomUUID();

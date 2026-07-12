@@ -9,6 +9,7 @@ import type {
   LibraryChapter,
   LibraryPageRecord,
 } from "../../shared/types";
+import { tMain } from "./localization";
 import { resolveChapterStatus } from "./chapterRecords";
 import {
   filterImportImageFiles,
@@ -22,7 +23,6 @@ import {
   listZipFiles,
 } from "./importSources";
 import {
-  DEFAULT_WORK_TITLE,
   WORKS_ROOT,
   collectUsedChapterTitles,
   createWork,
@@ -49,11 +49,11 @@ export async function previewImages(
   return {
     mode: "single",
     sourceKind: "images",
-    suggestedWorkTitle: DEFAULT_WORK_TITLE,
+    suggestedWorkTitle: tMain("import.defaultWorkTitle"),
     chapters: [
       {
         draftId: randomUUID(),
-        title: "제목없음",
+        title: tMain("import.untitled"),
         sourceKind: "images",
         pages,
       },
@@ -68,7 +68,7 @@ export async function previewFolder(
   return {
     mode: "single",
     sourceKind: "folder",
-    suggestedWorkTitle: DEFAULT_WORK_TITLE,
+    suggestedWorkTitle: tMain("import.defaultWorkTitle"),
     chapters: [
       {
         draftId: randomUUID(),
@@ -97,7 +97,7 @@ export async function previewZip(
   return {
     mode: "single",
     sourceKind: "zip",
-    suggestedWorkTitle: DEFAULT_WORK_TITLE,
+    suggestedWorkTitle: tMain("import.defaultWorkTitle"),
     chapters: [
       {
         draftId: randomUUID(),
@@ -178,7 +178,7 @@ export async function createImportFromPreviewUnlocked(
     (draft) => selectedDraftIds.has(draft.draftId) && draft.pages.length > 0,
   );
   if (selectedDrafts.length === 0) {
-    throw new Error("생성할 화가 없습니다.");
+    throw new Error(tMain("import.errors.noChapterToCreate"));
   }
 
   const target =
@@ -198,7 +198,7 @@ export async function createImportFromPreviewUnlocked(
       createdChapters,
     );
     if (createdChapters.length === 0) {
-      throw new Error("생성할 화가 없습니다.");
+      throw new Error(tMain("import.errors.noChapterToCreate"));
     }
 
     const latestWork = await ensureExistingWork(target.id);
@@ -211,7 +211,7 @@ export async function createImportFromPreviewUnlocked(
 
     const openedChapter = createdChapters[0];
     if (!openedChapter) {
-      throw new Error("생성한 화를 열지 못했습니다.");
+      throw new Error(tMain("import.errors.createdChapterOpen"));
     }
 
     return {
@@ -249,7 +249,7 @@ async function materializeSelectedDrafts(
         continue;
       }
       const title = makeUniqueTitleInList(
-        sanitizeTitle(selection.title || draft.title, "제목없음"),
+        sanitizeTitle(selection.title || draft.title, tMain("import.untitled")),
         usedTitles,
       );
       usedTitles.add(title);
@@ -273,7 +273,10 @@ async function materializeChapterFromDraft(
   await ensureExistingWork(workId);
   const now = new Date().toISOString();
   const chapterId = randomUUID();
-  const title = sanitizeTitle(requestedTitle || draft.title, "제목없음");
+  const title = sanitizeTitle(
+    requestedTitle || draft.title,
+    tMain("import.untitled"),
+  );
   const chapterDir = join(WORKS_ROOT, workId, "chapters", chapterId);
   const pagesDir = join(chapterDir, "pages");
 

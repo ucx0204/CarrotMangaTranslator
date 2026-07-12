@@ -1,6 +1,7 @@
 import type { MangaPage } from "../shared/types";
 import { isJapaneseLanguageCode } from "../shared/translationLanguages";
 import { logInfo } from "./logger";
+import { tMain } from "./i18n";
 import {
   startAnalysisEndpointSession,
   type AnalysisEndpointSession,
@@ -77,10 +78,7 @@ export async function runWholePagePipeline({
   });
 
   if (filtered.pagesToTranslate.length === 0) {
-    emitFinalizing(
-      run.progressContext,
-      `${pages.length} pages ready, 모델 호출 없음`,
-    );
+    emitPagesReadyWithoutModel(run.progressContext, pages.length);
     return buildPipelineResult(pages, filtered, warningCollector);
   }
 
@@ -106,11 +104,24 @@ export async function runWholePagePipeline({
       regionContext,
       writeStoryMemory,
     });
-    emitFinalizing(run.progressContext, `${pages.length} pages ready`);
+    emitFinalizing(
+      run.progressContext,
+      tMain("translation.progress.pagesReady", { count: pages.length }),
+    );
     return buildPipelineResult(pages, filtered, warningCollector);
   } finally {
     await endpoint.disposeEndpointSession();
   }
+}
+
+function emitPagesReadyWithoutModel(
+  context: Parameters<typeof emitFinalizing>[0],
+  count: number,
+): void {
+  emitFinalizing(
+    context,
+    tMain("translation.progress.pagesReadyNoModel", { count }),
+  );
 }
 
 /** OCR "텍스트 없음" 스킵은 일본어 원문에서만 허용한다. */

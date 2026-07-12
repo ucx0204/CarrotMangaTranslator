@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { EditorPanelContainer } from "./EditorPanelContainer";
 import { FloatingPanel } from "./FloatingPanel";
 import { usePanelSession } from "./panelSession";
@@ -8,14 +9,15 @@ import { usePanelSession } from "./panelSession";
  * the rail. Mounted once at the session root, inside the panel session provider.
  */
 export function EditorFloatingLayer(): React.JSX.Element | null {
+  const { t } = useTranslation("renderer");
   const session = usePanelSession();
   if (!session.editorFloating) {
     return null;
   }
   return (
     <FloatingPanel
-      title="블록 편집"
-      dockLabel="편집기 도킹"
+      title={t("panels.editor.title")}
+      dockLabel={t("panels.editor.dock")}
       storageKey="panel.float.editor"
       onDock={session.onToggleEditorFloat}
     >

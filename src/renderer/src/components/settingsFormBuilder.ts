@@ -13,6 +13,7 @@ import type {
   OcrDevice,
   OcrGpuBackend,
   OcrQualityMode,
+  UiLocale,
 } from "../../../shared/settingsTypes";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
@@ -22,6 +23,7 @@ import { resolveTranslationLanguageSettings } from "../../../shared/translationL
 
 type BuildSettingsFromFormInput = {
   initialSettings: AppSettings;
+  uiLocale: UiLocale;
   modelProvider: ModelProvider;
   sourceLanguage: string;
   targetLanguage: string;
@@ -77,7 +79,10 @@ export function buildSettingsFromForm(
     },
     api: buildApiSettings(input),
     ocr: buildOcrSettings(input),
-    ui: input.initialSettings.ui,
+    ui: {
+      ...input.initialSettings.ui,
+      locale: input.uiLocale,
+    },
     inpainting: {
       ...input.initialSettings.inpainting,
       model: input.inpaintingModel,

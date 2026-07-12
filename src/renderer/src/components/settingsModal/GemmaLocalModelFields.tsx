@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 
 type LocalModelFieldsProps = Pick<
@@ -35,9 +36,10 @@ function LocalModelFileField({
   setLocalModelPath,
   submit,
 }: LocalModelFieldsProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="settings-field-stack">
-      <span>로컬 모델 파일</span>
+      <span>{t("settings.gemma.local.modelFile")}</span>
       <div className="settings-file-row">
         <input
           ref={localModelInputRef}
@@ -59,7 +61,7 @@ function LocalModelFileField({
           onClick={() => void pickLocalModelFile()}
           disabled={controlsBusy}
         >
-          파일 선택
+          {t("settings.gemma.local.chooseFile")}
         </button>
       </div>
     </div>
@@ -74,9 +76,10 @@ function LocalMmprojFileField({
   setLocalMmprojPath,
   submit,
 }: LocalModelFieldsProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="settings-field-stack">
-      <span>mmproj 파일</span>
+      <span>{t("settings.gemma.local.mmprojFile")}</span>
       <div className="settings-file-row">
         <input
           value={localMmprojPath}
@@ -85,7 +88,7 @@ function LocalMmprojFileField({
             clearTestState();
             setLocalMmprojPath(event.target.value);
           }}
-          placeholder="같은 폴더면 자동 탐지, 필요하면 직접 지정"
+          placeholder={t("settings.gemma.local.mmprojPlaceholder")}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               submit();
@@ -97,12 +100,11 @@ function LocalMmprojFileField({
           onClick={() => void pickLocalMmprojFile()}
           disabled={controlsBusy}
         >
-          파일 선택
+          {t("settings.gemma.local.chooseFile")}
         </button>
       </div>
       <p className="muted-line modal-note">
-        mmproj는 같은 폴더에서 자동으로 찾아보고, 안 잡히면 직접 지정할 수
-        있습니다.
+        {t("settings.gemma.local.mmprojDescription")}
       </p>
     </div>
   );

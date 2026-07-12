@@ -1,16 +1,18 @@
 export type SettingsTabId =
+  | "general"
   | "engine"
   | "hardware"
   | "format"
   | "shortcuts"
   | "test";
 
-export const SETTINGS_TABS: { id: SettingsTabId; label: string }[] = [
-  { id: "engine", label: "번역 엔진" },
-  { id: "hardware", label: "하드웨어 · OCR" },
-  { id: "format", label: "텍스트 서식" },
-  { id: "shortcuts", label: "단축키" },
-  { id: "test", label: "설치 / 확인" },
+export const SETTINGS_TABS: { id: SettingsTabId; labelKey: string }[] = [
+  { id: "general", labelKey: "settings.tabs.general" },
+  { id: "engine", labelKey: "settings.tabs.engine" },
+  { id: "hardware", labelKey: "settings.tabs.hardware" },
+  { id: "format", labelKey: "settings.tabs.format" },
+  { id: "shortcuts", labelKey: "settings.tabs.shortcuts" },
+  { id: "test", labelKey: "settings.tabs.test" },
 ];
 
 export type TestState =

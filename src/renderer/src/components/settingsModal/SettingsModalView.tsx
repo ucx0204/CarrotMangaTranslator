@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { ModelProvider } from "../../../../shared/settingsTypes";
 import { Button, Modal } from "../ui";
 import { EngineSettingsPanel } from "./EngineSettingsPanel";
@@ -8,12 +9,14 @@ import { SettingsTabs } from "./SettingsTabs";
 import { SettingsValidationMessages } from "./SettingsValidationMessages";
 import { ShortcutsSettingsPanel } from "./ShortcutsSettingsPanel";
 import { TestSettingsPanel } from "./TestSettingsPanel";
+import { GeneralSettingsPanel } from "./GeneralSettingsPanel";
 import type { SettingsTabId } from "../settingsModalTypes";
 
 export type SettingsModalViewProps = {
   activeTab: SettingsTabId;
   canSubmit: boolean;
   controlsBusy: boolean;
+  generalPanelProps: React.ComponentProps<typeof GeneralSettingsPanel>;
   enginePanelProps: React.ComponentProps<typeof EngineSettingsPanel>;
   hardwarePanelProps: React.ComponentProps<typeof HardwareSettingsPanel>;
   formatPanelProps: React.ComponentProps<typeof FormatDefaultsPanel>;
@@ -41,6 +44,7 @@ export function SettingsModalView({
   activeTab,
   canSubmit,
   controlsBusy,
+  generalPanelProps,
   enginePanelProps,
   hardwarePanelProps,
   formatPanelProps,
@@ -53,11 +57,12 @@ export function SettingsModalView({
   testPanelProps,
   validationProps,
 }: SettingsModalViewProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <Modal
       width="min(720px, 100%)"
-      ariaLabel="설정"
-      title="설정"
+      ariaLabel={t("settings.title")}
+      title={t("settings.title")}
       onClose={onCancel}
       closeDisabled={controlsBusy}
       footer={
@@ -75,6 +80,7 @@ export function SettingsModalView({
         <SettingsTabs activeTab={activeTab} onChange={setActiveTab} />
         <SettingsModalTabPanel
           activeTab={activeTab}
+          generalPanelProps={generalPanelProps}
           enginePanelProps={enginePanelProps}
           hardwarePanelProps={hardwarePanelProps}
           formatPanelProps={formatPanelProps}
@@ -103,6 +109,7 @@ function SettingsModalFooter({
   | "onReset"
   | "submit"
 >): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       <Button
@@ -111,20 +118,20 @@ function SettingsModalFooter({
         onClick={onOpenLogFolder}
         disabled={controlsBusy}
       >
-        로그 폴더 열기
+        {t("settings.footer.openLogs")}
       </Button>
       <Button onClick={onReset} disabled={controlsBusy}>
-        기본값 복원
+        {t("settings.footer.restoreDefaults")}
       </Button>
       <Button variant="ghost" onClick={onCancel} disabled={controlsBusy}>
-        취소
+        {t("settings.footer.cancel")}
       </Button>
       <Button
         variant="primary"
         onClick={submit}
         disabled={controlsBusy || !canSubmit}
       >
-        저장
+        {t("settings.footer.save")}
       </Button>
     </>
   );
@@ -132,6 +139,7 @@ function SettingsModalFooter({
 
 function SettingsModalTabPanel({
   activeTab,
+  generalPanelProps,
   enginePanelProps,
   hardwarePanelProps,
   formatPanelProps,
@@ -141,6 +149,7 @@ function SettingsModalTabPanel({
 }: Pick<
   SettingsModalViewProps,
   | "activeTab"
+  | "generalPanelProps"
   | "enginePanelProps"
   | "hardwarePanelProps"
   | "formatPanelProps"
@@ -148,7 +157,8 @@ function SettingsModalTabPanel({
   | "testPanelProps"
   | "validationProps"
 >): React.JSX.Element {
-  const showApplyNote = activeTab !== "shortcuts";
+  const { t } = useTranslation("components");
+  const showApplyNote = activeTab !== "shortcuts" && activeTab !== "general";
   return (
     <div
       className="settings-tabpanel modal-section"
@@ -157,9 +167,10 @@ function SettingsModalTabPanel({
       aria-labelledby={`settings-tab-${activeTab}`}
     >
       {showApplyNote ? (
-        <p className="muted-line modal-note">
-          다음 번 번역 실행부터 적용됩니다.
-        </p>
+        <p className="muted-line modal-note">{t("settings.applyNextRun")}</p>
+      ) : null}
+      {activeTab === "general" ? (
+        <GeneralSettingsPanel {...generalPanelProps} />
       ) : null}
       {activeTab === "engine" ? (
         <EngineSettingsPanel {...enginePanelProps} />

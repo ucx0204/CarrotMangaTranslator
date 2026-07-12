@@ -1,0 +1,183 @@
+import type {
+  ApiReasoningEffort,
+  AppSettings,
+  CodexReasoningEffort,
+  FluxBackend,
+  GemmaVramMode,
+  InpaintingModel,
+  LlamaRuntimeProfile,
+  ModelProvider,
+  ModelSource,
+  OcrDevice,
+  OcrGpuBackend,
+  OcrQualityMode,
+  UiLocale,
+} from "../../../../shared/settingsTypes";
+import {
+  DEFAULT_SOURCE_LANGUAGE,
+  DEFAULT_TARGET_LANGUAGE,
+  normalizeLanguageCode,
+} from "../../../../shared/translationLanguages";
+import {
+  DEFAULT_UI_LOCALE,
+  normalizeUiLocale,
+} from "../../../../shared/uiLocales";
+import {
+  resolveCodexReasoningEffortForModel,
+  resolveModelPreset,
+  type ModelPresetId,
+} from "../settingsOptions";
+
+export type SettingsFormValues = {
+  uiLocale: UiLocale;
+  modelProvider: ModelProvider;
+  sourceLanguage: string;
+  targetLanguage: string;
+  modelSource: ModelSource;
+  selectedPreset: ModelPresetId;
+  customModelRepo: string;
+  customModelFile: string;
+  localModelPath: string;
+  localMmprojPath: string;
+  customVramMode: GemmaVramMode;
+  llamaRuntimeProfile: LlamaRuntimeProfile;
+  codexModel: string;
+  codexReasoningEffort: CodexReasoningEffort;
+  codexOauthPort: string;
+  apiBaseUrl: string;
+  apiModel: string;
+  apiKey: string;
+  apiTemperature: string;
+  apiTopP: string;
+  apiTopK: string;
+  apiReasoningEffort: ApiReasoningEffort | "";
+  apiExtraBodyJson: string;
+  apiCustomHeadersJson: string;
+  ocrDevice: OcrDevice;
+  ocrGpuBackend: OcrGpuBackend;
+  ocrQualityMode: OcrQualityMode;
+  inpaintingModel: InpaintingModel;
+  fluxBackend: FluxBackend;
+  maxTokens: string;
+  contextTokens: string;
+};
+
+export function createSettingsFormValues(
+  settings: AppSettings,
+): SettingsFormValues {
+  return {
+    ...resolveGeneralFormValues(settings),
+    ...resolveModelFormValues(settings),
+    ...resolveApiFormValues(settings),
+    ...resolveHardwareFormValues(settings),
+    maxTokens: String(settings.maxTokens),
+    contextTokens: String(settings.ctx),
+  };
+}
+
+function resolveGeneralFormValues(
+  settings: AppSettings,
+): Pick<
+  SettingsFormValues,
+  "uiLocale" | "modelProvider" | "sourceLanguage" | "targetLanguage"
+> {
+  return {
+    uiLocale: normalizeUiLocale(settings.ui?.locale, DEFAULT_UI_LOCALE),
+    modelProvider: settings.modelProvider,
+    sourceLanguage: normalizeLanguageCode(
+      settings.translation?.sourceLanguage,
+      DEFAULT_SOURCE_LANGUAGE,
+    ),
+    targetLanguage: normalizeLanguageCode(
+      settings.translation?.targetLanguage,
+      DEFAULT_TARGET_LANGUAGE,
+    ),
+  };
+}
+
+function resolveModelFormValues(
+  settings: AppSettings,
+): Pick<
+  SettingsFormValues,
+  | "modelSource"
+  | "selectedPreset"
+  | "customModelRepo"
+  | "customModelFile"
+  | "localModelPath"
+  | "localMmprojPath"
+  | "customVramMode"
+  | "llamaRuntimeProfile"
+  | "codexModel"
+  | "codexReasoningEffort"
+  | "codexOauthPort"
+> {
+  return {
+    modelSource: settings.gemma.modelSource,
+    selectedPreset: resolveModelPreset(
+      settings.gemma.modelRepo,
+      settings.gemma.modelFile,
+    ),
+    customModelRepo: settings.gemma.modelRepo,
+    customModelFile: settings.gemma.modelFile,
+    localModelPath: settings.gemma.localModelPath ?? "",
+    localMmprojPath: settings.gemma.localMmprojPath ?? "",
+    customVramMode: settings.gemma.vramMode,
+    llamaRuntimeProfile: settings.gemma.llamaRuntimeProfile ?? "cuda12",
+    codexModel: settings.codex.model,
+    codexReasoningEffort: resolveCodexReasoningEffortForModel(
+      settings.codex.model,
+      settings.codex.reasoningEffort,
+    ),
+    codexOauthPort: String(settings.codex.oauthPort),
+  };
+}
+
+function resolveApiFormValues(
+  settings: AppSettings,
+): Pick<
+  SettingsFormValues,
+  | "apiBaseUrl"
+  | "apiModel"
+  | "apiKey"
+  | "apiTemperature"
+  | "apiTopP"
+  | "apiTopK"
+  | "apiReasoningEffort"
+  | "apiExtraBodyJson"
+  | "apiCustomHeadersJson"
+> {
+  return {
+    apiBaseUrl: settings.api.baseUrl,
+    apiModel: settings.api.model,
+    apiKey: settings.api.apiKey ?? "",
+    apiTemperature: formatNullableNumberInput(settings.api.temperature),
+    apiTopP: formatNullableNumberInput(settings.api.topP),
+    apiTopK: formatNullableNumberInput(settings.api.topK),
+    apiReasoningEffort: settings.api.reasoningEffort ?? "",
+    apiExtraBodyJson: settings.api.extraBodyJson ?? "",
+    apiCustomHeadersJson: settings.api.customHeadersJson ?? "",
+  };
+}
+
+function resolveHardwareFormValues(
+  settings: AppSettings,
+): Pick<
+  SettingsFormValues,
+  | "ocrDevice"
+  | "ocrGpuBackend"
+  | "ocrQualityMode"
+  | "inpaintingModel"
+  | "fluxBackend"
+> {
+  return {
+    ocrDevice: settings.ocr.device,
+    ocrGpuBackend: settings.ocr.gpuBackend ?? "cuda",
+    ocrQualityMode: settings.ocr.qualityMode ?? "minimum",
+    inpaintingModel: settings.inpainting?.model ?? "flux-klein",
+    fluxBackend: settings.inpainting?.fluxBackend ?? "cuda-native",
+  };
+}
+
+function formatNullableNumberInput(value: number | null | undefined): string {
+  return value === null || value === undefined ? "" : String(value);
+}

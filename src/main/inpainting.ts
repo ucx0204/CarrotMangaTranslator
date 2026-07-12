@@ -8,6 +8,7 @@ import type {
   InpaintingPoint,
   MangaPage,
 } from "../shared/types";
+import { tMain } from "./i18n";
 import {
   createCombinedDownloadProgress,
   ensureFluxWorkerLaunch,
@@ -78,12 +79,14 @@ export async function inpaintDrawnPatternPage(
   );
   const size = image.getSize();
   if (!size.width || !size.height) {
-    throw new Error(`페이지 이미지를 읽지 못했습니다: ${page.name}`);
+    throw new Error(tMain("inpainting.errors.pageRead", { page: page.name }));
   }
 
   const bitmap = Buffer.from(image.toBitmap());
   if (bitmap.length < size.width * size.height * 4) {
-    throw new Error(`페이지 이미지 비트맵을 만들지 못했습니다: ${page.name}`);
+    throw new Error(
+      tMain("inpainting.errors.bitmapCreate", { page: page.name }),
+    );
   }
 
   const pageMask = buildMaskFromStrokes(strokes, size.width, size.height);
@@ -102,7 +105,7 @@ export async function inpaintDrawnPatternPage(
   }
 
   if (!options.inpaintingEngine) {
-    throw new Error("원문 지우기 엔진이 준비되지 않았습니다.");
+    throw new Error(tMain("inpainting.errors.engineNotReady"));
   }
 
   await options.inpaintingEngine.inpaint(
@@ -124,12 +127,23 @@ export async function inpaintDrawnPatternPage(
     },
   );
 
+  return writeDrawnInpaintingResult(page, bitmap, size, components.length);
+}
+
+async function writeDrawnInpaintingResult(
+  page: MangaPage,
+  bitmap: Buffer,
+  size: { width: number; height: number },
+  blocksErased: number,
+): Promise<PatternPageInpaintingResult> {
   const outputImage = nativeImage.createFromBitmap(bitmap, {
     width: size.width,
     height: size.height,
   });
   if (outputImage.isEmpty()) {
-    throw new Error(`인페인팅 결과 이미지를 만들지 못했습니다: ${page.name}`);
+    throw new Error(
+      tMain("inpainting.errors.resultCreate", { page: page.name }),
+    );
   }
 
   const outputPath = resolveInpaintedImagePath(page.imagePath, "pattern-drawn");
@@ -137,7 +151,7 @@ export async function inpaintDrawnPatternPage(
   await writeFile(outputPath, outputImage.toPNG());
 
   return {
-    blocksErased: components.length,
+    blocksErased,
     page: {
       ...page,
       inpaintedImagePath: outputPath,
@@ -168,7 +182,7 @@ export async function prepareFluxInpaintingEngine(options: {
   if (launch.backend === "cuda-native" || launch.backend === "zluda-native") {
     const download = createCombinedDownloadProgress(
       options.onProgress,
-      "Flux 모델",
+      tMain("inpainting.assets.fluxModel"),
     );
     [modelPath, vaePath] = await Promise.all([
       ensureRemoteFile({
@@ -202,10 +216,10 @@ export async function prepareFluxInpaintingEngine(options: {
   }
 
   options.onProgress?.({
-    progressText: "Flux 인페인팅 준비 완료",
+    progressText: tMain("inpainting.runtime.fluxReady"),
     detail: launch.label,
     progressMode: "log-only",
-    installLogLine: "Flux 원문 지우기 엔진 준비가 완료되었습니다.",
+    installLogLine: tMain("inpainting.runtime.fluxReadyLog"),
   });
 
   return createFluxEngine({
@@ -246,7 +260,7 @@ export async function applyInpaintingRetouch(
     size.width !== originalSize.width ||
     size.height !== originalSize.height
   ) {
-    throw new Error("원본 이미지와 편집 이미지 크기가 다릅니다.");
+    throw new Error(tMain("inpainting.errors.imageSizeMismatch"));
   }
 
   const bitmap = Buffer.from(baseImage.toBitmap());
@@ -281,7 +295,9 @@ export async function applyInpaintingRetouch(
     height: size.height,
   });
   if (outputImage.isEmpty()) {
-    throw new Error(`리터치 결과 이미지를 만들지 못했습니다: ${page.name}`);
+    throw new Error(
+      tMain("inpainting.errors.retouchCreate", { page: page.name }),
+    );
   }
 
   const outputPath = resolveInpaintedImagePath(

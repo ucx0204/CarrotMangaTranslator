@@ -1,5 +1,6 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
+import { tMain } from "../localization";
 import type {
   FluxAssetProgress,
   FluxPythonBackend,
@@ -118,9 +119,9 @@ async function resetTargetRuntimeDir(
   options.onProgress?.({
     progressText:
       options.backend === "python-rocm"
-        ? "Flux ROCm 런타임 설치 중"
-        : "Flux CPU 런타임 설치 중",
-    detail: "Python target package install",
+        ? tMain("inpainting.runtime.fluxRocmInstalling")
+        : tMain("inpainting.runtime.fluxCpuInstalling"),
+    detail: tMain("inpainting.runtime.pythonTargetInstalling"),
     progressMode: "log-only",
     installLogLine: "Flux 전용 패키지 폴더에 Python 패키지를 설치합니다.",
   });

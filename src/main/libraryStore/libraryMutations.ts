@@ -15,7 +15,7 @@ import {
 } from "./chapterRecords";
 import { listLibrary } from "./libraryAccess";
 import {
-  DEFAULT_WORK_TITLE,
+  getDefaultWorkTitle,
   findChapterLocation,
   makeUniqueChapterTitle,
   readChapterFile,
@@ -130,7 +130,7 @@ export async function renameWorkUnlocked(
   if (!work) {
     throw new Error("작품을 찾지 못했습니다.");
   }
-  work.title = sanitizeTitle(title, DEFAULT_WORK_TITLE);
+  work.title = sanitizeTitle(title, getDefaultWorkTitle());
   work.updatedAt = new Date().toISOString();
   await writeWorkFile(work);
   return listLibrary();

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { InpaintingContextValue } from "../inpainting/inpaintingTypes";
 import { useInpainting } from "../inpainting/useInpainting";
 import { InpaintingFlowHeader } from "./inpaintingPanel/InpaintingFlowHeader";
@@ -110,11 +111,18 @@ function InpaintingCountBadges({
   pageTargetCount: number;
   pendingTargetCount: number;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="inpainting-counts">
-      <span className="type-stat nonsolid">이 페이지 {pageTargetCount}</span>
-      <span className="type-stat nonsolid">남은 {pendingTargetCount}</span>
-      <span className="type-stat review">완료 {inpaintedPageCount}</span>
+      <span className="type-stat nonsolid">
+        {t("inpainting.counts.thisPage", { count: pageTargetCount })}
+      </span>
+      <span className="type-stat nonsolid">
+        {t("inpainting.counts.remaining", { count: pendingTargetCount })}
+      </span>
+      <span className="type-stat review">
+        {t("inpainting.counts.completed", { count: inpaintedPageCount })}
+      </span>
     </div>
   );
 }

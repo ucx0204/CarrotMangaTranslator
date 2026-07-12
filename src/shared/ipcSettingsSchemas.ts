@@ -20,6 +20,7 @@ import {
 } from "./ipcSchemaPrimitives";
 import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
 import { CODEX_REASONING_EFFORTS } from "./codexSettings";
+import { SUPPORTED_UI_LOCALES } from "./uiLocales";
 
 const LanguageCodeSchema = z
   .string()
@@ -83,6 +84,7 @@ export const AppSettingsSchema = z
       .strict(),
     ui: z
       .object({
+        locale: z.enum(SUPPORTED_UI_LOCALES).optional(),
         inpaintingGuideHidden: z.boolean().optional(),
         twoPassByDefault: z.boolean().optional(),
         analysisScopeDefault: z.enum(["work", "missing", "chapter"]).optional(),

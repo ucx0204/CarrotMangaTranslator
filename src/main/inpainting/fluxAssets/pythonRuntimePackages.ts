@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { tMain } from "../localization";
 import type {
   FluxAssetProgress,
   FluxPythonBackend,
@@ -126,9 +127,11 @@ function reportFluxPythonModelCacheInstall(
 ): void {
   const excludesTransformer = ignorePatterns.length > 0;
   options.onProgress?.({
-    progressText: "Flux Diffusers 모델 준비 중",
+    progressText: tMain("inpainting.runtime.fluxModelPreparing"),
     detail: excludesTransformer
-      ? `${options.modelId} · transformer 제외`
+      ? tMain("inpainting.runtime.fluxModelWithoutTransformer", {
+          modelId: options.modelId,
+        })
       : options.modelId,
     progressMode: "indeterminate",
     installLogLine: excludesTransformer

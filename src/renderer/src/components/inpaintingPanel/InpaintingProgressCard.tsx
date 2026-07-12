@@ -1,4 +1,6 @@
 import React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../../lib/jobProgress";
 import { useEtaText } from "../../hooks/useEtaText";
@@ -15,11 +17,12 @@ export function InpaintingProgressCard({
   progressSnapshot,
   onCancel,
 }: InpaintingProgressCardProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const { current, ratio, total } = resolveProgressCardNumbers(
     jobState,
     progressSnapshot,
   );
-  const detail = resolveProgressCardDetail(jobState);
+  const detail = resolveProgressCardDetail(jobState, t);
   const etaText = useEtaText(progressSnapshot);
 
   return (
@@ -33,7 +36,7 @@ export function InpaintingProgressCard({
             {current} / {total}
           </strong>
         ) : (
-          <strong>진행 중</strong>
+          <strong>{t("common.inProgress")}</strong>
         )}
       </div>
       <small>{detail}</small>
@@ -46,7 +49,7 @@ export function InpaintingProgressCard({
       </div>
       {isCancellableInpaintingJob(jobState) ? (
         <Button variant="danger" size="sm" onClick={onCancel}>
-          취소
+          {t("common.cancel")}
         </Button>
       ) : null}
     </div>
@@ -86,15 +89,20 @@ function resolveFallbackProgressRatio(
     : 0;
 }
 
-function resolveProgressCardDetail(jobState: JobState): string {
+function resolveProgressCardDetail(
+  jobState: JobState,
+  t: TFunction<"components">,
+): string {
   if (jobState.status === "completed" && jobState.detail) {
     return jobState.detail;
   }
   return (
     jobState.detail ??
     (Number.isFinite(jobState.pageTotal)
-      ? `${jobState.pageTotal}페이지 처리 중`
-      : "인페인팅 작업 진행 중")
+      ? t("inpainting.progress.processingPages", {
+          count: jobState.pageTotal,
+        })
+      : t("inpainting.progress.inProgress"))
   );
 }
 

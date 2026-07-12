@@ -1,5 +1,6 @@
 /* eslint-disable max-lines, max-lines-per-function */
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { ReviewExportFormat } from "../../../shared/reviewTypes";
 import { mangaGateway } from "../api/mangaGateway";
@@ -23,17 +24,6 @@ import {
 import { HighlightedText } from "./HighlightedText";
 import { Button, Modal } from "./ui";
 
-const SCOPE_OPTIONS: { id: GatherScope; label: string }[] = [
-  { id: "page", label: "이 페이지" },
-  { id: "chapter", label: "전체 화" },
-];
-
-const FIELD_OPTIONS: { id: GatherField; label: string }[] = [
-  { id: "both", label: "번역문+OCR" },
-  { id: "translated", label: "번역문만" },
-  { id: "source", label: "OCR만" },
-];
-
 type GatherTextModalProps = {
   chapter: ChapterSnapshot | null;
   page: MangaPage | null;
@@ -53,6 +43,7 @@ export function GatherTextModal({
   onNavigateToBlock,
   readingDirection = "rtl",
 }: GatherTextModalProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const [scope, setScope] = React.useState<GatherScope>("page");
   const [field, setField] = React.useState<GatherField>("both");
   const [excludeHeaders, setExcludeHeaders] = React.useState(false);
@@ -94,7 +85,7 @@ export function GatherTextModal({
 
   return (
     <Modal
-      title="텍스트 모아보기"
+      title={t("gatherText.title")}
       size="lg"
       onClose={onClose}
       closeOnBackdrop
@@ -144,21 +135,36 @@ export function GatherTextModal({
       />
       <div className="gather-text-controls">
         <SegmentedRow
-          label="범위"
-          options={SCOPE_OPTIONS}
+          label={t("gatherText.scope")}
+          options={
+            [
+              { id: "page", label: t("common.thisPage") },
+              { id: "chapter", label: t("gatherText.entireChapter") },
+            ] satisfies { id: GatherScope; label: string }[]
+          }
           value={scope}
           onChange={setScope}
         />
         <SegmentedRow
-          label="표시"
-          options={FIELD_OPTIONS}
+          label={t("gatherText.display")}
+          options={
+            [
+              { id: "both", label: t("gatherText.fields.both") },
+              { id: "translated", label: t("gatherText.fields.translated") },
+              { id: "source", label: t("gatherText.fields.source") },
+            ] satisfies { id: GatherField; label: string }[]
+          }
           value={field}
           onChange={setField}
         />
       </div>
       {reviewWarnings.length > 0 ? (
         <details className="gather-review-warnings">
-          <summary>검수표 경고 {reviewWarnings.length}개</summary>
+          <summary>
+            {t("gatherText.reviewWarnings", {
+              count: reviewWarnings.length,
+            })}
+          </summary>
           <ul>
             {reviewWarnings.slice(0, 80).map((warning, index) => (
               <li key={`${warning}-${index}`}>{warning}</li>
@@ -196,6 +202,8 @@ function useTxtImportAction({
   onApplyTranslatedText?: (updates: TranslatedTextImportUpdate[]) => void;
   setReviewWarnings: (warnings: string[]) => void;
 }): (file: File) => Promise<void> {
+  const { t } = useTranslation("components");
+  const { t: tRenderer } = useTranslation("renderer");
   return React.useCallback(
     async (file: File) => {
       if (!chapter || !onApplyTranslatedText) {
@@ -207,34 +215,44 @@ function useTxtImportAction({
           gatherText({ chapter, page, scope, direction: readingDirection }),
           "translated",
         );
-        const result = buildTranslatedTextImport(translatedPages, content);
+        const result = buildTranslatedTextImport(
+          translatedPages,
+          content,
+          tRenderer,
+        );
         setReviewWarnings(result.warnings);
         if (result.updates.length === 0) {
           toast.info(
             result.matchedPageCount > 0
-              ? "변경된 번역문이 없습니다."
-              : "적용할 수 있는 텍스트가 없습니다. 경고를 확인하세요.",
+              ? t("gatherText.importTxt.noChanges")
+              : t("gatherText.importTxt.noApplicableText"),
           );
           return;
         }
         const confirmed = window.confirm(
-          `번역문 ${result.updates.length}개를 txt 내용으로 덮어씁니다.\n줄 순서 기준으로 반영되며 OCR 원문은 바뀌지 않습니다. 계속할까요?`,
+          t("gatherText.importTxt.confirm", {
+            count: result.updates.length,
+          }),
         );
         if (!confirmed) {
           return;
         }
         onApplyTranslatedText(result.updates);
         toast.success(
-          `${result.updates.length}개 블록의 번역문을 업데이트했습니다.`,
+          t("gatherText.importTxt.updated", {
+            count: result.updates.length,
+          }),
         );
         if (result.warnings.length > 0) {
           toast.info(
-            `txt 불러오기 경고 ${result.warnings.length}개가 있습니다.`,
+            t("gatherText.importTxt.warnings", {
+              count: result.warnings.length,
+            }),
           );
         }
       } catch (error) {
         console.error(error);
-        toast.error("txt 파일 불러오기에 실패했습니다.");
+        toast.error(t("gatherText.importTxt.failed"));
       }
     },
     [
@@ -244,6 +262,8 @@ function useTxtImportAction({
       readingDirection,
       scope,
       setReviewWarnings,
+      t,
+      tRenderer,
     ],
   );
 }
@@ -252,17 +272,18 @@ function useGatherTextActions(
   text: string,
   defaultName: string,
 ): { handleCopy: () => Promise<void>; handleSave: () => Promise<void> } {
+  const { t } = useTranslation("components");
   const handleCopy = React.useCallback(async () => {
     if (!text) {
       return;
     }
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("텍스트를 클립보드에 복사했습니다.");
+      toast.success(t("gatherText.copySuccess"));
     } catch (_error) {
-      toast.error("클립보드 복사에 실패했습니다.");
+      toast.error(t("gatherText.copyFailed"));
     }
-  }, [text]);
+  }, [t, text]);
 
   const handleSave = React.useCallback(async () => {
     if (!text) {
@@ -274,12 +295,12 @@ function useGatherTextActions(
         content: text,
       });
       if (result?.saved) {
-        toast.success("텍스트 파일을 저장했습니다.");
+        toast.success(t("gatherText.saveSuccess"));
       }
     } catch (_error) {
-      toast.error("텍스트 파일 저장에 실패했습니다.");
+      toast.error(t("gatherText.saveFailed"));
     }
-  }, [text, defaultName]);
+  }, [defaultName, t, text]);
 
   return { handleCopy, handleSave };
 }
@@ -298,6 +319,7 @@ function useReviewTextActions({
   handleExportReview: (format: ReviewExportFormat) => Promise<void>;
   handleImportReviewFile: (file: File) => Promise<void>;
 } {
+  const { t } = useTranslation("components");
   const handleExportReview = React.useCallback(
     async (format: ReviewExportFormat) => {
       if (!chapter) {
@@ -310,14 +332,14 @@ function useReviewTextActions({
           includeBom: true,
         });
         if (result?.saved) {
-          toast.success("검수표를 저장했습니다.");
+          toast.success(t("gatherText.review.saveSuccess"));
         }
       } catch (error) {
         console.error(error);
-        toast.error("검수표 저장에 실패했습니다.");
+        toast.error(t("gatherText.review.saveFailed"));
       }
     },
-    [chapter],
+    [chapter, t],
   );
 
   const handleImportReviewFile = React.useCallback(
@@ -325,9 +347,7 @@ function useReviewTextActions({
       if (!chapter) {
         return;
       }
-      const confirmed = window.confirm(
-        "검수표를 가져오면 번역문, 검수 상태, 메모만 업데이트합니다.\nOCR 원문은 바꾸지 않고 block_id가 맞는 행만 반영합니다.",
-      );
+      const confirmed = window.confirm(t("gatherText.review.importConfirm"));
       if (!confirmed) {
         return;
       }
@@ -344,18 +364,26 @@ function useReviewTextActions({
         });
         onChapterUpdated?.(result.chapter);
         setReviewWarnings(result.warnings);
-        toast.success(`${result.updatedBlockCount}개 블록을 업데이트했습니다.`);
+        toast.success(
+          t("gatherText.review.updated", {
+            count: result.updatedBlockCount,
+          }),
+        );
         if (result.warnings.length > 0) {
-          toast.info(`검수표 경고 ${result.warnings.length}개가 있습니다.`);
+          toast.info(
+            t("gatherText.review.warnings", {
+              count: result.warnings.length,
+            }),
+          );
         }
       } catch (error) {
         console.error(error);
-        toast.error("검수표 가져오기에 실패했습니다.");
+        toast.error(t("gatherText.review.importFailed"));
       } finally {
         setReviewBusy(false);
       }
     },
-    [chapter, onChapterUpdated, setReviewBusy, setReviewWarnings],
+    [chapter, onChapterUpdated, setReviewBusy, setReviewWarnings, t],
   );
 
   return { handleExportReview, handleImportReviewFile };
@@ -388,13 +416,14 @@ function GatherTextFooter({
   onImportReview: () => void;
   onImportTxt: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className="gather-text-footer">
       <div className="gather-text-search">
         <input
           type="search"
           value={search.query}
-          placeholder="검색 후 Enter"
+          placeholder={t("gatherText.searchPlaceholder")}
           onChange={(event) => search.setQuery(event.target.value)}
           onKeyDown={search.handleKeyDown}
         />
@@ -412,7 +441,7 @@ function GatherTextFooter({
             checked={excludeHeaders}
             onChange={(event) => onToggleExcludeHeaders(event.target.checked)}
           />
-          페이지 머리말 제외
+          {t("gatherText.excludePageHeaders")}
         </label>
         <ReviewTableActions
           hasChapter={hasChapter}
@@ -422,17 +451,17 @@ function GatherTextFooter({
         />
         <div className="gather-text-action-group">
           <Button onClick={onSave} disabled={!hasContent}>
-            .txt 저장
+            {t("gatherText.saveTxt")}
           </Button>
           <Button
             onClick={onImportTxt}
             disabled={!hasChapter || !canImportTxt}
-            title="번역문만 형식으로 저장한 txt의 번역문을 줄 순서대로 다시 불러옵니다."
+            title={t("gatherText.importTxt.title")}
           >
-            .txt 불러오기
+            {t("gatherText.importTxt.button")}
           </Button>
           <Button variant="primary" onClick={onCopy} disabled={!hasContent}>
-            복사
+            {t("common.copy")}
           </Button>
         </div>
       </div>
@@ -451,13 +480,16 @@ function ReviewTableActions({
   onExportReview: (format: ReviewExportFormat) => void;
   onImportReview: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const disabled = !hasChapter || reviewBusy;
   return (
     <div className="gather-text-action-group review">
-      <span className="gather-text-group-label">검수표</span>
+      <span className="gather-text-group-label">
+        {t("gatherText.review.title")}
+      </span>
       <Button
         size="sm"
-        aria-label="CSV 검수표 내보내기"
+        aria-label={t("gatherText.review.exportCsv")}
         onClick={() => onExportReview("csv")}
         disabled={disabled}
       >
@@ -465,14 +497,14 @@ function ReviewTableActions({
       </Button>
       <Button
         size="sm"
-        aria-label="TSV 검수표 내보내기"
+        aria-label={t("gatherText.review.exportTsv")}
         onClick={() => onExportReview("tsv")}
         disabled={disabled}
       >
         TSV
       </Button>
       <Button size="sm" onClick={onImportReview} disabled={disabled}>
-        가져오기
+        {t("common.import")}
       </Button>
     </div>
   );
@@ -520,13 +552,14 @@ function GatheredPageList({
   search: GatherTextSearch;
   onNavigateToBlock?: (pageId: string, blockId: string) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const offsets = React.useMemo(
     () => buildMatchOffsets(pages, field, search.query),
     [pages, field, search.query],
   );
   if (pages.length === 0) {
     return (
-      <p className="muted-line gather-text-empty">표시할 텍스트가 없습니다.</p>
+      <p className="muted-line gather-text-empty">{t("gatherText.empty")}</p>
     );
   }
   return (
@@ -534,7 +567,10 @@ function GatheredPageList({
       {pages.map((page) => (
         <section key={page.pageId} className="gather-text-page">
           <h3 className="gather-text-page-title">
-            {page.index + 1}쪽 · {page.pageName}
+            {t("gatherText.pageHeading", {
+              index: page.index + 1,
+              pageName: page.pageName,
+            })}
           </h3>
           <div className="gather-text-blocks">
             {page.blocks.map((block) => (
@@ -571,6 +607,7 @@ function GatheredBlock({
   offsets: Map<string, number>;
   onNavigate?: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const content = (
     <>
       {field !== "translated" && block.sourceText ? (
@@ -606,7 +643,7 @@ function GatheredBlock({
     <button
       type="button"
       className="gather-text-block clickable"
-      title="클릭하면 해당 페이지로 이동합니다."
+      title={t("gatherText.navigateToPage")}
       onClick={onNavigate}
     >
       {content}

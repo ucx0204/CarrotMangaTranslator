@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, rename, rm, rmdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { safeCleanup } from "../safeCleanup";
+import { tMain } from "./localization";
 import { WORKS_ROOT } from "./libraryFiles";
 import { isPathInside } from "./storage";
 
@@ -38,7 +39,7 @@ export async function moveOmittedExistingChaptersToTrash(
       !isPathInside(operationTrashRoot, trashDir) ||
       trashDir === operationTrashRoot
     ) {
-      throw new Error("공유 가져오기 임시 보관 위치가 올바르지 않습니다.");
+      throw new Error(tMain("share.errors.invalidTrashLocation"));
     }
 
     await mkdir(operationTrashRoot, { recursive: true });
@@ -106,7 +107,7 @@ function resolveChapterDirectory(workId: string, chapterId: string): string {
   const chaptersRoot = resolve(join(WORKS_ROOT, workId, "chapters"));
   const chapterDir = resolve(join(chaptersRoot, chapterId));
   if (!isPathInside(chaptersRoot, chapterDir) || chapterDir === chaptersRoot) {
-    throw new Error("화 정보의 보관함 위치가 올바르지 않습니다.");
+    throw new Error(tMain("share.errors.invalidChapterLocation"));
   }
   return chapterDir;
 }
@@ -121,7 +122,7 @@ function resolveOperationTrashRoot(
     !isPathInside(trashRoot, operationTrashRoot) ||
     operationTrashRoot === trashRoot
   ) {
-    throw new Error("공유 가져오기 임시 보관 위치가 올바르지 않습니다.");
+    throw new Error(tMain("share.errors.invalidTrashLocation"));
   }
   return operationTrashRoot;
 }
@@ -130,7 +131,7 @@ function resolveTrashRoot(workId: string): string {
   const chaptersRoot = resolve(join(WORKS_ROOT, workId, "chapters"));
   const trashRoot = resolve(join(chaptersRoot, ".trash"));
   if (!isPathInside(chaptersRoot, trashRoot) || trashRoot === chaptersRoot) {
-    throw new Error("공유 가져오기 임시 보관 위치가 올바르지 않습니다.");
+    throw new Error(tMain("share.errors.invalidTrashLocation"));
   }
   return trashRoot;
 }

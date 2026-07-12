@@ -14,6 +14,7 @@ import {
   updatePagesAfterAnalysis,
 } from "../library";
 import { logError } from "../logger";
+import { tMain } from "./localization";
 import type { PipelineOptions } from "../pipeline/types";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { isAbortError } from "./jobEvents";
@@ -178,9 +179,7 @@ function completeAnalysisJob(
     (page) => page.analysisStatus === "failed",
   ).length;
   if (failedPageCount === result.pages.length) {
-    throw new Error(
-      `번역 작업 실패: 모든 페이지가 실패했습니다. 마지막 오류는 각 페이지 상태와 로그를 확인하세요.`,
-    );
+    throw new Error(tMain("translation.allPagesFailed"));
   }
 
   emit({
@@ -189,8 +188,10 @@ function completeAnalysisJob(
     status: "completed",
     progressText:
       failedPageCount > 0
-        ? `번역 완료 - ${failedPageCount}페이지 실패`
-        : "번역 작업 완료",
+        ? tMain("translation.completedWithFailures", {
+            count: failedPageCount,
+          })
+        : tMain("translation.completed"),
     phase: "done",
     progressCurrent: resolved.pages.length,
     progressTotal: resolved.pages.length,
@@ -224,7 +225,7 @@ async function handleAnalysisAbort(
     id,
     kind: "gemma-analysis",
     status: "cancelled",
-    progressText: "작업이 취소되었습니다.",
+    progressText: tMain("jobs.cancelled"),
     phase: "cancelled",
     progressCurrent: lastEvent?.progressCurrent,
     progressTotal: lastEvent?.progressTotal,
@@ -291,7 +292,7 @@ function emitFailedAnalysisJob(
     id,
     kind: "gemma-analysis",
     status: "failed",
-    progressText: "작업 실패",
+    progressText: tMain("jobs.failed"),
     phase: "failed",
     progressCurrent: lastEvent?.progressCurrent,
     progressTotal: lastEvent?.progressTotal,

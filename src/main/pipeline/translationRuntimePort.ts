@@ -1,5 +1,6 @@
 import type { TranslationOptions } from "../appSettings";
 import { disposeCachedInpaintingEngines } from "../inpainting/inpaintingEnginePool";
+import { tMain } from "./localization";
 import type {
   ModelEndpointHandle,
   OcrBboxResult,
@@ -50,8 +51,8 @@ async function releaseGpuBeforeOcr(
   if (disposed) {
     gpuOptions.onProgress?.({
       phase: "ocr_running",
-      progressText: "GPU OCR을 위해 인페인팅 엔진 캐시를 해제했습니다",
-      detail: "GPU 메모리(VRAM) 확보",
+      progressText: tMain("ocr.gpuCacheReleased"),
+      detail: tMain("ocr.gpuCacheReleasedDetail"),
       progressMode: "log-only",
     });
   }

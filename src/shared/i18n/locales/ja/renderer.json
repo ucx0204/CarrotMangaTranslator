@@ -1,0 +1,376 @@
+{
+  "common": {
+    "pageCount": "{{count}}ページ",
+    "pageCount_one": "{{count}}ページ",
+    "pageCount_other": "{{count}}ページ"
+  },
+  "bridge": {
+    "cancelJobFailed": "処理のキャンセル要求を送信できませんでした。",
+    "openLibraryFailed": "ライブラリフォルダーを開けませんでした。",
+    "openLogsFailed": "ログフォルダーを開けませんでした。"
+  },
+  "panels": {
+    "connecting": "接続中…",
+    "editor": {
+      "title": "ブロック編集",
+      "poppedOut": "エディターを別ウィンドウで開いています。",
+      "closeWindow": "エディターウィンドウを閉じる",
+      "floating": "エディターをフローティング表示しています。",
+      "dock": "エディターをドッキング",
+      "float": "エディターをフローティング表示",
+      "floatTitle": "エディターを大きくフローティング表示",
+      "popOut": "エディターを別ウィンドウで開く",
+      "popOutTitle": "エディターを別ウィンドウに切り離す"
+    }
+  },
+  "blockMode": { "auto": "自動生成", "keep": "既存ブロックを維持" },
+  "librarySort": {
+    "updated": "更新日",
+    "title": "名前",
+    "created": "追加日",
+    "chapters": "話数"
+  },
+  "fonts": { "default": "デフォルト", "defaultSample": "あいう Aa" },
+  "eta": {
+    "seconds": "残り約{{count}}秒",
+    "minutes": "残り約{{count}}分",
+    "minutesSeconds": "残り約{{minutes}}分{{seconds}}秒",
+    "hoursMinutes": "残り約{{hours}}時間{{minutes}}分"
+  },
+  "job": {
+    "pageProgress": "{{current}} / {{total}}ページ・{{status}}",
+    "pageStatus": "ページ・{{status}}",
+    "pageRetry": "{{current}} / {{total}}ページ・再試行 {{attempt}} / {{attemptTotal}}",
+    "phase": {
+      "booting": "モデルを準備中",
+      "modelDownloading": "モデルをダウンロード／サーバーを準備中",
+      "inpaintingPreparing": "インペインティングを準備中",
+      "finalizing": "結果を整理中",
+      "done": "処理完了",
+      "ocrDownloading": "Paddle OCRをダウンロード／インストール中",
+      "ready": "モデルの準備完了",
+      "cancelled": "処理をキャンセルしました",
+      "failed": "処理に失敗しました",
+      "ocrPreparing": "Paddle OCRを準備中",
+      "modelRequesting": "AI翻訳をリクエスト中",
+      "pageRunning": "翻訳中",
+      "pageDone": "完了",
+      "pageSkipped": "スキップ",
+      "inpaintingRunning": "原文を消去中",
+      "inpaintingDone": "原文の消去完了",
+      "ocrRunning": "Paddle OCRで解析中",
+      "ocrPreanalysisDone": "Paddle OCRの事前解析完了",
+      "pageRetry": "ページを再試行中"
+    },
+    "status": {
+      "starting": "モデルを準備中",
+      "running": "処理中",
+      "cancelling": "処理をキャンセル中",
+      "cancelled": "処理をキャンセルしました",
+      "failed": "処理に失敗しました",
+      "completed": "翻訳完了",
+      "idle": "待機中"
+    },
+    "warnings": {
+      "skippedAndUncertain": "一部のページをスキップしました。また、OCRの確認が必要なブロックがあります。",
+      "skipped": "一部のページをスキップして次のページへ進みました。",
+      "uncertain": "OCRの追加確認が必要なブロックがあります。",
+      "generic": "警告がありましたが、処理は続行されました。"
+    },
+    "notifications": {
+      "completed": "処理が完了しました。",
+      "failed": "処理に失敗しました。",
+      "cancelled": "処理をキャンセルしました。",
+      "openLogs": "ログフォルダーを開く"
+    }
+  },
+  "commands": {
+    "translate": {
+      "label": "翻訳…",
+      "hint": "オプション・2回目翻訳・一括",
+      "keywords": "translate options 翻訳 オプション"
+    },
+    "translatePending": {
+      "label": "翻訳を続行",
+      "hint": "残りのページ（すぐ実行）",
+      "keywords": "translate resume 続行 残り"
+    },
+    "translateAll": {
+      "label": "すべて再翻訳",
+      "hint": "全ページ",
+      "keywords": "translate all retranslate すべて 再翻訳"
+    },
+    "exitInpainting": {
+      "label": "インペインティングを終了",
+      "keywords": "inpaint exit 終了"
+    },
+    "enterInpainting": {
+      "label": "インペインティングを開始",
+      "keywords": "inpaint start 開始"
+    },
+    "cancelJob": {
+      "label": "処理をキャンセル",
+      "keywords": "cancel stop キャンセル"
+    },
+    "gatherText": {
+      "label": "テキストをまとめて表示",
+      "hint": "ページ・話全体",
+      "keywords": "text copy gather テキスト コピー"
+    },
+    "importSource": {
+      "label": "翻訳元を読み込む",
+      "hint": "画像・フォルダー・ZIP",
+      "keywords": "import source 翻訳元 読み込み"
+    },
+    "batchTranslate": {
+      "label": "作品を一括翻訳",
+      "keywords": "batch import 一括 翻訳"
+    },
+    "importShare": {
+      "label": "共有データを読み込む",
+      "keywords": "share import 共有 読み込み"
+    },
+    "exportShare": {
+      "label": "共有用に書き出す",
+      "keywords": "share export 共有 書き出し"
+    },
+    "openSettings": { "label": "設定を開く", "keywords": "settings 設定" },
+    "openLibrary": {
+      "label": "ライブラリフォルダーを開く",
+      "keywords": "library folder ライブラリ フォルダー"
+    },
+    "openLogs": {
+      "label": "ログフォルダーを開く",
+      "keywords": "log folder ログ フォルダー"
+    },
+    "shortcutHelp": {
+      "label": "ショートカット一覧",
+      "keywords": "shortcut help ショートカット"
+    }
+  },
+  "shortcuts": {
+    "categories": {
+      "view": "表示 / ビュー",
+      "tool": "ツール",
+      "translate": "翻訳",
+      "inpaint": "インペインティング",
+      "edit": "ブロック編集",
+      "global": "全般"
+    },
+    "actions": {
+      "toggle-block-chrome": "背景／枠線の表示を切り替え",
+      "toggle-text-blocks": "ブロック表示を切り替え",
+      "toggle-peek-original": "元画像プレビューを切り替え",
+      "zoom-in": "画像を拡大",
+      "zoom-out": "画像を縮小",
+      "zoom-reset": "ズームをリセット",
+      "stage-tool-select": "選択ツール",
+      "stage-tool-block": "ブロックツール（ドラッグで追加）",
+      "stage-tool-hand": "手のひらツール（ドラッグで移動）",
+      "toggle-stage-toolbar": "ツールバー表示を切り替え",
+      "open-translate-options": "翻訳オプションを開く",
+      "translate-pending": "翻訳を続行（残りのページ）",
+      "translate-all": "すべて再翻訳",
+      "gather-text": "テキストをまとめて表示",
+      "cancel-job": "処理をキャンセル",
+      "toggle-inpainting": "インペインティングを開始／終了",
+      "history-undo": "元に戻す",
+      "history-redo": "やり直す",
+      "retouch-redo": "補正をやり直す",
+      "delete-block": "選択したブロックを削除",
+      "duplicate-block": "選択したブロックを複製",
+      "toggle-block-excluded": "ブロックのインペインティング除外を切り替え",
+      "toggle-command-palette": "コマンドパレット",
+      "toggle-shortcut-help": "ショートカット一覧",
+      "open-settings": "設定を開く"
+    }
+  },
+  "blockEditing": {
+    "chapterApplyWhileRunning": "処理中は話全体への一括書式適用を使用できません。",
+    "formatAppliedSelection": "選択した{{count}}個のブロックに書式を適用しました。",
+    "formatAppliedSelection_one": "選択した{{count}}個のブロックに書式を適用しました。",
+    "formatAppliedSelection_other": "選択した{{count}}個のブロックに書式を適用しました。",
+    "formatAppliedPage": "このページのすべてのブロックに書式を適用しました。",
+    "formatAppliedChapter": "この話のすべてのブロックに書式を適用しました。"
+  },
+  "chapter": {
+    "saveFailed": "保存に失敗しました: {{message}}",
+    "saveConflict": "ページ保存の競合が発生しました。最新の内容を確認してから再度保存してください。"
+  },
+  "library": {
+    "openChapterFailed": "話を開けませんでした。",
+    "refreshFailed": "ライブラリを読み込めませんでした。",
+    "refreshAfterJobFailed": "ライブラリを更新できませんでした。",
+    "renameFailed": "名前を保存できませんでした。",
+    "delete": {
+      "workTitle": "作品を削除",
+      "chapterTitle": "話を削除",
+      "confirm": "本当に削除しますか？",
+      "workDetail": "作品「{{title}}」と、そのすべての話、ページ、翻訳結果がライブラリから削除されます。",
+      "chapterDetail": "話「{{title}}」と、そのすべてのページ、翻訳結果がライブラリから削除されます。",
+      "workSuccess": "作品「{{title}}」を削除しました。",
+      "chapterSuccess": "話「{{title}}」を削除しました。",
+      "workFailed": "作品を削除できませんでした。",
+      "chapterFailed": "話を削除できませんでした。"
+    },
+    "retranslate": {
+      "title": "ページを再翻訳",
+      "confirm": "本当に再翻訳しますか？",
+      "detail": "このページの既存の翻訳結果と編集内容は上書きされます。"
+    },
+    "removePage": {
+      "title": "ページを削除",
+      "confirm": "本当に削除しますか？",
+      "detail": "このページと翻訳結果がライブラリから削除されます。",
+      "success": "ページ「{{name}}」を削除しました。",
+      "failed": "ページを削除できませんでした。"
+    },
+    "order": {
+      "chapterSaveFailed": "話の順序を保存できませんでした。",
+      "pageSaveFailed": "ページの順序を保存できませんでした。",
+      "saveBeforePageOrderFailed": "現在の変更を保存できなかったため、ページ順序は保存されませんでした。",
+      "pageRolledBack": "ページを以前の順序に戻しました。",
+      "rolledBackAfterError": "{{message}} 以前の順序に戻しました。"
+    }
+  },
+  "inpainting": {
+    "common": { "saveFailedTitle": "保存失敗", "jobFailedTitle": "処理失敗" },
+    "mode": {
+      "saveBeforeEnterFailed": "インペインティングモードに入る前に変更を保存できませんでした。",
+      "entered": "インペインティングモードに切り替えました。原文の消去から始めてください。",
+      "exited": "インペインティングモードを終了しました。"
+    },
+    "drawn": {
+      "title": "描画範囲を消去",
+      "message": "オレンジ色で描いたマスク範囲だけをFluxで消去します。",
+      "detail": "文字の上を広めになぞってください。切り取った背景を復元し、結果は別画像として保存します。元画像は保持されます。",
+      "preparing": "描画範囲の消去を準備中",
+      "saveFailed": "描画範囲を消去する前に変更を保存できませんでした。",
+      "startFailed": "描画範囲の消去を開始できませんでした。",
+      "failed": "描画範囲の消去に失敗しました。",
+      "success": "描画範囲の消去完了: {{pages}}ページ、{{regions}}範囲"
+    },
+    "erase": {
+      "title": "原文を消去",
+      "currentPage": "現在のページ",
+      "pendingPages": "まだ消去していないページ",
+      "message": "{{scope}}の翻訳ブロック位置にある原文を消去します。",
+      "detail": "吹き出し、トーン、背景、効果音上の文字をFluxインペインティングですべて消去します。元画像は保持し、結果は別画像として保存します。",
+      "preparing": "原文の消去を準備中",
+      "saveFailed": "原文を消去する前に変更を保存できませんでした。",
+      "startFailed": "原文の消去を開始できませんでした。",
+      "failed": "原文の消去に失敗しました。",
+      "success": "原文の消去完了: {{pages}}ページ、{{blocks}}ブロック"
+    },
+    "export": {
+      "noPage": "出力するページが選択されていません。",
+      "saveFailed": "PNG出力前に変更を保存できませんでした。",
+      "openFolderFailed": "PNG出力は完了しましたが、フォルダーを開けませんでした: {{path}}",
+      "success": "インペインティング結果をPNGで出力しました: {{count}}ページ",
+      "success_one": "インペインティング結果をPNGで出力しました: {{count}}ページ",
+      "success_other": "インペインティング結果をPNGで出力しました: {{count}}ページ",
+      "failed": "インペインティング結果を出力できませんでした。",
+      "failedTitle": "PNG出力失敗",
+      "preparing": "PNG出力を準備中"
+    },
+    "revert": {
+      "pageTitle": "このページを元画像に戻す",
+      "chapterTitle": "すべてのページを元画像に戻す",
+      "pageMessage": "現在のページのインペインティング結果を元画像に戻します。",
+      "chapterMessage": "現在の話のインペインティング結果を元画像に戻します。",
+      "detail": "翻訳ブロックと座標は保持し、消去済み画像の結果だけを解除します。",
+      "success": "インペインティングを元に戻しました: {{count}}ページ",
+      "success_one": "インペインティングを元に戻しました: {{count}}ページ",
+      "success_other": "インペインティングを元に戻しました: {{count}}ページ",
+      "failedTitle": "元に戻せませんでした",
+      "failed": "インペインティング結果を元に戻せませんでした。"
+    },
+    "retouch": {
+      "applyFailed": "補正を適用できませんでした。",
+      "undoFailed": "補正を元に戻せませんでした。",
+      "undoSuccess": "補正を元に戻しました。",
+      "redoFailed": "補正をやり直せませんでした。",
+      "redoSuccess": "補正をやり直しました。"
+    },
+    "color": {
+      "selected": "ブラシ色に{{color}}を選択しました。続けて別の色を取得するか、ブラシに切り替えてください。",
+      "sampleFailed": "色を取得できませんでした。"
+    }
+  },
+  "regionTranslation": {
+    "disposeInpainting": "範囲翻訳のためFluxインペインティングランタイムを終了します。",
+    "cancelledSelection": "範囲翻訳の選択をキャンセルしました。",
+    "dragPrompt": "翻訳する範囲をドラッグしてください。",
+    "tooSmall": "選択範囲が小さすぎます。",
+    "preparing": "範囲翻訳を準備中",
+    "failedTitle": "範囲翻訳失敗",
+    "failed": "選択範囲を翻訳できませんでした。",
+    "startFailed": "範囲翻訳を開始できませんでした。",
+    "success": "選択範囲から{{count}}個のブロックを作成しました。",
+    "success_one": "選択範囲から{{count}}個のブロックを作成しました。",
+    "success_other": "選択範囲から{{count}}個のブロックを作成しました。"
+  },
+  "translation": {
+    "errors": {
+      "retranslatePageMissing": "再翻訳するページが見つかりませんでした。",
+      "pagesMissing": "翻訳するページが見つかりませんでした。",
+      "jobFailedTitle": "翻訳処理失敗",
+      "jobFailed": "翻訳処理に失敗しました。",
+      "startFailed": "翻訳処理を開始できませんでした。"
+    },
+    "refreshWarning": "翻訳は完了しましたが、ライブラリを更新できませんでした。",
+    "flow": {
+      "firstPass": "1回目",
+      "secondPass": "2回目",
+      "chapterProgress": "{{pass}}翻訳 {{current}}/{{total}}話",
+      "completed": "翻訳が完了しました。",
+      "contextAnalysis": "AI用語／メモリを解析中",
+      "contextSkipped": "1回目の翻訳完了（AI解析をスキップ）",
+      "contextFailed": "AI用語／メモリ解析に失敗したため、1回目の翻訳結果のみ保持します。",
+      "secondPassCompleted": "2回目の翻訳まで完了しました。"
+    }
+  },
+  "settings": {
+    "loadFailed": "設定を読み込めませんでした。",
+    "saved": "設定を保存しました。次回の翻訳実行から適用されます。",
+    "saveFailed": "設定を保存できませんでした。",
+    "reset": "設定をデフォルトに戻しました。次回の翻訳実行から適用されます。",
+    "resetFailed": "デフォルト設定に戻せませんでした。"
+  },
+  "import": {
+    "sourceReadFailed": "翻訳元を読み込めませんでした。",
+    "added": "{{count}}話をライブラリに追加しました。",
+    "added_one": "{{count}}話をライブラリに追加しました。",
+    "added_other": "{{count}}話をライブラリに追加しました。",
+    "applyFailed": "読み込みを適用できませんでした。"
+  },
+  "share": {
+    "exportSuccess": "「{{title}}」の共有ファイルを保存しました。{{chapters}}話、{{pages}}ページ",
+    "exportFailed": "共有ファイルを保存できませんでした。",
+    "readFailed": "共有ファイルを読み込めませんでした。",
+    "remainingChaptersTitle": "読み込まれない話があります",
+    "remainingChaptersMessage": "右側に残っている共有データの話は適用されません。",
+    "deleteExistingTitle": "既存の話を削除",
+    "deleteExistingMessage": "左側の最終リストから除外された既存の話はライブラリから削除されます。",
+    "importApplied": "{{count}}話をライブラリに適用しました。",
+    "importApplied_one": "{{count}}話をライブラリに適用しました。",
+    "importApplied_other": "{{count}}話をライブラリに適用しました。",
+    "importFailed": "共有ファイルを読み込めませんでした。"
+  },
+  "blockCreate": {
+    "tooSmall": "ブロック範囲が小さすぎます。",
+    "added": "新しいテキストブロックを追加しました。"
+  },
+  "gatherText": {
+    "import": {
+      "noText": "読み込んだファイルにテキストがありません。",
+      "missingHeaders": "ページ見出し（# n쪽）がないため、テキストをページに対応付けられません。見出し付きで保存したTXTを使用してください。",
+      "pageNumber": "{{number}}ページ",
+      "headerlessSection": "見出しのないセクション",
+      "pageMissing": "{{page}}: 該当ページが見つからないためスキップしました。",
+      "blockMismatch": "{{page}}ページ: テキスト行の構成が{{count}}個の翻訳ブロックと一致しないためスキップしました。",
+      "blockMismatch_one": "{{page}}ページ: テキスト行の構成が{{count}}個の翻訳ブロックと一致しないためスキップしました。",
+      "blockMismatch_other": "{{page}}ページ: テキスト行の構成が{{count}}個の翻訳ブロックと一致しないためスキップしました。"
+    }
+  }
+}
