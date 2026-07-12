@@ -1,5 +1,6 @@
 import { bboxToPixels, clamp } from "../../shared/geometry";
-import type { BBox, MangaPage, TranslationBlock } from "../../shared/types";
+import type { BBox, TranslationBlock } from "../../shared/textTypes";
+import type { MangaPage } from "../../shared/libraryTypes";
 
 export type PixelRect = {
   x: number;

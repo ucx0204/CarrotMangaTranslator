@@ -61,7 +61,7 @@ export function parseWorkContextModelJson(rawText: string): unknown {
     try {
       return JSON.parse(attempt) as unknown;
     } catch (_error) {
-      // Try the next cleanup pass.
+      // error-policy-allow: model JSON parsing deliberately tries the next bounded repair pass.
     }
   }
 

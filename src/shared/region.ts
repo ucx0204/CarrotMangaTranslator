@@ -1,4 +1,4 @@
-import type { BBox } from "./types";
+import type { BBox } from "./textTypes";
 import { clampBbox } from "./geometry";
 
 export type PageSize = {

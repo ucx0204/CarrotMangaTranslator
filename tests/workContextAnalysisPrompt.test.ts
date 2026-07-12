@@ -4,7 +4,7 @@ import {
   type WorkTextSelection,
 } from "../src/main/workContextAnalysisPrompt";
 import { resolveLanguagePair } from "../src/shared/translationLanguages";
-import type { WorkStyleGuide } from "../src/shared/types";
+import type { WorkStyleGuide } from "../src/shared/workContextTypes";
 
 describe("AI work context analysis prompt", () => {
   it("asks for glossary and characters from every included chapter", () => {

@@ -1,12 +1,14 @@
 export type RuntimeOptions = {
   abortSignal?: AbortSignal | null;
   amdRocmTarget?: string | null;
+  disableHostRocmTargetDetection?: boolean | null;
   hfEndpoint?: string | null;
   hfHomeDir?: string | null;
   hfHubCacheDir?: string | null;
   imagePath?: string | null;
   keepOcrBatchArtifacts?: boolean | null;
   llamaCacheDir?: string | null;
+  llamaRocmTarget?: string | null;
   ocrBatchCompletedBefore?: number | string | null;
   ocrBatchTotal?: number | string | null;
   ocrBboxCommand?: string | null;
@@ -37,6 +39,8 @@ export type RuntimeOptions = {
   pageIndex?: number | null;
   pageTotal?: number | null;
   progressMode?: string | null;
+  rocmArch?: string | null;
+  rocmTarget?: string | null;
   serverLogPath?: string | null;
   sourceLanguage?: string | null;
   targetLanguage?: string | null;

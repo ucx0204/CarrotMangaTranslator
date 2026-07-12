@@ -104,8 +104,7 @@ export const KNOWN_TRANSLATION_LANGUAGES = [
   { code: "hi", labelKo: "힌디어", promptName: "Hindi" },
 ] as const satisfies readonly ResolvedLanguage[];
 
-export type KnownLanguageCode =
-  (typeof KNOWN_TRANSLATION_LANGUAGES)[number]["code"];
+type KnownLanguageCode = (typeof KNOWN_TRANSLATION_LANGUAGES)[number]["code"];
 
 /** 설정 UI 상단 "주요 언어" 그룹에 노출되는 코드 순서. */
 export const PRIMARY_TRANSLATION_LANGUAGE_CODES: LanguageCode[] = [
@@ -196,7 +195,7 @@ export function resolveTranslationLanguageSettings(
 }
 
 /** 지역/스크립트 변형을 제외한 최상위 언어 코드(en-US -> en). */
-export function getBaseLanguageCode(code: unknown): string {
+function getBaseLanguageCode(code: unknown): string {
   return normalizeLanguageCode(code, DEFAULT_SOURCE_LANGUAGE)
     .split("-", 1)[0]
     .toLowerCase();
@@ -206,7 +205,7 @@ export function isJapaneseLanguageCode(code: unknown): boolean {
   return getBaseLanguageCode(code) === "ja";
 }
 
-export function isKoreanLanguageCode(code: unknown): boolean {
+function isKoreanLanguageCode(code: unknown): boolean {
   return getBaseLanguageCode(code) === "ko";
 }
 

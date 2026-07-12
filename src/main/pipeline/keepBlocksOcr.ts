@@ -2,7 +2,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
 import type { ChapterRunPaths } from "../library";
-import type { JobEvent, MangaPage, TranslationBlock } from "../../shared/types";
+import type { JobEvent } from "../../shared/jobTypes";
+import type { MangaPage } from "../../shared/libraryTypes";
+import type { TranslationBlock } from "../../shared/textTypes";
 import { bboxToPixels } from "../../shared/geometry";
 import {
   isJapaneseLanguageCode,
@@ -21,7 +23,7 @@ const CROP_PADDING_PX = 8;
 const MIN_CROP_SIZE_PX = 4;
 
 /** pageId → (블록 인덱스 → 크롭 OCR 텍스트). 텍스트가 없으면 undefined. */
-export type KeepBlocksOcrTexts = Map<string, (string | undefined)[]>;
+type KeepBlocksOcrTexts = Map<string, (string | undefined)[]>;
 
 type KeepBlockCrop = {
   pageId: string;
@@ -85,7 +87,7 @@ export async function prepareKeepBlockHints({
  * 읽어, 블록별 텍스트 증거를 만든다. OCR 실패는 치명적이지 않다 — 텍스트 없이
  * 진행한다(모델이 이미지만으로 읽어야 하므로 품질은 낮아진다).
  */
-export async function collectKeepBlocksOcrTexts({
+async function collectKeepBlocksOcrTexts({
   runtime,
   baseOptions,
   pages,

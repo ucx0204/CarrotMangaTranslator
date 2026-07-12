@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AppSettings, ModelTestProgressEvent } from "../src/shared/types";
+import type { AppSettings } from "../src/shared/settingsTypes";
+import type { ModelTestProgressEvent } from "../src/shared/jobTypes";
 import type { IpcContext } from "../src/main/ipc/context";
 import type { SimplePageRuntime } from "../src/main/simplePageRuntime";
 

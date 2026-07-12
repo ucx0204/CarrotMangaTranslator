@@ -1,4 +1,4 @@
-import type { MangaPage } from "../../shared/types";
+import type { MangaPage } from "../../shared/libraryTypes";
 import { buildNoTextCompletedPage, isOcrResultNoTextDetected } from "./noText";
 import { emitNoTextPage, type ProgressContext } from "./progressEvents";
 import type { OcrBboxResult, PipelineOptions } from "./types";

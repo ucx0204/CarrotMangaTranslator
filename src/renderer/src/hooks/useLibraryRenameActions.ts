@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { RenameTarget } from "../components/AppModals";
+import type { RenameTarget } from "../lib/libraryRenameTypes";
 import type {
   ApplyChapterAction,
   LibraryRenameActions,

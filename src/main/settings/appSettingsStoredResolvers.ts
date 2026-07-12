@@ -12,7 +12,7 @@ import type {
   InpaintingModel,
   KoharuInpaintingBackend,
   LlamaRuntimeProfile,
-} from "../../shared/types";
+} from "../../shared/settingsTypes";
 import { normalizeAmdRocmTarget } from "../gpuInfo";
 import {
   inferHardwareVendorFromDefaults,

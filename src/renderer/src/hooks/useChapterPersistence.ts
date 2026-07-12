@@ -92,13 +92,7 @@ type PersistPageBlocks = (
   context: { dirtyVersion?: number; saveReason?: SaveReason },
 ) => Promise<ChapterSnapshot>;
 
-export type {
-  ChapterPersistenceRefs,
-  DirtyTrackingActions,
-  PersistChapter,
-  ServerVersionSyncActions,
-  UseChapterPersistenceOptions,
-} from "./chapterPersistenceTypes";
+export type { UseChapterPersistenceOptions } from "./chapterPersistenceTypes";
 
 export function useChapterPersistence({
   currentChapter,

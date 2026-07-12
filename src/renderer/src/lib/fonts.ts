@@ -1,9 +1,9 @@
 import type { CustomFont } from "../../../shared/libraryTypes";
 import type { TFunction } from "i18next";
 
-export const DEFAULT_BLOCK_FONT_ID = "default";
+const DEFAULT_BLOCK_FONT_ID = "default";
 
-export const DEFAULT_BLOCK_FONT_STACK =
+const DEFAULT_BLOCK_FONT_STACK =
   '"Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif';
 
 export type BlockFontOption = {
@@ -13,7 +13,7 @@ export type BlockFontOption = {
   sample: string;
 };
 
-export const BLOCK_FONT_OPTIONS: BlockFontOption[] = [
+const BLOCK_FONT_OPTIONS: BlockFontOption[] = [
   {
     id: DEFAULT_BLOCK_FONT_ID,
     label: "기본",
@@ -81,7 +81,7 @@ const BLOCK_FONT_IDS = new Set(BLOCK_FONT_OPTIONS.map((option) => option.id));
 let customFontOptions: BlockFontOption[] = [];
 const customFontIds = new Set<string>();
 
-export function customFontToOption(font: CustomFont): BlockFontOption {
+function customFontToOption(font: CustomFont): BlockFontOption {
   return {
     id: font.id,
     label: font.label,

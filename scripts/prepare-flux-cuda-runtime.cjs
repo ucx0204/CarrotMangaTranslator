@@ -224,7 +224,7 @@ function hasCudnnDll(dir) {
       return true;
     }
   } catch (_error) {
-    // Fall through to the broader check below.
+    // error-policy-allow: a missing direct cuDNN probe falls through to directory discovery.
   }
   try {
     const { readdirSync } = require("node:fs");

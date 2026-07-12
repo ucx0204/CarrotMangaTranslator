@@ -18,10 +18,7 @@ export type {
   BlockFormatDirectionDefault,
 } from "./blockFormat";
 export type { CodexReasoningEffort } from "./codexSettings";
-export type {
-  LanguageCode,
-  TranslationLanguageSettings,
-} from "./translationLanguages";
+export type { LanguageCode } from "./translationLanguages";
 export type { UiLocale } from "./uiLocales";
 
 export type ModelProvider = "gemma" | "openai-codex" | "openai-api";
@@ -46,9 +43,9 @@ export type AmdRocmTarget =
   | "gfx1150"
   | "gfx1151"
   | "gfx120X";
-export type RuntimeGpuVendor = "nvidia" | "amd" | "unknown";
+type RuntimeGpuVendor = "nvidia" | "amd" | "unknown";
 
-export type RuntimeHardwareInfo = {
+type RuntimeHardwareInfo = {
   gpuVendor: RuntimeGpuVendor;
   gpuName?: string | null;
   llamaRocmTarget?: AmdRocmTarget | null;
@@ -56,7 +53,7 @@ export type RuntimeHardwareInfo = {
   supportsVulkan?: boolean;
 };
 
-export type GemmaSettings = {
+type GemmaSettings = {
   modelSource: ModelSource;
   modelRepo: string;
   modelFile: string;
@@ -69,13 +66,13 @@ export type GemmaSettings = {
   llamaRocmTarget?: AmdRocmTarget;
 };
 
-export type CodexSettings = {
+type CodexSettings = {
   model: string;
   reasoningEffort: CodexReasoningEffort;
   oauthPort: number;
 };
 
-export type ApiSettings = {
+type ApiSettings = {
   baseUrl: string;
   model: string;
   apiKey?: string;
@@ -87,7 +84,7 @@ export type ApiSettings = {
   customHeadersJson?: string;
 };
 
-export type OcrSettings = {
+type OcrSettings = {
   device: OcrDevice;
   qualityMode: OcrQualityMode;
   gpuCudaTag?: string;
@@ -106,7 +103,7 @@ export type UiSettings = {
   blockModeDefault?: "auto" | "keep";
 };
 
-export type InpaintingSettings = {
+type InpaintingSettings = {
   model?: InpaintingModel;
   fluxBackend?: FluxBackend;
   koharuBackend?: KoharuInpaintingBackend;

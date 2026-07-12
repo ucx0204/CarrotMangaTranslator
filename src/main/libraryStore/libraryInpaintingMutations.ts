@@ -1,5 +1,5 @@
 import { join, resolve } from "node:path";
-import type { ChapterSnapshot, MangaPage } from "../../shared/types";
+import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
   collectManagedInpaintedArtifacts,

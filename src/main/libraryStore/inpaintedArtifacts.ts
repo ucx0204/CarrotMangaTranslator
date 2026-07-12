@@ -1,6 +1,6 @@
 import { resolve, join } from "node:path";
 import { readdir } from "node:fs/promises";
-import { isPathInside, isSupportedImagePath, safeUnlink } from "./storage";
+import { isPathInside, isSupportedImagePath, unlinkIfExists } from "./storage";
 
 export function inpaintedPathChanged(
   previousPath: string,
@@ -47,7 +47,7 @@ export async function removeUnreferencedInpaintedArtifacts(
     if (!isManagedInpaintedArtifact(chapterDir, candidatePath)) {
       continue;
     }
-    await safeUnlink(resolve(candidatePath));
+    await unlinkIfExists(resolve(candidatePath));
   }
 }
 

@@ -1,8 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import type { TranslateSourceMode } from "../lib/importFlowTypes";
 import { Button, Modal } from "./ui";
-
-export type TranslateSourceMode = "images" | "folder" | "zip";
 
 type TranslateSourceModalProps = {
   busy: boolean;

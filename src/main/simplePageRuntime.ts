@@ -1,5 +1,5 @@
 import { join, resolve } from "node:path";
-import type { ModelTestResult } from "../shared/types";
+import type { ModelTestResult } from "../shared/jobTypes";
 import type { OpenAICompatibleApiEndpoint } from "./openaiApiEndpoint";
 import type { OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
 

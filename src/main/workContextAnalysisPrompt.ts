@@ -1,10 +1,9 @@
+import type { ChapterSnapshot, MangaPage } from "../shared/libraryTypes";
 import type {
-  ChapterSnapshot,
-  MangaPage,
   WorkContextAnalysisScope,
   WorkContextAnalysisCoverage,
-  WorkStyleGuide,
-} from "../shared/types";
+} from "../shared/workContextAnalysisTypes";
+import type { WorkStyleGuide } from "../shared/workContextTypes";
 import {
   resolveLanguagePair,
   type ResolvedLanguagePair,

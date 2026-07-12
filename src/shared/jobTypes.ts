@@ -5,12 +5,7 @@ import type {
   ProgressMode,
 } from "./jobContracts";
 
-export type {
-  JobKind,
-  JobPhase,
-  JobStatus,
-  ProgressMode,
-} from "./jobContracts";
+export type { JobPhase } from "./jobContracts";
 
 export type JobState = {
   id: string;

@@ -53,7 +53,7 @@ def configure_windows_dll_search_path() -> None:
             DLL_DIRECTORY_HANDLES.append(os.add_dll_directory(candidate))
 
 
-def main() -> int:
+def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run PaddleOCR-VL and write geometry hint JSON.")
     parser.add_argument("--image", default=None, help="Input image path.")
     parser.add_argument("--output", default=None, help="Output JSON path.")
@@ -83,7 +83,11 @@ def main() -> int:
         default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE"),
         choices=["legacy", "conservative", "none"],
     )
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> int:
+    args = build_argument_parser().parse_args()
     if args.device:
       os.environ["MANGA_TRANSLATOR_PADDLEOCR_DEVICE"] = args.device
 

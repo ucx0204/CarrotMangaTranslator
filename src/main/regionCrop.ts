@@ -2,7 +2,8 @@ import { nativeImage } from "electron";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
-import type { BBox, MangaPage, TranslationBlock } from "../shared/types";
+import type { BBox, TranslationBlock } from "../shared/textTypes";
+import type { MangaPage } from "../shared/libraryTypes";
 import {
   isUsableRegionBbox,
   mapCropNormalizedBboxToPageBbox,

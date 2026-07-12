@@ -117,80 +117,99 @@ function buildPaddleOcrBboxModeArgs(options = {}) {
   const rocmTransformers =
     device.startsWith("gpu") &&
     resolveOcrGpuBackend(options) === "rocm-transformers";
-  const bboxMode =
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE", options) ||
-    readOptionString(options.ocrBboxMode) ||
-    (rocmTransformers ? "ocr" : "");
-  const engine =
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", options) ||
-    readOptionString(options.ocrEngine) ||
-    (rocmTransformers ? "transformers" : "");
-  const dtype =
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE", options) ||
-    readOptionString(options.ocrEngineDtype) ||
-    (rocmTransformers ? "float32" : "");
-  const ocrVersion =
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VERSION", options) ||
-    readOptionString(options.ocrVersion) ||
-    (rocmTransformers ? "PP-OCRv6" : "");
-  const textDetectionModelName =
-    runtimeOverrideEnv(
-      "MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME",
+  const rocmDefaults = rocmTransformers
+    ? {
+        bboxMode: "ocr",
+        engine: "transformers",
+        dtype: "float32",
+        ocrVersion: "PP-OCRv6",
+        mergeMode: "conservative",
+      }
+    : {};
+  return renderPaddleOcrModeArgs([
+    resolvePaddleOcrModeArg(
+      " --bbox-mode ",
+      "MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE",
+      options.ocrBboxMode,
+      rocmDefaults.bboxMode,
       options,
-    ) ||
-    readOptionString(options.ocrTextDetectionModelName) ||
-    "";
-  const textRecognitionModelName =
-    runtimeOverrideEnv(
-      "MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME",
+    ),
+    resolvePaddleOcrModeArg(
+      " --engine ",
+      "MANGA_TRANSLATOR_PADDLEOCR_ENGINE",
+      options.ocrEngine,
+      rocmDefaults.engine,
       options,
-    ) ||
-    readOptionString(options.ocrTextRecognitionModelName) ||
-    "";
-  const mergeMode =
-    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE", options) ||
-    readOptionString(options.ocrMergeMode) ||
-    (rocmTransformers ? "conservative" : "");
-  if (
-    !bboxMode &&
-    !engine &&
-    !dtype &&
-    !ocrVersion &&
-    !textDetectionModelName &&
-    !textRecognitionModelName &&
-    !mergeMode
-  ) {
-    return "";
-  }
-  const args = [];
-  if (bboxMode) {
-    args.push(" --bbox-mode ", quoteCommandArg(bboxMode));
-  }
-  if (engine) {
-    args.push(" --engine ", quoteCommandArg(engine));
-  }
-  if (dtype) {
-    args.push(" --dtype ", quoteCommandArg(dtype));
-  }
-  if (ocrVersion) {
-    args.push(" --ocr-version ", quoteCommandArg(ocrVersion));
-  }
-  if (textDetectionModelName) {
-    args.push(
+    ),
+    resolvePaddleOcrModeArg(
+      " --dtype ",
+      "MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE",
+      options.ocrEngineDtype,
+      rocmDefaults.dtype,
+      options,
+    ),
+    resolvePaddleOcrModeArg(
+      " --ocr-version ",
+      "MANGA_TRANSLATOR_PADDLEOCR_VERSION",
+      options.ocrVersion,
+      rocmDefaults.ocrVersion,
+      options,
+    ),
+    resolvePaddleOcrModeArg(
       " --text-detection-model-name ",
-      quoteCommandArg(textDetectionModelName),
-    );
-  }
-  if (textRecognitionModelName) {
-    args.push(
+      "MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME",
+      options.ocrTextDetectionModelName,
+      "",
+      options,
+    ),
+    resolvePaddleOcrModeArg(
       " --text-recognition-model-name ",
-      quoteCommandArg(textRecognitionModelName),
-    );
-  }
-  if (mergeMode) {
-    args.push(" --merge-mode ", quoteCommandArg(mergeMode));
-  }
-  return args.join("");
+      "MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME",
+      options.ocrTextRecognitionModelName,
+      "",
+      options,
+    ),
+    resolvePaddleOcrModeArg(
+      " --merge-mode ",
+      "MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE",
+      options.ocrMergeMode,
+      rocmDefaults.mergeMode,
+      options,
+    ),
+  ]);
+}
+
+/**
+ * @param {string} prefix
+ * @param {string} envKey
+ * @param {unknown} optionValue
+ * @param {unknown} fallback
+ * @param {RuntimeOptions} options
+ * @returns {[string, string]}
+ */
+function resolvePaddleOcrModeArg(
+  prefix,
+  envKey,
+  optionValue,
+  fallback,
+  options,
+) {
+  const value =
+    runtimeOverrideEnv(envKey, options) ||
+    readOptionString(optionValue) ||
+    readOptionString(fallback);
+  return [prefix, value];
+}
+
+/**
+ * @param {Array<[string, string]>} entries
+ * @returns {string}
+ */
+function renderPaddleOcrModeArgs(entries) {
+  return entries
+    .filter((entry) => Boolean(entry[1]))
+    .map(([prefix, value]) => `${prefix}${quoteCommandArg(value)}`)
+    .join("");
 }
 
 /**

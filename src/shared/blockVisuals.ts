@@ -1,4 +1,4 @@
-import type { BlockType } from "./types";
+import type { BlockType } from "./textTypes";
 import { normalizeBlockType } from "./geometry";
 
 export type BlockVisualStyle = {
@@ -7,7 +7,7 @@ export type BlockVisualStyle = {
   defaultOpacity: number;
 };
 
-export const BLOCK_VISUAL_STYLES: Record<BlockType, BlockVisualStyle> = {
+const BLOCK_VISUAL_STYLES: Record<BlockType, BlockVisualStyle> = {
   nonsolid: {
     borderColor: "#f59e0b",
     backgroundColor: "#fef3c7",

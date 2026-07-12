@@ -2,7 +2,7 @@ import type {
   WorkShareImportFromPackageRequest,
   WorkShareImportPreviewView,
   WorkShareImportResult,
-} from "../../shared/types";
+} from "../../shared/shareTypes";
 import { tMain } from "./localization";
 import { hydrateChapter } from "./chapterSnapshots";
 import {

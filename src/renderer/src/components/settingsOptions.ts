@@ -18,10 +18,6 @@ import {
 } from "../../../shared/modelPresets";
 
 export {
-  DEFAULT_GEMMA_MMPROJ_FILE,
-  DEFAULT_GEMMA_MMPROJ_REPO,
-  DEFAULT_GEMMA_MODEL_FILE,
-  DEFAULT_GEMMA_MODEL_REPO,
   MIN_CONTEXT_TOKENS,
   MAX_MAX_TOKENS,
   MIN_MAX_TOKENS,
@@ -59,8 +55,6 @@ export const MODEL_PRESETS = {
     ...MODEL_PRESET_COPY.full31b,
   },
 } as const;
-export const DEFAULT_MODEL_PRESET_ID: GemmaModelPresetId = "full31b";
-
 export type ModelPresetId = keyof typeof MODEL_PRESETS | "custom";
 
 type ModelSourceOption = {
@@ -91,7 +85,7 @@ type ApiReasoningOption = {
   labelKey: string;
 };
 
-export type OcrRuntimeOptionId = OcrGpuBackend | "cpu";
+type OcrRuntimeOptionId = OcrGpuBackend | "cpu";
 
 type OcrDeviceOption = {
   id: OcrRuntimeOptionId;

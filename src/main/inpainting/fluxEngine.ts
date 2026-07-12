@@ -12,11 +12,7 @@ export {
   FLUX_INPAINT_MASK_PADDING_PX,
   FLUX_INPAINT_MAX_PIXELS,
 } from "./fluxEngineConstants";
-export {
-  isMaskedRegionEffectivelyUnchanged,
-  measureMaskedRegionChange,
-  type MaskedRegionChangeStats,
-} from "./fluxChangeStats";
+export { isMaskedRegionEffectivelyUnchanged } from "./fluxChangeStats";
 
 export type { InpaintingRuntimeProgress };
 

@@ -8,7 +8,7 @@ import { ensureFluxCudaRuntime, ensureManagedFluxRunner } from "./cudaRuntime";
 import { ensureFluxZludaSupportRuntime } from "./zludaRuntime";
 import { ensureFluxPythonRuntime } from "./pythonRuntime";
 
-export async function ensureMgtFluxKleinRuntime(options: {
+async function ensureMgtFluxKleinRuntime(options: {
   runtimeDir: string;
   nvidiaComputeCapability?: number | null;
   signal?: AbortSignal;

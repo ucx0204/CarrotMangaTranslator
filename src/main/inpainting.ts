@@ -2,12 +2,12 @@ import { nativeImage } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { clamp } from "../shared/geometry";
+import type { FluxBackend } from "../shared/settingsTypes";
 import type {
-  FluxBackend,
   InpaintingMaskStroke,
   InpaintingPoint,
-  MangaPage,
-} from "../shared/types";
+} from "../shared/inpaintingTypes";
+import type { MangaPage } from "../shared/libraryTypes";
 import { tMain } from "./i18n";
 import {
   createCombinedDownloadProgress,

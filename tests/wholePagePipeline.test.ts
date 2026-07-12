@@ -1,17 +1,31 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
   ChapterStoryMemory,
-  JobEvent,
-  MangaPage,
   WorkStyleGuide,
-} from "../src/shared/types";
+} from "../src/shared/workContextTypes";
+import type { JobEvent } from "../src/shared/jobTypes";
+import type { MangaPage } from "../src/shared/libraryTypes";
+import type { AppSettings } from "../src/shared/settingsTypes";
 import type { TranslationOptions } from "../src/main/appSettings";
 import type { OcrBboxResult } from "../src/main/pipeline/types";
+import type { TranslationRuntimePort } from "../src/main/pipeline/translationRuntimePort";
 
 const tempDirs: string[] = [];
+let runSequence = 0;
+const require = createRequire(import.meta.url);
+const overlayParser = require(
+  join(process.cwd(), "src", "main", "runtime", "overlay-parser.cjs"),
+) as Pick<
+  TranslationRuntimePort,
+  | "normalizeItems"
+  | "normalizeRegionSingleItem"
+  | "parseJsonLenient"
+  | "parseRegionSingleItem"
+>;
 
 afterEach(async () => {
   vi.resetModules();
@@ -42,6 +56,13 @@ describe("whole page pipeline", () => {
     });
 
     expect(requestTranslation).toHaveBeenCalledTimes(2);
+    expect(requestTranslation.mock.calls[1]?.[1]).toMatchObject({
+      imagePath: "C:\\images\\001.png",
+      label: "page-1-attempt-2",
+      pageId: "page-a",
+      pageIndex: 0,
+    });
+    expect(runtime.saveArtifacts).toHaveBeenCalledOnce();
     expect(runtime.disposeEndpoint).toHaveBeenCalledTimes(1);
     expect(events.map((event) => event.phase)).toContain("page_retry");
     expect(result.pages[0]?.analysisStatus).toBe("completed");
@@ -107,10 +128,10 @@ describe("whole page pipeline", () => {
     const startEndpointSession = vi.fn();
     const onPagesComplete = vi.fn();
     const events: JobEvent[] = [];
-    const { runWholePagePipeline } = await loadPipeline({
-      ocrHintsByPageId: new Map([
+    const { runWholePagePipeline, runtime } = await loadPipeline({
+      ocrHintsByImagePath: new Map([
         [
-          page.id,
+          page.imagePath,
           {
             hints: [],
             diagnostics: [],
@@ -130,6 +151,15 @@ describe("whole page pipeline", () => {
 
     expect(startEndpointSession).not.toHaveBeenCalled();
     expect(requestTranslation).not.toHaveBeenCalled();
+    expect(runtime.collectOcrHintsBatch).toHaveBeenCalledOnce();
+    expect(runtime.collectOcrHintsBatch.mock.calls[0]?.[0]).toEqual([
+      expect.objectContaining({
+        imagePath: page.imagePath,
+        label: "ocr-page-1",
+        ocrPageIndex: 1,
+        ocrPageTotal: 1,
+      }),
+    ]);
     expect(onPagesComplete).toHaveBeenCalledWith([
       expect.objectContaining({ id: page.id, blocks: [] }),
     ]);
@@ -158,9 +188,9 @@ describe("whole page pipeline", () => {
     }));
     const { runWholePagePipeline } = await loadPipeline({
       sourceLanguage: "en-US",
-      ocrHintsByPageId: new Map([
+      ocrHintsByImagePath: new Map([
         [
-          page.id,
+          page.imagePath,
           {
             hints: [],
             diagnostics: [],
@@ -267,9 +297,9 @@ describe("whole page pipeline", () => {
       .mockResolvedValue(regionSuccessTranslationResult());
     const events: JobEvent[] = [];
     const { runWholePagePipeline } = await loadPipeline({
-      ocrHintsByPageId: new Map([
+      ocrHintsByImagePath: new Map([
         [
-          sourcePage.id,
+          sourcePage.imagePath,
           {
             hints: [
               {
@@ -460,9 +490,9 @@ describe("whole page pipeline", () => {
       .mockResolvedValue(regionSuccessTranslationResult());
     const events: JobEvent[] = [];
     const { runWholePagePipeline } = await loadPipeline({
-      ocrHintsByPageId: new Map([
+      ocrHintsByImagePath: new Map([
         [
-          sourcePage.id,
+          sourcePage.imagePath,
           {
             hints: [],
             diagnostics: [],
@@ -543,22 +573,35 @@ describe("whole page pipeline", () => {
 });
 
 async function loadPipeline({
-  ocrHintsByPageId = new Map<string, OcrBboxResult>(),
+  ocrHintsByImagePath = new Map<string, OcrBboxResult>(),
   requestTranslation = vi.fn().mockResolvedValue(successTranslationResult()),
   sourceLanguage = "ja",
   startEndpointSession,
 }: {
-  ocrHintsByPageId?: Map<string, OcrBboxResult>;
+  ocrHintsByImagePath?: ReadonlyMap<string, OcrBboxResult>;
   requestTranslation?: ReturnType<typeof vi.fn>;
   sourceLanguage?: string;
   startEndpointSession?: ReturnType<typeof vi.fn>;
 } = {}): Promise<{
   runWholePagePipeline: (typeof import("../src/main/wholePagePipeline"))["runWholePagePipeline"];
-  runtime: { disposeEndpoint: ReturnType<typeof vi.fn> };
+  runtime: {
+    collectOcrHintsBatch: ReturnType<typeof vi.fn>;
+    disposeEndpoint: ReturnType<typeof vi.fn>;
+    saveArtifacts: ReturnType<typeof vi.fn>;
+  };
 }> {
   const rootDir = await mkdtemp(join(tmpdir(), "mgt-pipeline-"));
   tempDirs.push(rootDir);
   const disposeEndpoint = vi.fn(async () => undefined);
+  const resolveOcrResult = (options: TranslationOptions): OcrBboxResult =>
+    ocrHintsByImagePath.get(options.imagePath) ?? emptyOcrResult();
+  const collectOcrHints = vi.fn(async (options: TranslationOptions) =>
+    resolveOcrResult(options),
+  );
+  const collectOcrHintsBatch = vi.fn(async (options: TranslationOptions[]) =>
+    options.map(resolveOcrResult),
+  );
+  const saveArtifacts = vi.fn(async () => undefined);
   const endpointStarter =
     startEndpointSession ??
     vi.fn(async () => ({
@@ -587,64 +630,35 @@ async function loadPipeline({
       ocrRuntimeDir: join(rootDir, "ocr-runtime"),
       llamaRuntimeDir: join(rootDir, "tools", "llama"),
       llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
+      hfHomeDir: join(rootDir, "hf-home"),
+      hfHubCacheDir: join(rootDir, "hf-home", "hub"),
+      llamaCacheDir: join(rootDir, "llama-cache"),
     }),
   }));
   vi.doMock("../src/main/settingsStore", () => ({
-    getAppSettings: vi.fn(async () => ({})),
+    getAppSettings: vi.fn(async () => makeAppSettings(sourceLanguage)),
   }));
   vi.doMock("../src/main/logger", () => ({
     logError: vi.fn(),
     logInfo: vi.fn(),
     logWarn: vi.fn(),
   }));
-  vi.doMock("../src/main/pipeline/ocrHints", () => ({
-    prepareOcrHintsForPages: vi.fn(async () => ocrHintsByPageId),
-  }));
-  vi.doMock("../src/main/pipeline/options", () => ({
-    buildBaseOptions: (_jobId: string, runDir: string) => ({
-      ...makeBaseOptions(runDir),
-      sourceLanguage,
-    }),
-    buildPageOptions: (
-      baseOptions: TranslationOptions,
-      page: MangaPage,
-      _index: number,
-      attempt: number,
-    ) => ({
-      ...baseOptions,
-      imagePath: page.imagePath,
-      imageWidth: page.width,
-      imageHeight: page.height,
-      outputDir: join(baseOptions.outputDir, "pages", page.id, `${attempt}`),
-      label: `${page.id}-${attempt}`,
-    }),
-    formatGemmaVramMode: () => "12B 최소 모드",
-    readNumberEnv: (name: string, fallback: number) => {
-      const value = Number(process.env[name]);
-      return Number.isFinite(value) ? value : fallback;
-    },
-    summarizePreview: (text: string) => text.slice(0, 40),
-    summarizeTranslationOptions: (options: TranslationOptions) => ({
-      label: options.label,
-    }),
-  }));
   vi.doMock("../src/main/pipeline/translationRuntimePort", () => ({
     loadTranslationRuntimePort: () => ({
       isModelCached: () => true,
       startEndpointSession: endpointStarter,
+      collectOcrHints,
+      collectOcrHintsBatch,
       requestTranslation,
-      saveArtifacts: vi.fn(async () => undefined),
-      parseJsonLenient: (rawText: string) => JSON.parse(rawText),
-      parseRegionSingleItem: parseRegionSingleItemForTest,
-      normalizeItems: (parsed: { items?: unknown[] }) => parsed.items ?? [],
-      normalizeRegionSingleItem: normalizeRegionSingleItemForTest,
+      saveArtifacts,
+      ...overlayParser,
     }),
   }));
 
   const pipeline = await import("../src/main/wholePagePipeline");
   return {
     runWholePagePipeline: pipeline.runWholePagePipeline,
-    runtime: { disposeEndpoint },
+    runtime: { collectOcrHintsBatch, disposeEndpoint, saveArtifacts },
   };
 }
 
@@ -654,54 +668,63 @@ function basePipelineOptions(
 ): Parameters<
   (typeof import("../src/main/wholePagePipeline"))["runWholePagePipeline"]
 >[0] {
+  const rootDir = join(
+    tmpdir(),
+    `mgt-pipeline-run-${process.pid}-${runSequence++}`,
+  );
+  tempDirs.push(rootDir);
   return {
     jobId: "job-1",
     emit: (event) => events.push(event),
     pages,
     runPaths: {
-      chapterDir: join(tmpdir(), "chapter"),
-      runDir: join(tmpdir(), "run"),
+      chapterDir: join(rootDir, "chapter"),
+      runDir: join(rootDir, "run"),
     },
     signal: new AbortController().signal,
   };
 }
 
-function makeBaseOptions(runDir: string): TranslationOptions {
+function makeAppSettings(sourceLanguage: string): AppSettings {
   return {
-    imagePath: "",
-    outputDir: join(runDir, "analysis"),
     modelProvider: "gemma",
-    port: 39281,
-    promptMode: "default",
-    temperature: 0,
-    topP: 1,
-    topK: 1,
+    translation: {
+      sourceLanguage,
+      targetLanguage: "ko",
+    },
+    gemma: {
+      modelSource: "huggingface",
+      modelRepo: "repo/model",
+      modelFile: "model.gguf",
+      vramMode: "minimum12b",
+      llamaRuntimeProfile: "cuda12",
+    },
+    codex: {
+      model: "gpt-5",
+      reasoningEffort: "medium",
+      oauthPort: 10531,
+    },
+    api: {
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-5",
+    },
+    ocr: {
+      device: "cpu",
+      qualityMode: "minimum",
+      gpuBackend: "cuda",
+      gpuCudaTag: "cu124",
+    },
     maxTokens: 4096,
     ctx: 131072,
-    batch: 128,
-    ubatch: 128,
-    gemmaVramMode: "minimum12b",
-    fitTargetMb: 1024,
-    imageMinTokens: 256,
-    imageMaxTokens: 1024,
-    includeEnhancedVariant: false,
-    enhancedMaxLongSide: 1900,
-    enhancedContrast: 1,
-    imageFirst: false,
-    reuseServer: true,
-    workingDir: runDir,
-    toolsDir: join(runDir, "tools"),
-    serverPath: join(runDir, "llama-server.exe"),
-    modelSource: "huggingface",
-    modelRepo: "repo/model",
-    modelFile: "model.gguf",
-    codexModel: "gpt-5",
-    codexReasoningEffort: "medium",
-    codexOauthPort: 10531,
-    apiBaseUrl: "https://api.openai.com/v1",
-    apiModel: "gpt-5",
-    ocrDevice: "cpu",
-    label: "base",
+  };
+}
+
+function emptyOcrResult(): OcrBboxResult {
+  return {
+    hints: [],
+    diagnostics: [],
+    noTextDetected: false,
+    textEvidenceCount: 0,
   };
 }
 
@@ -782,7 +805,10 @@ function successTranslationResult(): {
         {
           id: 1,
           type: "speech",
-          bbox: { x: 100, y: 100, w: 200, h: 100 },
+          x1: 100,
+          y1: 100,
+          x2: 300,
+          y2: 200,
           jp: "こんにちは",
           ko: "안녕",
           direction: "horizontal",
@@ -855,50 +881,4 @@ function regionSoundTranslationResult(): {
     rawResponse: {},
     requestBody: {},
   };
-}
-
-function parseRegionSingleItemForTest(rawText: string): unknown {
-  const parsed = JSON.parse(rawText) as unknown;
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Region response contract violation");
-  }
-  const record = parsed as Record<string, unknown>;
-  const keys = Object.keys(record);
-  if (keys.length !== 1 || keys[0] !== "item") {
-    throw new Error("Region response contract violation");
-  }
-  if (
-    record.item !== null &&
-    (!record.item ||
-      typeof record.item !== "object" ||
-      Array.isArray(record.item))
-  ) {
-    throw new Error("Region response contract violation");
-  }
-  return parsed;
-}
-
-function normalizeRegionSingleItemForTest(parsed: unknown): unknown[] {
-  const item = (parsed as { item: Record<string, unknown> | null }).item;
-  if (item === null) {
-    return [];
-  }
-  const x1 = Number(item.x1);
-  const y1 = Number(item.y1);
-  const x2 = Number(item.x2);
-  const y2 = Number(item.y2);
-  return [
-    {
-      ...item,
-      id: 1,
-      type: "nonsolid",
-      textRole: item.textRole ?? "ordinary",
-      bbox: {
-        x: Math.min(x1, x2),
-        y: Math.min(y1, y2),
-        w: Math.abs(x2 - x1),
-        h: Math.abs(y2 - y1),
-      },
-    },
-  ];
 }

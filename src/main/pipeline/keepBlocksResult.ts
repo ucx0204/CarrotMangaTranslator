@@ -1,9 +1,11 @@
 import {
+  bboxOverlapRatio,
   bboxToPixels,
   clamp,
   normalizeBboxTo1000,
 } from "../../shared/geometry";
-import type { BBox, MangaPage, TranslationBlock } from "../../shared/types";
+import type { TranslationBlock } from "../../shared/textTypes";
+import type { MangaPage } from "../../shared/libraryTypes";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import { tMain } from "./localization";
 import { buildPageWarnings } from "./overlayItems";
@@ -221,16 +223,6 @@ function matchRemainingItemsByOverlap(
       itemByBlockIndex.set(bestIndex, item);
     }
   }
-}
-
-function bboxOverlapRatio(a: BBox, b: BBox): number {
-  const left = Math.max(a.x, b.x);
-  const top = Math.max(a.y, b.y);
-  const right = Math.min(a.x + a.w, b.x + b.w);
-  const bottom = Math.min(a.y + a.h, b.y + b.h);
-  const overlap = Math.max(0, right - left) * Math.max(0, bottom - top);
-  const minArea = Math.max(1, Math.min(a.w * a.h, b.w * b.h));
-  return overlap / minArea;
 }
 
 function normalizeItemConfidence(value: unknown, fallback: number): number {

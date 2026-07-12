@@ -49,10 +49,10 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-unused-vars": [
-        "warn",
+        "error",
         {
           argsIgnorePattern: "^_",
           caughtErrorsIgnorePattern: "^_",
@@ -60,7 +60,7 @@ export default tseslint.config(
         },
       ],
       "react-refresh/only-export-components": [
-        "warn",
+        "error",
         {
           allowConstantExport: true,
         },
@@ -242,10 +242,25 @@ export default tseslint.config(
     },
   },
   {
+    files: ["src/main/runtime/**/*.cjs"],
+    rules: {
+      complexity: ["error", 12],
+      "max-depth": ["error", 3],
+      "max-lines": [
+        "error",
+        { max: 400, skipBlankLines: true, skipComments: true },
+      ],
+      "max-lines-per-function": [
+        "error",
+        { max: 80, skipBlankLines: true, skipComments: true },
+      ],
+    },
+  },
+  {
     files: ["**/*.{js,cjs,mjs,ts,tsx}"],
     rules: {
       "no-control-regex": "off",
-      "no-empty": ["warn", { allowEmptyCatch: false }],
+      "no-empty": ["error", { allowEmptyCatch: false }],
       "no-new-func": "error",
       "no-redeclare": "error",
       "no-restricted-syntax": [
@@ -259,12 +274,18 @@ export default tseslint.config(
           message:
             "Use catch (error) and handle, rethrow, or explicitly ignore expected optional failures.",
         },
+        {
+          selector:
+            "ImportDeclaration[source.value=/shared\\/types$/], ExportNamedDeclaration[source.value=/shared\\/types$/]",
+          message:
+            "Import the owning domain contract directly instead of recreating the shared/types umbrella.",
+        },
       ],
       "no-this-alias": "off",
       "@typescript-eslint/no-this-alias": "off",
-      "@typescript-eslint/no-non-null-assertion": "warn",
-      "no-useless-assignment": "warn",
-      "preserve-caught-error": "warn",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "no-useless-assignment": "error",
+      "preserve-caught-error": "error",
     },
   },
   {
@@ -275,18 +296,25 @@ export default tseslint.config(
       "src/shared/**/*.{ts,tsx}",
     ],
     rules: {
-      complexity: ["warn", 12],
-      "max-depth": ["warn", 3],
+      complexity: ["error", 12],
+      "max-depth": ["error", 3],
       "max-lines": [
-        "warn",
+        "error",
         { max: 400, skipBlankLines: true, skipComments: true },
       ],
       "max-lines-per-function": [
-        "warn",
+        "error",
         { max: 80, skipBlankLines: true, skipComments: true },
       ],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+    },
+  },
+  {
+    // Isolated CommonJS-to-native-ESM bridge for the allowlisted OAuth package.
+    files: ["src/main/nativeDynamicImport.ts"],
+    rules: {
+      "no-new-func": "off",
     },
   },
 );

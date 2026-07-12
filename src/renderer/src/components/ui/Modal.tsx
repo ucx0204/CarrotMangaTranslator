@@ -13,7 +13,7 @@ function getFocusable(container: HTMLElement): HTMLElement[] {
   ).filter((element) => element.offsetParent !== null);
 }
 
-export type ModalSize = "sm" | "md" | "lg" | "xl";
+type ModalSize = "sm" | "md" | "lg" | "xl";
 
 export type ModalProps = {
   title?: React.ReactNode;

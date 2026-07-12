@@ -329,7 +329,7 @@ function applyRocmCompilerEnv(
   }
 }
 
-export function resolveAmdGpuTargets(): string | null {
+function resolveAmdGpuTargets(): string | null {
   const value =
     process.env.MANGA_TRANSLATOR_AMDGPU_TARGETS ??
     process.env.MGT_AMDGPU_TARGETS ??

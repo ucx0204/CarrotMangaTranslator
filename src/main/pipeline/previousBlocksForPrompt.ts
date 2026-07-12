@@ -1,5 +1,7 @@
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
-import type { BBox, MangaPage } from "../../shared/types";
+import type { BBox } from "../../shared/textTypes";
+import type { MangaPage } from "../../shared/libraryTypes";
+import { bboxOverlapRatio } from "../../shared/geometry";
 
 export function buildPreviousBlocksForPrompt(
   page: MangaPage,
@@ -120,16 +122,6 @@ function centerInside(
   return (
     centerX >= left && centerX <= right && centerY >= top && centerY <= bottom
   );
-}
-
-function bboxOverlapRatio(a: BBox, b: BBox): number {
-  const left = Math.max(a.x, b.x);
-  const top = Math.max(a.y, b.y);
-  const right = Math.min(a.x + a.w, b.x + b.w);
-  const bottom = Math.min(a.y + a.h, b.y + b.h);
-  const overlap = Math.max(0, right - left) * Math.max(0, bottom - top);
-  const minArea = Math.max(1, Math.min(a.w * a.h, b.w * b.h));
-  return overlap / minArea;
 }
 
 function inferPreviousBlockTextRole(

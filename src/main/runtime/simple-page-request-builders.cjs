@@ -42,6 +42,19 @@ const FORBIDDEN_CUSTOM_HEADER_NAMES = new Set([
   "set-cookie",
 ]);
 
+/** @type {Readonly<Record<string, string>>} */
+const IMAGE_VARIANT_DESCRIPTIONS = Object.freeze({
+  "openai-vision":
+    "the full manga page prepared for OpenAI detail: original vision. Use it as the geometry authority.",
+  enhanced:
+    "the same full manga page rendered as grayscale/high-contrast assist view. Use it only for OCR help, never as the coordinate authority.",
+});
+
+const DEFAULT_IMAGE_VARIANT_DESCRIPTION =
+  "the original full manga page. Use it as the geometry authority.";
+const REGION_CROP_DESCRIPTION =
+  "the selected manga crop. Use it as the geometry authority.";
+
 /**
  * @param {RequestOptions} options
  * @param {ImageVariant[]} imageVariants
@@ -115,6 +128,30 @@ function describeImageVariant(variant, index, options = {}) {
     return describeFullPageContextVariant(variant, index, options);
   }
 
+  const description = resolveImageVariantDescription(variant, index, options);
+  return `Image ${index + 1}: ${description}${describeImageVariantDimensions(variant, options)}`;
+}
+
+/**
+ * @param {ImageVariant} variant
+ * @param {number} index
+ * @param {RequestOptions} options
+ */
+function resolveImageVariantDescription(variant, index, options) {
+  if (options.regionCropMode && index === 0) {
+    return REGION_CROP_DESCRIPTION;
+  }
+  return (
+    IMAGE_VARIANT_DESCRIPTIONS[variant.role] ??
+    DEFAULT_IMAGE_VARIANT_DESCRIPTION
+  );
+}
+
+/**
+ * @param {ImageVariant} variant
+ * @param {RequestOptions} options
+ */
+function describeImageVariantDimensions(variant, options) {
   const originalWidth =
     readPositiveInteger(options.imageWidth) ||
     readPositiveInteger(variant.originalWidth);
@@ -128,20 +165,7 @@ function describeImageVariant(variant, index, options = {}) {
     originalWidth && originalHeight
       ? ` Original page size is ${originalWidth}x${originalHeight} px.`
       : "";
-
-  if (options.regionCropMode && index === 0) {
-    return `Image ${index + 1}: the selected manga crop. Use it as the geometry authority.${sizeText}${originalSizeText}`;
-  }
-
-  if (variant.role === "openai-vision") {
-    return `Image ${index + 1}: the full manga page prepared for OpenAI detail: original vision. Use it as the geometry authority.${sizeText}${originalSizeText}`;
-  }
-
-  if (variant.role === "enhanced") {
-    return `Image ${index + 1}: the same full manga page rendered as grayscale/high-contrast assist view. Use it only for OCR help, never as the coordinate authority.${sizeText}${originalSizeText}`;
-  }
-
-  return `Image ${index + 1}: the original full manga page. Use it as the geometry authority.${sizeText}${originalSizeText}`;
+  return `${sizeText}${originalSizeText}`;
 }
 
 /**

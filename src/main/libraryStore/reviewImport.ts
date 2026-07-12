@@ -1,10 +1,9 @@
+import type { ChapterSnapshot } from "../../shared/libraryTypes";
 import type {
-  ChapterSnapshot,
   ImportReviewTextRequest,
   ImportReviewTextResult,
-  ReviewStatus,
-  TranslationBlock,
-} from "../../shared/types";
+} from "../../shared/reviewTypes";
+import type { ReviewStatus, TranslationBlock } from "../../shared/textTypes";
 import { parseReviewTable, type ReviewRow } from "../../shared/reviewTable";
 import { tMain } from "./localization";
 import { hydrateChapter } from "./chapterSnapshots";

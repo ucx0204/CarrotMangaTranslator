@@ -3,10 +3,10 @@ import type {
   CharacterSpeechStyle,
   GlossaryEntryCategory,
   PageStoryMemory,
-  WorkContextAnalysisCounts,
   WorkStyleGuide,
   WorkTranslationRules,
-} from "../shared/types";
+} from "../shared/workContextTypes";
+import type { WorkContextAnalysisCounts } from "../shared/workContextAnalysisTypes";
 
 export type AiGlossarySuggestion = {
   source: string;

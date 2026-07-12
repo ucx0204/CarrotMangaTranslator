@@ -7,7 +7,7 @@ import {
   LibraryWorkFileSchema,
   StoredLibraryIndexFileSchema,
 } from "../../shared/ipcSchemas";
-import type { LibraryChapter, LibraryWork } from "../../shared/types";
+import type { LibraryChapter, LibraryWork } from "../../shared/libraryTypes";
 import { getAppPaths } from "../appPaths";
 import { tMain } from "./localization";
 import { relocateCopiedChapterImagePath } from "./chapterImageRelocation";
@@ -21,8 +21,8 @@ import {
 } from "./storage";
 import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
 
-export const LIBRARY_ROOT = getAppPaths().libraryDir;
-export const INDEX_PATH = join(LIBRARY_ROOT, "index.json");
+const LIBRARY_ROOT = getAppPaths().libraryDir;
+const INDEX_PATH = join(LIBRARY_ROOT, "index.json");
 export const WORKS_ROOT = join(LIBRARY_ROOT, "works");
 
 export function getDefaultWorkTitle(): string {
@@ -53,7 +53,7 @@ export function assertLibraryImagePath(imagePath: string): string {
   return resolvedImagePath;
 }
 
-export function assertLibraryImagePathScope(
+function assertLibraryImagePathScope(
   imagePath: string,
   message = "보관함 밖의 이미지는 열 수 없습니다.",
 ): string {
@@ -89,7 +89,7 @@ export function assertChapterImagePath(
   return resolvedImagePath;
 }
 
-export function assertChapterImagePathScope(
+function assertChapterImagePathScope(
   workId: string,
   chapterId: string,
   imagePath: string,
@@ -294,12 +294,12 @@ export async function removeChapterDirectory(
   }
 }
 
-export function workFilePath(workId: string): string {
+function workFilePath(workId: string): string {
   assertSafeStoreId(workId, "작품 ID가 올바르지 않습니다.");
   return join(WORKS_ROOT, workId, "work.json");
 }
 
-export function chapterFilePath(workId: string, chapterId: string): string {
+function chapterFilePath(workId: string, chapterId: string): string {
   assertSafeStoreId(workId, "작품 ID가 올바르지 않습니다.");
   assertSafeStoreId(chapterId, "화 ID가 올바르지 않습니다.");
   return join(WORKS_ROOT, workId, "chapters", chapterId, "chapter.json");

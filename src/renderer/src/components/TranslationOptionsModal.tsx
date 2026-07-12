@@ -1,10 +1,10 @@
-/* eslint-disable max-lines-per-function */
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type {
   ChapterSnapshot,
   LibraryIndex,
+  LibraryWorkSummary,
 } from "../../../shared/libraryTypes";
 import type { UiSettings } from "../../../shared/settingsTypes";
 import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
@@ -23,14 +23,7 @@ const ANALYSIS_OPTION_IDS: WorkContextAnalysisScope[] = [
   "chapter",
 ];
 
-export function TranslationOptionsModal({
-  chapter,
-  library,
-  uiSettings,
-  onStart,
-  onPersistDefaults,
-  onClose,
-}: {
+type TranslationOptionsModalProps = {
   chapter: ChapterSnapshot;
   library: LibraryIndex;
   uiSettings: UiSettings | undefined;
@@ -42,9 +35,17 @@ export function TranslationOptionsModal({
     >,
   ) => void;
   onClose: () => void;
-}): React.JSX.Element {
+};
+
+export function TranslationOptionsModal({
+  chapter,
+  library,
+  uiSettings,
+  onStart,
+  onPersistDefaults,
+  onClose,
+}: TranslationOptionsModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const { t: tRenderer } = useTranslation("renderer");
   const work = React.useMemo(
     () => library.works.find((item) => item.id === chapter.workId) ?? null,
     [library.works, chapter.workId],
@@ -92,68 +93,117 @@ export function TranslationOptionsModal({
       onClose={onClose}
       closeOnBackdrop
       footer={
-        <>
-          <Button onClick={onClose}>{t("common.cancel")}</Button>
-          <Button
-            variant="primary"
-            onClick={handleStart}
-            disabled={runSelection.length === 0}
-          >
-            {t("translationOptions.start")}
-          </Button>
-        </>
+        <TranslationOptionsFooter
+          onCancel={onClose}
+          onStart={handleStart}
+          startDisabled={runSelection.length === 0}
+        />
       }
     >
-      <div className="translate-options">
-        {work ? (
-          <ChapterPagePicker
-            work={work}
-            currentChapter={chapter}
-            selection={selection}
-            onChange={setSelection}
-          />
-        ) : (
-          <p className="translate-options-hint">
-            {t("translationOptions.workUnavailable")}
-          </p>
-        )}
-
-        <div className="translate-options-twopass">
-          <label className="inline-toggle translate-options-toggle">
-            <input
-              type="checkbox"
-              checked={twoPass}
-              onChange={(event) => setTwoPass(event.target.checked)}
-            />
-            {t("translationOptions.secondPass")}
-          </label>
-          <p className="translate-options-hint">
-            {t("translationOptions.secondPassHint")}
-          </p>
-        </div>
-        <OptionRow
-          label={t("translationOptions.analysisScope")}
-          options={ANALYSIS_OPTION_IDS.map((id) => ({
-            id,
-            label: t(`translationOptions.analysisOptions.${id}`),
-          }))}
-          value={analysisScope}
-          onChange={setAnalysisScope}
-          disabled={!twoPass}
-        />
-        <OptionRow
-          label={t("common.blocks")}
-          options={getBlockModeOptions(tRenderer)}
-          value={blockMode}
-          onChange={setBlockMode}
-        />
-        {blockMode === "keep" ? (
-          <p className="translate-options-hint">
-            {t("translationOptions.keepBlocksHint")}
-          </p>
-        ) : null}
-      </div>
+      <TranslationOptionsForm
+        chapter={chapter}
+        work={work}
+        selection={selection}
+        onSelectionChange={setSelection}
+        twoPass={twoPass}
+        onTwoPassChange={setTwoPass}
+        analysisScope={analysisScope}
+        onAnalysisScopeChange={setAnalysisScope}
+        blockMode={blockMode}
+        onBlockModeChange={setBlockMode}
+      />
     </Modal>
+  );
+}
+
+function TranslationOptionsFooter({
+  onCancel,
+  onStart,
+  startDisabled,
+}: {
+  onCancel: () => void;
+  onStart: () => void;
+  startDisabled: boolean;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <>
+      <Button onClick={onCancel}>{t("common.cancel")}</Button>
+      <Button variant="primary" onClick={onStart} disabled={startDisabled}>
+        {t("translationOptions.start")}
+      </Button>
+    </>
+  );
+}
+
+type TranslationOptionsFormProps = {
+  chapter: ChapterSnapshot;
+  work: LibraryWorkSummary | null;
+  selection: ChapterSelectionMap;
+  onSelectionChange: (selection: ChapterSelectionMap) => void;
+  twoPass: boolean;
+  onTwoPassChange: (enabled: boolean) => void;
+  analysisScope: WorkContextAnalysisScope;
+  onAnalysisScopeChange: (scope: WorkContextAnalysisScope) => void;
+  blockMode: AnalysisBlockMode;
+  onBlockModeChange: (mode: AnalysisBlockMode) => void;
+};
+
+function TranslationOptionsForm(
+  props: TranslationOptionsFormProps,
+): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const { t: tRenderer } = useTranslation("renderer");
+  return (
+    <div className="translate-options">
+      {props.work ? (
+        <ChapterPagePicker
+          work={props.work}
+          currentChapter={props.chapter}
+          selection={props.selection}
+          onChange={props.onSelectionChange}
+        />
+      ) : (
+        <p className="translate-options-hint">
+          {t("translationOptions.workUnavailable")}
+        </p>
+      )}
+
+      <div className="translate-options-twopass">
+        <label className="inline-toggle translate-options-toggle">
+          <input
+            type="checkbox"
+            checked={props.twoPass}
+            onChange={(event) => props.onTwoPassChange(event.target.checked)}
+          />
+          {t("translationOptions.secondPass")}
+        </label>
+        <p className="translate-options-hint">
+          {t("translationOptions.secondPassHint")}
+        </p>
+      </div>
+      <OptionRow
+        label={t("translationOptions.analysisScope")}
+        options={ANALYSIS_OPTION_IDS.map((id) => ({
+          id,
+          label: t(`translationOptions.analysisOptions.${id}`),
+        }))}
+        value={props.analysisScope}
+        onChange={props.onAnalysisScopeChange}
+        disabled={!props.twoPass}
+      />
+      <OptionRow
+        label={t("common.blocks")}
+        options={getBlockModeOptions(tRenderer)}
+        value={props.blockMode}
+        onChange={props.onBlockModeChange}
+      />
+      {props.blockMode === "keep" ? (
+        <p className="translate-options-hint">
+          {t("translationOptions.keepBlocksHint")}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

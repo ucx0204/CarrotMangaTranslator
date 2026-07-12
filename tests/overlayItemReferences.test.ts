@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MangaPage } from "../src/shared/types";
+import type { MangaPage } from "../src/shared/libraryTypes";
 import type { OverlayItem } from "../src/main/pipeline/types";
 import { validateOverlayItemsAgainstReferences } from "../src/main/pipeline/overlayItemReferences";
 

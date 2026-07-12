@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "entry": [
+    "src/main/index.ts",
+    "src/preload/index.ts",
+    "src/renderer/src/main.tsx",
+    "tests/**/*.test.{ts,tsx}",
+    "scripts/**/*.{cjs,mjs,js}"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx,js,cjs,mjs}",
+    "tests/**/*.{ts,tsx,js,cjs,mjs}",
+    "scripts/**/*.{ts,tsx,js,cjs,mjs}",
+    "*.{ts,tsx,js,cjs,mjs}"
+  ],
+  "ignoreIssues": {
+    "src/main/runtime/**/*.cjs": ["exports", "types", "nsExports", "nsTypes"],
+    "src/shared/modelPresets.ts": ["duplicates"]
+  }
+}

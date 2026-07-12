@@ -1,6 +1,6 @@
 import { type Dispatch, type SetStateAction } from "react";
 import type { ChapterSnapshot } from "../../../../shared/libraryTypes";
-import type { Command } from "../../components/CommandPalette";
+import type { Command } from "../../lib/appCommandTypes";
 import { useAppCommands } from "../../hooks/useAppCommands";
 
 type UseAppSessionCommandControllerArgs = {

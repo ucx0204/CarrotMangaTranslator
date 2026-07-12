@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { CustomFont, MangaPage } from "../shared/types";
+import type { CustomFont, MangaPage } from "../shared/libraryTypes";
 import { getAppPaths } from "./appPaths";
 import { listCustomFonts, resolveCustomFontFilePath } from "./customFonts";
 import { buildPageExportBlocks } from "./pageExportBlocks";

@@ -6,6 +6,7 @@ const fsState = vi.hoisted(() => ({
   unlinkCalls: [] as unknown[][],
   writeFileCalls: [] as unknown[][],
   renameErrors: [] as NodeJS.ErrnoException[],
+  unlinkErrors: [] as NodeJS.ErrnoException[],
 }));
 
 vi.mock("node:fs/promises", () => ({
@@ -20,9 +21,12 @@ vi.mock("node:fs/promises", () => ({
       throw error;
     }
   }),
-  stat: vi.fn(),
   unlink: vi.fn(async (...args: unknown[]) => {
     fsState.unlinkCalls.push(args);
+    const error = fsState.unlinkErrors.shift();
+    if (error) {
+      throw error;
+    }
   }),
   writeFile: vi.fn(async (...args: unknown[]) => {
     fsState.writeFileCalls.push(args);
@@ -40,6 +44,7 @@ describe("library storage", () => {
     fsState.unlinkCalls = [];
     fsState.writeFileCalls = [];
     fsState.renameErrors = [];
+    fsState.unlinkErrors = [];
     vi.resetModules();
   });
 
@@ -68,5 +73,43 @@ describe("library storage", () => {
     expect(fsState.renameCalls).toHaveLength(1);
     expect(fsState.unlinkCalls).toHaveLength(1);
     expect(String(fsState.unlinkCalls[0][0])).toContain(".chapter.json.");
+  });
+
+  it("preserves both the write failure and a temp-file cleanup failure", async () => {
+    fsState.renameErrors = [errno("EIO")];
+    fsState.unlinkErrors = [errno("EACCES")];
+    const { writeJsonFile } = await import("../src/main/libraryStore/storage");
+
+    const failure = await writeJsonFile("C:/library/work/chapter.json", {
+      ok: true,
+    }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect((failure as AggregateError).errors).toEqual([
+      expect.objectContaining({ code: "EIO" }),
+      expect.objectContaining({ code: "EACCES" }),
+    ]);
+  });
+
+  it("ignores a missing file when unlinking", async () => {
+    fsState.unlinkErrors = [errno("ENOENT")];
+    const { unlinkIfExists } = await import("../src/main/libraryStore/storage");
+
+    await expect(unlinkIfExists("C:/library/missing.png")).resolves.toBe(
+      undefined,
+    );
+
+    expect(fsState.unlinkCalls).toEqual([["C:/library/missing.png"]]);
+  });
+
+  it("propagates permission failures when unlinking", async () => {
+    fsState.unlinkErrors = [errno("EACCES")];
+    const { unlinkIfExists } = await import("../src/main/libraryStore/storage");
+
+    await expect(
+      unlinkIfExists("C:/library/protected.png"),
+    ).rejects.toMatchObject({ code: "EACCES" });
+
+    expect(fsState.unlinkCalls).toEqual([["C:/library/protected.png"]]);
   });
 });

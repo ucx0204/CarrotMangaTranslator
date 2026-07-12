@@ -1,11 +1,10 @@
 import type {
   ApiReasoningEffort,
   GemmaVramMode,
-  ModelProvider,
   ModelSource,
   OcrDevice,
   OcrQualityMode,
-} from "./types";
+} from "./settingsTypes";
 import type { CodexReasoningEffort } from "./codexSettings";
 
 export const GEMMA_31B_MODEL_REPO =
@@ -33,8 +32,7 @@ export const GEMMA_12B_MMPROJ_REPO = "ggml-org/gemma-4-12B-it-GGUF";
 export const GEMMA_12B_MMPROJ_FILE = "mmproj-gemma-4-12B-it-bf16.gguf";
 
 export const DEFAULT_GEMMA_MODEL_REPO = GEMMA_31B_MODEL_REPO;
-export const DEFAULT_GEMMA_MODEL_FILE_IQ3_S = GEMMA_31B_MODEL_FILE_IQ3_S;
-export const DEFAULT_GEMMA_MODEL_FILE = DEFAULT_GEMMA_MODEL_FILE_IQ3_S;
+export const DEFAULT_GEMMA_MODEL_FILE = GEMMA_31B_MODEL_FILE_IQ3_S;
 export const DEFAULT_GEMMA_MMPROJ_REPO = GEMMA_31B_MMPROJ_REPO;
 export const DEFAULT_GEMMA_MMPROJ_FILE = GEMMA_31B_MMPROJ_FILE;
 export const DEFAULT_GEMMA_DRAFT_MODEL_REPO =
@@ -98,8 +96,6 @@ export const CODEX_MODEL_PRESETS = [
   },
 ] as const satisfies readonly CodexModelPreset[];
 
-export const DEFAULT_GEMMA_VRAM_MODE: GemmaVramMode = "full31b";
-export const DEFAULT_MODEL_PROVIDER: ModelProvider = "gemma";
 export const DEFAULT_MODEL_SOURCE: ModelSource = "huggingface";
 export const DEFAULT_CODEX_MODEL = CODEX_MODEL_PRESETS[0].id;
 export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = "low";

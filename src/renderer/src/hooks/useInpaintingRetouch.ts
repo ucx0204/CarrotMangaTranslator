@@ -6,10 +6,6 @@ import type {
 
 export type {
   InpaintingRetouchResult,
-  RetouchApplyTool,
-  RetouchDrawTool,
-  RetouchHistoryEntry,
-  RetouchPoint,
   RetouchPreviewState,
   UseInpaintingRetouchOptions,
 } from "./inpaintingRetouchTypes";

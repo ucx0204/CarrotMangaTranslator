@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import type {
-  ChapterSnapshot,
   ChapterStoryMemory,
   WorkStyleGuide,
-} from "../src/shared/types";
+} from "../src/shared/workContextTypes";
 import {
   mergeAiWorkContextSuggestions,
   type BasePageMemory,

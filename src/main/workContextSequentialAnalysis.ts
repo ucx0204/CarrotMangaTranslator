@@ -1,10 +1,10 @@
 import type {
   AnalyzeWorkContextRequest,
   AnalyzeWorkContextResult,
-  ChapterSnapshot,
   WorkContextAnalysisCounts,
-  WorkStyleGuide,
-} from "../shared/types";
+} from "../shared/workContextAnalysisTypes";
+import type { ChapterSnapshot } from "../shared/libraryTypes";
+import type { WorkStyleGuide } from "../shared/workContextTypes";
 import type { TranslationOptions } from "./appSettings";
 import { getChapterStoryMemory } from "./library";
 import { logWarn } from "./logger";

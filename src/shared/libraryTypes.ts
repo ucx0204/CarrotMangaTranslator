@@ -2,12 +2,7 @@ import type { TranslationBlock } from "./textTypes";
 
 export type PageAnalysisStatus = "idle" | "running" | "completed" | "failed";
 
-export type ChapterStatus =
-  | "idle"
-  | "running"
-  | "completed"
-  | "partial"
-  | "failed";
+type ChapterStatus = "idle" | "running" | "completed" | "partial" | "failed";
 
 export type RunMode = "pending" | "all" | "single-page" | "page-set";
 

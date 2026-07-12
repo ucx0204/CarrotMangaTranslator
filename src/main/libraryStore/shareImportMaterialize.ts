@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
-import type { LibraryPageRecord } from "../../shared/types";
+import type { LibraryPageRecord } from "../../shared/libraryTypes";
 import { tMain } from "./localization";
 import { reorderRecords, resolveChapterStatus } from "./chapterRecords";
 import {
@@ -15,7 +15,7 @@ import {
   writeChapterFile,
   type ChapterFile,
 } from "./libraryFiles";
-import { isSupportedImagePath, safeUnlink } from "./storage";
+import { isSupportedImagePath, unlinkIfExists } from "./storage";
 import {
   MAX_SHARE_IMAGE_BYTES,
   normalizeShareRelativePath,
@@ -317,7 +317,7 @@ async function writePackageImageEntry({
         displayName,
       );
     } finally {
-      await safeUnlink(tempSourcePath);
+      await unlinkIfExists(tempSourcePath);
     }
     return;
   }

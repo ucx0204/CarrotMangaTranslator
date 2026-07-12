@@ -5,18 +5,14 @@ import type {
   WorkShareImportPreview,
   WorkSharePreviewChapter,
 } from "../../../../shared/shareTypes";
+import type { ShareImportModalSubmit } from "../../lib/shareImportTypes";
 import {
   buildExistingItems,
   toExistingItem,
   toImportEntry,
   toLeftPackageItem,
 } from "./shareImportHelpers";
-import type {
-  ActiveDrag,
-  LeftItem,
-  NewSelection,
-  ShareImportModalSubmit,
-} from "./shareImportTypes";
+import type { ActiveDrag, LeftItem, NewSelection } from "./shareImportTypes";
 
 type ShareImportModalStateInput = {
   library: LibraryIndex;

@@ -32,6 +32,12 @@ module.exports = {
       to: { path: "^src/main/(runtime|pipeline)/" },
     },
     {
+      name: "main-pipeline-uses-library-facade",
+      severity: "error",
+      from: { path: "^src/main/(pipeline/|wholePagePipeline\\.ts$)" },
+      to: { path: "^src/main/libraryStore/" },
+    },
+    {
       name: "main-jobs-do-not-import-ipc",
       severity: "error",
       from: { path: "^src/main/jobs/" },
@@ -48,6 +54,12 @@ module.exports = {
       severity: "error",
       from: { path: "^src/renderer/src/lib/" },
       to: { path: "^src/renderer/src/(app|components|hooks)/" },
+    },
+    {
+      name: "renderer-hooks-do-not-import-components",
+      severity: "error",
+      from: { path: "^src/renderer/src/hooks/" },
+      to: { path: "^src/renderer/src/components/" },
     },
     {
       name: "renderer-api-does-not-import-app-components-or-hooks",

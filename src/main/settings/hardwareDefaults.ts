@@ -11,7 +11,7 @@ import type {
   OcrDevice,
   OcrGpuBackend,
   OcrQualityMode,
-} from "../../shared/types";
+} from "../../shared/settingsTypes";
 import type { DetectedGpuInfo } from "../gpuInfo";
 import {
   normalizeAmdRocmTarget,

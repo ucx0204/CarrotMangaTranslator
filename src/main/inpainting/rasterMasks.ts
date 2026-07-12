@@ -1,5 +1,8 @@
 import { clamp } from "../../shared/geometry";
-import type { InpaintingMaskStroke, InpaintingPoint } from "../../shared/types";
+import type {
+  InpaintingMaskStroke,
+  InpaintingPoint,
+} from "../../shared/inpaintingTypes";
 import type { PixelRect } from "./maskGeometry";
 
 type Rgb = {

@@ -3,7 +3,7 @@ import {
   filterRejectedOrUncertainSoundItems,
   overlayItemToBlock,
 } from "../src/main/pipeline/overlayItems";
-import type { MangaPage } from "../src/shared/types";
+import type { MangaPage } from "../src/shared/libraryTypes";
 import type { OverlayItem } from "../src/main/pipeline/types";
 
 describe("overlay item conversion", () => {

@@ -34,6 +34,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   delete (window as unknown as { mangaApi?: Partial<MangaApi> }).mangaApi;
 });
 
@@ -44,7 +46,7 @@ describe("chapter persistence save queue", () => {
     savePageBlocksMock
       .mockReturnValueOnce(firstSave.promise)
       .mockReturnValueOnce(secondSave.promise);
-    const api = renderHarness();
+    const { api } = renderHarness();
 
     act(() => {
       api.current.updateText("first");
@@ -98,13 +100,161 @@ describe("chapter persistence save queue", () => {
     );
     expect(api.current.getDirty()).toBe(false);
   });
+
+  it("coalesces identical overlapping manual saves into one persistence call", async () => {
+    const saveGate = createDeferred<ChapterSnapshot>();
+    savePageBlocksMock.mockReturnValue(saveGate.promise);
+    const { api } = renderHarness();
+
+    act(() => {
+      api.current.updateText("one draft");
+    });
+    const firstSave = api.current.saveNow();
+    const duplicateSave = api.current.saveNow();
+
+    await waitFor(() => {
+      expect(savePageBlocksMock).toHaveBeenCalledOnce();
+    });
+    await act(async () => {
+      saveGate.resolve(makeChapter("one draft", "2026-01-01T00:00:01.000Z"));
+      await Promise.all([firstSave, duplicateSave]);
+    });
+
+    expect(savePageBlocksMock).toHaveBeenCalledOnce();
+    expect(api.current.getDirty()).toBe(false);
+    expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
+      "one draft",
+    );
+  });
+
+  it("rejects every waiter on queue failure and allows a later retry", async () => {
+    const failure = new Error("storage unavailable");
+    savePageBlocksMock
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce(
+        makeChapter("retry draft", "2026-01-01T00:00:01.000Z"),
+      );
+    const { api } = renderHarness();
+
+    act(() => {
+      api.current.updateText("retry draft");
+    });
+    const firstSave = api.current.saveNow();
+    const waitingSave = api.current.saveNow();
+
+    await act(async () => {
+      await expect(Promise.all([firstSave, waitingSave])).rejects.toBe(failure);
+    });
+    expect(savePageBlocksMock).toHaveBeenCalledOnce();
+    expect(api.current.getDirty()).toBe(true);
+    expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
+      "retry draft",
+    );
+
+    await act(async () => {
+      await api.current.saveNow();
+    });
+
+    expect(savePageBlocksMock).toHaveBeenCalledTimes(2);
+    expect(savePageBlocksMock.mock.calls[1][0]).toMatchObject({
+      baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+      dirtyVersion: 1,
+      saveReason: "manual",
+    });
+    expect(api.current.getDirty()).toBe(false);
+  });
+
+  it("converts a stale server version into a page-save conflict without losing edits", async () => {
+    const staleError = Object.assign(new Error("stale version"), {
+      code: "STALE_PAGE_SAVE",
+    });
+    savePageBlocksMock.mockRejectedValue(staleError);
+    const { api } = renderHarness();
+
+    act(() => {
+      api.current.updateText("unsaved conflict draft");
+    });
+
+    await act(async () => {
+      await expect(api.current.saveNow()).rejects.toMatchObject({
+        code: "PAGE_SAVE_CONFLICT",
+        message:
+          "페이지 저장 충돌이 발생했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.",
+      });
+    });
+
+    expect(savePageBlocksMock).toHaveBeenCalledOnce();
+    expect(api.current.getDirty()).toBe(true);
+    expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
+      "unsaved conflict draft",
+    );
+  });
+
+  it("cancels a scheduled autosave when the editor unmounts", async () => {
+    vi.useFakeTimers();
+    const { api, unmount } = renderHarness();
+
+    act(() => {
+      api.current.updateText("unmounted draft");
+    });
+    expect(api.current.getDirty()).toBe(true);
+
+    unmount();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(savePageBlocksMock).not.toHaveBeenCalled();
+  });
+
+  it("deduplicates repeated autosave error notifications within the cooldown", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const onSaveError = vi.fn();
+    savePageBlocksMock.mockRejectedValue(new Error("storage unavailable"));
+    const { api } = renderHarness(onSaveError);
+
+    act(() => {
+      api.current.updateText("first failing autosave");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(savePageBlocksMock).toHaveBeenCalledOnce();
+    expect(onSaveError).toHaveBeenCalledWith("storage unavailable");
+
+    act(() => {
+      api.current.updateText("second failing autosave");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(savePageBlocksMock).toHaveBeenCalledTimes(2);
+    expect(onSaveError).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5001);
+    });
+    act(() => {
+      api.current.updateText("third failing autosave");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(savePageBlocksMock).toHaveBeenCalledTimes(3);
+    expect(onSaveError).toHaveBeenCalledTimes(2);
+  });
 });
 
-function renderHarness(): React.MutableRefObject<HarnessApi> {
+function renderHarness(onSaveError?: (message: string) => void): {
+  api: React.MutableRefObject<HarnessApi>;
+  unmount: () => void;
+} {
   const api = React.createRef<HarnessApi>();
 
-  render(
+  const { unmount } = render(
     React.createElement(ChapterPersistenceHarness, {
+      onSaveError,
       onReady: (nextApi: HarnessApi) => {
         api.current = nextApi;
       },
@@ -114,12 +264,17 @@ function renderHarness(): React.MutableRefObject<HarnessApi> {
   if (!api.current) {
     throw new Error("Chapter persistence harness did not initialize.");
   }
-  return api as React.MutableRefObject<HarnessApi>;
+  return {
+    api: api as React.MutableRefObject<HarnessApi>,
+    unmount,
+  };
 }
 
 function ChapterPersistenceHarness({
+  onSaveError,
   onReady,
 }: {
+  onSaveError?: (message: string) => void;
   onReady: (api: HarnessApi) => void;
 }): React.JSX.Element | null {
   const [chapter, setChapterState] = useState<ChapterSnapshot | null>(() =>
@@ -138,6 +293,7 @@ function ChapterPersistenceHarness({
   const persistence = useChapterPersistence({
     currentChapter: chapter,
     currentChapterRef,
+    onSaveError,
     setCurrentChapter,
   });
 

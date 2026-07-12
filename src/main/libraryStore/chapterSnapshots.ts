@@ -1,4 +1,7 @@
-import type { ChapterSnapshot, LibraryChapter } from "../../shared/types";
+import type {
+  ChapterSnapshot,
+  LibraryChapter,
+} from "../../shared/libraryTypes";
 import { normalizeBlockType } from "../../shared/geometry";
 import { reorderRecords } from "./chapterRecords";
 

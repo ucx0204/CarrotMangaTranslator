@@ -1,4 +1,4 @@
-import type { MangaPage } from "../../shared/types";
+import type { MangaPage } from "../../shared/libraryTypes";
 import type { OcrBboxResult, RequestSummary, TranslationResult } from "./types";
 
 export function isOcrResultNoTextDetected(

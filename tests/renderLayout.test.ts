@@ -5,7 +5,7 @@ import {
   resolveBlockRectPx,
   resolveBlockTextLayout,
 } from "../src/renderer/src/lib/overlayLayout";
-import type { TranslationBlock } from "../src/shared/types";
+import type { TranslationBlock } from "../src/shared/textTypes";
 
 const originalDocument = globalThis.document;
 

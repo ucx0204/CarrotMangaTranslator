@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export { BBoxSchema, TranslationBlockSchema } from "./ipcSchemaPrimitives";
+export { TranslationBlockSchema } from "./ipcSchemaPrimitives";
 export {
   AnalyzeWorkContextRequestSchema,
   ChapterStoryMemoryRequestSchema,
@@ -21,12 +21,8 @@ export {
   DeleteWorkRequestSchema,
   ImageDataUrlRequestSchema,
   LibraryChapterFileSchema,
-  LibraryChapterSummarySchema,
   LibraryIndexSchema,
-  LibraryPageRecordSchema,
   LibraryWorkFileSchema,
-  LibraryWorkSummarySchema,
-  MangaPageSchema,
   OpenChapterRequestSchema,
   RenameChapterRequestSchema,
   RenameWorkRequestSchema,

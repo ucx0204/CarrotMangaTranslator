@@ -731,6 +731,8 @@ scripts/      빌드, 개발 실행, 스모크 테스트, 런타임 준비 스�
 tools/         ffmpeg, Flux runner, 개발용 네이티브 도구
 ```
 
+세부 의존 방향, SSOT, 오류 처리와 테스트 규칙은 [코드 경계와 품질 규칙](docs/architecture.md)을 참고하세요.
+
 ### 런타임 관련 메모
 
 - Gemma 번역은 `src/main/runtime/simple-page-*.cjs` 계열에서 처리합니다.

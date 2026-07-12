@@ -1,6 +1,6 @@
 import type { DetectedGpuInfo } from "../gpuInfo";
 import { resolveAmdRocmTargetFromInfo } from "../gpuInfo";
-import type { LlamaRuntimeProfile } from "../../shared/types";
+import type { LlamaRuntimeProfile } from "../../shared/settingsTypes";
 
 export function resolveLlamaRuntimeProfile(
   env: { MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE?: string },
@@ -41,7 +41,7 @@ export function isNvidiaLlamaRuntimeProfile(profile: string): boolean {
   return canonical === "cuda12" || canonical === "rtx50";
 }
 
-export function canonicalizeLlamaRuntimeProfile(
+function canonicalizeLlamaRuntimeProfile(
   value: unknown,
 ): LlamaRuntimeProfile | undefined {
   const normalized = String(value ?? "")

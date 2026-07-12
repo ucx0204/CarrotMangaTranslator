@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { RenameTarget } from "../components/AppModals";
+import type { RenameTarget } from "../lib/libraryRenameTypes";
 import type { ChapterSnapshot, LibraryIndex } from "./libraryActionTypes";
 
 type RenameTargetStateOptions = {

@@ -5,17 +5,15 @@ import type {
   ImportPreviewResult,
 } from "../../../shared/importTypes";
 import type { LibraryIndex } from "../../../shared/libraryTypes";
+import type { ImportModalSubmit } from "../lib/importFlowTypes";
 import {
   buildImportSubmitPayload,
   isImportSubmittable,
-  type ImportModalSubmit,
   type ImportTargetMode,
   updateSelectionEnabled,
   updateSelectionTitle,
 } from "./importModalHelpers";
 import { Button, Modal, TextField } from "./ui";
-
-export type { ImportModalSubmit } from "./importModalHelpers";
 
 type ImportModalProps = {
   library: LibraryIndex;

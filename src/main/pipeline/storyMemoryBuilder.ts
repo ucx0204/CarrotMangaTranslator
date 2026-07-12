@@ -1,8 +1,8 @@
 import type {
   ChapterStoryMemory,
-  MangaPage,
   PageStoryMemory,
-} from "../../shared/types";
+} from "../../shared/workContextTypes";
+import type { MangaPage } from "../../shared/libraryTypes";
 
 export function buildPageStoryMemory({
   page,

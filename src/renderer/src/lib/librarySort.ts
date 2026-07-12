@@ -33,7 +33,7 @@ export function getLibrarySortOptions(
   ];
 }
 
-export const DEFAULT_LIBRARY_SORT: LibrarySort = {
+const DEFAULT_LIBRARY_SORT: LibrarySort = {
   key: "updated",
   direction: "desc",
 };

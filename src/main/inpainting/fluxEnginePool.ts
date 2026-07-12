@@ -9,6 +9,7 @@ import {
 import type { FluxBackend } from "../../shared/inpaintingSettingsTypes";
 import { detectBestGpuInfo } from "../gpuInfo";
 import { tMain } from "./localization";
+import { LeasedIdleResourcePool } from "./leasedIdleResource";
 
 const FLUX_ENGINE_IDLE_TTL_MS = 5 * 60 * 1000;
 
@@ -17,13 +18,11 @@ type FluxEngineLease = {
   release: () => void;
 };
 
-type CachedFluxEngine = {
-  key: string;
-  engine: FluxInpaintingEngine;
-  idleTimer: ReturnType<typeof setTimeout> | null;
-};
-
-let cachedEngine: CachedFluxEngine | null = null;
+const fluxEnginePool = new LeasedIdleResourcePool<FluxInpaintingEngine>({
+  idleTtlMs: FLUX_ENGINE_IDLE_TTL_MS,
+  isReusable: (engine) => engine.isHealthy?.() !== false,
+  dispose: disposeFluxEngine,
+});
 
 export async function acquireFluxInpaintingEngine(options: {
   appPaths: AppPaths;
@@ -56,85 +55,54 @@ export async function acquireFluxInpaintingEngine(options: {
       : null;
   const key = `${fluxBackend}\n${nvidiaComputeCapability ?? "generic"}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
 
-  if (
-    cachedEngine?.key === key &&
-    cachedEngine.engine.isHealthy?.() !== false
-  ) {
-    clearIdleTimer(cachedEngine);
+  const lease = await fluxEnginePool.acquire(key, () =>
+    prepareFluxInpaintingEngine({
+      runtimeDir,
+      modelDir,
+      fluxBackend,
+      nvidiaComputeCapability,
+      runRootDir,
+      signal: options.signal,
+      onProgress: options.onProgress,
+    }),
+  );
+  if (lease.reused) {
     options.onProgress?.({
       progressText: tMain("inpainting.runtime.fluxReady"),
       detail: tMain("inpainting.runtime.cachedFlux"),
       progressMode: "log-only",
       installLogLine: tMain("inpainting.runtime.cachedFluxLog"),
     });
-    return {
-      engine: cachedEngine.engine,
-      release: scheduleCachedFluxEngineDispose,
-    };
+  } else {
+    logInfo("Flux inpainting engine cached", {
+      ttlMs: FLUX_ENGINE_IDLE_TTL_MS,
+    });
   }
-
-  if (cachedEngine?.key === key) {
-    await disposeCachedFluxInpaintingEngine("unhealthy-worker");
-  }
-
-  await disposeCachedFluxInpaintingEngine("replace");
-  const engine = await prepareFluxInpaintingEngine({
-    runtimeDir,
-    modelDir,
-    fluxBackend,
-    nvidiaComputeCapability,
-    runRootDir,
-    signal: options.signal,
-    onProgress: options.onProgress,
-  });
-  cachedEngine = {
-    key,
-    engine,
-    idleTimer: null,
-  };
-  logInfo("Flux inpainting engine cached", { ttlMs: FLUX_ENGINE_IDLE_TTL_MS });
 
   return {
-    engine,
-    release: scheduleCachedFluxEngineDispose,
+    engine: lease.resource,
+    release: lease.release,
   };
 }
 
 export async function disposeCachedFluxInpaintingEngine(
   reason: string,
 ): Promise<boolean> {
-  const current = cachedEngine;
-  if (!current) {
-    return false;
-  }
-  cachedEngine = null;
-  clearIdleTimer(current);
+  return fluxEnginePool.dispose(reason);
+}
+
+async function disposeFluxEngine(
+  engine: FluxInpaintingEngine,
+  reason: string,
+): Promise<void> {
   try {
-    await current.engine.dispose();
+    await engine.dispose();
     logInfo("Flux inpainting engine disposed", { reason });
   } catch (error) {
     logError("Failed to dispose cached Flux inpainting engine", {
       reason,
       error,
     });
-  }
-  return true;
-}
-
-function scheduleCachedFluxEngineDispose(): void {
-  if (!cachedEngine) {
-    return;
-  }
-  clearIdleTimer(cachedEngine);
-  cachedEngine.idleTimer = setTimeout(() => {
-    void disposeCachedFluxInpaintingEngine("idle-ttl");
-  }, FLUX_ENGINE_IDLE_TTL_MS);
-}
-
-function clearIdleTimer(engine: CachedFluxEngine): void {
-  if (engine.idleTimer) {
-    clearTimeout(engine.idleTimer);
-    engine.idleTimer = null;
   }
 }
 

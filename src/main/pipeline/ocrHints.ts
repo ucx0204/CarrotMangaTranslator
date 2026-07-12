@@ -2,7 +2,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
 import type { ChapterRunPaths } from "../library";
-import type { JobEvent, MangaPage } from "../../shared/types";
+import type { JobEvent } from "../../shared/jobTypes";
+import type { MangaPage } from "../../shared/libraryTypes";
 import {
   DEFAULT_SOURCE_LANGUAGE,
   normalizeLanguageCode,

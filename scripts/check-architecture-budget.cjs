@@ -14,7 +14,7 @@ const depcruiseBin = join(
 );
 
 /**
- * @typedef {{ coreModule?: boolean; couldNotResolve?: boolean }} DepcruiseDependency
+ * @typedef {{ coreModule?: boolean; couldNotResolve?: boolean; dependencyTypes?: string[]; resolved?: string }} DepcruiseDependency
  * @typedef {{ source: string; dependencies?: DepcruiseDependency[]; dependents?: unknown[] }} DepcruiseModule
  */
 
@@ -42,6 +42,23 @@ function readDepcruiseReport() {
 /** @type {{ modules?: DepcruiseModule[] }} */
 const report = JSON.parse(readDepcruiseReport());
 const violations = [];
+/** @type {Record<string, number>} */
+const runtimeDependentCounts = {};
+
+for (const moduleInfo of report.modules ?? []) {
+  for (const dependency of moduleInfo.dependencies ?? []) {
+    if (
+      dependency.coreModule ||
+      dependency.couldNotResolve ||
+      dependency.dependencyTypes?.includes("type-only") ||
+      !dependency.resolved
+    ) {
+      continue;
+    }
+    runtimeDependentCounts[dependency.resolved] =
+      (runtimeDependentCounts[dependency.resolved] ?? 0) + 1;
+  }
+}
 
 for (const moduleInfo of report.modules ?? []) {
   const source = moduleInfo.source;
@@ -51,16 +68,16 @@ for (const moduleInfo of report.modules ?? []) {
   const imports = (moduleInfo.dependencies ?? []).filter(
     (dependency) => !dependency.coreModule && !dependency.couldNotResolve,
   ).length;
-  const importedBy = (moduleInfo.dependents ?? []).length;
+  const runtimeImportedBy = runtimeDependentCounts[source] ?? 0;
 
   if (imports > maxImports) {
     violations.push(
       `${source}: imports ${imports} exceeds budget ${maxImports}`,
     );
   }
-  if (importedBy > maxImportedBy) {
+  if (runtimeImportedBy > maxImportedBy) {
     violations.push(
-      `${source}: importedBy ${importedBy} exceeds budget ${maxImportedBy}`,
+      `${source}: runtimeImportedBy ${runtimeImportedBy} exceeds budget ${maxImportedBy}`,
     );
   }
 }

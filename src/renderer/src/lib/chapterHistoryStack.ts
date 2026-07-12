@@ -5,10 +5,10 @@
  * restore both.
  */
 
-export const MAX_HISTORY_ENTRIES = 100;
-export const HISTORY_COALESCE_MS = 600;
+const MAX_HISTORY_ENTRIES = 100;
+const HISTORY_COALESCE_MS = 600;
 
-export type SelectionSnapshot = {
+type SelectionSnapshot = {
   selectedPageId: string | null;
   selectedBlockId: string | null;
   selectedBlockIds: string[];

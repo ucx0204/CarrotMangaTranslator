@@ -6,10 +6,12 @@ import type {
   WorkShareExportRequest,
   WorkShareImportPreview,
 } from "../../../shared/shareTypes";
-import type { ImportModalSubmit } from "../components/ImportModal";
-import type { ShareImportModalSubmit } from "../components/ShareImportModal";
-import type { TranslateSourceMode } from "../components/TranslateSourceModal";
 import { formatErrorMessage } from "../lib/appHelpers";
+import type {
+  ImportModalSubmit,
+  TranslateSourceMode,
+} from "../lib/importFlowTypes";
+import type { ShareImportModalSubmit } from "../lib/shareImportTypes";
 import { mangaGateway } from "../api/mangaGateway";
 
 type ImportPreviewMode = TranslateSourceMode | "zip-folder";

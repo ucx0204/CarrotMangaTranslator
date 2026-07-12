@@ -11,15 +11,8 @@ export {
   DEFAULT_API_TEMPERATURE,
   DEFAULT_API_TOP_K,
   DEFAULT_API_TOP_P,
-  DEFAULT_GEMMA_MMPROJ_FILE,
-  DEFAULT_GEMMA_MMPROJ_REPO,
   DEFAULT_GEMMA_MODEL_FILE,
-  DEFAULT_GEMMA_MODEL_FILE_IQ3_S,
-  DEFAULT_GEMMA_MODEL_REPO,
-  DEFAULT_GEMMA_VRAM_MODE,
   DEFAULT_MAX_TOKENS,
-  DEFAULT_MODEL_PROVIDER,
-  DEFAULT_MODEL_SOURCE,
   DEFAULT_OCR_DEVICE,
   DEFAULT_OCR_GPU_CUDA_TAG,
   DEFAULT_OCR_QUALITY_MODE,
@@ -27,17 +20,8 @@ export {
   GEMMA_12B_MMPROJ_REPO,
   GEMMA_12B_MODEL_FILE_Q4_K_M,
   GEMMA_12B_MODEL_REPO,
-  GEMMA_26B_MMPROJ_FILE,
-  GEMMA_26B_MMPROJ_REPO,
   GEMMA_26B_MODEL_FILE_IQ3_S,
   GEMMA_26B_MODEL_REPO,
-  GEMMA_31B_MMPROJ_FILE,
-  GEMMA_31B_MMPROJ_REPO,
-  GEMMA_31B_MODEL_FILE_IQ3_S,
-  GEMMA_31B_MODEL_REPO,
-  MAX_MAX_TOKENS,
-  MIN_CONTEXT_TOKENS,
-  MIN_MAX_TOKENS,
   RTX_50_OCR_GPU_CUDA_TAG,
 } from "../shared/modelPresets";
 export {
@@ -48,12 +32,8 @@ export {
   resolveDefaultAppSettings,
   resolveHardwareDefaults,
 } from "./settings/appSettingsDefaults";
-export {
-  buildBaseTranslationOptions,
-  filterPackagedRuntimeEnv,
-} from "./settings/translationOptions";
+export { buildBaseTranslationOptions } from "./settings/translationOptions";
 export type {
   PreviousOverlayBlockForPrompt,
-  TranslationOptionPaths,
   TranslationOptions,
 } from "./settings/appSettingsTypes";

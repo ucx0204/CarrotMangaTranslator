@@ -9,13 +9,13 @@ import {
 } from "../../shared/geometry";
 import type {
   BBox,
-  BlockFormatDefaults,
   BlockType,
-  MangaPage,
   RenderTextDirection,
   SourceTextDirection,
   TranslationBlock,
-} from "../../shared/types";
+} from "../../shared/textTypes";
+import type { BlockFormatDefaults } from "../../shared/blockFormat";
+import type { MangaPage } from "../../shared/libraryTypes";
 import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
 import { tMain } from "./localization";
 import type { OverlayItem } from "./types";
@@ -25,7 +25,6 @@ export {
   getOcrBboxHints,
   normalizeOverlayItemBboxes,
   validateOverlayItemsAgainstReferences,
-  type OverlayValidationResult,
 } from "./overlayItemReferences";
 export { applyOcrCandidateGeometryLocks } from "./overlayOcrGeometryLocks";
 

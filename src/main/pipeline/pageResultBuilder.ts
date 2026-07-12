@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
-import type { MangaPage } from "../../shared/types";
+import type { MangaPage } from "../../shared/libraryTypes";
 import { tMain } from "./localization";
 import { prunePromptWorkContextForBudget } from "../../shared/workContextBudget";
 import { buildNoTextCompletedPage } from "./noText";

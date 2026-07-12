@@ -8,9 +8,9 @@ import {
 
 export { MAX_MAX_TOKENS, MIN_CONTEXT_TOKENS, MIN_MAX_TOKENS };
 
-export const MAX_TITLE_LENGTH = 240;
-export const MAX_TEXT_LENGTH = 20000;
-export const MAX_PATH_LENGTH = 4096;
+const MAX_TITLE_LENGTH = 240;
+const MAX_TEXT_LENGTH = 20000;
+const MAX_PATH_LENGTH = 4096;
 export const MAX_ID_LIST_LENGTH = 2000;
 export const MAX_PAGES_PER_REQUEST = 2000;
 export const MAX_BLOCKS_PER_PAGE = 500;
@@ -38,12 +38,12 @@ export const storeId = z
   );
 export const title = z.string().max(MAX_TITLE_LENGTH);
 export const filePath = z.string().min(1).max(MAX_PATH_LENGTH);
-export const boundedText = z.string().max(MAX_TEXT_LENGTH);
+const boundedText = z.string().max(MAX_TEXT_LENGTH);
 export const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i);
 
-export const ReviewStatusSchema = z.enum(["draft", "needs_review", "reviewed"]);
+const ReviewStatusSchema = z.enum(["draft", "needs_review", "reviewed"]);
 
-export const LegacyRenderDirectionSchema = z.preprocess(
+const LegacyRenderDirectionSchema = z.preprocess(
   (value) => {
     const normalized = String(value ?? "")
       .trim()

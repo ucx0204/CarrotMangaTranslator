@@ -21,7 +21,7 @@ import type {
   OcrDevice,
   OcrGpuBackend,
   OcrQualityMode,
-} from "../../shared/types";
+} from "../../shared/settingsTypes";
 import {
   isAmdLlamaRuntimeProfile,
   isNvidiaLlamaRuntimeProfile,

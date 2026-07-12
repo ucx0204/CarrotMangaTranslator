@@ -50,7 +50,3 @@ export function isOfficialOpenAiApiBaseUrl(value: unknown): boolean {
     return false;
   }
 }
-
-export function isValidOpenAiCompatibleBaseUrl(value: unknown): boolean {
-  return coerceOpenAiCompatibleBaseUrl(value) !== null;
-}

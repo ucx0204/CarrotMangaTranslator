@@ -4,11 +4,14 @@ import {
   ChapterStoryMemorySchema,
   WorkStyleGuideSchema,
 } from "../../shared/ipcSchemas";
-import type { ChapterStoryMemory, WorkStyleGuide } from "../../shared/types";
+import type {
+  ChapterStoryMemory,
+  WorkStyleGuide,
+} from "../../shared/workContextTypes";
 import { WORKS_ROOT, findChapterLocation, readWorkFile } from "./libraryFiles";
 import { readJsonFile, writeJsonFile } from "./storage";
 
-export function createDefaultWorkStyleGuide(workId: string): WorkStyleGuide {
+function createDefaultWorkStyleGuide(workId: string): WorkStyleGuide {
   const now = new Date().toISOString();
   return {
     schemaVersion: 1,
@@ -25,7 +28,7 @@ export function createDefaultWorkStyleGuide(workId: string): WorkStyleGuide {
   };
 }
 
-export function createDefaultChapterStoryMemory(
+function createDefaultChapterStoryMemory(
   workId: string,
   chapterId: string,
 ): ChapterStoryMemory {
@@ -148,11 +151,11 @@ export async function resolveWorkContextForChapter(chapterId: string): Promise<{
   };
 }
 
-export function styleGuidePath(workId: string): string {
+function styleGuidePath(workId: string): string {
   return join(WORKS_ROOT, workId, "style-guide.json");
 }
 
-export function storyMemoryPath(workId: string, chapterId: string): string {
+function storyMemoryPath(workId: string, chapterId: string): string {
   return join(WORKS_ROOT, workId, "chapters", chapterId, "story-memory.json");
 }
 

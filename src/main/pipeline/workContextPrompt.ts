@@ -2,7 +2,7 @@ import type {
   ChapterStoryMemory,
   PromptWorkContext,
   WorkStyleGuide,
-} from "../../shared/types";
+} from "../../shared/workContextTypes";
 
 export function buildPromptWorkContextForPage({
   baseStyleGuide,

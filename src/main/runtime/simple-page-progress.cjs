@@ -62,39 +62,65 @@ function parsePipRawProgress(line) {
  * @returns {OcrBatchProgress | null}
  */
 function parseOcrBatchProgressLine(line) {
+  const payload = parseOcrBatchProgressPayload(line);
+  if (!payload) {
+    return null;
+  }
+  const index = Number(payload.index);
+  const total = Number(payload.total);
+  if (!isValidOcrBatchPosition(index, total)) {
+    return null;
+  }
+  return {
+    phase: normalizeOcrBatchPhase(payload.phase),
+    index: Math.max(1, Math.min(Math.floor(index), Math.floor(total))),
+    total: Math.floor(total),
+    count: normalizeOcrBatchCount(payload.count),
+  };
+}
+
+/**
+ * @param {unknown} line
+ * @returns {{ index?: unknown; total?: unknown; phase?: unknown; count?: unknown } | null}
+ */
+function parseOcrBatchProgressPayload(line) {
   const text = String(line ?? "").trim();
   if (!text.startsWith("{") || !text.endsWith("}")) {
     return null;
   }
   try {
-    /** @type {{ index?: unknown; total?: unknown; phase?: unknown; count?: unknown }} */
-    const payload = JSON.parse(text);
-    const index = Number(payload?.index);
-    const total = Number(payload?.total);
-    if (
-      !Number.isFinite(index) ||
-      !Number.isFinite(total) ||
-      index <= 0 ||
-      total <= 0
-    ) {
-      return null;
-    }
-    const rawPhase = String(payload?.phase ?? "done")
-      .trim()
-      .toLowerCase();
-    const phase =
-      rawPhase === "start" ? "start" : rawPhase === "error" ? "error" : "done";
-    return {
-      phase,
-      index: Math.max(1, Math.min(Math.floor(index), Math.floor(total))),
-      total: Math.floor(total),
-      count: Number.isFinite(Number(payload?.count))
-        ? Math.max(0, Math.floor(Number(payload.count)))
-        : 0,
-    };
+    return /** @type {{ index?: unknown; total?: unknown; phase?: unknown; count?: unknown }} */ (
+      JSON.parse(text)
+    );
   } catch (_error) {
     return null;
   }
+}
+
+/** @param {number} index @param {number} total @returns {boolean} */
+function isValidOcrBatchPosition(index, total) {
+  return (
+    Number.isFinite(index) && Number.isFinite(total) && index > 0 && total > 0
+  );
+}
+
+/** @param {unknown} phase @returns {"start" | "done" | "error"} */
+function normalizeOcrBatchPhase(phase) {
+  const normalized = String(phase ?? "done")
+    .trim()
+    .toLowerCase();
+  if (normalized === "start" || normalized === "error") {
+    return normalized;
+  }
+  return "done";
+}
+
+/** @param {unknown} count @returns {number} */
+function normalizeOcrBatchCount(count) {
+  const numericCount = Number(count);
+  return Number.isFinite(numericCount)
+    ? Math.max(0, Math.floor(numericCount))
+    : 0;
 }
 
 /**

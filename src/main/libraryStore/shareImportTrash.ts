@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, rename, rm, rmdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { safeCleanup } from "../safeCleanup";
 import { tMain } from "./localization";
 import { WORKS_ROOT } from "./libraryFiles";
 import { isPathInside } from "./storage";
@@ -83,7 +82,7 @@ export async function discardTrashedChapterDirectories(
   for (const operationTrashRoot of operationTrashRoots) {
     await rm(operationTrashRoot, { recursive: true, force: true });
   }
-  await pruneTrashRoots(workId, trashedChapters);
+  await removeDirectoryIfEmpty(resolveTrashRoot(workId));
 }
 
 async function pruneTrashRoots(
@@ -94,13 +93,27 @@ async function pruneTrashRoots(
     trashedChapters.map((trashedChapter) => trashedChapter.operationTrashRoot),
   );
   for (const operationTrashRoot of operationTrashRoots) {
-    await safeCleanup("prune-share-operation-trash", () =>
-      rmdir(operationTrashRoot),
-    );
+    await removeDirectoryIfEmpty(operationTrashRoot);
   }
-  await safeCleanup("prune-share-trash-root", () =>
-    rmdir(resolveTrashRoot(workId)),
-  );
+  await removeDirectoryIfEmpty(resolveTrashRoot(workId));
+}
+
+async function removeDirectoryIfEmpty(path: string): Promise<void> {
+  try {
+    await rmdir(path);
+  } catch (error) {
+    if (
+      isErrnoException(error) &&
+      (error.code === "ENOENT" || error.code === "ENOTEMPTY")
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return typeof error === "object" && error !== null && "code" in error;
 }
 
 function resolveChapterDirectory(workId: string, chapterId: string): string {

@@ -2,8 +2,8 @@ import type {
   ChapterSnapshot,
   LibraryIndex,
   MangaPage,
-  SavePageBlocksRequest,
-} from "../../shared/types";
+} from "../../shared/libraryTypes";
+import type { SavePageBlocksRequest } from "../../shared/shareTypes";
 import { hashTranslationBlocks } from "../../shared/blockFingerprint";
 import { normalizeBlockType } from "../../shared/geometry";
 import { logWarn } from "../logger";
@@ -30,7 +30,7 @@ import {
   writeWorkFile,
   type ChapterFile,
 } from "./libraryFiles";
-import { safeUnlink } from "./storage";
+import { unlinkIfExists } from "./storage";
 import { sanitizeTitle } from "./titles";
 
 export { appendAnalyzedPageBlocksUnlocked } from "./libraryAnalysisMutations";
@@ -261,9 +261,9 @@ export async function deletePageUnlocked(
 
   await writeChapterFile(chapter);
   await touchWork(locator.workId, chapter.updatedAt);
-  await safeUnlink(target.imagePath);
+  await unlinkIfExists(target.imagePath);
   if (target.inpaintedImagePath) {
-    await safeUnlink(target.inpaintedImagePath);
+    await unlinkIfExists(target.inpaintedImagePath);
   }
   await removePageArtifacts(locator.workId, locator.chapterId, pageId);
 

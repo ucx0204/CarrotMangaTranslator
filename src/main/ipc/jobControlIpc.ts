@@ -7,7 +7,9 @@ import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
-export function registerJobControlIpc(context: IpcContext): void {
+type JobControlIpcContext = Pick<IpcContext, "getMainWindow" | "jobs">;
+
+export function registerJobControlIpc(context: JobControlIpcContext): void {
   trustedHandleContract(context, jobControlIpcContracts.cancelJob, async () => {
     const job = context.jobs.current;
     if (!job) {

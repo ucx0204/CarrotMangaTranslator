@@ -1,4 +1,4 @@
-import { pixelsToBbox } from "../../shared/geometry";
+import { bboxOverlapRatio, pixelsToBbox } from "../../shared/geometry";
 import type { OverlayItem, RequestSummary } from "./types";
 
 type BBox = { x: number; y: number; w: number; h: number };
@@ -162,12 +162,6 @@ function normalizedBboxToPixels(bbox: BBox, page: PageSize): BBox {
 function bboxContainmentRatio(a: BBox, b: BBox): number {
   const overlap = bboxIntersectionArea(a, b);
   return overlap / Math.max(1, a.w * a.h);
-}
-
-function bboxOverlapRatio(a: BBox, b: BBox): number {
-  const overlap = bboxIntersectionArea(a, b);
-  const minArea = Math.max(1, Math.min(a.w * a.h, b.w * b.h));
-  return overlap / minArea;
 }
 
 function bboxIntersectionArea(a: BBox, b: BBox): number {

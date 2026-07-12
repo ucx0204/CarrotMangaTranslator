@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { copyFile, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
-import type { ImportPageDraft, LibraryPageRecord } from "../../shared/types";
+import type { ImportPageDraft } from "../../shared/importTypes";
+import type { LibraryPageRecord } from "../../shared/libraryTypes";
 import { tMain } from "./localization";
 import {
   assertImportImageFileBudget,
@@ -9,7 +10,7 @@ import {
   shouldNormalizeImportImageToPng,
   writeNormalizedWebpImportImage,
 } from "./importImages";
-import { safeUnlink } from "./storage";
+import { unlinkIfExists } from "./storage";
 import {
   MAX_IMPORT_IMAGE_BYTES,
   openZipArchiveReader,
@@ -131,7 +132,7 @@ async function writeNormalizedZipImportImage(
       pageDraft.name,
     );
   } finally {
-    await safeUnlink(tempSourcePath);
+    await unlinkIfExists(tempSourcePath);
   }
 }
 

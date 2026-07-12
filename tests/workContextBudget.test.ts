@@ -7,7 +7,7 @@ import type {
   ChapterStoryMemory,
   PromptWorkContext,
   WorkStyleGuide,
-} from "../src/shared/types";
+} from "../src/shared/workContextTypes";
 
 describe("work context token budget", () => {
   it("keeps all work context when output headroom is sufficient", () => {

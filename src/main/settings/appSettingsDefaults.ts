@@ -14,7 +14,7 @@ import {
   DEFAULT_MAX_TOKENS,
   DEFAULT_MODEL_SOURCE,
 } from "../../shared/modelPresets";
-import type { AppSettings } from "../../shared/types";
+import type { AppSettings } from "../../shared/settingsTypes";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
 import {
   DEFAULT_SOURCE_LANGUAGE,

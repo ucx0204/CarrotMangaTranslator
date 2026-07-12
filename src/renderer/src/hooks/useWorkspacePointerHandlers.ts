@@ -26,7 +26,7 @@ import {
   type DragMode,
 } from "./workspacePointerGeometry";
 
-export type { DragHud, DragMode } from "./workspacePointerGeometry";
+export type { DragHud } from "./workspacePointerGeometry";
 
 type UseWorkspacePointerHandlersOptions = {
   appendRetouchPoint: (

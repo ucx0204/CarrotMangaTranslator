@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import type { AppSettings } from "../shared/types";
+import type { AppSettings } from "../shared/settingsTypes";
 import { getAppPaths, type AppPaths } from "./appPaths";
 import {
   normalizeAppSettings,

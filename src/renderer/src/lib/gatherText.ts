@@ -25,7 +25,7 @@ export type GatheredPage = {
  * (by vertical overlap), then sorted within each row horizontally. Default is
  * `rtl` (right-to-left) to match Japanese manga; pass `ltr` to flip it.
  */
-export function sortBlocksForReading(
+function sortBlocksForReading(
   blocks: TranslationBlock[],
   direction: ReadingDirection = "rtl",
 ): TranslationBlock[] {

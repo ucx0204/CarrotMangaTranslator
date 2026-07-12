@@ -250,7 +250,7 @@ export function regionTranslationStartingState(
  * 영역 번역 완료 시 라이브 병합 옵션: 페이지가 로컬에서 dirty 상태여도
  * 새로 만든 영역 블록이 유실되지 않도록 append 대상을 알려 준다.
  */
-export function regionLiveMergeOptions(
+function regionLiveMergeOptions(
   result: TranslateRegionResult,
 ): LiveChapterMergeOptions | undefined {
   if (

@@ -8,7 +8,7 @@ const path = require("node:path");
  * @typedef {{ role?: string; path: string; mime?: string; convertedFromMime?: unknown; width?: unknown; height?: unknown; originalWidth?: unknown; originalHeight?: unknown; [key: string]: unknown }} ImageVariantSummaryInput
  * @typedef {import("./simple-page-prompts.cjs").PromptOptions} PromptOptions
  * @typedef {{ baseUrl: string }} RequestServer
- * @typedef {{ label?: unknown; imagePath?: string | null; outputDir?: string | null; port?: unknown; promptMode?: unknown; strictRefineMode?: unknown; previousBlocksForPrompt?: unknown[]; temperature?: unknown; topP?: unknown; topK?: unknown; maxTokens?: unknown; ctx?: unknown; batch?: unknown; ubatch?: unknown; gemmaVramMode?: unknown; fitTargetMb?: unknown; cacheTypeK?: unknown; cacheTypeV?: unknown; ctxCheckpoints?: unknown; kvOffload?: unknown; mmprojOffload?: unknown; threads?: unknown; threadsBatch?: unknown; poll?: unknown; pollBatch?: unknown; prioBatch?: unknown; cacheIdleSlots?: unknown; cacheReuse?: unknown; enableMetrics?: unknown; enablePerf?: unknown; useDraft?: boolean | null; imageMinTokens?: unknown; imageMaxTokens?: unknown; includeEnhancedVariant?: unknown; enhancedMaxLongSide?: unknown; enhancedContrast?: unknown; imageFirst?: unknown; reuseServer?: unknown; llamaRuntimeProfile?: unknown; llamaRocmTarget?: unknown; workingDir?: string | null; toolsDir?: string | null; serverPath?: string | null; modelRepo?: unknown; modelFile?: unknown; codexOauthPort?: unknown; workContextBudget?: WorkContextBudget; ocrBboxHints?: OcrBboxHint[]; [key: string]: unknown }} RequestSummaryOptions
+ * @typedef {{ label?: unknown; imagePath?: string | null; outputDir?: string | null; port?: unknown; promptMode?: unknown; strictRefineMode?: unknown; previousBlocksForPrompt?: unknown[]; temperature?: unknown; topP?: unknown; topK?: unknown; maxTokens?: unknown; ctx?: unknown; batch?: unknown; ubatch?: unknown; gemmaVramMode?: unknown; fitTargetMb?: unknown; cacheTypeK?: unknown; cacheTypeV?: unknown; ctxCheckpoints?: unknown; kvOffload?: unknown; mmprojOffload?: unknown; threads?: unknown; threadsBatch?: unknown; poll?: unknown; pollBatch?: unknown; prioBatch?: unknown; cacheIdleSlots?: unknown; cacheReuse?: unknown; enableMetrics?: unknown; enablePerf?: unknown; useDraft?: boolean | null; imageMinTokens?: unknown; imageMaxTokens?: unknown; includeEnhancedVariant?: unknown; enhancedMaxLongSide?: unknown; enhancedContrast?: unknown; imageFirst?: unknown; reuseServer?: unknown; llamaRuntimeProfile?: unknown; llamaRocmTarget?: string | null; workingDir?: string | null; toolsDir?: string | null; serverPath?: string | null; modelRepo?: unknown; modelFile?: unknown; codexOauthPort?: unknown; workContextBudget?: WorkContextBudget; ocrBboxHints?: OcrBboxHint[]; [key: string]: unknown }} RequestSummaryOptions
  */
 
 const {
@@ -70,6 +70,23 @@ const {
 function buildOptionSummary(options = {}) {
   const launchTarget = inspectModelLaunch(options);
   return {
+    ...buildCoreOptionSummary(options),
+    ...buildGenerationOptionSummary(options),
+    ...buildModelOptionSummary(options, launchTarget),
+    ...buildApiOptionSummary(options),
+    ...buildOcrOptionSummary(options),
+    workContextBudget: summarizeWorkContextBudget(options.workContextBudget),
+  };
+}
+
+/** @param {RequestSummaryOptions} options */
+function buildCoreOptionSummary(options) {
+  const previousBlocksForPromptCount = Array.isArray(
+    options.previousBlocksForPrompt,
+  )
+    ? options.previousBlocksForPrompt.length
+    : 0;
+  return {
     label: options.label,
     imagePath: options.imagePath,
     outputDir: options.outputDir,
@@ -80,9 +97,23 @@ function buildOptionSummary(options = {}) {
     promptMode: options.promptMode,
     strictRefineMode: Boolean(options.strictRefineMode),
     keepBlocksMode: Boolean(options.keepBlocksMode),
-    previousBlocksForPromptCount: Array.isArray(options.previousBlocksForPrompt)
-      ? options.previousBlocksForPrompt.length
-      : 0,
+    previousBlocksForPromptCount,
+    regionCropMode: Boolean(options.regionCropMode),
+    regionContextImagePath: options.regionContextImagePath || undefined,
+    regionContextImageWidth: options.regionContextImageWidth || undefined,
+    regionContextImageHeight: options.regionContextImageHeight || undefined,
+    regionContextCropRect: options.regionContextCropRect || undefined,
+    imageFirst: options.imageFirst,
+    reuseServer: options.reuseServer,
+    workingDir: options.workingDir,
+    toolsDir: options.toolsDir,
+    serverPath: options.serverPath,
+  };
+}
+
+/** @param {RequestSummaryOptions} options */
+function buildGenerationOptionSummary(options) {
+  return {
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
@@ -114,18 +145,17 @@ function buildOptionSummary(options = {}) {
     includeEnhancedVariant: options.includeEnhancedVariant,
     enhancedMaxLongSide: options.enhancedMaxLongSide,
     enhancedContrast: options.enhancedContrast,
-    regionCropMode: Boolean(options.regionCropMode),
-    regionContextImagePath: options.regionContextImagePath || undefined,
-    regionContextImageWidth: options.regionContextImageWidth || undefined,
-    regionContextImageHeight: options.regionContextImageHeight || undefined,
-    regionContextCropRect: options.regionContextCropRect || undefined,
-    imageFirst: options.imageFirst,
-    reuseServer: options.reuseServer,
+  };
+}
+
+/**
+ * @param {RequestSummaryOptions} options
+ * @param {ReturnType<typeof inspectModelLaunch>} launchTarget
+ */
+function buildModelOptionSummary(options, launchTarget) {
+  return {
     llamaRuntimeProfile: options.llamaRuntimeProfile,
     llamaRocmTarget: options.llamaRocmTarget,
-    workingDir: options.workingDir,
-    toolsDir: options.toolsDir,
-    serverPath: options.serverPath,
     modelSource: resolveConfiguredModelSource(options),
     modelRepo: options.modelRepo,
     modelFile: options.modelFile,
@@ -139,6 +169,15 @@ function buildOptionSummary(options = {}) {
     codexModel: resolveConfiguredCodexModel(options),
     codexReasoningEffort: resolveConfiguredCodexReasoningEffort(options),
     codexOauthPort: options.codexOauthPort,
+    launchMode: launchTarget.launchMode,
+    hfHomeDir: resolveHfHomeDir(options),
+    hfHubCacheDir: resolveHubCacheDir(options),
+  };
+}
+
+/** @param {RequestSummaryOptions} options */
+function buildApiOptionSummary(options) {
+  return {
     apiBaseUrl: resolveConfiguredApiBaseUrl(options),
     apiModel: resolveConfiguredApiModel(options),
     apiKeyConfigured: Boolean(resolveConfiguredApiKey(options)),
@@ -154,6 +193,12 @@ function buildOptionSummary(options = {}) {
     apiCustomHeaderKeys: Object.keys(
       resolveConfiguredApiCustomHeaders(options),
     ),
+  };
+}
+
+/** @param {RequestSummaryOptions} options */
+function buildOcrOptionSummary(options) {
+  return {
     ocrBboxProvider: resolveOcrBboxProvider(options),
     ocrDevice: resolveOcrDevice(options),
     ocrGpuBackend: resolveOcrGpuBackend(options),
@@ -168,20 +213,20 @@ function buildOptionSummary(options = {}) {
     ocrDetLimit: options.ocrDetLimit,
     ocrRecBatch: options.ocrRecBatch,
     ocrRuntimeDir: resolveOcrRuntimeDir(options),
-    launchMode: launchTarget.launchMode,
-    hfHomeDir: resolveHfHomeDir(options),
-    hfHubCacheDir: resolveHubCacheDir(options),
-    workContextBudget: options.workContextBudget
-      ? {
-          originalTokens: options.workContextBudget.original?.totalTokens,
-          effectiveTokens: options.workContextBudget.effective?.totalTokens,
-          outputHeadroomTokens:
-            options.workContextBudget.effective?.outputHeadroomTokens,
-          outputHeadroomPercent:
-            options.workContextBudget.effective?.outputHeadroomPercent,
-          omittedParts: options.workContextBudget.omittedParts || [],
-        }
-      : undefined,
+  };
+}
+
+/** @param {WorkContextBudget | undefined} budget */
+function summarizeWorkContextBudget(budget) {
+  if (!budget) {
+    return undefined;
+  }
+  return {
+    originalTokens: budget.original?.totalTokens,
+    effectiveTokens: budget.effective?.totalTokens,
+    outputHeadroomTokens: budget.effective?.outputHeadroomTokens,
+    outputHeadroomPercent: budget.effective?.outputHeadroomPercent,
+    omittedParts: budget.omittedParts || [],
   };
 }
 

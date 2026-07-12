@@ -6,9 +6,11 @@ import type {
   CreateImportResult,
   ImportChapterDraft,
   ImportPreviewResult,
+} from "../../shared/importTypes";
+import type {
   LibraryChapter,
   LibraryPageRecord,
-} from "../../shared/types";
+} from "../../shared/libraryTypes";
 import { tMain } from "./localization";
 import { resolveChapterStatus } from "./chapterRecords";
 import {

@@ -1,8 +1,8 @@
 import React from "react";
 import styles from "./IconButton.module.css";
 
-export type IconButtonVariant = "default" | "danger";
-export type IconButtonSize = "sm" | "md";
+type IconButtonVariant = "default" | "danger";
+type IconButtonSize = "sm" | "md";
 
 export type IconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: IconButtonVariant;

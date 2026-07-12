@@ -43,7 +43,7 @@ const UI_LOCALE_BY_LANGUAGE: Readonly<Record<string, UiLocale>> = {
 
 const TRADITIONAL_CHINESE_SUBTAGS = new Set(["hant", "tw", "hk", "mo"]);
 
-export function isUiLocale(value: unknown): value is UiLocale {
+function isUiLocale(value: unknown): value is UiLocale {
   return SUPPORTED_UI_LOCALES.includes(value as UiLocale);
 }
 

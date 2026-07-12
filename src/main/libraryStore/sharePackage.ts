@@ -1,8 +1,6 @@
-import type {
-  LibraryChapter,
-  WorkShareImportEntry,
-  WorkStyleGuide,
-} from "../../shared/types";
+import type { LibraryChapter } from "../../shared/libraryTypes";
+import type { WorkShareImportEntry } from "../../shared/shareTypes";
+import type { WorkStyleGuide } from "../../shared/workContextTypes";
 import { z } from "zod";
 import { tMain } from "./localization";
 import {

@@ -1,5 +1,5 @@
 import type { TranslationOptions } from "../appSettings";
-import type { MangaPage } from "../../shared/types";
+import type { MangaPage } from "../../shared/libraryTypes";
 import { logError, logWarn } from "../logger";
 import {
   classifyFailure,

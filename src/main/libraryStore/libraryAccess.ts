@@ -4,7 +4,7 @@ import type {
   LibraryIndex,
   LibraryWorkSummary,
   MangaPage,
-} from "../../shared/types";
+} from "../../shared/libraryTypes";
 import { hydrateChapter } from "./chapterSnapshots";
 import { toChapterSummary } from "./chapterRecords";
 import {

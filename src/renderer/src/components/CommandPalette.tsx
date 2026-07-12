@@ -1,14 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import type { Command } from "../lib/appCommandTypes";
 import { Modal } from "./ui";
-
-export type Command = {
-  id: string;
-  label: string;
-  hint?: string;
-  keywords?: string;
-  run: () => void;
-};
 
 type CommandPaletteProps = {
   open: boolean;

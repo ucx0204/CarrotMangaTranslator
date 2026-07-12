@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyEditableBlockBbox,
+  bboxOverlapRatio,
   clampBbox,
   enforceRenderDirection,
   estimateBlockFontSizePx,
@@ -14,6 +15,54 @@ import {
 } from "../src/shared/geometry";
 
 describe("geometry helpers", () => {
+  it.each([
+    {
+      name: "zero-width box",
+      a: { x: 0, y: 0, w: 0, h: 10 },
+      b: { x: 0, y: 0, w: 10, h: 10 },
+    },
+    {
+      name: "negative-size box",
+      a: { x: 0, y: 0, w: -10, h: -10 },
+      b: { x: 0, y: 0, w: 10, h: 10 },
+    },
+    {
+      name: "disjoint boxes",
+      a: { x: 0, y: 0, w: 10, h: 10 },
+      b: { x: 20, y: 20, w: 10, h: 10 },
+    },
+    {
+      name: "edge-touching boxes",
+      a: { x: 0, y: 0, w: 10, h: 10 },
+      b: { x: 10, y: 0, w: 10, h: 10 },
+    },
+  ])("returns zero for $name", ({ a, b }) => {
+    expect(bboxOverlapRatio(a, b)).toBe(0);
+  });
+
+  it("returns one when either valid box fully contains the other", () => {
+    const outer = { x: 0, y: 0, w: 10, h: 10 };
+    const inner = { x: 2, y: 2, w: 4, h: 4 };
+
+    expect(bboxOverlapRatio(outer, inner)).toBe(1);
+    expect(bboxOverlapRatio(inner, outer)).toBe(1);
+  });
+
+  it("measures partial overlap relative to the smaller box", () => {
+    expect(
+      bboxOverlapRatio(
+        { x: 0, y: 0, w: 10, h: 10 },
+        { x: 5, y: 0, w: 10, h: 10 },
+      ),
+    ).toBe(0.5);
+  });
+
+  it("preserves the one-unit denominator floor for sub-unit boxes", () => {
+    const tiny = { x: 0, y: 0, w: 0.5, h: 0.5 };
+
+    expect(bboxOverlapRatio(tiny, tiny)).toBe(0.25);
+  });
+
   it("clamps normalized boxes to the 0-1000 coordinate space", () => {
     expect(clampBbox({ x: -30, y: 10, w: 1200, h: 1500 })).toEqual({
       x: 0,

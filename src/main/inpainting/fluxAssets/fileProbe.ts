@@ -207,17 +207,6 @@ export function fileExists(pathValue: string): boolean {
   }
 }
 
-export function findFirstExecutable(
-  candidates: Array<string | null | undefined>,
-): string | null {
-  for (const candidate of candidates) {
-    if (candidate && isExecutableFile(candidate)) {
-      return candidate;
-    }
-  }
-  return null;
-}
-
 export function isUsableFile(filePath: string): boolean {
   try {
     return (

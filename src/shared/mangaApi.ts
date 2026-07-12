@@ -1,14 +1,8 @@
 import type {
-  AppSettings,
-  ChapterSnapshot,
-  CreateImportRequest,
-  CreateImportResult,
   AnalyzeWorkContextRequest,
   AnalyzeWorkContextResult,
-  CustomFont,
-  ImportPreviewSession,
-  ImportReviewTextRequest,
-  ImportReviewTextResult,
+} from "./workContextAnalysisTypes";
+import type {
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
   InpaintingExportRequest,
@@ -17,35 +11,47 @@ import type {
   InpaintingRetouchResult,
   InpaintingRevertRequest,
   InpaintingRevertResult,
+  SetPageInpaintingResultRequest,
+  SetPageInpaintingResultResult,
+  StartInpaintingRequest,
+  StartInpaintingResult,
+} from "./inpaintingTypes";
+import type {
   JobEvent,
-  LibraryIndex,
   LocalModelPickResult,
   ModelTestProgressEvent,
   ModelTestResult,
-  PanelCommand,
-  PanelId,
-  PanelSyncState,
+} from "./jobTypes";
+import type { ChapterSnapshot, CustomFont, LibraryIndex } from "./libraryTypes";
+import type { PanelCommand, PanelId, PanelSyncState } from "./panelBridgeTypes";
+import type {
   RegionAnalysisRequest,
   RegionAnalysisResult,
+  StartAnalysisRequest,
+  StartAnalysisResult,
+} from "./analysisTypes";
+import type {
   SavePageBlocksRequest,
   SaveTextFileRequest,
   SaveTextFileResult,
-  SetPageInpaintingResultRequest,
-  SetPageInpaintingResultResult,
-  StartAnalysisRequest,
-  StartAnalysisResult,
-  StartInpaintingRequest,
-  StartInpaintingResult,
   WorkShareExportRequest,
   WorkShareExportResult,
   WorkShareImportPreview,
   WorkShareImportRequest,
   WorkShareImportResult,
-  WorkStyleGuide,
-  ChapterStoryMemory,
+} from "./shareTypes";
+import type {
   ExportReviewTextRequest,
-  UiLocale,
-} from "./types";
+  ImportReviewTextRequest,
+  ImportReviewTextResult,
+} from "./reviewTypes";
+import type {
+  CreateImportRequest,
+  CreateImportResult,
+  ImportPreviewSession,
+} from "./importTypes";
+import type { ChapterStoryMemory, WorkStyleGuide } from "./workContextTypes";
+import type { AppSettings, UiLocale } from "./settingsTypes";
 
 export type MangaApi = {
   previewImagesImport: () => Promise<ImportPreviewSession | null>;

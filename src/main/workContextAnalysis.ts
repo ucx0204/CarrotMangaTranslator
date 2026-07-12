@@ -2,11 +2,13 @@ import { mkdir } from "node:fs/promises";
 import type {
   AnalyzeWorkContextRequest,
   AnalyzeWorkContextResult,
-  ChapterSnapshot,
-  ChapterStoryMemory,
   WorkContextAnalysisScope,
+} from "../shared/workContextAnalysisTypes";
+import type { ChapterSnapshot } from "../shared/libraryTypes";
+import type {
+  ChapterStoryMemory,
   WorkStyleGuide,
-} from "../shared/types";
+} from "../shared/workContextTypes";
 import { resolveLanguagePair } from "../shared/translationLanguages";
 import { getAppPaths } from "./appPaths";
 import { getAppSettings } from "./settingsStore";

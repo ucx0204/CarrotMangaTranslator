@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { LibraryChapter, LibraryWork } from "../src/shared/types";
+import type { LibraryChapter, LibraryWork } from "../src/shared/libraryTypes";
 import {
   buildReviewRows,
   parseReviewTable,

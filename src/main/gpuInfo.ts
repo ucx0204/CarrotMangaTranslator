@@ -10,16 +10,14 @@ import type { AmdRocmTarget } from "./amdRocmTargets";
 export {
   inferAmdRocmTargetFromName,
   normalizeAmdRocmTarget,
-  parseRocmArch,
   resolveAmdRocmTargetFromArch,
   resolveAmdRocmTargetFromInfo,
 } from "./amdRocmTargets";
-export type { AmdRocmTarget } from "./amdRocmTargets";
 
 let cachedGpuInfoPromise: Promise<DetectedGpuInfo | null> | null = null;
 const WINDOWS_AMD_GPU_FIELD_SEPARATOR = "\u001f";
 
-export type GpuVendor = "nvidia" | "amd" | "unknown";
+type GpuVendor = "nvidia" | "amd" | "unknown";
 
 export type DetectedGpuInfo = {
   name: string | null;
@@ -232,7 +230,7 @@ export function parseWindowsAmdGpuLine(line: string): DetectedGpuInfo | null {
   };
 }
 
-export function inferAmdVramMbFromName(
+function inferAmdVramMbFromName(
   name: string | null | undefined,
 ): number | null {
   const normalized = String(name ?? "").toLowerCase();

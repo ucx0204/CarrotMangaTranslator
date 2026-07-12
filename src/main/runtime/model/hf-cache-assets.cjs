@@ -1,0 +1,118 @@
+// @ts-check
+const { existsSync } = require("node:fs");
+const path = require("node:path");
+
+const { isUsableFile } = require("../simple-page-download-utils.cjs");
+const {
+  findNamedFile,
+  listSnapshotDirs,
+} = require("../simple-page-file-search.cjs");
+const {
+  repoCacheDir,
+  resolveHubCacheDir,
+  resolveLegacyManagedHfFilePath,
+  resolveLlamaCppCacheDir,
+  resolveManagedHfFilePath,
+} = require("../simple-page-cache-paths.cjs");
+const {
+  resolveConfiguredDraftModelFile,
+  resolveConfiguredDraftModelRepo,
+  resolveConfiguredDraftModelUrl,
+  resolveConfiguredMmprojFile,
+  resolveConfiguredMmprojRepo,
+  shouldUseConfiguredMmproj,
+} = require("../simple-page-model-config.cjs");
+
+/** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { useDraft?: boolean | null }} ModelAssetOptions */
+
+/** @param {ModelAssetOptions} [options] */
+function resolveConfiguredMmprojUrl(options = {}) {
+  if (!shouldUseConfiguredMmproj(options)) return null;
+  const repo = resolveConfiguredMmprojRepo(options);
+  const file = resolveConfiguredMmprojFile(options);
+  return repo && file
+    ? `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(file)}`
+    : null;
+}
+
+/** @param {ModelAssetOptions} options @param {string} repo @param {string} file */
+function resolveUsableManagedHfFile(options, repo, file) {
+  return usableFileOrNull(resolveManagedHfFilePath(options, repo, file));
+}
+
+/** @param {string | null | undefined} filePath */
+function usableFileOrNull(filePath) {
+  return filePath && isUsableFile(filePath) ? filePath : null;
+}
+
+/** @param {ModelAssetOptions} options @param {string} repo @param {string} file */
+function resolveUsableLegacyManagedHfFile(options, repo, file) {
+  return usableFileOrNull(resolveLegacyManagedHfFilePath(options, repo, file));
+}
+
+/** @param {ModelAssetOptions} [options] */
+function resolveCachedConfiguredMmprojPath(options = {}) {
+  if (!shouldUseConfiguredMmproj(options)) return null;
+  const repo = resolveConfiguredMmprojRepo(options);
+  const file = resolveConfiguredMmprojFile(options);
+  return (
+    resolveUsableManagedHfFile(options, repo, file) ||
+    resolveUsableLegacyManagedHfFile(options, repo, file) ||
+    findCachedHubAsset(options, repo, file) ||
+    resolveCachedLlamaCppFile(file, options)
+  );
+}
+
+/** @param {ModelAssetOptions} options @param {string} repo @param {string} file */
+function findCachedHubAsset(options, repo, file) {
+  const hubCacheDir = resolveHubCacheDir(options);
+  if (!hubCacheDir) return null;
+  const repoDir = repoCacheDir(repo, hubCacheDir);
+  if (!existsSync(repoDir)) return null;
+  const snapshotMatch = listSnapshotDirs(repoDir)
+    .map((snapshotDir) => path.join(snapshotDir, file))
+    .find((candidate) => isUsableFile(candidate));
+  return snapshotMatch || usableFileOrNull(findNamedFile(repoDir, file));
+}
+
+/** @param {string} fileName @param {ModelAssetOptions} [options] */
+function resolveCachedLlamaCppFile(fileName, options = {}) {
+  const cacheDir = resolveLlamaCppCacheDir(options);
+  if (!cacheDir || !fileName || !existsSync(cacheDir)) return null;
+  return (
+    usableFileOrNull(path.join(cacheDir, fileName)) ||
+    usableFileOrNull(findNamedFile(cacheDir, fileName, 2))
+  );
+}
+
+/** @param {ModelAssetOptions} [options] */
+function resolveCachedConfiguredDraftModelPath(options = {}) {
+  const repo = resolveConfiguredDraftModelRepo(options);
+  const file = resolveConfiguredDraftModelFile(options);
+  if (!repo || !file) return null;
+  return (
+    resolveUsableManagedHfFile(options, repo, file) ||
+    resolveUsableLegacyManagedHfFile(options, repo, file) ||
+    findCachedHubAsset(options, repo, file)
+  );
+}
+
+/** @param {ModelAssetOptions} [options] */
+function resolveDraftAsset(options = {}) {
+  const path = resolveCachedConfiguredDraftModelPath(options);
+  return {
+    draftModelPath: path,
+    draftModelUrl: path ? null : resolveConfiguredDraftModelUrl(options),
+  };
+}
+
+module.exports = {
+  resolveCachedConfiguredDraftModelPath,
+  resolveCachedConfiguredMmprojPath,
+  resolveCachedLlamaCppFile,
+  resolveConfiguredMmprojUrl,
+  resolveDraftAsset,
+  resolveUsableLegacyManagedHfFile,
+  resolveUsableManagedHfFile,
+  usableFileOrNull,
+};

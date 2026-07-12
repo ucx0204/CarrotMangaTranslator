@@ -2,14 +2,13 @@ import type { TranslationOptions } from "../appSettings";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import type { OpenAICompatibleApiEndpoint } from "../openaiApiEndpoint";
 import type { OpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
+import type { BBox, SourceTextDirection } from "../../shared/textTypes";
+import type { JobEvent } from "../../shared/jobTypes";
+import type { MangaPage } from "../../shared/libraryTypes";
 import type {
-  BBox,
-  JobEvent,
-  MangaPage,
   ChapterStoryMemory,
   WorkStyleGuide,
-  SourceTextDirection,
-} from "../../shared/types";
+} from "../../shared/workContextTypes";
 import type { PixelRect } from "../../shared/region";
 import type { ChapterRunPaths } from "../library";
 
@@ -46,7 +45,7 @@ export type PipelineWorkContext = {
   recentPageCount?: number;
 };
 
-export type ServerHandle = {
+type ServerHandle = {
   baseUrl: string;
   child: unknown;
   startedByScript: boolean;

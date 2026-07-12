@@ -4,7 +4,7 @@ import type { ChapterRunSelection } from "../lib/translationSelection";
 
 export type RunAnalysisOutcome = "completed" | "cancelled" | "failed" | "no-op";
 
-export type ExecuteAnalysisArgs = {
+type ExecuteAnalysisArgs = {
   runMode: "pending" | "all" | "single-page" | "page-set";
   chapterId?: string;
   pageId?: string;

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-export const APP_DATA_DIR_NAME = "manga-gemma-translator";
+const APP_DATA_DIR_NAME = "manga-gemma-translator";
 export const DATA_ROOT_POINTER_FILE = "data-root.txt";
 export const DATA_ROOT_MARKER_FILE = ".manga-gemma-translator-data";
 
@@ -29,7 +29,7 @@ export function resolvePackagedDataRoot(executableDir: string): string {
   return legacyInstallDataRoot;
 }
 
-export function readDataRootPointer(executableDir: string): string | null {
+function readDataRootPointer(executableDir: string): string | null {
   const pointerPath = join(executableDir, DATA_ROOT_POINTER_FILE);
   try {
     if (!existsSync(pointerPath)) {

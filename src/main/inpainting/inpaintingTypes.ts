@@ -1,4 +1,4 @@
-import type { MangaPage } from "../../shared/types";
+import type { MangaPage } from "../../shared/libraryTypes";
 
 export type PatternPageInpaintingResult = {
   page: MangaPage;

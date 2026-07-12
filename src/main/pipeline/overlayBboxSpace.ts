@@ -1,4 +1,5 @@
-import type { BBox, MangaPage } from "../../shared/types";
+import type { BBox } from "../../shared/textTypes";
+import type { MangaPage } from "../../shared/libraryTypes";
 import type { DetectedBboxSpace, OverlayItem } from "./types";
 
 export function inferDetectedBboxSpace(

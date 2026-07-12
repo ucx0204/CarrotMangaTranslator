@@ -7,7 +7,7 @@ import {
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { RecordChapterChangeOptions } from "./useChapterHistory";
 
-export type UpdateCurrentChapterOptions = {
+type UpdateCurrentChapterOptions = {
   /** Coalescing key passed through to the undo history. */
   mergeKey?: string;
   /** Background/live updates set this so they are not recorded as undo steps. */

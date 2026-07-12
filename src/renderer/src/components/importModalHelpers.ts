@@ -1,18 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ImportCreateSelection } from "../../../shared/importTypes";
-
-export type ImportModalSubmit = {
-  target:
-    | {
-        mode: "new";
-        title: string;
-      }
-    | {
-        mode: "existing";
-        workId: string;
-      };
-  selections: ImportCreateSelection[];
-};
+import type { ImportModalSubmit } from "../lib/importFlowTypes";
 
 export type ImportTargetMode = "new" | "existing";
 

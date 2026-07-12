@@ -2,7 +2,7 @@ import type {
   LibraryChapter,
   LibraryChapterSummary,
   LibraryPageRecord,
-} from "../../shared/types";
+} from "../../shared/libraryTypes";
 
 export function reorderIds(
   currentOrder: string[],

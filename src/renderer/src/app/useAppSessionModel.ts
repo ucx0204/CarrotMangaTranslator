@@ -5,12 +5,12 @@ import { usePanelBridgeHost } from "../panels/usePanelBridgeHost";
 import {
   buildPanelSyncState,
   createAppSessionViewProps,
-  type AppSessionViewProps,
-  useAppSessionShortcuts,
-  useChapterSessionController,
-  useInpaintingController,
-  useTranslationController,
-} from "./session";
+} from "./session/createAppSessionViewProps";
+import type { AppSessionViewProps } from "./session/AppSessionView";
+import { useAppSessionShortcuts } from "./session/useAppSessionShortcuts";
+import { useChapterSessionController } from "./session/useChapterSessionController";
+import { useInpaintingController } from "./session/useInpaintingController";
+import { useTranslationController } from "./session/useTranslationController";
 
 export function useAppSessionModel(): AppSessionViewProps {
   const chapter = useChapterSessionController();

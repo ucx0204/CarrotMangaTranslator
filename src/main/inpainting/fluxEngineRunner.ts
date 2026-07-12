@@ -33,7 +33,7 @@ import {
   type MaskedRegionChangeStats,
 } from "./fluxChangeStats";
 
-export type FluxInpaintRunOptions = {
+type FluxInpaintRunOptions = {
   signal?: AbortSignal;
   featherPx?: number;
   contextPx?: number;

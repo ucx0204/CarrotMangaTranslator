@@ -9,7 +9,6 @@ import type {
 
 export { reportRefreshLibraryFailure };
 export type {
-  RunAnalysisMode,
   TranslationActions,
   TranslationFlowOptions,
   UseTranslationActionsOptions,

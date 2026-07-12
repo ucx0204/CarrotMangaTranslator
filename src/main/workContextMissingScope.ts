@@ -1,8 +1,6 @@
-import type {
-  AnalyzeWorkContextResult,
-  ChapterSnapshot,
-  WorkStyleGuide,
-} from "../shared/types";
+import type { AnalyzeWorkContextResult } from "../shared/workContextAnalysisTypes";
+import type { ChapterSnapshot } from "../shared/libraryTypes";
+import type { WorkStyleGuide } from "../shared/workContextTypes";
 import { getChapterStoryMemory } from "./library";
 import { tMain } from "./i18n";
 

@@ -5,9 +5,9 @@ import type {
   CharacterSpeechStyle,
   GlossaryEntry,
   PageStoryMemory,
-  WorkContextAnalysisCounts,
   WorkStyleGuide,
-} from "../shared/types";
+} from "../shared/workContextTypes";
+import type { WorkContextAnalysisCounts } from "../shared/workContextAnalysisTypes";
 import { tMain } from "./i18n";
 import {
   cleanText,

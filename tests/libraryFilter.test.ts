@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { LibraryIndex } from "../src/shared/types";
+import type { LibraryIndex } from "../src/shared/libraryTypes";
 import { filterLibraryIndex } from "../src/renderer/src/lib/libraryFilter";
 
 const library: LibraryIndex = {

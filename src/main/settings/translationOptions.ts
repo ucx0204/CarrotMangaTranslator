@@ -13,12 +13,6 @@ import {
 import { resolveOcrTranslationOptions } from "./translationOcrOptions";
 import { filterPackagedRuntimeEnv } from "./translationRuntimeEnv";
 
-export type {
-  TranslationOptionPaths,
-  TranslationOptions,
-} from "./appSettingsTypes";
-export { filterPackagedRuntimeEnv } from "./translationRuntimeEnv";
-
 export function buildBaseTranslationOptions({
   jobId,
   runDir,

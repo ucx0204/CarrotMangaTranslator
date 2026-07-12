@@ -609,7 +609,7 @@ async function readReusableOcrHints(sampleIndex) {
         return hints;
       }
     } catch (_error) {
-      // Try the next cache format.
+      // error-policy-allow: malformed or missing cache candidates are probed in order.
     }
   }
   return null;

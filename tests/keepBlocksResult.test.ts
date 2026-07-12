@@ -6,7 +6,8 @@ import {
   shouldKeepExistingBlocks,
 } from "../src/main/pipeline/keepBlocksResult";
 import { buildPreviousBlocksForPrompt } from "../src/main/pipeline/previousBlocksForPrompt";
-import type { MangaPage, TranslationBlock } from "../src/shared/types";
+import type { MangaPage } from "../src/shared/libraryTypes";
+import type { TranslationBlock } from "../src/shared/textTypes";
 import type { OverlayItem } from "../src/main/pipeline/types";
 
 describe("keep-blocks translation mode", () => {

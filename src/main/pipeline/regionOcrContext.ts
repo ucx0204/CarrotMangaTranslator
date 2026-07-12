@@ -1,7 +1,8 @@
 import type { PixelRect } from "../../shared/region";
 import type { TranslationOptions } from "../appSettings";
 import type { ChapterRunPaths } from "../library";
-import type { JobEvent, MangaPage } from "../../shared/types";
+import type { JobEvent } from "../../shared/jobTypes";
+import type { MangaPage } from "../../shared/libraryTypes";
 import { logWarn } from "../logger";
 import { prepareOcrHintsForPages } from "./ocrHints";
 import type { OcrBboxResult, PipelineRegionContext } from "./types";
@@ -100,7 +101,7 @@ export async function prepareRegionContextOcrHints({
   }
 }
 
-export function mapPageOcrResultToRegionCrop({
+function mapPageOcrResultToRegionCrop({
   cropPage,
   cropRect,
   sourceResult,

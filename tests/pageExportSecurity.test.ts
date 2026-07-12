@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { MangaPage } from "../src/shared/types";
+import type { MangaPage } from "../src/shared/libraryTypes";
 
 type Listener = (...args: unknown[]) => void;
 type ExportWindowOptions = {

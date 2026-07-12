@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { MangaPage } from "../shared/types";
+import type { MangaPage } from "../shared/libraryTypes";
 import { buildPageExportHtml } from "./pageExportHtml";
 import type { ImageDecodeFallback } from "./regionCrop";
 import { safeCleanup } from "./safeCleanup";

@@ -6,33 +6,21 @@ import type {
   WorkShareExportRequest,
   WorkShareImportPreview,
 } from "../../../shared/shareTypes";
+import type {
+  ImportModalSubmit,
+  TranslateSourceMode,
+} from "../lib/importFlowTypes";
+import type { RenameTarget } from "../lib/libraryRenameTypes";
+import type { ShareImportModalSubmit } from "../lib/shareImportTypes";
 import { ConfirmModal } from "./ConfirmModal";
 import { InpaintingGuideModal } from "./InpaintingGuideModal";
-import { ImportModal, type ImportModalSubmit } from "./ImportModal";
+import { ImportModal } from "./ImportModal";
 import { RenameModal } from "./RenameModal";
 import { SettingsModal } from "./SettingsModal";
 import { ShareExportModal } from "./ShareExportModal";
-import {
-  ShareImportModal,
-  type ShareImportModalSubmit,
-} from "./ShareImportModal";
-import {
-  TranslateSourceModal,
-  type TranslateSourceMode,
-} from "./TranslateSourceModal";
+import { ShareImportModal } from "./ShareImportModal";
+import { TranslateSourceModal } from "./TranslateSourceModal";
 import type { ConfirmDialogState } from "../hooks/useConfirmDialog";
-
-type RenameTarget =
-  | {
-      kind: "work";
-      id: string;
-      title: string;
-    }
-  | {
-      kind: "chapter";
-      id: string;
-      title: string;
-    };
 
 type AppModalsProps = {
   library: LibraryIndex;
@@ -258,5 +246,3 @@ function SystemModals({
     </>
   );
 }
-
-export type { RenameTarget };

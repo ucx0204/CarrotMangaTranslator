@@ -1,4 +1,4 @@
-import type { JobEvent } from "../../shared/types";
+import type { JobEvent } from "../../shared/jobTypes";
 import { logError, logInfo } from "../logger";
 
 export type ActiveJob = {

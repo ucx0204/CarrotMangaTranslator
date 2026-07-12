@@ -4,8 +4,10 @@ import { isAllowedMainWindowNavigation } from "../mainWindow";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 
-export function trustedHandle(
-  context: IpcContext,
+type TrustedIpcContext = Pick<IpcContext, "getMainWindow">;
+
+function trustedHandle(
+  context: TrustedIpcContext,
   channel: string,
   listener: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown,
 ): void {
@@ -19,7 +21,7 @@ export function trustedHandle(
 }
 
 export function trustedHandleContract<TArgs extends unknown[], TResult>(
-  context: IpcContext,
+  context: TrustedIpcContext,
   contract: IpcContract<TArgs, TResult>,
   listener: (
     event: IpcMainInvokeEvent,
@@ -33,9 +35,9 @@ export function trustedHandleContract<TArgs extends unknown[], TResult>(
   });
 }
 
-export function assertTrustedIpcSender(
+function assertTrustedIpcSender(
   event: IpcMainInvokeEvent,
-  context: IpcContext,
+  context: TrustedIpcContext,
 ): void {
   const mainWindow = context.getMainWindow();
   if (!mainWindow || mainWindow.isDestroyed()) {

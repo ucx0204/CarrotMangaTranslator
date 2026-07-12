@@ -12,7 +12,7 @@ import {
   GEMMA_31B_MODEL_FILE_IQ3_S,
   GEMMA_31B_MODEL_REPO,
 } from "../../shared/modelPresets";
-import type { AppSettings, GemmaVramMode } from "../../shared/types";
+import type { AppSettings, GemmaVramMode } from "../../shared/settingsTypes";
 
 type GemmaModelPreset = Pick<
   AppSettings["gemma"],

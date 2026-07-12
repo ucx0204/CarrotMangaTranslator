@@ -1,6 +1,7 @@
-import type { ChapterSnapshot, TranslationBlock } from "./types";
+import type { ChapterSnapshot } from "./libraryTypes";
+import type { TranslationBlock } from "./textTypes";
 
-export const REVIEW_COLUMNS = [
+const REVIEW_COLUMNS = [
   "chapter_id",
   "page_id",
   "page_index",
@@ -13,7 +14,7 @@ export const REVIEW_COLUMNS = [
   "review_note",
 ] as const;
 
-export type ReviewColumn = (typeof REVIEW_COLUMNS)[number];
+type ReviewColumn = (typeof REVIEW_COLUMNS)[number];
 
 export type ReviewRow = Record<ReviewColumn, string>;
 
@@ -135,64 +136,88 @@ function resolveDelimiter(format: "csv" | "tsv"): "," | "\t" {
   return format === "tsv" ? "\t" : ",";
 }
 
-// RFC4180-style CSV/TSV state handling is intentionally kept in one pass.
-// eslint-disable-next-line complexity
 function parseDelimitedRecords(
   content: string,
   delimiter: "," | "\t",
 ): string[][] {
-  const records: string[][] = [];
-  let record: string[] = [];
-  let cell = "";
-  let inQuotes = false;
+  const state: DelimitedParserState = {
+    records: [],
+    record: [],
+    cell: "",
+    inQuotes: false,
+  };
 
   for (let index = 0; index < content.length; index += 1) {
     const char = content[index];
     const next = content[index + 1];
-
-    if (inQuotes) {
-      if (char === '"' && next === '"') {
-        cell += '"';
-        index += 1;
-      } else if (char === '"') {
-        inQuotes = false;
-      } else {
-        cell += char;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      inQuotes = true;
-    } else if (char === delimiter) {
-      record.push(cell);
-      cell = "";
-    } else if (char === "\r") {
-      if (next === "\n") {
-        index += 1;
-      }
-      record.push(cell);
-      records.push(record);
-      record = [];
-      cell = "";
-    } else if (char === "\n") {
-      record.push(cell);
-      records.push(record);
-      record = [];
-      cell = "";
-    } else {
-      cell += char;
-    }
+    index = state.inQuotes
+      ? consumeQuotedCharacter(state, char, next, index)
+      : consumeUnquotedCharacter(state, char, next, delimiter, index);
   }
 
-  if (inQuotes) {
+  if (state.inQuotes) {
     throw new Error("검수표 CSV/TSV 따옴표가 닫히지 않았습니다.");
   }
-  if (cell || record.length > 0) {
-    record.push(cell);
-    records.push(record);
+  if (state.cell || state.record.length > 0) {
+    finishRecord(state);
   }
-  return records;
+  return state.records;
+}
+
+type DelimitedParserState = {
+  records: string[][];
+  record: string[];
+  cell: string;
+  inQuotes: boolean;
+};
+
+function consumeQuotedCharacter(
+  state: DelimitedParserState,
+  char: string,
+  next: string | undefined,
+  index: number,
+): number {
+  if (char !== '"') {
+    state.cell += char;
+    return index;
+  }
+  if (next === '"') {
+    state.cell += '"';
+    return index + 1;
+  }
+  state.inQuotes = false;
+  return index;
+}
+
+function consumeUnquotedCharacter(
+  state: DelimitedParserState,
+  char: string,
+  next: string | undefined,
+  delimiter: "," | "\t",
+  index: number,
+): number {
+  if (char === '"') {
+    state.inQuotes = true;
+  } else if (char === delimiter) {
+    finishCell(state);
+  } else if (char === "\r" || char === "\n") {
+    finishRecord(state);
+    return char === "\r" && next === "\n" ? index + 1 : index;
+  } else {
+    state.cell += char;
+  }
+  return index;
+}
+
+function finishCell(state: DelimitedParserState): void {
+  state.record.push(state.cell);
+  state.cell = "";
+}
+
+function finishRecord(state: DelimitedParserState): void {
+  finishCell(state);
+  state.records.push(state.record);
+  state.record = [];
 }
 
 function assertRequiredColumns(header: string[]): void {

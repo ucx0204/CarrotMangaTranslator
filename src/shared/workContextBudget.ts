@@ -7,9 +7,9 @@ import type {
   WorkStyleGuide,
 } from "./workContextTypes";
 
-export const WORK_CONTEXT_MIN_OUTPUT_HEADROOM_TOKENS = 2048;
+const WORK_CONTEXT_MIN_OUTPUT_HEADROOM_TOKENS = 2048;
 export const WORK_CONTEXT_RECENT_PAGE_COUNT = 6;
-export const TRANSLATION_PROMPT_BASE_INPUT_TOKENS = 6400;
+const TRANSLATION_PROMPT_BASE_INPUT_TOKENS = 6400;
 
 const CHARS_PER_TOKEN_ESTIMATE = 2;
 const PROMPT_GLOSSARY_LIMIT = 80;
@@ -20,7 +20,7 @@ export type WorkContextBudgetOmittedPart =
   | "glossary"
   | "characters";
 
-export type WorkContextTokenBreakdown = {
+type WorkContextTokenBreakdown = {
   glossaryTokens: number;
   characterTokens: number;
   storyMemoryTokens: number;
@@ -31,7 +31,7 @@ export type WorkContextTokenBreakdown = {
   storyPageCount: number;
 };
 
-export type WorkContextBudgetSnapshot = WorkContextTokenBreakdown & {
+type WorkContextBudgetSnapshot = WorkContextTokenBreakdown & {
   outputHeadroomTokens: number;
   outputHeadroomPercent: number;
 };
@@ -95,7 +95,7 @@ export function prunePromptWorkContextForBudget(
   return { workContext: nextContext, budget };
 }
 
-export function planWorkContextBudget(
+function planWorkContextBudget(
   workContext: PromptWorkContext,
   {
     baseInputTokens = TRANSLATION_PROMPT_BASE_INPUT_TOKENS,
@@ -147,7 +147,7 @@ export function planWorkContextBudget(
   };
 }
 
-export function estimateWorkContextTokenBreakdown(
+function estimateWorkContextTokenBreakdown(
   workContext: PromptWorkContext,
 ): WorkContextTokenBreakdown {
   const guide = workContext.styleGuide;

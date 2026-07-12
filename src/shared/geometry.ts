@@ -1,10 +1,10 @@
 import type {
   BBox,
   BlockType,
-  ChapterSnapshot,
   RenderTextDirection,
   TranslationBlock,
-} from "./types";
+} from "./textTypes";
+import type { ChapterSnapshot } from "./libraryTypes";
 
 type PageSize = {
   width: number;
@@ -31,7 +31,7 @@ export const MIN_READABLE_FONT_SIZE_PX = 10;
 /** 장평 (horizontal glyph scale) bounds, shared by editor preview and export. */
 export const MIN_FONT_WIDTH_SCALE = 0.5;
 export const MAX_FONT_WIDTH_SCALE = 1.5;
-export const DEFAULT_FONT_WIDTH_SCALE = 1;
+const DEFAULT_FONT_WIDTH_SCALE = 1;
 
 const READABLE_AVERAGE_CHAR_WIDTH_RATIO = 0.95;
 const READABLE_VERTICAL_COLUMN_WIDTH_RATIO = 1.15;
@@ -63,6 +63,20 @@ export function clampBbox(bbox: BBox): BBox {
   return { x, y, w, h };
 }
 
+/** Intersection area relative to the smaller box, with a one-unit area floor. */
+export function bboxOverlapRatio(a: BBox, b: BBox): number {
+  if (a.w <= 0 || a.h <= 0 || b.w <= 0 || b.h <= 0) {
+    return 0;
+  }
+  const left = Math.max(a.x, b.x);
+  const top = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.w, b.x + b.w);
+  const bottom = Math.min(a.y + a.h, b.y + b.h);
+  const overlap = Math.max(0, right - left) * Math.max(0, bottom - top);
+  const minArea = Math.max(1, Math.min(a.w * a.h, b.w * b.h));
+  return overlap / minArea;
+}
+
 export function sanitizeChapterBboxes(
   chapter: ChapterSnapshot,
 ): ChapterSnapshot {
@@ -77,7 +91,7 @@ export function sanitizeChapterBboxes(
   };
 }
 
-export function sanitizeBlockBboxes(
+function sanitizeBlockBboxes(
   block: TranslationBlock,
   pageSize?: PageSize | null,
 ): TranslationBlock {

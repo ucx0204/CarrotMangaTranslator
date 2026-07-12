@@ -26,15 +26,6 @@ export type ShortcutCategory =
   | "edit"
   | "global";
 
-export const SHORTCUT_CATEGORY_LABELS: Record<ShortcutCategory, string> = {
-  view: "표시 / 보기",
-  tool: "도구",
-  translate: "번역",
-  inpaint: "인페인팅",
-  edit: "블록 편집",
-  global: "전역",
-};
-
 export function getShortcutCategoryLabels(
   t: TFunction<"renderer">,
 ): Record<ShortcutCategory, string> {

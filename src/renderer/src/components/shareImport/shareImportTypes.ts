@@ -1,9 +1,3 @@
-import type {
-  WorkShareImportEntry,
-  WorkShareImportRequest,
-  WorkSharePreviewChapter,
-} from "../../../../shared/shareTypes";
-
 export type LeftItem =
   | {
       key: string;
@@ -19,13 +13,6 @@ export type LeftItem =
       title: string;
       pageCount: number;
     };
-
-export type ShareImportModalSubmit = {
-  target: WorkShareImportRequest["target"];
-  entries: WorkShareImportEntry[];
-  remainingPackageChapters: WorkSharePreviewChapter[];
-  deletedExistingChapters: Array<{ id: string; title: string }>;
-};
 
 export type NewSelection = {
   packageChapterId: string;

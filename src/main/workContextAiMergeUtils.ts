@@ -1,4 +1,4 @@
-import type { WorkContextAnalysisCounts } from "../shared/types";
+import type { WorkContextAnalysisCounts } from "../shared/workContextAnalysisTypes";
 
 export function createEmptyCounts(): WorkContextAnalysisCounts {
   return {

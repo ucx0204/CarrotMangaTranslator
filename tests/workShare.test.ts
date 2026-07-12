@@ -11,7 +11,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { LibraryChapter, LibraryWork } from "../src/shared/types";
+import type { LibraryChapter, LibraryWork } from "../src/shared/libraryTypes";
 import { hashTranslationBlocks } from "../src/shared/blockFingerprint";
 import { MAX_SHARE_IMAGE_BYTES } from "../src/main/libraryStore/zipSafety";
 

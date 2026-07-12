@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
-import type { Command } from "../components/CommandPalette";
+import type { Command } from "../lib/appCommandTypes";
 
 type UseAppCommandsOptions = {
   currentChapter: ChapterSnapshot | null;

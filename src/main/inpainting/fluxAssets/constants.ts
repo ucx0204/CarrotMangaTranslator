@@ -21,7 +21,7 @@ export const FLUX_NVIDIA_RUNNER_COMPUTE_CAPS = [
   "120",
 ];
 
-export const FLUX_NVIDIA_RUNNER_RELEASE_TAG = "flux-runners-cuda12.9";
+const FLUX_NVIDIA_RUNNER_RELEASE_TAG = "flux-runners-cuda12.9";
 
 export const FLUX_NVIDIA_RUNNER_BASE_URL = `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/${FLUX_NVIDIA_RUNNER_RELEASE_TAG}`;
 
@@ -145,7 +145,7 @@ export const WINDOWS_LEGACY_MAX_PATH = 260;
 
 export const WINDOWS_PATH_SAFETY_MARGIN = 8;
 
-export const ROCM_LONGEST_LIBRARY_ENTRY = join(
+const ROCM_LONGEST_LIBRARY_ENTRY = join(
   "_rocm_sdk_libraries_custom",
   "bin",
   "hipblaslt",

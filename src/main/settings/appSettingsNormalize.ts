@@ -1,8 +1,5 @@
-import type {
-  AppSettings,
-  BlockFormatDefaults,
-  GemmaVramMode,
-} from "../../shared/types";
+import type { AppSettings, GemmaVramMode } from "../../shared/settingsTypes";
+import type { BlockFormatDefaults } from "../../shared/blockFormat";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
 import {
   DEFAULT_TRANSLATION_LANGUAGE_SETTINGS,

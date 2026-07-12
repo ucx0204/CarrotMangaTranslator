@@ -10,27 +10,27 @@ import {
   uuid,
 } from "./ipcSchemaPrimitives";
 
-export const PageAnalysisStatusSchema = z.enum([
+const PageAnalysisStatusSchema = z.enum([
   "idle",
   "running",
   "completed",
   "failed",
 ]);
-export const ChapterStatusSchema = z.enum([
+const ChapterStatusSchema = z.enum([
   "idle",
   "running",
   "completed",
   "partial",
   "failed",
 ]);
-export const ImportSourceKindSchema = z.enum([
+const ImportSourceKindSchema = z.enum([
   "images",
   "folder",
   "zip",
   "zip-folder",
 ]);
 
-export const MangaPageSchema = z
+const MangaPageSchema = z
   .object({
     id: uuid,
     name: z.string().min(1).max(260),
@@ -47,7 +47,7 @@ export const MangaPageSchema = z
   })
   .strict();
 
-export const LibraryPageRecordSchema = z
+const LibraryPageRecordSchema = z
   .object({
     id: storeId,
     name: z.string().min(1).max(260),
@@ -107,7 +107,7 @@ export const ChapterSnapshotSchema = z
   })
   .strict();
 
-export const LibraryChapterSummarySchema = z
+const LibraryChapterSummarySchema = z
   .object({
     id: storeId,
     workId: storeId,
@@ -119,7 +119,7 @@ export const LibraryChapterSummarySchema = z
   })
   .strict();
 
-export const LibraryWorkSummarySchema = z
+const LibraryWorkSummarySchema = z
   .object({
     id: storeId,
     title,

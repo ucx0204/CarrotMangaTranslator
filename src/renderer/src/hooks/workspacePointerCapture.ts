@@ -5,7 +5,7 @@ export function capturePointerSafely(
   try {
     element?.setPointerCapture(pointerId);
   } catch (_error) {
-    // Pointer capture can fail if the pointer was already released by the browser.
+    // error-policy-allow: the browser may already have released this pointer id.
   }
 }
 
@@ -18,6 +18,6 @@ export function releasePointerCaptureSafely(
       element.releasePointerCapture(pointerId);
     }
   } catch (_error) {
-    // Ignore stale pointer ids. The interaction state is reset by the caller.
+    // error-policy-allow: stale pointer ids are followed by caller-owned state reset.
   }
 }

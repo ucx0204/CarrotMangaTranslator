@@ -1,12 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  mkdir,
-  readFile,
-  rename,
-  stat,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import {
   basename,
   dirname,
@@ -47,7 +40,15 @@ export async function writeJsonFile(
     await writeFile(tmpPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
     await renameWithTransientRetry(tmpPath, path);
   } catch (error) {
-    await safeUnlink(tmpPath);
+    try {
+      await unlinkIfExists(tmpPath);
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        `JSON 저장과 임시 파일 정리에 모두 실패했습니다: ${path}`,
+        { cause: cleanupError },
+      );
+    }
     throw error;
   }
 }
@@ -114,19 +115,13 @@ export function sortNaturally(values: string[]): string[] {
   );
 }
 
-export async function safeUnlink(path: string): Promise<void> {
+export async function unlinkIfExists(path: string): Promise<void> {
   try {
     await unlink(path);
-  } catch (_error) {
-    // no-op
-  }
-}
-
-export async function pathExists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch (_error) {
-    return false;
+  } catch (error) {
+    if (isErrnoException(error) && error.code === "ENOENT") {
+      return;
+    }
+    throw error;
   }
 }

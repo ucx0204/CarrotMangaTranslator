@@ -1,5 +1,6 @@
-import type { MangaPage } from "../shared/types";
+import type { MangaPage } from "../shared/libraryTypes";
 import { isJapaneseLanguageCode } from "../shared/translationLanguages";
+import { saveChapterStoryMemory } from "./library";
 import { logInfo } from "./logger";
 import { tMain } from "./i18n";
 import {
@@ -29,7 +30,6 @@ import {
   buildPageStoryMemory,
   upsertPageStoryMemory,
 } from "./pipeline/storyMemoryBuilder";
-import { writeChapterStoryMemory } from "./libraryStore/workContextFiles";
 
 export async function runWholePagePipeline({
   jobId,
@@ -368,7 +368,7 @@ async function updateStoryMemoryAfterPage({
     workContext.storyMemory,
     buildPageStoryMemory({ page: completedPage, pageIndex }),
   );
-  workContext.storyMemory = await writeChapterStoryMemory(
+  workContext.storyMemory = await saveChapterStoryMemory(
     workContext.storyMemory,
   );
 }

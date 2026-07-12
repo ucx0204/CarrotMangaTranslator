@@ -78,7 +78,7 @@ function emitRuntimeProgress(
   try {
     onProgress({ phase, progressText, detail, ...progress });
   } catch (_error) {
-    // Progress reporting must never interrupt translation.
+    // error-policy-allow: observer failures must never interrupt translation.
   }
 }
 

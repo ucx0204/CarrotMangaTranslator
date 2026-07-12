@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ChapterSnapshot } from "../src/shared/types";
+import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import {
   markChapterPagesRunning,
   mergeLiveChapterPreservingDirtyPages,

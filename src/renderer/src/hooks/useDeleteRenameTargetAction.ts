@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import type { RenameTarget } from "../components/AppModals";
 import { formatErrorMessage } from "../lib/appHelpers";
+import type { RenameTarget } from "../lib/libraryRenameTypes";
 import { libraryGateway } from "./libraryGateway";
 import type { UseLibraryActionsOptions } from "./libraryActionTypes";
 

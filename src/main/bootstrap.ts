@@ -60,7 +60,7 @@ function writeBootstrapLog(message: string, detail?: unknown): void {
     const line = `[${new Date().toISOString()}] ${message}${detail === undefined ? "" : ` ${serialize(detail)}`}\n`;
     appendFileSync(logPath, line, "utf8");
   } catch (_error) {
-    // Ignore bootstrap logging failures so the app can continue trying to start.
+    // error-policy-allow: bootstrap logging must not prevent the app from reporting startup errors.
   }
 }
 

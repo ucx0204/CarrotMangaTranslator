@@ -1,17 +1,17 @@
+import type { BlockFormatDefaults } from "../../shared/blockFormat";
 import type {
-  BlockFormatDefaults,
   CodexReasoningEffort,
   ApiReasoningEffort,
-  BBox,
   GemmaVramMode,
-  JobPhase,
   LanguageCode,
   ModelProvider,
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
-  PromptWorkContext,
-} from "../../shared/types";
+} from "../../shared/settingsTypes";
+import type { BBox } from "../../shared/textTypes";
+import type { JobPhase } from "../../shared/jobTypes";
+import type { PromptWorkContext } from "../../shared/workContextTypes";
 import type { WorkContextBudgetPlan } from "../../shared/workContextBudget";
 
 export type PreviousOverlayBlockForPrompt = {

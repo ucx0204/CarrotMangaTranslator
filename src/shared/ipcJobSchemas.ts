@@ -53,7 +53,7 @@ export const ModelTestProgressEventSchema = z
   })
   .strict();
 
-export const AnalysisBlockModeSchema = z.enum(["auto", "keep"]);
+const AnalysisBlockModeSchema = z.enum(["auto", "keep"]);
 
 export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
   z

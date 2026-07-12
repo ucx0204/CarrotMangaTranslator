@@ -9,7 +9,7 @@ import type { BlockFormatGroupId } from "./blockFormat";
 export type PanelId = "editor";
 
 /** Mirrors the renderer's FormatApplyScope without importing renderer code. */
-export type PanelFormatScope = "selection" | "page" | "chapter";
+type PanelFormatScope = "selection" | "page" | "chapter";
 
 /**
  * Serializable snapshot the main window broadcasts to popped-out panel windows.

@@ -1,4 +1,3 @@
-/* eslint-disable max-lines-per-function */
 import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -116,33 +115,12 @@ export function ChapterPagePicker({
 
   return (
     <section className="translate-picker">
-      <div className="translate-picker-head">
-        <div className="translate-picker-heading">
-          <div className="translate-picker-worktitle">{work.title}</div>
-          <div className="translate-picker-subtitle">
-            {t("chapterPicker.prompt")}
-          </div>
-        </div>
-        <div className="translate-picker-actions">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setEveryChapter(() => ({ kind: "all" }))}
-          >
-            {t("common.selectAll")}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setEveryChapter(() => ({ kind: "pending" }))}
-          >
-            {t("chapterPicker.untranslatedOnly")}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => onChange(new Map())}>
-            {t("common.clearAll")}
-          </Button>
-        </div>
-      </div>
+      <ChapterPickerHeader
+        workTitle={work.title}
+        onSelectAll={() => setEveryChapter(() => ({ kind: "all" }))}
+        onSelectPending={() => setEveryChapter(() => ({ kind: "pending" }))}
+        onClear={() => onChange(new Map())}
+      />
 
       <div className="translate-picker-list">
         {work.chapters.map((chapter) => (
@@ -182,6 +160,41 @@ export function ChapterPagePicker({
         {summarizeSelection(work, selection, loader, t)}
       </div>
     </section>
+  );
+}
+
+function ChapterPickerHeader({
+  workTitle,
+  onSelectAll,
+  onSelectPending,
+  onClear,
+}: {
+  workTitle: string;
+  onSelectAll: () => void;
+  onSelectPending: () => void;
+  onClear: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="translate-picker-head">
+      <div className="translate-picker-heading">
+        <div className="translate-picker-worktitle">{workTitle}</div>
+        <div className="translate-picker-subtitle">
+          {t("chapterPicker.prompt")}
+        </div>
+      </div>
+      <div className="translate-picker-actions">
+        <Button variant="ghost" size="sm" onClick={onSelectAll}>
+          {t("common.selectAll")}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onSelectPending}>
+          {t("chapterPicker.untranslatedOnly")}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onClear}>
+          {t("common.clearAll")}
+        </Button>
+      </div>
+    </div>
   );
 }
 

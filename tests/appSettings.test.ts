@@ -35,7 +35,7 @@ import {
   resolveOcrGpuBackend,
   resolveOcrQualityMode,
 } from "../src/main/settings/appSettingsResolvers";
-import type { AppSettings } from "../src/shared/types";
+import type { AppSettings } from "../src/shared/settingsTypes";
 import { join } from "node:path";
 
 describe("app settings helpers", () => {

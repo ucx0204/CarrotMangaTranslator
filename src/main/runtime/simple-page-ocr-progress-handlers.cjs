@@ -36,7 +36,7 @@ function emitRuntimeProgress(
   try {
     options.onProgress({ phase, progressText, detail, ...progress });
   } catch (_error) {
-    // Progress reporting must never interrupt OCR work.
+    // error-policy-allow: observer failures must never interrupt OCR work.
   }
 }
 

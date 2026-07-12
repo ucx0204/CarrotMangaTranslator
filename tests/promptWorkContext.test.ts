@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildPromptWorkContextForPage } from "../src/main/pipeline/workContextPrompt";
-import type { ChapterStoryMemory, WorkStyleGuide } from "../src/shared/types";
+import type {
+  ChapterStoryMemory,
+  WorkStyleGuide,
+} from "../src/shared/workContextTypes";
 
 const promptRuntime =
   require("../src/main/runtime/simple-page-prompts.cjs") as {

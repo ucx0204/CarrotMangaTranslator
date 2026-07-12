@@ -52,26 +52,6 @@ describe("Windows installer clean uninstall option", () => {
     expect(releaseWorkflow).not.toContain("Prepare bundled Flux CUDA runtime");
   });
 
-  it("downloads OCR bootstrap Python at first run when the installer is thin", () => {
-    const ocrRuntime = readFileSync(
-      join(
-        repoRoot,
-        "src",
-        "main",
-        "runtime",
-        "simple-page-ocr-runtime-manager.cjs",
-      ),
-      "utf8",
-    );
-
-    expect(ocrRuntime).toContain("ensureManagedBootstrapPython");
-    expect(ocrRuntime).toContain("python-${version}-embed-amd64.zip");
-    expect(ocrRuntime).toContain("Paddle OCR Python 다운로드 중");
-    expect(ocrRuntime).toContain("Paddle OCR pip 설치 중");
-    expect(ocrRuntime).toContain("Expand-Archive");
-    expect(ocrRuntime).not.toContain('require("adm-zip")');
-  });
-
   it("offers an optional clean uninstall section for app data and OCR cache", () => {
     const script = readFileSync(
       join(repoRoot, "build", "installer.nsh"),

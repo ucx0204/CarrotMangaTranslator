@@ -6,8 +6,8 @@ import {
   registerImageProtocolScheme,
 } from "./imageProtocol";
 import { registerIpc } from "./ipc/registerIpc";
-import type { ActiveJob } from "./jobs/activeJob";
 import { ActiveJobStore } from "./jobs/activeJob";
+import { finishBeforeQuitCleanup } from "./jobs/beforeQuitCleanup";
 import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
 import { getLogPath, logError, logInfo, logWarn, resetAppLog } from "./logger";
 import { createMainWindow } from "./mainWindow";
@@ -17,8 +17,6 @@ import {
   decodeImageThroughRuntime,
   loadSimplePageRuntime,
 } from "./simplePageRuntime";
-
-const BEFORE_QUIT_CLEANUP_TIMEOUT_MS = 5000;
 
 const appPaths = ensureWritableAppDirectories();
 const jobs = new ActiveJobStore();
@@ -103,8 +101,17 @@ app.on("before-quit", (event) => {
   }
   event.preventDefault();
   quitCleanupStarted = true;
-  job.abortController.abort();
-  void finishBeforeQuitCleanup(job);
+  void finishBeforeQuitCleanup({
+    job,
+    jobs,
+    quit: () => app.quit(),
+    warnTimedOut: (jobId, timeoutMs) => {
+      logWarn("Timed out waiting for active job cleanup during app quit", {
+        jobId,
+        timeoutMs,
+      });
+    },
+  });
 });
 
 function openMainWindow(): void {
@@ -112,26 +119,5 @@ function openMainWindow(): void {
   mainWindow.on("closed", () => {
     mainWindow = null;
     panelWindows.closeAll();
-  });
-}
-
-async function finishBeforeQuitCleanup(job: ActiveJob): Promise<void> {
-  const timedOut = await Promise.race([
-    jobs.runCleanup(job, "before-quit").then(() => false),
-    delay(BEFORE_QUIT_CLEANUP_TIMEOUT_MS).then(() => true),
-  ]);
-  if (timedOut) {
-    logWarn("Timed out waiting for active job cleanup during app quit", {
-      jobId: job.id,
-      timeoutMs: BEFORE_QUIT_CLEANUP_TIMEOUT_MS,
-    });
-  }
-  jobs.clearIfCurrent(job.id);
-  app.quit();
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
   });
 }

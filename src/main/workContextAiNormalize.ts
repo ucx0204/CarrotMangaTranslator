@@ -2,7 +2,7 @@ import type {
   CharacterSpeechStyle,
   GlossaryEntryCategory,
   WorkTranslationRules,
-} from "../shared/types";
+} from "../shared/workContextTypes";
 import type {
   AiCharacterSuggestion,
   AiGlossarySuggestion,

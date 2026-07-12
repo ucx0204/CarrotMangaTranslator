@@ -18,7 +18,7 @@ import {
   resolve,
 } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { CustomFont } from "../shared/types";
+import type { CustomFont } from "../shared/libraryTypes";
 import { getAppPaths } from "./appPaths";
 import { logError } from "./logger";
 

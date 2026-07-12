@@ -1,11 +1,11 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, stat } from "node:fs/promises";
 import { dirname, extname } from "node:path";
+import type { LibraryPageRecord } from "../../shared/libraryTypes";
 import type {
-  LibraryPageRecord,
   WorkShareExportRequest,
   WorkShareExportResult,
-} from "../../shared/types";
+} from "../../shared/shareTypes";
 import { tMain } from "./localization";
 import { reorderRecords } from "./chapterRecords";
 import {

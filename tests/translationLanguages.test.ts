@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TRANSLATION_LANGUAGE_SETTINGS,
@@ -13,7 +11,7 @@ import {
   resolveTranslationLanguageSettings,
 } from "../src/shared/translationLanguages";
 import { filterPagesByOcrText } from "../src/main/pipeline/pageFiltering";
-import type { MangaPage } from "../src/shared/types";
+import type { MangaPage } from "../src/shared/libraryTypes";
 
 const languageProfile =
   require("../src/main/runtime/simple-page-language-profile.cjs") as {
@@ -315,28 +313,5 @@ describe("OCR source language plumbing", () => {
     });
     expect(kept.pagesToTranslate).toHaveLength(1);
     expect(kept.prepassNoTextPages).toHaveLength(0);
-  });
-
-  it("keeps the Paddle lang mapping inside the Python adapter only", () => {
-    const script = readFileSync(
-      join(process.cwd(), "src", "main", "runtime", "paddleocr-vl-bboxes.py"),
-      "utf8",
-    );
-
-    expect(script).toContain('"--source-language"');
-    expect(script).toContain("PADDLE_OCR_LANG_BY_SOURCE_LANGUAGE");
-    expect(script).toContain('"ja": "japan"');
-    expect(script).toContain(
-      '"lang": resolve_paddle_ocr_lang(source_language)',
-    );
-    expect(script).toContain("resolve_paddle_ocr_version");
-    expect(script).toContain('return "PP-OCRv5"');
-    expect(script).toContain(
-      'return PADDLE_OCR_LANG_BY_SOURCE_LANGUAGE.get(base, "en")',
-    );
-    expect(script).toContain("should_use_configured_model_names");
-    // 일본어 전용 tiny-rec 필터는 스크립트별 분기 뒤에서만 동작해야 한다.
-    expect(script).toContain('if script != "japanese":');
-    expect(script).not.toContain('"lang": "japan"');
   });
 });

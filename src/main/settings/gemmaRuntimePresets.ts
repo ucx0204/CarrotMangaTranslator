@@ -1,4 +1,4 @@
-import type { GemmaVramMode } from "../../shared/types";
+import type { GemmaVramMode } from "../../shared/settingsTypes";
 import {
   DEFAULT_CONTEXT_TOKENS,
   DEFAULT_GEMMA_DRAFT_MODEL_FILE,

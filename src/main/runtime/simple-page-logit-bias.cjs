@@ -169,32 +169,11 @@ async function tokenizeText(baseUrl, tokenText, options = {}) {
 
   for (const endpoint of endpoints) {
     for (const body of bodies) {
-      try {
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${DEFAULT_API_KEY}`,
-          },
-          body: JSON.stringify(body),
-          signal: createTokenizeSignal(options),
-        });
-        const rawText = await response.text();
-        if (!response.ok) {
-          lastError = `${endpoint} ${response.status} ${truncateText(rawText, 240)}`;
-          continue;
-        }
-        const tokenIds = extractTokenIds(JSON.parse(rawText));
-        if (tokenIds.length > 0) {
-          return { tokenIds, endpoint, error: null };
-        }
-        lastError = `${endpoint} returned no token ids`;
-      } catch (error) {
-        if (isUserAbortError(error, options)) {
-          throw error;
-        }
-        lastError = formatTokenizeError(endpoint, error);
+      const attempt = await requestTokenization(endpoint, body, options);
+      if (attempt.tokenIds.length > 0) {
+        return attempt;
       }
+      lastError = attempt.error ?? "";
     }
   }
 
@@ -203,6 +182,50 @@ async function tokenizeText(baseUrl, tokenText, options = {}) {
     endpoint: null,
     error: truncateText(lastError, 500),
   };
+}
+
+/**
+ * @param {string} endpoint
+ * @param {Record<string, unknown>} body
+ * @param {LogitBiasOptions} options
+ * @returns {Promise<TokenizeResult>}
+ */
+async function requestTokenization(endpoint, body, options) {
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${DEFAULT_API_KEY}`,
+      },
+      body: JSON.stringify(body),
+      signal: createTokenizeSignal(options),
+    });
+    const rawText = await response.text();
+    return response.ok
+      ? tokenizationFromSuccess(endpoint, rawText)
+      : tokenizationFailure(
+          `${endpoint} ${response.status} ${truncateText(rawText, 240)}`,
+        );
+  } catch (error) {
+    if (isUserAbortError(error, options)) {
+      throw error;
+    }
+    return tokenizationFailure(formatTokenizeError(endpoint, error));
+  }
+}
+
+/** @param {string} endpoint @param {string} rawText @returns {TokenizeResult} */
+function tokenizationFromSuccess(endpoint, rawText) {
+  const tokenIds = extractTokenIds(JSON.parse(rawText));
+  return tokenIds.length > 0
+    ? { tokenIds, endpoint, error: null }
+    : tokenizationFailure(`${endpoint} returned no token ids`);
+}
+
+/** @param {string} error @returns {TokenizeResult} */
+function tokenizationFailure(error) {
+  return { tokenIds: [], endpoint: null, error };
 }
 
 /**
@@ -322,7 +345,7 @@ function parseDelimitedTextList(value) {
         return uniqueTexts(parsed);
       }
     } catch (_error) {
-      // Fall back to delimiter parsing below.
+      // error-policy-allow: invalid JSON input falls through to delimiter parsing.
     }
   }
   return uniqueTexts(text.split(/[\r\n,]+/g));

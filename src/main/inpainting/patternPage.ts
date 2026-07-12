@@ -1,7 +1,7 @@
 import { nativeImage } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { MangaPage } from "../../shared/types";
+import type { MangaPage } from "../../shared/libraryTypes";
 import {
   FLUX_INPAINT_CONTEXT_PX,
   FLUX_INPAINT_FEATHER_PX,

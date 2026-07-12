@@ -60,7 +60,7 @@ function updateEmbeddedPythonPackagePath(
       writeFileSync(pthPath, nextText, "utf8");
     }
   } catch (_error) {
-    // If the ._pth file cannot be updated, PYTHONPATH still helps non-isolated Python builds.
+    // error-policy-allow: PYTHONPATH remains the supported fallback for non-isolated builds.
   }
 }
 
@@ -103,7 +103,7 @@ function sanitizeEmbeddedPythonPathFile(
       writeFileSync(pthPath, nextText, "utf8");
     }
   } catch (_error) {
-    // The runtime can still fail with a clear pip/import error later.
+    // error-policy-allow: the required runtime import check reports the actionable failure later.
   }
 }
 

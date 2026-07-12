@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { LibraryChapter, LibraryWork } from "../src/shared/types";
+import type { LibraryChapter, LibraryWork } from "../src/shared/libraryTypes";
 
 const tempDirs: string[] = [];
 

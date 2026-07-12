@@ -10,8 +10,8 @@ const { existsSync } = require("node:fs");
 const path = require("node:path");
 
 /**
- * @typedef {import("../src/shared/types").MangaPage} MangaPage
- * @typedef {import("../src/shared/types").TranslationBlock} TranslationBlock
+ * @typedef {import("../src/shared/libraryTypes").MangaPage} MangaPage
+ * @typedef {import("../src/shared/textTypes").TranslationBlock} TranslationBlock
  * @typedef {{ pattern: number; other: number }} BlockTypeCounts
  * @typedef {{ filePath: string; groupKey: string; hash: number }} SmokeSample
  * @typedef {{ index: number; sample: SmokeSample; geometryPath: string; overlayPath: string; blockCount: number; typeCounts: BlockTypeCounts; elapsedMs: number }} RenderedSmokeItem
@@ -477,7 +477,7 @@ async function readReusableOcrHints(rootDir, pageIndex) {
 /**
  * @param {string} imagePath
  * @param {number} index
- * @returns {import("../src/shared/types").MangaPage}
+ * @returns {import("../src/shared/libraryTypes").MangaPage}
  */
 function createPageRecord(imagePath, index) {
   const image = nativeImage.createFromPath(imagePath);
@@ -588,7 +588,7 @@ function parseTargetImageList(value) {
           .filter(Boolean);
       }
     } catch (_error) {
-      // Fall through to the simple list parser.
+      // error-policy-allow: malformed JSON input falls through to the documented list format.
     }
   }
 

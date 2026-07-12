@@ -83,7 +83,7 @@ function assertFunction(value: unknown, label: string): void {
   }
 }
 
-export async function startModelEndpoint(
+async function startModelEndpoint(
   runtime: RuntimeModules,
   options: TranslationOptions,
 ): Promise<ModelEndpointHandle> {
@@ -135,7 +135,7 @@ export async function startModelEndpointSession(
   );
 }
 
-export async function stopModelEndpoint(
+async function stopModelEndpoint(
   runtime: RuntimeModules,
   endpoint: ModelEndpointHandle | null | undefined,
 ): Promise<void> {
@@ -149,7 +149,7 @@ export async function stopModelEndpoint(
   await runtime.simplePage.stopServer(endpoint);
 }
 
-export function isOpenAIOAuthEndpoint(
+function isOpenAIOAuthEndpoint(
   endpoint: ModelEndpointHandle | null | undefined,
 ): endpoint is OpenAIOAuthEndpoint {
   return Boolean(

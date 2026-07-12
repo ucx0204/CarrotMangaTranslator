@@ -136,6 +136,65 @@ describe("Hugging Face download fallback", () => {
       expect(getRangeHeader(fetchMock.mock.calls[0]?.[1])).toBe("bytes=0-3");
     },
   );
+
+  it("retries a failed stream from a clean partial file", async () => {
+    process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRY_COUNT = "2";
+    const task = await createTask("stream-retry.bin");
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("connection reset"))
+      .mockResolvedValueOnce(
+        new Response("recovered", {
+          status: 200,
+          headers: { "content-length": "9" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await downloadHfFileWithProgress(task);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(await readFile(task.destination, "utf8")).toBe("recovered");
+    await expect(readFile(`${task.destination}.part`)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("removes a partial stream after an abort failure", async () => {
+    const task = await createTask("stream-abort.bin");
+    const abortController = new AbortController();
+    let pullCount = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pullCount += 1;
+        if (pullCount === 1) {
+          controller.enqueue(Buffer.from("partial"));
+          return;
+        }
+        abortController.abort();
+        const error = new Error("cancelled while streaming");
+        error.name = "AbortError";
+        controller.error(error);
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(body, { status: 200 })),
+    );
+
+    await expect(
+      downloadHfFileWithProgress(task, {
+        abortSignal: abortController.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    await expect(readFile(task.destination)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await expect(readFile(`${task.destination}.part`)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
 });
 
 async function createTask(file: string) {

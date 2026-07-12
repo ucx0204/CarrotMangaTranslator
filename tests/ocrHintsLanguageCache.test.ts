@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { MangaPage } from "../src/shared/types";
+import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationOptions } from "../src/main/appSettings";
 import { prepareOcrHintsForPages } from "../src/main/pipeline/ocrHints";
 import type { TranslationRuntimePort } from "../src/main/pipeline/translationRuntimePort";

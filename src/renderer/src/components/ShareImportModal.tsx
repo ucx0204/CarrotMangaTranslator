@@ -2,14 +2,12 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { LibraryIndex } from "../../../shared/libraryTypes";
 import type { WorkShareImportPreview } from "../../../shared/shareTypes";
+import type { ShareImportModalSubmit } from "../lib/shareImportTypes";
 import { Button, Modal } from "./ui";
 import { ShareImportExistingMergeSection } from "./shareImport/ShareImportExistingMergeSection";
 import { ShareImportNewWorkSection } from "./shareImport/ShareImportNewWorkSection";
 import { ShareImportTargetSection } from "./shareImport/ShareImportTargetSection";
-import type { ShareImportModalSubmit } from "./shareImport/shareImportTypes";
 import { useShareImportModalState } from "./shareImport/useShareImportModalState";
-
-export type { ShareImportModalSubmit } from "./shareImport/shareImportTypes";
 
 type ShareImportModalProps = {
   library: LibraryIndex;

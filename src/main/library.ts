@@ -1,4 +1,3 @@
-export { pathExists } from "./libraryStore/storage";
 export {
   assertLibraryImagePath,
   getLibraryRoot,

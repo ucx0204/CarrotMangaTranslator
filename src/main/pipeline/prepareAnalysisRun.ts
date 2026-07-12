@@ -1,7 +1,8 @@
 import type { TranslationOptions } from "../appSettings";
 import { getAppPaths, type AppPaths } from "../appPaths";
 import { getAppSettings } from "../settingsStore";
-import type { AppSettings, MangaPage } from "../../shared/types";
+import type { AppSettings } from "../../shared/settingsTypes";
+import type { MangaPage } from "../../shared/libraryTypes";
 import { logInfo } from "../logger";
 import { buildBaseOptions, summarizeTranslationOptions } from "./options";
 import {
