@@ -14,6 +14,8 @@ import type { MangaApi } from "../src/shared/mangaApi";
 import type { UiLocale } from "../src/shared/uiLocales";
 import { appI18n, initializeAppI18n } from "../src/renderer/src/appI18n";
 import { useAppSessionCoreState } from "../src/renderer/src/app/session/useAppSessionCoreState";
+import { FontsProvider } from "../src/renderer/src/fonts/FontsProvider";
+import { useFonts } from "../src/renderer/src/fonts/useFonts";
 import { AppI18nProvider } from "../src/renderer/src/i18n";
 import { useStatusLog } from "../src/renderer/src/hooks/useStatusLog";
 import {
@@ -28,6 +30,7 @@ afterEach(async () => {
   localeListener = null;
   await appI18n.changeLanguage("ko");
   window.location.hash = "";
+  document.getElementById("mgt-custom-fonts")?.remove();
 });
 
 describe("renderer UI locale runtime", () => {
@@ -145,7 +148,50 @@ describe("renderer UI locale runtime", () => {
       sample: "Abc 가나다",
     });
   });
+
+  it("reprioritizes bundled fonts immediately after a locale event", async () => {
+    window.mangaApi = {
+      listCustomFonts: vi.fn().mockResolvedValue([]),
+      onUiLocaleChanged: (callback: (locale: UiLocale) => void) => {
+        localeListener = callback;
+        return () => {
+          localeListener = null;
+        };
+      },
+    } as unknown as MangaApi;
+    await initializeAppI18n("en");
+    render(
+      <AppI18nProvider>
+        <FontsProvider>
+          <FontOrderHarness />
+        </FontsProvider>
+      </AppI18nProvider>,
+    );
+
+    expect(screen.getByTestId("font-order").textContent).toBe(
+      "default,comic-neue",
+    );
+
+    act(() => localeListener?.("zh-Hant"));
+    await waitFor(() => {
+      expect(screen.getByTestId("font-order").textContent).toBe(
+        "default,huninn",
+      );
+    });
+  });
 });
+
+function FontOrderHarness(): React.JSX.Element {
+  const { options } = useFonts();
+  return (
+    <output data-testid="font-order">
+      {options
+        .slice(0, 2)
+        .map((option) => option.id)
+        .join(",")}
+    </output>
+  );
+}
 
 function TransientStateHarness(): React.JSX.Element {
   const { t } = useTranslation("renderer");

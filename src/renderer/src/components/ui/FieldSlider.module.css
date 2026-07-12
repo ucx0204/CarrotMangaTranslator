@@ -9,6 +9,23 @@
   min-width: 0;
 }
 
+.group {
+  display: grid;
+  grid-template-columns: fit-content(132px) minmax(80px, 1fr) minmax(
+      44px,
+      max-content
+    );
+  align-items: center;
+  column-gap: var(--sp-3);
+  row-gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* Share one label track so every slider starts after the widest localized label. */
+.group > .row {
+  display: contents;
+}
+
 .label {
   min-width: 0;
   font-size: var(--font-sm);

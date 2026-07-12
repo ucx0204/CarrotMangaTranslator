@@ -1,0 +1,7 @@
+Permanent Marker
+Copyright (c) 2010 by Font Diner, Inc. All rights reserved.
+
+Licensed under the Apache License, Version 2.0.
+
+Source metadata:
+https://github.com/google/fonts/tree/main/apache/permanentmarker

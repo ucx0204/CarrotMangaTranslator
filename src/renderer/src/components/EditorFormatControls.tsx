@@ -6,7 +6,13 @@ import { BlockSpacingFields } from "./BlockSpacingFields";
 import { FontSelect } from "./FontSelect";
 import { FormatBatchApplyModal } from "./FormatBatchApplyModal";
 import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
-import { Button, FieldSlider, IconButton, RangeInput } from "./ui";
+import {
+  Button,
+  FieldSlider,
+  FieldSliderGroup,
+  IconButton,
+  RangeInput,
+} from "./ui";
 import {
   AlignCenterIcon,
   AlignLeftIcon,
@@ -90,16 +96,18 @@ export function FormatEditorGroup({
         fontSizePx={model.fontSizePx}
         onUpdate={onUpdate}
       />
-      <BlockTransformSliders
-        block={block}
-        disabled={disabled}
-        onUpdate={onUpdate}
-      />
-      <BlockSpacingFields
-        block={block}
-        disabled={disabled}
-        onUpdate={onUpdate}
-      />
+      <FieldSliderGroup>
+        <BlockTransformSliders
+          block={block}
+          disabled={disabled}
+          onUpdate={onUpdate}
+        />
+        <BlockSpacingFields
+          block={block}
+          disabled={disabled}
+          onUpdate={onUpdate}
+        />
+      </FieldSliderGroup>
     </div>
   );
 }

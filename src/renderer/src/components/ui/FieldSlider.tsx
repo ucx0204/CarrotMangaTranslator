@@ -9,6 +9,20 @@ export type FieldSliderProps = RangeInputProps & {
   valueLabel: React.ReactNode;
 };
 
+export function FieldSliderGroup({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}): React.JSX.Element {
+  return (
+    <div className={[styles.group, className ?? ""].filter(Boolean).join(" ")}>
+      {children}
+    </div>
+  );
+}
+
 /** A compact slider whose label column can wrap longer translations. */
 export function FieldSlider({
   label,

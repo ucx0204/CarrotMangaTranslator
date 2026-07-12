@@ -1,0 +1,178 @@
+{
+  "generatedOn": "2026-07-12",
+  "sourceRevisions": {
+    "google-fonts": "ec0464b978de222073645d6d3366f3fdf03376d8",
+    "chenyuluoyan_thin-v2.0": "79d19aa663b4647291c57568d52321d81b719103",
+    "cubic-11-v1.500": "4c566f7d6cc5c05ee360fe9cff56b5da1fcafd4d"
+  },
+  "fonts": [
+    {
+      "id": "comic-neue",
+      "family": "Comic Neue",
+      "locale": "en",
+      "file": "src/renderer/src/assets/fonts/en/comic-neue.ttf",
+      "sha256": "a0ee5a37c8b27c4db0700137d928598b1e23b0089e1546a8961909176b779360"
+    },
+    {
+      "id": "kalam",
+      "family": "Kalam",
+      "locale": "en",
+      "file": "src/renderer/src/assets/fonts/en/kalam.ttf",
+      "sha256": "57cecb63d4608019371954274ae1d8c397764debd5b19d4a33c1efa4dc923c0b"
+    },
+    {
+      "id": "bangers",
+      "family": "Bangers",
+      "locale": "en",
+      "file": "src/renderer/src/assets/fonts/en/bangers.ttf",
+      "sha256": "4160a7311de9342674cce9160cde9fcbb30f48190397d86ff1b70b455af65824"
+    },
+    {
+      "id": "luckiest-guy",
+      "family": "Luckiest Guy",
+      "locale": "en",
+      "file": "src/renderer/src/assets/fonts/en/luckiest-guy.ttf",
+      "sha256": "cfbdd68a039f92df51cf3721506af6242e64594c6325fe0bedbeff3fe385d980"
+    },
+    {
+      "id": "permanent-marker",
+      "family": "Permanent Marker",
+      "locale": "en",
+      "file": "src/renderer/src/assets/fonts/en/permanent-marker.ttf",
+      "sha256": "28f82c8a7943cb8e9d599f8554da1d4fc75dbcf69b9885ad6c0611d20c6946c5"
+    },
+    {
+      "id": "freckle-face",
+      "family": "Freckle Face",
+      "locale": "en",
+      "file": "src/renderer/src/assets/fonts/en/freckle-face.ttf",
+      "sha256": "54b61a9f5bac3eb3a3d7f78f99d4d9c5d5688a9859e79bbf8704ae79c7f8f0fc"
+    },
+    {
+      "id": "yusei-magic",
+      "family": "Yusei Magic",
+      "locale": "ja",
+      "file": "src/renderer/src/assets/fonts/ja/yusei-magic.ttf",
+      "sha256": "82098615f39ed9da6a8ccc674b9006e49c70dd5b775a7a1697f6bedd22ce25a2"
+    },
+    {
+      "id": "mochiy-pop-one",
+      "family": "Mochiy Pop One",
+      "locale": "ja",
+      "file": "src/renderer/src/assets/fonts/ja/mochiy-pop-one.ttf",
+      "sha256": "9e009430e1316c271a5f34759c6b65fc343c4e806f193042528887e7235a92c6"
+    },
+    {
+      "id": "hachi-maru-pop",
+      "family": "Hachi Maru Pop",
+      "locale": "ja",
+      "file": "src/renderer/src/assets/fonts/ja/hachi-maru-pop.ttf",
+      "sha256": "78408910c8f1a2f174a279cbc1484b48b71780039eba3fe1be2bfcc5d4df3f98"
+    },
+    {
+      "id": "dela-gothic-one",
+      "family": "Dela Gothic One",
+      "locale": "ja",
+      "file": "src/renderer/src/assets/fonts/ja/dela-gothic-one.ttf",
+      "sha256": "4ff87a0965f1b0505e5a2c58424bc6ad3cff27e56a82f21c2fc9d6b0e3857ee2"
+    },
+    {
+      "id": "reggae-one",
+      "family": "Reggae One",
+      "locale": "ja",
+      "file": "src/renderer/src/assets/fonts/ja/reggae-one.ttf",
+      "sha256": "aebe62598732d76036f30ec11bb0ec5f68938e373a06d1b4ceb6b9cf1abf3db2"
+    },
+    {
+      "id": "dot-gothic-16",
+      "family": "DotGothic16",
+      "locale": "ja",
+      "file": "src/renderer/src/assets/fonts/ja/dot-gothic-16.ttf",
+      "sha256": "3ad9af88726d42b40f7f365f0dcac785af73cf20ea6f1d5b44e57cc21150b8f1"
+    },
+    {
+      "id": "zcool-kuaile",
+      "family": "ZCOOL KuaiLe",
+      "locale": "zh-Hans",
+      "file": "src/renderer/src/assets/fonts/zh-hans/zcool-kuaile.ttf",
+      "sha256": "812a6fc1fe54b6d73a419245c32dfeba8aa33104d5be90d1cf6af082007cb71d"
+    },
+    {
+      "id": "zcool-qingke-huangyou",
+      "family": "ZCOOL QingKe HuangYou",
+      "locale": "zh-Hans",
+      "file": "src/renderer/src/assets/fonts/zh-hans/zcool-qingke-huangyou.ttf",
+      "sha256": "54f0c0df4308cd74cd0f2fd3494ae054dbc4a1fd6fa7d71f4807eb4cdd8b4136"
+    },
+    {
+      "id": "zcool-xiaowei",
+      "family": "ZCOOL XiaoWei",
+      "locale": "zh-Hans",
+      "file": "src/renderer/src/assets/fonts/zh-hans/zcool-xiaowei.ttf",
+      "sha256": "a42b620140f493db42f741351dfbf343c0936d58588ee8004b8b2a218d997ff1"
+    },
+    {
+      "id": "ma-shan-zheng",
+      "family": "Ma Shan Zheng",
+      "locale": "zh-Hans",
+      "file": "src/renderer/src/assets/fonts/zh-hans/ma-shan-zheng.ttf",
+      "sha256": "b844c59bf20bf530e41c20d6ff12b383b23a2e553b9b68cc89f070869213155d"
+    },
+    {
+      "id": "long-cang",
+      "family": "Long Cang",
+      "locale": "zh-Hans",
+      "file": "src/renderer/src/assets/fonts/zh-hans/long-cang.ttf",
+      "sha256": "e5bf2c3f24ef2327c6f136d8f73e2f9dfdf44896fdbeb35a9515f44777bb91bc"
+    },
+    {
+      "id": "liu-jian-mao-cao",
+      "family": "Liu Jian Mao Cao",
+      "locale": "zh-Hans",
+      "file": "src/renderer/src/assets/fonts/zh-hans/liu-jian-mao-cao.ttf",
+      "sha256": "cab396b91a5b7c0b4005a35891180d06e6751f5ac261fe680aec65c1ae209033"
+    },
+    {
+      "id": "huninn",
+      "family": "Huninn",
+      "locale": "zh-Hant",
+      "file": "src/renderer/src/assets/fonts/zh-hant/huninn.ttf",
+      "sha256": "1bd770a5ffc0c06723b567686f8b5db5abf9ab54227f3bbc4e6fd648f4698805"
+    },
+    {
+      "id": "iansui",
+      "family": "Iansui",
+      "locale": "zh-Hant",
+      "file": "src/renderer/src/assets/fonts/zh-hant/iansui.ttf",
+      "sha256": "6e6340d80d618a42b48ade9370c34fa37a8210750c6fbc8efe65f23716538a2b"
+    },
+    {
+      "id": "lxgw-wenkai-tc",
+      "family": "LXGW WenKai TC",
+      "locale": "zh-Hant",
+      "file": "src/renderer/src/assets/fonts/zh-hant/lxgw-wenkai-tc.ttf",
+      "sha256": "4fcc5aec11cbbf737b0cfab7b63796f7f280087a7a656b2f13342cd5e5318d95"
+    },
+    {
+      "id": "lxgw-marker-gothic",
+      "family": "LXGW Marker Gothic",
+      "locale": "zh-Hant",
+      "file": "src/renderer/src/assets/fonts/zh-hant/lxgw-marker-gothic.ttf",
+      "sha256": "e6a55cfd5f18dc393f92670a164397a69242cb4eabe1d3feb5dc22fc4947a8ba"
+    },
+    {
+      "id": "chenyu-luoyan",
+      "family": "ChenYuluoyan",
+      "locale": "zh-Hant",
+      "file": "src/renderer/src/assets/fonts/zh-hant/chenyu-luoyan.ttf",
+      "sha256": "1289e42a6d1ec995d0cb23aee89efc69fc95749fbd54a610057a3e992dc453db"
+    },
+    {
+      "id": "cubic-11",
+      "family": "Cubic 11",
+      "locale": "zh-Hant",
+      "file": "src/renderer/src/assets/fonts/zh-hant/cubic-11.ttf",
+      "sha256": "0193f5f033612496df6b45ee92ac3b335bc6a5a24ff95da55ca87b33e57dcf62"
+    }
+  ]
+}
