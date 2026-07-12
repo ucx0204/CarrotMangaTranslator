@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { CustomFont } from "../../../shared/libraryTypes";
+import { normalizeUiLocale } from "../../../shared/uiLocales";
 import { mangaGateway } from "../api/mangaGateway";
 import { getBlockFontOptions, setCustomFontOptions } from "../lib/fonts";
 import { FontsContext, type FontsContextValue } from "./fontsContextValue";
@@ -29,7 +30,8 @@ export function FontsProvider({
 }: {
   children: React.ReactNode;
 }): React.JSX.Element {
-  const { t } = useTranslation("renderer");
+  const { i18n, t } = useTranslation("renderer");
+  const uiLocale = normalizeUiLocale(i18n.resolvedLanguage ?? i18n.language);
   const [customFonts, setFonts] = React.useState<CustomFont[]>([]);
   const [busy, setBusy] = React.useState(false);
 
@@ -87,12 +89,12 @@ export function FontsProvider({
   const value = React.useMemo<FontsContextValue>(
     () => ({
       customFonts,
-      options: getBlockFontOptions(t),
+      options: getBlockFontOptions(t, uiLocale),
       busy,
       registerFont,
       removeFont,
     }),
-    [customFonts, busy, registerFont, removeFont, t],
+    [customFonts, busy, registerFont, removeFont, t, uiLocale],
   );
 
   return (

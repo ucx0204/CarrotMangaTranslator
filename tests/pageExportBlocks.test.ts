@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildPageExportBlocks } from "../src/main/pageExportBlocks";
+import {
+  BUILT_IN_BLOCK_FONTS,
+  DEFAULT_BLOCK_FONT_STACK,
+} from "../src/shared/blockFontCatalog";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
@@ -77,5 +81,39 @@ describe("buildPageExportBlocks lineHeight parity", () => {
     );
 
     expect(exported.fontSizePx).toBe(12);
+  });
+});
+
+describe("buildPageExportBlocks font family parity", () => {
+  it.each(BUILT_IN_BLOCK_FONTS)("uses the shared family for $id", (font) => {
+    const [exported] = buildPageExportBlocks(
+      makePage(makeBlock({ fontFamily: font.id })),
+      1000,
+      1000,
+      new Map(),
+    );
+    expect(exported.fontFamily).toBe(font.cssFamily);
+  });
+
+  it("uses the default stack for an unknown font", () => {
+    const [exported] = buildPageExportBlocks(
+      makePage(makeBlock({ fontFamily: "unknown-font" })),
+      1000,
+      1000,
+      new Map(),
+    );
+    expect(exported.fontFamily).toBe(DEFAULT_BLOCK_FONT_STACK);
+  });
+
+  it("keeps a registered custom family ahead of built-in resolution", () => {
+    const [exported] = buildPageExportBlocks(
+      makePage(makeBlock({ fontFamily: "custom-font" })),
+      1000,
+      1000,
+      new Map([["custom-font", "MGTUser-custom"]]),
+    );
+    expect(exported.fontFamily).toBe(
+      '"MGTUser-custom", "Malgun Gothic", sans-serif',
+    );
   });
 });

@@ -5,6 +5,10 @@ import {
   resolveEffectiveRenderBbox,
   resolveFontWidthScale,
 } from "../shared/geometry";
+import {
+  DEFAULT_BLOCK_FONT_STACK,
+  resolveBuiltInBlockFontFamily,
+} from "../shared/blockFontCatalog";
 import type { MangaPage } from "../shared/libraryTypes";
 import { parseRichText, type TextStyleRun } from "../shared/richTextMarkup";
 import type { TranslationBlock } from "../shared/textTypes";
@@ -29,30 +33,6 @@ export type PageExportBlock = {
   outlineWidthScale: number;
   autoFitText: boolean;
 };
-
-const DEFAULT_EXPORT_FONT_FAMILY =
-  '"Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif';
-
-const EXPORT_FONT_FAMILY_BY_ID: ReadonlyMap<string, string> = new Map([
-  ["mongtori", '"MGT Mongtori", "Malgun Gothic", sans-serif'],
-  ["chosun-gungseo", '"MGT Chosun Gungseo", "Malgun Gothic", serif'],
-  [
-    "griun-pol-sensibility",
-    '"MGT Griun Pol Sensibility", "Malgun Gothic", sans-serif',
-  ],
-  ["nanum-gothic", '"MGT Nanum Gothic", "Malgun Gothic", sans-serif'],
-  ["nanum-myeongjo", '"MGT Nanum Myeongjo", "Malgun Gothic", serif'],
-  [
-    "nanum-barun-gothic",
-    '"MGT Nanum Barun Gothic", "Malgun Gothic", sans-serif',
-  ],
-  ["seoul-namsan", '"MGT Seoul Namsan", "Malgun Gothic", sans-serif'],
-  [
-    "seoul-namsan-vertical",
-    '"MGT Seoul Namsan Vertical", "Malgun Gothic", sans-serif',
-  ],
-  ["seoul-hangang", '"MGT Seoul Hangang", "Malgun Gothic", serif'],
-]);
 
 export function buildPageExportBlocks(
   page: MangaPage,
@@ -148,9 +128,7 @@ function resolveExportBlockFontFamily(
   if (value && customFamilyById?.has(value)) {
     return `"${customFamilyById.get(value)}", "Malgun Gothic", sans-serif`;
   }
-  return (
-    EXPORT_FONT_FAMILY_BY_ID.get(value ?? "") ?? DEFAULT_EXPORT_FONT_FAMILY
-  );
+  return resolveBuiltInBlockFontFamily(value) ?? DEFAULT_BLOCK_FONT_STACK;
 }
 
 function normalizeExportColor(

@@ -5,6 +5,7 @@ const { execFileSync } = require("node:child_process");
 const ts = require("typescript");
 
 const EMPTY_CATCH_ALLOW_MARKER = "error-policy-allow:";
+const CANDIDATE_EXTENSIONS = new Set([".cjs", ".mjs", ".js", ".ts", ".tsx"]);
 
 /** @typedef {"promise-catch-undefined" | "promise-catch-empty-block" | "empty-catch-block" | "implicit-catch-sentinel"} RuleName */
 /** @typedef {{ file: string, line: number, rule: RuleName }} Violation */
@@ -22,29 +23,26 @@ const ruleMessages = {
 
 function listCandidateFiles() {
   const output = execFileSync(
-    "rg",
+    "git",
     [
-      "--files",
+      "ls-files",
+      "-z",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "--",
       "src",
       "scripts",
       "tests",
-      "-g",
-      "*.cjs",
-      "-g",
-      "*.mjs",
-      "-g",
-      "*.js",
-      "-g",
-      "*.ts",
-      "-g",
-      "*.tsx",
     ],
     {
       cwd: process.cwd(),
       encoding: "utf8",
     },
   );
-  return output.split(/\r?\n/).filter(Boolean);
+  return output
+    .split("\0")
+    .filter((file) => file && CANDIDATE_EXTENSIONS.has(extname(file)));
 }
 
 /** @param {string} file */

@@ -12,4 +12,4 @@ export {
   HandIcon,
 } from "./icons";
 export type { IconProps } from "./icons";
-export { FieldSlider } from "./FieldSlider";
+export { FieldSlider, FieldSliderGroup } from "./FieldSlider";
