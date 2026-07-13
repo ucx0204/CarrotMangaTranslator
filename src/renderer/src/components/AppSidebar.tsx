@@ -9,14 +9,12 @@ import { PageList } from "./PageList";
 import { Button } from "./ui";
 
 type AppSidebarProps = {
-  inpaintingMode: boolean;
   currentChapter: ChapterSnapshot | null;
   selectedPageId: string | null;
   library: LibraryIndex;
   jobActive: boolean;
   settingsBusy: boolean;
   settingsOpen: boolean;
-  onExitInpainting: () => void;
   onOpenTranslationSource: () => void;
   onOpenBatchImport: () => void;
   onOpenSettings: () => void;
@@ -39,57 +37,9 @@ type AppSidebarProps = {
 
 export function AppSidebar(props: AppSidebarProps): React.JSX.Element {
   return (
-    <aside
-      className={`sidebar ${props.inpaintingMode ? "inpainting-sidebar" : ""}`}
-    >
-      {props.inpaintingMode ? (
-        <InpaintingSidebarContent {...props} />
-      ) : (
-        <LibrarySidebarContent {...props} />
-      )}
+    <aside className="sidebar">
+      <LibrarySidebarContent {...props} />
     </aside>
-  );
-}
-
-function InpaintingSidebarContent({
-  currentChapter,
-  jobActive,
-  onExitInpainting,
-  onRemovePage,
-  onRetranslatePage,
-  onSelectPage,
-  selectedPageId,
-}: AppSidebarProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <>
-      <section className="inpainting-exit-panel">
-        <Button
-          variant="danger"
-          fullWidth
-          onClick={onExitInpainting}
-          disabled={jobActive}
-        >
-          {t("sidebar.exitInpainting")}
-        </Button>
-        <small>
-          {currentChapter
-            ? currentChapter.title
-            : t("sidebar.noCurrentChapter")}
-        </small>
-      </section>
-
-      <PageList
-        pages={currentChapter?.pages ?? []}
-        selectedPageId={selectedPageId}
-        jobActive={true}
-        statusMode="inpainting"
-        onSelect={onSelectPage}
-        onRetranslate={onRetranslatePage}
-        onRemove={onRemovePage}
-        onReorder={() => undefined}
-      />
-    </>
   );
 }
 

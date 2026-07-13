@@ -15,7 +15,6 @@ import type { useAppSessionBridgeActions } from "./useAppSessionBridgeActions";
 import type { AppSessionCoreState } from "./useAppSessionCoreState";
 import type { useAppSessionDerivedState } from "./useAppSessionDerivedState";
 import type { useAppSessionUiState } from "./useAppSessionUiState";
-import type { useInpaintingGuidePreference } from "./useInpaintingGuidePreference";
 
 type AppSessionInpaintingControllerArgs = {
   askConfirm: ReturnType<typeof useConfirmDialog>["askConfirm"];
@@ -24,9 +23,6 @@ type AppSessionInpaintingControllerArgs = {
   core: AppSessionCoreState;
   derivedState: ReturnType<typeof useAppSessionDerivedState>;
   dirty: boolean;
-  hideInpaintingGuide: ReturnType<
-    typeof useInpaintingGuidePreference
-  >["hideInpaintingGuide"];
   mergeLiveChapter: ReturnType<typeof useLiveChapterSync>;
   modalOpen: boolean;
   pushStatus: ReturnType<typeof useStatusLog>["pushStatus"];
@@ -68,8 +64,10 @@ export function useAppSessionInpaintingController(
 function useRetouchController({
   core,
   derivedState,
+  dirty,
   mergeLiveChapter,
   pushStatus,
+  saveNow,
   uiState,
 }: AppSessionInpaintingControllerArgs): ReturnType<
   typeof useInpaintingRetouch
@@ -78,12 +76,13 @@ function useRetouchController({
     clearPageImageCache: derivedState.clearPageImageCache,
     currentChapter: core.currentChapter,
     currentChapterRef: core.currentChapterRef,
+    dirty,
     inpaintingBrushRadius: uiState.inpaintingBrushRadius,
     inpaintingPaintColor: uiState.inpaintingPaintColor,
-    inpaintingToolActive: derivedState.inpaintingToolActive,
     jobActive: derivedState.jobActive,
     mergeLiveChapter,
     pushStatus,
+    saveNow,
     selectedPage: derivedState.selectedPage,
     setCurrentChapter: core.setCurrentChapter,
   });
@@ -95,7 +94,6 @@ function useInpaintingRunController(
     core,
     derivedState,
     dirty,
-    hideInpaintingGuide,
     mergeLiveChapter,
     pushStatus,
     refreshLibrary,
@@ -110,7 +108,6 @@ function useInpaintingRunController(
     clearRetouchHistory: retouch.clearRetouchHistory,
     currentChapter: core.currentChapter,
     dirty,
-    hideInpaintingGuide,
     jobActive: derivedState.jobActive,
     mergeLiveChapter,
     patternMaskStrokes: derivedState.patternMaskStrokes,
@@ -118,22 +115,16 @@ function useInpaintingRunController(
     refreshLibrary,
     saveNow,
     selectedPage: derivedState.selectedPage,
-    setInpaintingGuideOpen: uiState.setInpaintingGuideOpen,
-    setInpaintingMode: uiState.setInpaintingMode,
     setInpaintingTool: uiState.setInpaintingTool,
     setJobState: core.setJobState,
     setPatternMaskStrokesByPage: uiState.setPatternMaskStrokesByPage,
-    setPeekOriginal: uiState.setPeekOriginal,
-    setRegionSelection: core.setRegionSelection,
-    setSelectedBlockId: core.setSelectedBlockId,
-    setShowBlockChrome: uiState.setShowBlockChrome,
-    setShowTextBlocks: uiState.setShowTextBlocks,
   });
 }
 
 function useNavigationController({
   core,
   modalOpen,
+  uiState,
 }: AppSessionInpaintingControllerArgs): ReturnType<
   typeof usePageNavigationHandlers
 > {
@@ -143,6 +134,7 @@ function useNavigationController({
     selectedBlockIdRef: core.selectedBlockIdRef,
     workspacePanelRef: core.workspacePanelRef,
     modalOpen,
+    onPageChange: () => uiState.selectWorkspaceTool("select"),
     setSelectedPageId: core.setSelectedPageId,
     setSelectedBlockId: core.setSelectedBlockId,
   });
@@ -167,11 +159,13 @@ function usePointerController(
     currentChapter: core.currentChapter,
     imageRef: core.imageRef,
     inpaintingBrushRadius: uiState.inpaintingBrushRadius,
+    inpaintingPaintColor: uiState.inpaintingPaintColor,
     inpaintingRetouchDrawingRef: retouch.inpaintingRetouchDrawingRef,
     inpaintingRetouchPointsRef: retouch.inpaintingRetouchPointsRef,
     inpaintingTool: uiState.inpaintingTool,
     inpaintingToolActive: derivedState.inpaintingToolActive,
-    jobActive: derivedState.jobActive,
+    jobActive: derivedState.jobActive || retouch.retouchBusy,
+    onEscapeTool: () => uiState.selectWorkspaceTool("select"),
     lastInpaintingRetouchPointRef: retouch.lastInpaintingRetouchPointRef,
     pushStatus,
     regionSelection: core.regionSelection,
@@ -184,13 +178,10 @@ function usePointerController(
     setInpaintingTool: uiState.setInpaintingTool,
     setPatternMaskStrokesByPage: uiState.setPatternMaskStrokesByPage,
     setRegionSelection: core.setRegionSelection,
-    setRetouchCursorPoint: retouch.setRetouchCursorPoint,
-    setRetouchPreview: retouch.setRetouchPreview,
     setSelectedBlockId: core.setSelectedBlockId,
     setSelectedBlockIds: core.setSelectedBlockIds,
     stageRef: core.stageRef,
-    // Inpainting mode has its own tools; the stage tools stay neutral there.
-    stageTool: uiState.inpaintingMode ? "select" : uiState.stageTool,
+    stageTool: uiState.stageTool,
     translateSelectedRegion,
     updateCurrentChapter,
     workspacePanelRef: core.workspacePanelRef,
@@ -214,7 +205,6 @@ function useInpaintingBridgeController(
     canRedo: retouch.retouchRedoStack.length > 0,
     canUndo: retouch.retouchUndoStack.length > 0,
     currentChapter: core.currentChapter,
-    exportInpaintingResults: inpaintingActions.exportInpaintingResults,
     inpaintedPageCount: derivedState.inpaintedPageCount,
     jobActive: derivedState.jobActive,
     jobState: core.jobState,
@@ -227,14 +217,10 @@ function useInpaintingBridgeController(
     progressSnapshot: derivedState.progressSnapshot,
     redoRetouch: retouch.redoRetouch,
     retouchBusy: retouch.retouchBusy,
-    retouchCursorPoint: retouch.retouchCursorPoint,
-    retouchPreview: retouch.retouchPreview,
     revertInpainting: inpaintingActions.revertInpainting,
     runDrawnPatternInpainting: inpaintingActions.runDrawnPatternInpainting,
     runInpainting: inpaintingActions.runInpainting,
     selectedPage: derivedState.selectedPage,
-    selectedPageOriginalImageDataUrl:
-      derivedState.selectedPageOriginalImageDataUrl,
     setBrushColor: uiState.setInpaintingPaintColor,
     setBrushRadius: uiState.setInpaintingBrushRadius,
     setPeeking: uiState.setPeekOriginal,

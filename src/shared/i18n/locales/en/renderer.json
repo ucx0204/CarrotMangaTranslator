@@ -103,6 +103,11 @@
       "hint": "All pages",
       "keywords": "translate all retranslate"
     },
+    "autoInpainting": {
+      "label": "Automatic erase",
+      "keywords": "inpaint auto erase retouch",
+      "closeHint": "Close panel"
+    },
     "exitInpainting": {
       "label": "Exit inpainting",
       "keywords": "inpaint exit"
@@ -173,7 +178,7 @@
       "translate-all": "Retranslate all",
       "gather-text": "Gather text",
       "cancel-job": "Cancel job",
-      "toggle-inpainting": "Start/exit inpainting",
+      "toggle-inpainting": "Open/close auto erase panel",
       "history-undo": "Undo",
       "history-redo": "Redo",
       "retouch-redo": "Redo retouch",
@@ -238,6 +243,11 @@
       "saveFailedTitle": "Save failed",
       "jobFailedTitle": "Job failed"
     },
+    "maskDiscard": {
+      "title": "Discard painted mask",
+      "message": "There is a painted mask that has not been applied. Open another chapter?",
+      "detail": "Changing chapters will discard unapplied masks in the current chapter."
+    },
     "mode": {
       "saveBeforeEnterFailed": "Could not save changes before entering inpainting mode.",
       "entered": "Entered inpainting mode. Start by erasing the source text.",
@@ -257,6 +267,7 @@
       "title": "Erase source text",
       "currentPage": "current page",
       "pendingPages": "pages not yet erased",
+      "selectedPages": "selected pages",
       "message": "Erase source text at translation-block positions on the {{scope}}.",
       "detail": "Flux inpainting removes text over speech bubbles, tones, backgrounds, and sound effects. Original images are preserved and results are saved separately.",
       "preparing": "Preparing to erase source text",
@@ -269,10 +280,10 @@
       "noPage": "No page is selected for export.",
       "saveFailed": "Could not save changes before PNG export.",
       "openFolderFailed": "PNG export completed, but the folder could not be opened: {{path}}",
-      "success": "Exported inpainting results as PNG: {{count}} pages",
-      "success_one": "Exported inpainting result as PNG: {{count}} page",
-      "success_other": "Exported inpainting results as PNG: {{count}} pages",
-      "failed": "Could not export the inpainting results.",
+      "success": "Exported final images as PNG: {{count}} pages",
+      "success_one": "Exported the final image as PNG: {{count}} page",
+      "success_other": "Exported final images as PNG: {{count}} pages",
+      "failed": "Could not export the final images.",
       "failedTitle": "PNG export failed",
       "preparing": "Preparing PNG export"
     },
@@ -301,7 +312,7 @@
     }
   },
   "regionTranslation": {
-    "disposeInpainting": "Closing the Flux inpainting runtime for region translation.",
+    "disposeInpainting": "Closing the Flux inpainting runtime for translation.",
     "cancelledSelection": "Region translation selection cancelled.",
     "dragPrompt": "Drag over the area to translate.",
     "tooSmall": "The selected area is too small.",

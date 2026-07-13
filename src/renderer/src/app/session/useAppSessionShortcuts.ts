@@ -26,7 +26,11 @@ export function useAppSessionShortcuts({
   const { core, derivedState, uiState } = chapter;
   const { blockEditingActions, chapterHistory, translationActions } =
     translation;
-  const { inpaintingActions, inpaintingBridge } = inpainting;
+  const { inpaintingBridge } = inpainting;
+  const selectStageTool = (tool: "select" | "block" | "hand"): void => {
+    core.setRegionSelection(null);
+    uiState.selectWorkspaceTool(tool);
+  };
 
   const context: ShortcutContext = {
     blockingModalOpen: chapter.overlayModalsOpen,
@@ -34,7 +38,7 @@ export function useAppSessionShortcuts({
     helpOpen: uiState.shortcutHelpOpen,
     chapterOpen: Boolean(core.currentChapter),
     jobActive: derivedState.jobActive,
-    inpaintingMode: uiState.inpaintingMode,
+    retouchToolActive: derivedState.inpaintingToolActive,
     blockSelected: Boolean(derivedState.selectedBlock),
   };
 
@@ -45,9 +49,9 @@ export function useAppSessionShortcuts({
     "zoom-in": () => uiState.zoomInWorkspace(),
     "zoom-out": () => uiState.zoomOutWorkspace(),
     "zoom-reset": () => uiState.resetWorkspaceZoom(),
-    "stage-tool-select": () => uiState.setStageTool("select"),
-    "stage-tool-block": () => uiState.setStageTool("block"),
-    "stage-tool-hand": () => uiState.setStageTool("hand"),
+    "stage-tool-select": () => selectStageTool("select"),
+    "stage-tool-block": () => selectStageTool("block"),
+    "stage-tool-hand": () => selectStageTool("hand"),
     "toggle-stage-toolbar": () =>
       uiState.setStageToolbarHidden((hidden) => !hidden),
     "open-translate-options": () => uiState.setTranslateOptionsOpen(true),
@@ -56,23 +60,20 @@ export function useAppSessionShortcuts({
     "gather-text": () => uiState.setTextViewOpen(true),
     "cancel-job": () => chapter.bridgeActions.cancelJob(),
     "toggle-inpainting": () => {
-      if (uiState.inpaintingMode) {
-        inpaintingActions.exitInpaintingMode();
-      } else {
-        void inpaintingActions.enterInpaintingMode();
-      }
+      core.setRegionSelection(null);
+      uiState.toggleAutoInpainting();
     },
-    // Ctrl+Z / Ctrl+Shift+Z: inpainting retouch owns them while in inpainting
-    // mode, otherwise they drive the chapter edit history.
+    // Ctrl+Z / Ctrl+Shift+Z belong to retouch only while a manual image tool
+    // is active; otherwise they keep driving the chapter edit history.
     "history-undo": () => {
-      if (uiState.inpaintingMode) {
+      if (derivedState.inpaintingToolActive) {
         inpaintingBridge.contextValue.onUndoRetouch();
       } else {
         chapterHistory.undo();
       }
     },
     "history-redo": () => {
-      if (uiState.inpaintingMode) {
+      if (derivedState.inpaintingToolActive) {
         inpaintingBridge.contextValue.onRedoRetouch();
       } else {
         chapterHistory.redo();

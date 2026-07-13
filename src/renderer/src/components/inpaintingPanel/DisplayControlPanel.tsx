@@ -27,24 +27,34 @@ export function DisplayControlPanel({
       <h2>{t("display.title")}</h2>
       <div className="display-toggle-row">
         <button
+          type="button"
           className={showBlockChrome ? "active" : ""}
+          aria-pressed={showBlockChrome}
           onClick={onToggleChrome}
         >
           {t("display.backgroundBorders")}
         </button>
         <button
+          type="button"
           className={showTextBlocks ? "active" : ""}
+          aria-pressed={showTextBlocks}
           onClick={onToggleBlocks}
         >
           {t("display.showBlocks")}
         </button>
       </div>
-      <Button fullWidth onClick={onOpenTextView} disabled={!canOpenTextView}>
-        {t("display.gatherText")}
-      </Button>
-      <Button fullWidth onClick={onOpenStyleGuide} disabled={!canOpenTextView}>
-        {t("display.styleGuide")}
-      </Button>
+      <div className="display-secondary-actions">
+        <Button fullWidth onClick={onOpenTextView} disabled={!canOpenTextView}>
+          {t("display.gatherText")}
+        </Button>
+        <Button
+          fullWidth
+          onClick={onOpenStyleGuide}
+          disabled={!canOpenTextView}
+        >
+          {t("display.styleGuide")}
+        </Button>
+      </div>
     </section>
   );
 }

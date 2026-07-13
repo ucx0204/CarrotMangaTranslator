@@ -159,6 +159,28 @@
     "approximately": "約",
     "selectionSummary": "{{chapterCount}}話・{{approximate}}{{pageCount}}ページ"
   },
+  "exportOptions": {
+    "title": "PNG出力",
+    "prompt": "出力するページを選択してください。",
+    "currentChapter": "現在の話",
+    "chapterSummary": "{{count}}p",
+    "noSelectedPages": "ページが選択されていません。",
+    "selectionSummary": "{{chapterCount}}話・{{pageCount}}ページ",
+    "start": "PNG出力",
+    "starting": "出力を準備中…",
+    "workUnavailable": "作品情報を読み込めませんでした。現在のページだけを出力します。",
+    "startFailed": "出力を開始できませんでした。もう一度お試しください。"
+  },
+  "autoInpaintingOptions": {
+    "title": "自動消去",
+    "prompt": "自動消去するページを選択してください。",
+    "currentChapter": "現在の話",
+    "chapterSummary": "{{count}}p",
+    "noSelectedPages": "ページが選択されていません。",
+    "selectionSummary": "{{chapterCount}}話・{{pageCount}}ページ",
+    "start": "自動消去を開始",
+    "workUnavailable": "作品情報を読み込めませんでした。現在のページだけを処理します。"
+  },
   "translationOptions": {
     "start": "翻訳を開始",
     "workUnavailable": "作品情報を読み込めませんでした。現在の話だけを翻訳します。",
@@ -286,6 +308,7 @@
     "hide": "ツールバーを隠す",
     "hideTitle": "ツールバーを隠す（4）",
     "imageTools": "画像ツール",
+    "radius": "{{radius}}px",
     "tools": {
       "select": { "label": "選択", "title": "選択ツール（1）" },
       "block": {
@@ -295,7 +318,11 @@
       "hand": {
         "label": "手のひら",
         "title": "手のひらツール（3）— ドラッグして画像を移動"
-      }
+      },
+      "mask": { "label": "マスク", "title": "マスクブラシ" },
+      "brush": { "label": "ブラシ", "title": "補正ブラシ" },
+      "eraser": { "label": "消しゴム", "title": "補正内容を消去" },
+      "picker": { "label": "色を抽出", "title": "キャンバスから色を抽出" }
     }
   },
   "display": {
@@ -477,6 +504,12 @@
     }
   },
   "inpainting": {
+    "inspector": {
+      "eyebrow": "キャンバスツール",
+      "autoTitle": "自動消去",
+      "retouchTitle": "補正設定",
+      "autoAction": "自動消去"
+    },
     "counts": {
       "thisPage": "このページ {{count}}",
       "remaining": "残り {{count}}",
@@ -530,6 +563,7 @@
       "nextExport": "出力 →"
     },
     "export": {
+      "pngAction": "PNG出力",
       "description": "ブロックのフォント・色・位置を整え、翻訳を重ねたPNGとして書き出します。",
       "result": "結果を出力",
       "pagesSaved": "{{count}}ページ保存済み",
@@ -869,7 +903,7 @@
         "translate-all": "すべて再翻訳",
         "gather-text": "テキストをまとめて表示",
         "cancel-job": "処理をキャンセル",
-        "toggle-inpainting": "インペインティング開始/終了",
+        "toggle-inpainting": "自動消去パネルを開く／閉じる",
         "history-undo": "元に戻す",
         "history-redo": "やり直す",
         "retouch-redo": "補正をやり直す",

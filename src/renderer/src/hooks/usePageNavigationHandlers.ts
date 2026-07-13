@@ -21,6 +21,7 @@ type UsePageNavigationHandlersOptions = {
   selectedBlockIdRef: MutableRefObject<string | null>;
   workspacePanelRef: RefObject<HTMLElement | null>;
   modalOpen: boolean;
+  onPageChange?: () => void;
   setSelectedPageId: Dispatch<SetStateAction<string | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
 };
@@ -53,6 +54,7 @@ export function usePageNavigationHandlers(
 }
 
 function useSelectPageForReading({
+  onPageChange,
   selectedBlockIdRef,
   selectedPageIdRef,
   setSelectedBlockId,
@@ -63,12 +65,14 @@ function useSelectPageForReading({
       if (!pageId) {
         return;
       }
+      onPageChange?.();
       selectedPageIdRef.current = pageId;
       selectedBlockIdRef.current = null;
       setSelectedPageId(pageId);
       setSelectedBlockId(null);
     },
     [
+      onPageChange,
       selectedBlockIdRef,
       selectedPageIdRef,
       setSelectedBlockId,

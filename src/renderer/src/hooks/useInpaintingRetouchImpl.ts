@@ -21,10 +21,6 @@ export function useInpaintingRetouchImpl(
   useRetouchResetEffects({
     clearRetouchStacks,
     currentChapterId: options.currentChapter?.id,
-    inpaintingToolActive: options.inpaintingToolActive,
-    selectedPage: options.selectedPage,
-    setRetouchCursorPoint: state.setRetouchCursorPoint,
-    setRetouchPreview: state.setRetouchPreview,
   });
 
   const actions = useInpaintingRetouchActions({
@@ -40,11 +36,7 @@ export function useInpaintingRetouchImpl(
     inpaintingRetouchPointsRef: refs.inpaintingRetouchPointsRef,
     lastInpaintingRetouchPointRef: refs.lastInpaintingRetouchPointRef,
     retouchBusy: state.retouchBusy,
-    retouchCursorPoint: state.retouchCursorPoint,
-    retouchPreview: state.retouchPreview,
     retouchRedoStack: state.retouchRedoStack,
     retouchUndoStack: state.retouchUndoStack,
-    setRetouchCursorPoint: state.setRetouchCursorPoint,
-    setRetouchPreview: state.setRetouchPreview,
   };
 }

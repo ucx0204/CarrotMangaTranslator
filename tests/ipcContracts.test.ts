@@ -11,6 +11,7 @@ import {
   jobControlIpcContracts,
   libraryIpcContracts,
   logsIpcContracts,
+  pageImageExportIpcContracts,
   settingsIpcContracts,
   textReviewIpcContracts,
   translationJobIpcContracts,
@@ -71,6 +72,11 @@ const invokeContractGroups = [
     sourceName: "inpaintingIpcContracts",
     contracts: inpaintingIpcContracts,
     mainFiles: ["src/main/ipc/inpaintingIpc.ts"],
+  },
+  {
+    sourceName: "pageImageExportIpcContracts",
+    contracts: pageImageExportIpcContracts,
+    mainFiles: ["src/main/ipc/pageImageExportIpc.ts"],
   },
   {
     sourceName: "jobControlIpcContracts",

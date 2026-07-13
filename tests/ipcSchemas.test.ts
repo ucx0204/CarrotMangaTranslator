@@ -271,6 +271,50 @@ describe("IPC schemas", () => {
     ).toThrow(/요청 형식/);
   });
 
+  it("accepts bounded multi-chapter automatic inpainting selections", () => {
+    const otherChapterId = "44444444-4444-4444-8444-444444444444";
+    const otherPageId = "55555555-5555-4555-8555-555555555555";
+    const parsed = parseIpcPayload(
+      StartInpaintingRequestSchema,
+      {
+        mode: "selection-pattern",
+        workId,
+        selections: [
+          { chapterId, mode: "all" },
+          {
+            chapterId: otherChapterId,
+            mode: "page-set",
+            pageIds: [pageId, otherPageId],
+          },
+        ],
+      },
+      "인페인팅 작업",
+    );
+
+    expect(parsed.mode).toBe("selection-pattern");
+    expect(
+      parsed.mode === "selection-pattern" ? parsed.selections : [],
+    ).toHaveLength(2);
+    expect(() =>
+      parseIpcPayload(
+        StartInpaintingRequestSchema,
+        { mode: "selection-pattern", workId, selections: [] },
+        "인페인팅 작업",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        StartInpaintingRequestSchema,
+        {
+          mode: "selection-pattern",
+          workId,
+          selections: [{ chapterId, mode: "page-set", pageIds: [] }],
+        },
+        "인페인팅 작업",
+      ),
+    ).toThrow(/요청 형식/);
+  });
+
   it("uses the same max token and OAuth port bounds as app settings normalization", () => {
     const payload = {
       modelProvider: "openai-codex",

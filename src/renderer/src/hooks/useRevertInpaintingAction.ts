@@ -5,6 +5,7 @@ import { formatErrorMessage } from "../lib/appHelpers";
 import {
   failInpaintingJob,
   resolveInpaintingTarget,
+  saveDirtyChanges,
   type InpaintingScope,
   type UseInpaintingActionsOptions,
 } from "./inpaintingActionTypes";
@@ -14,9 +15,11 @@ export function useRevertInpaintingAction({
   clearPageImageCache,
   clearRetouchHistory,
   currentChapter,
+  dirty,
   jobActive,
   mergeLiveChapter,
   pushStatus,
+  saveNow,
   selectedPage,
   setJobState,
 }: UseInpaintingActionsOptions): (scope: InpaintingScope) => Promise<void> {
@@ -44,6 +47,7 @@ export function useRevertInpaintingAction({
         return;
       }
       try {
+        await saveDirtyChanges(dirty, saveNow);
         const result = await mangaGateway.revertInpainting(
           target.pageId
             ? {
@@ -74,9 +78,11 @@ export function useRevertInpaintingAction({
       clearPageImageCache,
       clearRetouchHistory,
       currentChapter,
+      dirty,
       jobActive,
       mergeLiveChapter,
       pushStatus,
+      saveNow,
       selectedPage,
       setJobState,
       t,

@@ -21,8 +21,14 @@ export async function renderPageWithTranslationBlocksForExport(
     decodeFallback: ImageDecodeFallback;
   },
 ): Promise<Buffer> {
-  const sourcePath = page.inpaintedImagePath || page.imagePath;
-  const image = await loadImageForPngExport(sourcePath, options.decodeFallback);
+  const sourcePaths = [page.inpaintedImagePath, page.imagePath].filter(
+    (path, index, paths): path is string =>
+      Boolean(path) && paths.indexOf(path) === index,
+  );
+  const image = await loadFirstAvailableImageForPngExport(
+    sourcePaths,
+    options.decodeFallback,
+  );
   const size = image.getSize();
   const width = Math.max(1, size.width || page.width);
   const height = Math.max(1, size.height || page.height);
@@ -83,28 +89,64 @@ function resolveExportViewportSize(
 
 export function sanitizeOutputBaseName(value: string): string {
   const raw = basename(value, extname(value)) || "page";
-  const cleaned = raw.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").trim();
-  return (cleaned || "page").slice(0, 80);
+  return sanitizeOutputPathSegment(raw, "page");
 }
 
-async function loadImageForPngExport(
-  imagePath: string,
+export function sanitizeOutputPathSegment(
+  value: string,
+  fallback: string,
+): string {
+  const cleaned = value
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
+    .trim()
+    .replace(/[. ]+$/g, "")
+    .slice(0, 80);
+  const resolved =
+    cleaned && cleaned !== "." && cleaned !== ".." ? cleaned : fallback;
+  return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(resolved)
+    ? `_${resolved}`
+    : resolved;
+}
+
+async function loadFirstAvailableImageForPngExport(
+  imagePaths: string[],
   decodeFallback: ImageDecodeFallback,
 ): Promise<Electron.NativeImage> {
-  const direct = nativeImage.createFromPath(imagePath);
-  if (!direct.isEmpty()) {
-    return direct;
-  }
-
-  const pngBuffer = await decodeFallback(imagePath);
-  if (pngBuffer) {
-    const converted = nativeImage.createFromBuffer(pngBuffer);
-    if (!converted.isEmpty()) {
-      return converted;
+  for (const imagePath of imagePaths) {
+    const image = await tryLoadImageForPngExport(imagePath, decodeFallback);
+    if (image) {
+      return image;
     }
   }
+  throw new Error(
+    `출력할 이미지를 읽지 못했습니다: ${imagePaths.at(-1) ?? ""}`,
+  );
+}
 
-  throw new Error(`출력할 이미지를 읽지 못했습니다: ${imagePath}`);
+async function tryLoadImageForPngExport(
+  imagePath: string,
+  decodeFallback: ImageDecodeFallback,
+): Promise<Electron.NativeImage | null> {
+  const direct = nativeImage.createFromPath(imagePath);
+  if (!direct.isEmpty()) return direct;
+
+  try {
+    const pngBuffer = await decodeFallback(imagePath);
+    if (pngBuffer) {
+      const converted = nativeImage.createFromBuffer(pngBuffer);
+      if (!converted.isEmpty()) return converted;
+    }
+  } catch (error) {
+    logImageFallbackFailure(imagePath, error);
+  }
+  return null;
+}
+
+function logImageFallbackFailure(imagePath: string, error: unknown): void {
+  console.warn("PNG export image decode failed; trying next source", {
+    imagePath,
+    error,
+  });
 }
 
 async function captureExportPagePng(

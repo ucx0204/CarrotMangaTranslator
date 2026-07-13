@@ -27,7 +27,6 @@ import {
 type UseAppSessionDerivedStateArgs = {
   currentChapter: ChapterSnapshot | null;
   imageRef: RefObject<HTMLImageElement | null>;
-  inpaintingMode: boolean;
   inpaintingTool: InpaintingTool;
   jobState: JobState;
   patternMaskStrokesByPage: Record<string, InpaintingMaskStroke[]>;
@@ -41,7 +40,6 @@ type UseAppSessionDerivedStateArgs = {
 export function useAppSessionDerivedState({
   currentChapter,
   imageRef,
-  inpaintingMode,
   inpaintingTool,
   jobState,
   patternMaskStrokesByPage,
@@ -72,7 +70,6 @@ export function useAppSessionDerivedState({
   });
   const workspaceState = useWorkspaceImageState({
     imageRef,
-    inpaintingMode,
     peekOriginal,
     selectedPage: pageState.selectedPage,
     selectedPageImageDataUrl,
@@ -87,7 +84,7 @@ export function useAppSessionDerivedState({
     ...progressState,
     ...workspaceState,
     clearPageImageCache,
-    inpaintingToolActive: inpaintingMode && inpaintingTool !== "none",
+    inpaintingToolActive: inpaintingTool !== "none",
     regionSelectionRect: resolveRegionSelectionRect(regionSelection),
     selectedPageEditLocked: resolveSelectedPageEditLocked(
       progressState.jobActive,
@@ -172,7 +169,6 @@ function resolveEffectiveSelectedBlockIds(
 
 function useWorkspaceImageState({
   imageRef,
-  inpaintingMode,
   peekOriginal,
   selectedPage,
   selectedPageImageDataUrl,
@@ -181,7 +177,6 @@ function useWorkspaceImageState({
   selectedPageOriginalImageDataUrlPageId,
 }: {
   imageRef: RefObject<HTMLImageElement | null>;
-  inpaintingMode: boolean;
   peekOriginal: boolean;
   selectedPage: MangaPage | null;
   selectedPageImageDataUrl: string;
@@ -192,14 +187,12 @@ function useWorkspaceImageState({
   const workspaceImage = useMemo(
     () =>
       resolveWorkspaceImageDataUrl({
-        inpaintingMode,
         peekOriginal,
         selectedPage,
         selectedPageImageDataUrl,
         selectedPageOriginalImageDataUrl,
       }),
     [
-      inpaintingMode,
       peekOriginal,
       selectedPage,
       selectedPageImageDataUrl,

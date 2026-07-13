@@ -1,19 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type {
-  InpaintingExportRequest,
-  InpaintingExportResult,
+  AutoInpaintingChapterSelection,
   StartInpaintingRequest,
   StartInpaintingResult,
 } from "../../shared/inpaintingTypes";
 import type { JobEvent } from "../../shared/jobTypes";
+import type { ChapterSnapshot } from "../../shared/libraryTypes";
 import { openChapter } from "../library";
 import { tMain } from "./localization";
 import {
-  handleInpaintingExportError,
-  runInpaintingExportJob,
-} from "./inpaintingExportJobRunner";
-import {
   type InpaintingJobState,
+  type InpaintingJobPage,
   handleInpaintingJobError,
   runInpaintingPagesJob,
 } from "./inpaintingJobRunner";
@@ -34,6 +31,7 @@ export async function startInpaintingJob(
   const abortController = new AbortController();
   const state: InpaintingJobState = {
     chapter: null,
+    chapters: new Map(),
     inpaintingEngineLease: null,
   };
   context.jobs.start({ id, kind: "inpainting", abortController });
@@ -41,12 +39,8 @@ export async function startInpaintingJob(
     emitJobEvent(context.jobs, context.getMainWindow(), event);
 
   try {
-    state.chapter = await openChapter(request.chapterId);
-    const pages =
-      request.mode === "chapter-pattern-pending"
-        ? state.chapter.pages.filter((page) => !page.inpaintedImagePath)
-        : state.chapter.pages.filter((page) => page.id === request.pageId);
-    if (pages.length === 0) {
+    const targets = await resolveInpaintingJobPages(request, state);
+    if (targets.length === 0) {
       emit({
         id,
         kind: "inpainting",
@@ -60,7 +54,9 @@ export async function startInpaintingJob(
       });
       return {
         status: "failed",
-        chapter: state.chapter,
+        ...(request.mode === "selection-pattern"
+          ? { chapters: [...state.chapters.values()] }
+          : { chapter: state.chapter ?? undefined }),
         error: tMain("inpainting.pageNotFound"),
       };
     }
@@ -70,7 +66,7 @@ export async function startInpaintingJob(
       id,
       abortController,
       emit,
-      pages,
+      targets,
       state,
     });
   } catch (error) {
@@ -89,41 +85,68 @@ export async function startInpaintingJob(
   }
 }
 
-export async function exportInpaintingResults(
-  context: InpaintingJobContext,
-  request: InpaintingExportRequest,
-): Promise<InpaintingExportResult> {
-  assertNoActiveJob(context);
-
-  const id = randomUUID();
-  const abortController = new AbortController();
-  context.jobs.start({ id, kind: "inpainting", abortController });
-  const emit = (event: JobEvent) =>
-    emitJobEvent(context.jobs, context.getMainWindow(), event);
-
-  try {
-    return await runInpaintingExportJob({
-      context,
-      request,
-      id,
-      abortController,
-      emit,
-    });
-  } catch (error) {
-    return handleInpaintingExportError({
-      abortController,
-      emit,
-      error,
-      id,
-      request,
-    });
-  } finally {
-    context.jobs.clearIfCurrent(id);
+async function resolveInpaintingJobPages(
+  request: StartInpaintingRequest,
+  state: InpaintingJobState,
+): Promise<InpaintingJobPage[]> {
+  if (request.mode !== "selection-pattern") {
+    const chapter = await openChapter(request.chapterId);
+    state.chapter = chapter;
+    state.chapters.set(chapter.id, chapter);
+    const pages =
+      request.mode === "chapter-pattern-pending"
+        ? chapter.pages.filter((page) => !page.inpaintedImagePath)
+        : chapter.pages.filter((page) => page.id === request.pageId);
+    return pages.map((page) => ({ chapterId: chapter.id, page }));
   }
+
+  if (request.selections.length === 0) {
+    throw new Error("At least one chapter selection is required.");
+  }
+
+  const targets: InpaintingJobPage[] = [];
+  const selectedChapterIds = new Set<string>();
+  for (const selection of request.selections) {
+    if (selectedChapterIds.has(selection.chapterId)) {
+      throw new Error("Duplicate chapter selections are not allowed.");
+    }
+    selectedChapterIds.add(selection.chapterId);
+
+    const chapter = await openChapter(selection.chapterId);
+    if (chapter.workId !== request.workId) {
+      throw new Error("Selected chapters must belong to the same work.");
+    }
+    state.chapters.set(chapter.id, chapter);
+    targets.push(...resolveSelectedChapterPages(chapter, selection));
+  }
+  return targets;
 }
 
-function assertNoActiveJob(context: Pick<InpaintingJobContext, "jobs">): void {
-  if (context.jobs.hasActive) {
-    throw new Error(tMain("jobs.active"));
+function resolveSelectedChapterPages(
+  chapter: ChapterSnapshot,
+  selection: AutoInpaintingChapterSelection,
+): InpaintingJobPage[] {
+  if (selection.mode === "all") {
+    return chapter.pages.map((page) => ({ chapterId: chapter.id, page }));
   }
+  if (selection.pageIds.length === 0) {
+    throw new Error("At least one page selection is required.");
+  }
+
+  const selectedPageIds = new Set<string>();
+  for (const pageId of selection.pageIds) {
+    if (selectedPageIds.has(pageId)) {
+      throw new Error("Duplicate page selections are not allowed.");
+    }
+    selectedPageIds.add(pageId);
+  }
+  const knownPageIds = new Set(chapter.pages.map((page) => page.id));
+  for (const pageId of selectedPageIds) {
+    if (!knownPageIds.has(pageId)) {
+      throw new Error("The selected page does not belong to the chapter.");
+    }
+  }
+  return chapter.pages.flatMap((page) =>
+    selectedPageIds.has(page.id) ? [{ chapterId: chapter.id, page }] : [],
+  );
 }

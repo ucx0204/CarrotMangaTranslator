@@ -27,6 +27,7 @@ export type InpaintingContextValue = {
   showBlockChrome: boolean;
   showTextBlocks: boolean;
   jobActive: boolean;
+  retouchBusy: boolean;
   peekAvailable: boolean;
   peeking: boolean;
   onSelectTool: (tool: InpaintingTool) => void;
@@ -44,6 +45,5 @@ export type InpaintingContextValue = {
   onPeekToggle: () => void;
   onToggleChrome: () => void;
   onToggleBlocks: () => void;
-  onExportResults: (scope: "page" | "chapter") => void;
   onCancelJob: () => void;
 };

@@ -8,11 +8,13 @@ export function PageThumb({
   page,
   index,
   checked,
+  showTranslatedStatus = true,
   onToggle,
 }: {
   page: MangaPage;
   index: number;
   checked: boolean;
+  showTranslatedStatus?: boolean;
   onToggle: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -32,7 +34,7 @@ export function PageThumb({
     };
   }, [page.imagePath]);
 
-  const done = page.analysisStatus === "completed";
+  const done = showTranslatedStatus && page.analysisStatus === "completed";
   return (
     <label
       className={[

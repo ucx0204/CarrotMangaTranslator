@@ -149,11 +149,13 @@ function makeWorkspaceProps({
   selectedPageImagePageId: string | null;
 }): AppWorkspaceProps {
   return {
+    autoInpaintingOpen: false,
     blockCreateRect: null,
+    brushColor: "#ffffff",
+    brushRadius: 28,
     dragHud: null,
     imageRef: refs.imageRef,
-    inpaintingMode: false,
-    inpaintingToolActive: false,
+    jobActive: false,
     jobState: {
       id: "",
       kind: "gemma-analysis",
@@ -177,7 +179,7 @@ function makeWorkspaceProps({
     regionSelectionActive: false,
     regionSelectionRect: null,
     retouchCursor: null,
-    retouchPreviewLayer: null,
+    retouchOriginalImageDataUrl: "",
     selectedBlockId: null,
     selectedBlockIds: [],
     selectedPage,

@@ -10,6 +10,8 @@ import { formatJobLabel } from "../../lib/jobProgress";
 type UseAppSessionLifecycleEffectsArgs = {
   currentChapter: ChapterSnapshot | null;
   jobState: JobState;
+  onJobStart: () => void;
+  onPageChange: () => void;
   openLogFolder: () => void | Promise<void>;
   refreshLibrary: () => void | Promise<void>;
   resetChapterScopedUi: () => void;
@@ -21,6 +23,8 @@ type UseAppSessionLifecycleEffectsArgs = {
 export function useAppSessionLifecycleEffects({
   currentChapter,
   jobState,
+  onJobStart,
+  onPageChange,
   openLogFolder,
   refreshLibrary,
   resetChapterScopedUi,
@@ -30,6 +34,7 @@ export function useAppSessionLifecycleEffects({
 }: UseAppSessionLifecycleEffectsArgs): void {
   const { t } = useTranslation("renderer");
   const prevJobStatusRef = useRef<JobState["status"]>("idle");
+  const previousPageIdRef = useRef(selectedPageId);
 
   useEffect(() => {
     void refreshLibrary();
@@ -38,6 +43,12 @@ export function useAppSessionLifecycleEffects({
   useEffect(() => {
     setRegionSelection(null);
   }, [selectedPageId, setRegionSelection]);
+
+  useEffect(() => {
+    if (previousPageIdRef.current === selectedPageId) return;
+    previousPageIdRef.current = selectedPageId;
+    onPageChange();
+  }, [onPageChange, selectedPageId]);
 
   useEffect(() => {
     if (!currentChapter) {
@@ -52,7 +63,9 @@ export function useAppSessionLifecycleEffects({
       return;
     }
     prevJobStatusRef.current = next;
-    if (next === "completed") {
+    if (next === "starting" || next === "running") {
+      onJobStart();
+    } else if (next === "completed") {
       if (!translationFlowActive) {
         toast.success(
           formatJobLabel(jobState, t) || t("job.notifications.completed"),
@@ -71,5 +84,5 @@ export function useAppSessionLifecycleEffects({
     } else if (next === "cancelled") {
       toast.info(t("job.notifications.cancelled"));
     }
-  }, [jobState, openLogFolder, translationFlowActive, t]);
+  }, [jobState, onJobStart, openLogFolder, translationFlowActive, t]);
 }

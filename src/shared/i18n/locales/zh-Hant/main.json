@@ -16,6 +16,7 @@
     "registerFont": "註冊字型檔案（TTF/OTF）",
     "saveReview": "儲存校對表",
     "saveText": "儲存文字",
+    "exportPngFolder": "選擇 PNG 匯出資料夾",
     "filters": {
       "images": "影像檔案",
       "font": "字型檔案",
@@ -289,13 +290,18 @@
     "failed": "PNG 匯出失敗",
     "preparing": "正在準備 PNG 匯出",
     "completed": "PNG 匯出完成",
+    "selection": "{{chapters}} 個章節 · {{pages}} 頁",
     "page": {
       "running": "正在匯出第 {{current}} / {{total}} 頁 PNG",
       "done": "第 {{current}} / {{total}} 頁 PNG 匯出完成"
     },
-    "scope": {
-      "page": "此頁面 · {{count}} 頁",
-      "chapter": "全部頁面 · {{count}} 頁"
+    "errors": {
+      "workNotFound": "找不到要匯出的作品。",
+      "chapterNotFound": "所選章節不屬於此作品或找不到。",
+      "duplicateChapter": "不能重複選擇同一章節。",
+      "pageNotFound": "所選頁面不屬於該章節。",
+      "duplicatePage": "不能重複選擇同一頁面。",
+      "outputDirectory": "無法建立 PNG 匯出資料夾。"
     }
   },
   "modelTest": {

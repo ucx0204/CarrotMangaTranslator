@@ -5,13 +5,12 @@ import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { Command } from "../lib/appCommandTypes";
 
 type UseAppCommandsOptions = {
+  autoInpaintingOpen: boolean;
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
-  inpaintingMode: boolean;
   runAnalysis: (runMode: "pending" | "all") => void;
   openTranslateOptions: () => void;
-  enterInpaintingMode: () => Promise<void>;
-  exitInpaintingMode: () => void;
+  toggleAutoInpainting: () => void;
   cancelJob: () => void;
   openImportPreview: (mode: "zip-folder") => Promise<void>;
   openShareImportPreview: () => Promise<void>;
@@ -25,13 +24,12 @@ type UseAppCommandsOptions = {
 };
 
 export function useAppCommands({
+  autoInpaintingOpen,
   currentChapter,
   jobActive,
-  inpaintingMode,
   runAnalysis,
   openTranslateOptions,
-  enterInpaintingMode,
-  exitInpaintingMode,
+  toggleAutoInpainting,
   cancelJob,
   openImportPreview,
   openShareImportPreview,
@@ -47,13 +45,12 @@ export function useAppCommands({
   return useMemo(
     () =>
       buildAppCommands({
+        autoInpaintingOpen,
         currentChapter,
         jobActive,
-        inpaintingMode,
         runAnalysis,
         openTranslateOptions,
-        enterInpaintingMode,
-        exitInpaintingMode,
+        toggleAutoInpainting,
         cancelJob,
         openImportPreview,
         openShareImportPreview,
@@ -69,11 +66,10 @@ export function useAppCommands({
     [
       currentChapter,
       jobActive,
-      inpaintingMode,
+      autoInpaintingOpen,
       runAnalysis,
       openTranslateOptions,
-      enterInpaintingMode,
-      exitInpaintingMode,
+      toggleAutoInpainting,
       cancelJob,
       openImportPreview,
       openShareImportPreview,
@@ -106,12 +102,11 @@ function buildAppCommands(options: LocalizedCommandOptions): Command[] {
 function buildTranslationCommands({
   currentChapter,
   jobActive,
-  inpaintingMode,
   openTranslateOptions,
   runAnalysis,
   t,
 }: LocalizedCommandOptions): Command[] {
-  if (!currentChapter || jobActive || inpaintingMode) {
+  if (!currentChapter || jobActive) {
     return [];
   }
   return [
@@ -140,32 +135,24 @@ function buildTranslationCommands({
 }
 
 function buildInpaintingCommands({
+  autoInpaintingOpen,
   currentChapter,
   jobActive,
-  inpaintingMode,
-  enterInpaintingMode,
-  exitInpaintingMode,
+  toggleAutoInpainting,
   t,
 }: LocalizedCommandOptions): Command[] {
-  if (inpaintingMode) {
-    return [
-      {
-        id: "exit-inpainting",
-        label: t("commands.exitInpainting.label"),
-        keywords: t("commands.exitInpainting.keywords"),
-        run: () => exitInpaintingMode(),
-      },
-    ];
-  }
   if (!currentChapter || jobActive) {
     return [];
   }
   return [
     {
-      id: "enter-inpainting",
-      label: t("commands.enterInpainting.label"),
-      keywords: t("commands.enterInpainting.keywords"),
-      run: () => void enterInpaintingMode(),
+      id: "toggle-auto-inpainting",
+      label: t("commands.autoInpainting.label"),
+      hint: autoInpaintingOpen
+        ? t("commands.autoInpainting.closeHint")
+        : undefined,
+      keywords: t("commands.autoInpainting.keywords"),
+      run: toggleAutoInpainting,
     },
   ];
 }

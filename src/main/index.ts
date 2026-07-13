@@ -8,6 +8,7 @@ import {
 import { registerIpc } from "./ipc/registerIpc";
 import { ActiveJobStore } from "./jobs/activeJob";
 import { finishBeforeQuitCleanup } from "./jobs/beforeQuitCleanup";
+import { disposeCachedInpaintingEngines } from "./inpainting/inpaintingEnginePool";
 import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
 import { getLogPath, logError, logInfo, logWarn, resetAppLog } from "./logger";
 import { createMainWindow } from "./mainWindow";
@@ -95,29 +96,43 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", (event) => {
-  const job = jobs.current;
-  if (!job || quitCleanupStarted) {
+  if (quitCleanupStarted) {
     return;
   }
   event.preventDefault();
   quitCleanupStarted = true;
-  void finishBeforeQuitCleanup({
-    job,
-    jobs,
-    quit: () => app.quit(),
-    warnTimedOut: (jobId, timeoutMs) => {
-      logWarn("Timed out waiting for active job cleanup during app quit", {
-        jobId,
-        timeoutMs,
-      });
-    },
-  });
+  void finishAppQuitCleanup();
 });
+
+async function finishAppQuitCleanup(): Promise<void> {
+  try {
+    const job = jobs.current;
+    if (job) {
+      await finishBeforeQuitCleanup({
+        job,
+        jobs,
+        quit: () => undefined,
+        warnTimedOut: (jobId, timeoutMs) => {
+          logWarn("Timed out waiting for active job cleanup during app quit", {
+            jobId,
+            timeoutMs,
+          });
+        },
+      });
+    }
+    await disposeCachedInpaintingEngines("app-quit");
+  } catch (error) {
+    logError("Failed to clean up before app quit", error);
+  } finally {
+    app.quit();
+  }
+}
 
 function openMainWindow(): void {
   mainWindow = createMainWindow();
   mainWindow.on("closed", () => {
     mainWindow = null;
     panelWindows.closeAll();
+    void disposeCachedInpaintingEngines("main-window-closed");
   });
 }

@@ -2,10 +2,10 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { mangaGateway } from "../api/mangaGateway";
+import { saveDirtyChanges } from "./inpaintingActionTypes";
 import type {
   InpaintingRetouchResult,
   RetouchApplyTool,
-  RetouchDrawTool,
   RetouchHistoryEntry,
   RetouchPoint,
   RetouchStackSetter,
@@ -16,7 +16,6 @@ import type {
   InpaintingRetouchState,
 } from "./inpaintingRetouchState";
 import {
-  appendPreviewPoint,
   applyRetouchRequest,
   collectReplayRetainedPaths,
   collectRetainedRetouchArtifactPaths,
@@ -56,7 +55,7 @@ export function useInpaintingRetouchActions({
 }): RetouchActions {
   const saveChapterWithInpaintPath = useSaveChapterWithInpaintPath(options);
   return {
-    appendRetouchPoint: useAppendRetouchPointAction(options, refs, state),
+    appendRetouchPoint: useAppendRetouchPointAction(options, refs),
     applyRetouchPoints: useApplyRetouchPointsAction({
       options,
       refs,
@@ -79,38 +78,28 @@ export function useInpaintingRetouchActions({
 }
 
 function useAppendRetouchPointAction(
-  { inpaintingBrushRadius, inpaintingPaintColor }: UseInpaintingRetouchOptions,
+  { inpaintingBrushRadius }: UseInpaintingRetouchOptions,
   {
     inpaintingRetouchPointsRef,
     lastInpaintingRetouchPointRef,
   }: InpaintingRetouchRefs,
-  { setRetouchPreview }: InpaintingRetouchState,
 ): RetouchActions["appendRetouchPoint"] {
   return useCallback(
-    (point: RetouchPoint, tool?: RetouchDrawTool) => {
+    (point: RetouchPoint) => {
       const last = lastInpaintingRetouchPointRef.current;
       const minDistance = Math.max(2, inpaintingBrushRadius * 0.2);
       if (last && distanceBetween(last, point) < minDistance) {
-        return;
+        return null;
       }
       const nextPoint = roundRetouchPoint(point);
       lastInpaintingRetouchPointRef.current = point;
       inpaintingRetouchPointsRef.current.push(nextPoint);
-      if (tool) {
-        setRetouchPreview((current) =>
-          appendPreviewPoint(current, tool, nextPoint, {
-            color: tool === "mask" ? "#ff9f1c" : inpaintingPaintColor,
-            radiusPx: inpaintingBrushRadius,
-          }),
-        );
-      }
+      return nextPoint;
     },
     [
       inpaintingBrushRadius,
-      inpaintingPaintColor,
       inpaintingRetouchPointsRef,
       lastInpaintingRetouchPointRef,
-      setRetouchPreview,
     ],
   );
 }
@@ -118,11 +107,14 @@ function useAppendRetouchPointAction(
 function useSaveChapterWithInpaintPath({
   clearPageImageCache,
   currentChapterRef,
+  dirty,
   mergeLiveChapter,
+  saveNow,
   setCurrentChapter,
 }: UseInpaintingRetouchOptions): SaveChapterWithInpaintPath {
   return useCallback(
     async (pageId, inpaintedImagePath, retainedInpaintedArtifactPaths = []) => {
+      await saveDirtyChanges(dirty, saveNow);
       const chapter = currentChapterRef.current;
       if (!chapter) {
         return null;
@@ -155,7 +147,9 @@ function useSaveChapterWithInpaintPath({
     [
       clearPageImageCache,
       currentChapterRef,
+      dirty,
       mergeLiveChapter,
+      saveNow,
       setCurrentChapter,
     ],
   );
@@ -189,6 +183,7 @@ function useApplyRetouchPointsAction({
           [beforePath],
         );
       try {
+        await saveDirtyChanges(options.dirty, options.saveNow);
         const result = await applyRetouchRequest(
           options,
           tool,

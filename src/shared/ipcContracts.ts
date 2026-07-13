@@ -12,6 +12,7 @@ import {
 import {
   inpaintingIpcContracts,
   jobControlIpcContracts,
+  pageImageExportIpcContracts,
   translationJobIpcContracts,
 } from "./ipcJobContracts";
 import {
@@ -31,6 +32,7 @@ export {
   jobControlIpcContracts,
   libraryIpcContracts,
   logsIpcContracts,
+  pageImageExportIpcContracts,
   panelWindowIpcContracts,
   settingsIpcContracts,
   textReviewIpcContracts,
@@ -49,6 +51,7 @@ export const ipcInvokeContracts = {
   ...logsIpcContracts,
   ...translationJobIpcContracts,
   ...inpaintingIpcContracts,
+  ...pageImageExportIpcContracts,
   ...jobControlIpcContracts,
   ...panelWindowIpcContracts,
 } as const;

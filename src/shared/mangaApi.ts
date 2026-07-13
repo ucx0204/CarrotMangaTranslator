@@ -5,8 +5,6 @@ import type {
 import type {
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
-  InpaintingExportRequest,
-  InpaintingExportResult,
   InpaintingRetouchRequest,
   InpaintingRetouchResult,
   InpaintingRevertRequest,
@@ -16,6 +14,10 @@ import type {
   StartInpaintingRequest,
   StartInpaintingResult,
 } from "./inpaintingTypes";
+import type {
+  PageImageExportRequest,
+  PageImageExportResult,
+} from "./pageImageExportTypes";
 import type {
   JobEvent,
   LocalModelPickResult,
@@ -149,9 +151,9 @@ export type MangaApi = {
   sampleInpaintingColor: (
     request: InpaintingColorSampleRequest,
   ) => Promise<InpaintingColorSampleResult>;
-  exportInpaintingResults: (
-    request: InpaintingExportRequest,
-  ) => Promise<InpaintingExportResult>;
+  exportPageImages: (
+    request: PageImageExportRequest,
+  ) => Promise<PageImageExportResult | null>;
   disposeInpaintingEngine: () => Promise<{ disposed: boolean }>;
   cancelJob: () => Promise<unknown>;
   getPanelState: () => Promise<PanelSyncState | null>;

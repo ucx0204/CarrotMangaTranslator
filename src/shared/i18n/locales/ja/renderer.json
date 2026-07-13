@@ -100,6 +100,11 @@
       "hint": "全ページ",
       "keywords": "translate all retranslate すべて 再翻訳"
     },
+    "autoInpainting": {
+      "label": "自動消去",
+      "keywords": "inpaint auto erase 自動 消去 補正",
+      "closeHint": "パネルを閉じる"
+    },
     "exitInpainting": {
       "label": "インペインティングを終了",
       "keywords": "inpaint exit 終了"
@@ -173,7 +178,7 @@
       "translate-all": "すべて再翻訳",
       "gather-text": "テキストをまとめて表示",
       "cancel-job": "処理をキャンセル",
-      "toggle-inpainting": "インペインティングを開始／終了",
+      "toggle-inpainting": "自動消去パネルを開く／閉じる",
       "history-undo": "元に戻す",
       "history-redo": "やり直す",
       "retouch-redo": "補正をやり直す",
@@ -235,6 +240,11 @@
   },
   "inpainting": {
     "common": { "saveFailedTitle": "保存失敗", "jobFailedTitle": "処理失敗" },
+    "maskDiscard": {
+      "title": "描画マスクを破棄",
+      "message": "未適用の描画マスクがあります。別の話を開きますか？",
+      "detail": "話を変更すると、現在の話にある未適用のマスクは削除されます。"
+    },
     "mode": {
       "saveBeforeEnterFailed": "インペインティングモードに入る前に変更を保存できませんでした。",
       "entered": "インペインティングモードに切り替えました。原文の消去から始めてください。",
@@ -254,6 +264,7 @@
       "title": "原文を消去",
       "currentPage": "現在のページ",
       "pendingPages": "まだ消去していないページ",
+      "selectedPages": "選択したページ",
       "message": "{{scope}}の翻訳ブロック位置にある原文を消去します。",
       "detail": "吹き出し、トーン、背景、効果音上の文字をFluxインペインティングですべて消去します。元画像は保持し、結果は別画像として保存します。",
       "preparing": "原文の消去を準備中",
@@ -266,10 +277,10 @@
       "noPage": "出力するページが選択されていません。",
       "saveFailed": "PNG出力前に変更を保存できませんでした。",
       "openFolderFailed": "PNG出力は完了しましたが、フォルダーを開けませんでした: {{path}}",
-      "success": "インペインティング結果をPNGで出力しました: {{count}}ページ",
-      "success_one": "インペインティング結果をPNGで出力しました: {{count}}ページ",
-      "success_other": "インペインティング結果をPNGで出力しました: {{count}}ページ",
-      "failed": "インペインティング結果を出力できませんでした。",
+      "success": "最終画像をPNGで出力しました: {{count}}ページ",
+      "success_one": "最終画像をPNGで出力しました: {{count}}ページ",
+      "success_other": "最終画像をPNGで出力しました: {{count}}ページ",
+      "failed": "最終画像を出力できませんでした。",
       "failedTitle": "PNG出力失敗",
       "preparing": "PNG出力を準備中"
     },
@@ -298,7 +309,7 @@
     }
   },
   "regionTranslation": {
-    "disposeInpainting": "範囲翻訳のためFluxインペインティングランタイムを終了します。",
+    "disposeInpainting": "翻訳のためFluxインペインティングランタイムを終了します。",
     "cancelledSelection": "範囲翻訳の選択をキャンセルしました。",
     "dragPrompt": "翻訳する範囲をドラッグしてください。",
     "tooSmall": "選択範囲が小さすぎます。",

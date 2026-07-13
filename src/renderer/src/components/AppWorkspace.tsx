@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
-import type { StageTool } from "../lib/stageTool";
+import { isRetouchTool, type WorkspaceTool } from "../lib/stageTool";
 import { ImageStage, type ImageStageProps } from "./ImageStage";
 import { InstallProgressOverlay } from "./InstallProgressOverlay";
 import { StageToolbar } from "./StageToolbar";
@@ -24,21 +24,23 @@ type AppWorkspaceProps = {
   selectedBlockIds: string[];
   showTextBlocks: boolean;
   showBlockChrome: boolean;
-  inpaintingMode: boolean;
+  autoInpaintingOpen: boolean;
   showingOriginalPeek: boolean;
-  inpaintingToolActive: boolean;
+  brushColor: string;
+  brushRadius: number;
   retouchCursor: ImageStageProps["retouchCursor"];
-  retouchPreviewLayer: ImageStageProps["retouchPreview"];
+  retouchOriginalImageDataUrl: string;
   maskStrokes: ImageStageProps["maskStrokes"];
   regionSelectionActive: boolean;
   regionSelectionRect: ImageStageProps["regionSelectionRect"];
   blockCreateRect: ImageStageProps["blockCreateRect"];
-  stageTool: StageTool;
+  stageTool: WorkspaceTool;
   stageToolbarHidden: boolean;
   dragHud: ImageStageProps["dragHud"];
+  jobActive: boolean;
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
-  onSelectStageTool: (tool: StageTool) => void;
+  onSelectStageTool: (tool: WorkspaceTool) => void;
   onToggleStageToolbarHidden: () => void;
   onStagePointerMove: ImageStageProps["onStagePointerMove"];
   onStagePointerUp: ImageStageProps["onStagePointerUp"];
@@ -84,8 +86,11 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
           snapshot={props.progressSnapshot}
         />
       </div>
-      {props.selectedPage && !props.inpaintingMode ? (
+      {props.selectedPage ? (
         <StageToolbar
+          brushColor={props.brushColor}
+          brushRadius={props.brushRadius}
+          disabled={props.jobActive}
           hidden={props.stageToolbarHidden}
           onSelectTool={props.onSelectStageTool}
           onToggleHidden={props.onToggleStageToolbarHidden}
@@ -97,6 +102,7 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
 }
 
 function WorkspaceContent(props: AppWorkspaceProps): React.JSX.Element {
+  const retouchToolActive = isRetouchTool(props.stageTool);
   const textLayoutStageSize = React.useMemo<ImageStageProps["stageSize"]>(
     () =>
       props.selectedPage
@@ -117,14 +123,11 @@ function WorkspaceContent(props: AppWorkspaceProps): React.JSX.Element {
   return (
     <WorkspacePane
       blockCreateRect={props.blockCreateRect}
-      blockPointerDisabled={
-        props.inpaintingToolActive ||
-        (!props.inpaintingMode && props.stageTool !== "select")
-      }
+      blockPointerDisabled={props.stageTool !== "select"}
       dragHud={props.dragHud}
       imageDataUrl={props.selectedPageImageDataUrl}
       imageRef={props.imageRef}
-      inpaintingMode={props.inpaintingMode}
+      showInpaintingExclusions={props.autoInpaintingOpen}
       maskStrokes={props.maskStrokes}
       onBlockPointerDown={props.onBlockPointerDown}
       onStagePointerDown={props.onStagePointerDown}
@@ -136,15 +139,15 @@ function WorkspaceContent(props: AppWorkspaceProps): React.JSX.Element {
       regionSelectionActive={props.regionSelectionActive}
       regionSelectionRect={props.regionSelectionRect}
       retouchCursor={props.retouchCursor}
-      retouchPreview={props.retouchPreviewLayer}
+      retouchOriginalImageDataUrl={props.retouchOriginalImageDataUrl}
       selectedBlockId={props.selectedBlockId}
       selectedBlockIds={props.selectedBlockIds}
-      showBlockChrome={props.showBlockChrome && !props.inpaintingToolActive}
+      showBlockChrome={props.showBlockChrome && !retouchToolActive}
       showingOriginalPeek={props.showingOriginalPeek}
       showTextBlocks={props.showTextBlocks}
       stageRef={props.stageRef}
       stageSize={props.stageSize}
-      stageTool={props.inpaintingMode ? undefined : props.stageTool}
+      stageTool={props.stageTool}
       textLayoutStageSize={textLayoutStageSize}
     />
   );

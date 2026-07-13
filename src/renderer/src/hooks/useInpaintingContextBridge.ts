@@ -8,7 +8,6 @@ import type {
   InpaintingTool,
 } from "../inpainting/inpaintingTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
-import type { RetouchPreviewState } from "./useInpaintingRetouch";
 
 type UseInpaintingContextBridgeOptions = {
   blockCounts: BlockCounts;
@@ -17,7 +16,6 @@ type UseInpaintingContextBridgeOptions = {
   canRedo: boolean;
   canUndo: boolean;
   currentChapter: ChapterSnapshot | null;
-  exportInpaintingResults: (scope: "page" | "chapter") => Promise<void>;
   inpaintedPageCount: number;
   jobActive: boolean;
   jobState: JobState;
@@ -30,13 +28,10 @@ type UseInpaintingContextBridgeOptions = {
   progressSnapshot: ProgressSnapshot | null;
   redoRetouch: () => Promise<void>;
   retouchBusy: boolean;
-  retouchCursorPoint: { x: number; y: number } | null;
-  retouchPreview: RetouchPreviewState | null;
   revertInpainting: (scope: "page" | "chapter") => Promise<void>;
   runDrawnPatternInpainting: () => Promise<void>;
   runInpainting: (scope: "page" | "chapter") => Promise<void>;
   selectedPage: MangaPage | null;
-  selectedPageOriginalImageDataUrl: string;
   setBrushColor: Dispatch<SetStateAction<string>>;
   setBrushRadius: Dispatch<SetStateAction<number>>;
   setPeeking: Dispatch<SetStateAction<boolean>>;
@@ -54,13 +49,8 @@ type RetouchCursorMode = "brush" | "eraser" | "mask";
 type RetouchCursor = {
   color: string;
   mode: RetouchCursorMode;
-  point: { x: number; y: number } | null;
   radiusPx: number;
 } | null;
-
-type RetouchPreviewLayer =
-  | (RetouchPreviewState & { originalImageDataUrl: string })
-  | null;
 
 type InpaintingContextState = Pick<
   InpaintingContextValue,
@@ -77,6 +67,7 @@ type InpaintingContextState = Pick<
   | "peekAvailable"
   | "peeking"
   | "progressSnapshot"
+  | "retouchBusy"
   | "selectedPage"
   | "showBlockChrome"
   | "showTextBlocks"
@@ -91,7 +82,6 @@ type InpaintingContextActions = Omit<
 type InpaintingBridgeResult = {
   contextValue: InpaintingContextValue;
   retouchCursor: RetouchCursor;
-  retouchPreviewLayer: RetouchPreviewLayer;
 };
 
 const RETOUCH_CURSOR_COLORS: Record<
@@ -109,34 +99,18 @@ function isRetouchCursorMode(tool: InpaintingTool): tool is RetouchCursorMode {
 function resolveRetouchCursor({
   brushColor,
   brushRadius,
-  retouchCursorPoint,
   tool,
 }: Pick<
   UseInpaintingContextBridgeOptions,
-  "brushColor" | "brushRadius" | "retouchCursorPoint" | "tool"
+  "brushColor" | "brushRadius" | "tool"
 >): RetouchCursor {
   if (!isRetouchCursorMode(tool)) {
     return null;
   }
   return {
-    point: retouchCursorPoint,
     radiusPx: brushRadius,
     mode: tool,
     color: tool === "brush" ? brushColor : RETOUCH_CURSOR_COLORS[tool],
-  };
-}
-
-function resolveRetouchPreviewLayer(
-  retouchPreview: RetouchPreviewState | null,
-  selectedPageOriginalImageDataUrl: string,
-): RetouchPreviewLayer {
-  if (!retouchPreview || retouchPreview.points.length === 0) {
-    return null;
-  }
-  return {
-    ...retouchPreview,
-    originalImageDataUrl:
-      retouchPreview.mode === "eraser" ? selectedPageOriginalImageDataUrl : "",
   };
 }
 
@@ -176,7 +150,8 @@ function useInpaintingContextState({
       progressSnapshot,
       showBlockChrome,
       showTextBlocks,
-      jobActive,
+      jobActive: jobActive || retouchBusy,
+      retouchBusy,
       peekAvailable,
       peeking,
     }),
@@ -204,7 +179,6 @@ function useInpaintingContextState({
 }
 
 function useInpaintingContextActions({
-  exportInpaintingResults,
   onCancelJob,
   onClearPatternMask,
   onShowGuide,
@@ -237,11 +211,9 @@ function useInpaintingContextActions({
       onPeekToggle: () => setPeeking((value) => !value),
       onToggleChrome: () => setShowBlockChrome((value) => !value),
       onToggleBlocks: () => setShowTextBlocks((value) => !value),
-      onExportResults: (scope) => void exportInpaintingResults(scope),
       onCancelJob,
     }),
     [
-      exportInpaintingResults,
       onCancelJob,
       onClearPatternMask,
       onShowGuide,
@@ -278,12 +250,12 @@ function useInpaintingContextValue(
 export function useInpaintingContextBridge(
   options: UseInpaintingContextBridgeOptions,
 ): InpaintingBridgeResult {
-  const retouchCursor = resolveRetouchCursor(options);
-  const retouchPreviewLayer = resolveRetouchPreviewLayer(
-    options.retouchPreview,
-    options.selectedPageOriginalImageDataUrl,
+  const { brushColor, brushRadius, tool } = options;
+  const retouchCursor = useMemo(
+    () => resolveRetouchCursor({ brushColor, brushRadius, tool }),
+    [brushColor, brushRadius, tool],
   );
   const contextValue = useInpaintingContextValue(options);
 
-  return { contextValue, retouchCursor, retouchPreviewLayer };
+  return { contextValue, retouchCursor };
 }

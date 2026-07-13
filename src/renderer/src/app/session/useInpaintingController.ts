@@ -14,7 +14,6 @@ export function useInpaintingController(
     core: chapter.core,
     derivedState: chapter.derivedState,
     dirty: chapter.persistence.dirty,
-    hideInpaintingGuide: chapter.guidePreference.hideInpaintingGuide,
     mergeLiveChapter: chapter.mergeLiveChapter,
     modalOpen: chapter.modalOpen,
     pushStatus: chapter.statusLog.pushStatus,
@@ -26,11 +25,9 @@ export function useInpaintingController(
     updateCurrentChapter: translation.updateCurrentChapter,
   });
   const commands = useAppSessionCommandController({
+    autoInpaintingOpen: chapter.uiState.autoInpaintingOpen,
     cancelJob: chapter.bridgeActions.cancelJob,
     currentChapter: chapter.core.currentChapter,
-    enterInpaintingMode: inpainting.inpaintingActions.enterInpaintingMode,
-    exitInpaintingMode: inpainting.inpaintingActions.exitInpaintingMode,
-    inpaintingMode: chapter.uiState.inpaintingMode,
     jobActive: chapter.derivedState.jobActive,
     openImportPreview: translation.importShareActions.openImportPreview,
     openLibraryFolder: chapter.bridgeActions.openLibraryFolder,
@@ -45,6 +42,7 @@ export function useInpaintingController(
     setTextViewOpen: chapter.uiState.setTextViewOpen,
     setTranslateOptionsOpen: chapter.uiState.setTranslateOptionsOpen,
     setTranslationSourceOpen: chapter.importShareModal.setTranslationSourceOpen,
+    toggleAutoInpainting: chapter.uiState.toggleAutoInpainting,
   });
 
   return {

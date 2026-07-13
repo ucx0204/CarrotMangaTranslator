@@ -30,7 +30,13 @@ type InpaintingPageResult = Awaited<ReturnType<typeof inpaintPatternPage>>;
 
 export type InpaintingJobState = {
   chapter: OpenedChapter | null;
+  chapters: Map<string, OpenedChapter>;
   inpaintingEngineLease: InpaintingEngineLease | null;
+};
+
+export type InpaintingJobPage = {
+  chapterId: string;
+  page: MangaPage;
 };
 
 type InpaintingTarget = {
@@ -46,7 +52,7 @@ export async function runInpaintingPagesJob({
   id,
   abortController,
   emit,
-  pages,
+  targets,
   state,
 }: {
   context: InpaintingJobContext;
@@ -54,19 +60,21 @@ export async function runInpaintingPagesJob({
   id: string;
   abortController: AbortController;
   emit: EmitJobEvent;
-  pages: MangaPage[];
+  targets: InpaintingJobPage[];
   state: InpaintingJobState;
 }): Promise<StartInpaintingResult> {
   const target = resolveInpaintingTarget(request);
-  const totalTargetBlocks = countTargetBlocks(pages, target);
-  emitInpaintingStarting(id, emit, pages.length, totalTargetBlocks, target);
+  const totalTargetBlocks = countTargetBlocks(
+    targets.map(({ page }) => page),
+    target,
+  );
+  emitInpaintingStarting(id, emit, targets.length, totalTargetBlocks, target);
   const result = await processInpaintingPages({
     abortController,
     context,
     emit,
     id,
-    pages,
-    request,
+    targets,
     state,
     target,
     totalTargetBlocks,
@@ -75,13 +83,15 @@ export async function runInpaintingPagesJob({
   emitInpaintingCompleted(
     id,
     emit,
-    pages.length,
+    targets.length,
     result.blocksErased,
     target.targetType,
   );
   return {
     status: "completed",
-    chapter: result.savedChapter,
+    ...(request.mode === "selection-pattern"
+      ? { chapters: result.savedChapters }
+      : { chapter: result.savedChapters[0] }),
     pagesChanged: result.pagesChanged,
     blocksErased: result.blocksErased,
   };
@@ -105,13 +115,12 @@ export async function handleInpaintingJobError({
   context: InpaintingJobContext;
 }): Promise<StartInpaintingResult> {
   const lastEvent = getLastJobEvent(context, id);
+  const refreshed = await refreshRequestChapters(request, state);
   if (isAbortError(error) || abortController.signal.aborted) {
     emitInpaintingCancelled(id, emit, lastEvent);
     return {
       status: "cancelled",
-      chapter: await openChapter(request.chapterId).catch(
-        () => state.chapter ?? undefined,
-      ),
+      ...refreshed,
     };
   }
 
@@ -126,10 +135,28 @@ export async function handleInpaintingJobError({
   return {
     status: "failed",
     error: message,
-    chapter: await openChapter(request.chapterId).catch(
-      () => state.chapter ?? undefined,
-    ),
+    ...refreshed,
   };
+}
+
+async function refreshRequestChapters(
+  request: StartInpaintingRequest,
+  state: InpaintingJobState,
+): Promise<Pick<StartInpaintingResult, "chapter" | "chapters">> {
+  if (request.mode !== "selection-pattern") {
+    return {
+      chapter: await openChapter(request.chapterId).catch(
+        () => state.chapter ?? undefined,
+      ),
+    };
+  }
+
+  const chapters = await Promise.all(
+    request.selections.map(async ({ chapterId }) =>
+      openChapter(chapterId).catch(() => state.chapters.get(chapterId)),
+    ),
+  );
+  return { chapters: chapters.filter((chapter) => chapter !== undefined) };
 }
 
 function resolveInpaintingTarget(
@@ -165,8 +192,7 @@ async function processInpaintingPages({
   context,
   emit,
   id,
-  pages,
-  request,
+  targets,
   state,
   target,
   totalTargetBlocks,
@@ -175,51 +201,54 @@ async function processInpaintingPages({
   context: InpaintingJobContext;
   emit: EmitJobEvent;
   id: string;
-  pages: MangaPage[];
-  request: StartInpaintingRequest;
+  targets: InpaintingJobPage[];
   state: InpaintingJobState;
   target: InpaintingTarget;
   totalTargetBlocks: number;
 }): Promise<{
-  savedChapter: OpenedChapter;
+  savedChapters: OpenedChapter[];
   pagesChanged: number;
   blocksErased: number;
 }> {
   let blocksErased = 0;
-  let savedChapter = state.chapter;
   let pagesChanged = 0;
   state.inpaintingEngineLease = await acquireInpaintingEngineIfNeeded({
     abortController,
     context,
     emit,
     id,
-    pageCount: pages.length,
+    pageCount: targets.length,
     totalTargetBlocks,
   });
 
-  for (const [pageIndex, page] of pages.entries()) {
+  for (const [pageIndex, targetPage] of targets.entries()) {
     const result = await processInpaintingPage({
       abortController,
       context,
       emit,
       id,
-      page,
+      page: targetPage.page,
       pageIndex,
-      pages,
+      pageCount: targets.length,
       state,
       target,
     });
     if (result.blocksErased > 0) {
       blocksErased += result.blocksErased;
       pagesChanged += 1;
-      savedChapter = await updatePagesAfterInpainting(request.chapterId, [
-        result.page,
-      ]);
+      const savedChapter = await updatePagesAfterInpainting(
+        targetPage.chapterId,
+        [result.page],
+      );
+      state.chapters.set(targetPage.chapterId, savedChapter);
+      if (state.chapter?.id === targetPage.chapterId) {
+        state.chapter = savedChapter;
+      }
     }
   }
 
   return {
-    savedChapter: savedChapter ?? (await openChapter(request.chapterId)),
+    savedChapters: [...state.chapters.values()],
     pagesChanged,
     blocksErased,
   };
@@ -277,7 +306,7 @@ async function processInpaintingPage({
   id,
   page,
   pageIndex,
-  pages,
+  pageCount,
   state,
   target,
 }: {
@@ -287,7 +316,7 @@ async function processInpaintingPage({
   id: string;
   page: MangaPage;
   pageIndex: number;
-  pages: MangaPage[];
+  pageCount: number;
   state: InpaintingJobState;
   target: InpaintingTarget;
 }): Promise<InpaintingPageResult> {
@@ -298,7 +327,7 @@ async function processInpaintingPage({
   const pageTargetCount = target.drawnPatternMode
     ? target.drawnStrokes.length
     : page.blocks.length;
-  emitInpaintingPageRunning(id, emit, page, pageIndex, pages.length, {
+  emitInpaintingPageRunning(id, emit, page, pageIndex, pageCount, {
     pageTargetCount,
     target,
   });
@@ -319,7 +348,7 @@ async function processInpaintingPage({
     id,
     emit,
     pageIndex,
-    pages.length,
+    pageCount,
     target,
     result.blocksErased,
   );

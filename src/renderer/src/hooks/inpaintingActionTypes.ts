@@ -1,7 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { JobState } from "../../../shared/jobTypes";
-import type { RegionSelectionState } from "../lib/appHelpers";
 import { formatErrorMessage } from "../lib/appHelpers";
 import type { ChapterSnapshot, MangaPage } from "./hookLibraryTypes";
 
@@ -23,7 +22,6 @@ export type UseInpaintingActionsOptions = {
   clearRetouchHistory: () => void;
   currentChapter: ChapterSnapshot | null;
   dirty: boolean;
-  hideInpaintingGuide: boolean;
   jobActive: boolean;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
   patternMaskStrokes: InpaintingMaskStroke[];
@@ -31,8 +29,6 @@ export type UseInpaintingActionsOptions = {
   refreshLibrary: () => Promise<void>;
   saveNow: () => Promise<void>;
   selectedPage: MangaPage | null;
-  setInpaintingGuideOpen: Dispatch<SetStateAction<boolean>>;
-  setInpaintingMode: Dispatch<SetStateAction<boolean>>;
   setInpaintingTool: Dispatch<
     SetStateAction<"none" | "brush" | "eraser" | "picker" | "mask">
   >;
@@ -40,11 +36,6 @@ export type UseInpaintingActionsOptions = {
   setPatternMaskStrokesByPage: Dispatch<
     SetStateAction<Record<string, InpaintingMaskStroke[]>>
   >;
-  setPeekOriginal: Dispatch<SetStateAction<boolean>>;
-  setRegionSelection: Dispatch<SetStateAction<RegionSelectionState | null>>;
-  setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
-  setShowBlockChrome: Dispatch<SetStateAction<boolean>>;
-  setShowTextBlocks: Dispatch<SetStateAction<boolean>>;
 };
 
 export function failInpaintingJob(

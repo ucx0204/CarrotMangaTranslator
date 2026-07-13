@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-const JOB_KIND_VALUES = ["gemma-analysis", "inpainting"] as const;
+const JOB_KIND_VALUES = [
+  "gemma-analysis",
+  "inpainting",
+  "page-export",
+] as const;
 export type JobKind = (typeof JOB_KIND_VALUES)[number];
 export const JobKindSchema = z.enum(JOB_KIND_VALUES);
 

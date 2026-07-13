@@ -51,6 +51,8 @@ export function Modal({
   children,
 }: ModalProps): React.JSX.Element {
   const cardRef = React.useRef<HTMLDivElement | null>(null);
+  const titleId = React.useId();
+  const accessibleName = resolveModalAccessibleName(title, ariaLabel, titleId);
   const showHeader = Boolean(title) || Boolean(headerExtra) || Boolean(onClose);
   const handleCardKeyDown = useModalFocusTrap(cardRef);
 
@@ -78,7 +80,7 @@ export function Modal({
         style={width ? { width } : undefined}
         role="dialog"
         aria-modal="true"
-        aria-label={ariaLabel}
+        {...accessibleName}
         tabIndex={-1}
         onKeyDown={handleCardKeyDown}
         onMouseDown={(event) => event.stopPropagation()}
@@ -89,6 +91,7 @@ export function Modal({
             headerExtra={headerExtra}
             onClose={onClose}
             title={title}
+            titleId={titleId}
           />
         ) : null}
         <div
@@ -102,6 +105,14 @@ export function Modal({
       </div>
     </div>
   );
+}
+
+function resolveModalAccessibleName(
+  title: React.ReactNode,
+  ariaLabel: string | undefined,
+  titleId: string,
+): { "aria-label"?: string; "aria-labelledby"?: string } {
+  return title ? { "aria-labelledby": titleId } : { "aria-label": ariaLabel };
 }
 
 function useModalEscapeClose({
@@ -199,14 +210,20 @@ function ModalHeader({
   headerExtra,
   onClose,
   title,
-}: Pick<
-  ModalProps,
-  "closeDisabled" | "headerExtra" | "onClose" | "title"
->): React.JSX.Element {
+  titleId,
+}: Pick<ModalProps, "closeDisabled" | "headerExtra" | "onClose" | "title"> & {
+  titleId: string;
+}): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
     <div className={styles.header}>
-      {title ? <h2 className={styles.title}>{title}</h2> : <span />}
+      {title ? (
+        <h2 id={titleId} className={styles.title}>
+          {title}
+        </h2>
+      ) : (
+        <span />
+      )}
       <div className={styles.headerActions}>
         {headerExtra}
         {onClose ? (

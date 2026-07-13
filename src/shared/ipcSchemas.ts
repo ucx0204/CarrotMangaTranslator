@@ -33,11 +33,11 @@ export {
 } from "./ipcLibrarySchemas";
 export {
   InpaintingColorSampleRequestSchema,
-  InpaintingExportRequestSchema,
   InpaintingRetouchRequestSchema,
   InpaintingRevertRequestSchema,
   JobEventSchema,
   ModelTestProgressEventSchema,
+  PageImageExportRequestSchema,
   RegionAnalysisRequestSchema,
   RendererLogRequestSchema,
   SetPageInpaintingResultRequestSchema,

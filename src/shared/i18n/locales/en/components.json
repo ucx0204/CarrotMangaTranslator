@@ -166,6 +166,28 @@
     "approximately": "about ",
     "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{approximate}}{{pageCount}}"
   },
+  "exportOptions": {
+    "title": "Export PNG",
+    "prompt": "Choose the pages to export.",
+    "currentChapter": "Current chapter",
+    "chapterSummary": "{{count}}p",
+    "noSelectedPages": "No pages selected.",
+    "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{pageCount}}",
+    "start": "Export PNG",
+    "starting": "Preparing export…",
+    "workUnavailable": "Could not load work information. Only the current page will be exported.",
+    "startFailed": "Could not start the export. Please try again."
+  },
+  "autoInpaintingOptions": {
+    "title": "Automatic erase",
+    "prompt": "Choose the pages to erase automatically.",
+    "currentChapter": "Current chapter",
+    "chapterSummary": "{{count}}p",
+    "noSelectedPages": "No pages selected.",
+    "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{pageCount}}",
+    "start": "Start automatic erase",
+    "workUnavailable": "Could not load work information. Only the current page will be processed."
+  },
   "translationOptions": {
     "start": "Start translation",
     "workUnavailable": "Could not load work information. Only the current chapter will be translated.",
@@ -293,6 +315,7 @@
     "hide": "Hide toolbar",
     "hideTitle": "Hide toolbar (4)",
     "imageTools": "Image tools",
+    "radius": "{{radius}}px",
     "tools": {
       "select": { "label": "Select", "title": "Select tool (1)" },
       "block": {
@@ -302,7 +325,11 @@
       "hand": {
         "label": "Hand",
         "title": "Hand tool (3) — drag to pan the image"
-      }
+      },
+      "mask": { "label": "Mask", "title": "Mask brush" },
+      "brush": { "label": "Brush", "title": "Retouch brush" },
+      "eraser": { "label": "Eraser", "title": "Erase retouch strokes" },
+      "picker": { "label": "Pick color", "title": "Pick a canvas color" }
     }
   },
   "display": {
@@ -484,6 +511,12 @@
     }
   },
   "inpainting": {
+    "inspector": {
+      "eyebrow": "Canvas tool",
+      "autoTitle": "Automatic erase",
+      "retouchTitle": "Retouch settings",
+      "autoAction": "Auto erase"
+    },
     "counts": {
       "thisPage": "This page {{count}}",
       "remaining": "Remaining {{count}}",
@@ -537,6 +570,7 @@
       "nextExport": "Export →"
     },
     "export": {
+      "pngAction": "Export PNG",
       "description": "Refine block fonts, colors, and positions, then export a PNG with the translation overlaid.",
       "result": "Export results",
       "pagesSaved": "Pages saved: {{count}}",
@@ -879,7 +913,7 @@
         "translate-all": "Retranslate all",
         "gather-text": "Gather text",
         "cancel-job": "Cancel job",
-        "toggle-inpainting": "Start/exit inpainting",
+        "toggle-inpainting": "Open/close auto erase panel",
         "history-undo": "Undo",
         "history-redo": "Redo",
         "retouch-redo": "Redo retouch",

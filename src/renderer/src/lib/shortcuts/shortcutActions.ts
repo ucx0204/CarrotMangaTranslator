@@ -86,7 +86,7 @@ export type ShortcutContext = {
   helpOpen: boolean;
   chapterOpen: boolean;
   jobActive: boolean;
-  inpaintingMode: boolean;
+  retouchToolActive: boolean;
   blockSelected: boolean;
 };
 
@@ -105,7 +105,7 @@ export type ShortcutActionDef = {
 };
 
 const canTranslate = (context: ShortcutContext): boolean =>
-  context.chapterOpen && !context.jobActive && !context.inpaintingMode;
+  context.chapterOpen && !context.jobActive;
 
 export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
   {
@@ -159,28 +159,28 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "선택 도구",
     category: "tool",
     defaultCombo: "1",
-    enabled: (c) => c.chapterOpen && !c.inpaintingMode,
+    enabled: (c) => c.chapterOpen,
   },
   {
     id: "stage-tool-block",
     label: "블록 도구 (드래그로 블록 추가)",
     category: "tool",
     defaultCombo: "2",
-    enabled: (c) => c.chapterOpen && !c.inpaintingMode,
+    enabled: (c) => c.chapterOpen,
   },
   {
     id: "stage-tool-hand",
     label: "손바닥 도구 (드래그로 이동)",
     category: "tool",
     defaultCombo: "3",
-    enabled: (c) => c.chapterOpen && !c.inpaintingMode,
+    enabled: (c) => c.chapterOpen,
   },
   {
     id: "toggle-stage-toolbar",
     label: "도구 모음 표시 전환",
     category: "tool",
     defaultCombo: "4",
-    enabled: (c) => c.chapterOpen && !c.inpaintingMode,
+    enabled: (c) => c.chapterOpen,
   },
   {
     id: "open-translate-options",
@@ -219,10 +219,10 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
   },
   {
     id: "toggle-inpainting",
-    label: "인페인팅 시작/종료",
+    label: "자동 지우기 패널 열기/닫기",
     category: "inpaint",
     defaultCombo: "i",
-    enabled: (c) => c.inpaintingMode || (c.chapterOpen && !c.jobActive),
+    enabled: (c) => c.chapterOpen && !c.jobActive,
   },
   {
     id: "history-undo",
@@ -245,7 +245,7 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "보정 다시 실행",
     category: "inpaint",
     defaultCombo: "ctrl+y",
-    enabled: (c) => c.inpaintingMode,
+    enabled: (c) => c.retouchToolActive,
   },
   {
     id: "delete-block",

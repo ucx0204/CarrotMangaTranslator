@@ -1,6 +1,5 @@
 import {
   InpaintingColorSampleRequestSchema,
-  InpaintingExportRequestSchema,
   InpaintingRetouchRequestSchema,
   InpaintingRevertRequestSchema,
   SetPageInpaintingResultRequestSchema,
@@ -10,7 +9,6 @@ import {
 import { inpaintingIpcContracts } from "../../shared/ipcContracts";
 import type {
   InpaintingColorSampleResult,
-  InpaintingExportResult,
   InpaintingRetouchResult,
   InpaintingRevertResult,
   SetPageInpaintingResultResult,
@@ -18,10 +16,7 @@ import type {
 } from "../../shared/inpaintingTypes";
 import { applyInpaintingRetouch, sampleImageColor } from "../inpainting";
 import { disposeCachedInpaintingEngines } from "../inpainting/inpaintingEnginePool";
-import {
-  exportInpaintingResults,
-  startInpaintingJob,
-} from "../jobs/inpaintingJobs";
+import { startInpaintingJob } from "../jobs/inpaintingJobs";
 import {
   assertLibraryImagePath,
   openChapter,
@@ -206,19 +201,5 @@ function registerInpaintingUtilityIpc(context: IpcContext): void {
         ),
       };
     },
-  );
-
-  trustedHandleContract(
-    context,
-    inpaintingIpcContracts.exportInpaintingResults,
-    async (_event, rawRequest: unknown): Promise<InpaintingExportResult> =>
-      exportInpaintingResults(
-        context,
-        parseIpcPayload(
-          InpaintingExportRequestSchema,
-          rawRequest,
-          tMain("ipc.labels.resultExport"),
-        ),
-      ),
   );
 }

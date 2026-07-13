@@ -64,13 +64,11 @@ export function resolveJobActive(status: JobState["status"]): boolean {
 }
 
 export function resolveWorkspaceImageDataUrl({
-  inpaintingMode,
   peekOriginal,
   selectedPage,
   selectedPageImageDataUrl,
   selectedPageOriginalImageDataUrl,
 }: {
-  inpaintingMode: boolean;
   peekOriginal: boolean;
   selectedPage: MangaPage | null;
   selectedPageImageDataUrl: string;
@@ -79,7 +77,7 @@ export function resolveWorkspaceImageDataUrl({
   const peekAvailable = Boolean(
     selectedPage?.inpaintedImagePath && selectedPageOriginalImageDataUrl,
   );
-  const showingOriginalPeek = inpaintingMode && peekOriginal && peekAvailable;
+  const showingOriginalPeek = peekOriginal && peekAvailable;
   return {
     imageDataUrl: showingOriginalPeek
       ? selectedPageOriginalImageDataUrl

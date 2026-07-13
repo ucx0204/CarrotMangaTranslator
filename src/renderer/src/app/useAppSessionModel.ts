@@ -46,7 +46,6 @@ export function useAppSessionModel(): AppSessionViewProps {
     syncState: buildPanelSyncState({
       core: chapter.core,
       derivedState: chapter.derivedState,
-      uiState: chapter.uiState,
     }),
     onCommand: applyPanelCommand,
   });

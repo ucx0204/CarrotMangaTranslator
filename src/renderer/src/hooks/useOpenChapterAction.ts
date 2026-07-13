@@ -7,8 +7,12 @@ import type { UseLibraryActionsOptions } from "./libraryActionTypes";
 type OpenChapterOptions = Pick<
   UseLibraryActionsOptions,
   | "clearDirtyTracking"
+  | "clearPendingInpaintingMasks"
   | "currentChapterRef"
   | "dirty"
+  | "hasPendingInpaintingMask"
+  | "askConfirm"
+  | "onChapterOpened"
   | "pushStatus"
   | "resetSaveBaseline"
   | "saveNow"
@@ -18,9 +22,13 @@ type OpenChapterOptions = Pick<
 >;
 
 export function useOpenChapterAction({
+  askConfirm,
   clearDirtyTracking,
+  clearPendingInpaintingMasks,
   currentChapterRef,
   dirty,
+  hasPendingInpaintingMask,
+  onChapterOpened,
   pushStatus,
   resetSaveBaseline,
   saveNow,
@@ -31,7 +39,20 @@ export function useOpenChapterAction({
   const { t } = useTranslation("renderer");
   return useCallback(
     async (chapterId) => {
+      if (currentChapterRef.current?.id === chapterId) {
+        return;
+      }
       try {
+        if (hasPendingInpaintingMask) {
+          const confirmed = await askConfirm(
+            t("inpainting.maskDiscard.title"),
+            t("inpainting.maskDiscard.message"),
+            t("inpainting.maskDiscard.detail"),
+          );
+          if (!confirmed) {
+            return;
+          }
+        }
         if (dirty) {
           await saveNow();
         }
@@ -42,6 +63,8 @@ export function useOpenChapterAction({
         setCurrentChapter(chapter);
         setSelectedPageId(chapter.pages[0]?.id ?? null);
         setSelectedBlockId(null);
+        clearPendingInpaintingMasks?.();
+        onChapterOpened?.();
       } catch (error) {
         console.error(error);
         pushStatus(formatErrorMessage(error, t("library.openChapterFailed")));
@@ -49,8 +72,12 @@ export function useOpenChapterAction({
     },
     [
       clearDirtyTracking,
+      clearPendingInpaintingMasks,
       currentChapterRef,
       dirty,
+      hasPendingInpaintingMask,
+      askConfirm,
+      onChapterOpened,
       pushStatus,
       resetSaveBaseline,
       saveNow,

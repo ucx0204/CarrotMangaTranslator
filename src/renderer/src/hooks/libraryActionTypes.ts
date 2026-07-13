@@ -16,10 +16,13 @@ export type UseLibraryActionsOptions = {
   currentChapter: ChapterSnapshot | null;
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
   dirty: boolean;
+  hasPendingInpaintingMask?: boolean;
   library: LibraryIndex;
+  onChapterOpened?: () => void;
   pushStatus: (line: string) => void;
   resetSaveBaseline: (chapter?: ChapterSnapshot | null) => void;
   saveNow: () => Promise<void>;
+  clearPendingInpaintingMasks?: () => void;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setLibrary: Dispatch<SetStateAction<LibraryIndex>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;

@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
 import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
 import type { StageTool } from "../../lib/stageTool";
@@ -8,15 +14,8 @@ import {
 } from "../../lib/workspaceZoom";
 
 export function useAppSessionUiState() {
-  const [inpaintingMode, setInpaintingMode] = useState(false);
-  const [inpaintingGuideOpen, setInpaintingGuideOpen] = useState(false);
-  const [inpaintingTool, setInpaintingTool] = useState<InpaintingTool>("none");
-  const [inpaintingBrushRadius, setInpaintingBrushRadius] = useState(28);
-  const [inpaintingPaintColor, setInpaintingPaintColor] = useState("#ffffff");
-  const [peekOriginal, setPeekOriginal] = useState(false);
-  const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<
-    Record<string, InpaintingMaskStroke[]>
-  >({});
+  const inpaintingUi = useInpaintingUiState();
+  const { resetInpaintingUi } = inpaintingUi;
   const [showBlockChrome, setShowBlockChrome] = useState(true);
   const [showTextBlocks, setShowTextBlocks] = useState(true);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -26,7 +25,6 @@ export function useAppSessionUiState() {
   const translateModals = useTranslateModalUiState();
   const [translationFlowActive, setTranslationFlowActive] = useState(false);
   const [editorFloating, setEditorFloating] = useState(false);
-  const [stageTool, setStageTool] = useState<StageTool>("select");
   const [stageToolbarHidden, setStageToolbarHidden] = useState(false);
   const zoom = useWorkspaceZoomControls();
 
@@ -36,42 +34,25 @@ export function useAppSessionUiState() {
   );
 
   const resetChapterScopedUi = useCallback(() => {
-    setInpaintingMode(false);
-    setInpaintingGuideOpen(false);
+    resetInpaintingUi();
     setStyleGuideOpen(false);
     translateModals.resetTranslateModals();
-    setPatternMaskStrokesByPage({});
-    setStageTool("select");
     zoom.resetWorkspaceZoom();
-  }, [translateModals, zoom]);
+  }, [resetInpaintingUi, translateModals, zoom]);
 
   return {
     ...zoom,
     ...translateModals,
+    ...inpaintingUi,
     commandPaletteOpen,
     editorFloating,
-    inpaintingBrushRadius,
-    inpaintingGuideOpen,
-    inpaintingMode,
-    inpaintingPaintColor,
-    inpaintingTool,
-    patternMaskStrokesByPage,
-    peekOriginal,
     resetChapterScopedUi,
     setCommandPaletteOpen,
     setEditorFloating,
     toggleEditorFloat,
-    setInpaintingBrushRadius,
-    setInpaintingGuideOpen,
-    setInpaintingMode,
-    setInpaintingPaintColor,
-    setInpaintingTool,
-    setPatternMaskStrokesByPage,
-    setPeekOriginal,
     setShortcutHelpOpen,
     setShowBlockChrome,
     setShowTextBlocks,
-    setStageTool,
     setStageToolbarHidden,
     setStyleGuideOpen,
     setTextViewOpen,
@@ -79,12 +60,108 @@ export function useAppSessionUiState() {
     shortcutHelpOpen,
     showBlockChrome,
     showTextBlocks,
-    stageTool,
     stageToolbarHidden,
     styleGuideOpen,
     textViewOpen,
     translationFlowActive,
   };
+}
+
+function useInpaintingUiState() {
+  const [inpaintingGuideOpen, setInpaintingGuideOpen] = useState(false);
+  const [autoInpaintingOpen, setAutoInpaintingOpen] = useState(false);
+  const [autoInpaintingOptionsOpen, setAutoInpaintingOptionsOpen] =
+    useState(false);
+  const [exportOptionsOpen, setExportOptionsOpen] = useState(false);
+  const [inpaintingBrushRadius, setInpaintingBrushRadius] = useState(28);
+  const [inpaintingPaintColor, setInpaintingPaintColor] = useState("#ffffff");
+  const [peekOriginal, setPeekOriginal] = useState(false);
+  const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<
+    Record<string, InpaintingMaskStroke[]>
+  >({});
+  const [stageTool, setStageTool] = useState<StageTool>("select");
+  const inpaintingTool = resolveInpaintingTool(stageTool);
+  const setInpaintingTool = useInpaintingToolSetter(setStageTool);
+  const selectWorkspaceTool = useCallback((tool: StageTool) => {
+    setStageTool(tool);
+    if (isManualInpaintingTool(tool)) {
+      setAutoInpaintingOpen(false);
+      setPeekOriginal(false);
+    }
+  }, []);
+  const toggleAutoInpainting = useCallback(() => {
+    setAutoInpaintingOpen((open) => {
+      const next = !open;
+      if (next) {
+        setStageTool((tool) =>
+          isManualInpaintingTool(tool) ? "select" : tool,
+        );
+      } else {
+        setPeekOriginal(false);
+      }
+      return next;
+    });
+  }, []);
+  const resetInpaintingUi = useCallback(() => {
+    setAutoInpaintingOpen(false);
+    setAutoInpaintingOptionsOpen(false);
+    setExportOptionsOpen(false);
+    setInpaintingGuideOpen(false);
+    setPatternMaskStrokesByPage({});
+    setPeekOriginal(false);
+    setStageTool("select");
+  }, []);
+  return {
+    autoInpaintingOpen,
+    autoInpaintingOptionsOpen,
+    exportOptionsOpen,
+    inpaintingBrushRadius,
+    inpaintingGuideOpen,
+    inpaintingPaintColor,
+    inpaintingTool,
+    patternMaskStrokesByPage,
+    peekOriginal,
+    resetInpaintingUi,
+    selectWorkspaceTool,
+    setAutoInpaintingOpen,
+    setAutoInpaintingOptionsOpen,
+    setExportOptionsOpen,
+    setInpaintingBrushRadius,
+    setInpaintingGuideOpen,
+    setInpaintingPaintColor,
+    setInpaintingTool,
+    setPatternMaskStrokesByPage,
+    setPeekOriginal,
+    setStageTool,
+    stageTool,
+    toggleAutoInpainting,
+  };
+}
+
+function useInpaintingToolSetter(
+  setStageTool: Dispatch<SetStateAction<StageTool>>,
+): Dispatch<SetStateAction<InpaintingTool>> {
+  return useMemo(
+    () => (nextTool) => {
+      setStageTool((currentTool) => {
+        const current = resolveInpaintingTool(currentTool);
+        const resolved =
+          typeof nextTool === "function" ? nextTool(current) : nextTool;
+        return resolved === "none" ? "select" : resolved;
+      });
+    },
+    [setStageTool],
+  );
+}
+
+function resolveInpaintingTool(tool: StageTool): InpaintingTool {
+  return isManualInpaintingTool(tool) ? tool : "none";
+}
+
+function isManualInpaintingTool(
+  tool: StageTool,
+): tool is Exclude<InpaintingTool, "none"> {
+  return ["mask", "brush", "eraser", "picker"].includes(tool);
 }
 
 function useTranslateModalUiState() {

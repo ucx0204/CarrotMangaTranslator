@@ -16,6 +16,7 @@
     "registerFont": "フォントファイルを登録（TTF/OTF）",
     "saveReview": "校正表を保存",
     "saveText": "テキストを保存",
+    "exportPngFolder": "PNG出力フォルダーを選択",
     "filters": {
       "images": "画像ファイル",
       "font": "フォントファイル",
@@ -289,13 +290,18 @@
     "failed": "PNG出力に失敗しました",
     "preparing": "PNG出力を準備中",
     "completed": "PNG出力完了",
+    "selection": "{{chapters}}話 · {{pages}}ページ",
     "page": {
       "running": "{{current}} / {{total}}ページをPNG出力中",
       "done": "{{current}} / {{total}}ページのPNG出力完了"
     },
-    "scope": {
-      "page": "このページ · {{count}}ページ",
-      "chapter": "全ページ · {{count}}ページ"
+    "errors": {
+      "workNotFound": "出力する作品が見つかりません。",
+      "chapterNotFound": "選択した話はこの作品にないか、見つかりません。",
+      "duplicateChapter": "同じ話を2回選択できません。",
+      "pageNotFound": "選択したページはその話にありません。",
+      "duplicatePage": "同じページを2回選択できません。",
+      "outputDirectory": "PNG出力フォルダーを作成できませんでした。"
     }
   },
   "modelTest": {

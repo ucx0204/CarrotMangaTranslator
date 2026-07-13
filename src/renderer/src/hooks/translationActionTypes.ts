@@ -31,7 +31,7 @@ export type UseTranslationActionsOptions = {
     chapter: ChapterSnapshot,
     options?: LiveChapterMergeOptions,
   ) => void;
-  beforeTranslateRegion?: () => Promise<void>;
+  beforeTranslate?: () => Promise<void>;
   pushStatus: (line: string) => void;
   refreshLibrary: () => Promise<void>;
   saveNow: () => Promise<void>;

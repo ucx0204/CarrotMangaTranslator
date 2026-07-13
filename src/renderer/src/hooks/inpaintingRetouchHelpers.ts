@@ -2,7 +2,6 @@ import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { mangaGateway } from "../api/mangaGateway";
 import type {
   RetouchApplyTool,
-  RetouchDrawTool,
   RetouchHistoryEntry,
   RetouchPoint,
   RetouchStackSetter,
@@ -53,22 +52,6 @@ export function distanceBetween(
 
 export function roundRetouchPoint(point: RetouchPoint): RetouchPoint {
   return { x: Math.round(point.x), y: Math.round(point.y) };
-}
-
-export function appendPreviewPoint(
-  current: InpaintingRetouchState["retouchPreview"],
-  tool: RetouchDrawTool,
-  nextPoint: RetouchPoint,
-  style: { color: string; radiusPx: number },
-): InpaintingRetouchState["retouchPreview"] {
-  if (!current || current.mode !== tool) {
-    return { mode: tool, points: [nextPoint], ...style };
-  }
-  return {
-    ...current,
-    ...style,
-    points: [...current.points, nextPoint].slice(-1200),
-  };
 }
 
 export function updateChapterInpaintPath(

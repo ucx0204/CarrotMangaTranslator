@@ -1,6 +1,6 @@
 import React from "react";
 
-export type IconProps = {
+type IconProps = {
   size?: number;
   className?: string;
 };
@@ -87,35 +87,11 @@ export const EyeOffIcon = createIcon(
   </>,
 );
 
-export const BrushIcon = createIcon(
-  <>
-    <path d="M4 16.5c2.6-.3 4.4.2 5.6 1.4 1.2 1.2 1.7 3 1.4 5.6-2.7.2-5-.4-6.3-1.8-1.1-1.2-1.4-3-.7-5.2Z" />
-    <path d="M10.4 16.1 20.7 5.8c.8-.8.8-2 0-2.8-.8-.8-2-.8-2.8 0L7.6 13.3" />
-  </>,
-);
-
-export const MaskIcon = createIcon(
-  <>
-    <path d="M4 18c3.4-6.4 7.1-10.7 11-13" />
-    <path d="M9 19c2.9-4.3 6.1-7.2 9.5-8.8" />
-    <path d="M5.5 13.5c3.8.4 7.6 1.8 11.4 4.3" />
-    <path d="M4 20h16" />
-  </>,
-);
-
 export const RestoreIcon = createIcon(
   <>
     <path d="M7 7h7.5a5.5 5.5 0 1 1-4.7 8.3" />
     <path d="M7 7v5H2" />
     <path d="m6.8 7.2 4.5 4.5" />
-  </>,
-);
-
-export const PickerIcon = createIcon(
-  <>
-    <path d="m14.5 4.5 5 5" />
-    <path d="m5 19 4.4-1.1 8.9-8.9-3.3-3.3-8.9 8.9L5 19Z" />
-    <path d="M7.2 14.8 9.2 16.8" />
   </>,
 );
 
@@ -227,40 +203,5 @@ export const ExpandIcon = createIcon(
     <path d="M9 21H3v-6" />
     <path d="M21 3l-7 7" />
     <path d="M3 21l7-7" />
-  </>,
-);
-
-export const CursorIcon = createIcon(
-  <>
-    <path d="M5 3l7 17 2.5-7L21 10.5 5 3Z" />
-  </>,
-);
-
-export const BlockPlusIcon = createIcon(
-  <>
-    <rect x="3" y="5" width="13" height="13" rx="2" />
-    <path d="M19 13v6" />
-    <path d="M16 16h6" />
-  </>,
-);
-
-export const HandIcon = createIcon(
-  <>
-    <path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11" />
-    <path d="M11 11V4.5a1.5 1.5 0 0 1 3 0V11" />
-    <path d="M14 11V6a1.5 1.5 0 0 1 3 0v7" />
-    <path d="M8 12v1.5L6 11.5a1.6 1.6 0 0 0-2.3 2.2l4.5 6A5 5 0 0 0 12.2 22H13a4 4 0 0 0 4-4v-5" />
-  </>,
-);
-
-export const ChevronLeftIcon = createIcon(
-  <>
-    <path d="m14 6-6 6 6 6" />
-  </>,
-);
-
-export const ChevronRightIcon = createIcon(
-  <>
-    <path d="m10 6 6 6-6 6" />
   </>,
 );

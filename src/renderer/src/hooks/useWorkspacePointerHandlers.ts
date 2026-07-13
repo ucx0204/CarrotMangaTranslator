@@ -19,7 +19,6 @@ import { useWorkspaceBlockDragHandlers } from "./useWorkspaceBlockDragHandlers";
 import { useWorkspaceInpaintingPointerHandlers } from "./useWorkspaceInpaintingPointerHandlers";
 import { useWorkspacePanHandlers } from "./useWorkspacePanHandlers";
 import { useWorkspaceRegionSelectionHandlers } from "./useWorkspaceRegionSelectionHandlers";
-import type { RetouchPreviewState } from "./useInpaintingRetouch";
 import {
   resolveNormalizedImagePoint,
   type DragHud,
@@ -29,10 +28,10 @@ import {
 export type { DragHud } from "./workspacePointerGeometry";
 
 type UseWorkspacePointerHandlersOptions = {
-  appendRetouchPoint: (
-    point: { x: number; y: number },
-    tool?: "brush" | "eraser" | "mask",
-  ) => void;
+  appendRetouchPoint: (point: {
+    x: number;
+    y: number;
+  }) => { x: number; y: number } | null;
   applyRetouchPoints: (
     tool: "brush" | "eraser",
     points: Array<{ x: number; y: number }>,
@@ -41,11 +40,13 @@ type UseWorkspacePointerHandlersOptions = {
   currentChapter: ChapterSnapshot | null;
   imageRef: RefObject<HTMLImageElement | null>;
   inpaintingBrushRadius: number;
+  inpaintingPaintColor: string;
   inpaintingRetouchDrawingRef: MutableRefObject<boolean>;
   inpaintingRetouchPointsRef: MutableRefObject<Array<{ x: number; y: number }>>;
   inpaintingTool: InpaintingTool;
   inpaintingToolActive: boolean;
   jobActive: boolean;
+  onEscapeTool?: () => void;
   lastInpaintingRetouchPointRef: MutableRefObject<{
     x: number;
     y: number;
@@ -63,10 +64,6 @@ type UseWorkspacePointerHandlersOptions = {
     SetStateAction<Record<string, InpaintingMaskStroke[]>>
   >;
   setRegionSelection: Dispatch<SetStateAction<RegionSelectionState | null>>;
-  setRetouchCursorPoint: Dispatch<
-    SetStateAction<{ x: number; y: number } | null>
-  >;
-  setRetouchPreview: Dispatch<SetStateAction<RetouchPreviewState | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
   setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
   stageRef: RefObject<HTMLDivElement | null>;
@@ -152,6 +149,8 @@ export function useWorkspacePointerHandlers(
     blockDrag.cancelActiveDrag,
     regionSelectionHandlers.cancelRegionSelection,
     blockCreateHandlers.cancelBlockCreate,
+    inpaintingHandlers.cancelDrawing,
+    options.onEscapeTool ?? (() => undefined),
   );
   const stageHandlers = useStagePointerRouter({
     blockCreateHandlers,
@@ -203,10 +202,12 @@ function useInpaintingPointerHandlers(
     | "applyRetouchPoints"
     | "imageRef"
     | "inpaintingBrushRadius"
+    | "inpaintingPaintColor"
     | "inpaintingRetouchDrawingRef"
     | "inpaintingRetouchPointsRef"
     | "inpaintingTool"
     | "inpaintingToolActive"
+    | "jobActive"
     | "lastInpaintingRetouchPointRef"
     | "pushStatus"
     | "selectedPage"
@@ -214,8 +215,6 @@ function useInpaintingPointerHandlers(
     | "selectedPageImagePath"
     | "setInpaintingPaintColor"
     | "setPatternMaskStrokesByPage"
-    | "setRetouchCursorPoint"
-    | "setRetouchPreview"
     | "setSelectedBlockId"
     | "stageRef"
   >,
@@ -227,17 +226,29 @@ function useEscapePointerCancellation(
   cancelActiveDrag: () => boolean,
   cancelRegionSelection: () => boolean,
   cancelBlockCreate: () => boolean,
+  cancelInpaintingDrawing: () => boolean,
+  onEscapeTool: () => void,
 ): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape" || cancelActiveDrag() || cancelBlockCreate()) {
+      if (event.key !== "Escape") {
         return;
       }
-      cancelRegionSelection();
+      cancelInpaintingDrawing();
+      if (!cancelActiveDrag() && !cancelBlockCreate()) {
+        cancelRegionSelection();
+      }
+      onEscapeTool();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelActiveDrag, cancelBlockCreate, cancelRegionSelection]);
+  }, [
+    cancelActiveDrag,
+    cancelBlockCreate,
+    cancelInpaintingDrawing,
+    cancelRegionSelection,
+    onEscapeTool,
+  ]);
 }
 
 type StagePointerRouterDeps = {

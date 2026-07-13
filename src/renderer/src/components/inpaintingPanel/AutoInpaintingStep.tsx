@@ -5,16 +5,11 @@ import { EyeIcon } from "../ui/icons";
 
 type AutoInpaintingStepProps = {
   hasCurrentChapter: boolean;
-  hasSelectedPage: boolean;
   inpaintedPageCount: number;
   jobActive: boolean;
-  onGoToRetouch: () => void;
   onPeekToggle: () => void;
   onRevertChapter: () => void;
   onRevertPage: () => void;
-  onRunChapter: () => void;
-  onRunPage: () => void;
-  pageTargetCount: number;
   peekAvailable: boolean;
   peeking: boolean;
   pendingPages: number;
@@ -25,16 +20,11 @@ type AutoInpaintingStepProps = {
 
 export function AutoInpaintingStep({
   hasCurrentChapter,
-  hasSelectedPage,
   inpaintedPageCount,
   jobActive,
-  onGoToRetouch,
   onPeekToggle,
   onRevertChapter,
   onRevertPage,
-  onRunChapter,
-  onRunPage,
-  pageTargetCount,
   peekAvailable,
   peeking,
   pendingPages,
@@ -46,14 +36,10 @@ export function AutoInpaintingStep({
   return (
     <div className="inpaint-step-body">
       <p className="inpaint-step-lead">{t("inpainting.auto.description")}</p>
-      <AutoInpaintingRunCard
+      <AutoInpaintingSummaryCard
         hasCurrentChapter={hasCurrentChapter}
-        hasSelectedPage={hasSelectedPage}
         jobActive={jobActive}
         onPeekToggle={onPeekToggle}
-        onRunChapter={onRunChapter}
-        onRunPage={onRunPage}
-        pageTargetCount={pageTargetCount}
         peekAvailable={peekAvailable}
         peeking={peeking}
         pendingPages={pendingPages}
@@ -67,24 +53,14 @@ export function AutoInpaintingStep({
         onRevertPage={onRevertPage}
         selectedPageInpainted={selectedPageInpainted}
       />
-      <div className="inpaint-step-nav">
-        <span />
-        <Button variant="primary" onClick={onGoToRetouch} disabled={jobActive}>
-          {t("inpainting.auto.nextRetouch")}
-        </Button>
-      </div>
     </div>
   );
 }
 
-function AutoInpaintingRunCard({
+function AutoInpaintingSummaryCard({
   hasCurrentChapter,
-  hasSelectedPage,
   jobActive,
   onPeekToggle,
-  onRunChapter,
-  onRunPage,
-  pageTargetCount,
   peekAvailable,
   peeking,
   pendingPages,
@@ -93,12 +69,8 @@ function AutoInpaintingRunCard({
 }: Pick<
   AutoInpaintingStepProps,
   | "hasCurrentChapter"
-  | "hasSelectedPage"
   | "jobActive"
   | "onPeekToggle"
-  | "onRunChapter"
-  | "onRunPage"
-  | "pageTargetCount"
   | "peekAvailable"
   | "peeking"
   | "pendingPages"
@@ -117,23 +89,6 @@ function AutoInpaintingRunCard({
             })
           : t("inpainting.auto.noOpenChapter")}
       </span>
-      <div className="inpainting-action-grid">
-        <Button
-          variant="primary"
-          fullWidth
-          disabled={!hasSelectedPage || jobActive || pageTargetCount === 0}
-          onClick={onRunPage}
-        >
-          {t("common.thisPage")}
-        </Button>
-        <Button
-          fullWidth
-          disabled={!hasCurrentChapter || jobActive || pendingTargetCount === 0}
-          onClick={onRunChapter}
-        >
-          {t("inpainting.auto.remainingPages")}
-        </Button>
-      </div>
       <button
         type="button"
         className={`peek-button ${peeking ? "active" : ""}`}

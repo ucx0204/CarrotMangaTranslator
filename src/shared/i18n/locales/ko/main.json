@@ -16,6 +16,7 @@
     "registerFont": "폰트 파일 등록 (TTF/OTF)",
     "saveReview": "검수표 저장",
     "saveText": "텍스트 저장",
+    "exportPngFolder": "PNG 출력 폴더 선택",
     "filters": {
       "images": "이미지 파일",
       "font": "폰트 파일",
@@ -289,13 +290,18 @@
     "failed": "PNG 출력 실패",
     "preparing": "PNG 출력 준비 중",
     "completed": "PNG 출력 완료",
+    "selection": "{{chapters}}개 화 · {{pages}}페이지",
     "page": {
       "running": "{{current}} / {{total}} 페이지 PNG 출력 중",
       "done": "{{current}} / {{total}} 페이지 PNG 출력 완료"
     },
-    "scope": {
-      "page": "이 페이지 · {{count}}페이지",
-      "chapter": "전체 페이지 · {{count}}페이지"
+    "errors": {
+      "workNotFound": "출력할 작품을 찾지 못했습니다.",
+      "chapterNotFound": "선택한 화가 이 작품에 없거나 찾을 수 없습니다.",
+      "duplicateChapter": "같은 화를 두 번 선택할 수 없습니다.",
+      "pageNotFound": "선택한 페이지가 해당 화에 없습니다.",
+      "duplicatePage": "같은 페이지를 두 번 선택할 수 없습니다.",
+      "outputDirectory": "PNG 출력 폴더를 만들지 못했습니다."
     }
   },
   "modelTest": {

@@ -106,6 +106,11 @@
       "hint": "모든 페이지",
       "keywords": "translate all retranslate jeonche 전체 다시 번역"
     },
+    "autoInpainting": {
+      "label": "자동 지우기",
+      "keywords": "inpaint auto erase 자동 지우기 인페인팅",
+      "closeHint": "패널 닫기"
+    },
     "exitInpainting": {
       "label": "인페인팅 종료",
       "keywords": "inpaint exit 인페인팅 종료"
@@ -176,7 +181,7 @@
       "translate-all": "전체 다시 번역",
       "gather-text": "텍스트 모아보기",
       "cancel-job": "작업 취소",
-      "toggle-inpainting": "인페인팅 시작/종료",
+      "toggle-inpainting": "자동 지우기 패널 열기/닫기",
       "history-undo": "실행 취소",
       "history-redo": "다시 실행",
       "retouch-redo": "보정 다시 실행",
@@ -241,6 +246,11 @@
       "saveFailedTitle": "저장 실패",
       "jobFailedTitle": "작업 실패"
     },
+    "maskDiscard": {
+      "title": "그린 마스크 폐기",
+      "message": "실행하지 않은 그린 마스크가 있습니다. 다른 화를 열까요?",
+      "detail": "화를 변경하면 현재 화의 실행하지 않은 마스크가 삭제됩니다."
+    },
     "mode": {
       "saveBeforeEnterFailed": "인페인팅 모드로 들어가기 전에 변경사항을 저장하지 못했습니다.",
       "entered": "인페인팅 모드로 전환했습니다. 원문 지우기부터 시작하세요.",
@@ -260,6 +270,7 @@
       "title": "원문 지우기",
       "currentPage": "현재 페이지",
       "pendingPages": "아직 지우지 않은 페이지",
+      "selectedPages": "선택한 페이지",
       "message": "{{scope}}의 번역 블록 위치에 있는 원문을 지웁니다.",
       "detail": "말풍선, 톤, 배경 그림, 효과음 위 글자까지 모두 Flux 인페인팅으로 지웁니다. 원본 이미지는 유지하고 결과 이미지는 별도로 저장합니다.",
       "preparing": "원문 지우기 준비 중",
@@ -272,10 +283,10 @@
       "noPage": "출력할 페이지가 선택되어 있지 않습니다.",
       "saveFailed": "PNG 출력 전에 변경사항을 저장하지 못했습니다.",
       "openFolderFailed": "PNG 출력은 완료됐지만 폴더를 열지 못했습니다: {{path}}",
-      "success": "인페인팅 결과를 PNG로 출력했습니다: {{count}}페이지",
-      "success_one": "인페인팅 결과를 PNG로 출력했습니다: {{count}}페이지",
-      "success_other": "인페인팅 결과를 PNG로 출력했습니다: {{count}}페이지",
-      "failed": "인페인팅 결과를 출력하지 못했습니다.",
+      "success": "최종 이미지를 PNG로 출력했습니다: {{count}}페이지",
+      "success_one": "최종 이미지를 PNG로 출력했습니다: {{count}}페이지",
+      "success_other": "최종 이미지를 PNG로 출력했습니다: {{count}}페이지",
+      "failed": "최종 이미지를 출력하지 못했습니다.",
       "failedTitle": "PNG 출력 실패",
       "preparing": "PNG 출력 준비 중"
     },
@@ -304,7 +315,7 @@
     }
   },
   "regionTranslation": {
-    "disposeInpainting": "영역 번역을 위해 Flux 인페인팅 런타임을 정리합니다.",
+    "disposeInpainting": "번역을 위해 Flux 인페인팅 런타임을 정리합니다.",
     "cancelledSelection": "영역 번역 선택을 취소했습니다.",
     "dragPrompt": "번역할 영역을 드래그하세요.",
     "tooSmall": "선택 영역이 너무 작습니다.",

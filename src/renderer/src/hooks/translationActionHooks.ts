@@ -60,6 +60,7 @@ export function useTranslationActionsImpl(
 }
 
 function useExecuteAnalysisJob({
+  beforeTranslate,
   clearStatusLines,
   currentChapter,
   currentChapterRef,
@@ -83,6 +84,7 @@ function useExecuteAnalysisJob({
         if (isOpenChapter) {
           await saveNow();
         }
+        await beforeTranslate?.();
         clearStatusLines();
         setJobState(startingJobState(t));
         markOpenChapterRunning({
@@ -124,6 +126,7 @@ function useExecuteAnalysisJob({
     },
     [
       clearStatusLines,
+      beforeTranslate,
       currentChapter,
       currentChapterRef,
       mergeLiveChapter,
@@ -307,7 +310,7 @@ async function runTranslationFlowPasses({
 }
 
 function useTranslateSelectedRegionAction({
-  beforeTranslateRegion,
+  beforeTranslate,
   clearStatusLines,
   currentChapter,
   currentChapterRef,
@@ -335,7 +338,7 @@ function useTranslateSelectedRegionAction({
         await saveNow();
         clearStatusLines();
         setJobState(regionTranslationStartingState(t));
-        await beforeTranslateRegion?.();
+        await beforeTranslate?.();
         const result = await mangaGateway.translateRegion({
           chapterId: currentChapter.id,
           pageId: selectedPage.id,
@@ -368,7 +371,7 @@ function useTranslateSelectedRegionAction({
       }
     },
     [
-      beforeTranslateRegion,
+      beforeTranslate,
       clearStatusLines,
       currentChapter,
       currentChapterRef,

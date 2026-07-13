@@ -36,14 +36,13 @@ describe("AppSession selectors", () => {
     ]);
   });
 
-  it("uses the original image only while inpainting peek is actually available", () => {
+  it("uses the original image whenever peek is enabled and available", () => {
     const selectedPage = makePage("page-1", {
       inpaintedImagePath: "page-1-clean.png",
     });
 
     expect(
       resolveWorkspaceImageDataUrl({
-        inpaintingMode: true,
         peekOriginal: true,
         selectedPage,
         selectedPageImageDataUrl: "clean-data",
@@ -57,11 +56,10 @@ describe("AppSession selectors", () => {
 
     expect(
       resolveWorkspaceImageDataUrl({
-        inpaintingMode: false,
         peekOriginal: true,
         selectedPage,
         selectedPageImageDataUrl: "clean-data",
-        selectedPageOriginalImageDataUrl: "original-data",
+        selectedPageOriginalImageDataUrl: "",
       }).imageDataUrl,
     ).toBe("clean-data");
   });

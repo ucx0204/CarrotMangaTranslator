@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_ID_LIST_LENGTH } from "./ipcSchemaPrimitives";
 import type {
   RegionAnalysisRequest,
   RegionAnalysisResult,
@@ -8,8 +9,6 @@ import type {
 import type {
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
-  InpaintingExportRequest,
-  InpaintingExportResult,
   InpaintingRetouchRequest,
   InpaintingRetouchResult,
   InpaintingRevertRequest,
@@ -19,12 +18,16 @@ import type {
   StartInpaintingRequest,
   StartInpaintingResult,
 } from "./inpaintingTypes";
+import type {
+  PageImageExportRequest,
+  PageImageExportResult,
+} from "./pageImageExportTypes";
 import {
   ChapterSnapshotSchema,
   InpaintingColorSampleRequestSchema,
-  InpaintingExportRequestSchema,
   InpaintingRetouchRequestSchema,
   InpaintingRevertRequestSchema,
+  PageImageExportRequestSchema,
   RegionAnalysisRequestSchema,
   SetPageInpaintingResultRequestSchema,
   StartAnalysisRequestSchema,
@@ -62,6 +65,7 @@ const startInpaintingResultSchema = z
   .object({
     status: analysisResultStatusSchema,
     chapter: ChapterSnapshotSchema.optional(),
+    chapters: z.array(ChapterSnapshotSchema).max(MAX_ID_LIST_LENGTH).optional(),
     pagesChanged: nonNegativeInteger.optional(),
     blocksErased: nonNegativeInteger.optional(),
     error: diagnosticString.optional(),
@@ -79,7 +83,7 @@ const inpaintingRevertResultSchema = z
 const inpaintingColorSampleResultSchema = z
   .object({ color: z.string().min(1).max(40) })
   .strict();
-const inpaintingExportResultSchema = z
+const pageImageExportResultSchema = z
   .object({
     outputDir: localPathResult,
     pageCount: nonNegativeInteger,
@@ -157,20 +161,23 @@ export const inpaintingIpcContracts = {
     args: z.tuple([InpaintingColorSampleRequestSchema]),
     result: inpaintingColorSampleResultSchema,
   }),
-  exportInpaintingResults: defineIpcContract<
-    [InpaintingExportRequest],
-    InpaintingExportResult
-  >({
-    apiKey: "exportInpaintingResults",
-    channel: "inpainting:export-results",
-    args: z.tuple([InpaintingExportRequestSchema]),
-    result: inpaintingExportResultSchema,
-  }),
   disposeInpaintingEngine: defineIpcContract<[], { disposed: boolean }>({
     apiKey: "disposeInpaintingEngine",
     channel: "inpainting:dispose-engine",
     args: z.tuple([]),
     result: disposeInpaintingResultSchema,
+  }),
+} as const;
+
+export const pageImageExportIpcContracts = {
+  exportPageImages: defineIpcContract<
+    [PageImageExportRequest],
+    PageImageExportResult | null
+  >({
+    apiKey: "exportPageImages",
+    channel: "page-images:export",
+    args: z.tuple([PageImageExportRequestSchema]),
+    result: pageImageExportResultSchema.nullable(),
   }),
 } as const;
 

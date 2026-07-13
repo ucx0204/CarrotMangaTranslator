@@ -2,8 +2,7 @@ import React from "react";
 import {
   CommittedMaskLayer,
   OverlayBlockLayer,
-  RetouchCursorLayer,
-  RetouchPreviewLayer,
+  RetouchLiveLayer,
   StageDragHud,
   StageImage,
   StageMarqueeLayers,
@@ -13,6 +12,7 @@ import {
   resolveStageClassName,
 } from "./imageStageModel";
 import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
+import { clearRetouchLiveOverlay } from "../lib/retouchLiveOverlay";
 
 export type { ImageStageProps } from "./imageStageTypes";
 
@@ -22,7 +22,7 @@ export function ImageStage({
   dragHud = null,
   imageDataUrl,
   imageRef,
-  inpaintingMode = false,
+  showInpaintingExclusions = false,
   maskStrokes = [],
   onBlockPointerDown,
   onStagePointerDown,
@@ -34,7 +34,7 @@ export function ImageStage({
   regionSelectionActive,
   regionSelectionRect,
   retouchCursor = null,
-  retouchPreview = null,
+  retouchOriginalImageDataUrl = "",
   selectedBlockId,
   selectedBlockIds,
   showBlockChrome,
@@ -44,24 +44,23 @@ export function ImageStage({
   stageTool,
   textLayoutStageSize,
 }: ImageStageProps): React.JSX.Element {
-  const clipId = React.useId();
-  const retouchModel = resolveRetouchStageModel({
-    maskStrokes,
-    page,
-    retouchCursor,
-    retouchPreview,
-    stageSize,
-  });
+  const retouchModel = React.useMemo(
+    () => resolveRetouchStageModel({ maskStrokes }),
+    [maskStrokes],
+  );
+  React.useEffect(() => {
+    const stage = stageRef.current;
+    return () => clearRetouchLiveOverlay(stage);
+  }, [page.id, retouchCursor?.mode, stageRef]);
 
   return (
     <ImageStageFrame
       blockCreateRect={blockCreateRect}
       blockPointerDisabled={blockPointerDisabled}
-      clipId={clipId}
       dragHud={dragHud}
       imageDataUrl={imageDataUrl}
       imageRef={imageRef}
-      inpaintingMode={inpaintingMode}
+      showInpaintingExclusions={showInpaintingExclusions}
       onBlockPointerDown={onBlockPointerDown}
       onStagePointerDown={onStagePointerDown}
       onStagePointerLeave={onStagePointerLeave}
@@ -73,7 +72,7 @@ export function ImageStage({
       regionSelectionRect={regionSelectionRect}
       retouchCursor={retouchCursor}
       retouchModel={retouchModel}
-      retouchPreview={retouchPreview}
+      retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
       selectedBlockId={selectedBlockId}
       selectedBlockIds={selectedBlockIds}
       showBlockChrome={showBlockChrome}
@@ -89,11 +88,10 @@ export function ImageStage({
 function ImageStageFrame({
   blockCreateRect = null,
   blockPointerDisabled = false,
-  clipId,
   dragHud = null,
   imageDataUrl,
   imageRef,
-  inpaintingMode = false,
+  showInpaintingExclusions = false,
   onBlockPointerDown,
   onStagePointerDown,
   onStagePointerLeave,
@@ -105,7 +103,7 @@ function ImageStageFrame({
   regionSelectionRect,
   retouchCursor = null,
   retouchModel,
-  retouchPreview = null,
+  retouchOriginalImageDataUrl = "",
   selectedBlockId,
   selectedBlockIds,
   showBlockChrome,
@@ -115,7 +113,6 @@ function ImageStageFrame({
   stageTool,
   textLayoutStageSize,
 }: ImageStageProps & {
-  clipId: string;
   retouchModel: RetouchStageModel;
 }): React.JSX.Element {
   return (
@@ -124,7 +121,6 @@ function ImageStageFrame({
         ref={stageRef}
         className={resolveStageClassName({
           blockPointerDisabled,
-          cursorVisible: retouchModel.cursorVisible,
           regionSelectionActive,
           retouchCursor,
           stageTool,
@@ -138,11 +134,10 @@ function ImageStageFrame({
         <ImageStageLayerSet
           blockCreateRect={blockCreateRect}
           blockPointerDisabled={blockPointerDisabled}
-          clipId={clipId}
           dragHud={dragHud}
           imageDataUrl={imageDataUrl}
           imageRef={imageRef}
-          inpaintingMode={inpaintingMode}
+          showInpaintingExclusions={showInpaintingExclusions}
           onBlockPointerDown={onBlockPointerDown}
           onToggleBlockExcluded={onToggleBlockExcluded}
           page={page}
@@ -150,7 +145,7 @@ function ImageStageFrame({
           regionSelectionRect={regionSelectionRect}
           retouchCursor={retouchCursor}
           retouchModel={retouchModel}
-          retouchPreview={retouchPreview}
+          retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
           selectedBlockId={selectedBlockId}
           selectedBlockIds={selectedBlockIds}
           showBlockChrome={showBlockChrome}
@@ -166,11 +161,10 @@ function ImageStageFrame({
 function ImageStageLayerSet({
   blockCreateRect = null,
   blockPointerDisabled = false,
-  clipId,
   dragHud = null,
   imageDataUrl,
   imageRef,
-  inpaintingMode = false,
+  showInpaintingExclusions = false,
   onBlockPointerDown,
   onToggleBlockExcluded,
   page,
@@ -178,7 +172,7 @@ function ImageStageLayerSet({
   regionSelectionRect,
   retouchCursor = null,
   retouchModel,
-  retouchPreview = null,
+  retouchOriginalImageDataUrl = "",
   selectedBlockId,
   selectedBlockIds,
   showBlockChrome,
@@ -193,7 +187,6 @@ function ImageStageLayerSet({
   | "onStagePointerUp"
   | "stageRef"
 > & {
-  clipId: string;
   retouchModel: RetouchStageModel;
 }): React.JSX.Element {
   return (
@@ -202,7 +195,7 @@ function ImageStageLayerSet({
       <OverlayBlockLayer
         blockPointerDisabled={blockPointerDisabled}
         imageDataUrl={imageDataUrl}
-        inpaintingMode={inpaintingMode}
+        showInpaintingExclusions={showInpaintingExclusions}
         onBlockPointerDown={onBlockPointerDown}
         onToggleBlockExcluded={onToggleBlockExcluded}
         page={page}
@@ -219,18 +212,9 @@ function ImageStageLayerSet({
         retouchModel={retouchModel}
         stageSize={stageSize}
       />
-      <RetouchPreviewLayer
-        clipId={clipId}
-        imageDataUrl={imageDataUrl}
-        page={page}
-        retouchModel={retouchModel}
-        retouchPreview={retouchPreview}
-        stageSize={stageSize}
-      />
-      <RetouchCursorLayer
+      <RetouchLiveLayer
         retouchCursor={retouchCursor}
-        retouchModel={retouchModel}
-        stageSize={stageSize}
+        retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
       />
       <StageMarqueeLayers
         blockCreateRect={blockCreateRect}

@@ -7,22 +7,16 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import type { MangaPage } from "../../../shared/libraryTypes";
 import type {
   RetouchHistoryEntry,
   RetouchPoint,
-  RetouchPreviewState,
 } from "./inpaintingRetouchTypes";
 
 export type InpaintingRetouchState = {
   retouchBusy: boolean;
-  retouchCursorPoint: RetouchPoint | null;
-  retouchPreview: RetouchPreviewState | null;
   retouchRedoStack: RetouchHistoryEntry[];
   retouchUndoStack: RetouchHistoryEntry[];
   setRetouchBusy: Dispatch<SetStateAction<boolean>>;
-  setRetouchCursorPoint: Dispatch<SetStateAction<RetouchPoint | null>>;
-  setRetouchPreview: Dispatch<SetStateAction<RetouchPreviewState | null>>;
   setRetouchRedoStack: Dispatch<SetStateAction<RetouchHistoryEntry[]>>;
   setRetouchUndoStack: Dispatch<SetStateAction<RetouchHistoryEntry[]>>;
 };
@@ -37,10 +31,6 @@ export type InpaintingRetouchRefs = {
 };
 
 export function useInpaintingRetouchState(): InpaintingRetouchState {
-  const [retouchCursorPoint, setRetouchCursorPoint] =
-    useState<RetouchPoint | null>(null);
-  const [retouchPreview, setRetouchPreview] =
-    useState<RetouchPreviewState | null>(null);
   const [retouchBusy, setRetouchBusy] = useState(false);
   const [retouchUndoStack, setRetouchUndoStack] = useState<
     RetouchHistoryEntry[]
@@ -51,13 +41,9 @@ export function useInpaintingRetouchState(): InpaintingRetouchState {
 
   return {
     retouchBusy,
-    retouchCursorPoint,
-    retouchPreview,
     retouchRedoStack,
     retouchUndoStack,
     setRetouchBusy,
-    setRetouchCursorPoint,
-    setRetouchPreview,
     setRetouchRedoStack,
     setRetouchUndoStack,
   };
@@ -113,33 +99,11 @@ export function useRetouchRefSyncEffects(
 export function useRetouchResetEffects({
   clearRetouchStacks,
   currentChapterId,
-  inpaintingToolActive,
-  selectedPage,
-  setRetouchCursorPoint,
-  setRetouchPreview,
 }: {
   clearRetouchStacks: () => void;
   currentChapterId?: string;
-  inpaintingToolActive: boolean;
-  selectedPage: MangaPage | null;
-  setRetouchCursorPoint: InpaintingRetouchState["setRetouchCursorPoint"];
-  setRetouchPreview: InpaintingRetouchState["setRetouchPreview"];
 }): void {
   useEffect(() => {
     clearRetouchStacks();
   }, [clearRetouchStacks, currentChapterId]);
-
-  useEffect(() => {
-    if (!selectedPage) {
-      setRetouchCursorPoint(null);
-      setRetouchPreview(null);
-    }
-  }, [selectedPage, setRetouchCursorPoint, setRetouchPreview]);
-
-  useEffect(() => {
-    if (!inpaintingToolActive) {
-      setRetouchCursorPoint(null);
-      setRetouchPreview(null);
-    }
-  }, [inpaintingToolActive, setRetouchCursorPoint, setRetouchPreview]);
 }

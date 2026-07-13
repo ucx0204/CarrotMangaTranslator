@@ -1,4 +1,5 @@
 import { useChapterPersistence } from "../../hooks/useChapterPersistence";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useJobEvents } from "../../hooks/useJobEvents";
 import { useLibraryActions } from "../../hooks/useLibraryActions";
@@ -20,6 +21,7 @@ export function useChapterSessionController() {
   const core = useAppSessionCoreState();
   const statusLog = useStatusLog();
   const uiState = useAppSessionUiState();
+  usePruneRemovedPageMasks(core.currentChapter, uiState);
   const modalController = useModalController({
     pushStatus: statusLog.pushStatus,
     uiState,
@@ -27,7 +29,6 @@ export function useChapterSessionController() {
   const derivedState = useAppSessionDerivedState({
     currentChapter: core.currentChapter,
     imageRef: core.imageRef,
-    inpaintingMode: uiState.inpaintingMode,
     inpaintingTool: uiState.inpaintingTool,
     jobState: core.jobState,
     patternMaskStrokesByPage: uiState.patternMaskStrokesByPage,
@@ -53,6 +54,25 @@ export function useChapterSessionController() {
     statusLog,
     uiState,
   };
+}
+
+function usePruneRemovedPageMasks(
+  currentChapter: AppSessionCoreState["currentChapter"],
+  uiState: ReturnType<typeof useAppSessionUiState>,
+): void {
+  const { setPatternMaskStrokesByPage } = uiState;
+  useEffect(() => {
+    if (!currentChapter) return;
+    const pageIds = new Set(currentChapter.pages.map((page) => page.id));
+    setPatternMaskStrokesByPage((current) => {
+      const validEntries = Object.entries(current).filter(([pageId]) =>
+        pageIds.has(pageId),
+      );
+      return validEntries.length === Object.keys(current).length
+        ? current
+        : Object.fromEntries(validEntries);
+    });
+  }, [currentChapter, setPatternMaskStrokesByPage]);
 }
 
 export type ChapterSessionController = ReturnType<
@@ -95,8 +115,13 @@ function useChapterRuntimeController({
     currentChapter: core.currentChapter,
     currentChapterRef: core.currentChapterRef,
     dirty: persistence.dirty,
+    hasPendingInpaintingMask: Object.values(
+      uiState.patternMaskStrokesByPage,
+    ).some((strokes) => strokes.length > 0),
     library: core.library,
     pushStatus: statusLog.pushStatus,
+    clearPendingInpaintingMasks: () => uiState.setPatternMaskStrokesByPage({}),
+    onChapterOpened: uiState.resetChapterScopedUi,
     resetSaveBaseline: persistence.resetSaveBaseline,
     saveNow: persistence.saveNow,
     setCurrentChapter: core.setCurrentChapter,
@@ -168,6 +193,8 @@ function resolveOverlayModalsOpen({
       modalController.settingsDialog.settingsOpen,
       modalController.confirmController.confirmDialog,
       uiState.inpaintingGuideOpen,
+      uiState.autoInpaintingOptionsOpen,
+      uiState.exportOptionsOpen,
       uiState.textViewOpen,
       uiState.styleGuideOpen,
       uiState.translateOptionsOpen,
@@ -199,6 +226,11 @@ function useChapterRuntimeEffects({
   useAppSessionLifecycleEffects({
     currentChapter: core.currentChapter,
     jobState: core.jobState,
+    onJobStart: () => uiState.selectWorkspaceTool("select"),
+    onPageChange: () => {
+      uiState.selectWorkspaceTool("select");
+      uiState.setPeekOriginal(false);
+    },
     openLogFolder: bridgeActions.openLogFolder,
     refreshLibrary: libraryActions.refreshLibrary,
     resetChapterScopedUi: uiState.resetChapterScopedUi,

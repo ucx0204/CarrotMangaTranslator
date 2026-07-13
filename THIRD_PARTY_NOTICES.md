@@ -4,7 +4,7 @@
 
 대표 구성요소는 아래와 같습니다.
 
-- Electron, React, Vite, TypeScript, dnd-kit, Radix UI 등 JavaScript 패키지
+- Electron, React, Vite, TypeScript, dnd-kit, Radix UI, Tabler Icons 등 JavaScript 패키지
 - ffmpeg
 - llama.cpp, beellama, Lemonade ROCm runtime
 - PaddleOCR, PaddleOCR-VL, PaddlePaddle, Python runtime

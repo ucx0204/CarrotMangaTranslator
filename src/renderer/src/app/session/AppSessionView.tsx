@@ -5,12 +5,13 @@ import { AppSidebar } from "../../components/AppSidebar";
 import { AppWorkspace } from "../../components/AppWorkspace";
 import { CommandPalette } from "../../components/CommandPalette";
 import { GatherTextModal } from "../../components/GatherTextModal";
+import { ExportOptionsModal } from "../../components/ExportOptionsModal";
+import { AutoInpaintingOptionsModal } from "../../components/AutoInpaintingOptionsModal";
 import { PageRetranslateModal } from "../../components/PageRetranslateModal";
 import { ShortcutHelp } from "../../components/ShortcutHelp";
 import { StyleGuideModal } from "../../components/StyleGuideModal";
 import { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
 import { ToastViewport } from "../../components/ui/ToastViewport";
-import { InpaintingSessionProvider } from "../../inpainting/InpaintingSessionProvider";
 import { EditorFloatingLayer } from "../../panels/EditorFloatingLayer";
 import {
   PanelSessionContext,
@@ -18,12 +19,12 @@ import {
 } from "../../panels/panelSession";
 
 export type AppSessionViewProps = {
+  autoInpaintingOptionsProps: React.ComponentProps<
+    typeof AutoInpaintingOptionsModal
+  > | null;
   commandPaletteProps: React.ComponentProps<typeof CommandPalette>;
+  exportOptionsProps: React.ComponentProps<typeof ExportOptionsModal> | null;
   gatherTextProps: React.ComponentProps<typeof GatherTextModal> | null;
-  inpaintingContextValue: React.ComponentProps<
-    typeof InpaintingSessionProvider
-  >["value"];
-  inpaintingMode: boolean;
   modalsProps: React.ComponentProps<typeof AppModals>;
   pageRetranslateProps: React.ComponentProps<
     typeof PageRetranslateModal
@@ -40,10 +41,10 @@ export type AppSessionViewProps = {
 };
 
 export function AppSessionView({
+  autoInpaintingOptionsProps,
   commandPaletteProps,
+  exportOptionsProps,
   gatherTextProps,
-  inpaintingContextValue,
-  inpaintingMode,
   modalsProps,
   pageRetranslateProps,
   panelSessionValue,
@@ -56,17 +57,17 @@ export function AppSessionView({
 }: AppSessionViewProps): React.JSX.Element {
   return (
     <PanelSessionContext.Provider value={panelSessionValue}>
-      <main className={`app-shell ${inpaintingMode ? "inpainting-mode" : ""}`}>
+      <main className="app-shell">
         <AppSidebar {...sidebarProps} />
         <AppWorkspace {...workspaceProps} />
-        <InpaintingSessionProvider value={inpaintingContextValue}>
-          <AppRightRail {...rightRailProps} />
-        </InpaintingSessionProvider>
+        <AppRightRail {...rightRailProps} />
         <AppModals {...modalsProps} />
       </main>
       <EditorFloatingLayer />
       <SessionFloatingOverlays
+        autoInpaintingOptionsProps={autoInpaintingOptionsProps}
         commandPaletteProps={commandPaletteProps}
+        exportOptionsProps={exportOptionsProps}
         gatherTextProps={gatherTextProps}
         pageRetranslateProps={pageRetranslateProps}
         shortcutHelpProps={shortcutHelpProps}
@@ -78,7 +79,9 @@ export function AppSessionView({
 }
 
 function SessionFloatingOverlays({
+  autoInpaintingOptionsProps,
   commandPaletteProps,
+  exportOptionsProps,
   gatherTextProps,
   pageRetranslateProps,
   shortcutHelpProps,
@@ -86,7 +89,9 @@ function SessionFloatingOverlays({
   translationOptionsProps,
 }: Pick<
   AppSessionViewProps,
+  | "autoInpaintingOptionsProps"
   | "commandPaletteProps"
+  | "exportOptionsProps"
   | "gatherTextProps"
   | "pageRetranslateProps"
   | "shortcutHelpProps"
@@ -95,8 +100,14 @@ function SessionFloatingOverlays({
 >): React.JSX.Element {
   return (
     <>
+      {autoInpaintingOptionsProps ? (
+        <AutoInpaintingOptionsModal {...autoInpaintingOptionsProps} />
+      ) : null}
       <CommandPalette {...commandPaletteProps} />
       <ShortcutHelp {...shortcutHelpProps} />
+      {exportOptionsProps ? (
+        <ExportOptionsModal {...exportOptionsProps} />
+      ) : null}
       {gatherTextProps ? <GatherTextModal {...gatherTextProps} /> : null}
       {styleGuideProps ? <StyleGuideModal {...styleGuideProps} /> : null}
       {translationOptionsProps ? (

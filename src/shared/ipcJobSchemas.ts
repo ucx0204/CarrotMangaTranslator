@@ -7,6 +7,7 @@ import {
 } from "./jobContracts";
 import {
   MAX_MASK_STROKES,
+  MAX_ID_LIST_LENGTH,
   MAX_RETAINED_INPAINTING_ARTIFACTS,
   MAX_STROKE_POINTS,
   BBoxSchema,
@@ -98,6 +99,17 @@ const InpaintingMaskStrokeSchema = z
   })
   .strict();
 
+const AutoInpaintingChapterSelectionSchema = z.discriminatedUnion("mode", [
+  z.object({ chapterId: uuid, mode: z.literal("all") }).strict(),
+  z
+    .object({
+      chapterId: uuid,
+      mode: z.literal("page-set"),
+      pageIds: z.array(uuid).min(1).max(MAX_ID_LIST_LENGTH),
+    })
+    .strict(),
+]);
+
 export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
   z
     .object({ chapterId: uuid, mode: z.literal("chapter-pattern-pending") })
@@ -112,6 +124,16 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
       pageId: uuid,
       strokes: z.array(InpaintingMaskStrokeSchema).min(1).max(MAX_MASK_STROKES),
       featherPx: finiteNumber.min(0).max(128).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      mode: z.literal("selection-pattern"),
+      workId: uuid,
+      selections: z
+        .array(AutoInpaintingChapterSelectionSchema)
+        .min(1)
+        .max(MAX_ID_LIST_LENGTH),
     })
     .strict(),
 ]);
@@ -158,12 +180,26 @@ export const InpaintingColorSampleRequestSchema = z
   })
   .strict();
 
-export const InpaintingExportRequestSchema = z.discriminatedUnion("scope", [
-  z.object({ chapterId: uuid, scope: z.literal("chapter") }).strict(),
+const PageImageExportChapterSelectionSchema = z.discriminatedUnion("mode", [
+  z.object({ chapterId: uuid, mode: z.literal("all") }).strict(),
   z
-    .object({ chapterId: uuid, scope: z.literal("page"), pageId: uuid })
+    .object({
+      chapterId: uuid,
+      mode: z.literal("page-set"),
+      pageIds: z.array(uuid).min(1).max(MAX_ID_LIST_LENGTH),
+    })
     .strict(),
 ]);
+
+export const PageImageExportRequestSchema = z
+  .object({
+    workId: uuid,
+    selections: z
+      .array(PageImageExportChapterSelectionSchema)
+      .min(1)
+      .max(MAX_ID_LIST_LENGTH),
+  })
+  .strict();
 
 export const RendererLogRequestSchema = z
   .object({

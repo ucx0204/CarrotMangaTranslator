@@ -1,315 +1,147 @@
 import React from "react";
-import { useTranslation } from "react-i18next";
-import type { CSSProperties } from "react";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
+import { isRetouchTool, type WorkspaceTool } from "../lib/stageTool";
 import { EditorPanelSlot } from "../panels/EditorPanelSlot";
 import {
   DisplayControlPanel,
   InpaintingControlPanel,
 } from "./InpaintingControlPanel";
 import { RunPanel, StatusPanel } from "./RunStatusPanels";
-import { Button } from "./ui";
 
-type AreaTranslationProps = {
-  areaTranslateSelecting: boolean;
-  jobActive: boolean;
-  jobState: JobState;
-  onCancelJob: () => void;
-  onStartAreaTranslate: () => void;
-  progressSnapshot: ProgressSnapshot | null;
-  selectedPage: MangaPage | null;
-  selectedPageImageDataUrl: string;
-};
-
-type InpaintingRightRailProps = AreaTranslationProps & {
-  selectedBlock: TranslationBlock | null;
-};
-
-type TranslationRightRailProps = {
+export type UnifiedRightRailProps = {
+  autoInpaintingOpen: boolean;
+  brushColor: string;
+  brushRadius: number;
+  canRedoRetouch: boolean;
+  canUndoRetouch: boolean;
   currentChapter: ChapterSnapshot | null;
   flowActive: boolean;
+  inpaintedPageCount: number;
   jobActive: boolean;
   jobState: JobState;
-  onCancelJob: () => void;
-  onEnterInpainting: () => void;
-  onOpenStyleGuide: () => void;
-  onOpenTextView: () => void;
-  onOpenTranslateOptions: () => void;
-  onToggleBlocks: () => void;
-  onToggleChrome: () => void;
+  maskStrokeCount: number;
+  pageTargetCount: number;
+  peekAvailable: boolean;
+  peeking: boolean;
+  pendingPageCount: number;
+  pendingTargetCount: number;
   progressSnapshot: ProgressSnapshot | null;
   selectedBlock: TranslationBlock | null;
+  selectedPage: MangaPage | null;
   showBlockChrome: boolean;
   showProgressBar: boolean;
   showTextBlocks: boolean;
+  stageTool: WorkspaceTool;
   statusLines: string[];
+  onBrushColorChange: (value: string) => void;
+  onBrushRadiusChange: (value: number) => void;
+  onCancelJob: () => void;
+  onClearPatternMask: () => void;
+  onOpenExport: () => void;
+  onOpenStyleGuide: () => void;
+  onOpenTextView: () => void;
+  onOpenTranslateOptions: () => void;
+  onPeekToggle: () => void;
+  onRedoRetouch: () => void;
+  onRevertChapter: () => void;
+  onRevertPage: () => void;
+  onRunDrawnPattern: () => void;
+  onShowGuide: () => void;
+  onOpenAutoInpaintingOptions: () => void;
+  onToggleBlocks: () => void;
+  onToggleChrome: () => void;
+  onUndoRetouch: () => void;
 };
 
-type AreaProgressNumbers = {
-  current: number | undefined;
-  ratio: number;
-  total: number | undefined;
-};
-
-export function InpaintingRightRail({
-  areaTranslateSelecting,
-  jobActive,
-  jobState,
-  onCancelJob,
-  onStartAreaTranslate,
-  progressSnapshot,
-  selectedBlock,
-  selectedPage,
-  selectedPageImageDataUrl,
-}: InpaintingRightRailProps): React.JSX.Element {
-  return (
-    <>
-      <InpaintingControlPanel />
-      {selectedBlock ? <EditorPanelSlot /> : null}
-      <AreaTranslationPanel
-        areaTranslateSelecting={areaTranslateSelecting}
-        jobActive={jobActive}
-        jobState={jobState}
-        onCancelJob={onCancelJob}
-        onStartAreaTranslate={onStartAreaTranslate}
-        progressSnapshot={progressSnapshot}
-        selectedPage={selectedPage}
-        selectedPageImageDataUrl={selectedPageImageDataUrl}
-      />
-    </>
-  );
-}
-
-export function TranslationRightRail({
-  currentChapter,
-  jobActive,
-  flowActive,
-  showProgressBar,
-  progressSnapshot,
-  jobState,
-  onOpenTranslateOptions,
-  onEnterInpainting,
-  onCancelJob,
-  showBlockChrome,
-  showTextBlocks,
-  onToggleChrome,
-  onToggleBlocks,
-  onOpenTextView,
-  onOpenStyleGuide,
-  selectedBlock,
-  statusLines,
-}: TranslationRightRailProps): React.JSX.Element {
+export function UnifiedRightRail(
+  props: UnifiedRightRailProps,
+): React.JSX.Element {
   return (
     <>
       <RunPanel
-        currentChapter={currentChapter}
-        jobActive={jobActive}
-        flowActive={flowActive}
-        showProgressBar={showProgressBar}
-        progressSnapshot={progressSnapshot}
-        jobState={jobState}
-        onOpenTranslateOptions={onOpenTranslateOptions}
-        onEnterInpainting={onEnterInpainting}
-        onCancelJob={onCancelJob}
+        autoInpaintingOpen={props.autoInpaintingOpen}
+        currentChapter={props.currentChapter}
+        flowActive={props.flowActive}
+        jobActive={props.jobActive}
+        jobState={props.jobState}
+        onCancelJob={props.onCancelJob}
+        onOpenExport={props.onOpenExport}
+        onOpenTranslateOptions={props.onOpenTranslateOptions}
+        onOpenAutoInpaintingOptions={props.onOpenAutoInpaintingOptions}
+        progressSnapshot={props.progressSnapshot}
+        showProgressBar={props.showProgressBar}
       />
       <DisplayControlPanel
-        showBlockChrome={showBlockChrome}
-        showTextBlocks={showTextBlocks}
-        canOpenTextView={Boolean(currentChapter)}
-        onToggleChrome={onToggleChrome}
-        onToggleBlocks={onToggleBlocks}
-        onOpenTextView={onOpenTextView}
-        onOpenStyleGuide={onOpenStyleGuide}
+        showBlockChrome={props.showBlockChrome}
+        showTextBlocks={props.showTextBlocks}
+        canOpenTextView={Boolean(props.currentChapter)}
+        onToggleChrome={props.onToggleChrome}
+        onToggleBlocks={props.onToggleBlocks}
+        onOpenTextView={props.onOpenTextView}
+        onOpenStyleGuide={props.onOpenStyleGuide}
       />
-      {!selectedBlock ? (
-        <StatusPanel jobState={jobState} statusLines={statusLines} />
-      ) : null}
-      <EditorPanelSlot />
+      <ContextualRightRailPanel {...props} />
     </>
   );
 }
 
-function AreaTranslationPanel({
-  areaTranslateSelecting,
-  jobActive,
-  jobState,
-  onCancelJob,
-  onStartAreaTranslate,
-  progressSnapshot,
-  selectedPage,
-  selectedPageImageDataUrl,
-}: AreaTranslationProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <section className="inpainting-area-translate-panel">
-      <h2>{t("areaTranslation.title")}</h2>
-      <button
-        className={`area-translate-button ${areaTranslateSelecting ? "active" : ""}`}
-        disabled={!selectedPage || !selectedPageImageDataUrl || jobActive}
-        onClick={onStartAreaTranslate}
-      >
-        {t(
-          areaTranslateSelecting
-            ? "areaTranslation.cancelSelection"
-            : "areaTranslation.title",
-        )}
-      </button>
-      {shouldShowAreaTranslationProgress(jobState) ? (
-        <AreaTranslationProgressCard
-          jobState={jobState}
-          progressSnapshot={progressSnapshot}
-          onCancel={onCancelJob}
-        />
-      ) : null}
-    </section>
-  );
-}
-
-function AreaTranslationProgressCard({
-  jobState,
-  progressSnapshot,
-  onCancel,
-}: {
-  jobState: JobState;
-  progressSnapshot: ProgressSnapshot | null;
-  onCancel: () => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const progress = resolveAreaProgressNumbers(jobState, progressSnapshot);
-  const indeterminate = progressSnapshot?.mode === "indeterminate";
-
-  return (
-    <div className={`area-translate-progress-card ${jobState.status}`}>
-      <ProgressMeta
-        current={progress.current}
-        indeterminate={indeterminate}
-        progressText={jobState.progressText}
-        total={progress.total}
+function ContextualRightRailPanel(
+  props: UnifiedRightRailProps,
+): React.JSX.Element {
+  if (isRetouchTool(props.stageTool)) {
+    return (
+      <InpaintingControlPanel
+        brushColor={props.brushColor}
+        brushRadius={props.brushRadius}
+        canRedo={props.canRedoRetouch}
+        canUndo={props.canUndoRetouch}
+        hasSelectedPage={Boolean(props.selectedPage)}
+        jobActive={props.jobActive}
+        jobState={props.jobState}
+        maskStrokeCount={props.maskStrokeCount}
+        mode="retouch"
+        onBrushColorChange={props.onBrushColorChange}
+        onBrushRadiusChange={props.onBrushRadiusChange}
+        onCancelJob={props.onCancelJob}
+        onClearPatternMask={props.onClearPatternMask}
+        onRedoRetouch={props.onRedoRetouch}
+        onRunDrawnPattern={props.onRunDrawnPattern}
+        onUndoRetouch={props.onUndoRetouch}
+        progressSnapshot={props.progressSnapshot}
+        tool={props.stageTool}
       />
-      {jobState.detail ? (
-        <small className="progress-detail">{jobState.detail}</small>
-      ) : null}
-      <ProgressTrack
-        indeterminate={indeterminate}
-        ratio={progress.ratio}
-        showWidth={progressSnapshot?.mode === "determinate"}
-      />
-      {isCancellableJob(jobState) ? (
-        <Button variant="danger" size="sm" fullWidth onClick={onCancel}>
-          {t("common.cancel")}
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-function ProgressMeta({
-  current,
-  indeterminate,
-  progressText,
-  total,
-}: {
-  current: number | undefined;
-  indeterminate: boolean;
-  progressText: string;
-  total: number | undefined;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <div className="progress-meta">
-      <span>{progressText}</span>
-      {hasDeterminateProgress(current, total) ? (
-        <strong>
-          {current} / {total}
-        </strong>
-      ) : (
-        <strong>
-          {t(indeterminate ? "common.preparing" : "common.inProgress")}
-        </strong>
-      )}
-    </div>
-  );
-}
-
-function ProgressTrack({
-  indeterminate,
-  ratio,
-  showWidth,
-}: {
-  indeterminate: boolean;
-  ratio: number;
-  showWidth: boolean;
-}): React.JSX.Element {
-  return (
-    <div
-      className={`progress-track ${indeterminate ? "indeterminate" : ""}`}
-      aria-hidden="true"
-    >
-      <div
-        className={`progress-fill ${indeterminate ? "indeterminate" : ""}`}
-        style={resolveProgressFillStyle(ratio, showWidth)}
-      />
-    </div>
-  );
-}
-
-function shouldShowAreaTranslationProgress(jobState: JobState): boolean {
-  return (
-    jobState.kind === "gemma-analysis" &&
-    jobState.status !== "idle" &&
-    jobState.status !== "completed" &&
-    jobState.status !== "cancelled"
-  );
-}
-
-function resolveAreaProgressNumbers(
-  jobState: JobState,
-  progressSnapshot: ProgressSnapshot | null,
-): AreaProgressNumbers {
-  if (progressSnapshot?.mode === "determinate") {
-    return {
-      current: progressSnapshot.current,
-      ratio: progressSnapshot.ratio,
-      total: progressSnapshot.total,
-    };
+    );
   }
-  const current = jobState.progressCurrent;
-  const total = jobState.progressTotal;
-  return {
-    current,
-    ratio: resolveProgressRatio(current, total),
-    total,
-  };
-}
-
-function resolveProgressRatio(
-  current: number | undefined,
-  total: number | undefined,
-): number {
-  return hasDeterminateProgress(current, total)
-    ? Math.min(1, Math.max(0, (current ?? 0) / (total ?? 1)))
-    : 0;
-}
-
-function resolveProgressFillStyle(
-  ratio: number,
-  showWidth: boolean,
-): CSSProperties | undefined {
-  return showWidth || ratio > 0
-    ? { width: `${Math.round(ratio * 100)}%` }
-    : undefined;
-}
-
-function hasDeterminateProgress(
-  current: number | undefined,
-  total: number | undefined,
-): boolean {
-  return Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0;
-}
-
-function isCancellableJob(jobState: JobState): boolean {
-  return jobState.status === "starting" || jobState.status === "running";
+  if (props.autoInpaintingOpen) {
+    return (
+      <InpaintingControlPanel
+        currentChapter={props.currentChapter}
+        inpaintedPageCount={props.inpaintedPageCount}
+        jobActive={props.jobActive}
+        jobState={props.jobState}
+        mode="auto"
+        onCancelJob={props.onCancelJob}
+        onPeekToggle={props.onPeekToggle}
+        onRevertChapter={props.onRevertChapter}
+        onRevertPage={props.onRevertPage}
+        onShowGuide={props.onShowGuide}
+        pageTargetCount={props.pageTargetCount}
+        peekAvailable={props.peekAvailable}
+        peeking={props.peeking}
+        pendingPageCount={props.pendingPageCount}
+        pendingTargetCount={props.pendingTargetCount}
+        progressSnapshot={props.progressSnapshot}
+        selectedPage={props.selectedPage}
+      />
+    );
+  }
+  if (props.selectedBlock) {
+    return <EditorPanelSlot />;
+  }
+  return (
+    <StatusPanel jobState={props.jobState} statusLines={props.statusLines} />
+  );
 }

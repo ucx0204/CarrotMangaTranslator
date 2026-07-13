@@ -10,6 +10,7 @@ import {
   libraryIpcContracts,
   logsIpcContracts,
   panelWindowIpcContracts,
+  pageImageExportIpcContracts,
   settingsIpcContracts,
   textReviewIpcContracts,
   translationJobIpcContracts,
@@ -36,8 +37,6 @@ import type {
 import type {
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
-  InpaintingExportRequest,
-  InpaintingExportResult,
   InpaintingRetouchRequest,
   InpaintingRetouchResult,
   InpaintingRevertRequest,
@@ -47,6 +46,10 @@ import type {
   StartInpaintingRequest,
   StartInpaintingResult,
 } from "../shared/inpaintingTypes";
+import type {
+  PageImageExportRequest,
+  PageImageExportResult,
+} from "../shared/pageImageExportTypes";
 import type {
   JobEvent,
   LocalModelPickResult,
@@ -240,10 +243,10 @@ const api = {
     request: InpaintingColorSampleRequest,
   ): Promise<InpaintingColorSampleResult> =>
     invokeContract(inpaintingIpcContracts.sampleInpaintingColor, request),
-  exportInpaintingResults: (
-    request: InpaintingExportRequest,
-  ): Promise<InpaintingExportResult> =>
-    invokeContract(inpaintingIpcContracts.exportInpaintingResults, request),
+  exportPageImages: (
+    request: PageImageExportRequest,
+  ): Promise<PageImageExportResult | null> =>
+    invokeContract(pageImageExportIpcContracts.exportPageImages, request),
   disposeInpaintingEngine: (): Promise<{ disposed: boolean }> =>
     invokeContract(inpaintingIpcContracts.disposeInpaintingEngine),
   cancelJob: () => invokeContract(jobControlIpcContracts.cancelJob),

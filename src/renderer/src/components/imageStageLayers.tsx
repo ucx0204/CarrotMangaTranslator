@@ -38,7 +38,7 @@ export function StageImage({
 export function OverlayBlockLayer({
   blockPointerDisabled,
   imageDataUrl,
-  inpaintingMode,
+  showInpaintingExclusions,
   onBlockPointerDown,
   onToggleBlockExcluded,
   page,
@@ -52,7 +52,7 @@ export function OverlayBlockLayer({
   ImageStageProps,
   | "blockPointerDisabled"
   | "imageDataUrl"
-  | "inpaintingMode"
+  | "showInpaintingExclusions"
   | "onBlockPointerDown"
   | "onToggleBlockExcluded"
   | "page"
@@ -79,7 +79,7 @@ export function OverlayBlockLayer({
           selected={block.id === selectedBlockId}
           multiSelected={multiSelectedIds?.has(block.id) ?? false}
           showChrome={showBlockChrome}
-          showExcluded={inpaintingMode ?? false}
+          showExcluded={showInpaintingExclusions ?? false}
           textLayoutStageSize={textLayoutStageSize}
           pointerDisabled={blockPointerDisabled ?? false}
           onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
@@ -136,120 +136,46 @@ export function CommittedMaskLayer({
   );
 }
 
-export function RetouchPreviewLayer({
-  clipId,
-  imageDataUrl,
-  page,
-  retouchModel,
-  retouchPreview,
-  stageSize,
-}: {
-  clipId: string;
-  imageDataUrl: string;
-  page: MangaPage;
-  retouchModel: RetouchStageModel;
-  retouchPreview: ImageStageProps["retouchPreview"];
-  stageSize: ViewportSize | null;
-}): React.JSX.Element | null {
-  if (
-    !imageDataUrl ||
-    !stageSize ||
-    !retouchPreview ||
-    !retouchModel.previewPath
-  ) {
-    return null;
-  }
-  return (
-    <svg
-      className={`retouch-preview-layer retouch-preview-${retouchPreview.mode}`}
-      viewBox={`0 0 ${page.width} ${page.height}`}
-      preserveAspectRatio="none"
-      aria-hidden="true"
-      focusable="false"
-    >
-      {retouchPreview.mode === "eraser" &&
-      retouchPreview.originalImageDataUrl ? (
-        <RetouchEraserPreview
-          clipId={clipId}
-          page={page}
-          preview={retouchPreview}
-          retouchModel={retouchModel}
-        />
-      ) : (
-        <path
-          d={retouchModel.previewPath}
-          stroke={retouchPreview.color}
-          strokeWidth={retouchModel.previewStrokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-      )}
-    </svg>
-  );
-}
-
-function RetouchEraserPreview({
-  clipId,
-  page,
-  preview,
-  retouchModel,
-}: {
-  clipId: string;
-  page: MangaPage;
-  preview: NonNullable<ImageStageProps["retouchPreview"]>;
-  retouchModel: RetouchStageModel;
-}): React.JSX.Element {
-  return (
-    <>
-      <defs>
-        <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
-          <path
-            d={retouchModel.previewPath}
-            stroke="#fff"
-            strokeWidth={retouchModel.previewStrokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </clipPath>
-      </defs>
-      <image
-        href={preview.originalImageDataUrl}
-        x="0"
-        y="0"
-        width={page.width}
-        height={page.height}
-        clipPath={`url(#${clipId})`}
-      />
-      <path
-        className="retouch-preview-outline"
-        d={retouchModel.previewPath}
-        strokeWidth={retouchModel.previewStrokeWidth}
-      />
-    </>
-  );
-}
-
-export function RetouchCursorLayer({
+export function RetouchLiveLayer({
   retouchCursor,
-  retouchModel,
-  stageSize,
+  retouchOriginalImageDataUrl,
 }: {
   retouchCursor: ImageStageProps["retouchCursor"];
-  retouchModel: RetouchStageModel;
-  stageSize: ViewportSize | null;
+  retouchOriginalImageDataUrl: string;
 }): React.JSX.Element | null {
-  if (!retouchModel.cursorVisible || !retouchCursor?.point || !stageSize) {
-    return null;
-  }
+  if (!retouchCursor) return null;
   return (
-    <div
-      className={`retouch-cursor retouch-cursor-${retouchCursor.mode}`}
-      style={resolveRetouchCursorStyle(retouchCursor, retouchModel)}
-    >
-      <span />
-    </div>
+    <>
+      <canvas
+        aria-hidden="true"
+        className="retouch-live-canvas"
+        data-retouch-live-canvas=""
+        height={1}
+        hidden
+        width={1}
+      />
+      {retouchCursor.mode === "eraser" && retouchOriginalImageDataUrl ? (
+        <img
+          alt=""
+          aria-hidden="true"
+          className="retouch-original-source"
+          data-retouch-original-source=""
+          src={retouchOriginalImageDataUrl}
+        />
+      ) : null}
+      <div
+        aria-hidden="true"
+        className={`retouch-cursor retouch-cursor-${retouchCursor.mode}`}
+        data-retouch-live-cursor=""
+        style={
+          {
+            "--retouch-cursor-color": retouchCursor.color,
+          } as React.CSSProperties
+        }
+      >
+        <span />
+      </div>
+    </>
   );
 }
 
@@ -328,21 +254,6 @@ function resolveToggleBlockExcluded(
   return onToggleBlockExcluded
     ? () => onToggleBlockExcluded(blockId)
     : undefined;
-}
-
-function resolveRetouchCursorStyle(
-  cursor: NonNullable<ImageStageProps["retouchCursor"]>,
-  retouchModel: RetouchStageModel,
-): React.CSSProperties {
-  return {
-    left: `${(cursor.point?.x ?? 0) * retouchModel.cursorScaleX}px`,
-    top: `${(cursor.point?.y ?? 0) * retouchModel.cursorScaleY}px`,
-    width: `${retouchModel.cursorRadius * 2}px`,
-    height: `${retouchModel.cursorRadius * 2}px`,
-    marginLeft: `${-retouchModel.cursorRadius}px`,
-    marginTop: `${-retouchModel.cursorRadius}px`,
-    "--retouch-cursor-color": cursor.color,
-  } as React.CSSProperties;
 }
 
 function resolveRegionSelectionStyle(

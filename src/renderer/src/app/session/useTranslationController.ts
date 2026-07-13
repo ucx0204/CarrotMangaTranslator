@@ -86,12 +86,11 @@ function useImportShareController(chapter: ChapterSessionController) {
 
 function useTranslationActionController(chapter: ChapterSessionController) {
   const prepareRegionTranslation = useRegionTranslationPreparation({
-    inpaintingMode: chapter.uiState.inpaintingMode,
     pushStatus: chapter.statusLog.pushStatus,
   });
 
   return useTranslationActions({
-    beforeTranslateRegion: prepareRegionTranslation,
+    beforeTranslate: prepareRegionTranslation,
     clearStatusLines: chapter.statusLog.clearStatusLines,
     currentChapter: chapter.core.currentChapter,
     currentChapterRef: chapter.core.currentChapterRef,

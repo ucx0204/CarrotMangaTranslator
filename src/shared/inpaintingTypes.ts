@@ -1,5 +1,16 @@
 import type { ChapterSnapshot } from "./libraryTypes";
 
+export type AutoInpaintingChapterSelection =
+  | {
+      chapterId: string;
+      mode: "all";
+    }
+  | {
+      chapterId: string;
+      mode: "page-set";
+      pageIds: string[];
+    };
+
 export type StartInpaintingRequest =
   | {
       chapterId: string;
@@ -16,31 +27,20 @@ export type StartInpaintingRequest =
       pageId: string;
       strokes: InpaintingMaskStroke[];
       featherPx?: number;
+    }
+  | {
+      mode: "selection-pattern";
+      workId: string;
+      selections: AutoInpaintingChapterSelection[];
     };
 
 export type StartInpaintingResult = {
   status: "completed" | "cancelled" | "failed";
   chapter?: ChapterSnapshot;
+  chapters?: ChapterSnapshot[];
   pagesChanged?: number;
   blocksErased?: number;
   error?: string;
-};
-
-export type InpaintingExportRequest =
-  | {
-      chapterId: string;
-      scope: "chapter";
-    }
-  | {
-      chapterId: string;
-      scope: "page";
-      pageId: string;
-    };
-
-export type InpaintingExportResult = {
-  outputDir: string;
-  pageCount: number;
-  openError?: string;
 };
 
 export type InpaintingPoint = {

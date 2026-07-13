@@ -16,21 +16,14 @@ export type ImageStageProps = {
   selectedBlockIds?: string[];
   showTextBlocks: boolean;
   showBlockChrome: boolean;
-  inpaintingMode?: boolean;
+  showInpaintingExclusions?: boolean;
   blockPointerDisabled?: boolean;
   retouchCursor?: {
-    point: { x: number; y: number } | null;
     radiusPx: number;
     mode: "brush" | "eraser" | "mask";
     color: string;
   } | null;
-  retouchPreview?: {
-    mode: "brush" | "eraser" | "mask";
-    points: Array<{ x: number; y: number }>;
-    radiusPx: number;
-    color: string;
-    originalImageDataUrl: string;
-  } | null;
+  retouchOriginalImageDataUrl?: string;
   maskStrokes?: InpaintingMaskStroke[];
   regionSelectionActive: boolean;
   regionSelectionRect: BBox | null;
@@ -50,11 +43,5 @@ export type ImageStageProps = {
 };
 
 export type RetouchStageModel = {
-  cursorRadius: number;
-  cursorScaleX: number;
-  cursorScaleY: number;
-  cursorVisible: boolean;
   maskStrokePaths: Array<{ path: string; width: number }>;
-  previewPath: string;
-  previewStrokeWidth: number;
 };

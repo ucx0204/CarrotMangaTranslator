@@ -156,6 +156,28 @@
     "approximately": "約",
     "selectionSummary": "{{chapterCount}}話 · {{approximate}}{{pageCount}}頁"
   },
+  "exportOptions": {
+    "title": "匯出 PNG",
+    "prompt": "請選擇要匯出的頁面。",
+    "currentChapter": "目前章節",
+    "chapterSummary": "{{count}}頁",
+    "noSelectedPages": "未選擇頁面。",
+    "selectionSummary": "{{chapterCount}}話 · {{pageCount}}頁",
+    "start": "匯出 PNG",
+    "starting": "正在準備匯出…",
+    "workUnavailable": "無法載入作品資訊。將只匯出目前頁面。",
+    "startFailed": "無法開始匯出，請再試一次。"
+  },
+  "autoInpaintingOptions": {
+    "title": "自動清除",
+    "prompt": "請選擇要自動清除的頁面。",
+    "currentChapter": "目前章節",
+    "chapterSummary": "{{count}}頁",
+    "noSelectedPages": "未選擇頁面。",
+    "selectionSummary": "{{chapterCount}}話 · {{pageCount}}頁",
+    "start": "開始自動清除",
+    "workUnavailable": "無法載入作品資訊。將只處理目前頁面。"
+  },
   "translationOptions": {
     "start": "開始翻譯",
     "workUnavailable": "無法載入作品資訊。將只翻譯目前章節。",
@@ -280,13 +302,18 @@
     "hide": "隱藏工具列",
     "hideTitle": "隱藏工具列（4）",
     "imageTools": "影像工具",
+    "radius": "{{radius}}px",
     "tools": {
       "select": { "label": "選取", "title": "選取工具（1）" },
       "block": {
         "label": "文字區塊",
         "title": "文字區塊工具（2）— 拖曳以新增文字區塊"
       },
-      "hand": { "label": "手掌", "title": "手掌工具（3）— 拖曳以移動影像" }
+      "hand": { "label": "手掌", "title": "手掌工具（3）— 拖曳以移動影像" },
+      "mask": { "label": "遮罩", "title": "遮罩畫筆" },
+      "brush": { "label": "畫筆", "title": "修整畫筆" },
+      "eraser": { "label": "橡皮擦", "title": "清除修整筆觸" },
+      "picker": { "label": "取色", "title": "從畫布取色" }
     }
   },
   "display": {
@@ -468,6 +495,12 @@
     }
   },
   "inpainting": {
+    "inspector": {
+      "eyebrow": "畫布工具",
+      "autoTitle": "自動清除",
+      "retouchTitle": "修整設定",
+      "autoAction": "自動清除"
+    },
     "counts": {
       "thisPage": "本頁 {{count}}",
       "remaining": "剩餘 {{count}}",
@@ -521,6 +554,7 @@
       "nextExport": "匯出 →"
     },
     "export": {
+      "pngAction": "匯出 PNG",
       "description": "調整文字區塊的字體、顏色和位置，然後匯出疊加譯文的 PNG。",
       "result": "匯出結果",
       "pagesSaved": "已儲存{{count}}頁",
@@ -839,7 +873,7 @@
         "translate-all": "全部重新翻譯",
         "gather-text": "彙整文字",
         "cancel-job": "取消工作",
-        "toggle-inpainting": "開始／結束影像修補",
+        "toggle-inpainting": "開啟／關閉自動清除面板",
         "history-undo": "復原",
         "history-redo": "重做",
         "retouch-redo": "重做修整",

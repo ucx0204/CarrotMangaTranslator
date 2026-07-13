@@ -7,27 +7,32 @@ import { useEtaText } from "../hooks/useEtaText";
 import { Button } from "./ui";
 
 export function RunPanel({
+  autoInpaintingOpen,
   currentChapter,
   jobActive,
   flowActive,
   showProgressBar,
   progressSnapshot,
   jobState,
+  onOpenExport,
   onOpenTranslateOptions,
-  onEnterInpainting,
+  onOpenAutoInpaintingOptions,
   onCancelJob,
 }: {
+  autoInpaintingOpen: boolean;
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
   flowActive: boolean;
   showProgressBar: boolean;
   progressSnapshot: ProgressSnapshot | null;
   jobState: JobState;
+  onOpenExport: () => void;
   onOpenTranslateOptions: () => void;
-  onEnterInpainting: () => void;
+  onOpenAutoInpaintingOptions: () => void;
   onCancelJob: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const actionsDisabled = !currentChapter || jobActive || flowActive;
   return (
     <section className="run-panel">
       <div className="run-title">
@@ -38,21 +43,28 @@ export function RunPanel({
             : t("runPanel.openChapterHint")}
         </small>
       </div>
-      <Button
-        variant="primary"
-        fullWidth
-        onClick={onOpenTranslateOptions}
-        disabled={!currentChapter || jobActive || flowActive}
-      >
-        {t("sidebar.translate")}
-      </Button>
-      <Button
-        fullWidth
-        onClick={onEnterInpainting}
-        disabled={!currentChapter || jobActive || flowActive}
-      >
-        {t("common.inpainting")}
-      </Button>
+      <div className="run-primary-actions">
+        <Button
+          variant="primary"
+          fullWidth
+          onClick={onOpenTranslateOptions}
+          disabled={actionsDisabled}
+        >
+          {t("sidebar.translate")}
+        </Button>
+        <Button
+          className={autoInpaintingOpen ? "active" : ""}
+          fullWidth
+          aria-pressed={autoInpaintingOpen}
+          onClick={onOpenAutoInpaintingOptions}
+          disabled={actionsDisabled}
+        >
+          {t("inpainting.inspector.autoAction")}
+        </Button>
+        <Button fullWidth onClick={onOpenExport} disabled={actionsDisabled}>
+          {t("inpainting.export.pngAction")}
+        </Button>
+      </div>
       {jobActive ? (
         <Button variant="danger" fullWidth onClick={onCancelJob}>
           {t("common.cancel")}

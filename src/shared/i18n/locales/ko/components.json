@@ -160,6 +160,28 @@
     "approximately": "약 ",
     "selectionSummary": "{{chapterCount}}개 화 · {{approximate}}{{pageCount}}페이지"
   },
+  "exportOptions": {
+    "title": "PNG 출력",
+    "prompt": "출력할 페이지를 선택하세요.",
+    "currentChapter": "현재 화",
+    "chapterSummary": "{{count}}p",
+    "noSelectedPages": "선택된 페이지가 없습니다.",
+    "selectionSummary": "{{chapterCount}}개 화 · {{pageCount}}페이지",
+    "start": "PNG 출력",
+    "starting": "출력 준비 중…",
+    "workUnavailable": "작품 정보를 불러오지 못했습니다. 현재 페이지만 출력합니다.",
+    "startFailed": "출력을 시작하지 못했습니다. 다시 시도해 주세요."
+  },
+  "autoInpaintingOptions": {
+    "title": "자동 지우기",
+    "prompt": "자동으로 지울 페이지를 선택하세요.",
+    "currentChapter": "현재 화",
+    "chapterSummary": "{{count}}p",
+    "noSelectedPages": "선택된 페이지가 없습니다.",
+    "selectionSummary": "{{chapterCount}}개 화 · {{pageCount}}페이지",
+    "start": "자동 지우기 시작",
+    "workUnavailable": "작품 정보를 불러오지 못했습니다. 현재 페이지만 처리합니다."
+  },
   "translationOptions": {
     "start": "번역 시작",
     "workUnavailable": "작품 정보를 불러오지 못했습니다. 현재 화만 번역합니다.",
@@ -284,6 +306,7 @@
     "hide": "도구 모음 숨기기",
     "hideTitle": "도구 모음 숨기기 (4)",
     "imageTools": "이미지 도구",
+    "radius": "{{radius}}px",
     "tools": {
       "select": { "label": "선택", "title": "선택 도구 (1)" },
       "block": {
@@ -293,7 +316,11 @@
       "hand": {
         "label": "손바닥",
         "title": "손바닥 도구 (3) — 드래그해서 이미지 이동"
-      }
+      },
+      "mask": { "label": "마스크", "title": "마스크 붓" },
+      "brush": { "label": "브러시", "title": "보정 브러시" },
+      "eraser": { "label": "지우개", "title": "보정 내용 지우개" },
+      "picker": { "label": "색 추출", "title": "캔버스에서 색 추출" }
     }
   },
   "display": {
@@ -475,6 +502,12 @@
     }
   },
   "inpainting": {
+    "inspector": {
+      "eyebrow": "캔버스 도구",
+      "autoTitle": "자동 지우기",
+      "retouchTitle": "보정 설정",
+      "autoAction": "자동 지우기"
+    },
     "counts": {
       "thisPage": "이 페이지 {{count}}",
       "remaining": "남은 {{count}}",
@@ -528,6 +561,7 @@
       "nextExport": "출력 →"
     },
     "export": {
+      "pngAction": "PNG 출력",
       "description": "블록의 폰트·색·위치를 정리한 뒤, 번역이 얹힌 PNG로 내보냅니다.",
       "result": "결과 출력",
       "pagesSaved": "{{count}}페이지 저장됨",
@@ -867,7 +901,7 @@
         "translate-all": "전체 다시 번역",
         "gather-text": "텍스트 모아보기",
         "cancel-job": "작업 취소",
-        "toggle-inpainting": "인페인팅 시작/종료",
+        "toggle-inpainting": "자동 지우기 패널 열기/닫기",
         "history-undo": "실행 취소",
         "history-redo": "다시 실행",
         "retouch-redo": "보정 다시 실행",

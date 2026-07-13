@@ -156,6 +156,28 @@
     "approximately": "约",
     "selectionSummary": "{{chapterCount}}话 · {{approximate}}{{pageCount}}页"
   },
+  "exportOptions": {
+    "title": "导出 PNG",
+    "prompt": "请选择要导出的页面。",
+    "currentChapter": "当前章节",
+    "chapterSummary": "{{count}}页",
+    "noSelectedPages": "未选择页面。",
+    "selectionSummary": "{{chapterCount}}话 · {{pageCount}}页",
+    "start": "导出 PNG",
+    "starting": "正在准备导出…",
+    "workUnavailable": "无法加载作品信息。将只导出当前页面。",
+    "startFailed": "无法开始导出，请重试。"
+  },
+  "autoInpaintingOptions": {
+    "title": "自动擦除",
+    "prompt": "请选择要自动擦除的页面。",
+    "currentChapter": "当前章节",
+    "chapterSummary": "{{count}}页",
+    "noSelectedPages": "未选择页面。",
+    "selectionSummary": "{{chapterCount}}话 · {{pageCount}}页",
+    "start": "开始自动擦除",
+    "workUnavailable": "无法加载作品信息。将只处理当前页面。"
+  },
   "translationOptions": {
     "start": "开始翻译",
     "workUnavailable": "无法加载作品信息。将只翻译当前章节。",
@@ -280,13 +302,18 @@
     "hide": "隐藏工具栏",
     "hideTitle": "隐藏工具栏（4）",
     "imageTools": "图像工具",
+    "radius": "{{radius}}px",
     "tools": {
       "select": { "label": "选择", "title": "选择工具（1）" },
       "block": {
         "label": "文本块",
         "title": "文本块工具（2）— 拖动以添加新文本块"
       },
-      "hand": { "label": "抓手", "title": "抓手工具（3）— 拖动以移动图像" }
+      "hand": { "label": "抓手", "title": "抓手工具（3）— 拖动以移动图像" },
+      "mask": { "label": "蒙版", "title": "蒙版画笔" },
+      "brush": { "label": "画笔", "title": "修整画笔" },
+      "eraser": { "label": "橡皮擦", "title": "清除修整笔触" },
+      "picker": { "label": "取色", "title": "从画布取色" }
     }
   },
   "display": {
@@ -468,6 +495,12 @@
     }
   },
   "inpainting": {
+    "inspector": {
+      "eyebrow": "画布工具",
+      "autoTitle": "自动清除",
+      "retouchTitle": "修整设置",
+      "autoAction": "自动清除"
+    },
     "counts": {
       "thisPage": "本页 {{count}}",
       "remaining": "剩余 {{count}}",
@@ -521,6 +554,7 @@
       "nextExport": "导出 →"
     },
     "export": {
+      "pngAction": "导出PNG",
       "description": "调整文本块的字体、颜色和位置，然后导出叠加译文的PNG。",
       "result": "导出结果",
       "pagesSaved": "已保存{{count}}页",
@@ -836,7 +870,7 @@
         "translate-all": "全部重新翻译",
         "gather-text": "汇总文本",
         "cancel-job": "取消任务",
-        "toggle-inpainting": "开始/退出图像修复",
+        "toggle-inpainting": "打开/关闭自动擦除面板",
         "history-undo": "撤销",
         "history-redo": "重做",
         "retouch-redo": "重做修整",

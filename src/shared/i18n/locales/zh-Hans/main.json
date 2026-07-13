@@ -16,6 +16,7 @@
     "registerFont": "注册字体文件（TTF/OTF）",
     "saveReview": "保存校对表",
     "saveText": "保存文本",
+    "exportPngFolder": "选择 PNG 导出文件夹",
     "filters": {
       "images": "图像文件",
       "font": "字体文件",
@@ -289,13 +290,18 @@
     "failed": "PNG 导出失败",
     "preparing": "正在准备 PNG 导出",
     "completed": "PNG 导出完成",
+    "selection": "{{chapters}} 章 · {{pages}} 页",
     "page": {
       "running": "正在导出第 {{current}} / {{total}} 页 PNG",
       "done": "第 {{current}} / {{total}} 页 PNG 导出完成"
     },
-    "scope": {
-      "page": "此页面 · {{count}} 页",
-      "chapter": "全部页面 · {{count}} 页"
+    "errors": {
+      "workNotFound": "找不到要导出的作品。",
+      "chapterNotFound": "所选章节不属于该作品或无法找到。",
+      "duplicateChapter": "不能重复选择同一章节。",
+      "pageNotFound": "所选页面不属于该章节。",
+      "duplicatePage": "不能重复选择同一页面。",
+      "outputDirectory": "无法创建 PNG 导出文件夹。"
     }
   },
   "modelTest": {

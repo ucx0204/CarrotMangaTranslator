@@ -1,53 +1,94 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { StageTool } from "../lib/stageTool";
 import {
-  BlockPlusIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CursorIcon,
-  HandIcon,
-  type IconProps,
-} from "./ui";
+  IconBrush,
+  IconChevronLeft,
+  IconChevronRight,
+  IconColorPicker,
+  IconEraser,
+  IconHandStop,
+  IconLassoPolygon,
+  IconPointer2,
+  IconSquarePlus,
+  type TablerIcon,
+} from "@tabler/icons-react";
+import {
+  isRetouchTool,
+  isSizableRetouchTool,
+  type WorkspaceTool,
+} from "../lib/stageTool";
 
 type StageToolbarProps = {
+  brushColor: string;
+  brushRadius: number;
+  disabled: boolean;
   hidden: boolean;
-  onSelectTool: (tool: StageTool) => void;
+  onSelectTool: (tool: WorkspaceTool) => void;
   onToggleHidden: () => void;
-  tool: StageTool;
+  tool: WorkspaceTool;
 };
 
 const TOOL_BUTTONS: {
-  id: StageTool;
+  id: WorkspaceTool;
   labelKey: string;
   titleKey: string;
-  Icon: (props: IconProps) => React.JSX.Element;
+  Icon: TablerIcon;
+  separated?: boolean;
 }[] = [
   {
     id: "select",
     labelKey: "stageToolbar.tools.select.label",
     titleKey: "stageToolbar.tools.select.title",
-    Icon: CursorIcon,
+    Icon: IconPointer2,
   },
   {
     id: "block",
     labelKey: "stageToolbar.tools.block.label",
     titleKey: "stageToolbar.tools.block.title",
-    Icon: BlockPlusIcon,
+    Icon: IconSquarePlus,
   },
   {
     id: "hand",
     labelKey: "stageToolbar.tools.hand.label",
     titleKey: "stageToolbar.tools.hand.title",
-    Icon: HandIcon,
+    Icon: IconHandStop,
+  },
+  {
+    id: "mask",
+    labelKey: "stageToolbar.tools.mask.label",
+    titleKey: "stageToolbar.tools.mask.title",
+    Icon: IconLassoPolygon,
+    separated: true,
+  },
+  {
+    id: "brush",
+    labelKey: "stageToolbar.tools.brush.label",
+    titleKey: "stageToolbar.tools.brush.title",
+    Icon: IconBrush,
+  },
+  {
+    id: "eraser",
+    labelKey: "stageToolbar.tools.eraser.label",
+    titleKey: "stageToolbar.tools.eraser.title",
+    Icon: IconEraser,
+  },
+  {
+    id: "picker",
+    labelKey: "stageToolbar.tools.picker.label",
+    titleKey: "stageToolbar.tools.picker.title",
+    Icon: IconColorPicker,
   },
 ];
 
 /**
  * Small vertical tool strip docked at the left edge of the workspace
- * (select / block / hand), with a collapse toggle underneath.
+ * with a collapse toggle underneath. Translation and retouch tools share the
+ * same active state so pointer gestures cannot accidentally overlap.
  */
 export function StageToolbar({
+  brushColor,
+  brushRadius,
+  disabled,
   hidden,
   onSelectTool,
   onToggleHidden,
@@ -56,47 +97,105 @@ export function StageToolbar({
   const { t } = useTranslation("components");
   if (hidden) {
     return (
-      <div className="stage-toolbar collapsed">
-        <button
-          type="button"
-          className="stage-toolbar-toggle"
-          title={t("stageToolbar.showTitle")}
-          aria-label={t("stageToolbar.show")}
-          onClick={onToggleHidden}
-        >
-          <ChevronRightIcon size={14} />
-        </button>
-      </div>
+      <>
+        <div className="stage-toolbar collapsed">
+          <ToolbarControl tooltip={t("stageToolbar.showTitle")}>
+            <button
+              type="button"
+              className="stage-toolbar-toggle"
+              aria-label={t("stageToolbar.showTitle")}
+              onClick={onToggleHidden}
+            >
+              <IconChevronRight size={20} stroke={2.2} aria-hidden="true" />
+            </button>
+          </ToolbarControl>
+        </div>
+        <ActiveToolBadge brushRadius={brushRadius} tool={tool} />
+      </>
     );
   }
   return (
-    <div
-      className="stage-toolbar"
-      role="toolbar"
-      aria-label={t("stageToolbar.imageTools")}
-    >
-      {TOOL_BUTTONS.map(({ id, labelKey, titleKey, Icon }) => (
-        <button
-          key={id}
-          type="button"
-          className={`stage-toolbar-button ${tool === id ? "active" : ""}`}
-          title={t(titleKey)}
-          aria-label={t(labelKey)}
-          aria-pressed={tool === id}
-          onClick={() => onSelectTool(id)}
-        >
-          <Icon size={16} />
-        </button>
-      ))}
-      <button
-        type="button"
-        className="stage-toolbar-toggle"
-        title={t("stageToolbar.hideTitle")}
-        aria-label={t("stageToolbar.hide")}
-        onClick={onToggleHidden}
+    <>
+      <div
+        className="stage-toolbar"
+        role="toolbar"
+        aria-label={t("stageToolbar.imageTools")}
       >
-        <ChevronLeftIcon size={14} />
-      </button>
+        {TOOL_BUTTONS.map(({ id, labelKey, titleKey, Icon, separated }) => (
+          <ToolbarControl key={id} separated={separated} tooltip={t(titleKey)}>
+            <button
+              type="button"
+              className={`stage-toolbar-button ${tool === id ? "active" : ""}`.trim()}
+              aria-label={t(labelKey)}
+              aria-pressed={tool === id}
+              disabled={disabled}
+              onClick={() => onSelectTool(id)}
+            >
+              <Icon size={22} stroke={2.1} aria-hidden="true" />
+              {id === "brush" ? (
+                <i
+                  className="stage-toolbar-swatch"
+                  style={{ backgroundColor: brushColor }}
+                  aria-hidden="true"
+                />
+              ) : null}
+            </button>
+          </ToolbarControl>
+        ))}
+        <ToolbarControl tooltip={t("stageToolbar.hideTitle")}>
+          <button
+            type="button"
+            className="stage-toolbar-toggle"
+            aria-label={t("stageToolbar.hideTitle")}
+            onClick={onToggleHidden}
+          >
+            <IconChevronLeft size={20} stroke={2.2} aria-hidden="true" />
+          </button>
+        </ToolbarControl>
+      </div>
+      <ActiveToolBadge brushRadius={brushRadius} tool={tool} />
+    </>
+  );
+}
+
+function ToolbarControl({
+  children,
+  separated = false,
+  tooltip,
+}: {
+  children: React.ReactNode;
+  separated?: boolean;
+  tooltip: string;
+}): React.JSX.Element {
+  return (
+    <span
+      className={`stage-toolbar-control ${separated ? "separated" : ""}`.trim()}
+    >
+      {children}
+      <span className="stage-toolbar-tooltip" role="tooltip">
+        {tooltip}
+      </span>
+    </span>
+  );
+}
+
+function ActiveToolBadge({
+  brushRadius,
+  tool,
+}: Pick<StageToolbarProps, "brushRadius" | "tool">): React.JSX.Element | null {
+  const { t } = useTranslation("components");
+  if (!isRetouchTool(tool)) {
+    return null;
+  }
+  return (
+    <div className="stage-active-tool-badge" role="status">
+      <span>{t(`stageToolbar.tools.${tool}.label`)}</span>
+      {isSizableRetouchTool(tool) ? (
+        <>
+          <span aria-hidden="true">·</span>
+          <strong>{t("stageToolbar.radius", { radius: brushRadius })}</strong>
+        </>
+      ) : null}
     </div>
   );
 }

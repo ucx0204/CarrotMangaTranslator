@@ -15,10 +15,10 @@ export function createAppSessionViewProps(
   model: AppSessionViewModel,
 ): AppSessionViewProps {
   return {
+    autoInpaintingOptionsProps: createAutoInpaintingOptionsProps(model),
     commandPaletteProps: createCommandPaletteProps(model),
+    exportOptionsProps: createExportOptionsProps(model),
     gatherTextProps: createGatherTextProps(model),
-    inpaintingContextValue: model.inpaintingBridge.contextValue,
-    inpaintingMode: model.uiState.inpaintingMode,
     modalsProps: createModalsProps(model),
     pageRetranslateProps: createPageRetranslateProps(model),
     panelSessionValue: createPanelSessionValue(model),
@@ -29,6 +29,45 @@ export function createAppSessionViewProps(
     translationOptionsProps: createTranslationOptionsProps(model),
     workspaceProps: createWorkspaceProps(model),
   };
+}
+
+function createAutoInpaintingOptionsProps({
+  core,
+  derivedState,
+  inpaintingActions,
+  uiState,
+}: AppSessionViewModel): AppSessionViewProps["autoInpaintingOptionsProps"] {
+  return uiState.autoInpaintingOptionsOpen &&
+    core.currentChapter &&
+    derivedState.selectedPage
+    ? {
+        chapter: core.currentChapter,
+        currentPageId: derivedState.selectedPage.id,
+        library: core.library,
+        onClose: () => uiState.setAutoInpaintingOptionsOpen(false),
+        onStart: inpaintingActions.runInpaintingSelection,
+      }
+    : null;
+}
+
+function createExportOptionsProps({
+  core,
+  derivedState,
+  inpaintingActions,
+  uiState,
+}: AppSessionViewModel): AppSessionViewProps["exportOptionsProps"] {
+  return uiState.exportOptionsOpen &&
+    core.currentChapter &&
+    derivedState.selectedPage
+    ? {
+        chapter: core.currentChapter,
+        currentPageId: derivedState.selectedPage.id,
+        jobActive: derivedState.jobActive,
+        library: core.library,
+        onClose: () => uiState.setExportOptionsOpen(false),
+        onStart: inpaintingActions.exportPageImages,
+      }
+    : null;
 }
 
 function createCommandPaletteProps({
@@ -143,11 +182,7 @@ function createModalsProps({
 export function buildPanelSyncState({
   core,
   derivedState,
-  uiState,
-}: Pick<
-  AppSessionViewModel,
-  "core" | "derivedState" | "uiState"
->): PanelSyncState {
+}: Pick<AppSessionViewModel, "core" | "derivedState">): PanelSyncState {
   return {
     areaTranslateAvailable: Boolean(
       derivedState.selectedPage &&
@@ -157,8 +192,7 @@ export function buildPanelSyncState({
     areaTranslateSelecting: Boolean(core.regionSelection?.active),
     disableChapterApply: derivedState.jobActive,
     editorDisabled:
-      derivedState.selectedPageEditLocked ||
-      (uiState.inpaintingMode && derivedState.jobActive),
+      derivedState.selectedPageEditLocked || derivedState.jobActive,
     selectedBlock: derivedState.selectedBlock,
     selectedBlockCount: derivedState.selectedBlockIds.length,
   };
@@ -188,34 +222,59 @@ function createRightRailProps({
   bridgeActions,
   core,
   derivedState,
-  inpaintingActions,
-  pointerHandlers,
+  inpaintingBridge,
   statusLog,
   uiState,
 }: AppSessionViewModel): AppSessionViewProps["rightRailProps"] {
+  const inpainting = inpaintingBridge.contextValue;
   return {
-    areaTranslateSelecting: Boolean(core.regionSelection?.active),
+    autoInpaintingOpen: uiState.autoInpaintingOpen,
+    brushColor: inpainting.brushColor,
+    brushRadius: inpainting.brushRadius,
+    canRedoRetouch: inpainting.canRedo,
+    canUndoRetouch: inpainting.canUndo,
     currentChapter: core.currentChapter,
     flowActive: uiState.translationFlowActive,
-    inpaintingMode: uiState.inpaintingMode,
-    jobActive: derivedState.jobActive,
+    inpaintedPageCount: derivedState.inpaintedPageCount,
+    jobActive: inpainting.jobActive,
     jobState: core.jobState,
+    maskStrokeCount: inpainting.maskStrokeCount,
+    pageTargetCount: derivedState.blockCounts.selectedPage,
+    peekAvailable: derivedState.peekAvailable,
+    peeking: derivedState.showingOriginalPeek,
+    pendingPageCount: derivedState.blockCounts.pendingPages,
+    pendingTargetCount: derivedState.blockCounts.pendingTotal,
     onCancelJob: bridgeActions.cancelJob,
-    onEnterInpainting: () => void inpaintingActions.enterInpaintingMode(),
+    onBrushColorChange: inpainting.onBrushColorChange,
+    onBrushRadiusChange: inpainting.onBrushRadiusChange,
+    onClearPatternMask: inpainting.onClearPatternMask,
+    onOpenExport: () => uiState.setExportOptionsOpen(true),
     onOpenStyleGuide: () => uiState.setStyleGuideOpen(true),
     onOpenTextView: () => uiState.setTextViewOpen(true),
     onOpenTranslateOptions: () => uiState.setTranslateOptionsOpen(true),
-    onStartAreaTranslate: pointerHandlers.startRegionTranslationSelection,
+    onPeekToggle: inpainting.onPeekToggle,
+    onRedoRetouch: inpainting.onRedoRetouch,
+    onRevertChapter: inpainting.onRevertChapter,
+    onRevertPage: inpainting.onRevertPage,
+    onRunDrawnPattern: inpainting.onRunDrawnPattern,
+    onShowGuide: inpainting.onShowGuide,
+    onOpenAutoInpaintingOptions: () => {
+      core.setRegionSelection(null);
+      uiState.selectWorkspaceTool("select");
+      uiState.setAutoInpaintingOpen(true);
+      uiState.setAutoInpaintingOptionsOpen(true);
+    },
     onToggleBlocks: () => uiState.setShowTextBlocks((value) => !value),
     onToggleChrome: () => uiState.setShowBlockChrome((value) => !value),
     progressSnapshot: derivedState.progressSnapshot,
     selectedBlock: derivedState.selectedBlock,
     selectedPage: derivedState.selectedPage,
-    selectedPageImageDataUrl: derivedState.selectedPageImageDataUrl,
     showBlockChrome: uiState.showBlockChrome,
     showProgressBar: derivedState.showProgressBar,
     showTextBlocks: uiState.showTextBlocks,
+    stageTool: uiState.stageTool,
     statusLines: statusLog.statusLines,
+    onUndoRetouch: inpainting.onUndoRetouch,
   };
 }
 
@@ -236,19 +295,15 @@ function createSidebarProps({
   derivedState,
   importShareActions,
   importShareModal,
-  inpaintingActions,
   libraryActions,
   pageNavigationHandlers,
   retranslatePage,
   settingsDialog,
-  uiState,
 }: AppSessionViewModel): AppSessionViewProps["sidebarProps"] {
   return {
     currentChapter: core.currentChapter,
-    inpaintingMode: uiState.inpaintingMode,
     jobActive: derivedState.jobActive,
     library: core.library,
-    onExitInpainting: inpaintingActions.exitInpaintingMode,
     onOpenBatchImport: () =>
       void importShareActions.openImportPreview("zip-folder"),
     onOpenChapter: (chapterId) => void libraryActions.openChapter(chapterId),
@@ -301,10 +356,12 @@ function createWorkspaceProps({
     blockCreateRect: pointerHandlers.blockCreateRect,
     dragHud: pointerHandlers.dragHud,
     imageRef: core.imageRef,
-    inpaintingMode: uiState.inpaintingMode,
-    inpaintingToolActive: derivedState.inpaintingToolActive,
+    autoInpaintingOpen: uiState.autoInpaintingOpen,
+    brushColor: uiState.inpaintingPaintColor,
+    brushRadius: uiState.inpaintingBrushRadius,
+    jobActive: inpaintingBridge.contextValue.jobActive,
     jobState: core.jobState,
-    maskStrokes: uiState.inpaintingMode ? derivedState.patternMaskStrokes : [],
+    maskStrokes: derivedState.patternMaskStrokes,
     onBlockPointerDown: pointerHandlers.onBlockPointerDown,
     onOpenBatchImport: () =>
       void importShareActions.openImportPreview("zip-folder"),
@@ -312,7 +369,10 @@ function createWorkspaceProps({
     onOpenShareImport: () => void importShareActions.openShareImportPreview(),
     onOpenTranslationSource: () =>
       importShareModal.setTranslationSourceOpen(true),
-    onSelectStageTool: uiState.setStageTool,
+    onSelectStageTool: (tool) => {
+      core.setRegionSelection(null);
+      uiState.selectWorkspaceTool(tool);
+    },
     onStagePointerDown: pointerHandlers.onStagePointerDown,
     onStagePointerLeave: pointerHandlers.onStagePointerLeave,
     onStagePointerMove: pointerHandlers.onStagePointerMove,
@@ -324,7 +384,7 @@ function createWorkspaceProps({
     regionSelectionActive: Boolean(core.regionSelection?.active),
     regionSelectionRect: derivedState.regionSelectionRect,
     retouchCursor: inpaintingBridge.retouchCursor,
-    retouchPreviewLayer: inpaintingBridge.retouchPreviewLayer,
+    retouchOriginalImageDataUrl: derivedState.selectedPageOriginalImageDataUrl,
     selectedBlockId: core.selectedBlockId,
     selectedBlockIds: derivedState.selectedBlockIds,
     selectedPage: derivedState.selectedPage,

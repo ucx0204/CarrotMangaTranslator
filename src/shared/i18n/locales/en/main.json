@@ -16,6 +16,7 @@
     "registerFont": "Register Font File (TTF/OTF)",
     "saveReview": "Save Review Sheet",
     "saveText": "Save Text",
+    "exportPngFolder": "Select PNG Export Folder",
     "filters": {
       "images": "Image files",
       "font": "Font files",
@@ -289,13 +290,18 @@
     "failed": "PNG export failed",
     "preparing": "Preparing PNG export",
     "completed": "PNG export complete",
+    "selection": "{{chapters}} chapters · {{pages}} pages",
     "page": {
       "running": "Exporting PNG for page {{current}} / {{total}}",
       "done": "PNG export complete for page {{current}} / {{total}}"
     },
-    "scope": {
-      "page": "This page · {{count}} page",
-      "chapter": "All pages · Total: {{count}}"
+    "errors": {
+      "workNotFound": "The work to export could not be found.",
+      "chapterNotFound": "The selected chapter does not belong to this work or could not be found.",
+      "duplicateChapter": "The same chapter cannot be selected twice.",
+      "pageNotFound": "The selected page does not belong to that chapter.",
+      "duplicatePage": "The same page cannot be selected twice.",
+      "outputDirectory": "The PNG export folder could not be created."
     }
   },
   "modelTest": {

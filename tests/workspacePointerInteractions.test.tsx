@@ -19,7 +19,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BBox, TranslationBlock } from "../src/shared/textTypes";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import { useWorkspacePointerHandlers } from "../src/renderer/src/hooks/useWorkspacePointerHandlers";
-import type { RetouchPreviewState } from "../src/renderer/src/hooks/useInpaintingRetouch";
 import type { InpaintingTool } from "../src/renderer/src/inpainting/inpaintingTypes";
 import type { RegionSelectionState } from "../src/renderer/src/lib/appHelpers";
 
@@ -136,10 +135,6 @@ function WorkspacePointerHarness({
     useState<RegionSelectionState | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [, setSelectedBlockIds] = useState<string[]>([]);
-  const [, setRetouchCursorPoint] = useState<{ x: number; y: number } | null>(
-    null,
-  );
-  const [, setRetouchPreview] = useState<RetouchPreviewState | null>(null);
   const [, setInpaintingPaintColor] = useState("#ffffff");
   const [, setInpaintingTool] = useState<InpaintingTool>("none");
   const [, setPatternMaskStrokesByPage] = useState<
@@ -154,11 +149,12 @@ function WorkspacePointerHarness({
   const page = makePage();
   const block = page.blocks[0];
   const handlers = useWorkspacePointerHandlers({
-    appendRetouchPoint: () => undefined,
+    appendRetouchPoint: () => null,
     applyRetouchPoints: async () => undefined,
     currentChapter: makeChapter(page),
     imageRef,
     inpaintingBrushRadius: 28,
+    inpaintingPaintColor: "#ffffff",
     inpaintingRetouchDrawingRef,
     inpaintingRetouchPointsRef,
     inpaintingTool: "none",
@@ -178,8 +174,6 @@ function WorkspacePointerHarness({
     setInpaintingTool,
     setPatternMaskStrokesByPage,
     setRegionSelection,
-    setRetouchCursorPoint,
-    setRetouchPreview,
     setSelectedBlockId,
     setSelectedBlockIds,
     stageRef,

@@ -100,6 +100,11 @@
       "hint": "所有页面",
       "keywords": "translate all retranslate 全部 重新翻译"
     },
+    "autoInpainting": {
+      "label": "自动清除",
+      "keywords": "inpaint auto erase 自动 清除 修整",
+      "closeHint": "关闭面板"
+    },
     "exitInpainting": {
       "label": "退出图像修复",
       "keywords": "inpaint exit 图像修复 退出"
@@ -170,7 +175,7 @@
       "translate-all": "全部重新翻译",
       "gather-text": "汇总文本",
       "cancel-job": "取消任务",
-      "toggle-inpainting": "开始/退出图像修复",
+      "toggle-inpainting": "打开/关闭自动擦除面板",
       "history-undo": "撤销",
       "history-redo": "重做",
       "retouch-redo": "重做修整",
@@ -232,6 +237,11 @@
   },
   "inpainting": {
     "common": { "saveFailedTitle": "保存失败", "jobFailedTitle": "任务失败" },
+    "maskDiscard": {
+      "title": "放弃绘制的蒙版",
+      "message": "有尚未应用的绘制蒙版。是否打开其他章节？",
+      "detail": "切换章节会删除当前章节中尚未应用的蒙版。"
+    },
     "mode": {
       "saveBeforeEnterFailed": "进入图像修复模式前无法保存修改。",
       "entered": "已进入图像修复模式。请先擦除原文。",
@@ -251,6 +261,7 @@
       "title": "擦除原文",
       "currentPage": "当前页面",
       "pendingPages": "尚未擦除的页面",
+      "selectedPages": "所选页面",
       "message": "擦除{{scope}}中翻译文本块位置的原文。",
       "detail": "Flux 图像修复会擦除对话框、网点、背景图和音效上的文字。原图会保留，结果会另存。",
       "preparing": "正在准备擦除原文",
@@ -263,10 +274,10 @@
       "noPage": "尚未选择要导出的页面。",
       "saveFailed": "导出 PNG 前无法保存修改。",
       "openFolderFailed": "PNG 导出完成，但无法打开文件夹：{{path}}",
-      "success": "已将图像修复结果导出为 PNG：{{count}}页",
-      "success_one": "已将图像修复结果导出为 PNG：{{count}}页",
-      "success_other": "已将图像修复结果导出为 PNG：{{count}}页",
-      "failed": "无法导出图像修复结果。",
+      "success": "已将最终图像导出为 PNG：{{count}}页",
+      "success_one": "已将最终图像导出为 PNG：{{count}}页",
+      "success_other": "已将最终图像导出为 PNG：{{count}}页",
+      "failed": "无法导出最终图像。",
       "failedTitle": "PNG 导出失败",
       "preparing": "正在准备导出 PNG"
     },
@@ -295,7 +306,7 @@
     }
   },
   "regionTranslation": {
-    "disposeInpainting": "正在为区域翻译关闭 Flux 图像修复运行时。",
+    "disposeInpainting": "正在为翻译关闭 Flux 图像修复运行时。",
     "cancelledSelection": "已取消区域翻译选择。",
     "dragPrompt": "请拖动选择要翻译的区域。",
     "tooSmall": "所选区域太小。",

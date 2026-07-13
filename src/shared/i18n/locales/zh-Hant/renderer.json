@@ -100,6 +100,11 @@
       "hint": "所有頁面",
       "keywords": "translate all retranslate 全部 重新翻譯"
     },
+    "autoInpainting": {
+      "label": "自動清除",
+      "keywords": "inpaint auto erase 自動 清除 修整",
+      "closeHint": "關閉面板"
+    },
     "exitInpainting": {
       "label": "結束圖像修復",
       "keywords": "inpaint exit 圖像修復 結束"
@@ -170,7 +175,7 @@
       "translate-all": "全部重新翻譯",
       "gather-text": "彙整文字",
       "cancel-job": "取消工作",
-      "toggle-inpainting": "開始／結束圖像修復",
+      "toggle-inpainting": "開啟／關閉自動清除面板",
       "history-undo": "復原",
       "history-redo": "重做",
       "retouch-redo": "重做潤飾",
@@ -232,6 +237,11 @@
   },
   "inpainting": {
     "common": { "saveFailedTitle": "儲存失敗", "jobFailedTitle": "工作失敗" },
+    "maskDiscard": {
+      "title": "捨棄繪製的遮罩",
+      "message": "有尚未套用的繪製遮罩。是否開啟其他章節？",
+      "detail": "切換章節會刪除目前章節中尚未套用的遮罩。"
+    },
     "mode": {
       "saveBeforeEnterFailed": "進入圖像修復模式前無法儲存修改。",
       "entered": "已進入圖像修復模式。請先清除原文。",
@@ -251,6 +261,7 @@
       "title": "清除原文",
       "currentPage": "目前頁面",
       "pendingPages": "尚未清除的頁面",
+      "selectedPages": "所選頁面",
       "message": "清除{{scope}}中翻譯文字區塊位置的原文。",
       "detail": "Flux 圖像修復會清除對話框、網點、背景圖和音效上的文字。原圖會保留，結果會另存。",
       "preparing": "正在準備清除原文",
@@ -263,10 +274,10 @@
       "noPage": "尚未選取要匯出的頁面。",
       "saveFailed": "匯出 PNG 前無法儲存修改。",
       "openFolderFailed": "PNG 匯出完成，但無法開啟資料夾：{{path}}",
-      "success": "已將圖像修復結果匯出為 PNG：{{count}}頁",
-      "success_one": "已將圖像修復結果匯出為 PNG：{{count}}頁",
-      "success_other": "已將圖像修復結果匯出為 PNG：{{count}}頁",
-      "failed": "無法匯出圖像修復結果。",
+      "success": "已將最終圖像匯出為 PNG：{{count}}頁",
+      "success_one": "已將最終圖像匯出為 PNG：{{count}}頁",
+      "success_other": "已將最終圖像匯出為 PNG：{{count}}頁",
+      "failed": "無法匯出最終圖像。",
       "failedTitle": "PNG 匯出失敗",
       "preparing": "正在準備匯出 PNG"
     },
@@ -295,7 +306,7 @@
     }
   },
   "regionTranslation": {
-    "disposeInpainting": "正在為區域翻譯關閉 Flux 圖像修復執行環境。",
+    "disposeInpainting": "正在為翻譯關閉 Flux 圖像修復執行環境。",
     "cancelledSelection": "已取消區域翻譯選取。",
     "dragPrompt": "請拖曳選取要翻譯的區域。",
     "tooSmall": "所選區域太小。",

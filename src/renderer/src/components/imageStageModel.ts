@@ -1,55 +1,27 @@
 import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
 
-type RetouchModelInput = Pick<
-  ImageStageProps,
-  "maskStrokes" | "page" | "retouchCursor" | "retouchPreview" | "stageSize"
->;
+type RetouchModelInput = Pick<ImageStageProps, "maskStrokes">;
 
 export function resolveRetouchStageModel({
   maskStrokes = [],
-  page,
-  retouchCursor = null,
-  retouchPreview = null,
-  stageSize,
 }: RetouchModelInput): RetouchStageModel {
-  const cursorScaleX = stageSize
-    ? stageSize.width / Math.max(1, page.width)
-    : 1;
-  const cursorScaleY = stageSize
-    ? stageSize.height / Math.max(1, page.height)
-    : 1;
-  const cursorRadius = retouchCursor
-    ? Math.max(3, retouchCursor.radiusPx * Math.min(cursorScaleX, cursorScaleY))
-    : 0;
   return {
-    cursorRadius,
-    cursorScaleX,
-    cursorScaleY,
-    cursorVisible: Boolean(retouchCursor?.point && stageSize),
     maskStrokePaths: maskStrokes
       .map((stroke) => ({
         path: pointsToPath(stroke.points),
         width: Math.max(1, stroke.radiusPx * 2),
       }))
       .filter((stroke) => stroke.path),
-    previewPath: retouchPreview?.points.length
-      ? pointsToPath(retouchPreview.points)
-      : "",
-    previewStrokeWidth: retouchPreview
-      ? Math.max(1, retouchPreview.radiusPx * 2)
-      : 0,
   };
 }
 
 export function resolveStageClassName({
   blockPointerDisabled,
-  cursorVisible,
   regionSelectionActive,
   retouchCursor,
   stageTool,
 }: {
   blockPointerDisabled: boolean;
-  cursorVisible: boolean;
   regionSelectionActive: boolean;
   retouchCursor: ImageStageProps["retouchCursor"];
   stageTool?: ImageStageProps["stageTool"];
@@ -59,7 +31,6 @@ export function resolveStageClassName({
     regionSelectionActive ? "selecting-region" : "",
     blockPointerDisabled ? "editing-mask" : "",
     retouchCursor ? "retouch-tool-enabled" : "",
-    cursorVisible ? "retouch-cursor-active" : "",
     stageTool === "hand" ? "stage-tool-hand" : "",
     stageTool === "block" ? "stage-tool-block" : "",
   ]
