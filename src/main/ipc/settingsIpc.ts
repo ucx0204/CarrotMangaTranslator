@@ -17,6 +17,7 @@ import type { IpcContext } from "./context";
 import { handleModelSettingsTest } from "./settingsModelTestIpc";
 import { trustedHandleContract } from "./trustedIpc";
 import { getMainLocale, setMainLocale, tMain } from "./localization";
+import { discoverApiModels } from "../apiModelDiscovery";
 
 export function registerSettingsIpc(context: IpcContext): void {
   trustedHandleContract(context, settingsIpcContracts.getUiLocale, async () =>
@@ -67,6 +68,11 @@ export function registerSettingsIpc(context: IpcContext): void {
         providedTestId,
       );
     },
+  );
+  trustedHandleContract(
+    context,
+    settingsIpcContracts.discoverApiModels,
+    async (_event, request) => discoverApiModels(request),
   );
 }
 

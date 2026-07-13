@@ -5,8 +5,10 @@
  *   apiCustomHeadersJson?: unknown;
  *   apiExtraBodyJson?: unknown;
  *   apiKey?: unknown;
+ *   apiKeyMaxAttempts?: unknown;
  *   apiModel?: unknown;
  *   apiReasoningEffort?: unknown;
+ *   apiRetryDelaySeconds?: unknown;
  *   apiTemperature?: unknown;
  *   apiTopK?: unknown;
  *   apiTopP?: unknown;
@@ -26,6 +28,11 @@
  * }} ModelConfigOptions
  */
 const path = require("node:path");
+const {
+  resolveApiKeyMaxAttempts,
+  resolveApiKeys,
+  resolveApiRetryDelaySeconds,
+} = require("./simple-page-api-key-config.cjs");
 
 const {
   DEFAULT_API_BASE_URL,
@@ -173,23 +180,28 @@ function resolveConfiguredApiModel(
 function resolveConfiguredApiKey(
   options = /** @type {ModelConfigOptions} */ ({}),
 ) {
-  const explicitApiKey = String(
-    process.env.MANGA_TRANSLATOR_API_KEY ?? "",
-  ).trim();
-  if (explicitApiKey) {
-    return explicitApiKey;
-  }
+  return resolveConfiguredApiKeys(options)[0] ?? "";
+}
 
-  const configuredApiKey = String(options.apiKey ?? "").trim();
-  if (configuredApiKey) {
-    return configuredApiKey;
-  }
+function resolveConfiguredApiKeys(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
+  return resolveApiKeys(
+    options,
+    isOfficialOpenAiApiBaseUrl(resolveConfiguredApiBaseUrl(options)),
+  );
+}
 
-  if (isOfficialOpenAiApiBaseUrl(resolveConfiguredApiBaseUrl(options))) {
-    return String(process.env.OPENAI_API_KEY ?? "").trim();
-  }
+function resolveConfiguredApiKeyMaxAttempts(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
+  return resolveApiKeyMaxAttempts(options);
+}
 
-  return "";
+function resolveConfiguredApiRetryDelaySeconds(
+  options = /** @type {ModelConfigOptions} */ ({}),
+) {
+  return resolveApiRetryDelaySeconds(options);
 }
 
 function resolveConfiguredApiTemperature(
@@ -428,8 +440,11 @@ module.exports = {
   resolveConfiguredApiCustomHeadersJson,
   resolveConfiguredApiExtraBodyJson,
   resolveConfiguredApiKey,
+  resolveConfiguredApiKeyMaxAttempts,
+  resolveConfiguredApiKeys,
   resolveConfiguredApiModel,
   resolveConfiguredApiReasoningEffort,
+  resolveConfiguredApiRetryDelaySeconds,
   resolveConfiguredApiTemperature,
   resolveConfiguredApiTopK,
   resolveConfiguredApiTopP,

@@ -47,6 +47,8 @@ export function buildSettingsFromDraft({
     apiBaseUrl: draft.normalizedApiBaseUrl ?? initialSettings.api.baseUrl,
     apiModel: draft.trimmedApiModel,
     apiKey: draft.trimmedApiKey,
+    apiKeyMaxAttempts: draft.parsedApiKeyMaxAttempts,
+    apiRetryDelaySeconds: draft.parsedApiRetryDelaySeconds,
     apiTemperature: draft.parsedApiTemperature.value,
     apiTopP: draft.parsedApiTopP.value,
     apiTopK: draft.parsedApiTopK.value,

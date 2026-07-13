@@ -5,7 +5,7 @@ import type {
   AppSettings,
   ModelProvider,
 } from "../../../../shared/settingsTypes";
-import { mangaGateway } from "../../api/mangaGateway";
+import { settingsGateway } from "./settingsGateway";
 import {
   buildTestDetail,
   formatModelTestProgressLine,
@@ -99,7 +99,7 @@ function subscribeModelTestProgress({
   setTestState: SettingsTestStateController["setTestState"];
   testId: string;
 }): () => void {
-  return mangaGateway.onModelTestEvent((event) => {
+  return settingsGateway.onModelTestEvent((event) => {
     if (event.id !== testId) {
       return;
     }
@@ -129,7 +129,7 @@ async function runModelTestRequest({
   testId: string;
   t: TFunction<"components">;
 }): Promise<void> {
-  const result = await mangaGateway.testModelSettings(nextSettings, testId);
+  const result = await settingsGateway.testModelSettings(nextSettings, testId);
   appendTestLogLine(
     result.ok ? t("settings.test.log.success") : t("settings.test.log.failure"),
   );

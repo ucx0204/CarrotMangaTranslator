@@ -771,12 +771,37 @@
       "oauthPort": "openai-oauth 連接埠"
     },
     "api": {
+      "providerTemplate": "API 提供者快速設定",
+      "providers": {
+        "custom": "手動設定",
+        "nvidiaNim": "NVIDIA NIM",
+        "googleAiStudio": "Google AI Studio",
+        "googleVertex": "Google Vertex AI",
+        "openRouter": "OpenRouter"
+      },
+      "providerHintCustom": "可在下方直接輸入 Base URL 和模型 ID，也支援私有或自行託管的 OpenAI 相容 API。",
+      "providerHintVerified": "只載入目前可驗證支援圖片輸入的模型。清單中沒有的模型 ID 仍可在下方手動輸入。",
+      "vertexProject": "Google Cloud 專案 ID",
+      "vertexLocation": "Vertex 區域",
+      "vertexAccessToken": "OAuth 存取權杖（每行一個）",
+      "discoveredModel": "已驗證的圖片輸入模型",
+      "chooseModel": "選擇模型…",
+      "loadModels": "載入模型",
+      "loadingModels": "正在驗證…",
+      "modelLoadError": "無法載入模型：{{message}}",
+      "modelLoadSuccess": "已檢查 {{checked}} 個模型，找到 {{count}} 個已驗證的圖片輸入模型。為安全起見，已排除 {{excluded}} 個無法驗證的模型。",
       "baseUrl": "API Base URL",
       "model": "API 模型",
       "key": "API金鑰",
-      "keyPlaceholder": "輸入 API 金鑰",
+      "keyPlaceholder": "每行輸入一個 API 金鑰",
+      "keyDescription": "空白行與重複金鑰會被忽略。目前已設定 {{count}} 個，金鑰會以純文字儲存在此電腦的 settings.json。",
       "showKey": "顯示 API 金鑰",
       "hideKey": "隱藏 API 金鑰",
+      "openKeyPage": "開啟 API 金鑰頁面",
+      "openVertexAuth": "開啟 Vertex 驗證指南",
+      "keyMaxAttempts": "每個金鑰的最大嘗試次數",
+      "retryDelaySeconds": "重試等待時間（秒）",
+      "retryDescription": "發生可重試失敗時會切換到下一行金鑰。應用程式會依序使用所有金鑰後再回到第一個，而且單次請求不會超過每個金鑰的設定次數。",
       "advanced": {
         "title": "進階 API 設定",
         "description": "選填。留空的值不會傳送。",
@@ -929,7 +954,8 @@
       "apiJsonInvalid": "API JSON 設定必須是有效的 JSON 物件。",
       "apiJsonObject": "API JSON 設定必須是物件。",
       "customHeaderBlocked": "{{name}}標頭不能在 Custom headers 中覆寫。",
-      "customHeaderValue": "Custom header 值只能是字串、數字或布林值。"
+      "customHeaderValue": "Custom header 值只能是字串、數字或布林值。",
+      "apiKeyCount": "最多可輸入 {{max}} 個 API 金鑰。"
     }
   }
 }

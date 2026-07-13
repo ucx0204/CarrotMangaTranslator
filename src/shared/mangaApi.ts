@@ -54,6 +54,11 @@ import type {
 } from "./importTypes";
 import type { ChapterStoryMemory, WorkStyleGuide } from "./workContextTypes";
 import type { AppSettings, UiLocale } from "./settingsTypes";
+import type {
+  ApiModelDiscoveryRequest,
+  ApiModelDiscoveryResult,
+  DiscoverableApiProviderId,
+} from "./apiProviderPresets";
 
 export type MangaApi = {
   previewImagesImport: () => Promise<ImportPreviewSession | null>;
@@ -123,6 +128,12 @@ export type MangaApi = {
     settings: AppSettings,
     testId?: string,
   ) => Promise<ModelTestResult>;
+  discoverApiModels: (
+    request: ApiModelDiscoveryRequest,
+  ) => Promise<ApiModelDiscoveryResult>;
+  openApiProviderPage: (
+    provider: DiscoverableApiProviderId,
+  ) => Promise<{ opened: boolean; url: string }>;
   getLogPath: () => Promise<string>;
   openLogFolder: () => Promise<unknown>;
   writeLog: (

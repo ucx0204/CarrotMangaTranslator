@@ -24,13 +24,18 @@ const { createDetailedError } = require("./model-runtime-services.cjs");
 const {
   createEmptyOutputError,
   createHttpFailureError,
+  createModelTransportError,
   truncateSensitiveText,
 } = require("./model-http-errors.cjs");
+const { runWithApiKeyRetry } = require("./api-key-retry.cjs");
 const {
   readCodexResponsesStream,
   readResponseText,
 } = require("./model-response-readers.cjs");
 const { buildChatRequestBody } = require("./request-bodies.cjs");
+
+const VISION_PROBE_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
 /**
  * @param {ModelServer} server
@@ -46,17 +51,25 @@ async function testModelReply(server, options) {
   if (!isOpenAIApiProvider(options)) {
     await applyLocalForbiddenTokenBias(server, options, requestBody);
   }
-  const response = await sendProbeRequest(server, options, requestBody);
-  const rawText = await readResponseText(response, {}, options);
-  if (!response.ok) {
-    throw createHttpFailureError(options, {}, response, rawText);
-  }
+  const outputText = await runWithApiKeyRetry(options, async (apiKey) => {
+    const response = await sendProbeRequest(
+      server,
+      options,
+      requestBody,
+      apiKey,
+    );
+    const rawText = await readResponseText(response, {}, options);
+    if (!response.ok) {
+      throw createHttpFailureError(options, {}, response, rawText);
+    }
 
-  const parsed = parseProbeResponse(rawText, options);
-  const outputText = extractProbeOutput(parsed);
-  if (!outputText) {
-    throw createEmptyOutputError(parsed, rawText, {}, options);
-  }
+    const parsed = parseProbeResponse(rawText, options);
+    const output = extractProbeOutput(parsed);
+    if (!output) {
+      throw createEmptyOutputError(parsed, rawText, {}, options);
+    }
+    return output;
+  });
   return { outputText, launchTarget: inspectModelLaunch(options) };
 }
 
@@ -64,11 +77,25 @@ function buildProbeMessages() {
   return [
     {
       role: "system",
-      content: [{ type: "text", text: "Reply in one short sentence." }],
+      content: [
+        {
+          type: "text",
+          text: "Confirm that you can inspect the attached image. Reply in one short sentence.",
+        },
+      ],
     },
     {
       role: "user",
-      content: [{ type: "text", text: "Say 'model test ok'." }],
+      content: [
+        {
+          type: "image_url",
+          image_url: { url: VISION_PROBE_DATA_URL },
+        },
+        {
+          type: "text",
+          text: "Inspect this 1x1 PNG, then say 'model test ok'.",
+        },
+      ],
     },
   ];
 }
@@ -77,17 +104,18 @@ function buildProbeMessages() {
  * @param {ModelServer} server
  * @param {TranslationRequestOptions} options
  * @param {Record<string, unknown>} requestBody
+ * @param {string | undefined} apiKey
  */
-async function sendProbeRequest(server, options, requestBody) {
+async function sendProbeRequest(server, options, requestBody, apiKey) {
   try {
     return await fetch(`${server.baseUrl}/chat/completions`, {
       method: "POST",
-      headers: buildChatRequestHeaders(options),
+      headers: buildChatRequestHeaders(options, apiKey),
       body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(30000),
+      signal: createProbeAbortSignal(options.abortSignal),
     });
   } catch (error) {
-    throw createDetailedError(
+    throw createModelTransportError(
       "모델 테스트 요청을 보내지 못했습니다.",
       { requestBody: { ...requestBody, messages: requestBody.messages } },
       error,
@@ -183,15 +211,21 @@ async function sendCodexProbeRequest(server, options, requestBody) {
       method: "POST",
       headers: buildChatRequestHeaders(options),
       body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(30000),
+      signal: createProbeAbortSignal(options.abortSignal),
     });
   } catch (error) {
-    throw createDetailedError(
+    throw createModelTransportError(
       "모델 테스트 요청을 보내지 못했습니다.",
       { requestBody },
       error,
     );
   }
+}
+
+/** @param {AbortSignal | null | undefined} signal */
+function createProbeAbortSignal(signal) {
+  const timeoutSignal = AbortSignal.timeout(30000);
+  return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 }
 
 module.exports = {

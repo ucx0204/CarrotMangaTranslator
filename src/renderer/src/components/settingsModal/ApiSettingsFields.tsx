@@ -1,16 +1,18 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { ApiReasoningEffort } from "../../../../shared/settingsTypes";
-import { EyeIcon, EyeOffIcon, IconButton } from "../ui";
 import { API_REASONING_OPTIONS } from "../settingsOptions";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
+import { ApiProviderConnectionFields } from "./ApiProviderConnectionFields";
 
-type ApiSettingsFieldsProps = Pick<
+export type ApiSettingsFieldsProps = Pick<
   EngineSettingsPanelProps,
   | "apiBaseUrl"
   | "apiCustomHeadersJson"
   | "apiExtraBodyJson"
   | "apiKey"
+  | "apiKeyMaxAttempts"
+  | "apiRetryDelaySeconds"
   | "apiModel"
   | "apiReasoningEffort"
   | "apiTemperature"
@@ -22,6 +24,8 @@ type ApiSettingsFieldsProps = Pick<
   | "setApiCustomHeadersJson"
   | "setApiExtraBodyJson"
   | "setApiKey"
+  | "setApiKeyMaxAttempts"
+  | "setApiRetryDelaySeconds"
   | "setApiModel"
   | "setApiReasoningEffort"
   | "setApiTemperature"
@@ -33,96 +37,10 @@ type ApiSettingsFieldsProps = Pick<
 export function ApiSettingsFields(
   props: ApiSettingsFieldsProps,
 ): React.JSX.Element {
-  const [showApiKey, setShowApiKey] = React.useState(false);
   return (
     <>
-      <ApiConnectionFields
-        {...props}
-        showApiKey={showApiKey}
-        setShowApiKey={setShowApiKey}
-      />
+      <ApiProviderConnectionFields {...props} />
       <ApiAdvancedRequestFields {...props} />
-    </>
-  );
-}
-
-function ApiConnectionFields({
-  apiBaseUrl,
-  apiKey,
-  apiModel,
-  clearTestState,
-  controlsBusy,
-  setApiBaseUrl,
-  setApiKey,
-  setApiModel,
-  setShowApiKey,
-  showApiKey,
-  submit,
-}: ApiSettingsFieldsProps & {
-  showApiKey: boolean;
-  setShowApiKey: React.Dispatch<React.SetStateAction<boolean>>;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <>
-      <label>
-        {t("settings.api.baseUrl")}
-        <input
-          value={apiBaseUrl}
-          disabled={controlsBusy}
-          onChange={(event) => {
-            clearTestState();
-            setApiBaseUrl(event.target.value);
-          }}
-          placeholder="https://api.openai.com/v1"
-          onKeyDown={(event) => {
-            if (event.key === "Enter") submit();
-          }}
-        />
-      </label>
-      <label>
-        {t("settings.api.model")}
-        <input
-          value={apiModel}
-          disabled={controlsBusy}
-          onChange={(event) => {
-            clearTestState();
-            setApiModel(event.target.value);
-          }}
-          placeholder="gpt-5.5"
-          onKeyDown={(event) => {
-            if (event.key === "Enter") submit();
-          }}
-        />
-      </label>
-      <label>
-        {t("settings.api.key")}
-        <div className="settings-file-row">
-          <input
-            type={showApiKey ? "text" : "password"}
-            value={apiKey}
-            disabled={controlsBusy}
-            onChange={(event) => {
-              clearTestState();
-              setApiKey(event.target.value);
-            }}
-            placeholder={t("settings.api.keyPlaceholder")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") submit();
-            }}
-          />
-          <IconButton
-            label={
-              showApiKey ? t("settings.api.hideKey") : t("settings.api.showKey")
-            }
-            aria-pressed={showApiKey}
-            disabled={controlsBusy}
-            onClick={() => setShowApiKey((value) => !value)}
-          >
-            {showApiKey ? <EyeOffIcon /> : <EyeIcon />}
-          </IconButton>
-        </div>
-      </label>
     </>
   );
 }

@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { mangaGateway } from "../../api/mangaGateway";
+import { settingsGateway } from "./settingsGateway";
 
 export function OcrHardwareContextNote({
   usesAmdOcrContext,
@@ -59,7 +59,7 @@ export function AmdHipSdkDownloadButton(): React.JSX.Element {
       type="button"
       className="settings-external-link"
       onClick={() => {
-        void mangaGateway.openAmdHipSdkDownload().catch((error) => {
+        void settingsGateway.openAmdHipSdkDownload().catch((error) => {
           console.error("Failed to open AMD HIP SDK download page", error);
         });
       }}

@@ -9,6 +9,7 @@ const {
   isOpenAIApiProvider,
   resolveProviderDisplayName,
 } = require("../simple-page-model-config.cjs");
+const { parseApiKeyLines } = require("../simple-page-api-key-config.cjs");
 const {
   extractModelOutputFailure,
 } = require("../simple-page-response-text.cjs");
@@ -29,7 +30,12 @@ const {
  * @returns {Error}
  */
 function createHttpFailureError(options, requestSummary, response, rawText) {
-  const nonRetriable = isNonRetriableHttpStatus(response.status);
+  const retryableCredentialFailure = isApiKeyCredentialFailure(
+    response.status,
+    rawText,
+  );
+  const nonRetriable =
+    isNonRetriableHttpStatus(response.status) && !retryableCredentialFailure;
   const message = buildHttpFailureMessage(
     options,
     response.status,
@@ -40,6 +46,7 @@ function createHttpFailureError(options, requestSummary, response, rawText) {
     status: response.status,
     statusText: response.statusText,
     rawTextPreview: truncateSensitiveText(rawText, options, 4000),
+    ...(retryableCredentialFailure ? { apiKeyRetryable: true } : {}),
     ...(nonRetriable
       ? { nonRetriable: true, failureCategory: "model-request" }
       : {}),
@@ -78,11 +85,111 @@ function isNonRetriableHttpStatus(status) {
   return (
     status >= 400 &&
     status < 500 &&
+    status !== 402 &&
     status !== 408 &&
     status !== 409 &&
     status !== 425 &&
     status !== 429
   );
+}
+
+/** @param {number} status */
+function isRetryableApiKeyHttpStatus(status) {
+  return (
+    status === 401 ||
+    status === 402 ||
+    status === 403 ||
+    status === 408 ||
+    status === 409 ||
+    status === 425 ||
+    status === 429 ||
+    (status >= 500 && status < 600)
+  );
+}
+
+/** @param {unknown} error */
+function isRetryableApiKeyError(error) {
+  if (!error || typeof error !== "object" || findAbortError(error)) {
+    return false;
+  }
+  const record = /** @type {Record<string, unknown>} */ (error);
+  if (record.apiKeyRetryable === true) {
+    return true;
+  }
+  if (record.modelTransportError === true) {
+    return true;
+  }
+  if (typeof record.status === "number") {
+    return isRetryableApiKeyHttpStatus(record.status);
+  }
+  return false;
+}
+
+/** @param {number} status @param {unknown} rawText */
+function isApiKeyCredentialFailure(status, rawText) {
+  return (
+    status === 400 &&
+    /API_KEY_INVALID|Please pass a valid API key|API key (?:is not valid|expired|has been reported as leaked)/i.test(
+      String(rawText ?? ""),
+    )
+  );
+}
+
+/** @param {unknown} error */
+function findAbortError(error) {
+  let current = error;
+  const visited = new Set();
+  while (current && typeof current === "object" && !visited.has(current)) {
+    visited.add(current);
+    const record = /** @type {Record<string, unknown>} */ (current);
+    if (record.name === "AbortError") {
+      return current;
+    }
+    current = record.cause;
+  }
+  return null;
+}
+
+/**
+ * @param {string} message
+ * @param {Record<string, unknown>} detail
+ * @param {unknown} cause
+ */
+function createModelTransportError(message, detail, cause) {
+  const abortError = findAbortError(cause);
+  if (abortError) {
+    return abortError;
+  }
+  return createDetailedError(
+    message,
+    {
+      ...detail,
+      failureCategory: "model-request",
+      modelTransportError: true,
+    },
+    cause,
+  );
+}
+
+/**
+ * @param {unknown} error
+ * @param {number} attemptCount
+ * @param {number} keyCount
+ */
+function markApiKeyRetriesExhausted(error, attemptCount, keyCount) {
+  const target =
+    error && typeof error === "object"
+      ? /** @type {Error & Record<string, unknown>} */ (error)
+      : createDetailedError(String(error ?? "API request failed."), {}, error);
+  target.nonRetriable = true;
+  target.failureCategory =
+    typeof target.failureCategory === "string" && target.failureCategory
+      ? target.failureCategory
+      : "model-request";
+  target.apiKeyRetriesExhausted = true;
+  target.apiKeyAttemptCount = attemptCount;
+  target.apiKeyCount = keyCount;
+  return target;
 }
 
 /**
@@ -98,15 +205,41 @@ function truncateSensitiveText(value, options, maxLength) {
  * @param {unknown} value
  * @param {TranslationRequestOptions} options
  */
+function redactSensitivePayload(value, options) {
+  try {
+    const serialized = JSON.stringify(value, (_key, nestedValue) =>
+      typeof nestedValue === "string"
+        ? redactConfiguredApiKeys(nestedValue, options)
+        : nestedValue,
+    );
+    return serialized === undefined ? null : JSON.parse(serialized);
+  } catch (_error) {
+    return "[redacted-unserializable-response]";
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @param {TranslationRequestOptions} options
+ */
 function redactConfiguredApiKeys(value, options) {
   let text = String(value ?? "");
   const keys = collectSensitiveValues(options)
-    .map((key) => String(key ?? "").trim())
-    .filter((key) => key.length >= 6);
+    .flatMap((key) => parseSensitiveValues(key))
+    .filter(Boolean);
   for (const key of new Set(keys)) {
     text = text.split(key).join("[redacted-api-key]");
   }
   return text;
+}
+
+/** @param {unknown} value */
+function parseSensitiveValues(value) {
+  if (typeof value !== "string") {
+    const text = String(value ?? "").trim();
+    return text ? [text] : [];
+  }
+  return parseApiKeyLines(value);
 }
 
 /** @param {TranslationRequestOptions} options */
@@ -220,14 +353,14 @@ function createEmptyOutputError(parsed, rawText, requestSummary, options) {
     return createDetailedError("Model returned an empty response.", {
       requestSummary,
       rawTextPreview: truncateSensitiveText(rawText, options, 4000),
-      rawResponse: parsed,
+      rawResponse: redactSensitivePayload(parsed, options),
       failureCategory: "empty-model-response",
     });
   }
   return createDetailedError(failure.message, {
     requestSummary,
     rawTextPreview: truncateSensitiveText(rawText, options, 4000),
-    rawResponse: parsed,
+    rawResponse: redactSensitivePayload(parsed, options),
     failureCategory: failure.failureCategory,
     ...(failure.nonRetriable ? { nonRetriable: true } : {}),
   });
@@ -237,5 +370,10 @@ module.exports = {
   buildHttpFailureMessage,
   createEmptyOutputError,
   createHttpFailureError,
+  createModelTransportError,
+  findAbortError,
+  isRetryableApiKeyError,
+  isRetryableApiKeyHttpStatus,
+  markApiKeyRetriesExhausted,
   truncateSensitiveText,
 };

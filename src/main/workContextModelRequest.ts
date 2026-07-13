@@ -16,7 +16,31 @@ type RequestBuildersModule = {
     maxTokens: number,
     resolveRequestModelName: (options: TranslationOptions) => string,
   ) => unknown;
-  buildChatRequestHeaders: (options: TranslationOptions) => HeadersInit;
+  buildChatRequestHeaders: (
+    options: TranslationOptions,
+    apiKeyOverride?: string,
+  ) => HeadersInit;
+};
+
+type ApiKeyRetryModule = {
+  runWithApiKeyRetry: <TResult>(
+    options: TranslationOptions,
+    requestAttempt: (apiKey: string | undefined) => Promise<TResult>,
+  ) => Promise<TResult>;
+};
+
+type ModelHttpErrorsModule = {
+  createHttpFailureError: (
+    options: TranslationOptions,
+    requestSummary: Record<string, unknown>,
+    response: Response,
+    rawText: string,
+  ) => Error;
+  createModelTransportError: (
+    message: string,
+    detail: Record<string, unknown>,
+    cause: unknown,
+  ) => Error;
 };
 
 type RequestSummaryModule = {
@@ -41,6 +65,8 @@ type LogitBiasModule = {
 };
 
 let cachedRequestBuilders: RequestBuildersModule | null = null;
+let cachedApiKeyRetry: ApiKeyRetryModule | null = null;
+let cachedModelHttpErrors: ModelHttpErrorsModule | null = null;
 let cachedRequestSummary: RequestSummaryModule | null = null;
 let cachedResponseText: ResponseTextModule | null = null;
 let cachedLogitBias: LogitBiasModule | null = null;
@@ -113,21 +139,24 @@ async function requestChatText(
       body,
     );
   }
-  const response = await fetch(`${endpoint.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: builders.buildChatRequestHeaders(options),
-    body: JSON.stringify(body),
-    signal: options.abortSignal,
-  });
-  const rawText = await response.text();
-  if (!response.ok) {
-    throw makeModelError(
-      tMain("workContext.errors.requestFailed"),
-      response,
-      rawText,
+  return getApiKeyRetryModule().runWithApiKeyRetry(options, async (apiKey) => {
+    const response = await sendWorkContextRequest(
+      `${endpoint.baseUrl}/chat/completions`,
+      options,
+      builders.buildChatRequestHeaders(options, apiKey),
+      body,
     );
-  }
-  return extractChatOutput(rawText);
+    const rawText = await readWorkContextResponseText(response);
+    if (!response.ok) {
+      throw getModelHttpErrorsModule().createHttpFailureError(
+        options,
+        {},
+        response,
+        rawText,
+      );
+    }
+    return extractChatOutput(rawText);
+  });
 }
 
 async function requestCodexText(
@@ -153,16 +182,17 @@ async function requestCodexText(
     stream: true,
     store: false,
   };
-  const response = await fetch(`${endpoint.baseUrl}/responses`, {
-    method: "POST",
-    headers: builders.buildChatRequestHeaders(options),
-    body: JSON.stringify(body),
-    signal: options.abortSignal,
-  });
-  const rawText = await response.text();
+  const response = await sendWorkContextRequest(
+    `${endpoint.baseUrl}/responses`,
+    options,
+    builders.buildChatRequestHeaders(options),
+    body,
+  );
+  const rawText = await readWorkContextResponseText(response);
   if (!response.ok) {
-    throw makeModelError(
-      tMain("workContext.errors.requestFailed"),
+    throw getModelHttpErrorsModule().createHttpFailureError(
+      options,
+      {},
       response,
       rawText,
     );
@@ -190,6 +220,24 @@ function getRequestBuildersModule(): RequestBuildersModule {
     );
   }
   return cachedRequestBuilders;
+}
+
+function getApiKeyRetryModule(): ApiKeyRetryModule {
+  if (!cachedApiKeyRetry) {
+    cachedApiKeyRetry = requireRuntimeModule<ApiKeyRetryModule>(
+      "transport/api-key-retry.cjs",
+    );
+  }
+  return cachedApiKeyRetry;
+}
+
+function getModelHttpErrorsModule(): ModelHttpErrorsModule {
+  if (!cachedModelHttpErrors) {
+    cachedModelHttpErrors = requireRuntimeModule<ModelHttpErrorsModule>(
+      "transport/model-http-errors.cjs",
+    );
+  }
+  return cachedModelHttpErrors;
 }
 
 function getRequestSummaryModule(): RequestSummaryModule {
@@ -223,13 +271,38 @@ function requireRuntimeModule<TModule>(fileName: string): TModule {
   return require(join(getAppPaths().runtimeDir, fileName)) as TModule;
 }
 
-function makeModelError(
-  message: string,
+async function sendWorkContextRequest(
+  url: string,
+  options: TranslationOptions,
+  headers: HeadersInit,
+  body: unknown,
+): Promise<Response> {
+  try {
+    return await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: options.abortSignal,
+    });
+  } catch (error) {
+    throw getModelHttpErrorsModule().createModelTransportError(
+      tMain("workContext.errors.requestFailed"),
+      {},
+      error,
+    );
+  }
+}
+
+async function readWorkContextResponseText(
   response: Response,
-  rawText: string,
-): Error {
-  const preview = rawText.replace(/\s+/g, " ").slice(0, 1200);
-  return new Error(
-    `${message} (${response.status} ${response.statusText}) ${preview}`,
-  );
+): Promise<string> {
+  try {
+    return await response.text();
+  } catch (error) {
+    throw getModelHttpErrorsModule().createModelTransportError(
+      tMain("workContext.errors.requestFailed"),
+      { status: response.status, statusText: response.statusText },
+      error,
+    );
+  }
 }

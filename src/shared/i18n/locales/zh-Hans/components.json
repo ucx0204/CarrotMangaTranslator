@@ -768,12 +768,37 @@
       "oauthPort": "openai-oauth端口"
     },
     "api": {
+      "providerTemplate": "API提供商快速设置",
+      "providers": {
+        "custom": "手动设置",
+        "nvidiaNim": "NVIDIA NIM",
+        "googleAiStudio": "Google AI Studio",
+        "googleVertex": "Google Vertex AI",
+        "openRouter": "OpenRouter"
+      },
+      "providerHintCustom": "可在下方直接输入Base URL和模型ID，也支持私有或自托管的OpenAI兼容API。",
+      "providerHintVerified": "仅加载当前可验证支持图像输入的模型。列表中没有的模型ID仍可在下方手动输入。",
+      "vertexProject": "Google Cloud项目ID",
+      "vertexLocation": "Vertex区域",
+      "vertexAccessToken": "OAuth访问令牌（每行一个）",
+      "discoveredModel": "已验证的图像输入模型",
+      "chooseModel": "选择模型…",
+      "loadModels": "加载模型",
+      "loadingModels": "正在验证…",
+      "modelLoadError": "无法加载模型：{{message}}",
+      "modelLoadSuccess": "已检查{{checked}}个模型，找到{{count}}个已验证的图像输入模型。为安全起见，已排除{{excluded}}个无法验证的模型。",
       "baseUrl": "API Base URL",
       "model": "API模型",
       "key": "API密钥",
-      "keyPlaceholder": "输入API密钥",
+      "keyPlaceholder": "每行输入一个API密钥",
+      "keyDescription": "空行和重复密钥会被忽略。当前已配置{{count}}个，密钥会以明文保存在此电脑的settings.json中。",
       "showKey": "显示API密钥",
       "hideKey": "隐藏API密钥",
+      "openKeyPage": "打开API密钥页面",
+      "openVertexAuth": "打开Vertex身份验证指南",
+      "keyMaxAttempts": "每个密钥的最大尝试次数",
+      "retryDelaySeconds": "重试等待时间（秒）",
+      "retryDescription": "发生可重试失败时会切换到下一行密钥。应用会依次使用所有密钥后再回到第一个，并且单次请求不会超过每个密钥的设置次数。",
       "advanced": {
         "title": "高级API设置",
         "description": "可选。留空的值不会发送。",
@@ -926,7 +951,8 @@
       "apiJsonInvalid": "API JSON设置必须是有效的JSON对象。",
       "apiJsonObject": "API JSON设置必须是对象。",
       "customHeaderBlocked": "{{name}}标头不能在Custom headers中覆盖。",
-      "customHeaderValue": "Custom header值只能是字符串、数字或布尔值。"
+      "customHeaderValue": "Custom header值只能是字符串、数字或布尔值。",
+      "apiKeyCount": "最多可输入{{max}}个API密钥。"
     }
   }
 }

@@ -205,9 +205,10 @@ function readNonNegativeInteger(value) {
 
 /**
  * @param {RequestOptions} [options]
+ * @param {string | undefined} [apiKeyOverride]
  * @returns {Record<string, string>}
  */
-function buildChatRequestHeaders(options = {}) {
+function buildChatRequestHeaders(options = {}, apiKeyOverride) {
   /** @type {Record<string, string>} */
   const headers = {
     "Content-Type": "application/json",
@@ -216,13 +217,14 @@ function buildChatRequestHeaders(options = {}) {
     return headers;
   }
   if (isOpenAIApiProvider(options)) {
-    const apiKey = resolveConfiguredApiKey(options);
-    if (apiKey) {
-      headers.Authorization = `Bearer ${apiKey}`;
-    }
+    const apiKey =
+      apiKeyOverride === undefined
+        ? resolveConfiguredApiKey(options)
+        : String(apiKeyOverride).trim();
     return {
       ...headers,
       ...resolveConfiguredApiCustomHeaders(options),
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     };
   }
   headers.Authorization = `Bearer ${DEFAULT_API_KEY}`;

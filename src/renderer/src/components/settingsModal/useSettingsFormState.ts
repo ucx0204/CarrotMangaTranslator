@@ -78,6 +78,11 @@ function useSettingsFormSetters(
     setApiBaseUrl: useFormFieldDispatch(setValues, "apiBaseUrl"),
     setApiModel: useFormFieldDispatch(setValues, "apiModel"),
     setApiKey: useFormFieldDispatch(setValues, "apiKey"),
+    setApiKeyMaxAttempts: useFormFieldDispatch(setValues, "apiKeyMaxAttempts"),
+    setApiRetryDelaySeconds: useFormFieldDispatch(
+      setValues,
+      "apiRetryDelaySeconds",
+    ),
     setApiTemperature: useFormFieldDispatch(setValues, "apiTemperature"),
     setApiTopP: useFormFieldDispatch(setValues, "apiTopP"),
     setApiTopK: useFormFieldDispatch(setValues, "apiTopK"),

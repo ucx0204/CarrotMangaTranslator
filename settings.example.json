@@ -17,7 +17,9 @@
   "api": {
     "baseUrl": "https://api.openai.com/v1",
     "model": "gpt-5.5",
-    "apiKey": ""
+    "apiKey": "",
+    "keyMaxAttempts": 5,
+    "retryDelaySeconds": 1
   },
   "ocr": {
     "device": "gpu",

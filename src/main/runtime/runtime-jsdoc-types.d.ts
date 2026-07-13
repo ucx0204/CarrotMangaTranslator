@@ -1,5 +1,8 @@
 export type RuntimeOptions = {
   abortSignal?: AbortSignal | null;
+  apiKey?: string | null;
+  apiKeyMaxAttempts?: number | string | null;
+  apiRetryDelaySeconds?: number | string | null;
   amdRocmTarget?: string | null;
   disableHostRocmTargetDetection?: boolean | null;
   hfEndpoint?: string | null;

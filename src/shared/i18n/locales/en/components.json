@@ -811,12 +811,37 @@
       "oauthPort": "openai-oauth port"
     },
     "api": {
+      "providerTemplate": "Quick API provider setup",
+      "providers": {
+        "custom": "Custom",
+        "nvidiaNim": "NVIDIA NIM",
+        "googleAiStudio": "Google AI Studio",
+        "googleVertex": "Google Vertex AI",
+        "openRouter": "OpenRouter"
+      },
+      "providerHintCustom": "Enter a Base URL and model ID below. Private and self-hosted OpenAI-compatible APIs are supported.",
+      "providerHintVerified": "Loads only current models whose image input support can be verified. You can still type any model ID below.",
+      "vertexProject": "Google Cloud project ID",
+      "vertexLocation": "Vertex region",
+      "vertexAccessToken": "OAuth access tokens (one per line)",
+      "discoveredModel": "Verified image-input model",
+      "chooseModel": "Choose a model…",
+      "loadModels": "Load models",
+      "loadingModels": "Checking…",
+      "modelLoadError": "Could not load models: {{message}}",
+      "modelLoadSuccess": "Checked {{checked}} models and found {{count}} verified image-input models. {{excluded}} unverified models were excluded for safety.",
       "baseUrl": "API base URL",
       "model": "API model",
       "key": "API key",
-      "keyPlaceholder": "Enter API key",
+      "keyPlaceholder": "Enter one API key per line",
+      "keyDescription": "Blank and duplicate keys are ignored. {{count}} keys are configured and stored as plain text in this PC's settings.json.",
       "showKey": "Show API key",
       "hideKey": "Hide API key",
+      "openKeyPage": "Open API key page",
+      "openVertexAuth": "Open Vertex authentication guide",
+      "keyMaxAttempts": "Maximum attempts per key",
+      "retryDelaySeconds": "Retry delay (seconds)",
+      "retryDescription": "After a retryable failure, the next line's key is used. The app cycles through every key before returning to the first and never exceeds this per-key limit for one request.",
       "advanced": {
         "title": "Advanced API settings",
         "description": "Optional. Empty values are not sent.",
@@ -969,7 +994,8 @@
       "apiJsonInvalid": "The API JSON setting must be a valid JSON object.",
       "apiJsonObject": "The API JSON setting must be an object.",
       "customHeaderBlocked": "The {{name}} header cannot be overridden in Custom headers.",
-      "customHeaderValue": "Custom header values may only be strings, numbers, or booleans."
+      "customHeaderValue": "Custom header values may only be strings, numbers, or booleans.",
+      "apiKeyCount": "You can enter up to {{max}} API keys."
     }
   }
 }

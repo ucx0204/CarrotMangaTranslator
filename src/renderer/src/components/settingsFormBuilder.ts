@@ -42,6 +42,8 @@ type BuildSettingsFromFormInput = {
   apiBaseUrl: string;
   apiModel: string;
   apiKey: string;
+  apiKeyMaxAttempts: number;
+  apiRetryDelaySeconds: number;
   apiTemperature: number | null;
   apiTopP: number | null;
   apiTopK: number | null;
@@ -133,6 +135,8 @@ function buildApiSettings(input: BuildSettingsFromFormInput) {
     baseUrl: input.apiBaseUrl || input.initialSettings.api.baseUrl,
     model: input.apiModel || input.initialSettings.api.model,
     ...(input.apiKey ? { apiKey: input.apiKey } : {}),
+    keyMaxAttempts: input.apiKeyMaxAttempts,
+    retryDelaySeconds: input.apiRetryDelaySeconds,
     temperature: input.apiTemperature,
     topP: input.apiTopP,
     topK: input.apiTopK,

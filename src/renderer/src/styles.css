@@ -4572,6 +4572,53 @@ kbd {
   align-items: center;
 }
 
+.settings-api-template {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--bg-sunken) 72%, transparent);
+}
+
+.settings-model-discovery-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.settings-model-discovery-row > button {
+  min-height: var(--ctl-h);
+  white-space: nowrap;
+}
+
+.settings-api-key-row {
+  align-items: start;
+}
+
+.settings-api-key-textarea {
+  min-height: 86px;
+  resize: vertical;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.settings-api-key-textarea.masked {
+  -webkit-text-security: disc;
+}
+
+.settings-api-status {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  overflow-wrap: anywhere;
+}
+
+.settings-api-status.error {
+  color: var(--danger-text, #ffb4ab);
+}
+
 .settings-advanced {
   display: grid;
   gap: 12px;
@@ -4742,6 +4789,7 @@ kbd {
   .settings-preset-group,
   .settings-advanced-grid,
   .settings-file-row,
+  .settings-model-discovery-row,
   .source-choice-grid,
   .share-target-grid,
   .share-merge-grid {

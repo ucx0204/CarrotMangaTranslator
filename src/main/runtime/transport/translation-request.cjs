@@ -47,8 +47,10 @@ const {
 const {
   createEmptyOutputError,
   createHttpFailureError,
+  createModelTransportError,
   truncateSensitiveText,
 } = require("./model-http-errors.cjs");
+const { runWithApiKeyRetry } = require("./api-key-retry.cjs");
 const {
   readCodexResponsesStream,
   readResponseText,
@@ -255,18 +257,21 @@ async function requestChatTranslation(server, prepared, requestStartedAt) {
       requestBody,
     );
   }
-  const response = await sendChatCompletion(
-    server,
-    promptOptions,
-    requestBody,
-    requestSummary,
-  );
-  return readChatCompletionResult(
-    response,
-    promptOptions,
-    requestSummary,
-    requestStartedAt,
-  );
+  return runWithApiKeyRetry(promptOptions, async (apiKey) => {
+    const response = await sendChatCompletion(
+      server,
+      promptOptions,
+      requestBody,
+      requestSummary,
+      apiKey,
+    );
+    return readChatCompletionResult(
+      response,
+      promptOptions,
+      requestSummary,
+      requestStartedAt,
+    );
+  });
 }
 
 /**
@@ -274,12 +279,14 @@ async function requestChatTranslation(server, prepared, requestStartedAt) {
  * @param {PromptRequestOptions} options
  * @param {Record<string, unknown>} requestBody
  * @param {RequestSummary} requestSummary
+ * @param {string | undefined} apiKey
  */
 async function sendChatCompletion(
   server,
   options,
   requestBody,
   requestSummary,
+  apiKey,
 ) {
   emitRuntimeProgress(
     options,
@@ -290,12 +297,12 @@ async function sendChatCompletion(
   try {
     return await fetch(`${server.baseUrl}/chat/completions`, {
       method: "POST",
-      headers: buildChatRequestHeaders(options),
+      headers: buildChatRequestHeaders(options, apiKey),
       body: JSON.stringify(requestBody),
       signal: options.abortSignal,
     });
   } catch (error) {
-    throw createDetailedError(
+    throw createModelTransportError(
       `${resolveProviderDisplayName(options)} request transport failed.`,
       { requestSummary },
       error,
@@ -375,7 +382,7 @@ async function requestCodexResponsesText(
       signal: options.abortSignal,
     });
   } catch (error) {
-    throw createDetailedError(
+    throw createModelTransportError(
       `${resolveProviderDisplayName(options)} request transport failed.`,
       { requestSummary },
       error,

@@ -801,12 +801,37 @@
       "oauthPort": "openai-oauthポート"
     },
     "api": {
+      "providerTemplate": "APIプロバイダー簡単設定",
+      "providers": {
+        "custom": "手動設定",
+        "nvidiaNim": "NVIDIA NIM",
+        "googleAiStudio": "Google AI Studio",
+        "googleVertex": "Google Vertex AI",
+        "openRouter": "OpenRouter"
+      },
+      "providerHintCustom": "下のBase URLとモデルIDを直接入力できます。プライベートまたはセルフホストのOpenAI互換APIにも対応します。",
+      "providerHintVerified": "現在の一覧から画像入力対応を確認できたモデルだけを読み込みます。一覧にないモデルIDも下で直接入力できます。",
+      "vertexProject": "Google CloudプロジェクトID",
+      "vertexLocation": "Vertexリージョン",
+      "vertexAccessToken": "OAuthアクセストークン（1行に1つ）",
+      "discoveredModel": "確認済み画像入力モデル",
+      "chooseModel": "モデルを選択…",
+      "loadModels": "モデルを読み込む",
+      "loadingModels": "確認中…",
+      "modelLoadError": "モデルを読み込めませんでした: {{message}}",
+      "modelLoadSuccess": "{{checked}}件を確認し、画像入力モデル{{count}}件を見つけました。確認できなかった{{excluded}}件は安全のため除外しました。",
       "baseUrl": "API Base URL",
       "model": "APIモデル",
       "key": "APIキー",
-      "keyPlaceholder": "APIキーを入力",
+      "keyPlaceholder": "1行にAPIキーを1つ入力",
+      "keyDescription": "空行と重複キーは無視します。現在{{count}}個が設定され、キーはこのPCのsettings.jsonに平文で保存されます。",
       "showKey": "APIキーを表示",
       "hideKey": "APIキーを隠す",
+      "openKeyPage": "APIキー発行ページを開く",
+      "openVertexAuth": "Vertex認証設定ガイドを開く",
+      "keyMaxAttempts": "キーごとの最大試行回数",
+      "retryDelaySeconds": "再試行の待機時間（秒）",
+      "retryDescription": "再試行可能な失敗時は次の行のキーへ切り替えます。すべてのキーを順番に使ってから先頭へ戻り、1回のリクエストで各キーを設定回数以上は試しません。",
       "advanced": {
         "title": "API詳細設定",
         "description": "任意項目です。空欄の値は送信しません。",
@@ -959,7 +984,8 @@
       "apiJsonInvalid": "API JSON設定には有効なJSONオブジェクトを入力してください。",
       "apiJsonObject": "API JSON設定はオブジェクトである必要があります。",
       "customHeaderBlocked": "{{name}}ヘッダーはCustom headersで上書きできません。",
-      "customHeaderValue": "Custom headerの値には文字列、数値、booleanのみ使用できます。"
+      "customHeaderValue": "Custom headerの値には文字列、数値、booleanのみ使用できます。",
+      "apiKeyCount": "APIキーは最大{{max}}個まで入力できます。"
     }
   }
 }

@@ -12,6 +12,8 @@ import type { ModelPresetId } from "../settingsOptions";
 export type EngineSettingsPanelProps = {
   apiBaseUrl: string;
   apiKey: string;
+  apiKeyMaxAttempts: string;
+  apiRetryDelaySeconds: string;
   apiModel: string;
   apiTemperature: string;
   apiTopP: string;
@@ -65,6 +67,8 @@ export type EngineSettingsPanelProps = {
   setApiCustomHeadersJson: React.Dispatch<React.SetStateAction<string>>;
   setApiExtraBodyJson: React.Dispatch<React.SetStateAction<string>>;
   setApiKey: React.Dispatch<React.SetStateAction<string>>;
+  setApiKeyMaxAttempts: React.Dispatch<React.SetStateAction<string>>;
+  setApiRetryDelaySeconds: React.Dispatch<React.SetStateAction<string>>;
   setApiModel: React.Dispatch<React.SetStateAction<string>>;
   setApiReasoningEffort: React.Dispatch<
     React.SetStateAction<ApiReasoningEffort | "">

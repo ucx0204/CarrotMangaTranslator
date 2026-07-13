@@ -6,6 +6,7 @@ import {
 import { getAppPaths, type AppPaths } from "../appPaths";
 import type { AppSettings } from "../../shared/settingsTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
+import { parseApiKeys } from "../../shared/apiKeySettings";
 import { tMain } from "./localization";
 
 export function buildBaseOptions(
@@ -108,18 +109,7 @@ export function summarizeTranslationOptions(
     modelFile: options.modelFile,
     mmprojRepo: options.mmprojRepo,
     mmprojFile: options.mmprojFile,
-    codexModel: options.codexModel,
-    codexReasoningEffort: options.codexReasoningEffort,
-    codexOauthPort: options.codexOauthPort,
-    apiBaseUrl: options.apiBaseUrl,
-    apiModel: options.apiModel,
-    apiKeyConfigured: Boolean(options.apiKey),
-    apiTemperature: options.apiTemperature,
-    apiTopP: options.apiTopP,
-    apiTopK: options.apiTopK,
-    apiReasoningEffort: options.apiReasoningEffort,
-    apiExtraBodyConfigured: Boolean(options.apiExtraBodyJson),
-    apiCustomHeadersConfigured: Boolean(options.apiCustomHeadersJson),
+    ...summarizeRemoteModelOptions(options),
     ocrDevice: options.ocrDevice,
     ocrGpuBackend: options.ocrGpuBackend,
     ocrGpuCudaTag: options.ocrGpuCudaTag,
@@ -136,6 +126,28 @@ export function summarizeTranslationOptions(
     hfHubCacheDir: options.hfHubCacheDir ?? null,
     workContext: summarizeWorkContext(options),
     workContextBudget: summarizeWorkContextBudget(options),
+  };
+}
+
+function summarizeRemoteModelOptions(
+  options: TranslationOptions,
+): Record<string, unknown> {
+  return {
+    codexModel: options.codexModel,
+    codexReasoningEffort: options.codexReasoningEffort,
+    codexOauthPort: options.codexOauthPort,
+    apiBaseUrl: options.apiBaseUrl,
+    apiModel: options.apiModel,
+    apiKeyConfigured: Boolean(options.apiKey),
+    apiKeyCount: parseApiKeys(options.apiKey).length,
+    apiKeyMaxAttempts: options.apiKeyMaxAttempts,
+    apiRetryDelaySeconds: options.apiRetryDelaySeconds,
+    apiTemperature: options.apiTemperature,
+    apiTopP: options.apiTopP,
+    apiTopK: options.apiTopK,
+    apiReasoningEffort: options.apiReasoningEffort,
+    apiExtraBodyConfigured: Boolean(options.apiExtraBodyJson),
+    apiCustomHeadersConfigured: Boolean(options.apiCustomHeadersJson),
   };
 }
 

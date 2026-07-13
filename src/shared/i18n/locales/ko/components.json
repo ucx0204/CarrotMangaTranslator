@@ -799,12 +799,37 @@
       "oauthPort": "openai-oauth 포트"
     },
     "api": {
+      "providerTemplate": "API 제공자 빠른 설정",
+      "providers": {
+        "custom": "직접 설정",
+        "nvidiaNim": "NVIDIA NIM",
+        "googleAiStudio": "Google AI Studio",
+        "googleVertex": "Google Vertex AI",
+        "openRouter": "OpenRouter"
+      },
+      "providerHintCustom": "아래 Base URL과 모델 ID를 직접 입력할 수 있습니다. 사설·셀프호스트 OpenAI 호환 API도 사용할 수 있습니다.",
+      "providerHintVerified": "제공자의 현재 목록에서 이미지 입력 지원을 확인할 수 있는 모델만 불러옵니다. 목록에 없어도 아래 모델 ID를 직접 입력할 수 있습니다.",
+      "vertexProject": "Google Cloud 프로젝트 ID",
+      "vertexLocation": "Vertex 리전",
+      "vertexAccessToken": "OAuth 액세스 토큰 (한 줄에 하나)",
+      "discoveredModel": "확인된 이미지 입력 모델",
+      "chooseModel": "모델 선택…",
+      "loadModels": "모델 불러오기",
+      "loadingModels": "확인 중…",
+      "modelLoadError": "모델을 불러오지 못했습니다: {{message}}",
+      "modelLoadSuccess": "{{checked}}개를 확인해 이미지 입력 모델 {{count}}개를 찾았습니다. 확인할 수 없었던 모델 {{excluded}}개는 안전을 위해 제외했습니다.",
       "baseUrl": "API Base URL",
       "model": "API 모델",
       "key": "API 키",
-      "keyPlaceholder": "API 키 입력",
+      "keyPlaceholder": "한 줄에 API 키 하나씩 입력",
+      "keyDescription": "빈 줄과 중복 키는 무시합니다. 현재 {{count}}개가 설정되어 있으며 키는 이 PC의 settings.json에 평문으로 저장됩니다.",
       "showKey": "API 키 표시",
       "hideKey": "API 키 숨기기",
+      "openKeyPage": "API 키 발급 페이지 열기",
+      "openVertexAuth": "Vertex 인증 설정 안내 열기",
+      "keyMaxAttempts": "키별 최대 시도 횟수",
+      "retryDelaySeconds": "재시도 대기 시간 (초)",
+      "retryDescription": "실패하면 다음 줄의 키로 순환합니다. 모든 키를 한 번씩 사용한 뒤 다시 첫 키로 돌아가며, 각 키는 요청당 설정한 횟수까지만 시도합니다.",
       "advanced": {
         "title": "고급 API 설정",
         "description": "선택 사항입니다. 비워 두면 해당 값을 보내지 않습니다.",
@@ -957,7 +982,8 @@
       "apiJsonInvalid": "API JSON 설정은 올바른 객체 JSON이어야 합니다.",
       "apiJsonObject": "API JSON 설정은 객체 JSON이어야 합니다.",
       "customHeaderBlocked": "{{name}} 헤더는 Custom headers에서 덮어쓸 수 없습니다.",
-      "customHeaderValue": "Custom headers 값은 문자열, 숫자, boolean만 허용됩니다."
+      "customHeaderValue": "Custom headers 값은 문자열, 숫자, boolean만 허용됩니다.",
+      "apiKeyCount": "API 키는 최대 {{max}}개까지 입력할 수 있습니다."
     }
   }
 }

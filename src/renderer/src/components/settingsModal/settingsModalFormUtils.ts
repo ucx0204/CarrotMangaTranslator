@@ -8,6 +8,15 @@ import {
   MODEL_PRESETS,
 } from "../settingsOptions";
 import type { SettingsFormValues } from "./settingsModalFormValues";
+import {
+  MAX_API_KEY_MAX_ATTEMPTS,
+  MAX_API_KEYS,
+  MAX_API_RETRY_DELAY_SECONDS,
+  MIN_API_KEY_MAX_ATTEMPTS,
+  MIN_API_RETRY_DELAY_SECONDS,
+  normalizeApiKeysText,
+  parseApiKeys,
+} from "../../../../shared/apiKeySettings";
 
 export { createSettingsFormValues } from "./settingsModalFormValues";
 export type { SettingsFormValues } from "./settingsModalFormValues";
@@ -71,6 +80,17 @@ function resolveApiDraft(values: SettingsFormValues) {
   );
   const parsedApiTopP = parseNullableNumberInput(values.apiTopP, 0, 1);
   const parsedApiTopK = parseNullableIntegerInput(values.apiTopK, 1, 1000);
+  const parsedApiKeyMaxAttempts = parseRequiredIntegerInput(
+    values.apiKeyMaxAttempts,
+    MIN_API_KEY_MAX_ATTEMPTS,
+    MAX_API_KEY_MAX_ATTEMPTS,
+  );
+  const parsedApiRetryDelaySeconds = parseRequiredNumberInput(
+    values.apiRetryDelaySeconds,
+    MIN_API_RETRY_DELAY_SECONDS,
+    MAX_API_RETRY_DELAY_SECONDS,
+  );
+  const apiKeysValidation = validateApiKeysInput(values.apiKey);
   const apiExtraBodyValidation = validateJsonObjectInput(
     values.apiExtraBodyJson,
   );
@@ -81,7 +101,12 @@ function resolveApiDraft(values: SettingsFormValues) {
   return {
     normalizedApiBaseUrl: coerceOpenAiCompatibleBaseUrl(values.apiBaseUrl),
     trimmedApiModel: values.apiModel.trim(),
-    trimmedApiKey: values.apiKey.trim(),
+    trimmedApiKey: normalizeApiKeysText(values.apiKey),
+    parsedApiKeyMaxAttempts: parsedApiKeyMaxAttempts.value,
+    parsedApiRetryDelaySeconds: parsedApiRetryDelaySeconds.value,
+    apiKeyMaxAttemptsValidation: parsedApiKeyMaxAttempts,
+    apiRetryDelaySecondsValidation: parsedApiRetryDelaySeconds,
+    apiKeysValidation,
     parsedApiTemperature,
     parsedApiTopP,
     parsedApiTopK,
@@ -91,7 +116,10 @@ function resolveApiDraft(values: SettingsFormValues) {
     apiAdvancedSettingsValid: resolveApiAdvancedSettingsValid({
       apiCustomHeadersValidation,
       apiExtraBodyValidation,
+      apiKeysValidation,
       parsedApiTemperature,
+      parsedApiKeyMaxAttempts,
+      parsedApiRetryDelaySeconds,
       parsedApiTopK,
       parsedApiTopP,
     }),
@@ -101,13 +129,19 @@ function resolveApiDraft(values: SettingsFormValues) {
 function resolveApiAdvancedSettingsValid({
   apiCustomHeadersValidation,
   apiExtraBodyValidation,
+  apiKeysValidation,
   parsedApiTemperature,
+  parsedApiKeyMaxAttempts,
+  parsedApiRetryDelaySeconds,
   parsedApiTopK,
   parsedApiTopP,
 }: {
   apiCustomHeadersValidation: ValidationResult;
   apiExtraBodyValidation: ValidationResult;
+  apiKeysValidation: ValidationResult;
   parsedApiTemperature: ValidationResult;
+  parsedApiKeyMaxAttempts: ValidationResult;
+  parsedApiRetryDelaySeconds: ValidationResult;
   parsedApiTopK: ValidationResult;
   parsedApiTopP: ValidationResult;
 }): boolean {
@@ -115,6 +149,9 @@ function resolveApiAdvancedSettingsValid({
     parsedApiTemperature.valid &&
     parsedApiTopP.valid &&
     parsedApiTopK.valid &&
+    parsedApiKeyMaxAttempts.valid &&
+    parsedApiRetryDelaySeconds.valid &&
+    apiKeysValidation.valid &&
     apiExtraBodyValidation.valid &&
     apiCustomHeadersValidation.valid
   );
@@ -134,6 +171,9 @@ export function getApiAdvancedSettingsMessage(
     draft.parsedApiTemperature,
     draft.parsedApiTopP,
     draft.parsedApiTopK,
+    draft.apiKeyMaxAttemptsValidation,
+    draft.apiRetryDelaySecondsValidation,
+    draft.apiKeysValidation,
     draft.apiExtraBodyValidation,
     draft.apiCustomHeadersValidation,
   ].find((result) => result.messageKey);
@@ -230,6 +270,51 @@ function parseNullableIntegerInput(
     };
   }
   return parsed;
+}
+
+function parseRequiredNumberInput(
+  value: string,
+  min: number,
+  max: number,
+): ValidationResult & { value: number } {
+  const parsed = parseNullableNumberInput(value, min, max);
+  if (parsed.valid && parsed.value !== null) {
+    return { valid: true, value: parsed.value };
+  }
+  return {
+    valid: false,
+    value: min,
+    messageKey: parsed.messageKey ?? "settings.validation.apiNumberRange",
+    messageValues: parsed.messageValues ?? { min, max },
+  };
+}
+
+function parseRequiredIntegerInput(
+  value: string,
+  min: number,
+  max: number,
+): ValidationResult & { value: number } {
+  const parsed = parseNullableIntegerInput(value, min, max);
+  if (parsed.valid && parsed.value !== null) {
+    return { valid: true, value: parsed.value };
+  }
+  return {
+    valid: false,
+    value: min,
+    messageKey: parsed.messageKey ?? "settings.validation.apiIntegerRange",
+    messageValues: parsed.messageValues ?? { min, max },
+  };
+}
+
+function validateApiKeysInput(value: string): ValidationResult {
+  const count = parseApiKeys(value).length;
+  return count <= MAX_API_KEYS
+    ? { valid: true }
+    : {
+        valid: false,
+        messageKey: "settings.validation.apiKeyCount",
+        messageValues: { max: MAX_API_KEYS },
+      };
 }
 
 function validateJsonObjectInput(value: string): {

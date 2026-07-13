@@ -10,12 +10,21 @@ import type {
   ApiReasoningEffort,
   AppSettings,
 } from "../../shared/settingsTypes";
+import {
+  DEFAULT_API_KEY_MAX_ATTEMPTS,
+  DEFAULT_API_RETRY_DELAY_SECONDS,
+  MAX_API_KEY_MAX_ATTEMPTS,
+  MAX_API_RETRY_DELAY_SECONDS,
+  MIN_API_KEY_MAX_ATTEMPTS,
+  MIN_API_RETRY_DELAY_SECONDS,
+} from "../../shared/apiKeySettings";
 import type { TranslationOptions } from "./appSettingsTypes";
 import {
   isOfficialOpenAiApiBaseUrl,
   resolveNullableIntegerRange,
   resolveNullableNumberRange,
   resolveNullableReasoningEffort,
+  resolveNumberRange,
   resolveOpenAiCompatibleBaseUrl,
   resolveOptionalJsonObjectString,
   resolveOptionalString,
@@ -26,6 +35,8 @@ type ApiTranslationOptions = Pick<
   | "apiBaseUrl"
   | "apiModel"
   | "apiKey"
+  | "apiKeyMaxAttempts"
+  | "apiRetryDelaySeconds"
   | "apiTemperature"
   | "apiTopP"
   | "apiTopK"
@@ -49,6 +60,22 @@ export function resolveApiTranslationOptions(
       resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_API_MODEL) ??
       settings.api.model,
     ...(apiKey ? { apiKey } : {}),
+    apiKeyMaxAttempts: Math.round(
+      resolveNumberRange(
+        runtimeEnv.MANGA_TRANSLATOR_API_KEY_MAX_ATTEMPTS ??
+          settings.api.keyMaxAttempts,
+        DEFAULT_API_KEY_MAX_ATTEMPTS,
+        MIN_API_KEY_MAX_ATTEMPTS,
+        MAX_API_KEY_MAX_ATTEMPTS,
+      ),
+    ),
+    apiRetryDelaySeconds: resolveNumberRange(
+      runtimeEnv.MANGA_TRANSLATOR_API_RETRY_DELAY_SECONDS ??
+        settings.api.retryDelaySeconds,
+      DEFAULT_API_RETRY_DELAY_SECONDS,
+      MIN_API_RETRY_DELAY_SECONDS,
+      MAX_API_RETRY_DELAY_SECONDS,
+    ),
     apiTemperature: resolveApiNullableNumber({
       envValue: runtimeEnv.MANGA_TRANSLATOR_API_TEMPERATURE,
       settingsValue: settings.api.temperature,

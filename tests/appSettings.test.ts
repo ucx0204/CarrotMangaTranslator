@@ -1270,6 +1270,8 @@ describe("app settings helpers", () => {
         baseUrl: "http://127.0.0.1:1234/v1",
         model: "local-vision-model",
         apiKey: "sk-test",
+        keyMaxAttempts: defaults.api.keyMaxAttempts,
+        retryDelaySeconds: defaults.api.retryDelaySeconds,
         temperature: DEFAULT_API_TEMPERATURE,
         topP: DEFAULT_API_TOP_P,
         topK: DEFAULT_API_TOP_K,
@@ -1316,13 +1318,17 @@ describe("app settings helpers", () => {
         api: {
           baseUrl: "https://api.openai.com/v1",
           model: "saved-model",
-          apiKey: "saved-key",
+          apiKey: "saved-key-one\nsaved-key-two",
+          keyMaxAttempts: 3,
+          retryDelaySeconds: 2.5,
         },
       },
       env: {
         MANGA_TRANSLATOR_API_BASE_URL:
           "http://127.0.0.1:1234/v1/chat/completions",
         MANGA_TRANSLATOR_API_MODEL: "env-model",
+        MANGA_TRANSLATOR_API_KEY_MAX_ATTEMPTS: "4",
+        MANGA_TRANSLATOR_API_RETRY_DELAY_SECONDS: "0.5",
         OPENAI_API_KEY: "env-key",
       } satisfies NodeJS.ProcessEnv,
     });
@@ -1330,7 +1336,9 @@ describe("app settings helpers", () => {
     expect(options.modelProvider).toBe("openai-api");
     expect(options.apiBaseUrl).toBe("http://127.0.0.1:1234/v1");
     expect(options.apiModel).toBe("env-model");
-    expect(options.apiKey).toBe("saved-key");
+    expect(options.apiKey).toBe("saved-key-one\nsaved-key-two");
+    expect(options.apiKeyMaxAttempts).toBe(4);
+    expect(options.apiRetryDelaySeconds).toBe(0.5);
   });
 
   it("normalizes and preserves API advanced settings", () => {

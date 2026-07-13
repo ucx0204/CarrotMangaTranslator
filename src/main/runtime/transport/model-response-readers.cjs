@@ -10,8 +10,10 @@ const {
   resolveProviderDisplayName,
 } = require("../simple-page-model-config.cjs");
 const { parseResponsesSseText } = require("../simple-page-response-text.cjs");
-const { createDetailedError } = require("./model-runtime-services.cjs");
-const { createEmptyOutputError } = require("./model-http-errors.cjs");
+const {
+  createEmptyOutputError,
+  createModelTransportError,
+} = require("./model-http-errors.cjs");
 
 /**
  * @param {Response} response
@@ -22,7 +24,7 @@ async function readResponseText(response, requestSummary, options) {
   try {
     return await response.text();
   } catch (error) {
-    throw createDetailedError(
+    throw createModelTransportError(
       `Failed to read ${resolveProviderDisplayName(options)} response body.`,
       {
         requestSummary,

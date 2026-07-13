@@ -1,5 +1,5 @@
 import React from "react";
-import { mangaGateway } from "../../api/mangaGateway";
+import { settingsGateway } from "./settingsGateway";
 import type { SettingsFormSetters } from "./useSettingsFormState";
 
 export type SettingsLocalModelActions = {
@@ -22,7 +22,7 @@ export function useSettingsLocalModelActions({
   const pickLocalModelFile = React.useCallback(async () => {
     setLocalActionBusy(true);
     try {
-      const picked = await mangaGateway.pickLocalModelFile();
+      const picked = await settingsGateway.pickLocalModelFile();
       if (!picked) {
         return;
       }
@@ -39,7 +39,7 @@ export function useSettingsLocalModelActions({
   const pickLocalMmprojFile = React.useCallback(async () => {
     setLocalActionBusy(true);
     try {
-      const picked = await mangaGateway.pickLocalMmprojFile();
+      const picked = await settingsGateway.pickLocalMmprojFile();
       if (!picked) {
         return;
       }

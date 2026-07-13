@@ -7,6 +7,15 @@ import type {
   ImportReviewTextResult,
 } from "./reviewTypes";
 import type { AppSettings } from "./settingsTypes";
+import type {
+  ApiModelDiscoveryRequest,
+  ApiModelDiscoveryResult,
+} from "./apiProviderPresets";
+import {
+  MAX_API_KEYS,
+  MAX_API_KEYS_TEXT_LENGTH,
+  parseApiKeys,
+} from "./apiKeySettings";
 import type { SaveTextFileRequest, SaveTextFileResult } from "./shareTypes";
 import type {
   AnalyzeWorkContextRequest,
@@ -203,6 +212,41 @@ const optionalModelTestArgsSchema = z.union([
   z.tuple([AppSettingsSchema]),
   z.tuple([AppSettingsSchema, z.unknown()]),
 ]);
+const discoverableApiProviderSchema = z.enum([
+  "nvidia-nim",
+  "google-ai-studio",
+  "google-vertex",
+  "openrouter",
+]);
+const apiModelDiscoveryRequestSchema = z
+  .object({
+    provider: discoverableApiProviderSchema,
+    apiKey: z
+      .string()
+      .max(MAX_API_KEYS_TEXT_LENGTH)
+      .refine((value) => parseApiKeys(value).length <= MAX_API_KEYS),
+    vertexProject: z.string().max(100).optional(),
+    vertexLocation: z.string().max(100).optional(),
+  })
+  .strict();
+const apiModelDiscoveryResultSchema = z
+  .object({
+    provider: discoverableApiProviderSchema,
+    models: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1).max(300),
+            label: z.string().min(1).max(500),
+            baseUrl: z.string().url().max(2000),
+          })
+          .strict(),
+      )
+      .max(2000),
+    checkedCount: z.number().int().nonnegative(),
+    unverifiedCount: z.number().int().nonnegative(),
+  })
+  .strict();
 
 export const settingsIpcContracts = {
   getUiLocale: defineIpcContract<[], UiLocale>({
@@ -249,5 +293,14 @@ export const settingsIpcContracts = {
     channel: "settings:test-model",
     args: optionalModelTestArgsSchema,
     result: modelTestResultSchema,
+  }),
+  discoverApiModels: defineIpcContract<
+    [ApiModelDiscoveryRequest],
+    ApiModelDiscoveryResult
+  >({
+    apiKey: "discoverApiModels",
+    channel: "settings:discover-api-models",
+    args: z.tuple([apiModelDiscoveryRequestSchema]),
+    result: apiModelDiscoveryResultSchema,
   }),
 } as const;

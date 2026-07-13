@@ -75,7 +75,10 @@ type CodexSettings = {
 type ApiSettings = {
   baseUrl: string;
   model: string;
+  /** Newline-delimited keys. A single legacy key remains valid. */
   apiKey?: string;
+  keyMaxAttempts?: number;
+  retryDelaySeconds?: number;
   temperature?: number | null;
   topP?: number | null;
   topK?: number | null;

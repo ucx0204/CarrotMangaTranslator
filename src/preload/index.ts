@@ -68,6 +68,11 @@ import type {
 } from "../shared/reviewTypes";
 import type { AppSettings } from "../shared/settingsTypes";
 import type {
+  ApiModelDiscoveryRequest,
+  ApiModelDiscoveryResult,
+  DiscoverableApiProviderId,
+} from "../shared/apiProviderPresets";
+import type {
   SavePageBlocksRequest,
   SaveTextFileRequest,
   SaveTextFileResult,
@@ -207,6 +212,12 @@ const api = {
     testId?: string,
   ): Promise<ModelTestResult> =>
     invokeContract(settingsIpcContracts.testModelSettings, settings, testId),
+  discoverApiModels: (
+    request: ApiModelDiscoveryRequest,
+  ): Promise<ApiModelDiscoveryResult> =>
+    invokeContract(settingsIpcContracts.discoverApiModels, request),
+  openApiProviderPage: (provider: DiscoverableApiProviderId) =>
+    invokeContract(externalIpcContracts.openApiProviderPage, provider),
   getLogPath: (): Promise<string> =>
     invokeContract(logsIpcContracts.getLogPath),
   openLogFolder: () => invokeContract(logsIpcContracts.openLogFolder),

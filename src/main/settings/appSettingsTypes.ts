@@ -101,6 +101,8 @@ export type TranslationOptions = {
   apiBaseUrl: string;
   apiModel: string;
   apiKey?: string;
+  apiKeyMaxAttempts?: number;
+  apiRetryDelaySeconds?: number;
   apiTemperature?: number | null;
   apiTopP?: number | null;
   apiTopK?: number | null;

@@ -43,6 +43,15 @@ import {
 } from "./appSettingsStoredResolvers";
 import { getModeAwareGemmaDefaults } from "./gemmaModelPresets";
 import { normalizeUiLocale } from "../../shared/uiLocales";
+import {
+  DEFAULT_API_KEY_MAX_ATTEMPTS,
+  DEFAULT_API_RETRY_DELAY_SECONDS,
+  MAX_API_KEY_MAX_ATTEMPTS,
+  MAX_API_RETRY_DELAY_SECONDS,
+  MIN_API_KEY_MAX_ATTEMPTS,
+  MIN_API_RETRY_DELAY_SECONDS,
+  normalizeApiKeysText,
+} from "../../shared/apiKeySettings";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -182,6 +191,20 @@ function normalizeApiSettings(
     baseUrl: resolveOpenAiCompatibleBaseUrl(api?.baseUrl, defaults.api.baseUrl),
     model: resolveNonEmptyString(api?.model, defaults.api.model),
     ...resolveApiKeySettings(api),
+    keyMaxAttempts: Math.round(
+      resolveNumberRange(
+        api?.keyMaxAttempts,
+        defaults.api.keyMaxAttempts ?? DEFAULT_API_KEY_MAX_ATTEMPTS,
+        MIN_API_KEY_MAX_ATTEMPTS,
+        MAX_API_KEY_MAX_ATTEMPTS,
+      ),
+    ),
+    retryDelaySeconds: resolveNumberRange(
+      api?.retryDelaySeconds,
+      defaults.api.retryDelaySeconds ?? DEFAULT_API_RETRY_DELAY_SECONDS,
+      MIN_API_RETRY_DELAY_SECONDS,
+      MAX_API_RETRY_DELAY_SECONDS,
+    ),
     ...resolveApiSamplingSettings(api, defaults),
     ...resolveApiReasoningSettings(api, defaults),
     ...resolveApiJsonSettings(api, defaults),
@@ -191,7 +214,7 @@ function normalizeApiSettings(
 function resolveApiKeySettings(
   api: Record<string, unknown> | null,
 ): Pick<AppSettings["api"], "apiKey"> | Record<string, never> {
-  const apiKey = resolveOptionalString(api?.apiKey);
+  const apiKey = normalizeApiKeysText(api?.apiKey);
   return apiKey ? { apiKey } : {};
 }
 

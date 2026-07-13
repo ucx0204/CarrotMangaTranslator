@@ -27,6 +27,10 @@ import {
   resolveModelPreset,
   type ModelPresetId,
 } from "../settingsOptions";
+import {
+  DEFAULT_API_KEY_MAX_ATTEMPTS,
+  DEFAULT_API_RETRY_DELAY_SECONDS,
+} from "../../../../shared/apiKeySettings";
 
 export type SettingsFormValues = {
   uiLocale: UiLocale;
@@ -47,6 +51,8 @@ export type SettingsFormValues = {
   apiBaseUrl: string;
   apiModel: string;
   apiKey: string;
+  apiKeyMaxAttempts: string;
+  apiRetryDelaySeconds: string;
   apiTemperature: string;
   apiTopP: string;
   apiTopK: string;
@@ -139,6 +145,8 @@ function resolveApiFormValues(
   | "apiBaseUrl"
   | "apiModel"
   | "apiKey"
+  | "apiKeyMaxAttempts"
+  | "apiRetryDelaySeconds"
   | "apiTemperature"
   | "apiTopP"
   | "apiTopK"
@@ -150,6 +158,12 @@ function resolveApiFormValues(
     apiBaseUrl: settings.api.baseUrl,
     apiModel: settings.api.model,
     apiKey: settings.api.apiKey ?? "",
+    apiKeyMaxAttempts: String(
+      settings.api.keyMaxAttempts ?? DEFAULT_API_KEY_MAX_ATTEMPTS,
+    ),
+    apiRetryDelaySeconds: String(
+      settings.api.retryDelaySeconds ?? DEFAULT_API_RETRY_DELAY_SECONDS,
+    ),
     apiTemperature: formatNullableNumberInput(settings.api.temperature),
     apiTopP: formatNullableNumberInput(settings.api.topP),
     apiTopK: formatNullableNumberInput(settings.api.topK),

@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { mangaGateway } from "../../api/mangaGateway";
+import { settingsGateway } from "./settingsGateway";
 import type { TestState } from "../settingsModalTypes";
 
 type TestSettingsPanelProps = {
@@ -76,7 +76,7 @@ function UpdateSection(): React.JSX.Element {
 
   React.useEffect(() => {
     let active = true;
-    void mangaGateway
+    void settingsGateway
       .getAppUpdateInfo()
       .then((result) => {
         if (active) {
@@ -105,7 +105,7 @@ function UpdateSection(): React.JSX.Element {
         <button
           type="button"
           onClick={() => {
-            void mangaGateway.openReleasesPage().catch((error) => {
+            void settingsGateway.openReleasesPage().catch((error) => {
               console.error("Failed to open releases page", error);
             });
           }}

@@ -21,6 +21,13 @@ import {
 import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
 import { CODEX_REASONING_EFFORTS } from "./codexSettings";
 import { SUPPORTED_UI_LOCALES } from "./uiLocales";
+import {
+  MAX_API_KEY_MAX_ATTEMPTS,
+  MAX_API_KEYS_TEXT_LENGTH,
+  MAX_API_RETRY_DELAY_SECONDS,
+  MIN_API_KEY_MAX_ATTEMPTS,
+  MIN_API_RETRY_DELAY_SECONDS,
+} from "./apiKeySettings";
 
 const LanguageCodeSchema = z
   .string()
@@ -62,7 +69,18 @@ export const AppSettingsSchema = z
       .object({
         baseUrl: OpenAiCompatibleBaseUrlSchema,
         model: z.string().min(1).max(200),
-        apiKey: z.string().max(4000).optional(),
+        apiKey: z.string().max(MAX_API_KEYS_TEXT_LENGTH).optional(),
+        keyMaxAttempts: z
+          .number()
+          .int()
+          .min(MIN_API_KEY_MAX_ATTEMPTS)
+          .max(MAX_API_KEY_MAX_ATTEMPTS)
+          .optional(),
+        retryDelaySeconds: z
+          .number()
+          .min(MIN_API_RETRY_DELAY_SECONDS)
+          .max(MAX_API_RETRY_DELAY_SECONDS)
+          .optional(),
         temperature: z.number().min(0).max(2).nullable().optional(),
         topP: z.number().min(0).max(1).nullable().optional(),
         topK: z.number().int().min(1).max(1000).nullable().optional(),

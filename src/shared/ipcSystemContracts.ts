@@ -6,6 +6,7 @@ import {
   PanelSyncStateSchema,
 } from "./panelBridgeSchemas";
 import { defineIpcContract, localPathResult } from "./ipcContractCore";
+import type { DiscoverableApiProviderId } from "./apiProviderPresets";
 
 const openedUrlResultSchema = z
   .object({
@@ -19,6 +20,12 @@ const appUpdateInfoResultSchema = z
     releasesUrl: z.string().min(1).max(2000),
   })
   .strict();
+const discoverableApiProviderSchema = z.enum([
+  "nvidia-nim",
+  "google-ai-studio",
+  "google-vertex",
+  "openrouter",
+]);
 
 export const externalIpcContracts = {
   openAmdHipSdkDownload: defineIpcContract<
@@ -43,6 +50,15 @@ export const externalIpcContracts = {
     apiKey: "openReleasesPage",
     channel: "external:open-releases",
     args: z.tuple([]),
+    result: openedUrlResultSchema,
+  }),
+  openApiProviderPage: defineIpcContract<
+    [DiscoverableApiProviderId],
+    { opened: boolean; url: string }
+  >({
+    apiKey: "openApiProviderPage",
+    channel: "external:open-api-provider-page",
+    args: z.tuple([discoverableApiProviderSchema]),
     result: openedUrlResultSchema,
   }),
 } as const;

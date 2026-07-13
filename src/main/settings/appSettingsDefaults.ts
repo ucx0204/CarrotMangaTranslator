@@ -37,6 +37,7 @@ import {
   resolveNullableNumberRange,
   resolveNullableReasoningEffort,
   resolveNonEmptyString,
+  resolveNumberRange,
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
@@ -51,6 +52,14 @@ import {
 } from "./hardwareDefaults";
 import { resolveLlamaRuntimeProfile } from "./llamaRuntimeProfile";
 import { DEFAULT_UI_LOCALE, normalizeUiLocale } from "../../shared/uiLocales";
+import {
+  DEFAULT_API_KEY_MAX_ATTEMPTS,
+  DEFAULT_API_RETRY_DELAY_SECONDS,
+  MAX_API_KEY_MAX_ATTEMPTS,
+  MAX_API_RETRY_DELAY_SECONDS,
+  MIN_API_KEY_MAX_ATTEMPTS,
+  MIN_API_RETRY_DELAY_SECONDS,
+} from "../../shared/apiKeySettings";
 
 export { resolveHardwareDefaults } from "./hardwareDefaults";
 
@@ -163,6 +172,20 @@ function resolveDefaultApiSettings(env: NodeJS.ProcessEnv): AppSettings["api"] {
     model: resolveNonEmptyString(
       env.MANGA_TRANSLATOR_API_MODEL,
       DEFAULT_API_MODEL,
+    ),
+    keyMaxAttempts: Math.round(
+      resolveNumberRange(
+        env.MANGA_TRANSLATOR_API_KEY_MAX_ATTEMPTS,
+        DEFAULT_API_KEY_MAX_ATTEMPTS,
+        MIN_API_KEY_MAX_ATTEMPTS,
+        MAX_API_KEY_MAX_ATTEMPTS,
+      ),
+    ),
+    retryDelaySeconds: resolveNumberRange(
+      env.MANGA_TRANSLATOR_API_RETRY_DELAY_SECONDS,
+      DEFAULT_API_RETRY_DELAY_SECONDS,
+      MIN_API_RETRY_DELAY_SECONDS,
+      MAX_API_RETRY_DELAY_SECONDS,
     ),
     temperature: resolveNullableNumberRange(
       env.MANGA_TRANSLATOR_API_TEMPERATURE,
