@@ -105,10 +105,13 @@
     "size": "Size",
     "fontSize": "Font size",
     "fontSizeValue": "Font size value",
+    "fontSizeDecrease": "Decrease font size",
+    "fontSizeIncrease": "Increase font size",
     "autoFitTitle": "Automatically fit text to the text box",
     "auto": "Auto",
     "rotation": "Rotation",
-    "opacity": "Opacity",
+    "textOpacity": "Text opacity",
+    "blockBackgroundOpacity": "Block background opacity",
     "lineHeight": "Line spacing",
     "letterSpacing": "Letter spacing",
     "fontWidth": "Character width",
@@ -120,6 +123,12 @@
     "text": "Text",
     "translatedText": "Translation",
     "blockColors": "Block colors",
+    "display": {
+      "title": "Editor display",
+      "batchApply": "Batch apply",
+      "batchTitle": "Batch apply block background",
+      "batchDescription": "Choose where to apply the selected block's background opacity."
+    },
     "inpainting": {
       "title": "Automatic erase",
       "exclude": "Exclude from automatic erase",
@@ -158,13 +167,31 @@
       "fontWidth": "Character width",
       "color": "Text color",
       "outline": "Outline",
-      "transform": "Rotation & opacity"
+      "transform": "Rotation & text opacity"
     }
   },
   "fontSelect": {
     "addFont": "+ Add TTF/OTF font",
     "deleteFont": "Delete this font",
-    "deleteNamedFont": "Delete {{label}}"
+    "deleteNamedFont": "Delete {{label}}",
+    "favoriteFont": "Add to favorites",
+    "unfavoriteFont": "Remove from favorites",
+    "favoriteNamedFont": "Add {{label}} to favorites",
+    "unfavoriteNamedFont": "Remove {{label}} from favorites",
+    "manageFonts": "Manage fonts"
+  },
+  "fontManager": {
+    "title": "Manage fonts",
+    "favorites": "Favorites",
+    "otherFonts": "Other fonts",
+    "emptyFavorites": "No favorite fonts yet.",
+    "defaultBadge": "Default font",
+    "setNamedDefault": "Set {{label}} as the default font",
+    "searchPlaceholder": "Search fonts",
+    "noSearchResults": "No matching fonts.",
+    "moveNamedFont": "Move {{label}}",
+    "resetOrder": "Reset order",
+    "saveFailed": "Could not save font settings."
   },
   "chapterPicker": {
     "prompt": "What would you like to translate?",
@@ -342,6 +369,10 @@
         "label": "Block",
         "title": "Block tool (2) — drag to add a text block"
       },
+      "region": {
+        "label": "Region translation",
+        "title": "Region translation — drag the area to translate again"
+      },
       "hand": {
         "label": "Hand",
         "title": "Hand tool (3) — drag to pan the image"
@@ -412,6 +443,33 @@
     "empty": "No text to display.",
     "pageHeading": "Page {{index}} · {{pageName}}",
     "navigateToPage": "Click to go to this page.",
+    "selectBlock": "Select this text block to change its formatting",
+    "enterSelectionMode": "Select blocks to format",
+    "exitSelectionMode": "Close batch editing",
+    "selectedCount": "{{count}} blocks selected",
+    "selectVisible": "Select all shown blocks",
+    "clearSelection": "Clear block selection",
+    "applyFormat": "Edit selected block formatting",
+    "defaultFont": "Default font",
+    "formatDisabled": "Formatting is unavailable while a job is running.",
+    "directFormatTitle": "Edit selected block formatting",
+    "previewTitle": "Live preview",
+    "previewBasis": "Based on the first selected block · Changes appear instantly.",
+    "previewTextLabel": "Sample text",
+    "previewTextDefault": "Sample ABC 123 · Translation preview",
+    "previewTextPlaceholder": "Sample text",
+    "resetChanges": "Reset changes",
+    "typographySection": "Type and layout",
+    "changedOnlyHint": "Only controls you change are applied to all selected blocks.",
+    "colorSection": "Color and outline",
+    "detailsSection": "Fine tuning",
+    "detailsHint": "Line height · spacing · width · rotation · text opacity",
+    "outlineWidth": "Outline width",
+    "autoFitLabel": "Auto fit",
+    "autoFitBadge": "Auto fit",
+    "mixedValue": "Mixed",
+    "toggleOn": "On",
+    "toggleOff": "Off",
     "importTxt": {
       "button": "Import .txt",
       "title": "Re-import translations from a translation-only TXT file in line order.",
@@ -631,14 +689,27 @@
       "save": "Save"
     },
     "engine": {
+      "limits": {
+        "title": "Generation limits",
+        "recommendedFor": "Recommended for {{model}}",
+        "recommendedValues": "Output {{maxTokens}} · work context {{contextTokens}}",
+        "publicLimits": "Published model limits: output {{maxOutput}} · context {{contextWindow}}",
+        "publicContextOnly": "Published model context: {{contextWindow}} · maximum output is not published",
+        "unknownLimits": "No published model limits are available, so a safe shared recommendation is used.",
+        "applyRecommended": "Use recommended",
+        "recommendedApplied": "Using recommended"
+      },
       "provider": { "label": "Translation engine" },
       "maxTokens": {
         "label": "Maximum output tokens",
-        "description": "Maximum number of tokens the model can generate at once."
+        "remoteDescription": "Caps the full response, including visible text and reasoning. The task recommendation is safer than using the model ceiling.",
+        "gemmaDescription": "Caps what the local model can generate in one response. Higher values can increase processing time and memory use."
       },
       "contextTokens": {
-        "label": "Context length",
-        "description": "Total number of tokens the model can reference at once."
+        "remoteLabel": "Work context budget",
+        "remoteDescription": "This is an app budget for work memory, glossary, and character notes—not the model's server-side context window.",
+        "gemmaLabel": "Context length",
+        "gemmaDescription": "The actual context length for local Gemma. Higher values can use more VRAM."
       }
     },
     "options": {
@@ -837,6 +908,12 @@
       "oauthPort": "openai-oauth port"
     },
     "api": {
+      "sections": {
+        "connection": "Connection",
+        "credentials": "Credentials",
+        "model": "Model",
+        "retry": "Retry policy"
+      },
       "providerTemplate": "Quick API provider setup",
       "providers": {
         "custom": "Custom",
@@ -880,6 +957,8 @@
       }
     },
     "hardware": {
+      "ocrSection": "OCR",
+      "inpaintingSection": "Inpainting",
       "ocrQuality": "Paddle OCR quality",
       "ocrDevice": "Paddle OCR device",
       "fluxBackend": "Flux inpainting backend",
@@ -928,6 +1007,7 @@
         "text": "Text color",
         "outline": "Outline",
         "outlineEnabledTitle": "Whether to use an outline",
+        "textOpacity": "Text opacity",
         "outlineEnabled": "Use outline",
         "outlineWidth": "Outline width"
       }

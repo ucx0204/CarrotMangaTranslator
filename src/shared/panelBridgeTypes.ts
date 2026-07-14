@@ -31,11 +31,16 @@ export type PanelSyncState = {
  */
 export type PanelCommand =
   | { type: "updateBlock"; patch: Partial<TranslationBlock> }
+  | { type: "adjustFontSize"; adjustment: -1 | 1 }
   | { type: "deleteBlock" }
   | { type: "duplicateBlock" }
   | {
       type: "applyFormat";
       scope: PanelFormatScope;
       groupIds: BlockFormatGroupId[];
+    }
+  | {
+      type: "applyBlockBackgroundOpacity";
+      scope: Exclude<PanelFormatScope, "selection">;
     }
   | { type: "startAreaTranslate" };

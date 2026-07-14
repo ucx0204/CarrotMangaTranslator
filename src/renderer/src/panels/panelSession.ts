@@ -1,7 +1,10 @@
 import { createContext, useContext } from "react";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
-import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
+import type {
+  BlockBackgroundApplyScope,
+  FormatApplyScope,
+} from "../hooks/useBlockEditingActions";
 
 /**
  * The slice of session state + actions that dockable/poppable panels consume.
@@ -37,6 +40,8 @@ export type PanelSessionValue = {
   areaTranslateAvailable: boolean;
   /** True while an area-translate selection is in progress. */
   areaTranslateSelecting: boolean;
+  /** Adjusts only the active block's font size by one pixel. */
+  onAdjustFontSize: (adjustment: -1 | 1) => void;
   onUpdateBlock: (patch: Partial<TranslationBlock>) => void;
   onDeleteBlock: () => void;
   onDuplicateBlock: () => void;
@@ -44,6 +49,7 @@ export type PanelSessionValue = {
     scope: FormatApplyScope,
     groupIds: BlockFormatGroupId[],
   ) => void;
+  onApplyBlockBackgroundOpacity: (scope: BlockBackgroundApplyScope) => void;
   onStartAreaTranslate: () => void;
 };
 

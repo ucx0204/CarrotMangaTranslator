@@ -1,6 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { resolveBlockFontFamily } from "../lib/fonts";
+import { FontManagerModal } from "./FontManagerModal";
+import styles from "./FontSelect.module.css";
 import {
   resolveFontOptionClassName,
   useFontSelectModel,
@@ -11,22 +13,42 @@ import {
 
 export function FontSelect(props: FontSelectProps): React.JSX.Element {
   const { listRef, model, rootRef } = useFontSelectModel(props);
-  return <FontSelectView listRef={listRef} model={model} rootRef={rootRef} />;
+  const [managerOpen, setManagerOpen] = React.useState(false);
+  return (
+    <>
+      <FontSelectView
+        listRef={listRef}
+        model={model}
+        onManage={() => {
+          model.setOpen(false);
+          setManagerOpen(true);
+        }}
+        rootRef={rootRef}
+      />
+      {managerOpen ? (
+        <FontManagerModal onClose={() => setManagerOpen(false)} />
+      ) : null}
+    </>
+  );
 }
 
 function FontSelectView({
   listRef,
   model,
+  onManage,
   rootRef,
 }: {
   listRef: React.RefObject<HTMLDivElement | null>;
   model: FontSelectModel;
+  onManage: () => void;
   rootRef: React.RefObject<HTMLDivElement | null>;
 }): React.JSX.Element {
   return (
     <div className={`font-select ${model.open ? "open" : ""}`} ref={rootRef}>
       <FontSelectTrigger model={model} />
-      {model.open ? <FontSelectMenu listRef={listRef} model={model} /> : null}
+      {model.open ? (
+        <FontSelectMenu listRef={listRef} model={model} onManage={onManage} />
+      ) : null}
     </div>
   );
 }
@@ -61,9 +83,11 @@ function FontSelectTrigger({
 function FontSelectMenu({
   listRef,
   model,
+  onManage,
 }: {
   listRef: React.RefObject<HTMLDivElement | null>;
   model: FontSelectModel;
+  onManage: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -81,22 +105,34 @@ function FontSelectMenu({
             active={index === model.activeIndex}
             busy={model.busy}
             custom={model.customIds.has(option.id)}
+            favorite={model.favoriteIds.has(option.id)}
             onCommit={model.onOptionCommit}
             onHover={() => model.onOptionHover(index)}
             onRemove={model.onRemoveFont}
+            onToggleFavorite={model.onToggleFavorite}
             option={option}
             selected={option.id === model.selected.id}
           />
         ))}
       </div>
-      <button
-        type="button"
-        className="font-select-add"
-        disabled={model.busy}
-        onClick={model.onAddFont}
-      >
-        {t("fontSelect.addFont")}
-      </button>
+      <div className={styles.footer}>
+        <button
+          type="button"
+          className="font-select-add"
+          disabled={model.busy}
+          onClick={model.onAddFont}
+        >
+          {t("fontSelect.addFont")}
+        </button>
+        <button
+          type="button"
+          className="font-select-add"
+          disabled={model.busy}
+          onClick={onManage}
+        >
+          {t("fontSelect.manageFonts")}
+        </button>
+      </div>
     </div>
   );
 }
@@ -105,18 +141,22 @@ function FontSelectOption({
   active,
   busy,
   custom,
+  favorite,
   onCommit,
   onHover,
   onRemove,
+  onToggleFavorite,
   option,
   selected,
 }: {
   active: boolean;
   busy: boolean;
   custom: boolean;
+  favorite: boolean;
   onCommit: (id: string) => void;
   onHover: () => void;
   onRemove: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
   option: FontOption;
   selected: boolean;
 }): React.JSX.Element {
@@ -135,14 +175,61 @@ function FontSelectOption({
       >
         {option.sample}
       </span>
-      {custom ? (
-        <CustomFontRemoveButton
+      <div className={styles.optionActions}>
+        <FavoriteButton
           busy={busy}
+          favorite={favorite}
           label={option.label}
-          onRemove={() => onRemove(option.id)}
+          onToggle={() => onToggleFavorite(option.id)}
         />
-      ) : null}
+        {custom ? (
+          <CustomFontRemoveButton
+            busy={busy}
+            label={option.label}
+            onRemove={() => onRemove(option.id)}
+          />
+        ) : null}
+      </div>
     </div>
+  );
+}
+
+function FavoriteButton({
+  busy,
+  favorite,
+  label,
+  onToggle,
+}: {
+  busy: boolean;
+  favorite: boolean;
+  label: string;
+  onToggle: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <button
+      type="button"
+      className={`${styles.favorite} ${favorite ? styles.favoriteActive : ""}`}
+      title={t(
+        favorite ? "fontSelect.unfavoriteFont" : "fontSelect.favoriteFont",
+      )}
+      aria-label={t(
+        favorite
+          ? "fontSelect.unfavoriteNamedFont"
+          : "fontSelect.favoriteNamedFont",
+        { label },
+      )}
+      aria-pressed={favorite}
+      disabled={busy}
+      onKeyDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onToggle();
+      }}
+    >
+      <span aria-hidden="true">{favorite ? "★" : "☆"}</span>
+    </button>
   );
 }
 
@@ -163,6 +250,7 @@ function CustomFontRemoveButton({
       title={t("fontSelect.deleteFont")}
       aria-label={t("fontSelect.deleteNamedFont", { label })}
       disabled={busy}
+      onKeyDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();

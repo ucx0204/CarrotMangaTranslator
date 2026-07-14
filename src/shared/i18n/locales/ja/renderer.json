@@ -191,6 +191,7 @@
   },
   "workspaceHistory": {
     "blockEdit": "テキストブロックを編集",
+    "blockBackgroundOpacity": "ブロック背景の不透明度を変更",
     "exclusion": "自動消去の除外設定を変更",
     "format": "ブロックの書式を変更",
     "deleteBlock": "ブロックを削除",
@@ -206,6 +207,9 @@
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "処理中は話全体への一括書式適用を使用できません。",
+    "backgroundOpacityChapterApplyWhileRunning": "処理中は話全体への背景不透明度の適用を使用できません。",
+    "backgroundOpacityAppliedPage": "このページのすべてのブロックに背景の不透明度を適用しました。",
+    "backgroundOpacityAppliedChapter": "この話のすべてのブロックに背景の不透明度を適用しました。",
     "formatAppliedSelection": "選択した{{count}}個のブロックに書式を適用しました。",
     "formatAppliedSelection_one": "選択した{{count}}個のブロックに書式を適用しました。",
     "formatAppliedSelection_other": "選択した{{count}}個のブロックに書式を適用しました。",

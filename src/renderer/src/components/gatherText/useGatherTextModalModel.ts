@@ -14,21 +14,28 @@ import {
   useTxtImportAction,
 } from "./useGatherTextFileActions";
 import { useReviewTextActions } from "./useReviewTextActions";
+import { useGatherTextFormatSelection } from "./useGatherTextFormatSelection";
 
-export function useGatherTextModalModel({
-  chapter,
-  page,
-  onChapterUpdated,
-  onApplyTranslatedText,
-  readingDirection = "rtl",
-}: Pick<
+type GatherTextModalModelProps = Pick<
   GatherTextModalProps,
   | "chapter"
   | "page"
   | "onChapterUpdated"
   | "onApplyTranslatedText"
+  | "onApplyFormat"
+  | "formatApplyDisabled"
   | "readingDirection"
->) {
+>;
+
+export function useGatherTextModalModel({
+  chapter,
+  formatApplyDisabled,
+  onApplyFormat,
+  page,
+  onChapterUpdated,
+  onApplyTranslatedText,
+  readingDirection = "rtl",
+}: GatherTextModalModelProps) {
   const [scope, setScope] = React.useState<GatherScope>("page");
   const [field, setField] = React.useState<GatherField>("both");
   const [excludeHeaders, setExcludeHeaders] = React.useState(false);
@@ -66,11 +73,21 @@ export function useGatherTextModalModel({
     onApplyTranslatedText,
     setReviewWarnings,
   });
+  const formatSelection = useGatherTextFormatSelection({
+    chapter,
+    disabled: formatApplyDisabled ?? false,
+    onApply: onApplyFormat,
+    pages,
+  });
+  const formatControls = useGatherTextControlHandlers({
+    clearSelection: formatSelection?.clear,
+    setField,
+    setScope,
+  });
   return {
     scope,
-    setScope,
     field,
-    setField,
+    ...formatControls,
     excludeHeaders,
     setExcludeHeaders,
     reviewWarnings,
@@ -78,10 +95,37 @@ export function useGatherTextModalModel({
     reviewFileInputRef,
     txtFileInputRef,
     pages,
+    formatSelection,
     hasContent: pages.length > 0,
     search: useGatherTextSearch(pages, field),
     handleImportTxtFile,
     ...fileActions,
     ...reviewActions,
   };
+}
+
+function useGatherTextControlHandlers({
+  clearSelection,
+  setField,
+  setScope,
+}: {
+  clearSelection?: () => void;
+  setField: React.Dispatch<React.SetStateAction<GatherField>>;
+  setScope: React.Dispatch<React.SetStateAction<GatherScope>>;
+}) {
+  const handleScopeChange = React.useCallback(
+    (nextScope: GatherScope) => {
+      clearSelection?.();
+      setScope(nextScope);
+    },
+    [clearSelection, setScope],
+  );
+  const handleFieldChange = React.useCallback(
+    (nextField: GatherField) => {
+      clearSelection?.();
+      setField(nextField);
+    },
+    [clearSelection, setField],
+  );
+  return { setScope: handleScopeChange, setField: handleFieldChange };
 }

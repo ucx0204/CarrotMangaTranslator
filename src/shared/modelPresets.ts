@@ -1,6 +1,7 @@
 import type {
   ApiReasoningEffort,
   GemmaVramMode,
+  ModelProvider,
   ModelSource,
   OcrDevice,
   OcrQualityMode,
@@ -45,7 +46,20 @@ export type CodexModelPreset = {
   label: string;
   defaultReasoningEffort: CodexReasoningEffort;
   reasoningEfforts: readonly CodexReasoningEffort[];
+  /** Publicly documented model context window. */
+  contextWindowTokens: number;
+  /** Publicly documented output ceiling, or null when OpenAI does not publish one. */
+  maxOutputTokens: number | null;
+  /** App-level working default; intentionally lower than the model ceiling. */
+  recommendedMaxTokens: number;
+  /** Prompt-memory budget used by this app, not a server-side context setting. */
+  recommendedContextTokens: number;
 };
+
+export const DEFAULT_REMOTE_MAX_TOKENS = 32768;
+export const DEFAULT_REMOTE_CONTEXT_TOKENS = 65536;
+export const DEFAULT_GEMMA_MAX_TOKENS = 12000;
+export const DEFAULT_GEMMA_CONTEXT_TOKENS = 16384;
 
 /**
  * Models advertised by the visible Codex model catalog. Keep Custom available
@@ -57,44 +71,110 @@ export const CODEX_MODEL_PRESETS = [
     label: "GPT-5.6-Sol",
     defaultReasoningEffort: "low",
     reasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
+    contextWindowTokens: 1050000,
+    maxOutputTokens: 128000,
+    recommendedMaxTokens: DEFAULT_REMOTE_MAX_TOKENS,
+    recommendedContextTokens: DEFAULT_REMOTE_CONTEXT_TOKENS,
   },
   {
     id: "gpt-5.6-terra",
     label: "GPT-5.6-Terra",
     defaultReasoningEffort: "medium",
     reasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
+    contextWindowTokens: 1050000,
+    maxOutputTokens: 128000,
+    recommendedMaxTokens: DEFAULT_REMOTE_MAX_TOKENS,
+    recommendedContextTokens: DEFAULT_REMOTE_CONTEXT_TOKENS,
   },
   {
     id: "gpt-5.6-luna",
     label: "GPT-5.6-Luna",
     defaultReasoningEffort: "medium",
     reasoningEfforts: ["low", "medium", "high", "xhigh", "max"],
+    contextWindowTokens: 1050000,
+    maxOutputTokens: 128000,
+    recommendedMaxTokens: DEFAULT_REMOTE_MAX_TOKENS,
+    recommendedContextTokens: DEFAULT_REMOTE_CONTEXT_TOKENS,
   },
   {
     id: "gpt-5.5",
     label: "GPT-5.5",
     defaultReasoningEffort: "medium",
     reasoningEfforts: ["low", "medium", "high", "xhigh"],
+    contextWindowTokens: 1050000,
+    maxOutputTokens: 128000,
+    recommendedMaxTokens: DEFAULT_REMOTE_MAX_TOKENS,
+    recommendedContextTokens: DEFAULT_REMOTE_CONTEXT_TOKENS,
   },
   {
     id: "gpt-5.4",
     label: "GPT-5.4",
     defaultReasoningEffort: "medium",
     reasoningEfforts: ["low", "medium", "high", "xhigh"],
+    contextWindowTokens: 1050000,
+    maxOutputTokens: 128000,
+    recommendedMaxTokens: DEFAULT_REMOTE_MAX_TOKENS,
+    recommendedContextTokens: DEFAULT_REMOTE_CONTEXT_TOKENS,
   },
   {
     id: "gpt-5.4-mini",
     label: "GPT-5.4-Mini",
     defaultReasoningEffort: "medium",
     reasoningEfforts: ["low", "medium", "high", "xhigh"],
+    contextWindowTokens: 400000,
+    maxOutputTokens: 128000,
+    recommendedMaxTokens: DEFAULT_REMOTE_MAX_TOKENS,
+    recommendedContextTokens: DEFAULT_REMOTE_CONTEXT_TOKENS,
   },
   {
     id: "gpt-5.3-codex-spark",
     label: "GPT-5.3-Codex-Spark",
     defaultReasoningEffort: "high",
     reasoningEfforts: ["low", "medium", "high", "xhigh"],
+    contextWindowTokens: 128000,
+    maxOutputTokens: null,
+    recommendedMaxTokens: 24576,
+    recommendedContextTokens: DEFAULT_REMOTE_CONTEXT_TOKENS,
   },
 ] as const satisfies readonly CodexModelPreset[];
+
+export type RecommendedGenerationLimits = {
+  maxTokens: number;
+  contextTokens: number;
+  contextWindowTokens: number | null;
+  maxOutputTokens: number | null;
+};
+
+export function findCodexModelPreset(
+  model: string | null | undefined,
+): CodexModelPreset | undefined {
+  const normalized = model?.trim();
+  return CODEX_MODEL_PRESETS.find((preset) => preset.id === normalized);
+}
+
+export function resolveRecommendedGenerationLimits(
+  provider: ModelProvider,
+  model?: string | null,
+): RecommendedGenerationLimits {
+  if (provider === "gemma") {
+    return {
+      maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+      contextTokens: DEFAULT_GEMMA_CONTEXT_TOKENS,
+      contextWindowTokens: null,
+      maxOutputTokens: null,
+    };
+  }
+
+  const preset =
+    provider === "openai-codex" ? findCodexModelPreset(model) : undefined;
+  return {
+    maxTokens: preset?.recommendedMaxTokens ?? DEFAULT_REMOTE_MAX_TOKENS,
+    contextTokens:
+      preset?.recommendedContextTokens ?? DEFAULT_REMOTE_CONTEXT_TOKENS,
+    contextWindowTokens: preset?.contextWindowTokens ?? null,
+    maxOutputTokens: preset?.maxOutputTokens ?? null,
+  };
+}
 
 export const DEFAULT_MODEL_SOURCE: ModelSource = "huggingface";
 export const DEFAULT_CODEX_MODEL = CODEX_MODEL_PRESETS[0].id;
@@ -108,10 +188,10 @@ export const DEFAULT_API_TOP_K: number | null = null;
 export const DEFAULT_API_REASONING_EFFORT: ApiReasoningEffort | null = null;
 export const DEFAULT_API_EXTRA_BODY_JSON = "";
 export const DEFAULT_API_CUSTOM_HEADERS_JSON = "";
-export const DEFAULT_MAX_TOKENS = 12000;
+export const DEFAULT_MAX_TOKENS = DEFAULT_REMOTE_MAX_TOKENS;
 export const MIN_MAX_TOKENS = 300;
-export const MAX_MAX_TOKENS = 32768;
-export const DEFAULT_CONTEXT_TOKENS = 16384;
+export const MAX_MAX_TOKENS = 128000;
+export const DEFAULT_CONTEXT_TOKENS = DEFAULT_REMOTE_CONTEXT_TOKENS;
 export const MIN_CONTEXT_TOKENS = 1024;
 export const DEFAULT_OCR_DEVICE: OcrDevice = "cpu";
 export const DEFAULT_OCR_QUALITY_MODE: OcrQualityMode = "minimum";

@@ -36,7 +36,6 @@
 
 .row input[type="range"] {
   min-width: 0;
-  padding: 0;
 }
 
 .value {

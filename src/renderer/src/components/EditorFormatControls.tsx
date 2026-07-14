@@ -3,16 +3,14 @@ import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import { BlockSpacingFields } from "./BlockSpacingFields";
+import { FontSizeNumberInput } from "./FontSizeNumberInput";
 import { FontSelect } from "./FontSelect";
 import { FormatBatchApplyModal } from "./FormatBatchApplyModal";
 import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
-import {
-  Button,
-  FieldSlider,
-  FieldSliderGroup,
-  IconButton,
-  RangeInput,
-} from "./ui";
+import { Button } from "./ui/Button";
+import { FieldSlider, FieldSliderGroup } from "./ui/FieldSlider";
+import { IconButton } from "./ui/IconButton";
+import { RangeInput } from "./ui/Field";
 import {
   AlignCenterIcon,
   AlignLeftIcon,
@@ -41,6 +39,7 @@ export function FormatEditorGroup({
   fontFamilyDraft,
   model,
   onApplyFormat,
+  onAdjustFontSize,
   onFontFamilyDraftChange,
   onUpdate,
   selectedBlockCount,
@@ -49,6 +48,7 @@ export function FormatEditorGroup({
   fontFamilyDraft?: string;
   model: EditorPanelModel;
   onApplyFormat?: ApplyFormatHandler;
+  onAdjustFontSize: (adjustment: -1 | 1) => void;
   onFontFamilyDraftChange: (fontFamily?: string) => void;
   selectedBlockCount: number;
 }): React.JSX.Element {
@@ -90,13 +90,14 @@ export function FormatEditorGroup({
         onFontFamilyDraftChange={onFontFamilyDraftChange}
         onUpdate={onUpdate}
       />
-      <FontSizeRow
-        autoFitText={model.autoFitText}
-        disabled={disabled}
-        fontSizePx={model.fontSizePx}
-        onUpdate={onUpdate}
-      />
       <FieldSliderGroup>
+        <FontSizeRow
+          autoFitText={model.autoFitText}
+          disabled={disabled}
+          fontSizePx={model.fontSizePx}
+          onAdjust={onAdjustFontSize}
+          onUpdate={onUpdate}
+        />
         <BlockTransformSliders
           block={block}
           disabled={disabled}
@@ -267,39 +268,50 @@ function FontSizeRow({
   autoFitText,
   disabled,
   fontSizePx,
+  onAdjust,
   onUpdate,
 }: {
   autoFitText: boolean;
   disabled: boolean;
   fontSizePx: number;
+  onAdjust: (adjustment: -1 | 1) => void;
   onUpdate: BlockPatchHandler;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const updateFontSize = (value: number) =>
     onUpdate({ fontSizePx: clampFontSize(value), autoFitText: false });
   return (
-    <div className="font-size-row">
+    <div className="font-size-row editor-font-size-row">
       <span className="font-size-label">{t("format.size")}</span>
-      <RangeInput
-        aria-label={t("format.fontSize")}
-        min={10}
-        max={160}
-        step={1}
-        value={fontSizePx}
-        disabled={disabled || autoFitText}
-        onChange={(event) => updateFontSize(Number(event.target.value))}
-      />
-      <input
-        className="font-size-number"
-        type="number"
-        aria-label={t("format.fontSizeValue")}
-        min={10}
-        max={160}
-        step={1}
-        value={fontSizePx}
-        disabled={disabled || autoFitText}
-        onChange={(event) => updateFontSize(Number(event.target.value))}
-      />
+      <div className="font-size-stepper">
+        <IconButton
+          className="font-size-adjust-button"
+          size="sm"
+          label={t("format.fontSizeDecrease")}
+          disabled={disabled || (!autoFitText && fontSizePx <= 10)}
+          onClick={() => onAdjust(-1)}
+        >
+          <span aria-hidden="true">−</span>
+        </IconButton>
+        <FontSizeNumberInput
+          className="font-size-number"
+          ariaLabel={t("format.fontSizeValue")}
+          min={10}
+          max={160}
+          value={fontSizePx}
+          disabled={disabled || autoFitText}
+          onValueChange={updateFontSize}
+        />
+        <IconButton
+          className="font-size-adjust-button"
+          size="sm"
+          label={t("format.fontSizeIncrease")}
+          disabled={disabled || (!autoFitText && fontSizePx >= 160)}
+          onClick={() => onAdjust(1)}
+        >
+          <span aria-hidden="true">+</span>
+        </IconButton>
+      </div>
       <label className="inline-toggle" title={t("format.autoFitTitle")}>
         <input
           type="checkbox"
@@ -309,6 +321,16 @@ function FontSizeRow({
         />
         {t("format.auto")}
       </label>
+      <RangeInput
+        className="font-size-slider"
+        aria-label={t("format.fontSize")}
+        min={10}
+        max={160}
+        step={1}
+        value={fontSizePx}
+        disabled={disabled || autoFitText}
+        onChange={(event) => updateFontSize(Number(event.target.value))}
+      />
     </div>
   );
 }
@@ -334,14 +356,16 @@ function BlockTransformSliders({
         }
       />
       <FieldSlider
-        label={t("format.opacity")}
-        valueLabel={`${Math.round(block.opacity * 100)}%`}
-        min={0.1}
+        label={t("format.textOpacity")}
+        valueLabel={`${Math.round((block.textOpacity ?? 1) * 100)}%`}
+        min={0}
         max={1}
         step={0.01}
-        value={block.opacity}
+        value={block.textOpacity ?? 1}
         disabled={disabled}
-        onChange={(event) => onUpdate({ opacity: Number(event.target.value) })}
+        onChange={(event) =>
+          onUpdate({ textOpacity: Number(event.target.value) })
+        }
       />
     </>
   );

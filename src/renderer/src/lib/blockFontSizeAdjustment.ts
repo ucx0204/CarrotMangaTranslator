@@ -1,0 +1,81 @@
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
+import type { TranslationBlock } from "../../../shared/textTypes";
+import { resolveBlockTextLayout } from "./overlayLayout";
+
+export type FontSizeAdjustment = -1 | 1;
+
+/**
+ * Applies a relative font-size edit against the supplied (latest) chapter.
+ * Returning the same object for a missing target or a no-op bound prevents an
+ * empty history entry from being recorded by useCurrentChapterUpdater.
+ */
+export function adjustBlockFontSizeInChapter(
+  chapter: ChapterSnapshot,
+  pageId: string,
+  blockId: string,
+  adjustment: FontSizeAdjustment,
+): ChapterSnapshot {
+  const targetPage = chapter.pages.find((page) => page.id === pageId);
+  if (!targetPage) {
+    return chapter;
+  }
+
+  let changed = false;
+  const blocks = targetPage.blocks.map((block) => {
+    if (block.id !== blockId) {
+      return block;
+    }
+    const next = adjustBlockFontSize(block, targetPage, adjustment);
+    changed ||= next !== block;
+    return next;
+  });
+  if (!changed) {
+    return chapter;
+  }
+
+  return {
+    ...chapter,
+    pages: chapter.pages.map((page) =>
+      page.id === pageId
+        ? { ...page, blocks, updatedAt: new Date().toISOString() }
+        : page,
+    ),
+  };
+}
+
+function adjustBlockFontSize(
+  block: TranslationBlock,
+  page: MangaPage,
+  adjustment: FontSizeAdjustment,
+): TranslationBlock {
+  const autoFitText = block.autoFitText ?? true;
+  const baseFontSize = autoFitText
+    ? resolveAutoFitFontSizeAtNaturalPageScale(block, page)
+    : block.fontSizePx;
+  const fontSizePx = clampFontSize(baseFontSize + adjustment);
+  if (!autoFitText && fontSizePx === block.fontSizePx) {
+    return block;
+  }
+  return { ...block, autoFitText: false, fontSizePx };
+}
+
+function resolveAutoFitFontSizeAtNaturalPageScale(
+  block: TranslationBlock,
+  page: MangaPage,
+): number {
+  const displayText = block.translatedText || block.sourceText || "...";
+  const naturalPageSize = { width: page.width, height: page.height };
+  return resolveBlockTextLayout(
+    block,
+    displayText,
+    naturalPageSize,
+    naturalPageSize,
+  ).fontSizePx;
+}
+
+function clampFontSize(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 24;
+  }
+  return Math.max(10, Math.min(160, Math.round(value)));
+}

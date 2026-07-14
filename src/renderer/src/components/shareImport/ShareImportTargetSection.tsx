@@ -2,7 +2,8 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { LibraryIndex } from "../../../../shared/libraryTypes";
 import type { WorkShareImportPreview } from "../../../../shared/shareTypes";
-import { TextField } from "../ui";
+import { TextField } from "../ui/Field";
+import { SelectionCard } from "../ui/SelectionCard";
 
 type ShareImportTargetSectionProps = {
   busy: boolean;
@@ -37,28 +38,26 @@ export function ShareImportTargetSection({
         </span>
       </div>
       <div className="share-target-grid">
-        <label
-          className={`share-target-card ${targetMode === "new" ? "active" : ""}`}
+        <SelectionCard
+          className="share-target-card"
+          inputType="radio"
+          name="share-import-target-mode"
+          checked={targetMode === "new"}
+          disabled={busy}
+          onChange={() => setTargetMode("new")}
         >
-          <input
-            type="radio"
-            checked={targetMode === "new"}
-            disabled={busy}
-            onChange={() => setTargetMode("new")}
-          />
           <span>{t("import.createNewWork")}</span>
-        </label>
-        <label
-          className={`share-target-card ${targetMode === "existing" ? "active" : ""}`}
+        </SelectionCard>
+        <SelectionCard
+          className="share-target-card"
+          inputType="radio"
+          name="share-import-target-mode"
+          checked={targetMode === "existing"}
+          disabled={busy || library.works.length === 0}
+          onChange={() => setTargetMode("existing")}
         >
-          <input
-            type="radio"
-            checked={targetMode === "existing"}
-            disabled={busy || library.works.length === 0}
-            onChange={() => setTargetMode("existing")}
-          />
           <span>{t("shareImport.applyToExisting")}</span>
-        </label>
+        </SelectionCard>
       </div>
       {targetMode === "new" ? (
         <TextField

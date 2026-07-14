@@ -15,6 +15,17 @@ export type CustomFont = {
   fileName: string;
 };
 
+export type FontPreferences = {
+  favoriteIds: string[];
+  orderedIds: string[];
+  defaultFontId: string;
+};
+
+export type FontLibrarySnapshot = {
+  customFonts: CustomFont[];
+  preferences: FontPreferences;
+};
+
 export type MangaPage = {
   id: string;
   name: string;

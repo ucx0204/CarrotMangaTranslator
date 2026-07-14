@@ -101,10 +101,13 @@
     "size": "サイズ",
     "fontSize": "文字サイズ",
     "fontSizeValue": "文字サイズの値",
+    "fontSizeDecrease": "文字サイズを小さくする",
+    "fontSizeIncrease": "文字サイズを大きくする",
     "autoFitTitle": "テキストボックスに合わせて自動調整",
     "auto": "自動",
     "rotation": "傾き",
-    "opacity": "不透明度",
+    "textOpacity": "文字の不透明度",
+    "blockBackgroundOpacity": "ブロック背景の不透明度",
     "lineHeight": "行間",
     "letterSpacing": "字間",
     "fontWidth": "文字幅",
@@ -116,6 +119,12 @@
     "text": "テキスト",
     "translatedText": "翻訳文",
     "blockColors": "ブロックの色",
+    "display": {
+      "title": "編集表示",
+      "batchApply": "一括適用",
+      "batchTitle": "ブロック背景を一括適用",
+      "batchDescription": "選択したブロックの背景不透明度を適用する範囲を選んでください。"
+    },
     "inpainting": {
       "title": "自動消去",
       "exclude": "自動消去から除外",
@@ -154,13 +163,31 @@
       "fontWidth": "文字幅",
       "color": "文字色",
       "outline": "縁取り",
-      "transform": "傾き・不透明度"
+      "transform": "傾き・文字の不透明度"
     }
   },
   "fontSelect": {
     "addFont": "+ TTF/OTFフォントを追加",
     "deleteFont": "このフォントを削除",
-    "deleteNamedFont": "{{label}}を削除"
+    "deleteNamedFont": "{{label}}を削除",
+    "favoriteFont": "お気に入りに追加",
+    "unfavoriteFont": "お気に入りから削除",
+    "favoriteNamedFont": "{{label}}をお気に入りに追加",
+    "unfavoriteNamedFont": "{{label}}をお気に入りから削除",
+    "manageFonts": "フォント管理"
+  },
+  "fontManager": {
+    "title": "フォント管理",
+    "favorites": "お気に入り",
+    "otherFonts": "その他のフォント",
+    "emptyFavorites": "お気に入りのフォントはありません。",
+    "defaultBadge": "既定のフォント",
+    "setNamedDefault": "{{label}}を既定のフォントに設定",
+    "searchPlaceholder": "フォントを検索",
+    "noSearchResults": "一致するフォントがありません。",
+    "moveNamedFont": "{{label}}の順序を移動",
+    "resetOrder": "順序をリセット",
+    "saveFailed": "フォント設定を保存できませんでした。"
   },
   "chapterPicker": {
     "prompt": "何を翻訳しますか？",
@@ -335,6 +362,10 @@
         "label": "ブロック",
         "title": "ブロックツール（2）— ドラッグしてテキストブロックを追加"
       },
+      "region": {
+        "label": "範囲翻訳",
+        "title": "範囲翻訳 — ドラッグした部分だけを再翻訳"
+      },
       "hand": {
         "label": "手のひら",
         "title": "手のひらツール（3）— ドラッグして画像を移動"
@@ -405,6 +436,33 @@
     "empty": "表示するテキストがありません。",
     "pageHeading": "{{index}}ページ・{{pageName}}",
     "navigateToPage": "クリックすると該当ページに移動します。",
+    "selectBlock": "書式を変更するテキストブロックを選択",
+    "enterSelectionMode": "書式を変更するブロックを選択",
+    "exitSelectionMode": "一括編集を閉じる",
+    "selectedCount": "{{count}}個のブロックを選択中",
+    "selectVisible": "表示中のブロックをすべて選択",
+    "clearSelection": "ブロックの選択を解除",
+    "applyFormat": "選択したブロックの書式を編集",
+    "defaultFont": "既定のフォント",
+    "formatDisabled": "処理中は書式を適用できません。",
+    "directFormatTitle": "選択したブロックの書式を編集",
+    "previewTitle": "適用プレビュー",
+    "previewBasis": "最初の選択ブロックを基準に、変更をすぐ反映します。",
+    "previewTextLabel": "サンプル文",
+    "previewTextDefault": "あいう ABC 123 · 翻訳プレビュー",
+    "previewTextPlaceholder": "サンプルテキスト",
+    "resetChanges": "変更をリセット",
+    "typographySection": "文字と配置",
+    "changedOnlyHint": "操作した項目だけを選択中の全ブロックに適用します。",
+    "colorSection": "色とアウトライン",
+    "detailsSection": "詳細調整",
+    "detailsHint": "行間・字間・長体・傾き・文字の不透明度",
+    "outlineWidth": "アウトライン幅",
+    "autoFitLabel": "自動調整",
+    "autoFitBadge": "自動調整",
+    "mixedValue": "混在",
+    "toggleOn": "オン",
+    "toggleOff": "オフ",
     "importTxt": {
       "button": ".txtを読み込む",
       "title": "翻訳文のみの形式で保存したTXTから、行順に翻訳文を再読み込みします。",
@@ -624,14 +682,27 @@
       "save": "保存"
     },
     "engine": {
+      "limits": {
+        "title": "生成上限",
+        "recommendedFor": "{{model}} の推奨値",
+        "recommendedValues": "出力 {{maxTokens}}・作品コンテキスト {{contextTokens}}",
+        "publicLimits": "公開モデル上限：出力 {{maxOutput}}・コンテキスト {{contextWindow}}",
+        "publicContextOnly": "公開コンテキスト：{{contextWindow}}・最大出力は未公開",
+        "unknownLimits": "公開されたモデル上限がないため、安全な共通推奨値を使用します。",
+        "applyRecommended": "推奨値を適用",
+        "recommendedApplied": "推奨値を使用中"
+      },
       "provider": { "label": "翻訳エンジン" },
       "maxTokens": {
         "label": "最大出力トークン",
-        "description": "モデルが一度に生成できる最大トークン数です。"
+        "remoteDescription": "表示テキストと推論を含む応答全体の上限です。モデル上限より作業向け推奨値の方が安定します。",
+        "gemmaDescription": "ローカルモデルが一度に生成する上限です。高くすると処理時間とメモリ使用量が増える場合があります。"
       },
       "contextTokens": {
-        "label": "コンテキスト長",
-        "description": "モデルが一度に参照できる総トークン数です。"
+        "remoteLabel": "作品コンテキスト予算",
+        "remoteDescription": "モデルのコンテキスト上限ではなく、作品メモ・用語集・キャラクター情報をプロンプトに含めるためのアプリ内部予算です。",
+        "gemmaLabel": "コンテキスト長",
+        "gemmaDescription": "ローカル Gemma の実際のコンテキスト長です。高くすると VRAM 使用量が増える場合があります。"
       }
     },
     "options": {
@@ -827,6 +898,12 @@
       "oauthPort": "openai-oauthポート"
     },
     "api": {
+      "sections": {
+        "connection": "接続",
+        "credentials": "認証",
+        "model": "モデル",
+        "retry": "再試行"
+      },
       "providerTemplate": "APIプロバイダー簡単設定",
       "providers": {
         "custom": "手動設定",
@@ -870,6 +947,8 @@
       }
     },
     "hardware": {
+      "ocrSection": "OCR",
+      "inpaintingSection": "インペインティング",
       "ocrQuality": "Paddle OCR品質",
       "ocrDevice": "Paddle OCRデバイス",
       "fluxBackend": "Fluxインペインティングのバックエンド",
@@ -918,6 +997,7 @@
         "text": "文字色",
         "outline": "縁取り",
         "outlineEnabledTitle": "縁取りを使用するか",
+        "textOpacity": "文字の不透明度",
         "outlineEnabled": "縁取りを使用",
         "outlineWidth": "縁取り幅"
       }

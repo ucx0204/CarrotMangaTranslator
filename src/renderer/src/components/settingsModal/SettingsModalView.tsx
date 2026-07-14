@@ -1,7 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { ModelProvider } from "../../../../shared/settingsTypes";
-import { Button, Modal } from "../ui";
+import { Button } from "../ui/Button";
+import { Modal } from "../ui/Modal";
 import { EngineSettingsPanel } from "./EngineSettingsPanel";
 import { FormatDefaultsPanel } from "./FormatDefaultsPanel";
 import { HardwareSettingsPanel } from "./HardwareSettingsPanel";
@@ -11,6 +12,7 @@ import { ShortcutsSettingsPanel } from "./ShortcutsSettingsPanel";
 import { TestSettingsPanel } from "./TestSettingsPanel";
 import { GeneralSettingsPanel } from "./GeneralSettingsPanel";
 import type { SettingsTabId } from "../settingsModalTypes";
+import { SETTINGS_TABS } from "../settingsModalTypes";
 
 export type SettingsModalViewProps = {
   activeTab: SettingsTabId;
@@ -60,9 +62,10 @@ export function SettingsModalView({
   const { t } = useTranslation("components");
   return (
     <Modal
-      width="min(720px, 100%)"
+      width="min(920px, 100%)"
       ariaLabel={t("settings.title")}
       title={t("settings.title")}
+      bodyClassName="settings-modal-body"
       onClose={onCancel}
       closeDisabled={controlsBusy}
       footer={
@@ -158,17 +161,29 @@ function SettingsModalTabPanel({
   | "validationProps"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
-  const showApplyNote = activeTab !== "shortcuts" && activeTab !== "general";
+  const showApplyNote = ["engine", "hardware", "format"].includes(activeTab);
+  const activeTabOption = SETTINGS_TABS.find((tab) => tab.id === activeTab);
   return (
     <div
-      className="settings-tabpanel modal-section"
+      className={[
+        "settings-tabpanel",
+        "modal-section",
+        activeTab === "format" ? "settings-tabpanel-format" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       role="tabpanel"
       id={`settings-panel-${activeTab}`}
       aria-labelledby={`settings-tab-${activeTab}`}
     >
-      {showApplyNote ? (
-        <p className="muted-line modal-note">{t("settings.applyNextRun")}</p>
-      ) : null}
+      <header className="settings-panel-header">
+        <h2>{activeTabOption ? t(activeTabOption.labelKey) : null}</h2>
+        {showApplyNote ? (
+          <span className="settings-apply-badge">
+            {t("settings.applyNextRun")}
+          </span>
+        ) : null}
+      </header>
       {activeTab === "general" ? (
         <GeneralSettingsPanel {...generalPanelProps} />
       ) : null}
@@ -185,7 +200,11 @@ function SettingsModalTabPanel({
         <ShortcutsSettingsPanel {...shortcutsPanelProps} />
       ) : null}
       {activeTab === "test" ? <TestSettingsPanel {...testPanelProps} /> : null}
-      <SettingsValidationMessages {...validationProps} />
+      {activeTab === "engine" ? (
+        <div className="settings-validation-summary">
+          <SettingsValidationMessages {...validationProps} />
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Modal } from "./ui";
+import { Modal } from "./ui/Modal";
 import {
   GatherTextControls,
   ReviewWarnings,
@@ -10,9 +10,12 @@ import { GatherTextFooter } from "./gatherText/GatherTextFooter";
 import { GatheredPageList } from "./gatherText/GatheredPageList";
 import type { GatherTextModalProps } from "./gatherText/gatherTextTypes";
 import { useGatherTextModalModel } from "./gatherText/useGatherTextModalModel";
+import { GatherTextFormatSelectionBar } from "./gatherText/GatherTextFormatSelectionBar";
 
 export function GatherTextModal({
   chapter,
+  formatApplyDisabled,
+  onApplyFormat,
   page,
   onClose,
   onChapterUpdated,
@@ -23,6 +26,8 @@ export function GatherTextModal({
   const { t } = useTranslation("components");
   const model = useGatherTextModalModel({
     chapter,
+    formatApplyDisabled,
+    onApplyFormat,
     page,
     onChapterUpdated,
     onApplyTranslatedText,
@@ -61,14 +66,25 @@ export function GatherTextModal({
       <GatherTextControls
         scope={model.scope}
         field={model.field}
+        multiSelectAvailable={
+          Boolean(model.formatSelection) && model.hasContent
+        }
+        selectionMode={model.formatSelection?.isSelectionMode ?? false}
         onScopeChange={model.setScope}
         onFieldChange={model.setField}
+        onEnterSelectionMode={
+          model.formatSelection?.enterSelectionMode ?? (() => undefined)
+        }
       />
       <ReviewWarnings warnings={model.reviewWarnings} />
+      {model.formatSelection ? (
+        <GatherTextFormatSelectionBar selection={model.formatSelection} />
+      ) : null}
       <GatheredPageList
         pages={model.pages}
         field={model.field}
         search={model.search}
+        formatSelection={model.formatSelection}
         onNavigateToBlock={onNavigateToBlock}
       />
     </Modal>

@@ -1,16 +1,43 @@
-import { dialog } from "electron";
-import { fontIpcContracts } from "../../shared/ipcContracts";
-import type { CustomFont } from "../../shared/libraryTypes";
+import { BrowserWindow, dialog } from "electron";
+import { fontIpcContracts, ipcEventContracts } from "../../shared/ipcContracts";
+import type {
+  CustomFont,
+  FontLibrarySnapshot,
+  FontPreferences,
+} from "../../shared/libraryTypes";
 import {
+  getFontLibrarySnapshot,
   listCustomFonts,
   registerCustomFontFromFile,
   removeCustomFont,
+  saveFontPreferences,
 } from "../customFonts";
 import type { IpcContext } from "./context";
 import { trustedHandleContract } from "./trustedIpc";
 import { tMain } from "./localization";
 
 export function registerFontsIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    fontIpcContracts.getFontLibrary,
+    async (): Promise<FontLibrarySnapshot> => getFontLibrarySnapshot(),
+  );
+
+  trustedHandleContract(
+    context,
+    fontIpcContracts.saveFontPreferences,
+    async (
+      _event,
+      preferences: FontPreferences,
+    ): Promise<FontLibrarySnapshot> => {
+      const customFonts = listCustomFonts();
+      saveFontPreferences(preferences, customFonts);
+      const snapshot = getFontLibrarySnapshot();
+      broadcastFontLibrary(snapshot);
+      return snapshot;
+    },
+  );
+
   trustedHandleContract(
     context,
     fontIpcContracts.listCustomFonts,
@@ -38,7 +65,9 @@ export function registerFontsIpc(context: IpcContext): void {
       if (result.canceled || !result.filePaths[0]) {
         return null;
       }
-      return registerCustomFontFromFile(result.filePaths[0]);
+      const font = registerCustomFontFromFile(result.filePaths[0]);
+      broadcastFontLibrary(getFontLibrarySnapshot());
+      return font;
     },
   );
 
@@ -49,7 +78,21 @@ export function registerFontsIpc(context: IpcContext): void {
       if (typeof id !== "string" || !id) {
         return listCustomFonts();
       }
-      return removeCustomFont(id);
+      const remaining = removeCustomFont(id);
+      broadcastFontLibrary(getFontLibrarySnapshot());
+      return remaining;
     },
   );
+}
+
+function broadcastFontLibrary(snapshot: FontLibrarySnapshot): void {
+  const payload = ipcEventContracts.fontLibraryChanged.payload.parse(snapshot);
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.webContents.send(
+        ipcEventContracts.fontLibraryChanged.channel,
+        payload,
+      );
+    }
+  }
 }

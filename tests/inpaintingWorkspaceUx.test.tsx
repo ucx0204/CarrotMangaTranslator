@@ -141,6 +141,28 @@ describe("automatic erase exclusion", () => {
     expect(container.querySelector(".overlay-block.excluded")).not.toBeNull();
   });
 
+  it("renders text opacity independently from the editor block background", () => {
+    const { container } = render(
+      <OverlayBlock
+        block={{ ...makeBlock(false), textOpacity: 0.35, opacity: 0.7 }}
+        pageSize={{ width: 1000, height: 1600 }}
+        stageSize={{ width: 500, height: 800 }}
+        selected
+        showChrome
+        textLayoutStageSize={{ width: 500, height: 800 }}
+        onPointerDown={vi.fn()}
+        onResizePointerDown={vi.fn()}
+      />,
+    );
+
+    const text = container.querySelector<HTMLElement>(".overlay-text");
+    const chrome = container.querySelector<HTMLElement>(
+      ".overlay-block-chrome",
+    );
+    expect(text?.style.opacity).toBe("0.35");
+    expect(chrome?.style.backgroundColor).toContain("0.7");
+  });
+
   it("keeps only excluded badges visible when text blocks are hidden", () => {
     const page = makePage([
       {

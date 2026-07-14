@@ -1,17 +1,24 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { GatherField, GatherScope } from "../../lib/gatherText";
+import { Button } from "../ui/Button";
 
 export function GatherTextControls({
   scope,
   field,
+  multiSelectAvailable,
+  selectionMode,
   onScopeChange,
   onFieldChange,
+  onEnterSelectionMode,
 }: {
   scope: GatherScope;
   field: GatherField;
+  multiSelectAvailable: boolean;
+  selectionMode: boolean;
   onScopeChange: (scope: GatherScope) => void;
   onFieldChange: (field: GatherField) => void;
+  onEnterSelectionMode: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -35,6 +42,16 @@ export function GatherTextControls({
         value={field}
         onChange={onFieldChange}
       />
+      {multiSelectAvailable && !selectionMode ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="gather-text-multi-select-button"
+          onClick={onEnterSelectionMode}
+        >
+          {t("gatherText.enterSelectionMode")}
+        </Button>
+      ) : null}
     </div>
   );
 }

@@ -19,6 +19,7 @@ afterEach(() => cleanup());
 describe("unified workspace toolbar", () => {
   it("renders one mutually-exclusive toolbar for translation and retouch tools", () => {
     const onSelectTool = vi.fn();
+    const onToggleRegionTranslation = vi.fn();
     render(
       <StageToolbar
         brushColor="#fa8128"
@@ -26,12 +27,15 @@ describe("unified workspace toolbar", () => {
         disabled={false}
         hidden={false}
         onSelectTool={onSelectTool}
+        onToggleRegionTranslation={onToggleRegionTranslation}
         onToggleHidden={() => undefined}
+        regionTranslationActive={false}
+        regionTranslationAvailable={true}
         tool="brush"
       />,
     );
 
-    expect(screen.getAllByRole("button")).toHaveLength(8);
+    expect(screen.getAllByRole("button")).toHaveLength(9);
     expect(
       screen
         .getByRole("button", { name: "브러시" })
@@ -47,6 +51,58 @@ describe("unified workspace toolbar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "마스크" }));
     expect(onSelectTool).toHaveBeenCalledWith("mask");
+
+    fireEvent.click(screen.getByRole("button", { name: "영역 번역" }));
+    expect(onToggleRegionTranslation).toHaveBeenCalledOnce();
+  });
+
+  it("keeps region translation visible and exposes its active state", () => {
+    render(
+      <StageToolbar
+        brushColor="#ffffff"
+        brushRadius={20}
+        disabled={false}
+        hidden={false}
+        onSelectTool={() => undefined}
+        onToggleRegionTranslation={() => undefined}
+        onToggleHidden={() => undefined}
+        regionTranslationActive={true}
+        regionTranslationAvailable={true}
+        tool="select"
+      />,
+    );
+
+    const regionButton = screen.getByRole("button", { name: "영역 번역" });
+    const selectButton = screen.getByRole("button", { name: "선택" });
+    expect(regionButton.getAttribute("aria-pressed")).toBe("true");
+    expect(selectButton.getAttribute("aria-pressed")).toBe("false");
+    expect(selectButton.classList.contains("active")).toBe(false);
+    expect((regionButton as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("disables region translation until the selected page image is ready", () => {
+    render(
+      <StageToolbar
+        brushColor="#ffffff"
+        brushRadius={20}
+        disabled={false}
+        hidden={false}
+        onSelectTool={() => undefined}
+        onToggleRegionTranslation={() => undefined}
+        onToggleHidden={() => undefined}
+        regionTranslationActive={false}
+        regionTranslationAvailable={false}
+        tool="select"
+      />,
+    );
+
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "영역 번역",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
   });
 
   it("disables every interaction tool while a job owns the canvas", () => {
@@ -57,7 +113,10 @@ describe("unified workspace toolbar", () => {
         disabled={true}
         hidden={false}
         onSelectTool={() => undefined}
+        onToggleRegionTranslation={() => undefined}
         onToggleHidden={() => undefined}
+        regionTranslationActive={false}
+        regionTranslationAvailable={true}
         tool="select"
       />,
     );
@@ -65,6 +124,7 @@ describe("unified workspace toolbar", () => {
     for (const name of [
       "선택",
       "블록",
+      "영역 번역",
       "손바닥",
       "마스크",
       "브러시",

@@ -28,6 +28,12 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
       patch: TranslationBlockSchema.partial().strict(),
     })
     .strict(),
+  z
+    .object({
+      type: z.literal("adjustFontSize"),
+      adjustment: z.union([z.literal(-1), z.literal(1)]),
+    })
+    .strict(),
   z.object({ type: z.literal("deleteBlock") }).strict(),
   z.object({ type: z.literal("duplicateBlock") }).strict(),
   z
@@ -35,6 +41,12 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
       type: z.literal("applyFormat"),
       scope: z.enum(["selection", "page", "chapter"]),
       groupIds: z.array(BlockFormatGroupIdSchema).max(20),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("applyBlockBackgroundOpacity"),
+      scope: z.enum(["page", "chapter"]),
     })
     .strict(),
   z.object({ type: z.literal("startAreaTranslate") }).strict(),

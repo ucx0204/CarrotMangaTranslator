@@ -1,16 +1,18 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { DEFAULT_BLOCK_FONT_ID } from "../../../../shared/blockFontCatalog";
 import type {
   BlockFormatDefaults,
   BlockFormatDirectionDefault,
 } from "../../../../shared/settingsTypes";
+import { useFonts } from "../../fonts/useFonts";
+import type { GatherTextDirectFormatValues } from "../../lib/gatherTextDirectFormatModel";
+import { FontSizeNumberInput } from "../FontSizeNumberInput";
+import { BlockFormatPreview } from "../gatherText/GatherTextDirectFormatPreview";
 import {
-  MAX_FONT_WIDTH_SCALE,
-  MIN_FONT_WIDTH_SCALE,
-} from "../../../../shared/geometry";
-import { ColorField } from "../ColorField";
-import { FontSelect } from "../FontSelect";
-import { FieldSlider, IconButton, RangeInput } from "../ui";
+  DirectControlCaption,
+  DirectSectionHeading,
+} from "../gatherText/GatherTextDirectFormatPrimitives";
 import {
   AlignCenterIcon,
   AlignLeftIcon,
@@ -18,6 +20,10 @@ import {
   BoldIcon,
   ItalicIcon,
 } from "../ui/icons";
+import {
+  FormatDefaultsColorSection,
+  FormatDefaultsFineTuningSection,
+} from "./FormatDefaultsDetailSections";
 
 export type FormatDefaultsPanelProps = {
   value: BlockFormatDefaults;
@@ -25,6 +31,8 @@ export type FormatDefaultsPanelProps = {
 };
 
 type SectionProps = FormatDefaultsPanelProps;
+
+const DEFAULT_FONT_VALUE = "__format_defaults_font__";
 
 const DIRECTION_OPTIONS: {
   id: BlockFormatDirectionDefault;
@@ -40,254 +48,281 @@ export function FormatDefaultsPanel({
   onChange,
 }: FormatDefaultsPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const [exampleText, setExampleText] = React.useState(() =>
+    t("gatherText.previewTextDefault"),
+  );
+  const previewValues = React.useMemo(
+    () => createPreviewValues(value),
+    [value],
+  );
+
   return (
-    <div className="format-defaults">
-      <p className="muted-line modal-note">
-        {t("settings.format.description")}
-      </p>
-      <DirectionAlignSection value={value} onChange={onChange} />
-      <FontSizeSection value={value} onChange={onChange} />
-      <SpacingSection value={value} onChange={onChange} />
-      <ColorSection value={value} onChange={onChange} />
+    <div className="format-defaults format-defaults-editor">
+      <BlockFormatPreview
+        exampleText={exampleText}
+        values={previewValues}
+        title={t("gatherText.previewTitle")}
+        description={t("settings.format.description")}
+        exampleLabel={t("gatherText.previewTextLabel")}
+        placeholder={t("gatherText.previewTextPlaceholder")}
+        autoFitLabel={t("gatherText.autoFitBadge")}
+        onExampleTextChange={setExampleText}
+      />
+      <div className="format-defaults-editor-controls">
+        <TypographySection value={value} onChange={onChange} />
+        <FormatDefaultsColorSection value={value} onChange={onChange} />
+        <FormatDefaultsFineTuningSection value={value} onChange={onChange} />
+      </div>
     </div>
   );
 }
 
-function DirectionAlignSection({
+function TypographySection({
   value,
   onChange,
 }: SectionProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="editor-group">
-      <div className="editor-group-head">
-        <h3>{t("settings.format.alignment.title")}</h3>
+    <section className="gather-direct-editor-section">
+      <DirectSectionHeading title={t("gatherText.typographySection")} />
+      <div className="gather-direct-editor-type-row">
+        <DefaultFontPicker value={value.fontFamily} onChange={onChange} />
+        <DefaultFontSizeControl value={value} onChange={onChange} />
+        <DefaultAutoFitControl value={value.autoFitText} onChange={onChange} />
       </div>
-      <div className="format-toolbar">
-        <div className="block-style-group">
-          <IconButton
-            label={t("settings.format.alignment.bold")}
-            title={t("settings.format.alignment.bold")}
-            aria-pressed={value.bold}
-            onClick={() => onChange({ bold: !value.bold })}
-          >
-            <BoldIcon size={18} />
-          </IconButton>
-          <IconButton
-            label={t("settings.format.alignment.italic")}
-            title={t("settings.format.alignment.italic")}
-            aria-pressed={value.italic}
-            onClick={() => onChange({ italic: !value.italic })}
-          >
-            <ItalicIcon size={18} />
-          </IconButton>
-        </div>
-        <div className="block-style-group">
-          {(["left", "center", "right"] as const).map((align) => (
-            <IconButton
-              key={align}
-              label={t(ALIGN_LABEL_KEYS[align])}
-              title={t(ALIGN_LABEL_KEYS[align])}
-              aria-pressed={value.textAlign === align}
-              onClick={() => onChange({ textAlign: align })}
-            >
-              <AlignIcon align={align} />
-            </IconButton>
-          ))}
-        </div>
-        <div
-          className="dir-toggle"
-          role="group"
-          aria-label={t("settings.format.direction.ariaLabel")}
-        >
-          {DIRECTION_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={value.renderDirection === option.id}
-              onClick={() => onChange({ renderDirection: option.id })}
-            >
-              {t(option.labelKey)}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+      <DefaultStyleToolbar value={value} onChange={onChange} />
+    </section>
   );
 }
 
-function FontSizeSection({ value, onChange }: SectionProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const setSize = (raw: number): void =>
-    onChange({ fontSizePx: clampFontSize(raw) });
-  return (
-    <div className="editor-group">
-      <div className="editor-group-head">
-        <h3>{t("settings.format.font.title")}</h3>
-      </div>
-      <div className="font-field">
-        <FontSelect
-          value={value.fontFamily}
-          onChange={(fontFamily) => onChange({ fontFamily })}
-        />
-      </div>
-      <div className="font-size-row">
-        <span className="font-size-label">
-          {t("settings.format.font.size")}
-        </span>
-        <RangeInput
-          aria-label={t("settings.format.font.sizeAria")}
-          min={10}
-          max={160}
-          step={1}
-          value={value.fontSizePx}
-          disabled={value.autoFitText}
-          onChange={(event) => setSize(Number(event.target.value))}
-        />
-        <input
-          className="font-size-number"
-          type="number"
-          aria-label={t("settings.format.font.sizeValueAria")}
-          min={10}
-          max={160}
-          step={1}
-          value={value.fontSizePx}
-          disabled={value.autoFitText}
-          onChange={(event) => setSize(Number(event.target.value))}
-        />
-        <label
-          className="inline-toggle"
-          title={t("settings.format.font.autoFitTitle")}
-        >
-          <input
-            type="checkbox"
-            checked={value.autoFitText}
-            onChange={(event) =>
-              onChange({ autoFitText: event.target.checked })
-            }
-          />
-          {t("settings.format.font.auto")}
-        </label>
-      </div>
-    </div>
-  );
-}
-
-function SpacingSection({ value, onChange }: SectionProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <div className="editor-group">
-      <div className="editor-group-head">
-        <h3>{t("settings.format.spacing.title")}</h3>
-      </div>
-      <FieldSlider
-        label={t("settings.format.spacing.lineHeight")}
-        valueLabel={value.lineHeight.toFixed(2)}
-        min={0.8}
-        max={3}
-        step={0.05}
-        value={value.lineHeight}
-        onChange={(event) =>
-          onChange({ lineHeight: round2(Number(event.target.value)) })
-        }
-      />
-      <FieldSlider
-        label={t("settings.format.spacing.letterSpacing")}
-        valueLabel={value.letterSpacing.toFixed(2)}
-        min={-0.1}
-        max={0.5}
-        step={0.01}
-        value={value.letterSpacing}
-        onChange={(event) =>
-          onChange({ letterSpacing: round2(Number(event.target.value)) })
-        }
-      />
-      <FieldSlider
-        label={t("settings.format.spacing.fontWidth")}
-        valueLabel={`${Math.round(value.fontWidthScale * 100)}%`}
-        min={MIN_FONT_WIDTH_SCALE}
-        max={MAX_FONT_WIDTH_SCALE}
-        step={0.01}
-        value={value.fontWidthScale}
-        onChange={(event) =>
-          onChange({ fontWidthScale: round2(Number(event.target.value)) })
-        }
-      />
-    </div>
-  );
-}
-
-function ColorSection({ value, onChange }: SectionProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <div className="editor-group">
-      <div className="editor-group-head">
-        <h3>{t("settings.format.color.title")}</h3>
-      </div>
-      <div
-        className="color-row"
-        aria-label={t("settings.format.color.ariaLabel")}
-      >
-        <ColorField
-          label={t("settings.format.color.text")}
-          value={value.textColor}
-          disabled={false}
-          onChange={(textColor) => onChange({ textColor })}
-        />
-        <ColorField
-          label={t("settings.format.color.outline")}
-          value={value.outlineColor}
-          disabled={!value.outlineEnabled}
-          onChange={(outlineColor) => onChange({ outlineColor })}
-        />
-      </div>
-      <label
-        className="inline-toggle"
-        title={t("settings.format.color.outlineEnabledTitle")}
-      >
-        <input
-          type="checkbox"
-          checked={value.outlineEnabled}
-          onChange={(event) =>
-            onChange({ outlineEnabled: event.target.checked })
-          }
-        />
-        {t("settings.format.color.outlineEnabled")}
-      </label>
-      <FieldSlider
-        label={t("settings.format.color.outlineWidth")}
-        valueLabel={`${Math.round(value.outlineWidthScale * 100)}%`}
-        min={0}
-        max={2.5}
-        step={0.1}
-        value={value.outlineWidthScale}
-        disabled={!value.outlineEnabled}
-        onChange={(event) =>
-          onChange({ outlineWidthScale: Number(event.target.value) })
-        }
-      />
-    </div>
-  );
-}
-
-const ALIGN_LABEL_KEYS: Record<"left" | "center" | "right", string> = {
-  left: "settings.format.alignment.left",
-  center: "settings.format.alignment.center",
-  right: "settings.format.alignment.right",
-};
-
-function AlignIcon({
-  align,
+function DefaultFontPicker({
+  value,
+  onChange,
 }: {
-  align: "left" | "center" | "right";
+  value: string | undefined;
+  onChange: FormatDefaultsPanelProps["onChange"];
 }): React.JSX.Element {
-  if (align === "left") {
-    return <AlignLeftIcon size={18} />;
-  }
-  if (align === "right") {
-    return <AlignRightIcon size={18} />;
-  }
-  return <AlignCenterIcon size={18} />;
+  const { t } = useTranslation("components");
+  const { options } = useFonts();
+  const defaultOption = options.find(
+    (option) => option.id === DEFAULT_BLOCK_FONT_ID,
+  );
+  return (
+    <label className="gather-direct-font-picker">
+      <DirectControlCaption
+        label={t("formatBatch.groups.font")}
+        mixed={false}
+        touched={false}
+      />
+      <select
+        aria-label={t("formatBatch.groups.font")}
+        value={value ?? DEFAULT_FONT_VALUE}
+        onChange={(event) =>
+          onChange({
+            fontFamily:
+              event.target.value === DEFAULT_FONT_VALUE
+                ? undefined
+                : event.target.value,
+          })
+        }
+      >
+        <option value={DEFAULT_FONT_VALUE}>
+          {defaultOption?.label ?? t("gatherText.defaultFont")}
+        </option>
+        {options
+          .filter((option) => option.id !== DEFAULT_BLOCK_FONT_ID)
+          .map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+      </select>
+    </label>
+  );
+}
+
+function DefaultFontSizeControl({
+  value,
+  onChange,
+}: SectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const updateSize = (next: number): void =>
+    onChange({ fontSizePx: clampFontSize(next), autoFitText: false });
+  return (
+    <div className="gather-direct-size-control">
+      <DirectControlCaption
+        label={t("format.fontSize")}
+        mixed={false}
+        touched={false}
+      />
+      <div className="gather-direct-size-stepper">
+        <button
+          type="button"
+          aria-label={t("format.fontSizeDecrease")}
+          disabled={value.fontSizePx <= 10}
+          onClick={() => updateSize(value.fontSizePx - 1)}
+        >
+          −
+        </button>
+        <FontSizeNumberInput
+          className="gather-direct-size-input"
+          ariaLabel={t("format.fontSize")}
+          value={value.fontSizePx}
+          onValueChange={updateSize}
+        />
+        <button
+          type="button"
+          aria-label={t("format.fontSizeIncrease")}
+          disabled={value.fontSizePx >= 160}
+          onClick={() => updateSize(value.fontSizePx + 1)}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DefaultAutoFitControl({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: FormatDefaultsPanelProps["onChange"];
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="gather-direct-auto-control">
+      <DirectControlCaption
+        label={t("gatherText.autoFitLabel")}
+        mixed={false}
+        touched={false}
+      />
+      <button
+        type="button"
+        className="gather-direct-pill-toggle"
+        aria-pressed={value}
+        onClick={() => onChange({ autoFitText: !value })}
+      >
+        <span aria-hidden="true" />
+        {value ? t("gatherText.toggleOn") : t("gatherText.toggleOff")}
+      </button>
+    </div>
+  );
+}
+
+function DefaultStyleToolbar({
+  value,
+  onChange,
+}: SectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const alignmentTools = [
+    ["left", t("settings.format.alignment.left"), <AlignLeftIcon size={17} />],
+    [
+      "center",
+      t("settings.format.alignment.center"),
+      <AlignCenterIcon size={17} />,
+    ],
+    [
+      "right",
+      t("settings.format.alignment.right"),
+      <AlignRightIcon size={17} />,
+    ],
+  ] as const;
+  return (
+    <div className="gather-direct-style-toolbar">
+      <div className="gather-direct-toolbar-group">
+        <DefaultToolButton
+          label={t("settings.format.alignment.bold")}
+          pressed={value.bold}
+          onClick={() => onChange({ bold: !value.bold })}
+        >
+          <BoldIcon size={17} />
+        </DefaultToolButton>
+        <DefaultToolButton
+          label={t("settings.format.alignment.italic")}
+          pressed={value.italic}
+          onClick={() => onChange({ italic: !value.italic })}
+        >
+          <ItalicIcon size={17} />
+        </DefaultToolButton>
+      </div>
+      <span className="gather-direct-toolbar-divider" aria-hidden="true" />
+      <div className="gather-direct-toolbar-group">
+        {alignmentTools.map(([alignment, label, icon]) => (
+          <DefaultToolButton
+            key={alignment}
+            label={label}
+            pressed={value.textAlign === alignment}
+            onClick={() => onChange({ textAlign: alignment })}
+          >
+            {icon}
+          </DefaultToolButton>
+        ))}
+      </div>
+      <span className="gather-direct-toolbar-divider" aria-hidden="true" />
+      <div className="gather-direct-toolbar-group direction">
+        {DIRECTION_OPTIONS.map((option) => (
+          <DefaultToolButton
+            key={option.id}
+            label={t(option.labelKey)}
+            pressed={value.renderDirection === option.id}
+            onClick={() => onChange({ renderDirection: option.id })}
+          >
+            <span>{t(option.labelKey)}</span>
+          </DefaultToolButton>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DefaultToolButton({
+  children,
+  label,
+  pressed,
+  onClick,
+}: {
+  children: React.ReactNode;
+  label: string;
+  pressed: boolean;
+  onClick: () => void;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="gather-direct-tool-button"
+      aria-label={label}
+      title={label}
+      aria-pressed={pressed}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function createPreviewValues(
+  value: BlockFormatDefaults,
+): GatherTextDirectFormatValues {
+  return {
+    fontFamily: value.fontFamily,
+    fontSizePx: value.fontSizePx,
+    autoFitText: value.autoFitText,
+    textAlign: value.textAlign,
+    renderDirection:
+      value.renderDirection === "vertical" ? "vertical" : "horizontal",
+    bold: value.bold,
+    italic: value.italic,
+    lineHeight: value.lineHeight,
+    letterSpacing: value.letterSpacing,
+    fontWidthScale: value.fontWidthScale,
+    textColor: value.textColor,
+    textOpacity: value.textOpacity,
+    outlineColor: value.outlineColor,
+    outlineWidthScale: value.outlineEnabled ? value.outlineWidthScale : 0,
+    rotationDeg: 0,
+  };
 }
 
 function clampFontSize(value: number): number {
@@ -295,11 +330,4 @@ function clampFontSize(value: number): number {
     return 24;
   }
   return Math.max(10, Math.min(160, Math.round(value)));
-}
-
-function round2(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.round(value * 100) / 100;
 }

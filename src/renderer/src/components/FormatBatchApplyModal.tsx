@@ -6,7 +6,9 @@ import {
   type BlockFormatGroupId,
 } from "../../../shared/blockFormat";
 import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
-import { Button, Modal } from "./ui";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
+import { SelectionCard, SelectionSurface } from "./ui/SelectionCard";
 
 type FormatBatchApplyModalProps = {
   selectedBlockCount: number;
@@ -106,14 +108,16 @@ function FormatGroupChecklist({
       </div>
       <div className="format-apply-grid">
         {BLOCK_FORMAT_GROUPS.map((group) => (
-          <label key={group.id} className="format-apply-item">
-            <input
-              type="checkbox"
-              checked={groupIds.has(group.id)}
-              onChange={() => toggleGroup(group.id)}
-            />
+          <SelectionCard
+            key={group.id}
+            className="format-apply-item"
+            variant="row"
+            inputType="checkbox"
+            checked={groupIds.has(group.id)}
+            onChange={() => toggleGroup(group.id)}
+          >
             {t(`formatBatch.groups.${group.id}`)}
-          </label>
+          </SelectionCard>
         ))}
       </div>
     </div>
@@ -184,15 +188,17 @@ function ScopeButton({
   onClick: () => void;
 }): React.JSX.Element {
   return (
-    <button
+    <SelectionSurface
+      as="button"
       type="button"
       className="format-apply-scope-button"
-      aria-pressed={active}
+      selected={active}
       disabled={disabled}
+      aria-pressed={active}
       title={title}
       onClick={onClick}
     >
       {label}
-    </button>
+    </SelectionSurface>
   );
 }

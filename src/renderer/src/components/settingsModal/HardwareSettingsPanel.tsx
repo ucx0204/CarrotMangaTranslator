@@ -18,6 +18,7 @@ import {
   FluxHardwareContextNote,
   OcrHardwareContextNote,
 } from "./HardwareContextNotes";
+import { SettingsSection } from "./SettingsSection";
 
 type HardwareSettingsPanelProps = {
   clearTestState: () => void;
@@ -58,43 +59,54 @@ export function HardwareSettingsPanel({
   usesNvidiaHardware,
   usesNvidiaOcrContext,
 }: HardwareSettingsPanelProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
-    <>
-      <OcrQualitySettings
-        clearTestState={clearTestState}
-        controlsBusy={controlsBusy}
-        ocrQualityMode={ocrQualityMode}
-        setOcrDevice={setOcrDevice}
-        setOcrGpuBackend={setOcrGpuBackend}
-        setOcrQualityMode={setOcrQualityMode}
-        usesAmdOcrContext={usesAmdOcrContext}
-        usesNvidiaOcrContext={usesNvidiaOcrContext}
-      />
-      <OcrDeviceSettings
-        clearTestState={clearTestState}
-        controlsBusy={controlsBusy}
-        ocrDevice={ocrDevice}
-        ocrGpuBackend={ocrGpuBackend}
-        setOcrDevice={setOcrDevice}
-        setOcrGpuBackend={setOcrGpuBackend}
-        usesAmdOcrContext={usesAmdOcrContext}
-        usesNvidiaOcrContext={usesNvidiaOcrContext}
-      />
-      <InpaintingModelSettings
-        clearTestState={clearTestState}
-        inpaintingModel={inpaintingModel}
-        setInpaintingModel={setInpaintingModel}
-      />
-      <FluxBackendSettings
-        clearTestState={clearTestState}
-        fluxBackend={fluxBackend}
-        inpaintingModel={inpaintingModel}
-        isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
-        setFluxBackend={setFluxBackend}
-        usesAmdHardware={usesAmdHardware}
-        usesNvidiaHardware={usesNvidiaHardware}
-      />
-    </>
+    <div className="settings-panel-stack">
+      <SettingsSection title={t("settings.hardware.ocrSection")}>
+        <div className="settings-subsection-stack">
+          <OcrQualitySettings
+            clearTestState={clearTestState}
+            controlsBusy={controlsBusy}
+            ocrQualityMode={ocrQualityMode}
+            setOcrDevice={setOcrDevice}
+            setOcrGpuBackend={setOcrGpuBackend}
+            setOcrQualityMode={setOcrQualityMode}
+            usesAmdOcrContext={usesAmdOcrContext}
+            usesNvidiaOcrContext={usesNvidiaOcrContext}
+          />
+          <OcrDeviceSettings
+            clearTestState={clearTestState}
+            controlsBusy={controlsBusy}
+            ocrDevice={ocrDevice}
+            ocrGpuBackend={ocrGpuBackend}
+            setOcrDevice={setOcrDevice}
+            setOcrGpuBackend={setOcrGpuBackend}
+            usesAmdOcrContext={usesAmdOcrContext}
+            usesNvidiaOcrContext={usesNvidiaOcrContext}
+          />
+        </div>
+      </SettingsSection>
+      <SettingsSection title={t("settings.hardware.inpaintingSection")}>
+        <div className="settings-subsection-stack">
+          <InpaintingModelSettings
+            clearTestState={clearTestState}
+            controlsBusy={controlsBusy}
+            inpaintingModel={inpaintingModel}
+            setInpaintingModel={setInpaintingModel}
+          />
+          <FluxBackendSettings
+            clearTestState={clearTestState}
+            controlsBusy={controlsBusy}
+            fluxBackend={fluxBackend}
+            inpaintingModel={inpaintingModel}
+            isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
+            setFluxBackend={setFluxBackend}
+            usesAmdHardware={usesAmdHardware}
+            usesNvidiaHardware={usesNvidiaHardware}
+          />
+        </div>
+      </SettingsSection>
+    </div>
   );
 }
 
@@ -127,7 +139,7 @@ function OcrQualitySettings({
       <span>{t("settings.hardware.ocrQuality")}</span>
       <div
         className="settings-preset-group"
-        role="tablist"
+        role="group"
         aria-label={t("settings.hardware.ocrQuality")}
       >
         {OCR_QUALITY_OPTIONS.map((option) => (
@@ -200,7 +212,7 @@ function OcrDeviceSettings({
       <span>{t("settings.hardware.ocrDevice")}</span>
       <div
         className="settings-preset-group"
-        role="tablist"
+        role="group"
         aria-label={t("settings.hardware.ocrDevice")}
       >
         {OCR_DEVICE_OPTIONS.map((option) => (
@@ -238,6 +250,7 @@ function OcrDeviceSettings({
 
 function FluxBackendSettings({
   clearTestState,
+  controlsBusy,
   fluxBackend,
   inpaintingModel,
   isFluxBackendOptionDisabled,
@@ -247,6 +260,7 @@ function FluxBackendSettings({
 }: Pick<
   HardwareSettingsPanelProps,
   | "clearTestState"
+  | "controlsBusy"
   | "fluxBackend"
   | "inpaintingModel"
   | "isFluxBackendOptionDisabled"
@@ -263,7 +277,7 @@ function FluxBackendSettings({
       <span>{t("settings.hardware.fluxBackend")}</span>
       <div
         className="settings-preset-group"
-        role="tablist"
+        role="group"
         aria-label={t("settings.hardware.fluxBackend")}
       >
         {FLUX_BACKEND_OPTIONS.map((option) => (
@@ -275,7 +289,7 @@ function FluxBackendSettings({
               clearTestState();
               setFluxBackend(option.id);
             }}
-            disabled={isFluxBackendOptionDisabled(option.id)}
+            disabled={controlsBusy || isFluxBackendOptionDisabled(option.id)}
             aria-pressed={fluxBackend === option.id}
           >
             {t(option.labelKey)}
@@ -302,11 +316,12 @@ function FluxBackendSettings({
 
 function InpaintingModelSettings({
   clearTestState,
+  controlsBusy,
   inpaintingModel,
   setInpaintingModel,
 }: Pick<
   HardwareSettingsPanelProps,
-  "clearTestState" | "inpaintingModel" | "setInpaintingModel"
+  "clearTestState" | "controlsBusy" | "inpaintingModel" | "setInpaintingModel"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
   const activeInpaintingModel = INPAINTING_MODEL_OPTIONS.find(
@@ -317,7 +332,7 @@ function InpaintingModelSettings({
       <span>{t("settings.hardware.inpaintingModel")}</span>
       <div
         className="settings-preset-group"
-        role="tablist"
+        role="group"
         aria-label={t("settings.hardware.inpaintingModel")}
       >
         {INPAINTING_MODEL_OPTIONS.map((option) => (
@@ -329,6 +344,7 @@ function InpaintingModelSettings({
               clearTestState();
               setInpaintingModel(option.id);
             }}
+            disabled={controlsBusy}
             aria-pressed={inpaintingModel === option.id}
           >
             {t(option.labelKey)}

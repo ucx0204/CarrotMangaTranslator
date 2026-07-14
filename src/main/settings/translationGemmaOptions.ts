@@ -1,4 +1,4 @@
-import { DEFAULT_CONTEXT_TOKENS } from "../../shared/modelPresets";
+import { DEFAULT_GEMMA_CONTEXT_TOKENS } from "../../shared/modelPresets";
 import type {
   AppSettings,
   GemmaVramMode,
@@ -105,7 +105,7 @@ export function resolveTranslationRuntimeState(
     gemmaRuntimePreset,
     settingsCtx: resolveContextTokens(
       settings.ctx,
-      gemmaRuntimePreset.ctx || DEFAULT_CONTEXT_TOKENS,
+      gemmaRuntimePreset.ctx || DEFAULT_GEMMA_CONTEXT_TOKENS,
     ),
     runtimeGemma: resolveRuntimeGemmaSettings(settings.gemma, gemmaVramMode),
     llamaRuntimeProfile: resolveLlamaRuntimeProfile(

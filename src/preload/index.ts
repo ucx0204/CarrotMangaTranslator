@@ -63,6 +63,8 @@ import type {
 import type {
   ChapterSnapshot,
   CustomFont,
+  FontLibrarySnapshot,
+  FontPreferences,
   LibraryIndex,
 } from "../shared/libraryTypes";
 import type {
@@ -190,6 +192,12 @@ const api = {
     invokeContract(libraryIpcContracts.reorderPages, chapterId, pageIds),
   deletePage: (chapterId: string, pageId: string): Promise<ChapterSnapshot> =>
     invokeContract(libraryIpcContracts.deletePage, chapterId, pageId),
+  getFontLibrary: (): Promise<FontLibrarySnapshot> =>
+    invokeContract(fontIpcContracts.getFontLibrary),
+  saveFontPreferences: (
+    preferences: FontPreferences,
+  ): Promise<FontLibrarySnapshot> =>
+    invokeContract(fontIpcContracts.saveFontPreferences, preferences),
   listCustomFonts: (): Promise<CustomFont[]> =>
     invokeContract(fontIpcContracts.listCustomFonts),
   registerCustomFont: (): Promise<CustomFont | null> =>
@@ -328,6 +336,8 @@ const api = {
   },
   onUiLocaleChanged: (callback) =>
     subscribeToIpcEvent(ipcEventContracts.uiLocaleChanged, callback),
+  onFontLibraryChanged: (callback) =>
+    subscribeToIpcEvent(ipcEventContracts.fontLibraryChanged, callback),
 } satisfies MangaApi;
 
 contextBridge.exposeInMainWorld("mangaApi", api);

@@ -105,10 +105,13 @@
     "size": "크기",
     "fontSize": "글자 크기",
     "fontSizeValue": "글자 크기 값",
+    "fontSizeDecrease": "글자 크기 줄이기",
+    "fontSizeIncrease": "글자 크기 늘리기",
     "autoFitTitle": "텍스트 상자에 맞춰 자동 크기",
     "auto": "자동",
     "rotation": "기울기",
-    "opacity": "투명도",
+    "textOpacity": "글자 투명도",
+    "blockBackgroundOpacity": "블록 배경 투명도",
     "lineHeight": "줄 간격",
     "letterSpacing": "자간",
     "fontWidth": "장평",
@@ -120,6 +123,12 @@
     "text": "텍스트",
     "translatedText": "번역문",
     "blockColors": "블록 색상",
+    "display": {
+      "title": "편집 표시",
+      "batchApply": "일괄 적용",
+      "batchTitle": "블록 배경 일괄 적용",
+      "batchDescription": "선택한 블록의 배경 투명도를 적용할 범위를 고르세요."
+    },
     "inpainting": {
       "title": "자동 지우기",
       "exclude": "자동 지우기에서 제외",
@@ -155,13 +164,31 @@
       "fontWidth": "장평",
       "color": "글자색",
       "outline": "외곽선",
-      "transform": "기울기·투명도"
+      "transform": "기울기·글자 투명도"
     }
   },
   "fontSelect": {
     "addFont": "+ TTF/OTF 폰트 등록",
     "deleteFont": "이 폰트 삭제",
-    "deleteNamedFont": "{{label}} 삭제"
+    "deleteNamedFont": "{{label}} 삭제",
+    "favoriteFont": "즐겨찾기에 추가",
+    "unfavoriteFont": "즐겨찾기에서 제거",
+    "favoriteNamedFont": "{{label}} 즐겨찾기에 추가",
+    "unfavoriteNamedFont": "{{label}} 즐겨찾기에서 제거",
+    "manageFonts": "폰트 관리"
+  },
+  "fontManager": {
+    "title": "폰트 관리",
+    "favorites": "즐겨찾기",
+    "otherFonts": "다른 폰트",
+    "emptyFavorites": "즐겨찾기한 폰트가 없습니다.",
+    "defaultBadge": "기본 폰트",
+    "setNamedDefault": "{{label}}을 기본 폰트로 설정",
+    "searchPlaceholder": "폰트 검색",
+    "noSearchResults": "일치하는 폰트가 없습니다.",
+    "moveNamedFont": "{{label}} 순서 이동",
+    "resetOrder": "순서 초기화",
+    "saveFailed": "폰트 설정을 저장하지 못했습니다."
   },
   "chapterPicker": {
     "prompt": "무엇을 번역할까요?",
@@ -333,6 +360,10 @@
         "label": "블록",
         "title": "블록 도구 (2) — 드래그해서 새 텍스트 블록 추가"
       },
+      "region": {
+        "label": "영역 번역",
+        "title": "영역 번역 — 드래그한 부분만 새로 번역"
+      },
       "hand": {
         "label": "손바닥",
         "title": "손바닥 도구 (3) — 드래그해서 이미지 이동"
@@ -403,6 +434,33 @@
     "empty": "표시할 텍스트가 없습니다.",
     "pageHeading": "{{index}}쪽 · {{pageName}}",
     "navigateToPage": "클릭하면 해당 페이지로 이동합니다.",
+    "selectBlock": "서식을 바꿀 텍스트 블록 선택",
+    "enterSelectionMode": "서식 바꿀 블록 선택",
+    "exitSelectionMode": "일괄 편집 닫기",
+    "selectedCount": "선택한 블록 {{count}}개",
+    "selectVisible": "표시된 블록 전체 선택",
+    "clearSelection": "대상 선택 해제",
+    "applyFormat": "선택한 블록 서식 편집",
+    "defaultFont": "기본 폰트",
+    "formatDisabled": "작업 중에는 서식을 적용할 수 없습니다.",
+    "directFormatTitle": "선택한 블록 서식 편집",
+    "previewTitle": "적용 미리보기",
+    "previewBasis": "첫 번째 선택 블록 기준 · 변경 내용이 바로 반영됩니다.",
+    "previewTextLabel": "예시 문구",
+    "previewTextDefault": "가나다 ABC 123 · 번역 미리보기",
+    "previewTextPlaceholder": "예시 텍스트",
+    "resetChanges": "변경 초기화",
+    "typographySection": "글자와 배치",
+    "changedOnlyHint": "손댄 항목만 선택한 블록 전체에 적용됩니다.",
+    "colorSection": "색상과 외곽선",
+    "detailsSection": "세부 조정",
+    "detailsHint": "줄 간격 · 자간 · 장평 · 기울기 · 글자 투명도",
+    "outlineWidth": "외곽선 굵기",
+    "autoFitLabel": "자동 맞춤",
+    "autoFitBadge": "자동 맞춤",
+    "mixedValue": "혼합",
+    "toggleOn": "켜짐",
+    "toggleOff": "꺼짐",
     "importTxt": {
       "button": ".txt 불러오기",
       "title": "번역문만 형식으로 저장한 txt의 번역문을 줄 순서대로 다시 불러옵니다.",
@@ -622,14 +680,27 @@
       "save": "저장"
     },
     "engine": {
+      "limits": {
+        "title": "생성 한도",
+        "recommendedFor": "{{model}} 권장값",
+        "recommendedValues": "출력 {{maxTokens}} · 작품 컨텍스트 {{contextTokens}}",
+        "publicLimits": "공개 모델 한도: 출력 {{maxOutput}} · 컨텍스트 {{contextWindow}}",
+        "publicContextOnly": "공개 모델 컨텍스트: {{contextWindow}} · 최대 출력은 미공개",
+        "unknownLimits": "공개된 모델 한도 정보가 없어 안전한 공통값을 사용합니다.",
+        "applyRecommended": "권장값 적용",
+        "recommendedApplied": "권장값 사용 중"
+      },
       "provider": { "label": "번역 엔진" },
       "maxTokens": {
         "label": "최대 출력 토큰",
-        "description": "모델이 한 번에 생성할 수 있는 최대 토큰 수입니다."
+        "remoteDescription": "표시 텍스트와 추론을 포함한 응답 상한입니다. 모델 최대값보다 작업용 권장값이 안정적입니다.",
+        "gemmaDescription": "로컬 모델이 한 번에 생성할 상한입니다. 높일수록 처리 시간과 메모리 사용이 늘 수 있습니다."
       },
       "contextTokens": {
-        "label": "컨텍스트 길이",
-        "description": "모델이 한 번에 참고할 수 있는 전체 토큰 수입니다."
+        "remoteLabel": "작품 컨텍스트 예산",
+        "remoteDescription": "모델 창 크기가 아니라, 작품 메모·용어집·캐릭터 정보를 프롬프트에 얼마나 담을지 정하는 앱 내부 예산입니다.",
+        "gemmaLabel": "컨텍스트 길이",
+        "gemmaDescription": "로컬 Gemma의 실제 컨텍스트 길이입니다. 높이면 더 많은 VRAM을 사용할 수 있습니다."
       }
     },
     "options": {
@@ -825,6 +896,12 @@
       "oauthPort": "openai-oauth 포트"
     },
     "api": {
+      "sections": {
+        "connection": "연결",
+        "credentials": "인증",
+        "model": "모델",
+        "retry": "재시도"
+      },
       "providerTemplate": "API 제공자 빠른 설정",
       "providers": {
         "custom": "직접 설정",
@@ -868,6 +945,8 @@
       }
     },
     "hardware": {
+      "ocrSection": "OCR",
+      "inpaintingSection": "인페인팅",
       "ocrQuality": "Paddle OCR 품질",
       "ocrDevice": "Paddle OCR 장치",
       "fluxBackend": "Flux 인페인팅 백엔드",
@@ -916,6 +995,7 @@
         "text": "글자색",
         "outline": "외곽선",
         "outlineEnabledTitle": "외곽선 사용 여부",
+        "textOpacity": "글자 투명도",
         "outlineEnabled": "외곽선 사용",
         "outlineWidth": "외곽선"
       }

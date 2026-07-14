@@ -1,6 +1,4 @@
 import type { AppSettings, GemmaVramMode } from "../../shared/settingsTypes";
-import type { BlockFormatDefaults } from "../../shared/blockFormat";
-import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
 import {
   DEFAULT_TRANSLATION_LANGUAGE_SETTINGS,
   resolveTranslationLanguageSettings,
@@ -13,7 +11,6 @@ import {
   resolveCodexReasoningEffort,
   resolveContextTokens,
   resolveGemmaVramMode,
-  resolveHexColor,
   resolveMaxTokens,
   resolveModelProvider,
   resolveModelSource,
@@ -52,25 +49,36 @@ import {
   MIN_API_RETRY_DELAY_SECONDS,
   normalizeApiKeysText,
 } from "../../shared/apiKeySettings";
+import { resolveRecommendedGenerationLimits } from "../../shared/modelPresets";
+import { normalizeBlockFormatDefaults } from "./blockFormatDefaultsNormalize";
 
 export function normalizeAppSettings(
   raw: unknown,
   defaults = resolveDefaultAppSettings(),
 ): AppSettings {
   const record = asRecord(raw) ?? {};
+  const modelProvider = resolveModelProvider(
+    record.modelProvider,
+    defaults.modelProvider,
+  );
+  const codex = normalizeCodexSettings(asRecord(record.codex), defaults);
+  const api = normalizeApiSettings(asRecord(record.api), defaults);
+  const limitFallbacks = resolveGenerationLimitFallbacks({
+    api,
+    codex,
+    defaults,
+    modelProvider,
+  });
   return {
-    modelProvider: resolveModelProvider(
-      record.modelProvider,
-      defaults.modelProvider,
-    ),
+    modelProvider,
     // 언어쌍이 없거나 잘못된 기존 설정은 항상 일본어 -> 한국어로 정규화된다.
     translation: resolveTranslationLanguageSettings(
       record.translation,
       defaults.translation ?? DEFAULT_TRANSLATION_LANGUAGE_SETTINGS,
     ),
     gemma: normalizeGemmaSettings(asRecord(record.gemma), defaults),
-    codex: normalizeCodexSettings(asRecord(record.codex), defaults),
-    api: normalizeApiSettings(asRecord(record.api), defaults),
+    codex,
+    api,
     ocr: normalizeOcrSettings(asRecord(record.ocr), defaults),
     ui: normalizeUiSettings(asRecord(record.ui), defaults),
     inpainting: normalizeInpaintingSettings(
@@ -82,8 +90,50 @@ export function normalizeAppSettings(
       defaults,
     ),
     keybindings: normalizeKeybindings(record.keybindings, defaults),
-    maxTokens: resolveMaxTokens(record.maxTokens, defaults.maxTokens),
-    ctx: resolveContextTokens(record.ctx, defaults.ctx),
+    maxTokens: resolveMaxTokens(record.maxTokens, limitFallbacks.maxTokens),
+    ctx: resolveContextTokens(record.ctx, limitFallbacks.contextTokens),
+  };
+}
+
+function resolveGenerationLimitFallbacks({
+  api,
+  codex,
+  defaults,
+  modelProvider,
+}: {
+  api: AppSettings["api"];
+  codex: AppSettings["codex"];
+  defaults: AppSettings;
+  modelProvider: AppSettings["modelProvider"];
+}): { contextTokens: number; maxTokens: number } {
+  const activeModel =
+    modelProvider === "openai-codex"
+      ? codex.model
+      : modelProvider === "openai-api"
+        ? api.model
+        : null;
+  const defaultActiveModel =
+    defaults.modelProvider === "openai-codex"
+      ? defaults.codex.model
+      : defaults.modelProvider === "openai-api"
+        ? defaults.api.model
+        : null;
+  if (
+    modelProvider === defaults.modelProvider &&
+    activeModel === defaultActiveModel
+  ) {
+    return {
+      contextTokens: defaults.ctx,
+      maxTokens: defaults.maxTokens,
+    };
+  }
+  const recommended = resolveRecommendedGenerationLimits(
+    modelProvider,
+    activeModel,
+  );
+  return {
+    contextTokens: recommended.contextTokens,
+    maxTokens: recommended.maxTokens,
   };
 }
 
@@ -333,69 +383,6 @@ function normalizeUiSettings(
     ),
     ...(blockModeDefault ? { blockModeDefault } : {}),
   };
-}
-
-function normalizeBlockFormatDefaults(
-  raw: Record<string, unknown> | null,
-  defaults: AppSettings,
-): NonNullable<AppSettings["blockFormatDefaults"]> {
-  const base = defaults.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS;
-  const data = raw ?? {};
-  const fontFamily = resolveOptionalString(data.fontFamily);
-  return {
-    renderDirection: resolveBlockFormatDirection(
-      data.renderDirection,
-      base.renderDirection,
-    ),
-    textAlign: resolveTextAlign(data.textAlign, base.textAlign),
-    ...(fontFamily ? { fontFamily } : {}),
-    autoFitText: resolveBoolean(data.autoFitText, base.autoFitText),
-    fontSizePx: Math.round(
-      resolveNumberRange(data.fontSizePx, base.fontSizePx, 1, 512),
-    ),
-    lineHeight: resolveNumberRange(data.lineHeight, base.lineHeight, 0.5, 4),
-    letterSpacing: resolveNumberRange(
-      data.letterSpacing,
-      base.letterSpacing,
-      -0.5,
-      2,
-    ),
-    fontWidthScale: resolveNumberRange(
-      data.fontWidthScale,
-      base.fontWidthScale,
-      0.5,
-      1.5,
-    ),
-    textColor: resolveHexColor(data.textColor, base.textColor),
-    outlineEnabled: resolveBoolean(data.outlineEnabled, base.outlineEnabled),
-    outlineColor: resolveHexColor(data.outlineColor, base.outlineColor),
-    outlineWidthScale: resolveNumberRange(
-      data.outlineWidthScale,
-      base.outlineWidthScale,
-      0,
-      8,
-    ),
-    bold: resolveBoolean(data.bold, base.bold),
-    italic: resolveBoolean(data.italic, base.italic),
-  };
-}
-
-function resolveBlockFormatDirection(
-  value: unknown,
-  fallback: BlockFormatDefaults["renderDirection"],
-): BlockFormatDefaults["renderDirection"] {
-  return value === "auto" || value === "horizontal" || value === "vertical"
-    ? value
-    : fallback;
-}
-
-function resolveTextAlign(
-  value: unknown,
-  fallback: BlockFormatDefaults["textAlign"],
-): BlockFormatDefaults["textAlign"] {
-  return value === "left" || value === "center" || value === "right"
-    ? value
-    : fallback;
 }
 
 function normalizeInpaintingSettings(

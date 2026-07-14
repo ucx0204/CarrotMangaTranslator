@@ -18,7 +18,15 @@ import {
   resolve,
 } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { CustomFont } from "../shared/libraryTypes";
+import {
+  BUILT_IN_BLOCK_FONTS,
+  DEFAULT_BLOCK_FONT_ID,
+} from "../shared/blockFontCatalog";
+import type {
+  CustomFont,
+  FontLibrarySnapshot,
+  FontPreferences,
+} from "../shared/libraryTypes";
 import { getAppPaths } from "./appPaths";
 import { logError } from "./logger";
 
@@ -37,6 +45,16 @@ function fontsDir(): string {
 function indexPath(): string {
   return join(fontsDir(), "index.json");
 }
+
+function preferencesPath(): string {
+  return join(fontsDir(), "preferences.json");
+}
+
+export const DEFAULT_FONT_PREFERENCES: FontPreferences = {
+  favoriteIds: [],
+  orderedIds: [],
+  defaultFontId: DEFAULT_BLOCK_FONT_ID,
+};
 
 function isPathInside(rootPath: string, targetPath: string): boolean {
   const child = relative(rootPath, targetPath);
@@ -154,6 +172,100 @@ function saveIndex(fonts: CustomFont[]): void {
   renameSync(tempPath, targetPath);
 }
 
+function knownFontIds(customFonts: readonly CustomFont[]): Set<string> {
+  return new Set([
+    DEFAULT_BLOCK_FONT_ID,
+    ...BUILT_IN_BLOCK_FONTS.map((font) => font.id),
+    ...customFonts.map((font) => font.id),
+  ]);
+}
+
+function normalizeKnownIds(
+  value: unknown,
+  knownIds: ReadonlySet<string>,
+): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const candidate of value) {
+    if (
+      typeof candidate === "string" &&
+      knownIds.has(candidate) &&
+      !seen.has(candidate)
+    ) {
+      seen.add(candidate);
+      result.push(candidate);
+    }
+  }
+  return result;
+}
+
+export function normalizeFontPreferences(
+  value: unknown,
+  customFonts: readonly CustomFont[] = listCustomFonts(),
+): FontPreferences {
+  const data =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
+  const knownIds = knownFontIds(customFonts);
+  const defaultFontId =
+    typeof data.defaultFontId === "string" && knownIds.has(data.defaultFontId)
+      ? data.defaultFontId
+      : DEFAULT_BLOCK_FONT_ID;
+  return {
+    favoriteIds: normalizeKnownIds(data.favoriteIds, knownIds),
+    orderedIds: normalizeKnownIds(data.orderedIds, knownIds),
+    defaultFontId,
+  };
+}
+
+export function readFontPreferences(
+  customFonts: readonly CustomFont[] = listCustomFonts(),
+): FontPreferences {
+  const path = preferencesPath();
+  if (!existsSync(path)) {
+    return { ...DEFAULT_FONT_PREFERENCES };
+  }
+  try {
+    return normalizeFontPreferences(
+      JSON.parse(readFileSync(path, "utf8")),
+      customFonts,
+    );
+  } catch (error) {
+    logError("Failed to read font preferences", error);
+    return { ...DEFAULT_FONT_PREFERENCES };
+  }
+}
+
+export function saveFontPreferences(
+  value: unknown,
+  customFonts: readonly CustomFont[] = listCustomFonts(),
+): FontPreferences {
+  const preferences = normalizeFontPreferences(value, customFonts);
+  const targetPath = preferencesPath();
+  const tempPath = `${targetPath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(tempPath, JSON.stringify(preferences, null, 2), "utf8");
+    renameSync(tempPath, targetPath);
+  } finally {
+    if (existsSync(tempPath)) {
+      rmSync(tempPath, { force: true });
+    }
+  }
+  return preferences;
+}
+
+export function getFontLibrarySnapshot(): FontLibrarySnapshot {
+  const customFonts = listCustomFonts();
+  return {
+    customFonts,
+    preferences: readFontPreferences(customFonts),
+  };
+}
+
 function sanitizeLabel(raw: string): string {
   const cleaned = Array.from(raw)
     .filter((char) => {
@@ -236,6 +348,7 @@ export function removeCustomFont(id: string): CustomFont[] {
   }
   const remaining = fonts.filter((font) => font.id !== normalizedId);
   saveIndex(remaining);
+  saveFontPreferences(readFontPreferences(fonts), remaining);
   return remaining;
 }
 

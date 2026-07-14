@@ -6,6 +6,7 @@ import {
   resolveFontWidthScale,
 } from "../shared/geometry";
 import {
+  DEFAULT_BLOCK_FONT_ID,
   DEFAULT_BLOCK_FONT_STACK,
   resolveBuiltInBlockFontFamily,
 } from "../shared/blockFontCatalog";
@@ -27,6 +28,7 @@ export type PageExportBlock = {
   fontWidthScale: number;
   textAlign: "left" | "center" | "right";
   textColor: string;
+  textOpacity: number;
   outlineColor: string;
   bold: boolean;
   italic: boolean;
@@ -39,6 +41,7 @@ export function buildPageExportBlocks(
   outputWidth: number,
   outputHeight: number,
   customFamilyById: Map<string, string>,
+  defaultFontId: string = DEFAULT_BLOCK_FONT_ID,
 ): PageExportBlock[] {
   const pageWidth = Math.max(1, page.width || outputWidth);
   const pageHeight = Math.max(1, page.height || outputHeight);
@@ -54,6 +57,7 @@ export function buildPageExportBlocks(
         scaleY,
         fontScale,
         customFamilyById,
+        defaultFontId,
       ),
     )
     .filter((block): block is PageExportBlock => Boolean(block));
@@ -66,6 +70,7 @@ function buildPageExportBlock(
   scaleY: number,
   fontScale: number,
   customFamilyById: Map<string, string>,
+  defaultFontId: string,
 ): PageExportBlock | null {
   const rawText = block.translatedText || block.sourceText || "";
   if (!rawText.trim()) {
@@ -93,12 +98,11 @@ function buildPageExportBlock(
       "vertical"
         ? "vertical"
         : "horizontal",
-    rotationDeg: block.rotationDeg
-      ? clamp(Math.round(block.rotationDeg), -30, 30)
-      : 0,
+    rotationDeg: resolveExportRotation(block.rotationDeg),
     fontFamily: resolveExportBlockFontFamily(
       block.fontFamily,
       customFamilyById,
+      defaultFontId,
     ),
     fontSizePx: Math.max(10, Math.floor((block.fontSizePx || 20) * fontScale)),
     // Keep parity with the editor preview, which allows a 0.8–3 line-height
@@ -110,6 +114,7 @@ function buildPageExportBlock(
     fontWidthScale: resolveFontWidthScale(block.fontWidthScale),
     textAlign: block.textAlign || "center",
     textColor: normalizeExportColor(block.textColor, "#000000"),
+    textOpacity: clamp(Number(block.textOpacity ?? 1), 0, 1),
     outlineColor: normalizeExportColor(block.outlineColor, "#ffffff"),
     bold: Boolean(block.bold),
     italic: Boolean(block.italic),
@@ -121,14 +126,42 @@ function buildPageExportBlock(
   };
 }
 
+function resolveExportRotation(value: number | undefined): number {
+  return value ? clamp(Math.round(value), -30, 30) : 0;
+}
+
 function resolveExportBlockFontFamily(
   value: string | undefined,
   customFamilyById?: Map<string, string>,
+  defaultFontId: string = DEFAULT_BLOCK_FONT_ID,
 ): string {
-  if (value && customFamilyById?.has(value)) {
+  const explicitFamily = resolveConcreteExportFontFamily(
+    value,
+    customFamilyById,
+  );
+  if (explicitFamily) {
+    return explicitFamily;
+  }
+  if (defaultFontId === DEFAULT_BLOCK_FONT_ID) {
+    return DEFAULT_BLOCK_FONT_STACK;
+  }
+  return (
+    resolveConcreteExportFontFamily(defaultFontId, customFamilyById) ??
+    DEFAULT_BLOCK_FONT_STACK
+  );
+}
+
+function resolveConcreteExportFontFamily(
+  value: string | undefined,
+  customFamilyById?: Map<string, string>,
+): string | undefined {
+  if (!value || value === DEFAULT_BLOCK_FONT_ID) {
+    return undefined;
+  }
+  if (customFamilyById?.has(value)) {
     return `"${customFamilyById.get(value)}", "Malgun Gothic", sans-serif`;
   }
-  return resolveBuiltInBlockFontFamily(value) ?? DEFAULT_BLOCK_FONT_STACK;
+  return resolveBuiltInBlockFontFamily(value);
 }
 
 function normalizeExportColor(

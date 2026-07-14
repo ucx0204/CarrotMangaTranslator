@@ -191,6 +191,7 @@
   },
   "workspaceHistory": {
     "blockEdit": "Edit text block",
+    "blockBackgroundOpacity": "Change block background opacity",
     "exclusion": "Change auto-erase exclusion",
     "format": "Format block",
     "deleteBlock": "Delete block",
@@ -206,6 +207,9 @@
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "Whole-chapter batch formatting is unavailable while a job is running.",
+    "backgroundOpacityChapterApplyWhileRunning": "Whole-chapter background opacity changes are unavailable while a job is running.",
+    "backgroundOpacityAppliedPage": "Background opacity applied to every block on this page.",
+    "backgroundOpacityAppliedChapter": "Background opacity applied to every block in this chapter.",
     "formatAppliedSelection": "Formatting applied to {{count}} selected blocks.",
     "formatAppliedSelection_one": "Formatting applied to {{count}} selected block.",
     "formatAppliedSelection_other": "Formatting applied to {{count}} selected blocks.",

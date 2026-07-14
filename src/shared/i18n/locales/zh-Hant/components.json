@@ -101,10 +101,13 @@
     "size": "大小",
     "fontSize": "字級",
     "fontSizeValue": "字級數值",
+    "fontSizeDecrease": "縮小字級",
+    "fontSizeIncrease": "放大字級",
     "autoFitTitle": "自動配合文字框大小",
     "auto": "自動",
     "rotation": "旋轉",
-    "opacity": "不透明度",
+    "textOpacity": "文字不透明度",
+    "blockBackgroundOpacity": "文字區塊背景不透明度",
     "lineHeight": "行距",
     "letterSpacing": "字距",
     "fontWidth": "字寬",
@@ -116,6 +119,12 @@
     "text": "文字",
     "translatedText": "譯文",
     "blockColors": "文字區塊顏色",
+    "display": {
+      "title": "編輯顯示",
+      "batchApply": "批次套用",
+      "batchTitle": "批次套用文字區塊背景",
+      "batchDescription": "請選擇所選文字區塊背景不透明度的套用範圍。"
+    },
     "inpainting": {
       "title": "自動清除",
       "exclude": "從自動清除中排除",
@@ -151,13 +160,31 @@
       "fontWidth": "字寬",
       "color": "文字顏色",
       "outline": "描邊",
-      "transform": "旋轉與不透明度"
+      "transform": "旋轉與文字不透明度"
     }
   },
   "fontSelect": {
     "addFont": "+ 新增TTF/OTF字體",
     "deleteFont": "刪除此字體",
-    "deleteNamedFont": "刪除{{label}}"
+    "deleteNamedFont": "刪除{{label}}",
+    "favoriteFont": "加入收藏",
+    "unfavoriteFont": "從收藏中移除",
+    "favoriteNamedFont": "將{{label}}加入收藏",
+    "unfavoriteNamedFont": "將{{label}}從收藏中移除",
+    "manageFonts": "管理字體"
+  },
+  "fontManager": {
+    "title": "管理字體",
+    "favorites": "收藏",
+    "otherFonts": "其他字體",
+    "emptyFavorites": "尚無收藏字體。",
+    "defaultBadge": "預設字體",
+    "setNamedDefault": "將{{label}}設為預設字體",
+    "searchPlaceholder": "搜尋字體",
+    "noSearchResults": "沒有相符的字體。",
+    "moveNamedFont": "移動{{label}}的順序",
+    "resetOrder": "重設順序",
+    "saveFailed": "無法儲存字體設定。"
   },
   "chapterPicker": {
     "prompt": "要翻譯哪些內容？",
@@ -329,6 +356,10 @@
         "label": "文字區塊",
         "title": "文字區塊工具（2）— 拖曳以新增文字區塊"
       },
+      "region": {
+        "label": "區域翻譯",
+        "title": "區域翻譯 — 拖曳選取要重新翻譯的區域"
+      },
       "hand": { "label": "手掌", "title": "手掌工具（3）— 拖曳以移動影像" },
       "mask": { "label": "遮罩", "title": "遮罩畫筆" },
       "brush": { "label": "畫筆", "title": "修整畫筆" },
@@ -396,6 +427,33 @@
     "empty": "沒有可顯示的文字。",
     "pageHeading": "第{{index}}頁 · {{pageName}}",
     "navigateToPage": "點按以前往該頁面。",
+    "selectBlock": "選取此文字區塊以修改格式",
+    "enterSelectionMode": "選擇要修改格式的文字區塊",
+    "exitSelectionMode": "關閉批次編輯",
+    "selectedCount": "已選取 {{count}} 個文字區塊",
+    "selectVisible": "全選目前顯示的文字區塊",
+    "clearSelection": "清除文字區塊選取",
+    "applyFormat": "編輯所選文字區塊格式",
+    "defaultFont": "預設字體",
+    "formatDisabled": "工作執行時無法套用格式。",
+    "directFormatTitle": "編輯所選文字區塊格式",
+    "previewTitle": "套用預覽",
+    "previewBasis": "以第一個選取區塊為基準，即時顯示變更。",
+    "previewTextLabel": "範例文字",
+    "previewTextDefault": "範例 ABC 123 · 翻譯預覽",
+    "previewTextPlaceholder": "範例文字",
+    "resetChanges": "重設變更",
+    "typographySection": "文字與版面",
+    "changedOnlyHint": "只將您調整的項目套用到所有選取區塊。",
+    "colorSection": "顏色與外框",
+    "detailsSection": "細節調整",
+    "detailsHint": "行距 · 字距 · 字寬 · 旋轉 · 文字不透明度",
+    "outlineWidth": "外框寬度",
+    "autoFitLabel": "自動配合",
+    "autoFitBadge": "自動配合",
+    "mixedValue": "混合",
+    "toggleOn": "開啟",
+    "toggleOff": "關閉",
     "importTxt": {
       "button": "匯入 .txt",
       "title": "依行序從僅含譯文的 TXT 檔案重新匯入譯文。",
@@ -615,14 +673,27 @@
       "save": "儲存"
     },
     "engine": {
+      "limits": {
+        "title": "生成限制",
+        "recommendedFor": "{{model}} 建議值",
+        "recommendedValues": "輸出 {{maxTokens}} · 作品前後文 {{contextTokens}}",
+        "publicLimits": "公開模型上限：輸出 {{maxOutput}} · 前後文 {{contextWindow}}",
+        "publicContextOnly": "公開模型前後文：{{contextWindow}} · 最大輸出未公開",
+        "unknownLimits": "沒有公開的模型上限資訊，因此使用安全的通用建議值。",
+        "applyRecommended": "套用建議值",
+        "recommendedApplied": "正在使用建議值"
+      },
       "provider": { "label": "翻譯引擎" },
       "maxTokens": {
         "label": "最大輸出權杖數",
-        "description": "模型一次最多可產生的權杖數。"
+        "remoteDescription": "限制包含可見文字與推理在內的完整回應。使用工作建議值比直接使用模型上限更穩妥。",
+        "gemmaDescription": "限制本機模型單次生成量。數值越高，處理時間與記憶體使用量可能越大。"
       },
       "contextTokens": {
-        "label": "前後文長度",
-        "description": "模型一次可參考的權杖總數。"
+        "remoteLabel": "作品前後文預算",
+        "remoteDescription": "這不是模型伺服器端的前後文視窗，而是應用程式用來加入作品記憶、術語表與角色資訊的內部預算。",
+        "gemmaLabel": "前後文長度",
+        "gemmaDescription": "本機 Gemma 的實際前後文長度。提高後可能使用更多顯示記憶體。"
       }
     },
     "options": {
@@ -797,6 +868,12 @@
       "oauthPort": "openai-oauth 連接埠"
     },
     "api": {
+      "sections": {
+        "connection": "連線",
+        "credentials": "驗證",
+        "model": "模型",
+        "retry": "重試"
+      },
       "providerTemplate": "API 提供者快速設定",
       "providers": {
         "custom": "手動設定",
@@ -840,6 +917,8 @@
       }
     },
     "hardware": {
+      "ocrSection": "OCR",
+      "inpaintingSection": "影像修補",
       "ocrQuality": "Paddle OCR 品質",
       "ocrDevice": "Paddle OCR 裝置",
       "fluxBackend": "Flux 影像修補後端",
@@ -888,6 +967,7 @@
         "text": "文字顏色",
         "outline": "描邊",
         "outlineEnabledTitle": "是否使用描邊",
+        "textOpacity": "文字不透明度",
         "outlineEnabled": "使用描邊",
         "outlineWidth": "描邊寬度"
       }

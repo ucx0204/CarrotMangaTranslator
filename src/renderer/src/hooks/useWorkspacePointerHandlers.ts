@@ -62,7 +62,7 @@ type UseWorkspacePointerHandlersOptions = {
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
   selectedPageIdRef: MutableRefObject<string | null>;
-  selectedPageImageDataUrl: string;
+  regionTranslationReady: boolean;
   selectedPageImagePath: string | null;
   setInpaintingPaintColor: Dispatch<SetStateAction<string>>;
   setInpaintingTool: Dispatch<SetStateAction<InpaintingTool>>;
@@ -129,7 +129,7 @@ export function useWorkspacePointerHandlers(
     pushStatus: options.pushStatus,
     regionSelection: options.regionSelection,
     selectedPage: options.selectedPage,
-    selectedPageImageDataUrl: options.selectedPageImageDataUrl,
+    regionTranslationReady: options.regionTranslationReady,
     setInpaintingTool: options.setInpaintingTool,
     setRegionSelection: options.setRegionSelection,
     setSelectedBlockId: options.setSelectedBlockId,

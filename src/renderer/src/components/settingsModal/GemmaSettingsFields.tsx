@@ -78,7 +78,7 @@ function ModelSourceSelector({
       <span>{t("settings.gemma.modelSource.label")}</span>
       <div
         className="settings-mode-group"
-        role="tablist"
+        role="group"
         aria-label={t("settings.gemma.modelSource.label")}
       >
         {MODEL_SOURCE_OPTIONS.map((option) => (
@@ -158,7 +158,7 @@ function ModelPresetSelector({
       <span>{t("settings.gemma.preset.label")}</span>
       <div
         className="settings-preset-group"
-        role="tablist"
+        role="group"
         aria-label={t("settings.gemma.preset.ariaLabel")}
       >
         {MODEL_PRESET_BUTTON_IDS.map((presetId) => (
@@ -276,7 +276,7 @@ function LlamaRuntimeSelector({
       <span>{t("settings.gemma.runtime.label")}</span>
       <div
         className="settings-preset-group"
-        role="tablist"
+        role="group"
         aria-label={t("settings.gemma.runtime.label")}
       >
         {LLAMA_RUNTIME_PROFILE_OPTIONS.map((option) => (

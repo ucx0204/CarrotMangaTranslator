@@ -59,6 +59,16 @@ describe("workspace pointer interactions", () => {
     expect(api.current.statuses).toContain("영역 번역 선택을 취소했습니다.");
   });
 
+  it("does not arm region translation until the selected page image is ready", () => {
+    const api = renderHarness({ regionTranslationReady: false });
+
+    act(() => {
+      api.current.startRegionTranslationSelection();
+    });
+
+    expect(api.current.getRegionSelection()).toBeNull();
+  });
+
   it("rejects tiny region translation selections without starting translation", () => {
     const api = renderHarness();
     const stage = screen.getByTestId("stage");
@@ -127,6 +137,7 @@ function renderHarness(
   props: {
     initialSelectedBlockId?: string | null;
     jobActive?: boolean;
+    regionTranslationReady?: boolean;
     selectedPageEditLocked?: boolean;
   } = {},
 ): React.MutableRefObject<HarnessApi> {
@@ -139,6 +150,7 @@ function renderHarness(
       }}
       initialSelectedBlockId={props.initialSelectedBlockId ?? null}
       jobActive={props.jobActive ?? false}
+      regionTranslationReady={props.regionTranslationReady ?? true}
       selectedPageEditLocked={props.selectedPageEditLocked ?? false}
     />,
   );
@@ -153,11 +165,13 @@ function WorkspacePointerHarness({
   initialSelectedBlockId,
   jobActive,
   onReady,
+  regionTranslationReady,
   selectedPageEditLocked,
 }: {
   initialSelectedBlockId: string | null;
   jobActive: boolean;
   onReady: (api: HarnessApi) => void;
+  regionTranslationReady: boolean;
   selectedPageEditLocked: boolean;
 }): React.JSX.Element {
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -208,11 +222,11 @@ function WorkspacePointerHarness({
     pushStatus: (line) => {
       statusesRef.current.push(line);
     },
+    regionTranslationReady,
     regionSelection,
     selectedPage: page,
     selectedPageEditLocked,
     selectedPageIdRef,
-    selectedPageImageDataUrl: "data:image/png;base64,page",
     selectedPageImagePath: "page-1.png",
     setInpaintingPaintColor,
     setInpaintingTool,

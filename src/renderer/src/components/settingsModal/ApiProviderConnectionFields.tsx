@@ -11,7 +11,8 @@ import {
   API_PROVIDER_PRESET_IDS,
   type ApiProviderPresetId,
 } from "../../../../shared/apiProviderPresets";
-import { EyeIcon, EyeOffIcon, IconButton } from "../ui";
+import { IconButton } from "../ui/IconButton";
+import { EyeIcon, EyeOffIcon } from "../ui/icons";
 import { ApiProviderModelFields } from "./ApiProviderModelFields";
 import {
   useApiProviderConnection,
@@ -31,15 +32,39 @@ const PROVIDER_LABEL_KEYS: Record<ApiProviderPresetId, string> = {
 export function ApiProviderConnectionFields(
   props: ApiProviderConnectionProps,
 ): React.JSX.Element {
+  const { t } = useTranslation("components");
   const connection = useApiProviderConnection(props);
   return (
-    <>
-      <ProviderTemplateFields {...props} connection={connection} />
-      <BaseUrlField {...props} discovery={connection.discovery} />
-      <CredentialFields {...props} connection={connection} />
-      <ApiProviderModelFields {...props} connection={connection} />
-      <RetryFields {...props} />
-    </>
+    <div className="settings-api-stack">
+      <ApiSubsection title={t("settings.api.sections.connection")}>
+        <ProviderTemplateFields {...props} connection={connection} />
+        <BaseUrlField {...props} discovery={connection.discovery} />
+      </ApiSubsection>
+      <ApiSubsection title={t("settings.api.sections.credentials")}>
+        <CredentialFields {...props} connection={connection} />
+      </ApiSubsection>
+      <ApiSubsection title={t("settings.api.sections.model")}>
+        <ApiProviderModelFields {...props} connection={connection} />
+      </ApiSubsection>
+      <ApiSubsection title={t("settings.api.sections.retry")}>
+        <RetryFields {...props} />
+      </ApiSubsection>
+    </div>
+  );
+}
+
+function ApiSubsection({
+  children,
+  title,
+}: {
+  children: React.ReactNode;
+  title: string;
+}): React.JSX.Element {
+  return (
+    <section className="settings-subsection">
+      <h4>{title}</h4>
+      <div className="settings-subsection-body">{children}</div>
+    </section>
   );
 }
 
@@ -184,7 +209,7 @@ function CredentialFields({
     <>
       <label>
         {t(keyLabel)}
-        <div className="settings-file-row settings-api-key-row">
+        <div className="settings-api-key-shell">
           <textarea
             className={`settings-api-key-textarea ${connection.showApiKey ? "" : "masked"}`}
             value={apiKey}
@@ -199,10 +224,12 @@ function CredentialFields({
             spellCheck={false}
             autoComplete="off"
           />
-          <ApiKeyVisibilityButton
-            connection={connection}
-            controlsBusy={controlsBusy}
-          />
+          <span className="settings-api-key-action">
+            <ApiKeyVisibilityButton
+              connection={connection}
+              controlsBusy={controlsBusy}
+            />
+          </span>
         </div>
       </label>
       <p className="muted-line modal-note">

@@ -1,0 +1,38 @@
+.optionActions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.favorite {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.favorite:hover:not(:disabled),
+.favoriteActive {
+  border-color: transparent;
+  background: transparent;
+  color: #f4c95d;
+}
+
+.footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-1);
+}
+
+@media (max-width: 420px) {
+  .footer {
+    grid-template-columns: 1fr;
+  }
+}

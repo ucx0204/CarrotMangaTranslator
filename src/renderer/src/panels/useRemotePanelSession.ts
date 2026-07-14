@@ -57,6 +57,10 @@ function buildRemotePanelSessionValue(
     onDockEditorWindow: noop,
     onApplyFormat: (scope, groupIds) =>
       dispatchCommand({ type: "applyFormat", scope, groupIds }),
+    onApplyBlockBackgroundOpacity: (scope) =>
+      dispatchCommand({ type: "applyBlockBackgroundOpacity", scope }),
+    onAdjustFontSize: (adjustment) =>
+      dispatchCommand({ type: "adjustFontSize", adjustment }),
     onDeleteBlock: () => dispatchCommand({ type: "deleteBlock" }),
     onDuplicateBlock: () => dispatchCommand({ type: "duplicateBlock" }),
     onStartAreaTranslate: () => dispatchCommand({ type: "startAreaTranslate" }),

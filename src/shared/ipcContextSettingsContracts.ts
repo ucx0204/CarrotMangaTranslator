@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { CustomFont } from "./libraryTypes";
+import type {
+  CustomFont,
+  FontLibrarySnapshot,
+  FontPreferences,
+} from "./libraryTypes";
 import type { LocalModelPickResult, ModelTestResult } from "./jobTypes";
 import type {
   ExportReviewTextRequest,
@@ -165,7 +169,37 @@ const customFontSchema = z
   })
   .strict();
 
+const FontPreferencesSchema = z
+  .object({
+    favoriteIds: z.array(stringArg).max(500),
+    orderedIds: z.array(stringArg).max(500),
+    defaultFontId: stringArg,
+  })
+  .strict();
+
+export const FontLibrarySnapshotSchema = z
+  .object({
+    customFonts: z.array(customFontSchema).max(500),
+    preferences: FontPreferencesSchema,
+  })
+  .strict();
+
 export const fontIpcContracts = {
+  getFontLibrary: defineIpcContract<[], FontLibrarySnapshot>({
+    apiKey: "getFontLibrary",
+    channel: "fonts:get-library",
+    args: z.tuple([]),
+    result: FontLibrarySnapshotSchema,
+  }),
+  saveFontPreferences: defineIpcContract<
+    [FontPreferences],
+    FontLibrarySnapshot
+  >({
+    apiKey: "saveFontPreferences",
+    channel: "fonts:save-preferences",
+    args: z.tuple([FontPreferencesSchema]),
+    result: FontLibrarySnapshotSchema,
+  }),
   listCustomFonts: defineIpcContract<[], CustomFont[]>({
     apiKey: "listCustomFonts",
     channel: "fonts:list",

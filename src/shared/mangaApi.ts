@@ -28,7 +28,13 @@ import type {
   ModelTestProgressEvent,
   ModelTestResult,
 } from "./jobTypes";
-import type { ChapterSnapshot, CustomFont, LibraryIndex } from "./libraryTypes";
+import type {
+  ChapterSnapshot,
+  CustomFont,
+  FontLibrarySnapshot,
+  FontPreferences,
+  LibraryIndex,
+} from "./libraryTypes";
 import type { PanelCommand, PanelId, PanelSyncState } from "./panelBridgeTypes";
 import type {
   RegionAnalysisRequest,
@@ -113,6 +119,10 @@ export type MangaApi = {
     pageIds: string[],
   ) => Promise<ChapterSnapshot>;
   deletePage: (chapterId: string, pageId: string) => Promise<ChapterSnapshot>;
+  getFontLibrary: () => Promise<FontLibrarySnapshot>;
+  saveFontPreferences: (
+    preferences: FontPreferences,
+  ) => Promise<FontLibrarySnapshot>;
   listCustomFonts: () => Promise<CustomFont[]>;
   registerCustomFont: () => Promise<CustomFont | null>;
   removeCustomFont: (id: string) => Promise<CustomFont[]>;
@@ -187,6 +197,9 @@ export type MangaApi = {
     callback: (event: ModelTestProgressEvent) => void,
   ) => () => void;
   onUiLocaleChanged: (callback: (locale: UiLocale) => void) => () => void;
+  onFontLibraryChanged: (
+    callback: (snapshot: FontLibrarySnapshot) => void,
+  ) => () => void;
   onPanelState: (callback: (state: PanelSyncState) => void) => () => void;
   onPanelCommand: (callback: (command: PanelCommand) => void) => () => void;
   onPanelWindowsChanged: (

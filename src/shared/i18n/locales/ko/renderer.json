@@ -194,6 +194,7 @@
   },
   "workspaceHistory": {
     "blockEdit": "텍스트 블록 편집",
+    "blockBackgroundOpacity": "블록 배경 투명도 변경",
     "exclusion": "자동 지우기 제외 설정 변경",
     "format": "블록 서식 변경",
     "deleteBlock": "블록 삭제",
@@ -209,6 +210,9 @@
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "작업 중에는 이 화 전체 서식 일괄 적용을 사용할 수 없습니다.",
+    "backgroundOpacityChapterApplyWhileRunning": "작업 중에는 이 화 전체 배경 투명도 적용을 사용할 수 없습니다.",
+    "backgroundOpacityAppliedPage": "이 페이지의 모든 블록에 배경 투명도를 적용했습니다.",
+    "backgroundOpacityAppliedChapter": "이 화 전체 블록에 배경 투명도를 적용했습니다.",
     "formatAppliedSelection": "선택한 블록 {{count}}개에 서식을 적용했습니다.",
     "formatAppliedSelection_one": "선택한 블록 {{count}}개에 서식을 적용했습니다.",
     "formatAppliedSelection_other": "선택한 블록 {{count}}개에 서식을 적용했습니다.",

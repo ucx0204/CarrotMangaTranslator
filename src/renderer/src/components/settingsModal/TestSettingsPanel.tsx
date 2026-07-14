@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { settingsGateway } from "./settingsGateway";
 import type { TestState } from "../settingsModalTypes";
+import { SettingsSection } from "./SettingsSection";
 
 type TestSettingsPanelProps = {
   canSubmit: boolean;
@@ -24,10 +25,12 @@ export function TestSettingsPanel({
 }: TestSettingsPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
+    <div className="settings-panel-stack">
       <UpdateSection />
-      <div className="settings-field-stack">
-        <span>{t("settings.test.title")}</span>
+      <SettingsSection
+        title={t("settings.test.title")}
+        description={t("settings.test.description")}
+      >
         <div className="settings-inline-actions">
           <button
             type="button"
@@ -39,9 +42,6 @@ export function TestSettingsPanel({
               : t("settings.test.run")}
           </button>
         </div>
-        <p className="muted-line modal-note">
-          {t("settings.test.description")}
-        </p>
         {jobActive ? (
           <p className="muted-line">{t("settings.test.jobActive")}</p>
         ) : null}
@@ -62,8 +62,8 @@ export function TestSettingsPanel({
             ))}
           </div>
         ) : null}
-      </div>
-    </>
+      </SettingsSection>
+    </div>
   );
 }
 
@@ -92,8 +92,10 @@ function UpdateSection(): React.JSX.Element {
   }, []);
 
   return (
-    <div className="settings-field-stack">
-      <span>{t("settings.update.title")}</span>
+    <SettingsSection
+      title={t("settings.update.title")}
+      description={t("settings.update.description")}
+    >
       <p className="muted-line">
         {info
           ? t("settings.update.currentVersion", {
@@ -113,9 +115,6 @@ function UpdateSection(): React.JSX.Element {
           {t("settings.update.check")}
         </button>
       </div>
-      <p className="muted-line modal-note">
-        {t("settings.update.description")}
-      </p>
-    </div>
+    </SettingsSection>
   );
 }

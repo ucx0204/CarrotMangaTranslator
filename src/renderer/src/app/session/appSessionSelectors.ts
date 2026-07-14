@@ -15,6 +15,22 @@ export type WorkspaceImageResolution = {
   showingOriginalPeek: boolean;
 };
 
+export function isWorkspaceImageReadyForSelectedPage({
+  selectedPage,
+  workspaceImageDataUrl,
+  workspaceImagePageId,
+}: {
+  selectedPage: MangaPage | null;
+  workspaceImageDataUrl: string;
+  workspaceImagePageId: string | null;
+}): boolean {
+  return Boolean(
+    selectedPage &&
+    workspaceImageDataUrl &&
+    workspaceImagePageId === selectedPage.id,
+  );
+}
+
 export function resolveSelectedPage(
   currentChapter: ChapterSnapshot | null,
   selectedPageId: string | null,

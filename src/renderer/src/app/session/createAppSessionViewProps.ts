@@ -1,4 +1,3 @@
-import { applyTranslatedTextUpdates } from "./applyTranslatedTextUpdates";
 import type { PanelSessionValue } from "../../panels/panelSession";
 import type { AppSessionViewProps } from "./AppSessionView";
 import type { AppSessionViewModel } from "./appSessionViewModel";
@@ -7,7 +6,8 @@ import {
   createPageRetranslateProps,
   createTranslationOptionsProps,
 } from "./createTranslationModalProps";
-import { resolveSourceReadingDirection } from "../../../../shared/translationLanguages";
+import { createGatherTextProps } from "./createGatherTextProps";
+import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 
 export type { AppSessionViewModel } from "./appSessionViewModel";
 
@@ -82,41 +82,6 @@ function createCommandPaletteProps({
     onClose: () => uiState.setCommandPaletteOpen(false),
     open: uiState.commandPaletteOpen,
   };
-}
-
-function createGatherTextProps({
-  core,
-  derivedState,
-  libraryActions,
-  pageNavigationHandlers,
-  settingsDialog,
-  uiState,
-  updateCurrentChapter,
-  workspaceHistory,
-}: AppSessionViewModel): AppSessionViewProps["gatherTextProps"] {
-  return uiState.textViewOpen
-    ? {
-        chapter: core.currentChapter,
-        onApplyTranslatedText: (updates) =>
-          applyTranslatedTextUpdates(updates, updateCurrentChapter),
-        onChapterUpdated: (updatedChapter) => {
-          workspaceHistory.reset();
-          libraryActions.applyChapter(updatedChapter);
-        },
-        onClose: () => uiState.setTextViewOpen(false),
-        onNavigateToBlock: (pageId, blockId) => {
-          pageNavigationHandlers.selectPageForReading(pageId);
-          core.selectedBlockIdRef.current = blockId;
-          core.setSelectedBlockId(blockId);
-          core.setSelectedBlockIds([blockId]);
-          uiState.setTextViewOpen(false);
-        },
-        page: derivedState.selectedPage,
-        readingDirection: resolveSourceReadingDirection(
-          settingsDialog.settings?.translation?.sourceLanguage,
-        ),
-      }
-    : null;
 }
 
 function createModalsProps({
@@ -195,7 +160,10 @@ function createPanelSessionValue(
     editorFloating: uiState.editorFloating,
     editorPoppedOut: panelBridge.openPanelIds.includes("editor"),
     showDetachControls: true,
+    onAdjustFontSize: blockEditingActions.adjustSelectedBlockFontSize,
     onApplyFormat: blockEditingActions.applyFormatToScope,
+    onApplyBlockBackgroundOpacity:
+      blockEditingActions.applyBlockBackgroundOpacityToScope,
     onToggleEditorFloat: uiState.toggleEditorFloat,
     onPopOutEditor: panelBridge.openEditorWindow,
     onDockEditorWindow: panelBridge.closeEditorWindow,
@@ -330,6 +298,16 @@ function createStyleGuideProps({
     : null;
 }
 
+function isRegionTranslationAvailable(
+  derivedState: AppSessionViewModel["derivedState"],
+): boolean {
+  return isWorkspaceImageReadyForSelectedPage({
+    selectedPage: derivedState.selectedPage,
+    workspaceImageDataUrl: derivedState.workspaceImageDataUrl,
+    workspaceImagePageId: derivedState.workspaceImagePageId,
+  });
+}
+
 function createWorkspaceProps({
   core,
   derivedState,
@@ -375,6 +353,7 @@ function createWorkspaceProps({
       core.setRegionSelection(null);
       uiState.selectWorkspaceTool(tool);
     },
+    onToggleRegionTranslation: pointerHandlers.startRegionTranslationSelection,
     onStagePointerDown: pointerHandlers.onStagePointerDown,
     onStagePointerLeave: pointerHandlers.onStagePointerLeave,
     onStagePointerMove: pointerHandlers.onStagePointerMove,
@@ -384,6 +363,7 @@ function createWorkspaceProps({
     progressSnapshot: derivedState.progressSnapshot,
     redoLabel: workspaceHistory.redoLabel,
     regionSelectionActive: Boolean(core.regionSelection?.active),
+    regionTranslationAvailable: isRegionTranslationAvailable(derivedState),
     regionSelectionRect: derivedState.regionSelectionRect,
     retouchCursor: inpaintingBridge.retouchCursor,
     retouchOriginalImageDataUrl: derivedState.selectedPageOriginalImageDataUrl,

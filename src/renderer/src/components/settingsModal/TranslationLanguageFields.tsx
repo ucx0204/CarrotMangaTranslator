@@ -67,35 +67,29 @@ export function TranslationLanguageFields({
   };
 
   return (
-    <div className="settings-field-stack">
-      <span>{t("settings.translation.title")}</span>
-      <div className="settings-language-row">
-        <LanguageField
-          label={t("settings.translation.source")}
-          value={sourceLanguage}
-          disabled={controlsBusy}
-          onChange={setSourceLanguage}
-        />
-        <button
-          type="button"
-          className="settings-language-swap"
-          onClick={swapLanguages}
-          disabled={controlsBusy}
-          title={t("settings.translation.swapTitle")}
-          aria-label={t("settings.translation.swapAria")}
-        >
-          ⇄
-        </button>
-        <LanguageField
-          label={t("settings.translation.target")}
-          value={targetLanguage}
-          disabled={controlsBusy}
-          onChange={setTargetLanguage}
-        />
-      </div>
-      <p className="muted-line modal-note">
-        {t("settings.translation.description")}
-      </p>
+    <div className="settings-language-row">
+      <LanguageField
+        label={t("settings.translation.source")}
+        value={sourceLanguage}
+        disabled={controlsBusy}
+        onChange={setSourceLanguage}
+      />
+      <button
+        type="button"
+        className="settings-language-swap"
+        onClick={swapLanguages}
+        disabled={controlsBusy}
+        title={t("settings.translation.swapTitle")}
+        aria-label={t("settings.translation.swapAria")}
+      >
+        ⇄
+      </button>
+      <LanguageField
+        label={t("settings.translation.target")}
+        value={targetLanguage}
+        disabled={controlsBusy}
+        onChange={setTargetLanguage}
+      />
     </div>
   );
 }

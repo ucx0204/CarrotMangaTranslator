@@ -20,6 +20,7 @@ import type { useAppSessionBridgeActions } from "./useAppSessionBridgeActions";
 import type { AppSessionCoreState } from "./useAppSessionCoreState";
 import type { useAppSessionDerivedState } from "./useAppSessionDerivedState";
 import type { useAppSessionUiState } from "./useAppSessionUiState";
+import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 
 type AppSessionInpaintingControllerArgs = {
   askConfirm: ReturnType<typeof useConfirmDialog>["askConfirm"];
@@ -220,7 +221,11 @@ function usePointerController(
     selectedPage: derivedState.selectedPage,
     selectedPageEditLocked: derivedState.selectedPageEditLocked,
     selectedPageIdRef: core.selectedPageIdRef,
-    selectedPageImageDataUrl: derivedState.selectedPageImageDataUrl,
+    regionTranslationReady: isWorkspaceImageReadyForSelectedPage({
+      selectedPage: derivedState.selectedPage,
+      workspaceImageDataUrl: derivedState.workspaceImageDataUrl,
+      workspaceImagePageId: derivedState.workspaceImagePageId,
+    }),
     selectedPageImagePath: derivedState.selectedPageImagePath,
     setInpaintingPaintColor: uiState.setInpaintingPaintColor,
     setInpaintingTool: uiState.setInpaintingTool,

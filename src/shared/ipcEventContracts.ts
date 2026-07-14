@@ -9,8 +9,15 @@ import {
 import type { PanelCommand, PanelId, PanelSyncState } from "./panelBridgeTypes";
 import { SUPPORTED_UI_LOCALES, type UiLocale } from "./uiLocales";
 import { defineIpcEventContract } from "./ipcContractCore";
+import type { FontLibrarySnapshot } from "./libraryTypes";
+import { FontLibrarySnapshotSchema } from "./ipcContextSettingsContracts";
 
 export const ipcEventContracts = {
+  fontLibraryChanged: defineIpcEventContract<FontLibrarySnapshot>({
+    eventKey: "fontLibraryChanged",
+    channel: "fonts:library-changed",
+    payload: FontLibrarySnapshotSchema,
+  }),
   uiLocaleChanged: defineIpcEventContract<UiLocale>({
     eventKey: "uiLocaleChanged",
     channel: "settings:ui-locale-changed",

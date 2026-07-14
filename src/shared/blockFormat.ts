@@ -51,7 +51,11 @@ export const BLOCK_FORMAT_GROUPS: readonly BlockFormatGroup[] = [
     label: "외곽선",
     keys: ["outlineColor", "outlineWidthScale"],
   },
-  { id: "transform", label: "기울기·투명도", keys: ["rotationDeg", "opacity"] },
+  {
+    id: "transform",
+    label: "기울기·글자 투명도",
+    keys: ["rotationDeg", "textOpacity"],
+  },
 ];
 
 export const ALL_BLOCK_FORMAT_GROUP_IDS: BlockFormatGroupId[] =
@@ -93,6 +97,7 @@ export type BlockFormatDefaults = {
   letterSpacing: number;
   fontWidthScale: number;
   textColor: string;
+  textOpacity: number;
   outlineEnabled: boolean;
   outlineColor: string;
   outlineWidthScale: number;
@@ -110,6 +115,7 @@ export const DEFAULT_BLOCK_FORMAT_DEFAULTS: BlockFormatDefaults = {
   letterSpacing: 0,
   fontWidthScale: 1,
   textColor: "#111111",
+  textOpacity: 1,
   outlineEnabled: true,
   outlineColor: "#ffffff",
   outlineWidthScale: 1,
@@ -136,6 +142,7 @@ export function applyFormatDefaultsToBlock(
     letterSpacing: defaults.letterSpacing,
     fontWidthScale: defaults.fontWidthScale,
     textColor: defaults.textColor,
+    textOpacity: defaults.textOpacity,
     bold: defaults.bold,
     italic: defaults.italic,
     autoFitText: defaults.autoFitText,

@@ -188,6 +188,7 @@
   },
   "workspaceHistory": {
     "blockEdit": "編輯文字區塊",
+    "blockBackgroundOpacity": "變更文字區塊背景不透明度",
     "exclusion": "變更自動清除排除設定",
     "format": "設定文字區塊格式",
     "deleteBlock": "刪除文字區塊",
@@ -203,6 +204,9 @@
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "工作執行時無法對整章批次套用格式。",
+    "backgroundOpacityChapterApplyWhileRunning": "工作執行時無法對整章套用背景不透明度。",
+    "backgroundOpacityAppliedPage": "已對本頁所有文字區塊套用背景不透明度。",
+    "backgroundOpacityAppliedChapter": "已對本章所有文字區塊套用背景不透明度。",
     "formatAppliedSelection": "已對所選的 {{count}} 個文字區塊套用格式。",
     "formatAppliedSelection_one": "已對所選的 {{count}} 個文字區塊套用格式。",
     "formatAppliedSelection_other": "已對所選的 {{count}} 個文字區塊套用格式。",

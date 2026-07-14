@@ -84,6 +84,38 @@ describe("buildPageExportBlocks lineHeight parity", () => {
   });
 });
 
+describe("buildPageExportBlocks text opacity", () => {
+  it("exports text opacity independently from the editor block background", () => {
+    const [exported] = buildPageExportBlocks(
+      makePage(makeBlock({ textOpacity: 0.42, opacity: 0.15 })),
+      1000,
+      1000,
+      new Map(),
+    );
+
+    expect(exported.textOpacity).toBe(0.42);
+    expect(exported).not.toHaveProperty("opacity");
+  });
+
+  it("defaults legacy blocks to opaque text and clamps invalid values", () => {
+    const [legacy] = buildPageExportBlocks(
+      makePage(makeBlock({ textOpacity: undefined })),
+      1000,
+      1000,
+      new Map(),
+    );
+    const [clamped] = buildPageExportBlocks(
+      makePage(makeBlock({ textOpacity: 4 })),
+      1000,
+      1000,
+      new Map(),
+    );
+
+    expect(legacy.textOpacity).toBe(1);
+    expect(clamped.textOpacity).toBe(1);
+  });
+});
+
 describe("buildPageExportBlocks font family parity", () => {
   it.each(BUILT_IN_BLOCK_FONTS)("uses the shared family for $id", (font) => {
     const [exported] = buildPageExportBlocks(
@@ -115,5 +147,45 @@ describe("buildPageExportBlocks font family parity", () => {
     expect(exported.fontFamily).toBe(
       '"MGTUser-custom", "Malgun Gothic", sans-serif',
     );
+  });
+
+  it("uses the designated built-in font for inherited blocks", () => {
+    const defaultFont = BUILT_IN_BLOCK_FONTS.find(
+      (font) => font.id === "comic-neue",
+    );
+    const [exported] = buildPageExportBlocks(
+      makePage(makeBlock({ fontFamily: undefined })),
+      1000,
+      1000,
+      new Map(),
+      "comic-neue",
+    );
+    expect(exported.fontFamily).toBe(defaultFont?.cssFamily);
+  });
+
+  it("uses a designated custom font for inherited blocks while preserving explicit overrides", () => {
+    const customFamilies = new Map([["custom-font", "MGTUser-custom"]]);
+    const [inherited] = buildPageExportBlocks(
+      makePage(makeBlock({ fontFamily: undefined })),
+      1000,
+      1000,
+      customFamilies,
+      "custom-font",
+    );
+    const explicit = BUILT_IN_BLOCK_FONTS.find(
+      (font) => font.id === "nanum-gothic",
+    );
+    const [overridden] = buildPageExportBlocks(
+      makePage(makeBlock({ fontFamily: "nanum-gothic" })),
+      1000,
+      1000,
+      customFamilies,
+      "custom-font",
+    );
+
+    expect(inherited.fontFamily).toBe(
+      '"MGTUser-custom", "Malgun Gothic", sans-serif',
+    );
+    expect(overridden.fontFamily).toBe(explicit?.cssFamily);
   });
 });

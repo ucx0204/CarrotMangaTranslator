@@ -177,12 +177,14 @@ function makeWorkspaceProps({
     onStagePointerLeave: () => undefined,
     onStagePointerMove: () => undefined,
     onStagePointerUp: () => undefined,
+    onToggleRegionTranslation: () => undefined,
     onToggleStageToolbarHidden: () => undefined,
     onUndo: () => undefined,
     compareAvailable: false,
     resetAvailable: false,
     progressSnapshot: null,
     regionSelectionActive: false,
+    regionTranslationAvailable: true,
     regionSelectionRect: null,
     retouchCursor: null,
     retouchOriginalImageDataUrl: "",
@@ -207,9 +209,16 @@ function makeFontsContext(): FontsContextValue {
   return {
     busy: false,
     customFonts: [],
+    preferences: {
+      favoriteIds: [],
+      orderedIds: [],
+      defaultFontId: "default",
+    },
+    baseOptions: [],
     options: [],
     registerFont: async () => undefined,
     removeFont: async () => undefined,
+    savePreferences: async () => undefined,
   };
 }
 

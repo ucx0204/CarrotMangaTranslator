@@ -14,6 +14,8 @@ import {
   DEFAULT_CODEX_REASONING_EFFORT,
   DEFAULT_CONTEXT_TOKENS,
   DEFAULT_GEMMA_MODEL_FILE,
+  DEFAULT_GEMMA_CONTEXT_TOKENS,
+  DEFAULT_GEMMA_MAX_TOKENS,
   DEFAULT_MAX_TOKENS,
   DEFAULT_OCR_DEVICE,
   DEFAULT_OCR_GPU_CUDA_TAG,
@@ -98,6 +100,8 @@ describe("app settings helpers", () => {
     expect(rtx4090Defaults.modelProvider).toBe("gemma");
     expect(rtx4090Defaults.gemma.vramMode).toBe("full31b");
     expect(rtx4090Defaults.gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
+    expect(rtx4090Defaults.maxTokens).toBe(DEFAULT_GEMMA_MAX_TOKENS);
+    expect(rtx4090Defaults.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
     const rtx5070Defaults = resolveDefaultAppSettings(
       {},
       {
@@ -465,6 +469,9 @@ describe("app settings helpers", () => {
       },
       settings: {
         ...defaults,
+        modelProvider: "gemma",
+        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
         gemma: {
           ...defaults.gemma,
           vramMode: "economy26b",
@@ -478,7 +485,7 @@ describe("app settings helpers", () => {
     });
 
     expect(options.gemmaVramMode).toBe("economy26b");
-    expect(options.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
+    expect(options.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
     expect(options.batch).toBe(1024);
     expect(options.ubatch).toBe(1024);
     expect(options.cacheTypeK).toBe("q4_0");
@@ -560,7 +567,7 @@ describe("app settings helpers", () => {
     });
 
     expect(options.gemmaVramMode).toBe("full31b");
-    expect(options.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
+    expect(options.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
     expect(options.batch).toBe(1024);
     expect(options.ubatch).toBe(1024);
     expect(options.cacheTypeK).toBe("q4_0");
@@ -1766,10 +1773,45 @@ describe("app settings helpers", () => {
     ).toBe(16000);
     expect(
       parseStoredAppSettings('{"maxTokens":40000}', defaults).maxTokens,
-    ).toBe(32768);
+    ).toBe(40000);
+    expect(
+      parseStoredAppSettings('{"maxTokens":200000}', defaults).maxTokens,
+    ).toBe(128000);
     expect(
       parseStoredAppSettings('{"maxTokens":"bad"}', defaults).maxTokens,
     ).toBe(defaults.maxTokens);
+  });
+
+  it("uses the saved provider and model for missing generation limits", () => {
+    const defaults = resolveDefaultAppSettings();
+    const gemma = parseStoredAppSettings('{"modelProvider":"gemma"}', defaults);
+    const spark = parseStoredAppSettings(
+      JSON.stringify({
+        modelProvider: "openai-codex",
+        codex: { model: "gpt-5.3-codex-spark" },
+      }),
+      defaults,
+    );
+
+    expect(gemma.maxTokens).toBe(DEFAULT_GEMMA_MAX_TOKENS);
+    expect(gemma.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
+    expect(spark.maxTokens).toBe(24576);
+    expect(spark.ctx).toBe(65536);
+  });
+
+  it("preserves explicit generation limits across provider changes", () => {
+    const defaults = resolveDefaultAppSettings();
+    const stored = parseStoredAppSettings(
+      JSON.stringify({
+        modelProvider: "gemma",
+        maxTokens: 20000,
+        ctx: 45000,
+      }),
+      defaults,
+    );
+
+    expect(stored.maxTokens).toBe(20000);
+    expect(stored.ctx).toBe(45000);
   });
 
   it("normalizes context length settings without an upper cap", () => {

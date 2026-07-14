@@ -7,6 +7,12 @@ import { CloseIcon } from "./icons";
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+const modalStack: symbol[] = [];
+
+function isTopModal(id: symbol): boolean {
+  return modalStack.at(-1) === id;
+}
+
 function getFocusable(container: HTMLElement): HTMLElement[] {
   return Array.from(
     container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
@@ -51,12 +57,19 @@ export function Modal({
   children,
 }: ModalProps): React.JSX.Element {
   const cardRef = React.useRef<HTMLDivElement | null>(null);
+  const [modalId] = React.useState(() => Symbol("modal"));
   const titleId = React.useId();
   const accessibleName = resolveModalAccessibleName(title, ariaLabel, titleId);
   const showHeader = Boolean(title) || Boolean(headerExtra) || Boolean(onClose);
-  const handleCardKeyDown = useModalFocusTrap(cardRef);
+  const handleCardKeyDown = useModalFocusTrap(cardRef, modalId);
 
-  useModalEscapeClose({ closeDisabled, closeOnEsc, onClose });
+  useModalStackRegistration(modalId);
+  useModalEscapeClose({
+    closeDisabled,
+    closeOnEsc,
+    modalId,
+    onClose,
+  });
   useModalInitialFocus(cardRef);
 
   return (
@@ -118,20 +131,35 @@ function resolveModalAccessibleName(
 function useModalEscapeClose({
   closeDisabled,
   closeOnEsc,
+  modalId,
   onClose,
-}: Pick<ModalProps, "closeDisabled" | "closeOnEsc" | "onClose">): void {
+}: Pick<ModalProps, "closeDisabled" | "closeOnEsc" | "onClose"> & {
+  modalId: symbol;
+}): void {
   React.useEffect(() => {
     if (!closeOnEsc || !onClose) {
       return;
     }
     const handle = (event: KeyboardEvent): void => {
-      if (event.key === "Escape" && !closeDisabled) {
+      if (event.key === "Escape" && !closeDisabled && isTopModal(modalId)) {
         onClose();
       }
     };
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [closeOnEsc, onClose, closeDisabled]);
+  }, [closeOnEsc, onClose, closeDisabled, modalId]);
+}
+
+function useModalStackRegistration(modalId: symbol): void {
+  React.useEffect(() => {
+    modalStack.push(modalId);
+    return () => {
+      const index = modalStack.lastIndexOf(modalId);
+      if (index >= 0) {
+        modalStack.splice(index, 1);
+      }
+    };
+  }, [modalId]);
 }
 
 function useModalInitialFocus(
@@ -155,10 +183,11 @@ function useModalInitialFocus(
 
 function useModalFocusTrap(
   cardRef: React.RefObject<HTMLDivElement | null>,
+  modalId: symbol,
 ): (event: React.KeyboardEvent<HTMLDivElement>) => void {
   return React.useCallback(
     (event) => {
-      if (event.key !== "Tab") {
+      if (event.key !== "Tab" || !isTopModal(modalId)) {
         return;
       }
       const card = cardRef.current;
@@ -167,7 +196,7 @@ function useModalFocusTrap(
       }
       trapTabFocus(event, getFocusable(card));
     },
-    [cardRef],
+    [cardRef, modalId],
   );
 }
 

@@ -101,10 +101,13 @@
     "size": "大小",
     "fontSize": "字号",
     "fontSizeValue": "字号数值",
+    "fontSizeDecrease": "减小字号",
+    "fontSizeIncrease": "增大字号",
     "autoFitTitle": "自动适应文本框大小",
     "auto": "自动",
     "rotation": "旋转",
-    "opacity": "不透明度",
+    "textOpacity": "文字不透明度",
+    "blockBackgroundOpacity": "文本块背景不透明度",
     "lineHeight": "行距",
     "letterSpacing": "字距",
     "fontWidth": "字宽",
@@ -116,6 +119,12 @@
     "text": "文本",
     "translatedText": "译文",
     "blockColors": "文本块颜色",
+    "display": {
+      "title": "编辑显示",
+      "batchApply": "批量应用",
+      "batchTitle": "批量应用文本块背景",
+      "batchDescription": "请选择所选文本块背景不透明度的应用范围。"
+    },
     "inpainting": {
       "title": "自动擦除",
       "exclude": "从自动擦除中排除",
@@ -151,13 +160,31 @@
       "fontWidth": "字宽",
       "color": "文字颜色",
       "outline": "描边",
-      "transform": "旋转与不透明度"
+      "transform": "旋转与文字不透明度"
     }
   },
   "fontSelect": {
     "addFont": "+ 添加TTF/OTF字体",
     "deleteFont": "删除此字体",
-    "deleteNamedFont": "删除{{label}}"
+    "deleteNamedFont": "删除{{label}}",
+    "favoriteFont": "添加到收藏",
+    "unfavoriteFont": "从收藏中移除",
+    "favoriteNamedFont": "将{{label}}添加到收藏",
+    "unfavoriteNamedFont": "将{{label}}从收藏中移除",
+    "manageFonts": "管理字体"
+  },
+  "fontManager": {
+    "title": "管理字体",
+    "favorites": "收藏",
+    "otherFonts": "其他字体",
+    "emptyFavorites": "尚无收藏字体。",
+    "defaultBadge": "默认字体",
+    "setNamedDefault": "将{{label}}设为默认字体",
+    "searchPlaceholder": "搜索字体",
+    "noSearchResults": "没有匹配的字体。",
+    "moveNamedFont": "移动{{label}}的顺序",
+    "resetOrder": "重置顺序",
+    "saveFailed": "无法保存字体设置。"
   },
   "chapterPicker": {
     "prompt": "要翻译哪些内容？",
@@ -329,6 +356,10 @@
         "label": "文本块",
         "title": "文本块工具（2）— 拖动以添加新文本块"
       },
+      "region": {
+        "label": "区域翻译",
+        "title": "区域翻译 — 拖动选择要重新翻译的区域"
+      },
       "hand": { "label": "抓手", "title": "抓手工具（3）— 拖动以移动图像" },
       "mask": { "label": "蒙版", "title": "蒙版画笔" },
       "brush": { "label": "画笔", "title": "修整画笔" },
@@ -396,6 +427,33 @@
     "empty": "没有可显示的文本。",
     "pageHeading": "第{{index}}页 · {{pageName}}",
     "navigateToPage": "单击以转到该页面。",
+    "selectBlock": "选择此文本块以修改格式",
+    "enterSelectionMode": "选择要修改格式的文本块",
+    "exitSelectionMode": "关闭批量编辑",
+    "selectedCount": "已选择 {{count}} 个文本块",
+    "selectVisible": "全选当前显示的文本块",
+    "clearSelection": "清除文本块选择",
+    "applyFormat": "编辑所选文本块格式",
+    "defaultFont": "默认字体",
+    "formatDisabled": "任务运行时无法应用格式。",
+    "directFormatTitle": "编辑所选文本块格式",
+    "previewTitle": "应用预览",
+    "previewBasis": "以第一个所选文本块为基准，实时显示更改。",
+    "previewTextLabel": "示例文字",
+    "previewTextDefault": "示例 ABC 123 · 翻译预览",
+    "previewTextPlaceholder": "示例文字",
+    "resetChanges": "重置更改",
+    "typographySection": "文字与布局",
+    "changedOnlyHint": "只将您调整的项目应用到所有所选文本块。",
+    "colorSection": "颜色与描边",
+    "detailsSection": "细节调整",
+    "detailsHint": "行距 · 字距 · 字宽 · 旋转 · 文字不透明度",
+    "outlineWidth": "描边宽度",
+    "autoFitLabel": "自动适应",
+    "autoFitBadge": "自动适应",
+    "mixedValue": "混合",
+    "toggleOn": "开启",
+    "toggleOff": "关闭",
     "importTxt": {
       "button": "导入.txt",
       "title": "按行顺序从仅译文格式的TXT文件重新导入译文。",
@@ -615,14 +673,27 @@
       "save": "保存"
     },
     "engine": {
+      "limits": {
+        "title": "生成限制",
+        "recommendedFor": "{{model}} 推荐值",
+        "recommendedValues": "输出 {{maxTokens}} · 作品上下文 {{contextTokens}}",
+        "publicLimits": "公开模型上限：输出 {{maxOutput}} · 上下文 {{contextWindow}}",
+        "publicContextOnly": "公开模型上下文：{{contextWindow}} · 最大输出未公开",
+        "unknownLimits": "没有公开的模型上限信息，因此使用安全的通用推荐值。",
+        "applyRecommended": "应用推荐值",
+        "recommendedApplied": "正在使用推荐值"
+      },
       "provider": { "label": "翻译引擎" },
       "maxTokens": {
         "label": "最大输出令牌数",
-        "description": "模型一次最多可生成的令牌数。"
+        "remoteDescription": "限制包含可见文本和推理在内的完整响应。使用任务推荐值比直接使用模型上限更稳妥。",
+        "gemmaDescription": "限制本地模型单次生成量。数值越高，处理时间和内存占用可能越大。"
       },
       "contextTokens": {
-        "label": "上下文长度",
-        "description": "模型一次可参考的令牌总数。"
+        "remoteLabel": "作品上下文预算",
+        "remoteDescription": "这不是模型服务端的上下文窗口，而是应用用于加入作品记忆、术语表和角色信息的内部预算。",
+        "gemmaLabel": "上下文长度",
+        "gemmaDescription": "本地 Gemma 的实际上下文长度。提高后可能占用更多显存。"
       }
     },
     "options": {
@@ -794,6 +865,12 @@
       "oauthPort": "openai-oauth端口"
     },
     "api": {
+      "sections": {
+        "connection": "连接",
+        "credentials": "认证",
+        "model": "模型",
+        "retry": "重试"
+      },
       "providerTemplate": "API提供商快速设置",
       "providers": {
         "custom": "手动设置",
@@ -837,6 +914,8 @@
       }
     },
     "hardware": {
+      "ocrSection": "OCR",
+      "inpaintingSection": "图像修复",
       "ocrQuality": "Paddle OCR质量",
       "ocrDevice": "Paddle OCR设备",
       "fluxBackend": "Flux图像修复后端",
@@ -885,6 +964,7 @@
         "text": "文字颜色",
         "outline": "描边",
         "outlineEnabledTitle": "是否使用描边",
+        "textOpacity": "文字不透明度",
         "outlineEnabled": "使用描边",
         "outlineWidth": "描边宽度"
       }

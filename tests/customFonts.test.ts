@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -103,6 +110,95 @@ describe("custom font index validation", () => {
 
     expect(customFonts.removeCustomFont(traversalId)).toEqual([]);
     expect(existsSync(outsidePath)).toBe(true);
+  });
+
+  it("normalizes known IDs, deduplicates entries, and saves preferences atomically", async () => {
+    const rootDir = await createTempRoot();
+    const fontsDir = join(rootDir, "fonts");
+    await mkdir(fontsDir, { recursive: true });
+    const customId = "66666666-6666-4666-8666-666666666666";
+    await writeFile(join(fontsDir, `${customId}.ttf`), makeTinyTtfBytes());
+    await writeFile(
+      join(fontsDir, "index.json"),
+      JSON.stringify([
+        {
+          id: customId,
+          label: "Custom",
+          family: `MGTUser-${customId}`,
+          fileName: `${customId}.ttf`,
+        },
+      ]),
+      "utf8",
+    );
+    await writeFile(
+      join(fontsDir, "preferences.json"),
+      JSON.stringify({
+        favoriteIds: ["default", customId, "default", "unknown"],
+        orderedIds: [customId, "kalam", customId, "unknown"],
+        defaultFontId: customId,
+      }),
+      "utf8",
+    );
+    const customFonts = await loadCustomFonts(rootDir);
+
+    expect(customFonts.readFontPreferences()).toEqual({
+      favoriteIds: ["default", customId],
+      orderedIds: [customId, "kalam"],
+      defaultFontId: customId,
+    });
+    customFonts.saveFontPreferences({
+      favoriteIds: ["kalam", "kalam", "missing"],
+      orderedIds: ["default", "kalam", "missing"],
+      defaultFontId: "missing",
+    });
+
+    expect(
+      JSON.parse(await readFile(join(fontsDir, "preferences.json"), "utf8")),
+    ).toEqual({
+      favoriteIds: ["kalam"],
+      orderedIds: ["default", "kalam"],
+      defaultFontId: "default",
+    });
+    expect(
+      (await readdir(fontsDir)).some((name) => name.endsWith(".tmp")),
+    ).toBe(false);
+  });
+
+  it("removes a deleted custom font from favorites, ordering, and the global default", async () => {
+    const rootDir = await createTempRoot();
+    const fontsDir = join(rootDir, "fonts");
+    await mkdir(fontsDir, { recursive: true });
+    const customId = "77777777-7777-4777-8777-777777777777";
+    await writeFile(join(fontsDir, `${customId}.ttf`), makeTinyTtfBytes());
+    await writeFile(
+      join(fontsDir, "index.json"),
+      JSON.stringify([
+        {
+          id: customId,
+          label: "Delete me",
+          family: `MGTUser-${customId}`,
+          fileName: `${customId}.ttf`,
+        },
+      ]),
+      "utf8",
+    );
+    await writeFile(
+      join(fontsDir, "preferences.json"),
+      JSON.stringify({
+        favoriteIds: [customId, "default"],
+        orderedIds: [customId, "default"],
+        defaultFontId: customId,
+      }),
+      "utf8",
+    );
+    const customFonts = await loadCustomFonts(rootDir);
+
+    expect(customFonts.removeCustomFont(customId)).toEqual([]);
+    expect(customFonts.readFontPreferences()).toEqual({
+      favoriteIds: ["default"],
+      orderedIds: ["default"],
+      defaultFontId: "default",
+    });
   });
 });
 

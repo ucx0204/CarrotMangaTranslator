@@ -1,7 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { WorkShareImportPreview } from "../../../../shared/shareTypes";
-import { Button } from "../ui";
+import { Button } from "../ui/Button";
+import { SelectionSurface } from "../ui/SelectionCard";
 import type { NewSelection } from "./shareImportTypes";
 
 type ShareImportNewWorkSectionProps = {
@@ -77,10 +78,16 @@ function ShareImportNewWorkItem({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="draft-item">
+    <SelectionSurface
+      className="draft-item selection-field-row"
+      variant="row"
+      selected={selection.enabled}
+      disabled={busy}
+    >
       <label className="checkbox-row">
         <input
           type="checkbox"
+          aria-label={`${selection.title} · ${t("common.pageCount", { count: pageCount })}`}
           checked={selection.enabled}
           disabled={busy}
           onChange={(event) => {
@@ -104,7 +111,7 @@ function ShareImportNewWorkItem({
           );
         }}
       />
-    </div>
+    </SelectionSurface>
   );
 }
 

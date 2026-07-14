@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import {
+  isWorkspaceImageReadyForSelectedPage,
   resolveJobActive,
   resolveModalOpen,
   resolveNeighborImageTargets,
@@ -62,6 +63,25 @@ describe("AppSession selectors", () => {
         selectedPageOriginalImageDataUrl: "",
       }).imageDataUrl,
     ).toBe("clean-data");
+  });
+
+  it("requires the loaded workspace image to belong to the selected page", () => {
+    const selectedPage = makePage("page-2");
+
+    expect(
+      isWorkspaceImageReadyForSelectedPage({
+        selectedPage,
+        workspaceImageDataUrl: "old-page-data",
+        workspaceImagePageId: "page-1",
+      }),
+    ).toBe(false);
+    expect(
+      isWorkspaceImageReadyForSelectedPage({
+        selectedPage,
+        workspaceImageDataUrl: "page-2-data",
+        workspaceImagePageId: "page-2",
+      }),
+    ).toBe(true);
   });
 
   it("treats any overlay, palette, or shortcut modal as blocking", () => {

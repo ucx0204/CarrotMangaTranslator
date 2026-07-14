@@ -265,6 +265,7 @@ function resolveOverlayTextWrapStyle(
     lineHeight: block.lineHeight,
     letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
     right: "auto",
+    opacity: normalizeTextOpacity(block.textOpacity),
     textAlign: block.textAlign,
     top: 0,
     transform:
@@ -274,6 +275,11 @@ function resolveOverlayTextWrapStyle(
     transformOrigin: "top left",
     width: `${layout.layoutWidth}px`,
   };
+}
+
+function normalizeTextOpacity(value: number | undefined): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0, Math.min(1, value as number));
 }
 
 function resolveOverlayTextContentStyle(

@@ -5,7 +5,9 @@ import type {
   LibraryWorkSummary,
 } from "../../../shared/libraryTypes";
 import type { WorkShareExportRequest } from "../../../shared/shareTypes";
-import { Button, Modal } from "./ui";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
+import { SelectionCard } from "./ui/SelectionCard";
 
 type ShareExportModalProps = {
   library: LibraryIndex;
@@ -222,24 +224,22 @@ function ShareExportChapterSection({
 
       <div className="draft-list">
         {selectedWork?.chapters.map((chapter) => (
-          <label key={chapter.id} className="share-check-item">
-            <input
-              type="checkbox"
-              checked={selectedChapterIds.has(chapter.id)}
-              disabled={busy}
-              onChange={(event) => {
-                setSelectedChapterIds((current) =>
-                  toggleChapterSelection(
-                    current,
-                    chapter.id,
-                    event.target.checked,
-                  ),
-                );
-              }}
-            />
+          <SelectionCard
+            key={chapter.id}
+            className="share-check-item"
+            variant="row"
+            inputType="checkbox"
+            checked={selectedChapterIds.has(chapter.id)}
+            disabled={busy}
+            onChange={(checked) => {
+              setSelectedChapterIds((current) =>
+                toggleChapterSelection(current, chapter.id, checked),
+              );
+            }}
+          >
             <span>{chapter.title}</span>
             <small>{t("common.pageCount", { count: chapter.pageCount })}</small>
-          </label>
+          </SelectionCard>
         )) ?? <p className="panel-empty">{t("shareExport.noWork")}</p>}
       </div>
     </section>

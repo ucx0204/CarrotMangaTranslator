@@ -220,6 +220,7 @@ describe("page export BrowserWindow security", () => {
     expect(latestWindow?.loadedHtml).toContain("span.textContent");
     expect(latestWindow?.loadedHtml).toContain("overlay-text-line");
     expect(latestWindow?.loadedHtml).toContain("rect.width / scaleX");
+    expect(latestWindow?.loadedHtml).toContain("textWrap.style.opacity");
     expect(latestWindow?.loadedHtml).toContain(
       'textContent.style.overflowWrap = fixedLines ? "normal" : "";',
     );
@@ -296,6 +297,11 @@ async function loadPageExport(
   }));
   vi.doMock("../src/main/customFonts", () => ({
     listCustomFonts: () => [],
+    readFontPreferences: () => ({
+      favoriteIds: [],
+      orderedIds: [],
+      defaultFontId: "default",
+    }),
     resolveCustomFontFilePath: () => null,
   }));
   return import("../src/main/pageExport");

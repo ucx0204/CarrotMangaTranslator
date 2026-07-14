@@ -8,7 +8,7 @@ import { ImageStage, type ImageStageProps } from "./ImageStage";
 import { CanvasActionBar } from "./CanvasActionBar";
 import { InstallProgressOverlay } from "./InstallProgressOverlay";
 import { StageToolbar } from "./StageToolbar";
-import { Button } from "./ui";
+import { Button } from "./ui/Button";
 import { useFonts } from "../fonts/useFonts";
 import { useWorkspaceZoomStyle } from "../hooks/useWorkspaceZoomStyle";
 
@@ -38,6 +38,7 @@ type AppWorkspaceProps = {
   retouchOriginalImageDataUrl: string;
   maskStrokes: ImageStageProps["maskStrokes"];
   regionSelectionActive: boolean;
+  regionTranslationAvailable: boolean;
   regionSelectionRect: ImageStageProps["regionSelectionRect"];
   blockCreateRect: ImageStageProps["blockCreateRect"];
   stageTool: WorkspaceTool;
@@ -47,6 +48,7 @@ type AppWorkspaceProps = {
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
   onSelectStageTool: (tool: WorkspaceTool) => void;
+  onToggleRegionTranslation: () => void;
   onToggleStageToolbarHidden: () => void;
   onStagePointerMove: ImageStageProps["onStagePointerMove"];
   onStagePointerUp: ImageStageProps["onStagePointerUp"];
@@ -117,7 +119,10 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
             disabled={props.jobActive}
             hidden={props.stageToolbarHidden}
             onSelectTool={props.onSelectStageTool}
+            onToggleRegionTranslation={props.onToggleRegionTranslation}
             onToggleHidden={props.onToggleStageToolbarHidden}
+            regionTranslationActive={props.regionSelectionActive}
+            regionTranslationAvailable={props.regionTranslationAvailable}
             tool={props.stageTool}
           />
         </>

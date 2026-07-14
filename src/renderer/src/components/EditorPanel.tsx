@@ -3,9 +3,13 @@ import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import { normalizeRenderDirection } from "../../../shared/geometry";
-import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
+import type {
+  BlockBackgroundApplyScope,
+  FormatApplyScope,
+} from "../hooks/useBlockEditingActions";
 import {
   BlockActionButtons,
+  BlockDisplayGroup,
   ColorEditorGroup,
   EmptyEditorPanel,
   InpaintingBlockOption,
@@ -32,6 +36,8 @@ type EditorPanelProps = {
     scope: FormatApplyScope,
     groupIds: BlockFormatGroupId[],
   ) => void;
+  onApplyBlockBackgroundOpacity?: (scope: BlockBackgroundApplyScope) => void;
+  onAdjustFontSize: (adjustment: -1 | 1) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -47,11 +53,12 @@ export function EditorPanel({
   headerActions,
   onStartAreaTranslate,
   onApplyFormat,
+  onApplyBlockBackgroundOpacity,
+  onAdjustFontSize,
   onUpdate,
   onDelete,
   onDuplicate,
 }: EditorPanelProps): React.JSX.Element {
-  const { t } = useTranslation("components");
   const [fontFamilyDraft, setFontFamilyDraft] = React.useState<
     string | undefined
   >(block?.fontFamily);
@@ -75,12 +82,7 @@ export function EditorPanel({
   const model = resolveEditorPanelModel(block);
   return (
     <section className="editor-panel has-block">
-      <header className="editor-panel-header">
-        <h2>{t("common.blocks")}</h2>
-        {headerActions ? (
-          <div className="editor-panel-header-actions">{headerActions}</div>
-        ) : null}
-      </header>
+      <EditorPanelHeader actions={headerActions} />
       <InpaintingBlockOption
         block={block}
         disabled={disabled}
@@ -94,6 +96,7 @@ export function EditorPanel({
         fontFamilyDraft={fontFamilyDraft}
         model={model}
         onApplyFormat={onApplyFormat}
+        onAdjustFontSize={onAdjustFontSize}
         onFontFamilyDraftChange={setFontFamilyDraft}
         onUpdate={onUpdate}
         selectedBlockCount={selectedBlockCount}
@@ -104,12 +107,35 @@ export function EditorPanel({
         model={model}
         onUpdate={onUpdate}
       />
+      <BlockDisplayGroup
+        block={block}
+        disabled={disabled}
+        disableChapterApply={disableChapterApply}
+        onApply={onApplyBlockBackgroundOpacity}
+        onUpdate={onUpdate}
+      />
       <BlockActionButtons
         disabled={disabled}
         onDelete={onDelete}
         onDuplicate={onDuplicate}
       />
     </section>
+  );
+}
+
+function EditorPanelHeader({
+  actions,
+}: {
+  actions?: React.ReactNode;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <header className="editor-panel-header">
+      <h2>{t("common.blocks")}</h2>
+      {actions ? (
+        <div className="editor-panel-header-actions">{actions}</div>
+      ) : null}
+    </header>
   );
 }
 

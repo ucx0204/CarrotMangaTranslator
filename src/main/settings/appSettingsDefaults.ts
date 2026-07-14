@@ -10,9 +10,8 @@ import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_OAUTH_PORT,
   DEFAULT_CODEX_REASONING_EFFORT,
-  DEFAULT_CONTEXT_TOKENS,
-  DEFAULT_MAX_TOKENS,
   DEFAULT_MODEL_SOURCE,
+  resolveRecommendedGenerationLimits,
 } from "../../shared/modelPresets";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
@@ -68,15 +67,27 @@ export function resolveDefaultAppSettings(
   detectedGpu?: number | DetectedGpuInfo | null,
 ): AppSettings {
   const hardwareDefaults = resolveHardwareDefaults(detectedGpu);
+  const modelProvider = resolveModelProvider(
+    env.MANGA_TRANSLATOR_MODEL_PROVIDER,
+    hardwareDefaults.modelProvider,
+  );
+  const gemma = resolveDefaultGemmaSettings(env, hardwareDefaults);
+  const codex = resolveDefaultCodexSettings(env);
+  const api = resolveDefaultApiSettings(env);
+  const recommendedLimits = resolveRecommendedGenerationLimits(
+    modelProvider,
+    modelProvider === "openai-codex"
+      ? codex.model
+      : modelProvider === "openai-api"
+        ? api.model
+        : null,
+  );
   return {
-    modelProvider: resolveModelProvider(
-      env.MANGA_TRANSLATOR_MODEL_PROVIDER,
-      hardwareDefaults.modelProvider,
-    ),
+    modelProvider,
     translation: resolveDefaultTranslationLanguageSettings(env),
-    gemma: resolveDefaultGemmaSettings(env, hardwareDefaults),
-    codex: resolveDefaultCodexSettings(env),
-    api: resolveDefaultApiSettings(env),
+    gemma,
+    codex,
+    api,
     ocr: resolveDefaultOcrSettings(env, hardwareDefaults),
     ui: resolveDefaultUiSettings(env),
     inpainting: resolveDefaultInpaintingSettings(env, hardwareDefaults),
@@ -84,9 +95,12 @@ export function resolveDefaultAppSettings(
     keybindings: {},
     maxTokens: resolveMaxTokens(
       env.MANGA_TRANSLATOR_MAX_TOKENS,
-      DEFAULT_MAX_TOKENS,
+      recommendedLimits.maxTokens,
     ),
-    ctx: resolveContextTokens(env.MANGA_TRANSLATOR_CTX, DEFAULT_CONTEXT_TOKENS),
+    ctx: resolveContextTokens(
+      env.MANGA_TRANSLATOR_CTX,
+      recommendedLimits.contextTokens,
+    ),
   };
 }
 

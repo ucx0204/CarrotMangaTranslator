@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import { mangaGateway } from "../api/mangaGateway";
 import type { TriState } from "../lib/translationSelection";
+import { SelectionCard } from "./ui/SelectionCard";
 
 export function PageThumb({
   page,
@@ -36,21 +37,16 @@ export function PageThumb({
 
   const done = showTranslatedStatus && page.analysisStatus === "completed";
   return (
-    <label
-      className={[
-        "translate-page-thumb",
-        checked ? "selected" : "",
-        done ? "done" : "",
-      ]
+    <SelectionCard
+      className={["translate-page-thumb", done ? "done" : ""]
         .filter(Boolean)
         .join(" ")}
+      variant="thumbnail"
+      inputType="checkbox"
+      inputClassName="translate-page-thumb-check"
+      checked={checked}
+      onChange={onToggle}
     >
-      <input
-        type="checkbox"
-        className="translate-page-thumb-check"
-        checked={checked}
-        onChange={onToggle}
-      />
       <span className="translate-page-thumb-img">
         {url ? (
           <img src={url} alt={page.name} loading="lazy" draggable={false} />
@@ -70,7 +66,7 @@ export function PageThumb({
         <span className="translate-page-thumb-no">{index + 1}</span>
         <span className="translate-page-thumb-name">{page.name}</span>
       </span>
-    </label>
+    </SelectionCard>
   );
 }
 

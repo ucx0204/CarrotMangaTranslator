@@ -14,6 +14,7 @@ import {
   TranslationBlockSchema,
   WorkShareImportRequestSchema,
 } from "../src/shared/ipcSchemas";
+import { MAX_MAX_TOKENS } from "../src/shared/modelPresets";
 
 const workId = "11111111-1111-4111-8111-111111111111";
 const chapterId = "22222222-2222-4222-8222-222222222222";
@@ -426,7 +427,7 @@ describe("IPC schemas", () => {
     expect(() =>
       parseIpcPayload(
         AppSettingsSchema,
-        { ...payload, maxTokens: 32769 },
+        { ...payload, maxTokens: MAX_MAX_TOKENS + 1 },
         "설정 저장",
       ),
     ).toThrow(/요청 형식/);
@@ -600,6 +601,23 @@ describe("IPC schemas", () => {
       "블록",
     );
     expect(parsed.fontWidthScale).toBe(0.8);
+  });
+
+  it("accepts only a normalized text opacity on translation blocks", () => {
+    const block = makeChapterSnapshot().pages[0].blocks[0];
+    const parsed = parseIpcPayload(
+      TranslationBlockSchema,
+      { ...block, textOpacity: 0.45 },
+      "블록",
+    );
+    expect(parsed.textOpacity).toBe(0.45);
+    expect(() =>
+      parseIpcPayload(
+        TranslationBlockSchema,
+        { ...block, textOpacity: 1.1 },
+        "블록",
+      ),
+    ).toThrow(/요청 형식/);
   });
 
   it("rejects an out-of-range 장평 (fontWidthScale)", () => {

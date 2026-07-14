@@ -3,8 +3,6 @@ import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import {
-  clampBbox,
-  normalizeBlockType,
   normalizeRenderDirection,
   normalizeRotationDeg,
   offsetBlockBboxes,
@@ -18,8 +16,16 @@ import {
   resolveFormatApplyStatus,
   type FormatApplyScope,
 } from "./blockEditingStatus";
+import type { FontSizeAdjustment } from "../lib/blockFontSizeAdjustment";
+import { useAdjustSelectedBlockFontSizeAction } from "./useAdjustSelectedBlockFontSizeAction";
+import { useUpdateSelectedBlockAction } from "./useUpdateSelectedBlockAction";
+import {
+  useApplyBlockBackgroundOpacityAction,
+  type BlockBackgroundApplyScope,
+} from "./useApplyBlockBackgroundOpacityAction";
 
 export type { FormatApplyScope } from "./blockEditingStatus";
+export type { BlockBackgroundApplyScope } from "./useApplyBlockBackgroundOpacityAction";
 
 type UseBlockEditingActionsOptions = {
   currentChapter: ChapterSnapshot | null;
@@ -34,16 +40,11 @@ type UseBlockEditingActionsOptions = {
   updateCurrentChapter: UpdateCurrentChapter;
 };
 
-/** Text edits coalesce per block; style edits coalesce separately per block. */
-function resolveBlockEditMergeKey(
-  blockId: string,
-  patch: Partial<TranslationBlock>,
-): string {
-  const isTextEdit = "translatedText" in patch || "sourceText" in patch;
-  return `${isTextEdit ? "text" : "style"}:${blockId}`;
-}
-
 type BlockEditingActions = {
+  adjustSelectedBlockFontSize: (adjustment: FontSizeAdjustment) => void;
+  applyBlockBackgroundOpacityToScope: (
+    scope: BlockBackgroundApplyScope,
+  ) => void;
   applyFormatToScope: (
     scope: FormatApplyScope,
     groupIds: BlockFormatGroupId[],
@@ -57,95 +58,26 @@ type BlockEditingActions = {
 export function useBlockEditingActions(
   options: UseBlockEditingActionsOptions,
 ): BlockEditingActions {
+  const adjustSelectedBlockFontSize =
+    useAdjustSelectedBlockFontSizeAction(options);
   const updateSelectedBlock = useUpdateSelectedBlockAction(options);
   const toggleBlockInpaintExcluded =
     useToggleBlockInpaintExcludedAction(options);
+  const applyBlockBackgroundOpacityToScope =
+    useApplyBlockBackgroundOpacityAction(options);
   const applyFormatToScope = useApplyFormatToScopeAction(options);
   const deleteSelectedBlock = useDeleteSelectedBlockAction(options);
   const duplicateSelectedBlock = useDuplicateSelectedBlockAction(options);
 
   return {
+    adjustSelectedBlockFontSize,
+    applyBlockBackgroundOpacityToScope,
     applyFormatToScope,
     deleteSelectedBlock,
     duplicateSelectedBlock,
     toggleBlockInpaintExcluded,
     updateSelectedBlock,
   };
-}
-
-function useUpdateSelectedBlockAction({
-  selectedBlock,
-  selectedPage,
-  selectedPageEditLocked,
-  updateCurrentChapter,
-}: UseBlockEditingActionsOptions): BlockEditingActions["updateSelectedBlock"] {
-  const { t } = useTranslation("renderer");
-  return useCallback(
-    (patch: Partial<TranslationBlock>) => {
-      if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
-        return;
-      }
-
-      const mergeKey = resolveBlockEditMergeKey(selectedBlock.id, patch);
-      updateCurrentChapter(
-        selectedPage.id,
-        (current) => ({
-          ...current,
-          pages: current.pages.map((page) =>
-            page.id !== selectedPage.id
-              ? page
-              : {
-                  ...page,
-                  updatedAt: new Date().toISOString(),
-                  blocks: page.blocks.map((block) => {
-                    if (block.id !== selectedBlock.id) {
-                      return block;
-                    }
-
-                    const nextType = normalizeBlockType(
-                      patch.type ?? block.type,
-                    );
-                    const nextRenderDirection = normalizeRenderDirection(
-                      patch.renderDirection ?? block.renderDirection,
-                      block.renderDirection,
-                    );
-                    return {
-                      ...block,
-                      ...patch,
-                      type: nextType,
-                      renderDirection: nextRenderDirection,
-                      rotationDeg: normalizeRotationDeg(
-                        patch.rotationDeg ?? block.rotationDeg ?? 0,
-                      ),
-                      backgroundColor:
-                        patch.backgroundColor ?? block.backgroundColor,
-                      opacity: patch.opacity ?? block.opacity,
-                      bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
-                      bboxSpace: patch.bbox
-                        ? "normalized_1000"
-                        : block.bboxSpace,
-                      renderBbox: patch.renderBbox
-                        ? clampBbox(patch.renderBbox)
-                        : block.renderBbox,
-                      renderBboxSpace: patch.renderBbox
-                        ? "normalized_1000"
-                        : block.renderBboxSpace,
-                    };
-                  }),
-                },
-          ),
-        }),
-        { label: t("workspaceHistory.blockEdit"), mergeKey },
-      );
-    },
-    [
-      selectedBlock,
-      selectedPage,
-      selectedPageEditLocked,
-      t,
-      updateCurrentChapter,
-    ],
-  );
 }
 
 function useToggleBlockInpaintExcludedAction({

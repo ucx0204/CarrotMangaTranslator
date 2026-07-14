@@ -1,6 +1,8 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useFonts } from "../fonts/useFonts";
 import { normalizeBlockFontFamily, resolveBlockFontOption } from "../lib/fonts";
+import { toast } from "../lib/toastStore";
 
 export type FontSelectProps = {
   value: string | undefined;
@@ -15,12 +17,14 @@ export type FontSelectModel = {
   activeIndex: number;
   busy: boolean;
   customIds: Set<string>;
+  favoriteIds: Set<string>;
   disabled: boolean;
   onAddFont: () => void;
   onListKeyDown: (event: React.KeyboardEvent) => void;
   onOptionCommit: (id: string) => void;
   onOptionHover: (index: number) => void;
   onRemoveFont: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
   onTriggerKeyDown: (event: React.KeyboardEvent) => void;
   open: boolean;
   options: FontOption[];
@@ -41,6 +45,7 @@ type FontSelectHandlers = Pick<
   | "onOptionCommit"
   | "onOptionHover"
   | "onRemoveFont"
+  | "onToggleFavorite"
   | "onTriggerKeyDown"
 >;
 
@@ -49,10 +54,22 @@ export function useFontSelectModel({
   disabled = false,
   onChange,
 }: FontSelectProps): FontSelectModelResult {
-  const { options, customFonts, registerFont, removeFont, busy } = useFonts();
+  const {
+    options,
+    customFonts,
+    preferences,
+    registerFont,
+    removeFont,
+    savePreferences,
+    busy,
+  } = useFonts();
   const customIds = React.useMemo(
     () => new Set(customFonts.map((font) => font.id)),
     [customFonts],
+  );
+  const favoriteIds = React.useMemo(
+    () => new Set(preferences.favoriteIds),
+    [preferences.favoriteIds],
   );
   const selected = resolveBlockFontOption(value, options);
   const [open, setOpen] = React.useState(false);
@@ -78,6 +95,8 @@ export function useFontSelectModel({
     options,
     registerFont,
     removeFont,
+    preferences,
+    savePreferences,
     setActiveIndex,
     setOpen,
   });
@@ -88,6 +107,7 @@ export function useFontSelectModel({
       activeIndex,
       busy,
       customIds,
+      favoriteIds,
       disabled,
       open,
       options,
@@ -107,6 +127,8 @@ function useFontSelectHandlers({
   options,
   registerFont,
   removeFont,
+  preferences,
+  savePreferences,
   setActiveIndex,
   setOpen,
 }: {
@@ -117,6 +139,8 @@ function useFontSelectHandlers({
   options: FontOption[];
   registerFont: FontLibrary["registerFont"];
   removeFont: FontLibrary["removeFont"];
+  preferences: FontLibrary["preferences"];
+  savePreferences: FontLibrary["savePreferences"];
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }): FontSelectHandlers {
@@ -157,6 +181,7 @@ function useFontSelectHandlers({
     },
     [removeFont],
   );
+  const onToggleFavorite = useFavoriteToggle(preferences, savePreferences);
 
   return {
     onAddFont,
@@ -164,8 +189,34 @@ function useFontSelectHandlers({
     onOptionCommit: commit,
     onOptionHover: setActiveIndex,
     onRemoveFont,
+    onToggleFavorite,
     onTriggerKeyDown,
   };
+}
+
+function useFavoriteToggle(
+  preferences: FontLibrary["preferences"],
+  savePreferences: FontLibrary["savePreferences"],
+): (id: string) => void {
+  const { t } = useTranslation("components");
+  return React.useCallback(
+    (id: string) => {
+      const favorites = new Set(preferences.favoriteIds);
+      if (favorites.has(id)) {
+        favorites.delete(id);
+      } else {
+        favorites.add(id);
+      }
+      void savePreferences({
+        ...preferences,
+        favoriteIds: [...favorites],
+      }).catch((error) => {
+        console.error(error);
+        toast.error(t("fontManager.saveFailed"));
+      });
+    },
+    [preferences, savePreferences, t],
+  );
 }
 
 function useCloseOnOutsidePointer(

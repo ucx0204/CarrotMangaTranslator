@@ -1,5 +1,6 @@
 import type { PanelSyncState } from "../../../../shared/panelBridgeTypes";
 import type { AppSessionViewModel } from "./appSessionViewModel";
+import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 
 export function buildPanelSyncState({
   core,
@@ -16,11 +17,12 @@ export function buildPanelSyncState({
     uiState.translationFlowActive ||
     workspaceHistory.busy;
   return {
-    areaTranslateAvailable: Boolean(
-      derivedState.selectedPage &&
-      derivedState.selectedPageImageDataUrl &&
-      !interactionBusy,
-    ),
+    areaTranslateAvailable:
+      isWorkspaceImageReadyForSelectedPage({
+        selectedPage: derivedState.selectedPage,
+        workspaceImageDataUrl: derivedState.workspaceImageDataUrl,
+        workspaceImagePageId: derivedState.workspaceImagePageId,
+      }) && !interactionBusy,
     areaTranslateSelecting: Boolean(core.regionSelection?.active),
     disableChapterApply: interactionBusy,
     editorDisabled: derivedState.selectedPageEditLocked || interactionBusy,

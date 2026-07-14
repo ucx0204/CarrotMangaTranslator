@@ -21,7 +21,7 @@ type UseWorkspaceRegionSelectionHandlersOptions = {
   pushStatus: (line: string) => void;
   regionSelection: RegionSelectionState | null;
   selectedPage: MangaPage | null;
-  selectedPageImageDataUrl: string;
+  regionTranslationReady: boolean;
   setInpaintingTool: (tool: InpaintingTool) => void;
   setRegionSelection: (
     updater:
@@ -81,8 +81,8 @@ function useStartRegionTranslationSelection(
   {
     jobActive,
     pushStatus,
+    regionTranslationReady,
     selectedPage,
-    selectedPageImageDataUrl,
     setInpaintingTool,
     setRegionSelection,
     setSelectedBlockId,
@@ -91,7 +91,7 @@ function useStartRegionTranslationSelection(
 ): () => void {
   const { t } = useTranslation("renderer");
   return useCallback(() => {
-    if (!selectedPage || !selectedPageImageDataUrl || jobActive) {
+    if (!selectedPage || !regionTranslationReady || jobActive) {
       return;
     }
     if (cancelRegionSelection()) {
@@ -110,8 +110,8 @@ function useStartRegionTranslationSelection(
     cancelRegionSelection,
     jobActive,
     pushStatus,
+    regionTranslationReady,
     selectedPage,
-    selectedPageImageDataUrl,
     setInpaintingTool,
     setRegionSelection,
     setSelectedBlockId,
@@ -121,6 +121,7 @@ function useStartRegionTranslationSelection(
 
 function useRegionPointerDown({
   getNormalizedImagePoint,
+  regionTranslationReady,
   regionSelection,
   setRegionSelection,
   setSelectedBlockId,
@@ -132,6 +133,10 @@ function useRegionPointerDown({
     (event) => {
       if (!regionSelection?.active) {
         return false;
+      }
+      if (!regionTranslationReady) {
+        setRegionSelection(null);
+        return true;
       }
       const point = getNormalizedImagePoint(event);
       if (!point || !stageRef.current) {
@@ -151,6 +156,7 @@ function useRegionPointerDown({
     },
     [
       getNormalizedImagePoint,
+      regionTranslationReady,
       regionSelection?.active,
       setRegionSelection,
       setSelectedBlockId,
@@ -161,6 +167,7 @@ function useRegionPointerDown({
 
 function useRegionPointerMove({
   getNormalizedImagePoint,
+  regionTranslationReady,
   regionSelection,
   setRegionSelection,
 }: UseWorkspaceRegionSelectionHandlersOptions): (
@@ -171,6 +178,10 @@ function useRegionPointerMove({
       if (!regionSelection?.active || !regionSelection.dragging) {
         return false;
       }
+      if (!regionTranslationReady) {
+        setRegionSelection(null);
+        return true;
+      }
       const point = getNormalizedImagePoint(event);
       if (point) {
         setRegionSelection((current) =>
@@ -179,13 +190,19 @@ function useRegionPointerMove({
       }
       return true;
     },
-    [getNormalizedImagePoint, regionSelection, setRegionSelection],
+    [
+      getNormalizedImagePoint,
+      regionSelection,
+      regionTranslationReady,
+      setRegionSelection,
+    ],
   );
 }
 
 function useRegionPointerUp({
   getNormalizedImagePoint,
   pushStatus,
+  regionTranslationReady,
   regionSelection,
   setRegionSelection,
   stageRef,
@@ -200,6 +217,10 @@ function useRegionPointerUp({
         return false;
       }
       releasePointerCaptureSafely(stageRef.current, event.pointerId);
+      if (!regionTranslationReady) {
+        setRegionSelection(null);
+        return true;
+      }
       const finalPoint = getNormalizedImagePoint(event);
       const completedSelection = finalPoint
         ? { ...regionSelection, current: finalPoint }
@@ -217,6 +238,7 @@ function useRegionPointerUp({
       getNormalizedImagePoint,
       pushStatus,
       regionSelection,
+      regionTranslationReady,
       setRegionSelection,
       stageRef,
       translateSelectedRegion,

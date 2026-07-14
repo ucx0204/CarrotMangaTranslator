@@ -16,10 +16,14 @@ type CodexSettingsFieldsProps = Pick<
   | "codexModel"
   | "codexOauthPort"
   | "codexReasoningEffort"
+  | "contextTokens"
   | "controlsBusy"
+  | "maxTokens"
   | "setCodexModel"
   | "setCodexOauthPort"
   | "setCodexReasoningEffort"
+  | "setContextTokens"
+  | "setMaxTokens"
   | "submit"
 >;
 
@@ -152,7 +156,7 @@ function CodexReasoningField({
       <span>{t("settings.codex.reasoning.label")}</span>
       <div
         className="settings-preset-group"
-        role="tablist"
+        role="group"
         aria-label={t("settings.codex.reasoning.ariaLabel")}
       >
         {reasoningOptions.map((option) => (

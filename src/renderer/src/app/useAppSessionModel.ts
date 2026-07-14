@@ -34,12 +34,16 @@ export function useAppSessionModel(): AppSessionViewProps {
       const actions = translation.blockEditingActions;
       if (command.type === "updateBlock") {
         actions.updateSelectedBlock(command.patch);
+      } else if (command.type === "adjustFontSize") {
+        actions.adjustSelectedBlockFontSize(command.adjustment);
       } else if (command.type === "deleteBlock") {
         actions.deleteSelectedBlock();
       } else if (command.type === "duplicateBlock") {
         actions.duplicateSelectedBlock();
       } else if (command.type === "applyFormat") {
         actions.applyFormatToScope(command.scope, command.groupIds);
+      } else if (command.type === "applyBlockBackgroundOpacity") {
+        actions.applyBlockBackgroundOpacityToScope(command.scope);
       } else {
         inpainting.pointerHandlers.startRegionTranslationSelection();
       }

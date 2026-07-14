@@ -3,7 +3,11 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { CustomFont, MangaPage } from "../shared/libraryTypes";
 import { getAppPaths } from "./appPaths";
-import { listCustomFonts, resolveCustomFontFilePath } from "./customFonts";
+import {
+  listCustomFonts,
+  readFontPreferences,
+  resolveCustomFontFilePath,
+} from "./customFonts";
 import { buildPageExportBlocks } from "./pageExportBlocks";
 import { PAGE_EXPORT_DOM_SCRIPT } from "./pageExportDomScript";
 
@@ -19,7 +23,14 @@ export function buildPageExportHtml(
     customFonts.map((font) => [font.id, font.family]),
   );
   const customFontFaces = buildCustomFontFaces(customFonts);
-  const blocks = buildPageExportBlocks(page, width, height, customFamilyById);
+  const preferences = readFontPreferences(customFonts);
+  const blocks = buildPageExportBlocks(
+    page,
+    width,
+    height,
+    customFamilyById,
+    preferences.defaultFontId,
+  );
   return `<!doctype html>
 <html>
 <head>

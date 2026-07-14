@@ -45,6 +45,7 @@ export type RangeInputProps = Omit<
 
 /** A range input whose track is filled up to the current value (via the --range-progress CSS var). */
 export function RangeInput({
+  className,
   min = 0,
   max = 100,
   value,
@@ -57,15 +58,23 @@ export function RangeInput({
   const ratio = hi > lo ? ((current - lo) / (hi - lo)) * 100 : 0;
   const progress = Math.max(0, Math.min(100, ratio));
   return (
-    <input
-      type="range"
-      min={min}
-      max={max}
-      value={value}
+    <span
+      className={["range-input-shell", className ?? ""]
+        .filter(Boolean)
+        .join(" ")}
       style={
         { ...style, "--range-progress": `${progress}%` } as React.CSSProperties
       }
-      {...rest}
-    />
+    >
+      <span className="range-input-track" aria-hidden="true" />
+      <input
+        className="range-input-control"
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        {...rest}
+      />
+    </span>
   );
 }

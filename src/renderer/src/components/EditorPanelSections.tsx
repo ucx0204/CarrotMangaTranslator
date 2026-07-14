@@ -5,7 +5,9 @@ import type { TranslationBlock } from "../../../shared/textTypes";
 import { ColorField } from "./ColorField";
 import { useStickyTextareaHeight } from "../hooks/useStickyTextareaHeight";
 import { applyInlineMarkup } from "../lib/textareaMarkup";
-import { Button, FieldSlider, IconButton } from "./ui";
+import { Button } from "./ui/Button";
+import { FieldSlider } from "./ui/FieldSlider";
+import { IconButton } from "./ui/IconButton";
 import {
   BoldIcon,
   CopyIcon,
@@ -14,6 +16,8 @@ import {
   TrashIcon,
 } from "./ui/icons";
 import { resolveColor, type EditorPanelModel } from "./editorPanelUtils";
+import type { BlockBackgroundApplyScope } from "../hooks/useBlockEditingActions";
+import { BlockBackgroundApplyModal } from "./BlockBackgroundApplyModal";
 
 type BlockPatchHandler = (patch: Partial<TranslationBlock>) => void;
 
@@ -309,6 +313,54 @@ export function ColorEditorGroup({
           onUpdate({ outlineWidthScale: Number(event.target.value) })
         }
       />
+    </div>
+  );
+}
+
+export function BlockDisplayGroup({
+  block,
+  disabled,
+  disableChapterApply,
+  onApply,
+  onUpdate,
+}: BlockSectionProps & {
+  disableChapterApply: boolean;
+  onApply?: (scope: BlockBackgroundApplyScope) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const [batchOpen, setBatchOpen] = React.useState(false);
+  return (
+    <div className="editor-group editor-display-group">
+      <div className="editor-group-head">
+        <h3>{t("editor.display.title")}</h3>
+        {onApply ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            onClick={() => setBatchOpen(true)}
+          >
+            {t("editor.display.batchApply")}
+          </Button>
+        ) : null}
+      </div>
+      <FieldSlider
+        label={t("format.blockBackgroundOpacity")}
+        valueLabel={`${Math.round(block.opacity * 100)}%`}
+        min={0}
+        max={1}
+        step={0.01}
+        value={block.opacity}
+        disabled={disabled}
+        onChange={(event) => onUpdate({ opacity: Number(event.target.value) })}
+      />
+      {batchOpen && onApply ? (
+        <BlockBackgroundApplyModal
+          disableChapterApply={disableChapterApply}
+          onApply={onApply}
+          onClose={() => setBatchOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

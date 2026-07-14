@@ -32,11 +32,14 @@ export type TranslationBlock = {
   fontWidthScale?: number;
   textAlign: "left" | "center" | "right";
   textColor: string;
+  /** Opacity of rendered text and its outline. Undefined means fully opaque. */
+  textOpacity?: number;
   outlineColor?: string;
   outlineWidthScale?: number;
   bold?: boolean;
   italic?: boolean;
   backgroundColor: string;
+  /** Opacity of the editor-only text-block background/chrome. */
   opacity: number;
   autoFitText?: boolean;
   inpaintExcluded?: boolean;

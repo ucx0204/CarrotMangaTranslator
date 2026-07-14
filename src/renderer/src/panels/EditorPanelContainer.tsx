@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { EditorPanel } from "../components/EditorPanel";
-import { IconButton } from "../components/ui";
+import { IconButton } from "../components/ui/IconButton";
 import { ExpandIcon, FloatIcon } from "../components/ui/icons";
 import { usePanelSession } from "./panelSession";
 
@@ -49,6 +49,8 @@ export function EditorPanelContainer(): React.JSX.Element {
       headerActions={detachControls}
       onStartAreaTranslate={session.onStartAreaTranslate}
       onApplyFormat={session.onApplyFormat}
+      onApplyBlockBackgroundOpacity={session.onApplyBlockBackgroundOpacity}
+      onAdjustFontSize={session.onAdjustFontSize}
       onUpdate={session.onUpdateBlock}
       onDelete={session.onDeleteBlock}
       onDuplicate={session.onDuplicateBlock}

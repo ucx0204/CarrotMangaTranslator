@@ -2,12 +2,15 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   BUILT_IN_BLOCK_FONTS,
   DEFAULT_BLOCK_FONT_ID,
+  DEFAULT_BLOCK_FONT_STACK,
 } from "../src/shared/blockFontCatalog";
 import type { UiLocale } from "../src/shared/uiLocales";
 import {
   getBlockFontOptions,
   normalizeBlockFontFamily,
+  resolveBlockFontFamily,
   setCustomFontOptions,
+  setFontPreferences,
 } from "../src/renderer/src/lib/fonts";
 
 const EXPECTED_IDS_BY_LOCALE = {
@@ -66,6 +69,11 @@ const BASE_LOCALE_ORDER: readonly UiLocale[] = [
 
 afterEach(() => {
   setCustomFontOptions([]);
+  setFontPreferences({
+    favoriteIds: [],
+    orderedIds: [],
+    defaultFontId: DEFAULT_BLOCK_FONT_ID,
+  });
 });
 
 describe("built-in block font catalog", () => {
@@ -151,5 +159,50 @@ describe("built-in block font catalog", () => {
     expect(byId.get("yusei-magic")).toContain("Yu Gothic");
     expect(byId.get("zcool-kuaile")).toContain("Microsoft YaHei");
     expect(byId.get("huninn")).toContain("Microsoft JhengHei");
+  });
+
+  it("lets the system default option move and favorite like every other font", () => {
+    const favoritesFirst = getBlockFontOptions(undefined, "ko", {
+      favoriteIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
+      orderedIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
+      defaultFontId: DEFAULT_BLOCK_FONT_ID,
+    });
+    expect(favoritesFirst.slice(0, 2).map((option) => option.id)).toEqual([
+      "kalam",
+      DEFAULT_BLOCK_FONT_ID,
+    ]);
+
+    const freelyOrdered = getBlockFontOptions(undefined, "ko", {
+      favoriteIds: [],
+      orderedIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
+      defaultFontId: DEFAULT_BLOCK_FONT_ID,
+    });
+    expect(freelyOrdered.slice(0, 2).map((option) => option.id)).toEqual([
+      "kalam",
+      DEFAULT_BLOCK_FONT_ID,
+    ]);
+  });
+
+  it("resolves inherited blocks and the default option through the designated font without recursion", () => {
+    const kalam = BUILT_IN_BLOCK_FONTS.find((font) => font.id === "kalam");
+    expect(kalam).toBeDefined();
+    setFontPreferences({
+      favoriteIds: [],
+      orderedIds: [],
+      defaultFontId: "kalam",
+    });
+
+    expect(resolveBlockFontFamily(undefined)).toBe(kalam?.cssFamily);
+    expect(resolveBlockFontFamily(DEFAULT_BLOCK_FONT_ID)).toBe(
+      kalam?.cssFamily,
+    );
+    expect(getBlockFontOptions()[0]?.cssFamily).toBe(kalam?.cssFamily);
+
+    setFontPreferences({
+      favoriteIds: [],
+      orderedIds: [],
+      defaultFontId: DEFAULT_BLOCK_FONT_ID,
+    });
+    expect(resolveBlockFontFamily(undefined)).toBe(DEFAULT_BLOCK_FONT_STACK);
   });
 });

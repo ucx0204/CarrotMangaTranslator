@@ -2,6 +2,7 @@ import type {
   ChapterSnapshot,
   MangaPage,
 } from "../../../../shared/libraryTypes";
+import type { GatherDirectFormatRequest } from "../../lib/gatherTextFormat";
 
 export type GatherTextModalProps = {
   chapter: ChapterSnapshot | null;
@@ -12,5 +13,7 @@ export type GatherTextModalProps = {
     updates: import("../../lib/gatherText").TranslatedTextImportUpdate[],
   ) => void;
   onNavigateToBlock?: (pageId: string, blockId: string) => void;
+  onApplyFormat?: (request: GatherDirectFormatRequest) => void;
+  formatApplyDisabled?: boolean;
   readingDirection?: "ltr" | "rtl";
 };

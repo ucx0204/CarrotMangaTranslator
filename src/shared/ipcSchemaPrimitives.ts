@@ -141,6 +141,7 @@ export const TranslationBlockSchema = z
     fontWidthScale: finiteNumber.min(0.5).max(1.5).optional(),
     textAlign: z.enum(["left", "center", "right"]),
     textColor: hexColor,
+    textOpacity: finiteNumber.min(0).max(1).optional(),
     outlineColor: hexColor.optional(),
     outlineWidthScale: finiteNumber.min(0).max(8).optional(),
     bold: z.boolean().optional(),

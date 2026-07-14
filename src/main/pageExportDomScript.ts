@@ -228,6 +228,7 @@ function applyTextLayout(block, textWrap, textContent) {
   textWrap.style.fontSize = fontSize + "px";
   textWrap.style.lineHeight = String(block.lineHeight);
   textWrap.style.letterSpacing = block.letterSpacing ? block.letterSpacing + "em" : "";
+  textWrap.style.opacity = String(block.textOpacity == null ? 1 : block.textOpacity);
   textWrap.style.textAlign = block.textAlign || "center";
 
   textContent.style.boxSizing = "border-box";

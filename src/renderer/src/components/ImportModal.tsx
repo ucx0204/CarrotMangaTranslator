@@ -13,7 +13,10 @@ import {
   updateSelectionEnabled,
   updateSelectionTitle,
 } from "./importModalHelpers";
-import { Button, Modal, TextField } from "./ui";
+import { Button } from "./ui/Button";
+import { TextField } from "./ui/Field";
+import { Modal } from "./ui/Modal";
+import { SelectionCard, SelectionSurface } from "./ui/SelectionCard";
 
 type ImportModalProps = {
   library: LibraryIndex;
@@ -208,16 +211,16 @@ function ImportTargetModeCard({
   onChange: React.Dispatch<React.SetStateAction<ImportTargetMode>>;
 }): React.JSX.Element {
   return (
-    <label className={`share-target-card ${active ? "active" : ""}`}>
-      <input
-        type="radio"
-        name="target-mode"
-        checked={active}
-        disabled={disabled}
-        onChange={() => onChange(mode)}
-      />
+    <SelectionCard
+      className="share-target-card"
+      inputType="radio"
+      name="target-mode"
+      checked={active}
+      disabled={disabled}
+      onChange={() => onChange(mode)}
+    >
       <span>{label}</span>
-    </label>
+    </SelectionCard>
   );
 }
 
@@ -308,7 +311,12 @@ function ImportDraftItem({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="draft-item">
+    <SelectionSurface
+      className="draft-item selection-field-row"
+      variant="row"
+      selected={previewMode === "batch" ? selection.enabled : true}
+      disabled={busy}
+    >
       {previewMode === "batch" ? (
         <ImportDraftBatchToggle
           busy={busy}
@@ -332,7 +340,7 @@ function ImportDraftItem({
           )
         }
       />
-    </div>
+    </SelectionSurface>
   );
 }
 
@@ -352,6 +360,7 @@ function ImportDraftBatchToggle({
     <label className="checkbox-row">
       <input
         type="checkbox"
+        aria-label={`${selection.title} · ${t("common.pageCount", { count: chapter.pages.length })}`}
         checked={selection.enabled}
         disabled={busy}
         onChange={(event) =>

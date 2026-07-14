@@ -68,15 +68,53 @@ describe("CodexSettingsFields", () => {
       resolveCodexReasoningEffortForModel("future-codex-model", "ultra"),
     ).toBe("ultra");
   });
+
+  it("keeps token values unchanged when the selected model changes", () => {
+    renderHarness("gpt-5.6-sol", "low");
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Codex 모델" }), {
+      target: { value: "gpt-5.3-codex-spark" },
+    });
+
+    expect(screen.getByTestId("max-tokens").textContent).toBe("32768");
+    expect(screen.getByTestId("context-tokens").textContent).toBe("65536");
+  });
+
+  it("preserves a manually edited token value when the model changes", () => {
+    renderHarness("gpt-5.6-sol", "low", "20000");
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Codex 모델" }), {
+      target: { value: "gpt-5.3-codex-spark" },
+    });
+
+    expect(screen.getByTestId("max-tokens").textContent).toBe("20000");
+    expect(screen.getByTestId("context-tokens").textContent).toBe("65536");
+  });
+
+  it("does not mistake a manual value for a recommendation after a model round trip", () => {
+    renderHarness("gpt-5.6-sol", "low", "24576");
+
+    const select = screen.getByRole("combobox", { name: "Codex 모델" });
+    fireEvent.change(select, {
+      target: { value: "gpt-5.3-codex-spark" },
+    });
+    fireEvent.change(select, { target: { value: "gpt-5.6-sol" } });
+
+    expect(screen.getByTestId("max-tokens").textContent).toBe("24576");
+    expect(screen.getByTestId("context-tokens").textContent).toBe("65536");
+  });
 });
 
 function renderHarness(
   initialModel: string,
   initialEffort: CodexReasoningEffort,
+  initialMaxTokens = "32768",
 ) {
   function Harness(): React.JSX.Element {
     const [model, setModel] = React.useState(initialModel);
     const [effort, setEffort] = React.useState(initialEffort);
+    const [maxTokens, setMaxTokens] = React.useState(initialMaxTokens);
+    const [contextTokens, setContextTokens] = React.useState("65536");
     return (
       <>
         <CodexSettingsFields
@@ -84,14 +122,20 @@ function renderHarness(
           codexModel={model}
           codexOauthPort="10531"
           codexReasoningEffort={effort}
+          contextTokens={contextTokens}
           controlsBusy={false}
+          maxTokens={maxTokens}
           setCodexModel={setModel}
           setCodexOauthPort={vi.fn()}
           setCodexReasoningEffort={setEffort}
+          setContextTokens={setContextTokens}
+          setMaxTokens={setMaxTokens}
           submit={vi.fn()}
         />
         <output data-testid="selected-model">{model}</output>
         <output data-testid="selected-effort">{effort}</output>
+        <output data-testid="max-tokens">{maxTokens}</output>
+        <output data-testid="context-tokens">{contextTokens}</output>
       </>
     );
   }
