@@ -6,9 +6,12 @@ import type { LibraryPageRecord } from "../../shared/libraryTypes";
 import { tMain } from "./localization";
 import {
   assertImportImageFileBudget,
+  detectImportImageFormat,
+  detectImportImageFormatFromFile,
   readDecodedImportImageSize,
   shouldNormalizeImportImageToPng,
   writeNormalizedWebpImportImage,
+  type ImportImageFormat,
 } from "./importImages";
 import { unlinkIfExists } from "./storage";
 import {
@@ -17,6 +20,19 @@ import {
   type ZipArchiveReader,
 } from "./zipSafety";
 
+type PreparedImportPageImage =
+  | {
+      kind: "file";
+      sourceExt: string;
+      detectedFormat: ImportImageFormat | null;
+    }
+  | {
+      kind: "zip-entry";
+      sourceExt: string;
+      detectedFormat: ImportImageFormat | null;
+      sourceBytes: Buffer;
+    };
+
 export async function materializePageRecord(
   pageDraft: ImportPageDraft,
   pagesDir: string,
@@ -24,21 +40,26 @@ export async function materializePageRecord(
   zipReaderCache: Map<string, ZipArchiveReader>,
 ): Promise<LibraryPageRecord> {
   const pageId = randomUUID();
-  const sourceExt = resolveImportSourceExt(pageDraft);
+  const preparedImage = await prepareImportedPageImage(
+    pageDraft,
+    zipReaderCache,
+  );
   const outputPath = resolveImportOutputPath(
     pagesDir,
     index,
     pageId,
-    shouldNormalizeImportImageToPng(sourceExt) ? ".png" : sourceExt,
+    resolveImportOutputExt(
+      preparedImage.sourceExt,
+      preparedImage.detectedFormat,
+    ),
   );
 
   await writeImportedPageImage(
     pageDraft,
     pagesDir,
     pageId,
-    sourceExt,
+    preparedImage,
     outputPath,
-    zipReaderCache,
   );
 
   const size = await readDecodedImportImageSize(outputPath, pageDraft.name);
@@ -61,57 +82,39 @@ async function writeImportedPageImage(
   pageDraft: ImportPageDraft,
   pagesDir: string,
   pageId: string,
-  sourceExt: string,
+  preparedImage: PreparedImportPageImage,
   outputPath: string,
-  zipReaderCache: Map<string, ZipArchiveReader>,
 ): Promise<void> {
-  if (pageDraft.sourceKind === "zip-entry") {
+  if (preparedImage.kind === "zip-entry") {
     await writeZipImportedPageImage(
       pageDraft,
       pagesDir,
       pageId,
-      sourceExt,
+      preparedImage,
       outputPath,
-      zipReaderCache,
     );
     return;
   }
-  await writeFileImportedPageImage(pageDraft, sourceExt, outputPath);
+  await writeFileImportedPageImage(pageDraft, preparedImage, outputPath);
 }
 
 async function writeZipImportedPageImage(
   pageDraft: ImportPageDraft,
   pagesDir: string,
   pageId: string,
-  sourceExt: string,
+  preparedImage: Extract<PreparedImportPageImage, { kind: "zip-entry" }>,
   outputPath: string,
-  zipReaderCache: Map<string, ZipArchiveReader>,
 ): Promise<void> {
-  const reader = await getCachedZipReader(pageDraft.sourcePath, zipReaderCache);
-  const entry = reader.entryMap.get(pageDraft.zipEntryName ?? "");
-  if (!entry) {
-    throw new Error(
-      tMain("import.errors.zipEntryMissing", {
-        entry: pageDraft.zipEntryName ?? pageDraft.sourcePath,
-      }),
-    );
-  }
-  const sourceBytes = await reader.readEntry(
-    entry.entryName,
-    MAX_IMPORT_IMAGE_BYTES,
-    pageDraft.zipEntryName ?? pageDraft.sourcePath,
-  );
-  if (!shouldNormalizeImportImageToPng(sourceExt)) {
-    await writeFile(outputPath, sourceBytes);
+  if (!shouldNormalizePreparedImage(preparedImage)) {
+    await writeFile(outputPath, preparedImage.sourceBytes);
     return;
   }
   await writeNormalizedZipImportImage(
     pageDraft,
     pagesDir,
     pageId,
-    sourceExt,
     outputPath,
-    sourceBytes,
+    preparedImage.sourceBytes,
   );
 }
 
@@ -119,11 +122,10 @@ async function writeNormalizedZipImportImage(
   pageDraft: ImportPageDraft,
   pagesDir: string,
   pageId: string,
-  sourceExt: string,
   outputPath: string,
   sourceBytes: Buffer,
 ): Promise<void> {
-  const tempSourcePath = join(pagesDir, `.${pageId}.import-source${sourceExt}`);
+  const tempSourcePath = join(pagesDir, `.${pageId}.import-source.webp`);
   try {
     await writeFile(tempSourcePath, sourceBytes);
     await writeNormalizedWebpImportImage(
@@ -138,11 +140,10 @@ async function writeNormalizedZipImportImage(
 
 async function writeFileImportedPageImage(
   pageDraft: ImportPageDraft,
-  sourceExt: string,
+  preparedImage: Extract<PreparedImportPageImage, { kind: "file" }>,
   outputPath: string,
 ): Promise<void> {
-  await assertImportImageFileBudget(pageDraft.sourcePath);
-  if (shouldNormalizeImportImageToPng(sourceExt)) {
+  if (shouldNormalizePreparedImage(preparedImage)) {
     await writeNormalizedWebpImportImage(
       pageDraft.sourcePath,
       outputPath,
@@ -151,6 +152,65 @@ async function writeFileImportedPageImage(
     return;
   }
   await copyFile(pageDraft.sourcePath, outputPath);
+}
+
+async function prepareImportedPageImage(
+  pageDraft: ImportPageDraft,
+  zipReaderCache: Map<string, ZipArchiveReader>,
+): Promise<PreparedImportPageImage> {
+  const sourceExt = resolveImportSourceExt(pageDraft);
+  if (pageDraft.sourceKind !== "zip-entry") {
+    await assertImportImageFileBudget(pageDraft.sourcePath);
+    return {
+      kind: "file",
+      sourceExt,
+      detectedFormat: await detectImportImageFormatFromFile(
+        pageDraft.sourcePath,
+      ),
+    };
+  }
+
+  const reader = await getCachedZipReader(pageDraft.sourcePath, zipReaderCache);
+  const entry = reader.entryMap.get(pageDraft.zipEntryName ?? "");
+  if (!entry) {
+    throw new Error(
+      tMain("import.errors.zipEntryMissing", {
+        entry: pageDraft.zipEntryName ?? pageDraft.sourcePath,
+      }),
+    );
+  }
+  const sourceBytes = await reader.readEntry(
+    entry.entryName,
+    MAX_IMPORT_IMAGE_BYTES,
+    pageDraft.zipEntryName ?? pageDraft.sourcePath,
+  );
+  return {
+    kind: "zip-entry",
+    sourceExt,
+    detectedFormat: detectImportImageFormat(sourceBytes),
+    sourceBytes,
+  };
+}
+
+function shouldNormalizePreparedImage(image: PreparedImportPageImage): boolean {
+  return (
+    image.detectedFormat === "webp" ||
+    (image.detectedFormat === null &&
+      shouldNormalizeImportImageToPng(image.sourceExt))
+  );
+}
+
+function resolveImportOutputExt(
+  sourceExt: string,
+  detectedFormat: ImportImageFormat | null,
+): string {
+  if (detectedFormat === "webp" || detectedFormat === "png") {
+    return ".png";
+  }
+  if (detectedFormat === "jpeg") {
+    return sourceExt === ".jpeg" ? ".jpeg" : ".jpg";
+  }
+  return shouldNormalizeImportImageToPng(sourceExt) ? ".png" : sourceExt;
 }
 
 function resolveImportSourceExt(pageDraft: ImportPageDraft): string {

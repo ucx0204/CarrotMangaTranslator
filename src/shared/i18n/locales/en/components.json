@@ -201,6 +201,7 @@
     "loadingPages": "Loading pages…",
     "loadPagesFailed": "Could not load pages.",
     "noPages": "No pages.",
+    "thumbnailLoadFailed": "Preview unavailable",
     "translated": "Translated",
     "chapterSummaryComplete": "{{count}}p · Complete",
     "chapterSummaryRemaining": "{{count}}p · {{remaining}} remaining",

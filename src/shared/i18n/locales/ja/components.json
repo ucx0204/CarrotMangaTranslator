@@ -197,6 +197,7 @@
     "loadingPages": "ページを読み込み中…",
     "loadPagesFailed": "ページを読み込めませんでした。",
     "noPages": "ページがありません。",
+    "thumbnailLoadFailed": "プレビューを表示できません",
     "translated": "翻訳済み",
     "chapterSummaryComplete": "{{count}}p・完了",
     "chapterSummaryRemaining": "{{count}}p・残り{{remaining}}",

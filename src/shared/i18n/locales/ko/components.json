@@ -198,6 +198,7 @@
     "loadingPages": "페이지 불러오는 중…",
     "loadPagesFailed": "페이지를 불러오지 못했습니다.",
     "noPages": "페이지가 없습니다.",
+    "thumbnailLoadFailed": "미리보기 실패",
     "translated": "번역됨",
     "chapterSummaryComplete": "{{count}}p · 완료",
     "chapterSummaryRemaining": "{{count}}p · {{remaining}} 남음",

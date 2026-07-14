@@ -1,15 +1,20 @@
 import { net, protocol } from "electron";
 import { pathToFileURL } from "node:url";
-import { randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { resolveCustomFontFilePath } from "./customFonts";
-import { assertLibraryImagePath } from "./library";
+import { assertLibraryImagePath, getLibraryRoot } from "./library";
+import {
+  createLibraryImageUrlCodec,
+  createNodeLibraryImageUrlFiles,
+} from "./imageUrlCodec";
 import { logError } from "./logger";
 
 const IMAGE_PROTOCOL = "mgt-image";
 const FONT_PROTOCOL = "mgt-font";
-const MAX_IMAGE_TOKENS = 500;
-
-const imageTokens = new Map<string, string>();
+const imageUrlCodec = createLibraryImageUrlCodec({
+  secret: randomBytes(32),
+  files: createNodeLibraryImageUrlFiles(getLibraryRoot()),
+});
 
 export function registerImageProtocolScheme(): void {
   protocol.registerSchemesAsPrivileged([
@@ -33,15 +38,13 @@ export function registerImageProtocolScheme(): void {
 }
 
 export function registerImageProtocolHandler(): void {
-  protocol.handle(IMAGE_PROTOCOL, (request) => {
+  protocol.handle(IMAGE_PROTOCOL, async (request) => {
     try {
-      const url = new URL(request.url);
-      const token = url.hostname || url.pathname.replace(/^\/+/, "");
-      const imagePath = imageTokens.get(token);
+      const imagePath = imageUrlCodec.resolveUrl(request.url);
       if (!imagePath) {
-        return new Response("Image token not found", { status: 404 });
+        return new Response("Image not found", { status: 404 });
       }
-      return net.fetch(pathToFileURL(imagePath).toString());
+      return await net.fetch(pathToFileURL(imagePath).toString());
     } catch (error) {
       logError("Failed to serve image protocol request", {
         url: request.url,
@@ -72,18 +75,5 @@ export function registerImageProtocolHandler(): void {
 
 export function createLibraryImageUrl(imagePath: string): string {
   const resolvedImagePath = assertLibraryImagePath(imagePath);
-  const token = randomUUID();
-  imageTokens.set(token, resolvedImagePath);
-  trimImageTokens();
-  return `${IMAGE_PROTOCOL}://${token}`;
-}
-
-function trimImageTokens(): void {
-  while (imageTokens.size > MAX_IMAGE_TOKENS) {
-    const oldestToken = imageTokens.keys().next().value;
-    if (!oldestToken) {
-      return;
-    }
-    imageTokens.delete(oldestToken);
-  }
+  return imageUrlCodec.createUrl(resolvedImagePath);
 }

@@ -194,6 +194,7 @@
     "loadingPages": "正在載入頁面…",
     "loadPagesFailed": "無法載入頁面。",
     "noPages": "沒有頁面。",
+    "thumbnailLoadFailed": "無法顯示預覽",
     "translated": "已翻譯",
     "chapterSummaryComplete": "{{count}}頁 · 完成",
     "chapterSummaryRemaining": "{{count}}頁 · 剩餘{{remaining}}",

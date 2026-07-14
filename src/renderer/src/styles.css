@@ -7442,6 +7442,20 @@ kbd {
   background: var(--bg-raised);
 }
 
+.translate-page-thumb-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: var(--sp-2);
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  line-height: 1.35;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 .translate-page-thumb-badge {
   position: absolute;
   top: 4px;

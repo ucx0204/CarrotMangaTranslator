@@ -1,11 +1,19 @@
 import { nativeImage } from "electron";
-import { stat, writeFile } from "node:fs/promises";
+import { open, stat, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { getAppPaths } from "../appPaths";
 import { tMain } from "./localization";
 import { decodeImageThroughRuntime } from "../simplePageRuntime";
 import { isSupportedImagePath, sortNaturally } from "./storage";
 import { MAX_IMPORT_IMAGE_BYTES, MAX_IMPORT_IMAGE_PIXELS } from "./zipSafety";
+
+export type ImportImageFormat = "jpeg" | "png" | "webp";
+
+const IMPORT_IMAGE_SIGNATURE_BYTES = 12;
+const JPEG_SIGNATURE = [0xff, 0xd8, 0xff] as const;
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
+const RIFF_SIGNATURE = [0x52, 0x49, 0x46, 0x46] as const;
+const WEBP_SIGNATURE = [0x57, 0x45, 0x42, 0x50] as const;
 
 export async function filterImportImageFiles(
   filePaths: string[],
@@ -37,6 +45,54 @@ export async function assertImportImageFileBudget(
 
 export function shouldNormalizeImportImageToPng(ext: string): boolean {
   return ext.toLowerCase() === ".webp";
+}
+
+export function detectImportImageFormat(
+  bytes: Uint8Array,
+): ImportImageFormat | null {
+  if (matchesSignature(bytes, JPEG_SIGNATURE)) {
+    return "jpeg";
+  }
+  if (matchesSignature(bytes, PNG_SIGNATURE)) {
+    return "png";
+  }
+  if (
+    bytes.length >= IMPORT_IMAGE_SIGNATURE_BYTES &&
+    matchesSignature(bytes, RIFF_SIGNATURE) &&
+    matchesSignature(bytes, WEBP_SIGNATURE, 8)
+  ) {
+    return "webp";
+  }
+  return null;
+}
+
+function matchesSignature(
+  bytes: Uint8Array,
+  signature: readonly number[],
+  offset = 0,
+): boolean {
+  if (bytes.length < offset + signature.length) {
+    return false;
+  }
+  return signature.every((value, index) => bytes[offset + index] === value);
+}
+
+export async function detectImportImageFormatFromFile(
+  filePath: string,
+): Promise<ImportImageFormat | null> {
+  const file = await open(filePath, "r");
+  try {
+    const header = Buffer.alloc(IMPORT_IMAGE_SIGNATURE_BYTES);
+    const { bytesRead } = await file.read(
+      header,
+      0,
+      IMPORT_IMAGE_SIGNATURE_BYTES,
+      0,
+    );
+    return detectImportImageFormat(header.subarray(0, bytesRead));
+  } finally {
+    await file.close();
+  }
 }
 
 export async function writeNormalizedWebpImportImage(

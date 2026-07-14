@@ -5,36 +5,123 @@ import { mangaGateway } from "../api/mangaGateway";
 import type { TriState } from "../lib/translationSelection";
 import { SelectionCard } from "./ui/SelectionCard";
 
+export type ObservePageThumbnail = (
+  element: Element,
+  onVisible: () => void,
+) => () => void;
+
+type ThumbnailLoadStatus = "idle" | "loading" | "loaded" | "error";
+
+type ThumbnailLoadState = {
+  imagePath: string;
+  status: ThumbnailLoadStatus;
+  url?: string;
+};
+
+function useThumbnailVisibility(
+  observeThumbnail: ObservePageThumbnail,
+): [React.RefObject<HTMLSpanElement | null>, boolean] {
+  const imageFrameRef = React.useRef<HTMLSpanElement>(null);
+  const [shouldLoad, setShouldLoad] = React.useState(false);
+  React.useEffect(() => {
+    const element = imageFrameRef.current;
+    if (!element) {
+      return;
+    }
+    return observeThumbnail(element, () => setShouldLoad(true));
+  }, [observeThumbnail]);
+  return [imageFrameRef, shouldLoad];
+}
+
+function useThumbnailLoad(
+  imagePath: string,
+  shouldLoad: boolean,
+): {
+  loadState: ThumbnailLoadState;
+  markImageLoaded: (url: string) => void;
+  markImageErrored: (url: string) => void;
+} {
+  const imageFailureCountRef = React.useRef(0);
+  const [requestRevision, setRequestRevision] = React.useState(0);
+  const [loadState, setLoadState] = React.useState<ThumbnailLoadState>({
+    imagePath,
+    status: "idle",
+  });
+
+  React.useEffect(() => {
+    imageFailureCountRef.current = 0;
+  }, [imagePath]);
+
+  React.useEffect(() => {
+    if (!shouldLoad) {
+      return;
+    }
+    let cancelled = false;
+    setLoadState({ imagePath, status: "loading" });
+    void mangaGateway
+      .getPageImageDataUrl(imagePath)
+      .then((url) => {
+        if (!cancelled) {
+          setLoadState({ imagePath, status: "loading", url });
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          console.error(error);
+          setLoadState({ imagePath, status: "error" });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [imagePath, requestRevision, shouldLoad]);
+
+  const currentLoadState =
+    loadState.imagePath === imagePath
+      ? loadState
+      : { imagePath, status: "idle" as const };
+  const markImageLoaded = (url: string): void => {
+    setLoadState((current) =>
+      current.imagePath === imagePath && current.url === url
+        ? { ...current, status: "loaded" }
+        : current,
+    );
+  };
+  const markImageErrored = (url: string): void => {
+    if (currentLoadState.url !== url) {
+      return;
+    }
+    if (imageFailureCountRef.current === 0) {
+      imageFailureCountRef.current = 1;
+      setLoadState({ imagePath, status: "loading" });
+      setRequestRevision((revision) => revision + 1);
+      return;
+    }
+    setLoadState({ imagePath, status: "error" });
+  };
+  return { loadState: currentLoadState, markImageLoaded, markImageErrored };
+}
+
 export function PageThumb({
   page,
   index,
   checked,
   showTranslatedStatus = true,
+  observeThumbnail,
   onToggle,
 }: {
   page: MangaPage;
   index: number;
   checked: boolean;
   showTranslatedStatus?: boolean;
+  observeThumbnail: ObservePageThumbnail;
   onToggle: () => void;
 }): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const [url, setUrl] = React.useState<string | undefined>();
-  React.useEffect(() => {
-    let cancelled = false;
-    void mangaGateway
-      .getPageImageDataUrl(page.imagePath)
-      .then((resolved) => {
-        if (!cancelled) {
-          setUrl(resolved);
-        }
-      })
-      .catch((error) => console.error(error));
-    return () => {
-      cancelled = true;
-    };
-  }, [page.imagePath]);
-
+  const [imageFrameRef, shouldLoad] = useThumbnailVisibility(observeThumbnail);
+  const { loadState, markImageLoaded, markImageErrored } = useThumbnailLoad(
+    page.imagePath,
+    shouldLoad,
+  );
   const done = showTranslatedStatus && page.analysisStatus === "completed";
   return (
     <SelectionCard
@@ -47,26 +134,75 @@ export function PageThumb({
       checked={checked}
       onChange={onToggle}
     >
-      <span className="translate-page-thumb-img">
-        {url ? (
-          <img src={url} alt={page.name} loading="lazy" draggable={false} />
-        ) : (
-          <span className="translate-page-thumb-skeleton" />
-        )}
-        {done ? (
-          <span
-            className="translate-page-thumb-badge"
-            aria-label={t("chapterPicker.translated")}
-          >
-            ✓
-          </span>
-        ) : null}
-      </span>
+      <ThumbnailImage
+        frameRef={imageFrameRef}
+        pageName={page.name}
+        done={done}
+        loadState={loadState}
+        onLoad={markImageLoaded}
+        onError={markImageErrored}
+      />
       <span className="translate-page-thumb-cap" title={page.name}>
         <span className="translate-page-thumb-no">{index + 1}</span>
         <span className="translate-page-thumb-name">{page.name}</span>
       </span>
     </SelectionCard>
+  );
+}
+
+function ThumbnailImage({
+  frameRef,
+  pageName,
+  done,
+  loadState,
+  onLoad,
+  onError,
+}: {
+  frameRef: React.RefObject<HTMLSpanElement | null>;
+  pageName: string;
+  done: boolean;
+  loadState: ThumbnailLoadState;
+  onLoad: (url: string) => void;
+  onError: (url: string) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const url = loadState.url;
+  return (
+    <span
+      ref={frameRef}
+      className="translate-page-thumb-img"
+      data-image-state={loadState.status}
+      aria-busy={loadState.status === "loading" || undefined}
+    >
+      {loadState.status === "error" ? (
+        <span
+          className="translate-page-thumb-error"
+          role="img"
+          aria-label={t("chapterPicker.thumbnailLoadFailed")}
+        >
+          {t("chapterPicker.thumbnailLoadFailed")}
+        </span>
+      ) : url ? (
+        <img
+          src={url}
+          alt={pageName}
+          loading="lazy"
+          draggable={false}
+          onLoad={() => onLoad(url)}
+          onError={() => onError(url)}
+        />
+      ) : (
+        <span className="translate-page-thumb-skeleton" aria-hidden="true" />
+      )}
+      {done ? (
+        <span
+          className="translate-page-thumb-badge"
+          aria-label={t("chapterPicker.translated")}
+        >
+          ✓
+        </span>
+      ) : null}
+    </span>
   );
 }
 

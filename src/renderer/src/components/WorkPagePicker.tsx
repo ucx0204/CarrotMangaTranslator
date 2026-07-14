@@ -8,7 +8,11 @@ import type {
 } from "../../../shared/libraryTypes";
 import { mangaGateway } from "../api/mangaGateway";
 import type { TriState } from "../lib/translationSelection";
-import { PageThumb, TriCheckbox } from "./ChapterPickerTiles";
+import {
+  PageThumb,
+  TriCheckbox,
+  type ObservePageThumbnail,
+} from "./ChapterPickerTiles";
 
 export type ChapterPagesLookup = (chapterId: string) => MangaPage[] | undefined;
 
@@ -40,6 +44,74 @@ type ChapterPagesLoader = {
   isErrored: (chapterId: string) => boolean;
   ensureLoaded: (chapterId: string) => void;
 };
+
+function usePageThumbnailObserver(
+  rootRef: React.RefObject<HTMLDivElement | null>,
+): ObservePageThumbnail {
+  const callbacksRef = React.useRef<Map<Element, () => void>>(new Map());
+  const observerRef = React.useRef<IntersectionObserver | null>(null);
+
+  const observeThumbnail = React.useCallback<ObservePageThumbnail>(
+    (element, onVisible) => {
+      if (typeof IntersectionObserver === "undefined") {
+        onVisible();
+        return () => undefined;
+      }
+
+      callbacksRef.current.set(element, onVisible);
+      observerRef.current?.observe(element);
+      return () => {
+        if (callbacksRef.current.get(element) !== onVisible) {
+          return;
+        }
+        callbacksRef.current.delete(element);
+        observerRef.current?.unobserve(element);
+      };
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") {
+      return;
+    }
+    const root = rootRef.current;
+    if (!root) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) {
+            continue;
+          }
+          const onVisible = callbacksRef.current.get(entry.target);
+          if (!onVisible) {
+            continue;
+          }
+          callbacksRef.current.delete(entry.target);
+          observer.unobserve(entry.target);
+          onVisible();
+        }
+      },
+      { root, rootMargin: "300px 0px", threshold: 0 },
+    );
+    observerRef.current = observer;
+    for (const element of callbacksRef.current.keys()) {
+      observer.observe(element);
+    }
+
+    return () => {
+      observer.disconnect();
+      if (observerRef.current === observer) {
+        observerRef.current = null;
+      }
+    };
+  }, [rootRef]);
+
+  return observeThumbnail;
+}
 
 /** Lazily hydrates chapters that are expanded; the open chapter is already in memory. */
 function useChapterPagesLoader(
@@ -112,6 +184,8 @@ export function WorkPagePicker({
 }: WorkPagePickerProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const loader = useChapterPagesLoader(currentChapter);
+  const pickerListRef = React.useRef<HTMLDivElement>(null);
+  const observeThumbnail = usePageThumbnailObserver(pickerListRef);
   const [expanded, setExpanded] = React.useState<Set<string>>(
     () => new Set([currentChapter.id]),
   );
@@ -132,7 +206,7 @@ export function WorkPagePicker({
   return (
     <section className="translate-picker">
       {header}
-      <div className="translate-picker-list">
+      <div ref={pickerListRef} className="translate-picker-list">
         {work.chapters.map((chapter) => {
           const chapterPages = loader.getPages(chapter.id);
           return (
@@ -152,6 +226,7 @@ export function WorkPagePicker({
               loading={loader.isLoading(chapter.id)}
               errored={loader.isErrored(chapter.id)}
               showTranslatedStatus={showTranslatedStatus}
+              observeThumbnail={observeThumbnail}
               onToggleExpand={() => toggleExpand(chapter.id)}
               onToggleChapter={() => onToggleChapter(chapter.id)}
               onTogglePage={(pageId) => {
@@ -186,6 +261,7 @@ function ChapterRow({
   loading,
   errored,
   showTranslatedStatus,
+  observeThumbnail,
   onToggleExpand,
   onToggleChapter,
   onTogglePage,
@@ -200,6 +276,7 @@ function ChapterRow({
   loading: boolean;
   errored: boolean;
   showTranslatedStatus: boolean;
+  observeThumbnail: ObservePageThumbnail;
   onToggleExpand: () => void;
   onToggleChapter: () => void;
   onTogglePage: (pageId: string) => void;
@@ -239,6 +316,7 @@ function ChapterRow({
             errored={errored}
             selectedPageIds={selectedPageIds}
             showTranslatedStatus={showTranslatedStatus}
+            observeThumbnail={observeThumbnail}
             onTogglePage={onTogglePage}
           />
         </div>
@@ -253,6 +331,7 @@ function ChapterPages({
   errored,
   selectedPageIds,
   showTranslatedStatus,
+  observeThumbnail,
   onTogglePage,
 }: {
   pages: MangaPage[] | undefined;
@@ -260,6 +339,7 @@ function ChapterPages({
   errored: boolean;
   selectedPageIds: Set<string>;
   showTranslatedStatus: boolean;
+  observeThumbnail: ObservePageThumbnail;
   onTogglePage: (pageId: string) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -284,11 +364,12 @@ function ChapterPages({
     <div className="translate-page-grid">
       {pages.map((page, index) => (
         <PageThumb
-          key={page.id}
+          key={`${page.id}:${page.imagePath}`}
           page={page}
           index={index}
           checked={selectedPageIds.has(page.id)}
           showTranslatedStatus={showTranslatedStatus}
+          observeThumbnail={observeThumbnail}
           onToggle={() => onTogglePage(page.id)}
         />
       ))}

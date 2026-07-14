@@ -7,6 +7,13 @@ import { join } from "node:path";
 const MAX_IMPORT_IMAGE_BYTES = 256 * 1024 * 1024;
 const tempDirs: string[] = [];
 
+const AdmZip = require("adm-zip") as {
+  new (): {
+    addFile: (entryName: string, content: Buffer) => void;
+    writeZip: (targetPath: string) => void;
+  };
+};
+
 describe("library import resource limits", () => {
   afterEach(async () => {
     vi.resetModules();
@@ -115,7 +122,7 @@ describe("library import resource limits", () => {
   it("normalizes imported webp pages to png before storing them", async () => {
     const rootDir = await createTempLibrary();
     const imagePath = join(rootDir, "001.webp");
-    await writeFile(imagePath, "webp source");
+    await writeFile(imagePath, makeWebpBytes());
     const library = await loadLibrary(rootDir, { decodeEmpty: false });
 
     const result = await library.createImport({
@@ -144,6 +151,7 @@ describe("library import resource limits", () => {
       ],
     });
 
+    expect(result.openedChapter?.pages[0]?.name).toBe("001.webp");
     const storedPath = result.openedChapter?.pages[0]?.imagePath;
     expect(storedPath).toMatch(/\.png$/);
     if (!storedPath) {
@@ -152,7 +160,89 @@ describe("library import resource limits", () => {
     expect(storedPath && existsSync(storedPath)).toBe(true);
     expect(await readFile(storedPath)).toEqual(Buffer.from("converted png"));
   });
+
+  it("detects webp content in a regular image with a jpg extension", async () => {
+    const rootDir = await createTempLibrary();
+    const imagePath = join(rootDir, "001.jpg");
+    await writeFile(imagePath, makeWebpBytes());
+    const library = await loadLibrary(rootDir, { decodeEmpty: false });
+
+    const result = await library.createImport({
+      preview: {
+        mode: "single",
+        sourceKind: "images",
+        suggestedWorkTitle: "Mislabeled webp import",
+        chapters: [
+          {
+            draftId: "44444444-4444-4444-8444-444444444444",
+            title: "1화",
+            sourceKind: "images",
+            pages: [
+              { name: "001.jpg", sourceKind: "file", sourcePath: imagePath },
+            ],
+          },
+        ],
+      },
+      target: { mode: "new", title: "Mislabeled webp import" },
+      selections: [
+        {
+          draftId: "44444444-4444-4444-8444-444444444444",
+          title: "1화",
+          enabled: true,
+        },
+      ],
+    });
+
+    expect(result.openedChapter?.pages[0]?.name).toBe("001.jpg");
+    const storedPath = result.openedChapter?.pages[0]?.imagePath;
+    expect(storedPath).toMatch(/\.png$/);
+    if (!storedPath) {
+      throw new Error("Expected imported page image path");
+    }
+    expect(await readFile(storedPath)).toEqual(Buffer.from("converted png"));
+  });
+
+  it("detects webp content in a zip entry with a jpg extension", async () => {
+    const rootDir = await createTempLibrary();
+    const archivePath = join(rootDir, "mislabeled-webp.zip");
+    const zip = new AdmZip();
+    zip.addFile("001.jpg", makeWebpBytes());
+    zip.writeZip(archivePath);
+    const library = await loadLibrary(rootDir, { decodeEmpty: false });
+    const preview = await library.previewZip(archivePath);
+    const draft = preview.chapters[0];
+    if (!draft) {
+      throw new Error("Expected ZIP preview chapter");
+    }
+
+    const result = await library.createImport({
+      preview,
+      target: { mode: "new", title: "Mislabeled zip webp import" },
+      selections: [
+        {
+          draftId: draft.draftId,
+          title: draft.title,
+          enabled: true,
+        },
+      ],
+    });
+
+    expect(result.openedChapter?.pages[0]?.name).toBe("001.jpg");
+    const storedPath = result.openedChapter?.pages[0]?.imagePath;
+    expect(storedPath).toMatch(/\.png$/);
+    if (!storedPath) {
+      throw new Error("Expected imported page image path");
+    }
+    expect(await readFile(storedPath)).toEqual(Buffer.from("converted png"));
+  });
 });
+
+function makeWebpBytes(): Buffer {
+  return Buffer.from(
+    "UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA",
+    "base64",
+  );
+}
 
 async function createTempLibrary(): Promise<string> {
   const rootDir = await mkdtemp(join(tmpdir(), "manga-import-limits-"));

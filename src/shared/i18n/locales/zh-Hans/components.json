@@ -194,6 +194,7 @@
     "loadingPages": "正在加载页面…",
     "loadPagesFailed": "无法加载页面。",
     "noPages": "没有页面。",
+    "thumbnailLoadFailed": "无法显示预览",
     "translated": "已翻译",
     "chapterSummaryComplete": "{{count}}页 · 完成",
     "chapterSummaryRemaining": "{{count}}页 · 剩余{{remaining}}",
