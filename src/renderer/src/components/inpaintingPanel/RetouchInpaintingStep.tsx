@@ -2,24 +2,19 @@ import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { RetouchTool } from "../../lib/stageTool";
-import { Button, IconButton, RangeInput } from "../ui";
-import { RedoIcon, UndoIcon } from "../ui/icons";
+import { Button, RangeInput } from "../ui";
 
 type RetouchInpaintingStepProps = {
   activeToolLabel: string;
   brushColor: string;
   brushRadius: number;
-  canRedo: boolean;
-  canUndo: boolean;
   hasSelectedPage: boolean;
   jobActive: boolean;
   maskStrokeCount: number;
   onBrushColorChange: (value: string) => void;
   onBrushRadiusChange: (value: number) => void;
   onClearPatternMask: () => void;
-  onRedoRetouch: () => void;
   onRunDrawnPattern: () => void;
-  onUndoRetouch: () => void;
   sizableTool: boolean;
   tool: RetouchTool;
 };
@@ -52,36 +47,10 @@ function RetouchToolsBar(props: RetouchInpaintingStepProps): React.JSX.Element {
 
 function RetouchToolsHeader({
   activeToolLabel,
-  canRedo,
-  canUndo,
-  jobActive,
-  onRedoRetouch,
-  onUndoRetouch,
 }: RetouchInpaintingStepProps): React.JSX.Element {
-  const { t } = useTranslation("components");
   return (
     <div className="retouch-tools-bar-head">
       <span className="retouch-active-tool">{activeToolLabel}</span>
-      <div className="retouch-undo-redo">
-        <IconButton
-          size="sm"
-          label={t("inpainting.retouch.undoLabel")}
-          title={t("inpainting.retouch.undoLabel")}
-          disabled={!canUndo || jobActive}
-          onClick={onUndoRetouch}
-        >
-          <UndoIcon size={16} />
-        </IconButton>
-        <IconButton
-          size="sm"
-          label={t("inpainting.retouch.redoLabel")}
-          title={t("inpainting.retouch.redoTitle")}
-          disabled={!canRedo || jobActive}
-          onClick={onRedoRetouch}
-        >
-          <RedoIcon size={16} />
-        </IconButton>
-      </div>
     </div>
   );
 }

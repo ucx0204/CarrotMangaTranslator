@@ -1,6 +1,13 @@
 import React from "react";
+import {
+  IconBook2,
+  IconBorderAll,
+  IconListDetails,
+  IconSquareLetterT,
+  type TablerIcon,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { Button } from "../ui";
+import { ControlTooltip } from "../ui/ControlTooltip";
 
 type DisplayControlPanelProps = {
   showBlockChrome: boolean;
@@ -25,36 +32,69 @@ export function DisplayControlPanel({
   return (
     <section className="display-panel">
       <h2>{t("display.title")}</h2>
-      <div className="display-toggle-row">
-        <button
-          type="button"
-          className={showBlockChrome ? "active" : ""}
-          aria-pressed={showBlockChrome}
+      <div
+        className="display-icon-toolbar"
+        role="toolbar"
+        aria-label={t("display.title")}
+      >
+        <DisplayIconControl
+          active={showBlockChrome}
+          Icon={IconBorderAll}
+          label={t("display.backgroundBorders")}
           onClick={onToggleChrome}
-        >
-          {t("display.backgroundBorders")}
-        </button>
-        <button
-          type="button"
-          className={showTextBlocks ? "active" : ""}
-          aria-pressed={showTextBlocks}
+        />
+        <DisplayIconControl
+          active={showTextBlocks}
+          Icon={IconSquareLetterT}
+          label={t("display.showBlocks")}
           onClick={onToggleBlocks}
-        >
-          {t("display.showBlocks")}
-        </button>
-      </div>
-      <div className="display-secondary-actions">
-        <Button fullWidth onClick={onOpenTextView} disabled={!canOpenTextView}>
-          {t("display.gatherText")}
-        </Button>
-        <Button
-          fullWidth
-          onClick={onOpenStyleGuide}
+        />
+        <DisplayIconControl
           disabled={!canOpenTextView}
-        >
-          {t("display.styleGuide")}
-        </Button>
+          Icon={IconListDetails}
+          label={t("display.gatherText")}
+          onClick={onOpenTextView}
+        />
+        <DisplayIconControl
+          disabled={!canOpenTextView}
+          Icon={IconBook2}
+          label={t("display.styleGuide")}
+          onClick={onOpenStyleGuide}
+        />
       </div>
     </section>
+  );
+}
+
+function DisplayIconControl({
+  active,
+  disabled,
+  Icon,
+  label,
+  onClick,
+}: {
+  active?: boolean;
+  disabled?: boolean;
+  Icon: TablerIcon;
+  label: string;
+  onClick: () => void;
+}): React.JSX.Element {
+  return (
+    <ControlTooltip
+      className="display-icon-control"
+      content={label}
+      placement="top"
+    >
+      <button
+        type="button"
+        className={active ? "active" : ""}
+        aria-label={label}
+        aria-pressed={active}
+        disabled={disabled}
+        onClick={onClick}
+      >
+        <Icon size={22} stroke={2.1} aria-hidden="true" />
+      </button>
+    </ControlTooltip>
   );
 }

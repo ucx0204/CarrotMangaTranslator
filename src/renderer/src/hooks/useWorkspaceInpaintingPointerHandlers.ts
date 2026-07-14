@@ -50,6 +50,12 @@ type UseWorkspaceInpaintingPointerHandlersOptions = {
   inpaintingToolActive: boolean;
   jobActive: boolean;
   lastInpaintingRetouchPointRef: MutableRefObject<ImagePoint | null>;
+  onPatternMaskChange: (
+    pageId: string,
+    before: InpaintingMaskStroke[],
+    after: InpaintingMaskStroke[],
+  ) => void;
+  patternMaskStrokesByPage: Record<string, InpaintingMaskStroke[]>;
   pushStatus: (line: string) => void;
   selectedPage: MangaPage | null;
   selectedPageIdRef: MutableRefObject<string | null>;
@@ -368,6 +374,8 @@ function commitRetouchPoints(
     applyRetouchPoints,
     inpaintingBrushRadius,
     inpaintingTool,
+    onPatternMaskChange,
+    patternMaskStrokesByPage,
     selectedPageIdRef,
     setPatternMaskStrokesByPage,
   }: UseWorkspaceInpaintingPointerHandlersOptions,
@@ -378,9 +386,16 @@ function commitRetouchPoints(
   } else if (inpaintingTool === "mask" && points.length > 0) {
     const pageId = selectedPageIdRef.current;
     if (pageId) {
-      setPatternMaskStrokesByPage((current) =>
-        appendMaskStroke(current, pageId, points, inpaintingBrushRadius),
+      const before = patternMaskStrokesByPage[pageId] ?? [];
+      const next = appendMaskStroke(
+        patternMaskStrokesByPage,
+        pageId,
+        points,
+        inpaintingBrushRadius,
       );
+      const after = next[pageId] ?? [];
+      setPatternMaskStrokesByPage(next);
+      onPatternMaskChange(pageId, before, after);
     }
   }
 }

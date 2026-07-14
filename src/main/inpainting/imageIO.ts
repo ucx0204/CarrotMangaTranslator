@@ -1,4 +1,5 @@
 import { nativeImage } from "electron";
+import { randomUUID } from "node:crypto";
 import { basename, dirname, extname, join } from "node:path";
 import type { ImageDecodeFallback } from "./inpaintingTypes";
 
@@ -30,5 +31,9 @@ export function resolveInpaintedImagePath(
   const chapterDir = dirname(imageDir);
   const name = basename(imagePath, extname(imagePath));
   const safeSuffix = suffix.replace(/[^a-z0-9_-]/gi, "-");
-  return join(chapterDir, "inpainted", `${name}-${safeSuffix}.png`);
+  return join(
+    chapterDir,
+    "inpainted",
+    `${name}-${safeSuffix}-${randomUUID()}.png`,
+  );
 }

@@ -67,6 +67,21 @@
       }
     }
   },
+  "workspaceActions": {
+    "label": "캔버스 작업",
+    "undo": "실행 취소 (Ctrl+Z)",
+    "redo": "다시 실행 (Ctrl+Y / Ctrl+Shift+Z)",
+    "undoNamed": "{{action}} 실행 취소 (Ctrl+Z)",
+    "redoNamed": "{{action}} 다시 실행 (Ctrl+Y / Ctrl+Shift+Z)",
+    "undoShort": "실행 취소",
+    "redoShort": "다시 실행",
+    "original": "원본 비교",
+    "compareOriginal": "원본과 비교",
+    "hideOriginal": "원본 비교 끝내기",
+    "resetPage": "원본으로 초기화",
+    "resetPageTitle": "이 페이지를 원본 이미지로 초기화 (확인 후 실행)",
+    "resetPageShort": "원본 초기화"
+  },
   "commandPalette": {
     "title": "명령 팔레트",
     "searchPlaceholder": "명령 검색…",
@@ -105,6 +120,11 @@
     "text": "텍스트",
     "translatedText": "번역문",
     "blockColors": "블록 색상",
+    "inpainting": {
+      "title": "자동 지우기",
+      "exclude": "자동 지우기에서 제외",
+      "excludeHint": "자동 인페인팅이 이 블록의 글자를 지우지 않습니다."
+    },
     "markupHint": { "emphasis": "일부 강조:", "escape": "별표 문자는" },
     "markupToolbar": {
       "boldLabel": "굵게 (**굵게**)",
@@ -335,7 +355,8 @@
     "excluded": "제외됨",
     "resize": "크기 조절",
     "includeInInpainting": "인페인팅에 다시 포함",
-    "excludeFromInpainting": "인페인팅에서 제외"
+    "excludeFromInpainting": "인페인팅에서 제외",
+    "excludedFromInpainting": "자동 지우기에서 제외된 블록"
   },
   "imageStage": { "loadingImage": "이미지 불러오는 중" },
   "install": {
@@ -538,6 +559,11 @@
     },
     "auto": {
       "description": "먼저 원문 글자를 자동으로 지웁니다. 한 페이지씩 또는 남은 페이지를 한 번에 처리할 수 있어요.",
+      "currentPageAction": "현재 페이지 자동 지우기",
+      "moreActions": "자동 지우기 추가 작업",
+      "commandHint": "기본 버튼은 현재 페이지만 처리합니다. 필요할 때만 범위를 선택하세요.",
+      "selectMultiplePages": "여러 페이지 선택…",
+      "guideAction": "자동 지우기 사용 안내",
       "nextRetouch": "다음: 보정 →",
       "noOpenChapter": "화가 열려 있지 않습니다.",
       "remainingSummary": "남은 {{pendingPages}} / {{totalPages}}페이지 · {{blockCount}}개 블록",

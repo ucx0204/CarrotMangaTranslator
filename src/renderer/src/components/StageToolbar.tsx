@@ -17,6 +17,7 @@ import {
   isSizableRetouchTool,
   type WorkspaceTool,
 } from "../lib/stageTool";
+import { ControlTooltip } from "./ui/ControlTooltip";
 
 type StageToolbarProps = {
   brushColor: string;
@@ -168,14 +169,13 @@ function ToolbarControl({
   tooltip: string;
 }): React.JSX.Element {
   return (
-    <span
+    <ControlTooltip
       className={`stage-toolbar-control ${separated ? "separated" : ""}`.trim()}
+      content={tooltip}
+      placement="right"
     >
       {children}
-      <span className="stage-toolbar-tooltip" role="tooltip">
-        {tooltip}
-      </span>
-    </span>
+    </ControlTooltip>
   );
 }
 

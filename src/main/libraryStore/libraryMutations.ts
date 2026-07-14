@@ -6,7 +6,6 @@ import type {
 import type { SavePageBlocksRequest } from "../../shared/shareTypes";
 import { hashTranslationBlocks } from "../../shared/blockFingerprint";
 import { normalizeBlockType } from "../../shared/geometry";
-import { logWarn } from "../logger";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
   reorderIds,
@@ -32,6 +31,7 @@ import {
 } from "./libraryFiles";
 import { unlinkIfExists } from "./storage";
 import { sanitizeTitle } from "./titles";
+import { logLibraryWarning } from "./libraryLogger";
 
 export { appendAnalyzedPageBlocksUnlocked } from "./libraryAnalysisMutations";
 export {
@@ -73,7 +73,7 @@ export async function savePageBlocksUnlocked(
     page.updatedAt !== request.baseUpdatedAt &&
     !canRebasePageBlockSave(currentBlocksHash, request)
   ) {
-    logWarn("Page block save conflict", {
+    logLibraryWarning("Page block save conflict", {
       chapterId: request.chapterId,
       pageId: request.pageId,
       baseUpdatedAt: request.baseUpdatedAt,

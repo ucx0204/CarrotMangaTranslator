@@ -1,11 +1,5 @@
-import {
-  useCallback,
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-} from "react";
+import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import {
@@ -19,24 +13,24 @@ import {
   pickBlockFormat,
   type BlockFormatGroupId,
 } from "../../../shared/blockFormat";
-import type { RecordChapterChangeOptions } from "./useChapterHistory";
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
+import {
+  resolveFormatApplyStatus,
+  type FormatApplyScope,
+} from "./blockEditingStatus";
 
-export type FormatApplyScope = "selection" | "page" | "chapter";
+export type { FormatApplyScope } from "./blockEditingStatus";
 
 type UseBlockEditingActionsOptions = {
   currentChapter: ChapterSnapshot | null;
-  currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
   jobActive: boolean;
-  markDirty: (pageId?: string) => void;
   pushStatus: (line: string) => void;
-  recordChange: (options?: RecordChapterChangeOptions) => void;
   selectedBlock: TranslationBlock | null;
   selectedBlockIds: string[];
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
-  setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
+  setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
   updateCurrentChapter: UpdateCurrentChapter;
 };
 
@@ -85,6 +79,7 @@ function useUpdateSelectedBlockAction({
   selectedPageEditLocked,
   updateCurrentChapter,
 }: UseBlockEditingActionsOptions): BlockEditingActions["updateSelectedBlock"] {
+  const { t } = useTranslation("renderer");
   return useCallback(
     (patch: Partial<TranslationBlock>) => {
       if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
@@ -140,10 +135,16 @@ function useUpdateSelectedBlockAction({
                 },
           ),
         }),
-        { mergeKey },
+        { label: t("workspaceHistory.blockEdit"), mergeKey },
       );
     },
-    [selectedBlock, selectedPage, selectedPageEditLocked, updateCurrentChapter],
+    [
+      selectedBlock,
+      selectedPage,
+      selectedPageEditLocked,
+      t,
+      updateCurrentChapter,
+    ],
   );
 }
 
@@ -152,44 +153,46 @@ function useToggleBlockInpaintExcludedAction({
   selectedPage,
   updateCurrentChapter,
 }: UseBlockEditingActionsOptions): BlockEditingActions["toggleBlockInpaintExcluded"] {
+  const { t } = useTranslation("renderer");
   return useCallback(
     (blockId: string) => {
       if (!selectedPage || jobActive) {
         return;
       }
-      updateCurrentChapter(selectedPage.id, (current) => ({
-        ...current,
-        pages: current.pages.map((page) =>
-          page.id !== selectedPage.id
-            ? page
-            : {
-                ...page,
-                updatedAt: new Date().toISOString(),
-                blocks: page.blocks.map((block) =>
-                  block.id === blockId
-                    ? { ...block, inpaintExcluded: !block.inpaintExcluded }
-                    : block,
-                ),
-              },
-        ),
-      }));
+      updateCurrentChapter(
+        selectedPage.id,
+        (current) => ({
+          ...current,
+          pages: current.pages.map((page) =>
+            page.id !== selectedPage.id
+              ? page
+              : {
+                  ...page,
+                  updatedAt: new Date().toISOString(),
+                  blocks: page.blocks.map((block) =>
+                    block.id === blockId
+                      ? { ...block, inpaintExcluded: !block.inpaintExcluded }
+                      : block,
+                  ),
+                },
+          ),
+        }),
+        { label: t("workspaceHistory.exclusion") },
+      );
     },
-    [jobActive, selectedPage, updateCurrentChapter],
+    [jobActive, selectedPage, t, updateCurrentChapter],
   );
 }
 
 function useApplyFormatToScopeAction({
   currentChapter,
-  currentChapterRef,
   jobActive,
-  markDirty,
   pushStatus,
-  recordChange,
   selectedBlock,
   selectedBlockIds,
   selectedPage,
   selectedPageEditLocked,
-  setCurrentChapter,
+  updateCurrentChapter,
 }: UseBlockEditingActionsOptions): BlockEditingActions["applyFormatToScope"] {
   const { t } = useTranslation("renderer");
   return useCallback(
@@ -218,31 +221,32 @@ function useApplyFormatToScopeAction({
       const blockIdFilter =
         scope === "selection" ? new Set(selectedBlockIds) : null;
       const patch = pickBlockFormat(selectedBlock, groupIds);
-      recordChange();
-      targetPageIds.forEach((id) => markDirty(id));
-      const next = applyFormatToChapterPages(
-        currentChapter,
-        new Set(targetPageIds),
-        blockIdFilter,
-        patch,
+      updateCurrentChapter(
+        targetPageIds[0],
+        (current) =>
+          applyFormatToChapterPages(
+            current,
+            new Set(targetPageIds),
+            blockIdFilter,
+            patch,
+          ),
+        {
+          dirtyPageIds: targetPageIds,
+          label: t("workspaceHistory.format"),
+        },
       );
-      currentChapterRef.current = next;
-      setCurrentChapter(next);
       pushStatus(resolveFormatApplyStatus(scope, blockIdFilter?.size ?? 0, t));
     },
     [
       currentChapter,
-      currentChapterRef,
       jobActive,
-      markDirty,
       pushStatus,
-      recordChange,
       selectedBlock,
       selectedBlockIds,
       selectedPage,
       selectedPageEditLocked,
-      setCurrentChapter,
       t,
+      updateCurrentChapter,
     ],
   );
 }
@@ -300,53 +304,53 @@ function applyFormatPatchToBlock(
   return next;
 }
 
-function resolveFormatApplyStatus(
-  scope: FormatApplyScope,
-  selectionCount: number,
-  t: TFunction<"renderer">,
-): string {
-  if (scope === "selection") {
-    return t("blockEditing.formatAppliedSelection", {
-      count: selectionCount,
-    });
-  }
-  if (scope === "page") {
-    return t("blockEditing.formatAppliedPage");
-  }
-  return t("blockEditing.formatAppliedChapter");
-}
-
 function useDeleteSelectedBlockAction({
   selectedBlock,
   selectedPage,
   selectedPageEditLocked,
   setSelectedBlockId,
+  setSelectedBlockIds,
   updateCurrentChapter,
 }: UseBlockEditingActionsOptions): BlockEditingActions["deleteSelectedBlock"] {
+  const { t } = useTranslation("renderer");
   return useCallback(() => {
     if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
       return;
     }
-    updateCurrentChapter(selectedPage.id, (current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id === selectedPage.id
-          ? {
-              ...page,
-              updatedAt: new Date().toISOString(),
-              blocks: page.blocks.filter(
-                (block) => block.id !== selectedBlock.id,
-              ),
-            }
-          : page,
-      ),
-    }));
+    updateCurrentChapter(
+      selectedPage.id,
+      (current) => ({
+        ...current,
+        pages: current.pages.map((page) =>
+          page.id === selectedPage.id
+            ? {
+                ...page,
+                updatedAt: new Date().toISOString(),
+                blocks: page.blocks.filter(
+                  (block) => block.id !== selectedBlock.id,
+                ),
+              }
+            : page,
+        ),
+      }),
+      {
+        label: t("workspaceHistory.deleteBlock"),
+        selectionAfter: {
+          selectedPageId: selectedPage.id,
+          selectedBlockId: null,
+          selectedBlockIds: [],
+        },
+      },
+    );
     setSelectedBlockId(null);
+    setSelectedBlockIds([]);
   }, [
     selectedBlock,
     selectedPage,
     selectedPageEditLocked,
     setSelectedBlockId,
+    setSelectedBlockIds,
+    t,
     updateCurrentChapter,
   ]);
 }
@@ -356,8 +360,10 @@ function useDuplicateSelectedBlockAction({
   selectedPage,
   selectedPageEditLocked,
   setSelectedBlockId,
+  setSelectedBlockIds,
   updateCurrentChapter,
 }: UseBlockEditingActionsOptions): BlockEditingActions["duplicateSelectedBlock"] {
+  const { t } = useTranslation("renderer");
   return useCallback(() => {
     if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
       return;
@@ -369,24 +375,38 @@ function useDuplicateSelectedBlockAction({
       }),
       id: `${selectedBlock.id}-copy-${Date.now()}`,
     };
-    updateCurrentChapter(selectedPage.id, (current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id === selectedPage.id
-          ? {
-              ...page,
-              updatedAt: new Date().toISOString(),
-              blocks: [...page.blocks, copy],
-            }
-          : page,
-      ),
-    }));
+    updateCurrentChapter(
+      selectedPage.id,
+      (current) => ({
+        ...current,
+        pages: current.pages.map((page) =>
+          page.id === selectedPage.id
+            ? {
+                ...page,
+                updatedAt: new Date().toISOString(),
+                blocks: [...page.blocks, copy],
+              }
+            : page,
+        ),
+      }),
+      {
+        label: t("workspaceHistory.duplicateBlock"),
+        selectionAfter: {
+          selectedPageId: selectedPage.id,
+          selectedBlockId: copy.id,
+          selectedBlockIds: [copy.id],
+        },
+      },
+    );
     setSelectedBlockId(copy.id);
+    setSelectedBlockIds([copy.id]);
   }, [
     selectedBlock,
     selectedPage,
     selectedPageEditLocked,
     setSelectedBlockId,
+    setSelectedBlockIds,
+    t,
     updateCurrentChapter,
   ]);
 }

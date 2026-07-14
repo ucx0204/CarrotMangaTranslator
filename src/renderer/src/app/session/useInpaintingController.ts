@@ -23,12 +23,15 @@ export function useInpaintingController(
       translation.translationActions.translateSelectedRegion,
     uiState: chapter.uiState,
     updateCurrentChapter: translation.updateCurrentChapter,
+    workspaceHistory: translation.workspaceHistory,
   });
   const commands = useAppSessionCommandController({
-    autoInpaintingOpen: chapter.uiState.autoInpaintingOpen,
     cancelJob: chapter.bridgeActions.cancelJob,
     currentChapter: chapter.core.currentChapter,
-    jobActive: chapter.derivedState.jobActive,
+    jobActive:
+      inpainting.inpaintingBridge.contextValue.jobActive ||
+      chapter.uiState.translationFlowActive ||
+      translation.workspaceHistory.busy,
     openImportPreview: translation.importShareActions.openImportPreview,
     openLibraryFolder: chapter.bridgeActions.openLibraryFolder,
     openLogFolder: chapter.bridgeActions.openLogFolder,
@@ -37,12 +40,13 @@ export function useInpaintingController(
       translation.importShareActions.openShareImportPreview,
     runAnalysis: (runMode) =>
       void translation.translationActions.runAnalysis(runMode),
+    runCurrentPageInpainting: () =>
+      void inpainting.inpaintingActions.runInpainting("page"),
     setShareExportOpen: chapter.importShareModal.setShareExportOpen,
     setShortcutHelpOpen: chapter.uiState.setShortcutHelpOpen,
     setTextViewOpen: chapter.uiState.setTextViewOpen,
     setTranslateOptionsOpen: chapter.uiState.setTranslateOptionsOpen,
     setTranslationSourceOpen: chapter.importShareModal.setTranslationSourceOpen,
-    toggleAutoInpainting: chapter.uiState.toggleAutoInpainting,
   });
 
   return {

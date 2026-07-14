@@ -38,9 +38,7 @@ export function StageImage({
 export function OverlayBlockLayer({
   blockPointerDisabled,
   imageDataUrl,
-  showInpaintingExclusions,
   onBlockPointerDown,
-  onToggleBlockExcluded,
   page,
   selectedBlockId,
   selectedBlockIds,
@@ -52,9 +50,7 @@ export function OverlayBlockLayer({
   ImageStageProps,
   | "blockPointerDisabled"
   | "imageDataUrl"
-  | "showInpaintingExclusions"
   | "onBlockPointerDown"
-  | "onToggleBlockExcluded"
   | "page"
   | "selectedBlockId"
   | "selectedBlockIds"
@@ -63,14 +59,17 @@ export function OverlayBlockLayer({
   | "stageSize"
   | "textLayoutStageSize"
 >): React.JSX.Element | null {
-  if (!imageDataUrl || !stageSize || !showTextBlocks) {
+  if (!imageDataUrl || !stageSize) {
     return null;
   }
+  const visibleBlocks = showTextBlocks
+    ? page.blocks
+    : page.blocks.filter((block) => block.inpaintExcluded);
   const multiSelection = selectedBlockIds && selectedBlockIds.length > 1;
   const multiSelectedIds = multiSelection ? new Set(selectedBlockIds) : null;
   return (
     <>
-      {page.blocks.map((block) => (
+      {visibleBlocks.map((block) => (
         <OverlayBlock
           key={block.id}
           block={block}
@@ -79,17 +78,13 @@ export function OverlayBlockLayer({
           selected={block.id === selectedBlockId}
           multiSelected={multiSelectedIds?.has(block.id) ?? false}
           showChrome={showBlockChrome}
-          showExcluded={showInpaintingExclusions ?? false}
           textLayoutStageSize={textLayoutStageSize}
-          pointerDisabled={blockPointerDisabled ?? false}
+          pointerDisabled={!showTextBlocks || (blockPointerDisabled ?? false)}
+          textVisible={showTextBlocks}
           onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
           onResizePointerDown={(event) =>
             onBlockPointerDown(event, block, "resize")
           }
-          onToggleExcluded={resolveToggleBlockExcluded(
-            onToggleBlockExcluded,
-            block.id,
-          )}
         />
       ))}
     </>
@@ -245,15 +240,6 @@ export function StageDragHud({
   return dragHud ? (
     <div className={`stage-drag-hud ${dragHud.mode}`}>{dragHud.label}</div>
   ) : null;
-}
-
-function resolveToggleBlockExcluded(
-  onToggleBlockExcluded: ImageStageProps["onToggleBlockExcluded"],
-  blockId: string,
-): (() => void) | undefined {
-  return onToggleBlockExcluded
-    ? () => onToggleBlockExcluded(blockId)
-    : undefined;
 }
 
 function resolveRegionSelectionStyle(

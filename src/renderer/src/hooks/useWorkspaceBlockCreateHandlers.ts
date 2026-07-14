@@ -16,7 +16,8 @@ import { estimateFontSizePx } from "../../../shared/geometry";
 import { isUsableRegionBbox } from "../../../shared/region";
 import type { BBox, TranslationBlock } from "../../../shared/textTypes";
 import { regionSelectionToBbox } from "../lib/appHelpers";
-import type { ChapterSnapshot, MangaPage } from "./hookLibraryTypes";
+import type { MangaPage } from "./hookLibraryTypes";
+import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
@@ -34,11 +35,7 @@ type UseWorkspaceBlockCreateHandlersOptions = {
   setSelectedBlockId: (blockId: string | null) => void;
   setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
   stageRef: RefObject<HTMLDivElement | null>;
-  updateCurrentChapter: (
-    pageId: string,
-    updater: (chapter: ChapterSnapshot) => ChapterSnapshot,
-    options?: { mergeKey?: string; skipHistory?: boolean },
-  ) => void;
+  updateCurrentChapter: UpdateCurrentChapter;
 };
 
 type BlockCreateDraft = {
@@ -163,18 +160,29 @@ function useCreateBlockFromBbox({
         return;
       }
       const block = buildManualBlock(selectedPage, bbox, blockFormatDefaults);
-      updateCurrentChapter(selectedPage.id, (chapter) => ({
-        ...chapter,
-        pages: chapter.pages.map((page) =>
-          page.id !== selectedPage.id
-            ? page
-            : {
-                ...page,
-                updatedAt: new Date().toISOString(),
-                blocks: [...page.blocks, block],
-              },
-        ),
-      }));
+      updateCurrentChapter(
+        selectedPage.id,
+        (chapter) => ({
+          ...chapter,
+          pages: chapter.pages.map((page) =>
+            page.id !== selectedPage.id
+              ? page
+              : {
+                  ...page,
+                  updatedAt: new Date().toISOString(),
+                  blocks: [...page.blocks, block],
+                },
+          ),
+        }),
+        {
+          label: t("workspaceHistory.createBlock"),
+          selectionAfter: {
+            selectedPageId: selectedPage.id,
+            selectedBlockId: block.id,
+            selectedBlockIds: [block.id],
+          },
+        },
+      );
       setSelectedBlockId(block.id);
       setSelectedBlockIds([block.id]);
       pushStatus(t("blockCreate.added"));

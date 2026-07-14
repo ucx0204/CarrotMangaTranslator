@@ -7,6 +7,7 @@ import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { AppRightRail } from "../src/renderer/src/components/AppRightRail";
 import { AppSidebar } from "../src/renderer/src/components/AppSidebar";
+import { DisplayControlPanel } from "../src/renderer/src/components/inpaintingPanel/DisplayControlPanel";
 import { StageToolbar } from "../src/renderer/src/components/StageToolbar";
 
 vi.mock("../src/renderer/src/panels/EditorPanelSlot", () => ({
@@ -78,7 +79,30 @@ describe("unified workspace toolbar", () => {
 });
 
 describe("unified right rail", () => {
-  it("always exposes translation, automatic erase, and PNG export", () => {
+  it("uses app tooltips instead of native titles for display controls", () => {
+    render(
+      <DisplayControlPanel
+        showBlockChrome={true}
+        showTextBlocks={false}
+        canOpenTextView={true}
+        onToggleChrome={() => undefined}
+        onToggleBlocks={() => undefined}
+        onOpenTextView={() => undefined}
+        onOpenStyleGuide={() => undefined}
+      />,
+    );
+
+    const backgroundControl = screen.getByRole("button", {
+      name: "배경/테두리",
+    });
+    const tooltip = screen.getByRole("tooltip", { name: "배경/테두리" });
+    expect(backgroundControl.hasAttribute("title")).toBe(false);
+    expect(backgroundControl.getAttribute("aria-describedby")).toBe(tooltip.id);
+    expect(backgroundControl.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getAllByRole("button")).toHaveLength(4);
+  });
+
+  it("runs the current page directly and keeps page selection secondary", () => {
     const props = makeRightRailProps();
     render(<AppRightRail {...props} />);
 
@@ -87,8 +111,11 @@ describe("unified right rail", () => {
         .disabled,
     ).toBe(false);
     expect(
-      (screen.getByRole("button", { name: "자동 지우기" }) as HTMLButtonElement)
-        .disabled,
+      (
+        screen.getByRole("button", {
+          name: "현재 페이지 자동 지우기",
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(false);
     expect(
       (screen.getByRole("button", { name: "PNG 출력" }) as HTMLButtonElement)
@@ -97,15 +124,85 @@ describe("unified right rail", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "PNG 출력" }));
     expect(props.onOpenExport).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole("button", { name: "자동 지우기" }));
+    expect(
+      screen.queryByRole("menuitem", { name: "여러 페이지 선택…" }),
+    ).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "현재 페이지 자동 지우기" }),
+    );
+    expect(props.onRunCurrentPageInpainting).toHaveBeenCalledOnce();
+    expect(props.onOpenAutoInpaintingOptions).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
+    );
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "여러 페이지 선택…" }),
+    );
     expect(props.onOpenAutoInpaintingOptions).toHaveBeenCalledOnce();
   });
 
-  it("uses manual tool, automatic erase, editor, then status priority", () => {
+  it("closes and disables the automatic erase menu when work becomes busy", () => {
+    const props = makeRightRailProps();
+    const view = render(<AppRightRail {...props} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
+    );
+    const firstMenuItem = screen.getByRole("menuitem", {
+      name: "여러 페이지 선택…",
+    });
+    expect(firstMenuItem).not.toBeNull();
+    expect(document.activeElement).toBe(firstMenuItem);
+
+    fireEvent.keyDown(firstMenuItem, { key: "Escape" });
+    expect(
+      screen.queryByRole("menuitem", { name: "여러 페이지 선택…" }),
+    ).toBeNull();
+    const enabledTrigger = screen.getByRole("button", {
+      name: "자동 지우기 추가 작업",
+    });
+    expect(document.activeElement).toBe(enabledTrigger);
+
+    fireEvent.click(enabledTrigger);
+    expect(
+      screen.getByRole("menuitem", { name: "여러 페이지 선택…" }),
+    ).not.toBeNull();
+
+    view.rerender(<AppRightRail {...props} jobActive={true} />);
+
+    expect(
+      screen.queryByRole("menuitem", { name: "여러 페이지 선택…" }),
+    ).toBeNull();
+    const trigger = screen.getByRole("button", {
+      name: "자동 지우기 추가 작업",
+    }) as HTMLButtonElement;
+    expect(trigger.disabled).toBe(true);
+    fireEvent.click(trigger);
+    expect(
+      screen.queryByRole("menuitem", { name: "여러 페이지 선택…" }),
+    ).toBeNull();
+    expect(props.onOpenAutoInpaintingOptions).not.toHaveBeenCalled();
+    expect(props.onShowGuide).not.toHaveBeenCalled();
+  });
+
+  it("disables current-page automatic erase without a selected page", () => {
+    const props = makeRightRailProps({ selectedPage: null });
+    render(<AppRightRail {...props} />);
+
+    const currentPage = screen.getByRole("button", {
+      name: "현재 페이지 자동 지우기",
+    }) as HTMLButtonElement;
+    expect(currentPage.disabled).toBe(true);
+    fireEvent.click(currentPage);
+    expect(props.onRunCurrentPageInpainting).not.toHaveBeenCalled();
+  });
+
+  it("uses manual tool, editor, then status priority without an auto mode", () => {
     const view = render(
       <AppRightRail
         {...makeRightRailProps({
-          autoInpaintingOpen: true,
           selectedBlock: makeBlock(),
           stageTool: "brush",
         })}
@@ -113,24 +210,13 @@ describe("unified right rail", () => {
     );
     expect(screen.getByRole("heading", { name: "보정 설정" })).not.toBeNull();
     expect(screen.queryByTestId("editor-slot")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "되돌리기 (Ctrl+Z)" }),
+    ).toBeNull();
 
     view.rerender(
       <AppRightRail
         {...makeRightRailProps({
-          autoInpaintingOpen: true,
-          selectedBlock: makeBlock(),
-          stageTool: "select",
-        })}
-      />,
-    );
-    expect(screen.getByRole("heading", { name: "자동 지우기" })).not.toBeNull();
-    expect(screen.queryByRole("button", { name: "남은 페이지" })).toBeNull();
-    expect(screen.queryByTestId("editor-slot")).toBeNull();
-
-    view.rerender(
-      <AppRightRail
-        {...makeRightRailProps({
-          autoInpaintingOpen: false,
           selectedBlock: makeBlock(),
           stageTool: "select",
         })}
@@ -182,14 +268,10 @@ function makeRightRailProps(
   overrides: Partial<RightRailProps> = {},
 ): RightRailProps {
   return {
-    autoInpaintingOpen: false,
     brushColor: "#ffffff",
     brushRadius: 28,
-    canRedoRetouch: false,
-    canUndoRetouch: false,
     currentChapter: makeChapter(),
     flowActive: false,
-    inpaintedPageCount: 0,
     jobActive: false,
     jobState: {
       id: "",
@@ -206,21 +288,12 @@ function makeRightRailProps(
     onOpenStyleGuide: vi.fn(),
     onOpenTextView: vi.fn(),
     onOpenTranslateOptions: vi.fn(),
-    onPeekToggle: vi.fn(),
-    onRedoRetouch: vi.fn(),
-    onRevertChapter: vi.fn(),
-    onRevertPage: vi.fn(),
     onRunDrawnPattern: vi.fn(),
+    onRunCurrentPageInpainting: vi.fn(),
     onShowGuide: vi.fn(),
     onOpenAutoInpaintingOptions: vi.fn(),
     onToggleBlocks: vi.fn(),
     onToggleChrome: vi.fn(),
-    onUndoRetouch: vi.fn(),
-    pageTargetCount: 1,
-    peekAvailable: false,
-    peeking: false,
-    pendingPageCount: 1,
-    pendingTargetCount: 1,
     progressSnapshot: null,
     selectedBlock: null,
     selectedPage: makePage(),

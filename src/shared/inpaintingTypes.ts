@@ -40,7 +40,38 @@ export type StartInpaintingResult = {
   chapters?: ChapterSnapshot[];
   pagesChanged?: number;
   blocksErased?: number;
+  historyTransaction?: InpaintingHistoryTransactionRef;
   error?: string;
+};
+
+export type InpaintingHistoryTransactionRef = {
+  transactionId: string;
+};
+
+export type ApplyInpaintingHistoryTransactionRequest = {
+  transactionId: string;
+  direction: "undo" | "redo";
+};
+
+export type ApplyInpaintingHistoryTransactionResult = {
+  transactionId: string;
+  direction: "undo" | "redo";
+  chapters: ChapterSnapshot[];
+  pagesChanged: number;
+  /**
+   * True only when applying the revision and restoring its previous server
+   * state both failed. The transaction is no longer replayable in this case;
+   * `chapters` contains the best-effort reread of the authoritative state.
+   */
+  invalidated: boolean;
+};
+
+export type ReleaseInpaintingHistoryTransactionsRequest = {
+  transactionIds: string[];
+};
+
+export type ReleaseInpaintingHistoryTransactionsResult = {
+  released: number;
 };
 
 export type InpaintingPoint = {
@@ -66,6 +97,7 @@ export type InpaintingRetouchRequest = {
 export type InpaintingRetouchResult = {
   chapter: ChapterSnapshot;
   pageId: string;
+  historyTransaction?: InpaintingHistoryTransactionRef;
 };
 
 export type InpaintingRevertRequest =
@@ -82,6 +114,7 @@ export type InpaintingRevertRequest =
 export type InpaintingRevertResult = {
   chapter: ChapterSnapshot;
   pagesChanged: number;
+  historyTransaction?: InpaintingHistoryTransactionRef;
 };
 
 export type InpaintingColorSampleRequest = {

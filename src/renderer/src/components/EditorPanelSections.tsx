@@ -1,4 +1,5 @@
 import React from "react";
+import { IconEraserOff } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { ColorField } from "./ColorField";
@@ -21,6 +22,30 @@ type BlockSectionProps = {
   disabled: boolean;
   onUpdate: BlockPatchHandler;
 };
+
+export function InpaintingBlockOption({
+  block,
+  disabled,
+  onUpdate,
+}: BlockSectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="editor-inpainting-group">
+      <label className="editor-inpainting-option">
+        <IconEraserOff size={19} stroke={2.1} aria-hidden="true" />
+        <strong>{t("editor.inpainting.exclude")}</strong>
+        <input
+          type="checkbox"
+          checked={Boolean(block.inpaintExcluded)}
+          disabled={disabled}
+          onChange={(event) =>
+            onUpdate({ inpaintExcluded: event.target.checked })
+          }
+        />
+      </label>
+    </div>
+  );
+}
 
 export function EmptyEditorPanel({
   areaTranslateAvailable,

@@ -8,12 +8,14 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
+import { useTranslation } from "react-i18next";
 import type { BBox, TranslationBlock } from "../../../shared/textTypes";
 import {
   applyEditableBlockBbox,
   resolveEditableBlockBbox,
 } from "../../../shared/geometry";
 import type { ChapterSnapshot, MangaPage } from "./hookLibraryTypes";
+import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
@@ -30,17 +32,14 @@ type UseWorkspaceBlockDragHandlersOptions = {
   currentChapter: ChapterSnapshot | null;
   imageRef: RefObject<HTMLImageElement | null>;
   inpaintingToolActive: boolean;
+  jobActive: boolean;
   regionSelectionActive: boolean;
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
   setSelectedBlockId: (blockId: string | null) => void;
   setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
   stageRef: RefObject<HTMLDivElement | null>;
-  updateCurrentChapter: (
-    pageId: string,
-    updater: (chapter: ChapterSnapshot) => ChapterSnapshot,
-    options?: { mergeKey?: string; skipHistory?: boolean },
-  ) => void;
+  updateCurrentChapter: UpdateCurrentChapter;
 };
 
 type BlockDragRef = MutableRefObject<DragState | null>;
@@ -99,6 +98,7 @@ function useCancelBlockDrag(
   dragRef: BlockDragRef,
   clearDrag: () => void,
 ): () => boolean {
+  const { t } = useTranslation("renderer");
   return useCallback(() => {
     const drag = dragRef.current;
     if (!drag) {
@@ -109,17 +109,28 @@ function useCancelBlockDrag(
         selectedPage.id,
         (chapter) =>
           applyDraggedBlockBbox(chapter, selectedPage, drag, drag.startBbox),
-        { mergeKey: `drag:${drag.blockId}` },
+        {
+          label: t("workspaceHistory.dragBlock"),
+          mergeKey: `drag:${drag.blockId}`,
+        },
       );
     }
     clearDrag();
     return true;
-  }, [clearDrag, currentChapter, dragRef, selectedPage, updateCurrentChapter]);
+  }, [
+    clearDrag,
+    currentChapter,
+    dragRef,
+    selectedPage,
+    t,
+    updateCurrentChapter,
+  ]);
 }
 
 function useBlockPointerDown(
   {
     inpaintingToolActive,
+    jobActive,
     regionSelectionActive,
     selectedPage,
     selectedPageEditLocked,
@@ -134,6 +145,7 @@ function useBlockPointerDown(
     (event, block, mode) => {
       if (
         !stageRef.current ||
+        jobActive ||
         selectedPageEditLocked ||
         regionSelectionActive ||
         inpaintingToolActive
@@ -162,6 +174,7 @@ function useBlockPointerDown(
     [
       dragRef,
       inpaintingToolActive,
+      jobActive,
       regionSelectionActive,
       selectedPage,
       selectedPageEditLocked,
@@ -177,6 +190,7 @@ function useBlockPointerMove(
   {
     currentChapter,
     imageRef,
+    jobActive,
     selectedPage,
     selectedPageEditLocked,
     stageRef,
@@ -185,6 +199,7 @@ function useBlockPointerMove(
   dragRef: BlockDragRef,
   setDragHud: SetDragHud,
 ): (event: PointerEvent) => void {
+  const { t } = useTranslation("renderer");
   return useCallback(
     (event) => {
       const drag = dragRef.current;
@@ -195,6 +210,7 @@ function useBlockPointerMove(
         !page ||
         !stage ||
         !currentChapter ||
+        jobActive ||
         selectedPageEditLocked
       ) {
         return;
@@ -214,17 +230,22 @@ function useBlockPointerMove(
       updateCurrentChapter(
         page.id,
         (chapter) => applyDraggedBlockBbox(chapter, page, drag, next),
-        { mergeKey: `drag:${drag.blockId}` },
+        {
+          label: t("workspaceHistory.dragBlock"),
+          mergeKey: `drag:${drag.blockId}`,
+        },
       );
     },
     [
       currentChapter,
       dragRef,
       imageRef,
+      jobActive,
       selectedPage,
       selectedPageEditLocked,
       setDragHud,
       stageRef,
+      t,
       updateCurrentChapter,
     ],
   );

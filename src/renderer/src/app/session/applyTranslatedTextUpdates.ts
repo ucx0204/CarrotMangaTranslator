@@ -1,5 +1,6 @@
 import type { UpdateCurrentChapter } from "../../hooks/useCurrentChapterUpdater";
 import type { TranslatedTextImportUpdate } from "../../lib/gatherText";
+import { appI18n } from "../../appI18n";
 
 /** Applies the txt-imported translations page by page as one undoable step. */
 export function applyTranslatedTextUpdates(
@@ -33,7 +34,10 @@ export function applyTranslatedTextUpdates(
               },
         ),
       }),
-      { mergeKey: "gather-txt-import" },
+      {
+        label: appI18n.t("workspaceHistory.importText", { ns: "renderer" }),
+        mergeKey: "gather-txt-import",
+      },
     );
   }
 }

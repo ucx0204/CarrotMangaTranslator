@@ -7,8 +7,12 @@ import {
 } from "./imageProtocol";
 import { registerIpc } from "./ipc/registerIpc";
 import { ActiveJobStore } from "./jobs/activeJob";
-import { finishBeforeQuitCleanup } from "./jobs/beforeQuitCleanup";
+import {
+  canReleaseInpaintingHistoryAfterQuitCleanup,
+  finishBeforeQuitCleanup,
+} from "./jobs/beforeQuitCleanup";
 import { disposeCachedInpaintingEngines } from "./inpainting/inpaintingEnginePool";
+import { InpaintingRevisionStore } from "./inpainting/inpaintingRevisionStore";
 import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
 import { getLogPath, logError, logInfo, logWarn, resetAppLog } from "./logger";
 import { createMainWindow } from "./mainWindow";
@@ -21,6 +25,7 @@ import {
 
 const appPaths = ensureWritableAppDirectories();
 const jobs = new ActiveJobStore();
+const inpaintingRevisionStore = new InpaintingRevisionStore();
 let mainWindow: BrowserWindow | null = null;
 const panelWindows = new PanelWindowRegistry(
   () => mainWindow,
@@ -79,6 +84,7 @@ app.whenReady().then(async () => {
     loadSimplePageRuntime: () => loadSimplePageRuntime(appPaths.runtimeDir),
     decodeImage: (filePath) =>
       decodeImageThroughRuntime(appPaths.runtimeDir, filePath),
+    inpaintingRevisionStore,
   });
   openMainWindow();
 
@@ -105,10 +111,11 @@ app.on("before-quit", (event) => {
 });
 
 async function finishAppQuitCleanup(): Promise<void> {
+  let inpaintingHistoryReleaseSafe = true;
   try {
     const job = jobs.current;
     if (job) {
-      await finishBeforeQuitCleanup({
+      const cleanup = await finishBeforeQuitCleanup({
         job,
         jobs,
         quit: () => undefined,
@@ -119,8 +126,19 @@ async function finishAppQuitCleanup(): Promise<void> {
           });
         },
       });
+      inpaintingHistoryReleaseSafe =
+        canReleaseInpaintingHistoryAfterQuitCleanup(job.kind, cleanup);
+      if (!inpaintingHistoryReleaseSafe) {
+        logWarn(
+          "Skipping inpainting history release because the active job did not settle before quit",
+          { jobId: job.id },
+        );
+      }
     }
     await disposeCachedInpaintingEngines("app-quit");
+    if (inpaintingHistoryReleaseSafe) {
+      await inpaintingRevisionStore.releaseAll();
+    }
   } catch (error) {
     logError("Failed to clean up before app quit", error);
   } finally {

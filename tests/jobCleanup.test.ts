@@ -8,6 +8,7 @@ import type { ActiveJob } from "../src/main/jobs/activeJob";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import {
   BEFORE_QUIT_CLEANUP_TIMEOUT_MS,
+  canReleaseInpaintingHistoryAfterQuitCleanup,
   finishBeforeQuitCleanup,
 } from "../src/main/jobs/beforeQuitCleanup";
 import { registerJobControlIpc } from "../src/main/ipc/jobControlIpc";
@@ -166,6 +167,24 @@ describe("job cancellation IPC", () => {
 });
 
 describe("before-quit cleanup", () => {
+  it("does not release revision history after an inpainting cleanup timeout", () => {
+    expect(
+      canReleaseInpaintingHistoryAfterQuitCleanup("inpainting", {
+        timedOut: true,
+      }),
+    ).toBe(false);
+    expect(
+      canReleaseInpaintingHistoryAfterQuitCleanup("inpainting", {
+        timedOut: false,
+      }),
+    ).toBe(true);
+    expect(
+      canReleaseInpaintingHistoryAfterQuitCleanup("gemma-analysis", {
+        timedOut: true,
+      }),
+    ).toBe(true);
+  });
+
   it("aborts, completes cleanup, clears the job, then quits", async () => {
     const events: string[] = [];
     const job = makeActiveJob();
@@ -188,7 +207,7 @@ describe("before-quit cleanup", () => {
       await neverTimesOut.promise;
     });
 
-    await finishBeforeQuitCleanup({
+    const result = await finishBeforeQuitCleanup({
       job,
       jobs,
       quit,
@@ -204,6 +223,7 @@ describe("before-quit cleanup", () => {
       "quit",
     ]);
     expect(warnTimedOut).not.toHaveBeenCalled();
+    expect(result).toEqual({ timedOut: false });
   });
 
   it("warns and quits after the timeout without waiting for cleanup", async () => {
@@ -233,7 +253,7 @@ describe("before-quit cleanup", () => {
       events.push(`wait:${timeoutMs}`);
     });
 
-    await finishBeforeQuitCleanup({
+    const result = await finishBeforeQuitCleanup({
       job,
       jobs,
       quit,
@@ -253,6 +273,7 @@ describe("before-quit cleanup", () => {
     await cleanupFinished.promise;
     expect(events.at(-1)).toBe("cleanup:end");
     expect(quit).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ timedOut: true });
   });
 });
 

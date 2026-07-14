@@ -14,6 +14,7 @@ import {
   touchWork,
   writeChapterFile,
 } from "./libraryFiles";
+import { logLibraryWarning } from "./libraryLogger";
 
 export type InpaintingArtifactCleanupOptions = {
   retainedInpaintedArtifactPaths?: string[];
@@ -64,15 +65,17 @@ export async function updatePagesAfterInpaintingUnlocked(
     };
   });
   chapter.updatedAt = now;
+  const savedChapter = hydrateChapter(chapter);
   await writeChapterFile(chapter);
-  await touchWork(locator.workId, now);
-  await cleanupInpaintedArtifacts(
+  await finishCommittedInpaintingMutation({
     chapterDir,
-    replacedInpaintedPaths,
-    chapter.pages,
+    chapterId,
     cleanupOptions,
-  );
-  return hydrateChapter(chapter);
+    pages: chapter.pages,
+    replacedInpaintedPaths,
+    touch: () => touchWork(locator.workId, now),
+  });
+  return savedChapter;
 }
 
 export async function setPageInpaintingResultUnlocked(
@@ -117,15 +120,70 @@ export async function setPageInpaintingResultUnlocked(
       : page,
   );
   chapter.updatedAt = now;
+  const savedChapter = hydrateChapter(chapter);
   await writeChapterFile(chapter);
-  await touchWork(locator.workId, now);
-  await cleanupInpaintedArtifacts(
-    resolve(join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId)),
-    replacedInpaintedPaths,
-    chapter.pages,
+  await finishCommittedInpaintingMutation({
+    chapterDir: resolve(
+      join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId),
+    ),
+    chapterId,
     cleanupOptions,
-  );
-  return hydrateChapter(chapter);
+    pages: chapter.pages,
+    replacedInpaintedPaths,
+    touch: () => touchWork(locator.workId, now),
+  });
+  return savedChapter;
+}
+
+/**
+ * The chapter file is the commit point for an inpainting image mutation.
+ * Metadata touching and artifact GC happen afterwards and must never turn an
+ * already committed image path into an apparent failure: callers would then
+ * discard the exact history transaction needed to undo that committed path.
+ */
+async function finishCommittedInpaintingMutation({
+  chapterDir,
+  chapterId,
+  cleanupOptions,
+  pages,
+  replacedInpaintedPaths,
+  touch,
+}: {
+  chapterDir: string;
+  chapterId: string;
+  cleanupOptions: InpaintingArtifactCleanupOptions;
+  pages: Array<{ inpaintedImagePath?: string }>;
+  replacedInpaintedPaths: string[];
+  touch: () => Promise<void>;
+}): Promise<void> {
+  try {
+    await touch();
+  } catch (error) {
+    logLibraryWarning(
+      "Failed to touch work after committing inpainting paths",
+      {
+        chapterId,
+        error,
+      },
+    );
+  }
+
+  try {
+    await cleanupInpaintedArtifacts(
+      chapterDir,
+      replacedInpaintedPaths,
+      pages,
+      cleanupOptions,
+    );
+  } catch (error) {
+    logLibraryWarning(
+      "Failed to clean artifacts after committing inpainting paths",
+      {
+        chapterId,
+        error,
+      },
+    );
+  }
 }
 
 async function cleanupInpaintedArtifacts(

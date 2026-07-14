@@ -22,14 +22,12 @@ export function ImageStage({
   dragHud = null,
   imageDataUrl,
   imageRef,
-  showInpaintingExclusions = false,
   maskStrokes = [],
   onBlockPointerDown,
   onStagePointerDown,
   onStagePointerLeave,
   onStagePointerMove,
   onStagePointerUp,
-  onToggleBlockExcluded,
   page,
   regionSelectionActive,
   regionSelectionRect,
@@ -60,13 +58,11 @@ export function ImageStage({
       dragHud={dragHud}
       imageDataUrl={imageDataUrl}
       imageRef={imageRef}
-      showInpaintingExclusions={showInpaintingExclusions}
       onBlockPointerDown={onBlockPointerDown}
       onStagePointerDown={onStagePointerDown}
       onStagePointerLeave={onStagePointerLeave}
       onStagePointerMove={onStagePointerMove}
       onStagePointerUp={onStagePointerUp}
-      onToggleBlockExcluded={onToggleBlockExcluded}
       page={page}
       regionSelectionActive={regionSelectionActive}
       regionSelectionRect={regionSelectionRect}
@@ -91,13 +87,11 @@ function ImageStageFrame({
   dragHud = null,
   imageDataUrl,
   imageRef,
-  showInpaintingExclusions = false,
   onBlockPointerDown,
   onStagePointerDown,
   onStagePointerLeave,
   onStagePointerMove,
   onStagePointerUp,
-  onToggleBlockExcluded,
   page,
   regionSelectionActive,
   regionSelectionRect,
@@ -137,9 +131,7 @@ function ImageStageFrame({
           dragHud={dragHud}
           imageDataUrl={imageDataUrl}
           imageRef={imageRef}
-          showInpaintingExclusions={showInpaintingExclusions}
           onBlockPointerDown={onBlockPointerDown}
-          onToggleBlockExcluded={onToggleBlockExcluded}
           page={page}
           regionSelectionActive={regionSelectionActive}
           regionSelectionRect={regionSelectionRect}
@@ -164,9 +156,7 @@ function ImageStageLayerSet({
   dragHud = null,
   imageDataUrl,
   imageRef,
-  showInpaintingExclusions = false,
   onBlockPointerDown,
-  onToggleBlockExcluded,
   page,
   regionSelectionActive,
   regionSelectionRect,
@@ -195,9 +185,7 @@ function ImageStageLayerSet({
       <OverlayBlockLayer
         blockPointerDisabled={blockPointerDisabled}
         imageDataUrl={imageDataUrl}
-        showInpaintingExclusions={showInpaintingExclusions}
         onBlockPointerDown={onBlockPointerDown}
-        onToggleBlockExcluded={onToggleBlockExcluded}
         page={page}
         selectedBlockId={selectedBlockId}
         selectedBlockIds={selectedBlockIds}

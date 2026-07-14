@@ -67,6 +67,21 @@
       }
     }
   },
+  "workspaceActions": {
+    "label": "画布操作",
+    "undo": "撤销（Ctrl+Z）",
+    "redo": "重做（Ctrl+Y / Ctrl+Shift+Z）",
+    "undoNamed": "撤销{{action}}（Ctrl+Z）",
+    "redoNamed": "重做{{action}}（Ctrl+Y / Ctrl+Shift+Z）",
+    "undoShort": "撤销",
+    "redoShort": "重做",
+    "original": "原图",
+    "compareOriginal": "与原图比较",
+    "hideOriginal": "结束原图比较",
+    "resetPage": "重置为原图",
+    "resetPageTitle": "将本页重置为原图（确认后执行）",
+    "resetPageShort": "重置"
+  },
   "commandPalette": {
     "title": "命令面板",
     "searchPlaceholder": "搜索命令…",
@@ -101,6 +116,11 @@
     "text": "文本",
     "translatedText": "译文",
     "blockColors": "文本块颜色",
+    "inpainting": {
+      "title": "自动擦除",
+      "exclude": "从自动擦除中排除",
+      "excludeHint": "自动修复不会擦除这个文本块内的文字。"
+    },
     "markupHint": { "emphasis": "局部强调：", "escape": "输入星号请使用" },
     "markupToolbar": {
       "boldLabel": "粗体（**粗体**）",
@@ -328,7 +348,8 @@
     "excluded": "已排除",
     "resize": "调整大小",
     "includeInInpainting": "重新纳入图像修复",
-    "excludeFromInpainting": "从图像修复中排除"
+    "excludeFromInpainting": "从图像修复中排除",
+    "excludedFromInpainting": "已从自动擦除中排除"
   },
   "imageStage": { "loadingImage": "正在加载图像" },
   "install": {
@@ -531,6 +552,11 @@
     },
     "auto": {
       "description": "先自动清除原文文字。可以逐页处理，也可以一次处理所有剩余页面。",
+      "currentPageAction": "自动擦除当前页",
+      "moreActions": "更多自动擦除操作",
+      "commandHint": "主按钮只处理当前页。仅在需要时选择页面范围。",
+      "selectMultiplePages": "选择多个页面…",
+      "guideAction": "自动擦除使用指南",
       "nextRetouch": "下一步：修整 →",
       "noOpenChapter": "未打开章节。",
       "remainingSummary": "剩余 {{pendingPages}} / {{totalPages}}页 · {{blockCount}}个文本块",

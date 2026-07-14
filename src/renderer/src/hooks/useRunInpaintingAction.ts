@@ -56,7 +56,13 @@ async function runPatternInpainting(
       options.clearPageImageCache();
       options.mergeLiveChapter(result.chapter);
     }
-    await refreshLibraryWithStatus(
+    if (result.historyTransaction) {
+      options.workspaceHistory.recordImageEdit({
+        label: t("workspaceHistory.autoInpainting"),
+        transactionId: result.historyTransaction.transactionId,
+      });
+    }
+    void refreshLibraryWithStatus(
       options.refreshLibrary,
       options.pushStatus,
       t("library.refreshAfterJobFailed"),
@@ -98,6 +104,7 @@ async function preparePatternInpainting(
   if (!confirmed) {
     return false;
   }
+  options.setPeekOriginal(false);
   options.setJobState({
     id: "pending-inpainting",
     kind: "inpainting",

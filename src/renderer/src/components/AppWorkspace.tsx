@@ -5,6 +5,7 @@ import type { MangaPage } from "../../../shared/libraryTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { isRetouchTool, type WorkspaceTool } from "../lib/stageTool";
 import { ImageStage, type ImageStageProps } from "./ImageStage";
+import { CanvasActionBar } from "./CanvasActionBar";
 import { InstallProgressOverlay } from "./InstallProgressOverlay";
 import { StageToolbar } from "./StageToolbar";
 import { Button } from "./ui";
@@ -24,8 +25,13 @@ type AppWorkspaceProps = {
   selectedBlockIds: string[];
   showTextBlocks: boolean;
   showBlockChrome: boolean;
-  autoInpaintingOpen: boolean;
   showingOriginalPeek: boolean;
+  canRedo: boolean;
+  canUndo: boolean;
+  compareAvailable: boolean;
+  resetAvailable: boolean;
+  redoLabel?: string | null;
+  undoLabel?: string | null;
   brushColor: string;
   brushRadius: number;
   retouchCursor: ImageStageProps["retouchCursor"];
@@ -47,7 +53,10 @@ type AppWorkspaceProps = {
   onStagePointerDown: ImageStageProps["onStagePointerDown"];
   onStagePointerLeave: ImageStageProps["onStagePointerLeave"];
   onBlockPointerDown: ImageStageProps["onBlockPointerDown"];
-  onToggleBlockExcluded: ImageStageProps["onToggleBlockExcluded"];
+  onPeekToggle: () => void;
+  onRedo: () => void;
+  onResetPage: () => void;
+  onUndo: () => void;
   onOpenTranslationSource: () => void;
   onOpenBatchImport: () => void;
   onOpenShareImport: () => void;
@@ -87,15 +96,31 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
         />
       </div>
       {props.selectedPage ? (
-        <StageToolbar
-          brushColor={props.brushColor}
-          brushRadius={props.brushRadius}
-          disabled={props.jobActive}
-          hidden={props.stageToolbarHidden}
-          onSelectTool={props.onSelectStageTool}
-          onToggleHidden={props.onToggleStageToolbarHidden}
-          tool={props.stageTool}
-        />
+        <>
+          <CanvasActionBar
+            canRedo={props.canRedo}
+            canUndo={props.canUndo}
+            compareAvailable={props.compareAvailable}
+            disabled={props.jobActive}
+            resetAvailable={props.resetAvailable}
+            peeking={props.showingOriginalPeek}
+            redoLabel={props.redoLabel}
+            undoLabel={props.undoLabel}
+            onPeekToggle={props.onPeekToggle}
+            onRedo={props.onRedo}
+            onResetPage={props.onResetPage}
+            onUndo={props.onUndo}
+          />
+          <StageToolbar
+            brushColor={props.brushColor}
+            brushRadius={props.brushRadius}
+            disabled={props.jobActive}
+            hidden={props.stageToolbarHidden}
+            onSelectTool={props.onSelectStageTool}
+            onToggleHidden={props.onToggleStageToolbarHidden}
+            tool={props.stageTool}
+          />
+        </>
       ) : null}
     </section>
   );
@@ -123,18 +148,16 @@ function WorkspaceContent(props: AppWorkspaceProps): React.JSX.Element {
   return (
     <WorkspacePane
       blockCreateRect={props.blockCreateRect}
-      blockPointerDisabled={props.stageTool !== "select"}
+      blockPointerDisabled={props.jobActive || props.stageTool !== "select"}
       dragHud={props.dragHud}
       imageDataUrl={props.selectedPageImageDataUrl}
       imageRef={props.imageRef}
-      showInpaintingExclusions={props.autoInpaintingOpen}
       maskStrokes={props.maskStrokes}
       onBlockPointerDown={props.onBlockPointerDown}
       onStagePointerDown={props.onStagePointerDown}
       onStagePointerLeave={props.onStagePointerLeave}
       onStagePointerMove={props.onStagePointerMove}
       onStagePointerUp={props.onStagePointerUp}
-      onToggleBlockExcluded={props.onToggleBlockExcluded}
       page={props.selectedPage}
       regionSelectionActive={props.regionSelectionActive}
       regionSelectionRect={props.regionSelectionRect}

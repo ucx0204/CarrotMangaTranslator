@@ -12,6 +12,7 @@ import type { useSettingsDialog } from "../../hooks/useSettingsDialog";
 import type { useStatusLog } from "../../hooks/useStatusLog";
 import type { useTranslationActions } from "../../hooks/useTranslationActions";
 import type { useWorkspacePointerHandlers } from "../../hooks/useWorkspacePointerHandlers";
+import type { WorkspaceHistoryController } from "../../hooks/useWorkspaceHistory";
 import type { usePanelBridgeHost } from "../../panels/usePanelBridgeHost";
 import type { AppSessionViewProps } from "./AppSessionView";
 import type { useAppSessionBridgeActions } from "./useAppSessionBridgeActions";
@@ -42,4 +43,5 @@ export type AppSessionViewModel = {
   translationActions: ReturnType<typeof useTranslationActions>;
   uiState: ReturnType<typeof useAppSessionUiState>;
   updateCurrentChapter: UpdateCurrentChapter;
+  workspaceHistory: WorkspaceHistoryController;
 };

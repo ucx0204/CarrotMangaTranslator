@@ -300,10 +300,7 @@ export async function applyInpaintingRetouch(
     );
   }
 
-  const outputPath = resolveInpaintedImagePath(
-    page.imagePath,
-    `retouch-${Date.now().toString(36)}`,
-  );
+  const outputPath = resolveInpaintedImagePath(page.imagePath, "retouch");
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, outputImage.toPNG());
   return {

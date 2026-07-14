@@ -67,6 +67,21 @@
       }
     }
   },
+  "workspaceActions": {
+    "label": "キャンバス操作",
+    "undo": "元に戻す（Ctrl+Z）",
+    "redo": "やり直す（Ctrl+Y / Ctrl+Shift+Z）",
+    "undoNamed": "{{action}}を元に戻す（Ctrl+Z）",
+    "redoNamed": "{{action}}をやり直す（Ctrl+Y / Ctrl+Shift+Z）",
+    "undoShort": "元に戻す",
+    "redoShort": "やり直す",
+    "original": "元画像",
+    "compareOriginal": "元画像と比較",
+    "hideOriginal": "元画像との比較を終了",
+    "resetPage": "元画像にリセット",
+    "resetPageTitle": "このページを元画像にリセット（確認後に実行）",
+    "resetPageShort": "リセット"
+  },
   "commandPalette": {
     "title": "コマンドパレット",
     "searchPlaceholder": "コマンドを検索…",
@@ -101,6 +116,11 @@
     "text": "テキスト",
     "translatedText": "翻訳文",
     "blockColors": "ブロックの色",
+    "inpainting": {
+      "title": "自動消去",
+      "exclude": "自動消去から除外",
+      "excludeHint": "自動インペインティングでこのブロック内の文字を消去しません。"
+    },
     "markupHint": {
       "emphasis": "部分強調:",
       "escape": "アスタリスクを入力するには"
@@ -337,7 +357,8 @@
     "excluded": "除外済み",
     "resize": "サイズ変更",
     "includeInInpainting": "インペインティングに再度含める",
-    "excludeFromInpainting": "インペインティングから除外"
+    "excludeFromInpainting": "インペインティングから除外",
+    "excludedFromInpainting": "自動消去から除外されたブロック"
   },
   "imageStage": { "loadingImage": "画像を読み込み中" },
   "install": {
@@ -540,6 +561,11 @@
     },
     "auto": {
       "description": "まず原文の文字を自動で消します。1ページずつ、または残りのページをまとめて処理できます。",
+      "currentPageAction": "現在のページを自動消去",
+      "moreActions": "自動消去の追加操作",
+      "commandHint": "メインボタンは現在のページだけを処理します。必要な場合のみ範囲を選択してください。",
+      "selectMultiplePages": "複数ページを選択…",
+      "guideAction": "自動消去の使い方",
       "nextRetouch": "次へ: 補正 →",
       "noOpenChapter": "話が開かれていません。",
       "remainingSummary": "残り {{pendingPages}} / {{totalPages}}ページ・{{blockCount}}ブロック",

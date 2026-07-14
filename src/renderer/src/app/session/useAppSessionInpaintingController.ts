@@ -1,4 +1,7 @@
 import type { BlockFormatDefaults } from "../../../../shared/blockFormat";
+import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import type { useCurrentChapterUpdater } from "../../hooks/useCurrentChapterUpdater";
 import type { useLiveChapterSync } from "../../hooks/useLiveChapterSync";
@@ -9,6 +12,8 @@ import type { useLibraryActions } from "../../hooks/useLibraryActions";
 import { usePageNavigationHandlers } from "../../hooks/usePageNavigationHandlers";
 import type { useStatusLog } from "../../hooks/useStatusLog";
 import type { useTranslationActions } from "../../hooks/useTranslationActions";
+import type { WorkspaceHistoryController } from "../../hooks/useWorkspaceHistory";
+import { captureWorkspaceMaskSnapshot } from "../../lib/workspaceHistory";
 import { useWorkspacePointerHandlers } from "../../hooks/useWorkspacePointerHandlers";
 import type { useChapterPersistence } from "../../hooks/useChapterPersistence";
 import type { useAppSessionBridgeActions } from "./useAppSessionBridgeActions";
@@ -33,6 +38,7 @@ type AppSessionInpaintingControllerArgs = {
   >["translateSelectedRegion"];
   uiState: ReturnType<typeof useAppSessionUiState>;
   updateCurrentChapter: ReturnType<typeof useCurrentChapterUpdater>;
+  workspaceHistory: WorkspaceHistoryController;
 };
 
 export function useAppSessionInpaintingController(
@@ -46,7 +52,11 @@ export function useAppSessionInpaintingController(
   const retouch = useRetouchController(args);
   const inpaintingActions = useInpaintingRunController(args, retouch);
   const pageNavigationHandlers = useNavigationController(args);
-  const pointerHandlers = usePointerController(args, retouch);
+  const pointerHandlers = usePointerController(
+    args,
+    retouch,
+    inpaintingActions,
+  );
   const inpaintingBridge = useInpaintingBridgeController(
     args,
     retouch,
@@ -69,6 +79,7 @@ function useRetouchController({
   pushStatus,
   saveNow,
   uiState,
+  workspaceHistory,
 }: AppSessionInpaintingControllerArgs): ReturnType<
   typeof useInpaintingRetouch
 > {
@@ -79,12 +90,16 @@ function useRetouchController({
     dirty,
     inpaintingBrushRadius: uiState.inpaintingBrushRadius,
     inpaintingPaintColor: uiState.inpaintingPaintColor,
-    jobActive: derivedState.jobActive,
+    jobActive:
+      derivedState.jobActive ||
+      uiState.translationFlowActive ||
+      workspaceHistory.busy,
     mergeLiveChapter,
     pushStatus,
     saveNow,
     selectedPage: derivedState.selectedPage,
     setCurrentChapter: core.setCurrentChapter,
+    workspaceHistory,
   });
 }
 
@@ -99,6 +114,7 @@ function useInpaintingRunController(
     refreshLibrary,
     saveNow,
     uiState,
+    workspaceHistory,
   }: AppSessionInpaintingControllerArgs,
   retouch: ReturnType<typeof useInpaintingRetouch>,
 ): ReturnType<typeof useInpaintingActions> {
@@ -108,7 +124,11 @@ function useInpaintingRunController(
     clearRetouchHistory: retouch.clearRetouchHistory,
     currentChapter: core.currentChapter,
     dirty,
-    jobActive: derivedState.jobActive,
+    jobActive:
+      derivedState.jobActive ||
+      retouch.retouchBusy ||
+      uiState.translationFlowActive ||
+      workspaceHistory.busy,
     mergeLiveChapter,
     patternMaskStrokes: derivedState.patternMaskStrokes,
     pushStatus,
@@ -118,6 +138,8 @@ function useInpaintingRunController(
     setInpaintingTool: uiState.setInpaintingTool,
     setJobState: core.setJobState,
     setPatternMaskStrokesByPage: uiState.setPatternMaskStrokesByPage,
+    setPeekOriginal: uiState.setPeekOriginal,
+    workspaceHistory,
   });
 }
 
@@ -149,9 +171,28 @@ function usePointerController(
     translateSelectedRegion,
     uiState,
     updateCurrentChapter,
+    workspaceHistory,
   }: AppSessionInpaintingControllerArgs,
   retouch: ReturnType<typeof useInpaintingRetouch>,
+  inpaintingActions: ReturnType<typeof useInpaintingActions>,
 ): ReturnType<typeof useWorkspacePointerHandlers> {
+  const { t } = useTranslation("renderer");
+  const onPatternMaskChange = useCallback(
+    (
+      pageId: string,
+      before: InpaintingMaskStroke[],
+      after: InpaintingMaskStroke[],
+    ) => {
+      const chapterId = core.currentChapter?.id;
+      if (!chapterId) return;
+      workspaceHistory.recordMaskEdit({
+        label: t("workspaceHistory.maskEdit"),
+        before: captureWorkspaceMaskSnapshot(chapterId, pageId, before),
+        after: captureWorkspaceMaskSnapshot(chapterId, pageId, after),
+      });
+    },
+    [core.currentChapter?.id, t, workspaceHistory],
+  );
   return useWorkspacePointerHandlers({
     appendRetouchPoint: retouch.appendRetouchPoint,
     applyRetouchPoints: retouch.applyRetouchPoints,
@@ -164,10 +205,17 @@ function usePointerController(
     inpaintingRetouchPointsRef: retouch.inpaintingRetouchPointsRef,
     inpaintingTool: uiState.inpaintingTool,
     inpaintingToolActive: derivedState.inpaintingToolActive,
-    jobActive: derivedState.jobActive || retouch.retouchBusy,
+    jobActive:
+      derivedState.jobActive ||
+      inpaintingActions.actionBusy ||
+      retouch.retouchBusy ||
+      uiState.translationFlowActive ||
+      workspaceHistory.busy,
+    onPatternMaskChange,
     onEscapeTool: () => uiState.selectWorkspaceTool("select"),
     lastInpaintingRetouchPointRef: retouch.lastInpaintingRetouchPointRef,
     pushStatus,
+    patternMaskStrokesByPage: uiState.patternMaskStrokesByPage,
     regionSelection: core.regionSelection,
     selectedPage: derivedState.selectedPage,
     selectedPageEditLocked: derivedState.selectedPageEditLocked,
@@ -194,10 +242,17 @@ function useInpaintingBridgeController(
     core,
     derivedState,
     uiState,
+    workspaceHistory,
   }: AppSessionInpaintingControllerArgs,
   retouch: ReturnType<typeof useInpaintingRetouch>,
   inpaintingActions: ReturnType<typeof useInpaintingActions>,
 ): ReturnType<typeof useInpaintingContextBridge> {
+  const clearPatternMask = useClearSelectedPatternMask({
+    core,
+    derivedState,
+    uiState,
+    workspaceHistory,
+  });
   return useInpaintingContextBridge({
     blockCounts: derivedState.blockCounts,
     brushColor: uiState.inpaintingPaintColor,
@@ -206,11 +261,15 @@ function useInpaintingBridgeController(
     canUndo: retouch.retouchUndoStack.length > 0,
     currentChapter: core.currentChapter,
     inpaintedPageCount: derivedState.inpaintedPageCount,
-    jobActive: derivedState.jobActive,
+    jobActive:
+      derivedState.jobActive ||
+      inpaintingActions.actionBusy ||
+      uiState.translationFlowActive ||
+      workspaceHistory.busy,
     jobState: core.jobState,
     maskStrokes: derivedState.patternMaskStrokes,
     onCancelJob: bridgeActions.cancelJob,
-    onClearPatternMask: () => clearSelectedPatternMask(derivedState, uiState),
+    onClearPatternMask: clearPatternMask,
     onShowGuide: () => uiState.setInpaintingGuideOpen(true),
     peekAvailable: derivedState.peekAvailable,
     peeking: derivedState.showingOriginalPeek,
@@ -234,17 +293,30 @@ function useInpaintingBridgeController(
   });
 }
 
-function clearSelectedPatternMask(
-  derivedState: ReturnType<typeof useAppSessionDerivedState>,
-  uiState: ReturnType<typeof useAppSessionUiState>,
-): void {
-  const selectedPage = derivedState.selectedPage;
-  if (!selectedPage) {
-    return;
-  }
-  uiState.setPatternMaskStrokesByPage((current) => {
-    const next = { ...current };
+function useClearSelectedPatternMask({
+  core,
+  derivedState,
+  uiState,
+  workspaceHistory,
+}: Pick<
+  AppSessionInpaintingControllerArgs,
+  "core" | "derivedState" | "uiState" | "workspaceHistory"
+>): () => void {
+  const { t } = useTranslation("renderer");
+  return useCallback(() => {
+    const selectedPage = derivedState.selectedPage;
+    const chapterId = core.currentChapter?.id;
+    const before = derivedState.patternMaskStrokes;
+    if (!selectedPage || !chapterId || before.length === 0) {
+      return;
+    }
+    const next = { ...uiState.patternMaskStrokesByPage };
     delete next[selectedPage.id];
-    return next;
-  });
+    uiState.setPatternMaskStrokesByPage(next);
+    workspaceHistory.recordMaskEdit({
+      label: t("workspaceHistory.maskEdit"),
+      before: captureWorkspaceMaskSnapshot(chapterId, selectedPage.id, before),
+      after: captureWorkspaceMaskSnapshot(chapterId, selectedPage.id, []),
+    });
+  }, [core.currentChapter?.id, derivedState, t, uiState, workspaceHistory]);
 }

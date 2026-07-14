@@ -180,6 +180,19 @@ export const InpaintingColorSampleRequestSchema = z
   })
   .strict();
 
+export const ApplyInpaintingHistoryTransactionRequestSchema = z
+  .object({
+    transactionId: uuid,
+    direction: z.enum(["undo", "redo"]),
+  })
+  .strict();
+
+export const ReleaseInpaintingHistoryTransactionsRequestSchema = z
+  .object({
+    transactionIds: z.array(uuid).min(1).max(MAX_ID_LIST_LENGTH),
+  })
+  .strict();
+
 const PageImageExportChapterSelectionSchema = z.discriminatedUnion("mode", [
   z.object({ chapterId: uuid, mode: z.literal("all") }).strict(),
   z

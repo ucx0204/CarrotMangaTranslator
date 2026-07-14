@@ -5,9 +5,9 @@ import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { useEtaText } from "../hooks/useEtaText";
 import { Button } from "./ui";
+import { ChevronDownIcon, CopyIcon, InfoIcon } from "./ui/icons";
 
 export function RunPanel({
-  autoInpaintingOpen,
   currentChapter,
   jobActive,
   flowActive,
@@ -17,9 +17,11 @@ export function RunPanel({
   onOpenExport,
   onOpenTranslateOptions,
   onOpenAutoInpaintingOptions,
+  onRunCurrentPageInpainting,
+  onShowGuide,
   onCancelJob,
+  hasSelectedPage,
 }: {
-  autoInpaintingOpen: boolean;
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
   flowActive: boolean;
@@ -29,7 +31,10 @@ export function RunPanel({
   onOpenExport: () => void;
   onOpenTranslateOptions: () => void;
   onOpenAutoInpaintingOptions: () => void;
+  onRunCurrentPageInpainting: () => void;
+  onShowGuide: () => void;
   onCancelJob: () => void;
+  hasSelectedPage: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const actionsDisabled = !currentChapter || jobActive || flowActive;
@@ -52,15 +57,12 @@ export function RunPanel({
         >
           {t("sidebar.translate")}
         </Button>
-        <Button
-          className={autoInpaintingOpen ? "active" : ""}
-          fullWidth
-          aria-pressed={autoInpaintingOpen}
-          onClick={onOpenAutoInpaintingOptions}
-          disabled={actionsDisabled}
-        >
-          {t("inpainting.inspector.autoAction")}
-        </Button>
+        <AutomaticEraseActions
+          disabled={actionsDisabled || !hasSelectedPage}
+          onOpenMultiPage={onOpenAutoInpaintingOptions}
+          onRunCurrentPage={onRunCurrentPageInpainting}
+          onShowGuide={onShowGuide}
+        />
         <Button fullWidth onClick={onOpenExport} disabled={actionsDisabled}>
           {t("inpainting.export.pngAction")}
         </Button>
@@ -74,6 +76,124 @@ export function RunPanel({
         <ProgressCard jobState={jobState} progressSnapshot={progressSnapshot} />
       ) : null}
     </section>
+  );
+}
+
+function AutomaticEraseActions({
+  disabled,
+  onOpenMultiPage,
+  onRunCurrentPage,
+  onShowGuide,
+}: {
+  disabled: boolean;
+  onOpenMultiPage: () => void;
+  onRunCurrentPage: () => void;
+  onShowGuide: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+
+  React.useEffect(() => {
+    if (!menuOpen) return;
+    const closeOutside = (event: PointerEvent): void => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOutside, true);
+    return () =>
+      document.removeEventListener("pointerdown", closeOutside, true);
+  }, [menuOpen]);
+
+  React.useEffect(() => {
+    if (disabled) setMenuOpen(false);
+  }, [disabled]);
+
+  React.useEffect(() => {
+    if (!menuOpen) return;
+    rootRef.current
+      ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
+      ?.focus();
+  }, [menuOpen]);
+
+  const closeMenuAndRestoreFocus = (): void => {
+    setMenuOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  return (
+    <div className="auto-inpainting-action" ref={rootRef}>
+      <Button fullWidth onClick={onRunCurrentPage} disabled={disabled}>
+        {t("inpainting.auto.currentPageAction")}
+      </Button>
+      <Button
+        ref={triggerRef}
+        className="auto-inpainting-menu-trigger"
+        variant="ghost"
+        aria-label={t("inpainting.auto.moreActions")}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        disabled={disabled}
+        onClick={() => setMenuOpen((open) => !open)}
+      >
+        <ChevronDownIcon size={16} />
+      </Button>
+      {menuOpen && !disabled ? (
+        <AutomaticEraseMenu
+          onClose={closeMenuAndRestoreFocus}
+          onOpenMultiPage={onOpenMultiPage}
+          onShowGuide={onShowGuide}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function AutomaticEraseMenu({
+  onClose,
+  onOpenMultiPage,
+  onShowGuide,
+}: {
+  onClose: () => void;
+  onOpenMultiPage: () => void;
+  onShowGuide: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const runAndClose = (action: () => void): void => {
+    onClose();
+    action();
+  };
+  return (
+    <div
+      className="auto-inpainting-menu"
+      role="menu"
+      aria-label={t("inpainting.auto.moreActions")}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onClose();
+        }
+      }}
+    >
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => runAndClose(onOpenMultiPage)}
+      >
+        <CopyIcon size={16} />
+        <span>{t("inpainting.auto.selectMultiplePages")}</span>
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => runAndClose(onShowGuide)}
+      >
+        <InfoIcon size={16} />
+        <span>{t("inpainting.auto.guideAction")}</span>
+      </button>
+    </div>
   );
 }
 

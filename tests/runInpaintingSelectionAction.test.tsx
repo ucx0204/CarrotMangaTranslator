@@ -6,12 +6,16 @@ import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { UseInpaintingActionsOptions } from "../src/renderer/src/hooks/inpaintingActionTypes";
 
 const startInpainting = vi.hoisted(() => vi.fn());
+const revertInpainting = vi.hoisted(() => vi.fn());
 
 vi.mock("../src/renderer/src/api/mangaGateway", () => ({
-  mangaGateway: { startInpainting },
+  mangaGateway: { revertInpainting, startInpainting },
 }));
 
+import { useRevertInpaintingAction } from "../src/renderer/src/hooks/useRevertInpaintingAction";
+import { useRunInpaintingAction } from "../src/renderer/src/hooks/useRunInpaintingAction";
 import { useRunInpaintingSelectionAction } from "../src/renderer/src/hooks/useRunInpaintingSelectionAction";
+import { useInpaintingActions } from "../src/renderer/src/hooks/useInpaintingActions";
 
 const TS = "2026-01-01T00:00:00.000Z";
 
@@ -64,6 +68,8 @@ function makeOptions(
     setInpaintingTool: vi.fn(),
     setJobState: vi.fn(),
     setPatternMaskStrokesByPage: vi.fn(),
+    setPeekOriginal: vi.fn(),
+    workspaceHistory: { recordImageEdit: vi.fn() },
     ...overrides,
   };
 }
@@ -74,13 +80,14 @@ afterEach(() => {
 });
 
 describe("useRunInpaintingSelectionAction", () => {
-  it("saves first, confirms once, starts the selection request, and merges the open chapter", async () => {
+  it("treats the picker start as confirmation and records the batch once", async () => {
     const options = makeOptions();
     startInpainting.mockResolvedValue({
       status: "completed",
       chapters: [makeChapter()],
       pagesChanged: 1,
       blocksErased: 2,
+      historyTransaction: { transactionId: "tx-batch" },
     });
     const { result } = renderHook(() =>
       useRunInpaintingSelectionAction(options),
@@ -93,7 +100,8 @@ describe("useRunInpaintingSelectionAction", () => {
     );
 
     expect(options.saveNow).toHaveBeenCalledOnce();
-    expect(options.askConfirm).toHaveBeenCalledOnce();
+    expect(options.askConfirm).not.toHaveBeenCalled();
+    expect(options.setPeekOriginal).toHaveBeenCalledWith(false);
     expect(startInpainting).toHaveBeenCalledWith({
       mode: "selection-pattern",
       workId: "work-1",
@@ -103,6 +111,9 @@ describe("useRunInpaintingSelectionAction", () => {
     });
     expect(options.mergeLiveChapter).toHaveBeenCalledWith(makeChapter());
     expect(options.refreshLibrary).toHaveBeenCalledOnce();
+    expect(options.workspaceHistory.recordImageEdit).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionId: "tx-batch" }),
+    );
     expect(vi.mocked(options.saveNow).mock.invocationCallOrder[0]).toBeLessThan(
       startInpainting.mock.invocationCallOrder[0] ?? 0,
     );
@@ -119,8 +130,109 @@ describe("useRunInpaintingSelectionAction", () => {
     await act(() => result.current([{ chapterId: "chapter-1", mode: "all" }]));
 
     expect(startInpainting).not.toHaveBeenCalled();
+    expect(options.setPeekOriginal).not.toHaveBeenCalled();
     expect(options.setJobState).toHaveBeenCalledWith(
       expect.objectContaining({ status: "failed" }),
     );
   });
 });
+
+describe("useInpaintingActions refresh queue", () => {
+  it("unlocks actions before refresh completes and serializes later refreshes", async () => {
+    const firstRefresh = createVoidDeferred();
+    const secondRefresh = createVoidDeferred();
+    const refreshLibrary = vi
+      .fn<() => Promise<void>>()
+      .mockReturnValueOnce(firstRefresh.promise)
+      .mockReturnValueOnce(secondRefresh.promise);
+    const options = makeOptions({ refreshLibrary });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapter: makeChapter(),
+      pagesChanged: 1,
+      blocksErased: 1,
+    });
+    const { result } = renderHook(() => useInpaintingActions(options));
+
+    await act(() => result.current.runInpainting("page"));
+    expect(result.current.actionBusy).toBe(false);
+    expect(refreshLibrary).toHaveBeenCalledOnce();
+
+    await act(() => result.current.runInpainting("page"));
+    expect(result.current.actionBusy).toBe(false);
+    expect(startInpainting).toHaveBeenCalledTimes(2);
+    expect(refreshLibrary).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      firstRefresh.resolve();
+      await Promise.resolve();
+    });
+    expect(refreshLibrary).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      secondRefresh.resolve();
+      await Promise.resolve();
+    });
+  });
+});
+
+describe("original comparison during page operations", () => {
+  it("clears original comparison before current-page automatic erase starts", async () => {
+    const options = makeOptions();
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapter: makeChapter(),
+      pagesChanged: 1,
+      blocksErased: 2,
+      historyTransaction: { transactionId: "tx-page" },
+    });
+    const { result } = renderHook(() => useRunInpaintingAction(options));
+
+    await act(() => result.current("page"));
+
+    expect(options.askConfirm).toHaveBeenCalledOnce();
+    expect(options.setPeekOriginal).toHaveBeenCalledWith(false);
+    expect(startInpainting).toHaveBeenCalledWith({
+      chapterId: "chapter-1",
+      mode: "page-pattern",
+      pageId: "page-1",
+    });
+    expect(
+      vi.mocked(options.setPeekOriginal).mock.invocationCallOrder[0],
+    ).toBeLessThan(startInpainting.mock.invocationCallOrder[0] ?? 0);
+  });
+
+  it("clears original comparison before resetting the page", async () => {
+    const options = makeOptions();
+    revertInpainting.mockResolvedValue({
+      chapter: makeChapter(),
+      pagesChanged: 1,
+      historyTransaction: { transactionId: "tx-reset" },
+    });
+    const { result } = renderHook(() => useRevertInpaintingAction(options));
+
+    await act(() => result.current("page"));
+
+    expect(options.askConfirm).toHaveBeenCalledOnce();
+    expect(options.setPeekOriginal).toHaveBeenCalledWith(false);
+    expect(revertInpainting).toHaveBeenCalledWith({
+      chapterId: "chapter-1",
+      scope: "page",
+      pageId: "page-1",
+    });
+    expect(options.workspaceHistory.recordImageEdit).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionId: "tx-reset" }),
+    );
+  });
+});
+
+function createVoidDeferred(): {
+  promise: Promise<void>;
+  resolve: () => void;
+} {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}

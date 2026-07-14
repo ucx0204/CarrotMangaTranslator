@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { mangaGateway } from "../api/mangaGateway";
 import { formatErrorMessage } from "../lib/appHelpers";
 import {
@@ -10,82 +11,67 @@ import {
   type UseInpaintingActionsOptions,
 } from "./inpaintingActionTypes";
 
-export function useRevertInpaintingAction({
-  askConfirm,
-  clearPageImageCache,
-  clearRetouchHistory,
-  currentChapter,
-  dirty,
-  jobActive,
-  mergeLiveChapter,
-  pushStatus,
-  saveNow,
-  selectedPage,
-  setJobState,
-}: UseInpaintingActionsOptions): (scope: InpaintingScope) => Promise<void> {
+export function useRevertInpaintingAction(
+  options: UseInpaintingActionsOptions,
+): (scope: InpaintingScope) => Promise<void> {
   const { t } = useTranslation("renderer");
   return useCallback(
-    async (scope) => {
-      const target = resolveInpaintingTarget(
-        currentChapter,
-        selectedPage,
-        scope,
-      );
-      if (!target || jobActive) {
-        return;
-      }
-      const confirmed = await askConfirm(
-        scope === "page"
-          ? t("inpainting.revert.pageTitle")
-          : t("inpainting.revert.chapterTitle"),
-        scope === "page"
-          ? t("inpainting.revert.pageMessage")
-          : t("inpainting.revert.chapterMessage"),
-        t("inpainting.revert.detail"),
-      );
-      if (!confirmed) {
-        return;
-      }
-      try {
-        await saveDirtyChanges(dirty, saveNow);
-        const result = await mangaGateway.revertInpainting(
-          target.pageId
-            ? {
-                chapterId: target.chapterId,
-                scope: "page",
-                pageId: target.pageId,
-              }
-            : { chapterId: target.chapterId, scope: "chapter" },
-        );
-        clearPageImageCache();
-        mergeLiveChapter(result.chapter);
-        clearRetouchHistory();
-        pushStatus(
-          t("inpainting.revert.success", { count: result.pagesChanged }),
-        );
-      } catch (error) {
-        console.error(error);
-        failInpaintingJob(
-          setJobState,
-          pushStatus,
-          t("inpainting.revert.failedTitle"),
-          formatErrorMessage(error, t("inpainting.revert.failed")),
-        );
-      }
-    },
-    [
-      askConfirm,
-      clearPageImageCache,
-      clearRetouchHistory,
-      currentChapter,
-      dirty,
-      jobActive,
-      mergeLiveChapter,
-      pushStatus,
-      saveNow,
-      selectedPage,
-      setJobState,
-      t,
-    ],
+    (scope) => runRevertInpainting(options, scope, t),
+    [options, t],
   );
+}
+
+async function runRevertInpainting(
+  options: UseInpaintingActionsOptions,
+  scope: InpaintingScope,
+  t: TFunction<"renderer">,
+): Promise<void> {
+  const target = resolveInpaintingTarget(
+    options.currentChapter,
+    options.selectedPage,
+    scope,
+  );
+  if (!target || options.jobActive) return;
+  const confirmed = await options.askConfirm(
+    scope === "page"
+      ? t("inpainting.revert.pageTitle")
+      : t("inpainting.revert.chapterTitle"),
+    scope === "page"
+      ? t("inpainting.revert.pageMessage")
+      : t("inpainting.revert.chapterMessage"),
+  );
+  if (!confirmed) return;
+  options.setPeekOriginal(false);
+  try {
+    await saveDirtyChanges(options.dirty, options.saveNow);
+    const result = await mangaGateway.revertInpainting(
+      target.pageId
+        ? {
+            chapterId: target.chapterId,
+            scope: "page",
+            pageId: target.pageId,
+          }
+        : { chapterId: target.chapterId, scope: "chapter" },
+    );
+    options.clearPageImageCache();
+    options.mergeLiveChapter(result.chapter);
+    options.clearRetouchHistory();
+    if (result.historyTransaction) {
+      options.workspaceHistory.recordImageEdit({
+        label: t("workspaceHistory.resetOriginal"),
+        transactionId: result.historyTransaction.transactionId,
+      });
+    }
+    options.pushStatus(
+      t("inpainting.revert.success", { count: result.pagesChanged }),
+    );
+  } catch (error) {
+    console.error(error);
+    failInpaintingJob(
+      options.setJobState,
+      options.pushStatus,
+      t("inpainting.revert.failedTitle"),
+      formatErrorMessage(error, t("inpainting.revert.failed")),
+    );
+  }
 }

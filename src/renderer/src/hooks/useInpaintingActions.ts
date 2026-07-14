@@ -9,8 +9,10 @@ import { useRevertInpaintingAction } from "./useRevertInpaintingAction";
 import { useRunInpaintingAction } from "./useRunInpaintingAction";
 import { useRunInpaintingSelectionAction } from "./useRunInpaintingSelectionAction";
 import type { AutoInpaintingChapterSelection } from "../lib/autoInpaintingSelection";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-export function useInpaintingActions(options: UseInpaintingActionsOptions): {
+type InpaintingActions = {
+  actionBusy: boolean;
   exportPageImages: (
     selections: PageImageExportChapterSelection[],
   ) => Promise<boolean>;
@@ -20,15 +22,81 @@ export function useInpaintingActions(options: UseInpaintingActionsOptions): {
   runInpaintingSelection: (
     selections: AutoInpaintingChapterSelection[],
   ) => Promise<void>;
-} {
-  const runInpainting = useRunInpaintingAction(options);
-  const runDrawnPatternInpainting = useDrawnPatternInpaintingAction(options);
-  const revertInpainting = useRevertInpaintingAction(options);
+};
+
+export function useInpaintingActions(
+  options: UseInpaintingActionsOptions,
+): InpaintingActions {
+  const refreshLibrary = useSerializedLibraryRefresh(options.refreshLibrary);
+  const queuedOptions = { ...options, refreshLibrary };
+  const rawActions = {
+    runInpainting: useRunInpaintingAction(queuedOptions),
+    runDrawnPatternInpainting: useDrawnPatternInpaintingAction(queuedOptions),
+    revertInpainting: useRevertInpaintingAction(queuedOptions),
+    runInpaintingSelection: useRunInpaintingSelectionAction(queuedOptions),
+  };
+  const exclusive = useExclusiveImageActions(rawActions);
   const exportPageImages = useExportPageImagesAction(options);
-  const runInpaintingSelection = useRunInpaintingSelectionAction(options);
 
   return {
+    ...exclusive,
     exportPageImages,
+  };
+}
+
+function useSerializedLibraryRefresh(
+  refreshLibrary: () => Promise<void>,
+): () => Promise<void> {
+  const refreshRef = useRef(refreshLibrary);
+  const tailRef = useRef<Promise<void>>(Promise.resolve());
+  useEffect(() => {
+    refreshRef.current = refreshLibrary;
+  }, [refreshLibrary]);
+  return useCallback(() => {
+    const run = (): Promise<void> => refreshRef.current();
+    const scheduled = tailRef.current.then(run, run);
+    tailRef.current = scheduled;
+    return scheduled;
+  }, []);
+}
+
+function useExclusiveImageActions(
+  actions: Omit<InpaintingActions, "actionBusy" | "exportPageImages">,
+): Omit<InpaintingActions, "exportPageImages"> {
+  const busyRef = useRef(false);
+  const [actionBusy, setActionBusy] = useState(false);
+  const runExclusive = useCallback(async (run: () => Promise<void>) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setActionBusy(true);
+    try {
+      await run();
+    } finally {
+      busyRef.current = false;
+      setActionBusy(false);
+    }
+  }, []);
+  const runInpainting = useCallback(
+    (scope: InpaintingScope) =>
+      runExclusive(() => actions.runInpainting(scope)),
+    [actions, runExclusive],
+  );
+  const runDrawnPatternInpainting = useCallback(
+    () => runExclusive(actions.runDrawnPatternInpainting),
+    [actions, runExclusive],
+  );
+  const revertInpainting = useCallback(
+    (scope: InpaintingScope) =>
+      runExclusive(() => actions.revertInpainting(scope)),
+    [actions, runExclusive],
+  );
+  const runInpaintingSelection = useCallback(
+    (selections: AutoInpaintingChapterSelection[]) =>
+      runExclusive(() => actions.runInpaintingSelection(selections)),
+    [actions, runExclusive],
+  );
+  return {
+    actionBusy,
     revertInpainting,
     runDrawnPatternInpainting,
     runInpainting,

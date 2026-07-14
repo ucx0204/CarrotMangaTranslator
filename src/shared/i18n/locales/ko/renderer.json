@@ -181,10 +181,9 @@
       "translate-all": "전체 다시 번역",
       "gather-text": "텍스트 모아보기",
       "cancel-job": "작업 취소",
-      "toggle-inpainting": "자동 지우기 패널 열기/닫기",
+      "toggle-inpainting": "현재 페이지 자동 지우기",
       "history-undo": "실행 취소",
       "history-redo": "다시 실행",
-      "retouch-redo": "보정 다시 실행",
       "delete-block": "선택한 블록 삭제",
       "duplicate-block": "선택한 블록 복제",
       "toggle-block-excluded": "블록 인페인팅 제외 전환",
@@ -192,6 +191,21 @@
       "toggle-shortcut-help": "단축키 도움말",
       "open-settings": "설정 열기"
     }
+  },
+  "workspaceHistory": {
+    "blockEdit": "텍스트 블록 편집",
+    "exclusion": "자동 지우기 제외 설정 변경",
+    "format": "블록 서식 변경",
+    "deleteBlock": "블록 삭제",
+    "duplicateBlock": "블록 복제",
+    "createBlock": "블록 추가",
+    "dragBlock": "블록 이동·크기 조절",
+    "importText": "번역문 가져오기",
+    "maskEdit": "마스크 편집",
+    "autoInpainting": "자동 지우기",
+    "drawnInpainting": "그린 영역 지우기",
+    "retouch": "수동 보정",
+    "resetOriginal": "원본으로 초기화"
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "작업 중에는 이 화 전체 서식 일괄 적용을 사용할 수 없습니다.",
@@ -291,16 +305,16 @@
       "preparing": "PNG 출력 준비 중"
     },
     "revert": {
-      "pageTitle": "이 페이지 원본으로 되돌리기",
-      "chapterTitle": "전체 페이지 원본으로 되돌리기",
-      "pageMessage": "현재 페이지의 인페인팅 결과를 원본 이미지로 되돌립니다.",
-      "chapterMessage": "현재 화의 인페인팅 결과를 원본 이미지로 되돌립니다.",
-      "detail": "번역 블록과 좌표는 유지하고, 지워진 이미지 결과만 해제합니다.",
-      "success": "인페인팅 되돌리기 완료: {{count}}페이지",
-      "success_one": "인페인팅 되돌리기 완료: {{count}}페이지",
-      "success_other": "인페인팅 되돌리기 완료: {{count}}페이지",
-      "failedTitle": "되돌리기 실패",
-      "failed": "인페인팅 결과를 되돌리지 못했습니다."
+      "pageTitle": "이 페이지를 원본으로 초기화",
+      "chapterTitle": "전체 페이지를 원본으로 초기화",
+      "pageMessage": "현재 페이지 이미지를 원본으로 초기화합니다.",
+      "chapterMessage": "현재 화의 모든 페이지 이미지를 원본으로 초기화합니다.",
+      "detail": "번역 블록과 좌표는 유지되며, 이 초기화는 실행 취소할 수 있습니다.",
+      "success": "원본으로 초기화 완료: {{count}}페이지",
+      "success_one": "원본으로 초기화 완료: {{count}}페이지",
+      "success_other": "원본으로 초기화 완료: {{count}}페이지",
+      "failedTitle": "원본 초기화 실패",
+      "failed": "이미지를 원본으로 초기화하지 못했습니다."
     },
     "retouch": {
       "applyFailed": "리터치 적용에 실패했습니다.",

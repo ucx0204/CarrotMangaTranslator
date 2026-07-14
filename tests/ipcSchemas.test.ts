@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  ApplyInpaintingHistoryTransactionRequestSchema,
   AppSettingsSchema,
   AnalyzeWorkContextRequestSchema,
   ChapterSnapshotSchema,
   JobEventSchema,
   ModelTestProgressEventSchema,
   parseIpcPayload,
+  ReleaseInpaintingHistoryTransactionsRequestSchema,
   SavePageBlocksRequestSchema,
   StartAnalysisRequestSchema,
   StartInpaintingRequestSchema,
@@ -311,6 +313,38 @@ describe("IPC schemas", () => {
           selections: [{ chapterId, mode: "page-set", pageIds: [] }],
         },
         "인페인팅 작업",
+      ),
+    ).toThrow(/요청 형식/);
+  });
+
+  it("validates opaque inpainting history transaction commands", () => {
+    const transactionId = "66666666-6666-4666-8666-666666666666";
+    expect(
+      parseIpcPayload(
+        ApplyInpaintingHistoryTransactionRequestSchema,
+        { transactionId, direction: "undo" },
+        "인페인팅 기록",
+      ),
+    ).toEqual({ transactionId, direction: "undo" });
+    expect(
+      parseIpcPayload(
+        ReleaseInpaintingHistoryTransactionsRequestSchema,
+        { transactionIds: [transactionId] },
+        "인페인팅 기록",
+      ).transactionIds,
+    ).toEqual([transactionId]);
+    expect(() =>
+      parseIpcPayload(
+        ApplyInpaintingHistoryTransactionRequestSchema,
+        { transactionId: "../outside", direction: "undo" },
+        "인페인팅 기록",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        ReleaseInpaintingHistoryTransactionsRequestSchema,
+        { transactionIds: [] },
+        "인페인팅 기록",
       ),
     ).toThrow(/요청 형식/);
   });

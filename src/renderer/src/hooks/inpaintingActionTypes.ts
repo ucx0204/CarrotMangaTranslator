@@ -3,6 +3,7 @@ import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import { formatErrorMessage } from "../lib/appHelpers";
 import type { ChapterSnapshot, MangaPage } from "./hookLibraryTypes";
+import type { WorkspaceHistoryController } from "./useWorkspaceHistory";
 
 export type InpaintingScope = "page" | "chapter";
 
@@ -36,6 +37,8 @@ export type UseInpaintingActionsOptions = {
   setPatternMaskStrokesByPage: Dispatch<
     SetStateAction<Record<string, InpaintingMaskStroke[]>>
   >;
+  setPeekOriginal: Dispatch<SetStateAction<boolean>>;
+  workspaceHistory: Pick<WorkspaceHistoryController, "recordImageEdit">;
 };
 
 export function failInpaintingJob(

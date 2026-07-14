@@ -5,12 +5,11 @@ import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { Command } from "../lib/appCommandTypes";
 
 type UseAppCommandsOptions = {
-  autoInpaintingOpen: boolean;
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
   runAnalysis: (runMode: "pending" | "all") => void;
   openTranslateOptions: () => void;
-  toggleAutoInpainting: () => void;
+  runCurrentPageInpainting: () => void;
   cancelJob: () => void;
   openImportPreview: (mode: "zip-folder") => Promise<void>;
   openShareImportPreview: () => Promise<void>;
@@ -24,12 +23,11 @@ type UseAppCommandsOptions = {
 };
 
 export function useAppCommands({
-  autoInpaintingOpen,
   currentChapter,
   jobActive,
   runAnalysis,
   openTranslateOptions,
-  toggleAutoInpainting,
+  runCurrentPageInpainting,
   cancelJob,
   openImportPreview,
   openShareImportPreview,
@@ -45,12 +43,11 @@ export function useAppCommands({
   return useMemo(
     () =>
       buildAppCommands({
-        autoInpaintingOpen,
         currentChapter,
         jobActive,
         runAnalysis,
         openTranslateOptions,
-        toggleAutoInpainting,
+        runCurrentPageInpainting,
         cancelJob,
         openImportPreview,
         openShareImportPreview,
@@ -66,10 +63,9 @@ export function useAppCommands({
     [
       currentChapter,
       jobActive,
-      autoInpaintingOpen,
       runAnalysis,
       openTranslateOptions,
-      toggleAutoInpainting,
+      runCurrentPageInpainting,
       cancelJob,
       openImportPreview,
       openShareImportPreview,
@@ -135,10 +131,9 @@ function buildTranslationCommands({
 }
 
 function buildInpaintingCommands({
-  autoInpaintingOpen,
   currentChapter,
   jobActive,
-  toggleAutoInpainting,
+  runCurrentPageInpainting,
   t,
 }: LocalizedCommandOptions): Command[] {
   if (!currentChapter || jobActive) {
@@ -146,13 +141,10 @@ function buildInpaintingCommands({
   }
   return [
     {
-      id: "toggle-auto-inpainting",
+      id: "run-current-page-inpainting",
       label: t("commands.autoInpainting.label"),
-      hint: autoInpaintingOpen
-        ? t("commands.autoInpainting.closeHint")
-        : undefined,
       keywords: t("commands.autoInpainting.keywords"),
-      run: toggleAutoInpainting,
+      run: runCurrentPageInpainting,
     },
   ];
 }

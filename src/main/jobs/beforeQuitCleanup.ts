@@ -11,6 +11,17 @@ type BeforeQuitCleanupOptions = {
   wait?: (timeoutMs: number) => Promise<void>;
 };
 
+export type BeforeQuitCleanupResult = {
+  timedOut: boolean;
+};
+
+export function canReleaseInpaintingHistoryAfterQuitCleanup(
+  jobKind: ActiveJob["kind"],
+  result: BeforeQuitCleanupResult,
+): boolean {
+  return jobKind !== "inpainting" || !result.timedOut;
+}
+
 export async function finishBeforeQuitCleanup({
   job,
   jobs,
@@ -18,7 +29,7 @@ export async function finishBeforeQuitCleanup({
   warnTimedOut,
   timeoutMs = BEFORE_QUIT_CLEANUP_TIMEOUT_MS,
   wait = delay,
-}: BeforeQuitCleanupOptions): Promise<void> {
+}: BeforeQuitCleanupOptions): Promise<BeforeQuitCleanupResult> {
   job.abortController.abort();
   const timedOut = await Promise.race([
     jobs.runCleanup(job, "before-quit").then(() => false),
@@ -29,6 +40,7 @@ export async function finishBeforeQuitCleanup({
   }
   jobs.clearIfCurrent(job.id);
   quit();
+  return { timedOut };
 }
 
 function delay(ms: number): Promise<void> {

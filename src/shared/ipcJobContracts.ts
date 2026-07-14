@@ -7,12 +7,16 @@ import type {
   StartAnalysisResult,
 } from "./analysisTypes";
 import type {
+  ApplyInpaintingHistoryTransactionRequest,
+  ApplyInpaintingHistoryTransactionResult,
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
   InpaintingRetouchRequest,
   InpaintingRetouchResult,
   InpaintingRevertRequest,
   InpaintingRevertResult,
+  ReleaseInpaintingHistoryTransactionsRequest,
+  ReleaseInpaintingHistoryTransactionsResult,
   SetPageInpaintingResultRequest,
   SetPageInpaintingResultResult,
   StartInpaintingRequest,
@@ -23,12 +27,14 @@ import type {
   PageImageExportResult,
 } from "./pageImageExportTypes";
 import {
+  ApplyInpaintingHistoryTransactionRequestSchema,
   ChapterSnapshotSchema,
   InpaintingColorSampleRequestSchema,
   InpaintingRetouchRequestSchema,
   InpaintingRevertRequestSchema,
   PageImageExportRequestSchema,
   RegionAnalysisRequestSchema,
+  ReleaseInpaintingHistoryTransactionsRequestSchema,
   SetPageInpaintingResultRequestSchema,
   StartAnalysisRequestSchema,
   StartInpaintingRequestSchema,
@@ -68,20 +74,47 @@ const startInpaintingResultSchema = z
     chapters: z.array(ChapterSnapshotSchema).max(MAX_ID_LIST_LENGTH).optional(),
     pagesChanged: nonNegativeInteger.optional(),
     blocksErased: nonNegativeInteger.optional(),
+    historyTransaction: z
+      .object({ transactionId: z.string().uuid() })
+      .strict()
+      .optional(),
     error: diagnosticString.optional(),
   })
   .strict();
 const inpaintingRetouchResultSchema = z
-  .object({ chapter: ChapterSnapshotSchema, pageId: stringArg })
+  .object({
+    chapter: ChapterSnapshotSchema,
+    pageId: stringArg,
+    historyTransaction: z
+      .object({ transactionId: z.string().uuid() })
+      .strict()
+      .optional(),
+  })
   .strict();
 const inpaintingRevertResultSchema = z
   .object({
     chapter: ChapterSnapshotSchema,
     pagesChanged: nonNegativeInteger,
+    historyTransaction: z
+      .object({ transactionId: z.string().uuid() })
+      .strict()
+      .optional(),
   })
   .strict();
 const inpaintingColorSampleResultSchema = z
   .object({ color: z.string().min(1).max(40) })
+  .strict();
+const applyInpaintingHistoryTransactionResultSchema = z
+  .object({
+    transactionId: z.string().uuid(),
+    direction: z.enum(["undo", "redo"]),
+    chapters: z.array(ChapterSnapshotSchema).max(MAX_ID_LIST_LENGTH),
+    pagesChanged: nonNegativeInteger,
+    invalidated: z.boolean(),
+  })
+  .strict();
+const releaseInpaintingHistoryTransactionsResultSchema = z
+  .object({ released: nonNegativeInteger })
   .strict();
 const pageImageExportResultSchema = z
   .object({
@@ -151,6 +184,24 @@ export const inpaintingIpcContracts = {
     channel: "inpainting:revert",
     args: z.tuple([InpaintingRevertRequestSchema]),
     result: inpaintingRevertResultSchema,
+  }),
+  applyInpaintingHistoryTransaction: defineIpcContract<
+    [ApplyInpaintingHistoryTransactionRequest],
+    ApplyInpaintingHistoryTransactionResult
+  >({
+    apiKey: "applyInpaintingHistoryTransaction",
+    channel: "inpainting:apply-history-transaction",
+    args: z.tuple([ApplyInpaintingHistoryTransactionRequestSchema]),
+    result: applyInpaintingHistoryTransactionResultSchema,
+  }),
+  releaseInpaintingHistoryTransactions: defineIpcContract<
+    [ReleaseInpaintingHistoryTransactionsRequest],
+    ReleaseInpaintingHistoryTransactionsResult
+  >({
+    apiKey: "releaseInpaintingHistoryTransactions",
+    channel: "inpainting:release-history-transactions",
+    args: z.tuple([ReleaseInpaintingHistoryTransactionsRequestSchema]),
+    result: releaseInpaintingHistoryTransactionsResultSchema,
   }),
   sampleInpaintingColor: defineIpcContract<
     [InpaintingColorSampleRequest],

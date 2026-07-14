@@ -178,10 +178,9 @@
       "translate-all": "すべて再翻訳",
       "gather-text": "テキストをまとめて表示",
       "cancel-job": "処理をキャンセル",
-      "toggle-inpainting": "自動消去パネルを開く／閉じる",
+      "toggle-inpainting": "現在のページを自動消去",
       "history-undo": "元に戻す",
       "history-redo": "やり直す",
-      "retouch-redo": "補正をやり直す",
       "delete-block": "選択したブロックを削除",
       "duplicate-block": "選択したブロックを複製",
       "toggle-block-excluded": "ブロックのインペインティング除外を切り替え",
@@ -189,6 +188,21 @@
       "toggle-shortcut-help": "ショートカット一覧",
       "open-settings": "設定を開く"
     }
+  },
+  "workspaceHistory": {
+    "blockEdit": "テキストブロックを編集",
+    "exclusion": "自動消去の除外設定を変更",
+    "format": "ブロックの書式を変更",
+    "deleteBlock": "ブロックを削除",
+    "duplicateBlock": "ブロックを複製",
+    "createBlock": "ブロックを追加",
+    "dragBlock": "ブロックを移動・サイズ変更",
+    "importText": "翻訳文を読み込み",
+    "maskEdit": "マスクを編集",
+    "autoInpainting": "自動消去",
+    "drawnInpainting": "描画範囲を消去",
+    "retouch": "手動補正",
+    "resetOriginal": "原画像に戻す"
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "処理中は話全体への一括書式適用を使用できません。",
@@ -285,16 +299,16 @@
       "preparing": "PNG出力を準備中"
     },
     "revert": {
-      "pageTitle": "このページを元画像に戻す",
-      "chapterTitle": "すべてのページを元画像に戻す",
-      "pageMessage": "現在のページのインペインティング結果を元画像に戻します。",
-      "chapterMessage": "現在の話のインペインティング結果を元画像に戻します。",
-      "detail": "翻訳ブロックと座標は保持し、消去済み画像の結果だけを解除します。",
-      "success": "インペインティングを元に戻しました: {{count}}ページ",
-      "success_one": "インペインティングを元に戻しました: {{count}}ページ",
-      "success_other": "インペインティングを元に戻しました: {{count}}ページ",
-      "failedTitle": "元に戻せませんでした",
-      "failed": "インペインティング結果を元に戻せませんでした。"
+      "pageTitle": "このページを元画像に初期化",
+      "chapterTitle": "すべてのページを元画像に初期化",
+      "pageMessage": "現在のページ画像を元画像に初期化します。",
+      "chapterMessage": "現在の話の全ページ画像を元画像に初期化します。",
+      "detail": "翻訳ブロックと座標は保持され、この初期化は取り消せます。",
+      "success": "元画像への初期化が完了しました: {{count}}ページ",
+      "success_one": "元画像への初期化が完了しました: {{count}}ページ",
+      "success_other": "元画像への初期化が完了しました: {{count}}ページ",
+      "failedTitle": "元画像への初期化に失敗しました",
+      "failed": "画像を元画像に初期化できませんでした。"
     },
     "retouch": {
       "applyFailed": "補正を適用できませんでした。",

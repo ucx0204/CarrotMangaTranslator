@@ -24,9 +24,8 @@ export function useAppSessionShortcuts({
   inpainting,
 }: AppSessionShortcutsArgs): void {
   const { core, derivedState, uiState } = chapter;
-  const { blockEditingActions, chapterHistory, translationActions } =
+  const { blockEditingActions, translationActions, workspaceHistory } =
     translation;
-  const { inpaintingBridge } = inpainting;
   const selectStageTool = (tool: "select" | "block" | "hand"): void => {
     core.setRegionSelection(null);
     uiState.selectWorkspaceTool(tool);
@@ -37,7 +36,10 @@ export function useAppSessionShortcuts({
     paletteOpen: uiState.commandPaletteOpen,
     helpOpen: uiState.shortcutHelpOpen,
     chapterOpen: Boolean(core.currentChapter),
-    jobActive: derivedState.jobActive,
+    jobActive:
+      inpainting.inpaintingBridge.contextValue.jobActive ||
+      uiState.translationFlowActive ||
+      workspaceHistory.busy,
     retouchToolActive: derivedState.inpaintingToolActive,
     blockSelected: Boolean(derivedState.selectedBlock),
   };
@@ -61,25 +63,11 @@ export function useAppSessionShortcuts({
     "cancel-job": () => chapter.bridgeActions.cancelJob(),
     "toggle-inpainting": () => {
       core.setRegionSelection(null);
-      uiState.toggleAutoInpainting();
+      uiState.selectWorkspaceTool("select");
+      void inpainting.inpaintingActions.runInpainting("page");
     },
-    // Ctrl+Z / Ctrl+Shift+Z belong to retouch only while a manual image tool
-    // is active; otherwise they keep driving the chapter edit history.
-    "history-undo": () => {
-      if (derivedState.inpaintingToolActive) {
-        inpaintingBridge.contextValue.onUndoRetouch();
-      } else {
-        chapterHistory.undo();
-      }
-    },
-    "history-redo": () => {
-      if (derivedState.inpaintingToolActive) {
-        inpaintingBridge.contextValue.onRedoRetouch();
-      } else {
-        chapterHistory.redo();
-      }
-    },
-    "retouch-redo": () => inpaintingBridge.contextValue.onRedoRetouch(),
+    "history-undo": () => void workspaceHistory.undo(),
+    "history-redo": () => void workspaceHistory.redo(),
     "delete-block": () => blockEditingActions.deleteSelectedBlock(),
     "duplicate-block": () => blockEditingActions.duplicateSelectedBlock(),
     "toggle-block-excluded": () => {

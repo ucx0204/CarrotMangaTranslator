@@ -67,7 +67,6 @@ export type ShortcutActionId =
   | "toggle-inpainting"
   | "history-undo"
   | "history-redo"
-  | "retouch-redo"
   | "delete-block"
   | "duplicate-block"
   | "toggle-block-excluded"
@@ -127,7 +126,7 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "원본 미리보기 전환",
     category: "view",
     defaultCombo: "o",
-    enabled: (c) => c.chapterOpen,
+    enabled: (c) => c.chapterOpen && !c.jobActive,
   },
   {
     id: "zoom-in",
@@ -159,28 +158,28 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "선택 도구",
     category: "tool",
     defaultCombo: "1",
-    enabled: (c) => c.chapterOpen,
+    enabled: (c) => c.chapterOpen && !c.jobActive,
   },
   {
     id: "stage-tool-block",
     label: "블록 도구 (드래그로 블록 추가)",
     category: "tool",
     defaultCombo: "2",
-    enabled: (c) => c.chapterOpen,
+    enabled: (c) => c.chapterOpen && !c.jobActive,
   },
   {
     id: "stage-tool-hand",
     label: "손바닥 도구 (드래그로 이동)",
     category: "tool",
     defaultCombo: "3",
-    enabled: (c) => c.chapterOpen,
+    enabled: (c) => c.chapterOpen && !c.jobActive,
   },
   {
     id: "toggle-stage-toolbar",
     label: "도구 모음 표시 전환",
     category: "tool",
     defaultCombo: "4",
-    enabled: (c) => c.chapterOpen,
+    enabled: (c) => c.chapterOpen && !c.jobActive,
   },
   {
     id: "open-translate-options",
@@ -219,7 +218,7 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
   },
   {
     id: "toggle-inpainting",
-    label: "자동 지우기 패널 열기/닫기",
+    label: "현재 페이지 자동 지우기",
     category: "inpaint",
     defaultCombo: "i",
     enabled: (c) => c.chapterOpen && !c.jobActive,
@@ -230,36 +229,30 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     category: "edit",
     defaultCombo: "ctrl+z",
     allowInEditable: true,
-    enabled: (c) => c.chapterOpen,
+    enabled: (c) => c.chapterOpen && !c.jobActive,
   },
   {
     id: "history-redo",
     label: "다시 실행",
     category: "edit",
     defaultCombo: "ctrl+shift+z",
+    defaultAlternateCombos: ["ctrl+y"],
     allowInEditable: true,
-    enabled: (c) => c.chapterOpen,
-  },
-  {
-    id: "retouch-redo",
-    label: "보정 다시 실행",
-    category: "inpaint",
-    defaultCombo: "ctrl+y",
-    enabled: (c) => c.retouchToolActive,
+    enabled: (c) => c.chapterOpen && !c.jobActive,
   },
   {
     id: "delete-block",
     label: "선택한 블록 삭제",
     category: "edit",
     defaultCombo: "delete",
-    enabled: (c) => c.blockSelected,
+    enabled: (c) => c.blockSelected && !c.jobActive,
   },
   {
     id: "duplicate-block",
     label: "선택한 블록 복제",
     category: "edit",
     defaultCombo: "ctrl+d",
-    enabled: (c) => c.blockSelected,
+    enabled: (c) => c.blockSelected && !c.jobActive,
   },
   {
     id: "toggle-block-excluded",

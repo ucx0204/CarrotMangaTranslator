@@ -1,5 +1,6 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
+import type { WorkspaceHistoryController } from "./useWorkspaceHistory";
 
 export type RetouchPoint = { x: number; y: number };
 
@@ -24,6 +25,7 @@ export type UseInpaintingRetouchOptions = {
   saveNow: () => Promise<void>;
   selectedPage: MangaPage | null;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
+  workspaceHistory: Pick<WorkspaceHistoryController, "recordImageEdit">;
 };
 
 export type InpaintingRetouchResult = {

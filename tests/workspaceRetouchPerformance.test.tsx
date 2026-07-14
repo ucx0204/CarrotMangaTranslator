@@ -149,6 +149,8 @@ function RetouchHarness({
     inpaintingToolActive: true,
     jobActive: false,
     lastInpaintingRetouchPointRef: lastPointRef,
+    onPatternMaskChange: () => undefined,
+    patternMaskStrokesByPage: {},
     pushStatus: () => undefined,
     selectedPage: page,
     selectedPageIdRef,

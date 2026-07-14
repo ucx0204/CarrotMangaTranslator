@@ -47,7 +47,13 @@ async function runSelectedInpainting(
       options.clearPageImageCache();
       options.mergeLiveChapter(currentChapter);
     }
-    await refreshLibraryWithStatus(
+    if (result.historyTransaction) {
+      options.workspaceHistory.recordImageEdit({
+        label: t("workspaceHistory.autoInpainting"),
+        transactionId: result.historyTransaction.transactionId,
+      });
+    }
+    void refreshLibraryWithStatus(
       options.refreshLibrary,
       options.pushStatus,
       t("library.refreshAfterJobFailed"),
@@ -80,16 +86,7 @@ async function prepareSelectedInpainting(
     );
     return false;
   }
-  const confirmed = await options.askConfirm(
-    t("inpainting.erase.title"),
-    t("inpainting.erase.message", {
-      scope: t("inpainting.erase.selectedPages"),
-    }),
-    t("inpainting.erase.detail"),
-  );
-  if (!confirmed) {
-    return false;
-  }
+  options.setPeekOriginal(false);
   options.setJobState({
     id: "pending-inpainting",
     kind: "inpainting",

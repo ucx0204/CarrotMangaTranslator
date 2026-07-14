@@ -1,32 +1,32 @@
 import { useBlockEditingActions } from "../../hooks/useBlockEditingActions";
-import { useChapterHistory } from "../../hooks/useChapterHistory";
 import { useCurrentChapterUpdater } from "../../hooks/useCurrentChapterUpdater";
 import { useImportShareActions } from "../../hooks/useImportShareActions";
 import { usePageRetranslationAction } from "../../hooks/usePageRetranslationAction";
 import { useRegionTranslationPreparation } from "../../hooks/useRegionTranslationPreparation";
 import { useTranslationActions } from "../../hooks/useTranslationActions";
 import type { ChapterSessionController } from "./useChapterSessionController";
+import { useAppSessionWorkspaceHistory } from "./useAppSessionWorkspaceHistory";
 
 export function useTranslationController(chapter: ChapterSessionController) {
-  const importShareActions = useImportShareController(chapter);
-  const translationActions = useTranslationActionController(chapter);
-  const chapterHistory = useChapterHistory({
-    currentChapterRef: chapter.core.currentChapterRef,
-    chapterId: chapter.core.currentChapter?.id ?? null,
-    setCurrentChapter: chapter.core.setCurrentChapter,
-    selectedPageId: chapter.core.selectedPageId,
-    selectedBlockId: chapter.core.selectedBlockId,
-    selectedBlockIds: chapter.core.selectedBlockIds,
-    setSelectedPageId: chapter.core.setSelectedPageId,
-    setSelectedBlockId: chapter.core.setSelectedBlockId,
-    setSelectedBlockIds: chapter.core.setSelectedBlockIds,
-    markDirty: chapter.persistence.markDirty,
-  });
+  const workspaceHistory = useAppSessionWorkspaceHistory(chapter);
+  const importShareActions = useImportShareController(
+    chapter,
+    workspaceHistory.reset,
+  );
+  const translationActions = useTranslationActionController(
+    chapter,
+    workspaceHistory.reset,
+  );
   const updateCurrentChapter = useCurrentChapterUpdater({
     currentChapterRef: chapter.core.currentChapterRef,
     markDirty: chapter.persistence.markDirty,
     setCurrentChapter: chapter.core.setCurrentChapter,
-    recordChange: chapterHistory.recordChange,
+    selection: {
+      selectedPageId: chapter.core.selectedPageId,
+      selectedBlockId: chapter.core.selectedBlockId,
+      selectedBlockIds: chapter.core.selectedBlockIds,
+    },
+    workspaceHistory,
   });
   const retranslatePage = usePageRetranslationAction({
     askConfirm: chapter.confirmController.askConfirm,
@@ -36,33 +36,39 @@ export function useTranslationController(chapter: ChapterSessionController) {
   });
   const blockEditingActions = useBlockEditingActions({
     currentChapter: chapter.core.currentChapter,
-    currentChapterRef: chapter.core.currentChapterRef,
-    jobActive: chapter.derivedState.jobActive,
-    markDirty: chapter.persistence.markDirty,
+    jobActive:
+      chapter.derivedState.jobActive ||
+      chapter.uiState.translationFlowActive ||
+      workspaceHistory.busy,
     pushStatus: chapter.statusLog.pushStatus,
-    recordChange: chapterHistory.recordChange,
     selectedBlock: chapter.derivedState.selectedBlock,
     selectedBlockIds: chapter.derivedState.selectedBlockIds,
     selectedPage: chapter.derivedState.selectedPage,
-    selectedPageEditLocked: chapter.derivedState.selectedPageEditLocked,
-    setCurrentChapter: chapter.core.setCurrentChapter,
+    selectedPageEditLocked:
+      chapter.derivedState.selectedPageEditLocked ||
+      chapter.uiState.translationFlowActive ||
+      workspaceHistory.busy,
     setSelectedBlockId: chapter.core.setSelectedBlockId,
+    setSelectedBlockIds: chapter.core.setSelectedBlockIds,
     updateCurrentChapter,
   });
 
   return {
     blockEditingActions,
-    chapterHistory,
     importShareActions,
     retranslatePage,
     translationActions,
     updateCurrentChapter,
+    workspaceHistory,
   };
 }
 
 export type TranslationController = ReturnType<typeof useTranslationController>;
 
-function useImportShareController(chapter: ChapterSessionController) {
+function useImportShareController(
+  chapter: ChapterSessionController,
+  resetWorkspaceHistory: () => void,
+) {
   return useImportShareActions({
     applyChapter: chapter.libraryActions.applyChapter,
     askConfirm: chapter.confirmController.askConfirm,
@@ -81,16 +87,23 @@ function useImportShareController(chapter: ChapterSessionController) {
     setShareImportPreview: chapter.importShareModal.setShareImportPreview,
     setTranslationSourceOpen: chapter.importShareModal.setTranslationSourceOpen,
     shareImportPreview: chapter.importShareModal.shareImportPreview,
+    resetWorkspaceHistory,
   });
 }
 
-function useTranslationActionController(chapter: ChapterSessionController) {
+function useTranslationActionController(
+  chapter: ChapterSessionController,
+  resetWorkspaceHistory: () => void,
+) {
   const prepareRegionTranslation = useRegionTranslationPreparation({
     pushStatus: chapter.statusLog.pushStatus,
   });
 
   return useTranslationActions({
-    beforeTranslate: prepareRegionTranslation,
+    beforeTranslate: async () => {
+      resetWorkspaceHistory();
+      await prepareRegionTranslation();
+    },
     clearStatusLines: chapter.statusLog.clearStatusLines,
     currentChapter: chapter.core.currentChapter,
     currentChapterRef: chapter.core.currentChapterRef,

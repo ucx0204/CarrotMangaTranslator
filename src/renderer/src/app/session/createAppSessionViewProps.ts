@@ -1,8 +1,8 @@
 import { applyTranslatedTextUpdates } from "./applyTranslatedTextUpdates";
 import type { PanelSessionValue } from "../../panels/panelSession";
-import type { PanelSyncState } from "../../../../shared/panelBridgeTypes";
 import type { AppSessionViewProps } from "./AppSessionView";
 import type { AppSessionViewModel } from "./appSessionViewModel";
+import { buildPanelSyncState } from "./buildPanelSyncState";
 import {
   createPageRetranslateProps,
   createTranslationOptionsProps,
@@ -45,7 +45,10 @@ function createAutoInpaintingOptionsProps({
         currentPageId: derivedState.selectedPage.id,
         library: core.library,
         onClose: () => uiState.setAutoInpaintingOptionsOpen(false),
-        onStart: inpaintingActions.runInpaintingSelection,
+        onStart: (selection) => {
+          uiState.setPeekOriginal(false);
+          return inpaintingActions.runInpaintingSelection(selection);
+        },
       }
     : null;
 }
@@ -89,13 +92,17 @@ function createGatherTextProps({
   settingsDialog,
   uiState,
   updateCurrentChapter,
+  workspaceHistory,
 }: AppSessionViewModel): AppSessionViewProps["gatherTextProps"] {
   return uiState.textViewOpen
     ? {
         chapter: core.currentChapter,
         onApplyTranslatedText: (updates) =>
           applyTranslatedTextUpdates(updates, updateCurrentChapter),
-        onChapterUpdated: (chapter) => libraryActions.applyChapter(chapter),
+        onChapterUpdated: (updatedChapter) => {
+          workspaceHistory.reset();
+          libraryActions.applyChapter(updatedChapter);
+        },
         onClose: () => uiState.setTextViewOpen(false),
         onNavigateToBlock: (pageId, blockId) => {
           pageNavigationHandlers.selectPageForReading(pageId);
@@ -179,25 +186,6 @@ function createModalsProps({
   };
 }
 
-export function buildPanelSyncState({
-  core,
-  derivedState,
-}: Pick<AppSessionViewModel, "core" | "derivedState">): PanelSyncState {
-  return {
-    areaTranslateAvailable: Boolean(
-      derivedState.selectedPage &&
-      derivedState.selectedPageImageDataUrl &&
-      !derivedState.jobActive,
-    ),
-    areaTranslateSelecting: Boolean(core.regionSelection?.active),
-    disableChapterApply: derivedState.jobActive,
-    editorDisabled:
-      derivedState.selectedPageEditLocked || derivedState.jobActive,
-    selectedBlock: derivedState.selectedBlock,
-    selectedBlockCount: derivedState.selectedBlockIds.length,
-  };
-}
-
 function createPanelSessionValue(
   model: AppSessionViewModel,
 ): PanelSessionValue {
@@ -222,28 +210,24 @@ function createRightRailProps({
   bridgeActions,
   core,
   derivedState,
+  inpaintingActions,
   inpaintingBridge,
   statusLog,
   uiState,
+  workspaceHistory,
 }: AppSessionViewModel): AppSessionViewProps["rightRailProps"] {
   const inpainting = inpaintingBridge.contextValue;
   return {
-    autoInpaintingOpen: uiState.autoInpaintingOpen,
     brushColor: inpainting.brushColor,
     brushRadius: inpainting.brushRadius,
-    canRedoRetouch: inpainting.canRedo,
-    canUndoRetouch: inpainting.canUndo,
     currentChapter: core.currentChapter,
     flowActive: uiState.translationFlowActive,
-    inpaintedPageCount: derivedState.inpaintedPageCount,
-    jobActive: inpainting.jobActive,
+    jobActive:
+      inpainting.jobActive ||
+      uiState.translationFlowActive ||
+      workspaceHistory.busy,
     jobState: core.jobState,
     maskStrokeCount: inpainting.maskStrokeCount,
-    pageTargetCount: derivedState.blockCounts.selectedPage,
-    peekAvailable: derivedState.peekAvailable,
-    peeking: derivedState.showingOriginalPeek,
-    pendingPageCount: derivedState.blockCounts.pendingPages,
-    pendingTargetCount: derivedState.blockCounts.pendingTotal,
     onCancelJob: bridgeActions.cancelJob,
     onBrushColorChange: inpainting.onBrushColorChange,
     onBrushRadiusChange: inpainting.onBrushRadiusChange,
@@ -252,16 +236,16 @@ function createRightRailProps({
     onOpenStyleGuide: () => uiState.setStyleGuideOpen(true),
     onOpenTextView: () => uiState.setTextViewOpen(true),
     onOpenTranslateOptions: () => uiState.setTranslateOptionsOpen(true),
-    onPeekToggle: inpainting.onPeekToggle,
-    onRedoRetouch: inpainting.onRedoRetouch,
-    onRevertChapter: inpainting.onRevertChapter,
-    onRevertPage: inpainting.onRevertPage,
     onRunDrawnPattern: inpainting.onRunDrawnPattern,
+    onRunCurrentPageInpainting: () => {
+      uiState.setPeekOriginal(false);
+      void inpaintingActions.runInpainting("page");
+    },
     onShowGuide: inpainting.onShowGuide,
     onOpenAutoInpaintingOptions: () => {
       core.setRegionSelection(null);
       uiState.selectWorkspaceTool("select");
-      uiState.setAutoInpaintingOpen(true);
+      uiState.setPeekOriginal(false);
       uiState.setAutoInpaintingOptionsOpen(true);
     },
     onToggleBlocks: () => uiState.setShowTextBlocks((value) => !value),
@@ -274,7 +258,6 @@ function createRightRailProps({
     showTextBlocks: uiState.showTextBlocks,
     stageTool: uiState.stageTool,
     statusLines: statusLog.statusLines,
-    onUndoRetouch: inpainting.onUndoRetouch,
   };
 }
 
@@ -295,14 +278,20 @@ function createSidebarProps({
   derivedState,
   importShareActions,
   importShareModal,
+  inpaintingBridge,
   libraryActions,
   pageNavigationHandlers,
   retranslatePage,
   settingsDialog,
+  uiState,
+  workspaceHistory,
 }: AppSessionViewModel): AppSessionViewProps["sidebarProps"] {
   return {
     currentChapter: core.currentChapter,
-    jobActive: derivedState.jobActive,
+    jobActive:
+      inpaintingBridge.contextValue.jobActive ||
+      uiState.translationFlowActive ||
+      workspaceHistory.busy,
     library: core.library,
     onOpenBatchImport: () =>
       void importShareActions.openImportPreview("zip-folder"),
@@ -342,26 +331,33 @@ function createStyleGuideProps({
 }
 
 function createWorkspaceProps({
-  blockEditingActions,
   core,
   derivedState,
   importShareActions,
   importShareModal,
+  inpaintingActions,
   inpaintingBridge,
   pointerHandlers,
   settingsDialog,
   uiState,
+  workspaceHistory,
 }: AppSessionViewModel): AppSessionViewProps["workspaceProps"] {
   return {
     blockCreateRect: pointerHandlers.blockCreateRect,
     dragHud: pointerHandlers.dragHud,
     imageRef: core.imageRef,
-    autoInpaintingOpen: uiState.autoInpaintingOpen,
     brushColor: uiState.inpaintingPaintColor,
     brushRadius: uiState.inpaintingBrushRadius,
-    jobActive: inpaintingBridge.contextValue.jobActive,
+    canRedo: workspaceHistory.canRedo,
+    canUndo: workspaceHistory.canUndo,
+    compareAvailable: derivedState.peekAvailable,
+    jobActive:
+      inpaintingBridge.contextValue.jobActive ||
+      uiState.translationFlowActive ||
+      workspaceHistory.busy,
     jobState: core.jobState,
     maskStrokes: derivedState.patternMaskStrokes,
+    resetAvailable: Boolean(derivedState.selectedPage?.inpaintedImagePath),
     onBlockPointerDown: pointerHandlers.onBlockPointerDown,
     onOpenBatchImport: () =>
       void importShareActions.openImportPreview("zip-folder"),
@@ -369,6 +365,12 @@ function createWorkspaceProps({
     onOpenShareImport: () => void importShareActions.openShareImportPreview(),
     onOpenTranslationSource: () =>
       importShareModal.setTranslationSourceOpen(true),
+    onPeekToggle: inpaintingBridge.contextValue.onPeekToggle,
+    onRedo: () => void workspaceHistory.redo(),
+    onResetPage: () => {
+      uiState.setPeekOriginal(false);
+      void inpaintingActions.revertInpainting("page");
+    },
     onSelectStageTool: (tool) => {
       core.setRegionSelection(null);
       uiState.selectWorkspaceTool(tool);
@@ -377,10 +379,10 @@ function createWorkspaceProps({
     onStagePointerLeave: pointerHandlers.onStagePointerLeave,
     onStagePointerMove: pointerHandlers.onStagePointerMove,
     onStagePointerUp: pointerHandlers.onStagePointerUp,
-    onToggleBlockExcluded: blockEditingActions.toggleBlockInpaintExcluded,
     onToggleStageToolbarHidden: () =>
       uiState.setStageToolbarHidden((hidden) => !hidden),
     progressSnapshot: derivedState.progressSnapshot,
+    redoLabel: workspaceHistory.redoLabel,
     regionSelectionActive: Boolean(core.regionSelection?.active),
     regionSelectionRect: derivedState.regionSelectionRect,
     retouchCursor: inpaintingBridge.retouchCursor,
@@ -397,6 +399,8 @@ function createWorkspaceProps({
     stageSize: derivedState.stageSize,
     stageTool: uiState.stageTool,
     stageToolbarHidden: uiState.stageToolbarHidden,
+    undoLabel: workspaceHistory.undoLabel,
+    onUndo: () => void workspaceHistory.undo(),
     workspacePanelRef: core.workspacePanelRef,
     workspaceZoom: uiState.workspaceZoom,
   };

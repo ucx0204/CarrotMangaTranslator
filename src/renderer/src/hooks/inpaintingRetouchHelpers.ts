@@ -4,7 +4,6 @@ import type {
   RetouchApplyTool,
   RetouchHistoryEntry,
   RetouchPoint,
-  RetouchStackSetter,
   UseInpaintingRetouchOptions,
 } from "./inpaintingRetouchTypes";
 import type {
@@ -99,28 +98,6 @@ export function findPageInpaintPath(
   pageId: string,
 ): string | undefined {
   return chapter.pages.find((page) => page.id === pageId)?.inpaintedImagePath;
-}
-
-export function recordRetouchHistory({
-  afterPath,
-  beforePath,
-  pageId,
-  setRetouchRedoStack,
-  setRetouchUndoStack,
-}: {
-  afterPath?: string;
-  beforePath?: string;
-  pageId: string;
-  setRetouchRedoStack: RetouchStackSetter;
-  setRetouchUndoStack: RetouchStackSetter;
-}): void {
-  if (afterPath === beforePath) {
-    return;
-  }
-  setRetouchUndoStack((stack) =>
-    [...stack, { pageId, beforePath, afterPath }].slice(-60),
-  );
-  setRetouchRedoStack([]);
 }
 
 export function collectReplayRetainedPaths(

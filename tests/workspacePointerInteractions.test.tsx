@@ -91,10 +91,44 @@ describe("workspace pointer interactions", () => {
     expect(api.current.getSelectedBlockId()).toBeNull();
     expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
   });
+
+  it("keeps block selection and blocks canvas editing while a job is active", () => {
+    const api = renderHarness({
+      initialSelectedBlockId: "block-1",
+      jobActive: true,
+    });
+    const block = screen.getByTestId("block");
+    const stage = screen.getByTestId("stage");
+
+    act(() => {
+      fireEvent.pointerDown(block, {
+        clientX: 20,
+        clientY: 20,
+        pointerId: 1,
+      });
+      fireEvent.pointerMove(stage, {
+        clientX: 80,
+        clientY: 80,
+        pointerId: 1,
+      });
+      fireEvent.pointerDown(stage, {
+        clientX: 90,
+        clientY: 90,
+        pointerId: 2,
+      });
+    });
+
+    expect(api.current.getSelectedBlockId()).toBe("block-1");
+    expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
+  });
 });
 
 function renderHarness(
-  props: { selectedPageEditLocked?: boolean } = {},
+  props: {
+    initialSelectedBlockId?: string | null;
+    jobActive?: boolean;
+    selectedPageEditLocked?: boolean;
+  } = {},
 ): React.MutableRefObject<HarnessApi> {
   const api = React.createRef<HarnessApi>();
 
@@ -103,6 +137,8 @@ function renderHarness(
       onReady={(nextApi) => {
         api.current = nextApi;
       }}
+      initialSelectedBlockId={props.initialSelectedBlockId ?? null}
+      jobActive={props.jobActive ?? false}
       selectedPageEditLocked={props.selectedPageEditLocked ?? false}
     />,
   );
@@ -114,9 +150,13 @@ function renderHarness(
 }
 
 function WorkspacePointerHarness({
+  initialSelectedBlockId,
+  jobActive,
   onReady,
   selectedPageEditLocked,
 }: {
+  initialSelectedBlockId: string | null;
+  jobActive: boolean;
   onReady: (api: HarnessApi) => void;
   selectedPageEditLocked: boolean;
 }): React.JSX.Element {
@@ -133,11 +173,13 @@ function WorkspacePointerHarness({
   );
   const [regionSelection, setRegionSelection] =
     useState<RegionSelectionState | null>(null);
-  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(
+    initialSelectedBlockId,
+  );
   const [, setSelectedBlockIds] = useState<string[]>([]);
   const [, setInpaintingPaintColor] = useState("#ffffff");
   const [, setInpaintingTool] = useState<InpaintingTool>("none");
-  const [, setPatternMaskStrokesByPage] = useState<
+  const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<
     Record<string, InpaintingMaskStroke[]>
   >({});
   const statusesRef = useRef<string[]>([]);
@@ -159,8 +201,10 @@ function WorkspacePointerHarness({
     inpaintingRetouchPointsRef,
     inpaintingTool: "none",
     inpaintingToolActive: false,
-    jobActive: false,
+    jobActive,
     lastInpaintingRetouchPointRef,
+    onPatternMaskChange: () => undefined,
+    patternMaskStrokesByPage,
     pushStatus: (line) => {
       statusesRef.current.push(line);
     },

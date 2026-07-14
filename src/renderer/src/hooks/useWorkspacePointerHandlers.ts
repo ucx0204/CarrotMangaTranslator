@@ -41,6 +41,7 @@ type UseWorkspacePointerHandlersOptions = {
   imageRef: RefObject<HTMLImageElement | null>;
   inpaintingBrushRadius: number;
   inpaintingPaintColor: string;
+  patternMaskStrokesByPage: Record<string, InpaintingMaskStroke[]>;
   inpaintingRetouchDrawingRef: MutableRefObject<boolean>;
   inpaintingRetouchPointsRef: MutableRefObject<Array<{ x: number; y: number }>>;
   inpaintingTool: InpaintingTool;
@@ -52,6 +53,11 @@ type UseWorkspacePointerHandlersOptions = {
     y: number;
   } | null>;
   pushStatus: (line: string) => void;
+  onPatternMaskChange: (
+    pageId: string,
+    before: InpaintingMaskStroke[],
+    after: InpaintingMaskStroke[],
+  ) => void;
   regionSelection: RegionSelectionState | null;
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
@@ -108,6 +114,7 @@ export function useWorkspacePointerHandlers(
     currentChapter: options.currentChapter,
     imageRef: options.imageRef,
     inpaintingToolActive: options.inpaintingToolActive,
+    jobActive: options.jobActive,
     regionSelectionActive: Boolean(options.regionSelection?.active),
     selectedPage: options.selectedPage,
     selectedPageEditLocked: options.selectedPageEditLocked,
@@ -156,6 +163,7 @@ export function useWorkspacePointerHandlers(
     blockCreateHandlers,
     blockDrag,
     inpaintingHandlers,
+    jobActive: options.jobActive,
     panHandlers,
     regionSelectionHandlers,
     setSelectedBlockId: options.setSelectedBlockId,
@@ -209,6 +217,8 @@ function useInpaintingPointerHandlers(
     | "inpaintingToolActive"
     | "jobActive"
     | "lastInpaintingRetouchPointRef"
+    | "onPatternMaskChange"
+    | "patternMaskStrokesByPage"
     | "pushStatus"
     | "selectedPage"
     | "selectedPageIdRef"
@@ -255,6 +265,7 @@ type StagePointerRouterDeps = {
   blockCreateHandlers: ReturnType<typeof useWorkspaceBlockCreateHandlers>;
   blockDrag: ReturnType<typeof useWorkspaceBlockDragHandlers>;
   inpaintingHandlers: ReturnType<typeof useWorkspaceInpaintingPointerHandlers>;
+  jobActive: boolean;
   panHandlers: ReturnType<typeof useWorkspacePanHandlers>;
   regionSelectionHandlers: ReturnType<
     typeof useWorkspaceRegionSelectionHandlers
@@ -284,6 +295,7 @@ function useStagePointerRouter(deps: StagePointerRouterDeps): {
 function useStagePointerDownRouter({
   blockCreateHandlers,
   inpaintingHandlers,
+  jobActive,
   panHandlers,
   regionSelectionHandlers,
   setSelectedBlockId,
@@ -292,6 +304,9 @@ function useStagePointerDownRouter({
 }: StagePointerRouterDeps): (event: PointerEvent) => void {
   return useCallback(
     (event: PointerEvent) => {
+      if (jobActive) {
+        return;
+      }
       if (
         inpaintingHandlers.onPointerDown(event) ||
         regionSelectionHandlers.onRegionPointerDown(event) ||
@@ -309,6 +324,7 @@ function useStagePointerDownRouter({
     [
       blockCreateHandlers,
       inpaintingHandlers,
+      jobActive,
       panHandlers,
       regionSelectionHandlers,
       setSelectedBlockId,

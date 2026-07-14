@@ -4,7 +4,6 @@ import type { Command } from "../../lib/appCommandTypes";
 import { useAppCommands } from "../../hooks/useAppCommands";
 
 type UseAppSessionCommandControllerArgs = {
-  autoInpaintingOpen: boolean;
   cancelJob: () => void;
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
@@ -14,16 +13,15 @@ type UseAppSessionCommandControllerArgs = {
   openSettings: () => Promise<void> | void;
   openShareImportPreview: () => Promise<void>;
   runAnalysis: (runMode: "pending" | "all") => void;
+  runCurrentPageInpainting: () => void;
   setShareExportOpen: Dispatch<SetStateAction<boolean>>;
   setShortcutHelpOpen: Dispatch<SetStateAction<boolean>>;
   setTextViewOpen: Dispatch<SetStateAction<boolean>>;
   setTranslateOptionsOpen: Dispatch<SetStateAction<boolean>>;
   setTranslationSourceOpen: Dispatch<SetStateAction<boolean>>;
-  toggleAutoInpainting: () => void;
 };
 
 export function useAppSessionCommandController({
-  autoInpaintingOpen,
   cancelJob,
   currentChapter,
   jobActive,
@@ -33,15 +31,14 @@ export function useAppSessionCommandController({
   openSettings,
   openShareImportPreview,
   runAnalysis,
+  runCurrentPageInpainting,
   setShareExportOpen,
   setShortcutHelpOpen,
   setTextViewOpen,
   setTranslateOptionsOpen,
   setTranslationSourceOpen,
-  toggleAutoInpainting,
 }: UseAppSessionCommandControllerArgs): Command[] {
   return useAppCommands({
-    autoInpaintingOpen,
     cancelJob,
     currentChapter,
     jobActive,
@@ -56,6 +53,6 @@ export function useAppSessionCommandController({
     openTranslateOptions: () => setTranslateOptionsOpen(true),
     openTranslationSource: () => setTranslationSourceOpen(true),
     runAnalysis,
-    toggleAutoInpainting,
+    runCurrentPageInpainting,
   });
 }

@@ -7,11 +7,12 @@ import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { inpaintDrawnPatternPage, inpaintPatternPage } from "../inpainting";
 import { acquireInpaintingEngine } from "../inpainting/inpaintingEnginePool";
-import { openChapter, updatePagesAfterInpainting } from "../library";
+import { openChapter } from "../library";
 import { logError } from "../logger";
 import { getAppSettings } from "../settingsStore";
 import { isAbortError } from "./jobEvents";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
+import { saveInpaintingPageResult } from "./inpaintingJobHistory";
 import {
   emitInpaintingCancelled,
   emitInpaintingCompleted,
@@ -31,6 +32,7 @@ type InpaintingPageResult = Awaited<ReturnType<typeof inpaintPatternPage>>;
 export type InpaintingJobState = {
   chapter: OpenedChapter | null;
   chapters: Map<string, OpenedChapter>;
+  historyTransactionId: string | null;
   inpaintingEngineLease: InpaintingEngineLease | null;
 };
 
@@ -94,6 +96,9 @@ export async function runInpaintingPagesJob({
       : { chapter: result.savedChapters[0] }),
     pagesChanged: result.pagesChanged,
     blocksErased: result.blocksErased,
+    historyTransaction: context.inpaintingRevisionStore?.getReference(
+      state.historyTransactionId,
+    ),
   };
 }
 
@@ -121,6 +126,9 @@ export async function handleInpaintingJobError({
     return {
       status: "cancelled",
       ...refreshed,
+      historyTransaction: context.inpaintingRevisionStore?.getReference(
+        state.historyTransactionId,
+      ),
     };
   }
 
@@ -136,6 +144,9 @@ export async function handleInpaintingJobError({
     status: "failed",
     error: message,
     ...refreshed,
+    historyTransaction: context.inpaintingRevisionStore?.getReference(
+      state.historyTransactionId,
+    ),
   };
 }
 
@@ -233,17 +244,21 @@ async function processInpaintingPages({
       state,
       target,
     });
-    if (result.blocksErased > 0) {
-      blocksErased += result.blocksErased;
-      pagesChanged += 1;
-      const savedChapter = await updatePagesAfterInpainting(
-        targetPage.chapterId,
-        [result.page],
-      );
-      state.chapters.set(targetPage.chapterId, savedChapter);
-      if (state.chapter?.id === targetPage.chapterId) {
-        state.chapter = savedChapter;
-      }
+    if (result.blocksErased <= 0) {
+      continue;
+    }
+    blocksErased += result.blocksErased;
+    pagesChanged += 1;
+    const savedChapter = await saveInpaintingPageResult({
+      context,
+      resultPage: result.page,
+      transactionId: state.historyTransactionId,
+      chapterId: targetPage.chapterId,
+      previousPage: targetPage.page,
+    });
+    state.chapters.set(targetPage.chapterId, savedChapter);
+    if (state.chapter?.id === targetPage.chapterId) {
+      state.chapter = savedChapter;
     }
   }
 

@@ -178,10 +178,9 @@
       "translate-all": "Retranslate all",
       "gather-text": "Gather text",
       "cancel-job": "Cancel job",
-      "toggle-inpainting": "Open/close auto erase panel",
+      "toggle-inpainting": "Auto erase current page",
       "history-undo": "Undo",
       "history-redo": "Redo",
-      "retouch-redo": "Redo retouch",
       "delete-block": "Delete selected block",
       "duplicate-block": "Duplicate selected block",
       "toggle-block-excluded": "Toggle block inpainting exclusion",
@@ -189,6 +188,21 @@
       "toggle-shortcut-help": "Keyboard shortcuts",
       "open-settings": "Open settings"
     }
+  },
+  "workspaceHistory": {
+    "blockEdit": "Edit text block",
+    "exclusion": "Change auto-erase exclusion",
+    "format": "Format block",
+    "deleteBlock": "Delete block",
+    "duplicateBlock": "Duplicate block",
+    "createBlock": "Create block",
+    "dragBlock": "Move or resize block",
+    "importText": "Import translated text",
+    "maskEdit": "Edit mask",
+    "autoInpainting": "Auto erase",
+    "drawnInpainting": "Erase drawn area",
+    "retouch": "Manual retouch",
+    "resetOriginal": "Reset to original"
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "Whole-chapter batch formatting is unavailable while a job is running.",
@@ -288,16 +302,16 @@
       "preparing": "Preparing PNG export"
     },
     "revert": {
-      "pageTitle": "Restore this page's original image",
-      "chapterTitle": "Restore all pages to their original images",
-      "pageMessage": "Restore the original image for the current page.",
-      "chapterMessage": "Restore original images for the current chapter.",
-      "detail": "Translation blocks and coordinates are kept; only erased image results are removed.",
-      "success": "Inpainting reverted: {{count}} pages",
-      "success_one": "Inpainting reverted: {{count}} page",
-      "success_other": "Inpainting reverted: {{count}} pages",
-      "failedTitle": "Revert failed",
-      "failed": "Could not revert the inpainting results."
+      "pageTitle": "Reset this page to the original image",
+      "chapterTitle": "Reset all pages to their original images",
+      "pageMessage": "Reset the current page image to its original.",
+      "chapterMessage": "Reset every page image in this chapter to its original.",
+      "detail": "Translation blocks and coordinates are kept, and this reset can be undone.",
+      "success": "Reset to original: {{count}} pages",
+      "success_one": "Reset to original: {{count}} page",
+      "success_other": "Reset to original: {{count}} pages",
+      "failedTitle": "Reset to original failed",
+      "failed": "Could not reset the image to its original."
     },
     "retouch": {
       "applyFailed": "Could not apply the retouch.",

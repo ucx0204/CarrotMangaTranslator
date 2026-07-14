@@ -16,7 +16,6 @@ export type ImageStageProps = {
   selectedBlockIds?: string[];
   showTextBlocks: boolean;
   showBlockChrome: boolean;
-  showInpaintingExclusions?: boolean;
   blockPointerDisabled?: boolean;
   retouchCursor?: {
     radiusPx: number;
@@ -39,7 +38,6 @@ export type ImageStageProps = {
     block: TranslationBlock,
     mode: "move" | "resize",
   ) => void;
-  onToggleBlockExcluded?: (blockId: string) => void;
 };
 
 export type RetouchStageModel = {

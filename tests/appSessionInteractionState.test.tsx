@@ -6,25 +6,17 @@ import { useAppSessionLifecycleEffects } from "../src/renderer/src/app/session/u
 import { useAppSessionUiState } from "../src/renderer/src/app/session/useAppSessionUiState";
 
 describe("unified workspace interaction state", () => {
-  it("keeps non-retouch tools when toggling the auto panel and clears peek before retouch", () => {
+  it("keeps ordinary workspace tools and clears original peek before retouch", () => {
     const { result } = renderHook(() => useAppSessionUiState());
 
     act(() => result.current.selectWorkspaceTool("block"));
-    act(() => result.current.toggleAutoInpainting());
     expect(result.current.stageTool).toBe("block");
-    expect(result.current.autoInpaintingOpen).toBe(true);
-
-    act(() => result.current.toggleAutoInpainting());
-    expect(result.current.stageTool).toBe("block");
-    expect(result.current.autoInpaintingOpen).toBe(false);
 
     act(() => {
-      result.current.setAutoInpaintingOpen(true);
       result.current.setPeekOriginal(true);
       result.current.selectWorkspaceTool("brush");
     });
     expect(result.current.stageTool).toBe("brush");
-    expect(result.current.autoInpaintingOpen).toBe(false);
     expect(result.current.peekOriginal).toBe(false);
   });
 

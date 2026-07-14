@@ -175,10 +175,9 @@
       "translate-all": "全部重新翻譯",
       "gather-text": "彙整文字",
       "cancel-job": "取消工作",
-      "toggle-inpainting": "開啟／關閉自動清除面板",
+      "toggle-inpainting": "自動清除目前頁面",
       "history-undo": "復原",
       "history-redo": "重做",
-      "retouch-redo": "重做潤飾",
       "delete-block": "刪除所選文字區塊",
       "duplicate-block": "複製所選文字區塊",
       "toggle-block-excluded": "切換文字區塊的圖像修復排除狀態",
@@ -186,6 +185,21 @@
       "toggle-shortcut-help": "快速鍵說明",
       "open-settings": "開啟設定"
     }
+  },
+  "workspaceHistory": {
+    "blockEdit": "編輯文字區塊",
+    "exclusion": "變更自動清除排除設定",
+    "format": "設定文字區塊格式",
+    "deleteBlock": "刪除文字區塊",
+    "duplicateBlock": "複製文字區塊",
+    "createBlock": "新增文字區塊",
+    "dragBlock": "移動或調整文字區塊大小",
+    "importText": "匯入譯文",
+    "maskEdit": "編輯遮罩",
+    "autoInpainting": "自動清除",
+    "drawnInpainting": "清除繪製區域",
+    "retouch": "手動修補",
+    "resetOriginal": "重設為原圖"
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "工作執行時無法對整章批次套用格式。",
@@ -282,16 +296,16 @@
       "preparing": "正在準備匯出 PNG"
     },
     "revert": {
-      "pageTitle": "將本頁恢復為原圖",
-      "chapterTitle": "將所有頁面恢復為原圖",
-      "pageMessage": "將目前頁面的圖像修復結果恢復為原圖。",
-      "chapterMessage": "將目前章節的圖像修復結果恢復為原圖。",
-      "detail": "保留翻譯文字區塊及其座標，只移除清除後的圖像結果。",
-      "success": "圖像修復已還原：{{count}}頁",
-      "success_one": "圖像修復已還原：{{count}}頁",
-      "success_other": "圖像修復已還原：{{count}}頁",
-      "failedTitle": "還原失敗",
-      "failed": "無法還原圖像修復結果。"
+      "pageTitle": "將本頁重設為原圖",
+      "chapterTitle": "將所有頁面重設為原圖",
+      "pageMessage": "將目前頁面圖像重設為原圖。",
+      "chapterMessage": "將目前章節的所有頁面圖像重設為原圖。",
+      "detail": "保留翻譯文字區塊及其座標，並且可以復原此次重設。",
+      "success": "已重設為原圖：{{count}}頁",
+      "success_one": "已重設為原圖：{{count}}頁",
+      "success_other": "已重設為原圖：{{count}}頁",
+      "failedTitle": "重設為原圖失敗",
+      "failed": "無法將圖像重設為原圖。"
     },
     "retouch": {
       "applyFailed": "無法套用潤飾。",

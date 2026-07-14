@@ -1,4 +1,5 @@
 import React from "react";
+import { IconEraserOff } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
@@ -22,12 +23,11 @@ type OverlayBlockProps = {
   selected: boolean;
   multiSelected?: boolean;
   showChrome: boolean;
-  showExcluded?: boolean;
   textLayoutStageSize: ViewportSize | null;
+  textVisible?: boolean;
   pointerDisabled?: boolean;
   onPointerDown: (event: React.PointerEvent) => void;
   onResizePointerDown: (event: React.PointerEvent) => void;
-  onToggleExcluded?: () => void;
 };
 
 export function OverlayBlock({
@@ -37,12 +37,11 @@ export function OverlayBlock({
   selected,
   multiSelected = false,
   showChrome,
-  showExcluded = false,
   textLayoutStageSize,
+  textVisible = true,
   pointerDisabled = false,
   onPointerDown,
   onResizePointerDown,
-  onToggleExcluded,
 }: OverlayBlockProps): React.JSX.Element | null {
   const displayText = block.translatedText || block.sourceText || "...";
   const layout = resolveBlockTextLayout(
@@ -56,7 +55,7 @@ export function OverlayBlock({
     block.renderDirection,
     "horizontal",
   );
-  const excluded = showExcluded && Boolean(block.inpaintExcluded);
+  const excluded = Boolean(block.inpaintExcluded);
 
   return (
     <div
@@ -68,34 +67,47 @@ export function OverlayBlock({
         showChrome,
       )}
       style={resolveOverlayBlockStyle(block, layout, pointerDisabled)}
-      onPointerDown={pointerDisabled ? undefined : onPointerDown}
+      onPointerDown={resolvePointerHandler(pointerDisabled, onPointerDown)}
     >
-      {showChrome || excluded ? (
+      {shouldShowOverlayChrome(textVisible, showChrome, excluded) ? (
         <div
           className="overlay-block-chrome"
           style={resolveOverlayChromeStyle(block, showChrome, excluded)}
         />
       ) : null}
-      <OverlayText
-        block={block}
-        displayText={displayText}
-        layout={layout}
-        renderDirection={renderDirection}
-      />
-      <OverlayExcludeControl
-        block={block}
-        excluded={excluded}
-        onToggleExcluded={onToggleExcluded}
-        pointerDisabled={pointerDisabled}
-        showExcluded={showExcluded}
-      />
-      <OverlayResizeHandle
-        onResizePointerDown={onResizePointerDown}
-        pointerDisabled={pointerDisabled}
-        selected={selected}
-      />
+      {textVisible ? (
+        <OverlayText
+          block={block}
+          displayText={displayText}
+          layout={layout}
+          renderDirection={renderDirection}
+        />
+      ) : null}
+      <OverlayExcludeControl excluded={excluded} />
+      {textVisible ? (
+        <OverlayResizeHandle
+          onResizePointerDown={onResizePointerDown}
+          pointerDisabled={pointerDisabled}
+          selected={selected}
+        />
+      ) : null}
     </div>
   );
+}
+
+function resolvePointerHandler(
+  pointerDisabled: boolean,
+  handler: (event: React.PointerEvent) => void,
+): ((event: React.PointerEvent) => void) | undefined {
+  return pointerDisabled ? undefined : handler;
+}
+
+function shouldShowOverlayChrome(
+  textVisible: boolean,
+  showChrome: boolean,
+  excluded: boolean,
+): boolean {
+  return textVisible && (showChrome || excluded);
 }
 
 function OverlayText({
@@ -163,45 +175,18 @@ function renderTextRun(
 }
 
 function OverlayExcludeControl({
-  block,
   excluded,
-  onToggleExcluded,
-  pointerDisabled,
-  showExcluded,
 }: {
-  block: TranslationBlock;
   excluded: boolean;
-  onToggleExcluded: (() => void) | undefined;
-  pointerDisabled: boolean;
-  showExcluded: boolean;
 }): React.JSX.Element | null {
   const { t } = useTranslation("components");
-  if (!showExcluded) {
-    return null;
-  }
-  if (onToggleExcluded && !pointerDisabled) {
-    return (
-      <button
-        type="button"
-        className={`overlay-exclude-toggle ${block.inpaintExcluded ? "excluded" : ""}`}
-        title={t(
-          block.inpaintExcluded
-            ? "overlay.includeInInpainting"
-            : "overlay.excludeFromInpainting",
-        )}
-        onPointerDown={stopOverlayControlEvent}
-        onClick={(event) => {
-          stopOverlayControlEvent(event);
-          onToggleExcluded();
-        }}
-      >
-        {t(block.inpaintExcluded ? "overlay.excluded" : "overlay.exclude")}
-      </button>
-    );
-  }
   return excluded ? (
-    <span className="overlay-excluded-badge" aria-hidden="true">
-      {t("overlay.exclude")}
+    <span
+      className="overlay-excluded-badge"
+      role="img"
+      aria-label={t("overlay.excludedFromInpainting")}
+    >
+      <IconEraserOff size={14} stroke={2.4} aria-hidden="true" />
     </span>
   ) : null;
 }
@@ -372,13 +357,6 @@ function resolveOverlayBlockClassName(
   ]
     .filter(Boolean)
     .join(" ");
-}
-
-function stopOverlayControlEvent(
-  event: React.MouseEvent | React.PointerEvent,
-): void {
-  event.preventDefault();
-  event.stopPropagation();
 }
 
 function resolveTextOutlineShadow(

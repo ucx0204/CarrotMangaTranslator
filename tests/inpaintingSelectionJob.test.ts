@@ -2,6 +2,10 @@ import type { BrowserWindow } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import type { InpaintingJobContext } from "../src/main/jobs/inpaintingJobTypes";
+import type {
+  InpaintingRevisionChange,
+  InpaintingRevisionStore,
+} from "../src/main/inpainting/inpaintingRevisionStore";
 import type { MangaPage } from "../src/shared/libraryTypes";
 
 const mocks = vi.hoisted(() => ({
@@ -42,11 +46,13 @@ const pageB1Id = "55555555-5555-4555-8555-555555555555";
 
 describe("multi-chapter automatic inpainting jobs", () => {
   const chapters = new Map<string, ReturnType<typeof makeChapter>>();
+  const revisionChanges: InpaintingRevisionChange[] = [];
   const send = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     chapters.clear();
+    revisionChanges.length = 0;
     chapters.set(
       chapterAId,
       makeChapter(chapterAId, "work-a", [
@@ -202,6 +208,84 @@ describe("multi-chapter automatic inpainting jobs", () => {
     expect(result.error).toMatch(/same work/);
     expect(mocks.acquireEngine).not.toHaveBeenCalled();
   });
+
+  it.each([
+    {
+      status: "failed" as const,
+      error: new Error("second page failed"),
+    },
+    {
+      status: "cancelled" as const,
+      error: new DOMException("Aborted", "AbortError"),
+    },
+  ])(
+    "returns one partial history transaction when a job is $status",
+    async ({ status, error }) => {
+      mocks.inpaintPatternPage
+        .mockImplementationOnce(async (page: MangaPage) => ({
+          page: {
+            ...page,
+            inpaintedImagePath: `${page.imagePath}.inpainted.png`,
+          },
+          blocksErased: 1,
+        }))
+        .mockRejectedValueOnce(error);
+      const { startInpaintingJob } =
+        await import("../src/main/jobs/inpaintingJobs");
+
+      const result = await startInpaintingJob(
+        makeContext(send, revisionChanges),
+        {
+          mode: "selection-pattern",
+          workId: "work-a",
+          selections: [{ chapterId: chapterAId, mode: "all" }],
+        },
+      );
+
+      expect(result.status).toBe(status);
+      expect(result.historyTransaction).toEqual({
+        transactionId: HISTORY_TRANSACTION_ID,
+      });
+      expect(revisionChanges).toHaveLength(1);
+      expect(revisionChanges[0]).toMatchObject({
+        chapterId: chapterAId,
+        pageId: pageA1Id,
+      });
+    },
+  );
+
+  it("registers cleanup that waits for an active inpainting runner to settle", async () => {
+    mocks.inpaintPatternPage.mockImplementation(
+      (_page: MangaPage, options: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          options.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+    const context = makeContext(send, revisionChanges);
+    const resultPromise = startInpaintingJob(context, {
+      mode: "selection-pattern",
+      workId: "work-a",
+      selections: [{ chapterId: chapterAId, mode: "all" }],
+    });
+    await vi.waitFor(() => {
+      expect(mocks.inpaintPatternPage).toHaveBeenCalled();
+      expect(context.jobs.current?.cleanup).toBeTypeOf("function");
+    });
+    const job = context.jobs.current;
+    expect(job).not.toBeNull();
+    job?.abortController.abort();
+
+    if (job) await context.jobs.runCleanup(job, "test-cancel");
+
+    expect(context.jobs.current).toBeNull();
+    await expect(resultPromise).resolves.toMatchObject({ status: "cancelled" });
+  });
 });
 
 function makePage(id: string, name: string): MangaPage {
@@ -233,7 +317,12 @@ function makeChapter(id: string, workId: string, pages: MangaPage[]) {
   };
 }
 
-function makeContext(send: ReturnType<typeof vi.fn>): InpaintingJobContext {
+const HISTORY_TRANSACTION_ID = "66666666-6666-4666-8666-666666666666";
+
+function makeContext(
+  send: ReturnType<typeof vi.fn>,
+  revisionChanges: InpaintingRevisionChange[] = [],
+): InpaintingJobContext {
   const mainWindow = { webContents: { send } } as unknown as BrowserWindow;
   return {
     appPaths: {} as InpaintingJobContext["appPaths"],
@@ -242,5 +331,41 @@ function makeContext(send: ReturnType<typeof vi.fn>): InpaintingJobContext {
     decodeImage: async () => {
       throw new Error("decode fallback should not run");
     },
+    inpaintingRevisionStore: makeRevisionStore(revisionChanges),
   };
+}
+
+function makeRevisionStore(
+  changes: InpaintingRevisionChange[],
+): InpaintingRevisionStore {
+  return {
+    beginTransaction: () => HISTORY_TRANSACTION_ID,
+    addChange: (_transactionId: string, change: InpaintingRevisionChange) => {
+      changes.push(change);
+      return true;
+    },
+    removeChange: (
+      _transactionId: string,
+      chapterId: string,
+      pageId: string,
+    ) => {
+      const index = changes.findIndex(
+        (change) => change.chapterId === chapterId && change.pageId === pageId,
+      );
+      if (index >= 0) {
+        changes.splice(index, 1);
+      }
+    },
+    discardIfEmpty: () => undefined,
+    getReference: () =>
+      changes.length > 0
+        ? { transactionId: HISTORY_TRANSACTION_ID }
+        : undefined,
+    getRetainedArtifactPaths: () =>
+      changes.flatMap((change) =>
+        [change.beforePath, change.afterPath].filter((path): path is string =>
+          Boolean(path),
+        ),
+      ),
+  } as unknown as InpaintingRevisionStore;
 }

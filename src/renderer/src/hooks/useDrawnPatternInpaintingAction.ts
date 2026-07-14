@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { mangaGateway } from "../api/mangaGateway";
 import { formatErrorMessage } from "../lib/appHelpers";
+import { captureWorkspaceMaskSnapshot } from "../lib/workspaceHistory";
 import {
   failInpaintingJob,
   refreshLibraryWithStatus,
@@ -47,6 +48,7 @@ async function runDrawnPatternInpainting(
     selectedPageId: selectedPage.id,
     setJobState: options.setJobState,
     setPatternMaskStrokesByPage: options.setPatternMaskStrokesByPage,
+    workspaceHistory: options.workspaceHistory,
     t,
   });
 }
@@ -75,6 +77,7 @@ async function prepareDrawnInpainting(
   if (!confirmed) {
     return false;
   }
+  options.setPeekOriginal(false);
   options.setInpaintingTool("none");
   options.setJobState({
     id: "pending-inpainting",
@@ -99,6 +102,7 @@ async function runDrawnInpaintingRequest({
   selectedPageId,
   setJobState,
   setPatternMaskStrokesByPage,
+  workspaceHistory,
   t,
 }: {
   chapterId: string;
@@ -111,6 +115,7 @@ async function runDrawnInpaintingRequest({
   selectedPageId: string;
   setJobState: UseInpaintingActionsOptions["setJobState"];
   setPatternMaskStrokesByPage: UseInpaintingActionsOptions["setPatternMaskStrokesByPage"];
+  workspaceHistory: UseInpaintingActionsOptions["workspaceHistory"];
   t: TFunction<"renderer">;
 }): Promise<void> {
   try {
@@ -126,7 +131,25 @@ async function runDrawnInpaintingRequest({
       clearPageImageCache();
       mergeLiveChapter(result.chapter);
     }
-    await refreshLibraryWithStatus(
+    if (result.historyTransaction) {
+      workspaceHistory.recordImageEdit({
+        label: t("workspaceHistory.drawnInpainting"),
+        transactionId: result.historyTransaction.transactionId,
+        mask: {
+          before: captureWorkspaceMaskSnapshot(
+            chapterId,
+            selectedPageId,
+            patternMaskStrokes,
+          ),
+          after: captureWorkspaceMaskSnapshot(
+            chapterId,
+            selectedPageId,
+            result.status === "completed" ? [] : patternMaskStrokes,
+          ),
+        },
+      });
+    }
+    void refreshLibraryWithStatus(
       refreshLibrary,
       pushStatus,
       t("library.refreshAfterJobFailed"),

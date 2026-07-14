@@ -2,10 +2,8 @@ import { useCallback } from "react";
 import type { PanelCommand } from "../../../shared/panelBridgeTypes";
 import { useWorkspaceWheelZoom } from "../hooks/useWorkspaceWheelZoom";
 import { usePanelBridgeHost } from "../panels/usePanelBridgeHost";
-import {
-  buildPanelSyncState,
-  createAppSessionViewProps,
-} from "./session/createAppSessionViewProps";
+import { createAppSessionViewProps } from "./session/createAppSessionViewProps";
+import { buildPanelSyncState } from "./session/buildPanelSyncState";
 import type { AppSessionViewProps } from "./session/AppSessionView";
 import { useAppSessionShortcuts } from "./session/useAppSessionShortcuts";
 import { useChapterSessionController } from "./session/useChapterSessionController";
@@ -26,6 +24,13 @@ export function useAppSessionModel(): AppSessionViewProps {
 
   const applyPanelCommand = useCallback(
     (command: PanelCommand) => {
+      if (
+        inpainting.inpaintingBridge.contextValue.jobActive ||
+        chapter.uiState.translationFlowActive ||
+        translation.workspaceHistory.busy
+      ) {
+        return;
+      }
       const actions = translation.blockEditingActions;
       if (command.type === "updateBlock") {
         actions.updateSelectedBlock(command.patch);
@@ -39,13 +44,22 @@ export function useAppSessionModel(): AppSessionViewProps {
         inpainting.pointerHandlers.startRegionTranslationSelection();
       }
     },
-    [translation.blockEditingActions, inpainting.pointerHandlers],
+    [
+      chapter.uiState.translationFlowActive,
+      inpainting.inpaintingBridge.contextValue.jobActive,
+      inpainting.pointerHandlers,
+      translation.blockEditingActions,
+      translation.workspaceHistory.busy,
+    ],
   );
 
   const panelBridge = usePanelBridgeHost({
     syncState: buildPanelSyncState({
       core: chapter.core,
       derivedState: chapter.derivedState,
+      inpaintingBridge: inpainting.inpaintingBridge,
+      uiState: chapter.uiState,
+      workspaceHistory: translation.workspaceHistory,
     }),
     onCommand: applyPanelCommand,
   });
@@ -72,5 +86,6 @@ export function useAppSessionModel(): AppSessionViewProps {
     translationActions: translation.translationActions,
     uiState: chapter.uiState,
     updateCurrentChapter: translation.updateCurrentChapter,
+    workspaceHistory: translation.workspaceHistory,
   });
 }

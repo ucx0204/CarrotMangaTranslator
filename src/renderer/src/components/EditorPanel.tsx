@@ -8,6 +8,7 @@ import {
   BlockActionButtons,
   ColorEditorGroup,
   EmptyEditorPanel,
+  InpaintingBlockOption,
   TextEditorGroup,
 } from "./EditorPanelSections";
 import { FormatEditorGroup } from "./EditorFormatControls";
@@ -80,6 +81,11 @@ export function EditorPanel({
           <div className="editor-panel-header-actions">{headerActions}</div>
         ) : null}
       </header>
+      <InpaintingBlockOption
+        block={block}
+        disabled={disabled}
+        onUpdate={onUpdate}
+      />
       <TextEditorGroup block={block} disabled={disabled} onUpdate={onUpdate} />
       <FormatEditorGroup
         block={block}

@@ -32,6 +32,7 @@ export {
   StoredLibraryIndexFileSchema,
 } from "./ipcLibrarySchemas";
 export {
+  ApplyInpaintingHistoryTransactionRequestSchema,
   InpaintingColorSampleRequestSchema,
   InpaintingRetouchRequestSchema,
   InpaintingRevertRequestSchema,
@@ -39,6 +40,7 @@ export {
   ModelTestProgressEventSchema,
   PageImageExportRequestSchema,
   RegionAnalysisRequestSchema,
+  ReleaseInpaintingHistoryTransactionsRequestSchema,
   RendererLogRequestSchema,
   SetPageInpaintingResultRequestSchema,
   StartAnalysisRequestSchema,

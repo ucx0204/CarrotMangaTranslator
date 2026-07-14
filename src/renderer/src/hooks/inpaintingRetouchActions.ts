@@ -21,7 +21,6 @@ import {
   collectRetainedRetouchArtifactPaths,
   distanceBetween,
   findPageInpaintPath,
-  recordRetouchHistory,
   roundRetouchPoint,
   setRetouchBusyState,
   updateChapterInpaintPath,
@@ -193,13 +192,13 @@ function useApplyRetouchPointsAction({
         const afterPath = findPageInpaintPath(result.chapter, selectedPage.id);
         options.clearPageImageCache();
         options.mergeLiveChapter(result.chapter);
-        recordRetouchHistory({
-          afterPath,
-          beforePath,
-          pageId: selectedPage.id,
-          setRetouchRedoStack: state.setRetouchRedoStack,
-          setRetouchUndoStack: state.setRetouchUndoStack,
-        });
+        const transactionId = result.historyTransaction?.transactionId;
+        if (transactionId && afterPath !== beforePath) {
+          options.workspaceHistory.recordImageEdit({
+            label: t("workspaceHistory.retouch"),
+            transactionId,
+          });
+        }
       } catch (error) {
         console.error(error);
         options.pushStatus(t("inpainting.retouch.applyFailed"));

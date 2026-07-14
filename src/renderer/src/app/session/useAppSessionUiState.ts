@@ -69,7 +69,6 @@ export function useAppSessionUiState() {
 
 function useInpaintingUiState() {
   const [inpaintingGuideOpen, setInpaintingGuideOpen] = useState(false);
-  const [autoInpaintingOpen, setAutoInpaintingOpen] = useState(false);
   const [autoInpaintingOptionsOpen, setAutoInpaintingOptionsOpen] =
     useState(false);
   const [exportOptionsOpen, setExportOptionsOpen] = useState(false);
@@ -85,25 +84,10 @@ function useInpaintingUiState() {
   const selectWorkspaceTool = useCallback((tool: StageTool) => {
     setStageTool(tool);
     if (isManualInpaintingTool(tool)) {
-      setAutoInpaintingOpen(false);
       setPeekOriginal(false);
     }
   }, []);
-  const toggleAutoInpainting = useCallback(() => {
-    setAutoInpaintingOpen((open) => {
-      const next = !open;
-      if (next) {
-        setStageTool((tool) =>
-          isManualInpaintingTool(tool) ? "select" : tool,
-        );
-      } else {
-        setPeekOriginal(false);
-      }
-      return next;
-    });
-  }, []);
   const resetInpaintingUi = useCallback(() => {
-    setAutoInpaintingOpen(false);
     setAutoInpaintingOptionsOpen(false);
     setExportOptionsOpen(false);
     setInpaintingGuideOpen(false);
@@ -112,7 +96,6 @@ function useInpaintingUiState() {
     setStageTool("select");
   }, []);
   return {
-    autoInpaintingOpen,
     autoInpaintingOptionsOpen,
     exportOptionsOpen,
     inpaintingBrushRadius,
@@ -123,7 +106,6 @@ function useInpaintingUiState() {
     peekOriginal,
     resetInpaintingUi,
     selectWorkspaceTool,
-    setAutoInpaintingOpen,
     setAutoInpaintingOptionsOpen,
     setExportOptionsOpen,
     setInpaintingBrushRadius,
@@ -134,7 +116,6 @@ function useInpaintingUiState() {
     setPeekOriginal,
     setStageTool,
     stageTool,
-    toggleAutoInpainting,
   };
 }
 

@@ -88,6 +88,27 @@ const invokeContractGroups = [
 const invokeContractEntries = Object.entries(ipcInvokeContracts);
 
 describe("IPC contracts", () => {
+  it("requires an explicit invalidation state for history transaction results", () => {
+    const result = {
+      transactionId: "11111111-1111-4111-8111-111111111111",
+      direction: "undo",
+      chapters: [],
+      pagesChanged: 2,
+      invalidated: true,
+    };
+
+    expect(
+      inpaintingIpcContracts.applyInpaintingHistoryTransaction.result.parse(
+        result,
+      ),
+    ).toEqual(result);
+    expect(
+      inpaintingIpcContracts.applyInpaintingHistoryTransaction.result.safeParse(
+        { ...result, invalidated: undefined },
+      ).success,
+    ).toBe(false);
+  });
+
   it("keeps invoke API keys and channels unique and explicit", () => {
     const keys = invokeContractEntries.map(([, contract]) => contract.apiKey);
     const channels = invokeContractEntries.map(
@@ -107,8 +128,8 @@ describe("IPC contracts", () => {
     expect(preloadSource).not.toContain("ipcRenderer.invoke(");
     for (const group of invokeContractGroups) {
       for (const name of Object.keys(group.contracts)) {
-        expect(preloadSource).toContain(
-          `invokeContract(${group.sourceName}.${name}`,
+        expect(preloadSource).toMatch(
+          new RegExp(`invokeContract\\(\\s*${group.sourceName}\\.${name}`),
         );
       }
     }

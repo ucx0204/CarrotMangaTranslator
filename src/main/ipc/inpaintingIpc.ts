@@ -1,21 +1,26 @@
 import {
+  ApplyInpaintingHistoryTransactionRequestSchema,
   InpaintingColorSampleRequestSchema,
   InpaintingRetouchRequestSchema,
   InpaintingRevertRequestSchema,
+  ReleaseInpaintingHistoryTransactionsRequestSchema,
   SetPageInpaintingResultRequestSchema,
   StartInpaintingRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
 import { inpaintingIpcContracts } from "../../shared/ipcContracts";
 import type {
+  ApplyInpaintingHistoryTransactionResult,
   InpaintingColorSampleResult,
   InpaintingRetouchResult,
   InpaintingRevertResult,
+  ReleaseInpaintingHistoryTransactionsResult,
   SetPageInpaintingResultResult,
   StartInpaintingResult,
 } from "../../shared/inpaintingTypes";
 import { applyInpaintingRetouch, sampleImageColor } from "../inpainting";
 import { disposeCachedInpaintingEngines } from "../inpainting/inpaintingEnginePool";
+import type { InpaintingRevisionStore } from "../inpainting/inpaintingRevisionStore";
 import { startInpaintingJob } from "../jobs/inpaintingJobs";
 import {
   assertLibraryImagePath,
@@ -33,11 +38,19 @@ function assertNoActiveJob(context: IpcContext): void {
   }
 }
 
+function requireRevisionStore(context: IpcContext): InpaintingRevisionStore {
+  if (!context.inpaintingRevisionStore) {
+    throw new Error("인페인팅 작업 기록 저장소가 준비되지 않았습니다.");
+  }
+  return context.inpaintingRevisionStore;
+}
+
 export function registerInpaintingIpc(context: IpcContext): void {
   registerInpaintingJobIpc(context);
   registerInpaintingRetouchIpc(context);
   registerInpaintingResultIpc(context);
   registerInpaintingRevertIpc(context);
+  registerInpaintingHistoryIpc(context);
   registerInpaintingUtilityIpc(context);
 }
 
@@ -66,6 +79,7 @@ function registerInpaintingJobIpc(context: IpcContext): void {
 }
 
 function registerInpaintingRetouchIpc(context: IpcContext): void {
+  const revisionStore = requireRevisionStore(context);
   trustedHandleContract(
     context,
     inpaintingIpcContracts.applyInpaintingRetouch,
@@ -90,23 +104,48 @@ function registerInpaintingRetouchIpc(context: IpcContext): void {
         color: request.color,
         decodeFallback: context.decodeImage,
       });
-      const saved = await updatePagesAfterInpainting(
-        request.chapterId,
-        [nextPage],
-        {
-          retainedInpaintedArtifactPaths:
-            request.retainedInpaintedArtifactPaths,
-        },
-      );
+      const transactionId = revisionStore.beginTransaction();
+      const changeAdded = revisionStore.addChange(transactionId, {
+        chapterId: request.chapterId,
+        pageId: request.pageId,
+        beforePath: page.inpaintedImagePath,
+        afterPath: nextPage.inpaintedImagePath,
+      });
+      if (!changeAdded) {
+        revisionStore.discardIfEmpty(transactionId);
+      }
+      let saved: Awaited<ReturnType<typeof updatePagesAfterInpainting>>;
+      try {
+        saved = await updatePagesAfterInpainting(
+          request.chapterId,
+          [nextPage],
+          {
+            retainedInpaintedArtifactPaths:
+              revisionStore.getRetainedArtifactPaths(
+                request.chapterId,
+                request.retainedInpaintedArtifactPaths,
+              ),
+          },
+        );
+      } catch (error) {
+        if (changeAdded) {
+          await revisionStore.releaseTransactions([transactionId]);
+        }
+        throw error;
+      }
       return {
         chapter: saved,
         pageId: request.pageId,
+        historyTransaction: changeAdded
+          ? revisionStore.getReference(transactionId)
+          : undefined,
       };
     },
   );
 }
 
 function registerInpaintingResultIpc(context: IpcContext): void {
+  const revisionStore = requireRevisionStore(context);
   trustedHandleContract(
     context,
     inpaintingIpcContracts.setPageInpaintingResult,
@@ -126,7 +165,10 @@ function registerInpaintingResultIpc(context: IpcContext): void {
         request.inpaintedImagePath ?? undefined,
         {
           retainedInpaintedArtifactPaths:
-            request.retainedInpaintedArtifactPaths,
+            revisionStore.getRetainedArtifactPaths(
+              request.chapterId,
+              request.retainedInpaintedArtifactPaths,
+            ),
         },
       );
       return {
@@ -138,6 +180,7 @@ function registerInpaintingResultIpc(context: IpcContext): void {
 }
 
 function registerInpaintingRevertIpc(context: IpcContext): void {
+  const revisionStore = requireRevisionStore(context);
   trustedHandleContract(
     context,
     inpaintingIpcContracts.revertInpainting,
@@ -166,13 +209,69 @@ function registerInpaintingRevertIpc(context: IpcContext): void {
         inpaintedImagePath: undefined,
         updatedAt: new Date().toISOString(),
       }));
-      const saved = await updatePagesAfterInpainting(
-        request.chapterId,
-        reverted,
-      );
+      const transactionId = revisionStore.beginTransaction();
+      for (const page of pages) {
+        revisionStore.addChange(transactionId, {
+          chapterId: request.chapterId,
+          pageId: page.id,
+          beforePath: page.inpaintedImagePath,
+          afterPath: undefined,
+        });
+      }
+      let saved: Awaited<ReturnType<typeof updatePagesAfterInpainting>>;
+      try {
+        saved = await updatePagesAfterInpainting(request.chapterId, reverted, {
+          retainedInpaintedArtifactPaths:
+            revisionStore.getRetainedArtifactPaths(request.chapterId),
+        });
+      } catch (error) {
+        await revisionStore.releaseTransactions([transactionId]);
+        throw error;
+      }
       return {
         chapter: saved,
         pagesChanged: reverted.length,
+        historyTransaction: revisionStore.getReference(transactionId),
+      };
+    },
+  );
+}
+
+function registerInpaintingHistoryIpc(context: IpcContext): void {
+  const revisionStore = requireRevisionStore(context);
+  trustedHandleContract(
+    context,
+    inpaintingIpcContracts.applyInpaintingHistoryTransaction,
+    async (
+      _event,
+      rawRequest: unknown,
+    ): Promise<ApplyInpaintingHistoryTransactionResult> => {
+      const request = parseIpcPayload(
+        ApplyInpaintingHistoryTransactionRequestSchema,
+        rawRequest,
+        tMain("ipc.labels.inpaintingApply"),
+      );
+      assertNoActiveJob(context);
+      return revisionStore.applyTransaction(request);
+    },
+  );
+
+  trustedHandleContract(
+    context,
+    inpaintingIpcContracts.releaseInpaintingHistoryTransactions,
+    async (
+      _event,
+      rawRequest: unknown,
+    ): Promise<ReleaseInpaintingHistoryTransactionsResult> => {
+      const request = parseIpcPayload(
+        ReleaseInpaintingHistoryTransactionsRequestSchema,
+        rawRequest,
+        tMain("ipc.labels.inpaintingApply"),
+      );
+      return {
+        released: await revisionStore.releaseTransactions(
+          request.transactionIds,
+        ),
       };
     },
   );

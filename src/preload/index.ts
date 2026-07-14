@@ -35,12 +35,16 @@ import type {
   ImportPreviewSession,
 } from "../shared/importTypes";
 import type {
+  ApplyInpaintingHistoryTransactionRequest,
+  ApplyInpaintingHistoryTransactionResult,
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
   InpaintingRetouchRequest,
   InpaintingRetouchResult,
   InpaintingRevertRequest,
   InpaintingRevertResult,
+  ReleaseInpaintingHistoryTransactionsRequest,
+  ReleaseInpaintingHistoryTransactionsResult,
   SetPageInpaintingResultRequest,
   SetPageInpaintingResultResult,
   StartInpaintingRequest,
@@ -250,6 +254,20 @@ const api = {
     request: InpaintingRevertRequest,
   ): Promise<InpaintingRevertResult> =>
     invokeContract(inpaintingIpcContracts.revertInpainting, request),
+  applyInpaintingHistoryTransaction: (
+    request: ApplyInpaintingHistoryTransactionRequest,
+  ): Promise<ApplyInpaintingHistoryTransactionResult> =>
+    invokeContract(
+      inpaintingIpcContracts.applyInpaintingHistoryTransaction,
+      request,
+    ),
+  releaseInpaintingHistoryTransactions: (
+    request: ReleaseInpaintingHistoryTransactionsRequest,
+  ): Promise<ReleaseInpaintingHistoryTransactionsResult> =>
+    invokeContract(
+      inpaintingIpcContracts.releaseInpaintingHistoryTransactions,
+      request,
+    ),
   sampleInpaintingColor: (
     request: InpaintingColorSampleRequest,
   ): Promise<InpaintingColorSampleResult> =>

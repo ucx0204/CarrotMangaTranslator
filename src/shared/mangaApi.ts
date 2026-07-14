@@ -3,12 +3,16 @@ import type {
   AnalyzeWorkContextResult,
 } from "./workContextAnalysisTypes";
 import type {
+  ApplyInpaintingHistoryTransactionRequest,
+  ApplyInpaintingHistoryTransactionResult,
   InpaintingColorSampleRequest,
   InpaintingColorSampleResult,
   InpaintingRetouchRequest,
   InpaintingRetouchResult,
   InpaintingRevertRequest,
   InpaintingRevertResult,
+  ReleaseInpaintingHistoryTransactionsRequest,
+  ReleaseInpaintingHistoryTransactionsResult,
   SetPageInpaintingResultRequest,
   SetPageInpaintingResultResult,
   StartInpaintingRequest,
@@ -159,6 +163,12 @@ export type MangaApi = {
   revertInpainting: (
     request: InpaintingRevertRequest,
   ) => Promise<InpaintingRevertResult>;
+  applyInpaintingHistoryTransaction: (
+    request: ApplyInpaintingHistoryTransactionRequest,
+  ) => Promise<ApplyInpaintingHistoryTransactionResult>;
+  releaseInpaintingHistoryTransactions: (
+    request: ReleaseInpaintingHistoryTransactionsRequest,
+  ) => Promise<ReleaseInpaintingHistoryTransactionsResult>;
   sampleInpaintingColor: (
     request: InpaintingColorSampleRequest,
   ) => Promise<InpaintingColorSampleResult>;

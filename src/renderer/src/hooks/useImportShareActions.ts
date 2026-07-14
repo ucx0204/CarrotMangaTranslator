@@ -1,5 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { ImportPreviewSession } from "../../../shared/importTypes";
 import type {
@@ -32,6 +33,7 @@ type UseImportShareActionsOptions = {
   openChapter: (chapterId: string) => Promise<void>;
   pushStatus: (line: string) => void;
   refreshLibrary: () => Promise<void>;
+  resetWorkspaceHistory: () => void;
   saveNow: () => Promise<void>;
   setImportBusy: Dispatch<SetStateAction<boolean>>;
   setImportPreview: Dispatch<SetStateAction<ImportPreviewSession | null>>;
@@ -194,6 +196,7 @@ function useSubmitShareImportAction({
   dirty,
   pushStatus,
   refreshLibrary,
+  resetWorkspaceHistory,
   saveNow,
   setShareImportBusy,
   setShareImportPreview,
@@ -206,31 +209,7 @@ function useSubmitShareImportAction({
         return;
       }
 
-      if (payload.remainingPackageChapters.length > 0) {
-        const confirmed = await askConfirm(
-          t("share.remainingChaptersTitle"),
-          t("share.remainingChaptersMessage"),
-          payload.remainingPackageChapters
-            .map((chapter) => chapter.title)
-            .join("\n"),
-        );
-        if (!confirmed) {
-          return;
-        }
-      }
-
-      if (payload.deletedExistingChapters.length > 0) {
-        const confirmed = await askConfirm(
-          t("share.deleteExistingTitle"),
-          t("share.deleteExistingMessage"),
-          payload.deletedExistingChapters
-            .map((chapter) => chapter.title)
-            .join("\n"),
-        );
-        if (!confirmed) {
-          return;
-        }
-      }
+      if (!(await confirmShareImportChanges(payload, askConfirm, t))) return;
 
       setShareImportBusy(true);
       try {
@@ -243,6 +222,7 @@ function useSubmitShareImportAction({
           entries: payload.entries,
         });
         await refreshLibrary();
+        resetWorkspaceHistory();
         applyChapter(
           result.openedChapter,
           t("share.importApplied", { count: result.chapterIds.length }),
@@ -261,12 +241,36 @@ function useSubmitShareImportAction({
       dirty,
       pushStatus,
       refreshLibrary,
+      resetWorkspaceHistory,
       saveNow,
       setShareImportBusy,
       setShareImportPreview,
       shareImportPreview,
       t,
     ],
+  );
+}
+
+async function confirmShareImportChanges(
+  payload: ShareImportModalSubmit,
+  askConfirm: UseImportShareActionsOptions["askConfirm"],
+  t: TFunction<"renderer">,
+): Promise<boolean> {
+  if (payload.remainingPackageChapters.length > 0) {
+    const confirmed = await askConfirm(
+      t("share.remainingChaptersTitle"),
+      t("share.remainingChaptersMessage"),
+      payload.remainingPackageChapters
+        .map((chapter) => chapter.title)
+        .join("\n"),
+    );
+    if (!confirmed) return false;
+  }
+  if (payload.deletedExistingChapters.length === 0) return true;
+  return askConfirm(
+    t("share.deleteExistingTitle"),
+    t("share.deleteExistingMessage"),
+    payload.deletedExistingChapters.map((chapter) => chapter.title).join("\n"),
   );
 }
 
@@ -278,6 +282,7 @@ function useSubmitImportAction({
   openChapter,
   pushStatus,
   refreshLibrary,
+  resetWorkspaceHistory,
   saveNow,
   setImportBusy,
   setImportPreview,
@@ -300,6 +305,7 @@ function useSubmitImportAction({
           selections,
         });
         await refreshLibrary();
+        resetWorkspaceHistory();
         applyChapter(
           result.openedChapter,
           t("import.added", { count: result.chapterIds.length }),
@@ -329,6 +335,7 @@ function useSubmitImportAction({
       openChapter,
       pushStatus,
       refreshLibrary,
+      resetWorkspaceHistory,
       saveNow,
       setImportBusy,
       setImportPreview,

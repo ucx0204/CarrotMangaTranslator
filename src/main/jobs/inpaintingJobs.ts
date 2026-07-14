@@ -29,12 +29,20 @@ export async function startInpaintingJob(
 
   const id = randomUUID();
   const abortController = new AbortController();
+  const completion = createInpaintingJobCompletion();
   const state: InpaintingJobState = {
     chapter: null,
     chapters: new Map(),
+    historyTransactionId:
+      context.inpaintingRevisionStore?.beginTransaction() ?? null,
     inpaintingEngineLease: null,
   };
-  context.jobs.start({ id, kind: "inpainting", abortController });
+  context.jobs.start({
+    id,
+    kind: "inpainting",
+    abortController,
+    cleanup: () => completion.promise,
+  });
   const emit = (event: JobEvent) =>
     emitJobEvent(context.jobs, context.getMainWindow(), event);
 
@@ -80,8 +88,40 @@ export async function startInpaintingJob(
       context,
     });
   } finally {
-    state.inpaintingEngineLease?.release();
-    context.jobs.clearIfCurrent(id);
+    finishInpaintingJob(context, state, id, completion.resolve);
+  }
+}
+
+function createInpaintingJobCompletion(): {
+  promise: Promise<void>;
+  resolve: () => void;
+} {
+  let resolveCompletion!: () => void;
+  const promise = new Promise<void>((resolve) => {
+    resolveCompletion = resolve;
+  });
+  return { promise, resolve: resolveCompletion };
+}
+
+function finishInpaintingJob(
+  context: InpaintingJobContext,
+  state: InpaintingJobState,
+  id: string,
+  resolveCompletion: () => void,
+): void {
+  try {
+    if (state.historyTransactionId) {
+      context.inpaintingRevisionStore?.discardIfEmpty(
+        state.historyTransactionId,
+      );
+    }
+  } finally {
+    try {
+      state.inpaintingEngineLease?.release();
+    } finally {
+      context.jobs.clearIfCurrent(id);
+      resolveCompletion();
+    }
   }
 }
 
