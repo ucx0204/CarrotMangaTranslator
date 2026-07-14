@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import {
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -196,7 +197,7 @@ describe("library image URL codec", () => {
       });
 
       const validUrl = codec.createUrl(insidePath);
-      expect(codec.resolveUrl(validUrl)).toBe(resolve(insidePath));
+      expect(codec.resolveUrl(validUrl)).toBe(realpathSync.native(insidePath));
       expect(() => codec.createUrl(outsidePath)).toThrow();
       expect(() => codec.createUrl(join(linkPath, "outside.png"))).toThrow();
 
@@ -252,6 +253,7 @@ describe("image protocol integration", () => {
     const fontPath = join(libraryRoot, "font.woff2");
     writeFileSync(imagePath, "image");
     writeFileSync(fontPath, "font");
+    const canonicalImagePath = realpathSync.native(imagePath);
     const protocolHandle = vi.fn(
       (_scheme: string, _handler: TestProtocolHandler): void => undefined,
     );
@@ -289,7 +291,9 @@ describe("image protocol integration", () => {
       const imageUrl = imageProtocol.createLibraryImageUrl(imagePath);
       const imageResponse = await imageHandler({ url: imageUrl });
       expect(imageResponse.status).toBe(200);
-      expect(fetch).toHaveBeenCalledWith(pathToFileURL(imagePath).toString());
+      expect(fetch).toHaveBeenCalledWith(
+        pathToFileURL(canonicalImagePath).toString(),
+      );
 
       const tamperedUrl = new URL(imageUrl);
       tamperedUrl.searchParams.set("s", "999");
