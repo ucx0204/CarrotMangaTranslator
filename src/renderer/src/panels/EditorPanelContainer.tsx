@@ -46,6 +46,8 @@ export function EditorPanelContainer(): React.JSX.Element {
       areaTranslateAvailable={session.areaTranslateAvailable}
       areaTranslateSelecting={session.areaTranslateSelecting}
       selectedBlockCount={session.selectedBlockCount}
+      pageSize={session.selectedPageSize}
+      transformMode={session.transformMode}
       headerActions={detachControls}
       onStartAreaTranslate={session.onStartAreaTranslate}
       onApplyFormat={session.onApplyFormat}
@@ -54,6 +56,7 @@ export function EditorPanelContainer(): React.JSX.Element {
       onUpdate={session.onUpdateBlock}
       onDelete={session.onDeleteBlock}
       onDuplicate={session.onDuplicateBlock}
+      onSelectTransformMode={session.onSelectTransformMode}
     />
   );
 }

@@ -2,9 +2,18 @@ import {
   bboxToPixels,
   clamp,
   normalizeRenderDirection,
+  normalizeRotationDeg,
   resolveEffectiveRenderBbox,
   resolveFontWidthScale,
 } from "../shared/geometry";
+import {
+  matrix3dToCss,
+  normalizeCurveLayout,
+  normalizePerspectiveTransform,
+  quadraticPointAt,
+  quadraticTangentAt,
+  rectToQuadMatrix3d,
+} from "../shared/blockTransforms";
 import {
   DEFAULT_BLOCK_FONT_ID,
   DEFAULT_BLOCK_FONT_STACK,
@@ -12,7 +21,31 @@ import {
 } from "../shared/blockFontCatalog";
 import type { MangaPage } from "../shared/libraryTypes";
 import { parseRichText, type TextStyleRun } from "../shared/richTextMarkup";
-import type { TranslationBlock } from "../shared/textTypes";
+import type {
+  CurveLayout,
+  Point,
+  QuadraticCurvePath,
+  TranslationBlock,
+} from "../shared/textTypes";
+
+const CURVE_ARC_SEGMENTS = 96;
+
+type PageExportCurveSample = {
+  distance: number;
+  x: number;
+  y: number;
+  tangentX: number;
+  tangentY: number;
+};
+
+type PageExportCurveLayout = Pick<
+  CurveLayout,
+  "alignment" | "offsetEm" | "orientation"
+> & {
+  fitSpacing: boolean;
+  samples: PageExportCurveSample[];
+  pathLength: number;
+};
 
 export type PageExportBlock = {
   type: TranslationBlock["type"];
@@ -21,6 +54,8 @@ export type PageExportBlock = {
   rect: { left: number; top: number; width: number; height: number };
   renderDirection: "horizontal" | "vertical";
   rotationDeg: number;
+  perspectiveMatrix3d?: string;
+  curveLayout?: PageExportCurveLayout;
   fontFamily: string;
   fontSizePx: number;
   lineHeight: number;
@@ -83,22 +118,25 @@ function buildPageExportBlock(
   );
   const renderBbox = resolveEffectiveRenderBbox(block, pageSize, plainText);
   const rect = bboxToPixels(renderBbox, pageSize.width, pageSize.height);
+  const exportRect = {
+    left: rect.x * scaleX,
+    top: rect.y * scaleY,
+    width: Math.max(1, rect.w * scaleX),
+    height: Math.max(1, rect.h * scaleY),
+  };
   return {
     type: block.type,
     text: plainText,
     runs,
-    rect: {
-      left: rect.x * scaleX,
-      top: rect.y * scaleY,
-      width: Math.max(1, rect.w * scaleX),
-      height: Math.max(1, rect.h * scaleY),
-    },
+    rect: exportRect,
     renderDirection:
       normalizeRenderDirection(block.renderDirection, "horizontal") ===
       "vertical"
         ? "vertical"
         : "horizontal",
     rotationDeg: resolveExportRotation(block.rotationDeg),
+    ...resolveExportPerspective(block, exportRect.width, exportRect.height),
+    ...resolveExportCurveLayout(block, exportRect.width, exportRect.height),
     fontFamily: resolveExportBlockFontFamily(
       block.fontFamily,
       customFamilyById,
@@ -127,7 +165,94 @@ function buildPageExportBlock(
 }
 
 function resolveExportRotation(value: number | undefined): number {
-  return value ? clamp(Math.round(value), -30, 30) : 0;
+  return normalizeRotationDeg(value);
+}
+
+function resolveExportPerspective(
+  block: TranslationBlock,
+  width: number,
+  height: number,
+): Pick<PageExportBlock, "perspectiveMatrix3d"> | Record<string, never> {
+  const transform = block.perspectiveTransform;
+  if (!transform) {
+    return {};
+  }
+  const normalized = normalizePerspectiveTransform(transform);
+  return {
+    perspectiveMatrix3d: matrix3dToCss(
+      rectToQuadMatrix3d(width, height, normalized.corners),
+    ),
+  };
+}
+
+function resolveExportCurveLayout(
+  block: TranslationBlock,
+  width: number,
+  height: number,
+): Pick<PageExportBlock, "curveLayout"> | Record<string, never> {
+  if (!block.curveLayout) {
+    return {};
+  }
+  const layout = normalizeCurveLayout(block.curveLayout);
+  const path = scaleCurvePath(layout.path, width, height, layout.reversed);
+  const samples = buildCurveSamples(path);
+  return {
+    curveLayout: {
+      alignment: layout.alignment,
+      offsetEm: layout.offsetEm,
+      orientation: layout.orientation,
+      fitSpacing: layout.fitSpacing === true,
+      samples,
+      pathLength: samples.at(-1)?.distance ?? 0,
+    },
+  };
+}
+
+function scaleCurvePath(
+  path: QuadraticCurvePath,
+  width: number,
+  height: number,
+  reversed = false,
+): QuadraticCurvePath {
+  const start = scaleLocalPoint(
+    reversed ? path.end : path.start,
+    width,
+    height,
+  );
+  const end = scaleLocalPoint(reversed ? path.start : path.end, width, height);
+  return {
+    type: "quadratic",
+    start,
+    control: scaleLocalPoint(path.control, width, height),
+    end,
+  };
+}
+
+function scaleLocalPoint(point: Point, width: number, height: number): Point {
+  return { x: point.x * width, y: point.y * height };
+}
+
+function buildCurveSamples(path: QuadraticCurvePath): PageExportCurveSample[] {
+  const samples: PageExportCurveSample[] = [];
+  let previous = quadraticPointAt(path, 0);
+  let distance = 0;
+  for (let index = 0; index <= CURVE_ARC_SEGMENTS; index += 1) {
+    const t = index / CURVE_ARC_SEGMENTS;
+    const point = index === 0 ? previous : quadraticPointAt(path, t);
+    if (index > 0) {
+      distance += Math.hypot(point.x - previous.x, point.y - previous.y);
+    }
+    const tangent = quadraticTangentAt(path, t);
+    samples.push({
+      distance,
+      x: point.x,
+      y: point.y,
+      tangentX: tangent.x,
+      tangentY: tangent.y,
+    });
+    previous = point;
+  }
+  return samples;
 }
 
 function resolveExportBlockFontFamily(

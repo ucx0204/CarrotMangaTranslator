@@ -115,6 +115,98 @@
     "textColor": "文字顏色",
     "outline": "描邊"
   },
+  "transform": {
+    "title": "變形",
+    "resetAll": "全部重設",
+    "active": "使用中",
+    "inactive": "未使用",
+    "suspended": "已暫停",
+    "modeLabel": "變形模式",
+    "modes": { "select": "選取", "perspective": "透視", "curve": "曲線" },
+    "fields": { "x": "X", "y": "Y", "w": "寬度", "h": "高度" },
+    "controlKinds": { "slider": "滑桿", "value": "數值" },
+    "lockRatio": "保持比例",
+    "rotation": "旋轉",
+    "resetRotation": "歸零",
+    "hints": {
+      "select": "拖曳邊角調整大小，上方控點旋轉 · Shift 15°",
+      "perspective": "將四個角對齊影像表面 · Esc 取消",
+      "curve": "兩端控制長度，中點控制彎曲"
+    },
+    "handles": {
+      "rotate": "旋轉控點",
+      "resizeNw": "調整左上角大小",
+      "resizeN": "調整上邊大小",
+      "resizeNe": "調整右上角大小",
+      "resizeE": "調整右邊大小",
+      "resizeSe": "調整右下角大小",
+      "resizeS": "調整下邊大小",
+      "resizeSw": "調整左下角大小",
+      "resizeW": "調整左邊大小",
+      "perspectiveTl": "左上透視點",
+      "perspectiveTop": "上邊透視點",
+      "perspectiveTr": "右上透視點",
+      "perspectiveRight": "右邊透視點",
+      "perspectiveBr": "右下透視點",
+      "perspectiveBottom": "下邊透視點",
+      "perspectiveBl": "左下透視點",
+      "perspectiveLeft": "左邊透視點",
+      "curveStart": "曲線起點",
+      "curveControl": "曲線彎曲點",
+      "curveEnd": "曲線終點"
+    },
+    "hud": {
+      "invalidPerspective": "頂點不能交叉或距離過近",
+      "invalidCurve": "路徑兩端不能距離過近",
+      "outsidePage": "變形結果不能完全移出頁面",
+      "snapped": "已吸附"
+    },
+    "perspective": {
+      "start": "開始透視",
+      "reset": "重設透視",
+      "quickShape": "快速形狀",
+      "custom": "套用預設…",
+      "advanced": "頂點座標",
+      "invalid": "頂點不能交叉或距離過近。",
+      "outside": "變形結果不能完全移出頁面。",
+      "presets": {
+        "topNarrow": "頂部收窄",
+        "bottomNarrow": "底部收窄",
+        "leftNarrow": "左側收窄",
+        "rightNarrow": "右側收窄",
+        "skewLeft": "左平行四邊形",
+        "skewRight": "右平行四邊形"
+      },
+      "corners": {
+        "topLeft": "左上",
+        "topRight": "右上",
+        "bottomRight": "右下",
+        "bottomLeft": "左下"
+      }
+    },
+    "curve": {
+      "convert": "轉換為曲線",
+      "quickShape": "快速形狀",
+      "bend": "彎曲",
+      "offset": "路徑位置",
+      "alignment": "對齊",
+      "orientation": "文字方向",
+      "fitSpacing": "調整字距以符合路徑",
+      "reverse": "反轉方向",
+      "reset": "重設曲線",
+      "remove": "取消曲線",
+      "overflow": "文字比路徑長 {{amount}}px。",
+      "fitAction": "符合字距",
+      "shrinkText": "文字縮小一級",
+      "constraints": {
+        "vertical": "曲線僅支援單行橫排文字。",
+        "multiline": "移除換行後會恢復已儲存的曲線。"
+      },
+      "presets": { "straight": "直線", "archUp": "向上", "archDown": "向下" },
+      "align": { "start": "起點", "center": "置中", "end": "終點" },
+      "orientations": { "tangent": "沿路徑", "upright": "保持直立" }
+    }
+  },
   "editor": {
     "text": "文字",
     "translatedText": "譯文",
@@ -362,6 +454,14 @@
         "title": "區域翻譯 — 拖曳選取要重新翻譯的區域"
       },
       "hand": { "label": "手掌", "title": "手掌工具（3）— 拖曳以移動影像" },
+      "perspective": {
+        "label": "透視",
+        "title": "透視變形 — 移動四角以貼合表面"
+      },
+      "curve": {
+        "label": "曲線",
+        "title": "曲線文字 — 讓效果音沿路徑排列"
+      },
       "mask": { "label": "遮罩", "title": "遮罩畫筆" },
       "brush": { "label": "畫筆", "title": "修整畫筆" },
       "eraser": { "label": "橡皮擦", "title": "清除修整筆觸" },

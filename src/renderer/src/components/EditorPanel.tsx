@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
+import type { TransformEditorMode } from "../../../shared/panelBridgeTypes";
 import { normalizeRenderDirection } from "../../../shared/geometry";
 import type {
   BlockBackgroundApplyScope,
@@ -21,6 +22,7 @@ import {
   resolveColor,
   type EditorPanelModel,
 } from "./editorPanelUtils";
+import { TransformEditorGroup } from "./TransformEditorGroup";
 
 type EditorPanelProps = {
   block: TranslationBlock | null;
@@ -29,6 +31,8 @@ type EditorPanelProps = {
   areaTranslateSelecting?: boolean;
   disableChapterApply?: boolean;
   selectedBlockCount?: number;
+  pageSize?: { width: number; height: number } | null;
+  transformMode?: TransformEditorMode;
   /** Optional actions (e.g. float/dock toggle) rendered in the panel header. */
   headerActions?: React.ReactNode;
   onStartAreaTranslate?: () => void;
@@ -41,6 +45,7 @@ type EditorPanelProps = {
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onSelectTransformMode?: (mode: TransformEditorMode) => void;
 };
 
 export function EditorPanel({
@@ -50,6 +55,8 @@ export function EditorPanel({
   areaTranslateSelecting = false,
   disableChapterApply = false,
   selectedBlockCount = 0,
+  pageSize = null,
+  transformMode = "select",
   headerActions,
   onStartAreaTranslate,
   onApplyFormat,
@@ -58,6 +65,7 @@ export function EditorPanel({
   onUpdate,
   onDelete,
   onDuplicate,
+  onSelectTransformMode,
 }: EditorPanelProps): React.JSX.Element {
   const [fontFamilyDraft, setFontFamilyDraft] = React.useState<
     string | undefined
@@ -79,16 +87,87 @@ export function EditorPanel({
     );
   }
 
-  const model = resolveEditorPanelModel(block);
   return (
     <section className="editor-panel has-block">
       <EditorPanelHeader actions={headerActions} />
+      <EditorBlockGroups
+        {...{
+          block,
+          disabled,
+          disableChapterApply,
+          fontFamilyDraft,
+          onAdjustFontSize,
+          onApplyBlockBackgroundOpacity,
+          onApplyFormat,
+          onDelete,
+          onDuplicate,
+          onSelectTransformMode,
+          onUpdate,
+          pageSize,
+          selectedBlockCount,
+          setFontFamilyDraft,
+          transformMode,
+        }}
+      />
+    </section>
+  );
+}
+
+type EditorBlockGroupsProps = {
+  block: TranslationBlock;
+  disabled: boolean;
+  disableChapterApply: boolean;
+  fontFamilyDraft: string | undefined;
+  onAdjustFontSize: EditorPanelProps["onAdjustFontSize"];
+  onApplyBlockBackgroundOpacity?: EditorPanelProps["onApplyBlockBackgroundOpacity"];
+  onApplyFormat: EditorPanelProps["onApplyFormat"];
+  onDelete: EditorPanelProps["onDelete"];
+  onDuplicate: EditorPanelProps["onDuplicate"];
+  onSelectTransformMode?: EditorPanelProps["onSelectTransformMode"];
+  onUpdate: EditorPanelProps["onUpdate"];
+  pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
+  selectedBlockCount: number;
+  setFontFamilyDraft: React.Dispatch<React.SetStateAction<string | undefined>>;
+  transformMode: TransformEditorMode;
+};
+
+function EditorBlockGroups({
+  block,
+  disabled,
+  disableChapterApply,
+  fontFamilyDraft,
+  onAdjustFontSize,
+  onApplyBlockBackgroundOpacity,
+  onApplyFormat,
+  onDelete,
+  onDuplicate,
+  onSelectTransformMode,
+  onUpdate,
+  pageSize,
+  selectedBlockCount,
+  setFontFamilyDraft,
+  transformMode,
+}: EditorBlockGroupsProps): React.JSX.Element {
+  const model = resolveEditorPanelModel(block);
+  return (
+    <>
       <InpaintingBlockOption
         block={block}
         disabled={disabled}
         onUpdate={onUpdate}
       />
       <TextEditorGroup block={block} disabled={disabled} onUpdate={onUpdate} />
+      <BlockTransformEditor
+        key={block.id}
+        {...{
+          block,
+          disabled,
+          onSelectTransformMode,
+          onUpdate,
+          pageSize,
+          transformMode,
+        }}
+      />
       <FormatEditorGroup
         block={block}
         disabled={disabled}
@@ -119,7 +198,34 @@ export function EditorPanel({
         onDelete={onDelete}
         onDuplicate={onDuplicate}
       />
-    </section>
+    </>
+  );
+}
+
+function BlockTransformEditor({
+  block,
+  disabled,
+  onSelectTransformMode,
+  onUpdate,
+  pageSize,
+  transformMode,
+}: {
+  block: TranslationBlock;
+  disabled: boolean;
+  onSelectTransformMode?: (mode: TransformEditorMode) => void;
+  onUpdate: EditorPanelProps["onUpdate"];
+  pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
+  transformMode: TransformEditorMode;
+}): React.JSX.Element {
+  return (
+    <TransformEditorGroup
+      block={block}
+      disabled={disabled}
+      mode={transformMode}
+      pageSize={pageSize}
+      onSelectMode={onSelectTransformMode ?? (() => undefined)}
+      onUpdate={onUpdate}
+    />
   );
 }
 

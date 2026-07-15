@@ -8,6 +8,9 @@ import type { BlockFormatGroupId } from "./blockFormat";
  */
 export type PanelId = "editor";
 
+/** Canvas modes surfaced by the compact transform editor. */
+export type TransformEditorMode = "select" | "perspective" | "curve";
+
 /** Mirrors the renderer's FormatApplyScope without importing renderer code. */
 type PanelFormatScope = "selection" | "page" | "chapter";
 
@@ -23,6 +26,8 @@ export type PanelSyncState = {
   disableChapterApply: boolean;
   areaTranslateAvailable: boolean;
   areaTranslateSelecting: boolean;
+  transformMode: TransformEditorMode;
+  selectedPageSize: { width: number; height: number } | null;
 };
 
 /**
@@ -30,10 +35,15 @@ export type PanelSyncState = {
  * applies it through the existing session action handlers.
  */
 export type PanelCommand =
-  | { type: "updateBlock"; patch: Partial<TranslationBlock> }
-  | { type: "adjustFontSize"; adjustment: -1 | 1 }
-  | { type: "deleteBlock" }
-  | { type: "duplicateBlock" }
+  | {
+      type: "updateBlock";
+      blockId: string;
+      patch: Partial<TranslationBlock>;
+    }
+  | { type: "adjustFontSize"; blockId: string; adjustment: -1 | 1 }
+  | { type: "deleteBlock"; blockId: string }
+  | { type: "duplicateBlock"; blockId: string }
+  | { type: "selectTransformMode"; mode: TransformEditorMode }
   | {
       type: "applyFormat";
       scope: PanelFormatScope;

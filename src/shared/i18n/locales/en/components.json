@@ -119,6 +119,102 @@
     "textColor": "Text color",
     "outline": "Outline"
   },
+  "transform": {
+    "title": "Transform",
+    "resetAll": "Reset all",
+    "active": "Active",
+    "inactive": "Inactive",
+    "suspended": "Paused",
+    "modeLabel": "Transform mode",
+    "modes": {
+      "select": "Select",
+      "perspective": "Perspective",
+      "curve": "Curve"
+    },
+    "fields": { "x": "X", "y": "Y", "w": "Width", "h": "Height" },
+    "controlKinds": { "slider": "slider", "value": "value" },
+    "lockRatio": "Keep ratio",
+    "rotation": "Rotation",
+    "resetRotation": "To 0°",
+    "hints": {
+      "select": "Drag corners to resize or the top handle to rotate · Shift 15°",
+      "perspective": "Match the four corners to the image surface · Esc cancels",
+      "curve": "The ends set length; the middle point controls the bend"
+    },
+    "handles": {
+      "rotate": "Rotation handle",
+      "resizeNw": "Resize top left",
+      "resizeN": "Resize top",
+      "resizeNe": "Resize top right",
+      "resizeE": "Resize right",
+      "resizeSe": "Resize bottom right",
+      "resizeS": "Resize bottom",
+      "resizeSw": "Resize bottom left",
+      "resizeW": "Resize left",
+      "perspectiveTl": "Perspective top left",
+      "perspectiveTop": "Perspective top edge",
+      "perspectiveTr": "Perspective top right",
+      "perspectiveRight": "Perspective right edge",
+      "perspectiveBr": "Perspective bottom right",
+      "perspectiveBottom": "Perspective bottom edge",
+      "perspectiveBl": "Perspective bottom left",
+      "perspectiveLeft": "Perspective left edge",
+      "curveStart": "Curve start",
+      "curveControl": "Curve bend",
+      "curveEnd": "Curve end"
+    },
+    "hud": {
+      "invalidPerspective": "Corners cannot cross or become too close",
+      "invalidCurve": "The path ends cannot become too close",
+      "outsidePage": "The transformed block cannot move completely off the page",
+      "snapped": "Snapped"
+    },
+    "perspective": {
+      "start": "Start perspective",
+      "reset": "Reset perspective",
+      "quickShape": "Quick shape",
+      "custom": "Apply preset…",
+      "advanced": "Corner coordinates",
+      "invalid": "Corners cannot cross or become too close.",
+      "outside": "The transformed block cannot move completely off the page.",
+      "presets": {
+        "topNarrow": "Narrow top",
+        "bottomNarrow": "Narrow bottom",
+        "leftNarrow": "Narrow left",
+        "rightNarrow": "Narrow right",
+        "skewLeft": "Parallelogram left",
+        "skewRight": "Parallelogram right"
+      },
+      "corners": {
+        "topLeft": "Top left",
+        "topRight": "Top right",
+        "bottomRight": "Bottom right",
+        "bottomLeft": "Bottom left"
+      }
+    },
+    "curve": {
+      "convert": "Convert to curve",
+      "quickShape": "Quick shape",
+      "bend": "Bend",
+      "offset": "Path offset",
+      "alignment": "Alignment",
+      "orientation": "Letter direction",
+      "fitSpacing": "Fit spacing to path",
+      "reverse": "Reverse direction",
+      "reset": "Reset curve",
+      "remove": "Remove curve",
+      "overflow": "Text is {{amount}}px longer than the path.",
+      "fitAction": "Fit spacing",
+      "shrinkText": "Reduce text one step",
+      "constraints": {
+        "vertical": "Curves are available for one horizontal line.",
+        "multiline": "Remove line breaks to restore the saved curve."
+      },
+      "presets": { "straight": "Straight", "archUp": "Up", "archDown": "Down" },
+      "align": { "start": "Start", "center": "Center", "end": "End" },
+      "orientations": { "tangent": "Follow path", "upright": "Upright" }
+    }
+  },
   "editor": {
     "text": "Text",
     "translatedText": "Translation",
@@ -377,6 +473,14 @@
       "hand": {
         "label": "Hand",
         "title": "Hand tool (3) — drag to pan the image"
+      },
+      "perspective": {
+        "label": "Perspective",
+        "title": "Perspective transform — move four corners to match a surface"
+      },
+      "curve": {
+        "label": "Curve",
+        "title": "Curved text — place an effect along a path"
       },
       "mask": { "label": "Mask", "title": "Mask brush" },
       "brush": { "label": "Brush", "title": "Retouch brush" },

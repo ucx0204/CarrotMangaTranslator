@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   describeDragBbox,
   resolveDraggedBbox,
+  resolveDraggedPerspective,
+  resolveDraggedRotationWithSnap,
   resolveNormalizedImagePoint,
   type DragState,
 } from "../src/renderer/src/hooks/workspacePointerGeometry";
@@ -25,6 +27,7 @@ describe("workspace pointer geometry", () => {
       startX: 10,
       startY: 20,
       startBbox: { x: 100, y: 200, w: 300, h: 400 },
+      startBlock: { rotationDeg: 0 } as DragState["startBlock"],
     };
     const rect = { left: 0, top: 0, width: 200, height: 100 };
 
@@ -38,6 +41,101 @@ describe("workspace pointer geometry", () => {
         rect,
       ),
     ).toEqual({ x: 100, y: 200, w: 400, h: 500 });
+  });
+
+  it("resizes on rotated local axes and keeps the opposite side anchored", () => {
+    const drag: DragState = {
+      blockId: "block-1",
+      mode: "resize-e",
+      startX: 100,
+      startY: 50,
+      startBbox: { x: 250, y: 250, w: 500, h: 500 },
+      startBlock: { rotationDeg: 90 } as DragState["startBlock"],
+    };
+    const result = resolveDraggedBbox(
+      drag,
+      { clientX: 100, clientY: 70 },
+      { left: 0, top: 0, width: 200, height: 100 },
+      { width: 200, height: 100 },
+    );
+
+    expect(result.w).toBeCloseTo(600);
+    expect(result.h).toBeCloseTo(500);
+    expect(result.x).toBeCloseTo(200);
+    expect(result.y).toBeCloseTo(350);
+  });
+
+  it("keeps the starting ratio for Shift corner resize", () => {
+    const drag: DragState = {
+      blockId: "block-1",
+      mode: "resize-se",
+      startX: 0,
+      startY: 0,
+      startBbox: { x: 100, y: 100, w: 400, h: 200 },
+      startBlock: { rotationDeg: 0 } as DragState["startBlock"],
+    };
+    const result = resolveDraggedBbox(
+      drag,
+      { clientX: 20, clientY: 2, shiftKey: true },
+      { left: 0, top: 0, width: 200, height: 100 },
+      { width: 200, height: 100 },
+    );
+
+    expect(result.w / result.h).toBeCloseTo(2);
+    expect(result.x).toBe(100);
+    expect(result.y).toBe(100);
+  });
+
+  it("reports Shift and weak 45 degree rotation snaps", () => {
+    const drag: DragState = {
+      blockId: "block-1",
+      mode: "rotate",
+      startX: 100,
+      startY: 0,
+      startBbox: { x: 0, y: 0, w: 1000, h: 1000 },
+      startBlock: { rotationDeg: 0 } as DragState["startBlock"],
+    };
+    const rect = { left: 0, top: 0, width: 100, height: 100 };
+
+    expect(
+      resolveDraggedRotationWithSnap(
+        drag,
+        { clientX: 100, clientY: 45, shiftKey: true },
+        rect,
+      ),
+    ).toMatchObject({ snapped: true, rotationDeg: 45 });
+    expect(
+      resolveDraggedRotationWithSnap(drag, { clientX: 100, clientY: 48 }, rect),
+    ).toMatchObject({ snapped: true, rotationDeg: 45 });
+  });
+
+  it("moves both corners for a perspective edge handle", () => {
+    const drag: DragState = {
+      blockId: "block-1",
+      mode: "perspective-top",
+      startX: 50,
+      startY: 20,
+      startBbox: { x: 100, y: 100, w: 500, h: 400 },
+      startBlock: { rotationDeg: 0 } as DragState["startBlock"],
+    };
+    const result = resolveDraggedPerspective(
+      drag,
+      { clientX: 50, clientY: 30 },
+      {
+        version: 1,
+        corners: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 1, y: 1 },
+          { x: 0, y: 1 },
+        ],
+      },
+      { left: 0, top: 0, width: 100, height: 100 },
+    );
+
+    expect(result.corners[0].y).toBeCloseTo(0.25);
+    expect(result.corners[1].y).toBeCloseTo(0.25);
+    expect(result.corners[2]).toEqual({ x: 1, y: 1 });
   });
 
   it("normalizes client points and clamps outside the image rect", () => {

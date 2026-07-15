@@ -1353,6 +1353,296 @@ input[type="radio"] {
   border-top: 1px solid var(--border-soft);
 }
 
+/* Dense, mode-aware block transform inspector. Values stay compact while the
+   canvas handles retain a larger invisible hit area. */
+.transform-editor-group {
+  gap: var(--sp-2);
+}
+
+.transform-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.transform-mode-tabs button,
+.transform-mini-segments button {
+  min-width: 0;
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.transform-mode-tabs button:hover:not(:disabled),
+.transform-mini-segments button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.transform-mode-tabs button[aria-pressed="true"],
+.transform-mini-segments button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  box-shadow: inset 0 0 0 1px var(--accent-bd);
+}
+
+.transform-mode-tabs button:disabled,
+.transform-mini-segments button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.transform-mode-panel {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.transform-box-grid,
+.transform-corner-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-1) var(--sp-2);
+}
+
+.transform-number-field {
+  display: grid;
+  grid-template-columns: minmax(26px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+
+.transform-number-input-wrap {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.editor-panel.has-block .transform-number-field input {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 3px 22px 3px 7px;
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.transform-number-input-wrap small {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  color: var(--text-muted);
+  font-size: 10px;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.transform-number-field input[aria-invalid="true"] {
+  border-color: var(--danger-bd);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger-bd) 40%, transparent);
+}
+
+.transform-lock-ratio,
+.transform-compact-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: var(--sp-1);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  cursor: pointer;
+}
+
+.editor-panel.has-block .transform-lock-ratio input,
+.editor-panel.has-block .transform-compact-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.transform-rotation-row,
+.transform-slider-row {
+  display: grid;
+  grid-template-columns: auto minmax(46px, 1fr) 82px auto;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.transform-slider-row {
+  grid-template-columns: 52px minmax(42px, 1fr) 82px;
+}
+
+.transform-rotation-row > span,
+.transform-slider-row > span,
+.transform-control-row > span,
+.transform-select-row > span {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  white-space: nowrap;
+}
+
+.transform-rotation-row .transform-number-field,
+.transform-slider-row .transform-number-field {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.transform-inline-reset {
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.transform-inline-reset:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.transform-help,
+.transform-warning,
+.transform-overflow-warning p {
+  min-height: 16px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.transform-help {
+  color: var(--text-muted);
+}
+
+.transform-warning,
+.transform-overflow-warning p {
+  color: #e6b774;
+}
+
+.transform-status-row,
+.transform-curve-actions,
+.transform-overflow-warning > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.transform-status-chip {
+  padding: 2px 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-pill);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.transform-status-chip.active {
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.transform-status-chip.suspended {
+  border-color: rgba(230, 183, 116, 0.45);
+  background: rgba(230, 183, 116, 0.08);
+  color: #e6b774;
+}
+
+.transform-select-row,
+.transform-control-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.transform-select-row select {
+  min-width: 0;
+  height: 30px;
+  padding-block: 3px;
+  font-size: var(--font-sm);
+}
+
+.transform-advanced {
+  border-top: 1px solid var(--border-soft);
+  padding-top: var(--sp-1);
+}
+
+.transform-advanced summary {
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  cursor: pointer;
+}
+
+.transform-advanced[open] summary {
+  margin-bottom: var(--sp-2);
+}
+
+.transform-corner-grid .transform-number-field {
+  grid-template-columns: minmax(54px, auto) minmax(0, 1fr);
+}
+
+.transform-mini-segments {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
+  min-width: 0;
+  padding: 2px;
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+}
+
+.transform-overflow-warning {
+  display: grid;
+  gap: var(--sp-1);
+  padding: 6px 7px;
+  border: 1px solid rgba(230, 183, 116, 0.35);
+  border-radius: var(--r-sm);
+  background: rgba(230, 183, 116, 0.07);
+}
+
+.transform-overflow-warning button {
+  min-height: 26px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+@media (max-width: 380px) {
+  .transform-corner-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .transform-select-row,
+  .transform-control-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .editor-group-head {
   display: flex;
   align-items: center;

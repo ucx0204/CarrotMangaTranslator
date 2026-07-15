@@ -109,7 +109,7 @@
     "fontSizeIncrease": "글자 크기 늘리기",
     "autoFitTitle": "텍스트 상자에 맞춰 자동 크기",
     "auto": "자동",
-    "rotation": "기울기",
+    "rotation": "회전",
     "textOpacity": "글자 투명도",
     "blockBackgroundOpacity": "블록 배경 투명도",
     "lineHeight": "줄 간격",
@@ -118,6 +118,98 @@
     "color": "색상",
     "textColor": "글자색",
     "outline": "외곽선"
+  },
+  "transform": {
+    "title": "변형",
+    "resetAll": "모두 초기화",
+    "active": "사용 중",
+    "inactive": "사용 안 함",
+    "suspended": "일시 중지",
+    "modeLabel": "변형 모드",
+    "modes": { "select": "선택", "perspective": "원근", "curve": "곡선" },
+    "fields": { "x": "X", "y": "Y", "w": "너비", "h": "높이" },
+    "controlKinds": { "slider": "슬라이더", "value": "값" },
+    "lockRatio": "비율 유지",
+    "rotation": "회전",
+    "resetRotation": "0°로",
+    "hints": {
+      "select": "모서리로 크기를, 위 손잡이로 회전해요 · Shift 15°",
+      "perspective": "네 모서리를 이미지의 면에 맞추세요 · Esc 취소",
+      "curve": "양끝은 길이, 가운데 점은 휘어짐을 조절해요"
+    },
+    "handles": {
+      "rotate": "회전 손잡이",
+      "resizeNw": "왼쪽 위 크기 조절",
+      "resizeN": "위쪽 크기 조절",
+      "resizeNe": "오른쪽 위 크기 조절",
+      "resizeE": "오른쪽 크기 조절",
+      "resizeSe": "오른쪽 아래 크기 조절",
+      "resizeS": "아래쪽 크기 조절",
+      "resizeSw": "왼쪽 아래 크기 조절",
+      "resizeW": "왼쪽 크기 조절",
+      "perspectiveTl": "왼쪽 위 원근점",
+      "perspectiveTop": "위쪽 원근점",
+      "perspectiveTr": "오른쪽 위 원근점",
+      "perspectiveRight": "오른쪽 원근점",
+      "perspectiveBr": "오른쪽 아래 원근점",
+      "perspectiveBottom": "아래쪽 원근점",
+      "perspectiveBl": "왼쪽 아래 원근점",
+      "perspectiveLeft": "왼쪽 원근점",
+      "curveStart": "곡선 시작점",
+      "curveControl": "곡선 굽힘점",
+      "curveEnd": "곡선 끝점"
+    },
+    "hud": {
+      "invalidPerspective": "꼭짓점이 교차하거나 너무 가까워질 수 없어요",
+      "invalidCurve": "경로의 양끝이 너무 가까워질 수 없어요",
+      "outsidePage": "변형 결과가 페이지 밖으로 완전히 나갈 수 없어요",
+      "snapped": "맞춤"
+    },
+    "perspective": {
+      "start": "원근 시작",
+      "reset": "원근 초기화",
+      "quickShape": "빠른 모양",
+      "custom": "프리셋 적용…",
+      "advanced": "꼭짓점 좌표",
+      "invalid": "꼭짓점이 교차하거나 너무 가까워질 수 없어요.",
+      "outside": "변형 결과가 페이지 밖으로 완전히 나갈 수 없어요.",
+      "presets": {
+        "topNarrow": "위쪽 좁게",
+        "bottomNarrow": "아래쪽 좁게",
+        "leftNarrow": "왼쪽 좁게",
+        "rightNarrow": "오른쪽 좁게",
+        "skewLeft": "왼쪽 평행사변형",
+        "skewRight": "오른쪽 평행사변형"
+      },
+      "corners": {
+        "topLeft": "좌상",
+        "topRight": "우상",
+        "bottomRight": "우하",
+        "bottomLeft": "좌하"
+      }
+    },
+    "curve": {
+      "convert": "곡선으로 변환",
+      "quickShape": "빠른 모양",
+      "bend": "휘어짐",
+      "offset": "경로 위치",
+      "alignment": "정렬",
+      "orientation": "글자 방향",
+      "fitSpacing": "경로에 맞게 자간 조절",
+      "reverse": "방향 뒤집기",
+      "reset": "곡선 초기화",
+      "remove": "곡선 해제",
+      "overflow": "글자가 경로보다 {{amount}}px 깁니다.",
+      "fitAction": "자간 맞추기",
+      "shrinkText": "글자 한 단계 줄이기",
+      "constraints": {
+        "vertical": "곡선은 가로쓰기 한 줄에서 사용할 수 있어요.",
+        "multiline": "줄바꿈을 없애면 기존 곡선이 다시 적용돼요."
+      },
+      "presets": { "straight": "직선", "archUp": "위로", "archDown": "아래로" },
+      "align": { "start": "시작", "center": "가운데", "end": "끝" },
+      "orientations": { "tangent": "경로 따라", "upright": "똑바로" }
+    }
   },
   "editor": {
     "text": "텍스트",
@@ -164,7 +256,7 @@
       "fontWidth": "장평",
       "color": "글자색",
       "outline": "외곽선",
-      "transform": "기울기·글자 투명도"
+      "transform": "회전·글자 투명도"
     }
   },
   "fontSelect": {
@@ -369,6 +461,14 @@
         "label": "손바닥",
         "title": "손바닥 도구 (3) — 드래그해서 이미지 이동"
       },
+      "perspective": {
+        "label": "원근",
+        "title": "원근 변형 — 네 모서리를 움직여 면에 맞춥니다"
+      },
+      "curve": {
+        "label": "곡선",
+        "title": "곡선 텍스트 — 효과음을 경로를 따라 배치합니다"
+      },
       "mask": { "label": "마스크", "title": "마스크 붓" },
       "brush": { "label": "브러시", "title": "보정 브러시" },
       "eraser": { "label": "지우개", "title": "보정 내용 지우개" },
@@ -455,7 +555,7 @@
     "changedOnlyHint": "손댄 항목만 선택한 블록 전체에 적용됩니다.",
     "colorSection": "색상과 외곽선",
     "detailsSection": "세부 조정",
-    "detailsHint": "줄 간격 · 자간 · 장평 · 기울기 · 글자 투명도",
+    "detailsHint": "줄 간격 · 자간 · 장평 · 회전 · 글자 투명도",
     "outlineWidth": "외곽선 굵기",
     "autoFitLabel": "자동 맞춤",
     "autoFitBadge": "자동 맞춤",

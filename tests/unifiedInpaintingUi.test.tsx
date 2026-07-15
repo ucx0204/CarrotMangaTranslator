@@ -35,7 +35,9 @@ describe("unified workspace toolbar", () => {
       />,
     );
 
-    expect(screen.getAllByRole("button")).toHaveLength(9);
+    expect(screen.getAllByRole("button")).toHaveLength(11);
+    expect(screen.getByRole("button", { name: "원근" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "곡선" })).toBeTruthy();
     expect(
       screen
         .getByRole("button", { name: "브러시" })
@@ -51,6 +53,12 @@ describe("unified workspace toolbar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "마스크" }));
     expect(onSelectTool).toHaveBeenCalledWith("mask");
+
+    fireEvent.click(screen.getByRole("button", { name: "원근" }));
+    expect(onSelectTool).toHaveBeenCalledWith("perspective");
+
+    fireEvent.click(screen.getByRole("button", { name: "곡선" }));
+    expect(onSelectTool).toHaveBeenCalledWith("curve");
 
     fireEvent.click(screen.getByRole("button", { name: "영역 번역" }));
     expect(onToggleRegionTranslation).toHaveBeenCalledOnce();

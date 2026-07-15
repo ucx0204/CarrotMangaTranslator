@@ -98,7 +98,7 @@ export function FormatEditorGroup({
           onAdjust={onAdjustFontSize}
           onUpdate={onUpdate}
         />
-        <BlockTransformSliders
+        <BlockTextOpacitySlider
           block={block}
           disabled={disabled}
           onUpdate={onUpdate}
@@ -335,38 +335,24 @@ function FontSizeRow({
   );
 }
 
-function BlockTransformSliders({
+function BlockTextOpacitySlider({
   block,
   disabled,
   onUpdate,
 }: BlockSectionProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <FieldSlider
-        label={t("format.rotation")}
-        valueLabel={`${block.rotationDeg ?? 0}°`}
-        min={-30}
-        max={30}
-        step={1}
-        value={block.rotationDeg ?? 0}
-        disabled={disabled}
-        onChange={(event) =>
-          onUpdate({ rotationDeg: Number(event.target.value) })
-        }
-      />
-      <FieldSlider
-        label={t("format.textOpacity")}
-        valueLabel={`${Math.round((block.textOpacity ?? 1) * 100)}%`}
-        min={0}
-        max={1}
-        step={0.01}
-        value={block.textOpacity ?? 1}
-        disabled={disabled}
-        onChange={(event) =>
-          onUpdate({ textOpacity: Number(event.target.value) })
-        }
-      />
-    </>
+    <FieldSlider
+      label={t("format.textOpacity")}
+      valueLabel={`${Math.round((block.textOpacity ?? 1) * 100)}%`}
+      min={0}
+      max={1}
+      step={0.01}
+      value={block.textOpacity ?? 1}
+      disabled={disabled}
+      onChange={(event) =>
+        onUpdate({ textOpacity: Number(event.target.value) })
+      }
+    />
   );
 }

@@ -19,7 +19,7 @@
 Carrot Manga Translator is a manga production tool that finds dialogue and sound effects in images, creates translation blocks with AI, and lets you refine the wording and layout before exporting finished PNG files. The default translation direction is Japanese → Korean, but you can choose other source and target languages.
 
 - Latest Windows installer: [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- Current version information: [v1.3.1 release notes](docs/release-notes/v1.3.1.md)
+- Current version information: [v1.4.0 release notes](docs/release-notes/v1.4.0.md)
 - Code structure and contribution guidelines: [docs/architecture.md](docs/architecture.md)
 
 ## At a Glance
@@ -44,7 +44,7 @@ The installer is kept relatively small. Large models and runtimes are downloaded
 
 ## Quick Start
 
-1. Download and run the latest installer, such as `CarrotMangaTranslator-Setup-v1.3.1.exe`, from [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases).
+1. Download and run the latest installer, such as `CarrotMangaTranslator-Setup-v1.4.0.exe`, from [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases).
 2. Check the interface language under `Settings → General`. On first launch, the app automatically selects a supported Windows language. If the Windows language is not supported, the app uses Korean.
 3. Under `Settings → Translation Engine`, choose the source language, target language, and engine.
    - To process everything on your PC, choose `Gemma 4`.

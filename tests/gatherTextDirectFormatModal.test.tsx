@@ -31,7 +31,7 @@ describe("GatherTextDirectFormatModal", () => {
     expect(screen.getByRole("slider", { name: "줄 간격" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "자간" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "장평" })).toBeTruthy();
-    expect(screen.getByRole("slider", { name: "기울기" })).toBeTruthy();
+    expect(screen.getByRole("slider", { name: "회전" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "글자 투명도" })).toBeTruthy();
   });
 

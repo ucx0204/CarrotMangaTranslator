@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { coerceOpenAiCompatibleBaseUrl } from "./apiSettings";
 import {
+  isValidPerspectiveTransform,
+  MAX_BLOCK_LOCAL_COORDINATE,
+  MAX_CURVE_OFFSET_EM,
+  MIN_BLOCK_LOCAL_COORDINATE,
+  MIN_CURVE_OFFSET_EM,
+  validateQuadraticPath,
+} from "./blockTransforms";
+import {
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
@@ -120,6 +128,56 @@ export const BBoxSchema = z
   .strict()
   .transform((bbox) => clampNormalizedBbox(bbox));
 
+const BlockLocalPointSchema = z
+  .object({
+    x: finiteNumber
+      .min(MIN_BLOCK_LOCAL_COORDINATE)
+      .max(MAX_BLOCK_LOCAL_COORDINATE),
+    y: finiteNumber
+      .min(MIN_BLOCK_LOCAL_COORDINATE)
+      .max(MAX_BLOCK_LOCAL_COORDINATE),
+  })
+  .strict();
+
+const PerspectiveTransformSchema = z
+  .object({
+    version: z.literal(1),
+    corners: z.tuple([
+      BlockLocalPointSchema,
+      BlockLocalPointSchema,
+      BlockLocalPointSchema,
+      BlockLocalPointSchema,
+    ]),
+  })
+  .strict()
+  .refine((transform) => isValidPerspectiveTransform(transform), {
+    message: "invalid or unsafe perspective transform",
+  });
+
+const QuadraticCurvePathSchema = z
+  .object({
+    type: z.literal("quadratic"),
+    start: BlockLocalPointSchema,
+    control: BlockLocalPointSchema,
+    end: BlockLocalPointSchema,
+  })
+  .strict()
+  .refine((path) => validateQuadraticPath(path).valid, {
+    message: "invalid or unsafe curve path",
+  });
+
+const CurveLayoutSchema = z
+  .object({
+    version: z.literal(1),
+    path: QuadraticCurvePathSchema,
+    alignment: z.enum(["start", "center", "end"]),
+    offsetEm: finiteNumber.min(MIN_CURVE_OFFSET_EM).max(MAX_CURVE_OFFSET_EM),
+    orientation: z.enum(["tangent", "upright"]),
+    reversed: z.boolean().optional(),
+    fitSpacing: z.boolean().optional(),
+  })
+  .strict();
+
 export const TranslationBlockSchema = z
   .object({
     id: z.string().min(1).max(200),
@@ -133,7 +191,9 @@ export const TranslationBlockSchema = z
     confidence: finiteNumber.min(0).max(1),
     sourceDirection: z.enum(["horizontal", "vertical"]),
     renderDirection: LegacyRenderDirectionSchema,
-    rotationDeg: finiteNumber.min(-30).max(30).optional(),
+    rotationDeg: finiteNumber.min(-180).max(180).optional(),
+    perspectiveTransform: PerspectiveTransformSchema.optional(),
+    curveLayout: CurveLayoutSchema.optional(),
     fontFamily: z.string().max(120).optional(),
     fontSizePx: finiteNumber.min(1).max(512),
     lineHeight: finiteNumber.min(0.5).max(4),

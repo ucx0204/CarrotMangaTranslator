@@ -3,7 +3,11 @@ import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
-import { isRetouchTool, type WorkspaceTool } from "../lib/stageTool";
+import {
+  isBlockEditingTool,
+  isRetouchTool,
+  type WorkspaceTool,
+} from "../lib/stageTool";
 import { ImageStage, type ImageStageProps } from "./ImageStage";
 import { CanvasActionBar } from "./CanvasActionBar";
 import { InstallProgressOverlay } from "./InstallProgressOverlay";
@@ -153,7 +157,9 @@ function WorkspaceContent(props: AppWorkspaceProps): React.JSX.Element {
   return (
     <WorkspacePane
       blockCreateRect={props.blockCreateRect}
-      blockPointerDisabled={props.jobActive || props.stageTool !== "select"}
+      blockPointerDisabled={
+        props.jobActive || !isBlockEditingTool(props.stageTool)
+      }
       dragHud={props.dragHud}
       imageDataUrl={props.selectedPageImageDataUrl}
       imageRef={props.imageRef}

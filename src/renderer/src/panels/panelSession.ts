@@ -5,6 +5,7 @@ import type {
   BlockBackgroundApplyScope,
   FormatApplyScope,
 } from "../hooks/useBlockEditingActions";
+import type { TransformEditorMode } from "../../../shared/panelBridgeTypes";
 
 /**
  * The slice of session state + actions that dockable/poppable panels consume.
@@ -40,11 +41,16 @@ export type PanelSessionValue = {
   areaTranslateAvailable: boolean;
   /** True while an area-translate selection is in progress. */
   areaTranslateSelecting: boolean;
+  /** Active canvas transform mode; only its matching controls are shown. */
+  transformMode: TransformEditorMode;
+  /** Source-page dimensions used for human-readable pixel values. */
+  selectedPageSize: { width: number; height: number } | null;
   /** Adjusts only the active block's font size by one pixel. */
   onAdjustFontSize: (adjustment: -1 | 1) => void;
   onUpdateBlock: (patch: Partial<TranslationBlock>) => void;
   onDeleteBlock: () => void;
   onDuplicateBlock: () => void;
+  onSelectTransformMode: (mode: TransformEditorMode) => void;
   onApplyFormat: (
     scope: FormatApplyScope,
     groupIds: BlockFormatGroupId[],

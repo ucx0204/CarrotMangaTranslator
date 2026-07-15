@@ -47,6 +47,7 @@ export function useRemotePanelSession(): PanelSessionValue | null {
 function buildRemotePanelSessionValue(
   syncState: PanelSyncState,
 ): PanelSessionValue {
+  const selectedBlockId = syncState.selectedBlock?.id;
   return {
     ...syncState,
     editorFloating: false,
@@ -59,11 +60,36 @@ function buildRemotePanelSessionValue(
       dispatchCommand({ type: "applyFormat", scope, groupIds }),
     onApplyBlockBackgroundOpacity: (scope) =>
       dispatchCommand({ type: "applyBlockBackgroundOpacity", scope }),
-    onAdjustFontSize: (adjustment) =>
-      dispatchCommand({ type: "adjustFontSize", adjustment }),
-    onDeleteBlock: () => dispatchCommand({ type: "deleteBlock" }),
-    onDuplicateBlock: () => dispatchCommand({ type: "duplicateBlock" }),
+    onAdjustFontSize: (adjustment) => {
+      if (selectedBlockId) {
+        dispatchCommand({
+          type: "adjustFontSize",
+          blockId: selectedBlockId,
+          adjustment,
+        });
+      }
+    },
+    onDeleteBlock: () => {
+      if (selectedBlockId) {
+        dispatchCommand({ type: "deleteBlock", blockId: selectedBlockId });
+      }
+    },
+    onDuplicateBlock: () => {
+      if (selectedBlockId) {
+        dispatchCommand({ type: "duplicateBlock", blockId: selectedBlockId });
+      }
+    },
+    onSelectTransformMode: (mode) =>
+      dispatchCommand({ type: "selectTransformMode", mode }),
     onStartAreaTranslate: () => dispatchCommand({ type: "startAreaTranslate" }),
-    onUpdateBlock: (patch) => dispatchCommand({ type: "updateBlock", patch }),
+    onUpdateBlock: (patch) => {
+      if (selectedBlockId) {
+        dispatchCommand({
+          type: "updateBlock",
+          blockId: selectedBlockId,
+          patch,
+        });
+      }
+    },
   };
 }

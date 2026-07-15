@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- this is one self-contained browser script injected into the sandboxed export page */
 /**
  * Browser-side DOM renderer injected into the offscreen PNG export window.
  * It mirrors the editor overlay DOM/CSS and lets Chromium capture the composed
@@ -6,6 +7,8 @@
 export const PAGE_EXPORT_DOM_SCRIPT = `
 const MIN_FONT_SIZE = 10;
 const MAX_AUTOFIT_FONT_SIZE = 256;
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+const CURVE_EPSILON = 0.000001;
 const measureCanvas = document.createElement("canvas");
 const context = measureCanvas.getContext("2d");
 
@@ -287,6 +290,229 @@ function renderTextRuns(runs, parent) {
   }
 }
 
+function canRenderCurveText(block) {
+  return !!(
+    block.curveLayout &&
+    block.renderDirection === "horizontal" &&
+    !/[\\r\\n]/.test(block.text) &&
+    Array.isArray(block.curveLayout.samples) &&
+    block.curveLayout.samples.length >= 2
+  );
+}
+
+function segmentGraphemes(value) {
+  const text = value == null ? "" : String(value);
+  return Array.from(text);
+}
+
+function styledGlyphs(block) {
+  const glyphs = [];
+  for (const run of styledRuns(block)) {
+    for (const text of segmentGraphemes(run.text)) {
+      glyphs.push({ text: text, bold: run.bold, italic: run.italic });
+    }
+  }
+  return glyphs;
+}
+
+function measureCurveGlyphs(block, fontSize) {
+  const scaleX = fontWidthScaleFor(block);
+  return styledGlyphs(block).map(function (glyph) {
+    context.font = graphemeFont(glyph, fontSize, block.fontFamily);
+    return {
+      text: glyph.text,
+      bold: glyph.bold,
+      italic: glyph.italic,
+      width: Math.max(0, context.measureText(glyph.text).width * scaleX)
+    };
+  });
+}
+
+function renderCurveText(block, svg) {
+  while (svg.firstChild) {
+    svg.removeChild(svg.firstChild);
+  }
+
+  const rect = block.rect;
+  const fontSize = resolveFontSize(
+    block,
+    Math.max(1, rect.width),
+    Math.max(1, rect.height)
+  );
+  const curve = block.curveLayout;
+  const glyphs = measureCurveGlyphs(block, fontSize);
+  if (!curve || glyphs.length === 0) {
+    return;
+  }
+
+  const scaleX = fontWidthScaleFor(block);
+  const naturalGap = letterSpacingPxFor(block, fontSize);
+  const widthSum = glyphs.reduce(function (sum, glyph) {
+    return sum + glyph.width;
+  }, 0);
+  const pathLength = Math.max(0, Number(curve.pathLength) || 0);
+  let gap = naturalGap;
+  if (
+    curve.fitSpacing &&
+    glyphs.length > 1 &&
+    pathLength + CURVE_EPSILON >= widthSum
+  ) {
+    gap = (pathLength - widthSum) / (glyphs.length - 1);
+  }
+  const textLength = widthSum + Math.max(0, glyphs.length - 1) * gap;
+  const startDistance = resolveCurveStartDistance(
+    curve.alignment,
+    pathLength,
+    textLength
+  );
+  const offsetPx = (Number(curve.offsetEm) || 0) * fontSize;
+  const outlineScale = block.outlineWidthScale == null
+    ? 1
+    : Math.max(0, block.outlineWidthScale);
+  const strokeWidth = resolveTextOutlinePx(fontSize) * outlineScale * 2;
+
+  svg.style.opacity = String(block.textOpacity == null ? 1 : block.textOpacity);
+  let cursor = startDistance;
+  for (const glyph of glyphs) {
+    const centerDistance = cursor + glyph.width / 2;
+    const placement = curvePlacementAtDistance(
+      curve.samples,
+      pathLength,
+      centerDistance
+    );
+    const x = placement.x - placement.tangentY * offsetPx;
+    const y = placement.y + placement.tangentX * offsetPx;
+    const angle = curve.orientation === "tangent"
+      ? Math.atan2(placement.tangentY, placement.tangentX) * 180 / Math.PI
+      : 0;
+    const element = createCurveGlyphElement(
+      block,
+      glyph,
+      fontSize,
+      strokeWidth,
+      x,
+      y,
+      angle,
+      scaleX
+    );
+    svg.appendChild(element);
+    cursor += glyph.width + gap;
+  }
+}
+
+function resolveCurveStartDistance(alignment, pathLength, textLength) {
+  if (alignment === "end") {
+    return pathLength - textLength;
+  }
+  if (alignment === "center") {
+    return (pathLength - textLength) / 2;
+  }
+  return 0;
+}
+
+function curvePlacementAtDistance(samples, pathLength, distance) {
+  const first = samples[0];
+  const last = samples[samples.length - 1];
+  if (distance <= 0 || pathLength <= CURVE_EPSILON) {
+    return extrapolateCurveSample(first, distance);
+  }
+  if (distance >= pathLength) {
+    return extrapolateCurveSample(last, distance - pathLength);
+  }
+
+  let low = 1;
+  let high = samples.length - 1;
+  while (low < high) {
+    const midpoint = Math.floor((low + high) / 2);
+    if (samples[midpoint].distance < distance) {
+      low = midpoint + 1;
+    } else {
+      high = midpoint;
+    }
+  }
+  const after = samples[low];
+  const before = samples[low - 1];
+  const span = after.distance - before.distance;
+  const ratio = span > CURVE_EPSILON
+    ? (distance - before.distance) / span
+    : 0;
+  const tangent = normalizeVector(
+    before.tangentX + (after.tangentX - before.tangentX) * ratio,
+    before.tangentY + (after.tangentY - before.tangentY) * ratio
+  );
+  return {
+    x: before.x + (after.x - before.x) * ratio,
+    y: before.y + (after.y - before.y) * ratio,
+    tangentX: tangent.x,
+    tangentY: tangent.y
+  };
+}
+
+function extrapolateCurveSample(sample, delta) {
+  const tangent = normalizeVector(sample.tangentX, sample.tangentY);
+  return {
+    x: sample.x + tangent.x * delta,
+    y: sample.y + tangent.y * delta,
+    tangentX: tangent.x,
+    tangentY: tangent.y
+  };
+}
+
+function normalizeVector(x, y) {
+  const magnitude = Math.hypot(x, y);
+  if (magnitude <= CURVE_EPSILON) {
+    return { x: 1, y: 0 };
+  }
+  return { x: x / magnitude, y: y / magnitude };
+}
+
+function createCurveGlyphElement(
+  block,
+  glyph,
+  fontSize,
+  strokeWidth,
+  x,
+  y,
+  angle,
+  scaleX
+) {
+  const element = document.createElementNS(SVG_NAMESPACE, "text");
+  element.setAttribute("x", "0");
+  element.setAttribute("y", "0");
+  element.setAttribute("text-anchor", "middle");
+  element.setAttribute("dominant-baseline", "central");
+  element.setAttribute("xml:space", "preserve");
+  element.setAttribute("fill", block.textColor);
+  if (strokeWidth > 0) {
+    element.setAttribute("stroke", block.outlineColor);
+    element.setAttribute("stroke-width", String(strokeWidth));
+    element.setAttribute("stroke-linejoin", "round");
+    element.setAttribute("paint-order", "stroke fill");
+  }
+  const transforms = ["translate(" + formatCurveNumber(x) + " " + formatCurveNumber(y) + ")"];
+  if (angle) {
+    transforms.push("rotate(" + formatCurveNumber(angle) + ")");
+  }
+  if (scaleX !== 1) {
+    transforms.push("scale(" + formatCurveNumber(scaleX) + " 1)");
+  }
+  element.setAttribute("transform", transforms.join(" "));
+  element.style.fontFamily = block.fontFamily;
+  element.style.fontSize = fontSize + "px";
+  element.style.fontWeight = glyph.bold ? "800" : "400";
+  element.style.fontStyle = glyph.italic ? "italic" : "normal";
+  element.style.fontSynthesis = "weight style";
+  element.style.whiteSpace = "pre";
+  element.textContent = glyph.text;
+  return element;
+}
+
+function formatCurveNumber(value) {
+  const finite = Number.isFinite(value) ? value : 0;
+  const rounded = Math.round(finite * 1000000) / 1000000;
+  return String(Object.is(rounded, -0) ? 0 : rounded);
+}
+
 function renderExportBlocks(stage) {
   const rendered = [];
   for (const block of EXPORT_BLOCKS) {
@@ -302,18 +528,61 @@ function renderExportBlocks(stage) {
     outer.style.transformOrigin = "center center";
     outer.style.pointerEvents = "none";
 
-    const textWrap = document.createElement("div");
-    textWrap.className = "overlay-text";
+    const contentHost = createExportContentHost(block, outer);
+    if (canRenderCurveText(block)) {
+      const svg = createCurveTextLayer(block);
+      contentHost.appendChild(svg);
+      rendered.push({ block: block, curveSvg: svg });
+    } else {
+      const textWrap = document.createElement("div");
+      textWrap.className = "overlay-text";
 
-    const textContent = document.createElement("span");
-    textContent.className = "overlay-text-content";
+      const textContent = document.createElement("span");
+      textContent.className = "overlay-text-content";
 
-    textWrap.appendChild(textContent);
-    outer.appendChild(textWrap);
+      textWrap.appendChild(textContent);
+      contentHost.appendChild(textWrap);
+      rendered.push({ block: block, textWrap: textWrap, textContent: textContent });
+    }
     stage.appendChild(outer);
-    rendered.push({ block: block, textWrap: textWrap, textContent: textContent });
   }
   return rendered;
+}
+
+function createExportContentHost(block, outer) {
+  if (!block.perspectiveMatrix3d) {
+    return outer;
+  }
+  const layer = document.createElement("div");
+  layer.className = "overlay-perspective-layer";
+  layer.style.position = "absolute";
+  layer.style.inset = "0";
+  layer.style.width = "100%";
+  layer.style.height = "100%";
+  layer.style.overflow = "visible";
+  layer.style.transform = block.perspectiveMatrix3d;
+  layer.style.transformOrigin = "top left";
+  layer.style.transformStyle = "preserve-3d";
+  layer.style.pointerEvents = "none";
+  outer.appendChild(layer);
+  return layer;
+}
+
+function createCurveTextLayer(block) {
+  const svg = document.createElementNS(SVG_NAMESPACE, "svg");
+  svg.setAttribute("class", "curve-text-layer");
+  svg.setAttribute(
+    "viewBox",
+    "0 0 " + Math.max(1, block.rect.width) + " " + Math.max(1, block.rect.height)
+  );
+  svg.setAttribute("width", String(Math.max(1, block.rect.width)));
+  svg.setAttribute("height", String(Math.max(1, block.rect.height)));
+  svg.style.position = "absolute";
+  svg.style.inset = "0";
+  svg.style.display = "block";
+  svg.style.overflow = "visible";
+  svg.style.pointerEvents = "none";
+  return svg;
 }
 
 function renderExportImage(stage) {
@@ -372,7 +641,11 @@ async function ignoreFontLoadFailure(load) {
 
 function applyAllTextLayouts(renderedBlocks) {
   for (const rendered of renderedBlocks) {
-    applyTextLayout(rendered.block, rendered.textWrap, rendered.textContent);
+    if (rendered.curveSvg) {
+      renderCurveText(rendered.block, rendered.curveSvg);
+    } else {
+      applyTextLayout(rendered.block, rendered.textWrap, rendered.textContent);
+    }
   }
 }
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildPageExportBlocks } from "../src/main/pageExportBlocks";
 import {
+  mapPointWithMatrix3d,
+  type CssMatrix3d,
+} from "../src/shared/blockTransforms";
+import {
   BUILT_IN_BLOCK_FONTS,
   DEFAULT_BLOCK_FONT_STACK,
 } from "../src/shared/blockFontCatalog";
@@ -116,6 +120,144 @@ describe("buildPageExportBlocks text opacity", () => {
   });
 });
 
+describe("buildPageExportBlocks transforms", () => {
+  it("exports the full rotation range with the shared canonical angle", () => {
+    const [positive] = buildPageExportBlocks(
+      makePage(makeBlock({ rotationDeg: 135.4 })),
+      1000,
+      1000,
+      new Map(),
+    );
+    const [wrapped] = buildPageExportBlocks(
+      makePage(makeBlock({ rotationDeg: 271 })),
+      1000,
+      1000,
+      new Map(),
+    );
+
+    expect(positive.rotationDeg).toBe(135.4);
+    expect(wrapped.rotationDeg).toBe(-89);
+  });
+
+  it("omits transform payloads for a legacy block", () => {
+    const [exported] = buildPageExportBlocks(
+      makePage(makeBlock({ rotationDeg: undefined })),
+      1000,
+      1000,
+      new Map(),
+    );
+
+    expect(exported.rotationDeg).toBe(0);
+    expect(exported).not.toHaveProperty("perspectiveMatrix3d");
+    expect(exported).not.toHaveProperty("curveLayout");
+  });
+
+  it("serializes a local perspective quad into the output-sized homography", () => {
+    const corners = [
+      { x: 0.2, y: 0 },
+      { x: 0.8, y: 0.1 },
+      { x: 1, y: 1 },
+      { x: 0, y: 0.9 },
+    ] as const;
+    const [exported] = buildPageExportBlocks(
+      makePage(
+        makeBlock({
+          perspectiveTransform: { version: 1, corners: [...corners] },
+        }),
+      ),
+      1000,
+      1000,
+      new Map(),
+    );
+
+    const matrix = parseCssMatrix3d(exported.perspectiveMatrix3d);
+    expect(mapPointWithMatrix3d({ x: 0, y: 0 }, matrix)).toEqual({
+      x: 100,
+      y: 0,
+    });
+    expectPointClose(
+      mapPointWithMatrix3d(
+        { x: exported.rect.width, y: exported.rect.height },
+        matrix,
+      ),
+      { x: 500, y: 500 },
+      0,
+    );
+  });
+
+  it("normalizes an unsafe saved perspective to identity like the editor", () => {
+    const [exported] = buildPageExportBlocks(
+      makePage(
+        makeBlock({
+          perspectiveTransform: {
+            version: 1,
+            corners: [
+              { x: 0, y: 0 },
+              { x: 1, y: 1 },
+              { x: 0, y: 1 },
+              { x: 1, y: 0 },
+            ],
+          },
+        }),
+      ),
+      1000,
+      1000,
+      new Map(),
+    );
+
+    const matrix = parseCssMatrix3d(exported.perspectiveMatrix3d);
+    expect(mapPointWithMatrix3d({ x: 0, y: 0 }, matrix)).toEqual({
+      x: 0,
+      y: 0,
+    });
+    expect(
+      mapPointWithMatrix3d(
+        { x: exported.rect.width, y: exported.rect.height },
+        matrix,
+      ),
+    ).toEqual({ x: exported.rect.width, y: exported.rect.height });
+  });
+
+  it("exports a reversed curve as a 96-segment local-pixel arc table", () => {
+    const [exported] = buildPageExportBlocks(
+      makePage(
+        makeBlock({
+          curveLayout: {
+            version: 1,
+            path: {
+              type: "quadratic",
+              start: { x: 0.1, y: 0.5 },
+              control: { x: 0.5, y: -0.2 },
+              end: { x: 0.9, y: 0.5 },
+            },
+            alignment: "end",
+            offsetEm: 0.75,
+            orientation: "upright",
+            reversed: true,
+            fitSpacing: true,
+          },
+        }),
+      ),
+      1000,
+      1000,
+      new Map(),
+    );
+
+    const curve = exported.curveLayout;
+    expect(curve).toMatchObject({
+      alignment: "end",
+      offsetEm: 0.75,
+      orientation: "upright",
+      fitSpacing: true,
+    });
+    expect(curve?.samples).toHaveLength(97);
+    expectPointClose(curve?.samples[0], { x: 450, y: 250 });
+    expectPointClose(curve?.samples.at(-1), { x: 50, y: 250 });
+    expect(curve?.pathLength).toBeGreaterThan(400);
+    expect(curve?.samples[0].tangentX).toBeLessThan(0);
+  });
+});
+
 describe("buildPageExportBlocks font family parity", () => {
   it.each(BUILT_IN_BLOCK_FONTS)("uses the shared family for $id", (font) => {
     const [exported] = buildPageExportBlocks(
@@ -189,3 +331,23 @@ describe("buildPageExportBlocks font family parity", () => {
     expect(overridden.fontFamily).toBe(explicit?.cssFamily);
   });
 });
+
+function parseCssMatrix3d(value: string | undefined): CssMatrix3d {
+  expect(value).toMatch(/^matrix3d\(.+\)$/);
+  const values = String(value)
+    .slice("matrix3d(".length, -1)
+    .split(",")
+    .map((entry) => Number(entry.trim()));
+  expect(values).toHaveLength(16);
+  expect(values.every(Number.isFinite)).toBe(true);
+  return values as CssMatrix3d;
+}
+
+function expectPointClose(
+  actual: { x: number; y: number } | undefined,
+  expected: { x: number; y: number },
+  precision = 5,
+): void {
+  expect(actual?.x).toBeCloseTo(expected.x, precision);
+  expect(actual?.y).toBeCloseTo(expected.y, precision);
+}

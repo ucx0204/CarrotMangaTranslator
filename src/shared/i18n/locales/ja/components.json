@@ -115,6 +115,102 @@
     "textColor": "文字色",
     "outline": "縁取り"
   },
+  "transform": {
+    "title": "変形",
+    "resetAll": "すべてリセット",
+    "active": "使用中",
+    "inactive": "未使用",
+    "suspended": "一時停止",
+    "modeLabel": "変形モード",
+    "modes": { "select": "選択", "perspective": "遠近", "curve": "曲線" },
+    "fields": { "x": "X", "y": "Y", "w": "幅", "h": "高さ" },
+    "controlKinds": { "slider": "スライダー", "value": "値" },
+    "lockRatio": "比率を維持",
+    "rotation": "回転",
+    "resetRotation": "0°へ",
+    "hints": {
+      "select": "角でサイズ変更、上のハンドルで回転 · Shift 15°",
+      "perspective": "4つの角を画像の面に合わせます · Escで取消",
+      "curve": "両端で長さ、中央点で曲がりを調整します"
+    },
+    "handles": {
+      "rotate": "回転ハンドル",
+      "resizeNw": "左上のサイズ変更",
+      "resizeN": "上のサイズ変更",
+      "resizeNe": "右上のサイズ変更",
+      "resizeE": "右のサイズ変更",
+      "resizeSe": "右下のサイズ変更",
+      "resizeS": "下のサイズ変更",
+      "resizeSw": "左下のサイズ変更",
+      "resizeW": "左のサイズ変更",
+      "perspectiveTl": "左上の遠近点",
+      "perspectiveTop": "上辺の遠近点",
+      "perspectiveTr": "右上の遠近点",
+      "perspectiveRight": "右辺の遠近点",
+      "perspectiveBr": "右下の遠近点",
+      "perspectiveBottom": "下辺の遠近点",
+      "perspectiveBl": "左下の遠近点",
+      "perspectiveLeft": "左辺の遠近点",
+      "curveStart": "曲線の開始点",
+      "curveControl": "曲線の曲がり点",
+      "curveEnd": "曲線の終了点"
+    },
+    "hud": {
+      "invalidPerspective": "頂点を交差させたり近づけすぎたりできません",
+      "invalidCurve": "経路の両端を近づけすぎることはできません",
+      "outsidePage": "変形結果をページの外へ完全に移動することはできません",
+      "snapped": "スナップ"
+    },
+    "perspective": {
+      "start": "遠近変形を開始",
+      "reset": "遠近をリセット",
+      "quickShape": "クイック形状",
+      "custom": "プリセットを適用…",
+      "advanced": "頂点座標",
+      "invalid": "頂点を交差させたり近づけすぎたりできません。",
+      "outside": "変形結果をページの外へ完全に移動することはできません。",
+      "presets": {
+        "topNarrow": "上を狭く",
+        "bottomNarrow": "下を狭く",
+        "leftNarrow": "左を狭く",
+        "rightNarrow": "右を狭く",
+        "skewLeft": "平行四辺形・左",
+        "skewRight": "平行四辺形・右"
+      },
+      "corners": {
+        "topLeft": "左上",
+        "topRight": "右上",
+        "bottomRight": "右下",
+        "bottomLeft": "左下"
+      }
+    },
+    "curve": {
+      "convert": "曲線に変換",
+      "quickShape": "クイック形状",
+      "bend": "曲がり",
+      "offset": "パス位置",
+      "alignment": "配置",
+      "orientation": "文字方向",
+      "fitSpacing": "字間をパスに合わせる",
+      "reverse": "方向を反転",
+      "reset": "曲線をリセット",
+      "remove": "曲線を解除",
+      "overflow": "文字がパスより{{amount}}px長いです。",
+      "fitAction": "字間を合わせる",
+      "shrinkText": "文字を一段階縮小",
+      "constraints": {
+        "vertical": "曲線は横書き1行で使用できます。",
+        "multiline": "改行を消すと保存済みの曲線が復元されます。"
+      },
+      "presets": {
+        "straight": "直線",
+        "archUp": "上向き",
+        "archDown": "下向き"
+      },
+      "align": { "start": "開始", "center": "中央", "end": "終了" },
+      "orientations": { "tangent": "パスに沿う", "upright": "直立" }
+    }
+  },
   "editor": {
     "text": "テキスト",
     "translatedText": "翻訳文",
@@ -370,6 +466,14 @@
       "hand": {
         "label": "手のひら",
         "title": "手のひらツール（3）— ドラッグして画像を移動"
+      },
+      "perspective": {
+        "label": "遠近",
+        "title": "遠近変形 — 4つの角を動かして面に合わせます"
+      },
+      "curve": {
+        "label": "曲線",
+        "title": "曲線テキスト — 効果音をパスに沿って配置します"
       },
       "mask": { "label": "マスク", "title": "マスクブラシ" },
       "brush": { "label": "ブラシ", "title": "補正ブラシ" },

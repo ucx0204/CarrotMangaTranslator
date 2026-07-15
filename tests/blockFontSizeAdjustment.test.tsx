@@ -344,11 +344,32 @@ describe("selected block font-size adjustment", () => {
 describe("font-size panel bridge", () => {
   it("validates only one-pixel relative commands", () => {
     expect(
-      PanelCommandSchema.parse({ type: "adjustFontSize", adjustment: -1 }),
-    ).toEqual({ type: "adjustFontSize", adjustment: -1 });
+      PanelCommandSchema.parse({
+        type: "adjustFontSize",
+        blockId: "block-1",
+        adjustment: -1,
+      }),
+    ).toEqual({
+      type: "adjustFontSize",
+      blockId: "block-1",
+      adjustment: -1,
+    });
     expect(() =>
-      PanelCommandSchema.parse({ type: "adjustFontSize", adjustment: 0 }),
+      PanelCommandSchema.parse({
+        type: "adjustFontSize",
+        blockId: "block-1",
+        adjustment: 0,
+      }),
     ).toThrow();
+  });
+
+  it.each([
+    { type: "updateBlock", patch: { translatedText: "수정" } },
+    { type: "adjustFontSize", adjustment: 1 },
+    { type: "deleteBlock" },
+    { type: "duplicateBlock" },
+  ])("requires a block id for $type commands", (command) => {
+    expect(() => PanelCommandSchema.parse(command)).toThrow();
   });
 
   it("accepts page/chapter background opacity commands but rejects selection", () => {
@@ -376,6 +397,8 @@ describe("font-size panel bridge", () => {
       editorDisabled: false,
       selectedBlock: block,
       selectedBlockCount: 1,
+      selectedPageSize: { width: 1200, height: 1600 },
+      transformMode: "select" as const,
     };
     Object.defineProperty(window, "mangaApi", {
       configurable: true,
@@ -389,11 +412,28 @@ describe("font-size panel bridge", () => {
     const { result } = renderHook(() => useRemotePanelSession());
     await waitFor(() => expect(result.current).not.toBeNull());
     act(() => result.current?.onAdjustFontSize(1));
+    act(() => result.current?.onUpdateBlock({ translatedText: "수정" }));
+    act(() => result.current?.onDeleteBlock());
+    act(() => result.current?.onDuplicateBlock());
     act(() => result.current?.onApplyBlockBackgroundOpacity("chapter"));
 
     expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "adjustFontSize",
+      blockId: block.id,
       adjustment: 1,
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "updateBlock",
+      blockId: block.id,
+      patch: { translatedText: "수정" },
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "deleteBlock",
+      blockId: block.id,
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "duplicateBlock",
+      blockId: block.id,
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "applyBlockBackgroundOpacity",

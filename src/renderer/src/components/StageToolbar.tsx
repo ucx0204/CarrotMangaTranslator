@@ -8,9 +8,11 @@ import {
   IconEraser,
   IconHandStop,
   IconLassoPolygon,
+  IconPerspective,
   IconPointer2,
   IconSquarePlus,
   IconTextScan2,
+  IconVectorBezier,
   type TablerIcon,
 } from "@tabler/icons-react";
 import {
@@ -57,6 +59,18 @@ const TOOL_BUTTONS: {
     labelKey: "stageToolbar.tools.hand.label",
     titleKey: "stageToolbar.tools.hand.title",
     Icon: IconHandStop,
+  },
+  {
+    id: "perspective",
+    labelKey: "stageToolbar.tools.perspective.label",
+    titleKey: "stageToolbar.tools.perspective.title",
+    Icon: IconPerspective,
+  },
+  {
+    id: "curve",
+    labelKey: "stageToolbar.tools.curve.label",
+    titleKey: "stageToolbar.tools.curve.title",
+    Icon: IconVectorBezier,
   },
   {
     id: "mask",
@@ -119,7 +133,7 @@ export function StageToolbar({
         role="toolbar"
         aria-label={t("stageToolbar.imageTools")}
       >
-        {TOOL_BUTTONS.slice(0, 2).map((entry) => (
+        {TOOL_BUTTONS.slice(0, 5).map((entry) => (
           <StageToolButton
             key={entry.id}
             active={!regionTranslationActive && tool === entry.id}
@@ -141,7 +155,7 @@ export function StageToolbar({
             <IconTextScan2 size={22} stroke={2.1} aria-hidden="true" />
           </button>
         </ToolbarControl>
-        {TOOL_BUTTONS.slice(2).map((entry) => (
+        {TOOL_BUTTONS.slice(5).map((entry) => (
           <StageToolButton
             key={entry.id}
             active={!regionTranslationActive && tool === entry.id}

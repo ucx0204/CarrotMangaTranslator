@@ -28,5 +28,15 @@ export function buildPanelSyncState({
     editorDisabled: derivedState.selectedPageEditLocked || interactionBusy,
     selectedBlock: derivedState.selectedBlock,
     selectedBlockCount: derivedState.selectedBlockIds.length,
+    transformMode:
+      uiState.stageTool === "perspective" || uiState.stageTool === "curve"
+        ? uiState.stageTool
+        : "select",
+    selectedPageSize: derivedState.selectedPage
+      ? {
+          width: derivedState.selectedPage.width,
+          height: derivedState.selectedPage.height,
+        }
+      : null,
   };
 }

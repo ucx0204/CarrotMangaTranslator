@@ -6,6 +6,8 @@
  *   deselect.
  * - "block": drag on the image to create a new text block.
  * - "hand": drag anywhere (blocks ignore the pointer) to pan the workspace.
+ * - "perspective": select/move blocks and edit their four-corner transform.
+ * - "curve": select/move blocks and edit an enabled curve text path.
  * - "mask": paint a mask which can be sent to the inpainting engine.
  * - "brush": paint directly on the current inpainting result.
  * - "eraser": restore the underlying image below retouch strokes.
@@ -15,6 +17,8 @@ export type WorkspaceTool =
   | "select"
   | "block"
   | "hand"
+  | "perspective"
+  | "curve"
   | "mask"
   | "brush"
   | "eraser"
@@ -35,6 +39,17 @@ export function isRetouchTool(tool: WorkspaceTool): tool is RetouchTool {
     tool === "eraser" ||
     tool === "picker"
   );
+}
+
+export type BlockEditingTool = Extract<
+  WorkspaceTool,
+  "select" | "perspective" | "curve"
+>;
+
+export function isBlockEditingTool(
+  tool: WorkspaceTool,
+): tool is BlockEditingTool {
+  return tool === "select" || tool === "perspective" || tool === "curve";
 }
 
 export function isSizableRetouchTool(

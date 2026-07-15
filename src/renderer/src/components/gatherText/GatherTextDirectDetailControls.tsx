@@ -147,8 +147,8 @@ function createAdvancedSliderConfigs(
     {
       field: "rotationDeg",
       label: t("format.rotation"),
-      min: -30,
-      max: 30,
+      min: -180,
+      max: 180,
       step: 1,
       formatValue: (value) => `${Math.round(value)}°`,
     },

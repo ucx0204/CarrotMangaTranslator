@@ -33,6 +33,8 @@ export function resolveStageClassName({
     retouchCursor ? "retouch-tool-enabled" : "",
     stageTool === "hand" ? "stage-tool-hand" : "",
     stageTool === "block" ? "stage-tool-block" : "",
+    stageTool === "perspective" ? "stage-tool-perspective" : "",
+    stageTool === "curve" ? "stage-tool-curve" : "",
   ]
     .filter(Boolean)
     .join(" ");

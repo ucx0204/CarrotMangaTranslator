@@ -142,6 +142,7 @@ function ImageStageFrame({
           selectedBlockIds={selectedBlockIds}
           showBlockChrome={showBlockChrome}
           showTextBlocks={showTextBlocks}
+          stageTool={stageTool}
           stageSize={stageSize}
           textLayoutStageSize={textLayoutStageSize}
         />
@@ -167,6 +168,7 @@ function ImageStageLayerSet({
   selectedBlockIds,
   showBlockChrome,
   showTextBlocks,
+  stageTool,
   stageSize,
   textLayoutStageSize,
 }: Omit<
@@ -191,6 +193,7 @@ function ImageStageLayerSet({
         selectedBlockIds={selectedBlockIds}
         showBlockChrome={showBlockChrome}
         showTextBlocks={showTextBlocks}
+        stageTool={stageTool}
         stageSize={stageSize}
         textLayoutStageSize={textLayoutStageSize}
       />

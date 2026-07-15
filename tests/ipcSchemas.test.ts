@@ -146,6 +146,49 @@ describe("IPC schemas", () => {
     expect(parsed.saveReason).toBe("autosave");
   });
 
+  it("accepts rotation, perspective, and curve data in autosave payloads", () => {
+    const block = {
+      ...makeChapterSnapshot().pages[0].blocks[0],
+      rotationDeg: -135,
+      perspectiveTransform: {
+        version: 1,
+        corners: [
+          { x: 0.1, y: 0 },
+          { x: 0.9, y: 0 },
+          { x: 1, y: 1 },
+          { x: 0, y: 1 },
+        ],
+      },
+      curveLayout: {
+        version: 1,
+        path: {
+          type: "quadratic",
+          start: { x: 0, y: 0.5 },
+          control: { x: 0.5, y: -0.2 },
+          end: { x: 1, y: 0.5 },
+        },
+        alignment: "center",
+        offsetEm: 0,
+        orientation: "tangent",
+      },
+    };
+    const parsed = parseIpcPayload(
+      SavePageBlocksRequestSchema,
+      {
+        chapterId,
+        pageId,
+        dirtyVersion: 1,
+        saveReason: "autosave",
+        blocks: [block],
+      },
+      "페이지 블록 저장",
+    );
+
+    expect(parsed.blocks[0].rotationDeg).toBe(-135);
+    expect(parsed.blocks[0].perspectiveTransform?.version).toBe(1);
+    expect(parsed.blocks[0].curveLayout?.path.type).toBe("quadratic");
+  });
+
   it("accepts bounded AI work context analysis requests", () => {
     const parsed = parseIpcPayload(
       AnalyzeWorkContextRequestSchema,

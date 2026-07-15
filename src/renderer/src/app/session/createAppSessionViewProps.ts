@@ -169,6 +169,9 @@ function createPanelSessionValue(
     onDockEditorWindow: panelBridge.closeEditorWindow,
     onDeleteBlock: blockEditingActions.deleteSelectedBlock,
     onDuplicateBlock: blockEditingActions.duplicateSelectedBlock,
+    onSelectTransformMode: (mode) => {
+      uiState.selectWorkspaceTool(mode);
+    },
     onStartAreaTranslate: pointerHandlers.startRegionTranslationSelection,
     onUpdateBlock: blockEditingActions.updateSelectedBlock,
   };

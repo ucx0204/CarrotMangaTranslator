@@ -44,6 +44,7 @@ export function OverlayBlockLayer({
   selectedBlockIds,
   showBlockChrome,
   showTextBlocks,
+  stageTool,
   stageSize,
   textLayoutStageSize,
 }: Pick<
@@ -56,6 +57,7 @@ export function OverlayBlockLayer({
   | "selectedBlockIds"
   | "showBlockChrome"
   | "showTextBlocks"
+  | "stageTool"
   | "stageSize"
   | "textLayoutStageSize"
 >): React.JSX.Element | null {
@@ -81,9 +83,20 @@ export function OverlayBlockLayer({
           textLayoutStageSize={textLayoutStageSize}
           pointerDisabled={!showTextBlocks || (blockPointerDisabled ?? false)}
           textVisible={showTextBlocks}
+          transformMode={
+            block.id === selectedBlockId &&
+            (stageTool === "select" ||
+              stageTool === "perspective" ||
+              stageTool === "curve")
+              ? stageTool
+              : undefined
+          }
           onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
           onResizePointerDown={(event) =>
             onBlockPointerDown(event, block, "resize")
+          }
+          onTransformPointerDown={(event, mode) =>
+            onBlockPointerDown(event, block, mode)
           }
         />
       ))}
@@ -238,7 +251,11 @@ export function StageDragHud({
   dragHud: DragHud | null;
 }): React.JSX.Element | null {
   return dragHud ? (
-    <div className={`stage-drag-hud ${dragHud.mode}`}>{dragHud.label}</div>
+    <div
+      className={`stage-drag-hud ${dragHud.mode}${dragHud.invalid ? " invalid" : ""}`}
+    >
+      {dragHud.label}
+    </div>
   ) : null;
 }
 

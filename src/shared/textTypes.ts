@@ -11,6 +11,35 @@ export type BBox = {
   h: number;
 };
 
+/** A point in block-local normalized coordinates. */
+export type Point = {
+  x: number;
+  y: number;
+};
+
+/** Corner order is top-left, top-right, bottom-right, bottom-left. */
+export type PerspectiveTransform = {
+  version: 1;
+  corners: [Point, Point, Point, Point];
+};
+
+export type QuadraticCurvePath = {
+  type: "quadratic";
+  start: Point;
+  control: Point;
+  end: Point;
+};
+
+export type CurveLayout = {
+  version: 1;
+  path: QuadraticCurvePath;
+  alignment: "start" | "center" | "end";
+  offsetEm: number;
+  orientation: "tangent" | "upright";
+  reversed?: boolean;
+  fitSpacing?: boolean;
+};
+
 export type TranslationBlock = {
   id: string;
   type: BlockType;
@@ -24,6 +53,8 @@ export type TranslationBlock = {
   sourceDirection: SourceTextDirection;
   renderDirection: RenderTextDirection;
   rotationDeg?: number;
+  perspectiveTransform?: PerspectiveTransform;
+  curveLayout?: CurveLayout;
   fontFamily?: string;
   fontSizePx: number;
   lineHeight: number;

@@ -268,7 +268,18 @@ export function enforceRotationDeg(type: BlockType, value: unknown): number {
 }
 
 export function normalizeRotationDeg(value: unknown): number {
-  return clamp(Math.round(Number(value) || 0), -30, 30);
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+
+  let normalized = ((((numeric + 180) % 360) + 360) % 360) - 180;
+  if (normalized === -180 && numeric > 0) {
+    normalized = 180;
+  }
+
+  const rounded = Math.round((normalized + Number.EPSILON) * 10) / 10;
+  return Object.is(rounded, -0) ? 0 : rounded;
 }
 
 export function normalizeBlockType(value: unknown): BlockType {

@@ -5,6 +5,7 @@ import {
   clampBbox,
   enforceRenderDirection,
   estimateBlockFontSizePx,
+  normalizeRotationDeg,
   normalizeBlockType,
   normalizeRenderDirection,
   offsetBlockBboxes,
@@ -322,5 +323,20 @@ describe("geometry helpers", () => {
     expect(normalizeRenderDirection("vertical", "horizontal")).toBe("vertical");
     expect(normalizeRenderDirection("rotated", "vertical")).toBe("horizontal");
     expect(normalizeRenderDirection("hidden", "vertical")).toBe("horizontal");
+  });
+
+  it("normalizes full-circle rotation while preserving tenths of a degree", () => {
+    expect(normalizeRotationDeg(0)).toBe(0);
+    expect(normalizeRotationDeg(360)).toBe(0);
+    expect(normalizeRotationDeg(-360)).toBe(0);
+    expect(normalizeRotationDeg(450)).toBe(90);
+    expect(normalizeRotationDeg(-450)).toBe(-90);
+    expect(normalizeRotationDeg(180)).toBe(180);
+    expect(normalizeRotationDeg(-180)).toBe(-180);
+    expect(normalizeRotationDeg(540)).toBe(180);
+    expect(normalizeRotationDeg(-540)).toBe(-180);
+    expect(normalizeRotationDeg(181)).toBe(-179);
+    expect(normalizeRotationDeg(12.34)).toBe(12.3);
+    expect(normalizeRotationDeg("not-a-number")).toBe(0);
   });
 });

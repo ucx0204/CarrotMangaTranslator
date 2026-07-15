@@ -1,0 +1,213 @@
+.overlay-transform-content {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.overlay-curve-text {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.overlay-transform-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.overlay-block.transform-mode-perspective.selected,
+.overlay-block.transform-mode-curve.selected {
+  outline: 0;
+}
+
+.transform-guide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px rgba(4, 9, 15, 0.92));
+}
+
+.transform-guide polygon,
+.transform-guide polyline {
+  fill: none;
+  stroke: #58b9ff;
+  stroke-width: 1.25px;
+  vector-effect: non-scaling-stroke;
+}
+
+.curve-controls .curve-control-line {
+  stroke: rgba(255, 255, 255, 0.64);
+  stroke-dasharray: 3 3;
+}
+
+.curve-controls .curve-path-line {
+  stroke: #ffb647;
+  stroke-width: 1.5px;
+}
+
+.transform-handle {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.transform-handle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid #102133;
+  border-radius: 2px;
+  background: #eff8ff;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px #58b9ff;
+}
+
+.transform-handle:hover::after,
+.transform-handle:focus-visible::after {
+  width: 9px;
+  height: 9px;
+  background: #fff;
+  box-shadow:
+    0 0 0 2px #58b9ff,
+    0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.transform-handle:focus-visible {
+  outline: 0;
+}
+
+.resize-nw {
+  left: 0;
+  top: 0;
+  cursor: nwse-resize;
+}
+
+.resize-n {
+  left: 50%;
+  top: 0;
+  cursor: ns-resize;
+}
+
+.resize-ne {
+  left: 100%;
+  top: 0;
+  cursor: nesw-resize;
+}
+
+.resize-e {
+  left: 100%;
+  top: 50%;
+  cursor: ew-resize;
+}
+
+.resize-se {
+  left: 100%;
+  top: 100%;
+  cursor: nwse-resize;
+}
+
+.resize-s {
+  left: 50%;
+  top: 100%;
+  cursor: ns-resize;
+}
+
+.resize-sw {
+  left: 0;
+  top: 100%;
+  cursor: nesw-resize;
+}
+
+.resize-w {
+  left: 0;
+  top: 50%;
+  cursor: ew-resize;
+}
+
+.rotation-stem {
+  position: absolute;
+  left: 50%;
+  top: -24px;
+  width: 1px;
+  height: 24px;
+  background: #58b9ff;
+  box-shadow: 0 0 1px #07111c;
+}
+
+.rotation-handle {
+  left: 50%;
+  top: -28px;
+  cursor: grab;
+}
+
+.rotation-handle::after {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #58b9ff;
+}
+
+.perspective-controls .transform-handle {
+  cursor: crosshair;
+}
+
+.perspective-controls .transform-handle::after {
+  background: #58b9ff;
+}
+
+.perspective-controls .perspective-top::after,
+.perspective-controls .perspective-right::after,
+.perspective-controls .perspective-bottom::after,
+.perspective-controls .perspective-left::after {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #dff3ff;
+}
+
+.curve-controls .transform-handle {
+  cursor: crosshair;
+}
+
+.curve-controls .transform-handle::after {
+  border-radius: 50%;
+  background: #ffb647;
+  box-shadow: 0 0 0 1px #ffb647;
+}
+
+.curve-controls .curve-control::after {
+  border-radius: 2px;
+  background: #fff3d9;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.stage-drag-hud.invalid {
+  border-color: rgba(255, 108, 108, 0.86);
+  background: rgba(85, 20, 24, 0.92);
+  color: #ffe9e9;
+}
+
+.image-stage.stage-tool-perspective .overlay-block.selected,
+.image-stage.stage-tool-curve .overlay-block.selected {
+  cursor: move;
+}

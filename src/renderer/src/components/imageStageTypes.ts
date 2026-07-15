@@ -2,6 +2,7 @@ import type { BBox, TranslationBlock } from "../../../shared/textTypes";
 import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { DragHud } from "../hooks/useWorkspacePointerHandlers";
+import type { DragMode } from "../hooks/workspacePointerGeometry";
 import type { ViewportSize } from "../lib/overlayLayout";
 import type { StageTool } from "../lib/stageTool";
 
@@ -36,7 +37,7 @@ export type ImageStageProps = {
   onBlockPointerDown: (
     event: React.PointerEvent,
     block: TranslationBlock,
-    mode: "move" | "resize",
+    mode: DragMode,
   ) => void;
 };
 
