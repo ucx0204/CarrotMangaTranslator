@@ -51,14 +51,15 @@ jobs:
             throw "Release notes are missing: $notesPath"
           }
 
-          git show-ref --verify --quiet "refs/tags/$tag"
-          if ($LASTEXITCODE -eq 0) {
+          $existingTags = @(git tag --list $tag)
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to inspect existing tag '$tag'."
+          }
+          if ($existingTags -contains $tag) {
             $tagCommit = (git rev-list -n 1 $tag).Trim()
             if ($tagCommit -ne "${{ github.sha }}") {
               throw "Existing tag '$tag' points to $tagCommit, not ${{ github.sha }}."
             }
-          } elseif ($LASTEXITCODE -ne 1) {
-            throw "Failed to inspect existing tag '$tag'."
           }
 
           "tag=$tag" >> $env:GITHUB_OUTPUT

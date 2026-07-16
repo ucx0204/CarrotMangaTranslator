@@ -97,9 +97,8 @@ describe("Windows installer clean uninstall option", () => {
     expect(releaseWorkflow).toContain(
       '$notesPath = "docs/release-notes/$tag.md"',
     );
-    expect(releaseWorkflow).toContain(
-      'git show-ref --verify --quiet "refs/tags/$tag"',
-    );
+    expect(releaseWorkflow).toContain("$existingTags = @(git tag --list $tag)");
+    expect(releaseWorkflow).toContain("if ($existingTags -contains $tag)");
     expect(releaseWorkflow).toContain("not ${{ github.sha }}");
     expect(releaseWorkflow).toContain("body = $releaseNotes");
     expect(releaseWorkflow).toContain(
