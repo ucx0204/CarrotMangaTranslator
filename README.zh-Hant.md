@@ -19,7 +19,7 @@
 胡蘿蔔漫畫翻譯器是一款漫畫製作工具：它可以從圖片中找出對白與狀聲詞，透過 AI 產生翻譯區塊，再由使用者調整文字和排版，最後匯出為完整的 PNG。預設翻譯方向為日文 → 韓文，也可以選擇其他原文與譯文語言。
 
 - 最新 Windows 安裝檔：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 目前版本說明：[v1.4.0 更新說明](docs/release-notes/v1.4.0.md)
+- 目前版本說明：[v1.5.0 更新說明](docs/release-notes/v1.5.0.md)
 - 程式碼架構與貢獻規範：[docs/architecture.md](docs/architecture.md)
 
 ## 功能一覽
@@ -44,7 +44,7 @@
 
 ## 快速開始
 
-1. 前往 [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)，下載並安裝類似 `CarrotMangaTranslator-Setup-v1.4.0.exe` 的最新安裝檔。
+1. 前往 [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)，下載並安裝類似 `CarrotMangaTranslator-Setup-v1.5.0.exe` 的最新安裝檔。
 2. 在 `設定 → 一般` 中確認應用程式介面語言。第一次啟動時會自動選擇支援的 Windows 語言，其他語言環境則預設使用韓文。
 3. 在 `設定 → 翻譯引擎` 中選擇原文語言、譯文語言和翻譯引擎。
    - 想在自己的電腦上處理時，選擇 `Gemma 4`

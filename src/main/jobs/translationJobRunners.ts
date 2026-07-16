@@ -19,6 +19,7 @@ import type { PipelineOptions } from "../pipeline/types";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { isAbortError } from "./jobEvents";
 import type { TranslationJobContext } from "./translationJobTypes";
+import { resolvePreviousChapterStoryPages } from "../previousChapterContext";
 
 type EmitJobEvent = (event: JobEvent) => void;
 type ResolvedRunPages = Awaited<ReturnType<typeof resolvePagesForRun>>;
@@ -50,6 +51,9 @@ export async function runResolvedAnalysisJob({
 }): Promise<StartAnalysisResult> {
   state.pageIds = resolved.pages.map((page) => page.id);
   const workContext = await resolveWorkContextForChapter(request.chapterId);
+  const previousStoryPages = request.collectPageContext
+    ? await resolvePreviousChapterStoryPages(resolved.chapter)
+    : [];
   const expectedUpdatedAtByPageId = await prepareRunningAnalysisPages(
     request.chapterId,
     state.pageIds,
@@ -73,7 +77,12 @@ export async function runResolvedAnalysisJob({
       ...workContext,
       chapterId: request.chapterId,
       recentPageCount: 6,
+      previousStoryPages,
     },
+    collectPageContext: request.collectPageContext,
+    canonicalPageIndexById: new Map(
+      resolved.chapter.pages.map((page, index) => [page.id, index]),
+    ),
   });
 
   if (abortController.signal.aborted) {
@@ -137,7 +146,7 @@ function buildAnalysisPipelineCallbacks({
       context.jobs.setCleanup(id, cleanup);
     },
     onPageComplete: async (page) => {
-      await updatePageAfterAnalysis(
+      return updatePageAfterAnalysis(
         request.chapterId,
         page,
         [],
@@ -146,7 +155,7 @@ function buildAnalysisPipelineCallbacks({
       );
     },
     onPagesComplete: async (pages) => {
-      await updatePagesAfterAnalysis(
+      return updatePagesAfterAnalysis(
         request.chapterId,
         pages.map((page) => ({
           page,

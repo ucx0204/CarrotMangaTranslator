@@ -7,6 +7,7 @@ import type {
   ChapterStoryMemory,
   WorkStyleGuide,
 } from "../../../../shared/workContextTypes";
+import type { WorkContextUsage } from "../../../../shared/workContextUsageTypes";
 import type { WorkContextAnalysisScope } from "../../../../shared/workContextAnalysisTypes";
 import {
   DEFAULT_CONTEXT_TOKENS,
@@ -21,6 +22,9 @@ import { toast } from "../../lib/toastStore";
 import type { StyleGuideTab } from "./styleGuideTypes";
 import { countAnalysisChanges, normalizeGuideForSave } from "./styleGuideUtils";
 
+type ComponentsT = TFunction<"components">;
+export type WorkContextUsageStatus = "loading" | "ready" | "error";
+
 export function useStyleGuideModalModel(
   chapter: ChapterSnapshot,
   settings: AppSettings | null,
@@ -33,6 +37,7 @@ export function useStyleGuideModalModel(
     t,
     setGuide: resources.setGuide,
     setMemory: resources.setMemory,
+    refreshUsage: resources.refreshUsage,
     setTab,
   });
   return {
@@ -46,14 +51,69 @@ export function useStyleGuideModalModel(
   };
 }
 
-function useStyleGuideResources(
-  chapter: ChapterSnapshot,
-  t: TFunction<"components">,
-) {
+function useStyleGuideResources(chapter: ChapterSnapshot, t: ComponentsT) {
   const [guide, setGuide] = React.useState<WorkStyleGuide | null>(null);
   const [memory, setMemory] = React.useState<ChapterStoryMemory | null>(null);
   const [busy, setBusy] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const { usage, usageStatus, refreshUsage } = useStyleGuideUsage(
+    chapter.workId,
+  );
+  useGuideMemoryLoader({
+    chapter,
+    t,
+    setGuide,
+    setMemory,
+    setBusy,
+  });
+  const saveGuide = React.useCallback(async () => {
+    if (!guide) return;
+    setSaving(true);
+    try {
+      const savedGuide = await mangaGateway.saveWorkStyleGuide(
+        normalizeGuideForSave(guide),
+      );
+      const savedMemory = memory
+        ? await mangaGateway.saveChapterStoryMemory(memory)
+        : null;
+      setGuide(savedGuide);
+      if (savedMemory) setMemory(savedMemory);
+      await refreshUsage();
+      toast.success(t("styleGuide.saveSuccess"));
+    } catch (error) {
+      console.error(error);
+      toast.error(t("styleGuide.saveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }, [guide, memory, refreshUsage, t]);
+  return {
+    guide,
+    setGuide,
+    memory,
+    setMemory,
+    usage,
+    usageStatus,
+    busy,
+    saving,
+    saveGuide,
+    refreshUsage,
+  };
+}
+
+function useGuideMemoryLoader({
+  chapter,
+  t,
+  setGuide,
+  setMemory,
+  setBusy,
+}: {
+  chapter: ChapterSnapshot;
+  t: ComponentsT;
+  setGuide: React.Dispatch<React.SetStateAction<WorkStyleGuide | null>>;
+  setMemory: React.Dispatch<React.SetStateAction<ChapterStoryMemory | null>>;
+  setBusy: React.Dispatch<React.SetStateAction<boolean>>;
+}): void {
   React.useEffect(() => {
     let alive = true;
     setBusy(true);
@@ -77,24 +137,55 @@ function useStyleGuideResources(
     return () => {
       alive = false;
     };
-  }, [chapter.id, chapter.workId, t]);
-  const saveGuide = React.useCallback(async () => {
-    if (!guide) return;
-    setSaving(true);
+  }, [chapter.id, chapter.workId, setBusy, setGuide, setMemory, t]);
+}
+
+function useStyleGuideUsage(workId: string): {
+  usage: WorkContextUsage | null;
+  usageStatus: WorkContextUsageStatus;
+  refreshUsage: () => Promise<void>;
+} {
+  const [usage, setUsage] = React.useState<WorkContextUsage | null>(null);
+  const [usageStatus, setUsageStatus] =
+    React.useState<WorkContextUsageStatus>("loading");
+  const fetchUsage = React.useCallback(
+    () => mangaGateway.getWorkContextUsage(workId),
+    [workId],
+  );
+  const refreshUsage = React.useCallback(async () => {
+    setUsageStatus("loading");
     try {
-      const saved = await mangaGateway.saveWorkStyleGuide(
-        normalizeGuideForSave(guide),
-      );
-      setGuide(saved);
-      toast.success(t("styleGuide.saveSuccess"));
+      setUsage(await fetchUsage());
+      setUsageStatus("ready");
     } catch (error) {
       console.error(error);
-      toast.error(t("styleGuide.saveFailed"));
-    } finally {
-      setSaving(false);
+      setUsage(null);
+      setUsageStatus("error");
     }
-  }, [guide, t]);
-  return { guide, setGuide, memory, setMemory, busy, saving, saveGuide };
+  }, [fetchUsage]);
+  React.useEffect(() => {
+    let alive = true;
+    setUsage(null);
+    setUsageStatus("loading");
+    void fetchUsage()
+      .then((nextUsage) => {
+        if (alive) {
+          setUsage(nextUsage);
+          setUsageStatus("ready");
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+        if (alive) {
+          setUsage(null);
+          setUsageStatus("error");
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [fetchUsage]);
+  return { usage, usageStatus, refreshUsage };
 }
 
 function useStyleGuideAnalysis({
@@ -102,12 +193,14 @@ function useStyleGuideAnalysis({
   t,
   setGuide,
   setMemory,
+  refreshUsage,
   setTab,
 }: {
   chapter: ChapterSnapshot;
   t: TFunction<"components">;
   setGuide: (guide: WorkStyleGuide) => void;
   setMemory: (memory: ChapterStoryMemory) => void;
+  refreshUsage: () => Promise<void>;
   setTab: (tab: StyleGuideTab) => void;
 }) {
   const [analyzingScope, setAnalyzingScope] =
@@ -122,6 +215,7 @@ function useStyleGuideAnalysis({
         });
         setGuide(result.styleGuide);
         setMemory(result.storyMemory);
+        await refreshUsage();
         setTab("glossary");
         toast.success(
           t("styleGuide.analysis.success", {
@@ -143,7 +237,7 @@ function useStyleGuideAnalysis({
         setAnalyzingScope(null);
       }
     },
-    [chapter.id, setGuide, setMemory, setTab, t],
+    [chapter.id, refreshUsage, setGuide, setMemory, setTab, t],
   );
   return { analyzingScope, analyzeWithAi };
 }

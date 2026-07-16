@@ -1,7 +1,6 @@
 import { useCallback, useRef, type MutableRefObject } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { BBox } from "../../../shared/textTypes";
 import { isUsableRegionBbox } from "../../../shared/region";
@@ -34,6 +33,7 @@ import {
   runWorkContextAnalysis,
   startingJobState,
 } from "./translationActionUtils";
+import { useRunAnalysisAction } from "./useRunAnalysisAction";
 
 type FlowActiveRef = MutableRefObject<boolean>;
 export { reportRefreshLibraryFailure };
@@ -43,16 +43,21 @@ export function useTranslationActionsImpl(
 ): TranslationActions {
   const flowActiveRef = useRef(false);
   const executeAnalysisJob = useExecuteAnalysisJob(options);
+  const runTranslationFlow = useRunTranslationFlowAction({
+    ...options,
+    executeAnalysisJob,
+    flowActiveRef,
+  });
   const runAnalysis = useRunAnalysisAction({
     currentChapter: options.currentChapter,
     executeAnalysisJob,
     flowActiveRef,
     jobActive: options.jobActive,
-  });
-  const runTranslationFlow = useRunTranslationFlowAction({
-    ...options,
-    executeAnalysisJob,
-    flowActiveRef,
+    runTranslationFlow,
+    translationWorkflowDefault:
+      options.translationWorkflowDefault ?? "cumulative",
+    analysisScopeDefault: options.analysisScopeDefault ?? "missing",
+    blockModeDefault: options.blockModeDefault ?? "auto",
   });
   const translateSelectedRegion = useTranslateSelectedRegionAction(options);
 
@@ -73,9 +78,9 @@ function useExecuteAnalysisJob({
 }: UseTranslationActionsOptions): ExecuteAnalysisJob {
   const { t } = useTranslation("renderer");
   return useCallback<ExecuteAnalysisJob>(
-    async ({ runMode, pageId, pageIds, chapterId, blockMode }) => {
+    async (job) => {
       const openChapterId = currentChapter?.id;
-      const targetChapterId = chapterId ?? openChapterId;
+      const targetChapterId = job.chapterId ?? openChapterId;
       if (!targetChapterId) {
         return "no-op";
       }
@@ -90,9 +95,9 @@ function useExecuteAnalysisJob({
         markOpenChapterRunning({
           currentChapter: isOpenChapter ? currentChapter : null,
           currentChapterRef,
-          pageId,
-          pageIds,
-          runMode,
+          pageId: job.pageId,
+          pageIds: job.pageIds,
+          runMode: job.runMode,
           setCurrentChapter,
         });
 
@@ -100,10 +105,11 @@ function useExecuteAnalysisJob({
           makeStartAnalysisRequest(
             targetChapterId,
             {
-              runMode,
-              pageId,
-              pageIds,
-              blockMode,
+              runMode: job.runMode,
+              pageId: job.pageId,
+              pageIds: job.pageIds,
+              blockMode: job.blockMode,
+              collectPageContext: job.collectPageContext,
             },
             t,
           ),
@@ -168,36 +174,6 @@ function markOpenChapterRunning({
   setCurrentChapter(optimisticChapter);
 }
 
-function useRunAnalysisAction({
-  currentChapter,
-  executeAnalysisJob,
-  flowActiveRef,
-  jobActive,
-}: {
-  currentChapter: ChapterSnapshot | null;
-  executeAnalysisJob: ExecuteAnalysisJob;
-  flowActiveRef: FlowActiveRef;
-  jobActive: boolean;
-}): TranslationActions["runAnalysis"] {
-  return useCallback(
-    async (
-      runMode: RunAnalysisMode,
-      pageId?: string,
-      chapterId?: string,
-      blockMode?: AnalysisBlockMode,
-    ): Promise<RunAnalysisOutcome> => {
-      if (jobActive || flowActiveRef.current) {
-        return "no-op";
-      }
-      if (!chapterId && !currentChapter) {
-        return "no-op";
-      }
-      return executeAnalysisJob({ runMode, pageId, chapterId, blockMode });
-    },
-    [currentChapter, executeAnalysisJob, flowActiveRef, jobActive],
-  );
-}
-
 function useRunTranslationFlowAction({
   currentChapter,
   executeAnalysisJob,
@@ -214,18 +190,18 @@ function useRunTranslationFlowAction({
 }): TranslationActions["runTranslationFlow"] {
   const { t } = useTranslation("renderer");
   return useCallback(
-    async (options: TranslationFlowOptions): Promise<void> => {
+    async (options: TranslationFlowOptions): Promise<RunAnalysisOutcome> => {
       if (!currentChapter || jobActive || flowActiveRef.current) {
-        return;
+        return "no-op";
       }
       if (options.selection.length === 0) {
-        return;
+        return "no-op";
       }
       flowActiveRef.current = true;
       setFlowActive(true);
       try {
         await saveNow();
-        await runTranslationFlowPasses({
+        return await runTranslationFlowPasses({
           chapterId: currentChapter.id,
           selection: options.selection,
           executeAnalysisJob,
@@ -273,21 +249,22 @@ async function runTranslationFlowPasses({
   refreshLibrary: UseTranslationActionsOptions["refreshLibrary"];
   setJobState: UseTranslationActionsOptions["setJobState"];
   t: TFunction<"renderer">;
-}): Promise<void> {
+}): Promise<RunAnalysisOutcome> {
   const pass1 = await runSelectionsSequentially(
     executeAnalysisJob,
     selection,
     pushStatus,
     t("translation.flow.firstPass"),
     options.blockMode,
+    options.workflowMode === "cumulative",
     t,
   );
   if (pass1 !== "completed") {
-    return;
+    return pass1;
   }
-  if (!options.twoPass) {
+  if (options.workflowMode !== "two-pass") {
     toast.success(t("translation.flow.completed"));
-    return;
+    return "completed";
   }
   const contextReady = await runWorkContextAnalysis({
     analysisScope: options.analysisScope,
@@ -298,9 +275,9 @@ async function runTranslationFlowPasses({
     t,
   });
   if (!contextReady) {
-    return;
+    return "failed";
   }
-  await runSecondTranslationPass(
+  return runSecondTranslationPass(
     executeAnalysisJob,
     selection,
     pushStatus,

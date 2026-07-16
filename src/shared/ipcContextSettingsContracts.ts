@@ -26,6 +26,7 @@ import type {
   AnalyzeWorkContextResult,
 } from "./workContextAnalysisTypes";
 import type { ChapterStoryMemory, WorkStyleGuide } from "./workContextTypes";
+import type { WorkContextUsage } from "./workContextUsageTypes";
 import { SUPPORTED_UI_LOCALES, type UiLocale } from "./uiLocales";
 import {
   AnalyzeWorkContextRequestSchema,
@@ -79,6 +80,34 @@ const analyzeWorkContextResultSchema = z
   })
   .strict();
 
+const workContextUsageLastSeenSchema = z
+  .object({
+    chapterId: stringArg,
+    chapterTitle: z.string().max(260),
+    chapterIndex: nonNegativeInteger,
+    pageId: stringArg,
+    pageName: z.string().max(260),
+    pageIndex: nonNegativeInteger,
+  })
+  .strict();
+
+const workContextUsageMetricSchema = z
+  .object({
+    id: stringArg,
+    pageCount: nonNegativeInteger,
+    mentionCount: nonNegativeInteger,
+    lastSeen: workContextUsageLastSeenSchema.optional(),
+  })
+  .strict();
+
+const workContextUsageSchema = z
+  .object({
+    workId: stringArg,
+    glossary: z.array(workContextUsageMetricSchema).max(1000),
+    characters: z.array(workContextUsageMetricSchema).max(300),
+  })
+  .strict();
+
 export const workContextIpcContracts = {
   getWorkStyleGuide: defineIpcContract<[string], WorkStyleGuide>({
     apiKey: "getWorkStyleGuide",
@@ -106,6 +135,12 @@ export const workContextIpcContracts = {
     channel: "context:save-chapter-story-memory",
     args: z.tuple([ChapterStoryMemorySchema]),
     result: ChapterStoryMemorySchema,
+  }),
+  getWorkContextUsage: defineIpcContract<[string], WorkContextUsage>({
+    apiKey: "getWorkContextUsage",
+    channel: "context:get-work-context-usage",
+    args: z.tuple([stringArg]),
+    result: workContextUsageSchema,
   }),
   analyzeWorkContext: defineIpcContract<
     [AnalyzeWorkContextRequest],

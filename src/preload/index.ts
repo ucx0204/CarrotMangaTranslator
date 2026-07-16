@@ -96,6 +96,7 @@ import type {
   ChapterStoryMemory,
   WorkStyleGuide,
 } from "../shared/workContextTypes";
+import type { WorkContextUsage } from "../shared/workContextUsageTypes";
 
 function subscribeToIpcEvent<TPayload>(
   contract: IpcEventContract<TPayload>,
@@ -152,6 +153,8 @@ const api = {
     memory: ChapterStoryMemory,
   ): Promise<ChapterStoryMemory> =>
     invokeContract(workContextIpcContracts.saveChapterStoryMemory, memory),
+  getWorkContextUsage: (workId: string): Promise<WorkContextUsage> =>
+    invokeContract(workContextIpcContracts.getWorkContextUsage, workId),
   analyzeWorkContext: (
     request: AnalyzeWorkContextRequest,
   ): Promise<AnalyzeWorkContextResult> =>

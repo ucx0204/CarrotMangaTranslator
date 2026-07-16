@@ -2,12 +2,14 @@ import { randomUUID } from "node:crypto";
 import type {
   ChapterStoryMemory,
   CharacterProfile,
-  CharacterSpeechStyle,
   GlossaryEntry,
-  PageStoryMemory,
   WorkStyleGuide,
 } from "../shared/workContextTypes";
 import type { WorkContextAnalysisCounts } from "../shared/workContextAnalysisTypes";
+import {
+  MAX_CHARACTER_PROFILES,
+  MAX_GLOSSARY_ENTRIES,
+} from "../shared/ipcSchemaPrimitives";
 import { tMain } from "./i18n";
 import {
   cleanText,
@@ -19,12 +21,15 @@ import {
 import type {
   AiCharacterSuggestion,
   AiGlossarySuggestion,
-  AiPageSummarySuggestion,
   AiWorkContextSuggestions,
   BasePageMemory,
   MergeAiWorkContextInput,
   MergeAiWorkContextResult,
 } from "./workContextAiTypes";
+import {
+  buildMergedPageMemory,
+  upsertMemoryPage,
+} from "./workContextPageMemory";
 
 export type { BasePageMemory } from "./workContextAiTypes";
 
@@ -37,11 +42,18 @@ export function mergeAiWorkContextSuggestions({
 }: MergeAiWorkContextInput): MergeAiWorkContextResult {
   const counts = createEmptyCounts();
   const warnings: string[] = [];
-  const withGlossary = mergeGlossary(styleGuide, suggestions, counts, now);
+  const withGlossary = mergeGlossary(
+    styleGuide,
+    suggestions,
+    counts,
+    warnings,
+    now,
+  );
   const withCharacters = mergeCharacters(
     withGlossary,
     suggestions,
     counts,
+    warnings,
     now,
   );
   const withRules = mergeRules(withCharacters, suggestions, counts, now);
@@ -66,6 +78,7 @@ function mergeGlossary(
   guide: WorkStyleGuide,
   suggestions: AiWorkContextSuggestions,
   counts: WorkContextAnalysisCounts,
+  warnings: string[],
   now: string,
 ): WorkStyleGuide {
   let glossary = guide.glossary;
@@ -80,6 +93,15 @@ function mergeGlossary(
       glossary = updateGlossaryEntry(glossary, matchId, suggestion, now);
       counts.glossaryUpdated += 1;
     } else {
+      if (glossary.length >= MAX_GLOSSARY_ENTRIES) {
+        pushUniqueWarning(
+          warnings,
+          tMain("workContext.warnings.glossaryLimit", {
+            count: MAX_GLOSSARY_ENTRIES,
+          }),
+        );
+        continue;
+      }
       glossary = [...glossary, makeGlossaryEntry(suggestion, now)];
       counts.glossaryAdded += 1;
     }
@@ -92,6 +114,7 @@ function mergeCharacters(
   guide: WorkStyleGuide,
   suggestions: AiWorkContextSuggestions,
   counts: WorkContextAnalysisCounts,
+  warnings: string[],
   now: string,
 ): WorkStyleGuide {
   let characters = guide.characters;
@@ -112,6 +135,15 @@ function mergeCharacters(
       );
       counts.charactersUpdated += 1;
     } else {
+      if (characters.length >= MAX_CHARACTER_PROFILES) {
+        pushUniqueWarning(
+          warnings,
+          tMain("workContext.warnings.characterLimit", {
+            count: MAX_CHARACTER_PROFILES,
+          }),
+        );
+        continue;
+      }
       characters = [...characters, makeCharacterProfile(suggestion, now)];
       counts.charactersAdded += 1;
     }
@@ -170,7 +202,13 @@ function mergeStoryMemories(
       basePage.chapterId,
       upsertMemoryPage(
         memory,
-        buildMergedPageMemory(basePage, suggestion, characterIndex, now),
+        buildMergedPageMemory(
+          basePage,
+          suggestion,
+          characterIndex,
+          memory.pages.find((page) => page.pageId === basePage.pageId),
+          now,
+        ),
         now,
       ),
     );
@@ -194,8 +232,6 @@ function updateGlossaryEntry(
     entry.id === id
       ? {
           ...entry,
-          target: cleanText(suggestion.target, 400) || entry.target,
-          category: suggestion.category ?? entry.category,
           aliases: mergeLists(entry.aliases, suggestion.aliases, 50),
           note: mergeNote(entry.note, suggestion.note),
           updatedAt: now,
@@ -216,6 +252,7 @@ function makeGlossaryEntry(
     aliases: sanitizeList(suggestion.aliases, 50, 200),
     note: mergeNote("", suggestion.note),
     enabled: true,
+    origin: "ai",
     createdAt: now,
     updatedAt: now,
   };
@@ -238,13 +275,7 @@ function updateCharacterProfile(
             suggestion.sourceNames,
             50,
           ),
-          targetName:
-            cleanText(suggestion.targetName, 200) || character.targetName,
           aliases: mergeLists(character.aliases, suggestion.aliases, 50),
-          speechStyle: resolveSpeechStyleUpdate(character, suggestion),
-          customSpeechStyle:
-            cleanText(suggestion.customSpeechStyle, 1000) ||
-            character.customSpeechStyle,
           note: mergeNote(character.note, suggestion.note),
           updatedAt: now,
         }
@@ -267,43 +298,10 @@ function makeCharacterProfile(
     customSpeechStyle: cleanText(suggestion.customSpeechStyle, 1000),
     note: mergeNote("", suggestion.note),
     enabled: true,
+    origin: "ai",
     createdAt: now,
     updatedAt: now,
   };
-}
-
-function buildMergedPageMemory(
-  basePage: BasePageMemory,
-  suggestion: AiPageSummarySuggestion,
-  characterIndex: Map<string, string>,
-  now: string,
-): PageStoryMemory {
-  const { workId: _workId, chapterId: _chapterId, ...pageMemory } = basePage;
-  const characterIds = sanitizeList(suggestion.characterNames, 100, 200)
-    .map((name) => characterIndex.get(normalizeKey(name)))
-    .filter((id): id is string => Boolean(id));
-  return {
-    ...pageMemory,
-    summary:
-      cleanText(suggestion.summary, 1200) ||
-      basePage.summary ||
-      basePage.translatedDigest ||
-      basePage.sourceDigest,
-    characterIds:
-      characterIds.length > 0 ? [...new Set(characterIds)] : undefined,
-    updatedAt: now,
-  };
-}
-
-function upsertMemoryPage(
-  memory: ChapterStoryMemory,
-  page: PageStoryMemory,
-  now: string,
-): ChapterStoryMemory {
-  const pages = memory.pages.filter((item) => item.pageId !== page.pageId);
-  pages.push(page);
-  pages.sort((left, right) => left.pageIndex - right.pageIndex);
-  return { ...memory, pages, updatedAt: now };
 }
 
 function buildGlossaryIndex(glossary: GlossaryEntry[]): Map<string, string> {
@@ -378,26 +376,14 @@ function resolveCharacterDisplayName(
   );
 }
 
-function resolveSpeechStyleUpdate(
-  character: CharacterProfile,
-  suggestion: AiCharacterSuggestion,
-): CharacterSpeechStyle {
-  if (!suggestion.speechStyle) {
-    return character.speechStyle;
-  }
-  if (
-    character.speechStyle === "neutral" ||
-    suggestion.speechStyle === "custom"
-  ) {
-    return suggestion.speechStyle;
-  }
-  return character.speechStyle;
-}
-
 function mergeLists(
   current: string[] | undefined,
   next: string[] | undefined,
   maxItems: number,
 ): string[] {
   return sanitizeList([...(current ?? []), ...(next ?? [])], maxItems, 200);
+}
+
+function pushUniqueWarning(warnings: string[], warning: string): void {
+  if (!warnings.includes(warning)) warnings.push(warning);
 }

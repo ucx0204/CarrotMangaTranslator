@@ -6,6 +6,8 @@ import type {
 } from "../../../../shared/workContextTypes";
 import type { WorkContextAnalysisScope } from "../../../../shared/workContextAnalysisTypes";
 import type { WorkContextBudgetPlan } from "../../../../shared/workContextBudget";
+import type { WorkContextUsage } from "../../../../shared/workContextUsageTypes";
+import type { WorkContextUsageStatus } from "./useStyleGuideModalModel";
 import { Button } from "../ui/Button";
 import { CharactersTab } from "./CharactersTab";
 import { GlossaryTab } from "./GlossaryTab";
@@ -19,13 +21,19 @@ export function StyleGuideTabContent({
   guide,
   memory,
   onGuideChange,
+  onMemoryChange,
   tab,
+  usage,
+  usageStatus = usage ? "ready" : "loading",
 }: {
   busy: boolean;
   guide: WorkStyleGuide | null;
   memory: ChapterStoryMemory | null;
   onGuideChange: (guide: WorkStyleGuide) => void;
+  onMemoryChange: (memory: ChapterStoryMemory) => void;
   tab: StyleGuideTab;
+  usage: WorkContextUsage | null;
+  usageStatus?: WorkContextUsageStatus;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   if (busy || !guide) {
@@ -34,10 +42,24 @@ export function StyleGuideTabContent({
     );
   }
   const editors = {
-    glossary: <GlossaryTab guide={guide} onGuideChange={onGuideChange} />,
-    characters: <CharactersTab guide={guide} onGuideChange={onGuideChange} />,
+    glossary: (
+      <GlossaryTab
+        guide={guide}
+        onGuideChange={onGuideChange}
+        usage={usage?.glossary ?? []}
+        usageAvailable={usageStatus !== "error"}
+      />
+    ),
+    characters: (
+      <CharactersTab
+        guide={guide}
+        onGuideChange={onGuideChange}
+        usage={usage?.characters ?? []}
+        usageAvailable={usageStatus !== "error"}
+      />
+    ),
     rules: <RulesTab guide={guide} onGuideChange={onGuideChange} />,
-    memory: <MemoryTab memory={memory} />,
+    memory: <MemoryTab memory={memory} onMemoryChange={onMemoryChange} />,
   } satisfies Record<StyleGuideTab, React.JSX.Element>;
   return editors[tab];
 }

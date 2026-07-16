@@ -123,8 +123,10 @@ function appendStoryLines(lines, pages, regionCropMode) {
         : "Recent story context from previous pages. Use it only to resolve pronouns, omitted subjects, relationships, tone, and continuity. Do not output these notes as records.",
     );
     for (const page of pages.slice(-6)) {
+      const pageNumber = Number(page.pageIndex);
+      const pageLabel = pageNumber >= 0 ? `p${pageNumber + 1} ` : "";
       lines.push(
-        `- p${Number(page.pageIndex) + 1} ${sanitizePromptLine(page.pageName)}: ${sanitizePromptLine(page.summary || page.translatedDigest || "")}`,
+        `- ${pageLabel}${sanitizePromptLine(page.pageName)}: ${sanitizePromptLine(page.visualSummary || page.summary || page.translatedDigest || "")}`,
       );
     }
   }

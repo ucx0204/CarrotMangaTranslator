@@ -6,7 +6,10 @@ import type {
   LibraryIndex,
   LibraryWorkSummary,
 } from "../../../shared/libraryTypes";
-import type { UiSettings } from "../../../shared/settingsTypes";
+import type {
+  TranslationWorkflowMode,
+  UiSettings,
+} from "../../../shared/settingsTypes";
 import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
 import { getBlockModeOptions } from "../lib/blockModeOptions";
@@ -22,6 +25,11 @@ const ANALYSIS_OPTION_IDS: WorkContextAnalysisScope[] = [
   "missing",
   "chapter",
 ];
+const WORKFLOW_OPTION_IDS: TranslationWorkflowMode[] = [
+  "standard",
+  "cumulative",
+  "two-pass",
+];
 
 type TranslationOptionsModalProps = {
   chapter: ChapterSnapshot;
@@ -31,7 +39,7 @@ type TranslationOptionsModalProps = {
   onPersistDefaults: (
     patch: Pick<
       UiSettings,
-      "twoPassByDefault" | "analysisScopeDefault" | "blockModeDefault"
+      "translationWorkflowDefault" | "analysisScopeDefault" | "blockModeDefault"
     >,
   ) => void;
   onClose: () => void;
@@ -53,8 +61,8 @@ export function TranslationOptionsModal({
   const [selection, setSelection] = React.useState<ChapterSelectionMap>(
     () => new Map([[chapter.id, { kind: "pending" }]]),
   );
-  const [twoPass, setTwoPass] = React.useState(
-    uiSettings?.twoPassByDefault ?? true,
+  const [workflowMode, setWorkflowMode] = React.useState(
+    uiSettings?.translationWorkflowDefault ?? "cumulative",
   );
   const [analysisScope, setAnalysisScope] =
     React.useState<WorkContextAnalysisScope>(
@@ -78,11 +86,16 @@ export function TranslationOptionsModal({
       return;
     }
     onPersistDefaults({
-      twoPassByDefault: twoPass,
+      translationWorkflowDefault: workflowMode,
       analysisScopeDefault: analysisScope,
       blockModeDefault: blockMode,
     });
-    onStart({ selection: runSelection, twoPass, analysisScope, blockMode });
+    onStart({
+      selection: runSelection,
+      workflowMode,
+      analysisScope,
+      blockMode,
+    });
     onClose();
   };
 
@@ -105,8 +118,8 @@ export function TranslationOptionsModal({
         work={work}
         selection={selection}
         onSelectionChange={setSelection}
-        twoPass={twoPass}
-        onTwoPassChange={setTwoPass}
+        workflowMode={workflowMode}
+        onWorkflowModeChange={setWorkflowMode}
         analysisScope={analysisScope}
         onAnalysisScopeChange={setAnalysisScope}
         blockMode={blockMode}
@@ -141,8 +154,8 @@ type TranslationOptionsFormProps = {
   work: LibraryWorkSummary | null;
   selection: ChapterSelectionMap;
   onSelectionChange: (selection: ChapterSelectionMap) => void;
-  twoPass: boolean;
-  onTwoPassChange: (enabled: boolean) => void;
+  workflowMode: TranslationWorkflowMode;
+  onWorkflowModeChange: (mode: TranslationWorkflowMode) => void;
   analysisScope: WorkContextAnalysisScope;
   onAnalysisScopeChange: (scope: WorkContextAnalysisScope) => void;
   blockMode: AnalysisBlockMode;
@@ -169,29 +182,33 @@ function TranslationOptionsForm(
         </p>
       )}
 
-      <div className="translate-options-twopass">
-        <label className="inline-toggle translate-options-toggle">
-          <input
-            type="checkbox"
-            checked={props.twoPass}
-            onChange={(event) => props.onTwoPassChange(event.target.checked)}
-          />
-          {t("translationOptions.secondPass")}
-        </label>
-        <p className="translate-options-hint">
-          {t("translationOptions.secondPassHint")}
-        </p>
-      </div>
       <OptionRow
-        label={t("translationOptions.analysisScope")}
-        options={ANALYSIS_OPTION_IDS.map((id) => ({
+        label={t("translationOptions.workflowMode")}
+        options={WORKFLOW_OPTION_IDS.map((id) => ({
           id,
-          label: t(`translationOptions.analysisOptions.${id}`),
+          label: t(
+            `translationOptions.workflowOptions.${workflowTranslationKey(id)}.label`,
+          ),
         }))}
-        value={props.analysisScope}
-        onChange={props.onAnalysisScopeChange}
-        disabled={!props.twoPass}
+        value={props.workflowMode}
+        onChange={props.onWorkflowModeChange}
       />
+      <p className="translate-options-hint" aria-live="polite">
+        {t(
+          `translationOptions.workflowOptions.${workflowTranslationKey(props.workflowMode)}.description`,
+        )}
+      </p>
+      {props.workflowMode === "two-pass" ? (
+        <OptionRow
+          label={t("translationOptions.analysisScope")}
+          options={ANALYSIS_OPTION_IDS.map((id) => ({
+            id,
+            label: t(`translationOptions.analysisOptions.${id}`),
+          }))}
+          value={props.analysisScope}
+          onChange={props.onAnalysisScopeChange}
+        />
+      ) : null}
       <OptionRow
         label={t("common.blocks")}
         options={getBlockModeOptions(tRenderer)}
@@ -205,6 +222,12 @@ function TranslationOptionsForm(
       ) : null}
     </div>
   );
+}
+
+function workflowTranslationKey(
+  mode: TranslationWorkflowMode,
+): "standard" | "cumulative" | "twoPass" {
+  return mode === "two-pass" ? "twoPass" : mode;
 }
 
 export function OptionRow<T extends string>({

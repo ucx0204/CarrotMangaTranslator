@@ -1,7 +1,5 @@
 import type { MangaPage } from "../shared/libraryTypes";
 import { isJapaneseLanguageCode } from "../shared/translationLanguages";
-import { saveChapterStoryMemory } from "./library";
-import { logInfo } from "./logger";
 import { tMain } from "./i18n";
 import {
   startAnalysisEndpointSession,
@@ -13,23 +11,14 @@ import {
   completePrepassNoTextPages,
   filterPagesByOcrText,
 } from "./pipeline/pageFiltering";
-import { prepareKeepBlockHints } from "./pipeline/keepBlocksOcr";
-import {
-  buildKeepBlocksOcrResult,
-  shouldKeepExistingBlocks,
-} from "./pipeline/keepBlocksResult";
-import { prepareOcrHintsForPages } from "./pipeline/ocrHints";
 import { formatGemmaVramMode } from "./pipeline/options";
 import { prepareAnalysisRun } from "./pipeline/prepareAnalysisRun";
 import { emitFinalizing } from "./pipeline/progressEvents";
 import { translatePageWithRetries } from "./pipeline/translatePageWithRetries";
 import type { OcrBboxResult, PipelineOptions } from "./pipeline/types";
-import { prepareRegionContextOcrHints } from "./pipeline/regionOcrContext";
 import { createWarningCollector } from "./pipeline/warningCollector";
-import {
-  buildPageStoryMemory,
-  upsertPageStoryMemory,
-} from "./pipeline/storyMemoryBuilder";
+import { persistPageContextAfterSuccess } from "./pipeline/pageContextPersistence";
+import { preparePageOcrHints } from "./pipeline/pageOcrPreparation";
 
 export async function runWholePagePipeline({
   jobId,
@@ -47,10 +36,10 @@ export async function runWholePagePipeline({
   workContext,
   regionContext,
   writeStoryMemory = true,
+  collectPageContext = false,
+  canonicalPageIndexById,
 }: PipelineOptions): Promise<{ pages: MangaPage[]; warnings: string[] }> {
-  if (pages.length === 0) {
-    return { pages: [], warnings: [] };
-  }
+  if (pages.length === 0) return { pages: [], warnings: [] };
 
   throwIfAborted(signal);
   const { ocrHintsByPageId, run } = await prepareWholePageRun({
@@ -68,25 +57,94 @@ export async function runWholePagePipeline({
   throwIfAborted(signal);
 
   const filtered = filterPagesByOcrText(pages, ocrHintsByPageId, {
-    allowNoTextSkip: allowOcrNoTextSkip(run.baseOptions),
+    allowNoTextSkip: !collectPageContext && allowOcrNoTextSkip(run.baseOptions),
   });
-  await completePrepassNoTextPages({
+  const approvedPrepassPageIds = await completePrepassNoTextPages({
     context: run.progressContext,
     onPageComplete,
     onPagesComplete,
     prepassNoTextPages: filtered.prepassNoTextPages,
   });
+  if (writeStoryMemory && workContext) {
+    for (const entry of filtered.prepassNoTextPages) {
+      if (!approvedPrepassPageIds.has(entry.page.id)) continue;
+      await persistPageContextAfterSuccess({
+        page: entry.page,
+        pageIndex:
+          canonicalPageIndexById?.get(entry.page.id) ?? entry.pageIndex,
+        ocrResult: ocrHintsByPageId.get(entry.page.id),
+        collectPageContext: false,
+        warningCollector,
+        workContext,
+      });
+    }
+  }
 
+  return completeWholePageRun({
+    blockMode,
+    canonicalPageIndexById,
+    collectPageContext,
+    filtered,
+    ocrHintsByPageId,
+    onCleanupReady,
+    onPageComplete,
+    onPageFailed,
+    pages,
+    regionContext,
+    run,
+    runPaths,
+    signal,
+    skipOcrPrepass,
+    warningCollector,
+    workContext,
+    writeStoryMemory,
+  });
+}
+
+async function completeWholePageRun({
+  blockMode,
+  canonicalPageIndexById,
+  collectPageContext,
+  filtered,
+  ocrHintsByPageId,
+  onCleanupReady,
+  onPageComplete,
+  onPageFailed,
+  pages,
+  regionContext,
+  run,
+  runPaths,
+  signal,
+  skipOcrPrepass,
+  warningCollector,
+  workContext,
+  writeStoryMemory,
+}: Pick<
+  PipelineOptions,
+  | "blockMode"
+  | "canonicalPageIndexById"
+  | "collectPageContext"
+  | "onCleanupReady"
+  | "onPageComplete"
+  | "onPageFailed"
+  | "pages"
+  | "regionContext"
+  | "runPaths"
+  | "signal"
+  | "workContext"
+  | "writeStoryMemory"
+> & {
+  filtered: ReturnType<typeof filterPagesByOcrText>;
+  ocrHintsByPageId: Map<string, OcrBboxResult>;
+  run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
+  skipOcrPrepass: boolean;
+  warningCollector: ReturnType<typeof createWarningCollector>;
+}): Promise<{ pages: MangaPage[]; warnings: string[] }> {
   if (filtered.pagesToTranslate.length === 0) {
     emitPagesReadyWithoutModel(run.progressContext, pages.length);
     return buildPipelineResult(pages, filtered, warningCollector);
   }
-
-  const endpoint = await startWholePageEndpoint({
-    onCleanupReady,
-    run,
-  });
-
+  const endpoint = await startWholePageEndpoint({ onCleanupReady, run });
   try {
     await translatePages({
       endpoint,
@@ -102,7 +160,9 @@ export async function runWholePagePipeline({
       warningCollector,
       workContext,
       regionContext,
-      writeStoryMemory,
+      writeStoryMemory: writeStoryMemory ?? true,
+      collectPageContext: collectPageContext ?? false,
+      canonicalPageIndexById,
     });
     emitFinalizing(
       run.progressContext,
@@ -208,79 +268,6 @@ async function startWholePageEndpoint({
   });
 }
 
-async function preparePageOcrHints({
-  jobId,
-  pages,
-  run,
-  runPaths,
-  signal,
-  skipOcrPrepass,
-  blockMode,
-  decodeImage,
-  regionContext,
-}: {
-  jobId: string;
-  pages: MangaPage[];
-  run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
-  runPaths: PipelineOptions["runPaths"];
-  signal: AbortSignal;
-  skipOcrPrepass: boolean;
-  blockMode?: PipelineOptions["blockMode"];
-  decodeImage?: PipelineOptions["decodeImage"];
-  regionContext?: PipelineOptions["regionContext"];
-}): Promise<Map<string, OcrBboxResult>> {
-  if (regionContext) {
-    return prepareRegionContextOcrHints({
-      runtime: run.runtime,
-      baseOptions: run.baseOptions,
-      emit: run.progressContext.emit,
-      jobId,
-      pages,
-      regionContext,
-      runPaths,
-      signal,
-    });
-  }
-  if (skipOcrPrepass) {
-    logInfo("OCR prepass skipped for analysis pipeline", {
-      jobId,
-      pageCount: pages.length,
-    });
-    return new Map<string, OcrBboxResult>(
-      pages
-        .filter((page) => shouldKeepExistingBlocks(blockMode, page))
-        .map((page) => [page.id, buildKeepBlocksOcrResult(page)]),
-    );
-  }
-  const keepBlockHints = await prepareKeepBlockHints({
-    runtime: run.runtime,
-    baseOptions: run.baseOptions,
-    keepPages: pages.filter((page) =>
-      shouldKeepExistingBlocks(blockMode, page),
-    ),
-    pageCount: pages.length,
-    runPaths,
-    emit: run.progressContext.emit,
-    jobId,
-    signal,
-    decodeImage,
-  });
-  const prepassPages = pages.filter((page) => !keepBlockHints.has(page.id));
-  if (prepassPages.length === 0) {
-    return keepBlockHints;
-  }
-  const prepassHints = await prepareOcrHintsForPages({
-    runtime: run.runtime,
-    baseOptions: run.baseOptions,
-    pages: prepassPages,
-    runPaths,
-    emit: run.progressContext.emit,
-    jobId,
-    signal,
-  });
-  return new Map([...keepBlockHints, ...prepassHints]);
-}
-
 async function translatePages({
   endpoint,
   filtered,
@@ -296,6 +283,8 @@ async function translatePages({
   workContext,
   regionContext,
   writeStoryMemory,
+  collectPageContext,
+  canonicalPageIndexById,
 }: {
   endpoint: AnalysisEndpointSession;
   filtered: ReturnType<typeof filterPagesByOcrText>;
@@ -311,11 +300,14 @@ async function translatePages({
   workContext?: PipelineOptions["workContext"];
   regionContext?: PipelineOptions["regionContext"];
   writeStoryMemory: boolean;
+  collectPageContext: boolean;
+  canonicalPageIndexById?: PipelineOptions["canonicalPageIndexById"];
 }): Promise<void> {
   for (const page of filtered.pagesToTranslate) {
-    const pageIndex = filtered.pageIndexById.get(page.id) ?? 0;
+    const progressPageIndex = filtered.pageIndexById.get(page.id) ?? 0;
+    const pageIndex = canonicalPageIndexById?.get(page.id) ?? progressPageIndex;
     throwIfAborted(signal);
-    await translatePageWithRetries({
+    const translated = await translatePageWithRetries({
       baseOptions: run.baseOptions,
       completedPagesById: filtered.completedPagesById,
       context: run.progressContext,
@@ -325,6 +317,7 @@ async function translatePages({
       onPageFailed,
       page,
       pageIndex,
+      progressPageIndex,
       runPaths,
       runtime: run.runtime,
       server: endpoint.server,
@@ -334,41 +327,18 @@ async function translatePages({
       warningCollector,
       workContext,
       regionContext,
+      collectPageContext,
     });
-    if (writeStoryMemory) {
-      await updateStoryMemoryAfterPage({
-        completedPagesById: filtered.completedPagesById,
-        pageId: page.id,
+    if (writeStoryMemory && translated.approved) {
+      await persistPageContextAfterSuccess({
+        page: filtered.completedPagesById.get(page.id),
         pageIndex,
+        pageContext: translated.pageContext,
+        ocrResult: ocrHintsByPageId.get(page.id),
+        collectPageContext,
+        warningCollector,
         workContext,
       });
     }
   }
-}
-
-async function updateStoryMemoryAfterPage({
-  completedPagesById,
-  pageId,
-  pageIndex,
-  workContext,
-}: {
-  completedPagesById: Map<string, MangaPage>;
-  pageId: string;
-  pageIndex: number;
-  workContext?: PipelineOptions["workContext"];
-}): Promise<void> {
-  if (!workContext) {
-    return;
-  }
-  const completedPage = completedPagesById.get(pageId);
-  if (!completedPage || completedPage.analysisStatus !== "completed") {
-    return;
-  }
-  workContext.storyMemory = upsertPageStoryMemory(
-    workContext.storyMemory,
-    buildPageStoryMemory({ page: completedPage, pageIndex }),
-  );
-  workContext.storyMemory = await saveChapterStoryMemory(
-    workContext.storyMemory,
-  );
 }

@@ -92,7 +92,9 @@
       "chaptersTruncated": "{{count}} 個章節較長，僅在各章節權杖預算內分析部分頁面。",
       "chaptersFailed": "{{count}} 個章節的 AI 分析失敗。請檢查記錄。",
       "alreadyAnalyzed": "所有章節均已分析，已略過 AI 術語／記憶分析。",
-      "unknownPageId": "AI 傳回了未知的 pageId：{{pageId}}"
+      "unknownPageId": "AI 傳回了未知的 pageId：{{pageId}}",
+      "glossaryLimit": "術語表已達到 {{count}} 項上限，因此未加入新的 AI 術語。",
+      "characterLimit": "角色記憶已達到 {{count}} 項上限，因此未加入新的 AI 角色。"
     }
   },
   "reviewImport": {
@@ -203,7 +205,8 @@
     "warnings": {
       "attemptFailed": "{{page}}：第 {{attempt}}/{{maxAttempts}} 次嘗試失敗 - {{message}}",
       "pageSkipped": "{{page}}：重試 {{maxAttempts}} 次失敗，已略過此頁。最後錯誤：{{message}}",
-      "uncertainOcr": "{{page}}：有 {{count}} 個不確定的 OCR 片段。"
+      "uncertainOcr": "{{page}}：有 {{count}} 個不確定的 OCR 片段。",
+      "omitted": "已省略另外 {{count}} 則警告。"
     },
     "result": {
       "existingUpdated": "更新了 {{count}} 個現有文字區塊",

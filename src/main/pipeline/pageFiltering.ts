@@ -55,21 +55,32 @@ export async function completePrepassNoTextPages({
   onPageComplete?: PipelineOptions["onPageComplete"];
   onPagesComplete?: PipelineOptions["onPagesComplete"];
   prepassNoTextPages: FilteredPages["prepassNoTextPages"];
-}): Promise<void> {
+}): Promise<ReadonlySet<string>> {
   if (prepassNoTextPages.length === 0) {
-    return;
+    return new Set();
   }
 
+  const approvedPageIds = new Set<string>();
   if (onPagesComplete) {
-    await onPagesComplete(prepassNoTextPages.map((entry) => entry.page));
+    const accepted = await onPagesComplete(
+      prepassNoTextPages.map((entry) => entry.page),
+    );
+    for (const entry of prepassNoTextPages) {
+      if (!accepted || accepted.has(entry.page.id)) {
+        approvedPageIds.add(entry.page.id);
+      }
+    }
   } else {
     for (const entry of prepassNoTextPages) {
-      await onPageComplete?.(entry.page);
+      if ((await onPageComplete?.(entry.page)) !== false) {
+        approvedPageIds.add(entry.page.id);
+      }
     }
   }
   for (const entry of prepassNoTextPages) {
     emitNoTextPage(context, entry.page, entry.pageIndex);
   }
+  return approvedPageIds;
 }
 
 export function buildPipelinePages(

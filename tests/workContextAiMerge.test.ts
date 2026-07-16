@@ -11,6 +11,10 @@ import {
 import { setMainLocale } from "../src/main/i18n";
 import { normalizeAiWorkContextSuggestions } from "../src/main/workContextAiNormalize";
 import { selectWorkTextForAnalysis } from "../src/main/workContextAnalysisPrompt";
+import {
+  MAX_CHARACTER_PROFILES,
+  MAX_GLOSSARY_ENTRIES,
+} from "../src/shared/ipcSchemaPrimitives";
 
 const now = "2026-01-01T00:00:00.000Z";
 
@@ -71,10 +75,14 @@ describe("AI work context merge", () => {
       expect.arrayContaining([
         expect.objectContaining({
           source: "魔王",
-          target: "마왕님",
+          target: "마왕",
           aliases: ["魔王様"],
         }),
-        expect.objectContaining({ source: "黒い塔", target: "검은 탑" }),
+        expect.objectContaining({
+          source: "黒い塔",
+          target: "검은 탑",
+          origin: "ai",
+        }),
       ]),
     );
     expect(result.styleGuide.characters[0]).toEqual(
@@ -83,6 +91,7 @@ describe("AI work context merge", () => {
         sourceNames: ["魔王"],
         targetName: "마왕님",
         speechStyle: "rough",
+        origin: "ai",
       }),
     );
     expect(result.styleGuide.glossary[0].note).toBe("주요 인물");
@@ -91,12 +100,182 @@ describe("AI work context merge", () => {
     expect(result.memories[0].pages[0]).toEqual(
       expect.objectContaining({
         pageId: "page-a",
-        summary: "마왕이 검은 탑을 언급한다.",
+        summary: "마왕 검은 탑",
         characterIds: [result.styleGuide.characters[0].id],
       }),
     );
     expect("workId" in result.memories[0].pages[0]).toBe(false);
     expect("chapterId" in result.memories[0].pages[0]).toBe(false);
+  });
+
+  it("does not overwrite existing translations, speech style, or summaries", () => {
+    const guide = makeGuide();
+    guide.characters.push({
+      id: "character-a",
+      displayName: "마왕",
+      sourceNames: ["魔王"],
+      targetName: "마왕",
+      speechStyle: "formal",
+      customSpeechStyle: "",
+      enabled: true,
+      origin: "manual",
+      createdAt: now,
+      updatedAt: now,
+    });
+    const memory = makeMemory();
+    memory.pages.push(makeBasePage());
+    const result = mergeAiWorkContextSuggestions({
+      styleGuide: guide,
+      memories: [memory],
+      basePages: [makeBasePage()],
+      suggestions: normalizeAiWorkContextSuggestions({
+        glossary: [{ source: "魔王", target: "마왕님" }],
+        characters: [
+          {
+            displayName: "마왕",
+            sourceNames: ["魔王"],
+            targetName: "마왕님",
+            speechStyle: "rough",
+          },
+        ],
+        page_summaries: [{ page_id: "page-a", summary: "새 AI 요약" }],
+      }),
+      now,
+    });
+
+    expect(result.styleGuide.glossary[0].target).toBe("마왕");
+    expect(result.styleGuide.characters[0]).toEqual(
+      expect.objectContaining({ targetName: "마왕", speechStyle: "formal" }),
+    );
+    expect(result.memories[0].pages[0].summary).toBe("마왕 검은 탑");
+  });
+
+  it("preserves cumulative visual context and usage snapshots during precise analysis", () => {
+    const memory = makeMemory();
+    memory.pages.push({
+      ...makeBasePage(),
+      visualSummary: "사용자가 고친 장면 요약",
+      visualSummarySource: "manual",
+      glossaryEntryIds: ["glossary-a"],
+      characterIds: ["character-existing"],
+    });
+    const result = mergeAiWorkContextSuggestions({
+      styleGuide: makeGuide(),
+      memories: [memory],
+      basePages: [makeBasePage()],
+      suggestions: normalizeAiWorkContextSuggestions({
+        page_summaries: [
+          {
+            page_id: "page-a",
+            summary: "AI가 다시 분석한 요약",
+            character_names: [],
+          },
+        ],
+      }),
+      now,
+    });
+
+    expect(result.memories[0].pages[0]).toMatchObject({
+      visualSummary: "사용자가 고친 장면 요약",
+      visualSummarySource: "manual",
+      glossaryEntryIds: ["glossary-a"],
+      characterIds: ["character-existing"],
+    });
+  });
+
+  it("caps precise-analysis character snapshots after preserving existing IDs", () => {
+    const guide = makeGuide();
+    guide.characters = Array.from({ length: 100 }, (_, index) => ({
+      id: `character-${index}`,
+      displayName: `인물-${index}`,
+      sourceNames: [`人物-${index}`],
+      targetName: `인물-${index}`,
+      speechStyle: "neutral" as const,
+      enabled: true,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    const memory = makeMemory();
+    memory.pages.push({
+      ...makeBasePage(),
+      characterIds: ["protected-existing"],
+    });
+    const result = mergeAiWorkContextSuggestions({
+      styleGuide: guide,
+      memories: [memory],
+      basePages: [makeBasePage()],
+      suggestions: normalizeAiWorkContextSuggestions({
+        page_summaries: [
+          {
+            page_id: "page-a",
+            summary: "인물들이 모인다.",
+            character_names: guide.characters.map(
+              (character) => character.displayName,
+            ),
+          },
+        ],
+      }),
+      now,
+    });
+
+    expect(result.memories[0].pages[0].characterIds).toHaveLength(100);
+    expect(result.memories[0].pages[0].characterIds?.[0]).toBe(
+      "protected-existing",
+    );
+  });
+
+  it("stops adding AI entries at the stored limits without deleting data", () => {
+    const guide = makeGuide();
+    guide.glossary = Array.from(
+      { length: MAX_GLOSSARY_ENTRIES },
+      (_, index) => ({
+        ...guide.glossary[0],
+        id: `glossary-${index}`,
+        source: `용어-${index}`,
+      }),
+    );
+    const characterTemplate = {
+      id: "character-template",
+      displayName: "인물",
+      sourceNames: ["人物"],
+      targetName: "인물",
+      speechStyle: "neutral" as const,
+      enabled: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    guide.characters = Array.from(
+      { length: MAX_CHARACTER_PROFILES },
+      (_, index) => ({
+        ...characterTemplate,
+        id: `character-${index}`,
+        displayName: `인물-${index}`,
+        sourceNames: [`人物-${index}`],
+      }),
+    );
+
+    const result = mergeAiWorkContextSuggestions({
+      styleGuide: guide,
+      memories: [makeMemory()],
+      basePages: [],
+      suggestions: normalizeAiWorkContextSuggestions({
+        glossary: [{ source: "새 용어", target: "new" }],
+        characters: [
+          {
+            displayName: "새 인물",
+            sourceNames: ["新人"],
+            targetName: "새 인물",
+          },
+        ],
+      }),
+      now,
+    });
+
+    expect(result.styleGuide.glossary).toHaveLength(MAX_GLOSSARY_ENTRIES);
+    expect(result.styleGuide.characters).toHaveLength(MAX_CHARACTER_PROFILES);
+    expect(result.counts.glossaryAdded).toBe(0);
+    expect(result.counts.charactersAdded).toBe(0);
+    expect(result.warnings).toHaveLength(2);
   });
 
   it("keeps the requested chapter in the selected work text when the work is truncated", () => {

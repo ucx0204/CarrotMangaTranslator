@@ -22,6 +22,7 @@ const {
   buildTaskSection,
 } = require("./task-sections.cjs");
 const { buildWorkContextSection } = require("./work-context.cjs");
+const { buildPageContextSection } = require("./page-context.cjs");
 
 /**
  * @param {PromptSection[]} sections
@@ -60,6 +61,19 @@ function applyModelSpecificPromptProfile(sections) {
   );
 }
 
+/** @param {PromptSection[]} sections @param {PromptOptions} options @returns {void} */
+function applyPageContextOutputException(sections, options) {
+  if (!options.collectPageContext) return;
+  const output = sections.find((section) => section[0] === "Output");
+  if (!output) return;
+  const original =
+    "Return plain text records only. Do not output JSON, markdown, bullets, commentary, or code fences.";
+  const index = output.indexOf(original);
+  if (index === -1) return;
+  output[index] =
+    "Return translation records as plain text only. Do not output JSON, markdown, bullets, commentary, or code fences inside the translation records; the only JSON exception is the required <page-context> trailer described below.";
+}
+
 /**
  * @param {PromptSection[]} sections
  * @param {PromptSection} section
@@ -95,6 +109,7 @@ function buildOverlayPrompt(baseSections, options = {}, imageVariants = []) {
   const sections = baseSections.map(([title, ...lines]) => [title, ...lines]);
   sections[0] = buildTaskSection(options, imageVariants);
   applyModelSpecificPromptProfile(sections);
+  applyPageContextOutputException(sections, options);
   insertOptionalSection(
     sections,
     buildCoordinateCalibrationSection(options, imageVariants),
@@ -126,6 +141,10 @@ function buildOverlayPrompt(baseSections, options = {}, imageVariants = []) {
       "Previous pass blocks",
     ],
   );
+  const pageContextSection = buildPageContextSection(options);
+  if (pageContextSection.length > 1) {
+    sections.push(pageContextSection);
+  }
 
   return localizeSections(sections, options);
 }

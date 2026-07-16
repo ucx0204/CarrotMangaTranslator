@@ -328,6 +328,21 @@
   "translationOptions": {
     "start": "翻訳を開始",
     "workUnavailable": "作品情報を読み込めませんでした。現在の話だけを翻訳します。",
+    "workflowMode": "翻訳方式",
+    "workflowOptions": {
+      "standard": {
+        "label": "高速1回翻訳",
+        "description": "各ページを1回だけ翻訳し、直近の簡単な文脈だけを参照します。最も高速です。"
+      },
+      "cumulative": {
+        "label": "累積コンテキスト（推奨）",
+        "description": "翻訳しながらページの場面要約・用語・キャラクター情報を蓄積し、次のページから参照します。"
+      },
+      "twoPass": {
+        "label": "高精度2回翻訳",
+        "description": "1回目の翻訳後に選択した範囲の文脈を分析し、その結果を使って再翻訳します。最も時間がかかりますが、高品質です。"
+      }
+    },
     "secondPass": "2回目の翻訳（品質向上）",
     "secondPassHint": "1回目の翻訳後、AIが用語・キャラクター・文脈を分析し、その結果を使って再翻訳します。選択したページを再度翻訳するため時間がかかります。",
     "analysisScope": "自動分析の範囲",
@@ -615,6 +630,39 @@
       "rules": "翻訳ルール",
       "memory": "ストーリー記憶"
     },
+    "usage": {
+      "search": "名前・訳・別名を検索",
+      "sortLabel": "並び順",
+      "sort": {
+        "usage": "登場が多い順",
+        "recent": "最近の登場順",
+        "name": "名前順",
+        "stored": "保存順"
+      },
+      "filterLabel": "フィルター",
+      "filter": {
+        "all": "すべて",
+        "ai": "AI生成",
+        "unused": "未使用",
+        "low-use": "0～1ページ登場",
+        "disabled": "無効"
+      },
+      "deleteSelected": "{{count}}件を削除",
+      "deleteConfirm": "選択した{{count}}件を削除しますか？保存すると反映されます。",
+      "selectAll": "表示中の項目をすべて選択",
+      "selectItem": "{{name}}を選択",
+      "enabled": "有効",
+      "enabledItem": "{{name}}を有効化",
+      "count": "回数",
+      "deleteItem": "{{name}}を削除",
+      "categoryItem": "{{name}}の分類",
+      "speechStyleItem": "{{name}}の話し方",
+      "noMatches": "条件に一致する項目はありません。",
+      "summary": "{{pages}}ページ · {{mentions}}回 · 最近 {{chapter}} {{page}}ページ",
+      "summaryNoRecent": "{{pages}}ページ · {{mentions}}回 · 最近の使用なし",
+      "neverUsed": "0ページ · 0回 · 最近の使用なし",
+      "unavailable": "使用統計を読み込めませんでした。"
+    },
     "budget": {
       "total": "用語/記憶 {{tokens}}",
       "outputHeadroom": "出力余裕 {{percent}}%",
@@ -684,7 +732,10 @@
     },
     "memory": {
       "empty": "保存されたストーリー記憶はまだありません。",
-      "pageHeading": "{{index}}ページ・{{pageName}}"
+      "pageHeading": "{{index}}ページ・{{pageName}}",
+      "visualSummary": "画像シーン要約",
+      "visualSummaryPlaceholder": "場面・行動・重要な台詞を1～2文で記録します。",
+      "textSummary": "既存のテキストメモ"
     }
   },
   "inpainting": {

@@ -1,4 +1,6 @@
 import type { MangaPage } from "../../shared/libraryTypes";
+import { isJapaneseLanguageCode } from "../../shared/translationLanguages";
+import type { TranslationOptions } from "../appSettings";
 import type { OcrBboxResult, RequestSummary, TranslationResult } from "./types";
 
 export function isOcrResultNoTextDetected(
@@ -14,6 +16,17 @@ export function isRequestNoTextDetected(
     requestBody &&
     typeof requestBody === "object" &&
     (requestBody as RequestSummary).noTextDetected,
+  );
+}
+
+export function isJapaneseCumulativeNoTextRequest(
+  options: Pick<TranslationOptions, "collectPageContext" | "sourceLanguage">,
+  requestBody: TranslationResult["requestBody"],
+): boolean {
+  return (
+    Boolean(options.collectPageContext) &&
+    isJapaneseLanguageCode(options.sourceLanguage) &&
+    isRequestNoTextDetected(requestBody)
   );
 }
 

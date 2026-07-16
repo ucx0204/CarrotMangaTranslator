@@ -92,7 +92,9 @@
       "chaptersTruncated": "{{count}} 个章节较长，仅在各章节令牌预算内分析了部分页面。",
       "chaptersFailed": "{{count}} 个章节的 AI 分析失败。请检查日志。",
       "alreadyAnalyzed": "所有章节均已分析，已跳过 AI 术语/记忆分析。",
-      "unknownPageId": "AI 返回了未知的 pageId：{{pageId}}"
+      "unknownPageId": "AI 返回了未知的 pageId：{{pageId}}",
+      "glossaryLimit": "术语表已达到 {{count}} 项上限，因此未添加新的 AI 术语。",
+      "characterLimit": "角色记忆已达到 {{count}} 项上限，因此未添加新的 AI 角色。"
     }
   },
   "reviewImport": {
@@ -203,7 +205,8 @@
     "warnings": {
       "attemptFailed": "{{page}}：第 {{attempt}} 次尝试失败（共 {{maxAttempts}} 次）— {{message}}",
       "pageSkipped": "{{page}}：重试 {{maxAttempts}} 次失败，已跳过此页。最后错误：{{message}}",
-      "uncertainOcr": "{{page}}：有 {{count}} 个不确定的 OCR 片段。"
+      "uncertainOcr": "{{page}}：有 {{count}} 个不确定的 OCR 片段。",
+      "omitted": "已省略另外 {{count}} 条警告。"
     },
     "result": {
       "existingUpdated": "更新了 {{count}} 个现有文本块",

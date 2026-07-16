@@ -339,7 +339,9 @@ function formatCharacterForBudget(character: CharacterProfile): string {
 }
 
 function formatStoryPageForBudget(page: PageStoryMemory): string {
-  return `- p${Number(page.pageIndex) + 1} ${sanitizePromptLine(page.pageName)}: ${sanitizePromptLine(page.summary || page.translatedDigest || "")}`;
+  const pageNumber = Number(page.pageIndex);
+  const pageLabel = pageNumber >= 0 ? `p${pageNumber + 1} ` : "";
+  return `- ${pageLabel}${sanitizePromptLine(page.pageName)}: ${sanitizePromptLine(page.visualSummary || page.summary || page.translatedDigest || "")}`;
 }
 
 function formatRulesForBudget(guide: WorkStyleGuide): string {

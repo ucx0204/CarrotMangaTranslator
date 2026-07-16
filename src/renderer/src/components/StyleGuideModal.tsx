@@ -62,7 +62,10 @@ export function StyleGuideModal({
         guide={model.guide}
         memory={model.memory}
         onGuideChange={model.setGuide}
+        onMemoryChange={model.setMemory}
         tab={model.tab}
+        usage={model.usage}
+        usageStatus={model.usageStatus}
       />
     </Modal>
   );

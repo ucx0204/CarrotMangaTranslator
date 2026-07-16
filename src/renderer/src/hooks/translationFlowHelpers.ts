@@ -10,6 +10,7 @@ type ExecuteAnalysisArgs = {
   pageId?: string;
   pageIds?: string[];
   blockMode?: AnalysisBlockMode;
+  collectPageContext?: boolean;
 };
 
 export type ExecuteAnalysisJob = (
@@ -29,6 +30,7 @@ export async function runSelectionsSequentially(
   pushStatus: (line: string) => void,
   passLabel: string,
   blockMode?: AnalysisBlockMode,
+  collectPageContext?: boolean,
   t?: TFunction<"renderer">,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
@@ -51,6 +53,7 @@ export async function runSelectionsSequentially(
       chapterId: selection.chapterId,
       pageIds: selection.mode === "page-set" ? selection.pageIds : undefined,
       blockMode,
+      collectPageContext,
     });
     if (outcome === "cancelled") {
       return "cancelled";

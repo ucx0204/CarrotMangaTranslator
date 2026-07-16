@@ -335,6 +335,21 @@
   "translationOptions": {
     "start": "Start translation",
     "workUnavailable": "Could not load work information. Only the current chapter will be translated.",
+    "workflowMode": "Translation workflow",
+    "workflowOptions": {
+      "standard": {
+        "label": "Quick single pass",
+        "description": "Translates each page once using only brief recent context. This is the fastest option."
+      },
+      "cumulative": {
+        "label": "Cumulative context (Recommended)",
+        "description": "Builds page summaries, terms, and character memory while translating, then uses them from the next page onward."
+      },
+      "twoPass": {
+        "label": "Precision two-pass",
+        "description": "Analyzes the selected context after the first pass, then translates again. This is the slowest but highest-quality option."
+      }
+    },
     "secondPass": "Second pass (better quality)",
     "secondPassHint": "After the first pass, AI analyzes terminology, characters, and context, then translates again using that analysis. This takes longer because the selected pages are translated twice.",
     "analysisScope": "Automatic analysis scope",
@@ -622,6 +637,39 @@
       "rules": "Translation rules",
       "memory": "Story memory"
     },
+    "usage": {
+      "search": "Search names, translations, aliases",
+      "sortLabel": "Sort",
+      "sort": {
+        "usage": "Most used",
+        "recent": "Recently used",
+        "name": "Name",
+        "stored": "Saved order"
+      },
+      "filterLabel": "Filter",
+      "filter": {
+        "all": "All",
+        "ai": "AI-created",
+        "unused": "Unused",
+        "low-use": "Used on 0–1 pages",
+        "disabled": "Disabled"
+      },
+      "deleteSelected": "Delete {{count}}",
+      "deleteConfirm": "Delete the {{count}} selected items? This takes effect when you save.",
+      "selectAll": "Select all visible items",
+      "selectItem": "Select {{name}}",
+      "enabled": "Enabled",
+      "enabledItem": "Enable {{name}}",
+      "count": "Count",
+      "deleteItem": "Delete {{name}}",
+      "categoryItem": "Category for {{name}}",
+      "speechStyleItem": "Speech style for {{name}}",
+      "noMatches": "No items match these filters.",
+      "summary": "{{pages}} pages · {{mentions}} mentions · latest {{chapter}} p. {{page}}",
+      "summaryNoRecent": "{{pages}} pages · {{mentions}} mentions · no recent use",
+      "neverUsed": "0 pages · 0 mentions · no recent use",
+      "unavailable": "Usage statistics could not be loaded."
+    },
     "budget": {
       "total": "Terminology/memory {{tokens}}",
       "outputHeadroom": "Output headroom {{percent}}%",
@@ -691,7 +739,10 @@
     },
     "memory": {
       "empty": "No story memory has been saved yet.",
-      "pageHeading": "Page {{index}} · {{pageName}}"
+      "pageHeading": "Page {{index}} · {{pageName}}",
+      "visualSummary": "Visual scene summary",
+      "visualSummaryPlaceholder": "Summarize the scene, actions, and key dialogue in one or two sentences.",
+      "textSummary": "Existing text memory"
     }
   },
   "inpainting": {

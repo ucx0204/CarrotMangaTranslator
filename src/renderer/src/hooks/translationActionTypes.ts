@@ -7,6 +7,7 @@ import type {
   MangaPage,
 } from "../../../shared/libraryTypes";
 import type { BBox } from "../../../shared/textTypes";
+import type { TranslationWorkflowMode } from "../../../shared/settingsTypes";
 import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
 import type { LiveChapterMergeOptions } from "../lib/chapterSync";
 import type { ChapterRunSelection } from "../lib/translationSelection";
@@ -16,7 +17,7 @@ export type RunAnalysisMode = "pending" | "all" | "single-page" | "page-set";
 
 export type TranslationFlowOptions = {
   selection: ChapterRunSelection[];
-  twoPass: boolean;
+  workflowMode: TranslationWorkflowMode;
   analysisScope: WorkContextAnalysisScope;
   blockMode: AnalysisBlockMode;
 };
@@ -37,6 +38,9 @@ export type UseTranslationActionsOptions = {
   saveNow: () => Promise<void>;
   syncSavedPageVersion: (chapter: ChapterSnapshot, pageId: string) => void;
   selectedPage: MangaPage | null;
+  translationWorkflowDefault?: TranslationWorkflowMode;
+  analysisScopeDefault?: WorkContextAnalysisScope;
+  blockModeDefault?: AnalysisBlockMode;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setFlowActive: (active: boolean) => void;
   setJobState: Dispatch<SetStateAction<JobState>>;
@@ -49,7 +53,10 @@ export type TranslationActions = {
     pageId?: string,
     chapterId?: string,
     blockMode?: AnalysisBlockMode,
+    collectPageContext?: boolean,
   ) => Promise<RunAnalysisOutcome>;
-  runTranslationFlow: (options: TranslationFlowOptions) => Promise<void>;
+  runTranslationFlow: (
+    options: TranslationFlowOptions,
+  ) => Promise<RunAnalysisOutcome>;
   translateSelectedRegion: (bbox: BBox) => Promise<void>;
 };

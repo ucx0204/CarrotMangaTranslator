@@ -92,7 +92,9 @@
       "chaptersTruncated": "{{count}}개 화가 길어 각 화의 토큰 예산 안에서 일부 쪽만 AI 분석에 포함했습니다.",
       "chaptersFailed": "{{count}}개 화는 AI 분석에 실패했습니다. 로그를 확인해 주세요.",
       "alreadyAnalyzed": "모든 화가 이미 분석되어 AI 용어/기억 분석을 건너뛰었습니다.",
-      "unknownPageId": "AI가 알 수 없는 pageId를 반환했습니다: {{pageId}}"
+      "unknownPageId": "AI가 알 수 없는 pageId를 반환했습니다: {{pageId}}",
+      "glossaryLimit": "용어집이 최대 {{count}}개에 도달해 새 AI 용어를 추가하지 않았습니다.",
+      "characterLimit": "캐릭터 기억이 최대 {{count}}개에 도달해 새 AI 캐릭터를 추가하지 않았습니다."
     }
   },
   "reviewImport": {
@@ -203,7 +205,8 @@
     "warnings": {
       "attemptFailed": "{{page}}: 시도 {{attempt}}/{{maxAttempts}} 실패 - {{message}}",
       "pageSkipped": "{{page}}: {{maxAttempts}}회 재시도 후 실패하여 이 페이지는 건너뜁니다. 마지막 오류: {{message}}",
-      "uncertainOcr": "{{page}}: 불확실한 OCR 조각이 {{count}}개 있습니다."
+      "uncertainOcr": "{{page}}: 불확실한 OCR 조각이 {{count}}개 있습니다.",
+      "omitted": "추가 경고 {{count}}개를 생략했습니다."
     },
     "result": {
       "existingUpdated": "기존 블록 {{count}}개 갱신",

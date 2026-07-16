@@ -101,7 +101,11 @@ function createPromptOptions(options, hints) {
 
 /** @param {OcrBboxResult} result @param {TranslationRequestOptions} options */
 function shouldSkipModelRequest(result, options) {
-  return result.noTextDetected && allowOcrNoTextDetectedSkip(options);
+  return (
+    !options.collectPageContext &&
+    result.noTextDetected &&
+    allowOcrNoTextDetectedSkip(options)
+  );
 }
 
 /**
@@ -172,7 +176,7 @@ async function prepareTranslationRequest(server, options, ocrBboxResult) {
     promptText,
     systemPrompt,
   );
-  requestSummary.noTextDetected = false;
+  requestSummary.noTextDetected = ocrBboxResult.noTextDetected;
   requestSummary.ocrTextEvidenceCount = ocrBboxResult.textEvidenceCount;
   addDiagnostics(
     requestSummary,
@@ -412,4 +416,5 @@ async function requestCodexResponsesText(
 
 module.exports = {
   requestTranslation,
+  shouldSkipModelRequest,
 };

@@ -8,8 +8,15 @@ import type {
   ChapterStoryMemory,
   WorkStyleGuide,
 } from "../../shared/workContextTypes";
-import { WORKS_ROOT, findChapterLocation, readWorkFile } from "./libraryFiles";
+import {
+  WORKS_ROOT,
+  findChapterLocation,
+  readChapterFile,
+  readWorkFile,
+} from "./libraryFiles";
 import { readJsonFile, writeJsonFile } from "./storage";
+import { reconcilePageStoryMemories } from "./storyMemoryReconcile";
+import { reorderRecords } from "./chapterRecords";
 
 function createDefaultWorkStyleGuide(workId: string): WorkStyleGuide {
   const now = new Date().toISOString();
@@ -135,6 +142,21 @@ export async function writeChapterStoryMemory(
   return checked;
 }
 
+export async function syncChapterStoryMemoryPages(
+  chapterId: string,
+  pages: Array<{ id: string; name: string }>,
+): Promise<void> {
+  const memory = await readChapterStoryMemory(chapterId);
+  const reconciledPages = reconcilePageStoryMemories(memory.pages, pages);
+  if (
+    reconciledPages.length === memory.pages.length &&
+    reconciledPages.every((page, index) => page === memory.pages[index])
+  ) {
+    return;
+  }
+  await writeChapterStoryMemory({ ...memory, pages: reconciledPages });
+}
+
 export async function resolveWorkContextForChapter(chapterId: string): Promise<{
   workId: string;
   styleGuide: WorkStyleGuide;
@@ -144,10 +166,19 @@ export async function resolveWorkContextForChapter(chapterId: string): Promise<{
   if (!locator) {
     throw new Error("작품 번역 컨텍스트를 찾지 못했습니다.");
   }
+  const chapter = await readChapterFile(locator.workId, locator.chapterId);
+  if (!chapter) {
+    throw new Error("작품 번역 컨텍스트를 찾지 못했습니다.");
+  }
+  const storyMemory = await readChapterStoryMemory(locator.chapterId);
+  const canonicalPages = reorderRecords(chapter.pages, chapter.pageOrder);
   return {
     workId: locator.workId,
     styleGuide: await readWorkStyleGuide(locator.workId),
-    storyMemory: await readChapterStoryMemory(locator.chapterId),
+    storyMemory: {
+      ...storyMemory,
+      pages: reconcilePageStoryMemories(storyMemory.pages, canonicalPages),
+    },
   };
 }
 

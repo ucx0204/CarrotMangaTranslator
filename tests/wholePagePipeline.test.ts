@@ -11,7 +11,10 @@ import type { JobEvent } from "../src/shared/jobTypes";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { AppSettings } from "../src/shared/settingsTypes";
 import type { TranslationOptions } from "../src/main/appSettings";
-import type { OcrBboxResult } from "../src/main/pipeline/types";
+import type {
+  OcrBboxResult,
+  PipelineWorkContext,
+} from "../src/main/pipeline/types";
 import type { TranslationRuntimePort } from "../src/main/pipeline/translationRuntimePort";
 
 const tempDirs: string[] = [];
@@ -81,16 +84,27 @@ describe("whole page pipeline", () => {
       requestTranslation,
     });
     const onPageFailed = vi.fn();
+    const workContext: PipelineWorkContext = {
+      workId: "work-a",
+      chapterId: "chapter-a",
+      styleGuide: makeStyleGuide(),
+      storyMemory: { ...makeStoryMemory(), pages: [] },
+      recentPageCount: 6,
+    };
 
     await expect(
       runWholePagePipeline({
         ...basePipelineOptions([makePage("page-a", "001.png")], []),
         onPageFailed,
+        collectPageContext: true,
+        workContext,
       }),
     ).rejects.toMatchObject({ name: "AbortError" });
 
     expect(requestTranslation).toHaveBeenCalledTimes(1);
     expect(onPageFailed).not.toHaveBeenCalled();
+    expect(workContext.storyMemory.pages).toEqual([]);
+    expect(workContext.styleGuide.glossary).toHaveLength(1);
     expect(runtime.disposeEndpoint).toHaveBeenCalledTimes(1);
   });
 
@@ -175,9 +189,10 @@ describe("whole page pipeline", () => {
 
   it("still calls the model for non-Japanese pages when OCR reports no text", async () => {
     const page = makePage("page-a", "001.png");
-    const requestTranslation = vi
-      .fn()
-      .mockResolvedValue(successTranslationResult());
+    const requestTranslation = vi.fn().mockResolvedValue({
+      ...successTranslationResult(),
+      requestBody: { noTextDetected: true },
+    });
     const startEndpointSession = vi.fn(async () => ({
       handle: {
         baseUrl: "http://127.0.0.1:39281",
@@ -203,12 +218,302 @@ describe("whole page pipeline", () => {
       startEndpointSession,
     });
 
-    await runWholePagePipeline({
+    const result = await runWholePagePipeline({
       ...basePipelineOptions([page], []),
+      collectPageContext: true,
     });
 
     expect(startEndpointSession).toHaveBeenCalledTimes(1);
     expect(requestTranslation).toHaveBeenCalledTimes(1);
+    expect(result.pages[0]?.blocks).toHaveLength(1);
+  });
+
+  it("feeds a successful page context into the next canonical chapter page", async () => {
+    const firstPage = makePage("page-a", "005.png");
+    const secondPage = makePage("page-b", "008.png");
+    const workContext = {
+      workId: "work-a",
+      chapterId: "chapter-a",
+      styleGuide: { ...makeStyleGuide(), glossary: [] },
+      storyMemory: { ...makeStoryMemory(), pages: [] },
+      recentPageCount: 6,
+    };
+    const requestTranslation = vi.fn(
+      async (_server: unknown, options: TranslationOptions) => {
+        if (options.pageId === secondPage.id) {
+          expect(options.pageIndex).toBe(7);
+          expect(options.label).toBe("page-8-attempt-1");
+          expect(options.workContext?.styleGuide.glossary).toEqual([
+            expect.objectContaining({
+              source: "勇者",
+              target: "용사",
+              origin: "ai",
+            }),
+          ]);
+          expect(options.workContext?.storyMemory.pages).toEqual([
+            expect.objectContaining({
+              pageId: firstPage.id,
+              pageIndex: 4,
+              visualSummary: "용사가 성문 앞에서 동료를 부른다.",
+            }),
+          ]);
+          return translationWithPageContext("次へ", "다음으로", {
+            visualSummary: "일행이 다음 장소로 이동한다.",
+            glossary: [],
+            characters: [],
+          });
+        }
+        expect(options.pageIndex).toBe(4);
+        expect(options.label).toBe("page-5-attempt-1");
+        return translationWithPageContext("勇者", "용사", {
+          visualSummary: "용사가 성문 앞에서 동료를 부른다.",
+          glossary: [
+            {
+              source: "勇者",
+              target: "용사",
+              category: "term",
+              aliases: [],
+            },
+          ],
+          characters: [],
+        });
+      },
+    );
+    const events: JobEvent[] = [];
+    const { runWholePagePipeline } = await loadPipeline({ requestTranslation });
+
+    const result = await runWholePagePipeline({
+      ...basePipelineOptions([firstPage, secondPage], events),
+      workContext,
+      collectPageContext: true,
+      canonicalPageIndexById: new Map([
+        [firstPage.id, 4],
+        [secondPage.id, 7],
+      ]),
+    });
+
+    expect(
+      result.pages.every((page) => page.analysisStatus === "completed"),
+    ).toBe(true);
+    expect(requestTranslation).toHaveBeenCalledTimes(2);
+    expect(
+      events
+        .filter((event) => event.phase === "page_running")
+        .map((event) => event.pageIndex),
+    ).toEqual([1, 2]);
+  });
+
+  it("accumulates context once after a retry and replaces it on retranslation", async () => {
+    process.env.MANGA_TRANSLATOR_PAGE_RETRIES = "2";
+    const page = makePage("page-a", "001.png");
+    const workContext: PipelineWorkContext = {
+      workId: "work-a",
+      chapterId: "chapter-a",
+      styleGuide: makeStyleGuide(),
+      storyMemory: { ...makeStoryMemory(), pages: [] },
+      recentPageCount: 6,
+    };
+    const success = translationWithPageContext("勇者", "용사", {
+      visualSummary: "용사가 길을 나선다.",
+      glossary: [{ source: "勇者", target: "용사", category: "term" }],
+      characters: [],
+    });
+    const requestTranslation = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("retry me"))
+      .mockResolvedValue(success);
+    const { runWholePagePipeline } = await loadPipeline({ requestTranslation });
+    const options = {
+      ...basePipelineOptions([page], []),
+      collectPageContext: true,
+      workContext,
+    };
+
+    await runWholePagePipeline(options);
+    await runWholePagePipeline({
+      ...options,
+      jobId: "job-2",
+      runPaths: basePipelineOptions([page], []).runPaths,
+    });
+
+    expect(requestTranslation).toHaveBeenCalledTimes(3);
+    expect(
+      workContext.styleGuide.glossary.filter(
+        (entry) => entry.source === "勇者",
+      ),
+    ).toHaveLength(1);
+    expect(
+      workContext.storyMemory.pages.filter(
+        (memory) => memory.pageId === page.id,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("keeps a valid translation when its page context JSON is malformed", async () => {
+    process.env.MANGA_TRANSLATOR_PAGE_RETRIES = "2";
+    const translated = successTranslationResult();
+    const requestTranslation = vi.fn().mockResolvedValue({
+      ...translated,
+      outputText: `${translated.outputText}\n<page-context>{broken}</page-context>`,
+    });
+    const { runWholePagePipeline } = await loadPipeline({ requestTranslation });
+
+    const result = await runWholePagePipeline({
+      ...basePipelineOptions([makePage("page-a", "001.png")], []),
+      collectPageContext: true,
+    });
+
+    expect(requestTranslation).toHaveBeenCalledTimes(1);
+    expect(result.pages[0]?.analysisStatus).toBe("completed");
+    expect(result.warnings).toEqual([
+      expect.stringContaining("페이지 컨텍스트 JSON을 읽지 못해"),
+    ]);
+  });
+
+  it("does not accept a context-only response when OCR found source text", async () => {
+    process.env.MANGA_TRANSLATOR_PAGE_RETRIES = "1";
+    const requestTranslation = vi.fn().mockResolvedValue({
+      outputText:
+        '<page-context>{"visualSummary":"말풍선이 있는 장면","glossary":[],"characters":[]}</page-context>',
+      rawResponse: {},
+      requestBody: { noTextDetected: false },
+    });
+    const { runWholePagePipeline } = await loadPipeline({ requestTranslation });
+
+    const result = await runWholePagePipeline({
+      ...basePipelineOptions([makePage("page-a", "001.png")], []),
+      collectPageContext: true,
+    });
+
+    expect(requestTranslation).toHaveBeenCalledOnce();
+    expect(result.pages[0]?.analysisStatus).toBe("failed");
+  });
+
+  it("does not accumulate context when the translated page is rejected", async () => {
+    const workContext = {
+      workId: "work-a",
+      chapterId: "chapter-a",
+      styleGuide: makeStyleGuide(),
+      storyMemory: { ...makeStoryMemory(), pages: [] },
+      recentPageCount: 6,
+    };
+    const requestTranslation = vi.fn().mockResolvedValue(
+      translationWithPageContext("勇者", "용사", {
+        visualSummary: "용사가 문 앞에 선다.",
+        glossary: [{ source: "勇者", target: "용사", category: "term" }],
+        characters: [],
+      }),
+    );
+    const { runWholePagePipeline } = await loadPipeline({ requestTranslation });
+
+    await runWholePagePipeline({
+      ...basePipelineOptions([makePage("page-a", "001.png")], []),
+      collectPageContext: true,
+      workContext,
+      onPageComplete: vi.fn().mockResolvedValue(false),
+    });
+
+    expect(workContext.styleGuide.glossary).toHaveLength(1);
+    expect(workContext.storyMemory.pages).toEqual([]);
+  });
+
+  it("calls the model for a cumulative no-text page and stores its visual summary", async () => {
+    const page = makePage("page-a", "001.png");
+    const requestTranslation = vi.fn().mockResolvedValue({
+      outputText:
+        'not a valid translation record\n<page-context>{"visualSummary":"인물이 말없이 빈 방을 둘러본다.","glossary":[],"characters":[]}</page-context>',
+      rawResponse: {},
+      requestBody: { noTextDetected: true },
+    });
+    const workContext = {
+      workId: "work-a",
+      chapterId: "chapter-a",
+      styleGuide: makeStyleGuide(),
+      storyMemory: { ...makeStoryMemory(), pages: [] },
+      recentPageCount: 6,
+    };
+    const { runWholePagePipeline } = await loadPipeline({
+      ocrHintsByImagePath: new Map([
+        [
+          page.imagePath,
+          {
+            hints: [],
+            diagnostics: [],
+            noTextDetected: true,
+            textEvidenceCount: 0,
+          },
+        ],
+      ]),
+      requestTranslation,
+    });
+
+    const result = await runWholePagePipeline({
+      ...basePipelineOptions([page], []),
+      collectPageContext: true,
+      workContext,
+    });
+
+    expect(requestTranslation).toHaveBeenCalledTimes(1);
+    expect(result.pages[0]).toMatchObject({
+      analysisStatus: "completed",
+      blocks: [],
+    });
+    expect(workContext.storyMemory.pages[0]).toMatchObject({
+      pageId: page.id,
+      visualSummary: "인물이 말없이 빈 방을 둘러본다.",
+    });
+  });
+
+  it("replaces stale snapshots for a standard no-text prepass page", async () => {
+    const page = makePage("page-a", "001.png");
+    const storyMemory = makeStoryMemory();
+    storyMemory.pages.push({
+      pageId: page.id,
+      pageName: page.name,
+      pageIndex: 9,
+      sourceDigest: "old",
+      translatedDigest: "old",
+      summary: "old",
+      glossaryEntryIds: ["glossary-1"],
+      characterIds: ["character-old"],
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const workContext = {
+      workId: "work-a",
+      chapterId: "chapter-a",
+      styleGuide: makeStyleGuide(),
+      storyMemory,
+      recentPageCount: 6,
+    };
+    const { runWholePagePipeline } = await loadPipeline({
+      ocrHintsByImagePath: new Map([
+        [
+          page.imagePath,
+          {
+            hints: [],
+            diagnostics: [],
+            noTextDetected: true,
+            textEvidenceCount: 0,
+          },
+        ],
+      ]),
+    });
+
+    await runWholePagePipeline({
+      ...basePipelineOptions([page], []),
+      onPagesComplete: vi.fn(),
+      workContext,
+      canonicalPageIndexById: new Map([[page.id, 4]]),
+    });
+
+    expect(
+      workContext.storyMemory.pages.find((memory) => memory.pageId === page.id),
+    ).toMatchObject({
+      pageIndex: 4,
+      summary: "",
+      glossaryEntryIds: [],
+      characterIds: [],
+    });
   });
 
   it("returns completed and failed pages for a partial page failure", async () => {
@@ -643,6 +948,10 @@ async function loadPipeline({
     logInfo: vi.fn(),
     logWarn: vi.fn(),
   }));
+  vi.doMock("../src/main/library", () => ({
+    saveChapterStoryMemory: vi.fn(async (memory) => memory),
+    saveWorkStyleGuide: vi.fn(async (guide) => guide),
+  }));
   vi.doMock("../src/main/pipeline/translationRuntimePort", () => ({
     loadTranslationRuntimePort: () => ({
       isModelCached: () => true,
@@ -816,6 +1125,33 @@ function successTranslationResult(): {
         },
       ],
     }),
+    rawResponse: {},
+    requestBody: {},
+  };
+}
+
+function translationWithPageContext(
+  source: string,
+  target: string,
+  pageContext: Record<string, unknown>,
+): { outputText: string; rawResponse: unknown; requestBody: unknown } {
+  return {
+    outputText: `${JSON.stringify({
+      items: [
+        {
+          id: 1,
+          type: "speech",
+          x1: 100,
+          y1: 100,
+          x2: 300,
+          y2: 200,
+          jp: source,
+          ko: target,
+          direction: "horizontal",
+          confidence: 0.95,
+        },
+      ],
+    })}\n<page-context>${JSON.stringify(pageContext)}</page-context>`,
     rawResponse: {},
     requestBody: {},
   };

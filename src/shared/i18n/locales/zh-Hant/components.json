@@ -321,6 +321,21 @@
   "translationOptions": {
     "start": "開始翻譯",
     "workUnavailable": "無法載入作品資訊。將只翻譯目前章節。",
+    "workflowMode": "翻譯方式",
+    "workflowOptions": {
+      "standard": {
+        "label": "快速單次翻譯",
+        "description": "每頁只翻譯一次，僅參考簡短的近期前後文。這是最快的選項。"
+      },
+      "cumulative": {
+        "label": "累積前後文（建議）",
+        "description": "翻譯時逐頁累積場景摘要、術語和角色資訊，並從下一頁起用於參考。"
+      },
+      "twoPass": {
+        "label": "精細二次翻譯",
+        "description": "第一次翻譯後分析所選範圍的前後文，再根據分析結果重新翻譯。速度最慢，但品質最高。"
+      }
+    },
     "secondPass": "二次翻譯（提升品質）",
     "secondPassHint": "第一次翻譯後，AI 會分析術語、角色和前後文，再根據分析結果重新翻譯。所選頁面會翻譯兩次，因此需要更多時間。",
     "analysisScope": "自動分析範圍",
@@ -602,6 +617,39 @@
       "rules": "翻譯規則",
       "memory": "劇情記憶"
     },
+    "usage": {
+      "search": "搜尋名稱、譯名和別名",
+      "sortLabel": "排序",
+      "sort": {
+        "usage": "出現最多",
+        "recent": "最近出現",
+        "name": "名稱",
+        "stored": "儲存順序"
+      },
+      "filterLabel": "篩選",
+      "filter": {
+        "all": "全部",
+        "ai": "AI 產生",
+        "unused": "未使用",
+        "low-use": "出現於 0～1 頁",
+        "disabled": "已停用"
+      },
+      "deleteSelected": "刪除 {{count}} 項",
+      "deleteConfirm": "要刪除選取的 {{count}} 項嗎？儲存後生效。",
+      "selectAll": "選取目前顯示的全部項目",
+      "selectItem": "選取 {{name}}",
+      "enabled": "啟用",
+      "enabledItem": "啟用 {{name}}",
+      "count": "次數",
+      "deleteItem": "刪除 {{name}}",
+      "categoryItem": "{{name}}的分類",
+      "speechStyleItem": "{{name}}的說話風格",
+      "noMatches": "沒有符合條件的項目。",
+      "summary": "{{pages}}頁 · {{mentions}}次 · 最近 {{chapter}} 第{{page}}頁",
+      "summaryNoRecent": "{{pages}}頁 · {{mentions}}次 · 最近無使用",
+      "neverUsed": "0頁 · 0次 · 最近無使用",
+      "unavailable": "無法載入使用統計。"
+    },
     "budget": {
       "total": "術語／記憶 {{tokens}}",
       "outputHeadroom": "輸出預留空間 {{percent}}%",
@@ -671,7 +719,10 @@
     },
     "memory": {
       "empty": "尚未儲存劇情記憶。",
-      "pageHeading": "第{{index}}頁 · {{pageName}}"
+      "pageHeading": "第{{index}}頁 · {{pageName}}",
+      "visualSummary": "影像場景摘要",
+      "visualSummaryPlaceholder": "用一兩句話記錄場景、動作和關鍵對白。",
+      "textSummary": "現有文字記憶"
     }
   },
   "inpainting": {

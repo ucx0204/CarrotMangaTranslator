@@ -325,6 +325,21 @@
   "translationOptions": {
     "start": "번역 시작",
     "workUnavailable": "작품 정보를 불러오지 못했습니다. 현재 화만 번역합니다.",
+    "workflowMode": "번역 방식",
+    "workflowOptions": {
+      "standard": {
+        "label": "빠른 1회",
+        "description": "각 페이지를 한 번만 번역하고 간단한 최근 문맥만 참고합니다. 가장 빠릅니다."
+      },
+      "cumulative": {
+        "label": "누적 컨텍스트 (권장)",
+        "description": "번역하면서 페이지의 장면 요약·용어·캐릭터 정보를 쌓아 다음 페이지부터 참고합니다."
+      },
+      "twoPass": {
+        "label": "정밀 2차",
+        "description": "1차 번역 후 선택한 범위의 맥락을 분석해 다시 번역합니다. 가장 느리지만 품질이 높습니다."
+      }
+    },
     "secondPass": "2차 번역 (품질 향상)",
     "secondPassHint": "1차 번역 후 AI가 용어·캐릭터·맥락을 분석하고, 그 결과로 다시 번역해 품질을 높입니다. 선택한 페이지를 다시 번역하므로 시간이 더 걸립니다.",
     "analysisScope": "자동 분석 범위",
@@ -609,6 +624,39 @@
       "rules": "번역 규칙",
       "memory": "스토리 메모리"
     },
+    "usage": {
+      "search": "이름·번역·별칭 검색",
+      "sortLabel": "정렬",
+      "sort": {
+        "usage": "많이 등장",
+        "recent": "최근 등장",
+        "name": "이름",
+        "stored": "저장 순서"
+      },
+      "filterLabel": "필터",
+      "filter": {
+        "all": "전체",
+        "ai": "AI 생성",
+        "unused": "사용 안 함",
+        "low-use": "0~1쪽 등장",
+        "disabled": "비활성"
+      },
+      "deleteSelected": "{{count}}개 삭제",
+      "deleteConfirm": "선택한 {{count}}개 항목을 삭제할까요? 저장하면 적용됩니다.",
+      "selectAll": "현재 목록 전체 선택",
+      "selectItem": "{{name}} 선택",
+      "enabled": "활성",
+      "enabledItem": "{{name}} 활성화",
+      "count": "횟수",
+      "deleteItem": "{{name}} 삭제",
+      "categoryItem": "{{name}} 분류",
+      "speechStyleItem": "{{name}} 말투",
+      "noMatches": "조건에 맞는 항목이 없습니다.",
+      "summary": "{{pages}}쪽 · {{mentions}}회 · 최근 {{chapter}} {{page}}쪽",
+      "summaryNoRecent": "{{pages}}쪽 · {{mentions}}회 · 최근 없음",
+      "neverUsed": "0쪽 · 0회 · 최근 없음",
+      "unavailable": "사용 통계를 불러오지 못했습니다."
+    },
     "budget": {
       "total": "용어/기억 {{tokens}}",
       "outputHeadroom": "출력 여유 {{percent}}%",
@@ -678,7 +726,10 @@
     },
     "memory": {
       "empty": "아직 저장된 스토리 메모리가 없습니다.",
-      "pageHeading": "{{index}}쪽 · {{pageName}}"
+      "pageHeading": "{{index}}쪽 · {{pageName}}",
+      "visualSummary": "이미지 장면 요약",
+      "visualSummaryPlaceholder": "장면·행동·대사의 핵심을 1~2문장으로 기록합니다.",
+      "textSummary": "기존 텍스트 메모"
     }
   },
   "inpainting": {

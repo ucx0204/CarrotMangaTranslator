@@ -367,16 +367,19 @@ function normalizeUiSettings(
     data.blockModeDefault === "auto" || data.blockModeDefault === "keep"
       ? data.blockModeDefault
       : base.blockModeDefault;
+  const translationWorkflowDefault =
+    data.translationWorkflowDefault === "standard" ||
+    data.translationWorkflowDefault === "cumulative" ||
+    data.translationWorkflowDefault === "two-pass"
+      ? data.translationWorkflowDefault
+      : (base.translationWorkflowDefault ?? "cumulative");
   return {
     locale: normalizeUiLocale(data.locale, base.locale),
     inpaintingGuideHidden: resolveBoolean(
       data.inpaintingGuideHidden,
       base.inpaintingGuideHidden ?? false,
     ),
-    twoPassByDefault: resolveBoolean(
-      data.twoPassByDefault,
-      base.twoPassByDefault ?? true,
-    ),
+    translationWorkflowDefault,
     analysisScopeDefault: resolveAnalysisScopeDefault(
       data.analysisScopeDefault,
       base.analysisScopeDefault ?? "missing",

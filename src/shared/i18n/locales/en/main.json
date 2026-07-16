@@ -92,7 +92,9 @@
       "chaptersTruncated": "Chapters partially analyzed within their token budgets: {{count}}.",
       "chaptersFailed": "Chapters where AI analysis failed: {{count}}. Check the logs.",
       "alreadyAnalyzed": "AI glossary/memory analysis was skipped because every chapter has already been analyzed.",
-      "unknownPageId": "AI returned an unknown pageId: {{pageId}}"
+      "unknownPageId": "AI returned an unknown pageId: {{pageId}}",
+      "glossaryLimit": "The glossary has reached its {{count}}-entry limit, so new AI terms were not added.",
+      "characterLimit": "Character memory has reached its {{count}}-entry limit, so new AI characters were not added."
     }
   },
   "reviewImport": {
@@ -203,7 +205,8 @@
     "warnings": {
       "attemptFailed": "{{page}}: attempt {{attempt}}/{{maxAttempts}} failed — {{message}}",
       "pageSkipped": "{{page}}: skipped after {{maxAttempts}} failed attempts. Last error: {{message}}",
-      "uncertainOcr": "{{page}}: Uncertain OCR fragments: {{count}}."
+      "uncertainOcr": "{{page}}: Uncertain OCR fragments: {{count}}.",
+      "omitted": "{{count}} additional warnings were omitted."
     },
     "result": {
       "existingUpdated": "Existing blocks updated: {{count}}",

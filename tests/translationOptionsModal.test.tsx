@@ -15,6 +15,7 @@ import type {
   MangaPage,
   PageAnalysisStatus,
 } from "../src/shared/libraryTypes";
+import type { UiSettings } from "../src/shared/settingsTypes";
 
 vi.mock("../src/renderer/src/api/mangaGateway", () => ({
   mangaGateway: {
@@ -93,16 +94,17 @@ function makeLibrary(): LibraryIndex {
   };
 }
 
-async function renderModal() {
+async function renderModal(uiSettings?: UiSettings) {
   const onStart = vi.fn();
   const onClose = vi.fn();
+  const onPersistDefaults = vi.fn();
   render(
     <TranslationOptionsModal
       chapter={makeCurrentChapter()}
       library={makeLibrary()}
-      uiSettings={undefined}
+      uiSettings={uiSettings}
       onStart={onStart}
-      onPersistDefaults={vi.fn()}
+      onPersistDefaults={onPersistDefaults}
       onClose={onClose}
     />,
   );
@@ -110,7 +112,7 @@ async function renderModal() {
   await act(async () => {
     await Promise.resolve();
   });
-  return { onStart, onClose };
+  return { onStart, onClose, onPersistDefaults };
 }
 
 afterEach(() => {
@@ -120,23 +122,62 @@ afterEach(() => {
 
 describe("TranslationOptionsModal", () => {
   it("defaults to the current chapter's pending pages", async () => {
-    const { onStart, onClose } = await renderModal();
+    const { onStart, onClose, onPersistDefaults } = await renderModal();
 
     expect(screen.getByText("1화")).toBeTruthy();
     expect(screen.getByText("2화")).toBeTruthy();
     // work title + expanded current chapter's page names are visible
     expect(screen.getByText("테스트 작품")).toBeTruthy();
     expect(screen.getByText("p1.png")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "누적 컨텍스트 (권장)" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(screen.queryByText("자동 분석 범위")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
 
     expect(onStart).toHaveBeenCalledWith({
       selection: [{ chapterId: CHAPTER_ID, mode: "pending" }],
-      twoPass: true,
+      workflowMode: "cumulative",
       analysisScope: "missing",
       blockMode: "auto",
     });
+    expect(onPersistDefaults).toHaveBeenCalledWith({
+      translationWorkflowDefault: "cumulative",
+      analysisScopeDefault: "missing",
+      blockModeDefault: "auto",
+    });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("shows analysis scope only for the precision two-pass workflow", async () => {
+    const { onStart } = await renderModal();
+
+    fireEvent.click(screen.getByRole("button", { name: "정밀 2차" }));
+
+    expect(screen.getByText("자동 분석 범위")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "현재 화만" }));
+    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowMode: "two-pass",
+        analysisScope: "chapter",
+      }),
+    );
+  });
+
+  it("uses a saved quick single-pass workflow as the initial mode", async () => {
+    await renderModal({ translationWorkflowDefault: "standard" });
+
+    expect(
+      screen
+        .getByRole("button", { name: "빠른 1회" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(screen.queryByText("자동 분석 범위")).toBeNull();
   });
 
   it("selects the whole work with 전체 선택", async () => {

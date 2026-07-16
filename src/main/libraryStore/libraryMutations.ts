@@ -32,6 +32,7 @@ import {
 import { unlinkIfExists } from "./storage";
 import { sanitizeTitle } from "./titles";
 import { logLibraryWarning } from "./libraryLogger";
+import { syncChapterStoryMemoryPages } from "./workContextFiles";
 
 export { appendAnalyzedPageBlocksUnlocked } from "./libraryAnalysisMutations";
 export {
@@ -232,6 +233,7 @@ export async function reorderPagesUnlocked(
   chapter.updatedAt = new Date().toISOString();
   chapter.status = resolveChapterStatus(chapter.pages);
   await writeChapterFile(chapter);
+  await syncStoryMemoryAfterPageMutation(chapter);
   await touchWork(locator.workId, chapter.updatedAt);
   return hydrateChapter(chapter);
 }
@@ -260,6 +262,7 @@ export async function deletePageUnlocked(
   chapter.status = resolveChapterStatus(chapter.pages);
 
   await writeChapterFile(chapter);
+  await syncStoryMemoryAfterPageMutation(chapter);
   await touchWork(locator.workId, chapter.updatedAt);
   await unlinkIfExists(target.imagePath);
   if (target.inpaintedImagePath) {
@@ -268,6 +271,12 @@ export async function deletePageUnlocked(
   await removePageArtifacts(locator.workId, locator.chapterId, pageId);
 
   return hydrateChapter(chapter);
+}
+
+async function syncStoryMemoryAfterPageMutation(
+  chapter: ChapterFile,
+): Promise<void> {
+  await syncChapterStoryMemoryPages(chapter.id, chapter.pages);
 }
 
 export async function markChapterPagesRunningUnlocked(
@@ -303,17 +312,18 @@ export async function markChapterPagesRunningUnlocked(
 export async function updatePagesAfterAnalysisUnlocked(
   chapterId: string,
   updates: PageAnalysisUpdate[],
-): Promise<void> {
+): Promise<Set<string>> {
+  const appliedPageIds = new Set<string>();
   if (updates.length === 0) {
-    return;
+    return appliedPageIds;
   }
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
-    return;
+    return appliedPageIds;
   }
   const chapter = await readChapterFile(locator.workId, locator.chapterId);
   if (!chapter) {
-    return;
+    return appliedPageIds;
   }
 
   const updatesByPageId = new Map(
@@ -335,6 +345,7 @@ export async function updatePagesAfterAnalysisUnlocked(
         lastError: ANALYSIS_UPDATE_CONFLICT_MESSAGE,
       };
     }
+    appliedPageIds.add(record.id);
     if (update.status === "failed") {
       return {
         ...record,
@@ -354,6 +365,7 @@ export async function updatePagesAfterAnalysisUnlocked(
   chapter.status = resolveChapterStatus(chapter.pages);
   await writeChapterFile(chapter);
   await touchWork(locator.workId, now);
+  return appliedPageIds;
 }
 
 export async function updatePageAfterAnalysisUnlocked(
@@ -362,10 +374,11 @@ export async function updatePageAfterAnalysisUnlocked(
   warnings: string[],
   status: "completed" | "failed",
   expectedUpdatedAt?: string,
-): Promise<void> {
-  await updatePagesAfterAnalysisUnlocked(chapterId, [
+): Promise<boolean> {
+  const appliedPageIds = await updatePagesAfterAnalysisUnlocked(chapterId, [
     { page, warnings, status, expectedUpdatedAt },
   ]);
+  return appliedPageIds.has(page.id);
 }
 
 export async function finalizeRunningPagesUnlocked(

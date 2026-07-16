@@ -1485,6 +1485,28 @@ describe("app settings helpers", () => {
     ).toBe(false);
   });
 
+  it("migrates missing and legacy translation workflow settings to cumulative", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(defaults.ui?.translationWorkflowDefault).toBe("cumulative");
+    expect(
+      parseStoredAppSettings('{"ui":{"twoPassByDefault":true}}', defaults).ui,
+    ).toEqual(
+      expect.objectContaining({ translationWorkflowDefault: "cumulative" }),
+    );
+    expect(
+      parseStoredAppSettings('{"ui":{"twoPassByDefault":false}}', defaults).ui,
+    ).toEqual(
+      expect.objectContaining({ translationWorkflowDefault: "cumulative" }),
+    );
+    expect(
+      parseStoredAppSettings(
+        '{"ui":{"translationWorkflowDefault":"two-pass"}}',
+        defaults,
+      ).ui?.translationWorkflowDefault,
+    ).toBe("two-pass");
+  });
+
   it("normalizes OCR device settings", () => {
     const defaults = resolveDefaultAppSettings();
 

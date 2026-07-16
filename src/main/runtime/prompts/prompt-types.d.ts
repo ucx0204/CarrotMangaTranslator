@@ -26,6 +26,7 @@ export type PromptOptions = {
   regionCropMode?: unknown;
   strictRefineMode?: unknown;
   keepBlocksMode?: unknown;
+  collectPageContext?: unknown;
   previousBlocksForPrompt?: PreviousPromptBlock[];
   workContext?: PromptWorkContext | null;
   imageWidth?: unknown;
@@ -82,6 +83,7 @@ export type PromptStoryPage = {
   pageIndex?: unknown;
   pageName?: unknown;
   summary?: unknown;
+  visualSummary?: unknown;
   translatedDigest?: unknown;
 };
 

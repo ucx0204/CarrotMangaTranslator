@@ -101,6 +101,7 @@ export function makeGlossaryEntry({
     aliases: [],
     note: "",
     enabled: true,
+    origin: "manual",
     createdAt: now,
     updatedAt: now,
   };
@@ -118,6 +119,7 @@ export function makeCharacterProfile(): CharacterProfile {
     customSpeechStyle: "",
     note: "",
     enabled: true,
+    origin: "manual",
     createdAt: now,
     updatedAt: now,
   };

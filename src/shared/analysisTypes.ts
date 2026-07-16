@@ -3,29 +3,35 @@ import type { ChapterSnapshot } from "./libraryTypes";
 
 export type AnalysisBlockMode = "auto" | "keep";
 
-export type StartAnalysisRequest =
-  | {
-      chapterId: string;
-      runMode: "pending";
-      blockMode?: AnalysisBlockMode;
-    }
-  | {
-      chapterId: string;
-      runMode: "all";
-      blockMode?: AnalysisBlockMode;
-    }
-  | {
-      chapterId: string;
-      runMode: "single-page";
-      pageId: string;
-      blockMode?: AnalysisBlockMode;
-    }
-  | {
-      chapterId: string;
-      runMode: "page-set";
-      pageIds: string[];
-      blockMode?: AnalysisBlockMode;
-    };
+type PageContextCollectionOption = {
+  collectPageContext?: boolean;
+};
+
+export type StartAnalysisRequest = PageContextCollectionOption &
+  (
+    | {
+        chapterId: string;
+        runMode: "pending";
+        blockMode?: AnalysisBlockMode;
+      }
+    | {
+        chapterId: string;
+        runMode: "all";
+        blockMode?: AnalysisBlockMode;
+      }
+    | {
+        chapterId: string;
+        runMode: "single-page";
+        pageId: string;
+        blockMode?: AnalysisBlockMode;
+      }
+    | {
+        chapterId: string;
+        runMode: "page-set";
+        pageIds: string[];
+        blockMode?: AnalysisBlockMode;
+      }
+  );
 
 export type StartAnalysisResult = {
   status: "completed" | "cancelled" | "failed";

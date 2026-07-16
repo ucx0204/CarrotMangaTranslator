@@ -4,8 +4,16 @@ import type {
   CharacterProfile,
   CharacterSpeechStyle,
 } from "../../../../shared/workContextTypes";
+import type { WorkContextUsageMetric } from "../../../../shared/workContextUsageTypes";
 import { Button } from "../ui/Button";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
+import {
+  ContextEntryDeleteButton,
+  ContextEntryEnabledToggle,
+  ContextEntryToolbar,
+  ContextEntryUsageCount,
+} from "./ContextEntryList";
+import { useContextEntryList } from "./contextEntryListModel";
 import {
   makeCharacterProfile,
   nowIso,
@@ -16,7 +24,92 @@ import {
 export function CharactersTab({
   guide,
   onGuideChange,
-}: StyleGuideEditorProps): React.JSX.Element {
+  usage = [],
+  usageAvailable = true,
+}: StyleGuideEditorProps & {
+  usage?: WorkContextUsageMetric[];
+  usageAvailable?: boolean;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const entryList = useContextEntryList({
+    entries: guide.characters,
+    usage,
+    usageAvailable,
+    getName: (character) =>
+      character.displayName ||
+      character.targetName ||
+      character.sourceNames[0] ||
+      "",
+    getSearchText: (character) =>
+      [
+        character.displayName,
+        character.targetName,
+        ...character.sourceNames,
+        ...(character.aliases ?? []),
+        character.note ?? "",
+      ].join(" "),
+  });
+  const actions = useCharacterActions({
+    guide,
+    onGuideChange,
+    selectedIds: entryList.selectedIds,
+    clearSelection: () => entryList.setSelectedIds(new Set()),
+  });
+  return (
+    <div className="style-guide-content">
+      <section className="style-guide-section">
+        <div className="style-guide-section-head">
+          <h3>{t("styleGuide.characters.title")}</h3>
+          <Button size="sm" onClick={actions.addCharacter}>
+            {t("styleGuide.addRow")}
+          </Button>
+        </div>
+        <ContextEntryToolbar
+          query={entryList.query}
+          onQueryChange={entryList.setQuery}
+          filter={entryList.filter}
+          onFilterChange={entryList.setFilter}
+          sort={entryList.sort}
+          onSortChange={entryList.setSort}
+          selectedCount={entryList.selectedIds.size}
+          onDeleteSelected={actions.removeSelected}
+          usageAvailable={usageAvailable}
+        />
+        {entryList.visibleEntries.length ? (
+          <CharactersTable
+            characters={entryList.visibleEntries}
+            usageById={entryList.usageById}
+            selectedIds={entryList.selectedIds}
+            allVisibleSelected={entryList.allVisibleSelected}
+            onToggleAll={entryList.toggleAllVisible}
+            onToggleSelected={entryList.toggleSelected}
+            onUpdate={actions.updateCharacter}
+            onRemove={actions.removeCharacter}
+            usageAvailable={usageAvailable}
+          />
+        ) : (
+          <p className="style-guide-table-empty">
+            {t(
+              guide.characters.length
+                ? "styleGuide.usage.noMatches"
+                : "styleGuide.characters.empty",
+            )}
+          </p>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function useCharacterActions({
+  guide,
+  onGuideChange,
+  selectedIds,
+  clearSelection,
+}: StyleGuideEditorProps & {
+  selectedIds: Set<string>;
+  clearSelection: () => void;
+}) {
   const { t } = useTranslation("components");
   const updateCharacter = (
     id: string,
@@ -26,7 +119,7 @@ export function CharactersTab({
       ...guide,
       characters: guide.characters.map((character) =>
         character.id === id
-          ? { ...character, ...patch, updatedAt: nowIso() }
+          ? { ...character, ...patch, origin: "manual", updatedAt: nowIso() }
           : character,
       ),
     });
@@ -43,59 +136,84 @@ export function CharactersTab({
       characters: guide.characters.filter((character) => character.id !== id),
     });
   };
-  return (
-    <div className="style-guide-content">
-      <section className="style-guide-section">
-        <div className="style-guide-section-head">
-          <h3>{t("styleGuide.characters.title")}</h3>
-          <Button size="sm" onClick={addCharacter}>
-            {t("styleGuide.addRow")}
-          </Button>
-        </div>
-        {guide.characters.length ? (
-          <CharactersTable
-            characters={guide.characters}
-            onUpdate={updateCharacter}
-            onRemove={removeCharacter}
-          />
-        ) : (
-          <p className="style-guide-table-empty">
-            {t("styleGuide.characters.empty")}
-          </p>
-        )}
-      </section>
-    </div>
-  );
+  const removeSelected = (): void => {
+    const confirmed = window.confirm(
+      t("styleGuide.usage.deleteConfirm", { count: selectedIds.size }),
+    );
+    if (!confirmed) return;
+    onGuideChange({
+      ...guide,
+      characters: guide.characters.filter(
+        (character) => !selectedIds.has(character.id),
+      ),
+    });
+    clearSelection();
+  };
+  return {
+    addCharacter,
+    removeCharacter,
+    removeSelected,
+    updateCharacter,
+  };
 }
 
 function CharactersTable({
   characters,
+  usageById,
+  selectedIds,
+  allVisibleSelected,
+  onToggleAll,
+  onToggleSelected,
   onUpdate,
   onRemove,
+  usageAvailable,
 }: {
   characters: CharacterProfile[];
+  usageById: Map<string, WorkContextUsageMetric>;
+  selectedIds: Set<string>;
+  allVisibleSelected: boolean;
+  onToggleAll: () => void;
+  onToggleSelected: (id: string) => void;
   onUpdate: (id: string, patch: Partial<CharacterProfile>) => void;
   onRemove: (id: string) => void;
+  usageAvailable: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
     <div className="style-guide-table">
-      <div className="style-guide-row character head" aria-hidden="true">
-        <span />
+      <div className="style-guide-row character head">
+        <label className="inline-toggle">
+          <input
+            type="checkbox"
+            checked={allVisibleSelected}
+            aria-label={t("styleGuide.usage.selectAll")}
+            onChange={onToggleAll}
+          />
+        </label>
         <span>{t("styleGuide.characters.displayName")}</span>
         <span>{t("styleGuide.characters.sourceNames")}</span>
         <span>{t("styleGuide.characters.translatedName")}</span>
         <span>{t("styleGuide.characters.speechStyle")}</span>
         <span>{t("styleGuide.characters.customSpeechStyle")}</span>
         <span>{t("styleGuide.note")}</span>
+        <span className="style-guide-centered-heading">
+          {t("styleGuide.usage.count")}
+        </span>
+        <span className="style-guide-centered-heading">
+          {t("styleGuide.usage.enabled")}
+        </span>
         <span />
       </div>
       {characters.map((character) => (
         <CharacterRow
           key={character.id}
           character={character}
+          usage={usageById.get(character.id)}
+          selected={selectedIds.has(character.id)}
+          onToggleSelected={() => onToggleSelected(character.id)}
           onUpdate={(patch) => onUpdate(character.id, patch)}
           onRemove={() => onRemove(character.id)}
+          usageAvailable={usageAvailable}
         />
       ))}
     </div>
@@ -104,27 +222,35 @@ function CharactersTable({
 
 function CharacterRow({
   character,
+  usage,
+  selected,
+  onToggleSelected,
   onUpdate,
   onRemove,
+  usageAvailable,
 }: {
   character: CharacterProfile;
+  usage: WorkContextUsageMetric | undefined;
+  selected: boolean;
+  onToggleSelected: () => void;
   onUpdate: (patch: Partial<CharacterProfile>) => void;
   onRemove: () => void;
+  usageAvailable: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const name =
+    character.displayName ||
+    character.targetName ||
+    character.sourceNames[0] ||
+    "";
   return (
     <div className="style-guide-row character">
-      <label className="inline-toggle">
-        <input
-          type="checkbox"
-          checked={character.enabled}
-          onChange={(event) => onUpdate({ enabled: event.target.checked })}
-        />
-      </label>
-      <input
-        value={character.displayName}
-        placeholder={t("styleGuide.characters.displayName")}
-        onChange={(event) => onUpdate({ displayName: event.target.value })}
+      <CharacterPrimaryFields
+        character={character}
+        name={name}
+        selected={selected}
+        onToggleSelected={onToggleSelected}
+        onUpdate={onUpdate}
       />
       <input
         value={character.sourceNames.join(", ")}
@@ -140,6 +266,7 @@ function CharacterRow({
       />
       <select
         value={character.speechStyle}
+        aria-label={t("styleGuide.usage.speechStyleItem", { name })}
         onChange={(event) =>
           onUpdate({ speechStyle: event.target.value as CharacterSpeechStyle })
         }
@@ -162,9 +289,46 @@ function CharacterRow({
         placeholder={t("styleGuide.note")}
         onChange={(event) => onUpdate({ note: event.target.value })}
       />
-      <Button size="sm" variant="danger" onClick={onRemove}>
-        {t("common.delete")}
-      </Button>
+      <ContextEntryUsageCount metric={usage} usageAvailable={usageAvailable} />
+      <ContextEntryEnabledToggle
+        enabled={character.enabled}
+        name={name}
+        onChange={(enabled) => onUpdate({ enabled })}
+      />
+      <ContextEntryDeleteButton name={name} onClick={onRemove} />
     </div>
+  );
+}
+
+function CharacterPrimaryFields({
+  character,
+  name,
+  selected,
+  onToggleSelected,
+  onUpdate,
+}: {
+  character: CharacterProfile;
+  name: string;
+  selected: boolean;
+  onToggleSelected: () => void;
+  onUpdate: (patch: Partial<CharacterProfile>) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <>
+      <label className="inline-toggle">
+        <input
+          type="checkbox"
+          checked={selected}
+          aria-label={t("styleGuide.usage.selectItem", { name })}
+          onChange={onToggleSelected}
+        />
+      </label>
+      <input
+        value={character.displayName}
+        placeholder={t("styleGuide.characters.displayName")}
+        onChange={(event) => onUpdate({ displayName: event.target.value })}
+      />
+    </>
   );
 }

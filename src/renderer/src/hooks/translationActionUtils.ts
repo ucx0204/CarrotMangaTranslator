@@ -55,10 +55,13 @@ export function makeStartAnalysisRequest(
     pageId?: string;
     pageIds?: string[];
     blockMode?: AnalysisBlockMode;
+    collectPageContext?: boolean;
   },
   t?: TFunction<"renderer">,
 ): StartAnalysisRequest {
-  const { runMode, pageId, pageIds, blockMode } = args;
+  const { runMode, pageId, pageIds, blockMode, collectPageContext } = args;
+  const contextOption =
+    collectPageContext === undefined ? {} : { collectPageContext };
   if (runMode === "single-page") {
     if (!pageId) {
       throw new Error(
@@ -67,7 +70,7 @@ export function makeStartAnalysisRequest(
           : "다시 번역할 페이지를 찾지 못했습니다.",
       );
     }
-    return { chapterId, runMode, pageId, blockMode };
+    return { chapterId, runMode, pageId, blockMode, ...contextOption };
   }
   if (runMode === "page-set") {
     if (!pageIds || pageIds.length === 0) {
@@ -77,9 +80,9 @@ export function makeStartAnalysisRequest(
           : "번역할 페이지를 찾지 못했습니다.",
       );
     }
-    return { chapterId, runMode, pageIds, blockMode };
+    return { chapterId, runMode, pageIds, blockMode, ...contextOption };
   }
-  return { chapterId, runMode, blockMode };
+  return { chapterId, runMode, blockMode, ...contextOption };
 }
 
 export function startingJobState(t?: TFunction<"renderer">): JobState {
@@ -210,13 +213,14 @@ export async function runSecondTranslationPass(
   pushStatus: UseTranslationActionsOptions["pushStatus"],
   blockMode?: AnalysisBlockMode,
   t?: TFunction<"renderer">,
-): Promise<void> {
+): Promise<RunAnalysisOutcome> {
   const pass2 = await runSelectionsSequentially(
     executeAnalysisJob,
     selection.map(toSecondPassSelection),
     pushStatus,
     t ? t("translation.flow.secondPass") : "2차",
     blockMode,
+    false,
     t,
   );
   if (pass2 === "completed") {
@@ -226,6 +230,7 @@ export async function runSecondTranslationPass(
         : "2차 번역까지 완료했습니다.",
     );
   }
+  return pass2;
 }
 
 export function regionTranslationStartingState(

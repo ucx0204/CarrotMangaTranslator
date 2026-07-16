@@ -321,6 +321,21 @@
   "translationOptions": {
     "start": "开始翻译",
     "workUnavailable": "无法加载作品信息。将只翻译当前章节。",
+    "workflowMode": "翻译方式",
+    "workflowOptions": {
+      "standard": {
+        "label": "快速单次翻译",
+        "description": "每页只翻译一次，仅参考简短的近期上下文。这是最快的选项。"
+      },
+      "cumulative": {
+        "label": "累积上下文（推荐）",
+        "description": "翻译时逐页累积场景摘要、术语和角色信息，并从下一页起用于参考。"
+      },
+      "twoPass": {
+        "label": "精细二次翻译",
+        "description": "首次翻译后分析所选范围的上下文，再根据分析结果重新翻译。速度最慢，但质量最高。"
+      }
+    },
     "secondPass": "二次翻译（提升质量）",
     "secondPassHint": "首次翻译后，AI会分析术语、角色和上下文，再根据分析结果重新翻译。所选页面会翻译两次，因此需要更多时间。",
     "analysisScope": "自动分析范围",
@@ -602,6 +617,39 @@
       "rules": "翻译规则",
       "memory": "剧情记忆"
     },
+    "usage": {
+      "search": "搜索名称、译名和别名",
+      "sortLabel": "排序",
+      "sort": {
+        "usage": "出现最多",
+        "recent": "最近出现",
+        "name": "名称",
+        "stored": "保存顺序"
+      },
+      "filterLabel": "筛选",
+      "filter": {
+        "all": "全部",
+        "ai": "AI 生成",
+        "unused": "未使用",
+        "low-use": "出现于 0～1 页",
+        "disabled": "已停用"
+      },
+      "deleteSelected": "删除 {{count}} 项",
+      "deleteConfirm": "要删除选中的 {{count}} 项吗？保存后生效。",
+      "selectAll": "选择当前显示的全部项目",
+      "selectItem": "选择 {{name}}",
+      "enabled": "启用",
+      "enabledItem": "启用 {{name}}",
+      "count": "次数",
+      "deleteItem": "删除 {{name}}",
+      "categoryItem": "{{name}}的分类",
+      "speechStyleItem": "{{name}}的说话风格",
+      "noMatches": "没有符合条件的项目。",
+      "summary": "{{pages}}页 · {{mentions}}次 · 最近 {{chapter}} 第{{page}}页",
+      "summaryNoRecent": "{{pages}}页 · {{mentions}}次 · 最近无使用",
+      "neverUsed": "0页 · 0次 · 最近无使用",
+      "unavailable": "无法加载使用统计。"
+    },
     "budget": {
       "total": "术语/记忆 {{tokens}}",
       "outputHeadroom": "输出余量 {{percent}}%",
@@ -671,7 +719,10 @@
     },
     "memory": {
       "empty": "尚未保存剧情记忆。",
-      "pageHeading": "第{{index}}页 · {{pageName}}"
+      "pageHeading": "第{{index}}页 · {{pageName}}",
+      "visualSummary": "图像场景摘要",
+      "visualSummaryPlaceholder": "用一两句话记录场景、动作和关键对白。",
+      "textSummary": "现有文本记忆"
     }
   },
   "inpainting": {

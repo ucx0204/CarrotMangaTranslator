@@ -31,6 +31,8 @@ export type TranslationOptions = {
   imageHeight?: number;
   pageId?: string;
   pageIndex?: number;
+  /** Ask the page translation response to append a delimited cumulative context payload. */
+  collectPageContext?: boolean;
   strictRefineMode?: boolean;
   keepBlocksMode?: boolean;
   previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];

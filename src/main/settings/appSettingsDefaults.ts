@@ -267,7 +267,7 @@ function resolveDefaultUiSettings(
       DEFAULT_UI_LOCALE,
     ),
     inpaintingGuideHidden: false,
-    twoPassByDefault: true,
+    translationWorkflowDefault: "cumulative",
     analysisScopeDefault: "missing",
   };
 }

@@ -105,6 +105,9 @@ export const AppSettingsSchema = z
         locale: z.enum(SUPPORTED_UI_LOCALES).optional(),
         inpaintingGuideHidden: z.boolean().optional(),
         twoPassByDefault: z.boolean().optional(),
+        translationWorkflowDefault: z
+          .enum(["standard", "cumulative", "two-pass"])
+          .optional(),
         analysisScopeDefault: z.enum(["work", "missing", "chapter"]).optional(),
         blockModeDefault: z.enum(["auto", "keep"]).optional(),
       })

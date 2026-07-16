@@ -34,6 +34,7 @@ export type ApiReasoningEffort =
 export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm-transformers";
 export type OcrQualityMode = "minimum" | "economy" | "full";
+export type TranslationWorkflowMode = "standard" | "cumulative" | "two-pass";
 export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
 export type AmdRocmTarget =
   | "gfx908"
@@ -98,8 +99,10 @@ export type UiSettings = {
   /** Application interface language. Independent from the manga translation pair. */
   locale?: UiLocale;
   inpaintingGuideHidden?: boolean;
-  /** Default for the "2차 번역(품질 향상)" checkbox in the translate options modal. */
+  /** @deprecated Kept only so older settings files remain readable. */
   twoPassByDefault?: boolean;
+  /** Default translation workflow. Missing legacy values migrate to cumulative. */
+  translationWorkflowDefault?: TranslationWorkflowMode;
   /** Default AI 분석 범위 for the 2-pass flow. Mirrors WorkContextAnalysisScope. */
   analysisScopeDefault?: "work" | "missing" | "chapter";
   /** Default 블록 mode for translate: auto-detect blocks or keep existing block regions. */

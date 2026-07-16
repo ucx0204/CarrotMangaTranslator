@@ -93,6 +93,48 @@ describe("work context files", () => {
     ).rejects.toThrow(/스토리 메모리/);
   });
 
+  it("reindexes story memory on page reorder and removes deleted page memory", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const memory = await library.getChapterStoryMemory("chapter-a");
+    await library.saveChapterStoryMemory({
+      ...memory,
+      pages: ["page-a", "page-b", "page-c"].map((pageId, pageIndex) => ({
+        pageId,
+        pageName: `${String(pageIndex + 1).padStart(3, "0")}.png`,
+        pageIndex,
+        sourceDigest: `source-${pageId}`,
+        translatedDigest: `translated-${pageId}`,
+        summary: `summary-${pageId}`,
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      })),
+    });
+
+    await library.reorderPages("chapter-a", ["page-c", "page-a", "page-b"]);
+    expect(
+      (await library.getChapterStoryMemory("chapter-a")).pages.map((page) => [
+        page.pageId,
+        page.pageIndex,
+      ]),
+    ).toEqual([
+      ["page-c", 0],
+      ["page-a", 1],
+      ["page-b", 2],
+    ]);
+
+    await library.deletePage("chapter-a", "page-a");
+    expect(
+      (await library.getChapterStoryMemory("chapter-a")).pages.map((page) => [
+        page.pageId,
+        page.pageIndex,
+      ]),
+    ).toEqual([
+      ["page-c", 0],
+      ["page-b", 1],
+    ]);
+  });
+
   it("wraps malformed context JSON with the file name", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);
@@ -140,6 +182,7 @@ async function loadLibrary(
 }
 
 async function seedLibrary(rootDir: string): Promise<void> {
+  const pageIds = ["page-a", "page-b", "page-c"];
   const work: LibraryWork = {
     id: "work-1",
     title: "원본 작품",
@@ -153,28 +196,26 @@ async function seedLibrary(rootDir: string): Promise<void> {
     title: "1화",
     sourceKind: "folder",
     status: "completed",
-    pageOrder: ["page-a"],
-    pages: [
-      {
-        id: "page-a",
-        name: "001.png",
-        imagePath: join(
-          rootDir,
-          "works",
-          "work-1",
-          "chapters",
-          "chapter-a",
-          "pages",
-          "001.png",
-        ),
-        width: 100,
-        height: 120,
-        blocks: [],
-        analysisStatus: "completed",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-    ],
+    pageOrder: pageIds,
+    pages: pageIds.map((id, index) => ({
+      id,
+      name: `${String(index + 1).padStart(3, "0")}.png`,
+      imagePath: join(
+        rootDir,
+        "works",
+        "work-1",
+        "chapters",
+        "chapter-a",
+        "pages",
+        `${String(index + 1).padStart(3, "0")}.png`,
+      ),
+      width: 100,
+      height: 120,
+      blocks: [],
+      analysisStatus: "completed",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    })),
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
@@ -184,18 +225,8 @@ async function seedLibrary(rootDir: string): Promise<void> {
       recursive: true,
     },
   );
-  await writeFile(
-    join(
-      rootDir,
-      "works",
-      "work-1",
-      "chapters",
-      "chapter-a",
-      "pages",
-      "001.png",
-    ),
-    "image",
-    "utf8",
+  await Promise.all(
+    chapter.pages.map((page) => writeFile(page.imagePath, "image", "utf8")),
   );
   await writeJson(join(rootDir, "index.json"), { workOrder: ["work-1"] });
   await writeJson(join(rootDir, "works", "work-1", "work.json"), work);

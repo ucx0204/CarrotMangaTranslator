@@ -4,7 +4,10 @@ import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { tMain } from "./localization";
 import { prunePromptWorkContextForBudget } from "../../shared/workContextBudget";
-import { buildNoTextCompletedPage } from "./noText";
+import {
+  buildNoTextCompletedPage,
+  isJapaneseCumulativeNoTextRequest,
+} from "./noText";
 import {
   buildKeepBlocksCompletedPage,
   shouldKeepExistingBlocks,
@@ -12,39 +15,38 @@ import {
 import { buildPreviousBlocksForPrompt } from "./previousBlocksForPrompt";
 import {
   applyOcrCandidateGeometryLocks,
-  buildPageWarnings,
   filterRejectedOrUncertainSoundItems,
   getBboxNormalizationOptions,
   getOcrBboxHints,
   normalizeOverlayItemBboxes,
-  overlayItemToBlock,
   validateOverlayItemsAgainstReferences,
 } from "./overlayItems";
 import { buildPageOptions, summarizePreview } from "./options";
 import { attachPageProgress } from "./progressEvents";
 import type {
+  CompletedPageBuildResult,
   ModelEndpointHandle,
   OcrBboxResult,
   OverlayItem,
   PipelineRegionContext,
   PipelineWorkContext,
+  PageContextPayload,
   TranslationResult,
 } from "./types";
 import { buildPromptWorkContextForPage } from "./workContextPrompt";
 import { isRequestNoTextDetected } from "./noText";
 import type { ProgressContext } from "./progressEvents";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
+import { parsePageResponse } from "./pageResponseParser";
+import { buildTranslatedPageResult } from "./translatedPageResult";
 
 export type PageBuildResult =
-  | {
-      kind: "completed";
-      page: MangaPage;
-      warnings: string[];
-      detail: string;
-    }
+  | CompletedPageBuildResult
   | {
       kind: "no-text";
       page: MangaPage;
+      warnings: string[];
+      pageContext?: PageContextPayload;
     };
 
 export function buildRequestPageOptions({
@@ -56,10 +58,12 @@ export function buildRequestPageOptions({
   ocrHintsByPageId,
   page,
   pageIndex,
+  progressPageIndex = pageIndex,
   signal,
   skipOcrPrepass,
   workContext,
   regionContext,
+  collectPageContext,
 }: {
   attempt: number;
   baseOptions: TranslationOptions;
@@ -69,12 +73,22 @@ export function buildRequestPageOptions({
   ocrHintsByPageId: Map<string, OcrBboxResult>;
   page: MangaPage;
   pageIndex: number;
+  progressPageIndex?: number;
   signal: AbortSignal;
   skipOcrPrepass: boolean;
   workContext?: PipelineWorkContext;
   regionContext?: PipelineRegionContext;
+  collectPageContext?: boolean;
 }): TranslationOptions {
   const pageOptions = buildPageOptions(baseOptions, page, pageIndex, attempt);
+  pageOptions.collectPageContext = collectPageContext || undefined;
+  applyOcrHintPageOptions({
+    ocrHintsByPageId,
+    page,
+    pageOptions,
+    regionContext,
+    skipOcrPrepass,
+  });
   if (workContext) {
     const promptPageIndex = regionContext?.sourcePageIndex ?? pageIndex;
     const promptWorkContext = buildPromptWorkContextForPage({
@@ -83,6 +97,8 @@ export function buildRequestPageOptions({
       pageId: regionContext?.sourcePage.id ?? page.id,
       pageIndex: promptPageIndex,
       recentPageCount: workContext.recentPageCount,
+      previousStoryPages: workContext.previousStoryPages,
+      ocrHints: pageOptions.ocrBboxHints,
     });
     const budgetedWorkContext = prunePromptWorkContextForBudget(
       promptWorkContext,
@@ -94,20 +110,19 @@ export function buildRequestPageOptions({
     pageOptions.workContext = budgetedWorkContext.workContext;
     pageOptions.workContextBudget = budgetedWorkContext.budget;
   }
-  applyOcrHintPageOptions({
-    ocrHintsByPageId,
-    page,
-    pageOptions,
-    regionContext,
-    skipOcrPrepass,
-  });
   applyStrictRefineOptions(
     pageOptions,
     page,
     shouldKeepExistingBlocks(blockMode, page),
   );
   pageOptions.abortSignal = signal;
-  attachPageProgress(context, pageOptions, pageIndex, attempt, maxAttempts);
+  attachPageProgress(
+    context,
+    pageOptions,
+    progressPageIndex,
+    attempt,
+    maxAttempts,
+  );
   return pageOptions;
 }
 
@@ -182,9 +197,28 @@ export async function buildPageResult({
   result: TranslationResult;
   runtime: TranslationRuntimePort;
 }): Promise<PageBuildResult> {
-  const items = parseOverlayItems(runtime, result, page, pageOptions);
+  const parsed = parsePageResponse({
+    runtime,
+    result,
+    page,
+    pageOptions,
+  });
+  const { items } = parsed;
+  if (isJapaneseCumulativeNoTextRequest(pageOptions, result.requestBody)) {
+    return {
+      kind: "no-text",
+      page: buildNoTextCompletedPage(page),
+      warnings: parsed.warnings,
+      pageContext: parsed.pageContext,
+    };
+  }
   if (items.length === 0) {
-    return buildEmptyItemsResult(page, pageOptions, result);
+    const emptyResult = buildEmptyItemsResult(page, pageOptions, result);
+    return {
+      ...emptyResult,
+      warnings: parsed.warnings,
+      pageContext: parsed.pageContext,
+    };
   }
 
   await writeOverlayItems(pageOptions.outputDir, items, pageOptions);
@@ -203,42 +237,30 @@ export async function buildPageResult({
     dropUncertainSound: !pageOptions.regionCropMode,
   });
   if (pageOptions.keepBlocksMode) {
+    const kept = buildKeepBlocksCompletedPage({
+      page,
+      items: soundFiltered.items,
+      previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
+      soundDroppedCount: soundFiltered.droppedCount,
+    });
     return {
       kind: "completed",
-      ...buildKeepBlocksCompletedPage({
-        page,
-        items: soundFiltered.items,
-        previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
-        soundDroppedCount: soundFiltered.droppedCount,
-      }),
+      ...kept,
+      warnings: [...kept.warnings, ...parsed.warnings],
+      pageContext: parsed.pageContext,
     };
   }
-  const blocks = soundFiltered.items.map((item, itemIndex) =>
-    overlayItemToBlock(
-      item,
-      page,
-      itemIndex,
-      jobId,
-      pageOptions.blockFormatDefaults,
-    ),
-  );
-  return {
-    kind: "completed",
-    page: {
-      ...page,
-      blocks,
-      analysisStatus: "completed",
-      lastError: undefined,
-      updatedAt: new Date().toISOString(),
-    },
-    warnings: buildPageWarnings(page.name, soundFiltered.items),
-    detail: buildPageResultDetail(
-      soundFiltered.items.length,
-      validated.droppedCount,
-      soundFiltered.droppedCount,
-      validated.reasons,
-    ),
-  };
+  return buildTranslatedPageResult({
+    jobId,
+    page,
+    pageOptions,
+    items: soundFiltered.items,
+    soundDroppedCount: soundFiltered.droppedCount,
+    validationDroppedCount: validated.droppedCount,
+    validationReasons: validated.reasons,
+    contextWarnings: parsed.warnings,
+    pageContext: parsed.pageContext,
+  });
 }
 
 function buildEmptyItemsResult(
@@ -247,7 +269,11 @@ function buildEmptyItemsResult(
   result: TranslationResult,
 ): PageBuildResult {
   if (pageOptions.regionCropMode) {
-    return { kind: "no-text", page: buildNoTextCompletedPage(page) };
+    return {
+      kind: "no-text",
+      page: buildNoTextCompletedPage(page),
+      warnings: [],
+    };
   }
   if (isRequestNoTextDetected(result.requestBody)) {
     return {
@@ -255,6 +281,7 @@ function buildEmptyItemsResult(
       page: buildNoTextCompletedPage(page, {
         keepBlocks: Boolean(pageOptions.keepBlocksMode),
       }),
+      warnings: [],
     };
   }
   const bboxError = new Error(
@@ -300,49 +327,6 @@ async function writeOverlayItems(
   );
 }
 
-function parseOverlayItems(
-  runtime: TranslationRuntimePort,
-  result: TranslationResult,
-  page: MangaPage,
-  pageOptions: TranslationOptions,
-): OverlayItem[] {
-  try {
-    if (pageOptions.regionCropMode) {
-      return runtime.normalizeRegionSingleItem(
-        runtime.parseRegionSingleItem(result.outputText),
-      );
-    }
-    return runtime.normalizeItems(runtime.parseJsonLenient(result.outputText));
-  } catch (error) {
-    throw buildParseError(page, pageOptions, result, error);
-  }
-}
-
-function buildParseError(
-  page: MangaPage,
-  pageOptions: TranslationOptions,
-  result: TranslationResult,
-  error: unknown,
-): Error {
-  const preview = summarizePreview(result.outputText);
-  const parseError = new Error(
-    tMain("translation.errors.responseParse", {
-      page: page.name,
-      preview,
-      cause: error instanceof Error ? error.message : String(error),
-    }),
-  ) as Error & { cause?: unknown };
-  parseError.cause = error;
-  Object.assign(parseError, {
-    outputPreview: preview,
-    outputDir: pageOptions.outputDir,
-    responseFormat: pageOptions.regionCropMode
-      ? "region-single-item"
-      : "structured-overlay",
-  });
-  return parseError;
-}
-
 function buildNormalizedItems(
   page: MangaPage,
   result: TranslationResult,
@@ -357,36 +341,6 @@ function buildNormalizedItems(
     page,
     getOcrBboxHints(result.requestBody),
   );
-}
-
-function buildPageResultDetail(
-  blockCount: number,
-  validationDroppedCount: number,
-  soundDroppedCount: number,
-  validationReasons: Record<string, number>,
-): string {
-  const details = [tMain("units.blocks", { count: blockCount })];
-  if (validationDroppedCount > 0) {
-    details.push(
-      tMain("translation.result.noiseDropped", {
-        count: validationDroppedCount,
-        reasons: formatValidationReasons(validationReasons),
-      }),
-    );
-  }
-  if (soundDroppedCount > 0) {
-    details.push(
-      tMain("translation.result.soundDropped", { count: soundDroppedCount }),
-    );
-  }
-  return details.join(", ");
-}
-
-function formatValidationReasons(reasons: Record<string, number>): string {
-  const entries = Object.entries(reasons).filter(([, count]) => count > 0);
-  return entries.length
-    ? entries.map(([reason, count]) => `${reason}:${count}`).join("/")
-    : "unknown";
 }
 
 function applyStrictRefineOptions(

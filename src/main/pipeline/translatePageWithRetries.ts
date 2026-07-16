@@ -1,31 +1,21 @@
 import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/libraryTypes";
-import { logError, logWarn } from "../logger";
 import {
-  classifyFailure,
   isAbortErrorLike,
   isNonRetriableRuntimeError,
-  summarizePage,
   throwIfAborted,
 } from "./failure";
+import { buildFailedPage, buildRequestPageOptions } from "./pageResultBuilder";
 import {
-  buildFailedPage,
-  buildPageResult,
-  buildRequestPageOptions,
-  requestPageTranslation,
-} from "./pageResultBuilder";
-import {
-  emitNoTextPage,
-  emitPageDone,
   emitPageRetry,
   emitPageRunning,
   emitPageSkipped,
   type ProgressContext,
 } from "./progressEvents";
-import { summarizeTranslationOptions } from "./options";
 import type {
   ModelEndpointHandle,
   OcrBboxResult,
+  PageContextPayload,
   PipelineOptions,
   PipelineRegionContext,
   PipelineWorkContext,
@@ -33,6 +23,8 @@ import type {
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { WarningCollector } from "./warningCollector";
 import type { ChapterRunPaths } from "../library";
+import { logAttemptFailure, logSkippedPage } from "./translationAttemptLogging";
+import { translatePageAttempt } from "./pageTranslationAttempt";
 
 type TranslatePageWithRetriesOptions = {
   baseOptions: TranslationOptions;
@@ -44,6 +36,7 @@ type TranslatePageWithRetriesOptions = {
   onPageFailed?: PipelineOptions["onPageFailed"];
   page: MangaPage;
   pageIndex: number;
+  progressPageIndex?: number;
   runPaths: ChapterRunPaths;
   runtime: TranslationRuntimePort;
   server: ModelEndpointHandle;
@@ -53,6 +46,7 @@ type TranslatePageWithRetriesOptions = {
   warningCollector: WarningCollector;
   workContext?: PipelineWorkContext;
   regionContext?: PipelineRegionContext;
+  collectPageContext?: boolean;
 };
 
 type PageTranslationAttemptResult = {
@@ -60,11 +54,13 @@ type PageTranslationAttemptResult = {
   lastErrorMessage: string;
   lastPageOptions: TranslationOptions | null;
   successPage: MangaPage | null;
+  successPageContext?: PageContextPayload;
+  successApproved: boolean;
 };
 
-type PageTranslationAttemptState = Omit<
+type PageTranslationAttemptState = Pick<
   PageTranslationAttemptResult,
-  "successPage"
+  "lastError" | "lastErrorMessage" | "lastPageOptions"
 >;
 
 export async function translatePageWithRetries({
@@ -77,6 +73,7 @@ export async function translatePageWithRetries({
   onPageFailed,
   page,
   pageIndex,
+  progressPageIndex = pageIndex,
   runPaths,
   runtime,
   server,
@@ -86,7 +83,11 @@ export async function translatePageWithRetries({
   warningCollector,
   workContext,
   regionContext,
-}: TranslatePageWithRetriesOptions): Promise<void> {
+  collectPageContext,
+}: TranslatePageWithRetriesOptions): Promise<{
+  pageContext?: PageContextPayload;
+  approved: boolean;
+}> {
   const result = await runPageTranslationAttempts({
     baseOptions,
     context,
@@ -95,6 +96,7 @@ export async function translatePageWithRetries({
     onPageComplete,
     page,
     pageIndex,
+    progressPageIndex,
     runPaths,
     runtime,
     server,
@@ -104,10 +106,14 @@ export async function translatePageWithRetries({
     warningCollector,
     workContext,
     regionContext,
+    collectPageContext,
   });
   if (result.successPage) {
     completedPagesById.set(page.id, result.successPage);
-    return;
+    return {
+      pageContext: result.successPageContext,
+      approved: result.successApproved,
+    };
   }
   await saveFailedPageAfterRetries({
     completedPagesById,
@@ -116,10 +122,12 @@ export async function translatePageWithRetries({
     onPageFailed,
     page,
     pageIndex,
+    progressPageIndex,
     result,
     runPaths,
     warningCollector,
   });
+  return { approved: false };
 }
 
 async function runPageTranslationAttempts({
@@ -130,6 +138,7 @@ async function runPageTranslationAttempts({
   onPageComplete,
   page,
   pageIndex,
+  progressPageIndex = pageIndex,
   runPaths,
   runtime,
   server,
@@ -139,11 +148,14 @@ async function runPageTranslationAttempts({
   warningCollector,
   workContext,
   regionContext,
+  collectPageContext,
 }: Omit<
   TranslatePageWithRetriesOptions,
   "completedPagesById" | "onPageFailed"
 >): Promise<PageTranslationAttemptResult> {
   let successPage: MangaPage | null = null;
+  let successPageContext: PageContextPayload | undefined;
+  let successApproved = false;
   const state: PageTranslationAttemptState = {
     lastErrorMessage: "",
     lastPageOptions: null,
@@ -160,50 +172,107 @@ async function runPageTranslationAttempts({
       ocrHintsByPageId,
       page,
       pageIndex,
+      progressPageIndex,
       signal,
       skipOcrPrepass,
       workContext,
       regionContext,
+      collectPageContext,
     });
     state.lastPageOptions = pageOptions;
-    emitPageRunning(context, page, pageIndex, attempt, maxAttempts);
+    emitPageRunning(context, page, progressPageIndex, attempt, maxAttempts);
 
-    try {
-      successPage = await translatePageAttempt({
-        context,
-        jobId: context.jobId,
-        onPageComplete,
-        page,
-        pageIndex,
-        pageOptions,
-        runtime,
-        server,
-        warningCollector,
-      });
+    const success = await tryPageTranslationAttempt({
+      attempt,
+      context,
+      maxAttempts,
+      onPageComplete,
+      page,
+      pageIndex: progressPageIndex,
+      pageOptions,
+      runPaths,
+      runtime,
+      server,
+      state,
+      warningCollector,
+    });
+    if (success) {
+      successPage = success.page;
+      successPageContext = success.pageContext;
+      successApproved = success.approved;
       break;
-    } catch (error) {
-      if (isAbortErrorLike(error) || isNonRetriableRuntimeError(error)) {
-        throw error;
-      }
-      handlePageAttemptFailure({
-        attempt,
-        context,
-        error,
-        maxAttempts,
-        page,
-        pageIndex,
-        pageOptions,
-        runPaths,
-        state,
-        warningCollector,
-      });
     }
   }
 
   return {
     ...state,
     successPage,
+    successPageContext,
+    successApproved,
   };
+}
+
+async function tryPageTranslationAttempt({
+  attempt,
+  context,
+  maxAttempts,
+  onPageComplete,
+  page,
+  pageIndex,
+  pageOptions,
+  runPaths,
+  runtime,
+  server,
+  state,
+  warningCollector,
+}: {
+  attempt: number;
+  context: ProgressContext;
+  maxAttempts: number;
+  onPageComplete?: PipelineOptions["onPageComplete"];
+  page: MangaPage;
+  pageIndex: number;
+  pageOptions: TranslationOptions;
+  runPaths: ChapterRunPaths;
+  runtime: TranslationRuntimePort;
+  server: ModelEndpointHandle;
+  state: PageTranslationAttemptState;
+  warningCollector: WarningCollector;
+}): Promise<{
+  page: MangaPage;
+  pageContext?: PageContextPayload;
+  approved: boolean;
+} | null> {
+  try {
+    return await translatePageAttempt({
+      context,
+      jobId: context.jobId,
+      onPageComplete,
+      page,
+      pageIndex,
+      pageOptions,
+      runtime,
+      server,
+      warningCollector,
+    });
+  } catch (error) {
+    if (isAbortErrorLike(error) || isNonRetriableRuntimeError(error)) {
+      throw error;
+    }
+    handlePageAttemptFailure({
+      attempt,
+      context,
+      error,
+      maxAttempts,
+      page,
+      pageIndex,
+      pageOptions,
+      runPaths,
+      state,
+      warningCollector,
+    });
+    return null;
+  }
 }
 
 function handlePageAttemptFailure({
@@ -260,6 +329,7 @@ async function saveFailedPageAfterRetries({
   onPageFailed,
   page,
   pageIndex,
+  progressPageIndex = pageIndex,
   result,
   runPaths,
   warningCollector,
@@ -270,6 +340,7 @@ async function saveFailedPageAfterRetries({
   onPageFailed?: PipelineOptions["onPageFailed"];
   page: MangaPage;
   pageIndex: number;
+  progressPageIndex?: number;
   result: PageTranslationAttemptResult;
   runPaths: ChapterRunPaths;
   warningCollector: WarningCollector;
@@ -286,122 +357,11 @@ async function saveFailedPageAfterRetries({
     lastPageOptions: result.lastPageOptions,
     maxAttempts,
     page,
-    pageIndex,
+    pageIndex: progressPageIndex,
     runPaths,
   });
   const failedPage = buildFailedPage(page, result.lastErrorMessage);
   completedPagesById.set(page.id, failedPage);
   await onPageFailed?.(failedPage, result.lastErrorMessage);
-  emitPageSkipped(context, page, pageIndex, maxAttempts);
-}
-
-async function translatePageAttempt({
-  context,
-  jobId,
-  onPageComplete,
-  page,
-  pageIndex,
-  pageOptions,
-  runtime,
-  server,
-  warningCollector,
-}: {
-  context: ProgressContext;
-  jobId: string;
-  onPageComplete?: PipelineOptions["onPageComplete"];
-  page: MangaPage;
-  pageIndex: number;
-  pageOptions: TranslationOptions;
-  runtime: TranslationRuntimePort;
-  server: ModelEndpointHandle;
-  warningCollector: WarningCollector;
-}): Promise<MangaPage> {
-  const result = await requestPageTranslation({ pageOptions, runtime, server });
-  const pageResult = await buildPageResult({
-    jobId,
-    page,
-    pageOptions,
-    result,
-    runtime,
-  });
-
-  if (pageResult.kind === "no-text") {
-    await onPageComplete?.(pageResult.page);
-    emitNoTextPage(context, page, pageIndex);
-    return pageResult.page;
-  }
-
-  warningCollector.add(...pageResult.warnings);
-  await onPageComplete?.(pageResult.page);
-  emitPageDone(context, page, pageIndex, pageResult.detail);
-  return pageResult.page;
-}
-
-function logAttemptFailure({
-  attempt,
-  context,
-  error,
-  lastPageOptions,
-  maxAttempts,
-  page,
-  pageIndex,
-  runPaths,
-}: {
-  attempt: number;
-  context: ProgressContext;
-  error: unknown;
-  lastPageOptions: TranslationOptions;
-  maxAttempts: number;
-  page: MangaPage;
-  pageIndex: number;
-  runPaths: ChapterRunPaths;
-}): void {
-  logWarn("Analysis attempt failed", {
-    failureCategory: classifyFailure(error),
-    jobId: context.jobId,
-    page: summarizePage(page),
-    pageIndex: pageIndex + 1,
-    pageTotal: context.pageTotal,
-    attempt,
-    attemptTotal: maxAttempts,
-    willRetry: attempt < maxAttempts,
-    runPaths,
-    pageOptions: summarizeTranslationOptions(lastPageOptions),
-    error,
-  });
-}
-
-function logSkippedPage({
-  context,
-  lastError,
-  lastErrorMessage,
-  lastPageOptions,
-  maxAttempts,
-  page,
-  pageIndex,
-  runPaths,
-}: {
-  context: ProgressContext;
-  lastError: unknown;
-  lastErrorMessage: string;
-  lastPageOptions: TranslationOptions | null;
-  maxAttempts: number;
-  page: MangaPage;
-  pageIndex: number;
-  runPaths: ChapterRunPaths;
-}): void {
-  logError("Analysis page skipped after retries", {
-    failureCategory: classifyFailure(lastError),
-    jobId: context.jobId,
-    page: summarizePage(page),
-    pageIndex: pageIndex + 1,
-    pageTotal: context.pageTotal,
-    attemptTotal: maxAttempts,
-    runPaths,
-    lastPageOptions: lastPageOptions
-      ? summarizeTranslationOptions(lastPageOptions)
-      : null,
-    lastErrorMessage,
-    error: lastError,
-  });
+  emitPageSkipped(context, page, progressPageIndex, maxAttempts);
 }

@@ -114,6 +114,13 @@ function useTranslationActionController(
     refreshLibrary: chapter.libraryActions.refreshLibrary,
     saveNow: chapter.persistence.saveNow,
     selectedPage: chapter.derivedState.selectedPage,
+    translationWorkflowDefault:
+      chapter.settingsDialog.settings?.ui?.translationWorkflowDefault ??
+      "cumulative",
+    analysisScopeDefault:
+      chapter.settingsDialog.settings?.ui?.analysisScopeDefault ?? "missing",
+    blockModeDefault:
+      chapter.settingsDialog.settings?.ui?.blockModeDefault ?? "auto",
     setCurrentChapter: chapter.core.setCurrentChapter,
     setFlowActive: chapter.uiState.setTranslationFlowActive,
     setJobState: chapter.core.setJobState,

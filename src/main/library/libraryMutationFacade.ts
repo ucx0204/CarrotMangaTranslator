@@ -103,7 +103,7 @@ export async function updatePageAfterAnalysis(
   warnings: string[],
   status: "completed" | "failed",
   expectedUpdatedAt?: string,
-): Promise<void> {
+): Promise<boolean> {
   return withLibraryMutation(() =>
     updatePageAfterAnalysisUnlocked(
       chapterId,
@@ -118,7 +118,7 @@ export async function updatePageAfterAnalysis(
 export async function updatePagesAfterAnalysis(
   chapterId: string,
   updates: PageAnalysisUpdate[],
-): Promise<void> {
+): Promise<ReadonlySet<string>> {
   return withLibraryMutation(() =>
     updatePagesAfterAnalysisUnlocked(chapterId, updates),
   );

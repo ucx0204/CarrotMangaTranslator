@@ -62,6 +62,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       chapterId: uuid,
       runMode: z.literal("pending"),
       blockMode: AnalysisBlockModeSchema.optional(),
+      collectPageContext: z.boolean().optional(),
     })
     .strict(),
   z
@@ -69,6 +70,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       chapterId: uuid,
       runMode: z.literal("all"),
       blockMode: AnalysisBlockModeSchema.optional(),
+      collectPageContext: z.boolean().optional(),
     })
     .strict(),
   z
@@ -77,6 +79,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       runMode: z.literal("single-page"),
       pageId: uuid,
       blockMode: AnalysisBlockModeSchema.optional(),
+      collectPageContext: z.boolean().optional(),
     })
     .strict(),
   z
@@ -85,6 +88,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       runMode: z.literal("page-set"),
       pageIds: z.array(uuid).min(1),
       blockMode: AnalysisBlockModeSchema.optional(),
+      collectPageContext: z.boolean().optional(),
     })
     .strict(),
 ]);

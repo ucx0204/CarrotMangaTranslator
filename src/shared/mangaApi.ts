@@ -63,6 +63,7 @@ import type {
   ImportPreviewSession,
 } from "./importTypes";
 import type { ChapterStoryMemory, WorkStyleGuide } from "./workContextTypes";
+import type { WorkContextUsage } from "./workContextUsageTypes";
 import type { AppSettings, UiLocale } from "./settingsTypes";
 import type {
   ApiModelDiscoveryRequest,
@@ -92,6 +93,7 @@ export type MangaApi = {
   saveChapterStoryMemory: (
     memory: ChapterStoryMemory,
   ) => Promise<ChapterStoryMemory>;
+  getWorkContextUsage: (workId: string) => Promise<WorkContextUsage>;
   analyzeWorkContext: (
     request: AnalyzeWorkContextRequest,
   ) => Promise<AnalyzeWorkContextResult>;

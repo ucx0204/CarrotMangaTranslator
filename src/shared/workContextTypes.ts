@@ -15,6 +15,7 @@ export type GlossaryEntry = {
   category: GlossaryEntryCategory;
   aliases?: string[];
   note?: string;
+  origin?: "ai" | "manual";
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -39,6 +40,7 @@ export type CharacterProfile = {
   speechStyle: CharacterSpeechStyle;
   customSpeechStyle?: string;
   note?: string;
+  origin?: "ai" | "manual";
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -67,6 +69,9 @@ export type PageStoryMemory = {
   sourceDigest: string;
   translatedDigest: string;
   summary: string;
+  visualSummary?: string;
+  visualSummarySource?: "ai" | "manual";
+  glossaryEntryIds?: string[];
   characterIds?: string[];
   updatedAt: string;
 };

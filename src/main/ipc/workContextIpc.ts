@@ -8,6 +8,7 @@ import {
 } from "../../shared/ipcSchemas";
 import { workContextIpcContracts } from "../../shared/ipcContracts";
 import { analyzeWorkContextWithAi } from "../workContextAnalysis";
+import { buildWorkContextUsage } from "../workContextUsage";
 import {
   getChapterStoryMemory,
   getWorkStyleGuide,
@@ -66,6 +67,18 @@ export function registerWorkContextIpc(context: IpcContext): void {
           tMain("ipc.labels.storyMemorySave"),
         ),
       ),
+  );
+  trustedHandleContract(
+    context,
+    workContextIpcContracts.getWorkContextUsage,
+    async (_event, workId: unknown) => {
+      const request = parseIpcPayload(
+        WorkStyleGuideRequestSchema,
+        { workId },
+        tMain("ipc.labels.styleGuideOpen"),
+      );
+      return buildWorkContextUsage(request.workId);
+    },
   );
   trustedHandleContract(
     context,

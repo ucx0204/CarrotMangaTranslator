@@ -7,6 +7,7 @@ import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type {
   ChapterStoryMemory,
+  PageStoryMemory,
   WorkStyleGuide,
 } from "../../shared/workContextTypes";
 import type { PixelRect } from "../../shared/region";
@@ -23,12 +24,17 @@ export type PipelineOptions = {
   /** webp 등 nativeImage가 못 읽는 이미지의 PNG 디코더 (keep 모드 블록 크롭 OCR용). */
   decodeImage?: (filePath: string) => Promise<Buffer | null>;
   onCleanupReady?: (cleanup: () => Promise<void>) => void;
-  onPageComplete?: (page: MangaPage) => Promise<void>;
-  onPagesComplete?: (pages: MangaPage[]) => Promise<void>;
+  /** Return false when the translated page was rejected by optimistic concurrency checks. */
+  onPageComplete?: (page: MangaPage) => Promise<boolean | void>;
+  /** Return the accepted page IDs when a batch is guarded by optimistic concurrency. */
+  onPagesComplete?: (pages: MangaPage[]) => Promise<ReadonlySet<string> | void>;
   onPageFailed?: (page: MangaPage, errorMessage: string) => Promise<void>;
   workContext?: PipelineWorkContext;
   regionContext?: PipelineRegionContext;
   writeStoryMemory?: boolean;
+  collectPageContext?: boolean;
+  /** Canonical zero-based positions in the complete chapter, independent of run selection. */
+  canonicalPageIndexById?: ReadonlyMap<string, number>;
 };
 
 export type PipelineRegionContext = {
@@ -43,6 +49,8 @@ export type PipelineWorkContext = {
   styleGuide: WorkStyleGuide;
   storyMemory: ChapterStoryMemory;
   recentPageCount?: number;
+  /** Prompt-only live pages from preceding chapters; never persisted into this chapter. */
+  previousStoryPages?: PageStoryMemory[];
 };
 
 type ServerHandle = {
@@ -60,6 +68,46 @@ export type TranslationResult = {
   outputText: string;
   rawResponse: unknown;
   requestBody: RequestSummary | unknown;
+};
+
+export type PageContextGlossaryCandidate = {
+  source: string;
+  target: string;
+  category: "character" | "alias" | "place" | "term" | "honorific" | "other";
+  aliases?: string[];
+  note?: string;
+};
+
+export type PageContextCharacterCandidate = {
+  displayName: string;
+  sourceNames: string[];
+  targetName: string;
+  aliases?: string[];
+  speechStyle?:
+    | "neutral"
+    | "polite"
+    | "casual"
+    | "rough"
+    | "childish"
+    | "elderly"
+    | "formal"
+    | "custom";
+  customSpeechStyle?: string;
+  note?: string;
+};
+
+export type PageContextPayload = {
+  visualSummary?: string;
+  glossary: PageContextGlossaryCandidate[];
+  characters: PageContextCharacterCandidate[];
+};
+
+export type CompletedPageBuildResult = {
+  kind: "completed";
+  page: MangaPage;
+  warnings: string[];
+  detail: string;
+  pageContext?: PageContextPayload;
 };
 
 export type OcrBboxResult = {

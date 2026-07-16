@@ -92,7 +92,9 @@
       "chaptersTruncated": "{{count}}話が長いため、各話の予算内で一部ページのみ解析しました。",
       "chaptersFailed": "{{count}}話のAI解析に失敗しました。ログを確認してください。",
       "alreadyAnalyzed": "すべての話が解析済みのため、AI用語／記憶解析をスキップしました。",
-      "unknownPageId": "AIが不明なpageIdを返しました: {{pageId}}"
+      "unknownPageId": "AIが不明なpageIdを返しました: {{pageId}}",
+      "glossaryLimit": "用語集が上限の{{count}}件に達したため、新しいAI用語は追加しませんでした。",
+      "characterLimit": "キャラクター記憶が上限の{{count}}件に達したため、新しいAIキャラクターは追加しませんでした。"
     }
   },
   "reviewImport": {
@@ -203,7 +205,8 @@
     "warnings": {
       "attemptFailed": "{{page}}：試行 {{attempt}}/{{maxAttempts}} に失敗：{{message}}",
       "pageSkipped": "{{page}}：{{maxAttempts}}回失敗したためスキップします。最後のエラー：{{message}}",
-      "uncertainOcr": "{{page}}：不確かなOCR断片が{{count}}個あります。"
+      "uncertainOcr": "{{page}}：不確かなOCR断片が{{count}}個あります。",
+      "omitted": "追加の警告{{count}}件を省略しました。"
     },
     "result": {
       "existingUpdated": "既存ブロック{{count}}個を更新",
