@@ -1,8 +1,20 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { createRequire } from "node:module";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = join(__dirname, "..");
+const require = createRequire(import.meta.url);
+const { nsisTemplatesDir } =
+  require("app-builder-lib/out/targets/nsis/nsisUtil") as {
+    nsisTemplatesDir: string;
+  };
+const { copyTemplateDirectory, patchNsisTemplates } =
+  require("../scripts/build-windows-installer.cjs") as {
+    copyTemplateDirectory: (sourceDir: string, targetDir: string) => void;
+    patchNsisTemplates: (templatesDir: string) => void;
+  };
 
 describe("Windows installer clean uninstall option", () => {
   it("includes the custom NSIS script in electron-builder", () => {
@@ -23,8 +35,199 @@ describe("Windows installer clean uninstall option", () => {
     expect(config).toContain("!ocr-runtime{,/**/*}");
     expect(config).toContain("!hf-cache{,/**/*}");
     expect(config).toContain("!llama.cpp{,/**/*}");
+    expect(config).toContain("!runtime{,/**/*}");
     expect(config).toContain("!tmp{,/**/*}");
     expect(config).toContain("!fonts{,/**/*}");
+    expect(config).toContain("!panel-window-bounds.json");
+    expect(config).toContain("!docs{,/**/*}");
+    expect(config).toContain("differentialPackage: false");
+    expect(config).toContain("useZip: true");
+    expect(config).toContain(
+      'electronLanguages: ["en-US", "en-GB", "ko", "ja", "zh-CN", "zh-TW"]',
+    );
+    expect(config).not.toContain('asarUnpack: ["node_modules/**/*"]');
+  });
+
+  it("does not ship renderer-only or build-only packages twice", () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(repoRoot, "package.json"), "utf8"),
+    ) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    const bundledOnlyPackages = [
+      "@dnd-kit/core",
+      "@dnd-kit/sortable",
+      "@dnd-kit/utilities",
+      "@radix-ui/react-progress",
+      "@tabler/icons-react",
+      "@types/yauzl",
+      "openai-oauth",
+      "react",
+      "react-dom",
+      "react-i18next",
+    ];
+
+    for (const packageName of bundledOnlyPackages) {
+      expect(packageJson.dependencies).not.toHaveProperty(packageName);
+      expect(packageJson.devDependencies).toHaveProperty(packageName);
+    }
+    for (const runtimePackage of ["adm-zip", "i18next", "yauzl", "zod"]) {
+      expect(packageJson.dependencies).toHaveProperty(runtimePackage);
+    }
+  });
+
+  it("refuses mismatched release metadata and publishes the authored notes", () => {
+    const releaseWorkflow = readFileSync(
+      join(repoRoot, ".github", "workflows", "release.yml"),
+      "utf8",
+    );
+
+    expect(releaseWorkflow).toContain("fetch-depth: 0");
+    expect(releaseWorkflow).toContain(
+      '$expectedRef = "refs/heads/${{ github.event.repository.default_branch }}"',
+    );
+    expect(releaseWorkflow).toContain(
+      "Release workflow must run from '$expectedRef'",
+    );
+    expect(releaseWorkflow).toContain('$expectedTag = "v$version"');
+    expect(releaseWorkflow).toContain(
+      "does not match package version '$version'",
+    );
+    expect(releaseWorkflow).toContain(
+      '$notesPath = "docs/release-notes/$tag.md"',
+    );
+    expect(releaseWorkflow).toContain(
+      'git show-ref --verify --quiet "refs/tags/$tag"',
+    );
+    expect(releaseWorkflow).toContain("not ${{ github.sha }}");
+    expect(releaseWorkflow).toContain("body = $releaseNotes");
+    expect(releaseWorkflow).toContain(
+      "Expected exactly one Windows installer matching",
+    );
+  });
+
+  it("shows useful progress details and patches only expected NSIS stages", () => {
+    const installerScript = readFileSync(
+      join(repoRoot, "build", "installer.nsh"),
+      "utf8",
+    );
+    const buildScript = readFileSync(
+      join(repoRoot, "scripts", "build-windows-installer.cjs"),
+      "utf8",
+    );
+
+    expect(installerScript).toContain("!macro customHeader");
+    expect(installerScript).toContain("ShowInstDetails show");
+    expect(installerScript).toContain("!ifndef BUILD_UNINSTALLER");
+    expect(installerScript).not.toContain("ShowUninstDetails show");
+    expect(installerScript).toContain("!macro customFiles_x64");
+    expect(installerScript).toContain(
+      'DetailPrint "프로그램 파일 압축 해제를 완료했습니다."',
+    );
+
+    expect(buildScript).toContain("SetDetailsPrint both");
+    expect(buildScript).toContain("설치 준비 중...");
+    expect(buildScript).toContain("프로그램 파일 압축을 해제하는 중...");
+    expect(buildScript).toContain(
+      "Manual GitHub-release updates do not use electron-updater",
+    );
+    expect(buildScript).toContain('FAST_ZIP_COMPRESSION_LEVEL = "1"');
+  });
+
+  it("smokes the OAuth bundle through the packaged app import guard", () => {
+    const verifier = readFileSync(
+      join(repoRoot, "scripts", "verify-packaged-runtime.cjs"),
+      "utf8",
+    );
+    const smokeScript = readFileSync(
+      join(repoRoot, "scripts", "smoke-openai-oauth-runtime.cjs"),
+      "utf8",
+    );
+
+    expect(verifier).toContain('"app.asar"');
+    expect(verifier).toContain('"nativeDynamicImport.js"');
+    expect(verifier).toContain("packagedNativeImportModule");
+    expect(smokeScript).toContain("require(nativeImportModulePath)");
+    expect(smokeScript).toContain("importNativeEsm(pathToFileURL(runtimePath)");
+  });
+
+  it("strictly patches the actual electron-builder NSIS templates", () => {
+    const temporaryRoot = mkdtempSync(join(tmpdir(), "mgt-nsis-test-"));
+    const temporaryTemplatesDir = join(
+      temporaryRoot,
+      basename(nsisTemplatesDir),
+    );
+
+    try {
+      copyTemplateDirectory(nsisTemplatesDir, temporaryTemplatesDir);
+      patchNsisTemplates(temporaryTemplatesDir);
+
+      const installSection = readFileSync(
+        join(temporaryTemplatesDir, "installSection.nsh"),
+        "utf8",
+      );
+      const extractPackage = readFileSync(
+        join(temporaryTemplatesDir, "include", "extractAppPackage.nsh"),
+        "utf8",
+      );
+      const installerFunctions = readFileSync(
+        join(temporaryTemplatesDir, "include", "installer.nsh"),
+        "utf8",
+      );
+
+      expect(installSection).toContain(
+        '${IfNot} ${Silent}\n  SetDetailsPrint both\n  DetailPrint "설치 준비 중..."\n${endif}',
+      );
+      expect(installSection).toContain(
+        '!insertmacro installApplicationFiles\nDetailPrint "설치 정보를 등록하고 바로가기를 만드는 중..."\n!insertmacro registryAddInstallInfo',
+      );
+      expect(installSection).not.toContain(
+        "${IfNot} ${Silent}\n  SetDetailsPrint none\n${endif}",
+      );
+      expect(extractPackage).toContain(
+        '    DetailPrint "프로그램 파일 압축을 해제하는 중..."\n    nsisunz::Unzip "$PLUGINSDIR\\app-$packageArch.zip" "$INSTDIR"',
+      );
+      expect(installerFunctions).toContain(
+        "      ; Manual GitHub-release updates do not use electron-updater's cached installer.",
+      );
+      expect(installerFunctions).not.toContain(
+        '      !insertmacro copyFile "$EXEPATH" "$LOCALAPPDATA\\${APP_INSTALLER_STORE_FILE}"',
+      );
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("fails loudly if an electron-builder NSIS sentinel changes", () => {
+    const temporaryRoot = mkdtempSync(
+      join(tmpdir(), "mgt-nsis-sentinel-test-"),
+    );
+    const temporaryTemplatesDir = join(
+      temporaryRoot,
+      basename(nsisTemplatesDir),
+    );
+
+    try {
+      copyTemplateDirectory(nsisTemplatesDir, temporaryTemplatesDir);
+      const installSectionPath = join(
+        temporaryTemplatesDir,
+        "installSection.nsh",
+      );
+      const installSection = readFileSync(installSectionPath, "utf8");
+      const changedTemplate = installSection.replace(
+        "  SetDetailsPrint none",
+        "  SetDetailsPrint textonly",
+      );
+      expect(changedTemplate).not.toBe(installSection);
+      writeFileSync(installSectionPath, changedTemplate, "utf8");
+
+      expect(() => patchNsisTemplates(temporaryTemplatesDir)).toThrow(
+        "Expected exactly one installer details fragment",
+      );
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
   });
 
   it("builds one thin Windows installer instead of separate NVIDIA/AMD bundles", () => {

@@ -19,7 +19,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -30,22 +30,46 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Resolve and verify release metadata
+        id: release_meta
+        shell: pwsh
+        run: |
+          $expectedRef = "refs/heads/${{ github.event.repository.default_branch }}"
+          if ("${{ github.ref }}" -ne $expectedRef) {
+            throw "Release workflow must run from '$expectedRef', not '${{ github.ref }}'."
+          }
+
+          $tag = "${{ inputs.tag_name }}"
+          $version = node -p "require('./package.json').version"
+          $expectedTag = "v$version"
+          if ($tag -ne $expectedTag) {
+            throw "Release tag '$tag' does not match package version '$version' (expected '$expectedTag')."
+          }
+
+          $notesPath = "docs/release-notes/$tag.md"
+          if (-not (Test-Path -LiteralPath $notesPath -PathType Leaf)) {
+            throw "Release notes are missing: $notesPath"
+          }
+
+          git show-ref --verify --quiet "refs/tags/$tag"
+          if ($LASTEXITCODE -eq 0) {
+            $tagCommit = (git rev-list -n 1 $tag).Trim()
+            if ($tagCommit -ne "${{ github.sha }}") {
+              throw "Existing tag '$tag' points to $tagCommit, not ${{ github.sha }}."
+            }
+          } elseif ($LASTEXITCODE -ne 1) {
+            throw "Failed to inspect existing tag '$tag'."
+          }
+
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "target=${{ github.sha }}" >> $env:GITHUB_OUTPUT
+          "notes_path=$notesPath" >> $env:GITHUB_OUTPUT
+
       - name: Build Windows release
         env:
           MGT_THIN_INSTALLER: "1"
           MGT_ALLOW_MISSING_FLUX_RUNNER: "1"
         run: npm run dist:win
-
-      - name: Resolve release metadata
-        id: release_meta
-        shell: pwsh
-        run: |
-          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            "tag=${{ inputs.tag_name }}" >> $env:GITHUB_OUTPUT
-          } else {
-            "tag=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
-          }
-          "target=${{ github.sha }}" >> $env:GITHUB_OUTPUT
 
       - name: Publish GitHub release assets
         shell: pwsh
@@ -53,6 +77,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
           RELEASE_TARGET: ${{ steps.release_meta.outputs.target }}
+          RELEASE_NOTES_PATH: ${{ steps.release_meta.outputs.notes_path }}
         run: |
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
@@ -62,13 +87,14 @@ jobs:
           $owner = "${{ github.repository_owner }}"
           $repo = "${{ github.event.repository.name }}"
           $encodedTag = [uri]::EscapeDataString($env:RELEASE_TAG)
+          $releaseNotes = Get-Content -Raw -LiteralPath $env:RELEASE_NOTES_PATH
           $releaseBody = @{
             tag_name = $env:RELEASE_TAG
             target_commitish = $env:RELEASE_TARGET
             name = $env:RELEASE_TAG
             draft = $false
             prerelease = $false
-            generate_release_notes = $true
+            body = $releaseNotes
           } | ConvertTo-Json
           $releaseUpdateBody = @{
             tag_name = $env:RELEASE_TAG
@@ -76,6 +102,7 @@ jobs:
             name = $env:RELEASE_TAG
             draft = $false
             prerelease = $false
+            body = $releaseNotes
           } | ConvertTo-Json
 
           try {
@@ -88,9 +115,9 @@ jobs:
             $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$owner/$repo/releases" -Headers $headers -Body $releaseBody -ContentType "application/json"
           }
 
-          $files = Get-ChildItem -Path "dist" -Filter "* Setup *.exe"
-          if (-not $files) {
-            throw "No Windows installer matched dist/* Setup *.exe"
+          $files = @(Get-ChildItem -Path "dist" -Filter "* Setup *.exe")
+          if ($files.Count -ne 1) {
+            throw "Expected exactly one Windows installer matching dist/* Setup *.exe, found $($files.Count)."
           }
 
           $release = Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/$owner/$repo/releases/$($release.id)" -Headers $headers -Body $releaseUpdateBody -ContentType "application/json"

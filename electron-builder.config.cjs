@@ -93,6 +93,7 @@ module.exports = {
     "!scripts{,/**/*}",
     "!tools{,/**/*}",
     "!models{,/**/*}",
+    "!runtime{,/**/*}",
     "!library{,/**/*}",
     "!ocr-runtime{,/**/*}",
     "!hf-cache{,/**/*}",
@@ -104,15 +105,33 @@ module.exports = {
     "!.venv-glmocr{,/**/*}",
     "!logs{,/**/*}",
     "!settings.json",
+    "!panel-window-bounds.json",
+    "!docs{,/**/*}",
+    "!AGENTS.md",
+    "!.dependency-cruiser.cjs",
+    "!.prettierignore",
+    "!electron-builder.config.cjs",
+    "!eslint.config.mjs",
+    "!jsconfig.json",
+    "!knip.json",
+    "!knip.exports.json",
     "!README.md",
+    "!README.*.md",
+    "!settings.example.json",
+    "!tsconfig*.json",
+    "!vite*.config.ts",
+    "!vitest.config.ts",
     "!out/app-runtime{,/**/*}",
   ],
-  asarUnpack: ["node_modules/**/*"],
   extraResources,
   asar: true,
   win: {
     icon: "icon.ico",
     artifactName: "${productName} Setup ${version}.${ext}",
+    // Keep only the Chromium locale packs that the app can select. The app's
+    // own translations remain bundled by Vite; the other Electron locale
+    // packs only add installer bytes and disk writes.
+    electronLanguages: ["en-US", "en-GB", "ko", "ja", "zh-CN", "zh-TW"],
     target: [
       {
         target: "nsis",
@@ -124,6 +143,12 @@ module.exports = {
     oneClick: false,
     allowToChangeInstallationDirectory: true,
     perMachine: false,
+    // This app links users to GitHub Releases instead of applying
+    // differential electron-updater packages. ZIP extracts directly into the
+    // install directory and avoids the default 7z temp-extract + full-copy
+    // cycle for this large Electron bundle.
+    differentialPackage: false,
+    useZip: true,
     include: "build/installer.nsh",
   },
 };

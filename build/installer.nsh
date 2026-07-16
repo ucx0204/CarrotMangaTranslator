@@ -1,6 +1,14 @@
 !include nsDialogs.nsh
 !include LogicLib.nsh
 
+; electron-builder hides the NSIS details list by default. Keep it expanded so
+; users can see which installation stage is currently running.
+!macro customHeader
+  !ifndef BUILD_UNINSTALLER
+    ShowInstDetails show
+  !endif
+!macroend
+
 Var MgtDataRoot
 !ifndef BUILD_UNINSTALLER
 Var MgtDataRootText
@@ -8,15 +16,21 @@ Var MgtExistingDataRootNotice
 !endif
 
 !ifndef BUILD_UNINSTALLER
+!macro customFiles_x64
+  DetailPrint "프로그램 파일 압축 해제를 완료했습니다."
+!macroend
+
 !macro customPageAfterChangeDir
   Page custom MgtDataRootPageCreate MgtDataRootPageLeave
 !macroend
 
 !macro customInstall
+  DetailPrint "데이터 저장 위치를 적용하는 중..."
   ${If} $MgtDataRoot == ""
     Call MgtResolveInitialDataRoot
   ${EndIf}
   Call MgtWriteDataRootPointer
+  DetailPrint "설치 설정을 마무리했습니다."
 !macroend
 
 Function MgtResolveInitialDataRoot

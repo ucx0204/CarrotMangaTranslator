@@ -69,6 +69,7 @@ run(process.execPath, [
   "vite.renderer.config.ts",
 ]);
 prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
+run(process.execPath, [join(__dirname, "bundle-openai-oauth-runtime.cjs")]);
 
 /**
  * @param {string} packageName

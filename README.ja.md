@@ -19,7 +19,7 @@
 キャロット漫画翻訳は、画像からセリフや効果音を検出し、AIで翻訳ブロックを作成したあと、文章や配置を人の手で整えて完成版のPNGとして書き出せるマンガ制作支援ツールです。標準の翻訳方向は日本語 → 韓国語ですが、ほかの原文言語・翻訳先言語も選べます。
 
 - 最新のWindowsインストーラー：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 現在のバージョン情報：[v1.6.0 パッチノート](docs/release-notes/v1.6.0.md)
+- 現在のバージョン情報：[v1.6.1 パッチノート](docs/release-notes/v1.6.1.md)
 - コード構成とコントリビューション規約：[docs/architecture.md](docs/architecture.md)
 
 ## 概要
@@ -44,7 +44,7 @@
 
 ## クイックスタート
 
-1. [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)から、`CarrotMangaTranslator-Setup-v1.6.0.exe`のような最新のインストーラーをダウンロードしてインストールします。
+1. [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)から、`CarrotMangaTranslator-Setup-v1.6.1.exe`のような最新のインストーラーをダウンロードしてインストールします。
 2. `設定 → 一般`でアプリの表示言語を確認します。対応しているWindowsの言語は初回起動時に自動で選択され、それ以外の環境では韓国語が使用されます。
 3. `設定 → 翻訳エンジン`で原文言語、翻訳先言語、翻訳エンジンを選びます。
    - 自分のPC内で処理する場合は`Gemma 4`

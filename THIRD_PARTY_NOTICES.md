@@ -5,6 +5,7 @@
 대표 구성요소는 아래와 같습니다.
 
 - Electron, React, Vite, TypeScript, dnd-kit, Radix UI, Tabler Icons 등 JavaScript 패키지
+- `openai-oauth`와 해당 런타임 의존성. 설치판에서는 하나의 ESM 파일로 묶으며, 정확히 포함된 패키지의 라이선스 원문을 `resources/app-runtime/openai-oauth-runtime-LICENSES.txt`에 함께 제공합니다.
 - ffmpeg
 - llama.cpp, beellama, Lemonade ROCm runtime
 - PaddleOCR, PaddleOCR-VL, PaddlePaddle, Python runtime

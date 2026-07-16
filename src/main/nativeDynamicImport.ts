@@ -1,3 +1,4 @@
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // TypeScript compiles dynamic import to require() for this CommonJS main process.
@@ -8,20 +9,34 @@ const nativeDynamicImport = new Function(
   "return import(specifier)",
 ) as <T>(specifier: string) => Promise<T>;
 
+export const OPENAI_OAUTH_RUNTIME_RELATIVE_PATH = join(
+  "app-runtime",
+  "openai-oauth-runtime.mjs",
+);
+
 export function importNativeEsm<T>(specifier: string): Promise<T> {
   assertAllowedNativeImport(specifier);
   return nativeDynamicImport<T>(specifier);
 }
 
-function assertAllowedNativeImport(specifier: string): void {
+export function assertAllowedNativeImport(
+  specifier: string,
+  resourcesPath = resolveProcessResourcesPath(),
+): void {
   if (specifier === "openai-oauth") {
     return;
   }
 
   const normalized = normalizeImportSpecifier(specifier);
+  const bundledRuntimePath = resourcesPath
+    ? join(resourcesPath, OPENAI_OAUTH_RUNTIME_RELATIVE_PATH)
+    : null;
   if (
     normalized &&
-    /(^|[\\/])openai-oauth[\\/]dist[\\/]index\.js$/i.test(normalized)
+    (/(^|[\\/])openai-oauth[\\/]dist[\\/]index\.js$/i.test(normalized) ||
+      (bundledRuntimePath !== null &&
+        normalizePathForComparison(normalized) ===
+          normalizePathForComparison(bundledRuntimePath)))
   ) {
     return;
   }
@@ -38,4 +53,13 @@ function normalizeImportSpecifier(specifier: string): string | null {
     }
   }
   return specifier;
+}
+
+function resolveProcessResourcesPath(): string | undefined {
+  return (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
+}
+
+function normalizePathForComparison(value: string): string {
+  const normalized = resolve(value);
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
 }

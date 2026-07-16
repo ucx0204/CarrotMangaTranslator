@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { TranslationOptions } from "./appSettings";
 import { logInfo, logWarn } from "./logger";
-import { importNativeEsm } from "./nativeDynamicImport";
+import {
+  importNativeEsm,
+  OPENAI_OAUTH_RUNTIME_RELATIVE_PATH,
+} from "./nativeDynamicImport";
 
 type OpenAIOAuthModule = {
   startOpenAIOAuthServer: (options?: {
@@ -31,7 +34,6 @@ export type OpenAIOAuthEndpoint = {
 };
 
 const requireFromHere = createRequire(__filename);
-const OPENAI_OAUTH_RESOURCE_ENTRY = join("openai-oauth", "dist", "index.js");
 
 export async function startOpenAIOAuthEndpoint(
   options: TranslationOptions,
@@ -147,14 +149,18 @@ function resolveOpenAIOAuthImportCandidates(): string[] {
   return [...candidates];
 }
 
-function resolveResourceOpenAIOAuthEntryPath(): string | null {
-  const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string })
-    .resourcesPath;
+export function resolveResourceOpenAIOAuthEntryPath(
+  resourcesPath = (
+    process as NodeJS.Process & {
+      resourcesPath?: string;
+    }
+  ).resourcesPath,
+): string | null {
   if (!resourcesPath) {
     return null;
   }
 
-  return join(resourcesPath, OPENAI_OAUTH_RESOURCE_ENTRY);
+  return join(resourcesPath, OPENAI_OAUTH_RUNTIME_RELATIVE_PATH);
 }
 
 function resolveOpenAIOAuthEntryPath(): string | null {

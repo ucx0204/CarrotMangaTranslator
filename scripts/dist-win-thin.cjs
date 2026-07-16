@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 const { spawnSync } = require("node:child_process");
 
-const electronBuilderCli = require.resolve("electron-builder/cli");
 const withFluxNvidia =
   process.argv.includes("--with-flux-nvidia") ||
   process.env.MGT_BUILD_FLUX_NVIDIA_RUNNERS === "1";
@@ -40,19 +39,7 @@ if (withFluxNvidia) {
 }
 
 run("npm", ["run", "build"]);
-run(
-  process.execPath,
-  [
-    electronBuilderCli,
-    "--config",
-    "electron-builder.config.cjs",
-    "--win",
-    "nsis",
-    "--x64",
-    "--publish",
-    "never",
-  ],
-  {
-    MGT_BUNDLE_FLUX_NVIDIA_RUNNERS: withFluxNvidia ? "1" : "0",
-  },
-);
+run(process.execPath, ["scripts/build-windows-installer.cjs"], {
+  MGT_BUNDLE_FLUX_NVIDIA_RUNNERS: withFluxNvidia ? "1" : "0",
+});
+run(process.execPath, ["scripts/verify-packaged-runtime.cjs"]);
