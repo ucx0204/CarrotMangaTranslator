@@ -62,6 +62,12 @@ function patchNsisTemplates(templatesDir) {
     '!insertmacro installApplicationFiles\nDetailPrint "설치 정보를 등록하고 바로가기를 만드는 중..."\n!insertmacro registryAddInstallInfo',
     "post-extraction status",
   );
+  installSection = replaceExactlyOnce(
+    installSection,
+    "!insertmacro uninstallOldVersion SHELL_CONTEXT",
+    "Call MgtValidateInstallDirectory\n!insertmacro uninstallOldVersion SHELL_CONTEXT",
+    "install-directory validation",
+  );
   writeFileSync(installSectionPath, installSection, "utf8");
 
   let extractPackage = readFileSync(extractPackagePath, "utf8").replace(
@@ -70,8 +76,33 @@ function patchNsisTemplates(templatesDir) {
   );
   extractPackage = replaceExactlyOnce(
     extractPackage,
-    '    nsisunz::Unzip "$PLUGINSDIR\\app-$packageArch.zip" "$INSTDIR"',
-    '    DetailPrint "프로그램 파일 압축을 해제하는 중..."\n    nsisunz::Unzip "$PLUGINSDIR\\app-$packageArch.zip" "$INSTDIR"',
+    [
+      '    nsisunz::Unzip "$PLUGINSDIR\\app-$packageArch.zip" "$INSTDIR"',
+      "    Pop $R0",
+      '    StrCmp $R0 "success" +3',
+      '      MessageBox MB_OK|MB_ICONEXCLAMATION "$(decompressionFailed)$\\n$R0"',
+      "      Quit",
+    ].join("\n"),
+    [
+      '    DetailPrint "프로그램 파일 압축을 해제하는 중..."',
+      "    StrCpy $R1 0",
+      "    MgtZipExtractRetry:",
+      "      IntOp $R1 $R1 + 1",
+      '      nsisunz::Unzip "$PLUGINSDIR\\app-$packageArch.zip" "$INSTDIR"',
+      "      Pop $R0",
+      '      StrCmp $R0 "success" MgtZipExtractDone',
+      '      DetailPrint "압축 해제 재시도 $R1/3: $R0"',
+      "      ${If} $R1 < 3",
+      "        Sleep 750",
+      "        Goto MgtZipExtractRetry",
+      "      ${EndIf}",
+      '      MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "$(decompressionFailed)$\\r$\\n$R0$\\r$\\n$\\r$\\n$(appCannotBeClosed)" /SD IDCANCEL IDRETRY MgtZipExtractManualRetry',
+      "      Quit",
+      "    MgtZipExtractManualRetry:",
+      "      StrCpy $R1 0",
+      "      Goto MgtZipExtractRetry",
+      "    MgtZipExtractDone:",
+    ].join("\n"),
     "ZIP extraction",
   );
   writeFileSync(extractPackagePath, extractPackage, "utf8");

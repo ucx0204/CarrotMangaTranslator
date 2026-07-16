@@ -1,5 +1,9 @@
 const { existsSync } = require("node:fs");
 const { join } = require("node:path");
+const {
+  WINDOWS_EXECUTABLE_BASENAME,
+  assertFastZipPayload,
+} = require("./scripts/installer-zip-safety.cjs");
 
 const thinInstaller = process.env.MGT_THIN_INSTALLER === "1";
 const bundleFluxNvidiaRunners =
@@ -70,6 +74,19 @@ if (existsSync(koharuRunnerPath)) {
   });
 }
 
+/**
+ * @param {import("app-builder-lib").AfterPackContext} context
+ */
+async function verifyFastZipPayload(context) {
+  if (context.electronPlatformName !== "win32") {
+    return;
+  }
+  const result = assertFastZipPayload(context.appOutDir);
+  console.log(
+    `[installer] verified ${result.entries} ASCII payload entries; longest relative path ${result.maxRelativePathLength} chars`,
+  );
+}
+
 module.exports = {
   appId: "com.sam40.mangagemma.translator",
   productName: "당근망가번역기",
@@ -127,6 +144,10 @@ module.exports = {
   asar: true,
   win: {
     icon: "icon.ico",
+    // nsis.useZip extracts with nsisunz, which does not honor UTF-8 ZIP
+    // filenames. Keep the payload executable ASCII-only while preserving the
+    // Korean product, installer, shortcut, and Control Panel display names.
+    executableName: WINDOWS_EXECUTABLE_BASENAME,
     artifactName: "${productName} Setup ${version}.${ext}",
     // Keep only the Chromium locale packs that the app can select. The app's
     // own translations remain bundled by Vite; the other Electron locale
@@ -151,4 +172,5 @@ module.exports = {
     useZip: true,
     include: "build/installer.nsh",
   },
+  afterPack: verifyFastZipPayload,
 };

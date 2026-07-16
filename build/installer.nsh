@@ -1,6 +1,15 @@
 !include nsDialogs.nsh
 !include LogicLib.nsh
 
+; Keep the historical installation directory even though the payload
+; executable now has an ASCII-only filename for nsisunz compatibility.
+; This lets v1.6.2 repair a partial v1.6.0/v1.6.1 install in place and reuse
+; its existing data-root.txt without creating a second application folder.
+!ifdef APP_FILENAME
+  !undef APP_FILENAME
+!endif
+!define APP_FILENAME "carrot-manga-translator"
+
 ; electron-builder hides the NSIS details list by default. Keep it expanded so
 ; users can see which installation stage is currently running.
 !macro customHeader
@@ -13,6 +22,7 @@ Var MgtDataRoot
 !ifndef BUILD_UNINSTALLER
 Var MgtDataRootText
 Var MgtExistingDataRootNotice
+!define MGT_MAX_FAST_ZIP_INSTALL_DIR_LENGTH 160
 !endif
 
 !ifndef BUILD_UNINSTALLER
@@ -32,6 +42,14 @@ Var MgtExistingDataRootNotice
   Call MgtWriteDataRootPointer
   DetailPrint "설치 설정을 마무리했습니다."
 !macroend
+
+Function MgtValidateInstallDirectory
+  StrLen $0 $INSTDIR
+  ${If} $0 > ${MGT_MAX_FAST_ZIP_INSTALL_DIR_LENGTH}
+    MessageBox MB_ICONSTOP "설치 경로가 너무 깁니다.$\r$\n${MGT_MAX_FAST_ZIP_INSTALL_DIR_LENGTH}자 이하의 더 짧은 폴더를 선택해 주세요.$\r$\n예: D:\CarrotMangaTranslator"
+    Quit
+  ${EndIf}
+FunctionEnd
 
 Function MgtResolveInitialDataRoot
   Call MgtReadInstalledDataRootPointer
@@ -275,6 +293,7 @@ FunctionEnd
   Delete "$INSTDIR\*.json"
   Delete "$INSTDIR\*.ico"
   Delete "$INSTDIR\LICENSE*"
+  Delete "$INSTDIR\CarrotMangaTranslator.exe"
   Delete "$INSTDIR\당근망가번역기.exe"
   Delete "$INSTDIR\당근 만화 번역기.exe"
   Delete "$INSTDIR\망가번역기.exe"

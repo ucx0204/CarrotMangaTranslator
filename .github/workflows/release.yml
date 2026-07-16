@@ -72,6 +72,9 @@ jobs:
           MGT_ALLOW_MISSING_FLUX_RUNNER: "1"
         run: npm run dist:win
 
+      - name: Smoke test fresh install and upgrade
+        run: node scripts/smoke-windows-installer.cjs
+
       - name: Publish GitHub release assets
         shell: pwsh
         env:

@@ -5,6 +5,10 @@ const {
   OPENAI_OAUTH_LICENSES_FILENAME,
   OPENAI_OAUTH_RUNTIME_FILENAME,
 } = require("./bundle-openai-oauth-runtime.cjs");
+const {
+  WINDOWS_EXECUTABLE_FILENAME,
+  assertFastZipPayload,
+} = require("./installer-zip-safety.cjs");
 
 const root = join(__dirname, "..");
 const unpackedDir = join(root, "dist", "win-unpacked");
@@ -24,7 +28,7 @@ const asarUnpackedNodeModules = join(
   "app.asar.unpacked",
   "node_modules",
 );
-const appExecutable = join(unpackedDir, "당근망가번역기.exe");
+const appExecutable = join(unpackedDir, WINDOWS_EXECUTABLE_FILENAME);
 const packagedNativeImportModule = join(
   resourcesDir,
   "app.asar",
@@ -60,6 +64,7 @@ if (existsSync(asarUnpackedNodeModules)) {
 if (!existsSync(appExecutable)) {
   throw new Error(`Packaged Electron executable is missing: ${appExecutable}`);
 }
+const zipSafety = assertFastZipPayload(unpackedDir);
 const packagedElectronLocales = new Set(
   readdirSync(join(unpackedDir, "locales")),
 );
@@ -124,6 +129,9 @@ console.log(
     1024 /
     1024
   ).toFixed(1)} MiB unpacked`,
+);
+console.log(
+  `[installer] ${zipSafety.entries} ASCII payload entries, longest relative path ${zipSafety.maxRelativePathLength} chars`,
 );
 
 /**

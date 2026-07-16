@@ -1,5 +1,12 @@
 import { createRequire } from "node:module";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -15,6 +22,22 @@ const { copyTemplateDirectory, patchNsisTemplates } =
     copyTemplateDirectory: (sourceDir: string, targetDir: string) => void;
     patchNsisTemplates: (templatesDir: string) => void;
   };
+const {
+  MAX_FAST_ZIP_INSTALL_DIR_LENGTH,
+  MAX_FAST_ZIP_RELATIVE_PATH_LENGTH,
+  WINDOWS_EXECUTABLE_BASENAME,
+  WINDOWS_EXECUTABLE_FILENAME,
+  assertFastZipPayload,
+} = require("../scripts/installer-zip-safety.cjs") as {
+  MAX_FAST_ZIP_INSTALL_DIR_LENGTH: number;
+  MAX_FAST_ZIP_RELATIVE_PATH_LENGTH: number;
+  WINDOWS_EXECUTABLE_BASENAME: string;
+  WINDOWS_EXECUTABLE_FILENAME: string;
+  assertFastZipPayload: (appOutDir: string) => {
+    entries: number;
+    maxRelativePathLength: number;
+  };
+};
 
 describe("Windows installer clean uninstall option", () => {
   it("includes the custom NSIS script in electron-builder", () => {
@@ -42,6 +65,8 @@ describe("Windows installer clean uninstall option", () => {
     expect(config).toContain("!docs{,/**/*}");
     expect(config).toContain("differentialPackage: false");
     expect(config).toContain("useZip: true");
+    expect(config).toContain("executableName: WINDOWS_EXECUTABLE_BASENAME");
+    expect(config).toContain("assertFastZipPayload(context.appOutDir)");
     expect(config).toContain(
       'electronLanguages: ["en-US", "en-GB", "ko", "ja", "zh-CN", "zh-TW"]',
     );
@@ -104,6 +129,9 @@ describe("Windows installer clean uninstall option", () => {
     expect(releaseWorkflow).toContain(
       "Expected exactly one Windows installer matching",
     );
+    expect(releaseWorkflow).toContain(
+      "node scripts/smoke-windows-installer.cjs",
+    );
   });
 
   it("shows useful progress details and patches only expected NSIS stages", () => {
@@ -128,6 +156,9 @@ describe("Windows installer clean uninstall option", () => {
     expect(buildScript).toContain("SetDetailsPrint both");
     expect(buildScript).toContain("설치 준비 중...");
     expect(buildScript).toContain("프로그램 파일 압축을 해제하는 중...");
+    expect(buildScript).toContain("MgtZipExtractRetry");
+    expect(buildScript).toContain("압축 해제 재시도 $R1/3");
+    expect(buildScript).toContain("Call MgtValidateInstallDirectory");
     expect(buildScript).toContain(
       "Manual GitHub-release updates do not use electron-updater",
     );
@@ -181,17 +212,65 @@ describe("Windows installer clean uninstall option", () => {
       expect(installSection).toContain(
         '!insertmacro installApplicationFiles\nDetailPrint "설치 정보를 등록하고 바로가기를 만드는 중..."\n!insertmacro registryAddInstallInfo',
       );
+      expect(installSection).toContain(
+        "Call MgtValidateInstallDirectory\n!insertmacro uninstallOldVersion SHELL_CONTEXT",
+      );
       expect(installSection).not.toContain(
         "${IfNot} ${Silent}\n  SetDetailsPrint none\n${endif}",
       );
       expect(extractPackage).toContain(
-        '    DetailPrint "프로그램 파일 압축을 해제하는 중..."\n    nsisunz::Unzip "$PLUGINSDIR\\app-$packageArch.zip" "$INSTDIR"',
+        '    DetailPrint "프로그램 파일 압축을 해제하는 중..."\n    StrCpy $R1 0\n    MgtZipExtractRetry:',
       );
+      expect(extractPackage).toContain(
+        '      nsisunz::Unzip "$PLUGINSDIR\\app-$packageArch.zip" "$INSTDIR"',
+      );
+      expect(extractPackage).toContain(
+        '      StrCmp $R0 "success" MgtZipExtractDone',
+      );
+      expect(extractPackage).toContain(
+        "      ${If} $R1 < 3\n        Sleep 750",
+      );
+      expect(extractPackage).not.toContain('    StrCmp $R0 "success" +3');
       expect(installerFunctions).toContain(
         "      ; Manual GitHub-release updates do not use electron-updater's cached installer.",
       );
       expect(installerFunctions).not.toContain(
         '      !insertmacro copyFile "$EXEPATH" "$LOCALAPPDATA\\${APP_INSTALLER_STORE_FILE}"',
+      );
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects payload paths that nsisunz cannot safely extract", () => {
+    const temporaryRoot = mkdtempSync(join(tmpdir(), "mgt-zip-safety-test-"));
+
+    try {
+      const resourcesDir = join(temporaryRoot, "resources");
+      mkdirSync(resourcesDir);
+      writeFileSync(
+        join(temporaryRoot, WINDOWS_EXECUTABLE_FILENAME),
+        "executable",
+      );
+      writeFileSync(join(resourcesDir, "app.asar"), "asar");
+
+      expect(assertFastZipPayload(temporaryRoot)).toEqual({
+        entries: 3,
+        maxRelativePathLength: WINDOWS_EXECUTABLE_FILENAME.length,
+      });
+
+      writeFileSync(join(resourcesDir, "한글.txt"), "unsafe");
+      expect(() => assertFastZipPayload(temporaryRoot)).toThrow(
+        "non-ASCII paths",
+      );
+      unlinkSync(join(resourcesDir, "한글.txt"));
+
+      const longFilename = `${"a".repeat(
+        MAX_FAST_ZIP_RELATIVE_PATH_LENGTH,
+      )}.txt`;
+      writeFileSync(join(temporaryRoot, longFilename), "too long");
+      expect(() => assertFastZipPayload(temporaryRoot)).toThrow(
+        "safety budget",
       );
     } finally {
       rmSync(temporaryRoot, { recursive: true, force: true });
@@ -271,6 +350,30 @@ describe("Windows installer clean uninstall option", () => {
     expect(script).toContain("$MgtDataRoot\\ocr-runtime");
     expect(script).toContain("$LOCALAPPDATA\\manga-gemma-translator");
     expect(script).toContain("$APPDATA\\망가번역기");
+    expect(script).toContain('!define APP_FILENAME "carrot-manga-translator"');
+    expect(script).toContain(
+      `Delete "$INSTDIR\\${WINDOWS_EXECUTABLE_FILENAME}"`,
+    );
+  });
+
+  it("validates nsisunz install-path length before uninstalling an old version", () => {
+    const installerScript = readFileSync(
+      join(repoRoot, "build", "installer.nsh"),
+      "utf8",
+    );
+    const buildScript = readFileSync(
+      join(repoRoot, "scripts", "build-windows-installer.cjs"),
+      "utf8",
+    );
+
+    expect(WINDOWS_EXECUTABLE_BASENAME).toBe("CarrotMangaTranslator");
+    expect(installerScript).toContain(
+      `!define MGT_MAX_FAST_ZIP_INSTALL_DIR_LENGTH ${MAX_FAST_ZIP_INSTALL_DIR_LENGTH}`,
+    );
+    expect(installerScript).toContain("Function MgtValidateInstallDirectory");
+    expect(buildScript).toContain(
+      '"Call MgtValidateInstallDirectory\\n!insertmacro uninstallOldVersion SHELL_CONTEXT"',
+    );
   });
 
   it("keeps the user-selected data root instead of recalculating it during install", () => {
