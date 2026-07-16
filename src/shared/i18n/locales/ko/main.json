@@ -6,6 +6,13 @@
     "modelTestComplete": "Paddle OCR과 번역 엔진 확인 완료: {{output}}",
     "modelTestLabel": "모델/런타임 확인"
   },
+  "errorReport": {
+    "loadFailureTitle": "앱 화면을 불러오지 못했습니다",
+    "loadFailureMessage": "렌더러를 시작하지 못했습니다. GitHub에 문제를 보고하거나 로그를 확인해 주세요.",
+    "openIssues": "GitHub Issues 열기",
+    "openLogs": "로그 폴더 열기",
+    "exit": "종료"
+  },
   "dialogs": {
     "openImages": "이미지 열기",
     "openImageFolder": "이미지 폴더 열기",

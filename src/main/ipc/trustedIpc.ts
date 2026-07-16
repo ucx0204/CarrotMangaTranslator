@@ -5,6 +5,13 @@ import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 
 type TrustedIpcContext = Pick<IpcContext, "getMainWindow">;
+type RegisteredRendererIpcContext = Pick<
+  IpcContext,
+  | "errorReportWindows"
+  | "getMainWindow"
+  | "isErrorReportSender"
+  | "panelWindows"
+>;
 
 function trustedHandle(
   context: TrustedIpcContext,
@@ -35,6 +42,28 @@ export function trustedHandleContract<TArgs extends unknown[], TResult>(
   });
 }
 
+export function registeredRendererHandleContract<
+  TArgs extends unknown[],
+  TResult,
+>(
+  context: RegisteredRendererIpcContext,
+  contract: IpcContract<TArgs, TResult>,
+  listener: (
+    event: IpcMainInvokeEvent,
+    ...args: TArgs
+  ) => Promise<TResult> | TResult,
+): void {
+  ipcMain.handle(
+    contract.channel,
+    async (event: IpcMainInvokeEvent, ...args: unknown[]) => {
+      assertRegisteredRendererIpcSender(event, context);
+      const parsedArgs = contract.args.parse(args) as TArgs;
+      const result = await listener(event, ...parsedArgs);
+      return contract.result.parse(result) as TResult;
+    },
+  );
+}
+
 function assertTrustedIpcSender(
   event: IpcMainInvokeEvent,
   context: TrustedIpcContext,
@@ -57,4 +86,49 @@ function assertTrustedIpcSender(
   ) {
     throw new Error(tMain("ipc.errors.untrusted"));
   }
+}
+
+function assertRegisteredRendererIpcSender(
+  event: IpcMainInvokeEvent,
+  context: RegisteredRendererIpcContext,
+): void {
+  if (isDedicatedErrorReportSender(event.sender.id, context)) {
+    return;
+  }
+
+  const mainWindow = context.getMainWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    throw new Error(tMain("ipc.errors.untrusted"));
+  }
+  const senderFrameUrl = event.senderFrame?.url;
+  const rendererUrl = mainWindow.webContents.getURL();
+  if (
+    !isMainOrPanelSender(event.sender.id, mainWindow.webContents.id, context) ||
+    !senderFrameUrl ||
+    !rendererUrl ||
+    !isAllowedMainWindowNavigation(senderFrameUrl, rendererUrl)
+  ) {
+    throw new Error(tMain("ipc.errors.untrusted"));
+  }
+}
+
+function isDedicatedErrorReportSender(
+  webContentsId: number,
+  context: RegisteredRendererIpcContext,
+): boolean {
+  return Boolean(
+    context.isErrorReportSender?.(webContentsId) ||
+    context.errorReportWindows?.isTrustedSender(webContentsId),
+  );
+}
+
+function isMainOrPanelSender(
+  webContentsId: number,
+  mainWebContentsId: number,
+  context: RegisteredRendererIpcContext,
+): boolean {
+  return (
+    webContentsId === mainWebContentsId ||
+    context.panelWindows.isPanelSender(webContentsId)
+  );
 }

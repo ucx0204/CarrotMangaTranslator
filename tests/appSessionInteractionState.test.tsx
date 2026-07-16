@@ -32,7 +32,7 @@ describe("unified workspace interaction state", () => {
       },
       onJobStart: vi.fn(),
       onPageChange,
-      openLogFolder: vi.fn(),
+      openErrorReport: vi.fn(),
       refreshLibrary: vi.fn(),
       resetChapterScopedUi: vi.fn(),
       setRegionSelection: vi.fn(),
@@ -50,5 +50,49 @@ describe("unified workspace interaction state", () => {
     expect(onPageChange).not.toHaveBeenCalled();
     rerender({ pageId: "page-2" });
     expect(onPageChange).toHaveBeenCalledOnce();
+  });
+
+  it("opens one report for each failed job transition", () => {
+    const openErrorReport = vi.fn();
+    const base = {
+      currentChapter: null,
+      onJobStart: vi.fn(),
+      onPageChange: vi.fn(),
+      openErrorReport,
+      refreshLibrary: vi.fn(),
+      resetChapterScopedUi: vi.fn(),
+      selectedPageId: null,
+      setRegionSelection: vi.fn(),
+      translationFlowActive: false,
+    };
+    const { rerender } = renderHook(
+      ({ id, status }: { id: string; status: "running" | "failed" }) =>
+        useAppSessionLifecycleEffects({
+          ...base,
+          jobState: {
+            id,
+            kind: "gemma-analysis",
+            status,
+            progressText: status === "failed" ? "OCR failed" : "Running",
+            detail: status === "failed" ? "engine stopped" : undefined,
+          },
+        }),
+      { initialProps: { id: "job-1", status: "running" } },
+    );
+
+    rerender({ id: "job-1", status: "failed" });
+    expect(openErrorReport).toHaveBeenCalledTimes(1);
+    expect(openErrorReport).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        source: "job-failure",
+        message: "engine stopped",
+      }),
+    );
+
+    rerender({ id: "job-1", status: "failed" });
+    expect(openErrorReport).toHaveBeenCalledTimes(1);
+    rerender({ id: "job-2", status: "running" });
+    rerender({ id: "job-2", status: "failed" });
+    expect(openErrorReport).toHaveBeenCalledTimes(2);
   });
 });

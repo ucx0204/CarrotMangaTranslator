@@ -19,7 +19,7 @@
 Carrot Manga Translator is a manga production tool that finds dialogue and sound effects in images, creates translation blocks with AI, and lets you refine the wording and layout before exporting finished PNG files. The default translation direction is Japanese → Korean, but you can choose other source and target languages.
 
 - Latest Windows installer: [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- Current version information: [v1.5.0 release notes](docs/release-notes/v1.5.0.md)
+- Current version information: [v1.6.0 release notes](docs/release-notes/v1.6.0.md)
 - Code structure and contribution guidelines: [docs/architecture.md](docs/architecture.md)
 
 ## At a Glance
@@ -44,7 +44,7 @@ The installer is kept relatively small. Large models and runtimes are downloaded
 
 ## Quick Start
 
-1. Download and run the latest installer, such as `CarrotMangaTranslator-Setup-v1.5.0.exe`, from [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases).
+1. Download and run the latest installer, such as `CarrotMangaTranslator-Setup-v1.6.0.exe`, from [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases).
 2. Check the interface language under `Settings → General`. On first launch, the app automatically selects a supported Windows language. If the Windows language is not supported, the app uses Korean.
 3. Under `Settings → Translation Engine`, choose the source language, target language, and engine.
    - To process everything on your PC, choose `Gemma 4`.
@@ -262,7 +262,7 @@ data/
 - `library/` contains titles, chapters, pages, and block data.
 - `fonts/` contains TTF/OTF fonts that you add.
 - `hf-cache/`, `llama.cpp/`, `ocr-runtime/`, and `models/` contain downloaded models and runtimes.
-- The `app.log` file in `logs/` is used when reporting errors.
+- `logs/` contains `app.log` for the current run and `previous.log` for the preceding run. Raw logs may contain local paths or project-related content, so do not publish them as-is.
 - When uninstalling the app, you can separately choose whether to delete project data and model/OCR caches.
 
 Back up the data folder or export important projects as `*.mgtshare` packages.
@@ -299,16 +299,18 @@ Bundled fonts are included in both the preview and PNG output. If you deleted a 
 
 ## Reporting an Issue
 
-Include the following information when opening a [GitHub Issue](https://github.com/ucx0204/CarrotMangaTranslator/issues):
+The `Error Report` dialog opens when a translation or analysis task fails, or when the app encounters an unexpected error. To report a problem later, select `Report a Problem` from the `Ctrl+K` command palette.
 
-- App and Windows versions
-- GPU model and VRAM
-- Translation engine, model or preset, and source → target language
-- OCR quality and device, and the inpainting model and backend
-- Translation range and whether `Auto-create` or `Keep existing blocks` was used
-- A reproducible page and the `app.log` file from `Open Log Folder`
+Use the dialog to share a report through [GitHub Issues](https://github.com/ucx0204/CarrotMangaTranslator/issues):
 
-Logs may contain local paths with information such as your user name. Remove or hide sensitive details before posting them publicly.
+1. Describe what you were doing immediately before the error and review the generated Markdown preview.
+2. Exclude system information or sanitized error logs if you do not want to share them.
+3. Select `Create Issue on GitHub`. The app opens a prefilled issue in your system browser. If the report is too long for the URL, the diagnostic text is copied to the clipboard for you to paste into the issue body.
+4. Review the public issue again, then submit it yourself on GitHub.
+
+The app never uploads an error report or submits a GitHub issue automatically. The shared diagnostic text masks values that may be sensitive, including API keys, authorization headers, home-directory paths, and project text, but automatic detection cannot be guaranteed to catch everything. Always review the preview.
+
+The raw `app.log` and `previous.log` files are more detailed than the shared diagnostic text and are not sanitized. If maintainers need a raw log for further investigation, use `Open Log Folder` and attach only a copy from which you have manually removed paths, tokens, and project content.
 
 ## Development
 

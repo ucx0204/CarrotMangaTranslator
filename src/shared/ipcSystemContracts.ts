@@ -7,6 +7,23 @@ import {
 } from "./panelBridgeSchemas";
 import { defineIpcContract, localPathResult } from "./ipcContractCore";
 import type { DiscoverableApiProviderId } from "./apiProviderPresets";
+import {
+  CopyErrorReportBodySchema,
+  CopyErrorReportResultSchema,
+  ErrorReportContextSchema,
+  ErrorReportDraftSchema,
+  OpenErrorReportIssueRequestSchema,
+  OpenErrorReportIssueResultSchema,
+  RestartAppResultSchema,
+} from "./errorReportSchemas";
+import type {
+  CopyErrorReportResult,
+  ErrorReportContext,
+  ErrorReportDraft,
+  OpenErrorReportIssueRequest,
+  OpenErrorReportIssueResult,
+  RestartAppResult,
+} from "./errorReportTypes";
 
 const openedUrlResultSchema = z
   .object({
@@ -99,6 +116,38 @@ export const logsIpcContracts = {
     channel: "logs:write",
     args: writeLogArgsSchema,
     result: loggedResultSchema,
+  }),
+} as const;
+
+export const errorReportIpcContracts = {
+  prepareErrorReport: defineIpcContract<[ErrorReportContext], ErrorReportDraft>(
+    {
+      apiKey: "prepareErrorReport",
+      channel: "error-report:prepare",
+      args: z.tuple([ErrorReportContextSchema]),
+      result: ErrorReportDraftSchema,
+    },
+  ),
+  copyErrorReport: defineIpcContract<[string], CopyErrorReportResult>({
+    apiKey: "copyErrorReport",
+    channel: "error-report:copy",
+    args: z.tuple([CopyErrorReportBodySchema]),
+    result: CopyErrorReportResultSchema,
+  }),
+  openErrorReportIssue: defineIpcContract<
+    [OpenErrorReportIssueRequest],
+    OpenErrorReportIssueResult
+  >({
+    apiKey: "openErrorReportIssue",
+    channel: "error-report:open-issue",
+    args: z.tuple([OpenErrorReportIssueRequestSchema]),
+    result: OpenErrorReportIssueResultSchema,
+  }),
+  restartApp: defineIpcContract<[], RestartAppResult>({
+    apiKey: "restartApp",
+    channel: "error-report:restart-app",
+    args: z.tuple([]),
+    result: RestartAppResultSchema,
   }),
 } as const;
 

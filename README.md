@@ -19,7 +19,7 @@
 당근망가번역기는 이미지에서 대사와 효과음을 찾고, AI로 번역 블록을 만든 뒤, 사람이 문장과 배치를 다듬어 완성 PNG로 내보낼 수 있는 만화 작업 도구입니다. 기본 번역은 일본어 → 한국어이며, 다른 원문·번역 언어도 선택할 수 있습니다.
 
 - 최신 Windows 설치 파일: [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 현재 버전 안내: [v1.5.0 패치노트](docs/release-notes/v1.5.0.md)
+- 현재 버전 안내: [v1.6.0 패치노트](docs/release-notes/v1.6.0.md)
 - 코드 구조와 기여 규칙: [docs/architecture.md](docs/architecture.md)
 
 ## 한눈에 보기
@@ -44,7 +44,7 @@
 
 ## 빠른 시작
 
-1. [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)에서 `CarrotMangaTranslator-Setup-v1.5.0.exe` 같은 최신 설치 파일을 받아 설치합니다.
+1. [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)에서 `CarrotMangaTranslator-Setup-v1.6.0.exe` 같은 최신 설치 파일을 받아 설치합니다.
 2. `설정 → 일반`에서 앱 화면 언어를 확인합니다. 지원되는 Windows 언어는 처음 실행할 때 자동 선택되며, 그 밖의 환경은 한국어를 사용합니다.
 3. `설정 → 번역 엔진`에서 원문 언어, 번역 언어와 엔진을 고릅니다.
    - 내 PC에서 처리하려면 `Gemma 4`
@@ -262,7 +262,7 @@ data/
 - `library/`는 작품, 화, 페이지와 블록 데이터입니다.
 - `fonts/`는 직접 등록한 TTF/OTF입니다.
 - `hf-cache/`, `llama.cpp/`, `ocr-runtime/`, `models/`는 내려받은 모델과 런타임입니다.
-- `logs/`의 `app.log`는 오류를 제보할 때 사용합니다.
+- `logs/`에는 현재 실행의 `app.log`와 직전 실행의 `previous.log`가 있습니다. 원본 로그에는 로컬 경로나 작품 관련 내용이 들어갈 수 있으므로 그대로 공개하지 마세요.
 - 앱 제거 시 작품 데이터와 모델/OCR 캐시 삭제 여부를 별도로 선택할 수 있습니다.
 
 중요한 작품은 데이터 폴더를 백업하거나 `*.mgtshare`로 내보내세요.
@@ -299,16 +299,18 @@ Windows용 AMD HIP SDK와 `HIP_PATH`를 확인하고 앱을 다시 실행합니�
 
 ## 문제를 보고할 때
 
-아래 정보를 [GitHub Issues](https://github.com/ucx0204/CarrotMangaTranslator/issues)에 함께 적어 주세요.
+번역·분석 작업이 실패하거나 앱에서 예상하지 못한 오류가 발생하면 `오류 보고` 창이 열립니다. 오류가 사라진 뒤 다시 신고하려면 `Ctrl+K` 명령 팔레트에서 `문제 신고`를 선택하세요.
 
-- 앱과 Windows 버전
-- GPU 모델과 VRAM
-- 번역 엔진, 모델·프리셋과 원문 → 번역 언어
-- OCR 품질·장치, 인페인팅 모델·백엔드
-- 번역 범위와 `자동 생성`/`기존 블록 유지` 여부
-- 재현 가능한 페이지와 `로그 폴더 열기`의 `app.log`
+오류 보고 창에서는 다음 순서로 [GitHub Issues](https://github.com/ucx0204/CarrotMangaTranslator/issues)에 내용을 공유할 수 있습니다.
 
-로그에는 사용자 이름 같은 로컬 경로가 들어갈 수 있으므로 공개 전 민감한 부분을 가리세요.
+1. 오류 직전에 한 작업을 적고 자동 생성된 Markdown 미리보기를 확인합니다.
+2. 필요하면 시스템 정보 또는 정제된 오류 로그를 보고서에서 제외합니다.
+3. `GitHub에서 이슈 작성`을 누르면 시스템 브라우저에 새 이슈가 미리 채워집니다. 보고서가 길면 진단 정보가 클립보드에 복사되므로 GitHub 본문에 붙여 넣습니다.
+4. 공개하면 안 되는 내용이 없는지 다시 확인한 뒤 GitHub에서 직접 제출합니다.
+
+앱은 오류 보고서를 자동 업로드하거나 GitHub 이슈를 자동 제출하지 않습니다. 공유용 진단 정보에서는 API 키, 인증 헤더, 사용자 홈 경로와 작품 텍스트처럼 민감할 수 있는 값을 자동으로 가리지만 완벽한 탐지를 보장하지는 않습니다. 반드시 미리보기를 확인하세요.
+
+원본 `app.log`와 `previous.log`는 공유용 진단 정보보다 상세하며 자동 정제되지 않습니다. 추가 조사를 위해 원본 로그가 필요하다면 `로그 폴더 열기`로 확인하고, 경로·토큰·작품 내용을 직접 제거한 사본만 첨부하세요.
 
 ## 개발
 

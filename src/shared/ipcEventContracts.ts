@@ -11,8 +11,15 @@ import { SUPPORTED_UI_LOCALES, type UiLocale } from "./uiLocales";
 import { defineIpcEventContract } from "./ipcContractCore";
 import type { FontLibrarySnapshot } from "./libraryTypes";
 import { FontLibrarySnapshotSchema } from "./ipcContextSettingsContracts";
+import type { ErrorReportContext } from "./errorReportTypes";
+import { ErrorReportContextSchema } from "./errorReportSchemas";
 
 export const ipcEventContracts = {
+  errorIncident: defineIpcEventContract<ErrorReportContext>({
+    eventKey: "errorIncident",
+    channel: "error-report:incident",
+    payload: ErrorReportContextSchema,
+  }),
   fontLibraryChanged: defineIpcEventContract<FontLibrarySnapshot>({
     eventKey: "fontLibraryChanged",
     channel: "fonts:library-changed",

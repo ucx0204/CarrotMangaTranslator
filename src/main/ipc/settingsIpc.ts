@@ -15,13 +15,18 @@ import {
 } from "../settingsStore";
 import type { IpcContext } from "./context";
 import { handleModelSettingsTest } from "./settingsModelTestIpc";
-import { trustedHandleContract } from "./trustedIpc";
+import {
+  registeredRendererHandleContract,
+  trustedHandleContract,
+} from "./trustedIpc";
 import { getMainLocale, setMainLocale, tMain } from "./localization";
 import { discoverApiModels } from "../apiModelDiscovery";
 
 export function registerSettingsIpc(context: IpcContext): void {
-  trustedHandleContract(context, settingsIpcContracts.getUiLocale, async () =>
-    getMainLocale(),
+  registeredRendererHandleContract(
+    context,
+    settingsIpcContracts.getUiLocale,
+    async () => getMainLocale(),
   );
   trustedHandleContract(context, settingsIpcContracts.getSettings, async () =>
     getAppSettings(),

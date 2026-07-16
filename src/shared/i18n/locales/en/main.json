@@ -6,6 +6,13 @@
     "modelTestComplete": "Paddle OCR and translation engine check complete: {{output}}",
     "modelTestLabel": "Model/Runtime Check"
   },
+  "errorReport": {
+    "loadFailureTitle": "Could not load the app window",
+    "loadFailureMessage": "The renderer could not start. Report the problem on GitHub or inspect the logs.",
+    "openIssues": "Open GitHub Issues",
+    "openLogs": "Open log folder",
+    "exit": "Exit"
+  },
   "dialogs": {
     "openImages": "Open Images",
     "openImageFolder": "Open Image Folder",

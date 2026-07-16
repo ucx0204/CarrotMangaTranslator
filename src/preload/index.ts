@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { MangaApi } from "../shared/mangaApi";
 import {
+  errorReportIpcContracts,
   externalIpcContracts,
   fontIpcContracts,
   importShareIpcContracts,
@@ -17,6 +18,10 @@ import {
   workContextIpcContracts,
   type IpcEventContract,
 } from "../shared/ipcContracts";
+import type {
+  ErrorReportContext,
+  OpenErrorReportIssueRequest,
+} from "../shared/errorReportTypes";
 import type {
   PanelCommand,
   PanelId,
@@ -241,6 +246,13 @@ const api = {
     message: string,
     detail?: unknown,
   ) => invokeContract(logsIpcContracts.writeLog, level, message, detail),
+  prepareErrorReport: (context: ErrorReportContext) =>
+    invokeContract(errorReportIpcContracts.prepareErrorReport, context),
+  copyErrorReport: (body: string) =>
+    invokeContract(errorReportIpcContracts.copyErrorReport, body),
+  openErrorReportIssue: (request: OpenErrorReportIssueRequest) =>
+    invokeContract(errorReportIpcContracts.openErrorReportIssue, request),
+  restartApp: () => invokeContract(errorReportIpcContracts.restartApp),
   startAnalysis: (
     request: StartAnalysisRequest,
   ): Promise<StartAnalysisResult> =>
@@ -305,6 +317,8 @@ const api = {
     subscribeToIpcEvent(ipcEventContracts.panelCommand, callback),
   onPanelWindowsChanged: (callback: (openPanelIds: PanelId[]) => void) =>
     subscribeToIpcEvent(ipcEventContracts.panelWindowsChanged, callback),
+  onErrorIncident: (callback: (context: ErrorReportContext) => void) =>
+    subscribeToIpcEvent(ipcEventContracts.errorIncident, callback),
   onJobEvent: (callback: (event: JobEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
       const result = ipcEventContracts.jobEvent.payload.safeParse(payload);

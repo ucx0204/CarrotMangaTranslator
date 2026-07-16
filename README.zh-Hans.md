@@ -19,7 +19,7 @@
 胡萝卜漫画翻译器是一款漫画制作工具：它可以从图片中识别对白与拟声词，用 AI 生成翻译区块，再由用户调整文字和排版，最后导出为完整的 PNG。默认翻译方向为日语 → 韩语，也可以选择其他原文和译文语言。
 
 - 最新 Windows 安装包：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 当前版本说明：[v1.5.0 更新说明](docs/release-notes/v1.5.0.md)
+- 当前版本说明：[v1.6.0 更新说明](docs/release-notes/v1.6.0.md)
 - 代码结构与贡献规范：[docs/architecture.md](docs/architecture.md)
 
 ## 功能概览
@@ -44,7 +44,7 @@
 
 ## 快速开始
 
-1. 前往 [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)，下载并安装类似 `CarrotMangaTranslator-Setup-v1.5.0.exe` 的最新安装包。
+1. 前往 [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)，下载并安装类似 `CarrotMangaTranslator-Setup-v1.6.0.exe` 的最新安装包。
 2. 在 `设置 → 常规` 中确认应用界面语言。首次启动时会自动选择受支持的 Windows 语言，其他语言环境则默认使用韩语。
 3. 在 `设置 → 翻译引擎` 中选择原文语言、译文语言和翻译引擎。
    - 希望在本机处理时，选择 `Gemma 4`
@@ -262,7 +262,7 @@ data/
 - `library/` 存放作品、章节、页面和区块数据。
 - `fonts/` 存放用户自行添加的 TTF/OTF 字体。
 - `hf-cache/`、`llama.cpp/`、`ocr-runtime/` 和 `models/` 存放下载的模型与运行环境。
-- 报告错误时会用到 `logs/` 中的 `app.log`。
+- `logs/` 中包含本次运行的 `app.log` 和上一次运行的 `previous.log`。原始日志可能包含本地路径或作品相关内容，请勿直接公开。
 - 卸载应用时，可另行选择是否删除作品数据以及模型/OCR 缓存。
 
 请备份重要作品的数据文件夹，或将其导出为 `*.mgtshare`。
@@ -299,16 +299,18 @@ Windows ROCm 对支持的 GPU 与驱动程序组合较为敏感。即使只把 O
 
 ## 报告问题时
 
-请在 [GitHub Issues](https://github.com/ucx0204/CarrotMangaTranslator/issues) 中同时提供以下信息。
+翻译或分析任务失败，或者应用发生意外错误时，会打开`错误报告`窗口。若要稍后手动报告，请在 `Ctrl+K` 命令面板中选择`报告问题`。
 
-- 应用版本和 Windows 版本
-- GPU 型号和 VRAM
-- 翻译引擎、模型/预设，以及原文 → 译文语言
-- OCR 质量与设备、图像修复模型与后端
-- 翻译范围，以及是否使用 `自动生成`/`保留现有区块`
-- 可复现问题的页面，以及通过 `打开日志文件夹` 找到的 `app.log`
+可按以下步骤通过 [GitHub Issues](https://github.com/ucx0204/CarrotMangaTranslator/issues) 分享报告：
 
-日志中可能包含用户名等本地路径信息，公开前请遮盖敏感内容。
+1. 填写错误发生前进行的操作，并检查自动生成的 Markdown 预览。
+2. 如果不希望分享，可从报告中排除系统信息或已清理的错误日志。
+3. 选择`在 GitHub 中创建 Issue`后，系统浏览器会打开预填内容的新 Issue。如果报告过长而无法放入 URL，诊断信息会复制到剪贴板，请将其粘贴到 Issue 正文中。
+4. 再次确认没有不应公开的内容，然后由您在 GitHub 上提交。
+
+应用不会自动上传错误报告，也不会自动提交 GitHub Issue。共享用诊断信息会自动遮盖 API 密钥、认证标头、用户目录路径和作品文本等可能敏感的内容，但无法保证自动检测覆盖所有情况。请务必检查预览。
+
+原始 `app.log` 和 `previous.log` 比共享用诊断信息更详细，且未经过清理。如果进一步调查需要原始日志，请通过`打开日志文件夹`查找，并且只附上已手动删除路径、令牌和作品内容的副本。
 
 ## 开发
 

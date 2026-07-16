@@ -11,6 +11,10 @@ export type IpcContext = {
   jobs: ActiveJobStore;
   getMainWindow: () => BrowserWindow | null;
   panelWindows: PanelWindowRegistry;
+  errorReportWindows?: {
+    isTrustedSender: (webContentsId: number) => boolean;
+  };
+  isErrorReportSender?: (webContentsId: number) => boolean;
   loadSimplePageRuntime: () => SimplePageRuntime;
   decodeImage: ImageDecodeFallback;
   inpaintingRevisionStore?: InpaintingRevisionStore;

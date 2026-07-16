@@ -1,7 +1,9 @@
 import { nativeImage } from "electron";
 import { randomUUID } from "node:crypto";
-import { basename, dirname, extname, join } from "node:path";
+import { dirname, join } from "node:path";
 import type { ImageDecodeFallback } from "./inpaintingTypes";
+
+const INPAINTED_ARTIFACT_SUFFIX_MAX_LENGTH = 16;
 
 export async function loadPageImage(
   filePath: string,
@@ -29,11 +31,10 @@ export function resolveInpaintedImagePath(
 ): string {
   const imageDir = dirname(imagePath);
   const chapterDir = dirname(imageDir);
-  const name = basename(imagePath, extname(imagePath));
-  const safeSuffix = suffix.replace(/[^a-z0-9_-]/gi, "-");
-  return join(
-    chapterDir,
-    "inpainted",
-    `${name}-${safeSuffix}-${randomUUID()}.png`,
-  );
+  const safeSuffix =
+    suffix
+      .replace(/[^a-z0-9_-]/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, INPAINTED_ARTIFACT_SUFFIX_MAX_LENGTH) || "image";
+  return join(chapterDir, "inpainted", `${safeSuffix}-${randomUUID()}.png`);
 }

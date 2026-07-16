@@ -6,6 +6,13 @@
     "modelTestComplete": "Paddle OCRと翻訳エンジンの確認が完了しました：{{output}}",
     "modelTestLabel": "モデル／ランタイム確認"
   },
+  "errorReport": {
+    "loadFailureTitle": "アプリ画面を読み込めませんでした",
+    "loadFailureMessage": "レンダラーを起動できませんでした。GitHub で問題を報告するか、ログを確認してください。",
+    "openIssues": "GitHub Issues を開く",
+    "openLogs": "ログフォルダーを開く",
+    "exit": "終了"
+  },
   "dialogs": {
     "openImages": "画像を開く",
     "openImageFolder": "画像フォルダーを開く",

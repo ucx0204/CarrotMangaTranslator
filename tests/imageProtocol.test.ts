@@ -10,7 +10,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createLibraryImageUrlCodec,
@@ -120,6 +119,12 @@ describe("library image URL codec", () => {
     for (const index of [0, 999, 1_999]) {
       expect(codec.resolveUrl(firstRound[index])).toBe(virtual.paths[index]);
     }
+    expect(codec.resolveRequest(firstRound[0])).toEqual({
+      imagePath: virtual.paths[0],
+      size: "1",
+      mtimeNs: "10000",
+      contentType: "image/png",
+    });
   });
 
   it("invalidates a stale file version without affecting a replacement URL", () => {
@@ -241,28 +246,41 @@ describe("library image URL codec", () => {
 describe("image protocol integration", () => {
   afterEach(() => {
     vi.doUnmock("electron");
+    vi.doUnmock("node:fs/promises");
     vi.doUnmock("../src/main/library");
     vi.doUnmock("../src/main/customFonts");
     vi.doUnmock("../src/main/logger");
     vi.resetModules();
   });
 
-  it("serves signed images, returns 404 for invalid URLs, and preserves fonts", async () => {
+  it("streams signed long-path images and fonts without file URLs", async () => {
     const libraryRoot = mkdtempSync(join(tmpdir(), "mgt-image-handler-"));
-    const imagePath = join(libraryRoot, "page.png");
-    const fontPath = join(libraryRoot, "font.woff2");
+    const imagePath = join(
+      libraryRoot,
+      `long-${"a".repeat(110)}`,
+      `long-${"b".repeat(110)}`,
+      "page.png",
+    );
+    const fontPath = join(dirname(imagePath), "font.ttf");
+    mkdirSync(dirname(imagePath), { recursive: true });
     writeFileSync(imagePath, "image");
     writeFileSync(fontPath, "font");
-    const canonicalImagePath = realpathSync.native(imagePath);
+    expect(imagePath.length).toBeGreaterThan(260);
     const protocolHandle = vi.fn(
       (_scheme: string, _handler: TestProtocolHandler): void => undefined,
     );
     const registerSchemesAsPrivileged = vi.fn();
     const fetch = vi.fn(async () => new Response("served"));
+    const fsPromises = await import("node:fs/promises");
+    const openProtocolFile = vi.fn(fsPromises.open);
     const logError = vi.fn();
     vi.doMock("electron", () => ({
       net: { fetch },
       protocol: { handle: protocolHandle, registerSchemesAsPrivileged },
+    }));
+    vi.doMock("node:fs/promises", () => ({
+      ...fsPromises,
+      open: openProtocolFile,
     }));
     vi.doMock("../src/main/library", () => ({
       assertLibraryImagePath: (path: string) => path,
@@ -291,9 +309,26 @@ describe("image protocol integration", () => {
       const imageUrl = imageProtocol.createLibraryImageUrl(imagePath);
       const imageResponse = await imageHandler({ url: imageUrl });
       expect(imageResponse.status).toBe(200);
-      expect(fetch).toHaveBeenCalledWith(
-        pathToFileURL(canonicalImagePath).toString(),
-      );
+      expect(await imageResponse.text()).toBe("image");
+      expect(imageResponse.headers.get("Content-Type")).toBe("image/png");
+      expect(imageResponse.headers.get("Content-Length")).toBe("5");
+      expect(imageResponse.headers.get("Cache-Control")).toContain("immutable");
+      expect(fetch).not.toHaveBeenCalled();
+
+      for (const [fileName, contentType] of [
+        ["page.jpg", "image/jpeg"],
+        ["page.jpeg", "image/jpeg"],
+        ["page.webp", "image/webp"],
+      ] as const) {
+        const variantPath = join(dirname(imagePath), fileName);
+        writeFileSync(variantPath, fileName);
+        const variantResponse = await imageHandler({
+          url: imageProtocol.createLibraryImageUrl(variantPath),
+        });
+        expect(variantResponse.status).toBe(200);
+        expect(variantResponse.headers.get("Content-Type")).toBe(contentType);
+        expect(await variantResponse.text()).toBe(fileName);
+      }
 
       const tamperedUrl = new URL(imageUrl);
       tamperedUrl.searchParams.set("s", "999");
@@ -301,24 +336,52 @@ describe("image protocol integration", () => {
         url: tamperedUrl.toString(),
       });
       expect(missingResponse.status).toBe(404);
-      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(missingResponse.headers.get("Cache-Control")).toBe("no-store");
+      expect(fetch).not.toHaveBeenCalled();
 
       rmSync(imagePath);
       const deletedResponse = await imageHandler({ url: imageUrl });
       expect(deletedResponse.status).toBe(404);
-      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(deletedResponse.headers.get("Cache-Control")).toBe("no-store");
+      expect(fetch).not.toHaveBeenCalled();
 
       const fontResponse = await fontHandler({ url: "mgt-font://font-id" });
       expect(fontResponse.status).toBe(200);
-      expect(fetch).toHaveBeenLastCalledWith(
-        pathToFileURL(fontPath).toString(),
-      );
+      expect(fontResponse.headers.get("Content-Type")).toBe("font/ttf");
+      expect(await fontResponse.text()).toBe("font");
+      expect(fetch).not.toHaveBeenCalled();
 
       writeFileSync(imagePath, "replacement");
       const replacementUrl = imageProtocol.createLibraryImageUrl(imagePath);
-      fetch.mockRejectedValueOnce(new Error("fetch failed"));
+      openProtocolFile.mockRejectedValueOnce(fileError("ENOENT"));
+      const racedMissingResponse = await imageHandler({
+        url: replacementUrl,
+      });
+      expect(racedMissingResponse.status).toBe(404);
+      expect(racedMissingResponse.headers.get("Cache-Control")).toBe(
+        "no-store",
+      );
+      expect(logError).not.toHaveBeenCalled();
+
+      const closeMismatchedFile = vi.fn(async () => undefined);
+      openProtocolFile.mockResolvedValueOnce({
+        stat: vi.fn(async () => ({
+          isFile: () => true,
+          size: 999n,
+          mtimeNs: 999n,
+        })),
+        close: closeMismatchedFile,
+      } as never);
+      const mismatchedResponse = await imageHandler({ url: replacementUrl });
+      expect(mismatchedResponse.status).toBe(404);
+      expect(mismatchedResponse.headers.get("Cache-Control")).toBe("no-store");
+      expect(closeMismatchedFile).toHaveBeenCalledOnce();
+      expect(logError).not.toHaveBeenCalled();
+
+      openProtocolFile.mockRejectedValueOnce(new Error("open failed"));
       const errorResponse = await imageHandler({ url: replacementUrl });
       expect(errorResponse.status).toBe(500);
+      expect(errorResponse.headers.get("Cache-Control")).toBe("no-store");
       expect(logError).toHaveBeenCalledWith(
         "Failed to serve image protocol request",
         expect.objectContaining({ url: replacementUrl }),
@@ -329,6 +392,7 @@ describe("image protocol integration", () => {
           privileges: {
             standard: true,
             secure: true,
+            stream: true,
             supportFetchAPI: true,
           },
         },
@@ -337,6 +401,7 @@ describe("image protocol integration", () => {
           privileges: {
             standard: true,
             secure: true,
+            stream: true,
             supportFetchAPI: true,
           },
         },

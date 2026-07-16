@@ -7,19 +7,23 @@ import { logsIpcContracts } from "../../shared/ipcContracts";
 import { getLogPath, writeLog } from "../logger";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
-import { trustedHandleContract } from "./trustedIpc";
+import { registeredRendererHandleContract } from "./trustedIpc";
 
 export function registerLogsIpc(context: IpcContext): void {
-  trustedHandleContract(context, logsIpcContracts.getLogPath, () =>
+  registeredRendererHandleContract(context, logsIpcContracts.getLogPath, () =>
     getLogPath(),
   );
 
-  trustedHandleContract(context, logsIpcContracts.openLogFolder, async () => {
-    await shell.showItemInFolder(getLogPath());
-    return { opened: true, logPath: getLogPath() };
-  });
+  registeredRendererHandleContract(
+    context,
+    logsIpcContracts.openLogFolder,
+    async () => {
+      await shell.showItemInFolder(getLogPath());
+      return { opened: true, logPath: getLogPath() };
+    },
+  );
 
-  trustedHandleContract(
+  registeredRendererHandleContract(
     context,
     logsIpcContracts.writeLog,
     async (_event, level: unknown, message: unknown, detail?: unknown) => {

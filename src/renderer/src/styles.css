@@ -3925,7 +3925,27 @@ input[type="radio"] {
 
 .app-crash-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--sp-3);
+}
+
+@media (max-width: 480px) {
+  .app-crash {
+    padding: var(--sp-4);
+  }
+
+  .app-crash-card {
+    padding: var(--sp-5);
+  }
+
+  .app-crash-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-crash-actions > button {
+    width: 100%;
+  }
 }
 
 .empty-card h2 {

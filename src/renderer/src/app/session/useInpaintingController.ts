@@ -2,6 +2,7 @@ import { useAppSessionCommandController } from "./useAppSessionCommandController
 import { useAppSessionInpaintingController } from "./useAppSessionInpaintingController";
 import type { ChapterSessionController } from "./useChapterSessionController";
 import type { TranslationController } from "./useTranslationController";
+import { openErrorReport } from "../../lib/errorReportStore";
 
 export function useInpaintingController(
   chapter: ChapterSessionController,
@@ -35,6 +36,8 @@ export function useInpaintingController(
     openImportPreview: translation.importShareActions.openImportPreview,
     openLibraryFolder: chapter.bridgeActions.openLibraryFolder,
     openLogFolder: chapter.bridgeActions.openLogFolder,
+    openErrorReport: () =>
+      openErrorReport({ source: "manual" }, { force: true }),
     openSettings: chapter.settingsDialog.openSettings,
     openShareImportPreview:
       translation.importShareActions.openShareImportPreview,

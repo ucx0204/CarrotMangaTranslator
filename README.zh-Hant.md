@@ -19,7 +19,7 @@
 胡蘿蔔漫畫翻譯器是一款漫畫製作工具：它可以從圖片中找出對白與狀聲詞，透過 AI 產生翻譯區塊，再由使用者調整文字和排版，最後匯出為完整的 PNG。預設翻譯方向為日文 → 韓文，也可以選擇其他原文與譯文語言。
 
 - 最新 Windows 安裝檔：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 目前版本說明：[v1.5.0 更新說明](docs/release-notes/v1.5.0.md)
+- 目前版本說明：[v1.6.0 更新說明](docs/release-notes/v1.6.0.md)
 - 程式碼架構與貢獻規範：[docs/architecture.md](docs/architecture.md)
 
 ## 功能一覽
@@ -44,7 +44,7 @@
 
 ## 快速開始
 
-1. 前往 [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)，下載並安裝類似 `CarrotMangaTranslator-Setup-v1.5.0.exe` 的最新安裝檔。
+1. 前往 [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)，下載並安裝類似 `CarrotMangaTranslator-Setup-v1.6.0.exe` 的最新安裝檔。
 2. 在 `設定 → 一般` 中確認應用程式介面語言。第一次啟動時會自動選擇支援的 Windows 語言，其他語言環境則預設使用韓文。
 3. 在 `設定 → 翻譯引擎` 中選擇原文語言、譯文語言和翻譯引擎。
    - 想在自己的電腦上處理時，選擇 `Gemma 4`
@@ -262,7 +262,7 @@ data/
 - `library/` 儲存作品、章節、頁面和區塊資料。
 - `fonts/` 儲存使用者自行加入的 TTF/OTF 字型。
 - `hf-cache/`、`llama.cpp/`、`ocr-runtime/` 和 `models/` 儲存下載的模型與執行環境。
-- 回報錯誤時會用到 `logs/` 中的 `app.log`。
+- `logs/` 中包含本次執行的 `app.log` 和上一次執行的 `previous.log`。原始記錄檔可能包含本機路徑或作品相關內容，請勿直接公開。
 - 解除安裝應用程式時，可另外選擇是否刪除作品資料以及模型/OCR 快取。
 
 請備份重要作品的資料夾，或將作品匯出為 `*.mgtshare`。
@@ -299,16 +299,18 @@ Windows ROCm 對支援的 GPU 與驅動程式組合較為敏感。即使只把 O
 
 ## 回報問題時
 
-請在 [GitHub Issues](https://github.com/ucx0204/CarrotMangaTranslator/issues) 中一併提供以下資訊。
+翻譯或分析工作失敗，或應用程式發生非預期錯誤時，會開啟`錯誤回報`視窗。若要稍後手動回報，請在 `Ctrl+K` 命令面板中選擇`回報問題`。
 
-- 應用程式版本和 Windows 版本
-- GPU 型號和 VRAM
-- 翻譯引擎、模型/預設，以及原文 → 譯文語言
-- OCR 品質與裝置、圖片修補模型與後端
-- 翻譯範圍，以及是否使用 `自動產生`/`保留現有區塊`
-- 可重現問題的頁面，以及透過 `開啟記錄檔資料夾` 找到的 `app.log`
+可依照以下步驟透過 [GitHub Issues](https://github.com/ucx0204/CarrotMangaTranslator/issues) 分享回報：
 
-記錄檔中可能包含使用者名稱等本機路徑資訊，公開前請遮蔽敏感內容。
+1. 填寫錯誤發生前進行的操作，並檢查自動產生的 Markdown 預覽。
+2. 如果不想分享，可從回報中排除系統資訊或已清理的錯誤記錄。
+3. 選擇`在 GitHub 建立 Issue`後，系統瀏覽器會開啟已預先填入內容的新 Issue。如果回報過長而無法放入 URL，診斷資訊會複製到剪貼簿，請將其貼到 Issue 內文。
+4. 再次確認沒有不應公開的內容，然後由您在 GitHub 上送出。
+
+應用程式不會自動上傳錯誤回報，也不會自動送出 GitHub Issue。分享用診斷資訊會自動遮蔽 API 金鑰、驗證標頭、使用者目錄路徑和作品文字等可能敏感的內容，但無法保證自動偵測涵蓋所有情況。請務必檢查預覽。
+
+原始 `app.log` 和 `previous.log` 比分享用診斷資訊更詳細，而且未經清理。如果進一步調查需要原始記錄檔，請透過`開啟記錄檔資料夾`尋找，並且只附上已手動移除路徑、權杖和作品內容的副本。
 
 ## 開發
 

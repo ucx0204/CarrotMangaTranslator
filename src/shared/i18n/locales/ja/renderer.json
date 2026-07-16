@@ -81,7 +81,8 @@
       "completed": "処理が完了しました。",
       "failed": "処理に失敗しました。",
       "cancelled": "処理をキャンセルしました。",
-      "openLogs": "ログフォルダーを開く"
+      "openLogs": "ログフォルダーを開く",
+      "reportError": "エラーを報告"
     }
   },
   "commands": {
@@ -147,6 +148,10 @@
     "openLogs": {
       "label": "ログフォルダーを開く",
       "keywords": "log folder ログ フォルダー"
+    },
+    "reportProblem": {
+      "label": "問題を報告",
+      "keywords": "error report issue github エラー 問題 報告"
     },
     "shortcutHelp": {
       "label": "ショートカット一覧",

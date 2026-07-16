@@ -1,5 +1,6 @@
 import {
   appendFileSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -7,6 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname } from "node:path";
+import { join } from "node:path";
 import { inspect } from "node:util";
 import { getAppPaths } from "./appPaths";
 
@@ -64,9 +66,29 @@ export function writeLog(
 
 export function resetAppLog(): void {
   const logPath = getLogPath();
-  mkdirSync(dirname(logPath), { recursive: true });
-  writeFileSync(logPath, "", "utf8");
-  ensuredLogPath = null;
+  try {
+    mkdirSync(dirname(logPath), { recursive: true });
+    if (existsSync(logPath) && statSync(logPath).size > 0) {
+      try {
+        copyFileSync(logPath, getPreviousLogPath(logPath));
+      } catch (error) {
+        console.error(
+          "Failed to rotate app log; preserving current log",
+          error,
+        );
+        ensuredLogPath = null;
+        return;
+      }
+    }
+    writeFileSync(logPath, "", "utf8");
+    ensuredLogPath = null;
+  } catch (error) {
+    console.error("Failed to reset app log", error);
+  }
+}
+
+export function getPreviousLogPath(logPath = getLogPath()): string {
+  return join(dirname(logPath), "previous.log");
 }
 
 function writeConsole(level: LogLevel, line: string): void {

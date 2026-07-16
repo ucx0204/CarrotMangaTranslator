@@ -10,6 +10,7 @@ type UseAppSessionCommandControllerArgs = {
   openImportPreview: (mode: "zip-folder") => Promise<void>;
   openLibraryFolder: () => void;
   openLogFolder: () => void;
+  openErrorReport: () => void;
   openSettings: () => Promise<void> | void;
   openShareImportPreview: () => Promise<void>;
   runAnalysis: (runMode: "pending" | "all") => void;
@@ -28,6 +29,7 @@ export function useAppSessionCommandController({
   openImportPreview,
   openLibraryFolder,
   openLogFolder,
+  openErrorReport,
   openSettings,
   openShareImportPreview,
   runAnalysis,
@@ -45,6 +47,7 @@ export function useAppSessionCommandController({
     openImportPreview,
     openLibraryFolder,
     openLogFolder,
+    openErrorReport,
     openSettings,
     openShareExport: () => setShareExportOpen(true),
     openShareImportPreview,

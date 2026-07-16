@@ -4,6 +4,20 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { logError, writeLog } from "./logger";
 import { tMainCommon } from "./i18n";
+import type { ErrorReportContext } from "../shared/errorReportTypes";
+
+export const UNRESPONSIVE_REPORT_DELAY_MS = 5_000;
+
+export type RendererLoadFailure = {
+  errorCode: number;
+  errorDescription: string;
+  validatedURL: string;
+};
+
+export type MainWindowIncidentHandlers = {
+  onRendererIncident?: (context: ErrorReportContext) => void;
+  onRendererLoadFailure?: (failure: RendererLoadFailure) => void;
+};
 
 export type RendererLoadTarget = {
   devRendererUrl: string | null;
@@ -101,7 +115,9 @@ export function loadRendererIntoWindow(
   }
 }
 
-export function createMainWindow(): BrowserWindow {
+export function createMainWindow(
+  incidentHandlers: MainWindowIncidentHandlers = {},
+): BrowserWindow {
   const target = resolveRendererLoadTarget();
   const window = new BrowserWindow({
     width: 1600,
@@ -116,9 +132,77 @@ export function createMainWindow(): BrowserWindow {
   });
 
   applyRendererWindowGuards(window, target.allowedRendererUrl);
+  applyMainWindowIncidentHandlers(window, incidentHandlers);
   window.setMenuBarVisibility(false);
   loadRendererIntoWindow(window, target);
   return window;
+}
+
+function applyMainWindowIncidentHandlers(
+  window: BrowserWindow,
+  { onRendererIncident, onRendererLoadFailure }: MainWindowIncidentHandlers,
+): void {
+  let unresponsiveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  window.webContents.on("render-process-gone", (_event, details) => {
+    if (details.reason === "clean-exit") {
+      return;
+    }
+    const message = `Renderer process terminated: ${details.reason} (exit ${details.exitCode})`;
+    logError("Renderer process gone", details);
+    onRendererIncident?.({
+      source: "renderer-process",
+      summary: "Renderer process stopped unexpectedly",
+      message,
+    });
+  });
+
+  window.on("unresponsive", () => {
+    if (unresponsiveTimer) {
+      return;
+    }
+    writeLog("warn", "Renderer window became unresponsive");
+    unresponsiveTimer = setTimeout(() => {
+      unresponsiveTimer = null;
+      if (window.isDestroyed()) {
+        return;
+      }
+      onRendererIncident?.({
+        source: "renderer-process",
+        summary: "Renderer window is not responding",
+        message: `The renderer stayed unresponsive for at least ${UNRESPONSIVE_REPORT_DELAY_MS / 1000} seconds.`,
+      });
+    }, UNRESPONSIVE_REPORT_DELAY_MS);
+  });
+
+  window.on("responsive", () => {
+    if (unresponsiveTimer) {
+      clearTimeout(unresponsiveTimer);
+      unresponsiveTimer = null;
+    }
+    writeLog("info", "Renderer window became responsive");
+  });
+
+  window.on("closed", () => {
+    if (unresponsiveTimer) {
+      clearTimeout(unresponsiveTimer);
+      unresponsiveTimer = null;
+    }
+  });
+
+  window.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (isMainFrame === false || errorCode === -3) {
+        return;
+      }
+      onRendererLoadFailure?.({
+        errorCode,
+        errorDescription,
+        validatedURL,
+      });
+    },
+  );
 }
 
 function resolveWindowIconPath(): string | null {

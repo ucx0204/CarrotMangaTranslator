@@ -81,7 +81,8 @@
       "completed": "任务已完成。",
       "failed": "任务失败。",
       "cancelled": "任务已取消。",
-      "openLogs": "打开日志文件夹"
+      "openLogs": "打开日志文件夹",
+      "reportError": "报告错误"
     }
   },
   "commands": {
@@ -144,6 +145,10 @@
     "openLogs": {
       "label": "打开日志文件夹",
       "keywords": "log folder 日志 文件夹"
+    },
+    "reportProblem": {
+      "label": "报告问题",
+      "keywords": "error report issue github 错误 问题 报告"
     },
     "shortcutHelp": {
       "label": "快捷键帮助",

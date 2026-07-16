@@ -1,7 +1,8 @@
 import React from "react";
 import { Translation } from "react-i18next";
-import { mangaGateway } from "../api/mangaGateway";
+import { errorReportGateway } from "../lib/errorReportGateway";
 import { Button } from "./ui";
+import { ErrorReportDialog } from "./ErrorReportDialog";
 
 type ErrorBoundaryProps = {
   children: React.ReactNode;
@@ -9,20 +10,30 @@ type ErrorBoundaryProps = {
 
 type ErrorBoundaryState = {
   error: Error | null;
+  componentStack: string;
+  reportOpen: boolean;
 };
 
 export class ErrorBoundary extends React.Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
-  state: ErrorBoundaryState = { error: null };
+  state: ErrorBoundaryState = {
+    error: null,
+    componentStack: "",
+    reportOpen: false,
+  };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { error };
+    return { error, componentStack: "", reportOpen: true };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    void mangaGateway
+    this.setState({
+      componentStack: info.componentStack ?? "",
+      reportOpen: true,
+    });
+    void errorReportGateway
       .writeLog("error", "렌더러 화면 오류", {
         message: error.message,
         stack: error.stack ?? "",
@@ -33,18 +44,31 @@ export class ErrorBoundary extends React.Component<
       });
   }
 
-  private readonly handleReload = (): void => {
-    window.location.reload();
+  private readonly handleRestart = async (): Promise<void> => {
+    try {
+      await errorReportGateway.restartApp();
+    } catch (error) {
+      console.error(error);
+      window.location.reload();
+    }
   };
 
   private readonly handleOpenLogs = (): void => {
-    void mangaGateway.openLogFolder().catch((error) => {
+    void errorReportGateway.openLogFolder().catch((error) => {
       console.error(error);
     });
   };
 
+  private readonly handleOpenReport = (): void => {
+    this.setState({ reportOpen: true });
+  };
+
+  private readonly handleCloseReport = (): void => {
+    this.setState({ reportOpen: false });
+  };
+
   render(): React.ReactNode {
-    const { error } = this.state;
+    const { componentStack, error, reportOpen } = this.state;
     if (!error) {
       return this.props.children;
     }
@@ -59,14 +83,31 @@ export class ErrorBoundary extends React.Component<
                 <pre className="app-crash-detail">{error.message}</pre>
               ) : null}
               <div className="app-crash-actions">
-                <Button variant="primary" onClick={this.handleReload}>
+                <Button variant="primary" onClick={this.handleRestart}>
                   {t("errorBoundary.restart")}
+                </Button>
+                <Button onClick={this.handleOpenReport}>
+                  {t("errorBoundary.report")}
                 </Button>
                 <Button onClick={this.handleOpenLogs}>
                   {t("errorBoundary.openLogs")}
                 </Button>
               </div>
             </div>
+            {reportOpen ? (
+              <ErrorReportDialog
+                context={{
+                  source: "react-boundary",
+                  summary: error.message || t("errorBoundary.title"),
+                  message: error.message,
+                  stack: error.stack,
+                  componentStack,
+                }}
+                fatal
+                onClose={this.handleCloseReport}
+                onRestart={this.handleRestart}
+              />
+            ) : null}
           </div>
         )}
       </Translation>

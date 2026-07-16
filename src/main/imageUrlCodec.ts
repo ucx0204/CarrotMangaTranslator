@@ -4,10 +4,16 @@ import { extname, isAbsolute, relative, resolve, sep, win32 } from "node:path";
 
 const IMAGE_PROTOCOL_ORIGIN = "mgt-image://library";
 const IMAGE_URL_VERSION = "v1";
-const SUPPORTED_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+const SUPPORTED_IMAGE_CONTENT_TYPES = new Map([
+  [".png", "image/png"],
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".webp", "image/webp"],
+]);
 const EXPECTED_FILE_ERROR_CODES = new Set([
   "EACCES",
   "EINVAL",
+  "EISDIR",
   "ELOOP",
   "ENOENT",
   "ENOTDIR",
@@ -28,7 +34,15 @@ export type LibraryImageUrlFiles = {
 
 export type LibraryImageUrlCodec = {
   createUrl(imagePath: string): string;
+  resolveRequest(requestUrl: string): ResolvedLibraryImage | null;
   resolveUrl(requestUrl: string): string | null;
+};
+
+type ResolvedLibraryImage = {
+  imagePath: string;
+  size: string;
+  mtimeNs: string;
+  contentType: string;
 };
 
 type ImageMetadata = {
@@ -36,6 +50,7 @@ type ImageMetadata = {
   relativePath: string;
   size: string;
   mtimeNs: string;
+  contentType: string;
 };
 
 type ParsedImageUrl = {
@@ -66,6 +81,39 @@ export function createLibraryImageUrlCodec(options: {
   }
   const secret = Buffer.from(options.secret);
 
+  const resolveRequest = (requestUrl: string): ResolvedLibraryImage | null => {
+    const parsed = parseImageUrl(requestUrl, secret);
+    if (!parsed) {
+      return null;
+    }
+    try {
+      const metadata = readRelativeImageMetadata(
+        options.files,
+        parsed.relativePath,
+      );
+      if (
+        metadata.size !== parsed.size ||
+        metadata.mtimeNs !== parsed.mtimeNs
+      ) {
+        return null;
+      }
+      return {
+        imagePath: metadata.imagePath,
+        size: metadata.size,
+        mtimeNs: metadata.mtimeNs,
+        contentType: metadata.contentType,
+      };
+    } catch (error) {
+      if (
+        error instanceof InvalidLibraryImageError ||
+        isExpectedFileError(error)
+      ) {
+        return null;
+      }
+      throw error;
+    }
+  };
+
   return {
     createUrl(imagePath) {
       const metadata = readImageMetadata(options.files, imagePath);
@@ -78,34 +126,17 @@ export function createLibraryImageUrlCodec(options: {
       );
       return `${IMAGE_PROTOCOL_ORIGIN}/${IMAGE_URL_VERSION}/${payload}?s=${metadata.size}&m=${metadata.mtimeNs}&sig=${signature}`;
     },
+    resolveRequest,
     resolveUrl(requestUrl) {
-      const parsed = parseImageUrl(requestUrl, secret);
-      if (!parsed) {
-        return null;
-      }
-      try {
-        const metadata = readRelativeImageMetadata(
-          options.files,
-          parsed.relativePath,
-        );
-        if (
-          metadata.size !== parsed.size ||
-          metadata.mtimeNs !== parsed.mtimeNs
-        ) {
-          return null;
-        }
-        return metadata.imagePath;
-      } catch (error) {
-        if (
-          error instanceof InvalidLibraryImageError ||
-          isExpectedFileError(error)
-        ) {
-          return null;
-        }
-        throw error;
-      }
+      return resolveRequest(requestUrl)?.imagePath ?? null;
     },
   };
+}
+
+function resolveLibraryImageContentType(imagePath: string): string | null {
+  return (
+    SUPPORTED_IMAGE_CONTENT_TYPES.get(extname(imagePath).toLowerCase()) ?? null
+  );
 }
 
 function parseImageUrl(
@@ -197,9 +228,8 @@ function readCanonicalImageMetadata(
   if (!isPathStrictlyInside(libraryRoot, canonicalImagePath)) {
     throw new InvalidLibraryImageError("Image path escapes the library.");
   }
-  if (
-    !SUPPORTED_IMAGE_EXTENSIONS.has(extname(canonicalImagePath).toLowerCase())
-  ) {
+  const contentType = resolveLibraryImageContentType(canonicalImagePath);
+  if (!contentType) {
     throw new InvalidLibraryImageError("Unsupported image file.");
   }
   const stats = files.stat(canonicalImagePath);
@@ -213,6 +243,7 @@ function readCanonicalImageMetadata(
       .join("/"),
     size: stats.size.toString(),
     mtimeNs: stats.mtimeNs.toString(),
+    contentType,
   };
 }
 

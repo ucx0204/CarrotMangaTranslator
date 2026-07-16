@@ -70,6 +70,14 @@ import type {
   ApiModelDiscoveryResult,
   DiscoverableApiProviderId,
 } from "./apiProviderPresets";
+import type {
+  CopyErrorReportResult,
+  ErrorReportContext,
+  ErrorReportDraft,
+  OpenErrorReportIssueRequest,
+  OpenErrorReportIssueResult,
+  RestartAppResult,
+} from "./errorReportTypes";
 
 export type MangaApi = {
   previewImagesImport: () => Promise<ImportPreviewSession | null>;
@@ -157,6 +165,14 @@ export type MangaApi = {
     message: string,
     detail?: unknown,
   ) => Promise<unknown>;
+  prepareErrorReport: (
+    context: ErrorReportContext,
+  ) => Promise<ErrorReportDraft>;
+  copyErrorReport: (body: string) => Promise<CopyErrorReportResult>;
+  openErrorReportIssue: (
+    request: OpenErrorReportIssueRequest,
+  ) => Promise<OpenErrorReportIssueResult>;
+  restartApp: () => Promise<RestartAppResult>;
   startAnalysis: (
     request: StartAnalysisRequest,
   ) => Promise<StartAnalysisResult>;
@@ -206,5 +222,8 @@ export type MangaApi = {
   onPanelCommand: (callback: (command: PanelCommand) => void) => () => void;
   onPanelWindowsChanged: (
     callback: (openPanelIds: PanelId[]) => void,
+  ) => () => void;
+  onErrorIncident: (
+    callback: (context: ErrorReportContext) => void,
   ) => () => void;
 };

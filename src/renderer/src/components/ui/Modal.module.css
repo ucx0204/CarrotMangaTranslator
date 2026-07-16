@@ -38,6 +38,7 @@
 
 .header {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
@@ -62,6 +63,8 @@
 
 .body {
   display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
   align-content: start;
   gap: var(--sp-4);
   padding: var(--sp-6);
@@ -70,6 +73,7 @@
 
 .footer {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
   gap: var(--sp-3);

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join, win32 } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   LibraryChapter,
@@ -227,8 +227,65 @@ describe("InpaintingRevisionStore", () => {
     const first = resolveInpaintedImagePath(source, "pattern");
     const second = resolveInpaintedImagePath(source, "pattern");
     expect(first).not.toBe(second);
-    expect(first).toMatch(/001-page-a-pattern-[0-9a-f-]{36}\.png$/i);
-    expect(second).toMatch(/001-page-a-pattern-[0-9a-f-]{36}\.png$/i);
+    expect(first).toMatch(/[\\/]inpainted[\\/]pattern-[0-9a-f-]{36}\.png$/i);
+    expect(second).toMatch(/[\\/]inpainted[\\/]pattern-[0-9a-f-]{36}\.png$/i);
+    expect(basename(first).length).toBeLessThanOrEqual(57);
+  });
+
+  it("keeps generated artifact names bounded regardless of the source name", async () => {
+    const rootDir = await createTempLibrary();
+    await mockAppPaths(rootDir);
+    const { resolveInpaintedImagePath } =
+      await import("../src/main/inpainting/imageIO");
+    const source = join(
+      rootDir,
+      "works",
+      WORK_ID,
+      "chapters",
+      CHAPTER_A_ID,
+      "pages",
+      `${"source-name-".repeat(18)}.png`,
+    );
+
+    const output = resolveInpaintedImagePath(
+      source,
+      `suffix-${"x".repeat(100)}`,
+    );
+
+    expect(dirname(output)).toBe(
+      join(rootDir, "works", WORK_ID, "chapters", CHAPTER_A_ID, "inpainted"),
+    );
+    expect(basename(output).length).toBeLessThanOrEqual(57);
+    expect(basename(output)).not.toContain("source-name");
+  });
+
+  it("keeps the reported installed result path safely below MAX_PATH", async () => {
+    const rootDir = await createTempLibrary();
+    await mockAppPaths(rootDir);
+    const { resolveInpaintedImagePath } =
+      await import("../src/main/inpainting/imageIO");
+    const reportedLibraryRoot =
+      "C:\\Users\\USER\\AppData\\Local\\Programs\\carrot-manga-translator\\data\\library";
+    const reportedLegacyPath = win32.join(
+      reportedLibraryRoot,
+      "works",
+      "ac7d39e9-cdb8-459f-a6bb-3dea736b0567",
+      "chapters",
+      "11b7563c-d12f-4e29-bc10-74179c992472",
+      "inpainted",
+      "001-2019aaa2-d470-4a7a-8de0-249087e7948a-pattern-48b791ce-6855-426b-89f6-bcc664215890.png",
+    );
+    const output = resolveInpaintedImagePath(
+      join(rootDir, "pages", "source.png"),
+      "x".repeat(100),
+    );
+    const reportedNewPath = win32.join(
+      win32.dirname(reportedLegacyPath),
+      basename(output),
+    );
+
+    expect(reportedLegacyPath.length).toBe(262);
+    expect(reportedNewPath.length).toBeLessThan(252);
   });
 
   it("keeps a committed image revision when post-commit cleanup fails", async () => {

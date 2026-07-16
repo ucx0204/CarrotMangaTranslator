@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  errorReportIpcContracts,
   externalIpcContracts,
   fontIpcContracts,
   importShareIpcContracts,
@@ -20,6 +21,11 @@ import {
 } from "../src/shared/ipcContracts";
 
 const invokeContractGroups = [
+  {
+    sourceName: "errorReportIpcContracts",
+    contracts: errorReportIpcContracts,
+    mainFiles: ["src/main/ipc/errorReportIpc.ts"],
+  },
   {
     sourceName: "importShareIpcContracts",
     contracts: importShareIpcContracts,

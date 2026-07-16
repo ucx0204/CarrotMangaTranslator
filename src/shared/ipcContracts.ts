@@ -16,6 +16,7 @@ import {
   translationJobIpcContracts,
 } from "./ipcJobContracts";
 import {
+  errorReportIpcContracts,
   externalIpcContracts,
   logsIpcContracts,
   panelWindowIpcContracts,
@@ -24,6 +25,7 @@ import { ipcEventContracts } from "./ipcEventContracts";
 
 export type { IpcContract, IpcEventContract };
 export {
+  errorReportIpcContracts,
   externalIpcContracts,
   fontIpcContracts,
   importShareIpcContracts,
@@ -48,6 +50,7 @@ export const ipcInvokeContracts = {
   ...fontIpcContracts,
   ...settingsIpcContracts,
   ...externalIpcContracts,
+  ...errorReportIpcContracts,
   ...logsIpcContracts,
   ...translationJobIpcContracts,
   ...inpaintingIpcContracts,

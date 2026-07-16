@@ -16,6 +16,7 @@ type UseAppCommandsOptions = {
   openSettings: () => Promise<void> | void;
   openLibraryFolder: () => void;
   openLogFolder: () => void;
+  openErrorReport: () => void;
   openTranslationSource: () => void;
   openShareExport: () => void;
   openShortcutHelp: () => void;
@@ -34,6 +35,7 @@ export function useAppCommands({
   openSettings,
   openLibraryFolder,
   openLogFolder,
+  openErrorReport,
   openTranslationSource,
   openShareExport,
   openShortcutHelp,
@@ -54,6 +56,7 @@ export function useAppCommands({
         openSettings,
         openLibraryFolder,
         openLogFolder,
+        openErrorReport,
         openTranslationSource,
         openShareExport,
         openShortcutHelp,
@@ -72,6 +75,7 @@ export function useAppCommands({
       openSettings,
       openLibraryFolder,
       openLogFolder,
+      openErrorReport,
       openTranslationSource,
       openShareExport,
       openShortcutHelp,
@@ -190,6 +194,7 @@ function buildGlobalCommands({
   openSettings,
   openLibraryFolder,
   openLogFolder,
+  openErrorReport,
   openTranslationSource,
   openShareExport,
   openShortcutHelp,
@@ -238,6 +243,12 @@ function buildGlobalCommands({
       label: t("commands.openLogs.label"),
       keywords: t("commands.openLogs.keywords"),
       run: openLogFolder,
+    },
+    {
+      id: "report-problem",
+      label: t("commands.reportProblem.label"),
+      keywords: t("commands.reportProblem.keywords"),
+      run: openErrorReport,
     },
     {
       id: "show-shortcuts",

@@ -84,7 +84,8 @@
       "completed": "The job is complete.",
       "failed": "The job failed.",
       "cancelled": "The job was cancelled.",
-      "openLogs": "Open log folder"
+      "openLogs": "Open log folder",
+      "reportError": "Report error"
     }
   },
   "commands": {
@@ -148,6 +149,10 @@
       "keywords": "library folder"
     },
     "openLogs": { "label": "Open log folder", "keywords": "log folder" },
+    "reportProblem": {
+      "label": "Report a problem",
+      "keywords": "error report issue github problem"
+    },
     "shortcutHelp": {
       "label": "Keyboard shortcuts",
       "keywords": "shortcut keyboard help"

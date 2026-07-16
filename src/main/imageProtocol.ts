@@ -1,7 +1,11 @@
-import { net, protocol } from "electron";
-import { pathToFileURL } from "node:url";
+import { protocol } from "electron";
 import { randomBytes } from "node:crypto";
+import { extname } from "node:path";
 import { resolveCustomFontFilePath } from "./customFonts";
+import {
+  createProtocolFileResponse,
+  isProtocolFileUnavailableError,
+} from "./protocolFileResponse";
 import { assertLibraryImagePath, getLibraryRoot } from "./library";
 import {
   createLibraryImageUrlCodec,
@@ -23,6 +27,7 @@ export function registerImageProtocolScheme(): void {
       privileges: {
         standard: true,
         secure: true,
+        stream: true,
         supportFetchAPI: true,
       },
     },
@@ -31,6 +36,7 @@ export function registerImageProtocolScheme(): void {
       privileges: {
         standard: true,
         secure: true,
+        stream: true,
         supportFetchAPI: true,
       },
     },
@@ -40,35 +46,51 @@ export function registerImageProtocolScheme(): void {
 export function registerImageProtocolHandler(): void {
   protocol.handle(IMAGE_PROTOCOL, async (request) => {
     try {
-      const imagePath = imageUrlCodec.resolveUrl(request.url);
-      if (!imagePath) {
-        return new Response("Image not found", { status: 404 });
+      const image = imageUrlCodec.resolveRequest(request.url);
+      if (!image) {
+        return protocolErrorResponse("Image not found", 404);
       }
-      return await net.fetch(pathToFileURL(imagePath).toString());
+      return await createProtocolFileResponse(image.imagePath, {
+        contentType: image.contentType,
+        expectedVersion: {
+          size: image.size,
+          mtimeNs: image.mtimeNs,
+        },
+      });
     } catch (error) {
+      if (isProtocolFileUnavailableError(error)) {
+        return protocolErrorResponse("Image not found", 404);
+      }
       logError("Failed to serve image protocol request", {
         url: request.url,
         error,
       });
-      return new Response("Image protocol error", { status: 500 });
+      return protocolErrorResponse("Image protocol error", 500);
     }
   });
 
-  protocol.handle(FONT_PROTOCOL, (request) => {
+  protocol.handle(FONT_PROTOCOL, async (request) => {
     try {
       const url = new URL(request.url);
       const id = url.hostname || url.pathname.replace(/^\/+/, "");
       const fontPath = resolveCustomFontFilePath(id);
       if (!fontPath) {
-        return new Response("Font not found", { status: 404 });
+        return protocolErrorResponse("Font not found", 404);
       }
-      return net.fetch(pathToFileURL(fontPath).toString());
+      const contentType = resolveFontContentType(fontPath);
+      if (!contentType) {
+        return protocolErrorResponse("Font not found", 404);
+      }
+      return await createProtocolFileResponse(fontPath, { contentType });
     } catch (error) {
+      if (isProtocolFileUnavailableError(error)) {
+        return protocolErrorResponse("Font not found", 404);
+      }
       logError("Failed to serve font protocol request", {
         url: request.url,
         error,
       });
-      return new Response("Font protocol error", { status: 500 });
+      return protocolErrorResponse("Font protocol error", 500);
     }
   });
 }
@@ -76,4 +98,25 @@ export function registerImageProtocolHandler(): void {
 export function createLibraryImageUrl(imagePath: string): string {
   const resolvedImagePath = assertLibraryImagePath(imagePath);
   return imageUrlCodec.createUrl(resolvedImagePath);
+}
+
+function resolveFontContentType(fontPath: string): string | null {
+  switch (extname(fontPath).toLowerCase()) {
+    case ".ttf":
+      return "font/ttf";
+    case ".otf":
+      return "font/otf";
+    default:
+      return null;
+  }
+}
+
+function protocolErrorResponse(message: string, status: number): Response {
+  return new Response(message, {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": "text/plain; charset=utf-8",
+    },
+  });
 }

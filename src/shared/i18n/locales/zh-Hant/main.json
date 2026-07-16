@@ -6,6 +6,13 @@
     "modelTestComplete": "Paddle OCR 與翻譯引擎檢查完成：{{output}}",
     "modelTestLabel": "模型／執行環境檢查"
   },
+  "errorReport": {
+    "loadFailureTitle": "無法載入應用程式視窗",
+    "loadFailureMessage": "渲染器無法啟動。請在 GitHub 回報問題或檢查記錄。",
+    "openIssues": "開啟 GitHub Issues",
+    "openLogs": "開啟記錄資料夾",
+    "exit": "結束"
+  },
   "dialogs": {
     "openImages": "開啟圖片",
     "openImageFolder": "開啟圖片資料夾",

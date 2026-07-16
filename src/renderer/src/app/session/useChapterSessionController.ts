@@ -6,6 +6,10 @@ import { useLibraryActions } from "../../hooks/useLibraryActions";
 import { useLiveChapterSync } from "../../hooks/useLiveChapterSync";
 import { useStatusLog } from "../../hooks/useStatusLog";
 import { toast } from "../../lib/toastStore";
+import {
+  openErrorReport,
+  useErrorReportIncident,
+} from "../../lib/errorReportStore";
 import { resolveModalOpen } from "./appSessionSelectors";
 import { useAppSessionBridgeActions } from "./useAppSessionBridgeActions";
 import {
@@ -21,6 +25,7 @@ export function useChapterSessionController() {
   const core = useAppSessionCoreState();
   const statusLog = useStatusLog();
   const uiState = useAppSessionUiState();
+  const errorReportIncident = useErrorReportIncident();
   usePruneRemovedPageMasks(core.currentChapter, uiState);
   const modalController = useModalController({
     pushStatus: statusLog.pushStatus,
@@ -42,6 +47,7 @@ export function useChapterSessionController() {
     core,
     derivedState,
     modalController,
+    errorReportIncident,
     statusLog,
     uiState,
   });
@@ -84,6 +90,7 @@ type ChapterRuntimeArgs = Pick<
   "derivedState" | "statusLog" | "uiState"
 > & {
   core: AppSessionCoreState;
+  errorReportIncident: ReturnType<typeof useErrorReportIncident>;
   modalController: Pick<
     ChapterSessionController,
     "confirmController" | "importShareModal" | "settingsDialog"
@@ -93,6 +100,7 @@ type ChapterRuntimeArgs = Pick<
 function useChapterRuntimeController({
   core,
   derivedState,
+  errorReportIncident,
   modalController,
   statusLog,
   uiState,
@@ -115,9 +123,7 @@ function useChapterRuntimeController({
     currentChapter: core.currentChapter,
     currentChapterRef: core.currentChapterRef,
     dirty: persistence.dirty,
-    hasPendingInpaintingMask: Object.values(
-      uiState.patternMaskStrokesByPage,
-    ).some((strokes) => strokes.length > 0),
+    hasPendingInpaintingMask: hasPendingMasks(uiState.patternMaskStrokesByPage),
     library: core.library,
     pushStatus: statusLog.pushStatus,
     clearPendingInpaintingMasks: () => uiState.setPatternMaskStrokesByPage({}),
@@ -130,6 +136,7 @@ function useChapterRuntimeController({
     setSelectedPageId: core.setSelectedPageId,
   });
   const overlayModalsOpen = resolveOverlayModalsOpen({
+    errorReportIncident,
     libraryActions,
     modalController,
     uiState,
@@ -152,9 +159,7 @@ function useChapterRuntimeController({
     setSelectedBlockId: core.setSelectedBlockId,
     setSelectedPageId: core.setSelectedPageId,
   });
-
   useChapterRuntimeEffects({
-    bridgeActions,
     core,
     derivedState,
     libraryActions,
@@ -173,11 +178,19 @@ function useChapterRuntimeController({
   };
 }
 
+function hasPendingMasks(
+  masks: ReturnType<typeof useAppSessionUiState>["patternMaskStrokesByPage"],
+): boolean {
+  return Object.values(masks).some((strokes) => strokes.length > 0);
+}
+
 function resolveOverlayModalsOpen({
+  errorReportIncident,
   libraryActions,
   modalController,
   uiState,
 }: Pick<ChapterSessionController, "libraryActions" | "uiState"> & {
+  errorReportIncident: ReturnType<typeof useErrorReportIncident>;
   modalController: Pick<
     ChapterSessionController,
     "confirmController" | "importShareModal" | "settingsDialog"
@@ -199,6 +212,7 @@ function resolveOverlayModalsOpen({
       uiState.styleGuideOpen,
       uiState.translateOptionsOpen,
       uiState.retranslatePageId,
+      errorReportIncident,
     ],
     false,
     false,
@@ -206,7 +220,6 @@ function resolveOverlayModalsOpen({
 }
 
 function useChapterRuntimeEffects({
-  bridgeActions,
   core,
   derivedState,
   libraryActions,
@@ -215,7 +228,6 @@ function useChapterRuntimeEffects({
   uiState,
 }: Pick<
   ChapterSessionController,
-  | "bridgeActions"
   | "core"
   | "derivedState"
   | "libraryActions"
@@ -231,7 +243,7 @@ function useChapterRuntimeEffects({
       uiState.selectWorkspaceTool("select");
       uiState.setPeekOriginal(false);
     },
-    openLogFolder: bridgeActions.openLogFolder,
+    openErrorReport,
     refreshLibrary: libraryActions.refreshLibrary,
     resetChapterScopedUi: uiState.resetChapterScopedUi,
     selectedPageId: derivedState.selectedPage?.id ?? null,

@@ -1,4 +1,5 @@
-import { app, BrowserWindow, Menu } from "electron";
+import { app, BrowserWindow, dialog, Menu, shell } from "electron";
+import { dirname } from "node:path";
 import { ensureWritableAppDirectories } from "./appPaths";
 import { cleanupLegacyLogs } from "./appMaintenance";
 import {
@@ -17,7 +18,12 @@ import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
 import { getLogPath, logError, logInfo, logWarn, resetAppLog } from "./logger";
 import { createMainWindow } from "./mainWindow";
 import { PanelWindowRegistry } from "./panelWindows";
+import { ErrorReportWindowRegistry } from "./errorReportWindow";
 import { initializeMainLocaleFromSettings } from "./i18n";
+import { tMain } from "./i18n";
+import { ipcEventContracts } from "../shared/ipcContracts";
+import type { ErrorReportContext } from "../shared/errorReportTypes";
+import { APP_ISSUES_URL } from "../shared/appRelease";
 import {
   decodeImageThroughRuntime,
   loadSimplePageRuntime,
@@ -31,7 +37,9 @@ const panelWindows = new PanelWindowRegistry(
   () => mainWindow,
   appPaths.dataRoot,
 );
+const errorReportWindows = new ErrorReportWindowRegistry();
 let quitCleanupStarted = false;
+let rendererLoadFailureDialogOpen = false;
 
 registerImageProtocolScheme();
 resetAppLog();
@@ -52,48 +60,58 @@ logInfo("Application process starting", {
 
 process.on("uncaughtException", (error) => {
   logError("Uncaught exception", error);
+  safelyNotifyMainProcessIncident("Uncaught exception", error);
 });
 
 process.on("unhandledRejection", (reason) => {
   logError("Unhandled rejection", reason);
+  safelyNotifyMainProcessIncident("Unhandled promise rejection", reason);
 });
 
-app.whenReady().then(async () => {
-  process.env.MANGA_TRANSLATOR_UI_LOCALE ??= app.getLocale();
-  await initializeMainLocaleFromSettings(
-    appPaths.settingsPath,
-    process.env.MANGA_TRANSLATOR_UI_LOCALE,
-  );
-  registerImageProtocolHandler();
-  await cleanupLegacyLogs();
-  const cleanupResult = await cleanupLibraryOrphans();
-  if (
-    cleanupResult.missingWorkReferencesRemoved > 0 ||
-    cleanupResult.missingChapterReferencesRemoved > 0 ||
-    cleanupResult.workDirsRemoved > 0 ||
-    cleanupResult.chapterDirsRemoved > 0
-  ) {
-    logInfo("Library orphan cleanup finished", cleanupResult);
-  }
-  Menu.setApplicationMenu(null);
-  registerIpc({
-    appPaths,
-    jobs,
-    getMainWindow: () => mainWindow,
-    panelWindows,
-    loadSimplePageRuntime: () => loadSimplePageRuntime(appPaths.runtimeDir),
-    decodeImage: (filePath) =>
-      decodeImageThroughRuntime(appPaths.runtimeDir, filePath),
-    inpaintingRevisionStore,
-  });
-  openMainWindow();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      openMainWindow();
+void app
+  .whenReady()
+  .then(async () => {
+    process.env.MANGA_TRANSLATOR_UI_LOCALE ??= app.getLocale();
+    await initializeMainLocaleFromSettings(
+      appPaths.settingsPath,
+      process.env.MANGA_TRANSLATOR_UI_LOCALE,
+    );
+    registerImageProtocolHandler();
+    await cleanupLegacyLogs();
+    const cleanupResult = await cleanupLibraryOrphans();
+    if (
+      cleanupResult.missingWorkReferencesRemoved > 0 ||
+      cleanupResult.missingChapterReferencesRemoved > 0 ||
+      cleanupResult.workDirsRemoved > 0 ||
+      cleanupResult.chapterDirsRemoved > 0
+    ) {
+      logInfo("Library orphan cleanup finished", cleanupResult);
     }
+    Menu.setApplicationMenu(null);
+    registerIpc({
+      appPaths,
+      jobs,
+      getMainWindow: () => mainWindow,
+      panelWindows,
+      errorReportWindows,
+      loadSimplePageRuntime: () => loadSimplePageRuntime(appPaths.runtimeDir),
+      decodeImage: (filePath) =>
+        decodeImageThroughRuntime(appPaths.runtimeDir, filePath),
+      inpaintingRevisionStore,
+    });
+    openMainWindow();
+
+    app.on("activate", () => {
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        openMainWindow();
+      }
+    });
+  })
+  .catch((error) => {
+    logError("Application startup failed", error);
+    const normalized = normalizeIncidentReason(error);
+    void showStartupFailureDialog(normalized.stack ?? normalized.message);
   });
-});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -147,10 +165,141 @@ async function finishAppQuitCleanup(): Promise<void> {
 }
 
 function openMainWindow(): void {
-  mainWindow = createMainWindow();
+  mainWindow = createMainWindow({
+    onRendererIncident: (context) => {
+      if (!quitCleanupStarted) {
+        openIsolatedErrorReport(context);
+      }
+    },
+    onRendererLoadFailure: (failure) => {
+      if (!quitCleanupStarted) {
+        void showRendererLoadFailureDialog(failure);
+      }
+    },
+  });
   mainWindow.on("closed", () => {
     mainWindow = null;
     panelWindows.closeAll();
     void disposeCachedInpaintingEngines("main-window-closed");
   });
+}
+
+function notifyMainProcessIncident(summary: string, reason: unknown): void {
+  const normalized = normalizeIncidentReason(reason);
+  const context: ErrorReportContext = {
+    source: "main-process",
+    summary,
+    message: normalized.message,
+    ...(normalized.stack ? { stack: normalized.stack } : {}),
+  };
+  if (
+    mainWindow &&
+    !mainWindow.isDestroyed() &&
+    !mainWindow.webContents.isDestroyed()
+  ) {
+    try {
+      mainWindow.webContents.send(
+        ipcEventContracts.errorIncident.channel,
+        ipcEventContracts.errorIncident.payload.parse(context),
+      );
+      return;
+    } catch (error) {
+      logWarn("Failed to notify the main renderer about an error", error);
+    }
+  }
+  if (app.isReady()) {
+    openIsolatedErrorReport(context);
+  }
+}
+
+function safelyNotifyMainProcessIncident(
+  summary: string,
+  reason: unknown,
+): void {
+  try {
+    notifyMainProcessIncident(summary, reason);
+  } catch (error) {
+    console.error("Failed to prepare main process error report", error);
+  }
+}
+
+function openIsolatedErrorReport(context: ErrorReportContext): void {
+  try {
+    errorReportWindows.open(context);
+  } catch (error) {
+    logError("Failed to open the isolated error report window", error);
+    const normalized = normalizeIncidentReason(error);
+    void showStartupFailureDialog(normalized.stack ?? normalized.message);
+  }
+}
+
+function normalizeIncidentReason(reason: unknown): {
+  message: string;
+  stack?: string;
+} {
+  if (reason instanceof Error) {
+    return {
+      message: reason.message || reason.name,
+      ...(reason.stack ? { stack: reason.stack } : {}),
+    };
+  }
+  if (typeof reason === "string") {
+    return { message: reason };
+  }
+  try {
+    return { message: JSON.stringify(reason) };
+  } catch (_error) {
+    return { message: String(reason) };
+  }
+}
+
+async function showRendererLoadFailureDialog({
+  errorCode,
+  errorDescription,
+  validatedURL,
+}: {
+  errorCode: number;
+  errorDescription: string;
+  validatedURL: string;
+}): Promise<void> {
+  if (rendererLoadFailureDialogOpen) {
+    return;
+  }
+  return showStartupFailureDialog(
+    `${errorDescription} (${errorCode})\n${validatedURL}`,
+  );
+}
+
+async function showStartupFailureDialog(detail: string): Promise<void> {
+  if (rendererLoadFailureDialogOpen) {
+    return;
+  }
+  rendererLoadFailureDialogOpen = true;
+  try {
+    const result = await dialog.showMessageBox({
+      type: "error",
+      title: tMain("errorReport.loadFailureTitle"),
+      message: tMain("errorReport.loadFailureMessage"),
+      detail,
+      buttons: [
+        tMain("errorReport.openIssues"),
+        tMain("errorReport.openLogs"),
+        tMain("errorReport.exit"),
+      ],
+      defaultId: 0,
+      cancelId: 2,
+      noLink: true,
+    });
+    if (result.response === 0) {
+      await shell.openExternal(APP_ISSUES_URL);
+    } else if (result.response === 1) {
+      await shell.openPath(dirname(getLogPath()));
+    } else {
+      app.quit();
+    }
+  } catch (error) {
+    logError("Failed to show renderer load failure dialog", error);
+  } finally {
+    rendererLoadFailureDialogOpen = false;
+  }
 }

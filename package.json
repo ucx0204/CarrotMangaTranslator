@@ -1,6 +1,6 @@
 {
   "name": "carrot-manga-translator",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Windows desktop manga translation, editing, and inpainting tool powered by Gemma 4 and OpenAI Codex.",
   "license": "GPL-3.0-only",
   "type": "commonjs",
@@ -29,12 +29,13 @@
     "deadcode": "knip --files --dependencies --no-config-hints",
     "deadcode:exports": "knip --config knip.exports.json --exports --no-config-hints",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run typecheck:js && npm run typecheck:js-strict-budget && npm run format:check && npm run lint && npm run lint:budget && npm run lint:error-handling && npm run arch:deps && npm run arch:budget && npm run check:generated && npm run deadcode && npm run deadcode:exports && npm test && npm run build && npm run check:renderer-bundle && npm run check:preload-bundle",
+    "check": "npm run typecheck && npm run typecheck:js && npm run typecheck:js-strict-budget && npm run format:check && npm run lint && npm run lint:budget && npm run lint:error-handling && npm run arch:deps && npm run arch:budget && npm run check:generated && npm run deadcode && npm run deadcode:exports && npm test && npm run build && node scripts/run-image-protocol-smoke.cjs && npm run check:renderer-bundle && npm run check:preload-bundle",
     "prepack": "npm run check:generated",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "npm run build && node scripts/preview.cjs",
     "smoke:overlay": "npm run build && node scripts/run-smoke-overlay.cjs",
+    "smoke:image-protocol": "npm run build && node scripts/run-image-protocol-smoke.cjs",
     "qa:ui": "node scripts/ui-qa.mjs",
     "perf:gemma-economy": "npm run build && node scripts/run-gemma-economy-benchmark.cjs"
   },

@@ -1,4 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 vi.mock("electron", () => ({
   app: {
@@ -6,7 +15,20 @@ vi.mock("electron", () => ({
   },
 }));
 
-import { serializeLogDetail } from "../src/main/logger";
+import {
+  getPreviousLogPath,
+  resetAppLog,
+  serializeLogDetail,
+} from "../src/main/logger";
+
+const tempDirs: string[] = [];
+
+afterEach(() => {
+  delete process.env.MANGA_TRANSLATOR_LOG_PATH;
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 describe("logger serialization", () => {
   it("preserves nested error metadata for AI-friendly diagnostics", () => {
@@ -49,5 +71,31 @@ describe("logger serialization", () => {
 
     expect(serialized.self).toBe("[Circular]");
     expect(serialized.nested.parent).toBe("[Circular]");
+  });
+
+  it("rotates the current app log before starting a new session", () => {
+    const dir = mkdtempSync(join(tmpdir(), "manga-logger-"));
+    tempDirs.push(dir);
+    const logPath = join(dir, "logs", "app.log");
+    mkdirSync(join(dir, "logs"), { recursive: true });
+    writeFileSync(logPath, "previous crash details\n", "utf8");
+    process.env.MANGA_TRANSLATOR_LOG_PATH = logPath;
+
+    resetAppLog();
+
+    expect(readFileSync(getPreviousLogPath(logPath), "utf8")).toBe(
+      "previous crash details\n",
+    );
+    expect(readFileSync(logPath, "utf8")).toBe("");
+  });
+
+  it("does not throw when the log location cannot be created", () => {
+    const dir = mkdtempSync(join(tmpdir(), "manga-logger-failure-"));
+    tempDirs.push(dir);
+    const blockedParent = join(dir, "not-a-directory");
+    writeFileSync(blockedParent, "file", "utf8");
+    process.env.MANGA_TRANSLATOR_LOG_PATH = join(blockedParent, "app.log");
+
+    expect(() => resetAppLog()).not.toThrow();
   });
 });

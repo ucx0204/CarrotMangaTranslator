@@ -81,7 +81,8 @@
       "completed": "工作已完成。",
       "failed": "工作失敗。",
       "cancelled": "工作已取消。",
-      "openLogs": "開啟記錄資料夾"
+      "openLogs": "開啟記錄資料夾",
+      "reportError": "回報錯誤"
     }
   },
   "commands": {
@@ -144,6 +145,10 @@
     "openLogs": {
       "label": "開啟記錄資料夾",
       "keywords": "log folder 記錄 資料夾"
+    },
+    "reportProblem": {
+      "label": "回報問題",
+      "keywords": "error report issue github 錯誤 問題 回報"
     },
     "shortcutHelp": {
       "label": "快速鍵說明",
