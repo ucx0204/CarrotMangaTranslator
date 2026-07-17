@@ -26,6 +26,7 @@ const { downloadHfFileWithProgress, resolveDownloadRetryDelayMs } =
   };
 
 const tempDirs: string[] = [];
+const DOWNLOAD_IO_TEST_TIMEOUT_MS = 30_000;
 const previousRetryCount = process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRY_COUNT;
 const previousConcurrency = process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY;
 const previousChunkSizeMb = process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB;
@@ -203,84 +204,98 @@ describe("Hugging Face download fallback", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("downloads independent ranges concurrently and writes them in place", async () => {
-    process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY = "3";
-    process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB = "1";
-    const chunkSize = 1024 * 1024;
-    const body = Buffer.alloc(chunkSize * 5);
-    for (let index = 0; index < 5; index += 1) {
-      body.fill(index + 1, index * chunkSize, (index + 1) * chunkSize);
-    }
-    const task = await createTask("parallel-ranges.bin");
-    let activeRequests = 0;
-    let maxActiveRequests = 0;
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      const range = parseRangeHeader(getRangeHeader(init));
-      if (range.start > 0) {
-        expect(new Headers(init?.headers).get("if-range")).toBe('"revision-a"');
+  it(
+    "downloads independent ranges concurrently and writes them in place",
+    async () => {
+      process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY = "3";
+      process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB = "1";
+      const chunkSize = 1024 * 1024;
+      const body = Buffer.alloc(chunkSize * 5);
+      for (let index = 0; index < 5; index += 1) {
+        body.fill(index + 1, index * chunkSize, (index + 1) * chunkSize);
       }
-      activeRequests += 1;
-      maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
-      await new Promise((resolve) =>
-        setTimeout(resolve, range.start === 0 ? 1 : 20),
-      );
-      activeRequests -= 1;
-      return new Response(body.subarray(range.start, range.end + 1), {
-        status: 206,
-        headers: {
-          "content-range": `bytes ${range.start}-${range.end}/${body.length}`,
-          etag: '"revision-a"',
-        },
-      });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await downloadHfFileWithProgress(task, {}, { totalBytes: body.length });
-
-    expect(await readFile(task.destination)).toEqual(body);
-    expect(fetchMock).toHaveBeenCalledTimes(5);
-    expect(maxActiveRequests).toBe(3);
-  });
-
-  it("restarts as a stream when the range validator changes", async () => {
-    process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY = "1";
-    process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB = "1";
-    const chunkSize = 1024 * 1024;
-    const original = Buffer.alloc(chunkSize * 2, 1);
-    const replacement = Buffer.alloc(chunkSize * 2, 2);
-    const task = await createTask("range-revision-change.bin");
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      const rangeHeader = getRangeHeader(init);
-      if (!rangeHeader) {
-        return new Response(replacement, {
-          status: 200,
-          headers: { "content-length": String(replacement.length) },
-        });
-      }
-      const range = parseRangeHeader(rangeHeader);
-      if (range.start === 0) {
-        return new Response(original.subarray(0, chunkSize), {
+      const task = await createTask("parallel-ranges.bin");
+      let activeRequests = 0;
+      let maxActiveRequests = 0;
+      const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+        const range = parseRangeHeader(getRangeHeader(init));
+        if (range.start > 0) {
+          expect(new Headers(init?.headers).get("if-range")).toBe(
+            '"revision-a"',
+          );
+        }
+        activeRequests += 1;
+        maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+        await new Promise((resolve) =>
+          setTimeout(resolve, range.start === 0 ? 1 : 20),
+        );
+        activeRequests -= 1;
+        return new Response(body.subarray(range.start, range.end + 1), {
           status: 206,
           headers: {
-            "content-range": `bytes 0-${chunkSize - 1}/${original.length}`,
+            "content-range": `bytes ${range.start}-${range.end}/${body.length}`,
             etag: '"revision-a"',
           },
         });
-      }
-      expect(new Headers(init?.headers).get("if-range")).toBe('"revision-a"');
-      return new Response(replacement, {
-        status: 200,
-        headers: { etag: '"revision-b"' },
       });
-    });
-    vi.stubGlobal("fetch", fetchMock);
+      vi.stubGlobal("fetch", fetchMock);
 
-    await downloadHfFileWithProgress(task, {}, { totalBytes: original.length });
+      await downloadHfFileWithProgress(task, {}, { totalBytes: body.length });
 
-    expect(await readFile(task.destination)).toEqual(replacement);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(getRangeHeader(fetchMock.mock.calls[2]?.[1])).toBeUndefined();
-  });
+      expect(await readFile(task.destination)).toEqual(body);
+      expect(fetchMock).toHaveBeenCalledTimes(5);
+      expect(maxActiveRequests).toBe(3);
+    },
+    DOWNLOAD_IO_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    "restarts as a stream when the range validator changes",
+    async () => {
+      process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY = "1";
+      process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB = "1";
+      const chunkSize = 1024 * 1024;
+      const original = Buffer.alloc(chunkSize * 2, 1);
+      const replacement = Buffer.alloc(chunkSize * 2, 2);
+      const task = await createTask("range-revision-change.bin");
+      const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+        const rangeHeader = getRangeHeader(init);
+        if (!rangeHeader) {
+          return new Response(replacement, {
+            status: 200,
+            headers: { "content-length": String(replacement.length) },
+          });
+        }
+        const range = parseRangeHeader(rangeHeader);
+        if (range.start === 0) {
+          return new Response(original.subarray(0, chunkSize), {
+            status: 206,
+            headers: {
+              "content-range": `bytes 0-${chunkSize - 1}/${original.length}`,
+              etag: '"revision-a"',
+            },
+          });
+        }
+        expect(new Headers(init?.headers).get("if-range")).toBe('"revision-a"');
+        return new Response(replacement, {
+          status: 200,
+          headers: { etag: '"revision-b"' },
+        });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      await downloadHfFileWithProgress(
+        task,
+        {},
+        { totalBytes: original.length },
+      );
+
+      expect(await readFile(task.destination)).toEqual(replacement);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(getRangeHeader(fetchMock.mock.calls[2]?.[1])).toBeUndefined();
+    },
+    DOWNLOAD_IO_TEST_TIMEOUT_MS,
+  );
 
   it("falls back to a stream when a server returns the wrong content range", async () => {
     const body = "fallback-body";
@@ -424,39 +439,43 @@ describe("Hugging Face download fallback", () => {
     expect(await readFile(task.destination, "utf8")).toBe("complete");
   });
 
-  it("shares the global request budget across different files", async () => {
-    process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY = "2";
-    process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB = "1";
-    const chunkSize = 1024 * 1024;
-    const body = Buffer.alloc(chunkSize * 3, 7);
-    const firstTask = await createTask("global-budget-a.bin");
-    const secondTask = await createTask("global-budget-b.bin");
-    let activeRequests = 0;
-    let maxActiveRequests = 0;
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      const range = parseRangeHeader(getRangeHeader(init));
-      activeRequests += 1;
-      maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      activeRequests -= 1;
-      return new Response(body.subarray(range.start, range.end + 1), {
-        status: 206,
-        headers: {
-          "content-range": `bytes ${range.start}-${range.end}/${body.length}`,
-        },
+  it(
+    "shares the global request budget across different files",
+    async () => {
+      process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY = "2";
+      process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB = "1";
+      const chunkSize = 1024 * 1024;
+      const body = Buffer.alloc(chunkSize * 3, 7);
+      const firstTask = await createTask("global-budget-a.bin");
+      const secondTask = await createTask("global-budget-b.bin");
+      let activeRequests = 0;
+      let maxActiveRequests = 0;
+      const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+        const range = parseRangeHeader(getRangeHeader(init));
+        activeRequests += 1;
+        maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        activeRequests -= 1;
+        return new Response(body.subarray(range.start, range.end + 1), {
+          status: 206,
+          headers: {
+            "content-range": `bytes ${range.start}-${range.end}/${body.length}`,
+          },
+        });
       });
-    });
-    vi.stubGlobal("fetch", fetchMock);
+      vi.stubGlobal("fetch", fetchMock);
 
-    await Promise.all([
-      downloadHfFileWithProgress(firstTask, {}, { totalBytes: body.length }),
-      downloadHfFileWithProgress(secondTask, {}, { totalBytes: body.length }),
-    ]);
+      await Promise.all([
+        downloadHfFileWithProgress(firstTask, {}, { totalBytes: body.length }),
+        downloadHfFileWithProgress(secondTask, {}, { totalBytes: body.length }),
+      ]);
 
-    expect(maxActiveRequests).toBe(2);
-    expect(await readFile(firstTask.destination)).toEqual(body);
-    expect(await readFile(secondTask.destination)).toEqual(body);
-  }, 30_000);
+      expect(maxActiveRequests).toBe(2);
+      expect(await readFile(firstTask.destination)).toEqual(body);
+      expect(await readFile(secondTask.destination)).toEqual(body);
+    },
+    DOWNLOAD_IO_TEST_TIMEOUT_MS,
+  );
 
   it("removes a partial stream after an abort failure", async () => {
     const task = await createTask("stream-abort.bin");
