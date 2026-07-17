@@ -336,6 +336,13 @@ npm run dist:win
 
 프로세스 경계, SSOT, 오류 처리와 테스트 규칙은 [코드 경계와 품질 규칙](docs/architecture.md)을 참고하세요.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+
+- [코드 서명 정책 전문](CODE_SIGNING_POLICY.md)
+- [개인정보 처리 안내](docs/privacy-policy.md)
+
 ## 데모 이미지 출처
 
 README의 네 화면에 보이는 만화는 [IDPF EPUB 3 Samples Project](https://github.com/idpf/epub3-samples)의 [`Haruko`](https://github.com/idpf/epub3-samples/tree/main/30/haruko-jpeg) 샘플을 바탕으로 합니다. 원본은 [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)이며, 화면에는 당근망가번역기의 한국어 번역 블록과 작업 상태가 추가되었습니다. 이 데모 이미지에는 앱 소스코드와 별도로 CC BY-SA 3.0 조건이 적용됩니다.

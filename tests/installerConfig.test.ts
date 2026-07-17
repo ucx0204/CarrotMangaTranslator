@@ -102,7 +102,7 @@ describe("Windows installer clean uninstall option", () => {
     }
   });
 
-  it("refuses mismatched release metadata and publishes the authored notes", () => {
+  it("refuses mismatched release metadata and publishes notes with the policy link", () => {
     const releaseWorkflow = readFileSync(
       join(repoRoot, ".github", "workflows", "release.yml"),
       "utf8",
@@ -126,6 +126,7 @@ describe("Windows installer clean uninstall option", () => {
     expect(releaseWorkflow).toContain("if ($existingTags -contains $tag)");
     expect(releaseWorkflow).toContain("not ${{ github.sha }}");
     expect(releaseWorkflow).toContain("body = $releaseNotes");
+    expect(releaseWorkflow).toContain("[Code signing policy]($policyUrl)");
     expect(releaseWorkflow).toContain(
       "Expected exactly one Windows installer matching",
     );

@@ -336,6 +336,13 @@ npm run dist:win
 
 For process boundaries, the SSOT, error handling, and testing rules, see [Code Boundaries and Quality Rules](docs/architecture.md).
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+
+- [Full code signing policy](CODE_SIGNING_POLICY.md)
+- [Privacy policy](docs/privacy-policy.md)
+
 ## Demo Image Sources
 
 The manga shown in the README's four screenshots is based on the [`Haruko`](https://github.com/idpf/epub3-samples/tree/main/30/haruko-jpeg) sample from the [IDPF EPUB 3 Samples Project](https://github.com/idpf/epub3-samples). The original is licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Carrot Manga Translator's Korean translation blocks and work status were added to the screenshots. These demo images are covered by CC BY-SA 3.0 separately from the app's source code.

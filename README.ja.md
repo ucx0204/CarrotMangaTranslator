@@ -336,6 +336,13 @@ npm run dist:win
 
 プロセス境界、SSOT、エラー処理、テストの規則については、[コード境界と品質規則](docs/architecture.md)を参照してください。
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+
+- [コード署名ポリシー全文](CODE_SIGNING_POLICY.md)
+- [プライバシーポリシー](docs/privacy-policy.md)
+
 ## デモ画像の出典
 
 READMEの4つの画面に表示されているマンガは、[IDPF EPUB 3 Samples Project](https://github.com/idpf/epub3-samples)の[`Haruko`](https://github.com/idpf/epub3-samples/tree/main/30/haruko-jpeg)サンプルをもとにしています。元画像は[CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)で提供され、画面にはキャロット漫画翻訳による韓国語の翻訳ブロックと作業状態が追加されています。このデモ画像には、アプリのソースコードとは別にCC BY-SA 3.0の条件が適用されます。

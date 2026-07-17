@@ -336,6 +336,13 @@ npm run dist:win
 
 有关进程边界、SSOT、错误处理和测试规范，请参阅 [代码边界与质量规范](docs/architecture.md)。
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+
+- [完整代码签名策略](CODE_SIGNING_POLICY.md)
+- [隐私政策](docs/privacy-policy.md)
+
 ## 演示图片来源
 
 README 中四个界面截图里的漫画基于 [IDPF EPUB 3 Samples Project](https://github.com/idpf/epub3-samples) 的 [`Haruko`](https://github.com/idpf/epub3-samples/tree/main/30/haruko-jpeg) 示例。原作采用 [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) 许可，截图中还加入了胡萝卜漫画翻译器的韩语翻译区块和工作状态。这些演示图片独立于应用源代码，适用 CC BY-SA 3.0 条款。

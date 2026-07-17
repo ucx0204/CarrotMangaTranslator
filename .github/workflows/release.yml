@@ -92,6 +92,10 @@ jobs:
           $repo = "${{ github.event.repository.name }}"
           $encodedTag = [uri]::EscapeDataString($env:RELEASE_TAG)
           $releaseNotes = Get-Content -Raw -LiteralPath $env:RELEASE_NOTES_PATH
+          $policyUrl = "https://github.com/$owner/$repo/blob/$env:RELEASE_TARGET/CODE_SIGNING_POLICY.md"
+          if ($releaseNotes -notmatch '(?im)\[Code signing policy\]\(') {
+            $releaseNotes = "$($releaseNotes.TrimEnd())`n`n---`n`n[Code signing policy]($policyUrl)`n"
+          }
           $releaseBody = @{
             tag_name = $env:RELEASE_TAG
             target_commitish = $env:RELEASE_TARGET
