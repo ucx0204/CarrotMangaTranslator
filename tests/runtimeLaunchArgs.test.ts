@@ -746,6 +746,82 @@ describe("runtime launch argument contracts", () => {
     ).toEqual(["model", "mmproj", "draft"]);
   });
 
+  it("downloads the canonical uppercase 12B mmproj after the upstream replacement", () => {
+    const hubCacheDir = createTempDir("hf-12b-mmproj-plan-");
+    const options = {
+      modelRepo: DEFAULT_12B_REPO,
+      modelFile: DEFAULT_12B_FILE,
+      mmprojRepo: DEFAULT_12B_MMPROJ_REPO,
+      mmprojFile: DEFAULT_12B_MMPROJ_FILE,
+      hfHubCacheDir: hubCacheDir,
+    };
+    const mmprojTask = collectRequiredHfDownloads(options).find(
+      (task) => task.kind === "mmproj",
+    );
+    expect(mmprojTask).toMatchObject({
+      repo: DEFAULT_12B_MMPROJ_REPO,
+      file: "mmproj-gemma-4-12B-it-BF16.gguf",
+      url: `https://huggingface.co/${DEFAULT_12B_MMPROJ_REPO}/resolve/main/mmproj-gemma-4-12B-it-BF16.gguf`,
+    });
+  });
+
+  it("reuses the known-working lowercase 12B mmproj as a cache-only alias", () => {
+    const hubCacheDir = createTempDir("hf-12b-mmproj-legacy-");
+    const options = {
+      modelRepo: DEFAULT_12B_REPO,
+      modelFile: DEFAULT_12B_FILE,
+      mmprojRepo: DEFAULT_12B_MMPROJ_REPO,
+      mmprojFile: DEFAULT_12B_MMPROJ_FILE,
+      hfHubCacheDir: hubCacheDir,
+    };
+    const legacyMmprojPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_12B_MMPROJ_REPO,
+      "mmproj-gemma-4-12B-it-bf16.gguf",
+    );
+    if (!legacyMmprojPath) {
+      throw new Error("legacy 12B mmproj path not resolved");
+    }
+    mkdirSync(join(legacyMmprojPath, ".."), { recursive: true });
+    writeFileSync(legacyMmprojPath, "known-working legacy mmproj");
+
+    expect(inspectModelLaunch(options).mmprojPath).toBe(legacyMmprojPath);
+    expect(
+      collectRequiredHfDownloads(options).some(
+        (task) => task.kind === "mmproj",
+      ),
+    ).toBe(false);
+  });
+
+  it("prefers the canonical 12B mmproj cache over its legacy alias", () => {
+    const hubCacheDir = createTempDir("hf-12b-mmproj-preferred-");
+    const options = {
+      modelRepo: DEFAULT_12B_REPO,
+      modelFile: DEFAULT_12B_FILE,
+      mmprojRepo: DEFAULT_12B_MMPROJ_REPO,
+      mmprojFile: DEFAULT_12B_MMPROJ_FILE,
+      hfHubCacheDir: hubCacheDir,
+    };
+    const canonicalPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_12B_MMPROJ_REPO,
+      DEFAULT_12B_MMPROJ_FILE,
+    );
+    const legacyPath = resolveManagedHfFilePath(
+      options,
+      DEFAULT_12B_MMPROJ_REPO,
+      "mmproj-gemma-4-12B-it-bf16.gguf",
+    );
+    if (!canonicalPath || !legacyPath) {
+      throw new Error("12B mmproj cache paths not resolved");
+    }
+    mkdirSync(join(canonicalPath, ".."), { recursive: true });
+    writeFileSync(canonicalPath, "canonical mmproj");
+    writeFileSync(legacyPath, "legacy mmproj");
+
+    expect(inspectModelLaunch(options).mmprojPath).toBe(canonicalPath);
+  });
+
   it("can explicitly offload the multimodal projector to GPU for diagnostics", () => {
     const args = buildLaunchArgs({
       port: 18180,

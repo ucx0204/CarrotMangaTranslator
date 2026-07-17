@@ -159,6 +159,6 @@ export function isBuiltInGemmaMmproj(
     (mmprojRepo === GEMMA_26B_MMPROJ_REPO &&
       mmprojFile === GEMMA_26B_MMPROJ_FILE) ||
     (mmprojRepo === GEMMA_12B_MMPROJ_REPO &&
-      mmprojFile === GEMMA_12B_MMPROJ_FILE)
+      mmprojFile?.toLowerCase() === GEMMA_12B_MMPROJ_FILE.toLowerCase())
   );
 }

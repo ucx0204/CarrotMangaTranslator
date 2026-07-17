@@ -4418,19 +4418,29 @@ kbd {
 }
 
 .install-progress-log {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   min-height: 128px;
   max-height: 180px;
   overflow-x: hidden;
   overflow-y: auto;
+  overflow-anchor: none;
   overscroll-behavior: contain;
   scroll-behavior: auto;
   padding: 12px;
   border-radius: 8px;
   border: 1px solid #303844;
   background: rgba(5, 8, 12, 0.62);
+}
+
+.install-progress-log:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.install-progress-log-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .install-progress-log code {

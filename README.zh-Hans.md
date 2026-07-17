@@ -19,7 +19,7 @@
 胡萝卜漫画翻译器是一款漫画制作工具：它可以从图片中识别对白与拟声词，用 AI 生成翻译区块，再由用户调整文字和排版，最后导出为完整的 PNG。默认翻译方向为日语 → 韩语，也可以选择其他原文和译文语言。
 
 - 最新 Windows 安装包：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 当前版本说明：[v1.6.2 更新说明](docs/release-notes/v1.6.2.md)
+- 当前版本说明：[v1.6.3 更新说明](docs/release-notes/v1.6.3.md)
 - 代码结构与贡献规范：[docs/architecture.md](docs/architecture.md)
 
 ## 功能概览
@@ -44,7 +44,7 @@
 
 ## 快速开始
 
-1. 前往 [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)，下载并安装类似 `CarrotMangaTranslator-Setup-v1.6.2.exe` 的最新安装包。
+1. 前往 [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)，下载并安装类似 `CarrotMangaTranslator-Setup-v1.6.3.exe` 的最新安装包。
 2. 在 `设置 → 常规` 中确认应用界面语言。首次启动时会自动选择受支持的 Windows 语言，其他语言环境则默认使用韩语。
 3. 在 `设置 → 翻译引擎` 中选择原文语言、译文语言和翻译引擎。
    - 希望在本机处理时，选择 `Gemma 4`

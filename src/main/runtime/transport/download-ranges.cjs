@@ -3,9 +3,9 @@
 /** @typedef {{ url: string; file: string; destination: string; label: string; [key: string]: unknown }} HfDownloadTask */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { abortSignal?: AbortSignal | null; [key: string]: unknown }} DownloadOptions */
 /** @typedef {{ knownAggregateBytes?: number; totalBytes?: number; completedBytes?: number }} DownloadProgress */
+/** @typedef {{ header: "etag" | "last-modified"; value: string }} RangeValidator */
 const { open: fsOpen, rm } = require("node:fs/promises");
 const { setTimeout: delay } = require("node:timers/promises");
-const { HF_DOWNLOAD_CHUNK_SIZE } = require("../simple-page-defaults.cjs");
 const {
   createDetailedError,
   safeCleanup,
@@ -13,9 +13,13 @@ const {
 const {
   createLinkedAbortController,
   isAbortError,
+  isNonRetryableDownloadHttpError,
+  resolveDownloadChunkSize,
+  resolveDownloadRangeConcurrency,
   resolveDownloadRetryCount,
-  resolveDownloadStallTimeoutMs,
+  resolveDownloadRetryDelayMs,
 } = require("./download-primitives.cjs");
+const { fetchRangeBuffer } = require("./download-range-request.cjs");
 const {
   emitDownloadRetryProgress,
   emitHfDownloadProgress,
@@ -77,34 +81,181 @@ async function writeRanges(
   totalBytes,
   startedAt,
 ) {
-  let receivedBytes = 0;
-  let lastEmitAt = 0;
-  for (let start = 0; start < totalBytes; start += HF_DOWNLOAD_CHUNK_SIZE) {
-    const end = Math.min(totalBytes - 1, start + HF_DOWNLOAD_CHUNK_SIZE - 1);
-    const chunk = await fetchRangeForFallback(task, options, start, end);
-    assertRangeLength(task, chunk, start, end);
-    await file.write(chunk, 0, chunk.length, start);
-    receivedBytes += chunk.length;
+  const chunkSize = resolveDownloadChunkSize();
+  const rangeCount = Math.ceil(totalBytes / chunkSize);
+  const concurrency = Math.min(rangeCount, resolveDownloadRangeConcurrency());
+  const linked = createLinkedAbortController(options.abortSignal);
+  const workerOptions = { ...options, abortSignal: linked.controller.signal };
+  const state = {
+    nextRange: 1,
+    receivedBytes: 0,
+    lastEmitAt: 0,
+    error: /** @type {unknown} */ (null),
+    writeTail: Promise.resolve(),
+  };
+  try {
+    const firstEnd = Math.min(totalBytes - 1, chunkSize - 1);
+    const firstRange = await fetchRangeForFallback(
+      task,
+      workerOptions,
+      0,
+      firstEnd,
+      totalBytes,
+      null,
+    );
+    await queueRangeWrite(
+      task,
+      workerOptions,
+      progress,
+      file,
+      firstRange.buffer,
+      0,
+      totalBytes,
+      startedAt,
+      state,
+    );
+    const remainingRanges = rangeCount - 1;
+    if (remainingRanges === 0) return state.receivedBytes;
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, remainingRanges) }, () =>
+        downloadRangeWorker(
+          task,
+          workerOptions,
+          progress,
+          file,
+          totalBytes,
+          chunkSize,
+          firstRange.validator,
+          startedAt,
+          state,
+          linked.controller,
+        ),
+      ),
+    );
+    await state.writeTail;
+    if (state.error) throw state.error;
+    return state.receivedBytes;
+  } finally {
+    linked.cleanup();
+  }
+}
+
+/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @param {import("node:fs/promises").FileHandle} file @param {number} totalBytes @param {number} chunkSize @param {RangeValidator | null} validator @param {number} startedAt @param {{ nextRange: number; receivedBytes: number; lastEmitAt: number; error: unknown; writeTail: Promise<void> }} state @param {AbortController} controller */
+async function downloadRangeWorker(
+  task,
+  options,
+  progress,
+  file,
+  totalBytes,
+  chunkSize,
+  validator,
+  startedAt,
+  state,
+  controller,
+) {
+  while (!state.error) {
+    const rangeIndex = state.nextRange;
+    state.nextRange += 1;
+    const start = rangeIndex * chunkSize;
+    if (start >= totalBytes) return;
+    const end = Math.min(totalBytes - 1, start + chunkSize - 1);
+    try {
+      const chunk = await fetchRangeForFallback(
+        task,
+        options,
+        start,
+        end,
+        totalBytes,
+        validator,
+      );
+      if (state.error) return;
+      await queueRangeWrite(
+        task,
+        options,
+        progress,
+        file,
+        chunk.buffer,
+        start,
+        totalBytes,
+        startedAt,
+        state,
+      );
+    } catch (error) {
+      if (!state.error) {
+        state.error = error;
+        controller.abort();
+      }
+      return;
+    }
+  }
+}
+
+/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @param {import("node:fs/promises").FileHandle} file @param {Buffer} chunk @param {number} start @param {number} totalBytes @param {number} startedAt @param {{ receivedBytes: number; lastEmitAt: number; error: unknown; writeTail: Promise<void> }} state */
+function queueRangeWrite(
+  task,
+  options,
+  progress,
+  file,
+  chunk,
+  start,
+  totalBytes,
+  startedAt,
+  state,
+) {
+  const write = state.writeTail.then(async () => {
+    if (state.error) return;
+    const result = await file.write(chunk, 0, chunk.length, start);
+    if (result.bytesWritten !== chunk.length) {
+      throw createDetailedError(
+        `${task.label} 다운로드 조각을 파일에 모두 쓰지 못했습니다.`,
+        {
+          fileWriteFailed: true,
+          url: task.url,
+          file: task.file,
+          rangeStart: start,
+          expectedLength: chunk.length,
+          writtenLength: result.bytesWritten,
+        },
+      );
+    }
+    state.receivedBytes += chunk.length;
     const now = Date.now();
-    if (now - lastEmitAt > 500 || receivedBytes >= totalBytes) {
-      lastEmitAt = now;
+    if (now - state.lastEmitAt > 500 || state.receivedBytes >= totalBytes) {
+      state.lastEmitAt = now;
       emitRangeProgress(
         options,
         task,
         progress,
-        receivedBytes,
+        state.receivedBytes,
         totalBytes,
         startedAt,
       );
     }
-  }
-  return receivedBytes;
+  });
+  state.writeTail = write;
+  return write;
 }
 
-/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {number} start @param {number} end */
-async function fetchRangeForFallback(task, options, start, end) {
+/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {number} start @param {number} end @param {number} totalBytes @param {RangeValidator | null} validator */
+async function fetchRangeForFallback(
+  task,
+  options,
+  start,
+  end,
+  totalBytes,
+  validator,
+) {
   try {
-    return await fetchRangeBufferWithRetry(task, options, start, end);
+    const chunk = await fetchRangeBufferWithRetry(
+      task,
+      options,
+      start,
+      end,
+      totalBytes,
+      validator,
+    );
+    assertRangeLength(task, chunk.buffer, start, end);
+    return chunk;
   } catch (error) {
     if (error instanceof Error)
       Object.assign(error, { rangedFetchFailed: true });
@@ -138,19 +289,13 @@ async function fallbackToStream(
     rm(partPath, { force: true }),
   );
   emitRangeFallbackProgress(options, task, rangeError);
-  try {
-    return await downloadHfFileByStream(
-      task,
-      options,
-      progress,
-      partPath,
-      startedAt,
-    );
-  } catch (error) {
-    if (error instanceof Error)
-      Object.assign(error, { rangeFallbackFailed: true });
-    throw error;
-  }
+  return await downloadHfFileByStream(
+    task,
+    options,
+    progress,
+    partPath,
+    startedAt,
+  );
 }
 
 /** @param {unknown} error */
@@ -158,9 +303,10 @@ function isRangeFallbackCandidate(error) {
   if (!(error instanceof Error)) return false;
   const detail = /** @type {DetailedError} */ (error);
   if (detail.rangeUnsupported === true) return true;
+  if (detail.rangeInvalid === true) return true;
   const status = Number(detail.status);
   if (!Number.isInteger(status)) return true;
-  if ([401, 403, 404].includes(status)) return false;
+  if ([401, 403, 404, 407].includes(status)) return false;
   return status === 416 || status === 429 || status >= 500 || status !== 206;
 }
 
@@ -199,18 +345,33 @@ function emitRangeProgress(
   });
 }
 
-/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {number} start @param {number} end */
-async function fetchRangeBufferWithRetry(task, options, start, end) {
+/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {number} start @param {number} end @param {number} totalBytes @param {RangeValidator | null} validator */
+async function fetchRangeBufferWithRetry(
+  task,
+  options,
+  start,
+  end,
+  totalBytes,
+  validator,
+) {
   const maxAttempts = resolveDownloadRetryCount();
   let lastError = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await fetchRangeBuffer(task, options, start, end);
+      return await fetchRangeBuffer(
+        task,
+        options,
+        start,
+        end,
+        totalBytes,
+        validator,
+      );
     } catch (error) {
       if (
         options.abortSignal?.aborted ||
         isAbortError(error) ||
-        hasRangeUnsupported(error)
+        isNonRetryableDownloadHttpError(error) ||
+        hasRangeProtocolError(error)
       )
         throw error;
       lastError = error;
@@ -223,7 +384,7 @@ async function fetchRangeBufferWithRetry(task, options, start, end) {
         maxAttempts,
         `bytes=${start}-${end}`,
       );
-      await delay(Math.min(30000, 1000 * 2 ** (attempt - 1)), undefined, {
+      await delay(resolveDownloadRetryDelayMs(attempt, error), undefined, {
         signal: options.abortSignal ?? undefined,
       });
     }
@@ -232,11 +393,10 @@ async function fetchRangeBufferWithRetry(task, options, start, end) {
 }
 
 /** @param {unknown} error */
-function hasRangeUnsupported(error) {
-  return (
-    error instanceof Error &&
-    /** @type {DetailedError} */ (error).rangeUnsupported === true
-  );
+function hasRangeProtocolError(error) {
+  if (!(error instanceof Error)) return false;
+  const detail = /** @type {DetailedError} */ (error);
+  return detail.rangeUnsupported === true || detail.rangeInvalid === true;
 }
 
 /** @param {HfDownloadTask} task @param {number} start @param {number} end */
@@ -247,74 +407,6 @@ function createRangeError(task, start, end) {
     rangeStart: start,
     rangeEnd: end,
   });
-}
-
-/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {number} start @param {number} end */
-async function fetchRangeBuffer(task, options, start, end) {
-  const range = `bytes=${start}-${end}`;
-  const stallTimeoutMs = resolveDownloadStallTimeoutMs();
-  const linked = createLinkedAbortController(options.abortSignal);
-  const timeoutState = { timedOut: false };
-  const timeout = setTimeout(
-    () => abortRangeFetch(linked.controller, timeoutState),
-    stallTimeoutMs,
-  );
-  try {
-    const response = await fetch(task.url, {
-      headers: { Range: range },
-      signal: linked.controller.signal,
-    });
-    assertRangeResponse(task, response, range);
-    return Buffer.from(await response.arrayBuffer());
-  } catch (error) {
-    if (timeoutState.timedOut)
-      throw buildRangeStallError(task, range, stallTimeoutMs, error);
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-    linked.cleanup();
-  }
-}
-
-/** @param {AbortController} controller @param {{ timedOut: boolean }} state */
-function abortRangeFetch(controller, state) {
-  state.timedOut = true;
-  controller.abort();
-}
-
-/** @param {HfDownloadTask} task @param {Response} response @param {string} range */
-function assertRangeResponse(task, response, range) {
-  if (response.status === 200) {
-    throw createDetailedError(
-      `${task.label} 서버가 범위 다운로드를 지원하지 않습니다.`,
-      {
-        rangeUnsupported: true,
-        status: response.status,
-        url: task.url,
-        file: task.file,
-      },
-    );
-  }
-  if (response.status === 206 && response.ok) return;
-  throw createDetailedError(
-    `${task.label} 다운로드 조각에 실패했습니다 (${response.status}).`,
-    {
-      status: response.status,
-      statusText: response.statusText,
-      url: task.url,
-      file: task.file,
-      range,
-    },
-  );
-}
-
-/** @param {HfDownloadTask} task @param {string} range @param {number} stallTimeoutMs @param {unknown} cause */
-function buildRangeStallError(task, range, stallTimeoutMs, cause) {
-  return createDetailedError(
-    `${task.label} 다운로드가 ${Math.round(stallTimeoutMs / 1000)}초 동안 응답하지 않았습니다.`,
-    { url: task.url, file: task.file, range, stallTimeoutMs },
-    cause,
-  );
 }
 
 module.exports = { downloadHfFileByRanges };

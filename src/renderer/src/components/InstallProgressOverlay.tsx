@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import * as Progress from "@radix-ui/react-progress";
 import type { JobState } from "../../../shared/jobTypes";
 import { formatBytes, type ProgressSnapshot } from "../lib/jobProgress";
+import { usePinnedInstallLog } from "./usePinnedInstallLog";
 
 type InstallProgressOverlayProps = {
   job: JobState;
@@ -15,7 +16,15 @@ export function InstallProgressOverlay({
   snapshot,
 }: InstallProgressOverlayProps): React.JSX.Element | null {
   const { i18n, t } = useTranslation("components");
-  const { logRef, handleLogScroll } = usePinnedInstallLog(job);
+  const {
+    handleLogKeyDown,
+    handleLogScroll,
+    handleLogWheel,
+    handleOverlayPointerEndCapture,
+    handleOverlayPointerStartCapture,
+    logContentRef,
+    logRef,
+  } = usePinnedInstallLog(job);
 
   if (!isInstallPhase(job.phase)) {
     return null;
@@ -33,9 +42,10 @@ export function InstallProgressOverlay({
       role="dialog"
       aria-modal="true"
       aria-live="polite"
-      onPointerDownCapture={stopOverlayEvent}
+      onPointerDownCapture={handleOverlayPointerStartCapture}
       onPointerMoveCapture={stopOverlayEvent}
-      onPointerUpCapture={stopOverlayEvent}
+      onPointerUpCapture={handleOverlayPointerEndCapture}
+      onPointerCancelCapture={handleOverlayPointerEndCapture}
       onClickCapture={stopOverlayEvent}
       onDoubleClickCapture={stopOverlayEvent}
       onContextMenuCapture={stopOverlayEvent}
@@ -76,52 +86,16 @@ export function InstallProgressOverlay({
         {job.detail ? <p>{job.detail}</p> : null}
 
         <InstallLogPanel
+          handleLogKeyDown={handleLogKeyDown}
           handleLogScroll={handleLogScroll}
+          handleLogWheel={handleLogWheel}
+          logContentRef={logContentRef}
           logLines={job.installLogLines ?? []}
           logRef={logRef}
         />
       </div>
     </div>
   );
-}
-
-function usePinnedInstallLog(job: JobState): {
-  handleLogScroll: (event: React.UIEvent<HTMLDivElement>) => void;
-  logRef: React.RefObject<HTMLDivElement | null>;
-} {
-  const logRef = React.useRef<HTMLDivElement | null>(null);
-  const logPinnedToBottomRef = React.useRef(true);
-  const logLineCount = job.installLogLines?.length ?? 0;
-
-  const scrollLogToBottom = React.useCallback(() => {
-    const element = logRef.current;
-    if (element) {
-      element.scrollTop = element.scrollHeight;
-    }
-  }, []);
-
-  React.useLayoutEffect(() => {
-    if (!logPinnedToBottomRef.current) {
-      return;
-    }
-    scrollLogToBottom();
-    const frame = window.requestAnimationFrame(scrollLogToBottom);
-    return () => window.cancelAnimationFrame(frame);
-  }, [logLineCount, scrollLogToBottom]);
-
-  React.useEffect(() => {
-    logPinnedToBottomRef.current = true;
-    scrollLogToBottom();
-  }, [job.phase, scrollLogToBottom]);
-
-  const handleLogScroll = React.useCallback(
-    (event: React.UIEvent<HTMLDivElement>) => {
-      logPinnedToBottomRef.current = isScrolledNearBottom(event.currentTarget);
-    },
-    [],
-  );
-
-  return { handleLogScroll, logRef };
 }
 
 function resolveInstallProgressDisplay(snapshot: ProgressSnapshot | null): {
@@ -140,11 +114,17 @@ function resolveInstallProgressDisplay(snapshot: ProgressSnapshot | null): {
 }
 
 function InstallLogPanel({
+  handleLogKeyDown,
   handleLogScroll,
+  handleLogWheel,
+  logContentRef,
   logLines,
   logRef,
 }: {
+  handleLogKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   handleLogScroll: (event: React.UIEvent<HTMLDivElement>) => void;
+  handleLogWheel: (event: React.WheelEvent<HTMLDivElement>) => void;
+  logContentRef: React.RefObject<HTMLDivElement | null>;
   logLines: string[];
   logRef: React.RefObject<HTMLDivElement | null>;
 }): React.JSX.Element | null {
@@ -157,22 +137,22 @@ function InstallLogPanel({
       ref={logRef}
       className="install-progress-log"
       aria-label={t("install.logLabel")}
+      tabIndex={0}
+      onKeyDown={handleLogKeyDown}
       onScroll={handleLogScroll}
-      onWheel={stopOverlayEvent}
+      onWheel={handleLogWheel}
     >
-      {logLines.map((line, index) => (
-        <code key={`${line}-${index}`}>{line}</code>
-      ))}
+      <div ref={logContentRef} className="install-progress-log-content">
+        {logLines.map((line, index) => (
+          <code key={index}>{line}</code>
+        ))}
+      </div>
     </div>
   );
 }
 
 function stopOverlayEvent(event: React.SyntheticEvent): void {
   event.stopPropagation();
-}
-
-function isScrolledNearBottom(element: HTMLElement): boolean {
-  return element.scrollHeight - element.scrollTop - element.clientHeight <= 12;
 }
 
 function resolveProgressLabel(

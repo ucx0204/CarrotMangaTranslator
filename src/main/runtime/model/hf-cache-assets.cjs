@@ -2,6 +2,10 @@
 const { existsSync } = require("node:fs");
 const path = require("node:path");
 
+const GEMMA_12B_MMPROJ_REPO = "ggml-org/gemma-4-12B-it-GGUF";
+const GEMMA_12B_MMPROJ_FILE = "mmproj-gemma-4-12B-it-BF16.gguf";
+const LEGACY_GEMMA_12B_MMPROJ_FILE = "mmproj-gemma-4-12B-it-bf16.gguf";
+
 const { isUsableFile } = require("../simple-page-download-utils.cjs");
 const {
   findNamedFile,
@@ -55,11 +59,22 @@ function resolveCachedConfiguredMmprojPath(options = {}) {
   if (!shouldUseConfiguredMmproj(options)) return null;
   const repo = resolveConfiguredMmprojRepo(options);
   const file = resolveConfiguredMmprojFile(options);
+  const current = resolveCachedHfAsset(options, repo, file, true);
+  if (current) return current;
+  // The lowercase projector was shipped previously and is known to work. It
+  // remains a cache-only alias; all cold downloads use the canonical BF16 URL.
+  return repo === GEMMA_12B_MMPROJ_REPO && file === GEMMA_12B_MMPROJ_FILE
+    ? resolveCachedHfAsset(options, repo, LEGACY_GEMMA_12B_MMPROJ_FILE, true)
+    : null;
+}
+
+/** @param {ModelAssetOptions} options @param {string} repo @param {string} file @param {boolean} includeLlamaCache */
+function resolveCachedHfAsset(options, repo, file, includeLlamaCache) {
   return (
     resolveUsableManagedHfFile(options, repo, file) ||
     resolveUsableLegacyManagedHfFile(options, repo, file) ||
     findCachedHubAsset(options, repo, file) ||
-    resolveCachedLlamaCppFile(file, options)
+    (includeLlamaCache ? resolveCachedLlamaCppFile(file, options) : null)
   );
 }
 
@@ -90,11 +105,7 @@ function resolveCachedConfiguredDraftModelPath(options = {}) {
   const repo = resolveConfiguredDraftModelRepo(options);
   const file = resolveConfiguredDraftModelFile(options);
   if (!repo || !file) return null;
-  return (
-    resolveUsableManagedHfFile(options, repo, file) ||
-    resolveUsableLegacyManagedHfFile(options, repo, file) ||
-    findCachedHubAsset(options, repo, file)
-  );
+  return resolveCachedHfAsset(options, repo, file, false);
 }
 
 /** @param {ModelAssetOptions} [options] */

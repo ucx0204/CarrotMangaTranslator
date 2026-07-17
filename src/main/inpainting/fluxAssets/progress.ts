@@ -85,38 +85,6 @@ function parsePipByteValue(valueText: string, unitText: string): number {
   return Math.round(value * (multipliers[normalizedUnit] ?? 1));
 }
 
-export function emitDownloadProgress(
-  options: {
-    progressText: string;
-    label: string;
-    onProgress?: (progress: FluxAssetProgress) => void;
-  },
-  receivedBytes: number,
-  totalBytes: number,
-  done = false,
-): void {
-  options.onProgress?.({
-    progressText: done
-      ? tMain("downloads.completed", { label: options.label })
-      : options.progressText,
-    detail:
-      totalBytes > 0
-        ? `${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}`
-        : tMain("downloads.received", {
-            received: formatBytes(receivedBytes),
-          }),
-    progressMode: totalBytes > 0 ? "determinate" : "log-only",
-    progressPercent:
-      totalBytes > 0 ? Math.min(1, receivedBytes / totalBytes) : undefined,
-    progressBytes: totalBytes > 0 ? receivedBytes : undefined,
-    progressTotalBytes: totalBytes > 0 ? totalBytes : undefined,
-    installLogLine:
-      totalBytes > 0
-        ? `${options.label}: ${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}`
-        : `${options.label}: ${formatBytes(receivedBytes)}`,
-  });
-}
-
 /**
  * Aggregates progress from several files downloaded concurrently into a single
  * combined byte/percent stream. Without this, two parallel downloads sharing one
@@ -162,7 +130,7 @@ export function createCombinedDownloadProgress(
   return { forFile };
 }
 
-export function formatBytes(bytes: number): string {
+function formatBytes(bytes: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
   let index = 0;

@@ -1,11 +1,8 @@
-import { once } from "node:events";
-import { createWriteStream } from "node:fs";
-import { mkdir, rename, rm } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import * as path from "node:path";
 import type { FluxAssetProgress, NvidiaRedistPackage } from "./types";
 import { throwIfAborted, runCommand } from "./errors";
-import { emitDownloadProgress, formatBytes } from "./progress";
-import { safeCleanup } from "../../safeCleanup";
 import { tMain } from "../localization";
 import {
   isPathInside,
@@ -14,6 +11,62 @@ import {
 } from "./fileProbe";
 
 const AdmZip = require("adm-zip");
+type DownloadRuntime = {
+  downloadHfFileWithProgress: (
+    task: {
+      url: string;
+      file: string;
+      destination: string;
+      label: string;
+      progressPhase?: string;
+      progressTitle?: string;
+      completeTitle?: string;
+    },
+    options?: {
+      abortSignal?: AbortSignal;
+      onProgress?: (progress: FluxAssetProgress) => void;
+    },
+    progress?: {
+      totalBytes?: number;
+      onComplete?: (receivedBytes: number) => void;
+    },
+  ) => Promise<void>;
+  probeContentLength: (url: string, signal?: AbortSignal) => Promise<number>;
+};
+
+let cachedDownloadRuntime: DownloadRuntime | null = null;
+
+function loadDownloadRuntime(): DownloadRuntime {
+  if (cachedDownloadRuntime) return cachedDownloadRuntime;
+  const runtimePath = resolveDownloadRuntimePath();
+  const runtime = require(runtimePath) as Partial<DownloadRuntime>;
+  if (
+    typeof runtime.downloadHfFileWithProgress !== "function" ||
+    typeof runtime.probeContentLength !== "function"
+  ) {
+    throw new Error(`다운로드 런타임 모듈이 올바르지 않습니다: ${runtimePath}`);
+  }
+  cachedDownloadRuntime = runtime as DownloadRuntime;
+  return cachedDownloadRuntime;
+}
+
+function resolveDownloadRuntimePath(): string {
+  const fileName = "simple-page-download-utils.cjs";
+  const candidates = [
+    ...(typeof process.resourcesPath === "string"
+      ? [path.join(process.resourcesPath, "app-runtime", fileName)]
+      : []),
+    path.resolve(__dirname, "..", "..", "..", "app-runtime", fileName),
+    path.resolve(__dirname, "..", "..", "runtime", fileName),
+  ];
+  const runtimePath = candidates.find((candidate) => existsSync(candidate));
+  if (!runtimePath) {
+    throw new Error(
+      `다운로드 런타임 모듈을 찾을 수 없습니다: ${candidates.join(", ")}`,
+    );
+  }
+  return runtimePath;
+}
 
 export async function downloadRuntimeArchive(options: {
   downloadsDir: string;
@@ -32,6 +85,7 @@ export async function downloadRuntimeArchive(options: {
     signal: options.signal,
     progressText: tMain("downloads.downloading", { label: options.label }),
     label: fileName,
+    expectedTotalBytes: options.entry.size,
     onProgress: options.onProgress,
   });
   return outputPath;
@@ -240,16 +294,8 @@ type DownloadToFileOptions = {
   signal?: AbortSignal;
   progressText: string;
   label: string;
+  expectedTotalBytes?: number;
   onProgress?: (progress: FluxAssetProgress) => void;
-};
-
-type DownloadWriteResult = {
-  receivedBytes: number;
-  responseTotalBytes: number;
-};
-
-type DownloadResponse = Response & {
-  body: ReadableStream<Uint8Array>;
 };
 
 export async function downloadToFile(
@@ -259,17 +305,40 @@ export async function downloadToFile(
     reportDownloadCacheHit(options);
     return;
   }
-  const partPath = await prepareDownloadTarget(options.outputPath);
-  const totalBytes = await probeContentLength(options.url, options.signal);
-  reportDownloadStart(options, totalBytes);
-  const response = await fetchDownloadResponse(options);
-  const result = await writeDownloadResponseToPartFile(
-    options,
-    partPath,
-    response,
-    totalBytes,
+  const { downloadHfFileWithProgress, probeContentLength } =
+    loadDownloadRuntime();
+  const expectedTotalBytes = Number(options.expectedTotalBytes);
+  const totalBytes =
+    Number.isFinite(expectedTotalBytes) && expectedTotalBytes > 0
+      ? expectedTotalBytes
+      : await probeContentLength(options.url, options.signal);
+  let receivedBytes = 0;
+  await downloadHfFileWithProgress(
+    {
+      url: options.url,
+      file: path.basename(options.outputPath),
+      destination: options.outputPath,
+      label: options.label,
+      progressPhase: "inpainting_downloading",
+      progressTitle: options.progressText,
+      completeTitle: tMain("downloads.completed", { label: options.label }),
+    },
+    {
+      abortSignal: options.signal,
+      onProgress: options.onProgress,
+    },
+    {
+      totalBytes,
+      onComplete: (bytes) => {
+        receivedBytes = bytes;
+      },
+    },
   );
-  await finalizeDownload(options, partPath, result);
+  await writeRemoteFileMetadata(options.outputPath, {
+    url: options.url,
+    bytes: receivedBytes,
+    downloadedAt: new Date().toISOString(),
+  });
 }
 
 function reportDownloadCacheHit(options: DownloadToFileOptions): void {
@@ -279,146 +348,4 @@ function reportDownloadCacheHit(options: DownloadToFileOptions): void {
     progressMode: "log-only",
     installLogLine: tMain("downloads.cachedLog", { label: options.label }),
   });
-}
-
-async function prepareDownloadTarget(outputPath: string): Promise<string> {
-  await mkdir(path.dirname(outputPath), { recursive: true });
-  const partPath = `${outputPath}.part`;
-  await rm(partPath, { force: true });
-  return partPath;
-}
-
-function reportDownloadStart(
-  options: DownloadToFileOptions,
-  totalBytes: number,
-): void {
-  options.onProgress?.({
-    progressText: options.progressText,
-    detail: options.label,
-    progressMode: totalBytes > 0 ? "determinate" : "log-only",
-    progressPercent: totalBytes > 0 ? 0 : undefined,
-    progressBytes: totalBytes > 0 ? 0 : undefined,
-    progressTotalBytes: totalBytes > 0 ? totalBytes : undefined,
-    installLogLine: tMain("downloads.startedLog", { label: options.label }),
-  });
-}
-
-async function fetchDownloadResponse(
-  options: DownloadToFileOptions,
-): Promise<DownloadResponse> {
-  const response = await fetch(options.url, {
-    signal: options.signal,
-    headers: { "User-Agent": "carrot-manga-translator" },
-  });
-  if (!response.ok || !response.body) {
-    throw new Error(
-      tMain("downloads.failed", {
-        label: options.label,
-        status: response.status,
-      }),
-    );
-  }
-  return response as DownloadResponse;
-}
-
-async function writeDownloadResponseToPartFile(
-  options: DownloadToFileOptions,
-  partPath: string,
-  response: DownloadResponse,
-  totalBytes: number,
-): Promise<DownloadWriteResult> {
-  const responseTotalBytes = totalBytes || readContentLength(response);
-  const reader = response.body.getReader();
-  const writer = createWriteStream(partPath, { flags: "wx" });
-  let receivedBytes = 0;
-  let lastEmitAt = 0;
-  try {
-    while (true) {
-      throwIfAborted(options.signal);
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      const chunk = Buffer.from(value);
-      await writeStreamChunk(writer, chunk);
-      receivedBytes += chunk.byteLength;
-      const now = Date.now();
-      if (now - lastEmitAt > 500) {
-        lastEmitAt = now;
-        emitDownloadProgress(options, receivedBytes, responseTotalBytes);
-      }
-    }
-    await finishWriteStream(writer);
-    if (responseTotalBytes > 0 && receivedBytes !== responseTotalBytes) {
-      throw new Error(
-        tMain("downloads.sizeMismatch", {
-          label: options.label,
-          received: formatBytes(receivedBytes),
-          total: formatBytes(responseTotalBytes),
-        }),
-      );
-    }
-    return { receivedBytes, responseTotalBytes };
-  } catch (error) {
-    writer.destroy();
-    await safeCleanup("remove partial Flux download", () =>
-      rm(partPath, { force: true }),
-    );
-    throw error;
-  }
-}
-
-async function finalizeDownload(
-  options: DownloadToFileOptions,
-  partPath: string,
-  result: DownloadWriteResult,
-): Promise<void> {
-  const { receivedBytes, responseTotalBytes } = result;
-  await rm(options.outputPath, { force: true });
-  await rename(partPath, options.outputPath);
-  await writeRemoteFileMetadata(options.outputPath, {
-    url: options.url,
-    bytes: receivedBytes,
-    downloadedAt: new Date().toISOString(),
-  });
-  emitDownloadProgress(
-    options,
-    responseTotalBytes > 0 ? responseTotalBytes : receivedBytes,
-    responseTotalBytes || receivedBytes,
-    true,
-  );
-}
-
-async function probeContentLength(
-  url: string,
-  signal?: AbortSignal,
-): Promise<number> {
-  try {
-    const response = await fetch(url, { method: "HEAD", signal });
-    return response.ok ? readContentLength(response) : 0;
-  } catch (_error) {
-    return 0;
-  }
-}
-
-function readContentLength(response: Response): number {
-  const value = Number(response.headers.get("content-length"));
-  return Number.isFinite(value) && value > 0 ? value : 0;
-}
-
-async function writeStreamChunk(
-  writer: ReturnType<typeof createWriteStream>,
-  chunk: Buffer,
-): Promise<void> {
-  if (writer.write(chunk)) {
-    return;
-  }
-  await once(writer, "drain");
-}
-
-async function finishWriteStream(
-  writer: ReturnType<typeof createWriteStream>,
-): Promise<void> {
-  writer.end();
-  await once(writer, "finish");
 }

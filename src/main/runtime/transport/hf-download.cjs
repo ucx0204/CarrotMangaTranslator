@@ -1,5 +1,4 @@
 // @ts-check
-/** @typedef {import("../runtime-jsdoc-types").DetailedError} DetailedError */
 /** @typedef {{ url: string; file: string; destination: string; label: string; progressPhase?: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} HfDownloadTask */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { abortSignal?: AbortSignal | null; [key: string]: unknown }} DownloadOptions */
 /** @typedef {{ knownAggregateBytes?: number; totalBytes?: number; completedBytes?: number; onComplete?: (receivedBytes: number) => void }} DownloadProgress */
@@ -12,8 +11,12 @@ const {
   safeCleanup,
 } = require("../simple-page-runtime-common.cjs");
 const {
+  createAbortError,
   isAbortError,
+  isNonRetryableDownloadFileError,
+  isNonRetryableDownloadHttpError,
   resolveDownloadRetryCount,
+  resolveDownloadRetryDelayMs,
 } = require("./download-primitives.cjs");
 const {
   emitDownloadRetryProgress,
@@ -23,14 +26,52 @@ const {
 const { downloadHfFileByRanges } = require("./download-ranges.cjs");
 const { downloadHfFileByStream } = require("./download-stream.cjs");
 
+/** @type {Map<string, { url: string; promise: Promise<number> }>} */
+const activeDownloads = new Map();
+const COMMIT_RETRY_COUNT = 6;
+const RETRYABLE_COMMIT_CODES = new Set(["EACCES", "EBUSY", "EPERM"]);
+
 /** @param {HfDownloadTask} task @param {DownloadOptions} [options] @param {DownloadProgress} [progress] */
 async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
+  const key = downloadKey(task.destination);
+  const active = activeDownloads.get(key);
+  if (active) {
+    if (active.url !== task.url) {
+      throw createDetailedError(
+        "같은 경로에 서로 다른 다운로드가 요청되었습니다.",
+        {
+          destination: task.destination,
+          activeUrl: active.url,
+          requestedUrl: task.url,
+        },
+      );
+    }
+    const startedAt = Date.now();
+    const receivedBytes = await waitForActiveDownload(
+      active.promise,
+      options.abortSignal,
+    );
+    completeDownload(task, options, progress, receivedBytes, startedAt);
+    return;
+  }
+  const download = performDownloadWithProgress(task, options, progress);
+  const activeEntry = { url: task.url, promise: download };
+  activeDownloads.set(key, activeEntry);
+  try {
+    await download;
+  } finally {
+    if (activeDownloads.get(key) === activeEntry) activeDownloads.delete(key);
+  }
+}
+
+/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @returns {Promise<number>} */
+async function performDownloadWithProgress(task, options, progress) {
   const maxAttempts = resolveDownloadRetryCount();
   const fallbackState = { used: false };
   let lastError = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      await downloadAttempt(
+      return await downloadAttempt(
         task,
         options,
         progress,
@@ -38,13 +79,18 @@ async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
         maxAttempts,
         fallbackState,
       );
-      return;
     } catch (error) {
-      if (options.abortSignal?.aborted || isAbortError(error)) throw error;
+      if (
+        options.abortSignal?.aborted ||
+        isAbortError(error) ||
+        isNonRetryableDownloadFileError(error) ||
+        isNonRetryableDownloadHttpError(error)
+      )
+        throw error;
       lastError = error;
-      if (hasFallbackFailed(error) || attempt >= maxAttempts) break;
+      if (attempt >= maxAttempts) break;
       emitDownloadRetryProgress(options, task, error, attempt + 1, maxAttempts);
-      await retryDelay(attempt, options.abortSignal);
+      await retryDelay(attempt, error, options.abortSignal);
     }
   }
   throw (
@@ -56,17 +102,36 @@ async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
   );
 }
 
-/** @param {unknown} error */
-function hasFallbackFailed(error) {
-  return (
-    error instanceof Error &&
-    /** @type {DetailedError} */ (error).rangeFallbackFailed === true
-  );
+/** @param {string} destination */
+function downloadKey(destination) {
+  const resolved = path.resolve(destination);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
 }
 
-/** @param {number} attempt @param {AbortSignal | null | undefined} signal */
-function retryDelay(attempt, signal) {
-  return delay(Math.min(30000, 1000 * 2 ** (attempt - 1)), undefined, {
+/** @param {Promise<number>} download @param {AbortSignal | null | undefined} signal */
+function waitForActiveDownload(download, signal) {
+  if (!signal) return download;
+  if (signal.aborted) return Promise.reject(createAbortError());
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(createAbortError());
+    const cleanup = () => signal.removeEventListener("abort", onAbort);
+    signal.addEventListener("abort", onAbort, { once: true });
+    download.then(
+      (receivedBytes) => {
+        cleanup();
+        resolve(receivedBytes);
+      },
+      (error) => {
+        cleanup();
+        reject(error);
+      },
+    );
+  });
+}
+
+/** @param {number} attempt @param {unknown} error @param {AbortSignal | null | undefined} signal */
+function retryDelay(attempt, error, signal) {
+  return delay(resolveDownloadRetryDelayMs(attempt, error), undefined, {
     signal: signal ?? undefined,
   });
 }
@@ -96,12 +161,25 @@ async function downloadAttempt(
     );
     await commitDownload(task.destination, partPath);
     completeDownload(task, options, progress, receivedBytes, startedAt);
+    return receivedBytes;
   } catch (error) {
-    await safeCleanup("remove partial HF download", () =>
-      rm(partPath, { force: true }),
-    );
+    if (!isDownloadCommitFailure(error)) {
+      await safeCleanup("remove partial HF download", () =>
+        rm(partPath, { force: true }),
+      );
+    }
     throw error;
   }
+}
+
+/** @param {unknown} error */
+function isDownloadCommitFailure(error) {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    /** @type {{ downloadCommitFailed?: unknown }} */ (error)
+      .downloadCommitFailed === true,
+  );
 }
 
 /** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @param {number} attempt @param {number} maxAttempts */
@@ -156,7 +234,7 @@ function transferFile(
   fallbackState,
 ) {
   const totalBytes = progress.totalBytes || 0;
-  return totalBytes > 0
+  return totalBytes > 0 && !fallbackState.used
     ? downloadHfFileByRanges(
         task,
         options,
@@ -171,13 +249,57 @@ function transferFile(
 
 /** @param {string} destination @param {string} partPath */
 async function commitDownload(destination, partPath) {
-  await rm(destination, { force: true });
-  await rename(partPath, destination);
+  try {
+    await retryCommitOperation(() => rm(destination, { force: true }));
+    await retryCommitOperation(() => rename(partPath, destination));
+  } catch (error) {
+    if (error && typeof error === "object") {
+      Object.assign(error, { downloadCommitFailed: true });
+      throw error;
+    }
+    throw createDetailedError(
+      "다운로드 파일을 최종 경로로 옮기지 못했습니다.",
+      {
+        destination,
+        partPath,
+        downloadCommitFailed: true,
+        originalError: error,
+      },
+    );
+  }
+}
+
+/** @param {() => Promise<unknown>} operation */
+async function retryCommitOperation(operation) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= COMMIT_RETRY_COUNT; attempt += 1) {
+    try {
+      await operation();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableCommitError(error) || attempt >= COMMIT_RETRY_COUNT)
+        throw error;
+      await delay(Math.min(1000, 50 * 2 ** (attempt - 1)));
+    }
+  }
+  throw lastError;
+}
+
+/** @param {unknown} error */
+function isRetryableCommitError(error) {
+  if (!error || typeof error !== "object") return false;
+  const code = String(/** @type {{ code?: unknown }} */ (error).code ?? "");
+  return RETRYABLE_COMMIT_CODES.has(code.toUpperCase());
 }
 
 /** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @param {number} receivedBytes @param {number} startedAt */
 function completeDownload(task, options, progress, receivedBytes, startedAt) {
-  progress.onComplete?.(receivedBytes);
+  try {
+    progress.onComplete?.(receivedBytes);
+  } catch (_error) {
+    // error-policy-allow: observer failures must never turn a completed download into a retry.
+  }
   emitHfDownloadProgress(options, task, {
     receivedBytes,
     totalBytes: progress.totalBytes || 0,

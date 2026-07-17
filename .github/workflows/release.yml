@@ -66,6 +66,9 @@ jobs:
           "target=${{ github.sha }}" >> $env:GITHUB_OUTPUT
           "notes_path=$notesPath" >> $env:GITHUB_OUTPUT
 
+      - name: Verify built-in Hugging Face assets
+        run: npm run verify:hf-assets
+
       - name: Build Windows release
         env:
           MGT_THIN_INSTALLER: "1"

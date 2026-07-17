@@ -10,7 +10,9 @@ const {
 } = require("../simple-page-llama-runtimes.cjs");
 const {
   downloadHfFileWithProgress,
+  mapWithConcurrency,
   probeContentLength,
+  resolveDownloadRangeConcurrency,
 } = require("../simple-page-download-utils.cjs");
 const {
   hasRequiredLlamaRuntimeFiles,
@@ -93,8 +95,15 @@ function assertRuntimeCanBeInstalled(options, layout) {
 /** @param {LlamaRuntimeArchive[]} archives @param {AbortSignal | null | undefined} signal */
 async function collectArchiveTotals(archives, signal) {
   const totals = new Map();
-  for (const archive of archives) {
-    const totalBytes = await probeContentLength(archive.url, signal);
+  const probes = await mapWithConcurrency(
+    archives,
+    resolveDownloadRangeConcurrency(),
+    async (archive) => ({
+      archive,
+      totalBytes: await probeContentLength(archive.url, signal),
+    }),
+  );
+  for (const { archive, totalBytes } of probes) {
     if (Number.isFinite(totalBytes) && totalBytes > 0)
       totals.set(archive.archive, totalBytes);
   }

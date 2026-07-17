@@ -97,6 +97,8 @@ export type DetailedError = Error & {
   range?: string;
   rangeEnd?: unknown;
   rangeFallbackFailed?: boolean;
+  rangeInvalid?: boolean;
+  retryAfterMs?: number;
   rangeStart?: unknown;
   rangeUnsupported?: boolean;
   optionSummary?: unknown;

@@ -19,7 +19,7 @@
 당근망가번역기는 이미지에서 대사와 효과음을 찾고, AI로 번역 블록을 만든 뒤, 사람이 문장과 배치를 다듬어 완성 PNG로 내보낼 수 있는 만화 작업 도구입니다. 기본 번역은 일본어 → 한국어이며, 다른 원문·번역 언어도 선택할 수 있습니다.
 
 - 최신 Windows 설치 파일: [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 현재 버전 안내: [v1.6.2 패치노트](docs/release-notes/v1.6.2.md)
+- 현재 버전 안내: [v1.6.3 패치노트](docs/release-notes/v1.6.3.md)
 - 코드 구조와 기여 규칙: [docs/architecture.md](docs/architecture.md)
 
 ## 한눈에 보기
@@ -44,7 +44,7 @@
 
 ## 빠른 시작
 
-1. [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)에서 `CarrotMangaTranslator-Setup-v1.6.2.exe` 같은 최신 설치 파일을 받아 설치합니다.
+1. [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)에서 `CarrotMangaTranslator-Setup-v1.6.3.exe` 같은 최신 설치 파일을 받아 설치합니다.
 2. `설정 → 일반`에서 앱 화면 언어를 확인합니다. 지원되는 Windows 언어는 처음 실행할 때 자동 선택되며, 그 밖의 환경은 한국어를 사용합니다.
 3. `설정 → 번역 엔진`에서 원문 언어, 번역 언어와 엔진을 고릅니다.
    - 내 PC에서 처리하려면 `Gemma 4`

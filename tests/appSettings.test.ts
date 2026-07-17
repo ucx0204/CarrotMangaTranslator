@@ -48,6 +48,7 @@ describe("app settings helpers", () => {
     expect(defaults.gemma.modelFile).toBe(GEMMA_12B_MODEL_FILE_Q4_K_M);
     expect(defaults.gemma.mmprojRepo).toBe(GEMMA_12B_MMPROJ_REPO);
     expect(defaults.gemma.mmprojFile).toBe(GEMMA_12B_MMPROJ_FILE);
+    expect(defaults.gemma.mmprojFile).toBe("mmproj-gemma-4-12B-it-BF16.gguf");
     expect(defaults.modelProvider).toBe("openai-codex");
     expect(defaults.gemma.vramMode).toBe("minimum12b");
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
@@ -1776,6 +1777,26 @@ describe("app settings helpers", () => {
       resolveDefaultAppSettings({ MANGA_TRANSLATOR_GEMMA_VRAM_MODE: "min" })
         .gemma.vramMode,
     ).toBe("minimum12b");
+  });
+
+  it("migrates the legacy lowercase 12B mmproj filename", () => {
+    const defaults = resolveDefaultAppSettings();
+    const restored = parseStoredAppSettings(
+      JSON.stringify({
+        gemma: {
+          modelSource: "huggingface",
+          modelRepo: GEMMA_12B_MODEL_REPO,
+          modelFile: GEMMA_12B_MODEL_FILE_Q4_K_M,
+          mmprojRepo: GEMMA_12B_MMPROJ_REPO,
+          mmprojFile: "mmproj-gemma-4-12B-it-bf16.gguf",
+          vramMode: "minimum12b",
+        },
+      }),
+      defaults,
+    );
+
+    expect(restored.gemma.mmprojRepo).toBe(GEMMA_12B_MMPROJ_REPO);
+    expect(restored.gemma.mmprojFile).toBe(GEMMA_12B_MMPROJ_FILE);
   });
 
   it("normalizes max token settings", () => {

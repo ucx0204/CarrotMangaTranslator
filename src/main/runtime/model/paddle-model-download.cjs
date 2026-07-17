@@ -4,7 +4,9 @@ const { runtimeOverrideEnv } = require("../simple-page-child-env.cjs");
 const {
   downloadHfFileWithProgress,
   getFileSize,
+  mapWithConcurrency,
   probeContentLength,
+  resolveDownloadRangeConcurrency,
 } = require("../simple-page-download-utils.cjs");
 const {
   collectRequiredPaddleOcrModelDownloads,
@@ -50,8 +52,16 @@ function shouldSkipPrefetch(options) {
 async function buildPaddleDownloadPlan(options, runtime) {
   const pending = [];
   const totals = new Map();
-  for (const task of collectRequiredPaddleOcrModelDownloads(options, runtime)) {
-    const inspection = await inspectDownloadTask(options, task);
+  const tasks = collectRequiredPaddleOcrModelDownloads(options, runtime);
+  const inspected = await mapWithConcurrency(
+    tasks,
+    resolveDownloadRangeConcurrency(),
+    async (task) => ({
+      task,
+      inspection: await inspectDownloadTask(options, task),
+    }),
+  );
+  for (const { task, inspection } of inspected) {
     if (!inspection.pending) continue;
     pending.push(task);
     if (inspection.totalBytes > 0)

@@ -185,9 +185,13 @@ const runtimeHelpers = {
   resolveOcrCpuWorkerMinFreeRamRatio: (options?: {
     [key: string]: unknown;
   }) => number;
-  collectRequiredHfDownloads: (options: {
-    [key: string]: unknown;
-  }) => Array<{ kind: string; file: string; destination: string }>;
+  collectRequiredHfDownloads: (options: { [key: string]: unknown }) => Array<{
+    kind: string;
+    repo?: string;
+    file: string;
+    url: string;
+    destination: string;
+  }>;
   ensureHfModelAssetsDownloaded: (
     options: { [key: string]: unknown },
     launchTarget?: { [key: string]: unknown },

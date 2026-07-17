@@ -3,7 +3,9 @@ const path = require("node:path");
 const {
   downloadHfFileWithProgress,
   isUsableFile,
+  mapWithConcurrency,
   probeContentLength,
+  resolveDownloadRangeConcurrency,
 } = require("../simple-page-download-utils.cjs");
 const {
   createDetailedError,
@@ -60,8 +62,15 @@ function assertSafeDestinations(tasks) {
 /** @param {Array<{ url: string; destination: string }>} tasks @param {AbortSignal | null | undefined} signal */
 async function collectDownloadTotals(tasks, signal) {
   const totals = new Map();
-  for (const task of tasks) {
-    const totalBytes = await probeContentLength(task.url, signal);
+  const probes = await mapWithConcurrency(
+    tasks,
+    resolveDownloadRangeConcurrency(),
+    async (task) => ({
+      task,
+      totalBytes: await probeContentLength(task.url, signal),
+    }),
+  );
+  for (const { task, totalBytes } of probes) {
     if (Number.isFinite(totalBytes) && totalBytes > 0)
       totals.set(task.destination, totalBytes);
   }
