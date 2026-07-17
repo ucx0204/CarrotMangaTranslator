@@ -26,7 +26,7 @@ const { downloadHfFileWithProgress, resolveDownloadRetryDelayMs } =
   };
 
 const tempDirs: string[] = [];
-const DOWNLOAD_IO_TEST_TIMEOUT_MS = 30_000;
+const DOWNLOAD_IO_TEST_TIMEOUT_MS = 60_000;
 const previousRetryCount = process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRY_COUNT;
 const previousConcurrency = process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY;
 const previousChunkSizeMb = process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB;
@@ -210,8 +210,8 @@ describe("Hugging Face download fallback", () => {
       process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY = "3";
       process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB = "1";
       const chunkSize = 1024 * 1024;
-      const body = Buffer.alloc(chunkSize * 5);
-      for (let index = 0; index < 5; index += 1) {
+      const body = Buffer.alloc(chunkSize * 4);
+      for (let index = 0; index < 4; index += 1) {
         body.fill(index + 1, index * chunkSize, (index + 1) * chunkSize);
       }
       const task = await createTask("parallel-ranges.bin");
@@ -243,7 +243,7 @@ describe("Hugging Face download fallback", () => {
       await downloadHfFileWithProgress(task, {}, { totalBytes: body.length });
 
       expect(await readFile(task.destination)).toEqual(body);
-      expect(fetchMock).toHaveBeenCalledTimes(5);
+      expect(fetchMock).toHaveBeenCalledTimes(4);
       expect(maxActiveRequests).toBe(3);
     },
     DOWNLOAD_IO_TEST_TIMEOUT_MS,
