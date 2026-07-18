@@ -11,6 +11,7 @@ const {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } = require("node:fs");
@@ -22,7 +23,7 @@ const { verifyMacRuntimeSmokes } = require("./verify-mac-runtime-smokes.cjs");
 const root = join(__dirname, "..");
 const distDir = join(root, "dist");
 
-/** @typedef {{ status: number | null; stdout: string; stderr: string; error?: Error }} CommandResult */
+/** @typedef {{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; error?: Error }} CommandResult */
 
 /** @param {string} command @param {string[]} args @param {{ env?: NodeJS.ProcessEnv; input?: string; timeout?: number }} [options] @returns {CommandResult} */
 function run(command, args, options = {}) {
@@ -35,14 +36,22 @@ function run(command, args, options = {}) {
   });
   const normalized = {
     status: result.status,
+    signal: result.signal,
     stdout: String(result.stdout || ""),
     stderr: String(result.stderr || ""),
     ...(result.error ? { error: result.error } : {}),
   };
   if (normalized.error || normalized.status !== 0) {
-    throw new Error(
-      `${command} ${args.join(" ")} failed: ${normalized.error?.message || normalized.stderr || `exit ${normalized.status}`}`,
-    );
+    const failure = [
+      normalized.error?.message,
+      normalized.signal ? `signal ${normalized.signal}` : null,
+      normalized.status === null ? null : `exit ${normalized.status}`,
+      normalized.stderr,
+      normalized.stdout,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    throw new Error(`${command} ${args.join(" ")} failed: ${failure}`);
   }
   return normalized;
 }
@@ -246,6 +255,18 @@ function verifyRequiredRuntimes(appPath) {
 function verifySigning(appPath) {
   run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", appPath]);
   const details = run("codesign", ["-dvvv", appPath]).stderr;
+  const entitlementsResult = run("codesign", [
+    "-d",
+    "--entitlements",
+    ":-",
+    appPath,
+  ]);
+  const entitlements = `${entitlementsResult.stdout}\n${entitlementsResult.stderr}`;
+  if (!/com\.apple\.security\.cs\.allow-jit/m.test(entitlements)) {
+    throw new Error(
+      `Signed app is missing the Electron JIT entitlement:\n${entitlements}`,
+    );
+  }
   if (process.env.MGT_MAC_SIGNING_MODE === "developer-id") {
     if (!/Authority=Developer ID Application/m.test(details)) {
       throw new Error(`Expected Developer ID signature, got:\n${details}`);
@@ -276,19 +297,7 @@ function verifyApplicationDirectorySmoke(appPath) {
   rmSync(marker, { force: true });
   try {
     run("ditto", [appPath, smokeApp]);
-    const executable = join(
-      smokeApp,
-      "Contents",
-      "MacOS",
-      "CarrotMangaTranslator",
-    );
-    run(executable, [], {
-      timeout: 120_000,
-      env: {
-        MGT_MAC_PACKAGE_SMOKE_EXIT: "1",
-        MGT_MAC_PACKAGE_SMOKE_STAGE: "prepare",
-      },
-    });
+    runApplicationSmoke(smokeApp, "prepare");
     if (!existsSync(marker)) {
       throw new Error(
         `Packaged app did not create its external data marker: ${marker}`,
@@ -306,13 +315,7 @@ function verifyApplicationDirectorySmoke(appPath) {
         `Invalid packaged prepare smoke result: ${JSON.stringify(prepared)}`,
       );
     }
-    run(executable, [], {
-      timeout: 120_000,
-      env: {
-        MGT_MAC_PACKAGE_SMOKE_EXIT: "1",
-        MGT_MAC_PACKAGE_SMOKE_STAGE: "verify",
-      },
-    });
+    runApplicationSmoke(smokeApp, "verify");
     const smoke = JSON.parse(readFileSync(marker, "utf8"));
     if (
       smoke.ok !== true ||
@@ -333,9 +336,95 @@ function verifyApplicationDirectorySmoke(appPath) {
       );
     }
     run("codesign", ["--verify", "--deep", "--strict", smokeApp]);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.stack || error.message : String(error);
+    throw new Error(
+      `${message}\n${collectApplicationSmokeDiagnostics(dataRoot, marker)}`,
+      { cause: error },
+    );
   } finally {
     rmSync(smokeApp, { recursive: true, force: true });
     rmSync(marker, { force: true });
+  }
+}
+
+/** @param {string} smokeApp @param {"prepare" | "verify"} stage */
+function runApplicationSmoke(smokeApp, stage) {
+  run(
+    "open",
+    [
+      "-W",
+      "-n",
+      "-F",
+      "-g",
+      "--env",
+      "MGT_MAC_PACKAGE_SMOKE_EXIT=1",
+      "--env",
+      `MGT_MAC_PACKAGE_SMOKE_STAGE=${stage}`,
+      "--env",
+      "ELECTRON_ENABLE_LOGGING=1",
+      "--env",
+      "ELECTRON_ENABLE_STACK_DUMPING=1",
+      smokeApp,
+    ],
+    { timeout: 120_000 },
+  );
+}
+
+/** @param {string} dataRoot @param {string} marker */
+function collectApplicationSmokeDiagnostics(dataRoot, marker) {
+  /** @type {string[]} */
+  const diagnostics = [];
+  appendDiagnosticFile(diagnostics, "smoke marker", marker);
+  appendDiagnosticFile(
+    diagnostics,
+    "application log",
+    join(dataRoot, "logs", "app.log"),
+  );
+
+  const reportsDir = join(homedir(), "Library", "Logs", "DiagnosticReports");
+  try {
+    const reports = readdirSync(reportsDir)
+      .filter(
+        (name) =>
+          /CarrotMangaTranslator|당근망가번역기/i.test(name) &&
+          /\.(?:crash|ips)$/i.test(name),
+      )
+      .map((name) => join(reportsDir, name))
+      .sort((left, right) => statSync(right).mtimeMs - statSync(left).mtimeMs);
+    if (reports[0]) {
+      appendDiagnosticFile(
+        diagnostics,
+        "latest macOS crash report",
+        reports[0],
+      );
+    }
+  } catch (error) {
+    diagnostics.push(
+      `[mac-smoke diagnostics] Could not inspect crash reports: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  return diagnostics.length > 0
+    ? diagnostics.join("\n")
+    : "[mac-smoke diagnostics] No marker, app log, or crash report was produced.";
+}
+
+/** @param {string[]} diagnostics @param {string} label @param {string} filePath */
+function appendDiagnosticFile(diagnostics, label, filePath) {
+  if (!existsSync(filePath)) {
+    return;
+  }
+  try {
+    const contents = readFileSync(filePath, "utf8");
+    diagnostics.push(
+      `[mac-smoke diagnostics] ${label}: ${filePath}\n${contents.slice(-32 * 1024)}`,
+    );
+  } catch (error) {
+    diagnostics.push(
+      `[mac-smoke diagnostics] Could not read ${label} ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -362,10 +451,12 @@ async function main() {
   // running any executable from it.  The second check below proves that the
   // runtime smokes kept the signed .app immutable.
   verifySigning(appPath);
+  // Launch through LaunchServices exactly as a user opens an installed .app,
+  // before the memory-intensive OCR and Metal model smokes run.
+  verifyApplicationDirectorySmoke(appPath);
   verifyRequiredRuntimes(appPath);
   await verifyMacRuntimeSmokes({ appPath });
   verifySigning(appPath);
-  verifyApplicationDirectorySmoke(appPath);
 
   const dmgFiles = listFiles(distDir).filter((filePath) =>
     filePath.endsWith(".dmg"),
