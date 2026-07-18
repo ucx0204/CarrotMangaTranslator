@@ -344,6 +344,10 @@ async function stagePythonAndPaddle() {
     ],
     { PYTHONNOUSERSITE: "1" },
   );
+  const removedWindowsFiles = await removeWindowsRuntimeFiles(installRoot);
+  console.log(
+    `[mac-runtime] removed ${removedWindowsFiles.length} Windows-only Python launcher/library files`,
+  );
   const pythonTarget = path.join(stagingTools, "python");
   await cp(installRoot, pythonTarget, {
     recursive: true,
@@ -354,6 +358,21 @@ async function stagePythonAndPaddle() {
   console.log(
     `[mac-runtime] staged CPython ${asset.version} with ${MAC_RUNTIME_MANIFEST.ocrPackages.join(", ")}`,
   );
+}
+
+/** @param {string} currentDir @returns {Promise<string[]>} */
+async function removeWindowsRuntimeFiles(currentDir) {
+  const removed = [];
+  for (const entry of await readdir(currentDir, { withFileTypes: true })) {
+    const entryPath = path.join(currentDir, entry.name);
+    if (entry.isDirectory() && !entry.isSymbolicLink()) {
+      removed.push(...(await removeWindowsRuntimeFiles(entryPath)));
+    } else if (entry.isFile() && /\.(?:exe|dll)$/i.test(entry.name)) {
+      await rm(entryPath, { force: true });
+      removed.push(entryPath);
+    }
+  }
+  return removed;
 }
 
 async function stageFfmpeg() {
@@ -469,6 +488,7 @@ module.exports = {
   assertSafeArchiveEntry,
   extractTarSafely,
   isSameOrDescendant,
+  removeWindowsRuntimeFiles,
   sha256File,
 };
 

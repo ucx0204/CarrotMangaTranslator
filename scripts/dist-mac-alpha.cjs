@@ -83,6 +83,21 @@ function notarizeAndStapleDiskImage() {
   run("xcrun", ["stapler", "staple", diskImages[0]]);
 }
 
+/** @param {string[]} artifactPaths */
+function assertMacReleaseArtifacts(artifactPaths) {
+  const diskImages = artifactPaths.filter((filePath) =>
+    filePath.endsWith(".dmg"),
+  );
+  const zipArchives = artifactPaths.filter((filePath) =>
+    filePath.endsWith(".zip"),
+  );
+  if (diskImages.length !== 1 || zipArchives.length !== 1) {
+    throw new Error(
+      `electron-builder returned DMG=${diskImages.length} ZIP=${zipArchives.length}: ${artifactPaths.join(", ") || "no artifacts"}`,
+    );
+  }
+}
+
 async function main() {
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     throw new Error("The Apple Silicon Alpha must be built on macOS arm64.");
@@ -103,11 +118,12 @@ async function main() {
   run("npm", ["run", "build"], buildEnv);
 
   const { Arch, Platform, build } = require("electron-builder");
-  await build({
+  const artifactPaths = await build({
     targets: Platform.MAC.createTarget(["dmg", "zip"], Arch.arm64),
     config: "electron-builder.config.cjs",
     publish: "never",
   });
+  assertMacReleaseArtifacts(artifactPaths);
   notarizeAndStapleDiskImage();
   run(process.execPath, ["scripts/verify-mac-package.cjs"], buildEnv);
 }
