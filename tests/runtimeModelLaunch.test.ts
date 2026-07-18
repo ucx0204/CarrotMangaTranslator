@@ -352,6 +352,8 @@ describeWindows("runtime model support helpers", () => {
       expect(env.HF_HUB_DOWNLOAD_TIMEOUT).toBe("300");
       expect(env.MGT_UNRELATED_SECRET).toBeUndefined();
       expect(env.PYTHONHOME).toBeUndefined();
+      expect(env.PYTHONDONTWRITEBYTECODE).toBe("1");
+      expect(env.PYTHONPYCACHEPREFIX).toBe(join(runtimeDir, "pycache"));
     } finally {
       if (previousDisableXet === undefined) {
         delete process.env.HF_HUB_DISABLE_XET;

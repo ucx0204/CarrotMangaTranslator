@@ -170,7 +170,7 @@ function createSmokeImages(python, workRoot) {
     ["-c", script, paths.ocr, paths.input, paths.mask, paths.bubble],
     {
       timeout: 60_000,
-      env: { PYTHONNOUSERSITE: "1" },
+      env: buildSmokePythonEnv(workRoot),
     },
   );
   return paths;
@@ -225,7 +225,7 @@ async function verifyOcrImageSmoke(
     ],
     {
       timeout: 30_000,
-      env: { PYTHONNOUSERSITE: "1" },
+      env: buildSmokePythonEnv(workRoot),
     },
   );
   console.log(`[mac-smoke] Paddle OCR CPU detected ${hints.length} region(s)`);
@@ -302,7 +302,7 @@ async function verifyKoharuImageSmokes(runner, python, workRoot, images) {
         "from PIL import Image; import sys; image=Image.open(sys.argv[1]); image.load(); assert image.size == (128, 128)",
         output,
       ],
-      { timeout: 30_000, env: { PYTHONNOUSERSITE: "1" } },
+      { timeout: 30_000, env: buildSmokePythonEnv(workRoot) },
     );
     console.log(`[mac-smoke] ${asset.model} Metal 128x128 inpainting passed`);
   }
@@ -318,6 +318,16 @@ function parseOptionalJson(text) {
   } catch (_error) {
     return null;
   }
+}
+
+/** @param {string} workRoot @returns {NodeJS.ProcessEnv} */
+function buildSmokePythonEnv(workRoot) {
+  return {
+    PYTHONNOUSERSITE: "1",
+    PYTHONDONTWRITEBYTECODE: "1",
+    PYTHONPYCACHEPREFIX: join(workRoot, "pycache"),
+    PADDLE_PDX_CACHE_HOME: join(workRoot, "paddlex-cache"),
+  };
 }
 
 /** @param {{ appPath: string }} options */

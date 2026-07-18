@@ -283,6 +283,10 @@ describe("Apple Silicon Alpha packaging", () => {
     );
 
     expect(verifier).toContain("await verifyMacRuntimeSmokes({ appPath })");
+    expect(verifier.match(/^\s+verifySigning\(appPath\);$/gm)).toHaveLength(2);
+    expect(verifier).toContain('PYTHONDONTWRITEBYTECODE: "1"');
+    expect(smokes).toContain('PYTHONDONTWRITEBYTECODE: "1"');
+    expect(smokes).toContain('PYTHONPYCACHEPREFIX: join(workRoot, "pycache")');
     expect(smokes).toContain('ocrDevice: "cpu"');
     expect(smokes).toContain('ocrBboxMode: "ocr"');
     expect(smokes).toContain('"PP-OCRv6_tiny_det"');
