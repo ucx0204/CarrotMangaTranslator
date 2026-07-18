@@ -269,7 +269,7 @@ async function stageLlamaRuntime(asset) {
   }
   const runtimeSource = path.dirname(serverPath);
   const runtimeTarget = path.join(stagingTools, asset.id);
-  await copyLlamaRuntimePayload(runtimeSource, runtimeTarget);
+  await copyMacRuntimePayload(runtimeSource, runtimeTarget);
   const stagedServer = path.join(runtimeTarget, "llama-server");
   await chmod(stagedServer, 0o755);
   assertArm64MachO(stagedServer);
@@ -283,16 +283,16 @@ async function stageLlamaRuntime(asset) {
 }
 
 /**
- * The official llama.cpp archives may keep a dylib target outside the folder
- * containing llama-server. Copying that folder while preserving symlinks can
- * therefore leave a broken link in the app bundle. Archive links have already
- * passed the extraction-root escape checks, so materialize them as regular
- * files before electron-builder and codesign see the staged runtime.
+ * Runtime archives may keep a symlink target outside the subtree selected for
+ * staging. Copying that subtree while preserving symlinks can therefore leave
+ * a broken link in the app bundle. Archive links have already passed the
+ * extraction-root escape checks, so materialize them before electron-builder
+ * and codesign see the staged runtime.
  *
  * @param {string} runtimeSource
  * @param {string} runtimeTarget
  */
-async function copyLlamaRuntimePayload(runtimeSource, runtimeTarget) {
+async function copyMacRuntimePayload(runtimeSource, runtimeTarget) {
   await cp(runtimeSource, runtimeTarget, {
     recursive: true,
     dereference: true,
@@ -308,7 +308,7 @@ async function assertNoSymlinks(currentDir) {
     const metadata = await lstat(entryPath);
     if (metadata.isSymbolicLink()) {
       throw new Error(
-        `Staged llama runtime still contains symlink: ${entryPath}`,
+        `Staged macOS runtime still contains symlink: ${entryPath}`,
       );
     }
     if (metadata.isDirectory()) {
@@ -380,11 +380,7 @@ async function stagePythonAndPaddle() {
     `[mac-runtime] removed ${removedWindowsFiles.length} Windows-only Python launcher/library files`,
   );
   const pythonTarget = path.join(stagingTools, "python");
-  await cp(installRoot, pythonTarget, {
-    recursive: true,
-    dereference: false,
-    preserveTimestamps: true,
-  });
+  await copyMacRuntimePayload(installRoot, pythonTarget);
   await chmod(path.join(pythonTarget, "bin", "python3"), 0o755);
   console.log(
     `[mac-runtime] staged CPython ${asset.version} with ${MAC_RUNTIME_MANIFEST.ocrPackages.join(", ")}`,
@@ -511,13 +507,14 @@ async function main() {
     path.join(root, "scripts", "mac-runtime-manifest.cjs"),
     path.join(stagingTools, "mac-runtime-manifest.cjs"),
   );
+  await assertNoSymlinks(stagingTools);
   await rm(extractionRoot, { recursive: true, force: true });
   console.log(`[mac-runtime] complete: ${stagingRoot}`);
 }
 
 module.exports = {
   assertSafeArchiveEntry,
-  copyLlamaRuntimePayload,
+  copyMacRuntimePayload,
   extractTarSafely,
   isSameOrDescendant,
   removeWindowsRuntimeFiles,

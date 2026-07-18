@@ -32,11 +32,11 @@ const { MAC_RUNTIME_MANIFEST } =
   };
 const {
   assertSafeArchiveEntry,
-  copyLlamaRuntimePayload,
+  copyMacRuntimePayload,
   removeWindowsRuntimeFiles,
 } = require("../scripts/prepare-mac-runtime.cjs") as {
   assertSafeArchiveEntry: (entryPath: string, linkPath?: string) => void;
-  copyLlamaRuntimePayload: (
+  copyMacRuntimePayload: (
     runtimeSource: string,
     runtimeTarget: string,
   ) => Promise<void>;
@@ -96,6 +96,14 @@ describe("Apple Silicon Alpha packaging", () => {
         'rev = "0d640615d435a399bc195c892de8f5d17efb68f8"',
       );
     }
+    const runtimePreparer = readFileSync(
+      join(repoRoot, "scripts", "prepare-mac-runtime.cjs"),
+      "utf8",
+    );
+    expect(runtimePreparer).toContain(
+      "await copyMacRuntimePayload(installRoot, pythonTarget)",
+    );
+    expect(runtimePreparer).toContain("await assertNoSymlinks(stagingTools)");
   });
 
   it("rejects archive traversal and escaping symlinks", () => {
@@ -131,7 +139,7 @@ describe("Apple Silicon Alpha packaging", () => {
           join(sourceDir, "libggml-base.dylib"),
         );
 
-        await copyLlamaRuntimePayload(sourceDir, targetDir);
+        await copyMacRuntimePayload(sourceDir, targetDir);
 
         const stagedDylib = join(targetDir, "libggml-base.dylib");
         expect(lstatSync(stagedDylib).isFile()).toBe(true);
