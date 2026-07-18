@@ -1,15 +1,10 @@
 const { spawnSync } = require("node:child_process");
 const { existsSync } = require("node:fs");
 const { join } = require("node:path");
+const { resolveElectronExecutable } = require("./electron-executable.cjs");
 
 const root = join(__dirname, "..");
-const electronExe = join(
-  root,
-  "node_modules",
-  "electron",
-  "dist",
-  process.platform === "win32" ? "electron.exe" : "electron",
-);
+const electronExe = resolveElectronExecutable(root);
 const smokeScript = join(root, "scripts", "smoke-overlay.cjs");
 
 if (!existsSync(electronExe)) {

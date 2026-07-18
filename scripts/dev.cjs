@@ -3,6 +3,7 @@ const net = require("node:net");
 const { join } = require("node:path");
 const { existsSync } = require("node:fs");
 const { spawn, spawnSync } = require("node:child_process");
+const { resolveElectronExecutable } = require("./electron-executable.cjs");
 const { prepareRuntimeAssets } = require("./prepare-runtime.cjs");
 
 const root = join(__dirname, "..");
@@ -203,11 +204,7 @@ function shutdown(exitCode = 0) {
   ]);
   log(`waiting for renderer ${rendererUrl}`);
   await waitForUrl(rendererUrl);
-  const electronExe = nodeBin(
-    "electron",
-    "dist",
-    process.platform === "win32" ? "electron.exe" : "electron",
-  );
+  const electronExe = resolveElectronExecutable(root);
   if (!existsSync(electronExe)) {
     throw new Error(`Electron executable is missing: ${electronExe}`);
   }
