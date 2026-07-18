@@ -189,6 +189,11 @@ function buildPythonRuntimeEnv(options, runtime, context) {
   return {
     PYTHONPATH: context.pythonPath,
     PYTHONNOUSERSITE: "1",
+    // The bundled macOS interpreter lives inside the signed .app.  Importing
+    // from it must never create __pycache__ entries there, otherwise the first
+    // OCR run invalidates the app's code-signature seal.
+    PYTHONDONTWRITEBYTECODE: "1",
+    PYTHONPYCACHEPREFIX: path.join(context.runtimeDir, "pycache"),
     PYTHONUSERBASE: resolveOcrPythonUserBaseDir(context.runtimeDir, options),
     PIP_CACHE_DIR: resolveOcrPipCacheDir(context.runtimeDir, options),
     PADDLE_PDX_MODEL_SOURCE:

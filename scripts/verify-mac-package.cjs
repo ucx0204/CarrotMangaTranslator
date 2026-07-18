@@ -182,6 +182,11 @@ function verifyRequiredRuntimes(appPath) {
       timeout: 120_000,
       env: {
         PYTHONNOUSERSITE: "1",
+        PYTHONDONTWRITEBYTECODE: "1",
+        PYTHONPYCACHEPREFIX: join(
+          tmpdir(),
+          "mgt-paddle-package-verify-pycache",
+        ),
         PADDLE_PDX_CACHE_HOME: join(tmpdir(), "mgt-paddle-package-verify"),
       },
     },
@@ -353,6 +358,10 @@ async function main() {
   }
   const appPath = apps[0];
   verifyNativePayload(appPath);
+  // Establish that electron-builder produced a valid sealed bundle before
+  // running any executable from it.  The second check below proves that the
+  // runtime smokes kept the signed .app immutable.
+  verifySigning(appPath);
   verifyRequiredRuntimes(appPath);
   await verifyMacRuntimeSmokes({ appPath });
   verifySigning(appPath);
