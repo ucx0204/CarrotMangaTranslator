@@ -295,8 +295,15 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(smokes).toContain('"lama-manga"');
     expect(smokes).toContain('"metal-native"');
     expect(smokes).toContain("128 * 128");
-    expect(verifier).toContain('MGT_MAC_PACKAGE_SMOKE_STAGE: "prepare"');
-    expect(verifier).toContain('MGT_MAC_PACKAGE_SMOKE_STAGE: "verify"');
+    expect(verifier).toContain("MGT_MAC_PACKAGE_SMOKE_STAGE=${stage}");
+    expect(verifier).toContain('runApplicationSmoke(smokeApp, "prepare")');
+    expect(verifier).toContain('runApplicationSmoke(smokeApp, "verify")');
+    expect(verifier).toContain('"open",');
+    expect(verifier).toContain('"-W",');
+    expect(verifier).toContain('"--env",');
+    expect(verifier).toContain("collectApplicationSmokeDiagnostics");
+    expect(verifier).toContain("result.signal");
+    expect(verifier).toContain('"--entitlements",');
     const appSmoke = readFileSync(
       join(repoRoot, "src", "main", "macPackageSmoke.ts"),
       "utf8",
