@@ -39,6 +39,7 @@ export function buildSettingsFromDraft({
     localMmprojPath: draft.trimmedLocalMmprojPath,
     vramMode: draft.selectedVramMode,
     llamaRuntimeProfile: values.llamaRuntimeProfile,
+    allowUnsafeUnifiedMemory: values.allowUnsafeUnifiedMemory,
     codexModel: draft.trimmedCodexModel,
     codexReasoningEffort: values.codexReasoningEffort,
     codexOauthPort: draft.codexOauthPortValid
@@ -60,6 +61,7 @@ export function buildSettingsFromDraft({
     ocrQualityMode: values.ocrQualityMode,
     inpaintingModel: values.inpaintingModel,
     fluxBackend: values.fluxBackend,
+    allowUnsafeLowMemoryFlux: values.allowUnsafeLowMemoryFlux,
     maxTokens: draft.parsedMaxTokens,
     ctx: draft.parsedContextTokens,
   });

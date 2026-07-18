@@ -1,11 +1,30 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAppleGpuInfo,
   inferAmdRocmTargetFromName,
   parseRocmSmiGpuLine,
   parseRtxGeneration,
   parseWindowsAmdGpuLine,
   resolveAmdRocmTargetFromArch,
 } from "../src/main/gpuInfo";
+
+describe("Apple Silicon GPU detection", () => {
+  it("reports Metal and unified system memory", () => {
+    expect(buildAppleGpuInfo("Apple M3 Pro", 36 * 1024 ** 3)).toEqual({
+      name: "Apple M3 Pro",
+      memoryMb: 36 * 1024,
+      unifiedMemoryMb: 36 * 1024,
+      rtxGeneration: null,
+      computeCapability: null,
+      vendor: "apple",
+      rocmArch: null,
+      rocmTarget: null,
+      supportsRocm: false,
+      supportsVulkan: false,
+      supportsMetal: true,
+    });
+  });
+});
 
 describe("GPU info helpers", () => {
   it("parses NVIDIA RTX generations from common GPU names", () => {

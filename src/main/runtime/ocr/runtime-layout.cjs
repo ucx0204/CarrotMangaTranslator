@@ -241,11 +241,24 @@ function resolveBootstrapPython(
   if (explicit) {
     return explicit;
   }
-  const bundled = findAvailablePython([
-    path.join(options.toolsDir || "", "python", "python.exe"),
-    path.join(options.toolsDir || "", "python", "python-embed", "python.exe"),
-    path.join(options.toolsDir || "", "python.exe"),
-  ]);
+  const bundled = findAvailablePython(
+    process.platform === "darwin"
+      ? [
+          path.join(options.toolsDir || "", "python", "bin", "python3"),
+          path.join(options.toolsDir || "", "python", "bin", "python3.12"),
+          path.join(options.toolsDir || "", "python", "bin", "python"),
+        ]
+      : [
+          path.join(options.toolsDir || "", "python", "python.exe"),
+          path.join(
+            options.toolsDir || "",
+            "python",
+            "python-embed",
+            "python.exe",
+          ),
+          path.join(options.toolsDir || "", "python.exe"),
+        ],
+  );
   if (bundled) {
     return bundled;
   }

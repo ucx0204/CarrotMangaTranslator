@@ -325,11 +325,8 @@ function launchBrowser(browserPath, profile, debuggingPort) {
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
-        APPDATA: join(profile, "app-data"),
-        LOCALAPPDATA: join(profile, "local-app-data"),
         TEMP: join(profile, "temp"),
         TMP: join(profile, "temp"),
-        USERPROFILE: profile,
       },
     },
   );
@@ -588,6 +585,36 @@ function qaBridgeSource() {
       getLibrary: async () => ({ workOrder: [], works: [] }),
       getPageImageDataUrl: async () => pageImageDataUrl,
       getPanelState: async () => null,
+      getRuntimeCapabilities: async () => ({
+        buildChannel: "mac-alpha",
+        platform: "darwin",
+        arch: "arm64",
+        appleSilicon: true,
+        gpuVendor: "apple",
+        gpuName: "Apple M2 (QA)",
+        supportsMetal: true,
+        unifiedMemoryMb: 24576,
+        localGemma: {
+          available: true,
+          metal: true,
+          minimumUnifiedMemoryMb: {
+            minimum12b: 16384,
+            economy26b: 24576,
+            full31b: 32768,
+          },
+        },
+        inpainting: {
+          fluxKlein: {
+            available: true,
+            metal: true,
+            cpuFallback: false,
+            minimumUnifiedMemoryMb: 16384,
+          },
+          lamaManga: { available: true, metal: true, cpuFallback: true },
+          aotInpainting: { available: true, metal: true, cpuFallback: true },
+        },
+        ocr: { cpu: true, gpu: false },
+      }),
       getUiLocale: async () => "ko",
       listCustomFonts: async () => [],
       registerCustomFont: async () => null,

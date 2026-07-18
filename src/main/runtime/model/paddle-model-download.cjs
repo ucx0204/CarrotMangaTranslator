@@ -19,10 +19,15 @@ const {
   inspectPaddleOcrAssetFile,
   isPaddleOcrModelAssetLoadFailure,
 } = require("./paddle-model-validation.cjs");
+const {
+  integrityMarkerPath,
+  normalizeExpectedSha256,
+  verifyFileSha256,
+} = require("../transport/download-integrity.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} ModelAssetOptions */
 /** @typedef {import("../runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
-/** @typedef {{ kind: string; label: string; repo?: string; file: string; url: string; destination: string; progressPhase?: string; progressTitle?: string; completeTitle?: string }} DownloadTask */
+/** @typedef {{ kind: string; label: string; repo?: string; file: string; url: string; destination: string; revision?: string; expectedSha256?: string; progressPhase?: string; progressTitle?: string; completeTitle?: string }} DownloadTask */
 
 /** @param {ModelAssetOptions} [options] @param {OcrRuntimeLayout | null} [runtime] */
 async function ensurePaddleOcrModelAssetsDownloaded(
@@ -79,11 +84,22 @@ async function inspectDownloadTask(options, task) {
     await removeCorruptAsset(options, task, problem);
     return { pending: true, totalBytes };
   }
+  const expectedSha256 = normalizeExpectedSha256(task.expectedSha256);
+  if (existingSize > 0 && expectedSha256) {
+    const integrity = await verifyFileSha256(task.destination, expectedSha256);
+    if (integrity.verified) return { pending: false, totalBytes };
+    await removeCorruptAsset(
+      options,
+      task,
+      `SHA-256 불일치 (expected ${integrity.expected}, actual ${integrity.actual})`,
+    );
+    return { pending: true, totalBytes };
+  }
   if (assetMatchesRemoteSize(existingSize, totalBytes))
     return { pending: false, totalBytes };
   if (existingSize > 0 && totalBytes > 0) {
     await safeCleanup("remove partial Paddle OCR model asset", () =>
-      rm(task.destination, { force: true }),
+      removeAssetAndIntegrityMarker(task.destination),
     );
   }
   return { pending: true, totalBytes };
@@ -97,7 +113,7 @@ function assetMatchesRemoteSize(existingSize, totalBytes) {
 /** @param {ModelAssetOptions} options @param {DownloadTask} task @param {string} problem */
 async function removeCorruptAsset(options, task, problem) {
   await safeCleanup("remove corrupt Paddle OCR model asset", () =>
-    rm(task.destination, { force: true }),
+    removeAssetAndIntegrityMarker(task.destination),
   );
   emitRuntimeProgress(
     options,
@@ -109,6 +125,14 @@ async function removeCorruptAsset(options, task, problem) {
       installLogLine: `깨진 OCR 모델 파일을 다시 받습니다: ${task.file} (${problem})`,
     },
   );
+}
+
+/** @param {string} destination */
+async function removeAssetAndIntegrityMarker(destination) {
+  await Promise.all([
+    rm(destination, { force: true }),
+    rm(integrityMarkerPath(destination), { force: true }),
+  ]);
 }
 
 /** @param {Map<string, number>} totals @param {number} taskCount */

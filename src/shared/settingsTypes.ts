@@ -35,7 +35,12 @@ export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm-transformers";
 export type OcrQualityMode = "minimum" | "economy" | "full";
 export type TranslationWorkflowMode = "standard" | "cumulative" | "two-pass";
-export type LlamaRuntimeProfile = "cuda12" | "rtx50" | "rocm" | "vulkan";
+export type LlamaRuntimeProfile =
+  | "cuda12"
+  | "rtx50"
+  | "rocm"
+  | "vulkan"
+  | "metal";
 export type AmdRocmTarget =
   | "gfx908"
   | "gfx90a"
@@ -44,7 +49,7 @@ export type AmdRocmTarget =
   | "gfx1150"
   | "gfx1151"
   | "gfx120X";
-type RuntimeGpuVendor = "nvidia" | "amd" | "unknown";
+type RuntimeGpuVendor = "nvidia" | "amd" | "apple" | "unknown";
 
 type RuntimeHardwareInfo = {
   gpuVendor: RuntimeGpuVendor;
@@ -52,6 +57,9 @@ type RuntimeHardwareInfo = {
   llamaRocmTarget?: AmdRocmTarget | null;
   supportsRocm?: boolean;
   supportsVulkan?: boolean;
+  supportsMetal?: boolean;
+  /** Apple Silicon shares this physical memory between CPU and GPU. */
+  unifiedMemoryMb?: number | null;
 };
 
 type GemmaSettings = {
@@ -65,6 +73,12 @@ type GemmaSettings = {
   vramMode: GemmaVramMode;
   llamaRuntimeProfile?: LlamaRuntimeProfile;
   llamaRocmTarget?: AmdRocmTarget;
+  /**
+   * Apple Silicon Alpha only. The renderer must obtain explicit risk
+   * confirmation before setting this when the selected model exceeds the
+   * recommended unified-memory tier.
+   */
+  allowUnsafeUnifiedMemory?: boolean;
 };
 
 type CodexSettings = {
@@ -113,6 +127,8 @@ type InpaintingSettings = {
   model?: InpaintingModel;
   fluxBackend?: FluxBackend;
   koharuBackend?: KoharuInpaintingBackend;
+  /** Explicit Alpha opt-in for Flux Metal below the recommended 16 GiB. */
+  allowUnsafeLowMemoryFlux?: boolean;
 };
 
 /**

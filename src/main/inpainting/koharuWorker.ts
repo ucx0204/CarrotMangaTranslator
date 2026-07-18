@@ -273,6 +273,10 @@ function sanitizeKoharuRuntimeStderr(text: string): string {
     .replace(
       /[A-Z]:\\Users\\[^:\r\n]+?\\tools\\mgt-koharu-inpaint-runner\\[^:\r\n]+/gi,
       "<koharu-runner-source>",
+    )
+    .replace(
+      /\/Users\/[^/\r\n]+\/(?:\.cargo\/(?:registry\/src|git\/checkouts)|[^:\r\n]*?\/tools\/mgt-koharu-inpaint-runner)\/[^:\r\n]+/g,
+      "<koharu-runner-source>",
     );
 }
 

@@ -80,6 +80,15 @@ describe("formatCombo", () => {
     expect(formatCombo("delete")).toEqual(["Del"]);
     expect(formatCombo("")).toEqual([]);
   });
+
+  it("uses Command glyphs for canonical Ctrl/Meta bindings on macOS", () => {
+    expect(formatCombo("ctrl+shift+t", "MacIntel")).toEqual([
+      "⌘",
+      "Shift",
+      "T",
+    ]);
+    expect(formatCombo("ctrl+,", "MacIntel")).toEqual(["⌘", ","]);
+  });
 });
 
 describe("shortcut binding resolution", () => {

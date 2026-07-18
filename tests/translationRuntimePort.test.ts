@@ -50,7 +50,10 @@ async function loadPortWithStubs({ disposed = true } = {}) {
         normalizeRegionSingleItem: () => [],
       },
     }),
-    startModelEndpointSession: async () => ({}),
+    startModelEndpointSession: async () => {
+      calls.push("endpoint");
+      return {};
+    },
   }));
 
   const portModule =
@@ -75,6 +78,30 @@ function makeOcrOptions(
 }
 
 describe("translationRuntimePort GPU OCR preparation", () => {
+  it("disposes cached inpainting before local Gemma starts", async () => {
+    const { port, disposeCachedInpaintingEngines, calls } =
+      await loadPortWithStubs();
+
+    await port.startEndpointSession(
+      makeOcrOptions({ modelProvider: "gemma", ocrDevice: "cpu" }),
+    );
+
+    expect(disposeCachedInpaintingEngines).toHaveBeenCalledWith("gemma-start");
+    expect(calls).toEqual(["dispose", "endpoint"]);
+  });
+
+  it("does not evict inpainting for remote translation providers", async () => {
+    const { port, disposeCachedInpaintingEngines, calls } =
+      await loadPortWithStubs();
+
+    await port.startEndpointSession(
+      makeOcrOptions({ modelProvider: "openai-codex", ocrDevice: "cpu" }),
+    );
+
+    expect(disposeCachedInpaintingEngines).not.toHaveBeenCalled();
+    expect(calls).toEqual(["endpoint"]);
+  });
+
   it("disposes cached inpainting engines before GPU OCR to free VRAM", async () => {
     const { port, disposeCachedInpaintingEngines, calls } =
       await loadPortWithStubs();

@@ -1010,6 +1010,10 @@
         }
       },
       "llamaRuntimes": {
+        "metal": {
+          "label": "Apple Metal",
+          "description": "Metal llama.cpp runtime for Apple Silicon."
+        },
         "cuda12": {
           "label": "CUDA 12",
           "description": "llama.cpp runtime for NVIDIA CUDA 12."
@@ -1025,6 +1029,10 @@
         }
       },
       "fluxBackends": {
+        "metal": {
+          "label": "Apple Metal",
+          "description": "Required native Metal runtime for Flux Klein on Apple Silicon."
+        },
         "cuda": {
           "label": "NVIDIA CUDA",
           "description": "The fastest native Flux runtime on RTX GPUs."
@@ -1078,8 +1086,16 @@
       "ggufFile": "GGUF file",
       "runtime": {
         "label": "llama.cpp runtime",
+        "appleNote": "Only the Metal runtime is shown on Apple Silicon.",
         "amdNote": "The ROCm runtime is recommended for AMD GPUs.",
         "nvidiaNote": "The CUDA runtime is recommended for NVIDIA GPUs."
+      },
+      "memory": {
+        "summary": "Unified memory {{available}} · recommended {{required}} · first download about {{download}}",
+        "sufficient": "Recommended for this memory tier.",
+        "insufficient": "{{shortage}} below the recommendation. Select the model to confirm a risky Alpha test.",
+        "unsafeAllowed": "Risky execution with a {{shortage}} shortfall is allowed for this configuration.",
+        "unsafeConfirm": "This Mac has {{available}} unified memory; the selected model recommends {{required}}. Its first-use download is about {{download}} and may take substantial time. The app may terminate or make the system extremely slow. Allow this risky Apple Silicon Alpha run?"
       },
       "local": {
         "modelFile": "Local model file",
@@ -1159,10 +1175,14 @@
       "inpaintingModel": "Inpainting model",
       "amdOcrExperimental": "AMD GPU OCR is experimental. If it fails, you can switch only OCR to the CPU.",
       "ocrAmdNote": "NVIDIA CUDA OCR cannot be selected on AMD systems.",
+      "ocrAppleNote": "Paddle OCR uses the CPU runtime in the Apple Silicon Alpha.",
       "ocrNvidiaNote": "AMD ROCm OCR cannot be selected on NVIDIA systems.",
       "fluxAmdNote": "CUDA native is unavailable on the detected AMD GPU; choose ZLUDA or CPU.",
+      "fluxAppleNote": "Only the native Metal backend is used on Apple Silicon. Flux recommends at least 16 GB unified memory.",
       "fluxNvidiaNote": "Use CUDA native instead of ZLUDA on the detected NVIDIA GPU.",
       "fluxOnlyNote": "This backend setting applies only to the Flux Klein model.",
+      "fluxLowMemoryConfirm": "This Mac has {{available}} unified memory, below Flux's 16 GB recommendation. The app may terminate or make the system extremely slow. Allow this risky Alpha run?",
+      "fluxLowMemoryOverride": "Allow risky Flux Alpha runs with {{available}} unified memory",
       "downloadHipSdk": "Download AMD HIP SDK (ROCm 7.1.1)"
     },
     "format": {

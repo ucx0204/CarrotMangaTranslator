@@ -1,10 +1,12 @@
 use std::{
-    ffi::CStr,
     fs,
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
     time::Instant,
 };
+
+#[cfg(feature = "cuda")]
+use std::ffi::CStr;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, ValueEnum};
@@ -96,6 +98,8 @@ enum BackendKind {
     CudaNative,
     #[value(name = "zluda-native")]
     ZludaNative,
+    #[value(name = "metal-native")]
+    MetalNative,
     #[value(name = "cpu")]
     Cpu,
 }
@@ -135,10 +139,18 @@ enum LoadedModel {
 async fn main() -> Result<()> {
     install_panic_hook();
     init_logging();
+    if std::env::args_os().any(|arg| arg == "--capabilities") {
+        return print_capabilities();
+    }
     let cli = Cli::parse();
 
     let uses_zluda = cli.require_zluda || cli.backend == BackendKind::ZludaNative;
-    if uses_zluda {
+    if uses_zluda && cli.backend == BackendKind::MetalNative {
+        bail!("--require-zluda and --backend metal-native cannot be used together");
+    }
+    if cli.backend == BackendKind::MetalNative {
+        ensure_metal_available()?;
+    } else if uses_zluda {
         prepare_zluda_runtime(&cli).await?;
         // ZLUDA is initialized through the CUDA Driver API. Its hybrid cudart
         // library does not provide the full CUDA Runtime API surface required
@@ -158,6 +170,38 @@ async fn main() -> Result<()> {
 
     run_worker(&model)?;
     Ok(())
+}
+
+fn print_capabilities() -> Result<()> {
+    ensure_metal_available()?;
+    println!(
+        "{}",
+        serde_json::json!({
+            "protocol_version": 1,
+            "runner": "mgt-koharu-inpaint-runner",
+            "backend": "metal-native",
+            "metal_device": true,
+            "models": ["lama-manga", "aot-inpainting"],
+        })
+    );
+    Ok(())
+}
+
+fn ensure_metal_available() -> Result<()> {
+    #[cfg(feature = "metal")]
+    {
+        let device = koharu_ml::Device::new_metal(0)
+            .with_context(|| "Metal device initialization failed")?;
+        if !device.is_metal() {
+            bail!("Metal device preflight returned a non-Metal device");
+        }
+        eprintln!("mgt-koharu-inpaint-runner: Metal device preflight passed");
+        Ok(())
+    }
+    #[cfg(not(feature = "metal"))]
+    {
+        bail!("Metal backend requested, but this runner was not built with --features metal")
+    }
 }
 
 async fn load_model(cli: &Cli) -> Result<LoadedModel> {
@@ -648,6 +692,7 @@ fn init_logging() {
     let _ = fmt().with_env_filter(filter).with_target(false).try_init();
 }
 
+#[cfg(feature = "cuda")]
 fn log_cuda_runtime_probe() {
     match cudarc::runtime::result::device::get_count() {
         Ok(count) => {
@@ -672,8 +717,14 @@ fn log_cuda_runtime_probe() {
     }
 }
 
+#[cfg(feature = "cuda")]
 fn cuda_device_name(name: &[std::os::raw::c_char]) -> String {
     unsafe { CStr::from_ptr(name.as_ptr()).to_string_lossy().into_owned() }
+}
+
+#[cfg(not(feature = "cuda"))]
+fn log_cuda_runtime_probe() {
+    eprintln!("mgt-koharu-inpaint-runner: CUDA probe unavailable in this build");
 }
 
 fn install_panic_hook() {

@@ -78,6 +78,7 @@ import type {
   OpenErrorReportIssueResult,
   RestartAppResult,
 } from "./errorReportTypes";
+import type { BuildChannel, RuntimeCapabilities } from "./runtimeCapabilities";
 
 export type MangaApi = {
   previewImagesImport: () => Promise<ImportPreviewSession | null>;
@@ -146,7 +147,9 @@ export type MangaApi = {
   getAppUpdateInfo: () => Promise<{
     currentVersion: string;
     releasesUrl: string;
+    buildChannel: BuildChannel;
   }>;
+  getRuntimeCapabilities: () => Promise<RuntimeCapabilities>;
   openReleasesPage: () => Promise<unknown>;
   testModelSettings: (
     settings: AppSettings,

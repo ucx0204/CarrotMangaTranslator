@@ -32,7 +32,10 @@ function configurePackagedElectronStorage(): void {
   }
 
   try {
-    const dataRoot = resolvePackagedDataRoot(dirname(process.execPath));
+    const dataRoot = resolvePackagedDataRoot(dirname(process.execPath), {
+      platform: process.platform,
+      appDataDir: app.getPath("appData"),
+    });
     const userDataDir = join(dataRoot, "electron-user-data");
     const sessionDataDir = join(dataRoot, "electron-session");
     const tempDir = join(dataRoot, "tmp", "system-temp");

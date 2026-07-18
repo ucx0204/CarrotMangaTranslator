@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { chmod, copyFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, delimiter, dirname, join } from "node:path";
 import type {
@@ -19,13 +19,22 @@ import type { InpaintingRuntimeProgress } from "./inpaintingEngine";
 import type { KoharuWorkerLaunchSpec } from "./koharuWorkerTypes";
 
 const AOT_MODEL_REPO = "mayocream/aot-inpainting";
+export const AOT_MODEL_REVISION = "bde6131f9d3ef841b435507def8534715ac8e87c";
 const AOT_CONFIG_FILE = "config.json";
 const AOT_MODEL_FILE = "model.safetensors";
+export const AOT_MODEL_SHA256 =
+  "1b4fea17a84a228c2097a42ab2f403357f07bb56ae022dc243b40817b7aa87d1";
 
 const LAMA_MODEL_REPO = "mayocream/lama-manga";
+export const LAMA_MODEL_REVISION = "bc1fd58e8d92133f437f62f4f18f7ee3aa7503f8";
 const LAMA_MODEL_FILE = "lama-manga.safetensors";
+export const LAMA_MODEL_SHA256 =
+  "a790515e9da839b8d89af7d565ceb110d908b7d6fbdb991f2acb2ec7d9b08bdb";
 
-const KOHARU_RUNTIME_EXECUTABLE = "mgt-koharu-inpaint-runner.exe";
+const KOHARU_RUNTIME_EXECUTABLE =
+  process.platform === "win32"
+    ? "mgt-koharu-inpaint-runner.exe"
+    : "mgt-koharu-inpaint-runner";
 const KOHARU_RUNNER_DIR = "mgt-koharu-inpaint-runner";
 
 export type KoharuModelFiles =
@@ -74,7 +83,8 @@ export async function ensureKoharuModelAssets(options: {
         modelDir: options.modelDir,
         fileName,
         label: "LaMa Manga",
-        url: hfResolveUrl(modelFiles.repo, fileName),
+        url: hfResolveUrl(modelFiles.repo, fileName, LAMA_MODEL_REVISION),
+        expectedSha256: LAMA_MODEL_SHA256,
         signal: options.signal,
         onProgress: options.onProgress,
       }),
@@ -91,7 +101,8 @@ export async function ensureKoharuModelAssets(options: {
       modelDir: options.modelDir,
       fileName: configFile,
       label: "AOT Inpainting config",
-      url: hfResolveUrl(modelFiles.repo, configFile),
+      url: hfResolveUrl(modelFiles.repo, configFile, AOT_MODEL_REVISION),
+      minimumBytes: 1,
       signal: options.signal,
       onProgress: download.forFile(),
     }),
@@ -99,7 +110,8 @@ export async function ensureKoharuModelAssets(options: {
       modelDir: options.modelDir,
       fileName: weightsFile,
       label: "AOT Inpainting",
-      url: hfResolveUrl(modelFiles.repo, weightsFile),
+      url: hfResolveUrl(modelFiles.repo, weightsFile, AOT_MODEL_REVISION),
+      expectedSha256: AOT_MODEL_SHA256,
       signal: options.signal,
       onProgress: download.forFile(),
     }),
@@ -120,6 +132,7 @@ export async function ensureKoharuWorkerLaunch(options: {
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
 }): Promise<KoharuWorkerLaunchSpec> {
+  assertKoharuBackendPlatform(options.backend);
   await mkdir(options.runtimeDir, { recursive: true });
   const runtimePath = await ensureManagedKoharuRunner(options);
   const args = [
@@ -194,6 +207,17 @@ export async function ensureKoharuWorkerLaunch(options: {
   };
 }
 
+function assertKoharuBackendPlatform(backend: KoharuInpaintingBackend): void {
+  if (
+    backend === "metal-native" &&
+    (process.platform !== "darwin" || process.arch !== "arm64")
+  ) {
+    throw new Error(
+      "Koharu Metal 런타임은 Apple Silicon(macOS arm64)에서만 사용할 수 있습니다.",
+    );
+  }
+}
+
 async function ensureManagedKoharuRunner(options: {
   runtimeDir: string;
   signal?: AbortSignal;
@@ -214,6 +238,9 @@ async function ensureManagedKoharuRunner(options: {
   const managedPath = join(managedDir, KOHARU_RUNTIME_EXECUTABLE);
   await mkdir(managedDir, { recursive: true });
   await copyFile(sourcePath, managedPath);
+  if (process.platform !== "win32") {
+    await chmod(managedPath, 0o755);
+  }
   options.onProgress?.({
     progressText: tMain("inpainting.runtime.koharuExecutablePreparing"),
     detail: basename(sourcePath),
@@ -233,6 +260,14 @@ function resolveKoharuRunnerSource(): string | null {
   for (const toolsRoot of resolveKoharuRunnerToolsRoots()) {
     for (const candidate of [
       join(toolsRoot, KOHARU_RUNNER_DIR, KOHARU_RUNTIME_EXECUTABLE),
+      join(
+        toolsRoot,
+        KOHARU_RUNNER_DIR,
+        "target",
+        "aarch64-apple-darwin",
+        "release",
+        KOHARU_RUNTIME_EXECUTABLE,
+      ),
       join(
         toolsRoot,
         KOHARU_RUNNER_DIR,

@@ -226,6 +226,8 @@ const api = {
   openAmdHipSdkDownload: () =>
     invokeContract(externalIpcContracts.openAmdHipSdkDownload),
   getAppUpdateInfo: () => invokeContract(externalIpcContracts.getAppUpdateInfo),
+  getRuntimeCapabilities: () =>
+    invokeContract(externalIpcContracts.getRuntimeCapabilities),
   openReleasesPage: () => invokeContract(externalIpcContracts.openReleasesPage),
   testModelSettings: (
     settings: AppSettings,

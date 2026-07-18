@@ -51,6 +51,7 @@ import {
 } from "../../shared/apiKeySettings";
 import { resolveRecommendedGenerationLimits } from "../../shared/modelPresets";
 import { normalizeBlockFormatDefaults } from "./blockFormatDefaultsNormalize";
+import { resolveUnsafeUnifiedMemorySetting } from "./gemmaMemorySettings";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -199,6 +200,7 @@ function normalizeGemmaSettings(
     vramMode: resolvedVramMode,
     llamaRuntimeProfile,
     ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
+    ...resolveUnsafeUnifiedMemorySetting(gemma, defaults),
   };
 }
 
@@ -339,7 +341,8 @@ function normalizeOcrSettings(
           defaults.ocr.gpuBackend ?? "cuda",
         );
   const device =
-    hardwareVendor === "amd" && gpuBackend !== "rocm-transformers"
+    hardwareVendor === "apple" ||
+    (hardwareVendor === "amd" && gpuBackend !== "rocm-transformers")
       ? "cpu"
       : resolveOcrDevice(ocr?.device, defaults.ocr.device);
   const qualityMode = resolveOcrQualityMode(
@@ -396,6 +399,10 @@ function normalizeInpaintingSettings(
     model: resolveStoredInpaintingModel(inpainting, defaults),
     fluxBackend: resolveStoredFluxBackend(inpainting, defaults),
     koharuBackend: resolveStoredKoharuInpaintingBackend(inpainting, defaults),
+    allowUnsafeLowMemoryFlux: resolveBoolean(
+      inpainting?.allowUnsafeLowMemoryFlux,
+      defaults.inpainting?.allowUnsafeLowMemoryFlux ?? false,
+    ),
   };
 }
 

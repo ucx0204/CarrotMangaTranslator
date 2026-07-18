@@ -6,6 +6,7 @@ import {
   type BlockFormatGroupId,
 } from "../../../shared/blockFormat";
 import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
+import { formatShortcutTextForPlatform } from "../lib/shortcuts/comboFromEvent";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { SelectionCard, SelectionSurface } from "./ui/SelectionCard";
@@ -151,7 +152,9 @@ function FormatScopeSelector({
             count: selectedBlockCount,
           })}
           title={
-            selectionAvailable ? undefined : t("formatBatch.multiSelectHint")
+            selectionAvailable
+              ? undefined
+              : formatShortcutTextForPlatform(t("formatBatch.multiSelectHint"))
           }
           onClick={() => onChange("selection")}
         />

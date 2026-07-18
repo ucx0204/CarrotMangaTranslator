@@ -24,6 +24,7 @@ import type {
   OpenErrorReportIssueResult,
   RestartAppResult,
 } from "./errorReportTypes";
+import type { BuildChannel, RuntimeCapabilities } from "./runtimeCapabilities";
 
 const openedUrlResultSchema = z
   .object({
@@ -35,6 +36,59 @@ const appUpdateInfoResultSchema = z
   .object({
     currentVersion: z.string().min(1).max(64),
     releasesUrl: z.string().min(1).max(2000),
+    buildChannel: z.enum(["stable", "mac-alpha"]),
+  })
+  .strict();
+const runtimeCapabilitiesResultSchema: z.ZodType<RuntimeCapabilities> = z
+  .object({
+    buildChannel: z.enum(["stable", "mac-alpha"]),
+    platform: z.string().min(1).max(32),
+    arch: z.string().min(1).max(32),
+    appleSilicon: z.boolean(),
+    gpuVendor: z.enum(["nvidia", "amd", "apple", "unknown"]),
+    gpuName: z.string().max(500).nullable(),
+    supportsMetal: z.boolean(),
+    unifiedMemoryMb: z.number().int().positive().nullable(),
+    localGemma: z
+      .object({
+        available: z.boolean(),
+        metal: z.boolean(),
+        minimumUnifiedMemoryMb: z
+          .object({
+            minimum12b: z.number().int().positive(),
+            economy26b: z.number().int().positive(),
+            full31b: z.number().int().positive(),
+          })
+          .strict(),
+      })
+      .strict(),
+    inpainting: z
+      .object({
+        fluxKlein: z
+          .object({
+            available: z.boolean(),
+            metal: z.boolean(),
+            cpuFallback: z.literal(false),
+            minimumUnifiedMemoryMb: z.number().int().positive(),
+          })
+          .strict(),
+        lamaManga: z
+          .object({
+            available: z.boolean(),
+            metal: z.boolean(),
+            cpuFallback: z.literal(true),
+          })
+          .strict(),
+        aotInpainting: z
+          .object({
+            available: z.boolean(),
+            metal: z.boolean(),
+            cpuFallback: z.literal(true),
+          })
+          .strict(),
+      })
+      .strict(),
+    ocr: z.object({ cpu: z.literal(true), gpu: z.boolean() }).strict(),
   })
   .strict();
 const discoverableApiProviderSchema = z.enum([
@@ -56,12 +110,18 @@ export const externalIpcContracts = {
   }),
   getAppUpdateInfo: defineIpcContract<
     [],
-    { currentVersion: string; releasesUrl: string }
+    { currentVersion: string; releasesUrl: string; buildChannel: BuildChannel }
   >({
     apiKey: "getAppUpdateInfo",
     channel: "external:get-update-info",
     args: z.tuple([]),
     result: appUpdateInfoResultSchema,
+  }),
+  getRuntimeCapabilities: defineIpcContract<[], RuntimeCapabilities>({
+    apiKey: "getRuntimeCapabilities",
+    channel: "system:get-runtime-capabilities",
+    args: z.tuple([]),
+    result: runtimeCapabilitiesResultSchema,
   }),
   openReleasesPage: defineIpcContract<[], { opened: boolean; url: string }>({
     apiKey: "openReleasesPage",

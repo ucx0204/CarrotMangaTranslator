@@ -32,6 +32,7 @@ import {
   RTX_50_OCR_GPU_CUDA_TAG,
 } from "../src/main/appSettings";
 import {
+  resolveFluxBackend,
   resolveInpaintingModel,
   resolveKoharuInpaintingBackend,
   resolveOcrGpuBackend,
@@ -1571,6 +1572,7 @@ describe("app settings helpers", () => {
   });
 
   it("normalizes inpainting model and Koharu backend aliases", () => {
+    expect(resolveFluxBackend("apple")).toBe("metal-native");
     expect(resolveInpaintingModel("flux")).toBe("flux-klein");
     expect(resolveInpaintingModel("koharu")).toBe("lama-manga");
     expect(resolveInpaintingModel("lama_manga")).toBe("lama-manga");
@@ -1582,7 +1584,24 @@ describe("app settings helpers", () => {
     expect(resolveKoharuInpaintingBackend("default")).toBe("auto");
     expect(resolveKoharuInpaintingBackend("nvidia")).toBe("cuda-native");
     expect(resolveKoharuInpaintingBackend("amd")).toBe("zluda-native");
+    expect(resolveKoharuInpaintingBackend("apple")).toBe("metal-native");
     expect(resolveKoharuInpaintingBackend("python-cpu")).toBe("cpu");
+  });
+
+  it("persists only an explicit low-memory Flux Alpha opt-in", () => {
+    const defaults = resolveDefaultAppSettings();
+    expect(
+      parseStoredAppSettings(
+        '{"inpainting":{"allowUnsafeLowMemoryFlux":true}}',
+        defaults,
+      ).inpainting?.allowUnsafeLowMemoryFlux,
+    ).toBe(true);
+    expect(
+      parseStoredAppSettings(
+        '{"inpainting":{"allowUnsafeLowMemoryFlux":"yes"}}',
+        defaults,
+      ).inpainting?.allowUnsafeLowMemoryFlux,
+    ).toBe(false);
   });
 
   it("chooses first-run defaults from detected GPU generation and VRAM", () => {

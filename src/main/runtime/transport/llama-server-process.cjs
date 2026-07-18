@@ -15,6 +15,7 @@ const {
 } = require("../simple-page-model-config.cjs");
 const {
   defaultServerPath,
+  resolvePreferredLlamaRuntime,
   resolveToolsDir,
 } = require("../simple-page-runtime-paths.cjs");
 const {
@@ -39,6 +40,9 @@ const {
 } = require("../simple-page-runtime-common.cjs");
 const { buildLlamaServerEnv } = require("../model/server-environment.cjs");
 const {
+  assertGemmaUnifiedMemoryPolicy,
+} = require("../model/gemma-unified-memory.cjs");
+const {
   isIncompleteManagedLlamaRuntime,
   verifyLlamaRuntimePreflight,
 } = require("../model/server-preflight.cjs");
@@ -53,6 +57,20 @@ const {
 
 /** @param {ServerRuntimeOptions} options @returns {Promise<StartedServer>} */
 async function startServer(options) {
+  const memoryPolicy = assertGemmaUnifiedMemoryPolicy(options);
+  if (memoryPolicy.unsafeOverride) {
+    emitRuntimeProgress(
+      options,
+      "booting",
+      "Apple Silicon Alpha 메모리 위험 강제 실행",
+      `${Math.round(Number(memoryPolicy.availableMemoryMb || 0) / 1024)}GB 기기에서 ${Math.round(memoryPolicy.requiredMemoryMb / 1024)}GB 권장 모델을 실행합니다.`,
+      {
+        progressMode: "log-only",
+        installLogLine:
+          "[macOS Alpha] 사용자가 통합 메모리 부족 위험을 확인해 강제 실행했습니다.",
+      },
+    );
+  }
   const baseUrl = `http://127.0.0.1:${options.port}/v1`;
   if (await canReuseServer(baseUrl, options))
     return { baseUrl, child: null, startedByScript: false };
@@ -97,6 +115,18 @@ async function canReuseServer(baseUrl, options) {
 
 /** @param {RuntimeOptions} [options] */
 function shouldAllowExistingLlamaServerReuse(options = {}) {
+  const runtime = /** @type {{ backend?: string; dflashRing?: string }} */ (
+    resolvePreferredLlamaRuntime(options)
+  );
+  if (
+    String(runtime.backend || "").toLowerCase() === "metal" &&
+    runtime.dflashRing === "cpu"
+  ) {
+    // A reachable arbitrary server cannot prove that the 31B DFlash ring is
+    // running on the required CPU/unified-memory path. Start and verify the
+    // pinned BeeLlama runtime instead of silently reusing it.
+    return false;
+  }
   return isTruthy(
     runtimeOverrideEnv("MGT_ALLOW_LLAMA_SERVER_REUSE", options) ??
       runtimeOverrideEnv("MANGA_TRANSLATOR_ALLOW_LLAMA_SERVER_REUSE", options),
@@ -140,6 +170,11 @@ function requestedServerPath(options) {
 
 /** @param {ServerRuntimeOptions} options */
 function emitServerStarting(options) {
+  const runtime = /** @type {any} */ (resolvePreferredLlamaRuntime(options));
+  const dflashDetail =
+    runtime.dflashRing === "cpu"
+      ? " [macOS Alpha: DFlash CPU ring 검증됨]"
+      : "";
   emitRuntimeProgress(
     options,
     "booting",
@@ -147,7 +182,7 @@ function emitServerStarting(options) {
     `${resolveConfiguredModelFile(options)} 로드 중`,
     {
       progressMode: "indeterminate",
-      installLogLine: "llama-server를 시작합니다.",
+      installLogLine: `llama-server를 시작합니다.${dflashDetail}`,
     },
   );
 }

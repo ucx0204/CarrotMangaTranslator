@@ -3,7 +3,10 @@
 /** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 const path = require("node:path");
 
-const { PADDLE_OCR_MODEL_DOWNLOADS } = require("./simple-page-defaults.cjs");
+const {
+  PADDLE_OCR_MODEL_DOWNLOADS,
+  PADDLE_OCR_MODEL_PINS,
+} = require("./simple-page-defaults.cjs");
 const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
 const { buildHfResolveUrl } = require("./simple-page-download-utils.cjs");
 const { safeHfRelativePath } = require("./simple-page-cache-paths.cjs");
@@ -20,6 +23,7 @@ const PADDLE_OCR_TEXTLINE_MODEL_FILES = [
   "inference.pdiparams",
   "inference.yml",
 ];
+const PADDLE_OCR_MODEL_PIN_MAP = new Map(Object.entries(PADDLE_OCR_MODEL_PINS));
 const PADDLE_OCR_TEXTLINE_MODEL_DOWNLOADS = new Map(
   [
     "PP-OCRv6_medium_det",
@@ -34,6 +38,8 @@ const PADDLE_OCR_TEXTLINE_MODEL_DOWNLOADS = new Map(
       name,
       repo: `PaddlePaddle/${name}`,
       files: PADDLE_OCR_TEXTLINE_MODEL_FILES,
+      ...(PADDLE_OCR_MODEL_PIN_MAP.get(name) || {}),
+      weightsFile: "inference.pdiparams",
     },
   ]),
 );
@@ -63,8 +69,11 @@ function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
         label: `Paddle OCR ${model.name}`,
         repo: model.repo,
         file,
-        url: buildHfResolveUrl(endpoint, model.repo, file),
+        url: buildHfResolveUrl(endpoint, model.repo, file, model.revision),
         destination: path.join(modelDir, safeHfRelativePath(file)),
+        revision: model.revision,
+        expectedSha256:
+          file === model.weightsFile ? model.weightsSha256 : undefined,
         progressPhase: "ocr_downloading",
         progressTitle: "Paddle OCR 모델 파일 다운로드 중",
         completeTitle: "Paddle OCR 모델 파일 다운로드 완료",
@@ -76,7 +85,7 @@ function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
 
 /**
  * @param {RuntimeOptions} [options]
- * @returns {Array<{ name: string; repo: string; files: string[] }>}
+ * @returns {Array<{ name: string; repo: string; files: string[]; revision?: string; weightsFile?: string; weightsSha256?: string }>}
  */
 function resolveRequiredPaddleOcrModelDownloads(options = {}) {
   const textDetectionModelName =

@@ -5,7 +5,11 @@ import {
   resolveAmdRocmTargetFromArch,
   resolveAmdRocmTargetFromInfo,
 } from "./amdRocmTargets";
-import type { AmdRocmTarget } from "./amdRocmTargets";
+import { detectAppleGpuInfo } from "./appleGpuInfo";
+import type { DetectedGpuInfo } from "./gpuInfoTypes";
+
+export { buildAppleGpuInfo } from "./appleGpuInfo";
+export type { DetectedGpuInfo } from "./gpuInfoTypes";
 
 export {
   inferAmdRocmTargetFromName,
@@ -17,20 +21,6 @@ export {
 let cachedGpuInfoPromise: Promise<DetectedGpuInfo | null> | null = null;
 const WINDOWS_AMD_GPU_FIELD_SEPARATOR = "\u001f";
 
-type GpuVendor = "nvidia" | "amd" | "unknown";
-
-export type DetectedGpuInfo = {
-  name: string | null;
-  memoryMb: number | null;
-  rtxGeneration: number | null;
-  computeCapability: number | null;
-  vendor?: GpuVendor;
-  rocmArch?: string | null;
-  rocmTarget?: AmdRocmTarget | null;
-  supportsRocm?: boolean;
-  supportsVulkan?: boolean;
-};
-
 export function detectBestGpuInfo(): Promise<DetectedGpuInfo | null> {
   if (!cachedGpuInfoPromise) {
     cachedGpuInfoPromise = queryBestGpuInfo();
@@ -39,6 +29,10 @@ export function detectBestGpuInfo(): Promise<DetectedGpuInfo | null> {
 }
 
 async function queryBestGpuInfo(): Promise<DetectedGpuInfo | null> {
+  const apple = await detectAppleGpuInfo();
+  if (apple) {
+    return apple;
+  }
   const nvidia = await queryNvidiaGpuInfo();
   if (nvidia) {
     return nvidia;

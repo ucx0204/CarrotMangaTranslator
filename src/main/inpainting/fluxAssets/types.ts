@@ -14,6 +14,7 @@ export type RemoteFileMetadata = {
   url: string;
   bytes: number;
   downloadedAt: string;
+  sha256?: string;
 };
 
 export type WindowsNativeBuildEnv = {

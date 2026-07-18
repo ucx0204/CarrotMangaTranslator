@@ -1,0 +1,174 @@
+name: Apple Silicon Alpha
+
+on:
+  workflow_dispatch:
+    inputs:
+      alpha_number:
+        description: "Alpha sequence number (example: 1)"
+        required: true
+        default: "1"
+        type: string
+      publish_release:
+        description: "Publish/update the GitHub pre-release after verification"
+        required: true
+        default: true
+        type: boolean
+permissions:
+  contents: write
+
+concurrency:
+  group: mac-alpha-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-verify-release:
+    runs-on: macos-15
+    timeout-minutes: 360
+    env:
+      CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+      APPLE_API_KEY_P8_B64: ${{ secrets.APPLE_API_KEY_P8_B64 }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      MGT_MAC_CLEAN_CARGO_TARGET: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Confirm Apple Silicon runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "arm64"
+          sw_vers
+          sysctl -n hw.memsize
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run cross-platform checks
+        run: npm run check
+
+      - name: Capture production renderer at Alpha QA sizes
+        run: |
+          npm run qa:ui -- --entry index.html --width 1440 --height 900 --output "${RUNNER_TEMP}/mac-alpha-ui-1440x900.png"
+          npm run qa:ui -- --entry index.html --width 1240 --height 760 --output "${RUNNER_TEMP}/mac-alpha-ui-1240x760.png"
+
+      - name: Verify pinned model metadata
+        run: npm run verify:hf-assets
+
+      - name: Select signing mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          values=("$CSC_LINK" "$CSC_KEY_PASSWORD" "$APPLE_API_KEY_P8_B64" "$APPLE_API_KEY_ID" "$APPLE_API_ISSUER")
+          present=0
+          for value in "${values[@]}"; do
+            if [[ -n "$value" ]]; then present=$((present + 1)); fi
+          done
+          if [[ "$present" -eq 0 ]]; then
+            echo "MGT_MAC_SIGNING_MODE=adhoc" >> "$GITHUB_ENV"
+            echo "SIGNING_LABEL=Unsigned (ad-hoc)" >> "$GITHUB_ENV"
+          elif [[ "$present" -ne 5 ]]; then
+            echo "Developer ID signing secrets are only partially configured." >&2
+            exit 1
+          else
+            key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+            printf '%s' "$APPLE_API_KEY_P8_B64" | /usr/bin/base64 -D > "$key_path"
+            chmod 600 "$key_path"
+            echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"
+            echo "MGT_MAC_SIGNING_MODE=developer-id" >> "$GITHUB_ENV"
+            echo "SIGNING_LABEL=Developer ID + notarized" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build and verify arm64 DMG and ZIP
+        run: npm run dist:mac:alpha
+
+      - name: Resolve Alpha release metadata
+        id: release_meta
+        shell: bash
+        env:
+          INPUT_ALPHA_NUMBER: ${{ inputs.alpha_number }}
+        run: |
+          set -euo pipefail
+          expected_ref="refs/heads/${{ github.event.repository.default_branch }}"
+          if [[ "$GITHUB_REF" != "$expected_ref" ]]; then
+            echo "Mac Alpha release must run from $expected_ref, not $GITHUB_REF." >&2
+            exit 1
+          fi
+          if [[ ! "$INPUT_ALPHA_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+            echo "alpha_number must be a positive integer." >&2
+            exit 1
+          fi
+          version="$(node -p "require('./package.json').version")"
+          tag="v${version}-mac-alpha.${INPUT_ALPHA_NUMBER}"
+          if [[ "$MGT_MAC_SIGNING_MODE" = "developer-id" ]]; then
+            title="Apple Silicon Alpha ${tag}"
+          else
+            title="Unsigned Apple Silicon Alpha ${tag}"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "title=$title" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        shell: bash
+        env:
+          MGT_MAC_ALPHA_TAG: ${{ steps.release_meta.outputs.tag }}
+          MGT_MAC_RELEASE_NOTES_PATH: ${{ runner.temp }}/mac-alpha-release-notes.md
+        run: node scripts/generate-mac-alpha-release-notes.cjs
+
+      - name: Upload verified build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.release_meta.outputs.tag }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            dist/*-macOS-arm64-alpha.dmg
+            dist/*-macOS-arm64-alpha.zip
+            dist/SHA256SUMS-mac-alpha.txt
+            docs/MAC_ALPHA_TEST_CHECKLIST.md
+            ${{ runner.temp }}/mac-alpha-release-notes.md
+            ${{ runner.temp }}/mac-alpha-ui-1440x900.png
+            ${{ runner.temp }}/mac-alpha-ui-1240x760.png
+
+      - name: Publish GitHub pre-release
+        if: ${{ inputs.publish_release }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.release_meta.outputs.title }}
+          NOTES_PATH: ${{ runner.temp }}/mac-alpha-release-notes.md
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TITLE" --notes-file "$NOTES_PATH" --prerelease
+          else
+            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TITLE" --notes-file "$NOTES_PATH" --prerelease
+          fi
+          gh release upload "$RELEASE_TAG" \
+            dist/*-macOS-arm64-alpha.dmg \
+            dist/*-macOS-arm64-alpha.zip \
+            dist/SHA256SUMS-mac-alpha.txt \
+            docs/MAC_ALPHA_TEST_CHECKLIST.md \
+            --clobber
+
+      - name: Summarize Alpha build
+        shell: bash
+        run: |
+          {
+            echo "### ${{ steps.release_meta.outputs.title }}"
+            echo "- Runner: $(uname -m), $(sw_vers -productVersion)"
+            echo "- Signing: $SIGNING_LABEL"
+            echo "- Gemma memory tiers remain unverified until tester checklists are received."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -26,7 +26,10 @@ import {
   getDefaultMmprojForGemmaModel,
   resolveRuntimeGemmaSettings,
 } from "./gemmaModelPresets";
-import { resolveLlamaRuntimeProfile } from "./llamaRuntimeProfile";
+import {
+  isMetalLlamaRuntimeProfile,
+  resolveLlamaRuntimeProfile,
+} from "./llamaRuntimeProfile";
 import { resolveDefaultLlamaServerPathForGemma } from "./translationLlamaServerPath";
 
 type GemmaRuntimePreset = (typeof GEMMA_RUNTIME_PRESETS)[GemmaVramMode];
@@ -38,6 +41,8 @@ export type TranslationRuntimeState = {
   runtimeGemma: AppSettings["gemma"];
   llamaRuntimeProfile: LlamaRuntimeProfile;
   llamaRocmTarget?: string;
+  unifiedMemoryMb?: number;
+  allowUnsafeUnifiedMemory: boolean;
 };
 
 type GemmaTranslationOptions = Pick<
@@ -79,6 +84,8 @@ type GemmaTranslationOptions = Pick<
   | "reuseServer"
   | "llamaRuntimeProfile"
   | "llamaRocmTarget"
+  | "unifiedMemoryMb"
+  | "allowUnsafeUnifiedMemory"
   | "workingDir"
   | "toolsDir"
   | "serverPath"
@@ -99,7 +106,16 @@ export function resolveTranslationRuntimeState(
     runtimeEnv.MANGA_TRANSLATOR_GEMMA_VRAM_MODE,
     settings.gemma.vramMode,
   );
-  const gemmaRuntimePreset = GEMMA_RUNTIME_PRESETS[gemmaVramMode];
+  const llamaRuntimeProfile = resolveLlamaRuntimeProfile(
+    runtimeEnv,
+    settings.gemma.llamaRuntimeProfile,
+  );
+  const baseRuntimePreset = GEMMA_RUNTIME_PRESETS[gemmaVramMode];
+  const gemmaRuntimePreset =
+    isMetalLlamaRuntimeProfile(llamaRuntimeProfile) &&
+    gemmaVramMode !== "full31b"
+      ? { ...baseRuntimePreset, fitTargetMb: 4096 }
+      : baseRuntimePreset;
   return {
     gemmaVramMode,
     gemmaRuntimePreset,
@@ -108,11 +124,12 @@ export function resolveTranslationRuntimeState(
       gemmaRuntimePreset.ctx || DEFAULT_GEMMA_CONTEXT_TOKENS,
     ),
     runtimeGemma: resolveRuntimeGemmaSettings(settings.gemma, gemmaVramMode),
-    llamaRuntimeProfile: resolveLlamaRuntimeProfile(
-      runtimeEnv,
-      settings.gemma.llamaRuntimeProfile,
-    ),
+    llamaRuntimeProfile,
     llamaRocmTarget: resolveLlamaRocmTarget(runtimeEnv, settings),
+    ...(typeof settings.runtimeHardware?.unifiedMemoryMb === "number"
+      ? { unifiedMemoryMb: settings.runtimeHardware.unifiedMemoryMb }
+      : {}),
+    allowUnsafeUnifiedMemory: settings.gemma.allowUnsafeUnifiedMemory === true,
   };
 }
 
@@ -166,6 +183,8 @@ function resolveGemmaModelOptions(
   GemmaTranslationOptions,
   | "llamaRuntimeProfile"
   | "llamaRocmTarget"
+  | "unifiedMemoryMb"
+  | "allowUnsafeUnifiedMemory"
   | "workingDir"
   | "toolsDir"
   | "serverPath"
@@ -182,6 +201,10 @@ function resolveGemmaModelOptions(
     ...(state.llamaRocmTarget
       ? { llamaRocmTarget: state.llamaRocmTarget }
       : {}),
+    ...(typeof state.unifiedMemoryMb === "number"
+      ? { unifiedMemoryMb: state.unifiedMemoryMb }
+      : {}),
+    allowUnsafeUnifiedMemory: state.allowUnsafeUnifiedMemory,
     workingDir: paths.dataRoot,
     toolsDir: paths.toolsDir,
     serverPath:

@@ -80,10 +80,54 @@ const HF_DOWNLOAD_CHUNK_SIZE = 16 * 1024 * 1024;
 const CROP_RETRY_MIN_SIDE_PX = 192;
 const CROP_RETRY_MIN_MARGIN_PX = 64;
 const CROP_RETRY_MARGIN_RATIO = 0.5;
+const PADDLE_OCR_MODEL_PINS = Object.freeze({
+  "PP-DocLayoutV3": Object.freeze({
+    revision: "7b48a7566925fa464281f930c58eee04fe2c862a",
+    weightsSha256:
+      "70bd316b0582769ec968829fd1feb1a6a58b7c941b938327e551b6b12b45c137",
+  }),
+  "PaddleOCR-VL-1.6": Object.freeze({
+    revision: "66317acc4c9fc17bd154591ce650735cd2855f3e",
+    weightsSha256:
+      "85a479d506a11e724e7285d395c551be69f41dbc16b6342d3cacfb189aed71db",
+  }),
+  "PP-OCRv6_medium_det": Object.freeze({
+    revision: "8e0f56fb2ef86b461d99cfc7ac5c137738985f61",
+    weightsSha256:
+      "85218d2e3d98f5a21c58b4220627be923a97aee5db3cc71f39536ab31ac53960",
+  }),
+  "PP-OCRv6_medium_rec": Object.freeze({
+    revision: "e5a92bcbc5cc1b494628e458d267778f0704fd7c",
+    weightsSha256:
+      "1b01c79a914587933f615569e75de54f2e638ebb5d3f3b3c1b38c24ede8c7319",
+  }),
+  "PP-OCRv6_small_det": Object.freeze({
+    revision: "106c97591b235f607453300d9fc8c1cad1b25488",
+    weightsSha256:
+      "5043d4ccc8d63402ccea8feefcee4db57077431a873e78d2191836a178a492da",
+  }),
+  "PP-OCRv6_small_rec": Object.freeze({
+    revision: "bd619643acac4b9650c040234da8d944476ee3f1",
+    weightsSha256:
+      "406e1e689c9a7fbb04178007a3fe10cf852afe7bf8bb3bc6dbb9d532b13bd907",
+  }),
+  "PP-OCRv6_tiny_det": Object.freeze({
+    revision: "d3177d4e5551463292a61e27cfca2b53e7c3fe9d",
+    weightsSha256:
+      "853f7ed317d4f2f80de646842e5bbc32f9d39c601562cbe466cda42e4bafb1b1",
+  }),
+  "PP-OCRv6_tiny_rec": Object.freeze({
+    revision: "0736086f72f666350ebcdc0c3a504eeac89cdfad",
+    weightsSha256:
+      "bb2f8f54d1e25f28c71b6fa4fe23f5940e159cae27fbee96155c99f822156e57",
+  }),
+});
 const PADDLE_OCR_MODEL_DOWNLOADS = [
   {
     name: "PP-DocLayoutV3",
     repo: "PaddlePaddle/PP-DocLayoutV3",
+    ...PADDLE_OCR_MODEL_PINS["PP-DocLayoutV3"],
+    weightsFile: "inference.pdiparams",
     files: [
       ".gitattributes",
       "README.md",
@@ -95,6 +139,8 @@ const PADDLE_OCR_MODEL_DOWNLOADS = [
   {
     name: "PaddleOCR-VL-1.6",
     repo: "PaddlePaddle/PaddleOCR-VL-1.6",
+    ...PADDLE_OCR_MODEL_PINS["PaddleOCR-VL-1.6"],
+    weightsFile: "model.safetensors",
     files: [
       ".gitattributes",
       "LICENSE",
@@ -120,6 +166,8 @@ const PADDLE_OCR_MODEL_DOWNLOADS = [
   {
     name: "PP-OCRv6_medium_det",
     repo: "PaddlePaddle/PP-OCRv6_medium_det",
+    ...PADDLE_OCR_MODEL_PINS["PP-OCRv6_medium_det"],
+    weightsFile: "inference.pdiparams",
     files: [
       ".gitattributes",
       "README.md",
@@ -131,6 +179,8 @@ const PADDLE_OCR_MODEL_DOWNLOADS = [
   {
     name: "PP-OCRv6_medium_rec",
     repo: "PaddlePaddle/PP-OCRv6_medium_rec",
+    ...PADDLE_OCR_MODEL_PINS["PP-OCRv6_medium_rec"],
+    weightsFile: "inference.pdiparams",
     files: [
       ".gitattributes",
       "README.md",
@@ -228,6 +278,7 @@ module.exports = {
   MM_PROJ_CANDIDATE_NAMES,
   OCR_INSTALL_MARKER_FILE,
   PADDLE_OCR_MODEL_DOWNLOADS,
+  PADDLE_OCR_MODEL_PINS,
   PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL,
   resolveAmdRocmMetaPackage,
   resolveAmdRocmSdkPackages,

@@ -293,6 +293,8 @@ async function acquireInpaintingEngineIfNeeded({
     model: appSettings.inpainting?.model ?? "flux-klein",
     fluxBackend: appSettings.inpainting?.fluxBackend,
     koharuBackend: appSettings.inpainting?.koharuBackend,
+    allowUnsafeLowMemoryFlux:
+      appSettings.inpainting?.allowUnsafeLowMemoryFlux ?? false,
     signal: abortController.signal,
     onProgress: (progress) =>
       emit({

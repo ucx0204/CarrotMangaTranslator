@@ -15,6 +15,7 @@ import { StageToolbar } from "./StageToolbar";
 import { Button } from "./ui/Button";
 import { useFonts } from "../fonts/useFonts";
 import { useWorkspaceZoomStyle } from "../hooks/useWorkspaceZoomStyle";
+import { formatCombo } from "../lib/shortcuts/comboFromEvent";
 
 type AppWorkspaceProps = {
   workspacePanelRef: React.RefObject<HTMLElement | null>;
@@ -269,7 +270,13 @@ function EmptyWorkspace({
         </div>
         <p className="empty-hints">
           <kbd>←</kbd> <kbd>→</kbd> {t("workspace.empty.hints.pageNavigation")}{" "}
-          · <kbd>Ctrl</kbd>+<kbd>K</kbd>{" "}
+          ·{" "}
+          {formatCombo("ctrl+k").map((key, index) => (
+            <React.Fragment key={`${key}-${index}`}>
+              {index > 0 ? "+" : null}
+              <kbd>{key}</kbd>
+            </React.Fragment>
+          ))}{" "}
           {t("workspace.empty.hints.commandPalette")} · <kbd>?</kbd>{" "}
           {t("workspace.empty.hints.shortcuts")}
         </p>

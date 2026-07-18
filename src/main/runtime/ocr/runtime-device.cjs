@@ -95,6 +95,9 @@ function resolveOcrRuntimeVariant(options = {}) {
 
 /** @param {RuntimeOptions} [options] @returns {string} */
 function resolveOcrDevice(options = /** @type {OcrConfigOptions} */ ({})) {
+  if (process.platform === "darwin") {
+    return "cpu";
+  }
   const explicitDevice = String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_DEVICE", options) ?? "",
   ).trim();
@@ -121,6 +124,9 @@ function normalizeConfiguredOcrDevice(value) {
 function resolveEffectiveOcrDevice(
   options = /** @type {OcrConfigOptions} */ ({}),
 ) {
+  if (process.platform === "darwin") {
+    return "cpu";
+  }
   const override = String(options.ocrDeviceOverride ?? "")
     .trim()
     .toLowerCase();

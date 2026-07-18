@@ -36,6 +36,7 @@ type BuildSettingsFromFormInput = {
   localMmprojPath: string;
   vramMode: GemmaVramMode;
   llamaRuntimeProfile: LlamaRuntimeProfile;
+  allowUnsafeUnifiedMemory: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   codexOauthPort: number;
@@ -55,6 +56,7 @@ type BuildSettingsFromFormInput = {
   ocrQualityMode: OcrQualityMode;
   inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
+  allowUnsafeLowMemoryFlux: boolean;
   keybindings: KeybindingOverrides;
   blockFormatDefaults: BlockFormatDefaults;
   maxTokens: number;
@@ -89,6 +91,7 @@ export function buildSettingsFromForm(
       ...input.initialSettings.inpainting,
       model: input.inpaintingModel,
       fluxBackend: input.fluxBackend,
+      allowUnsafeLowMemoryFlux: input.allowUnsafeLowMemoryFlux,
       koharuBackend: input.initialSettings.inpainting?.koharuBackend ?? "auto",
     },
     keybindings: input.keybindings,
@@ -115,6 +118,7 @@ function buildGemmaSettings(input: BuildSettingsFromFormInput) {
       : {}),
     vramMode: input.vramMode,
     llamaRuntimeProfile: input.llamaRuntimeProfile,
+    allowUnsafeUnifiedMemory: input.allowUnsafeUnifiedMemory,
     ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
   };
 }

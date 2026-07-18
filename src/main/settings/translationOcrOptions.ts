@@ -16,6 +16,7 @@ import {
   resolveOptionalString,
 } from "./appSettingsResolvers";
 import {
+  isMetalLlamaRuntimeProfile,
   isRocmLlamaRuntimeProfile,
   isVulkanLlamaRuntimeProfile,
 } from "./llamaRuntimeProfile";
@@ -244,6 +245,10 @@ function resolveRuntimeOcrDevice(
   llamaRuntimeProfile: LlamaRuntimeProfile,
   ocrGpuBackend: OcrGpuBackend,
 ): OcrDevice {
+  if (isMetalLlamaRuntimeProfile(llamaRuntimeProfile)) {
+    // Paddle's bundled Apple Silicon runtime is CPU-only in the Alpha.
+    return "cpu";
+  }
   const explicit =
     env.MANGA_TRANSLATOR_OCR_DEVICE ?? env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE;
   if (explicit !== undefined) {

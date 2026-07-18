@@ -6,6 +6,7 @@ const { resolveWorkingDir } = require("../simple-page-cache-paths.cjs");
 const {
   hasRequiredLlamaRuntimeFiles,
   isBuiltInGemmaRuntimeModel,
+  isGemma31BModel,
   missingRequiredLlamaRuntimeFiles,
   resolvePreferredLlamaRuntime,
 } = require("../simple-page-runtime-paths.cjs");
@@ -28,10 +29,42 @@ const { buildLlamaServerEnv } = require("./server-environment.cjs");
 function isIncompleteManagedLlamaRuntime(serverPath, options = {}) {
   if (!serverPath || !isBuiltInGemmaRuntimeModel(options)) return false;
   const runtime = resolvePreferredLlamaRuntime(options);
+  assertMetalDflashConfiguration(serverPath, runtime, options);
   const runtimeDir = path.dirname(serverPath);
   if (path.basename(runtimeDir).toLowerCase() !== runtime.dir.toLowerCase())
     return false;
   return !hasRequiredLlamaRuntimeFiles(runtimeDir, runtime);
+}
+
+/** @param {string} serverPath @param {LlamaRuntimeDescriptor & { dflashRing?: unknown }} runtime @param {RuntimeOptions & { useDraft?: unknown }} options */
+function assertMetalDflashConfiguration(serverPath, runtime, options) {
+  if (
+    String(runtime.backend || "").toLowerCase() !== "metal" ||
+    !isGemma31BModel(options)
+  ) {
+    return;
+  }
+  const env = buildLlamaServerEnv(serverPath, options);
+  if (
+    runtime.kind === "beellama-metal" &&
+    runtime.dflashRing === "cpu" &&
+    options.useDraft === true &&
+    env.GGML_DFLASH_GPU_RING === "0"
+  ) {
+    return;
+  }
+  throw createDetailedError(
+    "31B Apple Silicon Alpha는 BeeLlama DFlash CPU-ring 경로로만 실행할 수 있습니다. 단순 31B 실행으로 후퇴하지 않도록 중단합니다.",
+    {
+      serverPath,
+      runtime: runtime.id,
+      runtimeKind: runtime.kind,
+      runtimeBackend: runtime.backend,
+      dflashRing: runtime.dflashRing,
+      useDraft: options.useDraft,
+      dflashGpuRing: env.GGML_DFLASH_GPU_RING,
+    },
+  );
 }
 
 /** @param {string} serverPath @param {RuntimeOptions} [options] */
@@ -72,7 +105,8 @@ function assertManagedRuntimeComplete(serverPath, runtime) {
 function shouldProbeRuntime(runtime, options) {
   const backend = String(runtime.backend || "cuda").toLowerCase();
   const supportedPlatform =
-    process.platform === "win32" || ["rocm", "vulkan"].includes(backend);
+    process.platform === "win32" ||
+    ["rocm", "vulkan", "metal"].includes(backend);
   return (
     supportedPlatform &&
     !runtimeOverrideEnv("MGT_SKIP_LLAMA_RUNTIME_PREFLIGHT", options)
@@ -113,6 +147,7 @@ function assertGpuBackedProbe(serverPath, runtime, result) {
 function gpuBackendLabel(backend) {
   const normalized = String(backend || "cuda").toLowerCase();
   if (normalized === "vulkan") return "Vulkan/AMD GPU";
+  if (normalized === "metal") return "Metal/Apple Silicon GPU";
   if (normalized === "rocm" || normalized === "hip") return "ROCm/HIP GPU";
   return "CUDA GPU";
 }
@@ -129,6 +164,7 @@ function resolveLlamaRuntimePreflightTimeoutMs(runtime = {}, options = {}) {
   );
   if (Number.isFinite(configured) && configured > 0)
     return Math.max(1000, Math.round(configured));
+  if (String(runtime.backend || "").toLowerCase() === "metal") return 60000;
   return ["rocm", "hip"].includes(
     String(runtime.backend || "cuda").toLowerCase(),
   )
@@ -140,6 +176,7 @@ function resolveLlamaRuntimePreflightTimeoutMs(runtime = {}, options = {}) {
 function formatLlamaBackendLabel(backend = "cuda") {
   const normalized = String(backend || "cuda").toLowerCase();
   if (normalized === "vulkan") return "Vulkan";
+  if (normalized === "metal") return "Metal";
   if (normalized === "rocm" || normalized === "hip") return "ROCm/HIP";
   return "CUDA";
 }
@@ -149,6 +186,9 @@ function llamaRuntimeProbeLooksGpuBacked(output, backend = "cuda") {
   const text = String(output || "");
   const normalized = String(backend || "cuda").toLowerCase();
   if (normalized === "vulkan") return /(vulkan|radeon|amd|gpu)/i.test(text);
+  if (normalized === "metal") {
+    return /metal/i.test(text) && /(apple|gpu|m[1-9])/i.test(text);
+  }
   if (normalized === "rocm" || normalized === "hip")
     return /(rocm|hip|radeon|amd|gpu)/i.test(text);
   return /(cuda|nvidia|geforce|rtx|gpu)/i.test(text);
@@ -224,6 +264,8 @@ function finishProbe(state, resolve, timer, code, stderr) {
 
 module.exports = {
   isIncompleteManagedLlamaRuntime,
+  assertMetalDflashConfiguration,
+  llamaRuntimeProbeLooksGpuBacked,
   resolveLlamaRuntimePreflightTimeoutMs,
   verifyLlamaRuntimePreflight,
 };

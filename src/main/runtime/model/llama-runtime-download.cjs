@@ -1,5 +1,6 @@
 // @ts-check
-const { readFileSync } = require("node:fs");
+const { createReadStream, readFileSync } = require("node:fs");
+const { createHash } = require("node:crypto");
 const { mkdir, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
@@ -24,6 +25,7 @@ const {
   serverBinaryName,
 } = require("../simple-page-runtime-paths.cjs");
 const { extractSelectedZipEntries } = require("../simple-page-zip-utils.cjs");
+const { extractSelectedTarEntries } = require("../simple-page-tar-utils.cjs");
 const {
   createDetailedError,
   emitRuntimeProgress,
@@ -31,9 +33,9 @@ const {
 } = require("../simple-page-runtime-common.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} ModelAssetOptions */
-/** @typedef {{ archive: string; url: string }} LlamaRuntimeArchive */
-/** @typedef {{ archive?: string; archives?: LlamaRuntimeArchive[]; backend?: string; dir: string; id?: string; kind?: string; requiredFiles?: Array<string | string[]>; url?: string }} LlamaRuntimeDescriptor */
-/** @typedef {{ archive?: unknown; url?: unknown }} MarkerArchive */
+/** @typedef {{ archive: string; url: string; sha256?: string; type?: "zip" | "tar.gz"; stripComponents?: number }} LlamaRuntimeArchive */
+/** @typedef {{ archive?: string; archives?: LlamaRuntimeArchive[]; backend?: string; platform?: string; arch?: string; dir: string; id?: string; kind?: string; requiredFiles?: Array<string | string[]>; url?: string }} LlamaRuntimeDescriptor */
+/** @typedef {{ archive?: unknown; url?: unknown; sha256?: unknown }} MarkerArchive */
 
 /** @param {ModelAssetOptions} [options] */
 async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
@@ -52,8 +54,9 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
     totals,
     aggregate,
   );
+  await verifyRuntimeArchiveChecksums(archivePaths, archives);
   emitRuntimeInstallStart(options, runtime);
-  await extractRuntimeArchives(layout.runtimeDir, archivePaths);
+  await extractRuntimeArchives(layout.runtimeDir, archivePaths, archives);
   assertInstalledRuntime(layout, runtime, archivePaths);
   await writeRuntimeMarker(layout.runtimeDir, runtime, archives);
   emitRuntimeInstallComplete(options, runtime);
@@ -82,6 +85,7 @@ function isCurrentAndCompleteRuntime(runtimeDir, runtime) {
 /** @param {ModelAssetOptions} options @param {ReturnType<typeof buildRuntimeLayout>} layout */
 function assertRuntimeCanBeInstalled(options, layout) {
   if (process.platform === "win32") return;
+  if (process.platform === "darwin" && process.arch === "arm64") return;
   throw createDetailedError("Bundled llama-server binary is missing.", {
     serverPath: layout.serverPath,
     toolsDir: resolveToolsDir(options),
@@ -178,19 +182,67 @@ function emitRuntimeInstallStart(options, runtime) {
   );
 }
 
-/** @param {string} runtimeDir @param {string[]} archivePaths */
-async function extractRuntimeArchives(runtimeDir, archivePaths) {
+/** @param {string} runtimeDir @param {string[]} archivePaths @param {LlamaRuntimeArchive[]} archives */
+async function extractRuntimeArchives(runtimeDir, archivePaths, archives) {
   await safeCleanup("remove stale llama runtime directory", () =>
     rm(runtimeDir, { recursive: true, force: true }),
   );
   await mkdir(runtimeDir, { recursive: true });
-  for (const archivePath of archivePaths) {
-    await extractSelectedZipEntries(
-      archivePath,
-      runtimeDir,
-      shouldExtractLlamaRuntimeFile,
+  for (let index = 0; index < archivePaths.length; index += 1) {
+    const archivePath = archivePaths[index];
+    const archive = archives[index];
+    if (archive?.type === "tar.gz" || /\.tar\.gz$/i.test(archivePath)) {
+      await extractSelectedTarEntries(
+        archivePath,
+        runtimeDir,
+        shouldExtractLlamaRuntimeFile,
+        { stripComponents: archive?.stripComponents },
+      );
+    } else {
+      await extractSelectedZipEntries(
+        archivePath,
+        runtimeDir,
+        shouldExtractLlamaRuntimeFile,
+      );
+    }
+  }
+}
+
+/** @param {string[]} archivePaths @param {LlamaRuntimeArchive[]} archives */
+async function verifyRuntimeArchiveChecksums(archivePaths, archives) {
+  for (let index = 0; index < archivePaths.length; index += 1) {
+    const expected = normalizeSha256(archives[index]?.sha256);
+    if (!expected) continue;
+    const archivePath = archivePaths[index];
+    const actual = await calculateFileSha256(archivePath);
+    if (actual === expected) continue;
+    await safeCleanup("remove checksum-mismatched llama runtime archive", () =>
+      rm(archivePath, { force: true }),
+    );
+    throw createDetailedError(
+      "Gemma 실행 런타임 체크섬이 일치하지 않아 설치를 중단했습니다.",
+      {
+        archivePath,
+        expectedSha256: expected,
+        actualSha256: actual,
+      },
     );
   }
+}
+
+/** @param {string} filePath */
+async function calculateFileSha256(filePath) {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(filePath)) hash.update(chunk);
+  return hash.digest("hex");
+}
+
+/** @param {unknown} value */
+function normalizeSha256(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return /^[a-f0-9]{64}$/.test(normalized) ? normalized : "";
 }
 
 /** @param {ReturnType<typeof buildRuntimeLayout>} layout @param {LlamaRuntimeDescriptor} runtime @param {string[]} archivePaths */
@@ -247,6 +299,7 @@ function emitRuntimeInstallComplete(options, runtime) {
 function formatLlamaRuntimeBackend(runtime = {}) {
   const backend = String(runtime.backend || "cuda").toLowerCase();
   if (backend === "vulkan") return "Vulkan";
+  if (backend === "metal") return "Metal";
   if (backend === "rocm" || backend === "hip") return "ROCm/HIP";
   return "CUDA";
 }
@@ -281,7 +334,9 @@ function markerMatchesRuntime(marker, runtime) {
   return getLlamaRuntimeArchives(runtime).every((archive) =>
     markerArchives.some(
       (candidate) =>
-        candidate.archive === archive.archive && candidate.url === archive.url,
+        candidate.archive === archive.archive &&
+        candidate.url === archive.url &&
+        (archive.sha256 === undefined || candidate.sha256 === archive.sha256),
     ),
   );
 }
@@ -295,4 +350,8 @@ function getLlamaRuntimeArchives(runtime) {
     : [];
 }
 
-module.exports = { ensureDefaultLlamaRuntimeDownloaded };
+module.exports = {
+  calculateFileSha256,
+  ensureDefaultLlamaRuntimeDownloaded,
+  verifyRuntimeArchiveChecksums,
+};

@@ -127,13 +127,15 @@ export function createMainWindow(
     title: tMainCommon("app.title"),
     ...(target.windowIconPath ? { icon: target.windowIconPath } : {}),
     backgroundColor: "#101114",
-    autoHideMenuBar: true,
+    autoHideMenuBar: process.platform !== "darwin",
     webPreferences: rendererWebPreferences(),
   });
 
   applyRendererWindowGuards(window, target.allowedRendererUrl);
   applyMainWindowIncidentHandlers(window, incidentHandlers);
-  window.setMenuBarVisibility(false);
+  if (process.platform !== "darwin") {
+    window.setMenuBarVisibility(false);
+  }
   loadRendererIntoWindow(window, target);
   return window;
 }
@@ -206,6 +208,9 @@ function applyMainWindowIncidentHandlers(
 }
 
 function resolveWindowIconPath(): string | null {
+  if (process.platform === "darwin") {
+    return null;
+  }
   const candidates = [
     join(process.cwd(), "build", "icon.ico"),
     join(__dirname, "../../build/icon.ico"),

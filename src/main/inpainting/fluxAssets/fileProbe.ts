@@ -207,12 +207,15 @@ export function fileExists(pathValue: string): boolean {
   }
 }
 
-export function isUsableFile(filePath: string): boolean {
+export function isUsableFile(
+  filePath: string,
+  minimumBytes = 1024 * 1024,
+): boolean {
   try {
     return (
       existsSync(filePath) &&
       statSync(filePath).isFile() &&
-      statSync(filePath).size > 1024 * 1024
+      statSync(filePath).size >= minimumBytes
     );
   } catch (_error) {
     return false;
@@ -222,20 +225,24 @@ export function isUsableFile(filePath: string): boolean {
 export async function isUsableRemoteFile(
   filePath: string,
   url: string,
+  options: { expectedSha256?: string; minimumBytes?: number } = {},
 ): Promise<boolean> {
-  if (!isUsableFile(filePath)) {
+  const minimumBytes = options.minimumBytes ?? 1024 * 1024;
+  if (!isUsableFile(filePath, minimumBytes)) {
     return false;
   }
   const metadata = await readRemoteFileMetadata(filePath);
   if (!metadata) {
-    return true;
+    return !options.expectedSha256;
   }
   try {
     const actualBytes = statSync(filePath).size;
     return (
       metadata.url === url &&
       metadata.bytes === actualBytes &&
-      actualBytes > 1024 * 1024
+      actualBytes >= minimumBytes &&
+      (!options.expectedSha256 ||
+        metadata.sha256?.toLowerCase() === options.expectedSha256.toLowerCase())
     );
   } catch (_error) {
     return false;

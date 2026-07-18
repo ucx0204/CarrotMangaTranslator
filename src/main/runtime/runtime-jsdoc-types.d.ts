@@ -79,12 +79,18 @@ export type ChildEnvironment = Record<string, string>;
 export type LlamaRuntimeArchive = {
   archive: string;
   url: string;
+  sha256?: string;
+  type?: "zip" | "tar.gz";
+  stripComponents?: number;
 };
 
 export type LlamaRuntimeDescriptor = {
   archive?: string;
   archives?: LlamaRuntimeArchive[];
   backend?: string;
+  platform?: string;
+  arch?: string;
+  dflashRing?: "cpu" | "gpu";
   dir: string;
   id?: string;
   kind?: string;

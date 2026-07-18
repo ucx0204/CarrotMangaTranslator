@@ -191,6 +191,8 @@ const runtimeHelpers = {
     file: string;
     url: string;
     destination: string;
+    revision?: string;
+    expectedSha256?: string;
   }>;
   ensureHfModelAssetsDownloaded: (
     options: { [key: string]: unknown },
@@ -205,6 +207,8 @@ const runtimeHelpers = {
     file: string;
     destination: string;
     url: string;
+    revision?: string;
+    expectedSha256?: string;
   }>;
   extractModelOutputText: (parsed: unknown) => string;
   extractModelOutputFailure: (parsed: unknown) => null | {

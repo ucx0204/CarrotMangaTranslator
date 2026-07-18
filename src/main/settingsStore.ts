@@ -78,16 +78,28 @@ function attachRuntimeHardware(
   return {
     ...settings,
     runtimeHardware: {
-      gpuVendor:
-        detectedGpu?.vendor === "nvidia" || detectedGpu?.vendor === "amd"
-          ? detectedGpu.vendor
-          : "unknown",
+      gpuVendor: normalizeRuntimeGpuVendor(detectedGpu?.vendor),
       gpuName: detectedGpu?.name ?? null,
       llamaRocmTarget: resolveAmdRocmTargetFromInfo(detectedGpu),
       supportsRocm: detectedGpu?.supportsRocm ?? false,
       supportsVulkan: detectedGpu?.supportsVulkan ?? false,
+      supportsMetal: detectedGpu?.supportsMetal ?? false,
+      unifiedMemoryMb: detectedGpu?.unifiedMemoryMb ?? null,
     },
   };
+}
+
+function normalizeRuntimeGpuVendor(
+  vendor: DetectedGpuInfo["vendor"],
+): "nvidia" | "amd" | "apple" | "unknown" {
+  switch (vendor) {
+    case "nvidia":
+    case "amd":
+    case "apple":
+      return vendor;
+    default:
+      return "unknown";
+  }
 }
 
 function stripRuntimeHardware(settings: AppSettings): AppSettings {

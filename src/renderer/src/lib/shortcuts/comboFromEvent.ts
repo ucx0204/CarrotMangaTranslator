@@ -72,7 +72,6 @@ function normalizeKeyboardKey(event: ComboEventLike): string {
 }
 
 const NAMED_KEY_LABELS: Record<string, string> = {
-  ctrl: "Ctrl",
   alt: "Alt",
   shift: "Shift",
   arrowleft: "←",
@@ -89,15 +88,38 @@ const NAMED_KEY_LABELS: Record<string, string> = {
 };
 
 /** Render a combo string into display tokens for <kbd> elements. */
-export function formatCombo(combo: string): string[] {
+export function formatCombo(
+  combo: string,
+  platform: string = currentNavigatorPlatform(),
+): string[] {
   if (!combo) {
     return [];
   }
   return combo.split("+").map((token) => {
+    if (token === "ctrl") {
+      return isMacShortcutPlatform(platform) ? "⌘" : "Ctrl";
+    }
     const named = NAMED_KEY_LABELS[token];
     if (named) {
       return named;
     }
     return token.length === 1 ? token.toUpperCase() : token;
   });
+}
+
+export function formatShortcutTextForPlatform(
+  value: string,
+  platform: string = currentNavigatorPlatform(),
+): string {
+  return isMacShortcutPlatform(platform)
+    ? value.replaceAll("Ctrl", "Cmd")
+    : value;
+}
+
+function isMacShortcutPlatform(platform: string): boolean {
+  return /mac|iphone|ipad|ipod/i.test(platform);
+}
+
+function currentNavigatorPlatform(): string {
+  return typeof navigator === "undefined" ? "" : navigator.platform;
 }

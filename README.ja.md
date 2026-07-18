@@ -5,7 +5,7 @@
 # キャロット漫画翻訳
 
 <p align="center">
-  マンガの取り込みからOCR、AI翻訳、編集、原文の消去、PNG出力までをまとめて行えるWindowsデスクトップアプリ
+  Windows正式版とApple Silicon macOS Alphaで、マンガ取込、OCR、AI翻訳、編集、インペインティング、PNG出力に対応
 </p>
 
 <p align="center">
@@ -19,6 +19,7 @@
 キャロット漫画翻訳は、画像からセリフや効果音を検出し、AIで翻訳ブロックを作成したあと、文章や配置を人の手で整えて完成版のPNGとして書き出せるマンガ制作支援ツールです。標準の翻訳方向は日本語 → 韓国語ですが、ほかの原文言語・翻訳先言語も選べます。
 
 - 最新のWindowsインストーラー：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- Apple Silicon Alpha：[インストール・テスト案内](docs/mac-alpha-testing.md)・[チェックリスト](docs/MAC_ALPHA_TEST_CHECKLIST.md)
 - 現在のバージョン情報：[v1.6.3 パッチノート](docs/release-notes/v1.6.3.md)
 - コード構成とコントリビューション規約：[docs/architecture.md](docs/architecture.md)
 
@@ -35,7 +36,7 @@
 
 ## インストール前の確認
 
-- 対応OS：Windows 10/11 x64
+- 対応OS：Windows 10/11 x64正式版、Apple Silicon（M1以降）macOS 14+ Alpha。Intel Macは対象外です。
 - 必要な空き容量：アプリ本体とは別に、選択したGemma、OCR、インペインティングモデルによっては数GB以上必要になる場合があります。
 - インターネット接続：インストール、初回のモデルダウンロード、Codex/APIの使用に必要です。ローカルモデルは準備完了後、オフラインで作業できます。
 - GPUがなくても一部の処理はCPUで実行できますが、OCR、ローカル翻訳、Fluxインペインティングは大幅に遅くなる場合があります。

@@ -1,5 +1,6 @@
-import { mkdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createReadStream, existsSync } from "node:fs";
+import { mkdir, rm, stat } from "node:fs/promises";
 import * as path from "node:path";
 import type { FluxAssetProgress, NvidiaRedistPackage } from "./types";
 import { throwIfAborted, runCommand } from "./errors";
@@ -251,8 +252,12 @@ function validateArchiveEntries(
   }
 }
 
-export function hfResolveUrl(repo: string, fileName: string): string {
-  return `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(fileName)}`;
+export function hfResolveUrl(
+  repo: string,
+  fileName: string,
+  revision = "main",
+): string {
+  return `https://huggingface.co/${repo}/resolve/${encodeURIComponent(revision)}/${encodeURIComponent(fileName)}`;
 }
 
 export async function ensureRemoteFile(options: {
@@ -260,11 +265,18 @@ export async function ensureRemoteFile(options: {
   url: string;
   fileName: string;
   label: string;
+  expectedSha256?: string;
+  minimumBytes?: number;
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<string> {
   const filePath = path.join(options.modelDir, options.fileName);
-  if (await isUsableRemoteFile(filePath, options.url)) {
+  if (
+    await isUsableRemoteFile(filePath, options.url, {
+      expectedSha256: options.expectedSha256,
+      minimumBytes: options.minimumBytes,
+    })
+  ) {
     options.onProgress?.({
       progressText: tMain("downloads.cached", { label: options.label }),
       detail: options.fileName,
@@ -277,6 +289,12 @@ export async function ensureRemoteFile(options: {
     return filePath;
   }
   await mkdir(options.modelDir, { recursive: true });
+  if (options.expectedSha256) {
+    await Promise.all([
+      rm(filePath, { force: true }),
+      rm(`${filePath}.mgtmeta.json`, { force: true }),
+    ]);
+  }
   await downloadToFile({
     url: options.url,
     outputPath: filePath,
@@ -285,7 +303,38 @@ export async function ensureRemoteFile(options: {
     label: options.fileName,
     onProgress: options.onProgress,
   });
+  if (options.expectedSha256) {
+    const actualSha256 = await sha256File(filePath, options.signal);
+    if (actualSha256 !== options.expectedSha256.toLowerCase()) {
+      await Promise.all([
+        rm(filePath, { force: true }),
+        rm(`${filePath}.mgtmeta.json`, { force: true }),
+      ]);
+      throw new Error(
+        `${options.label} SHA-256 검증에 실패했습니다. expected=${options.expectedSha256.toLowerCase()}, actual=${actualSha256}`,
+      );
+    }
+    const fileStat = await stat(filePath);
+    await writeRemoteFileMetadata(filePath, {
+      url: options.url,
+      bytes: fileStat.size,
+      downloadedAt: new Date().toISOString(),
+      sha256: actualSha256,
+    });
+  }
   return filePath;
+}
+
+async function sha256File(
+  filePath: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(filePath)) {
+    throwIfAborted(signal);
+    hash.update(chunk as Buffer);
+  }
+  return hash.digest("hex");
 }
 
 type DownloadToFileOptions = {

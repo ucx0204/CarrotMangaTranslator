@@ -31,6 +31,8 @@ export type EngineSettingsPanelProps = {
   customModelRepo: string;
   isLlamaRuntimeOptionDisabled: (profile: LlamaRuntimeProfile) => boolean;
   llamaRuntimeProfile: LlamaRuntimeProfile;
+  allowUnsafeUnifiedMemory: boolean;
+  unifiedMemoryMb: number | null;
   localMmprojPath: string;
   localModelInputRef: React.RefObject<HTMLInputElement | null>;
   localModelPath: string;
@@ -53,6 +55,7 @@ export type EngineSettingsPanelProps = {
   setLlamaRuntimeProfile: React.Dispatch<
     React.SetStateAction<LlamaRuntimeProfile>
   >;
+  setAllowUnsafeUnifiedMemory: React.Dispatch<React.SetStateAction<boolean>>;
   setLocalMmprojPath: React.Dispatch<React.SetStateAction<string>>;
   setLocalModelPath: React.Dispatch<React.SetStateAction<string>>;
   setMaxTokens: React.Dispatch<React.SetStateAction<string>>;
@@ -78,5 +81,6 @@ export type EngineSettingsPanelProps = {
   setApiTopP: React.Dispatch<React.SetStateAction<string>>;
   submit: () => void;
   usesAmdHardware: boolean;
+  usesAppleHardware: boolean;
   usesNvidiaHardware: boolean;
 };

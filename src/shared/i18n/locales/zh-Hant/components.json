@@ -969,6 +969,10 @@
         "full": { "label": "完整", "description": "使用最高品質的 OCR 模型。" }
       },
       "llamaRuntimes": {
+        "metal": {
+          "label": "Apple Metal",
+          "description": "適用於 Apple Silicon 的 Metal llama.cpp 執行環境。"
+        },
         "cuda12": {
           "label": "CUDA 12",
           "description": "適用於 NVIDIA CUDA 12 的 llama.cpp 執行階段。"
@@ -984,6 +988,10 @@
         }
       },
       "fluxBackends": {
+        "metal": {
+          "label": "Apple Metal",
+          "description": "Apple Silicon 上執行 Flux Klein 的原生 Metal 執行環境。"
+        },
         "cuda": {
           "label": "NVIDIA CUDA",
           "description": "RTX GPU 上最快的 Flux 原生執行階段。"
@@ -1037,8 +1045,16 @@
       "ggufFile": "GGUF 檔案",
       "runtime": {
         "label": "llama.cpp 執行階段",
+        "appleNote": "Apple Silicon 僅顯示 Metal 執行環境。",
         "amdNote": "AMD GPU 建議使用 ROCm 執行階段。",
         "nvidiaNote": "NVIDIA GPU 建議使用 CUDA 執行階段。"
+      },
+      "memory": {
+        "summary": "統一記憶體 {{available}} · 建議 {{required}} · 首次下載約 {{download}}",
+        "sufficient": "這是此記憶體等級的建議模型。",
+        "insufficient": "比建議容量少 {{shortage}}。選擇該模型後可確認並進行有風險的 Alpha 測試。",
+        "unsafeAllowed": "此設定已允許在少 {{shortage}} 的情況下進行風險執行。",
+        "unsafeConfirm": "此 Mac 的統一記憶體為 {{available}}，所選模型建議 {{required}}。首次下載約 {{download}}，可能需要較長時間。應用程式可能結束或使系統極度緩慢。是否允許此 Apple Silicon Alpha 風險執行？"
       },
       "local": {
         "modelFile": "本機模型檔案",
@@ -1115,10 +1131,14 @@
       "inpaintingModel": "影像修補模型",
       "amdOcrExperimental": "AMD GPU OCR 為實驗功能。如失敗，可僅將 OCR 切換到 CPU。",
       "ocrAmdNote": "AMD 環境無法選擇 NVIDIA CUDA OCR。",
+      "ocrAppleNote": "Apple Silicon Alpha 上的 Paddle OCR 使用 CPU 執行環境。",
       "ocrNvidiaNote": "NVIDIA 環境無法選擇 AMD ROCm OCR。",
       "fluxAmdNote": "偵測到 AMD GPU，無法使用 CUDA 原生後端；請選擇 ZLUDA 或 CPU。",
+      "fluxAppleNote": "Apple Silicon 僅使用原生 Metal 後端。Flux 建議至少 16GB 統一記憶體。",
       "fluxNvidiaNote": "偵測到 NVIDIA GPU，將使用 CUDA 原生後端而不是 ZLUDA。",
       "fluxOnlyNote": "此後端設定僅適用於 Flux Klein 模型。",
+      "fluxLowMemoryConfirm": "統一記憶體 {{available}} 低於 Flux 建議的 16GB。是否允許風險 Alpha 執行？",
+      "fluxLowMemoryOverride": "允許在 {{available}} 統一記憶體下風險執行 Flux Alpha",
       "downloadHipSdk": "下載 AMD HIP SDK（ROCm 7.1.1）"
     },
     "format": {

@@ -11,7 +11,9 @@ import { detectBestGpuInfo } from "../gpuInfo";
 import { tMain } from "./localization";
 import { LeasedIdleResourcePool } from "./leasedIdleResource";
 
-const FLUX_ENGINE_IDLE_TTL_MS = 5 * 60 * 1000;
+// Apple Silicon shares RAM between the CPU and GPU. Releasing the worker soon
+// after a job prevents Flux from competing with local Gemma for unified memory.
+const FLUX_ENGINE_IDLE_TTL_MS = 30 * 1000;
 
 type FluxEngineLease = {
   engine: FluxInpaintingEngine;
@@ -48,7 +50,9 @@ export async function acquireFluxInpaintingEngine(options: {
     "runtime",
     "flux-inpainting",
   );
-  const fluxBackend = options.fluxBackend ?? "cuda-native";
+  const fluxBackend =
+    options.fluxBackend ??
+    (process.platform === "darwin" ? "metal-native" : "cuda-native");
   const nvidiaComputeCapability =
     fluxBackend === "cuda-native"
       ? await detectNvidiaComputeCapability()

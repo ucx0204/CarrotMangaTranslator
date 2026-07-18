@@ -3,9 +3,11 @@ const {
   BEELLAMA_LLAMA_RUNTIME_CUDA12,
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
   BEELLAMA_LLAMA_RUNTIME_HIP_RADEON,
+  BEELLAMA_LLAMA_RUNTIME_METAL_ARM64,
   MAINLINE_LLAMA_RUNTIME_CUDA12,
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   MAINLINE_LLAMA_RUNTIME_VULKAN,
+  MAINLINE_LLAMA_RUNTIME_METAL_ARM64,
   resolveLemonadeLlamaRuntimeRocm,
 } = require("../simple-page-llama-runtimes.cjs");
 const {
@@ -58,6 +60,8 @@ function resolveLlamaRuntimeProfile(options = {}) {
   const profile = normalizedConfiguredProfile(options);
   if (["rocm", "hip", "amd-rocm"].includes(profile)) return "rocm";
   if (["vulkan", "vk", "amd-vulkan"].includes(profile)) return "vulkan";
+  if (["metal", "apple", "apple-metal", "mps"].includes(profile))
+    return "metal";
   return ["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(
     profile,
   )
@@ -128,6 +132,11 @@ function resolveRocmRuntime(options) {
 /** @param {RuntimePathOptions} [options] */
 function resolvePreferredLlamaRuntime(options = {}) {
   const profile = resolveLlamaRuntimeProfile(options);
+  if (profile === "metal") {
+    return isGemma31BModel(options)
+      ? BEELLAMA_LLAMA_RUNTIME_METAL_ARM64
+      : MAINLINE_LLAMA_RUNTIME_METAL_ARM64;
+  }
   if (profile === "rocm") return resolveRocmRuntime(options);
   if (profile === "vulkan") return MAINLINE_LLAMA_RUNTIME_VULKAN;
   const rtx50Runtime = shouldUseRtx50LlamaRuntime(options);
@@ -148,5 +157,6 @@ module.exports = {
   isGemma31BModel,
   isMainlineGemmaModel,
   resolvePreferredLlamaRuntime,
+  resolveLlamaRuntimeProfile,
   shouldUseRtx50LlamaRuntime,
 };

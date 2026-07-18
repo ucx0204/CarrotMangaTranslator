@@ -29,6 +29,7 @@ function buildLlamaServerEnv(serverPath, options = {}) {
   applyHuggingFaceEnv(env, options);
   applyLlamaCacheEnv(env, options);
   applyRocmEnv(env, backend, paths);
+  applyMetalEnv(env, serverPath, runtime, backend);
   env.MANGA_TRANSLATOR_LLAMA_PORT = String(options.port);
   return env;
 }
@@ -108,6 +109,24 @@ function applyRocmEnv(env, backend, { rocmPath, hipPath }) {
   ]
     .filter(Boolean)
     .join(":");
+}
+
+/** @param {NodeJS.ProcessEnv} env @param {string} serverPath @param {{ dflashRing?: unknown; kind?: unknown }} runtime @param {string} backend */
+function applyMetalEnv(env, serverPath, runtime, backend) {
+  if (backend !== "metal") return;
+  const runtimeDir = path.dirname(serverPath);
+  env.GGML_METAL_PATH_RESOURCES = runtimeDir;
+  env.DYLD_LIBRARY_PATH = [runtimeDir, env.DYLD_LIBRARY_PATH]
+    .filter(Boolean)
+    .join(":");
+  if (
+    runtime.dflashRing === "cpu" ||
+    String(runtime.kind || "").toLowerCase() === "beellama-metal"
+  ) {
+    // BeeLlama 31B Alpha must keep the DFlash ring on CPU/unified memory.
+    // Never let an ambient environment silently switch it to the GPU ring.
+    env.GGML_DFLASH_GPU_RING = "0";
+  }
 }
 
 module.exports = { buildLlamaServerEnv };

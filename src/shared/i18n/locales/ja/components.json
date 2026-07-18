@@ -1000,6 +1000,10 @@
         }
       },
       "llamaRuntimes": {
+        "metal": {
+          "label": "Apple Metal",
+          "description": "Apple Silicon向けMetal llama.cppランタイムです。"
+        },
         "cuda12": {
           "label": "CUDA 12",
           "description": "NVIDIA CUDA 12向けllama.cppランタイムです。"
@@ -1018,6 +1022,10 @@
         }
       },
       "fluxBackends": {
+        "metal": {
+          "label": "Apple Metal",
+          "description": "Apple SiliconでFlux Kleinを実行するMetalネイティブランタイムです。"
+        },
         "cuda": {
           "label": "NVIDIA CUDA",
           "description": "RTX GPUで最速のFluxネイティブランタイムです。"
@@ -1071,8 +1079,16 @@
       "ggufFile": "GGUFファイル",
       "runtime": {
         "label": "llama.cppランタイム",
+        "appleNote": "Apple SiliconではMetalランタイムのみ表示されます。",
         "amdNote": "AMD GPUではROCmランタイムを推奨します。",
         "nvidiaNote": "NVIDIA GPUではCUDAランタイムを推奨します。"
+      },
+      "memory": {
+        "summary": "ユニファイドメモリ {{available}}・推奨 {{required}}・初回ダウンロード約 {{download}}",
+        "sufficient": "このメモリ構成の推奨モデルです。",
+        "insufficient": "推奨量より {{shortage}} 不足しています。モデルを選択すると、Alphaの危険実行を確認して試せます。",
+        "unsafeAllowed": "{{shortage}} 不足した危険実行をこの設定で許可しました。",
+        "unsafeConfirm": "このMacのユニファイドメモリは{{available}}で、選択したモデルの推奨量は{{required}}です。初回ダウンロードは約{{download}}で、時間がかかる場合があります。アプリが終了するかシステムが非常に遅くなる可能性があります。Apple Silicon Alphaの危険な実行を許可しますか？"
       },
       "local": {
         "modelFile": "ローカルモデルファイル",
@@ -1149,10 +1165,14 @@
       "inpaintingModel": "インペインティングモデル",
       "amdOcrExperimental": "AMD GPU OCRは実験機能です。失敗した場合はOCRだけをCPUに切り替えられます。",
       "ocrAmdNote": "AMD環境ではNVIDIA CUDA OCRを選択できません。",
+      "ocrAppleNote": "Apple Silicon AlphaのPaddle OCRはCPUランタイムを使用します。",
       "ocrNvidiaNote": "NVIDIA環境ではAMD ROCm OCRを選択できません。",
       "fluxAmdNote": "検出されたAMD GPUではCUDAネイティブを使用できません。ZLUDAまたはCPUを選択してください。",
+      "fluxAppleNote": "Apple SiliconではMetalネイティブのみ使用します。Fluxは16GB以上のユニファイドメモリを推奨します。",
       "fluxNvidiaNote": "検出されたNVIDIA GPUではZLUDAではなくCUDAネイティブを使用します。",
       "fluxOnlyNote": "この設定はFlux Kleinモデルにのみ適用されます。",
+      "fluxLowMemoryConfirm": "ユニファイドメモリ{{available}}はFlux推奨の16GB未満です。危険なAlpha実行を許可しますか？",
+      "fluxLowMemoryOverride": "ユニファイドメモリ{{available}}で危険なFlux Alpha実行を許可",
       "downloadHipSdk": "AMD HIP SDKをダウンロード（ROCm 7.1.1）"
     },
     "format": {

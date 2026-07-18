@@ -6,6 +6,16 @@
     "modelTestComplete": "Paddle OCR과 번역 엔진 확인 완료: {{output}}",
     "modelTestLabel": "모델/런타임 확인"
   },
+  "macAlpha": {
+    "aboutMenu": "{{appName}} 정보",
+    "reportIssueMenu": "macOS Alpha 문제 신고",
+    "firstRunTitle": "Apple Silicon Alpha",
+    "firstRunMessage": "이 빌드는 Apple Silicon 실기 검증이 진행 중인 Alpha 버전입니다.",
+    "firstRunDetail": "지원: M1 이상, macOS 14 이상. 권장 통합 메모리: 16GB=Gemma 12B·Flux, 24GB=26B, 32GB 이상=31B+DFlash. Gemma·OCR·인페인팅 모델은 첫 사용 시 수 GB 이상 다운로드되며 네트워크에 따라 오래 걸릴 수 있습니다. 문제가 생기면 자동 진단 정보를 확인한 뒤 GitHub Issue로 제보해 주세요.",
+    "continue": "확인",
+    "aboutDetail": "Apple Silicon Alpha · 실기 검증 진행 중\n지원: M1 이상 / macOS 14 이상\n문제는 GitHub Issue로 제보해 주세요.",
+    "stableAboutDetail": "Carrot Manga Translator"
+  },
   "errorReport": {
     "loadFailureTitle": "앱 화면을 불러오지 못했습니다",
     "loadFailureMessage": "렌더러를 시작하지 못했습니다. GitHub에 문제를 보고하거나 로그를 확인해 주세요.",
@@ -270,6 +280,9 @@
       "cachedKoharu": "캐시된 Koharu 엔진 사용",
       "cachedKoharuLog": "캐시된 Koharu 인페인팅 엔진을 재사용합니다.",
       "koharuReadyLog": "Koharu {{model}} 인페인팅 런타임을 사용합니다: {{file}}",
+      "metalFallback": "Metal 인페인팅 실패 · CPU로 재시도",
+      "metalFallbackDetail": "{{model}} Metal 초기화에 실패해 CPU 호환 경로로 다시 시도합니다.",
+      "metalFallbackLog": "{{model}} Metal 백엔드 실패를 사용자에게 알리고 CPU 백엔드로 재시도합니다.",
       "koharuExecutablePreparing": "Koharu 실행 파일 준비 중",
       "koharuExecutableLog": "Koharu 실행 파일을 앱 데이터 캐시에 갱신했습니다: {{file}}",
       "pythonInstalling": "Flux Python 런타임 설치 중",

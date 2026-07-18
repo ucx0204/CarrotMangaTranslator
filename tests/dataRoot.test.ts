@@ -93,6 +93,46 @@ describe("packaged data root resolution", () => {
 
     expect(resolvePackagedDataRoot(executableDir)).toBe(resolve(existingRoot));
   });
+
+  it("stores macOS data under Application Support instead of inside the app", () => {
+    const executableDir = join(
+      createTempDir("mgt-mac-app-"),
+      "Carrot Manga Translator.app",
+      "Contents",
+      "MacOS",
+    );
+    const appDataDir = join(
+      createTempDir("mgt-mac-home-"),
+      "Library",
+      "Application Support",
+    );
+    mkdirSync(executableDir, { recursive: true });
+    writeFileSync(
+      join(executableDir, DATA_ROOT_POINTER_FILE),
+      join(executableDir, "data"),
+      "utf8",
+    );
+
+    expect(
+      resolvePackagedDataRoot(executableDir, {
+        platform: "darwin",
+        appDataDir,
+      }),
+    ).toBe(resolve(join(appDataDir, "manga-gemma-translator")));
+  });
+
+  it("still honors an explicit macOS data root for managed/test installs", () => {
+    const executableDir = createTempDir("mgt-mac-exe-");
+    const explicitRoot = createTempDir("mgt-mac-explicit-");
+    process.env.MANGA_TRANSLATOR_DATA_ROOT = explicitRoot;
+
+    expect(
+      resolvePackagedDataRoot(executableDir, {
+        platform: "darwin",
+        appDataDir: createTempDir("mgt-mac-appdata-"),
+      }),
+    ).toBe(resolve(explicitRoot));
+  });
 });
 
 function createTempDir(prefix: string): string {

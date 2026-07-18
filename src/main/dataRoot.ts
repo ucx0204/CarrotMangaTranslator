@@ -5,10 +5,27 @@ const APP_DATA_DIR_NAME = "manga-gemma-translator";
 export const DATA_ROOT_POINTER_FILE = "data-root.txt";
 export const DATA_ROOT_MARKER_FILE = ".manga-gemma-translator-data";
 
-export function resolvePackagedDataRoot(executableDir: string): string {
+export type PackagedDataRootOptions = {
+  platform?: NodeJS.Platform;
+  appDataDir?: string;
+};
+
+export function resolvePackagedDataRoot(
+  executableDir: string,
+  options: PackagedDataRootOptions = {},
+): string {
   const explicit = normalizeDataRoot(process.env.MANGA_TRANSLATOR_DATA_ROOT);
   if (explicit) {
     return explicit;
+  }
+
+  const platform = options.platform ?? process.platform;
+  if (platform === "darwin") {
+    const appDataDir = normalizeDataRoot(options.appDataDir);
+    if (!appDataDir) {
+      throw new Error("macOS app data directory is unavailable");
+    }
+    return join(appDataDir, APP_DATA_DIR_NAME);
   }
 
   const configured = readDataRootPointer(executableDir);

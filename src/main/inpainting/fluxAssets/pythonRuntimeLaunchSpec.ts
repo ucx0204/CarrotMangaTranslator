@@ -4,6 +4,8 @@ import {
   FLUX_DIFFUSERS_MODEL_ID,
   FLUX_MODEL_FILE,
   FLUX_MODEL_REPO,
+  FLUX_MODEL_REVISION,
+  FLUX_MODEL_SHA256,
   FLUX_SDCPP_LLM_FILE,
   FLUX_SDCPP_LLM_REPO,
   FLUX_SDCPP_VAE_FILE,
@@ -97,7 +99,8 @@ async function ensureRocmFluxModels({
     modelDir,
     fileName: FLUX_MODEL_FILE,
     label: "Flux Klein 4B GGUF",
-    url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE),
+    url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE, FLUX_MODEL_REVISION),
+    expectedSha256: FLUX_MODEL_SHA256,
     signal,
     onProgress,
   });

@@ -86,6 +86,8 @@ export type TranslationOptions = {
   reuseServer: boolean;
   llamaRuntimeProfile?: string;
   llamaRocmTarget?: string;
+  unifiedMemoryMb?: number;
+  allowUnsafeUnifiedMemory?: boolean;
   workingDir: string;
   toolsDir: string;
   ocrRuntimeDir?: string;

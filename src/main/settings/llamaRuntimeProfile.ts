@@ -31,6 +31,10 @@ export function isVulkanLlamaRuntimeProfile(profile: string): boolean {
   return canonicalizeLlamaRuntimeProfile(profile) === "vulkan";
 }
 
+export function isMetalLlamaRuntimeProfile(profile: string): boolean {
+  return canonicalizeLlamaRuntimeProfile(profile) === "metal";
+}
+
 export function isAmdLlamaRuntimeProfile(profile: string): boolean {
   const canonical = canonicalizeLlamaRuntimeProfile(profile);
   return canonical === "rocm" || canonical === "vulkan";
@@ -63,10 +67,22 @@ function canonicalizeLlamaRuntimeProfile(
   if (["vulkan", "vk", "amd-vulkan"].includes(normalized)) {
     return "vulkan";
   }
+  if (["metal", "apple", "apple-metal", "mps"].includes(normalized)) {
+    return "metal";
+  }
   return undefined;
 }
 
 export function resolveHardwareLlamaRuntimeProfile(
+  info: DetectedGpuInfo | null,
+): LlamaRuntimeProfile {
+  if (info?.vendor === "apple") {
+    return "metal";
+  }
+  return resolveNonAppleHardwareLlamaRuntimeProfile(info);
+}
+
+function resolveNonAppleHardwareLlamaRuntimeProfile(
   info: DetectedGpuInfo | null,
 ): LlamaRuntimeProfile {
   if (info?.vendor === "amd") {

@@ -149,6 +149,61 @@ const MAINLINE_LLAMA_RUNTIME_VULKAN = {
   ],
 };
 
+const MAINLINE_LLAMA_RUNTIME_METAL_ARM64 = {
+  id: "llama-b9547-metal-arm64",
+  kind: "mainline-metal",
+  backend: "metal",
+  platform: "darwin",
+  arch: "arm64",
+  dir: "llama-b9547-metal-arm64",
+  archive: "llama-b9547-bin-macos-arm64.tar.gz",
+  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-macos-arm64.tar.gz",
+  archives: [
+    {
+      archive: "llama-b9547-bin-macos-arm64.tar.gz",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-macos-arm64.tar.gz",
+      sha256:
+        "8791fdac4d5b7008b53fd15c609491d5a2fce2d180bb0b0e041eac53c5ade000",
+      type: "tar.gz",
+      stripComponents: 1,
+    },
+  ],
+  requiredFiles: [
+    "llama-server",
+    ["libggml.dylib", "libggml-base.dylib"],
+    ["libggml-metal.dylib", "libggml-metal.0.dylib"],
+    ["libllama.dylib", "libllama.0.dylib"],
+  ],
+};
+
+const BEELLAMA_LLAMA_RUNTIME_METAL_ARM64 = {
+  id: "beellama-v0.3.1-metal-arm64",
+  kind: "beellama-metal",
+  backend: "metal",
+  platform: "darwin",
+  arch: "arm64",
+  dflashRing: "cpu",
+  dir: "beellama-v0.3.1-metal-arm64",
+  archive: "beellama-v0.3.1-bin-macos-arm64.tar.gz",
+  url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.3.1/beellama-v0.3.1-bin-macos-arm64.tar.gz",
+  archives: [
+    {
+      archive: "beellama-v0.3.1-bin-macos-arm64.tar.gz",
+      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.3.1/beellama-v0.3.1-bin-macos-arm64.tar.gz",
+      sha256:
+        "14c0af87fc124e50469279ceae96016bbc6f7649de484b1de8a0a38675004556",
+      type: "tar.gz",
+      stripComponents: 1,
+    },
+  ],
+  requiredFiles: [
+    "llama-server",
+    ["libggml.dylib", "libggml-base.dylib"],
+    ["libggml-metal.dylib", "libggml-metal.0.dylib"],
+    ["libllama.dylib", "libllama.0.dylib"],
+  ],
+};
+
 const LEMONADE_LLAMA_ROCM_RELEASE = "b1291";
 const LEMONADE_LLAMA_ROCM_BASE_URL = `https://github.com/lemonade-sdk/llamacpp-rocm/releases/download/${LEMONADE_LLAMA_ROCM_RELEASE}`;
 
@@ -243,6 +298,14 @@ const LLAMA_RUNTIME_FILES = new Set([
   "libggml-hip.so",
   "libggml-rocm.so",
   "libggml-vulkan.so",
+  "libggml.dylib",
+  "libggml-base.dylib",
+  "libggml-cpu.dylib",
+  "libggml-metal.dylib",
+  "libllama.dylib",
+  "libmtmd.dylib",
+  "ggml-metal.metal",
+  "default.metallib",
   "llama-cli",
   "llama-server",
   "llama-common.dll",
@@ -271,7 +334,7 @@ function shouldExtractLlamaRuntimeFile(fileName, relativePath = fileName) {
   }
   return (
     LLAMA_RUNTIME_FILES.has(fileName) ||
-    /\.(?:dll|so|dylib)$/i.test(String(fileName ?? ""))
+    /\.(?:dll|so|dylib|metal|metallib)$/i.test(String(fileName ?? ""))
   );
 }
 
@@ -279,11 +342,13 @@ module.exports = {
   BEELLAMA_LLAMA_RUNTIME_CUDA12,
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
   BEELLAMA_LLAMA_RUNTIME_HIP_RADEON,
+  BEELLAMA_LLAMA_RUNTIME_METAL_ARM64,
   LLAMA_RUNTIME_FILES,
   LLAMA_RUNTIME_MARKER_FILE,
   MAINLINE_LLAMA_RUNTIME_CUDA12,
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   MAINLINE_LLAMA_RUNTIME_VULKAN,
+  MAINLINE_LLAMA_RUNTIME_METAL_ARM64,
   resolveLemonadeLlamaRuntimeRocm,
   shouldExtractLlamaRuntimeFile,
 };

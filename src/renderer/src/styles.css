@@ -776,6 +776,34 @@ input[type="radio"] {
   background: var(--glass-rail);
 }
 
+.mac-alpha-badge {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 171, 64, 0.55);
+  border-radius: 999px;
+  color: #ffe0aa;
+  background: rgba(131, 73, 10, 0.32);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.mac-alpha-badge > span:last-child {
+  color: #f4c878;
+}
+
+.mac-alpha-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffad42;
+  box-shadow: 0 0 8px rgba(255, 173, 66, 0.7);
+}
+
 .right-rail {
   border-left: 1px solid var(--glass-border);
   background: var(--glass-rail);
@@ -5443,6 +5471,32 @@ kbd {
 .settings-panel-stack {
   display: grid;
   gap: 14px;
+}
+
+.mac-alpha-memory-summary {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #68b88a 55%, var(--border-soft));
+  border-radius: 10px;
+  background: color-mix(in srgb, #183828 48%, var(--bg-sunken));
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.45;
+}
+
+.mac-alpha-memory-summary strong {
+  color: #a9e4bf;
+  font-weight: 700;
+}
+
+.mac-alpha-memory-summary.warning {
+  border-color: color-mix(in srgb, #d18c55 65%, var(--border-soft));
+  background: color-mix(in srgb, #4a2b18 48%, var(--bg-sunken));
+}
+
+.mac-alpha-memory-summary.warning strong {
+  color: #f4bd86;
 }
 
 .format-defaults-editor {

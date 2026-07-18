@@ -4,6 +4,9 @@ const path = require("node:path");
 const {
   PADDLE_OCR_MODEL_DOWNLOADS,
 } = require("../src/main/runtime/simple-page-defaults.cjs");
+const {
+  resolvePinnedGemmaAsset,
+} = require("../src/main/runtime/model/hf-model-download-tasks.cjs");
 
 const ROOT = path.resolve(__dirname, "..");
 const MAX_CONCURRENCY = 4;
@@ -15,43 +18,43 @@ const fluxConstants = readSource("src/main/inpainting/fluxAssets/constants.ts");
 const koharuAssets = readSource("src/main/inpainting/koharuAssets.ts");
 
 const assets = [
-  sourceAsset(
+  pinnedGemmaAsset(
     "Gemma 12B model",
     modelPresets,
     "GEMMA_12B_MODEL_REPO",
     "GEMMA_12B_MODEL_FILE_Q4_K_M",
   ),
-  sourceAsset(
+  pinnedGemmaAsset(
     "Gemma 12B mmproj",
     modelPresets,
     "GEMMA_12B_MMPROJ_REPO",
     "GEMMA_12B_MMPROJ_FILE",
   ),
-  sourceAsset(
+  pinnedGemmaAsset(
     "Gemma 26B model",
     modelPresets,
     "GEMMA_26B_MODEL_REPO",
     "GEMMA_26B_MODEL_FILE_IQ3_S",
   ),
-  sourceAsset(
+  pinnedGemmaAsset(
     "Gemma 26B mmproj",
     modelPresets,
     "GEMMA_26B_MMPROJ_REPO",
     "GEMMA_26B_MMPROJ_FILE",
   ),
-  sourceAsset(
+  pinnedGemmaAsset(
     "Gemma 31B model",
     modelPresets,
     "GEMMA_31B_MODEL_REPO",
     "GEMMA_31B_MODEL_FILE_IQ3_S",
   ),
-  sourceAsset(
+  pinnedGemmaAsset(
     "Gemma 31B mmproj",
     modelPresets,
     "GEMMA_31B_MMPROJ_REPO",
     "GEMMA_31B_MMPROJ_FILE",
   ),
-  sourceAsset(
+  pinnedGemmaAsset(
     "Gemma draft model",
     modelPresets,
     "DEFAULT_GEMMA_DRAFT_MODEL_REPO",
@@ -62,8 +65,15 @@ const assets = [
     fluxConstants,
     "FLUX_MODEL_REPO",
     "FLUX_MODEL_FILE",
+    "FLUX_MODEL_REVISION",
   ),
-  sourceAsset("Flux VAE", fluxConstants, "FLUX_VAE_REPO", "FLUX_VAE_FILE"),
+  sourceAsset(
+    "Flux VAE",
+    fluxConstants,
+    "FLUX_VAE_REPO",
+    "FLUX_VAE_FILE",
+    "FLUX_VAE_REVISION",
+  ),
   sourceAsset(
     "Flux SDCPP VAE",
     fluxConstants,
@@ -76,19 +86,36 @@ const assets = [
     "FLUX_SDCPP_LLM_REPO",
     "FLUX_SDCPP_LLM_FILE",
   ),
-  sourceAsset("AOT config", koharuAssets, "AOT_MODEL_REPO", "AOT_CONFIG_FILE"),
-  sourceAsset("AOT model", koharuAssets, "AOT_MODEL_REPO", "AOT_MODEL_FILE"),
+  sourceAsset(
+    "AOT config",
+    koharuAssets,
+    "AOT_MODEL_REPO",
+    "AOT_CONFIG_FILE",
+    "AOT_MODEL_REVISION",
+  ),
+  sourceAsset(
+    "AOT model",
+    koharuAssets,
+    "AOT_MODEL_REPO",
+    "AOT_MODEL_FILE",
+    "AOT_MODEL_REVISION",
+  ),
   sourceAsset(
     "LaMa Manga model",
     koharuAssets,
     "LAMA_MODEL_REPO",
     "LAMA_MODEL_FILE",
+    "LAMA_MODEL_REVISION",
   ),
   ...PADDLE_OCR_MODEL_DOWNLOADS.flatMap((entry) =>
     entry.files.map((file) => ({
       label: `${entry.name}: ${file}`,
       repo: entry.repo,
       file,
+      revision: entry.revision,
+      ...(file === entry.weightsFile
+        ? { expectedSha256: entry.weightsSha256 }
+        : {}),
     })),
   ),
 ];
@@ -126,9 +153,9 @@ async function main() {
   );
 }
 
-/** @param {{ label: string; repo: string; file: string }} asset */
+/** @param {{ label: string; repo: string; file: string; revision?: string }} asset */
 async function verifyAsset(asset) {
-  const url = buildHfResolveUrl(asset.repo, asset.file);
+  const url = buildHfResolveUrl(asset.repo, asset.file, asset.revision);
   let lastError = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
@@ -166,13 +193,28 @@ function readSource(relativePath) {
   return readFileSync(path.join(ROOT, relativePath), "utf8");
 }
 
-/** @param {string} label @param {string} source @param {string} repoName @param {string} fileName */
-function sourceAsset(label, source, repoName, fileName) {
+/** @param {string} label @param {string} source @param {string} repoName @param {string} fileName @param {string=} revisionName */
+function sourceAsset(label, source, repoName, fileName, revisionName) {
   return {
     label,
     repo: readStringConstant(source, repoName),
     file: readStringConstant(source, fileName),
+    ...(revisionName
+      ? { revision: readStringConstant(source, revisionName) }
+      : {}),
   };
+}
+
+/** @param {string} label @param {string} source @param {string} repoName @param {string} fileName */
+function pinnedGemmaAsset(label, source, repoName, fileName) {
+  const asset = sourceAsset(label, source, repoName, fileName);
+  const pin = resolvePinnedGemmaAsset(asset.repo, asset.file);
+  if (!pin) {
+    throw new Error(
+      `Built-in Gemma asset is not pinned: ${asset.repo}/${asset.file}`,
+    );
+  }
+  return { ...asset, ...pin };
 }
 
 /** @param {string} source @param {string} name */
@@ -191,10 +233,10 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** @param {string} repo @param {string} file */
-function buildHfResolveUrl(repo, file) {
+/** @param {string} repo @param {string} file @param {string=} revision */
+function buildHfResolveUrl(repo, file, revision = "main") {
   const encodedFile = file.split("/").map(encodeURIComponent).join("/");
-  return `https://huggingface.co/${repo}/resolve/main/${encodedFile}`;
+  return `https://huggingface.co/${repo}/resolve/${encodeURIComponent(revision)}/${encodedFile}`;
 }
 
 /** @param {number} bytes */

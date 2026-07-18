@@ -3,6 +3,9 @@ import { APP_RELEASES_URL } from "../../shared/appRelease";
 import { externalIpcContracts } from "../../shared/ipcContracts";
 import type { IpcContext } from "./context";
 import { trustedHandleContract } from "./trustedIpc";
+import { resolveBuildChannel } from "../buildChannel";
+import { detectBestGpuInfo } from "../gpuInfo";
+import { buildRuntimeCapabilities } from "../runtimeCapabilities";
 
 const AMD_HIP_SDK_URL =
   "https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html";
@@ -30,7 +33,17 @@ export function registerExternalLinksIpc(context: IpcContext): void {
     async () => ({
       currentVersion: app.getVersion(),
       releasesUrl: APP_RELEASES_URL,
+      buildChannel: resolveBuildChannel(),
     }),
+  );
+
+  trustedHandleContract(
+    context,
+    externalIpcContracts.getRuntimeCapabilities,
+    async () =>
+      buildRuntimeCapabilities({
+        gpu: await detectBestGpuInfo(),
+      }),
   );
 
   trustedHandleContract(

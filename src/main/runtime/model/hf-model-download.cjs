@@ -1,5 +1,6 @@
 // @ts-check
 const path = require("node:path");
+const { rm } = require("node:fs/promises");
 const {
   downloadHfFileWithProgress,
   isUsableFile,
@@ -10,14 +11,33 @@ const {
 const {
   createDetailedError,
   emitRuntimeProgress,
+  safeCleanup,
 } = require("../simple-page-runtime-common.cjs");
+const {
+  integrityMarkerPath,
+  normalizeExpectedSha256,
+  verifyFileSha256,
+} = require("../transport/download-integrity.cjs");
 const {
   assertWindowsModelLaunchPaths,
   ensureCompactCachedHfAssets,
   isWindowsLegacyLongPath,
 } = require("./compact-model-cache.cjs");
-const { collectRequiredHfDownloads } = require("./hf-model-download-tasks.cjs");
+const {
+  resolveConfiguredDraftModelFile,
+  resolveConfiguredDraftModelRepo,
+  resolveConfiguredMmprojFile,
+  resolveConfiguredMmprojRepo,
+  resolveConfiguredModelFile,
+  resolveConfiguredModelRepo,
+  shouldUseConfiguredMmproj,
+} = require("../simple-page-model-config.cjs");
+const {
+  collectRequiredHfDownloads,
+  resolvePinnedGemmaAsset,
+} = require("./hf-model-download-tasks.cjs");
 const { inspectModelLaunch } = require("./model-launch-target.cjs");
+const { resolveLlamaRuntimeProfile } = require("./runtime-profile.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { useDraft?: boolean | null }} ModelAssetOptions */
 /** @typedef {ReturnType<typeof inspectModelLaunch>} ModelLaunchTarget */
@@ -28,10 +48,13 @@ async function ensureHfModelAssetsDownloaded(
   target = inspectModelLaunch(options),
 ) {
   await ensureCompactCachedHfAssets(options, target);
-  const refreshed = inspectModelLaunch(options);
+  let refreshed = inspectModelLaunch(options);
+  await removeInvalidMetalCachedAssets(options, refreshed);
+  refreshed = inspectModelLaunch(options);
   assertWindowsModelLaunchPaths(refreshed);
-  const tasks = collectRequiredHfDownloads(options, refreshed).filter(
-    (task) => !isUsableFile(task.destination),
+  const tasks = await collectPendingModelTasks(
+    collectRequiredHfDownloads(options, refreshed),
+    options,
   );
   assertSafeDestinations(tasks);
   if (tasks.length === 0) return;
@@ -41,6 +64,94 @@ async function ensureHfModelAssetsDownloaded(
   await downloadTasks(tasks, options, totals, aggregate);
   assertWindowsModelLaunchPaths(inspectModelLaunch(options));
   emitModelDownloadComplete(options, aggregate);
+}
+
+/**
+ * Apple Silicon Alpha can reuse a pre-existing Hugging Face cache. Verify
+ * built-in assets before that cache reaches a Metal process; a corrupt entry
+ * is removed so the normal immutable-revision download path replaces it.
+ * Custom and explicitly local models do not have a project-owned checksum.
+ * @param {ModelAssetOptions} options
+ * @param {ModelLaunchTarget} target
+ */
+async function removeInvalidMetalCachedAssets(options, target) {
+  if (resolveLlamaRuntimeProfile(options) !== "metal") return;
+  for (const asset of collectCachedPinnedAssets(options, target)) {
+    emitRuntimeProgress(
+      options,
+      "model_downloading",
+      "Gemma 모델 체크섬 확인 중",
+      asset.file,
+      { progressMode: "indeterminate" },
+    );
+    const result = await verifyFileSha256(asset.filePath, asset.expectedSha256);
+    if (result.verified) continue;
+    await rm(asset.filePath, { force: true });
+    await safeCleanup("remove invalid Gemma integrity marker", () =>
+      rm(integrityMarkerPath(asset.filePath), { force: true }),
+    );
+  }
+}
+
+/** @param {ModelAssetOptions} options @param {ModelLaunchTarget} target */
+function collectCachedPinnedAssets(options, target) {
+  if (["openai-codex", "openai-api"].includes(target.launchMode)) return [];
+  const candidates = [];
+  if (target.launchMode !== "local") {
+    candidates.push({
+      repo: resolveConfiguredModelRepo(options),
+      file: resolveConfiguredModelFile(options),
+      filePath: target.modelPath,
+    });
+    if (shouldUseConfiguredMmproj(options)) {
+      candidates.push({
+        repo: resolveConfiguredMmprojRepo(options),
+        file: resolveConfiguredMmprojFile(options),
+        filePath: target.mmprojPath,
+      });
+    }
+  }
+  if (options.useDraft) {
+    candidates.push({
+      repo: resolveConfiguredDraftModelRepo(options),
+      file: resolveConfiguredDraftModelFile(options),
+      filePath: target.draftModelPath,
+    });
+  }
+  return candidates.flatMap((candidate) => {
+    const pin = resolvePinnedGemmaAsset(candidate.repo, candidate.file);
+    return pin && candidate.filePath && isUsableFile(candidate.filePath)
+      ? [{ ...candidate, ...pin, filePath: candidate.filePath }]
+      : [];
+  });
+}
+
+/** @param {ReturnType<typeof collectRequiredHfDownloads>} tasks @param {ModelAssetOptions} options */
+async function collectPendingModelTasks(tasks, options) {
+  const pending = [];
+  for (const task of tasks) {
+    if (!isUsableFile(task.destination)) {
+      pending.push(task);
+      continue;
+    }
+    const expected = normalizeExpectedSha256(task.expectedSha256);
+    if (!expected) continue;
+    emitRuntimeProgress(
+      options,
+      "model_downloading",
+      "Gemma 모델 체크섬 확인 중",
+      task.file,
+      { progressMode: "indeterminate" },
+    );
+    const result = await verifyFileSha256(task.destination, expected);
+    if (result.verified) continue;
+    await safeCleanup("remove checksum-mismatched Gemma model", async () => {
+      await rm(task.destination, { force: true });
+      await rm(integrityMarkerPath(task.destination), { force: true });
+    });
+    pending.push(task);
+  }
+  return pending;
 }
 
 /** @param {Array<{ label: string; destination: string }>} tasks */
@@ -143,4 +254,7 @@ function emitModelDownloadComplete(options, aggregate) {
   );
 }
 
-module.exports = { ensureHfModelAssetsDownloaded };
+module.exports = {
+  ensureHfModelAssetsDownloaded,
+  removeInvalidMetalCachedAssets,
+};

@@ -5,7 +5,7 @@
 # 胡萝卜漫画翻译器
 
 <p align="center">
-  一款 Windows 桌面应用，从导入漫画、OCR、AI 翻译、编辑、清除原文到导出 PNG，一次完成
+  支持 Windows 正式版与 Apple Silicon macOS Alpha，涵盖导入、OCR、AI 翻译、编辑、图像修复和 PNG 导出
 </p>
 
 <p align="center">
@@ -19,6 +19,7 @@
 胡萝卜漫画翻译器是一款漫画制作工具：它可以从图片中识别对白与拟声词，用 AI 生成翻译区块，再由用户调整文字和排版，最后导出为完整的 PNG。默认翻译方向为日语 → 韩语，也可以选择其他原文和译文语言。
 
 - 最新 Windows 安装包：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- Apple Silicon Alpha：[安装与测试说明](docs/mac-alpha-testing.md) · [检查清单](docs/MAC_ALPHA_TEST_CHECKLIST.md)
 - 当前版本说明：[v1.6.3 更新说明](docs/release-notes/v1.6.3.md)
 - 代码结构与贡献规范：[docs/architecture.md](docs/architecture.md)
 
@@ -35,7 +36,7 @@
 
 ## 安装前须知
 
-- 支持的操作系统：Windows 10/11 x64
+- 支持的操作系统：Windows 10/11 x64 正式版；Apple Silicon（M1 及以上）macOS 14+ Alpha。不支持 Intel Mac。
 - 所需可用空间：除应用本体外，根据所选 Gemma、OCR 和图像修复模型，可能还需要数 GB 或更多空间。
 - 网络连接：安装、首次下载模型以及使用 Codex/API 时需要联网。本地模型准备完成后可以离线使用。
 - 即使没有 GPU，也可使用部分 CPU 处理路径，但 OCR、本地翻译和 Flux 图像修复可能会非常慢。

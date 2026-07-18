@@ -5,7 +5,7 @@
 # 胡蘿蔔漫畫翻譯器
 
 <p align="center">
-  一款 Windows 桌面應用程式，從匯入漫畫、OCR、AI 翻譯、編輯、清除原文到匯出 PNG，一次完成
+  支援 Windows 正式版與 Apple Silicon macOS Alpha，涵蓋匯入、OCR、AI 翻譯、編輯、圖片修補及 PNG 匯出
 </p>
 
 <p align="center">
@@ -19,6 +19,7 @@
 胡蘿蔔漫畫翻譯器是一款漫畫製作工具：它可以從圖片中找出對白與狀聲詞，透過 AI 產生翻譯區塊，再由使用者調整文字和排版，最後匯出為完整的 PNG。預設翻譯方向為日文 → 韓文，也可以選擇其他原文與譯文語言。
 
 - 最新 Windows 安裝檔：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- Apple Silicon Alpha：[安裝與測試說明](docs/mac-alpha-testing.md) · [檢查清單](docs/MAC_ALPHA_TEST_CHECKLIST.md)
 - 目前版本說明：[v1.6.3 更新說明](docs/release-notes/v1.6.3.md)
 - 程式碼架構與貢獻規範：[docs/architecture.md](docs/architecture.md)
 
@@ -35,7 +36,7 @@
 
 ## 安裝前須知
 
-- 支援的作業系統：Windows 10/11 x64
+- 支援的作業系統：Windows 10/11 x64 正式版；Apple Silicon（M1 以上）macOS 14+ Alpha。不支援 Intel Mac。
 - 所需可用空間：除了應用程式本身，依所選的 Gemma、OCR 和圖片修補模型，可能還需要數 GB 或更多空間。
 - 網路連線：安裝、第一次下載模型以及使用 Codex/API 時需要連上網路。本機模型準備完成後即可離線使用。
 - 即使沒有 GPU，也能使用部分 CPU 處理方式，但 OCR、本機翻譯和 Flux 圖片修補可能會非常慢。
