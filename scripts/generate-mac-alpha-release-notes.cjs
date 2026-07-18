@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 
-const { mkdirSync, writeFileSync } = require("node:fs");
+const { existsSync, mkdirSync, writeFileSync } = require("node:fs");
 const { dirname, join } = require("node:path");
 
 const root = join(__dirname, "..");
@@ -21,6 +21,9 @@ function main() {
   const issueUrl =
     "https://github.com/ucx0204/CarrotMangaTranslator/issues/new?template=mac_alpha.yml&title=%5BmacOS%20Alpha%5D%20";
   const unsigned = signingMode === "adhoc";
+  const hostedGuiSmokeWaived = existsSync(
+    join(root, "dist", "mac-alpha-hosted-app-smoke-waiver.json"),
+  );
   const title = unsigned
     ? `Unsigned Apple Silicon Alpha ${tag}`
     : `Apple Silicon Alpha ${tag}`;
@@ -74,6 +77,7 @@ ${installation.join("\n")}
 ## 알려진 제한
 
 - GitHub의 7GB M1 빌드 러너는 대형 모델 품질·장시간 메모리 시험을 대신하지 못합니다.
+${hostedGuiSmokeWaived ? "- GitHub 호스티드 macOS 15 러너에서 패키지 GUI 앱의 LaunchServices prepare 스모크가 Electron native EXC_BREAKPOINT/SIGTRAP(CrBrowserMain)으로 종료되어 이 수명주기는 CI에서 미검증입니다. arm64·서명·번들 런타임·OCR·Metal 검증은 통과했으며, 실제 Mac에서 앱 실행·가져오기·저장·재실행·내보내기 확인을 요청합니다." : "- 패키지 GUI 앱의 LaunchServices 가져오기·저장·재실행·내보내기 수명주기 스모크를 통과했습니다."}
 - 인증서가 없는 빌드는 ad-hoc 서명이므로 Gatekeeper에서 수동 승인이 필요합니다.
 - Intel Mac과 macOS 13 이하는 지원하지 않습니다.
 

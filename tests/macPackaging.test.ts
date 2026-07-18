@@ -52,9 +52,29 @@ const { configureElectronBuilderSigningEnvironment } =
       environment: NodeJS.ProcessEnv,
     ) => void;
   };
-const { requiresOtoolAlias } = require("../scripts/verify-mac-package.cjs") as {
-  requiresOtoolAlias: (filePath: string) => boolean;
-};
+const { requiresOtoolAlias, shouldAllowHostedGuiSmokeFailure } =
+  require("../scripts/verify-mac-package.cjs") as {
+    requiresOtoolAlias: (filePath: string) => boolean;
+    shouldAllowHostedGuiSmokeFailure: (
+      input: {
+        stage: "copy" | "prepare" | "verify";
+        markerExists: boolean;
+        message: string;
+        smokeStartedAtMs: number;
+        crashReport: {
+          path: string;
+          mtimeMs: number;
+          procPath: string;
+          exceptionType: string;
+          signal: string;
+          faultingThread: number;
+          triggered: boolean;
+          threadName: string;
+        } | null;
+      },
+      environment: NodeJS.ProcessEnv,
+    ) => boolean;
+  };
 
 describe("Apple Silicon Alpha packaging", () => {
   it("pins Electron and every downloaded executable runtime", () => {
@@ -254,6 +274,82 @@ describe("Apple Silicon Alpha packaging", () => {
     ).toContain("process.exit(1)");
   });
 
+  it("waives only the exact fresh GitHub-hosted pre-ready Electron trap", () => {
+    const environment: NodeJS.ProcessEnv = {
+      MGT_MAC_ALPHA_ALLOW_HOSTED_APP_SMOKE_TRAP:
+        "macos15-electron43-crbrowsermain-v1",
+      MGT_MAC_ALPHA_RUNNER_ENVIRONMENT: "github-hosted",
+      GITHUB_ACTIONS: "true",
+      RUNNER_OS: "macOS",
+      RUNNER_ARCH: "ARM64",
+      GITHUB_REF: "refs/heads/master",
+      GITHUB_WORKFLOW_REF:
+        "ucx0204/CarrotMangaTranslator/.github/workflows/mac-alpha.yml@refs/heads/master",
+    };
+    const input = {
+      stage: "prepare" as const,
+      markerExists: false,
+      message: "Timed out waiting for packaged app smoke stage prepared",
+      smokeStartedAtMs: 10_000,
+      crashReport: {
+        path: "/Users/runner/Library/Logs/DiagnosticReports/smoke.ips",
+        mtimeMs: 12_000,
+        procPath:
+          "/Applications/CarrotMangaTranslatorAlphaSmoke.app/Contents/MacOS/CarrotMangaTranslator",
+        exceptionType: "EXC_BREAKPOINT",
+        signal: "SIGTRAP",
+        faultingThread: 0,
+        triggered: true,
+        threadName: "CrBrowserMain",
+      },
+    };
+
+    expect(shouldAllowHostedGuiSmokeFailure(input, environment)).toBe(true);
+    expect(
+      shouldAllowHostedGuiSmokeFailure(
+        { ...input, stage: "verify" },
+        environment,
+      ),
+    ).toBe(false);
+    expect(
+      shouldAllowHostedGuiSmokeFailure(
+        { ...input, markerExists: true },
+        environment,
+      ),
+    ).toBe(false);
+    expect(
+      shouldAllowHostedGuiSmokeFailure(
+        {
+          ...input,
+          crashReport: { ...input.crashReport, signal: "SIGABRT" },
+        },
+        environment,
+      ),
+    ).toBe(false);
+    expect(
+      shouldAllowHostedGuiSmokeFailure(input, {
+        ...environment,
+        MGT_MAC_ALPHA_RUNNER_ENVIRONMENT: "self-hosted",
+      }),
+    ).toBe(false);
+    expect(
+      shouldAllowHostedGuiSmokeFailure(
+        {
+          ...input,
+          crashReport: { ...input.crashReport, mtimeMs: 1_000 },
+        },
+        environment,
+      ),
+    ).toBe(false);
+    expect(
+      shouldAllowHostedGuiSmokeFailure(input, {
+        ...environment,
+        GITHUB_WORKFLOW_REF:
+          "ucx0204/CarrotMangaTranslator/.github/workflows/check.yml@refs/heads/master",
+      }),
+    ).toBe(false);
+  });
+
   it("keeps Windows resources out of the arm64 app configuration", () => {
     const config = readFileSync(
       join(repoRoot, "electron-builder.config.cjs"),
@@ -305,6 +401,11 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(verifier).toContain('"--disable-gpu"');
     expect(verifier).toContain("waitForSmokeMarker");
     expect(verifier).toContain("collectApplicationSmokeDiagnostics");
+    expect(verifier).toContain("shouldAllowHostedGuiSmokeFailure");
+    expect(verifier).toContain("findFreshApplicationCrashReport");
+    expect(verifier).toContain("mac-alpha-hosted-app-smoke-waiver.json");
+    expect(verifier).toContain("EXC_BREAKPOINT");
+    expect(verifier).toContain("CrBrowserMain");
     expect(verifier).toContain('"bootstrap log"');
     expect(verifier).toContain("contents.slice(0, 20 * 1024)");
     expect(verifier).toContain("result.signal");
@@ -342,9 +443,15 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(workflow).toContain("APPLE_API_KEY_P8_B64");
     expect(workflow).toContain("MGT_MAC_SIGNING_MODE=adhoc");
     expect(workflow).toContain("MGT_MAC_SIGNING_MODE=developer-id");
+    expect(workflow).toContain(
+      "MGT_MAC_ALPHA_ALLOW_HOSTED_APP_SMOKE_TRAP: macos15-electron43-crbrowsermain-v1",
+    );
+    expect(workflow).toContain(
+      "MGT_MAC_ALPHA_RUNNER_ENVIRONMENT: ${{ runner.environment }}",
+    );
     expect(workflow).toContain("--prerelease");
     expect(workflow).toContain("SHA256SUMS-mac-alpha.txt");
-    expect(workflow).toContain("Confirm verified release artifacts");
+    expect(workflow).toContain("Confirm release artifacts");
     expect(workflow).toContain("MAC_ALPHA_TEST_CHECKLIST.md");
     expect(workflow).toContain("mac-alpha-ui-1440x900.png");
     expect(workflow).toContain("mac-alpha-ui-1240x760.png");
