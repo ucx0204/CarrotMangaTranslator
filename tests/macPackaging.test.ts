@@ -48,6 +48,9 @@ const { configureElectronBuilderSigningEnvironment } =
       environment: NodeJS.ProcessEnv,
     ) => void;
   };
+const { requiresOtoolAlias } = require("../scripts/verify-mac-package.cjs") as {
+  requiresOtoolAlias: (filePath: string) => boolean;
+};
 
 describe("Apple Silicon Alpha packaging", () => {
   it("pins Electron and every downloaded executable runtime", () => {
@@ -200,6 +203,29 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(environment.CSC_LINK).toBe("developer-id-certificate");
     expect(environment.CSC_KEY_PASSWORD).toBe("certificate-password");
     expect(environment.CSC_IDENTITY_AUTO_DISCOVERY).toBe("true");
+  });
+
+  it("aliases parenthesized Electron Helper paths before otool inspection", () => {
+    expect(
+      requiresOtoolAlias(
+        "/Applications/App.app/Contents/Frameworks/App Helper (GPU).app/Contents/MacOS/App Helper (GPU)",
+      ),
+    ).toBe(true);
+    expect(
+      requiresOtoolAlias(
+        "/Applications/App.app/Contents/MacOS/CarrotMangaTranslator",
+      ),
+    ).toBe(false);
+
+    const verifier = readFileSync(
+      join(repoRoot, "scripts", "verify-mac-package.cjs"),
+      "utf8",
+    );
+    expect(verifier).toContain('mkdtempSync(join(tmpdir(), "mgt-otool-"))');
+    expect(verifier).toContain("runOtool(filePath)");
+    expect(
+      readFileSync(join(repoRoot, "scripts", "dist-mac-alpha.cjs"), "utf8"),
+    ).toContain("process.exit(1)");
   });
 
   it("keeps Windows resources out of the arm64 app configuration", () => {
