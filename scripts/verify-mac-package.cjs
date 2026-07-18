@@ -7,9 +7,11 @@ const {
   createReadStream,
   existsSync,
   lstatSync,
+  mkdtempSync,
   readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } = require("node:fs");
 const { homedir, tmpdir } = require("node:os");
@@ -88,6 +90,32 @@ function looksLikeNativeBinary(filePath) {
   );
 }
 
+/** @param {string} filePath */
+function requiresOtoolAlias(filePath) {
+  return /[()]/.test(filePath);
+}
+
+/**
+ * otool-classic interprets a trailing parenthesized filename segment such as
+ * "Helper (GPU)" as the archive(member) syntax. Inspect the same Mach-O through
+ * a parenthesis-free symlink so the tool receives an unambiguous path.
+ *
+ * @param {string} filePath
+ */
+function runOtool(filePath) {
+  if (!requiresOtoolAlias(filePath)) {
+    return run("otool", ["-L", filePath]);
+  }
+  const aliasRoot = mkdtempSync(join(tmpdir(), "mgt-otool-"));
+  const aliasPath = join(aliasRoot, "native-payload");
+  try {
+    symlinkSync(filePath, aliasPath);
+    return run("otool", ["-L", aliasPath]);
+  } finally {
+    rmSync(aliasRoot, { recursive: true, force: true });
+  }
+}
+
 /** @param {string} appPath @returns {string[]} */
 function verifyNativePayload(appPath) {
   const files = listFiles(appPath);
@@ -110,7 +138,7 @@ function verifyNativePayload(appPath) {
     if (!/arm64/i.test(description) || /x86_64/i.test(description)) {
       throw new Error(`Non-arm64 Mach-O found: ${filePath}: ${description}`);
     }
-    run("otool", ["-L", filePath]);
+    runOtool(filePath);
     run("codesign", ["--verify", "--strict", "--verbose=2", filePath]);
     machOFiles.push(filePath);
   }
@@ -372,4 +400,5 @@ module.exports = {
   findAppBundles,
   listFiles,
   looksLikeNativeBinary,
+  requiresOtoolAlias,
 };
