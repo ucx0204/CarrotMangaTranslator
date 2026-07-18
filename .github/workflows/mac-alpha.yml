@@ -93,6 +93,17 @@ jobs:
       - name: Build and verify arm64 DMG and ZIP
         run: npm run dist:mac:alpha
 
+      - name: Confirm verified release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dmg_files=(dist/*-macOS-arm64-alpha.dmg)
+          zip_files=(dist/*-macOS-arm64-alpha.zip)
+          [[ "${#dmg_files[@]}" -eq 1 ]] || { echo "Expected exactly one Alpha DMG, found ${#dmg_files[@]}" >&2; exit 1; }
+          [[ "${#zip_files[@]}" -eq 1 ]] || { echo "Expected exactly one Alpha ZIP, found ${#zip_files[@]}" >&2; exit 1; }
+          test -s dist/SHA256SUMS-mac-alpha.txt
+
       - name: Resolve Alpha release metadata
         id: release_meta
         shell: bash

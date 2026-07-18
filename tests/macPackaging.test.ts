@@ -1,6 +1,14 @@
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = join(__dirname, "..");
@@ -20,9 +28,10 @@ const { MAC_RUNTIME_MANIFEST } =
       }>;
     };
   };
-const { assertSafeArchiveEntry } =
+const { assertSafeArchiveEntry, removeWindowsRuntimeFiles } =
   require("../scripts/prepare-mac-runtime.cjs") as {
     assertSafeArchiveEntry: (entryPath: string, linkPath?: string) => void;
+    removeWindowsRuntimeFiles: (currentDir: string) => Promise<string[]>;
   };
 
 describe("Apple Silicon Alpha packaging", () => {
@@ -88,6 +97,29 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(() =>
       assertSafeArchiveEntry("runtime/link", "../../outside"),
     ).toThrow("escapes extraction root");
+  });
+
+  it("removes Windows-only launchers from the bundled macOS Python runtime", async () => {
+    const runtimeDir = mkdtempSync(join(tmpdir(), "mgt-mac-python-runtime-"));
+    try {
+      const packageDir = join(runtimeDir, "lib", "site-packages", "distlib");
+      mkdirSync(packageDir, { recursive: true });
+      writeFileSync(join(packageDir, "t64.exe"), "windows launcher");
+      writeFileSync(join(packageDir, "native.dll"), "windows library");
+      writeFileSync(join(packageDir, "native.so"), "mac extension");
+
+      const removed = await removeWindowsRuntimeFiles(runtimeDir);
+
+      expect(removed.map((filePath) => basename(filePath)).sort()).toEqual([
+        "native.dll",
+        "t64.exe",
+      ]);
+      expect(existsSync(join(packageDir, "native.so"))).toBe(true);
+      expect(existsSync(join(packageDir, "t64.exe"))).toBe(false);
+      expect(existsSync(join(packageDir, "native.dll"))).toBe(false);
+    } finally {
+      rmSync(runtimeDir, { recursive: true, force: true });
+    }
   });
 
   it("keeps Windows resources out of the arm64 app configuration", () => {
@@ -158,6 +190,7 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(workflow).toContain("MGT_MAC_SIGNING_MODE=developer-id");
     expect(workflow).toContain("--prerelease");
     expect(workflow).toContain("SHA256SUMS-mac-alpha.txt");
+    expect(workflow).toContain("Confirm verified release artifacts");
     expect(workflow).toContain("MAC_ALPHA_TEST_CHECKLIST.md");
     expect(workflow).toContain("mac-alpha-ui-1440x900.png");
     expect(workflow).toContain("mac-alpha-ui-1240x760.png");
