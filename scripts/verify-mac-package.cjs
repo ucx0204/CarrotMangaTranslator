@@ -298,12 +298,7 @@ function verifyApplicationDirectorySmoke(appPath) {
   try {
     run("ditto", [appPath, smokeApp]);
     runApplicationSmoke(smokeApp, "prepare");
-    if (!existsSync(marker)) {
-      throw new Error(
-        `Packaged app did not create its external data marker: ${marker}`,
-      );
-    }
-    const prepared = JSON.parse(readFileSync(marker, "utf8"));
+    const prepared = waitForSmokeMarker(marker, "prepared", 120_000);
     if (
       prepared.ok !== true ||
       prepared.stage !== "prepared" ||
@@ -316,7 +311,7 @@ function verifyApplicationDirectorySmoke(appPath) {
       );
     }
     runApplicationSmoke(smokeApp, "verify");
-    const smoke = JSON.parse(readFileSync(marker, "utf8"));
+    const smoke = waitForSmokeMarker(marker, "verified", 120_000);
     if (
       smoke.ok !== true ||
       smoke.stage !== "verified" ||
@@ -358,17 +353,53 @@ function runApplicationSmoke(smokeApp, stage) {
       "-n",
       "-F",
       "-g",
-      "--env",
-      "MGT_MAC_PACKAGE_SMOKE_EXIT=1",
-      "--env",
-      `MGT_MAC_PACKAGE_SMOKE_STAGE=${stage}`,
-      "--env",
-      "ELECTRON_ENABLE_LOGGING=1",
-      "--env",
-      "ELECTRON_ENABLE_STACK_DUMPING=1",
       smokeApp,
+      "--args",
+      "--mgt-mac-package-smoke=alpha-ci-v1",
+      `--mgt-mac-package-smoke-stage=${stage}`,
+      "--enable-logging=stderr",
+      "--v=1",
     ],
     { timeout: 120_000 },
+  );
+}
+
+/**
+ * LaunchServices can return before the new process has flushed its marker on
+ * hosted runners. Wait for the exact stage instead of racing the app startup.
+ *
+ * @param {string} marker
+ * @param {"prepared" | "verified"} expectedStage
+ * @param {number} timeoutMs
+ * @returns {Record<string, unknown>}
+ */
+function waitForSmokeMarker(marker, expectedStage, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let lastState = "marker missing";
+  while (Date.now() < deadline) {
+    if (existsSync(marker)) {
+      let parsed;
+      try {
+        parsed = JSON.parse(readFileSync(marker, "utf8"));
+      } catch (error) {
+        lastState = `marker unreadable: ${error instanceof Error ? error.message : String(error)}`;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+        continue;
+      }
+      if (parsed?.ok === false) {
+        throw new Error(
+          `Packaged app smoke reported failure: ${JSON.stringify(parsed)}`,
+        );
+      }
+      if (parsed?.stage === expectedStage) {
+        return parsed;
+      }
+      lastState = `marker stage ${String(parsed?.stage || "unknown")}`;
+    }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+  }
+  throw new Error(
+    `Timed out waiting for packaged app smoke stage ${expectedStage}: ${lastState}: ${marker}`,
   );
 }
 

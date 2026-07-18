@@ -15,6 +15,8 @@ import { renderPageWithTranslationBlocksForExport } from "./pageExport";
 
 const MAC_PACKAGE_SMOKE_MARKER = "mac-package-smoke.json";
 const MAC_PACKAGE_SMOKE_DIR = "mac-package-smoke";
+const MAC_PACKAGE_SMOKE_CLI_TOKEN = "--mgt-mac-package-smoke=alpha-ci-v1";
+const MAC_PACKAGE_SMOKE_STAGE_PREFIX = "--mgt-mac-package-smoke-stage=";
 
 type PreparedSmoke = {
   ok: true;
@@ -33,16 +35,12 @@ type PreparedSmoke = {
 export async function runMacPackageSmokeExit(
   appPaths: AppPaths,
 ): Promise<boolean> {
-  if (
-    process.env.MGT_MAC_PACKAGE_SMOKE_EXIT !== "1" ||
-    !app.isPackaged ||
-    process.platform !== "darwin" ||
-    process.arch !== "arm64"
-  ) {
+  if (!shouldRunMacPackageSmoke()) {
     return false;
   }
 
-  const stage = process.env.MGT_MAC_PACKAGE_SMOKE_STAGE;
+  const stage =
+    process.env.MGT_MAC_PACKAGE_SMOKE_STAGE || readPackageSmokeStageArgument();
   const markerPath = join(appPaths.dataRoot, MAC_PACKAGE_SMOKE_MARKER);
   try {
     if (stage === "prepare") {
@@ -65,6 +63,25 @@ export async function runMacPackageSmokeExit(
     app.exit(1);
   }
   return true;
+}
+
+function shouldRunMacPackageSmoke(): boolean {
+  const requested =
+    process.env.MGT_MAC_PACKAGE_SMOKE_EXIT === "1" ||
+    process.argv.includes(MAC_PACKAGE_SMOKE_CLI_TOKEN);
+  return (
+    requested &&
+    app.isPackaged &&
+    process.platform === "darwin" &&
+    process.arch === "arm64"
+  );
+}
+
+function readPackageSmokeStageArgument(): string | undefined {
+  const argument = process.argv.find((value) =>
+    value.startsWith(MAC_PACKAGE_SMOKE_STAGE_PREFIX),
+  );
+  return argument?.slice(MAC_PACKAGE_SMOKE_STAGE_PREFIX.length);
 }
 
 async function preparePackageSmoke(

@@ -295,12 +295,14 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(smokes).toContain('"lama-manga"');
     expect(smokes).toContain('"metal-native"');
     expect(smokes).toContain("128 * 128");
-    expect(verifier).toContain("MGT_MAC_PACKAGE_SMOKE_STAGE=${stage}");
+    expect(verifier).toContain("--mgt-mac-package-smoke-stage=${stage}");
     expect(verifier).toContain('runApplicationSmoke(smokeApp, "prepare")');
     expect(verifier).toContain('runApplicationSmoke(smokeApp, "verify")');
     expect(verifier).toContain('"open",');
     expect(verifier).toContain('"-W",');
-    expect(verifier).toContain('"--env",');
+    expect(verifier).toContain('"--args",');
+    expect(verifier).toContain('"--mgt-mac-package-smoke=alpha-ci-v1"');
+    expect(verifier).toContain("waitForSmokeMarker");
     expect(verifier).toContain("collectApplicationSmokeDiagnostics");
     expect(verifier).toContain("result.signal");
     expect(verifier).toContain('"--entitlements",');
@@ -308,6 +310,8 @@ describe("Apple Silicon Alpha packaging", () => {
       join(repoRoot, "src", "main", "macPackageSmoke.ts"),
       "utf8",
     );
+    expect(appSmoke).toContain("MAC_PACKAGE_SMOKE_CLI_TOKEN");
+    expect(appSmoke).toContain("readPackageSmokeStageArgument");
     expect(appSmoke).toContain("await previewImages([sourcePath])");
     expect(appSmoke).toContain("await createImport({");
     expect(appSmoke).toContain("await savePageBlocks({");
