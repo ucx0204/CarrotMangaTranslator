@@ -40,7 +40,7 @@ describe("packaged data root resolution", () => {
       "utf8",
     );
 
-    expect(resolvePackagedDataRoot(executableDir)).toBe(
+    expect(resolvePackagedDataRoot(executableDir, { platform: "win32" })).toBe(
       resolve(chosenDataRoot),
     );
   });
@@ -54,7 +54,7 @@ describe("packaged data root resolution", () => {
       "utf8",
     );
 
-    expect(resolvePackagedDataRoot(executableDir)).toBe(
+    expect(resolvePackagedDataRoot(executableDir, { platform: "win32" })).toBe(
       resolve(chosenDataRoot),
     );
   });
@@ -68,7 +68,7 @@ describe("packaged data root resolution", () => {
       "utf8",
     );
 
-    expect(resolvePackagedDataRoot(executableDir)).toBe(
+    expect(resolvePackagedDataRoot(executableDir, { platform: "win32" })).toBe(
       resolve(chosenDataRoot),
     );
   });
@@ -78,7 +78,7 @@ describe("packaged data root resolution", () => {
     process.env.LOCALAPPDATA = createTempDir("mgt-local-");
     process.env.APPDATA = createTempDir("mgt-roaming-");
 
-    expect(resolvePackagedDataRoot(executableDir)).toBe(
+    expect(resolvePackagedDataRoot(executableDir, { platform: "win32" })).toBe(
       resolve(join(executableDir, "data")),
     );
   });
@@ -91,7 +91,9 @@ describe("packaged data root resolution", () => {
     const existingRoot = join(localAppData, "manga-gemma-translator");
     mkdirSync(join(existingRoot, "library"), { recursive: true });
 
-    expect(resolvePackagedDataRoot(executableDir)).toBe(resolve(existingRoot));
+    expect(resolvePackagedDataRoot(executableDir, { platform: "win32" })).toBe(
+      resolve(existingRoot),
+    );
   });
 
   it("stores macOS data under Application Support instead of inside the app", () => {

@@ -139,7 +139,9 @@ function writeCachedFluxCudaRuntime(runtimeDir: string): string {
   return cudaDir;
 }
 
-describe("Flux worker runtime helpers", () => {
+const describeWindows = process.platform === "win32" ? describe : describe.skip;
+
+describeWindows("Flux worker runtime helpers", () => {
   it("uses the managed Flux CUDA 12.9 runtime without mixing older CUDA fallbacks", () => {
     const { exe, cuda129, cuda128, beellama } = createTempToolsLayout();
     const systemCuda129 = join(

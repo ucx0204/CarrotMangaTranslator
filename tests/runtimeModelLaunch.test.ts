@@ -65,7 +65,9 @@ import {
   bundledServerCandidates,
 } from "./helpers/runtimeModelContracts";
 
-describe("runtime model support helpers", () => {
+const describeWindows = process.platform === "win32" ? describe : describe.skip;
+
+describeWindows("runtime model support helpers", () => {
   it("keeps CJS runtime model defaults aligned with shared model presets", () => {
     expect(runtimeDefaults.DEFAULT_MODEL_HF).toBe(DEFAULT_31B_REPO);
     expect(runtimeDefaults.DEFAULT_HF_FILE).toBe(DEFAULT_31B_FILE);

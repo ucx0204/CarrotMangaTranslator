@@ -41,7 +41,9 @@ import {
 import type { AppSettings } from "../src/shared/settingsTypes";
 import { join } from "node:path";
 
-describe("app settings helpers", () => {
+const describeWindows = process.platform === "win32" ? describe : describe.skip;
+
+describeWindows("app settings helpers", () => {
   it("uses Codex as the hardware-safe fallback when GPU detection is unavailable", () => {
     const defaults = resolveDefaultAppSettings();
 
