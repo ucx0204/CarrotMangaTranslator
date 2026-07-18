@@ -11,7 +11,9 @@ const {
   mkdir,
   readlink,
   readdir,
+  realpath,
   rm,
+  symlink,
 } = require("node:fs/promises");
 const https = require("node:https");
 const path = require("node:path");
@@ -142,11 +144,19 @@ function assertSafeArchiveEntry(entryPath, linkPath = "") {
 async function extractTarSafely(archivePath, outputDir) {
   await rm(outputDir, { recursive: true, force: true });
   await mkdir(outputDir, { recursive: true });
+  /** @type {Array<{ entryPath: string; linkPath: string }>} */
+  const symbolicLinks = [];
   await tar.t({
     file: archivePath,
     strict: true,
     onentry(entry) {
       assertSafeArchiveEntry(entry.path, entry.linkpath);
+      if (entry.type === "SymbolicLink") {
+        symbolicLinks.push({
+          entryPath: String(entry.path),
+          linkPath: String(entry.linkpath),
+        });
+      }
     },
   });
   await tar.x({
@@ -154,7 +164,21 @@ async function extractTarSafely(archivePath, outputDir) {
     cwd: outputDir,
     strict: true,
     preservePaths: false,
+    filter(_entryPath, entry) {
+      const tarEntry = /** @type {{ type?: string }} */ (entry);
+      return tarEntry.type !== "SymbolicLink";
+    },
   });
+  for (const link of symbolicLinks) {
+    const linkPath = path.resolve(outputDir, link.entryPath);
+    if (!isSameOrDescendant(outputDir, linkPath)) {
+      throw new Error(
+        `Refusing to create archive symlink outside root: ${linkPath}`,
+      );
+    }
+    await mkdir(path.dirname(linkPath), { recursive: true });
+    await symlink(link.linkPath, linkPath);
+  }
   await assertSymlinksStayInside(outputDir, outputDir);
 }
 
@@ -166,7 +190,16 @@ async function assertSymlinksStayInside(rootDir, currentDir) {
     if (metadata.isSymbolicLink()) {
       const target = await readlink(entryPath);
       const resolvedTarget = path.resolve(path.dirname(entryPath), target);
-      if (!isSameOrDescendant(rootDir, resolvedTarget)) {
+      let realTarget;
+      try {
+        realTarget = await realpath(entryPath);
+      } catch (cause) {
+        throw new Error(`Extracted symlink is broken: ${entryPath}`, { cause });
+      }
+      if (
+        !isSameOrDescendant(rootDir, resolvedTarget) ||
+        !isSameOrDescendant(rootDir, realTarget)
+      ) {
         throw new Error(
           `Extracted symlink escapes root: ${entryPath} -> ${target}`,
         );
