@@ -56,6 +56,7 @@ export const AppSettingsSchema = z
         vramMode: GemmaVramModeSchema,
         llamaRuntimeProfile: LlamaRuntimeProfileSchema.optional(),
         llamaRocmTarget: AmdRocmTargetSchema.optional(),
+        allowUnsafeUnifiedMemory: z.boolean().optional(),
       })
       .strict(),
     codex: z
@@ -118,6 +119,7 @@ export const AppSettingsSchema = z
         model: InpaintingModelSchema.optional(),
         fluxBackend: FluxBackendSchema.optional(),
         koharuBackend: KoharuInpaintingBackendSchema.optional(),
+        allowUnsafeLowMemoryFlux: z.boolean().optional(),
       })
       .strict()
       .optional(),
@@ -144,11 +146,13 @@ export const AppSettingsSchema = z
     keybindings: z.record(z.string().max(80), z.string().max(60)).optional(),
     runtimeHardware: z
       .object({
-        gpuVendor: z.enum(["nvidia", "amd", "unknown"]),
+        gpuVendor: z.enum(["nvidia", "amd", "apple", "unknown"]),
         gpuName: z.string().max(300).nullable().optional(),
         llamaRocmTarget: AmdRocmTargetSchema.nullable().optional(),
         supportsRocm: z.boolean().optional(),
         supportsVulkan: z.boolean().optional(),
+        supportsMetal: z.boolean().optional(),
+        unifiedMemoryMb: z.number().int().positive().nullable().optional(),
       })
       .strict()
       .optional(),

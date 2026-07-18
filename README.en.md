@@ -5,7 +5,7 @@
 # Carrot Manga Translator
 
 <p align="center">
-  A Windows desktop app that handles everything from importing manga to OCR, AI translation, editing, removing original text, and exporting PNG files
+  Manga import, OCR, AI translation, editing, inpainting, and PNG export on Windows and Apple Silicon macOS Alpha
 </p>
 
 <p align="center">
@@ -19,6 +19,7 @@
 Carrot Manga Translator is a manga production tool that finds dialogue and sound effects in images, creates translation blocks with AI, and lets you refine the wording and layout before exporting finished PNG files. The default translation direction is Japanese → Korean, but you can choose other source and target languages.
 
 - Latest Windows installer: [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- Apple Silicon Alpha install and testing: [Mac Alpha guide](docs/mac-alpha-testing.md) · [checklist](docs/MAC_ALPHA_TEST_CHECKLIST.md)
 - Current version information: [v1.6.3 release notes](docs/release-notes/v1.6.3.md)
 - Code structure and contribution guidelines: [docs/architecture.md](docs/architecture.md)
 
@@ -35,16 +36,16 @@ Carrot Manga Translator is a manga production tool that finds dialogue and sound
 
 ## Before You Install
 
-- Supported operating systems: Windows 10/11 x64
+- Supported operating systems: Windows 10/11 x64 stable; Apple Silicon (M1 or newer) on macOS 14+ Alpha. Intel Macs are not supported.
 - Required free space: In addition to the app itself, you may need several GB or more depending on the Gemma, OCR, and inpainting models you select.
 - Internet connection: Required for installation, the first model download, and Codex/API use. Local models can work offline after setup is complete.
 - Some CPU paths work without a GPU, but OCR, local translation, and Flux inpainting may be much slower.
 
-The installer is kept relatively small. Large models and runtimes are downloaded to your chosen data folder the first time you use the related feature, then reused from the cache.
+The Apple Silicon Alpha bundles arm64 FFmpeg, OCR Python, and Metal executables. Only Gemma, OCR, and inpainting model weights are checksum-verified and downloaded on first use. macOS data is stored under `~/Library/Application Support/manga-gemma-translator`.
 
 ## Quick Start
 
-1. Download and run the latest installer, such as `CarrotMangaTranslator-Setup-v1.6.3.exe`, from [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases).
+1. From [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases), use the Windows `.exe` or the separate `mac-alpha` pre-release arm64 DMG/ZIP. For an ad-hoc Alpha, follow the release instructions to approve it once in System Settings → Privacy & Security.
 2. Check the interface language under `Settings → General`. On first launch, the app automatically selects a supported Windows language. If the Windows language is not supported, the app uses Korean.
 3. Under `Settings → Translation Engine`, choose the source language, target language, and engine.
    - To process everything on your PC, choose `Gemma 4`.

@@ -3,6 +3,10 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import {
+  AOT_MODEL_REVISION,
+  AOT_MODEL_SHA256,
+  LAMA_MODEL_REVISION,
+  LAMA_MODEL_SHA256,
   ensureKoharuWorkerLaunch,
   resolveKoharuModelFiles,
 } from "../src/main/inpainting/koharuAssets";
@@ -38,6 +42,16 @@ describe("Koharu inpainting public surface", () => {
       files: ["config.json", "model.safetensors"],
     });
     expect(() => resolveKoharuModelFiles("flux-klein")).toThrow(/Koharu 모델/);
+    expect(AOT_MODEL_REVISION).toBe("bde6131f9d3ef841b435507def8534715ac8e87c");
+    expect(AOT_MODEL_SHA256).toBe(
+      "1b4fea17a84a228c2097a42ab2f403357f07bb56ae022dc243b40817b7aa87d1",
+    );
+    expect(LAMA_MODEL_REVISION).toBe(
+      "bc1fd58e8d92133f437f62f4f18f7ee3aa7503f8",
+    );
+    expect(LAMA_MODEL_SHA256).toBe(
+      "a790515e9da839b8d89af7d565ceb110d908b7d6fbdb991f2acb2ec7d9b08bdb",
+    );
   });
 
   it("re-exports the Koharu engine preparation entry point", async () => {

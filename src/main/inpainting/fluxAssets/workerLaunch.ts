@@ -8,6 +8,15 @@ import { ensureFluxCudaRuntime, ensureManagedFluxRunner } from "./cudaRuntime";
 import { ensureFluxZludaSupportRuntime } from "./zludaRuntime";
 import { ensureFluxPythonRuntime } from "./pythonRuntime";
 
+type EnsureFluxWorkerLaunchOptions = {
+  runtimeDir: string;
+  modelDir: string;
+  backend: FluxRuntimeBackend;
+  nvidiaComputeCapability?: number | null;
+  signal?: AbortSignal;
+  onProgress?: (progress: FluxAssetProgress) => void;
+};
+
 async function ensureMgtFluxKleinRuntime(options: {
   runtimeDir: string;
   nvidiaComputeCapability?: number | null;
@@ -27,15 +36,13 @@ async function ensureMgtFluxKleinRuntime(options: {
   return runtimePath;
 }
 
-export async function ensureFluxWorkerLaunch(options: {
-  runtimeDir: string;
-  modelDir: string;
-  backend: FluxRuntimeBackend;
-  nvidiaComputeCapability?: number | null;
-  signal?: AbortSignal;
-  onProgress?: (progress: FluxAssetProgress) => void;
-}): Promise<FluxWorkerLaunchSpec> {
+export async function ensureFluxWorkerLaunch(
+  options: EnsureFluxWorkerLaunchOptions,
+): Promise<FluxWorkerLaunchSpec> {
   const backend = resolveFluxWorkerBackend(options.backend);
+  if (backend === "metal-native") {
+    return ensureFluxMetalWorkerLaunch(options);
+  }
   if (backend === "cuda-native") {
     const runtimePath = await ensureMgtFluxKleinRuntime(options);
     const cudaRuntimeDir = join(options.runtimeDir, FLUX_CUDA_RUNTIME_DIR);
@@ -102,6 +109,30 @@ export async function ensureFluxWorkerLaunch(options: {
   throw new Error(`지원하지 않는 Flux 런타임입니다: ${backend}`);
 }
 
+async function ensureFluxMetalWorkerLaunch(
+  options: EnsureFluxWorkerLaunchOptions,
+): Promise<FluxWorkerLaunchSpec> {
+  if (process.platform !== "darwin" || process.arch !== "arm64") {
+    throw new Error(
+      "Flux Metal 런타임은 Apple Silicon(macOS arm64)에서만 사용할 수 있습니다.",
+    );
+  }
+  await mkdir(options.runtimeDir, { recursive: true });
+  const runtimePath = await ensureManagedFluxRunner(options);
+  logFluxRuntimeSelected({
+    backend: "metal-native",
+    nvidiaComputeCapability: null,
+    runtimePath,
+  });
+  return {
+    backend: "metal-native",
+    executable: runtimePath,
+    runtimePath,
+    label: "Flux Klein Metal",
+    args: ["--require-metal"],
+  };
+}
+
 function logFluxRuntimeSelected(detail: {
   backend: FluxWorkerBackend;
   cudaRuntimeDir?: string;
@@ -113,10 +144,13 @@ function logFluxRuntimeSelected(detail: {
   logInpaintingRuntimeInfo("Flux runtime selected", detail);
 }
 
-function resolveFluxWorkerBackend(
+export function resolveFluxWorkerBackend(
   backend: FluxRuntimeBackend,
 ): FluxWorkerBackend {
   if (backend === "python-cpu") {
+    return backend;
+  }
+  if (backend === "metal-native") {
     return backend;
   }
   if (backend === "zluda-native" || backend === "python-rocm") {

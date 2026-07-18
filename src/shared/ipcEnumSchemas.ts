@@ -42,9 +42,12 @@ export const LlamaRuntimeProfileSchema = z.preprocess(
     if (["vulkan", "amd-vulkan", "vk"].includes(normalized)) {
       return "vulkan";
     }
+    if (["metal", "apple", "apple-metal", "mps"].includes(normalized)) {
+      return "metal";
+    }
     return value;
   },
-  z.enum(["cuda12", "rtx50", "rocm", "vulkan"]),
+  z.enum(["cuda12", "rtx50", "rocm", "vulkan", "metal"]),
 );
 
 export const AmdRocmTargetSchema = z.preprocess(
@@ -101,6 +104,13 @@ export const FluxBackendSchema = z.preprocess(
     if (["zluda-native", "zluda"].includes(normalized)) {
       return "zluda-native";
     }
+    if (
+      ["metal-native", "metal", "apple", "apple-metal", "mps"].includes(
+        normalized,
+      )
+    ) {
+      return "metal-native";
+    }
     if (["python-rocm", "rocm", "hip", "amd"].includes(normalized)) {
       return "zluda-native";
     }
@@ -109,7 +119,7 @@ export const FluxBackendSchema = z.preprocess(
     }
     return value;
   },
-  z.enum(["cuda-native", "zluda-native", "python-cpu"]),
+  z.enum(["cuda-native", "zluda-native", "metal-native", "python-cpu"]),
 );
 
 export const InpaintingModelSchema = z.preprocess(
@@ -149,12 +159,19 @@ export const KoharuInpaintingBackendSchema = z.preprocess(
     if (["zluda", "zluda-native", "amd"].includes(normalized)) {
       return "zluda-native";
     }
+    if (
+      ["metal", "metal-native", "apple", "apple-metal", "mps"].includes(
+        normalized,
+      )
+    ) {
+      return "metal-native";
+    }
     if (["cpu", "python-cpu"].includes(normalized)) {
       return "cpu";
     }
     return value;
   },
-  z.enum(["auto", "cuda-native", "zluda-native", "cpu"]),
+  z.enum(["auto", "cuda-native", "zluda-native", "metal-native", "cpu"]),
 );
 
 export const OcrGpuBackendSchema = z.preprocess(

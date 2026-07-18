@@ -69,6 +69,10 @@ function useSettingsFormSetters(
       setValues,
       "llamaRuntimeProfile",
     ),
+    setAllowUnsafeUnifiedMemory: useFormFieldDispatch(
+      setValues,
+      "allowUnsafeUnifiedMemory",
+    ),
     setCodexModel: useFormFieldDispatch(setValues, "codexModel"),
     setCodexReasoningEffort: useFormFieldDispatch(
       setValues,
@@ -100,6 +104,10 @@ function useSettingsFormSetters(
     setOcrQualityMode: useFormFieldDispatch(setValues, "ocrQualityMode"),
     setInpaintingModel: useFormFieldDispatch(setValues, "inpaintingModel"),
     setFluxBackend: useFormFieldDispatch(setValues, "fluxBackend"),
+    setAllowUnsafeLowMemoryFlux: useFormFieldDispatch(
+      setValues,
+      "allowUnsafeLowMemoryFlux",
+    ),
     setMaxTokens: useFormFieldDispatch(setValues, "maxTokens"),
     setContextTokens: useFormFieldDispatch(setValues, "contextTokens"),
   };

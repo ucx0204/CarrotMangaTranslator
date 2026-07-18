@@ -9,6 +9,7 @@ import {
 } from "./gemmaModelPresets";
 import {
   isRocmLlamaRuntimeProfile,
+  isMetalLlamaRuntimeProfile,
   isRtx50LlamaRuntimeProfile,
   isVulkanLlamaRuntimeProfile,
 } from "./llamaRuntimeProfile";
@@ -20,6 +21,8 @@ const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b9547-cuda12.4";
 const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9547-cuda13.3";
 const LEMONADE_LLAMA_RUNTIME_ROCM_RELEASE = "b1291";
 const MAINLINE_LLAMA_RUNTIME_DIR_VULKAN = "llama-b9547-vulkan";
+const MAINLINE_LLAMA_RUNTIME_DIR_METAL_ARM64 = "llama-b9547-metal-arm64";
+const BEELLAMA_LLAMA_RUNTIME_DIR_METAL_ARM64 = "beellama-v0.3.1-metal-arm64";
 
 export function resolveDefaultLlamaServerPathForGemma(
   paths: TranslationOptionPaths,
@@ -45,6 +48,15 @@ export function resolveDefaultLlamaServerPathForGemma(
       paths.dataRoot,
       "tools",
       MAINLINE_LLAMA_RUNTIME_DIR_VULKAN,
+      binaryName,
+    );
+  }
+  if (isMetalLlamaRuntimeProfile(llamaRuntimeProfile)) {
+    return join(
+      paths.toolsDir,
+      is31BGemmaModel(gemma)
+        ? BEELLAMA_LLAMA_RUNTIME_DIR_METAL_ARM64
+        : MAINLINE_LLAMA_RUNTIME_DIR_METAL_ARM64,
       binaryName,
     );
   }

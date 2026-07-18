@@ -17,8 +17,10 @@
  */
 const { existsSync } = require("node:fs");
 const { mkdir, rm } = require("node:fs/promises");
+const path = require("node:path");
 const {
   emitRuntimeProgress,
+  isLikelyPackagedToolsDir,
   runtimeOverrideEnv,
 } = require("./host-services.cjs");
 const {
@@ -58,6 +60,10 @@ const {
 
 /** @param {RuntimeOptions} [options] @returns {Promise<OcrRuntimeLayout>} */
 async function ensurePaddleOcrRuntime(options = {}) {
+  const bundledMacRuntime = await resolveBundledMacOcrRuntime(options);
+  if (bundledMacRuntime) {
+    return bundledMacRuntime;
+  }
   const state = await prepareRuntimeState(options);
   const venvRuntime = await reuseVenvRuntime(options, state);
   if (venvRuntime) {
@@ -72,6 +78,74 @@ async function ensurePaddleOcrRuntime(options = {}) {
   assertAutomaticInstallEnabled(options);
   await tryCreateVenv(options, state);
   return installAndFinalizeRuntime(options, state);
+}
+
+/** @param {RuntimeOptions} options @returns {Promise<OcrRuntimeLayout | null>} */
+async function resolveBundledMacOcrRuntime(options) {
+  if (process.platform !== "darwin" || process.arch !== "arm64") {
+    return null;
+  }
+  const toolsDir = String(options.toolsDir || "").trim();
+  const candidates = [
+    path.join(toolsDir, "python", "bin", "python3"),
+    path.join(toolsDir, "python", "bin", "python3.12"),
+  ];
+  const pythonPath = candidates.find((candidate) => existsSync(candidate));
+  if (!pythonPath) {
+    if (isLikelyPackagedToolsDir(toolsDir)) {
+      throw createOcrRuntimeError(
+        "Apple Silicon Alpha에 포함된 Paddle OCR Python 런타임이 없습니다. 앱을 다시 설치하고 GitHub Issue로 제보해 주세요.",
+        { step: "bundled-mac-ocr-runtime-missing", toolsDir },
+      );
+    }
+    return null;
+  }
+
+  const runtimeDir = resolveOcrRuntimeDir(options);
+  await prepareRuntimeDirectories(options, runtimeDir);
+  const cachePaths = await preparePaddlexCacheHome(options, runtimeDir);
+  const packageDir = resolveOcrPythonPackageDir(runtimeDir, {
+    ...options,
+    ocrDevice: "cpu",
+  });
+  emitRuntimeProgress(
+    options,
+    "ocr_preparing",
+    "Apple Silicon Paddle OCR 런타임 확인 중",
+    "번들된 CPU 런타임을 사용합니다.",
+  );
+  const importCheck = await checkPaddleOcrImport(
+    pythonPath,
+    { ...options, ocrDevice: "cpu" },
+    {
+      runtimeDir,
+      packageDir,
+      includePackageDir: false,
+      ...cachePaths,
+    },
+  );
+  if (!importCheck.ok) {
+    throw createOcrRuntimeError(
+      `Apple Silicon Alpha의 번들 Paddle OCR 런타임을 불러오지 못했습니다: ${importCheck.message}`,
+      {
+        step: "bundled-mac-ocr-runtime-import-failed",
+        runtimeDir,
+        pythonPath,
+        importError: importCheck.message,
+      },
+      importCheck.error,
+    );
+  }
+  return finalizePaddleOcrRuntime(options, {
+    runtimeDir,
+    runtimeVariant: "cpu-macos-arm64-bundled",
+    packageDir,
+    pythonPath,
+    prepared: true,
+    usesTargetPackageDir: false,
+    diagnostics: [{ step: "bundled-mac-ocr-runtime-ready", pythonPath }],
+    ...cachePaths,
+  });
 }
 
 /** @param {RuntimeOptions} options @returns {Promise<RuntimeState>} */

@@ -40,24 +40,45 @@ export function formatModelTestProgressLine(
 
 export function resolveHardwareRuntimeLock(
   settings: AppSettings,
-): "amd" | "nvidia" | "unknown" {
-  const detectedVendor = settings.runtimeHardware?.gpuVendor;
-  if (detectedVendor === "amd" || detectedVendor === "nvidia") {
+): "amd" | "nvidia" | "apple" | "unknown" {
+  const detectedVendor = recognizedGpuVendor(
+    settings.runtimeHardware?.gpuVendor,
+  );
+  if (detectedVendor !== "unknown") {
     return detectedVendor;
   }
-  if (
-    settings.gemma.llamaRocmTarget ||
-    isAmdLlamaRuntimeProfile(settings.gemma.llamaRuntimeProfile ?? "cuda12")
-  ) {
+  if (settings.gemma.llamaRocmTarget) {
     return "amd";
   }
-  if (
-    settings.modelProvider === "gemma" &&
-    isNvidiaLlamaRuntimeProfile(settings.gemma.llamaRuntimeProfile ?? "cuda12")
-  ) {
-    return "nvidia";
-  }
-  return "unknown";
+  return inferGpuVendorFromLlamaProfile(
+    settings.gemma.llamaRuntimeProfile ?? "cuda12",
+    settings.modelProvider === "gemma",
+  );
+}
+
+function recognizedGpuVendor(
+  vendor: NonNullable<AppSettings["runtimeHardware"]>["gpuVendor"] | undefined,
+): "amd" | "nvidia" | "apple" | "unknown" {
+  return vendor === "amd" || vendor === "nvidia" || vendor === "apple"
+    ? vendor
+    : "unknown";
+}
+
+function inferGpuVendorFromLlamaProfile(
+  profile: LlamaRuntimeProfile,
+  gemmaSelected: boolean,
+): "amd" | "nvidia" | "apple" | "unknown" {
+  if (isAppleLlamaRuntimeProfile(profile)) return "apple";
+  if (isAmdLlamaRuntimeProfile(profile)) return "amd";
+  return gemmaSelected && isNvidiaLlamaRuntimeProfile(profile)
+    ? "nvidia"
+    : "unknown";
+}
+
+export function isAppleLlamaRuntimeProfile(
+  profile: LlamaRuntimeProfile,
+): boolean {
+  return profile === "metal";
 }
 
 export function isAmdLlamaRuntimeProfile(

@@ -19,6 +19,10 @@ export function sanitizeFluxRuntimeStderr(text: string): string {
       "<flux-runner-source>",
     )
     .replace(
+      /\/Users\/[^/\r\n]+\/(?:\.cargo\/(?:registry\/src|git\/checkouts)|[^:\r\n]*?\/tools\/mgt-flux-klein-runner)\/[^:\r\n]+/g,
+      "<flux-runner-source>",
+    )
+    .replace(
       /[A-Z]:\\Users\\[^\\\r\n]+\\Downloads\\[^:\r\n]+?\\tools\\mgt-flux-klein-runner\\[^:\r\n]+/gi,
       "<flux-runner-source>",
     );
@@ -31,9 +35,33 @@ export function buildFluxRuntimeExitError(
 ): Error {
   const detail = formatFluxRuntimeDetail(stderr);
   return (
+    buildMetalRuntimeExitError(stderr, detail, code, backend) ??
     buildZludaRuntimeExitError(stderr, detail, code, backend) ??
     buildPythonRuntimeExitError(stderr, detail, code, backend) ??
     buildCudaRuntimeExitError(stderr, detail, code)
+  );
+}
+
+function buildMetalRuntimeExitError(
+  stderr: string,
+  detail: string,
+  code: number | null,
+  backend: FluxWorkerBackend,
+): Error | null {
+  if (backend !== "metal-native") {
+    return null;
+  }
+  if (
+    /Metal.*(?:unavailable|not available)|no Metal device|new_metal/i.test(
+      stderr,
+    )
+  ) {
+    return new Error(
+      `Apple Metal 장치를 사용할 수 없어 Flux를 시작하지 못했습니다. Flux는 macOS Alpha에서 CPU나 다른 모델로 자동 전환하지 않습니다. ${detail}`,
+    );
+  }
+  return new Error(
+    `Apple Metal Flux 인페인팅 런타임이 종료되었습니다 (${code}). ${detail}`,
   );
 }
 

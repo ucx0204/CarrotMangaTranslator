@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Menu, shell } from "electron";
+import { app, BrowserWindow, dialog, shell } from "electron";
 import { dirname } from "node:path";
 import { ensureWritableAppDirectories } from "./appPaths";
 import { cleanupLegacyLogs } from "./appMaintenance";
@@ -28,6 +28,12 @@ import {
   decodeImageThroughRuntime,
   loadSimplePageRuntime,
 } from "./simplePageRuntime";
+import {
+  installNativeApplicationMenu,
+  reactivateDock,
+  showMacAlphaFirstRunNotice,
+} from "./macIntegration";
+import { runMacPackageSmokeExit } from "./macPackageSmoke";
 
 const appPaths = ensureWritableAppDirectories();
 const jobs = new ActiveJobStore();
@@ -76,6 +82,9 @@ void app
       appPaths.settingsPath,
       process.env.MANGA_TRANSLATOR_UI_LOCALE,
     );
+    if (await runMacPackageSmokeExit(appPaths)) {
+      return;
+    }
     registerImageProtocolHandler();
     await cleanupLegacyLogs();
     const cleanupResult = await cleanupLibraryOrphans();
@@ -87,7 +96,7 @@ void app
     ) {
       logInfo("Library orphan cleanup finished", cleanupResult);
     }
-    Menu.setApplicationMenu(null);
+    installNativeApplicationMenu();
     registerIpc({
       appPaths,
       jobs,
@@ -99,9 +108,12 @@ void app
         decodeImageThroughRuntime(appPaths.runtimeDir, filePath),
       inpaintingRevisionStore,
     });
+    reactivateDock();
     openMainWindow();
+    void showMacAlphaFirstRunNotice(appPaths.dataRoot, mainWindow, logWarn);
 
     app.on("activate", () => {
+      reactivateDock();
       if (!mainWindow || mainWindow.isDestroyed()) {
         openMainWindow();
       }

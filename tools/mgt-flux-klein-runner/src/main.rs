@@ -1,10 +1,12 @@
 use std::{
-    ffi::CStr,
     fs,
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
     time::Instant,
 };
+
+#[cfg(feature = "cuda")]
+use std::ffi::CStr;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
@@ -56,6 +58,9 @@ struct Cli {
     #[arg(long)]
     require_zluda: bool,
 
+    #[arg(long)]
+    require_metal: bool,
+
     #[arg(long, value_name = "DIR")]
     zluda_runtime_root: Option<PathBuf>,
 
@@ -93,9 +98,20 @@ struct WorkerResponse<'a> {
 async fn main() -> Result<()> {
     install_panic_hook();
     init_logging();
+    if std::env::args_os().any(|arg| arg == "--capabilities") {
+        return print_capabilities();
+    }
+    if std::env::args_os().any(|arg| arg == "--protocol-smoke") {
+        return run_protocol_smoke();
+    }
     let cli = Cli::parse();
 
-    if cli.require_zluda {
+    if cli.require_zluda && cli.require_metal {
+        bail!("--require-zluda and --require-metal cannot be used together");
+    }
+    if cli.require_metal {
+        ensure_metal_available()?;
+    } else if cli.require_zluda {
         prepare_zluda_runtime(&cli).await?;
         // ZLUDA's nvcudart_hybrid64.dll is not a complete CUDA Runtime API
         // implementation and does not export entry points such as
@@ -130,6 +146,66 @@ async fn main() -> Result<()> {
 
     run_worker(&model, &cli)?;
     Ok(())
+}
+
+fn print_capabilities() -> Result<()> {
+    ensure_metal_available()?;
+    println!(
+        "{}",
+        serde_json::json!({
+            "protocol_version": 1,
+            "runner": "mgt-flux-klein",
+            "backend": "metal-native",
+            "metal_device": true,
+            "models": ["flux-klein"],
+        })
+    );
+    Ok(())
+}
+
+fn run_protocol_smoke() -> Result<()> {
+    ensure_metal_available()?;
+    let mut line = String::new();
+    io::stdin()
+        .read_line(&mut line)
+        .with_context(|| "failed to read Flux worker protocol smoke request")?;
+    match serde_json::from_str::<WorkerRequest>(line.trim())
+        .with_context(|| "invalid Flux worker protocol smoke request")?
+    {
+        WorkerRequest::Shutdown => {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "protocol_version": 1,
+                    "runner": "mgt-flux-klein",
+                    "backend": "metal-native",
+                    "request": "shutdown",
+                    "ok": true,
+                })
+            );
+            Ok(())
+        }
+        WorkerRequest::Inpaint { .. } => {
+            bail!("protocol smoke accepts only the shutdown request")
+        }
+    }
+}
+
+fn ensure_metal_available() -> Result<()> {
+    #[cfg(feature = "metal")]
+    {
+        let device = koharu_ml::Device::new_metal(0)
+            .with_context(|| "Metal device initialization failed")?;
+        if !device.is_metal() {
+            bail!("Metal device preflight returned a non-Metal device");
+        }
+        eprintln!("mgt-flux-klein: Metal device preflight passed");
+        Ok(())
+    }
+    #[cfg(not(feature = "metal"))]
+    {
+        bail!("Metal backend requested, but this runner was not built with --features metal")
+    }
 }
 
 async fn prepare_zluda_runtime(cli: &Cli) -> Result<()> {
@@ -462,6 +538,7 @@ fn init_logging() {
     let _ = fmt().with_env_filter(filter).with_target(false).try_init();
 }
 
+#[cfg(feature = "cuda")]
 fn log_cuda_runtime_probe() {
     match cudarc::runtime::result::device::get_count() {
         Ok(count) => {
@@ -486,8 +563,14 @@ fn log_cuda_runtime_probe() {
     }
 }
 
+#[cfg(feature = "cuda")]
 fn cuda_device_name(name: &[std::os::raw::c_char]) -> String {
     unsafe { CStr::from_ptr(name.as_ptr()).to_string_lossy().into_owned() }
+}
+
+#[cfg(not(feature = "cuda"))]
+fn log_cuda_runtime_probe() {
+    eprintln!("mgt-flux-klein: CUDA probe unavailable in this build");
 }
 
 fn install_panic_hook() {

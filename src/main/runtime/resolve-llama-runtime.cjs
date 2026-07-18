@@ -13,6 +13,8 @@ function binaryName() {
 function bundledServerCandidates(toolsDir) {
   const serverBinary = binaryName();
   const knownRuntimeDirs = [
+    "beellama-v0.3.1-metal-arm64",
+    "llama-b9547-metal-arm64",
     "beellama-v0.3.1-hip-radeon",
     "beellama-v0.2.0-cuda13.1",
     "beellama-v0.2.0-cuda12.4",
@@ -72,11 +74,23 @@ function hasVulkanBackend(serverPath) {
 }
 
 /** @param {string} serverPath */
+function hasMetalBackend(serverPath) {
+  const runtimeDir = dirname(serverPath);
+  return [
+    "libggml-metal.dylib",
+    "libggml-metal.0.dylib",
+    "ggml-metal.metal",
+    "default.metallib",
+  ].some((fileName) => existsSync(join(runtimeDir, fileName)));
+}
+
+/** @param {string} serverPath */
 function hasGpuBackend(serverPath) {
   return (
     hasCudaBackend(serverPath) ||
     hasRocmBackend(serverPath) ||
-    hasVulkanBackend(serverPath)
+    hasVulkanBackend(serverPath) ||
+    hasMetalBackend(serverPath)
   );
 }
 
@@ -130,6 +144,7 @@ module.exports = {
   bundledServerCandidates,
   hasCudaBackend,
   hasGpuBackend,
+  hasMetalBackend,
   hasRocmBackend,
   hasVulkanBackend,
   resolveBundledServerPath,

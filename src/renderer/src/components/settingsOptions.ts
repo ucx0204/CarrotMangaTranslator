@@ -265,6 +265,11 @@ export const OCR_QUALITY_OPTIONS: OcrQualityOption[] = [
 
 export const LLAMA_RUNTIME_PROFILE_OPTIONS: LlamaRuntimeProfileOption[] = [
   {
+    id: "metal",
+    labelKey: "settings.options.llamaRuntimes.metal.label",
+    descriptionKey: "settings.options.llamaRuntimes.metal.description",
+  },
+  {
     id: "cuda12",
     labelKey: "settings.options.llamaRuntimes.cuda12.label",
     descriptionKey: "settings.options.llamaRuntimes.cuda12.description",
@@ -287,6 +292,11 @@ export const LLAMA_RUNTIME_PROFILE_OPTIONS: LlamaRuntimeProfileOption[] = [
 ];
 
 export const FLUX_BACKEND_OPTIONS: FluxBackendOption[] = [
+  {
+    id: "metal-native",
+    labelKey: "settings.options.fluxBackends.metal.label",
+    descriptionKey: "settings.options.fluxBackends.metal.description",
+  },
   {
     id: "cuda-native",
     labelKey: "settings.options.fluxBackends.cuda.label",

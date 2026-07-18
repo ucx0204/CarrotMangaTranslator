@@ -4,6 +4,8 @@ import { delimiter, join } from "node:path";
 import {
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
   DEFAULT_26B_FILE,
+  DEFAULT_26B_MMPROJ_FILE,
+  DEFAULT_26B_MMPROJ_REPO,
   DEFAULT_26B_REPO,
   DEFAULT_31B_FILE,
   DEFAULT_31B_REPO,
@@ -22,6 +24,7 @@ import {
   buildPaddleOcrImportCheckScript,
   buildPaddleOcrImportFailureMessage,
   collectOcrBboxHints,
+  collectRequiredHfDownloads,
   isGpuDeviceLostOrTdrText,
   isGpuOutOfMemoryText,
   isRocmHipAccessViolationText,
@@ -62,7 +65,9 @@ import {
   bundledServerCandidates,
 } from "./helpers/runtimeModelContracts";
 
-describe("runtime model support helpers", () => {
+const describeWindows = process.platform === "win32" ? describe : describe.skip;
+
+describeWindows("runtime model support helpers", () => {
   it("keeps CJS runtime model defaults aligned with shared model presets", () => {
     expect(runtimeDefaults.DEFAULT_MODEL_HF).toBe(DEFAULT_31B_REPO);
     expect(runtimeDefaults.DEFAULT_HF_FILE).toBe(DEFAULT_31B_FILE);
@@ -224,6 +229,55 @@ describe("runtime model support helpers", () => {
         }),
       ]),
     );
+    const detectorWeights = tasks.find(
+      (task) =>
+        task.repo === "PaddlePaddle/PP-OCRv6_medium_det" &&
+        task.file === "inference.pdiparams",
+    );
+    expect(detectorWeights).toMatchObject({
+      revision: "8e0f56fb2ef86b461d99cfc7ac5c137738985f61",
+      expectedSha256:
+        "85218d2e3d98f5a21c58b4220627be923a97aee5db3cc71f39536ab31ac53960",
+    });
+    expect(detectorWeights?.url).toContain(
+      "/resolve/8e0f56fb2ef86b461d99cfc7ac5c137738985f61/",
+    );
+  });
+
+  it("pins built-in Gemma downloads to immutable revisions and SHA-256", () => {
+    const workingDir = createTempDir("gemma-pins-");
+    const tasks = collectRequiredHfDownloads({
+      workingDir,
+      hfHubCacheDir: join(workingDir, "hf-hub"),
+      modelProvider: "gemma",
+      modelSource: "huggingface",
+      modelRepo: DEFAULT_26B_REPO,
+      modelFile: DEFAULT_26B_FILE,
+      mmprojRepo: DEFAULT_26B_MMPROJ_REPO,
+      mmprojFile: DEFAULT_26B_MMPROJ_FILE,
+    });
+
+    expect(tasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          repo: DEFAULT_26B_REPO,
+          file: DEFAULT_26B_FILE,
+          revision: "9cada68ea11a8f361e4b16a7a97e53d99b0918c0",
+          expectedSha256:
+            "b7c13509c19383cf8fa4c8b1731ff5bd3a6e2f0e0ca5a63958afee1ee64f387d",
+        }),
+        expect.objectContaining({
+          repo: DEFAULT_26B_MMPROJ_REPO,
+          file: DEFAULT_26B_MMPROJ_FILE,
+          revision: "8842483d589b4add67223d1d8c3fff81a3d5260e",
+          expectedSha256:
+            "b9dd7e71eb78b44c4c9d3a0aa6173a1e022c2c4f58aa0fd03807be3f8cba4353",
+        }),
+      ]),
+    );
+    expect(
+      tasks.every((task) => task.url.includes(`/resolve/${task.revision}/`)),
+    ).toBe(true);
   });
 
   it("does not predownload PaddleOCRVL model assets for AMD ROCm Transformers OCR", () => {
@@ -268,6 +322,17 @@ describe("runtime model support helpers", () => {
         "PaddlePaddle/PP-OCRv6_tiny_rec",
       ]),
     );
+    expect(
+      minimumTasks.find(
+        (task) =>
+          task.repo === "PaddlePaddle/PP-OCRv6_tiny_rec" &&
+          task.file === "inference.pdiparams",
+      ),
+    ).toMatchObject({
+      revision: "0736086f72f666350ebcdc0c3a504eeac89cdfad",
+      expectedSha256:
+        "bb2f8f54d1e25f28c71b6fa4fe23f5940e159cae27fbee96155c99f822156e57",
+    });
   });
 
   it("disables hf-xet for Paddle OCR Python downloads by default", () => {

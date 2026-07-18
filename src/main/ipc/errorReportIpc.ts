@@ -1,5 +1,8 @@
 import { app, clipboard, shell } from "electron";
-import { APP_NEW_ISSUE_URL } from "../../shared/appRelease";
+import {
+  APP_MAC_ALPHA_ISSUE_URL,
+  APP_NEW_ISSUE_URL,
+} from "../../shared/appRelease";
 import { errorReportIpcContracts } from "../../shared/ipcContracts";
 import {
   ERROR_REPORT_GITHUB_URL_MAX_LENGTH,
@@ -69,7 +72,11 @@ export async function openErrorReportIssue(request: {
 }
 
 export function buildGitHubIssueUrl(title: string, body: string): string {
-  const url = new URL(APP_NEW_ISSUE_URL);
+  const url = new URL(
+    title.trimStart().startsWith("[macOS Alpha]")
+      ? APP_MAC_ALPHA_ISSUE_URL
+      : APP_NEW_ISSUE_URL,
+  );
   url.searchParams.set("title", title);
   url.searchParams.set("body", body);
   return url.toString();

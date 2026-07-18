@@ -490,7 +490,7 @@ describe("IPC schemas", () => {
     expect(() =>
       parseIpcPayload(AppSettingsSchema, { ...payload, ctx: 512 }, "설정 저장"),
     ).toThrow(/요청 형식/);
-    expect(() =>
+    expect(
       parseIpcPayload(
         AppSettingsSchema,
         {
@@ -498,8 +498,8 @@ describe("IPC schemas", () => {
           gemma: { ...payload.gemma, llamaRuntimeProfile: "metal" },
         },
         "설정 저장",
-      ),
-    ).toThrow(/요청 형식/);
+      ).gemma.llamaRuntimeProfile,
+    ).toBe("metal");
     expect(() =>
       parseIpcPayload(
         AppSettingsSchema,

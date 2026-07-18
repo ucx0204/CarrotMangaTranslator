@@ -4,12 +4,21 @@ import { settingsGateway } from "./settingsGateway";
 
 export function OcrHardwareContextNote({
   usesAmdOcrContext,
+  usesAppleHardware,
   usesNvidiaOcrContext,
 }: {
   usesAmdOcrContext: boolean;
+  usesAppleHardware: boolean;
   usesNvidiaOcrContext: boolean;
 }): React.JSX.Element | null {
   const { t } = useTranslation("components");
+  if (usesAppleHardware) {
+    return (
+      <p className="muted-line modal-note">
+        {t("settings.hardware.ocrAppleNote")}
+      </p>
+    );
+  }
   if (usesAmdOcrContext) {
     return (
       <p className="muted-line modal-note">
@@ -29,12 +38,21 @@ export function OcrHardwareContextNote({
 
 export function FluxHardwareContextNote({
   usesAmdHardware,
+  usesAppleHardware,
   usesNvidiaHardware,
 }: {
   usesAmdHardware: boolean;
+  usesAppleHardware: boolean;
   usesNvidiaHardware: boolean;
 }): React.JSX.Element | null {
   const { t } = useTranslation("components");
+  if (usesAppleHardware) {
+    return (
+      <p className="muted-line modal-note">
+        {t("settings.hardware.fluxAppleNote")}
+      </p>
+    );
+  }
   if (usesAmdHardware) {
     return (
       <p className="muted-line modal-note">

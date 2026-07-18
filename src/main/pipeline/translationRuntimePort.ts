@@ -58,6 +58,24 @@ async function releaseGpuBeforeOcr(
   }
 }
 
+async function releaseInpaintingBeforeGemma(
+  options: TranslationOptions,
+): Promise<void> {
+  if (options.modelProvider !== "gemma") {
+    return;
+  }
+  const disposed = await disposeCachedInpaintingEngines("gemma-start");
+  if (disposed) {
+    options.onProgress?.({
+      phase: "booting",
+      progressText: "Gemma용 통합 메모리 확보",
+      detail:
+        "캐시된 인페인팅 모델을 내려 Gemma와 대형 모델이 동시에 상주하지 않게 했습니다.",
+      progressMode: "log-only",
+    });
+  }
+}
+
 export function loadTranslationRuntimePort(): TranslationRuntimePort {
   if (cachedPort) {
     return cachedPort;
@@ -66,8 +84,10 @@ export function loadTranslationRuntimePort(): TranslationRuntimePort {
   const runtime = loadRuntimeModules();
   const port: TranslationRuntimePort = {
     isModelCached: (options) => runtime.simplePage.isModelCached(options),
-    startEndpointSession: (options) =>
-      startModelEndpointSession(runtime, options),
+    startEndpointSession: async (options) => {
+      await releaseInpaintingBeforeGemma(options);
+      return startModelEndpointSession(runtime, options);
+    },
     collectOcrHints: async (options) => {
       await releaseGpuBeforeOcr([options]);
       return runtime.simplePage.collectOcrBboxHints(options);

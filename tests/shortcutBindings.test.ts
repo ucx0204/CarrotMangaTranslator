@@ -73,12 +73,25 @@ describe("comboFromEvent", () => {
 
 describe("formatCombo", () => {
   it("renders display tokens", () => {
-    expect(formatCombo("ctrl+shift+t")).toEqual(["Ctrl", "Shift", "T"]);
-    expect(formatCombo("?")).toEqual(["?"]);
-    expect(formatCombo("ctrl+,")).toEqual(["Ctrl", ","]);
-    expect(formatCombo("ctrl+numpadadd")).toEqual(["Ctrl", "+"]);
-    expect(formatCombo("delete")).toEqual(["Del"]);
-    expect(formatCombo("")).toEqual([]);
+    expect(formatCombo("ctrl+shift+t", "Win32")).toEqual([
+      "Ctrl",
+      "Shift",
+      "T",
+    ]);
+    expect(formatCombo("?", "Win32")).toEqual(["?"]);
+    expect(formatCombo("ctrl+,", "Win32")).toEqual(["Ctrl", ","]);
+    expect(formatCombo("ctrl+numpadadd", "Win32")).toEqual(["Ctrl", "+"]);
+    expect(formatCombo("delete", "Win32")).toEqual(["Del"]);
+    expect(formatCombo("", "Win32")).toEqual([]);
+  });
+
+  it("uses Command glyphs for canonical Ctrl/Meta bindings on macOS", () => {
+    expect(formatCombo("ctrl+shift+t", "MacIntel")).toEqual([
+      "⌘",
+      "Shift",
+      "T",
+    ]);
+    expect(formatCombo("ctrl+,", "MacIntel")).toEqual(["⌘", ","]);
   });
 });
 

@@ -15,8 +15,12 @@ import {
   ensureRemoteFile,
   FLUX_MODEL_FILE,
   FLUX_MODEL_REPO,
+  FLUX_MODEL_REVISION,
+  FLUX_MODEL_SHA256,
   FLUX_VAE_FILE,
   FLUX_VAE_REPO,
+  FLUX_VAE_REVISION,
+  FLUX_VAE_SHA256,
   hfResolveUrl,
 } from "./inpainting/fluxAssets";
 import {
@@ -179,7 +183,11 @@ export async function prepareFluxInpaintingEngine(options: {
   });
   let modelPath: string | undefined;
   let vaePath: string | undefined;
-  if (launch.backend === "cuda-native" || launch.backend === "zluda-native") {
+  if (
+    launch.backend === "cuda-native" ||
+    launch.backend === "zluda-native" ||
+    launch.backend === "metal-native"
+  ) {
     const download = createCombinedDownloadProgress(
       options.onProgress,
       tMain("inpainting.assets.fluxModel"),
@@ -190,14 +198,20 @@ export async function prepareFluxInpaintingEngine(options: {
         onProgress: download.forFile(),
         fileName: FLUX_MODEL_FILE,
         label: "Flux Klein 4B",
-        url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE),
+        url: hfResolveUrl(
+          FLUX_MODEL_REPO,
+          FLUX_MODEL_FILE,
+          FLUX_MODEL_REVISION,
+        ),
+        expectedSha256: FLUX_MODEL_SHA256,
       }),
       ensureRemoteFile({
         ...options,
         onProgress: download.forFile(),
         fileName: FLUX_VAE_FILE,
         label: "Flux small decoder",
-        url: hfResolveUrl(FLUX_VAE_REPO, FLUX_VAE_FILE),
+        url: hfResolveUrl(FLUX_VAE_REPO, FLUX_VAE_FILE, FLUX_VAE_REVISION),
+        expectedSha256: FLUX_VAE_SHA256,
       }),
     ]);
     launch.args = [

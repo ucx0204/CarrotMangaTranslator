@@ -23,6 +23,9 @@ import { supportsWindowsRocmOcrGpu } from "./ocrRocmSupport";
 const GEMMA_MINIMUM_VRAM_MB = 8000;
 const GEMMA_ECONOMY_VRAM_MB = 16000;
 const GEMMA_FULL_VRAM_MB = 24000;
+const GEMMA_APPLE_MINIMUM_UNIFIED_MEMORY_MB = 16 * 1024;
+const GEMMA_APPLE_ECONOMY_UNIFIED_MEMORY_MB = 24 * 1024;
+const GEMMA_APPLE_FULL_UNIFIED_MEMORY_MB = 32 * 1024;
 const GEMMA_MINIMUM_COMPUTE_CAPABILITY = 7.5;
 const GEMMA_MINIMUM_RTX_GENERATION = 20;
 
@@ -60,7 +63,7 @@ export function resolveHardwareDefaults(
   return buildHardwareDefaults(
     baseDefaults,
     "gemma",
-    resolveGemmaDefaultVramMode(info?.memoryMb ?? 0),
+    resolveGemmaDefaultVramMode(info),
     resolveHardwareOcrDevice(info, baseDefaults.ocrGpuBackend),
   );
 }
@@ -68,21 +71,32 @@ export function resolveHardwareDefaults(
 function supportsGemmaDefaults(info: DetectedGpuInfo | null): boolean {
   return (
     hasMinimumGemmaVram(info) &&
-    (supportsNvidiaGpuDefaults(info) || supportsAmdGpuDefaults(info))
+    (supportsNvidiaGpuDefaults(info) ||
+      supportsAmdGpuDefaults(info) ||
+      supportsAppleGpuDefaults(info))
   );
 }
 
 function hasMinimumGemmaVram(info: DetectedGpuInfo | null): boolean {
+  if (info?.vendor === "apple") {
+    return (
+      resolveUnifiedMemoryMb(info) >= GEMMA_APPLE_MINIMUM_UNIFIED_MEMORY_MB
+    );
+  }
   return (info?.memoryMb ?? 0) >= GEMMA_MINIMUM_VRAM_MB;
 }
 
 function supportsNvidiaGpuDefaults(info: DetectedGpuInfo | null): boolean {
-  if (info?.vendor === "amd") {
+  if (info?.vendor === "amd" || info?.vendor === "apple") {
     return false;
   }
   return (
     supportsMinimumRtxGeneration(info) || supportsMinimumComputeCapability(info)
   );
+}
+
+function supportsAppleGpuDefaults(info: DetectedGpuInfo | null): boolean {
+  return info?.vendor === "apple" && info.supportsMetal === true;
 }
 
 function supportsAmdGpuDefaults(info: DetectedGpuInfo | null): boolean {
@@ -116,11 +130,27 @@ function supportsHardwareOcrGpu(
   ocrGpuBackend: OcrGpuBackend,
 ): boolean {
   return (
-    supportsNvidiaGpuDefaults(info) || ocrGpuBackend === "rocm-transformers"
+    (info?.vendor !== "apple" && supportsNvidiaGpuDefaults(info)) ||
+    ocrGpuBackend === "rocm-transformers"
   );
 }
 
-function resolveGemmaDefaultVramMode(memoryMb: number): GemmaVramMode {
+function resolveGemmaDefaultVramMode(
+  info: DetectedGpuInfo | null,
+): GemmaVramMode {
+  const memoryMb =
+    info?.vendor === "apple"
+      ? resolveUnifiedMemoryMb(info)
+      : (info?.memoryMb ?? 0);
+  if (info?.vendor === "apple") {
+    if (memoryMb >= GEMMA_APPLE_FULL_UNIFIED_MEMORY_MB) {
+      return "full31b";
+    }
+    if (memoryMb >= GEMMA_APPLE_ECONOMY_UNIFIED_MEMORY_MB) {
+      return "economy26b";
+    }
+    return "minimum12b";
+  }
   if (memoryMb >= GEMMA_FULL_VRAM_MB) {
     return "full31b";
   }
@@ -207,6 +237,9 @@ function resolveHardwareLlamaRocmTarget(
 }
 
 function resolveHardwareFluxBackend(info: DetectedGpuInfo | null): FluxBackend {
+  if (info?.vendor === "apple") {
+    return "metal-native";
+  }
   if (info?.vendor !== "amd") {
     return "cuda-native";
   }
@@ -252,6 +285,11 @@ function normalizeDetectedGpuObject(value: DetectedGpuInfo): DetectedGpuInfo {
       value.supportsVulkan,
       value.vendor === "amd",
     ),
+    supportsMetal: normalizeBoolean(
+      value.supportsMetal,
+      value.vendor === "apple",
+    ),
+    unifiedMemoryMb: normalizeFiniteNumber(value.unifiedMemoryMb),
   };
   const inferredRocmTarget = resolveAmdRocmTargetFromInfo(normalized);
   return {
@@ -270,7 +308,13 @@ function normalizeFiniteNumber(
 function normalizeGpuVendor(
   vendor: DetectedGpuInfo["vendor"],
 ): NonNullable<DetectedGpuInfo["vendor"]> {
-  return vendor === "nvidia" || vendor === "amd" ? vendor : "unknown";
+  return vendor === "nvidia" || vendor === "amd" || vendor === "apple"
+    ? vendor
+    : "unknown";
+}
+
+function resolveUnifiedMemoryMb(info: DetectedGpuInfo): number {
+  return info.unifiedMemoryMb ?? info.memoryMb ?? 0;
 }
 
 function normalizeBoolean(

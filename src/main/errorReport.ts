@@ -15,6 +15,8 @@ import {
   readRecentDiagnosticLogEntries,
   type DiagnosticLogEntry,
 } from "./errorReportLogs";
+import { resolveBuildChannel } from "./buildChannel";
+import type { BuildChannel } from "../shared/runtimeCapabilities";
 
 export { redactDiagnosticText } from "./errorReportRedaction";
 
@@ -38,6 +40,7 @@ export type ErrorReportBuildEnvironment = {
   currentLogPath: string;
   previousLogPath: string;
   homeDir?: string;
+  buildChannel?: BuildChannel;
 };
 
 export async function prepareErrorReportDraft(
@@ -64,6 +67,7 @@ export async function prepareErrorReportDraft(
     currentLogPath: appPaths.logFile,
     previousLogPath: join(appPaths.logsDir, "previous.log"),
     homeDir: homedir(),
+    buildChannel: resolveBuildChannel(),
   });
 }
 
@@ -120,7 +124,14 @@ export async function buildErrorReportDraft(
   truncated ||= renderedLogs.truncated;
 
   return {
-    defaultTitle: defaultTitleForSource(context.source),
+    defaultTitle: defaultTitleForSource(
+      context.source,
+      environment.platform === "darwin" &&
+        environment.arch === "arm64" &&
+        (environment.buildChannel ??
+          resolveBuildChannel(environment.platform, environment.arch)) ===
+          "mac-alpha",
+    ),
     errorMarkdown: boundedError.text,
     systemMarkdown: boundedSystem.text,
     logsMarkdown: renderedLogs.text,
@@ -159,11 +170,20 @@ function buildSystemMarkdown(environment: ErrorReportBuildEnvironment): string {
     "",
     `- App version: \`${environment.appVersion}\``,
     `- Build: \`${environment.isPackaged ? "packaged" : "development"}\``,
+    `- Build channel: \`${environment.buildChannel ?? resolveBuildChannel(environment.platform, environment.arch)}\``,
     `- Electron: \`${environment.electronVersion}\``,
     `- Node.js: \`${environment.nodeVersion}\``,
     `- OS: \`${environment.platform} ${environment.osRelease} (${environment.arch})\``,
     `- Locale: \`${environment.locale}\``,
   ];
+
+  if (environment.platform === "darwin" && environment.arch === "arm64") {
+    lines.push(
+      `- Apple chip: \`${environment.gpu?.name ?? "unknown"}\``,
+      `- Unified memory: \`${unifiedMemoryDescription(environment.gpu) ?? "unknown"}\``,
+      `- Metal device: \`${environment.gpu?.supportsMetal ? (environment.gpu.name ?? "available") : "unavailable"}\``,
+    );
+  }
 
   if (!settings) {
     lines.push("- App settings: unavailable");
@@ -240,6 +260,11 @@ function gpuMemoryDescription(gpu: DetectedGpuInfo | null): string | null {
   return gpu?.memoryMb ? `${gpu.memoryMb} MiB` : null;
 }
 
+function unifiedMemoryDescription(gpu: DetectedGpuInfo | null): string | null {
+  const memoryMb = gpu?.unifiedMemoryMb ?? gpu?.memoryMb;
+  return memoryMb ? `${memoryMb} MiB` : null;
+}
+
 function renderLogMarkdown(
   entries: DiagnosticLogEntry[],
   maxBytes: number,
@@ -299,20 +324,24 @@ function safeModelIdentifier(settings: AppSettings): string {
   return `${settings.gemma.modelRepo}/${settings.gemma.modelFile} / ${settings.gemma.vramMode}${settings.gemma.llamaRuntimeProfile ? ` / ${settings.gemma.llamaRuntimeProfile}` : ""}`;
 }
 
-function defaultTitleForSource(source: ErrorReportContext["source"]): string {
+function defaultTitleForSource(
+  source: ErrorReportContext["source"],
+  macAlpha: boolean,
+): string {
+  const prefix = macAlpha ? "[macOS Alpha] " : "";
   switch (source) {
     case "manual":
-      return "[Bug] Problem report";
+      return `${prefix}[Bug] Problem report`;
     case "job-failure":
-      return "[Bug] Translation or processing job failed";
+      return `${prefix}[Bug] Translation or processing job failed`;
     case "react-boundary":
-      return "[Bug] Renderer component crashed";
+      return `${prefix}[Bug] Renderer component crashed`;
     case "renderer-global":
-      return "[Bug] Unexpected renderer error";
+      return `${prefix}[Bug] Unexpected renderer error`;
     case "main-process":
-      return "[Bug] Main process error";
+      return `${prefix}[Bug] Main process error`;
     case "renderer-process":
-      return "[Bug] Renderer process crashed";
+      return `${prefix}[Bug] Renderer process crashed`;
   }
 }
 

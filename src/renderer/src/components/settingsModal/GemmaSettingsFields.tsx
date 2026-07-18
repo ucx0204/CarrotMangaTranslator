@@ -7,6 +7,8 @@ import {
   type ModelPresetId,
 } from "../settingsOptions";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
+import { GemmaMemorySummary } from "./GemmaMemorySummary";
+import { confirmGemmaMemoryRisk } from "./gemmaMemoryRisk";
 import { LocalModelFields } from "./GemmaLocalModelFields";
 
 const MODEL_PRESET_BUTTON_IDS = [
@@ -24,6 +26,8 @@ type GemmaSettingsFieldsProps = Pick<
   | "customModelRepo"
   | "isLlamaRuntimeOptionDisabled"
   | "llamaRuntimeProfile"
+  | "allowUnsafeUnifiedMemory"
+  | "unifiedMemoryMb"
   | "localMmprojPath"
   | "localModelInputRef"
   | "localModelPath"
@@ -36,12 +40,14 @@ type GemmaSettingsFieldsProps = Pick<
   | "setCustomModelRepo"
   | "setCustomVramMode"
   | "setLlamaRuntimeProfile"
+  | "setAllowUnsafeUnifiedMemory"
   | "setLocalMmprojPath"
   | "setLocalModelPath"
   | "setModelSource"
   | "setSelectedPreset"
   | "submit"
   | "usesAmdHardware"
+  | "usesAppleHardware"
   | "usesNvidiaHardware"
 >;
 
@@ -112,15 +118,19 @@ type HuggingFaceModelFieldsProps = Pick<
   | "customModelRepo"
   | "isLlamaRuntimeOptionDisabled"
   | "llamaRuntimeProfile"
+  | "allowUnsafeUnifiedMemory"
+  | "unifiedMemoryMb"
   | "modelRepoInputRef"
   | "selectedPreset"
   | "setCustomModelFile"
   | "setCustomModelRepo"
   | "setCustomVramMode"
   | "setLlamaRuntimeProfile"
+  | "setAllowUnsafeUnifiedMemory"
   | "setSelectedPreset"
   | "submit"
   | "usesAmdHardware"
+  | "usesAppleHardware"
   | "usesNvidiaHardware"
 >;
 
@@ -138,20 +148,30 @@ function HuggingFaceModelFields(
   );
 }
 
+type ModelPresetSelectorProps = Pick<
+  HuggingFaceModelFieldsProps,
+  | "clearTestState"
+  | "allowUnsafeUnifiedMemory"
+  | "controlsBusy"
+  | "selectedPreset"
+  | "setCustomVramMode"
+  | "setAllowUnsafeUnifiedMemory"
+  | "setSelectedPreset"
+  | "unifiedMemoryMb"
+  | "usesAppleHardware"
+>;
+
 function ModelPresetSelector({
+  allowUnsafeUnifiedMemory,
   clearTestState,
   controlsBusy,
   selectedPreset,
   setCustomVramMode,
+  setAllowUnsafeUnifiedMemory,
   setSelectedPreset,
-}: Pick<
-  HuggingFaceModelFieldsProps,
-  | "clearTestState"
-  | "controlsBusy"
-  | "selectedPreset"
-  | "setCustomVramMode"
-  | "setSelectedPreset"
->): React.JSX.Element {
+  unifiedMemoryMb,
+  usesAppleHardware,
+}: ModelPresetSelectorProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
     <div className="settings-field-stack">
@@ -162,24 +182,19 @@ function ModelPresetSelector({
         aria-label={t("settings.gemma.preset.ariaLabel")}
       >
         {MODEL_PRESET_BUTTON_IDS.map((presetId) => (
-          <button
+          <ModelPresetButton
             key={presetId}
-            type="button"
-            className={`settings-preset-button ${selectedPreset === presetId ? "active" : ""}`}
-            onClick={() => {
-              clearTestState();
-              setSelectedPreset(presetId);
-              if (presetId !== "custom") {
-                setCustomVramMode(MODEL_PRESETS[presetId].vramMode);
-              }
-            }}
-            disabled={controlsBusy}
-            aria-pressed={selectedPreset === presetId}
-          >
-            {presetId === "custom"
-              ? t("settings.gemma.preset.custom")
-              : t(MODEL_PRESETS[presetId].labelKey)}
-          </button>
+            presetId={presetId}
+            allowUnsafeUnifiedMemory={allowUnsafeUnifiedMemory}
+            clearTestState={clearTestState}
+            controlsBusy={controlsBusy}
+            selectedPreset={selectedPreset}
+            setAllowUnsafeUnifiedMemory={setAllowUnsafeUnifiedMemory}
+            setCustomVramMode={setCustomVramMode}
+            setSelectedPreset={setSelectedPreset}
+            unifiedMemoryMb={unifiedMemoryMb}
+            usesAppleHardware={usesAppleHardware}
+          />
         ))}
       </div>
       <p className="muted-line modal-note">
@@ -187,7 +202,41 @@ function ModelPresetSelector({
           ? t("settings.gemma.preset.customDescription")
           : t(MODEL_PRESETS[selectedPreset].descriptionKey)}
       </p>
+      {usesAppleHardware && selectedPreset !== "custom" ? (
+        <GemmaMemorySummary
+          allowUnsafeUnifiedMemory={allowUnsafeUnifiedMemory}
+          selectedPreset={selectedPreset}
+          unifiedMemoryMb={unifiedMemoryMb}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function ModelPresetButton({
+  presetId,
+  ...props
+}: ModelPresetSelectorProps & { presetId: ModelPresetId }): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <button
+      type="button"
+      className={`settings-preset-button ${props.selectedPreset === presetId ? "active" : ""}`}
+      disabled={props.controlsBusy}
+      aria-pressed={props.selectedPreset === presetId}
+      onClick={() => {
+        if (!confirmGemmaMemoryRisk(presetId, props, t)) return;
+        props.clearTestState();
+        props.setSelectedPreset(presetId);
+        if (presetId !== "custom") {
+          props.setCustomVramMode(MODEL_PRESETS[presetId].vramMode);
+        }
+      }}
+    >
+      {presetId === "custom"
+        ? t("settings.gemma.preset.custom")
+        : t(MODEL_PRESETS[presetId].labelKey)}
+    </button>
   );
 }
 
@@ -257,6 +306,7 @@ function LlamaRuntimeSelector({
   llamaRuntimeProfile,
   setLlamaRuntimeProfile,
   usesAmdHardware,
+  usesAppleHardware,
   usesNvidiaHardware,
 }: Pick<
   HuggingFaceModelFieldsProps,
@@ -265,10 +315,15 @@ function LlamaRuntimeSelector({
   | "llamaRuntimeProfile"
   | "setLlamaRuntimeProfile"
   | "usesAmdHardware"
+  | "usesAppleHardware"
   | "usesNvidiaHardware"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
-  const activeRuntime = LLAMA_RUNTIME_PROFILE_OPTIONS.find(
+  const visibleRuntimeOptions = LLAMA_RUNTIME_PROFILE_OPTIONS.filter(
+    (option) =>
+      usesAppleHardware ? option.id === "metal" : option.id !== "metal",
+  );
+  const activeRuntime = visibleRuntimeOptions.find(
     (option) => option.id === llamaRuntimeProfile,
   );
   return (
@@ -279,7 +334,7 @@ function LlamaRuntimeSelector({
         role="group"
         aria-label={t("settings.gemma.runtime.label")}
       >
-        {LLAMA_RUNTIME_PROFILE_OPTIONS.map((option) => (
+        {visibleRuntimeOptions.map((option) => (
           <button
             key={option.id}
             type="button"
@@ -300,6 +355,7 @@ function LlamaRuntimeSelector({
       </p>
       <RuntimeHardwareNote
         usesAmdHardware={usesAmdHardware}
+        usesAppleHardware={usesAppleHardware}
         usesNvidiaHardware={usesNvidiaHardware}
       />
     </div>
@@ -308,12 +364,20 @@ function LlamaRuntimeSelector({
 
 function RuntimeHardwareNote({
   usesAmdHardware,
+  usesAppleHardware,
   usesNvidiaHardware,
 }: Pick<
   HuggingFaceModelFieldsProps,
-  "usesAmdHardware" | "usesNvidiaHardware"
+  "usesAmdHardware" | "usesAppleHardware" | "usesNvidiaHardware"
 >): React.JSX.Element | null {
   const { t } = useTranslation("components");
+  if (usesAppleHardware) {
+    return (
+      <p className="muted-line modal-note">
+        {t("settings.gemma.runtime.appleNote")}
+      </p>
+    );
+  }
   if (usesAmdHardware) {
     return (
       <p className="muted-line modal-note">

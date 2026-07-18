@@ -761,7 +761,10 @@ describe("runtime launch argument contracts", () => {
     expect(mmprojTask).toMatchObject({
       repo: DEFAULT_12B_MMPROJ_REPO,
       file: "mmproj-gemma-4-12B-it-BF16.gguf",
-      url: `https://huggingface.co/${DEFAULT_12B_MMPROJ_REPO}/resolve/main/mmproj-gemma-4-12B-it-BF16.gguf`,
+      revision: "d72ee27227da2ba16c725180ddd507ee96208d23",
+      expectedSha256:
+        "9b1edfa05b634728ca4bfd60b4e6b278e95166c078fa54ae4fa83e680112fd1d",
+      url: `https://huggingface.co/${DEFAULT_12B_MMPROJ_REPO}/resolve/d72ee27227da2ba16c725180ddd507ee96208d23/mmproj-gemma-4-12B-it-BF16.gguf`,
     });
   });
 

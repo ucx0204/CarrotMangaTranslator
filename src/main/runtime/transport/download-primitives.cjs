@@ -42,15 +42,16 @@ function createAbortError() {
   return error;
 }
 
-/** @param {unknown} endpoint @param {string} repo @param {unknown} file */
-function buildHfResolveUrl(endpoint, repo, file) {
+/** @param {unknown} endpoint @param {string} repo @param {unknown} file @param {unknown} [revision] */
+function buildHfResolveUrl(endpoint, repo, file, revision = "main") {
   const filePath = String(file ?? "")
     .replace(/\\/g, "/")
     .split("/")
     .map(encodeURIComponent)
     .join("/");
   const base = String(endpoint || "https://huggingface.co").replace(/\/+$/, "");
-  return `${base}/${repo}/resolve/main/${filePath}`;
+  const safeRevision = encodeURIComponent(String(revision || "main"));
+  return `${base}/${repo}/resolve/${safeRevision}/${filePath}`;
 }
 
 /** @param {string} filePath */

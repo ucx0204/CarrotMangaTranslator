@@ -5,10 +5,22 @@ Free code signing provided by [SignPath.io](https://about.signpath.io/), certifi
 
 ## Scope
 
-This policy applies only to Windows release artifacts that carry a valid
+For Windows, this policy applies only to release artifacts that carry a valid
 Authenticode signature issued to SignPath Foundation for this project. Unsigned
-artifacts, including releases published before SignPath enrollment, are not
-retroactively covered by this policy.
+Windows artifacts, including releases published before SignPath enrollment,
+are not retroactively covered by this policy.
+
+Apple Silicon Alpha artifacts use a separate release channel and one of two
+clearly labelled signing modes:
+
+- `Apple Silicon Alpha`: Developer ID Application signed, Apple-notarized, and
+  stapled on the GitHub-hosted `macos-15` arm64 runner.
+- `Unsigned Apple Silicon Alpha`: every Mach-O file and the app bundle are
+  ad-hoc signed for integrity, but there is no Apple-verified publisher
+  identity or notarization. Gatekeeper requires an explicit approval in
+  System Settings → Privacy & Security.
+
+The second mode must never be described as an Apple-signed or notarized build.
 
 ## Roles
 
@@ -33,9 +45,24 @@ authentication.
   workflow run, commit, and build artifact.
 - Artifact rules restrict the product identity and version of files that may be
   signed.
-- The project signs only binaries built from source maintained by this project.
-  Bundled upstream open-source components are not represented as project-owned
-  binaries and are not separately signed with the project certificate.
+- Windows SignPath signing covers only binaries built from source maintained by
+  this project. On macOS, Apple's hardened-runtime rules require every bundled
+  Mach-O (including redistributed upstream runtimes) to be nested-signed as
+  part of the app. That signature attests to the assembled release and does not
+  represent upstream components as project-authored software.
+- The Apple Silicon workflow verifies arm64 Mach-O architecture, nested code
+  signatures, linked libraries, the DMG, checksums, and an `/Applications`
+  launch smoke before it can publish a pre-release.
+
+## Apple Developer credentials
+
+Developer ID signing does not require the maintainer to own a Mac; signing and
+notarization run on GitHub's Apple Silicon runner. It does require an active
+Apple Developer Program membership and the repository secrets
+`MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_API_KEY_P8_B64`,
+`APPLE_API_KEY_ID`, and `APPLE_API_ISSUER`. If all five are absent, the
+workflow deliberately falls back to the labelled ad-hoc Alpha. A partial
+secret configuration fails the build instead of silently weakening it.
 
 ## Privacy
 

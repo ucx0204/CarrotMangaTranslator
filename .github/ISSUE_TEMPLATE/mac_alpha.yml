@@ -1,0 +1,72 @@
+name: Apple Silicon Alpha 문제 신고
+description: M1 이상 Mac에서 Alpha 빌드의 문제와 실기 성공 결과를 알려 주세요.
+title: "[macOS Alpha] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Apple Silicon Alpha 실기 검증에 참여해 주셔서 감사합니다. 앱의 **문제 신고** 기능이 만든 진단 정보를 우선 사용해 주세요. GitHub Issue는 공개되므로 작품 내용과 개인정보가 남아 있지 않은지 확인해 주세요.
+  - type: input
+    id: version
+    attributes:
+      label: Alpha 버전
+      placeholder: 예) v1.7.0-mac-alpha.1
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Mac 칩과 통합 메모리
+      placeholder: 예) M2 Pro, 32 GB
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS 버전
+      placeholder: 예) macOS 15.5
+    validations:
+      required: true
+  - type: dropdown
+    id: feature
+    attributes:
+      label: 확인한 기능
+      options:
+        - Gemma 12B
+        - Gemma 26B
+        - Gemma 31B + DFlash
+        - Flux Klein 인페인팅
+        - LaMa Manga 인페인팅
+        - AOT 인페인팅
+        - Paddle OCR
+        - 가져오기·편집·내보내기
+        - 설치·실행·모델 다운로드
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 순서와 실제 결과
+      description: 취소, 재실행, 캐시 재사용 여부도 가능한 범위에서 적어 주세요.
+      placeholder: |
+        1. …
+        2. …
+        예상: …
+        실제: …
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 익명화된 진단 정보
+      description: 앱의 문제 신고 창에서 복사한 내용을 붙여 넣고 공개 전 다시 확인해 주세요.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 확인
+      options:
+        - label: Apple Silicon(M1 이상)과 macOS 14 이상에서 확인했습니다.
+          required: true
+        - label: 경로, 토큰, 작품 내용 등 공개하면 안 되는 정보를 제거했습니다.
+          required: true

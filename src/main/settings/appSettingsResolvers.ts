@@ -9,7 +9,6 @@ import {
 } from "../../shared/apiSettings";
 import { CODEX_REASONING_EFFORTS } from "../../shared/codexSettings";
 import type {
-  AppSettings,
   ApiReasoningEffort,
   CodexReasoningEffort,
   FluxBackend,
@@ -22,11 +21,7 @@ import type {
   OcrGpuBackend,
   OcrQualityMode,
 } from "../../shared/settingsTypes";
-import {
-  isAmdLlamaRuntimeProfile,
-  isNvidiaLlamaRuntimeProfile,
-  resolveLlamaRuntimeProfile,
-} from "./llamaRuntimeProfile";
+export { inferHardwareVendorFromDefaults } from "./hardwareVendor";
 
 export function resolveModelProvider(
   value: unknown,
@@ -165,6 +160,9 @@ export function resolveFluxBackend(
   if (["zluda-native", "zluda"].includes(normalized)) {
     return "zluda-native";
   }
+  if (["metal-native", "metal", "apple"].includes(normalized)) {
+    return "metal-native";
+  }
   if (["python-rocm", "rocm", "hip", "amd"].includes(normalized)) {
     return "zluda-native";
   }
@@ -209,29 +207,13 @@ export function resolveKoharuInpaintingBackend(
   if (["zluda", "zluda-native", "amd"].includes(normalized)) {
     return "zluda-native";
   }
+  if (["metal", "metal-native", "apple"].includes(normalized)) {
+    return "metal-native";
+  }
   if (["cpu", "python-cpu"].includes(normalized)) {
     return "cpu";
   }
   return fallback;
-}
-
-export function inferHardwareVendorFromDefaults(
-  defaults: AppSettings,
-): "amd" | "nvidia" | "unknown" {
-  const profile = resolveLlamaRuntimeProfile(
-    {},
-    defaults.gemma.llamaRuntimeProfile,
-  );
-  if (defaults.gemma.llamaRocmTarget || isAmdLlamaRuntimeProfile(profile)) {
-    return "amd";
-  }
-  if (
-    defaults.modelProvider === "gemma" &&
-    isNvidiaLlamaRuntimeProfile(profile)
-  ) {
-    return "nvidia";
-  }
-  return "unknown";
 }
 
 export function resolveBoolean(value: unknown, fallback: boolean): boolean {

@@ -1,5 +1,5 @@
 // @ts-check
-/** @typedef {{ url: string; file: string; destination: string; label: string; progressPhase?: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} HfDownloadTask */
+/** @typedef {{ url: string; file: string; destination: string; label: string; expectedSha256?: string; progressPhase?: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} HfDownloadTask */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { abortSignal?: AbortSignal | null; [key: string]: unknown }} DownloadOptions */
 /** @typedef {{ knownAggregateBytes?: number; totalBytes?: number; completedBytes?: number; onComplete?: (receivedBytes: number) => void }} DownloadProgress */
 const { mkdir, rename, rm } = require("node:fs/promises");
@@ -25,6 +25,11 @@ const {
 } = require("./download-progress.cjs");
 const { downloadHfFileByRanges } = require("./download-ranges.cjs");
 const { downloadHfFileByStream } = require("./download-stream.cjs");
+const {
+  calculateFileSha256,
+  normalizeExpectedSha256,
+  writeIntegrityMarker,
+} = require("./download-integrity.cjs");
 
 /** @type {Map<string, { url: string; promise: Promise<number> }>} */
 const activeDownloads = new Map();
@@ -159,7 +164,9 @@ async function downloadAttempt(
       startedAt,
       fallbackState,
     );
+    await assertDownloadIntegrity(task, partPath);
     await commitDownload(task.destination, partPath);
+    await recordDownloadIntegrity(task);
     completeDownload(task, options, progress, receivedBytes, startedAt);
     return receivedBytes;
   } catch (error) {
@@ -170,6 +177,29 @@ async function downloadAttempt(
     }
     throw error;
   }
+}
+
+/** @param {HfDownloadTask} task @param {string} partPath */
+async function assertDownloadIntegrity(task, partPath) {
+  const expected = normalizeExpectedSha256(task.expectedSha256);
+  if (!expected) return;
+  const actual = await calculateFileSha256(partPath);
+  if (actual === expected) return;
+  throw createDetailedError(
+    `${task.label} 다운로드 체크섬이 일치하지 않습니다.`,
+    {
+      file: task.file,
+      url: task.url,
+      expectedSha256: expected,
+      actualSha256: actual,
+    },
+  );
+}
+
+/** @param {HfDownloadTask} task */
+async function recordDownloadIntegrity(task) {
+  const expected = normalizeExpectedSha256(task.expectedSha256);
+  if (expected) await writeIntegrityMarker(task.destination, expected);
 }
 
 /** @param {unknown} error */

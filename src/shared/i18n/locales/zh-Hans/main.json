@@ -6,6 +6,16 @@
     "modelTestComplete": "Paddle OCR 和翻译引擎检查完成：{{output}}",
     "modelTestLabel": "模型/运行时检查"
   },
+  "macAlpha": {
+    "aboutMenu": "关于 {{appName}}",
+    "reportIssueMenu": "报告 macOS Alpha 问题",
+    "firstRunTitle": "Apple Silicon Alpha",
+    "firstRunMessage": "此 Apple Silicon Alpha 版本仍在进行真机验证。",
+    "firstRunDetail": "支持 M1 或更新芯片、macOS 14 或更高版本。建议统一内存：16GB 用于 Gemma 12B 和 Flux，24GB 用于 26B，32GB 以上用于 31B+DFlash。Gemma、OCR 和修复模型会在首次使用时下载，可能需要数GB空间和较长时间。遇到问题时，请检查诊断信息后通过 GitHub Issue 报告。",
+    "continue": "继续",
+    "aboutDetail": "Apple Silicon Alpha · 正在进行真机验证\n支持：M1 或更新 / macOS 14 或更高\n请通过 GitHub Issue 报告问题。",
+    "stableAboutDetail": "Carrot Manga Translator"
+  },
   "errorReport": {
     "loadFailureTitle": "无法加载应用窗口",
     "loadFailureMessage": "渲染器无法启动。请在 GitHub 报告问题或检查日志。",
@@ -270,6 +280,9 @@
       "cachedKoharu": "使用缓存的 Koharu 引擎",
       "cachedKoharuLog": "复用缓存的 Koharu 修复引擎。",
       "koharuReadyLog": "使用 Koharu {{model}} 修复运行时：{{file}}",
+      "metalFallback": "Metal 修复失败 · 改用 CPU 重试",
+      "metalFallbackDetail": "{{model}} 无法初始化 Metal，将通过 CPU 兼容路径重试。",
+      "metalFallbackLog": "已报告 {{model}} Metal 失败，并使用 CPU 后端重试。",
       "koharuExecutablePreparing": "正在准备 Koharu 可执行文件",
       "koharuExecutableLog": "已更新应用数据缓存中的 Koharu 可执行文件：{{file}}",
       "pythonInstalling": "正在安装 Flux Python 运行时",

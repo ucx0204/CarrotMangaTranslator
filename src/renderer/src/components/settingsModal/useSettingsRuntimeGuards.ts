@@ -6,6 +6,7 @@ import type {
 } from "../../../../shared/settingsTypes";
 import {
   isAmdLlamaRuntimeProfile,
+  isAppleLlamaRuntimeProfile,
   isNvidiaLlamaRuntimeProfile,
   resolveHardwareRuntimeLock,
 } from "../settingsModalHelpers";
@@ -18,6 +19,8 @@ import type { SettingsFormValues } from "./settingsModalFormUtils";
 export type SettingsRuntimeGuards = {
   usesAmdHardware: boolean;
   usesNvidiaHardware: boolean;
+  usesAppleHardware: boolean;
+  unifiedMemoryMb: number | null;
   usesAmdOcrContext: boolean;
   usesNvidiaOcrContext: boolean;
   isLlamaRuntimeOptionDisabled: (profile: LlamaRuntimeProfile) => boolean;
@@ -41,7 +44,11 @@ export function useSettingsRuntimeGuards({
     () => resolveHardwareRuntimeLock(initialSettings),
     [initialSettings],
   );
-  const runtime = resolveRuntimeContext(values, hardwareRuntimeLock);
+  const runtime = resolveRuntimeContext(
+    values,
+    hardwareRuntimeLock,
+    initialSettings.runtimeHardware?.unifiedMemoryMb ?? null,
+  );
 
   useSettingsFocusEffect(values, refs);
   useOcrBackendGuard(values, setters, runtime);
@@ -54,26 +61,44 @@ export function useSettingsRuntimeGuards({
     isLlamaRuntimeOptionDisabled: React.useCallback(
       (profile: LlamaRuntimeProfile) =>
         controlsBusy ||
+        (runtime.usesAppleHardware && !isAppleLlamaRuntimeProfile(profile)) ||
+        ((runtime.usesAmdHardware || runtime.usesNvidiaHardware) &&
+          isAppleLlamaRuntimeProfile(profile)) ||
         (runtime.usesAmdHardware && isNvidiaLlamaRuntimeProfile(profile)) ||
         (runtime.usesNvidiaHardware && isAmdLlamaRuntimeProfile(profile)),
-      [controlsBusy, runtime.usesAmdHardware, runtime.usesNvidiaHardware],
+      [
+        controlsBusy,
+        runtime.usesAmdHardware,
+        runtime.usesAppleHardware,
+        runtime.usesNvidiaHardware,
+      ],
     ),
     isFluxBackendOptionDisabled: React.useCallback(
       (backend: FluxBackend) =>
         controlsBusy ||
+        (runtime.usesAppleHardware && backend !== "metal-native") ||
+        ((runtime.usesAmdHardware || runtime.usesNvidiaHardware) &&
+          backend === "metal-native") ||
         (runtime.usesAmdHardware && backend === "cuda-native") ||
         (runtime.usesNvidiaHardware && backend === "zluda-native"),
-      [controlsBusy, runtime.usesAmdHardware, runtime.usesNvidiaHardware],
+      [
+        controlsBusy,
+        runtime.usesAmdHardware,
+        runtime.usesAppleHardware,
+        runtime.usesNvidiaHardware,
+      ],
     ),
   };
 }
 
 function resolveRuntimeContext(
   values: SettingsFormValues,
-  hardwareRuntimeLock: "amd" | "nvidia" | "unknown",
+  hardwareRuntimeLock: "amd" | "nvidia" | "apple" | "unknown",
+  unifiedMemoryMb: number | null,
 ) {
   const usesAmdHardware = hardwareRuntimeLock === "amd";
   const usesNvidiaHardware = hardwareRuntimeLock === "nvidia";
+  const usesAppleHardware = hardwareRuntimeLock === "apple";
   const usesAmdGemmaRuntime =
     values.modelProvider === "gemma" &&
     isAmdLlamaRuntimeProfile(values.llamaRuntimeProfile);
@@ -83,7 +108,9 @@ function resolveRuntimeContext(
   const usesAmdOcrContext = usesAmdHardware || usesAmdGemmaRuntime;
   return {
     usesAmdHardware,
+    usesAppleHardware,
     usesNvidiaHardware,
+    unifiedMemoryMb,
     usesAmdOcrContext,
     usesNvidiaOcrContext:
       usesNvidiaHardware || (!usesAmdOcrContext && usesNvidiaGemmaRuntime),
@@ -122,6 +149,10 @@ function useOcrBackendGuard(
   runtime: ReturnType<typeof resolveRuntimeContext>,
 ): void {
   React.useEffect(() => {
+    if (runtime.usesAppleHardware && values.ocrDevice !== "cpu") {
+      setters.setOcrDevice("cpu");
+      return;
+    }
     if (
       values.ocrDevice === "gpu" &&
       values.ocrGpuBackend === "cuda" &&
@@ -139,6 +170,7 @@ function useOcrBackendGuard(
     }
   }, [
     runtime.usesAmdOcrContext,
+    runtime.usesAppleHardware,
     runtime.usesNvidiaOcrContext,
     setters,
     values.ocrDevice,
@@ -167,8 +199,16 @@ function useLlamaRuntimeGuard(
 ): void {
   React.useEffect(() => {
     if (
+      runtime.usesAppleHardware &&
+      !isAppleLlamaRuntimeProfile(values.llamaRuntimeProfile)
+    ) {
+      setters.setLlamaRuntimeProfile("metal");
+      return;
+    }
+    if (
       runtime.usesAmdHardware &&
-      isNvidiaLlamaRuntimeProfile(values.llamaRuntimeProfile)
+      (isNvidiaLlamaRuntimeProfile(values.llamaRuntimeProfile) ||
+        isAppleLlamaRuntimeProfile(values.llamaRuntimeProfile))
     ) {
       setters.setLlamaRuntimeProfile(
         resolvePreferredAmdLlamaRuntime(initialSettings),
@@ -177,7 +217,8 @@ function useLlamaRuntimeGuard(
     }
     if (
       runtime.usesNvidiaHardware &&
-      isAmdLlamaRuntimeProfile(values.llamaRuntimeProfile)
+      (isAmdLlamaRuntimeProfile(values.llamaRuntimeProfile) ||
+        isAppleLlamaRuntimeProfile(values.llamaRuntimeProfile))
     ) {
       setters.setLlamaRuntimeProfile(
         resolvePreferredNvidiaLlamaRuntime(initialSettings),
@@ -186,6 +227,7 @@ function useLlamaRuntimeGuard(
   }, [
     initialSettings,
     runtime.usesAmdHardware,
+    runtime.usesAppleHardware,
     runtime.usesNvidiaHardware,
     setters,
     values.llamaRuntimeProfile,
@@ -199,24 +241,42 @@ function useFluxBackendGuard(
   runtime: ReturnType<typeof resolveRuntimeContext>,
 ): void {
   React.useEffect(() => {
-    if (runtime.usesAmdHardware && values.fluxBackend === "cuda-native") {
-      setters.setFluxBackend(
-        initialSettings.inpainting?.fluxBackend === "python-cpu"
-          ? "python-cpu"
-          : "zluda-native",
-      );
-      return;
-    }
-    if (runtime.usesNvidiaHardware && values.fluxBackend === "zluda-native") {
-      setters.setFluxBackend("cuda-native");
+    const corrected = resolveCompatibleFluxBackend(
+      values.fluxBackend,
+      initialSettings.inpainting?.fluxBackend,
+      runtime.usesAmdHardware,
+      runtime.usesAppleHardware,
+      runtime.usesNvidiaHardware,
+    );
+    if (corrected !== values.fluxBackend) {
+      setters.setFluxBackend(corrected);
     }
   }, [
     initialSettings.inpainting?.fluxBackend,
     runtime.usesAmdHardware,
+    runtime.usesAppleHardware,
     runtime.usesNvidiaHardware,
     setters,
     values.fluxBackend,
   ]);
+}
+
+function resolveCompatibleFluxBackend(
+  backend: FluxBackend,
+  initialBackend: FluxBackend | undefined,
+  usesAmdHardware: boolean,
+  usesAppleHardware: boolean,
+  usesNvidiaHardware: boolean,
+): FluxBackend {
+  if (usesAppleHardware) return "metal-native";
+  if (usesNvidiaHardware) {
+    return backend === "zluda-native" || backend === "metal-native"
+      ? "cuda-native"
+      : backend;
+  }
+  if (!usesAmdHardware) return backend;
+  if (backend === "python-cpu" || backend === "zluda-native") return backend;
+  return initialBackend === "python-cpu" ? "python-cpu" : "zluda-native";
 }
 
 function resolvePreferredAmdLlamaRuntime(

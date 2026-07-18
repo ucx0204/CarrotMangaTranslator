@@ -1,14 +1,25 @@
 import { join } from "node:path";
 
-export const FLUX_RUNTIME_EXECUTABLE = "mgt-flux-klein.exe";
+export const FLUX_RUNTIME_EXECUTABLE =
+  process.platform === "win32" ? "mgt-flux-klein.exe" : "mgt-flux-klein";
 
 export const FLUX_MODEL_REPO = "unsloth/FLUX.2-klein-4B-GGUF";
 
+export const FLUX_MODEL_REVISION = "8342a6a97b2d18acae5d62124735c39ba23060e2";
+
 export const FLUX_MODEL_FILE = "flux-2-klein-4b-Q4_K_M.gguf";
+
+export const FLUX_MODEL_SHA256 =
+  "0b25d143c8469b342bc5af3bce92b783bf6b0636d285f7b2f75e38af63af9a15";
 
 export const FLUX_VAE_REPO = "black-forest-labs/FLUX.2-small-decoder";
 
+export const FLUX_VAE_REVISION = "a3efc24f613ef42d9428af62fdbd6f5fd8856c4a";
+
 export const FLUX_VAE_FILE = "diffusion_pytorch_model.safetensors";
+
+export const FLUX_VAE_SHA256 =
+  "d8d52ba036475f5fb07c8b435e176d3d97ebfa82f0d1a1c317f9cc1e25bd013b";
 
 export const FLUX_RUNNER_DIR = "mgt-flux-klein";
 

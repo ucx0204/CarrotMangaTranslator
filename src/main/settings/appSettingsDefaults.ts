@@ -155,7 +155,21 @@ function resolveDefaultGemmaSettings(
     vramMode,
     llamaRuntimeProfile,
     ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
+    ...(resolveUnsafeUnifiedMemoryOverride(
+      env.MANGA_TRANSLATOR_MAC_ALPHA_ALLOW_UNSAFE_UNIFIED_MEMORY ??
+        env.MGT_MAC_ALPHA_ALLOW_UNSAFE_UNIFIED_MEMORY,
+    )
+      ? { allowUnsafeUnifiedMemory: true }
+      : {}),
   };
+}
+
+function resolveUnsafeUnifiedMemoryOverride(value: unknown): boolean {
+  return ["1", "true", "yes", "y", "on"].includes(
+    String(value ?? "")
+      .trim()
+      .toLowerCase(),
+  );
 }
 
 function resolveDefaultCodexSettings(
@@ -290,5 +304,6 @@ function resolveDefaultInpaintingSettings(
         env.MGT_KOHARU_INPAINT_BACKEND,
       "auto",
     ),
+    allowUnsafeLowMemoryFlux: false,
   };
 }

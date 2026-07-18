@@ -5,7 +5,7 @@
 # 당근망가번역기
 
 <p align="center">
-  만화 가져오기부터 OCR, AI 번역, 편집, 원문 지우기, PNG 출력까지 한 번에 처리하는 Windows 데스크톱 앱
+  Windows 정식판과 Apple Silicon macOS Alpha에서 만화 가져오기, OCR, AI 번역, 편집, 인페인팅, PNG 출력을 한 번에
 </p>
 
 <p align="center">
@@ -19,6 +19,7 @@
 당근망가번역기는 이미지에서 대사와 효과음을 찾고, AI로 번역 블록을 만든 뒤, 사람이 문장과 배치를 다듬어 완성 PNG로 내보낼 수 있는 만화 작업 도구입니다. 기본 번역은 일본어 → 한국어이며, 다른 원문·번역 언어도 선택할 수 있습니다.
 
 - 최신 Windows 설치 파일: [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- Apple Silicon Alpha 설치·테스트: [Mac Alpha 안내](docs/mac-alpha-testing.md) · [체크리스트](docs/MAC_ALPHA_TEST_CHECKLIST.md)
 - 현재 버전 안내: [v1.6.3 패치노트](docs/release-notes/v1.6.3.md)
 - 코드 구조와 기여 규칙: [docs/architecture.md](docs/architecture.md)
 
@@ -35,16 +36,16 @@
 
 ## 설치 전 확인
 
-- 지원 운영체제: Windows 10/11 x64
+- 지원 운영체제: Windows 10/11 x64 정식판, Apple Silicon(M1 이상) macOS 14+ Alpha. Intel Mac은 지원하지 않습니다.
 - 필수 여유 공간: 앱 본체 외에도 선택한 Gemma, OCR, 인페인팅 모델에 따라 수 GB 이상 필요할 수 있습니다.
 - 인터넷: 설치와 첫 모델 다운로드, Codex/API 사용에 필요합니다. 로컬 모델은 준비가 끝난 뒤 오프라인 작업이 가능합니다.
 - GPU가 없어도 일부 CPU 경로를 쓸 수 있지만 OCR, 로컬 번역, Flux 인페인팅은 크게 느릴 수 있습니다.
 
-설치 파일은 비교적 작게 유지됩니다. 큰 모델과 런타임은 해당 기능을 처음 실행할 때 지정한 데이터 폴더로 내려받고, 다음부터 캐시를 재사용합니다.
+Windows 설치 파일은 비교적 작게 유지됩니다. Apple Silicon Alpha에는 arm64 FFmpeg, OCR Python과 Metal 실행 런타임이 포함되며 Gemma·OCR·인페인팅 모델 가중치만 첫 사용 시 체크섬 검증 후 내려받습니다. macOS 데이터는 `~/Library/Application Support/manga-gemma-translator`에 저장됩니다.
 
 ## 빠른 시작
 
-1. [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)에서 `CarrotMangaTranslator-Setup-v1.6.3.exe` 같은 최신 설치 파일을 받아 설치합니다.
+1. [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)에서 Windows는 `CarrotMangaTranslator-Setup-*.exe`, Apple Silicon은 별도 `mac-alpha` Pre-release의 arm64 DMG/ZIP을 받습니다. Mac Alpha가 차단되면 Release 안내에 따라 `시스템 설정 → 개인정보 보호 및 보안`에서 한 번 승인합니다.
 2. `설정 → 일반`에서 앱 화면 언어를 확인합니다. 지원되는 Windows 언어는 처음 실행할 때 자동 선택되며, 그 밖의 환경은 한국어를 사용합니다.
 3. `설정 → 번역 엔진`에서 원문 언어, 번역 언어와 엔진을 고릅니다.
    - 내 PC에서 처리하려면 `Gemma 4`

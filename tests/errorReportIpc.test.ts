@@ -114,6 +114,16 @@ describe("error report IPC", () => {
     expect(openedUrl.toString().length).toBeLessThan(7000);
   });
 
+  it("routes macOS Alpha diagnostics through the dedicated issue form", () => {
+    const url = new URL(
+      buildGitHubIssueUrl("[macOS Alpha] [Bug] Metal failed", "diagnostic"),
+    );
+
+    expect(url.searchParams.get("template")).toBe("mac_alpha.yml");
+    expect(url.searchParams.get("title")).toContain("[macOS Alpha]");
+    expect(url.searchParams.get("body")).toBe("diagnostic");
+  });
+
   it("does not open the browser when clipboard fallback fails", async () => {
     electronMock.clipboardWriteText.mockImplementationOnce(() => {
       throw new Error("clipboard unavailable");

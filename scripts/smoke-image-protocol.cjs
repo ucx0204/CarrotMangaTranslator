@@ -3,6 +3,7 @@ const { app, BrowserWindow, net } = require("electron");
 const { renameSync, writeFileSync } = require("node:fs");
 const { mkdir, rm, writeFile } = require("node:fs/promises");
 const { isAbsolute, join, relative, resolve } = require("node:path");
+const { pathToFileURL } = require("node:url");
 
 const root = join(__dirname, "..");
 const resultPath = process.env.MGT_IMAGE_PROTOCOL_SMOKE_RESULT_PATH;
@@ -97,8 +98,10 @@ async function main() {
     const html = `<!doctype html>
       <img id="image" alt="long-path-image">
       <script>document.getElementById("image").src = ${JSON.stringify(imageUrl)};</script>`;
+    const smokePagePath = join(smokeImageRoot, "smoke.html");
+    await writeFile(smokePagePath, html, "utf8");
     await withTimeout(
-      window.loadURL(`data:text/html,${encodeURIComponent(html)}`),
+      window.loadURL(pathToFileURL(smokePagePath).href),
       10_000,
       "Timed out loading the image protocol smoke page.",
     );

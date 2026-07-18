@@ -6,6 +6,16 @@
     "modelTestComplete": "Paddle OCR and translation engine check complete: {{output}}",
     "modelTestLabel": "Model/Runtime Check"
   },
+  "macAlpha": {
+    "aboutMenu": "About {{appName}}",
+    "reportIssueMenu": "Report a macOS Alpha issue",
+    "firstRunTitle": "Apple Silicon Alpha",
+    "firstRunMessage": "This Apple Silicon Alpha build is still undergoing real-device validation.",
+    "firstRunDetail": "Supported: M1 or newer, macOS 14 or newer. Recommended unified memory: 16 GB for Gemma 12B and Flux, 24 GB for 26B, and 32 GB or more for 31B+DFlash. Gemma, OCR, and inpainting model files download on first use and may take several gigabytes and substantial time. Review the diagnostics and report problems through GitHub Issues.",
+    "continue": "Continue",
+    "aboutDetail": "Apple Silicon Alpha · Real-device validation in progress\nSupported: M1 or newer / macOS 14 or newer\nPlease report problems through GitHub Issues.",
+    "stableAboutDetail": "Carrot Manga Translator"
+  },
   "errorReport": {
     "loadFailureTitle": "Could not load the app window",
     "loadFailureMessage": "The renderer could not start. Report the problem on GitHub or inspect the logs.",
@@ -270,6 +280,9 @@
       "cachedKoharu": "Using cached Koharu engine",
       "cachedKoharuLog": "Reusing the cached Koharu inpainting engine.",
       "koharuReadyLog": "Using the Koharu {{model}} inpainting runtime: {{file}}",
+      "metalFallback": "Metal inpainting failed · Retrying on CPU",
+      "metalFallbackDetail": "{{model}} could not initialize Metal, so the CPU compatibility path will be tried.",
+      "metalFallbackLog": "Reported the {{model}} Metal failure and retrying with the CPU backend.",
       "koharuExecutablePreparing": "Preparing Koharu executable",
       "koharuExecutableLog": "Updated the Koharu executable in the app-data cache: {{file}}",
       "pythonInstalling": "Installing Flux Python runtime",

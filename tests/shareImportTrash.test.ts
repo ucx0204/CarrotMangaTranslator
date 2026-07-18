@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 const fsState = vi.hoisted(() => ({
   rmCalls: [] as unknown[][],
@@ -77,7 +77,7 @@ describe("share import trash cleanup", () => {
       [trashed.operationTrashRoot, { recursive: true, force: true }],
     ]);
     expect(fsState.rmdirCalls).toEqual([
-      [join("C:/library/works", "work-1", "chapters", ".trash")],
+      [resolve(join("C:/library/works", "work-1", "chapters", ".trash"))],
     ]);
   });
 

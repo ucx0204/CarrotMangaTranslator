@@ -11,6 +11,7 @@ describe("HardwareSettingsPanel", () => {
   it("disables every Flux backend while settings controls are busy", () => {
     render(
       <HardwareSettingsPanel
+        allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
         controlsBusy
         fluxBackend="cuda-native"
@@ -20,14 +21,17 @@ describe("HardwareSettingsPanel", () => {
         ocrGpuBackend="cuda"
         ocrQualityMode="minimum"
         setFluxBackend={vi.fn()}
+        setAllowUnsafeLowMemoryFlux={vi.fn()}
         setInpaintingModel={vi.fn()}
         setOcrDevice={vi.fn()}
         setOcrGpuBackend={vi.fn()}
         setOcrQualityMode={vi.fn()}
         usesAmdHardware={false}
+        usesAppleHardware={false}
         usesAmdOcrContext={false}
         usesNvidiaHardware
         usesNvidiaOcrContext
+        unifiedMemoryMb={null}
       />,
     );
 

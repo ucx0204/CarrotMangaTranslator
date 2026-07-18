@@ -444,7 +444,8 @@ describe("Windows installer clean uninstall option", () => {
       "utf8",
     );
 
-    expect(appPaths).toContain("resolvePackagedDataRoot(executableDir)");
+    expect(appPaths).toContain("resolvePackagedDataRoot(executableDir, {");
+    expect(appPaths).toContain('appDataDir: app.getPath("appData")');
     expect(appPaths).toContain(
       'const ocrRuntimeDir = explicitOcrRuntimeDir || join(dataRoot, "ocr-runtime")',
     );

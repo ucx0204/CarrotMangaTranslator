@@ -35,6 +35,8 @@ describe("error report diagnostics", () => {
       "D:\\external-manga\\chapter 1\\001.png",
       "file:///E:/projects/private-app/src/main.ts:42:1",
       "F%3A%5Cscans%5Csecret%5C002.png",
+      "/Users/alice/Library/Application Support/private/page.png",
+      "file%3A%2F%2F%2FUsers%2Falice%2Fprivate%2Fpage.png",
       "Authorization: Bearer abcdefghijklmnopqrstuvwxyz",
       "https://example.test/v1?api_key=very-secret-value",
       '{"apiKey":"sk-proj-abcdefghijklmnop","sourceText":"秘密","outputPreview":"translated page"}',
@@ -53,6 +55,7 @@ describe("error report diagnostics", () => {
     expect(first.text).not.toContain("sam");
     expect(first.text).not.toContain("external-manga");
     expect(first.text).not.toContain("private-app");
+    expect(first.text).not.toContain("alice");
     expect(first.text).not.toContain("very-secret-value");
     expect(first.text).not.toContain("秘密");
     expect(first.text).not.toContain("translated page");
@@ -147,6 +150,37 @@ describe("error report diagnostics", () => {
     );
 
     expect(draft.logsMarkdown).toContain("No WARN/ERROR entries");
+  });
+
+  it("prefixes Apple Silicon Alpha issues and includes Metal metadata", async () => {
+    const dir = createTempDir();
+    const paths = makeAppPaths(dir);
+    const environment: ErrorReportBuildEnvironment = {
+      ...makeEnvironment(paths, join(paths.logsDir, "previous.log")),
+      platform: "darwin",
+      arch: "arm64",
+      osRelease: "23.6.0",
+      buildChannel: "mac-alpha",
+      gpu: {
+        name: "Apple M2 Pro",
+        memoryMb: 24 * 1024,
+        unifiedMemoryMb: 24 * 1024,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "apple",
+        supportsMetal: true,
+      },
+    };
+
+    const draft = await buildErrorReportDraft(
+      { source: "job-failure", jobStage: "inpainting" },
+      environment,
+    );
+
+    expect(draft.defaultTitle).toMatch(/^\[macOS Alpha\]/);
+    expect(draft.systemMarkdown).toContain("Apple M2 Pro");
+    expect(draft.systemMarkdown).toContain("24576 MiB");
+    expect(draft.systemMarkdown).toContain("Build channel: `mac-alpha`");
   });
 });
 

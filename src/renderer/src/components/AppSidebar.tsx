@@ -7,6 +7,7 @@ import type {
 import { LibraryTree } from "./LibraryTree";
 import { PageList } from "./PageList";
 import { Button } from "./ui";
+import { MacAlphaBadge } from "./MacAlphaBadge";
 
 type AppSidebarProps = {
   currentChapter: ChapterSnapshot | null;
@@ -38,6 +39,7 @@ type AppSidebarProps = {
 export function AppSidebar(props: AppSidebarProps): React.JSX.Element {
   return (
     <aside className="sidebar">
+      <MacAlphaBadge />
       <LibrarySidebarContent {...props} />
     </aside>
   );

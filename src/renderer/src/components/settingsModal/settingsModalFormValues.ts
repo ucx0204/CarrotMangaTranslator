@@ -45,6 +45,7 @@ export type SettingsFormValues = {
   localMmprojPath: string;
   customVramMode: GemmaVramMode;
   llamaRuntimeProfile: LlamaRuntimeProfile;
+  allowUnsafeUnifiedMemory: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
   codexOauthPort: string;
@@ -64,6 +65,7 @@ export type SettingsFormValues = {
   ocrQualityMode: OcrQualityMode;
   inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
+  allowUnsafeLowMemoryFlux: boolean;
   maxTokens: string;
   contextTokens: string;
 };
@@ -113,6 +115,7 @@ function resolveModelFormValues(
   | "localMmprojPath"
   | "customVramMode"
   | "llamaRuntimeProfile"
+  | "allowUnsafeUnifiedMemory"
   | "codexModel"
   | "codexReasoningEffort"
   | "codexOauthPort"
@@ -129,6 +132,7 @@ function resolveModelFormValues(
     localMmprojPath: settings.gemma.localMmprojPath ?? "",
     customVramMode: settings.gemma.vramMode,
     llamaRuntimeProfile: settings.gemma.llamaRuntimeProfile ?? "cuda12",
+    allowUnsafeUnifiedMemory: settings.gemma.allowUnsafeUnifiedMemory === true,
     codexModel: settings.codex.model,
     codexReasoningEffort: resolveCodexReasoningEffortForModel(
       settings.codex.model,
@@ -182,6 +186,7 @@ function resolveHardwareFormValues(
   | "ocrQualityMode"
   | "inpaintingModel"
   | "fluxBackend"
+  | "allowUnsafeLowMemoryFlux"
 > {
   return {
     ocrDevice: settings.ocr.device,
@@ -189,6 +194,8 @@ function resolveHardwareFormValues(
     ocrQualityMode: settings.ocr.qualityMode ?? "minimum",
     inpaintingModel: settings.inpainting?.model ?? "flux-klein",
     fluxBackend: settings.inpainting?.fluxBackend ?? "cuda-native",
+    allowUnsafeLowMemoryFlux:
+      settings.inpainting?.allowUnsafeLowMemoryFlux === true,
   };
 }
 

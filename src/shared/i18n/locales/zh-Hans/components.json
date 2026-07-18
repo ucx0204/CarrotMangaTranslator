@@ -966,6 +966,10 @@
         "full": { "label": "完整", "description": "使用最高质量的OCR模型。" }
       },
       "llamaRuntimes": {
+        "metal": {
+          "label": "Apple Metal",
+          "description": "适用于 Apple Silicon 的 Metal llama.cpp 运行时。"
+        },
         "cuda12": {
           "label": "CUDA 12",
           "description": "适用于NVIDIA CUDA 12的llama.cpp运行时。"
@@ -981,6 +985,10 @@
         }
       },
       "fluxBackends": {
+        "metal": {
+          "label": "Apple Metal",
+          "description": "Apple Silicon 上运行 Flux Klein 的原生 Metal 运行时。"
+        },
         "cuda": {
           "label": "NVIDIA CUDA",
           "description": "RTX GPU上最快的Flux原生运行时。"
@@ -1034,8 +1042,16 @@
       "ggufFile": "GGUF文件",
       "runtime": {
         "label": "llama.cpp运行时",
+        "appleNote": "Apple Silicon仅显示Metal运行时。",
         "amdNote": "AMD GPU建议使用ROCm运行时。",
         "nvidiaNote": "NVIDIA GPU建议使用CUDA运行时。"
+      },
+      "memory": {
+        "summary": "统一内存{{available}} · 建议{{required}} · 首次下载约{{download}}",
+        "sufficient": "这是此内存档位的建议模型。",
+        "insufficient": "比建议容量少{{shortage}}。选择该模型后可确认并进行有风险的Alpha测试。",
+        "unsafeAllowed": "此配置已允许在少{{shortage}}的情况下进行风险运行。",
+        "unsafeConfirm": "此Mac的统一内存为{{available}}，所选模型建议{{required}}。首次下载约{{download}}，可能需要较长时间。应用可能退出或导致系统极其缓慢。是否允许此Apple Silicon Alpha风险运行？"
       },
       "local": {
         "modelFile": "本地模型文件",
@@ -1112,10 +1128,14 @@
       "inpaintingModel": "图像修复模型",
       "amdOcrExperimental": "AMD GPU OCR为实验功能。如失败，可仅将OCR切换到CPU。",
       "ocrAmdNote": "AMD环境无法选择NVIDIA CUDA OCR。",
+      "ocrAppleNote": "Apple Silicon Alpha上的Paddle OCR使用CPU运行时。",
       "ocrNvidiaNote": "NVIDIA环境无法选择AMD ROCm OCR。",
       "fluxAmdNote": "检测到AMD GPU，无法使用CUDA原生后端；请选择ZLUDA或CPU。",
+      "fluxAppleNote": "Apple Silicon仅使用原生Metal后端。Flux建议至少16GB统一内存。",
       "fluxNvidiaNote": "检测到NVIDIA GPU，将使用CUDA原生后端而不是ZLUDA。",
       "fluxOnlyNote": "此后端设置仅适用于Flux Klein模型。",
+      "fluxLowMemoryConfirm": "统一内存{{available}}低于Flux建议的16GB。是否允许风险Alpha运行？",
+      "fluxLowMemoryOverride": "允许在{{available}}统一内存下风险运行Flux Alpha",
       "downloadHipSdk": "下载AMD HIP SDK（ROCm 7.1.1）"
     },
     "format": {

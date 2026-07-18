@@ -36,6 +36,10 @@ export function redactDiagnosticText(
   replace(/(?:file:\/\/\/)?[a-z]:[\\/]+users[\\/]+[^\\/\s"'<>]+/gi, "<home>");
   replace(/[a-z]%3a(?:%5c|%2f)+(?:users)(?:%5c|%2f)+[^%/?&#\s]+/gi, "<home>");
   replace(/\/(?:users|home)\/[^/\s"'<>]+/gi, "<home>");
+  replace(
+    /(?:file%3a(?:%2f){2,3})?%2f(?:users|home)%2f[^%/?&#\s]+/gi,
+    "<home>",
+  );
   replace(/"(?:file:\/\/\/)?[a-z]:[\\/]+(?:\\.|[^"\\])*"/gi, '"<local-path>"');
   replace(/(?:file:\/\/\/)?[a-z]:[\\/]+[^\s"'<>]+/gi, "<local-path>");
   replace(/[a-z]%3a(?:%5c|%2f)+[^&#\s"']+/gi, "<local-path>");

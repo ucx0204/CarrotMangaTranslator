@@ -31,6 +31,7 @@ import {
 } from "./gemmaModelPresets";
 import {
   isAmdLlamaRuntimeProfile,
+  isMetalLlamaRuntimeProfile,
   isNvidiaLlamaRuntimeProfile,
   isRocmLlamaRuntimeProfile,
   resolveLlamaRuntimeProfile,
@@ -56,6 +57,12 @@ export function resolveStoredLlamaRuntimeProfile(
     return resolveLlamaRuntimeProfile({}, defaults.gemma.llamaRuntimeProfile);
   }
   if (hardwareVendor === "nvidia" && isAmdLlamaRuntimeProfile(requested)) {
+    return resolveLlamaRuntimeProfile({}, defaults.gemma.llamaRuntimeProfile);
+  }
+  if (hardwareVendor === "apple" && !isMetalLlamaRuntimeProfile(requested)) {
+    return "metal";
+  }
+  if (hardwareVendor !== "apple" && isMetalLlamaRuntimeProfile(requested)) {
     return resolveLlamaRuntimeProfile({}, defaults.gemma.llamaRuntimeProfile);
   }
   return requested;
@@ -95,6 +102,11 @@ export function resolveStoredFluxBackend(
     inpainting?.fluxBackend,
     defaults.inpainting?.fluxBackend ?? "cuda-native",
   );
+  // Flux has no supported CPU fallback in the Apple Silicon Alpha. A setting
+  // copied from Windows must never start a CUDA/ZLUDA/Python worker on macOS.
+  if (process.platform === "darwin") {
+    return "metal-native";
+  }
   const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
   if (hardwareVendor === "amd") {
     return resolveAmdStoredFluxBackend(requested, defaults);
@@ -119,10 +131,17 @@ export function resolveStoredKoharuInpaintingBackend(
   inpainting: Record<string, unknown> | null,
   defaults: AppSettings,
 ): KoharuInpaintingBackend {
-  return resolveKoharuInpaintingBackend(
+  const requested = resolveKoharuInpaintingBackend(
     inpainting?.koharuBackend,
     defaults.inpainting?.koharuBackend ?? "auto",
   );
+  if (
+    process.platform === "darwin" &&
+    (requested === "cuda-native" || requested === "zluda-native")
+  ) {
+    return "auto";
+  }
+  return requested;
 }
 
 function resolveAmdStoredFluxBackend(

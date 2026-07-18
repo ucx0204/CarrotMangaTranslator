@@ -8,6 +8,7 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { ControlTooltip } from "./ui/ControlTooltip";
+import { formatShortcutTextForPlatform } from "../lib/shortcuts/comboFromEvent";
 
 export type CanvasActionBarProps = {
   canRedo: boolean;
@@ -43,12 +44,16 @@ export function CanvasActionBar({
   onUndo,
 }: CanvasActionBarProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const undoTitle = undoLabel
-    ? t("workspaceActions.undoNamed", { action: undoLabel })
-    : t("workspaceActions.undo");
-  const redoTitle = redoLabel
-    ? t("workspaceActions.redoNamed", { action: redoLabel })
-    : t("workspaceActions.redo");
+  const undoTitle = formatShortcutTextForPlatform(
+    undoLabel
+      ? t("workspaceActions.undoNamed", { action: undoLabel })
+      : t("workspaceActions.undo"),
+  );
+  const redoTitle = formatShortcutTextForPlatform(
+    redoLabel
+      ? t("workspaceActions.redoNamed", { action: redoLabel })
+      : t("workspaceActions.redo"),
+  );
 
   return (
     <nav className="canvas-action-bar" aria-label={t("workspaceActions.label")}>

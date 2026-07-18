@@ -1,4 +1,11 @@
-import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  copyFile,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import {
   FLUX_NVIDIA_RUNNER_ASSETS,
@@ -65,6 +72,9 @@ export async function ensureManagedFluxRunner(options: {
     return managedPath;
   }
   await copyFile(source.path, managedPath);
+  if (process.platform !== "win32") {
+    await chmod(managedPath, 0o755);
+  }
   options.onProgress?.({
     progressText: "Flux 실행 파일 준비 중",
     detail: source.label,
@@ -119,8 +129,29 @@ function findLocalFluxRunnerSource(
   dirName: string,
 ): LocalFluxRunnerSource | null {
   for (const toolsRoot of resolveFluxRunnerToolsRoots()) {
-    const path = join(toolsRoot, dirName, FLUX_RUNTIME_EXECUTABLE);
-    if (isExecutableFile(path)) {
+    const path = [
+      join(toolsRoot, dirName, FLUX_RUNTIME_EXECUTABLE),
+      ...(dirName === FLUX_RUNNER_DIR
+        ? [
+            join(
+              toolsRoot,
+              "mgt-flux-klein-runner",
+              "target",
+              "aarch64-apple-darwin",
+              "release",
+              FLUX_RUNTIME_EXECUTABLE,
+            ),
+            join(
+              toolsRoot,
+              "mgt-flux-klein-runner",
+              "target",
+              "release",
+              FLUX_RUNTIME_EXECUTABLE,
+            ),
+          ]
+        : []),
+    ].find(isExecutableFile);
+    if (path) {
       return {
         kind: "local",
         dirName,

@@ -31,6 +31,14 @@ function backendLibraryNames(backend) {
   if (normalized === "vulkan") {
     return ["ggml-vulkan.dll", "libggml-vulkan.so"];
   }
+  if (normalized === "metal") {
+    return [
+      "libggml-metal.dylib",
+      "libggml-metal.0.dylib",
+      "ggml-metal.metal",
+      "default.metallib",
+    ];
+  }
   if (normalized === "rocm" || normalized === "hip") {
     return [
       "ggml-hip.dll",

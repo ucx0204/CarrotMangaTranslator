@@ -21,7 +21,7 @@ import {
 } from "./inpaintingRuntimeLogger";
 import { LeasedIdleResourcePool } from "./leasedIdleResource";
 
-const KOHARU_ENGINE_IDLE_TTL_MS = 5 * 60 * 1000;
+const KOHARU_ENGINE_IDLE_TTL_MS = 30 * 1000;
 
 type KoharuEngineLease = {
   engine: InpaintingEngine;
@@ -56,7 +56,7 @@ export async function acquireKoharuInpaintingEngine(
 ): Promise<KoharuEngineLease> {
   const paths = resolveKoharuEnginePaths(options.appPaths, options.model);
   const { cudaRuntimeDir, runtimeDir, modelDir, runRootDir } = paths;
-  const candidates = await resolveBackendCandidates(options.backend);
+  const candidates = await resolveKoharuBackendCandidates(options.backend);
   logKoharuBackendCandidatesResolved(
     options.model,
     options.backend,
@@ -99,6 +99,19 @@ export async function acquireKoharuInpaintingEngine(
         candidates[candidateIndex + 1] ?? null,
         error,
       );
+      const fallbackBackend = candidates[candidateIndex + 1] ?? null;
+      if (backend === "metal-native" && fallbackBackend === "cpu") {
+        options.onProgress?.({
+          progressText: tMain("inpainting.runtime.metalFallback"),
+          detail: tMain("inpainting.runtime.metalFallbackDetail", {
+            model: options.model,
+          }),
+          progressMode: "log-only",
+          installLogLine: tMain("inpainting.runtime.metalFallbackLog", {
+            model: options.model,
+          }),
+        });
+      }
     }
   }
 
@@ -177,7 +190,7 @@ async function disposeKoharuEngine(
   }
 }
 
-async function resolveBackendCandidates(
+export async function resolveKoharuBackendCandidates(
   requested: KoharuInpaintingBackend,
 ): Promise<ResolvedKoharuBackend[]> {
   if (requested === "cpu") {
@@ -188,6 +201,13 @@ async function resolveBackendCandidates(
   }
   if (requested === "zluda-native") {
     return ["zluda-native", "cpu"];
+  }
+  if (requested === "metal-native") {
+    return ["metal-native", "cpu"];
+  }
+
+  if (process.platform === "darwin") {
+    return ["metal-native", "cpu"];
   }
 
   const gpu = await detectBestGpuInfo();

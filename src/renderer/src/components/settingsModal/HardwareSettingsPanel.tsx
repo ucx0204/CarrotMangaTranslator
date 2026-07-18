@@ -9,7 +9,6 @@ import type {
 } from "../../../../shared/settingsTypes";
 import {
   FLUX_BACKEND_OPTIONS,
-  INPAINTING_MODEL_OPTIONS,
   OCR_DEVICE_OPTIONS,
   OCR_QUALITY_OPTIONS,
 } from "../settingsOptions";
@@ -19,8 +18,10 @@ import {
   OcrHardwareContextNote,
 } from "./HardwareContextNotes";
 import { SettingsSection } from "./SettingsSection";
+import { InpaintingModelSettings } from "./InpaintingModelSettings";
 
 type HardwareSettingsPanelProps = {
+  allowUnsafeLowMemoryFlux: boolean;
   clearTestState: () => void;
   controlsBusy: boolean;
   fluxBackend: FluxBackend;
@@ -30,17 +31,21 @@ type HardwareSettingsPanelProps = {
   ocrDevice: OcrDevice;
   ocrQualityMode: OcrQualityMode;
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
+  setAllowUnsafeLowMemoryFlux: React.Dispatch<React.SetStateAction<boolean>>;
   setInpaintingModel: React.Dispatch<React.SetStateAction<InpaintingModel>>;
   setOcrDevice: React.Dispatch<React.SetStateAction<OcrDevice>>;
   setOcrGpuBackend: React.Dispatch<React.SetStateAction<OcrGpuBackend>>;
   setOcrQualityMode: React.Dispatch<React.SetStateAction<OcrQualityMode>>;
   usesAmdHardware: boolean;
+  usesAppleHardware: boolean;
   usesAmdOcrContext: boolean;
   usesNvidiaHardware: boolean;
   usesNvidiaOcrContext: boolean;
+  unifiedMemoryMb: number | null;
 };
 
 export function HardwareSettingsPanel({
+  allowUnsafeLowMemoryFlux,
   clearTestState,
   controlsBusy,
   fluxBackend,
@@ -50,14 +55,17 @@ export function HardwareSettingsPanel({
   ocrDevice,
   ocrQualityMode,
   setFluxBackend,
+  setAllowUnsafeLowMemoryFlux,
   setInpaintingModel,
   setOcrDevice,
   setOcrGpuBackend,
   setOcrQualityMode,
   usesAmdHardware,
+  usesAppleHardware,
   usesAmdOcrContext,
   usesNvidiaHardware,
   usesNvidiaOcrContext,
+  unifiedMemoryMb,
 }: HardwareSettingsPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -72,6 +80,7 @@ export function HardwareSettingsPanel({
             setOcrGpuBackend={setOcrGpuBackend}
             setOcrQualityMode={setOcrQualityMode}
             usesAmdOcrContext={usesAmdOcrContext}
+            usesAppleHardware={usesAppleHardware}
             usesNvidiaOcrContext={usesNvidiaOcrContext}
           />
           <OcrDeviceSettings
@@ -82,6 +91,7 @@ export function HardwareSettingsPanel({
             setOcrDevice={setOcrDevice}
             setOcrGpuBackend={setOcrGpuBackend}
             usesAmdOcrContext={usesAmdOcrContext}
+            usesAppleHardware={usesAppleHardware}
             usesNvidiaOcrContext={usesNvidiaOcrContext}
           />
         </div>
@@ -92,7 +102,11 @@ export function HardwareSettingsPanel({
             clearTestState={clearTestState}
             controlsBusy={controlsBusy}
             inpaintingModel={inpaintingModel}
+            allowUnsafeLowMemoryFlux={allowUnsafeLowMemoryFlux}
             setInpaintingModel={setInpaintingModel}
+            setAllowUnsafeLowMemoryFlux={setAllowUnsafeLowMemoryFlux}
+            unifiedMemoryMb={unifiedMemoryMb}
+            usesAppleHardware={usesAppleHardware}
           />
           <FluxBackendSettings
             clearTestState={clearTestState}
@@ -102,6 +116,7 @@ export function HardwareSettingsPanel({
             isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
             setFluxBackend={setFluxBackend}
             usesAmdHardware={usesAmdHardware}
+            usesAppleHardware={usesAppleHardware}
             usesNvidiaHardware={usesNvidiaHardware}
           />
         </div>
@@ -118,6 +133,7 @@ function OcrQualitySettings({
   setOcrGpuBackend,
   setOcrQualityMode,
   usesAmdOcrContext,
+  usesAppleHardware,
   usesNvidiaOcrContext,
 }: Pick<
   HardwareSettingsPanelProps,
@@ -128,12 +144,16 @@ function OcrQualitySettings({
   | "setOcrGpuBackend"
   | "setOcrQualityMode"
   | "usesAmdOcrContext"
+  | "usesAppleHardware"
   | "usesNvidiaOcrContext"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
   const activeOption = OCR_QUALITY_OPTIONS.find(
     (option) => option.id === ocrQualityMode,
   );
+  const visibleQualityOptions = usesAppleHardware
+    ? OCR_QUALITY_OPTIONS.filter((option) => option.id !== "full")
+    : OCR_QUALITY_OPTIONS;
   return (
     <div className="settings-field-stack">
       <span>{t("settings.hardware.ocrQuality")}</span>
@@ -142,7 +162,7 @@ function OcrQualitySettings({
         role="group"
         aria-label={t("settings.hardware.ocrQuality")}
       >
-        {OCR_QUALITY_OPTIONS.map((option) => (
+        {visibleQualityOptions.map((option) => (
           <button
             key={option.id}
             type="button"
@@ -183,6 +203,7 @@ function OcrDeviceSettings({
   setOcrDevice,
   setOcrGpuBackend,
   usesAmdOcrContext,
+  usesAppleHardware,
   usesNvidiaOcrContext,
 }: Pick<
   HardwareSettingsPanelProps,
@@ -193,6 +214,7 @@ function OcrDeviceSettings({
   | "setOcrDevice"
   | "setOcrGpuBackend"
   | "usesAmdOcrContext"
+  | "usesAppleHardware"
   | "usesNvidiaOcrContext"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -200,6 +222,9 @@ function OcrDeviceSettings({
   const activeOcrOption = OCR_DEVICE_OPTIONS.find(
     (option) => option.id === activeOcrOptionId,
   );
+  const visibleOcrOptions = usesAppleHardware
+    ? OCR_DEVICE_OPTIONS.filter((option) => option.id === "cpu")
+    : OCR_DEVICE_OPTIONS;
   const ocrDescription =
     usesAmdOcrContext && activeOcrOptionId === "rocm-transformers"
       ? t("settings.hardware.amdOcrExperimental")
@@ -215,7 +240,7 @@ function OcrDeviceSettings({
         role="group"
         aria-label={t("settings.hardware.ocrDevice")}
       >
-        {OCR_DEVICE_OPTIONS.map((option) => (
+        {visibleOcrOptions.map((option) => (
           <button
             key={option.id}
             type="button"
@@ -242,6 +267,7 @@ function OcrDeviceSettings({
       <p className="muted-line modal-note">{ocrDescription}</p>
       <OcrHardwareContextNote
         usesAmdOcrContext={usesAmdOcrContext}
+        usesAppleHardware={usesAppleHardware}
         usesNvidiaOcrContext={usesNvidiaOcrContext}
       />
     </div>
@@ -256,6 +282,7 @@ function FluxBackendSettings({
   isFluxBackendOptionDisabled,
   setFluxBackend,
   usesAmdHardware,
+  usesAppleHardware,
   usesNvidiaHardware,
 }: Pick<
   HardwareSettingsPanelProps,
@@ -266,12 +293,16 @@ function FluxBackendSettings({
   | "isFluxBackendOptionDisabled"
   | "setFluxBackend"
   | "usesAmdHardware"
+  | "usesAppleHardware"
   | "usesNvidiaHardware"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
   const activeFluxBackend = FLUX_BACKEND_OPTIONS.find(
     (option) => option.id === fluxBackend,
   );
+  const visibleFluxBackends = usesAppleHardware
+    ? FLUX_BACKEND_OPTIONS.filter((option) => option.id === "metal-native")
+    : FLUX_BACKEND_OPTIONS.filter((option) => option.id !== "metal-native");
   return (
     <div className="settings-field-stack">
       <span>{t("settings.hardware.fluxBackend")}</span>
@@ -280,7 +311,7 @@ function FluxBackendSettings({
         role="group"
         aria-label={t("settings.hardware.fluxBackend")}
       >
-        {FLUX_BACKEND_OPTIONS.map((option) => (
+        {visibleFluxBackends.map((option) => (
           <button
             key={option.id}
             type="button"
@@ -308,52 +339,9 @@ function FluxBackendSettings({
       ) : null}
       <FluxHardwareContextNote
         usesAmdHardware={usesAmdHardware}
+        usesAppleHardware={usesAppleHardware}
         usesNvidiaHardware={usesNvidiaHardware}
       />
-    </div>
-  );
-}
-
-function InpaintingModelSettings({
-  clearTestState,
-  controlsBusy,
-  inpaintingModel,
-  setInpaintingModel,
-}: Pick<
-  HardwareSettingsPanelProps,
-  "clearTestState" | "controlsBusy" | "inpaintingModel" | "setInpaintingModel"
->): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const activeInpaintingModel = INPAINTING_MODEL_OPTIONS.find(
-    (option) => option.id === inpaintingModel,
-  );
-  return (
-    <div className="settings-field-stack">
-      <span>{t("settings.hardware.inpaintingModel")}</span>
-      <div
-        className="settings-preset-group"
-        role="group"
-        aria-label={t("settings.hardware.inpaintingModel")}
-      >
-        {INPAINTING_MODEL_OPTIONS.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className={`settings-preset-button ${inpaintingModel === option.id ? "active" : ""}`}
-            onClick={() => {
-              clearTestState();
-              setInpaintingModel(option.id);
-            }}
-            disabled={controlsBusy}
-            aria-pressed={inpaintingModel === option.id}
-          >
-            {t(option.labelKey)}
-          </button>
-        ))}
-      </div>
-      <p className="muted-line modal-note">
-        {activeInpaintingModel ? t(activeInpaintingModel.descriptionKey) : null}
-      </p>
     </div>
   );
 }

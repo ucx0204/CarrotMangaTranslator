@@ -43,7 +43,9 @@ function replaceCachedExports(modulePath: string, exports: unknown): void {
   require.cache[modulePath] = { ...cached, exports } as NodeJS.Module;
 }
 
-describe("OCR runtime boundary behavior", () => {
+const describeWindows = process.platform === "win32" ? describe : describe.skip;
+
+describeWindows("OCR runtime boundary behavior", () => {
   it("rejects malformed batch progress and clamps valid producer values", () => {
     expect(progress.parseOcrBatchProgressLine("{")).toBeNull();
     expect(

@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { downloadToFile } from "../src/main/inpainting/fluxAssets/downloads";
+import {
+  downloadToFile,
+  ensureRemoteFile,
+} from "../src/main/inpainting/fluxAssets/downloads";
 
 const tempDirs: string[] = [];
 
@@ -52,5 +56,55 @@ describe("Flux asset downloads", () => {
       JSON.parse(await readFile(`${outputPath}.mgtmeta.json`, "utf8")),
     ).toMatchObject({ url, bytes: body.length });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("records a verified checksum and removes a mismatched model", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "manga-flux-checksum-"));
+    tempDirs.push(dir);
+    const body = Buffer.from("verified-metal-model");
+    const url =
+      "https://huggingface.co/example/repo/resolve/revision/model.gguf";
+    const expectedSha256 = createHash("sha256").update(body).digest("hex");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.method === "HEAD") {
+          return new Response(null, {
+            status: 200,
+            headers: { "content-length": String(body.length) },
+          });
+        }
+        return new Response(body, {
+          status: 206,
+          headers: {
+            "content-range": `bytes 0-${body.length - 1}/${body.length}`,
+          },
+        });
+      }),
+    );
+
+    const verifiedPath = await ensureRemoteFile({
+      modelDir: dir,
+      fileName: "model.gguf",
+      label: "Metal model",
+      url,
+      expectedSha256,
+      minimumBytes: 1,
+    });
+    expect(
+      JSON.parse(await readFile(`${verifiedPath}.mgtmeta.json`, "utf8")),
+    ).toMatchObject({ url, bytes: body.length, sha256: expectedSha256 });
+
+    await expect(
+      ensureRemoteFile({
+        modelDir: dir,
+        fileName: "invalid.gguf",
+        label: "Invalid Metal model",
+        url,
+        expectedSha256: "0".repeat(64),
+        minimumBytes: 1,
+      }),
+    ).rejects.toThrow(/SHA-256 검증/);
+    await expect(readFile(join(dir, "invalid.gguf"))).rejects.toThrow();
   });
 });

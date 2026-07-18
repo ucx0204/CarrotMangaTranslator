@@ -82,7 +82,10 @@ function resolveAppPathRoots(): AppPathRoots {
   const executableDir = dirname(process.execPath);
   const resourcesDir = process.resourcesPath;
   const dataRoot = isPackaged
-    ? resolvePackagedDataRoot(executableDir)
+    ? resolvePackagedDataRoot(executableDir, {
+        platform: process.platform,
+        appDataDir: app.getPath("appData"),
+      })
     : repoRoot;
 
   return { dataRoot, executableDir, isPackaged, repoRoot, resourcesDir };
@@ -159,6 +162,8 @@ function llamaServerBinaryName(): string {
 function bundledLlamaServerCandidates(toolsDir: string): string[] {
   const serverBinary = llamaServerBinaryName();
   const knownRuntimeDirs = [
+    "beellama-v0.3.1-metal-arm64",
+    "llama-b9547-metal-arm64",
     "beellama-v0.3.1-hip-radeon",
     "beellama-v0.2.0-cuda13.1",
     "beellama-v0.2.0-cuda12.4",
