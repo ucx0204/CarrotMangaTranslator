@@ -32,10 +32,14 @@ const { MAC_RUNTIME_MANIFEST } =
   };
 const {
   assertSafeArchiveEntry,
+  classifyMachODescription,
   copyMacRuntimePayload,
   removeWindowsRuntimeFiles,
 } = require("../scripts/prepare-mac-runtime.cjs") as {
   assertSafeArchiveEntry: (entryPath: string, linkPath?: string) => void;
+  classifyMachODescription: (
+    description: string,
+  ) => "other" | "arm64" | "universal-arm64" | "unsupported";
   copyMacRuntimePayload: (
     runtimeSource: string,
     runtimeTarget: string,
@@ -107,6 +111,9 @@ describe("Apple Silicon Alpha packaging", () => {
       "await copyMacRuntimePayload(installRoot, pythonTarget)",
     );
     expect(runtimePreparer).toContain("await assertNoSymlinks(stagingTools)");
+    expect(runtimePreparer).toContain(
+      "await thinUniversalMachOFiles(pythonTarget)",
+    );
   });
 
   it("rejects archive traversal and escaping symlinks", () => {
@@ -175,6 +182,25 @@ describe("Apple Silicon Alpha packaging", () => {
     } finally {
       rmSync(runtimeDir, { recursive: true, force: true });
     }
+  });
+
+  it("classifies universal Python extensions for arm64 thinning", () => {
+    expect(
+      classifyMachODescription(
+        "Mach-O universal binary with 2 architectures: [x86_64:Mach-O 64-bit bundle x86_64] [arm64:Mach-O 64-bit bundle arm64]",
+      ),
+    ).toBe("universal-arm64");
+    expect(
+      classifyMachODescription(
+        "Mach-O 64-bit dynamically linked shared library arm64",
+      ),
+    ).toBe("arm64");
+    expect(classifyMachODescription("Mach-O 64-bit bundle x86_64")).toBe(
+      "unsupported",
+    );
+    expect(classifyMachODescription("POSIX shell script text executable")).toBe(
+      "other",
+    );
   });
 
   it("removes empty certificate variables before an ad-hoc build", () => {
