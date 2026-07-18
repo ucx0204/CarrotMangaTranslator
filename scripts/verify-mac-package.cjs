@@ -357,6 +357,7 @@ function runApplicationSmoke(smokeApp, stage) {
       "--args",
       "--mgt-mac-package-smoke=alpha-ci-v1",
       `--mgt-mac-package-smoke-stage=${stage}`,
+      "--disable-gpu",
       "--enable-logging=stderr",
       "--v=1",
     ],
@@ -394,7 +395,7 @@ function waitForSmokeMarker(marker, expectedStage, timeoutMs) {
       if (parsed?.stage === expectedStage) {
         return parsed;
       }
-      lastState = `marker stage ${String(parsed?.stage || "unknown")}`;
+      lastState = `marker stage ${String(parsed?.stage || "unknown")} phase ${String(parsed?.phase || "unknown")}`;
     }
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
   }
@@ -412,6 +413,11 @@ function collectApplicationSmokeDiagnostics(dataRoot, marker) {
     diagnostics,
     "application log",
     join(dataRoot, "logs", "app.log"),
+  );
+  appendDiagnosticFile(
+    diagnostics,
+    "bootstrap log",
+    join(dataRoot, "logs", "bootstrap.log"),
   );
 
   const reportsDir = join(homedir(), "Library", "Logs", "DiagnosticReports");
@@ -449,8 +455,13 @@ function appendDiagnosticFile(diagnostics, label, filePath) {
   }
   try {
     const contents = readFileSync(filePath, "utf8");
+    const diagnosticLimit = 32 * 1024;
+    const excerpt =
+      contents.length <= diagnosticLimit
+        ? contents
+        : `${contents.slice(0, 20 * 1024)}\n[mac-smoke diagnostics] ... middle omitted ...\n${contents.slice(-12 * 1024)}`;
     diagnostics.push(
-      `[mac-smoke diagnostics] ${label}: ${filePath}\n${contents.slice(-32 * 1024)}`,
+      `[mac-smoke diagnostics] ${label}: ${filePath}\n${excerpt}`,
     );
   } catch (error) {
     diagnostics.push(

@@ -1,6 +1,6 @@
-import { app, nativeImage } from "electron";
+import { app } from "electron";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AppPaths } from "./appPaths";
 import {
@@ -17,6 +17,13 @@ const MAC_PACKAGE_SMOKE_MARKER = "mac-package-smoke.json";
 const MAC_PACKAGE_SMOKE_DIR = "mac-package-smoke";
 const MAC_PACKAGE_SMOKE_CLI_TOKEN = "--mgt-mac-package-smoke=alpha-ci-v1";
 const MAC_PACKAGE_SMOKE_STAGE_PREFIX = "--mgt-mac-package-smoke-stage=";
+const SMOKE_SOURCE_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64",
+);
+const PNG_SIGNATURE = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
 
 type PreparedSmoke = {
   ok: true;
@@ -54,11 +61,12 @@ export async function runMacPackageSmokeExit(
   } catch (error) {
     const message =
       error instanceof Error ? error.stack || error.message : String(error);
-    await writeFile(
-      markerPath,
-      `${JSON.stringify({ ok: false, stage, dataRoot: appPaths.dataRoot, error: message }, null, 2)}\n`,
-      "utf8",
-    );
+    await writeSmokeMarker(markerPath, {
+      ok: false,
+      stage,
+      dataRoot: appPaths.dataRoot,
+      error: message,
+    });
     console.error("Mac package application smoke failed", error);
     app.exit(1);
   }
@@ -89,14 +97,23 @@ async function preparePackageSmoke(
   markerPath: string,
 ): Promise<void> {
   const smokeRoot = join(appPaths.dataRoot, MAC_PACKAGE_SMOKE_DIR);
+  await writeSmokeProgress(
+    markerPath,
+    "preparing",
+    "reset-workspace",
+    appPaths,
+  );
   await rm(smokeRoot, { recursive: true, force: true });
   await mkdir(smokeRoot, { recursive: true });
   const sourcePath = join(smokeRoot, "import-source.png");
+  await writeSmokeProgress(markerPath, "preparing", "write-source", appPaths);
   await writeSmokeSourcePng(sourcePath);
 
+  await writeSmokeProgress(markerPath, "preparing", "preview-import", appPaths);
   const preview = await previewImages([sourcePath]);
   const draft = preview.chapters[0];
   if (!draft) throw new Error("Mac package smoke import preview was empty.");
+  await writeSmokeProgress(markerPath, "preparing", "create-import", appPaths);
   const imported = await createImport({
     preview,
     target: { mode: "new", title: "Mac Alpha Package Smoke" },
@@ -108,6 +125,7 @@ async function preparePackageSmoke(
     throw new Error("Mac package smoke did not import a page.");
   }
 
+  await writeSmokeProgress(markerPath, "preparing", "save-page", appPaths);
   const saved = await savePageBlocks({
     chapterId: chapter.id,
     pageId: page.id,
@@ -120,6 +138,7 @@ async function preparePackageSmoke(
     throw new Error("Mac package smoke page save was not persisted.");
 
   const firstExportPath = join(smokeRoot, "first-export.png");
+  await writeSmokeProgress(markerPath, "preparing", "export-page", appPaths);
   await writeRenderedPage(firstExportPath, savedPage, appPaths.dataRoot);
   const prepared: PreparedSmoke = {
     ok: true,
@@ -133,7 +152,7 @@ async function preparePackageSmoke(
     saved: true,
     exported: true,
   };
-  await writeFile(markerPath, `${JSON.stringify(prepared, null, 2)}\n`, "utf8");
+  await writeSmokeMarker(markerPath, prepared);
 }
 
 async function verifyRestartedPackageSmoke(
@@ -141,6 +160,7 @@ async function verifyRestartedPackageSmoke(
   markerPath: string,
 ): Promise<void> {
   const prepared = parsePreparedSmoke(await readFile(markerPath, "utf8"));
+  await writeSmokeProgress(markerPath, "verifying", "reload-library", appPaths);
   if (prepared.dataRoot !== appPaths.dataRoot) {
     throw new Error("Mac package smoke data root changed after restart.");
   }
@@ -164,41 +184,32 @@ async function verifyRestartedPackageSmoke(
     MAC_PACKAGE_SMOKE_DIR,
     "restart-export.png",
   );
+  await writeSmokeProgress(markerPath, "verifying", "export-page", appPaths);
   await writeRenderedPage(restartedExportPath, page, appPaths.dataRoot);
+  await writeSmokeProgress(markerPath, "verifying", "cleanup", appPaths);
   await deleteWork(prepared.workId);
   await rm(join(appPaths.dataRoot, MAC_PACKAGE_SMOKE_DIR), {
     recursive: true,
     force: true,
   });
-  await writeFile(
-    markerPath,
-    `${JSON.stringify(
-      {
-        ok: true,
-        stage: "verified",
-        platform: process.platform,
-        arch: process.arch,
-        dataRoot: appPaths.dataRoot,
-        imported: true,
-        saved: true,
-        restarted: true,
-        exported: true,
-      },
-      null,
-      2,
-    )}\n`,
-    "utf8",
-  );
+  await writeSmokeMarker(markerPath, {
+    ok: true,
+    stage: "verified",
+    platform: process.platform,
+    arch: process.arch,
+    dataRoot: appPaths.dataRoot,
+    imported: true,
+    saved: true,
+    restarted: true,
+    exported: true,
+  });
 }
 
 async function writeSmokeSourcePng(filePath: string): Promise<void> {
-  const width = 256;
-  const height = 192;
-  const bitmap = Buffer.alloc(width * height * 4, 255);
-  const image = nativeImage.createFromBitmap(bitmap, { width, height });
-  if (image.isEmpty())
-    throw new Error("Mac package smoke source image is empty.");
-  await writeFile(filePath, image.toPNG());
+  if (!isPng(SMOKE_SOURCE_PNG)) {
+    throw new Error("Mac package smoke source fixture is not a PNG.");
+  }
+  await writeFile(filePath, SMOKE_SOURCE_PNG);
 }
 
 async function writeRenderedPage(
@@ -212,9 +223,39 @@ async function writeRenderedPage(
   });
   if (!png.length) throw new Error("Mac package smoke export was empty.");
   await writeFile(filePath, png);
-  const image = nativeImage.createFromBuffer(png);
-  if (image.isEmpty())
-    throw new Error("Mac package smoke export is not a PNG.");
+  if (!isPng(png)) throw new Error("Mac package smoke export is not a PNG.");
+}
+
+async function writeSmokeProgress(
+  markerPath: string,
+  stage: "preparing" | "verifying",
+  phase: string,
+  appPaths: AppPaths,
+): Promise<void> {
+  await writeSmokeMarker(markerPath, {
+    ok: true,
+    stage,
+    phase,
+    platform: process.platform,
+    arch: process.arch,
+    dataRoot: appPaths.dataRoot,
+  });
+}
+
+async function writeSmokeMarker(
+  markerPath: string,
+  value: Record<string, unknown>,
+): Promise<void> {
+  const temporaryPath = `${markerPath}.tmp-${process.pid}`;
+  await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  await rename(temporaryPath, markerPath);
+}
+
+function isPng(value: Buffer): boolean {
+  return (
+    value.length >= PNG_SIGNATURE.length &&
+    value.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)
+  );
 }
 
 function parsePreparedSmoke(value: string): PreparedSmoke {

@@ -302,8 +302,11 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(verifier).toContain('"-W",');
     expect(verifier).toContain('"--args",');
     expect(verifier).toContain('"--mgt-mac-package-smoke=alpha-ci-v1"');
+    expect(verifier).toContain('"--disable-gpu"');
     expect(verifier).toContain("waitForSmokeMarker");
     expect(verifier).toContain("collectApplicationSmokeDiagnostics");
+    expect(verifier).toContain('"bootstrap log"');
+    expect(verifier).toContain("contents.slice(0, 20 * 1024)");
     expect(verifier).toContain("result.signal");
     expect(verifier).toContain('"--entitlements",');
     const appSmoke = readFileSync(
@@ -317,6 +320,10 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(appSmoke).toContain("await savePageBlocks({");
     expect(appSmoke).toContain("await openChapter(prepared.chapterId)");
     expect(appSmoke).toContain("renderPageWithTranslationBlocksForExport");
+    expect(appSmoke).toContain("SMOKE_SOURCE_PNG");
+    expect(appSmoke).not.toContain("createFromBitmap");
+    expect(appSmoke).toContain('"export-page"');
+    expect(appSmoke).toContain("writeSmokeMarker");
   });
 
   it("pins the release workflow to the standard M1 runner and both signing modes", () => {
