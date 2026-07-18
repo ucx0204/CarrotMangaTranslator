@@ -33,6 +33,12 @@ const { assertSafeArchiveEntry, removeWindowsRuntimeFiles } =
     assertSafeArchiveEntry: (entryPath: string, linkPath?: string) => void;
     removeWindowsRuntimeFiles: (currentDir: string) => Promise<string[]>;
   };
+const { configureElectronBuilderSigningEnvironment } =
+  require("../scripts/dist-mac-alpha.cjs") as {
+    configureElectronBuilderSigningEnvironment: (
+      environment: NodeJS.ProcessEnv,
+    ) => void;
+  };
 
 describe("Apple Silicon Alpha packaging", () => {
   it("pins Electron and every downloaded executable runtime", () => {
@@ -120,6 +126,34 @@ describe("Apple Silicon Alpha packaging", () => {
     } finally {
       rmSync(runtimeDir, { recursive: true, force: true });
     }
+  });
+
+  it("removes empty certificate variables before an ad-hoc build", () => {
+    const environment: NodeJS.ProcessEnv = {
+      MGT_MAC_SIGNING_MODE: "adhoc",
+      CSC_LINK: "",
+      CSC_KEY_PASSWORD: "",
+    };
+
+    configureElectronBuilderSigningEnvironment(environment);
+
+    expect(environment.CSC_LINK).toBeUndefined();
+    expect(environment.CSC_KEY_PASSWORD).toBeUndefined();
+    expect(environment.CSC_IDENTITY_AUTO_DISCOVERY).toBe("false");
+  });
+
+  it("preserves Developer ID certificate variables", () => {
+    const environment: NodeJS.ProcessEnv = {
+      MGT_MAC_SIGNING_MODE: "developer-id",
+      CSC_LINK: "developer-id-certificate",
+      CSC_KEY_PASSWORD: "certificate-password",
+    };
+
+    configureElectronBuilderSigningEnvironment(environment);
+
+    expect(environment.CSC_LINK).toBe("developer-id-certificate");
+    expect(environment.CSC_KEY_PASSWORD).toBe("certificate-password");
+    expect(environment.CSC_IDENTITY_AUTO_DISCOVERY).toBe("true");
   });
 
   it("keeps Windows resources out of the arm64 app configuration", () => {

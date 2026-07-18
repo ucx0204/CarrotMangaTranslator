@@ -46,6 +46,23 @@ function assertSigningConfiguration() {
   }
 }
 
+/**
+ * electron-builder treats a present-but-empty CSC_LINK as a path relative to
+ * the project directory. GitHub Actions renders an unset secret as an empty
+ * environment variable, so remove certificate variables entirely for ad-hoc
+ * builds before electron-builder loads its signing configuration.
+ *
+ * @param {NodeJS.ProcessEnv} [environment]
+ */
+function configureElectronBuilderSigningEnvironment(environment = process.env) {
+  const developerId = environment.MGT_MAC_SIGNING_MODE === "developer-id";
+  environment.CSC_IDENTITY_AUTO_DISCOVERY = developerId ? "true" : "false";
+  if (!developerId) {
+    delete environment.CSC_LINK;
+    delete environment.CSC_KEY_PASSWORD;
+  }
+}
+
 /** @param {string} directory @param {string} extension @returns {string[]} */
 function findArtifacts(directory, extension) {
   const matches = [];
@@ -103,13 +120,13 @@ async function main() {
     throw new Error("The Apple Silicon Alpha must be built on macOS arm64.");
   }
   assertSigningConfiguration();
+  configureElectronBuilderSigningEnvironment();
   const buildEnv = {
     MGT_RELEASE_CHANNEL: "mac-alpha",
     MANGA_TRANSLATOR_BUILD_CHANNEL: "mac-alpha",
     MGT_TARGET_PLATFORM: "darwin",
     MGT_MAC_RUNTIME_ROOT: join(root, ".tmp", "mac-runtime"),
-    CSC_IDENTITY_AUTO_DISCOVERY:
-      process.env.MGT_MAC_SIGNING_MODE === "developer-id" ? "true" : "false",
+    CSC_IDENTITY_AUTO_DISCOVERY: process.env.CSC_IDENTITY_AUTO_DISCOVERY,
   };
 
   run(process.execPath, ["scripts/prepare-mac-icon.cjs"], buildEnv);
@@ -134,3 +151,5 @@ if (require.main === module) {
     process.exitCode = 1;
   });
 }
+
+module.exports = { configureElectronBuilderSigningEnvironment };
