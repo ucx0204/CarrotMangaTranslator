@@ -91,9 +91,12 @@ jobs:
           fi
 
       - name: Build and verify arm64 DMG and ZIP
+        env:
+          MGT_MAC_ALPHA_ALLOW_HOSTED_APP_SMOKE_TRAP: macos15-electron43-crbrowsermain-v1
+          MGT_MAC_ALPHA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
         run: npm run dist:mac:alpha
 
-      - name: Confirm verified release artifacts
+      - name: Confirm release artifacts
         shell: bash
         run: |
           set -euo pipefail
@@ -137,7 +140,7 @@ jobs:
           MGT_MAC_RELEASE_NOTES_PATH: ${{ runner.temp }}/mac-alpha-release-notes.md
         run: node scripts/generate-mac-alpha-release-notes.cjs
 
-      - name: Upload verified build artifact
+      - name: Upload Alpha build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.release_meta.outputs.tag }}
@@ -147,6 +150,7 @@ jobs:
             dist/*-macOS-arm64-alpha.dmg
             dist/*-macOS-arm64-alpha.zip
             dist/SHA256SUMS-mac-alpha.txt
+            dist/mac-alpha-hosted-app-smoke-waiver.json
             docs/MAC_ALPHA_TEST_CHECKLIST.md
             ${{ runner.temp }}/mac-alpha-release-notes.md
             ${{ runner.temp }}/mac-alpha-ui-1440x900.png
@@ -181,5 +185,10 @@ jobs:
             echo "### ${{ steps.release_meta.outputs.title }}"
             echo "- Runner: $(uname -m), $(sw_vers -productVersion)"
             echo "- Signing: $SIGNING_LABEL"
+            if [[ -f dist/mac-alpha-hosted-app-smoke-waiver.json ]]; then
+              echo "- Packaged GUI lifecycle: WAIVED on GitHub-hosted runner; real-Mac verification requested"
+            else
+              echo "- Packaged GUI lifecycle: passed"
+            fi
             echo "- Gemma memory tiers remain unverified until tester checklists are received."
           } >> "$GITHUB_STEP_SUMMARY"

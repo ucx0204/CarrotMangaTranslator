@@ -12,6 +12,7 @@
 
 ## 공통 흐름
 
+- [ ] `/Applications`에서 실행 → 작은 PNG 가져오기 → 저장 → 완전 종료 → 재실행 복원 → PNG/TXT 내보내기 전체 수명주기
 - [ ] `/Applications`에서 앱이 열리고 `Apple Silicon Alpha` 표시가 보임
 - [ ] 최초 Alpha 안내와 GitHub Issue 링크가 동작함
 - [ ] 이미지·폴더·ZIP/CBZ 가져오기
