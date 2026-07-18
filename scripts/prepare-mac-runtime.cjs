@@ -12,6 +12,7 @@ const {
   readlink,
   readdir,
   realpath,
+  rename,
   rm,
   symlink,
 } = require("node:fs/promises");
@@ -241,21 +242,87 @@ async function findFile(currentDir, basename) {
 
 /** @param {string} executable */
 function assertArm64MachO(executable) {
-  const result = spawnSync("file", ["-b", executable], {
-    encoding: "utf8",
-    shell: false,
-  });
-  if (result.status !== 0) {
-    throw new Error(
-      `file failed for ${executable}: ${result.stderr || "unknown error"}`,
-    );
-  }
-  const description = String(result.stdout).trim();
+  const description = describeFile(executable);
   if (!/Mach-O.*arm64/i.test(description) || /x86_64/i.test(description)) {
     throw new Error(
       `Expected arm64-only Mach-O at ${executable}, got: ${description}`,
     );
   }
+}
+
+/** @param {string} filePath */
+function describeFile(filePath) {
+  const result = spawnSync("file", ["-b", filePath], {
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.status !== 0) {
+    throw new Error(
+      `file failed for ${filePath}: ${result.stderr || "unknown error"}`,
+    );
+  }
+  return String(result.stdout).trim();
+}
+
+/** @param {string} description */
+function classifyMachODescription(description) {
+  if (!/Mach-O/i.test(description)) {
+    return "other";
+  }
+  const arm64 = /\barm64\b/i.test(description);
+  const x86_64 = /\bx86_64\b/i.test(description);
+  if (arm64 && x86_64) {
+    return "universal-arm64";
+  }
+  return arm64 ? "arm64" : "unsupported";
+}
+
+/** @param {string} currentDir @returns {Promise<number>} */
+async function thinUniversalMachOFiles(currentDir) {
+  let thinned = 0;
+  for (const entry of await readdir(currentDir, { withFileTypes: true })) {
+    const entryPath = path.join(currentDir, entry.name);
+    const metadata = await lstat(entryPath);
+    if (metadata.isSymbolicLink()) {
+      continue;
+    }
+    if (metadata.isDirectory()) {
+      thinned += await thinUniversalMachOFiles(entryPath);
+      continue;
+    }
+    if (
+      !metadata.isFile() ||
+      ((metadata.mode & 0o111) === 0 &&
+        !/\.(?:bundle|dylib|node|so)$/i.test(entry.name))
+    ) {
+      continue;
+    }
+    const description = describeFile(entryPath);
+    const classification = classifyMachODescription(description);
+    if (classification === "other") {
+      continue;
+    }
+    if (classification === "unsupported") {
+      throw new Error(
+        `Python runtime contains non-arm64 Mach-O: ${entryPath}: ${description}`,
+      );
+    }
+    if (classification !== "universal-arm64") {
+      continue;
+    }
+    const thinPath = `${entryPath}.mgt-arm64-thin`;
+    await rm(thinPath, { force: true });
+    try {
+      run("lipo", ["-thin", "arm64", entryPath, "-output", thinPath]);
+      await chmod(thinPath, metadata.mode & 0o777);
+      await rename(thinPath, entryPath);
+    } finally {
+      await rm(thinPath, { force: true });
+    }
+    assertArm64MachO(entryPath);
+    thinned += 1;
+  }
+  return thinned;
 }
 
 /** @param {ArchiveAsset & { id: string }} asset */
@@ -367,21 +434,26 @@ async function stagePythonAndPaddle() {
       PIP_NO_CACHE_DIR: "1",
     },
   );
-  run(
-    extractedPython,
-    [
-      "-c",
-      "import importlib.metadata, platform, paddle; assert platform.machine() == 'arm64'; print(paddle.__version__, importlib.metadata.version('paddleocr'))",
-    ],
-    { PYTHONNOUSERSITE: "1" },
-  );
   const removedWindowsFiles = await removeWindowsRuntimeFiles(installRoot);
   console.log(
     `[mac-runtime] removed ${removedWindowsFiles.length} Windows-only Python launcher/library files`,
   );
   const pythonTarget = path.join(stagingTools, "python");
   await copyMacRuntimePayload(installRoot, pythonTarget);
-  await chmod(path.join(pythonTarget, "bin", "python3"), 0o755);
+  const stagedPython = path.join(pythonTarget, "bin", "python3");
+  await chmod(stagedPython, 0o755);
+  const thinnedMachOFiles = await thinUniversalMachOFiles(pythonTarget);
+  console.log(
+    `[mac-runtime] thinned ${thinnedMachOFiles} universal Python Mach-O files to arm64`,
+  );
+  run(
+    stagedPython,
+    [
+      "-c",
+      "import importlib.metadata, platform, paddle; assert platform.machine() == 'arm64'; print(paddle.__version__, importlib.metadata.version('paddleocr'))",
+    ],
+    { PYTHONNOUSERSITE: "1" },
+  );
   console.log(
     `[mac-runtime] staged CPython ${asset.version} with ${MAC_RUNTIME_MANIFEST.ocrPackages.join(", ")}`,
   );
@@ -514,11 +586,13 @@ async function main() {
 
 module.exports = {
   assertSafeArchiveEntry,
+  classifyMachODescription,
   copyMacRuntimePayload,
   extractTarSafely,
   isSameOrDescendant,
   removeWindowsRuntimeFiles,
   sha256File,
+  thinUniversalMachOFiles,
 };
 
 if (require.main === module) {
