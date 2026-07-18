@@ -1,10 +1,12 @@
 import { createRequire } from "node:module";
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,11 +30,18 @@ const { MAC_RUNTIME_MANIFEST } =
       }>;
     };
   };
-const { assertSafeArchiveEntry, removeWindowsRuntimeFiles } =
-  require("../scripts/prepare-mac-runtime.cjs") as {
-    assertSafeArchiveEntry: (entryPath: string, linkPath?: string) => void;
-    removeWindowsRuntimeFiles: (currentDir: string) => Promise<string[]>;
-  };
+const {
+  assertSafeArchiveEntry,
+  copyLlamaRuntimePayload,
+  removeWindowsRuntimeFiles,
+} = require("../scripts/prepare-mac-runtime.cjs") as {
+  assertSafeArchiveEntry: (entryPath: string, linkPath?: string) => void;
+  copyLlamaRuntimePayload: (
+    runtimeSource: string,
+    runtimeTarget: string,
+  ) => Promise<void>;
+  removeWindowsRuntimeFiles: (currentDir: string) => Promise<string[]>;
+};
 const { configureElectronBuilderSigningEnvironment } =
   require("../scripts/dist-mac-alpha.cjs") as {
     configureElectronBuilderSigningEnvironment: (
@@ -104,6 +113,35 @@ describe("Apple Silicon Alpha packaging", () => {
       assertSafeArchiveEntry("runtime/link", "../../outside"),
     ).toThrow("escapes extraction root");
   });
+
+  it.skipIf(process.platform === "win32")(
+    "materializes llama dylib symlinks whose target is outside the binary folder",
+    async () => {
+      const runtimeDir = mkdtempSync(join(tmpdir(), "mgt-llama-runtime-"));
+      try {
+        const sourceDir = join(runtimeDir, "bin");
+        const libraryDir = join(runtimeDir, "lib");
+        const targetDir = join(runtimeDir, "staged");
+        mkdirSync(sourceDir, { recursive: true });
+        mkdirSync(libraryDir, { recursive: true });
+        writeFileSync(join(sourceDir, "llama-server"), "server");
+        writeFileSync(join(libraryDir, "libggml-base.0.dylib"), "metal dylib");
+        symlinkSync(
+          "../lib/libggml-base.0.dylib",
+          join(sourceDir, "libggml-base.dylib"),
+        );
+
+        await copyLlamaRuntimePayload(sourceDir, targetDir);
+
+        const stagedDylib = join(targetDir, "libggml-base.dylib");
+        expect(lstatSync(stagedDylib).isFile()).toBe(true);
+        expect(lstatSync(stagedDylib).isSymbolicLink()).toBe(false);
+        expect(readFileSync(stagedDylib, "utf8")).toBe("metal dylib");
+      } finally {
+        rmSync(runtimeDir, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("removes Windows-only launchers from the bundled macOS Python runtime", async () => {
     const runtimeDir = mkdtempSync(join(tmpdir(), "mgt-mac-python-runtime-"));

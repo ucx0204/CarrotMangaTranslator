@@ -269,11 +269,7 @@ async function stageLlamaRuntime(asset) {
   }
   const runtimeSource = path.dirname(serverPath);
   const runtimeTarget = path.join(stagingTools, asset.id);
-  await cp(runtimeSource, runtimeTarget, {
-    recursive: true,
-    dereference: false,
-    preserveTimestamps: true,
-  });
+  await copyLlamaRuntimePayload(runtimeSource, runtimeTarget);
   const stagedServer = path.join(runtimeTarget, "llama-server");
   await chmod(stagedServer, 0o755);
   assertArm64MachO(stagedServer);
@@ -284,6 +280,41 @@ async function stageLlamaRuntime(asset) {
     throw new Error(`${asset.id} is missing its required Metal dylibs`);
   }
   console.log(`[mac-runtime] staged ${asset.id}`);
+}
+
+/**
+ * The official llama.cpp archives may keep a dylib target outside the folder
+ * containing llama-server. Copying that folder while preserving symlinks can
+ * therefore leave a broken link in the app bundle. Archive links have already
+ * passed the extraction-root escape checks, so materialize them as regular
+ * files before electron-builder and codesign see the staged runtime.
+ *
+ * @param {string} runtimeSource
+ * @param {string} runtimeTarget
+ */
+async function copyLlamaRuntimePayload(runtimeSource, runtimeTarget) {
+  await cp(runtimeSource, runtimeTarget, {
+    recursive: true,
+    dereference: true,
+    preserveTimestamps: true,
+  });
+  await assertNoSymlinks(runtimeTarget);
+}
+
+/** @param {string} currentDir */
+async function assertNoSymlinks(currentDir) {
+  for (const entry of await readdir(currentDir, { withFileTypes: true })) {
+    const entryPath = path.join(currentDir, entry.name);
+    const metadata = await lstat(entryPath);
+    if (metadata.isSymbolicLink()) {
+      throw new Error(
+        `Staged llama runtime still contains symlink: ${entryPath}`,
+      );
+    }
+    if (metadata.isDirectory()) {
+      await assertNoSymlinks(entryPath);
+    }
+  }
 }
 
 /** @param {string} currentDir @param {string} suffix @returns {Promise<string | null>} */
@@ -486,6 +517,7 @@ async function main() {
 
 module.exports = {
   assertSafeArchiveEntry,
+  copyLlamaRuntimePayload,
   extractTarSafely,
   isSameOrDescendant,
   removeWindowsRuntimeFiles,
