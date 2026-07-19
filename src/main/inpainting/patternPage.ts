@@ -15,13 +15,13 @@ import {
   hasUsableBbox,
   mergeFilledRectIntoPage,
   mergeMaskIntoPage,
-  mergeRects,
   resolvePatternBlockMarginPx,
   resolvePatternDilationRadius,
   resolvePatternRegionPaddingPx,
   resolvePatternWindowMarginPx,
   type PixelRect,
 } from "./maskGeometry";
+import { resolvePatternInpaintWindows } from "./patternWindowPolicy";
 import { buildPatternTextMask } from "./patternTextMask";
 import { loadPageImage, resolveInpaintedImagePath } from "./imageIO";
 import type {
@@ -82,7 +82,10 @@ export async function inpaintPatternPage(
     size.width,
     size.height,
     maskContext.pageMask,
-    mergeRects(maskContext.inpaintWindows),
+    resolvePatternInpaintWindows(
+      maskContext.inpaintWindows,
+      options.inpaintingEngine,
+    ),
     {
       signal: options.signal,
       featherPx: FLUX_INPAINT_FEATHER_PX,

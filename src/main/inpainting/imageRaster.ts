@@ -107,11 +107,15 @@ export function compositeFluxOutput(
   pageWidth: number,
   rect: PixelRect,
   featherPx: number,
+  writeBounds: PixelRect = rect,
 ): void {
   for (let y = 0; y < rect.h; y += 1) {
     for (let x = 0; x < rect.w; x += 1) {
       const pageX = rect.x + x;
       const pageY = rect.y + y;
+      if (!rectContainsPoint(writeBounds, pageX, pageY)) {
+        continue;
+      }
       const alpha = maskSoftAlphaAt(
         pageMask,
         pageWidth,
@@ -142,6 +146,12 @@ export function compositeFluxOutput(
       bitmap[targetOffset + 3] = 255;
     }
   }
+}
+
+function rectContainsPoint(rect: PixelRect, x: number, y: number): boolean {
+  return (
+    x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h
+  );
 }
 
 export function maskBoundsInRect(
@@ -187,6 +197,19 @@ export function buildLocalMask(
   return paddingPx > 0
     ? dilateMaskSquare(output, rect.w, rect.h, paddingPx)
     : output;
+}
+
+export function isolateMaskToWindow(
+  mask: Uint8Array,
+  pageWidth: number,
+  window: PixelRect,
+): Uint8Array {
+  const isolated = new Uint8Array(mask.length);
+  for (let y = window.y; y < window.y + window.h; y += 1) {
+    const start = y * pageWidth + window.x;
+    isolated.set(mask.subarray(start, start + window.w), start);
+  }
+  return isolated;
 }
 
 function blendByte(base: number, next: number, alpha: number): number {

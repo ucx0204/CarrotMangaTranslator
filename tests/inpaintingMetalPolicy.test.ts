@@ -97,6 +97,9 @@ describe("Apple Silicon inpainting policy", () => {
       expect(source).toContain('"protocol_version": 1');
       if (runner === "mgt-flux-klein-runner") {
         expect(source).toContain("--protocol-smoke");
+        expect(source).toContain("if cli.require_metal");
+        expect(source).toContain(".image_to_image(&image, &options)");
+        expect(source).toContain(".inpaint(&image, &mask_image, &options)");
       }
     }
   });
