@@ -21,6 +21,8 @@ tools/llama-b8833-cuda13.1/
 tools/beellama*/
 tools/mgt-flux-cuda12.*/
 tools/mgt-flux-klein-runner/target/
+tools/mgt-flux-klein-runner/vendor/candle-nn-metal-attention/Cargo.lock
+tools/mgt-flux-klein-runner/vendor/candle-nn-metal-attention/target/
 tools/mgt-koharu-inpaint-runner/target/
 tools/mgt-flux-klein-sm*/
 tools/mgt-flux-klein/*.exe

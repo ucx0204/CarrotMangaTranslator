@@ -12,6 +12,7 @@
     "dist:win:nvidia": "node scripts/dist-win-thin.cjs --with-flux-nvidia",
     "dist:win:amd": "node scripts/dist-win-thin.cjs",
     "build:mac:runners": "node scripts/build-mac-runners.cjs",
+    "test:flux-metal": "node scripts/test-flux-metal.cjs",
     "prepare:mac:runtime": "node scripts/prepare-mac-runtime.cjs",
     "dist:mac:alpha": "node scripts/dist-mac-alpha.cjs",
     "verify:mac:package": "node scripts/verify-mac-package.cjs",

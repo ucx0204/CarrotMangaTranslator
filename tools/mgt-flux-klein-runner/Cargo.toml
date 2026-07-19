@@ -11,6 +11,7 @@ metal = ["koharu-ml/metal"]
 
 [dependencies]
 anyhow = "1.0"
+candle-core = { version = "0.9.2", default-features = false }
 clap = { version = "4.5", features = ["derive"] }
 cudarc = { version = "0.19.7", default-features = false, features = ["fallback-dynamic-loading", "runtime", "std"], optional = true }
 image = "0.25"
@@ -23,9 +24,9 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [patch.crates-io]
-candle-core = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
-candle-nn = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
-candle-transformers = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
-candle-flash-attn = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
+candle-core = { git = "https://github.com/mayocream/candle", rev = "e7e71e18414db8de91113963beaabb6b4046a0a5" }
+candle-nn = { path = "vendor/candle-nn-metal-attention" }
+candle-transformers = { git = "https://github.com/mayocream/candle", rev = "e7e71e18414db8de91113963beaabb6b4046a0a5" }
+candle-flash-attn = { git = "https://github.com/mayocream/candle", rev = "e7e71e18414db8de91113963beaabb6b4046a0a5" }
 ug = { git = "https://github.com/mayocream/ug", branch = "cuda-dynamic-loading" }
 ug-cuda = { git = "https://github.com/mayocream/ug", branch = "cuda-dynamic-loading" }

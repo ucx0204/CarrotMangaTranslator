@@ -9,6 +9,7 @@ const {
 const { tmpdir } = require("node:os");
 const { delimiter, join } = require("node:path");
 const { spawnSync } = require("node:child_process");
+const { patchCandleMetalQMatMul } = require("./patch-candle-metal-qmatmul.cjs");
 
 /**
  * @typedef {{ outDir: string; outExe: string }} BuildAlias
@@ -51,6 +52,7 @@ if (!existsSync(manifestPath)) {
   process.exit(1);
 }
 
+patchCandleMetalQMatMul({ cwd: root, manifestPath });
 patchKoharuFluxSources();
 for (const entry of buildPlan) {
   runCargo(["build", "--release", "--manifest-path", manifestPath], entry);
