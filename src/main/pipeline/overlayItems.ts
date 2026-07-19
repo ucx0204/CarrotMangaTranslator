@@ -66,7 +66,7 @@ export function overlayItemToBlock(
     page,
     fontSizePx,
   );
-  const rotationDeg = enforceRotationDeg(type, item.angle ?? 0);
+  const rotationDeg = resolveInitialRotationDeg(type, textRole, item.angle);
   const visualStyle = resolveBlockVisualStyle(type);
   const block: TranslationBlock = {
     id: `${page.id}-${normalizeBlockRunId(runId)}-block-${index + 1}`,
@@ -250,6 +250,18 @@ function resolveInitialRenderDirection(
   }
 
   return enforceRenderDirection(type, "horizontal");
+}
+
+function resolveInitialRotationDeg(
+  type: BlockType,
+  textRole: NormalizedTextRole,
+  angle: unknown,
+): number {
+  // Ordinary speech and captions should stay upright in the translated
+  // overlay. Vision models occasionally interpret vertical Japanese glyphs as
+  // a negative slant, which used to rotate the whole Korean block to the left.
+  // Sound effects intentionally preserve the detected source styling.
+  return enforceRotationDeg(type, textRole === "sound" ? (angle ?? 0) : 0);
 }
 
 function shouldKeepVerticalRendering(
