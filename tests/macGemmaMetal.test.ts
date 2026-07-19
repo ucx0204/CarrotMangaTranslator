@@ -179,6 +179,12 @@ describe("Apple Silicon Gemma Metal runtimes", () => {
         "metal",
       ),
     ).toBe(true);
+    expect(
+      llamaRuntimeProbeLooksGpuBacked(
+        "Available devices:\n  MTL0: Apple M4 Max (53084 MiB, 53083 MiB free)\n  BLAS: Accelerate (0 MiB, 0 MiB free)",
+        "metal",
+      ),
+    ).toBe(true);
     expect(llamaRuntimeProbeLooksGpuBacked("CPU device only", "metal")).toBe(
       false,
     );
