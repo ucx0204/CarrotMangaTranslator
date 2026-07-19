@@ -5,6 +5,7 @@ import {
   existsSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -371,6 +372,37 @@ describe("Metal runtime archive integrity", () => {
         "metal",
       );
       expect(() => readFileSync(join(output, "README.md"))).toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("extracts runtime symlinks after their target files", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "mgt-mac-runtime-symlink-"));
+    try {
+      const source = join(dir, "source");
+      const releaseName = "beellama-v0.3.1";
+      const release = join(source, releaseName);
+      const output = join(dir, "output");
+      const archive = join(dir, "runtime.tar.gz");
+      mkdirSync(release, { recursive: true });
+      writeFileSync(join(release, "libmtmd.0.dylib"), "metal");
+      writeFileSync(join(release, "llama-server"), "mach-o");
+      symlinkSync("libmtmd.0.dylib", join(release, "libmtmd.dylib"));
+      await tar.c({ cwd: source, file: archive, gzip: true }, [
+        `${releaseName}/libmtmd.dylib`,
+        `${releaseName}/libmtmd.0.dylib`,
+        `${releaseName}/llama-server`,
+      ]);
+
+      await extractSelectedTarEntries(
+        archive,
+        output,
+        shouldExtractLlamaRuntimeFile,
+        { stripComponents: 1 },
+      );
+
+      expect(readFileSync(join(output, "libmtmd.dylib"), "utf8")).toBe("metal");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
