@@ -5,12 +5,15 @@ import type {
 } from "../../shared/inpaintingTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
+import type { BubbleDetectionMode } from "../../shared/inpaintingSettingsTypes";
 import { inpaintDrawnPatternPage, inpaintPatternPage } from "../inpainting";
+import type { BubbleSegmentationEngineLease } from "../inpainting/bubbleSegmentationEnginePool";
 import { acquireInpaintingEngine } from "../inpainting/inpaintingEnginePool";
 import { openChapter } from "../library";
 import { logError } from "../logger";
 import { getAppSettings } from "../settingsStore";
 import { isAbortError } from "./jobEvents";
+import { prepareBubbleSegmentation } from "./inpaintingBubbleSegmentation";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import { saveInpaintingPageResult } from "./inpaintingJobHistory";
 import {
@@ -34,6 +37,8 @@ export type InpaintingJobState = {
   chapters: Map<string, OpenedChapter>;
   historyTransactionId: string | null;
   inpaintingEngineLease: InpaintingEngineLease | null;
+  bubbleSegmentationEngineLease: BubbleSegmentationEngineLease | null;
+  bubbleDetectionMode: BubbleDetectionMode;
 };
 
 export type InpaintingJobPage = {
@@ -231,6 +236,16 @@ async function processInpaintingPages({
     pageCount: targets.length,
     totalTargetBlocks,
   });
+  const bubbleSegmentation = await prepareBubbleSegmentation({
+    abortController,
+    context,
+    emit,
+    id,
+    pageCount: targets.length,
+    shouldPrepare: !target.drawnPatternMode && totalTargetBlocks > 0,
+  });
+  state.bubbleDetectionMode = bubbleSegmentation.mode;
+  state.bubbleSegmentationEngineLease = bubbleSegmentation.lease;
 
   for (const [pageIndex, targetPage] of targets.entries()) {
     const result = await processInpaintingPage({
@@ -357,6 +372,8 @@ async function processInpaintingPage({
         featherPx: target.drawnFeatherPx,
       })
     : await inpaintPatternPage(page, {
+        bubbleDetectionMode: state.bubbleDetectionMode,
+        bubbleSegmentationEngine: state.bubbleSegmentationEngineLease?.engine,
         signal: abortController.signal,
         decodeFallback: context.decodeImage,
         inpaintingEngine: state.inpaintingEngineLease?.engine,

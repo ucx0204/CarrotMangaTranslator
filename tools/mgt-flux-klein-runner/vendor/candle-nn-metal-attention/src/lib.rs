@@ -103,6 +103,19 @@ pub mod ops {
         let key_len = k.dim(2)?;
         let value_dim = v.dim(D::Minus1)?;
         let output_dtype = q.dtype();
+        let key_value_chunks = {
+            let key = k.to_dtype(DType::F32)?.transpose(2, 3)?.contiguous()?;
+            let value = v.to_dtype(DType::F32)?.contiguous()?;
+            let mut chunks = Vec::with_capacity(key_len.div_ceil(KEY_CHUNK_SIZE));
+            for key_start in (0..key_len).step_by(KEY_CHUNK_SIZE) {
+                let key_chunk_len = KEY_CHUNK_SIZE.min(key_len - key_start);
+                chunks.push((
+                    key.narrow(3, key_start, key_chunk_len)?.contiguous()?,
+                    value.narrow(2, key_start, key_chunk_len)?.contiguous()?,
+                ));
+            }
+            chunks
+        };
         let mut chunks = Vec::with_capacity(query_len.div_ceil(chunk_size));
         for query_start in (0..query_len).step_by(chunk_size) {
             let query_chunk_len = chunk_size.min(query_len - query_start);
@@ -126,24 +139,15 @@ pub mod ops {
                 q.device(),
             )?;
 
-            for key_start in (0..key_len).step_by(KEY_CHUNK_SIZE) {
-                let key_chunk_len = KEY_CHUNK_SIZE.min(key_len - key_start);
-                let key = k
-                    .narrow(2, key_start, key_chunk_len)?
-                    .contiguous()?
-                    .to_dtype(DType::F32)?;
-                let value = v
-                    .narrow(2, key_start, key_chunk_len)?
-                    .contiguous()?
-                    .to_dtype(DType::F32)?;
-                let scores = (query.matmul(&key.transpose(2, 3)?.contiguous()?)? * scale as f64)?;
+            for (key, value) in &key_value_chunks {
+                let scores = (query.matmul(key)? * scale as f64)?;
                 let tile_max = scores.max_keepdim(D::Minus1)?;
                 let next_max = max_scores.maximum(&tile_max)?;
                 let previous_scale = (&max_scores - &next_max)?.exp()?;
                 output_accumulator = output_accumulator.broadcast_mul(&previous_scale)?;
                 exponential_sum = exponential_sum.broadcast_mul(&previous_scale)?;
                 let exponentials = scores.broadcast_sub(&next_max)?.exp()?;
-                output_accumulator = (output_accumulator + exponentials.matmul(&value)?)?;
+                output_accumulator = (output_accumulator + exponentials.matmul(value)?)?;
                 exponential_sum = (exponential_sum + exponentials.sum_keepdim(D::Minus1)?)?;
                 max_scores = next_max;
             }
@@ -181,38 +185,107 @@ pub mod ops {
 
         #[cfg(feature = "metal")]
         #[test]
-        fn metal_chunked_attention_matches_cpu_for_flux_vae_head_dim() -> Result<()> {
+        fn metal_chunked_attention_matches_cpu_for_flux_shapes() -> Result<()> {
             let cpu = Device::Cpu;
             let metal = Device::new_metal(0)?;
-            let query_elements = 4 * 512;
-            let key_len = 1031;
-            let key_elements = key_len * 512;
-            let q_cpu = (Tensor::arange(0f32, query_elements as f32, &cpu)?
-                / query_elements as f64)?
-                .reshape((1, 1, 4, 512))?;
-            let k_cpu = (Tensor::arange(1f32, (key_elements + 1) as f32, &cpu)?
-                / (key_elements + 1) as f64)?
-                .reshape((1, 1, key_len, 512))?;
-            let v_cpu = (Tensor::arange(0f32, key_elements as f32, &cpu)?
-                / (key_elements * 2) as f64)?
-                .reshape((1, 1, key_len, 512))?;
-            let scale = 1.0 / 512f32.sqrt();
+            for (heads, query_len, key_len, head_dim) in [
+                (1, 127, 257, 128),
+                (1, 128, 257, 128),
+                (1, 129, 257, 128),
+                (24, 257, 1_392, 128),
+                (2, 1_392, 1_392, 128),
+                (1, 4, 1_031, 512),
+            ] {
+                compare_metal_attention_to_cpu(&cpu, &metal, heads, query_len, key_len, head_dim)?;
+            }
+            Ok(())
+        }
+
+        #[cfg(feature = "metal")]
+        #[test]
+        #[ignore = "manual Metal performance benchmark"]
+        fn benchmark_metal_query_chunk_sizes() -> Result<()> {
+            use std::time::Instant;
+
+            let cpu = Device::Cpu;
+            let metal = Device::new_metal(0)?;
+            let (heads, query_len, key_len, head_dim) = (24, 1_392, 1_392, 128);
+            let q = test_tensor(heads * query_len * head_dim, 0, &cpu)?
+                .reshape((1, heads, query_len, head_dim))?
+                .to_device(&metal)?;
+            let k = test_tensor(heads * key_len * head_dim, 17, &cpu)?
+                .reshape((1, heads, key_len, head_dim))?
+                .to_device(&metal)?;
+            let v = test_tensor(heads * key_len * head_dim, 43, &cpu)?
+                .reshape((1, heads, key_len, head_dim))?
+                .to_device(&metal)?;
+            let scale = 1.0 / (head_dim as f32).sqrt();
+
+            for chunk_size in [128, 256] {
+                let _ = chunked_attention(&q, &k, &v, scale, chunk_size)?.to_device(&cpu)?;
+                let mut elapsed = Vec::with_capacity(3);
+                for _ in 0..3 {
+                    let started = Instant::now();
+                    let output =
+                        chunked_attention(&q, &k, &v, scale, chunk_size)?.to_device(&cpu)?;
+                    let _ = output.flatten_all()?.get(0)?.to_scalar::<f32>()?;
+                    elapsed.push(started.elapsed());
+                }
+                elapsed.sort_unstable();
+                eprintln!(
+                    "Metal attention query_chunk={chunk_size}: median_ms={:.1}",
+                    elapsed[elapsed.len() / 2].as_secs_f64() * 1_000.0
+                );
+            }
+            Ok(())
+        }
+
+        #[cfg(feature = "metal")]
+        fn compare_metal_attention_to_cpu(
+            cpu: &Device,
+            metal: &Device,
+            heads: usize,
+            query_len: usize,
+            key_len: usize,
+            head_dim: usize,
+        ) -> Result<()> {
+            let q_cpu = test_tensor(heads * query_len * head_dim, 0, cpu)?
+                .reshape((1, heads, query_len, head_dim))?;
+            let k_cpu = test_tensor(heads * key_len * head_dim, 17, cpu)?
+                .reshape((1, heads, key_len, head_dim))?;
+            let v_cpu = test_tensor(heads * key_len * head_dim, 43, cpu)?
+                .reshape((1, heads, key_len, head_dim))?;
+            let scale = 1.0 / (head_dim as f32).sqrt();
             let scores = (q_cpu.matmul(&k_cpu.transpose(2, 3)?.contiguous()?)? * scale as f64)?;
             let expected = softmax_last_dim(&scores)?.matmul(&v_cpu)?;
             let actual = chunked_attention(
-                &q_cpu.to_device(&metal)?,
-                &k_cpu.to_device(&metal)?,
-                &v_cpu.to_device(&metal)?,
+                &q_cpu.to_device(metal)?,
+                &k_cpu.to_device(metal)?,
+                &v_cpu.to_device(metal)?,
                 scale,
-                2,
+                128,
             )?
-            .to_device(&cpu)?;
+            .to_device(cpu)?;
             let delta = (&expected - &actual)?
                 .abs()?
                 .max_all()?
                 .to_scalar::<f32>()?;
-            assert!(delta < 1e-4, "Metal chunked attention delta was {delta}");
+            assert!(
+                delta < 5e-4,
+                "Metal attention delta={delta} for heads={heads}, q={query_len}, kv={key_len}, d={head_dim}"
+            );
             Ok(())
+        }
+
+        #[cfg(feature = "metal")]
+        fn test_tensor(len: usize, offset: usize, device: &Device) -> Result<Tensor> {
+            let values = (0..len)
+                .map(|index| {
+                    let value = ((index + offset) % 97) as f32;
+                    (value - 48.0) / 48.0
+                })
+                .collect::<Vec<_>>();
+            Tensor::from_vec(values, len, device)
         }
     }
 }

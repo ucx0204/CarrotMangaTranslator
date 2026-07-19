@@ -12,6 +12,7 @@ describe("HardwareSettingsPanel", () => {
     render(
       <HardwareSettingsPanel
         allowUnsafeLowMemoryFlux={false}
+        bubbleDetectionMode="auto"
         clearTestState={vi.fn()}
         controlsBusy
         fluxBackend="cuda-native"
@@ -22,6 +23,7 @@ describe("HardwareSettingsPanel", () => {
         ocrQualityMode="minimum"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setBubbleDetectionMode={vi.fn()}
         setInpaintingModel={vi.fn()}
         setOcrDevice={vi.fn()}
         setOcrGpuBackend={vi.fn()}

@@ -53,6 +53,8 @@ export function createFluxEngine(options: {
         bitmap,
         getWorker,
         height,
+        isolateWindowMasks: options.launch.backend === "metal-native",
+        tileLargeCrops: options.launch.backend === "metal-native",
         mask,
         runOptions,
         runRootDir: options.runRootDir,

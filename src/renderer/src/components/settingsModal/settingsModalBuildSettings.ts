@@ -60,6 +60,7 @@ export function buildSettingsFromDraft({
     ocrGpuBackend: values.ocrGpuBackend,
     ocrQualityMode: values.ocrQualityMode,
     inpaintingModel: values.inpaintingModel,
+    bubbleDetectionMode: values.bubbleDetectionMode,
     fluxBackend: values.fluxBackend,
     allowUnsafeLowMemoryFlux: values.allowUnsafeLowMemoryFlux,
     maxTokens: draft.parsedMaxTokens,

@@ -35,7 +35,7 @@ import {
 } from "./inpainting/fluxEngine";
 import type { InpaintingEngine } from "./inpainting/inpaintingEngine";
 export { prepareKoharuInpaintingEngine } from "./inpainting/koharuEngine";
-import { expandRect, mergeRects, rectHasMask } from "./inpainting/maskGeometry";
+import { expandRect, rectHasMask } from "./inpainting/maskGeometry";
 import {
   applyRetouchCircle,
   buildMaskFromStrokes,
@@ -117,7 +117,7 @@ export async function inpaintDrawnPatternPage(
     size.width,
     size.height,
     pageMask,
-    mergeRects(components),
+    components,
     {
       signal: options.signal,
       featherPx: options.featherPx ?? FLUX_INPAINT_FEATHER_PX,

@@ -1173,6 +1173,17 @@
       "ocrDevice": "Paddle OCR device",
       "fluxBackend": "Flux inpainting backend",
       "inpaintingModel": "Inpainting model",
+      "bubbleDetection": "Speech bubble detection",
+      "bubbleDetectionModes": {
+        "auto": {
+          "label": "Auto",
+          "description": "Quickly separates bubbles from OCR regions and image features without an extra download, while protecting outlines."
+        },
+        "precise": {
+          "label": "Precise",
+          "description": "Detects bubbles with a dedicated segmentation model. Downloads an approximately 104 MB model on first use."
+        }
+      },
       "amdOcrExperimental": "AMD GPU OCR is experimental. If it fails, you can switch only OCR to the CPU.",
       "ocrAmdNote": "NVIDIA CUDA OCR cannot be selected on AMD systems.",
       "ocrAppleNote": "Paddle OCR uses the CPU runtime in the Apple Silicon Alpha.",

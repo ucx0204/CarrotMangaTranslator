@@ -10,8 +10,9 @@ use std::ffi::CStr;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use image::GenericImageView;
-use koharu_ml::flux2_klein::{Flux2ImageToImageOptions, Flux2Klein, Flux2KleinPaths};
+use koharu_ml::flux2_klein::{
+    Flux2ImageToImageOptions, Flux2InpaintOptions, Flux2Klein, Flux2KleinPaths,
+};
 use koharu_runtime::{Catalog, ComputePolicy, RuntimeManager};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{EnvFilter, fmt};
@@ -53,7 +54,7 @@ struct Cli {
     #[arg(long, default_value_t = 1024 * 1024)]
     max_pixels: u32,
 
-    #[arg(long, default_value_t = 16)]
+    #[arg(long, default_value_t = 0)]
     mask_padding: u8,
 
     #[arg(long)]
@@ -112,7 +113,6 @@ async fn main() -> Result<()> {
     }
     if cli.require_metal {
         ensure_metal_available()?;
-        prepare_metal_matrix_runtime();
     } else if cli.require_zluda {
         prepare_zluda_runtime(&cli).await?;
         // ZLUDA's nvcudart_hybrid64.dll is not a complete CUDA Runtime API
@@ -148,18 +148,6 @@ async fn main() -> Result<()> {
 
     run_worker(&model, &cli)?;
     Ok(())
-}
-
-fn prepare_metal_matrix_runtime() {
-    if std::env::var_os("CANDLE_DEQUANTIZE_ALL").is_none()
-        && std::env::var_os("CANDLE_DEQUANTIZE_ALL_F16").is_none()
-    {
-        // Candle's quantized Metal matmul corrupts the FLUX transformer output
-        // on some Apple GPUs. Materializing the GGUF weights as F16 once during
-        // model load keeps inference on Metal while using the stable matmul path.
-        unsafe { std::env::set_var("CANDLE_DEQUANTIZE_ALL_F16", "1") };
-        eprintln!("mgt-flux-klein: using dequantized F16 Metal matrix kernels");
-    }
 }
 
 fn print_capabilities() -> Result<()> {
@@ -469,6 +457,9 @@ fn link_or_copy_file(source: &Path, destination: &Path) -> Result<()> {
 fn run_worker(model: &Flux2Klein, cli: &Cli) -> Result<()> {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
+    if cli.require_metal {
+        eprintln!("mgt-flux-klein: Metal image-to-image mode");
+    }
     eprintln!("mgt-flux-klein: worker ready");
     for line in stdin.lock().lines() {
         let line = line?;
@@ -490,22 +481,34 @@ fn run_worker(model: &Flux2Klein, cli: &Cli) -> Result<()> {
                 mask_padding,
             } => {
                 let started = Instant::now();
-                // The app owns mask expansion and final compositing.  Keep accepting
-                // mask_padding for protocol compatibility, but do not crop or clamp
-                // latents a second time inside the model runtime.
-                let _mask_padding = mask_padding.unwrap_or(cli.mask_padding);
-                let result = run_inpaint(
-                    model,
-                    cli,
-                    &input,
-                    &mask,
-                    &output,
-                    Flux2ImageToImageOptions {
-                        num_inference_steps: steps.unwrap_or(cli.steps),
-                        strength: strength.unwrap_or(cli.strength),
-                        max_pixels: max_pixels.unwrap_or(cli.max_pixels),
-                    },
-                );
+                let num_inference_steps = steps.unwrap_or(cli.steps);
+                let strength = strength.unwrap_or(cli.strength);
+                let max_pixels = max_pixels.unwrap_or(cli.max_pixels);
+                let result = if cli.require_metal {
+                    run_image_to_image(
+                        model,
+                        &input,
+                        &output,
+                        Flux2ImageToImageOptions {
+                            num_inference_steps,
+                            strength,
+                            max_pixels,
+                        },
+                    )
+                } else {
+                    run_inpaint(
+                        model,
+                        &input,
+                        &mask,
+                        &output,
+                        Flux2InpaintOptions {
+                            num_inference_steps,
+                            strength,
+                            max_pixels,
+                            mask_padding: mask_padding.unwrap_or(cli.mask_padding),
+                        },
+                    )
+                };
                 let response = match result {
                     Ok(()) => WorkerResponse {
                         id: &id,
@@ -531,35 +534,35 @@ fn run_worker(model: &Flux2Klein, cli: &Cli) -> Result<()> {
 
 fn run_inpaint(
     model: &Flux2Klein,
-    _cli: &Cli,
     input: &PathBuf,
     mask: &PathBuf,
     output: &PathBuf,
-    options: Flux2ImageToImageOptions,
+    options: Flux2InpaintOptions,
 ) -> Result<()> {
     let image = image::open(input)
         .with_context(|| format!("failed to open input image {}", input.display()))?;
     let mask_image = image::open(mask)
         .with_context(|| format!("failed to open mask image {}", mask.display()))?;
-    if image.dimensions() != mask_image.dimensions() {
-        bail!(
-            "image/mask dimensions mismatch: image is {:?}, mask is {:?}",
-            image.dimensions(),
-            mask_image.dimensions()
-        );
-    }
-    if !mask_image.to_luma8().pixels().any(|pixel| pixel.0[0] > 0) {
-        bail!("inpainting mask is empty");
-    }
+    let result = model
+        .inpaint(&image, &mask_image, &options)
+        .with_context(|| "Flux.2 Klein inpainting failed")?;
+    result
+        .save(output)
+        .with_context(|| format!("failed to write output image {}", output.display()))?;
+    Ok(())
+}
 
-    // FLUX.2 Klein is an image-edit model.  Generate the complete contextual
-    // crop, then let the Electron side blend only the requested mask back into
-    // the page. This mirrors the proven MangaTranslator pipeline and avoids a
-    // second internal crop plus per-step latent clamping that would deprive the
-    // edit model of the surrounding context prepared by the app.
+fn run_image_to_image(
+    model: &Flux2Klein,
+    input: &PathBuf,
+    output: &PathBuf,
+    options: Flux2ImageToImageOptions,
+) -> Result<()> {
+    let image = image::open(input)
+        .with_context(|| format!("failed to open input image {}", input.display()))?;
     let result = model
         .image_to_image(&image, &options)
-        .with_context(|| "Flux.2 Klein image edit failed")?;
+        .with_context(|| "Flux.2 Klein Metal image edit failed")?;
     result
         .save(output)
         .with_context(|| format!("failed to write output image {}", output.display()))?;

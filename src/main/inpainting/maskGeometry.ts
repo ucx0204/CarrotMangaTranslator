@@ -35,31 +35,6 @@ export function mergeFilledRectIntoPage(
   }
 }
 
-export function mergeRects(rects: PixelRect[]): PixelRect[] {
-  const sorted = [...rects].sort(
-    (left, right) => left.y - right.y || left.x - right.x,
-  );
-  const merged: PixelRect[] = [];
-  for (const rect of sorted) {
-    const existing = merged.find((candidate) =>
-      rectsTouchOrOverlap(candidate, rect),
-    );
-    if (existing) {
-      const x1 = Math.min(existing.x, rect.x);
-      const y1 = Math.min(existing.y, rect.y);
-      const x2 = Math.max(existing.x + existing.w, rect.x + rect.w);
-      const y2 = Math.max(existing.y + existing.h, rect.y + rect.h);
-      existing.x = x1;
-      existing.y = y1;
-      existing.w = x2 - x1;
-      existing.h = y2 - y1;
-    } else {
-      merged.push({ ...rect });
-    }
-  }
-  return merged;
-}
-
 export function rectHasMask(
   mask: Uint8Array,
   pageWidth: number,
@@ -186,6 +161,54 @@ export function alignRectToMultiple(
   };
 }
 
+export type ContextTile = {
+  cropBounds: PixelRect;
+  writeBounds: PixelRect;
+};
+
+export function resolveContextTiles(
+  bounds: PixelRect,
+  imageWidth: number,
+  imageHeight: number,
+  maxTileSize: number,
+  contextPx: number,
+  multiple: number,
+): ContextTile[] {
+  if (bounds.w <= maxTileSize && bounds.h <= maxTileSize) {
+    return [{ cropBounds: bounds, writeBounds: bounds }];
+  }
+
+  const safeMultiple = Math.max(1, Math.round(multiple));
+  const safeTileSize = Math.max(safeMultiple, Math.round(maxTileSize));
+  const safeContext = clamp(
+    Math.round(contextPx),
+    0,
+    Math.max(0, Math.floor((safeTileSize - safeMultiple) / 2)),
+  );
+  const coreSize = Math.max(
+    safeMultiple,
+    Math.floor(
+      (safeTileSize - safeContext * 2 - (safeMultiple - 1)) / safeMultiple,
+    ) * safeMultiple,
+  );
+  const tiles: ContextTile[] = [];
+  for (let y = bounds.y; y < bounds.y + bounds.h; y += coreSize) {
+    const height = Math.min(coreSize, bounds.y + bounds.h - y);
+    for (let x = bounds.x; x < bounds.x + bounds.w; x += coreSize) {
+      const width = Math.min(coreSize, bounds.x + bounds.w - x);
+      const writeBounds = { x, y, w: width, h: height };
+      const cropBounds = alignRectToMultiple(
+        expandRect(writeBounds, imageWidth, imageHeight, safeContext),
+        imageWidth,
+        imageHeight,
+        safeMultiple,
+      );
+      tiles.push({ cropBounds, writeBounds });
+    }
+  }
+  return tiles;
+}
+
 export function resolveFluxProcessSize(
   width: number,
   height: number,
@@ -197,6 +220,7 @@ export function resolveFluxProcessSize(
   const safeMaxPixels = Math.max(multiple * multiple, maxPixels);
   const maxDimension = 2048;
   const scale = Math.min(
+    1,
     Math.sqrt(safeMaxPixels / (safeWidth * safeHeight)),
     maxDimension / safeWidth,
     maxDimension / safeHeight,
@@ -220,13 +244,4 @@ export function resolveFluxProcessSize(
     width: scaledWidth,
     height: scaledHeight,
   };
-}
-
-function rectsTouchOrOverlap(left: PixelRect, right: PixelRect): boolean {
-  return (
-    left.x <= right.x + right.w &&
-    left.x + left.w >= right.x &&
-    left.y <= right.y + right.h &&
-    left.y + left.h >= right.y
-  );
 }

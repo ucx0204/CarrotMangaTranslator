@@ -7,6 +7,7 @@ import {
 import type {
   AmdRocmTarget,
   AppSettings,
+  BubbleDetectionMode,
   FluxBackend,
   GemmaVramMode,
   InpaintingModel,
@@ -16,6 +17,7 @@ import type {
 import { normalizeAmdRocmTarget } from "../gpuInfo";
 import {
   inferHardwareVendorFromDefaults,
+  resolveBubbleDetectionMode,
   resolveFluxBackend,
   resolveInpaintingModel,
   resolveKoharuInpaintingBackend,
@@ -124,6 +126,16 @@ export function resolveStoredInpaintingModel(
   return resolveInpaintingModel(
     inpainting?.model,
     defaults.inpainting?.model ?? "flux-klein",
+  );
+}
+
+export function resolveStoredBubbleDetectionMode(
+  inpainting: Record<string, unknown> | null,
+  defaults: AppSettings,
+): BubbleDetectionMode {
+  return resolveBubbleDetectionMode(
+    inpainting?.bubbleDetectionMode,
+    defaults.inpainting?.bubbleDetectionMode ?? "auto",
   );
 }
 
