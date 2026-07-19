@@ -262,7 +262,9 @@ function resolveBootstrapPython(
   if (bundled) {
     return bundled;
   }
-  return shouldAllowSystemPythonFallback(options) ? "python" : null;
+  return shouldAllowSystemPythonFallback(options)
+    ? resolveSystemPythonCommand()
+    : null;
 }
 
 /** @param {string[]} candidates @returns {string | null} */
@@ -270,9 +272,19 @@ function findAvailablePython(candidates) {
   return (
     candidates.find(
       (candidate) =>
-        candidate && (candidate === "python" || existsSync(candidate)),
+        candidate && (isPythonCommand(candidate) || existsSync(candidate)),
     ) || null
   );
+}
+
+/** @param {string} candidate @returns {boolean} */
+function isPythonCommand(candidate) {
+  return candidate === "python" || candidate === "python3";
+}
+
+/** @returns {string} */
+function resolveSystemPythonCommand() {
+  return process.platform === "win32" ? "python" : "python3";
 }
 
 /** @param {RuntimeOptions} [options] @returns {boolean} */

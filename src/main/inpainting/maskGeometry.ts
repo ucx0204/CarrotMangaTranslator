@@ -192,18 +192,30 @@ export function resolveFluxProcessSize(
   maxPixels: number,
   multiple: number,
 ): { width: number; height: number } {
-  let scale = 1;
-  if (width * height > maxPixels) {
-    scale = Math.sqrt(maxPixels / Math.max(1, width * height));
+  const safeWidth = Math.max(1, width);
+  const safeHeight = Math.max(1, height);
+  const safeMaxPixels = Math.max(multiple * multiple, maxPixels);
+  const maxDimension = 2048;
+  const scale = Math.min(
+    Math.sqrt(safeMaxPixels / (safeWidth * safeHeight)),
+    maxDimension / safeWidth,
+    maxDimension / safeHeight,
+  );
+  let scaledWidth = Math.max(
+    multiple,
+    Math.round((safeWidth * scale) / multiple) * multiple,
+  );
+  let scaledHeight = Math.max(
+    multiple,
+    Math.round((safeHeight * scale) / multiple) * multiple,
+  );
+  while (scaledWidth * scaledHeight > safeMaxPixels) {
+    if (scaledWidth / safeWidth >= scaledHeight / safeHeight) {
+      scaledWidth = Math.max(multiple, scaledWidth - multiple);
+    } else {
+      scaledHeight = Math.max(multiple, scaledHeight - multiple);
+    }
   }
-  const scaledWidth = Math.max(
-    multiple,
-    Math.round((width * scale) / multiple) * multiple,
-  );
-  const scaledHeight = Math.max(
-    multiple,
-    Math.round((height * scale) / multiple) * multiple,
-  );
   return {
     width: scaledWidth,
     height: scaledHeight,

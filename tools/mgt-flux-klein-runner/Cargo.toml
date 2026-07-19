@@ -24,7 +24,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [patch.crates-io]
 candle-core = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
-candle-nn = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
+candle-nn = { path = "vendor/candle-nn-metal-attention" }
 candle-transformers = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
 candle-flash-attn = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
 ug = { git = "https://github.com/mayocream/ug", branch = "cuda-dynamic-loading" }

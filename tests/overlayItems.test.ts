@@ -30,6 +30,45 @@ describe("overlay item conversion", () => {
     expect(block.renderDirection).toBe("horizontal");
   });
 
+  it("keeps translated ordinary text upright when the model reports a left slant", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "ordinary",
+        bbox: { x: 400, y: 100, w: 70, h: 360 },
+        jp: "ありがとうございます",
+        ko: "감사합니다.",
+        direction: "vertical",
+        angle: -30,
+        confidence: 1,
+      },
+      makePage(),
+      0,
+    );
+
+    expect(block.rotationDeg).toBe(0);
+  });
+
+  it("preserves a detected source slant for sound effects", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "sound",
+        bbox: { x: 100, y: 100, w: 200, h: 120 },
+        jp: "ドン",
+        ko: "쾅",
+        angle: -18,
+        confidence: 1,
+      },
+      makePage(),
+      0,
+    );
+
+    expect(block.rotationDeg).toBe(-18);
+  });
+
   it("prefers language-neutral text aliases when creating a block", () => {
     const block = overlayItemToBlock(
       {

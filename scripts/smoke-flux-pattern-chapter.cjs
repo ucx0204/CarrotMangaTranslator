@@ -74,12 +74,18 @@ async function main() {
   );
 
   if (!process.env.MGT_FLUX_KLEIN_EXE) {
-    const localMgtFlux = path.join(
-      ROOT,
-      "tools",
-      "mgt-flux-klein",
-      "mgt-flux-klein.exe",
-    );
+    const localMgtFlux =
+      process.platform === "darwin" && process.arch === "arm64"
+        ? path.join(
+            ROOT,
+            "tools",
+            "mgt-flux-klein-runner",
+            "target",
+            "aarch64-apple-darwin",
+            "release",
+            "mgt-flux-klein",
+          )
+        : path.join(ROOT, "tools", "mgt-flux-klein", "mgt-flux-klein.exe");
     if (existsSync(localMgtFlux)) {
       process.env.MGT_FLUX_KLEIN_EXE = localMgtFlux;
     }
@@ -93,6 +99,10 @@ async function main() {
       "mgt-flux-klein-runtime",
     ),
     modelDir: path.join(ROOT, "models", "inpainting", "flux-klein-4b"),
+    fluxBackend:
+      process.platform === "darwin" && process.arch === "arm64"
+        ? "metal-native"
+        : undefined,
     onProgress:
       /** @param {FluxProgress} progress */
       (progress) => {

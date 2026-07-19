@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { resolveFluxProcessSize } from "../src/main/inpainting/maskGeometry";
 
 const tempDirs: string[] = [];
 
@@ -17,6 +18,43 @@ afterEach(() => {
 });
 
 describe("Flux inpainting engine change detection", () => {
+  it("upscales small crops to the model pixel budget", () => {
+    const size = resolveFluxProcessSize(320, 160, 1024 * 1024, 16);
+
+    expect(size.width).toBeGreaterThan(320);
+    expect(size.height).toBeGreaterThan(160);
+    expect(size.width % 16).toBe(0);
+    expect(size.height % 16).toBe(0);
+    expect(size.width * size.height).toBeLessThanOrEqual(1024 * 1024);
+    expect(size.width / size.height).toBeCloseTo(2, 1);
+  });
+
+  it("matches generated crop tone to the unchanged context", async () => {
+    vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
+    const { matchFluxOutputToOriginalContext } = await import(
+      "../src/main/inpainting/fluxToneCorrection"
+    );
+    const original = Buffer.alloc(16 * 16 * 4);
+    const generated = Buffer.alloc(16 * 16 * 4);
+    const mask = new Uint8Array(16 * 16);
+    for (let index = 0; index < 16 * 16; index += 1) {
+      const offset = index * 4;
+      original.set([180, 180, 180, 255], offset);
+      generated.set([90, 120, 150, 255], offset);
+      const x = index % 16;
+      const y = Math.floor(index / 16);
+      mask[index] = x >= 6 && x < 10 && y >= 6 && y < 10 ? 1 : 0;
+    }
+
+    expect(
+      matchFluxOutputToOriginalContext(original, generated, mask),
+    ).toBe(true);
+    const maskedOffset = (7 * 16 + 7) * 4;
+    expect([...generated.subarray(maskedOffset, maskedOffset + 3)]).toEqual([
+      180, 180, 180,
+    ]);
+  });
+
   it("warns instead of failing when every crop comes back unchanged", async () => {
     const logInfo = vi.fn();
     const logWarn = vi.fn();
@@ -38,15 +76,22 @@ describe("Flux inpainting engine change detection", () => {
       },
       runRootDir: root,
     });
-    const bitmap = Buffer.alloc(16 * 16 * 4, 180);
-    const mask = new Uint8Array(16 * 16).fill(1);
+    const bitmap = Buffer.alloc(256 * 256 * 4, 180);
+    const mask = new Uint8Array(256 * 256).fill(1);
 
     await expect(
-      engine.inpaint(bitmap, 16, 16, mask, [{ x: 0, y: 0, w: 16, h: 16 }], {
-        contextPx: 16,
-        maskPaddingPx: 0,
-        maxPixels: 256 * 256,
-      }),
+      engine.inpaint(
+        bitmap,
+        256,
+        256,
+        mask,
+        [{ x: 0, y: 0, w: 256, h: 256 }],
+        {
+          contextPx: 16,
+          maskPaddingPx: 0,
+          maxPixels: 256 * 256,
+        },
+      ),
     ).resolves.toBeUndefined();
     await engine.dispose();
 

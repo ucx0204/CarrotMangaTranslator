@@ -20,6 +20,7 @@ import {
   writePngFromBitmap,
   writePngFromMask,
 } from "./imageRaster";
+import { matchFluxOutputToOriginalContext } from "./fluxToneCorrection";
 import {
   alignRectToMultiple,
   expandRect,
@@ -218,6 +219,11 @@ async function processFluxWindow({
     paths.outputPath,
     crop.paddedBounds.w,
     crop.paddedBounds.h,
+  );
+  matchFluxOutputToOriginalContext(
+    cropBitmap,
+    generated,
+    crop.validationMask,
   );
   const changeStats = measureMaskedRegionChange(
     cropBitmap,

@@ -1,0 +1,20 @@
+[package]
+name = "candle-nn"
+version = "0.9.2"
+edition = "2021"
+publish = false
+
+[features]
+default = []
+accelerate = ["candle-nn-upstream/accelerate"]
+cuda = ["candle-nn-upstream/cuda"]
+cudnn = ["candle-nn-upstream/cudnn"]
+mkl = ["candle-nn-upstream/mkl"]
+metal = ["candle-nn-upstream/metal", "candle-core/metal"]
+
+[dependencies]
+candle-core = "=0.9.2"
+candle-nn-upstream = { git = "https://github.com/mayocream/candle", branch = "flash-attn", package = "candle-nn", default-features = false }
+
+[patch.crates-io]
+candle-core = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }

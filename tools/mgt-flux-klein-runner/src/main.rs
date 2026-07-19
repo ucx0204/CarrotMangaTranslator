@@ -10,7 +10,8 @@ use std::ffi::CStr;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use koharu_ml::flux2_klein::{Flux2InpaintOptions, Flux2Klein, Flux2KleinPaths};
+use image::GenericImageView;
+use koharu_ml::flux2_klein::{Flux2ImageToImageOptions, Flux2Klein, Flux2KleinPaths};
 use koharu_runtime::{Catalog, ComputePolicy, RuntimeManager};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{EnvFilter, fmt};
@@ -111,6 +112,7 @@ async fn main() -> Result<()> {
     }
     if cli.require_metal {
         ensure_metal_available()?;
+        prepare_metal_matrix_runtime();
     } else if cli.require_zluda {
         prepare_zluda_runtime(&cli).await?;
         // ZLUDA's nvcudart_hybrid64.dll is not a complete CUDA Runtime API
@@ -146,6 +148,18 @@ async fn main() -> Result<()> {
 
     run_worker(&model, &cli)?;
     Ok(())
+}
+
+fn prepare_metal_matrix_runtime() {
+    if std::env::var_os("CANDLE_DEQUANTIZE_ALL").is_none()
+        && std::env::var_os("CANDLE_DEQUANTIZE_ALL_F16").is_none()
+    {
+        // Candle's quantized Metal matmul corrupts the FLUX transformer output
+        // on some Apple GPUs. Materializing the GGUF weights as F16 once during
+        // model load keeps inference on Metal while using the stable matmul path.
+        unsafe { std::env::set_var("CANDLE_DEQUANTIZE_ALL_F16", "1") };
+        eprintln!("mgt-flux-klein: using dequantized F16 Metal matrix kernels");
+    }
 }
 
 fn print_capabilities() -> Result<()> {
@@ -476,17 +490,20 @@ fn run_worker(model: &Flux2Klein, cli: &Cli) -> Result<()> {
                 mask_padding,
             } => {
                 let started = Instant::now();
+                // The app owns mask expansion and final compositing.  Keep accepting
+                // mask_padding for protocol compatibility, but do not crop or clamp
+                // latents a second time inside the model runtime.
+                let _mask_padding = mask_padding.unwrap_or(cli.mask_padding);
                 let result = run_inpaint(
                     model,
                     cli,
                     &input,
                     &mask,
                     &output,
-                    Flux2InpaintOptions {
+                    Flux2ImageToImageOptions {
                         num_inference_steps: steps.unwrap_or(cli.steps),
                         strength: strength.unwrap_or(cli.strength),
                         max_pixels: max_pixels.unwrap_or(cli.max_pixels),
-                        mask_padding: mask_padding.unwrap_or(cli.mask_padding),
                     },
                 );
                 let response = match result {
@@ -518,15 +535,31 @@ fn run_inpaint(
     input: &PathBuf,
     mask: &PathBuf,
     output: &PathBuf,
-    options: Flux2InpaintOptions,
+    options: Flux2ImageToImageOptions,
 ) -> Result<()> {
     let image = image::open(input)
         .with_context(|| format!("failed to open input image {}", input.display()))?;
     let mask_image = image::open(mask)
         .with_context(|| format!("failed to open mask image {}", mask.display()))?;
+    if image.dimensions() != mask_image.dimensions() {
+        bail!(
+            "image/mask dimensions mismatch: image is {:?}, mask is {:?}",
+            image.dimensions(),
+            mask_image.dimensions()
+        );
+    }
+    if !mask_image.to_luma8().pixels().any(|pixel| pixel.0[0] > 0) {
+        bail!("inpainting mask is empty");
+    }
+
+    // FLUX.2 Klein is an image-edit model.  Generate the complete contextual
+    // crop, then let the Electron side blend only the requested mask back into
+    // the page. This mirrors the proven MangaTranslator pipeline and avoids a
+    // second internal crop plus per-step latent clamping that would deprive the
+    // edit model of the surrounding context prepared by the app.
     let result = model
-        .inpaint(&image, &mask_image, &options)
-        .with_context(|| "Flux.2 Klein inpainting failed")?;
+        .image_to_image(&image, &options)
+        .with_context(|| "Flux.2 Klein image edit failed")?;
     result
         .save(output)
         .with_context(|| format!("failed to write output image {}", output.display()))?;
@@ -586,6 +619,10 @@ fn install_panic_hook() {
                     .map(|text| text.as_str())
             })
             .unwrap_or("unknown panic");
-        eprintln!("mgt-flux-klein: fatal runtime panic: {message}");
+        let location = panic_info
+            .location()
+            .map(|location| format!(" at {}:{}", location.file(), location.line()))
+            .unwrap_or_default();
+        eprintln!("mgt-flux-klein: fatal runtime panic: {message}{location}");
     }));
 }
