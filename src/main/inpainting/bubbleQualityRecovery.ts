@@ -1,10 +1,5 @@
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
-import {
-  bboxToPixels,
-  clamp,
-  normalizeBboxTo1000,
-} from "../../shared/geometry";
 import type { PixelRect } from "./maskGeometry";
 
 export type BubbleRecoveryHint = {
@@ -85,20 +80,28 @@ function toRecoveryHint(
   block: TranslationBlock,
   page: MangaPage,
 ): BubbleRecoveryHint {
-  const normalized = normalizeBboxTo1000(
-    block.bbox,
-    { width: page.width, height: page.height },
-    block.bboxSpace,
+  const scaleX = block.bboxSpace === "pixels" ? 1 : page.width / 1000;
+  const scaleY = block.bboxSpace === "pixels" ? 1 : page.height / 1000;
+  const pixelX = block.bbox.x * scaleX;
+  const pixelY = block.bbox.y * scaleY;
+  const pixelWidth = block.bbox.w * scaleX;
+  const pixelHeight = block.bbox.h * scaleY;
+  const x = clampValue(Math.floor(pixelX), 0, Math.max(0, page.width - 1));
+  const y = clampValue(Math.floor(pixelY), 0, Math.max(0, page.height - 1));
+  const right = clampValue(Math.ceil(pixelX + pixelWidth), x + 1, page.width);
+  const bottom = clampValue(
+    Math.ceil(pixelY + pixelHeight),
+    y + 1,
+    page.height,
   );
-  const pixels = bboxToPixels(normalized, page.width, page.height);
-  const x = clamp(Math.floor(pixels.x), 0, Math.max(0, page.width - 1));
-  const y = clamp(Math.floor(pixels.y), 0, Math.max(0, page.height - 1));
-  const right = clamp(Math.ceil(pixels.x + pixels.w), x + 1, page.width);
-  const bottom = clamp(Math.ceil(pixels.y + pixels.h), y + 1, page.height);
   return {
     blockId: block.id,
     rect: { x, y, w: right - x, h: bottom - y },
   };
+}
+
+function clampValue(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
 }
 
 function maskNeedsRecovery(
