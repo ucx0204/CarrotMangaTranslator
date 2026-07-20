@@ -96,7 +96,12 @@ def run_inpaint(sd: Any, request: dict[str, Any]) -> None:
     # reference image where the masked lettering is already roughly blanked.
     # The final result is still composited only through our original mask.
     erase_mask = mask.point(lambda value: 255 if value > 16 else 0, mode="L")
-    mask_padding = int(request.get("mask_padding") or 16)
+    requested_mask_padding = request.get("mask_padding")
+    mask_padding = (
+        16
+        if requested_mask_padding is None
+        else max(0, int(requested_mask_padding))
+    )
     bounds = inpaint_crop_bounds(image, erase_mask, mask_padding)
     if bounds is None:
         inference_image = image

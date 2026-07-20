@@ -187,7 +187,10 @@ function llamaRuntimeProbeLooksGpuBacked(output, backend = "cuda") {
   const normalized = String(backend || "cuda").toLowerCase();
   if (normalized === "vulkan") return /(vulkan|radeon|amd|gpu)/i.test(text);
   if (normalized === "metal") {
-    return /metal/i.test(text) && /(apple|gpu|m[1-9])/i.test(text);
+    return (
+      (/metal/i.test(text) && /(apple|gpu|m[1-9])/i.test(text)) ||
+      /^\s*MTL\d+:\s*Apple\s+M\d+/im.test(text)
+    );
   }
   if (normalized === "rocm" || normalized === "hip")
     return /(rocm|hip|radeon|amd|gpu)/i.test(text);

@@ -319,6 +319,7 @@ export async function ensureRemoteFile(options: {
       url: options.url,
       bytes: fileStat.size,
       downloadedAt: new Date().toISOString(),
+      mtimeMs: fileStat.mtimeMs,
       sha256: actualSha256,
     });
   }

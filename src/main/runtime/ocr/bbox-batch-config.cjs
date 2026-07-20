@@ -104,7 +104,8 @@ function resolveOcrCpuWorkerMinFreeRamRatio(dependencies, options = {}) {
     ),
     options.ocrCpuWorkerMinFreeRamPercent,
   ]);
-  return Math.max(0, Math.min(95, explicit ?? 20)) / 100;
+  const defaultPercent = dependencies.os.platform() === "darwin" ? 0 : 20;
+  return Math.max(0, Math.min(95, explicit ?? defaultPercent)) / 100;
 }
 
 /** @param {Dependencies} dependencies @param {OcrBboxOptions} [options] */

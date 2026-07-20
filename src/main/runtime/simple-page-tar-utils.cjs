@@ -5,7 +5,7 @@ const {
   readlinkSync,
   realpathSync,
 } = require("node:fs");
-const { chmod, mkdir } = require("node:fs/promises");
+const { chmod, mkdir, rm, symlink } = require("node:fs/promises");
 const path = require("node:path");
 const tar = require("tar");
 
@@ -41,19 +41,25 @@ async function extractSelectedTarEntries(
     unlink: true,
     filter: (entryPath, entry) => {
       const tarEntry = /** @type {any} */ (entry);
-      return shouldExtractTarEntry(
-        {
-          path: entryPath,
-          type: tarEntry.type,
-          linkpath: tarEntry.linkpath,
-          size: tarEntry.size,
-          mode: tarEntry.mode,
-        },
-        stripComponents,
-        shouldExtract,
+      const entryInfo = {
+        path: entryPath,
+        type: tarEntry.type,
+        linkpath: tarEntry.linkpath,
+        size: tarEntry.size,
+        mode: tarEntry.mode,
+      };
+      return (
+        !isSymbolicLinkType(entryInfo.type) &&
+        shouldExtractTarEntry(entryInfo, stripComponents, shouldExtract)
       );
     },
   });
+  await createSelectedTarSymlinks(
+    entries,
+    outputDir,
+    stripComponents,
+    shouldExtract,
+  );
   assertExtractedSymlinksStayInside(outputDir);
   const serverPath = path.join(outputDir, "llama-server");
   try {
@@ -61,6 +67,29 @@ async function extractSelectedTarEntries(
   } catch (_error) {
     // error-policy-allow: the caller validates and reports a missing server.
     // The caller reports the missing required binary with runtime details.
+  }
+}
+
+/** @param {TarEntryInfo[]} entries @param {string} outputDir @param {number} stripComponents @param {RuntimeEntryFilter} shouldExtract */
+async function createSelectedTarSymlinks(
+  entries,
+  outputDir,
+  stripComponents,
+  shouldExtract,
+) {
+  for (const entry of entries) {
+    if (
+      !isSymbolicLinkType(entry.type) ||
+      !shouldExtractTarEntry(entry, stripComponents, shouldExtract)
+    ) {
+      continue;
+    }
+    const safePath = normalizeSafeArchivePath(entry.path);
+    const outputPath = stripArchivePath(safePath, stripComponents);
+    const linkPath = path.join(outputDir, outputPath);
+    await mkdir(path.dirname(linkPath), { recursive: true });
+    await rm(linkPath, { force: true });
+    await symlink(String(entry.linkpath), linkPath);
   }
 }
 
@@ -226,6 +255,7 @@ function inspectExtractedEntry(entryPath, root, stack) {
 function assertSafeExtractedSymlink(entryPath, root) {
   const target = readlinkSync(entryPath);
   const resolved = path.resolve(path.dirname(entryPath), target);
+  const realRoot = realpathSync(root);
   let realResolved;
   try {
     realResolved = realpathSync(entryPath);
@@ -234,7 +264,7 @@ function assertSafeExtractedSymlink(entryPath, root) {
       cause,
     });
   }
-  if (!isPathInside(resolved, root) || !isPathInside(realResolved, root)) {
+  if (!isPathInside(resolved, root) || !isPathInside(realResolved, realRoot)) {
     throw new Error(
       `Extracted runtime symlink escapes extraction root: ${entryPath}`,
     );

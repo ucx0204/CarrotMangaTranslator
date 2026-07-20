@@ -1163,6 +1163,17 @@
       "ocrDevice": "Paddle OCRデバイス",
       "fluxBackend": "Fluxインペインティングのバックエンド",
       "inpaintingModel": "インペインティングモデル",
+      "bubbleDetection": "吹き出し検出",
+      "bubbleDetectionModes": {
+        "auto": {
+          "label": "自動",
+          "description": "追加ダウンロードなしでOCR領域と画像特徴から吹き出しを素早く分離し、輪郭を保護します。"
+        },
+        "precise": {
+          "label": "高精度",
+          "description": "専用セグメンテーションモデルで吹き出しを検出します。初回に約104MBのモデルをダウンロードします。"
+        }
+      },
       "amdOcrExperimental": "AMD GPU OCRは実験機能です。失敗した場合はOCRだけをCPUに切り替えられます。",
       "ocrAmdNote": "AMD環境ではNVIDIA CUDA OCRを選択できません。",
       "ocrAppleNote": "Apple Silicon AlphaのPaddle OCRはCPUランタイムを使用します。",

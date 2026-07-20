@@ -10,7 +10,8 @@ describe("PaddleOCR-VL bbox script", () => {
       "python",
       "test_paddleocr_vl_bboxes.py",
     );
-    const result = spawnSync(process.env.PYTHON ?? "python", [testFile], {
+    const defaultPython = process.platform === "win32" ? "python" : "python3";
+    const result = spawnSync(process.env.PYTHON ?? defaultPython, [testFile], {
       cwd: process.cwd(),
       encoding: "utf8",
       env: {

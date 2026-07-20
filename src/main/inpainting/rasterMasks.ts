@@ -52,10 +52,14 @@ export function maskComponents(
   width: number,
   height: number,
   minArea: number,
-): Array<{ rect: PixelRect; area: number }> {
+): Array<{ rect: PixelRect; area: number; data: Uint8Array }> {
   const visited = new Uint8Array(mask.length);
   const queue: number[] = [];
-  const components: Array<{ rect: PixelRect; area: number }> = [];
+  const components: Array<{
+    rect: PixelRect;
+    area: number;
+    data: Uint8Array;
+  }> = [];
   for (let index = 0; index < mask.length; index += 1) {
     if (!mask[index] || visited[index]) {
       continue;
@@ -80,14 +84,22 @@ export function maskComponents(
       enqueueUnvisitedMaskNeighbors(mask, visited, queue, x, y, width, height);
     }
     if (area >= minArea) {
+      const rect = {
+        x: x1,
+        y: y1,
+        w: Math.max(1, x2 - x1),
+        h: Math.max(1, y2 - y1),
+      };
+      const data = new Uint8Array(rect.w * rect.h);
+      for (const componentIndex of queue) {
+        const x = componentIndex % width;
+        const y = Math.floor(componentIndex / width);
+        data[(y - rect.y) * rect.w + x - rect.x] = 1;
+      }
       components.push({
         area,
-        rect: {
-          x: x1,
-          y: y1,
-          w: Math.max(1, x2 - x1),
-          h: Math.max(1, y2 - y1),
-        },
+        data,
+        rect,
       });
     }
   }

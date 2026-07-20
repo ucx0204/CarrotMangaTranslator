@@ -1,6 +1,7 @@
 import type {
   ApiReasoningEffort,
   AppSettings,
+  BubbleDetectionMode,
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
@@ -64,6 +65,7 @@ export type SettingsFormValues = {
   ocrGpuBackend: OcrGpuBackend;
   ocrQualityMode: OcrQualityMode;
   inpaintingModel: InpaintingModel;
+  bubbleDetectionMode: BubbleDetectionMode;
   fluxBackend: FluxBackend;
   allowUnsafeLowMemoryFlux: boolean;
   maxTokens: string;
@@ -185,6 +187,7 @@ function resolveHardwareFormValues(
   | "ocrGpuBackend"
   | "ocrQualityMode"
   | "inpaintingModel"
+  | "bubbleDetectionMode"
   | "fluxBackend"
   | "allowUnsafeLowMemoryFlux"
 > {
@@ -193,6 +196,7 @@ function resolveHardwareFormValues(
     ocrGpuBackend: settings.ocr.gpuBackend ?? "cuda",
     ocrQualityMode: settings.ocr.qualityMode ?? "minimum",
     inpaintingModel: settings.inpainting?.model ?? "flux-klein",
+    bubbleDetectionMode: settings.inpainting?.bubbleDetectionMode ?? "auto",
     fluxBackend: settings.inpainting?.fluxBackend ?? "cuda-native",
     allowUnsafeLowMemoryFlux:
       settings.inpainting?.allowUnsafeLowMemoryFlux === true,

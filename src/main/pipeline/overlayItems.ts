@@ -66,7 +66,12 @@ export function overlayItemToBlock(
     page,
     fontSizePx,
   );
-  const rotationDeg = enforceRotationDeg(type, item.angle ?? 0);
+  const rotationDeg = resolveInitialRotationDeg(
+    type,
+    textRole,
+    sourceDirection,
+    item.angle,
+  );
   const visualStyle = resolveBlockVisualStyle(type);
   const block: TranslationBlock = {
     id: `${page.id}-${normalizeBlockRunId(runId)}-block-${index + 1}`,
@@ -250,6 +255,23 @@ function resolveInitialRenderDirection(
   }
 
   return enforceRenderDirection(type, "horizontal");
+}
+
+function resolveInitialRotationDeg(
+  type: BlockType,
+  textRole: NormalizedTextRole,
+  sourceDirection: SourceTextDirection,
+  angle: unknown,
+): number {
+  // Vision models can mistake a vertical Japanese column for a negative slant.
+  // Discard that artifact when the translated overlay becomes horizontal, but
+  // preserve real slants on horizontal text and all sound effects.
+  const shouldDiscardVerticalSlant =
+    sourceDirection === "vertical" && textRole !== "sound";
+  return enforceRotationDeg(
+    type,
+    shouldDiscardVerticalSlant ? 0 : (angle ?? 0),
+  );
 }
 
 function shouldKeepVerticalRendering(

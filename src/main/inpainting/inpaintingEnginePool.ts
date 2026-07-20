@@ -17,6 +17,7 @@ import {
   acquireKoharuInpaintingEngine,
   disposeCachedKoharuInpaintingEngine,
 } from "./koharuEnginePool";
+import { disposeCachedBubbleSegmentationEngine } from "./bubbleSegmentationEnginePool";
 
 export type InpaintingEngineLease = {
   engine: InpaintingEngine;
@@ -81,9 +82,10 @@ export function assertFluxMemoryPolicy(options: {
 export async function disposeCachedInpaintingEngines(
   reason: string,
 ): Promise<boolean> {
-  const [fluxDisposed, koharuDisposed] = await Promise.all([
+  const [fluxDisposed, koharuDisposed, bubbleDisposed] = await Promise.all([
     disposeCachedFluxInpaintingEngine(reason),
     disposeCachedKoharuInpaintingEngine(reason),
+    disposeCachedBubbleSegmentationEngine(reason),
   ]);
-  return fluxDisposed || koharuDisposed;
+  return fluxDisposed || koharuDisposed || bubbleDisposed;
 }

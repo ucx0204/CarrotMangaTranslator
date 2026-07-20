@@ -1,9 +1,11 @@
 const http = require("node:http");
 const net = require("node:net");
 const { join } = require("node:path");
-const { existsSync } = require("node:fs");
 const { spawn, spawnSync } = require("node:child_process");
-const { resolveElectronExecutable } = require("./electron-executable.cjs");
+const { ensureElectronExecutable } = require("./electron-executable.cjs");
+const {
+  resolveMissingMacInpaintingRunners,
+} = require("./mac-inpainting-runners.cjs");
 const { prepareRuntimeAssets } = require("./prepare-runtime.cjs");
 
 const root = join(__dirname, "..");
@@ -36,6 +38,19 @@ function runSync(command, args) {
   });
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
+  }
+}
+
+function prepareMacInpaintingRunners() {
+  const missing = resolveMissingMacInpaintingRunners(root);
+  if (missing.length === 0) return;
+  log(`building ${missing.length} missing Metal inpainting runner(s)`);
+  runSync(process.execPath, [join(__dirname, "build-mac-runners.cjs")]);
+  const remaining = resolveMissingMacInpaintingRunners(root);
+  if (remaining.length > 0) {
+    throw new Error(
+      `Metal inpainting runner build completed without: ${remaining.join(", ")}`,
+    );
   }
 }
 
@@ -184,6 +199,7 @@ function shutdown(exitCode = 0) {
 }
 
 (async () => {
+  prepareMacInpaintingRunners();
   log("preparing runtime assets");
   prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
   log("compiling Electron main process");
@@ -204,10 +220,7 @@ function shutdown(exitCode = 0) {
   ]);
   log(`waiting for renderer ${rendererUrl}`);
   await waitForUrl(rendererUrl);
-  const electronExe = resolveElectronExecutable(root);
-  if (!existsSync(electronExe)) {
-    throw new Error(`Electron executable is missing: ${electronExe}`);
-  }
+  const electronExe = ensureElectronExecutable(root);
   spawnChild("electron", electronExe, ["."], {
     ELECTRON_RENDERER_URL: rendererUrl,
     ELECTRON_RUN_AS_NODE: undefined,

@@ -1,12 +1,12 @@
 // @ts-check
 const { spawn } = require("node:child_process");
-const { existsSync, mkdirSync } = require("node:fs");
+const { mkdirSync } = require("node:fs");
 const { readFile, rm } = require("node:fs/promises");
 const { isAbsolute, join, relative, resolve } = require("node:path");
-const { resolveElectronExecutable } = require("./electron-executable.cjs");
+const { ensureElectronExecutable } = require("./electron-executable.cjs");
 
 const root = join(__dirname, "..");
-const electronExe = resolveElectronExecutable(root);
+const electronExe = ensureElectronExecutable(root);
 const smokeScript = join(root, "scripts", "smoke-image-protocol.cjs");
 const smokeTempRoot = join(
   root,
@@ -16,10 +16,6 @@ const smokeTempRoot = join(
 );
 const userDataDir = join(smokeTempRoot, "electron-user-data");
 const resultPath = join(smokeTempRoot, "result.json");
-
-if (!existsSync(electronExe)) {
-  throw new Error(`Electron executable is missing: ${electronExe}`);
-}
 
 assertPathInsideRoot(smokeTempRoot);
 mkdirSync(userDataDir, { recursive: true });

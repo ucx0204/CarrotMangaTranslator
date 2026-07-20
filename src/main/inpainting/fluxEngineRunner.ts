@@ -8,25 +8,22 @@ import {
   FLUX_INPAINT_FEATHER_PX,
   FLUX_INPAINT_MASK_PADDING_PX,
   FLUX_INPAINT_MAX_PIXELS,
-  FLUX_INPAINT_MULTIPLE,
+  FLUX_RUNNER_MASK_PADDING_PX,
 } from "./fluxEngineConstants";
+import { resolveFluxCropPaths, writeFluxCropInputs } from "./fluxCropIO";
 import { FluxWorker } from "./fluxWorker";
 import {
-  buildLocalMask,
   compositeFluxOutput,
   cropBitmapFromPage,
-  maskBoundsInRect,
   readGeneratedBitmap,
-  writePngFromBitmap,
-  writePngFromMask,
 } from "./imageRaster";
+import type { InpaintingWindowMask } from "./inpaintingEngine";
 import {
-  alignRectToMultiple,
-  expandRect,
-  rectHasMask,
-  resolveFluxProcessSize,
-  type PixelRect,
-} from "./maskGeometry";
+  buildExclusivePaddedWindowMasks,
+  type ExclusiveInpaintingWindowMasks,
+} from "./inpaintingWindowMask";
+import type { PixelRect } from "./maskGeometry";
+import { prepareFluxWindow } from "./fluxWindowPreparation";
 import {
   isMaskedRegionEffectivelyUnchanged,
   measureMaskedRegionChange,
@@ -39,6 +36,7 @@ type FluxInpaintRunOptions = {
   contextPx?: number;
   maskPaddingPx?: number;
   maxPixels?: number;
+  windowMasks?: InpaintingWindowMask[];
 };
 
 type ResolvedFluxInpaintOptions = {
@@ -52,6 +50,8 @@ type FluxInpaintRunnerArgs = {
   bitmap: Buffer;
   getWorker: () => FluxWorker;
   height: number;
+  isolateWindowMasks: boolean;
+  tileLargeCrops: boolean;
   mask: Uint8Array;
   runOptions: FluxInpaintRunOptions;
   runRootDir: string;
@@ -64,10 +64,13 @@ type FluxWindowProcessArgs = {
   getWorker: () => FluxWorker;
   height: number;
   index: number;
+  isolateWindowMasks: boolean;
+  tileLargeCrops: boolean;
   mask: Uint8Array;
   options: ResolvedFluxInpaintOptions;
   runDir: string;
   runOptions: FluxInpaintRunOptions;
+  windowMasks?: ExclusiveInpaintingWindowMasks[];
   width: number;
   window: PixelRect;
 };
@@ -99,13 +102,31 @@ export async function runFluxInpaint({
   bitmap,
   getWorker,
   height,
+  isolateWindowMasks,
+  tileLargeCrops,
   mask,
   runOptions,
   runRootDir,
   width,
   windows,
 }: FluxInpaintRunnerArgs): Promise<void> {
+  if (
+    isolateWindowMasks &&
+    runOptions.windowMasks &&
+    runOptions.windowMasks.length !== windows.length
+  ) {
+    throw new Error("Block-owned mask count does not match Flux window count.");
+  }
   const options = resolveFluxInpaintOptions(runOptions);
+  const windowMasks =
+    isolateWindowMasks && runOptions.windowMasks
+      ? buildExclusivePaddedWindowMasks(
+          runOptions.windowMasks,
+          width,
+          height,
+          options.maskPaddingPx,
+        )
+      : undefined;
   const runDir = join(
     runRootDir,
     `flux-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
@@ -116,10 +137,13 @@ export async function runFluxInpaint({
       bitmap,
       getWorker,
       height,
+      isolateWindowMasks,
+      tileLargeCrops,
       mask,
       options,
       runDir,
       runOptions,
+      windowMasks,
       width,
       windows,
     });
@@ -188,143 +212,108 @@ async function processFluxWindow({
   getWorker,
   height,
   index,
+  isolateWindowMasks,
+  tileLargeCrops,
   mask,
   options,
   runDir,
   runOptions,
+  windowMasks,
   width,
   window,
 }: FluxWindowProcessArgs): Promise<FluxWindowProcessResult> {
-  const crop = prepareFluxWindowCrop(mask, width, height, window, options);
-  if (!crop) {
+  const { crops, effectiveMask } = prepareFluxWindow({
+    cropOptions: options,
+    height,
+    isolateWindowMasks,
+    mask,
+    tileLargeCrops,
+    width,
+    window,
+    windowMask: windowMasks?.[index],
+  });
+  if (crops.length === 0) {
     return { eligible: false };
   }
-  const paths = resolveFluxCropPaths(runDir, index);
-  const cropBitmap = cropBitmapFromPage(bitmap, width, crop.paddedBounds);
-  await writeFluxCropInputs(paths, crop, cropBitmap);
-  await getWorker().inpaint(
-    {
-      input: paths.inputPath,
-      mask: paths.maskPath,
-      output: paths.outputPath,
-      steps: 4,
-      strength: 1,
-      maxPixels: options.maxPixels,
-      maskPadding: options.maskPaddingPx,
-    },
-    runOptions.signal,
-  );
-  const generated = await readGeneratedBitmap(
-    paths.outputPath,
-    crop.paddedBounds.w,
-    crop.paddedBounds.h,
-  );
-  const changeStats = measureMaskedRegionChange(
-    cropBitmap,
-    generated,
-    crop.validationMask,
-  );
-  assertMaskedRegionHasPixels(changeStats, index);
-  compositeFluxOutput(
-    bitmap,
-    generated,
-    mask,
-    width,
-    crop.paddedBounds,
-    options.featherPx,
-  );
-  return summarizeFluxCropChange(changeStats, index);
-}
-
-function prepareFluxWindowCrop(
-  mask: Uint8Array,
-  width: number,
-  height: number,
-  window: PixelRect,
-  options: ResolvedFluxInpaintOptions,
-): {
-  localMask: Uint8Array;
-  paddedBounds: PixelRect;
-  processSize: { width: number; height: number };
-  validationMask: Uint8Array;
-} | null {
-  if (!rectHasMask(mask, width, window)) {
-    return null;
-  }
-  const maskBounds = maskBoundsInRect(mask, width, window);
-  if (!maskBounds) {
-    return null;
-  }
-  const paddedBounds = alignRectToMultiple(
-    expandRect(
-      maskBounds,
+  const changeStats: MaskedRegionChangeStats[] = [];
+  for (const [tileIndex, crop] of crops.entries()) {
+    throwIfAborted(runOptions.signal);
+    const paths = resolveFluxCropPaths(runDir, index, tileIndex);
+    const cropBitmap = cropBitmapFromPage(bitmap, width, crop.paddedBounds);
+    await writeFluxCropInputs(paths, crop, cropBitmap);
+    await getWorker().inpaint(
+      {
+        input: paths.inputPath,
+        mask: paths.maskPath,
+        output: paths.outputPath,
+        steps: 4,
+        strength: 1,
+        maxPixels: tileLargeCrops
+          ? Math.min(
+              options.maxPixels,
+              crop.processSize.width * crop.processSize.height,
+            )
+          : options.maxPixels,
+        maskPadding: FLUX_RUNNER_MASK_PADDING_PX,
+      },
+      runOptions.signal,
+    );
+    const generated = await readGeneratedBitmap(
+      paths.outputPath,
+      crop.paddedBounds.w,
+      crop.paddedBounds.h,
+    );
+    const stats = measureMaskedRegionChange(
+      cropBitmap,
+      generated,
+      crop.validationMask,
+    );
+    if (stats.maskedPixels > 0) {
+      changeStats.push(stats);
+    }
+    compositeFluxOutput(
+      bitmap,
+      generated,
+      effectiveMask,
       width,
-      height,
-      options.contextPx + options.maskPaddingPx,
-    ),
-    width,
-    height,
-    FLUX_INPAINT_MULTIPLE,
-  );
-  const localMask = buildLocalMask(
-    mask,
-    width,
-    paddedBounds,
-    options.maskPaddingPx,
-  );
-  if (!localMask.some((value) => value > 0)) {
-    return null;
+      crop.paddedBounds,
+      options.featherPx,
+      crop.writeBounds,
+    );
   }
-  return {
-    localMask,
-    paddedBounds,
-    processSize: resolveFluxProcessSize(
-      paddedBounds.w,
-      paddedBounds.h,
-      options.maxPixels,
-      FLUX_INPAINT_MULTIPLE,
-    ),
-    validationMask:
-      options.maskPaddingPx > 0
-        ? buildLocalMask(mask, width, paddedBounds, 0)
-        : localMask,
-  };
+  return summarizeFluxWindowChange(changeStats, index);
 }
 
-function resolveFluxCropPaths(
-  runDir: string,
+function summarizeFluxWindowChange(
+  changeStats: MaskedRegionChangeStats[],
   index: number,
-): { inputPath: string; maskPath: string; outputPath: string } {
-  return {
-    inputPath: join(runDir, `input-${index}.png`),
-    maskPath: join(runDir, `mask-${index}.png`),
-    outputPath: join(runDir, `output-${index}.png`),
-  };
+): FluxWindowProcessResult {
+  const combinedStats = combineFluxChangeStats(changeStats);
+  assertMaskedRegionHasPixels(combinedStats, index);
+  return summarizeFluxCropChange(combinedStats, index);
 }
 
-async function writeFluxCropInputs(
-  paths: { inputPath: string; maskPath: string },
-  crop: {
-    localMask: Uint8Array;
-    paddedBounds: PixelRect;
-    processSize: { width: number; height: number };
-  },
-  cropBitmap: Buffer,
-): Promise<void> {
-  await writePngFromBitmap(
-    paths.inputPath,
-    cropBitmap,
-    crop.paddedBounds.w,
-    crop.paddedBounds.h,
-    crop.processSize,
+function combineFluxChangeStats(
+  stats: MaskedRegionChangeStats[],
+): MaskedRegionChangeStats {
+  const maskedPixels = stats.reduce(
+    (total, current) => total + current.maskedPixels,
+    0,
   );
-  await writePngFromMask(
-    paths.maskPath,
-    crop.localMask,
-    crop.paddedBounds.w,
-    crop.paddedBounds.h,
-    crop.processSize,
+  const changedPixels = stats.reduce(
+    (total, current) => total + current.changedPixels,
+    0,
   );
+  const totalDelta = stats.reduce(
+    (total, current) => total + current.meanDelta * current.maskedPixels,
+    0,
+  );
+  return {
+    maskedPixels,
+    changedPixels,
+    changedRatio: maskedPixels > 0 ? changedPixels / maskedPixels : 0,
+    meanDelta: maskedPixels > 0 ? totalDelta / maskedPixels : 0,
+  };
 }
 
 function summarizeFluxCropChange(

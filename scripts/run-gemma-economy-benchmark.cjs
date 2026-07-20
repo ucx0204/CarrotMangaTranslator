@@ -1,15 +1,10 @@
 const { spawnSync } = require("node:child_process");
-const { existsSync } = require("node:fs");
 const { join } = require("node:path");
-const { resolveElectronExecutable } = require("./electron-executable.cjs");
+const { ensureElectronExecutable } = require("./electron-executable.cjs");
 
 const root = join(__dirname, "..");
-const electronExe = resolveElectronExecutable(root);
+const electronExe = ensureElectronExecutable(root);
 const benchmarkScript = join(root, "scripts", "benchmark-gemma-economy.cjs");
-
-if (!existsSync(electronExe)) {
-  throw new Error(`Electron executable is missing: ${electronExe}`);
-}
 
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
