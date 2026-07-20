@@ -326,6 +326,35 @@ function verifyRequiredRuntimes(appPath) {
 }
 
 /** @param {string} appPath */
+function verifyPackagedTarRuntime(appPath) {
+  const appExecutable = join(
+    appPath,
+    "Contents",
+    "MacOS",
+    "CarrotMangaTranslator",
+  );
+  const tarRuntimePath = join(
+    appPath,
+    "Contents",
+    "Resources",
+    "app-runtime",
+    "simple-page-tar-utils.cjs",
+  );
+  if (!existsSync(tarRuntimePath)) {
+    throw new Error(`Packaged tar runtime is missing: ${tarRuntimePath}`);
+  }
+  const smokeScript = [
+    `const runtime = require(${JSON.stringify(tarRuntimePath)});`,
+    "if (typeof runtime.extractSelectedTarEntries !== 'function') throw new Error('Packaged tar runtime did not load');",
+    "console.log('packaged-tar-runtime-ok');",
+  ].join("\n");
+  run(appExecutable, ["-e", smokeScript], {
+    env: { ELECTRON_RUN_AS_NODE: "1" },
+    timeout: 30_000,
+  });
+}
+
+/** @param {string} appPath */
 function verifySigning(appPath) {
   run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", appPath]);
   const details = run("codesign", ["-dvvv", appPath]).stderr;
@@ -389,6 +418,7 @@ function verifyFinalDiskImage(diskImagePath) {
     const appPath = findSingleAppBundle(mountRoot, "final DMG");
     assertElectronFrameworkExecutable(appPath);
     verifySigning(appPath);
+    verifyPackagedTarRuntime(appPath);
     verifyApplicationDirectorySmoke(appPath);
     console.log(
       `[mac-verify] mounted, signed, copied, and launched final DMG app ${relative(root, appPath)}`,
@@ -414,6 +444,7 @@ function verifyFinalZipArchive(zipPath) {
     const appPath = findSingleAppBundle(extractRoot, "final ZIP");
     assertElectronFrameworkExecutable(appPath);
     verifySigning(appPath);
+    verifyPackagedTarRuntime(appPath);
     console.log(
       `[mac-verify] extracted and verified final ZIP app ${relative(root, appPath)}`,
     );
@@ -788,6 +819,7 @@ async function main() {
   // running any executable from it.  The second check below proves that the
   // runtime smokes kept the signed .app immutable.
   verifySigning(appPath);
+  verifyPackagedTarRuntime(appPath);
   // Launch through LaunchServices exactly as a user opens an installed .app,
   // before the memory-intensive OCR and Metal model smokes run.
   verifyApplicationDirectorySmoke(appPath);
@@ -844,6 +876,7 @@ module.exports = {
   looksLikeNativeBinary,
   requiresOtoolAlias,
   shouldAllowHostedGuiSmokeFailure,
+  verifyPackagedTarRuntime,
   verifyFinalDiskImage,
   verifyFinalZipArchive,
 };

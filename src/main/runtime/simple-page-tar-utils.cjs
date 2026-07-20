@@ -6,8 +6,47 @@ const {
   realpathSync,
 } = require("node:fs");
 const { chmod, mkdir, rm, symlink } = require("node:fs/promises");
+const { createRequire } = require("node:module");
 const path = require("node:path");
-const tar = require("tar");
+
+/**
+ * app-runtime is copied outside app.asar, so its ordinary CommonJS lookup
+ * cannot see production dependencies stored inside app.asar. Development can
+ * use the repository node_modules directly; packaged apps retry from the ASAR
+ * package root.
+ *
+ * @param {{ moduleRequire?: NodeRequire; resourcesPath?: string; createPackagedRequire?: typeof createRequire }} [options]
+ */
+function loadTarRuntime(options = {}) {
+  const moduleRequire = options.moduleRequire ?? require;
+  try {
+    return moduleRequire("tar");
+  } catch (error) {
+    const resourcesPath =
+      options.resourcesPath ??
+      /** @type {NodeJS.Process & { resourcesPath?: string }} */ (process)
+        .resourcesPath;
+    if (!isMissingDirectTarModule(error) || !resourcesPath) {
+      throw error;
+    }
+    const packagedRequire = (options.createPackagedRequire ?? createRequire)(
+      path.join(resourcesPath, "app.asar", "package.json"),
+    );
+    return packagedRequire("tar");
+  }
+}
+
+/** @param {unknown} error */
+function isMissingDirectTarModule(error) {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "MODULE_NOT_FOUND" &&
+    /Cannot find module ['"]tar['"]/.test(error.message)
+  );
+}
+
+const tar = loadTarRuntime();
 
 /** @typedef {(name: string, relativePath: string) => boolean} RuntimeEntryFilter */
 /** @typedef {{ path: string; type?: string; linkpath?: string; size?: number; mode?: number }} TarEntryInfo */
@@ -39,6 +78,7 @@ async function extractSelectedTarEntries(
     preserveOwner: false,
     strict: true,
     unlink: true,
+    /** @param {string} entryPath @param {any} entry */
     filter: (entryPath, entry) => {
       const tarEntry = /** @type {any} */ (entry);
       const entryInfo = {
@@ -100,6 +140,7 @@ async function inspectTarEntries(archivePath) {
   await tar.t({
     file: archivePath,
     strict: true,
+    /** @param {any} entry */
     onentry: (entry) => {
       entries.push({
         path: entry.path,
@@ -288,6 +329,7 @@ function normalizeStripComponents(value) {
 
 module.exports = {
   extractSelectedTarEntries,
+  loadTarRuntime,
   normalizeSafeArchivePath,
   validateSymlinkTarget,
   validateTarEntries,
