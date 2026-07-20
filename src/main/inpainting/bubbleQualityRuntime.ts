@@ -298,7 +298,7 @@ async function ensureModelSnapshot(options: {
       return options.modelDir;
     }
   } catch (_error) {
-    // Prepare or repair the pinned snapshot below.
+    // error-policy-allow: A missing or stale marker is repaired from the pinned snapshot below.
   }
   await mkdir(options.modelDir, { recursive: true });
   options.onProgress?.({
