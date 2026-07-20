@@ -2,6 +2,10 @@ import { basename, dirname, join, resolve } from "node:path";
 import { safeCleanup } from "../safeCleanup";
 import { FluxWorker, type FluxWorkerLaunchSpec } from "./fluxWorker";
 import { runFluxInpaint } from "./fluxEngineRunner";
+import {
+  FLUX_INPAINT_CONTEXT_PX,
+  FLUX_METAL_INPAINT_CONTEXT_PX,
+} from "./fluxEngineConstants";
 import type {
   InpaintingEngine,
   InpaintingRuntimeProgress,
@@ -49,12 +53,24 @@ export function createFluxEngine(options: {
       return !worker || worker.isHealthy();
     },
     async inpaint(bitmap, width, height, mask, windows, runOptions = {}) {
+      const resolvedRunOptions =
+        options.launch.backend === "metal-native"
+          ? {
+              ...runOptions,
+              contextPx: Math.min(
+                runOptions.contextPx ?? FLUX_INPAINT_CONTEXT_PX,
+                FLUX_METAL_INPAINT_CONTEXT_PX,
+              ),
+            }
+          : runOptions;
       await runFluxInpaint({
         bitmap,
         getWorker,
         height,
+        isolateWindowMasks: options.launch.backend === "metal-native",
+        tileLargeCrops: options.launch.backend === "metal-native",
         mask,
-        runOptions,
+        runOptions: resolvedRunOptions,
         runRootDir: options.runRootDir,
         width,
         windows,

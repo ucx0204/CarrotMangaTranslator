@@ -54,3 +54,6 @@ jobs:
 
       - name: Run checks
         run: npm run check
+
+      - name: Test Flux Metal runtime
+        run: npm run test:flux-metal

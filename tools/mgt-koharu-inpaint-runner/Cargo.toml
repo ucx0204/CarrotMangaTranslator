@@ -28,9 +28,9 @@ zip = { version = "8.6", default-features = false, features = ["deflate"] }
 koharu-runtime = { path = "vendor/koharu-runtime-lite" }
 
 [patch.crates-io]
-candle-core = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
-candle-nn = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
-candle-transformers = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
-candle-flash-attn = { git = "https://github.com/mayocream/candle", branch = "flash-attn" }
+candle-core = { git = "https://github.com/mayocream/candle", rev = "e7e71e18414db8de91113963beaabb6b4046a0a5" }
+candle-nn = { git = "https://github.com/mayocream/candle", rev = "e7e71e18414db8de91113963beaabb6b4046a0a5" }
+candle-transformers = { git = "https://github.com/mayocream/candle", rev = "e7e71e18414db8de91113963beaabb6b4046a0a5" }
+candle-flash-attn = { git = "https://github.com/mayocream/candle", rev = "e7e71e18414db8de91113963beaabb6b4046a0a5" }
 ug = { git = "https://github.com/mayocream/ug", branch = "cuda-dynamic-loading" }
 ug-cuda = { git = "https://github.com/mayocream/ug", branch = "cuda-dynamic-loading" }

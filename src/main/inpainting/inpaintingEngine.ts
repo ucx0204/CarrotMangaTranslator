@@ -11,6 +11,11 @@ export type InpaintingRuntimeProgress = {
   installLogLine?: string;
 };
 
+export type InpaintingWindowMask = {
+  bounds: PixelRect;
+  data: Uint8Array;
+};
+
 type InpaintRunOptions = {
   signal?: AbortSignal;
   featherPx?: number;
@@ -18,6 +23,7 @@ type InpaintRunOptions = {
   maskPaddingPx?: number;
   maxPixels?: number;
   bubbleMask?: Uint8Array;
+  windowMasks?: InpaintingWindowMask[];
 };
 
 export type InpaintingEngine = {

@@ -1606,6 +1606,23 @@ describeWindows("app settings helpers", () => {
     ).toBe(false);
   });
 
+  it("defaults speech bubble detection to auto and persists precise mode", () => {
+    const defaults = resolveDefaultAppSettings();
+    expect(defaults.inpainting?.bubbleDetectionMode).toBe("auto");
+    expect(
+      parseStoredAppSettings(
+        '{"inpainting":{"bubbleDetectionMode":"precise"}}',
+        defaults,
+      ).inpainting?.bubbleDetectionMode,
+    ).toBe("precise");
+    expect(
+      parseStoredAppSettings(
+        '{"inpainting":{"bubbleDetectionMode":"invalid"}}',
+        defaults,
+      ).inpainting?.bubbleDetectionMode,
+    ).toBe("auto");
+  });
+
   it("chooses first-run defaults from detected GPU generation and VRAM", () => {
     expect(
       resolveHardwareDefaults({

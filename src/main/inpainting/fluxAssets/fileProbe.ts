@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import {
+  createReadStream,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+} from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import type { RemoteFileMetadata } from "./types";
@@ -236,17 +242,76 @@ export async function isUsableRemoteFile(
     return !options.expectedSha256;
   }
   try {
-    const actualBytes = statSync(filePath).size;
-    return (
-      metadata.url === url &&
-      metadata.bytes === actualBytes &&
-      actualBytes >= minimumBytes &&
-      (!options.expectedSha256 ||
-        metadata.sha256?.toLowerCase() === options.expectedSha256.toLowerCase())
+    const fileStat = statSync(filePath);
+    const expectedSha256 = options.expectedSha256?.toLowerCase();
+    if (
+      !remoteFileMetadataMatches(
+        metadata,
+        url,
+        fileStat.size,
+        minimumBytes,
+        expectedSha256,
+      )
+    ) {
+      return false;
+    }
+    if (!expectedSha256 || metadata.mtimeMs === fileStat.mtimeMs) {
+      return true;
+    }
+    return await verifyRemoteFileHash(
+      filePath,
+      expectedSha256,
+      fileStat.mtimeMs,
+      metadata,
     );
   } catch (_error) {
     return false;
   }
+}
+
+function remoteFileMetadataMatches(
+  metadata: RemoteFileMetadata,
+  url: string,
+  actualBytes: number,
+  minimumBytes: number,
+  expectedSha256?: string,
+): boolean {
+  return (
+    metadata.url === url &&
+    metadata.bytes === actualBytes &&
+    actualBytes >= minimumBytes &&
+    (!expectedSha256 || metadata.sha256?.toLowerCase() === expectedSha256)
+  );
+}
+
+async function verifyRemoteFileHash(
+  filePath: string,
+  expectedSha256: string,
+  mtimeMs: number,
+  metadata: RemoteFileMetadata,
+): Promise<boolean> {
+  if ((await sha256File(filePath)) !== expectedSha256) {
+    return false;
+  }
+  try {
+    await writeRemoteFileMetadata(filePath, {
+      ...metadata,
+      mtimeMs,
+      sha256: expectedSha256,
+    });
+  } catch (_error) {
+    // error-policy-allow: verified bytes remain usable; a missing marker only
+    // causes another checksum pass on the next launch.
+  }
+  return true;
+}
+
+async function sha256File(filePath: string): Promise<string> {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(filePath)) {
+    hash.update(chunk as Buffer);
+  }
+  return hash.digest("hex");
 }
 
 async function readRemoteFileMetadata(

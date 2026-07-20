@@ -36,6 +36,8 @@ export async function startInpaintingJob(
     historyTransactionId:
       context.inpaintingRevisionStore?.beginTransaction() ?? null,
     inpaintingEngineLease: null,
+    bubbleSegmentationEngineLease: null,
+    bubbleDetectionMode: "auto",
   };
   context.jobs.start({
     id,
@@ -117,6 +119,7 @@ function finishInpaintingJob(
     }
   } finally {
     try {
+      state.bubbleSegmentationEngineLease?.release();
       state.inpaintingEngineLease?.release();
     } finally {
       context.jobs.clearIfCurrent(id);

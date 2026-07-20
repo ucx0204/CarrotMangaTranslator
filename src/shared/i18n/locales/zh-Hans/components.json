@@ -1126,6 +1126,17 @@
       "ocrDevice": "Paddle OCR设备",
       "fluxBackend": "Flux图像修复后端",
       "inpaintingModel": "图像修复模型",
+      "bubbleDetection": "气泡检测",
+      "bubbleDetectionModes": {
+        "auto": {
+          "label": "自动",
+          "description": "无需额外下载，根据 OCR 区域和图像特征快速分离气泡并保护轮廓。"
+        },
+        "precise": {
+          "label": "精确",
+          "description": "使用专用分割模型检测气泡。首次使用时下载约 104MB 的模型。"
+        }
+      },
       "amdOcrExperimental": "AMD GPU OCR为实验功能。如失败，可仅将OCR切换到CPU。",
       "ocrAmdNote": "AMD环境无法选择NVIDIA CUDA OCR。",
       "ocrAppleNote": "Apple Silicon Alpha上的Paddle OCR使用CPU运行时。",

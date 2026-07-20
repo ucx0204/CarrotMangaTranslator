@@ -1,15 +1,10 @@
 const { spawnSync } = require("node:child_process");
-const { existsSync } = require("node:fs");
 const { join } = require("node:path");
-const { resolveElectronExecutable } = require("./electron-executable.cjs");
+const { ensureElectronExecutable } = require("./electron-executable.cjs");
 
 const root = join(__dirname, "..");
-const electronExe = resolveElectronExecutable(root);
+const electronExe = ensureElectronExecutable(root);
 const smokeScript = join(root, "scripts", "smoke-flux-pattern-chapter.cjs");
-
-if (!existsSync(electronExe)) {
-  throw new Error(`Electron executable is missing: ${electronExe}`);
-}
 
 /** @type {NodeJS.ProcessEnv} */
 const env = {

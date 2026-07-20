@@ -1,5 +1,5 @@
 // @ts-check
-const { existsSync } = require("node:fs");
+const { existsSync, statSync } = require("node:fs");
 const path = require("node:path");
 
 const {
@@ -25,7 +25,7 @@ function bundledFfmpegCandidates(toolsDir) {
 function resolveFfmpegPath(options = {}) {
   const toolsDir = resolveToolsDir(options);
   const candidates = bundledFfmpegCandidates(toolsDir);
-  const bundledPath = candidates.find((candidate) => existsSync(candidate));
+  const bundledPath = candidates.find(isExistingFilePath);
   if (bundledPath) return bundledPath;
   if (isLikelyPackagedToolsDir(toolsDir)) {
     throw createDetailedError(
@@ -40,8 +40,34 @@ function resolveFfmpegPath(options = {}) {
   const explicit = [
     options.ffmpegPath,
     runtimeOverrideEnv("MANGA_TRANSLATOR_FFMPEG_PATH", options),
-  ].find((candidate) => typeof candidate === "string" && existsSync(candidate));
-  return explicit || (process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
+  ].find(isExistingFilePath);
+  return (
+    explicit ||
+    resolveDevelopmentFfmpegPath() ||
+    (process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg")
+  );
 }
 
-module.exports = { resolveFfmpegPath };
+/** @returns {string | null} */
+function resolveDevelopmentFfmpegPath() {
+  try {
+    const ffmpegPath = /** @type {unknown} */ (require("ffmpeg-static"));
+    return isExistingFilePath(ffmpegPath)
+      ? /** @type {string} */ (ffmpegPath)
+      : null;
+  } catch (_error) {
+    // error-policy-allow: packaged apps use the verified bundled tools directory.
+    return null;
+  }
+}
+
+/** @param {unknown} candidate */
+function isExistingFilePath(candidate) {
+  return (
+    typeof candidate === "string" &&
+    existsSync(candidate) &&
+    statSync(candidate).isFile()
+  );
+}
+
+module.exports = { resolveDevelopmentFfmpegPath, resolveFfmpegPath };

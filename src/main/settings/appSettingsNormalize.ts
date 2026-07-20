@@ -30,6 +30,7 @@ import {
 import { resolveDefaultAppSettings } from "./appSettingsDefaults";
 import {
   resolveStoredFluxBackend,
+  resolveStoredBubbleDetectionMode,
   resolveStoredGemmaMmproj,
   resolveStoredGemmaModel,
   resolveStoredInpaintingModel,
@@ -396,6 +397,7 @@ function normalizeInpaintingSettings(
   defaults: AppSettings,
 ): NonNullable<AppSettings["inpainting"]> {
   return {
+    bubbleDetectionMode: resolveStoredBubbleDetectionMode(inpainting, defaults),
     model: resolveStoredInpaintingModel(inpainting, defaults),
     fluxBackend: resolveStoredFluxBackend(inpainting, defaults),
     koharuBackend: resolveStoredKoharuInpaintingBackend(inpainting, defaults),

@@ -35,7 +35,8 @@ import {
 } from "./inpainting/fluxEngine";
 import type { InpaintingEngine } from "./inpainting/inpaintingEngine";
 export { prepareKoharuInpaintingEngine } from "./inpainting/koharuEngine";
-import { expandRect, mergeRects, rectHasMask } from "./inpainting/maskGeometry";
+import { expandRect, rectHasMask } from "./inpainting/maskGeometry";
+import { resolvePatternInpaintWindows } from "./inpainting/patternWindowPolicy";
 import {
   applyRetouchCircle,
   buildMaskFromStrokes,
@@ -95,15 +96,16 @@ export async function inpaintDrawnPatternPage(
 
   const pageMask = buildMaskFromStrokes(strokes, size.width, size.height);
   const components = maskComponents(pageMask, size.width, size.height, 12)
-    .map((component) =>
-      expandRect(
+    .map((component) => ({
+      ...component,
+      window: expandRect(
         component.rect,
         size.width,
         size.height,
         FLUX_INPAINT_CONTEXT_PX,
       ),
-    )
-    .filter((rect) => rectHasMask(pageMask, size.width, rect));
+    }))
+    .filter((component) => rectHasMask(pageMask, size.width, component.window));
   if (components.length === 0) {
     return { page, blocksErased: 0 };
   }
@@ -117,7 +119,10 @@ export async function inpaintDrawnPatternPage(
     size.width,
     size.height,
     pageMask,
-    mergeRects(components),
+    resolvePatternInpaintWindows(
+      components.map((component) => component.window),
+      options.inpaintingEngine,
+    ),
     {
       signal: options.signal,
       featherPx: options.featherPx ?? FLUX_INPAINT_FEATHER_PX,
@@ -128,6 +133,14 @@ export async function inpaintDrawnPatternPage(
         options.inpaintingEngine.model === "flux-klein"
           ? undefined
           : new Uint8Array(size.width * size.height),
+      windowMasks:
+        options.inpaintingEngine.model === "flux-klein" &&
+        options.inpaintingEngine.backend === "metal-native"
+          ? components.map((component) => ({
+              bounds: component.rect,
+              data: component.data,
+            }))
+          : undefined,
     },
   );
 

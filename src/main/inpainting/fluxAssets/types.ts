@@ -14,6 +14,7 @@ export type RemoteFileMetadata = {
   url: string;
   bytes: number;
   downloadedAt: string;
+  mtimeMs?: number;
   sha256?: string;
 };
 

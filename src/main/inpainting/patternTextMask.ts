@@ -1,8 +1,22 @@
 import { clamp } from "../../shared/geometry";
 import type { PixelRect } from "./maskGeometry";
+import {
+  finalizeDetectedTextMask,
+  localLuminanceEdge,
+} from "./patternMaskMorphology";
 import { readRgb } from "./rasterMasks";
 
 type Rgb = ReturnType<typeof readRgb>;
+
+type PatternTextMaskResult = {
+  count: number;
+  mask: Uint8Array;
+  strategy: "adaptive" | "otsu" | "none";
+};
+
+type PatternTextMaskOptions = {
+  focusRect?: PixelRect;
+};
 
 export function buildPatternTextMask(
   bitmap: Buffer,
@@ -10,7 +24,8 @@ export function buildPatternTextMask(
   _height: number,
   rect: PixelRect,
   dilationRadius: number,
-): { mask: Uint8Array; count: number } {
+  options: PatternTextMaskOptions = {},
+): PatternTextMaskResult {
   const sample = collectPatternTextSamples(bitmap, width, rect);
   if (sample.luminanceSamples.length < 8) {
     return emptyPatternMask(sample.pixelCount);
@@ -24,24 +39,35 @@ export function buildPatternTextMask(
     sample,
     thresholds,
   );
-  const coverage = initial.count / Math.max(1, sample.pixelCount);
-  if (initial.count === 0 || coverage < 0.0015 || coverage > 0.42) {
-    return emptyPatternMask(sample.pixelCount);
+  const adaptive = finalizeDetectedTextMask({
+    initial,
+    luminances: sample.luminances,
+    pixelCount: sample.pixelCount,
+    rect,
+    focusRect: options.focusRect,
+    dilationRadius,
+    edgeThreshold: thresholds.edgeThreshold,
+  });
+  if (adaptive) {
+    return { ...adaptive, strategy: "adaptive" };
   }
 
-  const connected = removeTinyMaskComponents(
-    initial.mask,
-    rect.w,
-    rect.h,
-    Math.max(4, Math.round(sample.pixelCount * 0.00035)),
-  );
-  const dilated = dilateMask(connected.mask, rect.w, rect.h, dilationRadius);
-  const count = countMaskPixels(dilated);
-  const finalCoverage = count / Math.max(1, sample.pixelCount);
-  if (connected.count === 0 || finalCoverage > 0.52) {
+  const otsuInitial = buildOtsuPatternMask(sample, rect);
+  if (!otsuInitial) {
     return emptyPatternMask(sample.pixelCount);
   }
-  return { mask: dilated, count };
+  const otsu = finalizeDetectedTextMask({
+    initial: otsuInitial,
+    luminances: sample.luminances,
+    pixelCount: sample.pixelCount,
+    rect,
+    focusRect: options.focusRect,
+    dilationRadius,
+    edgeThreshold: 12,
+  });
+  return otsu
+    ? { ...otsu, strategy: "otsu" }
+    : emptyPatternMask(sample.pixelCount);
 }
 
 type PatternTextSample = {
@@ -147,6 +173,89 @@ function buildInitialPatternMask(
   return { mask, count };
 }
 
+function buildOtsuPatternMask(
+  sample: PatternTextSample,
+  rect: PixelRect,
+): { mask: Uint8Array; count: number } | null {
+  const threshold = resolveOtsuThreshold(sample.luminances);
+  const sorted = [...sample.luminanceSamples].sort(
+    (left, right) => left - right,
+  );
+  const medianLuminance = percentile(sorted, 0.5);
+  const separation = Math.abs(
+    percentile(sorted, 0.95) - percentile(sorted, 0.05),
+  );
+  if (threshold === null || separation < 4) {
+    return null;
+  }
+
+  const lightBackground = medianLuminance >= 128;
+  const minimumEdge = Math.max(4, Math.min(12, separation * 0.35));
+  const mask = new Uint8Array(sample.pixelCount);
+  let count = 0;
+  for (let y = 0; y < rect.h; y += 1) {
+    for (let x = 0; x < rect.w; x += 1) {
+      const index = y * rect.w + x;
+      const value = sample.luminances[index] ?? medianLuminance;
+      const candidate = lightBackground
+        ? value <= threshold
+        : value > threshold;
+      const separatedFromBackground =
+        Math.abs(value - medianLuminance) >= Math.max(3, separation * 0.25);
+      if (
+        candidate &&
+        (separatedFromBackground ||
+          localLuminanceEdge(sample.luminances, rect.w, rect.h, x, y) >=
+            minimumEdge)
+      ) {
+        mask[index] = 1;
+        count += 1;
+      }
+    }
+  }
+  return { mask, count };
+}
+
+function resolveOtsuThreshold(luminances: Float32Array): number | null {
+  if (luminances.length === 0) {
+    return null;
+  }
+  const histogram = new Uint32Array(256);
+  let totalSum = 0;
+  for (const value of luminances) {
+    const bucket = clamp(Math.round(value), 0, 255);
+    histogram[bucket] += 1;
+    totalSum += bucket;
+  }
+
+  let backgroundCount = 0;
+  let backgroundSum = 0;
+  let bestVariance = -1;
+  let bestThreshold = 0;
+  for (let threshold = 0; threshold < 255; threshold += 1) {
+    backgroundCount += histogram[threshold] ?? 0;
+    if (backgroundCount === 0) {
+      continue;
+    }
+    const foregroundCount = luminances.length - backgroundCount;
+    if (foregroundCount === 0) {
+      break;
+    }
+    backgroundSum += threshold * (histogram[threshold] ?? 0);
+    const backgroundMean = backgroundSum / backgroundCount;
+    const foregroundMean = (totalSum - backgroundSum) / foregroundCount;
+    const variance =
+      backgroundCount *
+      foregroundCount *
+      (backgroundMean - foregroundMean) ** 2;
+    if (variance > bestVariance) {
+      bestVariance = variance;
+      bestThreshold = threshold;
+    }
+  }
+  return bestVariance > 0 ? bestThreshold : null;
+}
+
 function isPatternTextPixel(
   bitmap: Buffer,
   width: number,
@@ -170,183 +279,8 @@ function isPatternTextPixel(
   );
 }
 
-function emptyPatternMask(pixelCount: number): { mask: Uint8Array; count: 0 } {
-  return { mask: new Uint8Array(pixelCount), count: 0 };
-}
-
-function countMaskPixels(mask: Uint8Array): number {
-  let count = 0;
-  for (const value of mask) {
-    if (value) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
-function dilateMask(
-  mask: Uint8Array,
-  width: number,
-  height: number,
-  radius: number,
-): Uint8Array {
-  if (radius <= 0) {
-    return mask;
-  }
-  const output = new Uint8Array(mask.length);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      dilateMaskPixel(mask, output, width, height, radius, x, y);
-    }
-  }
-  return output;
-}
-
-function dilateMaskPixel(
-  mask: Uint8Array,
-  output: Uint8Array,
-  width: number,
-  height: number,
-  radius: number,
-  x: number,
-  y: number,
-): void {
-  if (!mask[y * width + x]) {
-    return;
-  }
-  for (let dy = -radius; dy <= radius; dy += 1) {
-    for (let dx = -radius; dx <= radius; dx += 1) {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (
-        dx * dx + dy * dy <= radius * radius &&
-        isInside(nx, ny, width, height)
-      ) {
-        output[ny * width + nx] = 1;
-      }
-    }
-  }
-}
-
-function removeTinyMaskComponents(
-  mask: Uint8Array,
-  width: number,
-  height: number,
-  minArea: number,
-): { mask: Uint8Array; count: number } {
-  const output = new Uint8Array(mask.length);
-  const visited = new Uint8Array(mask.length);
-  const queue: number[] = [];
-  let keptCount = 0;
-
-  for (let index = 0; index < mask.length; index += 1) {
-    const component = collectMaskComponent(
-      mask,
-      visited,
-      queue,
-      width,
-      height,
-      index,
-    );
-    if (component.length < minArea) {
-      continue;
-    }
-    for (const pixel of component) {
-      output[pixel] = 1;
-    }
-    keptCount += component.length;
-  }
-
-  return { mask: output, count: keptCount };
-}
-
-function collectMaskComponent(
-  mask: Uint8Array,
-  visited: Uint8Array,
-  queue: number[],
-  width: number,
-  height: number,
-  startIndex: number,
-): number[] {
-  if (!mask[startIndex] || visited[startIndex]) {
-    return [];
-  }
-  queue.length = 0;
-  const component: number[] = [];
-  visited[startIndex] = 1;
-  queue.push(startIndex);
-  for (let cursor = 0; cursor < queue.length; cursor += 1) {
-    const current = queue[cursor];
-    component.push(current);
-    const x = current % width;
-    const y = Math.floor(current / width);
-    enqueueMaskNeighbors(mask, visited, queue, x, y, width, height);
-  }
-  return component;
-}
-
-function enqueueMaskNeighbors(
-  mask: Uint8Array,
-  visited: Uint8Array,
-  queue: number[],
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): void {
-  for (const neighbor of maskNeighbors(x, y, width, height)) {
-    if (!mask[neighbor] || visited[neighbor]) {
-      continue;
-    }
-    visited[neighbor] = 1;
-    queue.push(neighbor);
-  }
-}
-
-function maskNeighbors(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): number[] {
-  const neighbors: number[] = [];
-  for (let dy = -1; dy <= 1; dy += 1) {
-    for (let dx = -1; dx <= 1; dx += 1) {
-      const nx = x + dx;
-      const ny = y + dy;
-      if ((dx !== 0 || dy !== 0) && isInside(nx, ny, width, height)) {
-        neighbors.push(ny * width + nx);
-      }
-    }
-  }
-  return neighbors;
-}
-
-function localLuminanceEdge(
-  luminances: Float32Array,
-  width: number,
-  height: number,
-  x: number,
-  y: number,
-): number {
-  const center = luminances[y * width + x] ?? 0;
-  let maxDiff = 0;
-  for (const neighbor of maskNeighbors(x, y, width, height)) {
-    maxDiff = Math.max(
-      maxDiff,
-      Math.abs(center - (luminances[neighbor] ?? center)),
-    );
-  }
-  return maxDiff;
-}
-
-function isInside(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): boolean {
-  return x >= 0 && x < width && y >= 0 && y < height;
+function emptyPatternMask(pixelCount: number): PatternTextMaskResult {
+  return { mask: new Uint8Array(pixelCount), count: 0, strategy: "none" };
 }
 
 function median(values: number[]): number {

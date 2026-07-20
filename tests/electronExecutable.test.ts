@@ -1,8 +1,20 @@
-import { join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const { resolveElectronExecutable } =
+const { ensureElectronExecutable, resolveElectronExecutable } =
   require("../scripts/electron-executable.cjs") as {
+    ensureElectronExecutable: (
+      root: string,
+      platform: NodeJS.Platform,
+    ) => string;
     resolveElectronExecutable: (
       root: string,
       platform: NodeJS.Platform,
@@ -32,5 +44,36 @@ describe("Electron executable resolution", () => {
     expect(resolveElectronExecutable("/repo", "linux")).toBe(
       join("/repo", "node_modules", "electron", "dist", "electron"),
     );
+  });
+
+  it("downloads the Electron binary before a direct first launch", () => {
+    const temporaryRoot = mkdtempSync(
+      join(tmpdir(), "mgt-electron-bootstrap-"),
+    );
+    try {
+      const installerPath = join(
+        temporaryRoot,
+        "node_modules",
+        "electron",
+        "install.js",
+      );
+      const executablePath = resolveElectronExecutable(
+        temporaryRoot,
+        process.platform,
+      );
+      mkdirSync(dirname(installerPath), { recursive: true });
+      writeFileSync(
+        installerPath,
+        `require("node:fs").mkdirSync(${JSON.stringify(dirname(executablePath))}, { recursive: true });\nrequire("node:fs").writeFileSync(${JSON.stringify(executablePath)}, "electron");\n`,
+        "utf8",
+      );
+
+      expect(ensureElectronExecutable(temporaryRoot, process.platform)).toBe(
+        executablePath,
+      );
+      expect(existsSync(executablePath)).toBe(true);
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
   });
 });

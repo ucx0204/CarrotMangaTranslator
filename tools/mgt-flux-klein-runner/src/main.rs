@@ -10,7 +10,9 @@ use std::ffi::CStr;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use koharu_ml::flux2_klein::{Flux2InpaintOptions, Flux2Klein, Flux2KleinPaths};
+use koharu_ml::flux2_klein::{
+    Flux2ImageToImageOptions, Flux2InpaintOptions, Flux2Klein, Flux2KleinPaths,
+};
 use koharu_runtime::{Catalog, ComputePolicy, RuntimeManager};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{EnvFilter, fmt};
@@ -52,7 +54,7 @@ struct Cli {
     #[arg(long, default_value_t = 1024 * 1024)]
     max_pixels: u32,
 
-    #[arg(long, default_value_t = 16)]
+    #[arg(long, default_value_t = 0)]
     mask_padding: u8,
 
     #[arg(long)]
@@ -455,6 +457,9 @@ fn link_or_copy_file(source: &Path, destination: &Path) -> Result<()> {
 fn run_worker(model: &Flux2Klein, cli: &Cli) -> Result<()> {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
+    if cli.require_metal {
+        eprintln!("mgt-flux-klein: Metal image-to-image mode");
+    }
     eprintln!("mgt-flux-klein: worker ready");
     for line in stdin.lock().lines() {
         let line = line?;
@@ -476,19 +481,34 @@ fn run_worker(model: &Flux2Klein, cli: &Cli) -> Result<()> {
                 mask_padding,
             } => {
                 let started = Instant::now();
-                let result = run_inpaint(
-                    model,
-                    cli,
-                    &input,
-                    &mask,
-                    &output,
-                    Flux2InpaintOptions {
-                        num_inference_steps: steps.unwrap_or(cli.steps),
-                        strength: strength.unwrap_or(cli.strength),
-                        max_pixels: max_pixels.unwrap_or(cli.max_pixels),
-                        mask_padding: mask_padding.unwrap_or(cli.mask_padding),
-                    },
-                );
+                let num_inference_steps = steps.unwrap_or(cli.steps);
+                let strength = strength.unwrap_or(cli.strength);
+                let max_pixels = max_pixels.unwrap_or(cli.max_pixels);
+                let result = if cli.require_metal {
+                    run_image_to_image(
+                        model,
+                        &input,
+                        &output,
+                        Flux2ImageToImageOptions {
+                            num_inference_steps,
+                            strength,
+                            max_pixels,
+                        },
+                    )
+                } else {
+                    run_inpaint(
+                        model,
+                        &input,
+                        &mask,
+                        &output,
+                        Flux2InpaintOptions {
+                            num_inference_steps,
+                            strength,
+                            max_pixels,
+                            mask_padding: mask_padding.unwrap_or(cli.mask_padding),
+                        },
+                    )
+                };
                 let response = match result {
                     Ok(()) => WorkerResponse {
                         id: &id,
@@ -514,7 +534,6 @@ fn run_worker(model: &Flux2Klein, cli: &Cli) -> Result<()> {
 
 fn run_inpaint(
     model: &Flux2Klein,
-    _cli: &Cli,
     input: &PathBuf,
     mask: &PathBuf,
     output: &PathBuf,
@@ -527,6 +546,23 @@ fn run_inpaint(
     let result = model
         .inpaint(&image, &mask_image, &options)
         .with_context(|| "Flux.2 Klein inpainting failed")?;
+    result
+        .save(output)
+        .with_context(|| format!("failed to write output image {}", output.display()))?;
+    Ok(())
+}
+
+fn run_image_to_image(
+    model: &Flux2Klein,
+    input: &PathBuf,
+    output: &PathBuf,
+    options: Flux2ImageToImageOptions,
+) -> Result<()> {
+    let image = image::open(input)
+        .with_context(|| format!("failed to open input image {}", input.display()))?;
+    let result = model
+        .image_to_image(&image, &options)
+        .with_context(|| "Flux.2 Klein Metal image edit failed")?;
     result
         .save(output)
         .with_context(|| format!("failed to write output image {}", output.display()))?;
@@ -586,6 +622,10 @@ fn install_panic_hook() {
                     .map(|text| text.as_str())
             })
             .unwrap_or("unknown panic");
-        eprintln!("mgt-flux-klein: fatal runtime panic: {message}");
+        let location = panic_info
+            .location()
+            .map(|location| format!(" at {}:{}", location.file(), location.line()))
+            .unwrap_or_default();
+        eprintln!("mgt-flux-klein: fatal runtime panic: {message}{location}");
     }));
 }

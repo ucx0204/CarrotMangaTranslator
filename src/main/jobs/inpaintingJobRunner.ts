@@ -5,12 +5,15 @@ import type {
 } from "../../shared/inpaintingTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
+import type { BubbleDetectionMode } from "../../shared/inpaintingSettingsTypes";
 import { inpaintDrawnPatternPage, inpaintPatternPage } from "../inpainting";
+import type { BubbleSegmentationEngineLease } from "../inpainting/bubbleSegmentationEnginePool";
 import { acquireInpaintingEngine } from "../inpainting/inpaintingEnginePool";
 import { openChapter } from "../library";
 import { logError } from "../logger";
 import { getAppSettings } from "../settingsStore";
 import { isAbortError } from "./jobEvents";
+import { prepareBubbleSegmentation } from "./inpaintingBubbleSegmentation";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import { saveInpaintingPageResult } from "./inpaintingJobHistory";
 import {
@@ -34,6 +37,8 @@ export type InpaintingJobState = {
   chapters: Map<string, OpenedChapter>;
   historyTransactionId: string | null;
   inpaintingEngineLease: InpaintingEngineLease | null;
+  bubbleSegmentationEngineLease: BubbleSegmentationEngineLease | null;
+  bubbleDetectionMode: BubbleDetectionMode;
 };
 
 export type InpaintingJobPage = {
@@ -223,7 +228,7 @@ async function processInpaintingPages({
 }> {
   let blocksErased = 0;
   let pagesChanged = 0;
-  state.inpaintingEngineLease = await acquireInpaintingEngineIfNeeded({
+  state.inpaintingEngineLease = await createDeferredInpaintingEngineLease({
     abortController,
     context,
     emit,
@@ -231,6 +236,16 @@ async function processInpaintingPages({
     pageCount: targets.length,
     totalTargetBlocks,
   });
+  const bubbleSegmentation = await prepareBubbleSegmentation({
+    abortController,
+    context,
+    emit,
+    id,
+    pageCount: targets.length,
+    shouldPrepare: !target.drawnPatternMode && totalTargetBlocks > 0,
+  });
+  state.bubbleDetectionMode = bubbleSegmentation.mode;
+  state.bubbleSegmentationEngineLease = bubbleSegmentation.lease;
 
   for (const [pageIndex, targetPage] of targets.entries()) {
     const result = await processInpaintingPage({
@@ -269,7 +284,7 @@ async function processInpaintingPages({
   };
 }
 
-async function acquireInpaintingEngineIfNeeded({
+async function createDeferredInpaintingEngineLease({
   abortController,
   context,
   emit,
@@ -284,36 +299,55 @@ async function acquireInpaintingEngineIfNeeded({
   pageCount: number;
   totalTargetBlocks: number;
 }): Promise<InpaintingEngineLease | null> {
-  if (totalTargetBlocks <= 0) {
-    return null;
-  }
-  const appSettings = await getAppSettings(context.appPaths);
-  return acquireInpaintingEngine({
-    appPaths: context.appPaths,
-    model: appSettings.inpainting?.model ?? "flux-klein",
-    fluxBackend: appSettings.inpainting?.fluxBackend,
-    koharuBackend: appSettings.inpainting?.koharuBackend,
-    allowUnsafeLowMemoryFlux:
-      appSettings.inpainting?.allowUnsafeLowMemoryFlux ?? false,
-    signal: abortController.signal,
-    onProgress: (progress) =>
-      emit({
-        id,
-        kind: "inpainting",
-        status: "starting",
-        progressText: progress.progressText,
-        phase: "model_downloading",
-        progressCurrent: 0,
-        progressTotal: pageCount,
-        pageTotal: pageCount,
-        detail: progress.detail,
-        progressMode: progress.progressMode,
-        progressPercent: progress.progressPercent,
-        progressBytes: progress.progressBytes,
-        progressTotalBytes: progress.progressTotalBytes,
-        installLogLine: progress.installLogLine,
-      }),
-  });
+  if (totalTargetBlocks <= 0) return null;
+  const settings = (await getAppSettings(context.appPaths)).inpainting;
+  const model = settings?.model ?? "flux-klein";
+  const configuredBackend =
+    model === "flux-klein"
+      ? (settings?.fluxBackend ??
+        (process.platform === "darwin" ? "metal-native" : "cuda-native"))
+      : (settings?.koharuBackend ?? "auto");
+  let acquiredLease: InpaintingEngineLease | null = null;
+  let pendingLease: Promise<InpaintingEngineLease> | undefined;
+  const acquireLease = () =>
+    (pendingLease ??= acquireInpaintingEngine({
+      appPaths: context.appPaths,
+      model,
+      fluxBackend: settings?.fluxBackend,
+      koharuBackend: settings?.koharuBackend,
+      allowUnsafeLowMemoryFlux: settings?.allowUnsafeLowMemoryFlux ?? false,
+      signal: abortController.signal,
+      onProgress: (progress) =>
+        emit({
+          id,
+          kind: "inpainting",
+          status: "starting",
+          progressText: progress.progressText,
+          phase: "model_downloading",
+          progressCurrent: 0,
+          progressTotal: pageCount,
+          pageTotal: pageCount,
+          detail: progress.detail,
+          progressMode: progress.progressMode,
+          progressPercent: progress.progressPercent,
+          progressBytes: progress.progressBytes,
+          progressTotalBytes: progress.progressTotalBytes,
+          installLogLine: progress.installLogLine,
+        }),
+    }).then((lease) => (acquiredLease = lease)));
+
+  return {
+    engine: {
+      model,
+      backend: configuredBackend,
+      runtimePath: "",
+      runRootDir: "",
+      inpaint: async (...args) =>
+        (await acquireLease()).engine.inpaint(...args),
+      dispose: async () => undefined,
+    },
+    release: () => acquiredLease?.release(),
+  };
 }
 
 async function processInpaintingPage({
@@ -357,6 +391,8 @@ async function processInpaintingPage({
         featherPx: target.drawnFeatherPx,
       })
     : await inpaintPatternPage(page, {
+        bubbleDetectionMode: state.bubbleDetectionMode,
+        bubbleSegmentationEngine: state.bubbleSegmentationEngineLease?.engine,
         signal: abortController.signal,
         decodeFallback: context.decodeImage,
         inpaintingEngine: state.inpaintingEngineLease?.engine,

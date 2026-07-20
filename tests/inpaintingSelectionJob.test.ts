@@ -6,6 +6,7 @@ import type {
   InpaintingRevisionChange,
   InpaintingRevisionStore,
 } from "../src/main/inpainting/inpaintingRevisionStore";
+import type { InpaintingEngine } from "../src/main/inpainting/inpaintingEngine";
 import type { MangaPage } from "../src/shared/libraryTypes";
 
 const mocks = vi.hoisted(() => ({
@@ -13,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   inpaintPatternPage: vi.fn(),
   openChapter: vi.fn(),
   releaseEngine: vi.fn(),
+  runEngine: vi.fn(),
   updatePagesAfterInpainting: vi.fn(),
 }));
 
@@ -86,12 +88,37 @@ describe("multi-chapter automatic inpainting jobs", () => {
         return saved;
       },
     );
-    mocks.inpaintPatternPage.mockImplementation(async (page: MangaPage) => ({
-      page: { ...page, inpaintedImagePath: `${page.imagePath}.inpainted.png` },
-      blocksErased: 1,
-    }));
+    mocks.inpaintPatternPage.mockImplementation(
+      async (
+        page: MangaPage,
+        options: { inpaintingEngine?: InpaintingEngine },
+      ) => {
+        await options.inpaintingEngine?.inpaint(
+          Buffer.alloc(4),
+          1,
+          1,
+          new Uint8Array(1).fill(1),
+          [{ x: 0, y: 0, w: 1, h: 1 }],
+        );
+        return {
+          page: {
+            ...page,
+            inpaintedImagePath: `${page.imagePath}.inpainted.png`,
+          },
+          blocksErased: 1,
+        };
+      },
+    );
+    mocks.runEngine.mockResolvedValue(undefined);
     mocks.acquireEngine.mockResolvedValue({
-      engine: { model: "flux-klein" },
+      engine: {
+        model: "flux-klein",
+        backend: "cuda-native",
+        runtimePath: "C:\\runtime\\flux.exe",
+        runRootDir: "C:\\runtime\\runs",
+        inpaint: mocks.runEngine,
+        dispose: vi.fn(),
+      },
       release: mocks.releaseEngine,
     });
   });
@@ -120,6 +147,7 @@ describe("multi-chapter automatic inpainting jobs", () => {
     ]);
     expect(result.pagesChanged).toBe(3);
     expect(mocks.acquireEngine).toHaveBeenCalledTimes(1);
+    expect(mocks.runEngine).toHaveBeenCalledTimes(3);
     expect(mocks.releaseEngine).toHaveBeenCalledTimes(1);
     expect(
       mocks.inpaintPatternPage.mock.calls.map(([page]) => page.name),
@@ -137,6 +165,36 @@ describe("multi-chapter automatic inpainting jobs", () => {
         .filter((event) => event.status === "running")
         .every((event) => event.progressTotal === 3 && event.pageTotal === 3),
     ).toBe(true);
+  });
+
+  it("skips the model engine when every page is completed by direct fill", async () => {
+    mocks.inpaintPatternPage.mockImplementation(async (page: MangaPage) => ({
+      page: { ...page, inpaintedImagePath: `${page.imagePath}.inpainted.png` },
+      blocksErased: 1,
+    }));
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(makeContext(send), {
+      mode: "selection-pattern",
+      workId: "work-a",
+      selections: [
+        {
+          chapterId: chapterAId,
+          mode: "page-set",
+          pageIds: [pageA1Id, pageA2Id],
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      pagesChanged: 2,
+      blocksErased: 2,
+    });
+    expect(mocks.acquireEngine).not.toHaveBeenCalled();
+    expect(mocks.runEngine).not.toHaveBeenCalled();
+    expect(mocks.releaseEngine).not.toHaveBeenCalled();
   });
 
   it.each([

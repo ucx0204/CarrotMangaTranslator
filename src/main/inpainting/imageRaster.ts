@@ -107,9 +107,14 @@ export function compositeFluxOutput(
   pageWidth: number,
   rect: PixelRect,
   featherPx: number,
+  writeBounds: PixelRect = rect,
 ): void {
-  for (let y = 0; y < rect.h; y += 1) {
-    for (let x = 0; x < rect.w; x += 1) {
+  const startX = clamp(writeBounds.x - rect.x, 0, rect.w);
+  const startY = clamp(writeBounds.y - rect.y, 0, rect.h);
+  const endX = clamp(writeBounds.x + writeBounds.w - rect.x, startX, rect.w);
+  const endY = clamp(writeBounds.y + writeBounds.h - rect.y, startY, rect.h);
+  for (let y = startY; y < endY; y += 1) {
+    for (let x = startX; x < endX; x += 1) {
       const pageX = rect.x + x;
       const pageY = rect.y + y;
       const alpha = maskSoftAlphaAt(
@@ -187,6 +192,19 @@ export function buildLocalMask(
   return paddingPx > 0
     ? dilateMaskSquare(output, rect.w, rect.h, paddingPx)
     : output;
+}
+
+export function isolateMaskToWindow(
+  mask: Uint8Array,
+  pageWidth: number,
+  window: PixelRect,
+): Uint8Array {
+  const isolated = new Uint8Array(mask.length);
+  for (let y = window.y; y < window.y + window.h; y += 1) {
+    const start = y * pageWidth + window.x;
+    isolated.set(mask.subarray(start, start + window.w), start);
+  }
+  return isolated;
 }
 
 function blendByte(base: number, next: number, alpha: number): number {

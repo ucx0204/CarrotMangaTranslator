@@ -5,6 +5,7 @@ import {
   existsSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -176,6 +177,12 @@ describe("Apple Silicon Gemma Metal runtimes", () => {
     expect(
       llamaRuntimeProbeLooksGpuBacked(
         "ggml_metal_init: GPU name: Apple M3 Max; Metal device 0",
+        "metal",
+      ),
+    ).toBe(true);
+    expect(
+      llamaRuntimeProbeLooksGpuBacked(
+        "Available devices:\n  MTL0: Apple M4 Max (53084 MiB, 53083 MiB free)\n  BLAS: Accelerate (0 MiB, 0 MiB free)",
         "metal",
       ),
     ).toBe(true);
@@ -375,4 +382,40 @@ describe("Metal runtime archive integrity", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it.skipIf(process.platform === "win32")(
+    "extracts runtime symlinks after their target files",
+    async () => {
+      const dir = mkdtempSync(join(tmpdir(), "mgt-mac-runtime-symlink-"));
+      try {
+        const source = join(dir, "source");
+        const releaseName = "beellama-v0.3.1";
+        const release = join(source, releaseName);
+        const output = join(dir, "output");
+        const archive = join(dir, "runtime.tar.gz");
+        mkdirSync(release, { recursive: true });
+        writeFileSync(join(release, "libmtmd.0.dylib"), "metal");
+        writeFileSync(join(release, "llama-server"), "mach-o");
+        symlinkSync("libmtmd.0.dylib", join(release, "libmtmd.dylib"));
+        await tar.c({ cwd: source, file: archive, gzip: true }, [
+          `${releaseName}/libmtmd.dylib`,
+          `${releaseName}/libmtmd.0.dylib`,
+          `${releaseName}/llama-server`,
+        ]);
+
+        await extractSelectedTarEntries(
+          archive,
+          output,
+          shouldExtractLlamaRuntimeFile,
+          { stripComponents: 1 },
+        );
+
+        expect(readFileSync(join(output, "libmtmd.dylib"), "utf8")).toBe(
+          "metal",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
 });

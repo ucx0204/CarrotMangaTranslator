@@ -4,6 +4,7 @@
 const { spawnSync } = require("node:child_process");
 const { existsSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
+const { patchCandleMetalQMatMul } = require("./patch-candle-metal-qmatmul.cjs");
 
 const root = join(__dirname, "..");
 const target = "aarch64-apple-darwin";
@@ -51,6 +52,13 @@ function main() {
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     throw new Error("Metal runner builds require an Apple Silicon Mac.");
   }
+  const fluxManifest = join(
+    root,
+    "tools",
+    "mgt-flux-klein-runner",
+    "Cargo.toml",
+  );
+  patchCandleMetalQMatMul({ cwd: root, manifestPath: fluxManifest });
   const koharuManifest = join(
     root,
     "tools",
@@ -59,12 +67,6 @@ function main() {
   );
   buildMetalRunner(koharuManifest);
 
-  const fluxManifest = join(
-    root,
-    "tools",
-    "mgt-flux-klein-runner",
-    "Cargo.toml",
-  );
   if (!existsSync(fluxManifest)) {
     throw new Error(`Missing Flux Metal runner manifest: ${fluxManifest}`);
   }
