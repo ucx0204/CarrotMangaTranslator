@@ -52,29 +52,33 @@ const { configureElectronBuilderSigningEnvironment } =
       environment: NodeJS.ProcessEnv,
     ) => void;
   };
-const { requiresOtoolAlias, shouldAllowHostedGuiSmokeFailure } =
-  require("../scripts/verify-mac-package.cjs") as {
-    requiresOtoolAlias: (filePath: string) => boolean;
-    shouldAllowHostedGuiSmokeFailure: (
-      input: {
-        stage: "copy" | "prepare" | "verify";
-        markerExists: boolean;
-        message: string;
-        smokeStartedAtMs: number;
-        crashReport: {
-          path: string;
-          mtimeMs: number;
-          procPath: string;
-          exceptionType: string;
-          signal: string;
-          faultingThread: number;
-          triggered: boolean;
-          threadName: string;
-        } | null;
-      },
-      environment: NodeJS.ProcessEnv,
-    ) => boolean;
-  };
+const {
+  assertElectronFrameworkExecutable,
+  requiresOtoolAlias,
+  shouldAllowHostedGuiSmokeFailure,
+} = require("../scripts/verify-mac-package.cjs") as {
+  assertElectronFrameworkExecutable: (appPath: string) => void;
+  requiresOtoolAlias: (filePath: string) => boolean;
+  shouldAllowHostedGuiSmokeFailure: (
+    input: {
+      stage: "copy" | "prepare" | "verify";
+      markerExists: boolean;
+      message: string;
+      smokeStartedAtMs: number;
+      crashReport: {
+        path: string;
+        mtimeMs: number;
+        procPath: string;
+        exceptionType: string;
+        signal: string;
+        faultingThread: number;
+        triggered: boolean;
+        threadName: string;
+      } | null;
+    },
+    environment: NodeJS.ProcessEnv,
+  ) => boolean;
+};
 
 describe("Apple Silicon Alpha packaging", () => {
   it("pins Electron and every downloaded executable runtime", () => {
@@ -274,6 +278,30 @@ describe("Apple Silicon Alpha packaging", () => {
     ).toContain("process.exit(1)");
   });
 
+  it("rejects a final app whose Electron Framework executable is missing", () => {
+    const appRoot = mkdtempSync(join(tmpdir(), "mgt-final-app-"));
+    try {
+      const frameworkRoot = join(
+        appRoot,
+        "Contents",
+        "Frameworks",
+        "Electron Framework.framework",
+        "Versions",
+        "A",
+      );
+      mkdirSync(frameworkRoot, { recursive: true });
+
+      expect(() => assertElectronFrameworkExecutable(appRoot)).toThrow(
+        "missing the Electron Framework executable",
+      );
+
+      writeFileSync(join(frameworkRoot, "Electron Framework"), "electron");
+      expect(() => assertElectronFrameworkExecutable(appRoot)).not.toThrow();
+    } finally {
+      rmSync(appRoot, { recursive: true, force: true });
+    }
+  });
+
   it("waives only the exact fresh GitHub-hosted pre-ready Electron trap", () => {
     const environment: NodeJS.ProcessEnv = {
       MGT_MAC_ALPHA_ALLOW_HOSTED_APP_SMOKE_TRAP:
@@ -379,7 +407,7 @@ describe("Apple Silicon Alpha packaging", () => {
     );
 
     expect(verifier).toContain("await verifyMacRuntimeSmokes({ appPath })");
-    expect(verifier.match(/^\s+verifySigning\(appPath\);$/gm)).toHaveLength(2);
+    expect(verifier.match(/^\s+verifySigning\(appPath\);$/gm)).toHaveLength(4);
     expect(verifier).toContain('PYTHONDONTWRITEBYTECODE: "1"');
     expect(smokes).toContain('PYTHONDONTWRITEBYTECODE: "1"');
     expect(smokes).toContain('PYTHONPYCACHEPREFIX: join(workRoot, "pycache")');
@@ -410,6 +438,13 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(verifier).toContain("contents.slice(0, 20 * 1024)");
     expect(verifier).toContain("result.signal");
     expect(verifier).toContain('"--entitlements",');
+    expect(verifier).toContain('"attach",');
+    expect(verifier).toContain('"-readonly",');
+    expect(verifier).toContain('findSingleAppBundle(mountRoot, "final DMG")');
+    expect(verifier).toContain("verifyApplicationDirectorySmoke(appPath)");
+    expect(verifier).toContain('"-x", "-k", zipPath, extractRoot');
+    expect(verifier).toContain("verifyFinalDiskImage(dmgFiles[0])");
+    expect(verifier).toContain("verifyFinalZipArchive(zipFiles[0])");
     const appSmoke = readFileSync(
       join(repoRoot, "src", "main", "macPackageSmoke.ts"),
       "utf8",
