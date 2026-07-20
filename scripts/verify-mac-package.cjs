@@ -28,6 +28,20 @@ const HOSTED_APP_SMOKE_WAIVER_PATH = join(
   "mac-alpha-hosted-app-smoke-waiver.json",
 );
 const SMOKE_APP_PATH = "/Applications/CarrotMangaTranslatorAlphaSmoke.app";
+const ELECTRON_FRAMEWORK_EXECUTABLE = join(
+  "Contents",
+  "Frameworks",
+  "Electron Framework.framework",
+  "Versions",
+  "A",
+  "Electron Framework",
+);
+const ELECTRON_HELPER_SUFFIXES = [
+  "Helper",
+  "Helper (GPU)",
+  "Helper (Plugin)",
+  "Helper (Renderer)",
+];
 
 /** @typedef {{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; error?: Error }} CommandResult */
 
@@ -93,6 +107,60 @@ function findAppBundles(directory) {
     }
   }
   return apps;
+}
+
+/** @param {string} directory @param {string} artifactLabel */
+function findSingleAppBundle(directory, artifactLabel) {
+  const apps = findAppBundles(directory);
+  if (apps.length !== 1) {
+    throw new Error(
+      `Expected one .app in ${artifactLabel}, found ${apps.length}: ${apps.join(", ") || "none"}`,
+    );
+  }
+  return apps[0];
+}
+
+/** @param {string} appPath */
+function assertElectronFrameworkExecutable(appPath) {
+  const frameworkExecutable = join(appPath, ELECTRON_FRAMEWORK_EXECUTABLE);
+  if (!existsSync(frameworkExecutable)) {
+    throw new Error(
+      `Final app is missing the Electron Framework executable: ${frameworkExecutable}`,
+    );
+  }
+  const metadata = statSync(frameworkExecutable);
+  if (!metadata.isFile() || metadata.size === 0) {
+    throw new Error(
+      `Final app has an invalid Electron Framework executable: ${frameworkExecutable}`,
+    );
+  }
+}
+
+/** @param {string} appPath */
+function assertElectronHelperExecutables(appPath) {
+  for (const suffix of ELECTRON_HELPER_SUFFIXES) {
+    const helperName = `CarrotMangaTranslator ${suffix}`;
+    const helperExecutable = join(
+      appPath,
+      "Contents",
+      "Frameworks",
+      `${helperName}.app`,
+      "Contents",
+      "MacOS",
+      helperName,
+    );
+    if (!existsSync(helperExecutable)) {
+      throw new Error(
+        `Final app is missing the ASCII Electron Helper executable: ${helperExecutable}`,
+      );
+    }
+    const metadata = statSync(helperExecutable);
+    if (!metadata.isFile() || metadata.size === 0) {
+      throw new Error(
+        `Final app has an invalid Electron Helper executable: ${helperExecutable}`,
+      );
+    }
+  }
 }
 
 /** @param {string} filePath */
@@ -258,6 +326,35 @@ function verifyRequiredRuntimes(appPath) {
 }
 
 /** @param {string} appPath */
+function verifyPackagedTarRuntime(appPath) {
+  const appExecutable = join(
+    appPath,
+    "Contents",
+    "MacOS",
+    "CarrotMangaTranslator",
+  );
+  const tarRuntimePath = join(
+    appPath,
+    "Contents",
+    "Resources",
+    "app-runtime",
+    "simple-page-tar-utils.cjs",
+  );
+  if (!existsSync(tarRuntimePath)) {
+    throw new Error(`Packaged tar runtime is missing: ${tarRuntimePath}`);
+  }
+  const smokeScript = [
+    `const runtime = require(${JSON.stringify(tarRuntimePath)});`,
+    "if (typeof runtime.extractSelectedTarEntries !== 'function') throw new Error('Packaged tar runtime did not load');",
+    "console.log('packaged-tar-runtime-ok');",
+  ].join("\n");
+  run(appExecutable, ["-e", smokeScript], {
+    env: { ELECTRON_RUN_AS_NODE: "1" },
+    timeout: 30_000,
+  });
+}
+
+/** @param {string} appPath */
 function verifySigning(appPath) {
   run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", appPath]);
   const details = run("codesign", ["-dvvv", appPath]).stderr;
@@ -281,6 +378,78 @@ function verifySigning(appPath) {
     run("xcrun", ["stapler", "validate", appPath]);
   } else if (!/Signature=adhoc/m.test(details)) {
     throw new Error(`Expected ad-hoc signature, got:\n${details}`);
+  }
+}
+
+/** @param {string} diskImagePath */
+function verifyFinalDiskImage(diskImagePath) {
+  const mountRoot = mkdtempSync(join(tmpdir(), "mgt-final-dmg-"));
+  let attachedDevice = "";
+  try {
+    const attachResult = run(
+      "hdiutil",
+      [
+        "attach",
+        "-readonly",
+        "-nobrowse",
+        "-mountpoint",
+        mountRoot,
+        "-plist",
+        diskImagePath,
+      ],
+      { timeout: 120_000 },
+    );
+    /** @type {{ "system-entities"?: Array<Record<string, unknown>> }} */
+    const attachJson = JSON.parse(
+      run("plutil", ["-convert", "json", "-o", "-", "-"], {
+        input: attachResult.stdout,
+      }).stdout,
+    );
+    const mountedEntity = attachJson["system-entities"]?.find(
+      (entity) => entity["mount-point"] && entity["dev-entry"],
+    );
+    attachedDevice = String(mountedEntity?.["dev-entry"] || "");
+    if (!attachedDevice) {
+      throw new Error(
+        `Could not resolve the mounted device for final DMG: ${diskImagePath}`,
+      );
+    }
+
+    const appPath = findSingleAppBundle(mountRoot, "final DMG");
+    assertElectronFrameworkExecutable(appPath);
+    verifySigning(appPath);
+    verifyPackagedTarRuntime(appPath);
+    verifyApplicationDirectorySmoke(appPath);
+    console.log(
+      `[mac-verify] mounted, signed, copied, and launched final DMG app ${relative(root, appPath)}`,
+    );
+  } finally {
+    try {
+      if (attachedDevice) {
+        run("hdiutil", ["detach", attachedDevice], { timeout: 120_000 });
+      }
+    } finally {
+      rmSync(mountRoot, { recursive: true, force: true });
+    }
+  }
+}
+
+/** @param {string} zipPath */
+function verifyFinalZipArchive(zipPath) {
+  const extractRoot = mkdtempSync(join(tmpdir(), "mgt-final-zip-"));
+  try {
+    run("ditto", ["-x", "-k", zipPath, extractRoot], {
+      timeout: 300_000,
+    });
+    const appPath = findSingleAppBundle(extractRoot, "final ZIP");
+    assertElectronFrameworkExecutable(appPath);
+    verifySigning(appPath);
+    verifyPackagedTarRuntime(appPath);
+    console.log(
+      `[mac-verify] extracted and verified final ZIP app ${relative(root, appPath)}`,
+    );
+  } finally {
+    rmSync(extractRoot, { recursive: true, force: true });
   }
 }
 
@@ -643,11 +812,14 @@ async function main() {
     throw new Error(`Expected one unpacked .app in dist, found ${apps.length}`);
   }
   const appPath = apps[0];
+  assertElectronFrameworkExecutable(appPath);
+  assertElectronHelperExecutables(appPath);
   verifyNativePayload(appPath);
   // Establish that electron-builder produced a valid sealed bundle before
   // running any executable from it.  The second check below proves that the
   // runtime smokes kept the signed .app immutable.
   verifySigning(appPath);
+  verifyPackagedTarRuntime(appPath);
   // Launch through LaunchServices exactly as a user opens an installed .app,
   // before the memory-intensive OCR and Metal model smokes run.
   verifyApplicationDirectorySmoke(appPath);
@@ -670,6 +842,8 @@ async function main() {
   if (process.env.MGT_MAC_SIGNING_MODE === "developer-id") {
     run("xcrun", ["stapler", "validate", dmgFiles[0]]);
   }
+  verifyFinalDiskImage(dmgFiles[0]);
+  verifyFinalZipArchive(zipFiles[0]);
 
   const artifacts = [...dmgFiles, ...zipFiles];
   const sums = (
@@ -694,9 +868,15 @@ if (require.main === module) {
 }
 
 module.exports = {
+  assertElectronFrameworkExecutable,
+  assertElectronHelperExecutables,
   findAppBundles,
+  findSingleAppBundle,
   listFiles,
   looksLikeNativeBinary,
   requiresOtoolAlias,
   shouldAllowHostedGuiSmokeFailure,
+  verifyPackagedTarRuntime,
+  verifyFinalDiskImage,
+  verifyFinalZipArchive,
 };

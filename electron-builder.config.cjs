@@ -10,6 +10,12 @@ const bundleFluxNvidiaRunners =
   process.env.MGT_BUNDLE_FLUX_NVIDIA_RUNNERS === "1";
 const isMacBuild =
   process.platform === "darwin" || process.env.MGT_TARGET_PLATFORM === "darwin";
+// APFS stores Korean filenames in a decomposed Unicode form. Electron 43
+// compares launched Helper paths byte-for-byte against paths derived from
+// CFBundleName, so a Korean macOS product name makes the comparison fail and
+// aborts before app.whenReady(). Keep bundle/helper names ASCII on macOS while
+// preserving the user-facing Korean display name below.
+const productName = isMacBuild ? "CarrotMangaTranslator" : "당근망가번역기";
 const macDeveloperSigning = process.env.MGT_MAC_SIGNING_MODE === "developer-id";
 const macRuntimeRoot =
   process.env.MGT_MAC_RUNTIME_ROOT || join(__dirname, ".tmp", "mac-runtime");
@@ -151,7 +157,7 @@ function listFilesRecursively(directory) {
 
 module.exports = {
   appId: "com.sam40.mangagemma.translator",
-  productName: "당근망가번역기",
+  productName,
   directories: {
     output: "dist",
   },
@@ -238,6 +244,9 @@ module.exports = {
     category: "public.app-category.graphics-design",
     minimumSystemVersion: "14.0",
     executableName: "CarrotMangaTranslator",
+    extendInfo: {
+      CFBundleDisplayName: "당근망가번역기",
+    },
     artifactName: "CarrotMangaTranslator-${version}-macOS-arm64-alpha.${ext}",
     electronLanguages: ["en-US", "en-GB", "ko", "ja", "zh-CN", "zh-TW"],
     identity: macDeveloperSigning ? undefined : "-",
@@ -254,6 +263,11 @@ module.exports = {
   },
   dmg: {
     sign: macDeveloperSigning,
+    // The bundled OCR/Metal runtimes make the app roughly 2 GB. dmgbuild's
+    // automatic HFS+ sizing can silently omit the 191 MB Electron Framework
+    // executable when the calculated image is too tight, so reserve explicit
+    // headroom before the image is shrunk and compressed.
+    size: "3g",
   },
   nsis: {
     oneClick: false,
