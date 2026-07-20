@@ -36,6 +36,12 @@ const ELECTRON_FRAMEWORK_EXECUTABLE = join(
   "A",
   "Electron Framework",
 );
+const ELECTRON_HELPER_SUFFIXES = [
+  "Helper",
+  "Helper (GPU)",
+  "Helper (Plugin)",
+  "Helper (Renderer)",
+];
 
 /** @typedef {{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; error?: Error }} CommandResult */
 
@@ -127,6 +133,33 @@ function assertElectronFrameworkExecutable(appPath) {
     throw new Error(
       `Final app has an invalid Electron Framework executable: ${frameworkExecutable}`,
     );
+  }
+}
+
+/** @param {string} appPath */
+function assertElectronHelperExecutables(appPath) {
+  for (const suffix of ELECTRON_HELPER_SUFFIXES) {
+    const helperName = `CarrotMangaTranslator ${suffix}`;
+    const helperExecutable = join(
+      appPath,
+      "Contents",
+      "Frameworks",
+      `${helperName}.app`,
+      "Contents",
+      "MacOS",
+      helperName,
+    );
+    if (!existsSync(helperExecutable)) {
+      throw new Error(
+        `Final app is missing the ASCII Electron Helper executable: ${helperExecutable}`,
+      );
+    }
+    const metadata = statSync(helperExecutable);
+    if (!metadata.isFile() || metadata.size === 0) {
+      throw new Error(
+        `Final app has an invalid Electron Helper executable: ${helperExecutable}`,
+      );
+    }
   }
 }
 
@@ -749,6 +782,7 @@ async function main() {
   }
   const appPath = apps[0];
   assertElectronFrameworkExecutable(appPath);
+  assertElectronHelperExecutables(appPath);
   verifyNativePayload(appPath);
   // Establish that electron-builder produced a valid sealed bundle before
   // running any executable from it.  The second check below proves that the
@@ -803,6 +837,7 @@ if (require.main === module) {
 
 module.exports = {
   assertElectronFrameworkExecutable,
+  assertElectronHelperExecutables,
   findAppBundles,
   findSingleAppBundle,
   listFiles,

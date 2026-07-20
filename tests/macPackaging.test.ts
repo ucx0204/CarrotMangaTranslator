@@ -54,10 +54,12 @@ const { configureElectronBuilderSigningEnvironment } =
   };
 const {
   assertElectronFrameworkExecutable,
+  assertElectronHelperExecutables,
   requiresOtoolAlias,
   shouldAllowHostedGuiSmokeFailure,
 } = require("../scripts/verify-mac-package.cjs") as {
   assertElectronFrameworkExecutable: (appPath: string) => void;
+  assertElectronHelperExecutables: (appPath: string) => void;
   requiresOtoolAlias: (filePath: string) => boolean;
   shouldAllowHostedGuiSmokeFailure: (
     input: {
@@ -302,6 +304,39 @@ describe("Apple Silicon Alpha packaging", () => {
     }
   });
 
+  it("requires ASCII Electron Helper bundle and executable names", () => {
+    const appRoot = mkdtempSync(join(tmpdir(), "mgt-helper-app-"));
+    const helperSuffixes = [
+      "Helper",
+      "Helper (GPU)",
+      "Helper (Plugin)",
+      "Helper (Renderer)",
+    ];
+    try {
+      expect(() => assertElectronHelperExecutables(appRoot)).toThrow(
+        "missing the ASCII Electron Helper executable",
+      );
+
+      for (const suffix of helperSuffixes) {
+        const helperName = `CarrotMangaTranslator ${suffix}`;
+        const executableDir = join(
+          appRoot,
+          "Contents",
+          "Frameworks",
+          `${helperName}.app`,
+          "Contents",
+          "MacOS",
+        );
+        mkdirSync(executableDir, { recursive: true });
+        writeFileSync(join(executableDir, helperName), "helper");
+      }
+
+      expect(() => assertElectronHelperExecutables(appRoot)).not.toThrow();
+    } finally {
+      rmSync(appRoot, { recursive: true, force: true });
+    }
+  });
+
   it("waives only the exact fresh GitHub-hosted pre-ready Electron trap", () => {
     const environment: NodeJS.ProcessEnv = {
       MGT_MAC_ALPHA_ALLOW_HOSTED_APP_SMOKE_TRAP:
@@ -389,6 +424,11 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(config).toContain('target: "zip"');
     expect(config).toContain('arch: ["arm64"]');
     expect(config).toContain('executableName: "CarrotMangaTranslator"');
+    expect(config).toContain(
+      'const productName = isMacBuild ? "CarrotMangaTranslator" : "당근망가번역기"',
+    );
+    expect(config).toContain('CFBundleDisplayName: "당근망가번역기"');
+    expect(config).toContain('size: "3g"');
     expect(config).toContain("macExtraResources");
     expect(config).toContain("windowsExtraResources");
     expect(config).toContain("Windows binaries leaked into the macOS app");
