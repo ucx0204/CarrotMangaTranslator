@@ -1182,6 +1182,14 @@
         "precise": {
           "label": "Precise",
           "description": "Detects bubbles with a dedicated segmentation model. Downloads an approximately 104 MB model on first use."
+        },
+        "quality": {
+          "label": "Highest quality",
+          "description": "Runs RT-DETR only on bubbles missed or weakly bounded by precise detection, then refines those outlines with SAM 2.1. Automatically prepares about 1.1 GB of models on first use."
+        },
+        "sam3-experimental": {
+          "label": "SAM 3 experimental",
+          "description": "Experimental NVIDIA-only mode. It refines only failed regions with RT-DETR + SAM 3 and safely falls back to SAM 2.1 without an approved Hugging Face token."
         }
       },
       "amdOcrExperimental": "AMD GPU OCR is experimental. If it fails, you can switch only OCR to the CPU.",

@@ -1138,6 +1138,14 @@
         "precise": {
           "label": "精確",
           "description": "使用專用分割模型偵測對話框。首次使用時會下載約 104MB 的模型。"
+        },
+        "quality": {
+          "label": "最高品質",
+          "description": "僅對精確偵測遺漏或邊界不穩定的對話框執行 RT-DETR，並以 SAM 2.1 修正輪廓。首次使用時會自動準備約 1.1GB 的模型。"
+        },
+        "sam3-experimental": {
+          "label": "SAM 3 實驗",
+          "description": "僅限 NVIDIA 的實驗模式。只以 RT-DETR + SAM 3 修復失敗區域；沒有獲准的 Hugging Face 權杖時會安全切換至 SAM 2.1。"
         }
       },
       "amdOcrExperimental": "AMD GPU OCR 為實驗功能。如失敗，可僅將 OCR 切換到 CPU。",

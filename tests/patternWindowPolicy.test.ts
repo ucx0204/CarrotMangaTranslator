@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { InpaintingEngine } from "../src/main/inpainting/inpaintingEngine";
-import { resolvePatternInpaintWindows } from "../src/main/inpainting/patternWindowPolicy";
+import {
+  resolveInpaintingBackendPolicy,
+  resolvePatternInpaintWindows,
+} from "../src/main/inpainting/patternWindowPolicy";
 
 function createEngine(
   model: InpaintingEngine["model"],
@@ -32,19 +35,16 @@ describe("resolvePatternInpaintWindows", () => {
     expect(resolved[0]).not.toBe(touchingWindows[0]);
   });
 
-  it.each([
-    ["flux-klein", "cuda-native"],
-    ["lama-manga", "metal-native"],
-  ] as const)("merges windows for %s on %s", (model, backend) => {
+  it("keeps Flux CUDA windows separate for owned-mask processing", () => {
     expect(
       resolvePatternInpaintWindows(
         touchingWindows,
-        createEngine(model, backend),
+        createEngine("flux-klein", "cuda-native"),
       ),
-    ).toEqual([{ x: 0, y: 0, w: 40, h: 20 }]);
+    ).toEqual(touchingWindows);
   });
 
-  it("merges transitive overlap into a single window", () => {
+  it("merges transitive overlap for the Koharu whole-page path", () => {
     expect(
       resolvePatternInpaintWindows(
         [
@@ -52,8 +52,64 @@ describe("resolvePatternInpaintWindows", () => {
           { x: 20, y: 0, w: 10, h: 10 },
           { x: 9, y: 0, w: 12, h: 10 },
         ],
-        createEngine("flux-klein", "cuda-native"),
+        createEngine("lama-manga", "cuda"),
       ),
     ).toEqual([{ x: 0, y: 0, w: 30, h: 10 }]);
+  });
+
+  it("snapshots backend policies independently", () => {
+    expect({
+      cuda: resolveInpaintingBackendPolicy(
+        createEngine("flux-klein", "cuda-native"),
+      ),
+      koharu: resolveInpaintingBackendPolicy(
+        createEngine("lama-manga", "cuda"),
+      ),
+      metal: resolveInpaintingBackendPolicy(
+        createEngine("flux-klein", "metal-native"),
+      ),
+    }).toMatchInlineSnapshot(`
+      {
+        "cuda": {
+          "bubbleMaskStrategy": "omit",
+          "contextPx": 160,
+          "cropStrategy": "scaled-to-budget",
+          "enginePath": "flux",
+          "featherPx": 8,
+          "maskPaddingPx": 16,
+          "maskStrategy": "owned",
+          "maxContextPx": null,
+          "maxCropSizePx": null,
+          "maxPixels": 1048576,
+          "windowStrategy": "preserve",
+        },
+        "koharu": {
+          "bubbleMaskStrategy": "forward",
+          "contextPx": 160,
+          "cropStrategy": "whole-page",
+          "enginePath": "koharu",
+          "featherPx": 8,
+          "maskPaddingPx": 16,
+          "maskStrategy": "owned",
+          "maxContextPx": null,
+          "maxCropSizePx": null,
+          "maxPixels": 1048576,
+          "windowStrategy": "merge",
+        },
+        "metal": {
+          "bubbleMaskStrategy": "omit",
+          "contextPx": 96,
+          "cropStrategy": "tiled-native",
+          "enginePath": "flux",
+          "featherPx": 8,
+          "maskPaddingPx": 16,
+          "maskStrategy": "owned",
+          "maxContextPx": 96,
+          "maxCropSizePx": 512,
+          "maxPixels": 1048576,
+          "windowStrategy": "preserve",
+        },
+      }
+    `);
   });
 });

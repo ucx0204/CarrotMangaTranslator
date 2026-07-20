@@ -1135,6 +1135,14 @@
         "precise": {
           "label": "精确",
           "description": "使用专用分割模型检测气泡。首次使用时下载约 104MB 的模型。"
+        },
+        "quality": {
+          "label": "最高质量",
+          "description": "仅对精确检测遗漏或边界不稳定的气泡运行 RT-DETR，并用 SAM 2.1 优化轮廓。首次使用时自动准备约 1.1GB 的模型。"
+        },
+        "sam3-experimental": {
+          "label": "SAM 3 实验",
+          "description": "仅限 NVIDIA 的实验模式。只用 RT-DETR + SAM 3 修复失败区域；没有获批的 Hugging Face 令牌时会安全切换到 SAM 2.1。"
         }
       },
       "amdOcrExperimental": "AMD GPU OCR为实验功能。如失败，可仅将OCR切换到CPU。",

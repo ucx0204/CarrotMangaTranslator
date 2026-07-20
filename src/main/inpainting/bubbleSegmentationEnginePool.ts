@@ -14,11 +14,13 @@ import {
   logInpaintingRuntimeWarn,
 } from "./inpaintingRuntimeLogger";
 import { LeasedIdleResourcePool } from "./leasedIdleResource";
+import type { BubbleQualityRefiner } from "./bubbleQualityRefiner";
 
 const BUBBLE_SEGMENTATION_IDLE_TTL_MS = 30 * 1000;
 
 export type BubbleSegmentationEngineLease = {
   engine: BubbleSegmentationEngine;
+  qualityRefiner?: BubbleQualityRefiner;
   release: () => void;
 };
 

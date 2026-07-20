@@ -116,7 +116,9 @@ export const AppSettingsSchema = z
       .optional(),
     inpainting: z
       .object({
-        bubbleDetectionMode: z.enum(["auto", "precise"]).optional(),
+        bubbleDetectionMode: z
+          .enum(["auto", "precise", "quality", "sam3-experimental"])
+          .optional(),
         model: InpaintingModelSchema.optional(),
         fluxBackend: FluxBackendSchema.optional(),
         koharuBackend: KoharuInpaintingBackendSchema.optional(),

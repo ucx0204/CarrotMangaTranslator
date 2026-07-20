@@ -1166,6 +1166,14 @@
         "precise": {
           "label": "정밀",
           "description": "전용 세그멘테이션 모델로 말풍선을 감지합니다. 처음 사용할 때 약 104MB 모델을 내려받습니다."
+        },
+        "quality": {
+          "label": "최고 품질",
+          "description": "정밀 감지에서 놓치거나 경계가 불안정한 말풍선만 RT-DETR로 다시 찾고 SAM 2.1로 외곽선을 보정합니다. 처음 사용할 때 약 1.1GB 모델을 자동으로 준비합니다."
+        },
+        "sam3-experimental": {
+          "label": "SAM 3 실험",
+          "description": "NVIDIA 전용 실험 모드입니다. 실패 구간만 RT-DETR + SAM 3로 보정하며, 모델 사용 승인을 받은 Hugging Face 토큰이 없으면 SAM 2.1로 안전하게 전환합니다."
         }
       },
       "amdOcrExperimental": "AMD OCR GPU는 실험 기능입니다. 실패하면 OCR만 CPU로 바꿀 수 있습니다.",

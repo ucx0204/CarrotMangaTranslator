@@ -392,6 +392,8 @@ async function processInpaintingPage({
       })
     : await inpaintPatternPage(page, {
         bubbleDetectionMode: state.bubbleDetectionMode,
+        bubbleQualityRefiner:
+          state.bubbleSegmentationEngineLease?.qualityRefiner,
         bubbleSegmentationEngine: state.bubbleSegmentationEngineLease?.engine,
         signal: abortController.signal,
         decodeFallback: context.decodeImage,

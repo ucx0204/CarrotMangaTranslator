@@ -18,6 +18,7 @@ export { ensureEmbeddedPythonPackagePath } from "./pythonPathFile";
 
 type PythonBootstrapOptions = {
   runtimeDir: string;
+  runtimeLabel?: string;
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 };
@@ -30,6 +31,7 @@ type ManagedBootstrapPythonConfig = {
 
 export async function findPythonCommand(options: {
   runtimeDir: string;
+  runtimeLabel?: string;
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<PythonCommand> {
@@ -50,6 +52,16 @@ export async function findPythonCommand(options: {
     }
   } else {
     candidates.push(
+      {
+        command: join(
+          process.resourcesPath,
+          "tools",
+          "python",
+          "bin",
+          "python3",
+        ),
+        args: [],
+      },
       { command: "python3", args: [] },
       { command: "python", args: [] },
     );
@@ -65,7 +77,7 @@ export async function findPythonCommand(options: {
     }
   }
   throw new Error(
-    "Flux Python 런타임을 만들 Python 3 실행 파일을 찾지 못했습니다. 앱 데이터 Python 준비에 실패했거나 MGT_FLUX_PYTHON 경로가 올바르지 않습니다.",
+    `${options.runtimeLabel ?? "Flux"} Python 런타임을 만들 Python 3 실행 파일을 찾지 못했습니다. 앱 데이터 Python 준비에 실패했거나 Python 경로가 올바르지 않습니다.`,
   );
 }
 
@@ -151,24 +163,25 @@ async function installBootstrapPythonArchive(
   zipPath: string,
   config: ManagedBootstrapPythonConfig,
 ): Promise<void> {
+  const label = options.runtimeLabel ?? "Flux";
   await downloadToFile({
     url: config.pythonUrl,
     outputPath: zipPath,
     signal: options.signal,
-    progressText: "Flux Python 다운로드 중",
+    progressText: `${label} Python 다운로드 중`,
     label: zipName,
     onProgress: options.onProgress,
   });
   options.onProgress?.({
-    progressText: "Flux Python 압축 해제 중",
+    progressText: `${label} Python 압축 해제 중`,
     detail: zipName,
     progressMode: "indeterminate",
-    installLogLine: "Flux 런타임용 Python을 앱 데이터 폴더에 풀고 있습니다.",
+    installLogLine: `${label} 런타임용 Python을 앱 데이터 폴더에 풀고 있습니다.`,
   });
   extractZipSafely(zipPath, pythonDir);
   if (!isExecutableFile(pythonExe)) {
     throw new Error(
-      "Flux 런타임용 Python 압축을 풀었지만 python.exe를 찾지 못했습니다.",
+      `${label} 런타임용 Python 압축을 풀었지만 python.exe를 찾지 못했습니다.`,
     );
   }
   sanitizeStandaloneEmbeddedPythonPathFile(pythonDir);
@@ -180,19 +193,20 @@ async function installBootstrapPythonPip(
   getPipPath: string,
   config: ManagedBootstrapPythonConfig,
 ): Promise<void> {
+  const label = options.runtimeLabel ?? "Flux";
   await downloadToFile({
     url: config.getPipUrl,
     outputPath: getPipPath,
     signal: options.signal,
-    progressText: "Flux pip 다운로드 중",
+    progressText: `${label} pip 다운로드 중`,
     label: "get-pip.py",
     onProgress: options.onProgress,
   });
   options.onProgress?.({
-    progressText: "Flux pip 설치 중",
+    progressText: `${label} pip 설치 중`,
     detail: `Python ${config.version}`,
     progressMode: "indeterminate",
-    installLogLine: "Flux 런타임용 Python에 pip를 설치합니다.",
+    installLogLine: `${label} 런타임용 Python에 pip를 설치합니다.`,
   });
   await runCommand(pythonExe, [getPipPath, "--no-warn-script-location"], {
     signal: options.signal,

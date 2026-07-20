@@ -6,7 +6,11 @@ export type FluxBackend =
 
 export type InpaintingModel = "flux-klein" | "lama-manga" | "aot-inpainting";
 
-export type BubbleDetectionMode = "auto" | "precise";
+export type BubbleDetectionMode =
+  | "auto"
+  | "precise"
+  | "quality"
+  | "sam3-experimental";
 
 export type KoharuInpaintingBackend =
   | "auto"

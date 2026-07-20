@@ -199,11 +199,17 @@ export function resolveBubbleDetectionMode(
   const normalized = String(value ?? "")
     .trim()
     .toLowerCase();
-  return normalized === "precise" || normalized === "정밀"
-    ? "precise"
-    : normalized === "auto" || normalized === "자동"
-      ? "auto"
-      : fallback;
+  if (["quality", "highest", "최고", "최고 품질"].includes(normalized)) {
+    return "quality";
+  }
+  if (
+    ["sam3", "sam-3", "sam3-experimental", "sam 3 실험"].includes(normalized)
+  ) {
+    return "sam3-experimental";
+  }
+  if (normalized === "precise" || normalized === "정밀") return "precise";
+  if (normalized === "auto" || normalized === "자동") return "auto";
+  return fallback;
 }
 
 export function resolveKoharuInpaintingBackend(

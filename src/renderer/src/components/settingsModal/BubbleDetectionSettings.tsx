@@ -7,6 +7,7 @@ export function BubbleDetectionSettings({
   clearTestState,
   controlsBusy,
   setBubbleDetectionMode,
+  usesNvidiaHardware,
 }: {
   bubbleDetectionMode: BubbleDetectionMode;
   clearTestState: () => void;
@@ -14,9 +15,15 @@ export function BubbleDetectionSettings({
   setBubbleDetectionMode: React.Dispatch<
     React.SetStateAction<BubbleDetectionMode>
   >;
+  usesNvidiaHardware: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const options: BubbleDetectionMode[] = ["auto", "precise"];
+  const options: BubbleDetectionMode[] = [
+    "auto",
+    "precise",
+    "quality",
+    "sam3-experimental",
+  ];
   return (
     <div className="settings-field-stack">
       <span>{t("settings.hardware.bubbleDetection")}</span>
@@ -30,7 +37,10 @@ export function BubbleDetectionSettings({
             key={option}
             type="button"
             className={`settings-preset-button ${bubbleDetectionMode === option ? "active" : ""}`}
-            disabled={controlsBusy}
+            disabled={
+              controlsBusy ||
+              (option === "sam3-experimental" && !usesNvidiaHardware)
+            }
             aria-pressed={bubbleDetectionMode === option}
             onClick={() => {
               clearTestState();

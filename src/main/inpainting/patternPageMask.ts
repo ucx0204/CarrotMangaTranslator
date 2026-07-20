@@ -5,7 +5,9 @@ import {
 } from "./bubbleMaskDetection";
 import {
   applyFlatBubbleFill,
+  applyLightweightBubbleFill,
   resolveFlatBubbleFill,
+  resolveLightweightBubbleFill,
 } from "./hybridBubbleCleaning";
 import {
   bboxToPixelRect,
@@ -29,6 +31,7 @@ export type PatternMaskContext = {
   engineBlocks: number;
   otsuBlocks: number;
   directFillBlocks: number;
+  lightweightFillBlocks: number;
 };
 
 export function buildPatternPageMask(options: {
@@ -47,6 +50,7 @@ export function buildPatternPageMask(options: {
     engineBlocks: 0,
     otsuBlocks: 0,
     directFillBlocks: 0,
+    lightweightFillBlocks: 0,
   };
   for (const block of options.page.blocks) {
     if (!hasUsableBbox(block.bbox) || block.inpaintExcluded) continue;
@@ -75,6 +79,8 @@ function mergePatternBlock(
   });
   if (detection.directFilled) {
     context.directFillBlocks += 1;
+  } else if (detection.lightweightFilled) {
+    context.lightweightFillBlocks += 1;
   } else {
     if (!detection.windowMask) {
       throw new Error("Pattern mask detection did not return an engine mask.");
@@ -147,6 +153,7 @@ function mergePatternDetectionMask(options: {
   }
   return {
     directFilled: false,
+    lightweightFilled: false,
     usedOtsu: false,
     windowMask: buildPatternFallbackMask({
       ...options,
@@ -164,26 +171,49 @@ function mergeDetectedPatternMask(options: {
   strategy: "adaptive" | "otsu" | "none";
   width: number;
 }): PatternMaskDetectionResult {
-  const fill = resolveFlatBubbleFill(
+  const usableConstraint = hasMaskPixels(options.constraintMask)
+    ? options.constraintMask
+    : undefined;
+  const directFill = resolveFlatBubbleFill(
     options.bitmap,
     options.width,
     options.detectRect,
     options.constrainedMask,
-    hasMaskPixels(options.constraintMask) ? options.constraintMask : undefined,
+    usableConstraint,
   );
-  if (fill) {
+  if (directFill) {
     applyFlatBubbleFill(
       options.bitmap,
       options.width,
       options.detectRect,
       options.constrainedMask,
-      fill.color,
+      directFill.color,
     );
   }
+  const lightweightFill = directFill
+    ? null
+    : resolveLightweightBubbleFill(
+        options.bitmap,
+        options.width,
+        options.detectRect,
+        options.constrainedMask,
+        usableConstraint,
+      );
+  if (lightweightFill) {
+    applyLightweightBubbleFill(
+      options.bitmap,
+      options.width,
+      options.detectRect,
+      options.constrainedMask,
+      lightweightFill,
+    );
+  }
+  const filledWithoutEngine = Boolean(directFill || lightweightFill);
   return {
-    directFilled: Boolean(fill),
+    directFilled: Boolean(directFill),
+    lightweightFilled: Boolean(lightweightFill),
     usedOtsu: options.strategy === "otsu",
-    windowMask: fill
+    windowMask: filledWithoutEngine
       ? undefined
       : {
           bounds: options.detectRect,
@@ -221,6 +251,7 @@ function buildPatternFallbackMask(options: {
 
 type PatternMaskDetectionResult = {
   directFilled: boolean;
+  lightweightFilled: boolean;
   usedOtsu: boolean;
   windowMask?: InpaintingWindowMask;
 };

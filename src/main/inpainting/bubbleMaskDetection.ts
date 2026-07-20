@@ -10,6 +10,8 @@ export type BubbleMaskDetectionResult = {
   matchedBlocks: number;
   regions: number;
   splitRegions: number;
+  recoveryCandidates?: number;
+  recoveredBlocks?: number;
 };
 
 export function refinePreciseBubbleMask(

@@ -1172,6 +1172,14 @@
         "precise": {
           "label": "高精度",
           "description": "専用セグメンテーションモデルで吹き出しを検出します。初回に約104MBのモデルをダウンロードします。"
+        },
+        "quality": {
+          "label": "最高品質",
+          "description": "高精度検出で見逃した、または境界が不安定な吹き出しだけをRT-DETRで再検出し、SAM 2.1で輪郭を補正します。初回に約1.1GBのモデルを自動準備します。"
+        },
+        "sam3-experimental": {
+          "label": "SAM 3 実験",
+          "description": "NVIDIA専用の実験モードです。失敗領域のみRT-DETR + SAM 3で補正し、承認済みHugging Faceトークンがない場合はSAM 2.1へ安全に切り替えます。"
         }
       },
       "amdOcrExperimental": "AMD GPU OCRは実験機能です。失敗した場合はOCRだけをCPUに切り替えられます。",
