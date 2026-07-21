@@ -312,6 +312,7 @@ function createPreviewValues(
     textAlign: value.textAlign,
     renderDirection:
       value.renderDirection === "vertical" ? "vertical" : "horizontal",
+    wordBreak: value.wordBreak,
     bold: value.bold,
     italic: value.italic,
     lineHeight: value.lineHeight,

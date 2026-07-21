@@ -52,6 +52,37 @@ describe("gatherTextDirectFormatModel", () => {
       kind: "common",
       value: 1,
     });
+    expect(model.values.wordBreak).toEqual({
+      kind: "common",
+      value: "break-all",
+    });
+  });
+
+  it("shows the legacy wrapping behavior for each text direction", () => {
+    const horizontal = deriveGatherTextDirectFormatModel([
+      makeBlock({ renderDirection: "horizontal", wordBreak: undefined }),
+    ]);
+    const vertical = deriveGatherTextDirectFormatModel([
+      makeBlock({ renderDirection: "vertical", wordBreak: undefined }),
+    ]);
+
+    expect(horizontal.values.wordBreak).toEqual({
+      kind: "common",
+      value: "break-all",
+    });
+    expect(vertical.values.wordBreak).toEqual({
+      kind: "common",
+      value: "break-word",
+    });
+  });
+
+  it("tracks mixed wrapping modes", () => {
+    const model = deriveGatherTextDirectFormatModel([
+      makeBlock({ wordBreak: "keep-all" }),
+      makeBlock({ wordBreak: "break-word" }),
+    ]);
+
+    expect(model.values.wordBreak).toEqual({ kind: "mixed" });
   });
 
   it("preserves explicitly touched undefined values and strips other fields", () => {

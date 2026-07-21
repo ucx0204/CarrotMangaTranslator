@@ -117,7 +117,22 @@
     "fontWidth": "Character width",
     "color": "Color",
     "textColor": "Text color",
-    "outline": "Outline"
+    "outline": "Outline",
+    "wordBreak": {
+      "label": "Line wrapping",
+      "options": {
+        "normal": "Standard",
+        "break-all": "By character",
+        "keep-all": "By word",
+        "break-word": "Prevent long-text overflow"
+      },
+      "descriptions": {
+        "normal": "Wrap using the default rules for each language.",
+        "break-all": "Wrap by character, even in the middle of a word.",
+        "keep-all": "Keep words intact and wrap between words.",
+        "break-word": "Split only long strings such as URLs when they would overflow."
+      }
+    }
   },
   "transform": {
     "title": "Transform",
@@ -261,6 +276,7 @@
       "lineSpacing": "Line spacing",
       "letterSpacing": "Letter spacing",
       "fontWidth": "Character width",
+      "wordBreak": "Line wrapping",
       "color": "Text color",
       "outline": "Outline",
       "transform": "Rotation & text opacity"

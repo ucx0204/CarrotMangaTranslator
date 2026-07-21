@@ -35,6 +35,162 @@ describe("PAGE_EXPORT_DOM_SCRIPT", () => {
     );
   });
 
+  it("renders distinct fixed lines for each horizontal wrapping mode", () => {
+    const expected = {
+      normal: ["ab ", "cdefgh"],
+      "break-all": ["ab cd", "efgh"],
+      "keep-all": ["ab ", "cdefgh"],
+      "break-word": ["ab ", "cdefg", "h"],
+    } as const;
+
+    for (const [wordBreak, lines] of Object.entries(expected)) {
+      const stage = renderExportDom([
+        makeExportBlock({
+          text: "ab cdefgh",
+          runs: [{ text: "ab cdefgh", bold: false, italic: false }],
+          rect: { left: 0, top: 0, width: 50, height: 100 },
+          fontWidthScale: 1,
+          letterSpacing: 0,
+          wordBreak: wordBreak as PageExportBlock["wordBreak"],
+        }),
+      ]);
+
+      expect(renderedLineTexts(stage)).toEqual(lines);
+      expect(textContentFor(stage)?.style.wordBreak).toBe(wordBreak);
+    }
+  });
+
+  it("keeps the legacy direction-specific wrapping fallbacks", () => {
+    const horizontalBlock = makeExportBlock({
+      text: "ab cdefgh",
+      runs: [{ text: "ab cdefgh", bold: false, italic: false }],
+      rect: { left: 0, top: 0, width: 50, height: 100 },
+      fontWidthScale: 1,
+      letterSpacing: 0,
+    });
+    const verticalBlock = makeExportBlock({ renderDirection: "vertical" });
+    delete (horizontalBlock as Partial<PageExportBlock>).wordBreak;
+    delete (verticalBlock as Partial<PageExportBlock>).wordBreak;
+
+    const horizontal = renderExportDom([horizontalBlock]);
+    const vertical = renderExportDom([verticalBlock]);
+
+    expect(renderedLineTexts(horizontal)).toEqual(["ab cd", "efgh"]);
+    expect(textContentFor(horizontal)?.style.wordBreak).toBe("break-all");
+    expect(textContentFor(horizontal)?.style.overflowWrap).toBe("normal");
+    expect(textContentFor(vertical)?.style.wordBreak).toBe("break-word");
+    expect(textContentFor(vertical)?.style.overflowWrap).toBe("anywhere");
+    expect(vertical.querySelector(".overlay-text-line")).toBeNull();
+  });
+
+  it("keeps unspaced CJK together only in the keep-together mode", () => {
+    const normal = renderExportDom([
+      makeExportBlock({
+        text: "가나다라마",
+        runs: [{ text: "가나다라마", bold: false, italic: false }],
+        rect: { left: 0, top: 0, width: 30, height: 100 },
+        fontWidthScale: 1,
+        letterSpacing: 0,
+        wordBreak: "normal",
+      }),
+    ]);
+    expect(renderedLineTexts(normal)).toEqual(["가나다", "라마"]);
+
+    const keepAll = renderExportDom([
+      makeExportBlock({
+        text: "가나다라마",
+        runs: [{ text: "가나다라마", bold: false, italic: false }],
+        rect: { left: 0, top: 0, width: 30, height: 100 },
+        fontWidthScale: 1,
+        letterSpacing: 0,
+        wordBreak: "keep-all",
+      }),
+    ]);
+    expect(renderedLineTexts(keepAll)).toEqual(["가나다라마"]);
+  });
+
+  it("uses language-aware export breaks for text without spaces", () => {
+    const stage = renderExportDom([
+      makeExportBlock({
+        text: "ภาษาไทย",
+        runs: [{ text: "ภาษาไทย", bold: false, italic: false }],
+        rect: { left: 0, top: 0, width: 40, height: 100 },
+        fontWidthScale: 1,
+        letterSpacing: 0,
+        wordBreak: "normal",
+      }),
+    ]);
+
+    expect(renderedLineTexts(stage)).toEqual(["ภาษา", "ไทย"]);
+  });
+
+  it("does not invent a line opportunity at a rich-style run boundary", () => {
+    const stage = renderExportDom([
+      makeExportBlock({
+        text: "abcdef",
+        runs: [
+          { text: "abc", bold: true, italic: false },
+          { text: "def", bold: false, italic: true },
+        ],
+        rect: { left: 0, top: 0, width: 40, height: 100 },
+        fontWidthScale: 1,
+        letterSpacing: 0,
+        wordBreak: "normal",
+      }),
+    ]);
+    const line = stage.querySelector<HTMLElement>(".overlay-text-line");
+
+    expect(renderedLineTexts(stage)).toEqual(["abcdef"]);
+    expect(line?.children).toHaveLength(2);
+    expect(
+      (line?.children[0] as HTMLElement | undefined)?.style.fontWeight,
+    ).toBe("800");
+    expect(
+      (line?.children[1] as HTMLElement | undefined)?.style.fontStyle,
+    ).toBe("italic");
+  });
+
+  it("uses the wrapping mode during auto-fit measurement", () => {
+    const base = {
+      text: "abcdef",
+      runs: [{ text: "abcdef", bold: false, italic: false }],
+      rect: { left: 0, top: 0, width: 30, height: 100 },
+      fontWidthScale: 1,
+      letterSpacing: 0,
+      lineHeight: 1,
+      autoFitText: true,
+    } satisfies Partial<PageExportBlock>;
+    const normal = renderExportDom([
+      makeExportBlock({ ...base, wordBreak: "normal" }),
+    ]);
+    const emergency = renderExportDom([
+      makeExportBlock({ ...base, wordBreak: "break-word" }),
+    ]);
+
+    expect(textWrapFor(normal)?.style.fontSize).toBe("10px");
+    expect(
+      Number.parseFloat(textWrapFor(emergency)?.style.fontSize ?? "0"),
+    ).toBeGreaterThan(10);
+  });
+
+  it("applies the selected vertical CSS and matching overflow fallback", () => {
+    const keepAll = renderExportDom([
+      makeExportBlock({ renderDirection: "vertical", wordBreak: "keep-all" }),
+    ]);
+    expect(textContentFor(keepAll)?.style.wordBreak).toBe("keep-all");
+    expect(textContentFor(keepAll)?.style.overflowWrap).toBe("normal");
+
+    const emergency = renderExportDom([
+      makeExportBlock({
+        renderDirection: "vertical",
+        wordBreak: "break-word",
+      }),
+    ]);
+    expect(textContentFor(emergency)?.style.wordBreak).toBe("break-word");
+    expect(textContentFor(emergency)?.style.overflowWrap).toBe("anywhere");
+    expect(emergency.querySelector(".overlay-text-line")).toBeNull();
+  });
+
   it("renders curve glyphs inside perspective and rotation without guides", () => {
     const stage = renderExportDom([
       makeExportBlock({
@@ -144,6 +300,7 @@ function makeExportBlock(
     lineHeight: 1.18,
     letterSpacing: 0.1,
     fontWidthScale: 1.2,
+    wordBreak: "normal",
     textAlign: "center",
     textColor: "#111111",
     textOpacity: 0.42,
@@ -191,4 +348,19 @@ applyAllTextLayouts(renderedForTest);
     throw new Error("Export stage was not rendered.");
   }
   return stage;
+}
+
+function renderedLineTexts(stage: HTMLElement): string[] {
+  return Array.from(
+    stage.querySelectorAll(".overlay-text-line"),
+    (line) => line.textContent ?? "",
+  );
+}
+
+function textContentFor(stage: HTMLElement): HTMLElement | null {
+  return stage.querySelector<HTMLElement>(".overlay-text-content");
+}
+
+function textWrapFor(stage: HTMLElement): HTMLElement | null {
+  return stage.querySelector<HTMLElement>(".overlay-text");
 }

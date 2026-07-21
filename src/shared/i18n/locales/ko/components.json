@@ -117,7 +117,22 @@
     "fontWidth": "장평",
     "color": "색상",
     "textColor": "글자색",
-    "outline": "외곽선"
+    "outline": "외곽선",
+    "wordBreak": {
+      "label": "줄바꿈 방식",
+      "options": {
+        "normal": "표준",
+        "break-all": "글자 단위",
+        "keep-all": "단어 단위",
+        "break-word": "긴 문자열 넘침 방지"
+      },
+      "descriptions": {
+        "normal": "언어별 기본 규칙에 맞춰 줄을 바꿉니다.",
+        "break-all": "단어 중간이라도 글자 단위로 줄을 바꿉니다.",
+        "keep-all": "단어를 자르지 않고 단어 사이에서 줄을 바꿉니다.",
+        "break-word": "URL처럼 긴 문자열이 칸을 넘을 때만 중간에서 줄을 바꿉니다."
+      }
+    }
   },
   "transform": {
     "title": "변형",
@@ -254,6 +269,7 @@
       "lineSpacing": "줄 간격",
       "letterSpacing": "자간",
       "fontWidth": "장평",
+      "wordBreak": "줄바꿈",
       "color": "글자색",
       "outline": "외곽선",
       "transform": "회전·글자 투명도"

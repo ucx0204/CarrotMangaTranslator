@@ -75,8 +75,32 @@ describeWindows("app settings helpers", () => {
     expect(defaults.ocr.gpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
     expect(defaults.inpainting?.model).toBe("flux-klein");
     expect(defaults.inpainting?.koharuBackend).toBe("auto");
+    expect(defaults.blockFormatDefaults?.wordBreak).toBe("break-word");
     expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
     expect(defaults.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
+  });
+
+  it("normalizes stored default line-breaking modes with the app fallback", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ blockFormatDefaults: { wordBreak: "keep-all" } }),
+        defaults,
+      ).blockFormatDefaults?.wordBreak,
+    ).toBe("keep-all");
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ blockFormatDefaults: { wordBreak: "unsupported" } }),
+        defaults,
+      ).blockFormatDefaults?.wordBreak,
+    ).toBe("break-word");
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ blockFormatDefaults: {} }),
+        defaults,
+      ).blockFormatDefaults?.wordBreak,
+    ).toBe("break-word");
   });
 
   it("uses hardware-based provider and VRAM mode defaults when no override is provided", () => {

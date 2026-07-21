@@ -1,5 +1,6 @@
 import { DEFAULT_BLOCK_FONT_ID } from "../../../shared/blockFontCatalog";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import { resolveBlockTextWordBreak } from "../../../shared/textWrapping";
 
 export const GATHER_TEXT_DIRECT_FORMAT_FIELDS = [
   "fontFamily",
@@ -7,6 +8,7 @@ export const GATHER_TEXT_DIRECT_FORMAT_FIELDS = [
   "autoFitText",
   "textAlign",
   "renderDirection",
+  "wordBreak",
   "bold",
   "italic",
   "lineHeight",
@@ -28,6 +30,7 @@ export type GatherTextDirectFormatValues = {
   autoFitText: boolean;
   textAlign: TranslationBlock["textAlign"];
   renderDirection: TranslationBlock["renderDirection"];
+  wordBreak: NonNullable<TranslationBlock["wordBreak"]>;
   bold: boolean;
   italic: boolean;
   lineHeight: number;
@@ -141,6 +144,10 @@ function normalizeDirectFormatValues(
     autoFitText: block.autoFitText ?? true,
     textAlign: block.textAlign,
     renderDirection: block.renderDirection,
+    wordBreak: resolveBlockTextWordBreak(
+      block.wordBreak,
+      block.renderDirection,
+    ),
     bold: block.bold ?? false,
     italic: block.italic ?? false,
     lineHeight: block.lineHeight,

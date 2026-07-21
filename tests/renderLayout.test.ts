@@ -437,6 +437,62 @@ describe("render layout padding", () => {
     expect(zoomedOut.textScaleY).toBeCloseTo(0.4);
     expect(zoomedOut.rect.width).toBeCloseTo(normal.rect.width * 0.4);
   });
+
+  it("uses the selected wrapping policy for auto-fit and overflow", () => {
+    installCanvasMeasureMock();
+    const base: TranslationBlock = {
+      id: "block-word-break",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 80, h: 80 },
+      renderBbox: { x: 0, y: 0, w: 80, h: 80 },
+      sourceText: "abcdefghij",
+      translatedText: "abcdefghij",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 24,
+      lineHeight: 1,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true,
+    };
+    const pageSize = { width: 1000, height: 1000 };
+
+    const normal = resolveBlockTextLayout(
+      { ...base, wordBreak: "normal" },
+      base.translatedText,
+      pageSize,
+      pageSize,
+    );
+    const breakWord = resolveBlockTextLayout(
+      { ...base, wordBreak: "break-word" },
+      base.translatedText,
+      pageSize,
+      pageSize,
+    );
+    const legacy = resolveBlockTextLayout(
+      base,
+      base.translatedText,
+      pageSize,
+      pageSize,
+    );
+    const breakAll = resolveBlockTextLayout(
+      { ...base, wordBreak: "break-all" },
+      base.translatedText,
+      pageSize,
+      pageSize,
+    );
+
+    expect(normal.fontSizePx).toBe(MIN_READABLE_FONT_SIZE_PX);
+    expect(normal.overflow).toBe(true);
+    expect(breakWord.fontSizePx).toBeGreaterThan(normal.fontSizePx);
+    expect(breakWord.overflow).toBe(false);
+    expect(legacy.fontSizePx).toBe(breakAll.fontSizePx);
+    expect(legacy.overflow).toBe(breakAll.overflow);
+    expect(lineTexts(legacy)).toEqual(lineTexts(breakAll));
+  });
 });
 
 function lineTexts(

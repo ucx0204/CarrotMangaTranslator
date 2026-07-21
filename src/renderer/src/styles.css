@@ -2918,6 +2918,42 @@ input[type="radio"] {
   font-size: var(--font-sm);
 }
 
+.editor-panel.has-block .editor-word-break-field {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.editor-word-break-field > span:first-child {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.editor-word-break-field select {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding-block: 3px;
+  font-size: var(--font-sm);
+}
+
+.text-wrapping-select-control {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  white-space: normal;
+}
+
+.text-wrapping-select-description {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 /* 서식 일괄 적용 modal */
 .format-apply-section {
   margin-top: var(--sp-4);
@@ -6451,6 +6487,7 @@ kbd {
 .gather-direct-size-control,
 .gather-direct-auto-control,
 .gather-direct-color-control,
+.gather-direct-select-control,
 .gather-direct-slider-control {
   display: grid;
   gap: 6px;
@@ -6490,6 +6527,32 @@ kbd {
   background-color: #14171c;
   color: var(--text);
   font-size: var(--font-sm);
+}
+
+.gather-direct-select-control select {
+  width: 100%;
+  height: 34px;
+  min-width: 0;
+  padding: 0 30px 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background-color: #14171c;
+  color: var(--text);
+  font-size: var(--font-sm);
+}
+
+.gather-direct-select-control select:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.gather-direct-select-control select:focus-visible {
+  border-color: var(--accent-bd);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 1px;
+}
+
+.gather-direct-select-control select:disabled {
+  opacity: 0.55;
 }
 
 .gather-direct-font-picker select:hover:not(:disabled) {

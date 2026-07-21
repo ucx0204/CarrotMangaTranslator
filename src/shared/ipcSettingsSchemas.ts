@@ -21,6 +21,7 @@ import {
 import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
 import { CODEX_REASONING_EFFORTS } from "./codexSettings";
 import { SUPPORTED_UI_LOCALES } from "./uiLocales";
+import { TEXT_WORD_BREAK_VALUES } from "./textWrapping";
 import {
   MAX_API_KEY_MAX_ATTEMPTS,
   MAX_API_KEYS_TEXT_LENGTH,
@@ -133,6 +134,7 @@ export const AppSettingsSchema = z
         lineHeight: z.number().min(0.5).max(4),
         letterSpacing: z.number().min(-0.5).max(2),
         fontWidthScale: z.number().min(0.5).max(1.5),
+        wordBreak: z.enum(TEXT_WORD_BREAK_VALUES),
         textColor: hexColor,
         textOpacity: z.number().min(0).max(1),
         outlineEnabled: z.boolean(),

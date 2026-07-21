@@ -3,6 +3,10 @@ import type {
   RenderTextDirection,
   TranslationBlock,
 } from "../../../shared/textTypes";
+import {
+  resolveBlockTextWordBreak,
+  type TextWordBreak,
+} from "../../../shared/textWrapping";
 import { resolveBlockFontFamily } from "../lib/fonts";
 import { resolveFontWidthScale } from "../lib/blockFormatGeometry";
 import type { BlockTextLayout } from "../lib/overlayLayout";
@@ -39,6 +43,9 @@ export function resolveOverlayTextContentStyle(
   renderDirection: RenderTextDirection,
 ): React.CSSProperties {
   const scaleX = resolveFontWidthScale(block.fontWidthScale);
+  const breakStyle = resolveWordBreakCss(
+    resolveBlockTextWordBreak(block.wordBreak, renderDirection),
+  );
   return {
     boxSizing: "border-box",
     writingMode:
@@ -53,8 +60,11 @@ export function resolveOverlayTextContentStyle(
     maxWidth: "100%",
     maxHeight: "100%",
     overflow: "visible",
-    overflowWrap: layout.lines ? "normal" : undefined,
-    wordBreak: layout.lines ? "normal" : undefined,
+    // Horizontal text is already split into deterministic fixed lines, but
+    // retaining the selected values here keeps computed styles truthful. For
+    // vertical text these properties perform the browser-side column breaks.
+    overflowWrap: breakStyle.overflowWrap,
+    wordBreak: breakStyle.wordBreak,
     whiteSpace: layout.lines ? "normal" : undefined,
     fontWeight: block.bold ? 800 : 400,
     fontStyle: block.italic ? "italic" : "normal",
@@ -63,6 +73,16 @@ export function resolveOverlayTextContentStyle(
     transform: scaleX === 1 ? undefined : `scaleX(${scaleX})`,
     transformOrigin: resolveFontWidthOrigin(renderDirection, block.textAlign),
   };
+}
+
+function resolveWordBreakCss(wordBreak: TextWordBreak): {
+  overflowWrap: React.CSSProperties["overflowWrap"];
+  wordBreak: React.CSSProperties["wordBreak"];
+} {
+  if (wordBreak === "break-word") {
+    return { overflowWrap: "anywhere", wordBreak };
+  }
+  return { overflowWrap: "normal", wordBreak };
 }
 
 export function normalizeTextOpacity(value: number | undefined): number {

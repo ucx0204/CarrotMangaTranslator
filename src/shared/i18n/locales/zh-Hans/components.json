@@ -113,7 +113,22 @@
     "fontWidth": "字宽",
     "color": "颜色",
     "textColor": "文字颜色",
-    "outline": "描边"
+    "outline": "描边",
+    "wordBreak": {
+      "label": "换行方式",
+      "options": {
+        "normal": "标准",
+        "break-all": "按字符",
+        "keep-all": "按词语",
+        "break-word": "防止长字符串溢出"
+      },
+      "descriptions": {
+        "normal": "按照各语言的默认规则换行。",
+        "break-all": "即使在词语中间，也按字符换行。",
+        "keep-all": "保持词语完整，只在词语之间换行。",
+        "break-word": "仅当网址等长字符串超出边框时才拆分。"
+      }
+    }
   },
   "transform": {
     "title": "变形",
@@ -250,6 +265,7 @@
       "lineSpacing": "行距",
       "letterSpacing": "字距",
       "fontWidth": "字宽",
+      "wordBreak": "换行方式",
       "color": "文字颜色",
       "outline": "描边",
       "transform": "旋转与文字不透明度"

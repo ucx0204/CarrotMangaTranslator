@@ -1,6 +1,7 @@
 import type { BlockFormatDefaults } from "../../shared/blockFormat";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
 import type { AppSettings } from "../../shared/settingsTypes";
+import { resolveTextWordBreak } from "../../shared/textWrapping";
 import {
   resolveBoolean,
   resolveHexColor,
@@ -39,6 +40,7 @@ export function normalizeBlockFormatDefaults(
       0.5,
       1.5,
     ),
+    wordBreak: resolveTextWordBreak(data.wordBreak, base.wordBreak),
     textColor: resolveHexColor(data.textColor, base.textColor),
     textOpacity: resolveNumberRange(data.textOpacity, base.textOpacity, 0, 1),
     outlineEnabled: resolveBoolean(data.outlineEnabled, base.outlineEnabled),

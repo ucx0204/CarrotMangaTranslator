@@ -1,13 +1,17 @@
 import type { TranslationBlock } from "./textTypes";
+import {
+  DEFAULT_TEXT_WORD_BREAK,
+  resolveBlockTextWordBreak,
+  type TextWordBreak,
+} from "./textWrapping";
 
 /**
  * Single source of truth for text-block formatting:
  *  - the field registry used by the "서식 일괄 적용" picker (Part B), and
  *  - the per-user default formatting applied to newly created blocks (Part A).
  *
- * No new TranslationBlock fields are introduced here, so the strict IPC block
- * schema (ipcSchemaPrimitives.ts) does not need to change. Defaults live only in
- * settings.json.
+ * TranslationBlock fields remain optional when needed for persisted legacy
+ * blocks, while defaults live in settings.json and are applied to new blocks.
  */
 
 // ---------------------------------------------------------------------------
@@ -18,6 +22,7 @@ export type BlockFormatGroupId =
   | "font"
   | "size"
   | "align"
+  | "wordBreak"
   | "direction"
   | "emphasis"
   | "lineSpacing"
@@ -40,6 +45,7 @@ export const BLOCK_FORMAT_GROUPS: readonly BlockFormatGroup[] = [
   { id: "font", label: "글꼴", keys: ["fontFamily"] },
   { id: "size", label: "글자 크기", keys: ["fontSizePx", "autoFitText"] },
   { id: "align", label: "정렬", keys: ["textAlign"] },
+  { id: "wordBreak", label: "줄바꿈", keys: ["wordBreak"] },
   { id: "direction", label: "가로/세로", keys: ["renderDirection"] },
   { id: "emphasis", label: "굵게·기울임", keys: ["bold", "italic"] },
   { id: "lineSpacing", label: "줄 간격", keys: ["lineHeight"] },
@@ -73,7 +79,10 @@ export function pickBlockFormat(
       continue;
     }
     for (const key of group.keys) {
-      patch[key] = block[key];
+      patch[key] =
+        key === "wordBreak"
+          ? resolveBlockTextWordBreak(block.wordBreak, block.renderDirection)
+          : block[key];
     }
   }
   return patch as Partial<TranslationBlock>;
@@ -89,6 +98,7 @@ export type BlockFormatDirectionDefault = "auto" | "horizontal" | "vertical";
 export type BlockFormatDefaults = {
   renderDirection: BlockFormatDirectionDefault;
   textAlign: "left" | "center" | "right";
+  wordBreak: TextWordBreak;
   fontFamily?: string;
   autoFitText: boolean;
   /** Used only when autoFitText is false. */
@@ -109,6 +119,7 @@ export type BlockFormatDefaults = {
 export const DEFAULT_BLOCK_FORMAT_DEFAULTS: BlockFormatDefaults = {
   renderDirection: "auto",
   textAlign: "center",
+  wordBreak: DEFAULT_TEXT_WORD_BREAK,
   autoFitText: true,
   fontSizePx: 24,
   lineHeight: 1.18,
@@ -138,6 +149,7 @@ export function applyFormatDefaultsToBlock(
   const next: TranslationBlock = {
     ...block,
     textAlign: defaults.textAlign,
+    wordBreak: defaults.wordBreak,
     lineHeight: defaults.lineHeight,
     letterSpacing: defaults.letterSpacing,
     fontWidthScale: defaults.fontWidthScale,

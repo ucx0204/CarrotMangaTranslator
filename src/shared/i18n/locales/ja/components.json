@@ -113,7 +113,22 @@
     "fontWidth": "文字幅",
     "color": "色",
     "textColor": "文字色",
-    "outline": "縁取り"
+    "outline": "縁取り",
+    "wordBreak": {
+      "label": "改行方法",
+      "options": {
+        "normal": "標準",
+        "break-all": "文字単位",
+        "keep-all": "単語単位",
+        "break-word": "長い文字列のはみ出し防止"
+      },
+      "descriptions": {
+        "normal": "言語ごとの標準的な規則で改行します。",
+        "break-all": "単語の途中でも文字単位で改行します。",
+        "keep-all": "単語を分割せず、単語の間で改行します。",
+        "break-word": "URLなどの長い文字列が枠を超える場合だけ分割します。"
+      }
+    }
   },
   "transform": {
     "title": "変形",
@@ -257,6 +272,7 @@
       "lineSpacing": "行間",
       "letterSpacing": "字間",
       "fontWidth": "文字幅",
+      "wordBreak": "改行方法",
       "color": "文字色",
       "outline": "縁取り",
       "transform": "傾き・文字の不透明度"

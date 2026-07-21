@@ -21,6 +21,10 @@ import {
 } from "../shared/blockFontCatalog";
 import type { MangaPage } from "../shared/libraryTypes";
 import { parseRichText, type TextStyleRun } from "../shared/richTextMarkup";
+import {
+  resolveBlockTextWordBreak,
+  type TextWordBreak,
+} from "../shared/textWrapping";
 import type {
   CurveLayout,
   Point,
@@ -61,6 +65,7 @@ export type PageExportBlock = {
   lineHeight: number;
   letterSpacing: number;
   fontWidthScale: number;
+  wordBreak: TextWordBreak;
   textAlign: "left" | "center" | "right";
   textColor: string;
   textOpacity: number;
@@ -124,16 +129,16 @@ function buildPageExportBlock(
     width: Math.max(1, rect.w * scaleX),
     height: Math.max(1, rect.h * scaleY),
   };
+  const renderDirection =
+    normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
+      ? "vertical"
+      : "horizontal";
   return {
     type: block.type,
     text: plainText,
     runs,
     rect: exportRect,
-    renderDirection:
-      normalizeRenderDirection(block.renderDirection, "horizontal") ===
-      "vertical"
-        ? "vertical"
-        : "horizontal",
+    renderDirection,
     rotationDeg: resolveExportRotation(block.rotationDeg),
     ...resolveExportPerspective(block, exportRect.width, exportRect.height),
     ...resolveExportCurveLayout(block, exportRect.width, exportRect.height),
@@ -150,6 +155,7 @@ function buildPageExportBlock(
       ? (block.letterSpacing as number)
       : 0,
     fontWidthScale: resolveFontWidthScale(block.fontWidthScale),
+    wordBreak: resolveBlockTextWordBreak(block.wordBreak, renderDirection),
     textAlign: block.textAlign || "center",
     textColor: normalizeExportColor(block.textColor, "#000000"),
     textOpacity: clamp(Number(block.textOpacity ?? 1), 0, 1),

@@ -9,9 +9,14 @@ import {
   resolveFontWidthScale,
 } from "../../../shared/geometry";
 import { parseRichText } from "../../../shared/richTextMarkup";
+import {
+  resolveBlockTextWordBreak,
+  type TextWordBreak,
+} from "../../../shared/textWrapping";
 import { resolveBlockFontFamily } from "./fonts";
 import {
   measureStyledWrappedText,
+  measureUniformWrappedText,
   type BlockTextLine,
 } from "./overlayTextWrapping";
 
@@ -182,6 +187,7 @@ function resolveFixedHorizontalTextLines(
     fontSize,
     resolveBlockFontFamily(block.fontFamily),
     letterSpacingPx,
+    resolveBlockTextWordBreak(block.wordBreak, "horizontal"),
   ).lines;
 }
 
@@ -281,6 +287,7 @@ function doesTextFit(
       innerHeight,
       fontSize * block.lineHeight + letterSpacingPx,
       scaleX,
+      resolveBlockTextWordBreak(block.wordBreak, "vertical"),
     ).fits;
   }
 
@@ -296,6 +303,7 @@ function doesTextFit(
     fontSize,
     resolveBlockFontFamily(block.fontFamily),
     letterSpacingPx,
+    resolveBlockTextWordBreak(block.wordBreak, "horizontal"),
   );
   return (
     measured.totalHeight <= innerHeight &&
@@ -345,27 +353,28 @@ function measureVerticalText(
   maxWidth: number,
   maxHeight: number,
   lineHeight: number,
-  fontWidthScale = 1,
+  fontWidthScale: number,
+  wordBreak: TextWordBreak,
 ): { columnCount: number; fits: boolean } {
   if (!text.trim()) {
     return { columnCount: 0, fits: true };
   }
 
-  const verticalSlots = [...text.replace(/\r/g, "").replace(/\n/g, " ")];
-  const charsPerColumn = Math.max(
+  const measured = measureUniformWrappedText(
+    text,
+    maxHeight,
     1,
-    Math.floor(maxHeight / Math.max(fontSize, lineHeight)),
+    Math.max(fontSize, lineHeight),
+    wordBreak,
   );
-  const columnCount = Math.max(
-    1,
-    Math.ceil(verticalSlots.length / charsPerColumn),
-  );
+  const columnCount = Math.max(1, measured.lineCount);
   const estimatedColumnWidth = fontSize * 1.15 * fontWidthScale;
   return {
     columnCount,
     fits:
       columnCount <= MAX_VERTICAL_COLUMNS &&
-      columnCount * estimatedColumnWidth <= maxWidth,
+      columnCount * estimatedColumnWidth <= maxWidth &&
+      measured.maxLineWidth <= maxHeight,
   };
 }
 
