@@ -10,7 +10,6 @@ import {
 import { CODEX_REASONING_EFFORTS } from "../../shared/codexSettings";
 import type {
   ApiReasoningEffort,
-  BubbleDetectionMode,
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
@@ -190,20 +189,6 @@ export function resolveInpaintingModel(
     return "aot-inpainting";
   }
   return fallback;
-}
-
-export function resolveBubbleDetectionMode(
-  value: unknown,
-  fallback: BubbleDetectionMode = "auto",
-): BubbleDetectionMode {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  return normalized === "precise" || normalized === "정밀"
-    ? "precise"
-    : normalized === "auto" || normalized === "자동"
-      ? "auto"
-      : fallback;
 }
 
 export function resolveKoharuInpaintingBackend(

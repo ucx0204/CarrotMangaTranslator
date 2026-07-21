@@ -167,36 +167,6 @@ describe("multi-chapter automatic inpainting jobs", () => {
     ).toBe(true);
   });
 
-  it("skips the model engine when every page is completed by direct fill", async () => {
-    mocks.inpaintPatternPage.mockImplementation(async (page: MangaPage) => ({
-      page: { ...page, inpaintedImagePath: `${page.imagePath}.inpainted.png` },
-      blocksErased: 1,
-    }));
-    const { startInpaintingJob } =
-      await import("../src/main/jobs/inpaintingJobs");
-
-    const result = await startInpaintingJob(makeContext(send), {
-      mode: "selection-pattern",
-      workId: "work-a",
-      selections: [
-        {
-          chapterId: chapterAId,
-          mode: "page-set",
-          pageIds: [pageA1Id, pageA2Id],
-        },
-      ],
-    });
-
-    expect(result).toMatchObject({
-      status: "completed",
-      pagesChanged: 2,
-      blocksErased: 2,
-    });
-    expect(mocks.acquireEngine).not.toHaveBeenCalled();
-    expect(mocks.runEngine).not.toHaveBeenCalled();
-    expect(mocks.releaseEngine).not.toHaveBeenCalled();
-  });
-
   it.each([
     {
       label: "duplicate chapters",

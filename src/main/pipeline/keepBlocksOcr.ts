@@ -11,7 +11,7 @@ import {
   isRtlLanguageCode,
 } from "../../shared/translationLanguages";
 import type { PixelRect } from "../../shared/region";
-import { logInfo, logWarn } from "../logger";
+import { logInfo } from "../logger";
 import { tMain } from "./localization";
 import { loadImageForRegionCrop } from "../regionCrop";
 import { throwIfAborted } from "./failure";
@@ -84,8 +84,7 @@ export async function prepareKeepBlockHints({
 
 /**
  * keep 모드 페이지들의 각 블록 영역을 패딩 포함해 크롭한 뒤 PaddleOCR 배치로
- * 읽어, 블록별 텍스트 증거를 만든다. OCR 실패는 치명적이지 않다 — 텍스트 없이
- * 진행한다(모델이 이미지만으로 읽어야 하므로 품질은 낮아진다).
+ * 읽어, 블록별 텍스트 증거를 만든다. OCR 실패는 작업을 중지한다.
  */
 async function collectKeepBlocksOcrTexts({
   runtime,
@@ -112,43 +111,32 @@ async function collectKeepBlocksOcrTexts({
   if (pages.length === 0) {
     return texts;
   }
-  try {
-    const crops = await writeKeepBlockCrops({
-      baseOptions,
-      pages,
-      runPaths,
-      signal,
-      decodeImage,
-    });
-    if (crops.length === 0) {
-      return texts;
-    }
-    emitKeepBlockOcrProgress(emit, jobId, 0, crops.length);
-    const results = await runtime.collectOcrHintsBatch(
-      crops.map((crop) => crop.options),
-    );
-    throwIfAborted(signal);
-    for (const [index, crop] of crops.entries()) {
-      const hints = results[index]?.hints;
-      const text = joinCropOcrTexts(
-        Array.isArray(hints) ? hints : [],
-        baseOptions.sourceLanguage,
-      );
-      if (text) {
-        texts.get(crop.pageId)?.splice(crop.blockIndex, 1, text);
-      }
-    }
-    emitKeepBlockOcrProgress(emit, jobId, crops.length, crops.length);
-  } catch (error) {
-    if (signal.aborted) {
-      throw error;
-    }
-    logWarn("Keep-blocks OCR unavailable; continuing without text hints", {
-      jobId,
-      pageCount: pages.length,
-      error,
-    });
+  const crops = await writeKeepBlockCrops({
+    baseOptions,
+    pages,
+    runPaths,
+    signal,
+    decodeImage,
+  });
+  if (crops.length === 0) {
+    return texts;
   }
+  emitKeepBlockOcrProgress(emit, jobId, 0, crops.length);
+  const results = await runtime.collectOcrHintsBatch(
+    crops.map((crop) => crop.options),
+  );
+  throwIfAborted(signal);
+  for (const [index, crop] of crops.entries()) {
+    const hints = results[index]?.hints;
+    const text = joinCropOcrTexts(
+      Array.isArray(hints) ? hints : [],
+      baseOptions.sourceLanguage,
+    );
+    if (text) {
+      texts.get(crop.pageId)?.splice(crop.blockIndex, 1, text);
+    }
+  }
+  emitKeepBlockOcrProgress(emit, jobId, crops.length, crops.length);
   return texts;
 }
 

@@ -45,7 +45,6 @@ export function buildBaseTranslationOptions({
     ...resolveOcrTranslationOptions(
       runtimeEnv,
       settings,
-      runtimeState.llamaRuntimeProfile,
       runtimeState.gemmaVramMode,
     ),
     ocrRuntimeDir: paths.ocrRuntimeDir,

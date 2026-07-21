@@ -295,6 +295,73 @@ describe("unified right rail", () => {
     view.rerender(<AppRightRail {...makeRightRailProps()} />);
     expect(screen.getByRole("heading", { name: "상태" })).not.toBeNull();
   });
+
+  it("keeps the raw job failure visible while the block editor replaces status", () => {
+    const rawFailure =
+      "HIP runtime initialization failed: GPU architecture gfx1201 is unsupported";
+    const props = makeRightRailProps({
+      jobState: {
+        id: "job-ocr-running",
+        kind: "gemma-analysis",
+        status: "running",
+        progressText: "OCR 실행 중",
+      },
+      progressSnapshot: {
+        mode: "determinate",
+        current: 1,
+        total: 3,
+        ratio: 1 / 3,
+      },
+      selectedBlock: makeBlock(),
+      showProgressBar: true,
+    });
+    const view = render(<AppRightRail {...props} />);
+
+    expect(document.querySelector(".progress-card")).not.toBeNull();
+    view.rerender(
+      <AppRightRail
+        {...props}
+        jobState={{
+          id: "job-ocr-failed",
+          kind: "gemma-analysis",
+          status: "failed",
+          progressText: "OCR GPU 실행 실패",
+          detail: rawFailure,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("editor-slot")).not.toBeNull();
+    expect(screen.queryByRole("heading", { name: "상태" })).toBeNull();
+    expect(screen.getByRole("alert").textContent).toContain(
+      "OCR GPU 실행 실패",
+    );
+    expect(screen.getByRole("alert").textContent).toContain(rawFailure);
+    expect(document.querySelector(".progress-card")).toBeNull();
+  });
+
+  it("keeps the raw job failure visible without a progress snapshot", () => {
+    const rawFailure = "Paddle OCR process exited with code 3221225781";
+    render(
+      <AppRightRail
+        {...makeRightRailProps({
+          jobState: {
+            id: "job-ocr-failed-no-progress",
+            kind: "gemma-analysis",
+            status: "failed",
+            progressText: "OCR 실패",
+            detail: rawFailure,
+          },
+          progressSnapshot: null,
+          selectedBlock: makeBlock(),
+          showProgressBar: false,
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId("editor-slot")).not.toBeNull();
+    expect(screen.getByRole("alert").textContent).toContain(rawFailure);
+  });
 });
 
 describe("persistent library sidebar", () => {

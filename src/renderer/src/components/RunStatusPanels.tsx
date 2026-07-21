@@ -72,10 +72,35 @@ export function RunPanel({
           {t("common.cancel")}
         </Button>
       ) : null}
-      {showProgressBar && progressSnapshot ? (
-        <ProgressCard jobState={jobState} progressSnapshot={progressSnapshot} />
-      ) : null}
+      <RunJobFeedback
+        jobState={jobState}
+        progressSnapshot={progressSnapshot}
+        showProgressBar={showProgressBar}
+      />
     </section>
+  );
+}
+
+function RunJobFeedback({
+  jobState,
+  progressSnapshot,
+  showProgressBar,
+}: {
+  jobState: JobState;
+  progressSnapshot: ProgressSnapshot | null;
+  showProgressBar: boolean;
+}): React.JSX.Element | null {
+  if (jobState.status === "failed" && jobState.detail?.trim()) {
+    return (
+      <div className="job-failure-card" role="alert">
+        <strong>{jobState.progressText}</strong>
+        <p>{jobState.detail}</p>
+      </div>
+    );
+  }
+  if (!showProgressBar || !progressSnapshot) return null;
+  return (
+    <ProgressCard jobState={jobState} progressSnapshot={progressSnapshot} />
   );
 }
 

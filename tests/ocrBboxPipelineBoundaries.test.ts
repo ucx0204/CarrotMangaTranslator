@@ -5,10 +5,6 @@ import { join } from "node:path";
 
 const pipeline =
   require("../src/main/runtime/simple-page-ocr-bbox-pipeline.cjs") as {
-    canFallBackToCpuAfterGpuFailure: (
-      options: Record<string, unknown>,
-      error: unknown,
-    ) => boolean;
     collectOcrBboxHints: (options: Record<string, unknown>) => Promise<{
       hints: unknown[];
       diagnostics: Array<Record<string, unknown>>;
@@ -105,20 +101,11 @@ describe("OCR bbox pipeline boundaries", () => {
     ]);
   });
 
-  it("treats a partial batch JSON as incomplete and never CPU-fallbacks an abort", () => {
+  it("treats a partial batch JSON as incomplete", () => {
     const directory = mkdtempSync(join(tmpdir(), "ocr-bbox-boundary-"));
     temporaryDirectories.push(directory);
     const outputPath = join(directory, "ocr-bbox-hints.json");
     writeFileSync(outputPath, '{"items": [', "utf8");
-    const controller = new AbortController();
-    controller.abort();
-
     expect(pipeline.readCompletedOcrBatchOutputPayload(outputPath)).toBeNull();
-    expect(
-      pipeline.canFallBackToCpuAfterGpuFailure(
-        { abortSignal: controller.signal },
-        new Error("GPU failed"),
-      ),
-    ).toBe(false);
   });
 });

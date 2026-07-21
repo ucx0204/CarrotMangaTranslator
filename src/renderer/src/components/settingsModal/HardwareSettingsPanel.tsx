@@ -1,7 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type {
-  BubbleDetectionMode,
   FluxBackend,
   InpaintingModel,
   OcrDevice,
@@ -20,11 +19,9 @@ import {
 } from "./HardwareContextNotes";
 import { SettingsSection } from "./SettingsSection";
 import { InpaintingModelSettings } from "./InpaintingModelSettings";
-import { BubbleDetectionSettings } from "./BubbleDetectionSettings";
 
 type HardwareSettingsPanelProps = {
   allowUnsafeLowMemoryFlux: boolean;
-  bubbleDetectionMode: BubbleDetectionMode;
   clearTestState: () => void;
   controlsBusy: boolean;
   fluxBackend: FluxBackend;
@@ -35,9 +32,6 @@ type HardwareSettingsPanelProps = {
   ocrQualityMode: OcrQualityMode;
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
   setAllowUnsafeLowMemoryFlux: React.Dispatch<React.SetStateAction<boolean>>;
-  setBubbleDetectionMode: React.Dispatch<
-    React.SetStateAction<BubbleDetectionMode>
-  >;
   setInpaintingModel: React.Dispatch<React.SetStateAction<InpaintingModel>>;
   setOcrDevice: React.Dispatch<React.SetStateAction<OcrDevice>>;
   setOcrGpuBackend: React.Dispatch<React.SetStateAction<OcrGpuBackend>>;
@@ -52,7 +46,6 @@ type HardwareSettingsPanelProps = {
 
 export function HardwareSettingsPanel({
   allowUnsafeLowMemoryFlux,
-  bubbleDetectionMode,
   clearTestState,
   controlsBusy,
   fluxBackend,
@@ -63,7 +56,6 @@ export function HardwareSettingsPanel({
   ocrQualityMode,
   setFluxBackend,
   setAllowUnsafeLowMemoryFlux,
-  setBubbleDetectionMode,
   setInpaintingModel,
   setOcrDevice,
   setOcrGpuBackend,
@@ -104,56 +96,32 @@ export function HardwareSettingsPanel({
           />
         </div>
       </SettingsSection>
-      <InpaintingHardwareSettings
-        allowUnsafeLowMemoryFlux={allowUnsafeLowMemoryFlux}
-        bubbleDetectionMode={bubbleDetectionMode}
-        clearTestState={clearTestState}
-        controlsBusy={controlsBusy}
-        fluxBackend={fluxBackend}
-        inpaintingModel={inpaintingModel}
-        isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
-        setAllowUnsafeLowMemoryFlux={setAllowUnsafeLowMemoryFlux}
-        setBubbleDetectionMode={setBubbleDetectionMode}
-        setFluxBackend={setFluxBackend}
-        setInpaintingModel={setInpaintingModel}
-        unifiedMemoryMb={unifiedMemoryMb}
-        usesAmdHardware={usesAmdHardware}
-        usesAppleHardware={usesAppleHardware}
-        usesNvidiaHardware={usesNvidiaHardware}
-      />
+      <SettingsSection title={t("settings.hardware.inpaintingSection")}>
+        <div className="settings-subsection-stack">
+          <InpaintingModelSettings
+            allowUnsafeLowMemoryFlux={allowUnsafeLowMemoryFlux}
+            clearTestState={clearTestState}
+            controlsBusy={controlsBusy}
+            inpaintingModel={inpaintingModel}
+            setAllowUnsafeLowMemoryFlux={setAllowUnsafeLowMemoryFlux}
+            setInpaintingModel={setInpaintingModel}
+            unifiedMemoryMb={unifiedMemoryMb}
+            usesAppleHardware={usesAppleHardware}
+          />
+          <FluxBackendSettings
+            clearTestState={clearTestState}
+            controlsBusy={controlsBusy}
+            fluxBackend={fluxBackend}
+            inpaintingModel={inpaintingModel}
+            isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
+            setFluxBackend={setFluxBackend}
+            usesAmdHardware={usesAmdHardware}
+            usesAppleHardware={usesAppleHardware}
+            usesNvidiaHardware={usesNvidiaHardware}
+          />
+        </div>
+      </SettingsSection>
     </div>
-  );
-}
-
-function InpaintingHardwareSettings(
-  props: Pick<
-    HardwareSettingsPanelProps,
-    | "allowUnsafeLowMemoryFlux"
-    | "bubbleDetectionMode"
-    | "clearTestState"
-    | "controlsBusy"
-    | "fluxBackend"
-    | "inpaintingModel"
-    | "isFluxBackendOptionDisabled"
-    | "setAllowUnsafeLowMemoryFlux"
-    | "setBubbleDetectionMode"
-    | "setFluxBackend"
-    | "setInpaintingModel"
-    | "unifiedMemoryMb"
-    | "usesAmdHardware"
-    | "usesAppleHardware"
-    | "usesNvidiaHardware"
-  >,
-): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <SettingsSection title={t("settings.hardware.inpaintingSection")}>
-      <div className="settings-subsection-stack">
-        <InpaintingModelSettings {...props} />
-        <BubbleDetectionSettings {...props} />
-        <FluxBackendSettings {...props} />
-      </div>
-    </SettingsSection>
   );
 }
 
@@ -208,8 +176,6 @@ function OcrQualitySettings({
                 } else if (usesNvidiaOcrContext) {
                   setOcrGpuBackend("cuda");
                 }
-              } else {
-                setOcrDevice("cpu");
               }
               setOcrQualityMode(option.id);
             }}

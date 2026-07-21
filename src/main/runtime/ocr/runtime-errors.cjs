@@ -48,13 +48,13 @@ function buildRocmImportFailureMessage(importMessage) {
   if (isPaddleOcrVerificationTimeoutText(importMessage)) {
     return `Paddle OCR 런타임 설치 후 AMD ROCm/PyTorch 검증이 시간 초과되었습니다. Windows ROCm PyTorch 첫 import가 오래 걸릴 수 있습니다.${detail}`;
   }
-  return `AMD OCR GPU 실행에 실패했습니다. AMD 경로는 PaddlePaddle CUDA가 아니라 Windows ROCm PyTorch + PaddleOCR Transformers engine을 사용합니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 드라이버가 필요합니다. 실패가 반복되면 AMD ROCm OCR 안전 모드(dtype=float32, MIOpen 비활성화, det limit=1600)가 적용됐는지 확인하세요.${detail}`;
+  return `AMD OCR GPU 실행에 실패했습니다. AMD 경로는 PaddlePaddle CUDA가 아니라 Windows ROCm PyTorch + PaddleOCR Transformers engine을 사용합니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 드라이버가 필요합니다. 실패가 반복되면 AMD ROCm OCR 안전 모드(dtype=float32, MIOpen 비활성화, det limit=1600)가 적용됐는지 확인하세요. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 변경하세요.${detail}`;
 }
 
 /** @param {unknown} importMessage @param {RuntimeOptions} options @returns {string} */
 function buildGenericImportFailureMessage(importMessage, options) {
   const suffix = isOcrGpuRequested(options)
-    ? " GPU를 선택했지만 GPU Paddle/CUDA 검증에 실패했습니다. CPU로 바꾸거나 CUDA 드라이버와 GPU Paddle wheel을 확인하세요."
+    ? " GPU를 선택했지만 GPU Paddle/CUDA 검증에 실패했습니다. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 바꾸거나, GPU를 계속 쓰려면 CUDA 드라이버와 GPU Paddle wheel을 확인하세요."
     : "";
   const detail = importMessage
     ? ` detail=${truncateText(importMessage, 1200)}`
@@ -77,10 +77,10 @@ function resolvePaddleOcrTimeoutSuffix(options) {
 function buildPaddleOcrGpuFailureMessage(error, options = {}) {
   const text = summarizeOcrErrorMessage(error);
   if (isGpuOutOfMemoryText(text)) {
-    return `GPU 메모리(VRAM) 부족으로 OCR이 실패했습니다. 큰 페이지가 이어지거나 인페인팅 등 다른 GPU 작업과 겹치면 발생할 수 있습니다. GPU를 쓰는 다른 앱을 닫거나 OCR 장치를 CPU로 바꾸면 안정적입니다. detail=${truncateText(text, 1200)}`;
+    return `GPU 메모리(VRAM) 부족으로 OCR이 실패했습니다. 큰 페이지가 이어지거나 인페인팅 등 다른 GPU 작업과 겹치면 발생할 수 있습니다. GPU를 쓰는 다른 앱을 닫거나 설정에서 OCR 장치를 CPU로 직접 바꾸면 안정적입니다. detail=${truncateText(text, 1200)}`;
   }
   if (isGpuDeviceLostOrTdrText(text)) {
-    return `GPU 드라이버가 재설정되어 OCR이 중단됐습니다. 디스플레이 겸용 GPU에서 오래 걸리는 연산은 Windows TDR(기본 2초)로 끊길 수 있습니다. AMD/NVIDIA 드라이버를 최신으로 유지하고, 반복되면 README의 TdrDelay 안내를 참고하거나 OCR 장치를 CPU로 바꾸세요. detail=${truncateText(text, 1200)}`;
+    return `GPU 드라이버가 재설정되어 OCR이 중단됐습니다. 디스플레이 겸용 GPU에서 오래 걸리는 연산은 Windows TDR(기본 2초)로 끊길 수 있습니다. AMD/NVIDIA 드라이버를 최신으로 유지하고, 반복되면 README의 TdrDelay 안내를 참고하거나 설정에서 OCR 장치를 CPU로 직접 바꾸세요. detail=${truncateText(text, 1200)}`;
   }
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return buildRocmGpuFailureMessage(text);
@@ -91,7 +91,7 @@ function buildPaddleOcrGpuFailureMessage(error, options = {}) {
   if (isPaddleBfloat16SafetensorsText(text)) {
     return buildPaddleOcrBfloat16SafetensorsFailureMessage(text, options);
   }
-  return `Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 NVIDIA GPU Paddle 런타임이 필요합니다. OCR 장치를 CPU로 바꾸거나 NVIDIA 드라이버/CUDA용 Paddle 런타임을 확인하세요. detail=${truncateText(text, 1200)}`;
+  return `Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 NVIDIA GPU Paddle 런타임이 필요합니다. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 바꾸거나, GPU를 계속 쓰려면 NVIDIA 드라이버/CUDA용 Paddle 런타임을 확인하세요. detail=${truncateText(text, 1200)}`;
 }
 
 /** @param {string} text @returns {string} */
@@ -99,7 +99,7 @@ function buildRocmGpuFailureMessage(text) {
   if (isRocmHipAccessViolationText(text)) {
     return `Windows ROCm HIP 런타임의 알려진 간헐 크래시로 보입니다(amdhip64 access violation). AMD Adrenalin 드라이버를 최신으로 유지하고, 내장 GPU(iGPU)가 함께 있는 시스템이라면 BIOS에서 iGPU를 비활성화하면 도움이 될 수 있습니다. detail=${truncateText(text, 1200)}`;
   }
-  return `AMD OCR GPU 실행에 실패했습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 Python 3.12가 필요합니다. AMD ROCm 지원 GPU/드라이버와 OCR 안전 모드 설정을 확인하세요. detail=${truncateText(text, 1200)}`;
+  return `AMD OCR GPU 실행에 실패했습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1이 지원하는 GPU와 Python 3.12가 필요합니다. AMD ROCm 지원 GPU/드라이버와 OCR 안전 모드 설정을 확인하세요. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 변경하세요. detail=${truncateText(text, 1200)}`;
 }
 
 /** @param {unknown} detail @param {RuntimeOptions} [options] @returns {string} */
@@ -209,13 +209,17 @@ function buildRocmImportCheckScript() {
     "_dll_dirs = [p for p in os.environ.get('MANGA_TRANSLATOR_OCR_DLL_DIRS', '').split(os.pathsep) if p]",
     "_dll_handles = [os.add_dll_directory(p) for p in _dll_dirs if hasattr(os, 'add_dll_directory') and os.path.isdir(p)]",
     "import importlib.util",
-    "missing = [name for name in ('torch', 'transformers', 'paddleocr') if importlib.util.find_spec(name) is None]",
+    "missing = [name for name in ('torch', 'torchvision', 'transformers', 'paddlex', 'paddleocr', 'safetensors') if importlib.util.find_spec(name) is None]",
     "assert not missing, 'Missing AMD ROCm OCR package(s): ' + ', '.join(missing)",
     "import torch",
     "assert torch.cuda.is_available(), 'AMD ROCm PyTorch GPU is not available'",
     "assert getattr(torch.version, 'hip', None), 'PyTorch is not a ROCm/HIP build'",
     "x = torch.ones((1,), device='cuda')",
     "torch.cuda.synchronize()",
+    "import torchvision",
+    "import transformers",
+    "_auto_image_processor = transformers.AutoImageProcessor",
+    "_auto_object_detector = transformers.AutoModelForObjectDetection",
     "print('torch', torch.__version__)",
     "print('hip', torch.version.hip)",
     "print('gpu', torch.cuda.get_device_name(0))",

@@ -10,6 +10,17 @@ const bundleFluxNvidiaRunners =
   process.env.MGT_BUNDLE_FLUX_NVIDIA_RUNNERS === "1";
 const isMacBuild =
   process.platform === "darwin" || process.env.MGT_TARGET_PLATFORM === "darwin";
+const requestedBuildChannel = String(
+  process.env.MANGA_TRANSLATOR_BUILD_CHANNEL ||
+    process.env.MGT_RELEASE_CHANNEL ||
+    "",
+).trim();
+const macBuildChannel =
+  requestedBuildChannel === "stable" ? "stable" : "mac-alpha";
+const macArtifactName =
+  macBuildChannel === "stable"
+    ? "CarrotMangaTranslator-${version}-macOS-arm64.${ext}"
+    : "CarrotMangaTranslator-${version}-macOS-arm64-alpha.${ext}";
 // APFS stores Korean filenames in a decomposed Unicode form. Electron 43
 // compares launched Helper paths byte-for-byte against paths derived from
 // CFBundleName, so a Korean macOS product name makes the comparison fail and
@@ -158,6 +169,9 @@ function listFilesRecursively(directory) {
 module.exports = {
   appId: "com.sam40.mangagemma.translator",
   productName,
+  extraMetadata: {
+    buildChannel: isMacBuild ? macBuildChannel : "stable",
+  },
   directories: {
     output: "dist",
   },
@@ -247,7 +261,7 @@ module.exports = {
     extendInfo: {
       CFBundleDisplayName: "당근망가번역기",
     },
-    artifactName: "CarrotMangaTranslator-${version}-macOS-arm64-alpha.${ext}",
+    artifactName: macArtifactName,
     electronLanguages: ["en-US", "en-GB", "ko", "ja", "zh-CN", "zh-TW"],
     identity: macDeveloperSigning ? undefined : "-",
     hardenedRuntime: true,

@@ -1080,9 +1080,9 @@
       "memory": {
         "summary": "통합 메모리 {{available}} · 권장 {{required}} · 첫 다운로드 약 {{download}}",
         "sufficient": "이 메모리 등급의 권장 모델입니다.",
-        "insufficient": "권장량보다 {{shortage}} 부족합니다. 모델을 누르면 Alpha 위험 확인 후 시험할 수 있습니다.",
+        "insufficient": "권장량보다 {{shortage}} 부족합니다. 모델을 누르면 위험 확인 후 시험할 수 있습니다.",
         "unsafeAllowed": "{{shortage}} 부족한 위험 실행을 이번 설정에서 허용했습니다.",
-        "unsafeConfirm": "이 Mac의 통합 메모리는 {{available}}이며 선택한 모델 권장량은 {{required}}입니다. 첫 사용 다운로드는 약 {{download}}이며 네트워크에 따라 오래 걸릴 수 있습니다. 앱이 종료되거나 시스템이 매우 느려질 수 있습니다. Apple Silicon Alpha 위험 실행을 허용할까요?"
+        "unsafeConfirm": "이 Mac의 통합 메모리는 {{available}}이며 선택한 모델 권장량은 {{required}}입니다. 첫 사용 다운로드는 약 {{download}}이며 네트워크에 따라 오래 걸릴 수 있습니다. 앱이 종료되거나 시스템이 매우 느려질 수 있습니다. 이 위험 실행을 허용할까요?"
       },
       "local": {
         "modelFile": "로컬 모델 파일",
@@ -1157,27 +1157,16 @@
       "ocrDevice": "Paddle OCR 장치",
       "fluxBackend": "Flux 인페인팅 백엔드",
       "inpaintingModel": "인페인팅 모델",
-      "bubbleDetection": "말풍선 감지",
-      "bubbleDetectionModes": {
-        "auto": {
-          "label": "자동",
-          "description": "추가 다운로드 없이 OCR 영역과 이미지 특성으로 말풍선을 빠르게 분리하고 외곽선을 보호합니다."
-        },
-        "precise": {
-          "label": "정밀",
-          "description": "전용 세그멘테이션 모델로 말풍선을 감지합니다. 처음 사용할 때 약 104MB 모델을 내려받습니다."
-        }
-      },
       "amdOcrExperimental": "AMD OCR GPU는 실험 기능입니다. 실패하면 OCR만 CPU로 바꿀 수 있습니다.",
       "ocrAmdNote": "AMD 환경에서는 NVIDIA CUDA OCR을 선택할 수 없습니다.",
-      "ocrAppleNote": "Apple Silicon Alpha의 Paddle OCR은 CPU 런타임을 사용합니다.",
+      "ocrAppleNote": "Apple Silicon의 Paddle OCR은 CPU 런타임을 사용합니다.",
       "ocrNvidiaNote": "NVIDIA 환경에서는 AMD ROCm OCR을 선택할 수 없습니다.",
       "fluxAmdNote": "감지된 AMD GPU에서는 CUDA 네이티브 백엔드를 쓸 수 없어 ZLUDA 또는 CPU 중에서 선택합니다.",
       "fluxAppleNote": "Apple Silicon에서는 Metal 네이티브 백엔드만 사용합니다. Flux는 통합 메모리 16GB 이상을 권장합니다.",
       "fluxNvidiaNote": "감지된 NVIDIA GPU에서는 ZLUDA 대신 CUDA 네이티브를 사용합니다.",
       "fluxOnlyNote": "이 백엔드 설정은 Flux Klein 모델에서만 적용됩니다.",
-      "fluxLowMemoryConfirm": "통합 메모리가 {{available}}로 Flux 권장량 16GB보다 적습니다. 앱이 종료되거나 시스템이 매우 느려질 수 있습니다. Alpha 위험 실행을 허용할까요?",
-      "fluxLowMemoryOverride": "통합 메모리 {{available}}에서 Flux Alpha 위험 실행 허용",
+      "fluxLowMemoryConfirm": "통합 메모리가 {{available}}로 Flux 권장량 16GB보다 적습니다. 앱이 종료되거나 시스템이 매우 느려질 수 있습니다. 위험 실행을 허용할까요?",
+      "fluxLowMemoryOverride": "통합 메모리 {{available}}에서 Flux 위험 실행 허용",
       "downloadHipSdk": "AMD HIP SDK 다운로드 (ROCm 7.1.1)"
     },
     "format": {

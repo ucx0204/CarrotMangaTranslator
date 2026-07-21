@@ -40,7 +40,6 @@ IGNORED_LABELS = {
 DLL_DIRECTORY_HANDLES = []
 TORCH_ROCM_SAFE_MODE_CONFIGURED = False
 SELECTED_CUDA_DEVICE_INDEX = None
-MAX_CONSECUTIVE_PAGE_FAILURES = 3
 
 
 def configure_windows_dll_search_path() -> None:
@@ -102,7 +101,7 @@ def main() -> int:
     ensure_requested_device(args)
 
     if args.bbox_mode == "ocr":
-      textline_detector = create_textline_detector(args)
+      textline_detector = create_textline_detector(args, required=True)
       source = "paddleocr-ppocrv6-transformers" if is_transformers_engine(args) else "paddleocr-ppocrv6"
       try:
         summaries = run_batch_pages(
@@ -173,17 +172,10 @@ def emit_progress(progress_path: str | None, payload: dict) -> None:
 
 
 def run_batch_pages(args: argparse.Namespace, batch_items: list[dict], process_page) -> list[dict]:
-    """Process pages with OOM isolation so one bad page cannot kill the batch.
-
-    An OOM page gets one retry after releasing cached GPU memory; if it still
-    fails it is reported via the progress protocol (phase "error") and skipped.
-    Repeated consecutive failures abort the process so the Node side can fall
-    back to CPU for the remaining pages.
-    """
+    """Process pages in order and stop the batch on the first page failure."""
 
     summaries = []
     total = len(batch_items)
-    consecutive_failures = 0
     gpu_transformers = is_gpu_transformers_run(args)
     for index, item in enumerate(batch_items, start=1):
       emit_progress(
@@ -197,17 +189,9 @@ def run_batch_pages(args: argparse.Namespace, batch_items: list[dict], process_p
           },
       )
       try:
-        summary = process_page_with_oom_retry(item, process_page)
-      except Exception as exc:
-        if not is_oom_error(exc):
-          raise
+        summary = process_page(item)
+      except Exception:
         release_gpu_memory()
-        consecutive_failures += 1
-        message = str(exc)[:400]
-        print(
-            f"[paddleocr-vl-bboxes] page {index}/{total} failed after OOM retry: {message}",
-            file=sys.stderr,
-        )
         emit_progress(
             args.progress,
             {
@@ -218,13 +202,7 @@ def run_batch_pages(args: argparse.Namespace, batch_items: list[dict], process_p
                 "count": 0,
             },
         )
-        summaries.append({"output": str(item["output"]), "count": 0, "error": message})
-        if consecutive_failures >= MAX_CONSECUTIVE_PAGE_FAILURES:
-          raise RuntimeError(
-              f"GPU OCR failed on {consecutive_failures} consecutive pages; aborting so the caller can fall back to CPU."
-          ) from exc
-        continue
-      consecutive_failures = 0
+        raise
       summaries.append(summary)
       emit_progress(
           args.progress,
@@ -239,20 +217,6 @@ def run_batch_pages(args: argparse.Namespace, batch_items: list[dict], process_p
       if gpu_transformers:
         release_gpu_memory()
     return summaries
-
-
-def process_page_with_oom_retry(item: dict, process_page) -> dict:
-    try:
-      return process_page(item)
-    except Exception as exc:
-      if not is_oom_error(exc):
-        raise
-      print(
-          "[paddleocr-vl-bboxes] GPU out of memory; releasing cached memory and retrying page once.",
-          file=sys.stderr,
-      )
-      release_gpu_memory()
-      return process_page(item)
 
 
 def is_gpu_transformers_run(args: argparse.Namespace | None) -> bool:
@@ -276,22 +240,6 @@ def release_gpu_memory() -> None:
         paddle.device.cuda.empty_cache()
     except Exception:
       pass
-
-
-def is_oom_error(exc: BaseException) -> bool:
-    try:
-      import torch
-      if isinstance(exc, torch.cuda.OutOfMemoryError):
-        return True
-    except Exception:
-      pass
-    text = f"{type(exc).__name__}: {exc}".lower()
-    return (
-        "out of memory" in text
-        or "hiperroroutofmemory" in text
-        or "outofmemoryerror" in text
-        or "resource exhausted" in text
-    )
 
 
 def load_batch_items(args: argparse.Namespace) -> list[dict]:
@@ -867,7 +815,25 @@ def resolve_source_script(source_language: str) -> str:
     return "latin"
 
 
-def create_textline_detector(args: argparse.Namespace | None = None) -> object:
+def verify_transformers_textline_imports() -> None:
+    """Resolve the lazy imports used by PaddleX before model construction.
+
+    Transformers wraps failures from optional image dependencies in a generic
+    AutoImageProcessor import error. Importing torchvision and resolving the
+    lazy attributes here keeps the original DLL/native-op traceback visible.
+    """
+    import torchvision  # noqa: F401
+    import transformers
+
+    _ = transformers.AutoImageProcessor
+    _ = transformers.AutoModelForObjectDetection
+
+
+def create_textline_detector(
+    args: argparse.Namespace | None = None,
+    *,
+    required: bool = False,
+) -> object:
     if os.environ.get("MANGA_TRANSLATOR_DISABLE_PADDLEOCR_LINES", "").lower() in {"1", "true", "yes", "on"}:
       return None
 
@@ -880,6 +846,8 @@ def create_textline_detector(args: argparse.Namespace | None = None) -> object:
         device = os.environ["MANGA_TRANSLATOR_PADDLEOCR_DEVICE"]
       transformers_engine = bool(args and is_transformers_engine(args))
       configure_torch_for_transformers_ocr(args)
+      if transformers_engine:
+        verify_transformers_textline_imports()
       source_language = resolve_source_language(args)
       requested_ocr_version = getattr(args, "ocr_version", None) or os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_VERSION", "PP-OCRv6")
       ocr_version = resolve_paddle_ocr_version(source_language, requested_ocr_version)
@@ -942,6 +910,8 @@ def create_textline_detector(args: argparse.Namespace | None = None) -> object:
       if transformers_engine:
         detail = f" ({describe_transformers_attention_config(ocr_kwargs)})"
       print(f"[paddleocr-vl-bboxes] textline detector unavailable{detail}: {exc}", file=sys.stderr)
+      if required:
+        raise
       return None
 
 

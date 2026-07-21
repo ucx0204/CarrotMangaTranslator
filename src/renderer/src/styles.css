@@ -3421,6 +3421,32 @@ input[type="radio"] {
   max-width: 100%;
 }
 
+.job-failure-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid #9a4a4a;
+  border-radius: 8px;
+  background: #351f21;
+  color: #f7dddd;
+}
+
+.job-failure-card strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.job-failure-card p {
+  margin: 0;
+  color: #efcaca;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .progress-meta {
   display: flex;
   align-items: center;

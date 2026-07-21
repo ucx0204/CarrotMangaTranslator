@@ -25,6 +25,7 @@ const {
 } = require("./host-services.cjs");
 const {
   buildOcrRuntimeEnv,
+  isOcrGpuRequested,
   isWindowsRocmOcrRuntimePathShortEnough,
   resolveBootstrapPython,
   resolveOcrDeviceLabel,
@@ -85,6 +86,12 @@ async function resolveBundledMacOcrRuntime(options) {
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     return null;
   }
+  if (isOcrGpuRequested(options)) {
+    throw createOcrRuntimeError(
+      "Apple Silicon에는 GPU OCR 런타임이 없습니다. OCR 장치를 CPU로 직접 변경한 뒤 다시 실행하세요.",
+      { step: "bundled-mac-gpu-ocr-unsupported" },
+    );
+  }
   const toolsDir = String(options.toolsDir || "").trim();
   const candidates = [
     path.join(toolsDir, "python", "bin", "python3"),
@@ -94,7 +101,7 @@ async function resolveBundledMacOcrRuntime(options) {
   if (!pythonPath) {
     if (isLikelyPackagedToolsDir(toolsDir)) {
       throw createOcrRuntimeError(
-        "Apple Silicon Alpha에 포함된 Paddle OCR Python 런타임이 없습니다. 앱을 다시 설치하고 GitHub Issue로 제보해 주세요.",
+        "Apple Silicon용 Paddle OCR Python 런타임이 없습니다. 앱을 다시 설치하고 GitHub Issue로 제보해 주세요.",
         { step: "bundled-mac-ocr-runtime-missing", toolsDir },
       );
     }
@@ -126,7 +133,7 @@ async function resolveBundledMacOcrRuntime(options) {
   );
   if (!importCheck.ok) {
     throw createOcrRuntimeError(
-      `Apple Silicon Alpha의 번들 Paddle OCR 런타임을 불러오지 못했습니다: ${importCheck.message}`,
+      `Apple Silicon용 번들 Paddle OCR 런타임을 불러오지 못했습니다: ${importCheck.message}`,
       {
         step: "bundled-mac-ocr-runtime-import-failed",
         runtimeDir,

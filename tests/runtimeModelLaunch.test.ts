@@ -18,7 +18,6 @@ import {
   buildLlamaServerEnv,
   buildOcrBboxBatchCommand,
   buildOcrBboxCommand,
-  buildCpuFallbackOcrOptions,
   buildOcrRuntimeEnv,
   buildPaddleOcrGpuFailureMessage,
   buildPaddleOcrImportCheckScript,
@@ -560,7 +559,7 @@ describeWindows("runtime model support helpers", () => {
     );
     expect(rocmBatches[4]).toEqual([
       "paddleocr==3.7.0",
-      "transformers>=5.10.0",
+      "transformers==5.13.1",
       "safetensors>=0.6.2",
     ]);
     expect(rocmBatches.flat().join(" ")).not.toContain("paddlepaddle-gpu");
@@ -578,6 +577,12 @@ describeWindows("runtime model support helpers", () => {
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT).toBe("1600");
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH).toBe("1");
     expect(script).toContain("import torch");
+    expect(script).toContain("import torchvision");
+    expect(script).toContain("import transformers");
+    expect(script).toContain("'paddlex'");
+    expect(script).toContain("'safetensors'");
+    expect(script).toContain("transformers.AutoImageProcessor");
+    expect(script).toContain("transformers.AutoModelForObjectDetection");
     expect(script).toContain("torch.cuda.is_available()");
     expect(script).toContain("torch.version");
     expect(script).toContain("from paddleocr import PaddleOCR");
@@ -700,24 +705,26 @@ describeWindows("runtime model support helpers", () => {
   });
 
   it("hardens the ROCm OCR child environment against VRAM fragmentation", () => {
-    const previousAllocConf = process.env.PYTORCH_HIP_ALLOC_CONF;
+    const previousAllocConf = process.env.PYTORCH_ALLOC_CONF;
+    const previousLegacyAllocConf = process.env.PYTORCH_HIP_ALLOC_CONF;
     const previousVisibleDevices = process.env.HIP_VISIBLE_DEVICES;
     try {
+      delete process.env.PYTORCH_ALLOC_CONF;
       delete process.env.PYTORCH_HIP_ALLOC_CONF;
       delete process.env.HIP_VISIBLE_DEVICES;
       const rocmEnv = buildOcrRuntimeEnv({
         ocrDevice: "gpu",
         ocrGpuBackend: "rocm-transformers",
       });
-      expect(rocmEnv.PYTORCH_HIP_ALLOC_CONF).toBe(
+      expect(rocmEnv.PYTORCH_ALLOC_CONF).toBe(
         "garbage_collection_threshold:0.8,max_split_size_mb:512",
       );
       expect(
-        buildOcrRuntimeEnv({ ocrDevice: "cpu" }).PYTORCH_HIP_ALLOC_CONF,
+        buildOcrRuntimeEnv({ ocrDevice: "cpu" }).PYTORCH_ALLOC_CONF,
       ).toBeUndefined();
       expect(
         buildOcrRuntimeEnv({ ocrDevice: "gpu", ocrGpuBackend: "cuda" })
-          .PYTORCH_HIP_ALLOC_CONF,
+          .PYTORCH_ALLOC_CONF,
       ).toBeUndefined();
 
       process.env.PYTORCH_HIP_ALLOC_CONF = "max_split_size_mb:128";
@@ -726,65 +733,87 @@ describeWindows("runtime model support helpers", () => {
         ocrDevice: "gpu",
         ocrGpuBackend: "rocm-transformers",
       });
-      expect(overriddenEnv.PYTORCH_HIP_ALLOC_CONF).toBe(
-        "max_split_size_mb:128",
-      );
+      expect(overriddenEnv.PYTORCH_ALLOC_CONF).toBe("max_split_size_mb:128");
+      expect(overriddenEnv.PYTORCH_HIP_ALLOC_CONF).toBeUndefined();
       expect(overriddenEnv.HIP_VISIBLE_DEVICES).toBe("1");
       expect(
         buildOcrRuntimeEnv({ ocrDevice: "cpu" }).HIP_VISIBLE_DEVICES,
       ).toBeUndefined();
     } finally {
-      restoreEnv("PYTORCH_HIP_ALLOC_CONF", previousAllocConf);
+      restoreEnv("PYTORCH_ALLOC_CONF", previousAllocConf);
+      restoreEnv("PYTORCH_HIP_ALLOC_CONF", previousLegacyAllocConf);
       restoreEnv("HIP_VISIBLE_DEVICES", previousVisibleDevices);
     }
   });
 
-  it("reruns OCR commands on CPU when ocrDeviceOverride is set", () => {
+  it("isolates packaged ROCm OCR from an incompatible system ROCm install", () => {
+    const previousRocmPath = process.env.ROCM_PATH;
+    const previousHipPath = process.env.HIP_PATH;
+    const previousVisibleDevices = process.env.HIP_VISIBLE_DEVICES;
+    const previousGfxOverride = process.env.HSA_OVERRIDE_GFX_VERSION;
+    const previousAllowExternal = process.env.MGT_ALLOW_EXTERNAL_RUNTIME;
+    const previousLegacyAllowExternal =
+      process.env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME;
+    const previousAllocConf = process.env.PYTORCH_ALLOC_CONF;
+    const previousLegacyAllocConf = process.env.PYTORCH_HIP_ALLOC_CONF;
+    const packagedRoot = createTempDir("packaged-ocr-rocm-");
+    const toolsDir = join(packagedRoot, "resources", "tools");
+    try {
+      delete process.env.MGT_ALLOW_EXTERNAL_RUNTIME;
+      delete process.env.MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME;
+      delete process.env.PYTORCH_ALLOC_CONF;
+      delete process.env.PYTORCH_HIP_ALLOC_CONF;
+      process.env.ROCM_PATH = "C:/Program Files/AMD/ROCm/7.1";
+      process.env.HIP_PATH = "C:/Program Files/AMD/ROCm/7.1";
+      process.env.HIP_VISIBLE_DEVICES = "1";
+      process.env.HSA_OVERRIDE_GFX_VERSION = "12.0.1";
+
+      const env = buildOcrRuntimeEnv({
+        toolsDir,
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+      });
+
+      expect(env.ROCM_PATH).toBeUndefined();
+      expect(env.HIP_PATH).toBeUndefined();
+      expect(env.HIP_VISIBLE_DEVICES).toBe("1");
+      expect(env.HSA_OVERRIDE_GFX_VERSION).toBe("12.0.1");
+      expect(env.PYTORCH_ALLOC_CONF).toBe(
+        "garbage_collection_threshold:0.8,max_split_size_mb:512",
+      );
+    } finally {
+      restoreEnv("ROCM_PATH", previousRocmPath);
+      restoreEnv("HIP_PATH", previousHipPath);
+      restoreEnv("HIP_VISIBLE_DEVICES", previousVisibleDevices);
+      restoreEnv("HSA_OVERRIDE_GFX_VERSION", previousGfxOverride);
+      restoreEnv("MGT_ALLOW_EXTERNAL_RUNTIME", previousAllowExternal);
+      restoreEnv(
+        "MANGA_TRANSLATOR_ALLOW_EXTERNAL_RUNTIME",
+        previousLegacyAllowExternal,
+      );
+      restoreEnv("PYTORCH_ALLOC_CONF", previousAllocConf);
+      restoreEnv("PYTORCH_HIP_ALLOC_CONF", previousLegacyAllocConf);
+    }
+  });
+
+  it("never overrides the OCR device selected in settings", () => {
     expect(resolveEffectiveOcrDevice({ ocrDevice: "gpu" })).toBe("gpu:0");
     expect(
       resolveEffectiveOcrDevice({ ocrDevice: "gpu", ocrDeviceOverride: "cpu" }),
-    ).toBe("cpu");
+    ).toBe("gpu:0");
     expect(resolveEffectiveOcrDevice({ ocrDevice: "cpu" })).toBe("cpu");
 
     const runtime = { pythonPath: "python" };
     const gpuCommand = buildOcrBboxBatchCommand(
-      { ocrDevice: "gpu", ocrGpuBackend: "rocm-transformers" },
+      {
+        ocrDevice: "gpu",
+        ocrDeviceOverride: "cpu",
+        ocrGpuBackend: "rocm-transformers",
+      },
       "C:/batch.json",
       runtime,
     );
     expect(gpuCommand).toContain('--device "gpu:0"');
-    const fallbackCommand = buildOcrBboxBatchCommand(
-      {
-        ocrDevice: "gpu",
-        ocrGpuBackend: "rocm-transformers",
-        ocrDeviceOverride: "cpu",
-      },
-      "C:/batch.json",
-      runtime,
-    );
-    expect(fallbackCommand).toContain('--device "cpu"');
-    // The transformers engine arguments stay tied to the configured device so
-    // the GPU (rocm) runtime keeps working during a CPU fallback rerun.
-    expect(fallbackCommand).toContain('--engine "transformers"');
-    const singleFallbackCommand = buildOcrBboxCommand(
-      {
-        ocrDevice: "gpu",
-        ocrGpuBackend: "rocm-transformers",
-        ocrDeviceOverride: "cpu",
-        imagePath: "C:/page.png",
-      },
-      "paddleocr-vl",
-      "C:/out.json",
-      runtime,
-    );
-    expect(singleFallbackCommand).toContain('--device "cpu"');
-    expect(
-      buildOcrRuntimeEnv({
-        ocrDevice: "gpu",
-        ocrGpuBackend: "rocm-transformers",
-        ocrDeviceOverride: "cpu",
-      }).MANGA_TRANSLATOR_PADDLEOCR_DEVICE,
-    ).toBe("cpu");
   });
 
   it("classifies GPU OCR failures for actionable Korean guidance", () => {
@@ -846,42 +875,8 @@ describeWindows("runtime model support helpers", () => {
     ).toMatchObject({ phase: "done" });
   });
 
-  it("downgrades VL-mode CPU fallbacks to the PP-OCRv6 text-line path", () => {
-    const vlFallback = buildCpuFallbackOcrOptions({
-      ocrDevice: "gpu",
-      ocrGpuBackend: "cuda",
-      ocrBboxMode: "vl",
-      ocrMergeMode: "legacy",
-    });
-    expect(vlFallback.ocrDeviceOverride).toBe("cpu");
-    expect(vlFallback.ocrBboxMode).toBe("ocr");
-    expect(vlFallback.ocrMergeMode).toBe("conservative");
-    expect(vlFallback.ocrVersion).toBe("PP-OCRv6");
-
-    // Unset mode defaults to VL on the CUDA path, so it is downgraded too.
-    const implicitVlFallback = buildCpuFallbackOcrOptions({
-      ocrDevice: "gpu",
-      ocrGpuBackend: "cuda",
-    });
-    expect(implicitVlFallback.ocrBboxMode).toBe("ocr");
-
-    // The rocm-transformers path never runs VL, so its mode stays untouched.
-    const rocmFallback = buildCpuFallbackOcrOptions({
-      ocrDevice: "gpu",
-      ocrGpuBackend: "rocm-transformers",
-      ocrBboxMode: "ocr",
-      ocrEngine: "transformers",
-    });
-    expect(rocmFallback.ocrDeviceOverride).toBe("cpu");
-    expect(rocmFallback.ocrBboxMode).toBe("ocr");
-    expect(rocmFallback.ocrEngine).toBe("transformers");
-    expect(rocmFallback.ocrMergeMode).toBeUndefined();
-  });
-
-  it("resumes a failed GPU OCR batch on CPU and keeps completed pages", async () => {
-    const outputDir = createTempDir("ocr-gpu-fallback-");
-    const commandBatchPaths = new Map<string, string>();
-    const commandOptions: Array<Record<string, unknown>> = [];
+  it("stops a failed GPU OCR batch instead of retrying on CPU by default", async () => {
+    const outputDir = createTempDir("ocr-gpu-strict-");
     let commandIndex = 0;
 
     await withOcrBatchPipelineStubs(
@@ -894,80 +889,35 @@ describeWindows("runtime model support helpers", () => {
             diagnostics: [],
           };
         },
-        buildOcrBboxBatchCommand(options, batchPath) {
-          commandOptions.push({ ...options });
-          const command = `ocr-gpu-fallback-${++commandIndex}`;
-          commandBatchPaths.set(command, batchPath);
-          return command;
+        buildOcrBboxBatchCommand() {
+          commandIndex += 1;
+          return `ocr-gpu-strict-${commandIndex}`;
         },
-        async runShellCommand(command, options) {
-          const batchPath = commandBatchPaths.get(command);
-          if (!batchPath) {
-            throw new Error(`Missing batch path for ${command}`);
-          }
-          const batch = JSON.parse(readFileSync(batchPath, "utf8")) as {
-            items: Array<{ image: string; output: string }>;
-          };
-          if (command === "ocr-gpu-fallback-1") {
-            // GPU run finishes page 1, then the HIP runtime dies.
-            writeFileSync(
-              batch.items[0].output,
-              JSON.stringify([
-                { label: "text", bbox: [10, 20, 40, 60], text: "日本語" },
-              ]),
-              "utf8",
-            );
-            options.onOutput?.(
-              JSON.stringify({ phase: "done", index: 1, total: 3, count: 1 }),
-            );
-            throw new Error("hipErrorOutOfMemory: HIP out of memory");
-          }
-          // CPU resume run: page 2 succeeds, page 3 stays failed (no output).
-          writeFileSync(
-            batch.items[0].output,
-            JSON.stringify([
-              { label: "text", bbox: [11, 21, 41, 61], text: "日本語" },
-            ]),
-            "utf8",
-          );
-          return { stdout: "", stderr: "cpu page failed" };
+        async runShellCommand() {
+          throw new Error("hipErrorOutOfMemory: HIP out of memory");
         },
       },
-      async ({
-        collectOcrBboxHintsBatch,
-        isOcrGpuDisabledForSession,
-        resetOcrGpuSessionState,
-      }) => {
-        const pages = Array.from({ length: 3 }, (_, index) => ({
-          imagePath: join(outputDir, `page-${index + 1}.png`),
-          outputDir: join(outputDir, `page-${index + 1}`),
-          imageWidth: 100,
-          imageHeight: 100,
-          ocrBboxProvider: "paddleocr-vl",
-          ocrDevice: "gpu",
-          ocrGpuBackend: "rocm-transformers",
-        }));
-        const results = await collectOcrBboxHintsBatch(pages);
-
-        expect(results).toHaveLength(3);
-        expect(results[0]?.hints).toHaveLength(1);
-        expect(results[0]?.diagnostics).toContainEqual(
-          expect.objectContaining({ resumedFrom: "gpu" }),
-        );
-        expect(results[1]?.hints).toHaveLength(1);
-        expect(results[2]?.hints).toHaveLength(0);
-        expect(results[2]?.noTextDetected).toBe(false);
-        expect(results[2]?.diagnostics).toContainEqual(
-          expect.objectContaining({ reason: "page-ocr-failed" }),
-        );
-        expect(isOcrGpuDisabledForSession()).toBe(true);
-        resetOcrGpuSessionState();
+      async (pipeline) => {
+        expect(pipeline).not.toHaveProperty("buildCpuFallbackOcrOptions");
+        expect(pipeline).not.toHaveProperty("canFallBackToCpuAfterGpuFailure");
+        await expect(
+          pipeline.collectOcrBboxHintsBatch([
+            {
+              imagePath: join(outputDir, "page-1.png"),
+              outputDir: join(outputDir, "page-1"),
+              imageWidth: 100,
+              imageHeight: 100,
+              ocrBboxProvider: "paddleocr-vl",
+              ocrDevice: "gpu",
+              ocrGpuBackend: "rocm-transformers",
+              ocrCpuWorkers: 1,
+            },
+          ]),
+        ).rejects.toThrow("VRAM");
       },
     );
 
-    expect(commandIndex).toBe(2);
-    expect(commandOptions[0]?.ocrDeviceOverride).toBeUndefined();
-    expect(commandOptions[1]?.ocrDeviceOverride).toBe("cpu");
+    expect(commandIndex).toBe(1);
   });
 
   it("prepares build tooling before OCR package installs", () => {
@@ -1009,7 +959,7 @@ describeWindows("runtime model support helpers", () => {
     ];
     const paddleOcrPackages = [
       "paddleocr==3.7.0",
-      "transformers>=5.10.0",
+      "transformers==5.13.1",
       "safetensors>=0.6.2",
     ];
     const options = {
@@ -1444,7 +1394,7 @@ describeWindows("runtime model support helpers", () => {
       expect(flat).not.toContain("rocm-7.2.1.tar.gz");
       expect(flat).toContain("torch-2.9.1%2Brocm7.2.1");
       expect(flat).toContain("paddleocr==3.7.0");
-      expect(flat).toContain("transformers>=5.10.0");
+      expect(flat).toContain("transformers==5.13.1");
     } finally {
       restoreEnv("MANGA_TRANSLATOR_OCR_ROCM_SKIP_META_PACKAGE", previousSkip);
     }

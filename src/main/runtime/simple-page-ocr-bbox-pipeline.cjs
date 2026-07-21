@@ -25,7 +25,6 @@ const {
   resolveEffectiveOcrDevice,
   resolveOcrDevice,
   resolveOcrDeviceLabel,
-  resolveOcrGpuBackend,
   summarizeOcrErrorMessage,
 } = require("./simple-page-ocr-runtime-config.cjs");
 const {
@@ -54,7 +53,6 @@ const { createOcrBatchConfig } = require("./ocr/bbox-batch-config.cjs");
 const { createOcrBatchFiles } = require("./ocr/bbox-batch-files.cjs");
 const { createOcrBatchPipeline } = require("./ocr/bbox-batch-pipeline.cjs");
 const { createOcrBatchProgress } = require("./ocr/bbox-batch-progress.cjs");
-const { createOcrBatchRecovery } = require("./ocr/bbox-batch-recovery.cjs");
 const { createOcrCommandRunner } = require("./ocr/bbox-command-runner.cjs");
 const { createOcrCpuWorkers } = require("./ocr/bbox-cpu-workers.cjs");
 const { createOcrGpuPolicy } = require("./ocr/bbox-gpu-policy.cjs");
@@ -62,12 +60,7 @@ const { createOcrBboxResults } = require("./ocr/bbox-results.cjs");
 const { createOcrSinglePipeline } = require("./ocr/bbox-single-pipeline.cjs");
 
 const gpuPolicy = createOcrGpuPolicy({
-  emitRuntimeProgress,
-  isOcrGpuRequested,
-  isPaddleOcrModelAssetLoadFailure,
-  resolveOcrGpuBackend,
   runtimeOverrideEnv,
-  truncateText,
 });
 
 const bboxResults = createOcrBboxResults({
@@ -109,7 +102,6 @@ const singlePipeline = createOcrSinglePipeline({
   resolveEffectiveOcrDevice,
   resolveOcrDeviceLabel,
   runtimeOverrideEnv,
-  summarizeOcrErrorMessage,
   truncateText,
 });
 
@@ -134,24 +126,10 @@ const batchProgress = createOcrBatchProgress({
   readPositiveInteger,
 });
 
-const batchRecovery = createOcrBatchRecovery({
-  ...batchFiles,
-  ...bboxResults,
-  ...gpuPolicy,
-  buildPaddleOcrGpuFailureMessage,
-  emitRuntimeProgress,
-  isOcrGpuRequested,
-  normalizeOcrBboxHintPayload,
-  path,
-  readPositiveInteger,
-  resolveEffectiveOcrDevice,
-});
-
 const cpuWorkers = createOcrCpuWorkers({
   ...batchConfig,
   ...batchFiles,
   ...batchProgress,
-  ...batchRecovery,
   ...bboxResults,
   ...commandRunner,
   buildOcrBboxBatchCommand,
@@ -172,7 +150,6 @@ const batchPipeline = createOcrBatchPipeline({
   ...batchConfig,
   ...batchFiles,
   ...batchProgress,
-  ...batchRecovery,
   ...bboxResults,
   ...commandRunner,
   ...gpuPolicy,
@@ -181,6 +158,7 @@ const batchPipeline = createOcrBatchPipeline({
   buildOcrBboxBatchCommand,
   buildPaddleOcrGpuFailureMessage,
   createDetailedError,
+  createOcrRuntimeError,
   createOcrBatchProgressFilePoller,
   createOcrCommandProgressHandler,
   emitRuntimeProgress,
@@ -200,19 +178,13 @@ const batchPipeline = createOcrBatchPipeline({
 });
 
 module.exports = {
-  buildCpuFallbackOcrOptions: gpuPolicy.buildCpuFallbackOcrOptions,
-  canFallBackToCpuAfterGpuFailure: gpuPolicy.canFallBackToCpuAfterGpuFailure,
   collectOcrBboxHints: singlePipeline.collectOcrBboxHints,
   collectOcrBboxHintsBatch: batchPipeline.collectOcrBboxHintsBatch,
-  disableOcrGpuForSession: gpuPolicy.disableOcrGpuForSession,
   hasOcrCpuWorkerRamHeadroom: batchConfig.hasOcrCpuWorkerRamHeadroom,
-  isOcrGpuDisabledForSession: gpuPolicy.isOcrGpuDisabledForSession,
   readCompletedOcrBatchOutputPayload:
     batchFiles.readCompletedOcrBatchOutputPayload,
-  resetOcrGpuSessionState: gpuPolicy.resetOcrGpuSessionState,
   resolveOcrCpuWorkerCount: batchConfig.resolveOcrCpuWorkerCount,
   resolveOcrCpuWorkerMinFreeRamRatio:
     batchConfig.resolveOcrCpuWorkerMinFreeRamRatio,
   resolveOcrBboxProvider: gpuPolicy.resolveOcrBboxProvider,
-  shouldApplySessionCpuOverride: gpuPolicy.shouldApplySessionCpuOverride,
 };

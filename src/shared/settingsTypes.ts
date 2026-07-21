@@ -1,5 +1,4 @@
 import type {
-  BubbleDetectionMode,
   FluxBackend,
   InpaintingModel,
   KoharuInpaintingBackend,
@@ -10,7 +9,6 @@ import type { TranslationLanguageSettings } from "./translationLanguages";
 import type { UiLocale } from "./uiLocales";
 
 export type {
-  BubbleDetectionMode,
   FluxBackend,
   InpaintingModel,
   KoharuInpaintingBackend,
@@ -126,7 +124,6 @@ export type UiSettings = {
 };
 
 type InpaintingSettings = {
-  bubbleDetectionMode?: BubbleDetectionMode;
   model?: InpaintingModel;
   fluxBackend?: FluxBackend;
   koharuBackend?: KoharuInpaintingBackend;

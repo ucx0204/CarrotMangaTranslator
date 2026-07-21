@@ -17,7 +17,6 @@ import {
   acquireKoharuInpaintingEngine,
   disposeCachedKoharuInpaintingEngine,
 } from "./koharuEnginePool";
-import { disposeCachedBubbleSegmentationEngine } from "./bubbleSegmentationEnginePool";
 
 export type InpaintingEngineLease = {
   engine: InpaintingEngine;
@@ -75,17 +74,16 @@ export function assertFluxMemoryPolicy(options: {
     return;
   }
   throw new Error(
-    `Flux Klein Metal은 통합 메모리 16GB 이상을 권장합니다. 현재 ${Math.max(0, Math.round(options.unifiedMemoryMb / 1024))}GB로 감지되었습니다. macOS Alpha 메모리 위험 경고를 확인하고 명시적으로 허용한 뒤 다시 시도하세요.`,
+    `Flux Klein Metal은 통합 메모리 16GB 이상을 권장합니다. 현재 ${Math.max(0, Math.round(options.unifiedMemoryMb / 1024))}GB로 감지되었습니다. macOS 메모리 위험 경고를 확인하고 명시적으로 허용한 뒤 다시 시도하세요.`,
   );
 }
 
 export async function disposeCachedInpaintingEngines(
   reason: string,
 ): Promise<boolean> {
-  const [fluxDisposed, koharuDisposed, bubbleDisposed] = await Promise.all([
+  const [fluxDisposed, koharuDisposed] = await Promise.all([
     disposeCachedFluxInpaintingEngine(reason),
     disposeCachedKoharuInpaintingEngine(reason),
-    disposeCachedBubbleSegmentationEngine(reason),
   ]);
-  return fluxDisposed || koharuDisposed || bubbleDisposed;
+  return fluxDisposed || koharuDisposed;
 }

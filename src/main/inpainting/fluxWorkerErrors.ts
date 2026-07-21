@@ -57,7 +57,7 @@ function buildMetalRuntimeExitError(
     )
   ) {
     return new Error(
-      `Apple Metal 장치를 사용할 수 없어 Flux를 시작하지 못했습니다. Flux는 macOS Alpha에서 CPU나 다른 모델로 자동 전환하지 않습니다. ${detail}`,
+      `Apple Metal 장치를 사용할 수 없어 Flux를 시작하지 못했습니다. Flux는 macOS에서 CPU나 다른 모델로 자동 전환하지 않습니다. ${detail}`,
     );
   }
   return new Error(

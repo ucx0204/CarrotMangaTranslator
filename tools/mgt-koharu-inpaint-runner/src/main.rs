@@ -10,13 +10,7 @@ use std::ffi::CStr;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, ValueEnum};
-use image::{GrayImage, Luma};
-use koharu_ml::{
-    aot_inpainting::AotInpainting,
-    lama::Lama,
-    speech_bubble_segmentation::{SpeechBubbleRegion, SpeechBubbleSegmentation},
-    types::TextRegion,
-};
+use koharu_ml::{aot_inpainting::AotInpainting, lama::Lama, types::TextRegion};
 use koharu_runtime::{ComputePolicy, RuntimeManager};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{EnvFilter, fmt};
@@ -94,8 +88,6 @@ enum ModelKind {
     LamaManga,
     #[value(name = "aot-inpainting")]
     AotInpainting,
-    #[value(name = "speech-bubble-segmentation")]
-    SpeechBubbleSegmentation,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
@@ -126,14 +118,6 @@ enum WorkerRequest {
         #[serde(rename = "max_pixels")]
         _max_pixels: Option<u32>,
     },
-    #[serde(rename = "segment")]
-    Segment {
-        id: String,
-        input: PathBuf,
-        output: PathBuf,
-        confidence_threshold: Option<f32>,
-        nms_threshold: Option<f32>,
-    },
     #[serde(rename = "shutdown")]
     Shutdown,
 }
@@ -149,7 +133,6 @@ struct WorkerResponse<'a> {
 enum LoadedModel {
     Lama(Lama),
     Aot(AotInpainting),
-    SpeechBubble(SpeechBubbleSegmentation),
 }
 
 #[tokio::main]
@@ -198,7 +181,7 @@ fn print_capabilities() -> Result<()> {
             "runner": "mgt-koharu-inpaint-runner",
             "backend": "metal-native",
             "metal_device": true,
-            "models": ["lama-manga", "aot-inpainting", "speech-bubble-segmentation"],
+            "models": ["lama-manga", "aot-inpainting"],
         })
     );
     Ok(())
@@ -247,14 +230,6 @@ async fn load_model(cli: &Cli) -> Result<LoadedModel> {
             set_env_path("MGT_KOHARU_AOT_WEIGHTS_PATH", &cli.weights);
             let model = AotInpainting::load_from_paths(config, &cli.weights, cpu)?;
             Ok(LoadedModel::Aot(model))
-        }
-        ModelKind::SpeechBubbleSegmentation => {
-            let config = cli
-                .config
-                .as_ref()
-                .context("--config is required for speech-bubble-segmentation")?;
-            let model = SpeechBubbleSegmentation::load_from_paths(config, &cli.weights, cpu)?;
-            Ok(LoadedModel::SpeechBubble(model))
         }
     }
 }
@@ -655,34 +630,6 @@ fn run_worker(model: &LoadedModel) -> Result<()> {
                 stdout.write_all(b"\n")?;
                 stdout.flush()?;
             }
-            WorkerRequest::Segment {
-                id,
-                input,
-                output,
-                confidence_threshold,
-                nms_threshold,
-            } => {
-                let started = Instant::now();
-                let result =
-                    run_segmentation(model, &input, &output, confidence_threshold, nms_threshold);
-                let response = match result {
-                    Ok(()) => WorkerResponse {
-                        id: &id,
-                        ok: true,
-                        elapsed_ms: started.elapsed().as_millis(),
-                        error: None,
-                    },
-                    Err(error) => WorkerResponse {
-                        id: &id,
-                        ok: false,
-                        elapsed_ms: started.elapsed().as_millis(),
-                        error: Some(format!("{error:#}")),
-                    },
-                };
-                serde_json::to_writer(&mut stdout, &response)?;
-                stdout.write_all(b"\n")?;
-                stdout.flush()?;
-            }
         }
     }
     Ok(())
@@ -713,67 +660,11 @@ fn run_inpaint(
             }
         }
         LoadedModel::Aot(aot) => aot.inference(&image, &mask_image, &bubble_image)?,
-        LoadedModel::SpeechBubble(_) => {
-            bail!("speech-bubble-segmentation model cannot process inpaint requests")
-        }
     };
     result
         .save(output)
         .with_context(|| format!("failed to write output image {}", output.display()))?;
     Ok(())
-}
-
-fn run_segmentation(
-    model: &LoadedModel,
-    input: &Path,
-    output: &Path,
-    confidence_threshold: Option<f32>,
-    nms_threshold: Option<f32>,
-) -> Result<()> {
-    let image = image::open(input)
-        .with_context(|| format!("failed to open input image {}", input.display()))?;
-    let segmenter = match model {
-        LoadedModel::SpeechBubble(segmenter) => segmenter,
-        _ => bail!("inpainting model cannot process segmentation requests"),
-    };
-    let result = match (confidence_threshold, nms_threshold) {
-        (None, None) => segmenter.inference(&image)?,
-        (confidence, nms) => segmenter.inference_with_thresholds(
-            &image,
-            confidence.unwrap_or(0.25),
-            nms.unwrap_or(0.45),
-        )?,
-    };
-    let mut regions = result.regions.iter().collect::<Vec<_>>();
-    regions.sort_by_key(|region| std::cmp::Reverse(region.area));
-    let mask = paint_bubble_id_mask(result.image_width, result.image_height, &regions);
-    mask.save(output)
-        .with_context(|| format!("failed to write bubble mask {}", output.display()))?;
-    Ok(())
-}
-
-fn paint_bubble_id_mask(width: u32, height: u32, regions: &[&SpeechBubbleRegion]) -> GrayImage {
-    let mut mask = GrayImage::from_pixel(width, height, Luma([0u8]));
-    for (index, region) in regions.iter().take(255).enumerate() {
-        if region.mask.is_empty() {
-            continue;
-        }
-        let id = (index + 1) as u8;
-        let source_width = region.mask.width as usize;
-        let max_x = region.mask.width.min(width.saturating_sub(region.mask.x));
-        let max_y = region.mask.height.min(height.saturating_sub(region.mask.y));
-        for local_y in 0..max_y {
-            let source_row = local_y as usize * source_width;
-            let y = region.mask.y + local_y;
-            for local_x in 0..max_x {
-                if region.mask.pixels[source_row + local_x as usize] == 0 {
-                    continue;
-                }
-                mask.put_pixel(region.mask.x + local_x, y, Luma([id]));
-            }
-        }
-    }
-    mask
 }
 
 fn windows_to_text_regions(windows: Vec<[u32; 4]>) -> Vec<TextRegion> {

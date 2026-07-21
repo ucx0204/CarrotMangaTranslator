@@ -842,7 +842,7 @@ describeWindows("app settings helpers", () => {
     expect(rx6800Defaults.ocr.device).toBe("cpu");
   });
 
-  it("drops a stored rocm-transformers OCR backend on unsupported AMD GPUs", () => {
+  it("corrects an unsupported OCR backend without changing GPU to CPU", () => {
     const igpuDefaults = resolveDefaultAppSettings(
       {},
       {
@@ -862,7 +862,7 @@ describeWindows("app settings helpers", () => {
       igpuDefaults,
     );
     expect(restored.ocr.gpuBackend).not.toBe("rocm-transformers");
-    expect(restored.ocr.device).toBe("cpu");
+    expect(restored.ocr.device).toBe("gpu");
 
     const supportedDefaults = resolveDefaultAppSettings(
       {},
@@ -1025,7 +1025,7 @@ describeWindows("app settings helpers", () => {
     expect(nvidiaNormalized.inpainting?.fluxBackend).toBe("cuda-native");
   });
 
-  it("forces OCR to CPU for AMD llama runtimes when CUDA OCR is configured", () => {
+  it("does not replace an explicitly selected OCR GPU with CPU", () => {
     const defaults = resolveDefaultAppSettings();
     const settings: AppSettings = {
       ...defaults,
@@ -1057,7 +1057,7 @@ describeWindows("app settings helpers", () => {
     });
 
     expect(options.llamaRuntimeProfile).toBe("rocm");
-    expect(options.ocrDevice).toBe("cpu");
+    expect(options.ocrDevice).toBe("gpu");
     expect(options.ocrGpuBackend).toBe("cuda");
   });
 
@@ -1604,23 +1604,6 @@ describeWindows("app settings helpers", () => {
         defaults,
       ).inpainting?.allowUnsafeLowMemoryFlux,
     ).toBe(false);
-  });
-
-  it("defaults speech bubble detection to auto and persists precise mode", () => {
-    const defaults = resolveDefaultAppSettings();
-    expect(defaults.inpainting?.bubbleDetectionMode).toBe("auto");
-    expect(
-      parseStoredAppSettings(
-        '{"inpainting":{"bubbleDetectionMode":"precise"}}',
-        defaults,
-      ).inpainting?.bubbleDetectionMode,
-    ).toBe("precise");
-    expect(
-      parseStoredAppSettings(
-        '{"inpainting":{"bubbleDetectionMode":"invalid"}}',
-        defaults,
-      ).inpainting?.bubbleDetectionMode,
-    ).toBe("auto");
   });
 
   it("chooses first-run defaults from detected GPU generation and VRAM", () => {

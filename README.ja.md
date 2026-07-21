@@ -5,7 +5,7 @@
 # キャロット漫画翻訳
 
 <p align="center">
-  Windows正式版とApple Silicon macOS Alphaで、マンガ取込、OCR、AI翻訳、編集、インペインティング、PNG出力に対応
+  WindowsとApple Silicon macOSの正式版で、マンガ取込、OCR、AI翻訳、編集、インペインティング、PNG出力に対応
 </p>
 
 <p align="center">
@@ -18,9 +18,8 @@
 
 キャロット漫画翻訳は、画像からセリフや効果音を検出し、AIで翻訳ブロックを作成したあと、文章や配置を人の手で整えて完成版のPNGとして書き出せるマンガ制作支援ツールです。標準の翻訳方向は日本語 → 韓国語ですが、ほかの原文言語・翻訳先言語も選べます。
 
-- 最新のWindowsインストーラー：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- Apple Silicon Alpha：[インストール・テスト案内](docs/mac-alpha-testing.md)・[チェックリスト](docs/MAC_ALPHA_TEST_CHECKLIST.md)
-- 現在のバージョン情報：[v1.6.3 パッチノート](docs/release-notes/v1.6.3.md)
+- v1.6.4正式版のダウンロード（Windows EXE・Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- 現在のバージョン情報：[v1.6.4 パッチノート](docs/release-notes/v1.6.4.md)
 - コード構成とコントリビューション規約：[docs/architecture.md](docs/architecture.md)
 
 ## 概要
@@ -36,16 +35,16 @@
 
 ## インストール前の確認
 
-- 対応OS：Windows 10/11 x64正式版、Apple Silicon（M1以降）macOS 14+ Alpha。Intel Macは対象外です。
+- 対応OS：Windows 10/11 x64、Apple Silicon（M1以降）のmacOS 14以降。Intel Macは対象外です。
 - 必要な空き容量：アプリ本体とは別に、選択したGemma、OCR、インペインティングモデルによっては数GB以上必要になる場合があります。
 - インターネット接続：インストール、初回のモデルダウンロード、Codex/APIの使用に必要です。ローカルモデルは準備完了後、オフラインで作業できます。
 - GPUがなくても一部の処理はCPUで実行できますが、OCR、ローカル翻訳、Fluxインペインティングは大幅に遅くなる場合があります。
 
-インストーラー自体は比較的小さく保たれています。容量の大きいモデルやランタイムは、その機能を初めて実行するときに指定したデータフォルダーへダウンロードされ、2回目以降はキャッシュが再利用されます。
+Apple Silicon向け正式版には、arm64版FFmpeg、Paddle OCRをCPUで実行するためのPythonランタイム、Metal実行ランタイムが含まれます。Gemma、OCR、インペインティングのモデルの重みは初回使用時にチェックサムを検証してダウンロードし、2回目以降はキャッシュを再利用します。v1.6.4のmacOS版は証明書なしのad-hoc署名のため、Gatekeeperに初回起動をブロックされた場合は`システム設定 → プライバシーとセキュリティ`で手動承認が必要になることがあります。macOSのデータは`~/Library/Application Support/manga-gemma-translator`に保存されます。
 
 ## クイックスタート
 
-1. [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)から、`CarrotMangaTranslator-Setup-v1.6.3.exe`のような最新のインストーラーをダウンロードしてインストールします。
+1. [v1.6.4正式リリース](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.6.4)から、Windowsでは`CarrotMangaTranslator-Setup-v1.6.4.exe`、Apple Siliconではarm64版のDMGまたはZIPをダウンロードします。macOSで初回起動がブロックされた場合は、`システム設定 → プライバシーとセキュリティ`でアプリを手動承認します。
 2. `設定 → 一般`でアプリの表示言語を確認します。対応しているWindowsの言語は初回起動時に自動で選択され、それ以外の環境では韓国語が使用されます。
 3. `設定 → 翻訳エンジン`で原文言語、翻訳先言語、翻訳エンジンを選びます。
    - 自分のPC内で処理する場合は`Gemma 4`
@@ -226,7 +225,7 @@ APIエンジンは、Base URLに`/chat/completions`を付けて画像とOCRヒ�
 <details>
 <summary><strong>NVIDIAとAMDの処理方式</strong></summary>
 
-| 処理       | NVIDIA                        | AMD                 | 代替手段                   |
+| 処理       | NVIDIA                        | AMD                 | ユーザーが選択する代替手段 |
 | ---------- | ----------------------------- | ------------------- | -------------------------- |
 | Gemma      | CUDA 12、RTX 50専用ランタイム | ROCmまたはVulkan    | より小さいモデルプリセット |
 | Paddle OCR | NVIDIA CUDA                   | 対応GPUでのAMD ROCm | CPU 最小/省メモリ          |
@@ -238,7 +237,7 @@ AMD版Gemmaは、GPUとドライバーに合ったROCm targetを自動で検出�
 $env:MANGA_TRANSLATOR_AMD_ROCM_TARGET = "gfx110X"
 ```
 
-AMD ZLUDAインペインティングには、[Windows向けAMD HIP SDK](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html)が必要です。OCRのGPU処理が失敗した場合、残りのページはCPUで続けて処理されますが、Gemmaは引き続きAMD GPUを使用できます。
+AMD ZLUDAインペインティングには、[Windows向けAMD HIP SDK](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html)が必要です。OCRのGPU処理が失敗した場合、アプリは作業を中止してエラーを表示します。CPUで続行するには、設定でOCRデバイスをCPUへ明示的に変更してください。Gemmaは引き続きAMD GPUを使用できます。
 
 </details>
 

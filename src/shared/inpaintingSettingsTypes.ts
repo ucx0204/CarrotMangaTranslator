@@ -6,8 +6,6 @@ export type FluxBackend =
 
 export type InpaintingModel = "flux-klein" | "lama-manga" | "aot-inpainting";
 
-export type BubbleDetectionMode = "auto" | "precise";
-
 export type KoharuInpaintingBackend =
   | "auto"
   | "cuda-native"

@@ -101,8 +101,11 @@ function hasExpectedOcrPackages(packageDir, options = {}) {
   if (isOcrGpuRequested(options) && backend === "rocm-transformers") {
     return hasPackageDirectories(packageDir, [
       "torch",
+      "torchvision",
       "transformers",
+      "paddlex",
       "paddleocr",
+      "safetensors",
     ]);
   }
   const required = ["paddle", "paddleocr", "paddlex"];

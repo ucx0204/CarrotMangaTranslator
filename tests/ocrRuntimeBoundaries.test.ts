@@ -23,6 +23,9 @@ const config =
   };
 const manager =
   require("../src/main/runtime/simple-page-ocr-runtime-manager.cjs") as {
+    ensurePaddleOcrRuntime: (
+      options?: Record<string, unknown>,
+    ) => Promise<Record<string, unknown>>;
     createOcrRuntimeError: (
       message: string,
       detail?: Record<string, unknown>,
@@ -46,6 +49,36 @@ function replaceCachedExports(modulePath: string, exports: unknown): void {
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
 describeWindows("OCR runtime boundary behavior", () => {
+  it("rejects Apple GPU OCR instead of opening the bundled CPU runtime", async () => {
+    const platformDescriptor = Object.getOwnPropertyDescriptor(
+      process,
+      "platform",
+    );
+    const archDescriptor = Object.getOwnPropertyDescriptor(process, "arch");
+
+    try {
+      Object.defineProperty(process, "platform", {
+        configurable: true,
+        value: "darwin",
+      });
+      Object.defineProperty(process, "arch", {
+        configurable: true,
+        value: "arm64",
+      });
+
+      await expect(
+        manager.ensurePaddleOcrRuntime({ ocrDevice: "gpu" }),
+      ).rejects.toThrow("OCR 장치를 CPU로 직접 변경");
+    } finally {
+      if (platformDescriptor) {
+        Object.defineProperty(process, "platform", platformDescriptor);
+      }
+      if (archDescriptor) {
+        Object.defineProperty(process, "arch", archDescriptor);
+      }
+    }
+  });
+
   it("rejects malformed batch progress and clamps valid producer values", () => {
     expect(progress.parseOcrBatchProgressLine("{")).toBeNull();
     expect(

@@ -5,7 +5,7 @@
 # 당근망가번역기
 
 <p align="center">
-  Windows 정식판과 Apple Silicon macOS Alpha에서 만화 가져오기, OCR, AI 번역, 편집, 인페인팅, PNG 출력을 한 번에
+  Windows와 Apple Silicon macOS 정식판에서 만화 가져오기, OCR, AI 번역, 편집, 인페인팅, PNG 출력을 한 번에
 </p>
 
 <p align="center">
@@ -18,9 +18,8 @@
 
 당근망가번역기는 이미지에서 대사와 효과음을 찾고, AI로 번역 블록을 만든 뒤, 사람이 문장과 배치를 다듬어 완성 PNG로 내보낼 수 있는 만화 작업 도구입니다. 기본 번역은 일본어 → 한국어이며, 다른 원문·번역 언어도 선택할 수 있습니다.
 
-- 최신 Windows 설치 파일: [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- Apple Silicon Alpha 설치·테스트: [Mac Alpha 안내](docs/mac-alpha-testing.md) · [체크리스트](docs/MAC_ALPHA_TEST_CHECKLIST.md)
-- 현재 버전 안내: [v1.6.3 패치노트](docs/release-notes/v1.6.3.md)
+- v1.6.4 정식판 다운로드(Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- 현재 버전 안내: [v1.6.4 패치노트](docs/release-notes/v1.6.4.md)
 - 코드 구조와 기여 규칙: [docs/architecture.md](docs/architecture.md)
 
 ## 한눈에 보기
@@ -36,16 +35,16 @@
 
 ## 설치 전 확인
 
-- 지원 운영체제: Windows 10/11 x64 정식판, Apple Silicon(M1 이상) macOS 14+ Alpha. Intel Mac은 지원하지 않습니다.
+- 지원 운영체제: Windows 10/11 x64, Apple Silicon(M1 이상) macOS 14+. Intel Mac은 지원하지 않습니다.
 - 필수 여유 공간: 앱 본체 외에도 선택한 Gemma, OCR, 인페인팅 모델에 따라 수 GB 이상 필요할 수 있습니다.
 - 인터넷: 설치와 첫 모델 다운로드, Codex/API 사용에 필요합니다. 로컬 모델은 준비가 끝난 뒤 오프라인 작업이 가능합니다.
 - GPU가 없어도 일부 CPU 경로를 쓸 수 있지만 OCR, 로컬 번역, Flux 인페인팅은 크게 느릴 수 있습니다.
 
-Windows 설치 파일은 비교적 작게 유지됩니다. Apple Silicon Alpha에는 arm64 FFmpeg, OCR Python과 Metal 실행 런타임이 포함되며 Gemma·OCR·인페인팅 모델 가중치만 첫 사용 시 체크섬 검증 후 내려받습니다. macOS 데이터는 `~/Library/Application Support/manga-gemma-translator`에 저장됩니다.
+Windows 설치 파일은 비교적 작게 유지됩니다. Apple Silicon 정식판에는 arm64 FFmpeg, Paddle OCR CPU용 Python 런타임과 Metal 실행 런타임이 포함되며 Gemma·OCR·인페인팅 모델 가중치만 첫 사용 시 체크섬 검증 후 내려받습니다. v1.6.4 macOS 빌드는 인증서 없이 ad-hoc 서명되어 Gatekeeper가 처음 실행을 차단하면 `시스템 설정 → 개인정보 보호 및 보안`에서 수동으로 승인해야 할 수 있습니다. macOS 데이터는 `~/Library/Application Support/manga-gemma-translator`에 저장됩니다.
 
 ## 빠른 시작
 
-1. [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)에서 Windows는 `CarrotMangaTranslator-Setup-*.exe`, Apple Silicon은 별도 `mac-alpha` Pre-release의 arm64 DMG/ZIP을 받습니다. Mac Alpha가 차단되면 Release 안내에 따라 `시스템 설정 → 개인정보 보호 및 보안`에서 한 번 승인합니다.
+1. [v1.6.4 정식 릴리스](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.6.4)에서 Windows는 `CarrotMangaTranslator-Setup-v1.6.4.exe`, Apple Silicon은 arm64 DMG 또는 ZIP을 받습니다. macOS에서 처음 실행이 차단되면 `시스템 설정 → 개인정보 보호 및 보안`에서 앱을 수동으로 승인합니다.
 2. `설정 → 일반`에서 앱 화면 언어를 확인합니다. 지원되는 Windows 언어는 처음 실행할 때 자동 선택되며, 그 밖의 환경은 한국어를 사용합니다.
 3. `설정 → 번역 엔진`에서 원문 언어, 번역 언어와 엔진을 고릅니다.
    - 내 PC에서 처리하려면 `Gemma 4`
@@ -226,11 +225,11 @@ API 엔진은 Base URL에 `/chat/completions`를 붙여 이미지와 OCR 힌트�
 <details>
 <summary><strong>NVIDIA와 AMD 경로</strong></summary>
 
-| 작업       | NVIDIA                      | AMD                   | 예비 경로           |
-| ---------- | --------------------------- | --------------------- | ------------------- |
-| Gemma      | CUDA 12, RTX 50 전용 런타임 | ROCm 또는 Vulkan      | 더 작은 모델 프리셋 |
-| Paddle OCR | NVIDIA CUDA                 | 지원 GPU에서 AMD ROCm | CPU 최소/절약       |
-| Flux       | NVIDIA CUDA                 | ZLUDA + AMD HIP SDK   | CPU                 |
+| 작업       | NVIDIA                      | AMD                   | 사용자가 고를 수 있는 대안 |
+| ---------- | --------------------------- | --------------------- | -------------------------- |
+| Gemma      | CUDA 12, RTX 50 전용 런타임 | ROCm 또는 Vulkan      | 더 작은 모델 프리셋        |
+| Paddle OCR | NVIDIA CUDA                 | 지원 GPU에서 AMD ROCm | CPU 최소/절약              |
+| Flux       | NVIDIA CUDA                 | ZLUDA + AMD HIP SDK   | CPU                        |
 
 AMD Gemma는 GPU와 드라이버에 맞는 ROCm target을 자동으로 찾습니다. 자동 감지가 틀리면 고급 사용자는 예를 들어 다음처럼 지정할 수 있습니다.
 
@@ -238,7 +237,7 @@ AMD Gemma는 GPU와 드라이버에 맞는 ROCm target을 자동으로 찾습니
 $env:MANGA_TRANSLATOR_AMD_ROCM_TARGET = "gfx110X"
 ```
 
-AMD ZLUDA 인페인팅에는 [Windows용 AMD HIP SDK](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html)가 필요합니다. OCR GPU가 실패하면 남은 페이지를 CPU로 이어서 처리하며, Gemma는 계속 AMD GPU를 사용할 수 있습니다.
+AMD ZLUDA 인페인팅에는 [Windows용 AMD HIP SDK](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html)가 필요합니다. OCR GPU가 실패하면 작업을 중단하고 오류를 표시합니다. 작업을 CPU로 계속하려면 설정에서 OCR 장치를 CPU로 직접 변경해야 하며, Gemma는 계속 AMD GPU를 사용할 수 있습니다.
 
 </details>
 

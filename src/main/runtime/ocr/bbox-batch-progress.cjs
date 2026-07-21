@@ -44,12 +44,12 @@ function createOcrBatchProgressEmitter(
       pageOptions.ocrPageTotal,
       batchTotal,
     );
-    if (phase !== "start") {
+    if (phase === "done") {
       completed = Math.min(pageTotal, completed + 1);
     }
     const label = Math.min(
       pageTotal,
-      phase === "start" ? completed + 1 : completed,
+      phase === "done" ? completed : completed + 1,
     );
     emitPageProgress(dependencies, batchOptions, {
       completed,
@@ -80,7 +80,7 @@ function emitPageProgress(dependencies, options, progress) {
 /** @param {{ label: number; pageTotal: number; phase: string }} progress */
 function progressTitle(progress) {
   return progress.phase === "error"
-    ? `${progress.label} / ${progress.pageTotal} 페이지 OCR 실패 (건너뜀)`
+    ? `${progress.label} / ${progress.pageTotal} 페이지 OCR 실패`
     : `${progress.label} / ${progress.pageTotal} 페이지 Paddle OCR 분석 중`;
 }
 
@@ -90,7 +90,7 @@ function progressDetail(progress) {
     return "페이지 처리 시작";
   }
   return progress.phase === "error"
-    ? "GPU 메모리 부족 등으로 이 페이지를 건너뛰었습니다"
+    ? "OCR 오류가 발생하여 작업을 중단합니다"
     : `${progress.count}개 후보`;
 }
 

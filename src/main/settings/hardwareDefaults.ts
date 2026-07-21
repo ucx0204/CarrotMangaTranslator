@@ -219,8 +219,9 @@ function resolveHardwareOcrGpuBackend(
   info: DetectedGpuInfo | null,
 ): OcrGpuBackend {
   // Only GPUs Windows PyTorch ROCm actually supports get the ROCm OCR
-  // backend; other AMD cards fall through to "cuda", which the settings
-  // normalizer then downgrades to CPU OCR for AMD hardware.
+  // backend. Other AMD cards default to CPU OCR with the CUDA backend kept as
+  // metadata; an explicit later GPU selection is preserved and fails loudly
+  // if that backend cannot run.
   if (info?.vendor === "amd" && supportsWindowsRocmOcrGpu(info)) {
     return "rocm-transformers";
   }

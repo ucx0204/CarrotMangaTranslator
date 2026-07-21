@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HardwareSettingsPanel } from "../src/renderer/src/components/settingsModal/HardwareSettingsPanel";
 
@@ -12,7 +18,6 @@ describe("HardwareSettingsPanel", () => {
     render(
       <HardwareSettingsPanel
         allowUnsafeLowMemoryFlux={false}
-        bubbleDetectionMode="auto"
         clearTestState={vi.fn()}
         controlsBusy
         fluxBackend="cuda-native"
@@ -23,7 +28,6 @@ describe("HardwareSettingsPanel", () => {
         ocrQualityMode="minimum"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
-        setBubbleDetectionMode={vi.fn()}
         setInpaintingModel={vi.fn()}
         setOcrDevice={vi.fn()}
         setOcrGpuBackend={vi.fn()}
@@ -45,5 +49,40 @@ describe("HardwareSettingsPanel", () => {
     expect(
       buttons.every((button) => (button as HTMLButtonElement).disabled),
     ).toBe(true);
+  });
+
+  it("does not silently change GPU OCR to CPU when quality changes", () => {
+    const setOcrDevice = vi.fn();
+    const setOcrQualityMode = vi.fn();
+    render(
+      <HardwareSettingsPanel
+        allowUnsafeLowMemoryFlux={false}
+        clearTestState={vi.fn()}
+        controlsBusy={false}
+        fluxBackend="cuda-native"
+        inpaintingModel="flux-klein"
+        isFluxBackendOptionDisabled={() => false}
+        ocrDevice="gpu"
+        ocrGpuBackend="cuda"
+        ocrQualityMode="full"
+        setFluxBackend={vi.fn()}
+        setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setInpaintingModel={vi.fn()}
+        setOcrDevice={setOcrDevice}
+        setOcrGpuBackend={vi.fn()}
+        setOcrQualityMode={setOcrQualityMode}
+        usesAmdHardware={false}
+        usesAppleHardware={false}
+        usesAmdOcrContext={false}
+        usesNvidiaHardware
+        usesNvidiaOcrContext
+        unifiedMemoryMb={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "절약" }));
+
+    expect(setOcrQualityMode).toHaveBeenCalledWith("economy");
+    expect(setOcrDevice).not.toHaveBeenCalled();
   });
 });

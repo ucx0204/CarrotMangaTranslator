@@ -7,6 +7,29 @@ const { join } = require("node:path");
 
 const root = join(__dirname, "..");
 
+/**
+ * @param {string[]} [args]
+ * @returns {"stable" | "mac-alpha"}
+ */
+function resolveMacBuildChannel(args = process.argv.slice(2)) {
+  const unexpected = args.filter((arg) => arg !== "--stable");
+  if (unexpected.length > 0 || args.length > 1) {
+    throw new Error(
+      `Unsupported macOS packaging arguments: ${args.join(" ") || "none"}`,
+    );
+  }
+  return args.includes("--stable") ? "stable" : "mac-alpha";
+}
+
+/**
+ * @param {"stable" | "mac-alpha"} channel
+ * @param {NodeJS.ProcessEnv} [environment]
+ */
+function configureMacBuildChannel(channel, environment = process.env) {
+  environment.MGT_RELEASE_CHANNEL = channel;
+  environment.MANGA_TRANSLATOR_BUILD_CHANNEL = channel;
+}
+
 /** @param {string} command @param {string[]} args @param {NodeJS.ProcessEnv} [extraEnv] */
 function run(command, args, extraEnv = {}) {
   const result = spawnSync(command, args, {
@@ -117,13 +140,15 @@ function assertMacReleaseArtifacts(artifactPaths) {
 
 async function main() {
   if (process.platform !== "darwin" || process.arch !== "arm64") {
-    throw new Error("The Apple Silicon Alpha must be built on macOS arm64.");
+    throw new Error("Apple Silicon packages must be built on macOS arm64.");
   }
+  const buildChannel = resolveMacBuildChannel();
+  configureMacBuildChannel(buildChannel);
   assertSigningConfiguration();
   configureElectronBuilderSigningEnvironment();
   const buildEnv = {
-    MGT_RELEASE_CHANNEL: "mac-alpha",
-    MANGA_TRANSLATOR_BUILD_CHANNEL: "mac-alpha",
+    MGT_RELEASE_CHANNEL: buildChannel,
+    MANGA_TRANSLATOR_BUILD_CHANNEL: buildChannel,
     MGT_TARGET_PLATFORM: "darwin",
     MGT_MAC_RUNTIME_ROOT: join(root, ".tmp", "mac-runtime"),
     CSC_IDENTITY_AUTO_DISCOVERY: process.env.CSC_IDENTITY_AUTO_DISCOVERY,
@@ -152,4 +177,8 @@ if (require.main === module) {
   });
 }
 
-module.exports = { configureElectronBuilderSigningEnvironment };
+module.exports = {
+  configureElectronBuilderSigningEnvironment,
+  configureMacBuildChannel,
+  resolveMacBuildChannel,
+};

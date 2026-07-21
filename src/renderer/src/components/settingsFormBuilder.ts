@@ -2,7 +2,6 @@ import type {
   AppSettings,
   ApiReasoningEffort,
   BlockFormatDefaults,
-  BubbleDetectionMode,
   CodexReasoningEffort,
   FluxBackend,
   GemmaVramMode,
@@ -56,7 +55,6 @@ type BuildSettingsFromFormInput = {
   ocrGpuBackend: OcrGpuBackend;
   ocrQualityMode: OcrQualityMode;
   inpaintingModel: InpaintingModel;
-  bubbleDetectionMode: BubbleDetectionMode;
   fluxBackend: FluxBackend;
   allowUnsafeLowMemoryFlux: boolean;
   keybindings: KeybindingOverrides;
@@ -92,7 +90,6 @@ export function buildSettingsFromForm(
     inpainting: {
       ...input.initialSettings.inpainting,
       model: input.inpaintingModel,
-      bubbleDetectionMode: input.bubbleDetectionMode,
       fluxBackend: input.fluxBackend,
       allowUnsafeLowMemoryFlux: input.allowUnsafeLowMemoryFlux,
       koharuBackend: input.initialSettings.inpainting?.koharuBackend ?? "auto",

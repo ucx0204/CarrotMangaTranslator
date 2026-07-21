@@ -33,6 +33,7 @@ async function main() {
     browserProcess = launchBrowser(browserPath, profileRoot, debuggingPort);
     const capture = await captureWithCdp({
       browserProcess,
+      buildChannel: options.buildChannel,
       debuggingPort,
       height: options.height,
       targetUrl,
@@ -98,6 +99,7 @@ async function main() {
 
 function parseArgs(args) {
   const parsed = {
+    buildChannel: "mac-alpha",
     entry: "index.html",
     height: 900,
     keepProfile: false,
@@ -115,6 +117,16 @@ function parseArgs(args) {
       return value;
     };
     switch (arg) {
+      case "--build-channel": {
+        const buildChannel = next();
+        if (buildChannel !== "stable" && buildChannel !== "mac-alpha") {
+          throw new Error(
+            "--build-channel must be either stable or mac-alpha.",
+          );
+        }
+        parsed.buildChannel = buildChannel;
+        break;
+      }
       case "--entry":
         parsed.entry = next();
         parsed.serve = true;
@@ -176,6 +188,9 @@ function printHelp() {
     `npm run qa:ui -- --entry qa.html --output C:\\tmp\\ui.png [options]\n`,
   );
   process.stdout.write(`npm run qa:ui -- --url http://127.0.0.1:5173/\n\n`);
+  process.stdout.write(
+    `  --build-channel   QA bridge channel (stable or mac-alpha)\n`,
+  );
   process.stdout.write(
     `  --entry <file>     Start Vite and open this renderer entry\n`,
   );
@@ -338,6 +353,7 @@ function launchBrowser(browserPath, profile, debuggingPort) {
 
 async function captureWithCdp({
   browserProcess: child,
+  buildChannel,
   debuggingPort,
   height,
   targetUrl,
@@ -372,7 +388,7 @@ async function captureWithCdp({
       width,
     });
     await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
-      source: qaBridgeSource(),
+      source: qaBridgeSource(buildChannel),
     });
 
     status("navigating renderer");
@@ -520,7 +536,7 @@ async function evaluateJson(cdp, expression) {
   return result.result?.value;
 }
 
-function qaBridgeSource() {
+function qaBridgeSource(buildChannel) {
   return `(() => {
     const runtimeErrors = [];
     const stringifyReason = (value) => {
@@ -586,7 +602,7 @@ function qaBridgeSource() {
       getPageImageDataUrl: async () => pageImageDataUrl,
       getPanelState: async () => null,
       getRuntimeCapabilities: async () => ({
-        buildChannel: "mac-alpha",
+        buildChannel: ${JSON.stringify(buildChannel)},
         platform: "darwin",
         arch: "arm64",
         appleSilicon: true,

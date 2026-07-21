@@ -30,7 +30,6 @@ import {
 import { resolveDefaultAppSettings } from "./appSettingsDefaults";
 import {
   resolveStoredFluxBackend,
-  resolveStoredBubbleDetectionMode,
   resolveStoredGemmaMmproj,
   resolveStoredGemmaModel,
   resolveStoredInpaintingModel,
@@ -332,8 +331,7 @@ function normalizeOcrSettings(
   const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
   // On AMD hardware the ROCm OCR backend is only trusted when the current
   // hardware defaults grant it (Windows-ROCm-supported GPU). A stored
-  // "rocm-transformers" from an older app version is ignored otherwise, so
-  // the device downgrade below kicks in.
+  // "rocm-transformers" from an older app version is ignored otherwise.
   const gpuBackend =
     hardwareVendor === "amd" && defaults.ocr.gpuBackend !== "rocm-transformers"
       ? resolveOcrGpuBackend(defaults.ocr.gpuBackend, "cuda")
@@ -341,11 +339,7 @@ function normalizeOcrSettings(
           ocr?.gpuBackend,
           defaults.ocr.gpuBackend ?? "cuda",
         );
-  const device =
-    hardwareVendor === "apple" ||
-    (hardwareVendor === "amd" && gpuBackend !== "rocm-transformers")
-      ? "cpu"
-      : resolveOcrDevice(ocr?.device, defaults.ocr.device);
+  const device = resolveOcrDevice(ocr?.device, defaults.ocr.device);
   const qualityMode = resolveOcrQualityMode(
     ocr?.qualityMode,
     defaults.ocr.qualityMode,
@@ -397,7 +391,6 @@ function normalizeInpaintingSettings(
   defaults: AppSettings,
 ): NonNullable<AppSettings["inpainting"]> {
   return {
-    bubbleDetectionMode: resolveStoredBubbleDetectionMode(inpainting, defaults),
     model: resolveStoredInpaintingModel(inpainting, defaults),
     fluxBackend: resolveStoredFluxBackend(inpainting, defaults),
     koharuBackend: resolveStoredKoharuInpaintingBackend(inpainting, defaults),

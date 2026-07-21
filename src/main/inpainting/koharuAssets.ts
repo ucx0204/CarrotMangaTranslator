@@ -49,18 +49,6 @@ export type KoharuModelFiles =
       configPath: string;
     };
 
-export type KoharuWorkerModel =
-  | Exclude<InpaintingModel, "flux-klein">
-  | "speech-bubble-segmentation";
-
-export type KoharuWorkerModelFiles =
-  | KoharuModelFiles
-  | {
-      model: "speech-bubble-segmentation";
-      weightsPath: string;
-      configPath: string;
-    };
-
 export function resolveKoharuModelFiles(model: InpaintingModel): {
   repo: string;
   files: string[];
@@ -138,8 +126,8 @@ export async function ensureKoharuModelAssets(options: {
 export async function ensureKoharuWorkerLaunch(options: {
   runtimeDir: string;
   cudaRuntimeDir?: string;
-  model: KoharuWorkerModel;
-  modelFiles: KoharuWorkerModelFiles;
+  model: Exclude<InpaintingModel, "flux-klein">;
+  modelFiles: KoharuModelFiles;
   backend: KoharuInpaintingBackend;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;

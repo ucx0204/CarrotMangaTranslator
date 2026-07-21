@@ -113,6 +113,7 @@ export function summarizeTranslationOptions(
     ocrDevice: options.ocrDevice,
     ocrGpuBackend: options.ocrGpuBackend,
     ocrGpuCudaTag: options.ocrGpuCudaTag,
+    ocrQualityMode: options.ocrQualityMode,
     ocrBboxMode: options.ocrBboxMode,
     ocrEngine: options.ocrEngine,
     ocrEngineDtype: options.ocrEngineDtype,

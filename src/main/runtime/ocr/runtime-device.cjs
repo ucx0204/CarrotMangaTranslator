@@ -3,7 +3,6 @@
 /**
  * @typedef {RuntimeOptions & {
  *   ocrDevice?: unknown;
- *   ocrDeviceOverride?: unknown;
  *   ocrGpuBackend?: unknown;
  *   ocrGpuCudaTag?: unknown;
  *   [key: string]: unknown;
@@ -95,9 +94,6 @@ function resolveOcrRuntimeVariant(options = {}) {
 
 /** @param {RuntimeOptions} [options] @returns {string} */
 function resolveOcrDevice(options = /** @type {OcrConfigOptions} */ ({})) {
-  if (process.platform === "darwin") {
-    return "cpu";
-  }
   const explicitDevice = String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_DEVICE", options) ?? "",
   ).trim();
@@ -124,19 +120,7 @@ function normalizeConfiguredOcrDevice(value) {
 function resolveEffectiveOcrDevice(
   options = /** @type {OcrConfigOptions} */ ({}),
 ) {
-  if (process.platform === "darwin") {
-    return "cpu";
-  }
-  const override = String(options.ocrDeviceOverride ?? "")
-    .trim()
-    .toLowerCase();
-  if (override === "cpu") {
-    return "cpu";
-  }
-  if (!override.startsWith("gpu")) {
-    return resolveOcrDevice(options);
-  }
-  return override === "gpu" ? "gpu:0" : override;
+  return resolveOcrDevice(options);
 }
 
 /** @param {RuntimeOptions} [options] @returns {string} */
@@ -145,7 +129,7 @@ function resolveOcrDeviceLabel(options = {}) {
   if (device !== "cpu") {
     return device.toUpperCase();
   }
-  return device !== resolveOcrDevice(options) ? "CPU(GPU 폴백)" : "CPU";
+  return "CPU";
 }
 
 /** @param {RuntimeOptions} [options] @returns {number} */

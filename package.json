@@ -1,6 +1,6 @@
 {
   "name": "carrot-manga-translator",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "Windows and Apple Silicon macOS desktop manga translation, editing, and inpainting tool powered by Gemma 4 and OpenAI Codex.",
   "license": "GPL-3.0-only",
   "type": "commonjs",
@@ -14,6 +14,7 @@
     "build:mac:runners": "node scripts/build-mac-runners.cjs",
     "test:flux-metal": "node scripts/test-flux-metal.cjs",
     "prepare:mac:runtime": "node scripts/prepare-mac-runtime.cjs",
+    "dist:mac": "node scripts/dist-mac-alpha.cjs --stable",
     "dist:mac:alpha": "node scripts/dist-mac-alpha.cjs",
     "verify:mac:package": "node scripts/verify-mac-package.cjs",
     "build:flux-rocm-runtime": "node scripts/build-flux-rocm-runtime.cjs",

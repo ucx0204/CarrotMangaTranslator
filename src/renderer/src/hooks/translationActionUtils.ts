@@ -118,7 +118,8 @@ export function resolveStartOutcome(
     setJobState,
     pushStatus,
     t ? t("translation.errors.jobFailedTitle") : "번역 작업 실패",
-    t ? t("translation.errors.jobFailed") : "번역 작업에 실패했습니다.",
+    result.error?.trim() ||
+      (t ? t("translation.errors.jobFailed") : "번역 작업에 실패했습니다."),
   );
   return "failed";
 }
@@ -323,7 +324,8 @@ export function handleTranslateRegionResult(
       setJobState,
       pushStatus,
       t ? t("regionTranslation.failedTitle") : "선택 영역 번역 실패",
-      t ? t("regionTranslation.failed") : "선택 영역 번역에 실패했습니다.",
+      result.error?.trim() ||
+        (t ? t("regionTranslation.failed") : "선택 영역 번역에 실패했습니다."),
     );
   }
 }

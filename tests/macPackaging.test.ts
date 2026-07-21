@@ -46,21 +46,37 @@ const {
   ) => Promise<void>;
   removeWindowsRuntimeFiles: (currentDir: string) => Promise<string[]>;
 };
-const { configureElectronBuilderSigningEnvironment } =
-  require("../scripts/dist-mac-alpha.cjs") as {
-    configureElectronBuilderSigningEnvironment: (
-      environment: NodeJS.ProcessEnv,
-    ) => void;
-  };
+const {
+  configureElectronBuilderSigningEnvironment,
+  configureMacBuildChannel,
+  resolveMacBuildChannel,
+} = require("../scripts/dist-mac-alpha.cjs") as {
+  configureElectronBuilderSigningEnvironment: (
+    environment: NodeJS.ProcessEnv,
+  ) => void;
+  configureMacBuildChannel: (
+    channel: "stable" | "mac-alpha",
+    environment: NodeJS.ProcessEnv,
+  ) => void;
+  resolveMacBuildChannel: (args: string[]) => "stable" | "mac-alpha";
+};
 const {
   assertElectronFrameworkExecutable,
   assertElectronHelperExecutables,
   requiresOtoolAlias,
+  resolveMacChecksumFileName,
+  resolveMacPackageChannel,
   shouldAllowHostedGuiSmokeFailure,
 } = require("../scripts/verify-mac-package.cjs") as {
   assertElectronFrameworkExecutable: (appPath: string) => void;
   assertElectronHelperExecutables: (appPath: string) => void;
   requiresOtoolAlias: (filePath: string) => boolean;
+  resolveMacChecksumFileName: (
+    environment: NodeJS.ProcessEnv,
+  ) => "SHA256SUMS-macOS-arm64.txt" | "SHA256SUMS-mac-alpha.txt";
+  resolveMacPackageChannel: (
+    environment: NodeJS.ProcessEnv,
+  ) => "stable" | "mac-alpha";
   shouldAllowHostedGuiSmokeFailure: (
     input: {
       stage: "copy" | "prepare" | "verify";
@@ -97,6 +113,9 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(packageJson.dependencies.tar).toBe("^7.5.7");
     expect(packageJson.scripts["dist:mac:alpha"]).toBe(
       "node scripts/dist-mac-alpha.cjs",
+    );
+    expect(packageJson.scripts["dist:mac"]).toBe(
+      "node scripts/dist-mac-alpha.cjs --stable",
     );
     expect(MAC_RUNTIME_MANIFEST).toMatchObject({
       platform: "darwin",
@@ -255,6 +274,26 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(environment.CSC_LINK).toBe("developer-id-certificate");
     expect(environment.CSC_KEY_PASSWORD).toBe("certificate-password");
     expect(environment.CSC_IDENTITY_AUTO_DISCOVERY).toBe("true");
+  });
+
+  it("selects stable packaging only with the explicit flag and bakes both channel variables", () => {
+    expect(resolveMacBuildChannel([])).toBe("mac-alpha");
+    expect(resolveMacBuildChannel(["--stable"])).toBe("stable");
+    expect(() => resolveMacBuildChannel(["--unknown"])).toThrow(
+      "Unsupported macOS packaging arguments",
+    );
+
+    const environment: NodeJS.ProcessEnv = {};
+    configureMacBuildChannel("stable", environment);
+    expect(environment.MGT_RELEASE_CHANNEL).toBe("stable");
+    expect(environment.MANGA_TRANSLATOR_BUILD_CHANNEL).toBe("stable");
+    expect(resolveMacChecksumFileName(environment)).toBe(
+      "SHA256SUMS-macOS-arm64.txt",
+    );
+    expect(resolveMacPackageChannel(environment)).toBe("stable");
+    expect(
+      resolveMacChecksumFileName({ MGT_RELEASE_CHANNEL: "mac-alpha" }),
+    ).toBe("SHA256SUMS-mac-alpha.txt");
   });
 
   it("aliases parenthesized Electron Helper paths before otool inspection", () => {
@@ -434,6 +473,14 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(config).toContain("Windows binaries leaked into the macOS app");
     expect(config).toContain('identity: macDeveloperSigning ? undefined : "-"');
     expect(config).toContain("notarize: macDeveloperSigning");
+    expect(config).toContain("extraMetadata");
+    expect(config).toContain("buildChannel: isMacBuild ? macBuildChannel");
+    expect(config).toContain(
+      '"CarrotMangaTranslator-${version}-macOS-arm64.${ext}"',
+    );
+    expect(config).toContain(
+      '"CarrotMangaTranslator-${version}-macOS-arm64-alpha.${ext}"',
+    );
   });
 
   it("runs real OCR and Metal inpainting package smokes in release CI", () => {
@@ -447,6 +494,8 @@ describe("Apple Silicon Alpha packaging", () => {
     );
 
     expect(verifier).toContain("await verifyMacRuntimeSmokes({ appPath })");
+    expect(verifier).toContain("verifyPackagedBuildChannel(appPath)");
+    expect(verifier).toContain("metadata.buildChannel");
     expect(verifier.match(/^\s+verifySigning\(appPath\);$/gm)).toHaveLength(4);
     expect(verifier).toContain('PYTHONDONTWRITEBYTECODE: "1"');
     expect(smokes).toContain('PYTHONDONTWRITEBYTECODE: "1"');
@@ -532,5 +581,49 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(workflow).toContain("mac-alpha-ui-1240x760.png");
     expect(checks).toContain("macos-arm64-check:");
     expect(checks).toContain("runs-on: macos-15");
+  });
+
+  it("strictly verifies stable macOS artifacts before attaching them to the existing release", () => {
+    const workflow = readFileSync(
+      join(repoRoot, ".github", "workflows", "mac-release.yml"),
+      "utf8",
+    );
+
+    expect(workflow).toContain("runs-on: macos-15");
+    expect(workflow).toContain("npm run check");
+    expect(workflow).toContain("npm run verify:hf-assets");
+    expect(workflow).toContain("npm run dist:mac");
+    expect(workflow).toContain("MGT_MAC_SIGNING_MODE=adhoc");
+    expect(workflow).toContain("MGT_MAC_SIGNING_MODE=developer-id");
+    expect(workflow).toContain(
+      "CarrotMangaTranslator-${version}-macOS-arm64.dmg",
+    );
+    expect(workflow).toContain(
+      "CarrotMangaTranslator-${version}-macOS-arm64.zip",
+    );
+    expect(workflow).toContain("SHA256SUMS-macOS-arm64.txt");
+    expect(workflow).toContain("shasum -a 256 -c");
+    expect(workflow).toContain(
+      "CarrotMangaTranslator-Setup-${INPUT_TAG_NAME}.exe",
+    );
+    expect(workflow).toContain("--build-channel stable");
+    expect(workflow).toContain("gh release upload");
+    expect(workflow).toContain("--clobber");
+    expect(workflow).toContain(
+      "test ! -e dist/mac-alpha-hosted-app-smoke-waiver.json",
+    );
+    expect(workflow).not.toContain("MGT_MAC_ALPHA_ALLOW_HOSTED_APP_SMOKE_TRAP");
+  });
+
+  it("keeps the stable macOS Help menu out of the Alpha issue flow", () => {
+    const integration = readFileSync(
+      join(repoRoot, "src", "main", "macIntegration.ts"),
+      "utf8",
+    );
+
+    expect(integration).toContain("const alpha = isAppleSiliconAlpha()");
+    expect(integration).toContain("resolveMacIssueMenuTarget(alpha)");
+    expect(integration).toContain("issueMenuTarget.labelKey");
+    expect(integration).toContain("issueMenuTarget.url");
   });
 });

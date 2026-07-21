@@ -88,34 +88,15 @@ class LanguageAdapterBehaviorTests(unittest.TestCase):
 
 
 class BatchFailureBehaviorTests(unittest.TestCase):
-    def test_oom_page_is_retried_exactly_once(self) -> None:
-        calls: list[str] = []
-
-        def process_page(item: dict) -> dict:
-            calls.append(item["output"])
-            if len(calls) == 1:
-                raise RuntimeError("CUDA out of memory")
-            return {"output": item["output"], "count": 4}
-
-        with (
-            patch.object(OCR, "release_gpu_memory") as release_gpu_memory,
-            redirect_stderr(StringIO()),
-        ):
-            result = OCR.process_page_with_oom_retry(
-                {"image": "page.png", "output": "page.json"}, process_page
-            )
-
-        self.assertEqual(result, {"output": "page.json", "count": 4})
-        self.assertEqual(calls, ["page.json", "page.json"])
-        release_gpu_memory.assert_called_once_with()
-
-    def test_three_consecutive_oom_pages_abort_and_emit_jsonl_errors(self) -> None:
+    def test_first_oom_page_aborts_without_retrying_or_skipping(self) -> None:
         items = [
             {"image": f"page-{index}.png", "output": f"page-{index}.json"}
             for index in range(1, 4)
         ]
+        calls: list[str] = []
 
-        def fail_page(_item: dict) -> dict:
+        def fail_page(item: dict) -> dict:
+            calls.append(item["output"])
             raise RuntimeError("HIPErrorOutOfMemory")
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -125,29 +106,30 @@ class BatchFailureBehaviorTests(unittest.TestCase):
                 redirect_stdout(StringIO()),
                 redirect_stderr(StringIO()),
             ):
-                with self.assertRaisesRegex(RuntimeError, "3 consecutive pages"):
+                with self.assertRaisesRegex(RuntimeError, "HIPErrorOutOfMemory"):
                     OCR.run_batch_pages(batch_args(str(progress_path)), items, fail_page)
 
             progress = read_json_lines(progress_path)
 
         self.assertEqual(
             [entry["phase"] for entry in progress],
-            ["start", "error", "start", "error", "start", "error"],
+            ["start", "error"],
         )
-        self.assertEqual([entry["index"] for entry in progress], [1, 1, 2, 2, 3, 3])
+        self.assertEqual([entry["index"] for entry in progress], [1, 1])
         self.assertTrue(all(entry["total"] == 3 for entry in progress))
+        self.assertEqual(calls, ["page-1.json"])
 
-    def test_success_resets_failure_count_and_progress_remains_valid_jsonl(self) -> None:
+    def test_successes_before_failure_are_reported_but_later_pages_do_not_run(self) -> None:
         items = [
             {"image": f"page-{index}.png", "output": f"page-{index}.json"}
             for index in range(1, 5)
         ]
-        attempts: dict[str, int] = {}
+        calls: list[str] = []
 
         def process_page(item: dict) -> dict:
             output = item["output"]
-            attempts[output] = attempts.get(output, 0) + 1
-            if output != "page-2.json":
+            calls.append(output)
+            if output == "page-2.json":
                 raise RuntimeError("GPU out of memory")
             return {"output": output, "count": 2}
 
@@ -158,22 +140,16 @@ class BatchFailureBehaviorTests(unittest.TestCase):
                 redirect_stdout(StringIO()),
                 redirect_stderr(StringIO()),
             ):
-                summaries = OCR.run_batch_pages(
-                    batch_args(str(progress_path)), items, process_page
-                )
+                with self.assertRaisesRegex(RuntimeError, "GPU out of memory"):
+                    OCR.run_batch_pages(batch_args(str(progress_path)), items, process_page)
 
             progress = read_json_lines(progress_path)
 
-        self.assertEqual(len(summaries), 4)
-        self.assertEqual(summaries[1], {"output": "page-2.json", "count": 2})
         self.assertEqual(
             [entry["phase"] for entry in progress],
-            ["start", "error", "start", "done", "start", "error", "start", "error"],
+            ["start", "done", "start", "error"],
         )
-        self.assertEqual(attempts["page-1.json"], 2)
-        self.assertEqual(attempts["page-2.json"], 1)
-        self.assertEqual(attempts["page-3.json"], 2)
-        self.assertEqual(attempts["page-4.json"], 2)
+        self.assertEqual(calls, ["page-1.json", "page-2.json"])
 
 
 class GpuSelectionBehaviorTests(unittest.TestCase):
@@ -215,6 +191,56 @@ class GpuSelectionBehaviorTests(unittest.TestCase):
         self.assertEqual(selected, 1)
         self.assertEqual(selected_devices, [1])
         self.assertEqual(OCR.resolve_engine_device_id("gpu:0"), 1)
+
+
+class TransformersDetectorImportTests(unittest.TestCase):
+    @staticmethod
+    def args() -> argparse.Namespace:
+        return argparse.Namespace(
+            device="gpu:0",
+            engine="transformers",
+            dtype="float32",
+            source_language="ja",
+            ocr_version="PP-OCRv6",
+            text_detection_model_name=None,
+            text_recognition_model_name=None,
+        )
+
+    def test_required_detector_preserves_transformers_dependency_failure(self) -> None:
+        fake_paddleocr = types.ModuleType("paddleocr")
+        fake_paddleocr.PaddleOCR = unittest.mock.Mock()
+        error = OSError("torchvision image extension DLL could not be loaded")
+
+        with (
+            patch.dict(sys.modules, {"paddleocr": fake_paddleocr}),
+            patch.object(OCR, "configure_torch_for_transformers_ocr"),
+            patch.object(OCR, "verify_transformers_textline_imports", side_effect=error),
+            redirect_stderr(StringIO()) as stderr,
+        ):
+            with self.assertRaisesRegex(OSError, "torchvision image extension DLL"):
+                OCR.create_textline_detector(self.args(), required=True)
+
+        self.assertIn("torchvision image extension DLL", stderr.getvalue())
+        fake_paddleocr.PaddleOCR.assert_not_called()
+
+    def test_optional_detector_can_still_be_disabled_after_import_failure(self) -> None:
+        fake_paddleocr = types.ModuleType("paddleocr")
+        fake_paddleocr.PaddleOCR = unittest.mock.Mock()
+
+        with (
+            patch.dict(sys.modules, {"paddleocr": fake_paddleocr}),
+            patch.object(OCR, "configure_torch_for_transformers_ocr"),
+            patch.object(
+                OCR,
+                "verify_transformers_textline_imports",
+                side_effect=ImportError("AutoImageProcessor dependency failed"),
+            ),
+            redirect_stderr(StringIO()),
+        ):
+            detector = OCR.create_textline_detector(self.args())
+
+        self.assertIsNone(detector)
+        fake_paddleocr.PaddleOCR.assert_not_called()
 
 
 class TinyRecognizerFilterBehaviorTests(unittest.TestCase):

@@ -1,5 +1,11 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveBuildChannel } from "../src/main/buildChannel";
+import {
+  readBakedBuildChannel,
+  resolveBuildChannel,
+} from "../src/main/buildChannel";
 import { buildRuntimeCapabilities } from "../src/main/runtimeCapabilities";
 
 describe("build channel", () => {
@@ -8,6 +14,25 @@ describe("build channel", () => {
     expect(resolveBuildChannel("darwin", "x64", undefined)).toBe("stable");
     expect(resolveBuildChannel("win32", "x64", undefined)).toBe("stable");
     expect(resolveBuildChannel("darwin", "arm64", "stable")).toBe("stable");
+    expect(resolveBuildChannel("darwin", "arm64", undefined, "stable")).toBe(
+      "stable",
+    );
+    expect(resolveBuildChannel("darwin", "arm64", "mac-alpha", "stable")).toBe(
+      "mac-alpha",
+    );
+  });
+
+  it("reads a packaged build channel from baked package metadata", () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), "mgt-build-channel-"));
+    const packageJsonPath = join(fixtureRoot, "package.json");
+    try {
+      writeFileSync(packageJsonPath, '{"buildChannel":"stable"}', "utf8");
+      expect(readBakedBuildChannel(packageJsonPath)).toBe("stable");
+      writeFileSync(packageJsonPath, '{"buildChannel":"unknown"}', "utf8");
+      expect(readBakedBuildChannel(packageJsonPath)).toBeUndefined();
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
   });
 });
 

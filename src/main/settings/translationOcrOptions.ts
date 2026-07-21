@@ -2,7 +2,6 @@ import { DEFAULT_OCR_GPU_CUDA_TAG } from "../../shared/modelPresets";
 import type {
   AppSettings,
   GemmaVramMode,
-  LlamaRuntimeProfile,
   OcrDevice,
   OcrGpuBackend,
   OcrQualityMode,
@@ -15,17 +14,12 @@ import {
   resolveOcrQualityMode,
   resolveOptionalString,
 } from "./appSettingsResolvers";
-import {
-  isMetalLlamaRuntimeProfile,
-  isRocmLlamaRuntimeProfile,
-  isVulkanLlamaRuntimeProfile,
-} from "./llamaRuntimeProfile";
-
 type OcrTranslationOptions = Pick<
   TranslationOptions,
   | "ocrDevice"
   | "ocrGpuBackend"
   | "ocrGpuCudaTag"
+  | "ocrQualityMode"
   | "ocrBboxProvider"
   | "ocrBboxMode"
   | "ocrEngine"
@@ -43,19 +37,13 @@ type OcrTranslationOptions = Pick<
 export function resolveOcrTranslationOptions(
   runtimeEnv: NodeJS.ProcessEnv,
   settings: AppSettings,
-  llamaRuntimeProfile: LlamaRuntimeProfile,
   gemmaVramMode: GemmaVramMode,
 ): OcrTranslationOptions {
   const ocrGpuBackend = resolveOcrGpuBackend(
     runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_BACKEND,
     settings.ocr.gpuBackend ?? "cuda",
   );
-  const ocrDevice = resolveRuntimeOcrDevice(
-    runtimeEnv,
-    settings.ocr.device,
-    llamaRuntimeProfile,
-    ocrGpuBackend,
-  );
+  const ocrDevice = resolveRuntimeOcrDevice(runtimeEnv, settings.ocr.device);
   const configuredQualityMode = resolveOcrQualityMode(
     runtimeEnv.MANGA_TRANSLATOR_OCR_QUALITY_MODE ??
       runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE ??
@@ -63,9 +51,8 @@ export function resolveOcrTranslationOptions(
     settings.ocr.qualityMode ??
       resolveOcrQualityModeFromGemmaVramMode(gemmaVramMode),
   );
-  // 풀로드(PaddleOCR-VL) 품질은 CPU에서 못 쓸 만큼 느리므로, 장치가 CPU로
-  // 내려간 경로(env 강제, AMD llama 자동 다운그레이드 등)에서는 절약 품질로
-  // 실행한다.
+  // 풀로드(PaddleOCR-VL) 품질은 CPU에서 못 쓸 만큼 느리므로, 사용자가 CPU를
+  // 선택했거나 env에서 CPU를 명시한 경우에는 절약 품질로 실행한다.
   const ocrQualityMode =
     ocrDevice === "cpu" && configuredQualityMode === "full"
       ? "economy"
@@ -79,6 +66,7 @@ export function resolveOcrTranslationOptions(
         runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_CUDA,
       settings.ocr.gpuCudaTag ?? DEFAULT_OCR_GPU_CUDA_TAG,
     ),
+    ocrQualityMode,
     ...resolvePaddleOcrModeOptions(
       runtimeEnv,
       ocrDevice,
@@ -242,31 +230,11 @@ function resolveOcrQualityModeFromGemmaVramMode(
 function resolveRuntimeOcrDevice(
   env: NodeJS.ProcessEnv,
   configuredDevice: OcrDevice,
-  llamaRuntimeProfile: LlamaRuntimeProfile,
-  ocrGpuBackend: OcrGpuBackend,
 ): OcrDevice {
-  if (isMetalLlamaRuntimeProfile(llamaRuntimeProfile)) {
-    // Paddle's bundled Apple Silicon runtime is CPU-only in the Alpha.
-    return "cpu";
-  }
   const explicit =
     env.MANGA_TRANSLATOR_OCR_DEVICE ?? env.MANGA_TRANSLATOR_PADDLEOCR_DEVICE;
   if (explicit !== undefined) {
     return resolveOcrDevice(explicit, configuredDevice);
   }
-  if (isAmdLlamaWithoutTransformersOcr(llamaRuntimeProfile, ocrGpuBackend)) {
-    return "cpu";
-  }
   return configuredDevice;
-}
-
-function isAmdLlamaWithoutTransformersOcr(
-  llamaRuntimeProfile: LlamaRuntimeProfile,
-  ocrGpuBackend: OcrGpuBackend,
-): boolean {
-  return (
-    (isRocmLlamaRuntimeProfile(llamaRuntimeProfile) ||
-      isVulkanLlamaRuntimeProfile(llamaRuntimeProfile)) &&
-    ocrGpuBackend !== "rocm-transformers"
-  );
 }

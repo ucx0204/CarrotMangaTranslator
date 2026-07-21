@@ -16,9 +16,6 @@ const REQUEST_TIMEOUT_MS = 30000;
 const modelPresets = readSource("src/shared/modelPresets.ts");
 const fluxConstants = readSource("src/main/inpainting/fluxAssets/constants.ts");
 const koharuAssets = readSource("src/main/inpainting/koharuAssets.ts");
-const bubbleSegmentationAssets = readSource(
-  "src/main/inpainting/bubbleSegmentationAssets.ts",
-);
 
 const assets = [
   pinnedGemmaAsset(
@@ -109,20 +106,6 @@ const assets = [
     "LAMA_MODEL_REPO",
     "LAMA_MODEL_FILE",
     "LAMA_MODEL_REVISION",
-  ),
-  sourceAsset(
-    "Speech Bubble Segmentation config",
-    bubbleSegmentationAssets,
-    "BUBBLE_SEGMENTATION_MODEL_REPO",
-    "BUBBLE_SEGMENTATION_CONFIG_FILE",
-    "BUBBLE_SEGMENTATION_MODEL_REVISION",
-  ),
-  sourceAsset(
-    "Speech Bubble Segmentation model",
-    bubbleSegmentationAssets,
-    "BUBBLE_SEGMENTATION_MODEL_REPO",
-    "BUBBLE_SEGMENTATION_MODEL_FILE",
-    "BUBBLE_SEGMENTATION_MODEL_REVISION",
   ),
   ...PADDLE_OCR_MODEL_DOWNLOADS.flatMap((entry) =>
     entry.files.map((file) => ({

@@ -149,10 +149,6 @@ function useOcrBackendGuard(
   runtime: ReturnType<typeof resolveRuntimeContext>,
 ): void {
   React.useEffect(() => {
-    if (runtime.usesAppleHardware && values.ocrDevice !== "cpu") {
-      setters.setOcrDevice("cpu");
-      return;
-    }
     if (
       values.ocrDevice === "gpu" &&
       values.ocrGpuBackend === "cuda" &&
@@ -170,7 +166,6 @@ function useOcrBackendGuard(
     }
   }, [
     runtime.usesAmdOcrContext,
-    runtime.usesAppleHardware,
     runtime.usesNvidiaOcrContext,
     setters,
     values.ocrDevice,

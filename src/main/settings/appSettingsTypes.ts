@@ -8,6 +8,7 @@ import type {
   ModelSource,
   OcrDevice,
   OcrGpuBackend,
+  OcrQualityMode,
 } from "../../shared/settingsTypes";
 import type { BBox } from "../../shared/textTypes";
 import type { JobPhase } from "../../shared/jobTypes";
@@ -116,6 +117,7 @@ export type TranslationOptions = {
   ocrDevice: OcrDevice;
   ocrGpuBackend?: OcrGpuBackend;
   ocrGpuCudaTag?: string;
+  ocrQualityMode?: OcrQualityMode;
   ocrBboxProvider?: string;
   ocrBboxMode?: string;
   ocrEngine?: string;

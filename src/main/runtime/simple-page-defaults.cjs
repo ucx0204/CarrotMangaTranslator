@@ -57,7 +57,7 @@ const AMD_ROCM_721_TORCH_DEP_PACKAGES = [
 ];
 const DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES = [
   "paddleocr==3.7.0",
-  "transformers>=5.10.0",
+  "transformers==5.13.1",
   "safetensors>=0.6.2",
 ];
 const PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL =

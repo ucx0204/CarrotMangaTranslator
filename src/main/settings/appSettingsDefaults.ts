@@ -25,7 +25,6 @@ import { normalizeAmdRocmTarget } from "../gpuInfo";
 import { getDefaultGemmaPresetForVramMode } from "./gemmaModelPresets";
 import {
   resolveCodexReasoningEffort,
-  resolveBubbleDetectionMode,
   resolveContextTokens,
   resolveFluxBackend,
   resolveGemmaVramMode,
@@ -292,11 +291,6 @@ function resolveDefaultInpaintingSettings(
   hardwareDefaults: HardwareDefaults,
 ): NonNullable<AppSettings["inpainting"]> {
   return {
-    bubbleDetectionMode: resolveBubbleDetectionMode(
-      env.MANGA_TRANSLATOR_BUBBLE_DETECTION_MODE ??
-        env.MGT_BUBBLE_DETECTION_MODE,
-      "auto",
-    ),
     model: resolveInpaintingModel(
       env.MANGA_TRANSLATOR_INPAINTING_MODEL ?? env.MGT_INPAINTING_MODEL,
       "flux-klein",

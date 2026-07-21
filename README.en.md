@@ -5,7 +5,7 @@
 # Carrot Manga Translator
 
 <p align="center">
-  Manga import, OCR, AI translation, editing, inpainting, and PNG export on Windows and Apple Silicon macOS Alpha
+  Manga import, OCR, AI translation, editing, inpainting, and PNG export in stable releases for Windows and Apple Silicon macOS
 </p>
 
 <p align="center">
@@ -18,9 +18,8 @@
 
 Carrot Manga Translator is a manga production tool that finds dialogue and sound effects in images, creates translation blocks with AI, and lets you refine the wording and layout before exporting finished PNG files. The default translation direction is Japanese → Korean, but you can choose other source and target languages.
 
-- Latest Windows installer: [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- Apple Silicon Alpha install and testing: [Mac Alpha guide](docs/mac-alpha-testing.md) · [checklist](docs/MAC_ALPHA_TEST_CHECKLIST.md)
-- Current version information: [v1.6.3 release notes](docs/release-notes/v1.6.3.md)
+- Download the stable v1.6.4 release (Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- Current version information: [v1.6.4 release notes](docs/release-notes/v1.6.4.md)
 - Code structure and contribution guidelines: [docs/architecture.md](docs/architecture.md)
 
 ## At a Glance
@@ -36,16 +35,16 @@ Carrot Manga Translator is a manga production tool that finds dialogue and sound
 
 ## Before You Install
 
-- Supported operating systems: Windows 10/11 x64 stable; Apple Silicon (M1 or newer) on macOS 14+ Alpha. Intel Macs are not supported.
+- Supported operating systems: Windows 10/11 x64 and Apple Silicon (M1 or newer) on macOS 14+. Intel Macs are not supported.
 - Required free space: In addition to the app itself, you may need several GB or more depending on the Gemma, OCR, and inpainting models you select.
 - Internet connection: Required for installation, the first model download, and Codex/API use. Local models can work offline after setup is complete.
 - Some CPU paths work without a GPU, but OCR, local translation, and Flux inpainting may be much slower.
 
-The Apple Silicon Alpha bundles arm64 FFmpeg, OCR Python, and Metal executables. Only Gemma, OCR, and inpainting model weights are checksum-verified and downloaded on first use. macOS data is stored under `~/Library/Application Support/manga-gemma-translator`.
+The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle OCR on the CPU, and Metal executables. Only Gemma, OCR, and inpainting model weights are checksum-verified and downloaded on first use. The v1.6.4 macOS build is ad-hoc signed without a certificate, so Gatekeeper may require manual approval under System Settings → Privacy & Security on first launch. macOS data is stored under `~/Library/Application Support/manga-gemma-translator`.
 
 ## Quick Start
 
-1. From [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases), use the Windows `.exe` or the separate `mac-alpha` pre-release arm64 DMG/ZIP. For an ad-hoc Alpha, follow the release instructions to approve it once in System Settings → Privacy & Security.
+1. From the [stable v1.6.4 release](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.6.4), download `CarrotMangaTranslator-Setup-v1.6.4.exe` for Windows or the arm64 DMG/ZIP for Apple Silicon. If macOS blocks the first launch, approve the app manually under System Settings → Privacy & Security.
 2. Check the interface language under `Settings → General`. On first launch, the app automatically selects a supported Windows language. If the Windows language is not supported, the app uses Korean.
 3. Under `Settings → Translation Engine`, choose the source language, target language, and engine.
    - To process everything on your PC, choose `Gemma 4`.
@@ -226,11 +225,11 @@ You can also override values with environment variables:
 <details>
 <summary><strong>NVIDIA and AMD Paths</strong></summary>
 
-| Task       | NVIDIA                                       | AMD                        | Fallback               |
-| ---------- | -------------------------------------------- | -------------------------- | ---------------------- |
-| Gemma      | CUDA 12, dedicated runtime for RTX 50 series | ROCm or Vulkan             | A smaller model preset |
-| Paddle OCR | NVIDIA CUDA                                  | AMD ROCm on supported GPUs | CPU Minimal/Efficient  |
-| Flux       | NVIDIA CUDA                                  | ZLUDA + AMD HIP SDK        | CPU                    |
+| Task       | NVIDIA                                       | AMD                        | User-selected alternative |
+| ---------- | -------------------------------------------- | -------------------------- | ------------------------- |
+| Gemma      | CUDA 12, dedicated runtime for RTX 50 series | ROCm or Vulkan             | A smaller model preset    |
+| Paddle OCR | NVIDIA CUDA                                  | AMD ROCm on supported GPUs | CPU Minimal/Efficient     |
+| Flux       | NVIDIA CUDA                                  | ZLUDA + AMD HIP SDK        | CPU                       |
 
 For AMD Gemma, the app automatically finds a ROCm target that matches your GPU and driver. If automatic detection is incorrect, advanced users can specify one as follows:
 
@@ -238,7 +237,7 @@ For AMD Gemma, the app automatically finds a ROCm target that matches your GPU a
 $env:MANGA_TRANSLATOR_AMD_ROCM_TARGET = "gfx110X"
 ```
 
-AMD ZLUDA inpainting requires the [AMD HIP SDK for Windows](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html). If GPU OCR fails, the app continues processing the remaining pages on the CPU while Gemma can continue using the AMD GPU.
+AMD ZLUDA inpainting requires the [AMD HIP SDK for Windows](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html). If GPU OCR fails, the app stops the job and displays the error. To continue on the CPU, explicitly change the OCR device to CPU in Settings; Gemma can still use the AMD GPU.
 
 </details>
 

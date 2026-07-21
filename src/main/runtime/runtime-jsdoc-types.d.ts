@@ -22,7 +22,6 @@ export type RuntimeOptions = {
   ocrCpuWorkers?: number | string | null;
   ocrCpuWorkerStartDelayMs?: number | string | null;
   ocrDevice?: string | null;
-  ocrDeviceOverride?: string | null;
   ocrDetLimit?: string | number | null;
   ocrEngine?: string | null;
   ocrEngineDtype?: string | null;

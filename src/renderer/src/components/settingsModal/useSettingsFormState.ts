@@ -103,10 +103,6 @@ function useSettingsFormSetters(
     setOcrGpuBackend: useFormFieldDispatch(setValues, "ocrGpuBackend"),
     setOcrQualityMode: useFormFieldDispatch(setValues, "ocrQualityMode"),
     setInpaintingModel: useFormFieldDispatch(setValues, "inpaintingModel"),
-    setBubbleDetectionMode: useFormFieldDispatch(
-      setValues,
-      "bubbleDetectionMode",
-    ),
     setFluxBackend: useFormFieldDispatch(setValues, "fluxBackend"),
     setAllowUnsafeLowMemoryFlux: useFormFieldDispatch(
       setValues,

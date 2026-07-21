@@ -10,15 +10,15 @@ Authenticode signature issued to SignPath Foundation for this project. Unsigned
 Windows artifacts, including releases published before SignPath enrollment,
 are not retroactively covered by this policy.
 
-Apple Silicon Alpha artifacts use a separate release channel and one of two
-clearly labelled signing modes:
+Apple Silicon artifacts, whether attached to a stable release or published on
+the separate Alpha channel, use one of two clearly labelled signing modes:
 
-- `Apple Silicon Alpha`: Developer ID Application signed, Apple-notarized, and
-  stapled on the GitHub-hosted `macos-15` arm64 runner.
-- `Unsigned Apple Silicon Alpha`: every Mach-O file and the app bundle are
-  ad-hoc signed for integrity, but there is no Apple-verified publisher
-  identity or notarization. Gatekeeper requires an explicit approval in
-  System Settings → Privacy & Security.
+- Developer ID mode: the app is Developer ID Application signed,
+  Apple-notarized, and stapled on the GitHub-hosted `macos-15` arm64 runner.
+- Ad-hoc mode: every Mach-O file and the app bundle are ad-hoc signed for
+  integrity, but there is no Apple-verified publisher identity or notarization.
+  Gatekeeper requires an explicit approval in System Settings → Privacy &
+  Security.
 
 The second mode must never be described as an Apple-signed or notarized build.
 
@@ -50,9 +50,9 @@ authentication.
   Mach-O (including redistributed upstream runtimes) to be nested-signed as
   part of the app. That signature attests to the assembled release and does not
   represent upstream components as project-authored software.
-- The Apple Silicon workflow verifies arm64 Mach-O architecture, nested code
-  signatures, linked libraries, the DMG, checksums, and an `/Applications`
-  launch smoke before it can publish a pre-release.
+- The Apple Silicon workflows verify the baked release channel, arm64 Mach-O
+  architecture, nested code signatures, linked libraries, the DMG, ZIP,
+  checksums, and an `/Applications` launch smoke before publishing artifacts.
 
 ## Apple Developer credentials
 
@@ -61,8 +61,9 @@ notarization run on GitHub's Apple Silicon runner. It does require an active
 Apple Developer Program membership and the repository secrets
 `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_API_KEY_P8_B64`,
 `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER`. If all five are absent, the
-workflow deliberately falls back to the labelled ad-hoc Alpha. A partial
-secret configuration fails the build instead of silently weakening it.
+workflow deliberately creates an ad-hoc build and the release notes must say
+so. A partial secret configuration fails the build instead of silently
+weakening it.
 
 ## Privacy
 

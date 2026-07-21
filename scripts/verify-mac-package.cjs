@@ -43,6 +43,29 @@ const ELECTRON_HELPER_SUFFIXES = [
   "Helper (Renderer)",
 ];
 
+/**
+ * @param {NodeJS.ProcessEnv} [environment]
+ * @returns {"stable" | "mac-alpha"}
+ */
+function resolveMacPackageChannel(environment = process.env) {
+  const channel = String(
+    environment.MANGA_TRANSLATOR_BUILD_CHANNEL ||
+      environment.MGT_RELEASE_CHANNEL ||
+      "",
+  ).trim();
+  return channel === "stable" ? "stable" : "mac-alpha";
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} [environment]
+ * @returns {"SHA256SUMS-macOS-arm64.txt" | "SHA256SUMS-mac-alpha.txt"}
+ */
+function resolveMacChecksumFileName(environment = process.env) {
+  return resolveMacPackageChannel(environment) === "stable"
+    ? "SHA256SUMS-macOS-arm64.txt"
+    : "SHA256SUMS-mac-alpha.txt";
+}
+
 /** @typedef {{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; error?: Error }} CommandResult */
 
 /** @param {string} command @param {string[]} args @param {{ env?: NodeJS.ProcessEnv; input?: string; timeout?: number }} [options] @returns {CommandResult} */
@@ -347,6 +370,34 @@ function verifyPackagedTarRuntime(appPath) {
     `const runtime = require(${JSON.stringify(tarRuntimePath)});`,
     "if (typeof runtime.extractSelectedTarEntries !== 'function') throw new Error('Packaged tar runtime did not load');",
     "console.log('packaged-tar-runtime-ok');",
+  ].join("\n");
+  run(appExecutable, ["-e", smokeScript], {
+    env: { ELECTRON_RUN_AS_NODE: "1" },
+    timeout: 30_000,
+  });
+}
+
+/** @param {string} appPath */
+function verifyPackagedBuildChannel(appPath) {
+  const appExecutable = join(
+    appPath,
+    "Contents",
+    "MacOS",
+    "CarrotMangaTranslator",
+  );
+  const packageJsonPath = join(
+    appPath,
+    "Contents",
+    "Resources",
+    "app.asar",
+    "package.json",
+  );
+  const expectedChannel = resolveMacPackageChannel();
+  const smokeScript = [
+    'const { readFileSync } = require("node:fs");',
+    `const metadata = JSON.parse(readFileSync(${JSON.stringify(packageJsonPath)}, "utf8"));`,
+    `if (metadata.buildChannel !== ${JSON.stringify(expectedChannel)}) throw new Error("Unexpected packaged build channel: " + String(metadata.buildChannel));`,
+    'console.log("packaged-build-channel-ok", metadata.buildChannel);',
   ].join("\n");
   run(appExecutable, ["-e", smokeScript], {
     env: { ELECTRON_RUN_AS_NODE: "1" },
@@ -815,6 +866,7 @@ async function main() {
   assertElectronFrameworkExecutable(appPath);
   assertElectronHelperExecutables(appPath);
   verifyNativePayload(appPath);
+  verifyPackagedBuildChannel(appPath);
   // Establish that electron-builder produced a valid sealed bundle before
   // running any executable from it.  The second check below proves that the
   // runtime smokes kept the signed .app immutable.
@@ -853,7 +905,7 @@ async function main() {
       ),
     )
   ).join("\n");
-  const checksumPath = join(distDir, "SHA256SUMS-mac-alpha.txt");
+  const checksumPath = join(distDir, resolveMacChecksumFileName());
   writeFileSync(checksumPath, `${sums}\n`, "utf8");
   console.log(
     `[mac-verify] verified ${relative(root, appPath)} and wrote ${relative(root, checksumPath)}`,
@@ -875,7 +927,10 @@ module.exports = {
   listFiles,
   looksLikeNativeBinary,
   requiresOtoolAlias,
+  resolveMacChecksumFileName,
+  resolveMacPackageChannel,
   shouldAllowHostedGuiSmokeFailure,
+  verifyPackagedBuildChannel,
   verifyPackagedTarRuntime,
   verifyFinalDiskImage,
   verifyFinalZipArchive,

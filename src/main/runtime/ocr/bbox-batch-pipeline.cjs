@@ -1,7 +1,7 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("../runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
-/** @typedef {RuntimeOptions & { outputDir?: string | null; imagePath?: unknown; ocrBatchCompletedBefore?: unknown; ocrBatchTotal?: unknown; ocrDeviceOverride?: unknown }} OcrBboxOptions */
+/** @typedef {RuntimeOptions & { outputDir?: string | null; imagePath?: unknown; ocrBatchCompletedBefore?: unknown; ocrBatchTotal?: unknown }} OcrBboxOptions */
 /** @typedef {{ hints: unknown[]; diagnostics: unknown[]; noTextDetected: boolean; textEvidenceCount: number }} OcrBboxResult */
 /** @typedef {{ image: unknown; output: string }} OcrBatchItem */
 /** @typedef {{ batchOptions: OcrBboxOptions; firstOptions: OcrBboxOptions; items: OcrBatchItem[]; normalizedOptions: OcrBboxOptions[]; provider: string; runtime: OcrRuntimeLayout | null; batchPath: string; progressPath: string }} OcrBatchContext */
@@ -15,7 +15,6 @@
  *   rm: (path: string, options: { force: true }) => Promise<unknown>;
  *   writeFile: (path: string, data: string, encoding: "utf8") => Promise<unknown>;
  *   collectOcrBboxHints: (options: OcrBboxOptions) => Promise<OcrBboxResult>;
- *   applyBatchSessionCpuOverride: (options: OcrBboxOptions[]) => OcrBboxOptions[];
  *   resolveOcrBboxProvider: (options?: OcrBboxOptions) => string;
  *   withoutPageProgressOptions: (options?: OcrBboxOptions) => OcrBboxOptions;
  *   ensurePaddleOcrRuntime: (options: OcrBboxOptions) => Promise<OcrRuntimeLayout>;
@@ -35,18 +34,14 @@
  *   resolveOcrBboxTimeoutMs: (count: number) => number;
  *   cleanupOcrBatchControlFiles: (batchPath: string, progressPath: string, options?: OcrBboxOptions) => Promise<unknown>;
  *   readOcrBatchOutputPayload: (path: string) => unknown;
- *   readCompletedOcrBatchOutputPayload: (path: string) => unknown;
  *   normalizeOcrBboxHintPayload: (payload: unknown, options?: OcrBboxOptions) => unknown[];
  *   buildOcrBboxResult: (hints?: unknown[], diagnostics?: unknown[], options?: Record<string, unknown>) => OcrBboxResult;
  *   createDetailedError: (message: string, details: Record<string, unknown>) => Error;
+ *   createOcrRuntimeError: (message: string, details: Record<string, unknown>, cause?: unknown) => Error;
  *   truncateText: (value: unknown, limit: number) => string;
  *   isOcrGpuRequested: (options?: OcrBboxOptions) => boolean;
  *   resolveEffectiveOcrDevice: (options?: OcrBboxOptions) => string;
- *   canFallBackToCpuAfterGpuFailure: (options: OcrBboxOptions, error: unknown) => boolean;
  *   buildPaddleOcrGpuFailureMessage: (error: unknown, options?: OcrBboxOptions) => string;
- *   disableOcrGpuForSession: (reason: unknown) => void;
- *   buildCpuFallbackOcrOptions: (options: OcrBboxOptions) => OcrBboxOptions;
- *   recoverOcrBatchWithCpuFallback: (context: OcrBatchContext, error: unknown, collectBatch: (options: OcrBboxOptions[]) => Promise<OcrBboxResult[]>) => Promise<OcrBboxResult[] | null>;
  * }} dependencies
  */
 function createOcrBatchPipeline(dependencies) {
@@ -61,8 +56,7 @@ async function collectOcrBboxHintsBatch(dependencies, pageOptionsList = []) {
   if (validOptions.length === 0) {
     return [];
   }
-  const normalizedOptions =
-    dependencies.applyBatchSessionCpuOverride(validOptions);
+  const normalizedOptions = validOptions;
   const firstOptions = normalizedOptions[0] || {};
   const provider = dependencies.resolveOcrBboxProvider(firstOptions);
   if (provider !== "paddleocr-vl") {
@@ -177,15 +171,7 @@ async function runSingleProcessBatch(dependencies, context) {
     return buildBatchResults(dependencies, context, command, output);
   } catch (error) {
     poller.stop();
-    const recovered = await dependencies.recoverOcrBatchWithCpuFallback(
-      context,
-      error,
-      (options) => collectOcrBboxHintsBatch(dependencies, options),
-    );
-    if (recovered) {
-      return recovered;
-    }
-    throw error;
+    return throwBatchGpuExecutionFailure(dependencies, context, error);
   } finally {
     poller.stop();
     await dependencies.cleanupOcrBatchControlFiles(
@@ -194,6 +180,34 @@ async function runSingleProcessBatch(dependencies, context) {
       context.batchOptions,
     );
   }
+}
+
+/** @param {Dependencies} dependencies @param {OcrBatchContext} context @param {unknown} error @returns {never} */
+function throwBatchGpuExecutionFailure(dependencies, context, error) {
+  if (
+    !dependencies.isOcrGpuRequested(context.batchOptions) ||
+    dependencies.resolveEffectiveOcrDevice(context.batchOptions) === "cpu"
+  ) {
+    throw error;
+  }
+  const message = dependencies.buildPaddleOcrGpuFailureMessage(
+    error,
+    context.batchOptions,
+  );
+  dependencies.emitRuntimeProgress(
+    context.batchOptions,
+    "ocr_running",
+    "Paddle OCR GPU 실행 실패 — 작업을 중지합니다",
+    message,
+  );
+  throw dependencies.createOcrRuntimeError(
+    message,
+    {
+      runtimeDir: context.runtime?.runtimeDir || null,
+      runtimeVariant: context.runtime?.runtimeVariant || null,
+    },
+    error,
+  );
 }
 
 /** @param {Dependencies} dependencies @param {OcrBatchContext} context */
@@ -254,10 +268,6 @@ function buildBatchProgressHandler(dependencies, context) {
 
 /** @param {Dependencies} dependencies @param {OcrBatchContext} context @param {string} command @param {{ stdout: string; stderr: string }} output */
 function buildBatchResults(dependencies, context, command, output) {
-  const cpuFallbackRun =
-    String(context.batchOptions.ocrDeviceOverride ?? "")
-      .trim()
-      .toLowerCase() === "cpu";
   return context.normalizedOptions.map((options, index) =>
     buildBatchPageResult(
       dependencies,
@@ -266,12 +276,11 @@ function buildBatchResults(dependencies, context, command, output) {
       output,
       options,
       index,
-      cpuFallbackRun,
     ),
   );
 }
 
-/** @param {Dependencies} dependencies @param {OcrBatchContext} context @param {string} command @param {{ stdout: string; stderr: string }} output @param {OcrBboxOptions} options @param {number} index @param {boolean} cpuFallbackRun */
+/** @param {Dependencies} dependencies @param {OcrBatchContext} context @param {string} command @param {{ stdout: string; stderr: string }} output @param {OcrBboxOptions} options @param {number} index */
 function buildBatchPageResult(
   dependencies,
   context,
@@ -279,19 +288,11 @@ function buildBatchPageResult(
   output,
   options,
   index,
-  cpuFallbackRun,
 ) {
   const outputPath = context.items[index].output;
   const payload = dependencies.readOcrBatchOutputPayload(outputPath);
   if (!payload) {
-    return handleMissingPageOutput(
-      dependencies,
-      command,
-      outputPath,
-      output,
-      context.provider,
-      cpuFallbackRun,
-    );
+    return handleMissingPageOutput(dependencies, command, outputPath, output);
   }
   const hints = dependencies.normalizeOcrBboxHintPayload(payload, options);
   return dependencies.buildOcrBboxResult(hints, [
@@ -306,30 +307,8 @@ function buildBatchPageResult(
   ]);
 }
 
-/** @param {Dependencies} dependencies @param {string} command @param {string} outputPath @param {{ stdout: string; stderr: string }} output @param {string} provider @param {boolean} cpuFallbackRun */
-function handleMissingPageOutput(
-  dependencies,
-  command,
-  outputPath,
-  output,
-  provider,
-  cpuFallbackRun,
-) {
-  if (cpuFallbackRun) {
-    const message = output.stderr.trim() || output.stdout.trim();
-    return dependencies.buildOcrBboxResult(
-      [],
-      [
-        {
-          provider,
-          reason: "page-ocr-failed",
-          message: dependencies.truncateText(message, 800),
-          outputPath,
-        },
-      ],
-      { noTextDetected: false },
-    );
-  }
+/** @param {Dependencies} dependencies @param {string} command @param {string} outputPath @param {{ stdout: string; stderr: string }} output @returns {never} */
+function handleMissingPageOutput(dependencies, command, outputPath, output) {
   throw dependencies.createDetailedError(
     "OCR bbox batch command did not produce JSON.",
     {

@@ -54,6 +54,13 @@ const {
   shouldUseWindowsShortRocmOcrLayout,
 } = require("./runtime-layout.cjs");
 
+const EXTERNAL_ROCM_PATH_ENV_KEYS = new Set([
+  "ROCM_PATH",
+  "HIP_PATH",
+  "LD_LIBRARY_PATH",
+  "LIBRARY_PATH",
+]);
+
 /** @param {RuntimeOptions} [options] @param {OcrRuntimeLayout | null} [runtime] @returns {NodeJS.ProcessEnv} */
 function buildOcrRuntimeEnv(
   options = /** @type {OcrConfigOptions} */ ({}),
@@ -118,14 +125,21 @@ function resolveHuggingFaceCacheDirs(options, runtimeDir) {
 
 /** @param {RuntimeOptions} options @param {OcrRuntimeLayout | null} runtime @param {OcrEnvContext} context @returns {NodeJS.ProcessEnv} */
 function buildBaseChildEnv(options, runtime, context) {
+  const allowExternalRuntime = shouldAllowExternalRuntimeOverrides(options);
+  const rocmChildEnvKeys = ROCM_CHILD_ENV_KEYS.filter(
+    (key) =>
+      key !== "PYTORCH_ALLOC_CONF" &&
+      key !== "PYTORCH_HIP_ALLOC_CONF" &&
+      (allowExternalRuntime || !EXTERNAL_ROCM_PATH_ENV_KEYS.has(key)),
+  );
   const extraKeys = [
     ...NETWORK_CHILD_ENV_KEYS,
     ...HF_CHILD_ENV_KEYS,
-    ...(context.rocmGpuRequested ? ROCM_CHILD_ENV_KEYS : []),
+    ...(context.rocmGpuRequested ? rocmChildEnvKeys : []),
   ];
   return buildWhitelistedChildEnv({
     pathDirs: buildOcrRuntimePathDirs(options, runtime, context.runtimeDir),
-    includeProcessPath: shouldAllowExternalRuntimeOverrides(options),
+    includeProcessPath: allowExternalRuntime,
     extraKeys,
   });
 }
@@ -176,8 +190,10 @@ function buildRocmSafetyEnv(options, enabled) {
         "MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN",
         options,
       ) || "1",
-    PYTORCH_HIP_ALLOC_CONF:
+    PYTORCH_ALLOC_CONF:
+      process.env.PYTORCH_ALLOC_CONF ||
       process.env.PYTORCH_HIP_ALLOC_CONF ||
+      runtimeOverrideEnv("PYTORCH_ALLOC_CONF", options) ||
       runtimeOverrideEnv("PYTORCH_HIP_ALLOC_CONF", options) ||
       "garbage_collection_threshold:0.8,max_split_size_mb:512",
   };

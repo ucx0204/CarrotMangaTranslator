@@ -1,0 +1,181 @@
+name: macOS Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Existing stable release tag to receive macOS artifacts (example: v1.6.4)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mac-release-${{ inputs.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-verify-upload:
+    runs-on: macos-15
+    timeout-minutes: 360
+    env:
+      MGT_MAC_CLEAN_CARGO_TARGET: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Confirm Apple Silicon runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "arm64"
+          sw_vers
+          sysctl -n hw.memsize
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve and verify stable release metadata
+        id: release_meta
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG_NAME: ${{ inputs.tag_name }}
+        run: |
+          set -euo pipefail
+          expected_ref="refs/heads/${{ github.event.repository.default_branch }}"
+          if [[ "$GITHUB_REF" != "$expected_ref" ]]; then
+            echo "macOS stable release must run from $expected_ref, not $GITHUB_REF." >&2
+            exit 1
+          fi
+          version="$(node -p "require('./package.json').version")"
+          expected_tag="v${version}"
+          if [[ "$INPUT_TAG_NAME" != "$expected_tag" ]]; then
+            echo "Release tag '$INPUT_TAG_NAME' does not match package version '$version' (expected '$expected_tag')." >&2
+            exit 1
+          fi
+          tag_commit="$(git rev-list -n 1 "$INPUT_TAG_NAME")"
+          if [[ -z "$tag_commit" || "$tag_commit" != "$GITHUB_SHA" ]]; then
+            echo "Release tag '$INPUT_TAG_NAME' must exist and point to $GITHUB_SHA; got '${tag_commit:-missing}'." >&2
+            exit 1
+          fi
+          if [[ "$(gh release view "$INPUT_TAG_NAME" --json isDraft --jq '.isDraft')" != "false" ]]; then
+            echo "Release '$INPUT_TAG_NAME' must already be published, not a draft." >&2
+            exit 1
+          fi
+          if [[ "$(gh release view "$INPUT_TAG_NAME" --json isPrerelease --jq '.isPrerelease')" != "false" ]]; then
+            echo "Release '$INPUT_TAG_NAME' is a pre-release, not the stable release." >&2
+            exit 1
+          fi
+          windows_asset="CarrotMangaTranslator-Setup-${INPUT_TAG_NAME}.exe"
+          if ! gh release view "$INPUT_TAG_NAME" --json assets --jq '.assets[].name' | grep -Fxq "$windows_asset"; then
+            echo "Release '$INPUT_TAG_NAME' does not contain the verified Windows installer '$windows_asset'." >&2
+            exit 1
+          fi
+          echo "tag=$INPUT_TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Run full cross-platform checks
+        run: npm run check
+
+      - name: Capture production renderer at release QA sizes
+        run: |
+          npm run qa:ui -- --entry index.html --build-channel stable --width 1440 --height 900 --output "${RUNNER_TEMP}/mac-release-ui-1440x900.png"
+          npm run qa:ui -- --entry index.html --build-channel stable --width 1240 --height 760 --output "${RUNNER_TEMP}/mac-release-ui-1240x760.png"
+
+      - name: Verify pinned model metadata
+        run: npm run verify:hf-assets
+
+      - name: Select signing mode
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_P8_B64: ${{ secrets.APPLE_API_KEY_P8_B64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+          values=("$CSC_LINK" "$CSC_KEY_PASSWORD" "$APPLE_API_KEY_P8_B64" "$APPLE_API_KEY_ID" "$APPLE_API_ISSUER")
+          present=0
+          for value in "${values[@]}"; do
+            if [[ -n "$value" ]]; then present=$((present + 1)); fi
+          done
+          if [[ "$present" -eq 0 ]]; then
+            echo "MGT_MAC_SIGNING_MODE=adhoc" >> "$GITHUB_ENV"
+            echo "SIGNING_LABEL=Unsigned (ad-hoc)" >> "$GITHUB_ENV"
+          elif [[ "$present" -ne 5 ]]; then
+            echo "Developer ID signing secrets are only partially configured." >&2
+            exit 1
+          else
+            key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+            printf '%s' "$APPLE_API_KEY_P8_B64" | /usr/bin/base64 -D > "$key_path"
+            chmod 600 "$key_path"
+            echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"
+            echo "APPLE_API_KEY_ID=$APPLE_API_KEY_ID" >> "$GITHUB_ENV"
+            echo "APPLE_API_ISSUER=$APPLE_API_ISSUER" >> "$GITHUB_ENV"
+            echo "CSC_LINK=$CSC_LINK" >> "$GITHUB_ENV"
+            echo "CSC_KEY_PASSWORD=$CSC_KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "MGT_MAC_SIGNING_MODE=developer-id" >> "$GITHUB_ENV"
+            echo "SIGNING_LABEL=Developer ID + notarized" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build and strictly verify stable arm64 DMG and ZIP
+        run: npm run dist:mac
+
+      - name: Confirm stable release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.release_meta.outputs.version }}"
+          test -s "dist/CarrotMangaTranslator-${version}-macOS-arm64.dmg"
+          test -s "dist/CarrotMangaTranslator-${version}-macOS-arm64.zip"
+          test -s dist/SHA256SUMS-macOS-arm64.txt
+          test ! -e dist/mac-alpha-hosted-app-smoke-waiver.json
+          (cd dist && shasum -a 256 -c SHA256SUMS-macOS-arm64.txt)
+
+      - name: Upload verified macOS build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.release_meta.outputs.tag }}-macOS-arm64
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            dist/CarrotMangaTranslator-${{ steps.release_meta.outputs.version }}-macOS-arm64.dmg
+            dist/CarrotMangaTranslator-${{ steps.release_meta.outputs.version }}-macOS-arm64.zip
+            dist/SHA256SUMS-macOS-arm64.txt
+            ${{ runner.temp }}/mac-release-ui-1440x900.png
+            ${{ runner.temp }}/mac-release-ui-1240x760.png
+
+      - name: Upload macOS assets to existing stable release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" \
+            "dist/CarrotMangaTranslator-${{ steps.release_meta.outputs.version }}-macOS-arm64.dmg" \
+            "dist/CarrotMangaTranslator-${{ steps.release_meta.outputs.version }}-macOS-arm64.zip" \
+            dist/SHA256SUMS-macOS-arm64.txt \
+            --clobber
+
+      - name: Summarize verified macOS release
+        shell: bash
+        run: |
+          {
+            echo "### Verified macOS assets uploaded to ${{ steps.release_meta.outputs.tag }}"
+            echo "- Runner: $(uname -m), $(sw_vers -productVersion)"
+            echo "- Signing: $SIGNING_LABEL"
+            echo "- Packaged GUI lifecycle: passed without an Alpha waiver"
+          } >> "$GITHUB_STEP_SUMMARY"

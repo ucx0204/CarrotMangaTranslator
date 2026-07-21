@@ -54,7 +54,7 @@ function assertMetalDflashConfiguration(serverPath, runtime, options) {
     return;
   }
   throw createDetailedError(
-    "31B Apple Silicon Alpha는 BeeLlama DFlash CPU-ring 경로로만 실행할 수 있습니다. 단순 31B 실행으로 후퇴하지 않도록 중단합니다.",
+    "31B Apple Silicon 빌드는 BeeLlama DFlash CPU-ring 경로로만 실행할 수 있습니다. 단순 31B 실행으로 후퇴하지 않도록 중단합니다.",
     {
       serverPath,
       runtime: runtime.id,

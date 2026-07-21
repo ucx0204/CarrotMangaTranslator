@@ -62,12 +62,12 @@ async function startServer(options) {
     emitRuntimeProgress(
       options,
       "booting",
-      "Apple Silicon Alpha 메모리 위험 강제 실행",
+      "Apple Silicon 메모리 위험 강제 실행",
       `${Math.round(Number(memoryPolicy.availableMemoryMb || 0) / 1024)}GB 기기에서 ${Math.round(memoryPolicy.requiredMemoryMb / 1024)}GB 권장 모델을 실행합니다.`,
       {
         progressMode: "log-only",
         installLogLine:
-          "[macOS Alpha] 사용자가 통합 메모리 부족 위험을 확인해 강제 실행했습니다.",
+          "[macOS] 사용자가 통합 메모리 부족 위험을 확인해 강제 실행했습니다.",
       },
     );
   }
@@ -172,9 +172,7 @@ function requestedServerPath(options) {
 function emitServerStarting(options) {
   const runtime = /** @type {any} */ (resolvePreferredLlamaRuntime(options));
   const dflashDetail =
-    runtime.dflashRing === "cpu"
-      ? " [macOS Alpha: DFlash CPU ring 검증됨]"
-      : "";
+    runtime.dflashRing === "cpu" ? " [macOS: DFlash CPU ring 검증됨]" : "";
   emitRuntimeProgress(
     options,
     "booting",

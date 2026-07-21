@@ -5,7 +5,7 @@
 # 胡蘿蔔漫畫翻譯器
 
 <p align="center">
-  支援 Windows 正式版與 Apple Silicon macOS Alpha，涵蓋匯入、OCR、AI 翻譯、編輯、圖片修補及 PNG 匯出
+  支援 Windows 與 Apple Silicon macOS 穩定版，涵蓋匯入、OCR、AI 翻譯、編輯、圖片修補及 PNG 匯出
 </p>
 
 <p align="center">
@@ -18,9 +18,8 @@
 
 胡蘿蔔漫畫翻譯器是一款漫畫製作工具：它可以從圖片中找出對白與狀聲詞，透過 AI 產生翻譯區塊，再由使用者調整文字和排版，最後匯出為完整的 PNG。預設翻譯方向為日文 → 韓文，也可以選擇其他原文與譯文語言。
 
-- 最新 Windows 安裝檔：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- Apple Silicon Alpha：[安裝與測試說明](docs/mac-alpha-testing.md) · [檢查清單](docs/MAC_ALPHA_TEST_CHECKLIST.md)
-- 目前版本說明：[v1.6.3 更新說明](docs/release-notes/v1.6.3.md)
+- 下載 v1.6.4 正式版（Windows EXE · Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- 目前版本說明：[v1.6.4 更新說明](docs/release-notes/v1.6.4.md)
 - 程式碼架構與貢獻規範：[docs/architecture.md](docs/architecture.md)
 
 ## 功能一覽
@@ -36,16 +35,16 @@
 
 ## 安裝前須知
 
-- 支援的作業系統：Windows 10/11 x64 正式版；Apple Silicon（M1 以上）macOS 14+ Alpha。不支援 Intel Mac。
+- 支援的作業系統：Windows 10/11 x64；Apple Silicon（M1 以上）的 macOS 14 或更新版本。不支援 Intel Mac。
 - 所需可用空間：除了應用程式本身，依所選的 Gemma、OCR 和圖片修補模型，可能還需要數 GB 或更多空間。
 - 網路連線：安裝、第一次下載模型以及使用 Codex/API 時需要連上網路。本機模型準備完成後即可離線使用。
 - 即使沒有 GPU，也能使用部分 CPU 處理方式，但 OCR、本機翻譯和 Flux 圖片修補可能會非常慢。
 
-安裝檔本身會盡量維持精簡。大型模型和執行環境會在第一次使用相關功能時下載到指定的資料夾，之後會直接重複使用快取。
+Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 的 Python 環境，以及 Metal 執行環境。Gemma、OCR 和圖片修補模型權重會在第一次使用時通過檢查碼驗證後下載，之後會直接重複使用快取。v1.6.4 的 macOS 版本採用無憑證的 ad-hoc 簽章，因此如果 Gatekeeper 阻擋第一次啟動，可能需要前往 `系統設定 → 隱私權與安全性` 手動允許。macOS 資料儲存在 `~/Library/Application Support/manga-gemma-translator`。
 
 ## 快速開始
 
-1. 前往 [Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)，下載並安裝類似 `CarrotMangaTranslator-Setup-v1.6.3.exe` 的最新安裝檔。
+1. 前往 [v1.6.4 正式版](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.6.4)，Windows 使用者下載 `CarrotMangaTranslator-Setup-v1.6.4.exe`，Apple Silicon 使用者下載 arm64 DMG 或 ZIP。如果 macOS 阻擋第一次啟動，請前往 `系統設定 → 隱私權與安全性` 手動允許此應用程式。
 2. 在 `設定 → 一般` 中確認應用程式介面語言。第一次啟動時會自動選擇支援的 Windows 語言，其他語言環境則預設使用韓文。
 3. 在 `設定 → 翻譯引擎` 中選擇原文語言、譯文語言和翻譯引擎。
    - 想在自己的電腦上處理時，選擇 `Gemma 4`
@@ -226,11 +225,11 @@ API 引擎會在 Base URL 後加上 `/chat/completions`，並傳送圖片和 OCR
 <details>
 <summary><strong>NVIDIA 與 AMD 處理方式</strong></summary>
 
-| 工作       | NVIDIA                       | AMD                          | 備用方式           |
-| ---------- | ---------------------------- | ---------------------------- | ------------------ |
-| Gemma      | CUDA 12、RTX 50 專用執行環境 | ROCm 或 Vulkan               | 使用較小的模型預設 |
-| Paddle OCR | NVIDIA CUDA                  | 在支援的 GPU 上使用 AMD ROCm | CPU 最小/省資源    |
-| Flux       | NVIDIA CUDA                  | ZLUDA + AMD HIP SDK          | CPU                |
+| 工作       | NVIDIA                       | AMD                          | 使用者手動選擇的替代方式 |
+| ---------- | ---------------------------- | ---------------------------- | ------------------------ |
+| Gemma      | CUDA 12、RTX 50 專用執行環境 | ROCm 或 Vulkan               | 使用較小的模型預設       |
+| Paddle OCR | NVIDIA CUDA                  | 在支援的 GPU 上使用 AMD ROCm | CPU 最小/省資源          |
+| Flux       | NVIDIA CUDA                  | ZLUDA + AMD HIP SDK          | CPU                      |
 
 AMD Gemma 會自動尋找適合 GPU 和驅動程式的 ROCm target。如果自動偵測不正確，進階使用者可參考以下範例手動指定。
 
@@ -238,7 +237,7 @@ AMD Gemma 會自動尋找適合 GPU 和驅動程式的 ROCm target。如果自�
 $env:MANGA_TRANSLATOR_AMD_ROCM_TARGET = "gfx110X"
 ```
 
-AMD ZLUDA 圖片修補需要安裝 [Windows 版 AMD HIP SDK](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html)。OCR GPU 失敗時，應用程式會改用 CPU 繼續處理剩餘頁面，而 Gemma 仍可繼續使用 AMD GPU。
+AMD ZLUDA 圖片修補需要安裝 [Windows 版 AMD HIP SDK](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html)。OCR GPU 失敗時，應用程式會停止工作並顯示錯誤。若要改用 CPU 繼續處理，請在設定中明確將 OCR 裝置切換為 CPU；Gemma 仍可繼續使用 AMD GPU。
 
 </details>
 

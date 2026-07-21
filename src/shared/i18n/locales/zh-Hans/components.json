@@ -1049,9 +1049,9 @@
       "memory": {
         "summary": "统一内存{{available}} · 建议{{required}} · 首次下载约{{download}}",
         "sufficient": "这是此内存档位的建议模型。",
-        "insufficient": "比建议容量少{{shortage}}。选择该模型后可确认并进行有风险的Alpha测试。",
+        "insufficient": "比建议容量少{{shortage}}。选择该模型后可确认并进行有风险的运行。",
         "unsafeAllowed": "此配置已允许在少{{shortage}}的情况下进行风险运行。",
-        "unsafeConfirm": "此Mac的统一内存为{{available}}，所选模型建议{{required}}。首次下载约{{download}}，可能需要较长时间。应用可能退出或导致系统极其缓慢。是否允许此Apple Silicon Alpha风险运行？"
+        "unsafeConfirm": "此Mac的统一内存为{{available}}，所选模型建议{{required}}。首次下载约{{download}}，可能需要较长时间。应用可能退出或导致系统极其缓慢。是否允许此次风险运行？"
       },
       "local": {
         "modelFile": "本地模型文件",
@@ -1126,27 +1126,16 @@
       "ocrDevice": "Paddle OCR设备",
       "fluxBackend": "Flux图像修复后端",
       "inpaintingModel": "图像修复模型",
-      "bubbleDetection": "气泡检测",
-      "bubbleDetectionModes": {
-        "auto": {
-          "label": "自动",
-          "description": "无需额外下载，根据 OCR 区域和图像特征快速分离气泡并保护轮廓。"
-        },
-        "precise": {
-          "label": "精确",
-          "description": "使用专用分割模型检测气泡。首次使用时下载约 104MB 的模型。"
-        }
-      },
       "amdOcrExperimental": "AMD GPU OCR为实验功能。如失败，可仅将OCR切换到CPU。",
       "ocrAmdNote": "AMD环境无法选择NVIDIA CUDA OCR。",
-      "ocrAppleNote": "Apple Silicon Alpha上的Paddle OCR使用CPU运行时。",
+      "ocrAppleNote": "Apple Silicon上的Paddle OCR使用CPU运行时。",
       "ocrNvidiaNote": "NVIDIA环境无法选择AMD ROCm OCR。",
       "fluxAmdNote": "检测到AMD GPU，无法使用CUDA原生后端；请选择ZLUDA或CPU。",
       "fluxAppleNote": "Apple Silicon仅使用原生Metal后端。Flux建议至少16GB统一内存。",
       "fluxNvidiaNote": "检测到NVIDIA GPU，将使用CUDA原生后端而不是ZLUDA。",
       "fluxOnlyNote": "此后端设置仅适用于Flux Klein模型。",
-      "fluxLowMemoryConfirm": "统一内存{{available}}低于Flux建议的16GB。是否允许风险Alpha运行？",
-      "fluxLowMemoryOverride": "允许在{{available}}统一内存下风险运行Flux Alpha",
+      "fluxLowMemoryConfirm": "统一内存{{available}}低于Flux建议的16GB。是否允许风险运行？",
+      "fluxLowMemoryOverride": "允许在{{available}}统一内存下风险运行Flux",
       "downloadHipSdk": "下载AMD HIP SDK（ROCm 7.1.1）"
     },
     "format": {

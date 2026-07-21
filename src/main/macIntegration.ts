@@ -9,7 +9,10 @@ import {
 import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { APP_MAC_ALPHA_ISSUE_URL } from "../shared/appRelease";
+import {
+  APP_MAC_ALPHA_ISSUE_URL,
+  resolveMacIssueMenuTarget,
+} from "../shared/appRelease";
 import { isAppleSiliconAlpha } from "./buildChannel";
 import { tMain } from "./i18n";
 
@@ -21,6 +24,8 @@ export function installNativeApplicationMenu(): void {
     Menu.setApplicationMenu(null);
     return;
   }
+  const alpha = isAppleSiliconAlpha();
+  const issueMenuTarget = resolveMacIssueMenuTarget(alpha);
   const template: MenuItemConstructorOptions[] = [
     {
       label: app.name,
@@ -47,8 +52,8 @@ export function installNativeApplicationMenu(): void {
       role: "help",
       submenu: [
         {
-          label: tMain("macAlpha.reportIssueMenu"),
-          click: () => void shell.openExternal(APP_MAC_ALPHA_ISSUE_URL),
+          label: tMain(issueMenuTarget.labelKey),
+          click: () => void shell.openExternal(issueMenuTarget.url),
         },
       ],
     },

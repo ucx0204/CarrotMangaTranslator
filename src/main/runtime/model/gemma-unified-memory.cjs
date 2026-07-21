@@ -61,7 +61,7 @@ function assertGemmaUnifiedMemoryPolicy(options = {}) {
   if (evaluation.allowed) return evaluation;
   const error = /** @type {Error & Record<string, unknown>} */ (
     new Error(
-      "선택한 Gemma 모델에 권장되는 Apple 통합 메모리가 부족합니다. Apple Silicon Alpha 위험 확인 후에만 강제 실행할 수 있습니다.",
+      "선택한 Gemma 모델에 권장되는 Apple 통합 메모리가 부족합니다. 메모리 부족 위험을 명시적으로 확인한 뒤에만 강제 실행할 수 있습니다.",
     )
   );
   Object.assign(error, {
