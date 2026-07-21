@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
+import { resolveBlockTextWordBreak } from "../../../shared/textWrapping";
 import { BlockSpacingFields } from "./BlockSpacingFields";
 import { FontSizeNumberInput } from "./FontSizeNumberInput";
 import { FontSelect } from "./FontSelect";
@@ -11,6 +12,7 @@ import { Button } from "./ui/Button";
 import { FieldSlider, FieldSliderGroup } from "./ui/FieldSlider";
 import { IconButton } from "./ui/IconButton";
 import { RangeInput } from "./ui/Field";
+import { TextWrappingSelect } from "./TextWrappingSelect";
 import {
   AlignCenterIcon,
   AlignLeftIcon,
@@ -78,18 +80,14 @@ export function FormatEditorGroup({
           onClose={() => setApplyOpen(false)}
         />
       ) : null}
-      <StyleToolbar
-        block={block}
-        disabled={disabled}
-        model={model}
-        onUpdate={onUpdate}
-      />
+      <StyleToolbar {...{ block, disabled, model, onUpdate }} />
       <FontField
         disabled={disabled}
         fontFamilyDraft={fontFamilyDraft}
         onFontFamilyDraftChange={onFontFamilyDraftChange}
         onUpdate={onUpdate}
       />
+      <TextWrappingField {...{ block, disabled, onUpdate }} />
       <FieldSliderGroup>
         <FontSizeRow
           autoFitText={model.autoFitText}
@@ -110,6 +108,28 @@ export function FormatEditorGroup({
         />
       </FieldSliderGroup>
     </div>
+  );
+}
+
+function TextWrappingField({
+  block,
+  disabled,
+  onUpdate,
+}: BlockSectionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <label className="editor-word-break-field">
+      <span>{t("format.wordBreak.label")}</span>
+      <TextWrappingSelect
+        ariaLabel={t("format.wordBreak.label")}
+        value={resolveBlockTextWordBreak(
+          block.wordBreak,
+          block.renderDirection,
+        )}
+        disabled={disabled}
+        onChange={(wordBreak) => onUpdate({ wordBreak })}
+      />
+    </label>
   );
 }
 

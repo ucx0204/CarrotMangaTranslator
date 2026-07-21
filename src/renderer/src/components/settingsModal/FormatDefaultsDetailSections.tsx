@@ -10,6 +10,7 @@ import {
   DirectSectionHeading,
   FormatSliderControl,
 } from "../gatherText/GatherTextDirectFormatPrimitives";
+import { TextWrappingSelect } from "../TextWrappingSelect";
 
 type DetailSectionProps = {
   value: BlockFormatDefaults;
@@ -106,6 +107,18 @@ export function FormatDefaultsFineTuningSection({
     <section className="gather-direct-editor-section">
       <DirectSectionHeading title={t("gatherText.detailsSection")} />
       <div className="gather-direct-editor-slider-grid">
+        <label className="gather-direct-select-control">
+          <DirectControlCaption
+            label={t("format.wordBreak.label")}
+            mixed={false}
+            touched={false}
+          />
+          <TextWrappingSelect
+            ariaLabel={t("format.wordBreak.label")}
+            value={value.wordBreak}
+            onChange={(wordBreak) => onChange({ wordBreak })}
+          />
+        </label>
         <FormatSliderControl
           label={t("format.lineHeight")}
           valueLabel={value.lineHeight.toFixed(2)}

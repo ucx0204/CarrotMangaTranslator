@@ -25,6 +25,13 @@ describe("FormatDefaultsPanel", () => {
     expect(screen.getByRole("slider", { name: "자간" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "장평" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "글자 투명도" })).toBeTruthy();
+    expect(
+      (
+        screen.getByRole("combobox", {
+          name: "줄바꿈 방식",
+        }) as HTMLSelectElement
+      ).value,
+    ).toBe("break-word");
   });
 
   it("updates the live preview while keeping sample text out of settings", () => {
@@ -97,6 +104,24 @@ describe("FormatDefaultsPanel", () => {
         .textShadow,
     ).toBe("none");
     expect(onChange).toHaveBeenLastCalledWith({ outlineEnabled: false });
+  });
+
+  it("updates the default wrapping mode and its live preview", () => {
+    const onChange = vi.fn();
+    const { container } = renderPanel(onChange);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "줄바꿈 방식" }), {
+      target: { value: "keep-all" },
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith({ wordBreak: "keep-all" });
+    expect(
+      container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
+        .wordBreak,
+    ).toBe("keep-all");
+    expect(
+      screen.getByText("단어를 자르지 않고 단어 사이에서 줄을 바꿉니다."),
+    ).toBeTruthy();
   });
 });
 

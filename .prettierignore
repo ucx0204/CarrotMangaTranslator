@@ -4,6 +4,7 @@ dist
 release
 tools/mgt-koharu-inpaint-runner/target
 /library
+ocr-runtime
 data
 .tmp
 coverage

@@ -33,6 +33,7 @@ describe("GatherTextDirectFormatModal", () => {
     expect(screen.getByRole("slider", { name: "장평" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "회전" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "글자 투명도" })).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "줄바꿈 방식" })).toBeTruthy();
   });
 
   it("uses a live preview and applies only controls the user changes", () => {
@@ -127,6 +128,43 @@ describe("GatherTextDirectFormatModal", () => {
     expect(selection.apply).toHaveBeenCalledWith({ textOpacity: 0.45 });
   });
 
+  it("previews and applies wrapping without exposing CSS names", () => {
+    const selection = makeSelection();
+    const { container } = renderModal(selection);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "줄바꿈 방식" }), {
+      target: { value: "break-word" },
+    });
+
+    expect(
+      screen.getByRole("option", { name: "긴 문자열 넘침 방지" }),
+    ).toBeTruthy();
+    expect(screen.queryByText("break-word")).toBeNull();
+    expect(
+      container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
+        .wordBreak,
+    ).toBe("break-word");
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+    expect(selection.apply).toHaveBeenCalledWith({ wordBreak: "break-word" });
+  });
+
+  it("replaces a mixed wrapping value only after the user chooses one", () => {
+    const selection = makeSelection([
+      makeBlock({ wordBreak: "keep-all" }),
+      makeBlock({ wordBreak: "break-all" }),
+    ]);
+    renderModal(selection);
+
+    const select = screen.getByRole("combobox", { name: "줄바꿈 방식" });
+    expect((select as HTMLSelectElement).selectedOptions[0]?.textContent).toBe(
+      "혼합",
+    );
+
+    fireEvent.change(select, { target: { value: "keep-all" } });
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+    expect(selection.apply).toHaveBeenCalledWith({ wordBreak: "keep-all" });
+  });
+
   it("can explicitly switch mixed selections back to the configured default font", () => {
     const selection = makeSelection();
     renderModal(selection);
@@ -184,7 +222,12 @@ function renderModal(selection: GatherTextFormatSelection) {
   );
 }
 
-function makeSelection(): GatherTextFormatSelection {
+function makeSelection(
+  blocks: TranslationBlock[] = [
+    makeBlock({ fontFamily: "nanum-gothic", fontSizePx: 24 }),
+    makeBlock({ fontFamily: "seoul-hangang", fontSizePx: 36 }),
+  ],
+): GatherTextFormatSelection {
   return {
     apply: vi.fn(),
     clear: vi.fn(),
@@ -192,10 +235,7 @@ function makeSelection(): GatherTextFormatSelection {
     disabled: false,
     enterSelectionMode: vi.fn(),
     exitSelectionMode: vi.fn(),
-    formatModel: deriveGatherTextDirectFormatModel([
-      makeBlock({ fontFamily: "nanum-gothic", fontSizePx: 24 }),
-      makeBlock({ fontFamily: "seoul-hangang", fontSizePx: 36 }),
-    ]),
+    formatModel: deriveGatherTextDirectFormatModel(blocks),
     isFormatModalOpen: true,
     isSelectionMode: true,
     isSelected: () => true,

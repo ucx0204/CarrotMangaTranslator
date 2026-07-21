@@ -646,6 +646,32 @@ describe("IPC schemas", () => {
     expect(parsed.fontWidthScale).toBe(0.8);
   });
 
+  it("accepts only supported optional line-breaking modes on translation blocks", () => {
+    const block = makeChapterSnapshot().pages[0].blocks[0];
+
+    expect(TranslationBlockSchema.safeParse(block).success).toBe(true);
+    for (const wordBreak of [
+      "normal",
+      "break-all",
+      "keep-all",
+      "break-word",
+    ] as const) {
+      const parsed = parseIpcPayload(
+        TranslationBlockSchema,
+        { ...block, wordBreak },
+        "블록",
+      );
+      expect(parsed.wordBreak).toBe(wordBreak);
+    }
+    expect(() =>
+      parseIpcPayload(
+        TranslationBlockSchema,
+        { ...block, wordBreak: "anywhere" },
+        "블록",
+      ),
+    ).toThrow(/요청 형식/);
+  });
+
   it("accepts only a normalized text opacity on translation blocks", () => {
     const block = makeChapterSnapshot().pages[0].blocks[0];
     const parsed = parseIpcPayload(

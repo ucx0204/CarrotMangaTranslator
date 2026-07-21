@@ -47,60 +47,297 @@ function styledRuns(block) {
   });
 }
 
-function measureStyledWrappedText(runs, maxWidth, lineHeightPx, fontSize, fontFamily, letterSpacingPx) {
-  const lines = [];
-  let lineRuns = [];
-  let lineCount = 0;
-  let lineWidth = 0;
-  let maxLineWidth = 0;
-  let lineHasContent = false;
+let graphemeSegmenter;
+let wordSegmenter;
 
-  const breakLine = function () {
-    lines.push({ runs: lineRuns, width: lineWidth });
-    maxLineWidth = Math.max(maxLineWidth, lineWidth);
-    lineCount += 1;
-    lineRuns = [];
-    lineWidth = 0;
-    lineHasContent = false;
-  };
+function wordBreakFor(block) {
+  const value = block && block.wordBreak;
+  if (
+    value === "normal" ||
+    value === "break-all" ||
+    value === "keep-all" ||
+    value === "break-word"
+  ) {
+    return value;
+  }
+  return block && block.renderDirection === "vertical"
+    ? "break-word"
+    : "break-all";
+}
 
-  const appendChar = function (char, bold, italic) {
-    const lastRun = lineRuns[lineRuns.length - 1];
-    if (lastRun && lastRun.bold === bold && lastRun.italic === italic) {
-      lastRun.text += char;
-      return;
-    }
-    lineRuns.push({ text: char, bold: bold, italic: italic });
-  };
+function segmentGraphemes(value) {
+  const text = value == null ? "" : String(value);
+  if (graphemeSegmenter === undefined) {
+    graphemeSegmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
+      ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+      : null;
+  }
+  if (graphemeSegmenter) {
+    return Array.from(graphemeSegmenter.segment(text), function (entry) { return entry.segment; });
+  }
+  return segmentGraphemesFallback(text);
+}
 
-  for (const run of runs) {
-    context.font = graphemeFont(run, fontSize, fontFamily);
-    for (const char of Array.from(run.text)) {
-      if (char === "\\n") {
-        breakLine();
-        continue;
-      }
-      const charWidth = context.measureText(char).width;
-      const advance = charWidth + (lineHasContent ? letterSpacingPx : 0);
-      if (lineHasContent && lineWidth + advance > maxWidth) {
-        breakLine();
-        appendChar(char, run.bold, run.italic);
-        lineWidth = charWidth;
-      } else {
-        appendChar(char, run.bold, run.italic);
-        lineWidth += advance;
-      }
-      lineHasContent = true;
+function segmentGraphemesFallback(value) {
+  const clusters = [];
+  for (const point of Array.from(value)) {
+    const previous = clusters[clusters.length - 1];
+    if (!previous || !shouldJoinPreviousCluster(previous, point)) {
+      clusters.push(point);
+    } else {
+      clusters[clusters.length - 1] = previous + point;
     }
   }
-  breakLine();
+  return clusters;
+}
 
+function shouldJoinPreviousCluster(previous, point) {
+  if (isGraphemeExtend(point) || point === "\\u200d") return true;
+  if (previous.endsWith("\\u200d")) return true;
+  return isRegionalIndicator(point) && hasOddRegionalIndicatorCount(previous);
+}
+
+function isGraphemeExtend(value) {
+  const codePoint = value.codePointAt(0) || 0;
+  return /\\p{Mark}/u.test(value) ||
+    (codePoint >= 0xfe00 && codePoint <= 0xfe0f) ||
+    (codePoint >= 0x1f3fb && codePoint <= 0x1f3ff) ||
+    (codePoint >= 0xe0020 && codePoint <= 0xe007f);
+}
+
+function isRegionalIndicator(value) {
+  const codePoint = value.codePointAt(0) || 0;
+  return codePoint >= 0x1f1e6 && codePoint <= 0x1f1ff;
+}
+
+function hasOddRegionalIndicatorCount(value) {
+  const points = Array.from(value);
+  return points.length > 0 && points.every(isRegionalIndicator) && points.length % 2 === 1;
+}
+
+function normalizeNewlines(value) {
+  return String(value == null ? "" : value).replace(/\\r\\n?/g, "\\n");
+}
+
+function measureStyledGraphemes(runs, fontSize, fontFamily) {
+  const normalizedRuns = runs.map(function (run) {
+    return { text: normalizeNewlines(run.text), bold: !!run.bold, italic: !!run.italic };
+  });
+  const combinedText = normalizedRuns.map(function (run) { return run.text; }).join("");
+  const graphemes = [];
+  let runIndex = 0;
+  let runEnd = normalizedRuns[0] ? normalizedRuns[0].text.length : 0;
+  let textOffset = 0;
+  for (const text of segmentGraphemes(combinedText)) {
+    while (runIndex < normalizedRuns.length - 1 && textOffset >= runEnd) {
+      runIndex += 1;
+      runEnd += normalizedRuns[runIndex] ? normalizedRuns[runIndex].text.length : 0;
+    }
+    const run = normalizedRuns[runIndex] || { bold: false, italic: false };
+    context.font = graphemeFont(run, fontSize, fontFamily);
+    graphemes.push({
+      text: text,
+      bold: !!run.bold,
+      italic: !!run.italic,
+      width: text === "\\n" ? 0 : context.measureText(text).width
+    });
+    textOffset += text.length;
+  }
+  return graphemes;
+}
+
+function measureStyledWrappedText(runs, maxWidth, lineHeightPx, fontSize, fontFamily, letterSpacingPx, wordBreak) {
+  return measureWrappedGraphemes(
+    measureStyledGraphemes(runs, fontSize, fontFamily),
+    maxWidth,
+    lineHeightPx,
+    letterSpacingPx,
+    wordBreak
+  );
+}
+
+function measureUniformWrappedText(text, maxWidth, lineHeightPx, graphemeAdvancePx, wordBreak) {
+  const graphemes = segmentGraphemes(normalizeNewlines(text)).map(function (value) {
+    return {
+      text: value,
+      bold: false,
+      italic: false,
+      width: value === "\\n" ? 0 : graphemeAdvancePx
+    };
+  });
+  return measureWrappedGraphemes(graphemes, maxWidth, lineHeightPx, 0, wordBreak);
+}
+
+function measureWrappedGraphemes(graphemes, maxWidth, lineHeightPx, letterSpacingPx, wordBreak) {
+  const lines = [];
+  let paragraph = [];
+  const flushParagraph = function () {
+    lines.push.apply(lines, wrapParagraph(paragraph, maxWidth, letterSpacingPx, wordBreak));
+    paragraph = [];
+  };
+  for (const grapheme of graphemes) {
+    if (grapheme.text === "\\n") flushParagraph();
+    else paragraph.push(grapheme);
+  }
+  flushParagraph();
+  let maxLineWidth = 0;
+  for (const line of lines) maxLineWidth = Math.max(maxLineWidth, line.width);
   return {
     lines: lines,
-    lineCount: lineCount,
-    totalHeight: lineCount * lineHeightPx,
+    lineCount: lines.length,
+    totalHeight: lines.length * lineHeightPx,
     maxLineWidth: maxLineWidth
   };
+}
+
+function wrapParagraph(graphemes, maxWidth, letterSpacingPx, wordBreak) {
+  if (!graphemes.length) return [{ runs: [], width: 0 }];
+  if (wordBreak === "break-all") return wrapEagerly(graphemes, maxWidth, letterSpacingPx);
+  return wrapNaturalUnits(
+    buildNaturalUnits(graphemes, wordBreak !== "keep-all"),
+    maxWidth,
+    letterSpacingPx,
+    wordBreak === "break-word"
+  );
+}
+
+function wrapNaturalUnits(units, maxWidth, letterSpacingPx, emergencyBreak) {
+  const lines = [];
+  let line = [];
+  let lineWidth = 0;
+  const pushLine = function () {
+    lines.push(toBlockTextLine(line, lineWidth));
+    line = [];
+    lineWidth = 0;
+  };
+  for (const unit of units) {
+    const unitWidth = measureGraphemeSequence(unit, letterSpacingPx);
+    const combinedWidth = lineWidth + (line.length ? letterSpacingPx : 0) + unitWidth;
+    if (line.length && combinedWidth > maxWidth) pushLine();
+    if (emergencyBreak && unitWidth > maxWidth) {
+      const emergencyLines = wrapEagerly(unit, maxWidth, letterSpacingPx);
+      lines.push.apply(lines, emergencyLines.slice(0, -1));
+      const finalLine = emergencyLines[emergencyLines.length - 1];
+      line = finalLine ? lineFromRuns(finalLine.runs, unit) : [];
+      lineWidth = finalLine ? finalLine.width : 0;
+      continue;
+    }
+    if (line.length) lineWidth += letterSpacingPx;
+    line.push.apply(line, unit);
+    lineWidth += unitWidth;
+  }
+  pushLine();
+  return lines;
+}
+
+function wrapEagerly(graphemes, maxWidth, letterSpacingPx) {
+  const lines = [];
+  let line = [];
+  let lineWidth = 0;
+  const pushLine = function () {
+    lines.push(toBlockTextLine(line, lineWidth));
+    line = [];
+    lineWidth = 0;
+  };
+  for (const grapheme of graphemes) {
+    const advance = grapheme.width + (line.length ? letterSpacingPx : 0);
+    if (line.length && lineWidth + advance > maxWidth) pushLine();
+    if (line.length) lineWidth += letterSpacingPx;
+    line.push(grapheme);
+    lineWidth += grapheme.width;
+  }
+  pushLine();
+  return lines;
+}
+
+function buildNaturalUnits(graphemes, allowCjkBreaks) {
+  const units = [];
+  const wordBreakOffsets = resolveNaturalWordBreakOffsets(graphemes);
+  let unit = [];
+  let textOffset = 0;
+  for (const grapheme of graphemes) {
+    const previous = unit[unit.length - 1];
+    if (previous && isNaturalBreakBetween(
+      previous.text,
+      grapheme.text,
+      allowCjkBreaks,
+      wordBreakOffsets.has(textOffset)
+    )) {
+      units.push(unit);
+      unit = [];
+    }
+    unit.push(grapheme);
+    textOffset += grapheme.text.length;
+  }
+  if (unit.length) units.push(unit);
+  return units;
+}
+
+function isNaturalBreakBetween(previous, next, allowCjkBreaks, hasWordBoundary) {
+  if (isWhitespace(next)) return false;
+  if (isOpeningPunctuation(previous) || isClosingPunctuation(next)) return false;
+  if (isWhitespace(previous) || isBreakAfterPunctuation(previous) || isClosingPunctuation(previous)) return true;
+  if (hasWordBoundary && (allowCjkBreaks || (!isCjk(previous) && !isCjk(next)))) return true;
+  return allowCjkBreaks && (isCjk(previous) || isCjk(next));
+}
+
+function resolveNaturalWordBreakOffsets(graphemes) {
+  if (wordSegmenter === undefined) {
+    wordSegmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
+      ? new Intl.Segmenter(undefined, { granularity: "word" })
+      : null;
+  }
+  if (!wordSegmenter) return new Set();
+  const text = graphemes.map(function (grapheme) { return grapheme.text; }).join("");
+  return new Set(Array.from(wordSegmenter.segment(text), function (entry) {
+    return entry.index;
+  }).filter(function (index) { return index > 0; }));
+}
+
+function measureGraphemeSequence(graphemes, letterSpacingPx) {
+  return graphemes.reduce(function (width, grapheme, index) {
+    return width + grapheme.width + (index ? letterSpacingPx : 0);
+  }, 0);
+}
+
+function toBlockTextLine(graphemes, width) {
+  const runs = [];
+  for (const grapheme of graphemes) {
+    const lastRun = runs[runs.length - 1];
+    if (lastRun && lastRun.bold === grapheme.bold && lastRun.italic === grapheme.italic) {
+      lastRun.text += grapheme.text;
+    } else {
+      runs.push({ text: grapheme.text, bold: grapheme.bold, italic: grapheme.italic });
+    }
+  }
+  return { runs: runs, width: width };
+}
+
+function lineFromRuns(runs, candidates) {
+  const count = runs.reduce(function (total, run) {
+    return total + segmentGraphemes(run.text).length;
+  }, 0);
+  return candidates.slice(Math.max(0, candidates.length - count));
+}
+
+function isWhitespace(value) {
+  return /^\\s+$/u.test(value) || value === "\\u200b";
+}
+
+function isCjk(value) {
+  return /[\\p{Script=Han}\\p{Script=Hangul}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Bopomofo}]/u.test(value);
+}
+
+function isOpeningPunctuation(value) {
+  return "([{<«“‘「『（［｛〈《【〔〖〘〚".includes(value);
+}
+
+function isClosingPunctuation(value) {
+  return ")]}>»”’,.!?:;」』）］｝〉》】〕〗〙〛、。，．！？：；…".includes(value);
+}
+
+function isBreakAfterPunctuation(value) {
+  return "-‐‑‒–—―/".includes(value);
 }
 
 function resolveFixedHorizontalTextLines(block, fontSize, contentWidth) {
@@ -113,7 +350,8 @@ function resolveFixedHorizontalTextLines(block, fontSize, contentWidth) {
     fontSize * block.lineHeight,
     fontSize,
     block.fontFamily,
-    letterSpacingPxFor(block, fontSize)
+    letterSpacingPxFor(block, fontSize),
+    wordBreakFor(block)
   ).lines;
 }
 
@@ -128,7 +366,8 @@ function measureHorizontal(block, fontSize, innerWidth) {
     fontSize * block.lineHeight,
     fontSize,
     block.fontFamily,
-    letterSpacingPxFor(block, fontSize)
+    letterSpacingPxFor(block, fontSize),
+    wordBreakFor(block)
   );
   return {
     totalHeight: measured.totalHeight,
@@ -140,11 +379,18 @@ function fits(block, fontSize, innerWidth, innerHeight) {
   const scaleX = fontWidthScaleFor(block);
   if (block.renderDirection === "vertical") {
     if (!block.text.trim()) return true;
-    const verticalSlots = Array.from(block.text.replace(/\\r/g, "").replace(/\\n/g, " "));
     const verticalAdvance = fontSize * block.lineHeight + letterSpacingPxFor(block, fontSize);
-    const charsPerColumn = Math.max(1, Math.floor(innerHeight / Math.max(fontSize, verticalAdvance)));
-    const columnCount = Math.max(1, Math.ceil(verticalSlots.length / charsPerColumn));
-    return columnCount <= 2 && columnCount * fontSize * 1.15 * scaleX <= innerWidth;
+    const measured = measureUniformWrappedText(
+      block.text,
+      innerHeight,
+      1,
+      Math.max(fontSize, verticalAdvance),
+      wordBreakFor(block)
+    );
+    const columnCount = Math.max(1, measured.lineCount);
+    return columnCount <= 2 &&
+      columnCount * fontSize * 1.15 * scaleX <= innerWidth &&
+      measured.maxLineWidth <= innerHeight;
   }
   const effectiveWidth = innerWidth / scaleX;
   const measured = measureHorizontal(block, fontSize, effectiveWidth);
@@ -217,6 +463,13 @@ function resolveFontWidthOrigin(block) {
   return "center center";
 }
 
+function wordBreakCssFor(block) {
+  const wordBreak = wordBreakFor(block);
+  return wordBreak === "break-word"
+    ? { wordBreak: wordBreak, overflowWrap: "anywhere" }
+    : { wordBreak: wordBreak, overflowWrap: "normal" };
+}
+
 function applyTextLayout(block, textWrap, textContent) {
   const rect = block.rect;
   const fontSize = resolveFontSize(block, Math.max(1, rect.width), Math.max(1, rect.height));
@@ -225,6 +478,7 @@ function applyTextLayout(block, textWrap, textContent) {
     ? Math.max(1, rect.width)
     : Math.max(1, rect.width / scaleX);
   const fixedLines = resolveFixedHorizontalTextLines(block, fontSize, textContentWidth);
+  const breakStyle = wordBreakCssFor(block);
 
   textWrap.style.color = block.textColor;
   textWrap.style.fontFamily = block.fontFamily;
@@ -242,8 +496,8 @@ function applyTextLayout(block, textWrap, textContent) {
   textContent.style.maxWidth = "100%";
   textContent.style.maxHeight = "100%";
   textContent.style.overflow = "visible";
-  textContent.style.overflowWrap = fixedLines ? "normal" : "";
-  textContent.style.wordBreak = fixedLines ? "normal" : "";
+  textContent.style.overflowWrap = breakStyle.overflowWrap;
+  textContent.style.wordBreak = breakStyle.wordBreak;
   textContent.style.whiteSpace = fixedLines ? "normal" : "";
   textContent.style.fontWeight = block.bold ? "800" : "400";
   textContent.style.fontStyle = block.italic ? "italic" : "normal";
@@ -300,15 +554,11 @@ function canRenderCurveText(block) {
   );
 }
 
-function segmentGraphemes(value) {
-  const text = value == null ? "" : String(value);
-  return Array.from(text);
-}
-
 function styledGlyphs(block) {
   const glyphs = [];
   for (const run of styledRuns(block)) {
-    for (const text of segmentGraphemes(run.text)) {
+    // Curve layout remains its existing one-code-point-per-glyph path.
+    for (const text of Array.from(run.text)) {
       glyphs.push({ text: text, bold: run.bold, italic: run.italic });
     }
   }

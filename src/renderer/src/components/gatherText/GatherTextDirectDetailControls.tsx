@@ -14,6 +14,7 @@ import {
   DirectSliderControl,
   type DirectSliderField,
 } from "./GatherTextDirectFormatPrimitives";
+import { TextWrappingSelect } from "../TextWrappingSelect";
 import {
   hasDirectFormatField,
   resolveControlState,
@@ -94,6 +95,7 @@ function AdvancedControls({
         description={t("gatherText.detailsHint")}
       />
       <div className="gather-direct-editor-slider-grid">
+        <WordBreakControl {...{ disabled, model, patch, onChange }} />
         {configs.map((config) => (
           <DirectSliderControl
             key={config.field}
@@ -104,6 +106,36 @@ function AdvancedControls({
         ))}
       </div>
     </section>
+  );
+}
+
+function WordBreakControl({
+  disabled,
+  model,
+  patch,
+  onChange,
+}: DetailControlProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const state = resolveControlState(model.values, patch, "wordBreak");
+  const touched = hasDirectFormatField(patch, "wordBreak");
+  return (
+    <label
+      className="gather-direct-select-control"
+      data-touched={touched || undefined}
+    >
+      <DirectControlCaption
+        label={t("format.wordBreak.label")}
+        mixed={state.kind === "mixed"}
+        touched={touched}
+      />
+      <TextWrappingSelect
+        ariaLabel={t("format.wordBreak.label")}
+        value={resolvePreviewValue(model, patch, "wordBreak")}
+        mixed={state.kind === "mixed" && !touched}
+        disabled={disabled}
+        onChange={(wordBreak) => onChange("wordBreak", wordBreak)}
+      />
+    </label>
   );
 }
 

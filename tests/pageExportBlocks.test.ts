@@ -120,6 +120,45 @@ describe("buildPageExportBlocks text opacity", () => {
   });
 });
 
+describe("buildPageExportBlocks line breaking", () => {
+  it("preserves legacy wrapping by render direction", () => {
+    const [legacyHorizontal] = buildPageExportBlocks(
+      makePage(makeBlock({ wordBreak: undefined })),
+      1000,
+      1000,
+      new Map(),
+    );
+    const [legacyVertical] = buildPageExportBlocks(
+      makePage(
+        makeBlock({ renderDirection: "vertical", wordBreak: undefined }),
+      ),
+      1000,
+      1000,
+      new Map(),
+    );
+
+    expect(legacyHorizontal.wordBreak).toBe("break-all");
+    expect(legacyVertical.wordBreak).toBe("break-word");
+  });
+
+  it("preserves every explicitly selected mode", () => {
+    for (const wordBreak of [
+      "normal",
+      "break-all",
+      "keep-all",
+      "break-word",
+    ] as const) {
+      const [exported] = buildPageExportBlocks(
+        makePage(makeBlock({ wordBreak })),
+        1000,
+        1000,
+        new Map(),
+      );
+      expect(exported.wordBreak).toBe(wordBreak);
+    }
+  });
+});
+
 describe("buildPageExportBlocks transforms", () => {
   it("exports the full rotation range with the shared canonical angle", () => {
     const [positive] = buildPageExportBlocks(

@@ -13,6 +13,7 @@ import {
   MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
 } from "./modelPresets";
+import { TEXT_WORD_BREAK_VALUES } from "./textWrapping";
 
 export { MAX_MAX_TOKENS, MIN_CONTEXT_TOKENS, MIN_MAX_TOKENS };
 
@@ -199,6 +200,7 @@ export const TranslationBlockSchema = z
     lineHeight: finiteNumber.min(0.5).max(4),
     letterSpacing: finiteNumber.min(-0.5).max(2).optional(),
     fontWidthScale: finiteNumber.min(0.5).max(1.5).optional(),
+    wordBreak: z.enum(TEXT_WORD_BREAK_VALUES).optional(),
     textAlign: z.enum(["left", "center", "right"]),
     textColor: hexColor,
     textOpacity: finiteNumber.min(0).max(1).optional(),

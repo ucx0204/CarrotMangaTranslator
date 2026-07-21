@@ -18,6 +18,7 @@ const PREVIEW_DEFAULTS: GatherTextDirectFormatValues = {
   autoFitText: false,
   textAlign: "center",
   renderDirection: "horizontal",
+  wordBreak: "normal",
   bold: false,
   italic: false,
   lineHeight: 1.18,

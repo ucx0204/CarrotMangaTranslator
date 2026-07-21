@@ -102,6 +102,7 @@ export function BlockFormatPreview({
                 textAlign: values.textAlign,
                 textShadow,
                 transform: `scaleX(${values.fontWidthScale})`,
+                ...resolvePreviewWrappingStyle(values.wordBreak),
                 writingMode: vertical ? "vertical-rl" : "horizontal-tb",
               } as React.CSSProperties
             }
@@ -115,6 +116,15 @@ export function BlockFormatPreview({
       </div>
     </section>
   );
+}
+
+function resolvePreviewWrappingStyle(
+  wordBreak: GatherTextDirectFormatValues["wordBreak"],
+): React.CSSProperties {
+  return {
+    overflowWrap: wordBreak === "break-word" ? "anywhere" : "normal",
+    wordBreak,
+  };
 }
 
 function BlockFormatPreviewHeader({

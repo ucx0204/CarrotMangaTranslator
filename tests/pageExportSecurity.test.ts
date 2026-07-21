@@ -222,9 +222,14 @@ describe("page export BrowserWindow security", () => {
     expect(latestWindow?.loadedHtml).toContain("rect.width / scaleX");
     expect(latestWindow?.loadedHtml).toContain("textWrap.style.opacity");
     expect(latestWindow?.loadedHtml).toContain(
-      'textContent.style.overflowWrap = fixedLines ? "normal" : "";',
+      "textContent.style.overflowWrap = breakStyle.overflowWrap;",
     );
+    expect(latestWindow?.loadedHtml).toContain(
+      "textContent.style.wordBreak = breakStyle.wordBreak;",
+    );
+    expect(latestWindow?.loadedHtml).toContain('wordBreak === "break-word"');
     expect(latestWindow?.loadedHtml).toContain('"renderDirection":"vertical"');
+    expect(latestWindow?.loadedHtml).toContain('"wordBreak":"break-word"');
   });
 
   it("escapes user text with markup so it can never become live HTML", async () => {

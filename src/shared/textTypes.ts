@@ -3,6 +3,7 @@ export type BlockType = "nonsolid";
 export type SourceTextDirection = "horizontal" | "vertical";
 export type RenderTextDirection = "horizontal" | "vertical";
 export type ReviewStatus = "draft" | "needs_review" | "reviewed";
+export type TextWordBreak = "normal" | "break-all" | "keep-all" | "break-word";
 
 export type BBox = {
   x: number;
@@ -61,6 +62,8 @@ export type TranslationBlock = {
   letterSpacing?: number;
   /** Horizontal glyph scale (장평). 1 = natural width. Undefined means 1. */
   fontWidthScale?: number;
+  /** Line-breaking policy. Undefined preserves the direction-specific legacy behavior. */
+  wordBreak?: TextWordBreak;
   textAlign: "left" | "center" | "right";
   textColor: string;
   /** Opacity of rendered text and its outline. Undefined means fully opaque. */

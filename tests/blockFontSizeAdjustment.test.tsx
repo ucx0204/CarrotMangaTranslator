@@ -153,6 +153,52 @@ describe("selected block font-size adjustment", () => {
     expect(onAdjustFontSize.mock.calls).toEqual([[-1], [1]]);
   });
 
+  it("edits line wrapping with user-facing labels", () => {
+    const onUpdate = vi.fn();
+    render(
+      <EditorPanel
+        block={makeBlock()}
+        disabled={false}
+        onAdjustFontSize={vi.fn()}
+        onDelete={vi.fn()}
+        onDuplicate={vi.fn()}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    const select = screen.getByRole("combobox", { name: "줄바꿈 방식" });
+    expect((select as HTMLSelectElement).value).toBe("break-all");
+    expect(screen.getByRole("option", { name: "글자 단위" })).toBeTruthy();
+    expect(
+      screen.getByText("단어 중간이라도 글자 단위로 줄을 바꿉니다."),
+    ).toBeTruthy();
+    expect(screen.queryByText("break-word")).toBeNull();
+
+    fireEvent.change(select, { target: { value: "break-word" } });
+    expect(onUpdate).toHaveBeenCalledWith({ wordBreak: "break-word" });
+  });
+
+  it("shows the legacy vertical wrapping behavior", () => {
+    render(
+      <EditorPanel
+        block={makeBlock({ renderDirection: "vertical" })}
+        disabled={false}
+        onAdjustFontSize={vi.fn()}
+        onDelete={vi.fn()}
+        onDuplicate={vi.fn()}
+        onUpdate={vi.fn()}
+      />,
+    );
+
+    expect(
+      (
+        screen.getByRole("combobox", {
+          name: "줄바꿈 방식",
+        }) as HTMLSelectElement
+      ).value,
+    ).toBe("break-word");
+  });
+
   it("keeps text opacity in formatting and block background opacity in editor display", () => {
     const onUpdate = vi.fn();
     const onApplyBlockBackgroundOpacity = vi.fn();
