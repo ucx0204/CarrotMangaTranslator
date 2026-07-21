@@ -424,7 +424,530 @@
     "addAll": "すべて追加",
     "resetTitle": "既存作品の状態に戻します",
     "finalList": "最終適用リスト",
-    "dragToReorder":…6721 tokens truncated…訳します。"
+    "dragToReorder": "ドラッグして並べ替え",
+    "finalListEmpty": "最終リストは空です。",
+    "candidates": "共有ファイルの候補",
+    "remaining": "残り{{count}}件",
+    "allChaptersInFinal": "すべての共有話が最終リストにあります。",
+    "toDelete": "削除予定",
+    "restoreItem": "{{title}}を復元",
+    "source": { "existing": "既存", "shared": "共有" },
+    "stats": {
+      "final": "最終 {{count}}件",
+      "toDelete": "削除予定 {{count}}件",
+      "remainingCandidates": "残り候補 {{count}}件"
+    }
+  },
+  "library": {
+    "title": "ライブラリ",
+    "searchLabel": "ライブラリを検索",
+    "searchPlaceholder": "作品/話を検索",
+    "noSearchResults": "検索結果がありません。",
+    "empty": "ライブラリに保存された作品はまだありません。",
+    "renameItem": "{{title}}の名前を変更",
+    "moveItem": "{{title}}を移動",
+    "moveDisabled": "検索中または処理中は移動できません。",
+    "sort": {
+      "trigger": "並べ替え: {{criterion}} {{direction}}",
+      "criteriaLabel": "並べ替え基準",
+      "criterion": "基準",
+      "directionLabel": "並べ替え方向",
+      "direction": { "asc": "昇順", "desc": "降順" }
+    }
+  },
+  "pageList": {
+    "empty": "読み込まれたページがありません。",
+    "moveItem": "{{name}}を移動",
+    "retranslate": "再翻訳",
+    "retranslateItem": "{{name}}を再翻訳",
+    "deleteItem": "{{name}}を削除"
+  },
+  "status": {
+    "title": "状態",
+    "empty": "表示する状態はまだありません。",
+    "completed": "完了",
+    "failed": "失敗",
+    "partiallyCompleted": "一部完了",
+    "waiting": "待機",
+    "inProgressShort": "進行",
+    "erased": "消去済み"
+  },
+  "runPanel": { "openChapterHint": "ライブラリから話を開いてください。" },
+  "areaTranslation": {
+    "title": "範囲翻訳",
+    "cancelSelection": "選択をキャンセル"
+  },
+  "stageToolbar": {
+    "show": "ツールバーを表示",
+    "showTitle": "ツールバーを表示（4）",
+    "hide": "ツールバーを隠す",
+    "hideTitle": "ツールバーを隠す（4）",
+    "imageTools": "画像ツール",
+    "radius": "{{radius}}px",
+    "tools": {
+      "select": { "label": "選択", "title": "選択ツール（1）" },
+      "block": {
+        "label": "ブロック",
+        "title": "ブロックツール（2）— ドラッグしてテキストブロックを追加"
+      },
+      "region": {
+        "label": "範囲翻訳",
+        "title": "範囲翻訳 — ドラッグした部分だけを再翻訳"
+      },
+      "hand": {
+        "label": "手のひら",
+        "title": "手のひらツール（3）— ドラッグして画像を移動"
+      },
+      "perspective": {
+        "label": "遠近",
+        "title": "遠近変形 — 4つの角を動かして面に合わせます"
+      },
+      "curve": {
+        "label": "曲線",
+        "title": "曲線テキスト — 効果音をパスに沿って配置します"
+      },
+      "mask": { "label": "マスク", "title": "マスクブラシ" },
+      "brush": { "label": "ブラシ", "title": "補正ブラシ" },
+      "eraser": { "label": "消しゴム", "title": "補正内容を消去" },
+      "picker": { "label": "色を抽出", "title": "キャンバスから色を抽出" }
+    }
+  },
+  "display": {
+    "title": "表示",
+    "backgroundBorders": "背景/枠線",
+    "showBlocks": "ブロックを表示",
+    "gatherText": "テキストをまとめて表示",
+    "styleGuide": "用語/記憶"
+  },
+  "overlay": {
+    "exclude": "除外",
+    "excluded": "除外済み",
+    "resize": "サイズ変更",
+    "includeInInpainting": "インペインティングに再度含める",
+    "excludeFromInpainting": "インペインティングから除外",
+    "excludedFromInpainting": "自動消去から除外されたブロック"
+  },
+  "imageStage": { "loadingImage": "画像を読み込み中" },
+  "install": {
+    "logLabel": "インストールログ",
+    "checkingLogs": "ログを確認中",
+    "preparingModel": "Gemma 4モデルを準備",
+    "installingOcr": "Paddle OCRをインストール"
+  },
+  "toast": { "close": "通知を閉じる", "region": "通知" },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "description": "画面の描画中にエラーが発生しました。作業内容はライブラリに保存されている可能性があります。再起動すると通常は復旧します。",
+    "report": "エラーを報告",
+    "restart": "再起動",
+    "openLogs": "ログフォルダーを開く"
+  },
+  "errorReport": {
+    "title": "エラーを報告",
+    "fatalTitle": "アプリのエラーを報告",
+    "fatalHint": "アプリ画面で致命的なエラーが発生しました。以下の情報を確認して報告した後、アプリを再起動できます。",
+    "privacyWarning": "GitHubのIssueは公開されます。パス、トークン、漫画のテキストは自動的に隠していますが、共有する前に以下のプレビューを確認してください。",
+    "issueTitle": "Issueのタイトル",
+    "descriptionLabel": "エラーの直前に何をしていましたか？",
+    "descriptionPlaceholder": "エラーの再現に役立つ操作を簡潔に入力してください。",
+    "includeHeading": "診断情報を含める",
+    "includeSystem": "アプリ、Windows、ハードウェア情報を含める",
+    "includeLogs": "サニタイズ済みの最近のエラーログを含める",
+    "preview": "GitHubで共有するMarkdownプレビュー",
+    "descriptionHeading": "エラー直前の操作",
+    "noDescription": "未入力",
+    "redactionNotice": "共有前に自動プライバシー処理を適用しました。マスクした項目: {{count}}件。",
+    "truncatedNotice": "レポートのサイズ制限により、一部の診断情報を省略しました。",
+    "prepareError": "安全な診断情報を準備できませんでした。未処理のエラー詳細は共有していません。",
+    "retry": "再試行",
+    "preparing": "安全な診断情報を準備中…",
+    "copySuccess": "診断情報をクリップボードにコピーしました。",
+    "clipboardFallback": "内容が長いためクリップボードにコピーしました。開いたGitHub Issueに貼り付けてください。",
+    "githubOpened": "GitHubのIssue作成画面を開きました。内容を確認してから送信してください。",
+    "openLogs": "ログフォルダーを開く",
+    "openingLogs": "ログフォルダーを開いています…",
+    "copy": "診断情報をコピー",
+    "copying": "コピー中…",
+    "restart": "アプリを再起動",
+    "restarting": "再起動中…",
+    "openGitHub": "GitHubでIssueを作成",
+    "openingGitHub": "GitHubを開いています…",
+    "actionErrors": {
+      "copy": "診断情報をコピーできませんでした。もう一度お試しください。",
+      "github": "GitHubのIssue作成画面を開けませんでした。もう一度お試しください。",
+      "logs": "ログフォルダーを開けませんでした。もう一度お試しください。",
+      "restart": "アプリを再起動できませんでした。ログフォルダーを開いて確認してください。"
+    }
+  },
+  "shortcuts": {
+    "title": "キーボードショートカット",
+    "navigation": "ナビゲーション",
+    "settingsHint": "設定 → ショートカットで変更できます。",
+    "fixed": {
+      "previousNextPage": "前 / 次のページ",
+      "previousNextPageCenter": "前 / 次のページ（中央パネル）",
+      "escape": "モーダルを閉じる・ドラッグ / 範囲選択をキャンセル"
+    }
+  },
+  "gatherText": {
+    "title": "テキストをまとめて表示",
+    "scope": "範囲",
+    "entireChapter": "話全体",
+    "display": "表示",
+    "fields": {
+      "both": "翻訳文 + OCR",
+      "translated": "翻訳文のみ",
+      "source": "OCRのみ"
+    },
+    "reviewWarnings": "校正表の警告 {{count}}件",
+    "copySuccess": "テキストをクリップボードにコピーしました。",
+    "copyFailed": "クリップボードにコピーできませんでした。",
+    "saveSuccess": "テキストファイルを保存しました。",
+    "saveFailed": "テキストファイルを保存できませんでした。",
+    "searchPlaceholder": "検索してEnter",
+    "excludePageHeaders": "ページ見出しを除外",
+    "saveTxt": ".txtを保存",
+    "empty": "表示するテキストがありません。",
+    "pageHeading": "{{index}}ページ・{{pageName}}",
+    "navigateToPage": "クリックすると該当ページに移動します。",
+    "selectBlock": "書式を変更するテキストブロックを選択",
+    "enterSelectionMode": "書式を変更するブロックを選択",
+    "exitSelectionMode": "一括編集を閉じる",
+    "selectedCount": "{{count}}個のブロックを選択中",
+    "selectVisible": "表示中のブロックをすべて選択",
+    "clearSelection": "ブロックの選択を解除",
+    "applyFormat": "選択したブロックの書式を編集",
+    "defaultFont": "既定のフォント",
+    "formatDisabled": "処理中は書式を適用できません。",
+    "directFormatTitle": "選択したブロックの書式を編集",
+    "previewTitle": "適用プレビュー",
+    "previewBasis": "最初の選択ブロックを基準に、変更をすぐ反映します。",
+    "previewTextLabel": "サンプル文",
+    "previewTextDefault": "あいう ABC 123 · 翻訳プレビュー",
+    "previewTextPlaceholder": "サンプルテキスト",
+    "resetChanges": "変更をリセット",
+    "typographySection": "文字と配置",
+    "changedOnlyHint": "操作した項目だけを選択中の全ブロックに適用します。",
+    "colorSection": "色とアウトライン",
+    "detailsSection": "詳細調整",
+    "detailsHint": "行間・字間・長体・傾き・文字の不透明度",
+    "outlineWidth": "アウトライン幅",
+    "autoFitLabel": "自動調整",
+    "autoFitBadge": "自動調整",
+    "mixedValue": "混在",
+    "toggleOn": "オン",
+    "toggleOff": "オフ",
+    "importTxt": {
+      "button": ".txtを読み込む",
+      "title": "翻訳文のみの形式で保存したTXTから、行順に翻訳文を再読み込みします。",
+      "noChanges": "変更された翻訳文はありません。",
+      "noApplicableText": "適用できるテキストがありません。警告を確認してください。",
+      "confirm": "{{count}}件の翻訳文をTXTの内容で上書きしますか？\n行順に適用され、OCR原文は変更されません。",
+      "updated": "{{count}}ブロックの翻訳文を更新しました。",
+      "warnings": "TXTの読み込みに{{count}}件の警告があります。",
+      "failed": "TXTファイルを読み込めませんでした。"
+    },
+    "review": {
+      "title": "校正表",
+      "saveSuccess": "校正表を保存しました。",
+      "saveFailed": "校正表を保存できませんでした。",
+      "importConfirm": "校正表を読み込むと、翻訳文・校正状態・メモのみ更新します。\nOCR原文は変更せず、block_idが一致する行だけを適用します。",
+      "updated": "{{count}}ブロックを更新しました。",
+      "warnings": "校正表に{{count}}件の警告があります。",
+      "importFailed": "校正表を読み込めませんでした。",
+      "exportCsv": "CSV校正表を書き出す",
+      "exportTsv": "TSV校正表を書き出す"
+    }
+  },
+  "styleGuide": {
+    "title": "用語/記憶",
+    "loadFailed": "用語/記憶情報を読み込めませんでした。",
+    "saveSuccess": "用語/記憶を保存しました。",
+    "saveFailed": "用語/記憶を保存できませんでした。",
+    "addRow": "行を追加",
+    "note": "メモ",
+    "analysis": {
+      "ariaLabel": "AI用語・記憶分析",
+      "title": "AI自動分析",
+      "description": "原文を分析して用語・キャラクター・ストーリー記憶を作成します。",
+      "scope": "分析範囲",
+      "analyzing": "分析中…",
+      "currentChapter": "現在の話",
+      "entireWork": "作品全体",
+      "success": "{{scope}}のAI分析を反映しました。{{included}}/{{total}}話、{{changed}}件変更",
+      "failed": "AIによる用語/記憶の分析に失敗しました。"
+    },
+    "tabs": {
+      "ariaLabel": "用語と記憶のタブ",
+      "glossary": "用語集",
+      "characters": "キャラクター",
+      "rules": "翻訳ルール",
+      "memory": "ストーリー記憶"
+    },
+    "usage": {
+      "search": "名前・訳・別名を検索",
+      "sortLabel": "並び順",
+      "sort": {
+        "usage": "登場が多い順",
+        "recent": "最近の登場順",
+        "name": "名前順",
+        "stored": "保存順"
+      },
+      "filterLabel": "フィルター",
+      "filter": {
+        "all": "すべて",
+        "ai": "AI生成",
+        "unused": "未使用",
+        "low-use": "0～1ページ登場",
+        "disabled": "無効"
+      },
+      "deleteSelected": "{{count}}件を削除",
+      "deleteConfirm": "選択した{{count}}件を削除しますか？保存すると反映されます。",
+      "selectAll": "表示中の項目をすべて選択",
+      "selectItem": "{{name}}を選択",
+      "enabled": "有効",
+      "enabledItem": "{{name}}を有効化",
+      "count": "回数",
+      "deleteItem": "{{name}}を削除",
+      "categoryItem": "{{name}}の分類",
+      "speechStyleItem": "{{name}}の話し方",
+      "noMatches": "条件に一致する項目はありません。",
+      "summary": "{{pages}}ページ · {{mentions}}回 · 最近 {{chapter}} {{page}}ページ",
+      "summaryNoRecent": "{{pages}}ページ · {{mentions}}回 · 最近の使用なし",
+      "neverUsed": "0ページ · 0回 · 最近の使用なし",
+      "unavailable": "使用統計を読み込めませんでした。"
+    },
+    "budget": {
+      "total": "用語/記憶 {{tokens}}",
+      "outputHeadroom": "出力余裕 {{percent}}%",
+      "breakdown": "ストーリー {{story}}・用語集 {{glossary}}・キャラクター {{characters}}",
+      "tokenCount": "{{count}}トークン",
+      "effectiveHeadroom": "{{tokens}}・{{percent}}%",
+      "omittedParts": {
+        "storyMemory": "ストーリー記憶",
+        "glossary": "用語集",
+        "characters": "キャラクター記憶"
+      },
+      "warningInsufficient": "出力余裕が{{minimum}}未満の場合、ストーリー記憶、用語集、キャラクター記憶の順に除外します。{{omitted}}を除いても予想余裕が{{effective}}しかないため、応答が途中で切れる可能性があります。",
+      "warningAdjusted": "出力余裕が{{minimum}}未満の場合、ストーリー記憶、用語集、キャラクター記憶の順に除外します。{{omitted}}を除いて予想余裕を{{effective}}まで確保します。"
+    },
+    "glossary": {
+      "empty": "登録された用語がありません。「現在の話を分析」「作品全体」または「行を追加」から始めてください。",
+      "source": "原文",
+      "translation": "翻訳",
+      "category": "分類",
+      "aliases": "別名",
+      "categories": {
+        "character": "人物",
+        "alias": "別名",
+        "place": "場所",
+        "term": "用語",
+        "honorific": "呼称",
+        "other": "その他"
+      }
+    },
+    "characters": {
+      "title": "キャラクター名/話し方",
+      "empty": "登録されたキャラクターがありません。「行を追加」から始めてください。",
+      "displayName": "表示名",
+      "sourceNames": "原文名",
+      "translatedName": "翻訳名",
+      "speechStyle": "話し方",
+      "customSpeechStyle": "カスタム話し方",
+      "speechStyles": {
+        "neutral": "標準",
+        "polite": "丁寧",
+        "casual": "くだけた口調",
+        "rough": "荒っぽい",
+        "childish": "子どもっぽい",
+        "elderly": "年配者風",
+        "formal": "フォーマル",
+        "custom": "カスタム"
+      }
+    },
+    "rules": {
+      "honorifics": {
+        "label": "呼称の処理",
+        "preserve": "原文の呼称の雰囲気を保つ",
+        "adapt": "翻訳言語の呼称に自然に合わせる",
+        "drop": "敬称を外して名前を優先"
+      },
+      "sfx": {
+        "label": "効果音の処理",
+        "preserve": "原文の効果音を残す",
+        "translate": "翻訳言語の効果音に変える",
+        "note": "原文の効果音に意味の説明を付ける"
+      },
+      "tone": {
+        "label": "基本トーン",
+        "natural": "自然な翻訳セリフ",
+        "literal": "原文に近い直訳"
+      }
+    },
+    "memory": {
+      "empty": "保存されたストーリー記憶はまだありません。",
+      "pageHeading": "{{index}}ページ・{{pageName}}",
+      "visualSummary": "画像シーン要約",
+      "visualSummaryPlaceholder": "場面・行動・重要な台詞を1～2文で記録します。",
+      "textSummary": "既存のテキストメモ"
+    }
+  },
+  "inpainting": {
+    "inspector": {
+      "eyebrow": "キャンバスツール",
+      "autoTitle": "自動消去",
+      "retouchTitle": "補正設定",
+      "autoAction": "自動消去"
+    },
+    "counts": {
+      "thisPage": "このページ {{count}}",
+      "remaining": "残り {{count}}",
+      "completed": "完了 {{count}}"
+    },
+    "guide": {
+      "title": "インペインティングガイド",
+      "hideNextTime": "今後表示しない",
+      "imageAlt": "インペインティングガイド。ステップ1で背景を自動消去し、ステップ2で残った跡を補正して、最後に出力します。"
+    },
+    "steps": {
+      "label": "インペインティング手順",
+      "auto": "自動",
+      "retouch": "補正",
+      "export": "出力",
+      "toggleBlocks": "ブロック表示を切り替え",
+      "toggleBorders": "背景/枠線表示を切り替え",
+      "borders": "枠線",
+      "guide": "ガイド",
+      "guideTitle": "インペインティングの使い方"
+    },
+    "tools": {
+      "brush": "ブラシ",
+      "eraser": "復元",
+      "mask": "マスクブラシ",
+      "none": "ツールを選択してください",
+      "picker": "スポイト"
+    },
+    "auto": {
+      "description": "まず原文の文字を自動で消します。1ページずつ、または残りのページをまとめて処理できます。",
+      "currentPageAction": "現在のページを自動消去",
+      "moreActions": "自動消去の追加操作",
+      "commandHint": "メインボタンは現在のページだけを処理します。必要な場合のみ範囲を選択してください。",
+      "selectMultiplePages": "複数ページを選択…",
+      "guideAction": "自動消去の使い方",
+      "nextRetouch": "次へ: 補正 →",
+      "noOpenChapter": "話が開かれていません。",
+      "remainingSummary": "残り {{pendingPages}} / {{totalPages}}ページ・{{blockCount}}ブロック",
+      "remainingPages": "残りのページ",
+      "showingOriginal": "元画像を表示中（押すとオフ）",
+      "compareOriginal": "元画像と比較",
+      "excludeHint": "ブロック隅の「除外」ボタンで、そのブロックをインペインティングから外したり戻したりできます。",
+      "revert": "インペインティングを元に戻す"
+    },
+    "retouch": {
+      "description": "効果音はマスクブラシで塗って消し、小さな跡はブラシと復元ツールで整えてください。",
+      "undoLabel": "元に戻す（Ctrl+Z）",
+      "redoLabel": "やり直す（Ctrl+Y）",
+      "redoTitle": "やり直す（Ctrl+Y / Ctrl+Shift+Z）",
+      "brushColor": "ブラシ色",
+      "eraseDrawn": "塗って消す",
+      "eraseDrawnArea": "塗った範囲を消す",
+      "drawnAreas": "塗った範囲 {{count}}件",
+      "soundEffectTouchup": "効果音の補正",
+      "backAuto": "← 自動",
+      "nextExport": "出力 →"
+    },
+    "export": {
+      "pngAction": "PNG出力",
+      "description": "ブロックのフォント・色・位置を整え、翻訳を重ねたPNGとして書き出します。",
+      "result": "結果を出力",
+      "pagesSaved": "{{count}}ページ保存済み",
+      "allPages": "全ページ",
+      "backRetouch": "← 補正"
+    },
+    "progress": {
+      "processingPages": "{{count}}ページを処理中",
+      "inProgress": "インペインティング処理中"
+    }
+  },
+  "settings": {
+    "title": "設定",
+    "applyNextRun": "次回の翻訳実行から適用されます。",
+    "tabs": {
+      "ariaLabel": "設定項目",
+      "general": "一般",
+      "engine": "翻訳エンジン",
+      "hardware": "ハードウェア",
+      "format": "既定の書式",
+      "shortcuts": "ショートカット",
+      "test": "確認/更新"
+    },
+    "general": {
+      "language": "アプリの言語",
+      "languageDescription": "アプリ全体で使用する表示言語を変更します。"
+    },
+    "footer": {
+      "openLogs": "ログフォルダーを開く",
+      "restoreDefaults": "既定値に戻す",
+      "cancel": "キャンセル",
+      "save": "保存"
+    },
+    "engine": {
+      "limits": {
+        "title": "生成上限",
+        "recommendedFor": "{{model}} の推奨値",
+        "recommendedValues": "出力 {{maxTokens}}・作品コンテキスト {{contextTokens}}",
+        "publicLimits": "公開モデル上限：出力 {{maxOutput}}・コンテキスト {{contextWindow}}",
+        "publicContextOnly": "公開コンテキスト：{{contextWindow}}・最大出力は未公開",
+        "unknownLimits": "公開されたモデル上限がないため、安全な共通推奨値を使用します。",
+        "applyRecommended": "推奨値を適用",
+        "recommendedApplied": "推奨値を使用中"
+      },
+      "provider": { "label": "翻訳エンジン" },
+      "maxTokens": {
+        "label": "最大出力トークン",
+        "remoteDescription": "表示テキストと推論を含む応答全体の上限です。モデル上限より作業向け推奨値の方が安定します。",
+        "gemmaDescription": "ローカルモデルが一度に生成する上限です。高くすると処理時間とメモリ使用量が増える場合があります。"
+      },
+      "contextTokens": {
+        "remoteLabel": "作品コンテキスト予算",
+        "remoteDescription": "モデルのコンテキスト上限ではなく、作品メモ・用語集・キャラクター情報をプロンプトに含めるためのアプリ内部予算です。",
+        "gemmaLabel": "コンテキスト長",
+        "gemmaDescription": "ローカル Gemma の実際のコンテキスト長です。高くすると VRAM 使用量が増える場合があります。"
+      }
+    },
+    "options": {
+      "modelPresets": {
+        "minimum12b": {
+          "label": "12B 最小",
+          "description": "約8GBのVRAM向け。互換性と軽い動作を優先します。"
+        },
+        "economy26b": {
+          "label": "26B 省メモリ",
+          "description": "約16GBのVRAM向け。画像トークン1024を維持し、26Bモデルを安定して実行します。"
+        },
+        "full31b": {
+          "label": "31B フル",
+          "description": "十分なVRAM向け。31BモデルとDFlashを使用し、品質を優先します。"
+        }
+      },
+      "modelSources": {
+        "huggingface": {
+          "label": "Hugging Face",
+          "description": "Hugging Faceリポジトリからモデルを自動取得します。"
+        },
+        "local": {
+          "label": "ローカルファイル",
+          "description": "用意したGGUFとmmprojファイルを使用します。"
+        }
+      },
+      "providers": {
+        "gemma": {
+          "label": "ローカルGemma",
+          "description": "このPCでGemmaモデルを直接実行します。"
+        },
+        "codex": {
+          "label": "Codex",
+          "description": "Codex OAuthエンドポイントで翻訳します。"
         },
         "api": {
           "label": "API",

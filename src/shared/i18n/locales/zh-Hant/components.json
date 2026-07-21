@@ -478,7 +478,405 @@
       "select": { "label": "選取", "title": "選取工具（1）" },
       "block": {
         "label": "文字區塊",
-        "title": "文字區塊工具（2）—…4491 tokens truncated… "save": "儲存"
+        "title": "文字區塊工具（2）— 拖曳以新增文字區塊"
+      },
+      "region": {
+        "label": "區域翻譯",
+        "title": "區域翻譯 — 拖曳選取要重新翻譯的區域"
+      },
+      "hand": { "label": "手掌", "title": "手掌工具（3）— 拖曳以移動影像" },
+      "perspective": {
+        "label": "透視",
+        "title": "透視變形 — 移動四角以貼合表面"
+      },
+      "curve": {
+        "label": "曲線",
+        "title": "曲線文字 — 讓效果音沿路徑排列"
+      },
+      "mask": { "label": "遮罩", "title": "遮罩畫筆" },
+      "brush": { "label": "畫筆", "title": "修整畫筆" },
+      "eraser": { "label": "橡皮擦", "title": "清除修整筆觸" },
+      "picker": { "label": "取色", "title": "從畫布取色" }
+    }
+  },
+  "display": {
+    "title": "顯示",
+    "backgroundBorders": "背景／邊框",
+    "showBlocks": "顯示文字區塊",
+    "gatherText": "彙整文字",
+    "styleGuide": "術語／記憶"
+  },
+  "overlay": {
+    "exclude": "排除",
+    "excluded": "已排除",
+    "resize": "調整大小",
+    "includeInInpainting": "重新納入影像修補",
+    "excludeFromInpainting": "從影像修補中排除",
+    "excludedFromInpainting": "已從自動清除中排除"
+  },
+  "imageStage": { "loadingImage": "正在載入影像" },
+  "install": {
+    "logLabel": "安裝記錄",
+    "checkingLogs": "正在檢查記錄",
+    "preparingModel": "正在準備 Gemma 4 模型",
+    "installingOcr": "正在安裝 Paddle OCR"
+  },
+  "toast": { "close": "關閉通知", "region": "通知" },
+  "errorBoundary": {
+    "title": "出現問題",
+    "description": "轉譯介面時發生錯誤。工作內容可能已儲存在資料庫中。重新啟動通常可以恢復正常。",
+    "report": "回報錯誤",
+    "restart": "重新啟動",
+    "openLogs": "開啟記錄資料夾"
+  },
+  "errorReport": {
+    "title": "回報錯誤",
+    "fatalTitle": "回報應用程式錯誤",
+    "fatalHint": "應用程式視窗發生嚴重錯誤。您可以檢查並回報以下資訊，然後重新啟動應用程式。",
+    "privacyWarning": "GitHub議題是公開的。路徑、權杖和漫畫文字已自動隱藏，但請在分享前檢查下方預覽。",
+    "issueTitle": "議題標題",
+    "descriptionLabel": "錯誤發生前您正在做什麼？",
+    "descriptionPlaceholder": "請簡要說明有助於重現錯誤的操作步驟。",
+    "includeHeading": "包含診斷資訊",
+    "includeSystem": "包含應用程式、Windows和硬體資訊",
+    "includeLogs": "包含已清理的近期錯誤記錄",
+    "preview": "將在GitHub分享的Markdown預覽",
+    "descriptionHeading": "錯誤發生前的操作",
+    "noDescription": "未填寫",
+    "redactionNotice": "分享前已自動清理隱私資訊。已隱藏項目：{{count}}項。",
+    "truncatedNotice": "由於報告大小限制，部分診斷資訊已省略。",
+    "prepareError": "無法準備安全的診斷資訊。未分享未經清理的錯誤詳細資料。",
+    "retry": "重試",
+    "preparing": "正在準備安全的診斷資訊…",
+    "copySuccess": "診斷資訊已複製到剪貼簿。",
+    "clipboardFallback": "報告內容過長，已複製到剪貼簿。請將其貼到已開啟的GitHub議題中。",
+    "githubOpened": "已開啟GitHub議題建立頁面。請檢查內容後再提交。",
+    "openLogs": "開啟記錄資料夾",
+    "openingLogs": "正在開啟記錄資料夾…",
+    "copy": "複製診斷資訊",
+    "copying": "正在複製…",
+    "restart": "重新啟動應用程式",
+    "restarting": "正在重新啟動…",
+    "openGitHub": "在GitHub建立議題",
+    "openingGitHub": "正在開啟GitHub…",
+    "actionErrors": {
+      "copy": "無法複製診斷資訊，請再試一次。",
+      "github": "無法開啟GitHub議題建立頁面，請再試一次。",
+      "logs": "無法開啟記錄資料夾，請再試一次。",
+      "restart": "無法重新啟動應用程式。請開啟記錄資料夾查看詳細資料。"
+    }
+  },
+  "shortcuts": {
+    "title": "快速鍵",
+    "navigation": "導覽",
+    "settingsHint": "可在「設定 → 快速鍵」中變更。",
+    "fixed": {
+      "previousNextPage": "上一頁／下一頁",
+      "previousNextPageCenter": "上一頁／下一頁（中央面板）",
+      "escape": "關閉對話框 · 取消拖曳／區域選取"
+    }
+  },
+  "gatherText": {
+    "title": "彙整文字",
+    "scope": "範圍",
+    "entireChapter": "整章",
+    "display": "顯示",
+    "fields": {
+      "both": "譯文 + OCR",
+      "translated": "僅譯文",
+      "source": "僅 OCR"
+    },
+    "reviewWarnings": "校對表警告 {{count}}則",
+    "copySuccess": "文字已複製到剪貼簿。",
+    "copyFailed": "無法複製到剪貼簿。",
+    "saveSuccess": "文字檔案已儲存。",
+    "saveFailed": "無法儲存文字檔案。",
+    "searchPlaceholder": "搜尋後按 Enter",
+    "excludePageHeaders": "排除頁面標題",
+    "saveTxt": "儲存 .txt",
+    "empty": "沒有可顯示的文字。",
+    "pageHeading": "第{{index}}頁 · {{pageName}}",
+    "navigateToPage": "點按以前往該頁面。",
+    "selectBlock": "選取此文字區塊以修改格式",
+    "enterSelectionMode": "選擇要修改格式的文字區塊",
+    "exitSelectionMode": "關閉批次編輯",
+    "selectedCount": "已選取 {{count}} 個文字區塊",
+    "selectVisible": "全選目前顯示的文字區塊",
+    "clearSelection": "清除文字區塊選取",
+    "applyFormat": "編輯所選文字區塊格式",
+    "defaultFont": "預設字體",
+    "formatDisabled": "工作執行時無法套用格式。",
+    "directFormatTitle": "編輯所選文字區塊格式",
+    "previewTitle": "套用預覽",
+    "previewBasis": "以第一個選取區塊為基準，即時顯示變更。",
+    "previewTextLabel": "範例文字",
+    "previewTextDefault": "範例 ABC 123 · 翻譯預覽",
+    "previewTextPlaceholder": "範例文字",
+    "resetChanges": "重設變更",
+    "typographySection": "文字與版面",
+    "changedOnlyHint": "只將您調整的項目套用到所有選取區塊。",
+    "colorSection": "顏色與外框",
+    "detailsSection": "細節調整",
+    "detailsHint": "行距 · 字距 · 字寬 · 旋轉 · 文字不透明度",
+    "outlineWidth": "外框寬度",
+    "autoFitLabel": "自動配合",
+    "autoFitBadge": "自動配合",
+    "mixedValue": "混合",
+    "toggleOn": "開啟",
+    "toggleOff": "關閉",
+    "importTxt": {
+      "button": "匯入 .txt",
+      "title": "依行序從僅含譯文的 TXT 檔案重新匯入譯文。",
+      "noChanges": "沒有已更改的譯文。",
+      "noApplicableText": "沒有可套用的文字，請檢查警告。",
+      "confirm": "要用 TXT 內容覆寫{{count}}筆譯文嗎？\n文字將依行序套用，OCR 原文不會變更。",
+      "updated": "已更新{{count}}個文字區塊的譯文。",
+      "warnings": "TXT 匯入有{{count}}則警告。",
+      "failed": "無法匯入 TXT 檔案。"
+    },
+    "review": {
+      "title": "校對表",
+      "saveSuccess": "校對表已儲存。",
+      "saveFailed": "無法儲存校對表。",
+      "importConfirm": "匯入校對表時只會更新譯文、校對狀態和備註。\nOCR 原文不會變更，僅套用 block_id 相符的資料列。",
+      "updated": "已更新{{count}}個文字區塊。",
+      "warnings": "校對表有{{count}}則警告。",
+      "importFailed": "無法匯入校對表。",
+      "exportCsv": "匯出 CSV 校對表",
+      "exportTsv": "匯出 TSV 校對表"
+    }
+  },
+  "styleGuide": {
+    "title": "術語／記憶",
+    "loadFailed": "無法載入術語和記憶資訊。",
+    "saveSuccess": "術語和記憶已儲存。",
+    "saveFailed": "無法儲存術語和記憶。",
+    "addRow": "新增行",
+    "note": "備註",
+    "analysis": {
+      "ariaLabel": "AI 術語與記憶分析",
+      "title": "AI 自動分析",
+      "description": "分析原文並填入術語、角色和劇情記憶。",
+      "scope": "分析範圍",
+      "analyzing": "分析中…",
+      "currentChapter": "目前章節",
+      "entireWork": "整個作品",
+      "success": "已套用{{scope}}的 AI 分析。{{included}}/{{total}}話，{{changed}}項變更",
+      "failed": "AI 術語／記憶分析失敗。"
+    },
+    "tabs": {
+      "ariaLabel": "術語與記憶分頁",
+      "glossary": "術語表",
+      "characters": "角色",
+      "rules": "翻譯規則",
+      "memory": "劇情記憶"
+    },
+    "usage": {
+      "search": "搜尋名稱、譯名和別名",
+      "sortLabel": "排序",
+      "sort": {
+        "usage": "出現最多",
+        "recent": "最近出現",
+        "name": "名稱",
+        "stored": "儲存順序"
+      },
+      "filterLabel": "篩選",
+      "filter": {
+        "all": "全部",
+        "ai": "AI 產生",
+        "unused": "未使用",
+        "low-use": "出現於 0～1 頁",
+        "disabled": "已停用"
+      },
+      "deleteSelected": "刪除 {{count}} 項",
+      "deleteConfirm": "要刪除選取的 {{count}} 項嗎？儲存後生效。",
+      "selectAll": "選取目前顯示的全部項目",
+      "selectItem": "選取 {{name}}",
+      "enabled": "啟用",
+      "enabledItem": "啟用 {{name}}",
+      "count": "次數",
+      "deleteItem": "刪除 {{name}}",
+      "categoryItem": "{{name}}的分類",
+      "speechStyleItem": "{{name}}的說話風格",
+      "noMatches": "沒有符合條件的項目。",
+      "summary": "{{pages}}頁 · {{mentions}}次 · 最近 {{chapter}} 第{{page}}頁",
+      "summaryNoRecent": "{{pages}}頁 · {{mentions}}次 · 最近無使用",
+      "neverUsed": "0頁 · 0次 · 最近無使用",
+      "unavailable": "無法載入使用統計。"
+    },
+    "budget": {
+      "total": "術語／記憶 {{tokens}}",
+      "outputHeadroom": "輸出預留空間 {{percent}}%",
+      "breakdown": "劇情 {{story}} · 術語表 {{glossary}} · 角色 {{characters}}",
+      "tokenCount": "{{count}}個權杖",
+      "effectiveHeadroom": "{{tokens}} · {{percent}}%",
+      "omittedParts": {
+        "storyMemory": "劇情記憶",
+        "glossary": "術語表",
+        "characters": "角色記憶"
+      },
+      "warningInsufficient": "當輸出預留空間低於{{minimum}}時，將依序省略劇情記憶、術語表和角色記憶。即使省略{{omitted}}，預估預留空間也只有{{effective}}，回應可能會被截斷。",
+      "warningAdjusted": "當輸出預留空間低於{{minimum}}時，將依序省略劇情記憶、術語表和角色記憶。省略{{omitted}}後，預估預留空間可提高到{{effective}}。"
+    },
+    "glossary": {
+      "empty": "尚未建立任何術語。請從「分析目前章節」、「整個作品」或「新增行」開始。",
+      "source": "原文",
+      "translation": "譯文",
+      "category": "分類",
+      "aliases": "別名",
+      "categories": {
+        "character": "人物",
+        "alias": "別名",
+        "place": "地點",
+        "term": "術語",
+        "honorific": "稱呼",
+        "other": "其他"
+      }
+    },
+    "characters": {
+      "title": "角色名稱/語氣",
+      "empty": "尚未建立任何角色。請從「新增行」開始。",
+      "displayName": "顯示名稱",
+      "sourceNames": "原文名稱",
+      "translatedName": "譯名",
+      "speechStyle": "語氣",
+      "customSpeechStyle": "自訂語氣",
+      "speechStyles": {
+        "neutral": "中性",
+        "polite": "禮貌",
+        "casual": "隨意",
+        "rough": "粗獷",
+        "childish": "童稚",
+        "elderly": "年長",
+        "formal": "正式",
+        "custom": "自訂"
+      }
+    },
+    "rules": {
+      "honorifics": {
+        "label": "稱呼處理",
+        "preserve": "保留原文稱呼的感覺",
+        "adapt": "自然改為目標語言的稱呼",
+        "drop": "移除敬稱，以姓名為主"
+      },
+      "sfx": {
+        "label": "擬聲詞處理",
+        "preserve": "保留原文擬聲詞",
+        "translate": "改為目標語言的擬聲詞",
+        "note": "為原文擬聲詞新增含義說明"
+      },
+      "tone": {
+        "label": "預設語氣",
+        "natural": "自然的翻譯對白",
+        "literal": "接近原文的直譯"
+      }
+    },
+    "memory": {
+      "empty": "尚未儲存劇情記憶。",
+      "pageHeading": "第{{index}}頁 · {{pageName}}",
+      "visualSummary": "影像場景摘要",
+      "visualSummaryPlaceholder": "用一兩句話記錄場景、動作和關鍵對白。",
+      "textSummary": "現有文字記憶"
+    }
+  },
+  "inpainting": {
+    "inspector": {
+      "eyebrow": "畫布工具",
+      "autoTitle": "自動清除",
+      "retouchTitle": "修整設定",
+      "autoAction": "自動清除"
+    },
+    "counts": {
+      "thisPage": "本頁 {{count}}",
+      "remaining": "剩餘 {{count}}",
+      "completed": "完成 {{count}}"
+    },
+    "guide": {
+      "title": "影像修補指南",
+      "hideNextTime": "不再顯示",
+      "imageAlt": "影像修補指南：第一步自動清除背景，第二步修整殘留痕跡，最後匯出結果。"
+    },
+    "steps": {
+      "label": "影像修補步驟",
+      "auto": "自動",
+      "retouch": "修整",
+      "export": "匯出",
+      "toggleBlocks": "切換文字區塊顯示",
+      "toggleBorders": "切換背景／邊框顯示",
+      "borders": "邊框",
+      "guide": "指南",
+      "guideTitle": "影像修補使用方法"
+    },
+    "tools": {
+      "brush": "畫筆",
+      "eraser": "復原",
+      "mask": "遮罩畫筆",
+      "none": "請選取工具",
+      "picker": "取色器"
+    },
+    "auto": {
+      "description": "先自動清除原文文字。可以逐頁處理，也可以一次處理所有剩餘頁面。",
+      "currentPageAction": "自動清除目前頁面",
+      "moreActions": "更多自動清除操作",
+      "commandHint": "主按鈕只處理目前頁面。僅在需要時選擇頁面範圍。",
+      "selectMultiplePages": "選擇多個頁面…",
+      "guideAction": "自動清除使用指南",
+      "nextRetouch": "下一步：修整 →",
+      "noOpenChapter": "尚未開啟章節。",
+      "remainingSummary": "剩餘 {{pendingPages}}／{{totalPages}}頁 · {{blockCount}}個文字區塊",
+      "remainingPages": "剩餘頁面",
+      "showingOriginal": "正在顯示原圖（點按以關閉）",
+      "compareOriginal": "比較原圖",
+      "excludeHint": "可使用文字區塊角落的「排除」按鈕，將該文字區塊從影像修補中排除或重新加入。",
+      "revert": "復原影像修補"
+    },
+    "retouch": {
+      "description": "用遮罩畫筆塗抹並清除擬聲詞，再用畫筆和復原工具修整細小痕跡。",
+      "undoLabel": "復原（Ctrl+Z）",
+      "redoLabel": "重做（Ctrl+Y）",
+      "redoTitle": "重做（Ctrl+Y／Ctrl+Shift+Z）",
+      "brushColor": "畫筆顏色",
+      "eraseDrawn": "塗抹清除",
+      "eraseDrawnArea": "清除塗抹區域",
+      "drawnAreas": "已塗抹{{count}}個區域",
+      "soundEffectTouchup": "擬聲詞修整",
+      "backAuto": "← 自動",
+      "nextExport": "匯出 →"
+    },
+    "export": {
+      "pngAction": "匯出 PNG",
+      "description": "調整文字區塊的字體、顏色和位置，然後匯出疊加譯文的 PNG。",
+      "result": "匯出結果",
+      "pagesSaved": "已儲存{{count}}頁",
+      "allPages": "全部頁面",
+      "backRetouch": "← 修整"
+    },
+    "progress": {
+      "processingPages": "正在處理{{count}}頁",
+      "inProgress": "影像修補進行中"
+    }
+  },
+  "settings": {
+    "title": "設定",
+    "applyNextRun": "變更將從下一個翻譯工作開始套用。",
+    "tabs": {
+      "ariaLabel": "設定區域",
+      "general": "一般",
+      "engine": "翻譯引擎",
+      "hardware": "硬體",
+      "format": "預設格式",
+      "shortcuts": "快速鍵",
+      "test": "檢查／更新"
+    },
+    "general": {
+      "language": "應用程式語言",
+      "languageDescription": "變更整個應用程式使用的介面語言。"
+    },
+    "footer": {
+      "openLogs": "開啟記錄資料夾",
+      "restoreDefaults": "還原預設值",
+      "cancel": "取消",
+      "save": "儲存"
     },
     "engine": {
       "limits": {
