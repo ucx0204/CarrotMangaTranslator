@@ -21,6 +21,8 @@ export type PipelineOptions = {
   signal: AbortSignal;
   skipOcrPrepass?: boolean;
   blockMode?: "auto" | "keep";
+  /** Locks one selected block's current source text as the translation authority. */
+  selectedBlockTranslationSourceText?: string;
   /** webp 등 nativeImage가 못 읽는 이미지의 PNG 디코더 (keep 모드 블록 크롭 OCR용). */
   decodeImage?: (filePath: string) => Promise<Buffer | null>;
   onCleanupReady?: (cleanup: () => Promise<void>) => void;

@@ -12,6 +12,18 @@ const { localizePromptTextForProfile } = require("./localization.cjs");
  */
 function buildSystemPrompt(options = {}) {
   const languageProfile = resolvePromptLanguageProfile(options);
+  if (hasSelectedBlockTranslationSource(options)) {
+    return localizePromptTextForProfile(
+      [
+        "You are translating one selected existing manga text block.",
+        "The authoritative sourceText is supplied in the user prompt. Translate exactly that sourceText; do not OCR, re-read, correct, extend, merge, or replace it from Image 1.",
+        "Image 1, glossary, character notes, and story memory are context only. They may resolve names, pronouns, tone, honorifics, and ambiguity, but must never add source meaning, events, objects, or dialogue absent from the authoritative sourceText.",
+        "Return only one machine-readable record in the format requested by the user prompt.",
+        "Keep the selected block id and geometry stable.",
+      ].join("\n\n"),
+      languageProfile,
+    );
+  }
   if (options.regionCropMode) {
     return localizePromptTextForProfile(
       [
@@ -63,6 +75,14 @@ function buildSystemPrompt(options = {}) {
   }
 
   return localizePromptTextForProfile(lines.join("\n\n"), languageProfile);
+}
+
+/** @param {PromptOptions} options @returns {boolean} */
+function hasSelectedBlockTranslationSource(options) {
+  return (
+    typeof options.selectedBlockTranslationSourceText === "string" &&
+    options.selectedBlockTranslationSourceText.trim().length > 0
+  );
 }
 
 module.exports = { buildSystemPrompt };

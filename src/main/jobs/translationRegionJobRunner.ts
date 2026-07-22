@@ -219,6 +219,10 @@ function runRegionPipeline({
       pages: [cropPage],
       blockMode: request.targetBlockId ? "keep" : undefined,
       skipOcrPrepass: request.targetBlockOperation === "translate",
+      selectedBlockTranslationSourceText:
+        request.targetBlockOperation === "translate"
+          ? cropPage.blocks[0]?.sourceText
+          : undefined,
       runPaths,
       signal: abortController.signal,
       regionContext: request.targetBlockId

@@ -31,6 +31,21 @@ function buildPreviousPassSection(options = {}, imageVariants = []) {
     return [];
   }
 
+  if (hasSelectedBlockTranslationSource(options)) {
+    return [
+      "Selected block",
+      "This is the only block to output. Keep its candidateId and bbox unchanged.",
+      "Its authoritative sourceText is fixed input, not a weak OCR hint. Never replace or extend it from Image 1, old translation, glossary, or story memory.",
+      "The old target translation is only a wording hint and may be replaced by a faithful new translation of the authoritative sourceText.",
+      ...blocks
+        .slice(0, 1)
+        .map((block, index) =>
+          formatPreviousPassBlock(block, index + 1, options, imageVariants),
+        )
+        .filter(Boolean),
+    ];
+  }
+
   return [
     "Previous pass blocks",
     "These are weak review hints from the previous Korean overlay pass. Do not output them as records unless Image 1 shows real Japanese glyphs at the same physical area.",
@@ -80,13 +95,16 @@ function formatPreviousPassBlock(
     return "";
   }
   const role = sanitizePromptLine(block.textRole || "ordinary", 40);
-  const review = classifyPreviousPassTextForPrompt(block, options);
+  const selectedSourceText = readSelectedBlockTranslationSource(options);
+  const review = selectedSourceText
+    ? { omitSource: false, omitTranslation: false, reasons: [] }
+    : classifyPreviousPassTextForPrompt(block, options);
   const languageProfile = resolvePromptLanguageProfile(options);
   const candidate = formatCandidateId(block.candidateId);
   const confidence = formatConfidence(block.confidence);
   const reviewText = formatReviewText(review);
   const sourceText = formatReviewedText(
-    block.sourceText,
+    selectedSourceText || block.sourceText,
     languageProfile.sourceKey,
     review.omitSource,
   );
@@ -96,6 +114,18 @@ function formatPreviousPassBlock(
     review.omitTranslation,
   );
   return `previous ${index}:${candidate} bbox:[${bbox.x1},${bbox.y1},${bbox.x2},${bbox.y2}] role:${role}${confidence}${reviewText}${sourceText}${targetText}`;
+}
+
+/** @param {PromptOptions} options @returns {boolean} */
+function hasSelectedBlockTranslationSource(options) {
+  return Boolean(readSelectedBlockTranslationSource(options));
+}
+
+/** @param {PromptOptions} options @returns {string} */
+function readSelectedBlockTranslationSource(options) {
+  return typeof options.selectedBlockTranslationSourceText === "string"
+    ? sanitizePromptLine(options.selectedBlockTranslationSourceText, 2000)
+    : "";
 }
 
 /** @param {unknown} value @returns {string} */

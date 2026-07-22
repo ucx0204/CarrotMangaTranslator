@@ -23,7 +23,13 @@ function buildWorkContextSection(options = {}) {
   const regionCropMode = Boolean(options.regionCropMode);
   const targetIsKorean =
     resolvePromptLanguageProfile(options).targetBaseCode === "ko";
-  const lines = buildWorkContextIntroduction(regionCropMode);
+  const selectedBlockTranslation =
+    typeof options.selectedBlockTranslationSourceText === "string" &&
+    options.selectedBlockTranslationSourceText.trim().length > 0;
+  const lines = buildWorkContextIntroduction(
+    regionCropMode,
+    selectedBlockTranslation,
+  );
   appendGlossaryLines(
     lines,
     readEnabledGlossary(guide.glossary),
@@ -39,14 +45,25 @@ function buildWorkContextSection(options = {}) {
   return lines;
 }
 
-/** @param {boolean} regionCropMode @returns {PromptSection} */
-function buildWorkContextIntroduction(regionCropMode) {
+/**
+ * @param {boolean} regionCropMode
+ * @param {boolean} selectedBlockTranslation
+ * @returns {PromptSection}
+ */
+function buildWorkContextIntroduction(
+  regionCropMode,
+  selectedBlockTranslation,
+) {
   return [
     "Work glossary and story memory",
-    regionCropMode
-      ? "Use these notes only as translation context for the visible Japanese inside Image 1."
-      : "Do not output these notes as records.",
-    "Glossary and character entries are stronger than story memory. Story memory may contain earlier OCR or translation mistakes, so use it only for context unless the visible source text supports it.",
+    selectedBlockTranslation
+      ? "Use these notes only to choose a faithful target-language rendering of the authoritative sourceText. Never use them to replace, extend, or correct the sourceText."
+      : regionCropMode
+        ? "Use these notes only as translation context for the visible Japanese inside Image 1."
+        : "Do not output these notes as records.",
+    selectedBlockTranslation
+      ? "Glossary and character entries may standardize matching names and tone. Story memory may resolve genuine ambiguity, but no context may introduce meaning absent from the authoritative sourceText."
+      : "Glossary and character entries are stronger than story memory. Story memory may contain earlier OCR or translation mistakes, so use it only for context unless the visible source text supports it.",
   ];
 }
 

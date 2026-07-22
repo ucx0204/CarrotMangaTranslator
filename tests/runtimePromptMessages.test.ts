@@ -9,6 +9,79 @@ import {
 } from "./helpers/runtimeModelContracts";
 
 describe("runtime prompt message contracts", () => {
+  it("treats selected-block source text as authoritative for translation only", () => {
+    const options = {
+      modelProvider: "gemma",
+      imageWidth: 1200,
+      imageHeight: 1600,
+      strictRefineMode: true,
+      keepBlocksMode: true,
+      selectedBlockTranslationSourceText: "私は犯人じゃない",
+      previousBlocksForPrompt: [
+        {
+          previousId: "block-1",
+          index: 1,
+          candidateId: 1,
+          bbox: { x: 100, y: 200, w: 250, h: 300 },
+          sourceText: "別の誤った原文",
+          translatedText: "잘못된 이전 번역",
+          confidence: 0.9,
+        },
+      ],
+      workContext: {
+        styleGuide: {
+          glossary: [],
+          characters: [],
+          rules: {},
+        },
+        storyMemory: {
+          pages: [
+            {
+              pageIndex: 0,
+              pageName: "previous",
+              summary: "범인은 다른 인물이라고 잘못 기록된 문맥",
+            },
+          ],
+        },
+      },
+    };
+    const variants = [
+      {
+        role: "original",
+        dataUrl: "data:image/png;base64,page",
+        width: 1200,
+        height: 1600,
+      },
+    ];
+    const prompt = getOverlayPrompt(options, variants);
+    const messages = buildMessages(options, variants);
+    const systemText =
+      messages[0]?.content.find((part) => part.type === "text")?.text ?? "";
+
+    expect(prompt).toContain(
+      'Authoritative Japanese sourceText: "私は犯人じゃない"',
+    );
+    expect(prompt).toContain(
+      "Translate exactly and only that sourceText into natural concise Korean",
+    );
+    expect(prompt).toContain(
+      "no context may introduce meaning absent from the authoritative sourceText",
+    );
+    expect(prompt).toContain('jp:"私は犯人じゃない"');
+    expect(prompt).not.toContain("Detect every visible Japanese text group");
+    expect(prompt).not.toContain("Scan the entire page");
+    expect(prompt).not.toContain("weak review hints");
+    expect(prompt).not.toContain("If jp has multiple visible source lines");
+    expect(prompt).not.toContain("If a stylized SFX looks like a Latin letter");
+    expect(prompt).not.toContain(
+      "confidence from 0.00 to 1.00 that the item is real Japanese text",
+    );
+    expect(systemText).toContain(
+      "The authoritative sourceText is supplied in the user prompt",
+    );
+    expect(systemText).not.toContain("aggressively correct OCR");
+  });
+
   it("uses OCR bbox candidates as single-pass geometry hints", () => {
     const options = {
       modelProvider: "openai-codex",

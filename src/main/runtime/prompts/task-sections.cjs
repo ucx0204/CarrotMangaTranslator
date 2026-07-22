@@ -4,12 +4,21 @@
 /** @typedef {import("./prompt-types").PromptSection} PromptSection */
 /** @typedef {import("../simple-page-language-profile.cjs").PromptLanguageProfile} PromptLanguageProfile */
 
+const {
+  resolvePromptLanguageProfile,
+} = require("../simple-page-language-profile.cjs");
+const { sanitizePromptLine } = require("./common.cjs");
+
 /**
  * @param {PromptOptions} [options]
  * @param {ImageVariant[]} [imageVariants]
  * @returns {PromptSection}
  */
 function buildTaskSection(options = {}, imageVariants = []) {
+  const selectedSourceText = readSelectedBlockTranslationSource(options);
+  if (selectedSourceText) {
+    return buildSelectedBlockTranslationTask(options, selectedSourceText);
+  }
   const hasAssistImages = imageVariants.length > 1;
   const regionCropMode = Boolean(options.regionCropMode);
   const hasRegionContextImage =
@@ -36,6 +45,32 @@ function buildTaskSection(options = {}, imageVariants = []) {
     "Before reading dialogue text, segment the visible speech balloons themselves. Each distinct balloon lobe and each separated dialogue text cluster becomes a separate dialogue record.",
     "Only output real Japanese text. Do not output decorative line art, background marks, panel ornaments, texture, or unreadable marks as text.",
   ];
+}
+
+/**
+ * @param {PromptOptions} options
+ * @param {string} sourceText
+ * @returns {PromptSection}
+ */
+function buildSelectedBlockTranslationTask(options, sourceText) {
+  const profile = resolvePromptLanguageProfile(options);
+  return [
+    "Task",
+    "Translate one user-selected existing block. This is translation only, not OCR or text detection.",
+    `Authoritative ${profile.sourceName} sourceText: ${JSON.stringify(sourceText)}`,
+    `Translate exactly and only that sourceText into natural concise ${profile.targetName}.`,
+    "Image 1 is visual context only. Ignore all other visible text and never use the image to replace, correct, extend, merge, or re-read the authoritative sourceText.",
+    "Glossary, character notes, and story memory may resolve names, pronouns, tone, honorifics, and genuine ambiguity only when compatible with the authoritative sourceText. They must not introduce content absent from it.",
+    "Return exactly one record with id 1. Copy the selected block bbox shown below without changing it.",
+    `In ${profile.sourceKey}, copy the authoritative sourceText exactly. In ${profile.targetKey}, write only its translation.`,
+  ];
+}
+
+/** @param {PromptOptions} options @returns {string} */
+function readSelectedBlockTranslationSource(options) {
+  return typeof options.selectedBlockTranslationSourceText === "string"
+    ? sanitizePromptLine(options.selectedBlockTranslationSourceText, 2000)
+    : "";
 }
 
 /**

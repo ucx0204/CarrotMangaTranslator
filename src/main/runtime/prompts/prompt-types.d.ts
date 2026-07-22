@@ -26,6 +26,7 @@ export type PromptOptions = {
   regionCropMode?: unknown;
   strictRefineMode?: unknown;
   keepBlocksMode?: unknown;
+  selectedBlockTranslationSourceText?: unknown;
   collectPageContext?: unknown;
   previousBlocksForPrompt?: PreviousPromptBlock[];
   workContext?: PromptWorkContext | null;

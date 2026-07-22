@@ -102,6 +102,9 @@ function insertOptionalSection(sections, section, anchorTitles) {
  * @returns {string}
  */
 function buildOverlayPrompt(baseSections, options = {}, imageVariants = []) {
+  if (hasSelectedBlockTranslationSource(options)) {
+    return buildSelectedBlockTranslationPrompt(options, imageVariants);
+  }
   if (options.regionCropMode) {
     return buildRegionOverlayPrompt(options, imageVariants);
   }
@@ -147,6 +150,64 @@ function buildOverlayPrompt(baseSections, options = {}, imageVariants = []) {
   }
 
   return localizeSections(sections, options);
+}
+
+/**
+ * @param {PromptOptions} options
+ * @param {ImageVariant[]} imageVariants
+ * @returns {string}
+ */
+function buildSelectedBlockTranslationPrompt(options, imageVariants) {
+  const sections = [
+    buildTaskSection(options, imageVariants),
+    buildCoordinateCalibrationSection(options, imageVariants),
+    buildWorkContextSection(options),
+    buildPreviousPassSection(options, imageVariants),
+    buildSelectedBlockOutputSection(options),
+  ].filter((section) => section.length > 1);
+  return localizeSections(sections, options);
+}
+
+/**
+ * @param {PromptOptions} options
+ * @returns {PromptSection}
+ */
+function buildSelectedBlockOutputSection(options) {
+  const profile = resolvePromptLanguageProfile(options);
+  return [
+    "Output",
+    "Return exactly one record for selected block id 1 and no other records.",
+    "Return plain text only. Do not output JSON, markdown, bullets, commentary, alternatives, or code fences.",
+    `Use exactly these keys, one per line: id, type, textRole, x1, y1, x2, y2, direction, angle, fontSize, confidence, ${profile.sourceKey}, ${profile.targetKey}.`,
+    "Set id to 1, type to nonsolid, and copy textRole and bbox from the Selected block section without changing or recomputing them.",
+    "direction, angle, and fontSize are required compatibility fields; they do not authorize changing the selected block or its sourceText.",
+    "confidence describes translation confidence only, not confidence in re-reading the source image.",
+    `Copy the authoritative sourceText exactly into ${profile.sourceKey}, including its words, punctuation, numbers, and omissions.`,
+    `Write only a faithful translation of that sourceText in ${profile.targetKey}. Context may disambiguate the same words but must not add unrelated content.`,
+    "Put no text before or after the single record.",
+    "Record template:",
+    "id: 1",
+    "type: nonsolid",
+    "textRole: <ordinary|sound>",
+    "x1: <selected block x1>",
+    "y1: <selected block y1>",
+    "x2: <selected block x2>",
+    "y2: <selected block y2>",
+    "direction: <horizontal|vertical>",
+    "angle: <integer>",
+    "fontSize: <integer>",
+    "confidence: <0.00-1.00>",
+    `${profile.sourceKey}: <authoritative sourceText copied exactly>`,
+    `${profile.targetKey}: <translation of authoritative sourceText only>`,
+  ];
+}
+
+/** @param {PromptOptions} options @returns {boolean} */
+function hasSelectedBlockTranslationSource(options) {
+  return (
+    typeof options.selectedBlockTranslationSourceText === "string" &&
+    options.selectedBlockTranslationSourceText.trim().length > 0
+  );
 }
 
 /**

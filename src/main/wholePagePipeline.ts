@@ -32,6 +32,7 @@ export async function runWholePagePipeline({
   signal,
   skipOcrPrepass = false,
   blockMode,
+  selectedBlockTranslationSourceText,
   decodeImage,
   workContext,
   regionContext,
@@ -50,6 +51,7 @@ export async function runWholePagePipeline({
     signal,
     skipOcrPrepass,
     blockMode,
+    selectedBlockTranslationSourceText,
     decodeImage,
     regionContext,
   });
@@ -209,6 +211,7 @@ async function prepareWholePageRun({
   signal,
   skipOcrPrepass,
   blockMode,
+  selectedBlockTranslationSourceText,
   decodeImage,
 }: Pick<
   PipelineOptions,
@@ -222,6 +225,7 @@ async function prepareWholePageRun({
   | "signal"
 > & {
   skipOcrPrepass: boolean;
+  selectedBlockTranslationSourceText?: string;
 }): Promise<{
   ocrHintsByPageId: Map<string, OcrBboxResult>;
   run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
@@ -234,6 +238,10 @@ async function prepareWholePageRun({
     signal,
     skipOcrPrepass,
   });
+  const lockedSourceText = selectedBlockTranslationSourceText?.trim();
+  if (lockedSourceText) {
+    run.baseOptions.selectedBlockTranslationSourceText = lockedSourceText;
+  }
   const ocrHintsByPageId = await preparePageOcrHints({
     jobId,
     pages,

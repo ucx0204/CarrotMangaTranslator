@@ -106,6 +106,7 @@ describe("selected block OCR and translation job", () => {
         blockMode: "keep",
         pages: [expect.objectContaining({ blocks: [selectedBlock] })],
         regionContext: undefined,
+        selectedBlockTranslationSourceText: selectedBlock.sourceText,
         skipOcrPrepass: true,
         writeStoryMemory: false,
       }),

@@ -36,6 +36,8 @@ export type TranslationOptions = {
   collectPageContext?: boolean;
   strictRefineMode?: boolean;
   keepBlocksMode?: boolean;
+  /** Selected-block translation input that images and context must not replace. */
+  selectedBlockTranslationSourceText?: string;
   previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];
   outputDir: string;
   modelProvider: ModelProvider;
