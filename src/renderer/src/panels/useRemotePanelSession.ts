@@ -79,6 +79,16 @@ function buildRemotePanelSessionValue(
         dispatchCommand({ type: "duplicateBlock", blockId: selectedBlockId });
       }
     },
+    onOcrBlock: () => {
+      if (selectedBlockId) {
+        dispatchCommand({ type: "ocrBlock", blockId: selectedBlockId });
+      }
+    },
+    onTranslateBlock: () => {
+      if (selectedBlockId) {
+        dispatchCommand({ type: "translateBlock", blockId: selectedBlockId });
+      }
+    },
     onSelectTransformMode: (mode) =>
       dispatchCommand({ type: "selectTransformMode", mode }),
     onStartAreaTranslate: () => dispatchCommand({ type: "startAreaTranslate" }),

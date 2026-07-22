@@ -229,6 +229,8 @@
   "editor": {
     "text": "텍스트",
     "translatedText": "번역문",
+    "ocrBlock": "OCR",
+    "translateBlock": "번역",
     "blockColors": "블록 색상",
     "display": {
       "title": "편집 표시",

@@ -3,6 +3,7 @@ import type {
   LibraryIndex,
   MangaPage,
 } from "../../shared/libraryTypes";
+import type { TargetBlockOperation } from "../../shared/analysisTypes";
 import type { SavePageBlocksRequest } from "../../shared/shareTypes";
 import {
   cleanupLibraryOrphansUnlocked,
@@ -19,6 +20,7 @@ import {
   renameWorkUnlocked,
   reorderChaptersUnlocked,
   reorderPagesUnlocked,
+  replaceAnalyzedPageBlockTextUnlocked,
   savePageBlocksUnlocked,
   setPageInpaintingResultUnlocked,
   updatePageAfterAnalysisUnlocked,
@@ -42,6 +44,24 @@ export async function appendAnalyzedPageBlocks(
 ): Promise<ChapterSnapshot> {
   return withLibraryMutation(() =>
     appendAnalyzedPageBlocksUnlocked(chapterId, pageId, blocks),
+  );
+}
+
+export async function replaceAnalyzedPageBlockText(
+  chapterId: string,
+  pageId: string,
+  blockId: string,
+  analyzedBlock: MangaPage["blocks"][number],
+  operation?: TargetBlockOperation,
+): Promise<ChapterSnapshot> {
+  return withLibraryMutation(() =>
+    replaceAnalyzedPageBlockTextUnlocked(
+      chapterId,
+      pageId,
+      blockId,
+      analyzedBlock,
+      operation,
+    ),
   );
 }
 

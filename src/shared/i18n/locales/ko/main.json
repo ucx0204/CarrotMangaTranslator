@@ -240,6 +240,12 @@
   "region": {
     "failed": "선택 영역 번역 실패",
     "pageNotFound": "선택한 페이지를 찾지 못했습니다.",
+    "blockResultMissing": "선택한 블록에서 번역할 텍스트를 찾지 못했습니다.",
+    "blockNotFound": "OCR·번역할 블록을 찾지 못했습니다.",
+    "blockOcrPreparing": "선택 블록 OCR 준비 중",
+    "blockTranslationPreparing": "선택 블록 번역 준비 중",
+    "blockOcrCompleted": "선택 블록 OCR 완료",
+    "blockTranslationCompleted": "선택 블록 번역 완료",
     "preparing": "선택 영역 번역 준비 중",
     "completed": "선택 영역 번역 완료"
   },

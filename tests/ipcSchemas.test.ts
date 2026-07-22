@@ -8,6 +8,7 @@ import {
   ModelTestProgressEventSchema,
   parseIpcPayload,
   ReleaseInpaintingHistoryTransactionsRequestSchema,
+  RegionAnalysisRequestSchema,
   SavePageBlocksRequestSchema,
   StartAnalysisRequestSchema,
   StartInpaintingRequestSchema,
@@ -63,6 +64,47 @@ describe("IPC schemas", () => {
       throw new Error("single-page request was not parsed as single-page");
     }
     expect(parsed.pageId).toBe(pageId);
+  });
+
+  it("accepts a target block for region OCR and rejects unsafe block ids", () => {
+    const parsed = parseIpcPayload(
+      RegionAnalysisRequestSchema,
+      {
+        chapterId,
+        pageId,
+        bbox: { x: 10, y: 20, w: 300, h: 400 },
+        targetBlockId: "block-1",
+        targetBlockOperation: "ocr",
+      },
+      "영역 번역",
+    );
+
+    expect(parsed.targetBlockId).toBe("block-1");
+    expect(parsed.targetBlockOperation).toBe("ocr");
+    expect(() =>
+      parseIpcPayload(
+        RegionAnalysisRequestSchema,
+        {
+          chapterId,
+          pageId,
+          bbox: { x: 10, y: 20, w: 300, h: 400 },
+          targetBlockOperation: "translate",
+        },
+        "영역 번역",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        RegionAnalysisRequestSchema,
+        {
+          chapterId,
+          pageId,
+          bbox: { x: 10, y: 20, w: 300, h: 400 },
+          targetBlockId: "../outside",
+        },
+        "영역 번역",
+      ),
+    ).toThrow(/요청 형식/);
   });
 
   it("accepts an optional keep-blocks mode for analysis requests", () => {

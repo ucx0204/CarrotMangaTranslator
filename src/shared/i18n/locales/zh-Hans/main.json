@@ -240,6 +240,12 @@
   "region": {
     "failed": "选区翻译失败",
     "pageNotFound": "找不到所选页面。",
+    "blockResultMissing": "在所选文本块中未找到可翻译的文字。",
+    "blockNotFound": "找不到要进行 OCR 和翻译的文本块。",
+    "blockOcrPreparing": "正在准备所选文本块的 OCR",
+    "blockTranslationPreparing": "正在准备所选文本块的翻译",
+    "blockOcrCompleted": "所选文本块 OCR 已完成",
+    "blockTranslationCompleted": "所选文本块翻译已完成",
     "preparing": "正在准备选区翻译",
     "completed": "选区翻译完成"
   },

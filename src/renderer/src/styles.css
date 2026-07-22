@@ -1686,6 +1686,12 @@ input[type="radio"] {
   color: var(--text-muted);
 }
 
+.editor-block-analysis-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .background-opacity-scope {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

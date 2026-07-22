@@ -43,6 +43,8 @@ export type PanelCommand =
   | { type: "adjustFontSize"; blockId: string; adjustment: -1 | 1 }
   | { type: "deleteBlock"; blockId: string }
   | { type: "duplicateBlock"; blockId: string }
+  | { type: "ocrBlock"; blockId: string }
+  | { type: "translateBlock"; blockId: string }
   | { type: "selectTransformMode"; mode: TransformEditorMode }
   | {
       type: "applyFormat";

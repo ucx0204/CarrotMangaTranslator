@@ -14,6 +14,7 @@ export function buildPanelSyncState({
 >): PanelSyncState {
   const interactionBusy =
     inpaintingBridge.contextValue.jobActive ||
+    derivedState.jobActive ||
     uiState.translationFlowActive ||
     workspaceHistory.busy;
   return {

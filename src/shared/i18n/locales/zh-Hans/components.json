@@ -225,6 +225,8 @@
   "editor": {
     "text": "文本",
     "translatedText": "译文",
+    "ocrBlock": "OCR",
+    "translateBlock": "翻译",
     "blockColors": "文本块颜色",
     "display": {
       "title": "编辑显示",

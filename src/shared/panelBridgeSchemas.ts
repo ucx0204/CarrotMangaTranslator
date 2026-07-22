@@ -58,6 +58,18 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
     .strict(),
   z
     .object({
+      type: z.literal("ocrBlock"),
+      blockId: TranslationBlockSchema.shape.id,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("translateBlock"),
+      blockId: TranslationBlockSchema.shape.id,
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal("selectTransformMode"),
       mode: z.enum(["select", "perspective", "curve"]),
     })

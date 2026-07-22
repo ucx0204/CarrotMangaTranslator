@@ -346,6 +346,11 @@
     "failedTitle": "선택 영역 번역 실패",
     "failed": "선택 영역 번역에 실패했습니다.",
     "startFailed": "선택 영역 번역을 시작하지 못했습니다.",
+    "blockMissing": "OCR·번역할 블록을 찾지 못했습니다.",
+    "sourceTextMissing": "먼저 이 블록의 OCR 원문을 입력하거나 OCR을 실행해 주세요.",
+    "blockSuccess": "선택한 블록의 OCR과 번역을 갱신했습니다.",
+    "ocrSuccess": "선택한 블록의 OCR 원문을 갱신했습니다.",
+    "translateSuccess": "선택한 블록의 번역문을 갱신했습니다.",
     "success": "선택 영역에서 {{count}}개 블록을 만들었습니다.",
     "success_one": "선택 영역에서 {{count}}개 블록을 만들었습니다.",
     "success_other": "선택 영역에서 {{count}}개 블록을 만들었습니다."

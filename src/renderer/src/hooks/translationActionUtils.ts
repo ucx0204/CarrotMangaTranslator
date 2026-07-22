@@ -340,12 +340,45 @@ function reportCompletedRegionTranslation(
     setSelectedBlockId(result.blockIds[0]);
   }
   const warningSummary = summarizeWarnings(result.warnings ?? [], t);
-  pushStatus(
-    warningSummary ||
-      (t
-        ? t("regionTranslation.success", {
-            count: result.blockIds?.length ?? 0,
-          })
-        : `선택 영역에서 ${result.blockIds?.length ?? 0}개 블록을 만들었습니다.`),
+  pushStatus(resolveCompletedRegionStatus(result, warningSummary, t));
+}
+
+function resolveCompletedRegionStatus(
+  result: TranslateRegionResult,
+  warningSummary: string | null,
+  t?: TFunction<"renderer">,
+): string {
+  if (warningSummary) return warningSummary;
+  const operationStatus = resolveBlockOperationStatus(
+    result.targetBlockOperation,
+    t,
   );
+  if (operationStatus) return operationStatus;
+  if (result.replacedBlockId) {
+    return t
+      ? t("regionTranslation.blockSuccess")
+      : "선택한 블록의 OCR과 번역을 갱신했습니다.";
+  }
+  return t
+    ? t("regionTranslation.success", {
+        count: result.blockIds?.length ?? 0,
+      })
+    : `선택 영역에서 ${result.blockIds?.length ?? 0}개 블록을 만들었습니다.`;
+}
+
+function resolveBlockOperationStatus(
+  operation: TranslateRegionResult["targetBlockOperation"],
+  t?: TFunction<"renderer">,
+): string | null {
+  if (operation === "ocr") {
+    return t
+      ? t("regionTranslation.ocrSuccess")
+      : "선택한 블록의 OCR 원문을 갱신했습니다.";
+  }
+  if (operation === "translate") {
+    return t
+      ? t("regionTranslation.translateSuccess")
+      : "선택한 블록의 번역문을 갱신했습니다.";
+  }
+  return null;
 }

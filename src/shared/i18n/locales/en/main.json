@@ -240,6 +240,12 @@
   "region": {
     "failed": "Region translation failed",
     "pageNotFound": "The selected page was not found.",
+    "blockResultMissing": "No translatable text was found in the selected block.",
+    "blockNotFound": "The block to OCR and translate could not be found.",
+    "blockOcrPreparing": "Preparing selected block OCR",
+    "blockTranslationPreparing": "Preparing selected block translation",
+    "blockOcrCompleted": "Selected block OCR complete",
+    "blockTranslationCompleted": "Selected block translation complete",
     "preparing": "Preparing region translation",
     "completed": "Region translation complete"
   },

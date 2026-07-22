@@ -154,7 +154,13 @@ function createModalsProps({
 function createPanelSessionValue(
   model: AppSessionViewModel,
 ): PanelSessionValue {
-  const { blockEditingActions, panelBridge, pointerHandlers, uiState } = model;
+  const {
+    blockEditingActions,
+    panelBridge,
+    pointerHandlers,
+    translationActions,
+    uiState,
+  } = model;
   return {
     ...buildPanelSyncState(model),
     editorFloating: uiState.editorFloating,
@@ -169,6 +175,18 @@ function createPanelSessionValue(
     onDockEditorWindow: panelBridge.closeEditorWindow,
     onDeleteBlock: blockEditingActions.deleteSelectedBlock,
     onDuplicateBlock: blockEditingActions.duplicateSelectedBlock,
+    onOcrBlock: () => {
+      const blockId = model.derivedState.selectedBlock?.id;
+      if (blockId) {
+        void translationActions.ocrSelectedBlock(blockId);
+      }
+    },
+    onTranslateBlock: () => {
+      const blockId = model.derivedState.selectedBlock?.id;
+      if (blockId) {
+        void translationActions.translateSelectedBlock(blockId);
+      }
+    },
     onSelectTransformMode: (mode) => {
       uiState.selectWorkspaceTool(mode);
     },

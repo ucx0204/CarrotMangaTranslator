@@ -340,6 +340,11 @@
     "failedTitle": "範囲翻訳失敗",
     "failed": "選択範囲を翻訳できませんでした。",
     "startFailed": "範囲翻訳を開始できませんでした。",
+    "blockMissing": "OCR・翻訳するブロックが見つかりませんでした。",
+    "sourceTextMissing": "先にこのブロックの原文を入力するか、OCRを実行してください。",
+    "blockSuccess": "選択したブロックのOCRと翻訳を更新しました。",
+    "ocrSuccess": "選択したブロックのOCRテキストを更新しました。",
+    "translateSuccess": "選択したブロックの翻訳を更新しました。",
     "success": "選択範囲から{{count}}個のブロックを作成しました。",
     "success_one": "選択範囲から{{count}}個のブロックを作成しました。",
     "success_other": "選択範囲から{{count}}個のブロックを作成しました。"

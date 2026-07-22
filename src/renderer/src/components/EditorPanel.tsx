@@ -45,6 +45,8 @@ type EditorPanelProps = {
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onOcrBlock?: () => void;
+  onTranslateBlock?: () => void;
   onSelectTransformMode?: (mode: TransformEditorMode) => void;
 };
 
@@ -65,6 +67,8 @@ export function EditorPanel({
   onUpdate,
   onDelete,
   onDuplicate,
+  onOcrBlock,
+  onTranslateBlock,
   onSelectTransformMode,
 }: EditorPanelProps): React.JSX.Element {
   const [fontFamilyDraft, setFontFamilyDraft] = React.useState<
@@ -101,6 +105,8 @@ export function EditorPanel({
           onApplyFormat,
           onDelete,
           onDuplicate,
+          onOcrBlock,
+          onTranslateBlock,
           onSelectTransformMode,
           onUpdate,
           pageSize,
@@ -123,6 +129,8 @@ type EditorBlockGroupsProps = {
   onApplyFormat: EditorPanelProps["onApplyFormat"];
   onDelete: EditorPanelProps["onDelete"];
   onDuplicate: EditorPanelProps["onDuplicate"];
+  onOcrBlock?: EditorPanelProps["onOcrBlock"];
+  onTranslateBlock?: EditorPanelProps["onTranslateBlock"];
   onSelectTransformMode?: EditorPanelProps["onSelectTransformMode"];
   onUpdate: EditorPanelProps["onUpdate"];
   pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
@@ -141,6 +149,8 @@ function EditorBlockGroups({
   onApplyFormat,
   onDelete,
   onDuplicate,
+  onOcrBlock,
+  onTranslateBlock,
   onSelectTransformMode,
   onUpdate,
   pageSize,
@@ -156,7 +166,13 @@ function EditorBlockGroups({
         disabled={disabled}
         onUpdate={onUpdate}
       />
-      <TextEditorGroup block={block} disabled={disabled} onUpdate={onUpdate} />
+      <TextEditorGroup
+        block={block}
+        disabled={disabled}
+        onOcrBlock={onOcrBlock}
+        onTranslateBlock={onTranslateBlock}
+        onUpdate={onUpdate}
+      />
       <BlockTransformEditor
         key={block.id}
         {...{

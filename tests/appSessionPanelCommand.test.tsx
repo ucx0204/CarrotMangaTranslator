@@ -13,12 +13,17 @@ const state = vi.hoisted(() => {
     applyFormatToScope: vi.fn(),
     applyBlockBackgroundOpacityToScope: vi.fn(),
   };
+  const ocrSelectedBlock = vi.fn();
+  const translateSelectedBlock = vi.fn();
   return {
     actions,
     panelCommandHandler: null as ((command: PanelCommand) => void) | null,
     chapter: {
       core: { workspacePanelRef: { current: null } },
-      derivedState: { selectedBlock: { id: "current-block" } },
+      derivedState: {
+        jobActive: false,
+        selectedBlock: { id: "current-block" },
+      },
       uiState: {
         translationFlowActive: false,
         zoomInWorkspace: vi.fn(),
@@ -33,6 +38,7 @@ const state = vi.hoisted(() => {
     translation: {
       actions,
       blockEditingActions: actions,
+      translationActions: { ocrSelectedBlock, translateSelectedBlock },
       workspaceHistory: { busy: false },
     },
   };
@@ -97,6 +103,8 @@ describe("useAppSessionModel panel command target safety", () => {
       },
       { type: "deleteBlock", blockId: "stale-block" },
       { type: "duplicateBlock", blockId: "stale-block" },
+      { type: "ocrBlock", blockId: "stale-block" },
+      { type: "translateBlock", blockId: "stale-block" },
     ] satisfies PanelCommand[];
 
     act(() => {
@@ -109,6 +117,12 @@ describe("useAppSessionModel panel command target safety", () => {
     expect(state.actions.adjustSelectedBlockFontSize).not.toHaveBeenCalled();
     expect(state.actions.deleteSelectedBlock).not.toHaveBeenCalled();
     expect(state.actions.duplicateSelectedBlock).not.toHaveBeenCalled();
+    expect(
+      state.translation.translationActions.ocrSelectedBlock,
+    ).not.toHaveBeenCalled();
+    expect(
+      state.translation.translationActions.translateSelectedBlock,
+    ).not.toHaveBeenCalled();
   });
 
   it("still applies block commands that target the current selection", () => {
@@ -133,6 +147,14 @@ describe("useAppSessionModel panel command target safety", () => {
         type: "duplicateBlock",
         blockId: "current-block",
       });
+      state.panelCommandHandler?.({
+        type: "ocrBlock",
+        blockId: "current-block",
+      });
+      state.panelCommandHandler?.({
+        type: "translateBlock",
+        blockId: "current-block",
+      });
     });
 
     expect(state.actions.updateSelectedBlock).toHaveBeenCalledWith({
@@ -141,5 +163,11 @@ describe("useAppSessionModel panel command target safety", () => {
     expect(state.actions.adjustSelectedBlockFontSize).toHaveBeenCalledWith(-1);
     expect(state.actions.deleteSelectedBlock).toHaveBeenCalledOnce();
     expect(state.actions.duplicateSelectedBlock).toHaveBeenCalledOnce();
+    expect(
+      state.translation.translationActions.ocrSelectedBlock,
+    ).toHaveBeenCalledWith("current-block");
+    expect(
+      state.translation.translationActions.translateSelectedBlock,
+    ).toHaveBeenCalledWith("current-block");
   });
 });

@@ -59,4 +59,6 @@ export type TranslationActions = {
     options: TranslationFlowOptions,
   ) => Promise<RunAnalysisOutcome>;
   translateSelectedRegion: (bbox: BBox) => Promise<void>;
+  ocrSelectedBlock: (blockId: string) => Promise<void>;
+  translateSelectedBlock: (blockId: string) => Promise<void>;
 };

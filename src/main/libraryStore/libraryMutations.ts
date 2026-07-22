@@ -34,7 +34,10 @@ import { sanitizeTitle } from "./titles";
 import { logLibraryWarning } from "./libraryLogger";
 import { syncChapterStoryMemoryPages } from "./workContextFiles";
 
-export { appendAnalyzedPageBlocksUnlocked } from "./libraryAnalysisMutations";
+export {
+  appendAnalyzedPageBlocksUnlocked,
+  replaceAnalyzedPageBlockTextUnlocked,
+} from "./libraryAnalysisMutations";
 export {
   setPageInpaintingResultUnlocked,
   updatePagesAfterInpaintingUnlocked,

@@ -18,6 +18,7 @@ import {
 import { resolveColor, type EditorPanelModel } from "./editorPanelUtils";
 import type { BlockBackgroundApplyScope } from "../hooks/useBlockEditingActions";
 import { BlockBackgroundApplyModal } from "./BlockBackgroundApplyModal";
+import { EditorBlockAnalysisButtons } from "./EditorBlockAnalysisButtons";
 
 type BlockPatchHandler = (patch: Partial<TranslationBlock>) => void;
 
@@ -91,8 +92,13 @@ export function EmptyEditorPanel({
 export function TextEditorGroup({
   block,
   disabled,
+  onOcrBlock,
+  onTranslateBlock,
   onUpdate,
-}: BlockSectionProps): React.JSX.Element {
+}: BlockSectionProps & {
+  onOcrBlock?: () => void;
+  onTranslateBlock?: () => void;
+}): React.JSX.Element {
   const { t } = useTranslation("components");
   const { refCallback: translatedTextareaRef, reset: resetTranslatedHeight } =
     useStickyTextareaHeight("editor.textareaHeight.translated");
@@ -130,6 +136,12 @@ export function TextEditorGroup({
           onResetHeights={resetTextareaHeights}
         />
       </div>
+      <EditorBlockAnalysisButtons
+        disabled={disabled}
+        onOcrBlock={onOcrBlock}
+        onTranslateBlock={onTranslateBlock}
+        translateDisabled={!block.sourceText.trim()}
+      />
       <label>
         {t("editor.translatedText")}
         <textarea

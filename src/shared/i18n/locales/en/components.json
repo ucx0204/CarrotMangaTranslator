@@ -233,6 +233,8 @@
   "editor": {
     "text": "Text",
     "translatedText": "Translation",
+    "ocrBlock": "OCR",
+    "translateBlock": "Translate",
     "blockColors": "Block colors",
     "display": {
       "title": "Editor display",

@@ -2,6 +2,7 @@ import type { BBox } from "./textTypes";
 import type { ChapterSnapshot } from "./libraryTypes";
 
 export type AnalysisBlockMode = "auto" | "keep";
+export type TargetBlockOperation = "ocr" | "translate";
 
 type PageContextCollectionOption = {
   collectPageContext?: boolean;
@@ -44,9 +45,13 @@ export type RegionAnalysisRequest = {
   chapterId: string;
   pageId: string;
   bbox: BBox;
+  targetBlockId?: string;
+  targetBlockOperation?: TargetBlockOperation;
 };
 
 export type RegionAnalysisResult = StartAnalysisResult & {
   pageId?: string;
   blockIds?: string[];
+  replacedBlockId?: string;
+  targetBlockOperation?: TargetBlockOperation;
 };

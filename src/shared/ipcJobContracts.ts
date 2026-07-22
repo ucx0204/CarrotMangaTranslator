@@ -65,6 +65,8 @@ const regionAnalysisResultSchema = startAnalysisResultSchema
       .array(z.string().min(1).max(200))
       .max(MAX_BLOCKS_PER_RESULT)
       .optional(),
+    replacedBlockId: stringArg.optional(),
+    targetBlockOperation: z.enum(["ocr", "translate"]).optional(),
   })
   .strict();
 const startInpaintingResultSchema = z

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { BBox } from "../../../shared/textTypes";
+import type { TargetBlockOperation } from "../../../shared/analysisTypes";
 import { isUsableRegionBbox } from "../../../shared/region";
 import { mangaGateway } from "../api/mangaGateway";
 import { formatErrorMessage } from "../lib/appHelpers";
@@ -34,8 +35,14 @@ import {
   startingJobState,
 } from "./translationActionUtils";
 import { useRunAnalysisAction } from "./useRunAnalysisAction";
+import { useSelectedBlockAnalysisActions } from "./useSelectedBlockAnalysisActions";
 
 type FlowActiveRef = MutableRefObject<boolean>;
+type TranslateRegionAction = (
+  bbox: BBox,
+  targetBlockId?: string,
+  targetBlockOperation?: TargetBlockOperation,
+) => Promise<void>;
 export { reportRefreshLibraryFailure };
 
 export function useTranslationActionsImpl(
@@ -59,9 +66,25 @@ export function useTranslationActionsImpl(
     analysisScopeDefault: options.analysisScopeDefault ?? "missing",
     blockModeDefault: options.blockModeDefault ?? "auto",
   });
-  const translateSelectedRegion = useTranslateSelectedRegionAction(options);
+  const translateRegion = useTranslateRegionAction(options);
+  const translateSelectedRegion = useCallback(
+    (bbox: BBox) => translateRegion(bbox),
+    [translateRegion],
+  );
+  const { ocrSelectedBlock, translateSelectedBlock } =
+    useSelectedBlockAnalysisActions({
+      pushStatus: options.pushStatus,
+      runBlockOperation: translateRegion,
+      selectedPage: options.selectedPage,
+    });
 
-  return { runAnalysis, runTranslationFlow, translateSelectedRegion };
+  return {
+    runAnalysis,
+    runTranslationFlow,
+    ocrSelectedBlock,
+    translateSelectedBlock,
+    translateSelectedRegion,
+  };
 }
 
 function useExecuteAnalysisJob({
@@ -286,7 +309,7 @@ async function runTranslationFlowPasses({
   );
 }
 
-function useTranslateSelectedRegionAction({
+function useTranslateRegionAction({
   beforeTranslate,
   clearStatusLines,
   currentChapter,
@@ -300,10 +323,10 @@ function useTranslateSelectedRegionAction({
   setJobState,
   setSelectedBlockId,
   syncSavedPageVersion,
-}: UseTranslationActionsOptions): TranslationActions["translateSelectedRegion"] {
+}: UseTranslationActionsOptions): TranslateRegionAction {
   const { t } = useTranslation("renderer");
-  return useCallback(
-    async (bbox: BBox) => {
+  return useCallback<TranslateRegionAction>(
+    async (bbox, targetBlockId, operation) => {
       if (!currentChapter || !selectedPage || jobActive) {
         return;
       }
@@ -320,6 +343,8 @@ function useTranslateSelectedRegionAction({
           chapterId: currentChapter.id,
           pageId: selectedPage.id,
           bbox,
+          targetBlockId,
+          targetBlockOperation: operation,
         });
         mergeTranslatedRegionResult(result, {
           currentChapterRef,

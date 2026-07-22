@@ -229,6 +229,8 @@
   "editor": {
     "text": "テキスト",
     "translatedText": "翻訳文",
+    "ocrBlock": "OCR",
+    "translateBlock": "翻訳",
     "blockColors": "ブロックの色",
     "display": {
       "title": "編集表示",

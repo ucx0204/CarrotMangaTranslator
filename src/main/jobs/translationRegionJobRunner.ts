@@ -4,6 +4,7 @@ import type {
 } from "../../shared/analysisTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
+import { normalizedRegionToPixelRect } from "../../shared/region";
 import {
   createRegionCropPage,
   mapRegionBlocksToPageBlocks,
@@ -12,12 +13,17 @@ import {
   appendAnalyzedPageBlocks,
   getRunPaths,
   openChapter,
+  replaceAnalyzedPageBlockText,
   resolveWorkContextForChapter,
 } from "../library";
 import { logError } from "../logger";
 import { tMain } from "./localization";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { isAbortError } from "./jobEvents";
+import {
+  recognizeSelectedBlock,
+  resolveSelectedBlock,
+} from "./selectedBlockOcr";
 import type { TranslationJobContext } from "./translationJobTypes";
 
 type EmitJobEvent = (event: JobEvent) => void;
@@ -57,26 +63,47 @@ export async function runRegionTranslationJob({
   }
 
   state.runPaths = await getRunPaths(request.chapterId, id);
-  const { cropPage, cropRect } = await createRegionCropPage(
-    page,
-    request.bbox,
-    id,
-    state.runPaths.runDir,
-    context.decodeImage,
-  );
-  emitRegionStarting(id, emit, cropRect);
-  const result = await runRegionPipeline({
-    abortController,
-    context,
-    cropPage,
-    cropRect,
-    emit,
-    id,
-    page,
-    pageIndex: Math.max(0, pageIndex),
-    request,
-    runPaths: state.runPaths,
-  });
+  const targetBlock = resolveSelectedBlock(page, request.targetBlockId);
+  const regionCrop = targetBlock
+    ? {
+        cropPage: { ...page, blocks: [targetBlock] },
+        cropRect: normalizedRegionToPixelRect(
+          targetBlock.bbox,
+          { width: page.width, height: page.height },
+          8,
+        ),
+      }
+    : await createRegionCropPage(
+        page,
+        request.bbox,
+        id,
+        state.runPaths.runDir,
+        context.decodeImage,
+      );
+  const { cropPage, cropRect } = regionCrop;
+  emitRegionStarting(id, emit, cropRect, request.targetBlockOperation);
+  const result =
+    request.targetBlockOperation === "ocr"
+      ? await recognizeSelectedBlock({
+          decodeImage: context.decodeImage,
+          emit,
+          jobId: id,
+          page: cropPage,
+          runPaths: state.runPaths,
+          signal: abortController.signal,
+        })
+      : await runRegionPipeline({
+          abortController,
+          context,
+          cropPage,
+          cropRect,
+          emit,
+          id,
+          page,
+          pageIndex: Math.max(0, pageIndex),
+          request,
+          runPaths: state.runPaths,
+        });
 
   if (abortController.signal.aborted) {
     throw new DOMException("Aborted", "AbortError");
@@ -139,12 +166,18 @@ function emitRegionStarting(
   id: string,
   emit: EmitJobEvent,
   cropRect: { w: number; h: number },
+  operation?: RegionAnalysisRequest["targetBlockOperation"],
 ): void {
   emit({
     id,
     kind: "gemma-analysis",
     status: "starting",
-    progressText: tMain("region.preparing"),
+    progressText:
+      operation === "ocr"
+        ? tMain("region.blockOcrPreparing")
+        : operation === "translate"
+          ? tMain("region.blockTranslationPreparing")
+          : tMain("region.preparing"),
     phase: "booting",
     progressCurrent: 0,
     progressTotal: 1,
@@ -184,13 +217,17 @@ function runRegionPipeline({
         context.jobs.setCleanup(id, cleanup);
       },
       pages: [cropPage],
+      blockMode: request.targetBlockId ? "keep" : undefined,
+      skipOcrPrepass: request.targetBlockOperation === "translate",
       runPaths,
       signal: abortController.signal,
-      regionContext: {
-        sourcePage: page,
-        sourcePageIndex: pageIndex,
-        cropRect,
-      },
+      regionContext: request.targetBlockId
+        ? undefined
+        : {
+            sourcePage: page,
+            sourcePageIndex: pageIndex,
+            cropRect,
+          },
       workContext: {
         ...workContext,
         chapterId: request.chapterId,
@@ -217,6 +254,29 @@ async function completeRegionTranslation({
   result: PipelineResult;
 }): Promise<RegionAnalysisResult> {
   const analyzedCrop = result.pages[0];
+  if (request.targetBlockId) {
+    const analyzedBlock = analyzedCrop?.blocks[0];
+    if (!analyzedBlock) {
+      throw new Error(tMain("region.blockResultMissing"));
+    }
+    const saved = await replaceAnalyzedPageBlockText(
+      request.chapterId,
+      request.pageId,
+      request.targetBlockId,
+      analyzedBlock,
+      request.targetBlockOperation,
+    );
+    emitRegionCompleted(id, emit, 1, request.targetBlockOperation);
+    return {
+      status: "completed",
+      chapter: saved,
+      warnings: result.warnings,
+      pageId: request.pageId,
+      blockIds: [request.targetBlockId],
+      replacedBlockId: request.targetBlockId,
+      targetBlockOperation: request.targetBlockOperation,
+    };
+  }
   const mappedBlocks = analyzedCrop
     ? mapRegionBlocksToPageBlocks(analyzedCrop.blocks, page, cropRect)
     : [];
@@ -241,12 +301,18 @@ function emitRegionCompleted(
   id: string,
   emit: EmitJobEvent,
   blockCount: number,
+  operation?: RegionAnalysisRequest["targetBlockOperation"],
 ): void {
   emit({
     id,
     kind: "gemma-analysis",
     status: "completed",
-    progressText: tMain("region.completed"),
+    progressText:
+      operation === "ocr"
+        ? tMain("region.blockOcrCompleted")
+        : operation === "translate"
+          ? tMain("region.blockTranslationCompleted")
+          : tMain("region.completed"),
     phase: "done",
     progressCurrent: 1,
     progressTotal: 1,

@@ -37,7 +37,21 @@ vi.stubGlobal(
   },
 );
 
-afterEach(() => cleanup());
+const localStorageValues = new Map<string, string>();
+Object.defineProperty(window, "localStorage", {
+  configurable: true,
+  value: {
+    clear: () => localStorageValues.clear(),
+    getItem: (key: string) => localStorageValues.get(key) ?? null,
+    removeItem: (key: string) => localStorageValues.delete(key),
+    setItem: (key: string, value: string) => localStorageValues.set(key, value),
+  },
+});
+
+afterEach(() => {
+  cleanup();
+  localStorageValues.clear();
+});
 
 describe("selected block font-size adjustment", () => {
   it("adjusts only the active manual-size block by one pixel", () => {
@@ -151,6 +165,53 @@ describe("selected block font-size adjustment", () => {
     act(() => screen.getByRole("button", { name: "글자 크기 늘리기" }).click());
 
     expect(onAdjustFontSize.mock.calls).toEqual([[-1], [1]]);
+  });
+
+  it("exposes separate OCR and translation actions for the selected block", () => {
+    const onOcrBlock = vi.fn();
+    const onTranslateBlock = vi.fn();
+    render(
+      <EditorPanel
+        block={makeBlock()}
+        disabled={false}
+        onAdjustFontSize={vi.fn()}
+        onDelete={vi.fn()}
+        onDuplicate={vi.fn()}
+        onOcrBlock={onOcrBlock}
+        onTranslateBlock={onTranslateBlock}
+        onUpdate={vi.fn()}
+      />,
+    );
+
+    act(() => screen.getByRole("button", { name: "OCR" }).click());
+    act(() => screen.getByRole("button", { name: "번역" }).click());
+
+    expect(onOcrBlock).toHaveBeenCalledOnce();
+    expect(onTranslateBlock).toHaveBeenCalledOnce();
+  });
+
+  it("requires source text before translating a selected block", () => {
+    render(
+      <EditorPanel
+        block={makeBlock({ sourceText: "" })}
+        disabled={false}
+        onAdjustFontSize={vi.fn()}
+        onDelete={vi.fn()}
+        onDuplicate={vi.fn()}
+        onOcrBlock={vi.fn()}
+        onTranslateBlock={vi.fn()}
+        onUpdate={vi.fn()}
+      />,
+    );
+
+    expect(
+      (screen.getByRole("button", { name: "OCR" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+    expect(
+      (screen.getByRole("button", { name: "번역" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 
   it("edits line wrapping with user-facing labels", () => {
@@ -414,6 +475,8 @@ describe("font-size panel bridge", () => {
     { type: "adjustFontSize", adjustment: 1 },
     { type: "deleteBlock" },
     { type: "duplicateBlock" },
+    { type: "ocrBlock" },
+    { type: "translateBlock" },
   ])("requires a block id for $type commands", (command) => {
     expect(() => PanelCommandSchema.parse(command)).toThrow();
   });
@@ -461,6 +524,8 @@ describe("font-size panel bridge", () => {
     act(() => result.current?.onUpdateBlock({ translatedText: "수정" }));
     act(() => result.current?.onDeleteBlock());
     act(() => result.current?.onDuplicateBlock());
+    act(() => result.current?.onOcrBlock());
+    act(() => result.current?.onTranslateBlock());
     act(() => result.current?.onApplyBlockBackgroundOpacity("chapter"));
 
     expect(sendPanelCommand).toHaveBeenCalledWith({
@@ -479,6 +544,14 @@ describe("font-size panel bridge", () => {
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "duplicateBlock",
+      blockId: block.id,
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "ocrBlock",
+      blockId: block.id,
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "translateBlock",
       blockId: block.id,
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({

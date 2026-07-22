@@ -81,6 +81,7 @@ function usePanelCommandHandler(
   const actions = translation.blockEditingActions;
   const busy =
     inpainting.inpaintingBridge.contextValue.jobActive ||
+    chapter.derivedState.jobActive ||
     chapter.uiState.translationFlowActive ||
     translation.workspaceHistory.busy;
   const selectedBlockId = chapter.derivedState.selectedBlock?.id ?? null;
@@ -98,6 +99,12 @@ function usePanelCommandHandler(
         actions.deleteSelectedBlock();
       } else if (command.type === "duplicateBlock") {
         actions.duplicateSelectedBlock();
+      } else if (command.type === "ocrBlock") {
+        void translation.translationActions.ocrSelectedBlock(command.blockId);
+      } else if (command.type === "translateBlock") {
+        void translation.translationActions.translateSelectedBlock(
+          command.blockId,
+        );
       } else if (command.type === "selectTransformMode") {
         selectWorkspaceTool(command.mode);
       } else if (command.type === "applyFormat") {
@@ -108,7 +115,14 @@ function usePanelCommandHandler(
         startAreaTranslate();
       }
     },
-    [actions, busy, selectedBlockId, selectWorkspaceTool, startAreaTranslate],
+    [
+      actions,
+      busy,
+      selectedBlockId,
+      selectWorkspaceTool,
+      startAreaTranslate,
+      translation.translationActions,
+    ],
   );
 }
 
@@ -120,7 +134,9 @@ function isStaleBlockPanelCommand(
     (command.type === "updateBlock" ||
       command.type === "adjustFontSize" ||
       command.type === "deleteBlock" ||
-      command.type === "duplicateBlock") &&
+      command.type === "duplicateBlock" ||
+      command.type === "ocrBlock" ||
+      command.type === "translateBlock") &&
     command.blockId !== selectedBlockId
   );
 }

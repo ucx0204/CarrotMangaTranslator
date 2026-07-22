@@ -225,6 +225,8 @@
   "editor": {
     "text": "文字",
     "translatedText": "譯文",
+    "ocrBlock": "OCR",
+    "translateBlock": "翻譯",
     "blockColors": "文字區塊顏色",
     "display": {
       "title": "編輯顯示",

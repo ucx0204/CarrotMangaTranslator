@@ -22,6 +22,7 @@ export {
   renameWork,
   reorderChapters,
   reorderPages,
+  replaceAnalyzedPageBlockText,
   savePageBlocks,
   setPageInpaintingResult,
   updatePageAfterAnalysis,

@@ -343,6 +343,11 @@
     "failedTitle": "Region translation failed",
     "failed": "Could not translate the selected area.",
     "startFailed": "Could not start region translation.",
+    "blockMissing": "Could not find the block to OCR and translate.",
+    "sourceTextMissing": "Enter source text or run OCR for this block first.",
+    "blockSuccess": "Updated OCR and translation for the selected block.",
+    "ocrSuccess": "Updated the OCR text for the selected block.",
+    "translateSuccess": "Updated the translation for the selected block.",
     "success": "Created {{count}} blocks from the selected area.",
     "success_one": "Created {{count}} block from the selected area.",
     "success_other": "Created {{count}} blocks from the selected area."

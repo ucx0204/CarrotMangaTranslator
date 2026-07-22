@@ -795,6 +795,88 @@ describe("work share packages", () => {
     expect(work?.updatedAt).not.toBe("2026-01-01T00:00:00.000Z");
   });
 
+  it("replaces only OCR text fields when re-translating a block", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+    const page = firstPage(chapter);
+    const original = firstBlock(page);
+
+    const saved = await library.replaceAnalyzedPageBlockText(
+      chapter.id,
+      page.id,
+      original.id,
+      {
+        ...original,
+        id: "ocr-generated-block",
+        bbox: { x: 300, y: 400, w: 50, h: 60 },
+        sourceText: "新しい原文",
+        translatedText: "새 번역",
+        confidence: 0.72,
+        sourceDirection: "horizontal",
+        renderDirection: "horizontal",
+        fontSizePx: 44,
+        textColor: "#ff0000",
+      },
+    );
+
+    const replaced = firstBlock(firstPage(saved));
+    expect(replaced).toMatchObject({
+      id: original.id,
+      bbox: original.bbox,
+      sourceText: "新しい原文",
+      translatedText: "새 번역",
+      confidence: 0.72,
+      sourceDirection: "horizontal",
+      renderDirection: original.renderDirection,
+      fontSizePx: original.fontSizePx,
+      textColor: original.textColor,
+      reviewStatus: "draft",
+    });
+  });
+
+  it("keeps OCR and translation updates isolated for a selected block", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+    const page = firstPage(chapter);
+    const original = firstBlock(page);
+
+    const afterOcr = await library.replaceAnalyzedPageBlockText(
+      chapter.id,
+      page.id,
+      original.id,
+      {
+        ...original,
+        sourceText: "OCR 갱신 원문",
+        translatedText: "덮어쓰면 안 되는 번역",
+      },
+      "ocr",
+    );
+    expect(firstBlock(firstPage(afterOcr))).toMatchObject({
+      sourceText: "OCR 갱신 원문",
+      translatedText: original.translatedText,
+    });
+
+    const afterTranslation = await library.replaceAnalyzedPageBlockText(
+      chapter.id,
+      page.id,
+      original.id,
+      {
+        ...original,
+        sourceText: "덮어쓰면 안 되는 원문",
+        translatedText: "번역만 갱신",
+      },
+      "translate",
+    );
+    expect(firstBlock(firstPage(afterTranslation))).toMatchObject({
+      sourceText: "OCR 갱신 원문",
+      translatedText: "번역만 갱신",
+    });
+  });
+
   it("rebases stale page block saves when server blocks still match the baseline", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);

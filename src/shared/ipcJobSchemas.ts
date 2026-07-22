@@ -14,6 +14,7 @@ import {
   filePath,
   finiteNumber,
   hexColor,
+  storeId,
   uuid,
 } from "./ipcSchemaPrimitives";
 
@@ -231,5 +232,12 @@ export const RegionAnalysisRequestSchema = z
     chapterId: uuid,
     pageId: uuid,
     bbox: BBoxSchema,
+    targetBlockId: storeId.optional(),
+    targetBlockOperation: z.enum(["ocr", "translate"]).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (request) =>
+      !request.targetBlockOperation || Boolean(request.targetBlockId),
+    { path: ["targetBlockId"], message: "required for block operation" },
+  );

@@ -337,6 +337,11 @@
     "failedTitle": "区域翻译失败",
     "failed": "无法翻译所选区域。",
     "startFailed": "无法开始区域翻译。",
+    "blockMissing": "找不到要进行 OCR 和翻译的文本块。",
+    "sourceTextMissing": "请先输入该文本块的原文或运行 OCR。",
+    "blockSuccess": "已更新所选文本块的 OCR 和翻译。",
+    "ocrSuccess": "已更新所选文本块的 OCR 原文。",
+    "translateSuccess": "已更新所选文本块的译文。",
     "success": "已从所选区域创建 {{count}} 个文本块。",
     "success_one": "已从所选区域创建 {{count}} 个文本块。",
     "success_other": "已从所选区域创建 {{count}} 个文本块。"
