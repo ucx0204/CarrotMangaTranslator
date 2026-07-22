@@ -49,7 +49,7 @@ function replaceCachedExports(modulePath: string, exports: unknown): void {
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
 describeWindows("OCR runtime boundary behavior", () => {
-  it("rejects Apple GPU OCR instead of opening the bundled CPU runtime", async () => {
+  it("rejects non-MLX Apple GPU OCR instead of opening the bundled CPU runtime", async () => {
     const platformDescriptor = Object.getOwnPropertyDescriptor(
       process,
       "platform",
@@ -67,8 +67,11 @@ describeWindows("OCR runtime boundary behavior", () => {
       });
 
       await expect(
-        manager.ensurePaddleOcrRuntime({ ocrDevice: "gpu" }),
-      ).rejects.toThrow("OCR 장치를 CPU로 직접 변경");
+        manager.ensurePaddleOcrRuntime({
+          ocrDevice: "gpu",
+          ocrGpuBackend: "cuda",
+        }),
+      ).rejects.toThrow("OCR 장치를 Apple GPU (MLX)로 변경");
     } finally {
       if (platformDescriptor) {
         Object.defineProperty(process, "platform", platformDescriptor);
