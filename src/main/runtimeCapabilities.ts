@@ -53,7 +53,9 @@ export function buildRuntimeCapabilities({
     },
     ocr: {
       cpu: true,
-      gpu: platform === "win32",
+      gpu:
+        platform === "win32" ||
+        (platform === "darwin" && arch === "arm64" && supportsMetal),
     },
   };
 }

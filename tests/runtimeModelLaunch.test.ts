@@ -601,6 +601,12 @@ describeWindows("runtime model support helpers", () => {
         ocrGpuBackend: "rocm-transformers",
       }),
     ).toBe("gpu-rocm-transformers");
+    expect(
+      resolveOcrRuntimeVariant({
+        ocrDevice: "gpu",
+        ocrGpuBackend: "mlx-vlm",
+      }),
+    ).toBe("gpu-mlx-vlm");
   });
 
   it("keeps ROCm Transformers safe GPU defaults scoped to AMD OCR", () => {
@@ -802,6 +808,20 @@ describeWindows("runtime model support helpers", () => {
       resolveEffectiveOcrDevice({ ocrDevice: "gpu", ocrDeviceOverride: "cpu" }),
     ).toBe("gpu:0");
     expect(resolveEffectiveOcrDevice({ ocrDevice: "cpu" })).toBe("cpu");
+    expect(
+      resolveEffectiveOcrDevice({
+        ocrDevice: "gpu",
+        ocrGpuBackend: "mlx-vlm",
+      }),
+    ).toBe("cpu");
+
+    const mlxEnv = buildOcrRuntimeEnv({
+      ocrDevice: "gpu",
+      ocrGpuBackend: "mlx-vlm",
+    });
+    expect(mlxEnv.MANGA_TRANSLATOR_OCR_DEVICE).toBe("gpu");
+    expect(mlxEnv.MANGA_TRANSLATOR_PADDLEOCR_DEVICE).toBe("cpu");
+    expect(mlxEnv.OMP_NUM_THREADS).toBe("2");
 
     const runtime = { pythonPath: "python" };
     const gpuCommand = buildOcrBboxBatchCommand(
@@ -1480,6 +1500,19 @@ describeWindows("runtime model support helpers", () => {
     } finally {
       restoreEnv("MANGA_TRANSLATOR_OCR_IMPORT_TIMEOUT_MS", previous);
     }
+  });
+
+  it("verifies the Apple MLX-VLM runtime without requiring Paddle CUDA", () => {
+    const script = buildPaddleOcrImportCheckScript({
+      ocrDevice: "gpu",
+      ocrGpuBackend: "mlx-vlm",
+    });
+
+    expect(resolveOcrGpuBackend({ ocrGpuBackend: "metal" })).toBe("mlx-vlm");
+    expect(script).toContain("import mlx.core as mx");
+    expect(script).toContain("import mlx_vlm.server");
+    expect(script).toContain("mx.device_info()");
+    expect(script).not.toContain("paddle.device.is_compiled_with_cuda()");
   });
 
   it("prefers the bundled ffmpeg from the tools directory", () => {

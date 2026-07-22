@@ -52,7 +52,7 @@ export function useSettingsRuntimeGuards({
 
   useSettingsFocusEffect(values, refs);
   useOcrBackendGuard(values, setters, runtime);
-  useOcrQualityDeviceGuard(values, setters);
+  useOcrQualityDeviceGuard(values, setters, runtime);
   useLlamaRuntimeGuard(values, setters, initialSettings, runtime);
   useFluxBackendGuard(values, setters, initialSettings, runtime);
 
@@ -151,6 +151,14 @@ function useOcrBackendGuard(
   React.useEffect(() => {
     if (
       values.ocrDevice === "gpu" &&
+      runtime.usesAppleHardware &&
+      values.ocrGpuBackend !== "mlx-vlm"
+    ) {
+      setters.setOcrGpuBackend("mlx-vlm");
+      return;
+    }
+    if (
+      values.ocrDevice === "gpu" &&
       values.ocrGpuBackend === "cuda" &&
       runtime.usesAmdOcrContext
     ) {
@@ -159,13 +167,15 @@ function useOcrBackendGuard(
     }
     if (
       values.ocrDevice === "gpu" &&
-      values.ocrGpuBackend === "rocm-transformers" &&
+      (values.ocrGpuBackend === "rocm-transformers" ||
+        values.ocrGpuBackend === "mlx-vlm") &&
       runtime.usesNvidiaOcrContext
     ) {
       setters.setOcrGpuBackend("cuda");
     }
   }, [
     runtime.usesAmdOcrContext,
+    runtime.usesAppleHardware,
     runtime.usesNvidiaOcrContext,
     setters,
     values.ocrDevice,
@@ -176,14 +186,36 @@ function useOcrBackendGuard(
 function useOcrQualityDeviceGuard(
   values: SettingsFormValues,
   setters: SettingsFormSetters,
+  runtime: ReturnType<typeof resolveRuntimeContext>,
 ): void {
   React.useEffect(() => {
+    if (runtime.usesAppleHardware) {
+      if (values.ocrQualityMode === "full") {
+        if (values.ocrDevice !== "gpu") {
+          setters.setOcrDevice("gpu");
+        }
+        if (values.ocrGpuBackend !== "mlx-vlm") {
+          setters.setOcrGpuBackend("mlx-vlm");
+        }
+        return;
+      }
+      if (values.ocrDevice === "gpu" && values.ocrGpuBackend === "mlx-vlm") {
+        setters.setOcrDevice("cpu");
+      }
+      return;
+    }
     // 풀로드(PaddleOCR-VL) 품질은 CPU에서 못 쓸 만큼 느리므로 CPU 장치와
     // 조합되지 않도록 절약 품질로 강제한다.
     if (values.ocrDevice === "cpu" && values.ocrQualityMode === "full") {
       setters.setOcrQualityMode("economy");
     }
-  }, [setters, values.ocrDevice, values.ocrQualityMode]);
+  }, [
+    runtime.usesAppleHardware,
+    setters,
+    values.ocrDevice,
+    values.ocrGpuBackend,
+    values.ocrQualityMode,
+  ]);
 }
 
 function useLlamaRuntimeGuard(

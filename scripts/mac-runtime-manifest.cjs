@@ -15,6 +15,7 @@ const MAC_RUNTIME_MANIFEST = Object.freeze({
   ocrPackages: Object.freeze([
     "paddlepaddle==3.3.1",
     "paddleocr[doc-parser]==3.7.0",
+    "mlx-vlm==0.6.6",
   ]),
   llamaRuntimes: Object.freeze([
     Object.freeze({

@@ -1587,9 +1587,8 @@ describeWindows("app settings helpers", () => {
     expect(resolveOcrGpuBackend("hip")).toBe("rocm-transformers");
     expect(resolveOcrGpuBackend("rocm-transformers")).toBe("rocm-transformers");
     expect(resolveOcrGpuBackend("transformers-rocm")).toBe("rocm-transformers");
-    expect(resolveOcrGpuBackend("mps", "rocm-transformers")).toBe(
-      "rocm-transformers",
-    );
+    expect(resolveOcrGpuBackend("mps", "rocm-transformers")).toBe("mlx-vlm");
+    expect(resolveOcrGpuBackend("mlx-vlm-server")).toBe("mlx-vlm");
     expect(resolveOcrQualityMode("min", "full")).toBe("minimum");
     expect(resolveOcrQualityMode("tiny", "full")).toBe("minimum");
     expect(resolveOcrQualityMode("small", "full")).toBe("economy");
@@ -1631,6 +1630,26 @@ describeWindows("app settings helpers", () => {
   });
 
   it("chooses first-run defaults from detected GPU generation and VRAM", () => {
+    expect(
+      resolveHardwareDefaults({
+        name: "Apple M2 Max",
+        memoryMb: 32 * 1024,
+        unifiedMemoryMb: 32 * 1024,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "apple",
+        supportsMetal: true,
+      }),
+    ).toEqual({
+      modelProvider: "gemma",
+      gemmaVramMode: "full31b",
+      ocrDevice: "gpu",
+      ocrQualityMode: "full",
+      ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      ocrGpuBackend: "mlx-vlm",
+      fluxBackend: "metal-native",
+      llamaRuntimeProfile: "metal",
+    });
     expect(
       resolveHardwareDefaults({
         name: "NVIDIA GeForce RTX 4090",

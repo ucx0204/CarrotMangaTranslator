@@ -11,6 +11,9 @@ const {
 
 /** @param {unknown} importMessage @param {RuntimeOptions} [options] @returns {string} */
 function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
+  if (isMlxGpu(options)) {
+    return buildMlxImportFailureMessage(importMessage);
+  }
   if (isRocmGpu(options)) {
     return buildRocmImportFailureMessage(importMessage);
   }
@@ -30,6 +33,21 @@ function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
     return `Paddle OCR 런타임 설치 후 검증이 시간 초과되었습니다.${resolvePaddleOcrTimeoutSuffix(options)} detail=${truncateText(importMessage, 1200)}`;
   }
   return buildGenericImportFailureMessage(importMessage, options);
+}
+
+/** @param {RuntimeOptions} options @returns {boolean} */
+function isMlxGpu(options) {
+  return (
+    isOcrGpuRequested(options) && resolveOcrGpuBackend(options) === "mlx-vlm"
+  );
+}
+
+/** @param {unknown} importMessage @returns {string} */
+function buildMlxImportFailureMessage(importMessage) {
+  const detail = importMessage
+    ? ` detail=${truncateText(importMessage, 1200)}`
+    : "";
+  return `Apple MLX OCR 런타임 검증에 실패했습니다. Apple Silicon, macOS 14 이상, 번들 MLX-VLM 런타임이 필요합니다. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 변경하세요.${detail}`;
 }
 
 /** @param {RuntimeOptions} options @returns {boolean} */
@@ -70,12 +88,18 @@ function resolvePaddleOcrTimeoutSuffix(options) {
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return " AMD ROCm/PyTorch GPU 검증이 제한 시간 안에 끝나지 않았습니다. Windows ROCm PyTorch 2.9.1/ROCm 7.2.1 지원 GPU와 드라이버를 확인하세요.";
   }
+  if (resolveOcrGpuBackend(options) === "mlx-vlm") {
+    return " Apple MLX/Metal GPU 검증이 제한 시간 안에 끝나지 않았습니다. macOS 14 이상과 사용 가능한 Apple Silicon GPU를 확인하세요.";
+  }
   return " CUDA GPU 검증이 제한 시간 안에 끝나지 않았습니다. RTX 50번대는 cu129 런타임을 사용하며 첫 실행 검증이 오래 걸릴 수 있지만, 반복되면 NVIDIA 드라이버/CUDA 12.9용 Paddle 런타임 호환성을 확인해야 합니다.";
 }
 
 /** @param {unknown} error @param {RuntimeOptions} [options] @returns {string} */
 function buildPaddleOcrGpuFailureMessage(error, options = {}) {
   const text = summarizeOcrErrorMessage(error);
+  if (resolveOcrGpuBackend(options) === "mlx-vlm") {
+    return buildMlxGpuFailureMessage(text);
+  }
   if (isGpuOutOfMemoryText(text)) {
     return `GPU 메모리(VRAM) 부족으로 OCR이 실패했습니다. 큰 페이지가 이어지거나 인페인팅 등 다른 GPU 작업과 겹치면 발생할 수 있습니다. GPU를 쓰는 다른 앱을 닫거나 설정에서 OCR 장치를 CPU로 직접 바꾸면 안정적입니다. detail=${truncateText(text, 1200)}`;
   }
@@ -92,6 +116,14 @@ function buildPaddleOcrGpuFailureMessage(error, options = {}) {
     return buildPaddleOcrBfloat16SafetensorsFailureMessage(text, options);
   }
   return `Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 NVIDIA GPU Paddle 런타임이 필요합니다. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 바꾸거나, GPU를 계속 쓰려면 NVIDIA 드라이버/CUDA용 Paddle 런타임을 확인하세요. detail=${truncateText(text, 1200)}`;
+}
+
+/** @param {string} text @returns {string} */
+function buildMlxGpuFailureMessage(text) {
+  if (isGpuOutOfMemoryText(text)) {
+    return `Apple 통합 메모리 부족으로 MLX OCR이 실패했습니다. 다른 GPU 작업과 앱을 닫거나 설정에서 OCR 장치를 CPU로 직접 바꾸세요. detail=${truncateText(text, 1200)}`;
+  }
+  return `Apple MLX OCR 실행에 실패했습니다. Apple Silicon의 Metal 접근 권한과 번들 MLX-VLM 런타임을 확인하세요. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 변경하세요. detail=${truncateText(text, 1200)}`;
 }
 
 /** @param {string} text @returns {string} */
@@ -193,6 +225,9 @@ function summarizeOcrErrorMessage(error) {
 /** @param {RuntimeOptions} [options] @returns {string} */
 function buildPaddleOcrImportCheckScript(options = {}) {
   const device = resolveOcrDevice(options);
+  if (device.startsWith("gpu") && resolveOcrGpuBackend(options) === "mlx-vlm") {
+    return buildMlxImportCheckScript();
+  }
   if (
     device.startsWith("gpu") &&
     resolveOcrGpuBackend(options) === "rocm-transformers"
@@ -200,6 +235,19 @@ function buildPaddleOcrImportCheckScript(options = {}) {
     return buildRocmImportCheckScript();
   }
   return buildPaddleImportCheckScript(device);
+}
+
+/** @returns {string} */
+function buildMlxImportCheckScript() {
+  return [
+    "import importlib.util",
+    "missing = [name for name in ('paddle', 'paddlex', 'paddleocr', 'mlx', 'mlx_vlm') if importlib.util.find_spec(name) is None]",
+    "assert not missing, 'Missing Apple MLX OCR package(s): ' + ', '.join(missing)",
+    "import mlx.core as mx",
+    "assert mx.device_info(), 'Apple Metal device is not available to MLX'",
+    "from paddleocr import PaddleOCRVL, PaddleOCR",
+    "import mlx_vlm.server",
+  ].join("; ");
 }
 
 /** @returns {string} */

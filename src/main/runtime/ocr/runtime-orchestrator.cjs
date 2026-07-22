@@ -29,6 +29,7 @@ const {
   isWindowsRocmOcrRuntimePathShortEnough,
   resolveBootstrapPython,
   resolveOcrDeviceLabel,
+  resolveOcrGpuBackend,
   resolveOcrInstallSignature,
   resolveOcrPipCacheDir,
   resolveOcrPythonPackageDir,
@@ -86,9 +87,11 @@ async function resolveBundledMacOcrRuntime(options) {
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     return null;
   }
-  if (isOcrGpuRequested(options)) {
+  const mlxGpuRequested =
+    isOcrGpuRequested(options) && resolveOcrGpuBackend(options) === "mlx-vlm";
+  if (isOcrGpuRequested(options) && !mlxGpuRequested) {
     throw createOcrRuntimeError(
-      "Apple Silicon에는 GPU OCR 런타임이 없습니다. OCR 장치를 CPU로 직접 변경한 뒤 다시 실행하세요.",
+      "Apple Silicon에서는 Apple MLX OCR 백엔드만 GPU로 사용할 수 있습니다. OCR 장치를 Apple GPU (MLX)로 변경한 뒤 다시 실행하세요.",
       { step: "bundled-mac-gpu-ocr-unsupported" },
     );
   }
@@ -119,18 +122,16 @@ async function resolveBundledMacOcrRuntime(options) {
     options,
     "ocr_preparing",
     "Apple Silicon Paddle OCR 런타임 확인 중",
-    "번들된 CPU 런타임을 사용합니다.",
+    mlxGpuRequested
+      ? "번들된 Apple MLX/Metal 런타임을 사용합니다."
+      : "번들된 CPU 런타임을 사용합니다.",
   );
-  const importCheck = await checkPaddleOcrImport(
-    pythonPath,
-    { ...options, ocrDevice: "cpu" },
-    {
-      runtimeDir,
-      packageDir,
-      includePackageDir: false,
-      ...cachePaths,
-    },
-  );
+  const importCheck = await checkPaddleOcrImport(pythonPath, options, {
+    runtimeDir,
+    packageDir,
+    includePackageDir: false,
+    ...cachePaths,
+  });
   if (!importCheck.ok) {
     throw createOcrRuntimeError(
       `Apple Silicon용 번들 Paddle OCR 런타임을 불러오지 못했습니다: ${importCheck.message}`,
@@ -145,7 +146,9 @@ async function resolveBundledMacOcrRuntime(options) {
   }
   return finalizePaddleOcrRuntime(options, {
     runtimeDir,
-    runtimeVariant: "cpu-macos-arm64-bundled",
+    runtimeVariant: mlxGpuRequested
+      ? "gpu-mlx-vlm-macos-arm64-bundled"
+      : "cpu-macos-arm64-bundled",
     packageDir,
     pythonPath,
     prepared: true,

@@ -21,6 +21,14 @@ const ROCM_BACKEND_ALIASES = new Set([
   "rocm-transformers",
   "transformers-rocm",
 ]);
+const MLX_BACKEND_ALIASES = new Set([
+  "mlx",
+  "metal",
+  "mps",
+  "apple",
+  "mlx-vlm",
+  "mlx-vlm-server",
+]);
 
 /** @param {RuntimeOptions} [options] @returns {boolean} */
 function isOcrGpuRequested(options = {}) {
@@ -35,7 +43,7 @@ function isOcrBlackwellCudaTag(options = {}) {
   );
 }
 
-/** @param {RuntimeOptions} [options] @returns {"cuda" | "rocm-transformers"} */
+/** @param {RuntimeOptions} [options] @returns {"cuda" | "rocm-transformers" | "mlx-vlm"} */
 function resolveOcrGpuBackend(options = /** @type {OcrConfigOptions} */ ({})) {
   const normalized = String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_BACKEND", options) ??
@@ -47,7 +55,10 @@ function resolveOcrGpuBackend(options = /** @type {OcrConfigOptions} */ ({})) {
   if (CUDA_BACKEND_ALIASES.has(normalized)) {
     return "cuda";
   }
-  return ROCM_BACKEND_ALIASES.has(normalized) ? "rocm-transformers" : "cuda";
+  if (ROCM_BACKEND_ALIASES.has(normalized)) {
+    return "rocm-transformers";
+  }
+  return MLX_BACKEND_ALIASES.has(normalized) ? "mlx-vlm" : "cuda";
 }
 
 /** @param {RuntimeOptions} [options] @returns {string} */
@@ -87,6 +98,9 @@ function resolveOcrRuntimeVariant(options = {}) {
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return "gpu-rocm-transformers";
   }
+  if (resolveOcrGpuBackend(options) === "mlx-vlm") {
+    return "gpu-mlx-vlm";
+  }
   return `gpu-${resolveOcrGpuCudaTag(options)}`
     .replace(/[^a-z0-9._-]+/gi, "-")
     .toLowerCase();
@@ -120,11 +134,25 @@ function normalizeConfiguredOcrDevice(value) {
 function resolveEffectiveOcrDevice(
   options = /** @type {OcrConfigOptions} */ ({}),
 ) {
+  if (
+    isOcrGpuRequested(options) &&
+    resolveOcrGpuBackend(options) === "mlx-vlm"
+  ) {
+    // PaddlePaddle has no native Metal device. Layout/text detection stays on
+    // CPU while PaddleOCR-VL delegates vision-language recognition to MLX.
+    return "cpu";
+  }
   return resolveOcrDevice(options);
 }
 
 /** @param {RuntimeOptions} [options] @returns {string} */
 function resolveOcrDeviceLabel(options = {}) {
+  if (
+    isOcrGpuRequested(options) &&
+    resolveOcrGpuBackend(options) === "mlx-vlm"
+  ) {
+    return "APPLE GPU (MLX)";
+  }
   const device = resolveEffectiveOcrDevice(options);
   if (device !== "cpu") {
     return device.toUpperCase();
@@ -144,6 +172,9 @@ function resolvePaddleOcrImportCheckTimeoutMs(options = {}) {
     return 120000;
   }
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
+    return 300000;
+  }
+  if (resolveOcrGpuBackend(options) === "mlx-vlm") {
     return 300000;
   }
   return isOcrBlackwellCudaTag(options) ? 300000 : 180000;

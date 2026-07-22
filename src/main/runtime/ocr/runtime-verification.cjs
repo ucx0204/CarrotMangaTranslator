@@ -108,6 +108,15 @@ function hasExpectedOcrPackages(packageDir, options = {}) {
       "safetensors",
     ]);
   }
+  if (isOcrGpuRequested(options) && backend === "mlx-vlm") {
+    return hasPackageDirectories(packageDir, [
+      "paddle",
+      "paddleocr",
+      "paddlex",
+      "mlx",
+      "mlx_vlm",
+    ]);
+  }
   const required = ["paddle", "paddleocr", "paddlex"];
   if (isOcrGpuRequested(options) && backend === "cuda") {
     required.push("nvidia");

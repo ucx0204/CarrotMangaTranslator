@@ -8,10 +8,18 @@ translation model still reads the source image as the authority.
 from __future__ import annotations
 
 import argparse
+import atexit
 import gc
 import json
 import os
+import socket
+import subprocess
 import sys
+import tempfile
+import time
+import urllib.error
+import urllib.request
+from contextlib import contextmanager
 from pathlib import Path
 
 try:
@@ -40,6 +48,7 @@ IGNORED_LABELS = {
 DLL_DIRECTORY_HANDLES = []
 TORCH_ROCM_SAFE_MODE_CONFIGURED = False
 SELECTED_CUDA_DEVICE_INDEX = None
+MLX_VLM_MODEL_REPO = "PaddlePaddle/PaddleOCR-VL-1.6"
 
 
 def configure_windows_dll_search_path() -> None:
@@ -58,7 +67,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", default=None, help="Output JSON path.")
     parser.add_argument("--batch", default=None, help="JSON batch manifest with image/output items.")
     parser.add_argument("--progress", default=None, help="Optional JSONL progress output path.")
-    parser.add_argument("--pipeline-version", default="v1.5", choices=["v1", "v1.5"])
+    parser.add_argument(
+        "--pipeline-version",
+        default="v1.5",
+        choices=["v1", "v1.5", "v1.6"],
+    )
     parser.add_argument("--device", default=None, help="Optional Paddle device, e.g. gpu:0 or cpu.")
     parser.add_argument(
         "--source-language",
@@ -133,25 +146,26 @@ def main() -> int:
           "or provide MANGA_TRANSLATOR_OCR_BBOX_CMD."
       ) from exc
 
-    pipeline = PaddleOCRVL(**build_pipeline_kwargs(args))
-    textline_detector = create_textline_detector(args)
-    try:
-      summaries = run_batch_pages(
-          args,
-          batch_items,
-          lambda item: write_page_bboxes(
-              image_path=Path(item["image"]),
-              output_path=Path(item["output"]),
-              pipeline=pipeline,
-              textline_detector=textline_detector,
-              args=args,
-          ),
-      )
-    finally:
-      close = getattr(pipeline, "close", None)
-      if callable(close):
-        close()
-      close_textline_detector(textline_detector)
+    with maybe_mlx_vlm_server(args) as mlx_server:
+      pipeline = PaddleOCRVL(**build_pipeline_kwargs(args, mlx_server))
+      textline_detector = create_textline_detector(args)
+      try:
+        summaries = run_batch_pages(
+            args,
+            batch_items,
+            lambda item: write_page_bboxes(
+                image_path=Path(item["image"]),
+                output_path=Path(item["output"]),
+                pipeline=pipeline,
+                textline_detector=textline_detector,
+                args=args,
+            ),
+        )
+      finally:
+        close = getattr(pipeline, "close", None)
+        if callable(close):
+          close()
+        close_textline_detector(textline_detector)
 
     print(json.dumps({"items": summaries, "count": len(summaries)}, ensure_ascii=False), flush=True)
     return 0
@@ -259,7 +273,7 @@ def load_batch_items(args: argparse.Namespace) -> list[dict]:
     return []
 
 
-def build_pipeline_kwargs(args: argparse.Namespace) -> dict:
+def build_pipeline_kwargs(args: argparse.Namespace, mlx_server=None) -> dict:
     if is_transformers_engine(args):
       raise RuntimeError("PaddleOCRVL bbox mode does not support the Transformers engine yet. Use --bbox-mode ocr.")
     pipeline_kwargs = {
@@ -275,7 +289,180 @@ def build_pipeline_kwargs(args: argparse.Namespace) -> dict:
     }
     if args.device:
       pipeline_kwargs["device"] = args.device
+    if is_mlx_vlm_backend():
+      if mlx_server is None:
+        raise RuntimeError("Apple MLX OCR requires a running MLX-VLM server.")
+      pipeline_kwargs.update(
+          {
+              "pipeline_version": "v1.6",
+              "vl_rec_backend": "mlx-vlm-server",
+              "vl_rec_server_url": mlx_server.url,
+              "vl_rec_api_model_name": mlx_server.model_name,
+          }
+      )
     return pipeline_kwargs
+
+
+def is_mlx_vlm_backend() -> bool:
+    return os.environ.get("MANGA_TRANSLATOR_OCR_GPU_BACKEND", "").strip().lower() in {
+        "mlx",
+        "metal",
+        "mps",
+        "apple",
+        "mlx-vlm",
+        "mlx-vlm-server",
+    }
+
+
+def resolve_mlx_vlm_model_name() -> str:
+    cache_home = os.environ.get("PADDLE_PDX_CACHE_HOME", "").strip()
+    if cache_home:
+      local_model = Path(cache_home) / "official_models" / "PaddleOCR-VL-1.6"
+      if (local_model / "config.json").is_file() and (local_model / "model.safetensors").is_file():
+        return str(local_model)
+    return MLX_VLM_MODEL_REPO
+
+
+def reserve_loopback_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+      listener.bind(("127.0.0.1", 0))
+      return int(listener.getsockname()[1])
+
+
+class MlxVlmServer:
+    def __init__(self) -> None:
+      self.port = reserve_loopback_port()
+      self.url = f"http://127.0.0.1:{self.port}/"
+      self.model_name = resolve_mlx_vlm_model_name()
+      self.process = None
+      self.log_file = None
+      self.log_path = None
+
+    def start(self) -> None:
+      temp_root = Path(os.environ.get("TMP") or tempfile.gettempdir())
+      temp_root.mkdir(parents=True, exist_ok=True)
+      self.log_file = tempfile.NamedTemporaryFile(
+          mode="w+",
+          encoding="utf-8",
+          prefix="manga-mlx-vlm-",
+          suffix=".log",
+          dir=temp_root,
+          delete=False,
+      )
+      self.log_path = Path(self.log_file.name)
+      command = [
+          sys.executable,
+          "-c",
+          build_mlx_server_watchdog_code(os.getpid()),
+          "--host",
+          "127.0.0.1",
+          "--port",
+          str(self.port),
+      ]
+      self.process = subprocess.Popen(
+          command,
+          stdin=subprocess.DEVNULL,
+          stdout=self.log_file,
+          stderr=subprocess.STDOUT,
+          env=os.environ.copy(),
+      )
+      atexit.register(self.close)
+      try:
+        self.wait_until_ready()
+      except Exception:
+        self.close()
+        raise
+
+    def wait_until_ready(self) -> None:
+      timeout_seconds = max(
+          10.0,
+          float(os.environ.get("MANGA_TRANSLATOR_MLX_VLM_START_TIMEOUT_SECONDS", "120")),
+      )
+      deadline = time.monotonic() + timeout_seconds
+      health_url = f"{self.url}health"
+      last_error = ""
+      while time.monotonic() < deadline:
+        if self.process is not None and self.process.poll() is not None:
+          raise RuntimeError(
+              f"MLX-VLM server exited before startup (code {self.process.returncode}). "
+              f"{self.read_log_tail()}"
+          )
+        try:
+          with urllib.request.urlopen(health_url, timeout=2) as response:
+            if 200 <= response.status < 300:
+              return
+        except (OSError, urllib.error.URLError) as exc:
+          last_error = str(exc)
+        time.sleep(0.2)
+      raise RuntimeError(
+          f"MLX-VLM server did not become ready within {timeout_seconds:.0f}s: {last_error}. "
+          f"{self.read_log_tail()}"
+      )
+
+    def read_log_tail(self) -> str:
+      if self.log_file is not None:
+        self.log_file.flush()
+      if self.log_path is None or not self.log_path.exists():
+        return "No MLX-VLM server log was produced."
+      text = self.log_path.read_text(encoding="utf-8", errors="replace")
+      return text[-4000:].strip()
+
+    def close(self) -> None:
+      process = self.process
+      self.process = None
+      if process is not None and process.poll() is None:
+        process.terminate()
+        try:
+          process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+          process.kill()
+          process.wait(timeout=5)
+      if self.log_file is not None:
+        self.log_file.close()
+        self.log_file = None
+      if self.log_path is not None:
+        try:
+          self.log_path.unlink(missing_ok=True)
+        except OSError:
+          pass
+        self.log_path = None
+      try:
+        atexit.unregister(self.close)
+      except Exception:
+        pass
+
+
+@contextmanager
+def maybe_mlx_vlm_server(args: argparse.Namespace):
+    if not is_mlx_vlm_backend():
+      yield None
+      return
+    if str(getattr(args, "device", "") or "").lower() != "cpu":
+      raise RuntimeError("Apple MLX OCR requires Paddle layout detection to use the CPU device.")
+    server = MlxVlmServer()
+    server.start()
+    try:
+      yield server
+    finally:
+      server.close()
+
+
+def build_mlx_server_watchdog_code(parent_pid: int) -> str:
+    """Stop the local server if the OCR worker is killed by its Node parent."""
+
+    return "\n".join(
+        [
+            "import os, threading, time",
+            f"parent_pid = {int(parent_pid)}",
+            "def watch_parent():",
+            "    while os.getppid() == parent_pid:",
+            "        time.sleep(1)",
+            "    os._exit(1)",
+            "threading.Thread(target=watch_parent, daemon=True).start()",
+            "from mlx_vlm.server.cli import main",
+            "main()",
+        ]
+    )
 
 
 def is_transformers_engine(args: argparse.Namespace) -> bool:

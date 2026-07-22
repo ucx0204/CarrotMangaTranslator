@@ -85,4 +85,66 @@ describe("HardwareSettingsPanel", () => {
     expect(setOcrQualityMode).toHaveBeenCalledWith("economy");
     expect(setOcrDevice).not.toHaveBeenCalled();
   });
+
+  it("offers Apple MLX full-load OCR and keeps CPU modes explicit", () => {
+    const setOcrDevice = vi.fn();
+    const setOcrGpuBackend = vi.fn();
+    const setOcrQualityMode = vi.fn();
+    render(
+      <HardwareSettingsPanel
+        allowUnsafeLowMemoryFlux={false}
+        clearTestState={vi.fn()}
+        controlsBusy={false}
+        fluxBackend="metal-native"
+        inpaintingModel="flux-klein"
+        isFluxBackendOptionDisabled={() => false}
+        ocrDevice="cpu"
+        ocrGpuBackend="mlx-vlm"
+        ocrQualityMode="economy"
+        setFluxBackend={vi.fn()}
+        setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setInpaintingModel={vi.fn()}
+        setOcrDevice={setOcrDevice}
+        setOcrGpuBackend={setOcrGpuBackend}
+        setOcrQualityMode={setOcrQualityMode}
+        usesAmdHardware={false}
+        usesAppleHardware
+        usesAmdOcrContext={false}
+        usesNvidiaHardware={false}
+        usesNvidiaOcrContext={false}
+        unifiedMemoryMb={32 * 1024}
+      />,
+    );
+
+    const qualityGroup = screen.getByRole("group", {
+      name: "Paddle OCR 품질",
+    });
+    expect(
+      (
+        within(qualityGroup).getByRole("button", {
+          name: "풀로드",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+    const deviceGroup = screen.getByRole("group", {
+      name: "Paddle OCR 장치",
+    });
+    expect(
+      (
+        within(deviceGroup).getByRole("button", {
+          name: "Apple GPU (MLX)",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+    expect(
+      within(deviceGroup).queryByRole("button", { name: "NVIDIA CUDA" }),
+    ).toBeNull();
+
+    fireEvent.click(
+      within(qualityGroup).getByRole("button", { name: "풀로드" }),
+    );
+    expect(setOcrDevice).toHaveBeenCalledWith("gpu");
+    expect(setOcrGpuBackend).toHaveBeenCalledWith("mlx-vlm");
+    expect(setOcrQualityMode).toHaveBeenCalledWith("full");
+  });
 });

@@ -31,6 +31,7 @@
 ## OCR과 인페인팅
 
 - [ ] Paddle OCR CPU로 실제 만화 이미지 인식
+- [ ] PaddleOCR-VL 풀로드를 Apple GPU(MLX/Metal)로 실제 만화 이미지 인식
 - [ ] AOT Metal 실행, 실패 시 알림 후 CPU 재시도
 - [ ] LaMa Manga Metal 실행, 실패 시 알림 후 CPU 재시도
 - [ ] Flux Klein Metal 실행(다른 모델 또는 CPU로 몰래 변경되지 않음)

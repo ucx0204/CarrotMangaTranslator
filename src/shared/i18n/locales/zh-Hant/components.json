@@ -966,6 +966,10 @@
         "xhigh": "非常高"
       },
       "ocrDevices": {
+        "mlx": {
+          "label": "Apple GPU (MLX)",
+          "description": "在Apple Silicon GPU上執行PaddleOCR-VL辨識。"
+        },
         "cuda": {
           "label": "NVIDIA CUDA",
           "description": "在 NVIDIA GPU 上執行 Paddle OCR。"
@@ -1147,7 +1151,7 @@
       "inpaintingModel": "影像修補模型",
       "amdOcrExperimental": "AMD GPU OCR 為實驗功能。如失敗，可僅將 OCR 切換到 CPU。",
       "ocrAmdNote": "AMD 環境無法選擇 NVIDIA CUDA OCR。",
-      "ocrAppleNote": "Apple Silicon 上的 Paddle OCR 使用 CPU 執行環境。",
+      "ocrAppleNote": "最低與節省模式使用CPU；滿載模式透過MLX/Metal加速VL辨識。",
       "ocrNvidiaNote": "NVIDIA 環境無法選擇 AMD ROCm OCR。",
       "fluxAmdNote": "偵測到 AMD GPU，無法使用 CUDA 原生後端；請選擇 ZLUDA 或 CPU。",
       "fluxAppleNote": "Apple Silicon 僅使用原生 Metal 後端。Flux 建議至少 16GB 統一記憶體。",

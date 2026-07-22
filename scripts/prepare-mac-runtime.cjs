@@ -419,6 +419,34 @@ async function stagePythonAndPaddle() {
   const installRoot = path.dirname(path.dirname(extractedPython));
   await chmod(extractedPython, 0o755);
   assertArm64MachO(extractedPython);
+  const wheelhouse = path.join(workDir, "wheels-macos14-arm64");
+  await mkdir(wheelhouse, { recursive: true });
+  run(
+    extractedPython,
+    [
+      "-m",
+      "pip",
+      "download",
+      "--disable-pip-version-check",
+      "--no-cache-dir",
+      "--only-binary=:all:",
+      "--platform",
+      "macosx_14_0_arm64",
+      "--implementation",
+      "cp",
+      "--python-version",
+      "3.12",
+      "--abi",
+      "cp312",
+      "--dest",
+      wheelhouse,
+      ...MAC_RUNTIME_MANIFEST.ocrPackages,
+    ],
+    {
+      PYTHONNOUSERSITE: "1",
+      PIP_NO_CACHE_DIR: "1",
+    },
+  );
   run(
     extractedPython,
     [
@@ -427,6 +455,9 @@ async function stagePythonAndPaddle() {
       "install",
       "--disable-pip-version-check",
       "--no-cache-dir",
+      "--no-index",
+      "--find-links",
+      wheelhouse,
       ...MAC_RUNTIME_MANIFEST.ocrPackages,
     ],
     {
@@ -450,7 +481,7 @@ async function stagePythonAndPaddle() {
     stagedPython,
     [
       "-c",
-      "import importlib.metadata, platform, paddle; assert platform.machine() == 'arm64'; print(paddle.__version__, importlib.metadata.version('paddleocr'))",
+      "import importlib.metadata, platform, paddle; assert platform.machine() == 'arm64'; print(paddle.__version__, importlib.metadata.version('paddleocr'), importlib.metadata.version('mlx-vlm'))",
     ],
     { PYTHONNOUSERSITE: "1" },
   );

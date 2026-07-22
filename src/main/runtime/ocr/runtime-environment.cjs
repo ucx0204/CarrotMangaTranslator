@@ -17,6 +17,7 @@
  *   hfHubCacheDir: string;
  *   dllSearchDirs: string[];
  *   ocrDevice: string;
+ *   effectiveOcrDevice: string;
  *   ocrGpuBackend: string;
  *   rocmGpuRequested: boolean;
  * }} OcrEnvContext
@@ -72,7 +73,7 @@ function buildOcrRuntimeEnv(
     ...buildHuggingFaceEnv(options, context),
     ...buildOcrDeviceEnv(options, context),
     ...buildPaddleOcrModeEnv(options, context.ocrDevice, context.ocrGpuBackend),
-    ...buildPaddleOcrCpuThreadEnv(options, context.ocrDevice),
+    ...buildPaddleOcrCpuThreadEnv(options, context.effectiveOcrDevice),
     ...buildRocmSafetyEnv(options, context.rocmGpuRequested),
     ...buildPythonRuntimeEnv(options, runtime, context),
   };
@@ -90,6 +91,7 @@ function createOcrEnvContext(options, runtime) {
   const includePackageDir =
     runtime?.includePackageDir ?? runtime?.usesTargetPackageDir ?? true;
   const ocrDevice = resolveOcrDevice(options);
+  const effectiveOcrDevice = resolveEffectiveOcrDevice(options);
   const ocrGpuBackend = resolveOcrGpuBackend(options);
   return {
     runtimeDir,
@@ -99,6 +101,7 @@ function createOcrEnvContext(options, runtime) {
     hfHubCacheDir,
     dllSearchDirs: buildOcrRuntimeDllSearchDirs(options, runtime, runtimeDir),
     ocrDevice,
+    effectiveOcrDevice,
     ocrGpuBackend,
     rocmGpuRequested:
       ocrGpuBackend === "rocm-transformers" && ocrDevice.startsWith("gpu"),

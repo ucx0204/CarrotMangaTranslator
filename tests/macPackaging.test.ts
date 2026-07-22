@@ -126,7 +126,11 @@ describe("Apple Silicon Alpha packaging", () => {
         sha256:
           "5a30271f8d345a5b02b0c9e4e31e0f1e1455a8e4a04fba95cd9762472abc3b17",
       },
-      ocrPackages: ["paddlepaddle==3.3.1", "paddleocr[doc-parser]==3.7.0"],
+      ocrPackages: [
+        "paddlepaddle==3.3.1",
+        "paddleocr[doc-parser]==3.7.0",
+        "mlx-vlm==0.6.6",
+      ],
     });
     expect(MAC_RUNTIME_MANIFEST.llamaRuntimes).toEqual([
       expect.objectContaining({
@@ -159,6 +163,9 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(runtimePreparer).toContain(
       "await thinUniversalMachOFiles(pythonTarget)",
     );
+    expect(runtimePreparer).toContain('"macosx_14_0_arm64"');
+    expect(runtimePreparer).toContain('"--only-binary=:all:"');
+    expect(runtimePreparer).toContain('"--no-index"');
   });
 
   it("rejects archive traversal and escaping symlinks", () => {
@@ -501,6 +508,8 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(smokes).toContain('PYTHONDONTWRITEBYTECODE: "1"');
     expect(smokes).toContain('PYTHONPYCACHEPREFIX: join(workRoot, "pycache")');
     expect(smokes).toContain('ocrDevice: "cpu"');
+    expect(smokes).toContain("import mlx.core as mx");
+    expect(smokes).toContain("import mlx_vlm.server");
     expect(smokes).toContain('ocrBboxMode: "ocr"');
     expect(smokes).toContain('"PP-OCRv6_tiny_det"');
     expect(smokes).toContain('"PP-OCRv6_tiny_rec"');

@@ -54,9 +54,58 @@ class CommandLineBehaviorTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--pipeline-version {v1,v1.5,v1.6}", result.stdout)
         self.assertIn("--bbox-mode {vl,ocr}", result.stdout)
         self.assertIn("--engine ENGINE", result.stdout)
         self.assertIn("--progress PROGRESS", result.stdout)
+
+    def test_mlx_backend_delegates_vl_recognition_to_the_local_server(self) -> None:
+        args = OCR.build_argument_parser().parse_args(["--device", "cpu"])
+        server = types.SimpleNamespace(
+            url="http://127.0.0.1:8123/",
+            model_name="/tmp/PaddleOCR-VL-1.6",
+        )
+
+        with patch.dict(
+            os.environ,
+            {"MANGA_TRANSLATOR_OCR_GPU_BACKEND": "mlx-vlm"},
+            clear=True,
+        ):
+            kwargs = OCR.build_pipeline_kwargs(args, server)
+
+        self.assertEqual(kwargs["device"], "cpu")
+        self.assertEqual(kwargs["pipeline_version"], "v1.6")
+        self.assertEqual(kwargs["vl_rec_backend"], "mlx-vlm-server")
+        self.assertEqual(kwargs["vl_rec_server_url"], server.url)
+        self.assertEqual(kwargs["vl_rec_api_model_name"], server.model_name)
+
+    def test_mlx_backend_reuses_the_downloaded_paddlex_model(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            model_dir = (
+                Path(temp_dir)
+                / "official_models"
+                / "PaddleOCR-VL-1.6"
+            )
+            model_dir.mkdir(parents=True)
+            (model_dir / "config.json").touch()
+            (model_dir / "model.safetensors").touch()
+
+            with patch.dict(
+                os.environ,
+                {"PADDLE_PDX_CACHE_HOME": temp_dir},
+                clear=True,
+            ):
+                model_name = OCR.resolve_mlx_vlm_model_name()
+
+        self.assertEqual(model_name, str(model_dir))
+
+    def test_mlx_server_watchdog_exits_if_the_ocr_parent_disappears(self) -> None:
+        script = OCR.build_mlx_server_watchdog_code(4321)
+
+        self.assertIn("parent_pid = 4321", script)
+        self.assertIn("while os.getppid() == parent_pid", script)
+        self.assertIn("os._exit(1)", script)
+        self.assertIn("from mlx_vlm.server.cli import main", script)
 
 
 class LanguageAdapterBehaviorTests(unittest.TestCase):

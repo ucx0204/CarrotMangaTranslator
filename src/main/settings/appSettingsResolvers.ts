@@ -100,6 +100,13 @@ export function resolveOcrGpuBackend(
   ) {
     return "rocm-transformers";
   }
+  if (
+    ["mlx", "metal", "mps", "apple", "mlx-vlm", "mlx-vlm-server"].includes(
+      normalized,
+    )
+  ) {
+    return "mlx-vlm";
+  }
   return fallback;
 }
 

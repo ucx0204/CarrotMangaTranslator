@@ -224,6 +224,13 @@ export const API_REASONING_OPTIONS: ApiReasoningOption[] = [
 
 export const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [
   {
+    id: "mlx-vlm",
+    labelKey: "settings.options.ocrDevices.mlx.label",
+    descriptionKey: "settings.options.ocrDevices.mlx.description",
+    device: "gpu",
+    gpuBackend: "mlx-vlm",
+  },
+  {
     id: "cuda",
     labelKey: "settings.options.ocrDevices.cuda.label",
     descriptionKey: "settings.options.ocrDevices.cuda.description",

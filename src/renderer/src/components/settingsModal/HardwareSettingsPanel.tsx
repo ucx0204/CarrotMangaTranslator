@@ -70,32 +70,19 @@ export function HardwareSettingsPanel({
   const { t } = useTranslation("components");
   return (
     <div className="settings-panel-stack">
-      <SettingsSection title={t("settings.hardware.ocrSection")}>
-        <div className="settings-subsection-stack">
-          <OcrQualitySettings
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            ocrQualityMode={ocrQualityMode}
-            setOcrDevice={setOcrDevice}
-            setOcrGpuBackend={setOcrGpuBackend}
-            setOcrQualityMode={setOcrQualityMode}
-            usesAmdOcrContext={usesAmdOcrContext}
-            usesAppleHardware={usesAppleHardware}
-            usesNvidiaOcrContext={usesNvidiaOcrContext}
-          />
-          <OcrDeviceSettings
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            ocrDevice={ocrDevice}
-            ocrGpuBackend={ocrGpuBackend}
-            setOcrDevice={setOcrDevice}
-            setOcrGpuBackend={setOcrGpuBackend}
-            usesAmdOcrContext={usesAmdOcrContext}
-            usesAppleHardware={usesAppleHardware}
-            usesNvidiaOcrContext={usesNvidiaOcrContext}
-          />
-        </div>
-      </SettingsSection>
+      <OcrSettingsSection
+        clearTestState={clearTestState}
+        controlsBusy={controlsBusy}
+        ocrDevice={ocrDevice}
+        ocrGpuBackend={ocrGpuBackend}
+        ocrQualityMode={ocrQualityMode}
+        setOcrDevice={setOcrDevice}
+        setOcrGpuBackend={setOcrGpuBackend}
+        setOcrQualityMode={setOcrQualityMode}
+        usesAmdOcrContext={usesAmdOcrContext}
+        usesAppleHardware={usesAppleHardware}
+        usesNvidiaOcrContext={usesNvidiaOcrContext}
+      />
       <SettingsSection title={t("settings.hardware.inpaintingSection")}>
         <div className="settings-subsection-stack">
           <InpaintingModelSettings
@@ -125,6 +112,33 @@ export function HardwareSettingsPanel({
   );
 }
 
+function OcrSettingsSection(
+  props: Pick<
+    HardwareSettingsPanelProps,
+    | "clearTestState"
+    | "controlsBusy"
+    | "ocrDevice"
+    | "ocrGpuBackend"
+    | "ocrQualityMode"
+    | "setOcrDevice"
+    | "setOcrGpuBackend"
+    | "setOcrQualityMode"
+    | "usesAmdOcrContext"
+    | "usesAppleHardware"
+    | "usesNvidiaOcrContext"
+  >,
+): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <SettingsSection title={t("settings.hardware.ocrSection")}>
+      <div className="settings-subsection-stack">
+        <OcrQualitySettings {...props} />
+        <OcrDeviceSettings {...props} />
+      </div>
+    </SettingsSection>
+  );
+}
+
 function OcrQualitySettings({
   clearTestState,
   controlsBusy,
@@ -151,9 +165,7 @@ function OcrQualitySettings({
   const activeOption = OCR_QUALITY_OPTIONS.find(
     (option) => option.id === ocrQualityMode,
   );
-  const visibleQualityOptions = usesAppleHardware
-    ? OCR_QUALITY_OPTIONS.filter((option) => option.id !== "full")
-    : OCR_QUALITY_OPTIONS;
+  const visibleQualityOptions = OCR_QUALITY_OPTIONS;
   return (
     <div className="settings-field-stack">
       <span>{t("settings.hardware.ocrQuality")}</span>
@@ -171,11 +183,15 @@ function OcrQualitySettings({
               clearTestState();
               if (option.id === "full") {
                 setOcrDevice("gpu");
-                if (usesAmdOcrContext) {
+                if (usesAppleHardware) {
+                  setOcrGpuBackend("mlx-vlm");
+                } else if (usesAmdOcrContext) {
                   setOcrGpuBackend("rocm-transformers");
                 } else if (usesNvidiaOcrContext) {
                   setOcrGpuBackend("cuda");
                 }
+              } else if (usesAppleHardware) {
+                setOcrDevice("cpu");
               }
               setOcrQualityMode(option.id);
             }}
@@ -193,36 +209,42 @@ function OcrQualitySettings({
   );
 }
 
-function OcrDeviceSettings({
-  clearTestState,
-  controlsBusy,
-  ocrDevice,
-  ocrGpuBackend,
-  setOcrDevice,
-  setOcrGpuBackend,
-  usesAmdOcrContext,
-  usesAppleHardware,
-  usesNvidiaOcrContext,
-}: Pick<
+type OcrDeviceSettingsProps = Pick<
   HardwareSettingsPanelProps,
   | "clearTestState"
   | "controlsBusy"
   | "ocrDevice"
   | "ocrGpuBackend"
+  | "ocrQualityMode"
   | "setOcrDevice"
   | "setOcrGpuBackend"
+  | "setOcrQualityMode"
   | "usesAmdOcrContext"
   | "usesAppleHardware"
   | "usesNvidiaOcrContext"
->): React.JSX.Element {
+>;
+
+function OcrDeviceSettings({
+  clearTestState,
+  controlsBusy,
+  ocrDevice,
+  ocrGpuBackend,
+  ocrQualityMode,
+  setOcrDevice,
+  setOcrGpuBackend,
+  setOcrQualityMode,
+  usesAmdOcrContext,
+  usesAppleHardware,
+  usesNvidiaOcrContext,
+}: OcrDeviceSettingsProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const activeOcrOptionId = ocrDevice === "cpu" ? "cpu" : ocrGpuBackend;
   const activeOcrOption = OCR_DEVICE_OPTIONS.find(
     (option) => option.id === activeOcrOptionId,
   );
   const visibleOcrOptions = usesAppleHardware
-    ? OCR_DEVICE_OPTIONS.filter((option) => option.id === "cpu")
-    : OCR_DEVICE_OPTIONS;
+    ? OCR_DEVICE_OPTIONS.filter(({ id }) => id === "cpu" || id === "mlx-vlm")
+    : OCR_DEVICE_OPTIONS.filter((option) => option.id !== "mlx-vlm");
   const ocrDescription =
     usesAmdOcrContext && activeOcrOptionId === "rocm-transformers"
       ? t("settings.hardware.amdOcrExperimental")
@@ -244,11 +266,14 @@ function OcrDeviceSettings({
             type="button"
             className={`settings-preset-button ${activeOcrOptionId === option.id ? "active" : ""}`}
             onClick={() => {
-              clearTestState();
-              setOcrDevice(option.device);
-              if (option.gpuBackend) {
-                setOcrGpuBackend(option.gpuBackend);
-              }
+              selectOcrDeviceOption(option, {
+                clearTestState,
+                ocrQualityMode,
+                setOcrDevice,
+                setOcrGpuBackend,
+                setOcrQualityMode,
+                usesAppleHardware,
+              });
             }}
             disabled={isOcrOptionDisabled(
               option.id,
@@ -270,6 +295,32 @@ function OcrDeviceSettings({
       />
     </div>
   );
+}
+
+function selectOcrDeviceOption(
+  option: (typeof OCR_DEVICE_OPTIONS)[number],
+  context: Pick<
+    HardwareSettingsPanelProps,
+    | "clearTestState"
+    | "ocrQualityMode"
+    | "setOcrDevice"
+    | "setOcrGpuBackend"
+    | "setOcrQualityMode"
+    | "usesAppleHardware"
+  >,
+): void {
+  context.clearTestState();
+  context.setOcrDevice(option.device);
+  if (option.gpuBackend) context.setOcrGpuBackend(option.gpuBackend);
+  if (context.usesAppleHardware) {
+    context.setOcrQualityMode(
+      option.id === "mlx-vlm"
+        ? "full"
+        : context.ocrQualityMode === "full"
+          ? "economy"
+          : context.ocrQualityMode,
+    );
+  }
 }
 
 function FluxBackendSettings({

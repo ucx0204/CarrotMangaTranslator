@@ -37,7 +37,7 @@ describe("build channel", () => {
 });
 
 describe("runtime capabilities", () => {
-  it("reports Metal, CPU OCR, and unified-memory limits on Apple Silicon", () => {
+  it("reports Metal, MLX GPU OCR, and unified-memory limits on Apple Silicon", () => {
     const capabilities = buildRuntimeCapabilities({
       platform: "darwin",
       arch: "arm64",
@@ -65,7 +65,7 @@ describe("runtime capabilities", () => {
       cpuFallback: false,
       minimumUnifiedMemoryMb: 16 * 1024,
     });
-    expect(capabilities.ocr).toEqual({ cpu: true, gpu: false });
+    expect(capabilities.ocr).toEqual({ cpu: true, gpu: true });
   });
 
   it("preserves the existing Windows capability surface", () => {

@@ -231,6 +231,21 @@ async function verifyOcrImageSmoke(
   console.log(`[mac-smoke] Paddle OCR CPU detected ${hints.length} region(s)`);
 }
 
+/** @param {string} python @param {string} workRoot */
+function verifyMlxOcrRuntime(python, workRoot) {
+  const script = [
+    "import mlx.core as mx",
+    "import mlx_vlm.server",
+    "from paddleocr import PaddleOCRVL",
+    "assert mx.device_info(), 'MLX cannot access the Apple Metal device'",
+  ].join("; ");
+  run(python, ["-c", script], {
+    timeout: 5 * 60 * 1000,
+    env: buildSmokePythonEnv(workRoot),
+  });
+  console.log("[mac-smoke] Apple MLX-VLM OCR runtime import passed");
+}
+
 /** @param {string} runner @param {string} python @param {string} workRoot @param {ReturnType<typeof createSmokeImages>} images */
 async function verifyKoharuImageSmokes(runner, python, workRoot, images) {
   for (const asset of KOHARU_SMOKE_ASSETS) {
@@ -344,6 +359,7 @@ async function verifyMacRuntimeSmokes(options) {
   mkdirSync(workRoot, { recursive: true });
   try {
     const images = createSmokeImages(python, workRoot);
+    verifyMlxOcrRuntime(python, workRoot);
     await verifyOcrImageSmoke(
       options.appPath,
       toolsDir,

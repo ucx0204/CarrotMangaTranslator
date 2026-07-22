@@ -184,10 +184,7 @@ async function runSingleProcessBatch(dependencies, context) {
 
 /** @param {Dependencies} dependencies @param {OcrBatchContext} context @param {unknown} error @returns {never} */
 function throwBatchGpuExecutionFailure(dependencies, context, error) {
-  if (
-    !dependencies.isOcrGpuRequested(context.batchOptions) ||
-    dependencies.resolveEffectiveOcrDevice(context.batchOptions) === "cpu"
-  ) {
+  if (!dependencies.isOcrGpuRequested(context.batchOptions)) {
     throw error;
   }
   const message = dependencies.buildPaddleOcrGpuFailureMessage(

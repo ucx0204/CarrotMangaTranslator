@@ -189,9 +189,16 @@ export const OcrGpuBackendSchema = z.preprocess(
     ) {
       return "rocm-transformers";
     }
+    if (
+      ["mlx", "metal", "mps", "apple", "mlx-vlm", "mlx-vlm-server"].includes(
+        normalized,
+      )
+    ) {
+      return "mlx-vlm";
+    }
     return value;
   },
-  z.enum(["cuda", "rocm-transformers"]),
+  z.enum(["cuda", "rocm-transformers", "mlx-vlm"]),
 );
 
 export const OcrQualityModeSchema = z.preprocess(

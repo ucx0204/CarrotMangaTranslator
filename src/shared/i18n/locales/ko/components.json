@@ -982,6 +982,10 @@
         "xhigh": "매우 높음"
       },
       "ocrDevices": {
+        "mlx": {
+          "label": "Apple GPU (MLX)",
+          "description": "Apple Silicon GPU에서 PaddleOCR-VL 인식을 실행합니다."
+        },
         "cuda": {
           "label": "NVIDIA CUDA",
           "description": "NVIDIA GPU에서 Paddle OCR을 실행합니다."
@@ -1175,7 +1179,7 @@
       "inpaintingModel": "인페인팅 모델",
       "amdOcrExperimental": "AMD OCR GPU는 실험 기능입니다. 실패하면 OCR만 CPU로 바꿀 수 있습니다.",
       "ocrAmdNote": "AMD 환경에서는 NVIDIA CUDA OCR을 선택할 수 없습니다.",
-      "ocrAppleNote": "Apple Silicon의 Paddle OCR은 CPU 런타임을 사용합니다.",
+      "ocrAppleNote": "최소·절약은 CPU, 풀로드는 MLX/Metal로 VL 인식을 가속합니다.",
       "ocrNvidiaNote": "NVIDIA 환경에서는 AMD ROCm OCR을 선택할 수 없습니다.",
       "fluxAmdNote": "감지된 AMD GPU에서는 CUDA 네이티브 백엔드를 쓸 수 없어 ZLUDA 또는 CPU 중에서 선택합니다.",
       "fluxAppleNote": "Apple Silicon에서는 Metal 네이티브 백엔드만 사용합니다. Flux는 통합 메모리 16GB 이상을 권장합니다.",

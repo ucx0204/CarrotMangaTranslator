@@ -40,7 +40,7 @@
 - 인터넷: 설치와 첫 모델 다운로드, Codex/API 사용에 필요합니다. 로컬 모델은 준비가 끝난 뒤 오프라인 작업이 가능합니다.
 - GPU가 없어도 일부 CPU 경로를 쓸 수 있지만 OCR, 로컬 번역, Flux 인페인팅은 크게 느릴 수 있습니다.
 
-Windows 설치 파일은 비교적 작게 유지됩니다. Apple Silicon 정식판에는 arm64 FFmpeg, Paddle OCR CPU용 Python 런타임과 Metal 실행 런타임이 포함되며 Gemma·OCR·인페인팅 모델 가중치만 첫 사용 시 체크섬 검증 후 내려받습니다. v1.6.5 macOS 빌드는 인증서 없이 ad-hoc 서명되어 Gatekeeper가 처음 실행을 차단하면 `시스템 설정 → 개인정보 보호 및 보안`에서 수동으로 승인해야 할 수 있습니다. macOS 데이터는 `~/Library/Application Support/manga-gemma-translator`에 저장됩니다.
+Windows 설치 파일은 비교적 작게 유지됩니다. Apple Silicon 정식판에는 arm64 FFmpeg, Paddle OCR·MLX-VLM Python 런타임과 Metal 실행 런타임이 포함되며 Gemma·OCR·인페인팅 모델 가중치만 첫 사용 시 체크섬 검증 후 내려받습니다. v1.6.5 macOS 빌드는 인증서 없이 ad-hoc 서명되어 Gatekeeper가 처음 실행을 차단하면 `시스템 설정 → 개인정보 보호 및 보안`에서 수동으로 승인해야 할 수 있습니다. macOS 데이터는 `~/Library/Application Support/manga-gemma-translator`에 저장됩니다.
 
 ## 빠른 시작
 
@@ -178,7 +178,7 @@ Gemma 프리셋은 대략 다음 순서로 시도할 수 있습니다.
 - VRAM 24GB 이상: `31B 풀로드`
 - 특수 구성: `커스텀`
 
-OCR 품질은 `최소`, `절약`, `풀로드`입니다. CPU에서는 `절약`부터 시작하는 편이 안정적이고, `풀로드` PaddleOCR-VL은 지원되는 GPU와 함께 쓰는 것을 권장합니다.
+OCR 품질은 `최소`, `절약`, `풀로드`입니다. CPU에서는 `절약`부터 시작하는 편이 안정적이고, `풀로드` PaddleOCR-VL은 NVIDIA CUDA 또는 Apple Silicon MLX/Metal GPU와 함께 쓰는 것을 권장합니다.
 
 <details>
 <summary><strong>OpenAI Codex 엔진 준비</strong></summary>
@@ -223,13 +223,13 @@ API 엔진은 Base URL에 `/chat/completions`를 붙여 이미지와 OCR 힌트�
 </details>
 
 <details>
-<summary><strong>NVIDIA와 AMD 경로</strong></summary>
+<summary><strong>GPU별 실행 경로</strong></summary>
 
-| 작업       | NVIDIA                      | AMD                   | 사용자가 고를 수 있는 대안 |
-| ---------- | --------------------------- | --------------------- | -------------------------- |
-| Gemma      | CUDA 12, RTX 50 전용 런타임 | ROCm 또는 Vulkan      | 더 작은 모델 프리셋        |
-| Paddle OCR | NVIDIA CUDA                 | 지원 GPU에서 AMD ROCm | CPU 최소/절약              |
-| Flux       | NVIDIA CUDA                 | ZLUDA + AMD HIP SDK   | CPU                        |
+| 작업       | NVIDIA                      | AMD                   | Apple Silicon                   | 사용자가 고를 수 있는 대안 |
+| ---------- | --------------------------- | --------------------- | ------------------------------- | -------------------------- |
+| Gemma      | CUDA 12, RTX 50 전용 런타임 | ROCm 또는 Vulkan      | Metal                           | 더 작은 모델 프리셋        |
+| Paddle OCR | NVIDIA CUDA                 | 지원 GPU에서 AMD ROCm | 풀로드 MLX/Metal, 최소·절약 CPU | CPU 최소/절약              |
+| Flux       | NVIDIA CUDA                 | ZLUDA + AMD HIP SDK   | Metal 네이티브                  | CPU                        |
 
 AMD Gemma는 GPU와 드라이버에 맞는 ROCm target을 자동으로 찾습니다. 자동 감지가 틀리면 고급 사용자는 예를 들어 다음처럼 지정할 수 있습니다.
 

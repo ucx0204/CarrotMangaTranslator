@@ -122,6 +122,12 @@ function resolveHardwareOcrDevice(
   if (!hasMinimumGemmaVram(info)) {
     return "cpu";
   }
+  if (info?.vendor === "apple") {
+    return resolveUnifiedMemoryMb(info) >= GEMMA_APPLE_FULL_UNIFIED_MEMORY_MB &&
+      ocrGpuBackend === "mlx-vlm"
+      ? "gpu"
+      : "cpu";
+  }
   return supportsHardwareOcrGpu(info, ocrGpuBackend) ? "gpu" : "cpu";
 }
 
@@ -131,7 +137,8 @@ function supportsHardwareOcrGpu(
 ): boolean {
   return (
     (info?.vendor !== "apple" && supportsNvidiaGpuDefaults(info)) ||
-    ocrGpuBackend === "rocm-transformers"
+    ocrGpuBackend === "rocm-transformers" ||
+    (info?.vendor === "apple" && ocrGpuBackend === "mlx-vlm")
   );
 }
 
@@ -218,6 +225,9 @@ function resolveHardwareOcrGpuCudaTag(info: DetectedGpuInfo | null): string {
 function resolveHardwareOcrGpuBackend(
   info: DetectedGpuInfo | null,
 ): OcrGpuBackend {
+  if (info?.vendor === "apple") {
+    return "mlx-vlm";
+  }
   // Only GPUs Windows PyTorch ROCm actually supports get the ROCm OCR
   // backend. Other AMD cards default to CPU OCR with the CUDA backend kept as
   // metadata; an explicit later GPU selection is preserved and fails loudly
