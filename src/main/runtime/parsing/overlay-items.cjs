@@ -1,7 +1,7 @@
 // @ts-check
 /**
  * @typedef {{ x: number; y: number; w: number; h: number }} ParsedBbox
- * @typedef {{ id: number; type: string; x1?: number; y1?: number; x2?: number; y2?: number; jp: string; ko: string; sourceText?: string; translatedText?: string; textRole?: string; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null }} LooseParsedOutput
+ * @typedef {{ id: number; candidateIds?: number[]; type: string; x1?: number; y1?: number; x2?: number; y2?: number; jp: string; ko: string; sourceText?: string; translatedText?: string; textRole?: string; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null }} LooseParsedOutput
  */
 
 const { asRecord, normalizeBBox, toNumber } = require("./overlay-geometry.cjs");
@@ -116,6 +116,7 @@ function buildNormalizedItem(record, index, bbox, sourceText, translatedText) {
   );
   return {
     id: toNumber(record.id) ?? index + 1,
+    ...readCandidateIds(record.candidateIds),
     type: normalizeParsedType(record.type),
     ...(textRole ? { textRole } : {}),
     bbox,
@@ -135,6 +136,19 @@ function buildNormalizedItem(record, index, bbox, sourceText, translatedText) {
     ),
     confidence: normalizeConfidence(record.confidence ?? record.score),
   };
+}
+
+/** @param {unknown} value */
+function readCandidateIds(value) {
+  if (!Array.isArray(value)) {
+    return {};
+  }
+  const ids = value
+    .map((candidate) => Number(candidate))
+    .filter((candidate) => Number.isInteger(candidate) && candidate > 0);
+  return ids.length === value.length && new Set(ids).size === ids.length
+    ? { candidateIds: ids }
+    : {};
 }
 
 /**

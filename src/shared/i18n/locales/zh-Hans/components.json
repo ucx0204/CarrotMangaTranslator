@@ -651,6 +651,14 @@
     "loadFailed": "无法加载术语和记忆信息。",
     "saveSuccess": "术语和记忆已保存。",
     "saveFailed": "无法保存术语和记忆。",
+    "reset": {
+      "button": "重置全部术语与记忆",
+      "running": "正在重置…",
+      "message": "要重置此作品的全部术语与记忆吗？",
+      "detail": "这会删除术语表、角色记忆以及所有章节的故事记忆。翻译规则、页面和翻译结果会保留，但已删除的记忆无法恢复。",
+      "success": "已重置术语和记忆，并清空{{count}}个章节的故事记忆。",
+      "failed": "无法重置全部术语和记忆。"
+    },
     "addRow": "添加行",
     "note": "备注",
     "analysis": {
@@ -979,7 +987,14 @@
       "ocrQuality": {
         "minimum": { "label": "最低", "description": "轻量快速的OCR模型。" },
         "economy": { "label": "经济", "description": "平衡速度和准确度。" },
-        "full": { "label": "完整", "description": "使用最高质量的OCR模型。" }
+        "full": {
+          "label": "完整",
+          "description": "由Gemma 4根据坐标将高质量OCR片段合并为语义单元。"
+        },
+        "cudaLegacyFull": {
+          "label": "CUDA旧版完整",
+          "description": "在NVIDIA CUDA上使用原有PaddleOCR-VL版面路径。"
+        }
       },
       "llamaRuntimes": {
         "metal": {

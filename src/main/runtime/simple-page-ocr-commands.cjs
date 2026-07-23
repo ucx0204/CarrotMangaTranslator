@@ -123,7 +123,7 @@ function buildPaddleOcrBboxModeArgs(options = {}) {
         engine: "transformers",
         dtype: "float32",
         ocrVersion: "PP-OCRv6",
-        mergeMode: "conservative",
+        mergeMode: "semantic",
       }
     : {};
   return renderPaddleOcrModeArgs([

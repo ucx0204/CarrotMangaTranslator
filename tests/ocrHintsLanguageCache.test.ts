@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -131,6 +131,78 @@ describe("OCR hint language cache", () => {
       await run();
       expect(collectOcrHintsBatch).toHaveBeenCalledTimes(index + 2);
     }
+  });
+
+  it("invalidates stale hints after OCR grouping changes", async () => {
+    const chapterDir = await mkdtemp(join(tmpdir(), "mgt-ocr-order-cache-"));
+    tempDirs.push(chapterDir);
+    const page = makePage();
+    let freshText = "fresh-order-1";
+    const collectOcrHintsBatch = vi.fn(async () => [
+      {
+        hints: [
+          {
+            id: 1,
+            label: "ocr_textgroup",
+            x1: 10,
+            y1: 10,
+            x2: 80,
+            y2: 90,
+            ocrText: freshText,
+          },
+        ],
+        diagnostics: [],
+        noTextDetected: false,
+        textEvidenceCount: 1,
+      },
+    ]);
+    const runtime = {
+      collectOcrHintsBatch,
+    } as unknown as TranslationRuntimePort;
+    const options = {
+      sourceLanguage: "ja",
+      ocrDevice: "gpu",
+      ocrGpuBackend: "rocm-transformers",
+      ocrQualityMode: "full",
+      ocrBboxMode: "ocr",
+      ocrEngine: "transformers",
+      ocrMergeMode: "conservative",
+    } as TranslationOptions;
+    const run = () =>
+      prepareOcrHintsForPages({
+        runtime,
+        baseOptions: options,
+        pages: [page],
+        runPaths: { chapterDir, runDir: join(chapterDir, "run") },
+        emit: () => undefined,
+        jobId: "job-order-cache",
+        signal: new AbortController().signal,
+      });
+    const cachePath = join(chapterDir, "ocr-hints", page.id, "result.json");
+
+    expect(readFirstOcrText(await run(), page.id)).toBe("fresh-order-1");
+    const staleCache = JSON.parse(await readFile(cachePath, "utf8")) as {
+      schemaVersion: number;
+      hints: Array<{ ocrText?: string }>;
+    };
+    expect(staleCache.schemaVersion).toBe(9);
+    staleCache.schemaVersion = 8;
+    const staleHint = staleCache.hints[0];
+    if (!staleHint) throw new Error("Expected one cached OCR hint");
+    staleHint.ocrText = "stale-scrambled-order";
+    await writeFile(
+      cachePath,
+      `${JSON.stringify(staleCache, null, 2)}\n`,
+      "utf8",
+    );
+
+    freshText = "fresh-order-2";
+    expect(readFirstOcrText(await run(), page.id)).toBe("fresh-order-2");
+    expect(collectOcrHintsBatch).toHaveBeenCalledTimes(2);
+    const rewrittenCache = JSON.parse(await readFile(cachePath, "utf8")) as {
+      schemaVersion: number;
+    };
+    expect(rewrittenCache.schemaVersion).toBe(9);
   });
 });
 

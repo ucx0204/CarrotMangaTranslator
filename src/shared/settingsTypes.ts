@@ -33,7 +33,11 @@ export type ApiReasoningEffort =
   | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm-transformers";
-export type OcrQualityMode = "minimum" | "economy" | "full";
+export type OcrQualityMode =
+  | "minimum"
+  | "economy"
+  | "full"
+  | "cuda-legacy-full";
 export type TranslationWorkflowMode = "standard" | "cumulative" | "two-pass";
 export type LlamaRuntimeProfile =
   | "cuda12"

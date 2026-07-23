@@ -26,6 +26,7 @@ import {
   collectRequiredHfDownloads,
   isGpuDeviceLostOrTdrText,
   isGpuOutOfMemoryText,
+  isPaddleNativeDllLoadFailureText,
   isRocmHipAccessViolationText,
   resolveEffectiveOcrDevice,
   collectRequiredPaddleOcrModelDownloads,
@@ -508,6 +509,84 @@ describeWindows("runtime model support helpers", () => {
     }
   });
 
+  it("isolates NVIDIA Transformers OCR from the CUDA legacy Paddle runtime", () => {
+    const runtimeDir = createTempDir("ocr-runtime-");
+    const cuda126Options = {
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+      ocrGpuCudaTag: "cu126",
+      ocrEngine: "transformers",
+    };
+    const cuda129Options = {
+      ...cuda126Options,
+      ocrGpuCudaTag: "cu129",
+    };
+    const cu126Batches = resolveOcrPipInstallBatches(cuda126Options);
+    const cu129Batches = resolveOcrPipInstallBatches(cuda129Options);
+    const env = buildOcrRuntimeEnv(cuda129Options, {
+      runtimeDir,
+      includePackageDir: true,
+    });
+    const script = buildPaddleOcrImportCheckScript(cuda129Options);
+
+    expect(cu126Batches).toHaveLength(3);
+    expect(cu126Batches[0]).toEqual(
+      expect.arrayContaining(["filelock", "numpy", "pillow"]),
+    );
+    expect(cu126Batches[1]).toEqual([
+      "torch==2.9.1",
+      "torchvision==0.24.1",
+      "--index-url",
+      "https://download.pytorch.org/whl/cu126",
+    ]);
+    expect(cu129Batches[1]).toEqual([
+      "torch==2.9.1",
+      "torchvision==0.24.1",
+      "--index-url",
+      "https://download.pytorch.org/whl/cu130",
+    ]);
+    expect(cu129Batches[2]).toEqual([
+      "paddleocr==3.7.0",
+      "transformers==5.13.1",
+      "safetensors>=0.6.2",
+      "tokenizers==0.23.0rc0",
+    ]);
+    expect(cu129Batches.flat().join(" ")).not.toContain("paddlepaddle-gpu");
+    expect(cu129Batches.flat().join(" ")).not.toContain(
+      "safetensors-0.6.2.dev0",
+    );
+    expect(resolveOcrRuntimeVariant(cuda126Options)).toBe(
+      "gpu-cuda-transformers-cu126",
+    );
+    expect(resolveOcrRuntimeVariant(cuda129Options)).toBe(
+      "gpu-cuda-transformers-cu130",
+    );
+    expect(resolveOcrPythonPackageDir(runtimeDir, cuda129Options)).not.toBe(
+      resolveOcrPythonPackageDir(runtimeDir, {
+        ocrDevice: "gpu",
+        ocrGpuBackend: "cuda",
+        ocrGpuCudaTag: "cu129",
+      }),
+    );
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE).toBe("transformers");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE).toBe("float32");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE).toBe("ocr");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE).toBe("semantic");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN).toBeUndefined();
+    expect(env.MANGA_TRANSLATOR_OCR_DLL_DIRS).toContain(
+      join("python-packages-gpu-cuda-transformers-cu130", "torch", "lib"),
+    );
+    expect(script).toContain("import torch");
+    expect(script).toContain("import torchvision");
+    expect(script).toContain("import tokenizers");
+    expect(script).toContain("torch.version.cuda");
+    expect(script).toContain("transformers.AutoModelForObjectDetection");
+    expect(script).toContain("from paddleocr import PaddleOCR");
+    expect(script).not.toContain("import paddle");
+    expect(script).not.toContain("PaddleOCRVL");
+    expect(collectRequiredPaddleOcrModelDownloads(cuda129Options)).toEqual([]);
+  });
+
   it("uses native Windows ROCm PyTorch packages for AMD Transformers OCR runtimes", () => {
     const rocmBatches = resolveOcrPipInstallBatches({
       ocrDevice: "gpu",
@@ -561,6 +640,7 @@ describeWindows("runtime model support helpers", () => {
       "paddleocr==3.7.0",
       "transformers==5.13.1",
       "safetensors>=0.6.2",
+      "tokenizers==0.23.0rc0",
     ]);
     expect(rocmBatches.flat().join(" ")).not.toContain("paddlepaddle-gpu");
     expect(rocmBatches.flat().join(" ")).not.toContain("/cu126/");
@@ -572,12 +652,14 @@ describeWindows("runtime model support helpers", () => {
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE).toBe("ocr");
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_VERSION).toBe("PP-OCRv6");
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_ATTN).toBe("eager");
-    expect(env.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE).toBe("conservative");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE).toBe("semantic");
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN).toBe("1");
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT).toBe("1600");
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH).toBe("1");
     expect(script).toContain("import torch");
     expect(script).toContain("import torchvision");
+    expect(script).toContain("import tokenizers");
+    expect(script).toContain("0.23.0rc0");
     expect(script).toContain("import transformers");
     expect(script).toContain("'paddlex'");
     expect(script).toContain("'safetensors'");
@@ -603,6 +685,30 @@ describeWindows("runtime model support helpers", () => {
     ).toBe("gpu-rocm-transformers");
   });
 
+  it("keeps CPU AMD low modes on the static Paddle runtime", () => {
+    const options = {
+      ocrDevice: "cpu",
+      ocrGpuBackend: "rocm-transformers",
+      ocrEngine: "paddle_static",
+      ocrTextDetectionModelName: "PP-OCRv6_small_det",
+      ocrTextRecognitionModelName: "PP-OCRv6_tiny_rec",
+    };
+    const batches = resolveOcrPipInstallBatches(options);
+    const env = buildOcrRuntimeEnv(options);
+    const script = buildPaddleOcrImportCheckScript(options);
+
+    expect(resolveOcrRuntimeVariant(options)).toBe("cpu");
+    expect(batches[0]).toEqual([
+      "paddlepaddle==3.3.1",
+      "paddleocr[doc-parser]==3.7.0",
+    ]);
+    expect(batches.flat().join(" ")).not.toContain("torch");
+    expect(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE).toBe("paddle_static");
+    expect(script).toContain("import paddle");
+    expect(script).not.toContain("import torch");
+    expect(collectRequiredPaddleOcrModelDownloads(options)).not.toEqual([]);
+  });
+
   it("keeps ROCm Transformers safe GPU defaults scoped to AMD OCR", () => {
     const previousAttn = process.env.MANGA_TRANSLATOR_PADDLEOCR_ATTN;
     const previousDtype = process.env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE;
@@ -622,9 +728,7 @@ describeWindows("runtime model support helpers", () => {
       expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE).toBe("float32");
       expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_VERSION).toBe("PP-OCRv6");
       expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_ATTN).toBe("eager");
-      expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE).toBe(
-        "conservative",
-      );
+      expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE).toBe("semantic");
       expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN).toBe("1");
       expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT).toBe("1600");
       expect(rocmEnv.MANGA_TRANSLATOR_PADDLEOCR_REC_BATCH).toBe("1");
@@ -1234,10 +1338,10 @@ describeWindows("runtime model support helpers", () => {
     expect(amdCommand).toContain("--ocr-version");
     expect(amdCommand).toContain("PP-OCRv6");
     expect(amdCommand).toContain("--merge-mode");
-    expect(amdCommand).toContain("conservative");
+    expect(amdCommand).toContain("semantic");
   });
 
-  it("passes smoke OCR presets for economy and full modes", () => {
+  it("passes smoke OCR presets for economy and CUDA legacy full modes", () => {
     const runtime = { pythonPath: "python" };
     const economyCommand = buildOcrBboxCommand(
       {
@@ -1250,7 +1354,7 @@ describeWindows("runtime model support helpers", () => {
         ocrVersion: "PP-OCRv6",
         ocrTextDetectionModelName: "PP-OCRv6_small_det",
         ocrTextRecognitionModelName: "PP-OCRv6_small_rec",
-        ocrMergeMode: "conservative",
+        ocrMergeMode: "semantic",
         ocrDetLimit: "1600",
         ocrRecBatch: "1",
       },
@@ -1280,7 +1384,7 @@ describeWindows("runtime model support helpers", () => {
       ocrEngine: "paddle_static",
       ocrTextDetectionModelName: "PP-OCRv6_small_det",
       ocrTextRecognitionModelName: "PP-OCRv6_small_rec",
-      ocrMergeMode: "conservative",
+      ocrMergeMode: "semantic",
     });
 
     expect(economyCommand).toContain("--bbox-mode");
@@ -1292,7 +1396,7 @@ describeWindows("runtime model support helpers", () => {
     expect(economyCommand).toContain("--text-recognition-model-name");
     expect(economyCommand).toContain("PP-OCRv6_small_rec");
     expect(economyCommand).toContain("--merge-mode");
-    expect(economyCommand).toContain("conservative");
+    expect(economyCommand).toContain("semantic");
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE).toBe("ocr");
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE).toBe("paddle_static");
     expect(env.MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME).toBe(
@@ -1346,6 +1450,51 @@ describeWindows("runtime model support helpers", () => {
     expect(message).toContain("네이티브 DLL");
     expect(message).toContain("Microsoft Visual C++");
     expect(message).toContain("libpaddle.pyd");
+  });
+
+  it("classifies PyTorch Windows DLL loader failures for VC++ auto-repair", () => {
+    expect(
+      isPaddleNativeDllLoadFailureText(
+        "ImportError: DLL load failed while importing _C: The specified procedure could not be found.",
+      ),
+    ).toBe(true);
+    expect(
+      isPaddleNativeDllLoadFailureText(
+        'OSError: [WinError 126] Error loading "C:\\ocr\\torch\\lib\\fbgemm.dll" or one of its dependencies.',
+      ),
+    ).toBe(true);
+    expect(
+      isPaddleNativeDllLoadFailureText(
+        'OSError: [WinError 126] Error loading "C:\\plugins\\unrelated.dll".',
+      ),
+    ).toBe(false);
+    expect(
+      isPaddleNativeDllLoadFailureText(
+        "ModuleNotFoundError: No module named 'torch'",
+      ),
+    ).toBe(false);
+  });
+
+  it("gives backend-specific VC++ guidance for PyTorch OCR DLL failures", () => {
+    const failure =
+      'OSError: [WinError 126] Error loading "C:\\ocr\\torch\\lib\\c10.dll" or one of its dependencies.';
+    const cudaMessage = buildPaddleOcrImportFailureMessage(failure, {
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+      ocrEngine: "transformers",
+    });
+    const rocmMessage = buildPaddleOcrImportFailureMessage(failure, {
+      ocrDevice: "gpu",
+      ocrGpuBackend: "rocm-transformers",
+      ocrEngine: "transformers",
+    });
+
+    expect(cudaMessage).toContain("PyTorch CUDA DLL");
+    expect(cudaMessage).toContain("Microsoft Visual C++");
+    expect(cudaMessage).toContain("c10.dll");
+    expect(rocmMessage).toContain("ROCm PyTorch DLL");
+    expect(rocmMessage).toContain("Microsoft Visual C++");
+    expect(rocmMessage).toContain("c10.dll");
   });
 
   it("ignores legacy ROCm Paddle OCR package overrides for the Transformers backend", () => {
@@ -1445,6 +1594,72 @@ describeWindows("runtime model support helpers", () => {
     } finally {
       restoreEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", previousGeneric);
       restoreEnv("MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES", previousGpu);
+    }
+  });
+
+  it("keeps the legacy CUDA package override out of Transformers OCR", () => {
+    const previousGeneric = process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES;
+    const previousGpu = process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES;
+    const previousTransformers =
+      process.env.MANGA_TRANSLATOR_OCR_CUDA_TRANSFORMERS_PIP_PACKAGES;
+    try {
+      delete process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES;
+      delete process.env.MANGA_TRANSLATOR_OCR_CUDA_TRANSFORMERS_PIP_PACKAGES;
+      process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES =
+        "legacy-paddle-package==1.2.3";
+
+      const legacyBatches = resolveOcrPipInstallBatches({
+        ocrDevice: "gpu",
+        ocrGpuBackend: "cuda",
+        ocrGpuCudaTag: "cu126",
+      });
+      const transformersBatches = resolveOcrPipInstallBatches({
+        ocrDevice: "gpu",
+        ocrGpuBackend: "cuda",
+        ocrGpuCudaTag: "cu126",
+        ocrEngine: "transformers",
+      });
+
+      expect(legacyBatches.flat()).toContain("legacy-paddle-package==1.2.3");
+      expect(transformersBatches.flat()).not.toContain(
+        "legacy-paddle-package==1.2.3",
+      );
+      expect(transformersBatches[1]).toContain("torch==2.9.1");
+      expect(transformersBatches[2]).toContain("transformers==5.13.1");
+    } finally {
+      restoreEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", previousGeneric);
+      restoreEnv("MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES", previousGpu);
+      restoreEnv(
+        "MANGA_TRANSLATOR_OCR_CUDA_TRANSFORMERS_PIP_PACKAGES",
+        previousTransformers,
+      );
+    }
+  });
+
+  it("uses the dedicated CUDA Transformers package override", () => {
+    const previousGeneric = process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES;
+    const previous =
+      process.env.MANGA_TRANSLATOR_OCR_CUDA_TRANSFORMERS_PIP_PACKAGES;
+    try {
+      delete process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES;
+      process.env.MANGA_TRANSLATOR_OCR_CUDA_TRANSFORMERS_PIP_PACKAGES =
+        "custom-torch-stack==9.9 custom-transformers-stack==9.9";
+
+      expect(
+        resolveOcrPipInstallBatches({
+          ocrDevice: "gpu",
+          ocrGpuBackend: "cuda",
+          ocrEngine: "transformers",
+        }),
+      ).toEqual([
+        ["custom-torch-stack==9.9", "custom-transformers-stack==9.9"],
+      ]);
+    } finally {
+      restoreEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", previousGeneric);
+      restoreEnv(
+        "MANGA_TRANSLATOR_OCR_CUDA_TRANSFORMERS_PIP_PACKAGES",
+        previous,
+      );
     }
   });
 

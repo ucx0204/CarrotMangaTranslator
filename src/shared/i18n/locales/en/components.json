@@ -671,6 +671,14 @@
     "loadFailed": "Could not load terminology and memory.",
     "saveSuccess": "Terminology and memory saved.",
     "saveFailed": "Could not save terminology and memory.",
+    "reset": {
+      "button": "Reset all terms & memory",
+      "running": "Resetting…",
+      "message": "Reset all terminology and memory for this work?",
+      "detail": "This deletes the glossary, character memory, and story memory for every chapter. Translation rules, pages, and translated results remain, but deleted memory cannot be restored.",
+      "success": "Terminology and memory were reset, including story memory for {{count}} chapters.",
+      "failed": "Could not reset all terminology and memory."
+    },
     "addRow": "Add row",
     "note": "Note",
     "analysis": {
@@ -1022,7 +1030,11 @@
         },
         "full": {
           "label": "Full",
-          "description": "Uses the highest-quality OCR model."
+          "description": "Gemma 4 groups high-quality OCR fragments and coordinates into semantic units."
+        },
+        "cudaLegacyFull": {
+          "label": "CUDA legacy full",
+          "description": "Uses the previous PaddleOCR-VL layout path on NVIDIA CUDA."
         }
       },
       "llamaRuntimes": {

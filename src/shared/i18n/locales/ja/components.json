@@ -664,6 +664,14 @@
     "loadFailed": "用語/記憶情報を読み込めませんでした。",
     "saveSuccess": "用語/記憶を保存しました。",
     "saveFailed": "用語/記憶を保存できませんでした。",
+    "reset": {
+      "button": "用語・記憶をすべて初期化",
+      "running": "初期化中…",
+      "message": "この作品の用語/記憶をすべて初期化しますか？",
+      "detail": "用語集、キャラクター記憶、全話のストーリー記憶を削除します。翻訳ルール、ページ、翻訳結果は維持されますが、削除した記憶は元に戻せません。",
+      "success": "用語/記憶を初期化し、{{count}}話分のストーリー記憶を空にしました。",
+      "failed": "用語/記憶をすべて初期化できませんでした。"
+    },
     "addRow": "行を追加",
     "note": "メモ",
     "analysis": {
@@ -1012,7 +1020,11 @@
         },
         "full": {
           "label": "フル",
-          "description": "最高品質のOCRモデルを使用します。"
+          "description": "高品質OCRの断片と座標をGemma 4が意味単位にまとめます。"
+        },
+        "cudaLegacyFull": {
+          "label": "CUDAレガシーフル",
+          "description": "NVIDIA CUDAで従来のPaddleOCR-VLレイアウト経路を使用します。"
         }
       },
       "llamaRuntimes": {

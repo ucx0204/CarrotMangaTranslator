@@ -5,6 +5,7 @@
  *   ocrDevice?: unknown;
  *   ocrGpuBackend?: unknown;
  *   ocrGpuCudaTag?: unknown;
+ *   ocrEngine?: unknown;
  *   [key: string]: unknown;
  * }} OcrConfigOptions
  */
@@ -21,6 +22,8 @@ const ROCM_BACKEND_ALIASES = new Set([
   "rocm-transformers",
   "transformers-rocm",
 ]);
+const DEFAULT_OCR_TORCH_CUDA_TAG = DEFAULT_OCR_GPU_CUDA_TAG;
+const BLACKWELL_OCR_TORCH_CUDA_TAG = "cu130";
 
 /** @param {RuntimeOptions} [options] @returns {boolean} */
 function isOcrGpuRequested(options = {}) {
@@ -79,6 +82,64 @@ function resolveOcrGpuPackageIndexUrl(
   ).trim();
 }
 
+/** @param {RuntimeOptions} [options] @returns {boolean} */
+function isOcrTransformersEngine(
+  options = /** @type {OcrConfigOptions} */ ({}),
+) {
+  const configuredEngine = String(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", options) ??
+      options.ocrEngine ??
+      "",
+  )
+    .trim()
+    .toLowerCase();
+  if (configuredEngine) {
+    return configuredEngine === "transformers";
+  }
+  return (
+    isOcrGpuRequested(options) &&
+    resolveOcrGpuBackend(options) === "rocm-transformers"
+  );
+}
+
+/** @param {RuntimeOptions} [options] @returns {boolean} */
+function isOcrTransformersRuntime(options = {}) {
+  return isOcrGpuRequested(options) && isOcrTransformersEngine(options);
+}
+
+/** @param {RuntimeOptions} [options] @returns {boolean} */
+function isOcrCudaTransformersRuntime(options = {}) {
+  return (
+    isOcrGpuRequested(options) &&
+    resolveOcrGpuBackend(options) === "cuda" &&
+    isOcrTransformersEngine(options)
+  );
+}
+
+/** @param {RuntimeOptions} [options] @returns {string} */
+function resolveOcrTorchCudaTag(options = {}) {
+  const explicit = String(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_TORCH_CUDA_TAG", options) ?? "",
+  )
+    .trim()
+    .toLowerCase();
+  if (/^cu\d+$/.test(explicit)) {
+    return explicit;
+  }
+  const paddleCuda = Number(resolveOcrGpuCudaTag(options).replace(/\D/g, ""));
+  return paddleCuda >= 129
+    ? BLACKWELL_OCR_TORCH_CUDA_TAG
+    : DEFAULT_OCR_TORCH_CUDA_TAG;
+}
+
+/** @param {RuntimeOptions} [options] @returns {string} */
+function resolveOcrTorchPackageIndexUrl(options = {}) {
+  return String(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_TORCH_INDEX_URL", options) ??
+      `https://download.pytorch.org/whl/${resolveOcrTorchCudaTag(options)}`,
+  ).trim();
+}
+
 /** @param {RuntimeOptions} [options] @returns {string} */
 function resolveOcrRuntimeVariant(options = {}) {
   if (!isOcrGpuRequested(options)) {
@@ -86,6 +147,11 @@ function resolveOcrRuntimeVariant(options = {}) {
   }
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return "gpu-rocm-transformers";
+  }
+  if (isOcrCudaTransformersRuntime(options)) {
+    return `gpu-cuda-transformers-${resolveOcrTorchCudaTag(options)}`
+      .replace(/[^a-z0-9._-]+/gi, "-")
+      .toLowerCase();
   }
   return `gpu-${resolveOcrGpuCudaTag(options)}`
     .replace(/[^a-z0-9._-]+/gi, "-")
@@ -143,6 +209,9 @@ function resolvePaddleOcrImportCheckTimeoutMs(options = {}) {
   if (!isOcrGpuRequested(options)) {
     return 120000;
   }
+  if (isOcrTransformersRuntime(options)) {
+    return 300000;
+  }
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return 300000;
   }
@@ -151,7 +220,10 @@ function resolvePaddleOcrImportCheckTimeoutMs(options = {}) {
 
 module.exports = {
   isOcrBlackwellCudaTag,
+  isOcrCudaTransformersRuntime,
   isOcrGpuRequested,
+  isOcrTransformersEngine,
+  isOcrTransformersRuntime,
   resolveEffectiveOcrDevice,
   resolveOcrDevice,
   resolveOcrDeviceLabel,
@@ -159,5 +231,7 @@ module.exports = {
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
   resolveOcrRuntimeVariant,
+  resolveOcrTorchCudaTag,
+  resolveOcrTorchPackageIndexUrl,
   resolvePaddleOcrImportCheckTimeoutMs,
 };

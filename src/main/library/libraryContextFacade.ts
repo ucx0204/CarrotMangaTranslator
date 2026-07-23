@@ -1,5 +1,6 @@
 import type {
   ChapterStoryMemory,
+  ResetWorkContextResult,
   WorkStyleGuide,
 } from "../../shared/workContextTypes";
 import type {
@@ -10,6 +11,7 @@ import { applyReviewImportUnlocked } from "../libraryStore/reviewImport";
 import {
   readChapterStoryMemory,
   readWorkStyleGuide,
+  resetWorkContextForChapter,
   resolveWorkContextForChapter as resolveWorkContextForChapterUnlocked,
   writeChapterStoryMemory,
   writeWorkStyleGuide,
@@ -46,6 +48,12 @@ export async function saveChapterStoryMemory(
   memory: ChapterStoryMemory,
 ): Promise<ChapterStoryMemory> {
   return withLibraryMutation(() => writeChapterStoryMemory(memory));
+}
+
+export async function resetWorkContext(
+  chapterId: string,
+): Promise<ResetWorkContextResult> {
+  return withLibraryMutation(() => resetWorkContextForChapter(chapterId));
 }
 
 export async function importReviewText(

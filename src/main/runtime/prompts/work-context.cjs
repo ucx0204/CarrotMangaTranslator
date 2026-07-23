@@ -14,6 +14,9 @@ const { sanitizePromptLine } = require("./common.cjs");
  * @returns {PromptSection}
  */
 function buildWorkContextSection(options = {}) {
+  if (options.ocrGeometryOnlyMode) {
+    return [];
+  }
   const context = options.workContext;
   if (!context || !context.styleGuide) {
     return [];

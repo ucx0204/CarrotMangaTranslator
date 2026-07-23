@@ -226,14 +226,24 @@ export const OcrQualityModeSchema = z.preprocess(
     ) {
       return "economy";
     }
-    if (
-      ["full", "quality", "vl", "paddleocr-vl", "31b", "풀로드"].includes(
-        normalized,
-      )
-    ) {
+    if (["full", "quality", "31b", "풀로드"].includes(normalized)) {
       return "full";
+    }
+    if (
+      [
+        "cuda-legacy-full",
+        "cuda_legacy_full",
+        "cuda-legacy",
+        "legacy-full",
+        "legacy",
+        "vl",
+        "paddleocr-vl",
+        "cuda 레거시 풀로드",
+      ].includes(normalized)
+    ) {
+      return "cuda-legacy-full";
     }
     return value;
   },
-  z.enum(["minimum", "economy", "full"]),
+  z.enum(["minimum", "economy", "full", "cuda-legacy-full"]),
 );

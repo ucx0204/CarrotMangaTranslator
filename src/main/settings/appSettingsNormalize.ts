@@ -5,7 +5,6 @@ import {
 } from "../../shared/translationLanguages";
 import {
   asRecord,
-  inferHardwareVendorFromDefaults,
   resolveAnalysisScopeDefault,
   resolveBoolean,
   resolveCodexReasoningEffort,
@@ -20,8 +19,6 @@ import {
   resolveNonEmptyString,
   resolveNumberRange,
   resolveOcrDevice,
-  resolveOcrGpuBackend,
-  resolveOcrQualityMode,
   resolveOpenAiCompatibleBaseUrl,
   resolveOptionalJsonObjectString,
   resolveOptionalString,
@@ -37,6 +34,7 @@ import {
   resolveStoredLlamaRocmTarget,
   resolveStoredLlamaRuntimeProfile,
   resolveStoredOcrGpuCudaTag,
+  resolveStoredOcrModeSettings,
 } from "./appSettingsStoredResolvers";
 import { getModeAwareGemmaDefaults } from "./gemmaModelPresets";
 import { normalizeUiLocale } from "../../shared/uiLocales";
@@ -328,28 +326,18 @@ function normalizeOcrSettings(
   ocr: Record<string, unknown> | null,
   defaults: AppSettings,
 ): AppSettings["ocr"] {
-  const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
-  // On AMD hardware the ROCm OCR backend is only trusted when the current
-  // hardware defaults grant it (Windows-ROCm-supported GPU). A stored
-  // "rocm-transformers" from an older app version is ignored otherwise.
-  const gpuBackend =
-    hardwareVendor === "amd" && defaults.ocr.gpuBackend !== "rocm-transformers"
-      ? resolveOcrGpuBackend(defaults.ocr.gpuBackend, "cuda")
-      : resolveOcrGpuBackend(
-          ocr?.gpuBackend,
-          defaults.ocr.gpuBackend ?? "cuda",
-        );
+  const { gpuBackend, qualityMode: normalizedQualityMode } =
+    resolveStoredOcrModeSettings(ocr, defaults);
   const device = resolveOcrDevice(ocr?.device, defaults.ocr.device);
-  const qualityMode = resolveOcrQualityMode(
-    ocr?.qualityMode,
-    defaults.ocr.qualityMode,
-  );
   return {
     device,
-    // 풀로드(PaddleOCR-VL) 품질은 CPU에서 못 쓸 만큼 느리므로 CPU 장치에서는
-    // 절약 품질로 강제한다.
+    // GPU 전용 고품질 모드는 CPU에서 못 쓸 만큼 느리므로 절약 품질로 강제한다.
     qualityMode:
-      device === "cpu" && qualityMode === "full" ? "economy" : qualityMode,
+      device === "cpu" &&
+      (normalizedQualityMode === "full" ||
+        normalizedQualityMode === "cuda-legacy-full")
+        ? "economy"
+        : normalizedQualityMode,
     gpuBackend,
     gpuCudaTag: resolveStoredOcrGpuCudaTag(ocr, defaults),
   };

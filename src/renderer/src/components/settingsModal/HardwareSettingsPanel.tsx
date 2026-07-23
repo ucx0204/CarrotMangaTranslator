@@ -151,14 +151,23 @@ function OcrQualitySettings({
   const activeOption = OCR_QUALITY_OPTIONS.find(
     (option) => option.id === ocrQualityMode,
   );
-  const visibleQualityOptions = usesAppleHardware
-    ? OCR_QUALITY_OPTIONS.filter((option) => option.id !== "full")
-    : OCR_QUALITY_OPTIONS;
+  const visibleQualityOptions = OCR_QUALITY_OPTIONS.filter((option) => {
+    if (
+      usesAppleHardware &&
+      (option.id === "full" || option.id === "cuda-legacy-full")
+    ) {
+      return false;
+    }
+    if (option.id === "cuda-legacy-full" && !usesNvidiaOcrContext) {
+      return false;
+    }
+    return true;
+  });
   return (
     <div className="settings-field-stack">
       <span>{t("settings.hardware.ocrQuality")}</span>
       <div
-        className="settings-preset-group"
+        className="settings-preset-group settings-ocr-quality-group"
         role="group"
         aria-label={t("settings.hardware.ocrQuality")}
       >
@@ -169,9 +178,11 @@ function OcrQualitySettings({
             className={`settings-preset-button ${ocrQualityMode === option.id ? "active" : ""}`}
             onClick={() => {
               clearTestState();
-              if (option.id === "full") {
+              if (option.id === "full" || option.id === "cuda-legacy-full") {
                 setOcrDevice("gpu");
-                if (usesAmdOcrContext) {
+                if (option.id === "cuda-legacy-full") {
+                  setOcrGpuBackend("cuda");
+                } else if (usesAmdOcrContext) {
                   setOcrGpuBackend("rocm-transformers");
                 } else if (usesNvidiaOcrContext) {
                   setOcrGpuBackend("cuda");

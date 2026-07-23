@@ -47,7 +47,11 @@ export function useStyleGuideModalModel(
     setTab,
     locale: i18n.resolvedLanguage ?? i18n.language,
     budget: useStyleGuideBudget(resources.guide, resources.memory, settings),
-    working: resources.busy || analysis.analyzingScope !== null,
+    working:
+      resources.busy ||
+      resources.saving ||
+      resources.resetting ||
+      analysis.analyzingScope !== null,
   };
 }
 
@@ -56,6 +60,7 @@ function useStyleGuideResources(chapter: ChapterSnapshot, t: ComponentsT) {
   const [memory, setMemory] = React.useState<ChapterStoryMemory | null>(null);
   const [busy, setBusy] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [resetting, setResetting] = React.useState(false);
   const { usage, usageStatus, refreshUsage } = useStyleGuideUsage(
     chapter.workId,
   );
@@ -87,6 +92,25 @@ function useStyleGuideResources(chapter: ChapterSnapshot, t: ComponentsT) {
       setSaving(false);
     }
   }, [guide, memory, refreshUsage, t]);
+  const resetAllWorkContext = React.useCallback(async () => {
+    setResetting(true);
+    try {
+      const result = await mangaGateway.resetWorkContext({
+        chapterId: chapter.id,
+      });
+      setGuide(result.styleGuide);
+      setMemory(result.storyMemory);
+      await refreshUsage();
+      toast.success(
+        t("styleGuide.reset.success", { count: result.resetChapterCount }),
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error(t("styleGuide.reset.failed"));
+    } finally {
+      setResetting(false);
+    }
+  }, [chapter.id, refreshUsage, t]);
   return {
     guide,
     setGuide,
@@ -96,7 +120,9 @@ function useStyleGuideResources(chapter: ChapterSnapshot, t: ComponentsT) {
     usageStatus,
     busy,
     saving,
+    resetting,
     saveGuide,
+    resetAllWorkContext,
     refreshUsage,
   };
 }
@@ -148,35 +174,41 @@ function useStyleGuideUsage(workId: string): {
   const [usage, setUsage] = React.useState<WorkContextUsage | null>(null);
   const [usageStatus, setUsageStatus] =
     React.useState<WorkContextUsageStatus>("loading");
+  const latestRequestId = React.useRef(0);
   const fetchUsage = React.useCallback(
     () => mangaGateway.getWorkContextUsage(workId),
     [workId],
   );
   const refreshUsage = React.useCallback(async () => {
+    const requestId = ++latestRequestId.current;
     setUsageStatus("loading");
     try {
-      setUsage(await fetchUsage());
+      const nextUsage = await fetchUsage();
+      if (requestId !== latestRequestId.current) return;
+      setUsage(nextUsage);
       setUsageStatus("ready");
     } catch (error) {
       console.error(error);
+      if (requestId !== latestRequestId.current) return;
       setUsage(null);
       setUsageStatus("error");
     }
   }, [fetchUsage]);
   React.useEffect(() => {
     let alive = true;
+    const requestId = ++latestRequestId.current;
     setUsage(null);
     setUsageStatus("loading");
     void fetchUsage()
       .then((nextUsage) => {
-        if (alive) {
+        if (alive && requestId === latestRequestId.current) {
           setUsage(nextUsage);
           setUsageStatus("ready");
         }
       })
       .catch((error) => {
         console.error(error);
-        if (alive) {
+        if (alive && requestId === latestRequestId.current) {
           setUsage(null);
           setUsageStatus("error");
         }

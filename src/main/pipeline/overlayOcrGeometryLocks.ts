@@ -27,6 +27,10 @@ export function applyOcrCandidateGeometryLocks(
   }
 
   return items.map((item) => {
+    const membershipLocked = lockCandidateMembershipGeometry(item, hintMap);
+    if (membershipLocked) {
+      return membershipLocked;
+    }
     const lockedHint = hintMap.get(item.id);
     if (!lockedHint || !isNearOcrHint(item.bbox, lockedHint.bbox, page)) {
       return item;
@@ -39,6 +43,36 @@ export function applyOcrCandidateGeometryLocks(
       bbox: lockedHint.bbox,
     };
   });
+}
+
+function lockCandidateMembershipGeometry(
+  item: OverlayItem,
+  hintMap: Map<number, OcrGeometryLockHint>,
+): OverlayItem | null {
+  if (!Array.isArray(item.candidateIds)) {
+    return null;
+  }
+  if (item.candidateIds.length === 0) {
+    return item;
+  }
+  const memberHints = item.candidateIds.map((id) => hintMap.get(id));
+  if (memberHints.some((hint) => !hint)) {
+    const error = new Error(
+      `Semantic OCR item ${item.id} references an unknown candidate id.`,
+    );
+    Object.assign(error, {
+      code: "semantic-ocr-unknown-candidate",
+      itemId: item.id,
+      candidateIds: item.candidateIds,
+    });
+    throw error;
+  }
+  return {
+    ...item,
+    bbox: unionBboxes(
+      memberHints.map((hint) => (hint as OcrGeometryLockHint).bbox),
+    ),
+  };
 }
 
 function buildOcrGeometryLockHintMap(
@@ -90,7 +124,6 @@ function isMergedSameContainerOcrItem(
   ) {
     return false;
   }
-
   const groupHints = [...hintMap.values()].filter(
     (candidate) =>
       candidate.groupId === lockedHint.groupId &&
@@ -99,7 +132,6 @@ function isMergedSameContainerOcrItem(
   if (groupHints.length < 2) {
     return false;
   }
-
   const unionBbox = unionBboxes(groupHints.map((candidate) => candidate.bbox));
   const itemCoversGroup = bboxContainmentRatio(unionBbox, item.bbox) > 0.72;
   const itemIsWiderThanSingleHint =

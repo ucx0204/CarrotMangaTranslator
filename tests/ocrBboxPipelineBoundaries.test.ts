@@ -82,6 +82,89 @@ describe("OCR bbox pipeline boundaries", () => {
     expect(hints.at(-1)?.id).toBe(80);
   });
 
+  it("preserves axis-v4 review sidecars and stable sparse ids without regrouping", () => {
+    const hints = hintsRuntime.normalizeOcrBboxHintPayload(
+      {
+        coordinateSpace: "pixels",
+        width: 1000,
+        height: 1000,
+        items: [
+          {
+            id: 4,
+            label: "ocr_textline",
+            x1: 600,
+            y1: 100,
+            x2: 632,
+            y2: 250,
+            ocrText: "確定本文",
+            score: 0.91,
+            reviewFragmentId: "B001",
+            reviewStatus: "confirmed",
+            reviewReasons: [],
+            reviewOrder: 1,
+            groupId: "G001",
+            orderInGroup: 1,
+            groupSize: 1,
+            rolePrior: "ordinary_mergeable",
+            containerType: "same_text_container",
+            semanticGroup: true,
+            paddleGroupId: "G007",
+            paddleOrder: 3,
+            paddleGroupSize: 4,
+          },
+          {
+            id: 9,
+            label: "ocr_textline",
+            x1: 100,
+            y1: 500,
+            x2: 300,
+            y2: 532,
+            ocrText: "再検査本文",
+            score: 0.88,
+            reviewFragmentId: "D001",
+            reviewStatus: "deferred",
+            reviewReasons: [" ordinary_axis_candidate ", "", 7],
+            reviewOrder: 1,
+            paddleGroupId: "G009",
+            paddleOrder: 2,
+            paddleGroupSize: 3,
+          },
+        ],
+      },
+      { imageWidth: 1000, imageHeight: 1000, sourceLanguage: "ja" },
+    );
+
+    expect(hints).toEqual([
+      expect.objectContaining({
+        id: 4,
+        ocrText: "確定本文",
+        reviewFragmentId: "B001",
+        reviewStatus: "confirmed",
+        reviewReasons: [],
+        reviewOrder: 1,
+        groupId: "G001",
+        orderInGroup: 1,
+        groupSize: 1,
+        semanticGroup: true,
+        paddleGroupId: "G007",
+        paddleOrder: 3,
+        paddleGroupSize: 4,
+      }),
+      expect.objectContaining({
+        id: 9,
+        ocrText: "再検査本文",
+        reviewFragmentId: "D001",
+        reviewStatus: "deferred",
+        reviewReasons: ["ordinary_axis_candidate"],
+        reviewOrder: 1,
+        paddleGroupId: "G009",
+        paddleOrder: 2,
+        paddleGroupSize: 3,
+      }),
+    ]);
+    expect(hints[1]).not.toHaveProperty("groupId");
+  });
+
   it("reports a JSON-file read failure without claiming the page has no text", async () => {
     const missingPath = join(tmpdir(), `missing-ocr-${Date.now()}.json`);
 

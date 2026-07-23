@@ -6,6 +6,7 @@ import {
 } from "../../shared/ipcSchemas";
 import type {
   ChapterStoryMemory,
+  ResetWorkContextResult,
   WorkStyleGuide,
 } from "../../shared/workContextTypes";
 import {
@@ -140,6 +141,44 @@ export async function writeChapterStoryMemory(
     checked,
   );
   return checked;
+}
+
+export async function resetWorkContextForChapter(
+  chapterId: string,
+): Promise<ResetWorkContextResult> {
+  const locator = await findChapterLocation(chapterId);
+  if (!locator) {
+    throw new Error("용어/기억을 초기화할 작품을 찾지 못했습니다.");
+  }
+  const work = await readWorkFile(locator.workId);
+  if (!work || !work.chapterOrder.includes(chapterId)) {
+    throw new Error("용어/기억을 초기화할 작품을 찾지 못했습니다.");
+  }
+
+  const currentGuide = await readWorkStyleGuide(locator.workId);
+  const styleGuide = await writeWorkStyleGuide({
+    ...currentGuide,
+    glossary: [],
+    characters: [],
+  });
+
+  let requestedStoryMemory: ChapterStoryMemory | null = null;
+  for (const workChapterId of work.chapterOrder) {
+    const storyMemory = await writeChapterStoryMemory(
+      createDefaultChapterStoryMemory(locator.workId, workChapterId),
+    );
+    if (workChapterId === chapterId) {
+      requestedStoryMemory = storyMemory;
+    }
+  }
+  if (!requestedStoryMemory) {
+    throw new Error("현재 화의 스토리 메모리를 초기화하지 못했습니다.");
+  }
+  return {
+    styleGuide,
+    storyMemory: requestedStoryMemory,
+    resetChapterCount: work.chapterOrder.length,
+  };
 }
 
 export async function syncChapterStoryMemoryPages(

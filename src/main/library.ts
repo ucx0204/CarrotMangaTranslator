@@ -44,6 +44,7 @@ export {
   getChapterStoryMemory,
   getWorkStyleGuide,
   importReviewText,
+  resetWorkContext,
   resolveWorkContextForChapter,
   saveChapterStoryMemory,
   saveWorkStyleGuide,

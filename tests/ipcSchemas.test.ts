@@ -454,6 +454,21 @@ describe("IPC schemas", () => {
     expect(parsed.api.reasoningEffort).toBe("minimal");
     expect(parsed.ocr.qualityMode).toBe("economy");
     expect(parsed.ocr.gpuBackend).toBe("rocm-transformers");
+    expect(
+      parseIpcPayload(
+        AppSettingsSchema,
+        {
+          ...payload,
+          ocr: {
+            ...payload.ocr,
+            device: "gpu",
+            gpuBackend: "cuda",
+            qualityMode: "vl",
+          },
+        },
+        "설정 저장",
+      ).ocr.qualityMode,
+    ).toBe("cuda-legacy-full");
     expect(parsed.inpainting?.model).toBe("lama-manga");
     expect(parsed.inpainting?.fluxBackend).toBe("zluda-native");
     expect(parsed.inpainting?.koharuBackend).toBe("zluda-native");

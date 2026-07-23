@@ -9,6 +9,61 @@ const {
 const path = require("node:path");
 const { PADDLE_OCR_MODEL_DOWNLOADS } = require("../simple-page-defaults.cjs");
 const { getFileSize } = require("../simple-page-download-utils.cjs");
+const { runtimeOverrideEnv } = require("../ocr/host-services.cjs");
+const { isOcrTransformersRuntime } = require("../ocr/runtime-device.cjs");
+
+/** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+
+/** @type {Readonly<Record<string, string>>} */
+const PADDLE_OCR_LANG_BY_SOURCE_LANGUAGE = Object.freeze({
+  ja: "japan",
+  ko: "korean",
+  en: "en",
+  fr: "fr",
+  de: "de",
+  it: "it",
+  es: "es",
+  pt: "pt",
+  ru: "ru",
+  ar: "ar",
+  fa: "fa",
+  ur: "ur",
+  hi: "hi",
+  mr: "mr",
+  ne: "ne",
+  uk: "uk",
+  bg: "bg",
+  sr: "rs_cyrillic",
+  be: "be",
+  mn: "mn",
+  ta: "ta",
+  te: "te",
+  ka: "ka",
+  th: "th",
+  el: "el",
+  fil: "tl",
+});
+
+/** @type {Readonly<Record<string, string>>} */
+const PADDLE_OCR_V5_RECOGNITION_PROFILES = Object.freeze({
+  korean: "korean",
+  th: "th",
+  el: "el",
+  te: "te",
+  ta: "ta",
+  ar: "arabic",
+  fa: "arabic",
+  ur: "arabic",
+  ru: "eslav",
+  uk: "eslav",
+  be: "eslav",
+  bg: "cyrillic",
+  rs_cyrillic: "cyrillic",
+  mn: "cyrillic",
+  hi: "devanagari",
+  mr: "devanagari",
+  ne: "devanagari",
+});
 
 /** @param {unknown} value */
 function isPaddleOcrModelAssetLoadFailure(value) {
@@ -18,15 +73,188 @@ function isPaddleOcrModelAssetLoadFailure(value) {
   );
 }
 
-/** @param {unknown} [reason] */
-function resolvePaddleOcrModelNamesForRepair(reason = "") {
+/** @param {unknown} [reason] @param {RuntimeOptions} [options] */
+function resolvePaddleOcrModelNamesForRepair(reason = "", options = {}) {
   const text = stringifyErrorForDetection(reason);
-  const explicit = PADDLE_OCR_MODEL_DOWNLOADS.map((model) => model.name).filter(
-    (name) => text.includes(name),
-  );
-  return explicit.length > 0
-    ? explicit
+  const names = isOcrTransformersRuntime(options)
+    ? resolveTransformersModelCacheNames(options)
     : PADDLE_OCR_MODEL_DOWNLOADS.map((model) => model.name);
+  const explicit = names.filter(
+    (name) =>
+      text.includes(name) ||
+      (name.endsWith("_safetensors") &&
+        text.includes(name.slice(0, -"_safetensors".length))),
+  );
+  return explicit.length > 0 ? explicit : names;
+}
+
+/** @param {RuntimeOptions} options @returns {string[]} */
+function resolveTransformersModelCacheNames(options) {
+  const configuredDetectionName = resolveConfiguredModelName(
+    options,
+    "MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME",
+    options.ocrTextDetectionModelName,
+  );
+  const configuredRecognitionName = resolveConfiguredModelName(
+    options,
+    "MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME",
+    options.ocrTextRecognitionModelName,
+  );
+  const defaults = resolveDefaultTransformersModelNames(options);
+  const configuredNames = [
+    configuredDetectionName,
+    configuredRecognitionName,
+  ].filter(Boolean);
+  const names = shouldUseConfiguredTransformersModelNames(
+    defaults.version,
+    configuredNames,
+  )
+    ? configuredNames
+    : [defaults.detection, defaults.recognition];
+  return names
+    .filter(Boolean)
+    .map(toSafetensorsName)
+    .filter((name, index, names) => names.indexOf(name) === index);
+}
+
+/** @param {string} ocrVersion @param {string[]} configuredNames @returns {boolean} */
+function shouldUseConfiguredTransformersModelNames(
+  ocrVersion,
+  configuredNames,
+) {
+  if (configuredNames.length === 0) {
+    return false;
+  }
+  if (ocrVersion === "PP-OCRv6") {
+    return true;
+  }
+  return !configuredNames.some((name) =>
+    String(name).toLowerCase().includes("pp-ocrv6"),
+  );
+}
+
+/** @param {RuntimeOptions} options @param {string} envKey @param {unknown} configured @returns {string} */
+function resolveConfiguredModelName(options, envKey, configured) {
+  return String(runtimeOverrideEnv(envKey, options) ?? configured ?? "").trim();
+}
+
+/** @param {RuntimeOptions} options @returns {{ detection: string; recognition: string; version: string }} */
+function resolveDefaultTransformersModelNames(options) {
+  const sourceLanguage = String(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_SOURCE_LANGUAGE", options) ??
+      options.sourceLanguage ??
+      "ja",
+  );
+  const lang = resolvePaddleOcrLanguage(sourceLanguage);
+  const requestedVersion = String(
+    runtimeOverrideEnv("MANGA_TRANSLATOR_PADDLEOCR_VERSION", options) ??
+      options.ocrVersion ??
+      "PP-OCRv6",
+  ).trim();
+  const version = resolvePaddleOcrVersion(lang, requestedVersion);
+  if (version === "PP-OCRv5") {
+    return { ...resolvePaddleOcrV5ModelNames(lang), version };
+  }
+  if (version === "PP-OCRv3") {
+    return { ...resolvePaddleOcrV3ModelNames(lang), version };
+  }
+  if (version === "PP-OCRv4") {
+    return { ...resolvePaddleOcrV4ModelNames(lang), version };
+  }
+  return {
+    detection: "PP-OCRv6_medium_det",
+    recognition: "PP-OCRv6_medium_rec",
+    version,
+  };
+}
+
+/** @param {string} sourceLanguage @returns {string} */
+function resolvePaddleOcrLanguage(sourceLanguage) {
+  const subtags = String(sourceLanguage || "ja")
+    .trim()
+    .toLowerCase()
+    .split("-");
+  const base = subtags[0] || "ja";
+  if (base === "zh") {
+    const traditional =
+      subtags.includes("hant") ||
+      subtags.some((subtag) => ["tw", "hk", "mo"].includes(subtag));
+    return traditional ? "chinese_cht" : "ch";
+  }
+  return PADDLE_OCR_LANG_BY_SOURCE_LANGUAGE[base] || "en";
+}
+
+/** @param {string} lang @param {string} requestedVersion @returns {string} */
+function resolvePaddleOcrVersion(lang, requestedVersion) {
+  if (lang === "ka") {
+    return "PP-OCRv3";
+  }
+  if (PADDLE_OCR_V5_RECOGNITION_PROFILES[lang]) {
+    return "PP-OCRv5";
+  }
+  return requestedVersion || "PP-OCRv6";
+}
+
+/** @param {string} lang @returns {{ detection: string; recognition: string }} */
+function resolvePaddleOcrV5ModelNames(lang) {
+  const profile = PADDLE_OCR_V5_RECOGNITION_PROFILES[lang];
+  const recognition = ["ch", "chinese_cht", "japan"].includes(lang)
+    ? "PP-OCRv5_server_rec"
+    : lang === "en"
+      ? "en_PP-OCRv5_mobile_rec"
+      : profile
+        ? `${profile}_PP-OCRv5_mobile_rec`
+        : "";
+  return {
+    detection: "PP-OCRv5_server_det",
+    recognition,
+  };
+}
+
+/** @param {string} lang @returns {{ detection: string; recognition: string }} */
+function resolvePaddleOcrV4ModelNames(lang) {
+  return {
+    detection: "PP-OCRv4_mobile_det",
+    recognition:
+      lang === "ch"
+        ? "PP-OCRv4_mobile_rec"
+        : lang === "en"
+          ? "en_PP-OCRv4_mobile_rec"
+          : "",
+  };
+}
+
+/** @param {string} lang @returns {{ detection: string; recognition: string }} */
+function resolvePaddleOcrV3ModelNames(lang) {
+  const profile = resolvePaddleOcrV3RecognitionProfile(lang);
+  return {
+    detection: "PP-OCRv3_mobile_det",
+    recognition:
+      profile === "ch"
+        ? "PP-OCRv3_mobile_rec"
+        : profile
+          ? `${profile}_PP-OCRv3_mobile_rec`
+          : "",
+  };
+}
+
+/** @param {string} lang @returns {string} */
+function resolvePaddleOcrV3RecognitionProfile(lang) {
+  if (
+    ["ch", "en", "korean", "japan", "chinese_cht", "te", "ka", "ta"].includes(
+      lang,
+    )
+  ) {
+    return lang;
+  }
+  return PADDLE_OCR_V5_RECOGNITION_PROFILES[lang] || "";
+}
+
+/** @param {string} modelName @returns {string} */
+function toSafetensorsName(modelName) {
+  return modelName.endsWith("_safetensors")
+    ? modelName
+    : `${modelName}_safetensors`;
 }
 
 /** @param {string} runtimeDir @param {string} modelDir */

@@ -62,7 +62,12 @@ import type {
   CreateImportResult,
   ImportPreviewSession,
 } from "./importTypes";
-import type { ChapterStoryMemory, WorkStyleGuide } from "./workContextTypes";
+import type {
+  ChapterStoryMemory,
+  ResetWorkContextRequest,
+  ResetWorkContextResult,
+  WorkStyleGuide,
+} from "./workContextTypes";
 import type { WorkContextUsage } from "./workContextUsageTypes";
 import type { AppSettings, UiLocale } from "./settingsTypes";
 import type {
@@ -102,6 +107,9 @@ export type MangaApi = {
   saveChapterStoryMemory: (
     memory: ChapterStoryMemory,
   ) => Promise<ChapterStoryMemory>;
+  resetWorkContext: (
+    request: ResetWorkContextRequest,
+  ) => Promise<ResetWorkContextResult>;
   getWorkContextUsage: (workId: string) => Promise<WorkContextUsage>;
   analyzeWorkContext: (
     request: AnalyzeWorkContextRequest,

@@ -28,8 +28,9 @@ function attachOcrGroupingHints(hints, options = {}) {
     return hints;
   }
   const nextGroupNumber = attachGroups(hints, options, {
-    startGroupNumber: 1,
-    isEligible: isAdjacentTextContainerCandidate,
+    startGroupNumber: nextAvailableGroupNumber(hints),
+    isEligible: (hint) =>
+      !hint.groupId && isAdjacentTextContainerCandidate(hint),
     isCompatible: areAdjacentTextContainerCompatible,
     rolePrior: "ordinary_mergeable",
     containerType: "same_text_container",
@@ -42,6 +43,20 @@ function attachOcrGroupingHints(hints, options = {}) {
     containerType: "possible_continuing_text",
   });
   return hints;
+}
+
+/** @param {OcrHint[]} hints */
+function nextAvailableGroupNumber(hints) {
+  let highest = 0;
+  for (const hint of hints) {
+    const match = /^G(\d{3,4})$/.exec(
+      String(hint?.groupId ?? "").toUpperCase(),
+    );
+    if (match) {
+      highest = Math.max(highest, Number(match[1]));
+    }
+  }
+  return highest + 1;
 }
 
 /**

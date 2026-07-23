@@ -65,6 +65,7 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
   const imageHeight = readPositiveInteger(options.imageHeight);
   /** @type {OcrHint[]} */
   const hints = [];
+  const usedIds = new Set();
   for (const candidate of collectOcrBboxCandidates(payload)) {
     const hint = normalizeCandidate(
       candidate,
@@ -74,8 +75,20 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
       imageHeight,
     );
     if (hint) {
-      hints.push({ ...hint, id: hints.length + 1 });
+      const record = asRecord(candidate);
+      const sourceId =
+        hasReviewPartitionMetadata(hint) && readPositiveInteger(record.id);
+      const id =
+        sourceId && !usedIds.has(sourceId) ? sourceId : nextHintId(usedIds);
+      usedIds.add(id);
+      hints.push({ ...hint, id });
     }
+  }
+  if (hints.length > 0 && hints.every(hasReviewPartitionMetadata)) {
+    // Python axis-v4 has already partitioned every retained candidate. Running
+    // the older JS adjacency grouper here would silently join confirmed
+    // singleton/deferred fragments again.
+    return hints.slice(0, 80);
   }
   return attachOcrGroupingHints(hints, {
     imageWidth,
@@ -125,7 +138,137 @@ function normalizeCandidate(
   if (ocrText) {
     hint.ocrText = ocrText;
   }
+  copyPreassignedGroupMetadata(hint, record);
+  copyPaddleGroupEvidence(hint, record);
+  copyReviewPartitionMetadata(hint, record);
   return hint;
+}
+
+/** @param {OcrHint} hint @param {JsonRecord} record */
+function copyPreassignedGroupMetadata(hint, record) {
+  const groupId = String(record.groupId ?? "")
+    .trim()
+    .toUpperCase();
+  const orderInGroup = readPositiveInteger(record.orderInGroup);
+  const groupSize = readPositiveInteger(record.groupSize);
+  if (!isValidPreassignedGroup(record, groupId, orderInGroup, groupSize)) {
+    return;
+  }
+  hint.groupId = groupId;
+  hint.orderInGroup = orderInGroup;
+  if (groupSize) {
+    hint.groupSize = groupSize;
+  }
+  if (record.rolePrior === "ordinary_mergeable") {
+    hint.rolePrior = record.rolePrior;
+  }
+  if (record.containerType === "same_text_container") {
+    hint.containerType = record.containerType;
+  }
+  if (record.semanticGroup === true) {
+    hint.semanticGroup = true;
+  }
+}
+
+/**
+ * @param {JsonRecord} record
+ * @param {string} groupId
+ * @param {number | null} orderInGroup
+ * @param {number | null} groupSize
+ */
+function isValidPreassignedGroup(record, groupId, orderInGroup, groupSize) {
+  if (!/^G\d{3,4}$/.test(groupId) || !orderInGroup) {
+    return false;
+  }
+  if (record.semanticGroup !== true) {
+    return true;
+  }
+  return Boolean(
+    groupSize &&
+    orderInGroup <= groupSize &&
+    (groupSize >= 2 ||
+      isPartitionSingletonGroup(record, orderInGroup, groupSize)),
+  );
+}
+
+/**
+ * @param {JsonRecord} record
+ * @param {number | null} orderInGroup
+ * @param {number | null} groupSize
+ */
+function isPartitionSingletonGroup(record, orderInGroup, groupSize) {
+  if (groupSize !== 1 || orderInGroup !== 1) {
+    return false;
+  }
+  const reviewStatus = String(record.reviewStatus ?? "")
+    .trim()
+    .toLowerCase();
+  const reviewFragmentId = String(record.reviewFragmentId ?? "").trim();
+  return reviewStatus === "confirmed" && /^B\d{3,4}$/i.test(reviewFragmentId);
+}
+
+/** @param {OcrHint} hint @param {JsonRecord} record */
+function copyPaddleGroupEvidence(hint, record) {
+  const paddleGroupId = String(record.paddleGroupId ?? "")
+    .trim()
+    .toUpperCase();
+  const paddleOrder = readPositiveInteger(record.paddleOrder);
+  const paddleGroupSize = readPositiveInteger(record.paddleGroupSize);
+  if (
+    !/^G\d{3,4}$/.test(paddleGroupId) ||
+    !paddleOrder ||
+    !paddleGroupSize ||
+    paddleOrder > paddleGroupSize
+  ) {
+    return;
+  }
+  hint.paddleGroupId = paddleGroupId;
+  hint.paddleOrder = paddleOrder;
+  hint.paddleGroupSize = paddleGroupSize;
+}
+
+/** @param {OcrHint} hint @param {JsonRecord} record */
+function copyReviewPartitionMetadata(hint, record) {
+  const reviewFragmentId = String(record.reviewFragmentId ?? "")
+    .trim()
+    .toUpperCase();
+  const reviewStatus = String(record.reviewStatus ?? "")
+    .trim()
+    .toLowerCase();
+  const reviewOrder = readPositiveInteger(record.reviewOrder);
+  const validPair =
+    (reviewStatus === "confirmed" && /^B\d{3,4}$/.test(reviewFragmentId)) ||
+    (reviewStatus === "deferred" && /^D\d{3,4}$/.test(reviewFragmentId));
+  if (!validPair || !reviewOrder) {
+    return;
+  }
+  hint.reviewFragmentId = reviewFragmentId;
+  hint.reviewStatus = reviewStatus;
+  hint.reviewOrder = reviewOrder;
+  hint.reviewReasons = Array.isArray(record.reviewReasons)
+    ? record.reviewReasons
+        .filter((value) => typeof value === "string" && value.trim())
+        .map((value) => value.trim())
+    : [];
+}
+
+/** @param {OcrHint} hint */
+function hasReviewPartitionMetadata(hint) {
+  return (
+    (hint.reviewStatus === "confirmed" &&
+      /^B\d{3,4}$/.test(String(hint.reviewFragmentId ?? ""))) ||
+    (hint.reviewStatus === "deferred" &&
+      /^D\d{3,4}$/.test(String(hint.reviewFragmentId ?? "")))
+  );
+}
+
+/** @param {Set<number>} usedIds */
+function nextHintId(usedIds) {
+  let id = 1;
+  while (usedIds.has(id)) {
+    id += 1;
+  }
+  return id;
 }
 
 /** @param {JsonRecord} record */

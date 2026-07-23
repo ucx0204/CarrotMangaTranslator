@@ -252,10 +252,44 @@ describe("runtime launch argument contracts", () => {
     expect(args).toContain("--no-warmup");
     expect(args).toContain("--mmproj-offload");
     expect(args).not.toContain("--kv-unified");
-    expect(args).not.toContain("--jinja");
+    const jinjaIndex = args.indexOf("--jinja");
+    const templateIndex = args.indexOf("--chat-template-file");
+    expect(jinjaIndex).toBeGreaterThanOrEqual(0);
+    expect(templateIndex).toBe(jinjaIndex + 1);
+    expect(args[templateIndex + 1]).toMatch(
+      /templates[\\/]gemma-4-26b-a4b-it-4d7ae4984b7db7de8f8457170b3f1a419ee76d52\.jinja$/,
+    );
     expect(args).not.toContain("--no-mmap");
     expect(args).not.toContain("--mlock");
     expect(args).not.toContain("--no-host");
+  });
+
+  it("can fall back to the embedded 26B chat template through the kill switch", () => {
+    const envName = "MANGA_TRANSLATOR_GEMMA4_OFFICIAL_CHAT_TEMPLATE";
+    const previousValue = process.env[envName];
+    process.env[envName] = "false";
+    try {
+      const args = buildLaunchArgs({
+        port: 18180,
+        fitTargetMb: 2048,
+        ctx: 8192,
+        batch: 1024,
+        ubatch: 1024,
+        modelRepo: DEFAULT_26B_REPO,
+        modelFile: DEFAULT_26B_FILE,
+        mmprojRepo: DEFAULT_26B_MMPROJ_REPO,
+        mmprojFile: DEFAULT_26B_MMPROJ_FILE,
+      });
+
+      expect(args).not.toContain("--jinja");
+      expect(args).not.toContain("--chat-template-file");
+    } finally {
+      if (previousValue === undefined) {
+        delete process.env[envName];
+      } else {
+        process.env[envName] = previousValue;
+      }
+    }
   });
 
   it("launches the 12B minimum preset on mainline llama instead of beellama-only flags", () => {

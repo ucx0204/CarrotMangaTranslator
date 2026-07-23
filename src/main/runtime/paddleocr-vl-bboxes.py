@@ -8,8 +8,10 @@ translation model still reads the source image as the authority.
 from __future__ import annotations
 
 import argparse
+from collections import deque
 import gc
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -80,7 +82,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--merge-mode",
         default=os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE"),
-        choices=["legacy", "conservative", "none"],
+        choices=["legacy", "conservative", "semantic", "none"],
     )
     return parser
 
@@ -437,6 +439,149 @@ def predict_with_torch_inference_mode(ocr: object, image_path: Path, transformer
       return ocr.predict(str(image_path))
 
 
+def materialize_result_sequence(value: object) -> list:
+    """Convert list-like OCR output without invoking numpy's ambiguous bool."""
+
+    if value is None or isinstance(value, (str, bytes, bytearray, dict)):
+      return []
+    try:
+      return list(value)
+    except (TypeError, ValueError):
+      return []
+
+
+def read_result_sequence(data: dict, key: str, *aliases: str) -> list:
+    """Read a canonical OCR array; aliases apply only when it is absent."""
+
+    if key in data and data.get(key) is not None:
+      return materialize_result_sequence(data.get(key))
+    for alias in aliases:
+      if alias in data and data.get(alias) is not None:
+        return materialize_result_sequence(data.get(alias))
+    return []
+
+
+def collect_recognized_ocr_entries(result: object) -> list[tuple[object, str, float | None]]:
+    """Align filtered recognition metadata while preserving detector geometry."""
+
+    data = dict(result)
+    dt_polys = read_result_sequence(data, "dt_polys")
+    rec_texts = read_result_sequence(data, "rec_texts", "texts")
+    rec_scores = read_result_sequence(data, "rec_scores", "scores")
+    has_rec_polys = "rec_polys" in data and data.get("rec_polys") is not None
+    if not has_rec_polys:
+      texts_aligned = len(rec_texts) == len(dt_polys)
+      scores_aligned = len(rec_scores) == len(dt_polys)
+      return [
+          (
+              poly,
+              normalized_result_text(rec_texts[index]) if texts_aligned else "",
+              normalized_result_score(rec_scores[index])
+              if scores_aligned
+              else None,
+          )
+          for index, poly in enumerate(dt_polys)
+      ]
+
+    # PaddleOCR appends rec_texts, rec_scores, and the matching dt polygon
+    # together only after recognition confidence filtering. Match that subset
+    # back onto dt_polys instead of shifting later strings by raw array index.
+    rec_polys = read_result_sequence(data, "rec_polys")
+    texts_aligned = len(rec_texts) == len(rec_polys)
+    scores_aligned = len(rec_scores) == len(rec_polys)
+    recognized = [
+        (
+            poly,
+            normalized_result_text(rec_texts[index])
+            if texts_aligned
+            else "",
+            normalized_result_score(rec_scores[index])
+            if scores_aligned
+            else None,
+        )
+        for index, poly in enumerate(rec_polys)
+    ]
+    recognized_by_polygon: dict[tuple, deque[int]] = {}
+    for index, (poly, _text, _score) in enumerate(recognized):
+      signature = ocr_polygon_signature(poly)
+      if signature is not None:
+        recognized_by_polygon.setdefault(signature, deque()).append(index)
+
+    consumed = [False] * len(recognized)
+    entries: list[tuple[object, str, float | None]] = []
+    for poly in dt_polys:
+      signature = ocr_polygon_signature(poly)
+      matches = recognized_by_polygon.get(signature) if signature is not None else None
+      if matches:
+        recognized_index = matches.popleft()
+        consumed[recognized_index] = True
+        _rec_poly, text, score = recognized[recognized_index]
+        entries.append((poly, text, score))
+      else:
+        entries.append((poly, "", None))
+    entries.extend(
+        entry for index, entry in enumerate(recognized) if not consumed[index]
+    )
+    return entries
+
+
+def collect_legacy_indexed_ocr_entries(result: object) -> list[tuple[object, str, float | None]]:
+    """Preserve the PaddleOCR-VL auxiliary detector's index-pairing contract."""
+
+    data = dict(result)
+    dt_polys = read_result_sequence(data, "dt_polys")
+    rec_texts = read_result_sequence(data, "rec_texts", "texts")
+    rec_scores = read_result_sequence(data, "rec_scores", "scores")
+    return [
+        (
+            poly,
+            normalized_result_text(rec_texts[index]) if index < len(rec_texts) else "",
+            normalized_result_score(rec_scores[index]) if index < len(rec_scores) else None,
+        )
+        for index, poly in enumerate(dt_polys)
+    ]
+
+
+def normalized_result_text(value: object) -> str:
+    return "" if value is None else str(value).strip()
+
+
+def normalized_result_score(value: object) -> float | None:
+    try:
+      score = float(value)
+    except (TypeError, ValueError):
+      return None
+    return score if math.isfinite(score) else None
+
+
+def ocr_polygon_signature(poly: object) -> tuple | None:
+    points = materialize_result_sequence(poly)
+    if not points:
+      return None
+    normalized_points: list[tuple[float, float]] = []
+    for point in points:
+      coordinates = materialize_result_sequence(point)
+      if len(coordinates) < 2:
+        return None
+      try:
+        x = float(coordinates[0])
+        y = float(coordinates[1])
+      except (TypeError, ValueError):
+        return None
+      if not math.isfinite(x) or not math.isfinite(y):
+        return None
+      normalized_points.append((x, y))
+
+    # The same polygon may start at a different vertex or wind in the opposite
+    # direction. Canonicalize both without losing duplicate-polygon ordering.
+    variants: list[tuple[float, ...]] = []
+    for winding in (normalized_points, list(reversed(normalized_points))):
+      for offset in range(len(winding)):
+        rotated = winding[offset:] + winding[:offset]
+        variants.append(tuple(value for point in rotated for value in point))
+    return min(variants)
+
+
 def should_retry_with_eager_attention(exc: Exception, ocr_kwargs: dict) -> bool:
     engine_config = ocr_kwargs.get("engine_config")
     if not isinstance(engine_config, dict):
@@ -583,14 +728,15 @@ def write_page_bboxes_from_ocr(
         source == "paddleocr-ppocrv6-transformers",
     )
     for result in results:
-      data = dict(result)
-      rec_texts = data.get("rec_texts") or data.get("texts") or []
-      rec_scores = data.get("rec_scores") or data.get("scores") or []
-      for index, poly in enumerate(data.get("dt_polys") or []):
+      # OCR-only modes keep the raw detector boxes, so align every recognized
+      # string through rec_polys even when the recognizer itself is Paddle
+      # static/CUDA. The legacy indexed contract remains confined to the
+      # PaddleOCR-VL auxiliary detector below.
+      entries = collect_recognized_ocr_entries(result)
+      for poly, text, score in entries:
         box = bbox_from_poly(poly, width, height)
         if not box:
           continue
-        text = str(rec_texts[index] if index < len(rec_texts) else "").strip()
         if text and is_probable_symbol_noise(text):
           continue
         x1, y1, x2, y2 = box
@@ -598,11 +744,6 @@ def write_page_bboxes_from_ocr(
         box_height = y2 - y1
         if box_width < 6 or box_height < 6 or box_width * box_height < 200:
           continue
-        score = None
-        try:
-          score = float(rec_scores[index]) if index < len(rec_scores) else None
-        except Exception:
-          score = None
         text = filter_candidate_ocr_text(text, score, args)
         raw_candidates.append(
             {
@@ -616,21 +757,52 @@ def write_page_bboxes_from_ocr(
             }
         )
 
-    items = merge_textline_candidates(raw_candidates, width, height, mode=merge_mode)
-    for index, item in enumerate(items):
-      item["id"] = index + 1
-      score = item.pop("_score", None)
-      single_text = item.pop("_text", "")
-      grouped_texts = item.pop("_texts", [])
-      ocr_text = clean_ocr_text(single_text or merge_ocr_texts(grouped_texts))
-      ocr_text = filter_candidate_ocr_text(ocr_text, score, args)
-      if ocr_text:
-        item["ocrText"] = ocr_text
-      if isinstance(score, float):
-        item["score"] = round(score, 4)
-
-    finalize_ocr_text_fields(items)
-    renumber_items(items)
+    source_language = resolve_source_language(args)
+    use_semantic_partition = (
+        normalize_textline_merge_mode(merge_mode) == "semantic"
+        and is_japanese_source_language(source_language)
+    )
+    if use_semantic_partition:
+      # Reproduce the established semantic Paddle candidate order without
+      # accepting its union-find grouping as authoritative.  The old group is
+      # retained only as evidence for the later image-aware review.
+      semantic_candidates = merge_textline_candidates(
+          raw_candidates,
+          width,
+          height,
+          mode="semantic",
+          source_language=source_language,
+      )
+      preserve_paddle_group_evidence(semantic_candidates)
+      # Give every ordered detector row its public, stable identity before
+      # partitioning. The heuristic may exclude OCR noise, so final ids
+      # intentionally keep gaps instead of being renumbered after filtering.
+      for index, item in enumerate(semantic_candidates):
+        item["id"] = index + 1
+      finalize_textline_output_fields(
+          semantic_candidates,
+          args,
+          preserve_private_evidence=True,
+      )
+      partition = partition_textline_candidates_heuristic(
+          semantic_candidates,
+          width,
+          height,
+          source_language=source_language,
+      )
+      items = materialize_textline_heuristic_partition(partition)
+    else:
+      items = merge_textline_candidates(
+          raw_candidates,
+          width,
+          height,
+          mode=merge_mode,
+          source_language=source_language,
+      )
+      for index, item in enumerate(items):
+        item["id"] = index + 1
+      finalize_textline_output_fields(items, args)
+      renumber_items(items)
 
     payload = {
         "source": source,
@@ -948,14 +1120,14 @@ def collect_textline_candidates(
           os.environ.get("MANGA_TRANSLATOR_PADDLEOCR_ENGINE", "").strip().lower() == "transformers",
       )
       for result in results:
-        data = dict(result)
-        rec_texts = data.get("rec_texts") or data.get("texts") or []
-        rec_scores = data.get("rec_scores") or data.get("scores") or []
-        for index, poly in enumerate(data.get("dt_polys") or []):
+        # PaddleOCR-VL's optional textline supplement is the legacy path. Keep
+        # its established index-pairing contract separate from OCR-only
+        # semantic modes, which align recognition rows through rec_polys.
+        entries = collect_legacy_indexed_ocr_entries(result)
+        for poly, text, score in entries:
           box = bbox_from_poly(poly, width, height)
           if not box:
             continue
-          text = str(rec_texts[index] if index < len(rec_texts) else "").strip()
           if text and is_probable_symbol_noise(text):
             continue
           x1, y1, x2, y2 = box
@@ -968,11 +1140,6 @@ def collect_textline_candidates(
             if text:
               covering_item.setdefault("_texts", []).append(text)
             continue
-          score = None
-          try:
-            score = float(rec_scores[index]) if index < len(rec_scores) else None
-          except Exception:
-            score = None
           text = filter_candidate_ocr_text(text, score, args)
           raw_candidates.append(
               {
@@ -993,6 +1160,7 @@ def collect_textline_candidates(
         width,
         height,
         mode=resolve_textline_merge_mode(None, default="legacy"),
+        source_language=resolve_source_language(args),
     )
     for index, item in enumerate(grouped):
       item["id"] = len(existing_items) + index + 1
@@ -1013,6 +1181,123 @@ def finalize_ocr_text_fields(items: list[dict]) -> None:
       grouped_text = merge_ocr_texts(item.pop("_texts", []))
       if grouped_text and not item.get("ocrText"):
         item["ocrText"] = grouped_text
+
+
+def finalize_textline_output_fields(
+    items: list[dict],
+    args: argparse.Namespace | None = None,
+    preserve_private_evidence: bool = False,
+) -> None:
+    """Expose one OCR string/score per detector row without changing geometry."""
+
+    for item in items:
+      score = item.get("_score")
+      single_text = item.get("_text", "")
+      grouped_texts = item.get("_texts", [])
+      ocr_text = clean_ocr_text(single_text or merge_ocr_texts(grouped_texts))
+      ocr_text = filter_candidate_ocr_text(ocr_text, score, args)
+      if ocr_text:
+        item["ocrText"] = ocr_text
+      if isinstance(score, float):
+        item["score"] = round(score, 4)
+      if preserve_private_evidence:
+        # Match the serialized OCR cache contract:
+        # partitioning sees the filtered public text and rounded public score.
+        item["_text"] = ocr_text
+        if isinstance(score, float):
+          item["_score"] = round(score, 4)
+        else:
+          item.pop("_score", None)
+        item.pop("_texts", None)
+      else:
+        item.pop("_score", None)
+        item.pop("_text", None)
+        item.pop("_texts", None)
+
+
+def preserve_paddle_group_evidence(items: list[dict]) -> None:
+    """Move preliminary Paddle groups aside before axis-v4 assigns final groups."""
+
+    for item in items:
+      group_id = str(item.get("groupId") or "").strip().upper()
+      order = item.get("orderInGroup")
+      group_size = item.get("groupSize")
+      if (
+          group_id.startswith("G")
+          and group_id[1:].isdigit()
+          and isinstance(order, int)
+          and not isinstance(order, bool)
+          and isinstance(group_size, int)
+          and not isinstance(group_size, bool)
+          and 1 <= order <= group_size
+      ):
+        item["paddleGroupId"] = group_id
+        item["paddleOrder"] = order
+        item["paddleGroupSize"] = group_size
+      item.pop("groupId", None)
+      item.pop("orderInGroup", None)
+      item.pop("groupSize", None)
+      item.pop("rolePrior", None)
+      item.pop("containerType", None)
+      item.pop("semanticGroup", None)
+
+
+def materialize_textline_heuristic_partition(partition: dict) -> list[dict]:
+    """Flatten confirmed/deferred fragments while retaining every raw OCR box."""
+
+    items: list[dict] = []
+    for fragment_index, group in enumerate(partition.get("groups", []), start=1):
+      fragment_id = f"B{fragment_index:03d}"
+      group_id = f"G{fragment_index:03d}"
+      group_size = len(group)
+      for review_order, candidate in enumerate(group, start=1):
+        item = dict(candidate)
+        item.pop("_score", None)
+        item.pop("_text", None)
+        item.pop("_texts", None)
+        item.update(
+            {
+                "reviewFragmentId": fragment_id,
+                "reviewStatus": "confirmed",
+                "reviewReasons": [],
+                "reviewOrder": review_order,
+                # Even a one-row fragment receives a group lock.  It prevents
+                # the later JS fallback grouper from joining two fragments that
+                # axis-v4 deliberately kept separate.  The prompt projector
+                # still treats size-one groups as ordinary singleton slots.
+                "groupId": group_id,
+                "orderInGroup": review_order,
+                "groupSize": group_size,
+                "rolePrior": "ordinary_mergeable",
+                "containerType": "same_text_container",
+                "semanticGroup": True,
+            }
+        )
+        items.append(item)
+
+    for fragment_index, entry in enumerate(partition.get("deferred", []), start=1):
+      fragment_id = f"D{fragment_index:03d}"
+      reasons = [
+          str(reason)
+          for reason in entry.get("reasons", [])
+          if str(reason).strip()
+      ]
+      for review_order, candidate in enumerate(entry.get("items", []), start=1):
+        item = dict(candidate)
+        item.pop("_score", None)
+        item.pop("_text", None)
+        item.pop("_texts", None)
+        item.update(
+            {
+                "reviewFragmentId": fragment_id,
+                "reviewStatus": "deferred",
+                "reviewReasons": reasons,
+                "reviewOrder": review_order,
+            }
+        )
+        items.append(item)
+
+    return items
 
 
 def extract_block_text(block: object) -> str:
@@ -1183,7 +1468,13 @@ def count_japanese_chars(text: str) -> int:
     return count
 
 
-def merge_textline_candidates(candidates: list[dict], width: int, height: int, mode: str = "legacy") -> list[dict]:
+def merge_textline_candidates(
+    candidates: list[dict],
+    width: int,
+    height: int,
+    mode: str = "legacy",
+    source_language: str = "ja",
+) -> list[dict]:
     """Merge low-level OCR text lines into cleaner geometry hints.
 
     The ordinary OCR detector is intentionally used only as a fallback for
@@ -1196,6 +1487,7 @@ def merge_textline_candidates(candidates: list[dict], width: int, height: int, m
     normalized_mode = normalize_textline_merge_mode(mode)
     if len(candidates) < 2 or normalized_mode == "none":
       return candidates
+    grouping_mode = normalized_mode
 
     parent = list(range(len(candidates)))
 
@@ -1213,16 +1505,59 @@ def merge_textline_candidates(candidates: list[dict], width: int, height: int, m
 
     for left in range(len(candidates)):
       for right in range(left + 1, len(candidates)):
-        if should_merge_textline_boxes(candidates[left], candidates[right], width, height, mode=normalized_mode):
+        if should_merge_textline_boxes(candidates[left], candidates[right], width, height, mode=grouping_mode):
           union(left, right)
 
     groups: dict[int, list[dict]] = {}
     for index, item in enumerate(candidates):
       groups.setdefault(find(index), []).append(item)
 
+    ordered_groups = (
+        sorted(
+            groups.values(),
+            key=lambda group: (
+                min(int(item["y1"]) for item in group),
+                min(int(item["x1"]) for item in group),
+                max(int(item["y2"]) for item in group),
+                max(int(item["x2"]) for item in group),
+            ),
+        )
+        if normalized_mode == "semantic"
+        else list(groups.values())
+    )
     merged: list[dict] = []
-    for group in groups.values():
-      group.sort(key=lambda item: (item["y1"], item["x1"]))
+    semantic_group_number = 1
+    for group in ordered_groups:
+      if normalized_mode == "semantic":
+        sort_textline_group(group, source_language)
+      else:
+        # Preserve the legacy/conservative ordering contract used by the
+        # existing NVIDIA and custom OCR paths. Source-aware vertical ordering
+        # belongs only to the explicit semantic OCR-only mode.
+        group.sort(key=lambda item: (int(item["y1"]), int(item["x1"])))
+      if normalized_mode == "semantic" and is_japanese_source_language(source_language):
+        group_id = f"G{semantic_group_number:03d}" if len(group) > 1 else ""
+        for order, candidate in enumerate(group, start=1):
+          item = dict(candidate)
+          if group_id:
+            item.update(
+                {
+                    "groupId": group_id,
+                    "orderInGroup": order,
+                    "groupSize": len(group),
+                    "rolePrior": "ordinary_mergeable",
+                    "containerType": "same_text_container",
+                    # This marks a conservative semantic group produced by the
+                    # semantic OCR-only path. The translation prompt may present the
+                    # members as one output slot while retaining every raw box
+                    # for visual verification and false-group recovery.
+                    "semanticGroup": True,
+                }
+            )
+          merged.append(item)
+        if group_id:
+          semantic_group_number += 1
+        continue
       if len(group) == 1:
         item = dict(group[0])
         merged.append(item)
@@ -1249,9 +1584,1031 @@ def merge_textline_candidates(candidates: list[dict], width: int, height: int, m
     return merged
 
 
+def partition_textline_candidates_heuristic(
+    candidates: list[dict],
+    width: int,
+    height: int,
+    source_language: str = "ja",
+) -> dict:
+    """Build high-precision OCR text clusters without a vision-model call.
+
+    This is a Docstrum-style local-neighbour pass over OCR line boxes.  It is
+    deliberately precision-first: only mutually adjacent, axis-aligned lines
+    may form a component.  Small reading aids can be attached after the main
+    components exist, but low-confidence or oversized candidates can never
+    bridge two components.
+    """
+
+    descriptors = [
+        heuristic_textline_descriptor(item, index)
+        for index, item in enumerate(candidates)
+    ]
+    references = {
+        orientation: heuristic_reference_scale(descriptors, orientation)
+        for orientation in ("vertical", "horizontal")
+    }
+    sparse_page = sum(
+        1
+        for item in descriptors
+        if int(item["japaneseCount"]) > 0 and float(item["score"]) >= 0.65
+    ) <= 4
+    for descriptor in descriptors:
+      role, reason = classify_heuristic_textline(
+          descriptor,
+          references,
+          sparse_page=sparse_page,
+      )
+      descriptor["role"] = role
+      descriptor["reason"] = reason
+
+    # A page-wide font estimate is not sufficient for ruby: a large display
+    # line can have its own, proportionally small reading aid.  Detect those
+    # local satellites before building any graph so they can never steal a
+    # nearest-neighbour slot or bridge two body-text components.
+    demote_local_heuristic_satellites(descriptors)
+
+    excluded: list[dict] = []
+    primary: list[dict] = []
+    display: list[dict] = []
+    auxiliary: list[dict] = []
+    standalone: list[dict] = []
+    for descriptor in descriptors:
+      role = str(descriptor["role"])
+      if role == "primary":
+        primary.append(descriptor)
+      elif role == "display":
+        display.append(descriptor)
+      elif role == "auxiliary":
+        auxiliary.append(descriptor)
+      elif role == "standalone":
+        standalone.append(descriptor)
+      else:
+        excluded.append(descriptor)
+
+    connectable = primary + display
+    edges = retain_mutual_heuristic_edges(collect_heuristic_edges(connectable))
+    components = collect_constrained_heuristic_components(connectable, edges)
+    for descriptor in auxiliary:
+      if heuristic_japanese_purity(descriptor) < 0.6:
+        descriptor["reason"] = "mixed_ascii_ocr_noise"
+        excluded.append(descriptor)
+        continue
+      target = select_heuristic_auxiliary_component(descriptor, components)
+      if target is None:
+        descriptor["reason"] = "unattached_auxiliary"
+        standalone.append(descriptor)
+        continue
+      target.append(descriptor)
+
+    for component in components:
+      if is_probable_page_metadata_component(component):
+        for descriptor in component:
+          descriptor["reason"] = "page_metadata_text"
+
+    grouped_descriptors = [
+        component
+        for component in components
+        if not any(
+            item.get("role") == "display"
+            or item.get("orientation") == "horizontal"
+            for item in component
+        )
+        and not is_probable_page_metadata_component(component)
+    ]
+    deferred_descriptors = [
+        component
+        for component in components
+        if any(
+            item.get("role") == "display"
+            or item.get("orientation") == "horizontal"
+            for item in component
+        )
+        or is_probable_page_metadata_component(component)
+    ] + [[item] for item in standalone]
+    grouped_descriptors.sort(key=heuristic_component_sort_key)
+    deferred_descriptors.sort(key=heuristic_component_sort_key)
+    review_edges = collect_heuristic_component_review_edges(
+        grouped_descriptors,
+        width=width,
+        height=height,
+    )
+    groups: list[list[dict]] = []
+    for component in grouped_descriptors:
+      group = [descriptor["item"] for descriptor in component]
+      sort_textline_group(group, source_language)
+      groups.append(group)
+    deferred: list[dict] = []
+    for component in deferred_descriptors:
+      group = [descriptor["item"] for descriptor in component]
+      sort_textline_group(group, source_language)
+      deferred.append(
+          {
+              "items": group,
+              "reasons": sorted(
+                  {
+                      str(descriptor.get("reason") or "uncertain_text_role")
+                      for descriptor in component
+                  }
+              ),
+          }
+      )
+
+    return {
+        "groups": groups,
+        "deferred": deferred,
+        # These are questions, not merge instructions.  A later image-aware
+        # audit may answer same/different for each component pair; deterministic
+        # code remains responsible for the exact union of the original boxes.
+        "reviewEdges": review_edges,
+        "excluded": [
+            {
+                "item": descriptor["item"],
+                "reason": descriptor.get("reason") or "excluded_by_heuristic",
+            }
+            for descriptor in sorted(excluded, key=lambda item: int(item["index"]))
+        ],
+        "diagnostics": {
+            "algorithm": "axis_mutual_neighbour_v4",
+            "inputCount": len(candidates),
+            "groupCount": len(groups),
+            "deferredGroupCount": len(deferred),
+            "groupedCandidateCount": sum(len(group) for group in groups),
+            "deferredCandidateCount": sum(
+                len(entry["items"]) for entry in deferred
+            ),
+            "excludedCandidateCount": len(excluded),
+            "edgeCount": len(edges),
+            "reviewEdgeCount": len(review_edges),
+            "reviewPolicy": "nearby_component_pair_v1",
+            "referenceScale": references,
+        },
+    }
+
+
+def collect_heuristic_component_review_edges(
+    components: list[list[dict]],
+    *,
+    width: int,
+    height: int,
+) -> list[dict]:
+    """Collect bounded component-pair questions without changing grouping.
+
+    The confirmed graph intentionally rejects staggered neighbouring columns
+    because auto-merging them caused diagonal and multi-balloon failures.  A
+    small image-aware audit can still reconsider nearby component pairs.  This
+    function only selects those questions; it never joins their components.
+    """
+
+    summaries = [
+        heuristic_review_component(component, index)
+        for index, component in enumerate(components)
+    ]
+    candidates: list[dict] = []
+    for left_index, left in enumerate(summaries):
+      for right in summaries[left_index + 1:]:
+        edge = build_heuristic_component_review_edge(
+            left,
+            right,
+            width=width,
+            height=height,
+        )
+        if edge is not None:
+          candidates.append(edge)
+
+    # Keep only the closest plausible question in each cardinal direction for
+    # every component.  An edge survives when either endpoint selects it.  The
+    # later model therefore receives a sparse local graph rather than every
+    # pair on the page, while asymmetric layouts remain reviewable.
+    nearest: dict[tuple[int, str], dict] = {}
+    for edge in candidates:
+      for component_key, slot_key in (
+          ("leftComponent", "leftSlot"),
+          ("rightComponent", "rightSlot"),
+      ):
+        component = edge[component_key]
+        key = (int(component["index"]), str(edge[slot_key]))
+        sort_key = (
+            float(edge["cost"]),
+            int(edge["leftComponent"]["index"]),
+            int(edge["rightComponent"]["index"]),
+        )
+        previous = nearest.get(key)
+        if previous is None or sort_key < previous["sortKey"]:
+          nearest[key] = {"edge": edge, "sortKey": sort_key}
+
+    retained = []
+    for edge in candidates:
+      left_key = (
+          int(edge["leftComponent"]["index"]),
+          str(edge["leftSlot"]),
+      )
+      right_key = (
+          int(edge["rightComponent"]["index"]),
+          str(edge["rightSlot"]),
+      )
+      if (
+          nearest[left_key]["edge"] is not edge
+          and nearest[right_key]["edge"] is not edge
+      ):
+        continue
+      retained.append(edge)
+
+    retained.sort(
+        key=lambda edge: (
+            min(edge["leftComponent"]["candidateIds"]),
+            min(edge["rightComponent"]["candidateIds"]),
+        )
+    )
+    return [
+        {
+            "edgeId": f"R{index:03d}",
+            "componentCandidateIds": [
+                edge["leftComponent"]["candidateIds"],
+                edge["rightComponent"]["candidateIds"],
+            ],
+            "anchorCandidateIds": edge["anchorCandidateIds"],
+            "reason": edge["reason"],
+            "metrics": edge["metrics"],
+        }
+        for index, edge in enumerate(retained, start=1)
+    ]
+
+
+def heuristic_review_component(component: list[dict], index: int) -> dict:
+    x1 = min(int(item["box"][0]) for item in component)
+    y1 = min(int(item["box"][1]) for item in component)
+    x2 = max(int(item["box"][2]) for item in component)
+    y2 = max(int(item["box"][3]) for item in component)
+    primary_scales = sorted(
+        float(item["scale"])
+        for item in component
+        if item.get("role") == "primary"
+    )
+    scales = primary_scales or sorted(float(item["scale"]) for item in component)
+    return {
+        "index": index,
+        "component": component,
+        "candidateIds": sorted(heuristic_descriptor_candidate_id(item) for item in component),
+        "box": (x1, y1, x2, y2),
+        "width": max(1.0, float(x2 - x1)),
+        "height": max(1.0, float(y2 - y1)),
+        "centerX": (x1 + x2) / 2,
+        "centerY": (y1 + y2) / 2,
+        "scale": median_number(scales),
+    }
+
+
+def heuristic_descriptor_candidate_id(descriptor: dict) -> int:
+    value = descriptor["item"].get("id")
+    if isinstance(value, int) and not isinstance(value, bool):
+      return value
+    return int(descriptor["index"]) + 1
+
+
+def build_heuristic_component_review_edge(
+    left: dict,
+    right: dict,
+    *,
+    width: int,
+    height: int,
+) -> dict | None:
+    ax1, ay1, ax2, ay2 = left["box"]
+    bx1, by1, bx2, by2 = right["box"]
+    font = max(1.0, min(float(left["scale"]), float(right["scale"])))
+    scale_ratio = min(float(left["scale"]), float(right["scale"])) / max(
+        float(left["scale"]),
+        float(right["scale"]),
+    )
+    # This is only a review queue, not an automatic union.  Allow a moderate
+    # font-size contrast so an emphasized first column beside ordinary text is
+    # still visible to the image-aware audit (fixed-set P17 is 31.5/64).
+    if scale_ratio < 0.42:
+      return None
+    union_width = max(ax2, bx2) - min(ax1, bx1)
+    union_height = max(ay2, by2) - min(ay1, by1)
+    if union_width > max(180.0, width * 0.32):
+      return None
+    if union_height > max(260.0, height * 0.38):
+      return None
+
+    gap_x = max(0.0, max(ax1, bx1) - min(ax2, bx2))
+    gap_y = max(0.0, max(ay1, by1) - min(ay2, by2))
+    x_overlap = axis_overlap_ratio(ax1, ax2, bx1, bx2)
+    y_overlap = axis_overlap_ratio(ay1, ay2, by1, by2)
+    horizontal_cost = None
+    if y_overlap >= 0.28 and gap_x / font <= 1.45:
+      horizontal_cost = (
+          gap_x / font
+          + (1.0 - y_overlap) * 0.75
+          + abs(float(left["centerY"]) - float(right["centerY"]))
+          / max(float(left["height"]), float(right["height"]))
+          * 0.35
+      )
+    vertical_cost = None
+    if (
+        x_overlap >= 0.42
+        and gap_y / font <= 1.35
+        and abs(float(left["centerX"]) - float(right["centerX"])) / font <= 0.9
+    ):
+      vertical_cost = gap_y / font + (1.0 - x_overlap) * 0.75
+    if horizontal_cost is None and vertical_cost is None:
+      return None
+
+    if vertical_cost is not None and (
+        horizontal_cost is None or vertical_cost < horizontal_cost
+    ):
+      kind = "same_axis_continuation"
+      cost = vertical_cost
+      if float(left["centerY"]) <= float(right["centerY"]):
+        left_slot, right_slot = "down", "up"
+      else:
+        left_slot, right_slot = "up", "down"
+    else:
+      kind = "staggered_vertical_components"
+      cost = float(horizontal_cost)
+      if float(left["centerX"]) <= float(right["centerX"]):
+        left_slot, right_slot = "right", "left"
+      else:
+        left_slot, right_slot = "left", "right"
+
+    anchor_left, anchor_right = min(
+        (
+            (left_item, right_item)
+            for left_item in left["component"]
+            if left_item.get("role") == "primary"
+            for right_item in right["component"]
+            if right_item.get("role") == "primary"
+        ),
+        key=lambda pair: heuristic_review_anchor_cost(pair[0], pair[1]),
+    )
+    return {
+        "leftComponent": left,
+        "rightComponent": right,
+        "leftSlot": left_slot,
+        "rightSlot": right_slot,
+        "cost": cost,
+        "anchorCandidateIds": [
+            heuristic_descriptor_candidate_id(anchor_left),
+            heuristic_descriptor_candidate_id(anchor_right),
+        ],
+        "reason": kind,
+        "metrics": {
+            "scaleRatio": round(scale_ratio, 4),
+            "xGapInFonts": round(gap_x / font, 4),
+            "yGapInFonts": round(gap_y / font, 4),
+            "xOverlap": round(x_overlap, 4),
+            "yOverlap": round(y_overlap, 4),
+        },
+    }
+
+
+def heuristic_review_anchor_cost(left: dict, right: dict) -> tuple[float, int, int]:
+    ax1, ay1, ax2, ay2 = left["box"]
+    bx1, by1, bx2, by2 = right["box"]
+    gap_x = max(0.0, max(ax1, bx1) - min(ax2, bx2))
+    gap_y = max(0.0, max(ay1, by1) - min(ay2, by2))
+    return (
+        gap_x + gap_y,
+        heuristic_descriptor_candidate_id(left),
+        heuristic_descriptor_candidate_id(right),
+    )
+
+
+def heuristic_textline_descriptor(item: dict, index: int) -> dict:
+    x1, y1, x2, y2 = box_tuple(item)
+    item_width = max(1.0, float(x2 - x1))
+    item_height = max(1.0, float(y2 - y1))
+    if item_height >= item_width * 1.2:
+      orientation = "vertical"
+      scale = item_width
+    elif item_width >= item_height * 1.2:
+      orientation = "horizontal"
+      scale = item_height
+    else:
+      orientation = "ambiguous"
+      scale = min(item_width, item_height)
+    text = str(item.get("_text") or item.get("ocrText") or "").strip()
+    raw_score = item.get("_score", item.get("score"))
+    score = float(raw_score) if isinstance(raw_score, (int, float)) else 1.0
+    return {
+        "index": index,
+        "item": item,
+        "box": (x1, y1, x2, y2),
+        "width": item_width,
+        "height": item_height,
+        "centerX": (x1 + x2) / 2,
+        "centerY": (y1 + y2) / 2,
+        "orientation": orientation,
+        "scale": scale,
+        "text": text,
+        "japaneseCount": count_japanese_chars(text),
+        "score": score,
+    }
+
+
+def heuristic_reference_scale(descriptors: list[dict], orientation: str) -> float:
+    def eligible(
+        minimum_japanese_count: int,
+        minimum_score: float = 0.65,
+    ) -> list[float]:
+      return sorted(
+          float(item["scale"])
+          for item in descriptors
+          if item["orientation"] == orientation
+          and int(item["japaneseCount"]) >= minimum_japanese_count
+          and float(item["score"]) >= minimum_score
+      )
+
+    values = eligible(2)
+    used_sparse_fallback = False
+    if not values:
+      # Sparse SFX/dialogue pages often contain only one-character detections.
+      # They still provide a better scale estimate than the sentinel value 1.
+      values = eligible(1, 0.88)
+      used_sparse_fallback = True
+    if not values:
+      return 1.0
+    middle = median_number(values)
+    trimmed = [value for value in values if middle * 0.45 <= value <= middle * 2.2]
+    values = trimmed or values
+    if used_sparse_fallback:
+      return median_number(values)
+    return percentile_number(values, 0.65)
+
+
+def percentile_number(values: list[float], fraction: float) -> float:
+    if not values:
+      return 0.0
+    ordered = sorted(float(value) for value in values)
+    position = max(0.0, min(1.0, fraction)) * (len(ordered) - 1)
+    lower = int(position)
+    upper = min(len(ordered) - 1, lower + 1)
+    weight = position - lower
+    return ordered[lower] * (1.0 - weight) + ordered[upper] * weight
+
+
+def classify_heuristic_textline(
+    descriptor: dict,
+    references: dict[str, float],
+    *,
+    sparse_page: bool = False,
+) -> tuple[str, str]:
+    if int(descriptor["japaneseCount"]) == 0:
+      return ("excluded", "non_japanese_or_numeric_noise")
+    score = float(descriptor["score"])
+    japanese_count = int(descriptor["japaneseCount"])
+    orientation = str(descriptor["orientation"])
+    if orientation == "ambiguous":
+      if is_isolated_single_japanese_glyph(descriptor) and not sparse_page:
+        return ("standalone", "dense_page_single_glyph")
+      if (
+          (score >= 0.88 and japanese_count >= 1 and sparse_page)
+          or (score >= 0.78 and japanese_count >= 2)
+      ):
+        return ("standalone", "ambiguous_shape_kept_separate")
+      return ("standalone", "ambiguous_low_confidence_shape")
+    reference = max(1.0, float(references.get(orientation) or 1.0))
+    scale_ratio = float(descriptor["scale"]) / reference
+    if scale_ratio < 0.65:
+      if score >= 0.58:
+        return ("auxiliary", "small_reading_aid")
+      return ("standalone", "small_low_confidence_text")
+    if is_isolated_single_japanese_glyph(descriptor) and not sparse_page:
+      return ("standalone", "dense_page_single_glyph")
+    if scale_ratio > 2.0:
+      if (
+          (score >= 0.88 and japanese_count >= 1 and sparse_page)
+          or (score >= 0.82 and japanese_count >= 2)
+      ):
+        return ("display", "oversized_display_text")
+      return ("standalone", "oversized_uncertain_sfx")
+    if score < 0.70 and japanese_count <= 3:
+      return ("standalone", "low_confidence_short_text")
+    if score < 0.62:
+      return ("standalone", "low_confidence_no_bridge")
+    return ("primary", "ordinary_axis_candidate")
+
+
+def demote_local_heuristic_satellites(descriptors: list[dict]) -> None:
+    """Demote kana-sized local satellites without using them as graph edges."""
+
+    anchors = [
+        item
+        for item in descriptors
+        if item.get("role") in {"primary", "display"}
+        and float(item["score"]) >= 0.78
+        and int(item["japaneseCount"]) >= 2
+    ]
+    for descriptor in descriptors:
+      if descriptor.get("role") != "primary":
+        continue
+      japanese_count = max(1, int(descriptor["japaneseCount"]))
+      if count_kana_chars(str(descriptor["text"])) / japanese_count < 0.8:
+        continue
+      if float(descriptor["score"]) < 0.58:
+        continue
+      for anchor in anchors:
+        if anchor is descriptor:
+          continue
+        if anchor["orientation"] != descriptor["orientation"]:
+          continue
+        scale_ratio = float(descriptor["scale"]) / max(1.0, float(anchor["scale"]))
+        if scale_ratio > 0.62:
+          continue
+        if heuristic_auxiliary_attachment_cost(descriptor, anchor) is None:
+          continue
+        descriptor["role"] = "auxiliary"
+        descriptor["reason"] = "local_reading_aid"
+        break
+
+
+def heuristic_japanese_purity(descriptor: dict) -> float:
+    text = str(descriptor.get("text") or "")
+    japanese_count = int(descriptor.get("japaneseCount") or 0)
+    ascii_alphanumeric_count = sum(
+        1 for char in text if char.isascii() and char.isalnum()
+    )
+    relevant_count = japanese_count + ascii_alphanumeric_count
+    if relevant_count <= 0:
+      return 0.0
+    return japanese_count / relevant_count
+
+
+def is_isolated_single_japanese_glyph(descriptor: dict) -> bool:
+    if int(descriptor.get("japaneseCount") or 0) != 1:
+      return False
+    compact = "".join(
+        char for char in str(descriptor.get("text") or "") if not char.isspace()
+    )
+    return len(compact) == 1
+
+
+def is_probable_page_metadata_component(component: list[dict]) -> bool:
+    if len(component) != 1:
+      return False
+    compact = "".join(
+        char
+        for char in str(component[0].get("text") or "")
+        if not char.isspace()
+    )
+    if len(compact) > 24:
+      return False
+    if "次回更新" in compact or "次回へ" in compact:
+      return True
+    has_footer_marker = any(char.isdigit() for char in compact) or "●" in compact
+    return has_footer_marker and ("つづく" in compact or "続く" in compact)
+
+
+def collect_heuristic_edges(primary: list[dict]) -> list[dict]:
+    edges: list[dict] = []
+    for left_index, left in enumerate(primary):
+      for right in primary[left_index + 1:]:
+        edge = build_heuristic_edge(left, right)
+        if edge is not None:
+          edges.append(edge)
+    return edges
+
+
+def build_heuristic_edge(left: dict, right: dict) -> dict | None:
+    orientation = str(left["orientation"])
+    if orientation != right["orientation"] or orientation == "ambiguous":
+      return None
+    # Large display text may connect to display text of the same scale, but it
+    # must never become a bridge into ordinary dialogue.
+    if left.get("role") != right.get("role"):
+      return None
+    left_scale = float(left["scale"])
+    right_scale = float(right["scale"])
+    scale_ratio = min(left_scale, right_scale) / max(left_scale, right_scale)
+    if scale_ratio < 0.6:
+      return None
+    if left.get("role") == "display":
+      return build_display_heuristic_edge(left, right, scale_ratio)
+    if orientation == "vertical":
+      return build_vertical_heuristic_edge(left, right)
+    return build_horizontal_heuristic_edge(left, right)
+
+
+def build_display_heuristic_edge(
+    left: dict,
+    right: dict,
+    scale_ratio: float,
+) -> dict | None:
+    if scale_ratio < 0.75:
+      return None
+    orientation = str(left["orientation"])
+    ax1, ay1, ax2, ay2 = left["box"]
+    bx1, by1, bx2, by2 = right["box"]
+    font = max(1.0, min(float(left["scale"]), float(right["scale"])))
+    if orientation == "vertical":
+      gap = max(0.0, max(ax1, bx1) - min(ax2, bx2))
+      overlap = axis_overlap_ratio(ay1, ay2, by1, by2)
+      start_delta = abs(ay1 - by1) / font
+      if overlap >= 0.88 and gap / font <= 0.25 and start_delta <= 0.25:
+        return make_heuristic_edge(left, right, "column", gap / font + start_delta)
+      return None
+    gap = max(0.0, max(ay1, by1) - min(ay2, by2))
+    overlap = axis_overlap_ratio(ax1, ax2, bx1, bx2)
+    start_delta = abs(ax1 - bx1) / font
+    if overlap >= 0.88 and gap / font <= 0.25 and start_delta <= 0.25:
+      return make_heuristic_edge(left, right, "row_stack", gap / font + start_delta)
+    return None
+
+
+def build_vertical_heuristic_edge(left: dict, right: dict) -> dict | None:
+    ax1, ay1, ax2, ay2 = left["box"]
+    bx1, by1, bx2, by2 = right["box"]
+    font = max(1.0, min(float(left["scale"]), float(right["scale"])))
+    gap_x = max(0.0, max(ax1, bx1) - min(ax2, bx2))
+    gap_y = max(0.0, max(ay1, by1) - min(ay2, by2))
+    x_overlap = axis_overlap_ratio(ax1, ax2, bx1, bx2)
+    y_overlap = axis_overlap_ratio(ay1, ay2, by1, by2)
+    top_delta = abs(ay1 - by1) / font
+    center_x_delta = abs(float(left["centerX"]) - float(right["centerX"]))
+    if (
+        y_overlap >= 0.72
+        and gap_x / font <= 0.55
+        and top_delta <= 0.65
+    ):
+      return make_heuristic_edge(left, right, "column", gap_x / font + top_delta)
+    if (
+        x_overlap >= 0.62
+        and gap_y / font <= 0.55
+        and center_x_delta / font <= 0.38
+    ):
+      return make_heuristic_edge(left, right, "same_column", gap_y / font)
+    return None
+
+
+def build_horizontal_heuristic_edge(left: dict, right: dict) -> dict | None:
+    ax1, ay1, ax2, ay2 = left["box"]
+    bx1, by1, bx2, by2 = right["box"]
+    font = max(1.0, min(float(left["scale"]), float(right["scale"])))
+    gap_x = max(0.0, max(ax1, bx1) - min(ax2, bx2))
+    gap_y = max(0.0, max(ay1, by1) - min(ay2, by2))
+    x_overlap = axis_overlap_ratio(ax1, ax2, bx1, bx2)
+    y_overlap = axis_overlap_ratio(ay1, ay2, by1, by2)
+    center_y_delta = abs(float(left["centerY"]) - float(right["centerY"]))
+    min_width = max(1.0, min(float(left["width"]), float(right["width"])))
+    center_x_delta = abs(float(left["centerX"]) - float(right["centerX"]))
+    if (
+        y_overlap >= 0.74
+        and gap_x / font <= 0.42
+        and center_y_delta / font <= 0.42
+    ):
+      return make_heuristic_edge(left, right, "same_row", gap_x / font)
+    if (
+        x_overlap >= 0.7
+        and (y_overlap >= 0.42 or gap_y / font <= 0.24)
+        and center_x_delta / min_width <= 0.35
+    ):
+      return make_heuristic_edge(left, right, "row_stack", gap_y / font)
+    return None
+
+
+def make_heuristic_edge(left: dict, right: dict, kind: str, cost: float) -> dict:
+    left_slot, right_slot = heuristic_edge_slots(left, right, kind)
+    return {
+        "left": left,
+        "right": right,
+        "kind": kind,
+        "cost": float(cost),
+        "leftSlot": left_slot,
+        "rightSlot": right_slot,
+    }
+
+
+def heuristic_edge_slots(left: dict, right: dict, kind: str) -> tuple[str, str]:
+    if kind in {"same_column", "row_stack"}:
+      if float(left["centerY"]) <= float(right["centerY"]):
+        return ("down", "up")
+      return ("up", "down")
+    if float(left["centerX"]) <= float(right["centerX"]):
+      return ("right", "left")
+    return ("left", "right")
+
+
+def retain_mutual_heuristic_edges(edges: list[dict]) -> list[dict]:
+    nearest: dict[tuple[int, str], dict] = {}
+    for edge in edges:
+      for endpoint, slot_key in (("left", "leftSlot"), ("right", "rightSlot")):
+        descriptor = edge[endpoint]
+        key = (int(descriptor["index"]), str(edge[slot_key]))
+        previous = nearest.get(key)
+        edge_key = (
+            float(edge["cost"]),
+            int(edge["left"]["index"]),
+            int(edge["right"]["index"]),
+        )
+        if previous is None or edge_key < previous["sortKey"]:
+          nearest[key] = {"edge": edge, "sortKey": edge_key}
+    retained = []
+    for edge in edges:
+      left_key = (int(edge["left"]["index"]), str(edge["leftSlot"]))
+      right_key = (int(edge["right"]["index"]), str(edge["rightSlot"]))
+      if nearest[left_key]["edge"] is edge and nearest[right_key]["edge"] is edge:
+        retained.append(edge)
+    retained.sort(
+        key=lambda edge: (
+            float(edge["cost"]),
+            int(edge["left"]["index"]),
+            int(edge["right"]["index"]),
+        )
+    )
+    return retained
+
+
+def collect_constrained_heuristic_components(
+    primary: list[dict],
+    edges: list[dict],
+) -> list[list[dict]]:
+    parent = {int(item["index"]): int(item["index"]) for item in primary}
+    members = {int(item["index"]): [item] for item in primary}
+
+    def find(value: int) -> int:
+      while parent[value] != value:
+        parent[value] = parent[parent[value]]
+        value = parent[value]
+      return value
+
+    for edge in edges:
+      left_root = find(int(edge["left"]["index"]))
+      right_root = find(int(edge["right"]["index"]))
+      if left_root == right_root:
+        continue
+      combined = members[left_root] + members[right_root]
+      if not is_valid_heuristic_component(combined):
+        continue
+      keep_root, drop_root = sorted((left_root, right_root))
+      parent[drop_root] = keep_root
+      members[keep_root] = combined
+      del members[drop_root]
+
+    components = list(members.values())
+    components.sort(key=heuristic_component_sort_key)
+    return components
+
+
+def is_valid_heuristic_component(component: list[dict]) -> bool:
+    if len(component) > 12:
+      return False
+    orientations = {str(item["orientation"]) for item in component}
+    if len(orientations) != 1:
+      return False
+    x1 = min(int(item["box"][0]) for item in component)
+    y1 = min(int(item["box"][1]) for item in component)
+    x2 = max(int(item["box"][2]) for item in component)
+    y2 = max(int(item["box"][3]) for item in component)
+    envelope_area = max(1.0, float((x2 - x1) * (y2 - y1)))
+    occupied_area = sum(float(item["width"] * item["height"]) for item in component)
+    return occupied_area / envelope_area >= 0.14
+
+
+def select_heuristic_auxiliary_component(
+    auxiliary: dict,
+    components: list[list[dict]],
+) -> list[dict] | None:
+    matches: list[tuple[float, int, list[dict]]] = []
+    for component_index, component in enumerate(components):
+      costs = [
+          cost
+          for item in component
+          if (cost := heuristic_auxiliary_attachment_cost(auxiliary, item)) is not None
+      ]
+      if costs:
+        matches.append((min(costs), component_index, component))
+    if not matches:
+      return None
+    matches.sort(key=lambda entry: (entry[0], entry[1]))
+    if len(matches) > 1 and matches[1][0] <= matches[0][0] * 1.25:
+      return None
+    return matches[0][2]
+
+
+def heuristic_auxiliary_attachment_cost(
+    auxiliary: dict,
+    primary: dict,
+) -> float | None:
+    if auxiliary["orientation"] != primary["orientation"]:
+      return None
+    ax1, ay1, ax2, ay2 = auxiliary["box"]
+    bx1, by1, bx2, by2 = primary["box"]
+    if auxiliary["orientation"] == "vertical":
+      contained = axis_overlap_ratio(ay1, ay2, by1, by2)
+      x_gap = max(0.0, max(ax1, bx1) - min(ax2, bx2))
+      center_delta = abs(float(auxiliary["centerX"]) - float(primary["centerX"]))
+      if contained < 0.72 or x_gap > float(primary["scale"]) * 0.45:
+        return None
+      if center_delta > float(primary["scale"]) * 0.85:
+        return None
+      return center_delta / max(1.0, float(primary["scale"]))
+    contained = axis_overlap_ratio(ax1, ax2, bx1, bx2)
+    y_gap = max(0.0, max(ay1, by1) - min(ay2, by2))
+    center_delta = abs(float(auxiliary["centerY"]) - float(primary["centerY"]))
+    if contained < 0.72 or y_gap > float(primary["scale"]) * 0.45:
+      return None
+    if center_delta > float(primary["scale"]) * 0.85:
+      return None
+    return center_delta / max(1.0, float(primary["scale"]))
+
+
+def heuristic_component_sort_key(component: list[dict]) -> tuple:
+    return (
+        min(int(item["box"][1]) for item in component),
+        -max(int(item["box"][2]) for item in component),
+        min(int(item["index"]) for item in component),
+    )
+
+
+def sort_textline_group(group: list[dict], source_language: str) -> None:
+    """Sort merged OCR fragments in source-language reading order."""
+
+    if is_japanese_source_language(source_language) and is_vertical_textline_group(group):
+      group[:] = sort_japanese_vertical_textline_group(group)
+      return
+    group.sort(key=textline_canonical_key)
+
+
+def is_japanese_source_language(value: object) -> bool:
+    return str(value or "ja").strip().lower().split("-", 1)[0] == "ja"
+
+
+def is_vertical_textline_group(group: list[dict]) -> bool:
+    vertical_count = 0
+    horizontal_count = 0
+    for item in group:
+      item_width, item_height = textline_box_size(item)
+      if item_height >= item_width * 1.2:
+        vertical_count += 1
+      elif item_width >= item_height * 1.2:
+        horizontal_count += 1
+    return (
+        vertical_count > 0
+        and vertical_count * 2 >= len(group)
+        and vertical_count > horizontal_count
+    )
+
+
+def sort_japanese_vertical_textline_group(group: list[dict]) -> list[dict]:
+    """Order Japanese columns right-to-left and fragments within them top-down."""
+
+    canonical = sorted(group, key=textline_canonical_key)
+    vertical_items = [item for item in canonical if is_vertical_textline_box(item)]
+    parent = list(range(len(vertical_items)))
+
+    def find(index: int) -> int:
+      while parent[index] != index:
+        parent[index] = parent[parent[index]]
+        index = parent[index]
+      return index
+
+    for left in range(len(vertical_items)):
+      for right in range(left + 1, len(vertical_items)):
+        if are_same_vertical_column(vertical_items[left], vertical_items[right]):
+          left_root = find(left)
+          right_root = find(right)
+          if left_root != right_root:
+            parent[right_root] = left_root
+
+    columns_by_root: dict[int, list[dict]] = {}
+    for index, item in enumerate(vertical_items):
+      columns_by_root.setdefault(find(index), []).append(item)
+    columns = list(columns_by_root.values())
+
+    # Square punctuation and short fragments must not bridge two established
+    # columns. Assign each one to only its closest compatible column.
+    for item in canonical:
+      if is_vertical_textline_box(item):
+        continue
+      compatible = [
+          column
+          for column in columns
+          if is_compatible_with_vertical_column(item, column)
+      ]
+      if compatible:
+        closest = min(
+            compatible,
+            key=lambda column: (
+                abs(textline_center_x(item) - textline_column_center_x(column)),
+                -textline_column_center_x(column),
+            ),
+        )
+        closest.append(item)
+      else:
+        columns.append([item])
+
+    columns.sort(
+        key=lambda column: (
+            -textline_column_center_x(column),
+            min(textline_canonical_key(item) for item in column),
+        )
+    )
+    ordered: list[dict] = []
+    for column in columns:
+      column.sort(key=textline_column_item_key)
+      ordered.extend(column)
+    return ordered
+
+
+def is_vertical_textline_box(item: dict) -> bool:
+    item_width, item_height = textline_box_size(item)
+    return item_height >= item_width * 1.2
+
+
+def are_same_vertical_column(a: dict, b: dict) -> bool:
+    aw, ah = textline_box_size(a)
+    bw, bh = textline_box_size(b)
+    center_delta = abs(textline_center_x(a) - textline_center_x(b))
+    center_tolerance = max(4.0, min(aw, bw) * 0.12)
+    if (
+        center_delta <= center_tolerance
+        and textline_horizontal_overlap_ratio(a, b) >= 0.45
+    ):
+      return True
+
+    # The semantic merge predicate permits modest detector x-jitter for
+    # narrow, strongly vertical fragments in one column. Use the same relaxed
+    # range while ordering those fragments, otherwise a lower box shifted a
+    # few pixels to the right becomes a false "right-hand column" and is read
+    # before the upper box. Borderline-wide boxes remain separate columns so
+    # genuine Japanese right-to-left column order is preserved.
+    _, ay1, _, ay2 = box_tuple(a)
+    _, by1, _, by2 = box_tuple(b)
+    gap_y = max(0, max(ay1, by1) - min(ay2, by2))
+    y_overlap = axis_overlap_ratio(ay1, ay2, by1, by2)
+    width_ratio = min(aw, bw) / max(aw, bw)
+    strongly_vertical = ah >= aw * 1.5 and bh >= bw * 1.5
+    return (
+        strongly_vertical
+        and y_overlap < 0.72
+        and textline_horizontal_overlap_ratio(a, b) >= 0.62
+        and gap_y <= max(14, min(aw, bw) * 0.9)
+        and width_ratio >= 0.5
+        and center_delta <= max(4, min(aw, bw) * 0.35)
+    )
+
+
+def is_compatible_with_vertical_column(item: dict, column: list[dict]) -> bool:
+    item_width, _ = textline_box_size(item)
+    column_widths = sorted(textline_box_size(candidate)[0] for candidate in column)
+    column_width = median_number(column_widths)
+    center_delta = abs(textline_center_x(item) - textline_column_center_x(column))
+    center_tolerance = max(6.0, min(item_width, column_width) * 0.55)
+    overlap = max(textline_horizontal_overlap_ratio(item, candidate) for candidate in column)
+    return center_delta <= center_tolerance and overlap >= 0.2
+
+
+def textline_column_center_x(column: list[dict]) -> float:
+    vertical_centers = sorted(
+        textline_center_x(item)
+        for item in column
+        if is_vertical_textline_box(item)
+    )
+    centers = vertical_centers or sorted(textline_center_x(item) for item in column)
+    return median_number(centers)
+
+
+def median_number(values: list[float]) -> float:
+    if not values:
+      return 0.0
+    middle = len(values) // 2
+    if len(values) % 2 == 1:
+      return float(values[middle])
+    return (float(values[middle - 1]) + float(values[middle])) / 2
+
+
+def textline_box_size(item: dict) -> tuple[float, float]:
+    x1, y1, x2, y2 = box_tuple(item)
+    return (max(1.0, float(x2 - x1)), max(1.0, float(y2 - y1)))
+
+
+def textline_center_x(item: dict) -> float:
+    x1, _, x2, _ = box_tuple(item)
+    return (x1 + x2) / 2
+
+
+def textline_horizontal_overlap_ratio(a: dict, b: dict) -> float:
+    ax1, _, ax2, _ = box_tuple(a)
+    bx1, _, bx2, _ = box_tuple(b)
+    return axis_overlap_ratio(ax1, ax2, bx1, bx2)
+
+
+def textline_canonical_key(item: dict) -> tuple:
+    x1, y1, x2, y2 = box_tuple(item)
+    score = item.get("_score")
+    score_key = float(score) if isinstance(score, (int, float)) else -1.0
+    return (y1, x1, y2, x2, str(item.get("_text") or ""), score_key)
+
+
+def textline_column_item_key(item: dict) -> tuple:
+    x1, y1, x2, y2 = box_tuple(item)
+    center_y = (y1 + y2) / 2
+    return (y1, center_y, x1, x2, y2, str(item.get("_text") or ""))
+
+
 def normalize_textline_merge_mode(value: object) -> str:
     text = str(value or "legacy").strip().lower()
-    return text if text in {"legacy", "conservative", "none"} else "legacy"
+    return text if text in {"legacy", "conservative", "semantic", "none"} else "legacy"
 
 
 def resolve_textline_merge_mode(args: argparse.Namespace | None, default: str = "legacy") -> str:
@@ -1262,7 +2619,10 @@ def resolve_textline_merge_mode(args: argparse.Namespace | None, default: str = 
 
 
 def should_merge_textline_boxes(a: dict, b: dict, page_width: int, page_height: int, mode: str = "legacy") -> bool:
-    if normalize_textline_merge_mode(mode) == "conservative":
+    normalized_mode = normalize_textline_merge_mode(mode)
+    if normalized_mode == "semantic":
+      return should_merge_textline_boxes_semantic(a, b, page_width, page_height)
+    if normalized_mode == "conservative":
       return should_merge_textline_boxes_conservative(a, b, page_width, page_height)
 
     ax1, ay1, ax2, ay2 = box_tuple(a)
@@ -1373,6 +2733,61 @@ def should_merge_textline_boxes_conservative(a: dict, b: dict, page_width: int, 
     if overlap > 0.42:
       return True
     return gap_x <= 6 and gap_y <= 6
+
+
+def should_merge_textline_boxes_semantic(a: dict, b: dict, page_width: int, page_height: int) -> bool:
+    """Build cautious reading-order groups while leaving final grouping to Gemma.
+
+    Comic SFX detectors often produce a broad, almost-square box next to a
+    narrow dialogue column.  The conservative renderer merge intentionally
+    tolerates that shape mismatch, but semantic hints must not tell the vision
+    model that those two areas are already one text container.
+    """
+
+    if not should_merge_textline_boxes_conservative(a, b, page_width, page_height):
+      return False
+
+    ax1, ay1, ax2, ay2 = box_tuple(a)
+    bx1, by1, bx2, by2 = box_tuple(b)
+    aw, ah = textline_box_size(a)
+    bw, bh = textline_box_size(b)
+    vertical_a = ah > aw * 1.25
+    vertical_b = bh > bw * 1.25
+    horizontal_a = aw >= ah * 0.75
+    horizontal_b = bw >= bh * 0.75
+
+    if vertical_a and vertical_b:
+      gap_x = max(0, max(ax1, bx1) - min(ax2, bx2))
+      gap_y = max(0, max(ay1, by1) - min(ay2, by2))
+      x_overlap = axis_overlap_ratio(ax1, ax2, bx1, bx2)
+      y_overlap = axis_overlap_ratio(ay1, ay2, by1, by2)
+      # Adjacent columns may legitimately have very different widths because
+      # one of them is furigana. Keep the original reading-band edge.
+      if y_overlap >= 0.72 and gap_x <= max(10, min(aw, bw) * 0.48):
+        return True
+
+      # Same-column fragments should share a text scale and center. The two
+      # real smoke regressions were a 40 px dialogue column paired with a
+      # 102 px SFX box and a 37 px column paired with a 109 px SFX box.
+      width_ratio = min(aw, bw) / max(aw, bw)
+      center_x_delta = abs(textline_center_x(a) - textline_center_x(b))
+      return (
+          x_overlap >= 0.62
+          and gap_y <= max(14, min(aw, bw) * 0.9)
+          and width_ratio >= 0.5
+          and center_x_delta <= max(4, min(aw, bw) * 0.35)
+      )
+
+    if horizontal_a and horizontal_b:
+      return True
+
+    # Do not pre-group mixed horizontal/vertical shapes merely because they
+    # share a reading band. A wide standalone SFX beside a vertical dialogue
+    # line is common in manga; Gemma can still merge separate top-level slots
+    # when the image proves one container, while a false semantic union forces
+    # one huge or misplaced overlay box.
+    overlap = overlap_ratio((ax1, ay1, ax2, ay2), (bx1, by1, bx2, by2))
+    return overlap > 0.42
 
 
 def box_tuple(item: dict) -> tuple[int, int, int, int]:

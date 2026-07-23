@@ -15,11 +15,16 @@ const {
 } = require("../simple-page-defaults.cjs");
 const { runtimeOverrideEnv } = require("./host-services.cjs");
 const {
+  isOcrCudaTransformersRuntime,
   isOcrGpuRequested,
+  isOcrTransformersRuntime,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
+  resolveOcrTorchPackageIndexUrl,
 } = require("./runtime-device.cjs");
+
+const DEFAULT_OCR_TRANSFORMERS_TOKENIZERS_PACKAGE = "tokenizers==0.23.0rc0";
 
 /** @param {RuntimeOptions} [options] @returns {string[][]} */
 function resolveOcrPipInstallBatches(options = {}) {
@@ -35,15 +40,17 @@ function resolveOcrPipInstallBatches(options = {}) {
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return resolveRocmInstallBatches(options);
   }
+  if (isOcrCudaTransformersRuntime(options)) {
+    return resolveCudaTransformersInstallBatches(options);
+  }
   return resolveCudaInstallBatches(options);
 }
 
 /** @param {string[]} batch @param {RuntimeOptions} options @returns {string[][]} */
 function wrapExplicitInstallBatch(batch, options) {
-  const isRocm =
-    isOcrGpuRequested(options) &&
-    resolveOcrGpuBackend(options) === "rocm-transformers";
-  return isRocm ? [batch] : withPaddleOcrVlSafetensorsBatch([batch]);
+  return isOcrTransformersRuntime(options)
+    ? [batch]
+    : withPaddleOcrVlSafetensorsBatch([batch]);
 }
 
 /** @param {RuntimeOptions} options @returns {string[][]} */
@@ -70,8 +77,57 @@ function resolveRocmInstallBatches(options) {
     resolveAmdRocmMetaPackage(options),
     AMD_ROCM_721_TORCH_DEP_PACKAGES,
     AMD_ROCM_721_TORCH_PACKAGES,
-    DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
+    [
+      ...DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
+      DEFAULT_OCR_TRANSFORMERS_TOKENIZERS_PACKAGE,
+    ],
   ].filter((batch) => batch.length > 0);
+}
+
+/** @param {RuntimeOptions} options @returns {string[][]} */
+function resolveCudaTransformersInstallBatches(options) {
+  const explicit = splitShellLikeEnv(
+    runtimeOverrideEnv(
+      "MANGA_TRANSLATOR_OCR_CUDA_TRANSFORMERS_PIP_PACKAGES",
+      options,
+    ),
+  );
+  if (explicit.length > 0) {
+    return [explicit];
+  }
+  return [
+    AMD_ROCM_721_TORCH_DEP_PACKAGES,
+    resolveCudaTransformersTorchPackages(options),
+    [
+      ...DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES,
+      DEFAULT_OCR_TRANSFORMERS_TOKENIZERS_PACKAGE,
+    ],
+  ];
+}
+
+/** @param {RuntimeOptions} options @returns {string[]} */
+function resolveCudaTransformersTorchPackages(options) {
+  return [
+    `torch==${resolveRocmTorchWheelVersion("torch")}`,
+    `torchvision==${resolveRocmTorchWheelVersion("torchvision")}`,
+    "--index-url",
+    resolveOcrTorchPackageIndexUrl(options),
+  ];
+}
+
+/** @param {"torch" | "torchvision"} packageName @returns {string} */
+function resolveRocmTorchWheelVersion(packageName) {
+  const pattern = new RegExp(
+    `(?:^|/)${packageName}-([^/+]+)(?:%2B|\\+)rocm`,
+    "i",
+  );
+  for (const packageUrl of AMD_ROCM_721_TORCH_PACKAGES) {
+    const match = pattern.exec(String(packageUrl));
+    if (match?.[1]) {
+      return decodeURIComponent(match[1]);
+    }
+  }
+  throw new Error(`Missing pinned ${packageName} version for OCR runtime.`);
 }
 
 /** @param {RuntimeOptions} options @returns {string[][]} */
@@ -233,7 +289,9 @@ function resolveInstallSummarySuffix(options) {
   }
   return resolveOcrGpuBackend(options) === "rocm-transformers"
     ? " (rocm-transformers)"
-    : ` (${resolveOcrGpuCudaTag(options)})`;
+    : isOcrCudaTransformersRuntime(options)
+      ? " (cuda-transformers)"
+      : ` (${resolveOcrGpuCudaTag(options)})`;
 }
 
 /** @param {unknown} packages @param {RuntimeOptions} [options] @returns {string} */
@@ -246,10 +304,27 @@ function resolveOcrInstallBatchLabel(packages, options = {}) {
   if (rocmLabel) {
     return rocmLabel;
   }
+  const cudaTransformersLabel = isOcrCudaTransformersRuntime(options)
+    ? resolveCudaTransformersInstallBatchLabel(packageText)
+    : "";
+  if (cudaTransformersLabel) {
+    return cudaTransformersLabel;
+  }
   const packageNames = batch.filter(isNamedPackageArgument);
   return packageNames.length > 0
     ? packageNames.join(", ")
     : resolveUrlPackageNames(batch).join(", ");
+}
+
+/** @param {string} packageText @returns {string} */
+function resolveCudaTransformersInstallBatchLabel(packageText) {
+  if (/torch==/.test(packageText) && /torchvision==/.test(packageText)) {
+    return "PyTorch CUDA wheels";
+  }
+  if (/paddleocr/.test(packageText) && /transformers/.test(packageText)) {
+    return "PaddleOCR Transformers packages";
+  }
+  return "";
 }
 
 /** @param {RuntimeOptions} options @returns {boolean} */

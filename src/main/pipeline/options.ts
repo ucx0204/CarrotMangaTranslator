@@ -38,6 +38,7 @@ export function buildPageOptions(
     imageHeight: page.height,
     pageId: page.id,
     pageIndex: index,
+    translationAttempt: attempt,
     outputDir: join(
       baseOptions.outputDir,
       "pages",

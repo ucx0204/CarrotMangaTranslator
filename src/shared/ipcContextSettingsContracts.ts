@@ -25,13 +25,19 @@ import type {
   AnalyzeWorkContextRequest,
   AnalyzeWorkContextResult,
 } from "./workContextAnalysisTypes";
-import type { ChapterStoryMemory, WorkStyleGuide } from "./workContextTypes";
+import type {
+  ChapterStoryMemory,
+  ResetWorkContextRequest,
+  ResetWorkContextResult,
+  WorkStyleGuide,
+} from "./workContextTypes";
 import type { WorkContextUsage } from "./workContextUsageTypes";
 import { SUPPORTED_UI_LOCALES, type UiLocale } from "./uiLocales";
 import {
   AnalyzeWorkContextRequestSchema,
   AppSettingsSchema,
   ChapterSnapshotSchema,
+  ChapterStoryMemoryRequestSchema,
   ChapterStoryMemorySchema,
   ExportReviewTextRequestSchema,
   ImportReviewTextRequestSchema,
@@ -108,6 +114,14 @@ const workContextUsageSchema = z
   })
   .strict();
 
+const resetWorkContextResultSchema = z
+  .object({
+    styleGuide: WorkStyleGuideSchema,
+    storyMemory: ChapterStoryMemorySchema,
+    resetChapterCount: nonNegativeInteger,
+  })
+  .strict();
+
 export const workContextIpcContracts = {
   getWorkStyleGuide: defineIpcContract<[string], WorkStyleGuide>({
     apiKey: "getWorkStyleGuide",
@@ -135,6 +149,15 @@ export const workContextIpcContracts = {
     channel: "context:save-chapter-story-memory",
     args: z.tuple([ChapterStoryMemorySchema]),
     result: ChapterStoryMemorySchema,
+  }),
+  resetWorkContext: defineIpcContract<
+    [ResetWorkContextRequest],
+    ResetWorkContextResult
+  >({
+    apiKey: "resetWorkContext",
+    channel: "context:reset-work-context",
+    args: z.tuple([ChapterStoryMemoryRequestSchema]),
+    result: resetWorkContextResultSchema,
   }),
   getWorkContextUsage: defineIpcContract<[string], WorkContextUsage>({
     apiKey: "getWorkContextUsage",

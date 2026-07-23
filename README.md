@@ -178,7 +178,7 @@ Gemma 프리셋은 대략 다음 순서로 시도할 수 있습니다.
 - VRAM 24GB 이상: `31B 풀로드`
 - 특수 구성: `커스텀`
 
-OCR 품질은 `최소`, `절약`, `풀로드`입니다. CPU에서는 `절약`부터 시작하는 편이 안정적이고, `풀로드` PaddleOCR-VL은 지원되는 GPU와 함께 쓰는 것을 권장합니다.
+OCR 품질은 `최소`, `절약`, `풀로드`, `CUDA 레거시 풀로드`입니다. 일반 `풀로드`는 NVIDIA와 AMD 모두 PP-OCRv6 Transformers가 찾은 조각과 좌표를 Gemma 4가 의미 단위로 묶습니다. `CUDA 레거시 풀로드`는 기존 NVIDIA PaddleOCR-VL 레이아웃 경로가 필요한 경우에만 선택합니다. CPU에서는 `절약`부터 시작하는 편이 안정적이며 두 풀로드 모드는 GPU 전용입니다.
 
 <details>
 <summary><strong>OpenAI Codex 엔진 준비</strong></summary>
@@ -225,11 +225,11 @@ API 엔진은 Base URL에 `/chat/completions`를 붙여 이미지와 OCR 힌트�
 <details>
 <summary><strong>NVIDIA와 AMD 경로</strong></summary>
 
-| 작업       | NVIDIA                      | AMD                   | 사용자가 고를 수 있는 대안 |
-| ---------- | --------------------------- | --------------------- | -------------------------- |
-| Gemma      | CUDA 12, RTX 50 전용 런타임 | ROCm 또는 Vulkan      | 더 작은 모델 프리셋        |
-| Paddle OCR | NVIDIA CUDA                 | 지원 GPU에서 AMD ROCm | CPU 최소/절약              |
-| Flux       | NVIDIA CUDA                 | ZLUDA + AMD HIP SDK   | CPU                        |
+| 작업       | NVIDIA                                      | AMD                            | 사용자가 고를 수 있는 대안 |
+| ---------- | ------------------------------------------- | ------------------------------ | -------------------------- |
+| Gemma      | CUDA 12, RTX 50 전용 런타임                 | ROCm 또는 Vulkan               | 더 작은 모델 프리셋        |
+| Paddle OCR | CUDA Transformers, 레거시 PaddleOCR-VL 선택 | 지원 GPU에서 ROCm Transformers | CPU 최소/절약              |
+| Flux       | NVIDIA CUDA                                 | ZLUDA + AMD HIP SDK            | CPU                        |
 
 AMD Gemma는 GPU와 드라이버에 맞는 ROCm target을 자동으로 찾습니다. 자동 감지가 틀리면 고급 사용자는 예를 들어 다음처럼 지정할 수 있습니다.
 

@@ -12,6 +12,8 @@ import type {
   InpaintingModel,
   KoharuInpaintingBackend,
   LlamaRuntimeProfile,
+  OcrGpuBackend,
+  OcrQualityMode,
 } from "../../shared/settingsTypes";
 import { normalizeAmdRocmTarget } from "../gpuInfo";
 import {
@@ -20,7 +22,9 @@ import {
   resolveInpaintingModel,
   resolveKoharuInpaintingBackend,
   resolveNonEmptyString,
+  resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOcrQualityMode,
   resolveOptionalString,
 } from "./appSettingsResolvers";
 import {
@@ -179,6 +183,38 @@ export function resolveStoredOcrGpuCudaTag(
     return RTX_50_OCR_GPU_CUDA_TAG;
   }
   return stored;
+}
+
+export function resolveStoredOcrModeSettings(
+  ocr: Record<string, unknown> | null,
+  defaults: AppSettings,
+): { gpuBackend: OcrGpuBackend; qualityMode: OcrQualityMode } {
+  const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
+  const requestedBackend = resolveOcrGpuBackend(
+    ocr?.gpuBackend,
+    defaults.ocr.gpuBackend ?? "cuda",
+  );
+  // Detected hardware owns the backend. Unknown hardware retains the stored
+  // value as the manual/advanced escape hatch.
+  const gpuBackend =
+    hardwareVendor === "unknown"
+      ? requestedBackend
+      : resolveOcrGpuBackend(defaults.ocr.gpuBackend, "cuda");
+  const requestedQuality = resolveOcrQualityMode(
+    ocr?.qualityMode,
+    defaults.ocr.qualityMode,
+  );
+  const rejectsCudaLegacy =
+    gpuBackend !== "cuda" ||
+    hardwareVendor === "amd" ||
+    hardwareVendor === "apple";
+  return {
+    gpuBackend,
+    qualityMode:
+      requestedQuality === "cuda-legacy-full" && rejectsCudaLegacy
+        ? "full"
+        : requestedQuality,
+  };
 }
 
 const LEGACY_GEMMA_MODEL_REPO = "unsloth/gemma-4-26B-A4B-it-GGUF";

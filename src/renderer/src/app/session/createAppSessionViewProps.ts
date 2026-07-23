@@ -289,12 +289,14 @@ function createSidebarProps({
 
 function createStyleGuideProps({
   core,
+  derivedState,
   settingsDialog,
   uiState,
 }: AppSessionViewModel): AppSessionViewProps["styleGuideProps"] {
   return uiState.styleGuideOpen && core.currentChapter
     ? {
         chapter: core.currentChapter,
+        jobActive: derivedState.jobActive,
         onClose: () => uiState.setStyleGuideOpen(false),
         settings: settingsDialog.settings,
       }

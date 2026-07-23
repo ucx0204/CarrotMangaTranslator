@@ -39,6 +39,10 @@ export type ExtractedPageContext = {
 export function extractPageContextResponse(
   rawText: string,
 ): ExtractedPageContext {
+  const structured = extractStructuredPageContext(rawText);
+  if (structured) {
+    return structured;
+  }
   const openMatch = OPEN_TAG_PATTERN.exec(rawText);
   if (!openMatch || openMatch.index === undefined) {
     return {
@@ -59,6 +63,32 @@ export function extractPageContextResponse(
   return parsed
     ? { overlayText, pageContext: parsed, status: "parsed" }
     : { overlayText, status: "invalid" };
+}
+
+function extractStructuredPageContext(
+  rawText: string,
+): ExtractedPageContext | null {
+  const candidate = rawText
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  if (!candidate.startsWith("{")) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(candidate) as unknown;
+    if (!isRecord(parsed) || !("pageContext" in parsed)) {
+      return null;
+    }
+    const pageContext = buildPageContextPayload(parsed.pageContext);
+    return pageContext
+      ? { overlayText: candidate, pageContext, status: "parsed" }
+      : { overlayText: candidate, status: "invalid" };
+  } catch (_error) {
+    // error-policy-allow: the legacy/lenient overlay parser handles malformed JSON.
+    return null;
+  }
 }
 
 function parsePageContextJson(rawJson: string): PageContextPayload | null {

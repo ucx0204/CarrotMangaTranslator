@@ -86,6 +86,18 @@ export type ChapterStoryMemory = {
   aiAnalyzedAt?: string;
 };
 
+export type ResetWorkContextRequest = {
+  /** Any chapter in the work whose complete term/memory context is reset. */
+  chapterId: string;
+};
+
+export type ResetWorkContextResult = {
+  styleGuide: WorkStyleGuide;
+  /** Empty story memory for the chapter used to issue the request. */
+  storyMemory: ChapterStoryMemory;
+  resetChapterCount: number;
+};
+
 export type PromptWorkContext = {
   styleGuide: WorkStyleGuide;
   storyMemory: ChapterStoryMemory;

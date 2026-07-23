@@ -28,6 +28,7 @@ describeWindows("OCR runtime package verification", () => {
       "torch",
       "torchvision",
       "transformers",
+      "tokenizers",
       "paddlex",
       "paddleocr",
       "safetensors",
@@ -47,5 +48,51 @@ describeWindows("OCR runtime package verification", () => {
       expect(hasExpectedOcrPackages(packageDir, options)).toBe(false);
       mkdirSync(join(packageDir, name));
     }
+  });
+
+  it("requires the same Transformers stack for NVIDIA CUDA OCR", () => {
+    const packageDir = mkdtempSync(join(tmpdir(), "ocr-cuda-packages-"));
+    tempDirs.push(packageDir);
+    const required = [
+      "torch",
+      "torchvision",
+      "transformers",
+      "tokenizers",
+      "paddlex",
+      "paddleocr",
+      "safetensors",
+    ];
+    const options = {
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+      ocrEngine: "transformers",
+    };
+
+    for (const name of required) {
+      mkdirSync(join(packageDir, name));
+    }
+    expect(hasExpectedOcrPackages(packageDir, options)).toBe(true);
+
+    rmSync(join(packageDir, "tokenizers"), { recursive: true });
+    expect(hasExpectedOcrPackages(packageDir, options)).toBe(false);
+  });
+
+  it("keeps CPU and CUDA legacy package verification unchanged", () => {
+    const cpuDir = mkdtempSync(join(tmpdir(), "ocr-cpu-packages-"));
+    const cudaDir = mkdtempSync(join(tmpdir(), "ocr-cuda-legacy-packages-"));
+    tempDirs.push(cpuDir, cudaDir);
+    for (const name of ["paddle", "paddleocr", "paddlex"]) {
+      mkdirSync(join(cpuDir, name));
+      mkdirSync(join(cudaDir, name));
+    }
+    mkdirSync(join(cudaDir, "nvidia"));
+
+    expect(hasExpectedOcrPackages(cpuDir, { ocrDevice: "cpu" })).toBe(true);
+    expect(
+      hasExpectedOcrPackages(cudaDir, {
+        ocrDevice: "gpu",
+        ocrGpuBackend: "cuda",
+      }),
+    ).toBe(true);
   });
 });

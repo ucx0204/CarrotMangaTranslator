@@ -12,6 +12,9 @@ const { createDetailedError } = require("../simple-page-runtime-common.cjs");
 const {
   shouldUseBeellamaGemmaLaunch,
 } = require("./model-runtime-compatibility.cjs");
+const {
+  buildGemma4OfficialChatTemplateArgs,
+} = require("./gemma4-official-chat-template.cjs");
 
 /** @typedef {Record<string, any>} LaunchOptions */
 /** @typedef {ReturnType<typeof inspectModelLaunch>} LaunchTarget */
@@ -30,6 +33,7 @@ function buildLaunchArgs(options) {
     ...buildNetworkArgs(options),
     ...buildSamplingArgs(options),
     ...buildComputeArgs(options, useBeellama),
+    ...buildGemma4OfficialChatTemplateArgs(options),
   ];
   appendBeellamaArgs(args, options, useBeellama);
   appendPerformanceArgs(args, options);

@@ -55,7 +55,7 @@ describe("OCR candidate geometry locks", () => {
     expect(result[0]?.bbox).toEqual({ x: 100, y: 100, w: 100, h: 100 });
   });
 
-  it("does not silently move an item to a nearby unused candidate with a different id", () => {
+  it("does not move an item to a nearby candidate with a different id", () => {
     const originalBbox = { x: 510, y: 510, w: 70, h: 70 };
     const result = applyOcrCandidateGeometryLocks(
       [
@@ -77,7 +77,7 @@ describe("OCR candidate geometry locks", () => {
     expect(result[0]?.bbox).toEqual(originalBbox);
   });
 
-  it("preserves a model bbox that intentionally merges same-container OCR candidates", () => {
+  it("preserves a bbox that merges same-container OCR candidates", () => {
     const mergedBbox = { x: 100, y: 100, w: 102, h: 180 };
     const result = applyOcrCandidateGeometryLocks(
       [
@@ -115,5 +115,46 @@ describe("OCR candidate geometry locks", () => {
     );
 
     expect(result[0]?.bbox).toEqual(mergedBbox);
+  });
+
+  it("unions the exact OCR members selected by v10", () => {
+    const result = applyOcrCandidateGeometryLocks(
+      [
+        {
+          id: 6,
+          candidateIds: [6, 4],
+          type: "nonsolid",
+          bbox: { x: 715, y: 174, w: 98, h: 105 },
+          jp: "一つの領域の全文",
+          ko: "한 영역의 전체 문장",
+        },
+      ],
+      page,
+      [
+        { id: 6, x1: 820, y1: 124, x2: 830, y2: 139 },
+        { id: 4, x1: 768, y1: 93, x2: 800, y2: 154 },
+      ],
+    );
+
+    expect(result[0]?.bbox).toEqual({ x: 768, y: 93, w: 62, h: 61 });
+  });
+
+  it("rejects an unknown v10 candidate id", () => {
+    expect(() =>
+      applyOcrCandidateGeometryLocks(
+        [
+          {
+            id: 1,
+            candidateIds: [1, 99],
+            type: "nonsolid",
+            bbox: { x: 100, y: 100, w: 50, h: 50 },
+            jp: "本文",
+            ko: "본문",
+          },
+        ],
+        page,
+        [{ id: 1, x1: 100, y1: 100, x2: 150, y2: 150 }],
+      ),
+    ).toThrow(/unknown candidate id/i);
   });
 });

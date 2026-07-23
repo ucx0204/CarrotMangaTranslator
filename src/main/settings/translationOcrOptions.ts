@@ -51,12 +51,11 @@ export function resolveOcrTranslationOptions(
     settings.ocr.qualityMode ??
       resolveOcrQualityModeFromGemmaVramMode(gemmaVramMode),
   );
-  // 풀로드(PaddleOCR-VL) 품질은 CPU에서 못 쓸 만큼 느리므로, 사용자가 CPU를
-  // 선택했거나 env에서 CPU를 명시한 경우에는 절약 품질로 실행한다.
-  const ocrQualityMode =
-    ocrDevice === "cpu" && configuredQualityMode === "full"
-      ? "economy"
-      : configuredQualityMode;
+  const ocrQualityMode = resolveRuntimeOcrQualityMode(
+    configuredQualityMode,
+    ocrDevice,
+    ocrGpuBackend,
+  );
   return {
     ocrDevice,
     ocrGpuBackend,
@@ -100,8 +99,9 @@ type PaddleOcrModeOptions = Pick<
 
 type PaddleOcrModeContext = {
   rocmTransformers: boolean;
+  transformersEngine: boolean;
   lowVramModelNames: { det: string; rec: string } | undefined;
-  fullVramVlDefaults: boolean;
+  cudaLegacyMode: boolean;
   shouldForceOcrOnly: boolean;
 };
 
@@ -135,9 +135,13 @@ function resolvePaddleOcrModeOptions(
   for (const key of Object.keys(defaults) as Array<
     keyof PaddleOcrModeOptions
   >) {
-    const value =
-      resolveOptionalString(env[PADDLE_OCR_MODE_ENV_KEYS[key]]) ??
-      defaults[key];
+    // The quality preset owns the OCR pipeline boundary. In particular, an
+    // inherited diagnostic env must never turn CUDA legacy into the common
+    // semantic path, or turn a common preset back into the legacy VL path.
+    const value = isPresetLockedPipelineMode(key)
+      ? defaults[key]
+      : (resolveOptionalString(env[PADDLE_OCR_MODE_ENV_KEYS[key]]) ??
+        defaults[key]);
     if (value) {
       options[key] = value;
     }
@@ -153,48 +157,41 @@ function resolvePaddleOcrModeContext(
   const rocmTransformers =
     ocrDevice === "gpu" && ocrGpuBackend === "rocm-transformers";
   const lowVramModelNames = resolveLowVramOcrModelNames(ocrQualityMode);
+  const semanticFullDefaults = ocrQualityMode === "full";
   return {
     rocmTransformers,
+    transformersEngine: rocmTransformers || semanticFullDefaults,
     lowVramModelNames,
-    fullVramVlDefaults: ocrQualityMode === "full" && !rocmTransformers,
-    shouldForceOcrOnly: Boolean(lowVramModelNames) || rocmTransformers,
+    cudaLegacyMode: ocrQualityMode === "cuda-legacy-full" && !rocmTransformers,
+    shouldForceOcrOnly:
+      Boolean(lowVramModelNames) || rocmTransformers || semanticFullDefaults,
   };
 }
 
 function resolvePaddleOcrModeDefaults(
   context: PaddleOcrModeContext,
 ): Record<keyof PaddleOcrModeOptions, string | undefined> {
-  const { rocmTransformers, lowVramModelNames, shouldForceOcrOnly } = context;
-  const ocrOnlyOrVl = shouldForceOcrOnly || context.fullVramVlDefaults;
+  const { transformersEngine, lowVramModelNames, shouldForceOcrOnly } = context;
+  const ocrOnlyOrVl = shouldForceOcrOnly || context.cudaLegacyMode;
   return {
-    ocrBboxMode: forcedOrVlDefault(context, "ocr", "vl"),
-    ocrEngine: rocmTransformers
+    ocrBboxMode: context.cudaLegacyMode ? "vl" : "ocr",
+    ocrEngine: transformersEngine
       ? "transformers"
-      : lowVramModelNames
+      : shouldForceOcrOnly
         ? "paddle_static"
         : undefined,
     ocrEngineDtype: shouldForceOcrOnly ? "float32" : undefined,
     ocrVersion: ocrOnlyOrVl ? "PP-OCRv6" : undefined,
     ocrTextDetectionModelName: lowVramModelNames?.det,
     ocrTextRecognitionModelName: lowVramModelNames?.rec,
-    ocrMergeMode: forcedOrVlDefault(context, "conservative", "legacy"),
+    ocrMergeMode: context.cudaLegacyMode ? "legacy" : "semantic",
     ocrDetLimit: ocrOnlyOrVl ? "1600" : undefined,
     ocrRecBatch: ocrOnlyOrVl ? "1" : undefined,
   };
 }
 
-function forcedOrVlDefault(
-  context: PaddleOcrModeContext,
-  forcedValue: string,
-  vlValue: string,
-): string | undefined {
-  if (context.shouldForceOcrOnly) {
-    return forcedValue;
-  }
-  if (context.fullVramVlDefaults) {
-    return vlValue;
-  }
-  return undefined;
+function isPresetLockedPipelineMode(key: keyof PaddleOcrModeOptions): boolean {
+  return key === "ocrBboxMode" || key === "ocrMergeMode";
 }
 
 function resolveLowVramOcrModelNames(
@@ -237,4 +234,28 @@ function resolveRuntimeOcrDevice(
     return resolveOcrDevice(explicit, configuredDevice);
   }
   return configuredDevice;
+}
+
+function resolveRuntimeOcrQualityMode(
+  configuredQualityMode: OcrQualityMode,
+  ocrDevice: OcrDevice,
+  ocrGpuBackend: OcrGpuBackend,
+): OcrQualityMode {
+  // GPU 전용 고품질 모드는 CPU에서 지나치게 느리므로 절약 품질로 내린다.
+  if (
+    ocrDevice === "cpu" &&
+    (configuredQualityMode === "full" ||
+      configuredQualityMode === "cuda-legacy-full")
+  ) {
+    return "economy";
+  }
+  // 저장 설정이나 env로 CUDA 레거시 모드가 AMD에 들어오면, 같은 고품질
+  // 모델을 쓰는 공통 semantic 풀로드로 안전하게 전환한다.
+  if (
+    configuredQualityMode === "cuda-legacy-full" &&
+    ocrGpuBackend !== "cuda"
+  ) {
+    return "full";
+  }
+  return configuredQualityMode;
 }

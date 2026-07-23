@@ -119,6 +119,8 @@ export type OcrBboxResult = {
 
 export type OverlayItem = {
   id: number;
+  /** Raw Paddle OCR candidates assigned to this physical text container. */
+  candidateIds?: number[];
   type: string;
   textRole?: "sound" | "ordinary" | "nontext" | string;
   bbox: BBox;
@@ -155,9 +157,12 @@ export type RequestSummary = {
     rolePrior?: string | null;
     containerType?: string | null;
     orderInGroup?: number | null;
+    groupSize?: number;
+    semanticGroup?: boolean;
   }>;
   previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];
   strictRefineMode?: boolean;
+  ocrGeometryOnlyMode?: boolean;
   noTextDetected?: boolean;
   ocrTextEvidenceCount?: number;
 };

@@ -658,6 +658,14 @@
     "loadFailed": "용어/기억 정보를 불러오지 못했습니다.",
     "saveSuccess": "용어/기억을 저장했습니다.",
     "saveFailed": "용어/기억 저장에 실패했습니다.",
+    "reset": {
+      "button": "용어·기억 전체 초기화",
+      "running": "초기화 중…",
+      "message": "이 작품의 용어/기억을 모두 초기화할까요?",
+      "detail": "현재 작품의 용어집, 캐릭터 기억, 모든 화의 스토리 메모리를 전부 삭제합니다. 번역 규칙과 페이지·번역 결과는 유지되지만, 삭제한 기억은 되돌릴 수 없습니다.",
+      "success": "용어/기억을 초기화하고 {{count}}화의 스토리 메모리를 비웠습니다.",
+      "failed": "용어/기억 전체 초기화에 실패했습니다."
+    },
     "addRow": "행 추가",
     "note": "메모",
     "analysis": {
@@ -1006,7 +1014,11 @@
         },
         "full": {
           "label": "풀로드",
-          "description": "가장 높은 품질의 OCR 모델을 사용합니다."
+          "description": "고품질 OCR 조각과 좌표를 Gemma 4가 의미 단위로 묶습니다."
+        },
+        "cudaLegacyFull": {
+          "label": "CUDA 레거시 풀로드",
+          "description": "NVIDIA CUDA에서 기존 PaddleOCR-VL 레이아웃 경로를 사용합니다."
         }
       },
       "llamaRuntimes": {

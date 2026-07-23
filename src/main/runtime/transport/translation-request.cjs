@@ -16,39 +16,27 @@ const {
   getOverlayPrompt,
 } = require("../simple-page-prompts.cjs");
 const {
-  allowOcrNoTextDetectedSkip,
-} = require("../simple-page-language-profile.cjs");
-const {
   isOpenAIApiProvider,
   isOpenAICodexProvider,
   resolveConfiguredCodexModel,
   resolveConfiguredCodexReasoningEffort,
   resolveProviderDisplayName,
 } = require("../simple-page-model-config.cjs");
-const { extractModelOutputText } = require("../simple-page-response-text.cjs");
 const { prepareImageVariants } = require("../simple-page-image-variants.cjs");
 const { collectOcrBboxHints } = require("../simple-page-ocr-bbox-pipeline.cjs");
 const {
   applyLocalForbiddenTokenBias,
 } = require("../simple-page-logit-bias.cjs");
-const {
-  buildRequestSummary,
-  resolveRequestModelName,
-} = require("../simple-page-request-summary.cjs");
+const { buildRequestSummary } = require("../simple-page-request-summary.cjs");
 const {
   buildChatRequestHeaders,
   buildMessages,
 } = require("../simple-page-request-builders.cjs");
-const {
-  createDetailedError,
-  emitRuntimeProgress,
-  nowMs,
-} = require("./model-runtime-services.cjs");
+const { emitRuntimeProgress, nowMs } = require("./model-runtime-services.cjs");
 const {
   createEmptyOutputError,
   createHttpFailureError,
   createModelTransportError,
-  truncateSensitiveText,
 } = require("./model-http-errors.cjs");
 const { runWithApiKeyRetry } = require("./api-key-retry.cjs");
 const {
@@ -59,6 +47,23 @@ const {
   buildChatRequestBody,
   buildResponsesRequestBody,
 } = require("./request-bodies.cjs");
+const {
+  readChatCompletionResult,
+  sendChatCompletion,
+} = require("./chat-completion.cjs");
+const { requestFixedBlockTranslation } = require("./semantic-ocr-request.cjs");
+const {
+  hasHeuristicReviewFragments,
+  isGroupOnlyReviewEligible,
+  shouldUseFixedBlockTranslation,
+} = require("../semantic-ocr/fixed-block-translation.cjs");
+const {
+  requestGroupOnlyPageReview,
+} = require("./group-only-review-request.cjs");
+const {
+  createPromptOptions,
+  shouldSkipModelRequest,
+} = require("./translation-ocr-policy.cjs");
 
 /**
  * @param {ModelServer} server
@@ -70,42 +75,76 @@ async function requestTranslation(server, options) {
   const ocrBboxResult = /** @type {OcrBboxResult} */ (
     await collectOcrBboxHints(options)
   );
-  const promptOptions = createPromptOptions(options, ocrBboxResult.hints);
+  const promptOptions = createPromptOptions(options, ocrBboxResult);
 
-  if (shouldSkipModelRequest(ocrBboxResult, options)) {
+  if (shouldSkipModelRequest(ocrBboxResult, promptOptions)) {
     return createNoTextResult(server, promptOptions, ocrBboxResult);
+  }
+
+  const groupReviewSelected =
+    isGroupOnlyReviewEligible(promptOptions) &&
+    hasHeuristicReviewFragments(promptOptions);
+  const groupReviewOutcome = groupReviewSelected
+    ? await requestGroupOnlyPageReview(server, promptOptions, ocrBboxResult)
+    : null;
+  const finalPromptOptions = /** @type {PromptRequestOptions} */ (
+    groupReviewOutcome && "promptOptions" in groupReviewOutcome
+      ? groupReviewOutcome.promptOptions
+      : promptOptions
+  );
+
+  if (shouldUseFixedBlockTranslation(finalPromptOptions)) {
+    const translated = await requestFixedBlockTranslation(
+      server,
+      finalPromptOptions,
+      ocrBboxResult,
+      requestStartedAt,
+    );
+    assignSemanticGroupReviewSummary(
+      translated.requestBody,
+      groupReviewOutcome,
+    );
+    return attachSemanticGroupReviewRawResponse(translated, groupReviewOutcome);
   }
 
   const prepared = await prepareTranslationRequest(
     server,
-    promptOptions,
+    finalPromptOptions,
     ocrBboxResult,
   );
-  if (isOpenAICodexProvider(options)) {
-    return requestCodexTranslation(server, prepared);
-  }
-  return requestChatTranslation(server, prepared, requestStartedAt);
+  assignSemanticGroupReviewSummary(prepared.requestSummary, groupReviewOutcome);
+  const translated = isOpenAICodexProvider(options)
+    ? await requestCodexTranslation(server, prepared)
+    : await requestChatTranslation(server, prepared, requestStartedAt);
+  return attachSemanticGroupReviewRawResponse(translated, groupReviewOutcome);
+}
+
+/** @param {RequestSummary} summary @param {Record<string,unknown> | null} outcome */
+function assignSemanticGroupReviewSummary(summary, outcome) {
+  if (!outcome) return;
+  const details =
+    outcome.summary &&
+    typeof outcome.summary === "object" &&
+    !Array.isArray(outcome.summary)
+      ? outcome.summary
+      : {};
+  Object.assign(summary, details);
 }
 
 /**
- * @param {TranslationRequestOptions} options
- * @param {unknown[]} hints
- * @returns {PromptRequestOptions}
+ * @param {{requestBody:RequestSummary;rawResponse:unknown;outputText:string}} result
+ * @param {Record<string,unknown> | null} outcome
  */
-function createPromptOptions(options, hints) {
-  return /** @type {PromptRequestOptions} */ ({
-    ...options,
-    ocrBboxHints: /** @type {Record<string, unknown>[]} */ (hints),
-  });
-}
-
-/** @param {OcrBboxResult} result @param {TranslationRequestOptions} options */
-function shouldSkipModelRequest(result, options) {
-  return (
-    !options.collectPageContext &&
-    result.noTextDetected &&
-    allowOcrNoTextDetectedSkip(options)
-  );
+function attachSemanticGroupReviewRawResponse(result, outcome) {
+  if (!outcome) return result;
+  return {
+    ...result,
+    rawResponse: {
+      semanticGroupReviewStatus: outcome.status,
+      groupingReview: outcome.rawResponse ?? null,
+      translation: result.rawResponse,
+    },
+  };
 }
 
 /**
@@ -124,6 +163,10 @@ function createNoTextResult(server, options, ocrBboxResult) {
   );
   requestSummary.noTextDetected = true;
   requestSummary.ocrTextEvidenceCount = ocrBboxResult.textEvidenceCount;
+  requestSummary.ocrTranscriptEvidenceCount =
+    options.ocrTranscriptEvidenceCount;
+  requestSummary.promptText = "";
+  requestSummary.systemPromptText = "";
   addDiagnostics(
     requestSummary,
     "ocrBboxDiagnostics",
@@ -176,8 +219,12 @@ async function prepareTranslationRequest(server, options, ocrBboxResult) {
     promptText,
     systemPrompt,
   );
+  requestSummary.promptText = promptText;
+  requestSummary.systemPromptText = systemPrompt;
   requestSummary.noTextDetected = ocrBboxResult.noTextDetected;
   requestSummary.ocrTextEvidenceCount = ocrBboxResult.textEvidenceCount;
+  requestSummary.ocrTranscriptEvidenceCount =
+    options.ocrTranscriptEvidenceCount;
   addDiagnostics(
     requestSummary,
     "imageVariantDiagnostics",
@@ -188,7 +235,12 @@ async function prepareTranslationRequest(server, options, ocrBboxResult) {
     "ocrBboxDiagnostics",
     ocrBboxResult.diagnostics,
   );
-  return { promptOptions: options, imageVariants, requestBody, requestSummary };
+  return {
+    promptOptions: options,
+    imageVariants,
+    requestBody,
+    requestSummary,
+  };
 }
 
 /**
@@ -276,92 +328,6 @@ async function requestChatTranslation(server, prepared, requestStartedAt) {
       requestStartedAt,
     );
   });
-}
-
-/**
- * @param {ModelServer} server
- * @param {PromptRequestOptions} options
- * @param {Record<string, unknown>} requestBody
- * @param {RequestSummary} requestSummary
- * @param {string | undefined} apiKey
- */
-async function sendChatCompletion(
-  server,
-  options,
-  requestBody,
-  requestSummary,
-  apiKey,
-) {
-  emitRuntimeProgress(
-    options,
-    "model_requesting",
-    isOpenAIApiProvider(options) ? "API 번역 요청 중" : "Gemma 4 번역 요청 중",
-    resolveRequestModelName(options),
-  );
-  try {
-    return await fetch(`${server.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: buildChatRequestHeaders(options, apiKey),
-      body: JSON.stringify(requestBody),
-      signal: options.abortSignal,
-    });
-  } catch (error) {
-    throw createModelTransportError(
-      `${resolveProviderDisplayName(options)} request transport failed.`,
-      { requestSummary },
-      error,
-    );
-  }
-}
-
-/**
- * @param {Response} response
- * @param {TranslationRequestOptions} options
- * @param {RequestSummary} requestSummary
- * @param {number} requestStartedAt
- */
-async function readChatCompletionResult(
-  response,
-  options,
-  requestSummary,
-  requestStartedAt,
-) {
-  const rawText = await readResponseText(response, requestSummary, options);
-  requestSummary.performance = {
-    wallMs: Math.round(nowMs() - requestStartedAt),
-    provider: resolveProviderDisplayName(options),
-    measuredAt: new Date().toISOString(),
-  };
-  if (!response.ok) {
-    throw createHttpFailureError(options, requestSummary, response, rawText);
-  }
-
-  const parsed = parseChatResponse(rawText, options, requestSummary);
-  const outputText = extractModelOutputText(parsed);
-  if (!outputText.trim()) {
-    throw createEmptyOutputError(parsed, rawText, requestSummary, options);
-  }
-  return { requestBody: requestSummary, rawResponse: parsed, outputText };
-}
-
-/**
- * @param {string} rawText
- * @param {TranslationRequestOptions} options
- * @param {RequestSummary} requestSummary
- */
-function parseChatResponse(rawText, options, requestSummary) {
-  try {
-    return /** @type {unknown} */ (JSON.parse(rawText));
-  } catch (error) {
-    throw createDetailedError(
-      `${resolveProviderDisplayName(options)} response JSON parse failed.`,
-      {
-        requestSummary,
-        rawTextPreview: truncateSensitiveText(rawText, options, 4000),
-      },
-      error,
-    );
-  }
 }
 
 /**

@@ -99,6 +99,8 @@ import type {
 } from "../shared/workContextAnalysisTypes";
 import type {
   ChapterStoryMemory,
+  ResetWorkContextRequest,
+  ResetWorkContextResult,
   WorkStyleGuide,
 } from "../shared/workContextTypes";
 import type { WorkContextUsage } from "../shared/workContextUsageTypes";
@@ -158,6 +160,10 @@ const api = {
     memory: ChapterStoryMemory,
   ): Promise<ChapterStoryMemory> =>
     invokeContract(workContextIpcContracts.saveChapterStoryMemory, memory),
+  resetWorkContext: (
+    request: ResetWorkContextRequest,
+  ): Promise<ResetWorkContextResult> =>
+    invokeContract(workContextIpcContracts.resetWorkContext, request),
   getWorkContextUsage: (workId: string): Promise<WorkContextUsage> =>
     invokeContract(workContextIpcContracts.getWorkContextUsage, workId),
   analyzeWorkContext: (

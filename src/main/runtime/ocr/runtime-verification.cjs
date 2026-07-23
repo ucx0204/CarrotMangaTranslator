@@ -11,6 +11,7 @@ const {
   buildOcrRuntimeEnv,
   buildPaddleOcrImportCheckScript,
   isOcrGpuRequested,
+  isOcrTransformersRuntime,
   resolveOcrGpuBackend,
   resolveOcrInstallSignature,
   resolveOcrRuntimeDir,
@@ -98,11 +99,12 @@ function hasExpectedOcrPackages(packageDir, options = {}) {
     return false;
   }
   const backend = resolveOcrGpuBackend(options);
-  if (isOcrGpuRequested(options) && backend === "rocm-transformers") {
+  if (isOcrTransformersRuntime(options)) {
     return hasPackageDirectories(packageDir, [
       "torch",
       "torchvision",
       "transformers",
+      "tokenizers",
       "paddlex",
       "paddleocr",
       "safetensors",

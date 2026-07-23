@@ -12,12 +12,15 @@ import { buildWorkContextUsage } from "../workContextUsage";
 import {
   getChapterStoryMemory,
   getWorkStyleGuide,
+  resetWorkContext,
   saveChapterStoryMemory,
   saveWorkStyleGuide,
 } from "../library";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
+
+let workContextOperationActive = false;
 
 export function registerWorkContextIpc(context: IpcContext): void {
   trustedHandleContract(
@@ -44,6 +47,7 @@ export function registerWorkContextIpc(context: IpcContext): void {
         ),
       ),
   );
+  registerResetWorkContextIpc(context);
   trustedHandleContract(
     context,
     workContextIpcContracts.getChapterStoryMemory,
@@ -84,12 +88,45 @@ export function registerWorkContextIpc(context: IpcContext): void {
     context,
     workContextIpcContracts.analyzeWorkContext,
     async (_event, raw: unknown) =>
-      analyzeWorkContextWithAi(
-        parseIpcPayload(
-          AnalyzeWorkContextRequestSchema,
-          raw,
-          tMain("ipc.labels.workContextAnalysis"),
+      runExclusiveWorkContextOperation(context, () =>
+        analyzeWorkContextWithAi(
+          parseIpcPayload(
+            AnalyzeWorkContextRequestSchema,
+            raw,
+            tMain("ipc.labels.workContextAnalysis"),
+          ),
         ),
       ),
   );
+}
+
+function registerResetWorkContextIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    workContextIpcContracts.resetWorkContext,
+    async (_event, raw: unknown) =>
+      runExclusiveWorkContextOperation(context, async () => {
+        const request = parseIpcPayload(
+          ChapterStoryMemoryRequestSchema,
+          raw,
+          tMain("ipc.labels.storyMemorySave"),
+        );
+        return resetWorkContext(request.chapterId);
+      }),
+  );
+}
+
+async function runExclusiveWorkContextOperation<T>(
+  context: IpcContext,
+  operation: () => Promise<T>,
+): Promise<T> {
+  if (context.jobs.hasActive || workContextOperationActive) {
+    throw new Error(tMain("jobs.active"));
+  }
+  workContextOperationActive = true;
+  try {
+    return await operation();
+  } finally {
+    workContextOperationActive = false;
+  }
 }

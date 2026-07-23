@@ -21,11 +21,11 @@ async function saveArtifacts(options, result) {
     createdAt: new Date().toISOString(),
     settings: buildArtifactSettings(options),
     requestSummary: result.requestBody,
-    systemPrompt: buildSystemPrompt(options),
+    systemPrompt:
+      result.requestBody?.systemPromptText ?? buildSystemPrompt(options),
     prompt:
-      result.requestBody?.promptText ||
-      options.promptOverrideText ||
-      getOverlayPrompt(options, imageVariants),
+      result.requestBody?.promptText ??
+      (options.promptOverrideText || getOverlayPrompt(options, imageVariants)),
     outputText: result.outputText,
     rawResponse: result.rawResponse,
   };

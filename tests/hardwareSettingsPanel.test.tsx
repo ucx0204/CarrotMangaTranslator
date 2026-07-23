@@ -85,4 +85,69 @@ describe("HardwareSettingsPanel", () => {
     expect(setOcrQualityMode).toHaveBeenCalledWith("economy");
     expect(setOcrDevice).not.toHaveBeenCalled();
   });
+
+  it("shows CUDA legacy full only for NVIDIA OCR and selects the legacy path", () => {
+    const setOcrDevice = vi.fn();
+    const setOcrGpuBackend = vi.fn();
+    const setOcrQualityMode = vi.fn();
+    const { rerender } = render(
+      <HardwareSettingsPanel
+        allowUnsafeLowMemoryFlux={false}
+        clearTestState={vi.fn()}
+        controlsBusy={false}
+        fluxBackend="cuda-native"
+        inpaintingModel="flux-klein"
+        isFluxBackendOptionDisabled={() => false}
+        ocrDevice="gpu"
+        ocrGpuBackend="cuda"
+        ocrQualityMode="full"
+        setFluxBackend={vi.fn()}
+        setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setInpaintingModel={vi.fn()}
+        setOcrDevice={setOcrDevice}
+        setOcrGpuBackend={setOcrGpuBackend}
+        setOcrQualityMode={setOcrQualityMode}
+        usesAmdHardware={false}
+        usesAppleHardware={false}
+        usesAmdOcrContext={false}
+        usesNvidiaHardware
+        usesNvidiaOcrContext
+        unifiedMemoryMb={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "CUDA 레거시 풀로드" }));
+    expect(setOcrDevice).toHaveBeenCalledWith("gpu");
+    expect(setOcrGpuBackend).toHaveBeenCalledWith("cuda");
+    expect(setOcrQualityMode).toHaveBeenCalledWith("cuda-legacy-full");
+
+    rerender(
+      <HardwareSettingsPanel
+        allowUnsafeLowMemoryFlux={false}
+        clearTestState={vi.fn()}
+        controlsBusy={false}
+        fluxBackend="zluda-native"
+        inpaintingModel="flux-klein"
+        isFluxBackendOptionDisabled={() => false}
+        ocrDevice="gpu"
+        ocrGpuBackend="rocm-transformers"
+        ocrQualityMode="full"
+        setFluxBackend={vi.fn()}
+        setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setInpaintingModel={vi.fn()}
+        setOcrDevice={vi.fn()}
+        setOcrGpuBackend={vi.fn()}
+        setOcrQualityMode={vi.fn()}
+        usesAmdHardware
+        usesAppleHardware={false}
+        usesAmdOcrContext
+        usesNvidiaHardware={false}
+        usesNvidiaOcrContext={false}
+        unifiedMemoryMb={null}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "CUDA 레거시 풀로드" }),
+    ).toBeNull();
+  });
 });

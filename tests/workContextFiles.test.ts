@@ -135,6 +135,95 @@ describe("work context files", () => {
     ]);
   });
 
+  it("resets terms and story memory for every chapter without changing pages or rules", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir, ["chapter-a", "chapter-b"]);
+    const guide = await library.getWorkStyleGuide("work-1");
+    const customRules = {
+      honorifics: "preserve" as const,
+      sfxMode: "note" as const,
+      defaultTone: "literal" as const,
+    };
+    await library.saveWorkStyleGuide({
+      ...guide,
+      rules: customRules,
+      glossary: [
+        {
+          id: "term-1",
+          source: "魔王",
+          target: "마왕",
+          category: "term",
+          enabled: true,
+          createdAt: guide.createdAt,
+          updatedAt: guide.updatedAt,
+        },
+      ],
+      characters: [
+        {
+          id: "character-1",
+          displayName: "마왕",
+          sourceNames: ["魔王"],
+          targetName: "마왕",
+          speechStyle: "rough",
+          note: "용사와 적대 관계",
+          enabled: true,
+          createdAt: guide.createdAt,
+          updatedAt: guide.updatedAt,
+        },
+      ],
+    });
+    for (const [chapterId, pageId] of [
+      ["chapter-a", "page-a"],
+      ["chapter-b", "chapter-b-page-a"],
+    ] as const) {
+      const memory = await library.getChapterStoryMemory(chapterId);
+      await library.saveChapterStoryMemory({
+        ...memory,
+        aiAnalyzedAt: "2026-01-02T00:00:00.000Z",
+        pages: [
+          {
+            pageId,
+            pageName: "001.png",
+            pageIndex: 0,
+            sourceDigest: "source",
+            translatedDigest: "translated",
+            summary: "story",
+            visualSummary: "visual",
+            visualSummarySource: "ai",
+            glossaryEntryIds: ["term-1"],
+            characterIds: ["character-1"],
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          },
+        ],
+      });
+    }
+    const chapterBeforeReset = await library.openChapter("chapter-a");
+
+    const result = await library.resetWorkContext("chapter-a");
+
+    expect(result.resetChapterCount).toBe(2);
+    expect(result.storyMemory).toMatchObject({
+      chapterId: "chapter-a",
+      pages: [],
+    });
+    const resetGuide = await library.getWorkStyleGuide("work-1");
+    expect(resetGuide.glossary).toEqual([]);
+    expect(resetGuide.characters).toEqual([]);
+    expect(resetGuide.rules).toEqual(customRules);
+    for (const chapterId of ["chapter-a", "chapter-b"]) {
+      const memory = await library.getChapterStoryMemory(chapterId);
+      expect(memory.pages).toEqual([]);
+      expect(memory.aiAnalyzedAt).toBeUndefined();
+    }
+    expect(await library.openChapter("chapter-a")).toEqual(chapterBeforeReset);
+
+    await expect(library.resetWorkContext("chapter-a")).resolves.toMatchObject({
+      resetChapterCount: 2,
+      storyMemory: { pages: [] },
+    });
+  });
+
   it("wraps malformed context JSON with the file name", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);
@@ -181,59 +270,65 @@ async function loadLibrary(
   return import("../src/main/library");
 }
 
-async function seedLibrary(rootDir: string): Promise<void> {
-  const pageIds = ["page-a", "page-b", "page-c"];
+async function seedLibrary(
+  rootDir: string,
+  chapterIds: string[] = ["chapter-a"],
+): Promise<void> {
   const work: LibraryWork = {
     id: "work-1",
     title: "원본 작품",
-    chapterOrder: ["chapter-a"],
+    chapterOrder: chapterIds,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
-  const chapter: LibraryChapter = {
-    id: "chapter-a",
-    workId: "work-1",
-    title: "1화",
-    sourceKind: "folder",
-    status: "completed",
-    pageOrder: pageIds,
-    pages: pageIds.map((id, index) => ({
-      id,
-      name: `${String(index + 1).padStart(3, "0")}.png`,
-      imagePath: join(
-        rootDir,
-        "works",
-        "work-1",
-        "chapters",
-        "chapter-a",
-        "pages",
-        `${String(index + 1).padStart(3, "0")}.png`,
-      ),
-      width: 100,
-      height: 120,
-      blocks: [],
-      analysisStatus: "completed",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
-    })),
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  };
-  await mkdir(
-    join(rootDir, "works", "work-1", "chapters", "chapter-a", "pages"),
-    {
-      recursive: true,
-    },
-  );
-  await Promise.all(
-    chapter.pages.map((page) => writeFile(page.imagePath, "image", "utf8")),
-  );
   await writeJson(join(rootDir, "index.json"), { workOrder: ["work-1"] });
   await writeJson(join(rootDir, "works", "work-1", "work.json"), work);
-  await writeJson(
-    join(rootDir, "works", "work-1", "chapters", "chapter-a", "chapter.json"),
-    chapter,
-  );
+  for (const [chapterIndex, chapterId] of chapterIds.entries()) {
+    const pageIds =
+      chapterId === "chapter-a"
+        ? ["page-a", "page-b", "page-c"]
+        : [`${chapterId}-page-a`];
+    const chapter: LibraryChapter = {
+      id: chapterId,
+      workId: "work-1",
+      title: `${chapterIndex + 1}화`,
+      sourceKind: "folder",
+      status: "completed",
+      pageOrder: pageIds,
+      pages: pageIds.map((id, index) => ({
+        id,
+        name: `${String(index + 1).padStart(3, "0")}.png`,
+        imagePath: join(
+          rootDir,
+          "works",
+          "work-1",
+          "chapters",
+          chapterId,
+          "pages",
+          `${String(index + 1).padStart(3, "0")}.png`,
+        ),
+        width: 100,
+        height: 120,
+        blocks: [],
+        analysisStatus: "completed",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      })),
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    await mkdir(
+      join(rootDir, "works", "work-1", "chapters", chapterId, "pages"),
+      { recursive: true },
+    );
+    await Promise.all(
+      chapter.pages.map((page) => writeFile(page.imagePath, "image", "utf8")),
+    );
+    await writeJson(
+      join(rootDir, "works", "work-1", "chapters", chapterId, "chapter.json"),
+      chapter,
+    );
+  }
 }
 
 async function writeJson(path: string, payload: unknown): Promise<void> {

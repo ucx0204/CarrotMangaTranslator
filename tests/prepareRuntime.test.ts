@@ -48,8 +48,10 @@ function createRuntimeFixture() {
   temporaryDirectories.push(root);
   const sourceDir = join(root, "src", "main", "runtime");
   mkdirSync(join(sourceDir, "transport"), { recursive: true });
+  mkdirSync(join(sourceDir, "templates"), { recursive: true });
   writeFileSync(join(sourceDir, "root.cjs"), "root");
   writeFileSync(join(sourceDir, "transport", "response.cjs"), "nested");
+  writeFileSync(join(sourceDir, "templates", "chat-template.jinja"), "jinja");
   return { root, sourceDir };
 }
 
@@ -67,6 +69,9 @@ describe("prepareRuntimeAssets", () => {
     expect(
       readFileSync(join(outputDir, "transport", "response.cjs"), "utf8"),
     ).toBe("nested");
+    expect(
+      readFileSync(join(outputDir, "templates", "chat-template.jinja"), "utf8"),
+    ).toBe("jinja");
   });
 
   it("refuses to clean the project root or any runtime source path", () => {

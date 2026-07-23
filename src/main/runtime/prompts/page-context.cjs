@@ -20,6 +20,11 @@ function buildPageContextSection(options = {}) {
     "characters contains only people whose name or identity wording is supported on this page. Never guess a name from appearance alone and never repeat a supplied character name or alias.",
     "Each character item uses displayName, sourceNames, targetName, aliases, speechStyle, customSpeechStyle, and note. speechStyle is one of neutral, polite, casual, rough, childish, elderly, formal, custom.",
     "Use empty arrays when there are no grounded glossary or character candidates.",
+    ...(options.ocrGeometryOnlyMode
+      ? [
+          "This page has detector geometry but zero recognized OCR text. Do not create glossary or character candidates from supplied context, appearance, or guessed wording; those arrays must stay empty unless exact Japanese name/term glyphs are visibly readable in Image 1 and also appear in a translation record.",
+        ]
+      : []),
     "When the page has no readable source text, output no translation records and still append the trailer with a visualSummary and empty candidate arrays.",
     "Trailer shape:",
     "<page-context>",

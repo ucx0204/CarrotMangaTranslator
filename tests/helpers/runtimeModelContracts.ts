@@ -19,6 +19,16 @@ import {
   GEMMA_26B_MODEL_REPO,
 } from "../../src/shared/modelPresets";
 
+type RuntimeImageVariant = {
+  role: string;
+  dataUrl?: string;
+  width?: number;
+  height?: number;
+  originalWidth?: number;
+  originalHeight?: number;
+  semanticCropRect?: unknown;
+};
+
 const runtimeHelpers = {
   ...require("../../src/main/runtime/simple-page-launch-args.cjs"),
   ...require("../../src/main/runtime/simple-page-request-builders.cjs"),
@@ -51,14 +61,7 @@ const runtimeHelpers = {
   buildLaunchArgs: (options: { [key: string]: unknown }) => string[];
   buildMessages: (
     options: { [key: string]: unknown },
-    imageVariants: Array<{
-      role: string;
-      dataUrl: string;
-      width?: number;
-      height?: number;
-      originalWidth?: number;
-      originalHeight?: number;
-    }>,
+    imageVariants: Array<RuntimeImageVariant & { dataUrl: string }>,
   ) => Array<{
     role: string;
     content: Array<{
@@ -85,14 +88,7 @@ const runtimeHelpers = {
   ) => string;
   buildResponsesRequestBody: (
     options: { [key: string]: unknown },
-    imageVariants: Array<{
-      role: string;
-      dataUrl: string;
-      width?: number;
-      height?: number;
-      originalWidth?: number;
-      originalHeight?: number;
-    }>,
+    imageVariants: Array<RuntimeImageVariant & { dataUrl: string }>,
   ) => {
     model: string;
     instructions: string;
@@ -146,18 +142,12 @@ const runtimeHelpers = {
   ) => string;
   isGpuOutOfMemoryText: (value: unknown) => boolean;
   isGpuDeviceLostOrTdrText: (value: unknown) => boolean;
+  isPaddleNativeDllLoadFailureText: (value: unknown) => boolean;
   isRocmHipAccessViolationText: (value: unknown) => boolean;
   resolveEffectiveOcrDevice: (options?: { [key: string]: unknown }) => string;
   getOverlayPrompt: (
     options: { [key: string]: unknown },
-    imageVariants: Array<{
-      role: string;
-      dataUrl?: string;
-      width?: number;
-      height?: number;
-      originalWidth?: number;
-      originalHeight?: number;
-    }>,
+    imageVariants: RuntimeImageVariant[],
   ) => string;
   collectOcrBboxHints: (options: { [key: string]: unknown }) => Promise<{
     hints: Array<{
@@ -170,6 +160,8 @@ const runtimeHelpers = {
       rolePrior?: string;
       containerType?: string;
       orderInGroup?: number;
+      groupSize?: number;
+      semanticGroup?: boolean;
     }>;
     diagnostics: unknown[];
     noTextDetected: boolean;
@@ -371,6 +363,7 @@ export const {
   inspectModelLaunch,
   isGpuDeviceLostOrTdrText,
   isGpuOutOfMemoryText,
+  isPaddleNativeDllLoadFailureText,
   isModelCached,
   isRocmHipAccessViolationText,
   parseOcrBatchProgressLine,

@@ -28,7 +28,10 @@ async function repairPaddleOcrModelAssetsCache(
   reason = "",
 ) {
   const runtimeDir = resolveRuntimeDir(options, runtime);
-  const names = resolvePaddleOcrModelNamesForRepair(String(reason ?? ""));
+  const names = resolvePaddleOcrModelNamesForRepair(
+    String(reason ?? ""),
+    options,
+  );
   emitRepairStart(options, names, reason);
   for (const modelName of names) {
     const modelDir = resolvePaddleOcrModelCacheDir(runtimeDir, modelName);

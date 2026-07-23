@@ -11,8 +11,7 @@ const { runtimeOverrideEnv } = require("./simple-page-child-env.cjs");
 const { buildHfResolveUrl } = require("./simple-page-download-utils.cjs");
 const { safeHfRelativePath } = require("./simple-page-cache-paths.cjs");
 const {
-  isOcrGpuRequested,
-  resolveOcrGpuBackend,
+  isOcrTransformersRuntime,
   resolveOcrRuntimeDir,
 } = require("./simple-page-ocr-runtime-config.cjs");
 
@@ -49,10 +48,7 @@ const PADDLE_OCR_TEXTLINE_MODEL_DOWNLOADS = new Map(
  * @param {OcrRuntimeLayout | null} [runtime]
  */
 function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
-  if (
-    isOcrGpuRequested(options) &&
-    resolveOcrGpuBackend(options) === "rocm-transformers"
-  ) {
+  if (isOcrTransformersRuntime(options)) {
     return [];
   }
   const runtimeDir = runtime?.runtimeDir || resolveOcrRuntimeDir(options);

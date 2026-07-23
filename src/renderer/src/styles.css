@@ -5297,6 +5297,10 @@ kbd {
   gap: 8px;
 }
 
+.settings-ocr-quality-group {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .settings-preset-button {
   width: 100%;
 }
@@ -5921,6 +5925,14 @@ kbd {
   grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
 }
 
+.settings-tabpanel .settings-ocr-quality-group {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.settings-ocr-quality-group .settings-preset-button {
+  white-space: nowrap;
+}
+
 .settings-tabpanel .settings-preset-button {
   min-height: 38px;
   border-color: var(--border-strong);
@@ -6152,6 +6164,10 @@ kbd {
   .source-choice-grid,
   .share-target-grid,
   .share-merge-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-tabpanel .settings-ocr-quality-group {
     grid-template-columns: 1fr;
   }
 
@@ -7493,6 +7509,8 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
   flex: 0 0 auto;
 }
 

@@ -143,6 +143,18 @@ describeWindows("app settings helpers", () => {
     expect(rtx5070Defaults.gemma.vramMode).toBe("economy26b");
     expect(rtx5070Defaults.gemma.modelRepo).toBe(GEMMA_26B_MODEL_REPO);
     expect(rtx5070Defaults.gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
+    expect(rtx5070Defaults.gemma.modelRepo).toBe(
+      "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF",
+    );
+    expect(rtx5070Defaults.gemma.modelFile).toBe(
+      "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf",
+    );
+    expect(rtx5070Defaults.gemma.mmprojRepo).toBe(
+      "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-GGUF",
+    );
+    expect(rtx5070Defaults.gemma.mmprojFile).toBe(
+      "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf",
+    );
     expect(rtx5070Defaults.ocr.gpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
   });
 
@@ -352,7 +364,7 @@ describeWindows("app settings helpers", () => {
     expect(options.ocrVersion).toBe("PP-OCRv6");
     expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
     expect(options.ocrTextRecognitionModelName).toBe("PP-OCRv6_small_rec");
-    expect(options.ocrMergeMode).toBe("conservative");
+    expect(options.ocrMergeMode).toBe("semantic");
     expect(options.ocrDetLimit).toBe("1600");
     expect(options.ocrRecBatch).toBe("1");
     expect(options.gemmaVramMode).toBe("economy26b");
@@ -530,7 +542,7 @@ describeWindows("app settings helpers", () => {
     expect(options.ocrEngine).toBe("paddle_static");
     expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
     expect(options.ocrTextRecognitionModelName).toBe("PP-OCRv6_small_rec");
-    expect(options.ocrMergeMode).toBe("conservative");
+    expect(options.ocrMergeMode).toBe("semantic");
     expect(options.imageMinTokens).toBe(1024);
     expect(options.imageMaxTokens).toBe(1024);
     expect(options.serverPath).toBe(
@@ -565,7 +577,7 @@ describeWindows("app settings helpers", () => {
     expect(options.ocrEngine).toBe("paddle_static");
     expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
     expect(options.ocrTextRecognitionModelName).toBe("PP-OCRv6_tiny_rec");
-    expect(options.ocrMergeMode).toBe("conservative");
+    expect(options.ocrMergeMode).toBe("semantic");
     expect(options.ocrDetLimit).toBe("1600");
     expect(options.ocrRecBatch).toBe("1");
   });
@@ -609,12 +621,13 @@ describeWindows("app settings helpers", () => {
     expect(options.draftModelRepo).toBeTruthy();
     expect(options.draftModelFile).toBeTruthy();
     expect(options.fitTargetMb).toBe(1024);
-    expect(options.ocrBboxMode).toBe("vl");
-    expect(options.ocrEngine).toBeUndefined();
+    expect(options.ocrBboxMode).toBe("ocr");
+    expect(options.ocrEngine).toBe("transformers");
+    expect(options.ocrEngineDtype).toBe("float32");
     expect(options.ocrVersion).toBe("PP-OCRv6");
     expect(options.ocrTextDetectionModelName).toBeUndefined();
     expect(options.ocrTextRecognitionModelName).toBeUndefined();
-    expect(options.ocrMergeMode).toBe("legacy");
+    expect(options.ocrMergeMode).toBe("semantic");
     expect(options.ocrDetLimit).toBe("1600");
     expect(options.ocrRecBatch).toBe("1");
     expect(options.llamaRuntimeProfile).toBe("cuda12");
@@ -626,6 +639,134 @@ describeWindows("app settings helpers", () => {
         "llama-server.exe",
       ),
     );
+  });
+
+  it("keeps CUDA legacy full on PaddleOCR-VL when env requests the semantic OCR path", () => {
+    const defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 4090",
+        memoryMb: 24564,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+      },
+    );
+    const options = buildBaseTranslationOptions({
+      jobId: "job-cuda-legacy-full",
+      runDir: "C:/runs/job-cuda-legacy-full",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub",
+      },
+      settings: {
+        ...defaults,
+        ocr: {
+          ...defaults.ocr,
+          qualityMode: "cuda-legacy-full",
+        },
+      },
+      env: {
+        MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE: "ocr",
+        MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE: "semantic",
+      },
+    });
+
+    expect(options.ocrQualityMode).toBe("cuda-legacy-full");
+    expect(options.ocrBboxMode).toBe("vl");
+    expect(options.ocrEngine).toBeUndefined();
+    expect(options.ocrVersion).toBe("PP-OCRv6");
+    expect(options.ocrMergeMode).toBe("legacy");
+    expect(options.ocrTextDetectionModelName).toBeUndefined();
+    expect(options.ocrTextRecognitionModelName).toBeUndefined();
+  });
+
+  it("keeps common OCR qualities on the semantic OCR path despite legacy env values", () => {
+    const defaults = resolveDefaultAppSettings();
+    const paths = {
+      dataRoot: "C:/app-data",
+      toolsDir: "C:/tools",
+      llamaServerPath: "C:/tools/llama-server.exe",
+      hfHomeDir: "C:/hf-home",
+      hfHubCacheDir: "C:/hf-home/hub",
+    };
+    const scenarios: Array<{
+      label: string;
+      ocr: AppSettings["ocr"];
+      expectedQuality: "minimum" | "economy" | "full";
+      expectedEngine: "paddle_static" | "transformers";
+      expectedDetectionModel?: string;
+      expectedRecognitionModel?: string;
+    }> = [
+      {
+        label: "CUDA minimum",
+        ocr: {
+          ...defaults.ocr,
+          device: "gpu",
+          gpuBackend: "cuda",
+          qualityMode: "minimum",
+        },
+        expectedQuality: "minimum",
+        expectedEngine: "paddle_static",
+        expectedDetectionModel: "PP-OCRv6_small_det",
+        expectedRecognitionModel: "PP-OCRv6_tiny_rec",
+      },
+      {
+        label: "CPU full downgraded to economy",
+        ocr: {
+          ...defaults.ocr,
+          device: "cpu",
+          gpuBackend: "cuda",
+          qualityMode: "full",
+        },
+        expectedQuality: "economy",
+        expectedEngine: "paddle_static",
+        expectedDetectionModel: "PP-OCRv6_small_det",
+        expectedRecognitionModel: "PP-OCRv6_small_rec",
+      },
+      {
+        label: "ROCm CUDA legacy converted to common full",
+        ocr: {
+          ...defaults.ocr,
+          device: "gpu",
+          gpuBackend: "rocm-transformers",
+          qualityMode: "cuda-legacy-full",
+        },
+        expectedQuality: "full",
+        expectedEngine: "transformers",
+      },
+    ];
+
+    for (const scenario of scenarios) {
+      const options = buildBaseTranslationOptions({
+        jobId: `job-ocr-boundary-${scenario.label}`,
+        runDir: "C:/runs/ocr-boundary",
+        paths,
+        settings: { ...defaults, ocr: scenario.ocr },
+        env: {
+          MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE: "vl",
+          MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE: "legacy",
+        },
+      });
+
+      expect({
+        quality: options.ocrQualityMode,
+        bboxMode: options.ocrBboxMode,
+        mergeMode: options.ocrMergeMode,
+        engine: options.ocrEngine,
+        detectionModel: options.ocrTextDetectionModelName,
+        recognitionModel: options.ocrTextRecognitionModelName,
+      }).toEqual({
+        quality: scenario.expectedQuality,
+        bboxMode: "ocr",
+        mergeMode: "semantic",
+        engine: scenario.expectedEngine,
+        detectionModel: scenario.expectedDetectionModel,
+        recognitionModel: scenario.expectedRecognitionModel,
+      });
+    }
   });
 
   it("routes RTX 50 series Gemma runtimes to CUDA 13 builds", () => {
@@ -729,7 +870,7 @@ describeWindows("app settings helpers", () => {
     expect(options.ocrEngine).toBe("transformers");
     expect(options.ocrEngineDtype).toBe("float32");
     expect(options.ocrVersion).toBe("PP-OCRv6");
-    expect(options.ocrMergeMode).toBe("conservative");
+    expect(options.ocrMergeMode).toBe("semantic");
     expect(options.ocrDetLimit).toBe("1600");
     expect(options.ocrRecBatch).toBe("1");
     expect(options.serverPath).toBe(
@@ -910,7 +1051,7 @@ describeWindows("app settings helpers", () => {
     expect(supportedRestored.ocr.device).toBe("gpu");
   });
 
-  it("never pairs the full OCR quality with the CPU device", () => {
+  it("never pairs GPU-only full OCR qualities with the CPU device", () => {
     const nvidiaDefaults = resolveDefaultAppSettings(
       {},
       {
@@ -927,12 +1068,20 @@ describeWindows("app settings helpers", () => {
     );
     expect(restored.ocr.device).toBe("cpu");
     expect(restored.ocr.qualityMode).toBe("economy");
+    const restoredLegacy = parseStoredAppSettings(
+      JSON.stringify({
+        ocr: { device: "cpu", qualityMode: "cuda-legacy-full" },
+      }),
+      nvidiaDefaults,
+    );
+    expect(restoredLegacy.ocr.device).toBe("cpu");
+    expect(restoredLegacy.ocr.qualityMode).toBe("economy");
     // GPU keeps the full quality.
     expect(nvidiaDefaults.ocr.device).toBe("gpu");
     expect(nvidiaDefaults.ocr.qualityMode).toBe("full");
 
     // Hardware defaults: a 32GB AMD card without Windows ROCm OCR support
-    // gets CPU OCR, so the full31b tier must not select the full VL quality.
+    // gets CPU OCR, so the full31b tier must not select GPU-only full quality.
     const w6800Defaults = resolveDefaultAppSettings(
       {},
       {
@@ -948,6 +1097,101 @@ describeWindows("app settings helpers", () => {
     expect(w6800Defaults.gemma.vramMode).toBe("full31b");
     expect(w6800Defaults.ocr.device).toBe("cpu");
     expect(w6800Defaults.ocr.qualityMode).toBe("economy");
+
+    const amdLegacyRestored = parseStoredAppSettings(
+      JSON.stringify({
+        ocr: {
+          device: "gpu",
+          gpuBackend: "rocm-transformers",
+          qualityMode: "cuda-legacy-full",
+        },
+      }),
+      resolveDefaultAppSettings(
+        {},
+        {
+          name: "AMD Radeon RX 7900 XTX",
+          memoryMb: 24576,
+          rtxGeneration: null,
+          computeCapability: null,
+          vendor: "amd",
+          supportsRocm: true,
+        },
+      ),
+    );
+    expect(amdLegacyRestored.ocr.qualityMode).toBe("full");
+  });
+
+  it("locks saved OCR modes to the detected NVIDIA and AMD hardware", () => {
+    const amdDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon RX 7900 XTX",
+        memoryMb: 24576,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsRocm: true,
+      },
+    );
+    const amdRestored = parseStoredAppSettings(
+      JSON.stringify({
+        ocr: {
+          device: "gpu",
+          gpuBackend: "cuda",
+          qualityMode: "cuda-legacy-full",
+        },
+      }),
+      amdDefaults,
+    );
+    expect(amdRestored.ocr.gpuBackend).toBe("rocm-transformers");
+    expect(amdRestored.ocr.qualityMode).toBe("full");
+
+    const nvidiaDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 4090",
+        memoryMb: 24564,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+      },
+    );
+    const nvidiaRestored = parseStoredAppSettings(
+      JSON.stringify({
+        ocr: {
+          device: "gpu",
+          gpuBackend: "rocm-transformers",
+          qualityMode: "full",
+        },
+      }),
+      nvidiaDefaults,
+    );
+    expect(nvidiaRestored.ocr.gpuBackend).toBe("cuda");
+    expect(nvidiaRestored.ocr.qualityMode).toBe("full");
+
+    const unsupportedAmdDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon RX 6800 XT",
+        memoryMb: 16384,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: false,
+      },
+    );
+    const unsupportedAmdRestored = parseStoredAppSettings(
+      JSON.stringify({
+        ocr: {
+          device: "gpu",
+          gpuBackend: "cuda",
+          qualityMode: "cuda-legacy-full",
+        },
+      }),
+      unsupportedAmdDefaults,
+    );
+    expect(unsupportedAmdRestored.ocr.gpuBackend).toBe("cuda");
+    expect(unsupportedAmdRestored.ocr.qualityMode).toBe("full");
   });
 
   it("runs economy OCR when the runtime resolves full quality onto the CPU", () => {
@@ -1593,7 +1837,11 @@ describeWindows("app settings helpers", () => {
     expect(resolveOcrQualityMode("min", "full")).toBe("minimum");
     expect(resolveOcrQualityMode("tiny", "full")).toBe("minimum");
     expect(resolveOcrQualityMode("small", "full")).toBe("economy");
-    expect(resolveOcrQualityMode("vl", "minimum")).toBe("full");
+    expect(resolveOcrQualityMode("full", "minimum")).toBe("full");
+    expect(resolveOcrQualityMode("vl", "minimum")).toBe("cuda-legacy-full");
+    expect(resolveOcrQualityMode("cuda-legacy", "minimum")).toBe(
+      "cuda-legacy-full",
+    );
     expect(resolveOcrQualityMode("unknown", "economy")).toBe("economy");
   });
 

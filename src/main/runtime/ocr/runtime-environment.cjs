@@ -37,6 +37,8 @@ const {
   readPositiveIntegerOption,
 } = require("./config-values.cjs");
 const {
+  isOcrCudaTransformersRuntime,
+  isOcrTransformersEngine,
   resolveEffectiveOcrDevice,
   resolveOcrDevice,
   resolveOcrGpuBackend,
@@ -60,6 +62,7 @@ const EXTERNAL_ROCM_PATH_ENV_KEYS = new Set([
   "LD_LIBRARY_PATH",
   "LIBRARY_PATH",
 ]);
+const TORCH_DLL_RELATIVE_DIRS = ["Scripts", "torch", path.join("torch", "lib")];
 
 /** @param {RuntimeOptions} [options] @param {OcrRuntimeLayout | null} [runtime] @returns {NodeJS.ProcessEnv} */
 function buildOcrRuntimeEnv(
@@ -273,16 +276,16 @@ function buildPaddleOcrModeEnv(
   ocrDevice = "",
   ocrGpuBackend = "",
 ) {
-  const rocmTransformers =
+  const transformersRuntime =
     String(ocrDevice).startsWith("gpu") &&
-    ocrGpuBackend === "rocm-transformers";
-  const defaults = rocmTransformers
+    isOcrTransformersEngine({ ...options, ocrGpuBackend });
+  const defaults = transformersRuntime
     ? {
         engine: "transformers",
         dtype: "float32",
         bboxMode: "ocr",
         version: "PP-OCRv6",
-        mergeMode: "conservative",
+        mergeMode: "semantic",
         detLimit: "1600",
         recBatch: "1",
       }
@@ -400,8 +403,11 @@ function buildOcrRuntimeDllSearchDirs(
   const packageDir =
     runtime?.packageDir || resolveOcrPythonPackageDir(runtimeDir, options);
   const paddleDirs = buildPaddleDllSearchDirs(packageDir);
-  return resolveOcrGpuBackend(options) === "rocm-transformers"
-    ? [...paddleDirs, ...buildRocmDllSearchDirs(packageDir)]
+  if (resolveOcrGpuBackend(options) === "rocm-transformers") {
+    return [...paddleDirs, ...buildRocmDllSearchDirs(packageDir)];
+  }
+  return isOcrCudaTransformersRuntime(options)
+    ? [...paddleDirs, ...buildTorchDllSearchDirs(packageDir)]
     : paddleDirs;
 }
 
@@ -421,9 +427,7 @@ function buildPaddleDllSearchDirs(packageDir) {
 /** @param {string} packageDir @returns {string[]} */
 function buildRocmDllSearchDirs(packageDir) {
   return [
-    "Scripts",
-    "torch",
-    path.join("torch", "lib"),
+    ...TORCH_DLL_RELATIVE_DIRS,
     "rocm",
     path.join("rocm", "bin"),
     path.join("rocm", "lib"),
@@ -440,6 +444,13 @@ function buildRocmDllSearchDirs(packageDir) {
     path.join("_rocm_sdk_libraries_custom", "bin", "hipblaslt"),
     path.join("_rocm_sdk_libraries_custom", "bin", "hipblaslt", "library"),
   ].map((relativePath) => path.join(packageDir, relativePath));
+}
+
+/** @param {string} packageDir @returns {string[]} */
+function buildTorchDllSearchDirs(packageDir) {
+  return TORCH_DLL_RELATIVE_DIRS.map((relativePath) =>
+    path.join(packageDir, relativePath),
+  );
 }
 
 module.exports = {

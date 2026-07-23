@@ -18,7 +18,11 @@ import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { OcrBboxResult } from "./types";
 import { tMain } from "./localization";
 
-const OCR_HINT_CACHE_SCHEMA_VERSION = 5;
+// Schema 9 adds deterministic axis-v4 review-fragment metadata used by the
+// image-aware group-only pass. Older semantic caches must be regenerated:
+// treating their legacy Paddle groups as reviewed final groups would lock in
+// the exact split/merge regressions this stage is meant to prevent.
+const OCR_HINT_CACHE_SCHEMA_VERSION = 9;
 
 type PrepareOcrHintsOptions = {
   runtime: TranslationRuntimePort;
