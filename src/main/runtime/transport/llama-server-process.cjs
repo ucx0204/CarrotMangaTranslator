@@ -3,7 +3,7 @@
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { label?: string | null; onProgress?: ((progress: Record<string, unknown>) => void) | null; port?: unknown; reuseServer?: boolean | null; serverPath?: string | null; serverLogPath?: string | null }} ServerRuntimeOptions */
 /** @typedef {{ baseUrl: string; child: import("node:child_process").ChildProcess | null; startedByScript: boolean; serverLogPath?: string | null }} StartedServer */
-/** @typedef {{ child: import("node:child_process").ChildProcess; recent: { stdout: string; stderr: string }; logStream: import("node:fs").WriteStream | null; onAbort: () => void }} RunningServer */
+/** @typedef {{ child: import("node:child_process").ChildProcess; recent: { stdout: string; stderr: string }; logStream: import("node:fs").WriteStream | null; forwardOutputToProgress: boolean; onAbort: () => void }} RunningServer */
 const { spawn } = require("node:child_process");
 const { existsSync } = require("node:fs");
 const { setTimeout: delay } = require("node:timers/promises");
@@ -82,6 +82,7 @@ async function startServer(options) {
   const running = spawnServer(serverPath, launchArgs, options);
   try {
     await awaitServerReady(baseUrl, serverPath, launchArgs, options, running);
+    running.forwardOutputToProgress = false;
     emitServerReady(options);
   } catch (error) {
     terminateChildProcessTree(running.child);
@@ -197,6 +198,7 @@ function spawnServer(serverPath, launchArgs, options) {
     child,
     recent: { stdout: "", stderr: "" },
     logStream: createServerLogStream(options, serverPath, launchArgs),
+    forwardOutputToProgress: true,
     onAbort: () => terminateChildProcessTree(child),
   };
   options.abortSignal?.addEventListener?.("abort", running.onAbort, {
@@ -208,24 +210,24 @@ function spawnServer(serverPath, launchArgs, options) {
 
 /** @param {RunningServer} running @param {ServerRuntimeOptions} options */
 function bindServerOutput(running, options) {
-  const { child, logStream, recent } = running;
+  const { child, logStream } = running;
   child.stdout?.setEncoding("utf8");
   child.stderr?.setEncoding("utf8");
   child.stdout?.on("data", (chunk) =>
-    recordServerOutput("stdout", chunk, recent, logStream, options),
+    recordServerOutput("stdout", chunk, running, options),
   );
   child.stderr?.on("data", (chunk) =>
-    recordServerOutput("stderr", chunk, recent, logStream, options),
+    recordServerOutput("stderr", chunk, running, options),
   );
   child.once("exit", () => logStream?.end());
   child.once("error", () => logStream?.end());
 }
 
-/** @param {"stdout" | "stderr"} stream @param {unknown} chunk @param {{ stdout: string; stderr: string }} recent @param {import("node:fs").WriteStream | null} logStream @param {ServerRuntimeOptions} options */
-function recordServerOutput(stream, chunk, recent, logStream, options) {
-  recent[stream] = shrinkBuffer(recent[stream], chunk);
-  logStream?.write(`[${stream}] ${chunk}`);
-  emitServerInstallLog(options, chunk);
+/** @param {"stdout" | "stderr"} stream @param {unknown} chunk @param {RunningServer} running @param {ServerRuntimeOptions} options */
+function recordServerOutput(stream, chunk, running, options) {
+  running.recent[stream] = shrinkBuffer(running.recent[stream], chunk);
+  running.logStream?.write(`[${stream}] ${chunk}`);
+  emitServerInstallLog(options, chunk, running.forwardOutputToProgress);
   const line = `[llama:${options.label}:${stream}] ${chunk}`;
   if (stream === "stdout") process.stdout.write(line);
   else process.stderr.write(line);

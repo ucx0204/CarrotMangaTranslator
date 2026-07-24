@@ -24,6 +24,7 @@ type ReviewProjection = JsonRecord & {
 const {
   GROUP_ONLY_PROMPT_CONTRACT_VERSION,
   applyReviewedGroupsToHints,
+  buildGroupOnlyReviewFallback,
   buildGroupOnlyReviewPlan,
   buildGroupOnlyReviewPrompt,
   buildGroupOnlyReviewResponseFormat,
@@ -41,6 +42,7 @@ const {
     validatedGroupOnlyReview: boolean;
     reviewedGroupCount: number;
   };
+  buildGroupOnlyReviewFallback: (plan: ReviewPlan) => ReviewProjection;
   buildGroupOnlyReviewPlan: (
     reviewCase: JsonRecord,
     region?: JsonRecord,
@@ -82,7 +84,7 @@ describe("group-only crop review contract", () => {
     };
 
     expect(plan.candidateOrder).toEqual([10, 11, 20, 21]);
-    expect(GROUP_ONLY_PROMPT_CONTRACT_VERSION).toBe(10);
+    expect(GROUP_ONLY_PROMPT_CONTRACT_VERSION).toBe(11);
     expect(prompt).toContain("candidateOrder=[10,11,20,21]");
     expect(prompt).toContain("Return exactly 4 labels");
     expect(prompt).toContain("Never split a supplied upstream fragment");
@@ -173,6 +175,218 @@ describe("group-only crop review contract", () => {
     expect(applied.validatedGroupOnlyReview).toBe(true);
     expect(reviewCase.candidates).toEqual(makeCase().candidates);
   });
+
+  it("separates weak diagonal merges across different Paddle lineages and keeps each ruby host", () => {
+    const plan = buildGroupOnlyReviewPlan(
+      {
+        candidates: [
+          reviewCandidate(1, "右", 186, 521, 310, 686, "PADDLE-A"),
+          reviewCandidate(2, "みぎ", 290, 530, 305, 560, "PADDLE-A"),
+          reviewCandidate(3, "左", 129, 634, 193, 778, "PADDLE-B"),
+          reviewCandidate(4, "ひだり", 130, 640, 145, 670, "PADDLE-B"),
+        ],
+        upstreamFragments: [
+          { fragment: "B001", status: "confirmed", ids: [1] },
+          { fragment: "D001", status: "deferred", ids: [2] },
+          { fragment: "B002", status: "confirmed", ids: [3] },
+          { fragment: "D002", status: "deferred", ids: [4] },
+        ],
+      },
+      makeRegion(),
+    );
+    const projected = parseGroupOnlyReviewResponse(
+      JSON.stringify({
+        labels: [
+          { group: 1, role: "body" },
+          { group: 1, role: "ruby" },
+          { group: 1, role: "ruby" },
+          { group: 1, role: "ruby" },
+        ],
+      }),
+      plan,
+    );
+
+    expect(projected.groups.map((group) => group.candidateIds)).toEqual([
+      [1, 2],
+      [3, 4],
+    ]);
+    expect(projected.groups.map((group) => group.rubyCandidateIds)).toEqual([
+      [2],
+      [4],
+    ]);
+    expect(projected.groups.map((group) => group.bodyCandidateIds)).toEqual([
+      [1],
+      [3],
+    ]);
+  });
+
+  it("preserves same-Paddle, strongly aligned, and disjoint cross-fragment merges", () => {
+    const cases = [
+      [
+        reviewCandidate(1, "右", 186, 521, 310, 686, "SHARED"),
+        reviewCandidate(2, "左", 129, 634, 193, 778, "SHARED"),
+      ],
+      [
+        reviewCandidate(1, "上", 100, 100, 140, 300, "PADDLE-A"),
+        reviewCandidate(2, "下", 130, 100, 170, 300, "PADDLE-B"),
+      ],
+      [
+        reviewCandidate(1, "斜", 100, 100, 150, 200, "PADDLE-A"),
+        reviewCandidate(2, "音", 300, 300, 350, 400, "PADDLE-B"),
+      ],
+    ];
+    for (const candidates of cases) {
+      const plan = buildGroupOnlyReviewPlan(
+        {
+          candidates,
+          upstreamFragments: [
+            { fragment: "B001", status: "confirmed", ids: [1] },
+            { fragment: "B002", status: "confirmed", ids: [2] },
+          ],
+        },
+        makeRegion(),
+      );
+      const projected = parseGroupOnlyReviewResponse(
+        JSON.stringify({
+          labels: [
+            { group: 1, role: "body" },
+            { group: 1, role: "body" },
+          ],
+        }),
+        plan,
+      );
+      expect(projected.groups.map((group) => group.candidateIds)).toEqual([
+        [1, 2],
+      ]);
+    }
+  });
+
+  it("does not promote confirmed ruby when a deferred body already owns the separated component", () => {
+    const plan = buildGroupOnlyReviewPlan(
+      {
+        candidates: [
+          reviewCandidate(1, "右", 186, 521, 310, 686, "PADDLE-A"),
+          reviewCandidate(2, "ひだり", 129, 634, 193, 778, "PADDLE-B"),
+          {
+            ...reviewCandidate(3, "左", 130, 640, 170, 750, "PADDLE-B"),
+            reviewStatus: "deferred",
+          },
+        ],
+        upstreamFragments: [
+          { fragment: "B001", status: "confirmed", ids: [1] },
+          { fragment: "B002", status: "confirmed", ids: [2] },
+          { fragment: "D001", status: "deferred", ids: [3] },
+        ],
+      },
+      makeRegion(),
+    );
+    const projected = parseGroupOnlyReviewResponse(
+      JSON.stringify({
+        labels: [
+          { group: 1, role: "body" },
+          { group: 1, role: "ruby" },
+          { group: 1, role: "body" },
+        ],
+      }),
+      plan,
+    );
+
+    expect(projected.groups.map((group) => group.bodyCandidateIds)).toEqual([
+      [1],
+      [3],
+    ]);
+    expect(projected.groups.map((group) => group.rubyCandidateIds)).toEqual([
+      [],
+      [2],
+    ]);
+  });
+
+  it("reattaches one contained low-confidence fallback satellite as ruby", () => {
+    const plan = buildGroupOnlyReviewPlan(
+      {
+        candidates: [
+          reviewCandidate(1, "本", 100, 100, 140, 300, "PADDLE-A"),
+          reviewCandidate(2, "文", 140, 100, 180, 300, "PADDLE-A"),
+          {
+            ...reviewCandidate(3, "ほん", 145, 120, 158, 160, "PADDLE-A"),
+            score: 0.4,
+            reviewStatus: "deferred",
+            reviewReasons: ["small_low_confidence_text"],
+          },
+        ],
+        upstreamFragments: [
+          { fragment: "B001", status: "confirmed", ids: [1, 2] },
+          { fragment: "D001", status: "deferred", ids: [3] },
+        ],
+      },
+      makeRegion(),
+    );
+    const fallback = buildGroupOnlyReviewFallback(plan);
+
+    expect(fallback.groups).toEqual([
+      expect.objectContaining({
+        candidateIds: [1, 2, 3],
+        bodyCandidateIds: [1, 2],
+        rubyCandidateIds: [3],
+        jp: "本文",
+      }),
+    ]);
+  });
+
+  it.each([
+    ["90% covered", 181, true],
+    ["less than 90% covered", 182, false],
+  ])(
+    "treats a slightly protruding fallback satellite as ruby only when it is %s",
+    (_label, satelliteX2, shouldAttach) => {
+      const plan = buildGroupOnlyReviewPlan(
+        {
+          candidates: [
+            reviewCandidate(1, "本文", 100, 100, 180, 300, "PADDLE-A"),
+            {
+              ...reviewCandidate(
+                2,
+                "ほん",
+                171,
+                120,
+                satelliteX2,
+                160,
+                "PADDLE-A",
+              ),
+              score: 0.4,
+              reviewStatus: "deferred",
+              reviewReasons: ["small_low_confidence_text"],
+            },
+          ],
+          upstreamFragments: [
+            { fragment: "B001", status: "confirmed", ids: [1] },
+            { fragment: "D001", status: "deferred", ids: [2] },
+          ],
+        },
+        makeRegion(),
+      );
+      const fallback = buildGroupOnlyReviewFallback(plan);
+
+      expect(fallback.groups.map((group) => group.candidateIds)).toEqual(
+        shouldAttach ? [[1, 2]] : [[1], [2]],
+      );
+      expect(fallback.labels[1].role).toBe(shouldAttach ? "ruby" : "body");
+
+      const model = parseGroupOnlyReviewResponse(
+        JSON.stringify({
+          labels: [
+            { group: 1, role: "body" },
+            { group: 2, role: "body" },
+          ],
+        }),
+        plan,
+      );
+      expect(model.groups.map((group) => group.candidateIds)).toEqual(
+        shouldAttach ? [[1, 2]] : [[1], [2]],
+      );
+      expect(model.labels[1].role).toBe(shouldAttach ? "ruby" : "body");
+    },
+  );
 
   it.each([
     [
@@ -520,6 +734,31 @@ function validLabels() {
     { group: 2, role: "body" },
     { group: 2, role: "body" },
   ];
+}
+
+function reviewCandidate(
+  id: number,
+  ocrText: string,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  paddleGroupId: string,
+): JsonRecord {
+  return {
+    id,
+    x1,
+    y1,
+    x2,
+    y2,
+    ocrText,
+    score: 0.99,
+    paddleGroupId,
+    paddleOrder: 1,
+    paddleGroupSize: 1,
+    reviewStatus: "confirmed",
+    reviewReasons: [],
+  };
 }
 
 function makeRegion(): JsonRecord {

@@ -40,6 +40,17 @@
   },
   "workspace": {
     "readingArea": "Reading area",
+    "view": {
+      "label": "Image view controls",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "resetZoom": "Reset zoom",
+      "fitMode": "Image fit mode",
+      "contain": "Fit screen",
+      "width": "Fit width",
+      "height": "Fit height",
+      "actual": "100%"
+    },
     "empty": {
       "title": "Start translating manga",
       "description": "Import images, folders, or ZIP files, organize them by work and chapter, then translate, inpaint, and edit each page.",

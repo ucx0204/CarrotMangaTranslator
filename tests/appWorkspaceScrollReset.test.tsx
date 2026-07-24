@@ -37,6 +37,7 @@ describe("AppWorkspace scroll reset", () => {
     );
     const workspace = screen.getByLabelText("읽기 영역") as HTMLElement;
     workspace.scrollTop = 600;
+    workspace.scrollLeft = 320;
 
     view.rerender(
       withFonts(
@@ -52,6 +53,7 @@ describe("AppWorkspace scroll reset", () => {
     );
 
     expect(workspace.scrollTop).toBe(600);
+    expect(workspace.scrollLeft).toBe(320);
 
     view.rerender(
       withFonts(
@@ -67,6 +69,7 @@ describe("AppWorkspace scroll reset", () => {
     );
 
     expect(workspace.scrollTop).toBe(0);
+    expect(workspace.scrollLeft).toBe(0);
   });
 
   it("does not keep forcing scroll to top while the same page remains rendered", () => {
@@ -179,6 +182,10 @@ function makeWorkspaceProps({
     onStagePointerUp: () => undefined,
     onToggleRegionTranslation: () => undefined,
     onToggleStageToolbarHidden: () => undefined,
+    onChangeWorkspaceFitMode: () => undefined,
+    onResetWorkspaceZoom: () => undefined,
+    onZoomInWorkspace: () => undefined,
+    onZoomOutWorkspace: () => undefined,
     onUndo: () => undefined,
     compareAvailable: false,
     resetAvailable: false,
@@ -201,6 +208,7 @@ function makeWorkspaceProps({
     stageTool: "select",
     stageToolbarHidden: false,
     workspacePanelRef: refs.workspacePanelRef,
+    workspaceFitMode: "contain",
     workspaceZoom: 1,
   };
 }

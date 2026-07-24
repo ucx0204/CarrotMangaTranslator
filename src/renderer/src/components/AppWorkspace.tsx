@@ -16,9 +16,12 @@ import { Button } from "./ui/Button";
 import { useFonts } from "../fonts/useFonts";
 import { useWorkspaceZoomStyle } from "../hooks/useWorkspaceZoomStyle";
 import { formatCombo } from "../lib/shortcuts/comboFromEvent";
+import type { WorkspaceFitMode } from "../lib/workspaceZoom";
+import { WorkspaceViewControls } from "./WorkspaceViewControls";
 
 type AppWorkspaceProps = {
   workspacePanelRef: React.RefObject<HTMLElement | null>;
+  workspaceFitMode: WorkspaceFitMode;
   workspaceZoom: number;
   selectedPage: MangaPage | null;
   selectedPageImageDataUrl: string;
@@ -55,6 +58,10 @@ type AppWorkspaceProps = {
   onSelectStageTool: (tool: WorkspaceTool) => void;
   onToggleRegionTranslation: () => void;
   onToggleStageToolbarHidden: () => void;
+  onChangeWorkspaceFitMode: (fitMode: WorkspaceFitMode) => void;
+  onResetWorkspaceZoom: () => void;
+  onZoomInWorkspace: () => void;
+  onZoomOutWorkspace: () => void;
   onStagePointerMove: ImageStageProps["onStagePointerMove"];
   onStagePointerUp: ImageStageProps["onStagePointerUp"];
   onStagePointerDown: ImageStageProps["onStagePointerDown"];
@@ -78,6 +85,7 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
   useFonts();
   const zoomStyle = useWorkspaceZoomStyle(
     props.workspaceZoom,
+    props.workspaceFitMode,
     props.selectedPage,
     workspacePanelRef,
   );
@@ -129,6 +137,14 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
             regionTranslationActive={props.regionSelectionActive}
             regionTranslationAvailable={props.regionTranslationAvailable}
             tool={props.stageTool}
+          />
+          <WorkspaceViewControls
+            fitMode={props.workspaceFitMode}
+            zoom={props.workspaceZoom}
+            onChangeFitMode={props.onChangeWorkspaceFitMode}
+            onResetZoom={props.onResetWorkspaceZoom}
+            onZoomIn={props.onZoomInWorkspace}
+            onZoomOut={props.onZoomOutWorkspace}
           />
         </>
       ) : null}
@@ -213,6 +229,7 @@ function useResetWorkspaceScrollOnRenderedPage({
     const panel = workspacePanelRef.current;
     if (panel) {
       panel.scrollTop = 0;
+      panel.scrollLeft = 0;
     }
     lastResetPageIdRef.current = pageId;
   }, [pageId, renderedImagePageId, workspacePanelRef]);

@@ -20,6 +20,18 @@ describe("unified workspace interaction state", () => {
     expect(result.current.peekOriginal).toBe(false);
   });
 
+  it("uses screen fit by default and resets zoom when the fit basis changes", () => {
+    const { result } = renderHook(() => useAppSessionUiState());
+
+    expect(result.current.workspaceFitMode).toBe("contain");
+    act(() => result.current.zoomInWorkspace());
+    expect(result.current.workspaceZoom).toBe(1.25);
+
+    act(() => result.current.setWorkspaceFitMode("width"));
+    expect(result.current.workspaceFitMode).toBe("width");
+    expect(result.current.workspaceZoom).toBe(1);
+  });
+
   it("returns to select whenever the selected page changes", () => {
     const onPageChange = vi.fn();
     const options = {

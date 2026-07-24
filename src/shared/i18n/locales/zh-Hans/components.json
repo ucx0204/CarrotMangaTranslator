@@ -40,6 +40,17 @@
   },
   "workspace": {
     "readingArea": "阅读区域",
+    "view": {
+      "label": "图像视图控制",
+      "zoomOut": "缩小",
+      "zoomIn": "放大",
+      "resetZoom": "重置缩放",
+      "fitMode": "图像适配方式",
+      "contain": "适应窗口",
+      "width": "适应宽度",
+      "height": "适应高度",
+      "actual": "100%"
+    },
     "empty": {
       "title": "开始翻译漫画",
       "description": "导入图片、文件夹或ZIP文件，按作品和章节保存，然后逐页进行翻译、图像修复和编辑。",

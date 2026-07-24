@@ -21,7 +21,8 @@ const {
   buildFixedBlockPlan,
   buildFixedBlockTranslationPrompt,
   buildFixedBlockTranslationSystemPrompt,
-  parseFixedBlockTranslationResponse,
+  mergeFixedBlockTranslationResults,
+  parseFixedBlockTranslationPartialResponse,
 } = require("../semantic-ocr/fixed-block-translation.cjs");
 const {
   buildFixedBlockTranslationResponseFormat,
@@ -30,10 +31,13 @@ const {
   readChatCompletionResult,
   sendChatCompletion,
 } = require("./chat-completion.cjs");
+const { findAbortError } = require("./model-http-errors.cjs");
 const {
   buildSemanticImageMessages,
   buildSemanticStageRequestBody,
 } = require("./semantic-ocr-request-builders.cjs");
+
+const MAX_FIXED_BLOCK_REPAIR_ATTEMPTS = 3;
 
 /**
  * Translate code-owned OCR groups. The model receives the page for context,
@@ -97,6 +101,195 @@ async function requestFixedBlockTranslation(
     };
   }
 
+  const initialPass = await requestFixedBlockPass(
+    server,
+    options,
+    imageVariants,
+    plan,
+    promptText,
+    systemPrompt,
+    requestSummary,
+    requestStartedAt,
+  );
+  requestSummary.fixedBlockTranslationForbiddenTokenBias =
+    initialPass.forbiddenTokenBias;
+  requestSummary.localForbiddenTokenBias =
+    requestSummary.fixedBlockTranslationForbiddenTokenBias;
+  const initialPartial = parseFixedBlockTranslationPartialResponse(
+    initialPass.response.outputText,
+    plan,
+    options,
+  );
+  const repaired = await repairInvalidFixedBlockTranslations(
+    server,
+    options,
+    imageVariants,
+    plan,
+    initialPartial.translations,
+    initialPartial.retryBlockIds,
+    requestSummary,
+    requestStartedAt,
+  );
+  const translations = repaired.translations;
+  const repairResponses = repaired.responses;
+  const repairHistory = repaired.history;
+  const omittedIds = new Set(repaired.pendingBlockIds);
+  const safePlan =
+    omittedIds.size === 0
+      ? plan
+      : {
+          ...plan,
+          blocks: plan.blocks.filter((block) => !omittedIds.has(block.blockId)),
+        };
+  const safeTranslations =
+    omittedIds.size === 0
+      ? translations
+      : {
+          ...translations,
+          items: translations.items.filter(
+            (item) => !omittedIds.has(item.blockId),
+          ),
+        };
+  Object.assign(requestSummary, {
+    fixedBlockRepairAttempts: repairHistory.length,
+    ...(repairHistory.length > 0
+      ? { fixedBlockRepairHistory: repairHistory }
+      : {}),
+    ...(omittedIds.size > 0 ? { fixedBlockOmittedIds: [...omittedIds] } : {}),
+  });
+  return {
+    requestBody: requestSummary,
+    rawResponse:
+      repairResponses.length > 0
+        ? {
+            initial: initialPass.response.rawResponse,
+            repairs: repairResponses,
+          }
+        : initialPass.response.rawResponse,
+    outputText: JSON.stringify(
+      buildFixedBlockOverlayPayload(safePlan, safeTranslations),
+    ),
+  };
+}
+
+/**
+ * Preserve every accepted translation while regenerating only the immutable
+ * ids that were missing, duplicated, malformed, or in the wrong language.
+ *
+ * @param {ModelServer} server
+ * @param {SemanticRequestOptions} options
+ * @param {ImageVariant[]} imageVariants
+ * @param {ReturnType<typeof buildFixedBlockPlan>} plan
+ * @param {{items:Array<{blockId:string;ko:string}>;pageContext?:Record<string,unknown>}} initialTranslations
+ * @param {string[]} initialPendingBlockIds
+ * @param {RequestSummary} requestSummary
+ * @param {number} requestStartedAt
+ */
+async function repairInvalidFixedBlockTranslations(
+  server,
+  options,
+  imageVariants,
+  plan,
+  initialTranslations,
+  initialPendingBlockIds,
+  requestSummary,
+  requestStartedAt,
+) {
+  let translations = initialTranslations;
+  let pendingBlockIds = initialPendingBlockIds;
+  const responses = [];
+  const history = [];
+  const expectedIds = plan.blocks.map((block) => block.blockId);
+
+  for (
+    let repairAttempt = 1;
+    pendingBlockIds.length > 0 &&
+    repairAttempt <= MAX_FIXED_BLOCK_REPAIR_ATTEMPTS;
+    repairAttempt += 1
+  ) {
+    const repairIds = new Set(pendingBlockIds);
+    const repairPlan = {
+      ...plan,
+      blocks: plan.blocks.filter((block) => repairIds.has(block.blockId)),
+    };
+    const repairOptions = {
+      ...options,
+      collectPageContext: false,
+      translationAttempt:
+        Math.max(1, Number(options.translationAttempt) || 1) + repairAttempt,
+    };
+    const repairPrompt = buildFixedBlockTranslationPrompt(
+      repairPlan,
+      repairOptions,
+    );
+    const repairSystemPrompt =
+      buildFixedBlockTranslationSystemPrompt(repairOptions);
+    try {
+      const repairPass = await requestFixedBlockPass(
+        server,
+        repairOptions,
+        imageVariants,
+        repairPlan,
+        repairPrompt,
+        repairSystemPrompt,
+        requestSummary,
+        requestStartedAt,
+      );
+      const partial = parseFixedBlockTranslationPartialResponse(
+        repairPass.response.outputText,
+        repairPlan,
+        repairOptions,
+      );
+      translations = mergeFixedBlockTranslationResults(
+        translations,
+        partial.translations,
+        expectedIds,
+      );
+      pendingBlockIds = partial.retryBlockIds;
+      responses.push(repairPass.response.rawResponse);
+      history.push({
+        attempt: repairAttempt,
+        blockIds: [...repairIds],
+        remainingBlockIds: pendingBlockIds,
+        forbiddenTokenBias: repairPass.forbiddenTokenBias,
+      });
+    } catch (error) {
+      const abortError = findAbortError(error);
+      if (options.abortSignal?.aborted || abortError) {
+        throw abortError || error;
+      }
+      if (!isFixedBlockRepairContractError(error)) throw error;
+      history.push({
+        attempt: repairAttempt,
+        blockIds: [...repairIds],
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return { translations, pendingBlockIds, responses, history };
+}
+
+/**
+ * @param {ModelServer} server
+ * @param {SemanticRequestOptions} options
+ * @param {ImageVariant[]} imageVariants
+ * @param {ReturnType<typeof buildFixedBlockPlan>} plan
+ * @param {string} promptText
+ * @param {string} systemPrompt
+ * @param {RequestSummary} requestSummary
+ * @param {number} requestStartedAt
+ */
+async function requestFixedBlockPass(
+  server,
+  options,
+  imageVariants,
+  plan,
+  promptText,
+  systemPrompt,
+  requestSummary,
+  requestStartedAt,
+) {
   const blockIds = plan.blocks.map((block) => block.blockId);
   const requestBody = buildSemanticStageRequestBody(
     options,
@@ -110,10 +303,11 @@ async function requestFixedBlockTranslation(
     "translation",
     blockIds.length,
   );
-  requestSummary.fixedBlockTranslationForbiddenTokenBias =
-    await applyLocalForbiddenTokenBias(server, options, requestBody);
-  requestSummary.localForbiddenTokenBias =
-    requestSummary.fixedBlockTranslationForbiddenTokenBias;
+  const forbiddenTokenBias = await applyLocalForbiddenTokenBias(
+    server,
+    options,
+    requestBody,
+  );
   const rawResponse = await sendChatCompletion(
     server,
     options,
@@ -127,18 +321,17 @@ async function requestFixedBlockTranslation(
     requestSummary,
     requestStartedAt,
   );
-  const translations = parseFixedBlockTranslationResponse(
-    response.outputText,
-    plan,
-    options,
+  return { response, forbiddenTokenBias };
+}
+
+/** @param {unknown} error */
+function isFixedBlockRepairContractError(error) {
+  if (!error || typeof error !== "object") return false;
+  const code = String(/** @type {{code?:unknown}} */ (error).code ?? "");
+  return (
+    code === "semantic-ocr-json-invalid" ||
+    code.startsWith("fixed-block-translation-")
   );
-  return {
-    requestBody: requestSummary,
-    rawResponse: response.rawResponse,
-    outputText: JSON.stringify(
-      buildFixedBlockOverlayPayload(plan, translations),
-    ),
-  };
 }
 
 /**

@@ -40,6 +40,17 @@
   },
   "workspace": {
     "readingArea": "읽기 영역",
+    "view": {
+      "label": "이미지 보기 조절",
+      "zoomOut": "축소",
+      "zoomIn": "확대",
+      "resetZoom": "배율 초기화",
+      "fitMode": "이미지 맞춤 방식",
+      "contain": "화면 맞춤",
+      "width": "가로 맞춤",
+      "height": "세로 맞춤",
+      "actual": "100%"
+    },
     "empty": {
       "title": "망가 번역을 시작해요",
       "description": "이미지·폴더·ZIP을 가져와 작품과 화 단위로 저장하고, 페이지별로 번역·인페인팅·편집할 수 있어요.",

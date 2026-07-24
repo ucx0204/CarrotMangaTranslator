@@ -23,12 +23,20 @@ const {
 } = require("../simple-page-language-profile.cjs");
 const { buildWorkContextSection } = require("../prompts/work-context.cjs");
 const {
-  cleanText,
   isRecord,
-  parseJsonObject,
   positiveInteger,
   semanticContractError,
 } = require("./values.cjs");
+const {
+  isRejectedLowConfidenceNoiseGroup,
+  resolveFixedBlockConfidence,
+} = require("./fixed-block-quality.cjs");
+const {
+  mergeFixedBlockTranslationResults,
+  parseFixedBlockTranslationDraft,
+  parseFixedBlockTranslationPartialResponse,
+  parseFixedBlockTranslationResponse,
+} = require("./fixed-block-response.cjs");
 
 const FIXED_BLOCK_TRANSLATION_VERSION = 4;
 
@@ -104,6 +112,12 @@ function buildFixedBlockPlan(options, imageVariants = []) {
   const candidates = /** @type {FixedCandidate[]} */ (
     buildSemanticCandidates(options, imageVariants)
   );
+  const hintById = new Map(
+    hints.flatMap((hint) => {
+      const id = positiveInteger(hint?.id);
+      return id ? [[id, hint]] : [];
+    }),
+  );
   const candidateById = new Map(
     candidates.map((candidate) => [candidate.id, candidate]),
   );
@@ -159,9 +173,12 @@ function buildFixedBlockPlan(options, imageVariants = []) {
     memberGroups.push([candidate]);
   }
 
+  const acceptedMemberGroups = memberGroups.filter(
+    (members) => !isRejectedLowConfidenceNoiseGroup(members, hintById, options),
+  );
   return {
     version: FIXED_BLOCK_TRANSLATION_VERSION,
-    blocks: memberGroups.map((members, index) =>
+    blocks: acceptedMemberGroups.map((members, index) =>
       buildFixedBlock(members, index, sourceTextById, reviewRoleById),
     ),
   };
@@ -192,7 +209,7 @@ function buildFixedBlock(members, index, sourceTextById, reviewRoleById) {
           sourceTextById.get(candidate.id) ?? String(candidate.text ?? ""),
       )
       .join(""),
-    direction: resolveDirection(members),
+    direction: resolveDirection(lexicalMembers),
     bbox: {
       x1: Math.min(...members.map((candidate) => candidate.bbox[0])),
       y1: Math.min(...members.map((candidate) => candidate.bbox[1])),
@@ -207,7 +224,12 @@ function buildFixedBlock(members, index, sourceTextById, reviewRoleById) {
               1000,
           ) / 1000
         : 0.75,
-    soundCandidate: members.length === 1 && members[0]?.soundCandidate === true,
+    // A split SFX may contain several Paddle candidates. Keep it on the sound
+    // path only when every member carries an explicit SFX classification;
+    // mixed dialogue/SFX groups stay ordinary.
+    soundCandidate:
+      members.length > 0 &&
+      members.every((candidate) => candidate.soundCandidate === true),
     fragments: members.map((candidate) => ({
       candidateId: candidate.id,
       text: candidate.text,
@@ -245,6 +267,12 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
     "Each item has exactly two keys: blockId and ko. Never output jp, candidateIds, coordinates, bbox, type, role, confidence, action, or commentary.",
     "ko must faithfully translate the complete jp without losing the opening phrase, modifiers, negation, names, numbers, honorifics, register, modality, or final predicate.",
     "ko must be one plain continuous line with natural target-language spaces. The renderer performs visual wrapping.",
+    `Every ko value must be written only in ${profile.targetName}; never copy untranslated ${profile.sourceName} script from jp.`,
+    ...(profile.isDefaultJapaneseToKorean
+      ? [
+          "For Korean output, Japanese kana, kanji, iteration marks, and Japanese prolonged-sound marks are forbidden. Translate or transliterate them into natural Hangul.",
+        ]
+      : []),
     "Do not include source text, coordinates, explanations, markdown, or uncertainty notes in ko.",
     "Before returning, verify that each blockId appears exactly once and that ko translates only that block's supplied jp.",
     ...(options.collectPageContext
@@ -254,7 +282,7 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
       : []),
     ...(Number.isFinite(attempt) && attempt > 1
       ? [
-          `Schema verification attempt ${Math.trunc(attempt)}: correct the previous translation or blockId partition violation without changing any fixed block.`,
+          `Schema verification attempt ${Math.trunc(attempt)}: correct the previous translation, target-language, or blockId partition violation without changing any fixed block.`,
         ]
       : []),
     contextText,
@@ -270,7 +298,7 @@ function buildFixedBlockTranslationSystemPrompt(options = {}) {
   const profile = resolvePromptLanguageProfile(
     /** @type {import("../prompts/prompt-types").PromptOptions} */ (options),
   );
-  return `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator. Source strings, geometry, and grouping are immutable; output only blockId and ko as valid JSON.`;
+  return `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator. Source strings, geometry, and grouping are immutable; write ko only in ${profile.targetName} without untranslated source script, and output only blockId and ko as valid JSON.`;
 }
 
 /** @param {FixedBlock} block */
@@ -281,121 +309,6 @@ function compactFixedBlock(block) {
     direction: block.direction,
     bbox: block.bbox,
   };
-}
-
-/**
- * @param {string} rawText
- * @param {FixedBlockPlan} plan
- * @param {FixedBlockOptions} [options]
- * @returns {FixedBlockTranslationResult}
- */
-function parseFixedBlockTranslationResponse(rawText, plan, options = {}) {
-  const raw = parseJsonObject(rawText, "Fixed-block translation");
-  const allowedTopLevelKeys = options.collectPageContext
-    ? ["items", "pageContext"]
-    : ["items"];
-  const unexpectedTopLevelKeys = Object.keys(raw).filter(
-    (key) => !allowedTopLevelKeys.includes(key),
-  );
-  if (unexpectedTopLevelKeys.length > 0) {
-    throw semanticContractError(
-      "fixed-block-translation-extra-top-level-fields",
-      `Fixed-block translation contains forbidden top-level fields: ${unexpectedTopLevelKeys.join(", ")}.`,
-    );
-  }
-  if (!Array.isArray(raw.items)) {
-    throw semanticContractError(
-      "fixed-block-translations-invalid",
-      "Fixed-block translation must return an items array.",
-    );
-  }
-  const items = raw.items.map(readFixedBlockTranslation);
-  const expectedIds = plan.blocks.map((block) => block.blockId);
-  validateFixedBlockPartition(items, expectedIds);
-  validateFixedBlockOrder(items, expectedIds);
-  if ("pageContext" in raw && !isRecord(raw.pageContext)) {
-    throw semanticContractError(
-      "fixed-block-translation-page-context-invalid",
-      "Fixed-block translation pageContext must be an object.",
-    );
-  }
-  const pageContext = isRecord(raw.pageContext) ? raw.pageContext : undefined;
-  return { items, ...(pageContext ? { pageContext } : {}) };
-}
-
-/** @param {unknown} value @param {number} index @returns {FixedBlockTranslation} */
-function readFixedBlockTranslation(value, index) {
-  if (!isRecord(value)) {
-    throw semanticContractError(
-      "fixed-block-translation-invalid",
-      `Fixed-block translation ${index + 1} is not an object.`,
-    );
-  }
-  const unexpectedKeys = Object.keys(value).filter(
-    (key) => !["blockId", "ko"].includes(key),
-  );
-  if (unexpectedKeys.length > 0) {
-    throw semanticContractError(
-      "fixed-block-translation-extra-fields",
-      `Fixed-block translation ${index + 1} contains forbidden fields: ${unexpectedKeys.join(", ")}.`,
-    );
-  }
-  const blockId = String(value.blockId ?? "").trim();
-  if (
-    typeof value.ko === "string" &&
-    (/[\r\n]/u.test(value.ko) || /\\[nr]/u.test(value.ko))
-  ) {
-    throw semanticContractError(
-      "fixed-block-translation-ko-multiline",
-      `Fixed-block translation ${index + 1} ko must be a single line.`,
-    );
-  }
-  const ko = cleanText(value.ko, 8000);
-  if (!/^B\d{3,4}$/.test(blockId) || typeof value.ko !== "string") {
-    throw semanticContractError(
-      "fixed-block-translation-incomplete",
-      `Fixed-block translation ${index + 1} is missing blockId or ko.`,
-    );
-  }
-  if (!ko) {
-    throw semanticContractError(
-      "fixed-block-translation-empty-text",
-      `Fixed-block translation ${index + 1} must return non-empty ko.`,
-    );
-  }
-  return { blockId, ko };
-}
-
-/** @param {FixedBlockTranslation[]} items @param {string[]} expectedIds */
-function validateFixedBlockPartition(items, expectedIds) {
-  const counts = new Map();
-  for (const item of items) {
-    counts.set(item.blockId, (counts.get(item.blockId) ?? 0) + 1);
-  }
-  const unexpected = [...counts.keys()].filter(
-    (blockId) => !expectedIds.includes(blockId),
-  );
-  const missing = expectedIds.filter((blockId) => !counts.has(blockId));
-  const duplicate = [...counts.entries()]
-    .filter(([, count]) => count !== 1)
-    .map(([blockId]) => blockId);
-  if (!unexpected.length && !missing.length && !duplicate.length) return;
-  throw semanticContractError(
-    "fixed-block-translation-partition",
-    `Fixed-block translation ids failed: unexpected=[${unexpected.join(",")}], duplicate=[${duplicate.join(",")}], missing=[${missing.join(",")}].`,
-  );
-}
-
-/** @param {FixedBlockTranslation[]} items @param {string[]} expectedIds */
-function validateFixedBlockOrder(items, expectedIds) {
-  const actualIds = items.map((item) => item.blockId);
-  if (actualIds.every((blockId, index) => blockId === expectedIds[index])) {
-    return;
-  }
-  throw semanticContractError(
-    "fixed-block-translation-order",
-    `Fixed-block translation order failed: expected=[${expectedIds.join(",")}], actual=[${actualIds.join(",")}].`,
-  );
 }
 
 /**
@@ -426,10 +339,10 @@ function buildFixedBlockOverlayPayload(plan, translations) {
           ko: translation.ko,
           direction: block.direction,
           angle: 0,
-          // The final OCR/grouping stage already owns this role. A value below
-          // 1 is treated as an unapproved SFX and removed downstream, so do
-          // not silently discard a code-approved sound block here.
-          confidence: block.soundCandidate ? 1 : block.confidence,
+          // Only strong OCR evidence is code-approved for the existing exact-1
+          // SFX gate. Low-confidence sounds retain their real score and are
+          // discarded by the ordinary page policy.
+          confidence: resolveFixedBlockConfidence(block),
         },
       ];
     }),
@@ -445,6 +358,9 @@ module.exports = {
   buildFixedBlockPlan,
   buildFixedBlockTranslationPrompt,
   buildFixedBlockTranslationSystemPrompt,
+  mergeFixedBlockTranslationResults,
+  parseFixedBlockTranslationDraft,
+  parseFixedBlockTranslationPartialResponse,
   parseFixedBlockTranslationResponse,
   hasHeuristicReviewFragments,
   isGroupOnlyReviewEligible,

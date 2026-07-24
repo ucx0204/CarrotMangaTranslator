@@ -11,6 +11,7 @@ import type { StageTool } from "../../lib/stageTool";
 import {
   clampWorkspaceZoom,
   WORKSPACE_ZOOM_STEP,
+  type WorkspaceFitMode,
 } from "../../lib/workspaceZoom";
 
 export function useAppSessionUiState() {
@@ -168,6 +169,8 @@ function useTranslateModalUiState() {
 
 function useWorkspaceZoomControls() {
   const [workspaceZoom, setWorkspaceZoom] = useState(1);
+  const [workspaceFitMode, setWorkspaceFitModeState] =
+    useState<WorkspaceFitMode>("contain");
   const zoomInWorkspace = useCallback(
     () =>
       setWorkspaceZoom((zoom) =>
@@ -183,13 +186,26 @@ function useWorkspaceZoomControls() {
     [],
   );
   const resetWorkspaceZoom = useCallback(() => setWorkspaceZoom(1), []);
+  const setWorkspaceFitMode = useCallback((fitMode: WorkspaceFitMode) => {
+    setWorkspaceFitModeState(fitMode);
+    setWorkspaceZoom(1);
+  }, []);
   return useMemo(
     () => ({
+      workspaceFitMode,
       workspaceZoom,
       zoomInWorkspace,
       zoomOutWorkspace,
       resetWorkspaceZoom,
+      setWorkspaceFitMode,
     }),
-    [workspaceZoom, zoomInWorkspace, zoomOutWorkspace, resetWorkspaceZoom],
+    [
+      workspaceFitMode,
+      workspaceZoom,
+      zoomInWorkspace,
+      zoomOutWorkspace,
+      resetWorkspaceZoom,
+      setWorkspaceFitMode,
+    ],
   );
 }

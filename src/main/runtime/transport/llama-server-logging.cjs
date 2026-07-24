@@ -25,8 +25,9 @@ function createServerLogStream(options, serverPath, launchArgs) {
   }
 }
 
-/** @param {ServerRuntimeOptions} options @param {unknown} chunk */
-function emitServerInstallLog(options = {}, chunk) {
+/** @param {ServerRuntimeOptions} options @param {unknown} chunk @param {boolean} [forwardToProgress] */
+function emitServerInstallLog(options = {}, chunk, forwardToProgress = true) {
+  if (!forwardToProgress) return;
   for (const part of String(chunk ?? "").split(/[\r\n]+/)) {
     const line = sanitizeInstallLogLine(part);
     if (line) emitServerLogLine(options, line);

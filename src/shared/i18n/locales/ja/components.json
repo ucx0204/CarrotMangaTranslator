@@ -40,6 +40,17 @@
   },
   "workspace": {
     "readingArea": "閲覧エリア",
+    "view": {
+      "label": "画像表示の調整",
+      "zoomOut": "縮小",
+      "zoomIn": "拡大",
+      "resetZoom": "倍率をリセット",
+      "fitMode": "画像の表示方法",
+      "contain": "画面に合わせる",
+      "width": "横幅に合わせる",
+      "height": "高さに合わせる",
+      "actual": "100%"
+    },
     "empty": {
       "title": "マンガ翻訳を始めましょう",
       "description": "画像・フォルダー・ZIPを取り込み、作品と話ごとに保存して、ページ単位で翻訳・インペインティング・編集できます。",

@@ -8,6 +8,7 @@ import {
   computeWorkspaceImageSize,
   type ContainerSize,
   type PageAspect,
+  type WorkspaceFitMode,
 } from "../lib/workspaceZoom";
 
 type WorkspaceZoomStyle = {
@@ -16,13 +17,13 @@ type WorkspaceZoomStyle = {
 };
 
 /**
- * Resolve the CSS variables/class that apply the workspace zoom. At zoom 1 it
- * returns nothing so the default responsive CSS fit is used unchanged. Above/
- * below 1 it sizes the page image explicitly (via custom properties) so the
- * image and its overlays scale together and the workspace can scroll.
+ * Resolve the CSS variables/class that apply the selected fit and zoom. The
+ * page image is sized explicitly so the image and overlays scale together and
+ * the workspace can scroll without pointer-coordinate drift.
  */
 export function useWorkspaceZoomStyle(
   zoom: number,
+  fitMode: WorkspaceFitMode,
   page: PageAspect | null,
   containerRef: RefObject<HTMLElement | null>,
 ): WorkspaceZoomStyle {
@@ -51,7 +52,7 @@ export function useWorkspaceZoomStyle(
     return () => observer.disconnect();
   }, [containerRef]);
 
-  const imageSize = computeWorkspaceImageSize(zoom, page, container);
+  const imageSize = computeWorkspaceImageSize(zoom, fitMode, page, container);
   if (!imageSize) {
     return { className: "", style: undefined };
   }

@@ -162,6 +162,101 @@ describe("axis-v4 group-only review transport", () => {
       },
     });
   });
+
+  it("repairs only malformed block ids while preserving valid initial translations", async () => {
+    const request = makeRequest();
+    const bodies: RequestBody[] = [];
+    let fixedRequestCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+        const body = postedBody(init);
+        bodies.push(body);
+        if (!isFixedTranslation(body)) {
+          return chatResponse({ labels: [{ group: 1, role: "body" }] });
+        }
+        fixedRequestCount += 1;
+        if (fixedRequestCount === 1) {
+          return chatResponse({
+            items: [
+              { blockId: "B001", ko: "처음부터 정상" },
+              { blockId: "B002", ko: "중복 하나" },
+              { blockId: "B002", ko: "중복 둘" },
+            ],
+          });
+        }
+        return chatResponse(fixedReply(body));
+      }),
+    );
+
+    const result = await requestTranslation(request.server, request.options);
+    const fixedBodies = bodies.filter(isFixedTranslation);
+    const output = JSON.parse(result.outputText) as {
+      items: Array<{ ko: string }>;
+    };
+
+    expect(
+      readPayload<JsonRecord[]>(fixedBodies[0], "fixedBlocks"),
+    ).toHaveLength(2);
+    expect(readPayload<JsonRecord[]>(fixedBodies[1], "fixedBlocks")).toEqual([
+      expect.objectContaining({ blockId: "B002" }),
+    ]);
+    expect(output.items.map((item) => item.ko)).toEqual([
+      "처음부터 정상",
+      "번역 B002",
+    ]);
+    expect(result.requestBody).toMatchObject({
+      fixedBlockRepairAttempts: 1,
+      fixedBlockRepairHistory: [
+        {
+          blockIds: ["B002"],
+          remainingBlockIds: [],
+        },
+      ],
+    });
+  });
+
+  it("omits one persistently invalid block instead of failing its whole page", async () => {
+    const request = makeRequest();
+    const bodies: RequestBody[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+        const body = postedBody(init);
+        bodies.push(body);
+        if (!isFixedTranslation(body)) {
+          return chatResponse({ labels: [{ group: 1, role: "body" }] });
+        }
+        const blocks = readPayload<Array<{ blockId: string }>>(
+          body,
+          "fixedBlocks",
+        );
+        return chatResponse({
+          items: blocks.map((block) => ({
+            blockId: block.blockId,
+            ko: block.blockId === "B001" ? "살아남는 번역" : "",
+          })),
+        });
+      }),
+    );
+
+    const result = await requestTranslation(request.server, request.options);
+    const output = JSON.parse(result.outputText) as {
+      items: Array<{ ko: string; candidateIds: number[] }>;
+    };
+
+    expect(bodies.filter(isFixedTranslation)).toHaveLength(4);
+    expect(output.items).toEqual([
+      expect.objectContaining({
+        ko: "살아남는 번역",
+        candidateIds: [1],
+      }),
+    ]);
+    expect(result.requestBody).toMatchObject({
+      fixedBlockRepairAttempts: 3,
+      fixedBlockOmittedIds: ["B002"],
+    });
+  });
 });
 
 function makeRequest() {

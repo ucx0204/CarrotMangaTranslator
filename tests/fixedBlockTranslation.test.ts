@@ -23,6 +23,24 @@ const fixed =
       plan: FixedBlockPlan,
       options?: Record<string, unknown>,
     ) => FixedTranslationResult;
+    parseFixedBlockTranslationDraft: (
+      raw: string,
+      plan: FixedBlockPlan,
+      options?: Record<string, unknown>,
+    ) => FixedTranslationResult;
+    parseFixedBlockTranslationPartialResponse: (
+      raw: string,
+      plan: FixedBlockPlan,
+      options?: Record<string, unknown>,
+    ) => {
+      translations: FixedTranslationResult;
+      retryBlockIds: string[];
+    };
+    mergeFixedBlockTranslationResults: (
+      current: FixedTranslationResult,
+      repaired: FixedTranslationResult,
+      expectedIds?: string[],
+    ) => FixedTranslationResult;
     shouldUseFixedBlockTranslation: (
       options: Record<string, unknown>,
     ) => boolean;
@@ -172,6 +190,156 @@ describe("fixed-block translation contract", () => {
     });
   });
 
+  it("derives source direction from body rows instead of ruby geometry", () => {
+    const verticalBody = semanticHint(1, "本文", 100, 100, 140, 300, 1, 3);
+    const horizontalRuby = [
+      {
+        ...semanticHint(2, "ほん", 145, 120, 220, 135, 2, 3),
+        reviewRole: "ruby",
+      },
+      {
+        ...semanticHint(3, "ぶん", 145, 150, 220, 165, 3, 3),
+        reviewRole: "ruby",
+      },
+    ];
+    const horizontalBody = semanticHint(4, "横書き", 300, 100, 500, 140, 1, 3);
+    const verticalRuby = [
+      {
+        ...semanticHint(5, "よこ", 305, 145, 320, 220, 2, 3),
+        reviewRole: "ruby",
+      },
+      {
+        ...semanticHint(6, "がき", 330, 145, 345, 220, 3, 3),
+        reviewRole: "ruby",
+      },
+    ];
+    for (const hint of [horizontalBody, ...verticalRuby]) {
+      hint.groupId = "G002";
+    }
+    const plan = fixed.buildFixedBlockPlan(
+      {
+        ...baseOptions,
+        ocrBboxHints: [
+          verticalBody,
+          ...horizontalRuby,
+          horizontalBody,
+          ...verticalRuby,
+        ],
+      },
+      [baseVariant],
+    );
+
+    expect(plan.blocks.map((block) => block.direction)).toEqual([
+      "vertical",
+      "horizontal",
+    ]);
+  });
+
+  it("drops only final groups made entirely from explicit deferred low-confidence noise", () => {
+    const lowSingleton = {
+      id: 2,
+      label: "ocr_textline",
+      x1: 200,
+      y1: 100,
+      x2: 220,
+      y2: 120,
+      score: 0.44,
+      ocrText: "丽",
+      reviewStatus: "deferred",
+      reviewReasons: ["dense_page_single_glyph"],
+    };
+    const lowGroup = [
+      {
+        ...lowSingleton,
+        id: 3,
+        y1: 200,
+        y2: 230,
+        score: 0.34,
+        ocrText: "龍",
+        groupId: "G002",
+        orderInGroup: 1,
+        groupSize: 2,
+        semanticGroup: true,
+      },
+      {
+        ...lowSingleton,
+        id: 4,
+        y1: 235,
+        y2: 260,
+        score: 0.21,
+        ocrText: "的",
+        reviewReasons: ["small_low_confidence_text"],
+        groupId: "G002",
+        orderInGroup: 2,
+        groupSize: 2,
+        semanticGroup: true,
+      },
+    ];
+    const unclassifiedLow = {
+      id: 5,
+      label: "ocr_textline",
+      x1: 300,
+      y1: 100,
+      x2: 340,
+      y2: 180,
+      score: 0.3,
+      ocrText: "実文",
+    };
+    const mixedGroup = [
+      {
+        ...semanticHint(6, "本文", 400, 100, 440, 260, 1, 2),
+        groupId: "G003",
+      },
+      {
+        ...lowSingleton,
+        id: 7,
+        x1: 430,
+        x2: 440,
+        y1: 130,
+        y2: 155,
+        score: 0.3,
+        ocrText: "ほん",
+        reviewReasons: ["small_low_confidence_text"],
+        groupId: "G003",
+        orderInGroup: 2,
+        groupSize: 2,
+        semanticGroup: true,
+        rolePrior: "ordinary_mergeable",
+        containerType: "same_text_container",
+        reviewRole: "ruby",
+      },
+    ];
+    const upstreamRejectedSfx = {
+      ...lowSingleton,
+      id: 8,
+      x1: 500,
+      x2: 570,
+      score: 0.85,
+      ocrText: "ド",
+      reviewReasons: ["oversized_uncertain_sfx"],
+    };
+    const plan = fixed.buildFixedBlockPlan(
+      {
+        ...baseOptions,
+        ocrBboxHints: [
+          { ...unclassifiedLow, id: 1, score: 0.99, ocrText: "正常" },
+          lowSingleton,
+          ...lowGroup,
+          unclassifiedLow,
+          ...mixedGroup,
+          upstreamRejectedSfx,
+        ],
+      },
+      [baseVariant],
+    );
+
+    expect(plan.blocks.map((block) => block.candidateIds)).toEqual([
+      [1],
+      [5],
+      [6, 7],
+    ]);
+  });
+
   it("uses opaque block ids and exposes no output geometry fields", () => {
     const responseFormat = formats.buildFixedBlockTranslationResponseFormat([
       "B001",
@@ -256,6 +424,203 @@ describe("fixed-block translation contract", () => {
     ).toThrow(/order failed.*expected=\[B001,B002\].*actual=\[B002,B001\]/i);
   });
 
+  it("rejects untranslated Japanese script in Korean output but allows target-safe text", () => {
+    const plan = twoSingletonPlan();
+    for (const leaked of ["俺", "원작에서는 瘴気の 항체약", "하ー"]) {
+      expect(() =>
+        fixed.parseFixedBlockTranslationResponse(
+          JSON.stringify({
+            items: [
+              { blockId: "B001", ko: leaked },
+              { blockId: "B002", ko: "왼쪽" },
+            ],
+          }),
+          plan,
+          baseOptions,
+        ),
+      ).toThrow(/untranslated Japanese script/i);
+    }
+    expect(
+      fixed.parseFixedBlockTranslationResponse(
+        JSON.stringify({
+          items: [
+            { blockId: "B001", ko: "Brave Hearts 7" },
+            { blockId: "B002", ko: "쾅!" },
+          ],
+        }),
+        plan,
+        baseOptions,
+      ).items,
+    ).toHaveLength(2);
+    expect(
+      fixed.parseFixedBlockTranslationResponse(
+        JSON.stringify({
+          items: [
+            { blockId: "B001", ko: "右边" },
+            { blockId: "B002", ko: "左边" },
+          ],
+        }),
+        plan,
+        { ...baseOptions, targetLanguage: "zh-Hans" },
+      ).items,
+    ).toHaveLength(2);
+    expect(() =>
+      fixed.parseFixedBlockTranslationResponse(
+        JSON.stringify({
+          items: [
+            { blockId: "B001", ko: "右边" },
+            { blockId: "B002", ko: "왼쪽" },
+          ],
+        }),
+        plan,
+        { ...baseOptions, sourceLanguage: "zh", targetLanguage: "ko" },
+      ),
+    ).toThrow(/untranslated Simplified Chinese script/i);
+    expect(
+      fixed.parseFixedBlockTranslationResponse(
+        JSON.stringify({
+          items: [
+            { blockId: "B001", ko: "右辺" },
+            { blockId: "B002", ko: "左辺" },
+          ],
+        }),
+        plan,
+        { ...baseOptions, sourceLanguage: "zh", targetLanguage: "ja" },
+      ).items,
+    ).toHaveLength(2);
+    expect(() =>
+      fixed.parseFixedBlockTranslationResponse(
+        JSON.stringify({
+          items: [
+            { blockId: "B001", ko: "오른쪽" },
+            { blockId: "B002", ko: "left" },
+          ],
+        }),
+        plan,
+        { ...baseOptions, sourceLanguage: "ko", targetLanguage: "en" },
+      ),
+    ).toThrow(/untranslated Korean script/i);
+  });
+
+  it("preserves valid blocks and page context while replacing only repaired translations", () => {
+    const plan = twoSingletonPlan();
+    const draft = fixed.parseFixedBlockTranslationDraft(
+      JSON.stringify({
+        items: [
+          { blockId: "B001", ko: "俺" },
+          { blockId: "B002", ko: "정상 번역" },
+        ],
+        pageContext: { visualSummary: "장면" },
+      }),
+      plan,
+      { ...baseOptions, collectPageContext: true },
+    );
+    const merged = fixed.mergeFixedBlockTranslationResults(draft, {
+      items: [{ blockId: "B001", ko: "나" }],
+    });
+
+    expect(merged).toEqual({
+      items: [
+        { blockId: "B001", ko: "나" },
+        { blockId: "B002", ko: "정상 번역" },
+      ],
+      pageContext: { visualSummary: "장면" },
+    });
+    expect(
+      fixed.parseFixedBlockTranslationResponse(JSON.stringify(merged), plan, {
+        ...baseOptions,
+        collectPageContext: true,
+      }),
+    ).toEqual(merged);
+  });
+
+  it("salvages only unique contract-valid expected ids from a readable items array", () => {
+    const plan = threeSingletonPlan();
+    const partial = fixed.parseFixedBlockTranslationPartialResponse(
+      JSON.stringify({
+        items: [
+          { blockId: "B002", ko: "둘째" },
+          { blockId: "B001", ko: "첫째" },
+          { blockId: "B001", ko: "중복" },
+          { blockId: "B003", ko: "俺" },
+          { blockId: "B999", ko: "예상하지 않은 항목" },
+          null,
+        ],
+        pageContext: { visualSummary: "유효한 장면 정보" },
+        commentary: "금지된 최상위 필드는 복구 과정에서 무시한다.",
+      }),
+      plan,
+      { ...baseOptions, collectPageContext: true },
+    );
+
+    expect(partial).toEqual({
+      translations: {
+        items: [{ blockId: "B002", ko: "둘째" }],
+        pageContext: { visualSummary: "유효한 장면 정보" },
+      },
+      retryBlockIds: ["B001", "B003"],
+    });
+  });
+
+  it("inserts recovered missing blocks in immutable plan order without regenerating valid ones", () => {
+    const plan = threeSingletonPlan();
+    const initial = fixed.parseFixedBlockTranslationPartialResponse(
+      JSON.stringify({
+        items: [
+          { blockId: "B002", ko: "보존할 둘째" },
+          { blockId: "B001", ko: "" },
+        ],
+        pageContext: { visualSummary: "보존할 장면" },
+      }),
+      plan,
+      { ...baseOptions, collectPageContext: true },
+    );
+    const repairPlan = {
+      ...plan,
+      blocks: plan.blocks.filter((block) =>
+        initial.retryBlockIds.includes(block.blockId),
+      ),
+    };
+    const repaired = fixed.parseFixedBlockTranslationPartialResponse(
+      JSON.stringify({
+        items: [
+          { blockId: "B003", ko: "셋째" },
+          { blockId: "B001", ko: "첫째" },
+        ],
+      }),
+      repairPlan,
+      baseOptions,
+    );
+    const merged = fixed.mergeFixedBlockTranslationResults(
+      initial.translations,
+      repaired.translations,
+      plan.blocks.map((block) => block.blockId),
+    );
+
+    expect(repaired.retryBlockIds).toEqual([]);
+    expect(merged).toEqual({
+      items: [
+        { blockId: "B001", ko: "첫째" },
+        { blockId: "B002", ko: "보존할 둘째" },
+        { blockId: "B003", ko: "셋째" },
+      ],
+      pageContext: { visualSummary: "보존할 장면" },
+    });
+  });
+
+  it("still rejects an unreadable whole response instead of guessing block ownership", () => {
+    const plan = twoSingletonPlan();
+    expect(() =>
+      fixed.parseFixedBlockTranslationPartialResponse("{not-json", plan),
+    ).toThrow(/valid JSON/i);
+    expect(() =>
+      fixed.parseFixedBlockTranslationPartialResponse(
+        JSON.stringify({ items: "not-an-array" }),
+        plan,
+      ),
+    ).toThrow(/items array/i);
+  });
+
   it("synthesizes the page-17 candidate ownership and union bbox in code", () => {
     const plan = page17Plan();
     const translations = fixed.parseFixedBlockTranslationResponse(
@@ -324,38 +689,93 @@ describe("fixed-block translation contract", () => {
     ).toThrow(/forbidden fields.*jp/i);
   });
 
-  it("retains a code-approved sound block without asking the translator to classify it", () => {
-    const plan = fixed.buildFixedBlockPlan(
+  it("approves only high-confidence code-classified sound blocks", () => {
+    const buildSoundPlan = (score: number) =>
+      fixed.buildFixedBlockPlan(
+        {
+          ...baseOptions,
+          ocrBboxHints: [
+            {
+              id: 8,
+              label: "ocr_sfx",
+              x1: 100,
+              y1: 100,
+              x2: 220,
+              y2: 300,
+              score,
+              ocrText: "ドン",
+            },
+          ],
+        },
+        [baseVariant],
+      );
+    const translate = (plan: FixedBlockPlan) =>
+      fixed.parseFixedBlockTranslationResponse(
+        JSON.stringify({ items: [{ blockId: "B001", ko: "쾅" }] }),
+        plan,
+      );
+    const lowPlan = buildSoundPlan(0.42);
+    const highPlan = buildSoundPlan(0.95);
+    expect(
+      fixed.buildFixedBlockOverlayPayload(lowPlan, translate(lowPlan)).items[0],
+    ).toMatchObject({
+      textRole: "sound",
+      confidence: 0.42,
+      jp: "ドン",
+      ko: "쾅",
+    });
+    expect(
+      fixed.buildFixedBlockOverlayPayload(highPlan, translate(highPlan))
+        .items[0],
+    ).toMatchObject({ textRole: "sound", confidence: 1 });
+
+    const splitSoundPlan = fixed.buildFixedBlockPlan(
       {
         ...baseOptions,
         ocrBboxHints: [
           {
-            id: 8,
+            id: 9,
             label: "ocr_sfx",
             x1: 100,
             y1: 100,
-            x2: 220,
+            x2: 160,
             y2: 300,
             score: 0.42,
-            ocrText: "ドン",
+            ocrText: "ド",
+            groupId: "G001",
+            orderInGroup: 1,
+            groupSize: 2,
+            rolePrior: "ordinary_mergeable",
+            containerType: "same_text_container",
+            semanticGroup: true,
+          },
+          {
+            id: 10,
+            label: "ocr_sfx",
+            x1: 160,
+            y1: 100,
+            x2: 220,
+            y2: 300,
+            score: 0.44,
+            ocrText: "ン",
+            groupId: "G001",
+            orderInGroup: 2,
+            groupSize: 2,
+            rolePrior: "ordinary_mergeable",
+            containerType: "same_text_container",
+            semanticGroup: true,
           },
         ],
       },
       [baseVariant],
     );
-    const translations = fixed.parseFixedBlockTranslationResponse(
-      JSON.stringify({ items: [{ blockId: "B001", ko: "쾅" }] }),
-      plan,
-    );
-
+    expect(splitSoundPlan.blocks).toHaveLength(1);
     expect(
-      fixed.buildFixedBlockOverlayPayload(plan, translations).items[0],
-    ).toMatchObject({
-      textRole: "sound",
-      confidence: 1,
-      jp: "ドン",
-      ko: "쾅",
-    });
+      fixed.buildFixedBlockOverlayPayload(
+        splitSoundPlan,
+        translate(splitSoundPlan),
+      ).items[0],
+    ).toMatchObject({ textRole: "sound", confidence: 0.43 });
   });
 
   it("allows pageContext only when requested and keeps it outside block items", () => {
@@ -445,6 +865,9 @@ describe("fixed-block translation contract", () => {
       "Every blockId, jp, direction, bbox, block count, and block order was already fixed before translation",
     );
     expect(prompt).toContain("Each item has exactly two keys: blockId and ko");
+    expect(prompt).toContain(
+      "Japanese kana, kanji, iteration marks, and Japanese prolonged-sound marks are forbidden",
+    );
     expect(prompt).toContain("fixedBlocks=");
     const payload = JSON.parse(
       prompt.split("fixedBlocks=")[1] ?? "[]",
@@ -530,6 +953,44 @@ function twoSingletonPlan(): FixedBlockPlan {
           x2: 580,
           y2: 300,
           ocrText: "左",
+          score: 0.9,
+        },
+      ],
+    },
+    [baseVariant],
+  );
+}
+
+function threeSingletonPlan(): FixedBlockPlan {
+  return fixed.buildFixedBlockPlan(
+    {
+      ...baseOptions,
+      ocrBboxHints: [
+        {
+          id: 1,
+          x1: 600,
+          y1: 100,
+          x2: 650,
+          y2: 300,
+          ocrText: "一",
+          score: 0.9,
+        },
+        {
+          id: 2,
+          x1: 530,
+          y1: 100,
+          x2: 580,
+          y2: 300,
+          ocrText: "二",
+          score: 0.9,
+        },
+        {
+          id: 3,
+          x1: 460,
+          y1: 100,
+          x2: 510,
+          y2: 300,
+          ocrText: "三",
           score: 0.9,
         },
       ],

@@ -63,7 +63,7 @@ function buildPageReviewFingerprint(server, options) {
   return createHash("sha256")
     .update(
       JSON.stringify({
-        version: 10,
+        version: 11,
         image: imageFingerprint(options.imagePath),
         size: [options.imageWidth, options.imageHeight],
         model: [

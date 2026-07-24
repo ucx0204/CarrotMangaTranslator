@@ -326,6 +326,7 @@ function createWorkspaceProps({
   workspaceHistory,
 }: AppSessionViewModel): AppSessionViewProps["workspaceProps"] {
   return {
+    ...createWorkspaceViewProps(uiState),
     blockCreateRect: pointerHandlers.blockCreateRect,
     dragHud: pointerHandlers.dragHud,
     imageRef: core.imageRef,
@@ -387,6 +388,26 @@ function createWorkspaceProps({
     undoLabel: workspaceHistory.undoLabel,
     onUndo: () => void workspaceHistory.undo(),
     workspacePanelRef: core.workspacePanelRef,
+  };
+}
+
+function createWorkspaceViewProps(
+  uiState: AppSessionViewModel["uiState"],
+): Pick<
+  AppSessionViewProps["workspaceProps"],
+  | "onChangeWorkspaceFitMode"
+  | "onResetWorkspaceZoom"
+  | "onZoomInWorkspace"
+  | "onZoomOutWorkspace"
+  | "workspaceFitMode"
+  | "workspaceZoom"
+> {
+  return {
+    onChangeWorkspaceFitMode: uiState.setWorkspaceFitMode,
+    onResetWorkspaceZoom: uiState.resetWorkspaceZoom,
+    onZoomInWorkspace: uiState.zoomInWorkspace,
+    onZoomOutWorkspace: uiState.zoomOutWorkspace,
+    workspaceFitMode: uiState.workspaceFitMode,
     workspaceZoom: uiState.workspaceZoom,
   };
 }

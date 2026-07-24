@@ -8,9 +8,10 @@ export const MIN_WORKSPACE_ZOOM = 0.5;
 export const MAX_WORKSPACE_ZOOM = 4;
 export const WORKSPACE_ZOOM_STEP = 0.25;
 
-/** Matches the `.workspace` padding and `.page-image` max-width in styles.css. */
+/** Matches the `.workspace` padding in styles.css. */
 const WORKSPACE_PADDING_PX = 24;
-const BASE_MAX_IMAGE_WIDTH_PX = 1040;
+
+export type WorkspaceFitMode = "contain" | "width" | "height" | "actual";
 
 export function clampWorkspaceZoom(value: number): number {
   if (!Number.isFinite(value)) {
@@ -28,17 +29,18 @@ export type ContainerSize = { width: number; height: number };
 export type ImageDisplaySize = { width: number; height: number };
 
 /**
- * Compute the explicit pixel size the page image should render at for a given
- * zoom. Returns null at zoom 1 (or without measurements) so the default CSS
- * fit is used and behavior is unchanged.
+ * Compute the explicit pixel size the page image should render at. The fit
+ * mode establishes the 100% base and zoom scales from there. Explicit sizing
+ * keeps the page image, overlays, and pointer geometry on the same coordinate
+ * system while allowing small source images to fill the workspace.
  */
 export function computeWorkspaceImageSize(
   zoom: number,
+  fitMode: WorkspaceFitMode,
   page: PageAspect | null,
   container: ContainerSize | null,
 ): ImageDisplaySize | null {
   if (
-    zoom === 1 ||
     !page ||
     !container ||
     container.width <= 0 ||
@@ -50,15 +52,29 @@ export function computeWorkspaceImageSize(
   }
   const availWidth = Math.max(1, container.width - WORKSPACE_PADDING_PX * 2);
   const availHeight = Math.max(1, container.height - WORKSPACE_PADDING_PX * 2);
-  const aspect = page.width / page.height;
-  let fitWidth = Math.min(availWidth, BASE_MAX_IMAGE_WIDTH_PX);
-  let fitHeight = fitWidth / aspect;
-  if (fitHeight > availHeight) {
-    fitHeight = availHeight;
-    fitWidth = fitHeight * aspect;
-  }
+  const widthScale = availWidth / page.width;
+  const heightScale = availHeight / page.height;
+  const fitScale = resolveFitScale(fitMode, widthScale, heightScale);
+  const scale = fitScale * zoom;
   return {
-    width: Math.round(fitWidth * zoom),
-    height: Math.round(fitHeight * zoom),
+    width: Math.max(1, Math.round(page.width * scale)),
+    height: Math.max(1, Math.round(page.height * scale)),
   };
+}
+
+function resolveFitScale(
+  fitMode: WorkspaceFitMode,
+  widthScale: number,
+  heightScale: number,
+): number {
+  switch (fitMode) {
+    case "width":
+      return widthScale;
+    case "height":
+      return heightScale;
+    case "actual":
+      return 1;
+    default:
+      return Math.min(widthScale, heightScale);
+  }
 }
